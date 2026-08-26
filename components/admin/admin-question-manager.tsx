@@ -1194,7 +1194,7 @@ export function AdminQuestionManager({
             <form
               action={(formData) => {
                 startTransition(async () => {
-                  const res = await updateQuestionHierarchyAction(editingQuestion.id, formData);
+                  const res = await updateQuestionHierarchyAction(null, formData);
                   if (res.error) setFormFeedback({ error: res.error });
                   else {
                     setFormFeedback({ message: res.message });
@@ -1205,6 +1205,9 @@ export function AdminQuestionManager({
               }}
               className="p-6 overflow-y-auto space-y-4 flex-1"
             >
+              <input type="hidden" name="questionId" value={editingQuestion.id} />
+              <input type="hidden" name="versionId" value={editingQuestion.versionId} />
+
               {/* Topic Selector */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Canonical Topic</label>

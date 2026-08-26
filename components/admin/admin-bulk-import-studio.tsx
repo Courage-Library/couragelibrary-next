@@ -107,8 +107,12 @@ const SAMPLE_TEMPLATES: Record<string, string> = {
   ),
 };
 
-export function AdminBulkImportStudio({}: Props) {
+export function AdminBulkImportStudio({ categories, patterns, subjects }: Props) {
   const [selectedEntity, setSelectedEntity] = useState<string>("questions");
+  const [selectedCategory, setSelectedCategory] = useState<string>(categories[0]?.slug || "");
+  const [selectedPattern, setSelectedPattern] = useState<string>(patterns[0]?.name || "");
+  const [selectedSection, setSelectedSection] = useState<string>(subjects[0]?.name || "");
+
   const [jsonText, setJsonText] = useState<string>(SAMPLE_TEMPLATES["questions"]);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [previewResult, setPreviewResult] = useState<BulkImportResult | null>(null);
@@ -123,26 +127,49 @@ export function AdminBulkImportStudio({}: Props) {
     setParseError(null);
   };
 
+  const getPreparedData = (): Array<Record<string, unknown>> | null => {
+    try {
+      const parsed = JSON.parse(jsonText);
+      if (!Array.isArray(parsed)) {
+        setParseError("Input JSON must be an array of objects [ { ... } ].");
+        return null;
+      }
+
+      // Apply cascade defaults for missing parent references
+      return parsed.map((item) => {
+        const enriched = { ...item };
+        if (selectedEntity === "questions") {
+          if (!enriched.category && selectedCategory) enriched.category = selectedCategory;
+          if (!enriched.section && selectedSection) enriched.section = selectedSection;
+        } else if (selectedEntity === "patterns") {
+          if (!enriched.category && selectedCategory) enriched.category = selectedCategory;
+        } else if (selectedEntity === "mock_tests") {
+          if (!enriched.category && selectedCategory) enriched.category = selectedCategory;
+          if (!enriched.pattern && selectedPattern) enriched.pattern = selectedPattern;
+        }
+        return enriched;
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Invalid JSON format";
+      setParseError(`JSON Syntax Error: ${msg}`);
+      return null;
+    }
+  };
+
   const handlePreview = async () => {
     setParseError(null);
     setCommitResult(null);
 
-    let parsedData: Array<Record<string, unknown>> = [];
-    try {
-      parsedData = JSON.parse(jsonText);
-      if (!Array.isArray(parsedData)) {
-        setParseError("Input JSON must be an array of objects [ { ... } ].");
-        return;
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Invalid JSON";
-      setParseError(`JSON Syntax Error: ${msg}`);
-      return;
-    }
+    const preparedData = getPreparedData();
+    if (!preparedData) return;
 
     setIsProcessing(true);
     try {
-      const res = await executeBulkImportAction({ entity: selectedEntity, data: parsedData, mode: "preview" });
+      const res = await executeBulkImportAction({
+        entity: selectedEntity,
+        data: preparedData,
+        mode: "preview",
+      });
       setPreviewResult(res);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Preview error";
@@ -155,18 +182,16 @@ export function AdminBulkImportStudio({}: Props) {
   const handleCommit = async () => {
     if (!previewResult) return;
 
-    let parsedData: Array<Record<string, unknown>> = [];
-    try {
-      parsedData = JSON.parse(jsonText);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Invalid JSON";
-      setParseError(`JSON Syntax Error: ${msg}`);
-      return;
-    }
+    const preparedData = getPreparedData();
+    if (!preparedData) return;
 
     setIsProcessing(true);
     try {
-      const res = await executeBulkImportAction({ entity: selectedEntity, data: parsedData, mode: "commit" });
+      const res = await executeBulkImportAction({
+        entity: selectedEntity,
+        data: preparedData,
+        mode: "commit",
+      });
       setCommitResult(res);
       setPreviewResult(null);
     } catch (err: unknown) {
@@ -214,7 +239,7 @@ export function AdminBulkImportStudio({}: Props) {
         </Alert>
       )}
 
-      {/* Entity Selector */}
+      {/* 1. Entity Selector Card */}
       <Card className="p-4 bg-white border-slate-200 space-y-3">
         <span className="text-xs font-bold text-slate-700 block uppercase font-mono">
           1. Select Import Entity Type
@@ -242,11 +267,70 @@ export function AdminBulkImportStudio({}: Props) {
         </div>
       </Card>
 
-      {/* Editor & Payload Input */}
+      {/* 2. Parent Context Cascading Selectors */}
+      {(selectedEntity === "questions" || selectedEntity === "patterns" || selectedEntity === "mock_tests") && (
+        <Card className="p-4 bg-indigo-50/40 border-indigo-200 space-y-2">
+          <span className="text-xs font-bold text-indigo-900 block uppercase font-mono">
+            2. Target Parent Context (Auto-fills records lacking explicit parent fields)
+          </span>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 mb-1">Target Category</label>
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="w-full px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 bg-white"
+              >
+                {categories.map((c) => (
+                  <option key={c.id} value={c.slug}>
+                    {c.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {selectedEntity === "mock_tests" && (
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">Target Pattern</label>
+                <select
+                  value={selectedPattern}
+                  onChange={(e) => setSelectedPattern(e.target.value)}
+                  className="w-full px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 bg-white"
+                >
+                  {patterns.map((p) => (
+                    <option key={p.id} value={p.name}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {selectedEntity === "questions" && (
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">Target Section</label>
+                <select
+                  value={selectedSection}
+                  onChange={(e) => setSelectedSection(e.target.value)}
+                  className="w-full px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 bg-white"
+                >
+                  {subjects.map((s) => (
+                    <option key={s.id} value={s.name}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
+
+      {/* 3. Editor & Payload Input */}
       <Card className="p-5 bg-white border-slate-200 space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-xs font-bold text-slate-700 uppercase font-mono flex items-center gap-1.5">
-            <Code2 className="w-4 h-4 text-slate-500" /> 2. Payload JSON Array
+            <Code2 className="w-4 h-4 text-slate-500" /> 3. Payload JSON Array
           </span>
           <button
             onClick={() => setJsonText(SAMPLE_TEMPLATES[selectedEntity] || "[]")}
@@ -257,7 +341,7 @@ export function AdminBulkImportStudio({}: Props) {
         </div>
 
         <textarea
-          rows={14}
+          rows={12}
           value={jsonText}
           onChange={(e) => setJsonText(e.target.value)}
           className="w-full p-4 rounded-xl border border-slate-200 bg-slate-900 text-emerald-400 font-mono text-xs focus:outline-hidden focus:border-indigo-500 shadow-inner"
