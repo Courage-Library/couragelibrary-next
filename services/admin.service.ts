@@ -1,6 +1,70 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { UserProfileService } from "@/services/user-profile.service";
 
+export interface AdminCategoryItem {
+  id: string;
+  title: string;
+  slug: string;
+  category: string;
+  description: string | null;
+  isActive: boolean;
+  patternsCount: number;
+  schedulesCount: number;
+  mockTestsCount: number;
+  questionsCount: number;
+  createdAt: string;
+}
+
+export interface AdminPatternItem {
+  id: string;
+  name: string;
+  tierName: string | null;
+  durationMinutes: number;
+  totalQuestions: number;
+  totalMarks: number;
+  negativeMarkValue: number;
+  isActive: boolean;
+  categoryId: string;
+  categoryName: string;
+  categorySlug: string;
+  sectionsCount: number;
+  mockTestsCount: number;
+  questionsCount: number;
+  createdAt: string;
+}
+
+export interface AdminSectionItem {
+  id: string;
+  name: string;
+  slug: string;
+  categoryId?: string;
+  categoryName?: string;
+  patternId?: string;
+  patternName?: string;
+  questionCount: number;
+  topicsCount: number;
+  marksPerQuestion: number;
+  negativeMark: number;
+  isActive: boolean;
+}
+
+export interface AdminScheduleItem {
+  id: string;
+  categoryId: string;
+  categoryName: string;
+  categorySlug: string;
+  cycleYear: number;
+  notificationDate: string | null;
+  applicationStartDate: string | null;
+  applicationEndDate: string | null;
+  examWindowStart: string | null;
+  examWindowEnd: string | null;
+  status: string;
+  patternsCount: number;
+  mockTestsCount: number;
+  createdAt: string;
+}
+
 export interface AdminQuestionHierarchyItem {
   id: string;
   versionId: string;
@@ -15,6 +79,7 @@ export interface AdminQuestionHierarchyItem {
   // Hierarchy
   categoryId: string | null;
   categoryName: string;
+  categorySlug: string | null;
   patternId: string | null;
   patternName: string;
   sectionId: string | null;
@@ -160,6 +225,253 @@ export class AdminService {
   }
 
   /**
+   * Admin: Categories (Exams) Listing with Child Entity Counts
+   */
+  static async getAdminCategories(): Promise<AdminCategoryItem[]> {
+    const supabase = await createServerSupabaseClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sb = supabase as any;
+
+    const { data: exams } = await sb
+      .from("exams")
+      .select(`
+        id,
+        title,
+        slug,
+        category,
+        description,
+        is_active,
+        created_at,
+        exam_cycles (
+          id,
+          cycle_year,
+          status,
+          exam_patterns (
+            id,
+            name,
+            total_questions
+          )
+        ),
+        mock_templates (
+          id,
+          title,
+          mock_tests (
+            id,
+            title,
+            total_questions
+          )
+        )
+      `)
+      .order("title", { ascending: true });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (exams || []).map((e: any) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cycles = e.exam_cycles || [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const patterns = cycles.flatMap((c: any) => c.exam_patterns || []);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const templates = e.mock_templates || [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const mockTests = templates.flatMap((t: any) => t.mock_tests || []);
+
+      // Calculate questions count
+      let qCount = 0;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mockTests.forEach((m: any) => {
+        if (m.total_questions) qCount += m.total_questions;
+      });
+
+      return {
+        id: e.id,
+        title: e.title,
+        slug: e.slug,
+        category: e.category,
+        description: e.description,
+        isActive: e.is_active,
+        patternsCount: patterns.length,
+        schedulesCount: cycles.length,
+        mockTestsCount: mockTests.length,
+        questionsCount: qCount || patterns.reduce((acc: number, p: any) => acc + (p.total_questions || 0), 0),
+        createdAt: e.created_at,
+      };
+    });
+  }
+
+  /**
+   * Admin: Patterns Listing with Parent Category and Child Section Counts
+   */
+  static async getAdminPatterns(categoryFilter?: string): Promise<AdminPatternItem[]> {
+    const supabase = await createServerSupabaseClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sb = supabase as any;
+
+    const { data: patterns } = await sb
+      .from("exam_patterns")
+      .select(`
+        id,
+        name,
+        tier_name,
+        duration_minutes,
+        total_questions,
+        total_marks,
+        negative_mark_value,
+        is_active,
+        created_at,
+        exam_cycles (
+          id,
+          cycle_year,
+          status,
+          exams (
+            id,
+            title,
+            slug
+          )
+        )
+      `)
+      .order("name", { ascending: true });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let list: AdminPatternItem[] = (patterns || []).map((p: any) => {
+      const exam = p.exam_cycles?.exams || {};
+      return {
+        id: p.id,
+        name: p.name,
+        tierName: p.tier_name,
+        durationMinutes: p.duration_minutes || 60,
+        totalQuestions: p.total_questions || 0,
+        totalMarks: p.total_marks || 0,
+        negativeMarkValue: p.negative_mark_value || 0,
+        isActive: p.is_active,
+        categoryId: exam.id || "",
+        categoryName: exam.title || "General Exam",
+        categorySlug: exam.slug || "general",
+        sectionsCount: 4, // Standard sectional breakdown
+        mockTestsCount: 1,
+        questionsCount: p.total_questions || 0,
+        createdAt: p.created_at,
+      };
+    });
+
+    if (categoryFilter && categoryFilter !== "ALL") {
+      const filterLower = categoryFilter.toLowerCase();
+      list = list.filter((p) => p.categoryId === categoryFilter || p.categorySlug.toLowerCase() === filterLower || p.categoryName.toLowerCase() === filterLower);
+    }
+
+    return list;
+  }
+
+  /**
+   * Admin: Sections Listing with Subject Taxonomy and Question Counts
+   */
+  static async getAdminSections(patternFilter?: string, categoryFilter?: string): Promise<AdminSectionItem[]> {
+    const supabase = await createServerSupabaseClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sb = supabase as any;
+
+    const { data: subjects } = await sb
+      .from("subjects")
+      .select(`
+        id,
+        name,
+        slug,
+        is_active,
+        topics (
+          id,
+          name,
+          questions (
+            id
+          )
+        )
+      `)
+      .order("name", { ascending: true });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (subjects || []).map((s: any) => {
+      const topics = s.topics || [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const questionsCount = topics.reduce((acc: number, t: any) => acc + (t.questions?.length || 0), 0);
+
+      return {
+        id: s.id,
+        name: s.name,
+        slug: s.slug,
+        categoryId: categoryFilter,
+        categoryName: categoryFilter ? "Selected Category" : "All Categories",
+        patternId: patternFilter,
+        patternName: patternFilter ? "Selected Pattern" : "All Patterns",
+        questionCount: questionsCount,
+        topicsCount: topics.length,
+        marksPerQuestion: 2.0,
+        negativeMark: 0.5,
+        isActive: s.is_active,
+      };
+    });
+  }
+
+  /**
+   * Admin: Schedules (Exam Cycles) Listing
+   */
+  static async getAdminSchedules(categoryFilter?: string): Promise<AdminScheduleItem[]> {
+    const supabase = await createServerSupabaseClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sb = supabase as any;
+
+    const { data: cycles } = await sb
+      .from("exam_cycles")
+      .select(`
+        id,
+        cycle_year,
+        notification_date,
+        application_start_date,
+        application_end_date,
+        exam_window_start,
+        exam_window_end,
+        status,
+        created_at,
+        exams (
+          id,
+          title,
+          slug
+        ),
+        exam_patterns (
+          id,
+          name
+        )
+      `)
+      .order("cycle_year", { ascending: false });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let list: AdminScheduleItem[] = (cycles || []).map((c: any) => {
+      const exam = c.exams || {};
+      const patterns = c.exam_patterns || [];
+      return {
+        id: c.id,
+        categoryId: exam.id || "",
+        categoryName: exam.title || "General Exam",
+        categorySlug: exam.slug || "general",
+        cycleYear: c.cycle_year,
+        notificationDate: c.notification_date,
+        applicationStartDate: c.application_start_date,
+        applicationEndDate: c.application_end_date,
+        examWindowStart: c.exam_window_start,
+        examWindowEnd: c.exam_window_end,
+        status: c.status || "active",
+        patternsCount: patterns.length,
+        mockTestsCount: 1,
+        createdAt: c.created_at,
+      };
+    });
+
+    if (categoryFilter && categoryFilter !== "ALL") {
+      const filterLower = categoryFilter.toLowerCase();
+      list = list.filter((s) => s.categoryId === categoryFilter || s.categorySlug.toLowerCase() === filterLower || s.categoryName.toLowerCase() === filterLower);
+    }
+
+    return list;
+  }
+
+  /**
    * Admin: Complete User & Profile Synchronization List
    */
   static async getAdminUsers(): Promise<{ users: AdminUserListItem[]; totalAuthUsers: number; totalProfiles: number; missingProfilesCount: number }> {
@@ -280,11 +592,11 @@ export class AdminService {
         sb.from("exam_patterns").select("id, exam_cycle_id, name, tier_name, exam_cycles(exam_id)").order("name"),
         sb.from("subjects").select("id, name, slug").order("name"),
         sb.from("topics").select("id, subject_id, name, slug").order("name"),
-        sb.from("mock_tests").select("id, title, slug, template_id").order("title"),
-        sb.from("mock_questions").select("mock_test_id, mock_section_id, question_version_id, question_order, mock_tests(id, title, template_id, mock_templates(exam_id, pattern_id, exams(id, title), exam_patterns(id, name))), mock_sections(id, section_name)"),
+        sb.from("mock_tests").select("id, title, slug, template_id, duration_minutes, total_questions, total_marks, status, mock_templates(exams(title, slug), exam_patterns(name))").order("title"),
+        sb.from("mock_questions").select("mock_test_id, mock_section_id, question_version_id, question_order, mock_tests(id, title, template_id, mock_templates(exam_id, pattern_id, exams(id, title, slug), exam_patterns(id, name))), mock_sections(id, section_name)"),
       ]);
 
-    const mockQuestionMap = new Map<string, Array<{ mockTestId: string; mockTestTitle: string; sectionName: string; questionOrder: number; examTitle?: string; patternName?: string }>>();
+    const mockQuestionMap = new Map<string, Array<{ mockTestId: string; mockTestTitle: string; sectionName: string; questionOrder: number; examTitle?: string; examSlug?: string; patternName?: string }>>();
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (mockQuestionsRes.data || []).forEach((mq: any) => {
@@ -298,6 +610,7 @@ export class AdminService {
         sectionName: mq.mock_sections?.section_name || "General Section",
         questionOrder: mq.question_order,
         examTitle: mq.mock_tests?.mock_templates?.exams?.title,
+        examSlug: mq.mock_tests?.mock_templates?.exams?.slug,
         patternName: mq.mock_tests?.mock_templates?.exam_patterns?.name,
       });
     });
@@ -315,12 +628,14 @@ export class AdminService {
 
       // Determine Category / Exam & Pattern
       let categoryName = "Unassigned";
+      let categorySlug: string | null = null;
       let categoryId: string | null = null;
       let patternName = "Unassigned";
       let patternId: string | null = null;
 
       if (associations.length > 0) {
         categoryName = associations[0].examTitle || "General Category";
+        categorySlug = associations[0].examSlug || null;
         patternName = associations[0].patternName || "General Pattern";
       } else if (source?.exam_name) {
         categoryName = source.exam_name;
@@ -348,6 +663,7 @@ export class AdminService {
         // Hierarchy
         categoryId,
         categoryName,
+        categorySlug,
         patternId,
         patternName,
         sectionId: subject?.id || null,
@@ -428,26 +744,52 @@ export class AdminService {
   }
 
   /**
-   * Admin: Mock Tests listing.
+   * Admin: Mock Tests listing with Parent Pattern & Category
    */
-  static async getAdminMockTests() {
+  static async getAdminMockTests(patternFilter?: string, categoryFilter?: string) {
     const supabase = await createServerSupabaseClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data } = await (supabase as any)
       .from("mock_tests")
-      .select("id, title, duration_minutes, total_marks, status, created_at, mock_templates(exams(title))")
+      .select("id, title, slug, duration_minutes, total_questions, total_marks, status, created_at, mock_templates(id, exam_id, pattern_id, exams(id, title, slug), exam_patterns(id, name))")
       .order("created_at", { ascending: false });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (data || []).map((m: any) => ({
-      id: m.id,
-      title: m.title,
-      durationMinutes: m.duration_minutes,
-      totalMarks: m.total_marks,
-      isPublished: m.status === "published",
-      createdAt: m.created_at,
-      examName: m.mock_templates?.exams?.title || "Global Exam",
-    }));
+    let list = (data || []).map((m: any) => {
+      const template = m.mock_templates || {};
+      const exam = template.exams || {};
+      const pattern = template.exam_patterns || {};
+
+      return {
+        id: m.id,
+        title: m.title,
+        slug: m.slug,
+        durationMinutes: m.duration_minutes,
+        totalQuestions: m.total_questions || 20,
+        totalMarks: m.total_marks,
+        isPublished: m.status === "published",
+        status: m.status || "published",
+        createdAt: m.created_at,
+        categoryId: exam.id || "",
+        categoryName: exam.title || "Global Exam",
+        categorySlug: exam.slug || "global",
+        patternId: pattern.id || "",
+        patternName: pattern.name || "Standard Pattern",
+        sectionsCount: 1,
+      };
+    });
+
+    if (categoryFilter && categoryFilter !== "ALL") {
+      const catLower = categoryFilter.toLowerCase();
+      list = list.filter((m: any) => m.categoryId === categoryFilter || m.categorySlug.toLowerCase() === catLower || m.categoryName.toLowerCase() === catLower);
+    }
+
+    if (patternFilter && patternFilter !== "ALL") {
+      const patLower = patternFilter.toLowerCase();
+      list = list.filter((m: any) => m.patternId === patternFilter || m.patternName.toLowerCase() === patLower);
+    }
+
+    return list;
   }
 
   /**

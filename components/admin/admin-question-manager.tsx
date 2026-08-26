@@ -32,13 +32,60 @@ import {
   ChevronRight,
 } from "lucide-react";
 
+import { AdminBreadcrumbs } from "@/components/admin/admin-breadcrumbs";
+
 interface Props {
   questions: AdminQuestionHierarchyItem[];
   taxonomy: AdminQuestionTaxonomy;
   kpis: AdminQuestionSummaryKPIs;
+  initialCategory?: string;
+  initialPattern?: string;
+  initialSection?: string;
+  initialTopic?: string;
 }
 
-export function AdminQuestionManager({ questions, taxonomy, kpis }: Props) {
+export function AdminQuestionManager({
+  questions,
+  taxonomy,
+  kpis,
+  initialCategory,
+  initialPattern,
+  initialSection,
+  initialTopic,
+}: Props) {
+  // Resolve initial filters against taxonomy
+  const resolvedInitialCat = useMemo(() => {
+    if (!initialCategory) return "ALL";
+    const found = taxonomy.exams.find(
+      (e) => e.slug.toLowerCase() === initialCategory.toLowerCase() || e.id === initialCategory || e.title.toLowerCase().includes(initialCategory.toLowerCase())
+    );
+    return found ? found.title : initialCategory;
+  }, [initialCategory, taxonomy.exams]);
+
+  const resolvedInitialPat = useMemo(() => {
+    if (!initialPattern) return "ALL";
+    const found = taxonomy.patterns.find(
+      (p) => p.id === initialPattern || p.name.toLowerCase().includes(initialPattern.toLowerCase())
+    );
+    return found ? found.name : initialPattern;
+  }, [initialPattern, taxonomy.patterns]);
+
+  const resolvedInitialSec = useMemo(() => {
+    if (!initialSection) return "ALL";
+    const found = taxonomy.subjects.find(
+      (s) => s.slug.toLowerCase() === initialSection.toLowerCase() || s.id === initialSection || s.name.toLowerCase().includes(initialSection.toLowerCase())
+    );
+    return found ? found.name : initialSection;
+  }, [initialSection, taxonomy.subjects]);
+
+  const resolvedInitialTop = useMemo(() => {
+    if (!initialTopic) return "ALL";
+    const found = taxonomy.topics.find(
+      (t) => t.slug.toLowerCase() === initialTopic.toLowerCase() || t.id === initialTopic || t.name.toLowerCase().includes(initialTopic.toLowerCase())
+    );
+    return found ? found.name : initialTopic;
+  }, [initialTopic, taxonomy.topics]);
+
   // Modal states
   const [showCreate, setShowCreate] = useState(false);
   const [showBulkImport, setShowBulkImport] = useState(false);
@@ -51,10 +98,10 @@ export function AdminQuestionManager({ questions, taxonomy, kpis }: Props) {
 
   // Search and Filter states
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string>("ALL");
-  const [selectedPattern, setSelectedPattern] = useState<string>("ALL");
-  const [selectedSection, setSelectedSection] = useState<string>("ALL");
-  const [selectedTopic, setSelectedTopic] = useState<string>("ALL");
+  const [selectedCategory, setSelectedCategory] = useState<string>(resolvedInitialCat);
+  const [selectedPattern, setSelectedPattern] = useState<string>(resolvedInitialPat);
+  const [selectedSection, setSelectedSection] = useState<string>(resolvedInitialSec);
+  const [selectedTopic, setSelectedTopic] = useState<string>(resolvedInitialTop);
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>("ALL");
   const [selectedLanguage, setSelectedLanguage] = useState<string>("ALL");
   const [selectedPyq, setSelectedPyq] = useState<string>("ALL");
@@ -220,8 +267,29 @@ export function AdminQuestionManager({ questions, taxonomy, kpis }: Props) {
     return taxonomy.topics.filter((t) => t.subjectId === createSection);
   }, [createSection, taxonomy.topics]);
 
+  const breadcrumbItems = useMemo(() => {
+    const items: Array<{ label: string; href?: string; active?: boolean }> = [{ label: "Categories", href: "/admin/categories" }];
+    if (selectedCategory !== "ALL") {
+      items.push({ label: selectedCategory, href: `/admin/patterns?category=${encodeURIComponent(selectedCategory)}` });
+    }
+    if (selectedPattern !== "ALL") {
+      items.push({ label: selectedPattern, href: `/admin/sections?pattern=${encodeURIComponent(selectedPattern)}` });
+    }
+    if (selectedSection !== "ALL") {
+      items.push({ label: selectedSection, href: `/admin/questions?section=${encodeURIComponent(selectedSection)}` });
+    }
+    if (selectedTopic !== "ALL") {
+      items.push({ label: selectedTopic, href: `/admin/questions?section=${encodeURIComponent(selectedSection)}&topic=${encodeURIComponent(selectedTopic)}` });
+    }
+    items.push({ label: "Questions", active: true });
+    return items;
+  }, [selectedCategory, selectedPattern, selectedSection, selectedTopic]);
+
   return (
     <div className="space-y-6 max-w-7xl pb-12">
+      {/* Dynamic Hierarchy Breadcrumbs */}
+      <AdminBreadcrumbs items={breadcrumbItems} />
+
       {/* Header & Global Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
