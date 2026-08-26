@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { UserProfileService } from "@/services/user-profile.service";
 
 export interface AdminQuestionHierarchyItem {
   id: string;
@@ -69,6 +70,19 @@ export interface AdminQuestionsPageData {
   kpis: AdminQuestionSummaryKPIs;
 }
 
+export interface AdminUserListItem {
+  id: string;
+  email: string;
+  fullName: string;
+  role: string;
+  languagePreference: string;
+  isActive: boolean;
+  hasProfile: boolean;
+  profileStatus: "Synced" | "Profile Missing";
+  createdAt: string;
+  lastSignInAt: string | null;
+}
+
 export class AdminService {
   /**
    * Check if current user is admin/staff
@@ -78,14 +92,20 @@ export class AdminService {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { isAdmin: false };
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: profile } = await (supabase as any)
-      .from("user_profiles")
-      .select("role, is_staff")
-      .eq("id", user.id)
-      .maybeSingle();
+    const adminEmails = (process.env.ADMIN_EMAILS || "jan810693@gmail.com,jan810694@gmail.com")
+      .split(",")
+      .map((e) => e.trim().toLowerCase());
 
-    const isAuthorized = profile?.role === "admin" || profile?.role === "staff" || profile?.is_staff === true;
+    const isEmailAdmin = user.email ? adminEmails.includes(user.email.toLowerCase()) : false;
+    const isMetaAdmin = user.app_metadata?.role === "admin" || user.user_metadata?.role === "admin" || user.user_metadata?.role === "staff";
+
+    const isAuthorized = isEmailAdmin || isMetaAdmin;
+
+    // Self-heal profile on admin access
+    if (user) {
+      await UserProfileService.ensureProfile(user);
+    }
+
     return { isAdmin: isAuthorized, userId: user.id, userEmail: user.email };
   }
 
@@ -137,6 +157,62 @@ export class AdminService {
 
   static async getOverviewMetrics() {
     return this.getAdminOverview();
+  }
+
+  /**
+   * Admin: Complete User & Profile Synchronization List
+   */
+  static async getAdminUsers(): Promise<{ users: AdminUserListItem[]; totalAuthUsers: number; totalProfiles: number; missingProfilesCount: number }> {
+    const supabase = await createServerSupabaseClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sb = supabase as any;
+
+    const [{ data: authData }, { data: profileData }] = await Promise.all([
+      sb.auth.admin.listUsers(),
+      sb.from("user_profiles").select("*"),
+    ]);
+
+    const authUsers = authData?.users || [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const profiles = profileData || [];
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const profileMap = new Map<string, any>(profiles.map((p: any) => [p.id, p]));
+    const adminEmails = (process.env.ADMIN_EMAILS || "jan810693@gmail.com,jan810694@gmail.com")
+      .split(",")
+      .map((e) => e.trim().toLowerCase());
+
+    let missingCount = 0;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const userList: AdminUserListItem[] = authUsers.map((u: any) => {
+      const profile = profileMap.get(u.id);
+      const hasProfile = Boolean(profile);
+      if (!hasProfile) missingCount++;
+
+      const isStaff = u.email && adminEmails.includes(u.email.toLowerCase());
+      const meta = u.user_metadata || u.raw_user_meta_data || {};
+
+      return {
+        id: u.id,
+        email: u.email || "No Email",
+        fullName: profile?.full_name || meta.full_name || meta.name || u.email?.split("@")[0] || "Student",
+        role: isStaff ? "admin" : (meta.role || "student"),
+        languagePreference: profile?.language_preference === "hi" ? "Hindi" : "English",
+        isActive: profile ? profile.is_active : true,
+        hasProfile,
+        profileStatus: hasProfile ? "Synced" : "Profile Missing",
+        createdAt: u.created_at,
+        lastSignInAt: u.last_sign_in_at || null,
+      };
+    });
+
+    return {
+      users: userList,
+      totalAuthUsers: authUsers.length,
+      totalProfiles: profiles.length,
+      missingProfilesCount: missingCount,
+    };
   }
 
   /**
