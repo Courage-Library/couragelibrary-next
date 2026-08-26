@@ -24,6 +24,7 @@ export async function executeBulkImportAction(payload: BulkImportPayload): Promi
     revalidatePath("/admin/content");
     revalidatePath("/admin/descriptive");
     revalidatePath("/admin/institutes");
+    revalidatePath("/admin/community");
     revalidatePath("/admin/billing");
   }
   return result;
@@ -35,7 +36,7 @@ export async function executeBulkImportAction(payload: BulkImportPayload): Promi
 export async function createQuestionAction(prevState: AdminActionResult | null, formData: FormData): Promise<AdminActionResult> {
   const authCheck = await AdminService.checkIsAdminOrStaff();
   if (!authCheck.isAdmin) {
-    return { error: "Unauthorized access." };
+    return { error: "Unauthorized access. Administrative privileges required." };
   }
 
   const questionText = formData.get("questionText") as string;
@@ -125,6 +126,28 @@ export async function createMockTestAction(prevState: AdminActionResult | null, 
 }
 
 /**
+ * Server Action: Toggle Mock Test Publish State
+ */
+export async function toggleMockTestPublishAction(testId: string, currentStatus: boolean): Promise<AdminActionResult> {
+  const authCheck = await AdminService.checkIsAdminOrStaff();
+  if (!authCheck.isAdmin) {
+    return { error: "Unauthorized access." };
+  }
+
+  const supabaseRaw = await createServerSupabaseClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabase = supabaseRaw as any;
+  const { error } = await supabase.from("mock_tests").update({ is_published: !currentStatus }).eq("id", testId);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/admin/mock-tests");
+  return { success: true, message: "Mock Test status updated." };
+}
+
+/**
  * Server Action: Create Article
  */
 export async function createArticleAction(prevState: AdminActionResult | null, formData: FormData): Promise<AdminActionResult> {
@@ -172,6 +195,136 @@ export async function createArticleAction(prevState: AdminActionResult | null, f
 
   revalidatePath("/admin/content");
   return { success: true, message: "Article created and published." };
+}
+
+/**
+ * Server Action: Create Course
+ */
+export async function createCourseAction(prevState: AdminActionResult | null, formData: FormData): Promise<AdminActionResult> {
+  const authCheck = await AdminService.checkIsAdminOrStaff();
+  if (!authCheck.isAdmin) {
+    return { error: "Unauthorized access." };
+  }
+
+  const title = formData.get("title") as string;
+  const slug = formData.get("slug") as string;
+  const priceInr = Number(formData.get("priceInr") || 0);
+
+  if (!title || !slug) {
+    return { error: "Course title and slug are required." };
+  }
+
+  const supabaseRaw = await createServerSupabaseClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabase = supabaseRaw as any;
+  const { error } = await supabase.from("courses").insert({
+    title,
+    slug,
+    description: title,
+    access_tier: "FREE",
+    price_inr: priceInr,
+    is_published: true,
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/admin/content");
+  return { success: true, message: "Course created successfully." };
+}
+
+/**
+ * Server Action: Create Descriptive Question
+ */
+export async function createDescriptiveAction(prevState: AdminActionResult | null, formData: FormData): Promise<AdminActionResult> {
+  const authCheck = await AdminService.checkIsAdminOrStaff();
+  if (!authCheck.isAdmin) {
+    return { error: "Unauthorized access." };
+  }
+
+  const title = formData.get("title") as string;
+  const questionText = formData.get("questionText") as string;
+  const totalMarks = Number(formData.get("totalMarks") || 15);
+  const maxWords = Number(formData.get("maxWords") || 250);
+
+  if (!title || !questionText) {
+    return { error: "Title and question text are required." };
+  }
+
+  const supabaseRaw = await createServerSupabaseClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabase = supabaseRaw as any;
+  const { error } = await supabase.from("descriptive_questions").insert({
+    title,
+    question_text: questionText,
+    min_words: 100,
+    max_words: maxWords,
+    total_marks: totalMarks,
+    is_active: true,
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/admin/descriptive");
+  return { success: true, message: "Descriptive question created." };
+}
+
+/**
+ * Server Action: Create Institute
+ */
+export async function createInstituteAction(prevState: AdminActionResult | null, formData: FormData): Promise<AdminActionResult> {
+  const authCheck = await AdminService.checkIsAdminOrStaff();
+  if (!authCheck.isAdmin) {
+    return { error: "Unauthorized access." };
+  }
+
+  const name = formData.get("name") as string;
+  const slug = formData.get("slug") as string;
+
+  if (!name || !slug) {
+    return { error: "Institute name and slug are required." };
+  }
+
+  const supabaseRaw = await createServerSupabaseClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabase = supabaseRaw as any;
+  const { error } = await supabase.from("institutes").insert({
+    name,
+    slug,
+    verification_status: "VERIFIED",
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/admin/institutes");
+  return { success: true, message: "Coaching institute verified & created." };
+}
+
+/**
+ * Server Action: Moderate Community Flag
+ */
+export async function resolveCommunityFlagAction(flagId: string, actionStatus: "RESOLVED" | "DISMISSED"): Promise<AdminActionResult> {
+  const authCheck = await AdminService.checkIsAdminOrStaff();
+  if (!authCheck.isAdmin) {
+    return { error: "Unauthorized access." };
+  }
+
+  const supabaseRaw = await createServerSupabaseClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabase = supabaseRaw as any;
+  const { error } = await supabase.from("discussion_moderation_flags").update({ status: actionStatus }).eq("id", flagId);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/admin/community");
+  return { success: true, message: `Moderation item set to ${actionStatus}.` };
 }
 
 /**
