@@ -35,14 +35,14 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
   }
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-slate-100/60 flex flex-col md:flex-row items-stretch">
-      {/* Fixed / Sticky 100dvh Non-Scrolling Sidebar */}
+    <div className="min-h-[calc(100dvh-4rem)] bg-slate-100/60 flex flex-col md:flex-row items-start relative w-full">
+      {/* Fixed / Sticky 100dvh Non-Scrolling Sidebar Below Global Header */}
       <AdminSidebar userEmail={userEmail || "admin@couragelibrary.com"} />
 
-      {/* Main Admin Workspace (Independently Scrollable with Top Header) */}
-      <div className="flex-1 min-w-0 flex flex-col">
+      {/* Main Admin Workspace (Independently Scrollable) */}
+      <div className="flex-1 min-w-0 w-full flex flex-col">
         <AdminTopHeader userEmail={userEmail} />
-        <main className="flex-1 p-4 md:p-6 lg:p-8">{children}</main>
+        <main className="flex-1 p-3.5 sm:p-5 md:p-6 w-full max-w-[1600px] mx-auto">{children}</main>
       </div>
     </div>
   );

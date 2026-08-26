@@ -30,8 +30,6 @@ import {
 
 interface Props {
   userEmail: string;
-  isMobileOpen?: boolean;
-  setIsMobileOpen?: (open: boolean) => void;
 }
 
 const MOCK_TEST_ROUTES = [
@@ -45,12 +43,9 @@ const MOCK_TEST_ROUTES = [
   "/admin/bulk-import",
 ];
 
-export function AdminSidebar({ userEmail, isMobileOpen: controlledMobileOpen, setIsMobileOpen: setControlledMobileOpen }: Props) {
+export function AdminSidebar({ userEmail }: Props) {
   const pathname = usePathname();
-  const [internalMobileOpen, setInternalMobileOpen] = useState(false);
-
-  const isMobileOpen = controlledMobileOpen !== undefined ? controlledMobileOpen : internalMobileOpen;
-  const setIsMobileOpen = setControlledMobileOpen !== undefined ? setControlledMobileOpen : setInternalMobileOpen;
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   // Check if current route is part of Mock Test Management
   const isMockRouteActive = MOCK_TEST_ROUTES.some((route) =>
@@ -69,47 +64,47 @@ export function AdminSidebar({ userEmail, isMobileOpen: controlledMobileOpen, se
   // Close mobile sidebar on navigation
   useEffect(() => {
     setIsMobileOpen(false);
-  }, [pathname, setIsMobileOpen]);
+  }, [pathname]);
 
   const mockChildren = [
     {
-      label: "Categories (Exams)",
+      label: "Categories",
       href: "/admin/categories",
       icon: Layers,
       color: "text-blue-400",
     },
     {
-      label: "Patterns (Blueprints)",
+      label: "Patterns",
       href: "/admin/patterns",
       icon: GitBranch,
       color: "text-indigo-400",
     },
     {
-      label: "Sections (Subjects)",
+      label: "Sections",
       href: "/admin/sections",
       icon: FolderTree,
       color: "text-teal-400",
     },
     {
-      label: "Question Bank",
+      label: "Questions",
       href: "/admin/questions",
       icon: HelpCircle,
       color: "text-emerald-400",
     },
     {
-      label: "Exam Schedules",
+      label: "Schedules",
       href: "/admin/schedules",
       icon: Calendar,
       color: "text-purple-400",
     },
     {
-      label: "Mock Test Papers",
+      label: "Mock Tests",
       href: "/admin/mock-tests",
       icon: FileCheck2,
       color: "text-amber-400",
     },
     {
-      label: "Bulk Question Import",
+      label: "Bulk Import",
       href: "/admin/bulk-import",
       icon: FileUp,
       color: "text-rose-400",
@@ -118,42 +113,48 @@ export function AdminSidebar({ userEmail, isMobileOpen: controlledMobileOpen, se
 
   return (
     <>
-      {/* Mobile Top Bar */}
-      <div className="md:hidden flex items-center justify-between p-3.5 bg-slate-900 text-white border-b border-slate-800">
+      {/* Mobile Sticky Toggle Subbar — Positioned BELOW Global Header */}
+      <div className="md:hidden sticky top-16 z-30 flex items-center justify-between px-4 py-2.5 bg-slate-900 text-white border-b border-slate-800">
         <div className="flex items-center gap-2">
-          <BrandLogo size="sm" showText={false} />
-          <span className="font-black text-xs tracking-tight">Admin Studio</span>
+          <span className="font-mono text-[11px] uppercase tracking-wider font-extrabold text-blue-400">
+            Admin Studio
+          </span>
+          <span className="text-slate-500">·</span>
+          <span className="text-xs text-slate-300 font-semibold truncate max-w-[150px]">
+            {userEmail.split("@")[0]}
+          </span>
         </div>
         <button
           onClick={() => setIsMobileOpen(!isMobileOpen)}
-          className="p-1.5 rounded-lg bg-slate-800 text-slate-200 hover:text-white"
-          aria-label="Toggle Navigation Menu"
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 text-slate-200 hover:text-white text-xs font-bold border border-slate-700"
+          aria-label="Toggle Admin Menu"
         >
-          {isMobileOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+          {isMobileOpen ? <X className="w-3.5 h-3.5" /> : <Menu className="w-3.5 h-3.5" />}
+          <span>{isMobileOpen ? "Close" : "Menu"}</span>
         </button>
       </div>
 
-      {/* Sidebar Overlay (Mobile) */}
+      {/* Mobile Drawer Overlay — Starts BELOW Global Header at top-16 */}
       {isMobileOpen && (
         <div
           onClick={() => setIsMobileOpen(false)}
-          className="fixed inset-0 z-40 bg-slate-950/70 backdrop-blur-xs md:hidden"
+          className="fixed inset-x-0 bottom-0 top-16 z-40 bg-slate-950/70 backdrop-blur-xs md:hidden"
         />
       )}
 
-      {/* Sidebar Panel — STRICTLY FIXED & NON-SCROLLING ON DESKTOP */}
+      {/* Sidebar Panel — STRICTLY FIXED & NON-SCROLLING ON DESKTOP BELOW GLOBAL HEADER */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 md:sticky md:top-0 w-64 h-[100dvh] max-h-[100dvh] bg-slate-900 text-slate-300 p-4 shrink-0 border-r border-slate-800 flex flex-col justify-between transition-transform duration-200 ease-in-out md:translate-x-0 overflow-y-auto md:overflow-hidden ${
+        className={`fixed md:sticky top-16 left-0 z-40 md:z-20 w-[270px] h-[calc(100dvh-4rem)] max-h-[calc(100dvh-4rem)] bg-slate-900 text-slate-300 p-3.5 shrink-0 border-r border-slate-800 flex flex-col justify-between transition-transform duration-200 ease-in-out md:translate-x-0 overflow-y-auto md:overflow-hidden ${
           isMobileOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"
         }`}
       >
-        <div className="space-y-3.5 flex-1 min-h-0 flex flex-col">
-          {/* Brand Header */}
+        <div className="space-y-3 flex-1 min-h-0 flex flex-col">
+          {/* Studio Identifier */}
           <div className="space-y-0.5 pb-2 border-b border-slate-800">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <BrandLogo size="sm" showText={false} />
-                <span className="font-black text-white text-sm tracking-tight">Admin Studio</span>
+                <span className="font-black text-white text-xs tracking-tight">Admin Studio</span>
               </div>
               <Badge variant="indigo" className="text-[9px] px-1.5 py-0 bg-indigo-950 text-indigo-300 border-indigo-800">
                 PROD
@@ -164,8 +165,8 @@ export function AdminSidebar({ userEmail, isMobileOpen: controlledMobileOpen, se
             </p>
           </div>
 
-          {/* Navigation Items — Compact, Densely Grouped, Fits 100dvh Perfectly */}
-          <nav className="space-y-2.5 text-xs font-semibold flex-1">
+          {/* Navigation Items — Densely Grouped, Fits Exactly inside calc(100dvh - 4rem) */}
+          <nav className="space-y-2 text-xs font-semibold flex-1">
             {/* Dashboard Overview */}
             <div>
               <Link
@@ -214,7 +215,7 @@ export function AdminSidebar({ userEmail, isMobileOpen: controlledMobileOpen, se
                       <Link
                         key={child.href}
                         href={child.href}
-                        className={`flex items-center gap-2 px-2 py-1 rounded-md text-[11px] transition-colors ${
+                        className={`flex items-center gap-2 px-2 py-0.5 rounded-md text-[11px] transition-colors ${
                           isActive
                             ? "bg-indigo-600 text-white font-bold shadow-xs"
                             : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
@@ -258,7 +259,7 @@ export function AdminSidebar({ userEmail, isMobileOpen: controlledMobileOpen, se
               </Link>
             </div>
 
-            {/* USERS & MONETIZATION */}
+            {/* OPERATIONS & USERS */}
             <div className="space-y-0.5">
               <span className="px-2.5 text-[9px] font-black uppercase tracking-wider text-slate-500 font-mono block">
                 Operations &amp; Users
@@ -311,7 +312,7 @@ export function AdminSidebar({ userEmail, isMobileOpen: controlledMobileOpen, se
           </nav>
         </div>
 
-        {/* Footer Security Badge */}
+        {/* Footer Session Badge */}
         <div className="pt-2 border-t border-slate-800 shrink-0">
           <Badge variant="indigo" className="w-full justify-center text-[9px] py-0.5 bg-slate-800 text-slate-300 border-slate-700 font-mono">
             <Shield className="w-2.5 h-2.5 mr-1 text-indigo-400" /> Session Protected
