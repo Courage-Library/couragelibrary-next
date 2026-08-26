@@ -499,6 +499,47 @@ export async function togglePatternStatusAction(patternId: string, currentActive
   return { success: true, message: `Pattern ${!currentActive ? "activated" : "deactivated"} successfully.` };
 }
 
+/**
+ * Server Action: Delete a Pattern safely with dependency verification
+ */
+export async function deletePatternAction(patternId: string): Promise<AdminActionResult> {
+  const authCheck = await AdminService.checkIsAdminOrStaff();
+  if (!authCheck.isAdmin) return { error: "Unauthorized access." };
+
+  const supabaseRaw = await createServerSupabaseClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabase = supabaseRaw as any;
+
+  // Check dependent mock templates & mock tests
+  const { data: templates } = await supabase
+    .from("mock_templates")
+    .select("id, mock_tests(id)")
+    .eq("pattern_id", patternId);
+
+  const mockTestCount = (templates || []).reduce(
+    (acc: number, t: { mock_tests?: unknown[] }) => acc + (t.mock_tests?.length || 0),
+    0
+  );
+
+  if (mockTestCount > 0) {
+    return {
+      error: `Cannot delete pattern: ${mockTestCount} active mock test paper(s) depend on this blueprint. Deactivate the pattern instead to protect candidate attempt history.`,
+    };
+  }
+
+  // Delete empty template shells if any
+  await supabase.from("mock_templates").delete().eq("pattern_id", patternId);
+
+  const { error: delErr } = await supabase.from("exam_patterns").delete().eq("id", patternId);
+  if (delErr) {
+    return { error: `Failed to delete pattern: ${delErr.message}` };
+  }
+
+  revalidatePath("/admin/patterns");
+  revalidatePath("/admin/mock-tests-management");
+  return { success: true, message: "Pattern deleted successfully." };
+}
+
 /* ========================================================================= */
 /* 3. SECTION CRUD ACTIONS                                                   */
 /* ========================================================================= */

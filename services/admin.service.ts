@@ -306,9 +306,8 @@ export class AdminService {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = supabase as any;
 
-    const { data: patterns } = await sb
-      .from("exam_patterns")
-      .select(`
+    const [patternsRes, templatesRes, subjectsRes] = await Promise.all([
+      sb.from("exam_patterns").select(`
         id,
         name,
         tier_name,
@@ -328,12 +327,20 @@ export class AdminService {
             slug
           )
         )
-      `)
-      .order("name", { ascending: true });
+      `).order("created_at", { ascending: false }),
+      sb.from("mock_templates").select("id, pattern_id, mock_tests(id)"),
+      sb.from("subjects").select("id", { count: "exact", head: true }),
+    ]);
+
+    const defaultSubjectCount = subjectsRes.count || 4;
+    const templateList = templatesRes.data || [];
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let list: AdminPatternItem[] = (patterns || []).map((p: any) => {
+    let list: AdminPatternItem[] = (patternsRes.data || []).map((p: any) => {
       const exam = p.exam_cycles?.exams || {};
+      const linkedTemplates = templateList.filter((t: any) => t.pattern_id === p.id);
+      const mockCount = linkedTemplates.reduce((acc: number, t: any) => acc + (t.mock_tests?.length || 0), 0);
+
       return {
         id: p.id,
         name: p.name,
@@ -346,8 +353,8 @@ export class AdminService {
         categoryId: exam.id || "",
         categoryName: exam.title || "General Exam",
         categorySlug: exam.slug || "general",
-        sectionsCount: 4, // Standard sectional breakdown
-        mockTestsCount: 1,
+        sectionsCount: defaultSubjectCount,
+        mockTestsCount: mockCount,
         questionsCount: p.total_questions || 0,
         createdAt: p.created_at,
       };

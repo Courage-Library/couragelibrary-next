@@ -8,6 +8,7 @@ import {
   createPatternAction,
   updatePatternAction,
   togglePatternStatusAction,
+  deletePatternAction,
 } from "@/app/admin/actions";
 import { AdminBreadcrumbs } from "@/components/admin/admin-breadcrumbs";
 import { Card } from "@/components/ui/card";
@@ -21,10 +22,20 @@ import {
   Layers,
   HelpCircle,
   FileCheck2,
+  Calendar,
+  FileUp,
   Filter,
   Edit2,
   Power,
+  Trash2,
   X,
+  Clock,
+  Star,
+  MinusCircle,
+  HelpCircle as QuestionIcon,
+  ChevronLeft,
+  ChevronRight,
+  FolderTree,
 } from "lucide-react";
 
 interface Props {
@@ -32,6 +43,8 @@ interface Props {
   categories: AdminCategoryItem[];
   currentCategory?: string;
 }
+
+const PAGE_SIZE = 8;
 
 export function AdminPatternsManager({ patterns, categories, currentCategory }: Props) {
   const router = useRouter();
@@ -43,17 +56,19 @@ export function AdminPatternsManager({ patterns, categories, currentCategory }: 
   const [editingPattern, setEditingPattern] = useState<AdminPatternItem | null>(null);
   const [editState, editAction, isEditing] = useActionState(updatePatternAction, null);
 
-  // Search & Filter
+  // Search & Filter & Pagination State
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState(currentCategory || "ALL");
-  const [isToggling, startTransition] = useTransition();
+  const [currentPage, setCurrentPage] = useState(1);
+  const [actionFeedback, setActionFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [isPending, startTransition] = useTransition();
 
   const activeCategoryObj = useMemo(() => {
     if (!currentCategory || currentCategory === "ALL") return null;
     return categories.find((c) => c.slug === currentCategory || c.id === currentCategory);
   }, [categories, currentCategory]);
 
-  const filtered = useMemo(() => {
+  const filteredPatterns = useMemo(() => {
     return patterns.filter((p) => {
       if (selectedCategory !== "ALL") {
         const matchesCategory =
@@ -73,8 +88,16 @@ export function AdminPatternsManager({ patterns, categories, currentCategory }: 
     });
   }, [patterns, selectedCategory, searchQuery]);
 
+  // Pagination calculation
+  const totalItems = filteredPatterns.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+  const validPage = Math.min(currentPage, totalPages);
+  const startIndex = (validPage - 1) * PAGE_SIZE;
+  const paginatedPatterns = filteredPatterns.slice(startIndex, startIndex + PAGE_SIZE);
+
   const handleCategoryChange = (cat: string) => {
     setSelectedCategory(cat);
+    setCurrentPage(1);
     if (cat === "ALL") {
       router.push("/admin/patterns");
     } else {
@@ -92,18 +115,18 @@ export function AdminPatternsManager({ patterns, categories, currentCategory }: 
   ];
 
   return (
-    <div className="space-y-6 max-w-7xl pb-12">
+    <div className="space-y-6 max-w-7xl pb-16">
       {/* Breadcrumbs */}
       <AdminBreadcrumbs items={breadcrumbs} />
 
-      {/* Header */}
+      {/* Header matching original system */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-            <GitBranch className="w-6 h-6 text-indigo-600" /> Pattern Management &amp; Blueprints
+            <GitBranch className="w-7 h-7 text-indigo-600" /> Exam Pattern Builder
           </h1>
           <p className="text-xs text-slate-500 font-medium mt-0.5">
-            Configure exam structure, tier specifications, marks distribution, and section mappings.
+            Define structure, duration, questions count, and negative marking for each competitive exam.
           </p>
         </div>
       </div>
@@ -111,26 +134,32 @@ export function AdminPatternsManager({ patterns, categories, currentCategory }: 
       {/* Feedback Alerts */}
       {createState?.error && <Alert variant="error">{createState.error}</Alert>}
       {createState?.message && <Alert variant="success">{createState.message}</Alert>}
+      {actionFeedback && (
+        <Alert variant={actionFeedback.type === "success" ? "success" : "error"}>
+          {actionFeedback.text}
+        </Alert>
+      )}
 
-      {/* TWO COLUMN WORKSPACE */}
+      {/* TWO COLUMN WORKSPACE (LEFT: CREATE PATTERN | RIGHT: EXISTING PATTERNS) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* LEFT COLUMN: Create Pattern Form Card */}
         <div className="lg:col-span-5">
-          <Card className="p-6 bg-white border-indigo-200 shadow-sm border-t-4 border-t-indigo-600 space-y-4 sticky top-4">
+          <Card className="p-6 bg-white border-slate-200 shadow-sm border-l-4 border-l-indigo-600 space-y-4 sticky top-4">
             <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
               <PlusCircle className="w-5 h-5 text-indigo-600" />
-              <h2 className="text-base font-black text-slate-900">Add New Pattern</h2>
+              <h2 className="text-base font-black text-slate-900">Create New Pattern</h2>
             </div>
 
             <form action={createAction} className="space-y-4">
+              {/* Category Dropdown */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Parent Exam Category <span className="text-rose-500">*</span>
+                  Select Category <span className="text-rose-500">*</span>
                 </label>
                 <select
                   name="categoryId"
                   defaultValue={activeCategoryObj ? activeCategoryObj.id : (categories[0]?.id || "")}
-                  className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-indigo-500"
+                  className="w-full px-3 py-2.5 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-indigo-500"
                   required
                 >
                   {categories.map((c) => (
@@ -141,6 +170,7 @@ export function AdminPatternsManager({ patterns, categories, currentCategory }: 
                 </select>
               </div>
 
+              {/* Pattern Name */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
                   Pattern Name <span className="text-rose-500">*</span>
@@ -148,12 +178,13 @@ export function AdminPatternsManager({ patterns, categories, currentCategory }: 
                 <input
                   name="name"
                   type="text"
-                  placeholder="e.g. SSC GD - Mixed Sectional"
-                  className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:border-indigo-500"
+                  placeholder="e.g. Tier 1"
+                  className="w-full px-3 py-2.5 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-hidden focus:border-indigo-500"
                   required
                 />
               </div>
 
+              {/* Tier / Exam Stage */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
                   Tier / Exam Stage
@@ -162,45 +193,53 @@ export function AdminPatternsManager({ patterns, categories, currentCategory }: 
                   name="tierName"
                   type="text"
                   defaultValue="Tier 1 (CBE)"
-                  className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-indigo-500"
+                  className="w-full px-3 py-2.5 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-indigo-500"
                 />
               </div>
 
+              {/* Total Questions & Total Marks */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Duration (Minutes)
-                  </label>
-                  <input
-                    name="durationMinutes"
-                    type="number"
-                    defaultValue={60}
-                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Total Questions
+                    Total Questions <span className="text-rose-500">*</span>
                   </label>
                   <input
                     name="totalQuestions"
                     type="number"
+                    min={1}
                     defaultValue={100}
-                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-indigo-500"
+                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-indigo-500"
+                    required
                   />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Total Marks
+                    Total Marks <span className="text-rose-500">*</span>
                   </label>
                   <input
                     name="totalMarks"
                     type="number"
+                    min={1}
                     defaultValue={200}
-                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-indigo-500"
+                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-indigo-500"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Duration & Negative Marking */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Duration (Minutes) <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    name="durationMinutes"
+                    type="number"
+                    min={1}
+                    defaultValue={60}
+                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-indigo-500"
+                    required
                   />
                 </div>
                 <div>
@@ -210,18 +249,19 @@ export function AdminPatternsManager({ patterns, categories, currentCategory }: 
                   <input
                     name="negativeMarkValue"
                     type="number"
-                    step="0.25"
+                    step="0.01"
                     defaultValue={0.5}
-                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-indigo-500"
+                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-indigo-500"
                   />
                 </div>
               </div>
 
+              {/* Create Pattern Button */}
               <Button
                 type="submit"
                 variant="default"
                 disabled={isCreating}
-                className="w-full font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm flex items-center justify-center gap-2"
+                className="w-full font-bold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-sm flex items-center justify-center gap-2 py-3 rounded-xl"
               >
                 <PlusCircle className="w-4 h-4" />
                 {isCreating ? "Creating Pattern..." : "Create Pattern"}
@@ -230,18 +270,21 @@ export function AdminPatternsManager({ patterns, categories, currentCategory }: 
           </Card>
         </div>
 
-        {/* RIGHT COLUMN: Existing Patterns List */}
+        {/* RIGHT COLUMN: Existing Patterns with Search, Category Filter & Pagination */}
         <div className="lg:col-span-7 space-y-4">
-          {/* Filter Bar */}
-          <Card className="p-4 bg-white border-slate-200 flex flex-col sm:flex-row items-center gap-3">
+          {/* Search & Category Filter Bar */}
+          <Card className="p-4 bg-white border-slate-200 shadow-xs flex flex-col sm:flex-row items-center gap-3">
             <div className="relative flex-1 w-full">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search patterns by name or tier..."
-                className="w-full pl-9 pr-3 py-2 text-xs font-medium rounded-xl border border-slate-200 bg-slate-50/50 focus:outline-none focus:border-indigo-500"
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(1);
+                }}
+                placeholder="Search by name or category..."
+                className="w-full pl-9 pr-3 py-2 text-xs font-medium rounded-xl border border-slate-200 bg-slate-50/50 focus:outline-hidden focus:border-indigo-500"
               />
             </div>
 
@@ -250,7 +293,7 @@ export function AdminPatternsManager({ patterns, categories, currentCategory }: 
               <select
                 value={selectedCategory}
                 onChange={(e) => handleCategoryChange(e.target.value)}
-                className="p-2 text-xs font-semibold rounded-lg border border-slate-200 bg-white"
+                className="p-2 text-xs font-semibold rounded-lg border border-slate-200 bg-white min-w-[150px]"
               >
                 <option value="ALL">All Categories</option>
                 {categories.map((c) => (
@@ -262,34 +305,73 @@ export function AdminPatternsManager({ patterns, categories, currentCategory }: 
             </div>
           </Card>
 
+          {/* Results Count Summary Banner */}
+          <div className="flex items-center justify-between text-xs text-slate-500 px-1">
+            <span>
+              {totalItems === 0
+                ? "No patterns found."
+                : `Showing ${startIndex + 1}–${Math.min(startIndex + PAGE_SIZE, totalItems)} of ${totalItems} pattern${
+                    totalItems !== 1 ? "s" : ""
+                  }`}
+            </span>
+            {selectedCategory !== "ALL" && (
+              <span className="font-semibold text-indigo-600">Filtered: {selectedCategory}</span>
+            )}
+          </div>
+
           {/* Pattern Cards List */}
-          {filtered.length === 0 ? (
+          {paginatedPatterns.length === 0 ? (
             <Card className="p-12 text-center bg-white border-slate-200 space-y-2">
               <GitBranch className="w-8 h-8 mx-auto text-slate-300" />
-              <p className="text-xs text-slate-500 font-medium">No patterns found for the selected category.</p>
+              <p className="text-xs text-slate-500 font-medium">No patterns match your search criteria.</p>
             </Card>
           ) : (
             <div className="space-y-4">
-              {filtered.map((pattern) => (
+              {paginatedPatterns.map((pattern) => (
                 <Card
                   key={pattern.id}
-                  className="p-5 bg-white border-slate-200 hover:border-indigo-300 transition shadow-xs space-y-4"
+                  className="p-5 bg-white border-slate-200 hover:border-indigo-300 transition shadow-xs space-y-4 border-l-4 border-l-blue-400"
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <span className="text-[11px] font-bold text-indigo-600 tracking-tight block">
+                    <div className="flex-1">
+                      <span className="text-xs font-semibold text-blue-500 block mb-0.5">
                         {pattern.categoryName}
                       </span>
-                      <h3 className="text-base font-black text-slate-900 leading-tight mt-0.5">
+                      <h3 className="text-base font-black text-slate-900 leading-tight">
                         {pattern.name}
                       </h3>
                       {pattern.tierName && (
-                        <span className="text-[11px] font-medium text-slate-500 block">
-                          Tier: {pattern.tierName}
+                        <span className="text-[11px] font-medium text-slate-400 block mt-0.5">
+                          {pattern.tierName}
                         </span>
                       )}
+
+                      {/* ORIGINAL METRIC PILLS */}
+                      <div className="flex flex-wrap items-center gap-2 mt-2.5">
+                        <span className="inline-flex items-center text-xs bg-blue-50 text-blue-700 px-2.5 py-1 rounded-lg font-bold">
+                          <QuestionIcon className="w-3 h-3 mr-1 text-blue-500" />
+                          {pattern.totalQuestions}Q
+                        </span>
+                        <span className="inline-flex items-center text-xs bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-lg font-bold">
+                          <Star className="w-3 h-3 mr-1 text-emerald-500" />
+                          {pattern.totalMarks} Marks
+                        </span>
+                        <span className="inline-flex items-center text-xs bg-amber-50 text-amber-800 px-2.5 py-1 rounded-lg font-bold">
+                          <Clock className="w-3 h-3 mr-1 text-amber-600" />
+                          {pattern.durationMinutes} Min
+                        </span>
+                        <span className="inline-flex items-center text-xs bg-rose-50 text-rose-700 px-2.5 py-1 rounded-lg font-bold">
+                          <MinusCircle className="w-3 h-3 mr-1 text-rose-500" />
+                          {pattern.negativeMarkValue > 0 ? `-${pattern.negativeMarkValue}` : "None"}
+                        </span>
+                        <span className="inline-flex items-center text-xs bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-lg font-bold">
+                          <FolderTree className="w-3 h-3 mr-1 text-indigo-500" />
+                          {pattern.sectionsCount} Sections
+                        </span>
+                      </div>
                     </div>
 
+                    {/* Quick Edit & Delete Controls */}
                     <div className="flex items-center gap-1.5 shrink-0">
                       <Badge variant={pattern.isActive ? "success" : "neutral"} className="text-[10px] uppercase font-bold">
                         {pattern.isActive ? "ACTIVE" : "DRAFT"}
@@ -303,13 +385,19 @@ export function AdminPatternsManager({ patterns, categories, currentCategory }: 
                       </button>
                       <button
                         onClick={() => {
-                          if (confirm(`Are you sure you want to ${pattern.isActive ? "deactivate" : "activate"} "${pattern.name}"?`)) {
+                          if (
+                            confirm(
+                              `Are you sure you want to ${pattern.isActive ? "deactivate" : "activate"} "${pattern.name}"?`
+                            )
+                          ) {
                             startTransition(async () => {
-                              await togglePatternStatusAction(pattern.id, pattern.isActive);
+                              const res = await togglePatternStatusAction(pattern.id, pattern.isActive);
+                              if (res.error) setActionFeedback({ type: "error", text: res.error });
+                              if (res.message) setActionFeedback({ type: "success", text: res.message });
                             });
                           }
                         }}
-                        disabled={isToggling}
+                        disabled={isPending}
                         className={`p-1.5 rounded-lg border ${
                           pattern.isActive
                             ? "border-amber-200 text-amber-600 hover:bg-amber-50"
@@ -319,37 +407,41 @@ export function AdminPatternsManager({ patterns, categories, currentCategory }: 
                       >
                         <Power className="w-3.5 h-3.5" />
                       </button>
+                      <button
+                        onClick={() => {
+                          if (pattern.sectionsCount > 0) {
+                            if (
+                              !confirm(
+                                `⚠️ "${pattern.name}" has ${pattern.sectionsCount} section(s).\n\nDeleting removes associated section blueprints.\n\nAre you sure you want to delete?`
+                              )
+                            )
+                              return;
+                          } else {
+                            if (!confirm(`Delete pattern "${pattern.name}"? This cannot be undone.`)) return;
+                          }
+                          startTransition(async () => {
+                            const res = await deletePatternAction(pattern.id);
+                            if (res.error) setActionFeedback({ type: "error", text: res.error });
+                            if (res.message) setActionFeedback({ type: "success", text: res.message });
+                          });
+                        }}
+                        disabled={isPending}
+                        className="p-1.5 rounded-lg border border-rose-200 text-rose-500 hover:bg-rose-50 transition"
+                        title="Delete Pattern"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
 
-                  {/* Pattern Specifications */}
-                  <div className="grid grid-cols-4 gap-2 pt-3 border-t border-slate-100 text-center font-mono">
-                    <div className="p-2 rounded-lg bg-slate-50 border border-slate-200">
-                      <span className="text-[10px] text-slate-500 font-bold block uppercase">Duration</span>
-                      <span className="text-xs font-black text-slate-900">{pattern.durationMinutes}m</span>
-                    </div>
-                    <div className="p-2 rounded-lg bg-slate-50 border border-slate-200">
-                      <span className="text-[10px] text-slate-500 font-bold block uppercase">Questions</span>
-                      <span className="text-xs font-black text-slate-900">{pattern.totalQuestions}</span>
-                    </div>
-                    <div className="p-2 rounded-lg bg-slate-50 border border-slate-200">
-                      <span className="text-[10px] text-slate-500 font-bold block uppercase">Marks</span>
-                      <span className="text-xs font-black text-slate-900">{pattern.totalMarks}</span>
-                    </div>
-                    <div className="p-2 rounded-lg bg-slate-50 border border-slate-200">
-                      <span className="text-[10px] text-slate-500 font-bold block uppercase">Negative</span>
-                      <span className="text-xs font-black text-rose-700">-{pattern.negativeMarkValue}</span>
-                    </div>
-                  </div>
-
-                  {/* Connected Action Links */}
-                  <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center gap-1.5">
+                  {/* Connected Hierarchical Action Links */}
+                  <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center gap-2">
                     <Link href={`/admin/sections?pattern=${pattern.id}&category=${pattern.categorySlug}`}>
                       <Button variant="outline" size="sm" className="text-xs font-bold text-teal-700 border-teal-200 hover:bg-teal-50">
                         <Layers className="w-3.5 h-3.5 mr-1" /> Manage Sections
                       </Button>
                     </Link>
-                    <Link href={`/admin/questions?pattern=${pattern.id}&category=${pattern.categorySlug}`}>
+                    <Link href={`/admin/questions?category=${pattern.categorySlug}&pattern=${pattern.id}`}>
                       <Button variant="outline" size="sm" className="text-xs font-bold text-emerald-700 border-emerald-200 hover:bg-emerald-50">
                         <HelpCircle className="w-3.5 h-3.5 mr-1" /> View Questions
                       </Button>
@@ -359,9 +451,58 @@ export function AdminPatternsManager({ patterns, categories, currentCategory }: 
                         <FileCheck2 className="w-3.5 h-3.5 mr-1" /> Manage Mock Tests
                       </Button>
                     </Link>
+                    <Link href={`/admin/schedules?category=${pattern.categorySlug}`}>
+                      <Button variant="outline" size="sm" className="text-xs font-bold text-purple-700 border-purple-200 hover:bg-purple-50">
+                        <Calendar className="w-3.5 h-3.5 mr-1" /> Schedules
+                      </Button>
+                    </Link>
+                    <Link href="/admin/bulk-import">
+                      <Button variant="outline" size="sm" className="text-xs font-bold text-rose-700 border-rose-200 hover:bg-rose-50">
+                        <FileUp className="w-3.5 h-3.5 mr-1" /> Bulk Import
+                      </Button>
+                    </Link>
                   </div>
                 </Card>
               ))}
+            </div>
+          )}
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-1.5 pt-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={validPage === 1}
+                className="px-2.5 py-1 text-xs"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </Button>
+
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((pgNum) => (
+                <Button
+                  key={pgNum}
+                  variant={pgNum === validPage ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setCurrentPage(pgNum)}
+                  className={`text-xs px-3 py-1 font-bold ${
+                    pgNum === validPage ? "bg-indigo-600 text-white" : "border-slate-200 text-slate-700"
+                  }`}
+                >
+                  {pgNum}
+                </Button>
+              ))}
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={validPage === totalPages}
+                className="px-2.5 py-1 text-xs"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </Button>
             </div>
           )}
         </div>
@@ -395,7 +536,7 @@ export function AdminPatternsManager({ patterns, categories, currentCategory }: 
                   name="name"
                   type="text"
                   defaultValue={editingPattern.name}
-                  className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-indigo-500"
+                  className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-indigo-500"
                   required
                 />
               </div>
@@ -406,7 +547,7 @@ export function AdminPatternsManager({ patterns, categories, currentCategory }: 
                   name="tierName"
                   type="text"
                   defaultValue={editingPattern.tierName || ""}
-                  className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-indigo-500"
+                  className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-indigo-500"
                 />
               </div>
 
@@ -417,7 +558,7 @@ export function AdminPatternsManager({ patterns, categories, currentCategory }: 
                     name="durationMinutes"
                     type="number"
                     defaultValue={editingPattern.durationMinutes}
-                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-indigo-500"
+                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-indigo-500"
                   />
                 </div>
                 <div>
@@ -426,7 +567,7 @@ export function AdminPatternsManager({ patterns, categories, currentCategory }: 
                     name="totalQuestions"
                     type="number"
                     defaultValue={editingPattern.totalQuestions}
-                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-indigo-500"
+                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-indigo-500"
                   />
                 </div>
               </div>
@@ -438,7 +579,7 @@ export function AdminPatternsManager({ patterns, categories, currentCategory }: 
                     name="totalMarks"
                     type="number"
                     defaultValue={editingPattern.totalMarks}
-                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-indigo-500"
+                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-indigo-500"
                   />
                 </div>
                 <div>
@@ -446,9 +587,9 @@ export function AdminPatternsManager({ patterns, categories, currentCategory }: 
                   <input
                     name="negativeMarkValue"
                     type="number"
-                    step="0.25"
+                    step="0.01"
                     defaultValue={editingPattern.negativeMarkValue}
-                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-indigo-500"
+                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-indigo-500"
                   />
                 </div>
               </div>
