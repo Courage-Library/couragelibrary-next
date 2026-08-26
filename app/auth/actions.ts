@@ -1,6 +1,7 @@
-﻿"use server";
+"use server";
 
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getAppEnv } from "@/config/env";
 import { redirect } from "next/navigation";
 
 export interface AuthState {
@@ -69,9 +70,12 @@ export async function forgotPasswordAction(prevState: AuthState | null, formData
     return { error: "Please enter your email address." };
   }
 
+  const { siteUrl } = getAppEnv();
+  const redirectUrl = `${siteUrl}/auth/callback?next=/auth/update-password`;
+
   const supabase = await createServerSupabaseClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/auth/callback?next=/auth/reset-password`,
+    redirectTo: redirectUrl,
   });
 
   if (error) {
@@ -79,4 +83,32 @@ export async function forgotPasswordAction(prevState: AuthState | null, formData
   }
 
   return { success: "Password reset instructions have been sent to your email." };
+}
+
+export async function updatePasswordAction(prevState: AuthState | null, formData: FormData): Promise<AuthState> {
+  const password = formData.get("password") as string;
+  const confirmPassword = formData.get("confirmPassword") as string;
+
+  if (!password || !confirmPassword) {
+    return { error: "Please enter and confirm your new password." };
+  }
+
+  if (password.length < 6) {
+    return { error: "Password must be at least 6 characters long." };
+  }
+
+  if (password !== confirmPassword) {
+    return { error: "New password and confirmation password do not match." };
+  }
+
+  const supabase = await createServerSupabaseClient();
+  const { error } = await supabase.auth.updateUser({
+    password,
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  redirect("/auth/login?message=Password+updated+successfully.+Please+sign+in+with+your+new+password.");
 }
