@@ -12,6 +12,9 @@ import {
   ShieldAlert,
   CreditCard,
   Layers,
+  LayoutDashboard,
+  ShieldCheck,
+  ArrowRight,
 } from "lucide-react";
 
 export const revalidate = 0;
@@ -19,102 +22,127 @@ export const revalidate = 0;
 export default async function AdminDashboardPage() {
   const stats = await AdminService.getAdminOverview();
 
+  const kpis = [
+    {
+      title: "QUESTION BANK",
+      count: stats.totalQuestions,
+      desc: "Multi-format questions with PYQ tagging",
+      href: "/admin/questions",
+      icon: HelpCircle,
+      linkText: "Manage Questions",
+    },
+    {
+      title: "MOCK TEST PAPERS",
+      count: stats.totalMockTests,
+      desc: "Full-length mocks, pilot tests & blueprints",
+      href: "/admin/mock-tests",
+      icon: FileCheck2,
+      linkText: "Manage Mock Tests",
+    },
+    {
+      title: "EXAM PATTERNS",
+      count: stats.totalPatterns,
+      desc: "Tier schemes, section marks & timing",
+      href: "/admin/patterns",
+      icon: Layers,
+      linkText: "Manage Patterns",
+    },
+    {
+      title: "ARTICLES & COURSES",
+      count: stats.totalArticles + stats.totalCourses,
+      desc: "Editorial articles and structured video courses",
+      href: "/admin/content",
+      icon: BookOpen,
+      linkText: "Manage Content",
+    },
+    {
+      title: "DESCRIPTIVE MAINS",
+      count: stats.totalDescriptive,
+      desc: "Mains essay, precis, and letter questions",
+      href: "/admin/descriptive",
+      icon: PenTool,
+      linkText: "Manage Mains",
+    },
+    {
+      title: "INSTITUTES & BATCHES",
+      count: stats.totalInstitutes,
+      desc: "Partner coaching institutes and batch enrollments",
+      href: "/admin/institutes",
+      icon: Building2,
+      linkText: "Manage Institutes",
+    },
+    {
+      title: "PENDING MODERATION",
+      count: stats.pendingFlagsCount,
+      desc: "Flagged community discussions and replies",
+      href: "/admin/community",
+      icon: ShieldAlert,
+      linkText: "Review Flags",
+    },
+    {
+      title: "PAYMENT ORDERS",
+      count: stats.totalOrdersCount,
+      desc: "PRO subscription checkouts and invoices",
+      href: "/admin/billing",
+      icon: CreditCard,
+      linkText: "View Orders",
+    },
+  ];
+
   return (
-    <div className="space-y-8 max-w-6xl">
-      {/* Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-lg space-y-2">
-        <Badge variant="indigo" className="bg-white/20 text-white border-white/20">
-          Phase 4F.2 Admin Control Studio
-        </Badge>
-        <h1 className="text-2xl sm:text-4xl font-black tracking-tight flex items-center gap-3">
-          <Layers className="w-8 h-8 text-indigo-400" />
-          Platform Administration Dashboard
-        </h1>
-        <p className="text-indigo-100 text-xs sm:text-sm max-w-2xl">
-          Centralized management for question bank, mock tests, structured courses, descriptive mains studio, institute verification, community moderation, and billing.
+    <div className="space-y-6">
+      {/* Light Summary Header */}
+      <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-1">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2.5">
+            <LayoutDashboard className="w-6 h-6 text-blue-600" />
+            Admin Studio Overview
+          </h1>
+          <Badge variant="success" className="w-fit text-xs px-2.5 py-0.5 font-bold">
+            <ShieldCheck className="w-3.5 h-3.5 mr-1" /> Live Operations
+          </Badge>
+        </div>
+        <p className="text-xs sm:text-sm text-slate-500 font-medium max-w-3xl">
+          Content &amp; Operations Control Center &mdash; manage questions, test patterns, mock papers, learning courses, institute batches, community moderation, and billing.
         </p>
       </div>
 
-      {/* KPI Cards Grid */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="p-5 space-y-2 border-slate-200 bg-white">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-xs font-bold font-mono">QUESTION BANK</span>
-            <HelpCircle className="w-4 h-4 text-blue-500" />
-          </div>
-          <div className="text-3xl font-black text-slate-900 font-mono">{stats.totalQuestions}</div>
-          <Link href="/admin/questions" className="text-[11px] font-bold text-blue-600 hover:underline block pt-1">
-            Manage Questions →
-          </Link>
-        </Card>
+      {/* KPI Cards Grid — 4 Columns on Desktop */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {kpis.map((kpi) => {
+          const Icon = kpi.icon;
+          return (
+            <Card
+              key={kpi.title}
+              className="p-5 bg-white border border-slate-200/80 rounded-2xl shadow-2xs hover:border-blue-300 transition-all flex flex-col justify-between space-y-3"
+            >
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-slate-500">
+                  <span className="text-[11px] font-bold tracking-wider font-mono text-slate-500">
+                    {kpi.title}
+                  </span>
+                  <div className="w-7 h-7 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-600">
+                    <Icon className="w-3.5 h-3.5 text-slate-600" />
+                  </div>
+                </div>
+                <div className="text-2xl sm:text-3xl font-bold text-slate-900 font-mono">
+                  {kpi.count}
+                </div>
+                <p className="text-xs text-slate-500 font-medium line-clamp-1">
+                  {kpi.desc}
+                </p>
+              </div>
 
-        <Card className="p-5 space-y-2 border-slate-200 bg-white">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-xs font-bold font-mono">MOCK TESTS</span>
-            <FileCheck2 className="w-4 h-4 text-emerald-500" />
-          </div>
-          <div className="text-3xl font-black text-slate-900 font-mono">{stats.totalMockTests}</div>
-          <Link href="/admin/mock-tests" className="text-[11px] font-bold text-emerald-600 hover:underline block pt-1">
-            Manage Mock Tests →
-          </Link>
-        </Card>
-
-        <Card className="p-5 space-y-2 border-slate-200 bg-white">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-xs font-bold font-mono">ARTICLES & COURSES</span>
-            <BookOpen className="w-4 h-4 text-purple-500" />
-          </div>
-          <div className="text-3xl font-black text-slate-900 font-mono">
-            {stats.totalArticles + stats.totalCourses}
-          </div>
-          <Link href="/admin/content" className="text-[11px] font-bold text-purple-600 hover:underline block pt-1">
-            Manage Content →
-          </Link>
-        </Card>
-
-        <Card className="p-5 space-y-2 border-slate-200 bg-white">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-xs font-bold font-mono">DESCRIPTIVE MAINS</span>
-            <PenTool className="w-4 h-4 text-amber-500" />
-          </div>
-          <div className="text-3xl font-black text-slate-900 font-mono">{stats.totalDescriptive}</div>
-          <Link href="/admin/descriptive" className="text-[11px] font-bold text-amber-600 hover:underline block pt-1">
-            Manage Mains →
-          </Link>
-        </Card>
-
-        <Card className="p-5 space-y-2 border-slate-200 bg-white">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-xs font-bold font-mono">INSTITUTES</span>
-            <Building2 className="w-4 h-4 text-teal-500" />
-          </div>
-          <div className="text-3xl font-black text-slate-900 font-mono">{stats.totalInstitutes}</div>
-          <Link href="/admin/institutes" className="text-[11px] font-bold text-teal-600 hover:underline block pt-1">
-            Manage Institutes →
-          </Link>
-        </Card>
-
-        <Card className="p-5 space-y-2 border-slate-200 bg-white">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-xs font-bold font-mono">PENDING MODERATION</span>
-            <ShieldAlert className="w-4 h-4 text-rose-500" />
-          </div>
-          <div className="text-3xl font-black text-slate-900 font-mono">{stats.pendingFlagsCount}</div>
-          <Link href="/admin/community" className="text-[11px] font-bold text-rose-600 hover:underline block pt-1">
-            Review Flags →
-          </Link>
-        </Card>
-
-        <Card className="p-5 space-y-2 border-slate-200 bg-white">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-xs font-bold font-mono">PAYMENT ORDERS</span>
-            <CreditCard className="w-4 h-4 text-yellow-500" />
-          </div>
-          <div className="text-3xl font-black text-slate-900 font-mono">{stats.totalOrdersCount}</div>
-          <Link href="/admin/billing" className="text-[11px] font-bold text-yellow-600 hover:underline block pt-1">
-            View Orders →
-          </Link>
-        </Card>
+              <Link
+                href={kpi.href}
+                className="text-xs font-semibold text-blue-600 hover:text-blue-700 inline-flex items-center gap-1 pt-2 border-t border-slate-100 transition-colors"
+              >
+                <span>{kpi.linkText}</span>
+                <ArrowRight className="w-3 h-3" />
+              </Link>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );

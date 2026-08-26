@@ -20,7 +20,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
           <div className="w-16 h-16 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
             <ShieldAlert className="w-8 h-8" />
           </div>
-          <h1 className="text-2xl font-black text-slate-900">Access Restricted</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Access Restricted</h1>
           <p className="text-xs text-slate-600">
             You do not have staff or administrator privileges to access the Courage Library Admin Studio.
           </p>
@@ -35,18 +35,18 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
   }
 
   return (
-    <div className="h-[100dvh] max-h-[100dvh] w-full flex flex-col md:flex-row overflow-hidden bg-slate-900 text-slate-900">
+    <div className="h-[100dvh] max-h-[100dvh] w-full flex flex-col md:flex-row overflow-hidden bg-slate-900 text-slate-900 antialiased">
       {/* Desktop Fixed Non-Scrolling Sidebar at Viewport Top */}
       <AdminSidebar userEmail={userEmail || "admin@couragelibrary.com"} />
 
-      {/* Main Admin Application Workspace */}
-      <div className="flex-1 min-w-0 h-[100dvh] max-h-[100dvh] flex flex-col overflow-hidden bg-slate-100/60">
+      {/* Main Admin Application Workspace — Clean Light Mode */}
+      <div className="flex-1 min-w-0 h-[100dvh] max-h-[100dvh] flex flex-col overflow-hidden bg-[#F8FAFC]">
         {/* Stationary Context Header */}
         <AdminTopHeader userEmail={userEmail} />
 
         {/* The ONLY Vertically Scrollable Region */}
-        <main className="flex-1 min-w-0 w-full overflow-y-auto p-4 sm:p-5 md:p-6">
-          <div className="max-w-[1600px] mx-auto w-full">{children}</div>
+        <main className="flex-1 min-w-0 w-full overflow-y-auto p-4 sm:p-6 lg:p-7">
+          <div className="max-w-[1500px] mx-auto w-full">{children}</div>
         </main>
       </div>
     </div>

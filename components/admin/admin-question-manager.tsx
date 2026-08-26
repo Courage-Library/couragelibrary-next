@@ -395,10 +395,10 @@ export function AdminQuestionManager({
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-            <HelpCircle className="w-7 h-7 text-indigo-600" /> Question Bank Manager
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2.5">
+            <HelpCircle className="w-6 h-6 text-blue-600" /> Question Bank Studio
           </h1>
-          <p className="text-xs text-slate-500 font-medium mt-0.5">
+          <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
             Add and manage mock test questions with diagrams, options types, PYQ metadata, and bilingual support.
           </p>
         </div>
@@ -415,10 +415,10 @@ export function AdminQuestionManager({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* LEFT COLUMN: Add New Question Form */}
         <div className="lg:col-span-5 space-y-4">
-          <Card className="p-6 bg-white border-slate-200 shadow-sm border-l-4 border-l-blue-500 space-y-4">
+          <Card className="p-5 sm:p-6 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-4">
             <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
               <PlusCircle className="w-5 h-5 text-blue-600" />
-              <h2 className="text-base font-black text-slate-900">Add New Question</h2>
+              <h2 className="text-sm font-bold text-slate-900">Add New Question</h2>
             </div>
 
             <form onSubmit={handleCreateQuestion} className="space-y-4">
@@ -707,7 +707,7 @@ export function AdminQuestionManager({
                 type="submit"
                 variant="default"
                 disabled={isPending || isUploadingImg}
-                className="w-full font-bold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-sm flex items-center justify-center gap-2 py-3 rounded-xl"
+                className="w-full font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-2xs flex items-center justify-center gap-2 py-2.5 rounded-xl transition"
               >
                 <PlusCircle className="w-4 h-4" />
                 {isPending ? "Saving Question..." : "Add Question"}
@@ -715,19 +715,19 @@ export function AdminQuestionManager({
             </form>
           </Card>
 
-          {/* Bulk Import Link Box matching original system */}
-          <Card className="p-5 rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-blue-50 space-y-3">
+          {/* Bulk Import Link Box */}
+          <Card className="p-5 rounded-2xl border border-slate-200/80 bg-white shadow-2xs space-y-3">
             <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 shrink-0">
                 <FileUp className="w-5 h-5" />
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="text-xs font-black text-indigo-900">Bulk Question Importer</h3>
-                <p className="text-[11px] text-slate-600 leading-relaxed mt-0.5">
+                <h3 className="text-xs font-bold text-slate-900">Bulk Question Importer</h3>
+                <p className="text-[11px] text-slate-500 leading-relaxed mt-0.5">
                   Generate AI prompts, bulk-upload option diagrams, validate CSV, and preview exam view simulations.
                 </p>
                 <Link href="/admin/bulk-import" className="inline-block mt-2.5">
-                  <Button size="sm" className="text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs">
+                  <Button size="sm" variant="outline" className="text-xs font-semibold border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-2xs">
                     Open Bulk Import Studio →
                   </Button>
                 </Link>
@@ -738,10 +738,9 @@ export function AdminQuestionManager({
 
         {/* RIGHT COLUMN: Question Bank List & Filters */}
         <div className="lg:col-span-7 space-y-4">
-          {/* Filter Bar matching original adminQuestions.js */}
-          <Card className="p-4 bg-white border-slate-200 shadow-xs space-y-3">
-            {/* Search input */}
-            <div className="relative">
+          {/* Filters Bar */}
+          <Card className="p-4 bg-white border-slate-200/80 rounded-2xl shadow-2xs space-y-3">
+            <div className="relative w-full">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
@@ -750,12 +749,12 @@ export function AdminQuestionManager({
                   setSearchQuery(e.target.value);
                   setCurrentPage(1);
                 }}
-                placeholder="Search questions by text or PYQ source..."
-                className="w-full pl-9 pr-4 py-2.5 text-xs font-medium rounded-xl border border-slate-200 bg-slate-50/50 focus:outline-hidden focus:border-blue-500"
+                placeholder="Search question text, section, or PYQ..."
+                className="w-full pl-9 pr-3 py-2 text-xs font-medium rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-hidden focus:border-blue-500"
               />
             </div>
 
-            {/* Cascading Filter Selectors Grid */}
+            {/* Filter Dropdowns Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               <select
                 value={filterCategory}
@@ -807,7 +806,7 @@ export function AdminQuestionManager({
                 }}
                 className="p-2 text-xs font-semibold rounded-lg border border-slate-200 bg-white"
               >
-                <option value="ALL">All Levels</option>
+                <option value="ALL">All Difficulties</option>
                 <option value="easy">Easy</option>
                 <option value="medium">Medium</option>
                 <option value="hard">Hard</option>
@@ -822,7 +821,7 @@ export function AdminQuestionManager({
                 className="p-2 text-xs font-semibold rounded-lg border border-slate-200 bg-white"
               >
                 <option value="ALL">All Types</option>
-                <option value="pyq">PYQ Only</option>
+                <option value="pyq">PYQ Questions Only</option>
               </select>
 
               <select
@@ -849,7 +848,7 @@ export function AdminQuestionManager({
               <button
                 type="button"
                 onClick={resetAllFilters}
-                className="inline-flex items-center gap-1 font-bold text-blue-600 hover:text-blue-700 transition"
+                className="inline-flex items-center gap-1 font-semibold text-blue-600 hover:text-blue-700 transition"
               >
                 <RotateCcw className="w-3 h-3" /> Reset filters
               </button>
@@ -858,10 +857,10 @@ export function AdminQuestionManager({
 
           {/* Question List Cards */}
           {paginatedQuestions.length === 0 ? (
-            <Card className="p-12 text-center bg-white border-slate-200 space-y-2">
+            <Card className="p-12 text-center bg-white border-slate-200/80 rounded-2xl space-y-2">
               <HelpCircle className="w-8 h-8 mx-auto text-slate-300" />
               <p className="text-xs text-slate-500 font-medium">No questions match your filters.</p>
-              <Button variant="outline" size="sm" onClick={resetAllFilters} className="text-xs">
+              <Button variant="outline" size="sm" onClick={resetAllFilters} className="text-xs font-semibold">
                 Clear All Filters
               </Button>
             </Card>
@@ -870,11 +869,11 @@ export function AdminQuestionManager({
               {paginatedQuestions.map((q) => (
                 <Card
                   key={q.id}
-                  className="p-4 bg-white border-slate-200 hover:border-blue-300 transition shadow-xs space-y-2.5"
+                  className="p-4 bg-white border border-slate-200/80 hover:border-slate-300 rounded-2xl transition shadow-2xs space-y-2.5"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1">
-                      <p className="text-xs font-bold text-slate-800 leading-snug line-clamp-2">
+                      <p className="text-xs font-semibold text-slate-800 leading-snug line-clamp-2">
                         {q.statement}
                         {q.imageUrl && (
                           /* eslint-disable-next-line @next/next/no-img-element */
@@ -890,7 +889,7 @@ export function AdminQuestionManager({
                     <div className="flex items-center gap-1.5 shrink-0">
                       <button
                         onClick={() => openEditModal(q)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-2xs transition"
                       >
                         <Edit2 className="w-3 h-3" /> Edit
                       </button>

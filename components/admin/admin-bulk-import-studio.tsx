@@ -807,48 +807,48 @@ Paste your questions below this line:`;
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-            <FileSpreadsheet className="w-7 h-7 text-indigo-600" /> Bulk Question Import Toolkit
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2.5">
+            <FileSpreadsheet className="w-6 h-6 text-blue-600" /> Bulk Question Importer
           </h1>
-          <p className="text-xs text-slate-500 font-medium mt-1">
+          <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
             3-step production content pipeline: Generate AI prompt → Upload figures &amp; option images → Validate &amp; Import CSV.
           </p>
         </div>
       </div>
 
       {/* 3 Step Tabs Navigation */}
-      <div className="flex items-center gap-3 border-b border-slate-200 pb-3 overflow-x-auto">
+      <div className="flex items-center gap-2 border-b border-slate-200/80 pb-3 overflow-x-auto">
         <button
           onClick={() => setActiveTab("prompt")}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs transition select-none ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-xs transition select-none shadow-2xs ${
             activeTab === "prompt"
-              ? "bg-indigo-600 text-white shadow-sm"
-              : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+              ? "bg-blue-600 text-white"
+              : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 hover:text-slate-900"
           }`}
         >
-          <Wand2 className="w-4 h-4" /> Step 1 · Prompt Generator
+          <Wand2 className="w-3.5 h-3.5" /> Step 1 · Prompt Generator
         </button>
 
         <button
           onClick={() => setActiveTab("images")}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs transition select-none ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-xs transition select-none shadow-2xs ${
             activeTab === "images"
-              ? "bg-indigo-600 text-white shadow-sm"
-              : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+              ? "bg-blue-600 text-white"
+              : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 hover:text-slate-900"
           }`}
         >
-          <ImageIcon className="w-4 h-4" /> Step 2 · Image Uploader
+          <ImageIcon className="w-3.5 h-3.5" /> Step 2 · Image Uploader
         </button>
 
         <button
           onClick={() => setActiveTab("csv")}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs transition select-none ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-xs transition select-none shadow-2xs ${
             activeTab === "csv"
-              ? "bg-indigo-600 text-white shadow-sm"
-              : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+              ? "bg-blue-600 text-white"
+              : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 hover:text-slate-900"
           }`}
         >
-          <FileSpreadsheet className="w-4 h-4" /> Step 3 · CSV Validator &amp; Import
+          <FileSpreadsheet className="w-3.5 h-3.5" /> Step 3 · CSV Validator &amp; Import
         </button>
       </div>
 

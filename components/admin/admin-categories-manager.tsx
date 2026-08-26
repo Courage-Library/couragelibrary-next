@@ -66,10 +66,10 @@ export function AdminCategoriesManager({ categories }: Props) {
 
       {/* Page Heading matching legacy control panel */}
       <div className="text-left space-y-1">
-        <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-          <Layers className="w-6 h-6 text-blue-600" /> Mock Test Control Panel &mdash; Exam Categories
+        <h1 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2.5">
+          <Layers className="w-6 h-6 text-blue-600" /> Exam Categories
         </h1>
-        <p className="text-xs text-slate-500 font-medium">
+        <p className="text-xs sm:text-sm text-slate-500 font-medium">
           Manage root examination categories powering Patterns, Sections, Questions, Schedules, and Mock Tests.
         </p>
       </div>
@@ -82,10 +82,10 @@ export function AdminCategoriesManager({ categories }: Props) {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* LEFT COLUMN: Add New Exam Category Form Card */}
         <div className="lg:col-span-5">
-          <Card className="p-6 bg-white border-blue-200 shadow-sm border-t-4 border-t-blue-600 space-y-4 sticky top-4">
+          <Card className="p-5 sm:p-6 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-4 sticky top-4">
             <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
               <PlusCircle className="w-5 h-5 text-blue-600" />
-              <h2 className="text-base font-black text-slate-900">Add New Exam Category</h2>
+              <h2 className="text-sm font-bold text-slate-900">Add New Exam Category</h2>
             </div>
 
             <form action={createAction} className="space-y-4">
@@ -242,46 +242,46 @@ export function AdminCategoriesManager({ categories }: Props) {
                     </p>
                   )}
 
-                  {/* Connected Entity Metrics */}
+                  {/* Connected Entity Metrics — Clean Neutral Metric Boxes */}
                   <div className="grid grid-cols-4 gap-2 pt-3 border-t border-slate-100 text-center font-mono">
-                    <div className="p-2 rounded-lg bg-blue-50/60 border border-blue-100">
-                      <span className="text-[10px] text-blue-700 font-bold block uppercase">Patterns</span>
-                      <span className="text-sm font-black text-blue-900">{cat.patternsCount}</span>
+                    <div className="p-2 rounded-xl bg-slate-50 border border-slate-200/70">
+                      <span className="text-[10px] text-slate-500 font-semibold block uppercase">Patterns</span>
+                      <span className="text-sm font-bold text-slate-900">{cat.patternsCount}</span>
                     </div>
-                    <div className="p-2 rounded-lg bg-emerald-50/60 border border-emerald-100">
-                      <span className="text-[10px] text-emerald-700 font-bold block uppercase">Questions</span>
-                      <span className="text-sm font-black text-emerald-900">{cat.questionsCount}</span>
+                    <div className="p-2 rounded-xl bg-slate-50 border border-slate-200/70">
+                      <span className="text-[10px] text-slate-500 font-semibold block uppercase">Questions</span>
+                      <span className="text-sm font-bold text-slate-900">{cat.questionsCount}</span>
                     </div>
-                    <div className="p-2 rounded-lg bg-purple-50/60 border border-purple-100">
-                      <span className="text-[10px] text-purple-700 font-bold block uppercase">Schedules</span>
-                      <span className="text-sm font-black text-purple-900">{cat.schedulesCount}</span>
+                    <div className="p-2 rounded-xl bg-slate-50 border border-slate-200/70">
+                      <span className="text-[10px] text-slate-500 font-semibold block uppercase">Schedules</span>
+                      <span className="text-sm font-bold text-slate-900">{cat.schedulesCount}</span>
                     </div>
-                    <div className="p-2 rounded-lg bg-amber-50/60 border border-amber-100">
-                      <span className="text-[10px] text-amber-700 font-bold block uppercase">Mocks</span>
-                      <span className="text-sm font-black text-amber-900">{cat.mockTestsCount}</span>
+                    <div className="p-2 rounded-xl bg-slate-50 border border-slate-200/70">
+                      <span className="text-[10px] text-slate-500 font-semibold block uppercase">Mocks</span>
+                      <span className="text-sm font-bold text-slate-900">{cat.mockTestsCount}</span>
                     </div>
                   </div>
 
-                  {/* Connected Action Links */}
-                  <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center gap-1.5">
+                  {/* Connected Action Links — Clean Secondary Buttons */}
+                  <div className="pt-2.5 border-t border-slate-100 flex flex-wrap items-center gap-1.5">
                     <Link href={`/admin/patterns?category=${cat.slug}`}>
-                      <Button variant="outline" size="sm" className="text-xs font-bold text-blue-700 border-blue-200 hover:bg-blue-50">
-                        <GitBranch className="w-3.5 h-3.5 mr-1" /> Manage Patterns
+                      <Button variant="outline" size="sm" className="text-xs font-semibold text-slate-700 border-slate-200 bg-white hover:bg-slate-50 hover:text-slate-900 shadow-2xs">
+                        <GitBranch className="w-3.5 h-3.5 mr-1.5 text-slate-400" /> Manage Patterns
                       </Button>
                     </Link>
                     <Link href={`/admin/schedules?category=${cat.slug}`}>
-                      <Button variant="outline" size="sm" className="text-xs font-bold text-purple-700 border-purple-200 hover:bg-purple-50">
-                        <Calendar className="w-3.5 h-3.5 mr-1" /> Manage Schedules
+                      <Button variant="outline" size="sm" className="text-xs font-semibold text-slate-700 border-slate-200 bg-white hover:bg-slate-50 hover:text-slate-900 shadow-2xs">
+                        <Calendar className="w-3.5 h-3.5 mr-1.5 text-slate-400" /> Manage Schedules
                       </Button>
                     </Link>
                     <Link href={`/admin/questions?category=${cat.slug}`}>
-                      <Button variant="outline" size="sm" className="text-xs font-bold text-emerald-700 border-emerald-200 hover:bg-emerald-50">
-                        <HelpCircle className="w-3.5 h-3.5 mr-1" /> View Questions
+                      <Button variant="outline" size="sm" className="text-xs font-semibold text-slate-700 border-slate-200 bg-white hover:bg-slate-50 hover:text-slate-900 shadow-2xs">
+                        <HelpCircle className="w-3.5 h-3.5 mr-1.5 text-slate-400" /> View Questions
                       </Button>
                     </Link>
                     <Link href={`/admin/mock-tests?category=${cat.slug}`}>
-                      <Button variant="ghost" size="sm" className="text-xs font-bold text-slate-600 hover:text-slate-900">
-                        <FileCheck2 className="w-3.5 h-3.5 mr-1" /> Mocks
+                      <Button variant="outline" size="sm" className="text-xs font-semibold text-slate-700 border-slate-200 bg-white hover:bg-slate-50 hover:text-slate-900 shadow-2xs">
+                        <FileCheck2 className="w-3.5 h-3.5 mr-1.5 text-slate-400" /> Mocks
                       </Button>
                     </Link>
                   </div>
