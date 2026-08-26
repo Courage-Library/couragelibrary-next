@@ -41,10 +41,32 @@ export function MobileNav({ user }: MobileNavProps) {
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const pathname = usePathname();
 
+  // Close menu and reset accordions on route change
   useEffect(() => {
     setIsOpen(false);
     setExpandedCategory(null);
   }, [pathname]);
+
+  // Lock body scroll when mobile drawer is open & handle Escape key
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setIsOpen(false);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = "unset";
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen]);
 
   const toggleCategory = (cat: string) => {
     setExpandedCategory(prev => (prev === cat ? null : cat));
@@ -55,8 +77,9 @@ export function MobileNav({ user }: MobileNavProps) {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
+        aria-expanded={isOpen}
+        aria-label={isOpen ? "Close main navigation menu" : "Open main navigation menu"}
         className="p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-        aria-label="Toggle navigation menu"
       >
         {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
       </button>
@@ -69,14 +92,15 @@ export function MobileNav({ user }: MobileNavProps) {
               <div className="border-b border-slate-100 pb-2">
                 <button
                   type="button"
+                  aria-expanded={expandedCategory === "exams"}
                   onClick={() => toggleCategory("exams")}
-                  className="flex items-center justify-between w-full py-2 text-sm font-bold text-slate-900"
+                  className="flex items-center justify-between w-full py-2.5 text-sm font-bold text-slate-900"
                 >
                   <span>Exams</span>
-                  <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${expandedCategory === "exams" ? "rotate-180" : ""}`} />
+                  <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${expandedCategory === "exams" ? "rotate-180 text-blue-600" : ""}`} />
                 </button>
                 {expandedCategory === "exams" && (
-                  <div className="pl-3 py-1 space-y-1 text-xs font-medium text-slate-600">
+                  <div className="pl-3 py-1 space-y-1.5 text-xs font-medium text-slate-600 animate-in fade-in">
                     <Link href="/exams" className="flex items-center gap-2 py-1.5 font-bold text-blue-600">
                       <Layers className="w-3.5 h-3.5" /> All Exam Categories
                     </Link>
@@ -93,14 +117,15 @@ export function MobileNav({ user }: MobileNavProps) {
               <div className="border-b border-slate-100 pb-2">
                 <button
                   type="button"
+                  aria-expanded={expandedCategory === "practice"}
                   onClick={() => toggleCategory("practice")}
-                  className="flex items-center justify-between w-full py-2 text-sm font-bold text-slate-900"
+                  className="flex items-center justify-between w-full py-2.5 text-sm font-bold text-slate-900"
                 >
                   <span>Practice</span>
-                  <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${expandedCategory === "practice" ? "rotate-180" : ""}`} />
+                  <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${expandedCategory === "practice" ? "rotate-180 text-blue-600" : ""}`} />
                 </button>
                 {expandedCategory === "practice" && (
-                  <div className="pl-3 py-1 space-y-1 text-xs font-medium text-slate-600">
+                  <div className="pl-3 py-1 space-y-1.5 text-xs font-medium text-slate-600 animate-in fade-in">
                     <Link href="/practice" className="flex items-center gap-2 py-1">
                       <HelpCircle className="w-3.5 h-3.5 text-blue-500" /> Practice Questions
                     </Link>
@@ -124,14 +149,15 @@ export function MobileNav({ user }: MobileNavProps) {
               <div className="border-b border-slate-100 pb-2">
                 <button
                   type="button"
+                  aria-expanded={expandedCategory === "learn"}
                   onClick={() => toggleCategory("learn")}
-                  className="flex items-center justify-between w-full py-2 text-sm font-bold text-slate-900"
+                  className="flex items-center justify-between w-full py-2.5 text-sm font-bold text-slate-900"
                 >
                   <span>Learn</span>
-                  <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${expandedCategory === "learn" ? "rotate-180" : ""}`} />
+                  <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${expandedCategory === "learn" ? "rotate-180 text-blue-600" : ""}`} />
                 </button>
                 {expandedCategory === "learn" && (
-                  <div className="pl-3 py-1 space-y-1 text-xs font-medium text-slate-600">
+                  <div className="pl-3 py-1 space-y-1.5 text-xs font-medium text-slate-600 animate-in fade-in">
                     <Link href="/articles" className="flex items-center gap-2 py-1">
                       <BookOpen className="w-3.5 h-3.5 text-teal-500" /> Knowledge Articles
                     </Link>
@@ -149,14 +175,15 @@ export function MobileNav({ user }: MobileNavProps) {
               <div className="border-b border-slate-100 pb-2">
                 <button
                   type="button"
+                  aria-expanded={expandedCategory === "community"}
                   onClick={() => toggleCategory("community")}
-                  className="flex items-center justify-between w-full py-2 text-sm font-bold text-slate-900"
+                  className="flex items-center justify-between w-full py-2.5 text-sm font-bold text-slate-900"
                 >
                   <span>Community</span>
-                  <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${expandedCategory === "community" ? "rotate-180" : ""}`} />
+                  <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${expandedCategory === "community" ? "rotate-180 text-blue-600" : ""}`} />
                 </button>
                 {expandedCategory === "community" && (
-                  <div className="pl-3 py-1 space-y-1 text-xs font-medium text-slate-600">
+                  <div className="pl-3 py-1 space-y-1.5 text-xs font-medium text-slate-600 animate-in fade-in">
                     <Link href="/community" className="flex items-center gap-2 py-1">
                       <Users className="w-3.5 h-3.5 text-blue-500" /> Discussion Forum
                     </Link>
@@ -170,18 +197,18 @@ export function MobileNav({ user }: MobileNavProps) {
                 )}
               </div>
 
-              <Link href="/pricing" className="flex items-center gap-2 py-2 text-sm font-bold text-amber-600">
+              <Link href="/pricing" className="flex items-center gap-2 py-2.5 text-sm font-bold text-amber-600">
                 <Sparkles className="w-4 h-4 fill-amber-400 text-amber-500" /> PRO Pricing
               </Link>
 
               {user?.isAdmin && (
-                <Link href="/admin" className="flex items-center gap-2 py-2 text-sm font-bold text-indigo-600 border-t border-slate-100 pt-3">
-                  <Shield className="w-4 h-4" /> Admin Studio
+                <Link href="/admin" className="flex items-center gap-2 py-2.5 text-sm font-bold text-indigo-600 border-t border-slate-100 pt-3">
+                  <Shield className="w-4 h-4 text-indigo-600" /> Admin Studio
                 </Link>
               )}
             </div>
 
-            {/* Bottom Auth Action */}
+            {/* Bottom Auth Actions */}
             <div className="pt-3 border-t border-slate-100 space-y-2">
               {user ? (
                 <>
@@ -189,10 +216,10 @@ export function MobileNav({ user }: MobileNavProps) {
                     <LayoutDashboard className="w-4 h-4 text-blue-600" /> Student Dashboard
                   </Link>
                   <Link href="/billing" className="flex items-center gap-2 py-2 text-xs font-bold text-slate-800">
-                    <CreditCard className="w-4 h-4 text-yellow-600" /> Billing & Invoices
+                    <CreditCard className="w-4 h-4 text-amber-500" /> Billing & Invoices
                   </Link>
                   <form action={logoutAction}>
-                    <Button variant="outline" size="sm" className="w-full justify-center text-rose-600 border-rose-200 hover:bg-rose-50">
+                    <Button variant="outline" size="sm" className="w-full justify-center text-rose-600 border-rose-200 hover:bg-rose-50 font-bold">
                       <LogOut className="w-4 h-4 mr-2" /> Sign Out
                     </Button>
                   </form>
@@ -200,10 +227,10 @@ export function MobileNav({ user }: MobileNavProps) {
               ) : (
                 <div className="grid grid-cols-2 gap-2 pt-2">
                   <Link href="/auth/login" className="w-full">
-                    <Button variant="outline" size="sm" className="w-full">Sign In</Button>
+                    <Button variant="outline" size="sm" className="w-full font-bold">Sign In</Button>
                   </Link>
                   <Link href="/auth/signup" className="w-full">
-                    <Button variant="default" size="sm" className="w-full">Get Started</Button>
+                    <Button variant="default" size="sm" className="w-full font-bold">Get Started</Button>
                   </Link>
                 </div>
               )}

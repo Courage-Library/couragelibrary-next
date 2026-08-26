@@ -26,8 +26,17 @@ export function UserNav({ user, coins = 0, streak = 0 }: UserNavProps) {
         setIsProfileOpen(false);
       }
     }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsProfileOpen(false);
+      }
+    }
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
   }, []);
 
   if (!user) {
@@ -46,13 +55,13 @@ export function UserNav({ user, coins = 0, streak = 0 }: UserNavProps) {
   return (
     <div className="flex items-center gap-3">
       {/* Streak Badge */}
-      <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold shadow-xs" title="Daily Practice Streak">
+      <div className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold shadow-xs" title="Daily Practice Streak">
         <Flame className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
         <span>{streak}</span>
       </div>
 
       {/* Coin Balance Badge */}
-      <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-800 text-xs font-bold shadow-xs" title="Courage Coins">
+      <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-800 text-xs font-bold shadow-xs" title="Courage Coins">
         <Coins className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
         <span>{coins}</span>
       </div>
@@ -60,23 +69,27 @@ export function UserNav({ user, coins = 0, streak = 0 }: UserNavProps) {
       {/* Notifications Link */}
       <Link
         href="/notifications"
+        aria-label="View notifications"
         className="relative p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
         title="Notifications"
       >
-        <Bell className="w-4 h-4" />
+        <Bell className="w-4.5 h-4.5" />
       </Link>
 
       {/* User Profile Dropdown */}
       <div ref={dropdownRef} className="relative pl-2 border-l border-slate-200">
         <button
           type="button"
+          aria-expanded={isProfileOpen}
+          aria-haspopup="true"
+          aria-label="User Profile Menu"
           onClick={() => setIsProfileOpen(!isProfileOpen)}
-          className="flex items-center gap-1.5 p-1 rounded-full hover:bg-slate-100 transition-colors"
+          className="flex items-center gap-1.5 p-1 rounded-full hover:bg-slate-100 transition-colors focus:outline-hidden focus:ring-2 focus:ring-blue-500"
         >
           <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-xs flex items-center justify-center shadow-xs">
             {user.fullName?.charAt(0).toUpperCase() || <User className="w-4 h-4" />}
           </div>
-          <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+          <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${isProfileOpen ? "rotate-180 text-blue-600" : ""}`} />
         </button>
 
         {isProfileOpen && (
@@ -92,14 +105,14 @@ export function UserNav({ user, coins = 0, streak = 0 }: UserNavProps) {
                 onClick={() => setIsProfileOpen(false)}
                 className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors"
               >
-                <LayoutDashboard className="w-4 h-4 text-blue-600" /> Dashboard
+                <LayoutDashboard className="w-4 h-4 text-blue-600 shrink-0" /> Dashboard
               </Link>
               <Link
                 href="/billing"
                 onClick={() => setIsProfileOpen(false)}
                 className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors"
               >
-                <CreditCard className="w-4 h-4 text-amber-500" /> Billing & Invoices
+                <CreditCard className="w-4 h-4 text-amber-500 shrink-0" /> Billing & Invoices
               </Link>
 
               {user.isAdmin && (
@@ -108,7 +121,7 @@ export function UserNav({ user, coins = 0, streak = 0 }: UserNavProps) {
                   onClick={() => setIsProfileOpen(false)}
                   className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-indigo-700 hover:bg-indigo-50 transition-colors"
                 >
-                  <Shield className="w-4 h-4 text-indigo-600" /> Admin Studio
+                  <Shield className="w-4 h-4 text-indigo-600 shrink-0" /> Admin Studio
                 </Link>
               )}
             </div>
@@ -119,7 +132,7 @@ export function UserNav({ user, coins = 0, streak = 0 }: UserNavProps) {
                   type="submit"
                   className="flex items-center gap-2.5 w-full px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors"
                 >
-                  <LogOut className="w-4 h-4" /> Sign Out
+                  <LogOut className="w-4 h-4 shrink-0" /> Sign Out
                 </button>
               </form>
             </div>
