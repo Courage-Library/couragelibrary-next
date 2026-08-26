@@ -39,6 +39,7 @@ export function BulkImportModal({ defaultEntity = "questions", onClose }: BulkIm
         created: 0,
         updated: 0,
         skipped: 0,
+        brokenReferencesCount: 0,
         errors: [`JSON Parse Error: ${errMessage}`],
         warnings: [],
       });
@@ -66,6 +67,7 @@ export function BulkImportModal({ defaultEntity = "questions", onClose }: BulkIm
         created: 0,
         updated: 0,
         skipped: 0,
+        brokenReferencesCount: 0,
         errors: [`Execution Error: ${errMessage}`],
         warnings: [],
       });

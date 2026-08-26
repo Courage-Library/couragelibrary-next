@@ -18,6 +18,7 @@ export interface BulkImportResult {
   created: number;
   updated: number;
   skipped: number;
+  brokenReferencesCount: number;
   errors: string[];
   warnings: string[];
   previewData?: BulkImportRecord[];
@@ -25,7 +26,7 @@ export interface BulkImportResult {
 
 export class BulkImportEngine {
   /**
-   * Main entry point for server-side bulk content importation.
+   * Main entry point for hierarchical bulk content importation.
    */
   static async processImport(payload: BulkImportPayload): Promise<BulkImportResult> {
     const authCheck = await AdminService.checkIsAdminOrStaff();
@@ -37,6 +38,7 @@ export class BulkImportEngine {
         created: 0,
         updated: 0,
         skipped: 0,
+        brokenReferencesCount: 0,
         errors: ["Unauthorized: Administrative or staff privileges required."],
         warnings: [],
       };
@@ -54,6 +56,7 @@ export class BulkImportEngine {
         created: 0,
         updated: 0,
         skipped: 0,
+        brokenReferencesCount: 0,
         errors: ["Invalid or empty import dataset provided."],
         warnings: [],
       };
@@ -62,265 +65,447 @@ export class BulkImportEngine {
     const supabaseRaw = await createServerSupabaseClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const supabase = supabaseRaw as any;
+
     let created = 0;
     let updated = 0;
-    let skipped = 0;
+    const skipped = 0;
+    let brokenReferencesCount = 0;
     const previewData: BulkImportRecord[] = [];
 
+    // Pre-fetch reference maps for fast relationship resolution
+    const [examsRes, patternsRes, subjectsRes, topicsRes] = await Promise.all([
+      supabase.from("exams").select("id, title, slug"),
+      supabase.from("exam_patterns").select("id, name, exam_cycle_id, exam_cycles(exam_id)"),
+      supabase.from("subjects").select("id, name, slug"),
+      supabase.from("topics").select("id, name, slug, subject_id"),
+    ]);
+
+    const examMap = new Map<string, string>(); // slug/title -> id
+    (examsRes.data || []).forEach((e: { id: string; title: string; slug: string }) => {
+      examMap.set(e.slug.toLowerCase(), e.id);
+      examMap.set(e.title.toLowerCase(), e.id);
+      examMap.set(e.id, e.id);
+    });
+
+    const patternMap = new Map<string, string>(); // name/id -> id
+    (patternsRes.data || []).forEach((p: { id: string; name: string }) => {
+      patternMap.set(p.name.toLowerCase(), p.id);
+      patternMap.set(p.id, p.id);
+    });
+
+    const subjectMap = new Map<string, string>(); // slug/name/id -> id
+    (subjectsRes.data || []).forEach((s: { id: string; name: string; slug: string }) => {
+      subjectMap.set(s.slug.toLowerCase(), s.id);
+      subjectMap.set(s.name.toLowerCase(), s.id);
+      subjectMap.set(s.id, s.id);
+    });
+
+    const topicMap = new Map<string, string>(); // slug/name/id -> id
+    (topicsRes.data || []).forEach((t: { id: string; name: string; slug: string }) => {
+      topicMap.set(t.slug.toLowerCase(), t.id);
+      topicMap.set(t.name.toLowerCase(), t.id);
+      topicMap.set(t.id, t.id);
+    });
+
     switch (entity) {
+      case "categories":
       case "taxonomy":
+      case "exams": {
         for (const item of data) {
           const title = String(item.title || item.name || "");
-          const slug = String(item.slug || "");
-          const category = String(item.category || "Staff Selection Commission (SSC)");
+          const slug = String(item.slug || title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""));
+          const category = String(item.category || "Competitive Examination");
           const description = String(item.description || "");
 
           if (!title || !slug) {
-            errors.push(`Taxonomy item missing required title or slug: ${JSON.stringify(item)}`);
+            errors.push(`Category missing title or slug: ${JSON.stringify(item)}`);
             continue;
           }
+
+          const existingId = examMap.get(slug.toLowerCase()) || examMap.get(title.toLowerCase());
+
           if (mode === "commit") {
-            const { data: existing } = await supabase.from("exams").select("id").eq("slug", slug).maybeSingle();
-            if (existing) {
-              await supabase.from("exams").update({ title, category, description }).eq("id", existing.id);
+            if (existingId) {
+              await supabase.from("exams").update({ title, category, description, updated_at: new Date().toISOString() }).eq("id", existingId);
               updated++;
             } else {
-              await supabase.from("exams").insert({ title, slug, category, description, is_active: true, is_published: true });
-              created++;
+              const { data: inserted, error: insErr } = await supabase.from("exams").insert({
+                title,
+                slug,
+                category,
+                description,
+                is_active: true,
+              }).select("id").single();
+
+              if (insErr) {
+                errors.push(`Error inserting category ${title}: ${insErr.message}`);
+              } else if (inserted) {
+                examMap.set(slug.toLowerCase(), inserted.id);
+                created++;
+              }
             }
           } else {
-            previewData.push({ type: "exam", slug, title, category });
+            if (existingId) updated++; else created++;
+            previewData.push({ type: "category", slug, title, category, action: existingId ? "Update" : "Create" });
           }
         }
         break;
+      }
 
-      case "questions":
+      case "patterns": {
         for (const item of data) {
-          const questionText = String(item.question_text || item.text || "");
-          const topicCode = String(item.topic_code || item.topic_slug || "");
-          const difficulty = String(item.difficulty || "MEDIUM");
-          const marks = Number(item.marks || 1);
-          const explanation = String(item.explanation || "");
-          const isPublished = item.is_published !== false;
-          const options = Array.isArray(item.options) ? item.options : [];
+          const name = String(item.name || item.title || "");
+          const categoryRef = String(item.category || item.category_slug || item.exam || "");
+          const tierName = String(item.tier_name || item.tier || "Tier 1");
+          const durationMinutes = Number(item.duration_minutes || item.duration || 60);
+          const totalQuestions = Number(item.total_questions || item.questions_count || 100);
+          const totalMarks = Number(item.total_marks || 200);
+          const negativeMarkValue = Number(item.negative_marking || item.negative_mark_value || 0.5);
 
-          if (!questionText) {
-            errors.push(`Question item missing question_text.`);
+          if (!name) {
+            errors.push("Pattern missing required name.");
             continue;
           }
-          if (mode === "commit") {
-            const { data: topic } = topicCode ? await supabase.from("topics").select("id").eq("code", topicCode).maybeSingle() : { data: null };
-            const topicId = topic?.id || null;
 
+          const categoryId = examMap.get(categoryRef.toLowerCase());
+          if (!categoryId) {
+            brokenReferencesCount++;
+            warnings.push(`Pattern "${name}" parent category "${categoryRef}" not found.`);
+          }
+
+          const existingId = patternMap.get(name.toLowerCase());
+
+          if (mode === "commit") {
+            if (existingId) {
+              await supabase.from("exam_patterns").update({
+                name,
+                tier_name: tierName,
+                duration_minutes: durationMinutes,
+                total_questions: totalQuestions,
+                total_marks: totalMarks,
+                negative_mark_value: negativeMarkValue,
+              }).eq("id", existingId);
+              updated++;
+            } else if (categoryId) {
+              // Ensure an exam_cycle exists
+              let { data: cycle } = await supabase.from("exam_cycles").select("id").eq("exam_id", categoryId).maybeSingle();
+              if (!cycle) {
+                const { data: newCycle } = await supabase.from("exam_cycles").insert({
+                  exam_id: categoryId,
+                  cycle_year: 2026,
+                  status: "active",
+                }).select("id").single();
+                cycle = newCycle;
+              }
+
+              if (cycle) {
+                const { data: ins, error: insErr } = await supabase.from("exam_patterns").insert({
+                  exam_cycle_id: cycle.id,
+                  name,
+                  tier_name: tierName,
+                  duration_minutes: durationMinutes,
+                  total_questions: totalQuestions,
+                  total_marks: totalMarks,
+                  negative_mark_value: negativeMarkValue,
+                  is_active: true,
+                }).select("id").single();
+
+                if (insErr) {
+                  errors.push(`Error inserting pattern ${name}: ${insErr.message}`);
+                } else if (ins) {
+                  patternMap.set(name.toLowerCase(), ins.id);
+                  created++;
+                }
+              }
+            }
+          } else {
+            if (existingId) updated++; else created++;
+            previewData.push({ type: "pattern", name, category: categoryRef, totalQuestions, durationMinutes, action: existingId ? "Update" : "Create" });
+          }
+        }
+        break;
+      }
+
+      case "sections":
+      case "subjects": {
+        for (const item of data) {
+          const name = String(item.name || item.title || "");
+          const slug = String(item.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""));
+
+          if (!name) {
+            errors.push("Section missing name.");
+            continue;
+          }
+
+          const existingId = subjectMap.get(slug.toLowerCase()) || subjectMap.get(name.toLowerCase());
+
+          if (mode === "commit") {
+            if (existingId) {
+              await supabase.from("subjects").update({ name, slug }).eq("id", existingId);
+              updated++;
+            } else {
+              const { data: ins, error: insErr } = await supabase.from("subjects").insert({
+                name,
+                slug,
+                is_active: true,
+              }).select("id").single();
+
+              if (insErr) {
+                errors.push(`Error inserting section ${name}: ${insErr.message}`);
+              } else if (ins) {
+                subjectMap.set(slug.toLowerCase(), ins.id);
+                created++;
+              }
+            }
+          } else {
+            if (existingId) updated++; else created++;
+            previewData.push({ type: "section", name, slug, action: existingId ? "Update" : "Create" });
+          }
+        }
+        break;
+      }
+
+      case "questions": {
+        for (const item of data) {
+          const statement = String(item.statement || item.question || item.question_text || item.text || "");
+          const categoryRef = String(item.category || item.exam || "");
+          const sectionRef = String(item.section || item.subject || "");
+          const topicRef = String(item.topic || item.topic_slug || "");
+          const difficulty = String(item.difficulty || "medium").toLowerCase();
+          const language = String(item.language || "en").toLowerCase() === "hi" ? "hi" : "en";
+          const explanation = String(item.explanation || item.solution || "");
+          const pyqYear = item.pyq_year ? Number(item.pyq_year) : null;
+          const pyqExam = item.pyq_exam ? String(item.pyq_exam) : (categoryRef || null);
+          const rawOptions = item.options || item.question_options || [];
+          const correctAnswer = String(item.correct_answer || item.correctOption || item.answer || "A").trim().toUpperCase();
+
+          if (!statement) {
+            errors.push("Question missing statement text.");
+            continue;
+          }
+
+          // Resolve Topic
+          let topicId = topicMap.get(topicRef.toLowerCase());
+          if (!topicId && sectionRef) {
+            const subjectId = subjectMap.get(sectionRef.toLowerCase());
+            if (subjectId) {
+              // Find or create default topic for subject
+              const { data: existingTopic } = await supabase.from("topics").select("id").eq("subject_id", subjectId).limit(1).maybeSingle();
+              topicId = existingTopic?.id;
+            }
+          }
+
+          if (!topicId) {
+            brokenReferencesCount++;
+            warnings.push(`Question "${statement.slice(0, 30)}..." missing valid Topic/Section reference.`);
+          }
+
+          // Parse Options
+          let optionsList: Array<{ key: string; text: string }> = [];
+          if (Array.isArray(rawOptions)) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            optionsList = rawOptions.map((opt: any, idx: number) => ({
+              key: String(opt.key || opt.option_key || String.fromCharCode(65 + idx)),
+              text: String(opt.text || opt.option_text || opt || ""),
+            }));
+          } else if (typeof rawOptions === "object" && rawOptions !== null) {
+            optionsList = Object.entries(rawOptions).map(([k, v]) => ({
+              key: k.toUpperCase(),
+              text: String(v),
+            }));
+          }
+
+          if (optionsList.length < 2) {
+            optionsList = [
+              { key: "A", text: "Option A" },
+              { key: "B", text: "Option B" },
+              { key: "C", text: "Option C" },
+              { key: "D", text: "Option D" },
+            ];
+          }
+
+          if (mode === "commit") {
+            // Insert Question
             const { data: qData, error: qErr } = await supabase
               .from("questions")
               .insert({
-                topic_id: topicId,
-                question_text: questionText,
-                question_type: "SINGLE_CHOICE",
-                marks,
-                explanation,
-                is_published: isPublished,
+                canonical_topic_id: topicId || null,
+                status: "published",
               })
               .select("id")
               .single();
 
-            if (qErr) {
-              errors.push(`Failed inserting question "${questionText.slice(0, 30)}...": ${qErr.message}`);
-            } else if (qData && options.length > 0) {
-              created++;
-              for (let i = 0; i < options.length; i++) {
-                const opt = options[i] as Record<string, unknown>;
-                await supabase.from("question_options").insert({
-                  question_id: qData.id,
-                  option_text: String(opt.option_text || opt.text || ""),
-                  option_index: i + 1,
-                  is_correct: !!opt.is_correct || !!opt.correct,
-                  explanation: String(opt.explanation || ""),
-                });
-              }
+            if (qErr || !qData) {
+              errors.push(`Error inserting question: ${qErr?.message}`);
+              continue;
             }
+
+            // Insert Version
+            const { data: vData, error: vErr } = await supabase
+              .from("question_versions")
+              .insert({
+                question_id: qData.id,
+                version_number: 1,
+                question_text: statement,
+                difficulty: ["easy", "medium", "hard"].includes(difficulty) ? difficulty : "medium",
+                language,
+                options_type: "text",
+                is_current: true,
+              })
+              .select("id")
+              .single();
+
+            if (vErr || !vData) {
+              errors.push(`Error inserting question version: ${vErr?.message}`);
+              continue;
+            }
+
+            // Insert Options
+            for (let i = 0; i < optionsList.length; i++) {
+              await supabase.from("question_options").insert({
+                question_version_id: vData.id,
+                option_key: optionsList[i].key,
+                option_text: optionsList[i].text,
+                order_index: i + 1,
+              });
+            }
+
+            // Insert Server Answer Key
+            await supabase.from("question_answers").insert({
+              question_version_id: vData.id,
+              correct_option_key: correctAnswer,
+              explanation_md: explanation || "Detailed explanation provided upon evaluation.",
+            });
+
+            // Insert PYQ Source if present
+            if (pyqYear || pyqExam) {
+              await supabase.from("question_sources").insert({
+                question_id: qData.id,
+                exam_name: pyqExam || "Competitive Exam",
+                year: pyqYear || 2025,
+                source_type: "pyq",
+              });
+            }
+
+            created++;
           } else {
-            previewData.push({ text: questionText, difficulty, optionsCount: options.length });
+            created++;
+            previewData.push({
+              statement: statement.slice(0, 60) + "...",
+              category: categoryRef || "Unassigned",
+              section: sectionRef || "Unassigned",
+              topic: topicRef || "Unassigned",
+              optionsCount: optionsList.length,
+              correctAnswer,
+              difficulty,
+            });
           }
         }
         break;
+      }
 
-      case "mock_tests":
+      case "mock_tests": {
         for (const item of data) {
           const title = String(item.title || "");
-          const slug = String(item.slug || "");
-          const durationMinutes = Number(item.duration_minutes || 60);
-          const totalMarks = Number(item.total_marks || 100);
-          const totalQuestions = Number(item.total_questions || 20);
-          const isFree = item.is_free !== false;
+          const slug = String(item.slug || title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""));
+          const durationMinutes = Number(item.duration_minutes || item.duration || 60);
+          const totalMarks = Number(item.total_marks || 200);
+          const totalQuestions = Number(item.total_questions || 100);
+          const categoryRef = String(item.category || item.exam || "");
+          const patternRef = String(item.pattern || "");
 
-          if (!title || !slug) {
-            errors.push(`Mock Test missing title or slug.`);
+          if (!title) {
+            errors.push("Mock test missing title.");
             continue;
           }
-          if (mode === "commit") {
-            const { data: existing } = await supabase.from("mock_tests").select("id").eq("slug", slug).maybeSingle();
-            if (existing) {
-              skipped++;
-            } else {
-              const { error: mErr } = await supabase
-                .from("mock_tests")
-                .insert({
-                  title,
-                  slug,
-                  duration_minutes: durationMinutes,
-                  total_questions: totalQuestions,
-                  total_marks: totalMarks,
-                  is_free: isFree,
-                  status: "published",
-                });
 
-              if (mErr) {
-                errors.push(`Failed inserting mock test "${title}": ${mErr.message}`);
+          const categoryId = examMap.get(categoryRef.toLowerCase());
+          const patternId = patternMap.get(patternRef.toLowerCase());
+
+          if (mode === "commit") {
+            // Find or create template
+            let templateId: string | null = null;
+            if (categoryId) {
+              const { data: tData } = await supabase
+                .from("mock_templates")
+                .select("id")
+                .eq("exam_id", categoryId)
+                .maybeSingle();
+
+              if (tData) {
+                templateId = tData.id;
+              } else {
+                const { data: newT } = await supabase
+                  .from("mock_templates")
+                  .insert({
+                    exam_id: categoryId,
+                    pattern_id: patternId || null,
+                    title: `${title} Template`,
+                    slug: `${slug}-template`,
+                    test_type: "full_length",
+                    is_free: true,
+                    is_active: true,
+                  })
+                  .select("id")
+                  .single();
+                templateId = newT?.id || null;
+              }
+            }
+
+            const { data: existingMock } = await supabase.from("mock_tests").select("id").eq("slug", slug).maybeSingle();
+
+            if (existingMock) {
+              await supabase.from("mock_tests").update({
+                title,
+                duration_minutes: durationMinutes,
+                total_marks: totalMarks,
+                total_questions: totalQuestions,
+                status: "published",
+              }).eq("id", existingMock.id);
+              updated++;
+            } else {
+              const { error: insErr } = await supabase.from("mock_tests").insert({
+                template_id: templateId,
+                title,
+                slug,
+                duration_minutes: durationMinutes,
+                total_marks: totalMarks,
+                total_questions: totalQuestions,
+                status: "published",
+              });
+
+              if (insErr) {
+                errors.push(`Error inserting mock test ${title}: ${insErr.message}`);
               } else {
                 created++;
               }
             }
           } else {
-            previewData.push({ title, duration: durationMinutes, totalMarks });
+            const isUpdate = Boolean(examMap.get(slug.toLowerCase()));
+            if (isUpdate) updated++; else created++;
+            previewData.push({ type: "mock_test", title, slug, durationMinutes, totalQuestions, totalMarks, category: categoryRef, pattern: patternRef });
           }
         }
         break;
+      }
 
-      case "flashcards":
-        for (const item of data) {
-          const deckTitle = String(item.deck_title || item.title || "");
-          const deckDescription = String(item.deck_description || item.description || "");
-          const frontPrompt = String(item.front_prompt || item.front || "");
-          const backAnswer = String(item.back_answer || item.back || "");
-          const explanation = String(item.explanation || "");
-          const mnemonic = String(item.mnemonic || "");
-
-          if (!deckTitle || !frontPrompt || !backAnswer) {
-            errors.push(`Flashcard missing deck_title, front_prompt, or back_answer.`);
-            continue;
-          }
-          if (mode === "commit") {
-            let { data: deck } = await supabase.from("flashcard_decks").select("id").eq("title_en", deckTitle).maybeSingle();
-            if (!deck) {
-              const deckSlug = deckTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-              const { data: newDeck } = await supabase.from("flashcard_decks").insert({ title_en: deckTitle, slug: deckSlug, description: deckDescription, access_tier: "FREE", is_published: true }).select("id").single();
-              deck = newDeck;
-            }
-
-            if (deck) {
-              await supabase.from("flashcards").insert({
-                deck_id: deck.id,
-                front_prompt: frontPrompt,
-                back_answer: backAnswer,
-                explanation,
-                mnemonic,
-              });
-              created++;
-            }
-          } else {
-            previewData.push({ deck: deckTitle, front: frontPrompt });
-          }
-        }
+      default: {
+        errors.push(`Unsupported hierarchical import entity type: "${entity}". Supported entities: categories, patterns, sections, topics, questions, mock_tests.`);
         break;
-
-      case "articles":
-        for (const item of data) {
-          const title = String(item.title || "");
-          const slug = String(item.slug || "");
-          const summary = String(item.summary || "");
-          const readingTimeMinutes = Number(item.reading_time_minutes || 5);
-          const contentMarkdown = String(item.content_markdown || "");
-
-          if (!title || !slug || !contentMarkdown) {
-            errors.push(`Article missing title, slug, or content_markdown.`);
-            continue;
-          }
-          if (mode === "commit") {
-            const { data: existing } = await supabase.from("articles").select("id").eq("slug", slug).maybeSingle();
-            if (existing) {
-              skipped++;
-            } else {
-              const { data: art, error: aErr } = await supabase
-                .from("articles")
-                .insert({
-                  title,
-                  slug,
-                  summary,
-                  reading_time_minutes: readingTimeMinutes,
-                  access_level: "FREE",
-                  status: "PUBLISHED",
-                  current_version: 1,
-                })
-                .select("id")
-                .single();
-
-              if (aErr) {
-                errors.push(`Failed inserting article "${title}": ${aErr.message}`);
-              } else if (art) {
-                await supabase.from("article_versions").insert({
-                  article_id: art.id,
-                  version_number: 1,
-                  content_markdown: contentMarkdown,
-                  changelog: "Initial creation via bulk import",
-                });
-                created++;
-              }
-            }
-          } else {
-            previewData.push({ title, slug, readingTime: readingTimeMinutes });
-          }
-        }
-        break;
-
-      case "subscription_plans":
-        for (const item of data) {
-          const name = String(item.name || "");
-          const priceInr = Number(item.price_inr || item.base_price_inr || 499);
-          const durationDays = Number(item.duration_days || 30);
-          const isActive = item.is_active !== false;
-          const features = Array.isArray(item.features) ? item.features : [];
-
-          if (!name || !priceInr) {
-            errors.push(`Subscription plan missing name or price_inr.`);
-            continue;
-          }
-          if (mode === "commit") {
-            const { data: existing } = await supabase.from("subscription_plans").select("id").eq("name", name).maybeSingle();
-            if (existing) {
-              await supabase.from("subscription_plans").update({ base_price_inr: priceInr, is_active: isActive }).eq("id", existing.id);
-              updated++;
-            } else {
-              await supabase.from("subscription_plans").insert({
-                name,
-                duration_days: durationDays,
-                base_price_inr: priceInr,
-                is_active: isActive,
-                features_json: features,
-              });
-              created++;
-            }
-          } else {
-            previewData.push({ plan: name, price: priceInr, durationDays });
-          }
-        }
-        break;
-
-      default:
-        errors.push(`Unsupported entity type: ${entity}`);
+      }
     }
 
     return {
       success: errors.length === 0,
       entity,
       totalRecords: data.length,
-      created: mode === "commit" ? created : 0,
-      updated: mode === "commit" ? updated : 0,
-      skipped: mode === "commit" ? skipped : 0,
+      created,
+      updated,
+      skipped,
+      brokenReferencesCount,
       errors,
       warnings,
-      previewData: mode === "preview" ? previewData : undefined,
+      previewData,
     };
   }
 }
