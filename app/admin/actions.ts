@@ -46,6 +46,254 @@ export async function executeBulkImportAction(payload: BulkImportPayload): Promi
   return result;
 }
 
+/**
+ * Server Action: Upload Question or Option Image to Supabase Storage
+ */
+export async function uploadBulkImportImageAction(
+  formData: FormData
+): Promise<{ success: boolean; url?: string; filename?: string; error?: string }> {
+  const authCheck = await AdminService.checkIsAdminOrStaff();
+  if (!authCheck.isAdmin) return { success: false, error: "Unauthorized." };
+
+  const file = formData.get("file") as File;
+  const folder = ((formData.get("folder") as string) || "questions").toLowerCase();
+
+  if (!file) return { success: false, error: "No file provided." };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabase = (await createServerSupabaseClient()) as any;
+  const ext = file.name.split(".").pop() || "png";
+  const filename = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+  const path = `${folder}/${filename}`;
+
+  const arrayBuffer = await file.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+
+  const { error: uploadErr } = await supabase.storage
+    .from("question-images")
+    .upload(path, buffer, {
+      contentType: file.type,
+      upsert: false,
+    });
+
+  if (uploadErr) {
+    return { success: false, error: uploadErr.message };
+  }
+
+  const { data: urlData } = supabase.storage.from("question-images").getPublicUrl(path);
+  return {
+    success: true,
+    url: urlData?.publicUrl,
+    filename: file.name,
+  };
+}
+
+export interface BulkImportQuestionRecord {
+  question_text: string;
+  options: string | Record<string, unknown>;
+  options_type?: string;
+  correct_answer: string;
+  difficulty?: string;
+  topic?: string;
+  explanation?: string;
+  category_id?: string;
+  pattern_section_id?: string;
+  section_name?: string;
+  question_image?: string;
+  pyq_year?: string | number;
+  pyq_source?: string;
+  is_active?: boolean | string;
+  language?: string;
+}
+
+/**
+ * Server Action: Import Bulk Question Rows directly into the relational Question Architecture
+ */
+export async function importBulkQuestionsAction(
+  rows: BulkImportQuestionRecord[]
+): Promise<{ success: boolean; inserted: number; failed: number; errors: string[] }> {
+  const authCheck = await AdminService.checkIsAdminOrStaff();
+  if (!authCheck.isAdmin) {
+    return { success: false, inserted: 0, failed: rows.length, errors: ["Unauthorized access."] };
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabase = (await createServerSupabaseClient()) as any;
+  let inserted = 0;
+  let failed = 0;
+  const errors: string[] = [];
+
+  // Cache topics map
+  const { data: allTopics } = await supabase.from("topics").select("id, name, slug, subject_id");
+  const topicMap = new Map<string, string>();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (allTopics || []).forEach((t: any) => {
+    topicMap.set(t.name.toLowerCase(), t.id);
+    topicMap.set(t.slug.toLowerCase(), t.id);
+  });
+
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    try {
+      const statement = r.question_text?.trim() || "";
+      if (!statement) {
+        failed++;
+        errors.push(`Row ${i + 1}: Missing question statement.`);
+        continue;
+      }
+
+      // Options parsing
+      let optionsObj: Record<string, string | { text?: string; image?: string }> = {};
+      if (typeof r.options === "string") {
+        try {
+          optionsObj = JSON.parse(r.options);
+        } catch {
+          optionsObj = { A: "Option A", B: "Option B", C: "Option C", D: "Option D" };
+        }
+      } else if (typeof r.options === "object" && r.options !== null) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        optionsObj = r.options as any;
+      }
+
+      const optionsType = (r.options_type || "text").toLowerCase();
+      const correctAnswer = (r.correct_answer || "A").trim().toUpperCase();
+      const difficulty = ["easy", "medium", "hard"].includes((r.difficulty || "").toLowerCase())
+        ? (r.difficulty || "").toLowerCase()
+        : "medium";
+      const language =
+        (r.language || "english").toLowerCase() === "hindi" || (r.language || "").toLowerCase() === "hi"
+          ? "hi"
+          : "en";
+      const explanation = r.explanation?.trim() || "Explanation provided upon evaluation.";
+      const qImage = r.question_image?.trim() || null;
+      const topicName = r.topic?.trim() || "General";
+
+      // Resolve topic ID
+      let topicId = topicMap.get(topicName.toLowerCase());
+      if (!topicId) {
+        const { data: firstSubject } = await supabase.from("subjects").select("id").limit(1).maybeSingle();
+        const subjectId = firstSubject?.id;
+        if (subjectId) {
+          const { data: newTop } = await supabase
+            .from("topics")
+            .insert({
+              subject_id: subjectId,
+              name: topicName,
+              slug: topicName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
+              is_active: true,
+            })
+            .select("id")
+            .single();
+          if (newTop?.id) {
+            topicId = newTop.id;
+            topicMap.set(topicName.toLowerCase(), newTop.id);
+          }
+        }
+      }
+
+      // 1. Insert Question
+      const { data: qData, error: qErr } = await supabase
+        .from("questions")
+        .insert({
+          canonical_topic_id: topicId || null,
+          status: "published",
+        })
+        .select("id")
+        .single();
+
+      if (qErr || !qData) {
+        failed++;
+        errors.push(`Row ${i + 1}: ${qErr?.message || "Question insert failed"}`);
+        continue;
+      }
+
+      // 2. Insert Question Version
+      const { data: qvData, error: qvErr } = await supabase
+        .from("question_versions")
+        .insert({
+          question_id: qData.id,
+          version_number: 1,
+          question_text: statement,
+          difficulty,
+          language,
+          options_type: optionsType,
+          question_image_url: qImage,
+          is_current: true,
+        })
+        .select("id")
+        .single();
+
+      if (qvErr || !qvData) {
+        failed++;
+        errors.push(`Row ${i + 1}: ${qvErr?.message || "Version insert failed"}`);
+        continue;
+      }
+
+      // 3. Insert Options
+      const optionKeys = ["A", "B", "C", "D"];
+      const optRows = optionKeys.map((key, idx) => {
+        const val = optionsObj[key];
+        let optText = "";
+        let optImg: string | null = null;
+        if (typeof val === "string") {
+          if (optionsType === "image" && val.startsWith("http")) {
+            optImg = val;
+            optText = `Option ${key}`;
+          } else {
+            optText = val;
+          }
+        } else if (typeof val === "object" && val !== null) {
+          optText = val.text || `Option ${key}`;
+          optImg = val.image || null;
+        }
+        return {
+          question_version_id: qvData.id,
+          option_key: key,
+          option_text: optText || `Option ${key}`,
+          option_image_url: optImg,
+          order_index: idx + 1,
+        };
+      });
+
+      await supabase.from("question_options").insert(optRows);
+
+      // 4. Insert Answer Key
+      await supabase.from("question_answers").insert({
+        question_version_id: qvData.id,
+        correct_option_key: correctAnswer,
+        explanation_md: explanation,
+      });
+
+      // 5. Insert PYQ if present
+      const pyqYear = r.pyq_year ? parseInt(String(r.pyq_year), 10) : null;
+      const pyqSource = r.pyq_source?.trim() || null;
+      if (pyqYear || pyqSource) {
+        await supabase.from("question_sources").insert({
+          question_id: qData.id,
+          exam_name: pyqSource || "Competitive Exam",
+          year: pyqYear || 2025,
+          source_type: "pyq",
+        });
+      }
+
+      inserted++;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (rowEx: any) {
+      failed++;
+      errors.push(`Row ${i + 1}: ${rowEx?.message || "Unknown error"}`);
+    }
+  }
+
+  revalidatePath("/admin/questions");
+  revalidatePath("/admin/mock-tests-management");
+  return {
+    success: failed === 0,
+    inserted,
+    failed,
+    errors,
+  };
+}
+
 /* ========================================================================= */
 /* 1. CATEGORY CRUD ACTIONS                                                  */
 /* ========================================================================= */
