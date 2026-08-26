@@ -277,6 +277,106 @@ export class BulkImportEngine {
         }
         break;
 
+      case "courses":
+        for (const item of data) {
+          const title = String(item.title || "");
+          const slug = String(item.slug || "");
+          const description = String(item.description || "");
+          const priceInr = Number(item.price_inr || 0);
+
+          if (!title || !slug) {
+            errors.push(`Course missing title or slug.`);
+            continue;
+          }
+          if (mode === "commit") {
+            const { data: existing } = await supabase.from("courses").select("id").eq("slug", slug).maybeSingle();
+            if (existing) {
+              skipped++;
+            } else {
+              const { error: cErr } = await supabase.from("courses").insert({
+                title,
+                slug,
+                description,
+                access_tier: "FREE",
+                price_inr: priceInr,
+                is_published: true,
+              });
+              if (cErr) {
+                errors.push(`Failed inserting course "${title}": ${cErr.message}`);
+              } else {
+                created++;
+              }
+            }
+          } else {
+            previewData.push({ title, slug, priceInr });
+          }
+        }
+        break;
+
+      case "descriptive":
+        for (const item of data) {
+          const title = String(item.title || "");
+          const questionText = String(item.question_text || "");
+          const totalMarks = Number(item.total_marks || 15);
+          const maxWords = Number(item.max_words || 250);
+
+          if (!title || !questionText) {
+            errors.push(`Descriptive question missing title or question_text.`);
+            continue;
+          }
+          if (mode === "commit") {
+            const { error: dErr } = await supabase.from("descriptive_questions").insert({
+              title,
+              question_text: questionText,
+              min_words: 100,
+              max_words: maxWords,
+              total_marks: totalMarks,
+              is_active: true,
+            });
+            if (dErr) {
+              errors.push(`Failed inserting descriptive question "${title}": ${dErr.message}`);
+            } else {
+              created++;
+            }
+          } else {
+            previewData.push({ title, totalMarks, maxWords });
+          }
+        }
+        break;
+
+      case "institutes":
+        for (const item of data) {
+          const name = String(item.name || "");
+          const slug = String(item.slug || "");
+          const description = String(item.description || "");
+
+          if (!name || !slug) {
+            errors.push(`Institute missing name or slug.`);
+            continue;
+          }
+          if (mode === "commit") {
+            const { data: existing } = await supabase.from("institutes").select("id").eq("slug", slug).maybeSingle();
+            if (existing) {
+              skipped++;
+            } else {
+              const { error: iErr } = await supabase.from("institutes").insert({
+                name,
+                slug,
+                description,
+                verification_status: "VERIFIED",
+              });
+              if (iErr) {
+                errors.push(`Failed inserting institute "${name}": ${iErr.message}`);
+              } else {
+                created++;
+              }
+            }
+          } else {
+            previewData.push({ name, slug });
+          }
+        }
+        break;
+
       case "subscription_plans":
         for (const item of data) {
           const name = String(item.name || "");
