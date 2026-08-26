@@ -3,6 +3,7 @@ import Link from "next/link";
 import { AdminService } from "@/services/admin.service";
 import { Container } from "@/components/ui/container";
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
+import { AdminTopHeader } from "@/components/admin/admin-top-header";
 import { ShieldAlert, ArrowLeft } from "lucide-react";
 
 interface AdminLayoutProps {
@@ -34,12 +35,15 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
   }
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-slate-100/60 flex flex-col md:flex-row">
-      {/* Interactive Responsive Sidebar */}
+    <div className="min-h-[calc(100vh-4rem)] bg-slate-100/60 flex flex-col md:flex-row items-stretch">
+      {/* Fixed / Sticky 100dvh Non-Scrolling Sidebar */}
       <AdminSidebar userEmail={userEmail || "admin@couragelibrary.com"} />
 
-      {/* Main Admin Workspace */}
-      <main className="flex-1 p-6 md:p-8 overflow-y-auto">{children}</main>
+      {/* Main Admin Workspace (Independently Scrollable with Top Header) */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        <AdminTopHeader userEmail={userEmail} />
+        <main className="flex-1 p-4 md:p-6 lg:p-8">{children}</main>
+      </div>
     </div>
   );
 }
