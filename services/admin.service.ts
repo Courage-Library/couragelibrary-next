@@ -729,6 +729,12 @@ export class AdminService {
     };
   }
 
+  static async getQuestionsCount(): Promise<number> {
+    const sb = await createServerSupabaseClient();
+    const { count } = await sb.from("questions").select("*", { count: "exact", head: true });
+    return count || 0;
+  }
+
   static async getAdminQuestions() {
     const data = await this.getAdminQuestionsWithHierarchy();
     return data.questions.map((q) => ({

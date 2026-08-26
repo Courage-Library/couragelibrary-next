@@ -57,7 +57,12 @@ export function AdminCategoriesManager({ categories }: Props) {
   return (
     <div className="space-y-6 max-w-7xl pb-12">
       {/* Breadcrumb Bar */}
-      <AdminBreadcrumbs items={[{ label: "Categories (Exams)", active: true }]} />
+      <AdminBreadcrumbs
+        items={[
+          { label: "Mock Test Management", href: "/admin/mock-tests-management" },
+          { label: "Categories", active: true },
+        ]}
+      />
 
       {/* Page Heading matching legacy control panel */}
       <div className="text-left space-y-1">

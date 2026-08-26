@@ -83,6 +83,7 @@ export function AdminSchedulesManager({ schedules, categories, currentCategory }
   };
 
   const breadcrumbs = [
+    { label: "Mock Test Management", href: "/admin/mock-tests-management" },
     { label: "Categories", href: "/admin/categories" },
     ...(activeCategoryObj
       ? [{ label: activeCategoryObj.title, href: `/admin/schedules?category=${activeCategoryObj.slug}` }]
