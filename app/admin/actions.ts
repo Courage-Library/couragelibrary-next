@@ -31,34 +31,108 @@ export async function executeBulkImportAction(payload: BulkImportPayload): Promi
 }
 
 /**
- * Server Action: Create Question in Question Bank
+ * Server Action: Create Question with Complete Hierarchy, Options, and Answer Key
  */
-export async function createQuestionAction(prevState: AdminActionResult | null, formData: FormData): Promise<AdminActionResult> {
+export async function createQuestionHierarchyAction(
+  prevState: AdminActionResult | null,
+  formData: FormData
+): Promise<AdminActionResult> {
   const authCheck = await AdminService.checkIsAdminOrStaff();
   if (!authCheck.isAdmin) {
     return { error: "Unauthorized access. Administrative privileges required." };
   }
 
-  const questionText = formData.get("questionText") as string;
-  const difficulty = formData.get("difficulty") as string;
-  const marks = Number(formData.get("marks") || 1);
+  const statement = (formData.get("statement") as string || "").trim();
+  const topicId = formData.get("topicId") as string;
+  const difficulty = (formData.get("difficulty") as string || "medium").toLowerCase();
+  const language = (formData.get("language") as string || "hi").toLowerCase();
+  const optionsType = (formData.get("optionsType") as string || "text").toLowerCase();
+  const questionImageUrl = (formData.get("questionImageUrl") as string || "").trim() || null;
+  const correctOptionKey = (formData.get("correctOptionKey") as string || "A").toUpperCase().trim();
+  const explanation = (formData.get("explanation") as string || "").trim();
 
-  if (!questionText) {
-    return { error: "Question text is required." };
+  // Option texts & images
+  const optAText = (formData.get("optAText") as string || "").trim();
+  const optAImg = (formData.get("optAImg") as string || "").trim() || null;
+  const optBText = (formData.get("optBText") as string || "").trim();
+  const optBImg = (formData.get("optBImg") as string || "").trim() || null;
+  const optCText = (formData.get("optCText") as string || "").trim();
+  const optCImg = (formData.get("optCImg") as string || "").trim() || null;
+  const optDText = (formData.get("optDText") as string || "").trim();
+  const optDImg = (formData.get("optDImg") as string || "").trim() || null;
+
+  // PYQ metadata
+  const pyqYearRaw = formData.get("pyqYear") as string;
+  const pyqYear = pyqYearRaw ? parseInt(pyqYearRaw, 10) : null;
+  const pyqSource = (formData.get("pyqSource") as string || "").trim() || null;
+
+  if (!statement) {
+    return { error: "Question statement is required." };
   }
 
   const supabaseRaw = await createServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = supabaseRaw as any;
-  const { error } = await supabase.from("questions").insert({
-    question_text: questionText,
-    difficulty: difficulty || "MEDIUM",
-    marks,
-    is_published: true,
+
+  // 1. Insert Base Question
+  const { data: qData, error: qErr } = await supabase
+    .from("questions")
+    .insert({
+      canonical_topic_id: topicId || null,
+      status: "published",
+    })
+    .select("id")
+    .single();
+
+  if (qErr || !qData) {
+    return { error: `Failed to create question: ${qErr?.message}` };
+  }
+
+  // 2. Insert Question Version
+  const { data: qvData, error: qvErr } = await supabase
+    .from("question_versions")
+    .insert({
+      question_id: qData.id,
+      version_number: 1,
+      question_text: statement,
+      difficulty,
+      language: language === "hindi" || language === "hi" ? "hi" : "en",
+      options_type: optionsType,
+      question_image_url: questionImageUrl,
+      is_current: true,
+    })
+    .select("id")
+    .single();
+
+  if (qvErr || !qvData) {
+    return { error: `Failed to create question version: ${qvErr?.message}` };
+  }
+
+  // 3. Insert Options A-D
+  const optionsRows = [
+    { question_version_id: qvData.id, option_key: "A", option_text: optAText, option_image_url: optAImg, order_index: 1 },
+    { question_version_id: qvData.id, option_key: "B", option_text: optBText, option_image_url: optBImg, order_index: 2 },
+    { question_version_id: qvData.id, option_key: "C", option_text: optCText, option_image_url: optCImg, order_index: 3 },
+    { question_version_id: qvData.id, option_key: "D", option_text: optDText, option_image_url: optDImg, order_index: 4 },
+  ];
+
+  await supabase.from("question_options").insert(optionsRows);
+
+  // 4. Insert Hidden Answer Key & Explanation
+  await supabase.from("question_answers").insert({
+    question_version_id: qvData.id,
+    correct_option_key: correctOptionKey,
+    explanation_md: explanation || null,
   });
 
-  if (error) {
-    return { error: error.message };
+  // 5. Insert Question Source if PYQ
+  if (pyqYear || pyqSource) {
+    await supabase.from("question_sources").insert({
+      question_id: qData.id,
+      exam_name: pyqSource || "Competitive Exam",
+      year: pyqYear || new Date().getFullYear(),
+      source_type: "pyq",
+    });
   }
 
   revalidatePath("/admin/questions");
@@ -66,25 +140,151 @@ export async function createQuestionAction(prevState: AdminActionResult | null, 
 }
 
 /**
- * Server Action: Toggle Question Publish State
+ * Server Action: Update Existing Question Hierarchy & Content
  */
-export async function toggleQuestionPublishAction(questionId: string, currentStatus: boolean): Promise<AdminActionResult> {
+export async function updateQuestionHierarchyAction(
+  questionId: string,
+  formData: FormData
+): Promise<AdminActionResult> {
   const authCheck = await AdminService.checkIsAdminOrStaff();
   if (!authCheck.isAdmin) {
     return { error: "Unauthorized access." };
   }
 
+  const statement = (formData.get("statement") as string || "").trim();
+  const topicId = formData.get("topicId") as string;
+  const difficulty = (formData.get("difficulty") as string || "medium").toLowerCase();
+  const language = (formData.get("language") as string || "hi").toLowerCase();
+  const optionsType = (formData.get("optionsType") as string || "text").toLowerCase();
+  const questionImageUrl = (formData.get("questionImageUrl") as string || "").trim() || null;
+  const correctOptionKey = (formData.get("correctOptionKey") as string || "A").toUpperCase().trim();
+  const explanation = (formData.get("explanation") as string || "").trim();
+
+  // Option texts & images
+  const optAText = (formData.get("optAText") as string || "").trim();
+  const optAImg = (formData.get("optAImg") as string || "").trim() || null;
+  const optBText = (formData.get("optBText") as string || "").trim();
+  const optBImg = (formData.get("optBImg") as string || "").trim() || null;
+  const optCText = (formData.get("optCText") as string || "").trim();
+  const optCImg = (formData.get("optCImg") as string || "").trim() || null;
+  const optDText = (formData.get("optDText") as string || "").trim();
+  const optDImg = (formData.get("optDImg") as string || "").trim() || null;
+
+  if (!statement) {
+    return { error: "Question statement is required." };
+  }
+
   const supabaseRaw = await createServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = supabaseRaw as any;
-  const { error } = await supabase.from("questions").update({ is_published: !currentStatus }).eq("id", questionId);
+
+  // 1. Update Base Question Topic
+  await supabase
+    .from("questions")
+    .update({ canonical_topic_id: topicId || null, updated_at: new Date().toISOString() })
+    .eq("id", questionId);
+
+  // 2. Fetch or create version
+  const { data: qv } = await supabase
+    .from("question_versions")
+    .select("id")
+    .eq("question_id", questionId)
+    .order("version_number", { ascending: false })
+    .limit(1)
+    .single();
+
+  let qvId = qv?.id;
+  if (qvId) {
+    await supabase
+      .from("question_versions")
+      .update({
+        question_text: statement,
+        difficulty,
+        language: language === "hindi" || language === "hi" ? "hi" : "en",
+        options_type: optionsType,
+        question_image_url: questionImageUrl,
+      })
+      .eq("id", qvId);
+  } else {
+    const { data: newQv } = await supabase
+      .from("question_versions")
+      .insert({
+        question_id: questionId,
+        version_number: 1,
+        question_text: statement,
+        difficulty,
+        language: language === "hindi" || language === "hi" ? "hi" : "en",
+        options_type: optionsType,
+        question_image_url: questionImageUrl,
+        is_current: true,
+      })
+      .select("id")
+      .single();
+    qvId = newQv?.id;
+  }
+
+  if (qvId) {
+    // 3. Update options
+    await supabase.from("question_options").delete().eq("question_version_id", qvId);
+    const optionsRows = [
+      { question_version_id: qvId, option_key: "A", option_text: optAText, option_image_url: optAImg, order_index: 1 },
+      { question_version_id: qvId, option_key: "B", option_text: optBText, option_image_url: optBImg, order_index: 2 },
+      { question_version_id: qvId, option_key: "C", option_text: optCText, option_image_url: optCImg, order_index: 3 },
+      { question_version_id: qvId, option_key: "D", option_text: optDText, option_image_url: optDImg, order_index: 4 },
+    ];
+    await supabase.from("question_options").insert(optionsRows);
+
+    // 4. Update hidden answer key
+    await supabase.from("question_answers").upsert(
+      {
+        question_version_id: qvId,
+        correct_option_key: correctOptionKey,
+        explanation_md: explanation || null,
+      },
+      { onConflict: "question_version_id" }
+    );
+  }
+
+  revalidatePath("/admin/questions");
+  return { success: true, message: "Question updated successfully." };
+}
+
+/**
+ * Server Action: Legacy Create Question compatibility
+ */
+export async function createQuestionAction(prevState: AdminActionResult | null, formData: FormData): Promise<AdminActionResult> {
+  return createQuestionHierarchyAction(prevState, formData);
+}
+
+/**
+ * Server Action: Toggle Question Publish State
+ */
+export async function toggleQuestionPublishAction(questionId: string, currentStatus: boolean): Promise<AdminActionResult> {
+  return toggleQuestionStatusAction(questionId, currentStatus ? "published" : "draft");
+}
+
+/**
+ * Server Action: Toggle Question Status (Deactivate / Activate without deletion)
+ */
+export async function toggleQuestionStatusAction(questionId: string, currentStatus: string): Promise<AdminActionResult> {
+  const authCheck = await AdminService.checkIsAdminOrStaff();
+  if (!authCheck.isAdmin) {
+    return { error: "Unauthorized access." };
+  }
+
+  const nextStatus = currentStatus === "published" ? "draft" : "published";
+
+  const supabaseRaw = await createServerSupabaseClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabase = supabaseRaw as any;
+  const { error } = await supabase.from("questions").update({ status: nextStatus }).eq("id", questionId);
 
   if (error) {
     return { error: error.message };
   }
 
   revalidatePath("/admin/questions");
-  return { success: true, message: "Question status updated." };
+  return { success: true, message: `Question status updated to ${nextStatus.toUpperCase()}.` };
 }
 
 /**
@@ -113,8 +313,8 @@ export async function createMockTestAction(prevState: AdminActionResult | null, 
     slug,
     duration_minutes: durationMinutes,
     total_marks: totalMarks,
-    is_published: true,
-    is_free: true,
+    total_questions: 20,
+    status: "published",
   });
 
   if (error) {
@@ -122,13 +322,13 @@ export async function createMockTestAction(prevState: AdminActionResult | null, 
   }
 
   revalidatePath("/admin/mock-tests");
-  return { success: true, message: "Mock Test created successfully." };
+  return { success: true, message: "Mock test created successfully." };
 }
 
 /**
  * Server Action: Toggle Mock Test Publish State
  */
-export async function toggleMockTestPublishAction(testId: string, currentStatus: boolean): Promise<AdminActionResult> {
+export async function toggleMockTestPublishAction(mockTestId: string, currentStatus: boolean): Promise<AdminActionResult> {
   const authCheck = await AdminService.checkIsAdminOrStaff();
   if (!authCheck.isAdmin) {
     return { error: "Unauthorized access." };
@@ -137,14 +337,15 @@ export async function toggleMockTestPublishAction(testId: string, currentStatus:
   const supabaseRaw = await createServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = supabaseRaw as any;
-  const { error } = await supabase.from("mock_tests").update({ is_published: !currentStatus }).eq("id", testId);
+  const nextStatus = currentStatus ? "draft" : "published";
+  const { error } = await supabase.from("mock_tests").update({ status: nextStatus }).eq("id", mockTestId);
 
   if (error) {
     return { error: error.message };
   }
 
   revalidatePath("/admin/mock-tests");
-  return { success: true, message: "Mock Test status updated." };
+  return { success: true, message: "Mock test status updated." };
 }
 
 /**
@@ -160,41 +361,27 @@ export async function createArticleAction(prevState: AdminActionResult | null, f
   const slug = formData.get("slug") as string;
   const contentMarkdown = formData.get("contentMarkdown") as string;
 
-  if (!title || !slug || !contentMarkdown) {
-    return { error: "Title, slug, and content markdown are required." };
+  if (!title || !slug) {
+    return { error: "Title and slug are required." };
   }
 
   const supabaseRaw = await createServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = supabaseRaw as any;
-  const { data: art, error: aErr } = await supabase
-    .from("articles")
-    .insert({
-      title,
-      slug,
-      status: "PUBLISHED",
-      reading_time_minutes: 5,
-      access_level: "FREE",
-      current_version: 1,
-    })
-    .select("id")
-    .single();
+  const { error } = await supabase.from("articles").insert({
+    title,
+    slug,
+    content_markdown: contentMarkdown || "",
+    status: "published",
+    reading_time_minutes: 5,
+  });
 
-  if (aErr) {
-    return { error: aErr.message };
-  }
-
-  if (art) {
-    await supabase.from("article_versions").insert({
-      article_id: art.id,
-      version_number: 1,
-      content_markdown: contentMarkdown,
-      changelog: "Initial CMS Creation",
-    });
+  if (error) {
+    return { error: error.message };
   }
 
   revalidatePath("/admin/content");
-  return { success: true, message: "Article created and published." };
+  return { success: true, message: "Article created successfully." };
 }
 
 /**
@@ -211,7 +398,7 @@ export async function createCourseAction(prevState: AdminActionResult | null, fo
   const priceInr = Number(formData.get("priceInr") || 0);
 
   if (!title || !slug) {
-    return { error: "Course title and slug are required." };
+    return { error: "Title and slug are required." };
   }
 
   const supabaseRaw = await createServerSupabaseClient();
@@ -220,8 +407,6 @@ export async function createCourseAction(prevState: AdminActionResult | null, fo
   const { error } = await supabase.from("courses").insert({
     title,
     slug,
-    description: title,
-    access_tier: "FREE",
     price_inr: priceInr,
     is_published: true,
   });
@@ -235,7 +420,7 @@ export async function createCourseAction(prevState: AdminActionResult | null, fo
 }
 
 /**
- * Server Action: Create Descriptive Question
+ * Server Action: Create Descriptive Prompt
  */
 export async function createDescriptiveAction(prevState: AdminActionResult | null, formData: FormData): Promise<AdminActionResult> {
   const authCheck = await AdminService.checkIsAdminOrStaff();
@@ -244,23 +429,20 @@ export async function createDescriptiveAction(prevState: AdminActionResult | nul
   }
 
   const title = formData.get("title") as string;
-  const questionText = formData.get("questionText") as string;
-  const totalMarks = Number(formData.get("totalMarks") || 15);
-  const maxWords = Number(formData.get("maxWords") || 250);
+  const promptText = formData.get("promptText") as string;
+  const maxWordCount = Number(formData.get("maxWordCount") || 500);
 
-  if (!title || !questionText) {
-    return { error: "Title and question text are required." };
+  if (!title || !promptText) {
+    return { error: "Title and prompt text are required." };
   }
 
   const supabaseRaw = await createServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = supabaseRaw as any;
-  const { error } = await supabase.from("descriptive_questions").insert({
+  const { error } = await supabase.from("descriptive_prompts").insert({
     title,
-    question_text: questionText,
-    min_words: 100,
-    max_words: maxWords,
-    total_marks: totalMarks,
+    prompt_text: promptText,
+    max_word_count: maxWordCount,
     is_active: true,
   });
 
@@ -269,7 +451,7 @@ export async function createDescriptiveAction(prevState: AdminActionResult | nul
   }
 
   revalidatePath("/admin/descriptive");
-  return { success: true, message: "Descriptive question created." };
+  return { success: true, message: "Descriptive prompt created successfully." };
 }
 
 /**
@@ -283,6 +465,7 @@ export async function createInstituteAction(prevState: AdminActionResult | null,
 
   const name = formData.get("name") as string;
   const slug = formData.get("slug") as string;
+  const city = formData.get("city") as string;
 
   if (!name || !slug) {
     return { error: "Institute name and slug are required." };
@@ -294,7 +477,8 @@ export async function createInstituteAction(prevState: AdminActionResult | null,
   const { error } = await supabase.from("institutes").insert({
     name,
     slug,
-    verification_status: "VERIFIED",
+    city: city || null,
+    is_verified: true,
   });
 
   if (error) {
@@ -302,29 +486,7 @@ export async function createInstituteAction(prevState: AdminActionResult | null,
   }
 
   revalidatePath("/admin/institutes");
-  return { success: true, message: "Coaching institute verified & created." };
-}
-
-/**
- * Server Action: Moderate Community Flag
- */
-export async function resolveCommunityFlagAction(flagId: string, actionStatus: "RESOLVED" | "DISMISSED"): Promise<AdminActionResult> {
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) {
-    return { error: "Unauthorized access." };
-  }
-
-  const supabaseRaw = await createServerSupabaseClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = supabaseRaw as any;
-  const { error } = await supabase.from("discussion_moderation_flags").update({ status: actionStatus }).eq("id", flagId);
-
-  if (error) {
-    return { error: error.message };
-  }
-
-  revalidatePath("/admin/community");
-  return { success: true, message: `Moderation item set to ${actionStatus}.` };
+  return { success: true, message: "Institute created successfully." };
 }
 
 /**
@@ -337,11 +499,12 @@ export async function createSubscriptionPlanAction(prevState: AdminActionResult 
   }
 
   const name = formData.get("name") as string;
+  const code = formData.get("code") as string;
+  const priceInr = Number(formData.get("priceInr") || 499);
   const durationDays = Number(formData.get("durationDays") || 30);
-  const basePriceInr = Number(formData.get("basePriceInr") || 499);
 
-  if (!name) {
-    return { error: "Plan name is required." };
+  if (!name || !code) {
+    return { error: "Plan name and code are required." };
   }
 
   const supabaseRaw = await createServerSupabaseClient();
@@ -349,10 +512,10 @@ export async function createSubscriptionPlanAction(prevState: AdminActionResult 
   const supabase = supabaseRaw as any;
   const { error } = await supabase.from("subscription_plans").insert({
     name,
+    code,
+    price_inr: priceInr,
     duration_days: durationDays,
-    base_price_inr: basePriceInr,
     is_active: true,
-    features_json: ["Unlimited Mock Tests", "AI Mistake Vault", "24/7 Community Access"],
   });
 
   if (error) {
@@ -360,5 +523,27 @@ export async function createSubscriptionPlanAction(prevState: AdminActionResult 
   }
 
   revalidatePath("/admin/billing");
-  return { success: true, message: "Subscription plan created." };
+  return { success: true, message: "Subscription plan created successfully." };
+}
+
+/**
+ * Server Action: Resolve Community Flag
+ */
+export async function resolveCommunityFlagAction(flagId: string, status: string = "resolved"): Promise<AdminActionResult> {
+  const authCheck = await AdminService.checkIsAdminOrStaff();
+  if (!authCheck.isAdmin) {
+    return { error: "Unauthorized access." };
+  }
+
+  const supabaseRaw = await createServerSupabaseClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabase = supabaseRaw as any;
+  const { error } = await supabase.from("community_moderation_flags").update({ status: status.toLowerCase() }).eq("id", flagId);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/admin/community");
+  return { success: true, message: "Flag resolved successfully." };
 }
