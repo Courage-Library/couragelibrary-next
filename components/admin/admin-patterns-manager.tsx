@@ -115,7 +115,7 @@ export function AdminPatternsManager({ patterns, categories, currentCategory }: 
   ];
 
   return (
-    <div className="space-y-6 max-w-7xl pb-16">
+    <div className="space-y-4 w-full pb-8">
       {/* Breadcrumbs */}
       <AdminBreadcrumbs items={breadcrumbs} />
 

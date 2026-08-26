@@ -55,7 +55,7 @@ export function AdminCategoriesManager({ categories }: Props) {
   }, [categories, searchQuery]);
 
   return (
-    <div className="space-y-6 max-w-7xl pb-12">
+    <div className="space-y-4 w-full pb-8">
       {/* Breadcrumb Bar */}
       <AdminBreadcrumbs
         items={[

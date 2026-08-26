@@ -35,14 +35,19 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
   }
 
   return (
-    <div className="min-h-[calc(100dvh-4rem)] bg-slate-100/60 flex flex-col md:flex-row items-start relative w-full">
-      {/* Fixed / Sticky 100dvh Non-Scrolling Sidebar Below Global Header */}
+    <div className="h-[calc(100dvh-4rem)] max-h-[calc(100dvh-4rem)] flex flex-col md:flex-row overflow-hidden w-full relative">
+      {/* Desktop Fixed Non-Scrolling Sidebar Below Global Header */}
       <AdminSidebar userEmail={userEmail || "admin@couragelibrary.com"} />
 
-      {/* Main Admin Workspace (Independently Scrollable) */}
-      <div className="flex-1 min-w-0 w-full flex flex-col">
+      {/* Main Admin Application Workspace */}
+      <div className="flex-1 min-w-0 h-full max-h-full flex flex-col overflow-hidden bg-slate-100/60">
+        {/* Stationary Context Header */}
         <AdminTopHeader userEmail={userEmail} />
-        <main className="flex-1 p-3.5 sm:p-5 md:p-6 w-full max-w-[1600px] mx-auto">{children}</main>
+
+        {/* The ONLY Vertically Scrollable Region */}
+        <main className="flex-1 min-w-0 w-full overflow-y-auto p-4 sm:p-5 md:p-6">
+          <div className="max-w-[1600px] mx-auto w-full">{children}</div>
+        </main>
       </div>
     </div>
   );
