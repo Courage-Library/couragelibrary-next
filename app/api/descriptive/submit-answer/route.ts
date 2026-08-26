@@ -1,0 +1,13 @@
+import { DescriptiveService } from "@/services/descriptive.service";
+import { NextResponse, type NextRequest } from "next/server";
+
+export async function POST(request: NextRequest) {
+  try {
+    const payload = await request.json();
+    const result = await DescriptiveService.submitDescriptiveAnswer(payload);
+    return NextResponse.json(result);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Internal Server Error";
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
+  }
+}
