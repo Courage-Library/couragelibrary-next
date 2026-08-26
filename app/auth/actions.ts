@@ -66,8 +66,8 @@ export async function logoutAction() {
 export async function forgotPasswordAction(prevState: AuthState | null, formData: FormData): Promise<AuthState> {
   const email = formData.get("email") as string;
 
-  if (!email) {
-    return { error: "Please enter your email address." };
+  if (!email || !email.includes("@")) {
+    return { error: "Please enter a valid email address." };
   }
 
   const { siteUrl } = getAppEnv();
@@ -79,7 +79,20 @@ export async function forgotPasswordAction(prevState: AuthState | null, formData
   });
 
   if (error) {
-    return { error: error.message };
+    const rawMsg = (error.message || "").toLowerCase();
+
+    // Map rate limit errors to friendly user-facing notice
+    if (rawMsg.includes("rate limit") || rawMsg.includes("email rate limit exceeded") || rawMsg.includes("too many requests")) {
+      return { error: "Too many password reset requests. Please wait a little while and try again." };
+    }
+
+    // Security: Map non-existent user or lookup errors to prevent email enumeration attacks
+    if (rawMsg.includes("user not found") || rawMsg.includes("email not found") || rawMsg.includes("invalid email")) {
+      return { success: "If an account exists with that email address, password reset instructions have been sent." };
+    }
+
+    // Fallback for generic unexpected provider errors
+    return { error: "Something went wrong. Please try again in a few minutes." };
   }
 
   return { success: "Password reset instructions have been sent to your email." };
