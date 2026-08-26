@@ -113,50 +113,48 @@ export function AdminSidebar({ userEmail }: Props) {
 
   return (
     <>
-      {/* Mobile Sticky Toggle Subbar — Positioned BELOW Global Header */}
-      <div className="md:hidden sticky top-16 z-30 flex items-center justify-between px-4 py-2.5 bg-slate-900 text-white border-b border-slate-800">
+      {/* Mobile Top Bar — Appears ONLY on Mobile */}
+      <div className="md:hidden flex items-center justify-between px-4 py-3 bg-slate-900 text-white border-b border-slate-800 shrink-0">
         <div className="flex items-center gap-2">
-          <span className="font-mono text-[11px] uppercase tracking-wider font-extrabold text-blue-400">
-            Admin Studio
-          </span>
-          <span className="text-slate-500">·</span>
-          <span className="text-xs text-slate-300 font-semibold truncate max-w-[150px]">
-            {userEmail.split("@")[0]}
-          </span>
+          <BrandLogo size="sm" showText={false} />
+          <span className="font-black text-xs tracking-tight">Admin Studio</span>
+          <Badge variant="indigo" className="text-[9px] px-1.5 py-0 bg-indigo-950 text-indigo-300 border-indigo-800">
+            PROD
+          </Badge>
         </div>
         <button
           onClick={() => setIsMobileOpen(!isMobileOpen)}
           className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 text-slate-200 hover:text-white text-xs font-bold border border-slate-700"
-          aria-label="Toggle Admin Menu"
+          aria-label="Toggle Admin Navigation"
         >
           {isMobileOpen ? <X className="w-3.5 h-3.5" /> : <Menu className="w-3.5 h-3.5" />}
           <span>{isMobileOpen ? "Close" : "Menu"}</span>
         </button>
       </div>
 
-      {/* Mobile Drawer Overlay — Starts BELOW Global Header at top-16 */}
+      {/* Mobile Drawer Overlay */}
       {isMobileOpen && (
         <div
           onClick={() => setIsMobileOpen(false)}
-          className="fixed inset-x-0 bottom-0 top-16 z-40 bg-slate-950/70 backdrop-blur-xs md:hidden"
+          className="fixed inset-0 z-40 bg-slate-950/70 backdrop-blur-xs md:hidden"
         />
       )}
 
-      {/* Sidebar Panel — STRICTLY FIXED & NON-SCROLLING ON DESKTOP BELOW GLOBAL HEADER */}
+      {/* Sidebar Panel — STRICTLY FIXED AT VIEWPORT TOP & NON-SCROLLING ON DESKTOP */}
       <aside
-        className={`fixed md:sticky top-16 left-0 z-40 md:z-20 w-[270px] h-[calc(100dvh-4rem)] max-h-[calc(100dvh-4rem)] bg-slate-900 text-slate-300 p-3.5 shrink-0 border-r border-slate-800 flex flex-col justify-between transition-transform duration-200 ease-in-out md:translate-x-0 overflow-y-auto md:overflow-hidden ${
+        className={`fixed md:static inset-y-0 left-0 z-50 md:z-20 w-[275px] h-[100dvh] max-h-[100dvh] bg-slate-900 text-slate-300 p-4 shrink-0 border-r border-slate-800 flex flex-col justify-between transition-transform duration-200 ease-in-out md:translate-x-0 overflow-y-auto md:overflow-hidden ${
           isMobileOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"
         }`}
       >
-        <div className="space-y-3 flex-1 min-h-0 flex flex-col">
-          {/* Studio Identifier */}
-          <div className="space-y-0.5 pb-2 border-b border-slate-800">
+        <div className="space-y-3.5 flex-1 min-h-0 flex flex-col">
+          {/* Studio Brand Header */}
+          <div className="space-y-1 pb-3 border-b border-slate-800 shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <BrandLogo size="sm" showText={false} />
-                <span className="font-black text-white text-xs tracking-tight">Admin Studio</span>
+                <span className="font-black text-white text-sm tracking-tight">Admin Studio</span>
               </div>
-              <Badge variant="indigo" className="text-[9px] px-1.5 py-0 bg-indigo-950 text-indigo-300 border-indigo-800">
+              <Badge variant="indigo" className="text-[9px] px-1.5 py-0 bg-indigo-950 text-indigo-300 border-indigo-800 font-mono font-bold">
                 PROD
               </Badge>
             </div>
@@ -165,8 +163,8 @@ export function AdminSidebar({ userEmail }: Props) {
             </p>
           </div>
 
-          {/* Navigation Items — Densely Grouped, Fits Exactly inside calc(100dvh - 4rem) */}
-          <nav className="space-y-2 text-xs font-semibold flex-1">
+          {/* Navigation Groups — Densely Spaced, Fits 100dvh Viewport Effortlessly */}
+          <nav className="space-y-2.5 text-xs font-semibold flex-1">
             {/* Dashboard Overview */}
             <div>
               <Link
@@ -182,7 +180,7 @@ export function AdminSidebar({ userEmail }: Props) {
               </Link>
             </div>
 
-            {/* PARENT GROUP: MOCK TEST MANAGEMENT */}
+            {/* PARENT GROUP: MOCK TEST SYSTEM */}
             <div className="space-y-0.5">
               <div
                 onClick={() => setIsMockGroupOpen(!isMockGroupOpen)}
@@ -230,7 +228,7 @@ export function AdminSidebar({ userEmail }: Props) {
               )}
             </div>
 
-            {/* COURSES & LEARNING */}
+            {/* LEARNING CONTENT */}
             <div className="space-y-0.5">
               <span className="px-2.5 text-[9px] font-black uppercase tracking-wider text-slate-500 font-mono block">
                 Learning Content
@@ -312,9 +310,9 @@ export function AdminSidebar({ userEmail }: Props) {
           </nav>
         </div>
 
-        {/* Footer Session Badge */}
-        <div className="pt-2 border-t border-slate-800 shrink-0">
-          <Badge variant="indigo" className="w-full justify-center text-[9px] py-0.5 bg-slate-800 text-slate-300 border-slate-700 font-mono">
+        {/* Footer Session Badge — Pinned at Bottom */}
+        <div className="pt-2.5 border-t border-slate-800 shrink-0">
+          <Badge variant="indigo" className="w-full justify-center text-[9px] py-0.5 bg-slate-800 text-slate-300 border-slate-700 font-mono font-bold">
             <Shield className="w-2.5 h-2.5 mr-1 text-indigo-400" /> Session Protected
           </Badge>
         </div>

@@ -15,7 +15,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
 
   if (!isAdmin) {
     return (
-      <div className="py-20 bg-slate-50 min-h-[calc(100vh-4rem)] flex items-center justify-center">
+      <div className="py-20 bg-slate-50 min-h-screen flex items-center justify-center">
         <Container className="max-w-md text-center space-y-4">
           <div className="w-16 h-16 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
             <ShieldAlert className="w-8 h-8" />
@@ -35,12 +35,12 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
   }
 
   return (
-    <div className="h-[calc(100dvh-4rem)] max-h-[calc(100dvh-4rem)] flex flex-col md:flex-row overflow-hidden w-full relative">
-      {/* Desktop Fixed Non-Scrolling Sidebar Below Global Header */}
+    <div className="h-[100dvh] max-h-[100dvh] w-full flex flex-col md:flex-row overflow-hidden bg-slate-900 text-slate-900">
+      {/* Desktop Fixed Non-Scrolling Sidebar at Viewport Top */}
       <AdminSidebar userEmail={userEmail || "admin@couragelibrary.com"} />
 
       {/* Main Admin Application Workspace */}
-      <div className="flex-1 min-w-0 h-full max-h-full flex flex-col overflow-hidden bg-slate-100/60">
+      <div className="flex-1 min-w-0 h-[100dvh] max-h-[100dvh] flex flex-col overflow-hidden bg-slate-100/60">
         {/* Stationary Context Header */}
         <AdminTopHeader userEmail={userEmail} />
 
