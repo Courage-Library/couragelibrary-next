@@ -1,0 +1,12 @@
+[
+  {
+    "external_key": "mock_ssc_cgl_tier1_01",
+    "title": "SSC CGL Tier-1 Official Pattern Full Mock Test 01",
+    "slug": "ssc-cgl-tier1-full-mock-01",
+    "description": "Full-length 100 question mock exam featuring Reasoning, General Awareness, Quantitative Aptitude, and English Comprehension.",
+    "duration_minutes": 60,
+    "total_marks": 200,
+    "is_published": true,
+    "is_free": true
+  }
+]

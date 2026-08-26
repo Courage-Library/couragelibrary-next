@@ -1,0 +1,19 @@
+[
+  {
+    "external_key": "ssc_cgl_reasoning_q001",
+    "topic_slug": "ssc_analogy",
+    "question_text": "Select the related word from the given alternatives: Thermometer : Temperature :: Barometer : ?",
+    "question_type": "SINGLE_CHOICE",
+    "difficulty": "EASY",
+    "marks": 2,
+    "negative_marks": 0.5,
+    "explanation": "A Thermometer is an instrument used to measure Temperature. Similarly, a Barometer is used to measure Atmospheric Pressure.",
+    "is_published": true,
+    "options": [
+      { "option_text": "Humidity", "is_correct": false },
+      { "option_text": "Pressure", "is_correct": true },
+      { "option_text": "Thickness", "is_correct": false },
+      { "option_text": "Wind Velocity", "is_correct": false }
+    ]
+  }
+]

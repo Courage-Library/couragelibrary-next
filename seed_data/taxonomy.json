@@ -1,0 +1,20 @@
+[
+  {
+    "type": "exam_category",
+    "slug": "ssc_exams",
+    "name": "Staff Selection Commission (SSC)",
+    "description": "Category for SSC CGL, CHSL, CPO, and GD Constable examinations."
+  },
+  {
+    "type": "exam_category",
+    "slug": "upsc_exams",
+    "name": "UPSC & State PSC",
+    "description": "Category for Civil Services Examination (CSE), IFoS, and State Public Service Commissions."
+  },
+  {
+    "type": "exam_category",
+    "slug": "defence_exams",
+    "name": "Defence & Military Services",
+    "description": "Category for NDA, CDS, AFCAT, and Army Agniveer GD entry exams."
+  }
+]
