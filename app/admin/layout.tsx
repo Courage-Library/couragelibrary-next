@@ -3,6 +3,7 @@ import Link from "next/link";
 import { AdminService } from "@/services/admin.service";
 import { Container } from "@/components/ui/container";
 import { Badge } from "@/components/ui/badge";
+import { BrandLogo } from "@/components/brand/logo";
 import {
   LayoutDashboard,
   HelpCircle,
@@ -50,9 +51,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
       <aside className="w-full md:w-64 bg-slate-900 text-slate-300 p-5 space-y-6 shrink-0 border-r border-slate-800">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-black text-xs">
-              CS
-            </div>
+            <BrandLogo size="sm" showText={false} />
             <span className="font-extrabold text-white text-base tracking-tight">Admin Studio</span>
           </div>
           <p className="text-[11px] font-mono text-slate-400 truncate">Staff: {userEmail}</p>

@@ -1,8 +1,8 @@
 import React from "react";
 import Link from "next/link";
-import { siteConfig } from "@/config/site";
 import { Container } from "@/components/ui/container";
 import { UserNav } from "@/components/layout/user-nav";
+import { BrandLogo } from "@/components/brand/logo";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export async function Header() {
@@ -33,14 +33,7 @@ export async function Header() {
       <Container className="flex h-16 items-center justify-between">
         {/* Logo & Main Nav */}
         <div className="flex items-center gap-6">
-          <Link href={user ? "/dashboard" : "/"} className="flex items-center gap-2.5 font-bold text-slate-900 group">
-            <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white font-extrabold shadow-sm transition-transform group-hover:scale-105">
-              CL
-            </div>
-            <span className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-900 bg-clip-text text-transparent">
-              {siteConfig.name}
-            </span>
-          </Link>
+          <BrandLogo href={user ? "/dashboard" : "/"} size="md" />
 
           {user && (
             <nav className="hidden md:flex items-center gap-1 text-sm font-medium text-slate-600">
@@ -59,6 +52,9 @@ export async function Header() {
               <Link href="/courses" className="px-3 py-1.5 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors">
                 Courses
               </Link>
+              <Link href="/exams" className="px-3 py-1.5 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors">
+                Exams
+              </Link>
               <Link href="/mock-tests" className="px-3 py-1.5 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors">
                 Mock Tests
               </Link>
@@ -72,22 +68,19 @@ export async function Header() {
                 Flashcards
               </Link>
               <Link href="/battles" className="px-3 py-1.5 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors">
-                1v1 Battles
+                Battles
               </Link>
               <Link href="/descriptive" className="px-3 py-1.5 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors">
-                Descriptive
+                Mains
               </Link>
               <Link href="/institutes" className="px-3 py-1.5 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors">
                 Institutes
-              </Link>
-              <Link href="/billing" className="px-3 py-1.5 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors">
-                Billing
               </Link>
             </nav>
           )}
         </div>
 
-        {/* User Navigation Area */}
+        {/* Right Section / User Nav */}
         <UserNav user={userData} coins={coins} streak={streak} />
       </Container>
     </header>

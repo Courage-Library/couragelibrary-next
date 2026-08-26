@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
+import { BrandLogo } from "@/components/brand/logo";
 
 function LoginForm() {
   const [state, formAction, isPending] = useActionState(loginAction, null);
@@ -18,8 +19,8 @@ function LoginForm() {
   return (
     <Card className="w-full max-w-md border-slate-200/80 shadow-lg">
       <CardHeader className="space-y-1 text-center">
-        <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center text-white font-black text-xl mx-auto shadow-md mb-2">
-          CL
+        <div className="flex justify-center mb-2">
+          <BrandLogo variant="icon" size="lg" />
         </div>
         <CardTitle className="text-2xl font-extrabold text-slate-900 tracking-tight">
           Welcome back

@@ -1,4 +1,4 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import { siteConfig } from "@/config/site";
 import type { SeoMetadataProps } from "@/types/seo";
 
@@ -37,6 +37,11 @@ export function constructMetadata({
     authors: [{ name: "Courage Library Team", url: siteConfig.url }],
     creator: "Courage Library",
     metadataBase: new URL(siteConfig.url),
+    icons: {
+      icon: "/images/logo.png",
+      shortcut: "/images/logo.png",
+      apple: "/images/logo.png",
+    },
     alternates: {
       canonical: url,
     },
