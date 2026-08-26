@@ -2,12 +2,18 @@ import React from "react";
 import Link from "next/link";
 import { InstituteService } from "@/services/institute.service";
 import { Container } from "@/components/ui/container";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Building2, ArrowRight, ShieldCheck } from "lucide-react";
+import { Building2, ArrowRight, ShieldCheck, Sparkles, HelpCircle } from "lucide-react";
+import { constructMetadata } from "@/lib/seo/metadata";
 
 export const revalidate = 30;
+
+export const metadata = constructMetadata({
+  title: "Partner Coaching Institutes & Cohorts",
+  description: "Join verified institutional coaching batches, complete assigned curriculum, and track your progress with faculty guidance.",
+});
 
 export default async function InstitutesDirectoryPage() {
   const institutes = await InstituteService.getInstitutes();
@@ -18,7 +24,7 @@ export default async function InstitutesDirectoryPage() {
         {/* Header Banner */}
         <div className="bg-gradient-to-r from-blue-950 via-indigo-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-lg space-y-3">
           <Badge variant="indigo" className="bg-white/20 text-white border-white/20">
-            Phase 3P Institutional Coaching Portal
+            Coaching Partner Portal
           </Badge>
           <h1 className="text-2xl sm:text-4xl font-black tracking-tight flex items-center gap-3">
             <Building2 className="w-8 h-8 text-indigo-400" />
@@ -29,12 +35,32 @@ export default async function InstitutesDirectoryPage() {
           </p>
         </div>
 
-        {/* Directory Grid */}
+        {/* Directory Grid / Empty State */}
         {institutes.length === 0 ? (
-          <Card className="p-12 text-center text-slate-400 space-y-3">
-            <Building2 className="w-10 h-10 mx-auto opacity-50" />
-            <h3 className="text-base font-bold text-slate-700">No Partner Institutes Found</h3>
-            <p className="text-xs">Partner coaching institutes will be listed here soon.</p>
+          <Card className="border-slate-200/80 shadow-xs">
+            <CardContent className="py-16 text-center space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto shadow-xs">
+                <Building2 className="w-8 h-8" />
+              </div>
+              <div className="space-y-1 max-w-sm mx-auto">
+                <h3 className="text-lg font-extrabold text-slate-900">No Partner Institutes Listed Yet</h3>
+                <p className="text-xs text-slate-500">
+                  Coaching institutes and cohort registrations are being verified. In the meantime, access self-paced practice tests or join community discussions.
+                </p>
+              </div>
+              <div className="flex items-center justify-center gap-3 pt-2">
+                <Link href="/practice">
+                  <Button variant="default" size="sm" className="font-semibold shadow-xs">
+                    <HelpCircle className="w-3.5 h-3.5 mr-1" /> Practice Drills
+                  </Button>
+                </Link>
+                <Link href="/community">
+                  <Button variant="outline" size="sm" className="font-semibold">
+                    <Sparkles className="w-3.5 h-3.5 mr-1 text-amber-500" /> Community Q&A
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
           </Card>
         ) : (
           <div className="grid sm:grid-cols-2 gap-4">

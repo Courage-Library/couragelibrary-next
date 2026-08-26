@@ -2,12 +2,18 @@ import React from "react";
 import Link from "next/link";
 import { DescriptiveService } from "@/services/descriptive.service";
 import { Container } from "@/components/ui/container";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FileText, PenTool } from "lucide-react";
+import { FileText, PenTool, Sparkles, HelpCircle } from "lucide-react";
+import { constructMetadata } from "@/lib/seo/metadata";
 
 export const revalidate = 30;
+
+export const metadata = constructMetadata({
+  title: "Descriptive Answer Writing Studio",
+  description: "Practice Mains answer writing with structured rubrics, word limit enforcement, and expert faculty evaluation.",
+});
 
 interface Props {
   searchParams: Promise<{ difficulty?: string }>;
@@ -24,7 +30,7 @@ export default async function DescriptiveLibraryPage({ searchParams }: Props) {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 bg-gradient-to-r from-slate-900 via-blue-950 to-indigo-950 rounded-3xl p-6 sm:p-8 text-white shadow-lg">
           <div className="space-y-2">
             <Badge variant="indigo" className="bg-white/20 text-white border-white/20">
-              Phase 3Q Mains Evaluation Studio
+              Mains Evaluation Studio
             </Badge>
             <h1 className="text-2xl sm:text-4xl font-black tracking-tight flex items-center gap-3">
               <PenTool className="w-8 h-8 text-blue-400" />
@@ -67,12 +73,32 @@ export default async function DescriptiveLibraryPage({ searchParams }: Props) {
           ))}
         </div>
 
-        {/* Questions Grid */}
+        {/* Questions Grid / Empty State */}
         {questions.length === 0 ? (
-          <Card className="p-12 text-center text-slate-400 space-y-3">
-            <FileText className="w-10 h-10 mx-auto opacity-50" />
-            <h3 className="text-base font-bold text-slate-700">No Descriptive Questions Found</h3>
-            <p className="text-xs">Select another difficulty filter or check back soon.</p>
+          <Card className="border-slate-200/80 shadow-xs">
+            <CardContent className="py-16 text-center space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto shadow-xs">
+                <PenTool className="w-8 h-8" />
+              </div>
+              <div className="space-y-1 max-w-sm mx-auto">
+                <h3 className="text-lg font-extrabold text-slate-900">No Descriptive Questions Found</h3>
+                <p className="text-xs text-slate-500">
+                  UPSC and State PSC Mains questions with evaluation rubrics are being prepared. Try selecting a different filter or practice objective questions.
+                </p>
+              </div>
+              <div className="flex items-center justify-center gap-3 pt-2">
+                <Link href="/practice">
+                  <Button variant="default" size="sm" className="font-semibold shadow-xs">
+                    <HelpCircle className="w-3.5 h-3.5 mr-1" /> Practice Objective Qs
+                  </Button>
+                </Link>
+                <Link href="/articles">
+                  <Button variant="outline" size="sm" className="font-semibold">
+                    <Sparkles className="w-3.5 h-3.5 mr-1 text-amber-500" /> Read Study Notes
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
           </Card>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">

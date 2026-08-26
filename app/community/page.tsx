@@ -2,12 +2,18 @@ import React from "react";
 import Link from "next/link";
 import { CommunityService } from "@/services/community.service";
 import { Container } from "@/components/ui/container";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MessageSquare, Plus, ThumbsUp, Pin, HelpCircle } from "lucide-react";
+import { constructMetadata } from "@/lib/seo/metadata";
 
 export const revalidate = 0;
+
+export const metadata = constructMetadata({
+  title: "Community Knowledge Exchange",
+  description: "Ask doubts, discuss exam strategy, solve questions together, and learn with peers and faculty.",
+});
 
 interface Props {
   searchParams: Promise<{ status?: string }>;
@@ -24,7 +30,7 @@ export default async function CommunityPage({ searchParams }: Props) {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 rounded-3xl p-6 sm:p-8 text-white shadow-lg">
           <div className="space-y-2">
             <Badge variant="indigo" className="bg-white/20 text-white border-white/20">
-              Phase 3L Doubt Resolution Forum
+              Doubt Resolution Forum
             </Badge>
             <h1 className="text-2xl sm:text-4xl font-black tracking-tight flex items-center gap-3">
               <MessageSquare className="w-8 h-8 text-indigo-400" />
@@ -65,12 +71,27 @@ export default async function CommunityPage({ searchParams }: Props) {
           ))}
         </div>
 
-        {/* Threads List */}
+        {/* Threads List / Empty State */}
         {threads.length === 0 ? (
-          <Card className="p-12 text-center text-slate-400 space-y-3">
-            <HelpCircle className="w-10 h-10 mx-auto opacity-50" />
-            <h3 className="text-base font-bold text-slate-700">No Community Discussions Found</h3>
-            <p className="text-xs">Be the first to ask a doubt or start a discussion thread!</p>
+          <Card className="border-slate-200/80 shadow-xs">
+            <CardContent className="py-16 text-center space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto shadow-xs">
+                <HelpCircle className="w-8 h-8" />
+              </div>
+              <div className="space-y-1 max-w-sm mx-auto">
+                <h3 className="text-lg font-extrabold text-slate-900">No Community Discussions Yet</h3>
+                <p className="text-xs text-slate-500">
+                  Be the first to post a question, share an exam strategy, or start a study discussion with fellow aspirants!
+                </p>
+              </div>
+              <div className="pt-2">
+                <Link href="/community/new">
+                  <Button variant="default" size="sm" className="bg-indigo-600 hover:bg-indigo-700 font-bold text-xs shadow-xs">
+                    <Plus className="w-4 h-4 mr-1.5" /> Start First Discussion Thread
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
           </Card>
         ) : (
           <div className="space-y-3.5">
