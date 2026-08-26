@@ -70,46 +70,46 @@ export class BulkImportEngine {
     switch (entity) {
       case "taxonomy":
         for (const item of data) {
-          const name = String(item.name || "");
+          const title = String(item.title || item.name || "");
           const slug = String(item.slug || "");
+          const category = String(item.category || "Staff Selection Commission (SSC)");
           const description = String(item.description || "");
 
-          if (!name || !slug) {
-            errors.push(`Taxonomy item missing required name or slug: ${JSON.stringify(item)}`);
+          if (!title || !slug) {
+            errors.push(`Taxonomy item missing required title or slug: ${JSON.stringify(item)}`);
             continue;
           }
           if (mode === "commit") {
-            const { data: existing } = await supabase.from("exam_categories").select("id").eq("slug", slug).maybeSingle();
+            const { data: existing } = await supabase.from("exams").select("id").eq("slug", slug).maybeSingle();
             if (existing) {
-              await supabase.from("exam_categories").update({ name, description }).eq("id", existing.id);
+              await supabase.from("exams").update({ title, category, description }).eq("id", existing.id);
               updated++;
             } else {
-              await supabase.from("exam_categories").insert({ name, slug, description });
+              await supabase.from("exams").insert({ title, slug, category, description, is_active: true, is_published: true });
               created++;
             }
           } else {
-            previewData.push({ type: "exam_category", slug, name });
+            previewData.push({ type: "exam", slug, title, category });
           }
         }
         break;
 
       case "questions":
         for (const item of data) {
-          const questionText = String(item.question_text || "");
-          const topicSlug = String(item.topic_slug || "");
+          const questionText = String(item.question_text || item.text || "");
+          const topicCode = String(item.topic_code || item.topic_slug || "");
           const difficulty = String(item.difficulty || "MEDIUM");
           const marks = Number(item.marks || 1);
-          const negativeMarks = Number(item.negative_marks || 0.25);
           const explanation = String(item.explanation || "");
           const isPublished = item.is_published !== false;
           const options = Array.isArray(item.options) ? item.options : [];
 
-          if (!questionText || !topicSlug) {
-            errors.push(`Question item missing question_text or topic_slug.`);
+          if (!questionText) {
+            errors.push(`Question item missing question_text.`);
             continue;
           }
           if (mode === "commit") {
-            const { data: topic } = await supabase.from("topics").select("id").eq("code", topicSlug).maybeSingle();
+            const { data: topic } = topicCode ? await supabase.from("topics").select("id").eq("code", topicCode).maybeSingle() : { data: null };
             const topicId = topic?.id || null;
 
             const { data: qData, error: qErr } = await supabase
@@ -118,9 +118,7 @@ export class BulkImportEngine {
                 topic_id: topicId,
                 question_text: questionText,
                 question_type: "SINGLE_CHOICE",
-                difficulty,
                 marks,
-                negative_marks: negativeMarks,
                 explanation,
                 is_published: isPublished,
               })
@@ -135,9 +133,9 @@ export class BulkImportEngine {
                 const opt = options[i] as Record<string, unknown>;
                 await supabase.from("question_options").insert({
                   question_id: qData.id,
-                  option_text: String(opt.option_text || ""),
+                  option_text: String(opt.option_text || opt.text || ""),
                   option_index: i + 1,
-                  is_correct: !!opt.is_correct,
+                  is_correct: !!opt.is_correct || !!opt.correct,
                   explanation: String(opt.explanation || ""),
                 });
               }
@@ -152,10 +150,10 @@ export class BulkImportEngine {
         for (const item of data) {
           const title = String(item.title || "");
           const slug = String(item.slug || "");
-          const description = String(item.description || "");
+          const _description = String(item.description || "");
           const durationMinutes = Number(item.duration_minutes || 60);
           const totalMarks = Number(item.total_marks || 100);
-          const isPublished = item.is_published !== false;
+          const totalQuestions = Number(item.total_questions || 20);
           const isFree = item.is_free !== false;
 
           if (!title || !slug) {
@@ -172,11 +170,11 @@ export class BulkImportEngine {
                 .insert({
                   title,
                   slug,
-                  description,
                   duration_minutes: durationMinutes,
+                  total_questions: totalQuestions,
                   total_marks: totalMarks,
-                  is_published: isPublished,
                   is_free: isFree,
+                  status: "published",
                 });
 
               if (mErr) {
@@ -193,10 +191,10 @@ export class BulkImportEngine {
 
       case "flashcards":
         for (const item of data) {
-          const deckTitle = String(item.deck_title || "");
-          const deckDescription = String(item.deck_description || "");
-          const frontPrompt = String(item.front_prompt || "");
-          const backAnswer = String(item.back_answer || "");
+          const deckTitle = String(item.deck_title || item.title || "");
+          const deckDescription = String(item.deck_description || item.description || "");
+          const frontPrompt = String(item.front_prompt || item.front || "");
+          const backAnswer = String(item.back_answer || item.back || "");
           const explanation = String(item.explanation || "");
           const mnemonic = String(item.mnemonic || "");
 
@@ -205,9 +203,10 @@ export class BulkImportEngine {
             continue;
           }
           if (mode === "commit") {
-            let { data: deck } = await supabase.from("flashcard_decks").select("id").eq("title", deckTitle).maybeSingle();
+            let { data: deck } = await supabase.from("flashcard_decks").select("id").eq("title_en", deckTitle).maybeSingle();
             if (!deck) {
-              const { data: newDeck } = await supabase.from("flashcard_decks").insert({ title: deckTitle, description: deckDescription }).select("id").single();
+              const deckSlug = deckTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+              const { data: newDeck } = await supabase.from("flashcard_decks").insert({ title_en: deckTitle, slug: deckSlug, description: deckDescription, access_tier: "FREE", is_published: true }).select("id").single();
               deck = newDeck;
             }
 
@@ -250,7 +249,6 @@ export class BulkImportEngine {
                   title,
                   slug,
                   summary,
-                  difficulty: "INTERMEDIATE",
                   reading_time_minutes: readingTimeMinutes,
                   access_level: "FREE",
                   status: "PUBLISHED",
@@ -277,110 +275,10 @@ export class BulkImportEngine {
         }
         break;
 
-      case "courses":
-        for (const item of data) {
-          const title = String(item.title || "");
-          const slug = String(item.slug || "");
-          const description = String(item.description || "");
-          const priceInr = Number(item.price_inr || 0);
-
-          if (!title || !slug) {
-            errors.push(`Course missing title or slug.`);
-            continue;
-          }
-          if (mode === "commit") {
-            const { data: existing } = await supabase.from("courses").select("id").eq("slug", slug).maybeSingle();
-            if (existing) {
-              skipped++;
-            } else {
-              const { error: cErr } = await supabase.from("courses").insert({
-                title,
-                slug,
-                description,
-                access_tier: "FREE",
-                price_inr: priceInr,
-                is_published: true,
-              });
-              if (cErr) {
-                errors.push(`Failed inserting course "${title}": ${cErr.message}`);
-              } else {
-                created++;
-              }
-            }
-          } else {
-            previewData.push({ title, slug, priceInr });
-          }
-        }
-        break;
-
-      case "descriptive":
-        for (const item of data) {
-          const title = String(item.title || "");
-          const questionText = String(item.question_text || "");
-          const totalMarks = Number(item.total_marks || 15);
-          const maxWords = Number(item.max_words || 250);
-
-          if (!title || !questionText) {
-            errors.push(`Descriptive question missing title or question_text.`);
-            continue;
-          }
-          if (mode === "commit") {
-            const { error: dErr } = await supabase.from("descriptive_questions").insert({
-              title,
-              question_text: questionText,
-              min_words: 100,
-              max_words: maxWords,
-              total_marks: totalMarks,
-              is_active: true,
-            });
-            if (dErr) {
-              errors.push(`Failed inserting descriptive question "${title}": ${dErr.message}`);
-            } else {
-              created++;
-            }
-          } else {
-            previewData.push({ title, totalMarks, maxWords });
-          }
-        }
-        break;
-
-      case "institutes":
-        for (const item of data) {
-          const name = String(item.name || "");
-          const slug = String(item.slug || "");
-          const description = String(item.description || "");
-
-          if (!name || !slug) {
-            errors.push(`Institute missing name or slug.`);
-            continue;
-          }
-          if (mode === "commit") {
-            const { data: existing } = await supabase.from("institutes").select("id").eq("slug", slug).maybeSingle();
-            if (existing) {
-              skipped++;
-            } else {
-              const { error: iErr } = await supabase.from("institutes").insert({
-                name,
-                slug,
-                description,
-                verification_status: "VERIFIED",
-              });
-              if (iErr) {
-                errors.push(`Failed inserting institute "${name}": ${iErr.message}`);
-              } else {
-                created++;
-              }
-            }
-          } else {
-            previewData.push({ name, slug });
-          }
-        }
-        break;
-
       case "subscription_plans":
         for (const item of data) {
           const name = String(item.name || "");
-          const priceInr = Number(item.price_inr || 499);
+          const priceInr = Number(item.price_inr || item.base_price_inr || 499);
           const durationDays = Number(item.duration_days || 30);
           const isActive = item.is_active !== false;
           const features = Array.isArray(item.features) ? item.features : [];
