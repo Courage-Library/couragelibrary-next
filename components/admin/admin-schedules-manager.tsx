@@ -1,13 +1,19 @@
 "use client";
 
 import React, { useState, useMemo, useActionState, useTransition } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AdminScheduleItem, AdminCategoryItem } from "@/services/admin.service";
+import {
+  AdminScheduleItem,
+  AdminCategoryItem,
+  AdminCategoryDailyProgramData,
+  DailyMockDayConfig,
+} from "@/services/admin.service";
 import {
   createScheduleAction,
   updateScheduleAction,
-  toggleScheduleStatusAction,
+  saveDailyMockDayAction,
+  saveDailyMockProgramAction,
+  toggleDailyMockDayAction,
 } from "@/app/admin/actions";
 import { AdminBreadcrumbs } from "@/components/admin/admin-breadcrumbs";
 import { Card } from "@/components/ui/card";
@@ -16,62 +22,69 @@ import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import {
   Calendar,
-  Search,
+  CalendarDays,
   PlusCircle,
-  GitBranch,
-  FileCheck2,
-  HelpCircle,
-  Filter,
+  Layers,
   Edit2,
   Power,
   X,
+  Save,
+  CalendarCheck,
 } from "lucide-react";
 
 interface Props {
   schedules: AdminScheduleItem[];
   categories: AdminCategoryItem[];
+  dailyProgramData?: AdminCategoryDailyProgramData;
   currentCategory?: string;
 }
 
-export function AdminSchedulesManager({ schedules, categories, currentCategory }: Props) {
+export function AdminSchedulesManager({
+  schedules,
+  categories,
+  dailyProgramData,
+  currentCategory,
+}: Props) {
   const router = useRouter();
 
-  // Create Form State
-  const [createState, createAction, isCreating] = useActionState(createScheduleAction, null);
+  // Active view tab: "daily_mocks" or "exam_cycles"
+  const [activeTab, setActiveTab] = useState<"daily_mocks" | "exam_cycles">("daily_mocks");
 
-  // Edit Modal State
-  const [editingSchedule, setEditingSchedule] = useState<AdminScheduleItem | null>(null);
-  const [editState, editAction, isEditing] = useActionState(updateScheduleAction, null);
+  // Selected Category
+  const [selectedCategory, setSelectedCategory] = useState(
+    currentCategory || (categories[0]?.slug || categories[0]?.id || "ALL")
+  );
 
-  // Search & Filter
-  const [selectedCategory, setSelectedCategory] = useState(currentCategory || "ALL");
-  const [searchQuery, setSearchQuery] = useState("");
+  // Daily Mock Program State
+  const initialProgram = dailyProgramData?.program;
+  const availablePatterns = dailyProgramData?.availablePatterns || [];
+
+  const [launchDate, setLaunchDate] = useState(initialProgram?.launchDate || "2026-03-01");
+  const [defaultLanguage, setDefaultLanguage] = useState<"both" | "english" | "hindi">(
+    initialProgram?.defaultLanguage || "both"
+  );
+  const [daysState, setDaysState] = useState<DailyMockDayConfig[]>(
+    initialProgram?.days || []
+  );
+
+  // Edit Modal for single day & cycle
+  const [editingDay, setEditingDay] = useState<DailyMockDayConfig | null>(null);
+  const [editingCycle, setEditingCycle] = useState<AdminScheduleItem | null>(null);
+
+  // Action States
+  const [daySaveState, saveDayAction, isSavingDay] = useActionState(saveDailyMockDayAction, null);
+  const [progSaveState, saveProgAction, isSavingProg] = useActionState(saveDailyMockProgramAction, null);
+  const [createCycleState, createCycleAction, isCreatingCycle] = useActionState(createScheduleAction, null);
+  const [editCycleState, editCycleAction, isEditingCycle] = useActionState(updateScheduleAction, null);
+
   const [isToggling, startTransition] = useTransition();
 
   const activeCategoryObj = useMemo(() => {
-    if (!currentCategory || currentCategory === "ALL") return null;
-    return categories.find((c) => c.slug === currentCategory || c.id === currentCategory);
-  }, [categories, currentCategory]);
-
-  const filtered = useMemo(() => {
-    return schedules.filter((s) => {
-      if (selectedCategory !== "ALL") {
-        const matchesCategory =
-          s.categoryId === selectedCategory ||
-          s.categorySlug.toLowerCase() === selectedCategory.toLowerCase();
-        if (!matchesCategory) return false;
-      }
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        return (
-          s.categoryName.toLowerCase().includes(q) ||
-          String(s.cycleYear).includes(q) ||
-          s.status.toLowerCase().includes(q)
-        );
-      }
-      return true;
-    });
-  }, [schedules, selectedCategory, searchQuery]);
+    if (!selectedCategory || selectedCategory === "ALL") return categories[0] || null;
+    return categories.find(
+      (c) => c.slug === selectedCategory || c.id === selectedCategory
+    ) || categories[0] || null;
+  }, [categories, selectedCategory]);
 
   const handleCategoryChange = (cat: string) => {
     setSelectedCategory(cat);
@@ -82,17 +95,96 @@ export function AdminSchedulesManager({ schedules, categories, currentCategory }
     }
   };
 
+  // Sync state if initialProgram changes on category switch
+  React.useEffect(() => {
+    if (initialProgram) {
+      setLaunchDate(initialProgram.launchDate || "2026-03-01");
+      setDefaultLanguage(initialProgram.defaultLanguage || "both");
+      setDaysState(initialProgram.days || []);
+    }
+  }, [initialProgram]);
+
+  // Handler for modifying day field locally
+  const updateDayField = <K extends keyof DailyMockDayConfig>(
+    dayOfWeek: DailyMockDayConfig["dayOfWeek"],
+    field: K,
+    value: DailyMockDayConfig[K]
+  ) => {
+    setDaysState((prev) =>
+      prev.map((d) => {
+        if (d.dayOfWeek !== dayOfWeek) return d;
+        const updated = { ...d, [field]: value };
+
+        // When pattern changes, auto-adjust default sections and parameters
+        if (field === "patternId") {
+          const matchedPat = availablePatterns.find((p) => p.id === value);
+          if (matchedPat) {
+            updated.patternName = matchedPat.name;
+            if (matchedPat.sections.length > 0) {
+              updated.activeSectionId = matchedPat.sections[0].id;
+              updated.activeSectionName = matchedPat.sections[0].name;
+              updated.questionCount = matchedPat.sections[0].questionCount;
+              updated.totalMarks = matchedPat.sections[0].questionCount * matchedPat.sections[0].marksPerQuestion;
+              updated.negativeMark = matchedPat.sections[0].negativeMark;
+            } else {
+              updated.questionCount = matchedPat.totalQuestions;
+              updated.durationMinutes = matchedPat.durationMinutes;
+              updated.totalMarks = matchedPat.totalMarks;
+              updated.negativeMark = matchedPat.negativeMarkValue;
+            }
+          }
+        }
+
+        // When section changes, auto-adjust question count and marks
+        if (field === "activeSectionId") {
+          const currentPat = availablePatterns.find((p) => p.id === updated.patternId);
+          const matchedSec = currentPat?.sections.find((s) => s.id === value);
+          if (matchedSec) {
+            updated.activeSectionName = matchedSec.name;
+            updated.questionCount = matchedSec.questionCount;
+            updated.totalMarks = matchedSec.questionCount * matchedSec.marksPerQuestion;
+            updated.negativeMark = matchedSec.negativeMark;
+          }
+        }
+
+        return updated;
+      })
+    );
+  };
+
+  // Toggle Day Active
+  const handleToggleDay = (dayConfig: DailyMockDayConfig) => {
+    const newActive = !dayConfig.isActive;
+    updateDayField(dayConfig.dayOfWeek, "isActive", newActive);
+
+    if (dayConfig.templateId) {
+      startTransition(async () => {
+        await toggleDailyMockDayAction(dayConfig.templateId!, dayConfig.isActive);
+      });
+    }
+  };
+
+  // Filtered Exam Cycles
+  const filteredCycles = useMemo(() => {
+    if (!selectedCategory || selectedCategory === "ALL") return schedules;
+    return schedules.filter(
+      (s) =>
+        s.categoryId === activeCategoryObj?.id ||
+        s.categorySlug.toLowerCase() === activeCategoryObj?.slug.toLowerCase()
+    );
+  }, [schedules, selectedCategory, activeCategoryObj]);
+
   const breadcrumbs = [
     { label: "Mock Test Management", href: "/admin/mock-tests-management" },
     { label: "Categories", href: "/admin/categories" },
     ...(activeCategoryObj
       ? [{ label: activeCategoryObj.title, href: `/admin/schedules?category=${activeCategoryObj.slug}` }]
       : []),
-    { label: "Schedules", active: true },
+    { label: "Schedules & Daily Mocks", active: true },
   ];
 
   return (
-    <div className="space-y-4 w-full pb-8">
+    <div className="space-y-5 w-full pb-10">
       {/* Breadcrumbs */}
       <AdminBreadcrumbs items={breadcrumbs} />
 
@@ -100,311 +192,733 @@ export function AdminSchedulesManager({ schedules, categories, currentCategory }
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2.5">
-            <Calendar className="w-6 h-6 text-blue-600" /> Exam Schedules
+            <Calendar className="w-6 h-6 text-blue-600" /> Daily Mock Scheduling System
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
-            Manage official recruitment notification releases, application deadlines, and exam test windows.
+            100% database-driven 7-day recurring mock programs, sectional testing schedules, and exam recruitment timelines.
           </p>
+        </div>
+
+        {/* View Switcher Tabs */}
+        <div className="flex items-center gap-1.5 p-1 bg-slate-100/90 border border-slate-200/80 rounded-xl self-start sm:self-auto">
+          <button
+            onClick={() => setActiveTab("daily_mocks")}
+            className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
+              activeTab === "daily_mocks"
+                ? "bg-white text-blue-700 shadow-xs"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <CalendarDays className="w-3.5 h-3.5" />
+            7-Day Daily Program
+          </button>
+          <button
+            onClick={() => setActiveTab("exam_cycles")}
+            className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
+              activeTab === "exam_cycles"
+                ? "bg-white text-blue-700 shadow-xs"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <CalendarCheck className="w-3.5 h-3.5" />
+            Recruitment Cycles
+          </button>
         </div>
       </div>
 
-      {/* Feedback Alerts */}
-      {createState?.error && <Alert variant="error">{createState.error}</Alert>}
-      {createState?.message && <Alert variant="success">{createState.message}</Alert>}
+      {/* Global Category Selector Bar */}
+      <Card className="p-4 bg-white border border-slate-200/80 rounded-2xl shadow-2xs">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm">
+              <Layers className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                Exam Category
+              </div>
+              <div className="text-sm font-bold text-slate-900">
+                {activeCategoryObj?.title || "Select Category"}
+              </div>
+            </div>
+          </div>
 
-      {/* TWO COLUMN WORKSPACE */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* LEFT COLUMN: Add New Schedule Form Card */}
-        <div className="lg:col-span-5">
-          <Card className="p-5 sm:p-6 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-4 sticky top-4">
-            <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-              <PlusCircle className="w-5 h-5 text-blue-600" />
-              <h2 className="text-sm font-bold text-slate-900">Add New Exam Schedule</h2>
+          <div className="flex items-center gap-2">
+            <select
+              value={selectedCategory}
+              onChange={(e) => handleCategoryChange(e.target.value)}
+              className="px-3.5 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-none focus:border-blue-500 shadow-2xs min-w-[200px]"
+            >
+              {categories.map((c) => (
+                <option key={c.id} value={c.slug}>
+                  {c.title}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </Card>
+
+      {/* Feedback Alerts */}
+      {daySaveState?.error && <Alert variant="error">{daySaveState.error}</Alert>}
+      {daySaveState?.message && <Alert variant="success">{daySaveState.message}</Alert>}
+      {progSaveState?.error && <Alert variant="error">{progSaveState.error}</Alert>}
+      {progSaveState?.message && <Alert variant="success">{progSaveState.message}</Alert>}
+      {createCycleState?.error && <Alert variant="error">{createCycleState.error}</Alert>}
+      {createCycleState?.message && <Alert variant="success">{createCycleState.message}</Alert>}
+      {editCycleState?.error && <Alert variant="error">{editCycleState.error}</Alert>}
+      {editCycleState?.message && <Alert variant="success">{editCycleState.message}</Alert>}
+
+      {/* ========================================================================= */}
+      {/* TAB 1: 7-DAY DAILY MOCK PROGRAM STUDIO                                    */}
+      {/* ========================================================================= */}
+      {activeTab === "daily_mocks" && (
+        <div className="space-y-5">
+          {/* Program Overview & Parameters Card */}
+          <Card className="p-5 sm:p-6 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <CalendarDays className="w-5 h-5 text-blue-600" />
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900">
+                    Weekly Schedule Matrix — {activeCategoryObj?.title}
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Daily mocks run automatically from 5:00 AM to 11:59 PM with 1 attempt per day.
+                  </p>
+                </div>
+              </div>
+
+              {/* Batch Save Button */}
+              <form action={saveProgAction} className="flex items-center gap-2">
+                <input type="hidden" name="categoryId" value={activeCategoryObj?.id || ""} />
+                <input type="hidden" name="launchDate" value={launchDate} />
+                <input type="hidden" name="defaultLanguage" value={defaultLanguage} />
+                <input type="hidden" name="daysJson" value={JSON.stringify(daysState)} />
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={isSavingProg}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs"
+                >
+                  <Save className="w-3.5 h-3.5 mr-1" />
+                  {isSavingProg ? "Saving All Days..." : "Save Weekly Program"}
+                </Button>
+              </form>
             </div>
 
-            <form action={createAction} className="space-y-4">
+            {/* Launch Date & Global Language Settings */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Target Exam Category <span className="text-rose-500">*</span>
+                <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
+                  Program Launch Date
+                </label>
+                <input
+                  type="date"
+                  value={launchDate}
+                  onChange={(e) => setLaunchDate(e.target.value)}
+                  className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 focus:outline-none focus:border-blue-500 focus:bg-white"
+                />
+                <span className="text-[10px] text-slate-400 mt-0.5 block">
+                  Relative mock numbers (T#1, T#2...) auto-increment from this date.
+                </span>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
+                  Default Medium
                 </label>
                 <select
-                  name="categoryId"
-                  defaultValue={activeCategoryObj ? activeCategoryObj.id : (categories[0]?.id || "")}
-                  className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-blue-500"
-                  required
+                  value={defaultLanguage}
+                  onChange={(e) => setDefaultLanguage(e.target.value as "both" | "english" | "hindi")}
+                  className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 focus:outline-none focus:border-blue-500 focus:bg-white"
                 >
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.title}
-                    </option>
-                  ))}
+                  <option value="both">🌐 Bilingual (Student Chooses)</option>
+                  <option value="hindi">🇮🇳 Hindi Medium</option>
+                  <option value="english">🇬🇧 English Medium</option>
                 </select>
+                <span className="text-[10px] text-slate-400 mt-0.5 block">
+                  Students can switch language before starting each daily mock.
+                </span>
               </div>
+
+              {/* Weekly Metrics Box */}
+              <div className="flex items-center justify-around p-3 bg-slate-50 border border-slate-200/70 rounded-xl">
+                <div className="text-center">
+                  <div className="text-base font-extrabold text-blue-700">
+                    {daysState.filter((d) => d.isActive).length}/7
+                  </div>
+                  <div className="text-[10px] font-bold text-slate-500 uppercase">Active Days</div>
+                </div>
+                <div className="h-7 w-px bg-slate-200" />
+                <div className="text-center">
+                  <div className="text-base font-extrabold text-emerald-700">
+                    {daysState.filter((d) => d.isActive).reduce((acc, d) => acc + d.questionCount, 0)}
+                  </div>
+                  <div className="text-[10px] font-bold text-slate-500 uppercase">Weekly Qs</div>
+                </div>
+                <div className="h-7 w-px bg-slate-200" />
+                <div className="text-center">
+                  <div className="text-base font-extrabold text-purple-700">
+                    {daysState.filter((d) => d.isActive).reduce((acc, d) => acc + d.totalMarks, 0)}
+                  </div>
+                  <div className="text-[10px] font-bold text-slate-500 uppercase">Total Marks</div>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* 7-Day Matrix Cards */}
+          <div className="space-y-3">
+            {daysState.map((day) => {
+              const currentPattern = availablePatterns.find((p) => p.id === day.patternId);
+              const availableSections = currentPattern?.sections || [];
+
+              return (
+                <Card
+                  key={day.dayOfWeek}
+                  className={`p-4 sm:p-5 bg-white border rounded-2xl transition-all shadow-2xs ${
+                    day.isActive
+                      ? "border-slate-200/80 hover:border-slate-300"
+                      : "border-slate-200/50 bg-slate-50/40 opacity-75"
+                  }`}
+                >
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                    {/* Day & Badge Header */}
+                    <div className="flex items-center gap-3 min-w-[170px]">
+                      <span
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs ${
+                          day.isActive
+                            ? "bg-blue-100/70 text-blue-800 border border-blue-200/60"
+                            : "bg-slate-100 text-slate-400 border border-slate-200"
+                        }`}
+                      >
+                        {day.dayLabel.slice(0, 3)}
+                      </span>
+                      <div>
+                        <div className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                          {day.dayLabel}
+                          {day.isActive ? (
+                            <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
+                          ) : (
+                            <span className="inline-block w-2 h-2 rounded-full bg-slate-300" />
+                          )}
+                        </div>
+                        <div className="text-[11px] font-semibold text-slate-500 capitalize">
+                          {day.testType.replace("_", " ")}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Cascading Controls Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 flex-1">
+                      {/* Test Type */}
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                          Test Format
+                        </label>
+                        <select
+                          value={day.testType}
+                          onChange={(e) =>
+                            updateDayField(
+                              day.dayOfWeek,
+                              "testType",
+                              e.target.value as "daily_sectional" | "mixed" | "full_mock"
+                            )
+                          }
+                          className="w-full px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:border-blue-500"
+                        >
+                          <option value="daily_sectional">Sectional Test</option>
+                          <option value="mixed">Mixed Subject Test</option>
+                          <option value="full_mock">Full-Length Mock</option>
+                        </select>
+                      </div>
+
+                      {/* Pattern Selector (from DB) */}
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                          Pattern Blueprint
+                        </label>
+                        <select
+                          value={day.patternId}
+                          onChange={(e) => updateDayField(day.dayOfWeek, "patternId", e.target.value)}
+                          className="w-full px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:border-blue-500"
+                        >
+                          {availablePatterns.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Section Selector (cascading from selected pattern) */}
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                          Target Section
+                        </label>
+                        {day.testType === "daily_sectional" && availableSections.length > 0 ? (
+                          <select
+                            value={day.activeSectionId || availableSections[0]?.id}
+                            onChange={(e) =>
+                              updateDayField(day.dayOfWeek, "activeSectionId", e.target.value)
+                            }
+                            className="w-full px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:border-blue-500"
+                          >
+                            {availableSections.map((s) => (
+                              <option key={s.id} value={s.id}>
+                                {s.name}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <div className="px-2.5 py-1.5 text-xs font-semibold text-slate-500 bg-slate-100/70 border border-slate-200 rounded-lg">
+                            {day.testType === "mixed" ? "Mixed (All Sections)" : "Full Exam Blueprint"}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Questions / Duration / Marks */}
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                          Specs (Q / Min / Marks)
+                        </label>
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            value={day.questionCount}
+                            onChange={(e) =>
+                              updateDayField(day.dayOfWeek, "questionCount", Number(e.target.value))
+                            }
+                            className="w-14 px-1.5 py-1.5 text-xs font-bold text-center rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:border-blue-500"
+                            title="Question Count"
+                          />
+                          <span className="text-slate-400 text-xs">/</span>
+                          <input
+                            type="number"
+                            value={day.durationMinutes}
+                            onChange={(e) =>
+                              updateDayField(day.dayOfWeek, "durationMinutes", Number(e.target.value))
+                            }
+                            className="w-14 px-1.5 py-1.5 text-xs font-bold text-center rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:border-blue-500"
+                            title="Duration in minutes"
+                          />
+                          <span className="text-slate-400 text-xs">/</span>
+                          <input
+                            type="number"
+                            value={day.totalMarks}
+                            onChange={(e) =>
+                              updateDayField(day.dayOfWeek, "totalMarks", Number(e.target.value))
+                            }
+                            className="w-14 px-1.5 py-1.5 text-xs font-bold text-center rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:border-blue-500"
+                            title="Total Marks"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Actions: Toggle Active & Save Day */}
+                    <div className="flex items-center gap-2 self-end lg:self-center">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={day.isActive ? "outline" : "default"}
+                        disabled={isToggling}
+                        onClick={() => handleToggleDay(day)}
+                        className={`text-xs font-semibold ${
+                          day.isActive
+                            ? "border-slate-200 text-slate-600 hover:text-slate-900"
+                            : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                        }`}
+                      >
+                        <Power className="w-3.5 h-3.5 mr-1" />
+                        {day.isActive ? "Deactivate" : "Activate"}
+                      </Button>
+
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setEditingDay(day)}
+                        className="text-xs font-semibold border-slate-200 text-slate-700 hover:bg-slate-50"
+                      >
+                        <Edit2 className="w-3.5 h-3.5 mr-1 text-slate-500" />
+                        Configure
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 2: RECRUITMENT NOTIFICATION CYCLES                                    */}
+      {/* ========================================================================= */}
+      {activeTab === "exam_cycles" && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Add Cycle Form */}
+          <div className="lg:col-span-5">
+            <Card className="p-5 sm:p-6 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-4 sticky top-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                <PlusCircle className="w-5 h-5 text-blue-600" />
+                <h2 className="text-sm font-bold text-slate-900">Add Recruitment Notification</h2>
+              </div>
+
+              <form action={createCycleAction} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Target Exam Category <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    name="categoryId"
+                    defaultValue={activeCategoryObj ? activeCategoryObj.id : categories[0]?.id || ""}
+                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-blue-500"
+                    required
+                  >
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Recruitment Year
+                    </label>
+                    <input
+                      name="cycleYear"
+                      type="number"
+                      defaultValue={2026}
+                      className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Status
+                    </label>
+                    <select
+                      name="status"
+                      defaultValue="active"
+                      className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="active">Active</option>
+                      <option value="scheduled">Scheduled</option>
+                      <option value="completed">Completed</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Notification Release Date
+                  </label>
+                  <input
+                    name="notificationDate"
+                    type="date"
+                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Application Start
+                    </label>
+                    <input
+                      name="applicationStartDate"
+                      type="date"
+                      className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Application End
+                    </label>
+                    <input
+                      name="applicationEndDate"
+                      type="date"
+                      className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={isCreatingCycle}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs"
+                >
+                  {isCreatingCycle ? "Publishing Schedule..." : "Save Notification Schedule"}
+                </Button>
+              </form>
+            </Card>
+          </div>
+
+          {/* Cycles List */}
+          <div className="lg:col-span-7 space-y-3">
+            {filteredCycles.length === 0 ? (
+              <Card className="p-8 text-center bg-white border border-slate-200/80 rounded-2xl">
+                <Calendar className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                <h3 className="text-sm font-bold text-slate-700">No recruitment cycles found</h3>
+                <p className="text-xs text-slate-400 mt-1">
+                  Create notification releases for {activeCategoryObj?.title || "this category"} using the form.
+                </p>
+              </Card>
+            ) : (
+              filteredCycles.map((cycle) => (
+                <Card
+                  key={cycle.id}
+                  className="p-5 bg-white border border-slate-200/80 rounded-2xl shadow-2xs hover:border-slate-300 transition-all"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-bold text-slate-900">
+                          {cycle.categoryName} — Cycle {cycle.cycleYear}
+                        </h3>
+                        <Badge
+                          variant={cycle.status === "active" ? "default" : "outline"}
+                          className="text-[10px] font-bold capitalize"
+                        >
+                          {cycle.status}
+                        </Badge>
+                      </div>
+                      <div className="text-xs text-slate-500 mt-1 space-y-0.5">
+                        {cycle.notificationDate && <div>Release: {cycle.notificationDate}</div>}
+                        {cycle.applicationStartDate && (
+                          <div>
+                            App Window: {cycle.applicationStartDate} to {cycle.applicationEndDate || "—"}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setEditingCycle(cycle)}
+                      className="text-xs font-semibold border-slate-200 text-slate-700 hover:bg-slate-50"
+                    >
+                      <Edit2 className="w-3.5 h-3.5 mr-1" /> Edit
+                    </Button>
+                  </div>
+                </Card>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* SINGLE DAY CONFIGURATION MODAL                                            */}
+      {/* ========================================================================= */}
+      {editingDay && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <Card className="w-full max-w-lg bg-white border border-slate-200 rounded-2xl shadow-2xl p-6 space-y-5 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <CalendarDays className="w-5 h-5 text-blue-600" />
+                <h3 className="text-base font-bold text-slate-900">
+                  Configure {editingDay.dayLabel} — {activeCategoryObj?.title}
+                </h3>
+              </div>
+              <button
+                onClick={() => setEditingDay(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form
+              action={async (formData) => {
+                await saveDayAction(formData);
+                setEditingDay(null);
+              }}
+              className="space-y-4"
+            >
+              <input type="hidden" name="categoryId" value={activeCategoryObj?.id || ""} />
+              <input type="hidden" name="dayOfWeek" value={editingDay.dayOfWeek} />
+              <input type="hidden" name="dayLabel" value={editingDay.dayLabel} />
+              <input type="hidden" name="launchDate" value={launchDate} />
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Recruitment Year
-                  </label>
-                  <input
-                    name="cycleYear"
-                    type="number"
-                    defaultValue={2026}
-                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Status
+                    Test Format
                   </label>
                   <select
-                    name="status"
-                    defaultValue="scheduled"
-                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-blue-500"
+                    name="testType"
+                    defaultValue={editingDay.testType}
+                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white"
                   >
-                    <option value="scheduled">Scheduled</option>
-                    <option value="active">Active (Ongoing)</option>
-                    <option value="completed">Completed</option>
-                    <option value="cancelled">Cancelled</option>
+                    <option value="daily_sectional">Sectional Test</option>
+                    <option value="mixed">Mixed Subject Test</option>
+                    <option value="full_mock">Full-Length Mock</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Pattern Blueprint
+                  </label>
+                  <select
+                    name="patternId"
+                    defaultValue={editingDay.patternId}
+                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white"
+                  >
+                    {availablePatterns.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Notification Release Date
+                  Target Section (If Sectional)
                 </label>
-                <input
-                  name="notificationDate"
-                  type="date"
-                  className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-blue-500"
-                />
+                <select
+                  name="activeSectionId"
+                  defaultValue={editingDay.activeSectionId || ""}
+                  className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white"
+                >
+                  <option value="">— All Sections / Full Blueprint —</option>
+                  {availablePatterns
+                    .flatMap((p) => p.sections)
+                    .map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Questions
+                  </label>
+                  <input
+                    name="questionCount"
+                    type="number"
+                    defaultValue={editingDay.questionCount}
+                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Duration (m)
+                  </label>
+                  <input
+                    name="durationMinutes"
+                    type="number"
+                    defaultValue={editingDay.durationMinutes}
+                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Total Marks
+                  </label>
+                  <input
+                    name="totalMarks"
+                    type="number"
+                    defaultValue={editingDay.totalMarks}
+                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Application Start
+                    Negative Mark
                   </label>
                   <input
-                    name="applicationStartDate"
-                    type="date"
-                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-blue-500"
+                    name="negativeMark"
+                    type="number"
+                    step="0.25"
+                    defaultValue={editingDay.negativeMark}
+                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Application End
+                    Medium
                   </label>
-                  <input
-                    name="applicationEndDate"
-                    type="date"
-                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-blue-500"
-                  />
+                  <select
+                    name="language"
+                    defaultValue={editingDay.language}
+                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white"
+                  >
+                    <option value="both">🌐 Bilingual</option>
+                    <option value="hindi">🇮🇳 Hindi</option>
+                    <option value="english">🇬🇧 English</option>
+                  </select>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Exam Window Start
-                  </label>
-                  <input
-                    name="examWindowStart"
-                    type="date"
-                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Exam Window End
-                  </label>
-                  <input
-                    name="examWindowEnd"
-                    type="date"
-                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-blue-500"
-                  />
-                </div>
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEditingDay(null)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={isSavingDay}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold"
+                >
+                  {isSavingDay ? "Saving..." : `Save ${editingDay.dayLabel}`}
+                </Button>
               </div>
-
-              <Button
-                type="submit"
-                variant="default"
-                disabled={isCreating}
-                className="w-full font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-2xs flex items-center justify-center gap-2 py-2.5 rounded-xl transition"
-              >
-                <PlusCircle className="w-4 h-4" />
-                {isCreating ? "Creating Schedule..." : "Create Schedule"}
-              </Button>
             </form>
           </Card>
         </div>
+      )}
 
-        {/* RIGHT COLUMN: Existing Schedules List */}
-        <div className="lg:col-span-7 space-y-4">
-          {/* Filter Bar */}
-          <Card className="p-4 bg-white border-slate-200/80 rounded-2xl shadow-2xs flex flex-col sm:flex-row items-center gap-3">
-            <div className="relative flex-1 w-full">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search schedules by exam or year..."
-                className="w-full pl-9 pr-3 py-2 text-xs font-medium rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:border-blue-500"
-              />
-            </div>
-
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <Filter className="w-4 h-4 text-slate-400 shrink-0" />
-              <select
-                value={selectedCategory}
-                onChange={(e) => handleCategoryChange(e.target.value)}
-                className="p-2 text-xs font-semibold rounded-lg border border-slate-200 bg-white min-w-[130px]"
-              >
-                <option value="ALL">All Categories</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.slug}>
-                    {c.title}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </Card>
-
-          {/* Schedules Cards List */}
-          {filtered.length === 0 ? (
-            <Card className="p-12 text-center bg-white border-slate-200/80 rounded-2xl space-y-2">
-              <Calendar className="w-8 h-8 mx-auto text-slate-300" />
-              <p className="text-xs text-slate-500 font-medium">No exam schedules found for this selection.</p>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {filtered.map((item) => (
-                <Card
-                  key={item.id}
-                  className="p-5 bg-white border border-slate-200/80 hover:border-slate-300 rounded-2xl transition shadow-2xs space-y-4"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <span className="text-[11px] font-bold text-blue-600 tracking-tight block">
-                        {item.categoryName} &bull; Year {item.cycleYear}
-                      </span>
-                      <h3 className="text-base font-bold text-slate-900 leading-tight mt-0.5">
-                        {item.categoryName} Exam Cycle {item.cycleYear}
-                      </h3>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <Badge
-                        variant={item.status === "active" ? "success" : item.status === "scheduled" ? "neutral" : "warning"}
-                        className="text-[10px] uppercase font-bold"
-                      >
-                        {item.status}
-                      </Badge>
-                      <button
-                        onClick={() => setEditingSchedule(item)}
-                        className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition"
-                        title="Edit Schedule"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (confirm(`Toggle active status for this schedule?`)) {
-                            startTransition(async () => {
-                              await toggleScheduleStatusAction(item.id, item.status);
-                            });
-                          }
-                        }}
-                        disabled={isToggling}
-                        className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition"
-                        title="Toggle Active"
-                      >
-                        <Power className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Timeline Info */}
-                  <div className="space-y-1.5 text-xs text-slate-600 font-medium bg-slate-50 p-3 rounded-xl border border-slate-200/70">
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500 font-mono text-[11px]">Notification:</span>
-                      <span className="text-slate-800">{item.notificationDate ? new Date(item.notificationDate).toLocaleDateString() : "TBA"}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500 font-mono text-[11px]">Application Window:</span>
-                      <span className="text-slate-800">
-                        {item.applicationStartDate ? new Date(item.applicationStartDate).toLocaleDateString() : "TBA"} &mdash;{" "}
-                        {item.applicationEndDate ? new Date(item.applicationEndDate).toLocaleDateString() : "TBA"}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500 font-mono text-[11px]">Exam Window:</span>
-                      <span className="font-bold text-slate-900">
-                        {item.examWindowStart ? new Date(item.examWindowStart).toLocaleDateString() : "Scheduled Soon"}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Connected Entity Metrics — Clean Neutral Boxes */}
-                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-center font-mono">
-                    <div className="p-2 rounded-xl bg-slate-50 border border-slate-200/70">
-                      <span className="text-[10px] text-slate-500 font-semibold block uppercase">Patterns</span>
-                      <span className="text-sm font-bold text-slate-900">{item.patternsCount}</span>
-                    </div>
-                    <div className="p-2 rounded-xl bg-slate-50 border border-slate-200/70">
-                      <span className="text-[10px] text-slate-500 font-semibold block uppercase">Mock Tests</span>
-                      <span className="text-sm font-bold text-slate-900">{item.mockTestsCount}</span>
-                    </div>
-                  </div>
-
-                  {/* Connected Action Links — Clean Secondary Buttons */}
-                  <div className="pt-2.5 border-t border-slate-100 flex flex-wrap items-center gap-1.5">
-                    <Link href={`/admin/patterns?category=${item.categorySlug}`}>
-                      <Button variant="outline" size="sm" className="text-xs font-semibold text-slate-700 border-slate-200 bg-white hover:bg-slate-50 hover:text-slate-900 shadow-2xs">
-                        <GitBranch className="w-3.5 h-3.5 mr-1.5 text-slate-400" /> Related Patterns
-                      </Button>
-                    </Link>
-                    <Link href={`/admin/mock-tests?category=${item.categorySlug}`}>
-                      <Button variant="outline" size="sm" className="text-xs font-semibold text-slate-700 border-slate-200 bg-white hover:bg-slate-50 hover:text-slate-900 shadow-2xs">
-                        <FileCheck2 className="w-3.5 h-3.5 mr-1.5 text-slate-400" /> Related Mock Tests
-                      </Button>
-                    </Link>
-                    <Link href={`/admin/questions?category=${item.categorySlug}`}>
-                      <Button variant="outline" size="sm" className="text-xs font-semibold text-slate-700 border-slate-200 bg-white hover:bg-slate-50 hover:text-slate-900 shadow-2xs">
-                        <HelpCircle className="w-3.5 h-3.5 mr-1.5 text-slate-400" /> Questions
-                      </Button>
-                    </Link>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* EDIT SCHEDULE MODAL */}
-      {editingSchedule && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <Card className="w-full max-w-lg p-6 bg-white border-slate-200 shadow-2xl space-y-4 relative">
+      {/* ========================================================================= */}
+      {/* RECRUITMENT CYCLE EDIT MODAL                                              */}
+      {/* ========================================================================= */}
+      {editingCycle && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <Card className="w-full max-w-lg bg-white border border-slate-200 rounded-2xl shadow-2xl p-6 space-y-4 animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
-                <Edit2 className="w-4 h-4 text-purple-600" /> Edit Schedule: {editingSchedule.categoryName} ({editingSchedule.cycleYear})
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Edit2 className="w-4 h-4 text-blue-600" /> Edit Schedule: {editingCycle.categoryName} ({editingCycle.cycleYear})
               </h3>
               <button
-                onClick={() => setEditingSchedule(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                onClick={() => setEditingCycle(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            {editState?.error && <Alert variant="error">{editState.error}</Alert>}
-            {editState?.message && <Alert variant="success">{editState.message}</Alert>}
+            {editCycleState?.error && <Alert variant="error">{editCycleState.error}</Alert>}
+            {editCycleState?.message && <Alert variant="success">{editCycleState.message}</Alert>}
 
-            <form action={editAction} className="space-y-4">
-              <input type="hidden" name="id" value={editingSchedule.id} />
+            <form
+              action={async (formData) => {
+                await editCycleAction(formData);
+                setEditingCycle(null);
+              }}
+              className="space-y-4"
+            >
+              <input type="hidden" name="id" value={editingCycle.id} />
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -412,31 +926,33 @@ export function AdminSchedulesManager({ schedules, categories, currentCategory }
                   <input
                     name="cycleYear"
                     type="number"
-                    defaultValue={editingSchedule.cycleYear}
-                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-purple-500"
+                    defaultValue={editingCycle.cycleYear}
+                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white"
+                    required
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Status</label>
                   <select
                     name="status"
-                    defaultValue={editingSchedule.status}
-                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-purple-500"
+                    defaultValue={editingCycle.status}
+                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white"
                   >
                     <option value="active">Active</option>
-                    <option value="upcoming">Upcoming</option>
-                    <option value="archived">Archived</option>
+                    <option value="scheduled">Scheduled</option>
+                    <option value="completed">Completed</option>
+                    <option value="cancelled">Cancelled</option>
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Notification Release Date</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Notification Date</label>
                 <input
                   name="notificationDate"
                   type="date"
-                  defaultValue={editingSchedule.notificationDate ? editingSchedule.notificationDate.split("T")[0] : ""}
-                  className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-purple-500"
+                  defaultValue={editingCycle.notificationDate ? editingCycle.notificationDate.split("T")[0] : ""}
+                  className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white"
                 />
               </div>
 
@@ -446,8 +962,8 @@ export function AdminSchedulesManager({ schedules, categories, currentCategory }
                   <input
                     name="applicationStartDate"
                     type="date"
-                    defaultValue={editingSchedule.applicationStartDate ? editingSchedule.applicationStartDate.split("T")[0] : ""}
-                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-purple-500"
+                    defaultValue={editingCycle.applicationStartDate ? editingCycle.applicationStartDate.split("T")[0] : ""}
+                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white"
                   />
                 </div>
                 <div>
@@ -455,39 +971,18 @@ export function AdminSchedulesManager({ schedules, categories, currentCategory }
                   <input
                     name="applicationEndDate"
                     type="date"
-                    defaultValue={editingSchedule.applicationEndDate ? editingSchedule.applicationEndDate.split("T")[0] : ""}
-                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-purple-500"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Exam Window Start</label>
-                  <input
-                    name="examWindowStart"
-                    type="date"
-                    defaultValue={editingSchedule.examWindowStart ? editingSchedule.examWindowStart.split("T")[0] : ""}
-                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-purple-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Exam Window End</label>
-                  <input
-                    name="examWindowEnd"
-                    type="date"
-                    defaultValue={editingSchedule.examWindowEnd ? editingSchedule.examWindowEnd.split("T")[0] : ""}
-                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-purple-500"
+                    defaultValue={editingCycle.applicationEndDate ? editingCycle.applicationEndDate.split("T")[0] : ""}
+                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white"
                   />
                 </div>
               </div>
 
               <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-                <Button type="button" variant="outline" size="sm" onClick={() => setEditingSchedule(null)}>
+                <Button type="button" variant="outline" size="sm" onClick={() => setEditingCycle(null)}>
                   Cancel
                 </Button>
-                <Button type="submit" variant="default" size="sm" disabled={isEditing} className="font-bold bg-purple-600 hover:bg-purple-700">
-                  {isEditing ? "Updating..." : "Save Changes"}
+                <Button type="submit" variant="default" size="sm" disabled={isEditingCycle} className="font-bold bg-blue-600 hover:bg-blue-700">
+                  {isEditingCycle ? "Updating..." : "Save Changes"}
                 </Button>
               </div>
             </form>
