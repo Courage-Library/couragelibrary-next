@@ -150,7 +150,6 @@ export class BulkImportEngine {
         for (const item of data) {
           const title = String(item.title || "");
           const slug = String(item.slug || "");
-          const _description = String(item.description || "");
           const durationMinutes = Number(item.duration_minutes || 60);
           const totalMarks = Number(item.total_marks || 100);
           const totalQuestions = Number(item.total_questions || 20);
