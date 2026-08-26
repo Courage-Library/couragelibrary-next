@@ -1,4 +1,4 @@
-﻿import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export interface ExamDirectoryItem {
   id: string;
@@ -52,6 +52,49 @@ export interface MockTestItem {
   totalMarks: number;
   isFree: boolean;
   publishedAt: string | null;
+}
+
+export interface TodayDailyMockData {
+  isOpen: boolean;
+  isToday: boolean;
+  dayOfWeek: string;
+  dayLabel: string;
+  testType: string;
+  testNumber: number;
+  testId?: string;
+  templateId?: string;
+  title: string;
+  categoryTitle: string;
+  categorySlug: string;
+  patternName: string;
+  sectionName?: string;
+  questionCount: number;
+  durationMinutes: number;
+  totalMarks: number;
+  negativeMark: number;
+  language: string;
+  userAttemptStatus: "not_started" | "in_progress" | "completed";
+  completedScore?: number;
+  completedAccuracy?: number;
+  attemptId?: string;
+}
+
+export interface DailyMockHubData {
+  todayMock: TodayDailyMockData | null;
+  weeklySchedule: Array<{
+    dayOfWeek: string;
+    dayLabel: string;
+    testType: string;
+    patternName: string;
+    sectionName?: string;
+    questionCount: number;
+    durationMinutes: number;
+    totalMarks: number;
+    isActive: boolean;
+  }>;
+  categories: Array<{ id: string; title: string; slug: string }>;
+  selectedCategorySlug: string;
+  fullMockTests: MockTestItem[];
 }
 
 export interface MockTestInstructionsData {
@@ -238,6 +281,213 @@ export class AssessmentService {
         topicsCount: 0,
       })),
       mockTests,
+    };
+  }
+
+  /**
+   * Resolves Student Daily Mock Test & Weekly Program for Hub Display
+   */
+  static async getDailyMockHubData(categorySlug?: string, userId?: string): Promise<DailyMockHubData> {
+    const supabase = await createServerSupabaseClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sb = supabase as any;
+
+    // 1. Fetch categories
+    const { data: categoriesData } = await sb
+      .from("exams")
+      .select("id, title, slug")
+      .order("title", { ascending: true });
+
+    const categories = (categoriesData as any[]) || [];
+    if (categories.length === 0) {
+      return {
+        todayMock: null,
+        weeklySchedule: [],
+        categories: [],
+        selectedCategorySlug: "",
+        fullMockTests: [],
+      };
+    }
+
+    const selectedCategory = categorySlug
+      ? categories.find((c) => c.slug === categorySlug || c.id === categorySlug) || categories[0]
+      : categories[0];
+
+    // 2. Fetch full mock tests and daily mock templates for this category
+    const [mockTestsRes, templatesRes, patternsRes] = await Promise.all([
+      sb.from("mock_tests")
+        .select("id, title, slug, duration_minutes, total_questions, total_marks, is_free, published_at, mock_templates(title, exam_id, test_type, exams(title, category))")
+        .eq("status", "published")
+        .order("created_at", { ascending: false }),
+      sb.from("mock_templates")
+        .select("id, title, slug, test_type, is_active, description, pattern_id, mock_tests(id, slug, duration_minutes, total_questions, total_marks, status)")
+        .eq("exam_id", selectedCategory.id),
+      sb.from("exam_patterns")
+        .select("id, name, duration_minutes, total_questions, total_marks, negative_mark_value"),
+    ]);
+
+    const allPublishedTests = (mockTestsRes.data as any[]) || [];
+    const fullMockTests: MockTestItem[] = allPublishedTests
+      .filter((mt) => {
+        const tExamId = mt.mock_templates?.exam_id;
+        const testType = mt.mock_templates?.test_type;
+        return tExamId === selectedCategory.id && testType !== "daily_sectional";
+      })
+      .map((mt) => ({
+        id: mt.id,
+        title: mt.title,
+        slug: mt.slug,
+        examTitle: mt.mock_templates?.exams?.title || selectedCategory.title,
+        category: mt.mock_templates?.exams?.category || "General",
+        durationMinutes: mt.duration_minutes,
+        totalQuestions: mt.total_questions,
+        totalMarks: Number(mt.total_marks),
+        isFree: mt.is_free,
+        publishedAt: mt.published_at,
+      }));
+
+    const templates = (templatesRes.data as any[]) || [];
+    const patterns = (patternsRes.data as any[]) || [];
+
+    // 3. Determine current IST date and day
+    const now = new Date();
+    const istDateString = now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
+    const istDate = new Date(istDateString);
+    const istHour = istDate.getHours();
+    const dayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+    const dayLabels: Record<string, string> = {
+      sunday: "Sunday",
+      monday: "Monday",
+      tuesday: "Tuesday",
+      wednesday: "Wednesday",
+      thursday: "Thursday",
+      friday: "Friday",
+      saturday: "Saturday",
+    };
+
+    const currentDayOfWeek = dayNames[istDate.getDay()];
+    const isOpen = istHour >= 5 && istHour <= 23; // Available 5:00 AM to 11:59 PM
+
+    // 4. Map Weekly Schedule
+    const daysOrder = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+    const weeklySchedule = daysOrder.map((day) => {
+      const t = templates.find((tmp) => tmp.slug === `${selectedCategory.slug}-daily-${day}` || tmp.slug?.endsWith(`-daily-${day}`));
+      let meta: any = {};
+      if (t?.description) {
+        try {
+          meta = JSON.parse(t.description);
+        } catch {}
+      }
+
+      const pattern = patterns.find((p) => p.id === t?.pattern_id);
+      const testType = t?.test_type || "daily_sectional";
+      const qCount = meta.questionCount || (testType === "daily_sectional" ? 25 : testType === "mixed" ? 40 : 100);
+      const dur = meta.durationMinutes || (testType === "daily_sectional" ? 15 : testType === "mixed" ? 25 : 60);
+      const marks = meta.totalMarks || (qCount * 2);
+
+      return {
+        dayOfWeek: day,
+        dayLabel: dayLabels[day],
+        testType,
+        patternName: pattern?.name || "Standard Exam Pattern",
+        sectionName: meta.activeSectionName || (testType === "mixed" ? "Mixed Subjects" : "All Sections"),
+        questionCount: qCount,
+        durationMinutes: dur,
+        totalMarks: marks,
+        isActive: t ? t.is_active !== false : true,
+      };
+    });
+
+    // 5. Resolve Today's Daily Mock
+    const todayTemplate = templates.find(
+      (tmp) => tmp.slug === `${selectedCategory.slug}-daily-${currentDayOfWeek}` || tmp.slug?.endsWith(`-daily-${currentDayOfWeek}`)
+    );
+
+    let todayMock: TodayDailyMockData | null = null;
+    if (todayTemplate) {
+      let meta: any = {};
+      if (todayTemplate.description) {
+        try {
+          meta = JSON.parse(todayTemplate.description);
+        } catch {}
+      }
+
+      const pattern = patterns.find((p) => p.id === todayTemplate.pattern_id);
+      const testInstance = (todayTemplate.mock_tests && todayTemplate.mock_tests[0]) || null;
+
+      // Compute relative mock number (T#1, T#2...)
+      const launchDate = meta.launchDate ? new Date(meta.launchDate) : new Date("2026-03-01");
+      const diffDays = Math.max(0, Math.floor((istDate.getTime() - launchDate.getTime()) / 86400000));
+      const testNumber = Math.floor(diffDays / 7) + 1;
+
+      // Check User Attempt for today
+      let userAttemptStatus: "not_started" | "in_progress" | "completed" = "not_started";
+      let completedScore: number | undefined;
+      let completedAccuracy: number | undefined;
+      let attemptId: string | undefined;
+
+      if (userId && testInstance?.id) {
+        const todayStart = new Date(istDate);
+        todayStart.setHours(0, 0, 0, 0);
+
+        const { data: userAttempts } = await sb
+          .from("test_attempts")
+          .select("id, status, started_at, test_results(score, accuracy_percentage)")
+          .eq("mock_test_id", testInstance.id)
+          .eq("user_id", userId)
+          .gte("started_at", todayStart.toISOString())
+          .order("started_at", { ascending: false })
+          .limit(1);
+
+        if (userAttempts && userAttempts.length > 0) {
+          const att = userAttempts[0];
+          attemptId = att.id;
+          if (att.status === "completed") {
+            userAttemptStatus = "completed";
+            completedScore = att.test_results?.[0]?.score;
+            completedAccuracy = att.test_results?.[0]?.accuracy_percentage;
+          } else {
+            userAttemptStatus = "in_progress";
+          }
+        }
+      }
+
+      const qCount = meta.questionCount || testInstance?.total_questions || 25;
+      const dur = meta.durationMinutes || testInstance?.duration_minutes || 15;
+      const marks = meta.totalMarks || testInstance?.total_marks || (qCount * 2);
+
+      todayMock = {
+        isOpen,
+        isToday: true,
+        dayOfWeek: currentDayOfWeek,
+        dayLabel: dayLabels[currentDayOfWeek],
+        testType: todayTemplate.test_type || "daily_sectional",
+        testNumber,
+        testId: testInstance?.id,
+        templateId: todayTemplate.id,
+        title: `${selectedCategory.title} Daily Mock (T#${testNumber})`,
+        categoryTitle: selectedCategory.title,
+        categorySlug: selectedCategory.slug,
+        patternName: pattern?.name || "Standard Pattern",
+        sectionName: meta.activeSectionName || "General Section",
+        questionCount: qCount,
+        durationMinutes: dur,
+        totalMarks: marks,
+        negativeMark: meta.negativeMark ?? (pattern?.negative_mark_value || 0.5),
+        language: meta.language || "both",
+        userAttemptStatus,
+        completedScore,
+        completedAccuracy,
+        attemptId,
+      };
+    }
+
+    return {
+      todayMock,
+      weeklySchedule,
+      categories,
+      selectedCategorySlug: selectedCategory.slug,
+      fullMockTests,
     };
   }
 

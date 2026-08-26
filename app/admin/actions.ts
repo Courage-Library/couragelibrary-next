@@ -806,6 +806,116 @@ export async function toggleScheduleStatusAction(scheduleId: string, currentStat
   return { success: true, message: `Schedule marked as ${newStatus}.` };
 }
 
+/**
+ * Server Action: Save a single day's configuration in the Daily Mock Program
+ */
+export async function saveDailyMockDayAction(
+  prevState: AdminActionResult | null,
+  formData: FormData
+): Promise<AdminActionResult> {
+  const authCheck = await AdminService.checkIsAdminOrStaff();
+  if (!authCheck.isAdmin) return { error: "Unauthorized access." };
+
+  const categoryId = formData.get("categoryId") as string;
+  const dayOfWeek = (formData.get("dayOfWeek") as "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday") || "monday";
+  const dayLabel = (formData.get("dayLabel") as string) || "Monday";
+  const testType = (formData.get("testType") as "daily_sectional" | "mixed" | "full_mock") || "daily_sectional";
+  const patternId = formData.get("patternId") as string;
+  const activeSectionId = (formData.get("activeSectionId") as string) || null;
+  const activeSectionName = (formData.get("activeSectionName") as string) || null;
+  const questionCount = Number(formData.get("questionCount") || 25);
+  const durationMinutes = Number(formData.get("durationMinutes") || 15);
+  const totalMarks = Number(formData.get("totalMarks") || 50);
+  const negativeMark = Number(formData.get("negativeMark") || 0.5);
+  const language = (formData.get("language") as "both" | "english" | "hindi") || "both";
+  const isActive = formData.get("isActive") !== "false";
+  const launchDate = (formData.get("launchDate") as string) || "2026-03-01";
+  const defaultLanguage = (formData.get("defaultLanguage") as string) || "both";
+
+  if (!categoryId || !patternId) {
+    return { error: "Category and Pattern are required." };
+  }
+
+  const result = await AdminService.saveAdminDailyMockDay(
+    categoryId,
+    {
+      dayOfWeek,
+      dayLabel,
+      testType,
+      patternId,
+      patternName: "",
+      activeSectionId,
+      activeSectionName,
+      questionCount,
+      durationMinutes,
+      totalMarks,
+      negativeMark,
+      language,
+      isActive,
+    },
+    launchDate,
+    defaultLanguage
+  );
+
+  if (!result.success) {
+    return { error: result.error || "Failed to update daily mock day." };
+  }
+
+  revalidatePath("/admin/schedules");
+  revalidatePath("/mock-tests");
+  return { success: true, message: `${dayLabel} schedule updated successfully.` };
+}
+
+/**
+ * Server Action: Save full 7-day Daily Mock Program
+ */
+export async function saveDailyMockProgramAction(
+  prevState: AdminActionResult | null,
+  formData: FormData
+): Promise<AdminActionResult> {
+  const authCheck = await AdminService.checkIsAdminOrStaff();
+  if (!authCheck.isAdmin) return { error: "Unauthorized access." };
+
+  const categoryId = formData.get("categoryId") as string;
+  const launchDate = (formData.get("launchDate") as string) || "2026-03-01";
+  const defaultLanguage = ((formData.get("defaultLanguage") as string) || "both") as "both" | "english" | "hindi";
+  const daysJson = formData.get("daysJson") as string;
+
+  if (!categoryId) return { error: "Category is required." };
+  if (!daysJson) return { error: "Days configuration data is missing." };
+
+  try {
+    const days = JSON.parse(daysJson);
+    const result = await AdminService.saveAdminDailyMockProgram(categoryId, launchDate, defaultLanguage, days);
+
+    if (!result.success) {
+      return { error: `Some days failed to save: ${result.errors.join(", ")}` };
+    }
+
+    revalidatePath("/admin/schedules");
+    revalidatePath("/mock-tests");
+    return { success: true, message: `7-Day Daily Mock Program for category saved successfully (${result.updatedCount} days configured).` };
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    return { error: `Invalid configuration data: ${errorMsg}` };
+  }
+}
+
+/**
+ * Server Action: Toggle single day active status in Daily Mock Program
+ */
+export async function toggleDailyMockDayAction(templateId: string, currentActive: boolean): Promise<AdminActionResult> {
+  const authCheck = await AdminService.checkIsAdminOrStaff();
+  if (!authCheck.isAdmin) return { error: "Unauthorized access." };
+
+  const result = await AdminService.toggleDailyMockDayStatus(templateId, currentActive);
+  if (!result.success) return { error: result.error || "Failed to toggle status." };
+
+  revalidatePath("/admin/schedules");
+  revalidatePath("/mock-tests");
+  return { success: true, message: `Day status updated to ${!currentActive ? "Active" : "Inactive"}.` };
+}
+
 /* ========================================================================= */
 /* 5. QUESTION CRUD ACTIONS (HIERARCHY + PYQ + OPTIONS)                      */
 /* ========================================================================= */

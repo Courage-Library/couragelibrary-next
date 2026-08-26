@@ -51,6 +51,57 @@ export interface AdminSectionItem {
   isActive: boolean;
 }
 
+export interface DailyMockDayConfig {
+  id?: string;
+  templateId?: string;
+  dayOfWeek: "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday";
+  dayLabel: string;
+  testType: "daily_sectional" | "mixed" | "full_mock";
+  patternId: string;
+  patternName: string;
+  activeSectionId: string | null;
+  activeSectionName: string | null;
+  questionCount: number;
+  durationMinutes: number;
+  totalMarks: number;
+  negativeMark: number;
+  language: "both" | "english" | "hindi";
+  isActive: boolean;
+}
+
+export interface AdminDailyMockProgram {
+  categoryId: string;
+  categoryName: string;
+  categorySlug: string;
+  launchDate: string;
+  defaultLanguage: "both" | "english" | "hindi";
+  isActive: boolean;
+  days: DailyMockDayConfig[];
+  totalWeeklyQuestions: number;
+  totalWeeklyMarks: number;
+  activeDaysCount: number;
+}
+
+export interface AdminCategoryDailyProgramData {
+  program: AdminDailyMockProgram;
+  availablePatterns: Array<{
+    id: string;
+    name: string;
+    durationMinutes: number;
+    totalQuestions: number;
+    totalMarks: number;
+    negativeMarkValue: number;
+    sections: Array<{
+      id: string;
+      name: string;
+      questionCount: number;
+      marksPerQuestion: number;
+      negativeMark: number;
+    }>;
+  }>;
+  categories: AdminCategoryItem[];
+}
+
 export interface AdminScheduleItem {
   id: string;
   categoryId: string;
@@ -569,6 +620,429 @@ export class AdminService {
     }
 
     return list;
+  }
+
+  /**
+   * Admin: 100% Dynamic & UI-driven Daily Mock Program for a selected Category
+   */
+  static async getAdminDailyMockProgram(categoryFilter?: string): Promise<AdminCategoryDailyProgramData> {
+    const supabase = await createServerSupabaseClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sb = supabase as any;
+
+    // 1. Fetch categories
+    const categories = await this.getAdminCategories();
+    if (categories.length === 0) {
+      return {
+        program: {
+          categoryId: "",
+          categoryName: "No Categories",
+          categorySlug: "",
+          launchDate: new Date().toISOString().split("T")[0],
+          defaultLanguage: "both",
+          isActive: false,
+          days: [],
+          totalWeeklyQuestions: 0,
+          totalWeeklyMarks: 0,
+          activeDaysCount: 0,
+        },
+        availablePatterns: [],
+        categories: [],
+      };
+    }
+
+    const selectedCat = categoryFilter && categoryFilter !== "ALL"
+      ? categories.find((c) => c.id === categoryFilter || c.slug === categoryFilter || c.title.toLowerCase() === categoryFilter.toLowerCase()) || categories[0]
+      : categories[0];
+
+    const categoryId = selectedCat.id;
+
+    // 2. Fetch all patterns and sections for this category
+    const [patternsRes, patternSectionsRes, templatesRes] = await Promise.all([
+      sb.from("exam_patterns").select(`
+        id,
+        name,
+        tier_name,
+        duration_minutes,
+        total_questions,
+        total_marks,
+        negative_mark_value,
+        is_active,
+        exam_cycles (
+          exam_id
+        )
+      `),
+      sb.from("pattern_sections").select(`
+        id,
+        section_name,
+        num_questions,
+        marks_per_question,
+        negative_mark,
+        section_order,
+        pattern_id
+      `).order("section_order", { ascending: true }),
+      sb.from("mock_templates").select(`
+        id,
+        title,
+        slug,
+        test_type,
+        is_active,
+        description,
+        exam_id,
+        pattern_id,
+        mock_tests (
+          id,
+          duration_minutes,
+          total_questions,
+          total_marks,
+          status
+        )
+      `).eq("exam_id", categoryId),
+    ]);
+
+    // Filter patterns belonging to this category
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const allPatterns = patternsRes.data || [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const categoryPatterns = allPatterns.filter((p: any) => {
+      const cycleExamId = p.exam_cycles?.exam_id;
+      return cycleExamId === categoryId || !cycleExamId;
+    });
+
+    const activePatternsList = categoryPatterns.length > 0 ? categoryPatterns : allPatterns;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sectionsList = patternSectionsRes.data || [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const availablePatterns = activePatternsList.map((p: any) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pSections = sectionsList.filter((s: any) => s.pattern_id === p.id);
+      return {
+        id: p.id,
+        name: p.name,
+        durationMinutes: p.duration_minutes || 60,
+        totalQuestions: p.total_questions || 100,
+        totalMarks: p.total_marks || 200,
+        negativeMarkValue: Number(p.negative_mark_value || 0.5),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        sections: pSections.map((s: any) => ({
+          id: s.id,
+          name: s.section_name,
+          questionCount: s.num_questions || 25,
+          marksPerQuestion: Number(s.marks_per_question || 2.0),
+          negativeMark: Number(s.negative_mark || 0.5),
+        })),
+      };
+    });
+
+    // Default primary pattern
+    const primaryPattern = availablePatterns[0] || {
+      id: "00000000-0000-0000-0000-000000000001",
+      name: "Standard Examination Pattern",
+      durationMinutes: 60,
+      totalQuestions: 100,
+      totalMarks: 200,
+      negativeMarkValue: 0.5,
+      sections: [],
+    };
+
+    // 3. Map the 7 Days of the Week
+    const daysOfWeek: Array<DailyMockDayConfig["dayOfWeek"]> = [
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday",
+      "saturday",
+      "sunday",
+    ];
+
+    const dayLabels: Record<DailyMockDayConfig["dayOfWeek"], string> = {
+      monday: "Monday",
+      tuesday: "Tuesday",
+      wednesday: "Wednesday",
+      thursday: "Thursday",
+      friday: "Friday",
+      saturday: "Saturday",
+      sunday: "Sunday",
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const templates = templatesRes.data || [];
+    let detectedLaunchDate = "2026-03-01";
+    let detectedLanguage: "both" | "english" | "hindi" = "both";
+
+    const days: DailyMockDayConfig[] = daysOfWeek.map((day, idx) => {
+      // Find template for this day
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const t = templates.find((tmp: any) => {
+        if (tmp.slug === `${selectedCat.slug}-daily-${day}`) return true;
+        if (tmp.slug?.endsWith(`-daily-${day}`)) return true;
+        if (tmp.description && typeof tmp.description === "string" && tmp.description.includes(`"${day}"`)) return true;
+        return false;
+      });
+
+      let meta: any = {};
+      if (t?.description) {
+        try {
+          meta = JSON.parse(t.description);
+          if (meta.launchDate) detectedLaunchDate = meta.launchDate;
+          if (meta.defaultLanguage) detectedLanguage = meta.defaultLanguage;
+        } catch {
+          // ignore parsing error
+        }
+      }
+
+      if (t) {
+        const pat = availablePatterns.find((p: any) => p.id === t.pattern_id) || primaryPattern;
+        const sec = pat.sections.find((s: any) => s.id === meta.activeSectionId || s.name === meta.activeSectionName);
+
+        const testType = (t.test_type === "full_mock" || t.test_type === "mixed" || t.test_type === "daily_sectional")
+          ? t.test_type
+          : (idx <= 3 ? "daily_sectional" : idx <= 5 ? "mixed" : "full_mock");
+
+        const qCount = meta.questionCount || (testType === "daily_sectional" ? 25 : testType === "mixed" ? 40 : pat.totalQuestions);
+        const dur = meta.durationMinutes || (testType === "daily_sectional" ? 15 : testType === "mixed" ? 25 : pat.durationMinutes);
+        const mpq = sec?.marksPerQuestion || 2.0;
+        const marks = meta.totalMarks || (qCount * mpq);
+        const neg = meta.negativeMark ?? (sec?.negativeMark || pat.negativeMarkValue);
+
+        return {
+          id: t.id,
+          templateId: t.id,
+          dayOfWeek: day,
+          dayLabel: dayLabels[day],
+          testType,
+          patternId: pat.id,
+          patternName: pat.name,
+          activeSectionId: sec?.id || meta.activeSectionId || (pat.sections[idx]?.id || null),
+          activeSectionName: sec?.name || meta.activeSectionName || (pat.sections[idx]?.name || null),
+          questionCount: qCount,
+          durationMinutes: dur,
+          totalMarks: marks,
+          negativeMark: neg,
+          language: (meta.language as any) || detectedLanguage,
+          isActive: t.is_active !== false,
+        };
+      }
+
+      // Intelligent Default for new day
+      const defaultSec = primaryPattern.sections[idx % (primaryPattern.sections.length || 1)];
+      const defaultTestType = idx <= 3 ? "daily_sectional" : idx <= 5 ? "mixed" : "full_mock";
+      const defQCount = defaultTestType === "daily_sectional" ? (defaultSec?.questionCount || 25) : defaultTestType === "mixed" ? 40 : primaryPattern.totalQuestions;
+      const defDur = defaultTestType === "daily_sectional" ? 15 : defaultTestType === "mixed" ? 25 : primaryPattern.durationMinutes;
+      const defMarks = defQCount * (defaultSec?.marksPerQuestion || 2.0);
+
+      return {
+        dayOfWeek: day,
+        dayLabel: dayLabels[day],
+        testType: defaultTestType,
+        patternId: primaryPattern.id,
+        patternName: primaryPattern.name,
+        activeSectionId: defaultSec?.id || null,
+        activeSectionName: defaultSec?.name || null,
+        questionCount: defQCount,
+        durationMinutes: defDur,
+        totalMarks: defMarks,
+        negativeMark: defaultSec?.negativeMark || primaryPattern.negativeMarkValue,
+        language: detectedLanguage,
+        isActive: true,
+      };
+    });
+
+    const totalWeeklyQuestions = days.filter((d) => d.isActive).reduce((acc, d) => acc + d.questionCount, 0);
+    const totalWeeklyMarks = days.filter((d) => d.isActive).reduce((acc, d) => acc + d.totalMarks, 0);
+    const activeDaysCount = days.filter((d) => d.isActive).length;
+
+    return {
+      program: {
+        categoryId,
+        categoryName: selectedCat.title,
+        categorySlug: selectedCat.slug,
+        launchDate: detectedLaunchDate,
+        defaultLanguage: detectedLanguage,
+        isActive: activeDaysCount > 0,
+        days,
+        totalWeeklyQuestions,
+        totalWeeklyMarks,
+        activeDaysCount,
+      },
+      availablePatterns,
+      categories,
+    };
+  }
+
+  /**
+   * Admin: Save Single Day of Daily Mock Program
+   */
+  static async saveAdminDailyMockDay(
+    categoryId: string,
+    dayConfig: DailyMockDayConfig,
+    launchDate?: string,
+    defaultLanguage?: string
+  ): Promise<{ success: boolean; templateId?: string; error?: string }> {
+    const supabase = await createServerSupabaseClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sb = supabase as any;
+
+    const { data: category } = await sb.from("exams").select("id, title, slug").eq("id", categoryId).single();
+    if (!category) return { success: false, error: "Category not found." };
+
+    // Get an exam_cycle_id for relational foreign key
+    const { data: cycle } = await sb.from("exam_cycles").select("id").eq("exam_id", categoryId).limit(1).maybeSingle();
+    let cycleId = cycle?.id;
+    if (!cycleId) {
+      const { data: newCycle } = await sb.from("exam_cycles").insert({
+        exam_id: categoryId,
+        cycle_year: new Date().getFullYear(),
+        status: "active",
+      }).select("id").single();
+      cycleId = newCycle?.id;
+    }
+
+    const templateSlug = `${category.slug}-daily-${dayConfig.dayOfWeek}`;
+    const descriptionJson = JSON.stringify({
+      dayOfWeek: dayConfig.dayOfWeek,
+      activeSectionId: dayConfig.activeSectionId,
+      activeSectionName: dayConfig.activeSectionName,
+      questionCount: dayConfig.questionCount,
+      durationMinutes: dayConfig.durationMinutes,
+      totalMarks: dayConfig.totalMarks,
+      negativeMark: dayConfig.negativeMark,
+      language: dayConfig.language,
+      launchDate: launchDate || "2026-03-01",
+      defaultLanguage: defaultLanguage || "both",
+    });
+
+    // 1. Upsert mock_template
+    const { data: existingTemplate } = await sb
+      .from("mock_templates")
+      .select("id")
+      .eq("exam_id", categoryId)
+      .eq("slug", templateSlug)
+      .maybeSingle();
+
+    let templateId = existingTemplate?.id;
+
+    if (templateId) {
+      const { error: updateErr } = await sb
+        .from("mock_templates")
+        .update({
+          pattern_id: dayConfig.patternId,
+          test_type: dayConfig.testType,
+          title: `${category.title} Daily ${dayConfig.dayLabel}`,
+          is_active: dayConfig.isActive,
+          description: descriptionJson,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", templateId);
+
+      if (updateErr) return { success: false, error: updateErr.message };
+    } else {
+      const { data: newTemplate, error: insertErr } = await sb
+        .from("mock_templates")
+        .insert({
+          exam_id: categoryId,
+          exam_cycle_id: cycleId,
+          pattern_id: dayConfig.patternId,
+          test_type: dayConfig.testType,
+          slug: templateSlug,
+          title: `${category.title} Daily ${dayConfig.dayLabel}`,
+          is_active: dayConfig.isActive,
+          is_free: true,
+          description: descriptionJson,
+        })
+        .select("id")
+        .single();
+
+      if (insertErr) return { success: false, error: insertErr.message };
+      templateId = newTemplate?.id;
+    }
+
+    // 2. Ensure corresponding mock_test row exists
+    const testSlug = `${category.slug}-daily-${dayConfig.dayOfWeek}-mock`;
+    const { data: existingTest } = await sb
+      .from("mock_tests")
+      .select("id")
+      .eq("template_id", templateId)
+      .maybeSingle();
+
+    if (existingTest) {
+      await sb
+        .from("mock_tests")
+        .update({
+          title: `${category.title} Daily ${dayConfig.dayLabel} Mock`,
+          duration_minutes: dayConfig.durationMinutes,
+          total_questions: dayConfig.questionCount,
+          total_marks: dayConfig.totalMarks,
+          status: dayConfig.isActive ? "published" : "draft",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existingTest.id);
+    } else {
+      await sb
+        .from("mock_tests")
+        .insert({
+          template_id: templateId,
+          slug: testSlug,
+          title: `${category.title} Daily ${dayConfig.dayLabel} Mock`,
+          duration_minutes: dayConfig.durationMinutes,
+          total_questions: dayConfig.questionCount,
+          total_marks: dayConfig.totalMarks,
+          status: dayConfig.isActive ? "published" : "draft",
+          is_free: true,
+        });
+    }
+
+    return { success: true, templateId };
+  }
+
+  /**
+   * Admin: Save Entire 7-Day Daily Mock Program
+   */
+  static async saveAdminDailyMockProgram(
+    categoryId: string,
+    launchDate: string,
+    defaultLanguage: "both" | "english" | "hindi",
+    days: DailyMockDayConfig[]
+  ): Promise<{ success: boolean; updatedCount: number; errors: string[] }> {
+    let updatedCount = 0;
+    const errors: string[] = [];
+
+    for (const day of days) {
+      const res = await this.saveAdminDailyMockDay(categoryId, day, launchDate, defaultLanguage);
+      if (res.success) {
+        updatedCount++;
+      } else {
+        errors.push(`${day.dayLabel}: ${res.error || "Failed to update"}`);
+      }
+    }
+
+    return { success: errors.length === 0, updatedCount, errors };
+  }
+
+  /**
+   * Admin: Toggle a Single Daily Mock Day Status
+   */
+  static async toggleDailyMockDayStatus(templateId: string, currentActive: boolean): Promise<{ success: boolean; error?: string }> {
+    const supabase = await createServerSupabaseClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sb = supabase as any;
+
+    const newActive = !currentActive;
+    const { error: tErr } = await sb
+      .from("mock_templates")
+      .update({ is_active: newActive, updated_at: new Date().toISOString() })
+      .eq("id", templateId);
+
+    if (tErr) return { success: false, error: tErr.message };
+
+    await sb
+      .from("mock_tests")
+      .update({ status: newActive ? "published" : "draft", updated_at: new Date().toISOString() })
+      .eq("template_id", templateId);
+
+    return { success: true };
   }
 
   /**
