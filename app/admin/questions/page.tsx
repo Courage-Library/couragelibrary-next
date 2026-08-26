@@ -5,7 +5,13 @@ import { AdminQuestionManager } from "@/components/admin/admin-question-manager"
 export const revalidate = 0;
 
 export default async function AdminQuestionsPage() {
-  const questions = await AdminService.getAdminQuestions();
+  const data = await AdminService.getAdminQuestionsWithHierarchy();
 
-  return <AdminQuestionManager questions={questions} />;
+  return (
+    <AdminQuestionManager
+      questions={data.questions}
+      taxonomy={data.taxonomy}
+      kpis={data.kpis}
+    />
+  );
 }
