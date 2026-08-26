@@ -1,0 +1,10 @@
+[
+  {
+    "deck_title": "Indian Polity High-Yield Articles & Amendments",
+    "deck_description": "Active recall cards covering Fundamental Rights, DPSP, and Constitutional Amendments.",
+    "front_prompt": "Which Article of the Indian Constitution guarantees the Right to Equality before Law?",
+    "back_answer": "Article 14",
+    "explanation": "Article 14 declares that the State shall not deny to any person equality before the law or the equal protection of the laws within the territory of India.",
+    "mnemonic": "Equality = 14 (Fortress of Justice)"
+  }
+]

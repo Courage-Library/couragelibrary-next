@@ -1,0 +1,26 @@
+[
+  {
+    "name": "Courage PRO Monthly Pass",
+    "duration_days": 30,
+    "price_inr": 499,
+    "is_active": true,
+    "features": [
+      "Access to 500+ Full-Length Mock Tests",
+      "AI Mistake Vault Cognitive Remediation",
+      "Unlimited 1v1 Quiz Battles",
+      "Faculty Mains Evaluation Credits"
+    ]
+  },
+  {
+    "name": "Courage PRO Annual Super Pass",
+    "duration_days": 365,
+    "price_inr": 2999,
+    "is_active": true,
+    "features": [
+      "Full 1-Year Access to All Exam Blueprint Mocks",
+      "All Video Courses & Structured Modules",
+      "Priority Descriptive Mains Evaluation",
+      "24/7 Community Doubt Resolution Priority"
+    ]
+  }
+]
