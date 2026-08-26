@@ -151,10 +151,10 @@ export function AdminMockTestsManager({
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-            <FileCheck2 className="w-6 h-6 text-emerald-600" /> Mock Test Management &amp; Blueprints
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2.5">
+            <FileCheck2 className="w-6 h-6 text-blue-600" /> Mock Test Papers
           </h1>
-          <p className="text-xs text-slate-500 font-medium mt-0.5">
+          <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
             Create full-length exam papers, configure section time allocations, and publish test series.
           </p>
         </div>
@@ -162,9 +162,9 @@ export function AdminMockTestsManager({
           variant="outline"
           size="sm"
           onClick={() => setShowBulkImport(true)}
-          className="font-bold border-indigo-200 text-indigo-700 hover:bg-indigo-50 shrink-0"
+          className="text-xs font-semibold border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 shrink-0 shadow-2xs"
         >
-          <FileUp className="w-4 h-4 mr-1.5" /> Bulk Import Mocks
+          <FileUp className="w-4 h-4 mr-1.5 text-slate-400" /> Bulk Import Mocks
         </Button>
       </div>
 
@@ -180,10 +180,10 @@ export function AdminMockTestsManager({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* LEFT COLUMN: Add New Mock Test Form Card */}
         <div className="lg:col-span-5">
-          <Card className="p-6 bg-white border-emerald-200 shadow-sm border-t-4 border-t-emerald-600 space-y-4 sticky top-4">
+          <Card className="p-5 sm:p-6 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-4 sticky top-4">
             <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-              <PlusCircle className="w-5 h-5 text-emerald-600" />
-              <h2 className="text-base font-black text-slate-900">Add New Mock Test</h2>
+              <PlusCircle className="w-5 h-5 text-blue-600" />
+              <h2 className="text-sm font-bold text-slate-900">Add New Mock Test</h2>
             </div>
 
             <form action={createAction} className="space-y-4">
@@ -289,7 +289,7 @@ export function AdminMockTestsManager({
                 type="submit"
                 variant="default"
                 disabled={isCreating}
-                className="w-full font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm flex items-center justify-center gap-2"
+                className="w-full font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-2xs flex items-center justify-center gap-2 py-2.5 rounded-xl transition"
               >
                 <PlusCircle className="w-4 h-4" />
                 {isCreating ? "Creating Mock Test..." : "Create Mock Test"}
@@ -301,15 +301,15 @@ export function AdminMockTestsManager({
         {/* RIGHT COLUMN: Existing Mock Tests List */}
         <div className="lg:col-span-7 space-y-4">
           {/* Filter Bar */}
-          <Card className="p-4 bg-white border-slate-200 flex flex-col sm:flex-row items-center gap-3">
+          <Card className="p-4 bg-white border-slate-200/80 rounded-2xl shadow-2xs flex flex-col sm:flex-row items-center gap-3">
             <div className="relative flex-1 w-full">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search mock tests by title, category, or pattern..."
-                className="w-full pl-9 pr-3 py-2 text-xs font-medium rounded-xl border border-slate-200 bg-slate-50/50 focus:outline-none focus:border-emerald-500"
+                placeholder="Search mock tests..."
+                className="w-full pl-9 pr-3 py-2 text-xs font-medium rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:border-blue-500"
               />
             </div>
 
@@ -318,7 +318,7 @@ export function AdminMockTestsManager({
               <select
                 value={selectedCategory}
                 onChange={(e) => handleCategoryChange(e.target.value)}
-                className="p-2 text-xs font-semibold rounded-lg border border-slate-200 bg-white"
+                className="p-2 text-xs font-semibold rounded-lg border border-slate-200 bg-white min-w-[130px]"
               >
                 <option value="ALL">All Categories</option>
                 {categories.map((c) => (
@@ -332,7 +332,7 @@ export function AdminMockTestsManager({
 
           {/* Mock Tests Cards List */}
           {filtered.length === 0 ? (
-            <Card className="p-12 text-center bg-white border-slate-200 space-y-2">
+            <Card className="p-12 text-center bg-white border-slate-200/80 rounded-2xl space-y-2">
               <FileCheck2 className="w-8 h-8 mx-auto text-slate-300" />
               <p className="text-xs text-slate-500 font-medium">No mock test papers found for this selection.</p>
             </Card>
@@ -341,14 +341,14 @@ export function AdminMockTestsManager({
               {filtered.map((mock) => (
                 <Card
                   key={mock.id}
-                  className="p-5 bg-white border-slate-200 hover:border-emerald-300 transition shadow-xs space-y-4"
+                  className="p-5 bg-white border border-slate-200/80 hover:border-slate-300 rounded-2xl transition shadow-2xs space-y-4"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <span className="text-[11px] font-bold text-emerald-600 tracking-tight block">
+                      <span className="text-[11px] font-bold text-blue-600 tracking-tight block">
                         {mock.categoryName} &bull; {mock.patternName}
                       </span>
-                      <h3 className="text-base font-black text-slate-900 leading-tight mt-0.5">
+                      <h3 className="text-base font-bold text-slate-900 leading-tight mt-0.5">
                         {mock.title}
                       </h3>
                       <span className="text-[11px] font-mono text-slate-400 block mt-0.5">
@@ -362,7 +362,7 @@ export function AdminMockTestsManager({
                       </Badge>
                       <button
                         onClick={() => setEditingMock(mock)}
-                        className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:text-emerald-600 hover:bg-slate-50 transition"
+                        className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition"
                         title="Edit Mock Test"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
@@ -376,7 +376,7 @@ export function AdminMockTestsManager({
                           }
                         }}
                         disabled={isToggling}
-                        className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:text-emerald-600 hover:bg-slate-50 transition"
+                        className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition"
                         title="Toggle Publish"
                       >
                         <Power className="w-3.5 h-3.5" />
@@ -386,34 +386,34 @@ export function AdminMockTestsManager({
 
                   {/* Specs Grid */}
                   <div className="grid grid-cols-3 gap-2 pt-3 border-t border-slate-100 text-center font-mono">
-                    <div className="p-2 rounded-lg bg-slate-50 border border-slate-200">
-                      <span className="text-[10px] text-slate-500 font-bold block uppercase">Duration</span>
-                      <span className="text-xs font-black text-slate-900">{mock.durationMinutes}m</span>
+                    <div className="p-2 rounded-xl bg-slate-50 border border-slate-200/70">
+                      <span className="text-[10px] text-slate-500 font-semibold block uppercase">Duration</span>
+                      <span className="text-xs font-bold text-slate-900">{mock.durationMinutes}m</span>
                     </div>
-                    <div className="p-2 rounded-lg bg-slate-50 border border-slate-200">
-                      <span className="text-[10px] text-slate-500 font-bold block uppercase">Questions</span>
-                      <span className="text-xs font-black text-slate-900">{mock.totalQuestions}</span>
+                    <div className="p-2 rounded-xl bg-slate-50 border border-slate-200/70">
+                      <span className="text-[10px] text-slate-500 font-semibold block uppercase">Questions</span>
+                      <span className="text-xs font-bold text-slate-900">{mock.totalQuestions}</span>
                     </div>
-                    <div className="p-2 rounded-lg bg-slate-50 border border-slate-200">
-                      <span className="text-[10px] text-slate-500 font-bold block uppercase">Marks</span>
-                      <span className="text-xs font-black text-slate-900">{mock.totalMarks}</span>
+                    <div className="p-2 rounded-xl bg-slate-50 border border-slate-200/70">
+                      <span className="text-[10px] text-slate-500 font-semibold block uppercase">Marks</span>
+                      <span className="text-xs font-bold text-slate-900">{mock.totalMarks}</span>
                     </div>
                   </div>
 
-                  {/* Connected Actions */}
-                  <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center gap-1.5">
+                  {/* Connected Actions — Clean Secondary Buttons */}
+                  <div className="pt-2.5 border-t border-slate-100 flex flex-wrap items-center gap-1.5">
                     <Link href={`/admin/questions?category=${mock.categorySlug}&pattern=${mock.patternId}`}>
-                      <Button variant="outline" size="sm" className="text-xs font-bold text-emerald-700 border-emerald-200 hover:bg-emerald-50">
-                        <HelpCircle className="w-3.5 h-3.5 mr-1" /> View Questions
+                      <Button variant="outline" size="sm" className="text-xs font-semibold text-slate-700 border-slate-200 bg-white hover:bg-slate-50 hover:text-slate-900 shadow-2xs">
+                        <HelpCircle className="w-3.5 h-3.5 mr-1.5 text-slate-400" /> View Questions
                       </Button>
                     </Link>
                     <Link href={`/admin/sections?pattern=${mock.patternId}&category=${mock.categorySlug}`}>
-                      <Button variant="outline" size="sm" className="text-xs font-bold text-teal-700 border-teal-200 hover:bg-teal-50">
-                        <Layers className="w-3.5 h-3.5 mr-1" /> Manage Sections
+                      <Button variant="outline" size="sm" className="text-xs font-semibold text-slate-700 border-slate-200 bg-white hover:bg-slate-50 hover:text-slate-900 shadow-2xs">
+                        <Layers className="w-3.5 h-3.5 mr-1.5 text-slate-400" /> Manage Sections
                       </Button>
                     </Link>
                     <Link href={`/mock-tests/${mock.id}/take`} target="_blank">
-                      <Button variant="ghost" size="sm" className="text-xs font-bold text-slate-600 hover:text-slate-900">
+                      <Button variant="outline" size="sm" className="text-xs font-semibold text-slate-700 border-slate-200 bg-white hover:bg-slate-50 hover:text-slate-900 shadow-2xs">
                         Preview Test Player &rarr;
                       </Button>
                     </Link>

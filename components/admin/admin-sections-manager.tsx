@@ -143,10 +143,10 @@ export function AdminSectionsManager({
       {/* Header matching original system */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-            <Layers className="w-7 h-7 text-teal-600" /> Pattern Sections Manager
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2.5">
+            <Layers className="w-6 h-6 text-blue-600" /> Pattern Sections
           </h1>
-          <p className="text-xs text-slate-500 font-medium mt-0.5">
+          <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
             Create and manage exam sections, required question distributions, and marks per question under each pattern.
           </p>
         </div>
@@ -165,22 +165,22 @@ export function AdminSectionsManager({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* LEFT COLUMN: Add New Section Form Card */}
         <div className="lg:col-span-5">
-          <Card className="p-6 bg-white border-slate-200 shadow-sm border-l-4 border-l-teal-600 space-y-4 sticky top-4">
+          <Card className="p-5 sm:p-6 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-4 sticky top-4">
             <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-              <PlusCircle className="w-5 h-5 text-teal-600" />
-              <h2 className="text-base font-black text-slate-900">Add New Section</h2>
+              <PlusCircle className="w-5 h-5 text-blue-600" />
+              <h2 className="text-sm font-bold text-slate-900">Add New Section</h2>
             </div>
 
             <form action={createAction} className="space-y-4">
               {/* Pattern Selector with Category — Pattern labels */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Select Pattern <span className="text-rose-500">*</span>
                 </label>
                 <select
                   name="patternId"
                   defaultValue={activePatternObj ? activePatternObj.id : (patterns[0]?.id || "")}
-                  className="w-full px-3 py-2.5 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-teal-500"
+                  className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-blue-500"
                   required
                 >
                   <option value="">— Select Pattern —</option>
@@ -197,44 +197,44 @@ export function AdminSectionsManager({
 
               {/* Section Name */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Section Name <span className="text-rose-500">*</span>
                 </label>
                 <input
                   name="name"
                   type="text"
-                  placeholder="e.g. General Awareness"
-                  className="w-full px-3 py-2.5 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-hidden focus:border-teal-500"
+                  placeholder="e.g. General Intelligence and Reasoning"
+                  className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-hidden focus:border-blue-500"
                   required
                 />
               </div>
 
-              {/* Number of Questions & Marks Per Question */}
+              {/* Question Count & Marks Per Question */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Number of Questions <span className="text-rose-500">*</span>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Question Count <span className="text-rose-500">*</span>
                   </label>
                   <input
                     name="questionCount"
                     type="number"
                     min={1}
                     defaultValue={25}
-                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-teal-500"
+                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-blue-500"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Marks Per Question <span className="text-rose-500">*</span>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Marks / Question <span className="text-rose-500">*</span>
                   </label>
                   <input
                     name="marksPerQuestion"
                     type="number"
-                    step="0.25"
-                    min={0.25}
+                    step="0.01"
+                    min={0.1}
                     defaultValue={2.0}
-                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-teal-500"
+                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-blue-500"
                     required
                   />
                 </div>
@@ -242,7 +242,7 @@ export function AdminSectionsManager({
 
               {/* Negative Marking Value */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Negative Mark Per Wrong Answer
                 </label>
                 <input
@@ -250,7 +250,7 @@ export function AdminSectionsManager({
                   type="number"
                   step="0.01"
                   defaultValue={0.5}
-                  className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-teal-500"
+                  className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-blue-500"
                 />
               </div>
 
@@ -259,7 +259,7 @@ export function AdminSectionsManager({
                 type="submit"
                 variant="default"
                 disabled={isCreating}
-                className="w-full font-bold bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white shadow-sm flex items-center justify-center gap-2 py-3 rounded-xl"
+                className="w-full font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-2xs flex items-center justify-center gap-2 py-2.5 rounded-xl transition"
               >
                 <PlusCircle className="w-4 h-4" />
                 {isCreating ? "Saving Section..." : "Add Section"}
@@ -271,7 +271,7 @@ export function AdminSectionsManager({
         {/* RIGHT COLUMN: Existing Sections with Search, Pattern Filter & Pagination */}
         <div className="lg:col-span-7 space-y-4">
           {/* Search & Pattern Filter Bar */}
-          <Card className="p-4 bg-white border-slate-200 shadow-xs flex flex-col sm:flex-row items-center gap-3">
+          <Card className="p-4 bg-white border-slate-200/80 rounded-2xl shadow-2xs flex flex-col sm:flex-row items-center gap-3">
             <div className="relative flex-1 w-full">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
@@ -282,7 +282,7 @@ export function AdminSectionsManager({
                   setCurrentPage(1);
                 }}
                 placeholder="Search sections by name, pattern, or category..."
-                className="w-full pl-9 pr-3 py-2 text-xs font-medium rounded-xl border border-slate-200 bg-slate-50/50 focus:outline-hidden focus:border-teal-500"
+                className="w-full pl-9 pr-3 py-2 text-xs font-medium rounded-xl border border-slate-200 bg-slate-50/50 focus:outline-hidden focus:border-blue-500"
               />
             </div>
 
@@ -313,13 +313,13 @@ export function AdminSectionsManager({
                   }`}
             </span>
             {selectedPatternFilter !== "ALL" && (
-              <span className="font-semibold text-teal-600">Filtered by Pattern</span>
+              <span className="font-semibold text-blue-600">Filtered by Pattern</span>
             )}
           </div>
 
           {/* Section Cards List */}
           {paginatedSections.length === 0 ? (
-            <Card className="p-12 text-center bg-white border-slate-200 space-y-2">
+            <Card className="p-12 text-center bg-white border-slate-200/80 rounded-2xl space-y-2">
               <Layers className="w-8 h-8 mx-auto text-slate-300" />
               <p className="text-xs text-slate-500 font-medium">No sections match your search.</p>
             </Card>
@@ -335,39 +335,37 @@ export function AdminSectionsManager({
                 return (
                   <Card
                     key={sec.id}
-                    className={`p-5 bg-white border-slate-200 hover:border-teal-300 transition shadow-xs space-y-4 border-l-4 ${
-                      hasEnough ? "border-l-emerald-500" : "border-l-amber-500"
-                    }`}
+                    className="p-5 bg-white border border-slate-200/80 hover:border-slate-300 rounded-2xl transition shadow-2xs space-y-4"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1">
-                        <span className="text-xs font-semibold text-teal-600 block mb-0.5">
+                        <span className="text-xs font-semibold text-blue-600 block mb-0.5">
                           {sec.categoryName ? `${sec.categoryName} — ` : ""}
                           {sec.patternName || "Standard Pattern"}
                         </span>
-                        <h3 className="text-base font-black text-slate-900 leading-tight">
+                        <h3 className="text-base font-bold text-slate-900 leading-tight">
                           {sec.name}
                         </h3>
 
-                        {/* ORIGINAL METRIC PILLS */}
-                        <div className="flex flex-wrap items-center gap-2 mt-2.5">
-                          <span className="inline-flex items-center text-xs bg-blue-50 text-blue-700 px-2.5 py-1 rounded-lg font-bold">
-                            <QuestionIcon className="w-3 h-3 mr-1 text-blue-500" />
+                        {/* METRIC PILLS */}
+                        <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
+                          <span className="inline-flex items-center text-xs bg-slate-100 text-slate-700 border border-slate-200/70 px-2 py-0.5 rounded-md font-semibold">
+                            <QuestionIcon className="w-3 h-3 mr-1 text-slate-500" />
                             {sec.questionCount} Required
                           </span>
-                          <span className="inline-flex items-center text-xs bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-lg font-bold">
-                            <Star className="w-3 h-3 mr-1 text-emerald-500" />
+                          <span className="inline-flex items-center text-xs bg-slate-100 text-slate-700 border border-slate-200/70 px-2 py-0.5 rounded-md font-semibold">
+                            <Star className="w-3 h-3 mr-1 text-slate-500" />
                             {sec.marksPerQuestion} Marks each
                           </span>
-                          <span className="inline-flex items-center text-xs bg-purple-50 text-purple-700 px-2.5 py-1 rounded-lg font-bold">
-                            <Calculator className="w-3 h-3 mr-1 text-purple-500" />
+                          <span className="inline-flex items-center text-xs bg-slate-100 text-slate-700 border border-slate-200/70 px-2 py-0.5 rounded-md font-semibold">
+                            <Calculator className="w-3 h-3 mr-1 text-slate-500" />
                             {totalMarks} Total
                           </span>
                           <span
-                            className={`inline-flex items-center text-xs px-2.5 py-1 rounded-lg font-bold ${
+                            className={`inline-flex items-center text-xs px-2 py-0.5 rounded-md font-semibold border ${
                               hasEnough
-                                ? "bg-emerald-50 text-emerald-700"
-                                : "bg-amber-50 text-amber-800"
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                : "bg-amber-50 text-amber-800 border-amber-200"
                             }`}
                           >
                             {hasEnough ? (
@@ -380,33 +378,24 @@ export function AdminSectionsManager({
                         </div>
                       </div>
 
-                      {/* Quick Edit & Safe Delete Controls */}
+                      {/* Quick Edit & Delete Controls */}
                       <div className="flex items-center gap-1.5 shrink-0">
                         <button
                           onClick={() => setEditingSection(sec)}
-                          className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:text-teal-600 hover:bg-slate-50 transition"
+                          className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition"
                           title="Edit Section"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => {
-                            const qCount = sec.questionsInBank || 0;
-                            if (qCount > 0) {
-                              if (
-                                !confirm(
-                                  `⚠️ "${sec.name}" has ${qCount} question(s) linked.\n\nThe Section will be deleted but the questions will stay in the question bank.\n\nAre you sure you want to delete?`
-                                )
-                              )
-                                return;
-                            } else {
-                              if (!confirm(`Delete section "${sec.name}"? This cannot be undone.`)) return;
+                            if (confirm(`Delete section "${sec.name}"? This removes the blueprint rule.`)) {
+                              startTransition(async () => {
+                                const res = await deleteSectionAction(sec.id);
+                                if (res.error) setActionFeedback({ type: "error", text: res.error });
+                                if (res.message) setActionFeedback({ type: "success", text: res.message });
+                              });
                             }
-                            startTransition(async () => {
-                              const res = await deleteSectionAction(sec.id);
-                              if (res.error) setActionFeedback({ type: "error", text: res.error });
-                              if (res.message) setActionFeedback({ type: "success", text: res.message });
-                            });
                           }}
                           disabled={isPending}
                           className="p-1.5 rounded-lg border border-rose-200 text-rose-500 hover:bg-rose-50 transition"
@@ -417,24 +406,24 @@ export function AdminSectionsManager({
                       </div>
                     </div>
 
-                    {/* Connected Action Links */}
-                    <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center gap-2">
+                    {/* Connected Action Links — Clean Secondary Buttons */}
+                    <div className="pt-2.5 border-t border-slate-100 flex flex-wrap items-center gap-1.5">
                       <Link href={questionUrl}>
                         <Button
                           variant="outline"
                           size="sm"
-                          className="text-xs font-bold text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                          className="text-xs font-semibold text-slate-700 border-slate-200 bg-white hover:bg-slate-50 hover:text-slate-900 shadow-2xs"
                         >
-                          <HelpCircle className="w-3.5 h-3.5 mr-1" /> Manage Questions
+                          <HelpCircle className="w-3.5 h-3.5 mr-1.5 text-slate-400" /> Manage Questions
                         </Button>
                       </Link>
                       <Link href="/admin/bulk-import">
                         <Button
                           variant="outline"
                           size="sm"
-                          className="text-xs font-bold text-rose-700 border-rose-200 hover:bg-rose-50"
+                          className="text-xs font-semibold text-slate-700 border-slate-200 bg-white hover:bg-slate-50 hover:text-slate-900 shadow-2xs"
                         >
-                          <FileUp className="w-3.5 h-3.5 mr-1" /> Bulk Import
+                          <FileUp className="w-3.5 h-3.5 mr-1.5 text-slate-400" /> Bulk Import
                         </Button>
                       </Link>
                     </div>
