@@ -1,0 +1,792 @@
+{
+  "exam_categories": {
+    "status": "ok",
+    "count": 8,
+    "sampleColumns": [
+      "id",
+      "name",
+      "description",
+      "created_at",
+      "coaching_id"
+    ],
+    "sampleRows": [
+      {
+        "id": "4183570e-eeec-4fe9-8ab6-77e6e83a3ecf",
+        "name": "SSC GD",
+        "description": "SSC GD MOCK TEST",
+        "created_at": "2026-03-03T17:16:07.328972",
+        "coaching_id": null
+      },
+      {
+        "id": "5c08c174-beaf-4c5f-9ad0-01a9dff88cba",
+        "name": "DEMO",
+        "description": "DEMO MOCK TEST",
+        "created_at": "2026-03-03T17:15:53.232994",
+        "coaching_id": null
+      },
+      {
+        "id": "26d8b7da-ea3c-4ed9-a04e-b55124d737dc",
+        "name": "UP Police Constable",
+        "description": "Uttar Pradesh Police Constable Mock Test Series",
+        "created_at": "2026-04-23T11:32:51.186116",
+        "coaching_id": null
+      },
+      {
+        "id": "7e6d0cce-a1e4-4390-ab8e-20ae5c9bbd6a",
+        "name": "Army Agniveer GD",
+        "description": "Indian Army Agniveer General Duty Mock Test Series",
+        "created_at": "2026-05-01T07:53:51.153701",
+        "coaching_id": null
+      },
+      {
+        "id": "691a2937-4fc8-4e66-ac5c-c77d302bd022",
+        "name": "SSC GD Demo",
+        "description": "Demo test for Lakshya IAS Academy students",
+        "created_at": "2026-05-03T05:42:30.83644",
+        "coaching_id": "f66f6abf-60ab-4116-b0c7-c3483c04448f"
+      }
+    ]
+  },
+  "exam_patterns": {
+    "status": "ok",
+    "count": 0,
+    "sampleColumns": [],
+    "sampleRows": []
+  },
+  "pattern_sections": {
+    "status": "ok",
+    "count": 0,
+    "sampleColumns": [],
+    "sampleRows": []
+  },
+  "questions": {
+    "status": "ok",
+    "count": 4050,
+    "sampleColumns": [
+      "id",
+      "category_id",
+      "section_name",
+      "topic",
+      "difficulty",
+      "question_text",
+      "options",
+      "correct_answer",
+      "explanation",
+      "is_active",
+      "created_at",
+      "pattern_section_id",
+      "question_image",
+      "options_type",
+      "pyq_year",
+      "pyq_source",
+      "language",
+      "coaching_id"
+    ],
+    "sampleRows": [
+      {
+        "id": "39270b27-9dcd-4987-93ab-c14976b3ee9e",
+        "category_id": "26d8b7da-ea3c-4ed9-a04e-b55124d737dc",
+        "section_name": null,
+        "topic": "Synonyms",
+        "difficulty": "medium",
+        "question_text": "'अनावर्त' शब्द का समभिन्नार्थक क्या है?",
+        "options": {
+          "A": "निरादर",
+          "B": "अयोग्य आचरण",
+          "C": "पृथ्वी",
+          "D": "न दोहराया हुआ"
+        },
+        "correct_answer": "D",
+        "explanation": "'अनावर्त' का अर्थ है जो दोबारा न आए या न दोहराया गया हो।",
+        "is_active": true,
+        "created_at": "2026-04-25T18:26:34.347528",
+        "pattern_section_id": "a75648d6-8ca3-4150-b603-98069b573738",
+        "question_image": null,
+        "options_type": "text",
+        "pyq_year": 2024,
+        "pyq_source": "UPP",
+        "language": "hindi",
+        "coaching_id": null
+      },
+      {
+        "id": "1ca3cdf5-6fd4-41ab-8382-2aab6f38516e",
+        "category_id": "26d8b7da-ea3c-4ed9-a04e-b55124d737dc",
+        "section_name": null,
+        "topic": "Gender (लिंग)",
+        "difficulty": "easy",
+        "question_text": "निम्नलिखित में से कौन-सा शब्द पुल्लिंग है?",
+        "options": {
+          "A": "रीति",
+          "B": "घटना",
+          "C": "क्षेत्र",
+          "D": "क्षमा"
+        },
+        "correct_answer": "C",
+        "explanation": "'क्षेत्र' पुल्लिंग शब्द है। रीति, घटना और क्षमा स्त्रीलिंग हैं।",
+        "is_active": true,
+        "created_at": "2026-04-25T18:26:34.347528",
+        "pattern_section_id": "a75648d6-8ca3-4150-b603-98069b573738",
+        "question_image": null,
+        "options_type": "text",
+        "pyq_year": 2024,
+        "pyq_source": "UPP",
+        "language": "hindi",
+        "coaching_id": null
+      },
+      {
+        "id": "58117808-9e49-4969-a8a6-62c7a49ae031",
+        "category_id": "26d8b7da-ea3c-4ed9-a04e-b55124d737dc",
+        "section_name": null,
+        "topic": "Error Spotting",
+        "difficulty": "medium",
+        "question_text": "निम्नलिखित में से वाक्यों के समूह का सत्य रूप बताइए:",
+        "options": {
+          "A": "भारत में अनेकों जातियाँ हैं।",
+          "B": "भारत में अनेकों जाति हैं।",
+          "C": "भारत में अनेक जातियाँ हैं।",
+          "D": "भारत में अनेक जातिहैं।"
+        },
+        "correct_answer": "C",
+        "explanation": "'अनेक' के साथ 'ों' नहीं लगता और बहुवचन 'जातियाँ' सही है।",
+        "is_active": true,
+        "created_at": "2026-04-25T18:26:34.347528",
+        "pattern_section_id": "a75648d6-8ca3-4150-b603-98069b573738",
+        "question_image": null,
+        "options_type": "text",
+        "pyq_year": 2024,
+        "pyq_source": "UPP",
+        "language": "hindi",
+        "coaching_id": null
+      },
+      {
+        "id": "4173d36d-a36c-4c0c-b3a7-fbfcbd2c9ac5",
+        "category_id": "26d8b7da-ea3c-4ed9-a04e-b55124d737dc",
+        "section_name": null,
+        "topic": "Punctuation (विराम चिह्न)",
+        "difficulty": "easy",
+        "question_text": "विस्मयबोधक चिह्न है:",
+        "options": {
+          "A": "(!)",
+          "B": "(–)",
+          "C": "(>)",
+          "D": "(.)"
+        },
+        "correct_answer": "A",
+        "explanation": "विस्मयबोधक चिह्न (!) होता है जो आश्चर्य, हर्ष, शोक आदि भावों को व्यक्त करता है।",
+        "is_active": true,
+        "created_at": "2026-04-25T18:26:34.347528",
+        "pattern_section_id": "a75648d6-8ca3-4150-b603-98069b573738",
+        "question_image": null,
+        "options_type": "text",
+        "pyq_year": 2024,
+        "pyq_source": "UPP",
+        "language": "hindi",
+        "coaching_id": null
+      },
+      {
+        "id": "59edb9b4-6b63-4d68-907f-a74400852b1c",
+        "category_id": "26d8b7da-ea3c-4ed9-a04e-b55124d737dc",
+        "section_name": null,
+        "topic": "Parts of Speech (शब्द भेद)",
+        "difficulty": "medium",
+        "question_text": "किस वाक्य में 'अच्छा' शब्द का प्रयोग विशेषण के रूप में हुआ है?",
+        "options": {
+          "A": "अच्छा, तुम अभी आए।",
+          "B": "यह स्थान बहुत अच्छा है।",
+          "C": "अच्छा, कुछ मत जाओ।",
+          "D": "तुमने अच्छा किया कि वह यहाँ आए गए।"
+        },
+        "correct_answer": "B",
+        "explanation": "'यह स्थान बहुत अच्छा है' में 'अच्छा' संज्ञा 'स्थान' की विशेषता बताता है, अतः यह विशेषण है।",
+        "is_active": true,
+        "created_at": "2026-04-25T18:26:34.347528",
+        "pattern_section_id": "a75648d6-8ca3-4150-b603-98069b573738",
+        "question_image": null,
+        "options_type": "text",
+        "pyq_year": 2024,
+        "pyq_source": "UPP",
+        "language": "hindi",
+        "coaching_id": null
+      }
+    ]
+  },
+  "scheduled_exams": {
+    "status": "ok",
+    "count": 32,
+    "sampleColumns": [
+      "id",
+      "pattern_id",
+      "mode",
+      "availability_type",
+      "start_datetime",
+      "end_datetime",
+      "attempt_limit",
+      "enable_leaderboard",
+      "is_premium",
+      "is_active",
+      "created_at",
+      "language",
+      "day_of_week",
+      "exam_type",
+      "mock_number",
+      "category_id",
+      "launch_date",
+      "schedule_type",
+      "active_section",
+      "coaching_id",
+      "passkey"
+    ],
+    "sampleRows": [
+      {
+        "id": "ccc73d27-2439-47fa-92f6-782312c61cb4",
+        "pattern_id": "2557d33d-7262-46fb-afeb-e4c76af5ae67",
+        "mode": "balanced",
+        "availability_type": "practice",
+        "start_datetime": "2026-03-04T13:00:00",
+        "end_datetime": "2027-03-04T13:00:00",
+        "attempt_limit": null,
+        "enable_leaderboard": true,
+        "is_premium": false,
+        "is_active": true,
+        "created_at": "2026-03-04T07:32:53.999367",
+        "language": "english",
+        "day_of_week": null,
+        "exam_type": null,
+        "mock_number": null,
+        "category_id": null,
+        "launch_date": null,
+        "schedule_type": "manual",
+        "active_section": null,
+        "coaching_id": null,
+        "passkey": null
+      },
+      {
+        "id": "b96c220b-4a5e-417f-b4a1-73d2b59ef824",
+        "pattern_id": "aaaaaaaa-0001-0001-0001-000000000001",
+        "mode": "balanced",
+        "availability_type": "scheduled",
+        "start_datetime": null,
+        "end_datetime": null,
+        "attempt_limit": null,
+        "enable_leaderboard": true,
+        "is_premium": false,
+        "is_active": true,
+        "created_at": "2026-03-14T12:17:43.150153",
+        "language": "both",
+        "day_of_week": "monday",
+        "exam_type": "daily_sectional",
+        "mock_number": null,
+        "category_id": "4183570e-eeec-4fe9-8ab6-77e6e83a3ecf",
+        "launch_date": "2026-03-20",
+        "schedule_type": "daily_auto",
+        "active_section": "General Awareness",
+        "coaching_id": null,
+        "passkey": null
+      },
+      {
+        "id": "4fa0c194-0af6-46a6-af3d-eaba25f29424",
+        "pattern_id": "aaaaaaaa-0001-0001-0001-000000000001",
+        "mode": "balanced",
+        "availability_type": "scheduled",
+        "start_datetime": null,
+        "end_datetime": null,
+        "attempt_limit": null,
+        "enable_leaderboard": true,
+        "is_premium": false,
+        "is_active": true,
+        "created_at": "2026-03-14T12:17:43.150153",
+        "language": "both",
+        "day_of_week": "tuesday",
+        "exam_type": "daily_sectional",
+        "mock_number": null,
+        "category_id": "4183570e-eeec-4fe9-8ab6-77e6e83a3ecf",
+        "launch_date": "2026-03-20",
+        "schedule_type": "daily_auto",
+        "active_section": "Reasoning",
+        "coaching_id": null,
+        "passkey": null
+      },
+      {
+        "id": "39c607f2-1dbb-4605-9450-6ef8e2ed0b3f",
+        "pattern_id": "aaaaaaaa-0001-0001-0001-000000000001",
+        "mode": "balanced",
+        "availability_type": "scheduled",
+        "start_datetime": null,
+        "end_datetime": null,
+        "attempt_limit": null,
+        "enable_leaderboard": true,
+        "is_premium": false,
+        "is_active": true,
+        "created_at": "2026-03-14T12:17:43.150153",
+        "language": "both",
+        "day_of_week": "wednesday",
+        "exam_type": "daily_sectional",
+        "mock_number": null,
+        "category_id": "4183570e-eeec-4fe9-8ab6-77e6e83a3ecf",
+        "launch_date": "2026-03-20",
+        "schedule_type": "daily_auto",
+        "active_section": "Quantitative Aptitude",
+        "coaching_id": null,
+        "passkey": null
+      },
+      {
+        "id": "c1f1369a-161d-40f9-886d-24d2d4c2c635",
+        "pattern_id": "aaaaaaaa-0001-0001-0001-000000000001",
+        "mode": "balanced",
+        "availability_type": "scheduled",
+        "start_datetime": null,
+        "end_datetime": null,
+        "attempt_limit": null,
+        "enable_leaderboard": true,
+        "is_premium": false,
+        "is_active": true,
+        "created_at": "2026-03-14T12:17:43.150153",
+        "language": "english",
+        "day_of_week": "thursday",
+        "exam_type": "daily_sectional",
+        "mock_number": null,
+        "category_id": "4183570e-eeec-4fe9-8ab6-77e6e83a3ecf",
+        "launch_date": "2026-03-20",
+        "schedule_type": "daily_auto",
+        "active_section": "Grammar",
+        "coaching_id": null,
+        "passkey": null
+      }
+    ]
+  },
+  "coaching_centers": {
+    "status": "ok",
+    "count": 4,
+    "sampleColumns": [
+      "id",
+      "name",
+      "slug",
+      "logo_url",
+      "primary_color",
+      "contact_email",
+      "contact_phone",
+      "city",
+      "is_active",
+      "created_at",
+      "updated_at"
+    ],
+    "sampleRows": [
+      {
+        "id": "833d9578-8697-4340-b11a-9d7479fd4038",
+        "name": "Test Coaching",
+        "slug": "test-coaching",
+        "logo_url": null,
+        "primary_color": "#1a56db",
+        "contact_email": "jan810693@gmail.com",
+        "contact_phone": "+918707884735",
+        "city": "Kanpur",
+        "is_active": true,
+        "created_at": "2026-05-03T05:09:31.055992+00:00",
+        "updated_at": "2026-05-03T05:09:31.055992+00:00"
+      },
+      {
+        "id": "f66f6abf-60ab-4116-b0c7-c3483c04448f",
+        "name": "Lakshya IAS Academy",
+        "slug": "lakshya-ias-academy",
+        "logo_url": "https://sgagswxzsxlgcspwiuoh.supabase.co/storage/v1/object/public/coachings/Lakshya%20IAS%20Academy.png",
+        "primary_color": "#1a56db",
+        "contact_email": "contact@LIA.com",
+        "contact_phone": "+918888888888",
+        "city": "Jaipur",
+        "is_active": true,
+        "created_at": "2026-05-03T05:41:05.929345+00:00",
+        "updated_at": "2026-05-03T05:41:05.929345+00:00"
+      },
+      {
+        "id": "b0f6c8a0-e2e5-4d74-9536-a9cdb10afc50",
+        "name": "GS Exam Cracker",
+        "slug": "gs-exam-cracker",
+        "logo_url": "https://sgagswxzsxlgcspwiuoh.supabase.co/storage/v1/object/public/coachings/GS%20Exam%20Cracker.jpeg",
+        "primary_color": "#1a56db",
+        "contact_email": "",
+        "contact_phone": "93365 14369",
+        "city": "Kakadeo",
+        "is_active": true,
+        "created_at": "2026-05-26T19:09:46.301633+00:00",
+        "updated_at": "2026-05-26T19:09:46.301633+00:00"
+      },
+      {
+        "id": "ea8f3691-a0a5-43cf-b1b9-f301a5195749",
+        "name": "LPU-PEP",
+        "slug": "lpu-pep",
+        "logo_url": null,
+        "primary_color": "#1a56db",
+        "contact_email": "",
+        "contact_phone": "",
+        "city": "",
+        "is_active": true,
+        "created_at": "2026-08-05T07:58:21.780738+00:00",
+        "updated_at": "2026-08-05T07:58:21.780738+00:00"
+      }
+    ]
+  },
+  "coaching_batches": {
+    "status": "error",
+    "message": "relation \"public.coaching_batches\" does not exist"
+  },
+  "coaching_students": {
+    "status": "error",
+    "message": "relation \"public.coaching_students\" does not exist"
+  },
+  "attempts": {
+    "status": "ok",
+    "count": 536,
+    "sampleColumns": [
+      "id",
+      "user_id",
+      "scheduled_exam_id",
+      "started_at",
+      "submitted_at",
+      "total_score",
+      "accuracy",
+      "time_taken",
+      "last_active",
+      "coins_given",
+      "submitted_date"
+    ],
+    "sampleRows": [
+      {
+        "id": "09295802-3146-4f1e-8c2a-24a5af884c3c",
+        "user_id": "c07102db-dbd0-481c-82a2-ae534e646afe",
+        "scheduled_exam_id": "ccc73d27-2439-47fa-92f6-782312c61cb4",
+        "started_at": "2026-03-05T05:22:48.557",
+        "submitted_at": null,
+        "total_score": null,
+        "accuracy": null,
+        "time_taken": null,
+        "last_active": null,
+        "coins_given": false,
+        "submitted_date": null
+      },
+      {
+        "id": "fd66edef-936d-4c22-8721-d8c08f1900b0",
+        "user_id": "c07102db-dbd0-481c-82a2-ae534e646afe",
+        "scheduled_exam_id": "ccc73d27-2439-47fa-92f6-782312c61cb4",
+        "started_at": "2026-03-05T05:52:07.187",
+        "submitted_at": null,
+        "total_score": null,
+        "accuracy": null,
+        "time_taken": null,
+        "last_active": null,
+        "coins_given": false,
+        "submitted_date": null
+      },
+      {
+        "id": "c9e9d528-a9ec-4be7-8c4c-fa10592c2a45",
+        "user_id": "326838e8-f034-4b94-b4e3-f625b6d87bfd",
+        "scheduled_exam_id": "36744a81-0f40-4a40-a073-6266504fb4fd",
+        "started_at": "2026-08-05T08:47:26.808",
+        "submitted_at": "2026-08-05T08:55:25.607",
+        "total_score": 38,
+        "accuracy": 84,
+        "time_taken": 471,
+        "last_active": "2026-08-05T08:55:20.188+00:00",
+        "coins_given": true,
+        "submitted_date": "2026-08-05"
+      },
+      {
+        "id": "68ae2d11-ab76-41ae-ba00-09a78753f4fc",
+        "user_id": "3c2c0b39-168a-4564-96be-2cab1ea93323",
+        "scheduled_exam_id": "672776f0-f5c1-4863-9264-f634041f1733",
+        "started_at": "2026-05-27T15:10:08.976",
+        "submitted_at": "2026-05-27T15:12:30.035",
+        "total_score": 2,
+        "accuracy": 50,
+        "time_taken": 141,
+        "last_active": "2026-05-27T15:12:23.572+00:00",
+        "coins_given": true,
+        "submitted_date": "2026-05-27"
+      },
+      {
+        "id": "f5d560ef-14d9-40a4-8eb1-90251fe47632",
+        "user_id": "97449f01-0cf3-4f94-8a39-6f6b0177ad05",
+        "scheduled_exam_id": "36744a81-0f40-4a40-a073-6266504fb4fd",
+        "started_at": "2026-08-05T08:46:11.948",
+        "submitted_at": "2026-08-05T09:03:58.073",
+        "total_score": 25,
+        "accuracy": 69.57,
+        "time_taken": 1057,
+        "last_active": "2026-08-05T09:03:52.491+00:00",
+        "coins_given": true,
+        "submitted_date": "2026-08-05"
+      }
+    ]
+  },
+  "attempt_questions": {
+    "status": "ok",
+    "count": 0,
+    "sampleColumns": [],
+    "sampleRows": []
+  },
+  "answers": {
+    "status": "ok",
+    "count": 0,
+    "sampleColumns": [],
+    "sampleRows": []
+  },
+  "user_profiles": {
+    "status": "ok",
+    "count": 150,
+    "sampleColumns": [
+      "id",
+      "user_email",
+      "full_name",
+      "phone",
+      "dob",
+      "qualification",
+      "target_exam",
+      "created_at",
+      "updated_at",
+      "gender",
+      "address",
+      "exam_name",
+      "exam_date",
+      "daily_goal_hours",
+      "current_streak",
+      "two_factor_enabled",
+      "is_admin",
+      "role",
+      "total_coins",
+      "last_test_date",
+      "max_streak",
+      "referral_code",
+      "lifetime_coins",
+      "coaching_id"
+    ],
+    "sampleRows": [
+      {
+        "id": "9a6ca343-6b11-41ce-b55a-5c14be38921b",
+        "user_email": "ateefa987@gmail.com",
+        "full_name": "Ateefa",
+        "phone": null,
+        "dob": null,
+        "qualification": null,
+        "target_exam": null,
+        "created_at": "2026-08-05T08:43:38.43089+00:00",
+        "updated_at": "2026-08-05T08:43:38.43089+00:00",
+        "gender": null,
+        "address": null,
+        "exam_name": null,
+        "exam_date": null,
+        "daily_goal_hours": 4,
+        "current_streak": 0,
+        "two_factor_enabled": false,
+        "is_admin": false,
+        "role": "student",
+        "total_coins": 40,
+        "last_test_date": null,
+        "max_streak": 0,
+        "referral_code": "CL-CE0D48",
+        "lifetime_coins": 40,
+        "coaching_id": "ea8f3691-a0a5-43cf-b1b9-f301a5195749"
+      },
+      {
+        "id": "e485ad1d-b4a3-4498-ae90-04efeedcfeff",
+        "user_email": "abhishekmorya9094@gmail.com",
+        "full_name": "Abhishek Maurya",
+        "phone": null,
+        "dob": null,
+        "qualification": null,
+        "target_exam": null,
+        "created_at": "2026-08-05T08:43:05.18085+00:00",
+        "updated_at": "2026-08-05T08:43:05.18085+00:00",
+        "gender": null,
+        "address": null,
+        "exam_name": null,
+        "exam_date": null,
+        "daily_goal_hours": 4,
+        "current_streak": 0,
+        "two_factor_enabled": false,
+        "is_admin": false,
+        "role": "student",
+        "total_coins": 35,
+        "last_test_date": null,
+        "max_streak": 0,
+        "referral_code": "CL-CA5A64",
+        "lifetime_coins": 35,
+        "coaching_id": "ea8f3691-a0a5-43cf-b1b9-f301a5195749"
+      },
+      {
+        "id": "0ac2064c-cfb0-43f3-b6f1-4c86584472c5",
+        "user_email": "nitin766patel@gmail.com",
+        "full_name": "Nitin Patel",
+        "phone": null,
+        "dob": null,
+        "qualification": null,
+        "target_exam": null,
+        "created_at": "2026-05-02T14:44:01.258201+00:00",
+        "updated_at": "2026-05-02T14:44:01.258201+00:00",
+        "gender": null,
+        "address": null,
+        "exam_name": null,
+        "exam_date": null,
+        "daily_goal_hours": 4,
+        "current_streak": 1,
+        "two_factor_enabled": false,
+        "is_admin": false,
+        "role": "student",
+        "total_coins": 60,
+        "last_test_date": "2026-05-02",
+        "max_streak": 1,
+        "referral_code": "CL-1CFFA0",
+        "lifetime_coins": 60,
+        "coaching_id": null
+      },
+      {
+        "id": "e644fdea-f872-4b5a-a348-0f44eb976e19",
+        "user_email": "ravidahiya9350@gmail.com",
+        "full_name": "Ravi Yadav",
+        "phone": "9350821283",
+        "dob": "2006-10-23",
+        "qualification": "12th pass",
+        "target_exam": null,
+        "created_at": "2026-02-17T09:55:50.380185+00:00",
+        "updated_at": "2026-02-17T09:55:50.380185+00:00",
+        "gender": "Male",
+        "address": "Rewari ",
+        "exam_name": "SSC CGL",
+        "exam_date": "2026-08-01",
+        "daily_goal_hours": 4,
+        "current_streak": 0,
+        "two_factor_enabled": false,
+        "is_admin": false,
+        "role": "user",
+        "total_coins": 500,
+        "last_test_date": null,
+        "max_streak": 0,
+        "referral_code": "CL-DD21FF",
+        "lifetime_coins": 500,
+        "coaching_id": null
+      },
+      {
+        "id": "e65c0d8d-c592-40ec-962d-aae2b6c93028",
+        "user_email": "pradipta.mukherjee2004@gmail.com",
+        "full_name": "Pradipta Mukherjee ",
+        "phone": "9679295169",
+        "dob": "2004-03-06",
+        "qualification": "Bsc",
+        "target_exam": null,
+        "created_at": "2026-02-17T09:55:50.380185+00:00",
+        "updated_at": "2026-02-17T09:55:50.380185+00:00",
+        "gender": "Female",
+        "address": "Kabiguru Sarani Subhashpally siliguri ",
+        "exam_name": "SSC CGL",
+        "exam_date": "2026-08-01",
+        "daily_goal_hours": 4,
+        "current_streak": 0,
+        "two_factor_enabled": false,
+        "is_admin": false,
+        "role": "user",
+        "total_coins": 500,
+        "last_test_date": null,
+        "max_streak": 0,
+        "referral_code": "CL-482578",
+        "lifetime_coins": 500,
+        "coaching_id": null
+      }
+    ]
+  },
+  "user_exam_enrollments": {
+    "status": "ok",
+    "count": 101,
+    "sampleColumns": [
+      "id",
+      "user_id",
+      "category_id",
+      "enrolled_at"
+    ],
+    "sampleRows": [
+      {
+        "id": "d0ee668a-5be4-48bf-adf4-58f91f6377b3",
+        "user_id": "886e14c9-56dc-4ebd-838e-ed9ef76f8ff1",
+        "category_id": "4183570e-eeec-4fe9-8ab6-77e6e83a3ecf",
+        "enrolled_at": "2026-04-24T04:31:26.540407+00:00"
+      },
+      {
+        "id": "eb90889f-4e79-4df0-8207-97ed14f2be0e",
+        "user_id": "c748faa2-514d-4c1b-90be-b2ee7135eef9",
+        "category_id": "4183570e-eeec-4fe9-8ab6-77e6e83a3ecf",
+        "enrolled_at": "2026-04-24T04:31:26.540407+00:00"
+      },
+      {
+        "id": "39959021-e595-4ee0-8672-5a8132fc81ca",
+        "user_id": "9ee49c96-89d2-4502-b524-8e3a60bdccab",
+        "category_id": "4183570e-eeec-4fe9-8ab6-77e6e83a3ecf",
+        "enrolled_at": "2026-04-24T04:31:26.540407+00:00"
+      },
+      {
+        "id": "a828cc06-dca6-4975-a332-12bd78e7f8f4",
+        "user_id": "95eb13a1-ebd9-4d95-9400-9101a4a1e6a1",
+        "category_id": "4183570e-eeec-4fe9-8ab6-77e6e83a3ecf",
+        "enrolled_at": "2026-04-24T04:31:26.540407+00:00"
+      },
+      {
+        "id": "0106edd9-0e69-4f7c-b63f-bd028365e60f",
+        "user_id": "6dedcb07-e8ae-4dcb-9ca1-ae67c1102fd0",
+        "category_id": "4183570e-eeec-4fe9-8ab6-77e6e83a3ecf",
+        "enrolled_at": "2026-04-24T04:31:26.540407+00:00"
+      }
+    ]
+  },
+  "user_wallet": {
+    "status": "error",
+    "message": "relation \"public.user_wallet\" does not exist"
+  },
+  "coin_transactions": {
+    "status": "ok",
+    "count": 0,
+    "sampleColumns": [],
+    "sampleRows": []
+  },
+  "reported_questions": {
+    "status": "error",
+    "message": "relation \"public.reported_questions\" does not exist"
+  },
+  "waitlist": {
+    "status": "ok",
+    "count": 17,
+    "sampleColumns": [
+      "id",
+      "email",
+      "created_at",
+      "course_name"
+    ],
+    "sampleRows": [
+      {
+        "id": 1,
+        "email": "jan810693@gmail.com",
+        "created_at": "2026-04-02T17:09:27.012763+00:00",
+        "course_name": "IBPS PO"
+      },
+      {
+        "id": 4,
+        "email": "jamunasaha1987@gmail.com",
+        "created_at": "2026-04-06T15:47:03.83162+00:00",
+        "course_name": "RRB ALP"
+      },
+      {
+        "id": 5,
+        "email": "babulalbera.77@gmail.com",
+        "created_at": "2026-04-13T04:15:50.929242+00:00",
+        "course_name": "Indian Army"
+      },
+      {
+        "id": 16,
+        "email": "test@test.com",
+        "created_at": "2026-04-24T08:40:36.378412+00:00",
+        "course_name": "[Mock] Test"
+      },
+      {
+        "id": 20,
+        "email": "jan810693@gmail.com",
+        "created_at": "2026-04-24T08:51:33.706672+00:00",
+        "course_name": "[Mock] SSC CHSL"
+      }
+    ]
+  }
+}

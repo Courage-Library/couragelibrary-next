@@ -1,0 +1,51 @@
+{
+  "timestamp": "2026-08-26T17:22:44.997Z",
+  "executionMode": "DRY_RUN_READ_ONLY",
+  "mutationsPerformed": 0,
+  "sourceDatabase": {
+    "url": "https://sgagswxzsxlgcspwiuoh.supabase.co",
+    "categoriesCount": 8,
+    "scheduledExamsCount": 32,
+    "coachingCentersCount": 4,
+    "totalQuestionsCount": 4050,
+    "validQuestionsCount": 4050,
+    "invalidQuestionsCount": 0
+  },
+  "targetDatabaseBaseline": {
+    "protectedExams": 1,
+    "protectedSubjects": 4,
+    "protectedTopics": 4,
+    "protectedQuestions": 77,
+    "protectedQuestionVersions": 20
+  },
+  "migrationPlanSummary": {
+    "examCategories": {
+      "total": 8,
+      "toInsert": 8,
+      "toMergeWithExisting": 0,
+      "preservedExisting": 1
+    },
+    "subjectsAndTopics": {
+      "subjectsToSynthesize": 14,
+      "topicsToSynthesize": 131,
+      "existingSubjectsPreserved": 4,
+      "existingTopicsPreserved": 4
+    },
+    "questionsAndVersions": {
+      "legacyQuestionsToInsert": 4050,
+      "questionVersionsToGenerate": 4050,
+      "questionOptionsToGenerate": 16200,
+      "questionAnswersToGenerate": 4050,
+      "existingQuestionVersionsPreserved": 20
+    },
+    "mockTestsAndBlueprints": {
+      "mockTemplatesToGenerate": 32,
+      "mockTestsToGenerate": 32
+    },
+    "integrityCheck": {
+      "dataLossRisk": "ZERO",
+      "orphanedRecordsPrevented": "100%",
+      "authoritativeAnswerKeySeparation": "100%"
+    }
+  }
+}
