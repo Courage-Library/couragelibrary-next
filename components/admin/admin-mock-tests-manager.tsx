@@ -64,8 +64,20 @@ export function AdminMockTestsManager({
   const router = useRouter();
   const [showBulkImport, setShowBulkImport] = useState(false);
 
+  // Active objects from props
+  const activeCategoryObj = useMemo(() => {
+    if (!currentCategory || currentCategory === "ALL") return null;
+    return categories.find((c) => c.slug === currentCategory || c.id === currentCategory);
+  }, [categories, currentCategory]);
+
+  const activePatternObj = useMemo(() => {
+    if (!currentPattern || currentPattern === "ALL") return null;
+    return patterns.find((p) => p.id === currentPattern || p.name.toLowerCase() === currentPattern.toLowerCase());
+  }, [patterns, currentPattern]);
+
   // Create Form State
   const [createState, createAction, isCreating] = useActionState(createMockTestAction, null);
+  const [formCategoryId, setFormCategoryId] = useState(activeCategoryObj ? activeCategoryObj.id : (categories[0]?.id || ""));
 
   // Edit Modal State
   const [editingMock, setEditingMock] = useState<MockTestItem | null>(null);
@@ -77,15 +89,10 @@ export function AdminMockTestsManager({
   const [selectedPattern, setSelectedPattern] = useState(currentPattern || "ALL");
   const [isToggling, startTransition] = useTransition();
 
-  const activeCategoryObj = useMemo(() => {
-    if (!currentCategory || currentCategory === "ALL") return null;
-    return categories.find((c) => c.slug === currentCategory || c.id === currentCategory);
-  }, [categories, currentCategory]);
-
-  const activePatternObj = useMemo(() => {
-    if (!currentPattern || currentPattern === "ALL") return null;
-    return patterns.find((p) => p.id === currentPattern || p.name.toLowerCase() === currentPattern.toLowerCase());
-  }, [patterns, currentPattern]);
+  const availablePatternsForForm = useMemo(() => {
+    if (!formCategoryId) return patterns;
+    return patterns.filter((p) => !p.categoryId || p.categoryId === formCategoryId);
+  }, [formCategoryId, patterns]);
 
   const filtered = useMemo(() => {
     return tests.filter((t) => {
@@ -137,7 +144,7 @@ export function AdminMockTestsManager({
   ];
 
   return (
-    <div className="space-y-6 max-w-7xl pb-12">
+    <div className="space-y-4 w-full pb-8">
       {/* Breadcrumbs */}
       <AdminBreadcrumbs items={breadcrumbs} />
 
@@ -186,7 +193,8 @@ export function AdminMockTestsManager({
                 </label>
                 <select
                   name="categoryId"
-                  defaultValue={activeCategoryObj ? activeCategoryObj.id : (categories[0]?.id || "")}
+                  value={formCategoryId}
+                  onChange={(e) => setFormCategoryId(e.target.value)}
                   className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-emerald-500"
                   required
                 >
@@ -204,13 +212,13 @@ export function AdminMockTestsManager({
                 </label>
                 <select
                   name="patternId"
-                  defaultValue={activePatternObj ? activePatternObj.id : (patterns[0]?.id || "")}
+                  defaultValue={availablePatternsForForm[0]?.id || ""}
                   className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-emerald-500"
                 >
                   <option value="">Default Pattern</option>
-                  {patterns.map((p) => (
+                  {availablePatternsForForm.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.name} ({p.categoryName})
+                      {p.name} {p.categoryName ? `(${p.categoryName})` : ""}
                     </option>
                   ))}
                 </select>
