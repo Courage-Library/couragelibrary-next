@@ -71,6 +71,7 @@ export function AdminSectionsManager({
   }, [sections, searchQuery]);
 
   const breadcrumbs = [
+    { label: "Mock Test Management", href: "/admin/mock-tests-management" },
     { label: "Categories", href: "/admin/categories" },
     ...(activeCategoryObj
       ? [{ label: activeCategoryObj.title, href: `/admin/patterns?category=${activeCategoryObj.slug}` }]

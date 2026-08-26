@@ -205,7 +205,12 @@ export function AdminBulkImportStudio({ categories, patterns, subjects }: Props)
   return (
     <div className="space-y-6 max-w-7xl pb-12">
       {/* Breadcrumbs */}
-      <AdminBreadcrumbs items={[{ label: "Tools", href: "/admin" }, { label: "Hierarchical Bulk Import", active: true }]} />
+      <AdminBreadcrumbs
+        items={[
+          { label: "Mock Test Management", href: "/admin/mock-tests-management" },
+          { label: "Hierarchical Bulk Import", active: true },
+        ]}
+      />
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

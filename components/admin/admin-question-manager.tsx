@@ -268,7 +268,10 @@ export function AdminQuestionManager({
   }, [createSection, taxonomy.topics]);
 
   const breadcrumbItems = useMemo(() => {
-    const items: Array<{ label: string; href?: string; active?: boolean }> = [{ label: "Categories", href: "/admin/categories" }];
+    const items: Array<{ label: string; href?: string; active?: boolean }> = [
+      { label: "Mock Test Management", href: "/admin/mock-tests-management" },
+      { label: "Categories", href: "/admin/categories" },
+    ];
     if (selectedCategory !== "ALL") {
       items.push({ label: selectedCategory, href: `/admin/patterns?category=${encodeURIComponent(selectedCategory)}` });
     }
