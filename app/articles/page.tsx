@@ -2,12 +2,18 @@ import React from "react";
 import Link from "next/link";
 import { ContentService } from "@/services/content.service";
 import { Container } from "@/components/ui/container";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { BookOpen, Clock, ArrowRight, FileText } from "lucide-react";
+import { BookOpen, Clock, ArrowRight, FileText, Sparkles, GraduationCap } from "lucide-react";
+import { constructMetadata } from "@/lib/seo/metadata";
 
 export const revalidate = 30;
+
+export const metadata = constructMetadata({
+  title: "Articles & Exam Study Notes",
+  description: "In-depth conceptual articles, revision notes, and exam briefs designed for competitive exam preparation.",
+});
 
 export default async function ArticleLibraryPage() {
   const articles = await ContentService.getArticles();
@@ -18,7 +24,7 @@ export default async function ArticleLibraryPage() {
         {/* Header Banner */}
         <div className="bg-gradient-to-r from-teal-950 via-slate-900 to-indigo-950 rounded-3xl p-6 sm:p-8 text-white shadow-lg space-y-3">
           <Badge variant="indigo" className="bg-white/20 text-white border-white/20">
-            Phase 3E Editorial Knowledge Base
+            Editorial Knowledge Base
           </Badge>
           <h1 className="text-2xl sm:text-4xl font-black tracking-tight flex items-center gap-3">
             <BookOpen className="w-8 h-8 text-teal-400" />
@@ -29,12 +35,32 @@ export default async function ArticleLibraryPage() {
           </p>
         </div>
 
-        {/* Articles Grid */}
+        {/* Articles Grid / Empty State */}
         {articles.length === 0 ? (
-          <Card className="p-12 text-center text-slate-400 space-y-3">
-            <FileText className="w-10 h-10 mx-auto opacity-50" />
-            <h3 className="text-base font-bold text-slate-700">No Published Articles Available</h3>
-            <p className="text-xs">Articles and study notes will be published here soon.</p>
+          <Card className="border-slate-200/80 shadow-xs">
+            <CardContent className="py-16 text-center space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center mx-auto shadow-xs">
+                <FileText className="w-8 h-8" />
+              </div>
+              <div className="space-y-1 max-w-sm mx-auto">
+                <h3 className="text-lg font-extrabold text-slate-900">No Published Articles Available</h3>
+                <p className="text-xs text-slate-500">
+                  Editorial study briefs and articles are being prepared. Explore structured video courses or practice topic-wise questions.
+                </p>
+              </div>
+              <div className="flex items-center justify-center gap-3 pt-2">
+                <Link href="/courses">
+                  <Button variant="default" size="sm" className="bg-teal-700 hover:bg-teal-800 font-semibold shadow-xs">
+                    <GraduationCap className="w-3.5 h-3.5 mr-1" /> View Courses
+                  </Button>
+                </Link>
+                <Link href="/practice">
+                  <Button variant="outline" size="sm" className="font-semibold">
+                    <Sparkles className="w-3.5 h-3.5 mr-1 text-amber-500" /> Practice Drills
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
           </Card>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">

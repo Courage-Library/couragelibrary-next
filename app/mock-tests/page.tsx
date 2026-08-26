@@ -1,13 +1,19 @@
-﻿import React from "react";
+import React from "react";
 import Link from "next/link";
 import { AssessmentService } from "@/services/assessment.service";
 import { Container } from "@/components/ui/container";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Target, Clock, Award } from "lucide-react";
+import { Target, Clock, Award, Sparkles, HelpCircle } from "lucide-react";
+import { constructMetadata } from "@/lib/seo/metadata";
 
 export const revalidate = 30;
+
+export const metadata = constructMetadata({
+  title: "Full-Length Mock Tests",
+  description: "Simulate real examination conditions with timed, section-wise blueprints and instant AI-evaluated percentiles.",
+});
 
 export default async function MockTestsDirectoryPage() {
   const tests = await AssessmentService.getMockTestsDirectory();
@@ -17,7 +23,7 @@ export default async function MockTestsDirectoryPage() {
       <Container className="space-y-8">
         <div className="space-y-2">
           <Badge variant="indigo" className="text-xs">
-            Phase 3B Mock Engine
+            Mock Test Engine
           </Badge>
           <h1 className="text-3xl font-black text-slate-900 tracking-tight">
             Full-Length Mock Tests
@@ -28,10 +34,30 @@ export default async function MockTestsDirectoryPage() {
         </div>
 
         {tests.length === 0 ? (
-          <Card className="p-12 text-center text-slate-400 space-y-3">
-            <Target className="w-10 h-10 mx-auto opacity-50" />
-            <h3 className="text-base font-bold text-slate-700">No Published Mock Tests Yet</h3>
-            <p className="text-xs">Check back soon for new national level mock papers.</p>
+          <Card className="border-slate-200/80 shadow-xs">
+            <CardContent className="py-16 text-center space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto shadow-xs">
+                <Target className="w-8 h-8" />
+              </div>
+              <div className="space-y-1 max-w-sm mx-auto">
+                <h3 className="text-lg font-extrabold text-slate-900">No Published Mock Tests Yet</h3>
+                <p className="text-xs text-slate-500">
+                  National level mock test papers are being authored and scheduled. In the meantime, build speed with topic-wise practice drills or active recall flashcards.
+                </p>
+              </div>
+              <div className="flex items-center justify-center gap-3 pt-2">
+                <Link href="/practice">
+                  <Button variant="default" size="sm" className="font-semibold shadow-xs">
+                    <HelpCircle className="w-3.5 h-3.5 mr-1" /> Practice Questions
+                  </Button>
+                </Link>
+                <Link href="/flashcards">
+                  <Button variant="outline" size="sm" className="font-semibold">
+                    <Sparkles className="w-3.5 h-3.5 mr-1 text-amber-500" /> Flashcards & SRS
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
           </Card>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
