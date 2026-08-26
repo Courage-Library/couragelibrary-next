@@ -1,4 +1,5 @@
-﻿import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { UserProfileService } from "@/services/user-profile.service";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function GET(request: NextRequest) {
@@ -8,8 +9,16 @@ export async function GET(request: NextRequest) {
 
   if (code) {
     const supabase = await createServerSupabaseClient();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      if (data?.user) {
+        await UserProfileService.ensureProfile(data.user);
+      } else {
+        const { data: userData } = await supabase.auth.getUser();
+        if (userData?.user) {
+          await UserProfileService.ensureProfile(userData.user);
+        }
+      }
       return NextResponse.redirect(`${origin}${next}`);
     }
   }

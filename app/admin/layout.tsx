@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { BrandLogo } from "@/components/brand/logo";
 import {
   LayoutDashboard,
+  Users,
   HelpCircle,
   FileCheck2,
   BookOpen,
@@ -65,6 +66,12 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
             <LayoutDashboard className="w-4 h-4 text-indigo-400" /> Dashboard Overview
           </Link>
           <Link
+            href="/admin/users"
+            className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+          >
+            <Users className="w-4 h-4 text-sky-400" /> Users &amp; Profiles
+          </Link>
+          <Link
             href="/admin/questions"
             className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
           >
@@ -80,7 +87,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
             href="/admin/content"
             className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
           >
-            <BookOpen className="w-4 h-4 text-purple-400" /> Articles & Courses
+            <BookOpen className="w-4 h-4 text-purple-400" /> Articles &amp; Courses
           </Link>
           <Link
             href="/admin/descriptive"
@@ -92,7 +99,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
             href="/admin/institutes"
             className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
           >
-            <Building2 className="w-4 h-4 text-teal-400" /> Institutes & Batches
+            <Building2 className="w-4 h-4 text-teal-400" /> Institutes &amp; Batches
           </Link>
           <Link
             href="/admin/community"
@@ -104,7 +111,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
             href="/admin/billing"
             className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
           >
-            <CreditCard className="w-4 h-4 text-yellow-400" /> Billing & Orders
+            <CreditCard className="w-4 h-4 text-yellow-400" /> Billing &amp; Orders
           </Link>
         </nav>
 

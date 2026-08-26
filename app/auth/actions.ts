@@ -1,6 +1,7 @@
 "use server";
 
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { UserProfileService } from "@/services/user-profile.service";
 import { getAppEnv } from "@/config/env";
 import { redirect } from "next/navigation";
 
@@ -18,13 +19,17 @@ export async function loginAction(prevState: AuthState | null, formData: FormDat
   }
 
   const supabase = await createServerSupabaseClient();
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
 
   if (error) {
     return { error: error.message };
+  }
+
+  if (data?.user) {
+    await UserProfileService.ensureProfile(data.user);
   }
 
   redirect("/dashboard");
@@ -40,7 +45,7 @@ export async function signupAction(prevState: AuthState | null, formData: FormDa
   }
 
   const supabase = await createServerSupabaseClient();
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
@@ -52,6 +57,10 @@ export async function signupAction(prevState: AuthState | null, formData: FormDa
 
   if (error) {
     return { error: error.message };
+  }
+
+  if (data?.user) {
+    await UserProfileService.ensureProfile(data.user);
   }
 
   redirect("/dashboard");
