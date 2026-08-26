@@ -39,11 +39,14 @@ export interface AdminSectionItem {
   slug: string;
   categoryId?: string;
   categoryName?: string;
+  categorySlug?: string;
   patternId?: string;
   patternName?: string;
   questionCount: number;
+  questionsInBank: number;
   topicsCount: number;
   marksPerQuestion: number;
+  totalMarks: number;
   negativeMark: number;
   isActive: boolean;
 }
@@ -376,9 +379,43 @@ export class AdminService {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = supabase as any;
 
-    const { data: subjects } = await sb
-      .from("subjects")
-      .select(`
+    const [patternSectionsRes, subjectsRes] = await Promise.all([
+      sb.from("pattern_sections").select(`
+        id,
+        section_name,
+        num_questions,
+        marks_per_question,
+        negative_mark,
+        section_order,
+        created_at,
+        pattern_id,
+        subject_id,
+        exam_patterns (
+          id,
+          name,
+          duration_minutes,
+          exam_cycles (
+            exams (
+              id,
+              title,
+              slug
+            )
+          )
+        ),
+        subjects (
+          id,
+          name,
+          slug,
+          topics (
+            id,
+            name,
+            questions (
+              id
+            )
+          )
+        )
+      `).order("section_order", { ascending: true }),
+      sb.from("subjects").select(`
         id,
         name,
         slug,
@@ -390,30 +427,80 @@ export class AdminService {
             id
           )
         )
-      `)
-      .order("name", { ascending: true });
+      `).order("name", { ascending: true }),
+    ]);
 
+    const patternSections = patternSectionsRes.data || [];
+    const subjects = subjectsRes.data || [];
+
+    // Map existing pattern sections
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (subjects || []).map((s: any) => {
-      const topics = s.topics || [];
+    let list: AdminSectionItem[] = patternSections.map((ps: any) => {
+      const pat = ps.exam_patterns || {};
+      const exam = pat.exam_cycles?.exams || {};
+      const subj = ps.subjects || {};
+      const topics = subj.topics || [];
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const questionsCount = topics.reduce((acc: number, t: any) => acc + (t.questions?.length || 0), 0);
+      const bankCount = topics.reduce((acc: number, t: any) => acc + (t.questions?.length || 0), 0);
+      const reqCount = ps.num_questions || 25;
+      const mpq = Number(ps.marks_per_question || 2.0);
 
       return {
-        id: s.id,
-        name: s.name,
-        slug: s.slug,
-        categoryId: categoryFilter,
-        categoryName: categoryFilter ? "Selected Category" : "All Categories",
-        patternId: patternFilter,
-        patternName: patternFilter ? "Selected Pattern" : "All Patterns",
-        questionCount: questionsCount,
+        id: ps.id,
+        name: ps.section_name || subj.name || "Section",
+        slug: subj.slug || (ps.section_name || "").toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+        categoryId: exam.id || "",
+        categoryName: exam.title || "General Category",
+        categorySlug: exam.slug || "general",
+        patternId: ps.pattern_id || pat.id || "",
+        patternName: pat.name || "General Pattern",
+        questionCount: reqCount,
+        questionsInBank: bankCount,
         topicsCount: topics.length,
-        marksPerQuestion: 2.0,
-        negativeMark: 0.5,
-        isActive: s.is_active,
+        marksPerQuestion: mpq,
+        totalMarks: Number((reqCount * mpq).toFixed(2)),
+        negativeMark: Number(ps.negative_mark || 0.5),
+        isActive: true,
       };
     });
+
+    // Fallback: If no pattern_sections exist in database yet, map subjects across patterns
+    if (list.length === 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      list = subjects.map((s: any) => {
+        const topics = s.topics || [];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const bankCount = topics.reduce((acc: number, t: any) => acc + (t.questions?.length || 0), 0);
+        return {
+          id: s.id,
+          name: s.name,
+          slug: s.slug,
+          categoryId: categoryFilter || "",
+          categoryName: "All Categories",
+          categorySlug: "general",
+          patternId: patternFilter || "",
+          patternName: "Standard Section",
+          questionCount: 25,
+          questionsInBank: bankCount,
+          topicsCount: topics.length,
+          marksPerQuestion: 2.0,
+          totalMarks: 50,
+          negativeMark: 0.5,
+          isActive: s.is_active,
+        };
+      });
+    }
+
+    if (patternFilter && patternFilter !== "ALL") {
+      list = list.filter((s) => s.patternId === patternFilter || s.patternName?.toLowerCase() === patternFilter.toLowerCase());
+    }
+
+    if (categoryFilter && categoryFilter !== "ALL") {
+      const catLower = categoryFilter.toLowerCase();
+      list = list.filter((s) => s.categoryId === categoryFilter || s.categorySlug?.toLowerCase() === catLower || s.categoryName?.toLowerCase() === catLower);
+    }
+
+    return list;
   }
 
   /**
