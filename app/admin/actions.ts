@@ -551,43 +551,93 @@ export async function createSectionAction(
   const authCheck = await AdminService.checkIsAdminOrStaff();
   if (!authCheck.isAdmin) return { error: "Unauthorized access." };
 
+  const patternId = (formData.get("patternId") as string || "").trim();
   const name = (formData.get("name") as string || "").trim();
-  const slug = (
-    formData.get("slug") as string ||
-    name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
-  ).trim();
+  const questionCount = Number(formData.get("questionCount") || 25);
+  const marksPerQuestion = Number(formData.get("marksPerQuestion") || 2.0);
+  const negativeMark = Number(formData.get("negativeMark") || 0.5);
 
-  if (!name) return { error: "Section Name is required." };
+  if (!patternId) return { error: "Please select a pattern." };
+  if (!name) return { error: "Section name is required." };
+  if (!questionCount || questionCount < 1) return { error: "Question count must be at least 1." };
+  if (!marksPerQuestion || marksPerQuestion <= 0) return { error: "Marks per question must be > 0." };
 
   const supabaseRaw = await createServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = supabaseRaw as any;
 
-  const { data: section, error } = await supabase
-    .from("subjects")
-    .insert({
-      name,
-      slug,
-      is_active: true,
-    })
+  // Duplicate Check: (pattern_id + section_name)
+  const { data: existing } = await supabase
+    .from("pattern_sections")
     .select("id")
-    .single();
+    .eq("pattern_id", patternId)
+    .ilike("section_name", name)
+    .limit(1);
 
-  if (error) return { error: `Failed to create section: ${error.message}` };
-
-  // Create default topic for the section
-  if (section) {
-    await supabase.from("topics").insert({
-      subject_id: section.id,
-      name: `${name} General Topics`,
-      slug: `${slug}-general`,
-      is_active: true,
-    });
+  if (existing && existing.length > 0) {
+    return { error: `"${name}" already exists in this pattern.` };
   }
 
+  // Find or create subject taxonomy
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  let { data: subject } = await supabase
+    .from("subjects")
+    .select("id")
+    .ilike("name", name)
+    .limit(1)
+    .maybeSingle();
+
+  if (!subject) {
+    const { data: newSubj, error: subjErr } = await supabase
+      .from("subjects")
+      .insert({
+        name,
+        slug,
+        is_active: true,
+      })
+      .select("id")
+      .single();
+
+    if (subjErr) return { error: `Failed creating subject: ${subjErr.message}` };
+    subject = newSubj;
+
+    // Create default topic for the new subject
+    if (subject?.id) {
+      await supabase.from("topics").insert({
+        subject_id: subject.id,
+        name: `${name} General Topics`,
+        slug: `${slug}-general`,
+        is_active: true,
+      });
+    }
+  }
+
+  // Get current max section_order for this pattern
+  const { data: orderData } = await supabase
+    .from("pattern_sections")
+    .select("section_order")
+    .eq("pattern_id", patternId)
+    .order("section_order", { ascending: false })
+    .limit(1);
+
+  const nextOrder = (orderData?.[0]?.section_order || 0) + 1;
+
+  const { error: insErr } = await supabase.from("pattern_sections").insert({
+    pattern_id: patternId,
+    subject_id: subject.id,
+    section_name: name,
+    num_questions: questionCount,
+    marks_per_question: marksPerQuestion,
+    negative_mark: negativeMark,
+    section_order: nextOrder,
+  });
+
+  if (insErr) return { error: `Failed to add section: ${insErr.message}` };
+
   revalidatePath("/admin/sections");
-  revalidatePath("/admin/questions");
-  return { success: true, message: `Section "${name}" created successfully.` };
+  revalidatePath("/admin/patterns");
+  revalidatePath("/admin/mock-tests-management");
+  return { success: true, message: `"${name}" added successfully.` };
 }
 
 export async function updateSectionAction(
@@ -599,7 +649,9 @@ export async function updateSectionAction(
 
   const id = formData.get("id") as string;
   const name = (formData.get("name") as string || "").trim();
-  const slug = (formData.get("slug") as string || "").trim();
+  const questionCount = Number(formData.get("questionCount") || 25);
+  const marksPerQuestion = Number(formData.get("marksPerQuestion") || 2.0);
+  const negativeMark = Number(formData.get("negativeMark") || 0.5);
 
   if (!id || !name) return { error: "Section ID and Name are required." };
 
@@ -607,9 +659,11 @@ export async function updateSectionAction(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = supabaseRaw as any;
 
-  const { error } = await supabase.from("subjects").update({
-    name,
-    slug: slug || undefined,
+  const { error } = await supabase.from("pattern_sections").update({
+    section_name: name,
+    num_questions: questionCount,
+    marks_per_question: marksPerQuestion,
+    negative_mark: negativeMark,
     updated_at: new Date().toISOString(),
   }).eq("id", id);
 
@@ -632,6 +686,26 @@ export async function toggleSectionStatusAction(sectionId: string, currentActive
 
   revalidatePath("/admin/sections");
   return { success: true, message: `Section ${!currentActive ? "activated" : "deactivated"} successfully.` };
+}
+
+/**
+ * Server Action: Safely Delete Section without deleting questions
+ */
+export async function deleteSectionAction(sectionId: string): Promise<AdminActionResult> {
+  const authCheck = await AdminService.checkIsAdminOrStaff();
+  if (!authCheck.isAdmin) return { error: "Unauthorized access." };
+
+  const supabaseRaw = await createServerSupabaseClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabase = supabaseRaw as any;
+
+  const { error } = await supabase.from("pattern_sections").delete().eq("id", sectionId);
+  if (error) return { error: `Failed to delete section: ${error.message}` };
+
+  revalidatePath("/admin/sections");
+  revalidatePath("/admin/patterns");
+  revalidatePath("/admin/mock-tests-management");
+  return { success: true, message: "Section deleted successfully (all questions in bank preserved)." };
 }
 
 /* ========================================================================= */
