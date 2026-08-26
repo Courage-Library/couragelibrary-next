@@ -1031,6 +1031,45 @@ export async function toggleQuestionPublishAction(questionId: string, currentSta
   return toggleQuestionStatusAction(questionId, currentStatus ? "published" : "archived");
 }
 
+export async function deleteQuestionAction(questionId: string): Promise<AdminActionResult> {
+  const authCheck = await AdminService.checkIsAdminOrStaff();
+  if (!authCheck.isAdmin) return { error: "Unauthorized access." };
+
+  const supabaseRaw = await createServerSupabaseClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabase = supabaseRaw as any;
+
+  // Check if question has student responses
+  const { data: responses } = await supabase
+    .from("test_responses")
+    .select("id")
+    .eq("question_id", questionId)
+    .limit(1);
+
+  if (responses && responses.length > 0) {
+    // Archive question if attempt history exists
+    await supabase.from("questions").update({ status: "archived" }).eq("id", questionId);
+    revalidatePath("/admin/questions");
+    return { success: true, message: "Question has student attempt history; safely archived instead of deleting." };
+  }
+
+  // Delete associated versions, options, answers, sources
+  const { data: versions } = await supabase.from("question_versions").select("id").eq("question_id", questionId);
+  const versionIds = (versions || []).map((v: { id: string }) => v.id);
+
+  if (versionIds.length > 0) {
+    await supabase.from("question_answers").delete().in("question_version_id", versionIds);
+    await supabase.from("question_options").delete().in("question_version_id", versionIds);
+    await supabase.from("question_versions").delete().eq("question_id", questionId);
+  }
+
+  await supabase.from("question_sources").delete().eq("question_id", questionId);
+  await supabase.from("questions").delete().eq("id", questionId);
+
+  revalidatePath("/admin/questions");
+  return { success: true, message: "Question deleted successfully." };
+}
+
 /* ========================================================================= */
 /* 6. MOCK TEST CRUD ACTIONS                                                 */
 /* ========================================================================= */

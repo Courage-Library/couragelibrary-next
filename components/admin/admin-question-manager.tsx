@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useMemo, useTransition } from "react";
+import React, { useState, useMemo, useTransition, useRef } from "react";
+import Link from "next/link";
 import {
   AdminQuestionHierarchyItem,
   AdminQuestionTaxonomy,
@@ -9,30 +10,28 @@ import {
 import {
   createQuestionHierarchyAction,
   updateQuestionHierarchyAction,
-  toggleQuestionStatusAction,
+  deleteQuestionAction,
+  uploadBulkImportImageAction,
 } from "@/app/admin/actions";
-import { BulkImportModal } from "@/components/admin/bulk-import-modal";
+import { AdminBreadcrumbs } from "@/components/admin/admin-breadcrumbs";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import {
   HelpCircle,
-  Plus,
+  PlusCircle,
   FileUp,
   Search,
   RotateCcw,
-  Eye,
   Edit2,
-  Power,
+  Trash2,
   X,
-  ImageIcon,
-  Layers,
+  Upload,
   ChevronLeft,
   ChevronRight,
+  Calendar,
+  Underline,
 } from "lucide-react";
-
-import { AdminBreadcrumbs } from "@/components/admin/admin-breadcrumbs";
 
 interface Props {
   questions: AdminQuestionHierarchyItem[];
@@ -44,124 +43,295 @@ interface Props {
   initialTopic?: string;
 }
 
+const PAGE_SIZE = 20;
+
 export function AdminQuestionManager({
   questions,
   taxonomy,
-  kpis,
   initialCategory,
   initialPattern,
   initialSection,
-  initialTopic,
 }: Props) {
-  // Resolve initial filters against taxonomy
-  const resolvedInitialCat = useMemo(() => {
-    if (!initialCategory) return "ALL";
-    const found = taxonomy.exams.find(
-      (e) => e.slug.toLowerCase() === initialCategory.toLowerCase() || e.id === initialCategory || e.title.toLowerCase().includes(initialCategory.toLowerCase())
-    );
-    return found ? found.title : initialCategory;
-  }, [initialCategory, taxonomy.exams]);
+  // ----------------------------------------------------
+  // Cascading Add Form State
+  // ----------------------------------------------------
+  const [formCategory, setFormCategory] = useState<string>(initialCategory || (taxonomy.exams[0]?.id || ""));
+  const [formPattern, setFormPattern] = useState<string>(initialPattern || "");
+  const [formSection, setFormSection] = useState<string>(initialSection || "");
+  const [optionsType, setOptionsType] = useState<"text" | "image" | "mixed">("text");
 
-  const resolvedInitialPat = useMemo(() => {
-    if (!initialPattern) return "ALL";
-    const found = taxonomy.patterns.find(
-      (p) => p.id === initialPattern || p.name.toLowerCase().includes(initialPattern.toLowerCase())
-    );
-    return found ? found.name : initialPattern;
-  }, [initialPattern, taxonomy.patterns]);
+  // Question Form Fields
+  const [statement, setStatement] = useState("");
+  const [questionImageUrl, setQuestionImageUrl] = useState("");
+  const [optAText, setOptAText] = useState("");
+  const [optAImg, setOptAImg] = useState("");
+  const [optBText, setOptBText] = useState("");
+  const [optBImg, setOptBImg] = useState("");
+  const [optCText, setOptCText] = useState("");
+  const [optCImg, setOptCImg] = useState("");
+  const [optDText, setOptDText] = useState("");
+  const [optDImg, setOptDImg] = useState("");
+  const [correctAnswer, setCorrectAnswer] = useState("A");
+  const [difficulty, setDifficulty] = useState("easy");
+  const [pyqSource, setPyqSource] = useState("");
+  const [pyqYear, setPyqYear] = useState("");
+  const [language, setLanguage] = useState("english");
+  const [explanation, setExplanation] = useState("");
+  const [isUploadingImg, setIsUploadingImg] = useState(false);
 
-  const resolvedInitialSec = useMemo(() => {
-    if (!initialSection) return "ALL";
-    const found = taxonomy.subjects.find(
-      (s) => s.slug.toLowerCase() === initialSection.toLowerCase() || s.id === initialSection || s.name.toLowerCase().includes(initialSection.toLowerCase())
-    );
-    return found ? found.name : initialSection;
-  }, [initialSection, taxonomy.subjects]);
-
-  const resolvedInitialTop = useMemo(() => {
-    if (!initialTopic) return "ALL";
-    const found = taxonomy.topics.find(
-      (t) => t.slug.toLowerCase() === initialTopic.toLowerCase() || t.id === initialTopic || t.name.toLowerCase().includes(initialTopic.toLowerCase())
-    );
-    return found ? found.name : initialTopic;
-  }, [initialTopic, taxonomy.topics]);
-
-  // Modal states
-  const [showCreate, setShowCreate] = useState(false);
-  const [showBulkImport, setShowBulkImport] = useState(false);
-  const [selectedDetailQuestion, setSelectedDetailQuestion] = useState<AdminQuestionHierarchyItem | null>(null);
+  // Edit Modal State
   const [editingQuestion, setEditingQuestion] = useState<AdminQuestionHierarchyItem | null>(null);
+  const [editStatement, setEditStatement] = useState("");
+  const [editImgUrl, setEditImgUrl] = useState("");
+  const [editOptAText, setEditOptAText] = useState("");
+  const [editOptBText, setEditOptBText] = useState("");
+  const [editOptCText, setEditOptCText] = useState("");
+  const [editOptDText, setEditOptDText] = useState("");
+  const [editCorrectAnswer, setEditCorrectAnswer] = useState("A");
+  const [editDifficulty, setEditDifficulty] = useState("easy");
+  const [editPyqSource, setEditPyqSource] = useState("");
+  const [editPyqYear, setEditPyqYear] = useState("");
+  const [editLanguage, setEditLanguage] = useState("english");
+  const [editExplanation, setEditExplanation] = useState("");
+  const [editIsActive, setEditIsActive] = useState(true);
 
-  // Form feedback state
-  const [formFeedback, setFormFeedback] = useState<{ error?: string; message?: string } | null>(null);
+  // Search & Filter State
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterCategory, setFilterCategory] = useState<string>("ALL");
+  const [filterPattern, setFilterPattern] = useState<string>("ALL");
+  const [filterSection, setFilterSection] = useState<string>("ALL");
+  const [filterDifficulty, setFilterDifficulty] = useState<string>("ALL");
+  const [filterPyq, setFilterPyq] = useState<string>("ALL");
+  const [filterLanguage, setFilterLanguage] = useState<string>("ALL");
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Feedback State
+  const [actionFeedback, setActionFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  // Search and Filter states
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string>(resolvedInitialCat);
-  const [selectedPattern, setSelectedPattern] = useState<string>(resolvedInitialPat);
-  const [selectedSection, setSelectedSection] = useState<string>(resolvedInitialSec);
-  const [selectedTopic, setSelectedTopic] = useState<string>(resolvedInitialTop);
-  const [selectedDifficulty, setSelectedDifficulty] = useState<string>("ALL");
-  const [selectedLanguage, setSelectedLanguage] = useState<string>("ALL");
-  const [selectedPyq, setSelectedPyq] = useState<string>("ALL");
-  const [selectedOptionsType, setSelectedOptionsType] = useState<string>("ALL");
-  const [selectedStatus, setSelectedStatus] = useState<string>("ALL");
-  const [selectedMockTest, setSelectedMockTest] = useState<string>("ALL");
+  const addTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const editTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 15;
+  // ----------------------------------------------------
+  // Cascading Form Selectors
+  // ----------------------------------------------------
+  const availablePatternsForForm = useMemo(() => {
+    if (!formCategory) return taxonomy.patterns;
+    return taxonomy.patterns.filter((p) => !p.examId || p.examId === formCategory);
+  }, [formCategory, taxonomy.patterns]);
 
-  // Cascading Filter Derived Lists
-  const availablePatterns = useMemo(() => {
-    if (selectedCategory === "ALL") return taxonomy.patterns;
-    const selectedExam = taxonomy.exams.find((e) => e.title === selectedCategory || e.id === selectedCategory);
-    if (!selectedExam) return taxonomy.patterns;
-    return taxonomy.patterns.filter((p) => !p.examId || p.examId === selectedExam.id);
-  }, [selectedCategory, taxonomy.patterns, taxonomy.exams]);
+  // Set default pattern when form category changes
+  const handleFormCategoryChange = (catId: string) => {
+    setFormCategory(catId);
+    const validPatterns = taxonomy.patterns.filter((p) => !p.examId || p.examId === catId);
+    setFormPattern(validPatterns[0]?.id || "");
+    setFormSection(taxonomy.subjects[0]?.id || "");
+  };
 
-  const availableTopics = useMemo(() => {
-    if (selectedSection === "ALL") return taxonomy.topics;
-    const selectedSub = taxonomy.subjects.find((s) => s.name === selectedSection || s.id === selectedSection);
-    if (!selectedSub) return taxonomy.topics;
-    return taxonomy.topics.filter((t) => t.subjectId === selectedSub.id);
-  }, [selectedSection, taxonomy.topics, taxonomy.subjects]);
+  const handleFormPatternChange = (patId: string) => {
+    setFormPattern(patId);
+    setFormSection(taxonomy.subjects[0]?.id || "");
+  };
 
-  // Handle Category Filter Change (Resets downstream filters)
-  const handleCategoryChange = (val: string) => {
-    setSelectedCategory(val);
-    setSelectedPattern("ALL");
+  // ----------------------------------------------------
+  // Cascading Filter Selectors
+  // ----------------------------------------------------
+  const availablePatternsForFilter = useMemo(() => {
+    if (filterCategory === "ALL") return taxonomy.patterns;
+    return taxonomy.patterns.filter((p) => !p.examId || p.examId === filterCategory);
+  }, [filterCategory, taxonomy.patterns]);
+
+  const handleFilterCategoryChange = (catId: string) => {
+    setFilterCategory(catId);
+    setFilterPattern("ALL");
+    setFilterSection("ALL");
     setCurrentPage(1);
   };
 
-  // Handle Section Filter Change (Resets downstream topic filter)
-  const handleSectionChange = (val: string) => {
-    setSelectedSection(val);
-    setSelectedTopic("ALL");
+  const handleFilterPatternChange = (patId: string) => {
+    setFilterPattern(patId);
+    setFilterSection("ALL");
     setCurrentPage(1);
   };
 
-  // Reset All Filters
-  const handleResetFilters = () => {
+  const resetAllFilters = () => {
     setSearchQuery("");
-    setSelectedCategory("ALL");
-    setSelectedPattern("ALL");
-    setSelectedSection("ALL");
-    setSelectedTopic("ALL");
-    setSelectedDifficulty("ALL");
-    setSelectedLanguage("ALL");
-    setSelectedPyq("ALL");
-    setSelectedOptionsType("ALL");
-    setSelectedStatus("ALL");
-    setSelectedMockTest("ALL");
+    setFilterCategory("ALL");
+    setFilterPattern("ALL");
+    setFilterSection("ALL");
+    setFilterDifficulty("ALL");
+    setFilterPyq("ALL");
+    setFilterLanguage("ALL");
     setCurrentPage(1);
   };
 
-  // Filter & Search Logic
+  // ----------------------------------------------------
+  // Underline Formatter
+  // ----------------------------------------------------
+  const applyUnderline = (isEdit: boolean) => {
+    const ta = isEdit ? editTextareaRef.current : addTextareaRef.current;
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    if (start === end) {
+      alert("Please select the text first, then click Underline.");
+      return;
+    }
+    const val = ta.value;
+    const selected = val.substring(start, end);
+    const wrapped = `[[u]]${selected}[[/u]]`;
+    const newVal = val.substring(0, start) + wrapped + val.substring(end);
+    if (isEdit) {
+      setEditStatement(newVal);
+    } else {
+      setStatement(newVal);
+    }
+  };
+
+  // ----------------------------------------------------
+  // Image Upload Handlers
+  // ----------------------------------------------------
+  const handleImageUpload = async (file: File, target: "question" | "A" | "B" | "C" | "D" | "editQ") => {
+    setIsUploadingImg(true);
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("folder", target === "question" || target === "editQ" ? "questions" : "options");
+
+    const res = await uploadBulkImportImageAction(formData);
+    setIsUploadingImg(false);
+
+    if (res.error) {
+      alert("Image upload failed: " + res.error);
+      return;
+    }
+
+    if (res.url) {
+      if (target === "question") setQuestionImageUrl(res.url);
+      else if (target === "editQ") setEditImgUrl(res.url);
+      else if (target === "A") setOptAImg(res.url);
+      else if (target === "B") setOptBImg(res.url);
+      else if (target === "C") setOptCImg(res.url);
+      else if (target === "D") setOptDImg(res.url);
+    }
+  };
+
+  // ----------------------------------------------------
+  // Create Question Submission
+  // ----------------------------------------------------
+  const handleCreateQuestion = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formCategory || !statement || !correctAnswer) {
+      setActionFeedback({ type: "error", text: "Please fill Category, Question Text, and Correct Answer." });
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("statement", statement);
+    formData.append("topicId", formSection || (taxonomy.topics[0]?.id || ""));
+    formData.append("difficulty", difficulty);
+    formData.append("language", language);
+    formData.append("optionsType", optionsType);
+    if (questionImageUrl) formData.append("questionImageUrl", questionImageUrl);
+    formData.append("correctOptionKey", correctAnswer);
+    if (explanation) formData.append("explanation", explanation);
+    if (pyqSource) formData.append("pyqSource", pyqSource);
+    if (pyqYear) formData.append("pyqYear", pyqYear);
+
+    formData.append("optAText", optAText);
+    if (optAImg) formData.append("optAImg", optAImg);
+    formData.append("optBText", optBText);
+    if (optBImg) formData.append("optBImg", optBImg);
+    formData.append("optCText", optCText);
+    if (optCImg) formData.append("optCImg", optCImg);
+    formData.append("optDText", optDText);
+    if (optDImg) formData.append("optDImg", optDImg);
+
+    startTransition(async () => {
+      const res = await createQuestionHierarchyAction(null, formData);
+      if (res.error) {
+        setActionFeedback({ type: "error", text: res.error });
+      } else {
+        setActionFeedback({ type: "success", text: "✓ Question created successfully!" });
+        setStatement("");
+        setQuestionImageUrl("");
+        setOptAText("");
+        setOptAImg("");
+        setOptBText("");
+        setOptBImg("");
+        setOptCText("");
+        setOptCImg("");
+        setOptDText("");
+        setOptDImg("");
+        setExplanation("");
+        setPyqSource("");
+        setPyqYear("");
+      }
+    });
+  };
+
+  // ----------------------------------------------------
+  // Open Edit Modal
+  // ----------------------------------------------------
+  const openEditModal = (q: AdminQuestionHierarchyItem) => {
+    setEditingQuestion(q);
+    setEditStatement(q.statement || "");
+    setEditImgUrl(q.imageUrl || "");
+    const optA = q.options.find((o) => o.key === "A");
+    const optB = q.options.find((o) => o.key === "B");
+    const optC = q.options.find((o) => o.key === "C");
+    const optD = q.options.find((o) => o.key === "D");
+    setEditOptAText(optA?.text || "");
+    setEditOptBText(optB?.text || "");
+    setEditOptCText(optC?.text || "");
+    setEditOptDText(optD?.text || "");
+    setEditCorrectAnswer(q.correctOptionKey || "A");
+    setEditDifficulty(q.difficulty || "easy");
+    setEditPyqSource(q.pyqSource || "");
+    setEditPyqYear(q.pyqYear ? String(q.pyqYear) : "");
+    setEditLanguage(q.language || "english");
+    setEditExplanation(q.explanationMd || "");
+    setEditIsActive(q.status === "published");
+  };
+
+  const handleSaveEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingQuestion || !editStatement) return;
+
+    const formData = new FormData();
+    formData.append("questionId", editingQuestion.id);
+    formData.append("versionId", editingQuestion.versionId);
+    formData.append("statement", editStatement);
+    formData.append("topicId", editingQuestion.topicId || (taxonomy.topics[0]?.id || ""));
+    formData.append("difficulty", editDifficulty);
+    formData.append("language", editLanguage);
+    formData.append("optionsType", editingQuestion.optionsType || "text");
+    if (editImgUrl) formData.append("questionImageUrl", editImgUrl);
+    formData.append("correctOptionKey", editCorrectAnswer);
+    if (editExplanation) formData.append("explanation", editExplanation);
+    if (editPyqSource) formData.append("pyqSource", editPyqSource);
+    if (editPyqYear) formData.append("pyqYear", editPyqYear);
+
+    formData.append("optAText", editOptAText);
+    formData.append("optBText", editOptBText);
+    formData.append("optCText", editOptCText);
+    formData.append("optDText", editOptDText);
+
+    startTransition(async () => {
+      const res = await updateQuestionHierarchyAction(null, formData);
+      if (res.error) {
+        setActionFeedback({ type: "error", text: res.error });
+      } else {
+        setActionFeedback({ type: "success", text: "✓ Question updated successfully!" });
+        setEditingQuestion(null);
+      }
+    });
+  };
+
+  // ----------------------------------------------------
+  // Filter and Pagination Logic
+  // ----------------------------------------------------
   const filteredQuestions = useMemo(() => {
     return questions.filter((q) => {
-      // 1. Text Search
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase().trim();
         const matchesStatement = q.statement.toLowerCase().includes(query);
@@ -174,1135 +344,292 @@ export function AdminQuestionManager({
         }
       }
 
-      // 2. Category Filter
-      if (selectedCategory !== "ALL" && q.categoryName !== selectedCategory && q.categoryId !== selectedCategory) {
+      if (filterCategory !== "ALL") {
+        const matchesCat = q.categoryId === filterCategory || q.categoryName.toLowerCase() === filterCategory.toLowerCase();
+        if (!matchesCat) return false;
+      }
+
+      if (filterPattern !== "ALL") {
+        const matchesPat = q.patternId === filterPattern || q.patternName.toLowerCase() === filterPattern.toLowerCase();
+        if (!matchesPat) return false;
+      }
+
+      if (filterSection !== "ALL") {
+        const matchesSec = q.sectionId === filterSection || q.sectionName.toLowerCase() === filterSection.toLowerCase();
+        if (!matchesSec) return false;
+      }
+
+      if (filterDifficulty !== "ALL" && q.difficulty.toLowerCase() !== filterDifficulty.toLowerCase()) {
         return false;
       }
 
-      // 3. Pattern Filter
-      if (selectedPattern !== "ALL" && q.patternName !== selectedPattern && q.patternId !== selectedPattern) {
+      if (filterPyq === "pyq" && !q.isPyq && !q.pyqYear) {
         return false;
       }
 
-      // 4. Section Filter
-      if (selectedSection !== "ALL" && q.sectionName !== selectedSection && q.sectionId !== selectedSection) {
+      if (filterLanguage !== "ALL" && q.language.toLowerCase() !== filterLanguage.toLowerCase()) {
         return false;
-      }
-
-      // 5. Topic Filter
-      if (selectedTopic !== "ALL" && q.topicName !== selectedTopic && q.topicId !== selectedTopic) {
-        return false;
-      }
-
-      // 6. Difficulty Filter
-      if (selectedDifficulty !== "ALL" && q.difficulty !== selectedDifficulty.toLowerCase()) {
-        return false;
-      }
-
-      // 7. Language Filter
-      if (selectedLanguage !== "ALL" && q.language !== selectedLanguage) {
-        return false;
-      }
-
-      // 8. PYQ Filter
-      if (selectedPyq === "PYQ_ONLY" && !q.isPyq) return false;
-      if (selectedPyq === "NON_PYQ" && q.isPyq) return false;
-
-      // 9. Options Type Filter
-      if (selectedOptionsType !== "ALL" && q.optionsType !== selectedOptionsType.toLowerCase()) {
-        return false;
-      }
-
-      // 10. Status Filter
-      if (selectedStatus !== "ALL" && q.status !== selectedStatus.toLowerCase()) {
-        return false;
-      }
-
-      // 11. Mock Test Association Filter
-      if (selectedMockTest !== "ALL") {
-        const hasMock = q.mockTestAssociations.some((m) => m.mockTestTitle === selectedMockTest || m.mockTestId === selectedMockTest);
-        if (!hasMock) return false;
       }
 
       return true;
     });
-  }, [
-    questions,
-    searchQuery,
-    selectedCategory,
-    selectedPattern,
-    selectedSection,
-    selectedTopic,
-    selectedDifficulty,
-    selectedLanguage,
-    selectedPyq,
-    selectedOptionsType,
-    selectedStatus,
-    selectedMockTest,
-  ]);
+  }, [questions, searchQuery, filterCategory, filterPattern, filterSection, filterDifficulty, filterPyq, filterLanguage]);
 
-  // Paginated Questions
-  const totalPages = Math.max(1, Math.ceil(filteredQuestions.length / pageSize));
-  const paginatedQuestions = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filteredQuestions.slice(start, start + pageSize);
-  }, [filteredQuestions, currentPage, pageSize]);
+  const totalItems = filteredQuestions.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+  const validPage = Math.min(currentPage, totalPages);
+  const startIndex = (validPage - 1) * PAGE_SIZE;
+  const paginatedQuestions = filteredQuestions.slice(startIndex, startIndex + PAGE_SIZE);
 
-  // Handle Toggle Status Action
-  const handleToggleStatus = (questionId: string, currentStatus: string) => {
-    startTransition(async () => {
-      const res = await toggleQuestionStatusAction(questionId, currentStatus);
-      if (res.error) setFormFeedback({ error: res.error });
-      else setFormFeedback({ message: res.message });
-      setTimeout(() => setFormFeedback(null), 3000);
-    });
-  };
-
-  // Create Form State with Cascading
-  const [createSection, setCreateSection] = useState<string>("");
-  const [createOptionsType, setCreateOptionsType] = useState<string>("text");
-
-  const createAvailableTopics = useMemo(() => {
-    if (!createSection) return taxonomy.topics;
-    return taxonomy.topics.filter((t) => t.subjectId === createSection);
-  }, [createSection, taxonomy.topics]);
-
-  const breadcrumbItems = useMemo(() => {
-    const items: Array<{ label: string; href?: string; active?: boolean }> = [
-      { label: "Mock Test Management", href: "/admin/mock-tests-management" },
-      { label: "Categories", href: "/admin/categories" },
-    ];
-    if (selectedCategory !== "ALL") {
-      items.push({ label: selectedCategory, href: `/admin/patterns?category=${encodeURIComponent(selectedCategory)}` });
-    }
-    if (selectedPattern !== "ALL") {
-      items.push({ label: selectedPattern, href: `/admin/sections?pattern=${encodeURIComponent(selectedPattern)}` });
-    }
-    if (selectedSection !== "ALL") {
-      items.push({ label: selectedSection, href: `/admin/questions?section=${encodeURIComponent(selectedSection)}` });
-    }
-    if (selectedTopic !== "ALL") {
-      items.push({ label: selectedTopic, href: `/admin/questions?section=${encodeURIComponent(selectedSection)}&topic=${encodeURIComponent(selectedTopic)}` });
-    }
-    items.push({ label: "Questions", active: true });
-    return items;
-  }, [selectedCategory, selectedPattern, selectedSection, selectedTopic]);
+  const breadcrumbs = [
+    { label: "Mock Test Management", href: "/admin/mock-tests-management" },
+    { label: "Categories", href: "/admin/categories" },
+    { label: "Question Bank", active: true },
+  ];
 
   return (
-    <div className="space-y-6 max-w-7xl pb-12">
-      {/* Dynamic Hierarchy Breadcrumbs */}
-      <AdminBreadcrumbs items={breadcrumbItems} />
+    <div className="space-y-6 max-w-7xl pb-16">
+      {/* Breadcrumbs */}
+      <AdminBreadcrumbs items={breadcrumbs} />
 
-      {/* Header & Global Actions */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-            <HelpCircle className="w-6 h-6 text-blue-600" /> Question Bank CMS &amp; Hierarchy
+            <HelpCircle className="w-7 h-7 text-indigo-600" /> Question Bank Manager
           </h1>
           <p className="text-xs text-slate-500 font-medium mt-0.5">
-            Manage questions with Category &rarr; Pattern &rarr; Section &rarr; Topic &rarr; Schedule hierarchy.
+            Add and manage mock test questions with diagrams, options types, PYQ metadata, and bilingual support.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowBulkImport(true)}
-            className="font-bold border-indigo-200 text-indigo-700 hover:bg-indigo-50 cursor-pointer"
-          >
-            <FileUp className="w-4 h-4 mr-1.5" /> Bulk Import
-          </Button>
-          <Button
-            variant="default"
-            size="sm"
-            onClick={() => {
-              setShowCreate(true);
-              setEditingQuestion(null);
-            }}
-            className="font-bold bg-blue-600 hover:bg-blue-700 shadow-xs cursor-pointer"
-          >
-            <Plus className="w-4 h-4 mr-1.5" /> Add Question
-          </Button>
-        </div>
       </div>
 
-      {/* Global Form Notification */}
-      {formFeedback?.error && (
-        <Alert variant="error" className="animate-in fade-in">
-          {formFeedback.error}
-        </Alert>
-      )}
-      {formFeedback?.message && (
-        <Alert variant="success" className="animate-in fade-in">
-          {formFeedback.message}
+      {/* Feedback Alerts */}
+      {actionFeedback && (
+        <Alert variant={actionFeedback.type === "success" ? "success" : "error"}>
+          {actionFeedback.text}
         </Alert>
       )}
 
-      {/* Summary KPI Statistics Banner */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        <Card className="p-4 bg-white border-slate-200">
-          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
-            Total Questions
-          </span>
-          <p className="text-2xl font-black text-slate-900 mt-1">{kpis.totalQuestions}</p>
-          <span className="text-[10px] text-slate-400 font-medium">In database</span>
-        </Card>
-
-        <Card className="p-4 bg-emerald-50/60 border-emerald-200">
-          <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider font-mono">
-            Active / Live
-          </span>
-          <p className="text-2xl font-black text-emerald-900 mt-1">{kpis.activeQuestions}</p>
-          <span className="text-[10px] text-emerald-700 font-medium">Published</span>
-        </Card>
-
-        <Card className="p-4 bg-blue-50/60 border-blue-200">
-          <span className="text-[11px] font-bold text-blue-800 uppercase tracking-wider font-mono">
-            PYQ Questions
-          </span>
-          <p className="text-2xl font-black text-blue-900 mt-1">{kpis.pyqQuestions}</p>
-          <span className="text-[10px] text-blue-700 font-medium">Previous Year</span>
-        </Card>
-
-        <Card className="p-4 bg-amber-50/60 border-amber-200">
-          <span className="text-[11px] font-bold text-amber-800 uppercase tracking-wider font-mono">
-            Image Questions
-          </span>
-          <p className="text-2xl font-black text-amber-900 mt-1">{kpis.imageQuestions}</p>
-          <span className="text-[10px] text-amber-700 font-medium">Diagrams/Images</span>
-        </Card>
-
-        <Card className="p-4 bg-rose-50/60 border-rose-200">
-          <span className="text-[11px] font-bold text-rose-800 uppercase tracking-wider font-mono">
-            Unassigned
-          </span>
-          <p className="text-2xl font-black text-rose-900 mt-1">{kpis.unassignedQuestions}</p>
-          <span className="text-[10px] text-rose-700 font-medium">Missing topic/section</span>
-        </Card>
-      </div>
-
-      {/* Secondary Hierarchy Badges */}
-      <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-        <span className="font-bold text-slate-800 flex items-center gap-1">
-          <Layers className="w-3.5 h-3.5 text-blue-600" /> Hierarchy:
-        </span>
-        <Badge variant="outline" className="bg-white">
-          {kpis.totalExams} Categories
-        </Badge>
-        <Badge variant="outline" className="bg-white">
-          {kpis.totalPatterns} Patterns
-        </Badge>
-        <Badge variant="outline" className="bg-white">
-          {kpis.totalSections} Sections
-        </Badge>
-        <Badge variant="outline" className="bg-white">
-          {kpis.totalTopics} Topics
-        </Badge>
-      </div>
-
-      {/* Practical Cascading Filters & Search Bar */}
-      <Card className="p-4 bg-white border-slate-200 space-y-3">
-        <div className="flex flex-col sm:flex-row items-center gap-3">
-          {/* Search Input */}
-          <div className="relative flex-1 w-full">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(1);
-              }}
-              placeholder="Search by question text, topic, section, category, or PYQ source..."
-              className="w-full pl-9 pr-3 py-2 text-xs font-medium rounded-xl border border-slate-200 focus:outline-hidden focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-slate-50/50"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleResetFilters}
-            className="text-xs text-slate-500 hover:text-slate-900 cursor-pointer shrink-0"
-          >
-            <RotateCcw className="w-3.5 h-3.5 mr-1" /> Reset Filters
-          </Button>
-        </div>
-
-        {/* Dependent Filter Dropdowns */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2 pt-1">
-          {/* 1. Category */}
-          <div>
-            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-              Category
-            </label>
-            <select
-              value={selectedCategory}
-              onChange={(e) => handleCategoryChange(e.target.value)}
-              className="w-full p-1.5 text-xs font-semibold rounded-lg border border-slate-200 bg-white"
-            >
-              <option value="ALL">All Categories</option>
-              {taxonomy.exams.map((e) => (
-                <option key={e.id} value={e.title}>
-                  {e.title}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* 2. Pattern (Cascading) */}
-          <div>
-            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-              Pattern
-            </label>
-            <select
-              value={selectedPattern}
-              onChange={(e) => {
-                setSelectedPattern(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full p-1.5 text-xs font-semibold rounded-lg border border-slate-200 bg-white"
-            >
-              <option value="ALL">All Patterns</option>
-              {availablePatterns.map((p) => (
-                <option key={p.id} value={p.name}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* 3. Section (Subject) */}
-          <div>
-            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-              Section
-            </label>
-            <select
-              value={selectedSection}
-              onChange={(e) => handleSectionChange(e.target.value)}
-              className="w-full p-1.5 text-xs font-semibold rounded-lg border border-slate-200 bg-white"
-            >
-              <option value="ALL">All Sections</option>
-              {taxonomy.subjects.map((s) => (
-                <option key={s.id} value={s.name}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* 4. Topic (Cascading) */}
-          <div>
-            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-              Topic
-            </label>
-            <select
-              value={selectedTopic}
-              onChange={(e) => {
-                setSelectedTopic(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full p-1.5 text-xs font-semibold rounded-lg border border-slate-200 bg-white"
-            >
-              <option value="ALL">All Topics</option>
-              {availableTopics.map((t) => (
-                <option key={t.id} value={t.name}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* 5. Difficulty */}
-          <div>
-            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-              Difficulty
-            </label>
-            <select
-              value={selectedDifficulty}
-              onChange={(e) => {
-                setSelectedDifficulty(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full p-1.5 text-xs font-semibold rounded-lg border border-slate-200 bg-white"
-            >
-              <option value="ALL">All Difficulties</option>
-              <option value="EASY">Easy</option>
-              <option value="MEDIUM">Medium</option>
-              <option value="HARD">Hard</option>
-            </select>
-          </div>
-
-          {/* 6. PYQ Filter */}
-          <div>
-            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-              PYQ Status
-            </label>
-            <select
-              value={selectedPyq}
-              onChange={(e) => {
-                setSelectedPyq(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full p-1.5 text-xs font-semibold rounded-lg border border-slate-200 bg-white"
-            >
-              <option value="ALL">All Questions</option>
-              <option value="PYQ_ONLY">PYQ Only</option>
-              <option value="NON_PYQ">Non-PYQ Only</option>
-            </select>
-          </div>
-        </div>
-      </Card>
-
-      {/* Main Question Management Table */}
-      <Card className="p-0 border-slate-200 bg-white overflow-hidden shadow-xs">
-        <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-900">
-              Showing {filteredQuestions.length} Question{filteredQuestions.length === 1 ? "" : "s"}
-            </span>
-            {filteredQuestions.length !== questions.length && (
-              <Badge variant="neutral" className="text-[10px]">
-                Filtered from {questions.length}
-              </Badge>
-            )}
-          </div>
-          <span className="text-[11px] text-slate-400 font-mono">
-            Page {currentPage} of {totalPages}
-          </span>
-        </div>
-
-        {filteredQuestions.length === 0 ? (
-          <div className="py-16 text-center space-y-3">
-            <HelpCircle className="w-10 h-10 mx-auto text-slate-300" />
-            <h3 className="text-sm font-bold text-slate-700">No Questions Match Current Filters</h3>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              Try adjusting your search criteria or click &quot;Reset Filters&quot; to view all questions.
-            </p>
-            <Button variant="outline" size="sm" onClick={handleResetFilters} className="font-bold text-xs">
-              Reset Filters
-            </Button>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/80 text-slate-500 font-mono text-[11px]">
-                  <th className="py-3 px-4 font-bold">CATEGORY</th>
-                  <th className="py-3 px-3 font-bold">SECTION &amp; TOPIC</th>
-                  <th className="py-3 px-3 font-bold min-w-[280px]">QUESTION STATEMENT</th>
-                  <th className="py-3 px-3 font-bold">DIFFICULTY</th>
-                  <th className="py-3 px-3 font-bold">PYQ</th>
-                  <th className="py-3 px-3 font-bold">MOCK / SCHED</th>
-                  <th className="py-3 px-3 font-bold">STATUS</th>
-                  <th className="py-3 px-4 font-bold text-right">ACTIONS</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 font-medium">
-                {paginatedQuestions.map((q) => {
-                  return (
-                    <tr
-                      key={q.id}
-                      className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
-                      onClick={() => setSelectedDetailQuestion(q)}
-                    >
-                      {/* Category */}
-                      <td className="py-3 px-4">
-                        <span className="font-bold text-slate-900 block truncate max-w-[130px]">
-                          {q.categoryName}
-                        </span>
-                        <span className="text-[10px] text-slate-400 block truncate max-w-[130px]">
-                          {q.patternName}
-                        </span>
-                      </td>
-
-                      {/* Section & Topic */}
-                      <td className="py-3 px-3">
-                        <span
-                          className={`font-semibold block truncate max-w-[160px] ${
-                            q.sectionName === "Unassigned" ? "text-rose-600 italic" : "text-slate-800"
-                          }`}
-                        >
-                          {q.sectionName}
-                        </span>
-                        <span
-                          className={`text-[10px] block truncate max-w-[160px] ${
-                            q.topicName === "Unassigned" ? "text-rose-500 italic" : "text-slate-500"
-                          }`}
-                        >
-                          {q.topicName}
-                        </span>
-                      </td>
-
-                      {/* Question Statement */}
-                      <td className="py-3 px-3">
-                        <div className="flex items-start gap-1.5">
-                          {q.imageUrl && (
-                            <span title="Contains diagram or image">
-                              <ImageIcon className="w-3.5 h-3.5 text-blue-500 shrink-0 mt-0.5" />
-                            </span>
-                          )}
-                          <p className="text-slate-900 font-medium line-clamp-2 max-w-md leading-relaxed">
-                            {q.statement}
-                          </p>
-                        </div>
-                      </td>
-
-                      {/* Difficulty */}
-                      <td className="py-3 px-3">
-                        <Badge
-                          variant={
-                            q.difficulty === "easy"
-                              ? "success"
-                              : q.difficulty === "hard"
-                              ? "error"
-                              : "warning"
-                          }
-                          className="text-[10px] uppercase font-bold"
-                        >
-                          {q.difficulty}
-                        </Badge>
-                      </td>
-
-                      {/* PYQ */}
-                      <td className="py-3 px-3">
-                        {q.isPyq ? (
-                          <Badge variant="indigo" className="text-[10px] font-semibold whitespace-nowrap">
-                            {q.pyqYear ? `${q.pyqYear} • ` : ""}
-                            {q.pyqSource || "PYQ"}
-                          </Badge>
-                        ) : (
-                          <span className="text-slate-400 text-[11px]">Non-PYQ</span>
-                        )}
-                      </td>
-
-                      {/* Mock Test Association */}
-                      <td className="py-3 px-3">
-                        {q.mockTestAssociations.length > 0 ? (
-                          <Badge variant="outline" className="text-[10px] text-blue-700 bg-blue-50/60 border-blue-200">
-                            {q.mockTestAssociations[0].mockTestTitle}
-                          </Badge>
-                        ) : (
-                          <span className="text-slate-400 text-[11px]">—</span>
-                        )}
-                      </td>
-
-                      {/* Status */}
-                      <td className="py-3 px-3">
-                        <Badge
-                          variant={q.status === "published" ? "success" : "neutral"}
-                          className="text-[10px] uppercase font-bold"
-                        >
-                          {q.status === "published" ? "ACTIVE" : "DRAFT"}
-                        </Badge>
-                      </td>
-
-                      {/* Actions */}
-                      <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            type="button"
-                            title="View Question Details"
-                            onClick={() => setSelectedDetailQuestion(q)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition cursor-pointer"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            title="Edit Question"
-                            onClick={() => {
-                              setEditingQuestion(q);
-                              setShowCreate(false);
-                            }}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition cursor-pointer"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            title={q.status === "published" ? "Deactivate Question" : "Activate Question"}
-                            onClick={() => handleToggleStatus(q.id, q.status)}
-                            disabled={isPending}
-                            className={`p-1.5 rounded-lg transition cursor-pointer ${
-                              q.status === "published"
-                                ? "text-slate-400 hover:text-red-600 hover:bg-red-50"
-                                : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
-                            }`}
-                          >
-                            <Power className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* Pagination Footer */}
-        {filteredQuestions.length > pageSize && (
-          <div className="p-4 border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
-            <span className="text-xs text-slate-500 font-medium">
-              Showing {(currentPage - 1) * pageSize + 1} to{" "}
-              {Math.min(currentPage * pageSize, filteredQuestions.length)} of {filteredQuestions.length} questions
-            </span>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                className="text-xs font-bold"
-              >
-                <ChevronLeft className="w-3.5 h-3.5 mr-1" /> Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={currentPage >= totalPages}
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                className="text-xs font-bold"
-              >
-                Next <ChevronRight className="w-3.5 h-3.5 ml-1" />
-              </Button>
-            </div>
-          </div>
-        )}
-      </Card>
-
-      {/* QUESTION DETAIL MODAL / DRAWER */}
-      {selectedDetailQuestion && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-white max-w-3xl w-full rounded-2xl shadow-2xl border border-slate-200 overflow-hidden max-h-[90vh] flex flex-col">
-            {/* Modal Header */}
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
-              <div className="flex items-center gap-2">
-                <Badge variant="indigo" className="text-xs font-bold">
-                  {selectedDetailQuestion.categoryName}
-                </Badge>
-                <span className="text-xs text-slate-400 font-mono">&rarr;</span>
-                <span className="text-xs font-bold text-slate-700">{selectedDetailQuestion.sectionName}</span>
-                <span className="text-xs text-slate-400 font-mono">&rarr;</span>
-                <span className="text-xs font-semibold text-slate-600">{selectedDetailQuestion.topicName}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedDetailQuestion(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
+      {/* TWO COLUMN WORKSPACE */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* LEFT COLUMN: Add New Question Form */}
+        <div className="lg:col-span-5 space-y-4">
+          <Card className="p-6 bg-white border-slate-200 shadow-sm border-l-4 border-l-blue-500 space-y-4">
+            <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+              <PlusCircle className="w-5 h-5 text-blue-600" />
+              <h2 className="text-base font-black text-slate-900">Add New Question</h2>
             </div>
 
-            {/* Modal Content Viewport */}
-            <div className="p-6 overflow-y-auto space-y-6 flex-1">
-              {/* Question Statement */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-400 font-mono uppercase tracking-wider">
-                    Question Statement
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-[10px] font-bold uppercase">
-                      {selectedDetailQuestion.difficulty}
-                    </Badge>
-                    <Badge variant="neutral" className="text-[10px]">
-                      {selectedDetailQuestion.language}
-                    </Badge>
-                  </div>
-                </div>
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-sm font-semibold text-slate-900 leading-relaxed whitespace-pre-wrap">
-                  {selectedDetailQuestion.statement}
-                </div>
-                {/* Render Question Diagram/Image if present */}
-                {selectedDetailQuestion.imageUrl && (
-                  <div className="p-2 border border-slate-200 rounded-xl bg-white max-w-md">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={selectedDetailQuestion.imageUrl}
-                      alt="Question Diagram"
-                      className="max-h-64 rounded-lg mx-auto object-contain"
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Options Grid */}
-              <div className="space-y-2">
-                <span className="text-xs font-bold text-slate-400 font-mono uppercase tracking-wider">
-                  Options &amp; Correct Answer
-                </span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {selectedDetailQuestion.options.map((opt) => {
-                    const isCorrect = opt.key === selectedDetailQuestion.correctOptionKey;
-                    return (
-                      <div
-                        key={opt.key}
-                        className={`p-3 rounded-xl border flex items-start gap-3 transition-colors ${
-                          isCorrect
-                            ? "bg-emerald-50 border-emerald-300 ring-2 ring-emerald-400/20"
-                            : "bg-white border-slate-200 text-slate-700"
-                        }`}
-                      >
-                        <span
-                          className={`w-6 h-6 rounded-lg text-xs font-black flex items-center justify-center shrink-0 ${
-                            isCorrect ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-600"
-                          }`}
-                        >
-                          {opt.key}
-                        </span>
-                        <div className="text-xs font-medium pt-0.5 leading-relaxed">
-                          {opt.text}
-                          {opt.imageUrl && (
-                            /* eslint-disable-next-line @next/next/no-img-element */
-                            <img src={opt.imageUrl} alt={`Option ${opt.key}`} className="mt-1 max-h-20 rounded" />
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Explanation / Solution */}
-              <div className="space-y-2">
-                <span className="text-xs font-bold text-slate-400 font-mono uppercase tracking-wider">
-                  Solution Explanation
-                </span>
-                <div className="p-4 rounded-xl bg-blue-50/50 border border-blue-200 text-xs font-medium text-slate-800 leading-relaxed whitespace-pre-wrap">
-                  {selectedDetailQuestion.explanationMd}
-                </div>
-              </div>
-
-              {/* Mock Test Associations */}
-              {selectedDetailQuestion.mockTestAssociations.length > 0 && (
-                <div className="space-y-2">
-                  <span className="text-xs font-bold text-slate-400 font-mono uppercase tracking-wider">
-                    Mock Test &amp; Schedule Associations
-                  </span>
-                  <div className="space-y-1.5">
-                    {selectedDetailQuestion.mockTestAssociations.map((m) => (
-                      <div
-                        key={m.mockTestId}
-                        className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-xs flex items-center justify-between"
-                      >
-                        <span className="font-bold text-slate-900">{m.mockTestTitle}</span>
-                        <span className="text-slate-500 font-medium">
-                          Section: {m.sectionName} (Q#{m.questionOrder})
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Modal Footer Actions */}
-            <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
-              <span className="text-[11px] text-slate-400 font-mono">
-                ID: {selectedDetailQuestion.id.slice(0, 8)}...
-              </span>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const toEdit = selectedDetailQuestion;
-                    setSelectedDetailQuestion(null);
-                    setEditingQuestion(toEdit);
-                  }}
-                  className="font-bold text-xs"
-                >
-                  <Edit2 className="w-3.5 h-3.5 mr-1" /> Edit Question
-                </Button>
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() => setSelectedDetailQuestion(null)}
-                  className="font-bold text-xs"
-                >
-                  Close
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* CREATE QUESTION MODAL */}
-      {showCreate && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-white max-w-2xl w-full rounded-2xl shadow-2xl border border-slate-200 overflow-hidden max-h-[90vh] flex flex-col">
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-blue-50/50">
-              <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
-                <Plus className="w-5 h-5 text-blue-600" /> Create New Question
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowCreate(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form
-              action={(formData) => {
-                startTransition(async () => {
-                  const res = await createQuestionHierarchyAction(null, formData);
-                  if (res.error) setFormFeedback({ error: res.error });
-                  else {
-                    setFormFeedback({ message: res.message });
-                    setShowCreate(false);
-                  }
-                  setTimeout(() => setFormFeedback(null), 3000);
-                });
-              }}
-              className="p-6 overflow-y-auto space-y-4 flex-1"
-            >
-              {/* Cascading Taxonomy Section */}
-              <div className="grid grid-cols-2 gap-3 p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Section / Subject</label>
-                  <select
-                    value={createSection}
-                    onChange={(e) => setCreateSection(e.target.value)}
-                    className="w-full p-2 text-xs font-semibold rounded-lg border border-slate-200 bg-white"
-                  >
-                    <option value="">Select Section</option>
-                    {taxonomy.subjects.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Canonical Topic</label>
-                  <select
-                    name="topicId"
-                    className="w-full p-2 text-xs font-semibold rounded-lg border border-slate-200 bg-white"
-                    required
-                  >
-                    <option value="">Select Topic</option>
-                    {createAvailableTopics.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Statement */}
+            <form onSubmit={handleCreateQuestion} className="space-y-4">
+              {/* Category / Pattern / Section Cascading Dropdowns */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Question Statement</label>
-                <textarea
-                  name="statement"
-                  rows={3}
-                  placeholder="Enter complete question statement..."
-                  required
-                  className="w-full p-3 text-xs font-medium rounded-xl border border-slate-200 focus:outline-hidden focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white"
-                />
-              </div>
-
-              {/* Options Type & Image */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Question Diagram / Image URL</label>
-                  <input
-                    type="url"
-                    name="questionImageUrl"
-                    placeholder="https://..."
-                    className="w-full p-2 text-xs font-medium rounded-lg border border-slate-200 bg-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Options Type</label>
-                  <select
-                    name="optionsType"
-                    value={createOptionsType}
-                    onChange={(e) => setCreateOptionsType(e.target.value)}
-                    className="w-full p-2 text-xs font-semibold rounded-lg border border-slate-200 bg-white"
-                  >
-                    <option value="text">Text Options</option>
-                    <option value="image">Image Options</option>
-                    <option value="mixed">Mixed Options</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Options A - D */}
-              <div className="space-y-2">
-                <label className="block text-xs font-bold text-slate-700">Options (A, B, C, D)</label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-bold text-slate-500">Option A</span>
-                    <input
-                      type="text"
-                      name="optAText"
-                      placeholder="Option A Text"
-                      required
-                      className="w-full p-2 text-xs rounded-lg border border-slate-200"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-bold text-slate-500">Option B</span>
-                    <input
-                      type="text"
-                      name="optBText"
-                      placeholder="Option B Text"
-                      required
-                      className="w-full p-2 text-xs rounded-lg border border-slate-200"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-bold text-slate-500">Option C</span>
-                    <input
-                      type="text"
-                      name="optCText"
-                      placeholder="Option C Text"
-                      required
-                      className="w-full p-2 text-xs rounded-lg border border-slate-200"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-bold text-slate-500">Option D</span>
-                    <input
-                      type="text"
-                      name="optDText"
-                      placeholder="Option D Text"
-                      required
-                      className="w-full p-2 text-xs rounded-lg border border-slate-200"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Correct Option & Difficulty */}
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Correct Answer</label>
-                  <select
-                    name="correctOptionKey"
-                    className="w-full p-2 text-xs font-bold rounded-lg border border-slate-200 bg-white"
-                  >
-                    <option value="A">Option A</option>
-                    <option value="B">Option B</option>
-                    <option value="C">Option C</option>
-                    <option value="D">Option D</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Difficulty</label>
-                  <select
-                    name="difficulty"
-                    defaultValue="medium"
-                    className="w-full p-2 text-xs font-semibold rounded-lg border border-slate-200 bg-white"
-                  >
-                    <option value="easy">Easy</option>
-                    <option value="medium">Medium</option>
-                    <option value="hard">Hard</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Language</label>
-                  <select
-                    name="language"
-                    defaultValue="hi"
-                    className="w-full p-2 text-xs font-semibold rounded-lg border border-slate-200 bg-white"
-                  >
-                    <option value="hi">Hindi</option>
-                    <option value="en">English</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Explanation */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Solution Explanation</label>
-                <textarea
-                  name="explanation"
-                  rows={2}
-                  placeholder="Detailed rationale or step-by-step solution..."
-                  className="w-full p-3 text-xs font-medium rounded-xl border border-slate-200 bg-white"
-                />
-              </div>
-
-              {/* PYQ Metadata */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">PYQ Year (Optional)</label>
-                  <input
-                    type="number"
-                    name="pyqYear"
-                    placeholder="e.g. 2024"
-                    className="w-full p-2 text-xs rounded-lg border border-slate-200"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">PYQ Source / Exam</label>
-                  <input
-                    type="text"
-                    name="pyqSource"
-                    placeholder="e.g. SSC CGL / UPP"
-                    className="w-full p-2 text-xs rounded-lg border border-slate-200"
-                  />
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-                <Button type="button" variant="outline" size="sm" onClick={() => setShowCreate(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" variant="default" size="sm" isLoading={isPending} className="font-bold bg-blue-600">
-                  Save &amp; Publish Question
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* EDIT QUESTION MODAL */}
-      {editingQuestion && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-white max-w-2xl w-full rounded-2xl shadow-2xl border border-slate-200 overflow-hidden max-h-[90vh] flex flex-col">
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-amber-50/50">
-              <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
-                <Edit2 className="w-5 h-5 text-amber-600" /> Edit Question (ID: {editingQuestion.id.slice(0, 8)})
-              </h3>
-              <button
-                type="button"
-                onClick={() => setEditingQuestion(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form
-              action={(formData) => {
-                startTransition(async () => {
-                  const res = await updateQuestionHierarchyAction(null, formData);
-                  if (res.error) setFormFeedback({ error: res.error });
-                  else {
-                    setFormFeedback({ message: res.message });
-                    setEditingQuestion(null);
-                  }
-                  setTimeout(() => setFormFeedback(null), 3000);
-                });
-              }}
-              className="p-6 overflow-y-auto space-y-4 flex-1"
-            >
-              <input type="hidden" name="questionId" value={editingQuestion.id} />
-              <input type="hidden" name="versionId" value={editingQuestion.versionId} />
-
-              {/* Topic Selector */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Canonical Topic</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Category <span className="text-rose-500">*</span>
+                </label>
                 <select
-                  name="topicId"
-                  defaultValue={editingQuestion.topicId || ""}
-                  className="w-full p-2 text-xs font-semibold rounded-lg border border-slate-200 bg-white"
+                  value={formCategory}
+                  onChange={(e) => handleFormCategoryChange(e.target.value)}
+                  className="w-full px-3 py-2.5 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-blue-500"
+                  required
                 >
-                  <option value="">Unassigned</option>
-                  {taxonomy.topics.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
+                  <option value="">— Select Category —</option>
+                  {taxonomy.exams.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.title}
                     </option>
                   ))}
                 </select>
               </div>
 
-              {/* Statement */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Question Statement</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Exam Pattern</label>
+                <select
+                  value={formPattern}
+                  onChange={(e) => handleFormPatternChange(e.target.value)}
+                  className="w-full px-3 py-2.5 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-blue-500"
+                >
+                  <option value="">— Select Pattern —</option>
+                  {availablePatternsForForm.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Section</label>
+                <select
+                  value={formSection}
+                  onChange={(e) => setFormSection(e.target.value)}
+                  className="w-full px-3 py-2.5 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-blue-500"
+                >
+                  <option value="">— Select Section —</option>
+                  {taxonomy.subjects.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Question Text with Underline Helper */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-slate-700">
+                    Question Text <span className="text-rose-500">*</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => applyUnderline(false)}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-bold border border-slate-200 rounded-md bg-slate-50 hover:bg-blue-50 text-slate-700 hover:text-blue-600 transition"
+                  >
+                    <Underline className="w-3 h-3" /> Underline Selection
+                  </button>
+                </div>
                 <textarea
-                  name="statement"
+                  ref={addTextareaRef}
+                  value={statement}
+                  onChange={(e) => setStatement(e.target.value)}
+                  placeholder="Enter question statement... (supports [[u]]underline[[/u]])"
                   rows={3}
-                  defaultValue={editingQuestion.statement}
+                  className="w-full px-3 py-2.5 text-xs font-mono rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-hidden focus:border-blue-500 resize-none"
                   required
-                  className="w-full p-3 text-xs font-medium rounded-xl border border-slate-200 bg-white"
                 />
               </div>
 
-              {/* Image URL */}
+              {/* Question Figure Image (Optional) */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Question Image URL</label>
-                <input
-                  type="url"
-                  name="questionImageUrl"
-                  defaultValue={editingQuestion.imageUrl || ""}
-                  placeholder="https://..."
-                  className="w-full p-2 text-xs font-medium rounded-lg border border-slate-200 bg-white"
-                />
-              </div>
-
-              {/* Options */}
-              <div className="space-y-2">
-                <label className="block text-xs font-bold text-slate-700">Options (A, B, C, D)</label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-bold text-slate-500">Option A</span>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Question Figure <span className="text-slate-400 font-normal">(optional diagram)</span>
+                </label>
+                <div className="flex items-center gap-3">
+                  <label className="flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border-2 border-dashed border-blue-200 bg-blue-50/50 hover:bg-blue-50 cursor-pointer text-xs font-semibold text-blue-700 transition">
+                    <Upload className="w-4 h-4" />
+                    <span>{questionImageUrl ? "✓ Figure Uploaded" : "Upload Diagram Image"}</span>
                     <input
-                      type="text"
-                      name="optAText"
-                      defaultValue={editingQuestion.options.find((o) => o.key === "A")?.text || ""}
-                      className="w-full p-2 text-xs rounded-lg border border-slate-200"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleImageUpload(file, "question");
+                      }}
                     />
-                  </div>
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-bold text-slate-500">Option B</span>
-                    <input
-                      type="text"
-                      name="optBText"
-                      defaultValue={editingQuestion.options.find((o) => o.key === "B")?.text || ""}
-                      className="w-full p-2 text-xs rounded-lg border border-slate-200"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-bold text-slate-500">Option C</span>
-                    <input
-                      type="text"
-                      name="optCText"
-                      defaultValue={editingQuestion.options.find((o) => o.key === "C")?.text || ""}
-                      className="w-full p-2 text-xs rounded-lg border border-slate-200"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-bold text-slate-500">Option D</span>
-                    <input
-                      type="text"
-                      name="optDText"
-                      defaultValue={editingQuestion.options.find((o) => o.key === "D")?.text || ""}
-                      className="w-full p-2 text-xs rounded-lg border border-slate-200"
-                    />
-                  </div>
+                  </label>
+                  {questionImageUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setQuestionImageUrl("")}
+                      className="text-xs text-rose-500 hover:underline shrink-0"
+                    >
+                      ✕ Remove
+                    </button>
+                  )}
                 </div>
               </div>
 
-              {/* Correct Option & Difficulty */}
-              <div className="grid grid-cols-3 gap-3">
+              {/* Options Type Selector */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Options Type</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setOptionsType("text")}
+                    className={`py-2 text-xs font-bold rounded-xl border transition ${
+                      optionsType === "text"
+                        ? "bg-blue-50 text-blue-700 border-blue-500"
+                        : "bg-white text-slate-600 border-slate-200"
+                    }`}
+                  >
+                    Text
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setOptionsType("image")}
+                    className={`py-2 text-xs font-bold rounded-xl border transition ${
+                      optionsType === "image"
+                        ? "bg-blue-50 text-blue-700 border-blue-500"
+                        : "bg-white text-slate-600 border-slate-200"
+                    }`}
+                  >
+                    Images
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setOptionsType("mixed")}
+                    className={`py-2 text-xs font-bold rounded-xl border transition ${
+                      optionsType === "mixed"
+                        ? "bg-blue-50 text-blue-700 border-blue-500"
+                        : "bg-white text-slate-600 border-slate-200"
+                    }`}
+                  >
+                    Mixed
+                  </button>
+                </div>
+              </div>
+
+              {/* Options A-D Container */}
+              <div className="space-y-3">
+                {[
+                  { key: "A", text: optAText, setText: setOptAText, img: optAImg, setImg: setOptAImg, color: "text-emerald-700" },
+                  { key: "B", text: optBText, setText: setOptBText, img: optBImg, setImg: setOptBImg, color: "text-blue-700" },
+                  { key: "C", text: optCText, setText: setOptCText, img: optCImg, setImg: setOptCImg, color: "text-purple-700" },
+                  { key: "D", text: optDText, setText: setOptDText, img: optDImg, setImg: setOptDImg, color: "text-amber-700" },
+                ].map((opt) => (
+                  <div key={opt.key} className="p-3 rounded-xl border border-slate-200 bg-white space-y-2">
+                    <label className={`block text-xs font-bold ${opt.color}`}>Option {opt.key}</label>
+                    {(optionsType === "text" || optionsType === "mixed") && (
+                      <input
+                        type="text"
+                        value={opt.text}
+                        onChange={(e) => opt.setText(e.target.value)}
+                        placeholder={`Option ${opt.key} text`}
+                        className="w-full px-3 py-2 text-xs font-semibold rounded-lg border border-slate-200 bg-white focus:outline-hidden focus:border-blue-500"
+                      />
+                    )}
+                    {(optionsType === "image" || optionsType === "mixed") && (
+                      <div className="flex items-center gap-2">
+                        <label className="flex-1 flex items-center justify-center gap-1.5 p-2 rounded-lg border border-dashed border-slate-200 bg-slate-50 hover:bg-blue-50 cursor-pointer text-xs font-medium text-slate-600">
+                          <Upload className="w-3.5 h-3.5" />
+                          <span>{opt.img ? `✓ Image for Option ${opt.key}` : `Upload Image ${opt.key}`}</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleImageUpload(file, opt.key as "A" | "B" | "C" | "D");
+                            }}
+                          />
+                        </label>
+                        {opt.img && (
+                          <button
+                            type="button"
+                            onClick={() => opt.setImg("")}
+                            className="text-xs text-rose-500 hover:underline"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Correct Answer & Difficulty */}
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Correct Answer</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Correct Answer <span className="text-rose-500">*</span>
+                  </label>
                   <select
-                    name="correctOptionKey"
-                    defaultValue={editingQuestion.correctOptionKey}
-                    className="w-full p-2 text-xs font-bold rounded-lg border border-slate-200 bg-white"
+                    value={correctAnswer}
+                    onChange={(e) => setCorrectAnswer(e.target.value)}
+                    className="w-full px-3 py-2.5 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-blue-500"
+                    required
                   >
                     <option value="A">Option A</option>
                     <option value="B">Option B</option>
@@ -1313,56 +640,555 @@ export function AdminQuestionManager({
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Difficulty</label>
                   <select
-                    name="difficulty"
-                    defaultValue={editingQuestion.difficulty}
-                    className="w-full p-2 text-xs font-semibold rounded-lg border border-slate-200 bg-white"
+                    value={difficulty}
+                    onChange={(e) => setDifficulty(e.target.value)}
+                    className="w-full px-3 py-2.5 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-blue-500"
                   >
                     <option value="easy">Easy</option>
                     <option value="medium">Medium</option>
                     <option value="hard">Hard</option>
                   </select>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Language</label>
-                  <select
-                    name="language"
-                    defaultValue={editingQuestion.language === "Hindi" ? "hi" : "en"}
-                    className="w-full p-2 text-xs font-semibold rounded-lg border border-slate-200 bg-white"
-                  >
-                    <option value="hi">Hindi</option>
-                    <option value="en">English</option>
-                  </select>
+              </div>
+
+              {/* PYQ Details */}
+              <div className="p-4 rounded-xl border border-amber-200 bg-amber-50/60 space-y-3">
+                <label className="block text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-amber-600" />
+                  PYQ Details <span className="text-amber-700 font-normal">(optional)</span>
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <input
+                    type="text"
+                    value={pyqSource}
+                    onChange={(e) => setPyqSource(e.target.value)}
+                    placeholder="e.g. SSC CGL, Railway"
+                    className="w-full px-3 py-2 text-xs font-semibold rounded-lg border border-amber-200 bg-white focus:outline-hidden focus:border-amber-500"
+                  />
+                  <input
+                    type="number"
+                    value={pyqYear}
+                    onChange={(e) => setPyqYear(e.target.value)}
+                    placeholder="e.g. 2022"
+                    min={1990}
+                    max={2030}
+                    className="w-full px-3 py-2 text-xs font-semibold rounded-lg border border-amber-200 bg-white focus:outline-hidden focus:border-amber-500"
+                  />
                 </div>
+              </div>
+
+              {/* Language Selector */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Language</label>
+                <select
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                  className="w-full px-3 py-2.5 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-blue-500"
+                >
+                  <option value="english">English</option>
+                  <option value="hindi">Hindi (हिंदी)</option>
+                </select>
               </div>
 
               {/* Explanation */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Solution Explanation</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Explanation</label>
                 <textarea
-                  name="explanation"
+                  value={explanation}
+                  onChange={(e) => setExplanation(e.target.value)}
+                  placeholder="Explain the solution..."
                   rows={2}
-                  defaultValue={editingQuestion.explanationMd}
-                  className="w-full p-3 text-xs font-medium rounded-xl border border-slate-200 bg-white"
+                  className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-blue-500 resize-none"
                 />
               </div>
 
-              {/* Actions */}
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              {/* Submit Button */}
+              <Button
+                type="submit"
+                variant="default"
+                disabled={isPending || isUploadingImg}
+                className="w-full font-bold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-sm flex items-center justify-center gap-2 py-3 rounded-xl"
+              >
+                <PlusCircle className="w-4 h-4" />
+                {isPending ? "Saving Question..." : "Add Question"}
+              </Button>
+            </form>
+          </Card>
+
+          {/* Bulk Import Link Box matching original system */}
+          <Card className="p-5 rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-blue-50 space-y-3">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
+                <FileUp className="w-5 h-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-xs font-black text-indigo-900">Bulk Question Importer</h3>
+                <p className="text-[11px] text-slate-600 leading-relaxed mt-0.5">
+                  Generate AI prompts, bulk-upload option diagrams, validate CSV, and preview exam view simulations.
+                </p>
+                <Link href="/admin/bulk-import" className="inline-block mt-2.5">
+                  <Button size="sm" className="text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs">
+                    Open Bulk Import Studio →
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* RIGHT COLUMN: Question Bank List & Filters */}
+        <div className="lg:col-span-7 space-y-4">
+          {/* Filter Bar matching original adminQuestions.js */}
+          <Card className="p-4 bg-white border-slate-200 shadow-xs space-y-3">
+            {/* Search input */}
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(1);
+                }}
+                placeholder="Search questions by text or PYQ source..."
+                className="w-full pl-9 pr-4 py-2.5 text-xs font-medium rounded-xl border border-slate-200 bg-slate-50/50 focus:outline-hidden focus:border-blue-500"
+              />
+            </div>
+
+            {/* Cascading Filter Selectors Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <select
+                value={filterCategory}
+                onChange={(e) => handleFilterCategoryChange(e.target.value)}
+                className="p-2 text-xs font-semibold rounded-lg border border-slate-200 bg-white"
+              >
+                <option value="ALL">All Categories</option>
+                {taxonomy.exams.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.title}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={filterPattern}
+                onChange={(e) => handleFilterPatternChange(e.target.value)}
+                className="p-2 text-xs font-semibold rounded-lg border border-slate-200 bg-white"
+              >
+                <option value="ALL">All Patterns</option>
+                {availablePatternsForFilter.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={filterSection}
+                onChange={(e) => {
+                  setFilterSection(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="p-2 text-xs font-semibold rounded-lg border border-slate-200 bg-white"
+              >
+                <option value="ALL">All Sections</option>
+                {taxonomy.subjects.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={filterDifficulty}
+                onChange={(e) => {
+                  setFilterDifficulty(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="p-2 text-xs font-semibold rounded-lg border border-slate-200 bg-white"
+              >
+                <option value="ALL">All Levels</option>
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="hard">Hard</option>
+              </select>
+
+              <select
+                value={filterPyq}
+                onChange={(e) => {
+                  setFilterPyq(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="p-2 text-xs font-semibold rounded-lg border border-slate-200 bg-white"
+              >
+                <option value="ALL">All Types</option>
+                <option value="pyq">PYQ Only</option>
+              </select>
+
+              <select
+                value={filterLanguage}
+                onChange={(e) => {
+                  setFilterLanguage(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="p-2 text-xs font-semibold rounded-lg border border-slate-200 bg-white"
+              >
+                <option value="ALL">All Languages</option>
+                <option value="english">English</option>
+                <option value="hindi">Hindi</option>
+              </select>
+            </div>
+
+            {/* Results Count & Reset Filters */}
+            <div className="flex items-center justify-between pt-1 text-xs">
+              <span className="text-slate-500">
+                {totalItems === 0
+                  ? "No questions found"
+                  : `Showing ${startIndex + 1}–${Math.min(startIndex + PAGE_SIZE, totalItems)} of ${totalItems} questions`}
+              </span>
+              <button
+                type="button"
+                onClick={resetAllFilters}
+                className="inline-flex items-center gap-1 font-bold text-blue-600 hover:text-blue-700 transition"
+              >
+                <RotateCcw className="w-3 h-3" /> Reset filters
+              </button>
+            </div>
+          </Card>
+
+          {/* Question List Cards */}
+          {paginatedQuestions.length === 0 ? (
+            <Card className="p-12 text-center bg-white border-slate-200 space-y-2">
+              <HelpCircle className="w-8 h-8 mx-auto text-slate-300" />
+              <p className="text-xs text-slate-500 font-medium">No questions match your filters.</p>
+              <Button variant="outline" size="sm" onClick={resetAllFilters} className="text-xs">
+                Clear All Filters
+              </Button>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {paginatedQuestions.map((q) => (
+                <Card
+                  key={q.id}
+                  className="p-4 bg-white border-slate-200 hover:border-blue-300 transition shadow-xs space-y-2.5"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1">
+                      <p className="text-xs font-bold text-slate-800 leading-snug line-clamp-2">
+                        {q.statement}
+                        {q.imageUrl && (
+                          /* eslint-disable-next-line @next/next/no-img-element */
+                          <img
+                            src={q.imageUrl}
+                            alt="Figure"
+                            className="h-7 w-10 object-contain rounded-md border border-slate-200 inline-block ml-1.5 align-middle"
+                          />
+                        )}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        onClick={() => openEditModal(q)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition"
+                      >
+                        <Edit2 className="w-3 h-3" /> Edit
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm(`Are you sure you want to delete this question?`)) {
+                            startTransition(async () => {
+                              const res = await deleteQuestionAction(q.id);
+                              if (res.error) setActionFeedback({ type: "error", text: res.error });
+                              if (res.message) setActionFeedback({ type: "success", text: res.message });
+                            });
+                          }
+                        }}
+                        disabled={isPending}
+                        className="p-1 rounded-lg border border-rose-200 text-rose-500 hover:bg-rose-50 transition"
+                        title="Delete Question"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Badges Row matching legacy UI */}
+                  <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                    {q.categoryName && (
+                      <span className="bg-slate-100 border border-slate-200 text-slate-700 px-2 py-0.5 rounded-md font-semibold text-[11px]">
+                        {q.categoryName}
+                      </span>
+                    )}
+                    <span
+                      className={`px-2 py-0.5 rounded-md font-semibold text-[11px] border capitalize ${
+                        q.difficulty === "easy"
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          : q.difficulty === "medium"
+                          ? "bg-amber-50 text-amber-700 border-amber-200"
+                          : "bg-rose-50 text-rose-700 border-rose-200"
+                      }`}
+                    >
+                      {q.difficulty}
+                    </span>
+                    {(q.pyqYear || q.pyqSource) && (
+                      <span className="bg-amber-50 border border-amber-200 text-amber-800 px-2 py-0.5 rounded-md font-semibold text-[11px]">
+                        PYQ {q.pyqSource ? `${q.pyqSource} · ` : ""}{q.pyqYear || ""}
+                      </span>
+                    )}
+                    {q.optionsType && q.optionsType !== "text" && (
+                      <span className="bg-indigo-50 border border-indigo-200 text-indigo-700 px-2 py-0.5 rounded-md font-semibold text-[11px]">
+                        {q.optionsType} options
+                      </span>
+                    )}
+                    {q.language === "hindi" && (
+                      <span className="bg-orange-50 border border-orange-200 text-orange-700 px-2 py-0.5 rounded-md font-semibold text-[11px]">
+                        🇮🇳 Hindi
+                      </span>
+                    )}
+                    {q.status !== "published" && (
+                      <span className="bg-rose-50 border border-rose-200 text-rose-600 px-2 py-0.5 rounded-md font-semibold text-[11px]">
+                        Inactive
+                      </span>
+                    )}
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-1.5 pt-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={validPage === 1}
+                className="px-2.5 py-1 text-xs"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </Button>
+
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((pgNum) => (
+                <Button
+                  key={pgNum}
+                  variant={pgNum === validPage ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setCurrentPage(pgNum)}
+                  className={`text-xs px-3 py-1 font-bold ${
+                    pgNum === validPage ? "bg-blue-600 text-white" : "border-slate-200 text-slate-700"
+                  }`}
+                >
+                  {pgNum}
+                </Button>
+              ))}
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={validPage === totalPages}
+                className="px-2.5 py-1 text-xs"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* EDIT QUESTION MODAL */}
+      {editingQuestion && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <Card className="w-full max-w-xl max-h-[90vh] overflow-y-auto p-6 bg-white border-slate-200 shadow-2xl space-y-4 relative">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                <Edit2 className="w-4 h-4 text-blue-600" /> Edit Question
+              </h3>
+              <button
+                onClick={() => setEditingQuestion(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit} className="space-y-4">
+              {/* Question Text */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-slate-700">Question Text</label>
+                  <button
+                    type="button"
+                    onClick={() => applyUnderline(true)}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-bold border border-slate-200 rounded-md bg-slate-50 hover:bg-blue-50 text-slate-700 hover:text-blue-600 transition"
+                  >
+                    <Underline className="w-3 h-3" /> Underline
+                  </button>
+                </div>
+                <textarea
+                  ref={editTextareaRef}
+                  value={editStatement}
+                  onChange={(e) => setEditStatement(e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2 text-xs font-mono rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-blue-500 resize-none"
+                  required
+                />
+              </div>
+
+              {/* Question Figure */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Question Figure</label>
+                <div className="flex items-center gap-3">
+                  <label className="flex-1 flex items-center justify-center gap-2 p-2.5 rounded-xl border border-dashed border-slate-200 bg-slate-50 hover:bg-blue-50 cursor-pointer text-xs font-semibold text-slate-700 transition">
+                    <Upload className="w-4 h-4" />
+                    <span>{editImgUrl ? "✓ Replace Figure Image" : "Upload Figure"}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleImageUpload(file, "editQ");
+                      }}
+                    />
+                  </label>
+                  {editImgUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setEditImgUrl("")}
+                      className="text-xs text-rose-500 hover:underline shrink-0"
+                    >
+                      ✕ Remove
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Options A-D */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-700">Options</label>
+                {[
+                  { key: "A", val: editOptAText, setVal: setEditOptAText, color: "bg-emerald-100 text-emerald-800" },
+                  { key: "B", val: editOptBText, setVal: setEditOptBText, color: "bg-blue-100 text-blue-800" },
+                  { key: "C", val: editOptCText, setVal: setEditOptCText, color: "bg-purple-100 text-purple-800" },
+                  { key: "D", val: editOptDText, setVal: setEditOptDText, color: "bg-amber-100 text-amber-800" },
+                ].map((opt) => (
+                  <div key={opt.key} className="flex items-center gap-2">
+                    <span className={`w-7 h-7 rounded-lg text-xs font-black flex items-center justify-center shrink-0 ${opt.color}`}>
+                      {opt.key}
+                    </span>
+                    <input
+                      type="text"
+                      value={opt.val}
+                      onChange={(e) => opt.setVal(e.target.value)}
+                      className="flex-1 px-3 py-2 text-xs font-semibold rounded-lg border border-slate-200 bg-white focus:outline-hidden focus:border-blue-500"
+                      required
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {/* Correct Answer & Difficulty */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Correct Answer</label>
+                  <select
+                    value={editCorrectAnswer}
+                    onChange={(e) => setEditCorrectAnswer(e.target.value)}
+                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-blue-500"
+                  >
+                    <option value="A">Option A</option>
+                    <option value="B">Option B</option>
+                    <option value="C">Option C</option>
+                    <option value="D">Option D</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Difficulty</label>
+                  <select
+                    value={editDifficulty}
+                    onChange={(e) => setEditDifficulty(e.target.value)}
+                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-blue-500"
+                  >
+                    <option value="easy">Easy</option>
+                    <option value="medium">Medium</option>
+                    <option value="hard">Hard</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* PYQ */}
+              <div className="p-3 rounded-xl border border-amber-200 bg-amber-50/60 space-y-2">
+                <label className="block text-xs font-bold text-amber-900">PYQ Details</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    value={editPyqSource}
+                    onChange={(e) => setEditPyqSource(e.target.value)}
+                    placeholder="e.g. SSC CGL"
+                    className="w-full px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-amber-200 bg-white"
+                  />
+                  <input
+                    type="number"
+                    value={editPyqYear}
+                    onChange={(e) => setEditPyqYear(e.target.value)}
+                    placeholder="e.g. 2022"
+                    className="w-full px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-amber-200 bg-white"
+                  />
+                </div>
+              </div>
+
+              {/* Language */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Language</label>
+                <select
+                  value={editLanguage}
+                  onChange={(e) => setEditLanguage(e.target.value)}
+                  className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-blue-500"
+                >
+                  <option value="english">English</option>
+                  <option value="hindi">Hindi (हिंदी)</option>
+                </select>
+              </div>
+
+              {/* Explanation */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Explanation</label>
+                <textarea
+                  value={editExplanation}
+                  onChange={(e) => setEditExplanation(e.target.value)}
+                  rows={2}
+                  className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-blue-500 resize-none"
+                />
+              </div>
+
+              {/* Active toggle */}
+              <div className="flex items-center gap-3 p-3 border border-slate-200 rounded-xl bg-slate-50">
+                <input
+                  type="checkbox"
+                  id="editIsActive"
+                  checked={editIsActive}
+                  onChange={(e) => setEditIsActive(e.target.checked)}
+                  className="w-4 h-4 accent-blue-600 rounded cursor-pointer"
+                />
+                <label htmlFor="editIsActive" className="text-xs font-semibold text-slate-700 cursor-pointer">
+                  Question is active (visible in exams)
+                </label>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
                 <Button type="button" variant="outline" size="sm" onClick={() => setEditingQuestion(null)}>
                   Cancel
                 </Button>
-                <Button type="submit" variant="default" size="sm" isLoading={isPending} className="font-bold bg-amber-600 hover:bg-amber-700">
-                  Update Question
+                <Button type="submit" variant="default" size="sm" disabled={isPending} className="font-bold bg-blue-600 hover:bg-blue-700 text-white">
+                  {isPending ? "Saving..." : "Save Changes"}
                 </Button>
               </div>
             </form>
-          </div>
+          </Card>
         </div>
-      )}
-
-      {/* Bulk Import Modal */}
-      {showBulkImport && (
-        <BulkImportModal defaultEntity="questions" onClose={() => setShowBulkImport(false)} />
       )}
     </div>
   );
