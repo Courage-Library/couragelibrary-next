@@ -1,7 +1,7 @@
 "use server";
 
 import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
-import { AdminService } from "@/services/admin.service";
+import { AdminService, getIstTomorrowDateStr } from "@/services/admin.service";
 import { BulkImportEngine, BulkImportPayload, BulkImportResult } from "@/lib/admin/bulk-importer";
 import { revalidatePath } from "next/cache";
 
@@ -929,7 +929,8 @@ export async function saveDailyMockDayAction(
   const negativeMark = Number(formData.get("negativeMark") || 0.5);
   const language = (formData.get("language") as "both" | "english" | "hindi") || "both";
   const isActive = formData.get("isActive") !== "false";
-  const launchDate = (formData.get("launchDate") as string) || "2026-03-01";
+  const launchDate = (formData.get("launchDate") as string) || getIstTomorrowDateStr();
+  const launchTime = (formData.get("launchTime") as string) || "09:00";
   const defaultLanguage = (formData.get("defaultLanguage") as string) || "both";
 
   if (!categoryId || !patternId) {
@@ -954,6 +955,7 @@ export async function saveDailyMockDayAction(
       isActive,
     },
     launchDate,
+    launchTime,
     defaultLanguage
   );
 
@@ -967,7 +969,7 @@ export async function saveDailyMockDayAction(
 }
 
 /**
- * Server Action: Save full 7-day Daily Mock Program
+ * Server Action: Launch full 7-day Daily Mock Program
  */
 export async function saveDailyMockProgramAction(
   prevState: AdminActionResult | null,
@@ -977,7 +979,8 @@ export async function saveDailyMockProgramAction(
   if (!authCheck.isAdmin) return { error: "Unauthorized access." };
 
   const categoryId = formData.get("categoryId") as string;
-  const launchDate = (formData.get("launchDate") as string) || "2026-03-01";
+  const launchDate = (formData.get("launchDate") as string) || getIstTomorrowDateStr();
+  const launchTime = (formData.get("launchTime") as string) || "09:00";
   const defaultLanguage = ((formData.get("defaultLanguage") as string) || "both") as "both" | "english" | "hindi";
   const daysJson = formData.get("daysJson") as string;
 
@@ -986,20 +989,28 @@ export async function saveDailyMockProgramAction(
 
   try {
     const days = JSON.parse(daysJson);
-    const result = await AdminService.saveAdminDailyMockProgram(categoryId, launchDate, defaultLanguage, days);
+    const result = await AdminService.saveAdminDailyMockProgram(
+      categoryId,
+      launchDate,
+      launchTime,
+      defaultLanguage,
+      days
+    );
 
     if (!result.success) {
-      return { error: `Some days failed to save: ${result.errors.join(", ")}` };
+      return { error: result.errors.join(". ") };
     }
 
     revalidatePath("/admin/schedules");
     revalidatePath("/mock-tests");
-    return { success: true, message: `7-Day Daily Mock Program for category saved successfully (${result.updatedCount} days configured).` };
+    return { success: true, message: `7-Day Daily Mock Program launched successfully (${result.updatedCount} days configured).` };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
     return { error: `Invalid configuration data: ${errorMsg}` };
   }
 }
+
+export const launchDailyMockProgramAction = saveDailyMockProgramAction;
 
 /**
  * Server Action: Toggle single day active status in Daily Mock Program
