@@ -141,6 +141,8 @@ export function AdminSchedulesManager({
           const matchedSec = currentPat?.sections.find((s) => s.id === value);
           if (matchedSec) {
             updated.activeSectionName = matchedSec.name;
+            updated.activeSectionIds = [matchedSec.id];
+            updated.activeSectionNames = [matchedSec.name];
             updated.questionCount = matchedSec.questionCount;
             updated.totalMarks = matchedSec.questionCount * matchedSec.marksPerQuestion;
             updated.negativeMark = matchedSec.negativeMark;
@@ -148,6 +150,44 @@ export function AdminSchedulesManager({
         }
 
         return updated;
+      })
+    );
+  };
+
+  // Toggle Section for Mixed Mock Day
+  const handleToggleMixedSection = (
+    dayOfWeek: DailyMockDayConfig["dayOfWeek"],
+    sectionId: string
+  ) => {
+    setDaysState((prev) =>
+      prev.map((d) => {
+        if (d.dayOfWeek !== dayOfWeek) return d;
+        const currentPat = availablePatterns.find((p) => p.id === d.patternId);
+        const currentSecIds = d.activeSectionIds || (d.activeSectionId ? [d.activeSectionId] : []);
+        const isSelected = currentSecIds.includes(sectionId);
+        const newSecIds = isSelected
+          ? currentSecIds.filter((id) => id !== sectionId)
+          : [...currentSecIds, sectionId];
+
+        const selectedSections = (currentPat?.sections || []).filter((s) =>
+          newSecIds.includes(s.id)
+        );
+        const newSecNames = selectedSections.map((s) => s.name);
+        const totalQ = selectedSections.reduce((acc, s) => acc + s.questionCount, 0);
+        const totalM = selectedSections.reduce(
+          (acc, s) => acc + s.questionCount * s.marksPerQuestion,
+          0
+        );
+
+        return {
+          ...d,
+          activeSectionIds: newSecIds,
+          activeSectionNames: newSecNames,
+          activeSectionId: newSecIds[0] || null,
+          activeSectionName: newSecNames.join(" + ") || "Mixed Subjects",
+          questionCount: totalQ > 0 ? totalQ : d.questionCount,
+          totalMarks: totalM > 0 ? totalM : d.totalMarks,
+        };
       })
     );
   };
@@ -467,13 +507,34 @@ export function AdminSchedulesManager({
                           >
                             {availableSections.map((s) => (
                               <option key={s.id} value={s.id}>
-                                {s.name}
+                                {s.name} ({s.questionCount}Q)
                               </option>
                             ))}
                           </select>
+                        ) : day.testType === "mixed" && availableSections.length > 0 ? (
+                          <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto p-1 bg-slate-50 border border-slate-200 rounded-lg">
+                            {availableSections.map((s) => {
+                              const isChecked = (day.activeSectionIds || []).includes(s.id);
+                              return (
+                                <button
+                                  key={s.id}
+                                  type="button"
+                                  onClick={() => handleToggleMixedSection(day.dayOfWeek, s.id)}
+                                  className={`px-2 py-0.5 text-[10px] font-bold rounded-md border transition-all ${
+                                    isChecked
+                                      ? "bg-blue-600 text-white border-blue-600 shadow-2xs"
+                                      : "bg-white text-slate-700 border-slate-200 hover:border-slate-300"
+                                  }`}
+                                  title={`Toggle ${s.name}`}
+                                >
+                                  {s.name} ({s.questionCount}Q)
+                                </button>
+                              );
+                            })}
+                          </div>
                         ) : (
-                          <div className="px-2.5 py-1.5 text-xs font-semibold text-slate-500 bg-slate-100/70 border border-slate-200 rounded-lg">
-                            {day.testType === "mixed" ? "Mixed (All Sections)" : "Full Exam Blueprint"}
+                          <div className="px-2.5 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100/70 border border-slate-200 rounded-lg">
+                            Full Blueprint ({availableSections.length} Sections)
                           </div>
                         )}
                       </div>

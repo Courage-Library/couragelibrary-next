@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AssessmentService } from "@/services/assessment.service";
@@ -127,6 +127,8 @@ export default async function MockTestResultPage({ params }: Props) {
                 questionOrder={q.questionOrder}
                 sectionName={q.sectionName}
                 questionText={q.questionText}
+                questionImageUrl={q.questionImageUrl}
+                optionsType={q.optionsType}
                 options={q.options}
                 selectedOption={q.selectedOption}
                 correctOption={q.correctOption}

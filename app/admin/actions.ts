@@ -155,7 +155,7 @@ export async function importBulkQuestionsAction(
         optionsObj = r.options as any;
       }
 
-      const optionsType = (r.options_type || "text").toLowerCase();
+      const optionsType = (r.options_type || "text").toLowerCase() === "image" ? "image" : "text";
       const correctAnswer = (r.correct_answer || "A").trim().toUpperCase();
       const difficulty = ["easy", "medium", "hard"].includes((r.difficulty || "").toLowerCase())
         ? (r.difficulty || "").toLowerCase()
@@ -933,7 +933,8 @@ export async function createQuestionHierarchyAction(
   const topicId = formData.get("topicId") as string;
   const difficulty = (formData.get("difficulty") as string || "medium").toLowerCase();
   const language = (formData.get("language") as string || "hi").toLowerCase();
-  const optionsType = (formData.get("optionsType") as string || "text").toLowerCase();
+  const rawOptType = (formData.get("optionsType") as string || "text").toLowerCase();
+  const optionsType = rawOptType === "image" ? "image" : "text";
   const questionImageUrl = (formData.get("questionImageUrl") as string || "").trim() || null;
   const correctOptionKey = (formData.get("correctOptionKey") as string || "A").toUpperCase().trim();
   const explanation = (formData.get("explanation") as string || "").trim();
@@ -1041,7 +1042,8 @@ export async function updateQuestionHierarchyAction(
   const topicId = formData.get("topicId") as string;
   const difficulty = (formData.get("difficulty") as string || "medium").toLowerCase();
   const language = (formData.get("language") as string || "hi").toLowerCase();
-  const optionsType = (formData.get("optionsType") as string || "text").toLowerCase();
+  const rawOptType = (formData.get("optionsType") as string || "text").toLowerCase();
+  const optionsType = rawOptType === "image" ? "image" : "text";
   const questionImageUrl = (formData.get("questionImageUrl") as string || "").trim() || null;
   const correctOptionKey = (formData.get("correctOptionKey") as string || "A").toUpperCase().trim();
   const explanation = (formData.get("explanation") as string || "").trim();

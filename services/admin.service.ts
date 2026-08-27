@@ -61,6 +61,8 @@ export interface DailyMockDayConfig {
   patternName: string;
   activeSectionId: string | null;
   activeSectionName: string | null;
+  activeSectionIds?: string[];
+  activeSectionNames?: string[];
   questionCount: number;
   durationMinutes: number;
   totalMarks: number;
@@ -807,6 +809,9 @@ export class AdminService {
         const marks = meta.totalMarks || (qCount * mpq);
         const neg = meta.negativeMark ?? (sec?.negativeMark || pat.negativeMarkValue);
 
+        const secIds: string[] = meta.activeSectionIds || (sec?.id ? [sec.id] : meta.activeSectionId ? [meta.activeSectionId] : []);
+        const secNames: string[] = meta.activeSectionNames || (sec?.name ? [sec.name] : meta.activeSectionName ? [meta.activeSectionName] : []);
+
         return {
           id: t.id,
           templateId: t.id,
@@ -817,6 +822,8 @@ export class AdminService {
           patternName: pat.name,
           activeSectionId: sec?.id || meta.activeSectionId || (pat.sections[idx]?.id || null),
           activeSectionName: sec?.name || meta.activeSectionName || (pat.sections[idx]?.name || null),
+          activeSectionIds: secIds,
+          activeSectionNames: secNames,
           questionCount: qCount,
           durationMinutes: dur,
           totalMarks: marks,
@@ -841,6 +848,8 @@ export class AdminService {
         patternName: primaryPattern.name,
         activeSectionId: defaultSec?.id || null,
         activeSectionName: defaultSec?.name || null,
+        activeSectionIds: defaultSec?.id ? [defaultSec.id] : [],
+        activeSectionNames: defaultSec?.name ? [defaultSec.name] : [],
         questionCount: defQCount,
         durationMinutes: defDur,
         totalMarks: defMarks,
@@ -905,6 +914,8 @@ export class AdminService {
       dayOfWeek: dayConfig.dayOfWeek,
       activeSectionId: dayConfig.activeSectionId,
       activeSectionName: dayConfig.activeSectionName,
+      activeSectionIds: dayConfig.activeSectionIds || (dayConfig.activeSectionId ? [dayConfig.activeSectionId] : []),
+      activeSectionNames: dayConfig.activeSectionNames || (dayConfig.activeSectionName ? [dayConfig.activeSectionName] : []),
       questionCount: dayConfig.questionCount,
       durationMinutes: dayConfig.durationMinutes,
       totalMarks: dayConfig.totalMarks,

@@ -455,6 +455,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
             <QuestionRenderer
               questionNumber={currentQ?.questionOrder || 1}
               questionText={currentQ?.questionText || ""}
+              questionImageUrl={currentQ?.questionImageUrl}
               marks={currentQ?.marks || 2}
               negativeMark={currentQ?.negativeMark || 0.5}
               sectionName={currentQ?.sectionName}
@@ -462,6 +463,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
 
             <QuestionOptions
               options={currentQ?.options || []}
+              optionsType={currentQ?.optionsType}
               selectedOption={currentAnswer.selectedOption}
               onSelectOption={handleSelectOption}
               disabled={isSubmitting}

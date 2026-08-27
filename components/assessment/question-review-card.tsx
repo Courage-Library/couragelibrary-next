@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import Link from "next/link";
 import { CheckCircle2, XCircle, HelpCircle, BookOpen, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -7,7 +7,9 @@ interface QuestionReviewCardProps {
   questionOrder: number;
   sectionName: string;
   questionText: string;
-  options: Array<{ key: string; text: string }>;
+  questionImageUrl?: string | null;
+  optionsType?: string;
+  options: Array<{ key: string; text: string; imageUrl?: string | null }>;
   selectedOption: string | null;
   correctOption: string;
   isCorrect: boolean;
@@ -21,6 +23,8 @@ export function QuestionReviewCard({
   questionOrder,
   sectionName,
   questionText,
+  questionImageUrl,
+  optionsType,
   options,
   selectedOption,
   correctOption,
@@ -62,8 +66,21 @@ export function QuestionReviewCard({
         {questionText}
       </div>
 
+      {/* Question Figure (if present) */}
+      {questionImageUrl && (
+        <div className="my-2 p-2 bg-slate-50 rounded-xl border border-slate-200 flex justify-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={questionImageUrl}
+            alt={`Figure for Question ${questionOrder}`}
+            className="max-h-64 max-w-full object-contain rounded-lg"
+            loading="lazy"
+          />
+        </div>
+      )}
+
       {/* Options */}
-      <div className="space-y-2 pt-1">
+      <div className={cn("grid gap-2 pt-1", optionsType === "image" ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1")}>
         {options.map((opt) => {
           const isUserChoice = selectedOption === opt.key;
           const isTargetCorrect = correctOption === opt.key;
@@ -92,7 +109,18 @@ export function QuestionReviewCard({
               >
                 {opt.key}
               </div>
-              <span className="pt-0.5">{opt.text}</span>
+              <div className="flex-1 space-y-1.5">
+                {opt.imageUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={opt.imageUrl}
+                    alt={`Option ${opt.key}`}
+                    className="max-h-20 max-w-full object-contain rounded-md bg-white border border-slate-200 p-1"
+                    loading="lazy"
+                  />
+                )}
+                {opt.text && <div className="pt-0.5">{opt.text}</div>}
+              </div>
             </div>
           );
         })}
