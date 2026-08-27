@@ -123,25 +123,122 @@ export async function importBulkQuestionsAction(
   let failed = 0;
   const errors: string[] = [];
 
-  // Cache topics map
-  const { data: allTopics } = await supabase.from("topics").select("id, name, slug, subject_id");
-  const topicMap = new Map<string, string>();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (allTopics || []).forEach((t: any) => {
-    topicMap.set(t.name.toLowerCase(), t.id);
-    topicMap.set(t.slug.toLowerCase(), t.id);
+  // Pre-fetch reference maps for authoritative resolution
+  const [psecsRes, subjectsRes, allTopicsRes] = await Promise.all([
+    supabase.from("pattern_sections").select("id, section_name, subject_id, pattern_id"),
+    supabase.from("subjects").select("id, name, slug"),
+    supabase.from("topics").select("id, name, slug, subject_id"),
+  ]);
+
+  const patternSectionMap = new Map<string, { id: string; section_name: string; subject_id: string }>();
+  (psecsRes.data || []).forEach((ps: { id: string; section_name: string; subject_id: string }) => {
+    patternSectionMap.set(ps.id, ps);
   });
+
+  const subjectMap = new Map<string, { id: string; name: string; slug: string }>();
+  (subjectsRes.data || []).forEach((s: { id: string; name: string; slug: string }) => {
+    subjectMap.set(s.id, s);
+    subjectMap.set(s.name.toLowerCase().trim(), s);
+    subjectMap.set(s.slug.toLowerCase().trim(), s);
+  });
+
+  // Topic map scoped strictly by `subject_id:topic_identifier`
+  const topicMap = new Map<string, string>();
+  (allTopicsRes.data || []).forEach((t: { id: string; name: string; slug: string; subject_id: string }) => {
+    if (t.subject_id) {
+      topicMap.set(`${t.subject_id}:${t.name.toLowerCase().trim()}`, t.id);
+      topicMap.set(`${t.subject_id}:${t.slug.toLowerCase().trim()}`, t.id);
+    }
+  });
+
+  // Pass 1: Strict Pre-Validation of all rows in batch
+  const validationErrors: string[] = [];
+  const validatedRows: Array<{
+    statement: string;
+    topicName: string;
+    targetSubjectId: string;
+    rawRecord: BulkImportQuestionRecord;
+  }> = [];
 
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i];
-    try {
-      const statement = r.question_text?.trim() || "";
-      if (!statement) {
-        failed++;
-        errors.push(`Row ${i + 1}: Missing question statement.`);
+    const statement = r.question_text?.trim() || "";
+    if (!statement) {
+      validationErrors.push(`Row ${i + 1}: Missing question statement.`);
+      continue;
+    }
+
+    const topicName = (r.topic || "").trim();
+    if (!topicName) {
+      validationErrors.push(`Row ${i + 1}: Topic is required and cannot be empty.`);
+      continue;
+    }
+
+    // Authoritative Section Resolution
+    let targetSubjectId: string | null = null;
+    const rawPsecId = (r.pattern_section_id || "").trim();
+    const rawSecName = (r.section_name || "").trim();
+
+    if (rawPsecId) {
+      const psec = patternSectionMap.get(rawPsecId);
+      if (!psec) {
+        validationErrors.push(`Row ${i + 1}: pattern_section_id "${rawPsecId}" does not exist in pattern_sections.`);
         continue;
       }
+      targetSubjectId = psec.subject_id;
 
+      // Conflict check if section_name is also supplied
+      if (rawSecName) {
+        const psecNameNorm = (psec.section_name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+        const rawSecNameNorm = rawSecName.toLowerCase().replace(/[^a-z0-9]/g, "");
+        const subj = subjectMap.get(psec.subject_id);
+        const subjNameNorm = (subj?.name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+
+        if (psecNameNorm !== rawSecNameNorm && subjNameNorm !== rawSecNameNorm) {
+          validationErrors.push(
+            `Row ${i + 1}: Section mapping conflict: pattern_section_id refers to "${psec.section_name}" but section_name is "${rawSecName}".`
+          );
+          continue;
+        }
+      }
+    } else if (rawSecName) {
+      const subj = subjectMap.get(rawSecName.toLowerCase());
+      if (!subj) {
+        validationErrors.push(`Row ${i + 1}: section_name "${rawSecName}" does not resolve to a valid subject or section.`);
+        continue;
+      }
+      targetSubjectId = subj.id;
+    } else {
+      validationErrors.push(`Row ${i + 1}: Missing section context. Either pattern_section_id or section_name is required.`);
+      continue;
+    }
+
+    if (!targetSubjectId) {
+      validationErrors.push(`Row ${i + 1}: Could not resolve subject for section.`);
+      continue;
+    }
+
+    validatedRows.push({
+      statement,
+      topicName,
+      targetSubjectId,
+      rawRecord: r,
+    });
+  }
+
+  if (validationErrors.length > 0) {
+    return {
+      success: false,
+      inserted: 0,
+      failed: rows.length,
+      errors: validationErrors,
+    };
+  }
+
+  // Pass 2: Execution of Validated Rows
+  for (let i = 0; i < validatedRows.length; i++) {
+    const { statement, topicName, targetSubjectId, rawRecord: r } = validatedRows[i];
+    try {
       // Options parsing
       let optionsObj: Record<string, string | { text?: string; image?: string }> = {};
       if (typeof r.options === "string") {
@@ -166,36 +263,39 @@ export async function importBulkQuestionsAction(
           : "en";
       const explanation = r.explanation?.trim() || "Explanation provided upon evaluation.";
       const qImage = r.question_image?.trim() || null;
-      const topicName = r.topic?.trim() || "General";
 
-      // Resolve topic ID
-      let topicId = topicMap.get(topicName.toLowerCase());
+      // Scoped Topic Resolution under (targetSubjectId + normalized topic)
+      const topicKey = `${targetSubjectId}:${topicName.toLowerCase()}`;
+      let topicId = topicMap.get(topicKey);
+
       if (!topicId) {
-        const { data: firstSubject } = await supabase.from("subjects").select("id").limit(1).maybeSingle();
-        const subjectId = firstSubject?.id;
-        if (subjectId) {
-          const { data: newTop } = await supabase
-            .from("topics")
-            .insert({
-              subject_id: subjectId,
-              name: topicName,
-              slug: topicName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
-              is_active: true,
-            })
-            .select("id")
-            .single();
-          if (newTop?.id) {
-            topicId = newTop.id;
-            topicMap.set(topicName.toLowerCase(), newTop.id);
-          }
+        const topicSlug = topicName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+        const { data: newTop, error: topErr } = await supabase
+          .from("topics")
+          .insert({
+            subject_id: targetSubjectId,
+            name: topicName,
+            slug: topicSlug,
+            is_active: true,
+          })
+          .select("id")
+          .single();
+
+        if (topErr || !newTop) {
+          failed++;
+          errors.push(`Row ${i + 1}: Failed creating topic "${topicName}": ${topErr?.message}`);
+          continue;
         }
+        topicId = newTop.id;
+        topicMap.set(topicKey, newTop.id);
+        topicMap.set(`${targetSubjectId}:${topicSlug}`, newTop.id);
       }
 
       // 1. Insert Question
       const { data: qData, error: qErr } = await supabase
         .from("questions")
         .insert({
-          canonical_topic_id: topicId || null,
+          canonical_topic_id: topicId,
           status: "published",
         })
         .select("id")

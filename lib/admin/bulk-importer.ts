@@ -73,11 +73,12 @@ export class BulkImportEngine {
     const previewData: BulkImportRecord[] = [];
 
     // Pre-fetch reference maps for fast relationship resolution
-    const [examsRes, patternsRes, subjectsRes, topicsRes] = await Promise.all([
+    const [examsRes, patternsRes, subjectsRes, topicsRes, psecsRes] = await Promise.all([
       supabase.from("exams").select("id, title, slug"),
       supabase.from("exam_patterns").select("id, name, exam_cycle_id, exam_cycles(exam_id)"),
       supabase.from("subjects").select("id, name, slug"),
       supabase.from("topics").select("id, name, slug, subject_id"),
+      supabase.from("pattern_sections").select("id, section_name, subject_id, pattern_id"),
     ]);
 
     const examMap = new Map<string, string>(); // slug/title -> id
@@ -100,8 +101,17 @@ export class BulkImportEngine {
       subjectMap.set(s.id, s.id);
     });
 
-    const topicMap = new Map<string, string>(); // slug/name/id -> id
-    (topicsRes.data || []).forEach((t: { id: string; name: string; slug: string }) => {
+    const psecMap = new Map<string, { id: string; section_name: string; subject_id: string }>();
+    (psecsRes.data || []).forEach((ps: { id: string; section_name: string; subject_id: string }) => {
+      psecMap.set(ps.id, ps);
+    });
+
+    const topicMap = new Map<string, string>(); // scoped (subject_id:name/slug) -> id & global fallback
+    (topicsRes.data || []).forEach((t: { id: string; name: string; slug: string; subject_id: string }) => {
+      if (t.subject_id) {
+        topicMap.set(`${t.subject_id}:${t.slug.toLowerCase()}`, t.id);
+        topicMap.set(`${t.subject_id}:${t.name.toLowerCase()}`, t.id);
+      }
       topicMap.set(t.slug.toLowerCase(), t.id);
       topicMap.set(t.name.toLowerCase(), t.id);
       topicMap.set(t.id, t.id);
@@ -267,10 +277,11 @@ export class BulkImportEngine {
 
       case "questions": {
         for (const item of data) {
+          const rawPsecId = String(item.pattern_section_id || item.patternSectionId || "").trim();
           const statement = String(item.statement || item.question || item.question_text || item.text || "");
-          const categoryRef = String(item.category || item.exam || "");
-          const sectionRef = String(item.section || item.subject || "");
-          const topicRef = String(item.topic || item.topic_slug || "");
+          const categoryRef = String(item.category || item.exam || item.category_id || "");
+          const sectionRef = String(item.section || item.subject || item.section_name || "");
+          const topicRef = String(item.topic || item.topic_slug || "").trim();
           const difficulty = String(item.difficulty || "medium").toLowerCase();
           const language = String(item.language || "en").toLowerCase() === "hi" ? "hi" : "en";
           const explanation = String(item.explanation || item.solution || "");
@@ -284,20 +295,73 @@ export class BulkImportEngine {
             continue;
           }
 
-          // Resolve Topic
-          let topicId = topicMap.get(topicRef.toLowerCase());
-          if (!topicId && sectionRef) {
-            const subjectId = subjectMap.get(sectionRef.toLowerCase());
-            if (subjectId) {
-              // Find or create default topic for subject
-              const { data: existingTopic } = await supabase.from("topics").select("id").eq("subject_id", subjectId).limit(1).maybeSingle();
-              topicId = existingTopic?.id;
+          if (!topicRef) {
+            errors.push("Question missing topic.");
+            continue;
+          }
+
+          // Authoritative Subject Resolution
+          let targetSubjectId: string | null = null;
+          if (rawPsecId) {
+            const psec = psecMap.get(rawPsecId);
+            if (!psec) {
+              errors.push(`pattern_section_id "${rawPsecId}" not found in pattern_sections.`);
+              continue;
             }
+            targetSubjectId = psec.subject_id;
+
+            if (sectionRef) {
+              const psecNorm = (psec.section_name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+              const secNorm = sectionRef.toLowerCase().replace(/[^a-z0-9]/g, "");
+              if (psecNorm !== secNorm) {
+                errors.push(`Section mapping conflict: pattern_section_id refers to "${psec.section_name}" but section is "${sectionRef}".`);
+                continue;
+              }
+            }
+          } else if (sectionRef) {
+            const subjId = subjectMap.get(sectionRef.toLowerCase().trim());
+            if (subjId) {
+              targetSubjectId = subjId;
+            } else {
+              errors.push(`Section "${sectionRef}" could not be resolved to a valid subject.`);
+              continue;
+            }
+          } else {
+            errors.push("Missing section context (pattern_section_id or section_name is required).");
+            continue;
+          }
+
+          // Scoped Topic Resolution under (targetSubjectId + normalized topic)
+          const topicKey = `${targetSubjectId}:${topicRef.toLowerCase()}`;
+          let topicId = topicMap.get(topicKey);
+
+          if (!topicId && mode === "commit" && targetSubjectId) {
+            const topicSlug = topicRef.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+            const { data: newTop, error: topErr } = await supabase
+              .from("topics")
+              .insert({
+                subject_id: targetSubjectId,
+                name: topicRef,
+                slug: topicSlug,
+                is_active: true,
+              })
+              .select("id")
+              .single();
+
+            if (!topErr && newTop) {
+              topicId = newTop.id;
+              topicMap.set(topicKey, newTop.id);
+            }
+          }
+
+          if (!topicId && mode !== "commit") {
+            // In preview mode, topic will be created upon commit
+            topicId = "preview-topic-id";
           }
 
           if (!topicId) {
             brokenReferencesCount++;
-            warnings.push(`Question "${statement.slice(0, 30)}..." missing valid Topic/Section reference.`);
+            warnings.push(`Question "${statement.slice(0, 30)}..." failed topic assignment under subject.`);
           }
 
           // Parse Options
