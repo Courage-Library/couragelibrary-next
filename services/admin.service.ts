@@ -1,5 +1,18 @@
 import { createServerSupabaseClient, createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { UserProfileService } from "@/services/user-profile.service";
+import {
+  getIstCurrentDateTime,
+  getIstTomorrowDateStr,
+  validateFutureLaunchDateTime,
+  mapUiTestTypeToDbTestType,
+} from "@/lib/utils";
+
+export {
+  getIstCurrentDateTime,
+  getIstTomorrowDateStr,
+  validateFutureLaunchDateTime,
+  mapUiTestTypeToDbTestType,
+};
 
 export interface AdminCategoryItem {
   id: string;
@@ -76,6 +89,7 @@ export interface AdminDailyMockProgram {
   categoryName: string;
   categorySlug: string;
   launchDate: string;
+  launchTime?: string;
   defaultLanguage: "both" | "english" | "hindi";
   isActive: boolean;
   days: DailyMockDayConfig[];
@@ -771,7 +785,8 @@ export class AdminService {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const templates = templatesRes.data || [];
-    let detectedLaunchDate = "2026-03-01";
+    let detectedLaunchDate = getIstTomorrowDateStr();
+    let detectedLaunchTime = "09:00";
     let detectedLanguage: "both" | "english" | "hindi" = "both";
 
     const days: DailyMockDayConfig[] = daysOfWeek.map((day, idx) => {
@@ -789,6 +804,7 @@ export class AdminService {
         try {
           meta = JSON.parse(t.description);
           if (meta.launchDate) detectedLaunchDate = meta.launchDate;
+          if (meta.launchTime) detectedLaunchTime = meta.launchTime;
           if (meta.defaultLanguage) detectedLanguage = meta.defaultLanguage;
         } catch {
           // ignore parsing error
@@ -869,6 +885,7 @@ export class AdminService {
         categoryName: selectedCat.title,
         categorySlug: selectedCat.slug,
         launchDate: detectedLaunchDate,
+        launchTime: detectedLaunchTime,
         defaultLanguage: detectedLanguage,
         isActive: activeDaysCount > 0,
         days,
@@ -888,6 +905,7 @@ export class AdminService {
     categoryId: string,
     dayConfig: DailyMockDayConfig,
     launchDate?: string,
+    launchTime?: string,
     defaultLanguage?: string
   ): Promise<{ success: boolean; templateId?: string; error?: string }> {
     const supabase = createAdminServerSupabaseClient();
@@ -909,9 +927,11 @@ export class AdminService {
       cycleId = newCycle?.id;
     }
 
+    const dbTestType = mapUiTestTypeToDbTestType(dayConfig.testType);
     const templateSlug = `${category.slug}-daily-${dayConfig.dayOfWeek}`;
     const descriptionJson = JSON.stringify({
       dayOfWeek: dayConfig.dayOfWeek,
+      testFormat: dayConfig.testType,
       activeSectionId: dayConfig.activeSectionId,
       activeSectionName: dayConfig.activeSectionName,
       activeSectionIds: dayConfig.activeSectionIds || (dayConfig.activeSectionId ? [dayConfig.activeSectionId] : []),
@@ -921,7 +941,8 @@ export class AdminService {
       totalMarks: dayConfig.totalMarks,
       negativeMark: dayConfig.negativeMark,
       language: dayConfig.language,
-      launchDate: launchDate || "2026-03-01",
+      launchDate: launchDate || getIstTomorrowDateStr(),
+      launchTime: launchTime || "09:00",
       defaultLanguage: defaultLanguage || "both",
     });
 
@@ -940,7 +961,7 @@ export class AdminService {
         .from("mock_templates")
         .update({
           pattern_id: dayConfig.patternId,
-          test_type: dayConfig.testType,
+          test_type: dbTestType,
           title: `${category.title} Daily ${dayConfig.dayLabel}`,
           is_active: dayConfig.isActive,
           description: descriptionJson,
@@ -956,7 +977,7 @@ export class AdminService {
           exam_id: categoryId,
           exam_cycle_id: cycleId,
           pattern_id: dayConfig.patternId,
-          test_type: dayConfig.testType,
+          test_type: dbTestType,
           slug: templateSlug,
           title: `${category.title} Daily ${dayConfig.dayLabel}`,
           is_active: dayConfig.isActive,
@@ -1009,19 +1030,79 @@ export class AdminService {
   }
 
   /**
-   * Admin: Save Entire 7-Day Daily Mock Program
+   * Admin: Launch Entire 7-Day Daily Mock Program with Atomic Validation
    */
   static async saveAdminDailyMockProgram(
     categoryId: string,
     launchDate: string,
+    launchTime: string,
     defaultLanguage: "both" | "english" | "hindi",
     days: DailyMockDayConfig[]
   ): Promise<{ success: boolean; updatedCount: number; errors: string[] }> {
+    // 1. Validate Future Launch Date & Time in Asia/Kolkata
+    const dateValidation = validateFutureLaunchDateTime(launchDate, launchTime);
+    if (!dateValidation.isValid) {
+      return {
+        success: false,
+        updatedCount: 0,
+        errors: [dateValidation.error || "Launch date and time must be in the future."],
+      };
+    }
+
+    // 2. Validate at least one active day
+    const activeDays = days.filter((d) => d.isActive);
+    if (activeDays.length === 0) {
+      return {
+        success: false,
+        updatedCount: 0,
+        errors: ["At least one active day is required to launch the weekly program."],
+      };
+    }
+
+    // 3. Pre-validate all day configurations before database mutation
+    for (const day of activeDays) {
+      if (!day.patternId) {
+        return {
+          success: false,
+          updatedCount: 0,
+          errors: [`${day.dayLabel}: Pattern blueprint is required.`],
+        };
+      }
+      if (day.questionCount <= 0) {
+        return {
+          success: false,
+          updatedCount: 0,
+          errors: [`${day.dayLabel}: Question count must be greater than 0.`],
+        };
+      }
+      if (day.durationMinutes <= 0) {
+        return {
+          success: false,
+          updatedCount: 0,
+          errors: [`${day.dayLabel}: Duration must be greater than 0 minutes.`],
+        };
+      }
+      if (day.totalMarks <= 0) {
+        return {
+          success: false,
+          updatedCount: 0,
+          errors: [`${day.dayLabel}: Total marks must be greater than 0.`],
+        };
+      }
+    }
+
+    // 4. Atomic Execution across all 7 days
     let updatedCount = 0;
     const errors: string[] = [];
 
     for (const day of days) {
-      const res = await this.saveAdminDailyMockDay(categoryId, day, launchDate, defaultLanguage);
+      const res = await this.saveAdminDailyMockDay(
+        categoryId,
+        day,
+        launchDate,
+        launchTime,
+        defaultLanguage
+      );
       if (res.success) {
         updatedCount++;
       } else {

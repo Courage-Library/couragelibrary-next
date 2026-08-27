@@ -9,6 +9,11 @@ import {
   DailyMockDayConfig,
 } from "@/services/admin.service";
 import {
+  getIstCurrentDateTime,
+  getIstTomorrowDateStr,
+  validateFutureLaunchDateTime,
+} from "@/lib/utils";
+import {
   createScheduleAction,
   updateScheduleAction,
   saveDailyMockDayAction,
@@ -28,8 +33,10 @@ import {
   Edit2,
   Power,
   X,
-  Save,
   CalendarCheck,
+  Rocket,
+  Clock,
+  AlertTriangle,
 } from "lucide-react";
 
 interface Props {
@@ -59,13 +66,24 @@ export function AdminSchedulesManager({
   const initialProgram = dailyProgramData?.program;
   const availablePatterns = dailyProgramData?.availablePatterns || [];
 
-  const [launchDate, setLaunchDate] = useState(initialProgram?.launchDate || "2026-03-01");
+  const { istDateStr: currentIstDate } = useMemo(() => getIstCurrentDateTime(), []);
+
+  const [launchDate, setLaunchDate] = useState(() => initialProgram?.launchDate || getIstTomorrowDateStr());
+  const [launchTime, setLaunchTime] = useState(() => initialProgram?.launchTime || "09:00");
   const [defaultLanguage, setDefaultLanguage] = useState<"both" | "english" | "hindi">(
     initialProgram?.defaultLanguage || "both"
   );
   const [daysState, setDaysState] = useState<DailyMockDayConfig[]>(
     initialProgram?.days || []
   );
+
+  // Pre-Launch Confirmation Modal State
+  const [showLaunchConfirmModal, setShowLaunchConfirmModal] = useState(false);
+
+  // Validation
+  const launchValidation = useMemo(() => {
+    return validateFutureLaunchDateTime(launchDate, launchTime);
+  }, [launchDate, launchTime]);
 
   // Edit Modal for single day & cycle
   const [editingDay, setEditingDay] = useState<DailyMockDayConfig | null>(null);
@@ -98,7 +116,8 @@ export function AdminSchedulesManager({
   // Sync state if initialProgram changes on category switch
   React.useEffect(() => {
     if (initialProgram) {
-      setLaunchDate(initialProgram.launchDate || "2026-03-01");
+      setLaunchDate(initialProgram.launchDate || getIstTomorrowDateStr());
+      setLaunchTime(initialProgram.launchTime || "09:00");
       setDefaultLanguage(initialProgram.defaultLanguage || "both");
       setDaysState(initialProgram.days || []);
     }
@@ -329,38 +348,75 @@ export function AdminSchedulesManager({
                 </div>
               </div>
 
-              {/* Batch Save Button */}
-              <form action={saveProgAction} className="flex items-center gap-2">
-                <input type="hidden" name="categoryId" value={activeCategoryObj?.id || ""} />
-                <input type="hidden" name="launchDate" value={launchDate} />
-                <input type="hidden" name="defaultLanguage" value={defaultLanguage} />
-                <input type="hidden" name="daysJson" value={JSON.stringify(daysState)} />
+              {/* Launch Weekly Program Action Button */}
+              <div className="flex items-center gap-2">
                 <Button
-                  type="submit"
+                  type="button"
                   size="sm"
+                  onClick={() => {
+                    if (!launchValidation.isValid) {
+                      alert(launchValidation.error || "Launch date and time must be in the future.");
+                      return;
+                    }
+                    setShowLaunchConfirmModal(true);
+                  }}
                   disabled={isSavingProg}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 px-4 py-2 rounded-xl transition"
                 >
-                  <Save className="w-3.5 h-3.5 mr-1" />
-                  {isSavingProg ? "Saving All Days..." : "Save Weekly Program"}
+                  <Rocket className="w-4 h-4" />
+                  {isSavingProg ? "Launching Program..." : "Launch Weekly Program"}
                 </Button>
-              </form>
+              </div>
             </div>
 
-            {/* Launch Date & Global Language Settings */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+            {/* Validation or Error Feedback */}
+            {(!launchValidation.isValid || progSaveState?.error) && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2 text-xs font-semibold text-amber-800">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>{progSaveState?.error || launchValidation.error || "Launch date and time must be in the future (Asia/Kolkata / IST)."}</span>
+              </div>
+            )}
+
+            {progSaveState?.message && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2 text-xs font-semibold text-emerald-800">
+                <CalendarCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>{progSaveState.message}</span>
+              </div>
+            )}
+
+            {/* Launch Date, Time & Global Language Settings */}
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 pt-1">
               <div>
                 <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
-                  Program Launch Date
+                  Launch Date (IST) <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="date"
+                  min={currentIstDate}
                   value={launchDate}
                   onChange={(e) => setLaunchDate(e.target.value)}
                   className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 focus:outline-none focus:border-blue-500 focus:bg-white"
                 />
                 <span className="text-[10px] text-slate-400 mt-0.5 block">
-                  Relative mock numbers (T#1, T#2...) auto-increment from this date.
+                  Future date required (Asia/Kolkata).
+                </span>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
+                  Launch Time (IST) <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="time"
+                    value={launchTime}
+                    onChange={(e) => setLaunchTime(e.target.value)}
+                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 focus:outline-none focus:border-blue-500 focus:bg-white"
+                  />
+                  <Clock className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+                <span className="text-[10px] text-slate-400 mt-0.5 block">
+                  e.g. 09:00 AM IST.
                 </span>
               </div>
 
@@ -378,7 +434,7 @@ export function AdminSchedulesManager({
                   <option value="english">🇬🇧 English Medium</option>
                 </select>
                 <span className="text-[10px] text-slate-400 mt-0.5 block">
-                  Students can switch language before starting each daily mock.
+                  Students can switch language.
                 </span>
               </div>
 
@@ -1046,6 +1102,102 @@ export function AdminSchedulesManager({
                   {isEditingCycle ? "Updating..." : "Save Changes"}
                 </Button>
               </div>
+            </form>
+          </Card>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* LAUNCH WEEKLY PROGRAM CONFIRMATION MODAL                                 */}
+      {/* ========================================================================= */}
+      {showLaunchConfirmModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <Card className="w-full max-w-md bg-white border border-slate-200 rounded-3xl shadow-2xl p-6 space-y-5 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-700">
+                  <Rocket className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Launch Weekly Program?</h3>
+                  <p className="text-[11px] text-slate-500 font-medium">{activeCategoryObj?.title}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowLaunchConfirmModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Launch Summary Matrix */}
+            <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-3">
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-semibold text-slate-500">Exam Category:</span>
+                <span className="font-bold text-slate-900">{activeCategoryObj?.title}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-semibold text-slate-500">Launch Date & Time:</span>
+                <span className="font-bold text-emerald-700">
+                  {launchDate} at {launchTime} (IST)
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-semibold text-slate-500">Active Schedule:</span>
+                <span className="font-bold text-blue-700">
+                  {daysState.filter((d) => d.isActive).length} / 7 Days Active
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-semibold text-slate-500">Weekly Questions:</span>
+                <span className="font-bold text-purple-700">
+                  {daysState.filter((d) => d.isActive).reduce((acc, d) => acc + d.questionCount, 0)} Qs
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-semibold text-slate-500">Total Weekly Marks:</span>
+                <span className="font-bold text-amber-700">
+                  {daysState.filter((d) => d.isActive).reduce((acc, d) => acc + d.totalMarks, 0)} Marks
+                </span>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              This will activate the 7-day recurring daily mock series for students starting from the specified launch datetime.
+            </p>
+
+            <form
+              action={async (formData) => {
+                await saveProgAction(formData);
+                setShowLaunchConfirmModal(false);
+              }}
+              className="flex items-center justify-end gap-2.5 pt-2"
+            >
+              <input type="hidden" name="categoryId" value={activeCategoryObj?.id || ""} />
+              <input type="hidden" name="launchDate" value={launchDate} />
+              <input type="hidden" name="launchTime" value={launchTime} />
+              <input type="hidden" name="defaultLanguage" value={defaultLanguage} />
+              <input type="hidden" name="daysJson" value={JSON.stringify(daysState)} />
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowLaunchConfirmModal(false)}
+                className="text-xs font-semibold rounded-xl"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={isSavingProg}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs rounded-xl flex items-center gap-1.5 px-4"
+              >
+                <Rocket className="w-4 h-4" />
+                {isSavingProg ? "Launching..." : "Confirm & Launch Program"}
+              </Button>
             </form>
           </Card>
         </div>
