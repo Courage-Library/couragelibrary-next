@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient, createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { UserProfileService } from "@/services/user-profile.service";
 
 export interface AdminCategoryItem {
@@ -890,7 +890,7 @@ export class AdminService {
     launchDate?: string,
     defaultLanguage?: string
   ): Promise<{ success: boolean; templateId?: string; error?: string }> {
-    const supabase = await createServerSupabaseClient();
+    const supabase = createAdminServerSupabaseClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = supabase as any;
 
@@ -1036,7 +1036,7 @@ export class AdminService {
    * Admin: Toggle a Single Daily Mock Day Status
    */
   static async toggleDailyMockDayStatus(templateId: string, currentActive: boolean): Promise<{ success: boolean; error?: string }> {
-    const supabase = await createServerSupabaseClient();
+    const supabase = createAdminServerSupabaseClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = supabase as any;
 

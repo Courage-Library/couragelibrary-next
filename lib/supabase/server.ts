@@ -1,4 +1,5 @@
-﻿import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getAppEnv } from "@/config/env";
 import type { Database } from "@/types/database";
@@ -34,6 +35,27 @@ export async function createServerSupabaseClient() {
             // Ignored if called from Server Component
           }
         },
+      },
+    }
+  );
+}
+
+/**
+ * Creates a server-only, privileged Supabase client with SERVICE_ROLE key.
+ * Used exclusively for server actions guarded by AdminService.checkIsAdminOrStaff().
+ * Never exposed to browser or client components.
+ */
+export function createAdminServerSupabaseClient() {
+  const { supabaseUrl, supabaseAnonKey } = getAppEnv();
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseAnonKey;
+
+  return createClient<Database>(
+    supabaseUrl || "https://placeholder-url.supabase.co",
+    serviceRoleKey,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
       },
     }
   );
