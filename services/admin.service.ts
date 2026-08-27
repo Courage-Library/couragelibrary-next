@@ -1121,7 +1121,7 @@ export class AdminService {
     const sb = supabase as any;
 
     // 1. Fetch Questions with full relational hierarchy
-    const [questionsRes, examsRes, patternsRes, subjectsRes, topicsRes, mockTestsRes, mockQuestionsRes] =
+    const [questionsRes, examsRes, patternsRes, subjectsRes, topicsRes, mockTestsRes, patternSectionsRes] =
       await Promise.all([
         sb
           .from("questions")
@@ -1178,26 +1178,26 @@ export class AdminService {
         sb.from("subjects").select("id, name, slug").order("name"),
         sb.from("topics").select("id, subject_id, name, slug").order("name"),
         sb.from("mock_tests").select("id, title, slug, template_id, duration_minutes, total_questions, total_marks, status, mock_templates(exams(title, slug), exam_patterns(name))").order("title"),
-        sb.from("mock_questions").select("mock_test_id, mock_section_id, question_version_id, question_order, mock_tests(id, title, template_id, mock_templates(exam_id, pattern_id, exams(id, title, slug), exam_patterns(id, name))), mock_sections(id, section_name)"),
+        sb.from("pattern_sections").select("id, section_name, pattern_id, subject_id, exam_patterns(id, name, exam_cycles(exams(id, title, slug)))"),
       ]);
 
-    const mockQuestionMap = new Map<string, Array<{ mockTestId: string; mockTestTitle: string; sectionName: string; questionOrder: number; examTitle?: string; examSlug?: string; patternName?: string }>>();
-
+    // Build Canonical Subject -> Pattern / Exam Hierarchy Map
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (mockQuestionsRes.data || []).forEach((mq: any) => {
-      const qvId = mq.question_version_id;
-      if (!mockQuestionMap.has(qvId)) {
-        mockQuestionMap.set(qvId, []);
+    const subjectHierarchyMap = new Map<string, { categoryId: string | null; categoryName: string; categorySlug: string | null; patternId: string | null; patternName: string; sectionName: string }>();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (patternSectionsRes.data || []).forEach((ps: any) => {
+      if (ps.subject_id) {
+        const pat = ps.exam_patterns;
+        const exam = pat?.exam_cycles?.exams;
+        subjectHierarchyMap.set(ps.subject_id, {
+          sectionName: ps.section_name,
+          patternId: pat?.id || null,
+          patternName: pat?.name || "Standard Pattern",
+          categoryId: exam?.id || null,
+          categoryName: exam?.title || "Competitive Exam",
+          categorySlug: exam?.slug || null,
+        });
       }
-      mockQuestionMap.get(qvId)!.push({
-        mockTestId: mq.mock_test_id,
-        mockTestTitle: mq.mock_tests?.title || "Mock Test",
-        sectionName: mq.mock_sections?.section_name || "General Section",
-        questionOrder: mq.question_order,
-        examTitle: mq.mock_tests?.mock_templates?.exams?.title,
-        examSlug: mq.mock_tests?.mock_templates?.exams?.slug,
-        patternName: mq.mock_tests?.mock_templates?.exam_patterns?.name,
-      });
     });
 
     // 2. Map Question Items
@@ -1209,24 +1209,15 @@ export class AdminService {
       const source = q.question_sources?.[0];
       const topic = q.topics;
       const subject = topic?.subjects;
-      const associations = mockQuestionMap.get(version.id) || [];
 
-      // Determine Category / Exam & Pattern
-      let categoryName = "Unassigned";
-      let categorySlug: string | null = null;
-      let categoryId: string | null = null;
-      let patternName = "Unassigned";
-      let patternId: string | null = null;
+      // Canonical Hierarchy Resolution via Subject
+      const hierarchy = subject?.id ? subjectHierarchyMap.get(subject.id) : null;
 
-      if (associations.length > 0) {
-        categoryName = associations[0].examTitle || "General Category";
-        categorySlug = associations[0].examSlug || null;
-        patternName = associations[0].patternName || "General Pattern";
-      } else if (source?.exam_name) {
-        categoryName = source.exam_name;
-      } else if (subject?.name) {
-        categoryName = "General Competitive";
-      }
+      const categoryName = hierarchy?.categoryName || source?.exam_name || (subject?.name ? "General Competitive" : "Unassigned");
+      const categorySlug = hierarchy?.categorySlug || null;
+      const categoryId = hierarchy?.categoryId || null;
+      const patternName = hierarchy?.patternName || "Unassigned";
+      const patternId = hierarchy?.patternId || null;
 
       // Check if topic is unassigned
       const isTopicUnassigned = !topic || !topic.name || topic.name === "General Topic";
@@ -1252,7 +1243,7 @@ export class AdminService {
         patternId,
         patternName,
         sectionId: subject?.id || null,
-        sectionName: isSectionUnassigned ? "Unassigned" : subject.name,
+        sectionName: hierarchy?.sectionName || (isSectionUnassigned ? "Unassigned" : subject.name),
         topicId: topic?.id || null,
         topicName: isTopicUnassigned ? "Unassigned" : topic.name,
         // PYQ
@@ -1270,7 +1261,7 @@ export class AdminService {
         })),
         correctOptionKey: answers?.correct_option_key || "A",
         explanationMd: answers?.explanation_md || "No detailed explanation provided.",
-        mockTestAssociations: associations,
+        mockTestAssociations: [],
       };
     });
 
