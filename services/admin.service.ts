@@ -1116,7 +1116,7 @@ export class AdminService {
    * Admin: Complete Question Bank Hierarchy & Metadata
    */
   static async getAdminQuestionsWithHierarchy(): Promise<AdminQuestionsPageData> {
-    const supabase = await createServerSupabaseClient();
+    const supabase = createAdminServerSupabaseClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = supabase as any;
 
