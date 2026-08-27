@@ -121,6 +121,12 @@ export interface MockTestInstructionsData {
   existingAttemptId?: string;
 }
 
+export interface ActiveTestOption {
+  key: string;
+  text: string;
+  imageUrl?: string | null;
+}
+
 export interface ActiveTestQuestion {
   mockQuestionId: string;
   questionOrder: number;
@@ -128,13 +134,11 @@ export interface ActiveTestQuestion {
   sectionName: string;
   questionVersionId: string;
   questionText: string;
+  questionImageUrl?: string | null;
   optionsType: string;
   marks: number;
   negativeMark: number;
-  options: Array<{
-    key: string;
-    text: string;
-  }>;
+  options: ActiveTestOption[];
   savedAnswer?: {
     selectedOption: string | null;
     isMarkedForReview: boolean;
@@ -188,7 +192,9 @@ export interface TestResultSummary {
     questionOrder: number;
     sectionName: string;
     questionText: string;
-    options: Array<{ key: string; text: string }>;
+    questionImageUrl?: string | null;
+    optionsType?: string;
+    options: Array<{ key: string; text: string; imageUrl?: string | null }>;
     selectedOption: string | null;
     correctOption: string;
     isCorrect: boolean;
@@ -568,6 +574,25 @@ export class AssessmentService {
 
     if (!user) return null;
 
+    // Check for single attempt per calendar day enforcement (IST)
+    const istNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+    const todayStart = new Date(istNow);
+    todayStart.setHours(0, 0, 0, 0);
+
+    const { data: alreadyCompletedToday } = await supabase
+      .from("test_attempts")
+      .select("id, status, started_at")
+      .eq("mock_test_id", testId)
+      .eq("user_id", user.id)
+      .in("status", ["submitted", "completed"])
+      .gte("started_at", todayStart.toISOString())
+      .maybeSingle();
+
+    if (alreadyCompletedToday) {
+      // Single attempt per calendar day already submitted
+      return null;
+    }
+
     // Check for existing in_progress attempt
     const { data: existingAttempt } = await supabase
       .from("test_attempts")
@@ -599,7 +624,7 @@ export class AssessmentService {
     const [testRes, sectionsRes, questionsRes, answersRes] = await Promise.all([
       supabase.from("mock_tests").select("id, title, duration_minutes").eq("id", testId).single(),
       supabase.from("mock_sections").select("id, section_name, section_order").eq("mock_test_id", testId).order("section_order"),
-      supabase.from("mock_questions").select("id, question_order, mock_section_id, marks, negative_mark, question_versions(id, question_text, options_type, question_options(option_key, content_text, option_order))").eq("mock_test_id", testId).order("question_order"),
+      supabase.from("mock_questions").select("id, question_order, mock_section_id, marks, negative_mark, question_versions(id, question_text, question_image_url, options_type, question_options(id, option_key, option_text, option_image_url, order_index))").eq("mock_test_id", testId).order("question_order"),
       supabase.from("attempt_answers").select("mock_question_id, selected_option_key, is_marked_for_review, time_spent_seconds").eq("attempt_id", attempt.id),
     ]);
 
@@ -626,10 +651,11 @@ export class AssessmentService {
     const questions: ActiveTestQuestion[] = rawQuestions.map((mq) => {
       const qv = mq.question_versions;
       const opts = (qv?.question_options || [])
-        .sort((a: any, b: any) => (a.option_order || 0) - (b.option_order || 0))
+        .sort((a: any, b: any) => (a.order_index || 0) - (b.order_index || 0))
         .map((o: any) => ({
           key: o.option_key,
-          text: o.content_text,
+          text: o.option_text || o.content_text || "",
+          imageUrl: o.option_image_url || null,
         }));
 
       return {
@@ -639,6 +665,7 @@ export class AssessmentService {
         sectionName: sectionsMap.get(mq.mock_section_id) || "Section",
         questionVersionId: qv?.id || "",
         questionText: qv?.question_text || "",
+        questionImageUrl: qv?.question_image_url || null,
         optionsType: qv?.options_type || "text",
         marks: Number(mq.marks),
         negativeMark: Number(mq.negative_mark),
@@ -876,7 +903,7 @@ export class AssessmentService {
 
     const [sectionsRes, questionsRes, answersRes] = await Promise.all([
       supabase.from("section_results").select("*, mock_sections(section_name)").eq("test_result_id", r.id),
-      supabase.from("mock_questions").select("id, question_order, mock_section_id, marks, negative_mark, mock_sections(section_name), question_versions(id, question_text, question_options(option_key, content_text, option_order), question_answers(correct_option_key, solution_explanation_md), questions(canonical_topic_id, topics(name, slug)))").eq("mock_test_id", mt.id).order("question_order"),
+      supabase.from("mock_questions").select("id, question_order, mock_section_id, marks, negative_mark, mock_sections(section_name), question_versions(id, question_text, question_image_url, options_type, question_options(id, option_key, option_text, option_image_url, order_index), question_answers(correct_option_key, explanation_md), questions(canonical_topic_id, topics(name, slug)))").eq("mock_test_id", mt.id).order("question_order"),
       supabase.from("attempt_answers").select("mock_question_id, selected_option_key, is_correct, evaluated_marks").eq("attempt_id", attemptId),
     ]);
 
@@ -903,19 +930,25 @@ export class AssessmentService {
       const qv = mq.question_versions;
       const ans = answersMap.get(mq.id);
       const opts = (qv?.question_options || [])
-        .sort((a: any, b: any) => (a.option_order || 0) - (b.option_order || 0))
-        .map((o: any) => ({ key: o.option_key, text: o.content_text }));
+        .sort((a: any, b: any) => (a.order_index || 0) - (b.order_index || 0))
+        .map((o: any) => ({
+          key: o.option_key,
+          text: o.option_text || o.content_text || "",
+          imageUrl: o.option_image_url || null,
+        }));
 
       return {
         questionOrder: mq.question_order,
         sectionName: mq.mock_sections?.section_name || "General",
         questionText: qv?.question_text || "",
+        questionImageUrl: qv?.question_image_url || null,
+        optionsType: qv?.options_type || "text",
         options: opts,
         selectedOption: ans?.selected_option_key || null,
         correctOption: qv?.question_answers?.[0]?.correct_option_key || "A",
         isCorrect: ans?.is_correct ?? false,
         marksAwarded: Number(ans?.evaluated_marks || 0),
-        explanation: qv?.question_answers?.[0]?.solution_explanation_md || null,
+        explanation: qv?.question_answers?.[0]?.explanation_md || null,
         topicName: qv?.questions?.topics?.name || null,
         topicSlug: qv?.questions?.topics?.slug || null,
       };
