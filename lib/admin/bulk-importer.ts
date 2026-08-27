@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { AdminService } from "@/services/admin.service";
 
 export interface BulkImportRecord {
@@ -62,7 +62,7 @@ export class BulkImportEngine {
       };
     }
 
-    const supabaseRaw = await createServerSupabaseClient();
+    const supabaseRaw = createAdminServerSupabaseClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const supabase = supabaseRaw as any;
 

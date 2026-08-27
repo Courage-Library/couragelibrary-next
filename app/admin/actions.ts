@@ -1,6 +1,6 @@
 "use server";
 
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { AdminService } from "@/services/admin.service";
 import { BulkImportEngine, BulkImportPayload, BulkImportResult } from "@/lib/admin/bulk-importer";
 import { revalidatePath } from "next/cache";
@@ -61,7 +61,7 @@ export async function uploadBulkImportImageAction(
   if (!file) return { success: false, error: "No file provided." };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = (await createServerSupabaseClient()) as any;
+  const supabase = createAdminServerSupabaseClient() as any;
   const ext = file.name.split(".").pop() || "png";
   const filename = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
   const path = `${folder}/${filename}`;
@@ -118,7 +118,7 @@ export async function importBulkQuestionsAction(
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = (await createServerSupabaseClient()) as any;
+  const supabase = createAdminServerSupabaseClient() as any;
   let inserted = 0;
   let failed = 0;
   const errors: string[] = [];
@@ -315,7 +315,7 @@ export async function createCategoryAction(
 
   if (!title) return { error: "Category Name is required." };
 
-  const supabaseRaw = await createServerSupabaseClient();
+  const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = supabaseRaw as any;
   const orgId = await getDefaultOrgId(supabase);
@@ -352,7 +352,7 @@ export async function updateCategoryAction(
 
   if (!id || !title) return { error: "Category ID and Name are required." };
 
-  const supabaseRaw = await createServerSupabaseClient();
+  const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = supabaseRaw as any;
 
@@ -375,7 +375,7 @@ export async function toggleCategoryStatusAction(categoryId: string, currentActi
   const authCheck = await AdminService.checkIsAdminOrStaff();
   if (!authCheck.isAdmin) return { error: "Unauthorized access." };
 
-  const supabaseRaw = await createServerSupabaseClient();
+  const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = supabaseRaw as any;
 
@@ -407,7 +407,7 @@ export async function createPatternAction(
 
   if (!categoryId || !name) return { error: "Category and Pattern Name are required." };
 
-  const supabaseRaw = await createServerSupabaseClient();
+  const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = supabaseRaw as any;
 
@@ -464,7 +464,7 @@ export async function updatePatternAction(
 
   if (!id || !name) return { error: "Pattern ID and Name are required." };
 
-  const supabaseRaw = await createServerSupabaseClient();
+  const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = supabaseRaw as any;
 
@@ -488,7 +488,7 @@ export async function togglePatternStatusAction(patternId: string, currentActive
   const authCheck = await AdminService.checkIsAdminOrStaff();
   if (!authCheck.isAdmin) return { error: "Unauthorized access." };
 
-  const supabaseRaw = await createServerSupabaseClient();
+  const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = supabaseRaw as any;
 
@@ -506,7 +506,7 @@ export async function deletePatternAction(patternId: string): Promise<AdminActio
   const authCheck = await AdminService.checkIsAdminOrStaff();
   if (!authCheck.isAdmin) return { error: "Unauthorized access." };
 
-  const supabaseRaw = await createServerSupabaseClient();
+  const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = supabaseRaw as any;
 
@@ -562,7 +562,7 @@ export async function createSectionAction(
   if (!questionCount || questionCount < 1) return { error: "Question count must be at least 1." };
   if (!marksPerQuestion || marksPerQuestion <= 0) return { error: "Marks per question must be > 0." };
 
-  const supabaseRaw = await createServerSupabaseClient();
+  const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = supabaseRaw as any;
 
@@ -655,7 +655,7 @@ export async function updateSectionAction(
 
   if (!id || !name) return { error: "Section ID and Name are required." };
 
-  const supabaseRaw = await createServerSupabaseClient();
+  const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = supabaseRaw as any;
 
@@ -677,7 +677,7 @@ export async function toggleSectionStatusAction(sectionId: string, currentActive
   const authCheck = await AdminService.checkIsAdminOrStaff();
   if (!authCheck.isAdmin) return { error: "Unauthorized access." };
 
-  const supabaseRaw = await createServerSupabaseClient();
+  const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = supabaseRaw as any;
 
@@ -695,7 +695,7 @@ export async function deleteSectionAction(sectionId: string): Promise<AdminActio
   const authCheck = await AdminService.checkIsAdminOrStaff();
   if (!authCheck.isAdmin) return { error: "Unauthorized access." };
 
-  const supabaseRaw = await createServerSupabaseClient();
+  const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = supabaseRaw as any;
 
@@ -730,7 +730,7 @@ export async function createScheduleAction(
 
   if (!categoryId) return { error: "Category is required for schedule creation." };
 
-  const supabaseRaw = await createServerSupabaseClient();
+  const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = supabaseRaw as any;
 
@@ -769,7 +769,7 @@ export async function updateScheduleAction(
 
   if (!id) return { error: "Schedule ID is required." };
 
-  const supabaseRaw = await createServerSupabaseClient();
+  const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = supabaseRaw as any;
 
@@ -795,7 +795,7 @@ export async function toggleScheduleStatusAction(scheduleId: string, currentStat
   if (!authCheck.isAdmin) return { error: "Unauthorized access." };
 
   const newStatus = currentStatus === "active" ? "archived" : "active";
-  const supabaseRaw = await createServerSupabaseClient();
+  const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = supabaseRaw as any;
 
@@ -958,7 +958,7 @@ export async function createQuestionHierarchyAction(
     return { error: "Question statement is required." };
   }
 
-  const supabaseRaw = await createServerSupabaseClient();
+  const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = supabaseRaw as any;
 
@@ -1062,7 +1062,7 @@ export async function updateQuestionHierarchyAction(
     return { error: "Question ID, Version ID, and statement are required." };
   }
 
-  const supabaseRaw = await createServerSupabaseClient();
+  const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = supabaseRaw as any;
 
@@ -1124,7 +1124,7 @@ export async function toggleQuestionStatusAction(questionId: string, currentStat
   if (!authCheck.isAdmin) return { error: "Unauthorized access." };
 
   const newStatus = currentStatus === "published" ? "archived" : "published";
-  const supabaseRaw = await createServerSupabaseClient();
+  const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = supabaseRaw as any;
 
@@ -1147,7 +1147,7 @@ export async function deleteQuestionAction(questionId: string): Promise<AdminAct
   const authCheck = await AdminService.checkIsAdminOrStaff();
   if (!authCheck.isAdmin) return { error: "Unauthorized access." };
 
-  const supabaseRaw = await createServerSupabaseClient();
+  const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = supabaseRaw as any;
 
@@ -1200,7 +1200,7 @@ export async function createMockTestAction(prevState: AdminActionResult | null, 
 
   if (!title || !slug) return { error: "Title and Slug are required." };
 
-  const supabaseRaw = await createServerSupabaseClient();
+  const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = supabaseRaw as any;
 
@@ -1291,7 +1291,7 @@ export async function updateMockTestAction(prevState: AdminActionResult | null, 
 
   if (!id || !title) return { error: "Mock Test ID and Title are required." };
 
-  const supabaseRaw = await createServerSupabaseClient();
+  const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = supabaseRaw as any;
 
@@ -1315,7 +1315,7 @@ export async function toggleMockTestPublishAction(mockTestId: string, currentSta
   if (!authCheck.isAdmin) return { error: "Unauthorized access." };
 
   const newStatus = currentStatus ? "draft" : "published";
-  const supabaseRaw = await createServerSupabaseClient();
+  const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = supabaseRaw as any;
 
@@ -1340,7 +1340,7 @@ export async function createArticleAction(prevState: AdminActionResult | null, f
 
   if (!title || !slug) return { error: "Title and Slug are required." };
 
-  const supabaseRaw = await createServerSupabaseClient();
+  const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = supabaseRaw as any;
 
@@ -1369,7 +1369,7 @@ export async function createCourseAction(prevState: AdminActionResult | null, fo
 
   if (!title || !slug) return { error: "Title and Slug are required." };
 
-  const supabaseRaw = await createServerSupabaseClient();
+  const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = supabaseRaw as any;
 
@@ -1397,7 +1397,7 @@ export async function createDescriptiveAction(prevState: AdminActionResult | nul
 
   if (!title || !promptText) return { error: "Title and Prompt are required." };
 
-  const supabaseRaw = await createServerSupabaseClient();
+  const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = supabaseRaw as any;
 
@@ -1424,7 +1424,7 @@ export async function createInstituteAction(prevState: AdminActionResult | null,
 
   if (!name || !slug) return { error: "Name and Slug are required." };
 
-  const supabaseRaw = await createServerSupabaseClient();
+  const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = supabaseRaw as any;
 
@@ -1452,7 +1452,7 @@ export async function createSubscriptionPlanAction(prevState: AdminActionResult 
 
   if (!name || !code) return { error: "Plan name and code are required." };
 
-  const supabaseRaw = await createServerSupabaseClient();
+  const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = supabaseRaw as any;
 
@@ -1474,7 +1474,7 @@ export async function resolveCommunityFlagAction(flagId: string, status: string 
   const authCheck = await AdminService.checkIsAdminOrStaff();
   if (!authCheck.isAdmin) return { error: "Unauthorized access." };
 
-  const supabaseRaw = await createServerSupabaseClient();
+  const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = supabaseRaw as any;
 
