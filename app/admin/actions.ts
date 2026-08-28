@@ -1013,6 +1013,79 @@ export async function saveDailyMockProgramAction(
 export const launchDailyMockProgramAction = saveDailyMockProgramAction;
 
 /**
+ * Server Action: Update full 7-day Daily Mock Program (Live Program Safe Update)
+ */
+export async function updateDailyMockProgramAction(
+  prevState: AdminActionResult | null,
+  formData: FormData
+): Promise<AdminActionResult> {
+  const authCheck = await AdminService.checkIsAdminOrStaff();
+  if (!authCheck.isAdmin) return { error: "Unauthorized access." };
+
+  const categoryId = formData.get("categoryId") as string;
+  const launchDate = (formData.get("launchDate") as string) || getIstTomorrowDateStr();
+  const launchTime = (formData.get("launchTime") as string) || "09:00";
+  const defaultLanguage = ((formData.get("defaultLanguage") as string) || "both") as "both" | "english" | "hindi";
+  const daysJson = formData.get("daysJson") as string;
+
+  if (!categoryId) return { error: "Category is required." };
+  if (!daysJson) return { error: "Days configuration data is missing." };
+
+  try {
+    const days = JSON.parse(daysJson);
+    const result = await AdminService.updateAdminDailyMockProgram(
+      categoryId,
+      launchDate,
+      launchTime,
+      defaultLanguage,
+      days
+    );
+
+    if (!result.success) {
+      return { error: result.errors.join(". ") };
+    }
+
+    revalidatePath("/admin/schedules");
+    revalidatePath("/mock-tests");
+    return { success: true, message: `Weekly Mock Program schedule updated successfully (${result.updatedCount} days configured).` };
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    return { error: `Invalid configuration data: ${errorMsg}` };
+  }
+}
+
+/**
+ * Server Action: Deactivate Entire Daily Mock Program (Destructive Operation with Typed Confirmation)
+ */
+export async function deactivateDailyMockProgramAction(
+  prevState: AdminActionResult | null,
+  formData: FormData
+): Promise<AdminActionResult> {
+  const authCheck = await AdminService.checkIsAdminOrStaff();
+  if (!authCheck.isAdmin) return { error: "Unauthorized access." };
+
+  const categoryId = formData.get("categoryId") as string;
+  const confirmationText = formData.get("confirmationText") as string;
+
+  if (!categoryId) return { error: "Category is required." };
+  if (confirmationText !== "DEACTIVATE") {
+    return { error: 'You must type "DEACTIVATE" exactly to confirm deactivation.' };
+  }
+
+  const result = await AdminService.deactivateAdminDailyMockProgram(categoryId, confirmationText);
+  if (!result.success) {
+    return { error: result.error || "Failed to deactivate weekly program." };
+  }
+
+  revalidatePath("/admin/schedules");
+  revalidatePath("/mock-tests");
+  return {
+    success: true,
+    message: `Weekly Daily Mock Program has been deactivated (${result.deactivatedCount} scheduled days stopped). Student attempts and history remain preserved.`,
+  };
+}
+
+/**
  * Server Action: Toggle single day active status in Daily Mock Program
  */
 export async function toggleDailyMockDayAction(templateId: string, currentActive: boolean): Promise<AdminActionResult> {
