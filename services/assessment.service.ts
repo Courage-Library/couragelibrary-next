@@ -97,6 +97,183 @@ export interface DailyMockHubData {
   fullMockTests: MockTestItem[];
 }
 
+export interface MockDashboardExamGoal {
+  id: string;
+  examId: string;
+  title: string;
+  slug: string;
+  category?: string;
+  priorityRank: number;
+  isActive: boolean;
+  targetScore?: number | null;
+}
+
+export interface MockDashboardTodayItem {
+  testId: string;
+  templateId: string;
+  examId: string;
+  examTitle: string;
+  examSlug: string;
+  dayLabel: string;
+  dayOfWeek: string;
+  testNumber: number;
+  title: string;
+  testType: string;
+  sectionName?: string;
+  questionCount: number;
+  durationMinutes: number;
+  totalMarks: number;
+  negativeMark: number;
+  isOpen: boolean;
+  status: "available" | "in_progress" | "completed" | "upcoming" | "expired" | "limit_reached";
+  attemptId?: string;
+  completedScore?: number;
+  completedAccuracy?: number;
+  answeredCount?: number;
+}
+
+export interface MockDashboardResumableMock {
+  attemptId: string;
+  testId: string;
+  title: string;
+  examTitle: string;
+  examSlug: string;
+  testType: string;
+  startedAt: string;
+  answeredCount: number;
+  totalQuestions: number;
+  progressPercentage: number;
+  durationMinutes: number;
+  totalMarks: number;
+}
+
+export interface MockDashboardExamPrepSummary {
+  examId: string;
+  examTitle: string;
+  examSlug: string;
+  totalMocksAttempted: number;
+  averageAccuracy: number;
+  bestScore: number;
+  maxScore: number;
+  questionsSolved: number;
+  recentScore?: number;
+}
+
+export interface MockDashboardScheduleDay {
+  dayOfWeek: string;
+  dayLabel: string;
+  testType: string;
+  patternName: string;
+  sectionName?: string;
+  questionCount: number;
+  durationMinutes: number;
+  totalMarks: number;
+  isActive: boolean;
+  status: "completed" | "available" | "upcoming" | "missed";
+  isToday: boolean;
+  testId?: string;
+  score?: number;
+}
+
+export interface MockDashboardFullMockItem {
+  id: string;
+  title: string;
+  slug: string;
+  examTitle: string;
+  examSlug: string;
+  category: string;
+  durationMinutes: number;
+  totalQuestions: number;
+  totalMarks: number;
+  isFree: boolean;
+  publishedAt?: string;
+  userAttemptStatus?: "not_started" | "in_progress" | "completed";
+  bestScore?: number;
+  lastScore?: number;
+  attemptId?: string;
+}
+
+export interface MockDashboardRecentAttempt {
+  attemptId: string;
+  testId: string;
+  title: string;
+  examTitle: string;
+  examSlug: string;
+  testType: string;
+  submittedAt: string;
+  relativeTime: string;
+  score: number;
+  maxScore: number;
+  accuracyPercentage: number;
+  correctCount: number;
+  incorrectCount: number;
+  timeSpentSeconds: number;
+}
+
+export interface MockDashboardPerformance {
+  totalMocksAttempted: number;
+  averageAccuracy: number;
+  bestScore: number;
+  questionsSolved: number;
+  improvementTrend?: {
+    text: string;
+    percentage: number;
+    isPositive: boolean;
+  };
+  examBreakdown: MockDashboardExamPrepSummary[];
+}
+
+export interface MockDashboardStreak {
+  currentStreak: number;
+  longestStreak: number;
+  isFrozen: boolean;
+  isTodayAttempted: boolean;
+  milestones: Array<{
+    days: number;
+    achieved: boolean;
+  }>;
+}
+
+export interface MockDashboardRewards {
+  currentCoins: number;
+  lifetimeEarned: number;
+  levelTitle: string;
+  levelProgressPct: number;
+  badges: Array<{
+    id: string;
+    code: string;
+    title: string;
+    tier: string;
+    iconUrl?: string;
+    unlocked: boolean;
+  }>;
+  nextRewardThreshold: number;
+}
+
+export interface MockTestDashboardData {
+  user: {
+    id: string;
+    email?: string;
+    fullName?: string;
+  } | null;
+  activeExamGoals: MockDashboardExamGoal[];
+  allExams: Array<{ id: string; title: string; slug: string; category?: string }>;
+  selectedExamSlug: string;
+  nextMockAction: {
+    type: "resume" | "start_today" | "view_result" | "browse_full" | "none";
+    resumable?: MockDashboardResumableMock;
+    todayMock?: MockDashboardTodayItem;
+  };
+  todayMocks: MockDashboardTodayItem[];
+  examPrepSummaries: MockDashboardExamPrepSummary[];
+  weeklySchedule: MockDashboardScheduleDay[];
+  fullMockTests: MockDashboardFullMockItem[];
+  recentAttempts: MockDashboardRecentAttempt[];
+  performance: MockDashboardPerformance;
+  streak: MockDashboardStreak;
+  rewards: MockDashboardRewards;
+}
+
 export interface MockTestInstructionsData {
   test: {
     id: string;
@@ -494,6 +671,445 @@ export class AssessmentService {
       categories,
       selectedCategorySlug: selectedCategory.slug,
       fullMockTests,
+    };
+  }
+
+  /**
+   * Comprehensive Multi-Exam Mock Test Dashboard Data Aggregator
+   */
+  static async getStudentMockDashboardData(
+    examSlugFilter?: string,
+    userId?: string
+  ): Promise<MockTestDashboardData> {
+    const supabase = await createServerSupabaseClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sb = supabase as any;
+
+    // 1. Fetch user (if not provided)
+    let userObj: { id: string; email?: string; fullName?: string } | null = null;
+    let resolvedUserId = userId;
+    if (!resolvedUserId) {
+      const { data: authData } = await supabase.auth.getUser();
+      if (authData.user) {
+        resolvedUserId = authData.user.id;
+        userObj = {
+          id: authData.user.id,
+          email: authData.user.email,
+          fullName: authData.user.user_metadata?.full_name || authData.user.email?.split("@")[0] || "Aspirant",
+        };
+      }
+    } else {
+      const { data: profile } = await sb.from("user_profiles").select("full_name").eq("id", resolvedUserId).maybeSingle();
+      userObj = {
+        id: resolvedUserId,
+        fullName: profile?.full_name || "Aspirant",
+      };
+    }
+
+    // 2. Fetch all exams, user goals, templates, mock_tests, patterns in parallel
+    const [
+      allExamsRes,
+      userGoalsRes,
+      templatesRes,
+      publishedTestsRes,
+      patternsRes,
+      attemptsRes,
+      streaksRes,
+      walletRes,
+      badgesRes,
+      userBadgesRes,
+    ] = await Promise.all([
+      sb.from("exams").select("id, title, slug, category, is_active").eq("is_active", true).order("title", { ascending: true }),
+      resolvedUserId
+        ? sb.from("user_exam_goals").select("id, exam_id, priority_rank, is_active, target_score, exams(id, title, slug, category)").eq("user_id", resolvedUserId).eq("is_active", true).order("priority_rank", { ascending: true })
+        : Promise.resolve({ data: [] }),
+      sb.from("mock_templates").select("id, title, slug, test_type, is_active, description, exam_id, pattern_id, exams(id, title, slug, category), mock_tests(id, title, slug, duration_minutes, total_questions, total_marks, status, is_free)").eq("is_active", true),
+      sb.from("mock_tests").select("id, title, slug, duration_minutes, total_questions, total_marks, is_free, published_at, template_id, mock_templates(id, title, exam_id, test_type, exams(id, title, slug, category))").eq("status", "published").order("created_at", { ascending: false }),
+      sb.from("exam_patterns").select("id, name, duration_minutes, total_questions, total_marks, negative_mark_value, pattern_sections(id, section_name, num_questions, marks_per_question, negative_mark)"),
+      resolvedUserId
+        ? sb.from("test_attempts").select("id, user_id, mock_test_id, started_at, submitted_at, status, time_taken_seconds, mock_tests(id, title, slug, duration_minutes, total_questions, total_marks, mock_templates(id, title, exam_id, test_type, exams(id, title, slug, category))), test_results(id, total_score, max_score, accuracy_percentage, attempted_count, correct_count, incorrect_count, rank, percentile)").eq("user_id", resolvedUserId).order("started_at", { ascending: false }).limit(30)
+        : Promise.resolve({ data: [] }),
+      resolvedUserId
+        ? sb.from("user_streaks").select("current_streak, longest_streak, is_frozen, last_qualifying_date").eq("user_id", resolvedUserId).maybeSingle()
+        : Promise.resolve({ data: null }),
+      resolvedUserId
+        ? sb.from("coin_wallets").select("current_balance, lifetime_earned").eq("user_id", resolvedUserId).maybeSingle()
+        : Promise.resolve({ data: null }),
+      sb.from("badges").select("id, code, title, tier, icon_url, display_order").eq("is_active", true).order("display_order", { ascending: true }),
+      resolvedUserId
+        ? sb.from("user_badges").select("badge_id").eq("user_id", resolvedUserId)
+        : Promise.resolve({ data: [] }),
+    ]);
+
+    const allExams = (allExamsRes.data as any[]) || [];
+    const rawUserGoals = (userGoalsRes.data as any[]) || [];
+    const templates = (templatesRes.data as any[]) || [];
+    const publishedTests = (publishedTestsRes.data as any[]) || [];
+    const patterns = (patternsRes.data as any[]) || [];
+    const attempts = (attemptsRes.data as any[]) || [];
+    const streakRecord = streaksRes.data as any;
+    const walletRecord = walletRes.data as any;
+    const allBadges = (badgesRes.data as any[]) || [];
+    const userBadges = (userBadgesRes.data as any[]) || [];
+
+    // 3. Resolve active exam goals
+    let activeExamGoals: MockDashboardExamGoal[] = rawUserGoals.map((g: any, i: number) => ({
+      id: g.id,
+      examId: g.exam_id,
+      title: g.exams?.title || "Exam",
+      slug: g.exams?.slug || "exam",
+      category: g.exams?.category || "General",
+      priorityRank: g.priority_rank ?? i + 1,
+      isActive: g.is_active !== false,
+      targetScore: g.target_score,
+    }));
+
+    // If student has no goals set in database, use all active exams
+    if (activeExamGoals.length === 0) {
+      activeExamGoals = allExams.map((e, i) => ({
+        id: e.id,
+        examId: e.id,
+        title: e.title,
+        slug: e.slug,
+        category: e.category,
+        priorityRank: i + 1,
+        isActive: true,
+        targetScore: null,
+      }));
+    }
+
+    // Resolve active selection: "all" or specific exam slug
+    const normalizedFilter = examSlugFilter?.toLowerCase();
+    const hasSpecificSelection = normalizedFilter && normalizedFilter !== "all";
+    const selectedExamGoal = hasSpecificSelection
+      ? activeExamGoals.find((g) => g.slug.toLowerCase() === normalizedFilter) ||
+        allExams.find((e) => e.slug.toLowerCase() === normalizedFilter)
+      : null;
+
+    const selectedExamSlug = hasSpecificSelection && selectedExamGoal ? selectedExamGoal.slug : "all";
+
+    // Target exams in scope for the active view
+    const targetExams = selectedExamSlug === "all"
+      ? activeExamGoals
+      : [selectedExamGoal!];
+
+    // 4. Compute IST Time & Day Info
+    const now = new Date();
+    const istDateString = now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
+    const istDate = new Date(istDateString);
+    const dayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+    const currentDayOfWeek = dayNames[istDate.getDay()];
+    const istHour = istDate.getHours();
+    const isOpen = istHour >= 5 && istHour <= 23; // Available 5:00 AM to 11:59 PM
+    const todayStart = new Date(istDate);
+    todayStart.setHours(0, 0, 0, 0);
+
+    // 5. Incomplete / Resumable Attempt Resolution
+    let resumableMock: MockDashboardResumableMock | undefined;
+    const inProgressAttempt = attempts.find((a: any) => a.status === "in_progress");
+    if (inProgressAttempt) {
+      const mt = inProgressAttempt.mock_tests;
+      const examTitle = mt?.mock_templates?.exams?.title || "Exam";
+      const examSlug = mt?.mock_templates?.exams?.slug || "exam";
+      const answeredCount = inProgressAttempt.test_results?.[0]?.attempted_count || 0;
+      const totalQ = mt?.total_questions || 25;
+      resumableMock = {
+        attemptId: inProgressAttempt.id,
+        testId: mt?.id || inProgressAttempt.mock_test_id,
+        title: mt?.title || "In-Progress Mock Test",
+        examTitle,
+        examSlug,
+        testType: mt?.mock_templates?.test_type || "daily_sectional",
+        startedAt: inProgressAttempt.started_at,
+        answeredCount,
+        totalQuestions: totalQ,
+        progressPercentage: Math.min(100, Math.round((answeredCount / (totalQ || 1)) * 100)),
+        durationMinutes: mt?.duration_minutes || 15,
+        totalMarks: Number(mt?.total_marks || 50),
+      };
+    }
+
+    // 6. Today's Available Mocks across target exams
+    const todayMocks: MockDashboardTodayItem[] = [];
+    for (const exam of targetExams) {
+      const examId = (exam as any).examId || exam.id;
+      const tpl = templates.find((t: any) => {
+        if (t.exam_id !== examId) return false;
+        if (t.slug === `${exam.slug}-daily-${currentDayOfWeek}`) return true;
+        if (t.slug?.endsWith(`-daily-${currentDayOfWeek}`)) return true;
+        return false;
+      });
+
+      if (tpl) {
+        let meta: any = {};
+        try { meta = JSON.parse(tpl.description || "{}"); } catch {}
+        const testInstance = tpl.mock_tests?.[0];
+        const pattern = patterns.find((p: any) => p.id === tpl.pattern_id);
+
+        const launchDate = meta.launchDate ? new Date(meta.launchDate) : new Date("2026-03-01");
+        const diffDays = Math.max(0, Math.floor((istDate.getTime() - launchDate.getTime()) / 86400000));
+        const testNumber = Math.floor(diffDays / 7) + 1;
+
+        // Check if user attempted today
+        let itemStatus: MockDashboardTodayItem["status"] = isOpen ? "available" : "upcoming";
+        let attemptId: string | undefined;
+        let completedScore: number | undefined;
+        let completedAccuracy: number | undefined;
+
+        if (testInstance?.id) {
+          const userTodayAttempt = attempts.find((a: any) =>
+            a.mock_test_id === testInstance.id &&
+            new Date(a.started_at).getTime() >= todayStart.getTime()
+          );
+
+          if (userTodayAttempt) {
+            attemptId = userTodayAttempt.id;
+            if (userTodayAttempt.status === "completed") {
+              itemStatus = "completed";
+              completedScore = userTodayAttempt.test_results?.[0]?.total_score ?? userTodayAttempt.test_results?.[0]?.score;
+              completedAccuracy = userTodayAttempt.test_results?.[0]?.accuracy_percentage;
+            } else {
+              itemStatus = "in_progress";
+            }
+          }
+        }
+
+        const qCount = meta.questionCount || testInstance?.total_questions || (tpl.test_type === "daily_sectional" ? 25 : 50);
+        const dur = meta.durationMinutes || testInstance?.duration_minutes || (tpl.test_type === "daily_sectional" ? 15 : 25);
+        const marks = meta.totalMarks || testInstance?.total_marks || (qCount * 2);
+
+        todayMocks.push({
+          testId: testInstance?.id || tpl.id,
+          templateId: tpl.id,
+          examId,
+          examTitle: exam.title,
+          examSlug: exam.slug,
+          dayLabel: currentDayOfWeek.charAt(0).toUpperCase() + currentDayOfWeek.slice(1),
+          dayOfWeek: currentDayOfWeek,
+          testNumber,
+          title: testInstance?.title || `${exam.title} Daily Mock (T#${testNumber})`,
+          testType: tpl.test_type || "daily_sectional",
+          sectionName: meta.activeSectionName || (tpl.test_type === "mixed" ? "Mixed Subjects" : "Sectional Test"),
+          questionCount: qCount,
+          durationMinutes: dur,
+          totalMarks: marks,
+          negativeMark: meta.negativeMark ?? (pattern?.negative_mark_value || 0.5),
+          isOpen,
+          status: itemStatus,
+          attemptId,
+          completedScore,
+          completedAccuracy,
+        });
+      }
+    }
+
+    // 7. Weekly Mock Schedule (Mon - Sun)
+    const daysOrder = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+    const scheduleExam = (targetExams[0] as any) || allExams[0];
+    const scheduleExamId = scheduleExam?.examId || scheduleExam?.id;
+
+    const weeklySchedule: MockDashboardScheduleDay[] = daysOrder.map((day) => {
+      const tpl = templates.find((t: any) =>
+        t.exam_id === scheduleExamId &&
+        (t.slug === `${scheduleExam?.slug}-daily-${day}` || t.slug?.endsWith(`-daily-${day}`))
+      );
+      let meta: any = {};
+      try { meta = JSON.parse(tpl?.description || "{}"); } catch {}
+      const isCurrent = day === currentDayOfWeek;
+      const pattern = patterns.find((p: any) => p.id === tpl?.pattern_id);
+
+      let dayStatus: MockDashboardScheduleDay["status"] = "upcoming";
+      if (isCurrent) {
+        dayStatus = isOpen ? "available" : "upcoming";
+      }
+
+      return {
+        dayOfWeek: day,
+        dayLabel: day.charAt(0).toUpperCase() + day.slice(1),
+        testType: tpl?.test_type || "daily_sectional",
+        patternName: pattern?.name || "Standard Exam Pattern",
+        sectionName: meta.activeSectionName || (tpl?.test_type === "mixed" ? "Mixed Subjects" : "All Sections"),
+        questionCount: meta.questionCount || 25,
+        durationMinutes: meta.durationMinutes || 15,
+        totalMarks: meta.totalMarks || 50,
+        isActive: tpl?.is_active !== false,
+        status: dayStatus,
+        isToday: isCurrent,
+        testId: tpl?.mock_tests?.[0]?.id,
+      };
+    });
+
+    // 8. Full-Length Mock Tests
+    const targetExamIds = targetExams.map((e: any) => e.examId || e.id);
+    const fullMockTests: MockDashboardFullMockItem[] = publishedTests
+      .filter((mt: any) => {
+        const examId = mt.mock_templates?.exam_id;
+        const testType = mt.mock_templates?.test_type;
+        return targetExamIds.includes(examId) && testType !== "daily_sectional";
+      })
+      .map((mt: any) => {
+        const userAttempt = attempts.find((a: any) => a.mock_test_id === mt.id && a.status === "completed");
+        const res = userAttempt?.test_results?.[0];
+        return {
+          id: mt.id,
+          title: mt.title,
+          slug: mt.slug,
+          examTitle: mt.mock_templates?.exams?.title || "Exam",
+          examSlug: mt.mock_templates?.exams?.slug || "exam",
+          category: mt.mock_templates?.exams?.category || "National Level",
+          durationMinutes: mt.duration_minutes,
+          totalQuestions: mt.total_questions,
+          totalMarks: Number(mt.total_marks),
+          isFree: mt.is_free,
+          publishedAt: mt.published_at,
+          userAttemptStatus: userAttempt ? "completed" : "not_started",
+          bestScore: res ? Number(res.total_score ?? res.score) : undefined,
+          attemptId: userAttempt?.id,
+        };
+      });
+
+    // 9. Recent Completed Attempts
+    const recentAttempts: MockDashboardRecentAttempt[] = attempts
+      .filter((a: any) => a.status === "completed" && a.test_results && a.test_results.length > 0)
+      .slice(0, 5)
+      .map((a: any) => {
+        const res = a.test_results[0];
+        const mt = a.mock_tests;
+        const submitted = new Date(a.submitted_at || a.started_at);
+        const diffHours = Math.floor((now.getTime() - submitted.getTime()) / 3600000);
+        let relativeTime = "Today";
+        if (diffHours >= 24 && diffHours < 48) relativeTime = "Yesterday";
+        else if (diffHours >= 48) relativeTime = `${Math.floor(diffHours / 24)} days ago`;
+        else if (diffHours > 0) relativeTime = `${diffHours}h ago`;
+        else relativeTime = "Just now";
+
+        return {
+          attemptId: a.id,
+          testId: mt?.id || a.mock_test_id,
+          title: mt?.title || "Mock Test Attempt",
+          examTitle: mt?.mock_templates?.exams?.title || "General Mock",
+          examSlug: mt?.mock_templates?.exams?.slug || "mock",
+          testType: mt?.mock_templates?.test_type || "mock",
+          submittedAt: a.submitted_at || a.started_at,
+          relativeTime,
+          score: Number(res.total_score ?? res.score ?? 0),
+          maxScore: Number(res.max_score ?? mt?.total_marks ?? 100),
+          accuracyPercentage: Number(res.accuracy_percentage ?? 0),
+          correctCount: res.correct_count ?? 0,
+          incorrectCount: res.incorrect_count ?? 0,
+          timeSpentSeconds: a.time_taken_seconds || res.time_spent_seconds || 0,
+        };
+      });
+
+    // 10. Performance Statistics (Overall + Exam-Wise)
+    const completedAttempts = attempts.filter((a: any) => a.status === "completed" && a.test_results?.length > 0);
+    const totalMocksAttempted = completedAttempts.length;
+    const totalAccuracy = completedAttempts.reduce((acc: number, a: any) => acc + Number(a.test_results[0]?.accuracy_percentage || 0), 0);
+    const averageAccuracy = totalMocksAttempted > 0 ? Math.round(totalAccuracy / totalMocksAttempted) : 0;
+    const bestScore = completedAttempts.reduce((best: number, a: any) => {
+      const score = Number(a.test_results[0]?.total_score ?? a.test_results[0]?.score ?? 0);
+      return score > best ? score : best;
+    }, 0);
+    const questionsSolved = completedAttempts.reduce((acc: number, a: any) => acc + (a.test_results[0]?.attempted_count || a.test_results[0]?.correct_count || 0), 0);
+
+    // Exam-wise preparation summary
+    const examPrepSummaries: MockDashboardExamPrepSummary[] = targetExams.map((exam: any) => {
+      const examId = exam.examId || exam.id;
+      const examAttempts = completedAttempts.filter((a: any) => a.mock_tests?.mock_templates?.exam_id === examId);
+      const eCount = examAttempts.length;
+      const eAccSum = examAttempts.reduce((acc: number, a: any) => acc + Number(a.test_results[0]?.accuracy_percentage || 0), 0);
+      const eBest = examAttempts.reduce((b: number, a: any) => {
+        const s = Number(a.test_results[0]?.total_score ?? a.test_results[0]?.score ?? 0);
+        return s > b ? s : b;
+      }, 0);
+      const eQs = examAttempts.reduce((acc: number, a: any) => acc + (a.test_results[0]?.attempted_count || 0), 0);
+
+      return {
+        examId,
+        examTitle: exam.title,
+        examSlug: exam.slug,
+        totalMocksAttempted: eCount,
+        averageAccuracy: eCount > 0 ? Math.round(eAccSum / eCount) : 0,
+        bestScore: eBest,
+        maxScore: 200,
+        questionsSolved: eQs,
+        recentScore: examAttempts[0] ? Number(examAttempts[0].test_results[0]?.total_score ?? examAttempts[0].test_results[0]?.score ?? 0) : undefined,
+      };
+    });
+
+    // 11. Streak & Gamification Progress
+    const isTodayAttempted = todayMocks.some((m) => m.status === "completed");
+    const currentStreakVal = streakRecord?.current_streak ?? (isTodayAttempted ? 1 : 0);
+    const longestStreakVal = streakRecord?.longest_streak ?? currentStreakVal;
+
+    const streak: MockDashboardStreak = {
+      currentStreak: currentStreakVal,
+      longestStreak: longestStreakVal,
+      isFrozen: Boolean(streakRecord?.is_frozen),
+      isTodayAttempted,
+      milestones: [
+        { days: 7, achieved: currentStreakVal >= 7 },
+        { days: 14, achieved: currentStreakVal >= 14 },
+        { days: 30, achieved: currentStreakVal >= 30 },
+        { days: 50, achieved: currentStreakVal >= 50 },
+      ],
+    };
+
+    const unlockedBadgeIds = userBadges.map((b: any) => b.badge_id);
+    const rewards: MockDashboardRewards = {
+      currentCoins: walletRecord?.current_balance ?? 0,
+      lifetimeEarned: walletRecord?.lifetime_earned ?? 0,
+      levelTitle: totalMocksAttempted >= 20 ? "Master Scholar" : totalMocksAttempted >= 10 ? "Scholar II" : totalMocksAttempted >= 3 ? "Scholar I" : "Aspirant Novice",
+      levelProgressPct: Math.min(100, Math.round(((totalMocksAttempted % 10) / 10) * 100)),
+      badges: allBadges.map((b: any) => ({
+        id: b.id,
+        code: b.code,
+        title: b.title,
+        tier: b.tier || "bronze",
+        iconUrl: b.icon_url,
+        unlocked: unlockedBadgeIds.includes(b.id) || (b.code === "first_mock" && totalMocksAttempted >= 1),
+      })),
+      nextRewardThreshold: 1000,
+    };
+
+    // 12. Next Mock Action Resolution (Priority Engine)
+    let nextMockAction: MockTestDashboardData["nextMockAction"] = { type: "none" };
+
+    if (resumableMock) {
+      nextMockAction = { type: "resume", resumable: resumableMock };
+    } else {
+      const activeTodayMock = todayMocks.find((m) => m.status === "available");
+      const completedTodayMock = todayMocks.find((m) => m.status === "completed");
+
+      if (activeTodayMock) {
+        nextMockAction = { type: "start_today", todayMock: activeTodayMock };
+      } else if (completedTodayMock) {
+        nextMockAction = { type: "view_result", todayMock: completedTodayMock };
+      } else if (fullMockTests.length > 0) {
+        nextMockAction = { type: "browse_full" };
+      }
+    }
+
+    return {
+      user: userObj,
+      activeExamGoals,
+      allExams: allExams.map((e) => ({ id: e.id, title: e.title, slug: e.slug, category: e.category })),
+      selectedExamSlug,
+      nextMockAction,
+      todayMocks,
+      examPrepSummaries,
+      weeklySchedule,
+      fullMockTests,
+      recentAttempts,
+      performance: {
+        totalMocksAttempted,
+        averageAccuracy,
+        bestScore,
+        questionsSolved,
+        examBreakdown: examPrepSummaries,
+      },
+      streak,
+      rewards,
     };
   }
 
