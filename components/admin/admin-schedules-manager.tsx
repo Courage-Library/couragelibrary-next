@@ -37,6 +37,7 @@ import {
   Rocket,
   Clock,
   AlertTriangle,
+  CheckCircle2,
 } from "lucide-react";
 
 interface Props {
@@ -64,7 +65,10 @@ export function AdminSchedulesManager({
 
   // Daily Mock Program State
   const initialProgram = dailyProgramData?.program;
-  const availablePatterns = dailyProgramData?.availablePatterns || [];
+  const availablePatterns = useMemo(
+    () => dailyProgramData?.availablePatterns || [],
+    [dailyProgramData]
+  );
 
   const { istDateStr: currentIstDate } = useMemo(() => getIstCurrentDateTime(), []);
 
@@ -77,6 +81,13 @@ export function AdminSchedulesManager({
     initialProgram?.days || []
   );
 
+  // Transient Toast State (Auto-dismisses in 4.5s)
+  const [toastMessage, setToastMessage] = useState<{
+    title: string;
+    description: string;
+    type: "success" | "error";
+  } | null>(null);
+
   // Pre-Launch Confirmation Modal State
   const [showLaunchConfirmModal, setShowLaunchConfirmModal] = useState(false);
 
@@ -84,6 +95,78 @@ export function AdminSchedulesManager({
   const launchValidation = useMemo(() => {
     return validateFutureLaunchDateTime(launchDate, launchTime);
   }, [launchDate, launchTime]);
+
+  // Derived Program Lifecycle Status (Draft -> Scheduled -> Live)
+  const programLifecycle = useMemo(() => {
+    const activeDays = daysState.filter((d) => d.isActive);
+    if (activeDays.length === 0) {
+      return {
+        status: "draft" as const,
+        badgeLabel: "Draft / Paused",
+        badgeClass: "bg-slate-100 text-slate-600 border-slate-200",
+        dotClass: "bg-slate-400",
+        description: "No active days configured in weekly schedule.",
+      };
+    }
+
+    const { istTimestampMs } = getIstCurrentDateTime();
+    const timeNormalized = launchTime && /^\d{2}:\d{2}/.test(launchTime) ? launchTime.slice(0, 5) : "09:00";
+    const launchIso = `${launchDate}T${timeNormalized}:00+05:30`;
+    const launchMs = new Date(launchIso).getTime();
+
+    if (!isNaN(launchMs) && launchMs > istTimestampMs) {
+      return {
+        status: "scheduled" as const,
+        badgeLabel: `✓ Scheduled for ${launchDate} (${timeNormalized} IST)`,
+        badgeClass: "bg-blue-50 text-blue-700 border-blue-200",
+        dotClass: "bg-blue-500",
+        description: `Starts automatically on ${launchDate} at ${timeNormalized} IST.`,
+      };
+    }
+
+    return {
+      status: "live" as const,
+      badgeLabel: "● Live & Active",
+      badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200",
+      dotClass: "bg-emerald-500 animate-pulse",
+      description: "Weekly daily mock tests are live and running.",
+    };
+  }, [daysState, launchDate, launchTime]);
+
+  // Derived Status for each individual day card
+  const getDayStatus = (day: DailyMockDayConfig) => {
+    const isWeekend = day.dayOfWeek === "saturday" || day.dayOfWeek === "sunday";
+    if (!day.isActive) {
+      return {
+        label: "Paused",
+        badgeClass: "bg-slate-100 text-slate-500 border-slate-200",
+        dotClass: "bg-slate-400",
+        isWeekend,
+      };
+    }
+    if (programLifecycle.status === "live") {
+      return {
+        label: "✓ Live",
+        badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200 font-bold",
+        dotClass: "bg-emerald-500 animate-pulse",
+        isWeekend,
+      };
+    }
+    if (programLifecycle.status === "scheduled") {
+      return {
+        label: "✓ Scheduled",
+        badgeClass: "bg-blue-50 text-blue-700 border-blue-200 font-bold",
+        dotClass: "bg-blue-500",
+        isWeekend,
+      };
+    }
+    return {
+      label: "Configured",
+      badgeClass: "bg-indigo-50 text-indigo-700 border-indigo-200 font-semibold",
+      dotClass: "bg-indigo-500",
+      isWeekend,
+    };
+  };
 
   // Edit Modal for single day & cycle
   const [editingDay, setEditingDay] = useState<DailyMockDayConfig | null>(null);
@@ -97,12 +180,59 @@ export function AdminSchedulesManager({
 
   const [isToggling, startTransition] = useTransition();
 
+  // Auto-dismiss transient toast after 4500ms
+  React.useEffect(() => {
+    if (!toastMessage) return;
+    const timer = setTimeout(() => {
+      setToastMessage(null);
+    }, 4500);
+    return () => clearTimeout(timer);
+  }, [toastMessage]);
+
   const activeCategoryObj = useMemo(() => {
     if (!selectedCategory || selectedCategory === "ALL") return categories[0] || null;
     return categories.find(
       (c) => c.slug === selectedCategory || c.id === selectedCategory
     ) || categories[0] || null;
   }, [categories, selectedCategory]);
+
+  // Handle Program Save State -> Trigger Toast & Immediate Revalidation
+  React.useEffect(() => {
+    if (progSaveState?.success && progSaveState?.message) {
+      const activeCount = daysState.filter((d) => d.isActive).length;
+      const primaryPatName = availablePatterns[0]?.name || "Tier 1";
+      setToastMessage({
+        title: "Weekly Program Launched",
+        description: `${activeCategoryObj?.title || "Exam"} · ${primaryPatName} · ${activeCount} days scheduled successfully.`,
+        type: "success",
+      });
+      router.refresh();
+    } else if (progSaveState?.error) {
+      setToastMessage({
+        title: "Program Launch Failed",
+        description: progSaveState.error,
+        type: "error",
+      });
+    }
+  }, [progSaveState, activeCategoryObj, availablePatterns, daysState, router]);
+
+  // Handle Single Day Save State -> Trigger Toast & Immediate Revalidation
+  React.useEffect(() => {
+    if (daySaveState?.success && daySaveState?.message) {
+      setToastMessage({
+        title: "Schedule Updated",
+        description: daySaveState.message,
+        type: "success",
+      });
+      router.refresh();
+    } else if (daySaveState?.error) {
+      setToastMessage({
+        title: "Update Failed",
+        description: daySaveState.error,
+        type: "error",
+      });
+    }
+  }, [daySaveState, router]);
 
   const handleCategoryChange = (cat: string) => {
     setSelectedCategory(cat);
@@ -243,7 +373,38 @@ export function AdminSchedulesManager({
   ];
 
   return (
-    <div className="space-y-5 w-full pb-10">
+    <div className="space-y-5 w-full pb-10 relative">
+      {/* Transient Toast Notification (Auto-Dismisses in 4.5s) */}
+      {toastMessage && (
+        <div className="fixed top-5 right-5 z-50 max-w-md w-full animate-in slide-in-from-top-4 fade-in duration-300 shadow-2xl rounded-2xl border border-slate-200/80 bg-white p-4 flex items-start gap-3.5">
+          <div
+            className={`p-2 rounded-xl shrink-0 ${
+              toastMessage.type === "success"
+                ? "bg-emerald-100 text-emerald-700"
+                : "bg-rose-100 text-rose-700"
+            }`}
+          >
+            {toastMessage.type === "success" ? (
+              <CheckCircle2 className="w-5 h-5" />
+            ) : (
+              <AlertTriangle className="w-5 h-5" />
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h4 className="text-xs font-bold text-slate-900">{toastMessage.title}</h4>
+            <p className="text-[11px] text-slate-600 font-medium mt-0.5 leading-snug">
+              {toastMessage.description}
+            </p>
+          </div>
+          <button
+            onClick={() => setToastMessage(null)}
+            className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Breadcrumbs */}
       <AdminBreadcrumbs items={breadcrumbs} />
 
@@ -285,28 +446,42 @@ export function AdminSchedulesManager({
         </div>
       </div>
 
-      {/* Global Category Selector Bar */}
-      <Card className="p-4 bg-white border border-slate-200/80 rounded-2xl shadow-2xs">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm">
-              <Layers className="w-4 h-4" />
+      {/* Global Exam Category Context & Switcher Bar */}
+      <Card className="p-4 sm:p-5 bg-white border border-slate-200/80 rounded-2xl shadow-2xs">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm shrink-0">
+              <Layers className="w-5 h-5" />
             </div>
             <div>
-              <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                Exam Category
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-extrabold text-slate-900">
+                  {activeCategoryObj?.title || "Select Category"}
+                </span>
+                <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-slate-100 text-slate-700 border border-slate-200">
+                  {availablePatterns[0]?.name || "Tier 1 Pattern"}
+                </span>
+                <span
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[10px] rounded-full border ${programLifecycle.badgeClass}`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${programLifecycle.dotClass}`} />
+                  {programLifecycle.badgeLabel}
+                </span>
               </div>
-              <div className="text-sm font-bold text-slate-900">
-                {activeCategoryObj?.title || "Select Category"}
-              </div>
+              <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                {programLifecycle.description}
+              </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 self-start md:self-auto">
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">
+              Exam:
+            </label>
             <select
               value={selectedCategory}
               onChange={(e) => handleCategoryChange(e.target.value)}
-              className="px-3.5 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-none focus:border-blue-500 shadow-2xs min-w-[200px]"
+              className="px-3.5 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-none focus:border-blue-500 shadow-2xs min-w-[210px]"
             >
               {categories.map((c) => (
                 <option key={c.id} value={c.slug}>
@@ -318,11 +493,9 @@ export function AdminSchedulesManager({
         </div>
       </Card>
 
-      {/* Feedback Alerts */}
+      {/* Critical Server Action Errors (if any) */}
       {daySaveState?.error && <Alert variant="error">{daySaveState.error}</Alert>}
-      {daySaveState?.message && <Alert variant="success">{daySaveState.message}</Alert>}
       {progSaveState?.error && <Alert variant="error">{progSaveState.error}</Alert>}
-      {progSaveState?.message && <Alert variant="success">{progSaveState.message}</Alert>}
       {createCycleState?.error && <Alert variant="error">{createCycleState.error}</Alert>}
       {createCycleState?.message && <Alert variant="success">{createCycleState.message}</Alert>}
       {editCycleState?.error && <Alert variant="error">{editCycleState.error}</Alert>}
@@ -369,18 +542,11 @@ export function AdminSchedulesManager({
               </div>
             </div>
 
-            {/* Validation or Error Feedback */}
-            {(!launchValidation.isValid || progSaveState?.error) && (
+            {/* Validation Feedback Warning */}
+            {!launchValidation.isValid && (
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2 text-xs font-semibold text-amber-800">
                 <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                <span>{progSaveState?.error || launchValidation.error || "Launch date and time must be in the future (Asia/Kolkata / IST)."}</span>
-              </div>
-            )}
-
-            {progSaveState?.message && (
-              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2 text-xs font-semibold text-emerald-800">
-                <CalendarCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>{progSaveState.message}</span>
+                <span>{launchValidation.error || "Launch date and time must be in the future (Asia/Kolkata / IST)."}</span>
               </div>
             )}
 
@@ -469,39 +635,50 @@ export function AdminSchedulesManager({
             {daysState.map((day) => {
               const currentPattern = availablePatterns.find((p) => p.id === day.patternId);
               const availableSections = currentPattern?.sections || [];
+              const dayStatus = getDayStatus(day);
 
               return (
                 <Card
                   key={day.dayOfWeek}
                   className={`p-4 sm:p-5 bg-white border rounded-2xl transition-all shadow-2xs ${
                     day.isActive
-                      ? "border-slate-200/80 hover:border-slate-300"
-                      : "border-slate-200/50 bg-slate-50/40 opacity-75"
+                      ? dayStatus.isWeekend
+                        ? "border-amber-200/80 bg-gradient-to-r from-white to-amber-50/20 hover:border-amber-300"
+                        : "border-slate-200/80 hover:border-slate-300"
+                      : "border-slate-200/50 bg-slate-50/40 opacity-70"
                   }`}
                 >
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                    {/* Day & Badge Header */}
-                    <div className="flex items-center gap-3 min-w-[170px]">
+                    {/* Day, Weekend Indicator & Real Status Header */}
+                    <div className="flex items-center gap-3 min-w-[200px]">
                       <span
-                        className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs ${
+                        className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center font-black text-xs shrink-0 ${
                           day.isActive
-                            ? "bg-blue-100/70 text-blue-800 border border-blue-200/60"
+                            ? dayStatus.isWeekend
+                              ? "bg-amber-100 text-amber-900 border border-amber-300/80 shadow-2xs"
+                              : "bg-blue-100 text-blue-900 border border-blue-200/80 shadow-2xs"
                             : "bg-slate-100 text-slate-400 border border-slate-200"
                         }`}
                       >
-                        {day.dayLabel.slice(0, 3)}
+                        <span className="text-[11px] font-black">{day.dayLabel.slice(0, 3)}</span>
+                        {dayStatus.isWeekend && (
+                          <span className="text-[8px] font-extrabold text-amber-700 tracking-tighter uppercase">W-END</span>
+                        )}
                       </span>
                       <div>
-                        <div className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                        <div className="text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
                           {day.dayLabel}
-                          {day.isActive ? (
-                            <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
-                          ) : (
-                            <span className="inline-block w-2 h-2 rounded-full bg-slate-300" />
-                          )}
+                          <span
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 text-[9px] rounded-full border ${dayStatus.badgeClass}`}
+                          >
+                            <span className={`w-1 h-1 rounded-full ${dayStatus.dotClass}`} />
+                            {dayStatus.label}
+                          </span>
                         </div>
-                        <div className="text-[11px] font-semibold text-slate-500 capitalize">
-                          {day.testType.replace("_", " ")}
+                        <div className="text-[11px] font-semibold text-slate-500 capitalize flex items-center gap-1.5 mt-0.5">
+                          <span className="font-bold text-slate-700">{day.testType.replace("_", " ")}</span>
+                          <span>·</span>
+                          <span className="text-slate-500">{day.patternName || "Tier 1"}</span>
                         </div>
                       </div>
                     </div>
@@ -551,7 +728,7 @@ export function AdminSchedulesManager({
                       {/* Section Selector (cascading from selected pattern) */}
                       <div>
                         <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                          Target Section
+                          Target Section(s)
                         </label>
                         {day.testType === "daily_sectional" && availableSections.length > 0 ? (
                           <select
@@ -568,7 +745,7 @@ export function AdminSchedulesManager({
                             ))}
                           </select>
                         ) : day.testType === "mixed" && availableSections.length > 0 ? (
-                          <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto p-1 bg-slate-50 border border-slate-200 rounded-lg">
+                          <div className="flex flex-wrap gap-1 max-h-16 overflow-y-auto p-1 bg-slate-50 border border-slate-200 rounded-lg">
                             {availableSections.map((s) => {
                               const isChecked = (day.activeSectionIds || []).includes(s.id);
                               return (
@@ -576,14 +753,14 @@ export function AdminSchedulesManager({
                                   key={s.id}
                                   type="button"
                                   onClick={() => handleToggleMixedSection(day.dayOfWeek, s.id)}
-                                  className={`px-2 py-0.5 text-[10px] font-bold rounded-md border transition-all ${
+                                  className={`px-1.5 py-0.5 text-[9px] font-bold rounded border transition-all ${
                                     isChecked
                                       ? "bg-blue-600 text-white border-blue-600 shadow-2xs"
-                                      : "bg-white text-slate-700 border-slate-200 hover:border-slate-300"
+                                      : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
                                   }`}
                                   title={`Toggle ${s.name}`}
                                 >
-                                  {s.name} ({s.questionCount}Q)
+                                  {s.name.split(" ")[0]} ({s.questionCount}Q)
                                 </button>
                               );
                             })}
@@ -595,7 +772,7 @@ export function AdminSchedulesManager({
                         )}
                       </div>
 
-                      {/* Questions / Duration / Marks */}
+                      {/* Specs Summary / Inline Inputs */}
                       <div>
                         <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
                           Specs (Q / Min / Marks)
@@ -634,7 +811,7 @@ export function AdminSchedulesManager({
                       </div>
                     </div>
 
-                    {/* Actions: Toggle Active & Save Day */}
+                    {/* Actions: Toggle Active & Configure */}
                     <div className="flex items-center gap-2 self-end lg:self-center">
                       <Button
                         type="button"
