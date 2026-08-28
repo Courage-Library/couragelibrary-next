@@ -92,6 +92,8 @@ export interface AdminDailyMockProgram {
   launchTime?: string;
   defaultLanguage: "both" | "english" | "hindi";
   isActive: boolean;
+  isLaunched: boolean;
+  status: "NOT_LAUNCHED" | "LIVE_ACTIVE" | "PARTIALLY_ACTIVE" | "DEACTIVATED";
   days: DailyMockDayConfig[];
   totalWeeklyQuestions: number;
   totalWeeklyMarks: number;
@@ -657,6 +659,8 @@ export class AdminService {
           launchDate: new Date().toISOString().split("T")[0],
           defaultLanguage: "both",
           isActive: false,
+          isLaunched: false,
+          status: "NOT_LAUNCHED",
           days: [],
           totalWeeklyQuestions: 0,
           totalWeeklyMarks: 0,
@@ -879,6 +883,27 @@ export class AdminService {
     const totalWeeklyMarks = days.filter((d) => d.isActive).reduce((acc, d) => acc + d.totalMarks, 0);
     const activeDaysCount = days.filter((d) => d.isActive).length;
 
+    // Derive launched state from existing database mock_templates
+    const categoryTemplates = templates.filter((tmp: any) => {
+      if (tmp.slug === `${selectedCat.slug}-daily-monday` || tmp.slug?.startsWith(`${selectedCat.slug}-daily-`)) return true;
+      if (tmp.exam_id === categoryId && tmp.slug?.includes("-daily-")) return true;
+      return false;
+    });
+
+    const isLaunched = categoryTemplates.length > 0;
+    const activeTemplatesCount = categoryTemplates.filter((t: any) => t.is_active !== false).length;
+
+    let programStatus: "NOT_LAUNCHED" | "LIVE_ACTIVE" | "PARTIALLY_ACTIVE" | "DEACTIVATED" = "NOT_LAUNCHED";
+    if (!isLaunched) {
+      programStatus = "NOT_LAUNCHED";
+    } else if (activeTemplatesCount === 0) {
+      programStatus = "DEACTIVATED";
+    } else if (activeTemplatesCount < 7) {
+      programStatus = "PARTIALLY_ACTIVE";
+    } else {
+      programStatus = "LIVE_ACTIVE";
+    }
+
     return {
       program: {
         categoryId,
@@ -888,6 +913,8 @@ export class AdminService {
         launchTime: detectedLaunchTime,
         defaultLanguage: detectedLanguage,
         isActive: activeDaysCount > 0,
+        isLaunched,
+        status: programStatus,
         days,
         totalWeeklyQuestions,
         totalWeeklyMarks,
@@ -1111,6 +1138,89 @@ export class AdminService {
     }
 
     return { success: errors.length === 0, updatedCount, errors };
+  }
+
+  /**
+   * Admin: Update Entire 7-Day Daily Mock Program Configuration (Safe Modification for Live Programs)
+   */
+  static async updateAdminDailyMockProgram(
+    categoryId: string,
+    launchDate: string,
+    launchTime: string,
+    defaultLanguage: "both" | "english" | "hindi",
+    days: DailyMockDayConfig[]
+  ): Promise<{ success: boolean; updatedCount: number; errors: string[] }> {
+    let updatedCount = 0;
+    const errors: string[] = [];
+
+    for (const day of days) {
+      const res = await this.saveAdminDailyMockDay(
+        categoryId,
+        day,
+        launchDate,
+        launchTime,
+        defaultLanguage
+      );
+      if (res.success) {
+        updatedCount++;
+      } else {
+        errors.push(`${day.dayLabel}: ${res.error || "Save error"}`);
+      }
+    }
+
+    return {
+      success: errors.length === 0,
+      updatedCount,
+      errors,
+    };
+  }
+
+  /**
+   * Admin: Deactivate Entire 7-Day Daily Mock Program with Server Validation
+   */
+  static async deactivateAdminDailyMockProgram(
+    categoryId: string,
+    confirmationText: string
+  ): Promise<{ success: boolean; deactivatedCount: number; error?: string }> {
+    if (confirmationText !== "DEACTIVATE") {
+      return { success: false, deactivatedCount: 0, error: "Invalid confirmation text. Must type DEACTIVATE." };
+    }
+
+    const supabase = createAdminServerSupabaseClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sb = supabase as any;
+
+    const { data: category } = await sb.from("exams").select("id, title, slug").eq("id", categoryId).single();
+    if (!category) return { success: false, deactivatedCount: 0, error: "Category not found." };
+
+    // 1. Fetch all templates for this daily program
+    const { data: templates, error: fetchErr } = await sb
+      .from("mock_templates")
+      .select("id, slug")
+      .eq("exam_id", categoryId)
+      .like("slug", `${category.slug}-daily-%`);
+
+    if (fetchErr) return { success: false, deactivatedCount: 0, error: fetchErr.message };
+
+    const templateIds = (templates || []).map((t: any) => t.id);
+
+    if (templateIds.length > 0) {
+      // 2. Set mock_templates is_active = false
+      const { error: templateUpdateErr } = await sb
+        .from("mock_templates")
+        .update({ is_active: false, updated_at: new Date().toISOString() })
+        .in("id", templateIds);
+
+      if (templateUpdateErr) return { success: false, deactivatedCount: 0, error: templateUpdateErr.message };
+
+      // 3. Set corresponding mock_tests status = 'draft'
+      await sb
+        .from("mock_tests")
+        .update({ status: "draft", updated_at: new Date().toISOString() })
+        .in("template_id", templateIds);
+    }
+
+    return { success: true, deactivatedCount: templateIds.length };
   }
 
   /**

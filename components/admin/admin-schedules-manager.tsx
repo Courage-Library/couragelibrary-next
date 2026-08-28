@@ -18,12 +18,14 @@ import {
   updateScheduleAction,
   saveDailyMockDayAction,
   saveDailyMockProgramAction,
+  updateDailyMockProgramAction,
+  deactivateDailyMockProgramAction,
   toggleDailyMockDayAction,
 } from "@/app/admin/actions";
 import { AdminBreadcrumbs } from "@/components/admin/admin-breadcrumbs";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/alert";
 import {
   Calendar,
@@ -31,6 +33,7 @@ import {
   PlusCircle,
   Layers,
   Edit2,
+  Edit,
   Power,
   X,
   CalendarCheck,
@@ -38,6 +41,9 @@ import {
   Clock,
   AlertTriangle,
   CheckCircle2,
+  Activity,
+  Eye,
+  ArrowLeft,
 } from "lucide-react";
 
 interface Props {
@@ -55,7 +61,7 @@ export function AdminSchedulesManager({
 }: Props) {
   const router = useRouter();
 
-  // Active view tab: "daily_mocks" or "exam_cycles"
+  // Active top-level tab: "daily_mocks" or "exam_cycles"
   const [activeTab, setActiveTab] = useState<"daily_mocks" | "exam_cycles">("daily_mocks");
 
   // Selected Category
@@ -63,11 +69,20 @@ export function AdminSchedulesManager({
     currentCategory || (categories[0]?.slug || categories[0]?.id || "ALL")
   );
 
-  // Daily Mock Program State
+  // Daily Mock Program State from DB
   const initialProgram = dailyProgramData?.program;
   const availablePatterns = useMemo(
     () => dailyProgramData?.availablePatterns || [],
     [dailyProgramData]
+  );
+
+  const isProgramLaunchedInDb = Boolean(
+    initialProgram?.isLaunched && initialProgram.status !== "NOT_LAUNCHED"
+  );
+
+  // View Mode: "live_dashboard" | "live_details" | "edit_schedule"
+  const [viewMode, setViewMode] = useState<"live_dashboard" | "live_details" | "edit_schedule">(() =>
+    isProgramLaunchedInDb ? "live_dashboard" : "edit_schedule"
   );
 
   const { istDateStr: currentIstDate } = useMemo(() => getIstCurrentDateTime(), []);
@@ -91,79 +106,84 @@ export function AdminSchedulesManager({
   // Pre-Launch Confirmation Modal State
   const [showLaunchConfirmModal, setShowLaunchConfirmModal] = useState(false);
 
-  // Validation
+  // Destructive Program Deactivation Modal State
+  const [showDeactivateModal, setShowDeactivateModal] = useState(false);
+  const [deactivateConfirmText, setDeactivateConfirmText] = useState("");
+
+  // Validation for future launch datetime
   const launchValidation = useMemo(() => {
     return validateFutureLaunchDateTime(launchDate, launchTime);
   }, [launchDate, launchTime]);
 
-  // Derived Program Lifecycle Status (Draft -> Scheduled -> Live)
+  // Derived Program Lifecycle Status
   const programLifecycle = useMemo(() => {
-    const activeDays = daysState.filter((d) => d.isActive);
-    if (activeDays.length === 0) {
+    if (!initialProgram?.isLaunched || initialProgram.status === "NOT_LAUNCHED") {
       return {
-        status: "draft" as const,
-        badgeLabel: "Draft / Paused",
-        badgeClass: "bg-slate-100 text-slate-600 border-slate-200",
+        status: "NOT_LAUNCHED" as const,
+        badgeLabel: "NOT LAUNCHED",
+        badgeClass: "bg-slate-100 text-slate-700 border-slate-200",
         dotClass: "bg-slate-400",
-        description: "No active days configured in weekly schedule.",
+        icon: Clock,
+        description: "Weekly program is in draft setup state. Configure and launch to go live.",
       };
     }
 
-    const { istTimestampMs } = getIstCurrentDateTime();
-    const timeNormalized = launchTime && /^\d{2}:\d{2}/.test(launchTime) ? launchTime.slice(0, 5) : "09:00";
-    const launchIso = `${launchDate}T${timeNormalized}:00+05:30`;
-    const launchMs = new Date(launchIso).getTime();
-
-    if (!isNaN(launchMs) && launchMs > istTimestampMs) {
+    if (initialProgram.status === "DEACTIVATED") {
       return {
-        status: "scheduled" as const,
-        badgeLabel: `✓ Scheduled for ${launchDate} (${timeNormalized} IST)`,
-        badgeClass: "bg-blue-50 text-blue-700 border-blue-200",
-        dotClass: "bg-blue-500",
-        description: `Starts automatically on ${launchDate} at ${timeNormalized} IST.`,
+        status: "DEACTIVATED" as const,
+        badgeLabel: "DEACTIVATED",
+        badgeClass: "bg-rose-50 text-rose-700 border-rose-200",
+        dotClass: "bg-rose-500",
+        icon: Power,
+        description: "Weekly daily mock tests are currently stopped. Reconfigure or update to reactivate.",
+      };
+    }
+
+    const activeDays = daysState.filter((d) => d.isActive);
+    if (activeDays.length < 7) {
+      return {
+        status: "PARTIALLY_ACTIVE" as const,
+        badgeLabel: "PARTIALLY ACTIVE",
+        badgeClass: "bg-amber-50 text-amber-800 border-amber-200",
+        dotClass: "bg-amber-500",
+        icon: AlertTriangle,
+        description: `${activeDays.length} of 7 days are active. Some days are individually paused.`,
       };
     }
 
     return {
-      status: "live" as const,
-      badgeLabel: "● Live & Active",
+      status: "LIVE_ACTIVE" as const,
+      badgeLabel: "LIVE & ACTIVE",
       badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200",
       dotClass: "bg-emerald-500 animate-pulse",
-      description: "Weekly daily mock tests are live and running.",
+      icon: Activity,
+      description: "Weekly daily mock tests are live and running automatically.",
     };
-  }, [daysState, launchDate, launchTime]);
+  }, [initialProgram, daysState]);
 
   // Derived Status for each individual day card
   const getDayStatus = (day: DailyMockDayConfig) => {
     const isWeekend = day.dayOfWeek === "saturday" || day.dayOfWeek === "sunday";
     if (!day.isActive) {
       return {
-        label: "Paused",
+        label: "PAUSED",
         badgeClass: "bg-slate-100 text-slate-500 border-slate-200",
         dotClass: "bg-slate-400",
         isWeekend,
       };
     }
-    if (programLifecycle.status === "live") {
+    if (programLifecycle.status === "DEACTIVATED") {
       return {
-        label: "✓ Live",
-        badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200 font-bold",
-        dotClass: "bg-emerald-500 animate-pulse",
-        isWeekend,
-      };
-    }
-    if (programLifecycle.status === "scheduled") {
-      return {
-        label: "✓ Scheduled",
-        badgeClass: "bg-blue-50 text-blue-700 border-blue-200 font-bold",
-        dotClass: "bg-blue-500",
+        label: "INACTIVE",
+        badgeClass: "bg-rose-50 text-rose-600 border-rose-200",
+        dotClass: "bg-rose-400",
         isWeekend,
       };
     }
     return {
-      label: "Configured",
-      badgeClass: "bg-indigo-50 text-indigo-700 border-indigo-200 font-semibold",
-      dotClass: "bg-indigo-500",
+      label: "LIVE",
+      badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200 font-bold",
+      dotClass: "bg-emerald-500 animate-pulse",
       isWeekend,
     };
   };
@@ -175,6 +195,8 @@ export function AdminSchedulesManager({
   // Action States
   const [daySaveState, saveDayAction, isSavingDay] = useActionState(saveDailyMockDayAction, null);
   const [progSaveState, saveProgAction, isSavingProg] = useActionState(saveDailyMockProgramAction, null);
+  const [updateProgState, updateProgAction, isUpdatingProg] = useActionState(updateDailyMockProgramAction, null);
+  const [deactivateProgState, deactivateProgAction, isDeactivatingProg] = useActionState(deactivateDailyMockProgramAction, null);
   const [createCycleState, createCycleAction, isCreatingCycle] = useActionState(createScheduleAction, null);
   const [editCycleState, editCycleAction, isEditingCycle] = useActionState(updateScheduleAction, null);
 
@@ -196,16 +218,53 @@ export function AdminSchedulesManager({
     ) || categories[0] || null;
   }, [categories, selectedCategory]);
 
-  // Handle Program Save State -> Trigger Toast & Immediate Revalidation
+  const primaryPattern = useMemo(() => {
+    return availablePatterns[0] || {
+      id: "00000000-0000-0000-0000-000000000001",
+      name: "Standard Examination Pattern",
+      durationMinutes: 60,
+      totalQuestions: 100,
+      totalMarks: 200,
+      sections: [],
+    };
+  }, [availablePatterns]);
+
+  // Handle Category Switching
+  const handleCategoryChange = (cat: string) => {
+    setSelectedCategory(cat);
+    if (cat === "ALL") {
+      router.push("/admin/schedules");
+    } else {
+      router.push(`/admin/schedules?category=${cat}`);
+    }
+  };
+
+  // Sync state when initialProgram changes on category switch or server revalidation
+  React.useEffect(() => {
+    if (initialProgram) {
+      setLaunchDate(initialProgram.launchDate || getIstTomorrowDateStr());
+      setLaunchTime(initialProgram.launchTime || "09:00");
+      setDefaultLanguage(initialProgram.defaultLanguage || "both");
+      setDaysState(initialProgram.days || []);
+
+      if (initialProgram.isLaunched && initialProgram.status !== "NOT_LAUNCHED") {
+        setViewMode("live_dashboard");
+      } else {
+        setViewMode("edit_schedule");
+      }
+    }
+  }, [initialProgram]);
+
+  // Handle Program Launch State
   React.useEffect(() => {
     if (progSaveState?.success && progSaveState?.message) {
       const activeCount = daysState.filter((d) => d.isActive).length;
-      const primaryPatName = availablePatterns[0]?.name || "Tier 1";
       setToastMessage({
         title: "Weekly Program Launched",
-        description: `${activeCategoryObj?.title || "Exam"} · ${primaryPatName} · ${activeCount} days scheduled successfully.`,
+        description: `${activeCategoryObj?.title || "Exam"} · ${primaryPattern.name} · ${activeCount} days scheduled successfully.`,
         type: "success",
       });
+      setViewMode("live_dashboard");
       router.refresh();
     } else if (progSaveState?.error) {
       setToastMessage({
@@ -214,16 +273,57 @@ export function AdminSchedulesManager({
         type: "error",
       });
     }
-  }, [progSaveState, activeCategoryObj, availablePatterns, daysState, router]);
+  }, [progSaveState, activeCategoryObj, primaryPattern, daysState, router]);
 
-  // Handle Single Day Save State -> Trigger Toast & Immediate Revalidation
+  // Handle Program Update State
+  React.useEffect(() => {
+    if (updateProgState?.success && updateProgState?.message) {
+      setToastMessage({
+        title: "Schedule Updated",
+        description: updateProgState.message,
+        type: "success",
+      });
+      setViewMode("live_dashboard");
+      router.refresh();
+    } else if (updateProgState?.error) {
+      setToastMessage({
+        title: "Update Failed",
+        description: updateProgState.error,
+        type: "error",
+      });
+    }
+  }, [updateProgState, router]);
+
+  // Handle Program Deactivation State
+  React.useEffect(() => {
+    if (deactivateProgState?.success && deactivateProgState?.message) {
+      setToastMessage({
+        title: "Weekly Program Deactivated",
+        description: deactivateProgState.message,
+        type: "success",
+      });
+      setShowDeactivateModal(false);
+      setDeactivateConfirmText("");
+      setViewMode("live_dashboard");
+      router.refresh();
+    } else if (deactivateProgState?.error) {
+      setToastMessage({
+        title: "Deactivation Failed",
+        description: deactivateProgState.error,
+        type: "error",
+      });
+    }
+  }, [deactivateProgState, router]);
+
+  // Handle Single Day Save State
   React.useEffect(() => {
     if (daySaveState?.success && daySaveState?.message) {
       setToastMessage({
-        title: "Schedule Updated",
+        title: "Day Schedule Updated",
         description: daySaveState.message,
         type: "success",
       });
+      setEditingDay(null);
       router.refresh();
     } else if (daySaveState?.error) {
       setToastMessage({
@@ -234,26 +334,7 @@ export function AdminSchedulesManager({
     }
   }, [daySaveState, router]);
 
-  const handleCategoryChange = (cat: string) => {
-    setSelectedCategory(cat);
-    if (cat === "ALL") {
-      router.push("/admin/schedules");
-    } else {
-      router.push(`/admin/schedules?category=${cat}`);
-    }
-  };
-
-  // Sync state if initialProgram changes on category switch
-  React.useEffect(() => {
-    if (initialProgram) {
-      setLaunchDate(initialProgram.launchDate || getIstTomorrowDateStr());
-      setLaunchTime(initialProgram.launchTime || "09:00");
-      setDefaultLanguage(initialProgram.defaultLanguage || "both");
-      setDaysState(initialProgram.days || []);
-    }
-  }, [initialProgram]);
-
-  // Handler for modifying day field locally
+  // Handler for modifying day field locally in edit mode
   const updateDayField = <K extends keyof DailyMockDayConfig>(
     dayOfWeek: DailyMockDayConfig["dayOfWeek"],
     field: K,
@@ -341,7 +422,7 @@ export function AdminSchedulesManager({
     );
   };
 
-  // Toggle Day Active
+  // Level 1: Toggle Individual Day Active/Inactive
   const handleToggleDay = (dayConfig: DailyMockDayConfig) => {
     const newActive = !dayConfig.isActive;
     updateDayField(dayConfig.dayOfWeek, "isActive", newActive);
@@ -371,6 +452,8 @@ export function AdminSchedulesManager({
       : []),
     { label: "Schedules & Daily Mocks", active: true },
   ];
+
+  const StatusIcon = programLifecycle.icon;
 
   return (
     <div className="space-y-5 w-full pb-10 relative">
@@ -446,7 +529,7 @@ export function AdminSchedulesManager({
         </div>
       </div>
 
-      {/* Global Exam Category Context & Switcher Bar */}
+      {/* Global Exam Category Selector & Context Bar */}
       <Card className="p-4 sm:p-5 bg-white border border-slate-200/80 rounded-2xl shadow-2xs">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3">
@@ -459,12 +542,12 @@ export function AdminSchedulesManager({
                   {activeCategoryObj?.title || "Select Category"}
                 </span>
                 <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-slate-100 text-slate-700 border border-slate-200">
-                  {availablePatterns[0]?.name || "Tier 1 Pattern"}
+                  {primaryPattern.name}
                 </span>
                 <span
                   className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[10px] rounded-full border ${programLifecycle.badgeClass}`}
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full ${programLifecycle.dotClass}`} />
+                  <StatusIcon className="w-3 h-3 shrink-0" />
                   {programLifecycle.badgeLabel}
                 </span>
               </div>
@@ -496,6 +579,8 @@ export function AdminSchedulesManager({
       {/* Critical Server Action Errors (if any) */}
       {daySaveState?.error && <Alert variant="error">{daySaveState.error}</Alert>}
       {progSaveState?.error && <Alert variant="error">{progSaveState.error}</Alert>}
+      {updateProgState?.error && <Alert variant="error">{updateProgState.error}</Alert>}
+      {deactivateProgState?.error && <Alert variant="error">{deactivateProgState.error}</Alert>}
       {createCycleState?.error && <Alert variant="error">{createCycleState.error}</Alert>}
       {createCycleState?.message && <Alert variant="success">{createCycleState.message}</Alert>}
       {editCycleState?.error && <Alert variant="error">{editCycleState.error}</Alert>}
@@ -506,345 +591,812 @@ export function AdminSchedulesManager({
       {/* ========================================================================= */}
       {activeTab === "daily_mocks" && (
         <div className="space-y-5">
-          {/* Program Overview & Parameters Card */}
-          <Card className="p-5 sm:p-6 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <CalendarDays className="w-5 h-5 text-blue-600" />
-                <div>
-                  <h2 className="text-sm font-bold text-slate-900">
-                    Weekly Schedule Matrix — {activeCategoryObj?.title}
-                  </h2>
-                  <p className="text-xs text-slate-500">
-                    Daily mocks run automatically from 5:00 AM to 11:59 PM with 1 attempt per day.
-                  </p>
-                </div>
-              </div>
+          {/* ===================================================================== */}
+          {/* STATE B.1: LIVE PROGRAM DASHBOARD VIEW (AFTER LAUNCH)                 */}
+          {/* ===================================================================== */}
+          {viewMode === "live_dashboard" && (
+            <div className="space-y-5 animate-in fade-in duration-200">
+              {/* Live Program Summary Card */}
+              <Card className="p-5 sm:p-6 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-5">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-slate-100">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                      <Activity className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h2 className="text-sm font-extrabold text-slate-900">
+                        Weekly Daily Mock Program — Overview
+                      </h2>
+                      <p className="text-xs text-slate-500">
+                        Live monitoring and management dashboard for {activeCategoryObj?.title}.
+                      </p>
+                    </div>
+                  </div>
 
-              {/* Launch Weekly Program Action Button */}
-              <div className="flex items-center gap-2">
+                  {/* Primary Live Program Actions */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setViewMode("live_details")}
+                      className="text-xs font-bold border-slate-200 text-slate-700 hover:bg-slate-50 flex items-center gap-1.5"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-blue-600" />
+                      View Details
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setViewMode("edit_schedule")}
+                      className="text-xs font-bold border-slate-200 text-slate-700 hover:bg-slate-50 flex items-center gap-1.5"
+                    >
+                      <Edit className="w-3.5 h-3.5 text-slate-600" />
+                      Update Schedule
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => {
+                        setDeactivateConfirmText("");
+                        setShowDeactivateModal(true);
+                      }}
+                      className="text-xs font-bold bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 flex items-center gap-1.5"
+                    >
+                      <Power className="w-3.5 h-3.5 text-rose-600" />
+                      Deactivate Program
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Summary Metrics Grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+                  <div className="p-3.5 bg-slate-50 border border-slate-200/70 rounded-xl">
+                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                      Launched
+                    </div>
+                    <div className="text-xs font-extrabold text-slate-900 truncate">
+                      {launchDate}
+                    </div>
+                    <div className="text-[10px] text-slate-500 font-semibold mt-0.5">
+                      {launchTime} IST
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 bg-slate-50 border border-slate-200/70 rounded-xl">
+                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                      Pattern
+                    </div>
+                    <div className="text-xs font-extrabold text-slate-900 truncate">
+                      {primaryPattern.name}
+                    </div>
+                    <div className="text-[10px] text-slate-500 font-semibold mt-0.5">
+                      {primaryPattern.sections.length} Sections
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 bg-slate-50 border border-slate-200/70 rounded-xl">
+                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                      Active Days
+                    </div>
+                    <div className="text-base font-extrabold text-blue-700">
+                      {daysState.filter((d) => d.isActive).length} / 7
+                    </div>
+                    <div className="text-[10px] text-slate-500 font-semibold mt-0.5">
+                      Mon – Sun
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 bg-slate-50 border border-slate-200/70 rounded-xl">
+                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                      Weekly Questions
+                    </div>
+                    <div className="text-base font-extrabold text-emerald-700">
+                      {daysState.filter((d) => d.isActive).reduce((acc, d) => acc + d.questionCount, 0)}
+                    </div>
+                    <div className="text-[10px] text-slate-500 font-semibold mt-0.5">
+                      Total Questions
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 bg-slate-50 border border-slate-200/70 rounded-xl">
+                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                      Weekly Marks
+                    </div>
+                    <div className="text-base font-extrabold text-purple-700">
+                      {daysState.filter((d) => d.isActive).reduce((acc, d) => acc + d.totalMarks, 0)}
+                    </div>
+                    <div className="text-[10px] text-slate-500 font-semibold mt-0.5">
+                      Max Score
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 bg-slate-50 border border-slate-200/70 rounded-xl">
+                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                      Attempts
+                    </div>
+                    <div className="text-xs font-extrabold text-slate-900">
+                      1 Attempt / Day
+                    </div>
+                    <div className="text-[10px] text-slate-500 font-semibold mt-0.5">
+                      5:00 AM – 11:59 PM
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 bg-slate-50 border border-slate-200/70 rounded-xl">
+                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                      Medium
+                    </div>
+                    <div className="text-xs font-extrabold text-slate-900 capitalize">
+                      {defaultLanguage === "both" ? "Bilingual" : `${defaultLanguage} Medium`}
+                    </div>
+                    <div className="text-[10px] text-slate-500 font-semibold mt-0.5">
+                      Switchable
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Compact Weekly Schedule Overview List */}
+              <Card className="p-5 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                  <h3 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                    <CalendarDays className="w-4 h-4 text-blue-600" /> Weekly Schedule Overview
+                  </h3>
+                  <span className="text-[11px] font-semibold text-slate-500">
+                    Individual day controls & test parameters
+                  </span>
+                </div>
+
+                <div className="divide-y divide-slate-100">
+                  {daysState.map((day) => {
+                    const currentPattern = availablePatterns.find((p) => p.id === day.patternId);
+                    const availableSections = currentPattern?.sections || [];
+                    const dayStatus = getDayStatus(day);
+
+                    return (
+                      <div
+                        key={day.dayOfWeek}
+                        className={`py-3.5 px-3 rounded-xl transition-all flex flex-col md:flex-row md:items-center justify-between gap-3 ${
+                          day.isActive
+                            ? dayStatus.isWeekend
+                              ? "bg-amber-50/20 hover:bg-amber-50/40"
+                              : "hover:bg-slate-50/60"
+                            : "bg-slate-50/50 opacity-60"
+                        }`}
+                      >
+                        {/* Day Identifier & Weekend Tag */}
+                        <div className="flex items-center gap-3 min-w-[170px]">
+                          <span
+                            className={`w-10 h-10 rounded-xl flex flex-col items-center justify-center font-black text-xs shrink-0 ${
+                              day.isActive
+                                ? dayStatus.isWeekend
+                                  ? "bg-amber-100 text-amber-900 border border-amber-300/80 shadow-2xs"
+                                  : "bg-blue-100 text-blue-900 border border-blue-200/80 shadow-2xs"
+                                : "bg-slate-100 text-slate-400 border border-slate-200"
+                            }`}
+                          >
+                            <span className="text-[10px] font-black">{day.dayLabel.slice(0, 3)}</span>
+                            {dayStatus.isWeekend && (
+                              <span className="text-[7px] font-black text-amber-700 tracking-tighter uppercase">W-END</span>
+                            )}
+                          </span>
+                          <div>
+                            <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                              {day.dayLabel}
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.2 text-[8px] rounded-full border ${dayStatus.badgeClass}`}>
+                                <span className={`w-1 h-1 rounded-full ${dayStatus.dotClass}`} />
+                                {dayStatus.label}
+                              </span>
+                            </div>
+                            <div className="text-[10px] font-semibold text-slate-500 capitalize mt-0.5">
+                              {day.testType.replace("_", " ")}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Middle: Target Section(s) & Specs Summary */}
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-bold text-slate-800 truncate">
+                            {day.testType === "daily_sectional"
+                              ? day.activeSectionName || "Sectional Test"
+                              : day.testType === "mixed"
+                              ? `Mixed Subject (${day.activeSectionNames?.length || 2} Sections)`
+                              : `Full-Length Mock (${availableSections.length || 4} Sections)`}
+                          </div>
+                          <div className="text-[11px] font-medium text-slate-500 flex items-center gap-2 mt-0.5">
+                            <span>{day.questionCount} Questions</span>
+                            <span>·</span>
+                            <span>{day.durationMinutes} Mins</span>
+                            <span>·</span>
+                            <span>{day.totalMarks} Marks</span>
+                            <span>·</span>
+                            <span>-{day.negativeMark} Neg</span>
+                          </div>
+                        </div>
+
+                        {/* Right: Individual Day Controls (Level 1) */}
+                        <div className="flex items-center gap-2 self-end md:self-center shrink-0">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={day.isActive ? "outline" : "default"}
+                            disabled={isToggling}
+                            onClick={() => handleToggleDay(day)}
+                            className={`text-xs font-semibold h-8 ${
+                              day.isActive
+                                ? "border-slate-200 text-slate-600 hover:text-slate-900"
+                                : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                            }`}
+                          >
+                            <Power className="w-3 h-3 mr-1" />
+                            {day.isActive ? "Deactivate" : "Activate"}
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setEditingDay(day)}
+                            className="text-xs font-semibold h-8 border-slate-200 text-slate-700 hover:bg-slate-100"
+                          >
+                            <Edit2 className="w-3 h-3 mr-1 text-slate-500" />
+                            Configure
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {/* ===================================================================== */}
+          {/* STATE B.2: DETAILED LIVE INSPECTION VIEW                              */}
+          {/* ===================================================================== */}
+          {viewMode === "live_details" && (
+            <div className="space-y-5 animate-in fade-in duration-200">
+              <div className="flex items-center justify-between">
                 <Button
                   type="button"
                   size="sm"
-                  onClick={() => {
-                    if (!launchValidation.isValid) {
-                      alert(launchValidation.error || "Launch date and time must be in the future.");
-                      return;
-                    }
-                    setShowLaunchConfirmModal(true);
-                  }}
-                  disabled={isSavingProg}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 px-4 py-2 rounded-xl transition"
+                  variant="outline"
+                  onClick={() => setViewMode("live_dashboard")}
+                  className="text-xs font-bold border-slate-200 text-slate-700 hover:bg-slate-50 flex items-center gap-1.5"
                 >
-                  <Rocket className="w-4 h-4" />
-                  {isSavingProg ? "Launching Program..." : "Launch Weekly Program"}
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  Back to Live Overview
                 </Button>
-              </div>
-            </div>
-
-            {/* Validation Feedback Warning */}
-            {!launchValidation.isValid && (
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2 text-xs font-semibold text-amber-800">
-                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                <span>{launchValidation.error || "Launch date and time must be in the future (Asia/Kolkata / IST)."}</span>
-              </div>
-            )}
-
-            {/* Launch Date, Time & Global Language Settings */}
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 pt-1">
-              <div>
-                <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
-                  Launch Date (IST) <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  min={currentIstDate}
-                  value={launchDate}
-                  onChange={(e) => setLaunchDate(e.target.value)}
-                  className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 focus:outline-none focus:border-blue-500 focus:bg-white"
-                />
-                <span className="text-[10px] text-slate-400 mt-0.5 block">
-                  Future date required (Asia/Kolkata).
-                </span>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
-                  Launch Time (IST) <span className="text-rose-500">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="time"
-                    value={launchTime}
-                    onChange={(e) => setLaunchTime(e.target.value)}
-                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 focus:outline-none focus:border-blue-500 focus:bg-white"
-                  />
-                  <Clock className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
-                <span className="text-[10px] text-slate-400 mt-0.5 block">
-                  e.g. 09:00 AM IST.
-                </span>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
-                  Default Medium
-                </label>
-                <select
-                  value={defaultLanguage}
-                  onChange={(e) => setDefaultLanguage(e.target.value as "both" | "english" | "hindi")}
-                  className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 focus:outline-none focus:border-blue-500 focus:bg-white"
-                >
-                  <option value="both">🌐 Bilingual (Student Chooses)</option>
-                  <option value="hindi">🇮🇳 Hindi Medium</option>
-                  <option value="english">🇬🇧 English Medium</option>
-                </select>
-                <span className="text-[10px] text-slate-400 mt-0.5 block">
-                  Students can switch language.
-                </span>
-              </div>
-
-              {/* Weekly Metrics Box */}
-              <div className="flex items-center justify-around p-3 bg-slate-50 border border-slate-200/70 rounded-xl">
-                <div className="text-center">
-                  <div className="text-base font-extrabold text-blue-700">
-                    {daysState.filter((d) => d.isActive).length}/7
-                  </div>
-                  <div className="text-[10px] font-bold text-slate-500 uppercase">Active Days</div>
-                </div>
-                <div className="h-7 w-px bg-slate-200" />
-                <div className="text-center">
-                  <div className="text-base font-extrabold text-emerald-700">
-                    {daysState.filter((d) => d.isActive).reduce((acc, d) => acc + d.questionCount, 0)}
-                  </div>
-                  <div className="text-[10px] font-bold text-slate-500 uppercase">Weekly Qs</div>
-                </div>
-                <div className="h-7 w-px bg-slate-200" />
-                <div className="text-center">
-                  <div className="text-base font-extrabold text-purple-700">
-                    {daysState.filter((d) => d.isActive).reduce((acc, d) => acc + d.totalMarks, 0)}
-                  </div>
-                  <div className="text-[10px] font-bold text-slate-500 uppercase">Total Marks</div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setViewMode("edit_schedule")}
+                    className="text-xs font-bold border-slate-200 text-slate-700 hover:bg-slate-50 flex items-center gap-1.5"
+                  >
+                    <Edit className="w-3.5 h-3.5" />
+                    Update Schedule
+                  </Button>
                 </div>
               </div>
-            </div>
-          </Card>
 
-          {/* 7-Day Matrix Cards */}
-          <div className="space-y-3">
-            {daysState.map((day) => {
-              const currentPattern = availablePatterns.find((p) => p.id === day.patternId);
-              const availableSections = currentPattern?.sections || [];
-              const dayStatus = getDayStatus(day);
+              {/* Detailed Day Cards */}
+              <div className="space-y-3">
+                {daysState.map((day) => {
+                  const currentPattern = availablePatterns.find((p) => p.id === day.patternId);
+                  const availableSections = currentPattern?.sections || [];
+                  const dayStatus = getDayStatus(day);
 
-              return (
-                <Card
-                  key={day.dayOfWeek}
-                  className={`p-4 sm:p-5 bg-white border rounded-2xl transition-all shadow-2xs ${
-                    day.isActive
-                      ? dayStatus.isWeekend
-                        ? "border-amber-200/80 bg-gradient-to-r from-white to-amber-50/20 hover:border-amber-300"
-                        : "border-slate-200/80 hover:border-slate-300"
-                      : "border-slate-200/50 bg-slate-50/40 opacity-70"
-                  }`}
-                >
-                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                    {/* Day, Weekend Indicator & Real Status Header */}
-                    <div className="flex items-center gap-3 min-w-[200px]">
-                      <span
-                        className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center font-black text-xs shrink-0 ${
-                          day.isActive
-                            ? dayStatus.isWeekend
-                              ? "bg-amber-100 text-amber-900 border border-amber-300/80 shadow-2xs"
-                              : "bg-blue-100 text-blue-900 border border-blue-200/80 shadow-2xs"
-                            : "bg-slate-100 text-slate-400 border border-slate-200"
-                        }`}
-                      >
-                        <span className="text-[11px] font-black">{day.dayLabel.slice(0, 3)}</span>
-                        {dayStatus.isWeekend && (
-                          <span className="text-[8px] font-extrabold text-amber-700 tracking-tighter uppercase">W-END</span>
-                        )}
-                      </span>
-                      <div>
-                        <div className="text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
-                          {day.dayLabel}
+                  return (
+                    <Card
+                      key={day.dayOfWeek}
+                      className={`p-5 bg-white border rounded-2xl shadow-2xs transition-all ${
+                        day.isActive
+                          ? dayStatus.isWeekend
+                            ? "border-amber-200/80 bg-gradient-to-r from-white to-amber-50/20"
+                            : "border-slate-200/80"
+                          : "border-slate-200/50 bg-slate-50/40 opacity-70"
+                      }`}
+                    >
+                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3.5 min-w-[200px]">
                           <span
-                            className={`inline-flex items-center gap-1 px-2 py-0.5 text-[9px] rounded-full border ${dayStatus.badgeClass}`}
+                            className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center font-black text-xs shrink-0 ${
+                              day.isActive
+                                ? dayStatus.isWeekend
+                                  ? "bg-amber-100 text-amber-900 border border-amber-300/80"
+                                  : "bg-blue-100 text-blue-900 border border-blue-200/80"
+                                : "bg-slate-100 text-slate-400 border border-slate-200"
+                            }`}
                           >
-                            <span className={`w-1 h-1 rounded-full ${dayStatus.dotClass}`} />
-                            {dayStatus.label}
+                            <span className="text-[11px] font-black">{day.dayLabel.slice(0, 3)}</span>
+                            {dayStatus.isWeekend && (
+                              <span className="text-[7px] font-black text-amber-700 tracking-tighter uppercase">W-END</span>
+                            )}
                           </span>
+                          <div>
+                            <div className="text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
+                              {day.dayLabel}
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[9px] rounded-full border ${dayStatus.badgeClass}`}>
+                                <span className={`w-1 h-1 rounded-full ${dayStatus.dotClass}`} />
+                                {dayStatus.label}
+                              </span>
+                            </div>
+                            <div className="text-[11px] font-semibold text-slate-500 capitalize flex items-center gap-1.5 mt-0.5">
+                              <span className="font-bold text-slate-700">{day.testType.replace("_", " ")}</span>
+                              <span>·</span>
+                              <span>{day.patternName || primaryPattern.name}</span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="text-[11px] font-semibold text-slate-500 capitalize flex items-center gap-1.5 mt-0.5">
-                          <span className="font-bold text-slate-700">{day.testType.replace("_", " ")}</span>
-                          <span>·</span>
-                          <span className="text-slate-500">{day.patternName || "Tier 1"}</span>
-                        </div>
-                      </div>
-                    </div>
 
-                    {/* Cascading Controls Grid */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 flex-1">
-                      {/* Test Type */}
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                          Test Format
-                        </label>
-                        <select
-                          value={day.testType}
-                          onChange={(e) =>
-                            updateDayField(
-                              day.dayOfWeek,
-                              "testType",
-                              e.target.value as "daily_sectional" | "mixed" | "full_mock"
-                            )
-                          }
-                          className="w-full px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:border-blue-500"
-                        >
-                          <option value="daily_sectional">Sectional Test</option>
-                          <option value="mixed">Mixed Subject Test</option>
-                          <option value="full_mock">Full-Length Mock</option>
-                        </select>
-                      </div>
-
-                      {/* Pattern Selector (from DB) */}
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                          Pattern Blueprint
-                        </label>
-                        <select
-                          value={day.patternId}
-                          onChange={(e) => updateDayField(day.dayOfWeek, "patternId", e.target.value)}
-                          className="w-full px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:border-blue-500"
-                        >
-                          {availablePatterns.map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {p.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* Section Selector (cascading from selected pattern) */}
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                          Target Section(s)
-                        </label>
-                        {day.testType === "daily_sectional" && availableSections.length > 0 ? (
-                          <select
-                            value={day.activeSectionId || availableSections[0]?.id}
-                            onChange={(e) =>
-                              updateDayField(day.dayOfWeek, "activeSectionId", e.target.value)
-                            }
-                            className="w-full px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:border-blue-500"
-                          >
-                            {availableSections.map((s) => (
-                              <option key={s.id} value={s.id}>
-                                {s.name} ({s.questionCount}Q)
-                              </option>
-                            ))}
-                          </select>
-                        ) : day.testType === "mixed" && availableSections.length > 0 ? (
-                          <div className="flex flex-wrap gap-1 max-h-16 overflow-y-auto p-1 bg-slate-50 border border-slate-200 rounded-lg">
-                            {availableSections.map((s) => {
-                              const isChecked = (day.activeSectionIds || []).includes(s.id);
-                              return (
-                                <button
-                                  key={s.id}
-                                  type="button"
-                                  onClick={() => handleToggleMixedSection(day.dayOfWeek, s.id)}
-                                  className={`px-1.5 py-0.5 text-[9px] font-bold rounded border transition-all ${
-                                    isChecked
-                                      ? "bg-blue-600 text-white border-blue-600 shadow-2xs"
-                                      : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
-                                  }`}
-                                  title={`Toggle ${s.name}`}
+                        {/* Target Section Breakdown */}
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                            Target Subject / Sections
+                          </div>
+                          {day.testType === "daily_sectional" ? (
+                            <div className="text-xs font-bold text-slate-800">
+                              {day.activeSectionName || "Sectional Target"}
+                            </div>
+                          ) : day.testType === "mixed" ? (
+                            <div className="flex flex-wrap gap-1.5">
+                              {(day.activeSectionNames || []).map((name, i) => (
+                                <span
+                                  key={i}
+                                  className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-blue-50 text-blue-700 border border-blue-200"
                                 >
-                                  {s.name.split(" ")[0]} ({s.questionCount}Q)
-                                </button>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          <div className="px-2.5 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100/70 border border-slate-200 rounded-lg">
-                            Full Blueprint ({availableSections.length} Sections)
-                          </div>
-                        )}
-                      </div>
+                                  {name}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-xs font-bold text-slate-800">
+                              All {availableSections.length} Blueprint Sections ({primaryPattern.name})
+                            </div>
+                          )}
+                        </div>
 
-                      {/* Specs Summary / Inline Inputs */}
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                          Specs (Q / Min / Marks)
-                        </label>
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="number"
-                            value={day.questionCount}
-                            onChange={(e) =>
-                              updateDayField(day.dayOfWeek, "questionCount", Number(e.target.value))
-                            }
-                            className="w-14 px-1.5 py-1.5 text-xs font-bold text-center rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:border-blue-500"
-                            title="Question Count"
-                          />
-                          <span className="text-slate-400 text-xs">/</span>
-                          <input
-                            type="number"
-                            value={day.durationMinutes}
-                            onChange={(e) =>
-                              updateDayField(day.dayOfWeek, "durationMinutes", Number(e.target.value))
-                            }
-                            className="w-14 px-1.5 py-1.5 text-xs font-bold text-center rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:border-blue-500"
-                            title="Duration in minutes"
-                          />
-                          <span className="text-slate-400 text-xs">/</span>
-                          <input
-                            type="number"
-                            value={day.totalMarks}
-                            onChange={(e) =>
-                              updateDayField(day.dayOfWeek, "totalMarks", Number(e.target.value))
-                            }
-                            className="w-14 px-1.5 py-1.5 text-xs font-bold text-center rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:border-blue-500"
-                            title="Total Marks"
-                          />
+                        {/* Specs Strip */}
+                        <div className="flex items-center gap-3">
+                          <div className="text-center px-3 py-1.5 bg-slate-50 border border-slate-200/70 rounded-xl min-w-[70px]">
+                            <div className="text-xs font-extrabold text-slate-900">{day.questionCount}</div>
+                            <div className="text-[9px] font-bold text-slate-500 uppercase">Questions</div>
+                          </div>
+                          <div className="text-center px-3 py-1.5 bg-slate-50 border border-slate-200/70 rounded-xl min-w-[70px]">
+                            <div className="text-xs font-extrabold text-slate-900">{day.durationMinutes}m</div>
+                            <div className="text-[9px] font-bold text-slate-500 uppercase">Duration</div>
+                          </div>
+                          <div className="text-center px-3 py-1.5 bg-slate-50 border border-slate-200/70 rounded-xl min-w-[70px]">
+                            <div className="text-xs font-extrabold text-slate-900">{day.totalMarks}</div>
+                            <div className="text-[9px] font-bold text-slate-500 uppercase">Marks</div>
+                          </div>
+                        </div>
+
+                        {/* Level 1 Actions */}
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={day.isActive ? "outline" : "default"}
+                            disabled={isToggling}
+                            onClick={() => handleToggleDay(day)}
+                            className={`text-xs font-semibold ${
+                              day.isActive
+                                ? "border-slate-200 text-slate-600 hover:text-slate-900"
+                                : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                            }`}
+                          >
+                            <Power className="w-3 h-3 mr-1" />
+                            {day.isActive ? "Deactivate" : "Activate"}
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setEditingDay(day)}
+                            className="text-xs font-semibold border-slate-200 text-slate-700 hover:bg-slate-50"
+                          >
+                            <Edit2 className="w-3 h-3 mr-1 text-slate-500" />
+                            Configure
+                          </Button>
                         </div>
                       </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ===================================================================== */}
+          {/* STATE A & EDIT MODE: SETUP & CONFIGURATION STATE                      */}
+          {/* ===================================================================== */}
+          {viewMode === "edit_schedule" && (
+            <div className="space-y-5 animate-in fade-in duration-200">
+              {/* Program Parameters Card */}
+              <Card className="p-5 sm:p-6 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-slate-100">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                      <CalendarDays className="w-4 h-4" />
                     </div>
+                    <div>
+                      <h2 className="text-sm font-extrabold text-slate-900">
+                        {isProgramLaunchedInDb
+                          ? `Update Weekly Schedule — ${activeCategoryObj?.title}`
+                          : `Weekly Schedule Matrix — ${activeCategoryObj?.title}`}
+                      </h2>
+                      <p className="text-xs text-slate-500">
+                        Daily mocks run automatically from 5:00 AM to 11:59 PM with 1 attempt per day.
+                      </p>
+                    </div>
+                  </div>
 
-                    {/* Actions: Toggle Active & Configure */}
-                    <div className="flex items-center gap-2 self-end lg:self-center">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={day.isActive ? "outline" : "default"}
-                        disabled={isToggling}
-                        onClick={() => handleToggleDay(day)}
-                        className={`text-xs font-semibold ${
-                          day.isActive
-                            ? "border-slate-200 text-slate-600 hover:text-slate-900"
-                            : "bg-emerald-600 hover:bg-emerald-700 text-white"
-                        }`}
-                      >
-                        <Power className="w-3.5 h-3.5 mr-1" />
-                        {day.isActive ? "Deactivate" : "Activate"}
-                      </Button>
-
+                  {/* Actions depending on whether already launched */}
+                  <div className="flex items-center gap-2">
+                    {isProgramLaunchedInDb && (
                       <Button
                         type="button"
                         size="sm"
                         variant="outline"
-                        onClick={() => setEditingDay(day)}
-                        className="text-xs font-semibold border-slate-200 text-slate-700 hover:bg-slate-50"
+                        onClick={() => setViewMode("live_dashboard")}
+                        className="text-xs font-bold border-slate-200 text-slate-700 hover:bg-slate-50"
                       >
-                        <Edit2 className="w-3.5 h-3.5 mr-1 text-slate-500" />
-                        Configure
+                        Cancel
                       </Button>
+                    )}
+
+                    {isProgramLaunchedInDb ? (
+                      <form
+                        action={async (formData) => {
+                          await updateProgAction(formData);
+                        }}
+                      >
+                        <input type="hidden" name="categoryId" value={activeCategoryObj?.id || ""} />
+                        <input type="hidden" name="launchDate" value={launchDate} />
+                        <input type="hidden" name="launchTime" value={launchTime} />
+                        <input type="hidden" name="defaultLanguage" value={defaultLanguage} />
+                        <input type="hidden" name="daysJson" value={JSON.stringify(daysState)} />
+
+                        <Button
+                          type="submit"
+                          size="sm"
+                          disabled={isUpdatingProg}
+                          className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 px-4 py-2 rounded-xl transition"
+                        >
+                          <Edit className="w-4 h-4" />
+                          {isUpdatingProg ? "Saving Changes..." : "Save Schedule Updates"}
+                        </Button>
+                      </form>
+                    ) : (
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => {
+                          if (!launchValidation.isValid) {
+                            alert(launchValidation.error || "Launch date and time must be in the future.");
+                            return;
+                          }
+                          setShowLaunchConfirmModal(true);
+                        }}
+                        disabled={isSavingProg}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 px-4 py-2 rounded-xl transition"
+                      >
+                        <Rocket className="w-4 h-4" />
+                        {isSavingProg ? "Launching Program..." : "Launch Weekly Program"}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Validation Feedback Warning */}
+                {!isProgramLaunchedInDb && !launchValidation.isValid && (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2 text-xs font-semibold text-amber-800">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>{launchValidation.error || "Launch date and time must be in the future (Asia/Kolkata / IST)."}</span>
+                  </div>
+                )}
+
+                {/* Launch Date, Time & Global Language Settings */}
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 pt-1">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
+                      Launch Date (IST) <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      min={currentIstDate}
+                      value={launchDate}
+                      onChange={(e) => setLaunchDate(e.target.value)}
+                      className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 focus:outline-none focus:border-blue-500 focus:bg-white"
+                    />
+                    <span className="text-[10px] text-slate-400 mt-0.5 block">
+                      Future date required (Asia/Kolkata).
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
+                      Launch Time (IST) <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="time"
+                        value={launchTime}
+                        onChange={(e) => setLaunchTime(e.target.value)}
+                        className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 focus:outline-none focus:border-blue-500 focus:bg-white"
+                      />
+                      <Clock className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+                    <span className="text-[10px] text-slate-400 mt-0.5 block">
+                      e.g. 09:00 AM IST.
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
+                      Default Medium
+                    </label>
+                    <select
+                      value={defaultLanguage}
+                      onChange={(e) => setDefaultLanguage(e.target.value as "both" | "english" | "hindi")}
+                      className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 focus:outline-none focus:border-blue-500 focus:bg-white"
+                    >
+                      <option value="both">Bilingual (Student Chooses)</option>
+                      <option value="hindi">Hindi Medium</option>
+                      <option value="english">English Medium</option>
+                    </select>
+                    <span className="text-[10px] text-slate-400 mt-0.5 block">
+                      Students can switch language.
+                    </span>
+                  </div>
+
+                  {/* Weekly Metrics Box */}
+                  <div className="flex items-center justify-around p-3 bg-slate-50 border border-slate-200/70 rounded-xl">
+                    <div className="text-center">
+                      <div className="text-base font-extrabold text-blue-700">
+                        {daysState.filter((d) => d.isActive).length}/7
+                      </div>
+                      <div className="text-[10px] font-bold text-slate-500 uppercase">Active Days</div>
+                    </div>
+                    <div className="h-7 w-px bg-slate-200" />
+                    <div className="text-center">
+                      <div className="text-base font-extrabold text-emerald-700">
+                        {daysState.filter((d) => d.isActive).reduce((acc, d) => acc + d.questionCount, 0)}
+                      </div>
+                      <div className="text-[10px] font-bold text-slate-500 uppercase">Weekly Qs</div>
+                    </div>
+                    <div className="h-7 w-px bg-slate-200" />
+                    <div className="text-center">
+                      <div className="text-base font-extrabold text-purple-700">
+                        {daysState.filter((d) => d.isActive).reduce((acc, d) => acc + d.totalMarks, 0)}
+                      </div>
+                      <div className="text-[10px] font-bold text-slate-500 uppercase">Total Marks</div>
                     </div>
                   </div>
-                </Card>
-              );
-            })}
-          </div>
+                </div>
+              </Card>
+
+              {/* 7-Day Configuration Cards */}
+              <div className="space-y-3">
+                {daysState.map((day) => {
+                  const currentPattern = availablePatterns.find((p) => p.id === day.patternId);
+                  const availableSections = currentPattern?.sections || [];
+                  const dayStatus = getDayStatus(day);
+
+                  return (
+                    <Card
+                      key={day.dayOfWeek}
+                      className={`p-4 sm:p-5 bg-white border rounded-2xl transition-all shadow-2xs ${
+                        day.isActive
+                          ? dayStatus.isWeekend
+                            ? "border-amber-200/80 bg-gradient-to-r from-white to-amber-50/20 hover:border-amber-300"
+                            : "border-slate-200/80 hover:border-slate-300"
+                          : "border-slate-200/50 bg-slate-50/40 opacity-70"
+                      }`}
+                    >
+                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                        {/* Day Header */}
+                        <div className="flex items-center gap-3 min-w-[200px]">
+                          <span
+                            className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center font-black text-xs shrink-0 ${
+                              day.isActive
+                                ? dayStatus.isWeekend
+                                  ? "bg-amber-100 text-amber-900 border border-amber-300/80 shadow-2xs"
+                                  : "bg-blue-100 text-blue-900 border border-blue-200/80 shadow-2xs"
+                                : "bg-slate-100 text-slate-400 border border-slate-200"
+                            }`}
+                          >
+                            <span className="text-[11px] font-black">{day.dayLabel.slice(0, 3)}</span>
+                            {dayStatus.isWeekend && (
+                              <span className="text-[8px] font-extrabold text-amber-700 tracking-tighter uppercase">W-END</span>
+                            )}
+                          </span>
+                          <div>
+                            <div className="text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
+                              {day.dayLabel}
+                              <span
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 text-[9px] rounded-full border ${dayStatus.badgeClass}`}
+                              >
+                                <span className={`w-1 h-1 rounded-full ${dayStatus.dotClass}`} />
+                                {dayStatus.label}
+                              </span>
+                            </div>
+                            <div className="text-[11px] font-semibold text-slate-500 capitalize flex items-center gap-1.5 mt-0.5">
+                              <span className="font-bold text-slate-700">{day.testType.replace("_", " ")}</span>
+                              <span>·</span>
+                              <span className="text-slate-500">{day.patternName || primaryPattern.name}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Cascading Controls Grid */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 flex-1">
+                          {/* Test Type */}
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                              Test Format
+                            </label>
+                            <select
+                              value={day.testType}
+                              onChange={(e) =>
+                                updateDayField(
+                                  day.dayOfWeek,
+                                  "testType",
+                                  e.target.value as "daily_sectional" | "mixed" | "full_mock"
+                                )
+                              }
+                              className="w-full px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:border-blue-500"
+                            >
+                              <option value="daily_sectional">Sectional Test</option>
+                              <option value="mixed">Mixed Subject Test</option>
+                              <option value="full_mock">Full-Length Mock</option>
+                            </select>
+                          </div>
+
+                          {/* Pattern Selector (from DB) */}
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                              Pattern Blueprint
+                            </label>
+                            <select
+                              value={day.patternId}
+                              onChange={(e) => updateDayField(day.dayOfWeek, "patternId", e.target.value)}
+                              className="w-full px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:border-blue-500"
+                            >
+                              {availablePatterns.map((p) => (
+                                <option key={p.id} value={p.id}>
+                                  {p.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Section Selector (cascading from selected pattern) */}
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                              Target Section(s)
+                            </label>
+                            {day.testType === "daily_sectional" && availableSections.length > 0 ? (
+                              <select
+                                value={day.activeSectionId || availableSections[0]?.id}
+                                onChange={(e) =>
+                                  updateDayField(day.dayOfWeek, "activeSectionId", e.target.value)
+                                }
+                                className="w-full px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:border-blue-500"
+                              >
+                                {availableSections.map((s) => (
+                                  <option key={s.id} value={s.id}>
+                                    {s.name} ({s.questionCount}Q)
+                                  </option>
+                                ))}
+                              </select>
+                            ) : day.testType === "mixed" && availableSections.length > 0 ? (
+                              <div className="flex flex-wrap gap-1 max-h-16 overflow-y-auto p-1 bg-slate-50 border border-slate-200 rounded-lg">
+                                {availableSections.map((s) => {
+                                  const isChecked = (day.activeSectionIds || []).includes(s.id);
+                                  return (
+                                    <button
+                                      key={s.id}
+                                      type="button"
+                                      onClick={() => handleToggleMixedSection(day.dayOfWeek, s.id)}
+                                      className={`px-1.5 py-0.5 text-[9px] font-bold rounded border transition-all ${
+                                        isChecked
+                                          ? "bg-blue-600 text-white border-blue-600 shadow-2xs"
+                                          : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
+                                      }`}
+                                      title={`Toggle ${s.name}`}
+                                    >
+                                      {s.name.split(" ")[0]} ({s.questionCount}Q)
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <div className="px-2.5 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100/70 border border-slate-200 rounded-lg">
+                                Full Blueprint ({availableSections.length} Sections)
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Specs Summary / Inline Inputs */}
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                              Specs (Q / Min / Marks)
+                            </label>
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="number"
+                                value={day.questionCount}
+                                onChange={(e) =>
+                                  updateDayField(day.dayOfWeek, "questionCount", Number(e.target.value))
+                                }
+                                className="w-14 px-1.5 py-1.5 text-xs font-bold text-center rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:border-blue-500"
+                                title="Question Count"
+                              />
+                              <span className="text-slate-400 text-xs">/</span>
+                              <input
+                                type="number"
+                                value={day.durationMinutes}
+                                onChange={(e) =>
+                                  updateDayField(day.dayOfWeek, "durationMinutes", Number(e.target.value))
+                                }
+                                className="w-14 px-1.5 py-1.5 text-xs font-bold text-center rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:border-blue-500"
+                                title="Duration in minutes"
+                              />
+                              <span className="text-slate-400 text-xs">/</span>
+                              <input
+                                type="number"
+                                value={day.totalMarks}
+                                onChange={(e) =>
+                                  updateDayField(day.dayOfWeek, "totalMarks", Number(e.target.value))
+                                }
+                                className="w-14 px-1.5 py-1.5 text-xs font-bold text-center rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:border-blue-500"
+                                title="Total Marks"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Actions: Toggle Active & Configure */}
+                        <div className="flex items-center gap-2 self-end lg:self-center">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={day.isActive ? "outline" : "default"}
+                            disabled={isToggling}
+                            onClick={() => handleToggleDay(day)}
+                            className={`text-xs font-semibold ${
+                              day.isActive
+                                ? "border-slate-200 text-slate-600 hover:text-slate-900"
+                                : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                            }`}
+                          >
+                            <Power className="w-3.5 h-3.5 mr-1" />
+                            {day.isActive ? "Deactivate" : "Activate"}
+                          </Button>
+
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setEditingDay(day)}
+                            className="text-xs font-semibold border-slate-200 text-slate-700 hover:bg-slate-50"
+                          >
+                            <Edit2 className="w-3.5 h-3.5 mr-1 text-slate-500" />
+                            Configure
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -904,6 +1456,7 @@ export function AdminSchedulesManager({
                       <option value="active">Active</option>
                       <option value="scheduled">Scheduled</option>
                       <option value="completed">Completed</option>
+                      <option value="cancelled">Cancelled</option>
                     </select>
                   </div>
                 </div>
@@ -922,7 +1475,7 @@ export function AdminSchedulesManager({
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Application Start
+                      Apply Start Date
                     </label>
                     <input
                       name="applicationStartDate"
@@ -932,7 +1485,7 @@ export function AdminSchedulesManager({
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Application End
+                      Apply End Date
                     </label>
                     <input
                       name="applicationEndDate"
@@ -942,86 +1495,127 @@ export function AdminSchedulesManager({
                   </div>
                 </div>
 
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Exam Window Start
+                    </label>
+                    <input
+                      name="examWindowStart"
+                      type="date"
+                      className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Exam Window End
+                    </label>
+                    <input
+                      name="examWindowEnd"
+                      type="date"
+                      className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
                 <Button
                   type="submit"
                   disabled={isCreatingCycle}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold"
                 >
-                  {isCreatingCycle ? "Publishing Schedule..." : "Save Notification Schedule"}
+                  <PlusCircle className="w-4 h-4 mr-2" />
+                  {isCreatingCycle ? "Publishing Schedule..." : "Publish Recruitment Schedule"}
                 </Button>
               </form>
             </Card>
           </div>
 
-          {/* Cycles List */}
-          <div className="lg:col-span-7 space-y-3">
-            {filteredCycles.length === 0 ? (
-              <Card className="p-8 text-center bg-white border border-slate-200/80 rounded-2xl">
-                <Calendar className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                <h3 className="text-sm font-bold text-slate-700">No recruitment cycles found</h3>
-                <p className="text-xs text-slate-400 mt-1">
-                  Create notification releases for {activeCategoryObj?.title || "this category"} using the form.
-                </p>
-              </Card>
-            ) : (
-              filteredCycles.map((cycle) => (
-                <Card
-                  key={cycle.id}
-                  className="p-5 bg-white border border-slate-200/80 rounded-2xl shadow-2xs hover:border-slate-300 transition-all"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-bold text-slate-900">
-                          {cycle.categoryName} — Cycle {cycle.cycleYear}
-                        </h3>
-                        <Badge
-                          variant={cycle.status === "active" ? "default" : "outline"}
-                          className="text-[10px] font-bold capitalize"
-                        >
-                          {cycle.status}
-                        </Badge>
+          {/* Existing Cycles Table */}
+          <div className="lg:col-span-7 space-y-4">
+            <Card className="p-5 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-3">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                <h3 className="text-sm font-bold text-slate-900">
+                  Published Exam Cycles ({filteredCycles.length})
+                </h3>
+              </div>
+
+              {filteredCycles.length === 0 ? (
+                <div className="text-center py-10 text-slate-400 text-xs font-medium">
+                  No recruitment cycles found for {activeCategoryObj?.title}.
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {filteredCycles.map((cycle) => (
+                    <div
+                      key={cycle.id}
+                      className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                    >
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-slate-900">
+                            {cycle.categoryName} ({cycle.cycleYear})
+                          </span>
+                          <Badge
+                            className={`text-[10px] font-bold ${
+                              cycle.status === "active"
+                                ? "bg-emerald-100 text-emerald-800"
+                                : cycle.status === "scheduled"
+                                ? "bg-blue-100 text-blue-800"
+                                : "bg-slate-100 text-slate-600"
+                            }`}
+                          >
+                            {cycle.status}
+                          </Badge>
+                        </div>
+                        <div className="text-xs text-slate-500 mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                          {cycle.notificationDate && (
+                            <span>Notif: {new Date(cycle.notificationDate).toLocaleDateString()}</span>
+                          )}
+                          {cycle.applicationStartDate && (
+                            <span>
+                              Apply: {new Date(cycle.applicationStartDate).toLocaleDateString()} –{" "}
+                              {cycle.applicationEndDate ? new Date(cycle.applicationEndDate).toLocaleDateString() : "TBD"}
+                            </span>
+                          )}
+                          {cycle.examWindowStart && (
+                            <span>
+                              Exam: {new Date(cycle.examWindowStart).toLocaleDateString()} –{" "}
+                              {cycle.examWindowEnd ? new Date(cycle.examWindowEnd).toLocaleDateString() : "TBD"}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <div className="text-xs text-slate-500 mt-1 space-y-0.5">
-                        {cycle.notificationDate && <div>Release: {cycle.notificationDate}</div>}
-                        {cycle.applicationStartDate && (
-                          <div>
-                            App Window: {cycle.applicationStartDate} to {cycle.applicationEndDate || "—"}
-                          </div>
-                        )}
+
+                      <div className="flex items-center gap-2 self-end sm:self-center">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setEditingCycle(cycle)}
+                          className="text-xs font-semibold"
+                        >
+                          <Edit2 className="w-3.5 h-3.5 mr-1 text-slate-500" />
+                          Edit
+                        </Button>
                       </div>
                     </div>
-
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setEditingCycle(cycle)}
-                      className="text-xs font-semibold border-slate-200 text-slate-700 hover:bg-slate-50"
-                    >
-                      <Edit2 className="w-3.5 h-3.5 mr-1" /> Edit
-                    </Button>
-                  </div>
-                </Card>
-              ))
-            )}
+                  ))}
+                </div>
+              )}
+            </Card>
           </div>
         </div>
       )}
 
       {/* ========================================================================= */}
-      {/* SINGLE DAY CONFIGURATION MODAL                                            */}
+      {/* SINGLE DAY CONFIGURATION EDIT MODAL                                       */}
       {/* ========================================================================= */}
       {editingDay && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <Card className="w-full max-w-lg bg-white border border-slate-200 rounded-2xl shadow-2xl p-6 space-y-5 animate-in fade-in zoom-in-95">
+          <Card className="w-full max-w-lg bg-white border border-slate-200 rounded-2xl shadow-2xl p-6 space-y-4 animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <CalendarDays className="w-5 h-5 text-blue-600" />
-                <h3 className="text-base font-bold text-slate-900">
-                  Configure {editingDay.dayLabel} — {activeCategoryObj?.title}
-                </h3>
-              </div>
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Edit2 className="w-4 h-4 text-blue-600" /> Configure {editingDay.dayLabel} Schedule
+              </h3>
               <button
                 onClick={() => setEditingDay(null)}
                 className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
@@ -1033,14 +1627,16 @@ export function AdminSchedulesManager({
             <form
               action={async (formData) => {
                 await saveDayAction(formData);
-                setEditingDay(null);
               }}
               className="space-y-4"
             >
               <input type="hidden" name="categoryId" value={activeCategoryObj?.id || ""} />
               <input type="hidden" name="dayOfWeek" value={editingDay.dayOfWeek} />
               <input type="hidden" name="dayLabel" value={editingDay.dayLabel} />
+              <input type="hidden" name="patternId" value={editingDay.patternId} />
               <input type="hidden" name="launchDate" value={launchDate} />
+              <input type="hidden" name="launchTime" value={launchTime} />
+              <input type="hidden" name="defaultLanguage" value={defaultLanguage} />
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -1057,42 +1653,35 @@ export function AdminSchedulesManager({
                     <option value="full_mock">Full-Length Mock</option>
                   </select>
                 </div>
-
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Pattern Blueprint
+                    Active Status
                   </label>
                   <select
-                    name="patternId"
-                    defaultValue={editingDay.patternId}
+                    name="isActive"
+                    defaultValue={String(editingDay.isActive)}
                     className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white"
                   >
-                    {availablePatterns.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
+                    <option value="true">Active (Scheduled)</option>
+                    <option value="false">Inactive (Paused)</option>
                   </select>
                 </div>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Target Section (If Sectional)
+                  Target Section (for Sectional Mocks)
                 </label>
                 <select
                   name="activeSectionId"
                   defaultValue={editingDay.activeSectionId || ""}
                   className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white"
                 >
-                  <option value="">— All Sections / Full Blueprint —</option>
-                  {availablePatterns
-                    .flatMap((p) => p.sections)
-                    .map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
+                  {availablePatterns.find((p) => p.id === editingDay.patternId)?.sections.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.questionCount} Questions, {s.marksPerQuestion * s.questionCount} Marks)
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -1106,17 +1695,19 @@ export function AdminSchedulesManager({
                     type="number"
                     defaultValue={editingDay.questionCount}
                     className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white"
+                    required
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Duration (m)
+                    Duration (Min)
                   </label>
                   <input
                     name="durationMinutes"
                     type="number"
                     defaultValue={editingDay.durationMinutes}
                     className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white"
+                    required
                   />
                 </div>
                 <div>
@@ -1128,6 +1719,7 @@ export function AdminSchedulesManager({
                     type="number"
                     defaultValue={editingDay.totalMarks}
                     className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white"
+                    required
                   />
                 </div>
               </div>
@@ -1143,6 +1735,7 @@ export function AdminSchedulesManager({
                     step="0.25"
                     defaultValue={editingDay.negativeMark}
                     className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white"
+                    required
                   />
                 </div>
                 <div>
@@ -1154,9 +1747,9 @@ export function AdminSchedulesManager({
                     defaultValue={editingDay.language}
                     className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white"
                   >
-                    <option value="both">🌐 Bilingual</option>
-                    <option value="hindi">🇮🇳 Hindi</option>
-                    <option value="english">🇬🇧 English</option>
+                    <option value="both">Bilingual</option>
+                    <option value="hindi">Hindi</option>
+                    <option value="english">English</option>
                   </select>
                 </div>
               </div>
@@ -1374,6 +1967,93 @@ export function AdminSchedulesManager({
               >
                 <Rocket className="w-4 h-4" />
                 {isSavingProg ? "Launching..." : "Confirm & Launch Program"}
+              </Button>
+            </form>
+          </Card>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* LEVEL 2: DEACTIVATE ENTIRE PROGRAM CONFIRMATION MODAL (TYPED CONFIRMATION) */}
+      {/* ========================================================================= */}
+      {showDeactivateModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <Card className="w-full max-w-md bg-white border border-rose-200 rounded-3xl shadow-2xl p-6 space-y-5 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-rose-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-rose-100 flex items-center justify-center text-rose-700">
+                  <Power className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900">Deactivate Weekly Program?</h3>
+                  <p className="text-[11px] text-rose-600 font-semibold">{activeCategoryObj?.title}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowDeactivateModal(false);
+                  setDeactivateConfirmText("");
+                }}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4 bg-rose-50/70 border border-rose-200/80 rounded-2xl space-y-2 text-xs text-rose-900 leading-relaxed">
+              <p className="font-bold">
+                You are about to deactivate the entire:
+              </p>
+              <p className="font-extrabold text-rose-950">
+                {activeCategoryObj?.title} · {primaryPattern.name} Weekly Daily Mock Program
+              </p>
+              <p className="text-[11px] text-rose-800 mt-2">
+                This will stop all currently active scheduled daily mocks (Mon – Sun). Existing student attempts, answers, and results will <span className="font-black underline">NOT</span> be deleted.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-700">
+                To confirm, type <span className="font-mono text-rose-700 font-black">DEACTIVATE</span> below:
+              </label>
+              <input
+                type="text"
+                value={deactivateConfirmText}
+                onChange={(e) => setDeactivateConfirmText(e.target.value)}
+                placeholder="Type DEACTIVATE"
+                className="w-full px-3.5 py-2 text-xs font-mono font-bold rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500"
+              />
+            </div>
+
+            <form
+              action={async (formData) => {
+                await deactivateProgAction(formData);
+              }}
+              className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100"
+            >
+              <input type="hidden" name="categoryId" value={activeCategoryObj?.id || ""} />
+              <input type="hidden" name="confirmationText" value={deactivateConfirmText} />
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setShowDeactivateModal(false);
+                  setDeactivateConfirmText("");
+                }}
+                className="text-xs font-semibold rounded-xl"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={isDeactivatingProg || deactivateConfirmText !== "DEACTIVATE"}
+                className="bg-rose-600 hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs shadow-xs rounded-xl flex items-center gap-1.5 px-4"
+              >
+                <Power className="w-4 h-4" />
+                {isDeactivatingProg ? "Deactivating..." : "Deactivate Program"}
               </Button>
             </form>
           </Card>
