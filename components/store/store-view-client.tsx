@@ -245,7 +245,7 @@ export function StoreViewClient({
                 className="flex flex-col justify-between bg-white border rounded-2xl border-slate-200/90 shadow-xs hover:shadow-md transition-all overflow-hidden group"
               >
                 {/* A. LARGE REWARD IMAGE (4:3 Master Presentation) */}
-                <div className="relative w-full aspect-[4/3] bg-slate-900/[0.03] border-b border-slate-100 overflow-hidden flex items-center justify-center p-3">
+                <div className="relative w-full aspect-[4/3] bg-slate-900/[0.03] border-b border-slate-100 rounded-t-2xl rounded-b-none overflow-hidden flex items-center justify-center p-3">
                   {item.imageUrl && !failedImages[item.id] ? (
                     <Image
                       src={item.imageUrl}
