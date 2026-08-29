@@ -323,8 +323,7 @@ export class GamificationService {
     let isNewStreakMilestone = false;
 
     try {
-      const rpcStreak = adminSb.rpc as any;
-      const { data: streakResult } = await rpcStreak("fn_record_qualifying_streak_activity", {
+      const { data: streakResult } = await (adminSb as any).rpc("fn_record_qualifying_streak_activity", {
         p_user_id: userId,
         p_action_type: "MOCK_TEST",
         p_source_id: attemptId,
@@ -417,9 +416,9 @@ export class GamificationService {
     };
 
     // 6. Execute Canonical Atomic RPC fn_award_gamification_reward
+    let isSuccessfullyAwarded = false;
     try {
-      const rpcCall = adminSb.rpc as any;
-      await rpcCall("fn_award_gamification_reward", {
+      const { data: rpcRes, error: rpcErr } = await (adminSb as any).rpc("fn_award_gamification_reward", {
         p_user_id: userId,
         p_event_type: "MOCK_TEST_COMPLETED",
         p_source_type: "MOCK_TEST",
@@ -429,8 +428,36 @@ export class GamificationService {
         p_reason_code: "MOCK_ASSESSMENT_REWARD",
         p_metadata: metadata,
       });
+
+      if (rpcErr) {
+        console.error("[GamificationService.awardMockCompletionReward] Database RPC Error:", rpcErr);
+      } else if (rpcRes?.success !== false) {
+        isSuccessfullyAwarded = true;
+      }
     } catch (dbErr) {
       console.error("[GamificationService.awardMockCompletionReward] Error calling fn_award_gamification_reward:", dbErr);
+    }
+
+    if (!isSuccessfullyAwarded) {
+      return {
+        isRetake: false,
+        isRewardEligible: false,
+        completionCoins: 0,
+        completionReason: "Reward processing pending",
+        isAccuracyEligible: false,
+        minAttemptRequired: calc.minAttemptRequired,
+        accuracyPercentage: calc.accuracyPercentage,
+        accuracyBonusCoins: 0,
+        accuracyReason: "Reward processing pending",
+        streakCoins: 0,
+        streakReason: "Streak recorded",
+        currentStreak,
+        longestStreak,
+        isNewStreakMilestone,
+        badgeUnlocked: null,
+        totalCoinsEarned: 0,
+        isAlreadyRewarded: false,
+      };
     }
 
     return {
@@ -458,14 +485,14 @@ export class GamificationService {
    * Retrieves Comprehensive Student Wallet & Ledger Snapshot
    */
   static async getStudentWallet(userId: string): Promise<StudentWalletData | null> {
-    const supabase = await createServerSupabaseClient();
+    const adminSb = createAdminServerSupabaseClient();
 
     const [walletRes, streakRes, ledgerRes, badgesRes, userBadgesRes] = await Promise.all([
-      supabase.from("coin_wallets").select("*").eq("user_id", userId).maybeSingle(),
-      supabase.from("user_streaks").select("*").eq("user_id", userId).maybeSingle(),
-      supabase.from("coin_ledger").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(20),
-      supabase.from("badges").select("*").eq("is_active", true).order("display_order", { ascending: true }),
-      supabase.from("user_badges").select("badge_id, earned_at").eq("user_id", userId),
+      adminSb.from("coin_wallets").select("*").eq("user_id", userId).maybeSingle(),
+      adminSb.from("user_streaks").select("*").eq("user_id", userId).maybeSingle(),
+      adminSb.from("coin_ledger").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(50),
+      adminSb.from("badges").select("*").eq("is_active", true).order("display_order", { ascending: true }),
+      adminSb.from("user_badges").select("badge_id, earned_at").eq("user_id", userId),
     ]);
 
     const wallet = walletRes.data as any;
@@ -477,10 +504,19 @@ export class GamificationService {
     const userBadgeMap = new Map<string, string>();
     userBadges.forEach((ub) => userBadgeMap.set(ub.badge_id, ub.earned_at));
 
-    const currentBalance = Number(wallet?.current_balance || 0);
-    const lifetimeEarned = Number(wallet?.lifetime_earned || 0);
-    const lifetimeSpent = Number(wallet?.lifetime_spent || 0);
+    let currentBalance = Number(wallet?.current_balance || 0);
+    let lifetimeEarned = Number(wallet?.lifetime_earned || 0);
+    let lifetimeSpent = Number(wallet?.lifetime_spent || 0);
     const freezesHeld = Number(wallet?.freezes_held || 0);
+
+    // Reconcile with ledger if wallet row is missing or out-of-sync
+    if (!wallet && ledger.length > 0) {
+      const calculatedEarned = ledger.filter((l) => l.direction === "CREDIT").reduce((s, l) => s + Number(l.amount || 0), 0);
+      const calculatedSpent = ledger.filter((l) => l.direction === "DEBIT").reduce((s, l) => s + Number(l.amount || 0), 0);
+      currentBalance = calculatedEarned - calculatedSpent;
+      lifetimeEarned = calculatedEarned;
+      lifetimeSpent = calculatedSpent;
+    }
 
     const level = GamificationService.getLevelInfo(lifetimeEarned);
 
