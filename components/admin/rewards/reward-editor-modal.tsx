@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { AdminRewardCatalogItem } from "@/services/gamification.service";
 import { createRewardAction, updateRewardAction, uploadRewardImageAction } from "@/app/admin/rewards/actions";
-import { generateRewardImageBrief, GeneratedImageBrief } from "@/lib/admin/ai-image-brief";
+import { generateRewardImageBrief } from "@/lib/admin/ai-image-brief";
 
 interface RewardEditorModalProps {
   reward: AdminRewardCatalogItem | null;
@@ -37,8 +37,8 @@ export function RewardEditorModal({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // AI Image Brief State
-  const [aiBrief, setAiBrief] = useState<GeneratedImageBrief | null>(null);
-  const [copiedType, setCopiedType] = useState<string | null>(null);
+  const [promptText, setPromptText] = useState<string>("");
+  const [copiedPrompt, setCopiedPrompt] = useState<boolean>(false);
 
   useEffect(() => {
     if (reward) {
@@ -52,7 +52,8 @@ export function RewardEditorModal({
       setImageUrl(reward.imageUrl || "");
       setIsActive(reward.isActive);
       setDisplayOrder(reward.displayOrder);
-      setAiBrief(null);
+      setPromptText("");
+      setCopiedPrompt(false);
     } else {
       setTitle("");
       setSlug("");
@@ -64,7 +65,8 @@ export function RewardEditorModal({
       setImageUrl("");
       setIsActive(true);
       setDisplayOrder(1);
-      setAiBrief(null);
+      setPromptText("");
+      setCopiedPrompt(false);
     }
     setErrorMsg(null);
   }, [reward, isOpen]);
@@ -109,13 +111,14 @@ export function RewardEditorModal({
       category: rewardType,
       description: description.trim(),
     });
-    setAiBrief(brief);
+    setPromptText(brief.prompt);
   };
 
-  const copyToClipboard = (text: string, type: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedType(type);
-    setTimeout(() => setCopiedType(null), 2500);
+  const handleCopyPrompt = () => {
+    if (!promptText) return;
+    navigator.clipboard.writeText(promptText);
+    setCopiedPrompt(true);
+    setTimeout(() => setCopiedPrompt(false), 2500);
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -411,9 +414,11 @@ export function RewardEditorModal({
             {/* Section 4: AI Image Brief Generator */}
             <div className="space-y-3">
               <div className="flex items-center justify-between pb-1 border-b border-slate-100">
-                <h4 className="font-bold uppercase tracking-wider text-slate-700 text-[11px]">
-                  4. AI Product Photography Brief Generator
-                </h4>
+                <div className="flex items-center gap-2">
+                  <h4 className="font-bold uppercase tracking-wider text-slate-700 text-[11px]">
+                    4. AI Image Generation Prompt (Canonical 1:1 Specification)
+                  </h4>
+                </div>
                 <button
                   type="button"
                   onClick={handleGenerateAiBrief}
@@ -422,50 +427,119 @@ export function RewardEditorModal({
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
-                  <span>Generate Image Brief</span>
+                  <span>{promptText ? "Regenerate Prompt" : "Generate Image Brief"}</span>
                 </button>
               </div>
 
-              {aiBrief ? (
-                <div className="p-4 rounded-xl border border-indigo-100 bg-indigo-50/30 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-indigo-900 text-[11px]">Generated Commercial Prompt</span>
-                    <button
-                      type="button"
-                      onClick={() => copyToClipboard(aiBrief.positivePrompt, "positive")}
-                      className="px-2.5 py-1 text-[10px] font-bold bg-white text-indigo-800 border border-indigo-200 rounded-md hover:bg-indigo-50 transition-colors shadow-2xs"
-                    >
-                      {copiedType === "positive" ? "✓ Copied to Clipboard!" : "Copy Prompt"}
-                    </button>
-                  </div>
-                  <textarea
-                    readOnly
-                    value={aiBrief.positivePrompt}
-                    rows={4}
-                    className="w-full p-2.5 bg-white border border-indigo-200/70 rounded-lg text-[11px] font-mono text-slate-800 leading-relaxed"
-                  />
+              {/* Standard Specification Banner */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-[10px]">
+                <div className="flex flex-col">
+                  <span className="font-semibold text-slate-500 uppercase tracking-wider text-[9px]">Aspect Ratio</span>
+                  <span className="font-bold text-slate-800">1:1 Square</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="font-semibold text-slate-500 uppercase tracking-wider text-[9px]">Canonical Asset</span>
+                  <span className="font-bold text-slate-800">1600 × 1600 px</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="font-semibold text-slate-500 uppercase tracking-wider text-[9px]">Hero Occupancy</span>
+                  <span className="font-bold text-slate-800">70%–78% Canvas</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="font-semibold text-slate-500 uppercase tracking-wider text-[9px]">Brand Aesthetic</span>
+                  <span className="font-bold text-slate-800">Academic &amp; Minimal</span>
+                </div>
+              </div>
 
-                  <div className="flex items-center justify-between pt-1">
-                    <span className="font-bold text-slate-700 text-[10px]">Negative Prompt / Avoid List</span>
-                    <button
-                      type="button"
-                      onClick={() => copyToClipboard(aiBrief.negativePrompt, "negative")}
-                      className="px-2 py-0.5 text-[10px] font-bold bg-white text-slate-700 border border-slate-200 rounded-md hover:bg-slate-50 transition-colors"
-                    >
-                      {copiedType === "negative" ? "✓ Copied" : "Copy Avoid List"}
-                    </button>
+              {promptText ? (
+                <div className="p-4 rounded-xl border border-indigo-100 bg-indigo-50/30 space-y-3">
+                  {/* Official Logo Reference Card */}
+                  <div className="flex items-start gap-3 p-3 rounded-lg bg-white border border-indigo-100 shadow-2xs">
+                    <div className="w-10 h-10 rounded-lg bg-slate-50 border border-slate-200 shrink-0 flex items-center justify-center overflow-hidden p-1">
+                      <Image
+                        src="/images/logo.png"
+                        alt="Courage Library Official Logo"
+                        width={32}
+                        height={32}
+                        className="object-contain"
+                      />
+                    </div>
+                    <div className="space-y-0.5 flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-bold text-slate-900">Official Courage Library Logo Reference</span>
+                        <span className="px-1.5 py-0.2 text-[9px] font-extrabold bg-blue-50 text-blue-700 rounded-md border border-blue-200">
+                          Branding Reference
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-600 leading-normal">
+                        Recommended: attach this official Courage Library logo image when generating the image for accurate branding. If no logo is attached, the prompt instructs the AI model to keep the branding area clean without fabricating fake logos.
+                      </p>
+                    </div>
                   </div>
-                  <textarea
-                    readOnly
-                    value={aiBrief.negativePrompt}
-                    rows={2}
-                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-[10px] font-mono text-slate-600"
-                  />
+
+                  {/* Single Unified Prompt Area */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="font-bold text-indigo-950 text-[11px] flex items-center gap-1.5">
+                        <span>One Single Copy-Paste-Ready AI Image Prompt</span>
+                        <span className="text-[10px] font-normal text-indigo-600 font-mono">(Editable)</span>
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleGenerateAiBrief}
+                          className="px-2.5 py-1 text-[10px] font-bold text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition-colors inline-flex items-center gap-1"
+                        >
+                          <svg className="w-3 h-3 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                          <span>Regenerate</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleCopyPrompt}
+                          className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all shadow-2xs inline-flex items-center gap-1.5 ${
+                            copiedPrompt
+                              ? "bg-emerald-600 text-white border border-emerald-700 ring-2 ring-emerald-500/20"
+                              : "bg-indigo-600 text-white hover:bg-indigo-700 border border-indigo-700"
+                          }`}
+                        >
+                          {copiedPrompt ? (
+                            <>
+                              <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                              </svg>
+                              <span>Prompt copied.</span>
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                              </svg>
+                              <span>Copy Prompt</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                    <textarea
+                      value={promptText}
+                      onChange={(e) => setPromptText(e.target.value)}
+                      rows={9}
+                      className="w-full p-3 bg-white border border-indigo-200/80 rounded-xl text-[11px] font-mono text-slate-800 leading-relaxed focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-2xs"
+                      placeholder="Unified image generation prompt..."
+                    />
+                  </div>
                 </div>
               ) : (
-                <p className="text-[11px] text-slate-500 italic">
-                  Click &ldquo;Generate Image Brief&rdquo; to create an e-commerce photorealistic studio brief tailored with official Courage Library branding and lighting rules.
-                </p>
+                <div className="p-4 rounded-xl border border-dashed border-slate-200 bg-slate-50/60 text-center space-y-1.5">
+                  <p className="text-[11px] font-medium text-slate-600">
+                    Click &ldquo;Generate Image Brief&rdquo; to create ONE comprehensive, copy-paste-ready prompt.
+                  </p>
+                  <p className="text-[10px] text-slate-400">
+                    Includes product architecture, realistic material physics, 1:1 (1600 × 1600) framing, official logo handling, and embedded quality restrictions in a single copyable block.
+                  </p>
+                </div>
               )}
             </div>
 
