@@ -218,7 +218,13 @@ export function WalletViewClient({ wallet, catalog }: WalletViewClientProps) {
               <ShoppingBag className="w-5 h-5 text-amber-600" />
               Courage Library Reward Store
             </h2>
-            <span className="text-xs text-slate-500 font-medium">Redeemable with CL Coins</span>
+            <Link
+              href="/store"
+              className="text-xs font-bold text-amber-700 hover:text-amber-800 transition-colors flex items-center gap-1"
+            >
+              <span>Explore Full Store</span>
+              <span>→</span>
+            </Link>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -250,9 +256,11 @@ export function WalletViewClient({ wallet, catalog }: WalletViewClientProps) {
 
                   <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
                     {canAfford ? (
-                      <Button size="sm" className="w-full text-xs font-bold bg-amber-500 hover:bg-amber-600 text-slate-950">
-                        <Package className="w-3.5 h-3.5 mr-1" /> Redeem Reward
-                      </Button>
+                      <Link href="/store" className="w-full">
+                        <Button size="sm" className="w-full text-xs font-bold bg-amber-500 hover:bg-amber-600 text-slate-950">
+                          <Package className="w-3.5 h-3.5 mr-1" /> Redeem in Store
+                        </Button>
+                      </Link>
                     ) : (
                       <span className="text-[11px] text-slate-400 font-medium flex items-center gap-1">
                         <Lock className="w-3 h-3" /> Need {(item.coinCost - wallet.currentBalance).toLocaleString()} more CL

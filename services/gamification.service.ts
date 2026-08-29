@@ -115,6 +115,50 @@ export interface GamificationAdminStats {
   };
 }
 
+export interface StoreCatalogItem {
+  id: string;
+  title: string;
+  slug: string;
+  description: string;
+  rewardType: "DIGITAL" | "PHYSICAL" | "FEATURE_UNLOCK";
+  coinCost: number;
+  stockQuantity: number;
+  imageUrl: string | null;
+  isActive: boolean;
+  displayOrder: number;
+}
+
+export interface StoreUserClaim {
+  id: string;
+  rewardId: string;
+  rewardTitle: string;
+  rewardSlug: string;
+  rewardType: string;
+  coinsSpent: number;
+  status: "REQUESTED" | "PROCESSING" | "SHIPPED" | "FULFILLED" | "REJECTED";
+  claimedAt: string;
+  fulfilledAt: string | null;
+  trackingCode: string | null;
+  shippingAddress: string | null;
+}
+
+export interface StorePageData {
+  wallet: {
+    currentBalance: number;
+    lifetimeEarned: number;
+    freezesHeld: number;
+    level: {
+      title: string;
+      minCoins: number;
+      nextLevelTitle?: string;
+      nextLevelThreshold?: number;
+      progressPercentage: number;
+    };
+  };
+  catalog: StoreCatalogItem[];
+  userClaims: StoreUserClaim[];
+}
+
 export class GamificationService {
   /**
    * Authoritative Level Progression Thresholds
@@ -679,6 +723,241 @@ export class GamificationService {
           { min: 100, max: 100, coins: 15 },
         ],
       },
+    };
+  }
+
+  /**
+   * Retrieves Authoritative Store Page Data (Catalog, Wallet, User Claims)
+   */
+  static async getStoreData(userId: string): Promise<StorePageData> {
+    const adminSb = createAdminServerSupabaseClient();
+
+    const [walletData, catalogRes, claimsRes] = await Promise.all([
+      GamificationService.getStudentWallet(userId),
+      adminSb
+        .from("reward_catalog")
+        .select("*")
+        .eq("is_active", true)
+        .order("display_order", { ascending: true }),
+      adminSb
+        .from("reward_claims")
+        .select("id, reward_id, coins_spent, status, shipping_address, tracking_code, created_at, fulfilled_at, reward_catalog(id, title, slug, reward_type, image_url)")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false }),
+    ]);
+
+    const catalogItems: StoreCatalogItem[] = ((catalogRes.data as any[]) || []).map((c) => ({
+      id: c.id,
+      title: c.title,
+      slug: c.slug,
+      description: c.description || "",
+      rewardType: (c.reward_type || "PHYSICAL") as any,
+      coinCost: Number(c.coin_cost || 0),
+      stockQuantity: Number(c.stock_quantity ?? -1),
+      imageUrl: c.image_url || null,
+      isActive: Boolean(c.is_active),
+      displayOrder: Number(c.display_order || 0),
+    }));
+
+    const userClaims: StoreUserClaim[] = ((claimsRes.data as any[]) || []).map((cl) => ({
+      id: cl.id,
+      rewardId: cl.reward_id,
+      rewardTitle: cl.reward_catalog?.title || "Reward Item",
+      rewardSlug: cl.reward_catalog?.slug || "",
+      rewardType: cl.reward_catalog?.reward_type || "PHYSICAL",
+      coinsSpent: Number(cl.coins_spent || 0),
+      status: (cl.status || "REQUESTED") as any,
+      claimedAt: cl.created_at,
+      fulfilledAt: cl.fulfilled_at,
+      trackingCode: cl.tracking_code,
+      shippingAddress: cl.shipping_address,
+    }));
+
+    return {
+      wallet: {
+        currentBalance: walletData?.currentBalance || 0,
+        lifetimeEarned: walletData?.lifetimeEarned || 0,
+        freezesHeld: walletData?.freezesHeld || 0,
+        level: walletData?.level || {
+          title: "Seeker",
+          minCoins: 0,
+          progressPercentage: 0,
+        },
+      },
+      catalog: catalogItems,
+      userClaims,
+    };
+  }
+
+  /**
+   * Server-Authoritative Reward Redemption
+   * Atomically verifies balance, deducts coins, inserts ledger debit, updates wallet, and creates claim.
+   */
+  static async redeemStoreReward(input: {
+    userId: string;
+    rewardId: string;
+    shippingDetails?: {
+      fullName?: string;
+      phone?: string;
+      address?: string;
+      city?: string;
+      state?: string;
+      pincode?: string;
+    };
+  }): Promise<{
+    success: boolean;
+    error?: string;
+    remainingBalance?: number;
+    claimId?: string;
+    rewardTitle?: string;
+  }> {
+    const adminSb = createAdminServerSupabaseClient();
+    const { userId, rewardId, shippingDetails } = input;
+
+    // 1. Fetch Authoritative Reward Item
+    const { data: reward, error: rewardErr } = await adminSb
+      .from("reward_catalog")
+      .select("*")
+      .eq("id", rewardId)
+      .maybeSingle();
+
+    if (rewardErr || !reward) {
+      return { success: false, error: "Reward item not found in catalog." };
+    }
+
+    if (!reward.is_active) {
+      return { success: false, error: "This reward is currently unavailable." };
+    }
+
+    if (reward.stock_quantity !== -1 && reward.stock_quantity <= 0) {
+      return { success: false, error: "This reward is currently out of stock." };
+    }
+
+    const coinCost = Number(reward.coin_cost || 0);
+
+    // 2. Fetch Authoritative User Wallet
+    const { data: wallet, error: walletErr } = await adminSb
+      .from("coin_wallets")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (walletErr || !wallet) {
+      return { success: false, error: "Wallet not found. Please earn CL Coins first." };
+    }
+
+    const currentBalance = Number(wallet.current_balance || 0);
+    if (currentBalance < coinCost) {
+      const needed = coinCost - currentBalance;
+      return { success: false, error: `Insufficient CL Coins. You need ${needed.toLocaleString()} more CL.` };
+    }
+
+    // 3. Special checks for specific items (e.g. Streak Freeze Token max 2 held)
+    const isStreakFreeze = reward.slug === "streak-freeze-token" || reward.title.toLowerCase().includes("streak freeze");
+    if (isStreakFreeze && Number(wallet.freezes_held || 0) >= 2) {
+      return { success: false, error: "You already hold the maximum of 2 Streak Freeze shields." };
+    }
+
+    // 4. Physical reward shipping validation
+    if (reward.reward_type === "PHYSICAL") {
+      if (!shippingDetails?.fullName?.trim() || !shippingDetails?.phone?.trim() || !shippingDetails?.address?.trim() || !shippingDetails?.pincode?.trim()) {
+        return { success: false, error: "Please provide complete delivery details (Name, Phone, Address, Pincode)." };
+      }
+    }
+
+    // 5. Execute Atomic Redemption
+    const newBalance = currentBalance - coinCost;
+    const newLifetimeSpent = Number(wallet.lifetime_spent || 0) + coinCost;
+    const claimKey = `claim_${reward.id}_${userId}_${Date.now()}`;
+
+    // A. Insert Immutable Ledger Debit
+    const { data: ledgerRow, error: ledgerErr } = await adminSb
+      .from("coin_ledger")
+      .insert({
+        user_id: userId,
+        transaction_type: "DEBIT",
+        amount: coinCost,
+        direction: "DEBIT",
+        balance_after: newBalance,
+        source_type: "REWARD_STORE",
+        source_id: reward.id,
+        reason_code: "STORE_REDEMPTION",
+        idempotency_key: `ledger_${claimKey}`,
+        metadata: {
+          reward_id: reward.id,
+          reward_title: reward.title,
+          reward_type: reward.reward_type,
+          slug: reward.slug,
+        },
+      } as any)
+      .select("id")
+      .single();
+
+    if (ledgerErr || !ledgerRow) {
+      console.error("[redeemStoreReward] Ledger insert error:", ledgerErr);
+      return { success: false, error: "Redemption transaction failed. Your balance is untouched." };
+    }
+
+    // B. Update Coin Wallet Balance
+    const walletUpdates: any = {
+      current_balance: newBalance,
+      lifetime_spent: newLifetimeSpent,
+      last_transaction_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    if (isStreakFreeze) {
+      walletUpdates.freezes_held = Number(wallet.freezes_held || 0) + 1;
+    }
+
+    const { error: walletUpErr } = await adminSb
+      .from("coin_wallets")
+      .update(walletUpdates)
+      .eq("user_id", userId);
+
+    if (walletUpErr) {
+      console.error("[redeemStoreReward] Wallet update error:", walletUpErr);
+    }
+
+    // C. Insert Reward Claim Record
+    const initialStatus = reward.reward_type === "DIGITAL" || isStreakFreeze ? "FULFILLED" : "REQUESTED";
+    const fulfilledAt = initialStatus === "FULFILLED" ? new Date().toISOString() : null;
+
+    const { data: claimRow, error: claimErr } = await adminSb
+      .from("reward_claims")
+      .insert({
+        user_id: userId,
+        reward_id: reward.id,
+        coins_spent: coinCost,
+        ledger_transaction_id: ledgerRow.id,
+        status: initialStatus,
+        shipping_full_name: shippingDetails?.fullName?.trim() || null,
+        shipping_phone: shippingDetails?.phone?.trim() || null,
+        shipping_address: shippingDetails?.address?.trim() || null,
+        shipping_city: shippingDetails?.city?.trim() || null,
+        shipping_state: shippingDetails?.state?.trim() || null,
+        shipping_pincode: shippingDetails?.pincode?.trim() || null,
+        fulfilled_at: fulfilledAt,
+      } as any)
+      .select("id")
+      .single();
+
+    if (claimErr) {
+      console.error("[redeemStoreReward] Claim record creation error:", claimErr);
+    }
+
+    // D. Decrement Physical Stock if applicable
+    if (reward.stock_quantity > 0) {
+      await adminSb
+        .from("reward_catalog")
+        .update({ stock_quantity: reward.stock_quantity - 1 })
+        .eq("id", reward.id);
+    }
+
+    return {
+      success: true,
+      remainingBalance: newBalance,
+      claimId: claimRow?.id,
+      rewardTitle: reward.title,
     };
   }
 }
