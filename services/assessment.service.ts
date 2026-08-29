@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient, createAdminServerSupabaseClient } from "@/lib/supabase/server";
 
 export interface ExamDirectoryItem {
   id: string;
@@ -1142,9 +1142,131 @@ export class AssessmentService {
   }
 
   /**
+   * Ensures mock test has populated mock_sections and mock_questions from question bank.
+   */
+  static async ensureMockTestQuestions(testId: string): Promise<void> {
+    try {
+      const adminSb = createAdminServerSupabaseClient();
+
+      const { count } = await adminSb
+        .from("mock_questions")
+        .select("id", { count: "exact", head: true })
+        .eq("mock_test_id", testId);
+
+      if (count && count > 0) return;
+
+      const { data: test } = await adminSb
+        .from("mock_tests")
+        .select("id, title, slug, template_id, mock_templates(id, title, slug, test_type, pattern_id, exam_id, description)")
+        .eq("id", testId)
+        .single();
+
+      if (!test) return;
+
+      const tpl = (test as any).mock_templates;
+      let meta: any = {};
+      try { meta = JSON.parse(tpl?.description || "{}"); } catch {}
+
+      const { data: patternSections } = await adminSb
+        .from("pattern_sections")
+        .select("id, pattern_id, subject_id, section_name, num_questions, marks_per_question, negative_mark, section_order")
+        .order("section_order", { ascending: true });
+
+      const allPatternSecs = (patternSections as any[]) || [];
+
+      const { data: rawQuestions } = await adminSb
+        .from("questions")
+        .select("id, canonical_topic_id, topics(subject_id), question_versions(id, version_number, question_text)")
+        .order("created_at", { ascending: true });
+
+      const questionsBySubject: Record<string, Array<{ questionId: string; questionVersionId: string }>> = {};
+      ((rawQuestions as any[]) || []).forEach((q: any) => {
+        const subId = q.topics?.subject_id;
+        if (subId) {
+          if (!questionsBySubject[subId]) questionsBySubject[subId] = [];
+          const qv = q.question_versions?.[0];
+          if (qv) {
+            questionsBySubject[subId].push({
+              questionId: q.id,
+              questionVersionId: qv.id,
+            });
+          }
+        }
+      });
+
+      let targetSections: any[] = [];
+      if (tpl?.test_type === "sectional" || tpl?.test_type === "daily_sectional") {
+        if (meta.activeSectionId) {
+          targetSections = allPatternSecs.filter(
+            (ps) => ps.id === meta.activeSectionId || ps.subject_id === meta.activeSectionId
+          );
+        }
+        if (targetSections.length === 0) {
+          if (test.slug.includes("monday")) targetSections = allPatternSecs.filter((ps) => ps.section_order === 1);
+          else if (test.slug.includes("tuesday")) targetSections = allPatternSecs.filter((ps) => ps.section_order === 2);
+          else if (test.slug.includes("wednesday")) targetSections = allPatternSecs.filter((ps) => ps.section_order === 3);
+          else if (test.slug.includes("thursday")) targetSections = allPatternSecs.filter((ps) => ps.section_order === 4);
+          else targetSections = [allPatternSecs[0]];
+        }
+      } else if (tpl?.test_type === "mixed") {
+        if (test.slug.includes("friday")) {
+          targetSections = allPatternSecs.filter((ps) => ps.section_order === 1 || ps.section_order === 2);
+        } else if (test.slug.includes("saturday")) {
+          targetSections = allPatternSecs.filter((ps) => ps.section_order === 3 || ps.section_order === 4);
+        } else {
+          targetSections = allPatternSecs.slice(0, 2);
+        }
+      } else {
+        targetSections = allPatternSecs;
+      }
+
+      let globalQOrder = 1;
+      for (let sIdx = 0; sIdx < targetSections.length; sIdx++) {
+        const ps = targetSections[sIdx];
+        const limit = meta.questionCount && targetSections.length === 1 ? meta.questionCount : ps.num_questions || 25;
+
+        const { data: newSec } = await adminSb
+          .from("mock_sections")
+          .insert({
+            mock_test_id: test.id,
+            subject_id: ps.subject_id,
+            section_name: ps.section_name,
+            section_order: sIdx + 1,
+            num_questions: limit,
+            marks_per_question: ps.marks_per_question || 2.0,
+            negative_mark: ps.negative_mark || 0.5,
+          } as any)
+          .select("id")
+          .single();
+
+        if (!newSec) continue;
+
+        const availableQs = questionsBySubject[ps.subject_id] || [];
+        const selectedQs = availableQs.slice(0, limit);
+
+        const mqPayloads = selectedQs.map((q) => ({
+          mock_test_id: test.id,
+          mock_section_id: newSec.id,
+          question_version_id: q.questionVersionId,
+          question_order: globalQOrder++,
+          marks: ps.marks_per_question || 2.0,
+          negative_mark: ps.negative_mark || 0.5,
+        }));
+
+        if (mqPayloads.length > 0) {
+          await adminSb.from("mock_questions").insert(mqPayloads as any);
+        }
+      }
+    } catch {
+      // Safe fallback if questions assembly encountered issue
+    }
+  }
+
+  /**
    * Fetches mock test blueprint & instructions.
    */
   static async getMockTestInstructions(testId: string): Promise<MockTestInstructionsData | null> {
+    await AssessmentService.ensureMockTestQuestions(testId);
     const supabase = await createServerSupabaseClient();
 
     const [testRes, sectionsRes] = await Promise.all([
@@ -1235,6 +1357,9 @@ export class AssessmentService {
       if (error || !newAttempt) return null;
       attempt = newAttempt as any;
     }
+
+    // Ensure mock questions and sections exist
+    await AssessmentService.ensureMockTestQuestions(testId);
 
     // Fetch test details, sections, and questions with options
     const [testRes, sectionsRes, questionsRes, answersRes] = await Promise.all([
