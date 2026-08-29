@@ -34,6 +34,7 @@ export function StoreViewClient({
   const [selectedReward, setSelectedReward] = useState<StoreCatalogItem | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [successNotice, setSuccessNotice] = useState<{ title: string; coinsSpent: number } | null>(null);
+  const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
 
   const categories = [
     { key: "ALL", label: "All Rewards" },
@@ -245,13 +246,17 @@ export function StoreViewClient({
               >
                 {/* A. LARGE REWARD IMAGE (4:3 Master Presentation) */}
                 <div className="relative w-full aspect-[4/3] bg-slate-900/[0.03] border-b border-slate-100 overflow-hidden flex items-center justify-center p-3">
-                  {item.imageUrl ? (
+                  {item.imageUrl && !failedImages[item.id] ? (
                     <Image
                       src={item.imageUrl}
                       alt={item.title}
                       fill
                       sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                       className="object-contain p-2 group-hover:scale-102 transition-transform duration-300"
+                      onError={() => {
+                        console.warn(`[StoreViewClient] Failed to load reward image for "${item.title}": ${item.imageUrl}`);
+                        setFailedImages((prev) => ({ ...prev, [item.id]: true }));
+                      }}
                     />
                   ) : (
                     <div className="flex flex-col items-center justify-center text-slate-400 p-4">

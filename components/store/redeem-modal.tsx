@@ -21,6 +21,7 @@ export function RedeemModal({
 }: RedeemModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [imageError, setImageError] = useState(false);
 
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
@@ -121,7 +122,7 @@ export function RedeemModal({
         <div className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
           {/* Prominent Large 4:3 Reward Artwork */}
           <div className="relative w-full aspect-[4/3] bg-slate-900/[0.04] rounded-xl border border-slate-200 overflow-hidden flex items-center justify-center p-3">
-            {reward.imageUrl ? (
+            {reward.imageUrl && !imageError ? (
               <Image
                 src={reward.imageUrl}
                 alt={reward.title}
@@ -129,6 +130,10 @@ export function RedeemModal({
                 sizes="(max-width: 640px) 100vw, 550px"
                 className="object-contain p-2"
                 priority
+                onError={() => {
+                  console.warn(`[RedeemModal] Failed to load reward image for "${reward.title}": ${reward.imageUrl}`);
+                  setImageError(true);
+                }}
               />
             ) : (
               <div className="flex flex-col items-center justify-center text-slate-400 p-4">
