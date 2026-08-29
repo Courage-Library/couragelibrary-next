@@ -1361,12 +1361,14 @@ export class AssessmentService {
     // Ensure mock questions and sections exist
     await AssessmentService.ensureMockTestQuestions(testId);
 
+    const adminSb = createAdminServerSupabaseClient();
+
     // Fetch test details, sections, and questions with options
     const [testRes, sectionsRes, questionsRes, answersRes] = await Promise.all([
-      supabase.from("mock_tests").select("id, title, duration_minutes").eq("id", testId).single(),
-      supabase.from("mock_sections").select("id, section_name, section_order").eq("mock_test_id", testId).order("section_order"),
-      supabase.from("mock_questions").select("id, question_order, mock_section_id, marks, negative_mark, question_versions(id, question_text, question_image_url, options_type, question_options(id, option_key, option_text, option_image_url, order_index))").eq("mock_test_id", testId).order("question_order"),
-      supabase.from("attempt_answers").select("mock_question_id, selected_option_key, is_marked_for_review, time_spent_seconds").eq("attempt_id", attempt.id),
+      adminSb.from("mock_tests").select("id, title, duration_minutes").eq("id", testId).single(),
+      adminSb.from("mock_sections").select("id, section_name, section_order").eq("mock_test_id", testId).order("section_order"),
+      adminSb.from("mock_questions").select("id, question_order, mock_section_id, marks, negative_mark, question_versions(id, question_text, question_image_url, options_type, question_options(id, option_key, option_text, option_image_url, order_index))").eq("mock_test_id", testId).order("question_order"),
+      adminSb.from("attempt_answers").select("mock_question_id, selected_option_key, is_marked_for_review, time_spent_seconds").eq("attempt_id", attempt.id),
     ]);
 
     const testData = testRes.data as any;
@@ -1490,12 +1492,14 @@ export class AssessmentService {
       return { success: false, error: "Attempt is not in progress or already submitted" };
     }
 
+    const adminSb = createAdminServerSupabaseClient();
+
     // Fetch test, sections, questions with answer keys, and student answers
     const [testRes, sectionsRes, questionsRes, answersRes] = await Promise.all([
-      supabase.from("mock_tests").select("id, total_questions, total_marks").eq("id", attempt.mock_test_id).single(),
-      supabase.from("mock_sections").select("id, marks_per_question, negative_mark").eq("mock_test_id", attempt.mock_test_id),
-      supabase.from("mock_questions").select("id, mock_section_id, question_version_id, marks, negative_mark, question_versions(question_id, question_answers(correct_option_key))").eq("mock_test_id", attempt.mock_test_id),
-      supabase.from("attempt_answers").select("id, mock_question_id, selected_option_key, time_spent_seconds").eq("attempt_id", attemptId),
+      adminSb.from("mock_tests").select("id, total_questions, total_marks").eq("id", attempt.mock_test_id).single(),
+      adminSb.from("mock_sections").select("id, marks_per_question, negative_mark").eq("mock_test_id", attempt.mock_test_id),
+      adminSb.from("mock_questions").select("id, mock_section_id, question_version_id, marks, negative_mark, question_versions(question_id, question_answers(correct_option_key))").eq("mock_test_id", attempt.mock_test_id),
+      adminSb.from("attempt_answers").select("id, mock_question_id, selected_option_key, time_spent_seconds").eq("attempt_id", attemptId),
     ]);
 
     const testData = testRes.data as any;
@@ -1649,10 +1653,12 @@ export class AssessmentService {
     if (!r || !attemptData || !attemptData.mock_tests) return null;
     const mt = attemptData.mock_tests;
 
+    const adminSb = createAdminServerSupabaseClient();
+
     const [sectionsRes, questionsRes, answersRes] = await Promise.all([
-      supabase.from("section_results").select("*, mock_sections(section_name)").eq("test_result_id", r.id),
-      supabase.from("mock_questions").select("id, question_order, mock_section_id, marks, negative_mark, mock_sections(section_name), question_versions(id, question_text, question_image_url, options_type, question_options(id, option_key, option_text, option_image_url, order_index), question_answers(correct_option_key, explanation_md), questions(canonical_topic_id, topics(name, slug)))").eq("mock_test_id", mt.id).order("question_order"),
-      supabase.from("attempt_answers").select("mock_question_id, selected_option_key, is_correct, evaluated_marks").eq("attempt_id", attemptId),
+      adminSb.from("section_results").select("*, mock_sections(section_name)").eq("test_result_id", r.id),
+      adminSb.from("mock_questions").select("id, question_order, mock_section_id, marks, negative_mark, mock_sections(section_name), question_versions(id, question_text, question_image_url, options_type, question_options(id, option_key, option_text, option_image_url, order_index), question_answers(correct_option_key, explanation_md), questions(canonical_topic_id, topics(name, slug)))").eq("mock_test_id", mt.id).order("question_order"),
+      adminSb.from("attempt_answers").select("mock_question_id, selected_option_key, is_correct, evaluated_marks").eq("attempt_id", attemptId),
     ]);
 
     const answersList = (answersRes.data as any[]) || [];

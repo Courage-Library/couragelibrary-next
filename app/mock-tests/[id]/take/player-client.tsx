@@ -680,8 +680,21 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
       {/* ========================================================================= */}
       <div className="flex-1 flex overflow-hidden z-10">
         {/* Main Question Viewport */}
-        <main className="flex-1 bg-white p-4 sm:p-7 overflow-y-auto flex flex-col justify-between">
-          <div className="max-w-3xl w-full mx-auto space-y-4 sm:space-y-6">
+        <main className="relative flex-1 bg-white p-4 sm:p-7 overflow-y-auto flex flex-col justify-between">
+          {/* Subtle Courage Library Background Watermark */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-[0.035] select-none z-0"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/images/logo.png"
+              alt=""
+              className="w-72 h-72 sm:w-96 sm:h-96 object-contain grayscale filter"
+            />
+          </div>
+
+          <div className="relative z-10 max-w-3xl w-full mx-auto space-y-4 sm:space-y-6">
             {/* Section Switcher Tabs (Desktop) */}
             {session.sections.length > 1 && (
               <div className="flex items-center gap-1.5 p-1 bg-slate-100/90 rounded-2xl overflow-x-auto">
@@ -739,7 +752,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
           </div>
 
           {/* Bottom Action Footer */}
-          <div className="max-w-3xl w-full mx-auto pt-4 mt-6 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
+          <div className="relative z-10 max-w-3xl w-full mx-auto pt-4 mt-6 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <Button
                 type="button"
