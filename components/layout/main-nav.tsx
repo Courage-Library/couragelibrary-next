@@ -18,13 +18,14 @@ import {
   Building2,
   Layers,
   Sparkles,
+  ShoppingBag,
 } from "lucide-react";
 
 interface MainNavProps {
-  isAuthenticated: boolean;
+  isAuthenticated?: boolean;
 }
 
-export function MainNav({ isAuthenticated }: MainNavProps) {
+export function MainNav({}: MainNavProps = {}) {
   const [openCategory, setOpenCategory] = useState<string | null>(null);
   const navRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
@@ -70,6 +71,7 @@ export function MainNav({ isAuthenticated }: MainNavProps) {
     pathname.startsWith("/articles") ||
     pathname.startsWith("/courses") ||
     pathname.startsWith("/descriptive");
+  const isStoreActive = pathname.startsWith("/store");
   const isCommunityActive =
     pathname.startsWith("/community") || pathname.startsWith("/institutes");
 
@@ -249,7 +251,20 @@ export function MainNav({ isAuthenticated }: MainNavProps) {
         )}
       </div>
 
-      {/* 4. COMMUNITY DROPDOWN */}
+      {/* 4. STORE TOP-LEVEL LINK */}
+      <Link
+        href="/store"
+        className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+          isStoreActive
+            ? "bg-blue-50 text-blue-700 border border-blue-200/70 shadow-xs"
+            : "hover:bg-slate-100 hover:text-slate-900 text-slate-700"
+        }`}
+      >
+        <ShoppingBag className="w-3.5 h-3.5 text-blue-600" />
+        <span>Store</span>
+      </Link>
+
+      {/* 5. COMMUNITY DROPDOWN */}
       <div className="relative">
         <button
           type="button"
@@ -299,7 +314,7 @@ export function MainNav({ isAuthenticated }: MainNavProps) {
         )}
       </div>
 
-      {/* PRICING LINK */}
+      {/* 6. PREMIUM LINK */}
       <Link
         href="/pricing"
         className={`px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1 ml-1.5 ${
@@ -309,7 +324,7 @@ export function MainNav({ isAuthenticated }: MainNavProps) {
         }`}
       >
         <Sparkles className="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
-        <span>{isAuthenticated ? "PRO Pricing" : "Pricing"}</span>
+        <span>Premium</span>
       </Link>
     </nav>
   );

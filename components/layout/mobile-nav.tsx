@@ -23,6 +23,7 @@ import {
   Building2,
   Sparkles,
   Shield,
+  ShoppingBag,
   LayoutDashboard,
   LogOut,
   CreditCard,
@@ -171,6 +172,19 @@ export function MobileNav({ user }: MobileNavProps) {
                 )}
               </div>
 
+              {/* STORE DIRECT LINK */}
+              <div className="border-b border-slate-100 pb-2">
+                <Link
+                  href="/store"
+                  className={`flex items-center gap-2 py-2.5 text-sm font-bold ${
+                    pathname.startsWith("/store") ? "text-blue-700" : "text-slate-900"
+                  }`}
+                >
+                  <ShoppingBag className="w-4 h-4 text-blue-600" />
+                  <span>Store</span>
+                </Link>
+              </div>
+
               {/* COMMUNITY ACCORDION */}
               <div className="border-b border-slate-100 pb-2">
                 <button
@@ -198,7 +212,7 @@ export function MobileNav({ user }: MobileNavProps) {
               </div>
 
               <Link href="/pricing" className="flex items-center gap-2 py-2.5 text-sm font-bold text-amber-600">
-                <Sparkles className="w-4 h-4 fill-amber-400 text-amber-500" /> PRO Pricing
+                <Sparkles className="w-4 h-4 fill-amber-400 text-amber-500" /> Premium
               </Link>
 
               {user?.isAdmin && (

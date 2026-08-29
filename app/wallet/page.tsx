@@ -27,9 +27,10 @@ export default async function WalletPage() {
     GamificationService.getStudentWallet(user.id),
     supabase
       .from("reward_catalog")
-      .select("id, title, slug, description, reward_type, coin_cost, stock_quantity")
+      .select("id, title, slug, description, reward_type, coin_cost, stock_quantity, image_url, display_order")
       .eq("is_active", true)
-      .order("display_order", { ascending: true }),
+      .order("display_order", { ascending: true })
+      .limit(3),
     GamificationService.getStreakRecoveryEligibility(user.id),
   ]);
 
@@ -45,10 +46,12 @@ export default async function WalletPage() {
     reward_type: "DIGITAL" | "FEATURE_UNLOCK" | "PHYSICAL";
     coin_cost: number;
     stock_quantity: number | null;
+    image_url: string | null;
+    display_order?: number | null;
   }
 
   const rawCatalog = (catalogRes.data as unknown as DbRewardItem[]) || [];
-  const catalog: RewardCatalogItem[] = rawCatalog.map((item) => ({
+  const catalog: RewardCatalogItem[] = rawCatalog.slice(0, 3).map((item) => ({
     id: item.id,
     title: item.title,
     slug: item.slug,
@@ -56,19 +59,23 @@ export default async function WalletPage() {
     rewardType: item.reward_type,
     coinCost: Number(item.coin_cost || 0),
     stockQuantity: Number(item.stock_quantity ?? -1),
+    imageUrl: item.image_url || null,
+    isActive: true,
+    displayOrder: Number(item.display_order ?? 0),
   }));
 
-  // Fallback defaults if catalog is empty in DB
+  // Fallback defaults if catalog is empty in DB (Exactly 3 featured items)
   if (catalog.length === 0) {
     catalog.push(
       {
         id: "streak-freeze-token",
-        title: "Streak Freeze Shield",
+        title: "Streak Freeze Token",
         slug: "streak-freeze-token",
         description: "Protects your study streak from a 1-day missed daily practice session.",
         rewardType: "DIGITAL",
         coinCost: 150,
         stockQuantity: -1,
+        imageUrl: null,
       },
       {
         id: "error-book-pack",
@@ -78,6 +85,7 @@ export default async function WalletPage() {
         rewardType: "FEATURE_UNLOCK",
         coinCost: 250,
         stockQuantity: -1,
+        imageUrl: null,
       },
       {
         id: "courage-bottle",
@@ -87,24 +95,7 @@ export default async function WalletPage() {
         rewardType: "PHYSICAL",
         coinCost: 1800,
         stockQuantity: 50,
-      },
-      {
-        id: "courage-diary",
-        title: "Courage Scholar Diary & Pen",
-        slug: "courage-diary",
-        description: "Official Courage Library hardbound revision diary and executive pen.",
-        rewardType: "PHYSICAL",
-        coinCost: 3000,
-        stockQuantity: 50,
-      },
-      {
-        id: "courage-tshirt",
-        title: "Courage Aspirant Performance T-Shirt",
-        slug: "courage-tshirt",
-        description: "High-grade breathable Courage Library preparation apparel.",
-        rewardType: "PHYSICAL",
-        coinCost: 5000,
-        stockQuantity: 50,
+        imageUrl: null,
       }
     );
   }
