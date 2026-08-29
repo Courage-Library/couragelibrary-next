@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -39,8 +40,13 @@ interface MobileNavProps {
 
 export function MobileNav({ user }: MobileNavProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const pathname = usePathname();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Close menu and reset accordions on route change
   useEffect(() => {
@@ -70,7 +76,7 @@ export function MobileNav({ user }: MobileNavProps) {
   }, [isOpen]);
 
   const toggleCategory = (cat: string) => {
-    setExpandedCategory(prev => (prev === cat ? null : cat));
+    setExpandedCategory((prev) => (prev === cat ? null : cat));
   };
 
   return (
@@ -85,9 +91,16 @@ export function MobileNav({ user }: MobileNavProps) {
         {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
       </button>
 
-      {isOpen && (
-        <div className="fixed inset-0 top-16 z-50 bg-slate-900/60 backdrop-blur-xs flex flex-col justify-between animate-in fade-in">
-          <div className="bg-white p-5 space-y-4 max-h-[calc(100vh-4rem)] overflow-y-auto shadow-2xl rounded-b-3xl">
+      {isOpen && mounted && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 top-16 z-50 bg-slate-900/60 backdrop-blur-xs flex flex-col justify-start animate-in fade-in">
+          {/* Backdrop dismiss touch target */}
+          <div
+            className="fixed inset-0 top-16 -z-10"
+            onClick={() => setIsOpen(false)}
+            aria-hidden="true"
+          />
+
+          <div className="bg-white p-5 space-y-4 max-h-[calc(100vh-4rem)] overflow-y-auto shadow-2xl rounded-b-3xl border-b border-slate-200/80">
             <div className="space-y-1">
               {/* EXAMS ACCORDION */}
               <div className="border-b border-slate-100 pb-2">
@@ -258,7 +271,8 @@ export function MobileNav({ user }: MobileNavProps) {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
