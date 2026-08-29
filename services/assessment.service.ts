@@ -1294,7 +1294,14 @@ export class AssessmentService {
     const startTimeMs = new Date(attempt.started_at).getTime();
     const nowMs = Date.now();
     const elapsedSeconds = Math.floor((nowMs - startTimeMs) / 1000);
-    const remainingSeconds = Math.max(0, (testData.duration_minutes * 60) - elapsedSeconds);
+    const totalAllowedSeconds = testData.duration_minutes * 60;
+    const remainingSeconds = Math.max(0, totalAllowedSeconds - elapsedSeconds);
+
+    // If attempt has already expired in the background, auto-finalize it
+    if (remainingSeconds <= 0) {
+      await AssessmentService.submitTestAttempt(attempt.id);
+      return null;
+    }
 
     return {
       attemptId: attempt.id,
