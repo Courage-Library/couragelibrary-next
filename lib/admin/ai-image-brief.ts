@@ -17,10 +17,10 @@ export interface CourageLibraryImageSpec {
 }
 
 export const COURAGE_LIBRARY_CANONICAL_SPEC: CourageLibraryImageSpec = {
-  aspectRatio: "1:1",
-  canonicalResolution: "1600 × 1600 pixels",
-  heroCanvasOccupancy: "70%–78% canvas area",
-  marginStandard: "Uniform perimeter margins, zero cropping, zero critical branding near edges",
+  aspectRatio: "4:3",
+  canonicalResolution: "1600 × 1200 pixels",
+  heroCanvasOccupancy: "65%–75% subject coverage",
+  marginStandard: "10%–12% safe breathing margins, complete subject naturally inside 4:3 canvas, zero cropping",
   primaryPalette: [
     "Deep Navy (#0A192F / #0F172A)",
     "Sapphire Blue (#1E3A8A / #2563EB)",
@@ -159,7 +159,7 @@ export function buildRewardImagePrompt(config: AIBriefConfig): string {
 
     `OFFICIAL LOGO REFERENCE INSTRUCTIONS:\n- If an official Courage Library logo image is supplied with this prompt, use that exact supplied logo as the branding reference. Preserve its original geometry, proportions, colors and identity. Do not redraw, reinterpret, redesign, stylize, simplify, distort or replace the logo.\n- If no logo reference image is supplied: Do not invent or approximate the Courage Library logo. Do not generate a fake logo. Leave the branding area clean and suitable for adding the official logo later.`,
 
-    `IMAGE & CANVAS SPECIFICATION (CANONICAL COURAGE LIBRARY STANDARD):\n- Aspect Ratio: 1:1 (Square composition)\n- Final Canonical Asset Target: 1600 × 1600 pixels (master high-resolution generation)\n- Framing: Product strictly centered, occupying approximately 70%–78% of the canvas area\n- Margins: Uniform balanced breathing margins on all sides, complete product inside frame, zero edge cropping, zero critical branding near borders\n- Visual Scale: Standardized commercial scale matching all Courage Library store items in catalog grid`,
+    `IMAGE & CANVAS SPECIFICATION (CANONICAL COURAGE LIBRARY 4:3 MASTER STANDARD):\n- Aspect Ratio: 4:3 (Master composition, 1600 × 1200 pixels canonical target)\n- Framing: Subject naturally proportioned and balanced inside the 4:3 canvas, occupying approximately 65%–75% of the frame\n- Safe Margins: 10%–12% perimeter safe breathing room, complete subject inside frame, zero edge cropping, zero distortion or stretching of native proportions\n- Visual Scale: Standardized catalog scale across all Courage Library store items`,
 
     `LIGHTING & STUDIO SETUP:\n${lightingDetails}`,
 

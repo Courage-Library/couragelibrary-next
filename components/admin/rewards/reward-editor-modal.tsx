@@ -530,7 +530,7 @@ export function RewardEditorModal({
               <div className="flex items-center justify-between pb-1 border-b border-slate-100">
                 <div className="flex items-center gap-2">
                   <h4 className="font-bold uppercase tracking-wider text-slate-700 text-[11px]">
-                    4. AI Image Generation Prompt (Canonical 1:1 Specification)
+                    4. AI Image Generation Prompt (Canonical 4:3 Master Specification)
                   </h4>
                 </div>
                 <button
@@ -549,19 +549,19 @@ export function RewardEditorModal({
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-[10px]">
                 <div className="flex flex-col">
                   <span className="font-semibold text-slate-500 uppercase tracking-wider text-[9px]">Aspect Ratio</span>
-                  <span className="font-bold text-slate-800">1:1 Square</span>
+                  <span className="font-bold text-slate-800">4:3 Master</span>
                 </div>
                 <div className="flex flex-col">
                   <span className="font-semibold text-slate-500 uppercase tracking-wider text-[9px]">Canonical Asset</span>
-                  <span className="font-bold text-slate-800">1600 × 1600 px</span>
+                  <span className="font-bold text-slate-800">1600 × 1200 px</span>
                 </div>
                 <div className="flex flex-col">
                   <span className="font-semibold text-slate-500 uppercase tracking-wider text-[9px]">Hero Occupancy</span>
-                  <span className="font-bold text-slate-800">70%–78% Canvas</span>
+                  <span className="font-bold text-slate-800">65%–75% Canvas</span>
                 </div>
                 <div className="flex flex-col">
-                  <span className="font-semibold text-slate-500 uppercase tracking-wider text-[9px]">Brand Aesthetic</span>
-                  <span className="font-bold text-slate-800">Academic &amp; Minimal</span>
+                  <span className="font-semibold text-slate-500 uppercase tracking-wider text-[9px]">Safe Margins</span>
+                  <span className="font-bold text-slate-800">10%–12% Margin</span>
                 </div>
               </div>
 

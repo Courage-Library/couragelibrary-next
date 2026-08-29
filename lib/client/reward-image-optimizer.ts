@@ -35,20 +35,13 @@ export async function optimizeRewardImage(sourceFile: File): Promise<Optimizatio
         const originalWidth = img.naturalWidth || img.width;
         const originalHeight = img.naturalHeight || img.height;
 
-        // Canonical constraint: Max 1600x1600, do not upscale if smaller
-        const MAX_CANONICAL_DIM = 1600;
-        let targetWidth = originalWidth;
-        let targetHeight = originalHeight;
+        // Canonical constraint: Max 1600x1200 bounds (4:3 master), preserve native aspect ratio without stretching
+        const MAX_CANONICAL_WIDTH = 1600;
+        const MAX_CANONICAL_HEIGHT = 1200;
+        const scale = Math.min(1, MAX_CANONICAL_WIDTH / originalWidth, MAX_CANONICAL_HEIGHT / originalHeight);
 
-        if (originalWidth > MAX_CANONICAL_DIM || originalHeight > MAX_CANONICAL_DIM) {
-          if (originalWidth >= originalHeight) {
-            targetWidth = MAX_CANONICAL_DIM;
-            targetHeight = Math.round((originalHeight * MAX_CANONICAL_DIM) / originalWidth);
-          } else {
-            targetHeight = MAX_CANONICAL_DIM;
-            targetWidth = Math.round((originalWidth * MAX_CANONICAL_DIM) / originalHeight);
-          }
-        }
+        const targetWidth = Math.round(originalWidth * scale);
+        const targetHeight = Math.round(originalHeight * scale);
 
         const canvas = document.createElement("canvas");
         canvas.width = targetWidth;

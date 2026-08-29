@@ -230,12 +230,10 @@ export function StoreViewClient({
         </div>
 
         {/* Reward Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredCatalog.map((item) => {
             const cost = item.coinCost;
             const canAfford = balance >= cost;
-            const needed = cost - balance;
-            const progress = Math.min(100, Math.round((balance / cost) * 100));
             const isStreakFreeze = item.slug === "streak-freeze-token";
             const isMaxFreezeHeld = isStreakFreeze && initialWallet.freezesHeld >= 2;
             const isOutOfStock = item.stockQuantity !== -1 && item.stockQuantity <= 0;
@@ -243,95 +241,87 @@ export function StoreViewClient({
             return (
               <div
                 key={item.id}
-                className="flex flex-col justify-between p-6 bg-white border rounded-2xl border-slate-200/90 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group"
+                className="flex flex-col justify-between bg-white border rounded-2xl border-slate-200/90 shadow-xs hover:shadow-md transition-all overflow-hidden group"
               >
-                <div>
-                  {/* Top Bar: Icon + Price Tag */}
-                  <div className="flex items-start justify-between gap-3 mb-4">
-                    <div className="w-14 h-14 rounded-2xl bg-slate-50 border border-slate-100 overflow-hidden relative shrink-0 flex items-center justify-center p-0.5 group-hover:scale-105 transition-transform">
-                      {item.imageUrl ? (
-                        <Image src={item.imageUrl} alt={item.title} fill sizes="56px" className="object-cover" />
-                      ) : (
-                        getRewardIcon(item.slug)
-                      )}
+                {/* A. LARGE REWARD IMAGE (4:3 Master Presentation) */}
+                <div className="relative w-full aspect-[4/3] bg-slate-900/[0.03] border-b border-slate-100 overflow-hidden flex items-center justify-center p-3">
+                  {item.imageUrl ? (
+                    <Image
+                      src={item.imageUrl}
+                      alt={item.title}
+                      fill
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                      className="object-contain p-2 group-hover:scale-102 transition-transform duration-300"
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center text-slate-400 p-4">
+                      {getRewardIcon(item.slug)}
                     </div>
-                    <div className="flex flex-col items-end">
-                      <div className="flex items-center gap-1 px-3 py-1 rounded-full bg-amber-500/10 text-amber-800 font-black text-sm border border-amber-500/20">
+                  )}
+                </div>
+
+                {/* CARD BODY */}
+                <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+                  <div className="space-y-2">
+                    {/* B. REWARD TYPE + CL PRICE */}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-700 font-mono">
+                        {item.rewardType.replace("_", " ")}
+                      </span>
+                      <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-800 font-black text-sm border border-amber-500/20">
                         <svg className="w-3.5 h-3.5 text-amber-600 fill-amber-500" viewBox="0 0 24 24">
                           <circle cx="12" cy="12" r="10" />
                         </svg>
-                        {cost.toLocaleString()} CL
+                        <span>{cost.toLocaleString()} CL</span>
                       </div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mt-1">
-                        {item.rewardType.replace("_", " ")}
-                      </span>
                     </div>
+
+                    {/* C. REWARD NAME */}
+                    <h3 className="text-base font-bold text-slate-900 leading-snug">
+                      {item.title}
+                    </h3>
+
+                    {/* D. SHORT DESCRIPTION */}
+                    <p className="text-xs text-slate-600 leading-relaxed line-clamp-2 min-h-[32px]">
+                      {item.description}
+                    </p>
                   </div>
 
-                  {/* Title & Description */}
-                  <h3 className="text-base font-bold text-slate-900 leading-snug">{item.title}</h3>
-                  <p className="mt-1.5 text-xs text-slate-600 leading-relaxed min-h-[36px]">
-                    {item.description}
-                  </p>
-                </div>
-
-                {/* Bottom Action Area */}
-                <div className="pt-4 mt-4 border-t border-slate-100 space-y-3">
-                  {/* Affordable vs Locked State */}
-                  {canAfford && !isMaxFreezeHeld && !isOutOfStock ? (
-                    <button
-                      type="button"
-                      onClick={() => handleRedeemClick(item)}
-                      className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 transition-all shadow-sm active:scale-[0.98]"
-                    >
-                      <svg className="w-4 h-4 text-amber-400 fill-amber-400" viewBox="0 0 24 24">
-                        <circle cx="12" cy="12" r="10" />
-                      </svg>
-                      <span>Redeem Reward</span>
-                    </button>
-                  ) : isMaxFreezeHeld ? (
-                    <div className="space-y-1 text-center">
+                  {/* E. REDEEM ACTION */}
+                  <div className="pt-3 border-t border-slate-100">
+                    {isOutOfStock ? (
                       <button
                         type="button"
                         disabled
-                        className="w-full px-4 py-2.5 rounded-xl text-xs font-bold text-slate-400 bg-slate-100 cursor-not-allowed"
+                        className="w-full py-2.5 rounded-xl text-xs font-bold text-slate-400 bg-slate-100 cursor-not-allowed"
+                      >
+                        Out of Stock
+                      </button>
+                    ) : isMaxFreezeHeld ? (
+                      <button
+                        type="button"
+                        disabled
+                        className="w-full py-2.5 rounded-xl text-xs font-bold text-slate-400 bg-slate-100 cursor-not-allowed"
                       >
                         Max Shields Held (2/2)
                       </button>
-                      <p className="text-[11px] text-slate-500">Use a shield before claiming another</p>
-                    </div>
-                  ) : isOutOfStock ? (
-                    <button
-                      type="button"
-                      disabled
-                      className="w-full px-4 py-2.5 rounded-xl text-xs font-bold text-slate-400 bg-slate-100 cursor-not-allowed"
-                    >
-                      Out of Stock
-                    </button>
-                  ) : (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="font-semibold text-slate-500">Need {needed.toLocaleString()} more CL</span>
-                        <span className="font-bold text-slate-700">{progress}%</span>
-                      </div>
-                      <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-amber-500 rounded-full transition-all duration-300"
-                          style={{ width: `${progress}%` }}
-                        />
-                      </div>
+                    ) : (
                       <button
                         type="button"
-                        disabled
-                        className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-slate-400 bg-slate-50 border border-slate-200/80 cursor-not-allowed"
+                        onClick={() => handleRedeemClick(item)}
+                        className={`w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all shadow-xs active:scale-[0.98] ${
+                          canAfford
+                            ? "text-white bg-slate-900 hover:bg-slate-800"
+                            : "text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200/80"
+                        }`}
                       >
-                        <svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        <svg className="w-3.5 h-3.5 text-amber-400 fill-amber-400" viewBox="0 0 24 24">
+                          <circle cx="12" cy="12" r="10" />
                         </svg>
-                        <span>Locked</span>
+                        <span>Redeem Reward</span>
                       </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
             );
