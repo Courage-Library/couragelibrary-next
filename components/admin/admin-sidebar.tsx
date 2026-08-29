@@ -279,15 +279,15 @@ export function AdminSidebar({ userEmail }: Props) {
                 <span className="text-[11px]">Users &amp; Sync</span>
               </Link>
               <Link
-                href="/admin/gamification"
+                href="/admin/rewards"
                 className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors ${
-                  pathname.startsWith("/admin/gamification")
+                  pathname.startsWith("/admin/rewards") || pathname.startsWith("/admin/gamification")
                     ? "bg-blue-600 text-white font-semibold"
                     : "text-slate-400 hover:bg-slate-800 hover:text-white"
                 }`}
               >
-                <Coins className={`w-3.5 h-3.5 shrink-0 ${pathname.startsWith("/admin/gamification") ? "text-white" : "text-slate-400"}`} />
-                <span className="text-[11px]">CL Coins &amp; Rewards</span>
+                <Coins className={`w-3.5 h-3.5 shrink-0 ${pathname.startsWith("/admin/rewards") || pathname.startsWith("/admin/gamification") ? "text-white" : "text-slate-400"}`} />
+                <span className="text-[11px]">Reward &amp; Store Management</span>
               </Link>
               <Link
                 href="/admin/community"

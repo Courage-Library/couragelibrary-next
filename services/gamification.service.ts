@@ -159,6 +159,83 @@ export interface StorePageData {
   userClaims: StoreUserClaim[];
 }
 
+export interface AdminRewardCatalogItem {
+  id: string;
+  title: string;
+  slug: string;
+  description: string;
+  rewardType: "PHYSICAL" | "DIGITAL" | "FEATURE_UNLOCK";
+  coinCost: number;
+  stockQuantity: number;
+  imageUrl: string | null;
+  metadata: Record<string, unknown>;
+  isActive: boolean;
+  displayOrder: number;
+  totalRedemptions: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminRedemptionRecord {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  rewardId: string;
+  rewardTitle: string;
+  rewardSlug: string;
+  rewardType: string;
+  rewardImageUrl: string | null;
+  coinsSpent: number;
+  status: "REQUESTED" | "PROCESSING" | "SHIPPED" | "FULFILLED" | "REJECTED";
+  shippingFullName: string | null;
+  shippingPhone: string | null;
+  shippingAddress: string | null;
+  shippingCity: string | null;
+  shippingState: string | null;
+  shippingPincode: string | null;
+  trackingCode: string | null;
+  adminNotes: string | null;
+  ledgerTransactionId: string | null;
+  claimedAt: string;
+  fulfilledAt: string | null;
+}
+
+export interface AdminRewardsStudioData {
+  kpis: {
+    totalCoinsInCirculation: number;
+    lifetimeCoinsIssued: number;
+    totalCoinsSpent: number;
+    activeRewardsCount: number;
+    totalRedemptionsCount: number;
+    pendingFulfillmentCount: number;
+  };
+  catalog: AdminRewardCatalogItem[];
+  redemptions: AdminRedemptionRecord[];
+  rewardPolicies: Array<{
+    id: string;
+    policyCode: string;
+    eventType: string;
+    baseCoins: number;
+    performanceBonusCoins: number;
+    consistencyBonusCoins: number;
+    dailyLimitCount: number;
+    isActive: boolean;
+    updatedAt: string;
+  }>;
+  recentLedger: Array<{
+    id: string;
+    userId: string;
+    userName?: string;
+    amount: number;
+    direction: string;
+    transactionType: string;
+    reasonCode: string;
+    balanceAfter: number;
+    createdAt: string;
+  }>;
+}
+
 export class GamificationService {
   /**
    * Authoritative Level Progression Thresholds
@@ -959,5 +1036,320 @@ export class GamificationService {
       claimId: claimRow?.id,
       rewardTitle: reward.title,
     };
+  }
+
+  /**
+   * Retrieves Full Authoritative Data for Admin Reward & Store Management Studio
+   */
+  static async getAdminRewardsStudioData(): Promise<AdminRewardsStudioData> {
+    const adminSb = createAdminServerSupabaseClient();
+
+    const [walletsRes, catalogRes, claimsRes, policiesRes, ledgerRes] = await Promise.all([
+      adminSb.from("coin_wallets").select("current_balance, lifetime_earned, lifetime_spent"),
+      adminSb.from("reward_catalog").select("*").order("display_order", { ascending: true }),
+      adminSb
+        .from("reward_claims")
+        .select("*, reward_catalog(id, title, slug, reward_type, image_url)")
+        .order("created_at", { ascending: false })
+        .limit(200),
+      adminSb.from("reward_policies").select("*").order("created_at", { ascending: true }),
+      adminSb
+        .from("coin_ledger")
+        .select("id, user_id, amount, direction, transaction_type, reason_code, balance_after, created_at")
+        .order("created_at", { ascending: false })
+        .limit(50),
+    ]);
+
+    const wallets = (walletsRes.data as any[]) || [];
+    const catalogData = (catalogRes.data as any[]) || [];
+    const claimsData = (claimsRes.data as any[]) || [];
+    const dbPolicies = (policiesRes.data as any[]) || [];
+    const ledger = (ledgerRes.data as any[]) || [];
+
+    const totalCoinsInCirculation = wallets.reduce((acc, w) => acc + Number(w.current_balance || 0), 0);
+    const lifetimeCoinsIssued = wallets.reduce((acc, w) => acc + Number(w.lifetime_earned || 0), 0);
+    const totalCoinsSpent = wallets.reduce((acc, w) => acc + Number(w.lifetime_spent || 0), 0);
+    const activeRewardsCount = catalogData.filter((c) => c.is_active).length;
+    const totalRedemptionsCount = claimsData.length;
+    const pendingFulfillmentCount = claimsData.filter(
+      (cl) => cl.status === "REQUESTED" || cl.status === "PROCESSING"
+    ).length;
+
+    // Redemptions count map per reward_id
+    const redemptionsMap = new Map<string, number>();
+    claimsData.forEach((cl) => {
+      const count = redemptionsMap.get(cl.reward_id) || 0;
+      redemptionsMap.set(cl.reward_id, count + 1);
+    });
+
+    const catalog: AdminRewardCatalogItem[] = catalogData.map((c) => ({
+      id: c.id,
+      title: c.title,
+      slug: c.slug,
+      description: c.description || "",
+      rewardType: (c.reward_type || "PHYSICAL") as any,
+      coinCost: Number(c.coin_cost || 0),
+      stockQuantity: Number(c.stock_quantity ?? -1),
+      imageUrl: c.image_url || null,
+      metadata: c.metadata || {},
+      isActive: Boolean(c.is_active),
+      displayOrder: Number(c.display_order || 0),
+      totalRedemptions: redemptionsMap.get(c.id) || 0,
+      createdAt: c.created_at,
+      updatedAt: c.updated_at,
+    }));
+
+    // Fetch user profiles for redemptions & ledger
+    const allUserIds = Array.from(
+      new Set([...claimsData.map((cl) => cl.user_id), ...ledger.map((l) => l.user_id)])
+    );
+
+    const profilesMap = new Map<string, any>();
+    if (allUserIds.length > 0) {
+      const { data: profs } = await adminSb
+        .from("user_profiles")
+        .select("id, full_name")
+        .in("id", allUserIds);
+
+      (profs || []).forEach((p) => profilesMap.set(p.id, p));
+    }
+
+    const redemptions: AdminRedemptionRecord[] = claimsData.map((cl) => {
+      const p = profilesMap.get(cl.user_id);
+      return {
+        id: cl.id,
+        userId: cl.user_id,
+        userName: p?.full_name || `Candidate #${cl.user_id.slice(0, 6).toUpperCase()}`,
+        userEmail: "",
+        rewardId: cl.reward_id,
+        rewardTitle: cl.reward_catalog?.title || "Reward Item",
+        rewardSlug: cl.reward_catalog?.slug || "",
+        rewardType: cl.reward_catalog?.reward_type || "PHYSICAL",
+        rewardImageUrl: cl.reward_catalog?.image_url || null,
+        coinsSpent: Number(cl.coins_spent || 0),
+        status: (cl.status || "REQUESTED") as any,
+        shippingFullName: cl.shipping_full_name || null,
+        shippingPhone: cl.shipping_phone || null,
+        shippingAddress: cl.shipping_address || null,
+        shippingCity: cl.shipping_city || null,
+        shippingState: cl.shipping_state || null,
+        shippingPincode: cl.shipping_pincode || null,
+        trackingCode: cl.tracking_code || null,
+        adminNotes: cl.admin_notes || null,
+        ledgerTransactionId: cl.ledger_transaction_id || null,
+        claimedAt: cl.created_at,
+        fulfilledAt: cl.fulfilled_at || null,
+      };
+    });
+
+    const recentLedger = ledger.map((l) => {
+      const p = profilesMap.get(l.user_id);
+      return {
+        id: l.id,
+        userId: l.user_id,
+        userName: p?.full_name || `Candidate #${l.user_id.slice(0, 6).toUpperCase()}`,
+        amount: Number(l.amount || 0),
+        direction: l.direction,
+        transactionType: l.transaction_type,
+        reasonCode: l.reason_code,
+        balanceAfter: Number(l.balance_after || 0),
+        createdAt: l.created_at,
+      };
+    });
+
+    const rewardPolicies = dbPolicies.map((p) => ({
+      id: p.id,
+      policyCode: p.policy_code,
+      eventType: p.event_type,
+      baseCoins: p.base_coins,
+      performanceBonusCoins: p.performance_bonus_coins,
+      consistencyBonusCoins: p.consistency_bonus_coins,
+      dailyLimitCount: p.daily_limit_count || 1,
+      isActive: p.is_active,
+      updatedAt: p.updated_at,
+    }));
+
+    return {
+      kpis: {
+        totalCoinsInCirculation,
+        lifetimeCoinsIssued,
+        totalCoinsSpent,
+        activeRewardsCount,
+        totalRedemptionsCount,
+        pendingFulfillmentCount,
+      },
+      catalog,
+      redemptions,
+      rewardPolicies,
+      recentLedger,
+    };
+  }
+
+  /**
+   * Admin: Creates a new reward in reward_catalog
+   */
+  static async adminCreateReward(input: {
+    title: string;
+    slug?: string;
+    description?: string;
+    rewardType: string;
+    coinCost: number;
+    stockQuantity?: number;
+    imageUrl?: string | null;
+    isActive?: boolean;
+    displayOrder?: number;
+    metadata?: Record<string, unknown>;
+  }): Promise<{ success: boolean; reward?: any; error?: string }> {
+    const adminSb = createAdminServerSupabaseClient();
+
+    if (!input.title?.trim()) {
+      return { success: false, error: "Reward title is required." };
+    }
+    if (input.coinCost === undefined || input.coinCost < 0) {
+      return { success: false, error: "Coin cost must be a non-negative number." };
+    }
+
+    const slug =
+      input.slug?.trim() ||
+      input.title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)+/g, "");
+
+    const payload = {
+      title: input.title.trim(),
+      slug,
+      description: input.description?.trim() || "",
+      reward_type: input.rewardType || "PHYSICAL",
+      coin_cost: Math.round(Number(input.coinCost)),
+      stock_quantity: input.stockQuantity !== undefined ? Math.round(Number(input.stockQuantity)) : -1,
+      image_url: input.imageUrl || null,
+      metadata: input.metadata || {},
+      is_active: input.isActive ?? true,
+      display_order: input.displayOrder !== undefined ? Math.round(Number(input.displayOrder)) : 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await adminSb
+      .from("reward_catalog")
+      .insert(payload as any)
+      .select("*")
+      .single();
+
+    if (error) {
+      console.error("[adminCreateReward] Error:", error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, reward: data };
+  }
+
+  /**
+   * Admin: Updates an existing reward in reward_catalog
+   */
+  static async adminUpdateReward(
+    id: string,
+    updates: Partial<{
+      title: string;
+      slug: string;
+      description: string;
+      rewardType: string;
+      coinCost: number;
+      stockQuantity: number;
+      imageUrl: string | null;
+      isActive: boolean;
+      displayOrder: number;
+      metadata: Record<string, unknown>;
+    }>
+  ): Promise<{ success: boolean; error?: string }> {
+    const adminSb = createAdminServerSupabaseClient();
+
+    const payload: any = { updated_at: new Date().toISOString() };
+    if (updates.title !== undefined) payload.title = updates.title.trim();
+    if (updates.slug !== undefined) payload.slug = updates.slug.trim();
+    if (updates.description !== undefined) payload.description = updates.description.trim();
+    if (updates.rewardType !== undefined) payload.reward_type = updates.rewardType;
+    if (updates.coinCost !== undefined) {
+      if (updates.coinCost < 0) return { success: false, error: "Cost cannot be negative." };
+      payload.coin_cost = Math.round(Number(updates.coinCost));
+    }
+    if (updates.stockQuantity !== undefined) payload.stock_quantity = Math.round(Number(updates.stockQuantity));
+    if (updates.imageUrl !== undefined) payload.image_url = updates.imageUrl;
+    if (updates.isActive !== undefined) payload.is_active = updates.isActive;
+    if (updates.displayOrder !== undefined) payload.display_order = Math.round(Number(updates.displayOrder));
+    if (updates.metadata !== undefined) payload.metadata = updates.metadata;
+
+    const { error } = await adminSb
+      .from("reward_catalog")
+      .update(payload)
+      .eq("id", id);
+
+    if (error) {
+      console.error("[adminUpdateReward] Error:", error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  }
+
+  /**
+   * Admin: Toggles active status of a reward
+   */
+  static async adminToggleRewardActive(
+    id: string,
+    isActive: boolean
+  ): Promise<{ success: boolean; error?: string }> {
+    const adminSb = createAdminServerSupabaseClient();
+    const { error } = await adminSb
+      .from("reward_catalog")
+      .update({ is_active: isActive, updated_at: new Date().toISOString() })
+      .eq("id", id);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  }
+
+  /**
+   * Admin: Updates fulfillment status, tracking code, or notes on a redemption claim
+   */
+  static async adminUpdateRedemptionStatus(
+    claimId: string,
+    updates: {
+      status: string;
+      trackingCode?: string;
+      adminNotes?: string;
+    }
+  ): Promise<{ success: boolean; error?: string }> {
+    const adminSb = createAdminServerSupabaseClient();
+
+    const payload: any = {
+      status: updates.status,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (updates.trackingCode !== undefined) {
+      payload.tracking_code = updates.trackingCode.trim() || null;
+    }
+    if (updates.adminNotes !== undefined) {
+      payload.admin_notes = updates.adminNotes.trim() || null;
+    }
+    if (updates.status === "FULFILLED") {
+      payload.fulfilled_at = new Date().toISOString();
+    }
+
+    const { error } = await adminSb
+      .from("reward_claims")
+      .update(payload)
+      .eq("id", claimId);
+
+    if (error) {
+      console.error("[adminUpdateRedemptionStatus] Error:", error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
   }
 }

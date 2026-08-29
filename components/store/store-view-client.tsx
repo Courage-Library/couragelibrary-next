@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { StoreCatalogItem, StoreUserClaim } from "@/services/gamification.service";
 import { RedeemModal } from "@/components/store/redeem-modal";
@@ -247,8 +248,12 @@ export function StoreViewClient({
                 <div>
                   {/* Top Bar: Icon + Price Tag */}
                   <div className="flex items-start justify-between gap-3 mb-4">
-                    <div className="w-14 h-14 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center p-2 group-hover:scale-105 transition-transform">
-                      {getRewardIcon(item.slug)}
+                    <div className="w-14 h-14 rounded-2xl bg-slate-50 border border-slate-100 overflow-hidden relative shrink-0 flex items-center justify-center p-0.5 group-hover:scale-105 transition-transform">
+                      {item.imageUrl ? (
+                        <Image src={item.imageUrl} alt={item.title} fill className="object-cover" />
+                      ) : (
+                        getRewardIcon(item.slug)
+                      )}
                     </div>
                     <div className="flex flex-col items-end">
                       <div className="flex items-center gap-1 px-3 py-1 rounded-full bg-amber-500/10 text-amber-800 font-black text-sm border border-amber-500/20">
