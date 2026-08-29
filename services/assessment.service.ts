@@ -1,4 +1,5 @@
 import { createServerSupabaseClient, createAdminServerSupabaseClient } from "@/lib/supabase/server";
+import { GamificationService } from "@/services/gamification.service";
 
 export interface ExamDirectoryItem {
   id: string;
@@ -364,6 +365,25 @@ export interface TestCandidateSecurityInfo {
   timestamp: string;
 }
 
+export interface TestRewardSummary {
+  completionCoins: number;
+  completionReason: string;
+  isAccuracyEligible: boolean;
+  minAttemptRequired: number;
+  accuracyPercentage: number;
+  accuracyBonusCoins: number;
+  accuracyReason: string;
+  streakCoins: number;
+  streakReason: string;
+  currentStreak: number;
+  badgeUnlocked?: {
+    code: string;
+    title: string;
+    coins: number;
+  } | null;
+  totalCoinsEarned: number;
+}
+
 export interface TestResultSummary {
   result: {
     id: string;
@@ -389,6 +409,7 @@ export interface TestResultSummary {
   };
   standing: TestStandingInfo;
   security: TestCandidateSecurityInfo;
+  rewards: TestRewardSummary;
   insights: {
     strongestSection?: string | null;
     weakestSection?: string | null;
@@ -1727,18 +1748,19 @@ export class AssessmentService {
         time_taken_seconds: totalTimeSpent,
       } as any).eq("id", attemptId);
 
-      // 5. Award Phase 3D Coins safely
-      const rpcCall = adminSb.rpc as any;
-      await rpcCall("fn_award_gamification_reward", {
-        p_user_id: user.id,
-        p_event_type: "MOCK_TEST_COMPLETED",
-        p_source_type: "MOCK_TEST_ATTEMPT",
-        p_source_id: attemptId,
-        p_idempotency_key: `mock_eval_${attemptId}_${user.id}`,
-        p_coins: 10,
-        p_reason_code: "MOCK_TEST_REWARD",
-        p_metadata: { attempt_id: attemptId, score: totalScore, accuracy },
-      }).catch(() => {});
+      // 5. Award Server-Authoritative CL Coins via GamificationService
+      await GamificationService.awardMockCompletionReward({
+        userId: user.id,
+        attemptId,
+        testId: attempt.mock_test_id,
+        testType: testData.test_type,
+        totalQuestions: testData.total_questions,
+        attemptedCount,
+        correctCount,
+        incorrectCount,
+        unansweredCount,
+        timeSpentSeconds: totalTimeSpent,
+      }).catch((e) => console.error("[submitTestAttempt] Gamification reward notice:", e));
 
       return { success: true, resultId: testResult.id };
     } catch (dbErr) {
@@ -1933,6 +1955,58 @@ export class AssessmentService {
       minute: "2-digit",
     });
 
+    // Fetch reward event breakdown or compute server-authoritative calculation
+    const { data: eventData } = await adminSb
+      .from("gamification_events")
+      .select("actual_coins_awarded, metadata")
+      .eq("idempotency_key", `mock_eval_${resolvedAttemptId}_${candidateUserId}`)
+      .maybeSingle();
+
+    let rewards: TestRewardSummary;
+    if (eventData && (eventData as any).metadata) {
+      const meta = (eventData as any).metadata;
+      rewards = {
+        completionCoins: meta.completion_coins ?? 10,
+        completionReason: meta.completion_reason ?? "Test Completed",
+        isAccuracyEligible: meta.is_accuracy_eligible ?? (r.attempted_count >= Math.ceil(r.total_questions * 0.5)),
+        minAttemptRequired: meta.min_attempt_required ?? Math.ceil(r.total_questions * 0.5),
+        accuracyPercentage: meta.accuracy_percentage ?? Number(r.accuracy_percentage || 0),
+        accuracyBonusCoins: meta.accuracy_bonus_coins ?? 0,
+        accuracyReason: meta.accuracy_reason ?? "Accuracy Evaluated",
+        streakCoins: meta.streak_coins ?? 0,
+        streakReason: meta.streak_reason ?? "Consistency Streak",
+        currentStreak: meta.current_streak ?? 1,
+        badgeUnlocked: meta.badge_unlocked || null,
+        totalCoinsEarned: Number((eventData as any).actual_coins_awarded || 0),
+      };
+    } else {
+      const calc = GamificationService.calculateMockReward({
+        userId: candidateUserId,
+        attemptId: resolvedAttemptId,
+        testId: mt.id,
+        testType: mt.test_type,
+        totalQuestions: r.total_questions,
+        attemptedCount: r.attempted_count,
+        correctCount: r.correct_count,
+        incorrectCount: r.incorrect_count,
+        unansweredCount: r.unanswered_count,
+        timeSpentSeconds: r.time_spent_seconds,
+      });
+      rewards = {
+        completionCoins: calc.completionCoins,
+        completionReason: calc.completionReason,
+        isAccuracyEligible: calc.isAccuracyEligible,
+        minAttemptRequired: calc.minAttemptRequired,
+        accuracyPercentage: calc.accuracyPercentage,
+        accuracyBonusCoins: calc.accuracyBonusCoins,
+        accuracyReason: calc.accuracyReason,
+        streakCoins: 0,
+        streakReason: "Daily Activity Logged",
+        currentStreak: 1,
+        totalCoinsEarned: calc.totalCalculated,
+      };
+    }
+
     return {
       result: {
         id: r.id,
@@ -1971,6 +2045,7 @@ export class AssessmentService {
         examTitle: mt.title,
         timestamp: formattedTimestamp,
       },
+      rewards,
       insights: {
         strongestSection,
         weakestSection,
