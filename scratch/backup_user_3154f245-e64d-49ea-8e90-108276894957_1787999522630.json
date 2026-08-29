@@ -1,0 +1,298 @@
+{
+  "timestamp": "2026-08-29T10:32:02.590Z",
+  "user_id": "3154f245-e64d-49ea-8e90-108276894957",
+  "wallet": {
+    "user_id": "3154f245-e64d-49ea-8e90-108276894957",
+    "current_balance": 81,
+    "lifetime_earned": 81,
+    "lifetime_spent": 0,
+    "freezes_held": 0,
+    "is_locked": false,
+    "last_transaction_at": "2026-08-29T10:17:13.661266+00:00",
+    "created_at": "2026-08-29T09:48:48.210791+00:00",
+    "updated_at": "2026-08-29T10:17:13.661266+00:00"
+  },
+  "ledger": [
+    {
+      "id": "f95296ed-0bf3-48eb-a054-92c3d1d55e78",
+      "user_id": "3154f245-e64d-49ea-8e90-108276894957",
+      "transaction_type": "CREDIT",
+      "amount": 23,
+      "direction": "CREDIT",
+      "balance_after": 81,
+      "source_event_id": "d2e5948c-8732-4373-8b97-f8a7cf32247f",
+      "source_type": "MOCK_TEST",
+      "source_id": "17796029-41d1-46ae-abf2-1e683235c4b6",
+      "reversal_of_ledger_id": null,
+      "reason_code": "MOCK_ASSESSMENT_REWARD",
+      "idempotency_key": "ledger_mock_reward_17796029-41d1-46ae-abf2-1e683235c4b6_3154f245-e64d-49ea-8e90-108276894957",
+      "admin_user_id": null,
+      "metadata": {
+        "is_retake": false,
+        "total_coins": 23,
+        "mock_test_id": "17796029-41d1-46ae-abf2-1e683235c4b6",
+        "streak_coins": 5,
+        "correct_count": 21,
+        "streak_reason": "1-Day Consistency Streak Bonus",
+        "badge_unlocked": null,
+        "current_streak": 1,
+        "accuracy_reason": "80-89% Great Accuracy Bonus",
+        "attempted_count": 24,
+        "total_questions": 25,
+        "completion_coins": 10,
+        "first_attempt_id": "739a4031-ffc8-40cd-b01c-7836a7a2b2dd",
+        "completion_reason": "Daily Sectional Test Completed",
+        "accuracy_percentage": 87.5,
+        "canonical_test_type": "sectional",
+        "accuracy_bonus_coins": 8,
+        "is_accuracy_eligible": true,
+        "min_attempt_required": 13
+      },
+      "created_at": "2026-08-29T10:17:13.661266+00:00"
+    },
+    {
+      "id": "453abeea-9825-454b-82b8-026522dc7393",
+      "user_id": "3154f245-e64d-49ea-8e90-108276894957",
+      "transaction_type": "CREDIT",
+      "amount": 10,
+      "direction": "CREDIT",
+      "balance_after": 58,
+      "source_event_id": "d0b77cb9-fc96-4d7e-ba06-03e4437a04a2",
+      "source_type": "MOCK_TEST",
+      "source_id": "eacec266-7e94-46a3-ab13-b6c67f36f3a0",
+      "reversal_of_ledger_id": null,
+      "reason_code": "MOCK_ASSESSMENT_REWARD",
+      "idempotency_key": "ledger_mock_reward_eacec266-7e94-46a3-ab13-b6c67f36f3a0_3154f245-e64d-49ea-8e90-108276894957_1787998343229",
+      "admin_user_id": null,
+      "metadata": {
+        "total_coins": 10
+      },
+      "created_at": "2026-08-29T10:12:24.310494+00:00"
+    },
+    {
+      "id": "4a9ca542-5b8d-4468-a6ae-88a6cc9fd308",
+      "user_id": "3154f245-e64d-49ea-8e90-108276894957",
+      "transaction_type": "CREDIT",
+      "amount": 10,
+      "direction": "CREDIT",
+      "balance_after": 48,
+      "source_event_id": "bf0274be-0e7a-4021-b8ee-629f0487d458",
+      "source_type": "MOCK_TEST",
+      "source_id": "a779ade6-112c-487d-8bd1-fa03cc3970db",
+      "reversal_of_ledger_id": null,
+      "reason_code": "MOCK_ASSESSMENT_REWARD",
+      "idempotency_key": "ledger_mock_reward_a779ade6-112c-487d-8bd1-fa03cc3970db_3154f245-e64d-49ea-8e90-108276894957_1787997407651",
+      "admin_user_id": null,
+      "metadata": {
+        "total_coins": 10
+      },
+      "created_at": "2026-08-29T09:56:48.770865+00:00"
+    },
+    {
+      "id": "98f6685d-238e-4904-b01c-fd572adc1b4c",
+      "user_id": "3154f245-e64d-49ea-8e90-108276894957",
+      "transaction_type": "CREDIT",
+      "amount": 10,
+      "direction": "CREDIT",
+      "balance_after": 38,
+      "source_event_id": "c0cae972-9fd3-4938-b561-a107cec74510",
+      "source_type": "MOCK_TEST",
+      "source_id": "190aab3f-88e4-47c6-ad55-50e730134eae",
+      "reversal_of_ledger_id": null,
+      "reason_code": "MOCK_ASSESSMENT_REWARD",
+      "idempotency_key": "ledger_mock_reward_190aab3f-88e4-47c6-ad55-50e730134eae_3154f245-e64d-49ea-8e90-108276894957_1787997379538",
+      "admin_user_id": null,
+      "metadata": {
+        "total_coins": 10
+      },
+      "created_at": "2026-08-29T09:56:20.649787+00:00"
+    },
+    {
+      "id": "95337643-3dc8-4ef5-a962-b482e1e98633",
+      "user_id": "3154f245-e64d-49ea-8e90-108276894957",
+      "transaction_type": "CREDIT",
+      "amount": 10,
+      "direction": "CREDIT",
+      "balance_after": 28,
+      "source_event_id": "ea451c16-c3f5-4a62-ae34-883afa2fefcc",
+      "source_type": "MOCK_TEST",
+      "source_id": "88bffc17-c05a-4070-ad73-6925a6b31a86",
+      "reversal_of_ledger_id": null,
+      "reason_code": "MOCK_ASSESSMENT_REWARD",
+      "idempotency_key": "ledger_mock_reward_88bffc17-c05a-4070-ad73-6925a6b31a86_3154f245-e64d-49ea-8e90-108276894957_1787997367155",
+      "admin_user_id": null,
+      "metadata": {
+        "total_coins": 10
+      },
+      "created_at": "2026-08-29T09:56:08.26079+00:00"
+    },
+    {
+      "id": "4a0ea7fc-3a59-4923-ab88-f63247214a5c",
+      "user_id": "3154f245-e64d-49ea-8e90-108276894957",
+      "transaction_type": "CREDIT",
+      "amount": 18,
+      "direction": "CREDIT",
+      "balance_after": 18,
+      "source_event_id": "70e28cd8-88d8-4662-980b-1ae15c285dd6",
+      "source_type": "MOCK_TEST",
+      "source_id": "17796029-41d1-46ae-abf2-1e683235c4b6",
+      "reversal_of_ledger_id": null,
+      "reason_code": "MOCK_ASSESSMENT_REWARD",
+      "idempotency_key": "ledger_test_probe_1787996927053",
+      "admin_user_id": null,
+      "metadata": {
+        "test": true
+      },
+      "created_at": "2026-08-29T09:48:48.210791+00:00"
+    }
+  ],
+  "events": [
+    {
+      "id": "d2e5948c-8732-4373-8b97-f8a7cf32247f",
+      "user_id": "3154f245-e64d-49ea-8e90-108276894957",
+      "event_type": "MOCK_TEST_COMPLETED",
+      "source_type": "MOCK_TEST",
+      "source_id": "17796029-41d1-46ae-abf2-1e683235c4b6",
+      "idempotency_key": "mock_reward_17796029-41d1-46ae-abf2-1e683235c4b6_3154f245-e64d-49ea-8e90-108276894957",
+      "verification_status": "VERIFIED",
+      "reward_status": "REWARDED",
+      "reason_code": "MOCK_ASSESSMENT_REWARD",
+      "calculated_coins": 23,
+      "actual_coins_awarded": 23,
+      "policy_version": "v1_default",
+      "metadata": {
+        "is_retake": false,
+        "total_coins": 23,
+        "mock_test_id": "17796029-41d1-46ae-abf2-1e683235c4b6",
+        "streak_coins": 5,
+        "correct_count": 21,
+        "streak_reason": "1-Day Consistency Streak Bonus",
+        "badge_unlocked": null,
+        "current_streak": 1,
+        "accuracy_reason": "80-89% Great Accuracy Bonus",
+        "attempted_count": 24,
+        "total_questions": 25,
+        "completion_coins": 10,
+        "first_attempt_id": "739a4031-ffc8-40cd-b01c-7836a7a2b2dd",
+        "completion_reason": "Daily Sectional Test Completed",
+        "accuracy_percentage": 87.5,
+        "canonical_test_type": "sectional",
+        "accuracy_bonus_coins": 8,
+        "is_accuracy_eligible": true,
+        "min_attempt_required": 13
+      },
+      "occurred_at": "2026-08-29T10:17:13.661266+00:00",
+      "processed_at": "2026-08-29T10:17:13.661266+00:00"
+    },
+    {
+      "id": "d0b77cb9-fc96-4d7e-ba06-03e4437a04a2",
+      "user_id": "3154f245-e64d-49ea-8e90-108276894957",
+      "event_type": "MOCK_TEST_COMPLETED",
+      "source_type": "MOCK_TEST",
+      "source_id": "eacec266-7e94-46a3-ab13-b6c67f36f3a0",
+      "idempotency_key": "mock_reward_eacec266-7e94-46a3-ab13-b6c67f36f3a0_3154f245-e64d-49ea-8e90-108276894957_1787998343229",
+      "verification_status": "VERIFIED",
+      "reward_status": "REWARDED",
+      "reason_code": "MOCK_ASSESSMENT_REWARD",
+      "calculated_coins": 10,
+      "actual_coins_awarded": 10,
+      "policy_version": "v1_default",
+      "metadata": {
+        "total_coins": 10
+      },
+      "occurred_at": "2026-08-29T10:12:24.310494+00:00",
+      "processed_at": "2026-08-29T10:12:24.310494+00:00"
+    },
+    {
+      "id": "bf0274be-0e7a-4021-b8ee-629f0487d458",
+      "user_id": "3154f245-e64d-49ea-8e90-108276894957",
+      "event_type": "MOCK_TEST_COMPLETED",
+      "source_type": "MOCK_TEST",
+      "source_id": "a779ade6-112c-487d-8bd1-fa03cc3970db",
+      "idempotency_key": "mock_reward_a779ade6-112c-487d-8bd1-fa03cc3970db_3154f245-e64d-49ea-8e90-108276894957_1787997407651",
+      "verification_status": "VERIFIED",
+      "reward_status": "REWARDED",
+      "reason_code": "MOCK_ASSESSMENT_REWARD",
+      "calculated_coins": 10,
+      "actual_coins_awarded": 10,
+      "policy_version": "v1_default",
+      "metadata": {
+        "total_coins": 10
+      },
+      "occurred_at": "2026-08-29T09:56:48.770865+00:00",
+      "processed_at": "2026-08-29T09:56:48.770865+00:00"
+    },
+    {
+      "id": "c0cae972-9fd3-4938-b561-a107cec74510",
+      "user_id": "3154f245-e64d-49ea-8e90-108276894957",
+      "event_type": "MOCK_TEST_COMPLETED",
+      "source_type": "MOCK_TEST",
+      "source_id": "190aab3f-88e4-47c6-ad55-50e730134eae",
+      "idempotency_key": "mock_reward_190aab3f-88e4-47c6-ad55-50e730134eae_3154f245-e64d-49ea-8e90-108276894957_1787997379538",
+      "verification_status": "VERIFIED",
+      "reward_status": "REWARDED",
+      "reason_code": "MOCK_ASSESSMENT_REWARD",
+      "calculated_coins": 10,
+      "actual_coins_awarded": 10,
+      "policy_version": "v1_default",
+      "metadata": {
+        "total_coins": 10
+      },
+      "occurred_at": "2026-08-29T09:56:20.649787+00:00",
+      "processed_at": "2026-08-29T09:56:20.649787+00:00"
+    },
+    {
+      "id": "ea451c16-c3f5-4a62-ae34-883afa2fefcc",
+      "user_id": "3154f245-e64d-49ea-8e90-108276894957",
+      "event_type": "MOCK_TEST_COMPLETED",
+      "source_type": "MOCK_TEST",
+      "source_id": "88bffc17-c05a-4070-ad73-6925a6b31a86",
+      "idempotency_key": "mock_reward_88bffc17-c05a-4070-ad73-6925a6b31a86_3154f245-e64d-49ea-8e90-108276894957_1787997367155",
+      "verification_status": "VERIFIED",
+      "reward_status": "REWARDED",
+      "reason_code": "MOCK_ASSESSMENT_REWARD",
+      "calculated_coins": 10,
+      "actual_coins_awarded": 10,
+      "policy_version": "v1_default",
+      "metadata": {
+        "total_coins": 10
+      },
+      "occurred_at": "2026-08-29T09:56:08.26079+00:00",
+      "processed_at": "2026-08-29T09:56:08.26079+00:00"
+    },
+    {
+      "id": "70e28cd8-88d8-4662-980b-1ae15c285dd6",
+      "user_id": "3154f245-e64d-49ea-8e90-108276894957",
+      "event_type": "MOCK_TEST_COMPLETED",
+      "source_type": "MOCK_TEST",
+      "source_id": "17796029-41d1-46ae-abf2-1e683235c4b6",
+      "idempotency_key": "test_probe_1787996927053",
+      "verification_status": "VERIFIED",
+      "reward_status": "REWARDED",
+      "reason_code": "MOCK_ASSESSMENT_REWARD",
+      "calculated_coins": 18,
+      "actual_coins_awarded": 18,
+      "policy_version": "v1_default",
+      "metadata": {
+        "test": true
+      },
+      "occurred_at": "2026-08-29T09:48:48.210791+00:00",
+      "processed_at": "2026-08-29T09:48:48.210791+00:00"
+    }
+  ],
+  "attempts": [
+    {
+      "id": "739a4031-ffc8-40cd-b01c-7836a7a2b2dd",
+      "user_id": "3154f245-e64d-49ea-8e90-108276894957",
+      "mock_test_id": "17796029-41d1-46ae-abf2-1e683235c4b6",
+      "started_at": "2026-08-29T08:50:24.736+00:00",
+      "submitted_at": "2026-08-29T09:00:07.705+00:00",
+      "last_activity_at": "2026-08-29T08:50:24.838203+00:00",
+      "time_taken_seconds": 0,
+      "status": "submitted",
+      "client_ip": null,
+      "created_at": "2026-08-29T08:50:24.838203+00:00",
+      "updated_at": "2026-08-29T08:50:24.838203+00:00"
+    }
+  ]
+}
