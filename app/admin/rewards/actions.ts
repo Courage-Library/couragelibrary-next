@@ -111,7 +111,7 @@ export async function updateRedemptionStatusAction(
  */
 export async function uploadRewardImageAction(
   formData: FormData
-): Promise<{ success: boolean; url?: string; error?: string }> {
+): Promise<{ success: boolean; url?: string; size?: number; format?: string; error?: string }> {
   const { isAdmin } = await AdminService.checkIsAdminOrStaff();
   if (!isAdmin) return { success: false, error: "Unauthorized. Admin privileges required." };
 
@@ -122,17 +122,17 @@ export async function uploadRewardImageAction(
 
   const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/svg+xml"];
   if (!allowedTypes.includes(file.type)) {
-    return { success: false, error: "Invalid file type. Please upload a PNG, JPEG, or WebP image." };
+    return { success: false, error: "Unsupported image format. Please upload a WebP, PNG, or JPEG image." };
   }
 
-  // Max 5MB
-  if (file.size > 5 * 1024 * 1024) {
-    return { success: false, error: "Image file exceeds maximum allowed size (5 MB)." };
+  // Max 10MB source limit
+  if (file.size > 10 * 1024 * 1024) {
+    return { success: false, error: "Image file exceeds maximum allowed limit (10 MB)." };
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = createAdminServerSupabaseClient() as any;
-  const ext = file.name.split(".").pop() || "webp";
+  const ext = file.name.split(".").pop() || (file.type === "image/webp" ? "webp" : "png");
   const filename = `${rewardId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
   const path = `rewards/${filename}`;
 
@@ -143,12 +143,13 @@ export async function uploadRewardImageAction(
     .from("store-rewards")
     .upload(path, buffer, {
       contentType: file.type,
+      cacheControl: "public, max-age=31536000, immutable",
       upsert: true,
     });
 
   if (uploadErr) {
     console.error("[uploadRewardImageAction] Storage error:", uploadErr);
-    return { success: false, error: `Failed to upload image: ${uploadErr.message}` };
+    return { success: false, error: `Upload failed: ${uploadErr.message}` };
   }
 
   const { data: urlData } = supabase.storage.from("store-rewards").getPublicUrl(path);
@@ -160,5 +161,7 @@ export async function uploadRewardImageAction(
   return {
     success: true,
     url: publicUrl,
+    size: file.size,
+    format: file.type,
   };
 }
