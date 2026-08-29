@@ -12,6 +12,7 @@ import { QuestionPalette, QuestionStatus } from "@/components/assessment/questio
 import { SubmitDialog, SectionSubmitSummary } from "@/components/assessment/submit-dialog";
 import { ReportIssueDialog } from "@/components/assessment/report-issue-dialog";
 import { InstructionsModal } from "@/components/assessment/instructions-modal";
+import { CandidateSecurityWatermark } from "@/components/assessment/candidate-security-watermark";
 import { OfflineAnswerQueue } from "@/lib/assessment/offline-queue";
 import { Button } from "@/components/ui/button";
 import {
@@ -781,14 +782,12 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
       <div className="flex-1 flex overflow-hidden z-10">
         {/* Main Question Viewport */}
         <main className="relative flex-1 bg-white p-4 sm:p-7 overflow-y-auto flex flex-col justify-between">
-          {/* Subtle Repeating Security Pattern Watermark (No Logo Image) */}
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 z-0 select-none overflow-hidden opacity-[0.025]"
-            style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='140' viewBox='0 0 260 140'%3E%3Ctext x='20' y='50' fill='%230f172a' font-family='sans-serif' font-size='12' font-weight='800' letter-spacing='2.5' transform='rotate(-20 20 50)'%3ECOURAGE LIBRARY%3C/text%3E%3Ctext x='150' y='120' fill='%230f172a' font-family='sans-serif' font-size='12' font-weight='800' letter-spacing='2.5' transform='rotate(-20 150 120)'%3ECOURAGE LIBRARY%3C/text%3E%3C/svg%3E")`,
-              backgroundRepeat: "repeat",
-            }}
+          {/* Dynamic Candidate Security Watermark */}
+          <CandidateSecurityWatermark
+            examTitle={session.testTitle}
+            maskedCandidateId={`CL••••${session.attemptId.slice(0, 4).toUpperCase()}`}
+            attemptIdShort={session.attemptId.slice(0, 6).toUpperCase()}
+            timestamp={new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
           />
 
           <div className="relative z-10 max-w-3xl w-full mx-auto space-y-4 sm:space-y-6">

@@ -334,6 +334,36 @@ export interface ActiveAttemptSession {
   questions: ActiveTestQuestion[];
 }
 
+export interface TestLeaderboardItem {
+  rank: number;
+  userId: string;
+  displayName: string;
+  avatarUrl?: string | null;
+  score: number;
+  maxScore: number;
+  accuracyPercentage: number;
+  timeSpentSeconds: number;
+  submittedAt: string;
+  isCurrentUser: boolean;
+}
+
+export interface TestStandingInfo {
+  rank: number;
+  totalParticipants: number;
+  percentile: number;
+  candidateScore: number;
+  averageScore: number;
+  topScore: number;
+}
+
+export interface TestCandidateSecurityInfo {
+  candidateId: string;
+  maskedId: string;
+  attemptIdShort: string;
+  examTitle: string;
+  timestamp: string;
+}
+
 export interface TestResultSummary {
   result: {
     id: string;
@@ -354,18 +384,32 @@ export interface TestResultSummary {
     id: string;
     title: string;
     durationMinutes: number;
+    totalQuestions: number;
+    totalMarks: number;
+  };
+  standing: TestStandingInfo;
+  security: TestCandidateSecurityInfo;
+  insights: {
+    strongestSection?: string | null;
+    weakestSection?: string | null;
+    accuracyLevel: string;
+    speedSecondsPerQuestion: number;
+    reviewCount: number;
   };
   sections: Array<{
+    id?: string;
     sectionName: string;
     totalQuestions: number;
     attemptedCount: number;
     correctCount: number;
     incorrectCount: number;
+    unansweredCount: number;
     sectionScore: number;
     maxScore: number;
     accuracyPercentage: number;
   }>;
   reviewQuestions: Array<{
+    mockQuestionId: string;
     questionOrder: number;
     sectionName: string;
     questionText: string;
@@ -380,6 +424,22 @@ export interface TestResultSummary {
     topicName: string | null;
     topicSlug: string | null;
   }>;
+}
+
+export interface TestLeaderboardData {
+  test: {
+    id: string;
+    title: string;
+    durationMinutes: number;
+    totalMarks: number;
+    totalQuestions: number;
+  };
+  userStanding?: TestLeaderboardItem | null;
+  topScore: number;
+  averageScore: number;
+  totalParticipants: number;
+  podium: TestLeaderboardItem[];
+  leaderboard: TestLeaderboardItem[];
 }
 
 export class AssessmentService {
@@ -1554,7 +1614,10 @@ export class AssessmentService {
       }
 
       const ans = answersMap.get(mq.id);
-      const correctOptionKey = mq.question_versions?.question_answers?.[0]?.correct_option_key;
+      const qa = Array.isArray(mq.question_versions?.question_answers)
+        ? mq.question_versions?.question_answers[0]
+        : mq.question_versions?.question_answers;
+      const correctOptionKey = qa?.correct_option_key;
 
       if (ans && ans.selected_option_key) {
         attemptedCount += 1;
@@ -1662,14 +1725,29 @@ export class AssessmentService {
   }
 
   /**
-   * Fetches test results and question-by-question review with solutions and Learn More mappings.
+   * Helper to mask full names for public leaderboard privacy (e.g. "Rahul Sharma" -> "R*** S*****")
+   */
+  static maskCandidateName(name: string | null | undefined): string {
+    if (!name || name.trim() === "") return "Candidate";
+    const parts = name.trim().split(/\s+/);
+    return parts
+      .map((p) => {
+        if (p.length <= 1) return p + "*";
+        return p[0] + "*".repeat(Math.min(5, p.length - 1));
+      })
+      .join(" ");
+  }
+
+  /**
+   * Fetches test results and question-by-question review with solutions, dynamic standing, and performance insights.
    */
   static async getTestResult(attemptId: string): Promise<TestResultSummary | null> {
     const supabase = await createServerSupabaseClient();
+    const { data: { user } } = await supabase.auth.getUser();
 
     const [resultRes, attemptRes] = await Promise.all([
       supabase.from("test_results").select("*").eq("attempt_id", attemptId).maybeSingle(),
-      supabase.from("test_attempts").select("id, mock_test_id, mock_tests(id, title, duration_minutes)").eq("id", attemptId).maybeSingle(),
+      supabase.from("test_attempts").select("id, mock_test_id, user_id, started_at, submitted_at, mock_tests(id, title, duration_minutes, total_questions, total_marks)").eq("id", attemptId).maybeSingle(),
     ]);
 
     const r = resultRes.data as any;
@@ -1680,10 +1758,12 @@ export class AssessmentService {
 
     const adminSb = createAdminServerSupabaseClient();
 
-    const [sectionsRes, questionsRes, answersRes] = await Promise.all([
-      adminSb.from("section_results").select("*, mock_sections(section_name)").eq("test_result_id", r.id),
-      adminSb.from("mock_questions").select("id, question_order, mock_section_id, marks, negative_mark, mock_sections(section_name), question_versions(id, question_text, question_image_url, options_type, question_options(id, option_key, option_text, option_image_url, order_index), question_answers(correct_option_key, explanation_md), questions(canonical_topic_id, topics(name, slug)))").eq("mock_test_id", mt.id).order("question_order"),
+    // Fetch section results, questions with answers & topics, user answers, and standing across same mock test
+    const [sectionsRes, questionsRes, answersRes, allTestResultsRes] = await Promise.all([
+      adminSb.from("section_results").select("*, mock_sections(id, section_name)").eq("test_result_id", r.id),
+      adminSb.from("mock_questions").select("id, question_order, mock_section_id, marks, negative_mark, mock_sections(id, section_name), question_versions(id, question_text, question_image_url, options_type, question_options(id, option_key, option_text, option_image_url, order_index), question_answers(correct_option_key, explanation_md), questions(canonical_topic_id, topics(name, slug)))").eq("mock_test_id", mt.id).order("question_order"),
       adminSb.from("attempt_answers").select("mock_question_id, selected_option_key, is_correct, evaluated_marks").eq("attempt_id", attemptId),
+      adminSb.from("test_results").select("id, user_id, total_score, max_score, accuracy_percentage, time_spent_seconds, created_at").eq("mock_test_id", mt.id).order("total_score", { ascending: false }).order("accuracy_percentage", { ascending: false }).order("time_spent_seconds", { ascending: true }),
     ]);
 
     const answersList = (answersRes.data as any[]) || [];
@@ -1694,11 +1774,13 @@ export class AssessmentService {
 
     const rawSections = (sectionsRes.data as any[]) || [];
     const sections = rawSections.map((sr) => ({
+      id: sr.mock_sections?.id || sr.mock_section_id,
       sectionName: sr.mock_sections?.section_name || "Section",
       totalQuestions: sr.total_questions,
       attemptedCount: sr.attempted_count,
       correctCount: sr.correct_count,
       incorrectCount: sr.incorrect_count,
+      unansweredCount: sr.unanswered_count,
       sectionScore: Number(sr.section_score),
       maxScore: Number(sr.max_section_score),
       accuracyPercentage: Number(sr.accuracy_percentage),
@@ -1716,7 +1798,14 @@ export class AssessmentService {
           imageUrl: o.option_image_url || null,
         }));
 
+      const qa = Array.isArray(qv?.question_answers)
+        ? qv?.question_answers[0]
+        : qv?.question_answers;
+      const correctOption = qa?.correct_option_key || "A";
+      const explanation = qa?.explanation_md || null;
+
       return {
+        mockQuestionId: mq.id,
         questionOrder: mq.question_order,
         sectionName: mq.mock_sections?.section_name || "General",
         questionText: qv?.question_text || "",
@@ -1724,13 +1813,66 @@ export class AssessmentService {
         optionsType: qv?.options_type || "text",
         options: opts,
         selectedOption: ans?.selected_option_key || null,
-        correctOption: qv?.question_answers?.[0]?.correct_option_key || "A",
+        correctOption,
         isCorrect: ans?.is_correct ?? false,
         marksAwarded: Number(ans?.evaluated_marks || 0),
-        explanation: qv?.question_answers?.[0]?.explanation_md || null,
+        explanation,
         topicName: qv?.questions?.topics?.name || null,
         topicSlug: qv?.questions?.topics?.slug || null,
       };
+    });
+
+    // Compute Dynamic Standing & Percentile
+    const allResults = (allTestResultsRes.data as any[]) || [];
+    const bestUserAttempts = new Map<string, any>();
+    allResults.forEach((tr) => {
+      if (!bestUserAttempts.has(tr.user_id)) {
+        bestUserAttempts.set(tr.user_id, tr);
+      }
+    });
+
+    const rankedCandidates = Array.from(bestUserAttempts.values());
+    const totalParticipants = Math.max(1, rankedCandidates.length);
+    const topScore = rankedCandidates.length > 0 ? Number(rankedCandidates[0].total_score) : Number(r.total_score);
+    const totalSum = rankedCandidates.reduce((acc, c) => acc + Number(c.total_score), 0);
+    const averageScore = Math.round((totalSum / totalParticipants) * 10) / 10;
+
+    // Find candidate's rank
+    const candidateUserId = attemptData.user_id;
+    let candidateRank = rankedCandidates.findIndex((c) => c.user_id === candidateUserId) + 1;
+    if (candidateRank <= 0) candidateRank = 1;
+
+    // Percentile = ((Total - Rank) / (Total - 1)) * 100
+    const percentile = totalParticipants > 1
+      ? Math.round(((totalParticipants - candidateRank) / (totalParticipants - 1)) * 1000) / 10
+      : 100.0;
+
+    // Identify strongest / weakest sections
+    const sortedSections = [...sections].sort((a, b) => b.accuracyPercentage - a.accuracyPercentage);
+    const strongestSection = sortedSections.length > 0 ? sortedSections[0].sectionName : null;
+    const weakestSection = sortedSections.length > 1 ? sortedSections[sortedSections.length - 1].sectionName : null;
+
+    const totalSeconds = Number(r.time_spent_seconds || 0);
+    const speedSecondsPerQuestion = r.attempted_count > 0 ? Math.round(totalSeconds / r.attempted_count) : 0;
+
+    const accuracyLevel =
+      r.accuracy_percentage >= 85
+        ? "Excellent Accuracy"
+        : r.accuracy_percentage >= 70
+        ? "Good Accuracy"
+        : r.accuracy_percentage >= 50
+        ? "Moderate Accuracy"
+        : "Needs Improvement";
+
+    const candidateIdShort = (candidateUserId || "CANDIDATE").slice(0, 4).toUpperCase();
+    const maskedId = `CL••••${candidateIdShort}`;
+    const attemptIdShort = attemptId.slice(0, 6).toUpperCase();
+    const formattedTimestamp = new Date(attemptData.submitted_at || Date.now()).toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
 
     return {
@@ -1746,16 +1888,134 @@ export class AssessmentService {
         maxScore: Number(r.max_score),
         accuracyPercentage: Number(r.accuracy_percentage),
         timeSpentSeconds: r.time_spent_seconds,
-        rank: r.rank,
-        percentile: r.percentile ? Number(r.percentile) : null,
+        rank: candidateRank,
+        percentile,
       },
       test: {
         id: mt.id,
         title: mt.title,
         durationMinutes: mt.duration_minutes,
+        totalQuestions: mt.total_questions || r.total_questions,
+        totalMarks: Number(mt.total_marks || r.max_score),
+      },
+      standing: {
+        rank: candidateRank,
+        totalParticipants,
+        percentile,
+        candidateScore: Number(r.total_score),
+        averageScore,
+        topScore,
+      },
+      security: {
+        candidateId: candidateUserId,
+        maskedId,
+        attemptIdShort,
+        examTitle: mt.title,
+        timestamp: formattedTimestamp,
+      },
+      insights: {
+        strongestSection,
+        weakestSection,
+        accuracyLevel,
+        speedSecondsPerQuestion,
+        reviewCount: r.incorrect_count,
       },
       sections,
       reviewQuestions,
+    };
+  }
+
+  /**
+   * Fetches official assessment leaderboard for a specific mock test with masked privacy protection.
+   */
+  static async getTestLeaderboard(testId: string, currentUserId?: string | null): Promise<TestLeaderboardData | null> {
+    const adminSb = createAdminServerSupabaseClient();
+
+    // 1. Fetch test details
+    const { data: testData } = await adminSb
+      .from("mock_tests")
+      .select("id, title, duration_minutes, total_questions, total_marks")
+      .eq("id", testId)
+      .maybeSingle();
+
+    if (!testData) return null;
+
+    // 2. Fetch all submitted results for this test
+    const { data: resultsData } = await adminSb
+      .from("test_results")
+      .select("id, user_id, total_score, max_score, accuracy_percentage, time_spent_seconds, created_at")
+      .eq("mock_test_id", testId)
+      .order("total_score", { ascending: false })
+      .order("accuracy_percentage", { ascending: false })
+      .order("time_spent_seconds", { ascending: true })
+      .order("created_at", { ascending: true });
+
+    const allResults = (resultsData as any[]) || [];
+
+    // 3. Deduplicate best attempt per user
+    const bestUserAttempts = new Map<string, any>();
+    allResults.forEach((tr) => {
+      if (!bestUserAttempts.has(tr.user_id)) {
+        bestUserAttempts.set(tr.user_id, tr);
+      }
+    });
+
+    const rankedCandidates = Array.from(bestUserAttempts.values());
+    const totalParticipants = Math.max(1, rankedCandidates.length);
+    const topScore = rankedCandidates.length > 0 ? Number(rankedCandidates[0].total_score) : 0;
+    const totalSum = rankedCandidates.reduce((acc, c) => acc + Number(c.total_score), 0);
+    const averageScore = Math.round((totalSum / totalParticipants) * 10) / 10;
+
+    // 4. Fetch profiles for masked names and avatars
+    const userIds = rankedCandidates.map((c) => c.user_id);
+    const profilesMap = new Map<string, any>();
+    if (userIds.length > 0) {
+      const { data: profs } = await adminSb
+        .from("user_profiles")
+        .select("id, full_name, avatar_url")
+        .in("id", userIds);
+
+      (profs || []).forEach((p) => profilesMap.set(p.id, p));
+    }
+
+    const leaderboard: TestLeaderboardItem[] = rankedCandidates.map((c, idx) => {
+      const prof = profilesMap.get(c.user_id);
+      const isCurrentUser = Boolean(currentUserId && c.user_id === currentUserId);
+      const displayName = isCurrentUser
+        ? (prof?.full_name ? `${prof.full_name} (You)` : "You")
+        : AssessmentService.maskCandidateName(prof?.full_name || `Candidate #${c.user_id.slice(0, 4).toUpperCase()}`);
+
+      return {
+        rank: idx + 1,
+        userId: c.user_id,
+        displayName,
+        avatarUrl: prof?.avatar_url || null,
+        score: Number(c.total_score),
+        maxScore: Number(c.max_score),
+        accuracyPercentage: Number(c.accuracy_percentage),
+        timeSpentSeconds: Number(c.time_spent_seconds),
+        submittedAt: c.created_at,
+        isCurrentUser,
+      };
+    });
+
+    const userStanding = currentUserId ? leaderboard.find((l) => l.userId === currentUserId) || null : null;
+    const podium = leaderboard.slice(0, 3);
+
+    return {
+      test: {
+        id: testData.id,
+        title: testData.title,
+        durationMinutes: testData.duration_minutes,
+        totalMarks: Number(testData.total_marks || 0),
+        totalQuestions: testData.total_questions || 0,
+      },
+      userStanding,
+      topScore,
+      averageScore,
+      totalParticipants,
+      podium,
+      leaderboard,
     };
   }
 }
