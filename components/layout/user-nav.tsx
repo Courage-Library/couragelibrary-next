@@ -61,10 +61,14 @@ export function UserNav({ user, coins = 0, streak = 0 }: UserNavProps) {
       </div>
 
       {/* Coin Balance Badge */}
-      <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-800 text-xs font-bold shadow-xs" title="Courage Coins">
+      <Link
+        href="/wallet"
+        className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-800 text-xs font-bold shadow-xs hover:bg-blue-100/80 transition-colors cursor-pointer"
+        title="View CL Wallet & Rewards"
+      >
         <Coins className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
-        <span>{coins}</span>
-      </div>
+        <span>{coins} CL</span>
+      </Link>
 
       {/* Notifications Link */}
       <Link
@@ -106,6 +110,13 @@ export function UserNav({ user, coins = 0, streak = 0 }: UserNavProps) {
                 className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors"
               >
                 <LayoutDashboard className="w-4 h-4 text-blue-600 shrink-0" /> Dashboard
+              </Link>
+              <Link
+                href="/wallet"
+                onClick={() => setIsProfileOpen(false)}
+                className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+              >
+                <Coins className="w-4 h-4 text-amber-500 shrink-0" /> CL Wallet ({coins} CL)
               </Link>
               <Link
                 href="/billing"

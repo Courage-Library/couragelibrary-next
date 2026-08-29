@@ -12,6 +12,7 @@ import { Container } from "@/components/ui/container";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { StartTestActionButton } from "@/components/assessment/start-test-action-button";
 import {
   Target,
   Clock,
@@ -19,20 +20,25 @@ import {
   HelpCircle,
   CalendarDays,
   CheckCircle2,
-  ArrowRight,
   Flame,
-  Play,
-  RotateCcw,
   Plus,
   X,
   ChevronRight,
   Layers,
   BarChart3,
   Eye,
+  RotateCcw,
 } from "lucide-react";
 
 interface Props {
   data: MockTestDashboardData;
+}
+
+function formatScore(score: number | undefined | null): string {
+  if (score === undefined || score === null) return "—";
+  const num = Number(score);
+  if (Number.isInteger(num)) return num.toString();
+  return num.toFixed(2);
 }
 
 export function MockTestDashboardView({ data }: Props) {
@@ -235,15 +241,13 @@ export function MockTestDashboardView({ data }: Props) {
               </div>
 
               <div className="shrink-0">
-                <Link href={`/mock-tests/${nextMockAction.resumable.testId}/take`}>
-                  <Button
-                    size="lg"
-                    className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-sm px-7 py-3 rounded-2xl shadow-lg transition-all flex items-center gap-2"
-                  >
-                    Resume Mock Now
-                    <ArrowRight className="w-4 h-4" />
-                  </Button>
-                </Link>
+                <StartTestActionButton
+                  testId={nextMockAction.resumable.testId}
+                  isResume
+                  size="lg"
+                  className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-sm px-7 py-3 rounded-2xl shadow-lg"
+                  label="Resume Mock Now"
+                />
               </div>
             </div>
           </Card>
@@ -299,15 +303,12 @@ export function MockTestDashboardView({ data }: Props) {
 
               <div className="shrink-0">
                 {nextMockAction.todayMock.testId ? (
-                  <Link href={`/mock-tests/${nextMockAction.todayMock.testId}`}>
-                    <Button
-                      size="lg"
-                      className="bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-sm px-7 py-3 rounded-2xl shadow-md transition-all flex items-center gap-2"
-                    >
-                      Start Today&apos;s Mock
-                      <ArrowRight className="w-4 h-4" />
-                    </Button>
-                  </Link>
+                  <StartTestActionButton
+                    testId={nextMockAction.todayMock.testId}
+                    size="lg"
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-sm px-7 py-3 rounded-2xl shadow-md"
+                    label="Start Today's Mock"
+                  />
                 ) : (
                   <Button disabled size="lg" className="rounded-2xl">
                     Assembling Test...
@@ -332,9 +333,9 @@ export function MockTestDashboardView({ data }: Props) {
                   {nextMockAction.todayMock.title}
                 </h3>
                 <p className="text-xs text-slate-600">
-                  Score: <span className="font-extrabold text-emerald-700">{nextMockAction.todayMock.completedScore ?? "—"}</span> / {nextMockAction.todayMock.totalMarks} marks
+                  Score: <span className="font-extrabold text-emerald-700 font-mono">{formatScore(nextMockAction.todayMock.completedScore)}</span> / {nextMockAction.todayMock.totalMarks} marks
                   {nextMockAction.todayMock.completedAccuracy !== undefined && (
-                    <span> &bull; Accuracy: <span className="font-extrabold text-blue-700">{nextMockAction.todayMock.completedAccuracy}%</span></span>
+                    <span> &bull; Accuracy: <span className="font-extrabold text-blue-700 font-mono">{nextMockAction.todayMock.completedAccuracy}%</span></span>
                   )}
                 </p>
               </div>
@@ -430,26 +431,27 @@ export function MockTestDashboardView({ data }: Props) {
 
                   <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between">
                     {mock.status === "completed" && mock.attemptId ? (
-                      <Link href={`/mock-tests/${mock.attemptId}/result`} className="w-full">
+                      <Link href={`/mock-tests/${mock.attemptId}/result`} prefetch={false} className="w-full">
                         <Button size="sm" variant="outline" className="w-full text-xs font-bold text-emerald-700 border-emerald-200 hover:bg-emerald-50">
                           <Eye className="w-3 h-3 mr-1" />
-                          View Result ({mock.completedScore ?? "—"} / {mock.totalMarks})
+                          View Result ({formatScore(mock.completedScore)} / {mock.totalMarks})
                         </Button>
                       </Link>
                     ) : mock.status === "in_progress" ? (
-                      <Link href={`/mock-tests/${mock.testId}/take`} className="w-full">
-                        <Button size="sm" className="w-full text-xs font-bold bg-amber-500 hover:bg-amber-600 text-slate-950">
-                          <RotateCcw className="w-3 h-3 mr-1" />
-                          Resume Mock
-                        </Button>
-                      </Link>
+                      <StartTestActionButton
+                        testId={mock.testId}
+                        isResume
+                        size="sm"
+                        className="w-full text-xs"
+                        label="Resume Mock"
+                      />
                     ) : mock.isOpen && mock.testId ? (
-                      <Link href={`/mock-tests/${mock.testId}`} className="w-full">
-                        <Button size="sm" className="w-full text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white">
-                          <Play className="w-3 h-3 mr-1" />
-                          Start Mock
-                        </Button>
-                      </Link>
+                      <StartTestActionButton
+                        testId={mock.testId}
+                        size="sm"
+                        className="w-full text-xs"
+                        label="Start Mock"
+                      />
                     ) : (
                       <span className="text-[11px] text-slate-400 font-medium">Available between 5:00 AM & 11:59 PM</span>
                     )}
@@ -608,34 +610,35 @@ export function MockTestDashboardView({ data }: Props) {
                     </div>
 
                     {test.bestScore !== undefined && (
-                      <div className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 p-2 rounded-xl">
-                        Best Score: {test.bestScore} / {test.totalMarks}
+                      <div className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 p-2 rounded-xl font-mono">
+                        Best Score: {formatScore(test.bestScore)} / {test.totalMarks}
                       </div>
                     )}
                   </div>
 
                   <div className="pt-3 mt-3 border-t border-slate-100">
-                    {test.userAttemptStatus === "completed" ? (
-                      <Link href={`/mock-tests/${test.id}/result`}>
+                    {test.userAttemptStatus === "completed" && test.attemptId ? (
+                      <Link href={`/mock-tests/${test.attemptId}/result`} prefetch={false}>
                         <Button size="sm" variant="outline" className="w-full font-bold text-xs text-emerald-700 border-emerald-200 hover:bg-emerald-50">
                           <Eye className="w-3 h-3 mr-1" />
                           View Result
                         </Button>
                       </Link>
                     ) : test.userAttemptStatus === "in_progress" ? (
-                      <Link href={`/mock-tests/${test.id}/take`}>
-                        <Button size="sm" className="w-full font-bold text-xs bg-amber-500 hover:bg-amber-600 text-slate-950">
-                          <RotateCcw className="w-3 h-3 mr-1" />
-                          Continue Test
-                        </Button>
-                      </Link>
+                      <StartTestActionButton
+                        testId={test.id}
+                        isResume
+                        size="sm"
+                        className="w-full text-xs"
+                        label="Continue Test"
+                      />
                     ) : (
-                      <Link href={`/mock-tests/${test.id}`}>
-                        <Button size="sm" variant="default" className="w-full font-bold text-xs bg-blue-600 hover:bg-blue-700 text-white">
-                          <Play className="w-3 h-3 mr-1" />
-                          Start Full Mock
-                        </Button>
-                      </Link>
+                      <StartTestActionButton
+                        testId={test.id}
+                        size="sm"
+                        className="w-full text-xs"
+                        label="Start Full Mock"
+                      />
                     )}
                   </div>
                 </Card>
@@ -735,9 +738,13 @@ export function MockTestDashboardView({ data }: Props) {
                   {rewards.levelTitle}
                 </h3>
               </div>
-              <span className="text-xs font-bold text-purple-700">
-                {rewards.currentCoins} Coins
-              </span>
+              <Link
+                href="/wallet"
+                className="text-xs font-bold text-purple-700 hover:text-purple-900 hover:underline transition-colors"
+                title="View CL Wallet & Rewards"
+              >
+                {rewards.currentCoins} CL Coins &rarr;
+              </Link>
             </div>
 
             <div className="space-y-1.5">

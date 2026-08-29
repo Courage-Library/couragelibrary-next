@@ -101,6 +101,7 @@ export function ResultViewClient({ data }: ResultViewClientProps) {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link
             href="/mock-tests"
+            prefetch={false}
             className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-900 transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" /> Back to Mock Tests
@@ -378,8 +379,8 @@ export function ResultViewClient({ data }: ResultViewClientProps) {
 
               <div className="p-3 rounded-2xl bg-amber-50/50 border border-amber-100 flex items-center justify-between text-[11px] text-amber-900 font-medium">
                 <span>Progress towards store rewards (Courage Bottle, Diary &amp; T-Shirt)</span>
-                <Link href="/dashboard" className="font-bold text-amber-950 hover:underline">
-                  View Wallet &rarr;
+                <Link href="/wallet" className="font-bold text-amber-950 hover:underline">
+                  View CL Wallet &rarr;
                 </Link>
               </div>
             </div>

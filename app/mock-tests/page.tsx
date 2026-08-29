@@ -4,6 +4,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { constructMetadata } from "@/lib/seo/metadata";
 import { MockTestDashboardView } from "@/components/assessment/mock-test-dashboard-view";
 
+export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export const metadata = constructMetadata({
