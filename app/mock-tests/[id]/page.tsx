@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AssessmentService } from "@/services/assessment.service";
@@ -6,7 +6,8 @@ import { Container } from "@/components/ui/container";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ShieldAlert, CheckCircle2, ArrowLeft } from "lucide-react";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { ShieldAlert, CheckCircle2, ArrowLeft, Eye, RotateCcw } from "lucide-react";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -14,11 +15,37 @@ interface Props {
 
 export default async function MockTestInstructionsPage({ params }: Props) {
   const { id } = await params;
-  const data = await AssessmentService.getMockTestInstructions(id);
+  const [data, supabase] = await Promise.all([
+    AssessmentService.getMockTestInstructions(id),
+    createServerSupabaseClient(),
+  ]);
 
   if (!data) {
     notFound();
   }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let userAttempt: { id: string; status: string } | null = null;
+  if (user) {
+    const { data: att } = await supabase
+      .from("test_attempts")
+      .select("id, status")
+      .eq("mock_test_id", id)
+      .eq("user_id", user.id)
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (att) {
+      userAttempt = att as { id: string; status: string };
+    }
+  }
+
+  const isCompleted = userAttempt ? ["submitted", "completed", "evaluated"].includes(userAttempt.status) : false;
+  const isInProgress = userAttempt ? userAttempt.status === "in_progress" : false;
 
   return (
     <div className="py-10 bg-slate-50/50 min-h-[calc(100vh-4rem)]">
@@ -42,7 +69,7 @@ export default async function MockTestInstructionsPage({ params }: Props) {
               {data.test.title}
             </CardTitle>
             <CardDescription className="text-xs text-slate-500">
-              Official Examination Simulation â€¢ Read instructions before launching test
+              Official Examination Simulation &bull; Read instructions before launching test
             </CardDescription>
           </CardHeader>
 
@@ -67,7 +94,7 @@ export default async function MockTestInstructionsPage({ params }: Props) {
             {data.sections.length > 0 && (
               <div className="space-y-3">
                 <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider font-mono">
-                  Section Blueprint & Marking Scheme
+                  Section Blueprint &amp; Marking Scheme
                 </h4>
                 <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden text-xs">
                   {data.sections.map((sec) => (
@@ -113,14 +140,30 @@ export default async function MockTestInstructionsPage({ params }: Props) {
           <CardFooter className="flex items-center justify-between pt-6 border-t border-slate-100">
             <Link href="/mock-tests">
               <Button variant="outline" size="md">
-                Cancel
+                Back to Dashboard
               </Button>
             </Link>
-            <Link href={`/mock-tests/${data.test.id}/take`}>
-              <Button variant="default" size="lg" className="bg-blue-600 hover:bg-blue-700 font-bold px-8 shadow-sm">
-                I Agree & Start Test
-              </Button>
-            </Link>
+            {isCompleted && userAttempt ? (
+              <Link href={`/mock-tests/${userAttempt.id}/result`}>
+                <Button variant="default" size="lg" className="bg-emerald-600 hover:bg-emerald-700 font-bold px-8 shadow-sm text-white">
+                  <Eye className="w-4 h-4 mr-2" />
+                  View Completed Result
+                </Button>
+              </Link>
+            ) : isInProgress ? (
+              <Link href={`/mock-tests/${data.test.id}/take`}>
+                <Button variant="default" size="lg" className="bg-amber-500 hover:bg-amber-600 font-bold px-8 shadow-sm text-slate-950">
+                  <RotateCcw className="w-4 h-4 mr-2" />
+                  Continue Test
+                </Button>
+              </Link>
+            ) : (
+              <Link href={`/mock-tests/${data.test.id}/take`}>
+                <Button variant="default" size="lg" className="bg-blue-600 hover:bg-blue-700 font-bold px-8 shadow-sm">
+                  I Agree &amp; Start Test
+                </Button>
+              </Link>
+            )}
           </CardFooter>
         </Card>
       </Container>

@@ -1,19 +1,24 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useTransition } from "react";
 import { GamificationAdminStats } from "@/services/gamification.service";
+import { updateRewardPolicyAction } from "@/app/admin/gamification/actions";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Coins,
   TrendingUp,
   ShoppingBag,
   Award,
   ShieldCheck,
-  Target,
   Flame,
   Search,
   CheckCircle2,
+  Settings,
+  Save,
+  Check,
+  AlertCircle,
 } from "lucide-react";
 
 interface GamificationManagementViewProps {
@@ -23,6 +28,17 @@ interface GamificationManagementViewProps {
 export function GamificationManagementView({ stats }: GamificationManagementViewProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<string>("ALL");
+  const [isPending, startTransition] = useTransition();
+
+  // Local state for editing policies
+  const [editingPolicy, setEditingPolicy] = useState<{
+    policyCode: string;
+    baseCoins: number;
+    performanceBonusCoins: number;
+    consistencyBonusCoins: number;
+  } | null>(null);
+
+  const [statusMessage, setStatusMessage] = useState<{ text: string; isError?: boolean } | null>(null);
 
   const filteredLedger = stats.recentLedger.filter((entry) => {
     const matchesSearch =
@@ -38,6 +54,26 @@ export function GamificationManagementView({ stats }: GamificationManagementView
     return matchesSearch && matchesFilter;
   });
 
+  const handleSavePolicy = (policyCode: string) => {
+    if (!editingPolicy) return;
+    setStatusMessage(null);
+
+    startTransition(async () => {
+      const res = await updateRewardPolicyAction(policyCode, {
+        baseCoins: Number(editingPolicy.baseCoins),
+        performanceBonusCoins: Number(editingPolicy.performanceBonusCoins),
+        consistencyBonusCoins: Number(editingPolicy.consistencyBonusCoins),
+      });
+
+      if (res.success) {
+        setStatusMessage({ text: `Policy ${policyCode} updated successfully in database.` });
+        setEditingPolicy(null);
+      } else {
+        setStatusMessage({ text: res.error || "Failed to update policy", isError: true });
+      }
+    });
+  };
+
   return (
     <div className="space-y-6 pb-12">
       {/* Page Header */}
@@ -48,7 +84,7 @@ export function GamificationManagementView({ stats }: GamificationManagementView
             CL Coin Economy &amp; Gamification Studio
           </h1>
           <p className="text-xs text-slate-500 font-medium mt-1">
-            Server-authoritative internal reward currency, accuracy slabs, streaks and immutable financial ledger.
+            Server-authoritative internal reward currency, database reward policies, accuracy slabs, streaks and immutable financial ledger.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -57,6 +93,23 @@ export function GamificationManagementView({ stats }: GamificationManagementView
           </Badge>
         </div>
       </div>
+
+      {statusMessage && (
+        <div
+          className={`p-3.5 rounded-2xl border text-xs font-bold flex items-center gap-2 ${
+            statusMessage.isError
+              ? "bg-rose-50 border-rose-200 text-rose-800"
+              : "bg-emerald-50 border-emerald-200 text-emerald-800"
+          }`}
+        >
+          {statusMessage.isError ? (
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+          ) : (
+            <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+          )}
+          <span>{statusMessage.text}</span>
+        </div>
+      )}
 
       {/* 1. KPI Economics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -121,59 +174,136 @@ export function GamificationManagementView({ stats }: GamificationManagementView
         </Card>
       </div>
 
-      {/* 2. Active Reward Policies & Accuracy Slabs */}
+      {/* 2. Database Reward Policies Management & Accuracy Slabs */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Reward Policies */}
+        {/* Database Policies Editor */}
         <Card className="p-5 bg-white border-slate-200/90 shadow-2xs space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <div className="flex items-center gap-2">
-              <Target className="w-4 h-4 text-blue-600" />
-              <h2 className="text-sm font-extrabold text-slate-900">Active Test Reward Configuration</h2>
+              <Settings className="w-4 h-4 text-blue-600" />
+              <h2 className="text-sm font-extrabold text-slate-900">Database Reward Policies Catalog</h2>
             </div>
             <Badge variant="outline" className="text-[10px] font-bold text-blue-700 bg-blue-50 border-blue-200">
-              v1.0 Conservative
+              `reward_policies` Live
             </Badge>
           </div>
 
           <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
-              <div>
-                <span className="text-xs font-bold text-slate-900 block">Daily Sectional Mock</span>
-                <span className="text-[11px] text-slate-500 font-medium">Standard daily test completion</span>
-              </div>
-              <span className="text-xs font-black text-slate-900 font-mono">+{stats.policyConfig.dailyCompletionBase} CL</span>
-            </div>
+            {stats.rewardPolicies.map((pol) => {
+              const isEditing = editingPolicy?.policyCode === pol.policyCode;
+              return (
+                <div
+                  key={pol.id}
+                  className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 space-y-2.5 transition"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-bold text-slate-900 block font-mono">{pol.policyCode}</span>
+                      <span className="text-[10px] text-slate-500 font-medium">{pol.eventType}</span>
+                    </div>
 
-            <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
-              <div>
-                <span className="text-xs font-bold text-slate-900 block">Mixed Practice Mock</span>
-                <span className="text-[11px] text-slate-500 font-medium">Multi-subject sectional practice</span>
-              </div>
-              <span className="text-xs font-black text-slate-900 font-mono">+{stats.policyConfig.mixedCompletionBase} CL</span>
-            </div>
+                    {!isEditing ? (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() =>
+                          setEditingPolicy({
+                            policyCode: pol.policyCode,
+                            baseCoins: pol.baseCoins,
+                            performanceBonusCoins: pol.performanceBonusCoins,
+                            consistencyBonusCoins: pol.consistencyBonusCoins,
+                          })
+                        }
+                        className="text-xs font-bold text-blue-600 hover:text-blue-700 hover:bg-blue-50 h-7 px-2.5"
+                      >
+                        Edit Policy
+                      </Button>
+                    ) : (
+                      <div className="flex items-center gap-1.5">
+                        <Button
+                          size="sm"
+                          variant="default"
+                          disabled={isPending}
+                          onClick={() => handleSavePolicy(pol.policyCode)}
+                          className="text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white h-7 px-2.5"
+                        >
+                          <Save className="w-3 h-3 mr-1" />
+                          Save
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setEditingPolicy(null)}
+                          className="text-xs font-bold text-slate-500 h-7 px-2"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    )}
+                  </div>
 
-            <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
-              <div>
-                <span className="text-xs font-bold text-slate-900 block">Full-Length Grand Mock</span>
-                <span className="text-[11px] text-slate-500 font-medium">Complete examination simulation</span>
-              </div>
-              <span className="text-xs font-black text-slate-900 font-mono">+{stats.policyConfig.fullCompletionBase} CL</span>
-            </div>
-
-            <div className="flex items-center justify-between p-3 rounded-xl bg-amber-50/50 border border-amber-200/80">
-              <div className="flex items-center gap-2">
-                <Flame className="w-4 h-4 text-orange-500 shrink-0" />
-                <div>
-                  <span className="text-xs font-bold text-amber-950 block">Daily Streak Qualifying Bonus</span>
-                  <span className="text-[11px] text-amber-800 font-medium">Awarded on consecutive daily mock activity</span>
+                  {!isEditing ? (
+                    <div className="grid grid-cols-3 gap-2 pt-1 border-t border-slate-200/60 text-[11px]">
+                      <div>
+                        <span className="text-slate-400 font-bold block text-[10px]">Base</span>
+                        <strong className="text-slate-900 font-mono">+{pol.baseCoins} CL</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-bold block text-[10px]">Perf Bonus</span>
+                        <strong className="text-blue-700 font-mono">+{pol.performanceBonusCoins} CL</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-bold block text-[10px]">Streak Bonus</span>
+                        <strong className="text-amber-700 font-mono">+{pol.consistencyBonusCoins} CL</strong>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-2 pt-1 border-t border-slate-200/60">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-500 block mb-1">Base Coins</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={editingPolicy.baseCoins}
+                          onChange={(e) =>
+                            setEditingPolicy({ ...editingPolicy, baseCoins: parseInt(e.target.value) || 0 })
+                          }
+                          className="w-full text-xs font-mono font-bold px-2 py-1 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-500 block mb-1">Perf Bonus</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={editingPolicy.performanceBonusCoins}
+                          onChange={(e) =>
+                            setEditingPolicy({ ...editingPolicy, performanceBonusCoins: parseInt(e.target.value) || 0 })
+                          }
+                          className="w-full text-xs font-mono font-bold px-2 py-1 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-500 block mb-1">Streak Bonus</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={editingPolicy.consistencyBonusCoins}
+                          onChange={(e) =>
+                            setEditingPolicy({ ...editingPolicy, consistencyBonusCoins: parseInt(e.target.value) || 0 })
+                          }
+                          className="w-full text-xs font-mono font-bold px-2 py-1 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-              <span className="text-xs font-black text-amber-950 font-mono">+5 CL</span>
-            </div>
+              );
+            })}
           </div>
         </Card>
 
-        {/* Accuracy Slabs */}
+        {/* Accuracy Slabs & Safety Invariants */}
         <Card className="p-5 bg-white border-slate-200/90 shadow-2xs space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <div className="flex items-center gap-2">
@@ -201,12 +331,16 @@ export function GamificationManagementView({ stats }: GamificationManagementView
             ))}
           </div>
 
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 text-[11px] text-slate-600 space-y-1">
-            <p className="font-semibold text-slate-800">
-              <strong>Safety Invariant:</strong> Minimum Attempt Threshold = <code>Ceil(Total Questions × 0.50)</code>
+          <div className="p-3.5 rounded-2xl bg-amber-50/60 border border-amber-200/80 text-[11px] text-amber-950 space-y-1.5">
+            <div className="flex items-center gap-1.5 font-bold text-amber-900">
+              <Flame className="w-4 h-4 text-orange-500 shrink-0" />
+              <span>Safety &amp; Anti-Farming Invariants</span>
+            </div>
+            <p className="text-[11px] text-amber-800 leading-relaxed">
+              • <strong>First Attempt Rule:</strong> Only the first completed attempt of any mock test qualifies for completion &amp; accuracy rewards. Retakes yield 0 CL.
             </p>
-            <p className="text-slate-500">
-              Unattempted questions never reduce candidate accuracy, but candidates who answer under 50% of the paper receive 0 accuracy bonus to prevent coin farming.
+            <p className="text-[11px] text-amber-800 leading-relaxed">
+              • <strong>Attempt Threshold:</strong> <code>Ceil(Total Questions × 0.50)</code> must be attempted to unlock accuracy bonuses.
             </p>
           </div>
         </Card>
@@ -225,7 +359,7 @@ export function GamificationManagementView({ stats }: GamificationManagementView
               <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search user or reason..."
+                placeholder="Search candidate or reason..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-8 pr-3 py-1.5 rounded-lg text-xs bg-slate-50 border border-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 w-48 sm:w-64"

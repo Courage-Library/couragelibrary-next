@@ -4,7 +4,7 @@ export interface MockRewardCalculationInput {
   userId: string;
   attemptId: string;
   testId: string;
-  testType?: string; // 'daily_sectional' | 'mixed' | 'full' | string
+  canonicalTestType?: string; // Authoritative test_type from mock_templates ('full_length' | 'sectional' | 'mixed' | 'daily')
   totalQuestions: number;
   attemptedCount: number;
   correctCount: number;
@@ -14,6 +14,8 @@ export interface MockRewardCalculationInput {
 }
 
 export interface MockRewardBreakdown {
+  isRetake: boolean;
+  isRewardEligible: boolean;
   completionCoins: number;
   completionReason: string;
   isAccuracyEligible: boolean;
@@ -85,7 +87,6 @@ export interface GamificationAdminStats {
   recentLedger: Array<{
     id: string;
     userId: string;
-    userEmail?: string;
     userName?: string;
     amount: number;
     direction: string;
@@ -93,6 +94,17 @@ export interface GamificationAdminStats {
     reasonCode: string;
     balanceAfter: number;
     createdAt: string;
+  }>;
+  rewardPolicies: Array<{
+    id: string;
+    policyCode: string;
+    eventType: string;
+    baseCoins: number;
+    performanceBonusCoins: number;
+    consistencyBonusCoins: number;
+    dailyLimitCount: number;
+    isActive: boolean;
+    updatedAt: string;
   }>;
   policyConfig: {
     dailyCompletionBase: number;
@@ -148,6 +160,7 @@ export class GamificationService {
 
   /**
    * Pure, Server-Authoritative Reward Calculation Engine
+   * Uses CANONICAL test type from mock_templates. Never guesses test type from question count.
    */
   static calculateMockReward(input: MockRewardCalculationInput): {
     completionCoins: number;
@@ -159,20 +172,21 @@ export class GamificationService {
     accuracyReason: string;
     totalCalculated: number;
   } {
-    const { testType, totalQuestions, attemptedCount, correctCount } = input;
+    const { canonicalTestType, totalQuestions, attemptedCount, correctCount } = input;
 
-    // 1. Base Completion Reward by Test Type
-    let completionCoins = 10; // Default daily sectional
-    let completionReason = "Daily Test Completed";
+    // 1. Base Completion Reward strictly by canonical test type
+    let completionCoins = 10;
+    let completionReason = "Daily Sectional Test Completed";
 
-    const normalizedType = (testType || "").toLowerCase();
-    if (normalizedType.includes("full") || totalQuestions >= 75) {
+    const normalizedType = (canonicalTestType || "").toLowerCase().trim();
+    if (normalizedType === "full_length" || normalizedType === "full" || normalizedType.includes("grand")) {
       completionCoins = 25;
       completionReason = "Full-Length Mock Completed";
-    } else if (normalizedType.includes("mixed") || totalQuestions >= 40) {
+    } else if (normalizedType === "mixed" || normalizedType.includes("mixed")) {
       completionCoins = 15;
-      completionReason = "Mixed Mock Test Completed";
+      completionReason = "Mixed Practice Mock Completed";
     } else {
+      // Default: sectional / daily
       completionCoins = 10;
       completionReason = "Daily Sectional Test Completed";
     }
@@ -181,7 +195,7 @@ export class GamificationService {
     const minAttemptRequired = Math.ceil(Math.max(1, totalQuestions) * 0.5);
     const isAccuracyEligible = attemptedCount >= minAttemptRequired;
 
-    // 3. Accuracy Calculation: Correct / Attempted * 100
+    // 3. Pure Accuracy Calculation: Correct / Attempted * 100 (Unattempted excluded from denominator)
     const accuracyPercentage = attemptedCount > 0
       ? Math.round((correctCount / attemptedCount) * 1000) / 10
       : 0;
@@ -236,26 +250,41 @@ export class GamificationService {
   }
 
   /**
-   * Atomic Server-Authoritative Reward Grant with Anti-Farming Idempotency
+   * Atomic Server-Authoritative Reward Grant with Retake Anti-Farming Protection
+   * Invariant: Only the FIRST completed attempt of a specific mock_test_id is reward-eligible.
+   * Concurrency-safe via database-level unique idempotency_key on (mock_test_id, user_id).
    */
   static async awardMockCompletionReward(input: MockRewardCalculationInput): Promise<MockRewardBreakdown> {
     const adminSb = createAdminServerSupabaseClient();
     const { userId, attemptId, testId, timeSpentSeconds } = input;
 
-    // 1. Calculate Authoritative Coin Amounts
-    const calc = GamificationService.calculateMockReward(input);
+    // Idempotency key strictly scoped to (mock_test_id, user_id)
+    const idempotencyKey = `mock_reward_${testId}_${userId}`;
 
-    const idempotencyKey = `mock_eval_${attemptId}_${userId}`;
+    // 1. Check if user already earned rewards for this mock test (Retake / Prior submission check)
+    const [existingEventRes, priorAttemptRes] = await Promise.all([
+      adminSb
+        .from("gamification_events")
+        .select("id, actual_coins_awarded, metadata")
+        .eq("idempotency_key", idempotencyKey)
+        .maybeSingle(),
+      adminSb
+        .from("test_attempts")
+        .select("id, started_at")
+        .eq("mock_test_id", testId)
+        .eq("user_id", userId)
+        .in("status", ["submitted", "completed", "evaluated"])
+        .neq("id", attemptId)
+        .limit(1)
+        .maybeSingle(),
+    ]);
 
-    // 2. Check if already rewarded (Idempotency check)
-    const { data: existingEvent } = await adminSb
-      .from("gamification_events")
-      .select("id, actual_coins_awarded, metadata")
-      .eq("idempotency_key", idempotencyKey)
-      .maybeSingle();
+    const isRetake = Boolean(priorAttemptRes.data);
+    const existingEvent = existingEventRes.data;
 
-    if (existingEvent) {
-      const meta = (existingEvent as any).metadata || {};
+    // If this is a retake or already rewarded, award ZERO additional coins
+    if (isRetake || existingEvent) {
+      const meta = (existingEvent as any)?.metadata || {};
       const { data: userStreak } = await adminSb
         .from("user_streaks")
         .select("current_streak, longest_streak")
@@ -263,22 +292,28 @@ export class GamificationService {
         .maybeSingle();
 
       return {
-        completionCoins: meta.completion_coins ?? calc.completionCoins,
-        completionReason: meta.completion_reason ?? calc.completionReason,
-        isAccuracyEligible: meta.is_accuracy_eligible ?? calc.isAccuracyEligible,
-        minAttemptRequired: meta.min_attempt_required ?? calc.minAttemptRequired,
-        accuracyPercentage: meta.accuracy_percentage ?? calc.accuracyPercentage,
-        accuracyBonusCoins: meta.accuracy_bonus_coins ?? calc.accuracyBonusCoins,
-        accuracyReason: meta.accuracy_reason ?? calc.accuracyReason,
-        streakCoins: meta.streak_coins ?? 0,
-        streakReason: meta.streak_reason ?? "Streak Maintained",
+        isRetake: true,
+        isRewardEligible: false,
+        completionCoins: 0,
+        completionReason: "Retake (Reward only on first completed attempt)",
+        isAccuracyEligible: false,
+        minAttemptRequired: Math.ceil(input.totalQuestions * 0.5),
+        accuracyPercentage: input.attemptedCount > 0 ? Math.round((input.correctCount / input.attemptedCount) * 1000) / 10 : 0,
+        accuracyBonusCoins: 0,
+        accuracyReason: "Retake (No additional accuracy bonus)",
+        streakCoins: 0,
+        streakReason: "Retake (Streak updated on first attempt)",
         currentStreak: userStreak?.current_streak || 1,
         longestStreak: userStreak?.longest_streak || 1,
         isNewStreakMilestone: false,
-        totalCoinsEarned: Number((existingEvent as any).actual_coins_awarded || 0),
+        badgeUnlocked: null,
+        totalCoinsEarned: 0,
         isAlreadyRewarded: true,
       };
     }
+
+    // 2. First Valid Submission — Calculate Authoritative Coin Amounts
+    const calc = GamificationService.calculateMockReward(input);
 
     // 3. Record Qualifying Daily Streak Activity
     let streakCoins = 0;
@@ -322,7 +357,7 @@ export class GamificationService {
       longestStreak = streakData.longest_streak;
     }
 
-    // 4. Check & Award Achievements (e.g. Bullseye for 100% Accuracy)
+    // 4. Check & Award Achievements (e.g. Bullseye for 100% Accuracy with >=50% attempts)
     let unlockedBadge: { code: string; title: string; coins: number } | null = null;
     if (calc.isAccuracyEligible && calc.accuracyPercentage >= 100) {
       const { data: bullseyeBadge } = await adminSb
@@ -344,24 +379,25 @@ export class GamificationService {
           await adminSb.from("user_badges").insert({
             user_id: userId,
             badge_id: (bullseyeBadge as any).id,
-            coins_awarded: (bullseyeBadge as any).coin_reward || 0,
+            coins_awarded: 0, // Invariant: No duplicate huge bonus beyond +15 accuracy bonus
           } as any);
 
           unlockedBadge = {
             code: (bullseyeBadge as any).code,
             title: (bullseyeBadge as any).title,
-            coins: Number((bullseyeBadge as any).coin_reward || 0),
+            coins: 0,
           };
         }
       }
     }
 
     // 5. Total Coins Granted
-    const totalCoinsEarned = calc.completionCoins + calc.accuracyBonusCoins + streakCoins + (unlockedBadge?.coins || 0);
+    const totalCoinsEarned = calc.completionCoins + calc.accuracyBonusCoins + streakCoins;
 
     const metadata = {
-      attempt_id: attemptId,
-      test_id: testId,
+      first_attempt_id: attemptId,
+      mock_test_id: testId,
+      canonical_test_type: input.canonicalTestType || "sectional",
       total_questions: input.totalQuestions,
       attempted_count: input.attemptedCount,
       correct_count: input.correctCount,
@@ -377,6 +413,7 @@ export class GamificationService {
       current_streak: currentStreak,
       badge_unlocked: unlockedBadge,
       total_coins: totalCoinsEarned,
+      is_retake: false,
     };
 
     // 6. Execute Canonical Atomic RPC fn_award_gamification_reward
@@ -385,8 +422,8 @@ export class GamificationService {
       await rpcCall("fn_award_gamification_reward", {
         p_user_id: userId,
         p_event_type: "MOCK_TEST_COMPLETED",
-        p_source_type: "MOCK_TEST_ATTEMPT",
-        p_source_id: attemptId,
+        p_source_type: "MOCK_TEST",
+        p_source_id: testId,
         p_idempotency_key: idempotencyKey,
         p_calculated_coins: totalCoinsEarned,
         p_reason_code: "MOCK_ASSESSMENT_REWARD",
@@ -397,6 +434,8 @@ export class GamificationService {
     }
 
     return {
+      isRetake: false,
+      isRewardEligible: true,
       completionCoins: calc.completionCoins,
       completionReason: calc.completionReason,
       isAccuracyEligible: calc.isAccuracyEligible,
@@ -485,20 +524,56 @@ export class GamificationService {
   }
 
   /**
+   * Updates an Authoritative Reward Policy in Database
+   */
+  static async updateRewardPolicy(
+    policyCode: string,
+    updates: { baseCoins?: number; performanceBonusCoins?: number; consistencyBonusCoins?: number }
+  ): Promise<{ success: boolean; error?: string }> {
+    const adminSb = createAdminServerSupabaseClient();
+
+    const payload: any = { updated_at: new Date().toISOString() };
+    if (updates.baseCoins !== undefined) {
+      if (updates.baseCoins < 0) return { success: false, error: "Coins cannot be negative" };
+      payload.base_coins = updates.baseCoins;
+    }
+    if (updates.performanceBonusCoins !== undefined) {
+      if (updates.performanceBonusCoins < 0) return { success: false, error: "Coins cannot be negative" };
+      payload.performance_bonus_coins = updates.performanceBonusCoins;
+    }
+    if (updates.consistencyBonusCoins !== undefined) {
+      if (updates.consistencyBonusCoins < 0) return { success: false, error: "Coins cannot be negative" };
+      payload.consistency_bonus_coins = updates.consistencyBonusCoins;
+    }
+
+    const { error } = await adminSb
+      .from("reward_policies")
+      .update(payload as any)
+      .eq("policy_code", policyCode);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  }
+
+  /**
    * Retrieves Admin Gamification Economy Analytics & Master Ledger
    */
   static async getGamificationAdminStats(): Promise<GamificationAdminStats> {
     const adminSb = createAdminServerSupabaseClient();
 
-    const [walletsRes, ledgerRes, badgesCountRes, userBadgesCountRes] = await Promise.all([
+    const [walletsRes, ledgerRes, badgesCountRes, userBadgesCountRes, policiesRes] = await Promise.all([
       adminSb.from("coin_wallets").select("current_balance, lifetime_earned, lifetime_spent"),
       adminSb.from("coin_ledger").select("id, user_id, amount, direction, transaction_type, reason_code, balance_after, created_at").order("created_at", { ascending: false }).limit(50),
       adminSb.from("badges").select("id", { count: "exact", head: true }).eq("is_active", true),
       adminSb.from("user_badges").select("id", { count: "exact", head: true }),
+      adminSb.from("reward_policies").select("*").order("created_at", { ascending: true }),
     ]);
 
     const wallets = (walletsRes.data as any[]) || [];
     const ledger = (ledgerRes.data as any[]) || [];
+    const dbPolicies = (policiesRes.data as any[]) || [];
 
     const totalCoinsInCirculation = wallets.reduce((acc, w) => acc + Number(w.current_balance || 0), 0);
     const lifetimeCoinsIssued = wallets.reduce((acc, w) => acc + Number(w.lifetime_earned || 0), 0);
@@ -522,7 +597,7 @@ export class GamificationService {
       return {
         id: l.id,
         userId: l.user_id,
-        userName: p?.full_name || `User #${l.user_id.slice(0, 6)}`,
+        userName: p?.full_name || `Candidate #${l.user_id.slice(0, 6).toUpperCase()}`,
         amount: Number(l.amount || 0),
         direction: l.direction,
         transactionType: l.transaction_type,
@@ -532,6 +607,18 @@ export class GamificationService {
       };
     });
 
+    const rewardPolicies = dbPolicies.map((p) => ({
+      id: p.id,
+      policyCode: p.policy_code,
+      eventType: p.event_type,
+      baseCoins: p.base_coins,
+      performanceBonusCoins: p.performance_bonus_coins,
+      consistencyBonusCoins: p.consistency_bonus_coins,
+      dailyLimitCount: p.daily_limit_count || 1,
+      isActive: p.is_active,
+      updatedAt: p.updated_at,
+    }));
+
     return {
       totalCoinsInCirculation,
       lifetimeCoinsIssued,
@@ -540,6 +627,7 @@ export class GamificationService {
       streakMilestonesAchieved: 0,
       badgesAwardedCount: userBadgesCountRes.count || 0,
       recentLedger,
+      rewardPolicies,
       policyConfig: {
         dailyCompletionBase: 10,
         mixedCompletionBase: 15,
