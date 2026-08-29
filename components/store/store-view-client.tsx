@@ -250,7 +250,7 @@ export function StoreViewClient({
                   <div className="flex items-start justify-between gap-3 mb-4">
                     <div className="w-14 h-14 rounded-2xl bg-slate-50 border border-slate-100 overflow-hidden relative shrink-0 flex items-center justify-center p-0.5 group-hover:scale-105 transition-transform">
                       {item.imageUrl ? (
-                        <Image src={item.imageUrl} alt={item.title} fill className="object-cover" />
+                        <Image src={item.imageUrl} alt={item.title} fill sizes="56px" className="object-cover" />
                       ) : (
                         getRewardIcon(item.slug)
                       )}

@@ -5,6 +5,7 @@ import Image from "next/image";
 import { AdminRewardCatalogItem } from "@/services/gamification.service";
 import { createRewardAction, updateRewardAction, uploadRewardImageAction } from "@/app/admin/rewards/actions";
 import { generateRewardImageBrief } from "@/lib/admin/ai-image-brief";
+import { optimizeRewardImage, formatBytes, OptimizationResult } from "@/lib/client/reward-image-optimizer";
 
 interface RewardEditorModalProps {
   reward: AdminRewardCatalogItem | null;
@@ -34,6 +35,10 @@ export function RewardEditorModal({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [uploadPhase, setUploadPhase] = useState<"idle" | "preparing" | "uploading" | "saving" | "success" | "error">("idle");
+  const [uploadMetrics, setUploadMetrics] = useState<OptimizationResult | null>(null);
+  const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
+  const localPreviewRef = React.useRef<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // AI Image Brief State
@@ -41,6 +46,14 @@ export function RewardEditorModal({
   const [copiedPrompt, setCopiedPrompt] = useState<boolean>(false);
 
   useEffect(() => {
+    if (localPreviewRef.current) {
+      URL.revokeObjectURL(localPreviewRef.current);
+      localPreviewRef.current = null;
+    }
+    setLocalPreviewUrl(null);
+    setUploadMetrics(null);
+    setUploadPhase("idle");
+
     if (reward) {
       setTitle(reward.title);
       setSlug(reward.slug);
@@ -89,20 +102,46 @@ export function RewardEditorModal({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (!file.type.startsWith("image/")) {
+      setErrorMsg("Unsupported file type. Please select an image file (PNG, WebP, or JPEG).");
+      return;
+    }
+
     setIsUploadingImage(true);
     setErrorMsg(null);
+    setUploadPhase("preparing");
 
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("rewardId", reward?.id || "new");
+    try {
+      // Step 1: Instant Client-side Optimization & Zero-latency preview
+      const optResult = await optimizeRewardImage(file);
+      if (localPreviewRef.current) {
+        URL.revokeObjectURL(localPreviewRef.current);
+      }
+      localPreviewRef.current = optResult.previewUrl;
+      setLocalPreviewUrl(optResult.previewUrl);
+      setUploadMetrics(optResult);
 
-    const res = await uploadRewardImageAction(formData);
-    if (res.success && res.url) {
-      setImageUrl(res.url);
-    } else {
-      setErrorMsg(res.error || "Failed to upload image.");
+      // Step 2: Upload optimized WebP/PNG asset to Supabase Storage
+      setUploadPhase("uploading");
+      const formData = new FormData();
+      formData.append("file", optResult.file);
+      formData.append("rewardId", reward?.id || "new");
+
+      const res = await uploadRewardImageAction(formData);
+      if (res.success && res.url) {
+        setImageUrl(res.url);
+        setUploadPhase("success");
+      } else {
+        setUploadPhase("error");
+        setErrorMsg(res.error || "Upload failed. Please try again.");
+      }
+    } catch (err: unknown) {
+      console.error("[handleImageUpload] Optimization/upload error:", err);
+      setUploadPhase("error");
+      setErrorMsg(err instanceof Error ? err.message : "Failed to process and upload image.");
+    } finally {
+      setIsUploadingImage(false);
     }
-    setIsUploadingImage(false);
   };
 
   const handleGenerateAiBrief = () => {
@@ -367,15 +406,32 @@ export function RewardEditorModal({
               </h4>
 
               <div className="flex flex-col sm:flex-row items-start gap-4 p-4 rounded-xl border border-slate-200/80 bg-slate-50/40">
+                {/* Image Preview Box */}
                 <div className="w-24 h-24 rounded-xl border border-slate-200 bg-white overflow-hidden relative shrink-0 flex items-center justify-center shadow-xs">
-                  {imageUrl ? (
-                    <Image src={imageUrl} alt={title || "Reward"} fill className="object-cover" />
+                  {localPreviewUrl || imageUrl ? (
+                    <Image
+                      src={localPreviewUrl || imageUrl}
+                      alt={title || "Reward"}
+                      fill
+                      unoptimized={Boolean(localPreviewUrl)}
+                      className="object-cover"
+                    />
                   ) : (
                     <div className="text-center p-2 text-slate-400">
                       <svg className="w-6 h-6 mx-auto mb-1 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
                       <span className="text-[9px]">No image</span>
+                    </div>
+                  )}
+
+                  {/* Upload Overlay */}
+                  {isUploadingImage && (
+                    <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-2xs flex items-center justify-center">
+                      <svg className="w-5 h-5 text-white animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
                     </div>
                   )}
                 </div>
@@ -387,13 +443,70 @@ export function RewardEditorModal({
                       type="file"
                       accept="image/png,image/jpeg,image/webp"
                       onChange={handleImageUpload}
-                      disabled={isUploadingImage}
-                      className="block w-full text-[11px] text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+                      disabled={isUploadingImage || isSubmitting}
+                      className="block w-full text-[11px] text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50 cursor-pointer"
                     />
-                    {isUploadingImage && (
-                      <p className="text-[11px] text-blue-600 font-medium mt-1 animate-pulse">
-                        Uploading &amp; optimizing image to Supabase Storage...
+
+                    {/* Dynamic Upload Status */}
+                    {uploadPhase === "preparing" && (
+                      <p className="text-[11px] text-blue-600 font-semibold mt-1.5 flex items-center gap-1.5 animate-pulse">
+                        <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        <span>Preparing &amp; optimizing image to WebP...</span>
                       </p>
+                    )}
+                    {uploadPhase === "uploading" && (
+                      <p className="text-[11px] text-indigo-600 font-semibold mt-1.5 flex items-center gap-1.5 animate-pulse">
+                        <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        <span>Uploading optimized asset to Supabase Storage...</span>
+                      </p>
+                    )}
+                    {uploadPhase === "success" && (
+                      <p className="text-[11px] text-emerald-700 font-bold mt-1.5 flex items-center gap-1">
+                        <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span>Image optimized and uploaded successfully!</span>
+                      </p>
+                    )}
+
+                    {/* File Metrics Chips */}
+                    {uploadMetrics && (
+                      <div className="mt-2 p-2.5 rounded-lg bg-white border border-slate-200 text-[10px] space-y-1">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="font-semibold text-slate-500">
+                            Original:{" "}
+                            <strong className="text-slate-800 font-mono">
+                              {uploadMetrics.originalType.replace("image/", "").toUpperCase()} · {uploadMetrics.originalWidth}×{uploadMetrics.originalHeight} · {formatBytes(uploadMetrics.originalSize)}
+                            </strong>
+                          </span>
+                          <span className="font-semibold text-emerald-700">
+                            Optimized:{" "}
+                            <strong className="text-emerald-900 font-mono">
+                              {uploadMetrics.optimizedType.replace("image/", "").toUpperCase()} · {uploadMetrics.targetWidth}×{uploadMetrics.targetHeight} · {formatBytes(uploadMetrics.optimizedSize)}
+                            </strong>
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between pt-0.5 text-slate-500 border-t border-slate-100">
+                          <span>
+                            Reduction:{" "}
+                            <strong className="text-indigo-600 font-mono">
+                              {Math.max(0, Math.round((1 - uploadMetrics.optimizedSize / uploadMetrics.originalSize) * 100))}% smaller
+                            </strong>{" "}
+                            ({uploadMetrics.durationMs}ms)
+                          </span>
+                          {uploadMetrics.hasTransparency && (
+                            <span className="text-sky-700 font-semibold bg-sky-50 px-1.5 py-0.2 rounded border border-sky-200">
+                              Alpha Transparency Preserved
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     )}
                   </div>
 
@@ -404,7 +517,8 @@ export function RewardEditorModal({
                       value={imageUrl}
                       onChange={(e) => setImageUrl(e.target.value)}
                       placeholder="https://.../current.webp"
-                      className="w-full px-2.5 py-1.5 bg-white border rounded-lg border-slate-200 text-[11px] font-mono text-slate-700"
+                      disabled={isUploadingImage}
+                      className="w-full px-2.5 py-1.5 bg-white border rounded-lg border-slate-200 text-[11px] font-mono text-slate-700 disabled:opacity-50"
                     />
                   </div>
                 </div>
