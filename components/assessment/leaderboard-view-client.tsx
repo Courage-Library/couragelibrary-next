@@ -36,6 +36,7 @@ export function LeaderboardViewClient({ data }: LeaderboardViewClientProps) {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link
             href="/mock-tests"
+            prefetch={false}
             className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-900 transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" /> Back to Mock Tests

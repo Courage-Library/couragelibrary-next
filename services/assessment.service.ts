@@ -1,4 +1,5 @@
 import { createServerSupabaseClient, createAdminServerSupabaseClient } from "@/lib/supabase/server";
+import { revalidatePath } from "next/cache";
 import { GamificationService } from "@/services/gamification.service";
 
 export interface ExamDirectoryItem {
@@ -953,8 +954,7 @@ export class AssessmentService {
 
         if (testInstance?.id) {
           const userTodayAttempt = attempts.find((a: any) =>
-            a.mock_test_id === testInstance.id &&
-            new Date(a.started_at).getTime() >= todayStart.getTime()
+            a.mock_test_id === testInstance.id
           );
 
           if (userTodayAttempt) {
@@ -962,8 +962,13 @@ export class AssessmentService {
             const isDone = userTodayAttempt.status === "completed" || userTodayAttempt.status === "submitted" || userTodayAttempt.status === "evaluated" || userTodayAttempt.submitted_at !== null;
             if (isDone) {
               itemStatus = "completed";
-              completedScore = userTodayAttempt.test_results?.[0]?.total_score ?? userTodayAttempt.test_results?.[0]?.score;
-              completedAccuracy = userTodayAttempt.test_results?.[0]?.accuracy_percentage;
+              const tr = Array.isArray(userTodayAttempt.test_results)
+                ? userTodayAttempt.test_results[0]
+                : userTodayAttempt.test_results;
+              if (tr && (tr.total_score !== undefined || tr.score !== undefined)) {
+                completedScore = Number(tr.total_score ?? tr.score);
+                completedAccuracy = tr.accuracy_percentage !== undefined ? Number(tr.accuracy_percentage) : undefined;
+              }
             } else {
               const dur = testInstance?.duration_minutes || meta.durationMinutes || 25;
               const elapsedSec = (Date.now() - new Date(userTodayAttempt.started_at).getTime()) / 1000;
@@ -1003,6 +1008,23 @@ export class AssessmentService {
           completedAccuracy,
           answeredCount: 0,
         });
+      }
+    }
+
+    // Direct authoritative fetch fallback for any completed todayMock with missing result
+    for (const m of todayMocks) {
+      if (m.status === "completed" && m.completedScore === undefined && m.attemptId) {
+        const adminSb = createAdminServerSupabaseClient();
+        const { data: directRes } = await (adminSb as any)
+          .from("test_results")
+          .select("total_score, accuracy_percentage")
+          .eq("attempt_id", m.attemptId)
+          .maybeSingle();
+
+        if (directRes && directRes.total_score !== undefined && directRes.total_score !== null) {
+          m.completedScore = Number(directRes.total_score);
+          m.completedAccuracy = directRes.accuracy_percentage !== undefined ? Number(directRes.accuracy_percentage) : undefined;
+        }
       }
     }
 
@@ -1054,7 +1076,7 @@ export class AssessmentService {
       })
       .map((mt: any) => {
         const userAttempt = attempts.find((a: any) => a.mock_test_id === mt.id && (a.status === "completed" || a.status === "submitted" || a.status === "evaluated"));
-        const res = userAttempt?.test_results?.[0];
+        const res = Array.isArray(userAttempt?.test_results) ? userAttempt.test_results[0] : userAttempt?.test_results;
         return {
           id: mt.id,
           title: mt.title,
@@ -1068,17 +1090,17 @@ export class AssessmentService {
           isFree: mt.is_free,
           publishedAt: mt.published_at,
           userAttemptStatus: userAttempt ? "completed" : "not_started",
-          bestScore: res ? Number(res.total_score ?? res.score) : undefined,
+          bestScore: res && (res.total_score !== undefined || res.score !== undefined) ? Number(res.total_score ?? res.score) : undefined,
           attemptId: userAttempt?.id,
         };
       });
 
     // 9. Recent Completed Attempts
     const recentAttempts: MockDashboardRecentAttempt[] = attempts
-      .filter((a: any) => (a.status === "completed" || a.status === "submitted" || a.status === "evaluated") && a.test_results && a.test_results.length > 0)
+      .filter((a: any) => (a.status === "completed" || a.status === "submitted" || a.status === "evaluated"))
       .slice(0, 5)
       .map((a: any) => {
-        const res = a.test_results[0];
+        const res = Array.isArray(a.test_results) ? a.test_results[0] : a.test_results;
         const mt = a.mock_tests;
         const submitted = new Date(a.submitted_at || a.started_at);
         const diffHours = Math.floor((now.getTime() - submitted.getTime()) / 3600000);
@@ -1097,25 +1119,32 @@ export class AssessmentService {
           testType: mt?.mock_templates?.test_type || "mock",
           submittedAt: a.submitted_at || a.started_at,
           relativeTime,
-          score: Number(res.total_score ?? res.score ?? 0),
-          maxScore: Number(res.max_score ?? mt?.total_marks ?? 100),
-          accuracyPercentage: Number(res.accuracy_percentage ?? 0),
-          correctCount: res.correct_count ?? 0,
-          incorrectCount: res.incorrect_count ?? 0,
-          timeSpentSeconds: a.time_taken_seconds || res.time_spent_seconds || 0,
+          score: res && (res.total_score !== undefined || res.score !== undefined) ? Number(res.total_score ?? res.score) : 0,
+          maxScore: Number(res?.max_score ?? mt?.total_marks ?? 100),
+          accuracyPercentage: Number(res?.accuracy_percentage ?? 0),
+          correctCount: res?.correct_count ?? 0,
+          incorrectCount: res?.incorrect_count ?? 0,
+          timeSpentSeconds: a.time_taken_seconds || res?.time_spent_seconds || 0,
         };
       });
 
     // 10. Performance Statistics (Overall + Exam-Wise)
-    const completedAttempts = attempts.filter((a: any) => a.status === "completed" && a.test_results?.length > 0);
+    const completedAttempts = attempts.filter((a: any) => (a.status === "completed" || a.status === "submitted" || a.status === "evaluated"));
     const totalMocksAttempted = completedAttempts.length;
-    const totalAccuracy = completedAttempts.reduce((acc: number, a: any) => acc + Number(a.test_results[0]?.accuracy_percentage || 0), 0);
+    const totalAccuracy = completedAttempts.reduce((acc: number, a: any) => {
+      const res = Array.isArray(a.test_results) ? a.test_results[0] : a.test_results;
+      return acc + Number(res?.accuracy_percentage || 0);
+    }, 0);
     const averageAccuracy = totalMocksAttempted > 0 ? Math.round(totalAccuracy / totalMocksAttempted) : 0;
     const bestScore = completedAttempts.reduce((best: number, a: any) => {
-      const score = Number(a.test_results[0]?.total_score ?? a.test_results[0]?.score ?? 0);
+      const res = Array.isArray(a.test_results) ? a.test_results[0] : a.test_results;
+      const score = Number(res?.total_score ?? res?.score ?? 0);
       return score > best ? score : best;
     }, 0);
-    const questionsSolved = completedAttempts.reduce((acc: number, a: any) => acc + (a.test_results[0]?.attempted_count || a.test_results[0]?.correct_count || 0), 0);
+    const questionsSolved = completedAttempts.reduce((acc: number, a: any) => {
+      const res = Array.isArray(a.test_results) ? a.test_results[0] : a.test_results;
+      return acc + (res?.attempted_count || res?.correct_count || 0);
+    }, 0);
 
     // Exam-wise preparation summary
     const examPrepSummaries: MockDashboardExamPrepSummary[] = targetExams.map((exam: any) => {
@@ -1759,6 +1788,16 @@ export class AssessmentService {
         unansweredCount,
         timeSpentSeconds: totalTimeSpent,
       }).catch((e) => console.error("[submitTestAttempt] Gamification reward notice:", e));
+
+      // 6. Invalidate dashboard and test cache paths
+      try {
+        revalidatePath("/mock-tests");
+        revalidatePath("/dashboard");
+        revalidatePath(`/mock-tests/${attempt.mock_test_id}`);
+        revalidatePath(`/mock-tests/${attempt.mock_test_id}/leaderboard`);
+      } catch (revErr) {
+        console.warn("[submitTestAttempt] Revalidation notice:", revErr);
+      }
 
       return { success: true, resultId: testResult.id };
     } catch (dbErr) {

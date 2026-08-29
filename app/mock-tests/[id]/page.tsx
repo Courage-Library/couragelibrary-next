@@ -7,7 +7,8 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { ShieldAlert, CheckCircle2, ArrowLeft, Eye, RotateCcw } from "lucide-react";
+import { ShieldAlert, CheckCircle2, ArrowLeft, Eye } from "lucide-react";
+import { StartTestActionButton } from "@/components/assessment/start-test-action-button";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -138,31 +139,33 @@ export default async function MockTestInstructionsPage({ params }: Props) {
           </CardContent>
 
           <CardFooter className="flex items-center justify-between pt-6 border-t border-slate-100">
-            <Link href="/mock-tests">
+            <Link href="/mock-tests" prefetch={false}>
               <Button variant="outline" size="md">
                 Back to Dashboard
               </Button>
             </Link>
             {isCompleted && userAttempt ? (
-              <Link href={`/mock-tests/${userAttempt.id}/result`}>
+              <Link href={`/mock-tests/${userAttempt.id}/result`} prefetch={false}>
                 <Button variant="default" size="lg" className="bg-emerald-600 hover:bg-emerald-700 font-bold px-8 shadow-sm text-white">
                   <Eye className="w-4 h-4 mr-2" />
                   View Completed Result
                 </Button>
               </Link>
             ) : isInProgress ? (
-              <Link href={`/mock-tests/${data.test.id}/take`}>
-                <Button variant="default" size="lg" className="bg-amber-500 hover:bg-amber-600 font-bold px-8 shadow-sm text-slate-950">
-                  <RotateCcw className="w-4 h-4 mr-2" />
-                  Continue Test
-                </Button>
-              </Link>
+              <StartTestActionButton
+                testId={data.test.id}
+                isResume
+                size="lg"
+                className="px-8 shadow-sm font-bold text-sm"
+                label="Continue Test"
+              />
             ) : (
-              <Link href={`/mock-tests/${data.test.id}/take`}>
-                <Button variant="default" size="lg" className="bg-blue-600 hover:bg-blue-700 font-bold px-8 shadow-sm">
-                  I Agree &amp; Start Test
-                </Button>
-              </Link>
+              <StartTestActionButton
+                testId={data.test.id}
+                size="lg"
+                className="px-8 shadow-sm font-bold text-sm"
+                label="I Agree & Start Test"
+              />
             )}
           </CardFooter>
         </Card>
