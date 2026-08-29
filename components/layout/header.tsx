@@ -1,8 +1,7 @@
 import React from "react";
 import { Container } from "@/components/ui/container";
-import { UserNav } from "@/components/layout/user-nav";
 import { MainNav } from "@/components/layout/main-nav";
-import { MobileNav } from "@/components/layout/mobile-nav";
+import { HeaderControls } from "@/components/layout/header-controls";
 import { BrandLogo } from "@/components/brand/logo";
 import { createServerSupabaseClient, createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { AdminService } from "@/services/admin.service";
@@ -51,8 +50,7 @@ export async function Header() {
 
         {/* Right: Right Navigation Controls & Mobile Menu */}
         <div className="flex items-center gap-3 shrink-0">
-          <UserNav user={userData} coins={coins} streak={streak} />
-          <MobileNav user={userData} />
+          <HeaderControls user={userData} coins={coins} streak={streak} />
         </div>
       </Container>
     </header>
