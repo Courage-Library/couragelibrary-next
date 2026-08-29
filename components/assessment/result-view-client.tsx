@@ -16,6 +16,8 @@ import {
   HelpCircle,
   ArrowRight,
   Check,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 
 interface ResultViewClientProps {
@@ -29,6 +31,7 @@ export function ResultViewClient({ data }: ResultViewClientProps) {
 
   const [activeFilter, setActiveFilter] = useState<QuestionFilter>("all");
   const [selectedSection, setSelectedSection] = useState<string>("all");
+  const [isExpanded, setIsExpanded] = useState<boolean>(false);
 
   // Filtered Questions
   const filteredQuestions = useMemo(() => {
@@ -52,9 +55,28 @@ export function ResultViewClient({ data }: ResultViewClientProps) {
     });
   }, [reviewQuestions, activeFilter, selectedSection]);
 
+  // Reset expansion when filter or section changes
+  const handleFilterChange = (filter: QuestionFilter) => {
+    setActiveFilter(filter);
+    setIsExpanded(false);
+  };
+
+  const handleSectionChange = (section: string) => {
+    setSelectedSection(section);
+    setIsExpanded(false);
+  };
+
   const incorrectCount = result.incorrectCount;
   const correctCount = result.correctCount;
   const unattemptedCount = result.unansweredCount;
+
+  // Visible questions: 5 by default, or all if expanded / count <= 5
+  const visibleQuestions = useMemo(() => {
+    if (isExpanded || filteredQuestions.length <= 5) {
+      return filteredQuestions;
+    }
+    return filteredQuestions.slice(0, 5);
+  }, [filteredQuestions, isExpanded]);
 
   // Format Time
   const formatTime = (seconds: number) => {
@@ -363,7 +385,7 @@ export function ResultViewClient({ data }: ResultViewClientProps) {
             <div className="flex flex-wrap items-center gap-1.5">
               <button
                 type="button"
-                onClick={() => setActiveFilter("all")}
+                onClick={() => handleFilterChange("all")}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                   activeFilter === "all"
                     ? "bg-slate-900 text-white"
@@ -375,7 +397,7 @@ export function ResultViewClient({ data }: ResultViewClientProps) {
 
               <button
                 type="button"
-                onClick={() => setActiveFilter("incorrect")}
+                onClick={() => handleFilterChange("incorrect")}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
                   activeFilter === "incorrect"
                     ? "bg-red-600 text-white"
@@ -387,7 +409,7 @@ export function ResultViewClient({ data }: ResultViewClientProps) {
 
               <button
                 type="button"
-                onClick={() => setActiveFilter("correct")}
+                onClick={() => handleFilterChange("correct")}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
                   activeFilter === "correct"
                     ? "bg-emerald-600 text-white"
@@ -399,7 +421,7 @@ export function ResultViewClient({ data }: ResultViewClientProps) {
 
               <button
                 type="button"
-                onClick={() => setActiveFilter("unattempted")}
+                onClick={() => handleFilterChange("unattempted")}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
                   activeFilter === "unattempted"
                     ? "bg-amber-600 text-white"
@@ -416,7 +438,7 @@ export function ResultViewClient({ data }: ResultViewClientProps) {
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
               <button
                 type="button"
-                onClick={() => setSelectedSection("all")}
+                onClick={() => handleSectionChange("all")}
                 className={`px-3 py-1 rounded-lg font-bold transition cursor-pointer ${
                   selectedSection === "all"
                     ? "bg-blue-600 text-white"
@@ -429,7 +451,7 @@ export function ResultViewClient({ data }: ResultViewClientProps) {
                 <button
                   key={s.sectionName}
                   type="button"
-                  onClick={() => setSelectedSection(s.sectionName)}
+                  onClick={() => handleSectionChange(s.sectionName)}
                   className={`px-3 py-1 rounded-lg font-bold transition cursor-pointer whitespace-nowrap ${
                     selectedSection === s.sectionName
                       ? "bg-blue-600 text-white"
@@ -442,6 +464,33 @@ export function ResultViewClient({ data }: ResultViewClientProps) {
             </div>
           )}
 
+          {/* Question Count Status Indicator */}
+          {filteredQuestions.length > 0 && (
+            <div className="flex items-center justify-between text-xs text-slate-500 font-semibold px-1">
+              <span>
+                Showing {visibleQuestions.length} of {filteredQuestions.length}{" "}
+                {activeFilter !== "all" ? `${activeFilter} ` : ""}questions
+              </span>
+              {filteredQuestions.length > 5 && (
+                <button
+                  type="button"
+                  onClick={() => setIsExpanded(!isExpanded)}
+                  className="text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1 cursor-pointer"
+                >
+                  {isExpanded ? (
+                    <>
+                      Show Less <ChevronUp className="w-3.5 h-3.5" />
+                    </>
+                  ) : (
+                    <>
+                      View All {filteredQuestions.length} Questions <ChevronDown className="w-3.5 h-3.5" />
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Questions List */}
           <div className="space-y-4">
             {filteredQuestions.length === 0 ? (
@@ -450,7 +499,7 @@ export function ResultViewClient({ data }: ResultViewClientProps) {
                 <span className="text-xs">Select another status or view all questions.</span>
               </div>
             ) : (
-              filteredQuestions.map((q) => (
+              visibleQuestions.map((q) => (
                 <QuestionReviewCard
                   key={q.questionOrder}
                   questionOrder={q.questionOrder}
@@ -470,6 +519,30 @@ export function ResultViewClient({ data }: ResultViewClientProps) {
               ))
             )}
           </div>
+
+          {/* Bottom Expansion CTA */}
+          {filteredQuestions.length > 5 && (
+            <div className="pt-2 text-center">
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="bg-white hover:bg-slate-50 text-slate-800 border-slate-300 font-bold text-xs rounded-xl shadow-xs cursor-pointer inline-flex items-center gap-2"
+              >
+                {isExpanded ? (
+                  <>
+                    Show Less Questions <ChevronUp className="w-4 h-4" />
+                  </>
+                ) : (
+                  <>
+                    View All {filteredQuestions.length} {activeFilter !== "all" ? `${activeFilter} ` : ""}Questions{" "}
+                    <ChevronDown className="w-4 h-4" />
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* ========================================================================= */}
