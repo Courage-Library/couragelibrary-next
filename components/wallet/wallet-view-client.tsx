@@ -2,7 +2,8 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { StudentWalletData } from "@/services/gamification.service";
+import { StudentWalletData, StreakRecoveryEligibility, StreakRecoveryResult } from "@/services/gamification.service";
+import { StreakRecoveryModal } from "@/components/gamification/streak-recovery-modal";
 import { Container } from "@/components/ui/container";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -33,9 +34,13 @@ export interface RewardCatalogItem {
 interface WalletViewClientProps {
   wallet: StudentWalletData;
   catalog: RewardCatalogItem[];
+  streakEligibility?: StreakRecoveryEligibility;
 }
 
-export function WalletViewClient({ wallet, catalog }: WalletViewClientProps) {
+export function WalletViewClient({ wallet: initialWallet, catalog, streakEligibility: initialEligibility }: WalletViewClientProps) {
+  const [wallet, setWallet] = useState<StudentWalletData>(initialWallet);
+  const [eligibility, setEligibility] = useState<StreakRecoveryEligibility | null>(initialEligibility || null);
+  const [isRecoveryModalOpen, setIsRecoveryModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<string>("ALL");
 
@@ -51,6 +56,25 @@ export function WalletViewClient({ wallet, catalog }: WalletViewClientProps) {
 
     return matchesSearch && matchesFilter;
   });
+
+  const handleRecoverySuccess = (result: StreakRecoveryResult) => {
+    setWallet((prev) => ({
+      ...prev,
+      freezesHeld: result.remainingShields,
+      streak: {
+        ...prev.streak,
+        currentStreak: result.preservedStreak,
+        isFrozen: true,
+      },
+    }));
+
+    setEligibility((prev) => (prev ? {
+      ...prev,
+      isEligible: false,
+      isAlreadyProtected: true,
+      freezesHeld: result.remainingShields,
+    } : null));
+  };
 
   return (
     <div className="py-8 sm:py-12 bg-slate-50/70 min-h-[calc(100vh-4rem)]">
@@ -148,7 +172,7 @@ export function WalletViewClient({ wallet, catalog }: WalletViewClientProps) {
             </p>
           </Card>
 
-          <Card className="p-5 bg-white border border-slate-200 shadow-2xs space-y-2">
+          <Card className="p-5 bg-white border border-slate-200 shadow-2xs space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600">
@@ -163,9 +187,51 @@ export function WalletViewClient({ wallet, catalog }: WalletViewClientProps) {
                 {wallet.freezesHeld} / 2 Held
               </span>
             </div>
-            <p className="text-xs text-slate-600 font-medium pt-1">
-              Streak freeze shields automatically protect your active streak when a daily study window is missed.
+
+            <p className="text-xs text-slate-600 font-medium">
+              Streak freeze shields protect your active study streak when a daily study session is missed.
             </p>
+
+            {/* Streak Recovery Action / Status */}
+            {eligibility?.isEligible ? (
+              <div className="p-3 bg-blue-50/80 border border-blue-200/80 rounded-xl space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="space-y-0.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-blue-800 font-mono block">
+                      Missed Day Detected
+                    </span>
+                    <p className="text-xs font-bold text-slate-900">{eligibility.formattedMissedDate || eligibility.missedDate}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsRecoveryModalOpen(true)}
+                    className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-xs shrink-0"
+                  >
+                    Restore Streak
+                  </button>
+                </div>
+              </div>
+            ) : eligibility?.isAlreadyProtected ? (
+              <div className="p-2.5 bg-emerald-50 border border-emerald-200/80 rounded-xl flex items-center justify-between text-xs text-emerald-900">
+                <span className="font-medium">🛡️ {eligibility.formattedMissedDate || eligibility.missedDate} is protected</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider font-mono text-emerald-700">Protected</span>
+              </div>
+            ) : wallet.freezesHeld === 0 ? (
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                <span className="text-slate-500 font-medium">0 / 2 Shields Available</span>
+                <Link
+                  href="/store"
+                  className="font-bold text-blue-600 hover:text-blue-700 transition-colors inline-flex items-center gap-1"
+                >
+                  <span>Get a Streak Freeze</span>
+                  <span>&rarr;</span>
+                </Link>
+              </div>
+            ) : (
+              <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-500 font-medium">
+                Your streak is currently safe. Maintain it by completing daily practice tests.
+              </div>
+            )}
           </Card>
         </div>
 
@@ -363,6 +429,14 @@ export function WalletViewClient({ wallet, catalog }: WalletViewClientProps) {
           )}
         </Card>
       </Container>
+
+      {/* Streak Freeze Recovery Modal */}
+      <StreakRecoveryModal
+        isOpen={isRecoveryModalOpen}
+        onClose={() => setIsRecoveryModalOpen(false)}
+        eligibility={eligibility}
+        onSuccess={handleRecoverySuccess}
+      />
     </div>
   );
 }

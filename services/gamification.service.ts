@@ -159,6 +159,26 @@ export interface StorePageData {
   userClaims: StoreUserClaim[];
 }
 
+export interface StreakRecoveryEligibility {
+  isEligible: boolean;
+  missedDate: string | null;
+  formattedMissedDate: string | null;
+  currentStreak: number;
+  freezesHeld: number;
+  isAlreadyProtected: boolean;
+  reason?: string;
+}
+
+export interface StreakRecoveryResult {
+  success: boolean;
+  error?: string;
+  preservedStreak: number;
+  protectedDate: string;
+  formattedProtectedDate: string;
+  shieldsUsed: number;
+  remainingShields: number;
+}
+
 export interface AdminRewardCatalogItem {
   id: string;
   title: string;
@@ -1351,5 +1371,322 @@ export class GamificationService {
     }
 
     return { success: true };
+  }
+
+  /**
+   * Helper: Formats current date string (YYYY-MM-DD) in Asia/Kolkata timezone
+   */
+  static getKolkataDateString(date: Date = new Date()): string {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(date);
+  }
+
+  /**
+   * Helper: Formats ISO date string into long human date in Asia/Kolkata (e.g. "Friday, 29 August 2026")
+   */
+  static formatKolkataLongDate(dateStr: string): string {
+    try {
+      const [year, month, day] = dateStr.split("-").map(Number);
+      const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+      return new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Asia/Kolkata",
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }).format(date);
+    } catch {
+      return dateStr;
+    }
+  }
+
+  /**
+   * Helper: Shifts YYYY-MM-DD string by N days in UTC calculation
+   */
+  static addDaysToDateString(dateStr: string, days: number): string {
+    const [year, month, day] = dateStr.split("-").map(Number);
+    const date = new Date(Date.UTC(year, month - 1, day + days, 12, 0, 0));
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(date);
+  }
+
+  /**
+   * Evaluates whether a student has an eligible missed study day that can be protected with a Streak Freeze Shield.
+   * Strictly uses Asia/Kolkata calendar dates.
+   */
+  static async getStreakRecoveryEligibility(userId: string): Promise<StreakRecoveryEligibility> {
+    const adminSb = createAdminServerSupabaseClient();
+    const today = GamificationService.getKolkataDateString();
+
+    const [walletRes, streakRes, logsRes] = await Promise.all([
+      adminSb.from("coin_wallets").select("freezes_held").eq("user_id", userId).maybeSingle(),
+      adminSb.from("user_streaks").select("current_streak, longest_streak, last_qualifying_date, is_frozen").eq("user_id", userId).maybeSingle(),
+      adminSb.from("streak_activity_logs").select("activity_date, qualifying_action_type").eq("user_id", userId).order("activity_date", { ascending: false }).limit(30),
+    ]);
+
+    const freezesHeld = Number(walletRes.data?.freezes_held || 0);
+    const streakRow = streakRes.data as any;
+    const currentStreak = Number(streakRow?.current_streak || 0);
+    const lastQualifyingDate = streakRow?.last_qualifying_date as string | null;
+    const activityLogs = (logsRes.data as any[]) || [];
+
+    // Map existing activity dates
+    const activityDatesMap = new Map<string, string>();
+    activityLogs.forEach((log) => {
+      activityDatesMap.set(log.activity_date, log.qualifying_action_type);
+    });
+
+    // If student has no previous streak record or streak is 0
+    if (!lastQualifyingDate || currentStreak === 0) {
+      return {
+        isEligible: false,
+        missedDate: null,
+        formattedMissedDate: null,
+        currentStreak: 0,
+        freezesHeld,
+        isAlreadyProtected: false,
+        reason: "No active streak history available.",
+      };
+    }
+
+    const yesterday = GamificationService.addDaysToDateString(today, -1);
+
+    // If last qualifying date is today, streak is active
+    if (lastQualifyingDate === today) {
+      return {
+        isEligible: false,
+        missedDate: null,
+        formattedMissedDate: null,
+        currentStreak,
+        freezesHeld,
+        isAlreadyProtected: false,
+        reason: "Your daily study activity is completed for today.",
+      };
+    }
+
+    // If last qualifying date is yesterday, streak is currently active for today's window
+    if (lastQualifyingDate === yesterday) {
+      return {
+        isEligible: false,
+        missedDate: null,
+        formattedMissedDate: null,
+        currentStreak,
+        freezesHeld,
+        isAlreadyProtected: false,
+        reason: "Streak is active. Take today's mock to maintain it.",
+      };
+    }
+
+    // Candidate missed day immediately following the last qualifying activity
+    const candidateMissedDate = GamificationService.addDaysToDateString(lastQualifyingDate, 1);
+
+    // Check if the candidate missed date was already protected
+    const existingAction = activityDatesMap.get(candidateMissedDate);
+    if (existingAction === "FREEZE_APPLIED") {
+      // Check if there's a subsequent missed date within allowable recovery
+      const nextMissedDate = GamificationService.addDaysToDateString(candidateMissedDate, 1);
+      if (nextMissedDate <= yesterday && !activityDatesMap.has(nextMissedDate) && freezesHeld >= 1) {
+        return {
+          isEligible: true,
+          missedDate: nextMissedDate,
+          formattedMissedDate: GamificationService.formatKolkataLongDate(nextMissedDate),
+          currentStreak,
+          freezesHeld,
+          isAlreadyProtected: false,
+        };
+      }
+
+      return {
+        isEligible: false,
+        missedDate: candidateMissedDate,
+        formattedMissedDate: GamificationService.formatKolkataLongDate(candidateMissedDate),
+        currentStreak,
+        freezesHeld,
+        isAlreadyProtected: true,
+        reason: "This missed study date is already protected.",
+      };
+    }
+
+    // If candidate missed date is in the future relative to today, reject
+    if (candidateMissedDate > today) {
+      return {
+        isEligible: false,
+        missedDate: null,
+        formattedMissedDate: null,
+        currentStreak,
+        freezesHeld,
+        isAlreadyProtected: false,
+        reason: "No missed study day found.",
+      };
+    }
+
+    // Candidate missed date is eligible!
+    return {
+      isEligible: freezesHeld >= 1,
+      missedDate: candidateMissedDate,
+      formattedMissedDate: GamificationService.formatKolkataLongDate(candidateMissedDate),
+      currentStreak,
+      freezesHeld,
+      isAlreadyProtected: false,
+      reason: freezesHeld < 1 ? "0 / 2 Streak Freeze Shields held. Get one in the Store." : undefined,
+    };
+  }
+
+  /**
+   * Server-Authoritative Streak Freeze Recovery Activation
+   * Atomically protects an eligible missed day by consuming 1 shield.
+   * Leaves CL Coin balance completely untouched.
+   */
+  static async applyStreakFreezeRecovery(input: {
+    userId: string;
+    idempotencyKey?: string;
+  }): Promise<StreakRecoveryResult> {
+    const adminSb = createAdminServerSupabaseClient();
+    const { userId } = input;
+
+    // 1. Evaluate Authoritative Eligibility
+    const eligibility = await GamificationService.getStreakRecoveryEligibility(userId);
+    if (!eligibility.missedDate) {
+      return {
+        success: false,
+        error: eligibility.reason || "No eligible missed study day found to protect.",
+        preservedStreak: eligibility.currentStreak,
+        protectedDate: "",
+        formattedProtectedDate: "",
+        shieldsUsed: 0,
+        remainingShields: eligibility.freezesHeld,
+      };
+    }
+
+    if (eligibility.freezesHeld < 1) {
+      return {
+        success: false,
+        error: "You do not hold any Streak Freeze shields. Redeem one in the Store first.",
+        preservedStreak: eligibility.currentStreak,
+        protectedDate: eligibility.missedDate,
+        formattedProtectedDate: eligibility.formattedMissedDate || eligibility.missedDate,
+        shieldsUsed: 0,
+        remainingShields: 0,
+      };
+    }
+
+    if (eligibility.isAlreadyProtected) {
+      return {
+        success: true, // Idempotent success
+        preservedStreak: eligibility.currentStreak,
+        protectedDate: eligibility.missedDate,
+        formattedProtectedDate: eligibility.formattedMissedDate || eligibility.missedDate,
+        shieldsUsed: 0,
+        remainingShields: eligibility.freezesHeld,
+      };
+    }
+
+    const missedDate = eligibility.missedDate;
+    const formattedDate = eligibility.formattedMissedDate || GamificationService.formatKolkataLongDate(missedDate);
+    const deterministicKey = input.idempotencyKey || `streak_freeze_${userId}_${missedDate}`;
+
+    // 2. Check for duplicate protection log (Idempotency)
+    const { data: existingLog } = await adminSb
+      .from("streak_activity_logs")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("activity_date", missedDate)
+      .eq("qualifying_action_type", "FREEZE_APPLIED")
+      .maybeSingle();
+
+    if (existingLog) {
+      return {
+        success: true,
+        preservedStreak: eligibility.currentStreak,
+        protectedDate: missedDate,
+        formattedProtectedDate: formattedDate,
+        shieldsUsed: 0,
+        remainingShields: eligibility.freezesHeld,
+      };
+    }
+
+    // 3. Atomically Decrement 1 Shield in Coin Wallet (CL balance untouched)
+    const newShieldsCount = eligibility.freezesHeld - 1;
+    const { error: walletUpErr } = await adminSb
+      .from("coin_wallets")
+      .update({
+        freezes_held: newShieldsCount,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", userId)
+      .gte("freezes_held", 1);
+
+    if (walletUpErr) {
+      console.error("[applyStreakFreezeRecovery] Wallet shield update failed:", walletUpErr);
+      return {
+        success: false,
+        error: "Failed to consume Streak Freeze shield. Please try again.",
+        preservedStreak: eligibility.currentStreak,
+        protectedDate: missedDate,
+        formattedProtectedDate: formattedDate,
+        shieldsUsed: 0,
+        remainingShields: eligibility.freezesHeld,
+      };
+    }
+
+    // 4. Insert Streak Activity Log (Marks the date as PROTECTED)
+    const { error: logErr } = await adminSb.from("streak_activity_logs").insert({
+      user_id: userId,
+      activity_date: missedDate,
+      qualifying_action_type: "FREEZE_APPLIED",
+      duration_seconds: 0,
+      timezone: "Asia/Kolkata",
+      metadata: {
+        protected_by: "STREAK_FREEZE_SHIELD",
+        streak_preserved: eligibility.currentStreak,
+        idempotency_key: deterministicKey,
+        protected_at: new Date().toISOString(),
+      },
+    });
+
+    if (logErr) {
+      console.error("[applyStreakFreezeRecovery] Streak log insert failed:", logErr);
+    }
+
+    // 5. Update User Streaks State (Preserves streak, updates last qualifying anchor)
+    const { data: streakRow } = await adminSb
+      .from("user_streaks")
+      .select("freezes_consumed_count")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    const newConsumedCount = Number(streakRow?.freezes_consumed_count || 0) + 1;
+
+    const { error: streakUpErr } = await adminSb
+      .from("user_streaks")
+      .update({
+        freezes_consumed_count: newConsumedCount,
+        last_freeze_used_date: missedDate,
+        last_qualifying_date: missedDate,
+        is_frozen: true,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", userId);
+
+    if (streakUpErr) {
+      console.error("[applyStreakFreezeRecovery] User streaks update failed:", streakUpErr);
+    }
+
+    return {
+      success: true,
+      preservedStreak: eligibility.currentStreak,
+      protectedDate: missedDate,
+      formattedProtectedDate: formattedDate,
+      shieldsUsed: 1,
+      remainingShields: newShieldsCount,
+    };
   }
 }

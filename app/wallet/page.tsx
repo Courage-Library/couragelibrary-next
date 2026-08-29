@@ -23,13 +23,14 @@ export default async function WalletPage() {
     redirect("/auth/login?next=/wallet");
   }
 
-  const [wallet, catalogRes] = await Promise.all([
+  const [wallet, catalogRes, streakEligibility] = await Promise.all([
     GamificationService.getStudentWallet(user.id),
     supabase
       .from("reward_catalog")
       .select("id, title, slug, description, reward_type, coin_cost, stock_quantity")
       .eq("is_active", true)
       .order("display_order", { ascending: true }),
+    GamificationService.getStreakRecoveryEligibility(user.id),
   ]);
 
   if (!wallet) {
@@ -108,5 +109,5 @@ export default async function WalletPage() {
     );
   }
 
-  return <WalletViewClient wallet={wallet} catalog={catalog} />;
+  return <WalletViewClient wallet={wallet} catalog={catalog} streakEligibility={streakEligibility} />;
 }

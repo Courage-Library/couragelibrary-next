@@ -298,7 +298,7 @@ export function StoreViewClient({
                       <button
                         type="button"
                         disabled
-                        className="w-full py-2.5 rounded-xl text-xs font-bold text-slate-400 bg-slate-100 cursor-not-allowed"
+                        className="w-full py-2.5 rounded-xl text-xs font-bold text-slate-400 bg-slate-100 cursor-not-allowed select-none"
                       >
                         Out of Stock
                       </button>
@@ -306,24 +306,31 @@ export function StoreViewClient({
                       <button
                         type="button"
                         disabled
-                        className="w-full py-2.5 rounded-xl text-xs font-bold text-slate-400 bg-slate-100 cursor-not-allowed"
+                        className="w-full py-2.5 rounded-xl text-xs font-bold text-slate-400 bg-slate-100 cursor-not-allowed select-none"
                       >
                         Max Shields Held (2/2)
                       </button>
-                    ) : (
+                    ) : canAfford ? (
                       <button
                         type="button"
                         onClick={() => handleRedeemClick(item)}
-                        className={`w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all shadow-xs active:scale-[0.98] ${
-                          canAfford
-                            ? "text-white bg-slate-900 hover:bg-slate-800"
-                            : "text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200/80"
-                        }`}
+                        className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 transition-all shadow-xs active:scale-[0.98]"
                       >
                         <svg className="w-3.5 h-3.5 text-amber-400 fill-amber-400" viewBox="0 0 24 24">
                           <circle cx="12" cy="12" r="10" />
                         </svg>
                         <span>Redeem Reward</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled
+                        className="w-full inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold text-slate-400 bg-slate-100/90 border border-slate-200/80 cursor-not-allowed select-none opacity-80"
+                      >
+                        <svg className="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        <span>Need {(cost - balance).toLocaleString()} more CL</span>
                       </button>
                     )}
                   </div>
