@@ -2047,8 +2047,9 @@ export class AssessmentService {
         totalCoinsEarned: Number((eventData as any).actual_coins_awarded || 0),
       };
     } else {
+      // IF EVENT IS NOT FOUND: Attempt server-authoritative reconciliation ONCE via GamificationService
       const canonicalType = (mt as any)?.mock_templates?.test_type || "sectional";
-      const calc = GamificationService.calculateMockReward({
+      const awarded = await GamificationService.awardMockCompletionReward({
         userId: candidateUserId,
         attemptId: resolvedAttemptId,
         testId: mt.id,
@@ -2060,20 +2061,40 @@ export class AssessmentService {
         unansweredCount: r.unanswered_count,
         timeSpentSeconds: r.time_spent_seconds,
       });
-      rewards = {
-        isRetake: false,
-        completionCoins: calc.completionCoins,
-        completionReason: calc.completionReason,
-        isAccuracyEligible: calc.isAccuracyEligible,
-        minAttemptRequired: calc.minAttemptRequired,
-        accuracyPercentage: calc.accuracyPercentage,
-        accuracyBonusCoins: calc.accuracyBonusCoins,
-        accuracyReason: calc.accuracyReason,
-        streakCoins: 0,
-        streakReason: "Daily Activity Logged",
-        currentStreak: 1,
-        totalCoinsEarned: calc.totalCalculated,
-      };
+
+      if (awarded.isRewardEligible && awarded.totalCoinsEarned > 0) {
+        rewards = {
+          isRetake: false,
+          completionCoins: awarded.completionCoins,
+          completionReason: awarded.completionReason,
+          isAccuracyEligible: awarded.isAccuracyEligible,
+          minAttemptRequired: awarded.minAttemptRequired,
+          accuracyPercentage: awarded.accuracyPercentage,
+          accuracyBonusCoins: awarded.accuracyBonusCoins,
+          accuracyReason: awarded.accuracyReason,
+          streakCoins: awarded.streakCoins,
+          streakReason: awarded.streakReason,
+          currentStreak: awarded.currentStreak,
+          badgeUnlocked: awarded.badgeUnlocked,
+          totalCoinsEarned: awarded.totalCoinsEarned,
+        };
+      } else {
+        // If reward failed or is not eligible, accurately show 0 coins earned — NEVER LIE
+        rewards = {
+          isRetake: awarded.isRetake,
+          completionCoins: 0,
+          completionReason: awarded.completionReason || "Reward verification pending",
+          isAccuracyEligible: false,
+          minAttemptRequired: Math.ceil(r.total_questions * 0.5),
+          accuracyPercentage: Number(r.accuracy_percentage || 0),
+          accuracyBonusCoins: 0,
+          accuracyReason: "Reward verification pending",
+          streakCoins: 0,
+          streakReason: "Daily Activity",
+          currentStreak: 1,
+          totalCoinsEarned: 0,
+        };
+      }
     }
 
     return {

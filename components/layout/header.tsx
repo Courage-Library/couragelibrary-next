@@ -4,7 +4,7 @@ import { UserNav } from "@/components/layout/user-nav";
 import { MainNav } from "@/components/layout/main-nav";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { BrandLogo } from "@/components/brand/logo";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient, createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { AdminService } from "@/services/admin.service";
 
 export async function Header() {
@@ -16,16 +16,17 @@ export async function Header() {
   let isAdmin = false;
 
   if (user) {
+    const adminSb = createAdminServerSupabaseClient();
     const [walletRes, streakRes, adminRes] = await Promise.all([
-      supabase.from("coin_wallets").select("current_balance").eq("user_id", user.id).maybeSingle(),
-      supabase.from("user_streaks").select("current_streak").eq("user_id", user.id).maybeSingle(),
+      adminSb.from("coin_wallets").select("current_balance").eq("user_id", user.id).maybeSingle(),
+      adminSb.from("user_streaks").select("current_streak").eq("user_id", user.id).maybeSingle(),
       AdminService.checkIsAdminOrStaff(),
     ]);
 
     const walletData = walletRes.data as { current_balance: number } | null;
     const streakData = streakRes.data as { current_streak: number } | null;
-    coins = walletData?.current_balance || 0;
-    streak = streakData?.current_streak || 0;
+    coins = Number(walletData?.current_balance || 0);
+    streak = Number(streakData?.current_streak || 0);
     isAdmin = adminRes.isAdmin;
   }
 
