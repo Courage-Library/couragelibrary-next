@@ -340,7 +340,7 @@ export function MockTestDashboardView({ data }: Props) {
               </div>
 
               {nextMockAction.todayMock.attemptId && (
-                <Link href={`/assessment/results/${nextMockAction.todayMock.attemptId}`}>
+                <Link href={`/mock-tests/${nextMockAction.todayMock.attemptId}/result`}>
                   <Button variant="default" className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-xs">
                     <Eye className="w-3.5 h-3.5 mr-1.5" />
                     View Detailed Analysis
@@ -430,7 +430,7 @@ export function MockTestDashboardView({ data }: Props) {
 
                   <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between">
                     {mock.status === "completed" && mock.attemptId ? (
-                      <Link href={`/assessment/results/${mock.attemptId}`} className="w-full">
+                      <Link href={`/mock-tests/${mock.attemptId}/result`} className="w-full">
                         <Button size="sm" variant="outline" className="w-full text-xs font-bold text-emerald-700 border-emerald-200 hover:bg-emerald-50">
                           <Eye className="w-3 h-3 mr-1" />
                           View Result ({mock.completedScore ?? "—"} / {mock.totalMarks})
@@ -656,7 +656,7 @@ export function MockTestDashboardView({ data }: Props) {
                     </div>
                   </div>
 
-                  <Link href={`/assessment/results/${att.attemptId}`} className="shrink-0 self-start sm:self-auto">
+                  <Link href={`/mock-tests/${att.attemptId}/result`} className="shrink-0 self-start sm:self-auto">
                     <Button size="sm" variant="outline" className="text-xs font-bold border-slate-200 hover:bg-slate-50">
                       View Analysis
                     </Button>

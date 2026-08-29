@@ -1767,14 +1767,49 @@ export class AssessmentService {
   static async getTestResult(attemptId: string): Promise<TestResultSummary | null> {
     const supabase = await createServerSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
+    const sb = supabase as any;
 
-    const [resultRes, attemptRes] = await Promise.all([
-      supabase.from("test_results").select("*").eq("attempt_id", attemptId).maybeSingle(),
-      supabase.from("test_attempts").select("id, mock_test_id, user_id, started_at, submitted_at, mock_tests(id, title, duration_minutes, total_questions, total_marks)").eq("id", attemptId).maybeSingle(),
+    let resolvedAttemptId = attemptId;
+    let [resultRes, attemptRes] = await Promise.all([
+      sb.from("test_results").select("*").eq("attempt_id", resolvedAttemptId).maybeSingle(),
+      sb.from("test_attempts").select("id, mock_test_id, user_id, started_at, submitted_at, mock_tests(id, title, duration_minutes, total_questions, total_marks)").eq("id", resolvedAttemptId).maybeSingle(),
     ]);
 
-    const r = resultRes.data as any;
-    const attemptData = attemptRes.data as any;
+    // Fallback 1: If not found by attempt_id, check if attemptId is actually a test_results.id
+    if (!resultRes?.data && !attemptRes?.data) {
+      const { data: resById } = await sb.from("test_results").select("*").eq("id", attemptId).maybeSingle();
+      if (resById) {
+        resolvedAttemptId = (resById as any).attempt_id;
+        [resultRes, attemptRes] = await Promise.all([
+          Promise.resolve({ data: resById }),
+          sb.from("test_attempts").select("id, mock_test_id, user_id, started_at, submitted_at, mock_tests(id, title, duration_minutes, total_questions, total_marks)").eq("id", resolvedAttemptId).maybeSingle(),
+        ]);
+      }
+    }
+
+    // Fallback 2: If still not found and user is logged in, check if attemptId is a mock_test_id
+    if ((!resultRes?.data || !attemptRes?.data) && user) {
+      const { data: latestAttempt } = await sb
+        .from("test_attempts")
+        .select("id")
+        .eq("mock_test_id", attemptId)
+        .eq("user_id", user.id)
+        .in("status", ["submitted", "completed", "evaluated"])
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (latestAttempt) {
+        resolvedAttemptId = (latestAttempt as any).id;
+        [resultRes, attemptRes] = await Promise.all([
+          sb.from("test_results").select("*").eq("attempt_id", resolvedAttemptId).maybeSingle(),
+          sb.from("test_attempts").select("id, mock_test_id, user_id, started_at, submitted_at, mock_tests(id, title, duration_minutes, total_questions, total_marks)").eq("id", resolvedAttemptId).maybeSingle(),
+        ]);
+      }
+    }
+
+    const r = resultRes?.data as any;
+    const attemptData = attemptRes?.data as any;
 
     if (!r || !attemptData || !attemptData.mock_tests) return null;
     const mt = attemptData.mock_tests;
@@ -1785,7 +1820,7 @@ export class AssessmentService {
     const [sectionsRes, questionsRes, answersRes, allTestResultsRes] = await Promise.all([
       adminSb.from("section_results").select("*, mock_sections(id, section_name)").eq("test_result_id", r.id),
       adminSb.from("mock_questions").select("id, question_order, mock_section_id, marks, negative_mark, mock_sections(id, section_name), question_versions(id, question_text, question_image_url, options_type, question_options(id, option_key, option_text, option_image_url, order_index), question_answers(correct_option_key, explanation_md), questions(canonical_topic_id, topics(name, slug)))").eq("mock_test_id", mt.id).order("question_order"),
-      adminSb.from("attempt_answers").select("mock_question_id, selected_option_key, is_correct, evaluated_marks").eq("attempt_id", attemptId),
+      adminSb.from("attempt_answers").select("mock_question_id, selected_option_key, is_correct, evaluated_marks").eq("attempt_id", resolvedAttemptId),
       adminSb.from("test_results").select("id, user_id, total_score, max_score, accuracy_percentage, time_spent_seconds, created_at").eq("mock_test_id", mt.id).order("total_score", { ascending: false }).order("accuracy_percentage", { ascending: false }).order("time_spent_seconds", { ascending: true }),
     ]);
 
