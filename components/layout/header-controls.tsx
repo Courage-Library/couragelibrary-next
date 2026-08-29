@@ -54,6 +54,7 @@ export function HeaderControls({ user, coins = 0, streak = 0 }: HeaderControlsPr
   const pathname = usePathname();
   const profileDropdownRef = useRef<HTMLDivElement>(null);
   const mobileButtonRef = useRef<HTMLButtonElement>(null);
+  const mobilePanelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -90,10 +91,11 @@ export function HeaderControls({ user, coins = 0, streak = 0 }: HeaderControlsPr
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       const target = event.target as Node;
-      // If clicking inside profile dropdown or mobile hamburger button, let their onClick handlers manage state
+      // If clicking inside profile dropdown, mobile hamburger button, or the mobile nav panel, let their own handlers manage state
       if (
         (profileDropdownRef.current && profileDropdownRef.current.contains(target)) ||
-        (mobileButtonRef.current && mobileButtonRef.current.contains(target))
+        (mobileButtonRef.current && mobileButtonRef.current.contains(target)) ||
+        (mobilePanelRef.current && mobilePanelRef.current.contains(target))
       ) {
         return;
       }
@@ -111,7 +113,13 @@ export function HeaderControls({ user, coins = 0, streak = 0 }: HeaderControlsPr
   };
 
   const toggleProfileDropdown = () => {
-    setOpenOverlay((prev) => (prev === "profile" ? null : "profile"));
+    setOpenOverlay((prev) => {
+      const next = prev === "profile" ? null : "profile";
+      if (next === "profile") {
+        setExpandedCategory(null);
+      }
+      return next;
+    });
   };
 
   const toggleCategory = (cat: string) => {
@@ -271,7 +279,10 @@ export function HeaderControls({ user, coins = 0, streak = 0 }: HeaderControlsPr
             aria-hidden="true"
           />
 
-          <div className="bg-white p-5 space-y-4 max-h-[calc(100vh-4rem)] overflow-y-auto shadow-2xl rounded-b-3xl border-b border-slate-200/80">
+          <div
+            ref={mobilePanelRef}
+            className="bg-white p-5 space-y-4 max-h-[calc(100vh-4rem)] overflow-y-auto shadow-2xl rounded-b-3xl border-b border-slate-200/80"
+          >
             <div className="space-y-1">
               {/* 1. EXAMS ACCORDION */}
               <div className="border-b border-slate-100 pb-2">
@@ -440,6 +451,28 @@ export function HeaderControls({ user, coins = 0, streak = 0 }: HeaderControlsPr
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* Bottom Auth Section (Log Out / Log In) */}
+            <div className="pt-3 border-t border-slate-100">
+              {user ? (
+                <form action={logoutAction}>
+                  <button
+                    type="submit"
+                    className="flex items-center gap-2.5 w-full py-2 text-sm font-bold text-rose-600 hover:bg-rose-50 rounded-xl px-2 transition-colors cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4 shrink-0" /> Log Out
+                  </button>
+                </form>
+              ) : (
+                <Link
+                  href="/auth/login"
+                  onClick={() => setOpenOverlay(null)}
+                  className="flex items-center gap-2.5 w-full py-2 text-sm font-bold text-slate-800 hover:bg-slate-50 rounded-xl px-2 transition-colors"
+                >
+                  <User className="w-4 h-4 text-blue-600 shrink-0" /> Log In
+                </Link>
+              )}
             </div>
           </div>
         </div>,
