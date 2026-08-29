@@ -366,6 +366,7 @@ export interface TestCandidateSecurityInfo {
 }
 
 export interface TestRewardSummary {
+  isRetake?: boolean;
   completionCoins: number;
   completionReason: string;
   isAccuracyEligible: boolean;
@@ -1416,22 +1417,18 @@ export class AssessmentService {
 
     if (!user) return null;
 
-    // Check for single attempt per calendar day enforcement (IST)
-    const istNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
-    const todayStart = new Date(istNow);
-    todayStart.setHours(0, 0, 0, 0);
-
-    const { data: alreadyCompletedToday } = await supabase
+    // Non-retakeable weekly examination cycle enforcement:
+    // Every test in the 7-day program has exactly one attempt per student.
+    const { data: alreadyCompleted } = await supabase
       .from("test_attempts")
       .select("id, status, started_at")
       .eq("mock_test_id", testId)
       .eq("user_id", user.id)
-      .in("status", ["submitted", "completed"])
-      .gte("started_at", todayStart.toISOString())
+      .in("status", ["submitted", "completed", "evaluated"])
       .maybeSingle();
 
-    if (alreadyCompletedToday) {
-      // Single attempt per calendar day already submitted
+    if (alreadyCompleted) {
+      // Retake does not exist — test already completed
       return null;
     }
 
@@ -1617,7 +1614,7 @@ export class AssessmentService {
 
     // Fetch test, sections, questions with answer keys, and student answers
     const [testRes, sectionsRes, questionsRes, answersRes] = await Promise.all([
-      adminSb.from("mock_tests").select("id, total_questions, total_marks").eq("id", attempt.mock_test_id).single(),
+      adminSb.from("mock_tests").select("id, total_questions, total_marks, mock_templates(id, title, test_type)").eq("id", attempt.mock_test_id).single(),
       adminSb.from("mock_sections").select("id, marks_per_question, negative_mark").eq("mock_test_id", attempt.mock_test_id),
       adminSb.from("mock_questions").select("id, mock_section_id, question_version_id, marks, negative_mark, question_versions(question_id, question_answers(correct_option_key))").eq("mock_test_id", attempt.mock_test_id),
       adminSb.from("attempt_answers").select("id, mock_question_id, selected_option_key, time_spent_seconds").eq("attempt_id", attemptId),
@@ -1749,11 +1746,12 @@ export class AssessmentService {
       } as any).eq("id", attemptId);
 
       // 5. Award Server-Authoritative CL Coins via GamificationService
+      const canonicalTestType = (testData.mock_templates as any)?.test_type || "sectional";
       await GamificationService.awardMockCompletionReward({
         userId: user.id,
         attemptId,
         testId: attempt.mock_test_id,
-        testType: testData.test_type,
+        canonicalTestType,
         totalQuestions: testData.total_questions,
         attemptedCount,
         correctCount,
@@ -1955,17 +1953,47 @@ export class AssessmentService {
       minute: "2-digit",
     });
 
+    // Check if this attempt is a retake (prior submitted attempt exists for same mock test)
+    const { data: priorAttempt } = await adminSb
+      .from("test_attempts")
+      .select("id")
+      .eq("mock_test_id", mt.id)
+      .eq("user_id", candidateUserId)
+      .in("status", ["submitted", "completed", "evaluated"])
+      .lt("started_at", attemptData.started_at || new Date().toISOString())
+      .neq("id", resolvedAttemptId)
+      .limit(1)
+      .maybeSingle();
+
+    const isRetake = Boolean(priorAttempt);
+
     // Fetch reward event breakdown or compute server-authoritative calculation
     const { data: eventData } = await adminSb
       .from("gamification_events")
       .select("actual_coins_awarded, metadata")
-      .eq("idempotency_key", `mock_eval_${resolvedAttemptId}_${candidateUserId}`)
+      .or(`idempotency_key.eq.mock_reward_${mt.id}_${candidateUserId},idempotency_key.eq.mock_eval_${resolvedAttemptId}_${candidateUserId}`)
       .maybeSingle();
 
     let rewards: TestRewardSummary;
-    if (eventData && (eventData as any).metadata) {
+    if (isRetake) {
+      rewards = {
+        isRetake: true,
+        completionCoins: 0,
+        completionReason: "Retake (Reward only on first completed attempt)",
+        isAccuracyEligible: false,
+        minAttemptRequired: Math.ceil(r.total_questions * 0.5),
+        accuracyPercentage: Number(r.accuracy_percentage || 0),
+        accuracyBonusCoins: 0,
+        accuracyReason: "Retake (No additional accuracy bonus)",
+        streakCoins: 0,
+        streakReason: "Retake",
+        currentStreak: 1,
+        totalCoinsEarned: 0,
+      };
+    } else if (eventData && (eventData as any).metadata) {
       const meta = (eventData as any).metadata;
       rewards = {
+        isRetake: false,
         completionCoins: meta.completion_coins ?? 10,
         completionReason: meta.completion_reason ?? "Test Completed",
         isAccuracyEligible: meta.is_accuracy_eligible ?? (r.attempted_count >= Math.ceil(r.total_questions * 0.5)),
@@ -1980,11 +2008,12 @@ export class AssessmentService {
         totalCoinsEarned: Number((eventData as any).actual_coins_awarded || 0),
       };
     } else {
+      const canonicalType = (mt as any)?.mock_templates?.test_type || "sectional";
       const calc = GamificationService.calculateMockReward({
         userId: candidateUserId,
         attemptId: resolvedAttemptId,
         testId: mt.id,
-        testType: mt.test_type,
+        canonicalTestType: canonicalType,
         totalQuestions: r.total_questions,
         attemptedCount: r.attempted_count,
         correctCount: r.correct_count,
@@ -1993,6 +2022,7 @@ export class AssessmentService {
         timeSpentSeconds: r.time_spent_seconds,
       });
       rewards = {
+        isRetake: false,
         completionCoins: calc.completionCoins,
         completionReason: calc.completionReason,
         isAccuracyEligible: calc.isAccuracyEligible,

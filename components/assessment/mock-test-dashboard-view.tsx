@@ -615,11 +615,28 @@ export function MockTestDashboardView({ data }: Props) {
                   </div>
 
                   <div className="pt-3 mt-3 border-t border-slate-100">
-                    <Link href={`/mock-tests/${test.id}`}>
-                      <Button size="sm" variant="default" className="w-full font-bold text-xs bg-blue-600 hover:bg-blue-700">
-                        {test.userAttemptStatus === "completed" ? "Retake Full Test" : "Take Full Test"}
-                      </Button>
-                    </Link>
+                    {test.userAttemptStatus === "completed" ? (
+                      <Link href={`/mock-tests/${test.id}/result`}>
+                        <Button size="sm" variant="outline" className="w-full font-bold text-xs text-emerald-700 border-emerald-200 hover:bg-emerald-50">
+                          <Eye className="w-3 h-3 mr-1" />
+                          View Result
+                        </Button>
+                      </Link>
+                    ) : test.userAttemptStatus === "in_progress" ? (
+                      <Link href={`/mock-tests/${test.id}/take`}>
+                        <Button size="sm" className="w-full font-bold text-xs bg-amber-500 hover:bg-amber-600 text-slate-950">
+                          <RotateCcw className="w-3 h-3 mr-1" />
+                          Continue Test
+                        </Button>
+                      </Link>
+                    ) : (
+                      <Link href={`/mock-tests/${test.id}`}>
+                        <Button size="sm" variant="default" className="w-full font-bold text-xs bg-blue-600 hover:bg-blue-700 text-white">
+                          <Play className="w-3 h-3 mr-1" />
+                          Start Full Mock
+                        </Button>
+                      </Link>
+                    )}
                   </div>
                 </Card>
               ))}

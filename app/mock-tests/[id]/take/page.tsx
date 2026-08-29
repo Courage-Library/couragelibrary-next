@@ -24,7 +24,22 @@ export default async function MockTestTakePage({ params }: Props) {
   const session = await AssessmentService.startOrResumeAttempt(id);
 
   if (!session) {
-    // Attempt either already completed or expired and submitted
+    // Attempt already submitted/completed — redirect to result page
+    const { data: completedAttempt } = await supabase
+      .from("test_attempts")
+      .select("id")
+      .eq("mock_test_id", id)
+      .eq("user_id", user.id)
+      .in("status", ["submitted", "completed", "evaluated"])
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const att = completedAttempt as { id: string } | null;
+    if (att?.id) {
+      redirect(`/mock-tests/${att.id}/result`);
+    }
+
     redirect("/mock-tests");
   }
 
