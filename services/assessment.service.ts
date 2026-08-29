@@ -680,24 +680,31 @@ export class AssessmentService {
           .eq("user_id", userId)
           .gte("started_at", todayStart.toISOString())
           .order("started_at", { ascending: false })
-          .limit(1);
+        .limit(1);
 
         if (userAttempts && userAttempts.length > 0) {
           const att = userAttempts[0];
           attemptId = att.id;
-          if (att.status === "completed") {
+          const isDone = att.status === "completed" || att.status === "submitted" || att.status === "evaluated" || att.submitted_at !== null;
+          if (isDone) {
             userAttemptStatus = "completed";
-            completedScore = att.test_results?.[0]?.score;
+            completedScore = att.test_results?.[0]?.total_score ?? att.test_results?.[0]?.score;
             completedAccuracy = att.test_results?.[0]?.accuracy_percentage;
           } else {
-            userAttemptStatus = "in_progress";
+            const dur = testInstance?.duration_minutes || meta.durationMinutes || 25;
+            const elapsedSec = (Date.now() - new Date(att.started_at).getTime()) / 1000;
+            if (elapsedSec > dur * 60) {
+              userAttemptStatus = "completed";
+            } else {
+              userAttemptStatus = "in_progress";
+            }
           }
         }
       }
 
-      const qCount = meta.questionCount || testInstance?.total_questions || 25;
-      const dur = meta.durationMinutes || testInstance?.duration_minutes || 15;
-      const marks = meta.totalMarks || testInstance?.total_marks || (qCount * 2);
+      const qCount = testInstance?.total_questions || meta.questionCount || 25;
+      const dur = testInstance?.duration_minutes || meta.durationMinutes || 15;
+      const marks = Number(testInstance?.total_marks || meta.totalMarks || (qCount * 2));
 
       todayMock = {
         isOpen,
@@ -708,7 +715,7 @@ export class AssessmentService {
         testNumber,
         testId: testInstance?.id,
         templateId: todayTemplate.id,
-        title: `${selectedCategory.title} Daily Mock (T#${testNumber})`,
+        title: testInstance?.title || `${selectedCategory.title} Daily Mock (T#${testNumber})`,
         categoryTitle: selectedCategory.title,
         categorySlug: selectedCategory.slug,
         patternName: pattern?.name || "Standard Pattern",
@@ -866,7 +873,13 @@ export class AssessmentService {
 
     // 5. Incomplete / Resumable Attempt Resolution
     let resumableMock: MockDashboardResumableMock | undefined;
-    const inProgressAttempt = attempts.find((a: any) => a.status === "in_progress");
+    const inProgressAttempt = attempts.find((a: any) => {
+      if (a.status !== "in_progress" || a.submitted_at !== null) return false;
+      const dur = a.mock_tests?.duration_minutes || 25;
+      const elapsedSec = (Date.now() - new Date(a.started_at).getTime()) / 1000;
+      return elapsedSec <= dur * 60;
+    });
+
     if (inProgressAttempt) {
       const mt = inProgressAttempt.mock_tests;
       const examTitle = mt?.mock_templates?.exams?.title || "Exam";
@@ -885,7 +898,7 @@ export class AssessmentService {
         totalQuestions: totalQ,
         progressPercentage: Math.min(100, Math.round((answeredCount / (totalQ || 1)) * 100)),
         durationMinutes: mt?.duration_minutes || 15,
-        totalMarks: Number(mt?.total_marks || 50),
+        totalMarks: Number(mt?.total_marks || (totalQ * 2)),
       };
     }
 
@@ -924,19 +937,26 @@ export class AssessmentService {
 
           if (userTodayAttempt) {
             attemptId = userTodayAttempt.id;
-            if (userTodayAttempt.status === "completed") {
+            const isDone = userTodayAttempt.status === "completed" || userTodayAttempt.status === "submitted" || userTodayAttempt.status === "evaluated" || userTodayAttempt.submitted_at !== null;
+            if (isDone) {
               itemStatus = "completed";
               completedScore = userTodayAttempt.test_results?.[0]?.total_score ?? userTodayAttempt.test_results?.[0]?.score;
               completedAccuracy = userTodayAttempt.test_results?.[0]?.accuracy_percentage;
             } else {
-              itemStatus = "in_progress";
+              const dur = testInstance?.duration_minutes || meta.durationMinutes || 25;
+              const elapsedSec = (Date.now() - new Date(userTodayAttempt.started_at).getTime()) / 1000;
+              if (elapsedSec > dur * 60) {
+                itemStatus = "completed";
+              } else {
+                itemStatus = "in_progress";
+              }
             }
           }
         }
 
-        const qCount = meta.questionCount || testInstance?.total_questions || (tpl.test_type === "daily_sectional" ? 25 : 50);
-        const dur = meta.durationMinutes || testInstance?.duration_minutes || (tpl.test_type === "daily_sectional" ? 15 : 25);
-        const marks = meta.totalMarks || testInstance?.total_marks || (qCount * 2);
+        const qCount = testInstance?.total_questions || meta.questionCount || (tpl.test_type === "daily_sectional" ? 25 : 50);
+        const dur = testInstance?.duration_minutes || meta.durationMinutes || (tpl.test_type === "daily_sectional" ? 15 : 25);
+        const marks = Number(testInstance?.total_marks || meta.totalMarks || (qCount * 2));
 
         todayMocks.push({
           testId: testInstance?.id || tpl.id,
@@ -949,7 +969,7 @@ export class AssessmentService {
           testNumber,
           title: testInstance?.title || `${exam.title} Daily Mock (T#${testNumber})`,
           testType: tpl.test_type || "daily_sectional",
-          sectionName: meta.activeSectionName || (tpl.test_type === "mixed" ? "Mixed Subjects" : "Sectional Test"),
+          sectionName: meta.activeSectionName || "General Section",
           questionCount: qCount,
           durationMinutes: dur,
           totalMarks: marks,
@@ -959,23 +979,22 @@ export class AssessmentService {
           attemptId,
           completedScore,
           completedAccuracy,
+          answeredCount: 0,
         });
       }
     }
 
     // 7. Weekly Mock Schedule (Mon - Sun)
-    const daysOrder = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
-    const scheduleExam = (targetExams[0] as any) || allExams[0];
-    const scheduleExamId = scheduleExam?.examId || scheduleExam?.id;
+    const weeklySchedule: MockDashboardScheduleDay[] = dayNames.map((day) => {
+      const isCurrent = day === currentDayOfWeek;
+      const targetExamIds = targetExams.map((e: any) => e.examId || e.id);
+      const tpl = templates.find((t: any) => {
+        if (targetExamIds.length > 0 && !targetExamIds.includes(t.exam_id)) return false;
+        return t.slug?.endsWith(`-daily-${day}`);
+      });
 
-    const weeklySchedule: MockDashboardScheduleDay[] = daysOrder.map((day) => {
-      const tpl = templates.find((t: any) =>
-        t.exam_id === scheduleExamId &&
-        (t.slug === `${scheduleExam?.slug}-daily-${day}` || t.slug?.endsWith(`-daily-${day}`))
-      );
       let meta: any = {};
       try { meta = JSON.parse(tpl?.description || "{}"); } catch {}
-      const isCurrent = day === currentDayOfWeek;
       const pattern = patterns.find((p: any) => p.id === tpl?.pattern_id);
 
       let dayStatus: MockDashboardScheduleDay["status"] = "upcoming";
@@ -983,15 +1002,19 @@ export class AssessmentService {
         dayStatus = isOpen ? "available" : "upcoming";
       }
 
+      const qCount = tpl?.mock_tests?.[0]?.total_questions || meta.questionCount || 25;
+      const dur = tpl?.mock_tests?.[0]?.duration_minutes || meta.durationMinutes || 15;
+      const marks = Number(tpl?.mock_tests?.[0]?.total_marks || meta.totalMarks || 50);
+
       return {
         dayOfWeek: day,
         dayLabel: day.charAt(0).toUpperCase() + day.slice(1),
         testType: tpl?.test_type || "daily_sectional",
         patternName: pattern?.name || "Standard Exam Pattern",
         sectionName: meta.activeSectionName || (tpl?.test_type === "mixed" ? "Mixed Subjects" : "All Sections"),
-        questionCount: meta.questionCount || 25,
-        durationMinutes: meta.durationMinutes || 15,
-        totalMarks: meta.totalMarks || 50,
+        questionCount: qCount,
+        durationMinutes: dur,
+        totalMarks: marks,
         isActive: tpl?.is_active !== false,
         status: dayStatus,
         isToday: isCurrent,
@@ -1008,7 +1031,7 @@ export class AssessmentService {
         return targetExamIds.includes(examId) && testType !== "daily_sectional";
       })
       .map((mt: any) => {
-        const userAttempt = attempts.find((a: any) => a.mock_test_id === mt.id && a.status === "completed");
+        const userAttempt = attempts.find((a: any) => a.mock_test_id === mt.id && (a.status === "completed" || a.status === "submitted" || a.status === "evaluated"));
         const res = userAttempt?.test_results?.[0];
         return {
           id: mt.id,
@@ -1030,7 +1053,7 @@ export class AssessmentService {
 
     // 9. Recent Completed Attempts
     const recentAttempts: MockDashboardRecentAttempt[] = attempts
-      .filter((a: any) => a.status === "completed" && a.test_results && a.test_results.length > 0)
+      .filter((a: any) => (a.status === "completed" || a.status === "submitted" || a.status === "evaluated") && a.test_results && a.test_results.length > 0)
       .slice(0, 5)
       .map((a: any) => {
         const res = a.test_results[0];
@@ -1665,7 +1688,7 @@ export class AssessmentService {
           correct_count: correctCount,
           incorrect_count: incorrectCount,
           unanswered_count: unansweredCount,
-          total_score: Math.max(0, totalScore),
+          total_score: totalScore,
           max_score: Number(testData.total_marks),
           accuracy_percentage: Math.round(accuracy * 100) / 100,
           time_spent_seconds: totalTimeSpent,
@@ -1690,7 +1713,7 @@ export class AssessmentService {
           correct_count: metrics.correct,
           incorrect_count: metrics.incorrect,
           unanswered_count: metrics.total - metrics.attempted,
-          section_score: Math.max(0, metrics.score),
+          section_score: metrics.score,
           max_section_score: metrics.maxScore,
           accuracy_percentage: Math.round(secAccuracy * 100) / 100,
           time_spent_seconds: metrics.time,
