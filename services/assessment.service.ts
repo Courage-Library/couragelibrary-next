@@ -1485,14 +1485,31 @@ export class AssessmentService {
       .select("id, mock_test_id, user_id, started_at, status")
       .eq("id", attemptId)
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
 
     const attempt = attemptData as any;
-    if (!attempt || attempt.status !== "in_progress") {
-      return { success: false, error: "Attempt is not in progress or already submitted" };
+    if (!attempt) {
+      return { success: false, error: "Attempt not found." };
     }
 
     const adminSb = createAdminServerSupabaseClient();
+
+    // Idempotency: If attempt was already submitted, return existing result without duplicate inserts
+    if (attempt.status === "submitted" || attempt.status === "completed") {
+      const { data: existingResult } = await adminSb
+        .from("test_results")
+        .select("id")
+        .eq("attempt_id", attemptId)
+        .maybeSingle();
+
+      if (existingResult) {
+        return { success: true, resultId: (existingResult as any).id };
+      }
+    }
+
+    if (attempt.status !== "in_progress") {
+      return { success: false, error: "This attempt is no longer active." };
+    }
 
     // Fetch test, sections, questions with answer keys, and student answers
     const [testRes, sectionsRes, questionsRes, answersRes] = await Promise.all([
@@ -1567,73 +1584,81 @@ export class AssessmentService {
     const unansweredCount = testData.total_questions - attemptedCount;
     const accuracy = attemptedCount > 0 ? (correctCount / attemptedCount) * 100 : 0;
 
-    // 1. Update attempt answers evaluation
-    for (const ea of evaluatedAnswers) {
-      await (supabase.from("attempt_answers") as any).update({ is_correct: ea.is_correct, evaluated_marks: ea.evaluated_marks }).eq("id", ea.id);
+    try {
+      // 1. Update attempt answers evaluation using adminSb
+      for (const ea of evaluatedAnswers) {
+        await (adminSb.from("attempt_answers") as any).update({ is_correct: ea.is_correct, evaluated_marks: ea.evaluated_marks }).eq("id", ea.id);
+      }
+
+      // 2. Insert test_results using adminSb
+      const { data: testResultData, error: resultErr } = await adminSb
+        .from("test_results")
+        .insert({
+          attempt_id: attemptId,
+          user_id: user.id,
+          mock_test_id: attempt.mock_test_id,
+          total_questions: testData.total_questions,
+          attempted_count: attemptedCount,
+          correct_count: correctCount,
+          incorrect_count: incorrectCount,
+          unanswered_count: unansweredCount,
+          total_score: Math.max(0, totalScore),
+          max_score: Number(testData.total_marks),
+          accuracy_percentage: Math.round(accuracy * 100) / 100,
+          time_spent_seconds: totalTimeSpent,
+        } as any)
+        .select("id")
+        .single();
+
+      if (resultErr || !testResultData) {
+        console.error("[AssessmentService.submitTestAttempt] Error inserting test_results:", resultErr);
+        return { success: false, error: "We couldn't complete your submission. Your responses are preserved. Please try again." };
+      }
+      const testResult = testResultData as any;
+
+      // 3. Insert section_results using adminSb
+      for (const [secId, metrics] of sectionMetrics.entries()) {
+        const secAccuracy = metrics.attempted > 0 ? (metrics.correct / metrics.attempted) * 100 : 0;
+        await adminSb.from("section_results").insert({
+          test_result_id: testResult.id,
+          mock_section_id: secId,
+          total_questions: metrics.total,
+          attempted_count: metrics.attempted,
+          correct_count: metrics.correct,
+          incorrect_count: metrics.incorrect,
+          unanswered_count: metrics.total - metrics.attempted,
+          section_score: Math.max(0, metrics.score),
+          max_section_score: metrics.maxScore,
+          accuracy_percentage: Math.round(secAccuracy * 100) / 100,
+          time_spent_seconds: metrics.time,
+        } as any);
+      }
+
+      // 4. Mark attempt as submitted using adminSb
+      await (adminSb.from("test_attempts") as any).update({
+        status: "submitted",
+        submitted_at: new Date().toISOString(),
+        time_taken_seconds: totalTimeSpent,
+      } as any).eq("id", attemptId);
+
+      // 5. Award Phase 3D Coins safely
+      const rpcCall = adminSb.rpc as any;
+      await rpcCall("fn_award_gamification_reward", {
+        p_user_id: user.id,
+        p_event_type: "MOCK_TEST_COMPLETED",
+        p_source_type: "MOCK_TEST_ATTEMPT",
+        p_source_id: attemptId,
+        p_idempotency_key: `mock_eval_${attemptId}_${user.id}`,
+        p_coins: 10,
+        p_reason_code: "MOCK_TEST_REWARD",
+        p_metadata: { attempt_id: attemptId, score: totalScore, accuracy },
+      }).catch(() => {});
+
+      return { success: true, resultId: testResult.id };
+    } catch (dbErr) {
+      console.error("[AssessmentService.submitTestAttempt] Submission error:", dbErr);
+      return { success: false, error: "We couldn't complete your submission. Your responses are preserved. Please try again." };
     }
-
-    // 2. Insert test_results
-    const { data: testResultData, error: resultErr } = await supabase
-      .from("test_results")
-      .insert({
-        attempt_id: attemptId,
-        user_id: user.id,
-        mock_test_id: attempt.mock_test_id,
-        total_questions: testData.total_questions,
-        attempted_count: attemptedCount,
-        correct_count: correctCount,
-        incorrect_count: incorrectCount,
-        unanswered_count: unansweredCount,
-        total_score: Math.max(0, totalScore),
-        max_score: Number(testData.total_marks),
-        accuracy_percentage: Math.round(accuracy * 100) / 100,
-        time_spent_seconds: totalTimeSpent,
-      } as any)
-      .select("id")
-      .single();
-
-    if (resultErr || !testResultData) return { success: false, error: resultErr?.message || "Failed to create result" };
-    const testResult = testResultData as any;
-
-    // 3. Insert section_results
-    for (const [secId, metrics] of sectionMetrics.entries()) {
-      const secAccuracy = metrics.attempted > 0 ? (metrics.correct / metrics.attempted) * 100 : 0;
-      await supabase.from("section_results").insert({
-        test_result_id: testResult.id,
-        mock_section_id: secId,
-        total_questions: metrics.total,
-        attempted_count: metrics.attempted,
-        correct_count: metrics.correct,
-        incorrect_count: metrics.incorrect,
-        unanswered_count: metrics.total - metrics.attempted,
-        section_score: Math.max(0, metrics.score),
-        max_section_score: metrics.maxScore,
-        accuracy_percentage: Math.round(secAccuracy * 100) / 100,
-        time_spent_seconds: metrics.time,
-      } as any);
-    }
-
-    // 4. Mark attempt as submitted
-    await (supabase.from("test_attempts") as any).update({
-      status: "submitted",
-      submitted_at: new Date().toISOString(),
-      time_taken_seconds: totalTimeSpent,
-    } as any).eq("id", attemptId);
-
-    // 5. Award Phase 3D Coins
-    const rpcCall = supabase.rpc as any;
-    await rpcCall("fn_award_gamification_reward", {
-      p_user_id: user.id,
-      p_event_type: "MOCK_TEST_COMPLETED",
-      p_source_type: "MOCK_TEST_ATTEMPT",
-      p_source_id: attemptId,
-      p_idempotency_key: `mock_eval_${attemptId}_${user.id}`,
-      p_coins: 10,
-      p_reason_code: "MOCK_TEST_REWARD",
-      p_metadata: { attempt_id: attemptId, score: totalScore, accuracy },
-    });
-
-    return { success: true, resultId: testResult.id };
   }
 
   /**

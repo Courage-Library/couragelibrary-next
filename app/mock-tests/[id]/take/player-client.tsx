@@ -35,6 +35,7 @@ import {
   AlertTriangle,
   Monitor,
   ArrowRight,
+  ShieldCheck,
 } from "lucide-react";
 
 interface MockTestPlayerClientProps {
@@ -62,6 +63,9 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
 
   // Safety Guard: Handle empty question state gracefully
   const hasQuestions = session.questions && session.questions.length > 0;
+
+  // Pre-exam Fullscreen Gate State
+  const [isExamStarted, setIsExamStarted] = useState(false);
 
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -97,6 +101,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
   const [isMobilePaletteOpen, setIsMobilePaletteOpen] = useState(false);
   const [isInstructionsOpen, setIsInstructionsOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
+  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
 
   // Central Security State
   const [securityState, setSecurityState] = useState<SecurityState>({
@@ -131,7 +136,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
 
   // Mark current question as visited whenever index changes
   useEffect(() => {
-    if (currentQ) {
+    if (currentQ && isExamStarted) {
       setVisitedQuestions((prev) => {
         if (prev.has(currentQ.mockQuestionId)) return prev;
         const next = new Set(prev);
@@ -139,7 +144,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
         return next;
       });
     }
-  }, [currentQ]);
+  }, [currentQ, isExamStarted]);
 
   // Network offline/online listeners with automatic queue flushing
   useEffect(() => {
@@ -174,7 +179,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
     const handleFullscreenChange = () => {
       const isNowFullscreen = Boolean(document.fullscreenElement);
       setSecurityState((prev) => {
-        if (!isNowFullscreen && prev.isFullscreen) {
+        if (!isNowFullscreen && prev.isFullscreen && isExamStarted) {
           // Exited fullscreen while exam active
           return {
             ...prev,
@@ -193,11 +198,12 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
 
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
-  }, []);
+  }, [isExamStarted]);
 
   // Security: Tab Switch / Visibility Change Listener
   useEffect(() => {
     const handleVisibilityChange = () => {
+      if (!isExamStarted) return;
       if (document.visibilityState === "hidden") {
         setSecurityState((prev) => ({
           ...prev,
@@ -218,11 +224,11 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, []);
+  }, [isExamStarted]);
 
-  // Fullscreen Entry Trigger
-  const handleRequestFullscreen = useCallback(() => {
-    if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+  // Explicit User Gesture Fullscreen Handler (Starts Exam)
+  const handleStartExamWithFullscreen = useCallback(() => {
+    if (document.documentElement.requestFullscreen) {
       document.documentElement
         .requestFullscreen()
         .then(() => {
@@ -233,7 +239,29 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
           }));
         })
         .catch(() => {
-          // If browser restricts fullscreen (e.g. mobile Safari), allow continuing
+          // Browser or device restricted element-level fullscreen
+        })
+        .finally(() => {
+          setIsExamStarted(true);
+        });
+    } else {
+      setIsExamStarted(true);
+    }
+  }, []);
+
+  // Re-enter Fullscreen Trigger
+  const handleReturnToFullscreen = useCallback(() => {
+    if (document.documentElement.requestFullscreen) {
+      document.documentElement
+        .requestFullscreen()
+        .then(() => {
+          setSecurityState((prev) => ({
+            ...prev,
+            isFullscreen: true,
+            showFullscreenWarning: false,
+          }));
+        })
+        .catch(() => {
           setSecurityState((prev) => ({
             ...prev,
             showFullscreenWarning: false,
@@ -340,8 +368,14 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
     persistAnswer(currentQ.mockQuestionId, updated);
   }, [currentQ, currentAnswer, persistAnswer]);
 
-  // Clear Response with 2.5s Undo Capability
-  const handleClearResponse = useCallback(() => {
+  // Prompt Confirmation for Clear Response
+  const handleClearResponseClick = useCallback(() => {
+    if (!currentQ || !currentAnswer.selectedOption) return;
+    setIsClearConfirmOpen(true);
+  }, [currentQ, currentAnswer.selectedOption]);
+
+  // Execute Clear Response with 2.5s Undo Capability
+  const executeClearResponse = useCallback(() => {
     if (!currentQ || !currentAnswer.selectedOption) return;
 
     const previousOption = currentAnswer.selectedOption;
@@ -356,6 +390,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
     }));
 
     persistAnswer(currentQ.mockQuestionId, updated);
+    setIsClearConfirmOpen(false);
 
     // Set undo banner
     setUndoClearState({
@@ -398,12 +433,13 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
   // Keyboard Shortcuts (1-4 / A-D, Arrows, M, C, ?)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if inside an input/textarea or if modal is open
       if (
         ["INPUT", "TEXTAREA", "SELECT"].includes((document.activeElement as HTMLElement)?.tagName) ||
+        !isExamStarted ||
         isSubmitOpen ||
         isInstructionsOpen ||
         isReportOpen ||
+        isClearConfirmOpen ||
         securityState.showFullscreenWarning ||
         securityState.showTabSwitchWarning
       ) {
@@ -421,7 +457,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
       } else if (e.key === "m" || e.key === "M") {
         handleToggleReview();
       } else if (e.key === "c" || e.key === "C") {
-        handleClearResponse();
+        handleClearResponseClick();
       } else if (e.key === "?") {
         setIsInstructionsOpen((prev) => !prev);
       } else {
@@ -451,15 +487,17 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
   }, [
     currentIndex,
     session.questions.length,
+    isExamStarted,
     isSubmitOpen,
     isInstructionsOpen,
     isReportOpen,
+    isClearConfirmOpen,
     securityState.showFullscreenWarning,
     securityState.showTabSwitchWarning,
     currentQ,
     handleSelectOption,
     handleToggleReview,
-    handleClearResponse,
+    handleClearResponseClick,
   ]);
 
   // Submit Attempt (Flushes pending offline queue then evaluates server-side)
@@ -480,15 +518,17 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
       });
 
       const data = await res.json();
-      if (data.success) {
+      if (data.success && data.resultId) {
         OfflineAnswerQueue.clear(session.attemptId);
         router.push(`/mock-tests/${session.attemptId}/result`);
       } else {
-        setSubmissionError(data.error || "Unable to finalize submission");
+        setSubmissionError(
+          data.error || "We couldn't complete your submission. Your responses are preserved. Please try again."
+        );
         setIsSubmitting(false);
       }
     } catch {
-      setSubmissionError("Network communication error. Please retry.");
+      setSubmissionError("Network communication error. Your responses are preserved locally. Please try again.");
       setIsSubmitting(false);
     }
   }, [session.attemptId, isSubmitting, router]);
@@ -533,7 +573,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
   });
 
   // =========================================================================
-  // SAFETY GUARD: Handle empty questions state
+  // SAFETY GUARD 1: Empty questions state
   // =========================================================================
   if (!hasQuestions) {
     return (
@@ -543,9 +583,9 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
             <AlertTriangle className="w-7 h-7" />
           </div>
           <div className="space-y-1.5">
-            <h2 className="text-lg font-black text-slate-900">Unable to Load Questions</h2>
-            <p className="text-xs text-slate-500 font-medium">
-              The questions for this examination are being assembled. Your session is safe and has not been submitted.
+            <h2 className="text-lg font-black text-slate-900">This Test is Not Ready Yet</h2>
+            <p className="text-xs text-slate-500 font-medium leading-relaxed">
+              The questions for this examination are being prepared. Your session is safe and has not been submitted.
             </p>
           </div>
           <div className="flex items-center gap-3 pt-2">
@@ -568,16 +608,76 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
     );
   }
 
+  // =========================================================================
+  // PRE-EXAM FULLSCREEN GATE (Explicit User Gesture to start in Fullscreen)
+  // =========================================================================
+  if (!isExamStarted) {
+    return (
+      <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 space-y-6 shadow-2xl border border-slate-200 text-center animate-in zoom-in-95">
+          <div className="flex justify-center pb-1">
+            <BrandLogo size="md" variant="full" />
+          </div>
+
+          <div className="space-y-2">
+            <h2 className="text-xl font-black text-slate-900 tracking-tight">
+              Ready to Begin Examination
+            </h2>
+            <p className="text-xs text-slate-500 font-medium">
+              {session.testTitle}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2.5 text-center text-xs">
+            <div className="p-3 rounded-2xl bg-blue-50/80 border border-blue-100">
+              <span className="font-black text-blue-900 text-lg block">{session.questions.length}</span>
+              <span className="text-blue-700 text-[11px] font-bold">Questions</span>
+            </div>
+            <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200">
+              <span className="font-black text-slate-900 text-lg block">{session.durationMinutes}m</span>
+              <span className="text-slate-600 text-[11px] font-bold">Duration</span>
+            </div>
+            <div className="p-3 rounded-2xl bg-emerald-50/80 border border-emerald-100">
+              <span className="font-black text-emerald-900 text-lg block">+{session.questions[0]?.marks || 2} / -{session.questions[0]?.negativeMark || 0.5}</span>
+              <span className="text-emerald-700 text-[11px] font-bold">Marking</span>
+            </div>
+          </div>
+
+          <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-left space-y-2 text-xs text-slate-600">
+            <div className="flex items-center gap-2 font-bold text-slate-800">
+              <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0" />
+              <span>Examination Environment Rules:</span>
+            </div>
+            <ul className="space-y-1.5 pl-6 list-disc text-[11px] text-slate-600">
+              <li>Fullscreen mode is required to maintain testing integrity.</li>
+              <li>Responses are automatically saved and synchronized in real-time.</li>
+              <li>When the timer expires, your test will be auto-submitted.</li>
+            </ul>
+          </div>
+
+          <div className="space-y-2.5 pt-1">
+            <Button
+              type="button"
+              size="lg"
+              onClick={handleStartExamWithFullscreen}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-sm rounded-xl shadow-md cursor-pointer"
+            >
+              Enter Fullscreen &amp; Begin Test <ArrowRight className="w-4 h-4 ml-1.5" />
+            </Button>
+            <Link href="/mock-tests" className="block text-xs font-semibold text-slate-400 hover:text-slate-600">
+              Return to Mock Test Dashboard
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // =========================================================================
+  // ACTIVE EXAM WORKSPACE
+  // =========================================================================
   return (
     <div className="fixed inset-0 z-50 bg-slate-100 flex flex-col overflow-hidden select-none">
-      {/* Subtle Anti-Piracy Watermark Overlay */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none fixed inset-0 z-0 flex items-center justify-center opacity-[0.025] rotate-[-25deg] select-none text-slate-900 font-mono text-2xl font-black leading-loose text-center whitespace-pre"
-      >
-        {`COURAGE LIBRARY CANDIDATE ARENA\nSESSION ${session.attemptId.slice(0, 8)}\nCONFIDENTIAL`}
-      </div>
-
       {/* Network Offline Status Banner */}
       {saveStatus === "offline" && (
         <div className="bg-amber-600 text-white text-[11px] font-bold py-1 px-4 text-center flex items-center justify-center gap-1.5 shadow-xs z-50">
@@ -591,7 +691,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
       {/* ========================================================================= */}
       <header className="h-14 sm:h-16 bg-white border-b border-slate-200 px-3 sm:px-6 flex items-center justify-between shrink-0 z-10">
         <div className="flex items-center gap-3 min-w-0">
-          {/* Official Courage Library Logo */}
+          {/* Official Canonical Courage Library Logo */}
           <BrandLogo size="sm" variant="full" showText={false} />
           <div className="h-6 w-px bg-slate-200 hidden sm:block" />
           <div className="min-w-0">
@@ -647,8 +747,8 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
 
           <button
             type="button"
-            onClick={handleRequestFullscreen}
-            title={securityState.isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+            onClick={handleReturnToFullscreen}
+            title={securityState.isFullscreen ? "Fullscreen Active" : "Enter Fullscreen"}
             className="hidden sm:flex items-center p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer"
           >
             {securityState.isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -681,18 +781,15 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
       <div className="flex-1 flex overflow-hidden z-10">
         {/* Main Question Viewport */}
         <main className="relative flex-1 bg-white p-4 sm:p-7 overflow-y-auto flex flex-col justify-between">
-          {/* Subtle Courage Library Background Watermark */}
+          {/* Subtle Repeating Security Pattern Watermark (No Logo Image) */}
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-[0.035] select-none z-0"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/images/logo.png"
-              alt=""
-              className="w-72 h-72 sm:w-96 sm:h-96 object-contain grayscale filter"
-            />
-          </div>
+            className="pointer-events-none absolute inset-0 z-0 select-none overflow-hidden opacity-[0.025]"
+            style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='140' viewBox='0 0 260 140'%3E%3Ctext x='20' y='50' fill='%230f172a' font-family='sans-serif' font-size='12' font-weight='800' letter-spacing='2.5' transform='rotate(-20 20 50)'%3ECOURAGE LIBRARY%3C/text%3E%3Ctext x='150' y='120' fill='%230f172a' font-family='sans-serif' font-size='12' font-weight='800' letter-spacing='2.5' transform='rotate(-20 150 120)'%3ECOURAGE LIBRARY%3C/text%3E%3C/svg%3E")`,
+              backgroundRepeat: "repeat",
+            }}
+          />
 
           <div className="relative z-10 max-w-3xl w-full mx-auto space-y-4 sm:space-y-6">
             {/* Section Switcher Tabs (Desktop) */}
@@ -774,7 +871,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
                 variant="ghost"
                 size="sm"
                 disabled={!currentAnswer.selectedOption}
-                onClick={handleClearResponse}
+                onClick={handleClearResponseClick}
                 className="text-xs text-slate-500 hover:text-red-700 hover:bg-red-50 font-semibold disabled:opacity-40"
               >
                 <RotateCcw className="w-3.5 h-3.5 mr-1" /> Clear Response
@@ -915,6 +1012,43 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
         </div>
       )}
 
+      {/* Clear Response Confirmation Modal */}
+      {isClearConfirmOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 text-center space-y-4 shadow-2xl border border-slate-200 animate-in zoom-in-95">
+            <div className="w-12 h-12 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center mx-auto border border-red-200">
+              <RotateCcw className="w-6 h-6" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-base font-black text-slate-900">Clear Selected Response?</h3>
+              <p className="text-xs text-slate-500 font-medium">
+                Are you sure you want to clear your selected answer for Question {currentQ?.questionOrder}?
+              </p>
+            </div>
+            <div className="flex items-center gap-2.5 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsClearConfirmOpen(false)}
+                className="w-1/2 text-xs font-bold"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                onClick={executeClearResponse}
+                className="w-1/2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold"
+              >
+                Clear Response
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Undo Clear Toast */}
       {undoClearState && (
         <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-slate-900 text-white text-xs font-bold px-4 py-2.5 rounded-2xl shadow-xl flex items-center gap-3 animate-in slide-in-from-bottom-2">
@@ -939,7 +1073,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
               <Monitor className="w-7 h-7" />
             </div>
             <div className="space-y-1">
-              <h3 className="text-lg font-black text-slate-900">Exam Fullscreen Exited</h3>
+              <h3 className="text-lg font-black text-slate-900">Fullscreen Mode Exited</h3>
               <p className="text-xs text-slate-500 font-medium leading-relaxed">
                 Examination rules require full-screen focus. Please return to fullscreen mode to continue your test.
               </p>
@@ -953,7 +1087,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
               <Button
                 type="button"
                 size="md"
-                onClick={handleRequestFullscreen}
+                onClick={handleReturnToFullscreen}
                 className="w-full bg-blue-600 hover:bg-blue-700 font-extrabold text-xs rounded-xl shadow-xs"
               >
                 Return to Fullscreen <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
@@ -973,7 +1107,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
               <ShieldAlert className="w-7 h-7" />
             </div>
             <div className="space-y-1">
-              <h3 className="text-lg font-black text-slate-900">Exam Security Notice</h3>
+              <h3 className="text-lg font-black text-slate-900">Exam Window Changed</h3>
               <p className="text-xs text-slate-500 font-medium leading-relaxed">
                 You navigated away from the examination window ({securityState.tabSwitchCount} time{securityState.tabSwitchCount > 1 ? "s" : ""}).
                 Please remain on this page until your test is submitted.
