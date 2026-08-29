@@ -180,15 +180,19 @@ export function RedeemModal({
                 <>
                   <li className="flex items-start gap-2">
                     <span className="text-sky-600 font-bold">•</span>
-                    <span><strong>Streak Protection:</strong> Automatically protects your study streak for one missed daily examination cycle.</span>
+                    <span><strong>1 Shield = 1 Missed Day:</strong> Protects one eligible missed study day and preserves your active streak.</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-sky-600 font-bold">•</span>
-                    <span><strong>Inventory Capacity:</strong> You can hold a maximum of <strong>2 shields</strong> simultaneously in your wallet.</span>
+                    <span><strong>Max 2 Shields:</strong> You can hold a maximum of <strong>2 shields</strong> simultaneously in your wallet.</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-sky-600 font-bold">•</span>
-                    <span><strong>Auto-Application:</strong> Activates automatically on missed study days so you never lose your preparation momentum.</span>
+                    <span><strong>Preserves Streak:</strong> Keeps your streak count safe. Does not count as a study session or advance streak count until your next qualifying test.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-sky-600 font-bold">•</span>
+                    <span><strong>Single-Use Recovery:</strong> Each shield is consumed upon activation to protect the eligible missed day.</span>
                   </li>
                 </>
               ) : isRetestDrill ? (
