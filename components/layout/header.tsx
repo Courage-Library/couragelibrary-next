@@ -38,15 +38,19 @@ export async function Header() {
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 bg-white/90 backdrop-blur-md">
-      <Container className="flex h-16 items-center justify-between">
-        {/* Brand Logo & Desktop Main Navigation */}
-        <div className="flex items-center gap-6">
+      <Container className="flex h-16 items-center justify-between gap-4">
+        {/* Left: Brand Logo */}
+        <div className="flex items-center shrink-0">
           <BrandLogo href={user ? "/dashboard" : "/"} size="md" />
+        </div>
+
+        {/* Center: Primary Navigation (Centered) */}
+        <div className="hidden lg:flex items-center justify-center flex-1">
           <MainNav isAuthenticated={!!user} />
         </div>
 
-        {/* Right Navigation Controls & Mobile Menu */}
-        <div className="flex items-center gap-3">
+        {/* Right: Right Navigation Controls & Mobile Menu */}
+        <div className="flex items-center gap-3 shrink-0">
           <UserNav user={userData} coins={coins} streak={streak} />
           <MobileNav user={userData} />
         </div>
