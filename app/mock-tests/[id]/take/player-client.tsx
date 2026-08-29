@@ -7,7 +7,9 @@ import { AssessmentTimer } from "@/components/assessment/assessment-timer";
 import { QuestionRenderer } from "@/components/assessment/question-renderer";
 import { QuestionOptions } from "@/components/assessment/question-options";
 import { QuestionPalette, QuestionStatus } from "@/components/assessment/question-palette";
-import { SubmitDialog } from "@/components/assessment/submit-dialog";
+import { SubmitDialog, SectionSubmitSummary } from "@/components/assessment/submit-dialog";
+import { ReportIssueDialog } from "@/components/assessment/report-issue-dialog";
+import { InstructionsModal } from "@/components/assessment/instructions-modal";
 import { OfflineAnswerQueue } from "@/lib/assessment/offline-queue";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,6 +23,12 @@ import {
   WifiOff,
   CheckCircle2,
   Undo2,
+  Flag,
+  HelpCircle,
+  Maximize2,
+  Minimize2,
+  RefreshCw,
+  Check,
 } from "lucide-react";
 
 interface MockTestPlayerClientProps {
@@ -32,6 +40,8 @@ interface SavedAnswerState {
   isMarkedForReview: boolean;
   timeSpentSeconds: number;
 }
+
+type SaveStatus = "saved" | "saving" | "offline" | "synced";
 
 export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
   const router = useRouter();
@@ -48,13 +58,12 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
     return initial;
   });
 
-  // Track visited questions for 5-state palette (Question 0 is visited on initial load)
+  // Track visited questions for 5-state palette
   const [visitedQuestions, setVisitedQuestions] = useState<Set<string>>(() => {
     const initial = new Set<string>();
     if (session.questions.length > 0) {
       initial.add(session.questions[0].mockQuestionId);
     }
-    // Also mark questions with existing saved answers as visited
     session.questions.forEach((q) => {
       if (q.savedAnswer && (q.savedAnswer.selectedOption || q.savedAnswer.isMarkedForReview)) {
         initial.add(q.mockQuestionId);
@@ -63,17 +72,21 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
     return initial;
   });
 
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
   const [isSubmitOpen, setIsSubmitOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [isMobilePaletteOpen, setIsMobilePaletteOpen] = useState(false);
-  const [isOffline, setIsOffline] = useState(false);
-  const [syncedNotification, setSyncedNotification] = useState<string | null>(null);
+  const [isInstructionsOpen, setIsInstructionsOpen] = useState(false);
+  const [isReportOpen, setIsReportOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [undoClearState, setUndoClearState] = useState<{
     mockQuestionId: string;
     previousOption: string | null;
   } | null>(null);
 
   const undoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const saveDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
   const currentQ = session.questions[currentIndex];
   const currentAnswer = useMemo(() => {
@@ -99,20 +112,21 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
   // Network offline/online listeners with automatic queue flushing
   useEffect(() => {
     const handleOnline = async () => {
-      setIsOffline(false);
+      setSaveStatus("synced");
       const syncedCount = await OfflineAnswerQueue.flush(session.attemptId);
       if (syncedCount > 0) {
-        setSyncedNotification(`Back online — synced ${syncedCount} saved answer${syncedCount > 1 ? "s" : ""}`);
-        setTimeout(() => setSyncedNotification(null), 3000);
+        setTimeout(() => setSaveStatus("saved"), 3000);
+      } else {
+        setSaveStatus("saved");
       }
     };
 
     const handleOffline = () => {
-      setIsOffline(true);
+      setSaveStatus("offline");
     };
 
     if (typeof window !== "undefined") {
-      setIsOffline(!navigator.onLine);
+      if (!navigator.onLine) setSaveStatus("offline");
       window.addEventListener("online", handleOnline);
       window.addEventListener("offline", handleOffline);
     }
@@ -122,6 +136,24 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
       window.removeEventListener("offline", handleOffline);
     };
   }, [session.attemptId]);
+
+  // Fullscreen change listener
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
+  };
 
   // Helper to persist answer via local buffer & background API
   const persistAnswer = useCallback(
@@ -135,27 +167,40 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
         updated.timeSpentSeconds
       );
 
-      // 2. Fire background save
-      fetch("/api/assessment/save-answer", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          attemptId: session.attemptId,
-          mockQuestionId,
-          selectedOption: updated.selectedOption,
-          isMarkedForReview: updated.isMarkedForReview,
-          timeSpentSeconds: updated.timeSpentSeconds,
-        }),
-      })
-        .then((res) => {
-          if (res.ok) {
-            OfflineAnswerQueue.dequeue(session.attemptId, mockQuestionId);
-          }
+      // 2. Set saving status
+      if (navigator.onLine) {
+        setSaveStatus("saving");
+      } else {
+        setSaveStatus("offline");
+        return;
+      }
+
+      // 3. Fire background save
+      if (saveDebounceRef.current) clearTimeout(saveDebounceRef.current);
+      saveDebounceRef.current = setTimeout(() => {
+        fetch("/api/assessment/save-answer", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            attemptId: session.attemptId,
+            mockQuestionId,
+            selectedOption: updated.selectedOption,
+            isMarkedForReview: updated.isMarkedForReview,
+            timeSpentSeconds: updated.timeSpentSeconds,
+          }),
         })
-        .catch(() => {
-          // Network failed — safe in localStorage queue, will flush on reconnect
-          setIsOffline(true);
-        });
+          .then((res) => {
+            if (res.ok) {
+              OfflineAnswerQueue.dequeue(session.attemptId, mockQuestionId);
+              setSaveStatus("saved");
+            } else {
+              setSaveStatus("offline");
+            }
+          })
+          .catch(() => {
+            setSaveStatus("offline");
+          });
+      }, 150);
     },
     [session.attemptId]
   );
@@ -251,13 +296,15 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
     if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
   }, [undoClearState, answers, persistAnswer]);
 
-  // Keyboard Shortcuts (1-4 / A-D, Arrows, M, C)
+  // Keyboard Shortcuts (1-4 / A-D, Arrows, M, C, ?)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if inside an input/textarea or if submit modal is open
+      // Ignore if inside an input/textarea or if modal is open
       if (
         ["INPUT", "TEXTAREA", "SELECT"].includes((document.activeElement as HTMLElement)?.tagName) ||
-        isSubmitOpen
+        isSubmitOpen ||
+        isInstructionsOpen ||
+        isReportOpen
       ) {
         return;
       }
@@ -274,6 +321,8 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
         handleToggleReview();
       } else if (e.key === "c" || e.key === "C") {
         handleClearResponse();
+      } else if (e.key === "?") {
+        setIsInstructionsOpen((prev) => !prev);
       } else {
         const keyMap: Record<string, string> = {
           "1": "A",
@@ -298,12 +347,23 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [currentIndex, session.questions.length, isSubmitOpen, currentQ, handleSelectOption, handleToggleReview, handleClearResponse]);
+  }, [
+    currentIndex,
+    session.questions.length,
+    isSubmitOpen,
+    isInstructionsOpen,
+    isReportOpen,
+    currentQ,
+    handleSelectOption,
+    handleToggleReview,
+    handleClearResponse,
+  ]);
 
   // Submit Attempt (Flushes pending offline queue then evaluates server-side)
   const handleSubmitAttempt = useCallback(async () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
+    setSubmissionError(null);
 
     try {
       // 1. Attempt final flush of any offline queued answers
@@ -321,12 +381,12 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
         OfflineAnswerQueue.clear(session.attemptId);
         router.push(`/mock-tests/${session.attemptId}/result`);
       } else {
+        setSubmissionError(data.error || "Unable to finalize submission");
         setIsSubmitting(false);
-        setIsSubmitOpen(false);
       }
     } catch {
+      setSubmissionError("Network communication error. Please retry.");
       setIsSubmitting(false);
-      setIsSubmitOpen(false);
     }
   }, [session.attemptId, isSubmitting, router]);
 
@@ -357,32 +417,39 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
   const markedCount = Object.values(answers).filter((a) => a.isMarkedForReview).length;
   const unansweredCount = session.questions.length - answeredCount;
 
+  // Section-Wise Breakdown for Submit Dialog
+  const sectionsSummary: SectionSubmitSummary[] = session.sections.map((sec) => {
+    const secQuestions = session.questions.filter((q) => q.sectionId === sec.id);
+    const secAnswered = secQuestions.filter((q) => Boolean(answers[q.mockQuestionId]?.selectedOption)).length;
+    return {
+      id: sec.id,
+      name: sec.name,
+      totalQuestions: secQuestions.length,
+      answeredCount: secAnswered,
+    };
+  });
+
   return (
     <div className="fixed inset-0 z-50 bg-slate-100 flex flex-col overflow-hidden select-none">
       {/* Subtle Anti-Piracy Watermark Overlay */}
       <div
         aria-hidden="true"
-        className="pointer-events-none fixed inset-0 z-0 flex items-center justify-center opacity-[0.03] rotate-[-25deg] select-none text-slate-900 font-mono text-2xl font-black leading-loose text-center whitespace-pre"
+        className="pointer-events-none fixed inset-0 z-0 flex items-center justify-center opacity-[0.025] rotate-[-25deg] select-none text-slate-900 font-mono text-2xl font-black leading-loose text-center whitespace-pre"
       >
         {`COURAGE LIBRARY CANDIDATE ARENA\nSESSION ${session.attemptId.slice(0, 8)}\nCONFIDENTIAL`}
       </div>
 
-      {/* Network Status Banners */}
-      {isOffline && (
+      {/* Network Offline Status Banner */}
+      {saveStatus === "offline" && (
         <div className="bg-amber-600 text-white text-[11px] font-bold py-1 px-4 text-center flex items-center justify-center gap-1.5 shadow-xs z-50">
           <WifiOff className="w-3.5 h-3.5" />
-          <span>Offline mode active — your answers are buffered locally and will sync automatically.</span>
+          <span>Offline mode active — answers are safely preserved on your device and will sync automatically.</span>
         </div>
       )}
 
-      {syncedNotification && (
-        <div className="bg-emerald-600 text-white text-[11px] font-bold py-1 px-4 text-center flex items-center justify-center gap-1.5 shadow-xs z-50 animate-in fade-in">
-          <CheckCircle2 className="w-3.5 h-3.5" />
-          <span>{syncedNotification}</span>
-        </div>
-      )}
-
-      {/* Test Player Header */}
+      {/* ========================================================================= */}
+      {/* EXAM PLAYER HEADER                                                        */}
+      {/* ========================================================================= */}
       <header className="h-14 sm:h-16 bg-white border-b border-slate-200 px-3 sm:px-6 flex items-center justify-between shrink-0 z-10">
         <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
           <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-blue-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-xs">
@@ -398,28 +465,30 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
           </div>
         </div>
 
-        {/* Section Tabs (Desktop) */}
-        {session.sections.length > 1 && (
-          <div className="hidden md:flex items-center gap-1 p-1 bg-slate-100 rounded-xl max-w-md overflow-x-auto">
-            {session.sections.map((sec) => (
-              <button
-                key={sec.id}
-                type="button"
-                onClick={() => {
-                  const firstInSec = session.questions.findIndex((q) => q.sectionId === sec.id);
-                  if (firstInSec !== -1) setCurrentIndex(firstInSec);
-                }}
-                className={`px-3 py-1 text-xs font-bold rounded-lg transition-all whitespace-nowrap cursor-pointer ${
-                  currentQ?.sectionId === sec.id
-                    ? "bg-white text-blue-700 shadow-xs"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                {sec.name}
-              </button>
-            ))}
-          </div>
-        )}
+        {/* Live Save Status Indicator */}
+        <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-50 border border-slate-200/80 text-[11px] font-bold text-slate-600">
+          {saveStatus === "saving" ? (
+            <>
+              <RefreshCw className="w-3 h-3 text-blue-600 animate-spin" />
+              <span>Saving...</span>
+            </>
+          ) : saveStatus === "offline" ? (
+            <>
+              <WifiOff className="w-3 h-3 text-amber-600" />
+              <span className="text-amber-700">Offline (Saved Locally)</span>
+            </>
+          ) : saveStatus === "synced" ? (
+            <>
+              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+              <span className="text-emerald-700">All Synced</span>
+            </>
+          ) : (
+            <>
+              <Check className="w-3 h-3 text-emerald-600" />
+              <span className="text-slate-600">Saved</span>
+            </>
+          )}
+        </div>
 
         {/* Timer & Controls */}
         <div className="flex items-center gap-2">
@@ -427,6 +496,25 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
             initialRemainingSeconds={session.remainingSeconds}
             onTimeExpired={handleSubmitAttempt}
           />
+
+          <button
+            type="button"
+            onClick={() => setIsInstructionsOpen(true)}
+            title="View Instructions"
+            className="hidden sm:flex items-center gap-1 p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer text-xs font-bold"
+          >
+            <HelpCircle className="w-4 h-4" />
+          </button>
+
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+            className="hidden sm:flex items-center p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer"
+          >
+            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+          </button>
+
           <Button
             size="sm"
             variant="default"
@@ -434,8 +522,9 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
             className="bg-emerald-600 hover:bg-emerald-700 font-bold text-xs shadow-xs"
             onClick={() => setIsSubmitOpen(true)}
           >
-            <Send className="w-3.5 h-3.5 mr-1" /> Submit
+            <Send className="w-3.5 h-3.5 mr-1" /> Submit Test
           </Button>
+
           <button
             type="button"
             className="lg:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100 cursor-pointer"
@@ -447,13 +536,48 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
         </div>
       </header>
 
-      {/* Test Player Body */}
+      {/* ========================================================================= */}
+      {/* EXAM WORKSPACE BODY                                                       */}
+      {/* ========================================================================= */}
       <div className="flex-1 flex overflow-hidden z-10">
         {/* Main Question Viewport */}
-        <main className="flex-1 bg-white p-4 sm:p-8 overflow-y-auto flex flex-col justify-between">
+        <main className="flex-1 bg-white p-4 sm:p-7 overflow-y-auto flex flex-col justify-between">
           <div className="max-w-3xl w-full mx-auto space-y-4 sm:space-y-6">
+            {/* Section Switcher Tabs (Desktop) */}
+            {session.sections.length > 1 && (
+              <div className="flex items-center gap-1.5 p-1 bg-slate-100/90 rounded-2xl overflow-x-auto">
+                {session.sections.map((sec) => {
+                  const isCurrentSec = currentQ?.sectionId === sec.id;
+                  const secQuestions = session.questions.filter((q) => q.sectionId === sec.id);
+                  const secAnswered = secQuestions.filter((q) => Boolean(answers[q.mockQuestionId]?.selectedOption)).length;
+                  return (
+                    <button
+                      key={sec.id}
+                      type="button"
+                      onClick={() => {
+                        const firstInSec = session.questions.findIndex((q) => q.sectionId === sec.id);
+                        if (firstInSec !== -1) setCurrentIndex(firstInSec);
+                      }}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap cursor-pointer flex items-center gap-2 ${
+                        isCurrentSec
+                          ? "bg-white text-blue-700 shadow-2xs"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      <span>{sec.name}</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-md ${isCurrentSec ? "bg-blue-50 text-blue-800" : "bg-slate-200 text-slate-700"}`}>
+                        {secAnswered}/{secQuestions.length}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Question Text & Figure Renderer */}
             <QuestionRenderer
               questionNumber={currentQ?.questionOrder || 1}
+              totalQuestions={session.questions.length}
               questionText={currentQ?.questionText || ""}
               questionImageUrl={currentQ?.questionImageUrl}
               marks={currentQ?.marks || 2}
@@ -461,6 +585,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
               sectionName={currentQ?.sectionName}
             />
 
+            {/* Clickable Option Cards */}
             <QuestionOptions
               options={currentQ?.options || []}
               optionsType={currentQ?.optionsType}
@@ -487,17 +612,27 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
                 <Bookmark className="w-3.5 h-3.5 mr-1.5" />
                 {currentAnswer.isMarkedForReview ? "Marked for Review" : "Mark for Review"}
               </Button>
-              {currentAnswer.selectedOption && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleClearResponse}
-                  className="text-xs text-slate-500 hover:text-red-700 hover:bg-red-50 font-semibold"
-                >
-                  <RotateCcw className="w-3.5 h-3.5 mr-1" /> Clear Response
-                </Button>
-              )}
+
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={!currentAnswer.selectedOption}
+                onClick={handleClearResponse}
+                className="text-xs text-slate-500 hover:text-red-700 hover:bg-red-50 font-semibold disabled:opacity-40"
+              >
+                <RotateCcw className="w-3.5 h-3.5 mr-1" /> Clear Response
+              </Button>
+
+              <button
+                type="button"
+                onClick={() => setIsReportOpen(true)}
+                title="Report issue with question"
+                className="p-2 text-slate-400 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition text-xs font-semibold flex items-center gap-1 cursor-pointer"
+              >
+                <Flag className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Report</span>
+              </button>
             </div>
 
             <div className="flex items-center gap-2">
@@ -509,18 +644,30 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
                 onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
                 className="font-bold"
               >
-                <ChevronLeft className="w-4 h-4 mr-1" /> Prev
+                <ChevronLeft className="w-4 h-4 mr-1" /> Previous
               </Button>
-              <Button
-                type="button"
-                variant="default"
-                size="sm"
-                disabled={currentIndex === session.questions.length - 1}
-                onClick={() => setCurrentIndex((prev) => Math.min(session.questions.length - 1, prev + 1))}
-                className="font-bold bg-blue-600 hover:bg-blue-700"
-              >
-                Next <ChevronRight className="w-4 h-4 ml-1" />
-              </Button>
+
+              {currentIndex === session.questions.length - 1 ? (
+                <Button
+                  type="button"
+                  variant="default"
+                  size="sm"
+                  onClick={() => setIsSubmitOpen(true)}
+                  className="font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  Review &amp; Submit <Send className="w-3.5 h-3.5 ml-1.5" />
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="default"
+                  size="sm"
+                  onClick={() => setCurrentIndex((prev) => Math.min(session.questions.length - 1, prev + 1))}
+                  className="font-bold bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  Next <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              )}
             </div>
           </div>
         </main>
@@ -532,7 +679,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
               Question Palette
             </h3>
             <span className="text-[11px] text-slate-400 font-mono">
-              {currentIndex + 1} of {session.questions.length}
+              Q {currentIndex + 1} of {session.questions.length}
             </span>
           </div>
           <QuestionPalette
@@ -546,7 +693,9 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
         </aside>
       </div>
 
-      {/* Mobile Palette Drawer */}
+      {/* ========================================================================= */}
+      {/* MOBILE PALETTE DRAWER                                                     */}
+      {/* ========================================================================= */}
       {isMobilePaletteOpen && (
         <div className="fixed inset-0 z-50 lg:hidden bg-slate-900/60 backdrop-blur-xs flex justify-end animate-in fade-in">
           <div className="w-80 bg-white h-full p-5 overflow-y-auto space-y-4 shadow-2xl flex flex-col justify-between">
@@ -630,9 +779,25 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
         answeredCount={answeredCount}
         unansweredCount={unansweredCount}
         markedCount={markedCount}
+        sectionsSummary={sectionsSummary}
         onConfirm={handleSubmitAttempt}
         onCancel={() => setIsSubmitOpen(false)}
         isSubmitting={isSubmitting}
+        submissionError={submissionError}
+      />
+
+      {/* Report Issue Dialog */}
+      <ReportIssueDialog
+        isOpen={isReportOpen}
+        questionNumber={currentQ?.questionOrder || 1}
+        mockQuestionId={currentQ?.mockQuestionId || ""}
+        onClose={() => setIsReportOpen(false)}
+      />
+
+      {/* Instructions Reference Modal */}
+      <InstructionsModal
+        isOpen={isInstructionsOpen}
+        onClose={() => setIsInstructionsOpen(false)}
       />
     </div>
   );
