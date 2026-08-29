@@ -71,9 +71,9 @@ export function MainNav({}: MainNavProps = {}) {
     pathname.startsWith("/articles") ||
     pathname.startsWith("/courses") ||
     pathname.startsWith("/descriptive");
-  const isStoreActive = pathname.startsWith("/store");
   const isCommunityActive =
     pathname.startsWith("/community") || pathname.startsWith("/institutes");
+  const isStoreActive = pathname.startsWith("/store") || pathname.startsWith("/pricing");
 
   return (
     <nav
@@ -251,20 +251,7 @@ export function MainNav({}: MainNavProps = {}) {
         )}
       </div>
 
-      {/* 4. STORE TOP-LEVEL LINK */}
-      <Link
-        href="/store"
-        className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
-          isStoreActive
-            ? "bg-blue-50 text-blue-700 border border-blue-200/70 shadow-xs"
-            : "hover:bg-slate-100 hover:text-slate-900 text-slate-700"
-        }`}
-      >
-        <ShoppingBag className="w-3.5 h-3.5 text-blue-600" />
-        <span>Store</span>
-      </Link>
-
-      {/* 5. COMMUNITY DROPDOWN */}
+      {/* 4. COMMUNITY DROPDOWN */}
       <div className="relative">
         <button
           type="button"
@@ -314,18 +301,49 @@ export function MainNav({}: MainNavProps = {}) {
         )}
       </div>
 
-      {/* 6. PREMIUM LINK */}
-      <Link
-        href="/pricing"
-        className={`px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1 ml-1.5 ${
-          pathname === "/pricing"
-            ? "bg-amber-100 text-amber-900 border border-amber-300/80"
-            : "hover:bg-amber-50 text-amber-700"
-        }`}
-      >
-        <Sparkles className="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
-        <span>Premium</span>
-      </Link>
+      {/* 5. STORE DROPDOWN */}
+      <div className="relative">
+        <button
+          type="button"
+          aria-expanded={openCategory === "store"}
+          aria-haspopup="true"
+          onClick={() => toggleDropdown("store")}
+          className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+            isStoreActive
+              ? "bg-blue-50 text-blue-700 border border-blue-200/70 shadow-xs"
+              : openCategory === "store"
+              ? "bg-slate-100 text-slate-900"
+              : "hover:bg-slate-100 hover:text-slate-900"
+          }`}
+        >
+          <ShoppingBag className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+          <span>Store</span>
+          <ChevronDown
+            className={`w-3.5 h-3.5 transition-transform duration-200 ${
+              openCategory === "store" ? "rotate-180 text-blue-600" : "text-slate-400"
+            }`}
+          />
+        </button>
+
+        {openCategory === "store" && (
+          <div className="absolute top-full left-0 mt-1.5 w-64 rounded-2xl bg-white p-2 shadow-xl border border-slate-200/80 z-50 animate-in fade-in slide-in-from-top-1">
+            <Link href="/store" className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-slate-100 text-slate-800 transition-colors">
+              <ShoppingBag className="w-4 h-4 text-amber-600 shrink-0" />
+              <div>
+                <div className="text-xs font-bold">Rewards</div>
+                <div className="text-[10px] text-slate-500 font-normal">Redeem your CL Coins for rewards</div>
+              </div>
+            </Link>
+            <Link href="/pricing" className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-slate-100 text-slate-800 transition-colors">
+              <Sparkles className="w-4 h-4 fill-amber-400 text-amber-500 shrink-0" />
+              <div>
+                <div className="text-xs font-bold">Premium</div>
+                <div className="text-[10px] text-slate-500 font-normal">Unlock premium preparation benefits</div>
+              </div>
+            </Link>
+          </div>
+        )}
+      </div>
     </nav>
   );
 }

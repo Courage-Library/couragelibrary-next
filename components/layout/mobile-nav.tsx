@@ -172,19 +172,6 @@ export function MobileNav({ user }: MobileNavProps) {
                 )}
               </div>
 
-              {/* STORE DIRECT LINK */}
-              <div className="border-b border-slate-100 pb-2">
-                <Link
-                  href="/store"
-                  className={`flex items-center gap-2 py-2.5 text-sm font-bold ${
-                    pathname.startsWith("/store") ? "text-blue-700" : "text-slate-900"
-                  }`}
-                >
-                  <ShoppingBag className="w-4 h-4 text-blue-600" />
-                  <span>Store</span>
-                </Link>
-              </div>
-
               {/* COMMUNITY ACCORDION */}
               <div className="border-b border-slate-100 pb-2">
                 <button
@@ -211,9 +198,30 @@ export function MobileNav({ user }: MobileNavProps) {
                 )}
               </div>
 
-              <Link href="/pricing" className="flex items-center gap-2 py-2.5 text-sm font-bold text-amber-600">
-                <Sparkles className="w-4 h-4 fill-amber-400 text-amber-500" /> Premium
-              </Link>
+              {/* STORE ACCORDION */}
+              <div className="border-b border-slate-100 pb-2">
+                <button
+                  type="button"
+                  aria-expanded={expandedCategory === "store"}
+                  onClick={() => toggleCategory("store")}
+                  className="flex items-center justify-between w-full py-2.5 text-sm font-bold text-slate-900"
+                >
+                  <span className="flex items-center gap-2">
+                    <ShoppingBag className="w-4 h-4 text-amber-600" /> Store
+                  </span>
+                  <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${expandedCategory === "store" ? "rotate-180 text-blue-600" : ""}`} />
+                </button>
+                {expandedCategory === "store" && (
+                  <div className="pl-3 py-1 space-y-1.5 text-xs font-medium text-slate-600 animate-in fade-in">
+                    <Link href="/store" className="flex items-center gap-2 py-1">
+                      <ShoppingBag className="w-3.5 h-3.5 text-amber-600" /> Rewards
+                    </Link>
+                    <Link href="/pricing" className="flex items-center gap-2 py-1">
+                      <Sparkles className="w-3.5 h-3.5 fill-amber-400 text-amber-500" /> Premium
+                    </Link>
+                  </div>
+                )}
+              </div>
 
               {user?.isAdmin && (
                 <Link href="/admin" className="flex items-center gap-2 py-2.5 text-sm font-bold text-indigo-600 border-t border-slate-100 pt-3">
