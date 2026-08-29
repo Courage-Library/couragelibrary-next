@@ -2010,7 +2010,9 @@ export class AssessmentService {
     const { data: eventData } = await adminSb
       .from("gamification_events")
       .select("actual_coins_awarded, metadata")
-      .or(`idempotency_key.eq.mock_reward_${mt.id}_${candidateUserId},idempotency_key.eq.mock_eval_${resolvedAttemptId}_${candidateUserId}`)
+      .or(`idempotency_key.eq.mock_reward_${mt.id}_${candidateUserId},idempotency_key.eq.mock_eval_${resolvedAttemptId}_${candidateUserId},and(source_id.eq.${mt.id},user_id.eq.${candidateUserId})`)
+      .order("occurred_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     let rewards: TestRewardSummary;
