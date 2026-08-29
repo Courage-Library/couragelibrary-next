@@ -104,9 +104,9 @@ export function SubmitDialog({
           <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-2.5 text-xs text-rose-900">
             <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
             <div className="space-y-0.5">
-              <span className="font-bold block">Submission Failed</span>
-              <span className="text-rose-800 text-[11px] block">
-                {submissionError}. Your answers are preserved locally. Check your internet connection and try again.
+              <span className="font-bold block">Submission Could Not Be Completed</span>
+              <span className="text-rose-800 text-[11px] block leading-relaxed">
+                {submissionError}
               </span>
             </div>
           </div>
