@@ -77,7 +77,7 @@ export interface TodayDailyMockData {
   totalMarks: number;
   negativeMark: number;
   language: string;
-  userAttemptStatus: "not_started" | "in_progress" | "completed";
+  userAttemptStatus: "not_started" | "in_progress" | "completed" | "evaluation_pending";
   completedScore?: number;
   completedAccuracy?: number;
   attemptId?: string;
@@ -694,7 +694,7 @@ export class AssessmentService {
       const testNumber = Math.floor(diffDays / 7) + 1;
 
       // Check User Attempt for today
-      let userAttemptStatus: "not_started" | "in_progress" | "completed" = "not_started";
+      let userAttemptStatus: TodayDailyMockData["userAttemptStatus"] = "not_started";
       let completedScore: number | undefined;
       let completedAccuracy: number | undefined;
       let attemptId: string | undefined;
@@ -735,9 +735,18 @@ export class AssessmentService {
           const authAtt = submittedAttempts[0];
           attemptId = authAtt.id;
           const tr = Array.isArray(authAtt.test_results) ? authAtt.test_results[0] : authAtt.test_results;
-          userAttemptStatus = "completed";
-          completedScore = tr?.total_score ?? tr?.score;
-          completedAccuracy = tr?.accuracy_percentage;
+          const hasValidResult =
+            tr &&
+            ((tr.total_score !== undefined && tr.total_score !== null) ||
+              (tr.score !== undefined && tr.score !== null));
+
+          if (hasValidResult) {
+            userAttemptStatus = "completed";
+            completedScore = tr?.total_score ?? tr?.score;
+            completedAccuracy = tr?.accuracy_percentage;
+          } else {
+            userAttemptStatus = "evaluation_pending";
+          }
         } else {
           // Priority 2: In progress
           const inProgAtt = attemptsList.find((a: any) => a.status === "in_progress" && a.submitted_at === null);
@@ -924,9 +933,21 @@ export class AssessmentService {
     todayStart.setHours(0, 0, 0, 0);
 
     // 5. Incomplete / Resumable Attempt Resolution
+    // Strict invariant: An in-progress attempt is ONLY valid/resumable if the candidate has NO submitted attempt for that mock test
     let resumableMock: MockDashboardResumableMock | undefined;
     const inProgressAttempt = attempts.find((a: any) => {
       if (a.status !== "in_progress" || a.submitted_at !== null) return false;
+      const targetMtId = a.mock_test_id || a.mock_tests?.id;
+      
+      const hasSubmitted = attempts.some((other: any) => {
+        const otherMtId = other.mock_test_id || other.mock_tests?.id;
+        return (
+          otherMtId === targetMtId &&
+          (other.submitted_at !== null || ["submitted", "completed", "evaluated"].includes(other.status))
+        );
+      });
+      if (hasSubmitted) return false; // Superseded by submitted attempt
+
       const dur = a.mock_tests?.duration_minutes || 25;
       const elapsedSec = (Date.now() - new Date(a.started_at).getTime()) / 1000;
       return elapsedSec <= dur * 60;
@@ -1302,17 +1323,20 @@ export class AssessmentService {
 
     if (!resolvedUserId) {
       nextMockAction = { type: "auth_required" };
-    } else if (resumableMock) {
-      nextMockAction = { type: "resume", resumable: resumableMock };
     } else {
-      const inProgressTodayMock = todayMocks.find((m) => m.status === "in_progress" && m.testId);
       const completedTodayMock = todayMocks.find(
         (m) => m.status === "completed" && m.attemptId && m.completedScore !== undefined
       );
       const pendingTodayMock = todayMocks.find((m) => m.status === "evaluation_pending" && m.attemptId);
+      const inProgressTodayMock = todayMocks.find((m) => m.status === "in_progress" && m.testId);
       const activeTodayMock = todayMocks.find((m) => m.status === "available");
 
-      if (inProgressTodayMock) {
+      // 1. If today's mock is completed, show View Result with canonical attempt
+      if (completedTodayMock) {
+        nextMockAction = { type: "view_result", todayMock: completedTodayMock };
+      } else if (pendingTodayMock) {
+        nextMockAction = { type: "evaluation_pending", todayMock: pendingTodayMock };
+      } else if (inProgressTodayMock) {
         const matchedAttempt = attempts.find(
           (a: any) =>
             a.mock_test_id === inProgressTodayMock.testId &&
@@ -1339,17 +1363,11 @@ export class AssessmentService {
               totalMarks: inProgressTodayMock.totalMarks,
             },
           };
-        } else if (completedTodayMock) {
-          nextMockAction = { type: "view_result", todayMock: completedTodayMock };
-        } else if (pendingTodayMock) {
-          nextMockAction = { type: "evaluation_pending", todayMock: pendingTodayMock };
-        } else if (activeTodayMock) {
-          nextMockAction = { type: "start_today", todayMock: activeTodayMock };
+        } else {
+          nextMockAction = { type: "start_today", todayMock: inProgressTodayMock };
         }
-      } else if (completedTodayMock) {
-        nextMockAction = { type: "view_result", todayMock: completedTodayMock };
-      } else if (pendingTodayMock) {
-        nextMockAction = { type: "evaluation_pending", todayMock: pendingTodayMock };
+      } else if (resumableMock) {
+        nextMockAction = { type: "resume", resumable: resumableMock };
       } else if (activeTodayMock) {
         nextMockAction = { type: "start_today", todayMock: activeTodayMock };
       } else if (fullMockTests.length > 0) {
