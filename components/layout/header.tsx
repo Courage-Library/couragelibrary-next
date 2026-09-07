@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React from "react";
 import { Container } from "@/components/ui/container";
 import { MainNav } from "@/components/layout/main-nav";
@@ -15,7 +16,7 @@ export async function Header() {
   let isAdmin = false;
 
   if (user) {
-    const adminSb = createAdminServerSupabaseClient();
+    const adminSb = createAdminServerSupabaseClient() as any;
     const [walletRes, streakRes, adminRes] = await Promise.all([
       adminSb.from("coin_wallets").select("current_balance").eq("user_id", user.id).maybeSingle(),
       adminSb.from("user_streaks").select("current_streak").eq("user_id", user.id).maybeSingle(),
