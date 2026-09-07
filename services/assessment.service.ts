@@ -1,6 +1,8 @@
 import { createServerSupabaseClient, createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { GamificationService } from "@/services/gamification.service";
+import { MistakeService } from "@/services/mistake.service";
+import { formatIstDateTime, calculateExamDuration } from "@/lib/assessment/timing";
 
 export interface ExamDirectoryItem {
   id: string;
@@ -430,6 +432,7 @@ export interface TestResultSummary {
     sectionScore: number;
     maxScore: number;
     accuracyPercentage: number;
+    timeSpentSeconds?: number;
   }>;
   reviewQuestions: Array<{
     mockQuestionId: string;
@@ -446,6 +449,7 @@ export interface TestResultSummary {
     explanation: string | null;
     topicName: string | null;
     topicSlug: string | null;
+    timeSpentSeconds?: number;
   }>;
 }
 
@@ -1641,11 +1645,11 @@ export class AssessmentService {
       return { success: false, error: "This attempt is no longer active." };
     }
 
-    // Fetch test, sections, questions with answer keys, and student answers
+    // Fetch test, sections, questions with answer keys, options, and student answers
     const [testRes, sectionsRes, questionsRes, answersRes] = await Promise.all([
       adminSb.from("mock_tests").select("id, total_questions, total_marks, mock_templates(id, title, test_type)").eq("id", attempt.mock_test_id).single(),
       adminSb.from("mock_sections").select("id, marks_per_question, negative_mark").eq("mock_test_id", attempt.mock_test_id),
-      adminSb.from("mock_questions").select("id, mock_section_id, question_version_id, marks, negative_mark, question_versions(question_id, question_answers(correct_option_key))").eq("mock_test_id", attempt.mock_test_id),
+      adminSb.from("mock_questions").select("id, mock_section_id, question_version_id, marks, negative_mark, question_versions(question_id, question_answers(correct_option_key), question_options(id, option_key))").eq("mock_test_id", attempt.mock_test_id),
       adminSb.from("attempt_answers").select("id, mock_question_id, selected_option_key, time_spent_seconds").eq("attempt_id", attemptId),
     ]);
 
@@ -1671,6 +1675,11 @@ export class AssessmentService {
     });
 
     const evaluatedAnswers: Array<{ id: string; is_correct: boolean; evaluated_marks: number }> = [];
+    const wrongAnswersForVault: Array<{
+      questionId: string;
+      selectedOptionId?: string | null;
+      responseTimeSeconds?: number;
+    }> = [];
     const questionsList = (questionsRes.data as any[]) || [];
 
     questionsList.forEach((mq) => {
@@ -1684,15 +1693,20 @@ export class AssessmentService {
       }
 
       const ans = answersMap.get(mq.id);
-      const qa = Array.isArray(mq.question_versions?.question_answers)
-        ? mq.question_versions?.question_answers[0]
-        : mq.question_versions?.question_answers;
+      const qv = mq.question_versions;
+      const qa = Array.isArray(qv?.question_answers)
+        ? qv?.question_answers[0]
+        : qv?.question_answers;
       const correctOptionKey = qa?.correct_option_key;
 
       if (ans && ans.selected_option_key) {
         attemptedCount += 1;
-        totalTimeSpent += (ans.time_spent_seconds || 0);
-        if (sec) sec.attempted += 1;
+        const qTime = Number(ans.time_spent_seconds || 0);
+        totalTimeSpent += qTime;
+        if (sec) {
+          sec.attempted += 1;
+          sec.time += qTime;
+        }
 
         if (ans.selected_option_key === correctOptionKey) {
           correctCount += 1;
@@ -1710,12 +1724,28 @@ export class AssessmentService {
             sec.score -= negMark;
           }
           evaluatedAnswers.push({ id: ans.id, is_correct: false, evaluated_marks: -negMark });
+
+          const canonicalQuestionId = qv?.question_id;
+          if (canonicalQuestionId) {
+            const selectedOpt = (qv?.question_options || []).find(
+              (o: any) => o.option_key === ans.selected_option_key
+            );
+            wrongAnswersForVault.push({
+              questionId: canonicalQuestionId,
+              selectedOptionId: selectedOpt?.id || null,
+              responseTimeSeconds: qTime,
+            });
+          }
         }
       }
     });
 
     const unansweredCount = testData.total_questions - attemptedCount;
     const accuracy = attemptedCount > 0 ? (correctCount / attemptedCount) * 100 : 0;
+
+    const submittedAtIso = new Date().toISOString();
+    const authoritativeWallClockSeconds = calculateExamDuration(attempt.started_at, submittedAtIso);
+    const finalDurationSeconds = Math.max(authoritativeWallClockSeconds, totalTimeSpent);
 
     try {
       // 1. Update attempt answers evaluation using adminSb
@@ -1738,7 +1768,7 @@ export class AssessmentService {
           total_score: totalScore,
           max_score: Number(testData.total_marks),
           accuracy_percentage: Math.round(accuracy * 100) / 100,
-          time_spent_seconds: totalTimeSpent,
+          time_spent_seconds: finalDurationSeconds,
         } as any)
         .select("id")
         .single();
@@ -1767,14 +1797,23 @@ export class AssessmentService {
         } as any);
       }
 
-      // 4. Mark attempt as submitted using adminSb
+      // 4. Mark attempt as submitted with authoritative completion timestamp using adminSb
       await (adminSb.from("test_attempts") as any).update({
         status: "submitted",
-        submitted_at: new Date().toISOString(),
-        time_taken_seconds: totalTimeSpent,
+        submitted_at: submittedAtIso,
+        time_taken_seconds: finalDurationSeconds,
       } as any).eq("id", attemptId);
 
-      // 5. Award Server-Authoritative CL Coins via GamificationService
+      // 5. Connect to Mistake Vault: Record all wrong answers
+      if (wrongAnswersForVault.length > 0) {
+        await MistakeService.recordExamMistakes({
+          userId: user.id,
+          attemptId,
+          mistakes: wrongAnswersForVault,
+        }).catch((err) => console.error("[submitTestAttempt] Mistake Vault notice:", err));
+      }
+
+      // 6. Award Server-Authoritative CL Coins via GamificationService
       const canonicalTestType = (testData.mock_templates as any)?.test_type || "sectional";
       await GamificationService.awardMockCompletionReward({
         userId: user.id,
@@ -1786,13 +1825,14 @@ export class AssessmentService {
         correctCount,
         incorrectCount,
         unansweredCount,
-        timeSpentSeconds: totalTimeSpent,
+        timeSpentSeconds: finalDurationSeconds,
       }).catch((e) => console.error("[submitTestAttempt] Gamification reward notice:", e));
 
-      // 6. Invalidate dashboard and test cache paths
+      // 7. Invalidate dashboard and test cache paths
       try {
         revalidatePath("/mock-tests");
         revalidatePath("/dashboard");
+        revalidatePath("/mistakes");
         revalidatePath(`/mock-tests/${attempt.mock_test_id}`);
         revalidatePath(`/mock-tests/${attempt.mock_test_id}/leaderboard`);
       } catch (revErr) {
@@ -1879,7 +1919,7 @@ export class AssessmentService {
     const [sectionsRes, questionsRes, answersRes, allTestResultsRes] = await Promise.all([
       adminSb.from("section_results").select("*, mock_sections(id, section_name)").eq("test_result_id", r.id),
       adminSb.from("mock_questions").select("id, question_order, mock_section_id, marks, negative_mark, mock_sections(id, section_name), question_versions(id, question_text, question_image_url, options_type, question_options(id, option_key, option_text, option_image_url, order_index), question_answers(correct_option_key, explanation_md), questions(canonical_topic_id, topics(name, slug)))").eq("mock_test_id", mt.id).order("question_order"),
-      adminSb.from("attempt_answers").select("mock_question_id, selected_option_key, is_correct, evaluated_marks").eq("attempt_id", resolvedAttemptId),
+      adminSb.from("attempt_answers").select("mock_question_id, selected_option_key, is_correct, evaluated_marks, time_spent_seconds").eq("attempt_id", resolvedAttemptId),
       adminSb.from("test_results").select("id, user_id, total_score, max_score, accuracy_percentage, time_spent_seconds, created_at").eq("mock_test_id", mt.id).order("total_score", { ascending: false }).order("accuracy_percentage", { ascending: false }).order("time_spent_seconds", { ascending: true }),
     ]);
 
@@ -1901,6 +1941,7 @@ export class AssessmentService {
       sectionScore: Number(sr.section_score),
       maxScore: Number(sr.max_section_score),
       accuracyPercentage: Number(sr.accuracy_percentage),
+      timeSpentSeconds: sr.time_spent_seconds ? Number(sr.time_spent_seconds) : undefined,
     }));
 
     const rawQuestions = (questionsRes.data as any[]) || [];
@@ -1936,6 +1977,7 @@ export class AssessmentService {
         explanation,
         topicName: qv?.questions?.topics?.name || null,
         topicSlug: qv?.questions?.topics?.slug || null,
+        timeSpentSeconds: ans?.time_spent_seconds ? Number(ans.time_spent_seconds) : undefined,
       };
     });
 
@@ -1969,7 +2011,10 @@ export class AssessmentService {
     const strongestSection = sortedSections.length > 0 ? sortedSections[0].sectionName : null;
     const weakestSection = sortedSections.length > 1 ? sortedSections[sortedSections.length - 1].sectionName : null;
 
-    const totalSeconds = Number(r.time_spent_seconds || 0);
+    let totalSeconds = Number(r.time_spent_seconds || 0);
+    if (totalSeconds <= 0 && attemptData.started_at && attemptData.submitted_at) {
+      totalSeconds = calculateExamDuration(attemptData.started_at, attemptData.submitted_at);
+    }
     const speedSecondsPerQuestion = r.attempted_count > 0 ? Math.round(totalSeconds / r.attempted_count) : 0;
 
     const accuracyLevel =
@@ -1984,13 +2029,7 @@ export class AssessmentService {
     const candidateIdShort = (candidateUserId || "CANDIDATE").slice(0, 4).toUpperCase();
     const maskedId = `CL••••${candidateIdShort}`;
     const attemptIdShort = attemptId.slice(0, 6).toUpperCase();
-    const formattedTimestamp = new Date(attemptData.submitted_at || Date.now()).toLocaleDateString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    const formattedTimestamp = formatIstDateTime(attemptData.submitted_at || r.created_at || Date.now());
 
     // Check if this attempt is a retake (prior submitted attempt exists for same mock test)
     const { data: priorAttempt } = await adminSb
@@ -2111,7 +2150,7 @@ export class AssessmentService {
         totalScore: Number(r.total_score),
         maxScore: Number(r.max_score),
         accuracyPercentage: Number(r.accuracy_percentage),
-        timeSpentSeconds: r.time_spent_seconds,
+        timeSpentSeconds: totalSeconds,
         rank: candidateRank,
         percentile,
       },

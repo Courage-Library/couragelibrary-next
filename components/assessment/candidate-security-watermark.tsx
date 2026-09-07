@@ -43,8 +43,8 @@ export function CandidateSecurityWatermark({
   return (
     <div
       aria-hidden="true"
-      className={`pointer-events-none absolute inset-0 z-0 select-none overflow-hidden ${
-        isLighter ? "opacity-[0.015]" : "opacity-[0.022]"
+      className={`pointer-events-none absolute inset-0 z-0 select-none overflow-hidden transition-opacity duration-300 ${
+        isLighter ? "opacity-[0.035]" : "opacity-[0.048]"
       } ${className}`}
       style={{
         backgroundImage: `url("data:image/svg+xml,${encodedSvg}")`,

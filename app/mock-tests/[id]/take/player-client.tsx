@@ -59,6 +59,8 @@ interface SecurityState {
   showTabSwitchWarning: boolean;
 }
 
+type SubmissionState = "idle" | "time_expired" | "submitting" | "submitted" | "error";
+
 export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
   const router = useRouter();
 
@@ -98,11 +100,16 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
   const [isSubmitOpen, setIsSubmitOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionState, setSubmissionState] = useState<SubmissionState>("idle");
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [isMobilePaletteOpen, setIsMobilePaletteOpen] = useState(false);
   const [isInstructionsOpen, setIsInstructionsOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
+
+  // Active Question Time Tracking Ref
+  const activeQuestionStartTimeRef = useRef<number>(Date.now());
+  const isSubmittingRef = useRef(false);
 
   // Central Security State
   const [securityState, setSecurityState] = useState<SecurityState>({
@@ -229,6 +236,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
 
   // Explicit User Gesture Fullscreen Handler (Starts Exam)
   const handleStartExamWithFullscreen = useCallback(() => {
+    activeQuestionStartTimeRef.current = Date.now();
     if (document.documentElement.requestFullscreen) {
       document.documentElement
         .requestFullscreen()
@@ -333,14 +341,66 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
     [session.attemptId]
   );
 
+  // Flush active question time spent before transitioning or saving
+  const flushCurrentQuestionActiveTime = useCallback(() => {
+    if (!currentQ) return;
+    const now = Date.now();
+    const elapsedSec = Math.max(0, Math.round((now - activeQuestionStartTimeRef.current) / 1000));
+    activeQuestionStartTimeRef.current = now;
+
+    if (elapsedSec > 0) {
+      setAnswers((prev) => {
+        const existing = prev[currentQ.mockQuestionId] || {
+          selectedOption: null,
+          isMarkedForReview: false,
+          timeSpentSeconds: 0,
+        };
+        const updated: SavedAnswerState = {
+          ...existing,
+          timeSpentSeconds: existing.timeSpentSeconds + elapsedSec,
+        };
+        persistAnswer(currentQ.mockQuestionId, updated);
+        return {
+          ...prev,
+          [currentQ.mockQuestionId]: updated,
+        };
+      });
+    }
+  }, [currentQ, persistAnswer]);
+
+  // Safe Navigation Wrappers that flush active question time
+  const navigateToQuestionIndex = useCallback(
+    (targetIndex: number) => {
+      if (targetIndex < 0 || targetIndex >= session.questions.length || targetIndex === currentIndex) return;
+      flushCurrentQuestionActiveTime();
+      setCurrentIndex(targetIndex);
+    },
+    [session.questions.length, currentIndex, flushCurrentQuestionActiveTime]
+  );
+
+  const navigateToQuestionOrder = useCallback(
+    (order: number) => {
+      const idx = session.questions.findIndex((q) => q.questionOrder === order);
+      if (idx !== -1) {
+        navigateToQuestionIndex(idx);
+      }
+    },
+    [session.questions, navigateToQuestionIndex]
+  );
+
   // Handle Option Select
   const handleSelectOption = useCallback(
     (optionKey: string) => {
       if (!currentQ) return;
+      const now = Date.now();
+      const elapsedSec = Math.max(0, Math.round((now - activeQuestionStartTimeRef.current) / 1000));
+      activeQuestionStartTimeRef.current = now;
+
       const newSelected = currentAnswer.selectedOption === optionKey ? null : optionKey;
       const updated: SavedAnswerState = {
         ...currentAnswer,
         selectedOption: newSelected,
+        timeSpentSeconds: currentAnswer.timeSpentSeconds + elapsedSec,
       };
 
       setAnswers((prev) => ({
@@ -356,9 +416,14 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
   // Toggle Mark for Review
   const handleToggleReview = useCallback(() => {
     if (!currentQ) return;
+    const now = Date.now();
+    const elapsedSec = Math.max(0, Math.round((now - activeQuestionStartTimeRef.current) / 1000));
+    activeQuestionStartTimeRef.current = now;
+
     const updated: SavedAnswerState = {
       ...currentAnswer,
       isMarkedForReview: !currentAnswer.isMarkedForReview,
+      timeSpentSeconds: currentAnswer.timeSpentSeconds + elapsedSec,
     };
 
     setAnswers((prev) => ({
@@ -378,11 +443,15 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
   // Execute Clear Response with 2.5s Undo Capability
   const executeClearResponse = useCallback(() => {
     if (!currentQ || !currentAnswer.selectedOption) return;
+    const now = Date.now();
+    const elapsedSec = Math.max(0, Math.round((now - activeQuestionStartTimeRef.current) / 1000));
+    activeQuestionStartTimeRef.current = now;
 
     const previousOption = currentAnswer.selectedOption;
     const updated: SavedAnswerState = {
       ...currentAnswer,
       selectedOption: null,
+      timeSpentSeconds: currentAnswer.timeSpentSeconds + elapsedSec,
     };
 
     setAnswers((prev) => ({
@@ -442,18 +511,19 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
         isReportOpen ||
         isClearConfirmOpen ||
         securityState.showFullscreenWarning ||
-        securityState.showTabSwitchWarning
+        securityState.showTabSwitchWarning ||
+        isSubmittingRef.current
       ) {
         return;
       }
 
       if (e.key === "ArrowRight" || e.key === "n" || e.key === "N") {
         if (currentIndex < session.questions.length - 1) {
-          setCurrentIndex((prev) => prev + 1);
+          navigateToQuestionIndex(currentIndex + 1);
         }
       } else if (e.key === "ArrowLeft" || e.key === "p" || e.key === "P") {
         if (currentIndex > 0) {
-          setCurrentIndex((prev) => prev - 1);
+          navigateToQuestionIndex(currentIndex - 1);
         }
       } else if (e.key === "m" || e.key === "M") {
         handleToggleReview();
@@ -499,62 +569,100 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
     handleSelectOption,
     handleToggleReview,
     handleClearResponseClick,
+    navigateToQuestionIndex,
   ]);
 
   // Submit Attempt (Flushes pending offline queue then evaluates server-side)
-  const handleSubmitAttempt = useCallback(async () => {
-    if (isSubmitting) return;
-    setIsSubmitting(true);
-    setSubmissionError(null);
+  const handleSubmitAttempt = useCallback(
+    async (isAutoSubmit = false) => {
+      if (isSubmittingRef.current) return;
+      isSubmittingRef.current = true;
+      setIsSubmitting(true);
+      setSubmissionState(isAutoSubmit ? "time_expired" : "submitting");
+      setSubmissionError(null);
 
-    try {
-      // 1. Attempt final flush of any offline queued answers
-      await OfflineAnswerQueue.flush(session.attemptId);
+      // Close all active modals
+      setIsSubmitOpen(false);
+      setIsInstructionsOpen(false);
+      setIsReportOpen(false);
+      setIsClearConfirmOpen(false);
+      setIsMobilePaletteOpen(false);
 
-      // 2. Submit to server-authoritative evaluation route
-      const res = await fetch("/api/assessment/submit-attempt", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ attemptId: session.attemptId }),
-      });
+      // Flush active time of current question
+      flushCurrentQuestionActiveTime();
 
-      const data = await res.json();
-      if (data.success && data.resultId) {
-        OfflineAnswerQueue.clear(session.attemptId);
-        router.push(`/mock-tests/${session.attemptId}/result`);
-      } else {
-        setSubmissionError(
-          data.error || "We couldn't complete your submission. Your responses are preserved. Please try again."
-        );
+      try {
+        // 1. Attempt final flush of any offline queued answers
+        await OfflineAnswerQueue.flush(session.attemptId);
+
+        // 2. Submit to server-authoritative evaluation route
+        const res = await fetch("/api/assessment/submit-attempt", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ attemptId: session.attemptId }),
+        });
+
+        const data = await res.json();
+        if (data.success && data.resultId) {
+          setSubmissionState("submitted");
+          OfflineAnswerQueue.clear(session.attemptId);
+          router.push(`/mock-tests/${session.attemptId}/result`);
+        } else {
+          isSubmittingRef.current = false;
+          setIsSubmitting(false);
+          setSubmissionState("error");
+          setSubmissionError(
+            data.error || "We couldn't complete your submission. Your responses are preserved. Please try again."
+          );
+        }
+      } catch {
+        isSubmittingRef.current = false;
         setIsSubmitting(false);
+        setSubmissionState("error");
+        setSubmissionError("Network communication error. Your responses are preserved locally. Please try again.");
       }
-    } catch {
-      setSubmissionError("Network communication error. Your responses are preserved locally. Please try again.");
-      setIsSubmitting(false);
-    }
-  }, [session.attemptId, isSubmitting, router]);
+    },
+    [session.attemptId, flushCurrentQuestionActiveTime, router]
+  );
 
   // Calculate 5-State Palette Items
-  const paletteItems = session.questions.map((q) => {
-    const ans = answers[q.mockQuestionId];
-    const isVisited = visitedQuestions.has(q.mockQuestionId);
-    let status: QuestionStatus = "not_visited";
+  const paletteItems = useMemo(() => {
+    return session.questions.map((q) => {
+      const ans = answers[q.mockQuestionId];
+      const isVisited = visitedQuestions.has(q.mockQuestionId);
+      let status: QuestionStatus = "not_visited";
 
-    if (ans?.selectedOption && ans?.isMarkedForReview) {
-      status = "marked_answered";
-    } else if (ans?.selectedOption) {
-      status = "answered";
-    } else if (ans?.isMarkedForReview) {
-      status = "marked";
-    } else if (isVisited) {
-      status = "not_answered";
-    }
+      if (ans?.selectedOption && ans?.isMarkedForReview) {
+        status = "marked_answered";
+      } else if (ans?.selectedOption) {
+        status = "answered";
+      } else if (ans?.isMarkedForReview) {
+        status = "marked";
+      } else if (isVisited) {
+        status = "not_answered";
+      }
 
-    return {
-      questionOrder: q.questionOrder,
-      status,
-    };
-  });
+      return {
+        questionOrder: q.questionOrder,
+        status,
+      };
+    });
+  }, [session.questions, answers, visitedQuestions]);
+
+  // Section-wise filtering for Question Palette
+  const currentSection = useMemo(() => {
+    return session.sections.find((s) => s.id === currentQ?.sectionId) || session.sections[0];
+  }, [session.sections, currentQ?.sectionId]);
+
+  const currentSectionQuestions = useMemo(() => {
+    if (!currentSection) return session.questions;
+    return session.questions.filter((q) => q.sectionId === currentSection.id);
+  }, [session.questions, currentSection]);
+
+  const sectionPaletteItems = useMemo(() => {
+    const currentSecOrderSet = new Set(currentSectionQuestions.map((q) => q.questionOrder));
+    return paletteItems.filter((p) => currentSecOrderSet.has(p.questionOrder));
+  }, [paletteItems, currentSectionQuestions]);
 
   // Calculate Counts for Summary Modal
   const answeredCount = Object.values(answers).filter((a) => a.selectedOption !== null).length;
@@ -734,7 +842,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
         <div className="flex items-center gap-2">
           <AssessmentTimer
             initialRemainingSeconds={session.remainingSeconds}
-            onTimeExpired={handleSubmitAttempt}
+            onTimeExpired={() => handleSubmitAttempt(true)}
           />
 
           <button
@@ -767,11 +875,12 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
 
           <button
             type="button"
-            className="lg:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100 cursor-pointer"
+            className="lg:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100 cursor-pointer flex items-center gap-1 text-xs font-bold"
             onClick={() => setIsMobilePaletteOpen(true)}
             aria-label="Open Question Palette"
           >
             <Menu className="w-5 h-5" />
+            <span className="hidden xs:inline">Palette</span>
           </button>
         </div>
       </header>
@@ -804,7 +913,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
                       type="button"
                       onClick={() => {
                         const firstInSec = session.questions.findIndex((q) => q.sectionId === sec.id);
-                        if (firstInSec !== -1) setCurrentIndex(firstInSec);
+                        if (firstInSec !== -1) navigateToQuestionIndex(firstInSec);
                       }}
                       className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap cursor-pointer flex items-center gap-2 ${
                         isCurrentSec
@@ -893,7 +1002,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
                 variant="outline"
                 size="sm"
                 disabled={currentIndex === 0}
-                onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
+                onClick={() => navigateToQuestionIndex(currentIndex - 1)}
                 className="font-bold"
               >
                 <ChevronLeft className="w-4 h-4 mr-1" /> Previous
@@ -914,7 +1023,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
                   type="button"
                   variant="default"
                   size="sm"
-                  onClick={() => setCurrentIndex((prev) => Math.min(session.questions.length - 1, prev + 1))}
+                  onClick={() => navigateToQuestionIndex(currentIndex + 1)}
                   className="font-bold bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   Next <ChevronRight className="w-4 h-4 ml-1" />
@@ -925,22 +1034,52 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
         </main>
 
         {/* Question Palette Sidebar (Desktop) */}
-        <aside className="hidden lg:block w-80 bg-slate-50 border-l border-slate-200 p-5 overflow-y-auto shrink-0">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-bold text-xs text-slate-900 uppercase tracking-wider font-mono">
-              Question Palette
-            </h3>
-            <span className="text-[11px] text-slate-400 font-mono">
-              Q {currentIndex + 1} of {session.questions.length}
-            </span>
-          </div>
+        <aside className="hidden lg:block w-80 bg-slate-50 border-l border-slate-200 p-5 overflow-y-auto shrink-0 space-y-4">
+          {session.sections.length > 1 && (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-[11px] font-bold text-slate-600 uppercase tracking-wider font-mono">
+                <span>Sections</span>
+                <span>
+                  {session.sections.findIndex((s) => s.id === currentSection?.id) + 1} of {session.sections.length}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                {session.sections.map((sec) => {
+                  const isSecActive = currentSection?.id === sec.id;
+                  const secQs = session.questions.filter((q) => q.sectionId === sec.id);
+                  const secAns = secQs.filter((q) => Boolean(answers[q.mockQuestionId]?.selectedOption)).length;
+                  return (
+                    <button
+                      key={sec.id}
+                      type="button"
+                      onClick={() => {
+                        const firstInSec = session.questions.findIndex((q) => q.sectionId === sec.id);
+                        if (firstInSec !== -1) navigateToQuestionIndex(firstInSec);
+                      }}
+                      className={`p-2 rounded-xl text-left border transition-all cursor-pointer ${
+                        isSecActive
+                          ? "bg-blue-50/90 border-blue-300 text-blue-900 shadow-2xs font-bold"
+                          : "bg-white border-slate-200 text-slate-600 hover:bg-slate-100/80 font-medium"
+                      }`}
+                    >
+                      <div className="text-[11px] font-bold truncate">{sec.name}</div>
+                      <div className="text-[10px] text-slate-400 font-mono">
+                        {secAns}/{secQs.length} answered
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <QuestionPalette
-            questions={paletteItems}
+            questions={sectionPaletteItems}
             currentOrder={currentQ?.questionOrder || 1}
-            onSelectQuestion={(order) => {
-              const idx = session.questions.findIndex((q) => q.questionOrder === order);
-              if (idx !== -1) setCurrentIndex(idx);
-            }}
+            sectionName={currentSection?.name}
+            globalTotal={session.questions.length}
+            globalAnswered={answeredCount}
+            onSelectQuestion={navigateToQuestionOrder}
           />
         </aside>
       </div>
@@ -971,9 +1110,9 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
                       type="button"
                       onClick={() => {
                         const firstInSec = session.questions.findIndex((q) => q.sectionId === sec.id);
-                        if (firstInSec !== -1) setCurrentIndex(firstInSec);
+                        if (firstInSec !== -1) navigateToQuestionIndex(firstInSec);
                       }}
-                      className={`px-2.5 py-1 text-[11px] font-bold rounded-lg whitespace-nowrap ${
+                      className={`px-2.5 py-1 text-[11px] font-bold rounded-lg whitespace-nowrap cursor-pointer ${
                         currentQ?.sectionId === sec.id
                           ? "bg-blue-600 text-white"
                           : "bg-slate-100 text-slate-700"
@@ -986,11 +1125,13 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
               )}
 
               <QuestionPalette
-                questions={paletteItems}
+                questions={sectionPaletteItems}
                 currentOrder={currentQ?.questionOrder || 1}
+                sectionName={currentSection?.name}
+                globalTotal={session.questions.length}
+                globalAnswered={answeredCount}
                 onSelectQuestion={(order) => {
-                  const idx = session.questions.findIndex((q) => q.questionOrder === order);
-                  if (idx !== -1) setCurrentIndex(idx);
+                  navigateToQuestionOrder(order);
                   setIsMobilePaletteOpen(false);
                 }}
               />
@@ -999,7 +1140,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
             <Button
               size="sm"
               variant="default"
-              className="w-full bg-emerald-600 hover:bg-emerald-700 font-bold"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 font-bold cursor-pointer"
               onClick={() => {
                 setIsMobilePaletteOpen(false);
                 setIsSubmitOpen(true);
@@ -1126,6 +1267,33 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
         </div>
       )}
 
+      {/* ========================================================================= */}
+      {/* SUBMITTING / TIME EXPIRED FULLSCREEN OVERLAY                              */}
+      {/* ========================================================================= */}
+      {(submissionState === "time_expired" || submissionState === "submitting" || submissionState === "submitted") && (
+        <div className="fixed inset-0 z-[100] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-8 text-center space-y-4 shadow-2xl border border-slate-200 animate-in zoom-in-95">
+            <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto border border-blue-200">
+              <RefreshCw className="w-8 h-8 animate-spin" />
+            </div>
+            <div className="space-y-1.5">
+              <h3 className="text-lg font-black text-slate-900">
+                {submissionState === "time_expired" ? "Time Expired — Securing Test" : "Submitting Examination"}
+              </h3>
+              <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                {submissionState === "time_expired"
+                  ? "Your examination timer has ended. Finalizing responses and submitting test for evaluation."
+                  : "Securing your responses and calculating performance metrics. Please do not close or refresh."}
+              </p>
+            </div>
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-600 font-medium flex items-center justify-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>Authoritative Evaluation in Progress</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Submit Confirmation Dialog */}
       <SubmitDialog
         isOpen={isSubmitOpen}
@@ -1133,7 +1301,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
         unansweredCount={unansweredCount}
         markedCount={markedCount}
         sectionsSummary={sectionsSummary}
-        onConfirm={handleSubmitAttempt}
+        onConfirm={() => handleSubmitAttempt(false)}
         onCancel={() => setIsSubmitOpen(false)}
         isSubmitting={isSubmitting}
         submissionError={submissionError}
@@ -1145,6 +1313,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
           isOpen={isReportOpen}
           questionNumber={currentQ.questionOrder}
           mockQuestionId={currentQ.mockQuestionId}
+          questionVersionId={currentQ.questionVersionId}
           onClose={() => setIsReportOpen(false)}
         />
       )}

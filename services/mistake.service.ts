@@ -1,4 +1,4 @@
-﻿import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient, createAdminServerSupabaseClient } from "@/lib/supabase/server";
 
 export interface MistakeVaultSummary {
   totalMistakes: number;
@@ -349,5 +349,56 @@ export class MistakeService {
     }
 
     return data as DrillSubmitResult;
+  }
+
+  /**
+   * Records incorrect answers from a completed exam attempt into the student's Mistake Vault.
+   * Invokes fn_record_mistake_occurrence to handle deduplication, mastery state reset, and occurrence history.
+   */
+  static async recordExamMistakes(params: {
+    userId: string;
+    attemptId: string;
+    mistakes: Array<{
+      questionId: string;
+      selectedOptionId?: string | null;
+      responseTimeSeconds?: number;
+      cognitiveTypeId?: string;
+    }>;
+  }): Promise<{ recordedCount: number; errors: number }> {
+    const { userId, attemptId, mistakes } = params;
+    if (!mistakes || mistakes.length === 0) {
+      return { recordedCount: 0, errors: 0 };
+    }
+
+    const adminSb = createAdminServerSupabaseClient();
+    let recordedCount = 0;
+    let errors = 0;
+
+    for (const m of mistakes) {
+      try {
+        const { data, error } = await (adminSb.rpc as any)("fn_record_mistake_occurrence", {
+          p_user_id: userId,
+          p_question_id: m.questionId,
+          p_source_context: "MOCK_TEST",
+          p_source_reference_id: attemptId,
+          p_selected_option_id: m.selectedOptionId || null,
+          p_response_time_seconds: m.responseTimeSeconds || 0,
+          p_cognitive_type_id: m.cognitiveTypeId || "UNCLASSIFIED",
+          p_confidence_pct: 60,
+        });
+
+        if (error || (data && (data as any).success === false)) {
+          console.warn("[MistakeService.recordExamMistakes] Notice for question", m.questionId, error || data);
+          errors++;
+        } else {
+          recordedCount++;
+        }
+      } catch (err) {
+        console.error("[MistakeService.recordExamMistakes] Execution notice:", err);
+        errors++;
+      }
+    }
+
+    return { recordedCount, errors };
   }
 }
