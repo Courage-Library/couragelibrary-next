@@ -1203,33 +1203,36 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
               type="button"
               variant="default"
               size="sm"
+              disabled={isSubmitting}
               onClick={() => setIsSubmitOpen(true)}
-              className="flex-1 h-9 font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+              className="flex-2 h-9 font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
             >
-              Review &amp; Submit <Send className="w-3 h-3 ml-1" />
+              Review &amp; Submit <Send className="w-3.5 h-3.5 ml-1.5" />
             </Button>
           ) : (
-            <Button
-              type="button"
-              variant="default"
-              size="sm"
-              onClick={() => navigateToQuestionIndex(currentIndex + 1)}
-              className="flex-1 h-9 font-bold text-xs bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              Next <ChevronRight className="w-4 h-4 ml-0.5" />
-            </Button>
-          )}
+            <>
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                onClick={() => navigateToQuestionIndex(currentIndex + 1)}
+                className="flex-1 h-9 font-bold text-xs bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Next <ChevronRight className="w-4 h-4 ml-0.5" />
+              </Button>
 
-          <Button
-            type="button"
-            variant="default"
-            size="sm"
-            disabled={isSubmitting}
-            onClick={() => setIsSubmitOpen(true)}
-            className="h-9 px-3.5 font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shrink-0 shadow-xs"
-          >
-            <Send className="w-3.5 h-3.5 mr-1" /> Submit
-          </Button>
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                disabled={isSubmitting}
+                onClick={() => setIsSubmitOpen(true)}
+                className="h-9 px-3.5 font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shrink-0 shadow-xs"
+              >
+                <Send className="w-3.5 h-3.5 mr-1" /> Submit
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
