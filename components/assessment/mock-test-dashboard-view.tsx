@@ -520,6 +520,12 @@ export function MockTestDashboardView({ data }: Props) {
                         className="w-full text-xs"
                         label="Resume Mock"
                       />
+                    ) : !user ? (
+                      <Link href={`/auth/login?next=/mock-tests/${mock.testId}/take`} className="w-full">
+                        <Button size="sm" className="w-full text-xs bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-xs">
+                          Sign In to Start
+                        </Button>
+                      </Link>
                     ) : mock.isOpen && mock.testId ? (
                       <StartTestActionButton
                         testId={mock.testId}
