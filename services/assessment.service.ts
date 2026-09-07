@@ -1608,25 +1608,32 @@ export class AssessmentService {
    * Evaluates attempt against authoritative answer keys, populates test_results,
    * section_results, awards Phase 3D coins, logs Phase 3C activity, and logs Phase 3O mistakes.
    */
-  static async submitTestAttempt(attemptId: string): Promise<{ success: boolean; resultId?: string; error?: string }> {
-    const supabase = await createServerSupabaseClient();
-    const { data: { user } } = await supabase.auth.getUser();
+  static async submitTestAttempt(attemptId: string, overrideUserId?: string): Promise<{ success: boolean; resultId?: string; error?: string }> {
+    let userId = overrideUserId;
+    if (!userId) {
+      try {
+        const supabase = await createServerSupabaseClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        userId = user?.id;
+      } catch {
+        // Outside request scope
+      }
+    }
 
-    if (!user) return { success: false, error: "Unauthorized" };
+    if (!userId) return { success: false, error: "Unauthorized" };
 
-    const { data: attemptData } = await supabase
+    const adminSb = createAdminServerSupabaseClient();
+    const { data: attemptData } = await adminSb
       .from("test_attempts")
       .select("id, mock_test_id, user_id, started_at, status")
       .eq("id", attemptId)
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .maybeSingle();
 
     const attempt = attemptData as any;
     if (!attempt) {
       return { success: false, error: "Attempt not found." };
     }
-
-    const adminSb = createAdminServerSupabaseClient();
 
     // Idempotency: If attempt was already submitted, return existing result without duplicate inserts
     if (attempt.status === "submitted" || attempt.status === "completed") {
@@ -1758,7 +1765,7 @@ export class AssessmentService {
         .from("test_results")
         .insert({
           attempt_id: attemptId,
-          user_id: user.id,
+          user_id: userId,
           mock_test_id: attempt.mock_test_id,
           total_questions: testData.total_questions,
           attempted_count: attemptedCount,
@@ -1807,7 +1814,7 @@ export class AssessmentService {
       // 5. Connect to Mistake Vault: Record all wrong answers
       if (wrongAnswersForVault.length > 0) {
         await MistakeService.recordExamMistakes({
-          userId: user.id,
+          userId: userId,
           attemptId,
           mistakes: wrongAnswersForVault,
         }).catch((err) => console.error("[submitTestAttempt] Mistake Vault notice:", err));
@@ -1816,7 +1823,7 @@ export class AssessmentService {
       // 6. Award Server-Authoritative CL Coins via GamificationService
       const canonicalTestType = (testData.mock_templates as any)?.test_type || "sectional";
       await GamificationService.awardMockCompletionReward({
-        userId: user.id,
+        userId: userId,
         attemptId,
         testId: attempt.mock_test_id,
         canonicalTestType,
@@ -1864,9 +1871,16 @@ export class AssessmentService {
    * Fetches test results and question-by-question review with solutions, dynamic standing, and performance insights.
    */
   static async getTestResult(attemptId: string): Promise<TestResultSummary | null> {
-    const supabase = await createServerSupabaseClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    const sb = supabase as any;
+    let sb: any;
+    let user: any = null;
+    try {
+      const supabase = await createServerSupabaseClient();
+      const userRes = await supabase.auth.getUser();
+      user = userRes.data?.user;
+      sb = supabase;
+    } catch {
+      sb = createAdminServerSupabaseClient();
+    }
 
     let resolvedAttemptId = attemptId;
     let [resultRes, attemptRes] = await Promise.all([

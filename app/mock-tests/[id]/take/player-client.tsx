@@ -208,32 +208,6 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
   }, [isExamStarted]);
 
-  // Security: Tab Switch / Visibility Change Listener
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!isExamStarted) return;
-      if (document.visibilityState === "hidden") {
-        setSecurityState((prev) => ({
-          ...prev,
-          tabSwitchCount: prev.tabSwitchCount + 1,
-        }));
-      } else if (document.visibilityState === "visible") {
-        setSecurityState((prev) => {
-          if (prev.tabSwitchCount > 0) {
-            return {
-              ...prev,
-              showTabSwitchWarning: true,
-            };
-          }
-          return prev;
-        });
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [isExamStarted]);
-
   // Explicit User Gesture Fullscreen Handler (Starts Exam)
   const handleStartExamWithFullscreen = useCallback(() => {
     activeQuestionStartTimeRef.current = Date.now();
@@ -367,6 +341,34 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
       });
     }
   }, [currentQ, persistAnswer]);
+
+  // Security: Tab Switch / Visibility Change Listener (Flushes active time & tracks tab switch)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!isExamStarted) return;
+      if (document.visibilityState === "hidden") {
+        flushCurrentQuestionActiveTime();
+        setSecurityState((prev) => ({
+          ...prev,
+          tabSwitchCount: prev.tabSwitchCount + 1,
+        }));
+      } else if (document.visibilityState === "visible") {
+        activeQuestionStartTimeRef.current = Date.now();
+        setSecurityState((prev) => {
+          if (prev.tabSwitchCount > 0) {
+            return {
+              ...prev,
+              showTabSwitchWarning: true,
+            };
+          }
+          return prev;
+        });
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [isExamStarted, flushCurrentQuestionActiveTime]);
 
   // Safe Navigation Wrappers that flush active question time
   const navigateToQuestionIndex = useCallback(
