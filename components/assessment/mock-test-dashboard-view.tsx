@@ -253,6 +253,40 @@ export function MockTestDashboardView({ data }: Props) {
           </Card>
         )}
 
+        {nextMockAction.type === "auth_required" && (
+          <Card className="p-6 sm:p-7 bg-white border-2 border-slate-200 rounded-3xl shadow-xs relative overflow-hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 text-[10px] font-black tracking-wider uppercase rounded-full bg-slate-900 text-white">
+                    Preview Mode
+                  </span>
+                  <span className="text-xs font-semibold text-slate-500">
+                    Sign in to attempt scheduled daily mocks &amp; track live performance
+                  </span>
+                </div>
+                <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                  Daily Mock Tests &amp; National Rank Tracking
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-600 font-medium">
+                  Attempt fresh daily sectional drills, mixed weekly mocks, and earn CL Coins &amp; streaks.
+                </p>
+              </div>
+
+              <div className="shrink-0">
+                <Link href="/auth/login?next=/mock-tests">
+                  <Button
+                    size="lg"
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-sm px-7 py-3 rounded-2xl shadow-md cursor-pointer"
+                  >
+                    Sign In to Start Mock
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </Card>
+        )}
+
         {nextMockAction.type === "start_today" && nextMockAction.todayMock && (
           <Card className="p-6 sm:p-7 bg-white border-2 border-blue-200/90 rounded-3xl shadow-sm relative overflow-hidden">
             <div className="absolute top-0 right-0 w-64 h-64 bg-linear-to-bl from-blue-100/50 via-indigo-50/20 to-transparent rounded-full pointer-events-none -mr-20 -mt-20" />

@@ -6,6 +6,14 @@ import { MockTestPlayerClient } from "./player-client";
 
 export const revalidate = 0;
 
+interface AttemptRow {
+  id: string;
+  status: string;
+  started_at: string;
+  submitted_at: string | null;
+  test_results?: Array<{ id?: string; total_score?: number | null; score?: number | null }> | { id?: string; total_score?: number | null; score?: number | null } | null;
+}
+
 interface Props {
   params: Promise<{ id: string }>;
 }
@@ -41,23 +49,41 @@ export default async function MockTestTakePage({ params }: Props) {
     // 2. If id is a mock_test_id, resolve today's completed attempt (for daily) or latest completed attempt
     const { data: userAttempts } = await adminSb
       .from("test_attempts")
-      .select("id, started_at, status, submitted_at")
+      .select("id, started_at, status, submitted_at, test_results(id, total_score, score)")
       .eq("mock_test_id", id)
       .eq("user_id", user.id)
-      .in("status", ["submitted", "completed", "evaluated"])
       .order("started_at", { ascending: false });
 
-    if (userAttempts && userAttempts.length > 0) {
+    const rawAttempts = (userAttempts as unknown as AttemptRow[]) || [];
+    const attemptsList = rawAttempts.filter((a) =>
+      a.submitted_at !== null || ["submitted", "completed", "evaluated"].includes(a.status)
+    );
+
+    if (attemptsList.length > 0) {
       const now = new Date();
       const istDateString = now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
       const todayDateIST = new Date(istDateString).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
 
-      const todayAttempt = userAttempts.find((a) => {
+      const todayAttempts = attemptsList.filter((a) => {
         const attemptDateIST = new Date(a.started_at).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
         return attemptDateIST === todayDateIST;
       });
 
-      const targetAttempt = todayAttempt || userAttempts[0];
+      const pool = todayAttempts.length > 0 ? todayAttempts : attemptsList;
+
+      pool.sort((a, b) => {
+        const trA = Array.isArray(a.test_results) ? a.test_results[0] : a.test_results;
+        const trB = Array.isArray(b.test_results) ? b.test_results[0] : b.test_results;
+        const hasValidA = trA && ((trA.total_score !== undefined && trA.total_score !== null) || (trA.score !== undefined && trA.score !== null)) ? 1 : 0;
+        const hasValidB = trB && ((trB.total_score !== undefined && trB.total_score !== null) || (trB.score !== undefined && trB.score !== null)) ? 1 : 0;
+        if (hasValidA !== hasValidB) return hasValidB - hasValidA;
+        const timeA = new Date(a.submitted_at || a.started_at).getTime();
+        const timeB = new Date(b.submitted_at || b.started_at).getTime();
+        if (timeA !== timeB) return timeB - timeA;
+        return String(b.id).localeCompare(String(a.id));
+      });
+
+      const targetAttempt = pool[0];
       if (targetAttempt) {
         redirect(`/mock-tests/${targetAttempt.id}/result`);
       }

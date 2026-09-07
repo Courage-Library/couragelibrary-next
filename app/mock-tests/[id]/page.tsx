@@ -14,6 +14,14 @@ interface Props {
   params: Promise<{ id: string }>;
 }
 
+interface AttemptRow {
+  id: string;
+  status: string;
+  started_at: string;
+  submitted_at: string | null;
+  test_results?: Array<{ id?: string; total_score?: number | null; score?: number | null }> | { id?: string; total_score?: number | null; score?: number | null } | null;
+}
+
 export default async function MockTestInstructionsPage({ params }: Props) {
   const { id } = await params;
   const [data, supabase] = await Promise.all([
@@ -31,17 +39,38 @@ export default async function MockTestInstructionsPage({ params }: Props) {
 
   let userAttempt: { id: string; status: string } | null = null;
   if (user) {
-    const { data: att } = await supabase
+    const { data: attempts } = await supabase
       .from("test_attempts")
-      .select("id, status")
+      .select("id, status, started_at, submitted_at, test_results(id, total_score, score)")
       .eq("mock_test_id", id)
       .eq("user_id", user.id)
-      .order("started_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .order("started_at", { ascending: false });
 
-    if (att) {
-      userAttempt = att as { id: string; status: string };
+    const attemptsList = (attempts as unknown as AttemptRow[]) || [];
+    // Priority 1: Submitted attempt strictly dominates
+    const submittedAttempts = attemptsList.filter((a) =>
+      a.submitted_at !== null || ["submitted", "completed", "evaluated"].includes(a.status)
+    );
+
+    if (submittedAttempts.length > 0) {
+      submittedAttempts.sort((a, b) => {
+        const trA = Array.isArray(a.test_results) ? a.test_results[0] : a.test_results;
+        const trB = Array.isArray(b.test_results) ? b.test_results[0] : b.test_results;
+        const hasValidA = trA && ((trA.total_score !== undefined && trA.total_score !== null) || (trA.score !== undefined && trA.score !== null)) ? 1 : 0;
+        const hasValidB = trB && ((trB.total_score !== undefined && trB.total_score !== null) || (trB.score !== undefined && trB.score !== null)) ? 1 : 0;
+        if (hasValidA !== hasValidB) return hasValidB - hasValidA;
+        const timeA = new Date(a.submitted_at || a.started_at).getTime();
+        const timeB = new Date(b.submitted_at || b.started_at).getTime();
+        if (timeA !== timeB) return timeB - timeA;
+        return String(b.id).localeCompare(String(a.id));
+      });
+      userAttempt = { id: submittedAttempts[0].id, status: submittedAttempts[0].status };
+    } else {
+      // Priority 2: In-Progress attempt
+      const inProg = attemptsList.find((a) => a.status === "in_progress" && a.submitted_at === null);
+      if (inProg) {
+        userAttempt = { id: inProg.id, status: inProg.status };
+      }
     }
   }
 
