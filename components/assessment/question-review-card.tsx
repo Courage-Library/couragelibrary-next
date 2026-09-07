@@ -17,6 +17,7 @@ interface QuestionReviewCardProps {
   explanation: string | null;
   topicName: string | null;
   topicSlug: string | null;
+  timeSpentSeconds?: number;
 }
 
 export function QuestionReviewCard({
@@ -33,6 +34,7 @@ export function QuestionReviewCard({
   explanation,
   topicName,
   topicSlug,
+  timeSpentSeconds,
 }: QuestionReviewCardProps) {
   const isUnanswered = selectedOption === null;
 
@@ -44,6 +46,11 @@ export function QuestionReviewCard({
             Q{questionOrder}
           </span>
           <span className="text-slate-500 font-medium">{sectionName}</span>
+          {timeSpentSeconds !== undefined && timeSpentSeconds > 0 && (
+            <span className="text-[11px] text-slate-400 font-mono">
+              &bull; {timeSpentSeconds >= 60 ? `${Math.floor(timeSpentSeconds / 60)}m ${timeSpentSeconds % 60}s` : `${timeSpentSeconds}s`}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2 font-bold">
           {isUnanswered ? (

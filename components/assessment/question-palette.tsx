@@ -18,6 +18,9 @@ export interface QuestionPaletteItem {
 interface QuestionPaletteProps {
   questions: QuestionPaletteItem[];
   currentOrder: number;
+  sectionName?: string;
+  globalTotal?: number;
+  globalAnswered?: number;
   onSelectQuestion: (order: number) => void;
   className?: string;
 }
@@ -25,6 +28,9 @@ interface QuestionPaletteProps {
 export function QuestionPalette({
   questions,
   currentOrder,
+  sectionName,
+  globalTotal,
+  globalAnswered,
   onSelectQuestion,
   className,
 }: QuestionPaletteProps) {
@@ -55,6 +61,7 @@ export function QuestionPalette({
   const markedCount = questions.filter((q) => q.status === "marked" || q.status === "marked_answered").length;
   const notAnsweredCount = questions.filter((q) => q.status === "not_answered").length;
   const notVisitedCount = questions.filter((q) => q.status === "not_visited").length;
+  const remainingCount = Math.max(0, questions.length - answeredCount);
 
   // Filter questions for display
   const filteredQuestions = questions.filter((q) => {
@@ -68,8 +75,11 @@ export function QuestionPalette({
     e.preventDefault();
     setJumpError(null);
     const num = parseInt(jumpInput.trim(), 10);
-    if (isNaN(num) || num < 1 || num > questions.length) {
-      setJumpError(`1-${questions.length}`);
+    const match = questions.find((q) => q.questionOrder === num);
+    if (isNaN(num) || !match) {
+      const min = questions.length > 0 ? questions[0].questionOrder : 1;
+      const max = questions.length > 0 ? questions[questions.length - 1].questionOrder : 1;
+      setJumpError(`${min}-${max}`);
       return;
     }
     onSelectQuestion(num);
@@ -78,6 +88,30 @@ export function QuestionPalette({
 
   return (
     <div className={cn("space-y-3.5", className)}>
+      {/* Section Focused Header (Psychological Target: Complete Section First) */}
+      {sectionName && (
+        <div className="p-3 bg-white border border-slate-200 rounded-2xl space-y-1.5 shadow-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-blue-700 font-mono">
+              Current Section
+            </span>
+            {globalTotal && (
+              <span className="text-[10px] font-semibold text-slate-400 font-mono">
+                Total: {globalAnswered}/{globalTotal}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <h4 className="text-xs font-black text-slate-900 truncate">{sectionName}</h4>
+            <span className="text-xs font-extrabold text-slate-800 shrink-0">
+              {answeredCount} / {questions.length} answered
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium pt-0.5">
+            <span>{remainingCount > 0 ? `${remainingCount} remaining in section` : "All section questions attempted"}</span>
+          </div>
+        </div>
+      )}
       {/* Quick Summary Grid */}
       <div className="grid grid-cols-2 gap-2 text-[11px] font-semibold">
         <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-center justify-between">

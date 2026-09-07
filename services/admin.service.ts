@@ -1690,4 +1690,70 @@ export class AdminService {
       userId: f.user_id,
     }));
   }
+
+  /**
+   * Admin: Get all Question Errata Reports with full question prompt, options, answer keys, and candidate details.
+   */
+  static async getQuestionReports(filters?: { status?: string; issueType?: string }) {
+    const adminSb = createAdminServerSupabaseClient();
+    let query = adminSb
+      .from("question_errata_reports")
+      .select("id, issue_type, description, suggested_fix, status, resolution_notes, reward_coins_granted, created_at, updated_at, reporter_user_id, question_id, question_version_id, question_versions(question_text, question_options(id, option_key, option_text), question_answers(correct_option_key, explanation_md))")
+      .order("created_at", { ascending: false });
+
+    if (filters?.status && filters.status !== "ALL") {
+      query = query.eq("status", filters.status);
+    }
+    if (filters?.issueType && filters.issueType !== "ALL") {
+      query = query.eq("issue_type", filters.issueType);
+    }
+
+    const { data, error } = await query;
+    if (error || !data) {
+      console.error("[AdminService.getQuestionReports] Error:", error);
+      return [];
+    }
+
+    return (data as any[]).map((r) => {
+      const qv = r.question_versions;
+      const options = (qv?.question_options || []).map((o: any) => ({
+        id: o.id,
+        key: o.option_key,
+        text: o.option_text || o.content_text || "",
+      }));
+      const qa = Array.isArray(qv?.question_answers) ? qv?.question_answers[0] : qv?.question_answers;
+
+      return {
+        id: r.id,
+        reporterUserId: r.reporter_user_id,
+        questionId: r.question_id,
+        questionVersionId: r.question_version_id,
+        issueType: r.issue_type,
+        description: r.description,
+        suggestedFix: r.suggested_fix,
+        status: r.status,
+        resolutionNotes: r.resolution_notes,
+        rewardCoinsGranted: r.reward_coins_granted || 0,
+        createdAt: r.created_at,
+        questionText: qv?.question_text || "",
+        options,
+        correctOptionKey: qa?.correct_option_key || "A",
+        explanation: qa?.solution_explanation_md || qa?.explanation_md || null,
+      };
+    });
+  }
+
+  /**
+   * Admin: Update status and resolution notes of a Question Report.
+   */
+  static async updateQuestionReportStatus(reportId: string, status: string, resolutionNotes?: string) {
+    const adminSb = createAdminServerSupabaseClient();
+    const { error } = await (adminSb.from("question_errata_reports") as any).update({
+      status,
+      resolution_notes: resolutionNotes || null,
+      updated_at: new Date().toISOString(),
+    }).eq("id", reportId);
+
+    return !error;
+  }
 }

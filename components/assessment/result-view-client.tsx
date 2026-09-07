@@ -432,6 +432,9 @@ export function ResultViewClient({ data }: ResultViewClientProps) {
                         <h4 className="font-extrabold text-sm text-slate-900">{sec.sectionName}</h4>
                         <span className="text-[11px] text-slate-500 font-semibold">
                           {sec.attemptedCount} of {sec.totalQuestions} questions attempted &bull; {sec.correctCount} correct &bull; {sec.incorrectCount} incorrect
+                          {sec.timeSpentSeconds !== undefined && sec.timeSpentSeconds > 0 && (
+                            <span> &bull; {formatTime(sec.timeSpentSeconds)} spent</span>
+                          )}
                         </span>
                       </div>
                       <div className="flex items-center gap-3 text-right">
@@ -658,6 +661,7 @@ export function ResultViewClient({ data }: ResultViewClientProps) {
                   explanation={q.explanation}
                   topicName={q.topicName}
                   topicSlug={q.topicSlug}
+                  timeSpentSeconds={q.timeSpentSeconds}
                 />
               ))
             )}

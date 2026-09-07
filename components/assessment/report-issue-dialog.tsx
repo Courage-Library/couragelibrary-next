@@ -8,6 +8,7 @@ interface ReportIssueDialogProps {
   isOpen: boolean;
   questionNumber: number;
   mockQuestionId: string;
+  questionVersionId?: string;
   onClose: () => void;
 }
 
@@ -15,43 +16,47 @@ export function ReportIssueDialog({
   isOpen,
   questionNumber,
   mockQuestionId,
+  questionVersionId,
   onClose,
 }: ReportIssueDialogProps) {
   const [issueType, setIssueType] = useState<string>("typo");
   const [comments, setComments] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setErrorMessage(null);
 
     try {
-      // Post to community/support or log feedback safely
-      await fetch("/api/community/flag-content", {
+      const res = await fetch("/api/assessment/report-question", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contentType: "mock_question",
-          contentId: mockQuestionId,
-          reason: `${issueType}: ${comments || "Flagged during mock test"}`,
+          mockQuestionId,
+          questionVersionId,
+          issueType,
+          description: comments.trim() || `Candidate reported ${issueType} for Question ${questionNumber}`,
         }),
-      }).catch(() => {});
+      });
 
-      setIsSubmitted(true);
-      setTimeout(() => {
-        setIsSubmitted(false);
-        setComments("");
-        onClose();
-      }, 1500);
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setIsSubmitted(true);
+        setTimeout(() => {
+          setIsSubmitted(false);
+          setComments("");
+          onClose();
+        }, 1500);
+      } else {
+        setErrorMessage(data.error || "Could not submit report. Please try again.");
+      }
     } catch {
-      setIsSubmitted(true);
-      setTimeout(() => {
-        setIsSubmitted(false);
-        onClose();
-      }, 1500);
+      setErrorMessage("Network error. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -113,6 +118,12 @@ export function ReportIssueDialog({
                 className="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500 resize-none"
               />
             </div>
+
+            {errorMessage && (
+              <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-xs font-semibold text-red-700">
+                {errorMessage}
+              </div>
+            )}
 
             <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
               <Button
