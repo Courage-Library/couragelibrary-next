@@ -34,6 +34,19 @@ export function formatIstDateTime(date: Date | string | null | undefined): strin
 }
 
 /**
+ * Returns ISO calendar date string (YYYY-MM-DD) in India Standard Time (Asia/Kolkata).
+ */
+export function getIstDateString(date: Date | string = new Date()): string {
+  try {
+    const d = typeof date === "string" ? new Date(date) : date;
+    if (isNaN(d.getTime())) return "";
+    return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(d);
+  } catch {
+    return "";
+  }
+}
+
+/**
  * Formats a duration in seconds into a clean, human-readable string.
  * Examples:
  * - 0 -> "0s"
