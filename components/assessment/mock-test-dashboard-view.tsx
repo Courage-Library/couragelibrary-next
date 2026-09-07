@@ -352,6 +352,36 @@ export function MockTestDashboardView({ data }: Props) {
           </Card>
         )}
 
+        {nextMockAction.type === "evaluation_pending" && nextMockAction.todayMock && (
+          <Card className="p-6 bg-indigo-50/70 border border-indigo-200 rounded-3xl shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-indigo-600 animate-pulse" />
+                  <span className="text-xs font-black text-indigo-800 uppercase tracking-wider">
+                    Today&apos;s Daily Mock Submitted &bull; Evaluation In Progress
+                  </span>
+                </div>
+                <h3 className="text-lg font-black text-slate-900">
+                  {nextMockAction.todayMock.title}
+                </h3>
+                <p className="text-xs text-slate-600">
+                  Your attempt has been submitted. Your score calculation and solutions are being finalized.
+                </p>
+              </div>
+
+              {nextMockAction.todayMock.attemptId && (
+                <Link href={`/mock-tests/${nextMockAction.todayMock.attemptId}/result`}>
+                  <Button variant="outline" className="text-xs font-bold text-indigo-700 border-indigo-300 hover:bg-indigo-100 rounded-xl">
+                    <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+                    Check Evaluation Status
+                  </Button>
+                </Link>
+              )}
+            </div>
+          </Card>
+        )}
+
         {/* ========================================================================= */}
         {/* 4. TODAY'S MOCKS LIST (MULTI-EXAM AWARE)                                 */}
         {/* ========================================================================= */}
@@ -394,6 +424,8 @@ export function MockTestDashboardView({ data }: Props) {
                         className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
                           mock.status === "completed"
                             ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            : mock.status === "evaluation_pending"
+                            ? "bg-indigo-50 text-indigo-700 border-indigo-200"
                             : mock.status === "in_progress"
                             ? "bg-amber-50 text-amber-800 border-amber-200"
                             : mock.status === "available"
@@ -403,6 +435,8 @@ export function MockTestDashboardView({ data }: Props) {
                       >
                         {mock.status === "completed"
                           ? "✓ Completed"
+                          : mock.status === "evaluation_pending"
+                          ? "⏳ Evaluation Pending"
                           : mock.status === "in_progress"
                           ? "In Progress"
                           : mock.status === "available"
@@ -437,6 +471,13 @@ export function MockTestDashboardView({ data }: Props) {
                           View Result ({formatScore(mock.completedScore)} / {mock.totalMarks})
                         </Button>
                       </Link>
+                    ) : mock.status === "evaluation_pending" && mock.attemptId ? (
+                      <Link href={`/mock-tests/${mock.attemptId}/result`} prefetch={false} className="w-full">
+                        <Button size="sm" variant="outline" className="w-full text-xs font-bold text-indigo-700 border-indigo-200 hover:bg-indigo-50">
+                          <Clock className="w-3 h-3 mr-1" />
+                          Evaluation Pending (Check Status)
+                        </Button>
+                      </Link>
                     ) : mock.status === "in_progress" ? (
                       <StartTestActionButton
                         testId={mock.testId}
@@ -453,7 +494,9 @@ export function MockTestDashboardView({ data }: Props) {
                         label="Start Mock"
                       />
                     ) : (
-                      <span className="text-[11px] text-slate-400 font-medium">Available between 5:00 AM & 11:59 PM</span>
+                      <Button disabled size="sm" variant="secondary" className="w-full text-xs">
+                        {mock.isOpen ? "Assembling Test..." : "Available at 5:00 AM IST"}
+                      </Button>
                     )}
                   </div>
                 </Card>

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient, createAdminServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -34,8 +35,7 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const { data: mqData } = await adminSb
-        .from("mock_questions")
+      const { data: mqData } = await (adminSb.from("mock_questions") as any)
         .select("question_version_id, question_versions(question_id)")
         .eq("id", mockQuestionId)
         .maybeSingle();
@@ -86,8 +86,7 @@ export async function POST(req: NextRequest) {
     const cleanSuggestedFix = suggestedFix ? suggestedFix.trim().slice(0, 3000) : null;
 
     // Check if an active open report for this user, question, and issueType already exists
-    const { data: existingReport } = await adminSb
-      .from("question_errata_reports")
+    const { data: existingReport } = await (adminSb.from("question_errata_reports") as any)
       .select("id, status")
       .eq("reporter_user_id", user.id)
       .eq("question_id", resolvedQuestionId)
@@ -105,8 +104,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Insert new errata report
-    const { data: newReport, error: insertErr } = await adminSb
-      .from("question_errata_reports")
+    const { data: newReport, error: insertErr } = await (adminSb.from("question_errata_reports") as any)
       .insert({
         reporter_user_id: user.id,
         question_id: resolvedQuestionId,

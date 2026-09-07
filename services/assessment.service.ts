@@ -129,7 +129,7 @@ export interface MockDashboardTodayItem {
   totalMarks: number;
   negativeMark: number;
   isOpen: boolean;
-  status: "available" | "in_progress" | "completed" | "upcoming" | "expired" | "limit_reached";
+  status: "available" | "in_progress" | "completed" | "evaluation_pending" | "upcoming" | "expired" | "limit_reached";
   attemptId?: string;
   completedScore?: number;
   completedAccuracy?: number;
@@ -264,7 +264,7 @@ export interface MockTestDashboardData {
   allExams: Array<{ id: string; title: string; slug: string; category?: string }>;
   selectedExamSlug: string;
   nextMockAction: {
-    type: "resume" | "start_today" | "view_result" | "browse_full" | "none";
+    type: "resume" | "start_today" | "view_result" | "evaluation_pending" | "browse_full" | "none";
     resumable?: MockDashboardResumableMock;
     todayMock?: MockDashboardTodayItem;
   };
@@ -775,23 +775,29 @@ export class AssessmentService {
     examSlugFilter?: string,
     userId?: string
   ): Promise<MockTestDashboardData> {
-    const supabase = await createServerSupabaseClient();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let supabase: any;
+    try {
+      supabase = await createServerSupabaseClient();
+    } catch {
+      supabase = createAdminServerSupabaseClient();
+    }
     const sb = supabase as any;
 
     // 1. Fetch user (if not provided)
     let userObj: { id: string; email?: string; fullName?: string } | null = null;
     let resolvedUserId = userId;
     if (!resolvedUserId) {
-      const { data: authData } = await supabase.auth.getUser();
-      if (authData.user) {
-        resolvedUserId = authData.user.id;
-        userObj = {
-          id: authData.user.id,
-          email: authData.user.email,
-          fullName: authData.user.user_metadata?.full_name || authData.user.email?.split("@")[0] || "Aspirant",
-        };
-      }
+      try {
+        const { data: authData } = await supabase.auth.getUser();
+        if (authData?.user) {
+          resolvedUserId = authData.user.id;
+          userObj = {
+            id: authData.user.id,
+            email: authData.user.email,
+            fullName: authData.user.user_metadata?.full_name || authData.user.email?.split("@")[0] || "Aspirant",
+          };
+        }
+      } catch {}
     } else {
       const { data: profile } = await sb.from("user_profiles").select("full_name").eq("id", resolvedUserId).maybeSingle();
       userObj = {
@@ -950,37 +956,49 @@ export class AssessmentService {
         const diffDays = Math.max(0, Math.floor((istDate.getTime() - launchDate.getTime()) / 86400000));
         const testNumber = Math.floor(diffDays / 7) + 1;
 
-        // Check if user attempted today
+        // Check if user attempted today (Strict IST calendar date + submitted state + test_results verification)
         let itemStatus: MockDashboardTodayItem["status"] = isOpen ? "available" : "upcoming";
         let attemptId: string | undefined;
         let completedScore: number | undefined;
         let completedAccuracy: number | undefined;
 
         if (testInstance?.id) {
-          const userTodayAttempt = attempts.find((a: any) =>
-            a.mock_test_id === testInstance.id
-          );
+          const todayDateIST = istDate.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+          const userTodayAttempt = attempts.find((a: any) => {
+            if (a.mock_test_id !== testInstance.id) return false;
+            const attemptDateIST = new Date(a.started_at).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+            return attemptDateIST === todayDateIST;
+          });
 
           if (userTodayAttempt) {
             attemptId = userTodayAttempt.id;
-            const isDone = userTodayAttempt.status === "completed" || userTodayAttempt.status === "submitted" || userTodayAttempt.status === "evaluated" || userTodayAttempt.submitted_at !== null;
-            if (isDone) {
-              itemStatus = "completed";
-              const tr = Array.isArray(userTodayAttempt.test_results)
-                ? userTodayAttempt.test_results[0]
-                : userTodayAttempt.test_results;
-              if (tr && (tr.total_score !== undefined || tr.score !== undefined)) {
-                completedScore = Number(tr.total_score ?? tr.score);
-                completedAccuracy = tr.accuracy_percentage !== undefined ? Number(tr.accuracy_percentage) : undefined;
-              }
-            } else {
-              const dur = testInstance?.duration_minutes || meta.durationMinutes || 25;
-              const elapsedSec = (Date.now() - new Date(userTodayAttempt.started_at).getTime()) / 1000;
-              if (elapsedSec > dur * 60) {
+            const tr = Array.isArray(userTodayAttempt.test_results)
+              ? userTodayAttempt.test_results[0]
+              : userTodayAttempt.test_results;
+
+            const isSubmitted =
+              (userTodayAttempt.status === "completed" ||
+                userTodayAttempt.status === "submitted" ||
+                userTodayAttempt.status === "evaluated") ||
+              userTodayAttempt.submitted_at !== null;
+
+            const hasValidResult =
+              tr &&
+              ((tr.total_score !== undefined && tr.total_score !== null) ||
+                (tr.score !== undefined && tr.score !== null));
+
+            if (isSubmitted) {
+              if (hasValidResult) {
                 itemStatus = "completed";
+                completedScore = Number(tr.total_score ?? tr.score);
+                completedAccuracy =
+                  tr.accuracy_percentage !== undefined ? Number(tr.accuracy_percentage) : undefined;
               } else {
-                itemStatus = "in_progress";
+                // Submitted, but test_results row is pending calculation / missing
+                itemStatus = "evaluation_pending";
               }
+            } else if (userTodayAttempt.status === "in_progress" && userTodayAttempt.submitted_at === null) {
+              itemStatus = "in_progress";
             }
           }
         }
@@ -1015,19 +1033,23 @@ export class AssessmentService {
       }
     }
 
-    // Direct authoritative fetch fallback for any completed todayMock with missing result
+    // Direct authoritative fetch fallback for any completed or evaluation_pending todayMock
     for (const m of todayMocks) {
-      if (m.status === "completed" && m.completedScore === undefined && m.attemptId) {
-        const adminSb = createAdminServerSupabaseClient();
-        const { data: directRes } = await (adminSb as any)
+      if ((m.status === "completed" || m.status === "evaluation_pending") && m.completedScore === undefined && m.attemptId) {
+        const adminSb = createAdminServerSupabaseClient() as any;
+        const { data: directRes } = await adminSb
           .from("test_results")
           .select("total_score, accuracy_percentage")
           .eq("attempt_id", m.attemptId)
           .maybeSingle();
 
         if (directRes && directRes.total_score !== undefined && directRes.total_score !== null) {
+          m.status = "completed";
           m.completedScore = Number(directRes.total_score);
           m.completedAccuracy = directRes.accuracy_percentage !== undefined ? Number(directRes.accuracy_percentage) : undefined;
+        } else if (m.status === "completed") {
+          // If submitted attempt has no result row yet, preserve as evaluation_pending (NEVER reset to available!)
+          m.status = "evaluation_pending";
         }
       }
     }
@@ -1155,12 +1177,23 @@ export class AssessmentService {
       const examId = exam.examId || exam.id;
       const examAttempts = completedAttempts.filter((a: any) => a.mock_tests?.mock_templates?.exam_id === examId);
       const eCount = examAttempts.length;
-      const eAccSum = examAttempts.reduce((acc: number, a: any) => acc + Number(a.test_results[0]?.accuracy_percentage || 0), 0);
+      const eAccSum = examAttempts.reduce((acc: number, a: any) => {
+        const res = Array.isArray(a.test_results) ? a.test_results[0] : a.test_results;
+        return acc + Number(res?.accuracy_percentage || 0);
+      }, 0);
       const eBest = examAttempts.reduce((b: number, a: any) => {
-        const s = Number(a.test_results[0]?.total_score ?? a.test_results[0]?.score ?? 0);
+        const res = Array.isArray(a.test_results) ? a.test_results[0] : a.test_results;
+        const s = Number(res?.total_score ?? res?.score ?? 0);
         return s > b ? s : b;
       }, 0);
-      const eQs = examAttempts.reduce((acc: number, a: any) => acc + (a.test_results[0]?.attempted_count || 0), 0);
+      const eQs = examAttempts.reduce((acc: number, a: any) => {
+        const res = Array.isArray(a.test_results) ? a.test_results[0] : a.test_results;
+        return acc + (res?.attempted_count || 0);
+      }, 0);
+
+      const firstAttemptRes = examAttempts[0]
+        ? (Array.isArray(examAttempts[0].test_results) ? examAttempts[0].test_results[0] : examAttempts[0].test_results)
+        : null;
 
       return {
         examId,
@@ -1171,7 +1204,7 @@ export class AssessmentService {
         bestScore: eBest,
         maxScore: 200,
         questionsSolved: eQs,
-        recentScore: examAttempts[0] ? Number(examAttempts[0].test_results[0]?.total_score ?? examAttempts[0].test_results[0]?.score ?? 0) : undefined,
+        recentScore: firstAttemptRes ? Number(firstAttemptRes.total_score ?? firstAttemptRes.score ?? 0) : undefined,
       };
     });
 
@@ -1216,13 +1249,49 @@ export class AssessmentService {
     if (resumableMock) {
       nextMockAction = { type: "resume", resumable: resumableMock };
     } else {
+      const inProgressTodayMock = todayMocks.find((m) => m.status === "in_progress" && m.testId);
       const activeTodayMock = todayMocks.find((m) => m.status === "available");
-      const completedTodayMock = todayMocks.find((m) => m.status === "completed");
+      const pendingTodayMock = todayMocks.find((m) => m.status === "evaluation_pending" && m.attemptId);
+      const completedTodayMock = todayMocks.find(
+        (m) => m.status === "completed" && m.attemptId && m.completedScore !== undefined
+      );
 
-      if (activeTodayMock) {
+      if (inProgressTodayMock) {
+        const matchedAttempt = attempts.find(
+          (a: any) =>
+            a.mock_test_id === inProgressTodayMock.testId &&
+            a.status === "in_progress" &&
+            a.submitted_at === null
+        );
+        if (matchedAttempt) {
+          const totalQ = inProgressTodayMock.questionCount || 25;
+          const answeredCount = matchedAttempt.test_results?.[0]?.attempted_count || 0;
+          nextMockAction = {
+            type: "resume",
+            resumable: {
+              attemptId: matchedAttempt.id,
+              testId: inProgressTodayMock.testId,
+              title: inProgressTodayMock.title,
+              examTitle: inProgressTodayMock.examTitle,
+              examSlug: inProgressTodayMock.examSlug,
+              testType: inProgressTodayMock.testType,
+              startedAt: matchedAttempt.started_at,
+              answeredCount,
+              totalQuestions: totalQ,
+              progressPercentage: Math.min(100, Math.round((answeredCount / (totalQ || 1)) * 100)),
+              durationMinutes: inProgressTodayMock.durationMinutes,
+              totalMarks: inProgressTodayMock.totalMarks,
+            },
+          };
+        } else if (activeTodayMock) {
+          nextMockAction = { type: "start_today", todayMock: activeTodayMock };
+        }
+      } else if (activeTodayMock) {
         nextMockAction = { type: "start_today", todayMock: activeTodayMock };
       } else if (completedTodayMock) {
         nextMockAction = { type: "view_result", todayMock: completedTodayMock };
+      } else if (pendingTodayMock) {
+        nextMockAction = { type: "evaluation_pending", todayMock: pendingTodayMock };
       } else if (fullMockTests.length > 0) {
         nextMockAction = { type: "browse_full" };
       }
@@ -1865,6 +1934,27 @@ export class AssessmentService {
         return p[0] + "*".repeat(Math.min(5, p.length - 1));
       })
       .join(" ");
+  }
+
+  /**
+   * Retrieves the raw submission state of an attempt to provide accurate feedback when evaluation is pending.
+   */
+  static async getAttemptSubmissionStatus(attemptId: string): Promise<{ exists: boolean; isSubmitted: boolean; status?: string } | null> {
+    const adminSb = createAdminServerSupabaseClient();
+    const { data: attempt } = await adminSb
+      .from("test_attempts")
+      .select("id, status, submitted_at")
+      .eq("id", attemptId)
+      .maybeSingle();
+
+    if (!attempt) return null;
+
+    const isSubmitted = !!attempt.submitted_at || ["submitted", "completed", "evaluated"].includes(attempt.status);
+    return {
+      exists: true,
+      isSubmitted,
+      status: attempt.status,
+    };
   }
 
   /**
