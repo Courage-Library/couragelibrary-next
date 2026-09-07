@@ -801,12 +801,20 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
       {/* EXAM PLAYER HEADER                                                        */}
       {/* ========================================================================= */}
       <header className="h-14 sm:h-16 bg-white border-b border-slate-200 px-3 sm:px-6 flex items-center justify-between shrink-0 z-10">
-        <div className="flex items-center gap-3 min-w-0">
-          {/* Official Canonical Courage Library Logo */}
-          <BrandLogo size="sm" variant="full" showText={false} />
-          <div className="h-6 w-px bg-slate-200 hidden sm:block" />
+        <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
+          {/* Official Canonical Courage Library Logo & Brand Name */}
+          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+            <BrandLogo size="sm" variant="icon" showText={false} />
+            <span className="font-black tracking-tight text-slate-900 text-xs sm:text-[15px] select-none whitespace-nowrap">
+              COURAGE LIBRARY
+            </span>
+          </div>
+
+          <div className="h-5 sm:h-6 w-px bg-slate-200 shrink-0" />
+
+          {/* Exam Context */}
           <div className="min-w-0">
-            <h1 className="font-extrabold text-xs sm:text-sm text-slate-900 truncate max-w-[150px] sm:max-w-md">
+            <h1 className="font-extrabold text-xs sm:text-sm text-slate-900 truncate max-w-[120px] xs:max-w-[160px] sm:max-w-md">
               {session.testTitle}
             </h1>
             <span className="text-[10px] text-slate-400 font-semibold hidden sm:inline font-mono">

@@ -1744,16 +1744,87 @@ export class AdminService {
   }
 
   /**
-   * Admin: Update status and resolution notes of a Question Report.
+   * Admin: Update status and resolution notes of a Question Report with state-machine safety.
    */
-  static async updateQuestionReportStatus(reportId: string, status: string, resolutionNotes?: string) {
+  static async updateQuestionReportStatus(reportId: string, targetStatus: string, resolutionNotes?: string) {
     const adminSb = createAdminServerSupabaseClient();
-    const { error } = await (adminSb.from("question_errata_reports") as any).update({
-      status,
-      resolution_notes: resolutionNotes || null,
-      updated_at: new Date().toISOString(),
-    }).eq("id", reportId);
 
-    return !error;
+    // Fetch current report status
+    const { data: currentReport, error: fetchErr } = await (adminSb.from("question_errata_reports") as any)
+      .select("id, status")
+      .eq("id", reportId)
+      .single();
+
+    if (fetchErr || !currentReport) {
+      console.error("[AdminService.updateQuestionReportStatus] Report not found:", fetchErr);
+      return false;
+    }
+
+    const currentStatus = currentReport.status;
+
+    // If same status, just update notes/timestamp
+    if (currentStatus === targetStatus) {
+      const { error } = await (adminSb.from("question_errata_reports") as any)
+        .update({
+          resolution_notes: resolutionNotes || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", reportId);
+      return !error;
+    }
+
+    // Step through the state machine: OPEN -> UNDER_REVIEW -> VERIFIED -> RESOLVED / REJECTED
+    try {
+      if (currentStatus === "OPEN") {
+        if (targetStatus === "UNDER_REVIEW" || targetStatus === "REJECTED") {
+          const { error } = await (adminSb.from("question_errata_reports") as any)
+            .update({ status: targetStatus, resolution_notes: resolutionNotes || null, updated_at: new Date().toISOString() })
+            .eq("id", reportId);
+          return !error;
+        } else if (targetStatus === "VERIFIED") {
+          await (adminSb.from("question_errata_reports") as any).update({ status: "UNDER_REVIEW" }).eq("id", reportId);
+          const { error } = await (adminSb.from("question_errata_reports") as any)
+            .update({ status: "VERIFIED", resolution_notes: resolutionNotes || null, updated_at: new Date().toISOString() })
+            .eq("id", reportId);
+          return !error;
+        } else if (targetStatus === "RESOLVED") {
+          await (adminSb.from("question_errata_reports") as any).update({ status: "UNDER_REVIEW" }).eq("id", reportId);
+          await (adminSb.from("question_errata_reports") as any).update({ status: "VERIFIED" }).eq("id", reportId);
+          const { error } = await (adminSb.from("question_errata_reports") as any)
+            .update({ status: "RESOLVED", resolution_notes: resolutionNotes || null, updated_at: new Date().toISOString() })
+            .eq("id", reportId);
+          return !error;
+        }
+      } else if (currentStatus === "UNDER_REVIEW") {
+        if (targetStatus === "VERIFIED" || targetStatus === "REJECTED") {
+          const { error } = await (adminSb.from("question_errata_reports") as any)
+            .update({ status: targetStatus, resolution_notes: resolutionNotes || null, updated_at: new Date().toISOString() })
+            .eq("id", reportId);
+          return !error;
+        } else if (targetStatus === "RESOLVED") {
+          await (adminSb.from("question_errata_reports") as any).update({ status: "VERIFIED" }).eq("id", reportId);
+          const { error } = await (adminSb.from("question_errata_reports") as any)
+            .update({ status: "RESOLVED", resolution_notes: resolutionNotes || null, updated_at: new Date().toISOString() })
+            .eq("id", reportId);
+          return !error;
+        }
+      } else if (currentStatus === "VERIFIED") {
+        if (targetStatus === "RESOLVED") {
+          const { error } = await (adminSb.from("question_errata_reports") as any)
+            .update({ status: targetStatus, resolution_notes: resolutionNotes || null, updated_at: new Date().toISOString() })
+            .eq("id", reportId);
+          return !error;
+        }
+      }
+
+      // Direct fallback update
+      const { error } = await (adminSb.from("question_errata_reports") as any)
+        .update({ status: targetStatus, resolution_notes: resolutionNotes || null, updated_at: new Date().toISOString() })
+        .eq("id", reportId);
+      return !error;
+    } catch (updateErr) {
+      console.error("[AdminService.updateQuestionReportStatus] Error updating report:", updateErr);
+      return false;
+    }
   }
 }
