@@ -798,109 +798,150 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
       )}
 
       {/* ========================================================================= */}
-      {/* EXAM PLAYER HEADER                                                        */}
+      {/* EXAM PLAYER HEADER (RESPONSIVE 3-ZONE DESKTOP / APP-STYLE MOBILE)         */}
       {/* ========================================================================= */}
-      <header className="h-14 sm:h-16 bg-white border-b border-slate-200 px-3 sm:px-6 flex items-center justify-between shrink-0 z-10">
-        <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
-          {/* Official Canonical Courage Library Logo & Brand Name */}
-          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-            <BrandLogo size="sm" variant="icon" showText={false} />
-            <span className="font-black tracking-tight text-slate-900 text-xs sm:text-[15px] select-none whitespace-nowrap">
-              COURAGE LIBRARY
-            </span>
-          </div>
-
-          <div className="h-5 sm:h-6 w-px bg-slate-200 shrink-0" />
-
-          {/* Exam Context */}
-          <div className="min-w-0">
-            <h1 className="font-extrabold text-xs sm:text-sm text-slate-900 truncate max-w-[120px] xs:max-w-[160px] sm:max-w-md">
-              {session.testTitle}
-            </h1>
-            <span className="text-[10px] text-slate-400 font-semibold hidden sm:inline font-mono">
-              Attempt #{session.attemptId.slice(0, 6)}
-            </span>
-          </div>
+      <header className="h-14 sm:h-16 bg-white border-b border-slate-200 px-3 sm:px-6 flex items-center justify-between shrink-0 z-20">
+        {/* ZONE 1: BRAND IDENTITY (Left) */}
+        <div className="flex items-center gap-2 sm:gap-3.5 shrink-0">
+          <BrandLogo size="sm" variant="icon" showText={false} />
+          <span className="font-black tracking-tight text-slate-900 text-xs sm:text-[15px] select-none whitespace-nowrap">
+            COURAGE LIBRARY
+          </span>
+          <div className="hidden md:block h-5 sm:h-6 w-px bg-slate-200" />
         </div>
 
-        {/* Live Save Status Indicator */}
-        <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-50 border border-slate-200/80 text-[11px] font-bold text-slate-600">
-          {saveStatus === "saving" ? (
-            <>
-              <RefreshCw className="w-3 h-3 text-blue-600 animate-spin" />
-              <span>Saving...</span>
-            </>
-          ) : saveStatus === "offline" ? (
-            <>
-              <WifiOff className="w-3 h-3 text-amber-600" />
-              <span className="text-amber-700">Offline (Saved Locally)</span>
-            </>
-          ) : saveStatus === "synced" ? (
-            <>
-              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-              <span className="text-emerald-700">All Synced</span>
-            </>
-          ) : (
-            <>
-              <Check className="w-3 h-3 text-emerald-600" />
-              <span className="text-slate-600">Saved</span>
-            </>
-          )}
+        {/* ZONE 2: TEST IDENTITY & METADATA (Center on Desktop / Tablet) */}
+        <div className="hidden md:flex flex-col items-center justify-center text-center px-4 min-w-0 max-w-sm lg:max-w-md xl:max-w-lg">
+          <h1 className="font-black text-xs sm:text-sm text-slate-900 truncate w-full tracking-tight" title={session.testTitle}>
+            {session.testTitle}
+          </h1>
+          <span className="text-[10px] text-slate-500 font-bold font-mono tracking-wider">
+            Attempt #{session.attemptId.slice(0, 6).toUpperCase()}
+          </span>
         </div>
 
-        {/* Timer & Controls */}
-        <div className="flex items-center gap-2">
+        {/* ZONE 3: CONTROLS & DESKTOP SUBMIT (Right) */}
+        <div className="flex items-center gap-2 sm:gap-2.5">
+          {/* Live Save Status Indicator (Desktop / Tablet) */}
+          <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-50 border border-slate-200/80 text-[11px] font-bold text-slate-600">
+            {saveStatus === "saving" ? (
+              <>
+                <RefreshCw className="w-3 h-3 text-blue-600 animate-spin" />
+                <span>Saving...</span>
+              </>
+            ) : saveStatus === "offline" ? (
+              <>
+                <WifiOff className="w-3 h-3 text-amber-600" />
+                <span className="text-amber-700">Offline (Saved)</span>
+              </>
+            ) : saveStatus === "synced" ? (
+              <>
+                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                <span className="text-emerald-700">All Synced</span>
+              </>
+            ) : (
+              <>
+                <Check className="w-3 h-3 text-emerald-600" />
+                <span className="text-slate-600">Saved</span>
+              </>
+            )}
+          </div>
+
+          {/* Persistent Timer */}
           <AssessmentTimer
             initialRemainingSeconds={session.remainingSeconds}
             onTimeExpired={() => handleSubmitAttempt(true)}
           />
 
+          {/* Desktop Instructions / Help Button */}
           <button
             type="button"
             onClick={() => setIsInstructionsOpen(true)}
             title="View Instructions (?)"
-            className="hidden sm:flex items-center gap-1 p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer text-xs font-bold"
+            className="hidden md:flex items-center gap-1 p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer text-xs font-bold"
           >
             <HelpCircle className="w-4 h-4" />
           </button>
 
+          {/* Desktop Fullscreen Button */}
           <button
             type="button"
             onClick={handleReturnToFullscreen}
             title={securityState.isFullscreen ? "Fullscreen Active" : "Enter Fullscreen"}
-            className="hidden sm:flex items-center p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer"
+            className="hidden md:flex items-center p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer"
           >
             {securityState.isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </button>
 
+          {/* DESKTOP ONLY: Submit Test Button (Hidden on Mobile) */}
           <Button
             size="sm"
             variant="default"
             disabled={isSubmitting}
-            className="bg-emerald-600 hover:bg-emerald-700 font-bold text-xs shadow-xs"
+            className="hidden md:inline-flex bg-emerald-600 hover:bg-emerald-700 font-bold text-xs shadow-xs"
             onClick={() => setIsSubmitOpen(true)}
           >
             <Send className="w-3.5 h-3.5 mr-1" /> Submit Test
           </Button>
 
+          {/* Mobile / Tablet Palette Drawer Toggle Button */}
           <button
             type="button"
-            className="lg:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100 cursor-pointer flex items-center gap-1 text-xs font-bold"
+            className="lg:hidden p-2 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition cursor-pointer flex items-center gap-1 text-xs font-bold border border-slate-200/80"
             onClick={() => setIsMobilePaletteOpen(true)}
             aria-label="Open Question Palette"
           >
-            <Menu className="w-5 h-5" />
-            <span className="hidden xs:inline">Palette</span>
+            <Menu className="w-4 h-4" />
+            <span className="hidden xs:inline text-[11px]">Palette</span>
           </button>
         </div>
       </header>
+
+      {/* ========================================================================= */}
+      {/* MOBILE TEST CONTEXT & SAVE STATUS STRIP (Mobile Only < 768px)             */}
+      {/* ========================================================================= */}
+      <div className="md:hidden bg-slate-50/95 border-b border-slate-200 px-3.5 py-1.5 flex items-center justify-between gap-2 shrink-0 z-10">
+        <div className="min-w-0 flex-1">
+          <div className="font-extrabold text-[12px] text-slate-900 truncate leading-tight" title={session.testTitle}>
+            {session.testTitle}
+          </div>
+          <div className="text-[10px] text-slate-500 font-bold font-mono tracking-wide leading-none mt-0.5">
+            Attempt #{session.attemptId.slice(0, 6).toUpperCase()}
+          </div>
+        </div>
+
+        {/* Compact Mobile Save Indicator */}
+        <div className="shrink-0 flex items-center gap-1 text-[10px] font-bold text-slate-600 bg-white px-2 py-0.5 rounded-md border border-slate-200 shadow-2xs">
+          {saveStatus === "saving" ? (
+            <>
+              <RefreshCw className="w-2.5 h-2.5 text-blue-600 animate-spin" />
+              <span>Saving</span>
+            </>
+          ) : saveStatus === "offline" ? (
+            <>
+              <WifiOff className="w-2.5 h-2.5 text-amber-600" />
+              <span className="text-amber-700">Offline</span>
+            </>
+          ) : saveStatus === "synced" ? (
+            <>
+              <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
+              <span className="text-emerald-700">Synced</span>
+            </>
+          ) : (
+            <>
+              <Check className="w-2.5 h-2.5 text-emerald-600" />
+              <span>Saved</span>
+            </>
+          )}
+        </div>
+      </div>
 
       {/* ========================================================================= */}
       {/* EXAM WORKSPACE BODY                                                       */}
       {/* ========================================================================= */}
       <div className="flex-1 flex overflow-hidden z-10">
         {/* Main Question Viewport */}
-        <main className="relative flex-1 bg-white p-4 sm:p-7 overflow-y-auto flex flex-col justify-between">
+        <main className="relative flex-1 bg-white p-4 sm:p-7 overflow-y-auto flex flex-col justify-between pb-28 md:pb-6">
           {/* Dynamic Candidate Security Watermark */}
           <CandidateSecurityWatermark
             examTitle={session.testTitle}
@@ -910,7 +951,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
           />
 
           <div className="relative z-10 max-w-3xl w-full mx-auto space-y-4 sm:space-y-6">
-            {/* Section Switcher Tabs (Desktop) */}
+            {/* Section Switcher Tabs */}
             {session.sections.length > 1 && (
               <div className="flex items-center gap-1.5 p-1 bg-slate-100/90 rounded-2xl overflow-x-auto">
                 {session.sections.map((sec) => {
@@ -966,8 +1007,8 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
             )}
           </div>
 
-          {/* Bottom Action Footer */}
-          <div className="relative z-10 max-w-3xl w-full mx-auto pt-4 mt-6 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
+          {/* Desktop Bottom Action Footer (Hidden on Mobile) */}
+          <div className="hidden md:flex relative z-10 max-w-3xl w-full mx-auto pt-4 mt-6 border-t border-slate-100 flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <Button
                 type="button"
@@ -1002,7 +1043,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
                 className="p-2 text-slate-400 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition text-xs font-semibold flex items-center gap-1 cursor-pointer"
               >
                 <Flag className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Report</span>
+                <span>Report</span>
               </button>
             </div>
 
@@ -1092,6 +1133,104 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
             onSelectQuestion={navigateToQuestionOrder}
           />
         </aside>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* MOBILE FIXED BOTTOM ACTION BAR (Mobile Only < 768px)                      */}
+      {/* 2-Tier Layout: Row 1 = Utility Actions, Row 2 = Navigation & Submit       */}
+      {/* ========================================================================= */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200/90 z-30 px-3 pt-2 pb-[max(0.6rem,env(safe-area-inset-bottom))] shadow-[0_-4px_16px_rgba(0,0,0,0.06)]">
+        {/* Row 1: Utility Actions (Mark for Review, Clear Response, Report, Help) */}
+        <div className="flex items-center justify-between gap-1.5 pb-2 border-b border-slate-100">
+          <button
+            type="button"
+            onClick={handleToggleReview}
+            className={`flex-1 py-1 px-2 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 transition cursor-pointer ${
+              currentAnswer.isMarkedForReview
+                ? "bg-purple-100 text-purple-800 border border-purple-300 shadow-2xs"
+                : "bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200"
+            }`}
+          >
+            <Bookmark className="w-3.5 h-3.5" />
+            <span>{currentAnswer.isMarkedForReview ? "Marked" : "Review"}</span>
+          </button>
+
+          <button
+            type="button"
+            disabled={!currentAnswer.selectedOption}
+            onClick={handleClearResponseClick}
+            className="flex-1 py-1 px-2 rounded-lg text-[11px] font-bold text-slate-600 hover:text-red-700 bg-slate-50 hover:bg-red-50 border border-slate-200 flex items-center justify-center gap-1 transition cursor-pointer disabled:opacity-40 disabled:hover:bg-slate-50 disabled:hover:text-slate-600 disabled:cursor-not-allowed"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Clear</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsReportOpen(true)}
+            className="py-1 px-2.5 rounded-lg text-[11px] font-bold text-slate-600 hover:text-amber-700 bg-slate-50 hover:bg-amber-50 border border-slate-200 flex items-center justify-center gap-1 transition cursor-pointer"
+            title="Report Question Issue"
+          >
+            <Flag className="w-3.5 h-3.5" />
+            <span>Report</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsInstructionsOpen(true)}
+            className="py-1 px-2 rounded-lg text-[11px] font-bold text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 flex items-center justify-center transition cursor-pointer"
+            title="View Instructions"
+          >
+            <HelpCircle className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* Row 2: Navigation & Direct Submit Actions */}
+        <div className="flex items-center gap-2 pt-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={currentIndex === 0}
+            onClick={() => navigateToQuestionIndex(currentIndex - 1)}
+            className="flex-1 h-9 font-bold text-xs"
+          >
+            <ChevronLeft className="w-4 h-4 mr-0.5" /> Prev
+          </Button>
+
+          {currentIndex === session.questions.length - 1 ? (
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              onClick={() => setIsSubmitOpen(true)}
+              className="flex-1 h-9 font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              Review &amp; Submit <Send className="w-3 h-3 ml-1" />
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              onClick={() => navigateToQuestionIndex(currentIndex + 1)}
+              className="flex-1 h-9 font-bold text-xs bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              Next <ChevronRight className="w-4 h-4 ml-0.5" />
+            </Button>
+          )}
+
+          <Button
+            type="button"
+            variant="default"
+            size="sm"
+            disabled={isSubmitting}
+            onClick={() => setIsSubmitOpen(true)}
+            className="h-9 px-3.5 font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shrink-0 shadow-xs"
+          >
+            <Send className="w-3.5 h-3.5 mr-1" /> Submit
+          </Button>
+        </div>
       </div>
 
       {/* ========================================================================= */}
