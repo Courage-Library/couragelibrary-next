@@ -708,7 +708,6 @@ export class AssessmentService {
           .select("id, status, started_at, submitted_at, test_results(total_score, score, accuracy_percentage)")
           .eq("mock_test_id", testInstance.id)
           .eq("user_id", userId)
-          .gte("started_at", todayStart.toISOString())
           .order("started_at", { ascending: false });
 
         const attemptsList = userAttempts || [];
@@ -1003,14 +1002,8 @@ export class AssessmentService {
         let completedAccuracy: number | undefined;
 
         if (testInstance?.id && resolvedUserId) {
-          const todayDateIST = istDate.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
-          
-          // Match all candidate attempts for this scheduled mock instance today
-          const matchedAttempts = attempts.filter((a: any) => {
-            if (a.mock_test_id !== testInstance.id) return false;
-            const attemptDateIST = new Date(a.started_at).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
-            return attemptDateIST === todayDateIST;
-          });
+          // Match all candidate attempts for this scheduled mock instance
+          const matchedAttempts = attempts.filter((a: any) => a.mock_test_id === testInstance.id);
 
           // PRIORITY 1: Submitted attempt strictly dominates any other attempt state
           const submittedAttempts = matchedAttempts.filter((a: any) =>
@@ -1664,48 +1657,20 @@ export class AssessmentService {
 
       const attemptsList = userAttempts || [];
 
-      if (isDaily) {
-        // Strict IST calendar date enforcement for daily scheduled mocks
-        const now = new Date();
-        const istDateString = now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
-        const istDate = new Date(istDateString);
-        const todayDateIST = istDate.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+      // Priority 1: If any submitted attempt exists for this mock test, block new attempt creation
+      const submittedAttempt = attemptsList.find(
+        (a) => a.submitted_at !== null || ["submitted", "completed", "evaluated"].includes(a.status)
+      );
+      if (submittedAttempt) {
+        return null; // Already submitted scheduled mock — 1 attempt per scheduled mock instance rule
+      }
 
-        const todayAttempts = attemptsList.filter((a) => {
-          const attemptDateIST = new Date(a.started_at).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
-          return attemptDateIST === todayDateIST;
-        });
-
-        // Priority 1: If any attempt today was submitted, block new attempt creation
-        const submittedToday = todayAttempts.find(
-          (a) => a.submitted_at !== null || ["submitted", "completed", "evaluated"].includes(a.status)
-        );
-        if (submittedToday) {
-          return null; // Already submitted today's scheduled mock — 1 attempt per scheduled mock rule
-        }
-
-        // Priority 2: If an in-progress attempt exists today, resume it
-        const inProgToday = todayAttempts.find(
-          (a) => a.status === "in_progress" && a.submitted_at === null
-        );
-        if (inProgToday) {
-          attempt = inProgToday;
-        }
-      } else {
-        // Non-daily full-length mock tests
-        const submittedAttempt = attemptsList.find(
-          (a) => a.submitted_at !== null || ["submitted", "completed", "evaluated"].includes(a.status)
-        );
-        if (submittedAttempt) {
-          return null;
-        }
-
-        const inProgAttempt = attemptsList.find(
-          (a) => a.status === "in_progress" && a.submitted_at === null
-        );
-        if (inProgAttempt) {
-          attempt = inProgAttempt;
-        }
+      // Priority 2: If an in-progress attempt exists, resume it
+      const inProgAttempt = attemptsList.find(
+        (a) => a.status === "in_progress" && a.submitted_at === null
+      );
+      if (inProgAttempt) {
+        attempt = inProgAttempt;
       }
 
       // 3. If no active attempt exists for this session, create a fresh in_progress attempt atomically
