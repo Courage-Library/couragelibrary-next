@@ -1513,44 +1513,100 @@ export class AssessmentService {
   /**
    * Initializes or resumes a test attempt, loading sanitized questions with ZERO answer key leakage.
    */
-  static async startOrResumeAttempt(testId: string): Promise<ActiveAttemptSession | null> {
-    const supabase = await createServerSupabaseClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) return null;
-
-    // Non-retakeable weekly examination cycle enforcement:
-    // Every test in the 7-day program has exactly one attempt per student.
-    const { data: alreadyCompleted } = await supabase
-      .from("test_attempts")
-      .select("id, status, started_at")
-      .eq("mock_test_id", testId)
-      .eq("user_id", user.id)
-      .in("status", ["submitted", "completed", "evaluated"])
-      .maybeSingle();
-
-    if (alreadyCompleted) {
-      // Retake does not exist — test already completed
-      return null;
+  static async startOrResumeAttempt(testId: string, overrideUserId?: string): Promise<ActiveAttemptSession | null> {
+    let resolvedUserId = overrideUserId;
+    if (!resolvedUserId) {
+      try {
+        const supabase = await createServerSupabaseClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        resolvedUserId = user?.id;
+      } catch {
+        // Fallback
+      }
     }
 
-    // Check for existing in_progress attempt
-    const { data: existingAttempt } = await supabase
+    if (!resolvedUserId) return null;
+
+    const adminSb = createAdminServerSupabaseClient();
+
+    // 1. Check if testId is directly an attempt ID
+    const { data: directAttempt } = await adminSb
       .from("test_attempts")
-      .select("id, started_at, status")
-      .eq("mock_test_id", testId)
-      .eq("user_id", user.id)
-      .eq("status", "in_progress")
+      .select("id, mock_test_id, user_id, status, started_at, submitted_at")
+      .eq("id", testId)
       .maybeSingle();
 
-    let attempt = existingAttempt as any;
+    let targetMockTestId = testId;
+    let attempt: any = null;
 
+    if (directAttempt) {
+      if (directAttempt.user_id !== resolvedUserId) return null; // Security barrier
+      if (directAttempt.submitted_at !== null || ["submitted", "completed", "evaluated"].includes(directAttempt.status)) {
+        return null; // Completed, take page will route to result
+      }
+      targetMockTestId = directAttempt.mock_test_id;
+      attempt = directAttempt;
+    }
+
+    // 2. If attempt not directly resolved, fetch mock test details to determine daily vs full type
+    const { data: mockTestData } = await adminSb
+      .from("mock_tests")
+      .select("id, title, duration_minutes, template_id, mock_templates(id, title, test_type, slug)")
+      .eq("id", targetMockTestId)
+      .maybeSingle();
+
+    if (!mockTestData) return null;
+
+    const tpl = mockTestData.mock_templates as any;
+    const isDaily = tpl?.test_type === "daily_sectional" || tpl?.test_type === "mixed" || tpl?.slug?.includes("-daily-");
+
+    // Fetch user's existing attempts for this mock test
+    const { data: userAttempts } = await adminSb
+      .from("test_attempts")
+      .select("id, status, started_at, submitted_at")
+      .eq("mock_test_id", targetMockTestId)
+      .eq("user_id", resolvedUserId)
+      .order("started_at", { ascending: false });
+
+    const attemptsList = userAttempts || [];
+
+    if (isDaily) {
+      // Strict IST calendar date enforcement for daily scheduled mocks
+      const now = new Date();
+      const istDateString = now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
+      const istDate = new Date(istDateString);
+      const todayDateIST = istDate.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+
+      const todayAttempt = attemptsList.find((a) => {
+        const attemptDateIST = new Date(a.started_at).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+        return attemptDateIST === todayDateIST;
+      });
+
+      if (todayAttempt) {
+        if (todayAttempt.submitted_at !== null || ["submitted", "completed", "evaluated"].includes(todayAttempt.status)) {
+          // Already completed today's scheduled mock — one attempt per day rule
+          return null;
+        }
+        attempt = todayAttempt;
+      }
+    } else {
+      // Non-daily full-length mock tests
+      const latestAttempt = attemptsList[0];
+      if (latestAttempt) {
+        if (latestAttempt.submitted_at !== null || ["submitted", "completed", "evaluated"].includes(latestAttempt.status)) {
+          return null;
+        }
+        attempt = latestAttempt;
+      }
+    }
+
+    // 3. If no active attempt exists for this session, create a fresh in_progress attempt
     if (!attempt) {
-      const { data: newAttempt, error } = await supabase
+      const { data: newAttempt, error } = await adminSb
         .from("test_attempts")
         .insert({
-          mock_test_id: testId,
-          user_id: user.id,
+          mock_test_id: targetMockTestId,
+          user_id: resolvedUserId,
           status: "in_progress",
           started_at: new Date().toISOString(),
         } as any)
@@ -1562,15 +1618,13 @@ export class AssessmentService {
     }
 
     // Ensure mock questions and sections exist
-    await AssessmentService.ensureMockTestQuestions(testId);
-
-    const adminSb = createAdminServerSupabaseClient();
+    await AssessmentService.ensureMockTestQuestions(targetMockTestId);
 
     // Fetch test details, sections, and questions with options
     const [testRes, sectionsRes, questionsRes, answersRes] = await Promise.all([
-      adminSb.from("mock_tests").select("id, title, duration_minutes").eq("id", testId).single(),
-      adminSb.from("mock_sections").select("id, section_name, section_order").eq("mock_test_id", testId).order("section_order"),
-      adminSb.from("mock_questions").select("id, question_order, mock_section_id, marks, negative_mark, question_versions(id, question_text, question_image_url, options_type, question_options(id, option_key, option_text, option_image_url, order_index))").eq("mock_test_id", testId).order("question_order"),
+      adminSb.from("mock_tests").select("id, title, duration_minutes").eq("id", targetMockTestId).single(),
+      adminSb.from("mock_sections").select("id, section_name, section_order").eq("mock_test_id", targetMockTestId).order("section_order"),
+      adminSb.from("mock_questions").select("id, question_order, mock_section_id, marks, negative_mark, question_versions(id, question_text, question_image_url, options_type, question_options(id, option_key, option_text, option_image_url, order_index))").eq("mock_test_id", targetMockTestId).order("question_order"),
       adminSb.from("attempt_answers").select("mock_question_id, selected_option_key, is_marked_for_review, time_spent_seconds").eq("attempt_id", attempt.id),
     ]);
 
