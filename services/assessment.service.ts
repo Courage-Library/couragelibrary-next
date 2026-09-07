@@ -255,6 +255,7 @@ export interface MockDashboardRewards {
 }
 
 export interface MockTestDashboardData {
+  isAuthenticated: boolean;
   user: {
     id: string;
     email?: string;
@@ -264,7 +265,7 @@ export interface MockTestDashboardData {
   allExams: Array<{ id: string; title: string; slug: string; category?: string }>;
   selectedExamSlug: string;
   nextMockAction: {
-    type: "resume" | "start_today" | "view_result" | "evaluation_pending" | "browse_full" | "none";
+    type: "resume" | "start_today" | "view_result" | "evaluation_pending" | "browse_full" | "auth_required" | "none";
     resumable?: MockDashboardResumableMock;
     todayMock?: MockDashboardTodayItem;
   };
@@ -470,6 +471,8 @@ export interface TestLeaderboardData {
 }
 
 export class AssessmentService {
+  private static attemptCreationLocks = new Map<string, Promise<any>>();
+
   /**
    * Fetches published competitive exams grouped by category.
    */
@@ -702,29 +705,45 @@ export class AssessmentService {
 
         const { data: userAttempts } = await sb
           .from("test_attempts")
-          .select("id, status, started_at, test_results(score, accuracy_percentage)")
+          .select("id, status, started_at, submitted_at, test_results(total_score, score, accuracy_percentage)")
           .eq("mock_test_id", testInstance.id)
           .eq("user_id", userId)
           .gte("started_at", todayStart.toISOString())
-          .order("started_at", { ascending: false })
-        .limit(1);
+          .order("started_at", { ascending: false });
 
-        if (userAttempts && userAttempts.length > 0) {
-          const att = userAttempts[0];
-          attemptId = att.id;
-          const isDone = att.status === "completed" || att.status === "submitted" || att.status === "evaluated" || att.submitted_at !== null;
-          if (isDone) {
-            userAttemptStatus = "completed";
-            completedScore = att.test_results?.[0]?.total_score ?? att.test_results?.[0]?.score;
-            completedAccuracy = att.test_results?.[0]?.accuracy_percentage;
-          } else {
-            const dur = testInstance?.duration_minutes || meta.durationMinutes || 25;
-            const elapsedSec = (Date.now() - new Date(att.started_at).getTime()) / 1000;
-            if (elapsedSec > dur * 60) {
-              userAttemptStatus = "completed";
-            } else {
-              userAttemptStatus = "in_progress";
-            }
+        const attemptsList = userAttempts || [];
+
+        // Priority 1: Submitted attempt
+        const submittedAttempts = attemptsList.filter((a: any) =>
+          a.submitted_at !== null || ["submitted", "completed", "evaluated"].includes(a.status)
+        );
+
+        if (submittedAttempts.length > 0) {
+          // Sort valid result first, then latest submitted
+          submittedAttempts.sort((a: any, b: any) => {
+            const trA = Array.isArray(a.test_results) ? a.test_results[0] : a.test_results;
+            const trB = Array.isArray(b.test_results) ? b.test_results[0] : b.test_results;
+            const hasValidA = trA && ((trA.total_score !== undefined && trA.total_score !== null) || (trA.score !== undefined && trA.score !== null)) ? 1 : 0;
+            const hasValidB = trB && ((trB.total_score !== undefined && trB.total_score !== null) || (trB.score !== undefined && trB.score !== null)) ? 1 : 0;
+            if (hasValidA !== hasValidB) return hasValidB - hasValidA;
+            const timeA = new Date(a.submitted_at || a.started_at).getTime();
+            const timeB = new Date(b.submitted_at || b.started_at).getTime();
+            if (timeA !== timeB) return timeB - timeA;
+            return String(b.id).localeCompare(String(a.id));
+          });
+
+          const authAtt = submittedAttempts[0];
+          attemptId = authAtt.id;
+          const tr = Array.isArray(authAtt.test_results) ? authAtt.test_results[0] : authAtt.test_results;
+          userAttemptStatus = "completed";
+          completedScore = tr?.total_score ?? tr?.score;
+          completedAccuracy = tr?.accuracy_percentage;
+        } else {
+          // Priority 2: In progress
+          const inProgAtt = attemptsList.find((a: any) => a.status === "in_progress" && a.submitted_at === null);
+          if (inProgAtt) {
+            attemptId = inProgAtt.id;
+            userAttemptStatus = "in_progress";
           }
         }
       }
@@ -956,49 +975,84 @@ export class AssessmentService {
         const diffDays = Math.max(0, Math.floor((istDate.getTime() - launchDate.getTime()) / 86400000));
         const testNumber = Math.floor(diffDays / 7) + 1;
 
-        // Check if user attempted today (Strict IST calendar date + submitted state + test_results verification)
+        // Explicit 3-Tier Attempt Priority Resolver (Strict IST calendar date)
         let itemStatus: MockDashboardTodayItem["status"] = isOpen ? "available" : "upcoming";
         let attemptId: string | undefined;
         let completedScore: number | undefined;
         let completedAccuracy: number | undefined;
 
-        if (testInstance?.id) {
+        if (testInstance?.id && resolvedUserId) {
           const todayDateIST = istDate.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
-          const userTodayAttempt = attempts.find((a: any) => {
+          
+          // Match all candidate attempts for this scheduled mock instance today
+          const matchedAttempts = attempts.filter((a: any) => {
             if (a.mock_test_id !== testInstance.id) return false;
             const attemptDateIST = new Date(a.started_at).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
             return attemptDateIST === todayDateIST;
           });
 
-          if (userTodayAttempt) {
-            attemptId = userTodayAttempt.id;
-            const tr = Array.isArray(userTodayAttempt.test_results)
-              ? userTodayAttempt.test_results[0]
-              : userTodayAttempt.test_results;
+          // PRIORITY 1: Submitted attempt strictly dominates any other attempt state
+          const submittedAttempts = matchedAttempts.filter((a: any) =>
+            a.submitted_at !== null || ["submitted", "completed", "evaluated"].includes(a.status)
+          );
 
-            const isSubmitted =
-              (userTodayAttempt.status === "completed" ||
-                userTodayAttempt.status === "submitted" ||
-                userTodayAttempt.status === "evaluated") ||
-              userTodayAttempt.submitted_at !== null;
+          if (submittedAttempts.length > 0) {
+            // Anomaly logging if multiple submitted attempts exist historically
+            if (submittedAttempts.length > 1) {
+              console.warn(
+                `[ANOMALY] Multiple submitted attempts detected for user ${resolvedUserId} on mock_test ${testInstance.id}:`,
+                submittedAttempts.map((a: any) => a.id)
+              );
+            }
+
+            // Deterministic authoritative selection:
+            // 1. Attempts with valid test_results first
+            // 2. Latest submitted_at / started_at
+            // 3. Deterministic ID tie-breaker
+            submittedAttempts.sort((a: any, b: any) => {
+              const trA = Array.isArray(a.test_results) ? a.test_results[0] : a.test_results;
+              const trB = Array.isArray(b.test_results) ? b.test_results[0] : b.test_results;
+              const hasValidA = trA && ((trA.total_score !== undefined && trA.total_score !== null) || (trA.score !== undefined && trA.score !== null)) ? 1 : 0;
+              const hasValidB = trB && ((trB.total_score !== undefined && trB.total_score !== null) || (trB.score !== undefined && trB.score !== null)) ? 1 : 0;
+              if (hasValidA !== hasValidB) return hasValidB - hasValidA;
+
+              const timeA = new Date(a.submitted_at || a.started_at).getTime();
+              const timeB = new Date(b.submitted_at || b.started_at).getTime();
+              if (timeA !== timeB) return timeB - timeA;
+
+              return String(b.id).localeCompare(String(a.id));
+            });
+
+            const authAttempt = submittedAttempts[0];
+            attemptId = authAttempt.id;
+            const tr = Array.isArray(authAttempt.test_results)
+              ? authAttempt.test_results[0]
+              : authAttempt.test_results;
 
             const hasValidResult =
               tr &&
               ((tr.total_score !== undefined && tr.total_score !== null) ||
                 (tr.score !== undefined && tr.score !== null));
 
-            if (isSubmitted) {
-              if (hasValidResult) {
-                itemStatus = "completed";
-                completedScore = Number(tr.total_score ?? tr.score);
-                completedAccuracy =
-                  tr.accuracy_percentage !== undefined ? Number(tr.accuracy_percentage) : undefined;
-              } else {
-                // Submitted, but test_results row is pending calculation / missing
-                itemStatus = "evaluation_pending";
-              }
-            } else if (userTodayAttempt.status === "in_progress" && userTodayAttempt.submitted_at === null) {
+            if (hasValidResult) {
+              itemStatus = "completed";
+              completedScore = Number(tr.total_score ?? tr.score);
+              completedAccuracy =
+                tr.accuracy_percentage !== undefined ? Number(tr.accuracy_percentage) : undefined;
+            } else {
+              itemStatus = "evaluation_pending";
+            }
+          } else {
+            // PRIORITY 2: Only when NO submitted attempt exists, check for in-progress attempt
+            const inProgAttempt = matchedAttempts.find(
+              (a: any) => a.status === "in_progress" && a.submitted_at === null
+            );
+            if (inProgAttempt) {
               itemStatus = "in_progress";
+              attemptId = inProgAttempt.id;
+            } else {
+              // PRIORITY 3: No attempts found for today
+              itemStatus = isOpen ? "available" : "upcoming";
             }
           }
         }
@@ -1246,15 +1300,17 @@ export class AssessmentService {
     // 12. Next Mock Action Resolution (Priority Engine)
     let nextMockAction: MockTestDashboardData["nextMockAction"] = { type: "none" };
 
-    if (resumableMock) {
+    if (!resolvedUserId) {
+      nextMockAction = { type: "auth_required" };
+    } else if (resumableMock) {
       nextMockAction = { type: "resume", resumable: resumableMock };
     } else {
       const inProgressTodayMock = todayMocks.find((m) => m.status === "in_progress" && m.testId);
-      const activeTodayMock = todayMocks.find((m) => m.status === "available");
-      const pendingTodayMock = todayMocks.find((m) => m.status === "evaluation_pending" && m.attemptId);
       const completedTodayMock = todayMocks.find(
         (m) => m.status === "completed" && m.attemptId && m.completedScore !== undefined
       );
+      const pendingTodayMock = todayMocks.find((m) => m.status === "evaluation_pending" && m.attemptId);
+      const activeTodayMock = todayMocks.find((m) => m.status === "available");
 
       if (inProgressTodayMock) {
         const matchedAttempt = attempts.find(
@@ -1283,21 +1339,26 @@ export class AssessmentService {
               totalMarks: inProgressTodayMock.totalMarks,
             },
           };
+        } else if (completedTodayMock) {
+          nextMockAction = { type: "view_result", todayMock: completedTodayMock };
+        } else if (pendingTodayMock) {
+          nextMockAction = { type: "evaluation_pending", todayMock: pendingTodayMock };
         } else if (activeTodayMock) {
           nextMockAction = { type: "start_today", todayMock: activeTodayMock };
         }
-      } else if (activeTodayMock) {
-        nextMockAction = { type: "start_today", todayMock: activeTodayMock };
       } else if (completedTodayMock) {
         nextMockAction = { type: "view_result", todayMock: completedTodayMock };
       } else if (pendingTodayMock) {
         nextMockAction = { type: "evaluation_pending", todayMock: pendingTodayMock };
+      } else if (activeTodayMock) {
+        nextMockAction = { type: "start_today", todayMock: activeTodayMock };
       } else if (fullMockTests.length > 0) {
         nextMockAction = { type: "browse_full" };
       }
     }
 
     return {
+      isAuthenticated: Boolean(resolvedUserId),
       user: userObj,
       activeExamGoals,
       allExams: allExams.map((e) => ({ id: e.id, title: e.title, slug: e.slug, category: e.category })),
@@ -1560,61 +1621,128 @@ export class AssessmentService {
     const tpl = mockTestData.mock_templates as any;
     const isDaily = tpl?.test_type === "daily_sectional" || tpl?.test_type === "mixed" || tpl?.slug?.includes("-daily-");
 
-    // Fetch user's existing attempts for this mock test
-    const { data: userAttempts } = await adminSb
-      .from("test_attempts")
-      .select("id, status, started_at, submitted_at")
-      .eq("mock_test_id", targetMockTestId)
-      .eq("user_id", resolvedUserId)
-      .order("started_at", { ascending: false });
-
-    const attemptsList = userAttempts || [];
-
-    if (isDaily) {
-      // Strict IST calendar date enforcement for daily scheduled mocks
-      const now = new Date();
-      const istDateString = now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
-      const istDate = new Date(istDateString);
-      const todayDateIST = istDate.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
-
-      const todayAttempt = attemptsList.find((a) => {
-        const attemptDateIST = new Date(a.started_at).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
-        return attemptDateIST === todayDateIST;
-      });
-
-      if (todayAttempt) {
-        if (todayAttempt.submitted_at !== null || ["submitted", "completed", "evaluated"].includes(todayAttempt.status)) {
-          // Already completed today's scheduled mock — one attempt per day rule
-          return null;
-        }
-        attempt = todayAttempt;
-      }
-    } else {
-      // Non-daily full-length mock tests
-      const latestAttempt = attemptsList[0];
-      if (latestAttempt) {
-        if (latestAttempt.submitted_at !== null || ["submitted", "completed", "evaluated"].includes(latestAttempt.status)) {
-          return null;
-        }
-        attempt = latestAttempt;
-      }
+    // Concurrency lock: serialize simultaneous requests for the same user and mock test
+    const lockKey = `${resolvedUserId}__${targetMockTestId}`;
+    while (AssessmentService.attemptCreationLocks.has(lockKey)) {
+      try {
+        await AssessmentService.attemptCreationLocks.get(lockKey);
+      } catch {}
     }
 
-    // 3. If no active attempt exists for this session, create a fresh in_progress attempt
-    if (!attempt) {
-      const { data: newAttempt, error } = await adminSb
-        .from("test_attempts")
-        .insert({
-          mock_test_id: targetMockTestId,
-          user_id: resolvedUserId,
-          status: "in_progress",
-          started_at: new Date().toISOString(),
-        } as any)
-        .select("id, started_at")
-        .single();
+    let releaseLock: (() => void) | null = null;
+    const lockPromise = new Promise<void>((resolve) => {
+      releaseLock = resolve;
+    });
+    AssessmentService.attemptCreationLocks.set(lockKey, lockPromise);
 
-      if (error || !newAttempt) return null;
-      attempt = newAttempt as any;
+    try {
+      // Fetch user's existing attempts for this mock test
+      const { data: userAttempts } = await adminSb
+        .from("test_attempts")
+        .select("id, status, started_at, submitted_at")
+        .eq("mock_test_id", targetMockTestId)
+        .eq("user_id", resolvedUserId)
+        .order("started_at", { ascending: false });
+
+      const attemptsList = userAttempts || [];
+
+      if (isDaily) {
+        // Strict IST calendar date enforcement for daily scheduled mocks
+        const now = new Date();
+        const istDateString = now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
+        const istDate = new Date(istDateString);
+        const todayDateIST = istDate.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+
+        const todayAttempts = attemptsList.filter((a) => {
+          const attemptDateIST = new Date(a.started_at).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+          return attemptDateIST === todayDateIST;
+        });
+
+        // Priority 1: If any attempt today was submitted, block new attempt creation
+        const submittedToday = todayAttempts.find(
+          (a) => a.submitted_at !== null || ["submitted", "completed", "evaluated"].includes(a.status)
+        );
+        if (submittedToday) {
+          return null; // Already submitted today's scheduled mock — 1 attempt per scheduled mock rule
+        }
+
+        // Priority 2: If an in-progress attempt exists today, resume it
+        const inProgToday = todayAttempts.find(
+          (a) => a.status === "in_progress" && a.submitted_at === null
+        );
+        if (inProgToday) {
+          attempt = inProgToday;
+        }
+      } else {
+        // Non-daily full-length mock tests
+        const submittedAttempt = attemptsList.find(
+          (a) => a.submitted_at !== null || ["submitted", "completed", "evaluated"].includes(a.status)
+        );
+        if (submittedAttempt) {
+          return null;
+        }
+
+        const inProgAttempt = attemptsList.find(
+          (a) => a.status === "in_progress" && a.submitted_at === null
+        );
+        if (inProgAttempt) {
+          attempt = inProgAttempt;
+        }
+      }
+
+      // 3. If no active attempt exists for this session, create a fresh in_progress attempt atomically
+      if (!attempt) {
+        try {
+          const { data: newAttempt, error } = await adminSb
+            .from("test_attempts")
+            .insert({
+              mock_test_id: targetMockTestId,
+              user_id: resolvedUserId,
+              status: "in_progress",
+              started_at: new Date().toISOString(),
+            } as any)
+            .select("id, started_at")
+            .single();
+
+          if (error || !newAttempt) {
+            // Concurrency recovery: check if a simultaneous request created the attempt
+            const { data: recoveredAttempt } = await adminSb
+              .from("test_attempts")
+              .select("id, status, started_at, submitted_at")
+              .eq("mock_test_id", targetMockTestId)
+              .eq("user_id", resolvedUserId)
+              .order("started_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            if (recoveredAttempt && recoveredAttempt.status === "in_progress" && recoveredAttempt.submitted_at === null) {
+              attempt = recoveredAttempt;
+            } else {
+              return null;
+            }
+          } else {
+            attempt = newAttempt as any;
+          }
+        } catch {
+          const { data: recoveredAttempt } = await adminSb
+            .from("test_attempts")
+            .select("id, status, started_at, submitted_at")
+            .eq("mock_test_id", targetMockTestId)
+            .eq("user_id", resolvedUserId)
+            .order("started_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (recoveredAttempt && recoveredAttempt.status === "in_progress" && recoveredAttempt.submitted_at === null) {
+            attempt = recoveredAttempt;
+          } else {
+            return null;
+          }
+        }
+      }
+    } finally {
+      AssessmentService.attemptCreationLocks.delete(lockKey);
+      if (releaseLock) (releaseLock as () => void)();
     }
 
     // Ensure mock questions and sections exist
