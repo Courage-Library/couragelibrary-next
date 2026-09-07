@@ -1,4 +1,4 @@
-﻿# dependencies
+# dependencies
 /node_modules
 /.pnp
 .pnp.js
@@ -28,9 +28,14 @@ yarn-error.log*
 .env
 !.env.example
 
+# scratch scripts and temp files
+/scratch/
+*.scratch.*
+
 # vercel
 .vercel
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+

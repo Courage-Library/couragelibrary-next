@@ -19,21 +19,21 @@ export function CandidateSecurityWatermark({
   className = "",
   isLighter = false,
 }: CandidateSecurityWatermarkProps) {
-  // Format clean line 1 & line 2
-  const line1 = `COURAGE LIBRARY \u2022 ${examTitle.toUpperCase().slice(0, 24)}`;
-  const line2 = `CANDIDATE #${maskedCandidateId} \u2022 ATTEMPT #${attemptIdShort}`;
+  // Format clean line 1 & line 2 (Clear security strings with uppercase branding)
+  const line1 = `COURAGE LIBRARY \u2022 ${examTitle.toUpperCase().slice(0, 26)}`;
+  const line2 = `CANDIDATE \u2022 #${maskedCandidateId} \u2022 ATTEMPT #${attemptIdShort}`;
   const line3 = timestamp ? timestamp.toUpperCase() : "";
 
-  // Encode SVG Pattern into data URI
+  // Encode SVG Pattern into data URI with larger tile and legible typography (14px font, 360x210 tile)
   const svgContent = `
-    <svg xmlns='http://www.w3.org/2000/svg' width='340' height='180' viewBox='0 0 340 180'>
-      <g transform='rotate(-20 170 90)' fill='%230f172a' font-family='monospace, sans-serif' font-size='10' font-weight='800' letter-spacing='1.5'>
-        <text x='20' y='40'>${line1}</text>
-        <text x='20' y='55'>${line2}</text>
-        ${line3 ? `<text x='20' y='70'>${line3}</text>` : ""}
-        <text x='190' y='130'>${line1}</text>
-        <text x='190' y='145'>${line2}</text>
-        ${line3 ? `<text x='190' y='160'>${line3}</text>` : ""}
+    <svg xmlns='http://www.w3.org/2000/svg' width='360' height='210' viewBox='0 0 360 210'>
+      <g transform='rotate(-22 180 105)' fill='%230f172a' font-family='monospace, -apple-system, sans-serif' font-size='14' font-weight='700' letter-spacing='1.5'>
+        <text x='15' y='50'>${line1}</text>
+        <text x='15' y='72'>${line2}</text>
+        ${line3 ? `<text x='15' y='94'>${line3}</text>` : ""}
+        <text x='200' y='155'>${line1}</text>
+        <text x='200' y='177'>${line2}</text>
+        ${line3 ? `<text x='200' y='199'>${line3}</text>` : ""}
       </g>
     </svg>
   `.trim().replace(/\n/g, "").replace(/\s+/g, " ");
@@ -44,7 +44,7 @@ export function CandidateSecurityWatermark({
     <div
       aria-hidden="true"
       className={`pointer-events-none absolute inset-0 z-0 select-none overflow-hidden transition-opacity duration-300 ${
-        isLighter ? "opacity-[0.035]" : "opacity-[0.048]"
+        isLighter ? "opacity-[0.055]" : "opacity-[0.08]"
       } ${className}`}
       style={{
         backgroundImage: `url("data:image/svg+xml,${encodedSvg}")`,
@@ -53,3 +53,4 @@ export function CandidateSecurityWatermark({
     />
   );
 }
+

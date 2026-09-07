@@ -27,6 +27,7 @@ import {
   ClipboardList,
   Menu,
   X,
+  Flag,
 } from "lucide-react";
 
 interface Props {
@@ -39,6 +40,7 @@ const MOCK_TEST_ROUTES = [
   "/admin/patterns",
   "/admin/sections",
   "/admin/questions",
+  "/admin/reports",
   "/admin/schedules",
   "/admin/mock-tests",
   "/admin/bulk-import",
@@ -87,6 +89,11 @@ export function AdminSidebar({ userEmail }: Props) {
       label: "Questions",
       href: "/admin/questions",
       icon: HelpCircle,
+    },
+    {
+      label: "Question Reports",
+      href: "/admin/reports",
+      icon: Flag,
     },
     {
       label: "Schedules",
