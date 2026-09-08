@@ -62,6 +62,7 @@ export function MainNav({}: MainNavProps = {}) {
   // Active section detectors
   const isExamsActive = pathname.startsWith("/exams");
   const isPracticeActive =
+    pathname.startsWith("/premium") ||
     pathname.startsWith("/practice") ||
     pathname.startsWith("/mock-tests") ||
     pathname.startsWith("/flashcards") ||
@@ -162,6 +163,16 @@ export function MainNav({}: MainNavProps = {}) {
 
         {openCategory === "practice" && (
           <div className="absolute top-full left-0 mt-1.5 w-64 rounded-2xl bg-white p-2 shadow-xl border border-slate-200/80 z-50 animate-in fade-in slide-in-from-top-1">
+            <Link href="/premium" className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100/80 text-slate-900 transition-colors border border-amber-200/60 mb-1">
+              <Sparkles className="w-4 h-4 fill-amber-400 text-amber-500 shrink-0" />
+              <div>
+                <div className="text-xs font-black text-slate-900 flex items-center gap-1">
+                  <span>Premium Hub</span>
+                  <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-amber-200 text-amber-900">PRO</span>
+                </div>
+                <div className="text-[10px] text-amber-800 font-medium">AI Mocks, Weak Areas & PYQs</div>
+              </div>
+            </Link>
             <Link href="/practice" className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-slate-100 text-slate-800 transition-colors">
               <HelpCircle className="w-4 h-4 text-blue-500 shrink-0" />
               <div>

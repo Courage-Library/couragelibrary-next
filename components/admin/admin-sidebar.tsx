@@ -28,6 +28,7 @@ import {
   Menu,
   X,
   Flag,
+  Sparkles,
 } from "lucide-react";
 
 interface Props {
@@ -317,6 +318,17 @@ export function AdminSidebar({ userEmail }: Props) {
               >
                 <CreditCard className={`w-3.5 h-3.5 shrink-0 ${pathname.startsWith("/admin/billing") ? "text-white" : "text-slate-400"}`} />
                 <span className="text-[11px]">Billing &amp; Plans</span>
+              </Link>
+              <Link
+                href="/admin/premium"
+                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors ${
+                  pathname.startsWith("/admin/premium")
+                    ? "bg-amber-600 text-white font-semibold shadow-xs"
+                    : "text-amber-400 hover:bg-slate-800 hover:text-amber-300"
+                }`}
+              >
+                <Sparkles className={`w-3.5 h-3.5 shrink-0 ${pathname.startsWith("/admin/premium") ? "text-white" : "text-amber-400"}`} />
+                <span className="text-[11px] font-bold">Premium Control</span>
               </Link>
             </div>
           </nav>

@@ -4,6 +4,8 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from "react"
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ActiveAttemptSession } from "@/services/assessment.service";
+import { ActiveAdaptiveSession, SafeAdaptiveQuestionPayload, DifficultyTier } from "@/services/adaptive/adaptive-types";
+import { AdaptiveProgressBadge } from "@/components/assessment/adaptive-progress-badge";
 import { BrandLogo } from "@/components/brand/logo";
 import { AssessmentTimer } from "@/components/assessment/assessment-timer";
 import { QuestionRenderer } from "@/components/assessment/question-renderer";
@@ -37,10 +39,14 @@ import {
   Monitor,
   ArrowRight,
   ShieldCheck,
+  AlertCircle,
+  Sparkles,
 } from "lucide-react";
 
+export type MockTestPlayerSession = ActiveAttemptSession | ActiveAdaptiveSession;
+
 interface MockTestPlayerClientProps {
-  session: ActiveAttemptSession;
+  session: MockTestPlayerSession;
 }
 
 interface SavedAnswerState {
@@ -64,36 +70,85 @@ type SubmissionState = "idle" | "time_expired" | "submitting" | "submitted" | "e
 export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
   const router = useRouter();
 
-  // Safety Guard: Handle empty question state gracefully
-  const hasQuestions = session.questions && session.questions.length > 0;
+  // Authoritative Mode Discrimination
+  const isAdaptive = Boolean("isAdaptive" in session && session.isAdaptive);
+  const adaptiveSession = isAdaptive ? (session as ActiveAdaptiveSession) : null;
+  const fixedSession = isAdaptive ? null : (session as ActiveAttemptSession);
 
   // Pre-exam Fullscreen Gate State
   const [isExamStarted, setIsExamStarted] = useState(false);
 
+  // Fixed Mock State
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  // Initialize answers from session
+  // Adaptive Mock State
+  const [generatedSteps, setGeneratedSteps] = useState<SafeAdaptiveQuestionPayload[]>(() => {
+    if (adaptiveSession?.adaptive?.generatedSteps && adaptiveSession.adaptive.generatedSteps.length > 0) {
+      return adaptiveSession.adaptive.generatedSteps;
+    }
+    if (adaptiveSession?.adaptive?.currentQuestion) {
+      return [adaptiveSession.adaptive.currentQuestion];
+    }
+    return [];
+  });
+
+  const [activeStepNumber, setActiveStepNumber] = useState<number>(() => {
+    return adaptiveSession?.adaptive?.currentStep || 1;
+  });
+
+  const [viewingStepNumber, setViewingStepNumber] = useState<number>(() => {
+    return adaptiveSession?.adaptive?.currentStep || 1;
+  });
+
+  const [isStepTransitioning, setIsStepTransitioning] = useState<boolean>(false);
+  const [stepTransitionError, setStepTransitionError] = useState<string | null>(null);
+  const [stoppingRuleMet, setStoppingRuleMet] = useState<boolean>(() => {
+    return adaptiveSession?.adaptive?.status === "stopping_rule_met";
+  });
+  const [stoppingReason, setStoppingReason] = useState<string | null>(() => {
+    return adaptiveSession?.adaptive?.stoppingReason || null;
+  });
+  const [currentDifficultyTier, setCurrentDifficultyTier] = useState<DifficultyTier>(() => {
+    return adaptiveSession?.adaptive?.currentDifficultyTier || "medium";
+  });
+
+  const isViewingPastStep = isAdaptive && viewingStepNumber < activeStepNumber;
+
+  // Initialize answers from session (supports both fixed & adaptive resume)
   const [answers, setAnswers] = useState<Record<string, SavedAnswerState>>(() => {
     const initial: Record<string, SavedAnswerState> = {};
-    session.questions.forEach((q) => {
-      if (q.savedAnswer) {
-        initial[q.mockQuestionId] = q.savedAnswer;
-      }
-    });
+    if (isAdaptive && adaptiveSession) {
+      const history = adaptiveSession.adaptive.sequenceHistory || [];
+      history.forEach((step) => {
+        if (step.answered_at) {
+          initial[`adaptive_step_${step.step_number}`] = {
+            selectedOption: step.selected_option_key || null,
+            isMarkedForReview: false,
+            timeSpentSeconds: step.time_spent_seconds || 0,
+          };
+        }
+      });
+    } else if (fixedSession) {
+      fixedSession.questions.forEach((q) => {
+        if (q.savedAnswer) {
+          initial[q.mockQuestionId] = q.savedAnswer;
+        }
+      });
+    }
     return initial;
   });
 
-  // Track visited questions for 5-state palette
+  // Track visited questions for 5-state palette (Fixed Mode)
   const [visitedQuestions, setVisitedQuestions] = useState<Set<string>>(() => {
     const initial = new Set<string>();
-    if (session.questions.length > 0) {
-      initial.add(session.questions[0].mockQuestionId);
+    if (fixedSession && fixedSession.questions.length > 0) {
+      initial.add(fixedSession.questions[0].mockQuestionId);
+      fixedSession.questions.forEach((q) => {
+        if (q.savedAnswer && (q.savedAnswer.selectedOption || q.savedAnswer.isMarkedForReview)) {
+          initial.add(q.mockQuestionId);
+        }
+      });
     }
-    session.questions.forEach((q) => {
-      if (q.savedAnswer && (q.savedAnswer.selectedOption || q.savedAnswer.isMarkedForReview)) {
-        initial.add(q.mockQuestionId);
-      }
-    });
     return initial;
   });
 
@@ -128,7 +183,42 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
   const undoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const saveDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  const currentQ = hasQuestions ? session.questions[currentIndex] : null;
+  // Determine current active question
+  const hasQuestions = isAdaptive ? generatedSteps.length > 0 : Boolean(fixedSession?.questions && fixedSession.questions.length > 0);
+
+  const currentAdaptiveStep = useMemo(() => {
+    if (!isAdaptive) return null;
+    return generatedSteps.find((s) => s.step_number === viewingStepNumber) || generatedSteps[generatedSteps.length - 1] || null;
+  }, [isAdaptive, generatedSteps, viewingStepNumber]);
+
+  const currentQ = useMemo(() => {
+    if (isAdaptive) {
+      if (!currentAdaptiveStep) return null;
+      return {
+        mockQuestionId: `adaptive_step_${currentAdaptiveStep.step_number}`,
+        questionOrder: currentAdaptiveStep.step_number,
+        questionVersionId: currentAdaptiveStep.question_version_id,
+        questionText: currentAdaptiveStep.question_text || "",
+        questionImageUrl: currentAdaptiveStep.question_image_url,
+        marks: 1,
+        negativeMark: 0,
+        sectionId: "adaptive_main_section",
+        sectionName: "Adaptive Mock Assessment",
+        optionsType: currentAdaptiveStep.options_type || "single_choice",
+        options: currentAdaptiveStep.options.map((opt) => ({
+          id: opt.id,
+          key: opt.option_key,
+          text: opt.option_text,
+          imageUrl: opt.option_image_url,
+        })),
+        difficultyTier: currentAdaptiveStep.difficulty_tier,
+        isLastStep: currentAdaptiveStep.is_last_step,
+      };
+    } else {
+      return hasQuestions && fixedSession ? fixedSession.questions[currentIndex] : null;
+    }
+  }, [isAdaptive, currentAdaptiveStep, hasQuestions, fixedSession, currentIndex]);
+
   const currentAnswer = useMemo(() => {
     if (!currentQ) {
       return { selectedOption: null, isMarkedForReview: false, timeSpentSeconds: 0 };
@@ -142,9 +232,9 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
     );
   }, [answers, currentQ]);
 
-  // Mark current question as visited whenever index changes
+  // Mark current question as visited whenever index/step changes
   useEffect(() => {
-    if (currentQ && isExamStarted) {
+    if (currentQ && isExamStarted && !isAdaptive) {
       setVisitedQuestions((prev) => {
         if (prev.has(currentQ.mockQuestionId)) return prev;
         const next = new Set(prev);
@@ -152,7 +242,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
         return next;
       });
     }
-  }, [currentQ, isExamStarted]);
+  }, [currentQ, isExamStarted, isAdaptive]);
 
   // Network offline/online listeners with automatic queue flushing
   useEffect(() => {
@@ -188,7 +278,6 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
       const isNowFullscreen = Boolean(document.fullscreenElement);
       setSecurityState((prev) => {
         if (!isNowFullscreen && prev.isFullscreen && isExamStarted) {
-          // Exited fullscreen while exam active
           return {
             ...prev,
             isFullscreen: false,
@@ -221,9 +310,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
             showFullscreenWarning: false,
           }));
         })
-        .catch(() => {
-          // Browser or device restricted element-level fullscreen
-        })
+        .catch(() => {})
         .finally(() => {
           setIsExamStarted(true);
         });
@@ -265,10 +352,11 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
     }));
   };
 
-  // Helper to persist answer via local buffer & background API
+  // Helper to persist answer via local buffer & background API (Fixed Mock only)
   const persistAnswer = useCallback(
     (mockQuestionId: string, updated: SavedAnswerState) => {
-      // 1. Enqueue to localStorage for offline resilience
+      if (isAdaptive) return; // Adaptive answers are authoritatively persisted on explicit Next
+
       OfflineAnswerQueue.enqueue(
         session.attemptId,
         mockQuestionId,
@@ -277,7 +365,6 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
         updated.timeSpentSeconds
       );
 
-      // 2. Set saving status
       if (navigator.onLine) {
         setSaveStatus("saving");
       } else {
@@ -285,7 +372,6 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
         return;
       }
 
-      // 3. Fire background save
       if (saveDebounceRef.current) clearTimeout(saveDebounceRef.current);
       saveDebounceRef.current = setTimeout(() => {
         fetch("/api/assessment/save-answer", {
@@ -312,7 +398,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
           });
       }, 150);
     },
-    [session.attemptId]
+    [isAdaptive, session.attemptId]
   );
 
   // Flush active question time spent before transitioning or saving
@@ -333,16 +419,18 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
           ...existing,
           timeSpentSeconds: existing.timeSpentSeconds + elapsedSec,
         };
-        persistAnswer(currentQ.mockQuestionId, updated);
+        if (!isAdaptive) {
+          persistAnswer(currentQ.mockQuestionId, updated);
+        }
         return {
           ...prev,
           [currentQ.mockQuestionId]: updated,
         };
       });
     }
-  }, [currentQ, persistAnswer]);
+  }, [currentQ, isAdaptive, persistAnswer]);
 
-  // Security: Tab Switch / Visibility Change Listener (Flushes active time & tracks tab switch)
+  // Security: Tab Switch / Visibility Change Listener
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!isExamStarted) return;
@@ -370,30 +458,42 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [isExamStarted, flushCurrentQuestionActiveTime]);
 
-  // Safe Navigation Wrappers that flush active question time
+  // Safe Navigation Wrappers for Fixed Mock
   const navigateToQuestionIndex = useCallback(
     (targetIndex: number) => {
-      if (targetIndex < 0 || targetIndex >= session.questions.length || targetIndex === currentIndex) return;
+      if (!fixedSession) return;
+      if (targetIndex < 0 || targetIndex >= fixedSession.questions.length || targetIndex === currentIndex) return;
       flushCurrentQuestionActiveTime();
       setCurrentIndex(targetIndex);
     },
-    [session.questions.length, currentIndex, flushCurrentQuestionActiveTime]
+    [fixedSession, currentIndex, flushCurrentQuestionActiveTime]
   );
 
   const navigateToQuestionOrder = useCallback(
     (order: number) => {
-      const idx = session.questions.findIndex((q) => q.questionOrder === order);
-      if (idx !== -1) {
-        navigateToQuestionIndex(idx);
+      if (isAdaptive) {
+        if (order >= 1 && order <= activeStepNumber) {
+          flushCurrentQuestionActiveTime();
+          setViewingStepNumber(order);
+        }
+        return;
+      }
+      if (fixedSession) {
+        const idx = fixedSession.questions.findIndex((q) => q.questionOrder === order);
+        if (idx !== -1) {
+          navigateToQuestionIndex(idx);
+        }
       }
     },
-    [session.questions, navigateToQuestionIndex]
+    [isAdaptive, activeStepNumber, fixedSession, flushCurrentQuestionActiveTime, navigateToQuestionIndex]
   );
 
-  // Handle Option Select
+  // Handle Option Select — STRICT RULE: NEVER AUTO ADVANCES!
   const handleSelectOption = useCallback(
     (optionKey: string) => {
       if (!currentQ) return;
+      if (isViewingPastStep) return; // Previously answered adaptive questions are read-only
+
       const now = Date.now();
       const elapsedSec = Math.max(0, Math.round((now - activeQuestionStartTimeRef.current) / 1000));
       activeQuestionStartTimeRef.current = now;
@@ -410,14 +510,18 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
         [currentQ.mockQuestionId]: updated,
       }));
 
-      persistAnswer(currentQ.mockQuestionId, updated);
+      if (!isAdaptive) {
+        persistAnswer(currentQ.mockQuestionId, updated);
+      }
     },
-    [currentQ, currentAnswer, persistAnswer]
+    [currentQ, isViewingPastStep, currentAnswer, isAdaptive, persistAnswer]
   );
 
   // Toggle Mark for Review
   const handleToggleReview = useCallback(() => {
     if (!currentQ) return;
+    if (isViewingPastStep) return;
+
     const now = Date.now();
     const elapsedSec = Math.max(0, Math.round((now - activeQuestionStartTimeRef.current) / 1000));
     activeQuestionStartTimeRef.current = now;
@@ -433,18 +537,20 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
       [currentQ.mockQuestionId]: updated,
     }));
 
-    persistAnswer(currentQ.mockQuestionId, updated);
-  }, [currentQ, currentAnswer, persistAnswer]);
+    if (!isAdaptive) {
+      persistAnswer(currentQ.mockQuestionId, updated);
+    }
+  }, [currentQ, isViewingPastStep, currentAnswer, isAdaptive, persistAnswer]);
 
   // Prompt Confirmation for Clear Response
   const handleClearResponseClick = useCallback(() => {
-    if (!currentQ || !currentAnswer.selectedOption) return;
+    if (!currentQ || !currentAnswer.selectedOption || isViewingPastStep) return;
     setIsClearConfirmOpen(true);
-  }, [currentQ, currentAnswer.selectedOption]);
+  }, [currentQ, currentAnswer.selectedOption, isViewingPastStep]);
 
   // Execute Clear Response with 2.5s Undo Capability
   const executeClearResponse = useCallback(() => {
-    if (!currentQ || !currentAnswer.selectedOption) return;
+    if (!currentQ || !currentAnswer.selectedOption || isViewingPastStep) return;
     const now = Date.now();
     const elapsedSec = Math.max(0, Math.round((now - activeQuestionStartTimeRef.current) / 1000));
     activeQuestionStartTimeRef.current = now;
@@ -461,10 +567,11 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
       [currentQ.mockQuestionId]: updated,
     }));
 
-    persistAnswer(currentQ.mockQuestionId, updated);
+    if (!isAdaptive) {
+      persistAnswer(currentQ.mockQuestionId, updated);
+    }
     setIsClearConfirmOpen(false);
 
-    // Set undo banner
     setUndoClearState({
       mockQuestionId: currentQ.mockQuestionId,
       previousOption,
@@ -474,7 +581,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
     undoTimeoutRef.current = setTimeout(() => {
       setUndoClearState(null);
     }, 2500);
-  }, [currentQ, currentAnswer, persistAnswer]);
+  }, [currentQ, currentAnswer, isViewingPastStep, isAdaptive, persistAnswer]);
 
   // Restore Cleared Answer
   const handleUndoClear = useCallback(() => {
@@ -497,12 +604,111 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
       [mockQuestionId]: restored,
     }));
 
-    persistAnswer(mockQuestionId, restored);
+    if (!isAdaptive) {
+      persistAnswer(mockQuestionId, restored);
+    }
     setUndoClearState(null);
     if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
-  }, [undoClearState, answers, persistAnswer]);
+  }, [undoClearState, answers, isAdaptive, persistAnswer]);
 
-  // Keyboard Shortcuts (1-4 / A-D, Arrows, M, C, ?)
+  // =========================================================================
+  // ADAPTIVE NEXT STEP SUBMISSION & STEP PROGRESSION
+  // =========================================================================
+  const handleAdaptiveNextStep = useCallback(async () => {
+    if (!isAdaptive || isStepTransitioning || isSubmittingRef.current) return;
+
+    // Case A: If viewing a previous step, simply move forward locally
+    if (isViewingPastStep) {
+      setViewingStepNumber((prev) => Math.min(activeStepNumber, prev + 1));
+      return;
+    }
+
+    // Case B: If stopping rule already satisfied, trigger final submission modal
+    if (stoppingRuleMet) {
+      setIsSubmitOpen(true);
+      return;
+    }
+
+    // Case C: Candidate is on active step and clicks Next -> invoke authoritative API
+    setIsStepTransitioning(true);
+    setStepTransitionError(null);
+    setSaveStatus("saving");
+
+    const now = Date.now();
+    const elapsedSec = Math.max(0, Math.round((now - activeQuestionStartTimeRef.current) / 1000));
+    const totalTimeSpent = (currentAnswer.timeSpentSeconds || 0) + elapsedSec;
+    activeQuestionStartTimeRef.current = now;
+
+    try {
+      const res = await fetch("/api/assessment/adaptive-step", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          attemptId: session.attemptId,
+          stepNumber: activeStepNumber,
+          selectedOptionKey: currentAnswer.selectedOption || null,
+          timeSpentSeconds: totalTimeSpent,
+          isMarkedForReview: currentAnswer.isMarkedForReview || false,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setSaveStatus("saved");
+
+        // Update local answers state with final time
+        setAnswers((prev) => ({
+          ...prev,
+          [`adaptive_step_${activeStepNumber}`]: {
+            ...currentAnswer,
+            timeSpentSeconds: totalTimeSpent,
+          },
+        }));
+
+        if (data.currentDifficultyTier) {
+          setCurrentDifficultyTier(data.currentDifficultyTier);
+        }
+
+        if (data.stoppingRuleMet) {
+          setStoppingRuleMet(true);
+          setStoppingReason(data.stoppingReason || "MAX_QUESTIONS_REACHED");
+          setIsSubmitOpen(true);
+        } else if (data.nextQuestion) {
+          const nextQ = data.nextQuestion as SafeAdaptiveQuestionPayload;
+          const nextStepNum = data.nextStepNumber || (activeStepNumber + 1);
+
+          setGeneratedSteps((prev) => {
+            const exists = prev.some((s) => s.step_number === nextQ.step_number);
+            if (exists) return prev;
+            return [...prev, nextQ];
+          });
+
+          setActiveStepNumber(nextStepNum);
+          setViewingStepNumber(nextStepNum);
+          activeQuestionStartTimeRef.current = Date.now();
+        }
+      } else {
+        setSaveStatus("offline");
+        setStepTransitionError(data.error || "Could not prepare next question. Please click Retry.");
+      }
+    } catch {
+      setSaveStatus("offline");
+      setStepTransitionError("Network communication error. Your response is saved. Please click Retry.");
+    } finally {
+      setIsStepTransitioning(false);
+    }
+  }, [
+    isAdaptive,
+    isStepTransitioning,
+    isViewingPastStep,
+    activeStepNumber,
+    stoppingRuleMet,
+    currentAnswer,
+    session.attemptId,
+  ]);
+
+  // Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (
@@ -514,17 +720,24 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
         isClearConfirmOpen ||
         securityState.showFullscreenWarning ||
         securityState.showTabSwitchWarning ||
-        isSubmittingRef.current
+        isSubmittingRef.current ||
+        isStepTransitioning
       ) {
         return;
       }
 
       if (e.key === "ArrowRight" || e.key === "n" || e.key === "N") {
-        if (currentIndex < session.questions.length - 1) {
+        if (isAdaptive) {
+          handleAdaptiveNextStep();
+        } else if (fixedSession && currentIndex < fixedSession.questions.length - 1) {
           navigateToQuestionIndex(currentIndex + 1);
         }
       } else if (e.key === "ArrowLeft" || e.key === "p" || e.key === "P") {
-        if (currentIndex > 0) {
+        if (isAdaptive) {
+          if (viewingStepNumber > 1) {
+            setViewingStepNumber((prev) => prev - 1);
+          }
+        } else if (currentIndex > 0) {
           navigateToQuestionIndex(currentIndex - 1);
         }
       } else if (e.key === "m" || e.key === "M") {
@@ -559,7 +772,11 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [
     currentIndex,
-    session.questions.length,
+    isAdaptive,
+    viewingStepNumber,
+    isStepTransitioning,
+    handleAdaptiveNextStep,
+    fixedSession,
     isExamStarted,
     isSubmitOpen,
     isInstructionsOpen,
@@ -574,7 +791,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
     navigateToQuestionIndex,
   ]);
 
-  // Submit Attempt (Flushes pending offline queue then evaluates server-side)
+  // Submit Attempt (Fixed and Adaptive finalization)
   const handleSubmitAttempt = useCallback(
     async (isAutoSubmit = false) => {
       if (isSubmittingRef.current) return;
@@ -583,21 +800,17 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
       setSubmissionState(isAutoSubmit ? "time_expired" : "submitting");
       setSubmissionError(null);
 
-      // Close all active modals
       setIsSubmitOpen(false);
       setIsInstructionsOpen(false);
       setIsReportOpen(false);
       setIsClearConfirmOpen(false);
       setIsMobilePaletteOpen(false);
 
-      // Flush active time of current question
       flushCurrentQuestionActiveTime();
 
       try {
-        // 1. Attempt final flush of any offline queued answers
         await OfflineAnswerQueue.flush(session.attemptId);
 
-        // 2. Submit to server-authoritative evaluation route
         const res = await fetch("/api/assessment/submit-attempt", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -627,9 +840,47 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
     [session.attemptId, flushCurrentQuestionActiveTime, router]
   );
 
-  // Calculate 5-State Palette Items
+  // Palette Items Calculation
   const paletteItems = useMemo(() => {
-    return session.questions.map((q) => {
+    if (isAdaptive) {
+      const items = [];
+      for (let step = 1; step <= activeStepNumber; step++) {
+        const ans = answers[`adaptive_step_${step}`];
+        let status: QuestionStatus = "not_answered";
+
+        if (step < activeStepNumber) {
+          if (ans?.selectedOption && ans?.isMarkedForReview) {
+            status = "marked_answered";
+          } else if (ans?.selectedOption) {
+            status = "answered";
+          } else if (ans?.isMarkedForReview) {
+            status = "marked";
+          } else {
+            status = "answered";
+          }
+        } else {
+          if (ans?.selectedOption && ans?.isMarkedForReview) {
+            status = "marked_answered";
+          } else if (ans?.selectedOption) {
+            status = "answered";
+          } else if (ans?.isMarkedForReview) {
+            status = "marked";
+          } else {
+            status = "not_answered";
+          }
+        }
+
+        items.push({
+          questionOrder: step,
+          status,
+        });
+      }
+      return items;
+    }
+
+    if (!fixedSession) return [];
+
+    return fixedSession.questions.map((q) => {
       const ans = answers[q.mockQuestionId];
       const isVisited = visitedQuestions.has(q.mockQuestionId);
       let status: QuestionStatus = "not_visited";
@@ -649,39 +900,58 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
         status,
       };
     });
-  }, [session.questions, answers, visitedQuestions]);
+  }, [isAdaptive, activeStepNumber, answers, fixedSession, visitedQuestions]);
 
   // Section-wise filtering for Question Palette
   const currentSection = useMemo(() => {
-    return session.sections.find((s) => s.id === currentQ?.sectionId) || session.sections[0];
-  }, [session.sections, currentQ?.sectionId]);
+    if (isAdaptive) {
+      return { id: "adaptive_main_section", name: "Adaptive Assessment" };
+    }
+    return fixedSession?.sections.find((s) => s.id === currentQ?.sectionId) || fixedSession?.sections[0];
+  }, [isAdaptive, fixedSession, currentQ?.sectionId]);
 
   const currentSectionQuestions = useMemo(() => {
-    if (!currentSection) return session.questions;
-    return session.questions.filter((q) => q.sectionId === currentSection.id);
-  }, [session.questions, currentSection]);
+    if (isAdaptive) return [];
+    if (!currentSection || !fixedSession) return [];
+    return fixedSession.questions.filter((q) => q.sectionId === currentSection.id);
+  }, [isAdaptive, fixedSession, currentSection]);
 
   const sectionPaletteItems = useMemo(() => {
+    if (isAdaptive) return paletteItems;
     const currentSecOrderSet = new Set(currentSectionQuestions.map((q) => q.questionOrder));
     return paletteItems.filter((p) => currentSecOrderSet.has(p.questionOrder));
-  }, [paletteItems, currentSectionQuestions]);
+  }, [isAdaptive, paletteItems, currentSectionQuestions]);
 
-  // Calculate Counts for Summary Modal
+  // Summary Counts
   const answeredCount = Object.values(answers).filter((a) => a.selectedOption !== null).length;
   const markedCount = Object.values(answers).filter((a) => a.isMarkedForReview).length;
-  const unansweredCount = session.questions.length - answeredCount;
+  const totalQuestionCount = isAdaptive ? activeStepNumber : (fixedSession?.questions.length || 0);
+  const unansweredCount = Math.max(0, totalQuestionCount - answeredCount);
 
-  // Section-Wise Breakdown for Submit Dialog
-  const sectionsSummary: SectionSubmitSummary[] = session.sections.map((sec) => {
-    const secQuestions = session.questions.filter((q) => q.sectionId === sec.id);
-    const secAnswered = secQuestions.filter((q) => Boolean(answers[q.mockQuestionId]?.selectedOption)).length;
-    return {
-      id: sec.id,
-      name: sec.name,
-      totalQuestions: secQuestions.length,
-      answeredCount: secAnswered,
-    };
-  });
+  // Section Breakdown for Submit Dialog
+  const sectionsSummary: SectionSubmitSummary[] = useMemo(() => {
+    if (isAdaptive) {
+      return [
+        {
+          id: "adaptive_main_section",
+          name: "Adaptive Assessment",
+          totalQuestions: activeStepNumber,
+          answeredCount: answeredCount,
+        },
+      ];
+    }
+    if (!fixedSession) return [];
+    return fixedSession.sections.map((sec) => {
+      const secQuestions = fixedSession.questions.filter((q) => q.sectionId === sec.id);
+      const secAnswered = secQuestions.filter((q) => Boolean(answers[q.mockQuestionId]?.selectedOption)).length;
+      return {
+        id: sec.id,
+        name: sec.name,
+        totalQuestions: secQuestions.length,
+        answeredCount: secAnswered,
+      };
+    });
+  }, [isAdaptive, activeStepNumber, answeredCount, fixedSession, answers]);
 
   // =========================================================================
   // SAFETY GUARD 1: Empty questions state
@@ -720,7 +990,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
   }
 
   // =========================================================================
-  // PRE-EXAM FULLSCREEN GATE (Explicit User Gesture to start in Fullscreen)
+  // PRE-EXAM FULLSCREEN GATE
   // =========================================================================
   if (!isExamStarted) {
     return (
@@ -741,15 +1011,19 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
 
           <div className="grid grid-cols-3 gap-2.5 text-center text-xs">
             <div className="p-3 rounded-2xl bg-blue-50/80 border border-blue-100">
-              <span className="font-black text-blue-900 text-lg block">{session.questions.length}</span>
-              <span className="text-blue-700 text-[11px] font-bold">Questions</span>
+              <span className="font-black text-blue-900 text-lg block">
+                {isAdaptive ? `${adaptiveSession?.adaptive.minQuestions}-${adaptiveSession?.adaptive.maxQuestions}` : (fixedSession?.questions.length || 0)}
+              </span>
+              <span className="text-blue-700 text-[11px] font-bold">{isAdaptive ? "Adaptive Qs" : "Questions"}</span>
             </div>
             <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200">
               <span className="font-black text-slate-900 text-lg block">{session.durationMinutes}m</span>
               <span className="text-slate-600 text-[11px] font-bold">Duration</span>
             </div>
             <div className="p-3 rounded-2xl bg-emerald-50/80 border border-emerald-100">
-              <span className="font-black text-emerald-900 text-lg block">+{session.questions[0]?.marks || 2} / -{session.questions[0]?.negativeMark || 0.5}</span>
+              <span className="font-black text-emerald-900 text-lg block">
+                {isAdaptive ? "+1 / 0" : `+${fixedSession?.questions[0]?.marks || 2} / -${fixedSession?.questions[0]?.negativeMark || 0.5}`}
+              </span>
               <span className="text-emerald-700 text-[11px] font-bold">Marking</span>
             </div>
           </div>
@@ -761,7 +1035,14 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
             </div>
             <ul className="space-y-1.5 pl-6 list-disc text-[11px] text-slate-600">
               <li>Fullscreen mode is required to maintain testing integrity.</li>
-              <li>Responses are automatically saved and synchronized in real-time.</li>
+              {isAdaptive ? (
+                <>
+                  <li>This test adapts dynamically based on your performance.</li>
+                  <li>Click <strong>Next Question</strong> to submit each response and load the next item.</li>
+                </>
+              ) : (
+                <li>Responses are automatically saved and synchronized in real-time.</li>
+              )}
               <li>When the timer expires, your test will be auto-submitted.</li>
             </ul>
           </div>
@@ -797,20 +1078,49 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
         </div>
       )}
 
+      {/* Transition Error Retry Banner (Adaptive Mode) */}
+      {stepTransitionError && (
+        <div className="bg-rose-600 text-white text-xs font-bold py-2 px-4 text-center flex items-center justify-between gap-2 shadow-md z-50 animate-in slide-in-from-top-1">
+          <div className="flex items-center gap-2 mx-auto">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{stepTransitionError}</span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleAdaptiveNextStep}
+              className="ml-2 bg-white text-rose-700 hover:bg-rose-50 h-7 text-xs font-black cursor-pointer"
+            >
+              <RefreshCw className="w-3 h-3 mr-1" /> Retry
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* ========================================================================= */}
-      {/* EXAM PLAYER HEADER (RESPONSIVE 3-ZONE DESKTOP / APP-STYLE MOBILE)         */}
+      {/* EXAM PLAYER HEADER                                                        */}
       {/* ========================================================================= */}
       <header className="h-14 sm:h-16 bg-white border-b border-slate-200 px-3 sm:px-6 flex items-center justify-between shrink-0 z-20">
-        {/* ZONE 1: BRAND IDENTITY (Left) */}
+        {/* ZONE 1: BRAND IDENTITY & ADAPTIVE BADGE */}
         <div className="flex items-center gap-2 sm:gap-3.5 shrink-0">
           <BrandLogo size="sm" variant="icon" showText={false} />
           <span className="font-black tracking-tight text-slate-900 text-xs sm:text-[15px] select-none whitespace-nowrap">
             COURAGE LIBRARY
           </span>
           <div className="hidden md:block h-5 sm:h-6 w-px bg-slate-200" />
+          {isAdaptive && (
+            <div className="hidden sm:block">
+              <AdaptiveProgressBadge
+                currentStep={viewingStepNumber}
+                minQuestions={adaptiveSession?.adaptive.minQuestions || 20}
+                maxQuestions={adaptiveSession?.adaptive.maxQuestions || 50}
+                difficultyTier={currentDifficultyTier}
+                isStoppingRuleMet={stoppingRuleMet}
+              />
+            </div>
+          )}
         </div>
 
-        {/* ZONE 2: TEST IDENTITY & METADATA (Center on Desktop / Tablet) */}
+        {/* ZONE 2: TEST IDENTITY & METADATA */}
         <div className="hidden md:flex flex-col items-center justify-center text-center px-4 min-w-0 max-w-sm lg:max-w-md xl:max-w-lg">
           <h1 className="font-black text-xs sm:text-sm text-slate-900 truncate w-full tracking-tight" title={session.testTitle}>
             {session.testTitle}
@@ -820,11 +1130,11 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
           </span>
         </div>
 
-        {/* ZONE 3: CONTROLS & DESKTOP SUBMIT (Right) */}
+        {/* ZONE 3: CONTROLS & DESKTOP SUBMIT */}
         <div className="flex items-center gap-2 sm:gap-2.5">
-          {/* Live Save Status Indicator (Desktop / Tablet) */}
+          {/* Live Save Status Indicator */}
           <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-50 border border-slate-200/80 text-[11px] font-bold text-slate-600">
-            {saveStatus === "saving" ? (
+            {isStepTransitioning || saveStatus === "saving" ? (
               <>
                 <RefreshCw className="w-3 h-3 text-blue-600 animate-spin" />
                 <span>Saving...</span>
@@ -873,11 +1183,11 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
             {securityState.isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </button>
 
-          {/* DESKTOP ONLY: Submit Test Button (Hidden on Mobile) */}
+          {/* DESKTOP ONLY: Submit Test Button */}
           <Button
             size="sm"
             variant="default"
-            disabled={isSubmitting}
+            disabled={isSubmitting || isStepTransitioning}
             className="hidden md:inline-flex bg-emerald-600 hover:bg-emerald-700 font-bold text-xs shadow-xs"
             onClick={() => setIsSubmitOpen(true)}
           >
@@ -898,7 +1208,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
       </header>
 
       {/* ========================================================================= */}
-      {/* MOBILE TEST CONTEXT & SAVE STATUS STRIP (Mobile Only < 768px)             */}
+      {/* MOBILE TEST CONTEXT & ADAPTIVE STRIP                                      */}
       {/* ========================================================================= */}
       <div className="md:hidden bg-slate-50/95 border-b border-slate-200 px-3.5 py-1.5 flex items-center justify-between gap-2 shrink-0 z-10">
         <div className="min-w-0 flex-1">
@@ -910,30 +1220,35 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
           </div>
         </div>
 
-        {/* Compact Mobile Save Indicator */}
-        <div className="shrink-0 flex items-center gap-1 text-[10px] font-bold text-slate-600 bg-white px-2 py-0.5 rounded-md border border-slate-200 shadow-2xs">
-          {saveStatus === "saving" ? (
-            <>
-              <RefreshCw className="w-2.5 h-2.5 text-blue-600 animate-spin" />
-              <span>Saving</span>
-            </>
-          ) : saveStatus === "offline" ? (
-            <>
-              <WifiOff className="w-2.5 h-2.5 text-amber-600" />
-              <span className="text-amber-700">Offline</span>
-            </>
-          ) : saveStatus === "synced" ? (
-            <>
-              <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
-              <span className="text-emerald-700">Synced</span>
-            </>
-          ) : (
-            <>
-              <Check className="w-2.5 h-2.5 text-emerald-600" />
-              <span>Saved</span>
-            </>
-          )}
-        </div>
+        {isAdaptive ? (
+          <AdaptiveProgressBadge
+            currentStep={viewingStepNumber}
+            minQuestions={adaptiveSession?.adaptive.minQuestions || 20}
+            maxQuestions={adaptiveSession?.adaptive.maxQuestions || 50}
+            difficultyTier={currentDifficultyTier}
+            isStoppingRuleMet={stoppingRuleMet}
+            className="text-[10px] py-0.5 px-2"
+          />
+        ) : (
+          <div className="shrink-0 flex items-center gap-1 text-[10px] font-bold text-slate-600 bg-white px-2 py-0.5 rounded-md border border-slate-200 shadow-2xs">
+            {saveStatus === "saving" ? (
+              <>
+                <RefreshCw className="w-2.5 h-2.5 text-blue-600 animate-spin" />
+                <span>Saving</span>
+              </>
+            ) : saveStatus === "offline" ? (
+              <>
+                <WifiOff className="w-2.5 h-2.5 text-amber-600" />
+                <span className="text-amber-700">Offline</span>
+              </>
+            ) : (
+              <>
+                <Check className="w-2.5 h-2.5 text-emerald-600" />
+                <span>Saved</span>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ========================================================================= */}
@@ -951,19 +1266,34 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
           />
 
           <div className="relative z-10 max-w-3xl w-full mx-auto space-y-4 sm:space-y-6">
-            {/* Section Switcher Tabs */}
-            {session.sections.length > 1 && (
+            {/* Read-Only Past Step Notice Banner */}
+            {isViewingPastStep && (
+              <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs font-semibold text-amber-800 flex items-center justify-between">
+                <span>Viewing Step {viewingStepNumber} (Answer Locked). Click Next to return to active question.</span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setViewingStepNumber(activeStepNumber)}
+                  className="h-6 text-[11px] font-bold bg-white text-amber-900 border-amber-300"
+                >
+                  Go to Active Step ({activeStepNumber})
+                </Button>
+              </div>
+            )}
+
+            {/* Section Switcher Tabs (Fixed Mock Only) */}
+            {!isAdaptive && fixedSession && fixedSession.sections.length > 1 && (
               <div className="flex items-center gap-1.5 p-1 bg-slate-100/90 rounded-2xl overflow-x-auto">
-                {session.sections.map((sec) => {
+                {fixedSession.sections.map((sec) => {
                   const isCurrentSec = currentQ?.sectionId === sec.id;
-                  const secQuestions = session.questions.filter((q) => q.sectionId === sec.id);
+                  const secQuestions = fixedSession.questions.filter((q) => q.sectionId === sec.id);
                   const secAnswered = secQuestions.filter((q) => Boolean(answers[q.mockQuestionId]?.selectedOption)).length;
                   return (
                     <button
                       key={sec.id}
                       type="button"
                       onClick={() => {
-                        const firstInSec = session.questions.findIndex((q) => q.sectionId === sec.id);
+                        const firstInSec = fixedSession.questions.findIndex((q) => q.sectionId === sec.id);
                         if (firstInSec !== -1) navigateToQuestionIndex(firstInSec);
                       }}
                       className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap cursor-pointer flex items-center gap-2 ${
@@ -986,11 +1316,11 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
             {currentQ && (
               <QuestionRenderer
                 questionNumber={currentQ.questionOrder}
-                totalQuestions={session.questions.length}
+                totalQuestions={isAdaptive ? (adaptiveSession?.adaptive.maxQuestions || 50) : (fixedSession?.questions.length || 0)}
                 questionText={currentQ.questionText || ""}
                 questionImageUrl={currentQ.questionImageUrl}
-                marks={currentQ.marks || 2}
-                negativeMark={currentQ.negativeMark || 0.5}
+                marks={currentQ.marks || 1}
+                negativeMark={currentQ.negativeMark || 0}
                 sectionName={currentQ.sectionName}
               />
             )}
@@ -1002,18 +1332,19 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
                 optionsType={currentQ.optionsType}
                 selectedOption={currentAnswer.selectedOption}
                 onSelectOption={handleSelectOption}
-                disabled={isSubmitting}
+                disabled={isSubmitting || isStepTransitioning || isViewingPastStep}
               />
             )}
           </div>
 
-          {/* Desktop Bottom Action Footer (Hidden on Mobile) */}
+          {/* Desktop Bottom Action Footer */}
           <div className="hidden md:flex relative z-10 max-w-3xl w-full mx-auto pt-4 mt-6 border-t border-slate-100 flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <Button
                 type="button"
                 variant={currentAnswer.isMarkedForReview ? "secondary" : "outline"}
                 size="sm"
+                disabled={isViewingPastStep || isStepTransitioning}
                 className={
                   currentAnswer.isMarkedForReview
                     ? "bg-purple-50 text-purple-700 border-purple-300 font-bold"
@@ -1029,7 +1360,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
                 type="button"
                 variant="ghost"
                 size="sm"
-                disabled={!currentAnswer.selectedOption}
+                disabled={!currentAnswer.selectedOption || isViewingPastStep || isStepTransitioning}
                 onClick={handleClearResponseClick}
                 className="text-xs text-slate-500 hover:text-red-700 hover:bg-red-50 font-semibold disabled:opacity-40"
               >
@@ -1052,14 +1383,51 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
                 type="button"
                 variant="outline"
                 size="sm"
-                disabled={currentIndex === 0}
-                onClick={() => navigateToQuestionIndex(currentIndex - 1)}
+                disabled={isAdaptive ? (viewingStepNumber <= 1 || isStepTransitioning) : (currentIndex === 0)}
+                onClick={() => {
+                  if (isAdaptive) {
+                    setViewingStepNumber((prev) => Math.max(1, prev - 1));
+                  } else {
+                    navigateToQuestionIndex(currentIndex - 1);
+                  }
+                }}
                 className="font-bold"
               >
                 <ChevronLeft className="w-4 h-4 mr-1" /> Previous
               </Button>
 
-              {currentIndex === session.questions.length - 1 ? (
+              {isAdaptive ? (
+                stoppingRuleMet || activeStepNumber >= (adaptiveSession?.adaptive.maxQuestions || 50) ? (
+                  <Button
+                    type="button"
+                    variant="default"
+                    size="sm"
+                    onClick={() => setIsSubmitOpen(true)}
+                    className="font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
+                  >
+                    Review &amp; Submit <Send className="w-3.5 h-3.5 ml-1.5" />
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="default"
+                    size="sm"
+                    disabled={isStepTransitioning}
+                    onClick={handleAdaptiveNextStep}
+                    className="font-bold bg-blue-600 hover:bg-blue-700 text-white min-w-[130px]"
+                  >
+                    {isStepTransitioning ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Next Question...
+                      </>
+                    ) : (
+                      <>
+                        Next Question <ChevronRight className="w-4 h-4 ml-1" />
+                      </>
+                    )}
+                  </Button>
+                )
+              ) : currentIndex === (fixedSession?.questions.length || 1) - 1 ? (
                 <Button
                   type="button"
                   variant="default"
@@ -1086,25 +1454,25 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
 
         {/* Question Palette Sidebar (Desktop) */}
         <aside className="hidden lg:block w-80 bg-slate-50 border-l border-slate-200 p-5 overflow-y-auto shrink-0 space-y-4">
-          {session.sections.length > 1 && (
+          {!isAdaptive && fixedSession && fixedSession.sections.length > 1 && (
             <div className="space-y-1.5">
               <div className="flex items-center justify-between text-[11px] font-bold text-slate-600 uppercase tracking-wider font-mono">
                 <span>Sections</span>
                 <span>
-                  {session.sections.findIndex((s) => s.id === currentSection?.id) + 1} of {session.sections.length}
+                  {fixedSession.sections.findIndex((s) => s.id === currentSection?.id) + 1} of {fixedSession.sections.length}
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-1.5">
-                {session.sections.map((sec) => {
+                {fixedSession.sections.map((sec) => {
                   const isSecActive = currentSection?.id === sec.id;
-                  const secQs = session.questions.filter((q) => q.sectionId === sec.id);
+                  const secQs = fixedSession.questions.filter((q) => q.sectionId === sec.id);
                   const secAns = secQs.filter((q) => Boolean(answers[q.mockQuestionId]?.selectedOption)).length;
                   return (
                     <button
                       key={sec.id}
                       type="button"
                       onClick={() => {
-                        const firstInSec = session.questions.findIndex((q) => q.sectionId === sec.id);
+                        const firstInSec = fixedSession.questions.findIndex((q) => q.sectionId === sec.id);
                         if (firstInSec !== -1) navigateToQuestionIndex(firstInSec);
                       }}
                       className={`p-2 rounded-xl text-left border transition-all cursor-pointer ${
@@ -1126,9 +1494,9 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
 
           <QuestionPalette
             questions={sectionPaletteItems}
-            currentOrder={currentQ?.questionOrder || 1}
+            currentOrder={isAdaptive ? viewingStepNumber : (currentQ?.questionOrder || 1)}
             sectionName={currentSection?.name}
-            globalTotal={session.questions.length}
+            globalTotal={isAdaptive ? (adaptiveSession?.adaptive.maxQuestions || 50) : fixedSession?.questions.length}
             globalAnswered={answeredCount}
             onSelectQuestion={navigateToQuestionOrder}
           />
@@ -1136,14 +1504,14 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
       </div>
 
       {/* ========================================================================= */}
-      {/* MOBILE FIXED BOTTOM ACTION BAR (Mobile Only < 768px)                      */}
-      {/* 2-Tier Layout: Row 1 = Utility Actions, Row 2 = Navigation & Submit       */}
+      {/* MOBILE FIXED BOTTOM ACTION BAR                                            */}
       {/* ========================================================================= */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200/90 z-30 px-3 pt-2 pb-[max(0.6rem,env(safe-area-inset-bottom))] shadow-[0_-4px_16px_rgba(0,0,0,0.06)]">
-        {/* Row 1: Utility Actions (Mark for Review, Clear Response, Report, Help) */}
+        {/* Row 1: Utility Actions */}
         <div className="flex items-center justify-between gap-1.5 pb-2 border-b border-slate-100">
           <button
             type="button"
+            disabled={isViewingPastStep || isStepTransitioning}
             onClick={handleToggleReview}
             className={`flex-1 py-1 px-2 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 transition cursor-pointer ${
               currentAnswer.isMarkedForReview
@@ -1157,7 +1525,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
 
           <button
             type="button"
-            disabled={!currentAnswer.selectedOption}
+            disabled={!currentAnswer.selectedOption || isViewingPastStep || isStepTransitioning}
             onClick={handleClearResponseClick}
             className="flex-1 py-1 px-2 rounded-lg text-[11px] font-bold text-slate-600 hover:text-red-700 bg-slate-50 hover:bg-red-50 border border-slate-200 flex items-center justify-center gap-1 transition cursor-pointer disabled:opacity-40 disabled:hover:bg-slate-50 disabled:hover:text-slate-600 disabled:cursor-not-allowed"
           >
@@ -1191,14 +1559,57 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
             type="button"
             variant="outline"
             size="sm"
-            disabled={currentIndex === 0}
-            onClick={() => navigateToQuestionIndex(currentIndex - 1)}
+            disabled={isAdaptive ? (viewingStepNumber <= 1 || isStepTransitioning) : (currentIndex === 0)}
+            onClick={() => {
+              if (isAdaptive) {
+                setViewingStepNumber((prev) => Math.max(1, prev - 1));
+              } else {
+                navigateToQuestionIndex(currentIndex - 1);
+              }
+            }}
             className="flex-1 h-9 font-bold text-xs"
           >
             <ChevronLeft className="w-4 h-4 mr-0.5" /> Prev
           </Button>
 
-          {currentIndex === session.questions.length - 1 ? (
+          {isAdaptive ? (
+            stoppingRuleMet || activeStepNumber >= (adaptiveSession?.adaptive.maxQuestions || 50) ? (
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                disabled={isSubmitting || isStepTransitioning}
+                onClick={() => setIsSubmitOpen(true)}
+                className="flex-2 h-9 font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+              >
+                Review &amp; Submit <Send className="w-3.5 h-3.5 ml-1.5" />
+              </Button>
+            ) : (
+              <>
+                <Button
+                  type="button"
+                  variant="default"
+                  size="sm"
+                  disabled={isStepTransitioning}
+                  onClick={handleAdaptiveNextStep}
+                  className="flex-1 h-9 font-bold text-xs bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  {isStepTransitioning ? "Next..." : "Next"} <ChevronRight className="w-4 h-4 ml-0.5" />
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="default"
+                  size="sm"
+                  disabled={isSubmitting || isStepTransitioning}
+                  onClick={() => setIsSubmitOpen(true)}
+                  className="h-9 px-3.5 font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shrink-0 shadow-xs"
+                >
+                  <Send className="w-3.5 h-3.5 mr-1" /> Submit
+                </Button>
+              </>
+            )
+          ) : currentIndex === (fixedSession?.questions.length || 1) - 1 ? (
             <Button
               type="button"
               variant="default"
@@ -1254,14 +1665,14 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
                 </button>
               </div>
 
-              {session.sections.length > 1 && (
+              {!isAdaptive && fixedSession && fixedSession.sections.length > 1 && (
                 <div className="flex items-center gap-1 overflow-x-auto pb-1">
-                  {session.sections.map((sec) => (
+                  {fixedSession.sections.map((sec) => (
                     <button
                       key={sec.id}
                       type="button"
                       onClick={() => {
-                        const firstInSec = session.questions.findIndex((q) => q.sectionId === sec.id);
+                        const firstInSec = fixedSession.questions.findIndex((q) => q.sectionId === sec.id);
                         if (firstInSec !== -1) navigateToQuestionIndex(firstInSec);
                       }}
                       className={`px-2.5 py-1 text-[11px] font-bold rounded-lg whitespace-nowrap cursor-pointer ${
@@ -1278,9 +1689,9 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
 
               <QuestionPalette
                 questions={sectionPaletteItems}
-                currentOrder={currentQ?.questionOrder || 1}
+                currentOrder={isAdaptive ? viewingStepNumber : (currentQ?.questionOrder || 1)}
                 sectionName={currentSection?.name}
-                globalTotal={session.questions.length}
+                globalTotal={isAdaptive ? (adaptiveSession?.adaptive.maxQuestions || 50) : fixedSession?.questions.length}
                 globalAnswered={answeredCount}
                 onSelectQuestion={(order) => {
                   navigateToQuestionOrder(order);
@@ -1355,9 +1766,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* SECURITY MODAL 1: FULLSCREEN EXITED WARNING                               */}
-      {/* ========================================================================= */}
+      {/* Security Modal 1: Fullscreen Exited Warning */}
       {securityState.showFullscreenWarning && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 text-center space-y-4 shadow-2xl border border-slate-200 animate-in zoom-in-95">
@@ -1389,9 +1798,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* SECURITY MODAL 2: TAB SWITCH DETECTED WARNING                             */}
-      {/* ========================================================================= */}
+      {/* Security Modal 2: Tab Switch Detected Warning */}
       {securityState.showTabSwitchWarning && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 text-center space-y-4 shadow-2xl border border-slate-200 animate-in zoom-in-95">
@@ -1419,9 +1826,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* SUBMITTING / TIME EXPIRED FULLSCREEN OVERLAY                              */}
-      {/* ========================================================================= */}
+      {/* Submitting / Time Expired Fullscreen Overlay */}
       {(submissionState === "time_expired" || submissionState === "submitting" || submissionState === "submitted") && (
         <div className="fixed inset-0 z-[100] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl max-w-sm w-full p-8 text-center space-y-4 shadow-2xl border border-slate-200 animate-in zoom-in-95">

@@ -2,6 +2,7 @@ import { createServerSupabaseClient, createAdminServerSupabaseClient } from "@/l
 import { revalidatePath } from "next/cache";
 import { GamificationService } from "@/services/gamification.service";
 import { MistakeService } from "@/services/mistake.service";
+import { PremiumEntitlementService } from "@/services/premium-entitlement.service";
 import { formatIstDateTime, calculateExamDuration, getIstDateString } from "@/lib/assessment/timing";
 
 export interface ExamDirectoryItem {
@@ -1636,7 +1637,7 @@ export class AssessmentService {
     // 2. If attempt not directly resolved, fetch mock test details to determine daily vs full type
     const { data: mockTestData } = await adminSb
       .from("mock_tests")
-      .select("id, title, slug, duration_minutes, template_id, mock_templates(id, title, test_type, slug)")
+      .select("id, title, slug, duration_minutes, is_free, template_id, mock_templates(id, title, test_type, slug)")
       .eq("id", targetMockTestId)
       .maybeSingle();
 
@@ -1701,20 +1702,78 @@ export class AssessmentService {
 
       // 3. If no active attempt exists for this session, create a fresh in_progress attempt atomically
       if (!attempt) {
-        try {
-          const { data: newAttempt, error } = await adminSb
+        if (mockTestData.is_free === false) {
+          // Premium mock test: enforce authoritative entitlement resolution & concurrency-safe quota locking
+          const authRes = await PremiumEntitlementService.authorizeAndStartAttempt(
+            resolvedUserId,
+            targetMockTestId
+          );
+
+          if (!authRes.success || !authRes.attemptId) {
+            return null; // Premium access denied or quota exhausted
+          }
+
+          const { data: createdAttempt } = await adminSb
             .from("test_attempts")
-            .insert({
-              mock_test_id: targetMockTestId,
-              user_id: resolvedUserId,
-              status: "in_progress",
-              started_at: new Date().toISOString(),
-            } as any)
-            .select("id, started_at")
+            .select("id, status, started_at, submitted_at")
+            .eq("id", authRes.attemptId)
             .single();
 
-          if (error || !newAttempt) {
-            // Concurrency recovery: check if a simultaneous request created the attempt
+          attempt = createdAttempt;
+        } else {
+          // Free mock test (e.g. Daily Mock): standard atomic insertion governed by trg_enforce_mock_attempt_lifecycle
+          try {
+            const { data: newAttempt, error } = await adminSb
+              .from("test_attempts")
+              .insert({
+                mock_test_id: targetMockTestId,
+                user_id: resolvedUserId,
+                status: "in_progress",
+                started_at: new Date().toISOString(),
+              } as any)
+              .select("id, started_at")
+              .single();
+
+            if (error || !newAttempt) {
+              // Concurrency recovery: check if a simultaneous request created the attempt
+              const { data: recoveredAttempts } = await adminSb
+                .from("test_attempts")
+                .select("id, status, started_at, submitted_at")
+                .eq("mock_test_id", targetMockTestId)
+                .eq("user_id", resolvedUserId)
+                .order("started_at", { ascending: true });
+
+              const recoveredList = isDaily
+                ? (recoveredAttempts || []).filter((a: any) => getIstDateString(a.started_at) === currentIstDateStr)
+                : (recoveredAttempts || []);
+
+              const recoveredActive = recoveredList.find(
+                (a: any) => a.status === "in_progress" && a.submitted_at === null
+              );
+
+              if (recoveredActive) {
+                attempt = recoveredActive;
+              } else {
+                return null;
+              }
+            } else {
+              // Canonical check: fetch earliest in_progress attempt for this occurrence in case of competing insert
+              const { data: activeAttempts } = await adminSb
+                .from("test_attempts")
+                .select("id, status, started_at, submitted_at")
+                .eq("mock_test_id", targetMockTestId)
+                .eq("user_id", resolvedUserId)
+                .eq("status", "in_progress")
+                .is("submitted_at", null)
+                .order("started_at", { ascending: true });
+
+              const activeForOccurrence = isDaily
+                ? (activeAttempts || []).filter((a: any) => getIstDateString(a.started_at) === currentIstDateStr)
+                : (activeAttempts || []);
+
+              attempt = activeForOccurrence[0] || (newAttempt as any);
+            }
+          } catch {
             const { data: recoveredAttempts } = await adminSb
               .from("test_attempts")
               .select("id, status, started_at, submitted_at")
@@ -1735,43 +1794,6 @@ export class AssessmentService {
             } else {
               return null;
             }
-          } else {
-            // Canonical check: fetch earliest in_progress attempt for this occurrence in case of competing insert
-            const { data: activeAttempts } = await adminSb
-              .from("test_attempts")
-              .select("id, status, started_at, submitted_at")
-              .eq("mock_test_id", targetMockTestId)
-              .eq("user_id", resolvedUserId)
-              .eq("status", "in_progress")
-              .is("submitted_at", null)
-              .order("started_at", { ascending: true });
-
-            const activeForOccurrence = isDaily
-              ? (activeAttempts || []).filter((a: any) => getIstDateString(a.started_at) === currentIstDateStr)
-              : (activeAttempts || []);
-
-            attempt = activeForOccurrence[0] || (newAttempt as any);
-          }
-        } catch {
-          const { data: recoveredAttempts } = await adminSb
-            .from("test_attempts")
-            .select("id, status, started_at, submitted_at")
-            .eq("mock_test_id", targetMockTestId)
-            .eq("user_id", resolvedUserId)
-            .order("started_at", { ascending: true });
-
-          const recoveredList = isDaily
-            ? (recoveredAttempts || []).filter((a: any) => getIstDateString(a.started_at) === currentIstDateStr)
-            : (recoveredAttempts || []);
-
-          const recoveredActive = recoveredList.find(
-            (a: any) => a.status === "in_progress" && a.submitted_at === null
-          );
-
-          if (recoveredActive) {
-            attempt = recoveredActive;
-          } else {
-            return null;
           }
         }
       }

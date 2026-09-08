@@ -140,6 +140,9 @@ export function MobileNav({ user }: MobileNavProps) {
                 </button>
                 {expandedCategory === "practice" && (
                   <div className="pl-3 py-1 space-y-1.5 text-xs font-medium text-slate-600 animate-in fade-in">
+                    <Link href="/premium" className="flex items-center gap-2 py-1.5 font-bold text-amber-700 bg-amber-50 px-2 rounded-lg">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-500 fill-amber-400" /> Premium Practice Hub
+                    </Link>
                     <Link href="/practice" className="flex items-center gap-2 py-1">
                       <HelpCircle className="w-3.5 h-3.5 text-blue-500" /> Practice Questions
                     </Link>

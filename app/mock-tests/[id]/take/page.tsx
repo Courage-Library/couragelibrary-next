@@ -1,6 +1,7 @@
 import React from "react";
 import { redirect } from "next/navigation";
 import { AssessmentService } from "@/services/assessment.service";
+import { AdaptiveSessionService } from "@/services/adaptive/adaptive-session.service";
 import { createServerSupabaseClient, createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { MockTestPlayerClient } from "./player-client";
 
@@ -29,6 +30,30 @@ export default async function MockTestTakePage({ params }: Props) {
     redirect(`/auth/login?next=/mock-tests/${id}/take`);
   }
 
+  // 1. Server-Authoritative Adaptive Detection
+  const adaptiveDetection = await AdaptiveSessionService.detectAdaptiveTest(id, user.id, supabase);
+
+  if (adaptiveDetection.isAdaptive) {
+    const adaptiveSession = await AdaptiveSessionService.startOrResumeAdaptiveAttempt(
+      {
+        userId: user.id,
+        identifier: id,
+        overrideConfigId: adaptiveDetection.configId,
+      },
+      supabase
+    );
+
+    if (!adaptiveSession) {
+      if (adaptiveDetection.attemptId) {
+        redirect(`/mock-tests/${adaptiveDetection.attemptId}/result`);
+      }
+      redirect("/mock-tests");
+    }
+
+    return <MockTestPlayerClient session={adaptiveSession} />;
+  }
+
+  // 2. Fixed Mock Engine flow (100% untouched)
   const session = await AssessmentService.startOrResumeAttempt(id, user.id);
 
   if (!session) {
