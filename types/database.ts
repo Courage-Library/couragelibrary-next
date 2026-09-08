@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -14,6 +14,255 @@ export type Database = {
   }
   public: {
     Tables: {
+      adaptive_attempt_states: {
+        Row: {
+          attempt_id: string
+          config_id: string
+          correct_answers_count: number
+          created_at: string
+          current_difficulty_tier: string
+          current_theta: number
+          id: string
+          incorrect_answers_count: number
+          questions_served_count: number
+          section_breakdown: Json
+          sequence_history: Json
+          standard_error: number
+          status: string
+          stopping_reason: string | null
+          topic_breakdown: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attempt_id: string
+          config_id: string
+          correct_answers_count?: number
+          created_at?: string
+          current_difficulty_tier?: string
+          current_theta?: number
+          id?: string
+          incorrect_answers_count?: number
+          questions_served_count?: number
+          section_breakdown?: Json
+          sequence_history?: Json
+          standard_error?: number
+          status?: string
+          stopping_reason?: string | null
+          topic_breakdown?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attempt_id?: string
+          config_id?: string
+          correct_answers_count?: number
+          created_at?: string
+          current_difficulty_tier?: string
+          current_theta?: number
+          id?: string
+          incorrect_answers_count?: number
+          questions_served_count?: number
+          section_breakdown?: Json
+          sequence_history?: Json
+          standard_error?: number
+          status?: string
+          stopping_reason?: string | null
+          topic_breakdown?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "adaptive_attempt_states_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: true
+            referencedRelation: "test_attempts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "adaptive_attempt_states_config_id_fkey"
+            columns: ["config_id"]
+            isOneToOne: false
+            referencedRelation: "adaptive_test_configs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      adaptive_question_decisions: {
+        Row: {
+          attempt_id: string
+          attempt_state_id: string
+          created_at: string
+          decision_metadata: Json
+          id: string
+          question_version_id: string
+          selection_strategy: string
+          step_number: number
+          target_difficulty: string
+          target_topic_id: string | null
+          user_id: string
+        }
+        Insert: {
+          attempt_id: string
+          attempt_state_id: string
+          created_at?: string
+          decision_metadata?: Json
+          id?: string
+          question_version_id: string
+          selection_strategy?: string
+          step_number: number
+          target_difficulty?: string
+          target_topic_id?: string | null
+          user_id: string
+        }
+        Update: {
+          attempt_id?: string
+          attempt_state_id?: string
+          created_at?: string
+          decision_metadata?: Json
+          id?: string
+          question_version_id?: string
+          selection_strategy?: string
+          step_number?: number
+          target_difficulty?: string
+          target_topic_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "adaptive_question_decisions_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "test_attempts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "adaptive_question_decisions_attempt_state_id_fkey"
+            columns: ["attempt_state_id"]
+            isOneToOne: false
+            referencedRelation: "adaptive_attempt_states"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "adaptive_question_decisions_question_version_id_fkey"
+            columns: ["question_version_id"]
+            isOneToOne: false
+            referencedRelation: "question_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      adaptive_test_configs: {
+        Row: {
+          created_at: string
+          difficulty_policy: Json
+          exam_id: string
+          id: string
+          is_active: boolean
+          max_questions: number
+          metadata: Json
+          min_questions: number
+          pattern_id: string | null
+          selection_policy: Json
+          slug: string
+          stopping_policy: Json
+          target_duration_minutes: number
+          test_type: string
+          title: string
+          topic_policy: Json
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          difficulty_policy?: Json
+          exam_id: string
+          id?: string
+          is_active?: boolean
+          max_questions?: number
+          metadata?: Json
+          min_questions?: number
+          pattern_id?: string | null
+          selection_policy?: Json
+          slug: string
+          stopping_policy?: Json
+          target_duration_minutes?: number
+          test_type?: string
+          title: string
+          topic_policy?: Json
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          difficulty_policy?: Json
+          exam_id?: string
+          id?: string
+          is_active?: boolean
+          max_questions?: number
+          metadata?: Json
+          min_questions?: number
+          pattern_id?: string | null
+          selection_policy?: Json
+          slug?: string
+          stopping_policy?: Json
+          target_duration_minutes?: number
+          test_type?: string
+          title?: string
+          topic_policy?: Json
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "adaptive_test_configs_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      admin_audit_logs: {
+        Row: {
+          action_type: string
+          actor_email: string
+          actor_id: string | null
+          created_at: string
+          id: string
+          new_value: Json | null
+          old_value: Json | null
+          reason: string | null
+          target_entity: string
+          target_id: string | null
+        }
+        Insert: {
+          action_type: string
+          actor_email: string
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          reason?: string | null
+          target_entity: string
+          target_id?: string | null
+        }
+        Update: {
+          action_type?: string
+          actor_email?: string
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          reason?: string | null
+          target_entity?: string
+          target_id?: string | null
+        }
+        Relationships: []
+      }
       algorithm_configs: {
         Row: {
           algorithm_name: string
@@ -2655,11 +2904,17 @@ export type Database = {
       mock_tests: {
         Row: {
           created_at: string
+          created_for_user_id: string | null
           duration_minutes: number
+          expires_at: string | null
+          generation_metadata: Json
           id: string
+          is_dynamic: boolean
           is_free: boolean
+          lifecycle_status: string
           published_at: string | null
           scheduled_for: string | null
+          series_id: string | null
           slug: string
           status: string
           template_id: string
@@ -2670,11 +2925,17 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          created_for_user_id?: string | null
           duration_minutes: number
+          expires_at?: string | null
+          generation_metadata?: Json
           id?: string
+          is_dynamic?: boolean
           is_free?: boolean
+          lifecycle_status?: string
           published_at?: string | null
           scheduled_for?: string | null
+          series_id?: string | null
           slug: string
           status?: string
           template_id: string
@@ -2685,11 +2946,17 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          created_for_user_id?: string | null
           duration_minutes?: number
+          expires_at?: string | null
+          generation_metadata?: Json
           id?: string
+          is_dynamic?: boolean
           is_free?: boolean
+          lifecycle_status?: string
           published_at?: string | null
           scheduled_for?: string | null
+          series_id?: string | null
           slug?: string
           status?: string
           template_id?: string
@@ -2699,6 +2966,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "mock_tests_series_id_fkey"
+            columns: ["series_id"]
+            isOneToOne: false
+            referencedRelation: "test_series"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "mock_tests_template_id_fkey"
             columns: ["template_id"]
@@ -3034,6 +3308,36 @@ export type Database = {
           search_count?: number
           trend_score?: number
           updated_at?: string
+        }
+        Relationships: []
+      }
+      premium_system_configs: {
+        Row: {
+          config_domain: string
+          config_key: string
+          config_value: Json
+          id: string
+          is_enabled: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          config_domain: string
+          config_key: string
+          config_value?: Json
+          id?: string
+          is_enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          config_domain?: string
+          config_key?: string
+          config_value?: Json
+          id?: string
+          is_enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
         }
         Relationships: []
       }
@@ -4434,6 +4738,53 @@ export type Database = {
           },
         ]
       }
+      test_series: {
+        Row: {
+          created_at: string
+          display_order: number
+          exam_id: string
+          id: string
+          is_active: boolean
+          is_premium: boolean
+          metadata: Json
+          series_type: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          exam_id: string
+          id?: string
+          is_active?: boolean
+          is_premium?: boolean
+          metadata?: Json
+          series_type?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          exam_id?: string
+          id?: string
+          is_active?: boolean
+          is_premium?: boolean
+          metadata?: Json
+          series_type?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_series_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       topics: {
         Row: {
           created_at: string
@@ -4874,11 +5225,13 @@ export type Database = {
         Row: {
           course_id: string | null
           created_at: string
+          custom_limits: Json
           entitlement_type: string
           exam_id: string | null
           expires_at: string | null
           id: string
           is_active: boolean
+          plan_id: string | null
           starts_at: string
           updated_at: string
           user_id: string
@@ -4886,11 +5239,13 @@ export type Database = {
         Insert: {
           course_id?: string | null
           created_at?: string
+          custom_limits?: Json
           entitlement_type: string
           exam_id?: string | null
           expires_at?: string | null
           id?: string
           is_active?: boolean
+          plan_id?: string | null
           starts_at?: string
           updated_at?: string
           user_id: string
@@ -4898,11 +5253,13 @@ export type Database = {
         Update: {
           course_id?: string | null
           created_at?: string
+          custom_limits?: Json
           entitlement_type?: string
           exam_id?: string | null
           expires_at?: string | null
           id?: string
           is_active?: boolean
+          plan_id?: string | null
           starts_at?: string
           updated_at?: string
           user_id?: string
@@ -5809,6 +6166,59 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      user_adaptive_profiles: {
+        Row: {
+          created_at: string
+          difficulty_accuracies: Json
+          exam_id: string
+          id: string
+          last_calibrated_at: string
+          overall_confidence: number
+          overall_theta: number
+          subject_abilities: Json
+          total_adaptive_questions_answered: number
+          total_adaptive_tests_completed: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          difficulty_accuracies?: Json
+          exam_id: string
+          id?: string
+          last_calibrated_at?: string
+          overall_confidence?: number
+          overall_theta?: number
+          subject_abilities?: Json
+          total_adaptive_questions_answered?: number
+          total_adaptive_tests_completed?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          difficulty_accuracies?: Json
+          exam_id?: string
+          id?: string
+          last_calibrated_at?: string
+          overall_confidence?: number
+          overall_theta?: number
+          subject_abilities?: Json
+          total_adaptive_questions_answered?: number
+          total_adaptive_tests_completed?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_adaptive_profiles_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_topic_mastery: {
         Row: {
