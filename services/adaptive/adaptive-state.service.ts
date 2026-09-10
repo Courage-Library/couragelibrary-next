@@ -11,10 +11,19 @@ import {
 } from "./adaptive-types";
 import { AdaptivePolicyService } from "./adaptive-policy.service";
 
+import {
+  AdaptiveAbilityService,
+  EstimationResult,
+  ResponseItemRecord,
+} from "./adaptive-ability.service";
+
 export interface AbilityUpdateResult {
   updatedTheta: number;
   updatedSe: number;
   probabilityCorrect: number;
+  effectiveInformation?: number;
+  converged?: boolean;
+  iterations?: number;
 }
 
 export interface StoppingEvaluationResult {
@@ -26,40 +35,94 @@ export interface StoppingEvaluationResult {
 export class AdaptiveStateService {
   /**
    * Update latent ability estimate (theta) and precision (standard error)
-   * using logistic likelihood step approximation
+   * using regularized 1PL Rasch estimation
    */
   public static calculateUpdatedAbility(
     currentTheta: number,
-    itemDifficulty: DifficultyTier,
+    itemDifficulty: DifficultyTier | number,
     isCorrect: boolean,
     stepNumber: number,
     minTheta: number = -3.0,
-    maxTheta: number = 3.0
+    maxTheta: number = 3.0,
+    historyResponses?: ResponseItemRecord[]
   ): AbilityUpdateResult {
-    const b = AdaptivePolicyService.getDifficultyLocationParameter(itemDifficulty);
+    let b: number;
+    if (typeof itemDifficulty === "number") {
+      b = itemDifficulty;
+    } else {
+      b = AdaptivePolicyService.getDifficultyLocationParameter(itemDifficulty);
+    }
 
-    // Logistic model: P(correct | theta, b) = 1 / (1 + exp(-(theta - b)))
-    const exponent = Math.max(-10, Math.min(10, -(currentTheta - b)));
-    const pCorrect = 1.0 / (1.0 + Math.exp(exponent));
+    const pCorrect = AdaptiveAbilityService.computeLogisticProbability(currentTheta, b);
 
-    // Learning rate decays with step count: eta = 0.8 / sqrt(stepNumber)
-    const eta = 0.8 / Math.sqrt(Math.max(1, stepNumber));
-    const responseSignal = isCorrect ? 1.0 : 0.0;
-    const delta = eta * (responseSignal - pCorrect);
+    // If full historical responses are provided, solve via regularized Newton-Raphson MAP
+    if (historyResponses && historyResponses.length > 0) {
+      const estimation = AdaptiveAbilityService.estimateAbility(
+        historyResponses,
+        currentTheta,
+        {
+          min_theta: minTheta,
+          max_theta: maxTheta,
+          regularization_lambda: AdaptiveAbilityService.DEFAULT_LAMBDA,
+        }
+      );
 
-    const rawTheta = currentTheta + delta;
-    const updatedTheta = Math.max(minTheta, Math.min(maxTheta, Number(rawTheta.toFixed(4))));
+      return {
+        updatedTheta: estimation.theta,
+        updatedSe: estimation.standard_error,
+        probabilityCorrect: Number(pCorrect.toFixed(4)),
+        effectiveInformation: estimation.effective_information,
+        converged: estimation.converged,
+        iterations: estimation.iterations,
+      };
+    }
 
-    // Standard error decays monotonically with number of observations:
-    // SE(k) = 1.0 / sqrt(1 + 0.2 * k)
-    const rawSe = 1.0 / Math.sqrt(1.0 + 0.2 * stepNumber);
-    const updatedSe = Math.max(0.15, Math.min(1.0, Number(rawSe.toFixed(4))));
+    // Single-step regularized update
+    const lambda = AdaptiveAbilityService.DEFAULT_LAMBDA;
+    const singleResponse: ResponseItemRecord = {
+      question_version_id: "current_step",
+      is_correct: isCorrect,
+      difficulty_b: b,
+      difficulty_source: typeof itemDifficulty === "number" ? "CALIBRATED" : "STATIC_FALLBACK",
+    };
+
+    const estimation = AdaptiveAbilityService.estimateAbility(
+      [singleResponse],
+      currentTheta,
+      {
+        min_theta: minTheta,
+        max_theta: maxTheta,
+        regularization_lambda: lambda,
+      }
+    );
+
+    // Dynamic SE based on cumulative steps
+    const cumulativeInfo = Math.max(1, stepNumber) * pCorrect * (1.0 - pCorrect) + lambda;
+    const computedSe = AdaptiveAbilityService.computeStandardError(cumulativeInfo, 0.10, 1.0);
 
     return {
-      updatedTheta,
-      updatedSe,
+      updatedTheta: estimation.theta,
+      updatedSe: computedSe,
       probabilityCorrect: Number(pCorrect.toFixed(4)),
+      effectiveInformation: Number(cumulativeInfo.toFixed(4)),
+      converged: estimation.converged,
+      iterations: estimation.iterations,
     };
+  }
+
+  /**
+   * Runs regularized 1PL ability estimation over candidate response history
+   */
+  public static calculateRegularizedAbility(
+    responses: ResponseItemRecord[],
+    initialTheta: number = 0.0,
+    minTheta: number = -3.0,
+    maxTheta: number = 3.0
+  ): EstimationResult {
+    return AdaptiveAbilityService.estimateAbility(responses, initialTheta, {
+      min_theta: minTheta,
+      max_theta: maxTheta,
+    });
   }
 
   /**

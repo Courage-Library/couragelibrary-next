@@ -808,25 +808,82 @@ export class AdaptiveSessionService {
               }
             );
         }
-      } catch (saveErr) {
-        // Non-fatal logging for auxiliary attempt_answers persistence
-        console.warn("Notice: could not link attempt_answers for adaptive step:", saveErr);
+      } catch (err) {
+        console.warn("[processAdaptiveStepSubmission] Non-fatal attempt_answers upsert error:", err);
       }
 
-      // 9. Update Latent Ability and Standard Error
+      // 9. Update Latent Ability and Standard Error via Regularized 1PL Estimator
       const diffPolicy = (config.difficulty_policy || {}) as unknown as DifficultyPolicyConfig;
       const minTheta = diffPolicy.min_theta ?? -3.0;
       const maxTheta = diffPolicy.max_theta ?? 3.0;
       const itemDifficulty = (existingStep.difficulty || "medium") as DifficultyTier;
 
+      const { AdaptiveAbilityService } = await import("./adaptive-ability.service");
+      const resolvedDiff = await AdaptiveAbilityService.resolveItemDifficulty(
+        supabase,
+        questionVersionId,
+        existingStep.difficulty
+      );
+
       const abilityUpdate = AdaptiveStateService.calculateUpdatedAbility(
         state.current_theta,
-        itemDifficulty,
+        resolvedDiff.difficulty_b,
         isCorrect,
         stepNumber,
         minTheta,
         maxTheta
       );
+
+      // Record Immutable Ability Estimation History
+      try {
+        await AdaptiveAbilityService.recordEstimationHistory(supabase, {
+          attempt_id: attemptId,
+          attempt_state_id: state.id,
+          user_id: userId,
+          question_version_id: questionVersionId,
+          step_number: stepNumber,
+          theta_before: state.current_theta,
+          theta_after: abilityUpdate.updatedTheta,
+          se_before: state.standard_error,
+          se_after: abilityUpdate.updatedSe,
+          estimator_version: AdaptiveAbilityService.ESTIMATOR_VERSION,
+          difficulty_source: resolvedDiff.difficulty_source,
+          difficulty_b: resolvedDiff.difficulty_b,
+          is_correct: isCorrect,
+          converged: abilityUpdate.converged ?? true,
+          iterations: abilityUpdate.iterations ?? 1,
+          effective_information: abilityUpdate.effectiveInformation,
+          regularization_lambda: AdaptiveAbilityService.DEFAULT_LAMBDA,
+          subject_id: existingStep.subject_id || null,
+          topic_id: existingStep.topic_id || null,
+        });
+      } catch (histErr) {
+        console.warn("[processAdaptiveStepSubmission] Notice on ability estimation history recording:", histErr);
+      }
+
+      // 10. Record Immutable Response Evidence for Calibration
+      try {
+        const { AdaptiveCalibrationService } = await import("./adaptive-calibration.service");
+        await AdaptiveCalibrationService.recordResponseEvidence({
+          question_version_id: questionVersionId,
+          attempt_id: attemptId,
+          user_id: userId,
+          is_correct: isCorrect,
+          response_source: "adaptive_step",
+          difficulty_context: existingStep.difficulty || "medium",
+          adaptive_step_number: stepNumber,
+          ability_estimate_before: state.current_theta,
+          ability_estimate_after: abilityUpdate.updatedTheta,
+          metadata: {
+            selected_option_key: normalizedOptionKey,
+            time_spent_seconds: timeSpentSeconds,
+            difficulty_b: resolvedDiff.difficulty_b,
+            difficulty_source: resolvedDiff.difficulty_source,
+          },
+        });
+      } catch (evErr) {
+        console.warn("[processAdaptiveStepSubmission] Notice on evidence recording:", evErr);
+      }
 
       // 10. Update Topic Breakdown
       const topicBreakdown = ((state.topic_breakdown as Record<string, any>) || {});

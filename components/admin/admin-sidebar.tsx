@@ -29,6 +29,8 @@ import {
   X,
   Flag,
   Sparkles,
+  Cpu,
+  Radio,
 } from "lucide-react";
 
 interface Props {
@@ -329,6 +331,28 @@ export function AdminSidebar({ userEmail }: Props) {
               >
                 <Sparkles className={`w-3.5 h-3.5 shrink-0 ${pathname.startsWith("/admin/premium") ? "text-white" : "text-amber-400"}`} />
                 <span className="text-[11px] font-bold">Premium Control</span>
+              </Link>
+              <Link
+                href="/admin/adaptive"
+                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors ${
+                  pathname.startsWith("/admin/adaptive")
+                    ? "bg-blue-600 text-white font-semibold shadow-xs"
+                    : "text-blue-400 hover:bg-slate-800 hover:text-blue-300"
+                }`}
+              >
+                <Cpu className={`w-3.5 h-3.5 shrink-0 ${pathname.startsWith("/admin/adaptive") ? "text-white" : "text-blue-400"}`} />
+                <span className="text-[11px] font-bold">Adaptive Testing</span>
+              </Link>
+              <Link
+                href="/admin/live-tests"
+                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors ${
+                  pathname.startsWith("/admin/live-tests")
+                    ? "bg-rose-600 text-white font-semibold shadow-xs"
+                    : "text-rose-400 hover:bg-slate-800 hover:text-rose-300"
+                }`}
+              >
+                <Radio className={`w-3.5 h-3.5 shrink-0 ${pathname.startsWith("/admin/live-tests") ? "text-white" : "text-rose-400"}`} />
+                <span className="text-[11px] font-bold">Live Mock Tests</span>
               </Link>
             </div>
           </nav>
