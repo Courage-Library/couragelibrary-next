@@ -103,94 +103,111 @@ export class AdminAdaptiveService {
   // ==========================================================================
 
   static async getOverview(): Promise<AdaptiveAdminOverview> {
-    const supabase = this.getClient();
+    try {
+      const supabase = this.getClient();
 
-    const [
-      globalStatus,
-      safetyLimits,
-      algoVersionsRes,
-      configsRes,
-      attemptsRes,
-      calibrationsRes,
-      auditLogsRes,
-    ] = await Promise.all([
-      this.getGlobalStatus(),
-      this.getSafetyLimits(),
-      supabase
-        .from("adaptive_algorithm_versions")
-        .select("*")
-        .order("created_at", { ascending: false }),
-      supabase.from("adaptive_test_configs").select("id, is_active"),
-      supabase.from("adaptive_attempt_states").select("id, status"),
-      supabase.from("adaptive_item_calibrations").select("id, calibration_status"),
-      supabase
-        .from("admin_audit_logs")
-        .select("*")
-        .in("target_entity", [
-          "ADAPTIVE_GLOBAL",
-          "ADAPTIVE_ALGORITHM",
-          "ADAPTIVE_CONFIG",
-          "ADAPTIVE_CALIBRATION",
-          "ADAPTIVE_SAFETY",
-          "ADAPTIVE_EMERGENCY",
-        ])
-        .order("created_at", { ascending: false })
-        .limit(20),
-    ]);
+      const [
+        globalStatus,
+        safetyLimits,
+        algoVersionsRes,
+        configsRes,
+        attemptsRes,
+        calibrationsRes,
+        auditLogsRes,
+      ] = await Promise.all([
+        this.getGlobalStatus(),
+        this.getSafetyLimits(),
+        supabase
+          .from("adaptive_algorithm_versions")
+          .select("*")
+          .order("created_at", { ascending: false }),
+        supabase.from("adaptive_test_configs").select("id, is_active"),
+        supabase.from("adaptive_attempt_states").select("id, status"),
+        supabase.from("adaptive_item_calibrations").select("id, calibration_status"),
+        supabase
+          .from("admin_audit_logs")
+          .select("*")
+          .in("target_entity", [
+            "ADAPTIVE_GLOBAL",
+            "ADAPTIVE_ALGORITHM",
+            "ADAPTIVE_CONFIG",
+            "ADAPTIVE_CALIBRATION",
+            "ADAPTIVE_SAFETY",
+            "ADAPTIVE_EMERGENCY",
+          ])
+          .order("created_at", { ascending: false })
+          .limit(20),
+      ]);
 
-    const allAlgorithmVersions: AdaptiveAlgorithmVersion[] = ((algoVersionsRes?.data as any[]) || []).map((v) => ({
-      ...v,
-      hyperparameters: (v.hyperparameters as Record<string, unknown>) || {},
-      exposure_control_config: (v.exposure_control_config as Record<string, unknown>) || {},
-      stopping_rule_defaults: (v.stopping_rule_defaults as AdaptiveAlgorithmVersion["stopping_rule_defaults"]) || {
-        min_questions: 20,
-        max_questions: 50,
-        target_se: 0.35,
-      },
-    }));
+      const allAlgorithmVersions: AdaptiveAlgorithmVersion[] = ((algoVersionsRes?.data as any[]) || []).map((v) => ({
+        ...v,
+        hyperparameters: (v.hyperparameters as Record<string, unknown>) || {},
+        exposure_control_config: (v.exposure_control_config as Record<string, unknown>) || {},
+        stopping_rule_defaults: (v.stopping_rule_defaults as AdaptiveAlgorithmVersion["stopping_rule_defaults"]) || {
+          min_questions: 20,
+          max_questions: 50,
+          target_se: 0.35,
+        },
+      }));
 
-    const activeAlgorithmVersion = allAlgorithmVersions.find((v) => v.is_active) || null;
+      const activeAlgorithmVersion = allAlgorithmVersions.find((v) => v.is_active) || null;
 
-    const configs = (configsRes?.data as any[]) || [];
-    const totalConfigsCount = configs.length;
-    const activeConfigsCount = configs.filter((c) => c.is_active).length;
+      const configs = (configsRes?.data as any[]) || [];
+      const totalConfigsCount = configs.length;
+      const activeConfigsCount = configs.filter((c) => c.is_active).length;
 
-    const attempts = (attemptsRes?.data as any[]) || [];
-    const totalAdaptiveAttempts = attempts.length;
-    const completedAdaptiveAttempts = attempts.filter((a) => a.status === "completed" || a.status === "stopping_rule_met").length;
-    const inProgressAdaptiveAttempts = attempts.filter((a) => a.status === "in_progress").length;
+      const attempts = (attemptsRes?.data as any[]) || [];
+      const totalAdaptiveAttempts = attempts.length;
+      const completedAdaptiveAttempts = attempts.filter((a) => a.status === "completed" || a.status === "stopping_rule_met").length;
+      const inProgressAdaptiveAttempts = attempts.filter((a) => a.status === "in_progress").length;
 
-    const calibrations = (calibrationsRes?.data as any[]) || [];
-    const calibratedItemsCount = calibrations.filter((c) => c.calibration_status === "calibrated").length;
-    const uncalibratedItemsCount = calibrations.filter((c) => c.calibration_status === "uncalibrated" || c.calibration_status === "provisional").length;
+      const calibrations = (calibrationsRes?.data as any[]) || [];
+      const calibratedItemsCount = calibrations.filter((c) => c.calibration_status === "calibrated").length;
+      const uncalibratedItemsCount = calibrations.filter((c) => c.calibration_status === "uncalibrated" || c.calibration_status === "provisional").length;
 
-    const recentAuditLogs: AdaptiveAuditLogItem[] = ((auditLogsRes?.data as any[]) || []).map((l) => ({
-      id: l.id,
-      actor_id: l.actor_id,
-      actor_email: l.actor_email,
-      action_type: l.action_type,
-      target_entity: l.target_entity,
-      target_id: l.target_id,
-      old_value: l.old_value,
-      new_value: l.new_value,
-      reason: l.reason,
-      created_at: l.created_at,
-    }));
+      const recentAuditLogs: AdaptiveAuditLogItem[] = ((auditLogsRes?.data as any[]) || []).map((l) => ({
+        id: l.id,
+        actor_id: l.actor_id,
+        actor_email: l.actor_email,
+        action_type: l.action_type,
+        target_entity: l.target_entity,
+        target_id: l.target_id,
+        old_value: l.old_value,
+        new_value: l.new_value,
+        reason: l.reason,
+        created_at: l.created_at,
+      }));
 
-    return {
-      globalStatus,
-      safetyLimits,
-      activeAlgorithmVersion,
-      allAlgorithmVersions,
-      totalConfigsCount,
-      activeConfigsCount,
-      totalAdaptiveAttempts,
-      completedAdaptiveAttempts,
-      inProgressAdaptiveAttempts,
-      calibratedItemsCount,
-      uncalibratedItemsCount,
-      recentAuditLogs,
-    };
+      return {
+        globalStatus,
+        safetyLimits,
+        activeAlgorithmVersion,
+        allAlgorithmVersions,
+        totalConfigsCount,
+        activeConfigsCount,
+        totalAdaptiveAttempts,
+        completedAdaptiveAttempts,
+        inProgressAdaptiveAttempts,
+        calibratedItemsCount,
+        uncalibratedItemsCount,
+        recentAuditLogs,
+      };
+    } catch {
+      return {
+        globalStatus: DEFAULT_ADAPTIVE_GLOBAL_STATUS,
+        safetyLimits: DEFAULT_ADAPTIVE_SAFETY_LIMITS,
+        activeAlgorithmVersion: null,
+        allAlgorithmVersions: [],
+        totalConfigsCount: 0,
+        activeConfigsCount: 0,
+        totalAdaptiveAttempts: 0,
+        completedAdaptiveAttempts: 0,
+        inProgressAdaptiveAttempts: 0,
+        calibratedItemsCount: 0,
+        uncalibratedItemsCount: 0,
+        recentAuditLogs: [],
+      };
+    }
   }
 
   // ==========================================================================
@@ -363,26 +380,30 @@ export class AdminAdaptiveService {
   // ==========================================================================
 
   static async getAlgorithmVersions(): Promise<AdaptiveAlgorithmVersion[]> {
-    const supabase = this.getClient();
-    const { data, error } = await supabase
-      .from("adaptive_algorithm_versions")
-      .select("*")
-      .order("created_at", { ascending: false });
+    try {
+      const supabase = this.getClient();
+      const { data, error } = await supabase
+        .from("adaptive_algorithm_versions")
+        .select("*")
+        .order("created_at", { ascending: false });
 
-    if (error) {
-      throw new Error(`Failed to fetch algorithm versions: ${error.message}`);
+      if (error) {
+        return [];
+      }
+
+      return ((data as any[]) || []).map((v) => ({
+        ...v,
+        hyperparameters: (v.hyperparameters as Record<string, unknown>) || {},
+        exposure_control_config: (v.exposure_control_config as Record<string, unknown>) || {},
+        stopping_rule_defaults: (v.stopping_rule_defaults as AdaptiveAlgorithmVersion["stopping_rule_defaults"]) || {
+          min_questions: 20,
+          max_questions: 50,
+          target_se: 0.35,
+        },
+      }));
+    } catch {
+      return [];
     }
-
-    return ((data as any[]) || []).map((v) => ({
-      ...v,
-      hyperparameters: (v.hyperparameters as Record<string, unknown>) || {},
-      exposure_control_config: (v.exposure_control_config as Record<string, unknown>) || {},
-      stopping_rule_defaults: (v.stopping_rule_defaults as AdaptiveAlgorithmVersion["stopping_rule_defaults"]) || {
-        min_questions: 20,
-        max_questions: 50,
-        target_se: 0.35,
-      },
-    }));
   }
 
   static async createAlgorithmVersion(
@@ -558,37 +579,41 @@ export class AdminAdaptiveService {
   // ==========================================================================
 
   static async getAdaptiveConfigs(): Promise<AdaptiveTestConfigItem[]> {
-    const supabase = this.getClient();
-    const { data, error } = await supabase
-      .from("adaptive_test_configs")
-      .select("*, exams:exam_id(title)")
-      .order("created_at", { ascending: false });
+    try {
+      const supabase = this.getClient();
+      const { data, error } = await supabase
+        .from("adaptive_test_configs")
+        .select("*, exams:exam_id(title)")
+        .order("created_at", { ascending: false });
 
-    if (error) {
-      throw new Error(`Failed to fetch adaptive test configs: ${error.message}`);
+      if (error) {
+        return [];
+      }
+
+      return ((data as any[]) || []).map((row) => ({
+        id: row.id,
+        exam_id: row.exam_id,
+        pattern_id: row.pattern_id,
+        test_type: row.test_type,
+        title: row.title,
+        slug: row.slug,
+        version: row.version,
+        is_active: row.is_active,
+        min_questions: row.min_questions,
+        max_questions: row.max_questions,
+        target_duration_minutes: row.target_duration_minutes,
+        difficulty_policy: (row.difficulty_policy as Record<string, unknown>) || {},
+        topic_policy: (row.topic_policy as Record<string, unknown>) || {},
+        stopping_policy: (row.stopping_policy as Record<string, unknown>) || {},
+        selection_policy: (row.selection_policy as Record<string, unknown>) || {},
+        metadata: (row.metadata as Record<string, unknown>) || {},
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        exam_title: (row.exams as { title: string } | null)?.title || "General Exam",
+      }));
+    } catch {
+      return [];
     }
-
-    return ((data as any[]) || []).map((row) => ({
-      id: row.id,
-      exam_id: row.exam_id,
-      pattern_id: row.pattern_id,
-      test_type: row.test_type,
-      title: row.title,
-      slug: row.slug,
-      version: row.version,
-      is_active: row.is_active,
-      min_questions: row.min_questions,
-      max_questions: row.max_questions,
-      target_duration_minutes: row.target_duration_minutes,
-      difficulty_policy: (row.difficulty_policy as Record<string, unknown>) || {},
-      topic_policy: (row.topic_policy as Record<string, unknown>) || {},
-      stopping_policy: (row.stopping_policy as Record<string, unknown>) || {},
-      selection_policy: (row.selection_policy as Record<string, unknown>) || {},
-      metadata: (row.metadata as Record<string, unknown>) || {},
-      created_at: row.created_at,
-      updated_at: row.updated_at,
-      exam_title: (row.exams as { title: string } | null)?.title || "General Exam",
-    }));
   }
 
   static async saveAdaptiveConfig(

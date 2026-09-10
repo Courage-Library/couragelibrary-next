@@ -1,6 +1,6 @@
 "use server";
 
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { AdminService } from "@/services/admin.service";
 import { AdminCompetitionIntelligenceService } from "@/services/admin-competition-intelligence.service";
 import {
   MacroCompetitionIntelligenceOverview,
@@ -13,27 +13,11 @@ import {
  * Validates that current session belongs to an authenticated user with administrative role.
  */
 async function verifyAdminPrivileges() {
-  const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    throw new Error("Authentication required.");
-  }
-
-  const { data: profile } = await supabase
-    .from("user_profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  const role = (profile as any)?.role || "user";
-  if (role !== "admin" && role !== "superadmin" && role !== "staff") {
+  const auth = await AdminService.checkIsAdminOrStaff();
+  if (!auth.isAdmin || !auth.userId) {
     throw new Error("Administrative privileges required. Access denied.");
   }
-
-  return { user, role };
+  return { user: { id: auth.userId, email: auth.userEmail }, role: "admin" };
 }
 
 /**
