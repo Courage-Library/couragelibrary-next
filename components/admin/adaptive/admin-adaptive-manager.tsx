@@ -669,130 +669,141 @@ export function AdminAdaptiveManager({
         </div>
       )}
 
-      {/* Tab Navigation */}
-      <div className="flex items-center gap-1 border-b border-slate-200 pb-2 overflow-x-auto">
-        <button
-          onClick={() => setActiveTab("overview")}
-          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition ${
-            activeTab === "overview"
-              ? "bg-blue-600 text-white font-semibold shadow-xs"
-              : "text-slate-400 hover:text-slate-900 hover:bg-slate-800"
-          }`}
-        >
-          <Activity className="w-3.5 h-3.5" /> Overview &amp; Health
-        </button>
-        <button
-          onClick={() => setActiveTab("analytics")}
-          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition ${
-            activeTab === "analytics"
-              ? "bg-blue-600 text-white font-semibold shadow-xs"
-              : "text-slate-400 hover:text-slate-900 hover:bg-slate-800"
-          }`}
-        >
-          <BarChart3 className="w-3.5 h-3.5" /> Analytics &amp; Intelligence
-        </button>
-        <button
-          onClick={() => setActiveTab("versions")}
-          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition ${
-            activeTab === "versions"
-              ? "bg-blue-600 text-white font-semibold shadow-xs"
-              : "text-slate-400 hover:text-slate-900 hover:bg-slate-800"
-          }`}
-        >
-          <Cpu className="w-3.5 h-3.5" /> Algorithm Versions
-        </button>
-        <button
-          onClick={() => setActiveTab("blueprints")}
-          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition ${
-            activeTab === "blueprints"
-              ? "bg-blue-600 text-white font-semibold shadow-xs"
-              : "text-slate-400 hover:text-slate-900 hover:bg-slate-800"
-          }`}
-        >
-          <Layers className="w-3.5 h-3.5" /> Blueprints &amp; Policies ({configs.length})
-        </button>
-        <button
-          onClick={() => setActiveTab("calibration")}
-          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition ${
-            activeTab === "calibration"
-              ? "bg-blue-600 text-white font-semibold shadow-xs"
-              : "text-slate-400 hover:text-slate-900 hover:bg-slate-800"
-          }`}
-        >
-          <Scale className="w-3.5 h-3.5" /> Calibration Bank ({calibrations.totalCount})
-        </button>
-        <button
-          onClick={() => setActiveTab("ability")}
-          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition ${
-            activeTab === "ability"
-              ? "bg-blue-600 text-white font-semibold shadow-xs"
-              : "text-slate-400 hover:text-slate-900 hover:bg-slate-800"
-          }`}
-        >
-          <Target className="w-3.5 h-3.5" /> Ability Estimation
-        </button>
+      {/* Tab Navigation — Two Balanced Rows */}
+      <div className="bg-slate-50/70 p-2 rounded-xl border border-slate-200/80 space-y-2">
+        {/* Row 1: Core Setup & Psychometrics */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+          <button
+            onClick={() => setActiveTab("overview")}
+            className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium transition-all text-center leading-tight min-h-[42px] ${
+              activeTab === "overview"
+                ? "bg-blue-600 text-white font-semibold shadow-xs border border-blue-600"
+                : "bg-white text-slate-700 border border-slate-200/80 hover:bg-blue-50/60 hover:text-blue-700 hover:border-blue-200 shadow-2xs"
+            }`}
+          >
+            <Activity className="w-4 h-4 shrink-0" />
+            <span>Overview &amp; Health</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("analytics")}
+            className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium transition-all text-center leading-tight min-h-[42px] ${
+              activeTab === "analytics"
+                ? "bg-blue-600 text-white font-semibold shadow-xs border border-blue-600"
+                : "bg-white text-slate-700 border border-slate-200/80 hover:bg-blue-50/60 hover:text-blue-700 hover:border-blue-200 shadow-2xs"
+            }`}
+          >
+            <BarChart3 className="w-4 h-4 shrink-0" />
+            <span>Analytics &amp; Intelligence</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("versions")}
+            className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium transition-all text-center leading-tight min-h-[42px] ${
+              activeTab === "versions"
+                ? "bg-blue-600 text-white font-semibold shadow-xs border border-blue-600"
+                : "bg-white text-slate-700 border border-slate-200/80 hover:bg-blue-50/60 hover:text-blue-700 hover:border-blue-200 shadow-2xs"
+            }`}
+          >
+            <Cpu className="w-4 h-4 shrink-0" />
+            <span>Algorithm Versions</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("blueprints")}
+            className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium transition-all text-center leading-tight min-h-[42px] ${
+              activeTab === "blueprints"
+                ? "bg-blue-600 text-white font-semibold shadow-xs border border-blue-600"
+                : "bg-white text-slate-700 border border-slate-200/80 hover:bg-blue-50/60 hover:text-blue-700 hover:border-blue-200 shadow-2xs"
+            }`}
+          >
+            <Layers className="w-4 h-4 shrink-0" />
+            <span>Blueprints &amp; Policies ({configs.length})</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("calibration")}
+            className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium transition-all text-center leading-tight min-h-[42px] ${
+              activeTab === "calibration"
+                ? "bg-blue-600 text-white font-semibold shadow-xs border border-blue-600"
+                : "bg-white text-slate-700 border border-slate-200/80 hover:bg-blue-50/60 hover:text-blue-700 hover:border-blue-200 shadow-2xs"
+            }`}
+          >
+            <Scale className="w-4 h-4 shrink-0" />
+            <span>Calibration Bank ({calibrations.totalCount})</span>
+          </button>
+        </div>
 
-        <button
-          onClick={() => {
-            setActiveTab("cat");
-            if (explorerItems.length === 0) {
-              handleExploreItems(0.0);
-            }
-          }}
-          className={`px-4 py-2 text-sm font-medium rounded-md transition-colors flex items-center gap-1.5 ${
-            activeTab === "cat"
-              ? "bg-surface-elevated text-brand-primary shadow-sm font-semibold"
-              : "text-text-secondary hover:text-text-primary hover:bg-surface-elevated/50"
-          }`}
-        >
-          <Sliders className="w-4 h-4" />
-          CAT Selection
-        </button>
-
-
-        <button
-          onClick={() => setActiveTab("stopping")}
-          className={`px-4 py-2 text-sm font-medium rounded-md transition-colors flex items-center gap-1.5 ${
-            activeTab === "stopping"
-              ? "bg-surface-elevated text-brand-primary shadow-sm font-semibold"
-              : "text-text-secondary hover:text-text-primary hover:bg-surface-elevated/50"
-          }`}
-        >
-          <Lock className="w-4 h-4" />
-          Stopping Policy
-        </button>
-        <button
-          onClick={() => setActiveTab("personalization")}
-          className={`px-4 py-2 text-sm font-medium rounded-md transition-colors flex items-center gap-1.5 ${
-            activeTab === "personalization"
-              ? "bg-surface-elevated text-brand-primary shadow-sm font-semibold"
-              : "text-text-secondary hover:text-text-primary hover:bg-surface-elevated/50"
-          }`}
-        >
-          <Sparkles className="w-4 h-4" />
-          Personalization
-        </button>
-
-        <button
-          onClick={() => setActiveTab("safety")}
-          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition ${
-            activeTab === "safety"
-              ? "bg-blue-600 text-white font-semibold shadow-xs"
-              : "text-slate-400 hover:text-slate-900 hover:bg-slate-800"
-          }`}
-        >
-          <Shield className="w-3.5 h-3.5" /> Safety &amp; Emergency
-        </button>
-        <button
-          onClick={() => setActiveTab("audit")}
-          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition ${
-            activeTab === "audit"
-              ? "bg-blue-600 text-white font-semibold shadow-xs"
-              : "text-slate-400 hover:text-slate-900 hover:bg-slate-800"
-          }`}
-        >
-          <History className="w-3.5 h-3.5" /> Audit Trail ({auditLogs.length})
-        </button>
+        {/* Row 2: Operational, Selection, Stopping, Personalization & Safety */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+          <button
+            onClick={() => setActiveTab("ability")}
+            className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium transition-all text-center leading-tight min-h-[42px] ${
+              activeTab === "ability"
+                ? "bg-blue-600 text-white font-semibold shadow-xs border border-blue-600"
+                : "bg-white text-slate-700 border border-slate-200/80 hover:bg-blue-50/60 hover:text-blue-700 hover:border-blue-200 shadow-2xs"
+            }`}
+          >
+            <Target className="w-4 h-4 shrink-0" />
+            <span>Ability Estimation</span>
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab("cat");
+              if (explorerItems.length === 0) {
+                handleExploreItems(0.0);
+              }
+            }}
+            className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium transition-all text-center leading-tight min-h-[42px] ${
+              activeTab === "cat"
+                ? "bg-blue-600 text-white font-semibold shadow-xs border border-blue-600"
+                : "bg-white text-slate-700 border border-slate-200/80 hover:bg-blue-50/60 hover:text-blue-700 hover:border-blue-200 shadow-2xs"
+            }`}
+          >
+            <Sliders className="w-4 h-4 shrink-0" />
+            <span>CAT Selection</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("stopping")}
+            className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium transition-all text-center leading-tight min-h-[42px] ${
+              activeTab === "stopping"
+                ? "bg-blue-600 text-white font-semibold shadow-xs border border-blue-600"
+                : "bg-white text-slate-700 border border-slate-200/80 hover:bg-blue-50/60 hover:text-blue-700 hover:border-blue-200 shadow-2xs"
+            }`}
+          >
+            <Lock className="w-4 h-4 shrink-0" />
+            <span>Stopping Policy</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("personalization")}
+            className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium transition-all text-center leading-tight min-h-[42px] ${
+              activeTab === "personalization"
+                ? "bg-blue-600 text-white font-semibold shadow-xs border border-blue-600"
+                : "bg-white text-slate-700 border border-slate-200/80 hover:bg-blue-50/60 hover:text-blue-700 hover:border-blue-200 shadow-2xs"
+            }`}
+          >
+            <Sparkles className="w-4 h-4 shrink-0" />
+            <span>Personalization</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("safety")}
+            className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium transition-all text-center leading-tight min-h-[42px] ${
+              activeTab === "safety"
+                ? "bg-blue-600 text-white font-semibold shadow-xs border border-blue-600"
+                : "bg-white text-slate-700 border border-slate-200/80 hover:bg-blue-50/60 hover:text-blue-700 hover:border-blue-200 shadow-2xs"
+            }`}
+          >
+            <Shield className="w-4 h-4 shrink-0" />
+            <span>Safety &amp; Emergency</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("audit")}
+            className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium transition-all text-center leading-tight min-h-[42px] ${
+              activeTab === "audit"
+                ? "bg-blue-600 text-white font-semibold shadow-xs border border-blue-600"
+                : "bg-white text-slate-700 border border-slate-200/80 hover:bg-blue-50/60 hover:text-blue-700 hover:border-blue-200 shadow-2xs"
+            }`}
+          >
+            <History className="w-4 h-4 shrink-0" />
+            <span>Audit Trail ({auditLogs.length})</span>
+          </button>
+        </div>
       </div>
 
       {/* ==================================================================== */}
