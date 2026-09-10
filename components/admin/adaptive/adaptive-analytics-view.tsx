@@ -235,59 +235,73 @@ export function AdaptiveAnalyticsView({ userEmail }: { userEmail: string }) {
       )}
 
       {/* Sub Navigation */}
-      <div className="flex items-center gap-1 border-b border-slate-200 pb-2 overflow-x-auto text-xs">
+      <div className="flex items-center gap-1.5 border-b border-slate-200 pb-2 overflow-x-auto text-xs">
         <button
           onClick={() => setSubTab("overview")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition ${
-            subTab === "overview" ? "bg-slate-800 text-blue-400 font-bold border border-slate-200" : "text-slate-600 hover:text-slate-900"
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition ${
+            subTab === "overview"
+              ? "bg-blue-600 text-white font-semibold shadow-xs border border-blue-600"
+              : "bg-white text-slate-700 border border-slate-200/80 hover:bg-blue-50/60 hover:text-blue-700 hover:border-blue-200 shadow-2xs"
           }`}
         >
           <Activity className="w-3.5 h-3.5" /> Executive Overview
         </button>
         <button
           onClick={() => setSubTab("candidates")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition ${
-            subTab === "candidates" ? "bg-slate-800 text-blue-400 font-bold border border-slate-200" : "text-slate-600 hover:text-slate-900"
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition ${
+            subTab === "candidates"
+              ? "bg-blue-600 text-white font-semibold shadow-xs border border-blue-600"
+              : "bg-white text-slate-700 border border-slate-200/80 hover:bg-blue-50/60 hover:text-blue-700 hover:border-blue-200 shadow-2xs"
           }`}
         >
           <Users className="w-3.5 h-3.5" /> Candidate Intelligence
         </button>
         <button
           onClick={() => setSubTab("items")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition ${
-            subTab === "items" ? "bg-slate-800 text-blue-400 font-bold border border-slate-200" : "text-slate-600 hover:text-slate-900"
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition ${
+            subTab === "items"
+              ? "bg-blue-600 text-white font-semibold shadow-xs border border-blue-600"
+              : "bg-white text-slate-700 border border-slate-200/80 hover:bg-blue-50/60 hover:text-blue-700 hover:border-blue-200 shadow-2xs"
           }`}
         >
           <Scale className="w-3.5 h-3.5" /> Item Calibration &amp; Drift
         </button>
         <button
           onClick={() => setSubTab("cat_ability")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition ${
-            subTab === "cat_ability" ? "bg-slate-800 text-blue-400 font-bold border border-slate-200" : "text-slate-600 hover:text-slate-900"
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition ${
+            subTab === "cat_ability"
+              ? "bg-blue-600 text-white font-semibold shadow-xs border border-blue-600"
+              : "bg-white text-slate-700 border border-slate-200/80 hover:bg-blue-50/60 hover:text-blue-700 hover:border-blue-200 shadow-2xs"
           }`}
         >
           <Target className="w-3.5 h-3.5" /> CAT &amp; Ability
         </button>
         <button
           onClick={() => setSubTab("stopping_personalization")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition ${
-            subTab === "stopping_personalization" ? "bg-slate-800 text-blue-400 font-bold border border-slate-200" : "text-slate-600 hover:text-slate-900"
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition ${
+            subTab === "stopping_personalization"
+              ? "bg-blue-600 text-white font-semibold shadow-xs border border-blue-600"
+              : "bg-white text-slate-700 border border-slate-200/80 hover:bg-blue-50/60 hover:text-blue-700 hover:border-blue-200 shadow-2xs"
           }`}
         >
           <Lock className="w-3.5 h-3.5" /> Stopping &amp; Personalization
         </button>
         <button
           onClick={() => setSubTab("algorithms")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition ${
-            subTab === "algorithms" ? "bg-slate-800 text-blue-400 font-bold border border-slate-200" : "text-slate-600 hover:text-slate-900"
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition ${
+            subTab === "algorithms"
+              ? "bg-blue-600 text-white font-semibold shadow-xs border border-blue-600"
+              : "bg-white text-slate-700 border border-slate-200/80 hover:bg-blue-50/60 hover:text-blue-700 hover:border-blue-200 shadow-2xs"
           }`}
         >
           <Cpu className="w-3.5 h-3.5" /> Algorithm Comparison
         </button>
         <button
           onClick={() => setSubTab("health_diagnostics")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition ${
-            subTab === "health_diagnostics" ? "bg-slate-800 text-blue-400 font-bold border border-slate-200" : "text-slate-600 hover:text-slate-900"
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition ${
+            subTab === "health_diagnostics"
+              ? "bg-blue-600 text-white font-semibold shadow-xs border border-blue-600"
+              : "bg-white text-slate-700 border border-slate-200/80 hover:bg-blue-50/60 hover:text-blue-700 hover:border-blue-200 shadow-2xs"
           }`}
         >
           <ShieldAlert className="w-3.5 h-3.5" /> Health &amp; Attempt Diagnostics
