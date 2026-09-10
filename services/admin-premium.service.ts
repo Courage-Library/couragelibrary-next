@@ -272,26 +272,30 @@ export class AdminPremiumService {
    * List all exams along with their configured Premium availability status.
    */
   static async listExamAvailability(): Promise<ExamPremiumConfig[]> {
-    const supabase = createAdminServerSupabaseClient();
+    try {
+      const supabase = createAdminServerSupabaseClient();
 
-    const [examsRes, configsRes] = await Promise.all([
-      supabase.from("exams").select("id, title, slug, is_active").order("title", { ascending: true }),
-      supabase.from("premium_system_configs").select("config_key, is_enabled, config_value").eq("config_domain", "EXAM"),
-    ]);
+      const [examsRes, configsRes] = await Promise.all([
+        supabase.from("exams").select("id, title, slug, is_active").order("title", { ascending: true }),
+        supabase.from("premium_system_configs").select("config_key, is_enabled, config_value").eq("config_domain", "EXAM"),
+      ]);
 
-    const examConfigsMap = new Map<string, boolean>();
-    (configsRes.data || []).forEach(c => {
-      const val = c.config_value as Record<string, unknown>;
-      const examId = (val?.exam_id as string) || c.config_key.replace("PREMIUM_EXAM_", "");
-      examConfigsMap.set(examId, Boolean(c.is_enabled));
-    });
+      const examConfigsMap = new Map<string, boolean>();
+      (configsRes?.data || []).forEach(c => {
+        const val = c.config_value as Record<string, unknown>;
+        const examId = (val?.exam_id as string) || c.config_key.replace("PREMIUM_EXAM_", "");
+        examConfigsMap.set(examId, Boolean(c.is_enabled));
+      });
 
-    return (examsRes.data || []).map(exam => ({
-      exam_id: exam.id,
-      exam_title: exam.title,
-      exam_slug: exam.slug,
-      is_enabled: examConfigsMap.has(exam.id) ? (examConfigsMap.get(exam.id) ?? true) : exam.is_active,
-    }));
+      return (examsRes?.data || []).map(exam => ({
+        exam_id: exam.id,
+        exam_title: exam.title,
+        exam_slug: exam.slug,
+        is_enabled: examConfigsMap.has(exam.id) ? (examConfigsMap.get(exam.id) ?? true) : exam.is_active,
+      }));
+    } catch {
+      return [];
+    }
   }
 
   /**
@@ -828,32 +832,36 @@ export class AdminPremiumService {
    * List Premium test series.
    */
   static async listPremiumTestSeries(examId?: string): Promise<any[]> {
-    const supabase = createAdminServerSupabaseClient();
-    let query = supabase
-      .from("test_series")
-      .select(`
-        id,
-        title,
-        series_type,
-        exam_id,
-        is_premium,
-        is_active,
-        display_order,
-        metadata,
-        created_at,
-        exams ( title, slug )
-      `)
-      .order("display_order", { ascending: true });
+    try {
+      const supabase = createAdminServerSupabaseClient();
+      let query = supabase
+        .from("test_series")
+        .select(`
+          id,
+          title,
+          series_type,
+          exam_id,
+          is_premium,
+          is_active,
+          display_order,
+          metadata,
+          created_at,
+          exams ( title, slug )
+        `)
+        .order("display_order", { ascending: true });
 
-    if (examId) {
-      query = query.eq("exam_id", examId);
-    }
+      if (examId) {
+        query = query.eq("exam_id", examId);
+      }
 
-    const { data, error } = await query;
-    if (error) {
-      throw new Error(`Failed to fetch test series: ${error.message}`);
+      const { data, error } = await query;
+      if (error) {
+        return [];
+      }
+      return data || [];
+    } catch {
+      return [];
     }
-    return data || [];
   }
 
   /**
@@ -912,41 +920,45 @@ export class AdminPremiumService {
    * List curated Premium mock tests (non-dynamic) for review and publishing.
    */
   static async listCuratedPremiumMocks(examId?: string): Promise<any[]> {
-    const supabase = createAdminServerSupabaseClient();
-    const query = supabase
-      .from("mock_tests")
-      .select(`
-        id,
-        title,
-        slug,
-        is_free,
-        is_dynamic,
-        lifecycle_status,
-        generation_metadata,
-        created_at,
-        mock_templates (
+    try {
+      const supabase = createAdminServerSupabaseClient();
+      const query = supabase
+        .from("mock_tests")
+        .select(`
           id,
           title,
-          test_type,
-          exam_id,
-          exams ( title )
-        )
-      `)
-      .eq("is_dynamic", false)
-      .order("created_at", { ascending: false });
+          slug,
+          is_free,
+          is_dynamic,
+          lifecycle_status,
+          generation_metadata,
+          created_at,
+          mock_templates (
+            id,
+            title,
+            test_type,
+            exam_id,
+            exams ( title )
+          )
+        `)
+        .eq("is_dynamic", false)
+        .order("created_at", { ascending: false });
 
-    const { data, error } = await query;
-    if (error) {
-      throw new Error(`Failed to fetch curated mocks: ${error.message}`);
+      const { data, error } = await query;
+      if (error) {
+        return [];
+      }
+
+      let results = data || [];
+      if (examId) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        results = results.filter((m: any) => m.mock_templates?.exam_id === examId);
+      }
+
+      return results;
+    } catch {
+      return [];
     }
-
-    let results = data || [];
-    if (examId) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      results = results.filter((m: any) => m.mock_templates?.exam_id === examId);
-    }
-
-    return results;
   }
 
   /**
@@ -1032,93 +1044,116 @@ export class AdminPremiumService {
    * Strictly filters active candidates by entitlement_type IN ('PRO_SUBSCRIPTION', 'PROMOTIONAL_PASS').
    */
   static async getPremiumAnalytics(): Promise<PremiumAnalyticsSummary> {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const supabase = createAdminServerSupabaseClient() as any;
-    const nowIso = new Date().toISOString();
-
-    const [activeEntitlementsRes, totalEntitlementsRes, attemptsRes, dynamicMocksRes] = await Promise.all([
-      // A. Active Premium Candidates
-      supabase
-        .from("user_entitlements")
-        .select("user_id")
-        .in("entitlement_type", ["PRO_SUBSCRIPTION", "PROMOTIONAL_PASS"])
-        .eq("is_active", true)
-        .lte("starts_at", nowIso)
-        .or(`expires_at.is.null,expires_at.gt.${nowIso}`),
-
-      // B. Total Premium Entitlements
-      supabase
-        .from("user_entitlements")
-        .select("id", { count: "exact", head: true })
-        .in("entitlement_type", ["PRO_SUBSCRIPTION", "PROMOTIONAL_PASS"]),
-
-      // C. Premium Test Attempts (started, submitted, completed)
-      supabase
-        .from("test_attempts")
-        .select(`
-          id,
-          status,
-          mock_tests!inner (
-            is_free,
-            mock_templates ( test_type )
-          )
-        `)
-        .eq("mock_tests.is_free", false),
-
-      // D. Dynamic Mock Instances Generated
-      supabase
-        .from("mock_tests")
-        .select("id", { count: "exact", head: true })
-        .eq("is_dynamic", true),
-    ]);
-
-    // Compute unique active candidate count
-    const uniqueActiveUserIds = new Set<string>();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (activeEntitlementsRes.data || []).forEach((e: any) => {
-      if (e.user_id) uniqueActiveUserIds.add(e.user_id);
-    });
-
-    // Compute test starts, completions, and quota usage breakdown
-    const attempts = attemptsRes.data || [];
-    const totalAttempts = attempts.length;
-    let completedCount = 0;
-    const quotaUsageMap: Record<string, number> = {
-      FULL_LENGTH: 0,
-      PYQ: 0,
-      SECTIONAL: 0,
-      TOPIC: 0,
-      CHALLENGE: 0,
-      WEAK_AREA: 0,
-      MISTAKE_REVISION: 0,
-      PERSONALIZED: 0,
+    const defaultSummary: PremiumAnalyticsSummary = {
+      activePremiumCandidates: 0,
+      totalPremiumEntitlements: 0,
+      totalPremiumAttempts: 0,
+      completedPremiumAttempts: 0,
+      completionRatePct: 0,
+      quotaUsageByType: {
+        FULL_LENGTH: 0,
+        PYQ: 0,
+        SECTIONAL: 0,
+        TOPIC: 0,
+        CHALLENGE: 0,
+        WEAK_AREA: 0,
+        MISTAKE_REVISION: 0,
+        PERSONALIZED: 0,
+      },
+      dynamicMocksGenerated: 0,
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    attempts.forEach((att: any) => {
-      if (["submitted", "completed", "auto_submitted"].includes(att.status)) {
-        completedCount++;
-      }
-      const rawType = att.mock_tests?.mock_templates?.test_type || "FULL_LENGTH";
-      const normKey = rawType.toUpperCase();
-      if (quotaUsageMap[normKey] !== undefined) {
-        quotaUsageMap[normKey]++;
-      } else {
-        quotaUsageMap.FULL_LENGTH++;
-      }
-    });
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const supabase = createAdminServerSupabaseClient() as any;
+      const nowIso = new Date().toISOString();
 
-    const completionRate = totalAttempts > 0 ? Math.round((completedCount / totalAttempts) * 100) : 0;
+      const [activeEntitlementsRes, totalEntitlementsRes, attemptsRes, dynamicMocksRes] = await Promise.all([
+        // A. Active Premium Candidates
+        supabase
+          .from("user_entitlements")
+          .select("user_id")
+          .in("entitlement_type", ["PRO_SUBSCRIPTION", "PROMOTIONAL_PASS"])
+          .eq("is_active", true)
+          .lte("starts_at", nowIso)
+          .or(`expires_at.is.null,expires_at.gt.${nowIso}`),
 
-    return {
-      activePremiumCandidates: uniqueActiveUserIds.size,
-      totalPremiumEntitlements: totalEntitlementsRes.count || 0,
-      totalPremiumAttempts: totalAttempts,
-      completedPremiumAttempts: completedCount,
-      completionRatePct: completionRate,
-      quotaUsageByType: quotaUsageMap,
-      dynamicMocksGenerated: dynamicMocksRes.count || 0,
-    };
+        // B. Total Premium Entitlements
+        supabase
+          .from("user_entitlements")
+          .select("id", { count: "exact", head: true })
+          .in("entitlement_type", ["PRO_SUBSCRIPTION", "PROMOTIONAL_PASS"]),
+
+        // C. Premium Test Attempts (started, submitted, completed)
+        supabase
+          .from("test_attempts")
+          .select(`
+            id,
+            status,
+            mock_tests (
+              is_free,
+              mock_templates ( test_type )
+            )
+          `),
+
+        // D. Dynamic Mock Instances Generated
+        supabase
+          .from("mock_tests")
+          .select("id", { count: "exact", head: true })
+          .eq("is_dynamic", true),
+      ]);
+
+      // Compute unique active candidate count
+      const uniqueActiveUserIds = new Set<string>();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (activeEntitlementsRes?.data || []).forEach((e: any) => {
+        if (e.user_id) uniqueActiveUserIds.add(e.user_id);
+      });
+
+      // Compute test starts, completions, and quota usage breakdown
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const attempts = (attemptsRes?.data || []).filter((att: any) => att.mock_tests?.is_free === false);
+      const totalAttempts = attempts.length;
+      let completedCount = 0;
+      const quotaUsageMap: Record<string, number> = {
+        FULL_LENGTH: 0,
+        PYQ: 0,
+        SECTIONAL: 0,
+        TOPIC: 0,
+        CHALLENGE: 0,
+        WEAK_AREA: 0,
+        MISTAKE_REVISION: 0,
+        PERSONALIZED: 0,
+      };
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      attempts.forEach((att: any) => {
+        if (["submitted", "completed", "auto_submitted"].includes(att.status)) {
+          completedCount++;
+        }
+        const rawType = att.mock_tests?.mock_templates?.test_type || "FULL_LENGTH";
+        const normKey = rawType.toUpperCase();
+        if (quotaUsageMap[normKey] !== undefined) {
+          quotaUsageMap[normKey]++;
+        } else {
+          quotaUsageMap.FULL_LENGTH++;
+        }
+      });
+
+      const completionRate = totalAttempts > 0 ? Math.round((completedCount / totalAttempts) * 100) : 0;
+
+      return {
+        activePremiumCandidates: uniqueActiveUserIds.size,
+        totalPremiumEntitlements: totalEntitlementsRes?.count || 0,
+        totalPremiumAttempts: totalAttempts,
+        completedPremiumAttempts: completedCount,
+        completionRatePct: completionRate,
+        quotaUsageByType: quotaUsageMap,
+        dynamicMocksGenerated: dynamicMocksRes?.count || 0,
+      };
+    } catch {
+      return defaultSummary;
+    }
   }
 
   // ==========================================================================
@@ -1135,35 +1170,39 @@ export class AdminPremiumService {
     limit?: number;
     offset?: number;
   } = {}): Promise<{ logs: AdminAuditLogItem[]; totalCount: number }> {
-    const supabase = createAdminServerSupabaseClient();
-    const limit = Math.min(params.limit || 50, 100);
-    const offset = params.offset || 0;
+    try {
+      const supabase = createAdminServerSupabaseClient();
+      const limit = Math.min(params.limit || 50, 100);
+      const offset = params.offset || 0;
 
-    let query = supabase
-      .from("admin_audit_logs")
-      .select("*", { count: "exact" })
-      .order("created_at", { ascending: false })
-      .range(offset, offset + limit - 1);
+      let query = supabase
+        .from("admin_audit_logs")
+        .select("*", { count: "exact" })
+        .order("created_at", { ascending: false })
+        .range(offset, offset + limit - 1);
 
-    if (params.actorEmail) {
-      query = query.ilike("actor_email", `%${params.actorEmail.trim()}%`);
-    }
-    if (params.actionType) {
-      query = query.eq("action_type", params.actionType.trim());
-    }
-    if (params.targetEntity) {
-      query = query.eq("target_entity", params.targetEntity.trim());
-    }
+      if (params.actorEmail) {
+        query = query.ilike("actor_email", `%${params.actorEmail.trim()}%`);
+      }
+      if (params.actionType) {
+        query = query.eq("action_type", params.actionType.trim());
+      }
+      if (params.targetEntity) {
+        query = query.eq("target_entity", params.targetEntity.trim());
+      }
 
-    const { data, count, error } = await query;
-    if (error) {
-      throw new Error(`Failed to fetch audit logs: ${error.message}`);
-    }
+      const { data, count, error } = await query;
+      if (error) {
+        return { logs: [], totalCount: 0 };
+      }
 
-    return {
-      logs: (data || []) as AdminAuditLogItem[],
-      totalCount: count || 0,
-    };
+      return {
+        logs: (data || []) as AdminAuditLogItem[],
+        totalCount: count || 0,
+      };
+    } catch {
+      return { logs: [], totalCount: 0 };
+    }
   }
 
   // ==========================================================================

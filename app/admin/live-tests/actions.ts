@@ -14,31 +14,15 @@ import {
   LiveTestCertificateGenerationResult,
   LiveCertificateStatus,
 } from "@/types/live-test";
+import { AdminService } from "@/services/admin.service";
 import { revalidatePath } from "next/cache";
 
 async function verifyAdminUser() {
-  const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    throw new Error("Authentication required.");
-  }
-
-  // Check admin role via profiles/metadata
-  const { data: profile } = await supabase
-    .from("user_profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  const role = (profile as any)?.role || "user";
-  if (role !== "admin" && role !== "superadmin") {
+  const auth = await AdminService.checkIsAdminOrStaff();
+  if (!auth.isAdmin || !auth.userId) {
     throw new Error("Administrative privileges required.");
   }
-
-  return user;
+  return { id: auth.userId, email: auth.userEmail };
 }
 
 export async function createLiveEventAction(
