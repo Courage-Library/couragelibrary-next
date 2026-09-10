@@ -18,6 +18,8 @@ import { AdaptivePerformanceService } from "./adaptive-performance.service";
 import { AdaptivePolicyService } from "./adaptive-policy.service";
 import { AdaptiveSelectionService } from "./adaptive-selection.service";
 import { AdaptiveStateService } from "./adaptive-state.service";
+import { AdaptiveStoppingService } from "./adaptive-stopping.service";
+import { AdaptivePersonalizationService } from "./adaptive-personalization.service";
 
 export class AdaptiveEngineService {
   /**
@@ -79,7 +81,7 @@ export class AdaptiveEngineService {
       : candidateSignals.overall_theta;
 
     // 4. Create initial adaptive attempt state record
-    const { data: newState, error: insertError } = await supabase
+    const { data: newState, error: insertError } = await (supabase as any)
       .from("adaptive_attempt_states")
       .insert({
         attempt_id: attemptId,
@@ -95,7 +97,10 @@ export class AdaptiveEngineService {
         topic_breakdown: {},
         section_breakdown: {},
         sequence_history: [],
-      })
+        stopping_policy_version: "stopping_v1_deterministic",
+        personalization_policy_version: "personalization_v1_balanced",
+        stopping_metadata: {},
+      } as any)
       .select()
       .single();
 
@@ -178,27 +183,31 @@ export class AdaptiveEngineService {
     }
 
     // 3. Stopping rule verification before serving a new step
-    const stoppingEvaluation = AdaptiveStateService.evaluateStoppingRules(
-      currentStep,
-      typedState.standard_error,
-      config
-    );
+    const stoppingEvaluation = AdaptiveStoppingService.evaluateStopping({
+      questionsServed: currentStep,
+      currentSe: typedState.standard_error,
+      config,
+      recentInformationContributions: sequenceHistory.map((s) =>
+        s.standard_error_after ? 1 / Math.max(0.01, s.standard_error_after) : 0.2
+      ),
+    });
 
     if (stoppingEvaluation.shouldStop) {
       // Update state to stopping_rule_met
-      await supabase
+      await (supabase as any)
         .from("adaptive_attempt_states")
         .update({
           status: "stopping_rule_met",
-          stopping_reason: stoppingEvaluation.reason,
+          stopping_reason: stoppingEvaluation.reasonCode,
+          stopping_metadata: stoppingEvaluation as any,
           updated_at: new Date().toISOString(),
-        })
+        } as any)
         .eq("id", typedState.id);
 
       throw new AdaptiveEngineError(
         "STOPPING_RULE_VIOLATION",
         `Stopping rule satisfied: ${stoppingEvaluation.rationale}`,
-        { reason: stoppingEvaluation.reason }
+        { reason: stoppingEvaluation.reasonCode, metadata: stoppingEvaluation }
       );
     }
 
@@ -225,14 +234,37 @@ export class AdaptiveEngineService {
       }
     }
 
-    // 6. Fetch eligible questions from question bank
+    let lastServedTopicId: string | null = null;
+    let consecutiveTopicStreak = 0;
+    if (sequenceHistory.length > 0) {
+      lastServedTopicId = sequenceHistory[sequenceHistory.length - 1].topic_id || null;
+      if (lastServedTopicId) {
+        for (let i = sequenceHistory.length - 1; i >= 0; i--) {
+          if (sequenceHistory[i].topic_id === lastServedTopicId) {
+            consecutiveTopicStreak++;
+          } else {
+            break;
+          }
+        }
+      }
+    }
+
+    // 6. Compute bounded personalization signals
+    const personalizationSignals = AdaptivePersonalizationService.computePersonalizationSignals({
+      candidateSignals,
+      topicServedCounts,
+      subjectServedCounts: {},
+      policy: (config.metadata as any)?.personalization_policy || undefined,
+    });
+
+    // 7. Fetch eligible questions from question bank
     const eligibleQuestions = await AdaptiveSelectionService.fetchEligibleQuestions(
       supabase,
       config.exam_id,
       servedVersionIds
     );
 
-    // 7. Rank and select best candidate question
+    // 8. Rank and select best candidate question
     const selectionContext = {
       examId: config.exam_id,
       patternId: config.pattern_id,
@@ -242,9 +274,12 @@ export class AdaptiveEngineService {
       stepNumber: requestedStepNumber,
       servedQuestionVersionIds: servedVersionIds,
       topicServedCounts,
+      lastServedTopicId,
+      consecutiveTopicStreak,
       selectionPolicy: (config.selection_policy || {}) as unknown as SelectionPolicyConfig,
       topicPolicy: (config.topic_policy || {}) as unknown as TopicPolicyConfig,
       candidateSignals,
+      personalizationSignals,
     };
 
     const { bestCandidate, explainablePayload } = AdaptiveSelectionService.rankCandidateQuestions(
@@ -448,22 +483,25 @@ export class AdaptiveEngineService {
     const newIncorrectCount = typedState.incorrect_answers_count + (gradeResult.isCorrect ? 0 : 1);
 
     // 6. Check stopping rules after answer
-    const stoppingEvaluation = AdaptiveStateService.evaluateStoppingRules(
-      sequenceHistory.length,
-      abilityUpdate.updatedSe,
-      config
-    );
+    const stoppingEvaluation = AdaptiveStoppingService.evaluateStopping({
+      questionsServed: sequenceHistory.length,
+      currentSe: abilityUpdate.updatedSe,
+      config,
+      recentInformationContributions: sequenceHistory.map((s) =>
+        s.standard_error_after ? 1 / Math.max(0.01, s.standard_error_after) : 0.2
+      ),
+    });
 
     let newStatus = typedState.status;
     let newStoppingReason = typedState.stopping_reason;
 
     if (stoppingEvaluation.shouldStop) {
       newStatus = "stopping_rule_met";
-      newStoppingReason = stoppingEvaluation.reason || null;
+      newStoppingReason = stoppingEvaluation.reasonCode || null;
     }
 
     // 7. Save state to database
-    await supabase
+    await (supabase as any)
       .from("adaptive_attempt_states")
       .update({
         current_theta: abilityUpdate.updatedTheta,
@@ -474,8 +512,9 @@ export class AdaptiveEngineService {
         topic_breakdown: topicBreakdown as any,
         status: newStatus,
         stopping_reason: newStoppingReason,
+        stopping_metadata: stoppingEvaluation as any,
         updated_at: new Date().toISOString(),
-      })
+      } as any)
       .eq("id", typedState.id);
 
     return {
@@ -484,7 +523,7 @@ export class AdaptiveEngineService {
       estimatedTheta: abilityUpdate.updatedTheta,
       standardError: abilityUpdate.updatedSe,
       stoppingRuleMet: stoppingEvaluation.shouldStop,
-      stoppingReason: stoppingEvaluation.reason,
+      stoppingReason: stoppingEvaluation.reasonCode as any,
     };
   }
 

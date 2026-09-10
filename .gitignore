@@ -39,3 +39,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# internal documentation system book (local only)
+docs/internal/mock-test-system/
+
+

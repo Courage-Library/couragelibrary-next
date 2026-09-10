@@ -15,7 +15,48 @@ export type StoppingReason =
   | "USER_SUBMITTED"
   | "TIME_EXPIRED"
   | "POOL_EXHAUSTED"
-  | "TERMINATED_BY_ADMIN";
+  | "TERMINATED_BY_ADMIN"
+  | "TARGET_SE_ACHIEVED"
+  | "DIMINISHING_INFORMATION"
+  | "SYSTEM_SAFETY_STOP"
+  | "ATTEMPT_EXPIRED"
+  | "NO_ELIGIBLE_ITEMS";
+
+export type StoppingReasonCode =
+  | "SYSTEM_SAFETY_STOP"
+  | "ATTEMPT_EXPIRED"
+  | "MAX_QUESTIONS_REACHED"
+  | "NO_ELIGIBLE_ITEMS"
+  | "MIN_QUESTIONS_NOT_REACHED"
+  | "BLUEPRINT_INCOMPLETE"
+  | "TOPIC_COVERAGE_INCOMPLETE"
+  | "TARGET_SE_ACHIEVED"
+  | "DIMINISHING_INFORMATION"
+  | "CONTINUE"
+  | "USER_SUBMITTED";
+
+export interface StoppingDecision {
+  shouldStop: boolean;
+  reasonCode: StoppingReasonCode;
+  rationale: string;
+  questionsAnswered: number;
+  minQuestionsSatisfied: boolean;
+  maxQuestionsReached: boolean;
+  targetSESatisfied: boolean;
+  blueprintSatisfied: boolean;
+  topicCoverageSatisfied: boolean;
+  diminishingInformation: boolean;
+  evaluatedAt: string;
+}
+
+export interface PersonalizationSignals {
+  is_cold_start: boolean;
+  weak_area_priorities: Record<string, number>;
+  mistake_question_ids: Set<string>;
+  exploration_priorities: Record<string, number>;
+  subject_balance_weights: Record<string, number>;
+  max_personalization_influence: number;
+}
 
 // ============================================================================
 // CONFIGURATION POLICIES
@@ -40,10 +81,29 @@ export interface TopicPolicyConfig {
 }
 
 export interface StoppingPolicyConfig {
-  type: "standard_error_or_length" | "fixed_length" | "precision_only";
+  type?: "standard_error_or_length" | "fixed_length" | "precision_only" | "multi_criteria";
   target_se?: number;
   min_questions: number;
   max_questions: number;
+  diminishing_info_threshold?: number;
+  diminishing_info_window?: number;
+  enforce_blueprint?: boolean;
+  enforce_topic_coverage?: boolean;
+  allow_early_stopping?: boolean;
+}
+
+export interface PersonalizationPolicyConfig {
+  enabled?: boolean;
+  max_influence?: number;
+  weights?: {
+    weak_area?: number;
+    mistake_vault?: number;
+    exploration?: number;
+    subject_balance?: number;
+  };
+  recency_window_attempts?: number;
+  cold_start_threshold_questions?: number;
+  warm_start_enabled?: boolean;
 }
 
 export interface SelectionPolicyConfig {
@@ -282,4 +342,248 @@ export class AdaptiveEngineError extends Error {
     this.details = details;
   }
 }
+
+// ============================================================================
+// PHASE 4D.6: ADAPTIVE ANALYTICS & ADMIN INTELLIGENCE TYPES
+// ============================================================================
+
+export type ItemQualityFlag =
+  | "LOW_SAMPLE"
+  | "HIGH_EXPOSURE"
+  | "UNSTABLE_RESPONSE_RATE"
+  | "CALIBRATION_DRIFT"
+  | "DEPRECATED"
+  | "FLAGGED";
+
+export type SystemHealthStatus = "GREEN" | "YELLOW" | "RED";
+
+export interface AdaptiveAnalyticsFilters {
+  dateRange?: "today" | "7d" | "30d" | "90d" | "all";
+  startDate?: string;
+  endDate?: string;
+  examId?: string;
+  algorithmVersion?: string;
+  status?: string;
+}
+
+export interface AdaptiveItemAnalyticsFilters {
+  dateRange?: "today" | "7d" | "30d" | "90d" | "all";
+  startDate?: string;
+  endDate?: string;
+  examId?: string;
+  calibrationStatus?: string;
+  qualityFlag?: ItemQualityFlag | "ALL";
+  search?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface AdaptiveOverviewKPIs {
+  totalAttempts: number;
+  completedAttempts: number;
+  inProgressAttempts: number;
+  completionRate: number;
+  avgQuestionsPerAttempt: number;
+  medianQuestionsPerAttempt: number;
+  avgFinalTheta: number;
+  avgFinalSE: number;
+  medianFinalSE: number;
+  coldStartRate: number;
+  stoppingDistribution: Record<string, number>;
+  selectionStrategyDistribution: Record<string, number>;
+  fallbackRate: number;
+}
+
+export interface CandidateIntelligenceReport {
+  totalCandidates: number;
+  activeCandidates: number;
+  avgAttemptsPerCandidate: number;
+  thetaDistribution: { range: string; count: number; percentage: number }[];
+  seDistribution: { range: string; count: number; percentage: number }[];
+  weakestTopics: { topicId: string; topicName: string; averageMastery: number; candidateCount: number }[];
+  candidateSummaries: {
+    userId: string;
+    attemptsCount: number;
+    currentTheta: number;
+    standardError: number;
+    completionRate: number;
+    lastActiveAt: string;
+  }[];
+}
+
+export interface CandidateAdaptiveDetail {
+  userId: string;
+  overallTheta: number;
+  standardError: number;
+  totalQuestionsAnswered: number;
+  subjectMasteries: Record<string, number>;
+  topicMasteries: Record<string, { mastery: number; confidence: number; totalAttempts: number; correctCount: number }>;
+  attemptHistory: {
+    attemptId: string;
+    examTitle: string;
+    startedAt: string;
+    status: string;
+    questionsCount: number;
+    finalTheta: number;
+    finalSE: number;
+    stoppingReason: string | null;
+  }[];
+  recentMistakes: {
+    questionId: string;
+    topicId: string;
+    timestamp: string;
+  }[];
+}
+
+export interface ItemAnalyticsRow {
+  questionId: string;
+  questionTextSnippet?: string;
+  topicId?: string;
+  topicName?: string;
+  staticTier: DifficultyTier;
+  calibratedB: number;
+  discriminationA: number;
+  empiricalPValue: number;
+  sampleSize: number;
+  reliabilityScore: number;
+  calibrationStatus: string;
+  exposureCount: number;
+  selectionFrequency: number;
+  qualityFlags: ItemQualityFlag[];
+}
+
+export interface ItemIntelligenceReport {
+  totalItems: number;
+  calibratedItems: number;
+  provisionalItems: number;
+  uncalibratedItems: number;
+  flaggedItems: number;
+  deprecatedItems: number;
+  itemsWithAlertsCount: number;
+  items: ItemAnalyticsRow[];
+}
+
+export interface CATIntelligenceReport {
+  totalDecisions: number;
+  strategyBreakdown: { strategy: string; count: number; percentage: number }[];
+  avgSelectedInformation: number;
+  medianSelectedInformation: number;
+  fallbackRate: number;
+  poolConstraintBreakdown: { constraint: string; violationsEncountered: number }[];
+  exposureDistribution: { range: string; count: number }[];
+}
+
+export interface AbilityIntelligenceReport {
+  totalEstimations: number;
+  thetaBuckets: { bucket: string; count: number; percentage: number }[];
+  finalSEBuckets: { bucket: string; count: number; percentage: number }[];
+  convergenceRate: number;
+  avgStepDeltaTheta: number;
+  avgIterationsPerStep: number;
+}
+
+export interface StoppingIntelligenceReport {
+  totalStoppingEvaluations: number;
+  terminalStoppingDistribution: { reason: StoppingReason; count: number; percentage: number }[];
+  continuationGatesEncountered: { gate: StoppingReasonCode; count: number }[];
+  earlyStoppingRate: number;
+  maxQuestionsStoppingRate: number;
+  targetSESatisfactionRate: number;
+  avgQuestionsAtStopping: number;
+}
+
+export interface PersonalizationIntelligenceReport {
+  totalPersonalizedDecisions: number;
+  coldStartAttempts: number;
+  warmStartAttempts: number;
+  coldStartRate: number;
+  weakAreaBoostsApplied: number;
+  mistakeReinforcementsApplied: number;
+  explorationDecisionsCount: number;
+  avgPersonalizationInfluence: number;
+}
+
+export interface AlgorithmComparisonRow {
+  versionSlug: string;
+  algorithmType: string;
+  lifecycleStatus: string;
+  attemptCount: number;
+  completionRate: number;
+  avgQuestionsPerAttempt: number;
+  avgFinalTheta: number;
+  avgFinalSE: number;
+  targetSEAttainmentRate: number;
+  maxQuestionsHitRate: number;
+  catFallbackRate: number;
+  avgDurationMinutes: number;
+}
+
+export interface AlgorithmComparisonReport {
+  algorithms: AlgorithmComparisonRow[];
+}
+
+export interface SystemHealthKPI {
+  name: string;
+  value: number;
+  unit: string;
+  status: SystemHealthStatus;
+  threshold: string;
+  description: string;
+}
+
+export interface AdaptiveHealthReport {
+  overallStatus: SystemHealthStatus;
+  kpis: SystemHealthKPI[];
+  uncalibratedItemsCount: number;
+  flaggedItemsCount: number;
+  errorRateLast24h: number;
+  fallbackRateLast24h: number;
+  staleAttemptsCount: number;
+}
+
+export interface DataQualityDiagnostics {
+  orphanStatesCount: number;
+  orphanDecisionsCount: number;
+  unmappedQuestionsCount: number;
+  missingAnswerKeysCount: number;
+  missingCalibrationRecordsCount: number;
+  integrityScore: number;
+  diagnosticsDetails: string[];
+}
+
+export interface AttemptStepDiagnostic {
+  stepNumber: number;
+  questionId: string;
+  questionTextSnippet?: string;
+  topicName?: string;
+  targetDifficulty: string;
+  selectionStrategy: string;
+  decisionRationale?: string;
+  itemDifficultyB: number;
+  itemDiscriminationA: number;
+  itemInformation: number;
+  thetaBefore: number;
+  thetaAfter: number;
+  seBefore: number;
+  seAfter: number;
+  isCorrect: boolean | null;
+  timeSpentSeconds?: number;
+  personalizationSignals?: Record<string, unknown>;
+  stoppingRuleStatus?: { shouldStop: boolean; reasonCode: string; rationale: string };
+}
+
+export interface AttemptDiagnosticsReport {
+  attemptId: string;
+  userId: string;
+  examTitle?: string;
+  status: string;
+  startedAt: string;
+  completedAt?: string | null;
+  finalTheta: number;
+  finalSE: number;
+  stoppingReason?: string | null;
+  stoppingRationale?: string | null;
+  steps: AttemptStepDiagnostic[];
+}
+
 
