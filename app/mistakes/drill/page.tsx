@@ -1,28 +1,40 @@
-﻿import React from "react";
-
-import { MistakeService } from "@/services/mistake.service";
-import { DrillPlayerClient } from "./drill-client";
+import React from "react";
+import { MistakeService, DrillSessionPayload } from "@/services/mistake.service";
+import { MistakeDrillPageClient } from "./drill-client";
 
 export const revalidate = 0; // Dynamic server
 
-export default async function MistakeDrillPage() {
-  const drillPayload = await MistakeService.generateMistakeDrill();
+interface DrillPageProps {
+  searchParams: Promise<{
+    drillId?: string;
+    subjectId?: string;
+    topicId?: string;
+    focus?: "ALL" | "UNRESOLVED" | "REPEATED" | "BOOKMARKED";
+    vaultId?: string;
+  }>;
+}
 
-  if (!drillPayload.success || !drillPayload.drill_id || !drillPayload.questions || drillPayload.questions.length === 0) {
-    return (
-      <div className="py-16 text-center space-y-4 max-w-md mx-auto px-4">
-        <h2 className="text-xl font-bold text-slate-900">No Active Mistakes Available</h2>
-        <p className="text-xs text-slate-500">
-          You have 0 unmastered mistakes in your vault! Attempt new mock tests to log and practice errors.
-        </p>
-      </div>
-    );
+export default async function MistakeDrillPage({ searchParams }: DrillPageProps) {
+  const params = await searchParams;
+  let initialDrill: DrillSessionPayload | null = null;
+
+  if (params.drillId) {
+    initialDrill = await MistakeService.getMistakeDrill(params.drillId);
   }
 
+  const { subjects, cognitiveTypes } = await MistakeService.getAvailableFilterOptions();
+
   return (
-    <DrillPlayerClient
-      drillId={drillPayload.drill_id}
-      questions={drillPayload.questions}
-    />
+    <div className="py-8 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto min-h-[calc(100vh-4rem)]">
+      <MistakeDrillPageClient
+        initialDrill={initialDrill}
+        initialSubjectId={params.subjectId}
+        initialTopicId={params.topicId}
+        initialFocus={params.focus}
+        initialSingleVaultId={params.vaultId}
+        subjects={subjects}
+        cognitiveTypes={cognitiveTypes}
+      />
+    </div>
   );
 }

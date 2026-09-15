@@ -113,7 +113,7 @@ export class LiveTestResultService {
       try {
         const { data: wrongAnswers } = await (adminSb as any)
           .from("attempt_answers")
-          .select("mock_question_id, selected_option_key, time_spent_seconds, mock_questions(question_version_id, question_versions(question_id, question_options(id, option_key)))")
+          .select("id, mock_question_id, selected_option_key, time_spent_seconds, mock_questions(question_version_id, question_versions(id, question_id, question_options(id, option_key)))")
           .eq("attempt_id", att.id)
           .eq("is_correct", false);
 
@@ -124,6 +124,8 @@ export class LiveTestResultService {
             const selectedOpt = (qv?.question_options || []).find((o: any) => o.option_key === w.selected_option_key);
             return {
               questionId: canonicalQuestionId || w.mock_question_id,
+              questionVersionId: w.mock_questions?.question_version_id || qv?.id || null,
+              attemptAnswerId: w.id || null,
               selectedOptionId: selectedOpt?.id || null,
               responseTimeSeconds: w.time_spent_seconds || 0,
               cognitiveTypeId: "UNCLASSIFIED",

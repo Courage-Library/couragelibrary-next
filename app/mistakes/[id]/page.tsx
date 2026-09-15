@@ -1,7 +1,11 @@
-﻿import React from "react";
+import React from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MistakeService } from "@/services/mistake.service";
+import { BookmarkService } from "@/services/bookmark.service";
+import { MistakeNoteEditor } from "@/components/mistakes/mistake-note-editor";
+import { MistakeBookmarkButton } from "@/components/mistakes/mistake-bookmark-button";
+import { MistakeLearningSection } from "@/components/mistakes/mistake-learning-section";
 import { Container } from "@/components/ui/container";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -25,15 +29,27 @@ export default async function MistakeDetailPage({ params }: Props) {
     notFound();
   }
 
+  const isBookmarked = await BookmarkService.isQuestionBookmarked(mistake.questionId);
+
   return (
     <div className="py-10 bg-slate-50/50 min-h-[calc(100vh-4rem)]">
       <Container className="space-y-6 max-w-4xl">
-        <Link
-          href="/mistakes"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" /> Back to Mistake Notebook
-        </Link>
+        <div className="flex items-center justify-between">
+          <Link
+            href="/mistakes"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" /> Back to Mistake Notebook
+          </Link>
+
+          {/* Bookmark Button */}
+          <MistakeBookmarkButton
+            questionId={mistake.questionId}
+            questionVersionId={mistake.questionVersionId || undefined}
+            initialBookmarked={isBookmarked}
+            variant="button"
+          />
+        </div>
 
         {/* Header Profile Card */}
         <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-4">
@@ -93,45 +109,40 @@ export default async function MistakeDetailPage({ params }: Props) {
           {mistake.explanation && (
             <div className="p-4 rounded-2xl bg-blue-50/60 border border-blue-100 text-xs space-y-1.5">
               <span className="font-bold text-blue-900 block">Explanation & Conceptual Solution:</span>
-              <p className="text-slate-700 leading-relaxed">{mistake.explanation}</p>
+              <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">{mistake.explanation}</p>
             </div>
           )}
         </div>
 
+        {/* Candidate Personal Revision Note Editor */}
+        <MistakeNoteEditor
+          vaultId={mistake.vaultId}
+          initialNote={mistake.userCustomNotes}
+        />
+
         {/* Cognitive Diagnosis & Remediation Guidance */}
-        <div className="grid md:grid-cols-2 gap-6">
-          <Card className="p-5 space-y-3">
-            <div className="flex items-center gap-2 text-purple-700 font-bold text-sm">
-              <Brain className="w-4 h-4" />
-              Cognitive Diagnosis
-            </div>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              {mistake.cognitiveDescription}
-            </p>
-            <div className="pt-3 border-t border-slate-100 space-y-1.5 text-xs">
-              <strong className="text-slate-800 block">Prescribed Action:</strong>
-              <p className="text-slate-600">{mistake.remediationGuidance}</p>
-            </div>
-          </Card>
+        <Card className="p-6 space-y-3 bg-white border-slate-200 shadow-xs">
+          <div className="flex items-center gap-2 text-purple-700 font-bold text-sm">
+            <Brain className="w-4 h-4" />
+            Cognitive Diagnosis & Failure Mode
+          </div>
+          <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-medium">
+            {mistake.cognitiveDescription}
+          </p>
+          <div className="pt-3 border-t border-slate-100 space-y-1.5 text-xs">
+            <strong className="text-slate-900 block font-bold">Prescribed Remediation Strategy:</strong>
+            <p className="text-slate-600 leading-relaxed">{mistake.remediationGuidance}</p>
+          </div>
+        </Card>
 
-          <Card className="p-5 space-y-3 flex flex-col justify-between">
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-blue-700 font-bold text-sm">
-                <Zap className="w-4 h-4" />
-                Targeted Remediation
-              </div>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Complete targeted practice drills until you answer this question correctly 2 consecutive times to achieve <strong>MASTERED</strong> status.
-              </p>
-            </div>
-
-            <Link href="/mistakes/drill">
-              <Button size="md" variant="default" className="w-full bg-blue-600 hover:bg-blue-700 font-bold">
-                Start Remediation Drill
-              </Button>
-            </Link>
-          </Card>
-        </div>
+        {/* Master This Topic & Learning Content (Phase 3E) */}
+        <MistakeLearningSection
+          vaultId={mistake.vaultId}
+          topicId={mistake.topicId}
+          topicName={mistake.topicName}
+          learningContent={mistake.learningContent}
+          isMastered={mistake.lifecycleStatus === "MASTERED"}
+        />
 
         {/* Historical Occurrences Timeline */}
         {mistake.occurrences.length > 0 && (
