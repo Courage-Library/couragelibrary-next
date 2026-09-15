@@ -1992,8 +1992,11 @@ export class AssessmentService {
     const evaluatedAnswers: Array<{ id: string; is_correct: boolean; evaluated_marks: number }> = [];
     const wrongAnswersForVault: Array<{
       questionId: string;
+      questionVersionId?: string | null;
+      attemptAnswerId?: string | null;
       selectedOptionId?: string | null;
       responseTimeSeconds?: number;
+      cognitiveTypeId?: string;
     }> = [];
     const questionsList = (questionsRes.data as any[]) || [];
 
@@ -2047,6 +2050,8 @@ export class AssessmentService {
             );
             wrongAnswersForVault.push({
               questionId: canonicalQuestionId,
+              questionVersionId: qv?.id || null,
+              attemptAnswerId: ans.id || null,
               selectedOptionId: selectedOpt?.id || null,
               responseTimeSeconds: qTime,
             });

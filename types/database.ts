@@ -5683,12 +5683,17 @@ export type Database = {
       }
       user_mistake_occurrences: {
         Row: {
+          attempt_answer_id: string | null
           heuristic_confidence_pct: number
           id: string
           inferred_cognitive_type_id: string
           occurred_at: string
+          occurrence_status: "ACTIVE" | "REVOKED_ERRATA" | "REVOKED_VOID" | "SUPERSEDED" | string
           question_id: string
+          question_version_id: string | null
           response_time_seconds: number | null
+          revocation_reason: string | null
+          revoked_at: string | null
           selected_option_id: string | null
           source_context: string
           source_reference_id: string | null
@@ -5696,12 +5701,17 @@ export type Database = {
           vault_id: string
         }
         Insert: {
+          attempt_answer_id?: string | null
           heuristic_confidence_pct?: number
           id?: string
           inferred_cognitive_type_id?: string
           occurred_at?: string
+          occurrence_status?: "ACTIVE" | "REVOKED_ERRATA" | "REVOKED_VOID" | "SUPERSEDED" | string
           question_id: string
+          question_version_id?: string | null
           response_time_seconds?: number | null
+          revocation_reason?: string | null
+          revoked_at?: string | null
           selected_option_id?: string | null
           source_context: string
           source_reference_id?: string | null
@@ -5709,12 +5719,17 @@ export type Database = {
           vault_id: string
         }
         Update: {
+          attempt_answer_id?: string | null
           heuristic_confidence_pct?: number
           id?: string
           inferred_cognitive_type_id?: string
           occurred_at?: string
+          occurrence_status?: "ACTIVE" | "REVOKED_ERRATA" | "REVOKED_VOID" | "SUPERSEDED" | string
           question_id?: string
+          question_version_id?: string | null
           response_time_seconds?: number | null
+          revocation_reason?: string | null
+          revoked_at?: string | null
           selected_option_id?: string | null
           source_context?: string
           source_reference_id?: string | null
@@ -5722,6 +5737,13 @@ export type Database = {
           vault_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "user_mistake_occurrences_attempt_answer_id_fkey"
+            columns: ["attempt_answer_id"]
+            isOneToOne: false
+            referencedRelation: "attempt_answers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "user_mistake_occurrences_inferred_cognitive_type_id_fkey"
             columns: ["inferred_cognitive_type_id"]
@@ -5734,6 +5756,13 @@ export type Database = {
             columns: ["question_id"]
             isOneToOne: false
             referencedRelation: "questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_mistake_occurrences_question_version_id_fkey"
+            columns: ["question_version_id"]
+            isOneToOne: false
+            referencedRelation: "question_versions"
             referencedColumns: ["id"]
           },
           {

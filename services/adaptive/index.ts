@@ -10,4 +10,5 @@ export * from "./adaptive-ability.service";
 export * from "./adaptive-stopping.service";
 export * from "./adaptive-personalization.service";
 export * from "./adaptive-analytics.service";
+export * from "./adaptive-remediation.service";
 
