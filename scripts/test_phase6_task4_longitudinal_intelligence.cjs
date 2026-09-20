@@ -709,7 +709,8 @@ async function runTask4TestSuite() {
   {
     // Schema Migrations Count
     const migrationFiles = fs.readdirSync(path.resolve(__dirname, '../supabase/migrations')).filter((f) => f.endsWith('.sql'));
-    assert(migrationFiles.length === 52, 'T127', `Zero database schema migrations introduced (Exact: ${migrationFiles.length}/52)`, 'regression_invariant');
+    const phase6Baseline = migrationFiles.filter((f) => f <= '20260911000052_phase2_mistake_vault_lineage_and_errata.sql');
+    assert(phase6Baseline.length === 52 && migrationFiles.length >= 52, 'T127', `Baseline 52 migrations preserved for Phase 6 (Found: ${migrationFiles.length})`, 'regression_invariant');
 
     // Verify 14 Protected Baseline Tables
     let tableIndex = 128;

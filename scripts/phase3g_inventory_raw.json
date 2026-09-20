@@ -1,0 +1,102 @@
+[
+  {
+    "targetId": "T01",
+    "unitId": "unit-3569f1f2-1ccf-4eda-95e2-6b11aa943ff1",
+    "unitTitle": "Could not find the table 'public.learning_units' in the schema cache",
+    "docType": "CONCEPT_LESSON",
+    "docId": "Could not find the table 'public.learning_documents' in the schema cache",
+    "hasSpec": false,
+    "hasMdx": false,
+    "specSummary": null
+  },
+  {
+    "targetId": "T02",
+    "unitId": "unit-a4a1c20f-bee6-4848-8ac6-eab28e7da228",
+    "unitTitle": "Could not find the table 'public.learning_units' in the schema cache",
+    "docType": "WORKED_EXAMPLES",
+    "docId": "Could not find the table 'public.learning_documents' in the schema cache",
+    "hasSpec": false,
+    "hasMdx": false,
+    "specSummary": null
+  },
+  {
+    "targetId": "T03",
+    "unitId": "unit-6694fccf-2d08-4711-a31a-49fd1807906f",
+    "unitTitle": "Could not find the table 'public.learning_units' in the schema cache",
+    "docType": "FORMULA_SHORTCUT_SHEET",
+    "docId": "Could not find the table 'public.learning_documents' in the schema cache",
+    "hasSpec": false,
+    "hasMdx": false,
+    "specSummary": null
+  },
+  {
+    "targetId": "T04",
+    "unitId": "unit-fc551aeb-a390-487f-86bc-d6959f649678",
+    "unitTitle": "Could not find the table 'public.learning_units' in the schema cache",
+    "docType": "CONCEPT_LESSON",
+    "docId": "Could not find the table 'public.learning_documents' in the schema cache",
+    "hasSpec": false,
+    "hasMdx": false,
+    "specSummary": null
+  },
+  {
+    "targetId": "T05",
+    "unitId": "unit-4267aab0-0e8a-4c63-81ec-ebd5a5fe8ede",
+    "unitTitle": "Could not find the table 'public.learning_units' in the schema cache",
+    "docType": "COMMON_TRAPS_AND_MISTAKES",
+    "docId": "Could not find the table 'public.learning_documents' in the schema cache",
+    "hasSpec": false,
+    "hasMdx": false,
+    "specSummary": null
+  },
+  {
+    "targetId": "T06",
+    "unitId": "unit-4a408ce2-30bc-4639-80f2-d37b71784aad",
+    "unitTitle": "Could not find the table 'public.learning_units' in the schema cache",
+    "docType": "WORKED_EXAMPLES",
+    "docId": "Could not find the table 'public.learning_documents' in the schema cache",
+    "hasSpec": false,
+    "hasMdx": false,
+    "specSummary": null
+  },
+  {
+    "targetId": "T07",
+    "unitId": "unit-e97b90ff-a74b-49f5-b3f2-ff52867717b8",
+    "unitTitle": "Could not find the table 'public.learning_units' in the schema cache",
+    "docType": "CONCEPT_LESSON",
+    "docId": "Could not find the table 'public.learning_documents' in the schema cache",
+    "hasSpec": false,
+    "hasMdx": false,
+    "specSummary": null
+  },
+  {
+    "targetId": "T08",
+    "unitId": "unit-b53394fc-eba0-418e-b269-d76a970d1f01",
+    "unitTitle": "Could not find the table 'public.learning_units' in the schema cache",
+    "docType": "TOPIC_SUMMARY_REVISION",
+    "docId": "Could not find the table 'public.learning_documents' in the schema cache",
+    "hasSpec": false,
+    "hasMdx": false,
+    "specSummary": null
+  },
+  {
+    "targetId": "T09",
+    "unitId": "unit-b41e5958-e7ed-4c87-8e3a-f741331c34a9",
+    "unitTitle": "Could not find the table 'public.learning_units' in the schema cache",
+    "docType": "CONCEPT_LESSON",
+    "docId": "Could not find the table 'public.learning_documents' in the schema cache",
+    "hasSpec": false,
+    "hasMdx": false,
+    "specSummary": null
+  },
+  {
+    "targetId": "T10",
+    "unitId": "unit-1de0cac7-43ed-4c58-9060-cc016c7c26fd",
+    "unitTitle": "Could not find the table 'public.learning_units' in the schema cache",
+    "docType": "PYQ_DEEP_DIVE",
+    "docId": "Could not find the table 'public.learning_documents' in the schema cache",
+    "hasSpec": false,
+    "hasMdx": false,
+    "specSummary": null
+  }
+]

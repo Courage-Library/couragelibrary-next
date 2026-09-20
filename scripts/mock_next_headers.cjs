@@ -1,0 +1,1 @@
+module.exports = { cookies: async () => ({ getAll: () => [], set: () => {}, get: () => undefined }), headers: async () => new Map() };

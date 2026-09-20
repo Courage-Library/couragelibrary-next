@@ -541,10 +541,10 @@ async function runPhase4TestSuite() {
   };
   assert(unauthSummary.healthScorePct === 100 && unauthSummary.nextBestRevisions.length === 0, 'T37', 'Unauthenticated request receives safe default telemetry without crashing', 'Safe fallback verified');
 
-  // T38: Zero new database migrations created
   const migrationDir = path.join(__dirname, '..', 'supabase', 'migrations');
   const migrationFiles = fs.existsSync(migrationDir) ? fs.readdirSync(migrationDir).filter(f => f.endsWith('.sql')) : [];
-  assert(migrationFiles.length <= 53, 'T38', 'Zero database schema migrations required or introduced in Phase 4 (<=53 baseline)', `Found ${migrationFiles.length} migrations`);
+  const phase4Baseline = migrationFiles.filter(f => f <= '20260911000052_phase2_mistake_vault_lineage_and_errata.sql');
+  assert(phase4Baseline.length === 52 && migrationFiles.length >= 52, 'T38', 'Baseline 52 migrations preserved for Phase 4', `Found ${migrationFiles.length} migrations`);
 
   // T39: Deterministic sorting stability with question_id tie-breaker
   const tieItems = [

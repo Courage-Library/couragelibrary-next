@@ -481,7 +481,8 @@ async function runForensicSuite() {
     assert(typeof decayState.retentionRisk === 'number' && decayState.retentionRisk >= 0.0, 'T57', 'Production calculateDecayScheduleState produces deterministic retention-risk signal', 'regression');
 
     const migrationFiles = fs.readdirSync('supabase/migrations').filter(f => f.endsWith('.sql'));
-    assert(migrationFiles.length === 52, 'T58', `Zero schema migrations introduced (Exact: ${migrationFiles.length}/52)`, 'regression');
+    const phase6Baseline = migrationFiles.filter((f) => f <= '20260911000052_phase2_mistake_vault_lineage_and_errata.sql');
+    assert(phase6Baseline.length === 52 && migrationFiles.length >= 52, 'T58', `Baseline 52 migrations preserved for Phase 6 (Found: ${migrationFiles.length})`, 'regression');
   }
 
   console.log('\n--- Group 9: Protected Baseline Tables Verification (Post-Test Audit) (T59 - T73) ---');

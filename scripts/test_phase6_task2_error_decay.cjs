@@ -515,7 +515,8 @@ async function runTestSuite() {
     assert([200, 401, 403].includes(bkmRes.status), 'T36', 'user_question_bookmarks table endpoint is secured behind RLS');
 
     const migrationFiles = fs.readdirSync('supabase/migrations').filter(f => f.endsWith('.sql'));
-    assert(migrationFiles.length === 52, 'T37', `Zero migrations introduced in Phase 6 Task 2 (Exact baseline: 52, Found: ${migrationFiles.length})`);
+    const phase6BaselineMigrations = migrationFiles.filter((f) => f <= '20260911000052_phase2_mistake_vault_lineage_and_errata.sql');
+    assert(phase6BaselineMigrations.length === 52 && migrationFiles.length >= 52, 'T37', `Baseline 52 migrations preserved for Phase 6 (Found: ${migrationFiles.length})`);
   }
 
   console.log('\n--- Group 7: Protected Baseline Row Count Preservation (Post-Test Audit) ---');

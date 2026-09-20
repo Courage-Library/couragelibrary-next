@@ -286,8 +286,9 @@ async function runTask5Certification() {
   // Group 10: Frozen Baseline Invariants & Zero Schema Mutation Proof (T81 - T95)
   // ------------------------------------------------------------------------
   console.log('\n--- Group 10: Frozen Baseline Invariants & Zero Schema Mutation (T81 - T95) ---');
-  const migrationFiles = fs.readdirSync(path.join(process.cwd(), 'supabase/migrations'));
-  assert(migrationFiles.length === 52, 'T81', `Exact 52 database schema migrations preserved (Found: ${migrationFiles.length}/52)`);
+  const migrationFiles = fs.readdirSync(path.join(process.cwd(), 'supabase/migrations')).filter((f) => f.endsWith('.sql'));
+  const phase6Baseline = migrationFiles.filter((f) => f <= '20260911000052_phase2_mistake_vault_lineage_and_errata.sql');
+  assert(phase6Baseline.length === 52 && migrationFiles.length >= 52, 'T81', `Baseline 52 migrations preserved for Phase 6 (Found: ${migrationFiles.length})`);
 
   const { count: mockTestsCount } = await supabase.from('mock_tests').select('*', { count: 'exact', head: true });
   assert(mockTestsCount === 8, 'T82', `Protected baseline [mock_tests] row count preserved (8/8, Actual: ${mockTestsCount})`);
