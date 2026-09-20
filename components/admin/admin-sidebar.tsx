@@ -31,6 +31,7 @@ import {
   Sparkles,
   Cpu,
   Radio,
+  GraduationCap,
 } from "lucide-react";
 
 interface Props {
@@ -247,6 +248,17 @@ export function AdminSidebar({ userEmail }: Props) {
               >
                 <BookOpen className={`w-3.5 h-3.5 shrink-0 ${pathname.startsWith("/admin/content") ? "text-white" : "text-slate-400"}`} />
                 <span className="text-[11px]">Articles &amp; Courses</span>
+              </Link>
+              <Link
+                href="/admin/exam-knowledge"
+                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors ${
+                  pathname.startsWith("/admin/exam-knowledge")
+                    ? "bg-blue-600 text-white font-semibold"
+                    : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                }`}
+              >
+                <GraduationCap className={`w-3.5 h-3.5 shrink-0 ${pathname.startsWith("/admin/exam-knowledge") ? "text-white" : "text-slate-400"}`} />
+                <span className="text-[11px]">Exam Knowledge</span>
               </Link>
               <Link
                 href="/admin/descriptive"

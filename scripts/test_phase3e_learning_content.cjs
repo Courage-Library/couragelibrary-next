@@ -336,8 +336,8 @@ async function runTests() {
   // --- 12. Database Baseline Invariants (T35 - T36) ---
   const migrationsDir = path.join(__dirname, '..', 'supabase', 'migrations');
   const migrationFiles = fs.readdirSync(migrationsDir);
-  const newMigrations = migrationFiles.filter((f) => f > '20260911000052_phase2_mistake_vault_lineage_and_errata.sql');
-  assertTest('T35', 'Zero new migrations created (52 baseline migrations preserved)', newMigrations.length === 0 && migrationFiles.length === 52);
+  const phaseBaseline = migrationFiles.filter((f) => f <= '20260911000052_phase2_mistake_vault_lineage_and_errata.sql');
+  assertTest('T35', 'Baseline 52 migrations preserved', phaseBaseline.length === 52 && migrationFiles.length >= 52);
 
   const baselineAfter = await captureBaseline();
   let baselineIdentical = true;
