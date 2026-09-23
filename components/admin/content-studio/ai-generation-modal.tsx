@@ -214,39 +214,39 @@ export function AIGenerationModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-      <div className="flex max-h-[92vh] w-full max-w-4xl flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+      <div className="flex max-h-[92vh] w-full max-w-4xl flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-800">
+        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-600 text-white shadow-sm">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-700 text-white shadow-xs">
               <Sparkles className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="font-bold text-slate-900 text-base dark:text-slate-100">
+              <h2 className="font-bold text-slate-900 text-base">
                 AI Content Studio & External Authoring Importer
               </h2>
-              <p className="text-slate-500 text-xs dark:text-slate-400">
-                Target Unit: <span className="font-semibold text-slate-700 dark:text-slate-200">{unitTitle}</span>
+              <p className="text-slate-500 text-xs">
+                Target Unit: <span className="font-semibold text-slate-800">{unitTitle}</span>
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex border-b border-slate-200 bg-slate-50/80 px-6 pt-2 dark:border-slate-800 dark:bg-slate-800/50">
+        <div className="flex border-b border-slate-200 bg-slate-50/80 px-6 pt-2">
           <button
             onClick={() => setActiveTab("PROMPT")}
             className={`flex items-center gap-2 border-b-2 px-4 py-2.5 font-bold text-xs transition ${
               activeTab === "PROMPT"
-                ? "border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400"
-                : "border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+                ? "border-blue-700 text-blue-700"
+                : "border-transparent text-slate-500 hover:text-slate-900"
             }`}
           >
             <FileCode className="h-4 w-4" />
@@ -256,8 +256,8 @@ export function AIGenerationModal({
             onClick={() => setActiveTab("IMPORT")}
             className={`flex items-center gap-2 border-b-2 px-4 py-2.5 font-bold text-xs transition ${
               activeTab === "IMPORT"
-                ? "border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400"
-                : "border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+                ? "border-blue-700 text-blue-700"
+                : "border-transparent text-slate-500 hover:text-slate-900"
             }`}
           >
             <DownloadCloud className="h-4 w-4" />
@@ -267,8 +267,8 @@ export function AIGenerationModal({
             onClick={() => setActiveTab("API")}
             className={`flex items-center gap-2 border-b-2 px-4 py-2.5 font-bold text-xs transition ${
               activeTab === "API"
-                ? "border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400"
-                : "border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+                ? "border-blue-700 text-blue-700"
+                : "border-transparent text-slate-500 hover:text-slate-900"
             }`}
           >
             <Cpu className="h-4 w-4" />
@@ -279,14 +279,14 @@ export function AIGenerationModal({
         {/* Body */}
         <div className="flex-1 space-y-5 overflow-y-auto p-6 text-sm">
           {error && (
-            <div className="flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-rose-800 text-xs dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-300">
+            <div className="flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-rose-800 text-xs">
               <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
               <span>{error}</span>
             </div>
           )}
 
           {successMsg && (
-            <div className="flex items-start gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 p-3.5 text-emerald-800 text-xs dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300">
+            <div className="flex items-start gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 p-3.5 text-emerald-800 text-xs">
               <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
               <span>{successMsg}</span>
             </div>
@@ -297,13 +297,13 @@ export function AIGenerationModal({
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="font-bold text-slate-700 text-xs dark:text-slate-300">
+                  <label className="font-bold text-slate-700 text-xs">
                     Target Document Type
                   </label>
                   <select
                     value={documentType}
                     onChange={(e) => setDocumentType(e.target.value as DocumentType)}
-                    className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 font-medium text-slate-900 text-xs shadow-sm focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2 font-medium text-slate-900 text-xs shadow-2xs focus:border-blue-600 focus:bg-white focus:outline-none"
                   >
                     <option value="CONCEPT_LESSON">CONCEPT_LESSON (Core Theory & Fundamentals)</option>
                     <option value="WORKED_EXAMPLES">WORKED_EXAMPLES (Step-by-Step Problem Solving)</option>
@@ -315,13 +315,13 @@ export function AIGenerationModal({
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="font-bold text-slate-700 text-xs dark:text-slate-300">
+                  <label className="font-bold text-slate-700 text-xs">
                     Target Exam Projection
                   </label>
                   <select
                     value={targetExamId}
                     onChange={(e) => setTargetExamId(e.target.value)}
-                    className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 font-medium text-slate-900 text-xs shadow-sm focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2 font-medium text-slate-900 text-xs shadow-2xs focus:border-blue-600 focus:bg-white focus:outline-none"
                   >
                     <option value="exam-ssc-cgl">SSC CGL Tier 1 & 2 (Advanced)</option>
                     <option value="exam-upsc-csat">UPSC CSAT (Analytical)</option>
@@ -331,35 +331,35 @@ export function AIGenerationModal({
               </div>
 
               {/* Component Directives */}
-              <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/50 p-3.5 dark:border-slate-800 dark:bg-slate-800/40">
-                <span className="font-bold text-slate-700 text-xs dark:text-slate-300">
+              <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/50 p-3.5">
+                <span className="font-bold text-slate-700 text-xs">
                   Curriculum Components to Require
                 </span>
                 <div className="grid grid-cols-3 gap-3 pt-1">
-                  <label className="flex items-center gap-2 text-slate-700 text-xs dark:text-slate-300">
+                  <label className="flex items-center gap-2 text-slate-700 text-xs">
                     <input
                       type="checkbox"
                       checked={includeFormulas}
                       onChange={(e) => setIncludeFormulas(e.target.checked)}
-                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      className="rounded border-slate-300 text-blue-700 focus:ring-blue-600"
                     />
                     Formula Blocks
                   </label>
-                  <label className="flex items-center gap-2 text-slate-700 text-xs dark:text-slate-300">
+                  <label className="flex items-center gap-2 text-slate-700 text-xs">
                     <input
                       type="checkbox"
                       checked={includeWorkedExamples}
                       onChange={(e) => setIncludeWorkedExamples(e.target.checked)}
-                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      className="rounded border-slate-300 text-blue-700 focus:ring-blue-600"
                     />
                     Worked Examples
                   </label>
-                  <label className="flex items-center gap-2 text-slate-700 text-xs dark:text-slate-300">
+                  <label className="flex items-center gap-2 text-slate-700 text-xs">
                     <input
                       type="checkbox"
                       checked={includeTraps}
                       onChange={(e) => setIncludeTraps(e.target.checked)}
-                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      className="rounded border-slate-300 text-blue-700 focus:ring-blue-600"
                     />
                     Cognitive Traps
                   </label>
@@ -368,7 +368,7 @@ export function AIGenerationModal({
 
               {/* Custom Admin Directives */}
               <div className="space-y-1.5">
-                <label className="font-bold text-slate-700 text-xs dark:text-slate-300">
+                <label className="font-bold text-slate-700 text-xs">
                   Custom Directives / Specific Topic Focus (Optional)
                 </label>
                 <textarea
@@ -377,7 +377,7 @@ export function AIGenerationModal({
                   onChange={(e) => setCustomInstructions(e.target.value)}
                   placeholder="e.g. Focus specifically on quadratic shortcuts and sign traps for 2-digit expansions."
                   maxLength={500}
-                  className="w-full rounded-xl border border-slate-300 bg-white p-3 font-medium text-slate-900 text-xs shadow-sm focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 font-medium text-slate-900 text-xs shadow-2xs focus:border-blue-600 focus:bg-white focus:outline-none"
                 />
               </div>
 
@@ -386,7 +386,7 @@ export function AIGenerationModal({
                 <button
                   onClick={handleGeneratePrompt}
                   disabled={isGeneratingPrompt}
-                  className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2 font-bold text-white text-xs shadow-sm hover:bg-indigo-700 disabled:opacity-50"
+                  className="flex items-center gap-2 rounded-xl bg-blue-700 px-5 py-2 font-bold text-white text-xs shadow-xs hover:bg-blue-800 disabled:opacity-50 transition"
                 >
                   {isGeneratingPrompt ? (
                     <>
@@ -404,10 +404,10 @@ export function AIGenerationModal({
                 {promptResult && (
                   <button
                     onClick={handleCopyPrompt}
-                    className={`flex items-center gap-2 rounded-xl px-5 py-2 font-bold text-xs shadow-sm transition ${
+                    className={`flex items-center gap-2 rounded-xl px-5 py-2 font-bold text-xs shadow-xs transition ${
                       hasCopied
                         ? "bg-emerald-600 text-white"
-                        : "bg-violet-600 text-white hover:bg-violet-700"
+                        : "bg-blue-700 text-white hover:bg-blue-800"
                     }`}
                   >
                     {hasCopied ? (
@@ -427,14 +427,14 @@ export function AIGenerationModal({
 
               {/* Prompt Preview Block */}
               {promptResult && (
-                <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/60">
+                <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <div className="flex items-center justify-between text-xs text-slate-500">
                     <span>
-                      Contract: <strong className="text-slate-700 dark:text-slate-300">{promptResult.promptContractVersion}</strong> | Hash: <code className="text-[11px]">{promptResult.contextHash.slice(0, 12)}...</code>
+                      Contract: <strong className="text-slate-800">{promptResult.promptContractVersion}</strong> | Hash: <code className="text-[11px] font-mono">{promptResult.contextHash.slice(0, 12)}...</code>
                     </span>
                     <span>{promptResult.characterCount.toLocaleString()} chars</span>
                   </div>
-                  <pre className="max-h-60 overflow-y-auto whitespace-pre-wrap rounded-lg border border-slate-200 bg-white p-3 font-mono text-[11px] text-slate-800 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200">
+                  <pre className="max-h-60 overflow-y-auto whitespace-pre-wrap rounded-lg border border-slate-200 bg-white p-3 font-mono text-[11px] text-slate-800 leading-relaxed shadow-2xs">
                     {promptResult.promptText}
                   </pre>
                   <div className="flex items-center justify-between pt-1 text-slate-500 text-xs">
@@ -443,7 +443,7 @@ export function AIGenerationModal({
                     </p>
                     <button
                       onClick={() => setActiveTab("IMPORT")}
-                      className="flex items-center gap-1 font-bold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400"
+                      className="flex items-center gap-1 font-bold text-blue-700 hover:text-blue-800"
                     >
                       <span>Proceed to Import</span>
                       <ArrowRight className="h-3.5 w-3.5" />
@@ -459,7 +459,7 @@ export function AIGenerationModal({
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
-                  <label className="font-bold text-slate-700 text-xs dark:text-slate-300">
+                  <label className="font-bold text-slate-700 text-xs">
                     Paste AI-Generated Output (JSON or Fenced JSON)
                   </label>
                   <p className="text-[11px] text-slate-500">
@@ -467,13 +467,13 @@ export function AIGenerationModal({
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <label className="font-bold text-slate-700 text-xs dark:text-slate-300">
+                  <label className="font-bold text-slate-700 text-xs">
                     AI Tool Used:
                   </label>
                   <select
                     value={aiToolUsed}
                     onChange={(e) => setAiToolUsed(e.target.value as ExternalAITool)}
-                    className="rounded-xl border border-slate-300 bg-white px-3 py-1 font-medium text-slate-900 text-xs dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                    className="rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-1 font-medium text-slate-900 text-xs focus:border-blue-600 shadow-2xs"
                   >
                     <option value="ChatGPT">ChatGPT (OpenAI)</option>
                     <option value="Claude">Claude (Anthropic)</option>
@@ -493,18 +493,18 @@ export function AIGenerationModal({
                   setValidationResult(null);
                 }}
                 placeholder="Paste the exact JSON output returned by your external AI tool here..."
-                className="w-full rounded-xl border border-slate-300 bg-white p-3.5 font-mono text-slate-900 text-xs shadow-sm focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3.5 font-mono text-slate-900 text-xs shadow-2xs focus:border-blue-600 focus:bg-white focus:outline-none leading-relaxed"
               />
 
               {/* Validation Feedback Panel */}
               {validationResult && (
                 <div
-                  className={`space-y-3 rounded-xl border p-4 text-xs ${
+                  className={`space-y-3 rounded-xl border p-4 text-xs shadow-2xs ${
                     validationResult.overallOutcome === "BLOCK"
-                      ? "border-rose-200 bg-rose-50/70 text-rose-900 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-200"
+                      ? "border-rose-200 bg-rose-50/80 text-rose-950"
                       : validationResult.overallOutcome === "WARNING"
-                      ? "border-amber-200 bg-amber-50/70 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200"
-                      : "border-emerald-200 bg-emerald-50/70 text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200"
+                      ? "border-amber-200 bg-amber-50/80 text-amber-950"
+                      : "border-emerald-200 bg-emerald-50/80 text-emerald-950"
                   }`}
                 >
                   <div className="flex items-center justify-between font-bold">
@@ -541,9 +541,9 @@ export function AIGenerationModal({
                   </div>
 
                   {validationResult.structure.errors.length > 0 && (
-                    <div className="rounded bg-white/60 p-2 dark:bg-slate-900/60">
-                      <p className="font-bold text-rose-600">Schema Errors:</p>
-                      <ul className="list-inside list-disc space-y-0.5">
+                    <div className="rounded-lg bg-white border border-rose-200/80 p-2.5 shadow-2xs">
+                      <p className="font-bold text-rose-700">Schema Errors:</p>
+                      <ul className="list-inside list-disc space-y-0.5 text-slate-800">
                         {validationResult.structure.errors.map((err, idx) => (
                           <li key={idx}>{err}</li>
                         ))}
@@ -552,9 +552,9 @@ export function AIGenerationModal({
                   )}
 
                   {validationResult.security.errors.length > 0 && (
-                    <div className="rounded bg-white/60 p-2 dark:bg-slate-900/60">
-                      <p className="font-bold text-rose-600">Security Violations:</p>
-                      <ul className="list-inside list-disc space-y-0.5">
+                    <div className="rounded-lg bg-white border border-rose-200/80 p-2.5 shadow-2xs">
+                      <p className="font-bold text-rose-700">Security Violations:</p>
+                      <ul className="list-inside list-disc space-y-0.5 text-slate-800">
                         {validationResult.security.errors.map((err, idx) => (
                           <li key={idx}>{err}</li>
                         ))}
@@ -563,11 +563,11 @@ export function AIGenerationModal({
                   )}
 
                   {validationResult.academic.issues.length > 0 && (
-                    <div className="rounded bg-white/60 p-2 dark:bg-slate-900/60">
-                      <p className="font-bold">Academic Issues:</p>
-                      <ul className="list-inside list-disc space-y-0.5">
+                    <div className="rounded-lg bg-white border border-slate-200 p-2.5 shadow-2xs">
+                      <p className="font-bold text-slate-900">Academic Issues:</p>
+                      <ul className="list-inside list-disc space-y-0.5 text-slate-800">
                         {validationResult.academic.issues.map((iss, idx) => (
-                          <li key={idx} className={iss.severity === "BLOCK" ? "text-rose-600 font-semibold" : "text-amber-600"}>
+                          <li key={idx} className={iss.severity === "BLOCK" ? "text-rose-700 font-semibold" : "text-amber-700"}>
                             [{iss.severity}] {iss.message}
                           </li>
                         ))}
@@ -582,7 +582,7 @@ export function AIGenerationModal({
                 <button
                   onClick={handleValidatePastedOutput}
                   disabled={isValidating || !rawPastedOutput.trim()}
-                  className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 font-bold text-slate-700 text-xs shadow-sm hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                  className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 font-bold text-slate-700 text-xs shadow-2xs hover:bg-slate-50 disabled:opacity-50 transition"
                 >
                   {isValidating ? (
                     <>
@@ -591,7 +591,7 @@ export function AIGenerationModal({
                     </>
                   ) : (
                     <>
-                      <ShieldCheck className="h-4 w-4" />
+                      <ShieldCheck className="h-4 w-4 text-emerald-600" />
                       <span>Validate Output</span>
                     </>
                   )}
@@ -600,7 +600,7 @@ export function AIGenerationModal({
                 <button
                   onClick={handleImportDraft}
                   disabled={isImporting || !rawPastedOutput.trim()}
-                  className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-2 font-bold text-white text-xs shadow-md hover:from-indigo-700 hover:to-violet-700 disabled:opacity-50"
+                  className="flex items-center gap-2 rounded-xl bg-blue-700 px-5 py-2 font-bold text-white text-xs shadow-xs hover:bg-blue-800 disabled:opacity-50 transition"
                 >
                   {isImporting ? (
                     <>
@@ -621,22 +621,22 @@ export function AIGenerationModal({
           {/* TAB 3: DIRECT API GENERATION (OPTIONAL) */}
           {activeTab === "API" && (
             <div className="space-y-4">
-              <div className="rounded-xl border border-amber-200/80 bg-amber-50/60 p-3.5 text-amber-900 text-xs dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
-                <p className="font-bold">Optional Direct API Path</p>
-                <p className="text-[11px] leading-relaxed text-amber-800 dark:text-amber-400">
+              <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-3.5 text-amber-950 text-xs shadow-2xs">
+                <p className="font-bold text-amber-800">Optional Direct API Path</p>
+                <p className="text-[11px] leading-relaxed text-amber-900/90 mt-0.5">
                   This connects directly to configured AI APIs (e.g. Gemini 1.5 Pro). For standard free usage without API keys, use <strong>Tab 1 & 2</strong>.
                 </p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="font-bold text-slate-700 text-xs dark:text-slate-300">
+                  <label className="font-bold text-slate-700 text-xs">
                     API Provider Engine
                   </label>
                   <select
                     value={providerId}
                     onChange={(e) => setProviderId(e.target.value as any)}
-                    className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 font-medium text-slate-900 text-xs shadow-sm focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2 font-medium text-slate-900 text-xs shadow-2xs focus:border-blue-600 focus:bg-white focus:outline-none"
                   >
                     <option value="MOCK">Mock AI Engine (Deterministic / Offline)</option>
                     <option value="GOOGLE_GEMINI">Google Gemini 1.5 Pro (Production API)</option>
@@ -644,13 +644,13 @@ export function AIGenerationModal({
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="font-bold text-slate-700 text-xs dark:text-slate-300">
+                  <label className="font-bold text-slate-700 text-xs">
                     Target Document Type
                   </label>
                   <select
                     value={documentType}
                     onChange={(e) => setDocumentType(e.target.value as DocumentType)}
-                    className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 font-medium text-slate-900 text-xs shadow-sm focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2 font-medium text-slate-900 text-xs shadow-2xs focus:border-blue-600 focus:bg-white focus:outline-none"
                   >
                     <option value="CONCEPT_LESSON">CONCEPT_LESSON</option>
                     <option value="WORKED_EXAMPLES">WORKED_EXAMPLES</option>
@@ -665,7 +665,7 @@ export function AIGenerationModal({
               <button
                 onClick={handleDirectGenerate}
                 disabled={isDirectGenerating}
-                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-2 font-bold text-white text-xs shadow-md hover:from-indigo-700 hover:to-violet-700 disabled:opacity-50"
+                className="flex items-center gap-2 rounded-xl bg-blue-700 px-5 py-2 font-bold text-white text-xs shadow-xs hover:bg-blue-800 disabled:opacity-50 transition"
               >
                 {isDirectGenerating ? (
                   <>
@@ -683,24 +683,24 @@ export function AIGenerationModal({
           )}
 
           {/* Strict Invariant Notice */}
-          <div className="flex items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50/70 p-3 text-slate-600 text-xs dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-400">
-            <Lock className="h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
+          <div className="flex items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50/80 p-3.5 text-slate-600 text-xs shadow-2xs">
+            <Lock className="h-4 w-4 shrink-0 text-blue-700 mt-0.5" />
             <div className="space-y-0.5">
-              <p className="font-bold text-[11px] text-slate-800 dark:text-slate-200">
+              <p className="font-bold text-[11px] text-slate-900">
                 Draft-Only Human-in-the-Loop Architecture
               </p>
-              <p className="text-[11px] leading-relaxed">
-                All AI output is saved as an unapproved candidate <span className="font-semibold text-slate-700 dark:text-slate-300">AI_GENERATED</span> draft. It cannot publish, approve, or alter canonical syllabus taxonomy without explicit human review and approval.
+              <p className="text-[11px] leading-relaxed text-slate-600">
+                All AI output is saved as an unapproved candidate <span className="font-semibold text-slate-800">AI_GENERATED</span> draft. It cannot publish, approve, or alter canonical syllabus taxonomy without explicit human review and approval.
               </p>
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end border-t border-slate-200 px-6 py-3.5 dark:border-slate-800">
+        <div className="flex items-center justify-end border-t border-slate-200 px-6 py-3.5 bg-slate-50/30">
           <button
             onClick={onClose}
-            className="rounded-xl border border-slate-300 px-4 py-2 font-bold text-slate-700 text-xs hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2 font-bold text-slate-700 text-xs hover:bg-slate-50 transition shadow-2xs"
           >
             Close
           </button>

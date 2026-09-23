@@ -27,12 +27,12 @@ export const VersionHistoryPanel: React.FC<Props> = ({
 }) => {
   return (
     <div className="space-y-4 p-4 text-xs">
-      <div className="flex items-center gap-2 font-bold text-slate-900 text-sm dark:text-slate-100">
-        <History className="h-4 w-4 text-indigo-600" />
+      <div className="flex items-center gap-2 font-bold text-slate-900 text-sm">
+        <History className="h-4 w-4 text-blue-700" />
         <span>Version History & Actions</span>
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         {versions.map((v) => {
           const isSelected = v.id === currentVersionId;
           const isPublished = v.is_published;
@@ -40,32 +40,32 @@ export const VersionHistoryPanel: React.FC<Props> = ({
           return (
             <div
               key={v.id}
-              className={`rounded-xl border p-3 transition ${
+              className={`rounded-xl border p-3.5 transition shadow-2xs ${
                 isSelected
-                  ? "border-indigo-500 bg-indigo-50/40 dark:border-indigo-600 dark:bg-indigo-950/30"
-                  : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
+                  ? "border-blue-300 bg-blue-50/60 shadow-xs"
+                  : "border-slate-200 bg-white hover:border-slate-300"
               }`}
             >
               <div className="flex items-center justify-between">
                 <button
                   type="button"
                   onClick={() => onSelectVersion(v.id)}
-                  className="font-bold text-indigo-700 hover:underline dark:text-indigo-400"
+                  className="font-bold text-blue-700 hover:text-blue-900 hover:underline text-xs"
                 >
                   Version {v.version_number}
                 </button>
                 <span
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold border ${
                     isPublished
-                      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-                      : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                      : "bg-slate-100 text-slate-700 border-slate-200"
                   }`}
                 >
                   {v.review_status}
                 </span>
               </div>
 
-              <div className="mt-2 text-[10px] text-slate-500 font-mono">
+              <div className="mt-2 text-[10px] text-slate-500 font-mono space-y-0.5">
                 <div>Hash: {v.compiled_artifact_hash?.slice(0, 12)}...</div>
                 <div>Compiler: v{v.compiler_version}</div>
               </div>
@@ -77,7 +77,7 @@ export const VersionHistoryPanel: React.FC<Props> = ({
                     type="button"
                     disabled={loading}
                     onClick={() => onSubmitForReview(v.id)}
-                    className="flex items-center gap-1 rounded bg-amber-500 px-2 py-1 font-bold text-white text-[10px] hover:bg-amber-600"
+                    className="flex items-center gap-1 rounded-lg bg-amber-600 px-2.5 py-1 font-bold text-white text-[10px] hover:bg-amber-700 shadow-2xs transition disabled:opacity-50"
                   >
                     <Send className="h-3 w-3" /> Submit for Review
                   </button>
@@ -88,7 +88,7 @@ export const VersionHistoryPanel: React.FC<Props> = ({
                     type="button"
                     disabled={loading}
                     onClick={() => onApprove(v.id)}
-                    className="flex items-center gap-1 rounded bg-emerald-600 px-2 py-1 font-bold text-white text-[10px] hover:bg-emerald-700"
+                    className="flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 font-bold text-white text-[10px] hover:bg-emerald-700 shadow-2xs transition disabled:opacity-50"
                   >
                     <CheckCircle2 className="h-3 w-3" /> Approve Version
                   </button>
@@ -99,7 +99,7 @@ export const VersionHistoryPanel: React.FC<Props> = ({
                     type="button"
                     disabled={loading}
                     onClick={() => onCompile(v.id)}
-                    className="flex items-center gap-1 rounded bg-indigo-600 px-2 py-1 font-bold text-white text-[10px] hover:bg-indigo-700"
+                    className="flex items-center gap-1 rounded-lg bg-blue-700 px-2.5 py-1 font-bold text-white text-[10px] hover:bg-blue-800 shadow-2xs transition disabled:opacity-50"
                   >
                     <Play className="h-3 w-3" /> Compile MDX
                   </button>
@@ -110,7 +110,7 @@ export const VersionHistoryPanel: React.FC<Props> = ({
                     type="button"
                     disabled={loading}
                     onClick={() => onPublish(v.id)}
-                    className="flex items-center gap-1 rounded bg-teal-700 px-2 py-1 font-bold text-white text-[10px] hover:bg-teal-800"
+                    className="flex items-center gap-1 rounded-lg bg-teal-700 px-2.5 py-1 font-bold text-white text-[10px] hover:bg-teal-800 shadow-2xs transition disabled:opacity-50"
                   >
                     <Lock className="h-3 w-3" /> Publish (Lock Version)
                   </button>

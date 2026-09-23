@@ -34,58 +34,58 @@ const STATUS_CONFIG: Record<
 > = {
   PUBLISHED: {
     label: "Published",
-    bg: "bg-emerald-50 dark:bg-emerald-950/40",
-    text: "text-emerald-700 dark:text-emerald-300",
-    border: "border-emerald-200 dark:border-emerald-800",
+    bg: "bg-emerald-50",
+    text: "text-emerald-800",
+    border: "border-emerald-200",
     icon: CheckCircle2,
   },
   COMPILED: {
     label: "Compiled",
-    bg: "bg-teal-50 dark:bg-teal-950/40",
-    text: "text-teal-700 dark:text-teal-300",
-    border: "border-teal-200 dark:border-teal-800",
+    bg: "bg-teal-50",
+    text: "text-teal-800",
+    border: "border-teal-200",
     icon: FileCode,
   },
   APPROVED: {
     label: "Approved",
-    bg: "bg-blue-50 dark:bg-blue-950/40",
-    text: "text-blue-700 dark:text-blue-300",
-    border: "border-blue-200 dark:border-blue-800",
+    bg: "bg-blue-50",
+    text: "text-blue-800",
+    border: "border-blue-200",
     icon: ShieldCheck,
   },
   IN_REVIEW: {
     label: "In Review",
-    bg: "bg-purple-50 dark:bg-purple-950/40",
-    text: "text-purple-700 dark:text-purple-300",
-    border: "border-purple-200 dark:border-purple-800",
+    bg: "bg-purple-50",
+    text: "text-purple-800",
+    border: "border-purple-200",
     icon: Clock,
   },
   AI_GENERATED: {
     label: "AI Draft",
-    bg: "bg-violet-50 dark:bg-violet-950/40",
-    text: "text-violet-700 dark:text-violet-300",
-    border: "border-violet-200 dark:border-violet-800",
+    bg: "bg-violet-50",
+    text: "text-violet-800",
+    border: "border-violet-200",
     icon: Sparkles,
   },
   DRAFT: {
     label: "Draft",
-    bg: "bg-amber-50 dark:bg-amber-950/40",
-    text: "text-amber-700 dark:text-amber-300",
-    border: "border-amber-200 dark:border-amber-800",
+    bg: "bg-amber-50",
+    text: "text-amber-800",
+    border: "border-amber-200",
     icon: Clock,
   },
   STALE: {
     label: "Stale / Rev",
-    bg: "bg-orange-50 dark:bg-orange-950/40",
-    text: "text-orange-700 dark:text-orange-300",
-    border: "border-orange-200 dark:border-orange-800",
+    bg: "bg-orange-50",
+    text: "text-orange-800",
+    border: "border-orange-200",
     icon: AlertCircle,
   },
   NOT_CREATED: {
     label: "Not Created",
-    bg: "bg-slate-50 dark:bg-slate-900",
-    text: "text-slate-400 dark:text-slate-500",
-    border: "border-slate-200 dark:border-slate-800",
+    bg: "bg-slate-50",
+    text: "text-slate-500",
+    border: "border-slate-200",
     icon: HelpCircle,
   },
 };
@@ -181,10 +181,10 @@ export const CurriculumCoverageView: React.FC<Props> = ({
     }
     return (
       <div className="space-y-6 p-6">
-        <div className="rounded-2xl border border-slate-200 bg-gradient-to-r from-indigo-900 to-slate-900 p-6 text-white shadow-sm">
+        <div className="rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-900 to-indigo-900 p-6 text-white shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <span className="font-semibold text-indigo-300 text-xs uppercase tracking-wider">
+              <span className="font-semibold text-blue-200 text-xs uppercase tracking-wider">
                 Curriculum Coverage Engine
               </span>
               <h2 className="mt-1 font-black text-2xl">
@@ -193,7 +193,7 @@ export const CurriculumCoverageView: React.FC<Props> = ({
             </div>
             <div className="text-right">
               <span className="font-black text-4xl">{report.coveragePct}%</span>
-              <div className="text-indigo-200 text-xs">
+              <div className="text-blue-100 text-xs">
                 {report.publishedUnits} / {report.totalUnits} Units Published
               </div>
             </div>
@@ -204,17 +204,17 @@ export const CurriculumCoverageView: React.FC<Props> = ({
           {report.subjectBreakdown?.map((sub: any) => (
             <div
               key={sub.subjectId}
-              className="rounded-xl border border-slate-200 bg-white p-5 shadow-2xs dark:border-slate-800 dark:bg-slate-900"
+              className="rounded-xl border border-slate-200 bg-white p-5 shadow-2xs"
             >
-              <div className="flex items-center justify-between font-bold text-slate-900 dark:text-slate-100">
+              <div className="flex items-center justify-between font-bold text-slate-900">
                 <span>{sub.subjectName}</span>
-                <span className="font-mono text-indigo-600 dark:text-indigo-400">
+                <span className="font-mono text-blue-700">
                   {sub.coveragePct}%
                 </span>
               </div>
-              <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+              <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-100">
                 <div
-                  className="h-full bg-indigo-600 transition-all duration-500"
+                  className="h-full bg-blue-700 transition-all duration-500"
                   style={{ width: `${sub.coveragePct}%` }}
                 />
               </div>
@@ -228,11 +228,11 @@ export const CurriculumCoverageView: React.FC<Props> = ({
   return (
     <div className="space-y-6 p-6">
       {/* Top Banner Hero */}
-      <div className="rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-6 text-white shadow-sm">
+      <div className="rounded-2xl border border-blue-900/30 bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 p-6 text-white shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1 rounded-full bg-indigo-500/20 px-2.5 py-0.5 font-semibold text-indigo-300 text-[11px] border border-indigo-400/30">
+              <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/20 px-2.5 py-0.5 font-semibold text-blue-300 text-[11px] border border-blue-400/30">
                 <Award className="h-3 w-3" /> Curriculum Operations & Coverage Engine
               </span>
               <span className="text-[11px] text-slate-400">Phase 3F.2 Multi-Exam Matrix</span>
@@ -255,7 +255,7 @@ export const CurriculumCoverageView: React.FC<Props> = ({
             </div>
             <div className="text-left">
               <div className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Question Bank</div>
-              <div className="font-black text-3xl text-indigo-400">{matrix.overall.totalLinkedQuestions}</div>
+              <div className="font-black text-3xl text-blue-400">{matrix.overall.totalLinkedQuestions}</div>
               <div className="text-[11px] text-slate-300">Authoritative PYQs</div>
             </div>
           </div>
@@ -295,9 +295,9 @@ export const CurriculumCoverageView: React.FC<Props> = ({
       </div>
 
       {/* Document Type Readiness Breakdown */}
-      <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900 shadow-2xs">
-        <h3 className="font-bold text-slate-900 text-sm dark:text-slate-100 flex items-center gap-2">
-          <BookOpen className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-2xs">
+        <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+          <BookOpen className="h-4 w-4 text-blue-700" />
           Document Type Coverage Breakdown (6 Canonical Types)
         </h3>
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
@@ -306,22 +306,22 @@ export const CurriculumCoverageView: React.FC<Props> = ({
             return (
               <div
                 key={dt}
-                className="rounded-lg border border-slate-100 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-800/40"
+                className="rounded-lg border border-slate-200/80 bg-slate-50/70 p-3"
               >
-                <div className="font-semibold text-slate-800 text-xs dark:text-slate-200 truncate">
+                <div className="font-semibold text-slate-800 text-xs truncate">
                   {DOC_TYPE_SHORT_LABELS[dt]}
                 </div>
                 <div className="mt-2 flex items-baseline justify-between">
-                  <span className="font-mono font-bold text-sm text-indigo-600 dark:text-indigo-400">
+                  <span className="font-mono font-bold text-sm text-blue-700">
                     {stat.coveragePct}%
                   </span>
                   <span className="text-[11px] text-slate-500">
                     {stat.publishedSlots}/{stat.totalSlots}
                   </span>
                 </div>
-                <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+                <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
                   <div
-                    className="h-full bg-indigo-600 transition-all duration-300"
+                    className="h-full bg-blue-700 transition-all duration-300"
                     style={{ width: `${stat.coveragePct}%` }}
                   />
                 </div>
@@ -332,7 +332,7 @@ export const CurriculumCoverageView: React.FC<Props> = ({
       </div>
 
       {/* Filter Toolbar */}
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 shadow-2xs">
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-2xs">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
           <input
@@ -340,7 +340,7 @@ export const CurriculumCoverageView: React.FC<Props> = ({
             placeholder="Search Subject, Topic, or Unit..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-4 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+            className="w-full rounded-lg border border-slate-200 bg-slate-50/50 py-2 pl-9 pr-4 text-xs text-slate-900 focus:border-blue-600 focus:bg-white focus:outline-none shadow-2xs"
           />
         </div>
 
@@ -348,7 +348,7 @@ export const CurriculumCoverageView: React.FC<Props> = ({
         <select
           value={selectedExamId}
           onChange={(e) => setSelectedExamId(e.target.value)}
-          className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+          className="rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs font-medium text-slate-700 focus:border-blue-600 focus:outline-none shadow-2xs"
         >
           <option value="ALL">All Exams</option>
           {matrix.exams.map((ex) => (
@@ -362,7 +362,7 @@ export const CurriculumCoverageView: React.FC<Props> = ({
         <select
           value={selectedSubjectId}
           onChange={(e) => setSelectedSubjectId(e.target.value)}
-          className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+          className="rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs font-medium text-slate-700 focus:border-blue-600 focus:outline-none shadow-2xs"
         >
           <option value="ALL">All Subjects</option>
           {matrix.subjects.map((s) => (
@@ -376,7 +376,7 @@ export const CurriculumCoverageView: React.FC<Props> = ({
         <select
           value={selectedDocType}
           onChange={(e) => setSelectedDocType(e.target.value)}
-          className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+          className="rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs font-medium text-slate-700 focus:border-blue-600 focus:outline-none shadow-2xs"
         >
           <option value="ALL">All Doc Types</option>
           {CANONICAL_DOCUMENT_TYPES.map((dt) => (
@@ -390,7 +390,7 @@ export const CurriculumCoverageView: React.FC<Props> = ({
         <select
           value={selectedStatus}
           onChange={(e) => setSelectedStatus(e.target.value)}
-          className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+          className="rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs font-medium text-slate-700 focus:border-blue-600 focus:outline-none shadow-2xs"
         >
           <option value="ALL">All Statuses</option>
           {Object.keys(STATUS_CONFIG).map((st) => (
@@ -406,19 +406,19 @@ export const CurriculumCoverageView: React.FC<Props> = ({
         {filteredSubjects.map((sub) => (
           <div
             key={sub.subjectId}
-            className="rounded-2xl border border-slate-200 bg-white overflow-hidden dark:border-slate-800 dark:bg-slate-900 shadow-2xs"
+            className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-2xs"
           >
             {/* Subject Header */}
-            <div className="flex items-center justify-between bg-slate-50/80 px-6 py-4 border-b border-slate-200 dark:border-slate-800 dark:bg-slate-800/50">
+            <div className="flex items-center justify-between bg-slate-50/90 px-6 py-4 border-b border-slate-200">
               <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 font-bold text-xs">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-800 font-bold text-xs border border-blue-200/60">
                   {sub.subjectName.substring(0, 2).toUpperCase()}
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-900 text-sm dark:text-slate-100">
+                  <h3 className="font-bold text-slate-900 text-sm">
                     {sub.subjectName}
                   </h3>
-                  <div className="text-[11px] text-slate-500">
+                  <div className="text-[11px] text-slate-500 font-medium">
                     {sub.totalUnits} Units &bull; {sub.topics.length} Topics &bull; {sub.linkedQuestionCount} PYQs
                   </div>
                 </div>
@@ -426,16 +426,16 @@ export const CurriculumCoverageView: React.FC<Props> = ({
 
               <div className="flex items-center gap-4">
                 <div className="text-right">
-                  <span className="font-mono font-bold text-xs text-indigo-600 dark:text-indigo-400">
+                  <span className="font-mono font-bold text-xs text-blue-700">
                     {sub.coveragePct}% Published
                   </span>
-                  <div className="text-[10px] text-slate-400">
+                  <div className="text-[10px] text-slate-500 font-mono">
                     {sub.publishedDocSlots} / {sub.totalDocSlots} slots
                   </div>
                 </div>
-                <div className="w-24 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+                <div className="w-24 h-2 overflow-hidden rounded-full bg-slate-200">
                   <div
-                    className="h-full bg-indigo-600"
+                    className="h-full bg-blue-700"
                     style={{ width: `${sub.coveragePct}%` }}
                   />
                 </div>
@@ -443,7 +443,7 @@ export const CurriculumCoverageView: React.FC<Props> = ({
             </div>
 
             {/* Topics Under Subject */}
-            <div className="divide-y divide-slate-100 dark:divide-slate-800/60">
+            <div className="divide-y divide-slate-100">
               {sub.topics.map((top) => {
                 const isExpanded = expandedTopics[top.topicId] !== false; // default expanded
                 return (
@@ -451,7 +451,7 @@ export const CurriculumCoverageView: React.FC<Props> = ({
                     {/* Topic Row Title */}
                     <div
                       onClick={() => toggleTopic(top.topicId)}
-                      className="flex cursor-pointer items-center justify-between hover:bg-slate-50/60 -m-2 p-2 rounded-lg transition dark:hover:bg-slate-800/30"
+                      className="flex cursor-pointer items-center justify-between hover:bg-slate-50/80 -m-2 p-2 rounded-lg transition"
                     >
                       <div className="flex items-center gap-2.5">
                         {isExpanded ? (
@@ -459,26 +459,26 @@ export const CurriculumCoverageView: React.FC<Props> = ({
                         ) : (
                           <ChevronRight className="h-4 w-4 text-slate-400" />
                         )}
-                        <span className="font-bold text-slate-900 text-xs dark:text-slate-200">
+                        <span className="font-bold text-slate-900 text-xs">
                           {top.topicName}
                         </span>
-                        <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                        <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 border border-slate-200/60">
                           {top.units.length} Units
                         </span>
                         {top.linkedQuestionCount > 0 && (
-                          <span className="rounded-md bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400 border border-indigo-200/50 dark:border-indigo-800/50">
+                          <span className="rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-200/60">
                             {top.linkedQuestionCount} PYQs
                           </span>
                         )}
                       </div>
 
                       <div className="flex items-center gap-3">
-                        <span className="font-mono text-[11px] font-semibold text-slate-600 dark:text-slate-400">
+                        <span className="font-mono text-[11px] font-semibold text-slate-600">
                           {top.coveragePct}%
                         </span>
-                        <div className="w-16 h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                        <div className="w-16 h-1.5 overflow-hidden rounded-full bg-slate-100">
                           <div
-                            className="h-full bg-indigo-600"
+                            className="h-full bg-blue-700"
                             style={{ width: `${top.coveragePct}%` }}
                           />
                         </div>
@@ -487,10 +487,10 @@ export const CurriculumCoverageView: React.FC<Props> = ({
 
                     {/* Units Table under Topic */}
                     {isExpanded && top.units.length > 0 && (
-                      <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                      <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200">
                         <table className="w-full text-left text-xs border-collapse">
                           <thead>
-                            <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold text-slate-600 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-400">
+                            <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold text-slate-600">
                               <th className="py-2.5 px-3 w-[220px]">Canonical Learning Unit</th>
                               <th className="py-2.5 px-3 w-[120px]">Exam Scope</th>
                               {CANONICAL_DOCUMENT_TYPES.map((dt) => (
@@ -501,13 +501,13 @@ export const CurriculumCoverageView: React.FC<Props> = ({
                               <th className="py-2.5 px-3 text-right">Actions</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
+                          <tbody className="divide-y divide-slate-100">
                             {top.units.map((u) => (
                               <tr
                                 key={u.unitId}
-                                className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition"
+                                className="hover:bg-slate-50/50 transition"
                               >
-                                <td className="py-3 px-3 font-medium text-slate-900 dark:text-slate-100">
+                                <td className="py-3 px-3 font-medium text-slate-900">
                                   <div className="font-semibold text-xs">{u.unitTitle}</div>
                                   <div className="font-mono text-[10px] text-slate-400 truncate max-w-[200px]">
                                     {u.unitSlug}
@@ -520,7 +520,7 @@ export const CurriculumCoverageView: React.FC<Props> = ({
                                       {u.mappedExams.map((me) => (
                                         <span
                                           key={me.examId}
-                                          className="rounded bg-indigo-50 px-1.5 py-0.5 text-[9px] font-bold text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200/50 dark:border-indigo-800/50"
+                                          className="rounded bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold text-blue-700 border border-blue-200/50"
                                         >
                                           {me.examTitle}
                                         </span>
@@ -545,7 +545,7 @@ export const CurriculumCoverageView: React.FC<Props> = ({
                                           onSelectUnitDocType(u.unitId, dt)
                                         }
                                         title={`${DOC_TYPE_SHORT_LABELS[dt]}: ${cfg.label}`}
-                                        className={`inline-flex items-center justify-center gap-1 rounded-md px-2 py-1 text-[10px] font-bold border transition hover:scale-105 ${cfg.bg} ${cfg.text} ${cfg.border}`}
+                                        className={`inline-flex items-center justify-center gap-1 rounded-md px-2 py-1 text-[10px] font-bold border transition hover:scale-105 shadow-2xs ${cfg.bg} ${cfg.text} ${cfg.border}`}
                                       >
                                         <Icon className="h-3 w-3" />
                                         <span className="hidden xl:inline">{cfg.label}</span>
@@ -561,7 +561,7 @@ export const CurriculumCoverageView: React.FC<Props> = ({
                                       onSelectUnitDocType &&
                                       onSelectUnitDocType(u.unitId, "CONCEPT_LESSON")
                                     }
-                                    className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-2.5 py-1 text-[11px] font-bold text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:text-indigo-400 dark:hover:bg-indigo-900/50 border border-indigo-200/50 dark:border-indigo-800/50 transition"
+                                    className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-blue-700 hover:bg-blue-100 border border-blue-200/60 transition shadow-2xs"
                                   >
                                     <Sparkles className="h-3 w-3" />
                                     Author
