@@ -88,6 +88,7 @@ require.extensions['.ts'] = function (module, filename) {
 const { createClient } = require(path.join(process.cwd(), 'node_modules', '@supabase', 'supabase-js'));
 const supabase = createClient(supabaseUrl, serviceRoleKey, {
   auth: { persistSession: false },
+  global: { fetch: global.fetch },
 });
 
 // Import production services

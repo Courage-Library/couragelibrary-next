@@ -79,7 +79,8 @@ require.extensions['.ts'] = function (module, filename) {
 
 const { createClient } = require('@supabase/supabase-js');
 const supabase = createClient(supabaseUrl, serviceRoleKey, {
-  auth: { persistSession: false }
+  auth: { persistSession: false },
+  global: { fetch: global.fetch },
 });
 
 const { ExamOnboardingService } = require('@/services/exam-onboarding/exam-onboarding.service');

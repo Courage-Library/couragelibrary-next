@@ -85,6 +85,7 @@ require.extensions['.ts'] = function (module, filename) {
 const { createClient } = require('@supabase/supabase-js');
 const supabase = createClient(supabaseUrl, serviceRoleKey, {
   auth: { persistSession: false, autoRefreshToken: false },
+  global: { fetch: global.fetch },
 });
 
 // Services to test
