@@ -4,6 +4,11 @@ import { revalidatePath } from "next/cache";
 import { AdminService } from "@/services/admin.service";
 import { ExamOnboardingService, SyllabusProjectionInput } from "@/services/exam-onboarding/exam-onboarding.service";
 import { ExamReadinessService, ExamReadinessReport } from "@/services/exam-onboarding/exam-readiness.service";
+import { ExamOnboardingContextBuilder } from "@/services/exam-onboarding/exam-onboarding-context-builder.service";
+import { ExamOnboardingPromptService } from "@/services/exam-onboarding/exam-onboarding-prompt.service";
+import { ExamOnboardingValidatorService } from "@/services/exam-onboarding/exam-onboarding-validator.service";
+import { ExamOnboardingImporterService } from "@/services/exam-onboarding/exam-onboarding-importer.service";
+import { ExamOnboardingSpec } from "@/types/exam-onboarding";
 
 export interface ExamActionResult {
   success?: boolean;
@@ -273,3 +278,133 @@ export async function archiveExamAction(examId: string): Promise<ExamActionResul
     return { error: err.message || "Failed to archive exam." };
   }
 }
+
+/**
+ * Server Action: Generate Master AI Research Prompt
+ */
+export async function generateMasterExamPromptAction(
+  params: {
+    examId?: string;
+    examName: string;
+    cycleYear?: number;
+    category?: string;
+    conductingOrgName?: string;
+    additionalInstructions?: string;
+  }
+): Promise<{ success: boolean; promptText?: string; promptVersion?: string; contextHash?: string; error?: string }> {
+  const auth = await AdminService.checkIsAdminOrStaff();
+  if (!auth.isAdmin) return { success: false, error: "Unauthorized access." };
+
+  if (!params.examName && !params.examId) {
+    return { success: false, error: "Exam name or Exam ID is required." };
+  }
+
+  try {
+    const context = await ExamOnboardingContextBuilder.buildContext({
+      examId: params.examId,
+      examName: params.examName,
+      cycleYear: params.cycleYear,
+      category: params.category,
+      conductingOrgName: params.conductingOrgName,
+    });
+
+    const result = ExamOnboardingPromptService.generateMasterPrompt(context, params.additionalInstructions);
+    return {
+      success: true,
+      promptText: result.promptText,
+      promptVersion: result.promptVersion,
+      contextHash: result.contextHash,
+    };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Failed to generate AI prompt." };
+  }
+}
+
+/**
+ * Server Action: Generate Context-Aware Per-Step AI Prompt
+ */
+export async function generateStepExamPromptAction(
+  stepNumber: 1 | 2 | 3 | 4 | 5 | 6,
+  params: {
+    examId?: string;
+    examName: string;
+    cycleYear?: number;
+    conductingOrgName?: string;
+  }
+): Promise<{ success: boolean; promptText?: string; promptVersion?: string; contextHash?: string; stepName?: string; error?: string }> {
+  const auth = await AdminService.checkIsAdminOrStaff();
+  if (!auth.isAdmin) return { success: false, error: "Unauthorized access." };
+
+  try {
+    const context = await ExamOnboardingContextBuilder.buildContext({
+      examId: params.examId,
+      examName: params.examName,
+      cycleYear: params.cycleYear,
+      conductingOrgName: params.conductingOrgName,
+    });
+
+    const result = ExamOnboardingPromptService.generateStepPrompt(stepNumber, context);
+    return {
+      success: true,
+      promptText: result.promptText,
+      promptVersion: result.promptVersion,
+      contextHash: result.contextHash,
+      stepName: result.stepName,
+    };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Failed to generate step AI prompt." };
+  }
+}
+
+/**
+ * Server Action: Validate and Preview AI-Assisted Exam Import
+ */
+export async function validateAndPreviewAiImportAction(
+  rawJson: string,
+  options?: {
+    targetExamName?: string;
+    targetCycleYear?: number;
+    expectedContextHash?: string;
+  }
+): Promise<{ success: boolean; preview?: any; error?: string }> {
+  const auth = await AdminService.checkIsAdminOrStaff();
+  if (!auth.isAdmin) return { success: false, error: "Unauthorized access." };
+
+  try {
+    const preview = await ExamOnboardingImporterService.generateImportPreview(rawJson, options);
+    return { success: true, preview };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Failed to validate AI payload." };
+  }
+}
+
+/**
+ * Server Action: Commit AI-Assisted Exam Import to Draft
+ */
+export async function commitAiExamImportAction(
+  spec: ExamOnboardingSpec,
+  options?: {
+    resolvedConflicts?: Record<string, any>;
+  }
+): Promise<{ success: boolean; result?: any; error?: string }> {
+  const auth = await AdminService.checkIsAdminOrStaff();
+  if (!auth.isAdmin) return { success: false, error: "Unauthorized access." };
+
+  try {
+    const commitRes = await ExamOnboardingImporterService.commitImportDraft(spec, {
+      resolvedConflicts: options?.resolvedConflicts,
+      adminUserId: auth.userId,
+    });
+
+    revalidatePath("/admin/exams");
+    revalidatePath(`/admin/exams/onboarding?examId=${commitRes.examId}`);
+
+    return {
+      success: true,
+      result: commitRes,
+    };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Failed to commit AI exam draft." };
+  }
+}
+
