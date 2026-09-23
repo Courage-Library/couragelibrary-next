@@ -51,102 +51,102 @@ const STATUS_CONFIG: Record<
 > = {
   PENDING: {
     label: "Pending",
-    bg: "bg-slate-50 dark:bg-slate-900/60",
-    text: "text-slate-600 dark:text-slate-400",
-    border: "border-slate-200 dark:border-slate-800",
+    bg: "bg-slate-50",
+    text: "text-slate-600",
+    border: "border-slate-200",
     icon: Clock,
   },
   PROMPT_READY: {
     label: "Prompt Ready",
-    bg: "bg-sky-50 dark:bg-sky-950/40",
-    text: "text-sky-700 dark:text-sky-300",
-    border: "border-sky-200 dark:border-sky-800",
+    bg: "bg-sky-50",
+    text: "text-sky-800",
+    border: "border-sky-200",
     icon: Sparkles,
   },
   PROMPT_COPIED: {
     label: "Prompt Copied",
-    bg: "bg-indigo-50 dark:bg-indigo-950/40",
-    text: "text-indigo-700 dark:text-indigo-300",
-    border: "border-indigo-200 dark:border-indigo-800",
+    bg: "bg-blue-50",
+    text: "text-blue-800",
+    border: "border-blue-200",
     icon: Copy,
   },
   AWAITING_EXTERNAL_AI: {
     label: "Awaiting AI",
-    bg: "bg-amber-50 dark:bg-amber-950/40",
-    text: "text-amber-700 dark:text-amber-300",
-    border: "border-amber-200 dark:border-amber-800",
+    bg: "bg-amber-50",
+    text: "text-amber-800",
+    border: "border-amber-200",
     icon: BrainCircuit,
   },
   OUTPUT_RECEIVED: {
     label: "Output Received",
-    bg: "bg-blue-50 dark:bg-blue-950/40",
-    text: "text-blue-700 dark:text-blue-300",
-    border: "border-blue-200 dark:border-blue-800",
+    bg: "bg-indigo-50",
+    text: "text-indigo-800",
+    border: "border-indigo-200",
     icon: Download,
   },
   VALIDATED: {
     label: "Validated",
-    bg: "bg-cyan-50 dark:bg-cyan-950/40",
-    text: "text-cyan-700 dark:text-cyan-300",
-    border: "border-cyan-200 dark:border-cyan-800",
+    bg: "bg-cyan-50",
+    text: "text-cyan-800",
+    border: "border-cyan-200",
     icon: ShieldCheck,
   },
   IN_REVIEW: {
     label: "In Review",
-    bg: "bg-purple-50 dark:bg-purple-950/40",
-    text: "text-purple-700 dark:text-purple-300",
-    border: "border-purple-200 dark:border-purple-800",
+    bg: "bg-purple-50",
+    text: "text-purple-800",
+    border: "border-purple-200",
     icon: Clock,
   },
   APPROVED: {
     label: "Approved",
-    bg: "bg-blue-50 dark:bg-blue-950/40",
-    text: "text-blue-700 dark:text-blue-300",
-    border: "border-blue-200 dark:border-blue-800",
+    bg: "bg-blue-50",
+    text: "text-blue-800",
+    border: "border-blue-200",
     icon: CheckCircle2,
   },
   COMPILED: {
     label: "Compiled",
-    bg: "bg-teal-50 dark:bg-teal-950/40",
-    text: "text-teal-700 dark:text-teal-300",
-    border: "border-teal-200 dark:border-teal-800",
+    bg: "bg-teal-50",
+    text: "text-teal-800",
+    border: "border-teal-200",
     icon: FileCode,
   },
   PUBLISHED: {
     label: "Published",
-    bg: "bg-emerald-50 dark:bg-emerald-950/40",
-    text: "text-emerald-700 dark:text-emerald-300",
-    border: "border-emerald-200 dark:border-emerald-800",
+    bg: "bg-emerald-50",
+    text: "text-emerald-800",
+    border: "border-emerald-200",
     icon: CheckCircle2,
   },
   VALIDATION_FAILED: {
     label: "Validation Failed",
-    bg: "bg-red-50 dark:bg-red-950/40",
-    text: "text-red-700 dark:text-red-300",
-    border: "border-red-200 dark:border-red-800",
+    bg: "bg-rose-50",
+    text: "text-rose-800",
+    border: "border-rose-200",
     icon: XCircle,
   },
   REJECTED: {
     label: "Rejected",
-    bg: "bg-rose-50 dark:bg-rose-950/40",
-    text: "text-rose-700 dark:text-rose-300",
-    border: "border-rose-200 dark:border-rose-800",
+    bg: "bg-red-50",
+    text: "text-red-800",
+    border: "border-red-200",
     icon: AlertTriangle,
   },
   CANCELLED: {
     label: "Cancelled",
-    bg: "bg-slate-100 dark:bg-slate-800",
+    bg: "bg-slate-100",
     text: "text-slate-500",
-    border: "border-slate-300 dark:border-slate-700",
+    border: "border-slate-300",
     icon: XCircle,
   },
 };
 
 const PRIORITY_BADGES: Record<AuthoringTaskPriority, { label: string; bg: string; text: string }> = {
-  CRITICAL: { label: "Critical Priority", bg: "bg-rose-100 dark:bg-rose-950/60", text: "text-rose-700 dark:text-rose-300" },
-  HIGH: { label: "High Priority", bg: "bg-red-100 dark:bg-red-950/60", text: "text-red-700 dark:text-red-300" },
-  NORMAL: { label: "Normal Priority", bg: "bg-amber-100 dark:bg-amber-950/60", text: "text-amber-700 dark:text-amber-300" },
-  LOW: { label: "Low Priority", bg: "bg-slate-100 dark:bg-slate-800", text: "text-slate-600 dark:text-slate-400" },
+  CRITICAL: { label: "Critical Priority", bg: "bg-rose-100 text-rose-800 border border-rose-200", text: "text-rose-800" },
+  HIGH: { label: "High Priority", bg: "bg-orange-100 text-orange-800 border border-orange-200", text: "text-orange-800" },
+  NORMAL: { label: "Normal Priority", bg: "bg-amber-50 text-amber-800 border border-amber-200", text: "text-amber-800" },
+  LOW: { label: "Low Priority", bg: "bg-slate-100 text-slate-700 border border-slate-200", text: "text-slate-700" },
 };
 
 export function AuthoringQueueView({ initialQueue = [], onSelectUnitDocType }: Props) {
@@ -349,15 +349,15 @@ export function AuthoringQueueView({ initialQueue = [], onSelectUnitDocType }: P
   return (
     <div className="flex flex-col gap-6 p-6 max-w-[1600px] mx-auto">
       {/* Header & Controls */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-600 text-white shadow-sm">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-700 text-white shadow-xs">
             <ListTodo className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="font-black text-slate-900 text-xl dark:text-slate-100 flex items-center gap-2">
+            <h1 className="font-black text-slate-900 text-xl flex items-center gap-2">
               Controlled Authoring Queue
-              <span className="rounded-full bg-violet-100 dark:bg-violet-950/60 px-2.5 py-0.5 text-xs font-bold text-violet-700 dark:text-violet-300">
+              <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-bold text-blue-800 border border-blue-200">
                 Phase 3F.4
               </span>
             </h1>
@@ -372,7 +372,7 @@ export function AuthoringQueueView({ initialQueue = [], onSelectUnitDocType }: P
             type="button"
             onClick={refreshQueue}
             disabled={isLoading}
-            className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 disabled:opacity-50 transition"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
             Refresh Queue
@@ -382,7 +382,7 @@ export function AuthoringQueueView({ initialQueue = [], onSelectUnitDocType }: P
             type="button"
             onClick={handleGenerateBatchBundle}
             disabled={selectedTaskIds.size === 0 || isLoading}
-            className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:from-violet-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition"
           >
             <Sparkles className="h-4 w-4" />
             Generate Batch Prompt Bundle ({selectedTaskIds.size})
@@ -392,34 +392,34 @@ export function AuthoringQueueView({ initialQueue = [], onSelectUnitDocType }: P
 
       {/* Summary KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        <div className="rounded-xl border border-slate-200 bg-white p-3.5 dark:border-slate-800 dark:bg-slate-900 shadow-2xs">
-          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Authoring Tasks</span>
-          <p className="mt-1 text-2xl font-black text-slate-900 dark:text-slate-100">{summary.total}</p>
+        <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs">
+          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Tasks</span>
+          <p className="mt-1 text-2xl font-black text-slate-900">{summary.total}</p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-3.5 dark:border-slate-800 dark:bg-slate-900 shadow-2xs">
+        <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs">
           <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Pending Tasks</span>
-          <p className="mt-1 text-2xl font-black text-slate-600 dark:text-slate-400">{summary.pending}</p>
+          <p className="mt-1 text-2xl font-black text-slate-600">{summary.pending}</p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-3.5 dark:border-slate-800 dark:bg-slate-900 shadow-2xs">
-          <span className="text-[11px] font-bold text-sky-600 dark:text-sky-400 uppercase tracking-wider">Prompt Ready / In Flight</span>
-          <p className="mt-1 text-2xl font-black text-sky-600 dark:text-sky-400">{summary.promptReady}</p>
+        <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs">
+          <span className="text-[11px] font-bold text-sky-700 uppercase tracking-wider">Prompt In Flight</span>
+          <p className="mt-1 text-2xl font-black text-sky-700">{summary.promptReady}</p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-3.5 dark:border-slate-800 dark:bg-slate-900 shadow-2xs">
-          <span className="text-[11px] font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider">In Human Review</span>
-          <p className="mt-1 text-2xl font-black text-purple-600 dark:text-purple-400">{summary.inReview}</p>
+        <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs">
+          <span className="text-[11px] font-bold text-purple-700 uppercase tracking-wider">In Review</span>
+          <p className="mt-1 text-2xl font-black text-purple-700">{summary.inReview}</p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-3.5 dark:border-slate-800 dark:bg-slate-900 shadow-2xs">
-          <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Published Docs</span>
-          <p className="mt-1 text-2xl font-black text-emerald-600 dark:text-emerald-400">{summary.published}</p>
+        <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs">
+          <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Published Docs</span>
+          <p className="mt-1 text-2xl font-black text-emerald-700">{summary.published}</p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-3.5 dark:border-slate-800 dark:bg-slate-900 shadow-2xs">
-          <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">Validation / Rejected</span>
-          <p className="mt-1 text-2xl font-black text-rose-600 dark:text-rose-400">{summary.failed}</p>
+        <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs">
+          <span className="text-[11px] font-bold text-rose-700 uppercase tracking-wider">Validation Failed</span>
+          <p className="mt-1 text-2xl font-black text-rose-700">{summary.failed}</p>
         </div>
       </div>
 
       {/* Filters Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-2xs">
         <div className="flex flex-1 items-center gap-2 min-w-[260px]">
           <Search className="h-4 w-4 text-slate-400" />
           <input
@@ -427,7 +427,7 @@ export function AuthoringQueueView({ initialQueue = [], onSelectUnitDocType }: P
             placeholder="Search by unit title, slug, topic, subject..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-transparent text-xs font-medium text-slate-800 outline-none placeholder:text-slate-400 dark:text-slate-200"
+            className="w-full bg-transparent text-xs font-medium text-slate-900 outline-none placeholder:text-slate-400"
           />
         </div>
 
@@ -436,7 +436,7 @@ export function AuthoringQueueView({ initialQueue = [], onSelectUnitDocType }: P
             value={subjectFilter}
             onChange={(e) => setSubjectFilter(e.target.value)}
             aria-label="Filter by Subject"
-            className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+            className="rounded-lg border border-slate-200 bg-slate-50/50 px-2.5 py-1.5 text-xs font-semibold text-slate-700 focus:border-blue-600 focus:outline-none"
           >
             <option value="ALL">All Subjects</option>
             {uniqueSubjects.map((s) => (
@@ -448,7 +448,7 @@ export function AuthoringQueueView({ initialQueue = [], onSelectUnitDocType }: P
             value={docTypeFilter}
             onChange={(e) => setDocTypeFilter(e.target.value)}
             aria-label="Filter by Document Type"
-            className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+            className="rounded-lg border border-slate-200 bg-slate-50/50 px-2.5 py-1.5 text-xs font-semibold text-slate-700 focus:border-blue-600 focus:outline-none"
           >
             <option value="ALL">All Document Types</option>
             {CANONICAL_DOCUMENT_TYPES.map((dt) => (
@@ -460,7 +460,7 @@ export function AuthoringQueueView({ initialQueue = [], onSelectUnitDocType }: P
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             aria-label="Filter by Workflow Status"
-            className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+            className="rounded-lg border border-slate-200 bg-slate-50/50 px-2.5 py-1.5 text-xs font-semibold text-slate-700 focus:border-blue-600 focus:outline-none"
           >
             <option value="ALL">All Workflow Statuses</option>
             {Object.keys(STATUS_CONFIG).map((s) => (
@@ -472,7 +472,7 @@ export function AuthoringQueueView({ initialQueue = [], onSelectUnitDocType }: P
             value={priorityFilter}
             onChange={(e) => setPriorityFilter(e.target.value)}
             aria-label="Filter by Priority"
-            className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+            className="rounded-lg border border-slate-200 bg-slate-50/50 px-2.5 py-1.5 text-xs font-semibold text-slate-700 focus:border-blue-600 focus:outline-none"
           >
             <option value="ALL">All Priorities</option>
             <option value="CRITICAL">Critical Priority</option>
@@ -484,10 +484,10 @@ export function AuthoringQueueView({ initialQueue = [], onSelectUnitDocType }: P
       </div>
 
       {/* Tasks Table */}
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xs dark:border-slate-800 dark:bg-slate-900">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xs">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-400">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
               <tr>
                 <th className="p-3 text-center w-10">
                   <input
@@ -495,7 +495,7 @@ export function AuthoringQueueView({ initialQueue = [], onSelectUnitDocType }: P
                     checked={filteredTasks.length > 0 && selectedTaskIds.size === filteredTasks.length}
                     onChange={toggleSelectAll}
                     aria-label="Select all authoring tasks"
-                    className="rounded border-slate-300 text-violet-600 focus:ring-violet-500"
+                    className="rounded border-slate-300 text-blue-700 focus:ring-blue-600"
                   />
                 </th>
                 <th className="p-3">Priority</th>
@@ -507,7 +507,7 @@ export function AuthoringQueueView({ initialQueue = [], onSelectUnitDocType }: P
                 <th className="p-3 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+            <tbody className="divide-y divide-slate-100">
               {filteredTasks.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="p-8 text-center text-slate-400">
@@ -524,8 +524,8 @@ export function AuthoringQueueView({ initialQueue = [], onSelectUnitDocType }: P
                   return (
                     <tr
                       key={task.id}
-                      className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition ${
-                        isSelected ? "bg-violet-50/50 dark:bg-violet-950/20" : ""
+                      className={`hover:bg-slate-50/80 transition ${
+                        isSelected ? "bg-blue-50/40" : ""
                       }`}
                     >
                       <td className="p-3 text-center">
@@ -534,26 +534,26 @@ export function AuthoringQueueView({ initialQueue = [], onSelectUnitDocType }: P
                           checked={isSelected}
                           onChange={() => toggleSelectTask(task.id)}
                           aria-label={`Select task for ${task.learningUnitTitle || task.unitTitle} - ${task.documentType}`}
-                          className="rounded border-slate-300 text-violet-600 focus:ring-violet-500"
+                          className="rounded border-slate-300 text-blue-700 focus:ring-blue-600"
                         />
                       </td>
                       <td className="p-3">
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${prioConf.bg} ${prioConf.text}`}>
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${prioConf.bg}`}>
                           {prioConf.label}
                         </span>
                       </td>
                       <td className="p-3">
                         <div className="flex flex-col">
-                          <span className="font-bold text-slate-900 dark:text-slate-100">
+                          <span className="font-bold text-slate-900">
                             {task.learningUnitTitle || task.unitTitle}
                           </span>
-                          <span className="text-[11px] text-slate-400">
+                          <span className="text-[11px] text-slate-500 font-medium">
                             {task.subjectName} &gt; {task.topicName}
                           </span>
                         </div>
                       </td>
                       <td className="p-3">
-                        <span className="rounded-md bg-slate-100 px-2 py-1 font-mono text-[11px] font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                        <span className="rounded-md bg-slate-100 px-2 py-1 font-mono text-[11px] font-semibold text-slate-700 border border-slate-200/60">
                           {task.documentType.replace(/_/g, " ")}
                         </span>
                       </td>
@@ -561,8 +561,8 @@ export function AuthoringQueueView({ initialQueue = [], onSelectUnitDocType }: P
                         <span
                           className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
                             task.questionCount > 0
-                              ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300"
-                              : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+                              ? "bg-blue-50 text-blue-800 border border-blue-200/60"
+                              : "bg-slate-100 text-slate-500"
                           }`}
                         >
                           {task.questionCount} {task.questionCount === 1 ? "Q" : "Qs"}
@@ -571,7 +571,7 @@ export function AuthoringQueueView({ initialQueue = [], onSelectUnitDocType }: P
                       <td className="p-3">
                         <div className="flex items-center gap-1.5">
                           <span
-                            className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-bold border ${statusConf.bg} ${statusConf.text} ${statusConf.border}`}
+                            className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-bold border shadow-2xs ${statusConf.bg} ${statusConf.text} ${statusConf.border}`}
                           >
                             <StatusIcon className="h-3 w-3" />
                             {statusConf.label}
@@ -589,9 +589,9 @@ export function AuthoringQueueView({ initialQueue = [], onSelectUnitDocType }: P
                             type="button"
                             title="Generate / Copy Prompt"
                             onClick={() => handleGenerateSinglePrompt(task)}
-                            className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
+                            className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
                           >
-                            <Sparkles className="h-3 w-3 text-violet-600" />
+                            <Sparkles className="h-3 w-3 text-blue-700" />
                             Prompt
                           </button>
 
@@ -604,9 +604,9 @@ export function AuthoringQueueView({ initialQueue = [], onSelectUnitDocType }: P
                               setImportError(null);
                               setImportSuccess(null);
                             }}
-                            className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
+                            className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
                           >
-                            <Upload className="h-3 w-3 text-indigo-600" />
+                            <Upload className="h-3 w-3 text-indigo-700" />
                             Import
                           </button>
 
@@ -615,7 +615,7 @@ export function AuthoringQueueView({ initialQueue = [], onSelectUnitDocType }: P
                               type="button"
                               title="Open in Academic Studio"
                               onClick={() => onSelectUnitDocType(task.learningUnitId, task.documentType)}
-                              className="flex items-center gap-1 rounded-lg bg-slate-100 p-1.5 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700"
+                              className="flex items-center gap-1 rounded-lg bg-slate-100 p-1.5 text-slate-600 hover:bg-slate-200 transition"
                             >
                               <ExternalLink className="h-3.5 w-3.5" />
                             </button>
@@ -633,33 +633,33 @@ export function AuthoringQueueView({ initialQueue = [], onSelectUnitDocType }: P
 
       {/* Prompt Modal (Single or Batch) */}
       {activePromptModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-xs">
-          <div className="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-2xl bg-white shadow-2xl dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-800">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+          <div className="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-2xl bg-white shadow-2xl border border-slate-200">
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
               <div className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-violet-600" />
-                <h3 className="font-bold text-slate-900 dark:text-slate-100">
+                <Sparkles className="h-5 w-5 text-blue-700" />
+                <h3 className="font-bold text-slate-900 text-sm">
                   {activePromptModal.title}
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setActivePromptModal(null)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg font-bold"
+                className="text-slate-400 hover:text-slate-600 text-lg font-bold"
               >
                 &times;
               </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6">
-              <div className="mb-4 flex items-center justify-between rounded-lg bg-slate-50 p-3 dark:bg-slate-800/60">
-                <span className="text-xs text-slate-500">
+              <div className="mb-4 flex items-center justify-between rounded-lg bg-slate-50 p-3 border border-slate-200">
+                <span className="text-xs text-slate-600">
                   Copy this prompt into your external AI tool (ChatGPT 4o, Claude 3.5 Sonnet, DeepSeek R1, etc.)
                 </span>
                 <button
                   type="button"
                   onClick={() => copyToClipboard(activePromptModal.markdown)}
-                  className="flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-violet-700 shadow-2xs"
+                  className="flex items-center gap-1.5 rounded-lg bg-blue-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-800 shadow-2xs transition"
                 >
                   {copiedNotification ? (
                     <>
@@ -676,15 +676,15 @@ export function AuthoringQueueView({ initialQueue = [], onSelectUnitDocType }: P
               <textarea
                 readOnly
                 value={activePromptModal.markdown}
-                className="h-96 w-full rounded-xl border border-slate-200 bg-slate-50 p-4 font-mono text-xs text-slate-800 outline-none dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200"
+                className="h-96 w-full rounded-xl border border-slate-200 bg-slate-50/50 p-4 font-mono text-xs text-slate-800 outline-none leading-relaxed"
               />
             </div>
 
-            <div className="flex items-center justify-end border-t border-slate-200 px-6 py-3 dark:border-slate-800">
+            <div className="flex items-center justify-end border-t border-slate-200 px-6 py-3">
               <button
                 type="button"
                 onClick={() => setActivePromptModal(null)}
-                className="rounded-lg bg-slate-100 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
+                className="rounded-lg bg-slate-100 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-200 transition"
               >
                 Close
               </button>
@@ -695,13 +695,13 @@ export function AuthoringQueueView({ initialQueue = [], onSelectUnitDocType }: P
 
       {/* JSON Output Ingestion Modal */}
       {importModalTask && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-xs">
-          <div className="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-2xl bg-white shadow-2xl dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-800">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+          <div className="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-2xl bg-white shadow-2xl border border-slate-200">
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
               <div className="flex items-center gap-2">
-                <Upload className="h-5 w-5 text-indigo-600" />
+                <Upload className="h-5 w-5 text-blue-700" />
                 <div>
-                  <h3 className="font-bold text-slate-900 dark:text-slate-100">
+                  <h3 className="font-bold text-slate-900 text-sm">
                     Import AI Output: {importModalTask.learningUnitTitle || importModalTask.unitTitle}
                   </h3>
                   <p className="text-xs text-slate-500">
@@ -712,7 +712,7 @@ export function AuthoringQueueView({ initialQueue = [], onSelectUnitDocType }: P
               <button
                 type="button"
                 onClick={() => setImportModalTask(null)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg font-bold"
+                className="text-slate-400 hover:text-slate-600 text-lg font-bold"
               >
                 &times;
               </button>
@@ -720,8 +720,8 @@ export function AuthoringQueueView({ initialQueue = [], onSelectUnitDocType }: P
 
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
               {importError && (
-                <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700 dark:border-red-900 dark:bg-red-950/60 dark:text-red-300 flex items-start gap-2">
-                  <XCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-800 flex items-start gap-2">
+                  <XCircle className="h-4 w-4 shrink-0 mt-0.5 text-red-600" />
                   <div>
                     <p className="font-bold">Validation / Ingestion Error:</p>
                     <p className="mt-0.5">{importError}</p>
@@ -730,8 +730,8 @@ export function AuthoringQueueView({ initialQueue = [], onSelectUnitDocType }: P
               )}
 
               {importSuccess && (
-                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-300 flex items-start gap-2">
-                  <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800 flex items-start gap-2">
+                  <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-emerald-600" />
                   <div>
                     <p className="font-bold">Import Successful!</p>
                     <p className="mt-0.5">
@@ -743,13 +743,13 @@ export function AuthoringQueueView({ initialQueue = [], onSelectUnitDocType }: P
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
                     AI Tool Used
                   </label>
                   <select
                     value={aiTool}
                     onChange={(e) => setAiTool(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 bg-slate-50 p-2 text-xs font-medium text-slate-800 outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50/50 p-2 text-xs font-medium text-slate-800 outline-none focus:border-blue-600"
                   >
                     <option value="Claude 3.5 Sonnet">Claude 3.5 Sonnet</option>
                     <option value="ChatGPT 4o">ChatGPT 4o</option>
@@ -760,7 +760,7 @@ export function AuthoringQueueView({ initialQueue = [], onSelectUnitDocType }: P
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
                     Model / Checkpoint Version
                   </label>
                   <input
@@ -768,26 +768,26 @@ export function AuthoringQueueView({ initialQueue = [], onSelectUnitDocType }: P
                     value={aiModel}
                     onChange={(e) => setAiModel(e.target.value)}
                     placeholder="e.g. claude-3-5-sonnet-20241022"
-                    className="w-full rounded-lg border border-slate-200 bg-slate-50 p-2 text-xs font-medium text-slate-800 outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50/50 p-2 text-xs font-medium text-slate-800 outline-none focus:border-blue-600"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block text-xs font-bold text-slate-700 mb-1">
                   Raw Structured JSON Output from External AI
                 </label>
                 <textarea
                   value={rawJsonInput}
                   onChange={(e) => setRawJsonInput(e.target.value)}
                   placeholder="Paste the complete JSON output (or ```json markdown block) returned by the AI here..."
-                  className="h-64 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 font-mono text-xs text-slate-800 outline-none dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200"
+                  className="h-64 w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 font-mono text-xs text-slate-800 outline-none leading-relaxed focus:border-blue-600 focus:bg-white"
                 />
               </div>
             </div>
 
-            <div className="flex items-center justify-between border-t border-slate-200 px-6 py-3 dark:border-slate-800">
-              <div className="flex items-center gap-1.5 text-xs text-slate-400">
+            <div className="flex items-center justify-between border-t border-slate-200 px-6 py-3">
+              <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
                 <ShieldCheck className="h-4 w-4 text-emerald-600" />
                 4-Gate Validation & Context Hash Check Guaranteed
               </div>
@@ -795,7 +795,7 @@ export function AuthoringQueueView({ initialQueue = [], onSelectUnitDocType }: P
                 <button
                   type="button"
                   onClick={() => setImportModalTask(null)}
-                  className="rounded-lg bg-slate-100 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
+                  className="rounded-lg bg-slate-100 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-200 transition"
                 >
                   Cancel
                 </button>
@@ -803,7 +803,7 @@ export function AuthoringQueueView({ initialQueue = [], onSelectUnitDocType }: P
                   type="button"
                   onClick={handleImportSubmit}
                   disabled={importLoading || !rawJsonInput.trim()}
-                  className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-1.5 rounded-lg bg-blue-700 px-4 py-2 text-xs font-bold text-white hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-2xs"
                 >
                   <Upload className="h-3.5 w-3.5" />
                   {importLoading ? "Validating & Ingesting..." : "Validate & Ingest Draft"}
