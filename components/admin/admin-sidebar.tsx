@@ -185,6 +185,21 @@ export function AdminSidebar({ userEmail }: Props) {
               </Link>
             </div>
 
+            {/* EXAMINATIONS & ONBOARDING */}
+            <div>
+              <Link
+                href="/admin/exams"
+                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors ${
+                  pathname.startsWith("/admin/exams")
+                    ? "bg-blue-600 text-white font-semibold shadow-xs"
+                    : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                }`}
+              >
+                <GraduationCap className={`w-3.5 h-3.5 shrink-0 ${pathname.startsWith("/admin/exams") ? "text-white" : "text-slate-400"}`} />
+                <span className="text-[11px]">Exams &amp; Onboarding</span>
+              </Link>
+            </div>
+
             {/* PARENT GROUP: MOCK TEST SYSTEM */}
             <div className="space-y-0.5">
               <div
