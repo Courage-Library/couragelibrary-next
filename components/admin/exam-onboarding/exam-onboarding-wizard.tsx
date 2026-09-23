@@ -19,8 +19,10 @@ import {
   deleteExamPostAction,
   saveSyllabusProjectionAction,
   publishExamAction,
+  generateStepExamPromptAction,
 } from "@/app/admin/exams/actions";
-import { ShieldCheck, Calendar, Users, BookOpen, GraduationCap, Award, Check } from "lucide-react";
+import { AiPromptModal } from "./ai-prompt-modal";
+import { ShieldCheck, Calendar, Users, BookOpen, GraduationCap, Award, Check, Sparkles, RefreshCw } from "lucide-react";
 
 interface Props {
   initialExam?: {
@@ -62,6 +64,37 @@ export function ExamOnboardingWizard({
   const [currentStep, setCurrentStep] = useState<number>(initialExam ? 1 : 1);
   const [examId, setExamId] = useState<string | undefined>(initialExam?.id);
   const [isSaving, setIsSaving] = useState(false);
+  const [isGeneratingStepPrompt, setIsGeneratingStepPrompt] = useState(false);
+  const [stepPromptData, setStepPromptData] = useState<{
+    promptText: string;
+    promptVersion: string;
+    contextHash: string;
+    stepName: string;
+  } | null>(null);
+  const [isStepPromptModalOpen, setIsStepPromptModalOpen] = useState(false);
+
+  const handleGenerateStepPrompt = async (stepNum: number) => {
+    setIsGeneratingStepPrompt(true);
+    try {
+      const res = await generateStepExamPromptAction(stepNum as any, {
+        examId: examId,
+        examName: initialExam?.title || "New Examination",
+        cycleYear: activeCycle?.cycleYear,
+      });
+
+      if (res.success && res.promptText) {
+        setStepPromptData({
+          promptText: res.promptText,
+          promptVersion: res.promptVersion || "CL-EXAM-ONBOARDING-v1.0",
+          contextHash: res.contextHash || "",
+          stepName: res.stepName || `Step ${stepNum}`,
+        });
+        setIsStepPromptModalOpen(true);
+      }
+    } finally {
+      setIsGeneratingStepPrompt(false);
+    }
+  };
 
   const steps = [
     { num: 1, label: "Identity & Authority", icon: ShieldCheck },
@@ -236,6 +269,33 @@ export function ExamOnboardingWizard({
         </div>
       </div>
 
+      {/* Contextual Step AI Prompt Helper */}
+      <div className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50/70 via-indigo-50/50 to-slate-50 border border-blue-200/60 rounded-2xl shadow-2xs">
+        <div className="flex items-center gap-2">
+          <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
+          <span className="text-xs text-slate-700 font-medium">
+            Need external AI research assistance for <strong>{steps[currentStep - 1]?.label}</strong>?
+          </span>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => handleGenerateStepPrompt(currentStep)}
+          disabled={isGeneratingStepPrompt}
+          className="text-[11px] font-bold px-3 py-1.5 rounded-xl bg-white hover:bg-indigo-50 border border-indigo-200 text-indigo-700 flex items-center gap-1.5 shadow-2xs transition-colors disabled:opacity-50"
+        >
+          {isGeneratingStepPrompt ? (
+            <>
+              <RefreshCw className="w-3 h-3 animate-spin" /> Generating...
+            </>
+          ) : (
+            <>
+              <Sparkles className="w-3 h-3 text-indigo-500" /> Generate Step {currentStep} AI Prompt
+            </>
+          )}
+        </button>
+      </div>
+
       {/* Step View Render */}
       <div>
         {currentStep === 1 && (
@@ -299,6 +359,19 @@ export function ExamOnboardingWizard({
           />
         )}
       </div>
+
+      {/* Step AI Prompt Modal */}
+      {stepPromptData && (
+        <AiPromptModal
+          isOpen={isStepPromptModalOpen}
+          onClose={() => setIsStepPromptModalOpen(false)}
+          title={`Context-Aware AI Prompt: Step ${currentStep}`}
+          stepName={stepPromptData.stepName}
+          promptText={stepPromptData.promptText}
+          promptVersion={stepPromptData.promptVersion}
+          contextHash={stepPromptData.contextHash}
+        />
+      )}
     </div>
   );
 }

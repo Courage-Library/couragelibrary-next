@@ -20,6 +20,8 @@ import {
   ArrowRight,
   ShieldCheck,
   Globe,
+  Sparkles,
+  Bot,
 } from "lucide-react";
 
 interface Props {
@@ -71,11 +73,18 @@ export function ExamManagementView({ initialExams, totalExams, publishedExams, d
           </p>
         </div>
 
-        <Link href="/admin/exams/onboarding">
-          <Button className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-2 shadow-xs">
-            <PlusCircle className="w-4 h-4" /> Start New Exam Onboarding
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2.5">
+          <Link href="/admin/exams/onboarding?mode=ai">
+            <Button className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-2 shadow-xs transition-colors">
+              <Sparkles className="w-4 h-4 text-indigo-200" /> AI-Assisted Onboarding
+            </Button>
+          </Link>
+          <Link href="/admin/exams/onboarding">
+            <Button variant="outline" className="text-slate-700 border-slate-300 hover:bg-slate-50 text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-2 shadow-xs transition-colors">
+              <PlusCircle className="w-4 h-4 text-slate-500" /> Manual Wizard
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* KPI Stats Cards */}

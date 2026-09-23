@@ -3,11 +3,12 @@ import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { ExamOnboardingService } from "@/services/exam-onboarding/exam-onboarding.service";
 import { ExamReadinessService, ExamReadinessReport } from "@/services/exam-onboarding/exam-readiness.service";
 import { ExamOnboardingWizard } from "@/components/admin/exam-onboarding/exam-onboarding-wizard";
+import { AiAssistedOnboardingStudio } from "@/components/admin/exam-onboarding/ai-assisted-onboarding-studio";
 
 export const revalidate = 0;
 
 interface Props {
-  searchParams: Promise<{ examId?: string; cycleId?: string }>;
+  searchParams: Promise<{ examId?: string; cycleId?: string; mode?: string }>;
 }
 
 export default async function AdminExamOnboardingPage({ searchParams }: Props) {
@@ -84,6 +85,10 @@ export default async function AdminExamOnboardingPage({ searchParams }: Props) {
     selectedTopicIds = (examTopicsRes.data || []).map((t: any) => t.topic_id);
     knowledgeModules = modules;
     readinessReport = report;
+  }
+
+  if (resolvedParams.mode === "ai" && !examId) {
+    return <AiAssistedOnboardingStudio />;
   }
 
   return (

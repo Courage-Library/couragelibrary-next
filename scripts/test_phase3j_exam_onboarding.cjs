@@ -35,6 +35,21 @@ if (fs.existsSync(envPath)) {
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
+// Resilient fetch wrapper for transient socket resets
+const originalFetch = global.fetch;
+global.fetch = async function (url, options) {
+  let attempts = 0;
+  while (attempts < 3) {
+    try {
+      return await originalFetch(url, options);
+    } catch (err) {
+      attempts++;
+      if (attempts >= 3) throw err;
+      await new Promise(r => setTimeout(r, 500 * attempts));
+    }
+  }
+};
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
