@@ -70,7 +70,10 @@ export class ExamOnboardingContextBuilder {
       ? Array.isArray(examData.conducting_org) ? examData.conducting_org[0] : examData.conducting_org
       : null;
 
-    const examTitle = examData?.title || targetExamName || 'New Examination';
+    const examTitle = (examData?.title || targetExamName).trim();
+    if (!examTitle) {
+      throw new Error("Target examination name is required to build onboarding context.");
+    }
     const orgName = orgInfo?.name || params.conductingOrgName || undefined;
     const resolvedCycleYear = activeCycle?.cycle_year || params.cycleYear || undefined;
 

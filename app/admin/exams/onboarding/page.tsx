@@ -29,7 +29,7 @@ export default async function AdminExamOnboardingPage({ searchParams }: Props) {
     status: 'NOT_STARTED',
     examId: examId || '',
     cycleId: null,
-    examTitle: 'New Examination',
+    examTitle: '',
     examSlug: '',
     isActive: false,
     isPublishable: false,
