@@ -449,7 +449,11 @@ export function ExamKnowledgeStudioView({
               <div>
                 <label className="block text-[10px] font-mono font-bold uppercase text-slate-500 mb-1">Target Examination</label>
                 <select value={selectedExamId} onChange={(e) => { setSelectedExamId(e.target.value); setSelectedCycleId(""); }} className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-bold text-slate-900">
-                  {exams.map((ex) => (<option key={ex.id} value={ex.id}>{ex.name} ({ex.conducting_org?.code || "GOV"})</option>))}
+                  {exams.map((ex) => (
+                    <option key={ex.id} value={ex.id}>
+                      {ex.name} ({ex.conducting_org?.code || "GOV"}) — {ex.is_active ? "PUBLISHED" : "DRAFT"}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -540,8 +544,12 @@ export function ExamKnowledgeStudioView({
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block text-[10px] font-mono font-bold uppercase text-slate-500 mb-1">Target Exam</label>
-                <select value={selectedExamId} onChange={(e) => setSelectedExamId(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs font-bold text-slate-900">
-                  {exams.map((ex) => (<option key={ex.id} value={ex.id}>{ex.name}</option>))}
+                <select value={selectedExamId} onChange={(e) => { setSelectedExamId(e.target.value); setSelectedCycleId(""); }} className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs font-bold text-slate-900">
+                  {exams.map((ex) => (
+                    <option key={ex.id} value={ex.id}>
+                      {ex.name} ({ex.conducting_org?.code || "GOV"}) — {ex.is_active ? "PUBLISHED" : "DRAFT"}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
