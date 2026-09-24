@@ -259,8 +259,7 @@ export class ExamKnowledgeImporterService {
             exam_id: expectedTarget.examId,
             exam_cycle_id: expectedTarget.examCycleId || null,
             module_key: expectedTarget.moduleKey,
-            slug: `${expectedTarget.examSlug}-${expectedTarget.moduleKey.toLowerCase().replace(/_/g, '-')}${expectedTarget.cycleYear ? `-${expectedTarget.cycleYear}` : ''}`,
-            title: parsedSpec.metadata?.title || `${expectedTarget.moduleKey} - ${expectedTarget.examName}`,
+            canonical_slug: `${expectedTarget.examSlug}-${expectedTarget.moduleKey.toLowerCase().replace(/_/g, '-')}${expectedTarget.cycleYear ? `-${expectedTarget.cycleYear}` : ''}`,
             status: 'DRAFT',
             language: expectedTarget.language,
           })
@@ -287,9 +286,7 @@ export class ExamKnowledgeImporterService {
           review_status: 'AI_GENERATED',
           is_published: false,
           source_spec_hash: payloadHash,
-          source_context_hash: expectedContextHash,
           structured_payload: parsedSpec,
-          created_by: adminUserId || null,
         })
         .select('id, version_number, review_status, is_published')
         .single();
@@ -314,10 +311,10 @@ export class ExamKnowledgeImporterService {
             await supabaseClient.from('exam_sources').insert({
               exam_id: expectedTarget.examId,
               exam_cycle_id: expectedTarget.examCycleId || null,
-              source_type: src.sourceType || 'OTHER_OFFICIAL',
+              source_type: src.sourceType || 'OTHER_AUTHORITY',
               title: src.title,
               source_url: src.url,
-              issuing_authority: src.issuingAuthority,
+              issuing_authority: src.issuingAuthority || 'Competent Authority',
               published_date: src.publishedDate || null,
               verification_status: 'UNVERIFIED',
               notes: 'Imported via External AI Authoring Pipeline. Pending academic review.',

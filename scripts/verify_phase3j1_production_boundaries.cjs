@@ -521,6 +521,10 @@ async function runForensicVerification() {
         await supabase.from('exam_topics').delete().eq('syllabus_id', fixtureSyllabusId);
         await supabase.from('exam_syllabi').delete().eq('id', fixtureSyllabusId);
       }
+      await supabase.from('exam_posts').delete().eq('exam_id', fixtureExamId);
+      await supabase.from('exam_sources').delete().eq('exam_id', fixtureExamId);
+      await supabase.from('exam_claims').delete().eq('exam_id', fixtureExamId);
+      await supabase.from('exam_knowledge_documents').delete().eq('exam_id', fixtureExamId);
       await supabase.from('exam_cycles').delete().eq('exam_id', fixtureExamId);
       await supabase.from('exams').delete().eq('id', fixtureExamId);
     }
