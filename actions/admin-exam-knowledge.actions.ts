@@ -218,3 +218,21 @@ export async function verifyExamClaimAction(params: {
     return { success: false, error: err.message || 'Failed to verify claim.' };
   }
 }
+
+export async function discardDraftVersionAction(versionId: string) {
+  const { isAdmin } = await AdminService.checkIsAdminOrStaff();
+  if (!isAdmin) {
+    return { success: false, error: 'UNAUTHORIZED: Admin or staff privileges required.' };
+  }
+
+  if (!versionId) {
+    return { success: false, error: 'versionId is required.' };
+  }
+
+  try {
+    const res = await AdminExamKnowledgeService.discardDraftVersion(versionId);
+    return res;
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Failed to discard draft version.' };
+  }
+}

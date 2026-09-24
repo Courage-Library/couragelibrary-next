@@ -23,6 +23,7 @@ import {
   Layers,
   History,
   Lock,
+  Trash2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { PromptViewerPanel } from "./prompt-viewer-panel";
@@ -44,6 +45,7 @@ import {
   createRevisionDraftAction,
   verifyExamSourceAction,
   verifyExamClaimAction,
+  discardDraftVersionAction,
 } from "@/actions/admin-exam-knowledge.actions";
 
 interface Props {
@@ -120,6 +122,8 @@ export function ExamKnowledgeStudioView({
   const [isCompiling, setIsCompiling] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [reviewMessage, setReviewMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [discardModal, setDiscardModal] = useState<{ isOpen: boolean; versionId: string; title: string; versionNumber: number } | null>(null);
+  const [isDiscarding, setIsDiscarding] = useState(false);
 
   // Load Workspace when exam or cycle changes
   useEffect(() => {
@@ -325,6 +329,29 @@ export function ExamKnowledgeStudioView({
       }
     } catch (err: any) {
       setReviewMessage({ type: "error", text: err.message || "Failed to create revision." });
+    }
+  };
+
+  const handleConfirmDiscard = async () => {
+    if (!discardModal?.versionId) return;
+    setIsDiscarding(true);
+    try {
+      const res = await discardDraftVersionAction(discardModal.versionId);
+      if (res.success) {
+        setDiscardModal(null);
+        if (selectedVersionId === discardModal.versionId) {
+          setSelectedVersionId(null);
+          setDocumentDetail(null);
+          setActiveTab("DRAFTS");
+        }
+        await loadDrafts();
+        const kRes = await getAdminExamKnowledgeDashboardAction();
+        if (kRes.success && kRes.kpis) setKpis(kRes.kpis);
+      } else {
+        alert(res.error || "Failed to discard draft.");
+      }
+    } finally {
+      setIsDiscarding(false);
     }
   };
 
@@ -671,10 +698,29 @@ export function ExamKnowledgeStudioView({
                       <td className="py-3 px-3"><span className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-bold ${d.reviewStatus === "PUBLISHED" ? "bg-emerald-100 text-emerald-800" : d.reviewStatus === "APPROVED" || d.reviewStatus === "COMPILED" ? "bg-blue-100 text-blue-800" : "bg-amber-100 text-amber-800"}`}>{d.reviewStatus}</span></td>
                       <td className="py-3 px-3 text-slate-500 font-mono text-[11px]">{new Date(d.createdAt).toLocaleDateString()}</td>
                       <td className="py-3 px-4 text-right">
-                        <button onClick={() => loadDocumentDetail(d.id)} className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-[11px] transition inline-flex items-center gap-1">
-                          <ShieldCheck className="w-3 h-3" />
-                          <span>Review</span>
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button onClick={() => loadDocumentDetail(d.id)} className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-[11px] transition inline-flex items-center gap-1">
+                            <ShieldCheck className="w-3 h-3" />
+                            <span>Review</span>
+                          </button>
+                          {!d.isPublished && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDiscardModal({
+                                  isOpen: true,
+                                  versionId: d.id,
+                                  title: d.document?.title || d.document?.moduleKey,
+                                  versionNumber: d.versionNumber,
+                                });
+                              }}
+                              className="p-1 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 transition"
+                              title="Discard Draft"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -702,7 +748,7 @@ export function ExamKnowledgeStudioView({
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-xs font-mono font-bold uppercase text-blue-600">{documentDetail.document?.exams?.name} {documentDetail.document?.exam_cycles?.year ? `(${documentDetail.document.exam_cycles.year})` : ""}</span>
                       <Badge variant="outline" className="font-mono text-[10px]">v{documentDetail.version?.version_number}</Badge>
-                      <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-bold ${documentDetail.version?.is_published ? "bg-emerald-100 text-emerald-800" : documentDetail.version?.review_status === "COMPILED" ? "bg-blue-100 text-blue-800" : "bg-amber-100 text-amber-800"}`}>{documentDetail.version?.review_status} {documentDetail.version?.is_published ? "(PUBLISHED)" : "(DRAFT)"}</span>
+                      <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-bold ${documentDetail.version?.is_published ? "bg-emerald-100 text-emerald-800" : documentDetail.version?.review_status === "APPROVED" ? "bg-blue-100 text-blue-800" : "bg-amber-100 text-amber-800"}`}>{documentDetail.version?.review_status} {documentDetail.version?.compiled_mdx && !documentDetail.version?.is_published ? "(COMPILED)" : documentDetail.version?.is_published ? "(PUBLISHED)" : "(DRAFT)"}</span>
                     </div>
                     <h2 className="text-lg font-black text-slate-900">{documentDetail.document?.title || documentDetail.document?.module_key}</h2>
                     <p className="text-xs text-slate-500 font-mono mt-0.5">Canonical Slug: {documentDetail.document?.slug}</p>
@@ -717,14 +763,34 @@ export function ExamKnowledgeStudioView({
                         <button disabled={isUpdatingStatus} onClick={() => handleUpdateReviewStatus("REJECTED", "Factual claims inconsistent with official notification.")} className="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition shadow-xs">Reject</button>
                       </>
                     )}
-                    {documentDetail.version?.review_status === "APPROVED" && (
+                    {documentDetail.version?.review_status === "APPROVED" && !documentDetail.version?.compiled_mdx && (
                       <button disabled={isCompiling} onClick={handleCompileVersion} className="px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5"><FileCode className="w-3.5 h-3.5" /><span>Compile MDX Artifact</span></button>
                     )}
-                    {documentDetail.version?.review_status === "COMPILED" && !documentDetail.version?.is_published && (
-                      <button disabled={isPublishing} onClick={handlePublishVersion} className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5"><Lock className="w-3.5 h-3.5" /><span>Publish Version (Immutable Lock)</span></button>
+                    {documentDetail.version?.review_status === "APPROVED" && documentDetail.version?.compiled_mdx && !documentDetail.version?.is_published && (
+                      <>
+                        <button disabled={isCompiling} onClick={handleCompileVersion} className="px-3 py-1.5 rounded-xl border border-purple-300 text-purple-700 hover:bg-purple-50 text-xs font-bold transition shadow-xs flex items-center gap-1.5"><FileCode className="w-3.5 h-3.5" /><span>Re-compile MDX</span></button>
+                        <button disabled={isPublishing} onClick={handlePublishVersion} className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5"><Lock className="w-3.5 h-3.5" /><span>Publish Version (Immutable Lock)</span></button>
+                      </>
                     )}
                     {documentDetail.version?.is_published && (
                       <button onClick={handleCreateRevision} className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5"><PlusCircle className="w-3.5 h-3.5 text-blue-400" /><span>Create Revision Draft (v{documentDetail.version?.version_number + 1})</span></button>
+                    )}
+                    {!documentDetail.version?.is_published && (
+                      <button
+                        disabled={isDiscarding}
+                        onClick={() => {
+                          setDiscardModal({
+                            isOpen: true,
+                            versionId: documentDetail.version.id,
+                            title: documentDetail.document?.title || documentDetail.document?.module_key,
+                            versionNumber: documentDetail.version.version_number,
+                          });
+                        }}
+                        className="px-3.5 py-1.5 rounded-xl border border-rose-300 text-rose-700 hover:bg-rose-50 text-xs font-bold transition shadow-xs flex items-center gap-1.5"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Discard Draft</span>
+                      </button>
                     )}
                   </div>
                 </div>
@@ -772,6 +838,54 @@ export function ExamKnowledgeStudioView({
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* DISCARD DRAFT CONFIRMATION MODAL */}
+      {discardModal?.isOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 max-w-md w-full shadow-xl space-y-4">
+            <div className="flex items-center gap-3 text-rose-600">
+              <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-100">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Discard this draft?</h3>
+                <p className="text-xs text-slate-500 font-mono">
+                  {discardModal.title} (v{discardModal.versionNumber})
+                </p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              This will permanently remove this unpublished draft and its associated draft data. Published content will not be affected.
+            </p>
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                disabled={isDiscarding}
+                onClick={() => setDiscardModal(null)}
+                className="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 text-xs font-bold transition"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={isDiscarding}
+                onClick={handleConfirmDiscard}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white text-xs font-bold shadow-xs transition flex items-center gap-1.5"
+              >
+                {isDiscarding ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Discarding...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Discard Draft</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

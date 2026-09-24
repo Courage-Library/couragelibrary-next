@@ -98,7 +98,7 @@ export class AdminExamKnowledgeService {
       supabase.from('exams').select('id', { count: 'exact', head: true }).eq('is_active', true),
       supabase.from('exam_cycles').select('id', { count: 'exact', head: true }),
       supabase.from('exam_knowledge_documents').select('id', { count: 'exact', head: true }),
-      supabase.from('exam_doc_versions').select('id', { count: 'exact', head: true }).in('review_status', ['AI_GENERATED', 'IN_REVIEW']),
+      supabase.from('exam_doc_versions').select('id', { count: 'exact', head: true }).eq('is_published', false),
       supabase.from('exam_doc_versions').select('id', { count: 'exact', head: true }).eq('is_published', true),
       supabase.from('exam_sources').select('id', { count: 'exact', head: true }).eq('verification_status', 'PENDING_VERIFICATION'),
       supabase.from('exam_claims').select('id', { count: 'exact', head: true }).in('verification_status', ['UNVERIFIED', 'DISPUTED']),
@@ -286,7 +286,7 @@ export class AdminExamKnowledgeService {
 
           if (latestVer.is_published) {
             status = 'PUBLISHED';
-          } else if (latestVer.review_status === 'COMPILED') {
+          } else if (latestVer.review_status === 'APPROVED' && latestVer.compiled_mdx) {
             status = 'COMPILED';
           } else if (latestVer.review_status === 'APPROVED') {
             status = 'APPROVED';
@@ -548,7 +548,7 @@ export class AdminExamKnowledgeService {
 
     const { data: ver, error: fetchErr } = await supabase
       .from('exam_doc_versions')
-      .select('*, exam_knowledge_documents(*)')
+      .select('*, exam_knowledge_documents:exam_knowledge_documents!document_id(*)')
       .eq('id', versionId)
       .single();
 
@@ -622,7 +622,6 @@ export class AdminExamKnowledgeService {
       .update({
         compiled_mdx: compiledMdx,
         compiled_artifact_hash: artifactHash,
-        review_status: 'COMPILED',
         updated_at: new Date().toISOString(),
       })
       .eq('id', versionId);
@@ -646,7 +645,7 @@ export class AdminExamKnowledgeService {
 
     const { data: ver, error: fetchErr } = await supabase
       .from('exam_doc_versions')
-      .select('*, exam_knowledge_documents(*)')
+      .select('*, exam_knowledge_documents:exam_knowledge_documents!document_id(*)')
       .eq('id', params.versionId)
       .single();
 
@@ -654,10 +653,10 @@ export class AdminExamKnowledgeService {
       return { success: false, error: 'Version not found.' };
     }
 
-    if (ver.review_status !== 'COMPILED' && ver.review_status !== 'APPROVED') {
+    if (ver.review_status !== 'APPROVED' && ver.review_status !== 'PUBLISHED') {
       return {
         success: false,
-        error: `Cannot publish document in '${ver.review_status}' status. Document must be APPROVED and COMPILED.`,
+        error: `Cannot publish document in '${ver.review_status}' status. Document must be APPROVED.`,
       };
     }
 
@@ -821,5 +820,72 @@ export class AdminExamKnowledgeService {
     }
 
     return { success: true };
+  }
+
+  /**
+   * 12. Discard Unpublished Draft Version
+   * Safely removes an unpublished draft version and its isolated draft data.
+   * Never permits deletion of published versions, published history, or documents with active publications.
+   */
+  static async discardDraftVersion(
+    versionId: string,
+    supabaseClient?: any
+  ): Promise<{ success: boolean; deletedVersionId?: string; deletedDocumentId?: string; error?: string }> {
+    const supabase = supabaseClient || (await createAdminServerSupabaseClient());
+
+    const { data: ver, error: fetchErr } = await supabase
+      .from('exam_doc_versions')
+      .select('id, document_id, version_number, review_status, is_published, exam_knowledge_documents:exam_knowledge_documents!document_id(id, status, current_published_version_id)')
+      .eq('id', versionId)
+      .single();
+
+    if (fetchErr || !ver) {
+      return { success: false, error: 'Draft version not found.' };
+    }
+
+    if (ver.is_published || ver.review_status === 'PUBLISHED') {
+      return { success: false, error: 'Cannot discard published version. Published versions are immutable.' };
+    }
+
+    const doc = ver.exam_knowledge_documents as any;
+    if (doc?.current_published_version_id === ver.id) {
+      return { success: false, error: 'Cannot discard version that is marked as currently published.' };
+    }
+
+    // Count how many versions exist for this document
+    const { count: versionCount, error: countErr } = await supabase
+      .from('exam_doc_versions')
+      .select('id', { count: 'exact', head: true })
+      .eq('document_id', ver.document_id);
+
+    if (countErr) {
+      return { success: false, error: 'Failed to evaluate document version history.' };
+    }
+
+    // If this is the only version and the document is not published, remove parent document (cascades cleanly)
+    if (versionCount === 1 && doc?.status !== 'PUBLISHED' && !doc?.current_published_version_id) {
+      const { error: docDelErr } = await supabase
+        .from('exam_knowledge_documents')
+        .delete()
+        .eq('id', ver.document_id);
+
+      if (docDelErr) {
+        return { success: false, error: docDelErr.message };
+      }
+
+      return { success: true, deletedVersionId: versionId, deletedDocumentId: ver.document_id };
+    }
+
+    // Otherwise, delete only this specific draft version (cascades to claims referencing this version)
+    const { error: verDelErr } = await supabase
+      .from('exam_doc_versions')
+      .delete()
+      .eq('id', versionId);
+
+    if (verDelErr) {
+      return { success: false, error: verDelErr.message };
+    }
+
+    return { success: true, deletedVersionId: versionId };
   }
 }
