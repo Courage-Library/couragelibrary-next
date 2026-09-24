@@ -105,7 +105,7 @@ export async function updateDocVersionReviewStatusAction(params: {
   newStatus: ExamDocReviewStatus;
   feedback?: string;
 }) {
-  const { isAdmin, userEmail } = await AdminService.checkIsAdminOrStaff();
+  const { isAdmin, userId } = await AdminService.checkIsAdminOrStaff();
   if (!isAdmin) {
     return { success: false, error: 'UNAUTHORIZED: Admin or staff privileges required.' };
   }
@@ -115,7 +115,7 @@ export async function updateDocVersionReviewStatusAction(params: {
       versionId: params.versionId,
       newStatus: params.newStatus,
       feedback: params.feedback,
-      userId: userEmail || undefined,
+      userId: userId || undefined,
     });
     return res;
   } catch (err: any) {
@@ -138,7 +138,7 @@ export async function compileExamDocVersionAction(versionId: string) {
 }
 
 export async function publishExamDocVersionAction(versionId: string) {
-  const { isAdmin, userEmail } = await AdminService.checkIsAdminOrStaff();
+  const { isAdmin, userId } = await AdminService.checkIsAdminOrStaff();
   if (!isAdmin) {
     return { success: false, error: 'UNAUTHORIZED: Admin or staff privileges required.' };
   }
@@ -146,7 +146,7 @@ export async function publishExamDocVersionAction(versionId: string) {
   try {
     const res = await AdminExamKnowledgeService.publishExamDocVersion({
       versionId,
-      userId: userEmail || undefined,
+      userId: userId || undefined,
     });
     return res;
   } catch (err: any) {
@@ -158,7 +158,7 @@ export async function createRevisionDraftAction(params: {
   documentId: string;
   baseVersionId: string;
 }) {
-  const { isAdmin, userEmail } = await AdminService.checkIsAdminOrStaff();
+  const { isAdmin, userId } = await AdminService.checkIsAdminOrStaff();
   if (!isAdmin) {
     return { success: false, error: 'UNAUTHORIZED: Admin or staff privileges required.' };
   }
@@ -167,7 +167,7 @@ export async function createRevisionDraftAction(params: {
     const res = await AdminExamKnowledgeService.createRevisionDraft({
       documentId: params.documentId,
       baseVersionId: params.baseVersionId,
-      userId: userEmail || undefined,
+      userId: userId || undefined,
     });
     return res;
   } catch (err: any) {
@@ -180,7 +180,7 @@ export async function verifyExamSourceAction(params: {
   status: ExamSourceVerificationStatus;
   notes?: string;
 }) {
-  const { isAdmin, userEmail } = await AdminService.checkIsAdminOrStaff();
+  const { isAdmin, userId } = await AdminService.checkIsAdminOrStaff();
   if (!isAdmin) {
     return { success: false, error: 'UNAUTHORIZED: Admin or staff privileges required.' };
   }
@@ -190,7 +190,7 @@ export async function verifyExamSourceAction(params: {
       sourceId: params.sourceId,
       status: params.status,
       notes: params.notes,
-      userId: userEmail || undefined,
+      userId: userId || undefined,
     });
     return res;
   } catch (err: any) {
@@ -202,7 +202,7 @@ export async function verifyExamClaimAction(params: {
   claimId: string;
   status: ExamClaimVerificationStatus;
 }) {
-  const { isAdmin, userEmail } = await AdminService.checkIsAdminOrStaff();
+  const { isAdmin, userId } = await AdminService.checkIsAdminOrStaff();
   if (!isAdmin) {
     return { success: false, error: 'UNAUTHORIZED: Admin or staff privileges required.' };
   }
@@ -211,7 +211,7 @@ export async function verifyExamClaimAction(params: {
     const res = await AdminExamKnowledgeService.updateClaimVerification({
       claimId: params.claimId,
       status: params.status,
-      userId: userEmail || undefined,
+      userId: userId || undefined,
     });
     return res;
   } catch (err: any) {
