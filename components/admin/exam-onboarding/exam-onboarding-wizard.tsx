@@ -74,11 +74,17 @@ export function ExamOnboardingWizard({
   const [isStepPromptModalOpen, setIsStepPromptModalOpen] = useState(false);
 
   const handleGenerateStepPrompt = async (stepNum: number) => {
+    const examTitle = initialExam?.title?.trim();
+    if (!examId && !examTitle) {
+      alert("Please enter and save the Exam Identity in Step 1 before generating step-specific AI prompts.");
+      return;
+    }
+
     setIsGeneratingStepPrompt(true);
     try {
       const res = await generateStepExamPromptAction(stepNum as any, {
         examId: examId,
-        examName: initialExam?.title || "New Examination",
+        examName: examTitle || "",
         cycleYear: activeCycle?.cycleYear,
       });
 
@@ -232,7 +238,7 @@ export function ExamOnboardingWizard({
         items={[
           { label: "Dashboard", href: "/admin" },
           { label: "Examinations", href: "/admin/exams" },
-          { label: initialExam ? initialExam.title : "New Examination Onboarding", active: true },
+          { label: initialExam ? initialExam.title : "Manual Onboarding Wizard", active: true },
         ]}
       />
 
