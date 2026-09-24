@@ -5,12 +5,15 @@ import { ExamManagementView } from "@/components/admin/exam-onboarding/exam-mana
 export const revalidate = 0;
 
 export default async function AdminExamsPage() {
-  const data = await ExamOnboardingService.getAdminExamsOverview().catch(() => ({
-    exams: [],
-    totalExams: 0,
-    publishedExams: 0,
-    draftExams: 0,
-  }));
+  const [data, orgs] = await Promise.all([
+    ExamOnboardingService.getAdminExamsOverview().catch(() => ({
+      exams: [],
+      totalExams: 0,
+      publishedExams: 0,
+      draftExams: 0,
+    })),
+    ExamOnboardingService.getConductingOrgs().catch(() => []),
+  ]);
 
   return (
     <ExamManagementView
@@ -18,6 +21,7 @@ export default async function AdminExamsPage() {
       totalExams={data.totalExams}
       publishedExams={data.publishedExams}
       draftExams={data.draftExams}
+      conductingOrgs={orgs}
     />
   );
 }

@@ -56,18 +56,36 @@ interface Props {
     conducting_org?: { name: string; code: string; official_portal_url?: string };
     cycles: Array<{ id: string; year: number; is_active: boolean; notification_date?: string }>;
   }>;
+  initialSelectedExamId?: string;
+  initialSelectedCycleId?: string;
+  initialTab?: StudioTab;
 }
 
 type StudioTab = "DASHBOARD" | "EXAMS" | "AUTHORING" | "DRAFTS" | "REVIEW" | "PROVENANCE";
 
-export function ExamKnowledgeStudioView({ initialKpis, initialExams }: Props) {
-  const [activeTab, setActiveTab] = useState<StudioTab>("DASHBOARD");
+export function ExamKnowledgeStudioView({
+  initialKpis,
+  initialExams,
+  initialSelectedExamId,
+  initialSelectedCycleId,
+  initialTab,
+}: Props) {
+  const initialExamMatch = initialSelectedExamId
+    ? initialExams.find((e) => e.id === initialSelectedExamId)
+    : null;
+
+  const defaultExamId = initialExamMatch ? initialExamMatch.id : initialExams[0]?.id || "";
+  const defaultCycleId = initialSelectedCycleId || (initialExamMatch?.cycles?.[0]?.id || "");
+
+  const [activeTab, setActiveTab] = useState<StudioTab>(
+    initialTab || (initialSelectedExamId ? "EXAMS" : "DASHBOARD")
+  );
   const [kpis, setKpis] = useState<AdminExamKnowledgeKPIs>(initialKpis);
   const [exams, setExams] = useState(initialExams);
 
   // Selected Target for Workspace & Authoring
-  const [selectedExamId, setSelectedExamId] = useState<string>(initialExams[0]?.id || "");
-  const [selectedCycleId, setSelectedCycleId] = useState<string>("");
+  const [selectedExamId, setSelectedExamId] = useState<string>(defaultExamId);
+  const [selectedCycleId, setSelectedCycleId] = useState<string>(defaultCycleId);
   const [selectedModuleKey, setSelectedModuleKey] = useState<ExamModuleKey>("EXAM_OVERVIEW");
 
   // Workspace Data
