@@ -14,6 +14,7 @@ interface ExamModuleReaderViewProps {
   examTitle: string;
   moduleData: CandidatePublishedModule;
   cycleYear?: number;
+  isPreview?: boolean;
 }
 
 export function ExamModuleReaderView({
@@ -21,18 +22,21 @@ export function ExamModuleReaderView({
   examTitle,
   moduleData,
   cycleYear,
+  isPreview = false,
 }: ExamModuleReaderViewProps) {
   const backHref = cycleYear ? `/exams/${examSlug}/cycle/${cycleYear}` : `/exams/${examSlug}`;
 
   return (
-    <div className="py-10 bg-slate-50/50 min-h-[calc(100vh-4rem)]">
-      <Container className="space-y-6 max-w-4xl">
-        <Link
-          href={backHref}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" /> Back to {examTitle} Hub
-        </Link>
+    <div className={isPreview ? "py-2" : "py-10 bg-slate-50/50 min-h-[calc(100vh-4rem)]"}>
+      <Container className={`space-y-6 ${isPreview ? "p-0 max-w-none" : "max-w-4xl"}`}>
+        {!isPreview && (
+          <Link
+            href={backHref}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" /> Back to {examTitle} Hub
+          </Link>
+        )}
 
         {/* Module Header Card */}
         <Card className="p-6 sm:p-10 space-y-4 border-slate-200 shadow-sm bg-white">

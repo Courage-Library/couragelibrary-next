@@ -8,6 +8,7 @@
  * Browser clients are never trusted for authorization, validation, or publication.
  */
 
+import { revalidatePath } from 'next/cache';
 import { AdminService } from '@/services/admin.service';
 import { AdminExamKnowledgeService } from '@/services/exam-knowledge/admin-exam-knowledge.service';
 import {
@@ -148,6 +149,28 @@ export async function publishExamDocVersionAction(versionId: string) {
       versionId,
       userId: userId || undefined,
     });
+
+    if (res.success) {
+      try {
+        revalidatePath('/exams');
+        revalidatePath('/admin/exam-knowledge');
+        if (res.examSlug) {
+          revalidatePath(`/exams/${res.examSlug}`);
+          if (res.moduleSlug) {
+            revalidatePath(`/exams/${res.examSlug}/${res.moduleSlug}`);
+          }
+          if (res.cycleYear) {
+            revalidatePath(`/exams/${res.examSlug}/cycle/${res.cycleYear}`);
+            if (res.moduleSlug) {
+              revalidatePath(`/exams/${res.examSlug}/cycle/${res.cycleYear}/${res.moduleSlug}`);
+            }
+          }
+        }
+      } catch {
+        // Cache revalidation error should not block publishing response
+      }
+    }
+
     return res;
   } catch (err: any) {
     return { success: false, error: err.message || 'Failed to publish document version.' };
@@ -231,6 +254,13 @@ export async function discardDraftVersionAction(versionId: string) {
 
   try {
     const res = await AdminExamKnowledgeService.discardDraftVersion(versionId);
+    if (res.success) {
+      try {
+        revalidatePath('/admin/exam-knowledge');
+      } catch {
+        // Cache revalidation error should not block response
+      }
+    }
     return res;
   } catch (err: any) {
     return { success: false, error: err.message || 'Failed to discard draft version.' };
