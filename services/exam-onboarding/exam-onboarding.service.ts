@@ -296,9 +296,10 @@ export class ExamOnboardingService {
       newOrgWebsite?: string;
       category?: string;
       description?: string;
+      cycleYear?: number;
     },
     customSupabase?: any
-  ): Promise<{ examId: string; slug: string; title: string }> {
+  ): Promise<{ examId: string; slug: string; title: string; cycleId?: string; cycleYear?: number }> {
     const supabase = customSupabase || createAdminServerSupabaseClient();
 
     const title = params.title.trim();
@@ -351,10 +352,30 @@ export class ExamOnboardingService {
       throw new Error(`Failed to create draft exam: ${insertErr.message}`);
     }
 
+    let createdCycleId: string | undefined;
+    if (params.cycleYear) {
+      try {
+        const cycleRes = await this.createOrUpdateCycle(
+          newExam.id,
+          {
+            cycleYear: params.cycleYear,
+            cycleName: `${title} ${params.cycleYear}`,
+            isActive: true,
+          },
+          supabase
+        );
+        createdCycleId = cycleRes.cycleId;
+      } catch (cycleErr) {
+        console.warn('Warning: Failed to create initial cycle for draft exam:', cycleErr);
+      }
+    }
+
     return {
       examId: newExam.id,
       slug: newExam.slug,
       title: newExam.title,
+      cycleId: createdCycleId,
+      cycleYear: params.cycleYear,
     };
   }
 

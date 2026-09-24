@@ -34,6 +34,8 @@ export async function createExamDraftAction(
   const newOrgWebsite = (formData.get("newOrgWebsite") as string || "").trim();
   const category = (formData.get("category") as string || "National Recruitment").trim();
   const description = (formData.get("description") as string || "").trim();
+  const cycleYearStr = (formData.get("cycleYear") as string || "").trim();
+  const cycleYear = cycleYearStr ? parseInt(cycleYearStr, 10) : undefined;
 
   if (!title) return { error: "Exam Title is required." };
 
@@ -46,13 +48,15 @@ export async function createExamDraftAction(
       newOrgWebsite: newOrgWebsite || undefined,
       category,
       description,
+      cycleYear: cycleYear && !isNaN(cycleYear) ? cycleYear : undefined,
     });
 
     revalidatePath("/admin/exams");
     revalidatePath("/admin/categories");
+    revalidatePath("/admin/exam-knowledge");
     return {
       success: true,
-      message: `Exam draft "${result.title}" created successfully.`,
+      message: `Exam "${result.title}" registered successfully.`,
       data: result,
     };
   } catch (err: any) {
