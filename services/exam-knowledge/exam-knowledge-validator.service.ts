@@ -25,6 +25,8 @@ import {
   SingleGateResult,
   ClaimConflict,
   ExamModuleKey,
+  ExamKnowledgeSectionType,
+  EXAM_KNOWLEDGE_SECTION_TYPES,
 } from '@/types/exam-knowledge';
 import { ExamModuleRegistry } from './exam-module-registry';
 
@@ -159,8 +161,8 @@ export class ExamKnowledgeValidatorService {
         if (!sec.heading || typeof sec.heading !== 'string') {
           errors.push(`Section at index ${idx} is missing required "heading".`);
         }
-        if (!['SUMMARY', 'DETAILED_GUIDE', 'IMPORTANT_INSTRUCTIONS', 'FAQS'].includes(sec.sectionType)) {
-          errors.push(`Section "${sec.id || idx}" has invalid sectionType "${sec.sectionType}".`);
+        if (!EXAM_KNOWLEDGE_SECTION_TYPES.includes(sec.sectionType)) {
+          errors.push(`Section "${sec.id || idx}" has invalid sectionType "${sec.sectionType}". Allowed values: ${EXAM_KNOWLEDGE_SECTION_TYPES.join(', ')}.`);
         }
         if (typeof sec.bodyMarkdown !== 'string' || sec.bodyMarkdown.trim().length === 0) {
           errors.push(`Section "${sec.id || idx}" has empty or invalid "bodyMarkdown".`);

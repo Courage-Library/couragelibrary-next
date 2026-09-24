@@ -220,6 +220,13 @@ ${claimsList}
    - Do NOT duplicate content belonging to other modules (e.g. do not write detailed syllabus lessons inside an eligibility module).
    - Do NOT include promotional marketing language or generic fluff.
    - Do NOT reference unofficial blogs, private coaching institutes, or unverified rumors.
+3. CANONICAL SECTION TYPES (STRICT ENUM):
+   - Every object in "contentSections" MUST have "sectionType" set to one of the following 4 canonical values ONLY:
+     * "SUMMARY" : Executive overview, key highlights, or introductory takeaways.
+     * "DETAILED_GUIDE" : In-depth breakdown of policies, structure, stages, authorities, subjects, and scopes.
+     * "IMPORTANT_INSTRUCTIONS" : Vital rules, marking schemes, penalties, candidate advisories, and cautions.
+     * "FAQS" : Section-level or topic-specific frequently asked questions.
+   - STRICT PROHIBITION: NEVER use custom/hallucinated sectionType values (e.g. do NOT use "AUTHORITY", "EXAM_STRUCTURE", "SUBJECTS", "RECRUITMENT_SCOPE", "MARKING"). Map all specific subtopics into "DETAILED_GUIDE" or "IMPORTANT_INSTRUCTIONS" sections using descriptive "heading" titles instead.
 </CONTENT_BOUNDARIES>`,
 
 `<SOURCE_REQUIREMENTS>
@@ -275,7 +282,7 @@ You must return a single, valid, parseable JSON object matching ExamKnowledgeDoc
     {
       "id": "section-1",
       "heading": "Section Heading",
-      "sectionType": "SUMMARY",
+      "sectionType": "SUMMARY", // STRICT ENUM: "SUMMARY" | "DETAILED_GUIDE" | "IMPORTANT_INSTRUCTIONS" | "FAQS"
       "bodyMarkdown": "Markdown body content...",
       "calloutNotes": [
         { "variant": "INFO", "title": "Important Note", "body": "Callout body text..." }

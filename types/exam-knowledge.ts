@@ -65,6 +65,22 @@ export type ExamDocReviewStatus =
   | 'REJECTED'
   | 'SUPERSEDED';
 
+/**
+ * Authoritative Section Types allowed in Exam Knowledge contentSections
+ */
+export type ExamKnowledgeSectionType =
+  | 'SUMMARY'
+  | 'DETAILED_GUIDE'
+  | 'IMPORTANT_INSTRUCTIONS'
+  | 'FAQS';
+
+export const EXAM_KNOWLEDGE_SECTION_TYPES: readonly ExamKnowledgeSectionType[] = [
+  'SUMMARY',
+  'DETAILED_GUIDE',
+  'IMPORTANT_INSTRUCTIONS',
+  'FAQS',
+] as const;
+
 export type ExamAuthorType = 'HUMAN' | 'AI_ASSISTED' | 'EXTERNAL_IMPORT';
 
 export type ExamClaimVerificationStatus =
@@ -207,7 +223,7 @@ export interface ExamKnowledgeDocumentSpec {
   contentSections: Array<{
     id: string;
     heading: string;
-    sectionType: 'SUMMARY' | 'DETAILED_GUIDE' | 'IMPORTANT_INSTRUCTIONS' | 'FAQS';
+    sectionType: ExamKnowledgeSectionType;
     bodyMarkdown: string;
     calloutNotes?: Array<{ variant: 'INFO' | 'WARNING' | 'CRITICAL'; title: string; body: string }>;
   }>;
@@ -255,7 +271,7 @@ export interface ExamModuleDefinition {
   purpose: string;
   isCycleSpecific: boolean;
   requiresSources: boolean;
-  allowedSectionTypes: Array<'SUMMARY' | 'DETAILED_GUIDE' | 'IMPORTANT_INSTRUCTIONS' | 'FAQS'>;
+  allowedSectionTypes: ExamKnowledgeSectionType[];
   requiredClaimTypes: string[];
   freshnessRule: string;
   outputGuidance: string;
