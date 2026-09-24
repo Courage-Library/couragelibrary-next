@@ -29,8 +29,10 @@ import { Badge } from "@/components/ui/badge";
 import { PromptViewerPanel } from "./prompt-viewer-panel";
 import { FiveGatePreviewPanel } from "./five-gate-preview-panel";
 import { AcademicReviewChecklist } from "./academic-review-checklist";
+import { ExamModuleReaderView } from "@/components/exams/exam-module-reader-view";
+import { ExamModuleRegistry } from "@/services/exam-knowledge/exam-module-registry";
 import type { AdminExamKnowledgeKPIs, ExamWorkspaceData } from "@/services/exam-knowledge/admin-exam-knowledge.service";
-import type { ExamModuleKey, ExamDocReviewStatus, ExamFiveGateValidationResult } from "@/types/exam-knowledge";
+import type { ExamModuleKey, ExamDocReviewStatus, ExamFiveGateValidationResult, CandidatePublishedModule, ExamSourceVerificationStatus } from "@/types/exam-knowledge";
 import { generateExamKnowledgePromptAction } from "@/actions/exam-knowledge-prompt.actions";
 import { importExamKnowledgeAction } from "@/actions/exam-knowledge-import.actions";
 import {
@@ -116,11 +118,13 @@ export function ExamKnowledgeStudioView({
   // Review Workbench State
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
   const [documentDetail, setDocumentDetail] = useState<any | null>(null);
+  const [reviewSubTab, setReviewSubTab] = useState<"ACADEMIC_REVIEW" | "CANDIDATE_PREVIEW" | "SOURCES">("ACADEMIC_REVIEW");
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [isChecklistComplete, setIsChecklistComplete] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [isCompiling, setIsCompiling] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
+  const [isVerifyingSource, setIsVerifyingSource] = useState(false);
   const [reviewMessage, setReviewMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [discardModal, setDiscardModal] = useState<{ isOpen: boolean; versionId: string; title: string; versionNumber: number } | null>(null);
   const [isDiscarding, setIsDiscarding] = useState(false);
@@ -332,6 +336,30 @@ export function ExamKnowledgeStudioView({
     }
   };
 
+  const handleVerifySource = async (sourceId: string, status: ExamSourceVerificationStatus) => {
+    setIsVerifyingSource(true);
+    setReviewMessage(null);
+    try {
+      const res = await verifyExamSourceAction({
+        sourceId,
+        status,
+      });
+      if (res.success) {
+        setReviewMessage({
+          type: "success",
+          text: `Source marked as ${status}.`,
+        });
+        if (selectedVersionId) {
+          loadDocumentDetail(selectedVersionId);
+        }
+      } else {
+        setReviewMessage({ type: "error", text: res.error || "Failed to update source verification." });
+      }
+    } finally {
+      setIsVerifyingSource(false);
+    }
+  };
+
   const handleConfirmDiscard = async () => {
     if (!discardModal?.versionId) return;
     setIsDiscarding(true);
@@ -357,6 +385,28 @@ export function ExamKnowledgeStudioView({
 
   const selectedExamObj = exams.find((e) => e.id === selectedExamId);
   const selectedCycleObj = selectedExamObj?.cycles?.find((c) => c.id === selectedCycleId);
+
+  const candidateModuleData: CandidatePublishedModule | null = documentDetail?.version ? {
+    documentId: documentDetail.document?.id || "",
+    versionId: documentDetail.version.id,
+    moduleKey: (documentDetail.document?.module_key || "EXAM_OVERVIEW") as ExamModuleKey,
+    displayName: ExamModuleRegistry.getModuleDefinition((documentDetail.document?.module_key || "EXAM_OVERVIEW") as ExamModuleKey).displayName,
+    title: documentDetail.version.structured_payload?.metadata?.title || documentDetail.document?.title || "Exam Knowledge Guide",
+    description: documentDetail.version.structured_payload?.metadata?.description || "",
+    compiledMdx: documentDetail.version.compiled_mdx || null,
+    faqs: Array.isArray(documentDetail.version.structured_payload?.faqs) ? documentDetail.version.structured_payload.faqs : [],
+    officialSources: Array.isArray(documentDetail.version.structured_payload?.officialSources)
+      ? documentDetail.version.structured_payload.officialSources.map((src: any) => ({
+          title: src.title,
+          issuingAuthority: src.issuingAuthority || src.authorityName || 'Official Authority',
+          sourceUrl: src.url,
+          publishedDate: src.publishedDate || null,
+          sourceType: src.sourceType || 'OFFICIAL_NOTIFICATION',
+        }))
+      : [],
+    lastVerifiedDate: documentDetail.version.structured_payload?.metadata?.lastVerifiedDate || null,
+    publishedAt: documentDetail.version.published_at || documentDetail.version.updated_at || new Date().toISOString(),
+  } : null;
 
   return (
     <div className="space-y-6">
@@ -796,46 +846,234 @@ export function ExamKnowledgeStudioView({
                 </div>
                 {reviewMessage && (<div className={`p-3 rounded-xl border text-xs font-medium ${reviewMessage.type === "success" ? "bg-emerald-50 border-emerald-200 text-emerald-950" : "bg-rose-50 border-rose-200 text-rose-950"}`}>{reviewMessage.text}</div>)}
               </div>
-              <AcademicReviewChecklist onChecklistComplete={setIsChecklistComplete} />
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-                <div className="lg:col-span-2 space-y-4">
-                  <div className="p-5 rounded-2xl border border-slate-200 bg-white shadow-xs space-y-3">
-                    <h3 className="text-xs font-bold text-slate-900 uppercase font-mono tracking-wider pb-2 border-b border-slate-100">Document Content Sections ({documentDetail.version?.structured_payload?.contentSections?.length || 0})</h3>
-                    {documentDetail.version?.structured_payload?.contentSections?.map((sec: any, idx: number) => (
-                      <div key={idx} className="p-4 rounded-xl border border-slate-100 bg-slate-50 space-y-2">
-                        <div className="flex items-center justify-between"><span className="text-xs font-bold text-slate-900">{sec.title}</span><span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-600">{sec.sectionType}</span></div>
-                        <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">{sec.bodyMarkdown}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  <div className="p-4 rounded-xl border border-slate-200 bg-white shadow-xs space-y-2.5 text-xs">
-                    <span className="font-bold text-slate-900 block font-mono text-[11px] uppercase tracking-wide">Referenced Official Sources</span>
-                    {documentDetail.version?.structured_payload?.officialSources?.map((s: any, idx: number) => (
-                      <div key={idx} className="p-2.5 rounded-lg border border-slate-100 bg-slate-50">
-                        <div className="font-bold text-slate-800 text-[11px]">{s.title}</div>
-                        <div className="text-[10px] text-slate-500 font-mono">Authority: {s.authorityName}</div>
-                        <a href={s.url} target="_blank" rel="noreferrer" className="text-[10px] text-blue-600 hover:underline truncate block mt-0.5">{s.url}</a>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="p-4 rounded-xl border border-slate-200 bg-white shadow-xs space-y-2.5 text-xs">
-                    <span className="font-bold text-slate-900 block font-mono text-[11px] uppercase tracking-wide">Structured Claims</span>
-                    {documentDetail.version?.structured_payload?.structuredClaims?.map((c: any, idx: number) => (
-                      <div key={idx} className="p-2 rounded-lg border border-slate-100 bg-slate-50 font-mono text-[10px]">
-                        <div className="text-slate-500 font-semibold">{c.claimKey}:</div>
-                        <div className="text-slate-900 font-bold">{c.statedValue}</div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="p-4 rounded-xl border border-slate-200 bg-slate-900 text-slate-300 shadow-xs space-y-2 font-mono text-[10px]">
-                    <span className="text-slate-400 font-bold block uppercase text-[9px]">Cryptographic Provenance</span>
-                    <div className="truncate"><span className="text-slate-500">Context Hash: </span><span className="text-blue-400">{documentDetail.version?.source_context_hash}</span></div>
-                    <div className="truncate"><span className="text-slate-500">Payload Hash: </span><span className="text-emerald-400">{documentDetail.version?.source_spec_hash}</span></div>
-                  </div>
-                </div>
+
+              {/* Review Workbench Sub-Tabs */}
+              <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200 text-xs font-semibold w-fit">
+                <button
+                  onClick={() => setReviewSubTab("ACADEMIC_REVIEW")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition ${
+                    reviewSubTab === "ACADEMIC_REVIEW"
+                      ? "bg-white text-blue-700 shadow-xs font-bold"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>Academic Review</span>
+                </button>
+                <button
+                  onClick={() => setReviewSubTab("CANDIDATE_PREVIEW")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition ${
+                    reviewSubTab === "CANDIDATE_PREVIEW"
+                      ? "bg-white text-blue-700 shadow-xs font-bold"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>Candidate Preview</span>
+                  {documentDetail.version?.compiled_mdx ? (
+                    <span className="px-1.5 py-0.2 rounded-md bg-emerald-100 text-emerald-800 text-[9px] font-mono">MDX Ready</span>
+                  ) : (
+                    <span className="px-1.5 py-0.2 rounded-md bg-slate-200 text-slate-600 text-[9px] font-mono">Uncompiled</span>
+                  )}
+                </button>
+                <button
+                  onClick={() => setReviewSubTab("SOURCES")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition ${
+                    reviewSubTab === "SOURCES"
+                      ? "bg-white text-blue-700 shadow-xs font-bold"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Official Sources ({documentDetail.sources?.length || 0})</span>
+                </button>
               </div>
+
+              {/* SUB-TAB 1: ACADEMIC REVIEW */}
+              {reviewSubTab === "ACADEMIC_REVIEW" && (
+                <div className="space-y-5">
+                  <AcademicReviewChecklist onChecklistComplete={setIsChecklistComplete} />
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                    <div className="lg:col-span-2 space-y-4">
+                      <div className="p-5 rounded-2xl border border-slate-200 bg-white shadow-xs space-y-3">
+                        <h3 className="text-xs font-bold text-slate-900 uppercase font-mono tracking-wider pb-2 border-b border-slate-100">Document Content Sections ({documentDetail.version?.structured_payload?.contentSections?.length || 0})</h3>
+                        {documentDetail.version?.structured_payload?.contentSections?.map((sec: any, idx: number) => (
+                          <div key={idx} className="p-4 rounded-xl border border-slate-100 bg-slate-50 space-y-2">
+                            <div className="flex items-center justify-between"><span className="text-xs font-bold text-slate-900">{sec.heading || sec.title}</span><span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-600">{sec.sectionType}</span></div>
+                            <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">{sec.bodyMarkdown}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      <div className="p-4 rounded-xl border border-slate-200 bg-white shadow-xs space-y-2.5 text-xs">
+                        <span className="font-bold text-slate-900 block font-mono text-[11px] uppercase tracking-wide">Referenced Sources in Payload</span>
+                        {documentDetail.version?.structured_payload?.officialSources?.map((s: any, idx: number) => (
+                          <div key={idx} className="p-2.5 rounded-lg border border-slate-100 bg-slate-50">
+                            <div className="font-bold text-slate-800 text-[11px]">{s.title}</div>
+                            <div className="text-[10px] text-slate-500 font-mono">Authority: {s.issuingAuthority || s.authorityName}</div>
+                            <a href={s.url} target="_blank" rel="noreferrer" className="text-[10px] text-blue-600 hover:underline truncate block mt-0.5">{s.url}</a>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="p-4 rounded-xl border border-slate-200 bg-white shadow-xs space-y-2.5 text-xs">
+                        <span className="font-bold text-slate-900 block font-mono text-[11px] uppercase tracking-wide">Structured Claims</span>
+                        {documentDetail.claims?.length > 0 ? (
+                          documentDetail.claims.map((c: any, idx: number) => (
+                            <div key={idx} className="p-2 rounded-lg border border-slate-100 bg-slate-50 font-mono text-[10px]">
+                              <div className="text-slate-500 font-semibold">{c.claim_key}:</div>
+                              <div className="text-slate-900 font-bold">{c.stated_value}</div>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-slate-400 text-[11px]">No pre-registered claims for this module.</p>
+                        )}
+                      </div>
+                      <div className="p-4 rounded-xl border border-slate-200 bg-slate-900 text-slate-300 shadow-xs space-y-2 font-mono text-[10px]">
+                        <span className="text-slate-400 font-bold block uppercase text-[9px]">Cryptographic Provenance</span>
+                        <div className="truncate"><span className="text-slate-500">Payload Hash: </span><span className="text-emerald-400">{documentDetail.version?.source_spec_hash}</span></div>
+                        {documentDetail.version?.compiled_artifact_hash && (
+                          <div className="truncate"><span className="text-slate-500">Artifact Hash: </span><span className="text-purple-400">{documentDetail.version?.compiled_artifact_hash}</span></div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* SUB-TAB 2: CANDIDATE PREVIEW */}
+              {reviewSubTab === "CANDIDATE_PREVIEW" && (
+                <div className="space-y-4">
+                  <div className="p-3.5 rounded-xl border border-blue-200 bg-blue-50/60 flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <div className="flex items-center gap-2 font-bold text-blue-950">
+                      <Eye className="w-4 h-4 text-blue-600 shrink-0" />
+                      <span>Candidate-Parity Reader Preview</span>
+                      <Badge variant="outline" className="text-[10px] bg-white text-blue-700 font-mono">
+                        v{documentDetail.version?.version_number} &bull; {documentDetail.version?.review_status}
+                      </Badge>
+                    </div>
+                    <span className="text-[11px] text-blue-700 font-medium">
+                      Single source of truth — reuses authoritative candidate rendering component
+                    </span>
+                  </div>
+
+                  {documentDetail.version?.compiled_mdx && candidateModuleData ? (
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-2 sm:p-4">
+                      <ExamModuleReaderView
+                        examSlug={documentDetail.document?.exams?.slug || "exam"}
+                        examTitle={documentDetail.document?.exams?.title || documentDetail.document?.exams?.name || "Exam"}
+                        moduleData={candidateModuleData}
+                        cycleYear={documentDetail.document?.exam_cycles?.cycle_year}
+                        isPreview={true}
+                      />
+                    </div>
+                  ) : (
+                    <div className="p-12 rounded-2xl border border-dashed border-slate-200 bg-white text-center space-y-4">
+                      <FileCode className="w-10 h-10 mx-auto text-slate-300" />
+                      <div className="space-y-1">
+                        <h3 className="text-sm font-bold text-slate-900">Candidate Preview Unavailable</h3>
+                        <p className="text-xs text-slate-500 max-w-md mx-auto">
+                          This version has not been compiled into MDX yet. Run compilation to generate the verified MDX artifact and preview candidate rendering.
+                        </p>
+                      </div>
+                      {documentDetail.version?.review_status === "APPROVED" && (
+                        <button
+                          disabled={isCompiling}
+                          onClick={handleCompileVersion}
+                          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-bold shadow-xs transition"
+                        >
+                          <FileCode className="w-3.5 h-3.5" />
+                          <span>{isCompiling ? "Compiling MDX..." : "Compile MDX Artifact"}</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* SUB-TAB 3: SOURCES */}
+              {reviewSubTab === "SOURCES" && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold text-slate-900 uppercase font-mono tracking-wider">
+                      Authoritative Sources ({documentDetail.sources?.length || 0})
+                    </h3>
+                  </div>
+
+                  {(!documentDetail.sources || documentDetail.sources.length === 0) ? (
+                    <div className="p-8 rounded-2xl border border-dashed border-slate-200 bg-white text-center space-y-2">
+                      <ExternalLink className="w-6 h-6 mx-auto text-slate-400" />
+                      <p className="text-xs text-slate-500">No official sources registered for this exam yet.</p>
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-xs">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead>
+                          <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-mono text-[10px] uppercase font-bold">
+                            <th className="py-3 px-4">Source Title & URL</th>
+                            <th className="py-3 px-3">Authority</th>
+                            <th className="py-3 px-3">Type</th>
+                            <th className="py-3 px-3">Status</th>
+                            <th className="py-3 px-4 text-right">Verification Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 text-slate-700">
+                          {documentDetail.sources.map((src: any) => (
+                            <tr key={src.id} className="hover:bg-slate-50 transition">
+                              <td className="py-3 px-4">
+                                <div className="font-bold text-slate-900">{src.title}</div>
+                                {src.source_url && (
+                                  <a href={src.source_url} target="_blank" rel="noreferrer" className="text-[10px] text-blue-600 hover:underline flex items-center gap-1 mt-0.5">
+                                    <span className="truncate max-w-xs">{src.source_url}</span>
+                                    <ExternalLink className="w-3 h-3 shrink-0" />
+                                  </a>
+                                )}
+                              </td>
+                              <td className="py-3 px-3 font-medium">{src.issuing_authority || "Commission"}</td>
+                              <td className="py-3 px-3"><span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-mono text-[10px]">{src.source_type}</span></td>
+                              <td className="py-3 px-3">
+                                <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-bold ${
+                                  src.verification_status === "SOURCE_VERIFIED"
+                                    ? "bg-emerald-100 text-emerald-800"
+                                    : src.verification_status === "REJECTED"
+                                    ? "bg-rose-100 text-rose-800"
+                                    : "bg-amber-100 text-amber-800"
+                                }`}>
+                                  {src.verification_status}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4 text-right">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  {src.verification_status !== "SOURCE_VERIFIED" && (
+                                    <button
+                                      disabled={isVerifyingSource}
+                                      onClick={() => handleVerifySource(src.id, "SOURCE_VERIFIED")}
+                                      className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] transition flex items-center gap-1"
+                                    >
+                                      <Check className="w-3 h-3" />
+                                      <span>Verify</span>
+                                    </button>
+                                  )}
+                                  {src.verification_status !== "REJECTED" && (
+                                    <button
+                                      disabled={isVerifyingSource}
+                                      onClick={() => handleVerifySource(src.id, "REJECTED")}
+                                      className="px-2.5 py-1 rounded-lg border border-rose-300 text-rose-700 hover:bg-rose-50 font-bold text-[10px] transition flex items-center gap-1"
+                                    >
+                                      <XCircle className="w-3 h-3" />
+                                      <span>Reject</span>
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>

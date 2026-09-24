@@ -227,7 +227,7 @@ export class AdminExamKnowledgeService {
         status,
         updated_at,
         current_published_version_id,
-        exam_doc_versions (
+        exam_doc_versions!document_id (
           id,
           version_number,
           review_status,
@@ -257,7 +257,7 @@ export class AdminExamKnowledgeService {
         if (m.isCycleSpecific) {
           return d.exam_cycle_id === (cycleId || null);
         }
-        return true;
+        return d.exam_cycle_id === (cycleId || null) || d.exam_cycle_id === null;
       });
 
       let status: ExamWorkspaceModuleStatus['status'] = 'NOT_STARTED';
@@ -389,6 +389,8 @@ export class AdminExamKnowledgeService {
 
     if (filters?.reviewStatus) {
       query = query.eq('review_status', filters.reviewStatus);
+    } else {
+      query = query.eq('is_published', false);
     }
 
     const { data: versions, error } = await query;
@@ -640,12 +642,12 @@ export class AdminExamKnowledgeService {
   static async publishExamDocVersion(
     params: { versionId: string; userId?: string },
     supabaseClient?: any
-  ): Promise<{ success: boolean; error?: string }> {
+  ): Promise<{ success: boolean; examSlug?: string; moduleSlug?: string; cycleYear?: number; error?: string }> {
     const supabase = supabaseClient || (await createAdminServerSupabaseClient());
 
     const { data: ver, error: fetchErr } = await supabase
       .from('exam_doc_versions')
-      .select('*, exam_knowledge_documents:exam_knowledge_documents!document_id(*)')
+      .select('*, exam_knowledge_documents:exam_knowledge_documents!document_id(*, exams(slug), exam_cycles(cycle_year))')
       .eq('id', params.versionId)
       .single();
 
@@ -700,7 +702,13 @@ export class AdminExamKnowledgeService {
       return { success: false, error: docErr.message };
     }
 
-    return { success: true };
+    const doc = ver.exam_knowledge_documents as any;
+    const examSlug = doc?.exams?.slug;
+    const moduleKey = doc?.module_key;
+    const moduleSlug = moduleKey ? ExamModuleRegistry.getModuleSlug(moduleKey) : undefined;
+    const cycleYear = doc?.exam_cycles?.cycle_year;
+
+    return { success: true, examSlug, moduleSlug, cycleYear };
   }
 
   /**

@@ -268,8 +268,8 @@ export class ExamKnowledgeCandidateService {
           continue;
         }
       } else {
-        // Timeless module must have exam_cycle_id = null
-        if (doc.exam_cycle_id !== null && doc.exam_cycle_id !== undefined) {
+        // Timeless module matches if exam_cycle_id is null OR matches the active cycle
+        if (doc.exam_cycle_id !== null && doc.exam_cycle_id !== undefined && (!activeCycle || doc.exam_cycle_id !== activeCycle.id)) {
           continue;
         }
       }
