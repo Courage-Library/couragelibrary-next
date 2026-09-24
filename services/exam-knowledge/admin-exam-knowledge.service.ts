@@ -362,27 +362,26 @@ export class AdminExamKnowledgeService {
         author_type,
         review_status,
         is_published,
-        source_context_hash,
         source_spec_hash,
+        structured_payload,
         created_at,
         updated_at,
         reviewed_at,
         review_feedback,
-        exam_knowledge_documents (
+        exam_knowledge_documents:exam_knowledge_documents!document_id (
           id,
           module_key,
-          title,
-          slug,
+          canonical_slug,
           exam_id,
           exam_cycle_id,
           exams (
             id,
-            name,
+            title,
             slug
           ),
           exam_cycles (
             id,
-            year
+            cycle_year
           )
         )
       `)
@@ -414,16 +413,17 @@ export class AdminExamKnowledgeService {
       updatedAt: v.updated_at,
       reviewedAt: v.reviewed_at,
       reviewFeedback: v.review_feedback,
-      contextHash: v.source_context_hash,
+      contextHash: v.structured_payload?.contextHash || '',
       specHash: v.source_spec_hash,
       document: {
         id: v.exam_knowledge_documents?.id,
         moduleKey: v.exam_knowledge_documents?.module_key,
-        title: v.exam_knowledge_documents?.title,
-        slug: v.exam_knowledge_documents?.slug,
-        examName: v.exam_knowledge_documents?.exams?.name || 'Unknown Exam',
+        title: v.structured_payload?.metadata?.title || `${v.exam_knowledge_documents?.module_key} - ${v.exam_knowledge_documents?.exams?.title || ''}`,
+        slug: v.exam_knowledge_documents?.canonical_slug,
+        canonicalSlug: v.exam_knowledge_documents?.canonical_slug,
+        examName: v.exam_knowledge_documents?.exams?.title || 'Unknown Exam',
         examSlug: v.exam_knowledge_documents?.exams?.slug || '',
-        cycleYear: v.exam_knowledge_documents?.exam_cycles?.year,
+        cycleYear: v.exam_knowledge_documents?.exam_cycles?.cycle_year,
       },
     }));
   }
@@ -441,11 +441,10 @@ export class AdminExamKnowledgeService {
       .from('exam_doc_versions')
       .select(`
         *,
-        exam_knowledge_documents (
+        exam_knowledge_documents:exam_knowledge_documents!document_id (
           id,
           module_key,
-          title,
-          slug,
+          canonical_slug,
           exam_id,
           exam_cycle_id,
           current_published_version_id,
@@ -453,13 +452,13 @@ export class AdminExamKnowledgeService {
           language,
           exams (
             id,
-            name,
+            title,
             slug,
-            conducting_orgs (name, code)
+            conducting_orgs (name, slug)
           ),
           exam_cycles (
             id,
-            year
+            cycle_year
           )
         )
       `)
