@@ -230,16 +230,19 @@ ${claimsList}
 </CONTENT_BOUNDARIES>`,
 
 `<SOURCE_REQUIREMENTS>
-1. Every factual parameter (fees, age limits, dates, cutoffs, vacancies) must cite an official source.
-2. If official data is not yet available, write "TO_BE_ANNOUNCED" and assign status "SOURCE_REQUIRED".
-3. Provide full official URLs (e.g. commission domains like .gov.in, .nic.in).
+1. STRICT URL RULE: Every field named "url" (in officialSources) or "sourceUrl" (in claims) MUST be a valid absolute HTTP or HTTPS URL (starting with "https://" or "http://").
+2. PROHIBITED PLACEHOLDERS: NEVER put "SOURCE_REQUIRED", "TO_BE_ANNOUNCED", "UNKNOWN", "N/A", or any placeholder string inside a "url" or "sourceUrl" field. Non-HTTP/HTTPS values will be rejected by Gate 4 Provenance validation.
+3. HANDLING UNVERIFIED / MISSING SOURCES:
+   - If an official source is verified and available (e.g. from <EXAM_CONTEXT> or <EXISTING_SOURCES>), provide its real official HTTP/HTTPS URL.
+   - If a specific notification URL is not yet published or verified, cite the verified commission portal URL (e.g. "${exam.officialWebsite || 'https://official.portal.gov.in'}").
+   - If no valid URL is known for an individual claim, omit the "sourceUrl" field (or set it to null) and state the reference in "sourceCitation" (e.g. "Official Examination Notice, Para X.Y (Pending publication)").
 </SOURCE_REQUIREMENTS>`,
 
 `<ANTI_HALLUCINATION_RULES>
 1. NEVER invent or extrapolate unannounced exam dates, application deadlines, or result dates.
 2. NEVER invent vacancy numbers, category allocations, or post-wise distributions.
 3. NEVER fabricate commission notification circular numbers, corrigendum references, or fake URLs.
-4. If a value is unknown, use "TO_BE_ANNOUNCED" or "SOURCE_REQUIRED".
+4. If a factual text/date parameter value is unknown, use "TO_BE_ANNOUNCED". Never place placeholder strings inside "url" or "sourceUrl" fields.
 5. Preserve canonical subject and topic names verbatim.
 </ANTI_HALLUCINATION_RULES>`,
 
@@ -275,7 +278,7 @@ You must return a single, valid, parseable JSON object matching ExamKnowledgeDoc
       { "tableId": "table-1", "title": "Table Title", "headers": ["Col 1", "Col 2"], "rows": [["Val 1", "Val 2"]] }
     ],
     "claims": [
-      { "claimKey": "PARAM_KEY", "statedValue": "Value", "sourceCitation": "Official Notification Para X.Y", "sourceUrl": "https://official.portal.gov.in" }
+      { "claimKey": "PARAM_KEY", "statedValue": "Value", "sourceCitation": "Official Notification Para X.Y", "sourceUrl": "https://official.portal.gov.in" } // Must be valid HTTP/HTTPS URL or omit field if URL is unknown
     ]
   },
   "contentSections": [
@@ -296,7 +299,7 @@ You must return a single, valid, parseable JSON object matching ExamKnowledgeDoc
     {
       "sourceType": "OFFICIAL_NOTIFICATION",
       "title": "Official Notification Title",
-      "url": "https://official.portal.gov.in",
+      "url": "https://official.portal.gov.in", // STRICT: Must start with "https://" or "http://". Never use "SOURCE_REQUIRED".
       "issuingAuthority": "${exam.conductingOrgName}",
       "publishedDate": "YYYY-MM-DD"
     }
