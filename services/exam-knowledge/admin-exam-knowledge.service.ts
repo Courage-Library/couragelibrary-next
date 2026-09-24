@@ -15,7 +15,7 @@
  */
 
 import crypto from 'crypto';
-import { createAdminServerSupabaseClient, createServerSupabaseClient } from '@/lib/supabase/server';
+import { createAdminServerSupabaseClient } from '@/lib/supabase/server';
 import { ExamKnowledgeService } from '@/services/exam-knowledge.service';
 import { ExamModuleRegistry } from './exam-module-registry';
 import { MdxSecurityScanner } from '@/services/mdx-security-scanner';
@@ -82,7 +82,7 @@ export class AdminExamKnowledgeService {
    * Queries real database counts without hardcoded defaults.
    */
   static async getDashboardKPIs(supabaseClient?: any): Promise<AdminExamKnowledgeKPIs> {
-    const supabase = supabaseClient || (await createServerSupabaseClient());
+    const supabase = supabaseClient || createAdminServerSupabaseClient();
 
     const [
       examsRes,
@@ -129,7 +129,7 @@ export class AdminExamKnowledgeService {
       cycles: Array<{ id: string; year: number; is_active: boolean; notification_date?: string }>;
     }>;
   }> {
-    const supabase = supabaseClient || (await createServerSupabaseClient());
+    const supabase = supabaseClient || createAdminServerSupabaseClient();
 
     const { data: exams, error } = await supabase
       .from('exams')
@@ -147,7 +147,7 @@ export class AdminExamKnowledgeService {
         id: e.id,
         name: e.title || e.name || 'Exam',
         slug: e.slug,
-        is_active: e.is_active ?? true,
+        is_active: Boolean(e.is_active),
         conducting_org: org
           ? {
               name: org.name || org.title || 'Government Body',
@@ -179,7 +179,7 @@ export class AdminExamKnowledgeService {
     cycleId?: string | null,
     supabaseClient?: any
   ): Promise<ExamWorkspaceData | null> {
-    const supabase = supabaseClient || (await createServerSupabaseClient());
+    const supabase = supabaseClient || createAdminServerSupabaseClient();
 
     const { data: exam, error: examErr } = await supabase
       .from('exams')
@@ -243,7 +243,7 @@ export class AdminExamKnowledgeService {
 
     const modules: ExamWorkspaceModuleStatus[] = allModules.map((m: ExamModuleDefinition) => {
       const applicabilityReport = ExamModuleRegistry.evaluateApplicability(
-        { id: exam.id, title: exam.name, isActive: exam.is_active },
+        { id: exam.id, title: exam.title || exam.name || 'Exam', isActive: exam.is_active },
         cycleData ? { id: cycleData.id, cycleYear: cycleData.year } : null,
         m.key,
         verifiedSourcesCount || 0,
@@ -327,7 +327,7 @@ export class AdminExamKnowledgeService {
         name: exam.name,
         slug: exam.slug,
         conductingOrgName: orgName || 'Government Body',
-        isActive: exam.is_active,
+        isActive: Boolean(exam.is_active),
         officialWebsiteUrl: orgWebsiteUrl,
       },
       cycle: cycleData
@@ -350,7 +350,7 @@ export class AdminExamKnowledgeService {
     filters?: { examId?: string; reviewStatus?: ExamDocReviewStatus },
     supabaseClient?: any
   ): Promise<any[]> {
-    const supabase = supabaseClient || (await createServerSupabaseClient());
+    const supabase = supabaseClient || createAdminServerSupabaseClient();
 
     let query = supabase
       .from('exam_doc_versions')
@@ -435,7 +435,7 @@ export class AdminExamKnowledgeService {
     versionId: string,
     supabaseClient?: any
   ): Promise<any | null> {
-    const supabase = supabaseClient || (await createServerSupabaseClient());
+    const supabase = supabaseClient || createAdminServerSupabaseClient();
 
     const { data: version, error } = await supabase
       .from('exam_doc_versions')

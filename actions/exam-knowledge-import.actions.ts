@@ -9,7 +9,7 @@
  */
 
 import { AdminService } from '@/services/admin.service';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createAdminServerSupabaseClient } from '@/lib/supabase/server';
 import { ExamKnowledgeImporterService } from '@/services/exam-knowledge/exam-knowledge-importer.service';
 import {
   ExamKnowledgeTarget,
@@ -49,7 +49,7 @@ export async function importExamKnowledgeAction(
     }
 
     // 2. Server Supabase Client
-    const supabase = (await createServerSupabaseClient()) as any;
+    const supabase = createAdminServerSupabaseClient() as any;
 
     // 3. Execute Controlled 5-Gate Import Pipeline
     const result = await ExamKnowledgeImporterService.importContent({

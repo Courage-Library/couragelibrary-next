@@ -9,7 +9,7 @@
  */
 
 import { AdminService } from '@/services/admin.service';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createAdminServerSupabaseClient } from '@/lib/supabase/server';
 import { ExamKnowledgeContextBuilder } from '@/services/exam-knowledge/exam-knowledge-context-builder.service';
 import { ExamKnowledgePromptBuilder } from '@/services/exam-knowledge/exam-knowledge-prompt-builder.service';
 import {
@@ -50,7 +50,7 @@ export async function generateExamKnowledgePromptAction(
     }
 
     // 2. Obtain Server Supabase Client
-    const supabase = (await createServerSupabaseClient()) as any;
+    const supabase = createAdminServerSupabaseClient() as any;
 
     // 3. Build Authoritative Context
     const context = await ExamKnowledgeContextBuilder.buildContext({
