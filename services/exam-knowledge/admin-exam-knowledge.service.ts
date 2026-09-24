@@ -741,13 +741,11 @@ export class AdminExamKnowledgeService {
         document_id: params.documentId,
         version_number: newVerNum,
         schema_version: '1.0.0',
-        author_type: 'HUMAN_REVISED' as ExamAuthorType,
+        author_type: 'HUMAN' as ExamAuthorType,
         review_status: 'DRAFT' as ExamDocReviewStatus,
         is_published: false,
-        source_context_hash: baseVer.source_context_hash,
         source_spec_hash: baseVer.source_spec_hash,
         structured_payload: baseVer.structured_payload,
-        created_by: params.userId || null,
       })
       .select('id, version_number')
       .single();
