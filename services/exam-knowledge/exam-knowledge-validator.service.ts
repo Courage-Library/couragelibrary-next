@@ -317,7 +317,7 @@ export class ExamKnowledgeValidatorService {
           errors.push(`Official source at index ${idx} is missing required title.`);
         }
         if (!src.url || (!src.url.startsWith('https://') && !src.url.startsWith('http://'))) {
-          errors.push(`Official source "${src.title || idx}" has invalid URL scheme: "${src.url}". Must use HTTP/HTTPS.`);
+          errors.push(`Official source "${src.title || idx}" has invalid URL scheme: "${src.url}". Must use HTTP/HTTPS (placeholders like "SOURCE_REQUIRED" are prohibited).`);
         }
         if (!src.issuingAuthority || src.issuingAuthority.trim().length === 0) {
           errors.push(`Official source "${src.title || idx}" is missing issuingAuthority.`);
@@ -337,6 +337,9 @@ export class ExamKnowledgeValidatorService {
       }
       if (typeof claim.statedValue !== 'string' || claim.statedValue.trim().length === 0) {
         errors.push(`Claim "${claim.claimKey || idx}" has empty or invalid statedValue.`);
+      }
+      if (claim.sourceUrl && !claim.sourceUrl.startsWith('https://') && !claim.sourceUrl.startsWith('http://')) {
+        errors.push(`Claim "${claim.claimKey || idx}" has invalid sourceUrl: "${claim.sourceUrl}". Must use HTTP/HTTPS or be omitted (placeholders like "SOURCE_REQUIRED" are prohibited).`);
       }
 
       // Check conflict with existing verified claims
