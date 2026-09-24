@@ -76,7 +76,7 @@ export function ExamOnboardingWizard({
   const handleGenerateStepPrompt = async (stepNum: number) => {
     const examTitle = initialExam?.title?.trim();
     if (!examId && !examTitle) {
-      alert("Please enter and save the Exam Identity in Step 1 before generating step-specific AI prompts.");
+      router.push("/admin/exams/ai-onboarding");
       return;
     }
 

@@ -74,7 +74,7 @@ export function ExamManagementView({ initialExams, totalExams, publishedExams, d
         </div>
 
         <div className="flex items-center gap-2.5">
-          <Link href="/admin/exams/onboarding?mode=ai">
+          <Link href="/admin/exams/ai-onboarding">
             <Button className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-2 shadow-xs transition-colors">
               <Sparkles className="w-4 h-4 text-indigo-200" /> AI-Assisted Onboarding
             </Button>
