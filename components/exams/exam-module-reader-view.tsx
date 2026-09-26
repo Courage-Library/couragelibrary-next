@@ -3,11 +3,12 @@
 import React from "react";
 import Link from "next/link";
 import { Container } from "@/components/ui/container";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, BookOpen, ShieldCheck, ExternalLink, HelpCircle } from "lucide-react";
+import { ArrowLeft, ShieldCheck, ExternalLink, HelpCircle } from "lucide-react";
 import { CandidatePublishedModule } from "@/types/exam-knowledge";
 import { ExamFaqAccordion } from "./exam-faq-accordion";
+import { ExamMdxArticleRenderer } from "./exam-mdx-article-renderer";
 
 interface ExamModuleReaderViewProps {
   examSlug: string;
@@ -26,6 +27,13 @@ export function ExamModuleReaderView({
 }: ExamModuleReaderViewProps) {
   const backHref = cycleYear ? `/exams/${examSlug}/cycle/${cycleYear}` : `/exams/${examSlug}`;
 
+  const hasCompiledFaqs = Boolean(
+    moduleData.compiledMdx && moduleData.compiledMdx.includes("## Frequently Asked Questions")
+  );
+  const hasCompiledSources = Boolean(
+    moduleData.compiledMdx && moduleData.compiledMdx.includes("## Official Sources")
+  );
+
   return (
     <div className={isPreview ? "py-2" : "py-10 bg-slate-50/50 min-h-[calc(100vh-4rem)]"}>
       <Container className={`space-y-6 ${isPreview ? "p-0 max-w-none" : "max-w-4xl"}`}>
@@ -39,8 +47,8 @@ export function ExamModuleReaderView({
         )}
 
         {/* Module Header Card */}
-        <Card className="p-6 sm:p-10 space-y-4 border-slate-200 shadow-sm bg-white">
-          <div className="space-y-2">
+        <Card className="p-6 sm:p-10 space-y-6 border-slate-200 shadow-sm bg-white">
+          <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="indigo" className="text-xs">
                 {moduleData.displayName}
@@ -51,7 +59,7 @@ export function ExamModuleReaderView({
                 </Badge>
               )}
               {moduleData.lastVerifiedDate && (
-                <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full">
+                <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200/60">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                   <span>Verified: {moduleData.lastVerifiedDate}</span>
                 </div>
@@ -71,13 +79,20 @@ export function ExamModuleReaderView({
 
           <hr className="border-slate-100" />
 
-          {/* Compiled MDX Guide Content Body */}
-          <div className="prose prose-slate max-w-none text-sm sm:text-base text-slate-800 leading-relaxed whitespace-pre-wrap font-sans">
-            {moduleData.compiledMdx}
-          </div>
+          {/* Canonical MDX Guide Content Body */}
+          {moduleData.compiledMdx ? (
+            <ExamMdxArticleRenderer
+              content={moduleData.compiledMdx}
+              hideLeadingTitle={true}
+            />
+          ) : (
+            <div className="py-12 text-center text-xs text-slate-400 font-mono">
+              Guide content is pending compilation.
+            </div>
+          )}
 
-          {/* Official Sources Citation Section */}
-          {moduleData.officialSources && moduleData.officialSources.length > 0 && (
+          {/* Fallback Official Sources Citation Section (if not already embedded in compiled MDX) */}
+          {!hasCompiledSources && moduleData.officialSources && moduleData.officialSources.length > 0 && (
             <div className="space-y-3 pt-6 border-t border-slate-100">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4 text-emerald-600" />
@@ -98,7 +113,7 @@ export function ExamModuleReaderView({
                         href={src.sourceUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="p-1.5 rounded-lg bg-white border border-slate-200 hover:text-blue-600"
+                        className="p-1.5 rounded-lg bg-white border border-slate-200 hover:text-blue-600 shadow-2xs"
                         aria-label={`Open source ${src.title}`}
                       >
                         <ExternalLink className="w-3.5 h-3.5" />
@@ -110,8 +125,8 @@ export function ExamModuleReaderView({
             </div>
           )}
 
-          {/* Module FAQs Section */}
-          {moduleData.faqs && moduleData.faqs.length > 0 && (
+          {/* Fallback Module FAQs Section (if not already embedded in compiled MDX) */}
+          {!hasCompiledFaqs && moduleData.faqs && moduleData.faqs.length > 0 && (
             <div className="space-y-3 pt-6 border-t border-slate-100">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
                 <HelpCircle className="w-4 h-4 text-blue-600" />
