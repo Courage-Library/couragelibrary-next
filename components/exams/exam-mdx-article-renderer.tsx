@@ -538,7 +538,7 @@ export function ExamMdxArticleRenderer({
 
             if (isSourceList) {
               return (
-                <div key={idx} className="grid sm:grid-cols-2 gap-3 my-4">
+                <div key={idx} className="grid grid-cols-1 sm:grid-cols-2 gap-3 my-4 w-full">
                   {block.items.map((item, itemIdx) => {
                     const match = item.trim().match(/^\[(?<title>[^\]]+)\]\((?<url>[^)]+)\)\s*(?:\((?<auth>[^)]+)\))?$/);
                     if (match?.groups) {
@@ -550,18 +550,18 @@ export function ExamMdxArticleRenderer({
                       return (
                         <div
                           key={itemIdx}
-                          className="p-3.5 rounded-xl bg-slate-50/90 border border-slate-200/80 text-xs flex items-center justify-between gap-3 shadow-2xs hover:bg-slate-100/70 transition-colors"
+                          className="p-3 sm:p-3.5 rounded-xl bg-slate-50/90 border border-slate-200/80 text-xs flex items-start justify-between gap-3 shadow-2xs hover:bg-slate-100/70 transition-colors w-full min-w-0"
                         >
-                          <div className="space-y-0.5 min-w-0">
-                            <span className="font-bold text-slate-900 block truncate">{title}</span>
-                            <span className="text-slate-500 text-[11px] block">{authority}</span>
+                          <div className="space-y-1 min-w-0 flex-1">
+                            <span className="font-bold text-slate-900 block leading-snug break-words">{title}</span>
+                            <span className="text-slate-500 text-[11px] block break-words">{authority}</span>
                           </div>
                           {isSafe && (
                             <a
                               href={url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="p-2 rounded-lg bg-white border border-slate-200 text-slate-600 hover:text-blue-600 hover:border-blue-300 shadow-2xs shrink-0 transition-colors"
+                              className="p-2 rounded-lg bg-white border border-slate-200 text-slate-600 hover:text-blue-600 hover:border-blue-300 shadow-2xs shrink-0 transition-colors mt-0.5"
                               aria-label={`Open source ${title}`}
                             >
                               <ExternalLink className="w-3.5 h-3.5" />
@@ -572,7 +572,7 @@ export function ExamMdxArticleRenderer({
                     }
 
                     return (
-                      <div key={itemIdx} className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                      <div key={itemIdx} className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs break-words min-w-0">
                         {renderInlineMarkdown(item)}
                       </div>
                     );

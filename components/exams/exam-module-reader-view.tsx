@@ -47,7 +47,7 @@ export function ExamModuleReaderView({
         )}
 
         {/* Module Header Card */}
-        <Card className="p-6 sm:p-10 space-y-6 border-slate-200 shadow-sm bg-white">
+        <Card className="p-4 sm:p-8 md:p-10 space-y-6 border-slate-200 shadow-sm bg-white min-w-0 overflow-hidden">
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="indigo" className="text-xs">
@@ -66,12 +66,12 @@ export function ExamModuleReaderView({
               )}
             </div>
 
-            <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight leading-tight">
+            <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight leading-tight break-words">
               {moduleData.title}
             </h1>
 
             {moduleData.description && (
-              <p className="text-sm sm:text-base text-slate-600 font-medium leading-relaxed">
+              <p className="text-sm sm:text-base text-slate-600 font-medium leading-relaxed break-words">
                 {moduleData.description}
               </p>
             )}
@@ -98,22 +98,22 @@ export function ExamModuleReaderView({
                 <ShieldCheck className="w-4 h-4 text-emerald-600" />
                 <span>Authoritative Sources & Official Citations</span>
               </h3>
-              <div className="grid sm:grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full">
                 {moduleData.officialSources.map((src, idx) => (
                   <div
                     key={idx}
-                    className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 text-xs flex items-center justify-between gap-2"
+                    className="p-3 sm:p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs flex items-start justify-between gap-2.5 shadow-2xs w-full min-w-0"
                   >
-                    <div>
-                      <span className="font-bold text-slate-800 block">{src.title}</span>
-                      <span className="text-slate-500 text-[11px]">{src.issuingAuthority}</span>
+                    <div className="space-y-1 min-w-0 flex-1">
+                      <span className="font-bold text-slate-800 block leading-snug break-words">{src.title}</span>
+                      <span className="text-slate-500 text-[11px] block break-words">{src.issuingAuthority}</span>
                     </div>
                     {src.sourceUrl && (
                       <a
                         href={src.sourceUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="p-1.5 rounded-lg bg-white border border-slate-200 hover:text-blue-600 shadow-2xs"
+                        className="p-2 rounded-lg bg-white border border-slate-200 text-slate-600 hover:text-blue-600 shadow-2xs shrink-0 transition-colors mt-0.5"
                         aria-label={`Open source ${src.title}`}
                       >
                         <ExternalLink className="w-3.5 h-3.5" />
