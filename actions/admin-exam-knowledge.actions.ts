@@ -266,3 +266,54 @@ export async function discardDraftVersionAction(versionId: string) {
     return { success: false, error: err.message || 'Failed to discard draft version.' };
   }
 }
+
+export async function updateDraftPayloadAction(params: {
+  versionId: string;
+  structuredPayload: any;
+}) {
+  const { isAdmin, userId } = await AdminService.checkIsAdminOrStaff();
+  if (!isAdmin) {
+    return { success: false, error: 'UNAUTHORIZED: Admin or staff privileges required.' };
+  }
+
+  if (!params.versionId) {
+    return { success: false, error: 'versionId is required.' };
+  }
+
+  try {
+    const res = await AdminExamKnowledgeService.updateDraftPayload({
+      versionId: params.versionId,
+      structuredPayload: params.structuredPayload,
+      userId: userId || undefined,
+    });
+    return res;
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Failed to update draft payload.' };
+  }
+}
+
+export async function submitDraftForReviewAction(params: {
+  versionId: string;
+  feedback?: string;
+}) {
+  const { isAdmin, userId } = await AdminService.checkIsAdminOrStaff();
+  if (!isAdmin) {
+    return { success: false, error: 'UNAUTHORIZED: Admin or staff privileges required.' };
+  }
+
+  if (!params.versionId) {
+    return { success: false, error: 'versionId is required.' };
+  }
+
+  try {
+    const res = await AdminExamKnowledgeService.submitDraftForReview({
+      versionId: params.versionId,
+      feedback: params.feedback,
+      userId: userId || undefined,
+    });
+    return res;
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Failed to submit draft for review.' };
+  }
+}
+

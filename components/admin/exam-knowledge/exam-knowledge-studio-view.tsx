@@ -9,12 +9,14 @@ import {
   ShieldCheck,
   Database,
   ArrowRight,
+  ArrowLeft,
   RefreshCw,
   AlertTriangle,
   CheckCircle2,
   XCircle,
   ExternalLink,
   ChevronRight,
+  ChevronDown,
   Eye,
   Check,
   Copy,
@@ -24,6 +26,18 @@ import {
   History,
   Lock,
   Trash2,
+  Edit3,
+  Save,
+  Plus,
+  Trash,
+  Clock,
+  HelpCircle,
+  ListPlus,
+  Sliders,
+  ArrowUp,
+  ArrowDown,
+  Info,
+  BookOpen,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { PromptViewerPanel } from "./prompt-viewer-panel";
@@ -31,8 +45,19 @@ import { FiveGatePreviewPanel } from "./five-gate-preview-panel";
 import { AcademicReviewChecklist } from "./academic-review-checklist";
 import { ExamModuleReaderView } from "@/components/exams/exam-module-reader-view";
 import { ExamModuleRegistry } from "@/services/exam-knowledge/exam-module-registry";
+import { ExamKnowledgeValidatorService } from "@/services/exam-knowledge/exam-knowledge-validator.service";
 import type { AdminExamKnowledgeKPIs, ExamWorkspaceData } from "@/services/exam-knowledge/admin-exam-knowledge.service";
-import type { ExamModuleKey, ExamDocReviewStatus, ExamFiveGateValidationResult, CandidatePublishedModule, ExamSourceVerificationStatus } from "@/types/exam-knowledge";
+import {
+  ExamModuleKey,
+  ExamDocReviewStatus,
+  ExamFiveGateValidationResult,
+  CandidatePublishedModule,
+  ExamSourceVerificationStatus,
+  ExamKnowledgeDocumentSpec,
+  ExamKnowledgeSectionType,
+  EXAM_KNOWLEDGE_SECTION_TYPES,
+  ExamSourceType,
+} from "@/types/exam-knowledge";
 import { generateExamKnowledgePromptAction } from "@/actions/exam-knowledge-prompt.actions";
 import { importExamKnowledgeAction } from "@/actions/exam-knowledge-import.actions";
 import {
@@ -48,6 +73,8 @@ import {
   verifyExamSourceAction,
   verifyExamClaimAction,
   discardDraftVersionAction,
+  updateDraftPayloadAction,
+  submitDraftForReviewAction,
 } from "@/actions/admin-exam-knowledge.actions";
 
 interface Props {
@@ -63,6 +90,8 @@ interface Props {
   initialSelectedExamId?: string;
   initialSelectedCycleId?: string;
   initialTab?: StudioTab;
+  initialVersionId?: string;
+  initialAuthoringMode?: "NEW" | "EDIT";
 }
 
 type StudioTab = "DASHBOARD" | "EXAMS" | "AUTHORING" | "DRAFTS" | "REVIEW" | "PROVENANCE";
@@ -73,6 +102,8 @@ export function ExamKnowledgeStudioView({
   initialSelectedExamId,
   initialSelectedCycleId,
   initialTab,
+  initialVersionId,
+  initialAuthoringMode,
 }: Props) {
   const initialExamMatch = initialSelectedExamId
     ? initialExams.find((e) => e.id === initialSelectedExamId)
@@ -95,6 +126,17 @@ export function ExamKnowledgeStudioView({
   // Workspace Data
   const [workspace, setWorkspace] = useState<ExamWorkspaceData | null>(null);
   const [isLoadingWorkspace, setIsLoadingWorkspace] = useState(false);
+
+  // Authoring Workbench State (NEW vs EDIT mode)
+  const [authoringMode, setAuthoringMode] = useState<"NEW" | "EDIT">(initialAuthoringMode || "NEW");
+  const [editVersionId, setEditVersionId] = useState<string | null>(initialVersionId || null);
+  const [editDraftPayload, setEditDraftPayload] = useState<ExamKnowledgeDocumentSpec | null>(null);
+  const [editDraftMeta, setEditDraftMeta] = useState<any | null>(null);
+  const [isDirty, setIsDirty] = useState<boolean>(false);
+  const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
+  const [isSavingDraft, setIsSavingDraft] = useState<boolean>(false);
+  const [isSubmittingReview, setIsSubmittingReview] = useState<boolean>(false);
+  const [showAiAssistantInEdit, setShowAiAssistantInEdit] = useState<boolean>(false);
 
   // Authoring State
   const [generatedPrompt, setGeneratedPrompt] = useState<string | null>(null);
@@ -128,6 +170,14 @@ export function ExamKnowledgeStudioView({
   const [reviewMessage, setReviewMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [discardModal, setDiscardModal] = useState<{ isOpen: boolean; versionId: string; title: string; versionNumber: number } | null>(null);
   const [isDiscarding, setIsDiscarding] = useState(false);
+
+
+  // Initialize from deep link / props
+  useEffect(() => {
+    if (initialVersionId && initialAuthoringMode === "EDIT") {
+      openEditDraft(initialVersionId);
+    }
+  }, [initialVersionId, initialAuthoringMode]);
 
   // Load Workspace when exam or cycle changes
   useEffect(() => {
@@ -183,6 +233,249 @@ export function ExamKnowledgeStudioView({
     }
   };
 
+  const openEditDraft = async (versionId: string, docMeta?: any) => {
+    setIsLoadingDetail(true);
+    setEditVersionId(versionId);
+    setAuthoringMode("EDIT");
+    setReviewMessage(null);
+    setIsDirty(false);
+    try {
+      const res = await getDocumentDetailAction(versionId);
+      if (res.success && res.detail) {
+        setDocumentDetail(res.detail);
+        const ver = res.detail.version;
+        const doc = res.detail.document;
+        setEditDraftMeta(doc);
+        if (doc?.exam_id) setSelectedExamId(doc.exam_id);
+        if (doc?.exam_cycle_id) setSelectedCycleId(doc.exam_cycle_id);
+        if (doc?.module_key) setSelectedModuleKey(doc.module_key);
+        if (ver?.structured_payload) {
+          setEditDraftPayload(JSON.parse(JSON.stringify(ver.structured_payload)));
+        }
+        setActiveTab("AUTHORING");
+      }
+    } finally {
+      setIsLoadingDetail(false);
+    }
+  };
+
+  const openNewAuthoring = (examId?: string, cycleId?: string, moduleKey?: ExamModuleKey) => {
+    setAuthoringMode("NEW");
+    setEditVersionId(null);
+    setEditDraftPayload(null);
+    setEditDraftMeta(null);
+    setIsDirty(false);
+    if (examId) setSelectedExamId(examId);
+    if (cycleId !== undefined) setSelectedCycleId(cycleId || "");
+    if (moduleKey) setSelectedModuleKey(moduleKey);
+    setActiveTab("AUTHORING");
+  };
+
+  const handleSaveDraft = async () => {
+    if (!editVersionId || !editDraftPayload) return;
+    setIsSavingDraft(true);
+    setReviewMessage(null);
+    try {
+      const res = await updateDraftPayloadAction({
+        versionId: editVersionId,
+        structuredPayload: editDraftPayload,
+      });
+      if (res.success) {
+        setIsDirty(false);
+        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        setLastSavedTime(timeStr);
+        setReviewMessage({ type: "success", text: `Draft saved successfully at ${timeStr}.` });
+      } else {
+        setReviewMessage({ type: "error", text: res.error || "Failed to save draft." });
+      }
+    } finally {
+      setIsSavingDraft(false);
+    }
+  };
+
+  const handleSubmitDraftForReview = async () => {
+    if (!editVersionId) return;
+    setIsSubmittingReview(true);
+    setReviewMessage(null);
+    try {
+      if (isDirty && editDraftPayload) {
+        const saveRes = await updateDraftPayloadAction({
+          versionId: editVersionId,
+          structuredPayload: editDraftPayload,
+        });
+        if (!saveRes.success) {
+          setReviewMessage({ type: "error", text: saveRes.error || "Failed to save changes before submitting." });
+          setIsSubmittingReview(false);
+          return;
+        }
+        setIsDirty(false);
+      }
+
+      const res = await submitDraftForReviewAction({
+        versionId: editVersionId,
+      });
+      if (res.success) {
+        setReviewMessage({ type: "success", text: "Draft submitted for academic review! Review status updated to IN_REVIEW." });
+        await loadDocumentDetail(editVersionId);
+        setActiveTab("REVIEW");
+        const kRes = await getAdminExamKnowledgeDashboardAction();
+        if (kRes.success && kRes.kpis) setKpis(kRes.kpis);
+      } else {
+        setReviewMessage({ type: "error", text: res.error || "Failed to submit draft for review." });
+      }
+      } finally {
+        setIsSubmittingReview(false);
+      }
+    };
+
+  const handleUpdateMetaField = (field: string, value: any) => {
+    if (!editDraftPayload) return;
+    setEditDraftPayload({
+      ...editDraftPayload,
+      metadata: {
+        ...editDraftPayload.metadata,
+        [field]: value,
+      },
+    });
+    setIsDirty(true);
+  };
+
+  const handleUpdateSection = (index: number, field: string, value: any) => {
+    if (!editDraftPayload?.contentSections) return;
+    const updated = [...editDraftPayload.contentSections];
+    updated[index] = { ...updated[index], [field]: value };
+    setEditDraftPayload({ ...editDraftPayload, contentSections: updated });
+    setIsDirty(true);
+  };
+
+  const handleAddSection = () => {
+    if (!editDraftPayload) return;
+    const newSec = {
+      id: `sec_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      heading: "New Section",
+      sectionType: "SUMMARY" as ExamKnowledgeSectionType,
+      bodyMarkdown: "",
+      calloutNotes: [],
+    };
+    setEditDraftPayload({
+      ...editDraftPayload,
+      contentSections: [...(editDraftPayload.contentSections || []), newSec],
+    });
+    setIsDirty(true);
+  };
+
+  const handleRemoveSection = (index: number) => {
+    if (!editDraftPayload?.contentSections) return;
+    const updated = editDraftPayload.contentSections.filter((_, i) => i !== index);
+    setEditDraftPayload({ ...editDraftPayload, contentSections: updated });
+    setIsDirty(true);
+  };
+
+  const handleMoveSection = (index: number, direction: "up" | "down") => {
+    if (!editDraftPayload?.contentSections) return;
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= editDraftPayload.contentSections.length) return;
+    const updated = [...editDraftPayload.contentSections];
+    const temp = updated[index];
+    updated[index] = updated[targetIndex];
+    updated[targetIndex] = temp;
+    setEditDraftPayload({ ...editDraftPayload, contentSections: updated });
+    setIsDirty(true);
+  };
+
+  const handleAddCallout = (secIndex: number) => {
+    if (!editDraftPayload?.contentSections) return;
+    const updated = [...editDraftPayload.contentSections];
+    const sec = updated[secIndex];
+    const currentCallouts = sec.calloutNotes || [];
+    const newCallout: { variant: 'INFO' | 'WARNING' | 'CRITICAL'; title: string; body: string } = {
+      variant: 'INFO',
+      title: 'Important Note',
+      body: '',
+    };
+    updated[secIndex] = { ...sec, calloutNotes: [...currentCallouts, newCallout] };
+    setEditDraftPayload({ ...editDraftPayload, contentSections: updated });
+    setIsDirty(true);
+  };
+
+  const handleUpdateCallout = (
+    secIndex: number,
+    calloutIndex: number,
+    field: 'title' | 'body' | 'variant',
+    value: any
+  ) => {
+    if (!editDraftPayload?.contentSections) return;
+    const updated = [...editDraftPayload.contentSections];
+    const sec = updated[secIndex];
+    const callouts = [...(sec.calloutNotes || [])];
+    callouts[calloutIndex] = { ...callouts[calloutIndex], [field]: value };
+    updated[secIndex] = { ...sec, calloutNotes: callouts };
+    setEditDraftPayload({ ...editDraftPayload, contentSections: updated });
+    setIsDirty(true);
+  };
+
+  const handleRemoveCallout = (secIndex: number, calloutIndex: number) => {
+    if (!editDraftPayload?.contentSections) return;
+    const updated = [...editDraftPayload.contentSections];
+    const sec = updated[secIndex];
+    const callouts = (sec.calloutNotes || []).filter((_, i) => i !== calloutIndex);
+    updated[secIndex] = { ...sec, calloutNotes: callouts };
+    setEditDraftPayload({ ...editDraftPayload, contentSections: updated });
+    setIsDirty(true);
+  };
+
+  const handleUpdateFaq = (index: number, field: "question" | "answer", value: string) => {
+    if (!editDraftPayload) return;
+    const updated = [...(editDraftPayload.faqs || [])];
+    updated[index] = { ...updated[index], [field]: value };
+    setEditDraftPayload({ ...editDraftPayload, faqs: updated });
+    setIsDirty(true);
+  };
+
+  const handleAddFaq = () => {
+    if (!editDraftPayload) return;
+    const newFaq = { question: "", answer: "" };
+    setEditDraftPayload({ ...editDraftPayload, faqs: [...(editDraftPayload.faqs || []), newFaq] });
+    setIsDirty(true);
+  };
+
+  const handleRemoveFaq = (index: number) => {
+    if (!editDraftPayload?.faqs) return;
+    const updated = editDraftPayload.faqs.filter((_, i) => i !== index);
+    setEditDraftPayload({ ...editDraftPayload, faqs: updated });
+    setIsDirty(true);
+  };
+
+  const handleUpdateSource = (index: number, field: string, value: string) => {
+    if (!editDraftPayload) return;
+    const updated = [...(editDraftPayload.officialSources || [])];
+    updated[index] = { ...updated[index], [field]: value };
+    setEditDraftPayload({ ...editDraftPayload, officialSources: updated });
+    setIsDirty(true);
+  };
+
+  const handleAddSource = () => {
+    if (!editDraftPayload) return;
+    const newSrc = {
+      title: "",
+      url: "",
+      issuingAuthority: selectedExamObj?.conducting_org?.name || "Official Authority",
+      sourceType: "OFFICIAL_NOTIFICATION" as ExamSourceType,
+    };
+    setEditDraftPayload({
+      ...editDraftPayload,
+      officialSources: [...(editDraftPayload.officialSources || []), newSrc],
+    });
+    setIsDirty(true);
+  };
+
+  const handleRemoveSource = (index: number) => {
+    if (!editDraftPayload?.officialSources) return;
+    const updated = editDraftPayload.officialSources.filter((_, i) => i !== index);
+    setEditDraftPayload({ ...editDraftPayload, officialSources: updated });
+    setIsDirty(true);
+  };
+
   const handleGeneratePrompt = async () => {
     if (!selectedExamId || !selectedModuleKey) return;
     setIsGeneratingPrompt(true);
@@ -220,6 +513,52 @@ export function ExamKnowledgeStudioView({
 
     const selectedExam = exams.find((e) => e.id === selectedExamId);
     const selectedCycle = selectedExam?.cycles?.find((c) => c.id === selectedCycleId);
+
+    // If in EDIT mode, validate and update the current draft payload directly
+    if (authoringMode === "EDIT" && editVersionId) {
+      try {
+        let cleaned = rawAiResponse.trim();
+        if (cleaned.charCodeAt(0) === 0xfeff) cleaned = cleaned.slice(1).trim();
+        const fenceRegex = /^```(?:json)?\s*\n([\s\S]*?)\n```$/i;
+        const match = cleaned.match(fenceRegex);
+        if (match && match[1]) cleaned = match[1].trim();
+
+        const parsedSpec = JSON.parse(cleaned);
+        const valRes = ExamKnowledgeValidatorService.validate(parsedSpec, {
+          expectedTarget: {
+            examId: selectedExamId,
+            examSlug: selectedExam?.slug || "",
+            examName: selectedExam?.name || "",
+            examCycleId: selectedCycleId || undefined,
+            cycleYear: selectedCycle?.year,
+            moduleKey: selectedModuleKey,
+            language: "en",
+            promptContractVersion: "CL-EXAM-AUTHOR-v1.0",
+          },
+          expectedContextHash: contextHash,
+        }, cleaned);
+
+        setValidationResult(valRes);
+
+        if (valRes.overallOutcome === "BLOCK") {
+          setImportError(valRes.errors[0] || "5-Gate validation rejected the payload.");
+        } else {
+          setEditDraftPayload(parsedSpec);
+          setIsDirty(true);
+          setShowAiAssistantInEdit(false);
+          setRawAiResponse("");
+          setReviewMessage({
+            type: "success",
+            text: "External AI response validated and applied to draft editor. Review content and click Save Draft.",
+          });
+        }
+      } catch (parseErr: any) {
+        setImportError(`Invalid JSON: ${parseErr.message}`);
+      } finally {
+        setIsImporting(false);
+      }
+      return;
+    }
 
     try {
       const res = await importExamKnowledgeAction({
@@ -327,7 +666,7 @@ export function ExamKnowledgeStudioView({
       });
       if (res.success && 'newVersionId' in res && res.newVersionId) {
         setReviewMessage({ type: "success", text: `New revision draft v${res.versionNumber} created successfully.` });
-        loadDocumentDetail(res.newVersionId);
+        await openEditDraft(res.newVersionId, documentDetail.document);
       } else {
         setReviewMessage({ type: "error", text: res.error || "Failed to create revision draft." });
       }
@@ -585,13 +924,28 @@ export function ExamKnowledgeStudioView({
                           <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-bold ${mod.status === "PUBLISHED" ? "bg-emerald-100 text-emerald-800" : mod.status === "APPROVED" || mod.status === "COMPILED" ? "bg-blue-100 text-blue-800" : mod.status === "IN_REVIEW" || mod.status === "AI_RESPONSE_PENDING" ? "bg-amber-100 text-amber-800" : mod.status === "PROMPT_READY" ? "bg-purple-100 text-purple-800" : "bg-slate-100 text-slate-600"}`}>{mod.status}</span>
                         </td>
                         <td className="py-3 px-4 text-right">
-                          {mod.status === "PUBLISHED" || mod.versionId ? (
+                          {mod.status === "PUBLISHED" ? (
                             <button onClick={() => { if (mod.versionId) loadDocumentDetail(mod.versionId); }} className="px-3 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-[11px] transition inline-flex items-center gap-1">
                               <Eye className="w-3 h-3" />
                               <span>Inspect (v{mod.versionNumber})</span>
                             </button>
+                          ) : mod.status === "DRAFT" || mod.status === "AI_RESPONSE_PENDING" ? (
+                            <button onClick={() => { if (mod.versionId) openEditDraft(mod.versionId); }} className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-[11px] transition inline-flex items-center gap-1 shadow-xs">
+                              <Edit3 className="w-3 h-3" />
+                              <span>Edit Draft (v{mod.versionNumber})</span>
+                            </button>
+                          ) : mod.status === "IN_REVIEW" ? (
+                            <button onClick={() => { if (mod.versionId) loadDocumentDetail(mod.versionId); }} className="px-3 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-bold text-[11px] transition inline-flex items-center gap-1 shadow-xs">
+                              <ShieldCheck className="w-3 h-3" />
+                              <span>Review (v{mod.versionNumber})</span>
+                            </button>
+                          ) : mod.status === "APPROVED" || mod.status === "COMPILED" ? (
+                            <button onClick={() => { if (mod.versionId) loadDocumentDetail(mod.versionId); }} className="px-3 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-[11px] transition inline-flex items-center gap-1 shadow-xs">
+                              <FileCode className="w-3 h-3" />
+                              <span>Preview & Publish (v{mod.versionNumber})</span>
+                            </button>
                           ) : (
-                            <button disabled={mod.applicability !== "APPLICABLE"} onClick={() => { setSelectedModuleKey(mod.moduleKey); setActiveTab("AUTHORING"); }} className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white font-bold text-[11px] transition inline-flex items-center gap-1">
+                            <button disabled={mod.applicability !== "APPLICABLE"} onClick={() => openNewAuthoring(selectedExamId, selectedCycleId, mod.moduleKey)} className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white font-bold text-[11px] transition inline-flex items-center gap-1 shadow-xs">
                               <Sparkles className="w-3 h-3" />
                               <span>Author</span>
                             </button>
@@ -610,91 +964,706 @@ export function ExamKnowledgeStudioView({
       {/* TAB 3: AUTHORING */}
       {activeTab === "AUTHORING" && (
         <div className="space-y-6">
-          <div className="p-4 rounded-xl border border-slate-200 bg-white shadow-xs space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-blue-600" />
-                <h2 className="text-xs font-bold text-slate-900 uppercase font-mono tracking-wider">Authoring Target & Parameters</h2>
-              </div>
-              <Badge variant="indigo" className="text-[10px] font-mono">CL-EXAM-AUTHOR-v1.0</Badge>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-[10px] font-mono font-bold uppercase text-slate-500 mb-1">Target Exam</label>
-                <select value={selectedExamId} onChange={(e) => { setSelectedExamId(e.target.value); setSelectedCycleId(""); }} className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs font-bold text-slate-900">
-                  {exams.map((ex) => (
-                    <option key={ex.id} value={ex.id}>
-                      {ex.name} ({ex.conducting_org?.code || "GOV"}) — {ex.is_active ? "PUBLISHED" : "DRAFT"}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-[10px] font-mono font-bold uppercase text-slate-500 mb-1">Target Cycle</label>
-                <select value={selectedCycleId} onChange={(e) => setSelectedCycleId(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs font-bold text-slate-900">
-                  <option value="">Timeless (No Annual Cycle)</option>
-                  {selectedExamObj?.cycles?.map((cy) => (<option key={cy.id} value={cy.id}>{cy.year} Cycle</option>))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-[10px] font-mono font-bold uppercase text-slate-500 mb-1">Knowledge Module</label>
-                <select value={selectedModuleKey} onChange={(e) => setSelectedModuleKey(e.target.value as ExamModuleKey)} className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs font-bold text-slate-900">
-                  {workspace?.modules?.map((m) => (<option key={m.moduleKey} value={m.moduleKey}>{m.title} ({m.moduleKey})</option>))}
-                </select>
-              </div>
-            </div>
-            <div className="flex justify-end pt-2">
-              <button disabled={isGeneratingPrompt} onClick={handleGeneratePrompt} className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-bold shadow-xs transition">
-                {isGeneratingPrompt ? (<><RefreshCw className="w-3.5 h-3.5 animate-spin" /><span>Compiling Context...</span></>) : (<><Sparkles className="w-3.5 h-3.5" /><span>Generate Authoritative Prompt</span></>)}
-              </button>
-            </div>
-            {promptError && (<div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium flex items-center gap-2"><XCircle className="w-4 h-4 text-rose-600 shrink-0" /><span>{promptError}</span></div>)}
-          </div>
+          {authoringMode === "EDIT" ? (
+            /* DRAFT / REVISION EDIT MODE */
+            <div className="space-y-6">
+              {/* Header Bar */}
+              <div className="p-5 rounded-2xl border border-slate-200 bg-white shadow-xs space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-mono font-bold uppercase text-blue-600">
+                        {selectedExamObj?.name} {selectedCycleObj?.year ? `(${selectedCycleObj.year})` : ""} &bull; {selectedModuleKey}
+                      </span>
+                      <Badge variant="indigo" className="font-mono text-[10px]">
+                        DRAFT v{documentDetail?.version?.version_number || 2}
+                      </Badge>
+                      {documentDetail?.version?.version_number && documentDetail.version.version_number > 1 && (
+                        <span className="text-[11px] font-mono text-slate-500">
+                          (Based on Published v{documentDetail.version.version_number - 1})
+                        </span>
+                      )}
+                    </div>
+                    <h2 className="text-lg font-black text-slate-900">
+                      Revision Authoring Workbench
+                    </h2>
+                  </div>
 
-          {generatedPrompt && (
-            <div className="space-y-4">
-              <PromptViewerPanel promptText={generatedPrompt} contractVersion={contractVersion} contextHash={contextHash} targetIdentity={{ examName: selectedExamObj?.name || "", cycleYear: selectedCycleObj?.year, moduleKey: selectedModuleKey, language: "en" }} />
-              <div className="p-4 rounded-xl border border-blue-200 bg-blue-50/60 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-blue-950 uppercase font-mono tracking-wider">Manual External AI Workflow Guide</span>
-                  <div className="flex items-center gap-1.5">
-                    {["ChatGPT", "Claude", "Perplexity", "Gemini", "DeepSeek"].map((ai) => (<span key={ai} className="px-2 py-0.5 rounded-md bg-white border border-blue-200 text-[10px] font-bold text-blue-800 shadow-2xs">{ai}</span>))}
+                  {/* Actions & Status Indicator */}
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <div className="mr-2">
+                      {isDirty ? (
+                        <span className="px-2.5 py-1 rounded-full text-[11px] font-mono font-bold bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                          Unsaved changes
+                        </span>
+                      ) : lastSavedTime ? (
+                        <span className="px-2.5 py-1 rounded-full text-[11px] font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          Saved at {lastSavedTime}
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-1 rounded-full text-[11px] font-mono font-bold bg-slate-100 text-slate-600">
+                          Ready to edit
+                        </span>
+                      )}
+                    </div>
+
+                    <button
+                      onClick={() => setShowAiAssistantInEdit(!showAiAssistantInEdit)}
+                      className={`px-3.5 py-2 rounded-xl border text-xs font-bold transition shadow-xs flex items-center gap-1.5 ${
+                        showAiAssistantInEdit
+                          ? "bg-purple-50 border-purple-300 text-purple-700"
+                          : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                      <span>{showAiAssistantInEdit ? "Hide AI Assistant" : "AI Prompt Assistant"}</span>
+                    </button>
+
+                    <button
+                      disabled={isSavingDraft || !editDraftPayload}
+                      onClick={handleSaveDraft}
+                      className="px-4 py-2 rounded-xl border border-blue-600 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold shadow-xs transition flex items-center gap-1.5"
+                    >
+                      {isSavingDraft ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          <span>Saving...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-3.5 h-3.5" />
+                          <span>Save Draft</span>
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      disabled={isSubmittingReview || !editDraftPayload}
+                      onClick={handleSubmitDraftForReview}
+                      className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold shadow-xs transition flex items-center gap-1.5"
+                    >
+                      {isSubmittingReview ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          <span>Submitting...</span>
+                        </>
+                      ) : (
+                        <>
+                          <ShieldCheck className="w-3.5 h-3.5" />
+                          <span>Submit for Review</span>
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      onClick={() => openNewAuthoring(selectedExamId, selectedCycleId, selectedModuleKey)}
+                      className="px-3 py-2 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 text-xs font-medium transition"
+                      title="Switch to New Authoring / Prompt Mode"
+                    >
+                      New Draft Mode
+                    </button>
                   </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 text-xs">
-                  <div className="p-2.5 bg-white rounded-lg border border-blue-100"><span className="text-[10px] font-mono font-bold text-blue-600 block mb-1">STEP 1</span><p className="text-slate-700 font-medium">Copy the authoritative prompt above.</p></div>
-                  <div className="p-2.5 bg-white rounded-lg border border-blue-100"><span className="text-[10px] font-mono font-bold text-blue-600 block mb-1">STEP 2</span><p className="text-slate-700 font-medium">Open your preferred external AI tool.</p></div>
-                  <div className="p-2.5 bg-white rounded-lg border border-blue-100"><span className="text-[10px] font-mono font-bold text-blue-600 block mb-1">STEP 3</span><p className="text-slate-700 font-medium">Paste the prompt into the chat window.</p></div>
-                  <div className="p-2.5 bg-white rounded-lg border border-blue-100"><span className="text-[10px] font-mono font-bold text-blue-600 block mb-1">STEP 4</span><p className="text-slate-700 font-medium">Copy the structured JSON code fence returned.</p></div>
-                  <div className="p-2.5 bg-white rounded-lg border border-blue-100"><span className="text-[10px] font-mono font-bold text-blue-600 block mb-1">STEP 5</span><p className="text-slate-700 font-medium">Paste the response below and click Validate & Import.</p></div>
-                </div>
-              </div>
 
-              <div className="p-5 rounded-xl border border-slate-200 bg-white shadow-xs space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-900 mb-1.5">Paste External AI Structured JSON Response</label>
-                  <textarea rows={8} value={rawAiResponse} onChange={(e) => setRawAiResponse(e.target.value)} placeholder="Paste the ```json ... ``` response returned by ChatGPT / Claude / Perplexity / Gemini here..." className="w-full p-3.5 rounded-xl border border-slate-300 font-mono text-xs text-slate-800 bg-slate-50/50" />
+                {/* Notice Banner */}
+                <div className="p-3.5 rounded-xl border border-amber-200 bg-amber-50/70 text-amber-900 text-xs flex items-start gap-2.5">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="leading-relaxed">
+                    <span className="font-bold">Revision Draft Isolation:</span> You are editing draft version {documentDetail?.version?.version_number || 2}. The currently published version remains live and completely untouched. Candidates will continue to see the published version until this revision passes Academic Review, Compilation, and Publication.
+                  </div>
                 </div>
-                <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-                  <span className="text-[11px] text-slate-500 font-mono">{rawAiResponse.length.toLocaleString()} characters entered</span>
-                  <button disabled={isImporting || !rawAiResponse.trim()} onClick={handleImportResponse} className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-bold shadow-xs transition">
-                    {isImporting ? (<><RefreshCw className="w-3.5 h-3.5 animate-spin" /><span>Running 5-Gate Validation...</span></>) : (<><ShieldCheck className="w-3.5 h-3.5" /><span>Validate & Import as Draft</span></>)}
-                  </button>
-                </div>
-                {importError && (<div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-xs font-medium space-y-1"><div className="font-bold flex items-center gap-1.5"><XCircle className="w-4 h-4 text-rose-600" /><span>Import Rejected</span></div><p className="pl-5 text-rose-700">{importError}</p></div>)}
-                {importResult && (
-                  <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-950 space-y-3 text-xs">
-                    <div className="flex items-center gap-2 font-bold text-emerald-900"><CheckCircle2 className="w-4 h-4 text-emerald-600" /><span>Import Succeeded! Draft Created (is_published: false)</span></div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-[11px]">
-                      <div><span className="text-slate-500">Document ID:</span> <span className="font-bold">{importResult.documentId}</span></div>
-                      <div><span className="text-slate-500">Version:</span> <span className="font-bold">v{importResult.versionNumber}</span></div>
-                      <div><span className="text-slate-500">Status:</span> <span className="font-bold text-amber-700">{importResult.reviewStatus}</span></div>
-                      <div><span className="text-slate-500">Published:</span> <span className="font-bold text-rose-700">NO (Draft)</span></div>
-                    </div>
+
+                {reviewMessage && (
+                  <div className={`p-3 rounded-xl border text-xs font-medium ${reviewMessage.type === "success" ? "bg-emerald-50 border-emerald-200 text-emerald-950" : "bg-rose-50 border-rose-200 text-rose-950"}`}>
+                    {reviewMessage.text}
                   </div>
                 )}
-                {validationResult && (<div className="pt-2"><FiveGatePreviewPanel validationResult={validationResult} /></div>)}
               </div>
+
+              {/* Collapsible AI Assistant in Edit Mode */}
+              {showAiAssistantInEdit && (
+                <div className="p-5 rounded-2xl border border-purple-200 bg-purple-50/40 space-y-4 shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-purple-600" />
+                      <h3 className="text-xs font-bold text-purple-950 uppercase font-mono tracking-wider">
+                        AI Prompt & Import Assistant (Updates Draft in Place)
+                      </h3>
+                    </div>
+                    <Badge variant="indigo" className="text-[10px] font-mono">CL-EXAM-AUTHOR-v1.0</Badge>
+                  </div>
+
+                  <p className="text-xs text-purple-900 leading-relaxed">
+                    Generate an updated prompt with current context, send it to your preferred external AI (ChatGPT, Claude, Perplexity, etc.), and paste the structured JSON response below. 5-Gate validation will verify the payload and populate the editor fields without creating extra versions.
+                  </p>
+
+                  <div className="flex gap-2">
+                    <button
+                      disabled={isGeneratingPrompt}
+                      onClick={handleGeneratePrompt}
+                      className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow-xs transition flex items-center gap-1.5"
+                    >
+                      {isGeneratingPrompt ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          <span>Generating Prompt...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-3.5 h-3.5" />
+                          <span>Generate Authoritative Prompt</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {generatedPrompt && (
+                    <div className="space-y-4 pt-2">
+                      <PromptViewerPanel
+                        promptText={generatedPrompt}
+                        contractVersion={contractVersion}
+                        contextHash={contextHash}
+                        targetIdentity={{
+                          examName: selectedExamObj?.name || "",
+                          cycleYear: selectedCycleObj?.year,
+                          moduleKey: selectedModuleKey,
+                          language: "en",
+                        }}
+                      />
+
+                      <div className="space-y-2">
+                        <label className="block text-xs font-bold text-slate-900">
+                          Paste External AI Structured JSON Response
+                        </label>
+                        <textarea
+                          rows={6}
+                          value={rawAiResponse}
+                          onChange={(e) => setRawAiResponse(e.target.value)}
+                          placeholder="Paste the ```json ... ``` response returned by external AI here..."
+                          className="w-full p-3 rounded-xl border border-purple-200 font-mono text-xs text-slate-800 bg-white"
+                        />
+                        <div className="flex justify-end">
+                          <button
+                            disabled={isImporting || !rawAiResponse.trim()}
+                            onClick={handleImportResponse}
+                            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-bold shadow-xs transition flex items-center gap-1.5"
+                          >
+                            {isImporting ? (
+                              <>
+                                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                <span>Validating 5-Gates...</span>
+                              </>
+                            ) : (
+                              <>
+                                <ShieldCheck className="w-3.5 h-3.5" />
+                                <span>Apply AI Response to Editor</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                        {importError && (
+                          <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-xs">
+                            {importError}
+                          </div>
+                        )}
+                        {validationResult && (
+                          <div className="pt-2">
+                            <FiveGatePreviewPanel validationResult={validationResult} />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Structured Draft Editor Form */}
+              {editDraftPayload ? (
+                <div className="space-y-6">
+                  {/* Card 1: Metadata */}
+                  <div className="p-5 rounded-2xl border border-slate-200 bg-white shadow-xs space-y-4">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-blue-600" />
+                        <h3 className="text-xs font-bold text-slate-900 uppercase font-mono tracking-wider">
+                          Document Metadata
+                        </h3>
+                      </div>
+                      <span className="text-[11px] font-mono text-slate-400">Schema: CL-EXAM-AUTHOR-v1.0</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          Document Title <span className="text-rose-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={editDraftPayload.metadata?.title || ""}
+                          onChange={(e) => handleUpdateMetaField("title", e.target.value)}
+                          placeholder="e.g. SSC CGL 2026 Overview & Exam Knowledge Guide"
+                          className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-medium text-slate-900 focus:border-blue-500 focus:outline-hidden"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          Target Exam Category
+                        </label>
+                        <input
+                          type="text"
+                          value={editDraftPayload.metadata?.targetExamCategory || ""}
+                          onChange={(e) => handleUpdateMetaField("targetExamCategory", e.target.value)}
+                          placeholder="e.g. Staff Selection Commission / Graduate Level"
+                          className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-medium text-slate-900 focus:border-blue-500 focus:outline-hidden"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          Description / Summary
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={editDraftPayload.metadata?.description || ""}
+                          onChange={(e) => handleUpdateMetaField("description", e.target.value)}
+                          placeholder="Brief authoritative summary of this module..."
+                          className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-medium text-slate-900 focus:border-blue-500 focus:outline-hidden"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card 2: Content Sections */}
+                  <div className="p-5 rounded-2xl border border-slate-200 bg-white shadow-xs space-y-4">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                      <div className="flex items-center gap-2">
+                        <BookOpen className="w-4 h-4 text-blue-600" />
+                        <h3 className="text-xs font-bold text-slate-900 uppercase font-mono tracking-wider">
+                          Content Sections ({editDraftPayload.contentSections?.length || 0})
+                        </h3>
+                      </div>
+                      <button
+                        onClick={handleAddSection}
+                        className="px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold transition flex items-center gap-1.5"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add Section</span>
+                      </button>
+                    </div>
+
+                    <div className="space-y-4">
+                      {editDraftPayload.contentSections?.map((sec, sIdx) => (
+                        <div key={sIdx} className="p-4 rounded-xl border border-slate-200 bg-slate-50/60 space-y-3">
+                          {/* Section Header Controls */}
+                          <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-200/80">
+                            <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+                              <span className="px-2 py-0.5 rounded-md bg-slate-200 text-slate-700 font-mono text-[10px] font-bold">
+                                #{sIdx + 1}
+                              </span>
+                              <input
+                                type="text"
+                                value={sec.heading || ""}
+                                onChange={(e) => handleUpdateSection(sIdx, "heading", e.target.value)}
+                                placeholder="Section Heading (e.g. Overview & Scope)"
+                                className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-bold text-slate-900 flex-1"
+                              />
+                            </div>
+
+                            <div className="flex items-center gap-1.5">
+                              <select
+                                value={sec.sectionType || "SUMMARY"}
+                                onChange={(e) => handleUpdateSection(sIdx, "sectionType", e.target.value)}
+                                className="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-[11px] font-mono font-bold text-slate-800"
+                              >
+                                {EXAM_KNOWLEDGE_SECTION_TYPES.map((st) => (
+                                  <option key={st} value={st}>
+                                    {st}
+                                  </option>
+                                ))}
+                              </select>
+
+                              <button
+                                disabled={sIdx === 0}
+                                onClick={() => handleMoveSection(sIdx, "up")}
+                                className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-30"
+                                title="Move Up"
+                              >
+                                <ArrowUp className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                disabled={sIdx === (editDraftPayload.contentSections?.length || 0) - 1}
+                                onClick={() => handleMoveSection(sIdx, "down")}
+                                className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-30"
+                                title="Move Down"
+                              >
+                                <ArrowDown className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleRemoveSection(sIdx)}
+                                className="p-1.5 rounded-lg border border-rose-200 bg-white text-rose-600 hover:bg-rose-50"
+                                title="Delete Section"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Section Body */}
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                              Section Body (Markdown / MDX Supported)
+                            </label>
+                            <textarea
+                              rows={5}
+                              value={sec.bodyMarkdown || ""}
+                              onChange={(e) => handleUpdateSection(sIdx, "bodyMarkdown", e.target.value)}
+                              placeholder="Write authoritative markdown content, bullet points, or markdown tables..."
+                              className="w-full p-3 rounded-xl border border-slate-300 bg-white font-mono text-xs text-slate-800 leading-relaxed focus:border-blue-500 focus:outline-hidden"
+                            />
+                          </div>
+
+                          {/* Callout Notes */}
+                          <div className="space-y-2 pt-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-bold text-slate-600 font-mono">
+                                Callout Notes ({sec.calloutNotes?.length || 0})
+                              </span>
+                              <button
+                                onClick={() => handleAddCallout(sIdx)}
+                                className="text-[11px] font-bold text-blue-600 hover:underline flex items-center gap-1"
+                              >
+                                <Plus className="w-3 h-3" />
+                                <span>Add Callout Note</span>
+                              </button>
+                            </div>
+                            {sec.calloutNotes?.map((callout, cIdx) => (
+                              <div key={cIdx} className="p-2.5 rounded-lg border border-slate-200 bg-white space-y-2">
+                                <div className="flex items-center gap-2">
+                                  <select
+                                    value={callout.variant || "INFO"}
+                                    onChange={(e) => handleUpdateCallout(sIdx, cIdx, "variant", e.target.value)}
+                                    className="px-2 py-1 rounded border border-slate-200 text-[10px] font-mono font-bold text-slate-700"
+                                  >
+                                    <option value="INFO">INFO</option>
+                                    <option value="WARNING">WARNING</option>
+                                    <option value="CRITICAL">CRITICAL</option>
+                                  </select>
+                                  <input
+                                    type="text"
+                                    value={callout.title || ""}
+                                    onChange={(e) => handleUpdateCallout(sIdx, cIdx, "title", e.target.value)}
+                                    placeholder="Callout Title"
+                                    className="flex-1 px-2.5 py-1 rounded border border-slate-200 text-xs font-bold text-slate-800"
+                                  />
+                                  <button
+                                    onClick={() => handleRemoveCallout(sIdx, cIdx)}
+                                    className="p-1 rounded text-rose-600 hover:bg-rose-50"
+                                    title="Remove Callout"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                                <textarea
+                                  rows={2}
+                                  value={callout.body || ""}
+                                  onChange={(e) => handleUpdateCallout(sIdx, cIdx, "body", e.target.value)}
+                                  placeholder="Callout note body..."
+                                  className="w-full p-2 rounded border border-slate-200 text-xs text-slate-700"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Card 3: FAQs */}
+                  <div className="p-5 rounded-2xl border border-slate-200 bg-white shadow-xs space-y-4">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                      <div className="flex items-center gap-2">
+                        <HelpCircle className="w-4 h-4 text-blue-600" />
+                        <h3 className="text-xs font-bold text-slate-900 uppercase font-mono tracking-wider">
+                          Frequently Asked Questions ({editDraftPayload.faqs?.length || 0})
+                        </h3>
+                      </div>
+                      <button
+                        onClick={handleAddFaq}
+                        className="px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold transition flex items-center gap-1.5"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add FAQ</span>
+                      </button>
+                    </div>
+
+                    <div className="space-y-3">
+                      {editDraftPayload.faqs?.map((faq, fIdx) => (
+                        <div key={fIdx} className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/60 space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <input
+                              type="text"
+                              value={faq.question || ""}
+                              onChange={(e) => handleUpdateFaq(fIdx, "question", e.target.value)}
+                              placeholder="FAQ Question (e.g. What is the educational qualification required?)"
+                              className="w-full px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-bold text-slate-900"
+                            />
+                            <button
+                              onClick={() => handleRemoveFaq(fIdx)}
+                              className="p-1.5 rounded-lg border border-rose-200 bg-white text-rose-600 hover:bg-rose-50 shrink-0"
+                              title="Delete FAQ"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                          <textarea
+                            rows={2}
+                            value={faq.answer || ""}
+                            onChange={(e) => handleUpdateFaq(fIdx, "answer", e.target.value)}
+                            placeholder="Authoritative answer with official facts..."
+                            className="w-full p-2.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-800"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Card 4: Official Sources */}
+                  <div className="p-5 rounded-2xl border border-slate-200 bg-white shadow-xs space-y-4">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                      <div className="flex items-center gap-2">
+                        <ExternalLink className="w-4 h-4 text-blue-600" />
+                        <h3 className="text-xs font-bold text-slate-900 uppercase font-mono tracking-wider">
+                          Official Sources & Evidence ({editDraftPayload.officialSources?.length || 0})
+                        </h3>
+                      </div>
+                      <button
+                        onClick={handleAddSource}
+                        className="px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold transition flex items-center gap-1.5"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add Source</span>
+                      </button>
+                    </div>
+
+                    <div className="space-y-3">
+                      {editDraftPayload.officialSources?.map((src, sIdx) => (
+                        <div key={sIdx} className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/60 space-y-2">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                            <div className="sm:col-span-2">
+                              <label className="block text-[10px] font-mono font-bold uppercase text-slate-500 mb-0.5">
+                                Source Title
+                              </label>
+                              <input
+                                type="text"
+                                value={src.title || ""}
+                                onChange={(e) => handleUpdateSource(sIdx, "title", e.target.value)}
+                                placeholder="e.g. Official SSC CGL Notice"
+                                className="w-full px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-bold text-slate-900"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-mono font-bold uppercase text-slate-500 mb-0.5">
+                                Issuing Authority
+                              </label>
+                              <input
+                                type="text"
+                                value={src.issuingAuthority || ""}
+                                onChange={(e) => handleUpdateSource(sIdx, "issuingAuthority", e.target.value)}
+                                placeholder="e.g. Staff Selection Commission"
+                                className="w-full px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-900"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-mono font-bold uppercase text-slate-500 mb-0.5">
+                                Source Type
+                              </label>
+                              <select
+                                value={src.sourceType || "OFFICIAL_NOTIFICATION"}
+                                onChange={(e) => handleUpdateSource(sIdx, "sourceType", e.target.value)}
+                                className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-mono text-slate-800"
+                              >
+                                <option value="OFFICIAL_NOTIFICATION">OFFICIAL_NOTIFICATION</option>
+                                <option value="GAZETTE">GAZETTE</option>
+                                <option value="COMMISSION_PORTAL">COMMISSION_PORTAL</option>
+                                <option value="REVISED_SCHEDULE">REVISED_SCHEDULE</option>
+                                <option value="COURT_ORDER">COURT_ORDER</option>
+                              </select>
+                            </div>
+                            <div className="sm:col-span-3">
+                              <label className="block text-[10px] font-mono font-bold uppercase text-slate-500 mb-0.5">
+                                Official URL
+                              </label>
+                              <input
+                                type="url"
+                                value={src.url || ""}
+                                onChange={(e) => handleUpdateSource(sIdx, "url", e.target.value)}
+                                placeholder="https://ssc.gov.in/..."
+                                className="w-full px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-mono text-blue-600"
+                              />
+                            </div>
+                            <div className="flex items-end justify-end">
+                              <button
+                                onClick={() => handleRemoveSource(sIdx)}
+                                className="px-3 py-1.5 rounded-lg border border-rose-200 bg-white text-rose-600 hover:bg-rose-50 text-xs font-bold flex items-center gap-1 w-full justify-center"
+                                title="Remove Source"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span>Remove</span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Bottom Action Footer */}
+                  <div className="p-4 rounded-2xl border border-slate-200 bg-white shadow-xs flex flex-wrap items-center justify-between gap-3">
+                    <div className="text-xs text-slate-500">
+                      {isDirty ? (
+                        <span className="text-amber-600 font-bold">You have unsaved changes.</span>
+                      ) : (
+                        <span>All changes saved to draft v{documentDetail?.version?.version_number || 2}.</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2.5">
+                      <button
+                        disabled={isSavingDraft}
+                        onClick={handleSaveDraft}
+                        className="px-4 py-2 rounded-xl border border-blue-600 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold shadow-xs transition flex items-center gap-1.5"
+                      >
+                        {isSavingDraft ? (
+                          <>
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            <span>Saving Draft...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-3.5 h-3.5" />
+                            <span>Save Draft</span>
+                          </>
+                        )}
+                      </button>
+                      <button
+                        disabled={isSubmittingReview}
+                        onClick={handleSubmitDraftForReview}
+                        className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold shadow-xs transition flex items-center gap-1.5"
+                      >
+                        {isSubmittingReview ? (
+                          <>
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            <span>Submitting...</span>
+                          </>
+                        ) : (
+                          <>
+                            <ShieldCheck className="w-3.5 h-3.5" />
+                            <span>Submit for Academic Review</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-12 rounded-2xl border border-dashed border-slate-200 bg-white text-center space-y-3">
+                  <RefreshCw className="w-8 h-8 mx-auto text-slate-400 animate-spin" />
+                  <div className="text-xs font-bold text-slate-700">Loading draft payload...</div>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* NEW AUTHORING / PROMPT GENERATION MODE */
+            <div className="space-y-6">
+              <div className="p-4 rounded-xl border border-slate-200 bg-white shadow-xs space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-blue-600" />
+                    <h2 className="text-xs font-bold text-slate-900 uppercase font-mono tracking-wider">Authoring Target & Parameters</h2>
+                  </div>
+                  <Badge variant="indigo" className="text-[10px] font-mono">CL-EXAM-AUTHOR-v1.0</Badge>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-mono font-bold uppercase text-slate-500 mb-1">Target Exam</label>
+                    <select value={selectedExamId} onChange={(e) => { setSelectedExamId(e.target.value); setSelectedCycleId(""); }} className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs font-bold text-slate-900">
+                      {exams.map((ex) => (
+                        <option key={ex.id} value={ex.id}>
+                          {ex.name} ({ex.conducting_org?.code || "GOV"}) — {ex.is_active ? "PUBLISHED" : "DRAFT"}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-mono font-bold uppercase text-slate-500 mb-1">Target Cycle</label>
+                    <select value={selectedCycleId} onChange={(e) => setSelectedCycleId(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs font-bold text-slate-900">
+                      <option value="">Timeless (No Annual Cycle)</option>
+                      {selectedExamObj?.cycles?.map((cy) => (<option key={cy.id} value={cy.id}>{cy.year} Cycle</option>))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-mono font-bold uppercase text-slate-500 mb-1">Knowledge Module</label>
+                    <select value={selectedModuleKey} onChange={(e) => setSelectedModuleKey(e.target.value as ExamModuleKey)} className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs font-bold text-slate-900">
+                      {workspace?.modules?.map((m) => (<option key={m.moduleKey} value={m.moduleKey}>{m.title} ({m.moduleKey})</option>))}
+                    </select>
+                  </div>
+                </div>
+                <div className="flex justify-end pt-2">
+                  <button disabled={isGeneratingPrompt} onClick={handleGeneratePrompt} className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-bold shadow-xs transition">
+                    {isGeneratingPrompt ? (<><RefreshCw className="w-3.5 h-3.5 animate-spin" /><span>Compiling Context...</span></>) : (<><Sparkles className="w-3.5 h-3.5" /><span>Generate Authoritative Prompt</span></>)}
+                  </button>
+                </div>
+                {promptError && (<div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium flex items-center gap-2"><XCircle className="w-4 h-4 text-rose-600 shrink-0" /><span>{promptError}</span></div>)}
+              </div>
+
+              {generatedPrompt && (
+                <div className="space-y-4">
+                  <PromptViewerPanel promptText={generatedPrompt} contractVersion={contractVersion} contextHash={contextHash} targetIdentity={{ examName: selectedExamObj?.name || "", cycleYear: selectedCycleObj?.year, moduleKey: selectedModuleKey, language: "en" }} />
+                  <div className="p-4 rounded-xl border border-blue-200 bg-blue-50/60 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-blue-950 uppercase font-mono tracking-wider">Manual External AI Workflow Guide</span>
+                      <div className="flex items-center gap-1.5">
+                        {["ChatGPT", "Claude", "Perplexity", "Gemini", "DeepSeek"].map((ai) => (<span key={ai} className="px-2 py-0.5 rounded-md bg-white border border-blue-200 text-[10px] font-bold text-blue-800 shadow-2xs">{ai}</span>))}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 text-xs">
+                      <div className="p-2.5 bg-white rounded-lg border border-blue-100"><span className="text-[10px] font-mono font-bold text-blue-600 block mb-1">STEP 1</span><p className="text-slate-700 font-medium">Copy the authoritative prompt above.</p></div>
+                      <div className="p-2.5 bg-white rounded-lg border border-blue-100"><span className="text-[10px] font-mono font-bold text-blue-600 block mb-1">STEP 2</span><p className="text-slate-700 font-medium">Open your preferred external AI tool.</p></div>
+                      <div className="p-2.5 bg-white rounded-lg border border-blue-100"><span className="text-[10px] font-mono font-bold text-blue-600 block mb-1">STEP 3</span><p className="text-slate-700 font-medium">Paste the prompt into the chat window.</p></div>
+                      <div className="p-2.5 bg-white rounded-lg border border-blue-100"><span className="text-[10px] font-mono font-bold text-blue-600 block mb-1">STEP 4</span><p className="text-slate-700 font-medium">Copy the structured JSON code fence returned.</p></div>
+                      <div className="p-2.5 bg-white rounded-lg border border-blue-100"><span className="text-[10px] font-mono font-bold text-blue-600 block mb-1">STEP 5</span><p className="text-slate-700 font-medium">Paste the response below and click Validate & Import.</p></div>
+                    </div>
+                  </div>
+
+                  <div className="p-5 rounded-xl border border-slate-200 bg-white shadow-xs space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-900 mb-1.5">Paste External AI Structured JSON Response</label>
+                      <textarea rows={8} value={rawAiResponse} onChange={(e) => setRawAiResponse(e.target.value)} placeholder="Paste the ```json ... ``` response returned by ChatGPT / Claude / Perplexity / Gemini here..." className="w-full p-3.5 rounded-xl border border-slate-300 font-mono text-xs text-slate-800 bg-slate-50/50" />
+                    </div>
+                    <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                      <span className="text-[11px] text-slate-500 font-mono">{rawAiResponse.length.toLocaleString()} characters entered</span>
+                      <button disabled={isImporting || !rawAiResponse.trim()} onClick={handleImportResponse} className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-bold shadow-xs transition">
+                        {isImporting ? (<><RefreshCw className="w-3.5 h-3.5 animate-spin" /><span>Running 5-Gate Validation...</span></>) : (<><ShieldCheck className="w-3.5 h-3.5" /><span>Validate & Import as Draft</span></>)}
+                      </button>
+                    </div>
+                    {importError && (<div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-xs font-medium space-y-1"><div className="font-bold flex items-center gap-1.5"><XCircle className="w-4 h-4 text-rose-600" /><span>Import Rejected</span></div><p className="pl-5 text-rose-700">{importError}</p></div>)}
+                    {importResult && (
+                      <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-950 space-y-3 text-xs">
+                        <div className="flex items-center gap-2 font-bold text-emerald-900"><CheckCircle2 className="w-4 h-4 text-emerald-600" /><span>Import Succeeded! Draft Created (is_published: false)</span></div>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-[11px]">
+                          <div><span className="text-slate-500">Document ID:</span> <span className="font-bold">{importResult.documentId}</span></div>
+                          <div><span className="text-slate-500">Version:</span> <span className="font-bold">v{importResult.versionNumber}</span></div>
+                          <div><span className="text-slate-500">Status:</span> <span className="font-bold text-amber-700">{importResult.reviewStatus}</span></div>
+                          <div><span className="text-slate-500">Published:</span> <span className="font-bold text-rose-700">NO (Draft)</span></div>
+                        </div>
+                      </div>
+                    )}
+                    {validationResult && (<div className="pt-2"><FiveGatePreviewPanel validationResult={validationResult} /></div>)}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -749,10 +1718,31 @@ export function ExamKnowledgeStudioView({
                       <td className="py-3 px-3 text-slate-500 font-mono text-[11px]">{new Date(d.createdAt).toLocaleDateString()}</td>
                       <td className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          <button onClick={() => loadDocumentDetail(d.id)} className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-[11px] transition inline-flex items-center gap-1">
-                            <ShieldCheck className="w-3 h-3" />
-                            <span>Review</span>
-                          </button>
+                          {d.reviewStatus === "DRAFT" || d.reviewStatus === "AI_GENERATED" ? (
+                            <button
+                              onClick={() => openEditDraft(d.id)}
+                              className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-[11px] transition inline-flex items-center gap-1 shadow-xs"
+                            >
+                              <Edit3 className="w-3 h-3" />
+                              <span>Edit Draft</span>
+                            </button>
+                          ) : d.reviewStatus === "IN_REVIEW" ? (
+                            <button
+                              onClick={() => loadDocumentDetail(d.id)}
+                              className="px-3 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-bold text-[11px] transition inline-flex items-center gap-1 shadow-xs"
+                            >
+                              <ShieldCheck className="w-3 h-3" />
+                              <span>Review</span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => loadDocumentDetail(d.id)}
+                              className="px-3 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-[11px] transition inline-flex items-center gap-1 shadow-xs"
+                            >
+                              <FileCode className="w-3 h-3" />
+                              <span>Preview & Publish</span>
+                            </button>
+                          )}
                           {!d.isPublished && (
                             <button
                               onClick={(e) => {
@@ -804,6 +1794,15 @@ export function ExamKnowledgeStudioView({
                     <p className="text-xs text-slate-500 font-mono mt-0.5">Canonical Slug: {documentDetail.document?.slug}</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
+                    {!documentDetail.version?.is_published && (
+                      <button
+                        onClick={() => openEditDraft(documentDetail.version.id, documentDetail.document)}
+                        className="px-3.5 py-1.5 rounded-xl border border-blue-300 text-blue-700 hover:bg-blue-50 text-xs font-bold transition shadow-xs flex items-center gap-1.5"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                        <span>Edit Draft</span>
+                      </button>
+                    )}
                     {documentDetail.version?.review_status === "AI_GENERATED" && (
                       <button disabled={isUpdatingStatus} onClick={() => handleUpdateReviewStatus("IN_REVIEW")} className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition shadow-xs">Start Academic Review</button>
                     )}
