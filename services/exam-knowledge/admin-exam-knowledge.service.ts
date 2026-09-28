@@ -254,10 +254,10 @@ export class AdminExamKnowledgeService {
       // Find matching document
       const doc = (existingDocs || []).find((d: any) => {
         if (d.module_key !== m.key) return false;
-        if (m.isCycleSpecific) {
-          return d.exam_cycle_id === (cycleId || null);
+        if (cycleId) {
+          return d.exam_cycle_id === cycleId || d.exam_cycle_id === null;
         }
-        return d.exam_cycle_id === (cycleId || null) || d.exam_cycle_id === null;
+        return true;
       });
 
       let status: ExamWorkspaceModuleStatus['status'] = 'NOT_STARTED';
@@ -895,5 +895,123 @@ export class AdminExamKnowledgeService {
     }
 
     return { success: true, deletedVersionId: versionId };
+  }
+
+  /**
+   * 13. Update Draft Version Structured Payload
+   * Allows modifying an unpublished, mutable draft version in place without creating new versions on every save.
+   */
+  static async updateDraftPayload(
+    params: {
+      versionId: string;
+      structuredPayload: Partial<ExamKnowledgeDocumentSpec> | Record<string, any>;
+      userId?: string;
+    },
+    supabaseClient?: any
+  ): Promise<{ success: boolean; versionId?: string; specHash?: string; error?: string }> {
+    const supabase = supabaseClient || (await createAdminServerSupabaseClient());
+
+    const { data: ver, error: fetchErr } = await supabase
+      .from('exam_doc_versions')
+      .select('id, document_id, version_number, review_status, is_published, structured_payload')
+      .eq('id', params.versionId)
+      .single();
+
+    if (fetchErr || !ver) {
+      return { success: false, error: 'Draft version not found.' };
+    }
+
+    try {
+      ExamKnowledgeService.assertMutable(ver);
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+
+    if (ver.is_published || ver.review_status === 'PUBLISHED') {
+      return { success: false, error: 'Cannot update published version. Create a revision draft instead.' };
+    }
+
+    const payload = params.structuredPayload;
+    if (!payload || typeof payload !== 'object') {
+      return { success: false, error: 'Invalid structured payload.' };
+    }
+
+    const jsonStr = JSON.stringify(payload);
+    const specHash = crypto.createHash('sha256').update(jsonStr).digest('hex');
+    const nowIso = new Date().toISOString();
+
+    const { error: updateErr } = await supabase
+      .from('exam_doc_versions')
+      .update({
+        structured_payload: payload,
+        source_spec_hash: specHash,
+        compiled_mdx: null, // Invalidate previous compilation when content changes
+        compiled_artifact_hash: null,
+        review_status: ver.review_status === 'APPROVED' || ver.review_status === 'COMPILED' ? 'DRAFT' : ver.review_status,
+        updated_at: nowIso,
+      })
+      .eq('id', params.versionId);
+
+    if (updateErr) {
+      return { success: false, error: updateErr.message };
+    }
+
+    return { success: true, versionId: params.versionId, specHash };
+  }
+
+  /**
+   * 14. Submit Draft Version for Academic Review
+   * Transitions a draft from DRAFT/AI_GENERATED to IN_REVIEW.
+   */
+  static async submitDraftForReview(
+    params: {
+      versionId: string;
+      feedback?: string;
+      userId?: string;
+    },
+    supabaseClient?: any
+  ): Promise<{ success: boolean; error?: string }> {
+    const supabase = supabaseClient || (await createAdminServerSupabaseClient());
+
+    const { data: ver, error: fetchErr } = await supabase
+      .from('exam_doc_versions')
+      .select('id, document_id, version_number, review_status, is_published, structured_payload')
+      .eq('id', params.versionId)
+      .single();
+
+    if (fetchErr || !ver) {
+      return { success: false, error: 'Draft version not found.' };
+    }
+
+    try {
+      ExamKnowledgeService.assertMutable(ver);
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+
+    if (ver.is_published || ver.review_status === 'PUBLISHED') {
+      return { success: false, error: 'Cannot submit published version.' };
+    }
+
+    const payload = ver.structured_payload;
+    if (!payload?.contentSections || !Array.isArray(payload.contentSections) || payload.contentSections.length === 0) {
+      return { success: false, error: 'Cannot submit draft without at least one content section.' };
+    }
+
+    const nowIso = new Date().toISOString();
+    const { error: updateErr } = await supabase
+      .from('exam_doc_versions')
+      .update({
+        review_status: 'IN_REVIEW',
+        review_feedback: params.feedback || null,
+        updated_at: nowIso,
+      })
+      .eq('id', params.versionId);
+
+    if (updateErr) {
+      return { success: false, error: updateErr.message };
+    }
+
+    return { success: true };
   }
 }

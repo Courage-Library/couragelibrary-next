@@ -5,7 +5,7 @@ import { ExamKnowledgeStudioView } from "@/components/admin/exam-knowledge/exam-
 export const revalidate = 0;
 
 interface PageProps {
-  searchParams?: Promise<{ examId?: string; cycleId?: string; tab?: string }>;
+  searchParams?: Promise<{ examId?: string; cycleId?: string; tab?: string; versionId?: string; mode?: string }>;
 }
 
 export default async function AdminExamKnowledgePage({ searchParams }: PageProps) {
@@ -31,6 +31,8 @@ export default async function AdminExamKnowledgePage({ searchParams }: PageProps
       initialSelectedExamId={params?.examId}
       initialSelectedCycleId={params?.cycleId}
       initialTab={params?.tab as any}
+      initialVersionId={params?.versionId}
+      initialAuthoringMode={params?.mode as any}
     />
   );
 }
