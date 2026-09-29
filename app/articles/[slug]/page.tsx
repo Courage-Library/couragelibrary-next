@@ -1,15 +1,44 @@
 import React from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Metadata } from "next";
 import { ContentService } from "@/services/content.service";
 import { Container } from "@/components/ui/container";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Target } from "lucide-react";
+import { constructMetadata } from "@/lib/seo/metadata";
+import { generateArticleSchema, generateBreadcrumbSchema } from "@/lib/seo/jsonld";
+
+export const revalidate = 60; // ISR baseline
 
 interface Props {
   params: Promise<{ slug: string }>;
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+  const article = await ContentService.getArticleBySlug(slug);
+
+  if (!article) {
+    return constructMetadata({
+      title: "Article Not Found",
+      noIndex: true,
+    });
+  }
+
+  return constructMetadata({
+    title: article.metaTitle || article.title,
+    description:
+      article.metaDescription ||
+      article.excerpt ||
+      `Read complete article on ${article.title} at Courage Library.`,
+    canonicalUrl: `/articles/${slug}`,
+    ogType: "article",
+    publishedTime: article.publishedAt || undefined,
+    ogImage: article.featuredImageUrl || undefined,
+  });
 }
 
 export default async function ArticleReaderPage({ params }: Props) {
@@ -20,8 +49,32 @@ export default async function ArticleReaderPage({ params }: Props) {
     notFound();
   }
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      generateBreadcrumbSchema([
+        { label: "Home", href: "/" },
+        { label: "Articles", href: "/articles" },
+        { label: article.title, href: `/articles/${article.slug}` },
+      ]),
+      generateArticleSchema({
+        headline: article.metaTitle || article.title,
+        description:
+          article.metaDescription || article.excerpt || article.title,
+        url: `/articles/${article.slug}`,
+        image: article.featuredImageUrl || undefined,
+        datePublished: article.publishedAt || undefined,
+        authorName: "Courage Library",
+      }),
+    ],
+  };
+
   return (
     <div className="py-10 bg-slate-50/50 min-h-[calc(100vh-4rem)]">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <Container className="space-y-6 max-w-3xl">
         <Link
           href="/articles"
@@ -97,3 +150,4 @@ export default async function ArticleReaderPage({ params }: Props) {
     </div>
   );
 }
+

@@ -105,13 +105,22 @@ export function ExamSyllabusNavigator({ subjects }: ExamSyllabusNavigatorProps) 
                     </div>
 
                     <div className="flex items-center gap-2">
-                      {topic.learningDocumentSlug ? (
-                        <Link href={`/${topic.learningDocumentSlug}`}>
-                          <Button size="sm" variant="outline" className="text-xs font-bold">
-                            <BookOpen className="w-3.5 h-3.5 mr-1 text-teal-600" /> Learn
-                          </Button>
-                        </Link>
-                      ) : null}
+                      {topic.learningDocumentSlug ? (() => {
+                        const learnSlug = topic.learningDocumentSlug.trim();
+                        const href = learnSlug.startsWith("/")
+                          ? learnSlug
+                          : learnSlug.startsWith("articles/") || learnSlug.startsWith("courses/")
+                          ? `/${learnSlug}`
+                          : `/articles/${learnSlug}`;
+
+                        return (
+                          <Link href={href}>
+                            <Button size="sm" variant="outline" className="text-xs font-bold">
+                              <BookOpen className="w-3.5 h-3.5 mr-1 text-teal-600" /> Learn
+                            </Button>
+                          </Link>
+                        );
+                      })() : null}
 
                       {topic.practiceAvailable ? (
                         <Link href={`/practice?topic=${topic.id}`}>
