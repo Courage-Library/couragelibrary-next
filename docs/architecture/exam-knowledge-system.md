@@ -24,7 +24,7 @@ It equips administrators and academic reviewers with a structured, research-firs
 │      Researches primary gazettes/notices, resolves conflicts, generates JSON spec                      │
 │      ↓                                                                                                 │
 │   4. FIVE-GATE INGESTION VALIDATOR                                                                     │
-│      Gate 1: Schema | Gate 2: Target | Gate 3: Security | Gate 4: Provenance | Gate 5: Domain           │
+│      Gate 1: Schema | Gate 2: Target | Gate 3: Security & Artifacts | Gate 4: Provenance | Gate 5: Domain│
 │      ↓                                                                                                 │
 │   5. REVIEW WORKBENCH & DIFF ENGINE                                                                    │
 │      Human Academic Checklist, Request Changes loop, Semantic Diffing (Metadata, Sections, FAQs)       │
@@ -93,9 +93,11 @@ Imported JSON payloads (`ExamKnowledgeDocumentSpec v1.0.0`) are treated as **unt
 │ - Validates examSlug, cycleYear, moduleKey match expected targets                      │
 │ - Stale Context Check: Expected contextHash vs server-computed contextHash             │
 ├────────────────────────────────────────────────────────────────────────────────────────┤
-│ GATE 3: SECURITY & CONTENT SANITIZATION                                                │
-│ - Static AST analysis via MdxSecurityScanner                                           │
-│ - Blocks script tags, javascript: URLs, raw HTML event handlers, iframe injections     │
+│ GATE 3: SECURITY & CITATION ARTIFACT SANITIZATION                                      │
+│ - Static AST analysis via MdxSecurityScanner (blocking script tags, javascript: URLs, │
+│   raw HTML event handlers, iframe injections)                                          │
+│ - External AI Citation Artifact Detection via detectAiCitationArtifacts() (blocking    │
+│   oaicite, footnote references, and provider bracket tags from entering drafts)        │
 ├────────────────────────────────────────────────────────────────────────────────────────┤
 │ GATE 4: SOURCE & CLAIM PROVENANCE                                                      │
 │ - Valid absolute HTTP/HTTPS URLs required for all sources/claims                       │
@@ -176,7 +178,7 @@ The Diff Engine (`services/exam-knowledge/exam-knowledge-diff.service.ts`) provi
 
 The platform eliminates visual discrepancies between editorial preview and candidate delivery:
 
-- **Single Canonical Renderer**: Both the admin Review Workbench preview and the public candidate view (`/exams/[slug]/[moduleSlug]`) invoke `ExamMdxArticleRenderer`.
+- **Single Canonical Renderer**: Both the admin Review Workbench preview and the public candidate view (`/exams/[slug]/[moduleSlug]`) invoke `ExamMdxArticleRenderer` (`components/exams/exam-mdx-article-renderer.tsx`).
 - **AST Parsing**: Safe markdown-to-AST parsing renders:
   - Responsive Typography (H2/H3 headers, styled paragraphs, bolding, blockquotes)
   - Color-coded Callout Banners (`INFO` blue, `WARNING` amber, `CRITICAL` rose)
@@ -184,3 +186,4 @@ The platform eliminates visual discrepancies between editorial preview and candi
   - Interactive Accordion FAQ cards with expand/collapse states
   - Verified Official Source Cards with external link security (`rel="noopener noreferrer"`)
 - **Theme & Mobile Parity**: Verified across light/dark themes and all 8 standard viewports (320px, 360px, 375px, 390px, 414px, 768px, 1024px, 1280px).
+- **Runtime Citation Sanitization**: Built-in defense-in-depth normalization intercepts and strips any lingering provider citation artifacts prior to AST conversion.

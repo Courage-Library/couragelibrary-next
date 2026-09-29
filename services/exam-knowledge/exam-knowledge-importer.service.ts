@@ -24,6 +24,7 @@ import {
 } from '@/types/exam-knowledge';
 import { ExamKnowledgeValidatorService, ValidationContextOptions } from './exam-knowledge-validator.service';
 import { ExamKnowledgeContextBuilder } from './exam-knowledge-context-builder.service';
+import { sanitizeObjectCitationArtifacts } from '@/services/ai/ai-citation-sanitizer';
 
 export class ExamKnowledgeImporterService {
   /**
@@ -88,8 +89,12 @@ export class ExamKnowledgeImporterService {
       throw new ExamKnowledgeContextError('INVALID_JSON', `Failed to parse JSON: ${parseErr.message}`);
     }
 
+    // 1b. External AI Citation Artifact Sanitization
+    parsedSpec = sanitizeObjectCitationArtifacts(parsedSpec);
+
     // 2. Deterministic Payload Hash for Idempotency
-    const payloadHash = crypto.createHash('sha256').update(cleanedJson).digest('hex');
+    const normalizedJson = JSON.stringify(parsedSpec);
+    const payloadHash = crypto.createHash('sha256').update(normalizedJson).digest('hex');
 
     // 3. Assemble Validation Context
     let serverCalculatedContextHash = expectedContextHash;

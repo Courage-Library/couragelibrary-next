@@ -11,6 +11,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
+import { sanitizeAiCitationArtifacts } from "@/services/ai/ai-citation-sanitizer";
 
 interface ExamMdxArticleRendererProps {
   content: string;
@@ -52,6 +53,9 @@ export function isSafeUrl(url: string): boolean {
 export function renderInlineMarkdown(text: string): React.ReactNode {
   if (!text || typeof text !== "string") return "";
 
+  // Defensive sanitization: strip any stray external AI citation artifacts
+  const cleanInput = sanitizeAiCitationArtifacts(text);
+
   const regex =
     /(\[(?<linkText>[^\]]+)\]\((?<linkUrl>[^)]+)\))|(\*\*(?<boldText>[^*]+)\*\*)|(\*(?<italicText>[^*]+)\*)|(`(?<codeText>[^`]+)`)|(?<bareUrl>https?:\/\/[^\s<>"]+)/g;
 
@@ -60,9 +64,9 @@ export function renderInlineMarkdown(text: string): React.ReactNode {
   let match: RegExpExecArray | null;
   let keyCounter = 0;
 
-  while ((match = regex.exec(text)) !== null) {
+  while ((match = regex.exec(cleanInput)) !== null) {
     if (match.index > lastIndex) {
-      elements.push(text.slice(lastIndex, match.index));
+      elements.push(cleanInput.slice(lastIndex, match.index));
     }
 
     const groups = match.groups || {};
@@ -144,7 +148,8 @@ export function renderInlineMarkdown(text: string): React.ReactNode {
  */
 export function parseMarkdownDocument(md: string): BlockType[] {
   if (!md || typeof md !== "string") return [];
-  const lines = md.split("\n");
+  const cleanMd = sanitizeAiCitationArtifacts(md);
+  const lines = cleanMd.split("\n");
   const blocks: BlockType[] = [];
   let i = 0;
 

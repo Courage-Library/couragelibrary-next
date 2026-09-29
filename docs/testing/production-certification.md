@@ -64,14 +64,14 @@ Before any branch or milestone in Courage Library is certified for production de
 ## 3. Production Deployment Sign-Off Checklist
 
 ```markdown
-- [ ] TypeScript typecheck passes (`npx tsc --noEmit`)
-- [ ] Schema validation suite passes (`scripts/test-exam-knowledge-schema-validation.ts`)
-- [ ] Version history & diff suite passes (`scripts/test-version-history-diff.ts`)
-- [ ] AI prompt generator suite passes (`scripts/test-exam-prompt-generator.ts`)
-- [ ] Mock engine suite passes (`scripts/test-mock-assessment-engine.ts`)
-- [ ] Mistake vault suite passes (`scripts/test-mistake-vault-state-machine.ts`)
+- [ ] TypeScript typecheck passes (`npm run build` or `npx tsc --noEmit`)
+- [ ] Schema validation suite passes (`node scripts/test_phase3h1_exam_knowledge_schema.cjs`)
+- [ ] AI prompt generator suite passes (`node scripts/test_phase3h2_exam_prompt_generator.cjs`)
+- [ ] AI citation sanitization suite passes (`node scripts/test_phase3k16_citation_sanitization.cjs`)
+- [ ] Production boundary suite passes (`node scripts/verify_phase3j1_production_boundaries.cjs`)
+- [ ] Candidate Hub certification suite passes (`node scripts/test_phase3h5_3_candidate_hub_certification.cjs`)
 - [ ] Production build passes (`npm run build`)
 - [ ] Visual verification completed on Mobile (390px) and Desktop (1440px)
-- [ ] Production baseline document UUID verified intact
+- [ ] Production baseline document UUID verified intact (v1 immutable, live pointer valid)
 - [ ] Academic Reviewer / Release Lead Sign-Off
 ```

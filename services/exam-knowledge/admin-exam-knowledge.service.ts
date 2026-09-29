@@ -21,6 +21,10 @@ import { ExamModuleRegistry } from './exam-module-registry';
 import { MdxSecurityScanner } from '@/services/mdx-security-scanner';
 import { ExamKnowledgeDiffService } from './exam-knowledge-diff.service';
 import {
+  sanitizeObjectCitationArtifacts,
+  detectAiCitationArtifacts,
+} from '@/services/ai/ai-citation-sanitizer';
+import {
   ExamKnowledgeDocumentSpec,
   ExamModuleKey,
   ExamDocReviewStatus,
@@ -825,10 +829,13 @@ export class AdminExamKnowledgeService {
       return { success: false, error: e.message };
     }
 
-    const payload: ExamKnowledgeDocumentSpec = ver.structured_payload;
-    if (!payload || !payload.contentSections) {
+    const rawPayload: ExamKnowledgeDocumentSpec = ver.structured_payload;
+    if (!rawPayload || !rawPayload.contentSections) {
       return { success: false, error: 'Version has invalid or missing structured payload.' };
     }
+
+    // Sanitize payload before compilation to guarantee zero citation artifacts
+    const payload = sanitizeObjectCitationArtifacts(rawPayload);
 
     // Assemble MDX
     const mdxParts: string[] = [];
@@ -873,6 +880,15 @@ export class AdminExamKnowledgeService {
       return {
         success: false,
         error: `Security scan failed on compiled MDX: ${securityCheck.errors.map((v: any) => v.message).join(', ')}`,
+      };
+    }
+
+    // Verify zero unresolved AI citation artifacts in compiled MDX
+    const detectedArtifacts = detectAiCitationArtifacts(compiledMdx);
+    if (detectedArtifacts.length > 0) {
+      return {
+        success: false,
+        error: `Compilation rejected: Unresolved external AI citation artifact "${detectedArtifacts[0].token}" detected in compiled MDX.`,
       };
     }
 
@@ -1206,11 +1222,12 @@ export class AdminExamKnowledgeService {
       };
     }
 
-    const payload = params.structuredPayload;
-    if (!payload || typeof payload !== 'object') {
+    const rawPayload = params.structuredPayload;
+    if (!rawPayload || typeof rawPayload !== 'object') {
       return { success: false, error: 'Invalid structured payload.' };
     }
 
+    const payload = sanitizeObjectCitationArtifacts(rawPayload);
     const jsonStr = JSON.stringify(payload);
     const specHash = crypto.createHash('sha256').update(jsonStr).digest('hex');
     const nowIso = new Date().toISOString();

@@ -31,7 +31,7 @@ The **Candidate Experience Subsystem** is the public-facing delivery plane of Co
 
 ## 2. The Single Canonical Article Renderer (`ExamMdxArticleRenderer`)
 
-To guarantee absolute **Candidate Parity**, both the public candidate view and the internal admin preview execute the exact same AST renderer component (`components/candidate/exam-knowledge/exam-mdx-article-renderer.tsx`):
+To guarantee absolute **Candidate Parity**, both the public candidate view and the internal admin preview execute the exact same AST renderer component (`components/exams/exam-mdx-article-renderer.tsx`):
 
 ### Supported Structural Elements:
 1. **Typography & Structure**: Monospace section type badges, semantic H2 and H3 section headings with anchored links, styled paragraphs, and ordered/unordered lists.

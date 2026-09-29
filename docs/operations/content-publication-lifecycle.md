@@ -31,20 +31,20 @@ The Courage Library publication pipeline is an editorial and academic governance
   - *Method B (Manual)*: Direct authoring in the markdown editor with live side-by-side preview.
 - **State**: Visible only to staff; candidate portal remains untouched.
 
-### Stage 2: Automated Validation Gates (`VALIDATING`)
-- Before submission to review, the system runs the 5-Gate Validator:
-  - **Gate 1**: Metadata Completeness (Title, summary, difficulty, reading time).
-  - **Gate 2**: Markdown & Structural Integrity (Hierarchy, word counts, formatting).
-  - **Gate 3**: Source Grounding ($\ge 2$ valid external citations).
-  - **Gate 4**: Atomic Claims Grounding ($\ge 3$ atomic claims mapped to sources).
-  - **Gate 5**: Security & Anti-Injection Scanner (XSS, script tags, dangerous schemes).
+### Stage 2: Automated Ingestion Sanitization & Validation Gates (`VALIDATING`)
+- Before submission to review, the system sanitizes provider citation artifacts (`:contentReference[oaicite:N]{index=N}`, `【N†source】`, `[cite:N]`) and runs the 5-Gate Validator:
+  - **Gate 1**: Schema & Structure (Schema v1.0.0, required metadata, canonical section types, payload size $\le 64\text{ KB}$).
+  - **Gate 2**: Target & Stale Context (Target exam/cycle/module match, SHA-256 context hash verification).
+  - **Gate 3**: Security & Citation Artifact Sanitization (AST XSS prevention, script/iframe blocking, external AI citation artifact detection).
+  - **Gate 4**: Source & Claim Provenance (Valid HTTP/HTTPS URLs, anti-placeholder rules, conflict detection).
+  - **Gate 5**: Domain & Academic Integrity (Question Bank ID allowlists, canonical syllabus subjects, registered post names).
 
 ### Stage 3: Academic Review & Fact-Checking (`IN_REVIEW`)
 - **Reviewer Responsibilities**:
   1. Open the **Diff Workbench** to inspect differences against the active published version.
   2. Click every official source link to verify it points to an authentic government/conducting authority publication.
   3. Cross-examine claims against official gazette text.
-  4. Ensure tone is objective, professional, and free from promotional jargon.
+  4. Ensure tone is objective, professional, and free from promotional jargon or residual AI provider artifacts.
 - **Decisions**:
   - **Approve**: Move to Stage 4.
   - **Request Changes**: Enter structured feedback notes. The document reverts to `DRAFT` status and notifies the author.
@@ -53,7 +53,7 @@ The Courage Library publication pipeline is an editorial and academic governance
 - Reviewer clicks **"Approve Version"**. The snapshot is locked against further edits.
 
 ### Stage 5: AST Compilation (`COMPILED`)
-- The system compiles raw markdown into validated React AST JSON (`compiled_ast`), optimizing images, parsing math blocks (KaTeX), and preparing component tree caches.
+- The system re-sanitizes the markdown payload and compiles it into a validated React AST artifact (`compiled_mdx`) with a SHA-256 checksum, optimizing typography, callouts, tables, FAQs, and source cards.
 
 ### Stage 6: Atomic Publication (`PUBLISHED`)
 - The reviewer or release lead clicks **"Publish Now"**.

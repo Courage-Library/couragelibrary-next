@@ -13,6 +13,7 @@ As of the current production baseline, Courage Library maintains comprehensive r
 | scripts/test_phase3h3_exam_knowledge_importer.cjs     | External AI Ingestion     |
 | scripts/test_phase3h4_exam_knowledge_studio.cjs       | Studio & Review Workflow  |
 | scripts/test_phase3h5_3_candidate_hub_certification.cjs| Candidate Hub Parity      |
+| scripts/test_phase3k16_citation_sanitization.cjs      | AI Citation Sanitization  |
 | scripts/test_phase3j_exam_onboarding.cjs              | Exam Onboarding Engine    |
 | scripts/test_phase3k_ai_onboarding.cjs                | AI Onboarding Flow        |
 | scripts/verify_phase3j1_production_boundaries.cjs     | Database Baseline Safety  |
@@ -48,6 +49,15 @@ As of the current production baseline, Courage Library maintains comprehensive r
   - Verifies multi-source claim support and relational junction tables.
   - Confirms candidate portal zero-drift read model.
 
+### 2.4 External AI Citation Sanitization & Security (`test_phase3k16_citation_sanitization.cjs`)
+- **Key Checks**:
+  - 16 runtime assertions covering multi-provider regex normalizers (`oaicite`, `【N†source】`, `[cite:N]`, `[source:N]`).
+  - Object tree recursive sanitization (headers, bodies, tables, FAQs, sources).
+  - Gate 3 security blocking of un-sanitized raw citation tokens.
+  - AST MDX compiler defense-in-depth sanitization.
+  - Candidate renderer runtime sanitization.
+  - Immutable revision publishing and zero database migration safety.
+
 ---
 
 ## 3. How to Run the Test Suites
@@ -55,9 +65,10 @@ As of the current production baseline, Courage Library maintains comprehensive r
 Execute all test harnesses locally using Node:
 
 ```powershell
-# Run Exam Knowledge schema and prompt generator verification
+# Run Exam Knowledge schema, prompt generator, and citation sanitization verification
 node scripts/test_phase3h1_exam_knowledge_schema.cjs
 node scripts/test_phase3h2_exam_prompt_generator.cjs
+node scripts/test_phase3k16_citation_sanitization.cjs
 node scripts/verify_phase3j1_production_boundaries.cjs
 node scripts/test_phase3h4_exam_knowledge_studio.cjs
 node scripts/test_phase3h5_3_candidate_hub_certification.cjs

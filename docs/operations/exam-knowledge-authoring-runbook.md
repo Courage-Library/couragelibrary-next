@@ -62,12 +62,13 @@ This runbook instructs Content Authors, Subject Matter Experts (SMEs), and Acade
 1. Return to Courage Knowledge Studio.
 2. Click **"Import AI Output (JSON)"**.
 3. Paste the JSON into the modal and click **"Validate & Populate"**.
-4. The system automatically runs the 5-Gate Validator:
-   - *Gate 1*: Metadata completeness.
-   - *Gate 2*: Markdown syntax & heading hierarchy.
-   - *Gate 3*: Source citations valid and reachable ($\ge 2$).
-   - *Gate 4*: Claims mapped to citations ($\ge 3$).
-   - *Gate 5*: Security scanner (XSS / dangerous attributes check).
+4. The system automatically executes:
+   - *Citation Sanitization*: Normalizes provider citation artifacts (`:contentReference[oaicite:N]{index=N}`, `【N†source】`, `[cite:N]`).
+   - *Gate 1*: Schema & Structure (v1.0.0, canonical sections, size $\le 64\text{ KB}$).
+   - *Gate 2*: Target & Stale Context (Target matching, SHA-256 context hash).
+   - *Gate 3*: Security & Citation Artifact Sanitization (XSS scanner, dangerous protocol blocking, un-sanitized artifact detection).
+   - *Gate 4*: Source & Claim Provenance (Valid HTTP/HTTPS URLs, anti-placeholder validation).
+   - *Gate 5*: Domain & Academic Integrity (Question Bank allowlist, syllabus subjects, registered posts).
 5. If errors occur, the UI displays clear diagnostic badges. Correct the JSON or markdown and re-run.
 
 ### Step 5: Academic Fact-Checking & Review
@@ -76,11 +77,12 @@ This runbook instructs Content Authors, Subject Matter Experts (SMEs), and Acade
    - Check dates, age limits, pay scale figures, and qualification criteria.
    - Inspect the **Sources & Citations** table.
    - Click each citation link to confirm validity.
+   - Verify that no residual external-AI provider tokens exist.
 3. Click **"Submit for Review"** (`status` transitions to `IN_REVIEW`).
 
 ### Step 6: Reviewer Sign-Off & Publication
 1. An Academic Reviewer opens the document in `/staff/exam-knowledge/review`.
 2. Inspects diffs, verifies claims, and clicks **"Approve Version"**.
-3. System triggers AST compilation into `compiled_ast`.
+3. System triggers AST compilation into `compiled_mdx` (with re-sanitization).
 4. Click **"Publish Version"**.
 5. The snapshot is atomically published and live on the Candidate Hub!

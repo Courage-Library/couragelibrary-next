@@ -13,6 +13,7 @@ This runbook specifies how Academic Staff and Reviewers handle revisions, publis
 | Scenario | Severity / Scope | Recommended Procedure |
 | :--- | :--- | :--- |
 | **Typo or Grammatical Fix** | Minor | Fork current version $\rightarrow$ apply edit $\rightarrow$ fast-track review $\rightarrow$ publish v(N+1). |
+| **Citation Artifact Sanitization** | Minor / Maintenance | Fork revision $\rightarrow$ run automated sanitization / verify AST $\rightarrow$ review $\rightarrow$ compile $\rightarrow$ publish v(N+1). (Never mutate historical published versions in-place). |
 | **Corrigendum / Date Extension** | Major / Critical | Fork $\rightarrow$ add Corrigendum callout and citation $\rightarrow$ update claims $\rightarrow$ Diff inspection $\rightarrow$ publish v(N+1). |
 | **Vacancy / Salary Revision** | Major | Update tabular data $\rightarrow$ update claims and sources $\rightarrow$ Diff inspection $\rightarrow$ publish v(N+1). |
 | **Major Syllabus / Pattern Overhaul** | Structural | Complete re-research via AI Master Prompt $\rightarrow$ full 5-gate validation $\rightarrow$ comprehensive review $\rightarrow$ publish v(N+1). |
