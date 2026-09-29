@@ -19,6 +19,7 @@ import { createAdminServerSupabaseClient } from '@/lib/supabase/server';
 import { ExamKnowledgeService } from '@/services/exam-knowledge.service';
 import { ExamModuleRegistry } from './exam-module-registry';
 import { MdxSecurityScanner } from '@/services/mdx-security-scanner';
+import { ExamKnowledgeDiffService } from './exam-knowledge-diff.service';
 import {
   ExamKnowledgeDocumentSpec,
   ExamModuleKey,
@@ -28,6 +29,8 @@ import {
   ExamAuthorType,
   ExamModuleDefinition,
   ModuleApplicabilityStatus,
+  ExamDocVersionHistoryItem,
+  ExamDocDiffResult,
 } from '@/types/exam-knowledge';
 
 export interface AdminExamKnowledgeKPIs {
@@ -281,7 +284,7 @@ export class AdminExamKnowledgeService {
           verId = latestVer.id;
           verNum = latestVer.version_number;
           reviewStatus = latestVer.review_status;
-          isPublished = latestVer.is_published;
+          isPublished = Boolean(doc.current_published_version_id || doc.status === 'PUBLISHED' || latestVer.is_published);
           lastUpdated = latestVer.updated_at;
 
           if (latestVer.is_published) {
@@ -471,22 +474,204 @@ export class AdminExamKnowledgeService {
 
     const examId = version.exam_knowledge_documents?.exam_id;
 
-    // Fetch related sources and claims
-    const [sourcesRes, claimsRes] = await Promise.all([
+    // Fetch related sources, claims, and complete version history for this document
+    const [sourcesRes, claimsRes, versionsRes] = await Promise.all([
       supabase.from('exam_sources').select('*').eq('exam_id', examId),
       supabase
         .from('exam_claims')
         .select('*')
         .eq('exam_id', examId)
         .eq('module_key', version.exam_knowledge_documents?.module_key),
+      supabase
+        .from('exam_doc_versions')
+        .select(`
+          id,
+          document_id,
+          version_number,
+          schema_version,
+          author_type,
+          review_status,
+          is_published,
+          approved_by_user_id,
+          reviewed_at,
+          review_feedback,
+          published_at,
+          source_spec_hash,
+          compiled_artifact_hash,
+          compiled_mdx,
+          created_at,
+          updated_at
+        `)
+        .eq('document_id', version.document_id)
+        .order('version_number', { ascending: false }),
     ]);
+
+    const doc = version.exam_knowledge_documents;
+    const versionHistory: ExamDocVersionHistoryItem[] = (versionsRes.data || []).map((v: any) => {
+      const isCurrentPublished = v.id === doc?.current_published_version_id;
+      let presentationStatus: ExamDocVersionHistoryItem['presentationStatus'] = v.review_status;
+      if (isCurrentPublished) {
+        presentationStatus = 'PUBLISHED (CURRENT)';
+      } else if (v.review_status === 'PUBLISHED' || v.is_published) {
+        presentationStatus = 'SUPERSEDED';
+      } else if (v.review_status === 'APPROVED' && v.compiled_mdx) {
+        presentationStatus = 'COMPILED';
+      }
+      return {
+        id: v.id,
+        documentId: v.document_id,
+        versionNumber: v.version_number,
+        schemaVersion: v.schema_version,
+        authorType: v.author_type,
+        reviewStatus: v.review_status,
+        isPublished: Boolean(v.is_published),
+        isCurrentPublished,
+        presentationStatus,
+        approvedByUserId: v.approved_by_user_id || null,
+        reviewedAt: v.reviewed_at || null,
+        reviewFeedback: v.review_feedback || null,
+        publishedAt: v.published_at || null,
+        sourceSpecHash: v.source_spec_hash || null,
+        compiledArtifactHash: v.compiled_artifact_hash || null,
+        hasCompiledMdx: Boolean(v.compiled_mdx),
+        createdAt: v.created_at,
+        updatedAt: v.updated_at,
+      };
+    });
 
     return {
       version,
       document: version.exam_knowledge_documents,
       sources: sourcesRes.data || [],
       claims: claimsRes.data || [],
+      versionHistory,
     };
+  }
+
+  /**
+   * 5b. Get Document Version History (Pure Read-Only)
+   */
+  static async getDocumentVersionHistory(
+    documentId: string,
+    supabaseClient?: any
+  ): Promise<{ success: boolean; versions?: ExamDocVersionHistoryItem[]; versionHistory?: ExamDocVersionHistoryItem[]; error?: string }> {
+    const supabase = supabaseClient || (await createAdminServerSupabaseClient());
+
+    const { data: doc, error: docErr } = await supabase
+      .from('exam_knowledge_documents')
+      .select('id, current_published_version_id, module_key')
+      .eq('id', documentId)
+      .single();
+
+    if (docErr || !doc) {
+      return { success: false, error: 'Document not found.' };
+    }
+
+    const { data: versions, error: verErr } = await supabase
+      .from('exam_doc_versions')
+      .select(`
+        id,
+        document_id,
+        version_number,
+        schema_version,
+        author_type,
+        review_status,
+        is_published,
+        approved_by_user_id,
+        reviewed_at,
+        review_feedback,
+        published_at,
+        source_spec_hash,
+        compiled_artifact_hash,
+        compiled_mdx,
+        created_at,
+        updated_at
+      `)
+      .eq('document_id', documentId)
+      .order('version_number', { ascending: false });
+
+    if (verErr) {
+      return { success: false, error: verErr.message };
+    }
+
+    const versionHistory: ExamDocVersionHistoryItem[] = (versions || []).map((v: any) => {
+      const isCurrentPublished = v.id === doc.current_published_version_id;
+      let presentationStatus: ExamDocVersionHistoryItem['presentationStatus'] = v.review_status;
+      if (isCurrentPublished) {
+        presentationStatus = 'PUBLISHED (CURRENT)';
+      } else if (v.review_status === 'PUBLISHED' || v.is_published) {
+        presentationStatus = 'SUPERSEDED';
+      } else if (v.review_status === 'APPROVED' && v.compiled_mdx) {
+        presentationStatus = 'COMPILED';
+      }
+      return {
+        id: v.id,
+        documentId: v.document_id,
+        versionNumber: v.version_number,
+        schemaVersion: v.schema_version,
+        authorType: v.author_type,
+        reviewStatus: v.review_status,
+        isPublished: Boolean(v.is_published),
+        isCurrentPublished,
+        presentationStatus,
+        approvedByUserId: v.approved_by_user_id || null,
+        reviewedAt: v.reviewed_at || null,
+        reviewFeedback: v.review_feedback || null,
+        publishedAt: v.published_at || null,
+        sourceSpecHash: v.source_spec_hash || null,
+        compiledArtifactHash: v.compiled_artifact_hash || null,
+        hasCompiledMdx: Boolean(v.compiled_mdx),
+        createdAt: v.created_at,
+        updatedAt: v.updated_at,
+      };
+    });
+
+    return { success: true, versions: versionHistory, versionHistory };
+  }
+
+  /**
+   * 5c. Compare Two Document Versions Structurally (Pure Read-Only)
+   */
+  static async compareDocVersions(
+    params: {
+      versionIdA: string;
+      versionIdB: string;
+    },
+    supabaseClient?: any
+  ): Promise<{ success: boolean; diff?: ExamDocDiffResult; error?: string }> {
+    const supabase = supabaseClient || (await createAdminServerSupabaseClient());
+
+    if (!params.versionIdA || !params.versionIdB) {
+      return { success: false, error: 'Both versionIdA and versionIdB are required.' };
+    }
+
+    if (params.versionIdA === params.versionIdB) {
+      const { data: ver, error: verErr } = await supabase
+        .from('exam_doc_versions')
+        .select('*')
+        .eq('id', params.versionIdA)
+        .single();
+      if (verErr || !ver) {
+        return { success: false, error: `Version (${params.versionIdA}) not found.` };
+      }
+      const diff = ExamKnowledgeDiffService.compareVersions(ver, ver);
+      return { success: true, diff };
+    }
+
+    const [verARes, verBRes] = await Promise.all([
+      supabase.from('exam_doc_versions').select('*').eq('id', params.versionIdA).single(),
+      supabase.from('exam_doc_versions').select('*').eq('id', params.versionIdB).single(),
+    ]);
+
+    if (verARes.error || !verARes.data) {
+      return { success: false, error: `Base version (${params.versionIdA}) not found.` };
+    }
+    if (verBRes.error || !verBRes.data) {
+      return { success: false, error: `Target version (${params.versionIdB}) not found.` };
+    }
+
+    const diff = ExamKnowledgeDiffService.compareVersions(verARes.data, verBRes.data);
+    return { success: true, diff };
   }
 
   /**
@@ -527,6 +712,12 @@ export class AdminExamKnowledgeService {
       updated_at: new Date().toISOString(),
     };
 
+    // If returning to draft or rejected, invalidate any compiled artifacts
+    if (params.newStatus === 'DRAFT' || params.newStatus === 'REJECTED') {
+      updates.compiled_mdx = null;
+      updates.compiled_artifact_hash = null;
+    }
+
     const { error: updateErr } = await supabase
       .from('exam_doc_versions')
       .update(updates)
@@ -537,6 +728,76 @@ export class AdminExamKnowledgeService {
     }
 
     return { success: true };
+  }
+
+  /**
+   * 6b. Request Changes on Version (IN_REVIEW -> DRAFT)
+   * Server-authoritative transition returning an in-review version to DRAFT status
+   * with mandatory reviewer feedback and automatic compilation cache invalidation.
+   * Version number remains unchanged.
+   */
+  static async requestChangesExamDocVersion(
+    params: {
+      versionId: string;
+      feedback: string;
+      userId?: string;
+    },
+    supabaseClient?: any
+  ): Promise<{ success: boolean; versionNumber?: number; error?: string }> {
+    const supabase = supabaseClient || (await createAdminServerSupabaseClient());
+
+    const { data: ver, error: fetchErr } = await supabase
+      .from('exam_doc_versions')
+      .select('id, version_number, review_status, is_published')
+      .eq('id', params.versionId)
+      .single();
+
+    if (fetchErr || !ver) {
+      return { success: false, error: 'Version not found.' };
+    }
+
+    try {
+      ExamKnowledgeService.assertMutable(ver);
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+
+    if (ver.is_published || ver.review_status === 'PUBLISHED') {
+      return { success: false, error: 'Cannot request changes on a published version.' };
+    }
+
+    if (ver.review_status !== 'IN_REVIEW') {
+      return {
+        success: false,
+        error: `Cannot request changes on version in ${ver.review_status} status. Version must be IN_REVIEW.`,
+      };
+    }
+
+    if (!params.feedback || !params.feedback.trim()) {
+      return { success: false, error: 'Reviewer feedback is required when requesting changes.' };
+    }
+
+    const nowIso = new Date().toISOString();
+    const updates: any = {
+      review_status: 'DRAFT',
+      review_feedback: params.feedback.trim(),
+      reviewed_at: nowIso,
+      approved_by_user_id: null,
+      compiled_mdx: null, // Stale compiled artifact MUST be invalidated
+      compiled_artifact_hash: null,
+      updated_at: nowIso,
+    };
+
+    const { error: updateErr } = await supabase
+      .from('exam_doc_versions')
+      .update(updates)
+      .eq('id', params.versionId);
+
+    if (updateErr) {
+      return { success: false, error: updateErr.message };
+    }
+
+    return { success: true, versionNumber: ver.version_number };
   }
 
   /**
@@ -855,6 +1116,13 @@ export class AdminExamKnowledgeService {
       return { success: false, error: 'Cannot discard published version. Published versions are immutable.' };
     }
 
+    if (ver.review_status !== 'DRAFT' && ver.review_status !== 'AI_GENERATED') {
+      return {
+        success: false,
+        error: `Cannot discard version in ${ver.review_status} status. Only DRAFT versions can be discarded.`,
+      };
+    }
+
     const doc = ver.exam_knowledge_documents as any;
     if (doc?.current_published_version_id === ver.id) {
       return { success: false, error: 'Cannot discard version that is marked as currently published.' };
@@ -931,6 +1199,13 @@ export class AdminExamKnowledgeService {
       return { success: false, error: 'Cannot update published version. Create a revision draft instead.' };
     }
 
+    if (ver.review_status !== 'DRAFT' && ver.review_status !== 'AI_GENERATED') {
+      return {
+        success: false,
+        error: `Only DRAFT versions can be edited. Version is currently ${ver.review_status}.`,
+      };
+    }
+
     const payload = params.structuredPayload;
     if (!payload || typeof payload !== 'object') {
       return { success: false, error: 'Invalid structured payload.' };
@@ -991,6 +1266,13 @@ export class AdminExamKnowledgeService {
 
     if (ver.is_published || ver.review_status === 'PUBLISHED') {
       return { success: false, error: 'Cannot submit published version.' };
+    }
+
+    if (ver.review_status !== 'DRAFT' && ver.review_status !== 'AI_GENERATED') {
+      return {
+        success: false,
+        error: `Cannot submit for review. Version is currently ${ver.review_status}.`,
+      };
     }
 
     const payload = ver.structured_payload;

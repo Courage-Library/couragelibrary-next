@@ -275,6 +275,7 @@ export interface ExamModuleDefinition {
   requiredClaimTypes: string[];
   freshnessRule: string;
   outputGuidance: string;
+  researchDirectives?: string[];
 }
 
 export interface ExamKnowledgeTarget {
@@ -384,6 +385,8 @@ export interface AuthoritativeExamContext {
     publishedAt?: string | null;
     authorType?: string;
     isRevision: boolean;
+    reviewFeedback?: string | null;
+    publishedVersionNumber?: number | null;
   };
   sourceContext: Array<{
     id: string;
@@ -735,6 +738,93 @@ export interface CandidateExamDirectoryItem {
   publishedModulesCount: number;
 }
 
+// ---------------------------------------------------------------------------
+// Phase 3K.14: Version History & Structural Diff Types
+// ---------------------------------------------------------------------------
 
+export type ExamDocDiffChangeType = 'ADDED' | 'REMOVED' | 'CHANGED' | 'MOVED' | 'UNCHANGED';
 
+export interface ExamDocDiffItem {
+  id: string;
+  field: string;
+  label: string;
+  category: 'METADATA' | 'SECTION' | 'TABLE' | 'FAQ' | 'SOURCE' | 'STRUCTURED_DATA';
+  changeType: ExamDocDiffChangeType;
+  oldValue?: any;
+  newValue?: any;
+  oldFormatted?: string;
+  newFormatted?: string;
+  description?: string;
+}
 
+export interface ExamDocDiffSection {
+  sectionKey: string;
+  heading: string;
+  sectionType: string;
+  changeType: ExamDocDiffChangeType;
+  oldIndex?: number;
+  newIndex?: number;
+  items: ExamDocDiffItem[];
+}
+
+export interface ExamDocDiffResult {
+  baseVersion: {
+    id: string;
+    versionNumber: number;
+    reviewStatus: ExamDocReviewStatus;
+    isPublished: boolean;
+    publishedAt?: string | null;
+    updatedAt: string;
+  };
+  targetVersion: {
+    id: string;
+    versionNumber: number;
+    reviewStatus: ExamDocReviewStatus;
+    isPublished: boolean;
+    publishedAt?: string | null;
+    updatedAt: string;
+  };
+  summary: {
+    totalChanges: number;
+    addedCount: number;
+    modifiedCount: number;
+    removedCount: number;
+    reorderedCount: number;
+    hasChanges: boolean;
+  };
+  metadataChanges: ExamDocDiffItem[];
+  sectionChanges: ExamDocDiffSection[];
+  faqChanges: ExamDocDiffItem[];
+  sourceChanges: ExamDocDiffItem[];
+  tableChanges: ExamDocDiffItem[];
+  structuredDataChanges: ExamDocDiffItem[];
+}
+
+export interface ExamDocVersionHistoryItem {
+  id: string;
+  documentId: string;
+  versionNumber: number;
+  schemaVersion: string;
+  authorType: ExamAuthorType;
+  reviewStatus: ExamDocReviewStatus;
+  isPublished: boolean;
+  isCurrentPublished: boolean;
+  presentationStatus:
+    | 'PUBLISHED (CURRENT)'
+    | 'SUPERSEDED'
+    | 'DRAFT'
+    | 'IN_REVIEW'
+    | 'APPROVED'
+    | 'COMPILED'
+    | 'REJECTED'
+    | 'AI_GENERATED';
+  approvedByUserId?: string | null;
+  reviewedAt?: string | null;
+  reviewFeedback?: string | null;
+  publishedAt?: string | null;
+  sourceSpecHash?: string | null;
+  compiledArtifactHash?: string | null;
+  hasCompiledMdx: boolean;
+  createdAt: string;
+  updatedAt: string;
+}

@@ -332,6 +332,7 @@ export class ExamKnowledgeContextBuilder {
 
     // Format Existing Document State
     const latestVersion = existingVersions[0] || null;
+    const publishedVersion = existingVersions.find((v) => v.is_published || (existingDoc && v.id === existingDoc.current_published_version_id)) || null;
     const existingDocumentState = existingDoc
       ? {
           documentId: existingDoc.id,
@@ -341,6 +342,8 @@ export class ExamKnowledgeContextBuilder {
           publishedAt: latestVersion?.published_at || null,
           authorType: latestVersion?.author_type || 'MANUAL',
           isRevision: existingVersions.length > 0,
+          reviewFeedback: latestVersion?.review_feedback || null,
+          publishedVersionNumber: publishedVersion ? publishedVersion.version_number : null,
         }
       : undefined;
 
@@ -350,8 +353,8 @@ export class ExamKnowledgeContextBuilder {
         id: s.id,
         title: this.sanitizeDataText(s.title || 'Official Source Document'),
         sourceType: s.source_type,
-        issuingAuthority: this.sanitizeDataText(s.issuing_authority || s.title || 'Government Authority'),
-        sourceUrl: s.source_url || s.url || 'https://official.portal.gov.in',
+        issuingAuthority: this.sanitizeDataText(s.issuing_authority || s.title || orgData?.name || 'Government Authority'),
+        sourceUrl: s.source_url || s.url || orgData?.official_website || '',
         publishedDate: s.published_date || null,
         verificationStatus: s.verification_status,
         isCycleSpecific: Boolean(s.exam_cycle_id),
