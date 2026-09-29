@@ -101,6 +101,45 @@ export async function getDocumentDetailAction(versionId: string) {
   }
 }
 
+export async function getDocumentVersionHistoryAction(documentId: string) {
+  const { isAdmin } = await AdminService.checkIsAdminOrStaff();
+  if (!isAdmin) {
+    return { success: false, error: 'UNAUTHORIZED: Admin or staff privileges required.' };
+  }
+
+  if (!documentId) {
+    return { success: false, error: 'documentId is required.' };
+  }
+
+  try {
+    const res = await AdminExamKnowledgeService.getDocumentVersionHistory(documentId);
+    return res;
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Failed to fetch version history.' };
+  }
+}
+
+export async function compareDocVersionsAction(params: {
+  versionIdA: string;
+  versionIdB: string;
+}) {
+  const { isAdmin } = await AdminService.checkIsAdminOrStaff();
+  if (!isAdmin) {
+    return { success: false, error: 'UNAUTHORIZED: Admin or staff privileges required.' };
+  }
+
+  if (!params.versionIdA || !params.versionIdB) {
+    return { success: false, error: 'Both versionIdA and versionIdB are required.' };
+  }
+
+  try {
+    const res = await AdminExamKnowledgeService.compareDocVersions(params);
+    return res;
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Failed to compare document versions.' };
+  }
+}
+
 export async function updateDocVersionReviewStatusAction(params: {
   versionId: string;
   newStatus: ExamDocReviewStatus;
@@ -121,6 +160,42 @@ export async function updateDocVersionReviewStatusAction(params: {
     return res;
   } catch (err: any) {
     return { success: false, error: err.message || 'Failed to update review status.' };
+  }
+}
+
+export async function requestChangesExamDocVersionAction(params: {
+  versionId: string;
+  feedback: string;
+}) {
+  const { isAdmin, userId } = await AdminService.checkIsAdminOrStaff();
+  if (!isAdmin) {
+    return { success: false, error: 'UNAUTHORIZED: Admin or staff privileges required.' };
+  }
+
+  if (!params.versionId) {
+    return { success: false, error: 'versionId is required.' };
+  }
+
+  if (!params.feedback || !params.feedback.trim()) {
+    return { success: false, error: 'Feedback is required when requesting changes.' };
+  }
+
+  try {
+    const res = await AdminExamKnowledgeService.requestChangesExamDocVersion({
+      versionId: params.versionId,
+      feedback: params.feedback,
+      userId: userId || undefined,
+    });
+    if (res.success) {
+      try {
+        revalidatePath('/admin/exam-knowledge');
+      } catch {
+        // Cache revalidation failure should not block response
+      }
+    }
+    return res;
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Failed to request changes.' };
   }
 }
 

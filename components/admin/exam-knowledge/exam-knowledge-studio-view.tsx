@@ -38,6 +38,9 @@ import {
   ArrowDown,
   Info,
   BookOpen,
+  GitCompare,
+  FileDiff,
+  ArrowRightLeft,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { PromptViewerPanel } from "./prompt-viewer-panel";
@@ -57,6 +60,8 @@ import {
   ExamKnowledgeSectionType,
   EXAM_KNOWLEDGE_SECTION_TYPES,
   ExamSourceType,
+  ExamDocVersionHistoryItem,
+  ExamDocDiffResult,
 } from "@/types/exam-knowledge";
 import { generateExamKnowledgePromptAction } from "@/actions/exam-knowledge-prompt.actions";
 import { importExamKnowledgeAction } from "@/actions/exam-knowledge-import.actions";
@@ -75,6 +80,9 @@ import {
   discardDraftVersionAction,
   updateDraftPayloadAction,
   submitDraftForReviewAction,
+  requestChangesExamDocVersionAction,
+  getDocumentVersionHistoryAction,
+  compareDocVersionsAction,
 } from "@/actions/admin-exam-knowledge.actions";
 
 interface Props {
@@ -160,7 +168,7 @@ export function ExamKnowledgeStudioView({
   // Review Workbench State
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
   const [documentDetail, setDocumentDetail] = useState<any | null>(null);
-  const [reviewSubTab, setReviewSubTab] = useState<"ACADEMIC_REVIEW" | "CANDIDATE_PREVIEW" | "SOURCES">("ACADEMIC_REVIEW");
+  const [reviewSubTab, setReviewSubTab] = useState<"ACADEMIC_REVIEW" | "CANDIDATE_PREVIEW" | "SOURCES" | "VERSION_HISTORY" | "DIFF_WORKBENCH">("ACADEMIC_REVIEW");
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [isChecklistComplete, setIsChecklistComplete] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
@@ -170,6 +178,22 @@ export function ExamKnowledgeStudioView({
   const [reviewMessage, setReviewMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [discardModal, setDiscardModal] = useState<{ isOpen: boolean; versionId: string; title: string; versionNumber: number } | null>(null);
   const [isDiscarding, setIsDiscarding] = useState(false);
+  const [requestChangesModal, setRequestChangesModal] = useState<{
+    isOpen: boolean;
+    versionId: string;
+    title: string;
+    versionNumber: number;
+    feedback: string;
+  } | null>(null);
+  const [isRequestingChanges, setIsRequestingChanges] = useState(false);
+
+  // Version History & Diff Workbench State
+  const [diffVersionAId, setDiffVersionAId] = useState<string | null>(null);
+  const [diffVersionBId, setDiffVersionBId] = useState<string | null>(null);
+  const [diffResult, setDiffResult] = useState<ExamDocDiffResult | null>(null);
+  const [isLoadingDiff, setIsLoadingDiff] = useState<boolean>(false);
+  const [diffError, setDiffError] = useState<string | null>(null);
+  const [diffFilter, setDiffFilter] = useState<"ALL" | "METADATA" | "SECTIONS" | "FAQS" | "SOURCES" | "TABLES">("ALL");
 
 
   // Initialize from deep link / props
@@ -235,16 +259,29 @@ export function ExamKnowledgeStudioView({
 
   const openEditDraft = async (versionId: string, docMeta?: any) => {
     setIsLoadingDetail(true);
-    setEditVersionId(versionId);
-    setAuthoringMode("EDIT");
     setReviewMessage(null);
-    setIsDirty(false);
     try {
       const res = await getDocumentDetailAction(versionId);
       if (res.success && res.detail) {
-        setDocumentDetail(res.detail);
         const ver = res.detail.version;
         const doc = res.detail.document;
+
+        // If not in editable draft status, redirect safely to Review Workbench
+        if (ver?.is_published || (ver?.review_status !== "DRAFT" && ver?.review_status !== "AI_GENERATED")) {
+          setDocumentDetail(res.detail);
+          setSelectedVersionId(versionId);
+          setActiveTab("REVIEW");
+          setReviewMessage({
+            type: "error",
+            text: `Version v${ver?.version_number} is in ${ver?.review_status} status (${ver?.is_published ? "PUBLISHED" : "LOCKED"}) and cannot be directly edited. Review or manage it in the Review Workbench.`,
+          });
+          return;
+        }
+
+        setDocumentDetail(res.detail);
+        setEditVersionId(versionId);
+        setAuthoringMode("EDIT");
+        setIsDirty(false);
         setEditDraftMeta(doc);
         if (doc?.exam_id) setSelectedExamId(doc.exam_id);
         if (doc?.exam_cycle_id) setSelectedCycleId(doc.exam_cycle_id);
@@ -722,6 +759,66 @@ export function ExamKnowledgeStudioView({
     }
   };
 
+  const handleConfirmRequestChanges = async () => {
+    if (!requestChangesModal?.versionId || !requestChangesModal.feedback.trim()) return;
+    setIsRequestingChanges(true);
+    try {
+      const res = await requestChangesExamDocVersionAction({
+        versionId: requestChangesModal.versionId,
+        feedback: requestChangesModal.feedback.trim(),
+      });
+      if (res.success) {
+        const vNum = requestChangesModal.versionNumber;
+        setRequestChangesModal(null);
+        setReviewMessage({
+          type: "success",
+          text: `Changes requested on v${vNum}. Version returned to DRAFT status with your review feedback.`,
+        });
+        await loadDocumentDetail(requestChangesModal.versionId);
+        await loadDrafts();
+        const kRes = await getAdminExamKnowledgeDashboardAction();
+        if (kRes.success && kRes.kpis) setKpis(kRes.kpis);
+      } else {
+        alert(res.error || "Failed to request changes.");
+      }
+    } finally {
+      setIsRequestingChanges(false);
+    }
+  };
+
+  const handleExecuteDiff = async (versionAId: string, versionBId: string) => {
+    if (!versionAId || !versionBId) return;
+    setIsLoadingDiff(true);
+    setDiffError(null);
+    try {
+      const res = await compareDocVersionsAction({ versionIdA: versionAId, versionIdB: versionBId });
+      if (res.success && 'diff' in res && res.diff) {
+        setDiffResult(res.diff);
+      } else {
+        setDiffError(res.error || "Failed to compare versions.");
+        setDiffResult(null);
+      }
+    } catch (err: any) {
+      setDiffError(err.message || "Failed to execute diff.");
+      setDiffResult(null);
+    } finally {
+      setIsLoadingDiff(false);
+    }
+  };
+
+  const handleLaunchDiff = (baseId?: string, targetId?: string) => {
+    const defaultA = baseId || documentDetail?.document?.current_published_version_id || documentDetail?.version?.id || null;
+    const defaultB = targetId || documentDetail?.version?.id || null;
+    
+    setDiffVersionAId(defaultA);
+    setDiffVersionBId(defaultB);
+    setReviewSubTab("DIFF_WORKBENCH");
+
+    if (defaultA && defaultB) {
+      handleExecuteDiff(defaultA, defaultB);
+    }
+  };
+
   const selectedExamObj = exams.find((e) => e.id === selectedExamId);
   const selectedCycleObj = selectedExamObj?.cycles?.find((c) => c.id === selectedCycleId);
 
@@ -1074,6 +1171,29 @@ export function ExamKnowledgeStudioView({
                     <span className="font-bold">Revision Draft Isolation:</span> You are editing draft version {documentDetail?.version?.version_number || 2}. The currently published version remains live and completely untouched. Candidates will continue to see the published version until this revision passes Academic Review, Compilation, and Publication.
                   </div>
                 </div>
+
+                {/* Reviewer Feedback / Changes Requested Notice */}
+                {documentDetail?.version?.review_feedback && (
+                  <div className="p-4 rounded-xl border border-rose-200 bg-rose-50/90 text-rose-950 text-xs space-y-2 shadow-xs">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 font-bold text-rose-900">
+                        <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                        <span>Academic Review Feedback (Changes Requested):</span>
+                      </div>
+                      {documentDetail.version.reviewed_at && (
+                        <span className="text-[10px] font-mono text-rose-700">
+                          {new Date(documentDetail.version.reviewed_at).toLocaleDateString()} {new Date(documentDetail.version.reviewed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
+                    </div>
+                    <div className="bg-white p-3 rounded-lg border border-rose-200 font-sans text-slate-800 leading-relaxed whitespace-pre-wrap">
+                      {documentDetail.version.review_feedback}
+                    </div>
+                    <p className="text-[11px] text-rose-800 font-medium">
+                      Please address the requested corrections above. Once revised, click <strong>Save Draft</strong> and then <strong>Submit for Review</strong>.
+                    </p>
+                  </div>
+                )}
 
                 {reviewMessage && (
                   <div className={`p-3 rounded-xl border text-xs font-medium ${reviewMessage.type === "success" ? "bg-emerald-50 border-emerald-200 text-emerald-950" : "bg-rose-50 border-rose-200 text-rose-950"}`}>
@@ -1673,7 +1793,15 @@ export function ExamKnowledgeStudioView({
       {activeTab === "DRAFTS" && (
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-sm font-bold text-slate-900">Draft Documents Awaiting Academic Review ({draftsList.length})</h2>
+            <h2 className="text-sm font-bold text-slate-900">
+              {draftFilterStatus === "ALL"
+                ? `Document Versions & Editorial Queue (${draftsList.length})`
+                : draftFilterStatus === "IN_REVIEW"
+                ? `Documents In Academic Review (${draftsList.length})`
+                : draftFilterStatus === "DRAFT" || draftFilterStatus === "AI_GENERATED"
+                ? `Draft Documents In Progress (${draftsList.length})`
+                : `Document Versions (${draftFilterStatus}) (${draftsList.length})`}
+            </h2>
             <div className="flex items-center gap-2">
               <select value={draftFilterStatus} onChange={(e) => setDraftFilterStatus(e.target.value)} className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-bold text-slate-900">
                 <option value="ALL">All Statuses</option>
@@ -1689,7 +1817,7 @@ export function ExamKnowledgeStudioView({
           {draftsList.length === 0 ? (
             <div className="p-12 rounded-2xl border border-dashed border-slate-200 bg-white text-center space-y-3">
               <FileText className="w-8 h-8 mx-auto text-slate-400" />
-              <div className="text-xs font-bold text-slate-700">No drafts are awaiting review</div>
+              <div className="text-xs font-bold text-slate-700">No documents match the selected filter</div>
               <p className="text-[11px] text-slate-500 max-w-sm mx-auto">Use the Authoring Workbench to generate a prompt, paste external AI responses, and import new draft versions.</p>
             </div>
           ) : (
@@ -1743,7 +1871,7 @@ export function ExamKnowledgeStudioView({
                               <span>Preview & Publish</span>
                             </button>
                           )}
-                          {!d.isPublished && (
+                          {!d.isPublished && (d.reviewStatus === "DRAFT" || d.reviewStatus === "AI_GENERATED") && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -1783,62 +1911,182 @@ export function ExamKnowledgeStudioView({
           ) : (
             <div className="space-y-5">
               <div className="p-5 rounded-2xl border border-slate-200 bg-white shadow-xs space-y-4">
+                {/* Historical Superseded Snapshot Warning Banner */}
+                {documentDetail.version?.is_published &&
+                  documentDetail.document?.current_published_version_id &&
+                  documentDetail.document.current_published_version_id !== documentDetail.version.id && (
+                    <div className="p-3.5 rounded-xl border border-amber-200 bg-amber-50/90 text-amber-950 text-xs flex flex-wrap items-center justify-between gap-3 shadow-2xs">
+                      <div className="flex items-center gap-2.5 font-medium">
+                        <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                        <span>
+                          <strong>Historical Snapshot (SUPERSEDED / IMMUTABLE):</strong> You are inspecting version v{documentDetail.version.version_number}. A newer version is currently live for candidate delivery.
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => loadDocumentDetail(documentDetail.document.current_published_version_id)}
+                        className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-bold text-[11px] shrink-0 transition flex items-center gap-1"
+                      >
+                        <Eye className="w-3 h-3" />
+                        <span>Switch to Current Live Version</span>
+                      </button>
+                    </div>
+                  )}
+
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-xs font-mono font-bold uppercase text-blue-600">{documentDetail.document?.exams?.name} {documentDetail.document?.exam_cycles?.year ? `(${documentDetail.document.exam_cycles.year})` : ""}</span>
                       <Badge variant="outline" className="font-mono text-[10px]">v{documentDetail.version?.version_number}</Badge>
-                      <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-bold ${documentDetail.version?.is_published ? "bg-emerald-100 text-emerald-800" : documentDetail.version?.review_status === "APPROVED" ? "bg-blue-100 text-blue-800" : "bg-amber-100 text-amber-800"}`}>{documentDetail.version?.review_status} {documentDetail.version?.compiled_mdx && !documentDetail.version?.is_published ? "(COMPILED)" : documentDetail.version?.is_published ? "(PUBLISHED)" : "(DRAFT)"}</span>
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full font-mono text-[10px] font-bold ${
+                          documentDetail.version?.id === documentDetail.document?.current_published_version_id
+                            ? "bg-emerald-100 text-emerald-800"
+                            : documentDetail.version?.is_published
+                            ? "bg-slate-200 text-slate-700"
+                            : documentDetail.version?.review_status === "APPROVED" && documentDetail.version?.compiled_mdx
+                            ? "bg-purple-100 text-purple-800"
+                            : documentDetail.version?.review_status === "APPROVED"
+                            ? "bg-blue-100 text-blue-800"
+                            : documentDetail.version?.review_status === "IN_REVIEW"
+                            ? "bg-amber-100 text-amber-800"
+                            : documentDetail.version?.review_status === "REJECTED"
+                            ? "bg-rose-100 text-rose-800"
+                            : "bg-slate-100 text-slate-700"
+                        }`}
+                      >
+                        {documentDetail.version?.id === documentDetail.document?.current_published_version_id
+                          ? "PUBLISHED (CURRENT)"
+                          : documentDetail.version?.is_published
+                          ? "SUPERSEDED"
+                          : documentDetail.version?.review_status === "APPROVED" && documentDetail.version?.compiled_mdx
+                          ? "APPROVED / COMPILED"
+                          : documentDetail.version?.review_status === "APPROVED"
+                          ? "APPROVED"
+                          : documentDetail.version?.review_status === "IN_REVIEW"
+                          ? "IN REVIEW"
+                          : documentDetail.version?.review_status === "AI_GENERATED"
+                          ? "AI GENERATED (DRAFT)"
+                          : documentDetail.version?.review_status || "DRAFT"}
+                      </span>
                     </div>
                     <h2 className="text-lg font-black text-slate-900">{documentDetail.document?.title || documentDetail.document?.module_key}</h2>
                     <p className="text-xs text-slate-500 font-mono mt-0.5">Canonical Slug: {documentDetail.document?.slug}</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    {!documentDetail.version?.is_published && (
-                      <button
-                        onClick={() => openEditDraft(documentDetail.version.id, documentDetail.document)}
-                        className="px-3.5 py-1.5 rounded-xl border border-blue-300 text-blue-700 hover:bg-blue-50 text-xs font-bold transition shadow-xs flex items-center gap-1.5"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                        <span>Edit Draft</span>
-                      </button>
-                    )}
-                    {documentDetail.version?.review_status === "AI_GENERATED" && (
-                      <button disabled={isUpdatingStatus} onClick={() => handleUpdateReviewStatus("IN_REVIEW")} className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition shadow-xs">Start Academic Review</button>
-                    )}
-                    {documentDetail.version?.review_status === "IN_REVIEW" && (
-                      <>
-                        <button disabled={isUpdatingStatus || !isChecklistComplete} onClick={() => handleUpdateReviewStatus("APPROVED")} className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-xs font-bold transition shadow-xs">Approve Academic Truth</button>
-                        <button disabled={isUpdatingStatus} onClick={() => handleUpdateReviewStatus("REJECTED", "Factual claims inconsistent with official notification.")} className="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition shadow-xs">Reject</button>
-                      </>
-                    )}
-                    {documentDetail.version?.review_status === "APPROVED" && !documentDetail.version?.compiled_mdx && (
-                      <button disabled={isCompiling} onClick={handleCompileVersion} className="px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5"><FileCode className="w-3.5 h-3.5" /><span>Compile MDX Artifact</span></button>
-                    )}
-                    {documentDetail.version?.review_status === "APPROVED" && documentDetail.version?.compiled_mdx && !documentDetail.version?.is_published && (
-                      <>
-                        <button disabled={isCompiling} onClick={handleCompileVersion} className="px-3 py-1.5 rounded-xl border border-purple-300 text-purple-700 hover:bg-purple-50 text-xs font-bold transition shadow-xs flex items-center gap-1.5"><FileCode className="w-3.5 h-3.5" /><span>Re-compile MDX</span></button>
-                        <button disabled={isPublishing} onClick={handlePublishVersion} className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5"><Lock className="w-3.5 h-3.5" /><span>Publish Version (Immutable Lock)</span></button>
-                      </>
-                    )}
+                    {/* DRAFT / AI_GENERATED Actions */}
+                    {!documentDetail.version?.is_published &&
+                      (documentDetail.version?.review_status === "DRAFT" ||
+                        documentDetail.version?.review_status === "AI_GENERATED") && (
+                        <>
+                          <button
+                            onClick={() => openEditDraft(documentDetail.version.id, documentDetail.document)}
+                            className="px-3.5 py-1.5 rounded-xl border border-blue-300 text-blue-700 hover:bg-blue-50 text-xs font-bold transition shadow-xs flex items-center gap-1.5"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                            <span>Edit Draft</span>
+                          </button>
+                          <button
+                            disabled={isUpdatingStatus}
+                            onClick={() => handleUpdateReviewStatus("IN_REVIEW")}
+                            className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition shadow-xs"
+                          >
+                            Start Academic Review
+                          </button>
+                          <button
+                            disabled={isDiscarding}
+                            onClick={() => {
+                              setDiscardModal({
+                                isOpen: true,
+                                versionId: documentDetail.version.id,
+                                title: documentDetail.document?.title || documentDetail.document?.module_key,
+                                versionNumber: documentDetail.version.version_number,
+                              });
+                            }}
+                            className="px-3.5 py-1.5 rounded-xl border border-rose-300 text-rose-700 hover:bg-rose-50 text-xs font-bold transition shadow-xs flex items-center gap-1.5"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Discard Draft</span>
+                          </button>
+                        </>
+                      )}
+
+                    {/* IN_REVIEW Actions */}
+                    {!documentDetail.version?.is_published &&
+                      documentDetail.version?.review_status === "IN_REVIEW" && (
+                        <>
+                          <button
+                            disabled={isUpdatingStatus || !isChecklistComplete}
+                            onClick={() => handleUpdateReviewStatus("APPROVED")}
+                            className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5"
+                          >
+                            <ShieldCheck className="w-3.5 h-3.5" />
+                            <span>Approve Revision</span>
+                          </button>
+                          <button
+                            disabled={isUpdatingStatus}
+                            onClick={() =>
+                              setRequestChangesModal({
+                                isOpen: true,
+                                versionId: documentDetail.version.id,
+                                title: documentDetail.document?.title || documentDetail.document?.module_key,
+                                versionNumber: documentDetail.version.version_number,
+                                feedback: "",
+                              })
+                            }
+                            className="px-3.5 py-1.5 rounded-xl border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition shadow-xs flex items-center gap-1.5"
+                          >
+                            <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                            <span>Request Changes</span>
+                          </button>
+                        </>
+                      )}
+
+                    {/* APPROVED (Uncompiled) Action */}
+                    {!documentDetail.version?.is_published &&
+                      documentDetail.version?.review_status === "APPROVED" &&
+                      !documentDetail.version?.compiled_mdx && (
+                        <button
+                          disabled={isCompiling}
+                          onClick={handleCompileVersion}
+                          className="px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5"
+                        >
+                          <FileCode className="w-3.5 h-3.5" />
+                          <span>Compile MDX Artifact</span>
+                        </button>
+                      )}
+
+                    {/* APPROVED (Compiled, Unpublished) Actions */}
+                    {!documentDetail.version?.is_published &&
+                      documentDetail.version?.review_status === "APPROVED" &&
+                      documentDetail.version?.compiled_mdx && (
+                        <>
+                          <button
+                            disabled={isCompiling}
+                            onClick={handleCompileVersion}
+                            className="px-3 py-1.5 rounded-xl border border-purple-300 text-purple-700 hover:bg-purple-50 text-xs font-bold transition shadow-xs flex items-center gap-1.5"
+                          >
+                            <FileCode className="w-3.5 h-3.5" />
+                            <span>Re-compile MDX</span>
+                          </button>
+                          <button
+                            disabled={isPublishing}
+                            onClick={handlePublishVersion}
+                            className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5"
+                          >
+                            <Lock className="w-3.5 h-3.5" />
+                            <span>Publish Version (Immutable Lock)</span>
+                          </button>
+                        </>
+                      )}
+
+                    {/* PUBLISHED Action */}
                     {documentDetail.version?.is_published && (
-                      <button onClick={handleCreateRevision} className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5"><PlusCircle className="w-3.5 h-3.5 text-blue-400" /><span>Create Revision Draft (v{documentDetail.version?.version_number + 1})</span></button>
-                    )}
-                    {!documentDetail.version?.is_published && (
                       <button
-                        disabled={isDiscarding}
-                        onClick={() => {
-                          setDiscardModal({
-                            isOpen: true,
-                            versionId: documentDetail.version.id,
-                            title: documentDetail.document?.title || documentDetail.document?.module_key,
-                            versionNumber: documentDetail.version.version_number,
-                          });
-                        }}
-                        className="px-3.5 py-1.5 rounded-xl border border-rose-300 text-rose-700 hover:bg-rose-50 text-xs font-bold transition shadow-xs flex items-center gap-1.5"
+                        onClick={handleCreateRevision}
+                        className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>Discard Draft</span>
+                        <PlusCircle className="w-3.5 h-3.5 text-blue-400" />
+                        <span>Create Revision Draft (v{documentDetail.version?.version_number + 1})</span>
                       </button>
                     )}
                   </div>
@@ -1847,7 +2095,7 @@ export function ExamKnowledgeStudioView({
               </div>
 
               {/* Review Workbench Sub-Tabs */}
-              <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200 text-xs font-semibold w-fit">
+              <div className="flex flex-wrap items-center gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200 text-xs font-semibold w-fit">
                 <button
                   onClick={() => setReviewSubTab("ACADEMIC_REVIEW")}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition ${
@@ -1886,12 +2134,48 @@ export function ExamKnowledgeStudioView({
                   <ExternalLink className="w-3.5 h-3.5" />
                   <span>Official Sources ({documentDetail.sources?.length || 0})</span>
                 </button>
+                <button
+                  onClick={() => setReviewSubTab("VERSION_HISTORY")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition ${
+                    reviewSubTab === "VERSION_HISTORY"
+                      ? "bg-white text-blue-700 shadow-xs font-bold"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <History className="w-3.5 h-3.5" />
+                  <span>Version History ({documentDetail.versionHistory?.length || 1})</span>
+                </button>
+                <button
+                  onClick={() => handleLaunchDiff()}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition ${
+                    reviewSubTab === "DIFF_WORKBENCH"
+                      ? "bg-white text-blue-700 shadow-xs font-bold"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <GitCompare className="w-3.5 h-3.5" />
+                  <span>Compare / Diff</span>
+                </button>
               </div>
 
               {/* SUB-TAB 1: ACADEMIC REVIEW */}
               {reviewSubTab === "ACADEMIC_REVIEW" && (
                 <div className="space-y-5">
-                  <AcademicReviewChecklist onChecklistComplete={setIsChecklistComplete} />
+                  {documentDetail.version?.review_feedback && (
+                    <div className="p-3.5 rounded-xl border border-amber-200 bg-amber-50/80 text-amber-950 text-xs flex items-start gap-2.5 shadow-2xs">
+                      <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                      <div className="space-y-0.5">
+                        <span className="font-bold">Prior Reviewer Feedback / Notes:</span>
+                        <div className="text-slate-800 bg-white/70 p-2 rounded-lg border border-amber-200/60 font-sans whitespace-pre-wrap">
+                          {documentDetail.version.review_feedback}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <AcademicReviewChecklist
+                    key={`${selectedVersionId || 'none'}_${documentDetail?.version?.updated_at || ''}_${documentDetail?.version?.review_status || ''}`}
+                    onChecklistComplete={setIsChecklistComplete}
+                  />
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
                     <div className="lg:col-span-2 space-y-4">
                       <div className="p-5 rounded-2xl border border-slate-200 bg-white shadow-xs space-y-3">
@@ -2073,6 +2357,689 @@ export function ExamKnowledgeStudioView({
                   )}
                 </div>
               )}
+
+              {/* SUB-TAB 4: VERSION HISTORY */}
+              {reviewSubTab === "VERSION_HISTORY" && (
+                <div className="space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-slate-200">
+                    <div>
+                      <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
+                        <History className="w-4 h-4 text-blue-600" />
+                        <span>Document Version Snapshots ({documentDetail.versionHistory?.length || 0})</span>
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        Complete immutable revision audit trail. Current published version serves candidate traffic.
+                      </p>
+                    </div>
+                    {documentDetail.versionHistory?.length > 1 && (
+                      <button
+                        onClick={() => handleLaunchDiff(
+                          documentDetail.versionHistory[documentDetail.versionHistory.length - 1]?.id,
+                          documentDetail.document?.current_published_version_id || documentDetail.version?.id
+                        )}
+                        className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5"
+                      >
+                        <GitCompare className="w-3.5 h-3.5" />
+                        <span>Compare Versions</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {(!documentDetail.versionHistory || documentDetail.versionHistory.length === 0) ? (
+                    <div className="p-8 rounded-2xl border border-dashed border-slate-200 bg-white text-center space-y-2">
+                      <History className="w-6 h-6 mx-auto text-slate-400" />
+                      <p className="text-xs text-slate-500">No version snapshots found for this document.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {documentDetail.versionHistory.map((verItem: ExamDocVersionHistoryItem) => {
+                        const isInspecting = verItem.id === documentDetail.version?.id;
+                        const isLivePublished = verItem.isCurrentPublished;
+                        const isSuperseded = verItem.presentationStatus === "SUPERSEDED";
+
+                        return (
+                          <div
+                            key={verItem.id}
+                            className={`p-4 rounded-2xl border transition ${
+                              isInspecting
+                                ? "border-blue-300 bg-blue-50/40 shadow-xs"
+                                : "border-slate-200 bg-white hover:border-slate-300"
+                            }`}
+                          >
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                              <div className="space-y-1.5">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="text-sm font-black font-mono text-slate-900">
+                                    v{verItem.versionNumber}
+                                  </span>
+                                  <span
+                                    className={`px-2.5 py-0.5 rounded-full font-mono text-[10px] font-bold ${
+                                      isLivePublished
+                                        ? "bg-emerald-100 text-emerald-800"
+                                        : isSuperseded
+                                        ? "bg-slate-200 text-slate-700"
+                                        : verItem.reviewStatus === "APPROVED" && verItem.hasCompiledMdx
+                                        ? "bg-purple-100 text-purple-800"
+                                        : verItem.reviewStatus === "APPROVED"
+                                        ? "bg-blue-100 text-blue-800"
+                                        : verItem.reviewStatus === "IN_REVIEW"
+                                        ? "bg-amber-100 text-amber-800"
+                                        : "bg-slate-100 text-slate-700"
+                                    }`}
+                                  >
+                                    {verItem.presentationStatus}
+                                  </span>
+                                  {isInspecting && (
+                                    <span className="px-2 py-0.5 rounded-md bg-blue-100 text-blue-800 text-[10px] font-bold font-mono">
+                                      CURRENTLY INSPECTING
+                                    </span>
+                                  )}
+                                  {verItem.hasCompiledMdx && (
+                                    <span className="px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-mono">
+                                      MDX Compiled
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500 font-mono">
+                                  <span>Author: {verItem.authorType}</span>
+                                  <span>&bull;</span>
+                                  <span>Created: {new Date(verItem.createdAt).toLocaleString()}</span>
+                                  {verItem.publishedAt && (
+                                    <>
+                                      <span>&bull;</span>
+                                      <span className="text-emerald-700 font-semibold">
+                                        Published: {new Date(verItem.publishedAt).toLocaleString()}
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
+                                {verItem.reviewFeedback && (
+                                  <div className="p-2 rounded-lg bg-amber-50/80 border border-amber-200 text-amber-900 text-xs mt-2">
+                                    <span className="font-bold">Reviewer Feedback: </span>
+                                    <span className="font-sans">{verItem.reviewFeedback}</span>
+                                  </div>
+                                )}
+                                <div className="text-[10px] font-mono text-slate-400 flex flex-wrap items-center gap-3 pt-1">
+                                  {verItem.sourceSpecHash && (
+                                    <span>Payload Hash: <span className="text-slate-600 font-bold">{verItem.sourceSpecHash.slice(0, 12)}...</span></span>
+                                  )}
+                                  {verItem.compiledArtifactHash && (
+                                    <span>Artifact Hash: <span className="text-purple-600 font-bold">{verItem.compiledArtifactHash.slice(0, 12)}...</span></span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Actions */}
+                              <div className="flex items-center gap-2 shrink-0">
+                                {!isInspecting ? (
+                                  <button
+                                    onClick={() => loadDocumentDetail(verItem.id)}
+                                    className="px-3 py-1.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold transition flex items-center gap-1.5"
+                                  >
+                                    <Eye className="w-3.5 h-3.5 text-slate-500" />
+                                    <span>Inspect</span>
+                                  </button>
+                                ) : (
+                                  <span className="px-3 py-1.5 rounded-xl bg-blue-100/60 text-blue-700 text-xs font-bold border border-blue-200 flex items-center gap-1.5">
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" />
+                                    <span>Viewing</span>
+                                  </span>
+                                )}
+
+                                <button
+                                  onClick={() => handleLaunchDiff(
+                                    verItem.id,
+                                    documentDetail.document?.current_published_version_id || documentDetail.version?.id
+                                  )}
+                                  className="px-3 py-1.5 rounded-xl border border-blue-200 bg-blue-50/60 hover:bg-blue-100 text-blue-700 text-xs font-bold transition flex items-center gap-1.5"
+                                  title="Compare this version against live/selected version"
+                                >
+                                  <GitCompare className="w-3.5 h-3.5 text-blue-600" />
+                                  <span>Compare</span>
+                                </button>
+
+                                {!verItem.isPublished && (verItem.reviewStatus === "DRAFT" || verItem.reviewStatus === "AI_GENERATED") && (
+                                  <button
+                                    onClick={() => openEditDraft(verItem.id, documentDetail.document)}
+                                    className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5"
+                                  >
+                                    <Edit3 className="w-3.5 h-3.5" />
+                                    <span>Edit Draft</span>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* SUB-TAB 5: DIFF WORKBENCH */}
+              {reviewSubTab === "DIFF_WORKBENCH" && (
+                <div className="space-y-5">
+                  {/* Diff Selection Controls */}
+                  <div className="p-5 rounded-2xl border border-slate-200 bg-white shadow-xs space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                      <div>
+                        <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
+                          <GitCompare className="w-4 h-4 text-blue-600" />
+                          <span>Structural Diff Workbench</span>
+                        </h3>
+                        <p className="text-xs text-slate-500">
+                          Compare structured metadata, sections, markdown text, FAQs, and official sources across snapshots.
+                        </p>
+                      </div>
+
+                      {/* Quick Presets */}
+                      {documentDetail.versionHistory?.length > 1 && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] font-mono font-bold text-slate-500 uppercase">Presets:</span>
+                          {documentDetail.document?.current_published_version_id && documentDetail.version?.id !== documentDetail.document.current_published_version_id && (
+                            <button
+                              onClick={() => {
+                                const baseId = documentDetail.document.current_published_version_id;
+                                const targetId = documentDetail.version.id;
+                                setDiffVersionAId(baseId);
+                                setDiffVersionBId(targetId);
+                                handleExecuteDiff(baseId, targetId);
+                              }}
+                              className="px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-[11px] font-bold text-slate-700 transition"
+                            >
+                              Current Published vs Inspected
+                            </button>
+                          )}
+                          <button
+                            onClick={() => {
+                              const history = documentDetail.versionHistory || [];
+                              if (history.length >= 2) {
+                                const baseId = history[1].id;
+                                const targetId = history[0].id;
+                                setDiffVersionAId(baseId);
+                                setDiffVersionBId(targetId);
+                                handleExecuteDiff(baseId, targetId);
+                              }
+                            }}
+                            className="px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-[11px] font-bold text-slate-700 transition"
+                          >
+                            Latest 2 Versions
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-11 gap-3 items-center">
+                      {/* Base Version (A) Picker */}
+                      <div className="md:col-span-5 space-y-1">
+                        <label className="block text-[11px] font-mono font-bold uppercase text-slate-600">
+                          Base Version (A / Baseline)
+                        </label>
+                        <select
+                          value={diffVersionAId || ""}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setDiffVersionAId(val);
+                            if (val && diffVersionBId) handleExecuteDiff(val, diffVersionBId);
+                          }}
+                          className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
+                        >
+                          <option value="">Select Base Version...</option>
+                          {documentDetail.versionHistory?.map((vh: ExamDocVersionHistoryItem) => (
+                            <option key={`a_${vh.id}`} value={vh.id}>
+                              v{vh.versionNumber} — {vh.presentationStatus} ({new Date(vh.createdAt).toLocaleDateString()})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Swap Button */}
+                      <div className="md:col-span-1 flex justify-center pt-5">
+                        <button
+                          onClick={() => {
+                            const temp = diffVersionAId;
+                            setDiffVersionAId(diffVersionBId);
+                            setDiffVersionBId(temp);
+                            if (diffVersionBId && temp) {
+                              handleExecuteDiff(diffVersionBId, temp);
+                            }
+                          }}
+                          disabled={!diffVersionAId || !diffVersionBId}
+                          className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 disabled:opacity-40 text-slate-600 transition"
+                          title="Swap Base and Target"
+                        >
+                          <ArrowRightLeft className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      {/* Target Version (B) Picker */}
+                      <div className="md:col-span-5 space-y-1">
+                        <label className="block text-[11px] font-mono font-bold uppercase text-slate-600">
+                          Compared Version (B / Target)
+                        </label>
+                        <select
+                          value={diffVersionBId || ""}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setDiffVersionBId(val);
+                            if (diffVersionAId && val) handleExecuteDiff(diffVersionAId, val);
+                          }}
+                          className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
+                        >
+                          <option value="">Select Target Version...</option>
+                          {documentDetail.versionHistory?.map((vh: ExamDocVersionHistoryItem) => (
+                            <option key={`b_${vh.id}`} value={vh.id}>
+                              v{vh.versionNumber} — {vh.presentationStatus} ({new Date(vh.createdAt).toLocaleDateString()})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end pt-1">
+                      <button
+                        disabled={!diffVersionAId || !diffVersionBId || isLoadingDiff}
+                        onClick={() => {
+                          if (diffVersionAId && diffVersionBId) {
+                            handleExecuteDiff(diffVersionAId, diffVersionBId);
+                          }
+                        }}
+                        className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5"
+                      >
+                        {isLoadingDiff ? (
+                          <>
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            <span>Analyzing Differences...</span>
+                          </>
+                        ) : (
+                          <>
+                            <GitCompare className="w-3.5 h-3.5" />
+                            <span>Run Structural Diff</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Diff Loading State */}
+                  {isLoadingDiff && (
+                    <div className="p-12 rounded-2xl border border-slate-200 bg-white text-center space-y-3">
+                      <RefreshCw className="w-8 h-8 mx-auto text-blue-600 animate-spin" />
+                      <div className="text-xs font-bold text-slate-700">Performing Structural Semantic Diff...</div>
+                      <p className="text-[11px] text-slate-500">Normalizing markdown, matching content sections, and diffing FAQs and sources.</p>
+                    </div>
+                  )}
+
+                  {/* Diff Error State */}
+                  {diffError && !isLoadingDiff && (
+                    <div className="p-4 rounded-xl border border-rose-200 bg-rose-50 text-rose-950 text-xs flex items-center gap-2">
+                      <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                      <span>{diffError}</span>
+                    </div>
+                  )}
+
+                  {/* Diff Results State */}
+                  {diffResult && !isLoadingDiff && (
+                    <div className="space-y-5">
+                      {/* Metrics Summary Bar */}
+                      <div className="p-4 rounded-2xl border border-slate-200 bg-white shadow-xs space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-mono font-bold text-slate-500 uppercase">Comparison:</span>
+                            <Badge variant="outline" className="font-mono text-xs font-bold">
+                              v{diffResult.baseVersion.versionNumber} ({diffResult.baseVersion.reviewStatus})
+                            </Badge>
+                            <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
+                            <Badge variant="indigo" className="font-mono text-xs font-bold">
+                              v{diffResult.targetVersion.versionNumber} ({diffResult.targetVersion.reviewStatus})
+                            </Badge>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
+                            <span className="px-2.5 py-1 rounded-lg bg-slate-100 font-bold text-slate-800">
+                              Total Changes: {diffResult.summary.totalChanges}
+                            </span>
+                            <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 font-bold border border-emerald-200">
+                              +{diffResult.summary.addedCount} Added
+                            </span>
+                            <span className="px-2.5 py-1 rounded-lg bg-amber-50 text-amber-800 font-bold border border-amber-200">
+                              ~{diffResult.summary.modifiedCount} Modified
+                            </span>
+                            <span className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-800 font-bold border border-rose-200">
+                              -{diffResult.summary.removedCount} Removed
+                            </span>
+                            {diffResult.summary.reorderedCount > 0 && (
+                              <span className="px-2.5 py-1 rounded-lg bg-purple-50 text-purple-800 font-bold border border-purple-200">
+                                &#8645; {diffResult.summary.reorderedCount} Reordered
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Filter Navigation Tabs */}
+                        <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100 text-xs font-semibold">
+                          <button
+                            onClick={() => setDiffFilter("ALL")}
+                            className={`px-3 py-1.5 rounded-lg transition ${
+                              diffFilter === "ALL" ? "bg-slate-900 text-white font-bold" : "text-slate-600 hover:bg-slate-100"
+                            }`}
+                          >
+                            All Changes ({diffResult.summary.totalChanges})
+                          </button>
+                          <button
+                            onClick={() => setDiffFilter("METADATA")}
+                            className={`px-3 py-1.5 rounded-lg transition ${
+                              diffFilter === "METADATA" ? "bg-slate-900 text-white font-bold" : "text-slate-600 hover:bg-slate-100"
+                            }`}
+                          >
+                            Metadata ({diffResult.metadataChanges?.length || 0})
+                          </button>
+                          <button
+                            onClick={() => setDiffFilter("SECTIONS")}
+                            className={`px-3 py-1.5 rounded-lg transition ${
+                              diffFilter === "SECTIONS" ? "bg-slate-900 text-white font-bold" : "text-slate-600 hover:bg-slate-100"
+                            }`}
+                          >
+                            Sections ({diffResult.sectionChanges?.length || 0})
+                          </button>
+                          <button
+                            onClick={() => setDiffFilter("FAQS")}
+                            className={`px-3 py-1.5 rounded-lg transition ${
+                              diffFilter === "FAQS" ? "bg-slate-900 text-white font-bold" : "text-slate-600 hover:bg-slate-100"
+                            }`}
+                          >
+                            FAQs ({diffResult.faqChanges?.length || 0})
+                          </button>
+                          <button
+                            onClick={() => setDiffFilter("SOURCES")}
+                            className={`px-3 py-1.5 rounded-lg transition ${
+                              diffFilter === "SOURCES" ? "bg-slate-900 text-white font-bold" : "text-slate-600 hover:bg-slate-100"
+                            }`}
+                          >
+                            Official Sources ({diffResult.sourceChanges?.length || 0})
+                          </button>
+                          <button
+                            onClick={() => setDiffFilter("TABLES")}
+                            className={`px-3 py-1.5 rounded-lg transition ${
+                              diffFilter === "TABLES" ? "bg-slate-900 text-white font-bold" : "text-slate-600 hover:bg-slate-100"
+                            }`}
+                          >
+                            Tables ({diffResult.tableChanges?.length || 0})
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* If no changes found */}
+                      {!diffResult.summary.hasChanges && (
+                        <div className="p-8 rounded-2xl border border-emerald-200 bg-emerald-50/50 text-center space-y-2">
+                          <CheckCircle2 className="w-8 h-8 mx-auto text-emerald-600" />
+                          <div className="text-sm font-bold text-emerald-950">Zero Semantic Differences</div>
+                          <p className="text-xs text-emerald-800 max-w-md mx-auto">
+                            Version v{diffResult.baseVersion.versionNumber} and v{diffResult.targetVersion.versionNumber} are structurally and textually identical.
+                          </p>
+                        </div>
+                      )}
+
+                      {/* METADATA DIFF SECTION */}
+                      {(diffFilter === "ALL" || diffFilter === "METADATA") && diffResult.metadataChanges?.length > 0 && (
+                        <div className="p-5 rounded-2xl border border-slate-200 bg-white shadow-xs space-y-3">
+                          <h4 className="text-xs font-bold text-slate-900 uppercase font-mono tracking-wider pb-2 border-b border-slate-100">
+                            Metadata & Attributes Differences ({diffResult.metadataChanges.length})
+                          </h4>
+                          <div className="space-y-2">
+                            {diffResult.metadataChanges.map((item) => (
+                              <div key={item.id} className="p-3 rounded-xl border border-slate-100 bg-slate-50 space-y-1.5 text-xs">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-bold text-slate-800 font-mono text-[11px]">{item.label}</span>
+                                  <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-bold ${
+                                    item.changeType === "ADDED" ? "bg-emerald-100 text-emerald-800" :
+                                    item.changeType === "REMOVED" ? "bg-rose-100 text-rose-800" :
+                                    "bg-amber-100 text-amber-800"
+                                  }`}>
+                                    {item.changeType}
+                                  </span>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                                  <div className="p-2.5 rounded-lg bg-rose-50/60 border border-rose-100 space-y-1">
+                                    <span className="text-[10px] font-mono font-bold text-rose-700 uppercase">v{diffResult.baseVersion.versionNumber} (Before)</span>
+                                    <p className="text-xs text-rose-950 font-mono line-through whitespace-pre-wrap">{item.oldFormatted || "(empty)"}</p>
+                                  </div>
+                                  <div className="p-2.5 rounded-lg bg-emerald-50/60 border border-emerald-100 space-y-1">
+                                    <span className="text-[10px] font-mono font-bold text-emerald-700 uppercase">v{diffResult.targetVersion.versionNumber} (After)</span>
+                                    <p className="text-xs text-emerald-950 font-mono font-bold whitespace-pre-wrap">{item.newFormatted || "(empty)"}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* CONTENT SECTIONS DIFF */}
+                      {(diffFilter === "ALL" || diffFilter === "SECTIONS") && diffResult.sectionChanges?.length > 0 && (
+                        <div className="p-5 rounded-2xl border border-slate-200 bg-white shadow-xs space-y-4">
+                          <h4 className="text-xs font-bold text-slate-900 uppercase font-mono tracking-wider pb-2 border-b border-slate-100">
+                            Content Sections ({diffResult.sectionChanges.length})
+                          </h4>
+                          <div className="space-y-4">
+                            {diffResult.sectionChanges.map((sec) => (
+                              <div
+                                key={sec.sectionKey}
+                                className={`p-4 rounded-xl border space-y-3 ${
+                                  sec.changeType === "ADDED"
+                                    ? "border-emerald-200 bg-emerald-50/30"
+                                    : sec.changeType === "REMOVED"
+                                    ? "border-rose-200 bg-rose-50/30"
+                                    : sec.changeType === "CHANGED"
+                                    ? "border-amber-200 bg-amber-50/20"
+                                    : "border-purple-200 bg-purple-50/20"
+                                }`}
+                              >
+                                <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-100">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-black text-slate-900">{sec.heading}</span>
+                                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-600">
+                                      {sec.sectionType}
+                                    </span>
+                                  </div>
+                                  <span
+                                    className={`px-2.5 py-0.5 rounded-full font-mono text-[10px] font-bold ${
+                                      sec.changeType === "ADDED"
+                                        ? "bg-emerald-100 text-emerald-800"
+                                        : sec.changeType === "REMOVED"
+                                        ? "bg-rose-100 text-rose-800"
+                                        : sec.changeType === "CHANGED"
+                                        ? "bg-amber-100 text-amber-800"
+                                        : "bg-purple-100 text-purple-800"
+                                    }`}
+                                  >
+                                    SECTION {sec.changeType}
+                                  </span>
+                                </div>
+
+                                {/* Section Diff Details */}
+                                {sec.items?.map((item) => (
+                                  <div key={item.id} className="space-y-2 text-xs">
+                                    {item.changeType === "ADDED" && (
+                                      <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 space-y-1">
+                                        <span className="text-[10px] font-mono font-bold text-emerald-700 uppercase">Added in v{diffResult.targetVersion.versionNumber}</span>
+                                        <p className="text-xs text-emerald-950 whitespace-pre-wrap leading-relaxed">{item.newFormatted}</p>
+                                      </div>
+                                    )}
+                                    {item.changeType === "REMOVED" && (
+                                      <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 space-y-1">
+                                        <span className="text-[10px] font-mono font-bold text-rose-700 uppercase">Removed from v{diffResult.baseVersion.versionNumber}</span>
+                                        <p className="text-xs text-rose-950 line-through whitespace-pre-wrap leading-relaxed">{item.oldFormatted}</p>
+                                      </div>
+                                    )}
+                                    {item.changeType === "CHANGED" && (
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        <div className="p-3 rounded-lg bg-rose-50/70 border border-rose-200 space-y-1">
+                                          <span className="text-[10px] font-mono font-bold text-rose-700 uppercase">
+                                            v{diffResult.baseVersion.versionNumber} (Previous)
+                                          </span>
+                                          <p className="text-xs text-rose-950 whitespace-pre-wrap leading-relaxed">{item.oldFormatted}</p>
+                                        </div>
+                                        <div className="p-3 rounded-lg bg-emerald-50/70 border border-emerald-200 space-y-1">
+                                          <span className="text-[10px] font-mono font-bold text-emerald-700 uppercase">
+                                            v{diffResult.targetVersion.versionNumber} (Revised)
+                                          </span>
+                                          <p className="text-xs text-emerald-950 whitespace-pre-wrap leading-relaxed font-medium">{item.newFormatted}</p>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* FAQS DIFF */}
+                      {(diffFilter === "ALL" || diffFilter === "FAQS") && diffResult.faqChanges?.length > 0 && (
+                        <div className="p-5 rounded-2xl border border-slate-200 bg-white shadow-xs space-y-3">
+                          <h4 className="text-xs font-bold text-slate-900 uppercase font-mono tracking-wider pb-2 border-b border-slate-100">
+                            Frequently Asked Questions ({diffResult.faqChanges.length})
+                          </h4>
+                          <div className="space-y-2">
+                            {diffResult.faqChanges.map((faq) => (
+                              <div key={faq.id} className="p-3 rounded-xl border border-slate-100 bg-slate-50 space-y-2 text-xs">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-bold text-slate-900">{faq.label}</span>
+                                  <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-bold ${
+                                    faq.changeType === "ADDED" ? "bg-emerald-100 text-emerald-800" :
+                                    faq.changeType === "REMOVED" ? "bg-rose-100 text-rose-800" :
+                                    "bg-amber-100 text-amber-800"
+                                  }`}>
+                                    FAQ {faq.changeType}
+                                  </span>
+                                </div>
+                                {faq.changeType === "ADDED" && (
+                                  <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-950 text-xs">
+                                    {faq.newFormatted}
+                                  </div>
+                                )}
+                                {faq.changeType === "REMOVED" && (
+                                  <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-950 line-through text-xs">
+                                    {faq.oldFormatted}
+                                  </div>
+                                )}
+                                {faq.changeType === "CHANGED" && (
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                    <div className="p-2.5 rounded-lg bg-rose-50/60 border border-rose-100 text-rose-950 text-xs">
+                                      <span className="text-[10px] font-mono font-bold text-rose-700 block mb-1">v{diffResult.baseVersion.versionNumber}</span>
+                                      {faq.oldFormatted}
+                                    </div>
+                                    <div className="p-2.5 rounded-lg bg-emerald-50/60 border border-emerald-100 text-emerald-950 text-xs font-medium">
+                                      <span className="text-[10px] font-mono font-bold text-emerald-700 block mb-1">v{diffResult.targetVersion.versionNumber}</span>
+                                      {faq.newFormatted}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* OFFICIAL SOURCES DIFF */}
+                      {(diffFilter === "ALL" || diffFilter === "SOURCES") && diffResult.sourceChanges?.length > 0 && (
+                        <div className="p-5 rounded-2xl border border-slate-200 bg-white shadow-xs space-y-3">
+                          <h4 className="text-xs font-bold text-slate-900 uppercase font-mono tracking-wider pb-2 border-b border-slate-100">
+                            Official Sources & Citations ({diffResult.sourceChanges.length})
+                          </h4>
+                          <div className="space-y-2">
+                            {diffResult.sourceChanges.map((src) => (
+                              <div key={src.id} className="p-3 rounded-xl border border-slate-100 bg-slate-50 space-y-2 text-xs">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-bold text-slate-900">{src.label}</span>
+                                  <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-bold ${
+                                    src.changeType === "ADDED" ? "bg-emerald-100 text-emerald-800" :
+                                    src.changeType === "REMOVED" ? "bg-rose-100 text-rose-800" :
+                                    "bg-amber-100 text-amber-800"
+                                  }`}>
+                                    SOURCE {src.changeType}
+                                  </span>
+                                </div>
+                                {src.changeType === "ADDED" && (
+                                  <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-950 text-xs font-mono">
+                                    {src.newFormatted}
+                                  </div>
+                                )}
+                                {src.changeType === "REMOVED" && (
+                                  <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-950 line-through text-xs font-mono">
+                                    {src.oldFormatted}
+                                  </div>
+                                )}
+                                {src.changeType === "CHANGED" && (
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                    <div className="p-2.5 rounded-lg bg-rose-50/60 border border-rose-100 text-rose-950 text-xs font-mono">
+                                      <span className="text-[10px] font-bold text-rose-700 block mb-1">v{diffResult.baseVersion.versionNumber}</span>
+                                      {src.oldFormatted}
+                                    </div>
+                                    <div className="p-2.5 rounded-lg bg-emerald-50/60 border border-emerald-100 text-emerald-950 text-xs font-mono font-medium">
+                                      <span className="text-[10px] font-bold text-emerald-700 block mb-1">v{diffResult.targetVersion.versionNumber}</span>
+                                      {src.newFormatted}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* TABLES DIFF */}
+                      {(diffFilter === "ALL" || diffFilter === "TABLES") && diffResult.tableChanges?.length > 0 && (
+                        <div className="p-5 rounded-2xl border border-slate-200 bg-white shadow-xs space-y-3">
+                          <h4 className="text-xs font-bold text-slate-900 uppercase font-mono tracking-wider pb-2 border-b border-slate-100">
+                            Structured Tables ({diffResult.tableChanges.length})
+                          </h4>
+                          <div className="space-y-2">
+                            {diffResult.tableChanges.map((tbl) => (
+                              <div key={tbl.id} className="p-3 rounded-xl border border-slate-100 bg-slate-50 space-y-2 text-xs">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-bold text-slate-900">{tbl.label}</span>
+                                  <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-bold ${
+                                    tbl.changeType === "ADDED" ? "bg-emerald-100 text-emerald-800" :
+                                    tbl.changeType === "REMOVED" ? "bg-rose-100 text-rose-800" :
+                                    "bg-amber-100 text-amber-800"
+                                  }`}>
+                                    TABLE {tbl.changeType}
+                                  </span>
+                                </div>
+                                {tbl.changeType === "ADDED" && (
+                                  <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-950 text-xs font-mono">
+                                    {tbl.newFormatted}
+                                  </div>
+                                )}
+                                {tbl.changeType === "REMOVED" && (
+                                  <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-950 line-through text-xs font-mono">
+                                    {tbl.oldFormatted}
+                                  </div>
+                                )}
+                                {tbl.changeType === "CHANGED" && (
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                    <div className="p-2.5 rounded-lg bg-rose-50/60 border border-rose-100 text-rose-950 text-xs font-mono">
+                                      <span className="text-[10px] font-bold text-rose-700 block mb-1">v{diffResult.baseVersion.versionNumber}</span>
+                                      {tbl.oldFormatted}
+                                    </div>
+                                    <div className="p-2.5 rounded-lg bg-emerald-50/60 border border-emerald-100 text-emerald-950 text-xs font-mono font-medium">
+                                      <span className="text-[10px] font-bold text-emerald-700 block mb-1">v{diffResult.targetVersion.versionNumber}</span>
+                                      {tbl.newFormatted}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -2118,6 +3085,74 @@ export function ExamKnowledgeStudioView({
                   <>
                     <Trash2 className="w-3.5 h-3.5" />
                     <span>Discard Draft</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Request Changes Modal */}
+      {requestChangesModal?.isOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white border border-slate-200 shadow-2xl p-6 space-y-4 animate-in fade-in zoom-in duration-150">
+            <div className="flex items-center gap-3 text-rose-600">
+              <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-100">
+                <XCircle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Request Changes on Revision?</h3>
+                <p className="text-xs text-slate-500 font-mono">
+                  {requestChangesModal.title} (v{requestChangesModal.versionNumber})
+                </p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              This will return version v{requestChangesModal.versionNumber} to <strong>DRAFT</strong> status so the author can make corrections. Any previously compiled artifacts will be invalidated.
+            </p>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-800">
+                Reviewer Feedback / Required Corrections <span className="text-rose-500">*</span>
+              </label>
+              <textarea
+                rows={4}
+                value={requestChangesModal.feedback}
+                onChange={(e) =>
+                  setRequestChangesModal({
+                    ...requestChangesModal,
+                    feedback: e.target.value,
+                  })
+                }
+                placeholder="Specify the factual inaccuracies, missing citations, or necessary changes required before approval..."
+                className="w-full p-3 rounded-xl border border-slate-300 text-xs text-slate-800 font-sans focus:outline-hidden focus:ring-2 focus:ring-rose-500"
+              />
+              <span className="text-[10px] text-slate-400 font-mono block text-right">
+                {requestChangesModal.feedback.length} characters
+              </span>
+            </div>
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                disabled={isRequestingChanges}
+                onClick={() => setRequestChangesModal(null)}
+                className="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 text-xs font-bold transition"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={isRequestingChanges || !requestChangesModal.feedback.trim()}
+                onClick={handleConfirmRequestChanges}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 disabled:opacity-40 text-white text-xs font-bold shadow-xs transition flex items-center gap-1.5"
+              >
+                {isRequestingChanges ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Submitting Request...</span>
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="w-3.5 h-3.5" />
+                    <span>Request Changes</span>
                   </>
                 )}
               </button>
