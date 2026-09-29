@@ -44,6 +44,7 @@ Courage Library employs a **Multi-Tiered, Runtime-Verified Quality Assurance Str
 - **Execution**: Run via `node scripts/<test_script>.cjs`.
 - **Coverage**:
   - Exam Knowledge Schema Validation (5 validation gates).
+  - External AI Citation Artifact Sanitization & Gate 3 Security (16 runtime assertions covering multi-provider regex normalizers, Gate 3 blocking, compiler safety, and candidate renderer defense-in-depth).
   - Version History & Diff calculations (snapshot transitions, superseding logic).
   - AI Prompt Generation contracts (12 pillars, 16 sections, token budgets).
   - Assessment lifecycle (start attempt $\rightarrow$ answer items $\rightarrow$ timeout handling $\rightarrow$ submission $\rightarrow$ score computation).

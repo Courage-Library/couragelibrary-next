@@ -9,32 +9,37 @@ Courage Library processes rich markdown and MDX authored by external AI systems,
 2. **Component Hijacking**: Unauthorized MDX component invocations accessing private runtime props or leaking environment variables.
 3. **CSS / Style Injection**: Obfuscated stylesheet injection attempting UI redress attacks, phishing overlays, or candidate clickjacking.
 4. **Denial of Service via Regex / AST Explosions**: Deeply nested markdown tokens crafted to stall AST parsing threads (ReDoS / AST bomb).
+5. **External-AI Citation Artifact Leakage**: Unsanitized provider-specific citation strings (`:contentReference[oaicite:N]{index=N}`, `【N†source】`, `[cite:N]`) leaking into candidate-facing article text.
 
 ---
 
 ## 2. Multi-Stage Sanitization Pipeline
 
-Every piece of authored content passes through a strict 4-stage sanitization and compilation pipeline before candidate delivery:
+Every piece of authored content passes through a strict 5-stage sanitization and compilation pipeline before candidate delivery:
 
 ```
-[ Raw Author / AI Markdown ]
+[ Raw Author / External AI JSON & Markdown ]
              ↓
-[ Stage 1: Static Pre-Parse Regex & Scheme Scanner ]
+[ Stage 1: External AI Citation Artifact Sanitizer ]
+  - Scans and normalizes provider citation tokens (:contentReference[oaicite:N]{index=N}, 【N†source】, [cite:N])
+  - Recursively sanitizes JSON document trees (headers, markdown bodies, callouts, tables, FAQs)
+             ↓
+[ Stage 2: Static Pre-Parse Regex & Scheme Scanner ]
   - Strips forbidden raw HTML tags (<script>, <iframe>, <object>, <embed>, <applet>)
   - Validates URL protocols (allows only http:, https:, mailto:, tel:, relative anchors)
              ↓
-[ Stage 2: Unified / Remark AST Parser ]
+[ Stage 3: Unified / Remark AST Parser ]
   - Converts markdown text into structured abstract syntax tree (mdast)
   - Enforces depth limits to prevent AST explosion
              ↓
-[ Stage 3: Rehype AST Sanitization Gate ]
+[ Stage 4: Rehype AST Sanitization Gate ]
   - Whitelists safe HTML tags (h1-h6, p, ul, ol, li, table, thead, tbody, tr, th, td, blockquote, pre, code, strong, em)
   - Whitelists safe interactive components (<Callout>, <StatCard>, <FormulaBox>, <Timeline>, <DiffViewer>)
   - Strips all `on*` event attributes (onclick, onload, onerror)
              ↓
-[ Stage 4: Strict Deterministic React Compilation ]
-  - Compiles mdast/hast into static React vnode structure
-  - Cached as JSONB in `exam_doc_versions.compiled_ast`
+[ Stage 5: Strict Deterministic React Compilation ]
+  - Re-sanitizes payload and compiles mdast/hast into static React MDX artifact with SHA-256 checksum
+  - Cached as JSONB in `exam_doc_versions.compiled_mdx`
 ```
 
 ---

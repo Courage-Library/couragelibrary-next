@@ -71,7 +71,7 @@ The platform bridges the gap between static reference material, cognitive mistak
    - Candidate read models serve strictly the version referenced by `current_published_version_id`.
 
 5. **Deterministic Candidate Parity**:
-   The admin preview in Review Workbench and the public candidate view consume the **exact same compiled MDX artifact** through the single canonical renderer (`ExamMdxArticleRenderer`), guaranteeing 100% rendering parity.
+   The admin preview in Review Workbench and the public candidate view consume the **exact same compiled MDX artifact** through the single canonical renderer (`ExamMdxArticleRenderer` at `components/exams/exam-mdx-article-renderer.tsx`), guaranteeing 100% rendering parity.
 
 6. **Zero Database Migrations for Presentation/Operational Layers**:
    Presentation states (such as `SUPERSEDED`) and diff calculations are computed dynamically in application memory. The database schema remains stable ($\Delta = 0$).
@@ -154,14 +154,14 @@ e:/Courage Library/
 5. EXTERNAL AI RESEARCH & AUTHORING
    AI researches Tier 1 primary sources, resolves conflicts, formats JSON spec
    ↓
-6. 5-GATE INGESTION VALIDATION (Five-Gate Validator)
-   Gate 1: Schema | Gate 2: Target/Hash | Gate 3: Security | Gate 4: Provenance | Gate 5: Domain
+6. SANITIZATION & 5-GATE INGESTION VALIDATION (Five-Gate Validator)
+   Sanitizes provider citation artifacts → Gate 1: Schema | Gate 2: Target/Hash | Gate 3: Security & Artifacts | Gate 4: Provenance | Gate 5: Domain
    ↓
 7. HUMAN ACADEMIC REVIEW (Review Workbench)
    Academic Staff inspects AST, verifies official sources, checks diffs, requests changes or approves
    ↓
 8. MDX COMPILATION & IMMUTABLE PUBLICATION
-   Approved version compiled into verified MDX artifact → Published atomically
+   Approved version compiled into verified MDX artifact (with re-sanitization) → Published atomically
    ↓
 9. CANDIDATE HUB DELIVERY (Candidate Read Model)
    Candidates access live exam module with candidate-parity rendering, syllabus trees, and mocks

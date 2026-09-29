@@ -18,6 +18,7 @@
  */
 
 import { MdxSecurityScanner } from '@/services/mdx-security-scanner';
+import { detectAiCitationArtifacts } from '@/services/ai/ai-citation-sanitizer';
 import {
   ExamKnowledgeDocumentSpec,
   ExamKnowledgeTarget,
@@ -247,10 +248,11 @@ export class ExamKnowledgeValidatorService {
     const errors: string[] = [];
     const warnings: string[] = [];
 
-    // Scan all markdown sections using MdxSecurityScanner
+    // Scan all markdown sections using MdxSecurityScanner and detect unresolved citation artifacts
     if (Array.isArray(spec.contentSections)) {
       spec.contentSections.forEach((sec) => {
-        const scan = MdxSecurityScanner.scan(sec.bodyMarkdown || '');
+        const rawBody = sec.bodyMarkdown || '';
+        const scan = MdxSecurityScanner.scan(rawBody);
         if (!scan.isSafe) {
           scan.errors.forEach((err) => {
             errors.push(`Security violation in section "${sec.id}": ${err.message}`);
@@ -258,12 +260,27 @@ export class ExamKnowledgeValidatorService {
         }
         scan.warnings.forEach((warn) => warnings.push(warn));
 
+        // Detect unnormalized AI citation artifacts
+        const artifacts = detectAiCitationArtifacts(rawBody);
+        if (artifacts.length > 0) {
+          errors.push(
+            `Unresolved external AI citation artifact detected in section "${sec.id}": "${artifacts[0].token}" (line ${artifacts[0].line}). Normalize citations before publication.`
+          );
+        }
+
         // Callout notes scanning
         if (Array.isArray(sec.calloutNotes)) {
           sec.calloutNotes.forEach((callout, cIdx) => {
-            const cScan = MdxSecurityScanner.scan(callout.body || '');
+            const rawCallout = callout.body || '';
+            const cScan = MdxSecurityScanner.scan(rawCallout);
             if (!cScan.isSafe) {
               cScan.errors.forEach((err) => errors.push(`Security violation in callout note #${cIdx} of section "${sec.id}": ${err.message}`));
+            }
+            const cArtifacts = detectAiCitationArtifacts(rawCallout);
+            if (cArtifacts.length > 0) {
+              errors.push(
+                `Unresolved external AI citation artifact in callout note #${cIdx} of section "${sec.id}": "${cArtifacts[0].token}".`
+              );
             }
           });
         }
@@ -278,6 +295,11 @@ export class ExamKnowledgeValidatorService {
         if (!qScan.isSafe || !aScan.isSafe) {
           errors.push(`Security violation in FAQ item #${fIdx}.`);
         }
+        const qArtifacts = detectAiCitationArtifacts(faq.question || '');
+        const aArtifacts = detectAiCitationArtifacts(faq.answer || '');
+        if (qArtifacts.length > 0 || aArtifacts.length > 0) {
+          errors.push(`Unresolved external AI citation artifact in FAQ item #${fIdx}.`);
+        }
       });
     }
 
@@ -286,6 +308,12 @@ export class ExamKnowledgeValidatorService {
     const metaDescScan = MdxSecurityScanner.scan(spec.metadata?.description || '');
     if (!metaTitleScan.isSafe || !metaDescScan.isSafe) {
       errors.push('Security violation detected in document metadata.');
+    }
+    const metaArtifacts = detectAiCitationArtifacts(
+      `${spec.metadata?.title || ''} ${spec.metadata?.description || ''}`
+    );
+    if (metaArtifacts.length > 0) {
+      errors.push(`Unresolved external AI citation artifact in metadata: "${metaArtifacts[0].token}".`);
     }
 
     return {
