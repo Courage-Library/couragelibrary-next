@@ -18,6 +18,9 @@ interface QuestionReviewCardProps {
   topicName: string | null;
   topicSlug: string | null;
   timeSpentSeconds?: number;
+  learningSlug?: string | null;
+  learningDocTitle?: string | null;
+  hasPublishedLearning?: boolean;
 }
 
 export function QuestionReviewCard({
@@ -35,6 +38,9 @@ export function QuestionReviewCard({
   topicName,
   topicSlug,
   timeSpentSeconds,
+  learningSlug,
+  learningDocTitle,
+  hasPublishedLearning,
 }: QuestionReviewCardProps) {
   const isUnanswered = selectedOption === null;
 
@@ -133,7 +139,7 @@ export function QuestionReviewCard({
         })}
       </div>
 
-      {/* Explanation, Mistake Vault link & Learn More */}
+      {/* Explanation, Mistake Vault link & Canonical Learning Resolution */}
       <div className="pt-3 border-t border-slate-100 space-y-2.5">
         {explanation && (
           <div className="p-3.5 rounded-xl bg-blue-50/50 border border-blue-100 text-xs text-slate-800 space-y-1">
@@ -149,7 +155,7 @@ export function QuestionReviewCard({
             </span>
           ) : <div />}
 
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-3">
             {!isCorrect && !isUnanswered && (
               <Link
                 href="/mistakes"
@@ -158,12 +164,23 @@ export function QuestionReviewCard({
                 <AlertTriangle className="w-3.5 h-3.5" /> Review in Mistake Vault
               </Link>
             )}
-            <Link
-              href={topicSlug ? `/practice?topic=${topicSlug}` : "/practice"}
-              className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 hover:underline"
-            >
-              <BookOpen className="w-3.5 h-3.5" /> Learn More & Practice
-            </Link>
+
+            {learningSlug ? (
+              <Link
+                href={`/articles/${learningSlug}`}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-50 border border-teal-200/80 text-teal-800 hover:bg-teal-100 font-bold text-xs shadow-2xs transition"
+              >
+                <BookOpen className="w-3.5 h-3.5 text-teal-700" />
+                <span>Learn Concept: {topicName || "Study Notes"}</span>
+              </Link>
+            ) : (
+              <Link
+                href={topicSlug ? `/practice?topic=${topicSlug}` : "/practice"}
+                className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 hover:underline"
+              >
+                <BookOpen className="w-3.5 h-3.5" /> Practice Topic Questions
+              </Link>
+            )}
           </div>
         </div>
       </div>

@@ -662,6 +662,9 @@ export function ResultViewClient({ data }: ResultViewClientProps) {
                   topicName={q.topicName}
                   topicSlug={q.topicSlug}
                   timeSpentSeconds={q.timeSpentSeconds}
+                  learningSlug={q.learningSlug}
+                  learningDocTitle={q.learningDocTitle}
+                  hasPublishedLearning={q.hasPublishedLearning}
                 />
               ))
             )}
