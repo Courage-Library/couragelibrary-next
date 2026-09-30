@@ -366,6 +366,110 @@ export class AdminContentStudioService {
   }
 
   /**
+   * Fetch Version Spec and Compiled MDX from storage
+   */
+  static async getVersionSpec(versionId: string): Promise<{
+    success: boolean;
+    spec: LessonDocumentSpec | null;
+    compiledMdx: string | null;
+    version: DocumentVersion | null;
+  }> {
+    await this.requireAdminAuth('getVersionSpec');
+    const supabase = (await createServerSupabaseClient()) as any;
+
+    const { data: version } = await supabase
+      .from('document_versions')
+      .select('*')
+      .eq('id', versionId)
+      .maybeSingle();
+
+    if (!version) {
+      const cached = LearningDocumentService.getCachedVersion(versionId);
+      if (!cached) {
+        return { success: false, spec: null, compiledMdx: null, version: null };
+      }
+      return { success: true, spec: null, compiledMdx: null, version: cached };
+    }
+
+    const storageProvider = StorageFactory.getProvider();
+    let spec: LessonDocumentSpec | null = null;
+    let compiledMdx: string | null = null;
+
+    if (version.source_spec_storage_key) {
+      const specRes = await storageProvider.get('learning-artifacts', version.source_spec_storage_key);
+      if (specRes?.data) {
+        try {
+          spec = JSON.parse(specRes.data.toString('utf8'));
+        } catch {
+          // ignore parse error
+        }
+      }
+    }
+
+    if (version.compiled_artifact_storage_key) {
+      const mdxRes = await storageProvider.get('learning-artifacts', version.compiled_artifact_storage_key);
+      if (mdxRes?.data) {
+        compiledMdx = mdxRes.data.toString('utf8');
+      }
+    }
+
+    return {
+      success: true,
+      spec,
+      compiledMdx,
+      version: version as DocumentVersion,
+    };
+  }
+
+  /**
+   * Create a new Revision Draft (vN+1) from an existing or published version
+   */
+  static async createRevision(params: {
+    documentId: string;
+    baseVersionId?: string;
+    authorType?: AuthorType;
+  }): Promise<DocumentVersion> {
+    await this.requireAdminAuth('createRevision');
+    const supabase = createAdminServerSupabaseClient() as any;
+
+    let baseSpec: LessonDocumentSpec | null = null;
+
+    if (params.baseVersionId) {
+      const specRes = await this.getVersionSpec(params.baseVersionId);
+      if (specRes.success && specRes.spec) {
+        baseSpec = specRes.spec;
+      }
+    }
+
+    if (!baseSpec) {
+      const { data: latestVer } = await supabase
+        .from('document_versions')
+        .select('*')
+        .eq('document_id', params.documentId)
+        .order('version_number', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (latestVer?.source_spec_storage_key) {
+        const specRes = await this.getVersionSpec(latestVer.id);
+        if (specRes.success && specRes.spec) {
+          baseSpec = specRes.spec;
+        }
+      }
+    }
+
+    if (!baseSpec) {
+      throw new Error(`Cannot create revision: Base version spec could not be resolved for document ${params.documentId}.`);
+    }
+
+    return await this.createDraftVersion({
+      documentId: params.documentId,
+      spec: baseSpec,
+      authorType: params.authorType || 'HUMAN',
+    });
+  }
+
+  /**
    * Save / Update Draft Spec
    */
   static async saveDraftSpec(params: {

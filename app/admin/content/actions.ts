@@ -63,6 +63,29 @@ export async function createDraftVersionAction(params: {
   }
 }
 
+export async function getVersionSpecAction(versionId: string) {
+  try {
+    const res = await AdminContentStudioService.getVersionSpec(versionId);
+    return res;
+  } catch (err: any) {
+    return { success: false, error: err.message, spec: null, compiledMdx: null, version: null };
+  }
+}
+
+export async function createRevisionAction(params: {
+  documentId: string;
+  baseVersionId?: string;
+  authorType?: AuthorType;
+}) {
+  try {
+    const version = await AdminContentStudioService.createRevision(params);
+    revalidatePath("/admin/content");
+    return { success: true, version };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
 export async function saveDraftSpecAction(params: {
   versionId: string;
   spec: LessonDocumentSpec;
