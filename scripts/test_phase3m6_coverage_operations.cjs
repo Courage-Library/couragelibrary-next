@@ -36,10 +36,10 @@ if (fs.existsSync(envPath)) {
   }
 }
 
-const connectionString = process.env.POSTGRES_URL_NON_POOLING;
+let connectionString = process.env.POSTGRES_URL_NON_POOLING || process.env.DATABASE_URL || process.env.POSTGRES_URL;
 
 if (!connectionString) {
-  console.error("FATAL: POSTGRES_URL_NON_POOLING is not defined in .env.local");
+  console.error("FATAL: POSTGRES_URL_NON_POOLING / DATABASE_URL is not defined in .env.local");
   process.exit(1);
 }
 
@@ -52,6 +52,11 @@ const EXPECTED_BASELINES = {
   user_profiles: 22,
 };
 
+const dns = require('dns');
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
+
 const CANONICAL_DOCUMENT_TYPES = [
   'CONCEPT_LESSON',
   'WORKED_EXAMPLES',
@@ -61,17 +66,52 @@ const CANONICAL_DOCUMENT_TYPES = [
   'TOPIC_SUMMARY_REVISION'
 ];
 
+async function getClient() {
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    try {
+      const client = new Client({
+        connectionString,
+        ssl: { rejectUnauthorized: false },
+        connectionTimeoutMillis: 15000,
+        keepAlive: true,
+      });
+      client.on('error', () => {});
+      await client.connect();
+      return client;
+    } catch (err) {
+      console.warn(`Connection attempt ${attempt} failed: ${err.message}. Retrying...`);
+      await new Promise((res) => setTimeout(res, 2000));
+    }
+  }
+  throw new Error('Failed to connect to PostgreSQL after 5 attempts');
+}
+
+let activeClient = null;
+async function queryWithRetry(sql, params = []) {
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      if (!activeClient) {
+        activeClient = await getClient();
+      }
+      return await activeClient.query(sql, params);
+    } catch (err) {
+      console.warn(`Query failed (attempt ${attempt}): ${err.message}. Reconnecting...`);
+      try {
+        if (activeClient) await activeClient.end();
+      } catch (e) {}
+      activeClient = null;
+      if (attempt === 3) throw err;
+      await new Promise((res) => setTimeout(res, 1000));
+    }
+  }
+}
+
 async function runPhase3M6ForensicSuite() {
   console.log("================================================================================");
   console.log("COURAGE LIBRARY — PHASE 3M.6 LEARNING COVERAGE & OPERATIONS VERIFICATION");
   console.log("================================================================================\n");
 
-  const client = new Client({
-    connectionString,
-    ssl: { rejectUnauthorized: false },
-  });
-
-  await client.connect();
+  const client = await getClient();
   console.log("✓ Remote PostgreSQL Connection established successfully.\n");
 
   const results = [];
@@ -87,7 +127,7 @@ async function runPhase3M6ForensicSuite() {
     // -------------------------------------------------------------------------
     const counts = {};
     for (const table of Object.keys(EXPECTED_BASELINES)) {
-      const res = await client.query(`SELECT COUNT(*)::int AS count FROM "${table}"`);
+      const res = await queryWithRetry(`SELECT COUNT(*)::int AS count FROM "${table}"`);
       counts[table] = res.rows[0].count;
     }
 
@@ -112,7 +152,7 @@ async function runPhase3M6ForensicSuite() {
     // -------------------------------------------------------------------------
     // Gate 2: Canonical Taxonomy Hierarchy & Database-Derived Registry
     // -------------------------------------------------------------------------
-    const hierarchyRes = await client.query(`
+    const hierarchyRes = await queryWithRetry(`
       SELECT s.id AS subject_id, s.name AS subject_name,
              t.id AS topic_id, t.name AS topic_name, t.slug AS topic_slug
       FROM subjects s
@@ -141,7 +181,7 @@ async function runPhase3M6ForensicSuite() {
     const testUnitTitle = `Operations Test Unit for ${sampleTopic.topic_name}`;
 
     // Create isolated Learning Unit
-    const unitRes = await client.query(
+    const unitRes = await queryWithRetry(
       `INSERT INTO learning_units (topic_id, title, slug, unit_type, display_order, estimated_minutes)
        VALUES ($1, $2, $3, 'CONCEPT_LESSON', 999, 15)
        RETURNING id`,
@@ -153,7 +193,7 @@ async function runPhase3M6ForensicSuite() {
     const createdDocIds = [];
     for (const docType of CANONICAL_DOCUMENT_TYPES) {
       const docSlug = `forensic-ops-${docType.toLowerCase().replace(/_/g, '-')}-${Date.now()}`;
-      const docRes = await client.query(
+      const docRes = await queryWithRetry(
         `INSERT INTO learning_documents (learning_unit_id, document_type, canonical_slug, status)
          VALUES ($1, $2, $3, 'DRAFT')
          RETURNING id`,
@@ -173,7 +213,7 @@ async function runPhase3M6ForensicSuite() {
     // Gate 4: Deterministic Completeness Model (MISSING -> PARTIAL -> COMPLETE)
     // -------------------------------------------------------------------------
     // Initial state: 0 published docs -> MISSING
-    const missingDocsCount = await client.query(
+    const missingDocsCount = await queryWithRetry(
       `SELECT COUNT(*)::int AS pub_count
        FROM learning_documents
        WHERE learning_unit_id = $1 AND status = 'PUBLISHED' AND current_published_version_id IS NOT NULL`,
@@ -183,7 +223,7 @@ async function runPhase3M6ForensicSuite() {
 
     // Publish 1 document (CONCEPT_LESSON) -> PARTIAL
     const conceptDoc = createdDocIds.find(d => d.docType === 'CONCEPT_LESSON');
-    const v1Res = await client.query(
+    const v1Res = await queryWithRetry(
       `INSERT INTO document_versions (
          document_id, version_number, review_status, is_published,
          compiled_artifact_storage_key, schema_version, compiler_version, component_contract_version,
@@ -198,12 +238,12 @@ async function runPhase3M6ForensicSuite() {
        RETURNING id`,
       [conceptDoc.docId]
     );
-    await client.query(
+    await queryWithRetry(
       `UPDATE learning_documents SET status = 'PUBLISHED', current_published_version_id = $1 WHERE id = $2`,
       [v1Res.rows[0].id, conceptDoc.docId]
     );
 
-    const partialDocsCount = await client.query(
+    const partialDocsCount = await queryWithRetry(
       `SELECT COUNT(*)::int AS pub_count
        FROM learning_documents
        WHERE learning_unit_id = $1 AND status = 'PUBLISHED' AND current_published_version_id IS NOT NULL`,
@@ -213,7 +253,7 @@ async function runPhase3M6ForensicSuite() {
 
     // Publish remaining 5 documents -> COMPLETE
     for (const item of createdDocIds.filter(d => d.docType !== 'CONCEPT_LESSON')) {
-      const verRes = await client.query(
+      const verRes = await queryWithRetry(
         `INSERT INTO document_versions (
            document_id, version_number, review_status, is_published,
            compiled_artifact_storage_key, schema_version, compiler_version, component_contract_version,
@@ -228,13 +268,13 @@ async function runPhase3M6ForensicSuite() {
          RETURNING id`,
         [item.docId]
       );
-      await client.query(
+      await queryWithRetry(
         `UPDATE learning_documents SET status = 'PUBLISHED', current_published_version_id = $1 WHERE id = $2`,
         [verRes.rows[0].id, item.docId]
       );
     }
 
-    const completeDocsCount = await client.query(
+    const completeDocsCount = await queryWithRetry(
       `SELECT COUNT(*)::int AS pub_count
        FROM learning_documents
        WHERE learning_unit_id = $1 AND status = 'PUBLISHED' AND current_published_version_id IS NOT NULL`,
@@ -253,7 +293,7 @@ async function runPhase3M6ForensicSuite() {
     // Gate 5: Version-Aware Document Counting (No Historical Duplication)
     // -------------------------------------------------------------------------
     // Create Draft v2 on conceptDoc
-    await client.query(
+    await queryWithRetry(
       `INSERT INTO document_versions (
          document_id, version_number, review_status, is_published,
          compiled_artifact_storage_key, schema_version, compiler_version, component_contract_version,
@@ -269,7 +309,7 @@ async function runPhase3M6ForensicSuite() {
     );
 
     // Count published documents for unit (must STILL be exactly 6, not 7)
-    const activePublishedCount = await client.query(
+    const activePublishedCount = await queryWithRetry(
       `SELECT COUNT(*)::int AS pub_count
        FROM learning_documents
        WHERE learning_unit_id = $1 AND status = 'PUBLISHED' AND current_published_version_id IS NOT NULL`,
@@ -290,10 +330,10 @@ async function runPhase3M6ForensicSuite() {
     // Gate 6: Multi-Exam Mapping & Reuse (Zero Duplicate Content Bodies)
     // -------------------------------------------------------------------------
     // Check if exam_topics exists to map unit
-    const examTopicsRes = await client.query(`SELECT id, required_depth FROM exam_topics LIMIT 2`);
+    const examTopicsRes = await queryWithRetry(`SELECT id, required_depth FROM exam_topics LIMIT 2`);
     if (examTopicsRes.rows.length > 0) {
       const examTopic1 = examTopicsRes.rows[0];
-      await client.query(
+      await queryWithRetry(
         `INSERT INTO exam_unit_mappings (exam_topic_id, learning_unit_id, sequence_order, is_exam_core)
          VALUES ($1, $2, 1, true)
          ON CONFLICT (exam_topic_id, learning_unit_id) DO NOTHING`,
@@ -301,7 +341,7 @@ async function runPhase3M6ForensicSuite() {
       );
       if (examTopicsRes.rows.length > 1) {
         const examTopic2 = examTopicsRes.rows[1];
-        await client.query(
+        await queryWithRetry(
           `INSERT INTO exam_unit_mappings (exam_topic_id, learning_unit_id, sequence_order, is_exam_core)
            VALUES ($1, $2, 2, false)
            ON CONFLICT (exam_topic_id, learning_unit_id) DO NOTHING`,
@@ -310,7 +350,7 @@ async function runPhase3M6ForensicSuite() {
       }
     }
 
-    const mappingCheck = await client.query(
+    const mappingCheck = await queryWithRetry(
       `SELECT COUNT(*)::int AS mapping_count FROM exam_unit_mappings WHERE learning_unit_id = $1`,
       [unitId]
     );
@@ -325,7 +365,7 @@ async function runPhase3M6ForensicSuite() {
     // -------------------------------------------------------------------------
     // Gate 7: Question Bank Signal Density Tracking
     // -------------------------------------------------------------------------
-    const qCountRes = await client.query(
+    const qCountRes = await queryWithRetry(
       `SELECT COUNT(*)::int AS q_count
        FROM questions
        WHERE canonical_topic_id = $1`,
@@ -367,15 +407,15 @@ async function runPhase3M6ForensicSuite() {
     // -------------------------------------------------------------------------
     // Clean up temporary test records non-destructively
     // -------------------------------------------------------------------------
-    await client.query(`ALTER TABLE public.document_versions DISABLE TRIGGER USER`);
-    await client.query(`ALTER TABLE public.learning_documents DISABLE TRIGGER USER`);
-    await client.query(`DELETE FROM public.exam_unit_mappings WHERE learning_unit_id = $1`, [unitId]);
-    await client.query(`UPDATE public.learning_documents SET current_published_version_id = NULL WHERE learning_unit_id = $1`, [unitId]);
-    await client.query(`DELETE FROM public.document_versions WHERE document_id IN (SELECT id FROM public.learning_documents WHERE learning_unit_id = $1)`, [unitId]);
-    await client.query(`DELETE FROM public.learning_documents WHERE learning_unit_id = $1`, [unitId]);
-    await client.query(`DELETE FROM public.learning_units WHERE id = $1`, [unitId]);
-    await client.query(`ALTER TABLE public.document_versions ENABLE TRIGGER USER`);
-    await client.query(`ALTER TABLE public.learning_documents ENABLE TRIGGER USER`);
+    await queryWithRetry(`ALTER TABLE public.document_versions DISABLE TRIGGER USER`);
+    await queryWithRetry(`ALTER TABLE public.learning_documents DISABLE TRIGGER USER`);
+    await queryWithRetry(`DELETE FROM public.exam_unit_mappings WHERE learning_unit_id = $1`, [unitId]);
+    await queryWithRetry(`UPDATE public.learning_documents SET current_published_version_id = NULL WHERE learning_unit_id = $1`, [unitId]);
+    await queryWithRetry(`DELETE FROM public.document_versions WHERE document_id IN (SELECT id FROM public.learning_documents WHERE learning_unit_id = $1)`, [unitId]);
+    await queryWithRetry(`DELETE FROM public.learning_documents WHERE learning_unit_id = $1`, [unitId]);
+    await queryWithRetry(`DELETE FROM public.learning_units WHERE id = $1`, [unitId]);
+    await queryWithRetry(`ALTER TABLE public.document_versions ENABLE TRIGGER USER`);
+    await queryWithRetry(`ALTER TABLE public.learning_documents ENABLE TRIGGER USER`);
     console.log("\n✓ Temporary test artifacts cleaned up completely.");
 
     // -------------------------------------------------------------------------
@@ -383,7 +423,7 @@ async function runPhase3M6ForensicSuite() {
     // -------------------------------------------------------------------------
     const finalCounts = {};
     for (const table of Object.keys(EXPECTED_BASELINES)) {
-      const res = await client.query(`SELECT COUNT(*)::int AS count FROM "${table}"`);
+      const res = await queryWithRetry(`SELECT COUNT(*)::int AS count FROM "${table}"`);
       finalCounts[table] = res.rows[0].count;
     }
 
@@ -407,7 +447,11 @@ async function runPhase3M6ForensicSuite() {
     console.error("Test Suite Execution Error:", err);
     recordGate(99, "Execution Exception", false, err.message);
   } finally {
-    await client.end();
+    if (activeClient) {
+      try {
+        await activeClient.end();
+      } catch (e) {}
+    }
   }
 
   const allPassed = results.every((r) => r.pass);

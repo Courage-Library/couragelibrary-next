@@ -275,23 +275,29 @@ export class ExamSyllabusResolutionService {
       } else {
         const { data: insData, error: insErr } = await client
           .from('canonical_taxonomy_nodes')
-          .upsert(
-            {
-              parent_id: parentId,
-              name: rawTitle,
-              slug,
-              node_type: nodeType,
-              display_order: displayOrder,
-              is_active: true,
-              metadata: { created_by_resolution: true, reviewer: reviewerUserId, created_at: new Date().toISOString() },
-            },
-            { onConflict: 'parent_id,slug' }
-          )
+          .insert({
+            parent_id: parentId,
+            name: rawTitle,
+            slug,
+            node_type: nodeType,
+            display_order: displayOrder,
+            is_active: true,
+            metadata: { created_by_resolution: true, reviewer: reviewerUserId, created_at: new Date().toISOString() },
+          })
           .select('id')
           .single();
 
-        if (insErr) throw new Error(`Failed to create canonical node: ${insErr.message}`);
-        canonicalId = insData.id;
+        if (insErr) {
+          const fallback = await this.findExistingCanonicalNode(parentId, normName, slug, client, isPg);
+          if (fallback) {
+            canonicalId = fallback.id;
+            reused = true;
+          } else {
+            throw new Error(`Failed to create canonical node: ${insErr.message}`);
+          }
+        } else {
+          canonicalId = insData.id;
+        }
       }
     }
 
@@ -382,23 +388,29 @@ export class ExamSyllabusResolutionService {
       } else {
         const { data: insData, error: insErr } = await client
           .from('canonical_taxonomy_nodes')
-          .upsert(
-            {
-              parent_id: null,
-              name: rawTitle,
-              slug,
-              node_type: 'SUBJECT',
-              display_order: displayOrder,
-              is_active: true,
-              metadata: { created_by_resolution: true, reviewer: reviewerUserId, created_at: new Date().toISOString() },
-            },
-            { onConflict: 'slug' }
-          )
+          .insert({
+            parent_id: null,
+            name: rawTitle,
+            slug,
+            node_type: 'SUBJECT',
+            display_order: displayOrder,
+            is_active: true,
+            metadata: { created_by_resolution: true, reviewer: reviewerUserId, created_at: new Date().toISOString() },
+          })
           .select('id')
           .single();
 
-        if (insErr) throw new Error(`Failed to create canonical subject: ${insErr.message}`);
-        subjectId = insData.id;
+        if (insErr) {
+          const fallback = await this.findExistingCanonicalNode(null, normName, slug, client, isPg);
+          if (fallback) {
+            subjectId = fallback.id;
+            reused = true;
+          } else {
+            throw new Error(`Failed to create canonical subject: ${insErr.message}`);
+          }
+        } else {
+          subjectId = insData.id;
+        }
       }
     }
 
@@ -451,18 +463,47 @@ export class ExamSyllabusResolutionService {
   ): Promise<ResolutionResult> {
     const { syllabusNodeId, reviewerUserId, subtreeNodes = [], notes } = params;
 
+    let localPgClient: any = null;
+    let effectiveClient = client;
+
     if (!isPg) {
-      throw new Error('Atomic subtree creation requires transactional PostgreSQL client connection.');
+      const connStr = process.env.DATABASE_URL || process.env.POSTGRES_URL_NON_POOLING || process.env.POSTGRES_URL;
+      if (connStr) {
+        const dns = require('dns');
+        if (dns.setDefaultResultOrder) {
+          dns.setDefaultResultOrder('ipv4first');
+        }
+        const { Client } = require('pg');
+        localPgClient = new Client({
+          connectionString: connStr,
+          connectionTimeoutMillis: 15000,
+          statement_timeout: 15000,
+          ssl: { rejectUnauthorized: false },
+        });
+        localPgClient.on('error', () => {});
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          try {
+            await localPgClient.connect();
+            break;
+          } catch (connErr) {
+            if (attempt === 3) throw connErr;
+            await new Promise((r) => setTimeout(r, 1000));
+          }
+        }
+        effectiveClient = localPgClient;
+      } else {
+        throw new Error('Atomic subtree creation requires transactional PostgreSQL client connection.');
+      }
     }
 
     const createdNodeIds: string[] = [];
     const syllabusToCanonicalMap = new Map<string, string>();
 
     try {
-      await client.query('BEGIN');
+      await effectiveClient.query('BEGIN');
 
       // 1. Create Root Subject
-      const rootRes = await this.createSubject(params, client, true);
+      const rootRes = await this.createSubject(params, effectiveClient, true);
       syllabusToCanonicalMap.set(syllabusNodeId, rootRes.canonicalNodeId!);
       if (rootRes.createdCanonicalNodeIds && rootRes.createdCanonicalNodeIds.length > 0) {
         createdNodeIds.push(...rootRes.createdCanonicalNodeIds);
@@ -488,7 +529,7 @@ export class ExamSyllabusResolutionService {
             reviewerUserId,
             notes: notes || 'Subtree bulk creation',
           },
-          client,
+          effectiveClient,
           true
         );
 
@@ -498,9 +539,9 @@ export class ExamSyllabusResolutionService {
         }
       }
 
-      await client.query('COMMIT');
+      await effectiveClient.query('COMMIT');
 
-      const rootMapping = await this.fetchMapping(syllabusNodeId, client, true);
+      const rootMapping = await this.fetchMapping(syllabusNodeId, effectiveClient, true);
 
       return {
         success: true,
@@ -513,8 +554,14 @@ export class ExamSyllabusResolutionService {
         message: `Successfully created subtree with ${subtreeNodes.length + 1} total nodes in single atomic transaction.`,
       };
     } catch (err: any) {
-      await client.query('ROLLBACK');
+      await effectiveClient.query('ROLLBACK');
       throw new Error(`Subtree creation transaction rolled back: ${err.message}`);
+    } finally {
+      if (localPgClient) {
+        try {
+          await localPgClient.end();
+        } catch (_) {}
+      }
     }
   }
 
