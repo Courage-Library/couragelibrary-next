@@ -12,7 +12,7 @@
 
 -- 1. Function: Prevent deletion of published document versions
 CREATE OR REPLACE FUNCTION public.fn_prevent_published_version_deletion()
-RETURNS TRIGGER AS 
+RETURNS TRIGGER AS $$
 BEGIN
   IF OLD.review_status = 'PUBLISHED' OR OLD.is_published = TRUE THEN
     RAISE EXCEPTION 'Cannot delete published document version % (v%). Published versions are permanently immutable and historically preserved.',
@@ -20,7 +20,7 @@ BEGIN
   END IF;
   RETURN OLD;
 END;
- LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql;
 
 -- 2. Trigger on document_versions BEFORE DELETE
 DROP TRIGGER IF EXISTS trg_prevent_published_version_deletion ON public.document_versions;
@@ -31,7 +31,7 @@ CREATE TRIGGER trg_prevent_published_version_deletion
 
 -- 3. Function: Prevent deletion of learning_documents if published history exists
 CREATE OR REPLACE FUNCTION public.fn_prevent_published_document_deletion()
-RETURNS TRIGGER AS 
+RETURNS TRIGGER AS $$
 BEGIN
   IF OLD.current_published_version_id IS NOT NULL THEN
     RAISE EXCEPTION 'Cannot delete learning document % with active published version %.',
@@ -49,7 +49,7 @@ BEGIN
 
   RETURN OLD;
 END;
- LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql;
 
 -- 4. Trigger on learning_documents BEFORE DELETE
 DROP TRIGGER IF EXISTS trg_prevent_published_document_deletion ON public.learning_documents;
@@ -60,7 +60,7 @@ CREATE TRIGGER trg_prevent_published_document_deletion
 
 -- 5. Function: Prevent mutation of published document version records (NULL-Safe IS DISTINCT FROM)
 CREATE OR REPLACE FUNCTION public.fn_prevent_published_version_mutation()
-RETURNS TRIGGER AS 
+RETURNS TRIGGER AS $$
 BEGIN
   -- If previously published, strictly disallow any modification to content, hashes, versioning, metadata, or flags
   IF OLD.review_status = 'PUBLISHED' OR OLD.is_published = TRUE THEN
@@ -82,7 +82,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
- LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql;
 
 -- 6. Trigger on document_versions BEFORE UPDATE
 DROP TRIGGER IF EXISTS trg_prevent_published_version_mutation ON public.document_versions;
@@ -93,7 +93,7 @@ CREATE TRIGGER trg_prevent_published_version_mutation
 
 -- 7. Function: Enforce pointer consistency for current_published_version_id
 CREATE OR REPLACE FUNCTION public.fn_enforce_document_published_pointer_consistency()
-RETURNS TRIGGER AS 
+RETURNS TRIGGER AS $$
 BEGIN
   IF NEW.current_published_version_id IS NOT NULL THEN
     IF NOT EXISTS (
@@ -108,7 +108,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
- LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql;
 
 -- 8. Trigger on learning_documents BEFORE INSERT OR UPDATE OF current_published_version_id
 DROP TRIGGER IF EXISTS trg_enforce_document_published_pointer_consistency ON public.learning_documents;

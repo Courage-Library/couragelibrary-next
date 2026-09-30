@@ -97,40 +97,52 @@ ALTER TABLE public.learning_documents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.document_versions ENABLE ROW LEVEL SECURITY;
 
 -- Candidates & Public: Read published learning documents
-CREATE POLICY "Public read published learning documents"
-  ON public.learning_documents
-  FOR SELECT
-  USING (status = 'PUBLISHED');
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE tablename = 'learning_documents' AND policyname = 'Public read published learning documents'
+  ) THEN
+    CREATE POLICY "Public read published learning documents"
+      ON public.learning_documents
+      FOR SELECT
+      USING (status = 'PUBLISHED');
+  END IF;
 
--- Admins & Service Role: Full access on learning_documents
-CREATE POLICY "Admin full access on learning documents"
-  ON public.learning_documents
-  FOR ALL
-  USING (
-    auth.role() = 'service_role' OR
-    EXISTS (
-      SELECT 1 FROM public.user_profiles
-      WHERE id = auth.uid() AND role IN ('admin', 'super_admin')
-    )
-  );
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE tablename = 'learning_documents' AND policyname = 'Service role full access on learning documents'
+  ) THEN
+    CREATE POLICY "Service role full access on learning documents"
+      ON public.learning_documents
+      FOR ALL
+      TO service_role
+      USING (true)
+      WITH CHECK (true);
+  END IF;
 
--- Candidates & Public: Read published document versions
-CREATE POLICY "Public read published document versions"
-  ON public.document_versions
-  FOR SELECT
-  USING (is_published = TRUE AND review_status = 'PUBLISHED');
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE tablename = 'document_versions' AND policyname = 'Public read published document versions'
+  ) THEN
+    CREATE POLICY "Public read published document versions"
+      ON public.document_versions
+      FOR SELECT
+      USING (is_published = TRUE AND review_status = 'PUBLISHED');
+  END IF;
 
--- Admins & Service Role: Full access on document_versions
-CREATE POLICY "Admin full access on document versions"
-  ON public.document_versions
-  FOR ALL
-  USING (
-    auth.role() = 'service_role' OR
-    EXISTS (
-      SELECT 1 FROM public.user_profiles
-      WHERE id = auth.uid() AND role IN ('admin', 'super_admin')
-    )
-  );
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE tablename = 'document_versions' AND policyname = 'Service role full access on document versions'
+  ) THEN
+    CREATE POLICY "Service role full access on document versions"
+      ON public.document_versions
+      FOR ALL
+      TO service_role
+      USING (true)
+      WITH CHECK (true);
+  END IF;
+END $$;
 
 -- 6. Table Grants
 GRANT SELECT ON public.learning_documents TO authenticated, anon;

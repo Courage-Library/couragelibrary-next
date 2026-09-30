@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Target } from "lucide-react";
 import { constructMetadata } from "@/lib/seo/metadata";
 import { generateArticleSchema, generateBreadcrumbSchema } from "@/lib/seo/jsonld";
+import { ControlledContentRenderer } from "@/components/learning/controlled-content-renderer";
 
 export const revalidate = 60; // ISR baseline
 
@@ -112,8 +113,8 @@ export default async function ArticleReaderPage({ params }: Props) {
           </div>
 
           {/* Article Body */}
-          <div className="prose prose-slate max-w-none text-sm sm:text-base text-slate-800 leading-relaxed font-serif whitespace-pre-wrap">
-            {article.contentBody}
+          <div className="text-slate-800 leading-relaxed font-sans">
+            <ControlledContentRenderer contentMdx={article.contentBody || ""} />
           </div>
 
           {/* Learn More Topic Action Integration */}
