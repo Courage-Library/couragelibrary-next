@@ -20,6 +20,33 @@ export interface ArticleDetail extends ArticleItem {
   metaDescription: string | null;
   featuredImageUrl: string | null;
   relatedTopicId?: string | null;
+  topicSlug?: string | null;
+  subjectName?: string | null;
+  subjectId?: string | null;
+  documentType?: string | null;
+  isCanonical?: boolean;
+}
+
+export interface TopicLearningResolution {
+  topicId: string;
+  topicName?: string | null;
+  topicSlug?: string | null;
+  hasPublishedLearning: boolean;
+  learningSlug?: string | null;
+  learningTitle?: string | null;
+  documentType?: string | null;
+  isCanonical: boolean;
+  readingTimeMinutes?: number;
+}
+
+export interface RelatedLearningItem {
+  topicId: string;
+  topicName: string;
+  topicSlug: string;
+  relationshipType: "PREREQUISITE" | "RELATED" | "ADVANCED_APPLICATION" | "COREQUISITE";
+  learningSlug: string | null;
+  learningTitle: string | null;
+  documentType: string | null;
 }
 
 export interface CourseItem {
@@ -194,6 +221,7 @@ export class ContentService {
             contentBody = "Canonical learning content is currently being compiled.";
           }
 
+          const subject = topic?.subjects;
           return {
             id: doc.id,
             slug: doc.canonical_slug,
@@ -210,6 +238,11 @@ export class ContentService {
             topicName: topic?.name || null,
             topicId: unit?.topic_id || null,
             relatedTopicId: unit?.topic_id || null,
+            topicSlug: topic?.slug || null,
+            subjectName: subject?.name || null,
+            subjectId: topic?.subject_id || null,
+            documentType: doc.document_type || "CONCEPT_LESSON",
+            isCanonical: true,
           };
         }
       }
@@ -221,7 +254,7 @@ export class ContentService {
     try {
       const { data: artData } = await supabase
         .from("articles")
-        .select("*, learning_resources(*, learning_resource_topics(topic_id, topics(name))), article_versions(*)")
+        .select("*, learning_resources(*, learning_resource_topics(topic_id, topics(name, slug, subject_id, subjects(name)))), article_versions(*)")
         .eq("slug", slug)
         .eq("status", "PUBLISHED")
         .maybeSingle();
@@ -231,6 +264,8 @@ export class ContentService {
       const lr = a.learning_resources;
       const currentVersion = (a.article_versions || []).find((v: any) => v.is_current) || a.article_versions?.[0];
       const top = lr?.learning_resource_topics?.[0];
+      const topic = top?.topics;
+      const subject = topic?.subjects;
 
       return {
         id: a.id,
@@ -245,12 +280,204 @@ export class ContentService {
         metaTitle: a.meta_title,
         metaDescription: a.meta_description,
         featuredImageUrl: a.featured_image_url,
-        topicName: top?.topics?.name || null,
+        topicName: topic?.name || null,
         topicId: top?.topic_id || null,
         relatedTopicId: top?.topic_id || null,
+        topicSlug: topic?.slug || null,
+        subjectName: subject?.name || null,
+        subjectId: topic?.subject_id || null,
+        documentType: "CONCEPT_LESSON",
+        isCanonical: false,
       };
     } catch {
       return null;
+    }
+  }
+
+  /**
+   * Deterministically resolves published canonical Learning Content for a batch of topics.
+   * Priority policy: CONCEPT_LESSON -> WORKED_EXAMPLES -> FORMULA_SHORTCUT_SHEET -> COMMON_TRAPS_AND_MISTAKES -> PYQ_DEEP_DIVE -> TOPIC_SUMMARY_REVISION -> Legacy Article.
+   */
+  static async resolveLearningResourcesForTopics(
+    topicIdsOrSlugs: string[]
+  ): Promise<Map<string, TopicLearningResolution>> {
+    const resultMap = new Map<string, TopicLearningResolution>();
+    if (!topicIdsOrSlugs || topicIdsOrSlugs.length === 0) {
+      return resultMap;
+    }
+
+    const uniqueKeys = Array.from(new Set(topicIdsOrSlugs.filter(Boolean)));
+    const supabase = await createServerSupabaseClient();
+
+    // Deterministic ranking policy for document types
+    const docTypeRank: Record<string, number> = {
+      CONCEPT_LESSON: 1,
+      WORKED_EXAMPLES: 2,
+      FORMULA_SHORTCUT_SHEET: 3,
+      COMMON_TRAPS_AND_MISTAKES: 4,
+      PYQ_DEEP_DIVE: 5,
+      TOPIC_SUMMARY_REVISION: 6,
+    };
+
+    // 1. Query canonical published Learning Documents
+    try {
+      const { data: docList } = await supabase
+        .from("learning_documents")
+        .select("id, canonical_slug, document_type, status, current_published_version_id, updated_at, learning_units!inner(id, topic_id, title, estimated_minutes, topics!inner(id, name, slug))")
+        .eq("status", "PUBLISHED")
+        .not("current_published_version_id", "is", null);
+
+      const rawDocs = ((docList as unknown) as any[]) || [];
+      if (rawDocs.length > 0) {
+        // Group by topic_id and pick top-ranked document
+        const topicDocs = new Map<string, any[]>();
+        rawDocs.forEach((d: any) => {
+          const tId = d.learning_units?.topic_id;
+          const tSlug = d.learning_units?.topics?.slug;
+          if (uniqueKeys.includes(tId) || (tSlug && uniqueKeys.includes(tSlug))) {
+            if (!topicDocs.has(tId)) topicDocs.set(tId, []);
+            topicDocs.get(tId)!.push(d);
+          }
+        });
+
+        topicDocs.forEach((docs, tId) => {
+          docs.sort((a, b) => {
+            const rankA = docTypeRank[a.document_type] || 99;
+            const rankB = docTypeRank[b.document_type] || 99;
+            return rankA - rankB;
+          });
+
+          const topDoc = docs[0];
+          const unit = topDoc.learning_units;
+          const topic = unit?.topics;
+
+          const res: TopicLearningResolution = {
+            topicId: tId,
+            topicName: topic?.name || null,
+            topicSlug: topic?.slug || null,
+            hasPublishedLearning: true,
+            learningSlug: topDoc.canonical_slug,
+            learningTitle: unit?.title || topDoc.canonical_slug,
+            documentType: topDoc.document_type,
+            isCanonical: true,
+            readingTimeMinutes: unit?.estimated_minutes || 10,
+          };
+
+          resultMap.set(tId, res);
+          if (topic?.slug) {
+            resultMap.set(topic.slug, res);
+          }
+        });
+      }
+    } catch {
+      // Graceful fallback
+    }
+
+    // 2. For topics without canonical learning documents, query legacy published articles
+    const unresolvedKeys = uniqueKeys.filter((k) => !resultMap.has(k));
+    if (unresolvedKeys.length > 0) {
+      try {
+        const { data: legacyData } = await supabase
+          .from("articles")
+          .select("id, slug, published_at, learning_resources!inner(title, status, learning_resource_topics!inner(topic_id, topics!inner(id, name, slug)))")
+          .eq("status", "PUBLISHED");
+
+        if (legacyData && Array.isArray(legacyData)) {
+          legacyData.forEach((a: any) => {
+            const lr = a.learning_resources;
+            const lrt = lr?.learning_resource_topics?.[0];
+            const tId = lrt?.topic_id;
+            const topic = lrt?.topics;
+            const tSlug = topic?.slug;
+
+            if (tId && (unresolvedKeys.includes(tId) || (tSlug && unresolvedKeys.includes(tSlug)))) {
+              if (!resultMap.has(tId)) {
+                const res: TopicLearningResolution = {
+                  topicId: tId,
+                  topicName: topic?.name || null,
+                  topicSlug: tSlug || null,
+                  hasPublishedLearning: true,
+                  learningSlug: a.slug,
+                  learningTitle: lr?.title || a.slug,
+                  documentType: "CONCEPT_LESSON",
+                  isCanonical: false,
+                  readingTimeMinutes: 5,
+                };
+                resultMap.set(tId, res);
+                if (tSlug) {
+                  resultMap.set(tSlug, res);
+                }
+              }
+            }
+          });
+        }
+      } catch {
+        // Graceful handling
+      }
+    }
+
+    return resultMap;
+  }
+
+  /**
+   * Resolves a single topic's primary published Learning Resource.
+   */
+  static async resolveLearningResourceForTopic(
+    topicIdOrSlug: string,
+    preferredDocType?: string
+  ): Promise<TopicLearningResolution | null> {
+    const map = await this.resolveLearningResourcesForTopics([topicIdOrSlug]);
+    return map.get(topicIdOrSlug) || null;
+  }
+
+  /**
+   * Fetches prerequisite and related topic learning resources from the canonical taxonomy.
+   */
+  static async getRelatedLearningResources(topicId: string): Promise<RelatedLearningItem[]> {
+    if (!topicId) return [];
+    const supabase = await createServerSupabaseClient();
+
+    try {
+      const { data: rels } = await supabase
+        .from("topic_relationships")
+        .select("relationship_type, strength, to_topic_id, from_topic_id, topics!topic_relationships_to_topic_id_fkey(id, name, slug)")
+        .or(`from_topic_id.eq.${topicId},to_topic_id.eq.${topicId}`)
+        .eq("is_active", true);
+
+      if (!rels || !Array.isArray(rels)) return [];
+
+      const relatedTopicIds = new Set<string>();
+      const relItems: Array<{ topicId: string; relationshipType: any }> = [];
+
+      rels.forEach((r: any) => {
+        const targetId = r.from_topic_id === topicId ? r.to_topic_id : r.from_topic_id;
+        if (targetId && targetId !== topicId) {
+          relatedTopicIds.add(targetId);
+          relItems.push({
+            topicId: targetId,
+            relationshipType: r.relationship_type,
+          });
+        }
+      });
+
+      if (relatedTopicIds.size === 0) return [];
+
+      const learningMap = await this.resolveLearningResourcesForTopics(Array.from(relatedTopicIds));
+
+      return relItems.map((item) => {
+        const lRes = learningMap.get(item.topicId);
+        return {
+          topicId: item.topicId,
+          topicName: lRes?.topicName || "Related Topic",
+          topicSlug: lRes?.topicSlug || "",
+          relationshipType: item.relationshipType,
+          learningSlug: lRes?.learningSlug || null,
+          learningTitle: lRes?.learningTitle || null,
+          documentType: lRes?.documentType || null,
+        };
+      });
+    } catch {
+      return [];
     }
   }
 

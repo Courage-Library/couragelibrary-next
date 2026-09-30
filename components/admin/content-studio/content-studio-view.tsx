@@ -81,17 +81,24 @@ export function ContentStudioView({
   const [targetAssetFieldPath, setTargetAssetFieldPath] = useState<string>("");
   const [showAIModal, setShowAIModal] = useState(false);
 
-  const handleSelectUnit = async (unitId: string) => {
+  const handleSelectUnit = async (unitId: string, targetDocType?: DocumentType) => {
     setSelectedUnitId(unitId);
     setHasUnsavedChanges(false);
+    if (targetDocType) {
+      setNewDocType(targetDocType);
+    }
     const res = await getLearningUnitDetailAction(unitId);
     if (res.success && res.detail) {
       setUnitDetail(res.detail);
       const docs = res.detail.documents || [];
-      if (docs.length > 0 && docs[0].document_versions?.length > 0) {
+      const targetDoc = targetDocType
+        ? docs.find((d: any) => d.document_type === targetDocType)
+        : docs[0];
+
+      if (targetDoc && targetDoc.document_versions?.length > 0) {
         // Sort by version_number desc and pick latest or published
-        const versions: DocumentVersion[] = [...docs[0].document_versions].sort(
-          (a, b) => b.version_number - a.version_number
+        const versions: DocumentVersion[] = [...targetDoc.document_versions].sort(
+          (a: any, b: any) => b.version_number - a.version_number
         );
         const targetVer = versions.find((v) => v.is_published) || versions[0];
         await handleSelectVersion(targetVer.id);
@@ -413,7 +420,7 @@ export function ContentStudioView({
           <AuthoringQueueView
             initialQueue={initialQueue}
             onSelectUnitDocType={(unitId, docType) => {
-              handleSelectUnit(unitId);
+              handleSelectUnit(unitId, docType);
               setActiveTab("EXPLORER");
             }}
           />
@@ -661,7 +668,7 @@ export function ContentStudioView({
             report={initialCoverage}
             matrix={initialMatrix}
             onSelectUnitDocType={(unitId, docType) => {
-              handleSelectUnit(unitId);
+              handleSelectUnit(unitId, docType);
               setActiveTab("EXPLORER");
             }}
           />

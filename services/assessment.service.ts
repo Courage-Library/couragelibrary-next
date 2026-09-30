@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { GamificationService } from "@/services/gamification.service";
 import { MistakeService } from "@/services/mistake.service";
 import { PremiumEntitlementService } from "@/services/premium-entitlement.service";
+import { ContentService } from "@/services/content.service";
 import { formatIstDateTime, calculateExamDuration, getIstDateString } from "@/lib/assessment/timing";
 
 export interface ExamDirectoryItem {
@@ -452,6 +453,9 @@ export interface TestResultSummary {
     topicName: string | null;
     topicSlug: string | null;
     timeSpentSeconds?: number;
+    learningSlug?: string | null;
+    learningDocTitle?: string | null;
+    hasPublishedLearning?: boolean;
   }>;
 }
 
@@ -2293,6 +2297,17 @@ export class AssessmentService {
     }));
 
     const rawQuestions = (questionsRes.data as any[]) || [];
+
+    // Extract unique topic keys for batch canonical Learning Content resolution
+    const topicKeys: string[] = [];
+    rawQuestions.forEach((mq) => {
+      const q = mq.question_versions?.questions;
+      if (q?.canonical_topic_id) topicKeys.push(q.canonical_topic_id);
+      if (q?.topics?.slug) topicKeys.push(q.topics.slug);
+    });
+
+    const topicLearningMap = await ContentService.resolveLearningResourcesForTopics(topicKeys);
+
     const reviewQuestions = rawQuestions.map((mq) => {
       const qv = mq.question_versions;
       const ans = answersMap.get(mq.id);
@@ -2309,6 +2324,9 @@ export class AssessmentService {
         : qv?.question_answers;
       const correctOption = qa?.correct_option_key || "A";
       const explanation = qa?.explanation_md || null;
+      const topicId = qv?.questions?.canonical_topic_id;
+      const topicSlug = qv?.questions?.topics?.slug;
+      const learningRes = (topicId && topicLearningMap.get(topicId)) || (topicSlug && topicLearningMap.get(topicSlug));
 
       return {
         mockQuestionId: mq.id,
@@ -2324,8 +2342,11 @@ export class AssessmentService {
         marksAwarded: Number(ans?.evaluated_marks || 0),
         explanation,
         topicName: qv?.questions?.topics?.name || null,
-        topicSlug: qv?.questions?.topics?.slug || null,
+        topicSlug: topicSlug || null,
         timeSpentSeconds: ans?.time_spent_seconds ? Number(ans.time_spent_seconds) : undefined,
+        learningSlug: learningRes?.learningSlug || null,
+        learningDocTitle: learningRes?.learningTitle || null,
+        hasPublishedLearning: Boolean(learningRes?.hasPublishedLearning),
       };
     });
 
