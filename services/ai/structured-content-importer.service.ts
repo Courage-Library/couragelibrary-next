@@ -34,6 +34,10 @@ import {
   PROMPT_CONTRACT_VERSION,
 } from '@/types/external-ai';
 import { AIEngineError } from '@/services/ai/ai-provider.interface';
+import {
+  sanitizeObjectCitationArtifacts,
+  sanitizeAiCitationArtifacts,
+} from '@/services/ai/ai-citation-sanitizer';
 
 export class StructuredContentImporter {
   /**
@@ -101,6 +105,10 @@ export class StructuredContentImporter {
       }
     } else {
       parsedSpec = rawTextOrParsedSpec;
+    }
+
+    if (parsedSpec && !jsonParseError) {
+      parsedSpec = sanitizeObjectCitationArtifacts(parsedSpec);
     }
 
     if (!parsedSpec || jsonParseError) {
@@ -332,89 +340,63 @@ export class StructuredContentImporter {
     let documentId: string;
     const canonicalSlug = spec.unitSlug || `unit-${params.learningUnitId.slice(0, 8)}`;
 
-    let existingDoc: any = null;
-    try {
-      // Ensure learning_units row exists in DB if table is accessible
-      const { data: unitExists } = await supabase
-        .from('learning_units')
-        .select('id')
-        .eq('id', params.learningUnitId)
-        .maybeSingle();
+    const { data: existingDoc, error: docFetchError } = await supabase
+      .from('learning_documents')
+      .select('id')
+      .eq('learning_unit_id', params.learningUnitId)
+      .eq('document_type', params.documentType)
+      .maybeSingle();
 
-      if (!unitExists) {
-        const { data: anyTopic } = await supabase
-          .from('topics')
-          .select('id')
-          .limit(1)
-          .maybeSingle();
-
-        if (anyTopic) {
-          await supabase.from('learning_units').insert({
-            id: params.learningUnitId,
-            topic_id: anyTopic.id,
-            title: spec.metadata?.title || canonicalSlug,
-            slug: canonicalSlug,
-            unit_type: params.documentType,
-            estimated_minutes: 15,
-            display_order: 1,
-            is_active: true,
-          });
-        }
-      }
-
-      const res = await supabase
-        .from('learning_documents')
-        .select('id')
-        .eq('learning_unit_id', params.learningUnitId)
-        .eq('document_type', params.documentType)
-        .maybeSingle();
-      existingDoc = res?.data;
-    } catch (err) {
-      // Fallback if schema cache is not available
+    if (docFetchError) {
+      throw new AIEngineError(
+        'UNKNOWN_ERROR',
+        `Failed to query learning_documents table: ${docFetchError.message}. Ensure Learning schema migrations are active.`
+      );
     }
 
     if (existingDoc?.id) {
       documentId = existingDoc.id;
     } else {
-      let createdDocId: string | null = null;
-      try {
-        const { data: newDoc } = await supabase
-          .from('learning_documents')
-          .insert({
-            learning_unit_id: params.learningUnitId,
-            canonical_slug: canonicalSlug,
-            document_type: params.documentType,
-            status: 'DRAFT',
-          })
-          .select('id')
-          .single();
+      const { data: newDoc, error: docCreateError } = await supabase
+        .from('learning_documents')
+        .insert({
+          learning_unit_id: params.learningUnitId,
+          canonical_slug: canonicalSlug,
+          document_type: params.documentType,
+          status: 'DRAFT',
+        })
+        .select('id')
+        .single();
 
-        if (newDoc?.id) {
-          createdDocId = newDoc.id;
-        }
-      } catch (err) {
-        // Fallback
+      if (docCreateError || !newDoc) {
+        throw new AIEngineError(
+          'UNKNOWN_ERROR',
+          `Failed to persist canonical learning document: ${docCreateError?.message || 'Database insert failed'}`
+        );
       }
 
-      documentId = createdDocId || `doc-${params.learningUnitId}-${params.documentType.toLowerCase().replace(/_/g, '-')}`;
+      documentId = newDoc.id;
     }
 
     // 3. Resolve Next Version Number
     let nextVersionNumber = 1;
-    try {
-      const { data: latestVer } = await supabase
-        .from('document_versions')
-        .select('version_number')
-        .eq('document_id', documentId)
-        .order('version_number', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+    const { data: latestVer, error: verFetchError } = await supabase
+      .from('document_versions')
+      .select('version_number')
+      .eq('document_id', documentId)
+      .order('version_number', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-      if (latestVer?.version_number) {
-        nextVersionNumber = latestVer.version_number + 1;
-      }
-    } catch (err) {
-      nextVersionNumber = 1;
+    if (verFetchError) {
+      throw new AIEngineError(
+        'UNKNOWN_ERROR',
+        `Failed to query document_versions table: ${verFetchError.message}`
+      );
+    }
+
+    if (latestVer?.version_number) {
+      nextVersionNumber = latestVer.version_number + 1;
     }
 
     // 4. Compile and Store Version Artifacts
@@ -431,33 +413,22 @@ export class StructuredContentImporter {
     });
 
     // 5. Insert Document Version with review_status = 'AI_GENERATED'
-    let versionRecord: any = null;
-    try {
-      const { data: verRecord } = await supabase
-        .from('document_versions')
-        .insert({
-          ...compileStore.version,
-          author_type: 'AI_ASSISTED',
-          review_status: 'AI_GENERATED',
-          is_published: false,
-        })
-        .select()
-        .single();
-      versionRecord = verRecord;
-    } catch (err) {
-      // Fallback
-    }
-
-    if (!versionRecord) {
-      versionRecord = {
+    const { data: versionRecord, error: verInsertError } = await supabase
+      .from('document_versions')
+      .insert({
         ...compileStore.version,
-        id: compileStore.version.id || `ver-${documentId}-v${nextVersionNumber}`,
-        document_id: documentId,
-        version_number: nextVersionNumber,
         author_type: 'AI_ASSISTED',
         review_status: 'AI_GENERATED',
         is_published: false,
-      };
+      })
+      .select()
+      .single();
+
+    if (verInsertError || !versionRecord) {
+      throw new AIEngineError(
+        'UNKNOWN_ERROR',
+        `Failed to persist document version record to database: ${verInsertError?.message || 'Database insert failed'}`
+      );
     }
 
     LearningDocumentService.cacheVersion(versionRecord as DocumentVersion);

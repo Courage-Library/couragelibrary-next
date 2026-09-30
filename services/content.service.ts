@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { StorageFactory } from "@/services/storage/storage-factory";
 
 export interface ArticleItem {
   id: string;
@@ -70,23 +71,166 @@ export interface CourseDetail extends CourseItem {
 
 export class ContentService {
   /**
-   * Fetches published articles list.
+   * Fetches published articles list with canonical Learning Content precedence.
    */
   static async getArticles(filters?: { topicId?: string }): Promise<ArticleItem[]> {
     const supabase = await createServerSupabaseClient();
+    const articlesMap = new Map<string, ArticleItem>();
 
-    let query = supabase
-      .from("articles")
-      .select("id, slug, excerpt, reading_time_minutes, published_at, learning_resources!inner(id, title, description, access_level, status, learning_resource_topics(topic_id, topics(name)))")
-      .eq("status", "PUBLISHED")
-      .order("published_at", { ascending: false });
+    // 1. Resolve published canonical Learning Documents
+    try {
+      const { data: docList } = await supabase
+        .from("learning_documents")
+        .select("id, canonical_slug, status, updated_at, learning_units(id, title, estimated_minutes, topic_id, topics(name))")
+        .eq("status", "PUBLISHED")
+        .order("updated_at", { ascending: false });
 
-    const { data, error } = await query;
-    if (error || !data) return [];
+      if (docList && Array.isArray(docList)) {
+        docList.forEach((d: any) => {
+          const u = d.learning_units;
+          const t = u?.topics;
+          if (filters?.topicId && u?.topic_id !== filters.topicId) {
+            return;
+          }
+          articlesMap.set(d.canonical_slug, {
+            id: d.id,
+            slug: d.canonical_slug,
+            title: u?.title || d.canonical_slug,
+            description: null,
+            excerpt: `Conceptual study unit for ${t?.name || "competitive exams"}.`,
+            readingTimeMinutes: u?.estimated_minutes || 10,
+            accessLevel: "FREE",
+            publishedAt: d.updated_at,
+            topicName: t?.name || null,
+            topicId: u?.topic_id || null,
+          });
+        });
+      }
+    } catch {
+      // Graceful fallback if learning_documents table is absent in remote DB
+    }
 
-    return (data as any[]).map((a) => {
+    // 2. Resolve legacy articles and merge
+    try {
+      let query = supabase
+        .from("articles")
+        .select("id, slug, excerpt, reading_time_minutes, published_at, learning_resources!inner(id, title, description, access_level, status, learning_resource_topics(topic_id, topics(name)))")
+        .eq("status", "PUBLISHED")
+        .order("published_at", { ascending: false });
+
+      const { data: legacyData } = await query;
+      if (legacyData && Array.isArray(legacyData)) {
+        legacyData.forEach((a: any) => {
+          const lr = a.learning_resources;
+          const t = lr?.learning_resource_topics?.[0]?.topics;
+          const topicId = lr?.learning_resource_topics?.[0]?.topic_id || null;
+
+          if (filters?.topicId && topicId !== filters.topicId) {
+            return;
+          }
+
+          if (!articlesMap.has(a.slug)) {
+            articlesMap.set(a.slug, {
+              id: a.id,
+              slug: a.slug,
+              title: lr?.title || "Article",
+              description: lr?.description || null,
+              excerpt: a.excerpt || lr?.description || null,
+              readingTimeMinutes: a.reading_time_minutes || 5,
+              accessLevel: lr?.access_level || "FREE",
+              publishedAt: a.published_at,
+              topicName: t?.name || null,
+              topicId,
+            });
+          }
+        });
+      }
+    } catch {
+      // Graceful handling
+    }
+
+    return Array.from(articlesMap.values());
+  }
+
+  /**
+   * Fetches article detail and current Markdown/MDX version.
+   * Priority: Published Canonical Learning Document -> Legacy Published Article.
+   */
+  static async getArticleBySlug(slug: string): Promise<ArticleDetail | null> {
+    const supabase = await createServerSupabaseClient();
+
+    // 1. Try to resolve published canonical Learning Document
+    try {
+      const { data: docData } = await supabase
+        .from("learning_documents")
+        .select("id, canonical_slug, document_type, status, current_published_version_id, learning_units(id, title, estimated_minutes, topic_id, topics(name, subject_id, subjects(name))), document_versions(*)")
+        .eq("canonical_slug", slug)
+        .eq("status", "PUBLISHED")
+        .maybeSingle();
+
+      if (docData) {
+        const doc = docData as any;
+        const unit = doc.learning_units;
+        const topic = unit?.topics;
+        const versions = doc.document_versions || [];
+        const publishedVersion =
+          versions.find((v: any) => v.id === doc.current_published_version_id) ||
+          versions.find((v: any) => v.is_published && v.review_status === "PUBLISHED");
+
+        if (publishedVersion) {
+          let contentBody = "";
+          try {
+            const storageProvider = StorageFactory.getProvider();
+            const storageRes = await storageProvider.get(
+              "learning-artifacts",
+              publishedVersion.compiled_artifact_storage_key
+            );
+            if (storageRes?.data) {
+              contentBody = storageRes.data.toString("utf8");
+            } else {
+              contentBody = "Canonical learning content is currently being compiled.";
+            }
+          } catch {
+            contentBody = "Canonical learning content is currently being compiled.";
+          }
+
+          return {
+            id: doc.id,
+            slug: doc.canonical_slug,
+            title: unit?.title || doc.canonical_slug,
+            description: null,
+            excerpt: `Comprehensive ${doc.document_type?.toLowerCase().replace(/_/g, " ")} for ${topic?.name || "competitive exams"}.`,
+            readingTimeMinutes: unit?.estimated_minutes || 10,
+            accessLevel: "FREE",
+            publishedAt: publishedVersion.published_at || publishedVersion.created_at,
+            contentBody,
+            metaTitle: `${unit?.title || "Learning Guide"} | Courage Library`,
+            metaDescription: `Read complete study brief on ${unit?.title || doc.canonical_slug} with formulas, examples, and PYQs.`,
+            featuredImageUrl: null,
+            topicName: topic?.name || null,
+            topicId: unit?.topic_id || null,
+            relatedTopicId: unit?.topic_id || null,
+          };
+        }
+      }
+    } catch {
+      // Seamless fallback to legacy articles if table is absent
+    }
+
+    // 2. Fallback to resolve legacy published article
+    try {
+      const { data: artData } = await supabase
+        .from("articles")
+        .select("*, learning_resources(*, learning_resource_topics(topic_id, topics(name))), article_versions(*)")
+        .eq("slug", slug)
+        .eq("status", "PUBLISHED")
+        .maybeSingle();
+
+      if (!artData) return null;
+      const a = artData as any;
       const lr = a.learning_resources;
-      const t = lr?.learning_resource_topics?.[0]?.topics;
+      const currentVersion = (a.article_versions || []).find((v: any) => v.is_current) || a.article_versions?.[0];
+      const top = lr?.learning_resource_topics?.[0];
 
       return {
         id: a.id,
@@ -97,48 +241,17 @@ export class ContentService {
         readingTimeMinutes: a.reading_time_minutes || 5,
         accessLevel: lr?.access_level || "FREE",
         publishedAt: a.published_at,
-        topicName: t?.name || null,
-        topicId: lr?.learning_resource_topics?.[0]?.topic_id || null,
+        contentBody: currentVersion?.content_body || a.excerpt || "No content published.",
+        metaTitle: a.meta_title,
+        metaDescription: a.meta_description,
+        featuredImageUrl: a.featured_image_url,
+        topicName: top?.topics?.name || null,
+        topicId: top?.topic_id || null,
+        relatedTopicId: top?.topic_id || null,
       };
-    });
-  }
-
-  /**
-   * Fetches article detail and current Markdown version.
-   */
-  static async getArticleBySlug(slug: string): Promise<ArticleDetail | null> {
-    const supabase = await createServerSupabaseClient();
-
-    const { data: artData } = await supabase
-      .from("articles")
-      .select("*, learning_resources(*, learning_resource_topics(topic_id, topics(name))), article_versions(*)")
-      .eq("slug", slug)
-      .eq("status", "PUBLISHED")
-      .maybeSingle();
-
-    if (!artData) return null;
-    const a = artData as any;
-    const lr = a.learning_resources;
-    const currentVersion = (a.article_versions || []).find((v: any) => v.is_current) || a.article_versions?.[0];
-    const top = lr?.learning_resource_topics?.[0];
-
-    return {
-      id: a.id,
-      slug: a.slug,
-      title: lr?.title || "Article",
-      description: lr?.description || null,
-      excerpt: a.excerpt || lr?.description || null,
-      readingTimeMinutes: a.reading_time_minutes || 5,
-      accessLevel: lr?.access_level || "FREE",
-      publishedAt: a.published_at,
-      contentBody: currentVersion?.content_body || a.excerpt || "No content published.",
-      metaTitle: a.meta_title,
-      metaDescription: a.meta_description,
-      featuredImageUrl: a.featured_image_url,
-      topicName: top?.topics?.name || null,
-      topicId: top?.topic_id || null,
-      relatedTopicId: top?.topic_id || null,
-    };
+    } catch {
+      return null;
+    }
   }
 
   /**
