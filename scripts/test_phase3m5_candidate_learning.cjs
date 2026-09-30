@@ -43,6 +43,11 @@ if (!connectionString) {
   process.exit(1);
 }
 
+const dns = require('dns');
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
+
 const EXPECTED_BASELINES = {
   subjects: 4,
   topics: 36,
@@ -52,17 +57,31 @@ const EXPECTED_BASELINES = {
   user_profiles: 22,
 };
 
+async function getClient() {
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const client = new Client({
+        connectionString,
+        ssl: { rejectUnauthorized: false },
+        connectionTimeoutMillis: 15000,
+      });
+      client.on('error', () => {});
+      await client.connect();
+      return client;
+    } catch (err) {
+      console.warn(`Connection attempt ${attempt} failed: ${err.message}. Retrying...`);
+      await new Promise((res) => setTimeout(res, 2000));
+    }
+  }
+  throw new Error('Failed to connect to PostgreSQL after 3 attempts');
+}
+
 async function runPhase3M5ForensicSuite() {
   console.log("================================================================================");
   console.log("COURAGE LIBRARY — PHASE 3M.5 CANDIDATE LEARNING & MOCK INTEGRATION HARDENING");
   console.log("================================================================================\n");
 
-  const client = new Client({
-    connectionString,
-    ssl: { rejectUnauthorized: false },
-  });
-
-  await client.connect();
+  const client = await getClient();
   console.log("✓ Remote PostgreSQL Connection established successfully.\n");
 
   const results = [];

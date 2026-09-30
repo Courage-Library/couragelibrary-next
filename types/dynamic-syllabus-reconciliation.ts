@@ -480,4 +480,147 @@ export interface SyllabusStructuralDeltaReport {
   };
 }
 
+// -----------------------------------------------------------------------------
+// Phase 3R.6: Operational API & Admin Workflow Types
+// -----------------------------------------------------------------------------
+
+export type ApiErrorCode =
+  | 'UNAUTHENTICATED'
+  | 'FORBIDDEN'
+  | 'INVALID_INPUT'
+  | 'NOT_FOUND'
+  | 'INVALID_STATE'
+  | 'RESOLUTION_CONFLICT'
+  | 'RECONCILIATION_STALE'
+  | 'DUPLICATE'
+  | 'VALIDATION_FAILED'
+  | 'INTERNAL_ERROR';
+
+export interface ApiErrorDetail {
+  code: ApiErrorCode;
+  message: string;
+  details?: Record<string, any> | null;
+}
+
+export interface ApiErrorResponse {
+  success: false;
+  error: ApiErrorDetail;
+}
+
+export interface ApiSuccessResponse<T> {
+  success: true;
+  data: T;
+}
+
+export type ApiResponse<T> = ApiSuccessResponse<T> | ApiErrorResponse;
+
+export interface SyllabusVersionListItem {
+  id: string;
+  examId: string;
+  examName: string;
+  examSlug: string;
+  examCycleId: string | null;
+  cycleYear: number | null;
+  versionTag: string;
+  status: SyllabusVersionStatus;
+  isActive: boolean;
+  rawPayloadHash: string;
+  totalNodes: number;
+  readinessSummary: SyllabusReadinessSummary;
+  reconciliationHealth: ReconciliationHealth;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SyllabusVersionListResponse {
+  versions: SyllabusVersionListItem[];
+  totalCount: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface WorkQueueListResponse {
+  items: TaxonomyWorkQueueItem[];
+  totalCount: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  filters: {
+    syllabusVersionId?: string;
+    priority?: WorkQueuePriority;
+    readinessState?: SyllabusReadinessState;
+    isMandatory?: boolean;
+    subjectId?: string;
+    search?: string;
+  };
+}
+
+export interface WorkItemDetailResponse {
+  syllabusNode: {
+    id: string;
+    syllabusVersionId: string;
+    parentNodeId: string | null;
+    rawTitle: string;
+    rawSlug: string;
+    nodeDepth: number;
+    displayOrder: number;
+    isMandatory: boolean;
+    weightageTier?: string | null;
+    cognitiveDepth?: string | null;
+  };
+  path: string;
+  readinessState: SyllabusReadinessState;
+  priority: WorkQueuePriority;
+  isBlocking: boolean;
+  requiredAction: WorkQueueAction;
+  availableActions: ResolutionAction[];
+  currentMapping: ExamSyllabusCanonicalMapping | null;
+  canonicalTarget: CanonicalTaxonomyNode | null;
+  candidateMatches: CanonicalCandidateMatch[];
+  resolutionHistory: Array<{
+    action: string;
+    previousStatus: string;
+    newStatus: string;
+    reviewedBy: string | null;
+    reviewedAt: string;
+    notes?: string | null;
+  }>;
+}
+
+export interface ResolveWorkItemApiPayload {
+  syllabusVersionId: string;
+  syllabusNodeId: string;
+  action: ResolutionAction;
+  expectedState?: SyllabusReadinessState;
+  canonicalNodeId?: string | null;
+  targetParentId?: string | null;
+  newNodeName?: string;
+  newNodeSlug?: string;
+  newNodeType?: CanonicalNodeType;
+  aliasName?: string;
+  aliasContext?: string;
+  notes?: string;
+  subtreeNodes?: ResolutionSubtreeItem[];
+}
+
+export interface ResolveWorkItemApiResponse {
+  resolution: {
+    action: ResolutionAction;
+    syllabusNodeId: string;
+    newState: SyllabusReadinessState;
+    canonicalNodeId: string | null;
+    reviewedAt: string;
+    message: string;
+  };
+  readiness: {
+    affectedSubjectSummary: SubjectReadinessSummary | null;
+    updatedSummary: SyllabusReadinessSummary;
+  };
+  workQueue: {
+    remainingActionableCount: number;
+    nextItem: TaxonomyWorkQueueItem | null;
+  };
+}
+
 
