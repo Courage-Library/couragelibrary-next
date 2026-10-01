@@ -452,16 +452,17 @@ async function runTestSuite() {
     assert.strictEqual(report.isApplicable, false);
   });
 
-  await test('P24', 'Evaluates NOT_APPLICABLE status when parent exam is inactive', async () => {
+  await test('P24', 'Evaluates APPLICABLE status for Draft/inactive exam with draft warning', async () => {
     const report = ExamModuleRegistry.evaluateApplicability(
-      { id: 'ex-1', title: 'Old Discontinued Exam', isActive: false },
+      { id: 'ex-1', title: 'Draft Examination', isActive: false },
       null,
       'EXAM_OVERVIEW',
       0,
       0
     );
-    assert.strictEqual(report.status, 'NOT_APPLICABLE');
-    assert.strictEqual(report.isApplicable, false);
+    assert.strictEqual(report.status, 'APPLICABLE');
+    assert.strictEqual(report.isApplicable, true);
+    assert(report.warnings.some(w => w.includes('DRAFT')), 'Must include DRAFT warning');
   });
 
   await test('P25', 'Incorporates verified sources and citations deterministically sorted by ID', async () => {

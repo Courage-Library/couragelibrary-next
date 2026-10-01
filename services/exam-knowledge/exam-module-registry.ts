@@ -484,22 +484,13 @@ export class ExamModuleRegistry {
    * Evaluates applicability of a module to an exam and optional cycle.
    */
   static evaluateApplicability(
-    exam: { id: string; title: string; isActive: boolean },
+    exam: { id: string; title: string; isActive?: boolean },
     cycle: { id: string; cycleYear: number } | null | undefined,
     moduleKey: ExamModuleKey,
     sourcesCount: number,
     claimsCount: number
   ): ModuleApplicabilityReport {
     const def = this.getModuleDefinition(moduleKey);
-
-    if (!exam.isActive) {
-      return {
-        status: 'NOT_APPLICABLE',
-        reason: `Exam "${exam.title}" is currently inactive in the system.`,
-        isApplicable: false,
-        warnings: ['Exam is inactive.'],
-      };
-    }
 
     if (def.isCycleSpecific && !cycle) {
       return {
@@ -511,6 +502,10 @@ export class ExamModuleRegistry {
     }
 
     const warnings: string[] = [];
+    if (exam.isActive === false) {
+      warnings.push(`Exam "${exam.title}" is currently in DRAFT status. Authored modules remain candidate-invisible until publication.`);
+    }
+
     if (def.requiresSources && sourcesCount === 0) {
       warnings.push(`Module "${def.displayName}" expects official source citations, but 0 verified sources are currently registered.`);
     }
