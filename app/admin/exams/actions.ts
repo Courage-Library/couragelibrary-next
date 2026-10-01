@@ -284,6 +284,55 @@ export async function archiveExamAction(examId: string): Promise<ExamActionResul
 }
 
 /**
+ * Server Action: Evaluate Exam Deletion Eligibility
+ */
+export async function evaluateExamDeletionEligibilityAction(
+  examId: string
+): Promise<{ success: boolean; report?: import("@/services/exam-onboarding/exam-onboarding.service").ExamDeletionEligibilityReport; error?: string }> {
+  const auth = await AdminService.checkIsAdminOrStaff();
+  if (!auth.isAdmin) return { success: false, error: "Unauthorized access." };
+
+  try {
+    const report = await ExamOnboardingService.evaluateExamDeletionEligibility(examId);
+    return { success: true, report };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Failed to evaluate deletion safety." };
+  }
+}
+
+/**
+ * Server Action: Permanently Delete Exam (Guarded by Dependency Safety & Exact Slug Confirmation)
+ */
+export async function deleteExamDraftAction(
+  examId: string,
+  confirmationSlug: string
+): Promise<ExamActionResult> {
+  const auth = await AdminService.checkIsAdminOrStaff();
+  if (!auth.isAdmin) return { error: "Unauthorized access. Only verified administrators can delete examinations." };
+
+  try {
+    const result = await ExamOnboardingService.deleteExam(
+      examId,
+      confirmationSlug,
+      auth.userId,
+      auth.userEmail
+    );
+
+    revalidatePath("/admin/exams");
+    revalidatePath("/exams");
+    revalidatePath("/admin/exam-knowledge");
+
+    return {
+      success: true,
+      message: `Examination "${result.deletedExam.title}" (${result.deletedExam.slug}) was permanently deleted.`,
+      data: result.deletedExam,
+    };
+  } catch (err: any) {
+    return { error: err.message || "Failed to delete examination." };
+  }
+}
+
+/**
  * Server Action: Generate Master AI Research Prompt
  */
 export async function generateMasterExamPromptAction(
