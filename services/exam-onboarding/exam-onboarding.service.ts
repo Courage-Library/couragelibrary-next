@@ -103,6 +103,43 @@ export interface OnboardingKnowledgeModuleStatus {
   studioUrl: string;
 }
 
+export interface ExamDeletionDependencies {
+  cycles: number;
+  posts: number;
+  syllabi: number;
+  topics: number;
+  knowledgeDocuments: number;
+  knowledgeVersions: number;
+  sources: number;
+  claims: number;
+  questionMappings: number;
+  mockTemplates: number;
+  liveTests: number;
+  testAttempts: number;
+  userExamGoals: number;
+  userExamReadiness: number;
+  adaptiveTestConfigs: number;
+  canonicalSyllabi: number;
+  curriculumBlueprints: number;
+  announcements: number;
+}
+
+export interface ExamDeletionEligibilityReport {
+  eligible: boolean;
+  reason: string;
+  exam: {
+    id: string;
+    title: string;
+    slug: string;
+    isActive: boolean;
+    category: string;
+    createdAt: string;
+  };
+  dependencies: ExamDeletionDependencies;
+  blockers: string[];
+  warnings: string[];
+}
+
 export class ExamOnboardingService {
   static async getAdminExamsOverview(customSupabase?: any): Promise<{
     exams: AdminExamListItem[];
@@ -153,61 +190,61 @@ export class ExamOnboardingService {
       docs = [];
     }
 
-    const examList: AdminExamListItem[] = [];
+    const examList: AdminExamListItem[] = await Promise.all(
+      (exams || []).map(async (exam: any) => {
+        const examCycles = (cycles || []).filter((c: any) => c.exam_id === exam.id);
+        const activeCycle = examCycles[0] || null;
+        const examDocs = docs.filter((d: any) => d.exam_id === exam.id && d.status === 'PUBLISHED' && d.current_published_version_id);
 
-    for (const exam of exams || []) {
-      const examCycles = (cycles || []).filter((c: any) => c.exam_id === exam.id);
-      const activeCycle = examCycles[0] || null;
-      const examDocs = docs.filter((d: any) => d.exam_id === exam.id && d.status === 'PUBLISHED' && d.current_published_version_id);
+        const readinessReport = await ExamReadinessService.evaluateReadiness(exam.id, activeCycle?.id, supabase).catch(() => ({
+          status: exam.is_active ? 'PUBLISHED' : 'IN_PROGRESS',
+          examId: exam.id,
+          cycleId: activeCycle?.id || null,
+          examTitle: exam.title,
+          examSlug: exam.slug,
+          isActive: Boolean(exam.is_active),
+          isPublishable: false,
+          readinessScore: 0,
+          blockingIssuesCount: 1,
+          warningsCount: 0,
+          blockingIssues: [],
+          warnings: [],
+          completedChecks: [],
+          dimensionBreakdown: {} as any,
+          evaluatedAt: new Date().toISOString(),
+        }));
 
-      const readinessReport = await ExamReadinessService.evaluateReadiness(exam.id, activeCycle?.id, supabase).catch(() => ({
-        status: exam.is_active ? 'PUBLISHED' : 'IN_PROGRESS',
-        examId: exam.id,
-        cycleId: activeCycle?.id || null,
-        examTitle: exam.title,
-        examSlug: exam.slug,
-        isActive: Boolean(exam.is_active),
-        isPublishable: false,
-        readinessScore: 0,
-        blockingIssuesCount: 1,
-        warningsCount: 0,
-        blockingIssues: [],
-        warnings: [],
-        completedChecks: [],
-        dimensionBreakdown: {} as any,
-        evaluatedAt: new Date().toISOString(),
-      }));
+        const orgData = Array.isArray(exam.conducting_org) ? exam.conducting_org[0] : exam.conducting_org;
 
-      const orgData = Array.isArray(exam.conducting_org) ? exam.conducting_org[0] : exam.conducting_org;
-
-      examList.push({
-        id: exam.id,
-        title: exam.title,
-        slug: exam.slug,
-        category: exam.category || 'General',
-        description: exam.description,
-        isActive: Boolean(exam.is_active),
-        conductingOrg: {
-          id: orgData?.id || '',
-          name: orgData?.name || 'Unassigned Organization',
-          slug: orgData?.slug || '',
-          officialWebsite: orgData?.official_website,
-        },
-        activeCycle: activeCycle
-          ? {
-              id: activeCycle.id,
-              cycleYear: activeCycle.cycle_year,
-              status: activeCycle.status,
-            }
-          : null,
-        totalCyclesCount: examCycles.length,
-        totalPostsCount: 0,
-        totalPublishedModulesCount: examDocs.length,
-        readinessReport: readinessReport as ExamReadinessReport,
-        createdAt: exam.created_at,
-        updatedAt: exam.updated_at,
-      });
-    }
+        return {
+          id: exam.id,
+          title: exam.title,
+          slug: exam.slug,
+          category: exam.category || 'General',
+          description: exam.description,
+          isActive: Boolean(exam.is_active),
+          conductingOrg: {
+            id: orgData?.id || '',
+            name: orgData?.name || 'Unassigned Organization',
+            slug: orgData?.slug || '',
+            officialWebsite: orgData?.official_website,
+          },
+          activeCycle: activeCycle
+            ? {
+                id: activeCycle.id,
+                cycleYear: activeCycle.cycle_year,
+                status: activeCycle.status,
+              }
+            : null,
+          totalCyclesCount: examCycles.length,
+          totalPostsCount: 0,
+          totalPublishedModulesCount: examDocs.length,
+          readinessReport: readinessReport as ExamReadinessReport,
+          createdAt: exam.created_at,
+          updatedAt: exam.updated_at,
+        };
+      })
+    );
 
     const publishedExams = examList.filter((e) => e.isActive).length;
     const draftExams = examList.filter((e) => !e.isActive).length;
@@ -696,5 +733,310 @@ export class ExamOnboardingService {
     const supabase = customSupabase || createAdminServerSupabaseClient();
     const { error } = await supabase.from('exams').update({ is_active: false, updated_at: new Date().toISOString() }).eq('id', examId);
     if (error) throw new Error(`Failed to archive exam: ${error.message}`);
+  }
+
+  static async evaluateExamDeletionEligibility(
+    examId: string,
+    customSupabase?: any
+  ): Promise<ExamDeletionEligibilityReport> {
+    const supabase = customSupabase || createAdminServerSupabaseClient();
+
+    // 1. Fetch Exam record
+    const { data: exam, error: examErr } = await supabase
+      .from('exams')
+      .select('id, title, slug, is_active, category, created_at')
+      .eq('id', examId)
+      .maybeSingle();
+
+    if (examErr || !exam) {
+      throw new Error(`Exam with ID "${examId}" not found or database query failed: ${examErr?.message || 'Not found'}`);
+    }
+
+    let queryFailed = false;
+
+    try {
+      // 2. Fetch cycles
+      const { data: cycles, error: cycleErr } = await supabase.from('exam_cycles').select('id').eq('exam_id', examId);
+      if (cycleErr) queryFailed = true;
+      const cycleIds = (cycles || []).map((c: any) => c.id);
+
+      // 3. Fetch syllabi & topics
+      let syllabiCount = 0;
+      let topicsCount = 0;
+      if (cycleIds.length > 0) {
+        const { data: syllabi, error: sylErr } = await supabase.from('exam_syllabi').select('id').in('exam_cycle_id', cycleIds);
+        if (sylErr) queryFailed = true;
+        syllabiCount = (syllabi || []).length;
+        const sylIds = (syllabi || []).map((s: any) => s.id);
+        if (sylIds.length > 0) {
+          const { count: topCount, error: topErr } = await supabase.from('exam_topics').select('*', { count: 'exact', head: true }).in('syllabus_id', sylIds);
+          if (topErr) queryFailed = true;
+          topicsCount = topCount || 0;
+        }
+      }
+
+      // 4. Fetch knowledge docs & versions
+      let docsCount = 0;
+      let docVersionsCount = 0;
+      const { data: docs, error: docErr } = await supabase.from('exam_knowledge_documents').select('id').eq('exam_id', examId);
+      if (docErr) queryFailed = true;
+      docsCount = (docs || []).length;
+      const docIds = (docs || []).map((d: any) => d.id);
+      if (docIds.length > 0) {
+        const { count: vCount, error: vErr } = await supabase.from('exam_doc_versions').select('*', { count: 'exact', head: true }).in('document_id', docIds);
+        if (vErr) queryFailed = true;
+        docVersionsCount = vCount || 0;
+      }
+
+      // 5. Query dependency counts safely
+      const getCount = async (table: string, column: string = 'exam_id'): Promise<number> => {
+        try {
+          const { count, error } = await supabase.from(table).select('*', { count: 'exact', head: true }).eq(column, examId);
+          if (error) {
+            if (error.code === '42P01' || error.message?.includes('does not exist')) {
+              return 0;
+            }
+            queryFailed = true;
+            return 0;
+          }
+          return count || 0;
+        } catch {
+          queryFailed = true;
+          return 0;
+        }
+      };
+
+      const [
+        postsCount,
+        sourcesCount,
+        claimsCount,
+        questionMappingsCount,
+        mockTemplatesCount,
+        liveTestsCount,
+        userGoalsCount,
+        userReadinessCount,
+        adaptiveConfigsCount,
+        canonicalSyllabiCount,
+        blueprintsCount,
+        announcementsCount
+      ] = await Promise.all([
+        getCount('exam_posts'),
+        getCount('exam_sources'),
+        getCount('exam_claims'),
+        getCount('exam_question_mappings'),
+        getCount('mock_templates'),
+        getCount('live_tests'),
+        getCount('user_exam_goals'),
+        getCount('user_exam_readiness'),
+        getCount('adaptive_test_configs'),
+        getCount('exam_canonical_syllabi'),
+        getCount('curriculum_blueprints'),
+        getCount('exam_announcements'),
+      ]);
+
+      let testAttemptsCount = 0;
+      if (mockTemplatesCount > 0) {
+        try {
+          const { data: mtData } = await supabase.from('mock_templates').select('id').eq('exam_id', examId);
+          const templateIds = (mtData || []).map((t: any) => t.id);
+          if (templateIds.length > 0) {
+            const { data: mTests } = await supabase.from('mock_tests').select('id').in('template_id', templateIds);
+            const mockTestIds = (mTests || []).map((m: any) => m.id);
+            if (mockTestIds.length > 0) {
+              const { count: aCount } = await supabase.from('test_attempts').select('*', { count: 'exact', head: true }).in('mock_test_id', mockTestIds);
+              testAttemptsCount = aCount || 0;
+            }
+          }
+        } catch (_) {}
+      }
+
+      const dependencies: ExamDeletionDependencies = {
+        cycles: cycleIds.length,
+        posts: postsCount,
+        syllabi: syllabiCount,
+        topics: topicsCount,
+        knowledgeDocuments: docsCount,
+        knowledgeVersions: docVersionsCount,
+        sources: sourcesCount,
+        claims: claimsCount,
+        questionMappings: questionMappingsCount,
+        mockTemplates: mockTemplatesCount,
+        liveTests: liveTestsCount,
+        testAttempts: testAttemptsCount,
+        userExamGoals: userGoalsCount,
+        userExamReadiness: userReadinessCount,
+        adaptiveTestConfigs: adaptiveConfigsCount,
+        canonicalSyllabi: canonicalSyllabiCount,
+        curriculumBlueprints: blueprintsCount,
+        announcements: announcementsCount,
+      };
+
+      const blockers: string[] = [];
+      const warnings: string[] = [];
+
+      if (queryFailed) {
+        blockers.push('Failed to query dependency data or database connection was interrupted. Deletion is blocked for data safety.');
+      }
+
+      if (dependencies.testAttempts > 0) {
+        blockers.push(`Candidate test attempts exist (${dependencies.testAttempts} attempt(s)). Hard deletion would destroy student test history.`);
+      }
+      if (dependencies.userExamGoals > 0) {
+        blockers.push(`Active student exam goals exist (${dependencies.userExamGoals} goal(s)).`);
+      }
+      if (dependencies.userExamReadiness > 0) {
+        blockers.push(`Student readiness score records exist (${dependencies.userExamReadiness} record(s)).`);
+      }
+      if (dependencies.mockTemplates > 0) {
+        blockers.push(`Mock test blueprints exist (${dependencies.mockTemplates} template(s)).`);
+      }
+      if (dependencies.liveTests > 0) {
+        blockers.push(`Live competition tests exist (${dependencies.liveTests} test(s)).`);
+      }
+      if (dependencies.adaptiveTestConfigs > 0) {
+        blockers.push(`Adaptive testing engine configurations exist (${dependencies.adaptiveTestConfigs} config(s)).`);
+      }
+      if (dependencies.questionMappings > 0) {
+        blockers.push(`Question bank practice items exist (${dependencies.questionMappings} mapping(s)).`);
+      }
+      if (Boolean(exam.is_active) && (dependencies.sources > 0 || dependencies.knowledgeDocuments >= 4)) {
+        blockers.push(`Published canonical production examination with verified assets cannot be permanently deleted. Use Archive/Deactivate instead.`);
+      }
+
+      if (dependencies.knowledgeDocuments > 0) {
+        warnings.push(`${dependencies.knowledgeDocuments} knowledge document(s) and ${dependencies.knowledgeVersions} version(s) will be permanently purged.`);
+      }
+      if (dependencies.syllabi > 0) {
+        warnings.push(`${dependencies.syllabi} projected syllabus containing ${dependencies.topics} mapped topic(s) will be purged.`);
+      }
+
+      const eligible = blockers.length === 0;
+      const reason = eligible
+        ? 'Examination is eligible for permanent controlled deletion (0 protected candidate/assessment dependencies).'
+        : `Deletion blocked: ${blockers.join('; ')}`;
+
+      return {
+        eligible,
+        reason,
+        exam: {
+          id: exam.id,
+          title: exam.title,
+          slug: exam.slug,
+          isActive: Boolean(exam.is_active),
+          category: exam.category || 'General',
+          createdAt: exam.created_at,
+        },
+        dependencies,
+        blockers,
+        warnings,
+      };
+    } catch (err: any) {
+      // FAIL CLOSED
+      return {
+        eligible: false,
+        reason: `Failed to evaluate deletion safety: ${err.message || 'Unknown query error'}. Failing closed for data safety.`,
+        exam: {
+          id: exam.id,
+          title: exam.title,
+          slug: exam.slug,
+          isActive: Boolean(exam.is_active),
+          category: exam.category || 'General',
+          createdAt: exam.created_at,
+        },
+        dependencies: {
+          cycles: 0, posts: 0, syllabi: 0, topics: 0, knowledgeDocuments: 0, knowledgeVersions: 0,
+          sources: 0, claims: 0, questionMappings: 0, mockTemplates: 0, liveTests: 0, testAttempts: 0,
+          userExamGoals: 0, userExamReadiness: 0, adaptiveTestConfigs: 0, canonicalSyllabi: 0, curriculumBlueprints: 0, announcements: 0
+        },
+        blockers: ['Safety evaluation failed or dependency state is ambiguous. Deletion is blocked.'],
+        warnings: [],
+      };
+    }
+  }
+
+  static async deleteExam(
+    examId: string,
+    confirmationSlug: string,
+    adminUserId?: string,
+    adminUserEmail?: string,
+    customSupabase?: any
+  ): Promise<{ success: boolean; deletedExam: ExamDeletionEligibilityReport['exam'] }> {
+    const supabase = customSupabase || createAdminServerSupabaseClient();
+
+    // 1. Re-evaluate eligibility immediately before deletion
+    const report = await this.evaluateExamDeletionEligibility(examId, supabase);
+    if (!report.eligible) {
+      throw new Error(`Cannot delete examination: ${report.reason}`);
+    }
+
+    // 2. Strict slug confirmation
+    const normalizedInputSlug = (confirmationSlug || '').trim();
+    if (normalizedInputSlug !== report.exam.slug) {
+      throw new Error(`Slug confirmation mismatch. Expected "${report.exam.slug}" but received "${normalizedInputSlug}".`);
+    }
+
+    // 3. Perform top-down atomic child cleanup
+    const { data: cycles } = await supabase.from('exam_cycles').select('id').eq('exam_id', examId);
+    const cycleIds = (cycles || []).map((c: any) => c.id);
+
+    if (cycleIds.length > 0) {
+      const { data: syllabi } = await supabase.from('exam_syllabi').select('id').in('exam_cycle_id', cycleIds);
+      const sylIds = (syllabi || []).map((s: any) => s.id);
+      if (sylIds.length > 0) {
+        await supabase.from('exam_topics').delete().in('syllabus_id', sylIds);
+        await supabase.from('exam_syllabi').delete().in('id', sylIds);
+      }
+    }
+
+    const { data: docs } = await supabase.from('exam_knowledge_documents').select('id').eq('exam_id', examId);
+    const docIds = (docs || []).map((d: any) => d.id);
+    if (docIds.length > 0) {
+      await supabase.from('exam_doc_versions').delete().in('document_id', docIds);
+      await supabase.from('exam_knowledge_documents').delete().eq('exam_id', examId);
+    }
+
+    await Promise.all([
+      supabase.from('exam_sources').delete().eq('exam_id', examId),
+      supabase.from('exam_claims').delete().eq('exam_id', examId),
+      supabase.from('exam_posts').delete().eq('exam_id', examId),
+      supabase.from('curriculum_blueprints').delete().eq('exam_id', examId),
+      supabase.from('exam_announcements').delete().eq('exam_id', examId),
+      supabase.from('exam_canonical_syllabi').delete().eq('exam_id', examId),
+    ]);
+
+    if (cycleIds.length > 0) {
+      await supabase.from('exam_cycles').delete().eq('exam_id', examId);
+    }
+
+    // 4. Delete the exam
+    const { error: delErr } = await supabase.from('exams').delete().eq('id', examId);
+    if (delErr) {
+      throw new Error(`Failed to delete examination record: ${delErr.message}`);
+    }
+
+    // 5. Write audit log
+    try {
+      await supabase.from('admin_audit_logs').insert({
+        actor_id: adminUserId || null,
+        actor_email: adminUserEmail || 'admin@couragelibrary.com',
+        action_type: 'EXAMINATION_PERMANENTLY_DELETED',
+        target_entity: 'exams',
+        target_id: examId,
+        old_value: {
+          exam: report.exam,
+          dependencies: report.dependencies,
+        },
+        new_value: null,
+        reason: `Controlled deletion of draft/test fixture "${report.exam.title}" (${report.exam.slug})`,
+        created_at: new Date().toISOString(),
+      });
+    } catch (auditErr) {
+      console.warn('Warning: Failed to write admin audit log:', auditErr);
+    }
+
+    return {
+      success: true,
+      deletedExam: report.exam,
+    };
   }
 }

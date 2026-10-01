@@ -22,6 +22,7 @@ import {
   generateStepExamPromptAction,
 } from "@/app/admin/exams/actions";
 import { AiPromptModal } from "./ai-prompt-modal";
+import { ExamDangerZone } from "./exam-danger-zone";
 import { ShieldCheck, Calendar, Users, BookOpen, GraduationCap, Award, Check, Sparkles, RefreshCw } from "lucide-react";
 
 interface Props {
@@ -367,6 +368,18 @@ export function ExamOnboardingWizard({
           />
         )}
       </div>
+
+      {/* Danger Zone (Available for existing examinations) */}
+      {initialExam?.id && (
+        <div className="pt-4">
+          <ExamDangerZone
+            examId={initialExam.id}
+            examTitle={initialExam.title}
+            examSlug={initialExam.slug}
+            isActive={initialExam.isActive}
+          />
+        </div>
+      )}
 
       {/* Step AI Prompt Modal */}
       {stepPromptData && (
