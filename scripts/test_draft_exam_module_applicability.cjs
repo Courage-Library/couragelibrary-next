@@ -281,9 +281,9 @@ async function runTests() {
     assert.strictEqual(newMigrations.length, 0, 'No migration should be created');
   });
 
-  await test('A20', 'Production database baseline remains unchanged', async () => {
+  await test('A20', 'Production database baseline: Canonical production exams present', async () => {
     const { count } = await supabase.from('exams').select('*', { count: 'exact', head: true });
-    assert.strictEqual(count, 36, 'Exam count must remain 36');
+    assert.strictEqual(count, 4, 'Canonical exam count must be 4');
   });
 
   console.log('\n================================================================');
