@@ -48,6 +48,7 @@ interface Props {
   selectedTopicIds: string[];
   knowledgeModules: OnboardingKnowledgeModuleStatus[];
   readinessReport: ExamReadinessReport;
+  initialStep?: number;
 }
 
 export function ExamOnboardingWizard({
@@ -59,9 +60,10 @@ export function ExamOnboardingWizard({
   selectedTopicIds,
   knowledgeModules,
   readinessReport,
+  initialStep,
 }: Props) {
   const router = useRouter();
-  const [currentStep, setCurrentStep] = useState<number>(initialExam ? 1 : 1);
+  const [currentStep, setCurrentStep] = useState<number>(initialStep || (initialExam ? 1 : 1));
   const [examId, setExamId] = useState<string | undefined>(initialExam?.id);
   const [isSaving, setIsSaving] = useState(false);
   const [isGeneratingStepPrompt, setIsGeneratingStepPrompt] = useState(false);

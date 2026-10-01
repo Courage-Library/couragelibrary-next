@@ -1,4 +1,4 @@
-﻿export interface SeoMetadataProps {
+export interface SeoMetadataProps {
   title?: string;
   description?: string;
   keywords?: string[];
@@ -23,6 +23,7 @@ export interface JsonLdArticleProps {
   datePublished?: string;
   dateModified?: string;
   authorName?: string;
+  articleType?: "Article" | "NewsArticle";
 }
 
 export interface JsonLdFaqProps {

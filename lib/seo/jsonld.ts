@@ -1,4 +1,4 @@
-﻿import { siteConfig } from "@/config/site";
+import { siteConfig } from "@/config/site";
 import type { BreadcrumbItem, JsonLdArticleProps, JsonLdFaqProps } from "@/types/seo";
 
 export function generateOrganizationSchema() {
@@ -38,10 +38,11 @@ export function generateArticleSchema({
   datePublished,
   dateModified,
   authorName = "Courage Library",
+  articleType = "Article",
 }: JsonLdArticleProps) {
   return {
     "@context": "https://schema.org",
-    "@type": "Article",
+    "@type": articleType,
     headline,
     description,
     image: image.startsWith("http") ? image : `${siteConfig.url}${image}`,

@@ -75,8 +75,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       },
     });
 
-    // 2. Fetch Active Exams, Published Modules, Published Articles, Published Courses in parallel
-    const [examsRes, docsRes, articlesRes, coursesRes] = await Promise.all([
+    // 2. Fetch Active Exams, Published Modules, Published Articles, Published Courses, Published Current Affairs in parallel
+    const [examsRes, docsRes, articlesRes, coursesRes, caRes] = await Promise.all([
       supabase
         .from("exams")
         .select("id, slug, updated_at")
@@ -94,6 +94,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         .from("courses")
         .select("slug, updated_at")
         .eq("is_published", true),
+      supabase
+        .from("current_affairs_articles")
+        .select("slug, updated_at, published_at, news_date")
+        .eq("status", "PUBLISHED")
+        .not("published_version_id", "is", null),
     ]);
 
     const dynamicEntries: MetadataRoute.Sitemap = [];
@@ -155,6 +160,56 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           lastModified: course.updated_at ? new Date(course.updated_at) : new Date(),
           changeFrequency: "weekly",
           priority: 0.75,
+        });
+      }
+    }
+
+    // E. Published Current Affairs Articles & Dates (/current-affairs/[slug], /date/[date], /month/[month])
+    if (caRes.data && Array.isArray(caRes.data)) {
+      const publishedDates = new Set<string>();
+      const publishedMonths = new Set<string>();
+
+      for (const art of caRes.data) {
+        if (!art.slug) continue;
+        const lastMod = art.published_at
+          ? new Date(art.published_at)
+          : art.updated_at
+          ? new Date(art.updated_at)
+          : new Date();
+
+        dynamicEntries.push({
+          url: `${baseUrl}/current-affairs/${art.slug}`,
+          lastModified: lastMod,
+          changeFrequency: "daily",
+          priority: 0.85,
+        });
+
+        if (art.news_date) {
+          const dateStr = typeof art.news_date === "string" ? art.news_date.split("T")[0] : "";
+          if (dateStr) {
+            publishedDates.add(dateStr);
+            publishedMonths.add(dateStr.substring(0, 7));
+          }
+        }
+      }
+
+      // Add eligible Date pages
+      for (const dateStr of Array.from(publishedDates).sort().reverse()) {
+        dynamicEntries.push({
+          url: `${baseUrl}/current-affairs/date/${dateStr}`,
+          lastModified: new Date(),
+          changeFrequency: "daily",
+          priority: 0.75,
+        });
+      }
+
+      // Add eligible Monthly Archive pages
+      for (const monthStr of Array.from(publishedMonths).sort().reverse()) {
+        dynamicEntries.push({
+          url: `${baseUrl}/current-affairs/month/${monthStr}`,
+          lastModified: new Date(),
+          changeFrequency: "weekly",
+          priority: 0.7,
         });
       }
     }

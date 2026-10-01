@@ -32,6 +32,7 @@ import {
   Cpu,
   Radio,
   GraduationCap,
+  Newspaper,
 } from "lucide-react";
 
 interface Props {
@@ -253,6 +254,17 @@ export function AdminSidebar({ userEmail }: Props) {
               <span className="px-2.5 text-[9px] font-bold uppercase tracking-wider text-slate-500 font-mono block">
                 Learning Content
               </span>
+              <Link
+                href="/admin/current-affairs"
+                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors ${
+                  pathname.startsWith("/admin/current-affairs")
+                    ? "bg-blue-600 text-white font-semibold"
+                    : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                }`}
+              >
+                <Newspaper className={`w-3.5 h-3.5 shrink-0 ${pathname.startsWith("/admin/current-affairs") ? "text-white" : "text-slate-400"}`} />
+                <span className="text-[11px]">Current Affairs Studio</span>
+              </Link>
               <Link
                 href="/admin/content"
                 className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors ${

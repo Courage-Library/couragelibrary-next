@@ -69,6 +69,7 @@ export function MainNav({}: MainNavProps = {}) {
     pathname.startsWith("/mistakes") ||
     pathname.startsWith("/battles");
   const isLearnActive =
+    pathname.startsWith("/current-affairs") ||
     pathname.startsWith("/articles") ||
     pathname.startsWith("/courses") ||
     pathname.startsWith("/descriptive");
@@ -237,6 +238,16 @@ export function MainNav({}: MainNavProps = {}) {
 
         {openCategory === "learn" && (
           <div className="absolute top-full left-0 mt-1.5 w-64 rounded-2xl bg-white p-2 shadow-xl border border-slate-200/80 z-50 animate-in fade-in slide-in-from-top-1">
+            <Link href="/current-affairs" className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-slate-100 text-slate-800 transition-colors">
+              <Sparkles className="w-4 h-4 text-blue-600 shrink-0" />
+              <div>
+                <div className="text-xs font-bold flex items-center gap-1.5">
+                  <span>Current Affairs</span>
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-blue-100 text-blue-700">DAILY</span>
+                </div>
+                <div className="text-[10px] text-slate-500 font-normal">Daily intelligence &amp; 10Q quiz</div>
+              </div>
+            </Link>
             <Link href="/articles" className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-slate-100 text-slate-800 transition-colors">
               <BookOpen className="w-4 h-4 text-teal-500 shrink-0" />
               <div>
