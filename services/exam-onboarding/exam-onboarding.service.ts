@@ -975,7 +975,28 @@ export class ExamOnboardingService {
       throw new Error(`Slug confirmation mismatch. Expected "${report.exam.slug}" but received "${normalizedInputSlug}".`);
     }
 
-    // 3. Perform top-down atomic child cleanup
+    // 3. Try atomic server-authoritative RPC
+    const validUuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const actorUuid = adminUserId && validUuidRegex.test(adminUserId) ? adminUserId : null;
+
+    try {
+      const { data: rpcResult, error: rpcErr } = await supabase.rpc('fn_delete_exam_controlled', {
+        p_exam_id: examId,
+        p_slug: normalizedInputSlug,
+        p_actor_id: actorUuid,
+        p_actor_email: adminUserEmail || 'admin@couragelibrary.com',
+        p_reason: `Controlled deletion of draft/test fixture "${report.exam.title}" (${report.exam.slug})`,
+      });
+
+      if (!rpcErr && rpcResult?.success) {
+        return {
+          success: true,
+          deletedExam: report.exam,
+        };
+      }
+    } catch (_) {}
+
+    // 4. Fallback top-down atomic child cleanup
     const { data: cycles } = await supabase.from('exam_cycles').select('id').eq('exam_id', examId);
     const cycleIds = (cycles || []).map((c: any) => c.id);
 
@@ -991,6 +1012,7 @@ export class ExamOnboardingService {
     const { data: docs } = await supabase.from('exam_knowledge_documents').select('id').eq('exam_id', examId);
     const docIds = (docs || []).map((d: any) => d.id);
     if (docIds.length > 0) {
+      await supabase.from('exam_knowledge_documents').update({ current_published_version_id: null }).in('id', docIds);
       await supabase.from('exam_doc_versions').delete().in('document_id', docIds);
       await supabase.from('exam_knowledge_documents').delete().eq('exam_id', examId);
     }
@@ -999,25 +1021,23 @@ export class ExamOnboardingService {
       supabase.from('exam_sources').delete().eq('exam_id', examId),
       supabase.from('exam_claims').delete().eq('exam_id', examId),
       supabase.from('exam_posts').delete().eq('exam_id', examId),
-      supabase.from('curriculum_blueprints').delete().eq('exam_id', examId),
       supabase.from('exam_announcements').delete().eq('exam_id', examId),
-      supabase.from('exam_canonical_syllabi').delete().eq('exam_id', examId),
     ]);
 
     if (cycleIds.length > 0) {
       await supabase.from('exam_cycles').delete().eq('exam_id', examId);
     }
 
-    // 4. Delete the exam
+    // 5. Delete the exam
     const { error: delErr } = await supabase.from('exams').delete().eq('id', examId);
     if (delErr) {
       throw new Error(`Failed to delete examination record: ${delErr.message}`);
     }
 
-    // 5. Write audit log
+    // 6. Write audit log
     try {
       await supabase.from('admin_audit_logs').insert({
-        actor_id: adminUserId || null,
+        actor_id: actorUuid,
         actor_email: adminUserEmail || 'admin@couragelibrary.com',
         action_type: 'EXAMINATION_PERMANENTLY_DELETED',
         target_entity: 'exams',

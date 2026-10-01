@@ -1,0 +1,370 @@
+{
+  "beforeCounts": {
+    "exams": 34,
+    "exam_cycles": 34,
+    "exam_posts": 0,
+    "exam_syllabi": 1,
+    "exam_topics": 18,
+    "exam_knowledge_documents": 51,
+    "exam_doc_versions": 82,
+    "exam_sources": 3,
+    "exam_claims": 0,
+    "mock_templates": 8,
+    "mock_tests": 8,
+    "test_attempts": 31,
+    "user_exam_goals": 0,
+    "questions": 111,
+    "learning_resources": 1,
+    "current_affairs": 0,
+    "admin_audit_logs": 0
+  },
+  "afterCounts": {
+    "exams": 4,
+    "exam_cycles": 4,
+    "exam_posts": 0,
+    "exam_syllabi": 1,
+    "exam_topics": 18,
+    "exam_knowledge_documents": 22,
+    "exam_doc_versions": 32,
+    "exam_sources": 3,
+    "exam_claims": 0,
+    "mock_templates": 8,
+    "mock_tests": 8,
+    "test_attempts": 31,
+    "user_exam_goals": 0,
+    "questions": 111,
+    "learning_resources": 1,
+    "current_affairs": 0,
+    "admin_audit_logs": 0
+  },
+  "deltaSummary": {
+    "exams": {
+      "before": 34,
+      "after": 4,
+      "delta": -30
+    },
+    "exam_cycles": {
+      "before": 34,
+      "after": 4,
+      "delta": -30
+    },
+    "exam_posts": {
+      "before": 0,
+      "after": 0,
+      "delta": 0
+    },
+    "exam_syllabi": {
+      "before": 1,
+      "after": 1,
+      "delta": 0
+    },
+    "exam_topics": {
+      "before": 18,
+      "after": 18,
+      "delta": 0
+    },
+    "exam_knowledge_documents": {
+      "before": 51,
+      "after": 22,
+      "delta": -29
+    },
+    "exam_doc_versions": {
+      "before": 82,
+      "after": 32,
+      "delta": -50
+    },
+    "exam_sources": {
+      "before": 3,
+      "after": 3,
+      "delta": 0
+    },
+    "exam_claims": {
+      "before": 0,
+      "after": 0,
+      "delta": 0
+    },
+    "mock_templates": {
+      "before": 8,
+      "after": 8,
+      "delta": 0
+    },
+    "mock_tests": {
+      "before": 8,
+      "after": 8,
+      "delta": 0
+    },
+    "test_attempts": {
+      "before": 31,
+      "after": 31,
+      "delta": 0
+    },
+    "user_exam_goals": {
+      "before": 0,
+      "after": 0,
+      "delta": 0
+    },
+    "questions": {
+      "before": 111,
+      "after": 111,
+      "delta": 0
+    },
+    "learning_resources": {
+      "before": 1,
+      "after": 1,
+      "delta": 0
+    },
+    "current_affairs": {
+      "before": 0,
+      "after": 0,
+      "delta": 0
+    },
+    "admin_audit_logs": {
+      "before": 0,
+      "after": 0,
+      "delta": 0
+    }
+  },
+  "deletedRecords": [
+    {
+      "id": "37e8ba39-2116-4aa6-a8dc-fdaf661360f9",
+      "title": "Test Exam Phase 3K13 (589220)",
+      "slug": "test-p3k13-rev-589220",
+      "status": "PUBLISHED",
+      "deletedAt": "2026-10-01T20:55:39.587Z"
+    },
+    {
+      "id": "868979e8-30f4-434e-9c0f-9361cec68f32",
+      "title": "Test Exam Phase 3K13 (889741)",
+      "slug": "test-p3k13-rev-889741",
+      "status": "PUBLISHED",
+      "deletedAt": "2026-10-01T20:55:42.386Z"
+    },
+    {
+      "id": "99dcf558-8d19-4b3b-8acc-5f21262821b8",
+      "title": "Test Exam Phase 3K13 (868051)",
+      "slug": "test-p3k13-rev-868051",
+      "status": "PUBLISHED",
+      "deletedAt": "2026-10-01T20:55:53.411Z"
+    },
+    {
+      "id": "68d25f64-7b0f-44cb-afde-a73f1c7deed5",
+      "title": "Test Exam Phase 3K13.1 (233804)",
+      "slug": "test-p3k131-rev-233804",
+      "status": "PUBLISHED",
+      "deletedAt": "2026-10-01T20:55:58.737Z"
+    },
+    {
+      "id": "c2a3304c-40ac-4150-b909-d47086b29d01",
+      "title": "Test Exam Phase 3K13 (285062)",
+      "slug": "test-p3k13-rev-285062",
+      "status": "PUBLISHED",
+      "deletedAt": "2026-10-01T20:56:01.719Z"
+    },
+    {
+      "id": "63a5066b-c362-4283-bd0e-32b19e0e9eab",
+      "title": "Test Exam Phase 3K13.1 (327841)",
+      "slug": "test-p3k131-rev-327841",
+      "status": "PUBLISHED",
+      "deletedAt": "2026-10-01T20:56:06.655Z"
+    },
+    {
+      "id": "3dc0c54d-d85c-4ae6-8047-2e2f9f4ba376",
+      "title": "Test Exam Phase 3K13.2 (930181)",
+      "slug": "test-p3k132-reqchg-930181",
+      "status": "PUBLISHED",
+      "deletedAt": "2026-10-01T20:56:27.376Z"
+    },
+    {
+      "id": "7a5651f2-032a-4727-b87b-319146c02c1d",
+      "title": "Test Exam Phase 3K13.2 (056244)",
+      "slug": "test-p3k132-reqchg-056244",
+      "status": "PUBLISHED",
+      "deletedAt": "2026-10-01T20:56:31.019Z"
+    },
+    {
+      "id": "fcea4947-77dc-4f3c-95df-47c2700ca490",
+      "title": "Test Exam Phase 3K13.2 (150584)",
+      "slug": "test-p3k132-reqchg-150584",
+      "status": "PUBLISHED",
+      "deletedAt": "2026-10-01T20:56:35.737Z"
+    },
+    {
+      "id": "ee9834bd-1103-40a8-bc0f-5b4df06262e6",
+      "title": "Test Exam Phase 3K13.2 (416176)",
+      "slug": "test-p3k132-reqchg-416176",
+      "status": "PUBLISHED",
+      "deletedAt": "2026-10-01T20:56:40.186Z"
+    },
+    {
+      "id": "f0ccb547-08ce-4896-8d59-9965341ec50e",
+      "title": "Test Exam Phase 3K13.2 (689839)",
+      "slug": "test-p3k132-reqchg-689839",
+      "status": "PUBLISHED",
+      "deletedAt": "2026-10-01T20:56:43.656Z"
+    },
+    {
+      "id": "01ea0e55-ef1e-475b-9376-da6baee06898",
+      "title": "Test Exam Phase 3K13.2 (855158)",
+      "slug": "test-p3k132-reqchg-855158",
+      "status": "PUBLISHED",
+      "deletedAt": "2026-10-01T20:56:48.096Z"
+    },
+    {
+      "id": "5a8957ed-69dd-4c78-94ee-5957539426c2",
+      "title": "Test Exam Phase 3K13.1 (982541)",
+      "slug": "test-p3k131-rev-982541",
+      "status": "PUBLISHED",
+      "deletedAt": "2026-10-01T20:56:51.009Z"
+    },
+    {
+      "id": "af4f6c47-9bbc-4eb5-aee6-dc46fd20252b",
+      "title": "Test Exam Phase 3K13 (145576)",
+      "slug": "test-p3k13-rev-145576",
+      "status": "PUBLISHED",
+      "deletedAt": "2026-10-01T20:56:54.684Z"
+    },
+    {
+      "id": "27646ca9-0798-4339-ab9c-cd513e7f5f51",
+      "title": "Test Diff & Version History Examination",
+      "slug": "test-diff-exam-1790657051641",
+      "status": "PUBLISHED",
+      "deletedAt": "2026-10-01T20:57:07.484Z"
+    },
+    {
+      "id": "1ff69443-3e64-442e-8637-dabb1dd3dd6f",
+      "title": "Test Diff & Version History Examination",
+      "slug": "test-diff-exam-1790657124068",
+      "status": "PUBLISHED",
+      "deletedAt": "2026-10-01T20:57:14.516Z"
+    },
+    {
+      "id": "ac4f5b18-6b43-401f-96fc-b312946dfbcf",
+      "title": "Test Diff & Version History Examination",
+      "slug": "test-diff-exam-1790657168240",
+      "status": "PUBLISHED",
+      "deletedAt": "2026-10-01T20:57:18.953Z"
+    },
+    {
+      "id": "67e07e5c-5670-4238-b8bc-7d1a6dc0de66",
+      "title": "Test Diff & Version History Examination",
+      "slug": "test-diff-exam-1790657206630",
+      "status": "PUBLISHED",
+      "deletedAt": "2026-10-01T20:57:22.324Z"
+    },
+    {
+      "id": "c04d2e8c-62e8-4a9c-9b20-7d31faeb16d7",
+      "title": "Test Diff & Version History Examination",
+      "slug": "test-diff-exam-1790657249619",
+      "status": "PUBLISHED",
+      "deletedAt": "2026-10-01T20:57:26.428Z"
+    },
+    {
+      "id": "89882dd7-fe1a-4adb-84b4-6e61e808c2a3",
+      "title": "Test Diff & Version History Examination",
+      "slug": "test-diff-exam-1790657301748",
+      "status": "PUBLISHED",
+      "deletedAt": "2026-10-01T20:57:31.224Z"
+    },
+    {
+      "id": "4b34efff-63f5-4cc1-ae42-c0a2434a759c",
+      "title": "Test Diff & Version History Examination",
+      "slug": "test-diff-exam-1790657381444",
+      "status": "PUBLISHED",
+      "deletedAt": "2026-10-01T20:57:45.371Z"
+    },
+    {
+      "id": "682f2457-c494-4d62-b2ae-3c96e95e204d",
+      "title": "Test Exam Phase 3K13.2 (413929)",
+      "slug": "test-p3k132-reqchg-413929",
+      "status": "PUBLISHED",
+      "deletedAt": "2026-10-01T20:57:50.255Z"
+    },
+    {
+      "id": "9e14222e-b505-4bb2-9d0a-5fa620ab6735",
+      "title": "Test Exam Phase 3K13.1 (502538)",
+      "slug": "test-p3k131-rev-502538",
+      "status": "PUBLISHED",
+      "deletedAt": "2026-10-01T20:57:52.826Z"
+    },
+    {
+      "id": "80968963-dd85-443a-9841-f9642733ebe0",
+      "title": "Test Exam Phase 3K13 (567234)",
+      "slug": "test-p3k13-rev-567234",
+      "status": "PUBLISHED",
+      "deletedAt": "2026-10-01T20:57:56.841Z"
+    },
+    {
+      "id": "e7d88a5f-14ee-47e6-97c2-7836bcbd4960",
+      "title": "Test Diff & Version History Examination",
+      "slug": "test-diff-exam-1790658024604",
+      "status": "PUBLISHED",
+      "deletedAt": "2026-10-01T20:58:03.624Z"
+    },
+    {
+      "id": "13a55a6c-1664-4f41-8d59-8ad025ee27c1",
+      "title": "Test Diff & Version History Examination",
+      "slug": "test-diff-exam-1790658369092",
+      "status": "PUBLISHED",
+      "deletedAt": "2026-10-01T20:58:07.866Z"
+    },
+    {
+      "id": "3c24a4e3-c05f-4362-9292-2516c2c0b767",
+      "title": "Test Diff & Version History Examination",
+      "slug": "test-diff-exam-1790659209128",
+      "status": "PUBLISHED",
+      "deletedAt": "2026-10-01T20:58:11.804Z"
+    },
+    {
+      "id": "644e5084-178f-4229-8533-1def27f81e9d",
+      "title": "Test Exam Phase 3K13.2 (330443)",
+      "slug": "test-p3k132-reqchg-330443",
+      "status": "PUBLISHED",
+      "deletedAt": "2026-10-01T20:58:19.780Z"
+    },
+    {
+      "id": "5b867220-b5ea-4541-bbc8-163923c1808b",
+      "title": "Test Exam Phase 3K13.1 (395907)",
+      "slug": "test-p3k131-rev-395907",
+      "status": "PUBLISHED",
+      "deletedAt": "2026-10-01T20:58:23.449Z"
+    },
+    {
+      "id": "d33782c8-c8e5-4b0c-9199-43a1685f02b8",
+      "title": "Test Exam Phase 3K13 (491918)",
+      "slug": "test-p3k13-rev-491918",
+      "status": "PUBLISHED",
+      "deletedAt": "2026-10-01T20:58:27.699Z"
+    }
+  ],
+  "skipped": [],
+  "canonicalExamsAfter": [
+    {
+      "id": "6b933751-9b52-4915-8d23-edc320946557",
+      "title": "SSC GD Constable",
+      "slug": "ssc-gd",
+      "is_active": false,
+      "created_at": "2026-09-24T04:30:25.708835+00:00"
+    },
+    {
+      "id": "099c29cd-066c-4886-81e5-799ff70c5bd7",
+      "title": "SSC MTS",
+      "slug": "ssc-mts",
+      "is_active": false,
+      "created_at": "2026-09-24T06:57:23.191007+00:00"
+    },
+    {
+      "id": "5ecaf736-b8c4-41fb-990a-feb306429cfb",
+      "title": "SSC CGL",
+      "slug": "ssc-cgl",
+      "is_active": true,
+      "created_at": "2026-08-27T10:37:37.691489+00:00"
+    },
+    {
+      "id": "aadbba36-2924-409a-8f88-74414352b32b",
+      "title": "SSC CHSL",
+      "slug": "ssc-chsl",
+      "is_active": false,
+      "created_at": "2026-10-01T14:03:07.29768+00:00"
+    }
+  ]
+}
