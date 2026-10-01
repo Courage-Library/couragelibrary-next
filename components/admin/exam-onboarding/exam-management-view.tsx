@@ -310,21 +310,28 @@ export function ExamManagementView({
               </div>
             </div>
 
-            <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+            <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
               <Link
                 href={`/admin/exam-knowledge?examId=${exam.id}${exam.activeCycle ? `&cycleId=${exam.activeCycle.id}` : ""}`}
-                className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                className="text-xs font-bold text-slate-600 hover:text-slate-900 flex items-center gap-1"
               >
                 <BookOpen className="w-3.5 h-3.5" /> Open Exam Knowledge <ArrowRight className="w-3 h-3" />
               </Link>
 
-              {exam.isActive && (
+              {exam.isActive ? (
                 <Link
                   href={`/exams/${exam.slug}`}
                   target="_blank"
                   className="text-xs font-semibold text-slate-500 hover:text-slate-900 flex items-center gap-1"
                 >
                   Hub <ExternalLink className="w-3 h-3" />
+                </Link>
+              ) : (
+                <Link
+                  href={`/admin/exams/onboarding?examId=${exam.id}${exam.activeCycle ? `&cycleId=${exam.activeCycle.id}` : ""}&step=6`}
+                  className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-blue-600" /> Readiness & Publish <ArrowRight className="w-3 h-3" />
                 </Link>
               )}
             </div>

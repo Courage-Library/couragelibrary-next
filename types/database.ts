@@ -1117,46 +1117,43 @@ export type Database = {
         Row: {
           category: string
           created_at: string
+          created_by: string | null
           daily_quiz_mock_id: string | null
-          headline: string
           id: string
-          is_published: boolean
-          key_takeaways_json: Json | null
-          learning_resource_id: string | null
+          importance_tier: string
           news_date: string
-          source_name: string | null
-          source_url: string | null
-          summary_md: string
+          published_at: string | null
+          published_version_id: string | null
+          slug: string
+          status: string
           updated_at: string
         }
         Insert: {
           category?: string
           created_at?: string
+          created_by?: string | null
           daily_quiz_mock_id?: string | null
-          headline: string
           id?: string
-          is_published?: boolean
-          key_takeaways_json?: Json | null
-          learning_resource_id?: string | null
+          importance_tier?: string
           news_date: string
-          source_name?: string | null
-          source_url?: string | null
-          summary_md: string
+          published_at?: string | null
+          published_version_id?: string | null
+          slug: string
+          status?: string
           updated_at?: string
         }
         Update: {
           category?: string
           created_at?: string
+          created_by?: string | null
           daily_quiz_mock_id?: string | null
-          headline?: string
           id?: string
-          is_published?: boolean
-          key_takeaways_json?: Json | null
-          learning_resource_id?: string | null
+          importance_tier?: string
           news_date?: string
-          source_name?: string | null
-          source_url?: string | null
-          summary_md?: string
+          published_at?: string | null
+          published_version_id?: string | null
+          slug?: string
+          status?: string
           updated_at?: string
         }
         Relationships: [
@@ -1168,10 +1165,290 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "current_affairs_articles_learning_resource_id_fkey"
+            foreignKeyName: "fk_ca_articles_published_version"
+            columns: ["published_version_id"]
+            isOneToOne: false
+            referencedRelation: "current_affairs_article_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      current_affairs_article_versions: {
+        Row: {
+          article_id: string
+          checksum_sha256: string
+          compiled_ast_json: Json | null
+          created_at: string
+          created_by: string | null
+          exam_relevance_notes: Json
+          headline: string
+          id: string
+          important_facts: Json
+          key_takeaways: Json
+          provenance_sources: Json
+          published_at: string | null
+          reviewed_by: string | null
+          status: string
+          summary_md: string
+          updated_at: string
+          validation_flags: Json
+          version_number: number
+        }
+        Insert: {
+          article_id: string
+          checksum_sha256: string
+          compiled_ast_json?: Json | null
+          created_at?: string
+          created_by?: string | null
+          exam_relevance_notes?: Json
+          headline: string
+          id?: string
+          important_facts?: Json
+          key_takeaways?: Json
+          provenance_sources?: Json
+          published_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          summary_md: string
+          updated_at?: string
+          validation_flags?: Json
+          version_number: number
+        }
+        Update: {
+          article_id?: string
+          checksum_sha256?: string
+          compiled_ast_json?: Json | null
+          created_at?: string
+          created_by?: string | null
+          exam_relevance_notes?: Json
+          headline?: string
+          id?: string
+          important_facts?: Json
+          key_takeaways?: Json
+          provenance_sources?: Json
+          published_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          summary_md?: string
+          updated_at?: string
+          validation_flags?: Json
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "current_affairs_article_versions_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "current_affairs_articles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      current_affairs_sources: {
+        Row: {
+          citation_context: string | null
+          created_at: string
+          id: string
+          publisher: string
+          retrieved_at: string
+          tier: string
+          title: string
+          url: string
+          version_id: string
+        }
+        Insert: {
+          citation_context?: string | null
+          created_at?: string
+          id?: string
+          publisher: string
+          retrieved_at?: string
+          tier: string
+          title: string
+          url: string
+          version_id: string
+        }
+        Update: {
+          citation_context?: string | null
+          created_at?: string
+          id?: string
+          publisher?: string
+          retrieved_at?: string
+          tier?: string
+          title?: string
+          url?: string
+          version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "current_affairs_sources_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "current_affairs_article_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      current_affairs_taxonomy_mappings: {
+        Row: {
+          article_id: string
+          created_at: string
+          id: string
+          is_primary: boolean
+          relevance_score: number
+          taxonomy_node_id: string
+        }
+        Insert: {
+          article_id: string
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          relevance_score?: number
+          taxonomy_node_id: string
+        }
+        Update: {
+          article_id?: string
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          relevance_score?: number
+          taxonomy_node_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "current_affairs_taxonomy_mappings_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "current_affairs_articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "current_affairs_taxonomy_mappings_taxonomy_node_id_fkey"
+            columns: ["taxonomy_node_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      current_affairs_question_mappings: {
+        Row: {
+          article_id: string
+          created_at: string
+          display_order: number
+          id: string
+          question_id: string
+        }
+        Insert: {
+          article_id: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          question_id: string
+        }
+        Update: {
+          article_id?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          question_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "current_affairs_question_mappings_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "current_affairs_articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "current_affairs_question_mappings_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      current_affairs_learning_mappings: {
+        Row: {
+          article_id: string
+          created_at: string
+          display_order: number
+          id: string
+          learning_resource_id: string
+        }
+        Insert: {
+          article_id: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          learning_resource_id: string
+        }
+        Update: {
+          article_id?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          learning_resource_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "current_affairs_learning_mappings_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "current_affairs_articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "current_affairs_learning_mappings_learning_resource_id_fkey"
             columns: ["learning_resource_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "learning_resources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      current_affairs_exam_mappings: {
+        Row: {
+          article_id: string
+          created_at: string
+          display_priority: number
+          exam_id: string
+          id: string
+          is_high_yield: boolean
+          relevance_weight: string
+        }
+        Insert: {
+          article_id: string
+          created_at?: string
+          display_priority?: number
+          exam_id: string
+          id?: string
+          is_high_yield?: boolean
+          relevance_weight?: string
+        }
+        Update: {
+          article_id?: string
+          created_at?: string
+          display_priority?: number
+          exam_id?: string
+          id?: string
+          is_high_yield?: boolean
+          relevance_weight?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "current_affairs_exam_mappings_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "current_affairs_articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "current_affairs_exam_mappings_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
             referencedColumns: ["id"]
           },
         ]
