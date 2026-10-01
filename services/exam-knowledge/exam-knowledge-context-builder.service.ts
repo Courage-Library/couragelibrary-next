@@ -237,7 +237,7 @@ export class ExamKnowledgeContextBuilder {
 
     // Evaluate Applicability
     const applicability = ExamModuleRegistry.evaluateApplicability(
-      { id: examData.id, title: examData.title || examData.name || 'Exam', isActive: examData.is_active !== false },
+      { id: examData.id, title: examData.title || examData.name || 'Exam', isActive: Boolean(examData.is_active) },
       cycleData ? { id: cycleData.id, cycleYear: cycleData.cycle_year || cycleData.year } : null,
       moduleKey,
       sourcesData.length,

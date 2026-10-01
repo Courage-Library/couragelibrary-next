@@ -269,16 +269,17 @@ async function runAllTests() {
     assert.strictEqual(rep.isApplicable, false);
   });
 
-  runTest('S21', 'Applicability evaluation: Returns NOT_APPLICABLE when parent exam is inactive', () => {
+  runTest('S21', 'Applicability evaluation: Returns APPLICABLE for Draft exam timeless modules with DRAFT warning', () => {
     const rep = ExamModuleRegistry.evaluateApplicability(
-      { id: 'exam-inactive', title: 'Legacy Exam', isActive: false },
+      { id: 'exam-inactive', title: 'Draft Exam', isActive: false },
       null,
       'EXAM_OVERVIEW',
       0,
       0
     );
-    assert.strictEqual(rep.status, 'NOT_APPLICABLE');
-    assert.strictEqual(rep.isApplicable, false);
+    assert.strictEqual(rep.status, 'APPLICABLE');
+    assert.strictEqual(rep.isApplicable, true);
+    assert.ok(rep.warnings.some(w => w.includes('DRAFT')), 'Must include DRAFT warning');
   });
 
   // --- GROUP 4: Authoring Workbench, Prompt Viewer & 5-Gate Preview ---
