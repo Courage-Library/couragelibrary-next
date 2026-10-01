@@ -268,7 +268,7 @@ export function ExamManagementView({
       </div>
 
       {/* Exams Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
         {filteredExams.map((exam) => (
           <Card
             key={exam.id}
@@ -310,30 +310,36 @@ export function ExamManagementView({
               </div>
             </div>
 
-            <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+            {/* Card Action Footer */}
+            <div className="pt-3.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 text-xs font-semibold">
               <Link
                 href={`/admin/exam-knowledge?examId=${exam.id}${exam.activeCycle ? `&cycleId=${exam.activeCycle.id}` : ""}`}
-                className="text-xs font-bold text-slate-600 hover:text-slate-900 flex items-center gap-1 transition-colors"
+                className="inline-flex items-center gap-1.5 text-slate-700 hover:text-blue-600 transition-colors whitespace-nowrap group shrink-0"
               >
-                <BookOpen className="w-3.5 h-3.5 text-blue-600" /> Open Exam Knowledge <ArrowRight className="w-3 h-3" />
+                <BookOpen className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                <span>Open Exam Knowledge</span>
+                <ArrowRight className="w-3 h-3 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0" />
               </Link>
 
-              <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+              <div className="inline-flex items-center gap-2.5 shrink-0">
                 {exam.isActive && (
                   <Link
                     href={`/exams/${exam.slug}`}
                     target="_blank"
-                    className="text-[11px] font-semibold text-slate-500 hover:text-slate-900 flex items-center gap-1 transition-colors"
+                    className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 hover:text-slate-900 transition-colors whitespace-nowrap shrink-0"
                   >
-                    Hub <ExternalLink className="w-3 h-3" />
+                    <span>Hub</span>
+                    <ExternalLink className="w-3 h-3 text-slate-400 shrink-0" />
                   </Link>
                 )}
 
                 <Link
                   href={`/admin/exams/onboarding?examId=${exam.id}${exam.activeCycle ? `&cycleId=${exam.activeCycle.id}` : ""}`}
-                  className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 transition-colors"
+                  className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-700 font-bold transition-colors whitespace-nowrap group shrink-0"
                 >
-                  <Layers className="w-3.5 h-3.5 text-blue-600" /> Manage Examination <ArrowRight className="w-3 h-3" />
+                  <Layers className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                  <span>Manage Examination</span>
+                  <ArrowRight className="w-3 h-3 text-blue-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0" />
                 </Link>
               </div>
             </div>
