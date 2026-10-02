@@ -4,7 +4,7 @@
  * Architecture Contract: Frozen v1.1.0
  */
 
-import { createServerSupabaseClient, createAdminServerSupabaseClient } from '@/lib/supabase/server';
+import { createPublicServerSupabaseClient, createAdminServerSupabaseClient } from '@/lib/supabase/server';
 import {
   CurrentAffairsCategory,
   CurrentAffairsDetail,
@@ -12,6 +12,7 @@ import {
   CurrentAffairsFeedItem,
   CurrentAffairsImportanceTier,
   CurrentAffairsSourceTier,
+  CurrentAffairsStatus,
   CurrentAffairsHubData,
   ALL_CURRENT_AFFAIRS_CATEGORIES,
 } from '@/types/current-affairs';
@@ -127,12 +128,7 @@ export class CurrentAffairsService {
 
     // Supabase client fallback
     try {
-      let supabase: any;
-      try {
-        supabase = await createServerSupabaseClient();
-      } catch {
-        supabase = createAdminServerSupabaseClient();
-      }
+      const supabase = createPublicServerSupabaseClient();
 
       let query = supabase
         .from('current_affairs_articles')
@@ -148,15 +144,22 @@ export class CurrentAffairsService {
             id,
             headline,
             summary_md,
-            key_takeaways
+            key_takeaways,
+            current_affairs_sources (
+              id,
+              publisher,
+              url,
+              tier,
+              citation_context
+            )
           ),
-          current_affairs_sources:current_affairs_sources(count),
           current_affairs_question_mappings:current_affairs_question_mappings(count),
           current_affairs_learning_mappings:current_affairs_learning_mappings(count),
           current_affairs_exam_mappings:current_affairs_exam_mappings(exam_id, is_high_yield, relevance_weight)
         `)
         .eq('news_date', dateStr)
         .eq('status', 'PUBLISHED')
+        .not('published_version_id', 'is', null)
         .order('importance_tier', { ascending: true });
 
       if (examId) {
@@ -195,7 +198,7 @@ export class CurrentAffairsService {
           summaryMd: version.summary_md,
           keyTakeaways: Array.isArray(version.key_takeaways) ? version.key_takeaways : [],
           publishedAt: row.published_at,
-          sourcesCount: row.current_affairs_sources?.[0]?.count || 0,
+          sourcesCount: version.current_affairs_sources?.length || 0,
           mappedQuestionsCount: row.current_affairs_question_mappings?.[0]?.count || 0,
           mappedLearningUnitsCount: row.current_affairs_learning_mappings?.[0]?.count || 0,
         });
@@ -387,12 +390,7 @@ export class CurrentAffairsService {
 
     // Supabase fallback
     try {
-      let supabase: any;
-      try {
-        supabase = await createServerSupabaseClient();
-      } catch {
-        supabase = createAdminServerSupabaseClient();
-      }
+      const supabase = createPublicServerSupabaseClient();
 
       const { data, error } = await supabase
         .from('current_affairs_articles')
@@ -418,6 +416,7 @@ export class CurrentAffairsService {
         `)
         .eq('slug', slug)
         .eq('status', 'PUBLISHED')
+        .not('published_version_id', 'is', null)
         .maybeSingle();
 
       if (error || !data || !data.current_affairs_article_versions) {
@@ -480,7 +479,7 @@ export class CurrentAffairsService {
         newsDate: data.news_date,
         category: data.category as CurrentAffairsCategory,
         importanceTier: data.importance_tier as CurrentAffairsImportanceTier,
-        status: data.status,
+        status: data.status as CurrentAffairsStatus,
         publishedAt: data.published_at,
         versionNumber: version.version_number,
         headline: version.headline,
@@ -572,12 +571,7 @@ export class CurrentAffairsService {
     }
 
     try {
-      let supabase: any;
-      try {
-        supabase = await createServerSupabaseClient();
-      } catch {
-        supabase = createAdminServerSupabaseClient();
-      }
+      const supabase = createPublicServerSupabaseClient();
 
       const { data } = await supabase
         .from('current_affairs_articles')
@@ -594,6 +588,7 @@ export class CurrentAffairsService {
         .eq('category', category)
         .neq('id', excludeId)
         .eq('status', 'PUBLISHED')
+        .not('published_version_id', 'is', null)
         .order('news_date', { ascending: false })
         .limit(limit);
 
@@ -687,12 +682,7 @@ export class CurrentAffairsService {
       }
     } else {
       try {
-        let supabase: any;
-        try {
-          supabase = await createServerSupabaseClient();
-        } catch {
-          supabase = createAdminServerSupabaseClient();
-        }
+        const supabase = createPublicServerSupabaseClient();
 
         const { data: recentData } = await supabase
           .from('current_affairs_articles')
@@ -706,40 +696,46 @@ export class CurrentAffairsService {
             current_affairs_article_versions!fk_ca_articles_published_version (
               headline,
               summary_md,
-              key_takeaways
+              key_takeaways,
+              current_affairs_sources (
+                id
+              )
             ),
-            current_affairs_sources:current_affairs_sources(count),
             current_affairs_question_mappings:current_affairs_question_mappings(count),
             current_affairs_learning_mappings:current_affairs_learning_mappings(count)
           `)
           .eq('status', 'PUBLISHED')
+          .not('published_version_id', 'is', null)
           .order('news_date', { ascending: false })
           .limit(12);
 
         if (recentData) {
-          recentArticles = recentData.map((row: any) => {
-            const version = row.current_affairs_article_versions;
-            return {
-              id: row.id,
-              slug: row.slug,
-              newsDate: row.news_date,
-              category: row.category as CurrentAffairsCategory,
-              importanceTier: row.importance_tier as CurrentAffairsImportanceTier,
-              headline: version?.headline || '',
-              summaryMd: version?.summary_md || '',
-              keyTakeaways: Array.isArray(version?.key_takeaways) ? version.key_takeaways : [],
-              publishedAt: row.published_at,
-              sourcesCount: row.current_affairs_sources?.[0]?.count || 0,
-              mappedQuestionsCount: row.current_affairs_question_mappings?.[0]?.count || 0,
-              mappedLearningUnitsCount: row.current_affairs_learning_mappings?.[0]?.count || 0,
-            };
-          });
+          recentArticles = recentData
+            .filter((row: any) => Boolean(row.current_affairs_article_versions))
+            .map((row: any) => {
+              const version = row.current_affairs_article_versions;
+              return {
+                id: row.id,
+                slug: row.slug,
+                newsDate: row.news_date,
+                category: row.category as CurrentAffairsCategory,
+                importanceTier: row.importance_tier as CurrentAffairsImportanceTier,
+                headline: version?.headline || '',
+                summaryMd: version?.summary_md || '',
+                keyTakeaways: Array.isArray(version?.key_takeaways) ? version.key_takeaways : [],
+                publishedAt: row.published_at,
+                sourcesCount: version?.current_affairs_sources?.length || 0,
+                mappedQuestionsCount: row.current_affairs_question_mappings?.[0]?.count || 0,
+                mappedLearningUnitsCount: row.current_affairs_learning_mappings?.[0]?.count || 0,
+              };
+            });
         }
 
         const { data: allCats } = await supabase
           .from('current_affairs_articles')
           .select('category')
-          .eq('status', 'PUBLISHED');
+          .eq('status', 'PUBLISHED')
+          .not('published_version_id', 'is', null);
 
         (allCats || []).forEach((r: any) => {
           if (r.category && categoryCounts[r.category as CurrentAffairsCategory] !== undefined) {
@@ -871,12 +867,7 @@ export class CurrentAffairsService {
     }
 
     try {
-      let supabase: any;
-      try {
-        supabase = await createServerSupabaseClient();
-      } catch {
-        supabase = createAdminServerSupabaseClient();
-      }
+      const supabase = createPublicServerSupabaseClient();
 
       let query = supabase
         .from('current_affairs_articles')
@@ -890,15 +881,18 @@ export class CurrentAffairsService {
           current_affairs_article_versions!fk_ca_articles_published_version (
             headline,
             summary_md,
-            key_takeaways
+            key_takeaways,
+            current_affairs_sources (
+              id
+            )
           ),
-          current_affairs_sources:current_affairs_sources(count),
           current_affairs_question_mappings:current_affairs_question_mappings(count),
           current_affairs_learning_mappings:current_affairs_learning_mappings(count)
         `)
         .gte('news_date', startDate)
         .lte('news_date', endDate)
         .eq('status', 'PUBLISHED')
+        .not('published_version_id', 'is', null)
         .order('news_date', { ascending: false });
 
       if (category) {
@@ -917,24 +911,26 @@ export class CurrentAffairsService {
       }
 
       const categoryBreakdown: Record<string, number> = {};
-      const articles: CurrentAffairsFeedItem[] = data.map((row: any) => {
-        categoryBreakdown[row.category] = (categoryBreakdown[row.category] || 0) + 1;
-        const version = row.current_affairs_article_versions;
-        return {
-          id: row.id,
-          slug: row.slug,
-          newsDate: row.news_date,
-          category: row.category as CurrentAffairsCategory,
-          importanceTier: row.importance_tier as CurrentAffairsImportanceTier,
-          headline: version?.headline || '',
-          summaryMd: version?.summary_md || '',
-          keyTakeaways: Array.isArray(version?.key_takeaways) ? version.key_takeaways : [],
-          publishedAt: row.published_at,
-          sourcesCount: row.current_affairs_sources?.[0]?.count || 0,
-          mappedQuestionsCount: row.current_affairs_question_mappings?.[0]?.count || 0,
-          mappedLearningUnitsCount: row.current_affairs_learning_mappings?.[0]?.count || 0,
-        };
-      });
+      const articles: CurrentAffairsFeedItem[] = data
+        .filter((row: any) => Boolean(row.current_affairs_article_versions))
+        .map((row: any) => {
+          categoryBreakdown[row.category] = (categoryBreakdown[row.category] || 0) + 1;
+          const version = row.current_affairs_article_versions;
+          return {
+            id: row.id,
+            slug: row.slug,
+            newsDate: row.news_date,
+            category: row.category as CurrentAffairsCategory,
+            importanceTier: row.importance_tier as CurrentAffairsImportanceTier,
+            headline: version?.headline || '',
+            summaryMd: version?.summary_md || '',
+            keyTakeaways: Array.isArray(version?.key_takeaways) ? version.key_takeaways : [],
+            publishedAt: row.published_at,
+            sourcesCount: version?.current_affairs_sources?.length || 0,
+            mappedQuestionsCount: row.current_affairs_question_mappings?.[0]?.count || 0,
+            mappedLearningUnitsCount: row.current_affairs_learning_mappings?.[0]?.count || 0,
+          };
+        });
 
       return {
         year,
