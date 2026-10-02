@@ -403,3 +403,256 @@ export interface DailyQuizGenerationResult {
   shortageReport?: DailyQuizEligibilityReport;
 }
 
+// ============================================================================
+// CA-7: EXTERNAL NEWS FEED ADAPTER DTOs & CONTRACTS
+// ============================================================================
+
+export interface ExternalNewsFeedItem {
+  id?: string;
+  title: string;
+  summary: string[];
+  image?: string;
+  link: string;
+  primaryCategory: string;
+  secondaryCategories?: string[];
+  importance?: number;
+  examTags?: string[];
+  source: string;
+  feedName?: string;
+  date: string;
+}
+
+export interface FeedAdapterTransformResult {
+  success: boolean;
+  payload?: CurrentAffairsImportPayload;
+  externalId?: string;
+  errors: string[];
+  warnings: string[];
+}
+
+// ============================================================================
+// CA-7.4 & CA-7.5: CONTROLLED PRODUCTION SYNCHRONIZATION & OPERATIONAL RESILIENCE
+// ============================================================================
+
+export type ProductionSyncErrorCategory =
+  | 'TRANSIENT'
+  | 'PERMANENT_VALIDATION'
+  | 'AUTHENTICATION'
+  | 'AUTHORIZATION'
+  | 'DATABASE'
+  | 'CONFIGURATION'
+  | 'SOURCE_UNAVAILABLE'
+  | 'RATE_LIMITED'
+  | 'SYSTEMIC'
+  | 'DUPLICATE';
+
+export type ProductionSyncRunStatus =
+  | 'STARTED'
+  | 'RUNNING'
+  | 'COMPLETED'
+  | 'PARTIAL_FAILURE'
+  | 'FAILED'
+  | 'ABORTED'
+  | 'STALE';
+
+export type ProductionSyncArticleOutcome =
+  | 'DRAFT_CREATED'
+  | 'DUPLICATE_SKIPPED'
+  | 'VALIDATION_REJECTED'
+  | 'FAILED'
+  | 'SKIPPED';
+
+export type ProductionSyncAuditEvent =
+  | 'SYNC_STARTED'
+  | 'SYNC_COMPLETED'
+  | 'SYNC_PARTIAL_FAILURE'
+  | 'SYNC_FAILED'
+  | 'ARTICLE_IMPORTED'
+  | 'ARTICLE_DUPLICATE'
+  | 'ARTICLE_REJECTED'
+  | 'ARTICLE_RETRY'
+  | 'ARTICLE_FAILED'
+  | 'SYSTEMIC_ABORT';
+
+export interface ProductionSyncAuditLog {
+  eventId: string;
+  runId: string;
+  event: ProductionSyncAuditEvent;
+  timestamp: string;
+  articleId?: string;
+  externalId?: string;
+  headline?: string;
+  outcome?: ProductionSyncArticleOutcome;
+  errorCategory?: ProductionSyncErrorCategory;
+  message?: string;
+  details?: Record<string, unknown>;
+}
+
+export interface ProductionSyncMetrics {
+  runsStarted: number;
+  runsCompleted: number;
+  runsPartialFailure: number;
+  runsFailed: number;
+  runsAborted: number;
+  inspectedCount: number;
+  importedCount: number;
+  duplicateCount: number;
+  rejectedCount: number;
+  failedCount: number;
+  retryCount: number;
+  recoveredCount: number;
+  gate1Failures: number;
+  gate2Failures: number;
+  gate3Failures: number;
+  gate4Failures: number;
+  gate5Duplicates: number;
+  authFailures: number;
+  dbFailures: number;
+  rateLimits: number;
+  timeouts: number;
+}
+
+export interface ProductionSyncHealthStatus {
+  status: 'HEALTHY' | 'DEGRADED' | 'UNHEALTHY';
+  database: 'CONNECTED' | 'UNREACHABLE' | 'DEGRADED';
+  ingestionGateway: 'AVAILABLE' | 'UNAVAILABLE';
+  validationEngine: 'OPERATIONAL' | 'FAILED';
+  targetEnvironment: string;
+  timestamp: string;
+  recentSyncSummary?: {
+    lastRunId?: string;
+    lastRunStatus?: ProductionSyncRunStatus;
+    lastRunTime?: string;
+    lastRunImported?: number;
+    lastRunDurationMs?: number;
+  };
+}
+
+export interface ProductionSyncOptions {
+  dryRun?: boolean;
+  maxArticles?: number; // Bounded to <= 5
+  concurrency?: number; // Bounded to 1
+  authorUserId?: string | null;
+  taxonomyNodeMap?: Record<string, string>;
+  examIdMap?: Record<string, string>;
+  defaultTaxonomyNodeId?: string;
+  systemicFailureThreshold?: number; // Max consecutive systemic failures before abort (default: 3)
+  simulateAmbiguousTimeout?: boolean; // Testing fixture hook
+  isHistoricalMigration?: boolean;
+  maxBatchCap?: number;
+}
+
+export interface ProductionSyncArticleResult {
+  externalId?: string;
+  sourcePath?: string;
+  headline: string;
+  source: string;
+  date: string;
+  category: string;
+  normalizedCategory?: CurrentAffairsCategory;
+  outcome: ProductionSyncArticleOutcome;
+  errorCategory?: ProductionSyncErrorCategory;
+  error?: string;
+  checksumSha256?: string;
+  createdArticleId?: string;
+  createdVersionId?: string;
+  retryAttempts?: number;
+  isRecovered?: boolean;
+  gateReport?: ComprehensiveGateReport;
+}
+
+export interface ProductionSyncReport {
+  runId: string;
+  status: ProductionSyncRunStatus;
+  startTime: string;
+  endTime: string;
+  durationMs: number;
+  dryRun: boolean;
+  requestedLimit: number;
+  concurrency: number;
+  targetEnvironment: {
+    isIdentified: boolean;
+    provider: string;
+    databaseName: string;
+    sslEnabled: boolean;
+  };
+  inspectedCount: number;
+  importedDraftCount: number;
+  duplicateCount: number;
+  rejectedCount: number;
+  failedCount: number;
+  publishedCount: number;
+  candidateVisibleCount: number;
+  metrics: ProductionSyncMetrics;
+  auditLogs: ProductionSyncAuditLog[];
+  results: ProductionSyncArticleResult[];
+}
+
+// ============================================================================
+// CA-7.6: HISTORICAL CURRENT AFFAIRS MIGRATION DTOs
+// ============================================================================
+
+export interface HistoricalMigrationInventory {
+  totalArticles: number;
+  earliestDate: string;
+  latestDate: string;
+  byYear: Record<string, number>;
+  byMonth: Record<string, number>;
+  byCategory: Record<string, number>;
+  bySource: Record<string, number>;
+  byExam: Record<string, number>;
+  validHttpsCount: number;
+  missingSourceCount: number;
+  missingDateCount: number;
+  missingSummaryCount: number;
+  unknownCategoryCount: number;
+  duplicateHeadlineCount: number;
+  sourceTierDistribution: {
+    TIER_1: number;
+    TIER_2: number;
+    TIER_3: number;
+    TIER_4: number;
+  };
+  assessmentVerdict:
+    | 'APPROVED_FOR_BOUNDED_MIGRATION'
+    | 'NO_MIGRATION_REQUIRED'
+    | 'REQUIRES_PRODUCT_DECISION';
+  justification: string;
+}
+
+export interface HistoricalMigrationOptions {
+  fromDate?: string; // YYYY-MM-DD
+  toDate?: string; // YYYY-MM-DD
+  maxArticlesPerBatch?: number; // Default: 25, bounded
+  dryRun?: boolean; // Default: true for safety
+  authorUserId?: string | null;
+  taxonomyNodeMap?: Record<string, string>;
+  examIdMap?: Record<string, string>;
+  defaultTaxonomyNodeId?: string;
+}
+
+export interface HistoricalMigrationReport {
+  migrationRunId: string;
+  timestamp: string;
+  dryRun: boolean;
+  dateWindow: {
+    from: string;
+    to: string;
+  };
+  totalCorpusSize: number;
+  eligibleCount: number;
+  importedDraftCount: number;
+  duplicateCount: number;
+  rejectedCount: number;
+  failedCount: number;
+  publishedCount: 0; // Strictly 0
+  candidateVisibleCount: 0; // Strictly 0
+  batchesProcessed: number;
+  batchReports: ProductionSyncReport[];
+  durationMs: number;
+  inventory: HistoricalMigrationInventory;
+}
+
+
+
+
