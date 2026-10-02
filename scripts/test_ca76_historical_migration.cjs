@@ -14,7 +14,8 @@ if (dns.setDefaultResultOrder) {
 }
 
 // 1. Read .env.local safely
-let connectionString = null;
+let nonPoolingConn = null;
+let fallbackConn = null;
 const envPath = path.join(__dirname, '..', '.env.local');
 if (fs.existsSync(envPath)) {
   const content = fs.readFileSync(envPath, 'utf-8');
@@ -28,20 +29,18 @@ if (fs.existsSync(envPath)) {
         if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
           val = val.slice(1, -1);
         }
-        if (!process.env[k]) {
-          process.env[k] = val;
-        }
-        if (['POSTGRES_URL_NON_POOLING', 'DATABASE_URL', 'POSTGRES_URL', 'SUPABASE_DB_URL'].includes(k)) {
-          if (!connectionString) connectionString = val;
+        process.env[k] = val;
+        if (k === 'POSTGRES_URL_NON_POOLING') {
+          nonPoolingConn = val;
+        } else if (['DATABASE_URL', 'POSTGRES_URL', 'SUPABASE_DB_URL'].includes(k)) {
+          if (!fallbackConn) fallbackConn = val;
         }
       }
     }
   });
 }
 
-if (!connectionString) {
-  connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL_NON_POOLING;
-}
+const connectionString = process.env.POSTGRES_URL_NON_POOLING || nonPoolingConn || fallbackConn || process.env.DATABASE_URL;
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 

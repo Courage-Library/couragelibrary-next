@@ -41,6 +41,26 @@ export async function createServerSupabaseClient() {
 }
 
 /**
+ * Creates a public server-side Supabase client for static / ISR / public candidate data reads.
+ * Cookie-free, low-privilege (ANON/publishable key only), safe for static generation (SSG) and ISR.
+ * Structurally prohibited from accessing service-role credentials.
+ */
+export function createPublicServerSupabaseClient() {
+  const { supabaseUrl, supabaseAnonKey } = getAppEnv();
+
+  return createClient<Database>(
+    supabaseUrl || "https://placeholder-url.supabase.co",
+    supabaseAnonKey || "placeholder-key",
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    }
+  );
+}
+
+/**
  * Creates a server-only, privileged Supabase client with SERVICE_ROLE key.
  * Used exclusively for server actions guarded by AdminService.checkIsAdminOrStaff().
  * Never exposed to browser or client components.

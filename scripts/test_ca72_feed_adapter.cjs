@@ -39,9 +39,7 @@ if (fs.existsSync(envPath)) {
   });
 }
 
-if (!connectionString) {
-  connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL_NON_POOLING;
-}
+connectionString = process.env.POSTGRES_URL_NON_POOLING || connectionString || process.env.DATABASE_URL;
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
