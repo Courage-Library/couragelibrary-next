@@ -682,6 +682,9 @@ export class PremiumQuestionGeneratorService {
       `)
       .in("question_id", questionIds)
       .eq("is_current", true)
+      // QF-1: only the current PUBLISHED version of a published question.
+      .eq("lifecycle_status", "PUBLISHED")
+      .eq("questions.status", "published")
       .eq("language", language);
 
     if (error || !versions) return [];

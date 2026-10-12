@@ -465,6 +465,9 @@ export class AdaptiveRemediationService {
           )
         `)
         .eq("question_versions.is_current", true)
+        // QF-1: only the current PUBLISHED version of a published question.
+        .eq("question_versions.lifecycle_status", "PUBLISHED")
+        .eq("status", "published")
         .eq("canonical_topic_id", vaultRow.topic_id)
         .limit(maxPoolLimit);
 
@@ -494,6 +497,8 @@ export class AdaptiveRemediationService {
           )
         `)
         .eq("question_versions.is_current", true)
+        .eq("question_versions.lifecycle_status", "PUBLISHED")
+        .eq("status", "published")
         .limit(remainingLimit);
 
       if (fallbackQuestions && Array.isArray(fallbackQuestions)) {

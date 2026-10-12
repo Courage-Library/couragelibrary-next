@@ -1538,8 +1538,12 @@ export class MistakeService {
     // Fetch questions and options (SCRUBBED of correct_option_key and solution_explanation_md)
     const { data: questionsData, error: qError } = await sb
       .from("questions")
-      .select("id, question_versions(id, question_text, is_current, question_options(id, option_key, content_text, option_order))")
-      .in("id", selectedQIds);
+      .select("id, question_versions!inner(id, question_text, is_current, lifecycle_status, question_options(id, option_key, content_text, option_order))")
+      .in("id", selectedQIds)
+      // QF-1: drills use only the current PUBLISHED version of a published question.
+      .eq("status", "published")
+      .eq("question_versions.is_current", true)
+      .eq("question_versions.lifecycle_status", "PUBLISHED");
 
     if (qError || !questionsData) {
       return { success: false, error: "Failed to load question details for drill." };
@@ -1547,7 +1551,7 @@ export class MistakeService {
 
     const qMap: Record<string, any> = {};
     (questionsData as any[]).forEach((q) => {
-      const qv = q.question_versions?.find((v: any) => v.is_current) || q.question_versions?.[0];
+      const qv = q.question_versions?.find((v: any) => v.is_current && v.lifecycle_status === "PUBLISHED");
       if (qv) {
         const sortedOptions: DrillQuestionOption[] = (qv.question_options || [])
           .sort((a: any, b: any) => (a.option_order || 0) - (b.option_order || 0))

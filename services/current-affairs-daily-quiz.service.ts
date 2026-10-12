@@ -112,6 +112,9 @@ export class CurrentAffairsDailyQuizService {
       LEFT JOIN public.topics t ON t.id = q.canonical_topic_id
       WHERE a.status = 'PUBLISHED'
         AND a.published_version_id IS NOT NULL
+        AND q.status = 'published'
+        AND qv.is_current = true
+        AND qv.lifecycle_status = 'PUBLISHED'
         AND a.news_date >= $1
         AND a.news_date <= $2
       ORDER BY a.news_date DESC, qm.display_order ASC, qm.question_id ASC

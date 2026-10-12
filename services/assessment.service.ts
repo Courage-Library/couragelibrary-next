@@ -1473,7 +1473,11 @@ export class AssessmentService {
 
       const { data: rawQuestions } = await adminSb
         .from("questions")
-        .select("id, canonical_topic_id, topics(subject_id), question_versions(id, version_number, question_text)")
+        .select("id, canonical_topic_id, topics(subject_id), question_versions!inner(id, version_number, question_text, is_current, lifecycle_status)")
+        // QF-1: only the current PUBLISHED version of a published question may enter a test.
+        .eq("status", "published")
+        .eq("question_versions.is_current", true)
+        .eq("question_versions.lifecycle_status", "PUBLISHED")
         .order("created_at", { ascending: true });
 
       const questionsBySubject: Record<string, Array<{ questionId: string; questionVersionId: string }>> = {};
