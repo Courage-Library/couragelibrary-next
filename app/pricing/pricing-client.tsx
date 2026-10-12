@@ -12,15 +12,19 @@ import { Check, Zap, ShieldAlert, Tag } from "lucide-react";
 interface PricingClientProps {
   plans: SubscriptionPlanItem[];
   subStatus: UserSubscriptionStatus;
+  paymentsEnabled: boolean;
 }
 
-export function PricingClient({ plans, subStatus }: PricingClientProps) {
+const PAYMENTS_UNAVAILABLE_MESSAGE = "Payments are temporarily unavailable. Please check back later.";
+
+export function PricingClient({ plans, subStatus, paymentsEnabled }: PricingClientProps) {
   const router = useRouter();
   const [couponCode, setCouponCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const handleCheckout = async (planId: string) => {
+    if (!paymentsEnabled) return;
     setErrorMsg(null);
     setIsSubmitting(true);
 
@@ -68,6 +72,13 @@ export function PricingClient({ plans, subStatus }: PricingClientProps) {
           <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-bold text-center flex items-center justify-center gap-2">
             <Zap className="w-4 h-4 text-emerald-600 fill-emerald-600" />
             <span>You currently have an ACTIVE PRO Subscription (Valid until {new Date(subStatus.validUntil!).toLocaleDateString()})</span>
+          </div>
+        )}
+
+        {!paymentsEnabled && (
+          <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-semibold flex items-center gap-2 max-w-xl mx-auto">
+            <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>{PAYMENTS_UNAVAILABLE_MESSAGE}</span>
           </div>
         )}
 
@@ -172,9 +183,10 @@ export function PricingClient({ plans, subStatus }: PricingClientProps) {
                 variant="default"
                 onClick={() => handleCheckout(plan.id)}
                 isLoading={isSubmitting}
+                disabled={!paymentsEnabled}
                 className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs shadow-sm"
               >
-                Upgrade to PRO Now →
+                {paymentsEnabled ? "Upgrade to PRO Now →" : "Payments Temporarily Unavailable"}
               </Button>
             </Card>
           ))}
