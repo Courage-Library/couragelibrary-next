@@ -220,6 +220,17 @@ export interface AdminUserListItem {
   lastSignInAt: string | null;
 }
 
+/**
+ * Admin emails from the ADMIN_EMAILS env var (comma-separated).
+ * Fails closed: unset or empty grants nothing via the email path.
+ */
+function getConfiguredAdminEmails(): string[] {
+  return (process.env.ADMIN_EMAILS || "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+}
+
 export class AdminService {
   /**
    * Check if current user is admin/staff
@@ -229,12 +240,13 @@ export class AdminService {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { isAdmin: false };
 
-    const adminEmails = (process.env.ADMIN_EMAILS || "owner@couragelibrary.test,owner2@couragelibrary.test")
-      .split(",")
-      .map((e) => e.trim().toLowerCase());
+    const adminEmails = getConfiguredAdminEmails();
 
     const isEmailAdmin = user.email ? adminEmails.includes(user.email.toLowerCase()) : false;
-    const isMetaAdmin = user.app_metadata?.role === "admin" || user.user_metadata?.role === "admin" || user.user_metadata?.role === "staff";
+    // Only app_metadata is trusted: it is writable by the service role alone.
+    // user_metadata is user-editable via auth.updateUser() and must never grant access.
+    const appRole = user.app_metadata?.role;
+    const isMetaAdmin = appRole === "admin" || appRole === "staff";
 
     const isAuthorized = isEmailAdmin || isMetaAdmin;
 
@@ -1266,9 +1278,7 @@ export class AdminService {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const profileMap = new Map<string, any>(profiles.map((p: any) => [p.id, p]));
-    const adminEmails = (process.env.ADMIN_EMAILS || "owner@couragelibrary.test,owner2@couragelibrary.test")
-      .split(",")
-      .map((e) => e.trim().toLowerCase());
+    const adminEmails = getConfiguredAdminEmails();
 
     let missingCount = 0;
 

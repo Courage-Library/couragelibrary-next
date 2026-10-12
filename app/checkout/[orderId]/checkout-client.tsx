@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -25,47 +24,12 @@ interface CheckoutClientProps {
   };
 }
 
+// SEC-1A: online payments are disabled until verified gateway integration exists.
+const PAYMENTS_UNAVAILABLE_MESSAGE = "Payments are temporarily unavailable. Please check back later.";
+
 export function CheckoutClient({ order }: CheckoutClientProps) {
-  const router = useRouter();
   const [billingName, setBillingName] = useState("Student");
   const [billingState, setBillingState] = useState("DELHI");
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  const handlePayNow = async () => {
-    setErrorMsg(null);
-    setIsProcessing(true);
-
-    try {
-      const mockPaymentId = `pay_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      const mockSignature = `sig_${Date.now()}`;
-
-      const res = await fetch("/api/billing/fulfill-order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          orderId: order.id,
-          gatewayPaymentId: mockPaymentId,
-          gatewaySignature: mockSignature,
-          paymentMethod: "UPI",
-          amount: order.totalPayableAmount,
-          billingName,
-          billingState,
-        }),
-      });
-
-      const data = await res.json();
-      if (data.success) {
-        router.push(`/checkout/success?invoiceId=${data.invoice_id || ""}`);
-      } else {
-        setErrorMsg(data.error || "Payment verification failed.");
-      }
-    } catch {
-      setErrorMsg("Network error verifying payment.");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
 
   return (
     <div className="py-10 bg-slate-50/50 min-h-[calc(100vh-4rem)] px-4">
@@ -93,12 +57,10 @@ export function CheckoutClient({ order }: CheckoutClientProps) {
             </Badge>
           </div>
 
-          {errorMsg && (
-            <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
-              <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0" />
-              <span>{errorMsg}</span>
-            </div>
-          )}
+          <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-semibold flex items-center gap-2">
+            <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>{PAYMENTS_UNAVAILABLE_MESSAGE}</span>
+          </div>
 
           {/* Item Summary */}
           <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-2">
@@ -175,12 +137,10 @@ export function CheckoutClient({ order }: CheckoutClientProps) {
             <Button
               variant="default"
               size="lg"
-              onClick={handlePayNow}
-              isLoading={isProcessing}
-              disabled={order.status === "PAID"}
+              disabled
               className="w-full sm:w-auto bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs px-8 shadow-md"
             >
-              <CheckCircle2 className="w-4 h-4 mr-2" /> Pay ₹{order.totalPayableAmount.toFixed(2)} & Activate PRO
+              <CheckCircle2 className="w-4 h-4 mr-2" /> Payments Temporarily Unavailable
             </Button>
           </div>
         </Card>
