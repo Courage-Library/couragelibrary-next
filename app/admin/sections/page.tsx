@@ -1,6 +1,7 @@
 import React from "react";
 import { AdminService } from "@/services/admin.service";
 import { AdminSectionsManager } from "@/components/admin/admin-sections-manager";
+import { TaxonomyService } from "@/services/taxonomy/taxonomy.service";
 
 export const revalidate = 0;
 
@@ -13,17 +14,20 @@ export default async function AdminSectionsPage({ searchParams }: Props) {
   const patternFilter = params.pattern;
   const categoryFilter = params.category;
 
-  const [sections, patterns, categories] = await Promise.all([
+  const [sections, patterns, categories, subjectNodes] = await Promise.all([
     AdminService.getAdminSections(patternFilter, categoryFilter),
     AdminService.getAdminPatterns(),
     AdminService.getAdminCategories(),
+    TaxonomyService.listNodesByType("SUBJECT", { activeOnly: true }),
   ]);
+  const subjects = subjectNodes.success ? subjectNodes.data.map((s) => ({ id: s.id, name: s.name })) : [];
 
   return (
     <AdminSectionsManager
       sections={sections}
       patterns={patterns}
       categories={categories}
+      subjects={subjects}
       currentPattern={patternFilter}
       currentCategory={categoryFilter}
     />

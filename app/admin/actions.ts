@@ -412,12 +412,14 @@ export async function createSectionAction(
   if (!authCheck.isAdmin) return { error: "Unauthorized access." };
 
   const patternId = (formData.get("patternId") as string || "").trim();
+  const subjectId = (formData.get("subjectId") as string || "").trim();
   const name = (formData.get("name") as string || "").trim();
   const questionCount = Number(formData.get("questionCount") || 25);
   const marksPerQuestion = Number(formData.get("marksPerQuestion") || 2.0);
   const negativeMark = Number(formData.get("negativeMark") || 0.5);
 
   if (!patternId) return { error: "Please select a pattern." };
+  if (!subjectId) return { error: "Please select a subject. New subjects are created in Admin → Taxonomy (/admin/taxonomy)." };
   if (!name) return { error: "Section name is required." };
   if (!questionCount || questionCount < 1) return { error: "Question count must be at least 1." };
   if (!marksPerQuestion || marksPerQuestion <= 0) return { error: "Marks per question must be > 0." };
@@ -438,38 +440,16 @@ export async function createSectionAction(
     return { error: `"${name}" already exists in this pattern.` };
   }
 
-  // Find or create subject taxonomy
-  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-  let { data: subject } = await supabase
-    .from("subjects")
-    .select("id")
-    .ilike("name", name)
-    .limit(1)
+  // GAP2-1b: sections must use an EXISTING subject node; taxonomy is never created here.
+  const { data: subject } = await supabase
+    .from("canonical_taxonomy_nodes")
+    .select("id, is_active")
+    .eq("id", subjectId)
+    .eq("node_type", "SUBJECT")
     .maybeSingle();
 
-  if (!subject) {
-    const { data: newSubj, error: subjErr } = await supabase
-      .from("subjects")
-      .insert({
-        name,
-        slug,
-        is_active: true,
-      })
-      .select("id")
-      .single();
-
-    if (subjErr) return { error: `Failed creating subject: ${subjErr.message}` };
-    subject = newSubj;
-
-    // Create default topic for the new subject
-    if (subject?.id) {
-      await supabase.from("topics").insert({
-        subject_id: subject.id,
-        name: `${name} General Topics`,
-        slug: `${slug}-general`,
-        is_active: true,
-      });
-    }
+  if (!subject || !subject.is_active) {
+    return { error: "Select an existing active subject. New subjects are created in Admin → Taxonomy (/admin/taxonomy)." };
   }
 
   // Get current max section_order for this pattern
@@ -531,21 +511,6 @@ export async function updateSectionAction(
 
   revalidatePath("/admin/sections");
   return { success: true, message: `Section "${name}" updated successfully.` };
-}
-
-export async function toggleSectionStatusAction(sectionId: string, currentActive: boolean): Promise<AdminActionResult> {
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized access." };
-
-  const supabaseRaw = createAdminServerSupabaseClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = supabaseRaw as any;
-
-  const { error } = await supabase.from("subjects").update({ is_active: !currentActive }).eq("id", sectionId);
-  if (error) return { error: error.message };
-
-  revalidatePath("/admin/sections");
-  return { success: true, message: `Section ${!currentActive ? "activated" : "deactivated"} successfully.` };
 }
 
 /**

@@ -297,6 +297,17 @@ export function AdminSidebar({ userEmail, adaptiveEnabled = false, liveTestsEnab
                 <span className="text-[11px]">Exam Knowledge</span>
               </Link>
               <Link
+                href="/admin/taxonomy"
+                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors ${
+                  pathname.startsWith("/admin/taxonomy")
+                    ? "bg-blue-600 text-white font-semibold"
+                    : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                }`}
+              >
+                <FolderTree className={`w-3.5 h-3.5 shrink-0 ${pathname.startsWith("/admin/taxonomy") ? "text-white" : "text-slate-400"}`} />
+                <span className="text-[11px]">Taxonomy</span>
+              </Link>
+              <Link
                 href="/admin/syllabus-reconciliation"
                 className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors ${
                   pathname.startsWith("/admin/syllabus-reconciliation")

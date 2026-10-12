@@ -36,6 +36,8 @@ interface Props {
   sections: AdminSectionItem[];
   patterns: AdminPatternItem[];
   categories: AdminCategoryItem[];
+  /** GAP2-1b: existing active SUBJECT nodes; sections never create taxonomy. */
+  subjects: { id: string; name: string }[];
   currentPattern?: string;
   currentCategory?: string;
 }
@@ -46,6 +48,7 @@ export function AdminSectionsManager({
   sections,
   patterns,
   categories,
+  subjects,
   currentPattern,
   currentCategory,
 }: Props) {
@@ -193,6 +196,33 @@ export function AdminSectionsManager({
                     );
                   })}
                 </select>
+              </div>
+
+              {/* Subject (existing taxonomy node only) */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Subject <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  name="subjectId"
+                  defaultValue=""
+                  className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-blue-500"
+                  required
+                >
+                  <option value="">— Select Subject —</option>
+                  {subjects.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-[10px] text-slate-500">
+                  Missing a subject? Create it in{" "}
+                  <Link href="/admin/taxonomy" className="font-semibold text-blue-600 hover:underline">
+                    Admin → Taxonomy
+                  </Link>
+                  .
+                </p>
               </div>
 
               {/* Section Name */}
