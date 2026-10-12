@@ -741,17 +741,19 @@ Paste your questions below this line:`;
 
       try {
         const res = await importBulkQuestionsAction(batchRecords);
-        if (res.success || res.inserted > 0) {
-          totalSuccess += res.inserted;
+        // QF-1: rows land as DRAFT versions (never published); rejected rows report gate errors.
+        totalSuccess += res.inserted;
+        totalFailed += res.failed;
+        if (res.inserted > 0) {
           setImportLogs((prev) => [
             ...prev,
-            { type: "ok", message: `Rows ${from}–${to}: ${res.inserted} questions imported ✓` },
+            { type: "ok", message: `Rows ${from}–${to}: ${res.inserted} questions saved as DRAFT for review ✓` },
           ]);
-        } else {
-          totalFailed += res.failed;
+        }
+        if (res.failed > 0) {
           setImportLogs((prev) => [
             ...prev,
-            { type: "err", message: `Rows ${from}–${to}: Failed — ${res.errors.join("; ")}` },
+            { type: "err", message: `Rows ${from}–${to}: ${res.failed} rejected — ${res.errors.join("; ")}` },
           ]);
         }
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -776,7 +778,7 @@ Paste your questions below this line:`;
       ...prev,
       {
         type: totalFailed === 0 ? "ok" : "err",
-        message: `Import Finished: ${totalSuccess} inserted successfully, ${totalFailed} failed.`,
+        message: `Import Finished: ${totalSuccess} saved as DRAFT (review & publish in Question Factory), ${totalFailed} rejected.`,
       },
     ]);
   }

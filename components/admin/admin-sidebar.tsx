@@ -33,6 +33,7 @@ import {
   Radio,
   GraduationCap,
   Newspaper,
+  Factory,
 } from "lucide-react";
 
 interface Props {
@@ -94,6 +95,11 @@ export function AdminSidebar({ userEmail }: Props) {
       label: "Questions",
       href: "/admin/questions",
       icon: HelpCircle,
+    },
+    {
+      label: "Question Factory",
+      href: "/admin/questions/factory",
+      icon: Factory,
     },
     {
       label: "Question Reports",

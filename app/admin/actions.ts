@@ -3,6 +3,9 @@
 import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { AdminService, getIstTomorrowDateStr } from "@/services/admin.service";
 import { BulkImportEngine, BulkImportPayload, BulkImportResult } from "@/lib/admin/bulk-importer";
+import { QuestionCsvImporterService } from "@/services/question-factory/question-csv-importer.service";
+import { AdminQuestionFactoryService } from "@/services/question-factory/admin-question-factory.service";
+import type { QuestionAuthoringItem, QuestionOptionKey } from "@/types/question-factory";
 import { revalidatePath } from "next/cache";
 
 export interface AdminActionResult {
@@ -107,290 +110,45 @@ export interface BulkImportQuestionRecord {
 }
 
 /**
- * Server Action: Import Bulk Question Rows directly into the relational Question Architecture
+ * Server Action: Import bulk question rows through the Question Factory (QF-1).
+ * Every row passes the same five gates as external-AI input and lands as a DRAFT
+ * version; nothing is published and no taxonomy/exam entities are ever created.
+ * Unresolved subject/topic/exam references reject the row with an explicit message.
  */
 export async function importBulkQuestionsAction(
-  rows: BulkImportQuestionRecord[]
-): Promise<{ success: boolean; inserted: number; failed: number; errors: string[] }> {
+  rows: BulkImportQuestionRecord[],
+  mode: "dry-run" | "commit" = "commit"
+): Promise<{ success: boolean; inserted: number; failed: number; errors: string[]; warnings?: string[] }> {
   const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) {
+  if (!authCheck.isAdmin || !authCheck.userId) {
     return { success: false, inserted: 0, failed: rows.length, errors: ["Unauthorized access."] };
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = createAdminServerSupabaseClient() as any;
-  let inserted = 0;
-  let failed = 0;
-  const errors: string[] = [];
-
-  // Pre-fetch reference maps for authoritative resolution
-  const [psecsRes, subjectsRes, allTopicsRes] = await Promise.all([
-    supabase.from("pattern_sections").select("id, section_name, subject_id, pattern_id"),
-    supabase.from("subjects").select("id, name, slug"),
-    supabase.from("topics").select("id, name, slug, subject_id"),
-  ]);
-
-  const patternSectionMap = new Map<string, { id: string; section_name: string; subject_id: string }>();
-  (psecsRes.data || []).forEach((ps: { id: string; section_name: string; subject_id: string }) => {
-    patternSectionMap.set(ps.id, ps);
+  const summary = await QuestionCsvImporterService.run({
+    rows: rows as unknown as Record<string, unknown>[],
+    mode: mode === "dry-run" ? "dry-run" : "commit",
+    actorId: authCheck.userId,
+    supabase: createAdminServerSupabaseClient(),
   });
 
-  const subjectMap = new Map<string, { id: string; name: string; slug: string }>();
-  (subjectsRes.data || []).forEach((s: { id: string; name: string; slug: string }) => {
-    subjectMap.set(s.id, s);
-    subjectMap.set(s.name.toLowerCase().trim(), s);
-    subjectMap.set(s.slug.toLowerCase().trim(), s);
-  });
+  const errors = summary.rows
+    .filter((r) => r.status === "REJECTED")
+    .map((r) => `Row ${r.row}: ${r.errors.join(" ") || "Rejected."}`);
+  const warnings = summary.rows
+    .filter((r) => r.warnings.length > 0)
+    .map((r) => `Row ${r.row}: ${r.warnings.join(" ")}`);
 
-  // Topic map scoped strictly by `subject_id:topic_identifier`
-  const topicMap = new Map<string, string>();
-  (allTopicsRes.data || []).forEach((t: { id: string; name: string; slug: string; subject_id: string }) => {
-    if (t.subject_id) {
-      topicMap.set(`${t.subject_id}:${t.name.toLowerCase().trim()}`, t.id);
-      topicMap.set(`${t.subject_id}:${t.slug.toLowerCase().trim()}`, t.id);
-    }
-  });
-
-  // Pass 1: Strict Pre-Validation of all rows in batch
-  const validationErrors: string[] = [];
-  const validatedRows: Array<{
-    statement: string;
-    topicName: string;
-    targetSubjectId: string;
-    rawRecord: BulkImportQuestionRecord;
-  }> = [];
-
-  for (let i = 0; i < rows.length; i++) {
-    const r = rows[i];
-    const statement = r.question_text?.trim() || "";
-    if (!statement) {
-      validationErrors.push(`Row ${i + 1}: Missing question statement.`);
-      continue;
-    }
-
-    const topicName = (r.topic || "").trim();
-    if (!topicName) {
-      validationErrors.push(`Row ${i + 1}: Topic is required and cannot be empty.`);
-      continue;
-    }
-
-    // Authoritative Section Resolution
-    let targetSubjectId: string | null = null;
-    const rawPsecId = (r.pattern_section_id || "").trim();
-    const rawSecName = (r.section_name || "").trim();
-
-    if (rawPsecId) {
-      const psec = patternSectionMap.get(rawPsecId);
-      if (!psec) {
-        validationErrors.push(`Row ${i + 1}: pattern_section_id "${rawPsecId}" does not exist in pattern_sections.`);
-        continue;
-      }
-      targetSubjectId = psec.subject_id;
-
-      // Conflict check if section_name is also supplied
-      if (rawSecName) {
-        const psecNameNorm = (psec.section_name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-        const rawSecNameNorm = rawSecName.toLowerCase().replace(/[^a-z0-9]/g, "");
-        const subj = subjectMap.get(psec.subject_id);
-        const subjNameNorm = (subj?.name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-
-        if (psecNameNorm !== rawSecNameNorm && subjNameNorm !== rawSecNameNorm) {
-          validationErrors.push(
-            `Row ${i + 1}: Section mapping conflict: pattern_section_id refers to "${psec.section_name}" but section_name is "${rawSecName}".`
-          );
-          continue;
-        }
-      }
-    } else if (rawSecName) {
-      const subj = subjectMap.get(rawSecName.toLowerCase());
-      if (!subj) {
-        validationErrors.push(`Row ${i + 1}: section_name "${rawSecName}" does not resolve to a valid subject or section.`);
-        continue;
-      }
-      targetSubjectId = subj.id;
-    } else {
-      validationErrors.push(`Row ${i + 1}: Missing section context. Either pattern_section_id or section_name is required.`);
-      continue;
-    }
-
-    if (!targetSubjectId) {
-      validationErrors.push(`Row ${i + 1}: Could not resolve subject for section.`);
-      continue;
-    }
-
-    validatedRows.push({
-      statement,
-      topicName,
-      targetSubjectId,
-      rawRecord: r,
-    });
+  if (mode === "commit") {
+    revalidatePath("/admin/questions");
+    revalidatePath("/admin/questions/factory");
   }
 
-  if (validationErrors.length > 0) {
-    return {
-      success: false,
-      inserted: 0,
-      failed: rows.length,
-      errors: validationErrors,
-    };
-  }
-
-  // Pass 2: Execution of Validated Rows
-  for (let i = 0; i < validatedRows.length; i++) {
-    const { statement, topicName, targetSubjectId, rawRecord: r } = validatedRows[i];
-    try {
-      // Options parsing
-      let optionsObj: Record<string, string | { text?: string; image?: string }> = {};
-      if (typeof r.options === "string") {
-        try {
-          optionsObj = JSON.parse(r.options);
-        } catch {
-          optionsObj = { A: "Option A", B: "Option B", C: "Option C", D: "Option D" };
-        }
-      } else if (typeof r.options === "object" && r.options !== null) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        optionsObj = r.options as any;
-      }
-
-      const optionsType = (r.options_type || "text").toLowerCase() === "image" ? "image" : "text";
-      const correctAnswer = (r.correct_answer || "A").trim().toUpperCase();
-      const difficulty = ["easy", "medium", "hard"].includes((r.difficulty || "").toLowerCase())
-        ? (r.difficulty || "").toLowerCase()
-        : "medium";
-      const language =
-        (r.language || "english").toLowerCase() === "hindi" || (r.language || "").toLowerCase() === "hi"
-          ? "hi"
-          : "en";
-      const explanation = r.explanation?.trim() || "Explanation provided upon evaluation.";
-      const qImage = r.question_image?.trim() || null;
-
-      // Scoped Topic Resolution under (targetSubjectId + normalized topic)
-      const topicKey = `${targetSubjectId}:${topicName.toLowerCase()}`;
-      let topicId = topicMap.get(topicKey);
-
-      if (!topicId) {
-        const topicSlug = topicName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-        const { data: newTop, error: topErr } = await supabase
-          .from("topics")
-          .insert({
-            subject_id: targetSubjectId,
-            name: topicName,
-            slug: topicSlug,
-            is_active: true,
-          })
-          .select("id")
-          .single();
-
-        if (topErr || !newTop) {
-          failed++;
-          errors.push(`Row ${i + 1}: Failed creating topic "${topicName}": ${topErr?.message}`);
-          continue;
-        }
-        topicId = newTop.id;
-        topicMap.set(topicKey, newTop.id);
-        topicMap.set(`${targetSubjectId}:${topicSlug}`, newTop.id);
-      }
-
-      // 1. Insert Question
-      const { data: qData, error: qErr } = await supabase
-        .from("questions")
-        .insert({
-          canonical_topic_id: topicId,
-          status: "published",
-        })
-        .select("id")
-        .single();
-
-      if (qErr || !qData) {
-        failed++;
-        errors.push(`Row ${i + 1}: ${qErr?.message || "Question insert failed"}`);
-        continue;
-      }
-
-      // 2. Insert Question Version
-      const { data: qvData, error: qvErr } = await supabase
-        .from("question_versions")
-        .insert({
-          question_id: qData.id,
-          version_number: 1,
-          question_text: statement,
-          difficulty,
-          language,
-          options_type: optionsType,
-          question_image_url: qImage,
-          is_current: true,
-        })
-        .select("id")
-        .single();
-
-      if (qvErr || !qvData) {
-        failed++;
-        errors.push(`Row ${i + 1}: ${qvErr?.message || "Version insert failed"}`);
-        continue;
-      }
-
-      // 3. Insert Options
-      const optionKeys = ["A", "B", "C", "D"];
-      const optRows = optionKeys.map((key, idx) => {
-        const val = optionsObj[key];
-        let optText = "";
-        let optImg: string | null = null;
-        if (typeof val === "string") {
-          if (optionsType === "image" && val.startsWith("http")) {
-            optImg = val;
-            optText = `Option ${key}`;
-          } else {
-            optText = val;
-          }
-        } else if (typeof val === "object" && val !== null) {
-          optText = val.text || `Option ${key}`;
-          optImg = val.image || null;
-        }
-        return {
-          question_version_id: qvData.id,
-          option_key: key,
-          option_text: optText || `Option ${key}`,
-          option_image_url: optImg,
-          order_index: idx + 1,
-        };
-      });
-
-      await supabase.from("question_options").insert(optRows);
-
-      // 4. Insert Answer Key
-      await supabase.from("question_answers").insert({
-        question_version_id: qvData.id,
-        correct_option_key: correctAnswer,
-        explanation_md: explanation,
-      });
-
-      // 5. Insert PYQ if present
-      const pyqYear = r.pyq_year ? parseInt(String(r.pyq_year), 10) : null;
-      const pyqSource = r.pyq_source?.trim() || null;
-      if (pyqYear || pyqSource) {
-        await supabase.from("question_sources").insert({
-          question_id: qData.id,
-          exam_name: pyqSource || "Competitive Exam",
-          year: pyqYear || 2025,
-          source_type: "pyq",
-        });
-      }
-
-      inserted++;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (rowEx: any) {
-      failed++;
-      errors.push(`Row ${i + 1}: ${rowEx?.message || "Unknown error"}`);
-    }
-  }
-
-  revalidatePath("/admin/questions");
-  revalidatePath("/admin/mock-tests-management");
   return {
-    success: failed === 0,
-    inserted,
-    failed,
+    success: summary.rejected === 0,
+    inserted: mode === "commit" ? summary.imported : summary.accepted,
+    failed: summary.rejected,
     errors,
+    warnings,
   };
 }
 
@@ -1104,113 +862,68 @@ export async function toggleDailyMockDayAction(templateId: string, currentActive
 /* 5. QUESTION CRUD ACTIONS (HIERARCHY + PYQ + OPTIONS)                      */
 /* ========================================================================= */
 
+/**
+ * QF-1: builds a QuestionAuthoringItem from the question manager form.
+ * Image fields are passed through so Gate 1 rejects them (images arrive in QF-3).
+ */
+function questionFormToItem(formData: FormData): QuestionAuthoringItem {
+  const text = (k: string) => ((formData.get(k) as string) || "").trim();
+  const language = text("language").toLowerCase();
+  const pyqYear = text("pyqYear");
+  const pyqSource = text("pyqSource");
+  const item: Record<string, unknown> = {
+    clientRef: "manual-1",
+    stem: text("statement"),
+    language: language === "hindi" || language === "hi" ? "hi" : "en",
+    difficulty: (text("difficulty") || "medium").toLowerCase(),
+    options: (["A", "B", "C", "D"] as QuestionOptionKey[]).map((key) => ({ key, text: text(`opt${key}Text`) })),
+    correctKey: (text("correctOptionKey") || "A").toUpperCase(),
+    explanationMd: text("explanation"),
+    sourceType: pyqYear || pyqSource ? "PYQ" : "ORIGINAL",
+  };
+  if (pyqYear || pyqSource) {
+    item.pyq = { examSlug: pyqSource, year: Number(pyqYear), reference: `${pyqSource} ${pyqYear}`.trim() };
+  }
+  const imageFields = ["questionImageUrl", "optAImg", "optBImg", "optCImg", "optDImg"].filter((k) => text(k));
+  if (imageFields.length > 0 || text("optionsType").toLowerCase() === "image") {
+    item.question_image_url = imageFields.join(",") || "image-options";
+  }
+  return item as unknown as QuestionAuthoringItem;
+}
+
+/**
+ * QF-1: manual creation goes through the five gates and lands as a DRAFT version.
+ * Publication happens only via review + atomic publish in the Question Factory.
+ */
 export async function createQuestionHierarchyAction(
   prevState: AdminActionResult | null,
   formData: FormData
 ): Promise<AdminActionResult> {
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) {
-    return { error: "Unauthorized access. Administrative privileges required." };
-  }
-
-  const statement = (formData.get("statement") as string || "").trim();
-  const topicId = formData.get("topicId") as string;
-  const difficulty = (formData.get("difficulty") as string || "medium").toLowerCase();
-  const language = (formData.get("language") as string || "hi").toLowerCase();
-  const rawOptType = (formData.get("optionsType") as string || "text").toLowerCase();
-  const optionsType = rawOptType === "image" ? "image" : "text";
-  const questionImageUrl = (formData.get("questionImageUrl") as string || "").trim() || null;
-  const correctOptionKey = (formData.get("correctOptionKey") as string || "A").toUpperCase().trim();
-  const explanation = (formData.get("explanation") as string || "").trim();
-
-  // Option texts & images
-  const optAText = (formData.get("optAText") as string || "").trim();
-  const optAImg = (formData.get("optAImg") as string || "").trim() || null;
-  const optBText = (formData.get("optBText") as string || "").trim();
-  const optBImg = (formData.get("optBImg") as string || "").trim() || null;
-  const optCText = (formData.get("optCText") as string || "").trim();
-  const optCImg = (formData.get("optCImg") as string || "").trim() || null;
-  const optDText = (formData.get("optDText") as string || "").trim();
-  const optDImg = (formData.get("optDImg") as string || "").trim() || null;
-
-  // PYQ metadata
-  const pyqYearRaw = formData.get("pyqYear") as string;
-  const pyqYear = pyqYearRaw ? parseInt(pyqYearRaw, 10) : null;
-  const pyqSource = (formData.get("pyqSource") as string || "").trim() || null;
-
-  if (!statement) {
+  const topicId = ((formData.get("topicId") as string) || "").trim();
+  if (!((formData.get("statement") as string) || "").trim()) {
     return { error: "Question statement is required." };
   }
-
-  const supabaseRaw = createAdminServerSupabaseClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = supabaseRaw as any;
-
-  // 1. Insert Base Question
-  const { data: qData, error: qErr } = await supabase
-    .from("questions")
-    .insert({
-      canonical_topic_id: topicId || null,
-      status: "published",
-    })
-    .select("id")
-    .single();
-
-  if (qErr || !qData) {
-    return { error: `Failed to create question: ${qErr?.message}` };
+  if (!topicId) {
+    return { error: "Topic is required." };
   }
 
-  // 2. Insert Question Version
-  const { data: qvData, error: qvErr } = await supabase
-    .from("question_versions")
-    .insert({
-      question_id: qData.id,
-      version_number: 1,
-      question_text: statement,
-      difficulty,
-      language: language === "hindi" || language === "hi" ? "hi" : "en",
-      options_type: optionsType,
-      question_image_url: questionImageUrl,
-      is_current: true,
-    })
-    .select("id")
-    .single();
-
-  if (qvErr || !qvData) {
-    return { error: `Failed to create question version: ${qvErr?.message}` };
-  }
-
-  // 3. Insert Options A-D
-  const optionsRows = [
-    { question_version_id: qvData.id, option_key: "A", option_text: optAText, option_image_url: optAImg, order_index: 1 },
-    { question_version_id: qvData.id, option_key: "B", option_text: optBText, option_image_url: optBImg, order_index: 2 },
-    { question_version_id: qvData.id, option_key: "C", option_text: optCText, option_image_url: optCImg, order_index: 3 },
-    { question_version_id: qvData.id, option_key: "D", option_text: optDText, option_image_url: optDImg, order_index: 4 },
-  ];
-
-  await supabase.from("question_options").insert(optionsRows);
-
-  // 4. Insert Server Isolated Answer Key
-  await supabase.from("question_answers").insert({
-    question_version_id: qvData.id,
-    correct_option_key: correctOptionKey,
-    explanation_md: explanation || "Detailed explanation provided upon evaluation.",
-  });
-
-  // 5. Insert PYQ Metadata if available
-  if (pyqYear || pyqSource) {
-    await supabase.from("question_sources").insert({
-      question_id: qData.id,
-      exam_name: pyqSource || "Competitive Exam",
-      year: pyqYear || 2025,
-      source_type: "pyq",
-    });
+  const res = await AdminQuestionFactoryService.createManualDraft({ topicId }, questionFormToItem(formData));
+  if (!res.success) {
+    return { error: res.error || "Question failed the Question Factory gates." };
   }
 
   revalidatePath("/admin/questions");
-  return { success: true, message: "Question created successfully." };
+  revalidatePath("/admin/questions/factory");
+  return {
+    success: true,
+    message: "Question saved as DRAFT. Submit it for review and publish it from the Question Factory.",
+  };
 }
 
+/**
+ * QF-1: published versions are immutable. Editing either updates the open
+ * DRAFT/CHANGES_REQUESTED version or creates a new DRAFT revision for review.
+ */
 export async function updateQuestionHierarchyAction(
   prevState: AdminActionResult | null,
   formData: FormData
@@ -1220,98 +933,63 @@ export async function updateQuestionHierarchyAction(
     return { error: "Unauthorized access." };
   }
 
-  const questionId = formData.get("questionId") as string;
-  const versionId = formData.get("versionId") as string;
-  const statement = (formData.get("statement") as string || "").trim();
-  const topicId = formData.get("topicId") as string;
-  const difficulty = (formData.get("difficulty") as string || "medium").toLowerCase();
-  const language = (formData.get("language") as string || "hi").toLowerCase();
-  const rawOptType = (formData.get("optionsType") as string || "text").toLowerCase();
-  const optionsType = rawOptType === "image" ? "image" : "text";
-  const questionImageUrl = (formData.get("questionImageUrl") as string || "").trim() || null;
-  const correctOptionKey = (formData.get("correctOptionKey") as string || "A").toUpperCase().trim();
-  const explanation = (formData.get("explanation") as string || "").trim();
-
-  // Option texts
-  const optAText = (formData.get("optAText") as string || "").trim();
-  const optAImg = (formData.get("optAImg") as string || "").trim() || null;
-  const optBText = (formData.get("optBText") as string || "").trim();
-  const optBImg = (formData.get("optBImg") as string || "").trim() || null;
-  const optCText = (formData.get("optCText") as string || "").trim();
-  const optCImg = (formData.get("optCImg") as string || "").trim() || null;
-  const optDText = (formData.get("optDText") as string || "").trim();
-  const optDImg = (formData.get("optDImg") as string || "").trim() || null;
-
-  if (!questionId || !versionId || !statement) {
-    return { error: "Question ID, Version ID, and statement are required." };
+  const questionId = ((formData.get("questionId") as string) || "").trim();
+  const topicId = ((formData.get("topicId") as string) || "").trim();
+  if (!questionId || !((formData.get("statement") as string) || "").trim()) {
+    return { error: "Question ID and statement are required." };
   }
 
-  const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = supabaseRaw as any;
-
-  // 1. Update Base Question
-  await supabase
+  const supabase = createAdminServerSupabaseClient() as any;
+  const { data: question, error: qErr } = await supabase
     .from("questions")
-    .update({
-      canonical_topic_id: topicId || null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", questionId);
+    .select("id, canonical_topic_id, question_versions(id, lifecycle_status)")
+    .eq("id", questionId)
+    .maybeSingle();
+  if (qErr) return { error: `Failed to load question: ${qErr.message}` };
+  if (!question) return { error: "Question not found." };
 
-  // 2. Update Question Version
-  await supabase
-    .from("question_versions")
-    .update({
-      question_text: statement,
-      difficulty,
-      language: language === "hindi" || language === "hi" ? "hi" : "en",
-      options_type: optionsType,
-      question_image_url: questionImageUrl,
-    })
-    .eq("id", versionId);
-
-  // 3. Upsert Options
-  const optionsUpdates = [
-    { key: "A", text: optAText, img: optAImg },
-    { key: "B", text: optBText, img: optBImg },
-    { key: "C", text: optCText, img: optCImg },
-    { key: "D", text: optDText, img: optDImg },
-  ];
-
-  for (const opt of optionsUpdates) {
-    await supabase
-      .from("question_options")
-      .update({
-        option_text: opt.text,
-        option_image_url: opt.img,
-      })
-      .eq("question_version_id", versionId)
-      .eq("option_key", opt.key);
+  if (topicId && topicId !== question.canonical_topic_id) {
+    return { error: "Changing a question's topic is not supported in QF-1. Create a new question under the correct topic instead." };
   }
 
-  // 4. Update Answer Key
-  await supabase
-    .from("question_answers")
-    .update({
-      correct_option_key: correctOptionKey,
-      explanation_md: explanation || "Detailed explanation provided upon evaluation.",
-    })
-    .eq("question_version_id", versionId);
+  const versions = (question.question_versions || []) as Array<{ id: string; lifecycle_status: string }>;
+  const editable = versions.find((v) => v.lifecycle_status === "DRAFT" || v.lifecycle_status === "CHANGES_REQUESTED");
+  const inReview = versions.find((v) => v.lifecycle_status === "IN_REVIEW" || v.lifecycle_status === "APPROVED");
+  if (!editable && inReview) {
+    return { error: `This question has a version in ${inReview.lifecycle_status}. Finish its review in the Question Factory first.` };
+  }
+
+  const item = questionFormToItem(formData);
+  const res = editable
+    ? await AdminQuestionFactoryService.editDraft(editable.id, item)
+    : await AdminQuestionFactoryService.createRevision(questionId, item);
+  if (!res.success) return { error: res.error || "Edit failed the Question Factory gates." };
 
   revalidatePath("/admin/questions");
-  return { success: true, message: "Question updated successfully." };
+  revalidatePath("/admin/questions/factory");
+  return {
+    success: true,
+    message: editable
+      ? "Draft updated. Submit it for review in the Question Factory."
+      : "A new DRAFT revision was created. The published version stays live until the revision is approved and published.",
+  };
 }
 
 export async function toggleQuestionStatusAction(questionId: string, currentStatus: string): Promise<AdminActionResult> {
   const authCheck = await AdminService.checkIsAdminOrStaff();
   if (!authCheck.isAdmin) return { error: "Unauthorized access." };
 
+  if (currentStatus !== "published" && currentStatus !== "archived") {
+    return { error: "Draft questions are published only through review in the Question Factory." };
+  }
+
   const newStatus = currentStatus === "published" ? "archived" : "published";
   const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = supabaseRaw as any;
 
+  // Restoring an archived question is allowed by the DB only when its current version is PUBLISHED.
   const { error } = await supabase.from("questions").update({ status: newStatus }).eq("id", questionId);
   if (error) return { error: error.message };
 
@@ -1342,18 +1020,27 @@ export async function deleteQuestionAction(questionId: string): Promise<AdminAct
     .eq("question_id", questionId)
     .limit(1);
 
-  if (responses && responses.length > 0) {
-    // Archive question if attempt history exists
-    await supabase.from("questions").update({ status: "archived" }).eq("id", questionId);
+  // QF-1: versions that were ever submitted, approved or published are immutable history.
+  const { data: versions, error: vErr } = await supabase
+    .from("question_versions")
+    .select("id, lifecycle_status")
+    .eq("question_id", questionId);
+  const frozen = (versions || []).some((v: { lifecycle_status: string }) =>
+    ["IN_REVIEW", "APPROVED", "PUBLISHED", "SUPERSEDED"].includes(v.lifecycle_status)
+  );
+
+  if ((responses && responses.length > 0) || frozen || vErr) {
+    const { error } = await supabase.from("questions").update({ status: "archived" }).eq("id", questionId);
+    if (error) return { error: error.message };
     revalidatePath("/admin/questions");
-    return { success: true, message: "Question has student attempt history; safely archived instead of deleting." };
+    return { success: true, message: "Question has published or attempt history; safely archived instead of deleting." };
   }
 
-  // Delete associated versions, options, answers, sources
-  const { data: versions } = await supabase.from("question_versions").select("id").eq("question_id", questionId);
+  // Only never-reviewed drafts reach this point.
   const versionIds = (versions || []).map((v: { id: string }) => v.id);
 
   if (versionIds.length > 0) {
+    await supabase.from("question_version_authoring").delete().in("version_id", versionIds);
     await supabase.from("question_answers").delete().in("question_version_id", versionIds);
     await supabase.from("question_options").delete().in("question_version_id", versionIds);
     await supabase.from("question_versions").delete().eq("question_id", questionId);

@@ -105,6 +105,9 @@ export class AdaptiveSelectionService {
         )
       `)
       .eq("is_current", true)
+      // QF-1: only the current PUBLISHED version of a published question.
+      .eq("lifecycle_status", "PUBLISHED")
+      .eq("questions.status", "published")
       .limit(300);
 
     if (error || !questions) {

@@ -3723,6 +3723,51 @@ export type Database = {
           },
         ]
       }
+      question_import_batches: {
+        Row: {
+          accepted_count: number
+          context_hash: string | null
+          contract_version: string | null
+          created_at: string
+          created_by: string | null
+          gate_report: Json
+          id: string
+          origin: string
+          rejected_count: number
+          submitted_count: number
+          target_exam_id: string | null
+          target_topic_id: string
+        }
+        Insert: {
+          accepted_count?: number
+          context_hash?: string | null
+          contract_version?: string | null
+          created_at?: string
+          created_by?: string | null
+          gate_report?: Json
+          id?: string
+          origin: string
+          rejected_count?: number
+          submitted_count?: number
+          target_exam_id?: string | null
+          target_topic_id: string
+        }
+        Update: {
+          accepted_count?: number
+          context_hash?: string | null
+          contract_version?: string | null
+          created_at?: string
+          created_by?: string | null
+          gate_report?: Json
+          id?: string
+          origin?: string
+          rejected_count?: number
+          submitted_count?: number
+          target_exam_id?: string | null
+          target_topic_id?: string
+        }
+        Relationships: []
+      }
       question_options: {
         Row: {
           id: string
@@ -3818,8 +3863,63 @@ export type Database = {
           },
         ]
       }
+      question_version_authoring: {
+        Row: {
+          authoring_metadata: Json
+          context_hash: string | null
+          contract_version: string | null
+          created_at: string
+          created_by: string | null
+          import_batch_id: string | null
+          origin: string
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          updated_at: string
+          version_id: string
+        }
+        Insert: {
+          authoring_metadata?: Json
+          context_hash?: string | null
+          contract_version?: string | null
+          created_at?: string
+          created_by?: string | null
+          import_batch_id?: string | null
+          origin?: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          updated_at?: string
+          version_id: string
+        }
+        Update: {
+          authoring_metadata?: Json
+          context_hash?: string | null
+          contract_version?: string | null
+          created_at?: string
+          created_by?: string | null
+          import_batch_id?: string | null
+          origin?: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          updated_at?: string
+          version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "question_version_authoring_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: true
+            referencedRelation: "question_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       question_versions: {
         Row: {
+          content_checksum: string | null
+          lifecycle_status: string
           created_at: string
           difficulty: string
           id: string
@@ -3833,6 +3933,8 @@ export type Database = {
           version_number: number
         }
         Insert: {
+          content_checksum?: string | null
+          lifecycle_status?: string
           created_at?: string
           difficulty?: string
           id?: string
@@ -3846,6 +3948,8 @@ export type Database = {
           version_number?: number
         }
         Update: {
+          content_checksum?: string | null
+          lifecycle_status?: string
           created_at?: string
           difficulty?: string
           id?: string
