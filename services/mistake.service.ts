@@ -810,6 +810,22 @@ export class MistakeService {
     const adminSb = createAdminServerSupabaseClient();
     let recordedCount = 0;
 
+    // Resolve taxonomy server-side from the canonical question (never from client input).
+    const questionIds = Array.from(new Set(params.mistakes.map((m) => m.questionId).filter(Boolean)));
+    const taxonomyByQuestion = new Map<string, { topicId: string | null; subjectId: string | null }>();
+    if (questionIds.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: questionRows } = await (adminSb as any)
+        .from("questions")
+        .select("id, canonical_topic_id, topics(subject_id)")
+        .in("id", questionIds);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (questionRows || []).forEach((q: any) => {
+        const topic = Array.isArray(q.topics) ? q.topics[0] : q.topics;
+        taxonomyByQuestion.set(q.id, { topicId: q.canonical_topic_id ?? null, subjectId: topic?.subject_id ?? null });
+      });
+    }
+
     for (const m of params.mistakes) {
       if (!m.questionId) continue;
 
@@ -830,6 +846,8 @@ export class MistakeService {
           .insert({
             user_id: params.userId,
             question_id: m.questionId,
+            topic_id: taxonomyByQuestion.get(m.questionId)?.topicId ?? null,
+            subject_id: taxonomyByQuestion.get(m.questionId)?.subjectId ?? null,
             total_mistakes_count: 1,
             lifecycle_status: "UNRESOLVED",
             primary_cognitive_type_id: m.cognitiveTypeId || "UNCLASSIFIED",

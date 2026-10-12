@@ -1,3 +1,5 @@
+import { isFeatureEnabled } from "@/config/features";
+import { FeatureDisabledPanel } from "@/components/admin/feature-disabled-panel";
 import React from "react";
 import { Metadata } from "next";
 import { LiveTestAchievementService } from "@/services/live-test-achievement.service";
@@ -10,6 +12,7 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminAchievementsPage() {
+  if (!isFeatureEnabled("LIVE_TESTS")) return <FeatureDisabledPanel feature="LIVE_TESTS" />;
   const definitions = await LiveTestAchievementService.getAchievementDefinitions();
 
   return (

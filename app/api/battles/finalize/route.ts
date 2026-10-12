@@ -1,7 +1,10 @@
+import { featureDisabledApiResponse } from "@/lib/features/gates";
 import { BattleService } from "@/services/battle.service";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function POST(request: NextRequest) {
+  const featureDisabled = featureDisabledApiResponse("BATTLES");
+  if (featureDisabled) return featureDisabled;
   try {
     const { roomId } = await request.json();
     const result = await BattleService.finalizeBattleRoom(roomId);

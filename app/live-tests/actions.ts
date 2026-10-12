@@ -1,5 +1,7 @@
 "use server";
 
+
+import { featureDisabledActionResult } from "@/lib/features/gates";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { LiveTestRegistrationService } from "@/services/live-test-registration.service";
 import { LiveTestRunnerService } from "@/services/live-test-runner.service";
@@ -7,6 +9,8 @@ import { LiveAnswerPayload } from "@/types/live-test";
 import { revalidatePath } from "next/cache";
 
 export async function registerForLiveTestAction(eventId: string) {
+  const featureGate = featureDisabledActionResult("LIVE_TESTS");
+  if (featureGate) return featureGate as never;
   try {
     const supabase = await createServerSupabaseClient();
     const {
@@ -29,6 +33,8 @@ export async function registerForLiveTestAction(eventId: string) {
 }
 
 export async function cancelLiveRegistrationAction(eventId: string) {
+  const featureGate = featureDisabledActionResult("LIVE_TESTS");
+  if (featureGate) return featureGate as never;
   try {
     const supabase = await createServerSupabaseClient();
     const {
@@ -51,6 +57,8 @@ export async function cancelLiveRegistrationAction(eventId: string) {
 }
 
 export async function startLiveAttemptAction(eventSlug: string) {
+  const featureGate = featureDisabledActionResult("LIVE_TESTS");
+  if (featureGate) return featureGate as never;
   try {
     const supabase = await createServerSupabaseClient();
     const {
@@ -68,6 +76,8 @@ export async function startLiveAttemptAction(eventSlug: string) {
 }
 
 export async function saveLiveAnswerAction(payload: LiveAnswerPayload) {
+  const featureGate = featureDisabledActionResult("LIVE_TESTS");
+  if (featureGate) return featureGate as never;
   try {
     const supabase = await createServerSupabaseClient();
     const {
@@ -85,6 +95,8 @@ export async function saveLiveAnswerAction(payload: LiveAnswerPayload) {
 }
 
 export async function submitLiveAttemptAction(attemptId: string, isAutoSubmitted: boolean = false) {
+  const featureGate = featureDisabledActionResult("LIVE_TESTS");
+  if (featureGate) return featureGate as never;
   try {
     const supabase = await createServerSupabaseClient();
     const {
@@ -106,6 +118,8 @@ export async function submitLiveAttemptAction(attemptId: string, isAutoSubmitted
 }
 
 export async function getLiveTestResultAction(slugOrId: string) {
+  const featureGate = featureDisabledActionResult("LIVE_TESTS");
+  if (featureGate) return featureGate as never;
   try {
     const supabase = await createServerSupabaseClient();
     const {
@@ -125,6 +139,8 @@ export async function getLiveTestLeaderboardAction(
   page: number = 1,
   limit: number = 50
 ) {
+  const featureGate = featureDisabledActionResult("LIVE_TESTS");
+  if (featureGate) return featureGate as never;
   try {
     const supabase = await createServerSupabaseClient();
     const {

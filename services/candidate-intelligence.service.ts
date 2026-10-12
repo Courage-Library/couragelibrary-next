@@ -10,6 +10,23 @@
  */
 
 import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
+import { isFeatureEnabled } from "@/config/features";
+
+/**
+ * DRIFT-1c: live-test tables are not deployed while FEATURE_LIVE_TESTS is off. This returns the
+ * real client when enabled; otherwise an inert query chain that resolves to an empty result
+ * without sending any request (PostgREST builders only execute when awaited).
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const EMPTY_LIVE_QUERY: any = new Proxy(function () {}, {
+  get: (_target, prop) =>
+    prop === "then"
+      ? (resolve: (v: unknown) => void) => resolve({ data: null, count: 0, error: null })
+      : () => EMPTY_LIVE_QUERY,
+  apply: () => EMPTY_LIVE_QUERY,
+});
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const liveTestsQuery = (client: any) => (isFeatureEnabled("LIVE_TESTS") ? client : EMPTY_LIVE_QUERY);
 import {
   CANDIDATE_INTELLIGENCE_POLICY_V1,
   CandidateIntelligencePolicy,
@@ -750,7 +767,7 @@ export class CandidateIntelligenceService {
     }
 
     // 2. Achievements (Phase 5E.3)
-    const { data: awards } = await adminSb
+    const { data: awards } = await liveTestsQuery(adminSb)
       .from("live_test_achievement_awards")
       .select(`
         id,
@@ -785,7 +802,7 @@ export class CandidateIntelligenceService {
     }
 
     // 3. Certificates (Phase 5E.2)
-    const { data: certs } = await adminSb
+    const { data: certs } = await liveTestsQuery(adminSb)
       .from("live_test_certificates")
       .select(`
         id,
@@ -814,7 +831,7 @@ export class CandidateIntelligenceService {
     }
 
     // 4. Rewards (Phase 5E.1)
-    const { data: rewards } = await adminSb
+    const { data: rewards } = await liveTestsQuery(adminSb)
       .from("live_test_reward_settlements")
       .select(`
         id,
@@ -939,7 +956,7 @@ export class CandidateIntelligenceService {
 
     // 2. Query Live Tests from public.live_test_leaderboard_entries
     // Strict Model C Errata Filter: Only active finalized snapshots
-    let liveQuery = adminSb
+    let liveQuery = liveTestsQuery(adminSb)
       .from("live_test_leaderboard_entries")
       .select(`
         id,
@@ -1298,7 +1315,7 @@ export class CandidateIntelligenceService {
 
   private static async getAchievementsSummary(userId: string) {
     const adminSb: any = await createAdminServerSupabaseClient();
-    const { data: awards } = await adminSb
+    const { data: awards } = await liveTestsQuery(adminSb)
       .from("live_test_achievement_awards")
       .select("badge_code")
       .eq("user_id", userId)
@@ -1324,7 +1341,7 @@ export class CandidateIntelligenceService {
 
   private static async getCertificatesCount(userId: string): Promise<number> {
     const adminSb: any = await createAdminServerSupabaseClient();
-    const { count } = await adminSb
+    const { count } = await liveTestsQuery(adminSb)
       .from("live_test_certificates")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId)
@@ -1335,7 +1352,7 @@ export class CandidateIntelligenceService {
 
   private static async getTotalRewardsEarnedCL(userId: string): Promise<number> {
     const adminSb: any = await createAdminServerSupabaseClient();
-    const { data } = await adminSb
+    const { data } = await liveTestsQuery(adminSb)
       .from("live_test_reward_settlements")
       .select("coins_awarded")
       .eq("user_id", userId)

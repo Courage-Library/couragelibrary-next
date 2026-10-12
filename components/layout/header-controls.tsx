@@ -44,9 +44,11 @@ interface HeaderControlsProps {
   user: HeaderUser | null;
   coins?: number;
   streak?: number;
+  /** DRIFT-1c: server-evaluated FEATURE_BATTLES flag. */
+  battlesEnabled?: boolean;
 }
 
-export function HeaderControls({ user, coins = 0, streak = 0 }: HeaderControlsProps) {
+export function HeaderControls({ user, coins = 0, streak = 0, battlesEnabled = false }: HeaderControlsProps) {
   // Single source of truth for active menu overlay: null | "mobile" | "profile"
   const [openOverlay, setOpenOverlay] = useState<null | "mobile" | "profile">(null);
   const [mounted, setMounted] = useState(false);
@@ -356,9 +358,11 @@ export function HeaderControls({ user, coins = 0, streak = 0 }: HeaderControlsPr
                     <Link href="/flashcards" onClick={() => setOpenOverlay(null)} className="flex items-center gap-2 py-1">
                       <Zap className="w-3.5 h-3.5 text-amber-500" /> Flashcards & SRS
                     </Link>
+                    {battlesEnabled && (
                     <Link href="/battles" onClick={() => setOpenOverlay(null)} className="flex items-center gap-2 py-1">
                       <Swords className="w-3.5 h-3.5 text-purple-500" /> 1v1 Quiz Battles
                     </Link>
+                    )}
                   </div>
                 )}
               </div>

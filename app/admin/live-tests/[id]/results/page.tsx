@@ -1,3 +1,5 @@
+import { isFeatureEnabled } from "@/config/features";
+import { FeatureDisabledPanel } from "@/components/admin/feature-disabled-panel";
 import React from "react";
 import { notFound } from "next/navigation";
 import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
@@ -13,6 +15,7 @@ export const metadata = {
 };
 
 export default async function AdminLiveTestResultsPage({ params }: Props) {
+  if (!isFeatureEnabled("LIVE_TESTS")) return <FeatureDisabledPanel feature="LIVE_TESTS" />;
   const { id } = await params;
   const adminSb = createAdminServerSupabaseClient();
 

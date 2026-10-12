@@ -1,7 +1,10 @@
+import { featureDisabledApiResponse } from "@/lib/features/gates";
 import { BattleService } from "@/services/battle.service";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function GET(request: NextRequest) {
+  const featureDisabled = featureDisabledApiResponse("BATTLES");
+  if (featureDisabled) return featureDisabled;
   try {
     const { searchParams } = new URL(request.url);
     const roomId = searchParams.get("id");

@@ -38,6 +38,9 @@ import {
 
 interface Props {
   userEmail: string;
+  /** DRIFT-1c: server-evaluated feature flags. */
+  adaptiveEnabled?: boolean;
+  liveTestsEnabled?: boolean;
 }
 
 const MOCK_TEST_ROUTES = [
@@ -52,7 +55,7 @@ const MOCK_TEST_ROUTES = [
   "/admin/bulk-import",
 ];
 
-export function AdminSidebar({ userEmail }: Props) {
+export function AdminSidebar({ userEmail, adaptiveEnabled = false, liveTestsEnabled = false }: Props) {
   const pathname = usePathname();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
@@ -388,6 +391,7 @@ export function AdminSidebar({ userEmail }: Props) {
                 <Sparkles className={`w-3.5 h-3.5 shrink-0 ${pathname.startsWith("/admin/premium") ? "text-white" : "text-amber-400"}`} />
                 <span className="text-[11px] font-bold">Premium Control</span>
               </Link>
+              {adaptiveEnabled && (
               <Link
                 href="/admin/adaptive"
                 className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors ${
@@ -399,6 +403,8 @@ export function AdminSidebar({ userEmail }: Props) {
                 <Cpu className={`w-3.5 h-3.5 shrink-0 ${pathname.startsWith("/admin/adaptive") ? "text-white" : "text-blue-400"}`} />
                 <span className="text-[11px] font-bold">Adaptive Testing</span>
               </Link>
+              )}
+              {liveTestsEnabled && (
               <Link
                 href="/admin/live-tests"
                 className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors ${
@@ -410,6 +416,7 @@ export function AdminSidebar({ userEmail }: Props) {
                 <Radio className={`w-3.5 h-3.5 shrink-0 ${pathname.startsWith("/admin/live-tests") ? "text-white" : "text-rose-400"}`} />
                 <span className="text-[11px] font-bold">Live Mock Tests</span>
               </Link>
+              )}
             </div>
           </nav>
         </div>

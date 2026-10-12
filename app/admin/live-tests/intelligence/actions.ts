@@ -1,5 +1,7 @@
 "use server";
 
+
+import { featureDisabledActionResult } from "@/lib/features/gates";
 import { AdminService } from "@/services/admin.service";
 import { AdminCompetitionIntelligenceService } from "@/services/admin-competition-intelligence.service";
 import {
@@ -28,6 +30,8 @@ export async function getMacroCompetitionOverviewAction(): Promise<{
   data?: MacroCompetitionIntelligenceOverview;
   error?: string;
 }> {
+  const featureGate = featureDisabledActionResult("LIVE_TESTS");
+  if (featureGate) return featureGate as never;
   try {
     await verifyAdminPrivileges();
     const data = await AdminCompetitionIntelligenceService.getMacroCompetitionOverview();
@@ -47,6 +51,8 @@ export async function getEventCompetitionIntelligenceAction(
   data?: EventCompetitionIntelligence;
   error?: string;
 }> {
+  const featureGate = featureDisabledActionResult("LIVE_TESTS");
+  if (featureGate) return featureGate as never;
   try {
     await verifyAdminPrivileges();
     const data = await AdminCompetitionIntelligenceService.getEventCompetitionIntelligence(eventId);
@@ -67,6 +73,8 @@ export async function getCrossEventComparisonAction(
   data?: CrossEventComparisonResult;
   error?: string;
 }> {
+  const featureGate = featureDisabledActionResult("LIVE_TESTS");
+  if (featureGate) return featureGate as never;
   try {
     await verifyAdminPrivileges();
     const data = await AdminCompetitionIntelligenceService.getCrossEventComparison(event1Id, event2Id);
@@ -86,6 +94,8 @@ export async function getCandidateDrillDownAction(
   data?: CandidateDrillDownItem[];
   error?: string;
 }> {
+  const featureGate = featureDisabledActionResult("LIVE_TESTS");
+  if (featureGate) return featureGate as never;
   try {
     const { user, role } = await verifyAdminPrivileges();
     if (role === "staff") {

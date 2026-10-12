@@ -1,3 +1,4 @@
+import { requireFeatureOrNotFound } from "@/lib/features/gates";
 import React from "react";
 import Link from "next/link";
 import { Metadata } from "next";
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  requireFeatureOrNotFound("LIVE_TESTS");
   const { code } = await params;
   return {
     title: `Certificate Verification: ${code} | Courage Library`,
@@ -19,6 +21,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function CertificateVerificationPage({ params }: Props) {
+  requireFeatureOrNotFound("LIVE_TESTS");
   const { code } = await params;
   const verification = await LiveTestCertificateService.verifyCertificatePublic(code);
 

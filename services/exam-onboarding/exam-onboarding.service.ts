@@ -3,6 +3,7 @@
  * Phase 3J: Unified Multi-Exam Onboarding Studio & Control Plane
  */
 
+import { isFeatureEnabled } from "@/config/features";
 import { createAdminServerSupabaseClient } from '@/lib/supabase/server';
 import { ExamReadinessService, ExamReadinessReport } from './exam-readiness.service';
 import { ExamModuleRegistry } from '@/services/exam-knowledge/exam-module-registry';
@@ -825,10 +826,10 @@ export class ExamOnboardingService {
         getCount('exam_claims'),
         getCount('exam_question_mappings'),
         getCount('mock_templates'),
-        getCount('live_tests'),
+        (isFeatureEnabled("LIVE_TESTS") ? getCount('live_tests') : Promise.resolve(0)),
         getCount('user_exam_goals'),
         getCount('user_exam_readiness'),
-        getCount('adaptive_test_configs'),
+        (isFeatureEnabled("ADAPTIVE") ? getCount('adaptive_test_configs') : Promise.resolve(0)),
         getCount('exam_canonical_syllabi'),
         getCount('curriculum_blueprints'),
         getCount('exam_announcements'),

@@ -23,9 +23,11 @@ import {
 
 interface MainNavProps {
   isAuthenticated?: boolean;
+  /** DRIFT-1c: server-evaluated FEATURE_BATTLES flag. */
+  battlesEnabled?: boolean;
 }
 
-export function MainNav({}: MainNavProps = {}) {
+export function MainNav({ battlesEnabled = false }: MainNavProps = {}) {
   const [openCategory, setOpenCategory] = useState<string | null>(null);
   const navRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
@@ -202,6 +204,7 @@ export function MainNav({}: MainNavProps = {}) {
                 <div className="text-[10px] text-slate-500 font-normal">Active recall deck review</div>
               </div>
             </Link>
+            {battlesEnabled && (
             <Link href="/battles" className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-slate-100 text-slate-800 transition-colors">
               <Swords className="w-4 h-4 text-purple-500 shrink-0" />
               <div>
@@ -209,6 +212,7 @@ export function MainNav({}: MainNavProps = {}) {
                 <div className="text-[10px] text-slate-500 font-normal">Live competitive arena</div>
               </div>
             </Link>
+            )}
           </div>
         )}
       </div>

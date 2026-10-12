@@ -1,3 +1,4 @@
+import { requireFeatureOrNotFound } from "@/lib/features/gates";
 import React from "react";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { LiveTestRegistrationService } from "@/services/live-test-registration.service";
@@ -13,6 +14,7 @@ export const metadata = {
 export const revalidate = 60; // Revalidate every minute for live schedule sync
 
 export default async function LiveTestsPage() {
+  requireFeatureOrNotFound("LIVE_TESTS");
   const supabase = await createServerSupabaseClient();
   const {
     data: { user },

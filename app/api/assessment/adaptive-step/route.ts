@@ -1,9 +1,12 @@
+import { featureDisabledApiResponse } from "@/lib/features/gates";
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { AdaptiveSessionService } from "@/services/adaptive/adaptive-session.service";
 import { AdaptiveEngineError, AdaptiveStepSubmitRequest } from "@/services/adaptive/adaptive-types";
 
 export async function POST(request: NextRequest) {
+  const featureDisabled = featureDisabledApiResponse("ADAPTIVE");
+  if (featureDisabled) return featureDisabled;
   try {
     const supabase = await createServerSupabaseClient();
     const {

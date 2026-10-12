@@ -1,5 +1,7 @@
 "use server";
 
+
+import { featureDisabledActionResult } from "@/lib/features/gates";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { LiveTestFoundationService } from "@/services/live-test-foundation.service";
 import { LiveTestRegistrationService } from "@/services/live-test-registration.service";
@@ -28,6 +30,8 @@ async function verifyAdminUser() {
 export async function createLiveEventAction(
   dto: CreateLiveEventDTO
 ): Promise<{ success: boolean; data?: LiveTestEvent; error?: string }> {
+  const featureGate = featureDisabledActionResult("LIVE_TESTS");
+  if (featureGate) return featureGate as never;
   try {
     const user = await verifyAdminUser();
     const res = await LiveTestFoundationService.createLiveEvent(dto, user.id);
@@ -46,6 +50,8 @@ export async function updateLiveEventStatusAction(
   nextStatus: LiveEventStatus,
   reason: string
 ): Promise<{ success: boolean; data?: LiveTestEvent; error?: string }> {
+  const featureGate = featureDisabledActionResult("LIVE_TESTS");
+  if (featureGate) return featureGate as never;
   try {
     const user = await verifyAdminUser();
     const res = await LiveTestFoundationService.transitionEventStatus(
@@ -75,6 +81,8 @@ export async function updateLiveEventScheduleAction(
   },
   reason: string
 ): Promise<{ success: boolean; data?: LiveTestEvent; error?: string }> {
+  const featureGate = featureDisabledActionResult("LIVE_TESTS");
+  if (featureGate) return featureGate as never;
   try {
     const user = await verifyAdminUser();
     const res = await LiveTestRegistrationService.updateEventSchedule(
@@ -94,6 +102,8 @@ export async function updateLiveEventScheduleAction(
 }
 
 export async function evaluateLiveEventAction(eventId: string): Promise<LiveTestEvaluationResult> {
+  const featureGate = featureDisabledActionResult("LIVE_TESTS");
+  if (featureGate) return featureGate as never;
   try {
     const user = await verifyAdminUser();
     const { LiveTestResultService } = await import("@/services/live-test-result.service");
@@ -115,6 +125,8 @@ export async function publishLiveEventResultsAction(
   snapshotVersion: number,
   reason: string
 ): Promise<LiveTestPublicationResult> {
+  const featureGate = featureDisabledActionResult("LIVE_TESTS");
+  if (featureGate) return featureGate as never;
   try {
     const user = await verifyAdminUser();
     const { LiveTestResultService } = await import("@/services/live-test-result.service");
@@ -135,6 +147,8 @@ export async function recalculateLiveEventResultsAction(
   eventId: string,
   reason: string
 ): Promise<LiveTestEvaluationResult> {
+  const featureGate = featureDisabledActionResult("LIVE_TESTS");
+  if (featureGate) return featureGate as never;
   try {
     const user = await verifyAdminUser();
     const { LiveTestResultService } = await import("@/services/live-test-result.service");
@@ -155,6 +169,8 @@ export async function voidLiveAttemptAction(
   attemptId: string,
   reason: string
 ) {
+  const featureGate = featureDisabledActionResult("LIVE_TESTS");
+  if (featureGate) return featureGate as never;
   try {
     const user = await verifyAdminUser();
     const { LiveTestResultService } = await import("@/services/live-test-result.service");
@@ -165,6 +181,8 @@ export async function voidLiveAttemptAction(
 }
 
 export async function getAdminLiveEventResultsSummaryAction(eventId: string) {
+  const featureGate = featureDisabledActionResult("LIVE_TESTS");
+  if (featureGate) return featureGate as never;
   try {
     await verifyAdminUser();
     const { LiveTestResultService } = await import("@/services/live-test-result.service");
@@ -177,6 +195,8 @@ export async function getAdminLiveEventResultsSummaryAction(eventId: string) {
 export async function distributeLiveEventRewardsAction(
   eventId: string
 ): Promise<LiveTestRewardDistributionResult> {
+  const featureGate = featureDisabledActionResult("LIVE_TESTS");
+  if (featureGate) return featureGate as never;
   try {
     const user = await verifyAdminUser();
     const { LiveTestRewardService } = await import("@/services/live-test-reward.service");
@@ -195,6 +215,8 @@ export async function getLiveEventRewardSettlementsAction(
   eventId: string,
   options?: { limit?: number; offset?: number }
 ) {
+  const featureGate = featureDisabledActionResult("LIVE_TESTS");
+  if (featureGate) return featureGate as never;
   try {
     await verifyAdminUser();
     const { LiveTestRewardService } = await import("@/services/live-test-reward.service");
@@ -211,6 +233,8 @@ export async function getLiveEventRewardSettlementsAction(
 export async function generateLiveEventCertificatesAction(
   eventId: string
 ): Promise<LiveTestCertificateGenerationResult> {
+  const featureGate = featureDisabledActionResult("LIVE_TESTS");
+  if (featureGate) return featureGate as never;
   try {
     const user = await verifyAdminUser();
     const { LiveTestCertificateService } = await import("@/services/live-test-certificate.service");
@@ -230,6 +254,8 @@ export async function getLiveEventCertificatesAction(
   eventId: string,
   statusFilter?: any
 ) {
+  const featureGate = featureDisabledActionResult("LIVE_TESTS");
+  if (featureGate) return featureGate as never;
   try {
     await verifyAdminUser();
     const { LiveTestCertificateService } = await import("@/services/live-test-certificate.service");
@@ -243,6 +269,8 @@ export async function revokeLiveEventCertificateAction(
   certificateId: string,
   reason: string
 ) {
+  const featureGate = featureDisabledActionResult("LIVE_TESTS");
+  if (featureGate) return featureGate as never;
   try {
     const user = await verifyAdminUser();
     const { LiveTestCertificateService } = await import("@/services/live-test-certificate.service");
@@ -259,6 +287,8 @@ export async function revokeLiveEventCertificateAction(
 export async function evaluateLiveEventAchievementsAction(
   eventId: string
 ) {
+  const featureGate = featureDisabledActionResult("LIVE_TESTS");
+  if (featureGate) return featureGate as never;
   try {
     const user = await verifyAdminUser();
     const { LiveTestAchievementService } = await import("@/services/live-test-achievement.service");
@@ -277,6 +307,8 @@ export async function evaluateLiveEventAchievementsAction(
 export async function getEventAchievementAwardsAction(
   eventId: string
 ) {
+  const featureGate = featureDisabledActionResult("LIVE_TESTS");
+  if (featureGate) return featureGate as never;
   try {
     await verifyAdminUser();
     const { LiveTestAchievementService } = await import("@/services/live-test-achievement.service");
@@ -290,6 +322,8 @@ export async function revokeAchievementAwardAction(
   awardId: string,
   reason: string
 ) {
+  const featureGate = featureDisabledActionResult("LIVE_TESTS");
+  if (featureGate) return featureGate as never;
   try {
     const user = await verifyAdminUser();
     const { LiveTestAchievementService } = await import("@/services/live-test-achievement.service");
@@ -305,6 +339,8 @@ export async function revokeAchievementAwardAction(
 }
 
 export async function getAchievementDefinitionsAction() {
+  const featureGate = featureDisabledActionResult("LIVE_TESTS");
+  if (featureGate) return featureGate as never;
   try {
     await verifyAdminUser();
     const { LiveTestAchievementService } = await import("@/services/live-test-achievement.service");

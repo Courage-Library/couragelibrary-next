@@ -3,6 +3,7 @@ import Link from "next/link";
 import { AdminService } from "@/services/admin.service";
 import { Container } from "@/components/ui/container";
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
+import { isFeatureEnabled } from "@/config/features";
 import { AdminTopHeader } from "@/components/admin/admin-top-header";
 import { ShieldAlert, ArrowLeft } from "lucide-react";
 
@@ -37,7 +38,11 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
   return (
     <div className="h-[100dvh] max-h-[100dvh] w-full flex flex-col md:flex-row overflow-hidden bg-slate-900 text-slate-900 antialiased">
       {/* Desktop Fixed Non-Scrolling Sidebar at Viewport Top */}
-      <AdminSidebar userEmail={userEmail || "admin@couragelibrary.com"} />
+      <AdminSidebar
+        userEmail={userEmail || "admin@couragelibrary.com"}
+        adaptiveEnabled={isFeatureEnabled("ADAPTIVE")}
+        liveTestsEnabled={isFeatureEnabled("LIVE_TESTS")}
+      />
 
       {/* Main Admin Application Workspace — Clean Light Mode */}
       <div className="flex-1 min-w-0 h-[100dvh] max-h-[100dvh] flex flex-col overflow-hidden bg-[#F8FAFC]">

@@ -1,3 +1,4 @@
+import { requireFeatureOrNotFound } from "@/lib/features/gates";
 import React from "react";
 import Link from "next/link";
 import { Metadata } from "next";
@@ -39,6 +40,7 @@ interface PerformancePageProps {
 }
 
 export default async function CandidatePerformancePage({ searchParams }: PerformancePageProps) {
+  requireFeatureOrNotFound("PSYCHOMETRICS");
   const resolvedParams = await searchParams;
   const examFilter = resolvedParams.exam || undefined;
 

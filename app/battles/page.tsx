@@ -1,3 +1,4 @@
+import { requireFeatureOrNotFound } from "@/lib/features/gates";
 import React from "react";
 import { BattleService } from "@/services/battle.service";
 import { Container } from "@/components/ui/container";
@@ -9,6 +10,7 @@ import { Swords, Trophy, Flame, Shield, Award } from "lucide-react";
 export const revalidate = 0;
 
 export default async function BattlesLobbyPage() {
+  requireFeatureOrNotFound("BATTLES");
   const stats = await BattleService.getUserBattleStats();
 
   return (
