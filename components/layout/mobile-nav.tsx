@@ -36,9 +36,11 @@ interface MobileNavProps {
     fullName?: string;
     isAdmin?: boolean;
   } | null;
+  /** DRIFT-1c: server-evaluated FEATURE_BATTLES flag. */
+  battlesEnabled?: boolean;
 }
 
-export function MobileNav({ user }: MobileNavProps) {
+export function MobileNav({ user, battlesEnabled = false }: MobileNavProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
@@ -155,9 +157,11 @@ export function MobileNav({ user }: MobileNavProps) {
                     <Link href="/flashcards" className="flex items-center gap-2 py-1">
                       <Zap className="w-3.5 h-3.5 text-amber-500" /> Flashcards & SRS
                     </Link>
+                    {battlesEnabled && (
                     <Link href="/battles" className="flex items-center gap-2 py-1">
                       <Swords className="w-3.5 h-3.5 text-purple-500" /> 1v1 Quiz Battles
                     </Link>
+                    )}
                   </div>
                 )}
               </div>

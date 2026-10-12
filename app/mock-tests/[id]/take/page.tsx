@@ -1,3 +1,4 @@
+import { isFeatureEnabled } from "@/config/features";
 import React from "react";
 import { redirect } from "next/navigation";
 import { AssessmentService } from "@/services/assessment.service";
@@ -31,9 +32,12 @@ export default async function MockTestTakePage({ params }: Props) {
   }
 
   // 1. Server-Authoritative Adaptive Detection
-  const adaptiveDetection = await AdaptiveSessionService.detectAdaptiveTest(id, user.id, supabase);
+  // DRIFT-1c: adaptive detection reads adaptive tables that are not deployed; skip when quarantined.
+  const adaptiveDetection = isFeatureEnabled("ADAPTIVE")
+    ? await AdaptiveSessionService.detectAdaptiveTest(id, user.id, supabase)
+    : null;
 
-  if (adaptiveDetection.isAdaptive) {
+  if (adaptiveDetection?.isAdaptive) {
     const adaptiveSession = await AdaptiveSessionService.startOrResumeAdaptiveAttempt(
       {
         userId: user.id,

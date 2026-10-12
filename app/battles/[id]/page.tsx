@@ -1,3 +1,4 @@
+import { requireFeatureOrNotFound } from "@/lib/features/gates";
 import React from "react";
 import { notFound } from "next/navigation";
 import { BattleService } from "@/services/battle.service";
@@ -8,6 +9,7 @@ interface Props {
 }
 
 export default async function BattleArenaPage({ params }: Props) {
+  requireFeatureOrNotFound("BATTLES");
   const { id } = await params;
   const room = await BattleService.getBattleRoomDetails(id);
 

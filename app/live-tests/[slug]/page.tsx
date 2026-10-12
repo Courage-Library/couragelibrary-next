@@ -1,3 +1,4 @@
+import { requireFeatureOrNotFound } from "@/lib/features/gates";
 import React from "react";
 import { notFound } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -9,6 +10,7 @@ interface PageProps {
 }
 
 export async function generateMetadata({ params }: PageProps) {
+  requireFeatureOrNotFound("LIVE_TESTS");
   const { slug } = await params;
   const event = await LiveTestRegistrationService.getLiveEventDetails(slug);
   if (!event) return { title: "Live Test | Courage Library" };
@@ -20,6 +22,7 @@ export async function generateMetadata({ params }: PageProps) {
 }
 
 export default async function LiveTestDetailPage({ params }: PageProps) {
+  requireFeatureOrNotFound("LIVE_TESTS");
   const { slug } = await params;
   const supabase = await createServerSupabaseClient();
   const {

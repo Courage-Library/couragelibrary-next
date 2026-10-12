@@ -1972,7 +1972,7 @@ export class AssessmentService {
     const [testRes, sectionsRes, questionsRes, answersRes] = await Promise.all([
       adminSb.from("mock_tests").select("id, total_questions, total_marks, mock_templates(id, title, test_type)").eq("id", attempt.mock_test_id).single(),
       adminSb.from("mock_sections").select("id, marks_per_question, negative_mark").eq("mock_test_id", attempt.mock_test_id),
-      adminSb.from("mock_questions").select("id, mock_section_id, question_version_id, marks, negative_mark, question_versions(question_id, question_answers(correct_option_key), question_options(id, option_key))").eq("mock_test_id", attempt.mock_test_id),
+      adminSb.from("mock_questions").select("id, mock_section_id, question_version_id, marks, negative_mark, question_versions(id, question_id, question_answers(correct_option_key), question_options(id, option_key))").eq("mock_test_id", attempt.mock_test_id),
       adminSb.from("attempt_answers").select("id, mock_question_id, selected_option_key, time_spent_seconds").eq("attempt_id", attemptId),
     ]);
 

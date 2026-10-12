@@ -2,6 +2,7 @@
 import React from "react";
 import { Container } from "@/components/ui/container";
 import { MainNav } from "@/components/layout/main-nav";
+import { isFeatureEnabled } from "@/config/features";
 import { HeaderControls } from "@/components/layout/header-controls";
 import { BrandLogo } from "@/components/brand/logo";
 import { createServerSupabaseClient, createAdminServerSupabaseClient } from "@/lib/supabase/server";
@@ -46,12 +47,12 @@ export async function Header() {
 
         {/* Center: Primary Navigation (Centered) */}
         <div className="hidden lg:flex items-center justify-center flex-1">
-          <MainNav isAuthenticated={!!user} />
+          <MainNav isAuthenticated={!!user} battlesEnabled={isFeatureEnabled("BATTLES")} />
         </div>
 
         {/* Right: Right Navigation Controls & Mobile Menu */}
         <div className="flex items-center gap-3 shrink-0">
-          <HeaderControls user={userData} coins={coins} streak={streak} />
+          <HeaderControls user={userData} coins={coins} streak={streak} battlesEnabled={isFeatureEnabled("BATTLES")} />
         </div>
       </Container>
     </header>

@@ -1,4 +1,5 @@
 ﻿import React from "react";
+import { isFeatureEnabled } from "@/config/features";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { DashboardService } from "@/services/dashboard.service";
@@ -107,6 +108,7 @@ export default async function DashboardPage() {
               </div>
             </Card>
           </Link>
+          {isFeatureEnabled("BATTLES") && (
           <Link href="/battles" className="group">
             <Card className="p-4 hover:border-amber-300 hover:shadow-md transition-all h-full flex flex-col justify-between">
               <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
@@ -118,6 +120,7 @@ export default async function DashboardPage() {
               </div>
             </Card>
           </Link>
+          )}
         </div>
 
         {/* Main Content Grid */}

@@ -1,10 +1,14 @@
 "use server";
 
+
+import { featureDisabledActionResult } from "@/lib/features/gates";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { CandidateIntelligenceService } from "@/services/candidate-intelligence.service";
 import { CANDIDATE_INTELLIGENCE_POLICY_V1 } from "@/types/candidate-intelligence";
 
 export async function getPerformanceOverviewAction(examId?: string) {
+  const featureGate = featureDisabledActionResult("PSYCHOMETRICS");
+  if (featureGate) return featureGate as never;
   const supabase = await createServerSupabaseClient();
   const {
     data: { user },
@@ -27,6 +31,8 @@ export async function getPerformanceOverviewAction(examId?: string) {
 }
 
 export async function getScoreTrajectoryAction(examId?: string) {
+  const featureGate = featureDisabledActionResult("PSYCHOMETRICS");
+  if (featureGate) return featureGate as never;
   const supabase = await createServerSupabaseClient();
   const {
     data: { user },
@@ -49,6 +55,8 @@ export async function getScoreTrajectoryAction(examId?: string) {
 }
 
 export async function getRankTrajectoryAction(examId?: string) {
+  const featureGate = featureDisabledActionResult("PSYCHOMETRICS");
+  if (featureGate) return featureGate as never;
   const supabase = await createServerSupabaseClient();
   const {
     data: { user },
@@ -71,6 +79,8 @@ export async function getRankTrajectoryAction(examId?: string) {
 }
 
 export async function getSubjectBreakdownAction(examId?: string) {
+  const featureGate = featureDisabledActionResult("PSYCHOMETRICS");
+  if (featureGate) return featureGate as never;
   const supabase = await createServerSupabaseClient();
   const {
     data: { user },
@@ -93,6 +103,8 @@ export async function getSubjectBreakdownAction(examId?: string) {
 }
 
 export async function getStrengthsWeaknessesAction(examId?: string) {
+  const featureGate = featureDisabledActionResult("PSYCHOMETRICS");
+  if (featureGate) return featureGate as never;
   const supabase = await createServerSupabaseClient();
   const {
     data: { user },

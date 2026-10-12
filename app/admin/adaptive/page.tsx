@@ -1,3 +1,5 @@
+import { isFeatureEnabled } from "@/config/features";
+import { FeatureDisabledPanel } from "@/components/admin/feature-disabled-panel";
 import React from "react";
 import { AdminService } from "@/services/admin.service";
 import { AdminAdaptiveService } from "@/services/admin-adaptive.service";
@@ -12,6 +14,7 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function AdminAdaptivePage() {
+  if (!isFeatureEnabled("ADAPTIVE")) return <FeatureDisabledPanel feature="ADAPTIVE" />;
   const auth = await AdminService.checkIsAdminOrStaff();
 
   if (!auth.isAdmin) {

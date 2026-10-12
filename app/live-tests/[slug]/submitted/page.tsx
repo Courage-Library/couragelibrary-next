@@ -1,3 +1,4 @@
+import { requireFeatureOrNotFound } from "@/lib/features/gates";
 import React from "react";
 import Link from "next/link";
 import { CheckCircle2, ShieldCheck, ArrowRight, Radio } from "lucide-react";
@@ -8,6 +9,7 @@ interface Props {
 }
 
 export default async function LiveTestSubmittedPage({ params }: Props) {
+  requireFeatureOrNotFound("LIVE_TESTS");
   const { slug } = await params;
 
   return (

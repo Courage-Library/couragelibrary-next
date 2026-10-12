@@ -66,4 +66,4 @@ function fileChecksum(file) {
   return crypto.createHash('sha256').update(text, 'utf8').digest('hex');
 }
 
-module.exports = { ROOT, dbTarget, redactor, fileChecksum };
+module.exports = { ROOT, readEnv, dbTarget, redactor, fileChecksum };

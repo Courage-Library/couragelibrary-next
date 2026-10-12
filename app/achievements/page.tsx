@@ -1,3 +1,4 @@
+import { requireFeatureOrNotFound } from "@/lib/features/gates";
 import React from "react";
 import Link from "next/link";
 import { Metadata } from "next";
@@ -24,6 +25,7 @@ export const metadata: Metadata = {
 };
 
 export default async function CandidateAchievementsPage() {
+  requireFeatureOrNotFound("LIVE_TESTS");
   const supabase = await createServerSupabaseClient();
   const {
     data: { user },
