@@ -252,3 +252,27 @@ GAP2-2a STATUS: OPEN — awaiting decision on the residual banned QA reviewer id
 **Rule from this phase:** future smoke tests use one permanent QA identity per role or `actor_id = null`; never create throwaway auth users that write `admin_audit_logs`.
 
 GAP2-2a STATUS: CLOSED (waiver W2)
+
+---
+
+## 13. Deploy verification
+
+Commit `9e2d9b4` was deployed to https://couragelibrary-next.vercel.app. The new build was confirmed live about 120 s after the push: `/articles` no longer lists the legacy `articles` row.
+
+| # | Check (production, unauthenticated) | Result |
+|---|---|---|
+| 1 | `GET /` | 200 |
+| 2 | `GET /api/health` | 200 |
+| 3 | `GET /articles` | 200 (learning_documents only) |
+| 4 | Published FREE article → 200 with body | **Deferred — V1** |
+| 5 | PRO article logged-out → locked panel, no body in HTML | **Deferred — V1** |
+
+**V1 (carry-forward):** re-run checks 4–5 on production when the first real FREE and PRO learning documents are published via Content Studio.
+
+At deploy time the database had **no** published learning documents; the only two (the QA lessons) are archived and stay archived. Evidence so far:
+- **Pre-archive, local:** the same code passed both checks against this database (§4.2 C2-03, C3-04, C3-05). The FREE article returned 200 with title and body. The PRO article showed the locked panel, and its body marker was absent from the raw HTML for both a non-PRO student and an anonymous visitor.
+- **Production, post-archive:** `/articles/qa-number-system-concept-lesson` and `/articles/qa-number-system-summary` render the not-found UI. Neither QA body marker nor a locked panel appears in the HTML.
+
+Architect ruling: Option A (temporarily re-publishing the archived QA lessons) was rejected. Lifecycle columns are never flipped by hand to make a check pass.
+
+GAP2-2a STATUS: CLOSED (commit 9e2d9b4; waiver W2; V1 carried forward)
