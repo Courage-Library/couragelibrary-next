@@ -399,28 +399,31 @@ export class CurrentAffairsValidationService {
       }
     }
 
-    // 4. Validate Learning Mappings (if present)
+    // 4. Validate Learning Mappings (if present) — GAP2-2a: targets are PUBLISHED learning_documents.
     if (payload.learningMappings && payload.learningMappings.length > 0) {
       const seenLearning = new Set<string>();
       for (const lm of payload.learningMappings) {
-        if (!lm.learningResourceId) {
-          errors.push('Learning mapping is missing learningResourceId.');
+        if (!lm.learningDocumentId) {
+          errors.push('Learning mapping is missing learningDocumentId.');
           continue;
         }
 
-        if (seenLearning.has(lm.learningResourceId)) {
-          errors.push(`Duplicate learning mapping detected for learning resource ID: "${lm.learningResourceId}".`);
+        if (seenLearning.has(lm.learningDocumentId)) {
+          errors.push(`Duplicate learning mapping detected for learning document ID: "${lm.learningDocumentId}".`);
         }
-        seenLearning.add(lm.learningResourceId);
+        seenLearning.add(lm.learningDocumentId);
 
         try {
-          const res = await db.query('SELECT id FROM public.learning_resources WHERE id = $1', [lm.learningResourceId]);
-          if (res.rows.length === 0) {
-            errors.push(`Learning Resource ID "${lm.learningResourceId}" does not exist in learning_resources.`);
+          const res = await db.query('SELECT id, status FROM public.learning_documents WHERE id = $1', [lm.learningDocumentId]);
+          const docRow = res.rows[0] as { status?: string } | undefined;
+          if (!docRow) {
+            errors.push(`Learning document "${lm.learningDocumentId}" does not exist.`);
+          } else if (docRow.status !== 'PUBLISHED') {
+            errors.push(`Learning document "${lm.learningDocumentId}" is not PUBLISHED (status ${docRow.status}).`);
           }
         } catch (e: unknown) {
           const msg = e instanceof Error ? e.message : String(e);
-          errors.push(`Error verifying learning resource "${lm.learningResourceId}": ${msg}`);
+          errors.push(`Error verifying learning document "${lm.learningDocumentId}": ${msg}`);
         }
       }
     }
@@ -612,8 +615,8 @@ export function createDefaultDbAdapter(): DbQueryInterface {
           const { data } = await supabase.from('questions').select('id').eq('id', params?.[0]);
           return { rows: data || [] };
         }
-        if (sql.includes('learning_resources WHERE id = $1')) {
-          const { data } = await supabase.from('learning_resources').select('id').eq('id', params?.[0]);
+        if (sql.includes('learning_documents WHERE id = $1')) {
+          const { data } = await supabase.from('learning_documents').select('id, status').eq('id', params?.[0]);
           return { rows: data || [] };
         }
         if (sql.includes('current_affairs_article_versions WHERE checksum_sha256 = $1')) {

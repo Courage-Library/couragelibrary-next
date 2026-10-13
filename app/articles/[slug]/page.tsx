@@ -16,12 +16,14 @@ import {
   CheckCircle2,
   Clock,
   Layers,
+  Lock,
 } from "lucide-react";
 import { constructMetadata } from "@/lib/seo/metadata";
 import { generateArticleSchema, generateBreadcrumbSchema } from "@/lib/seo/jsonld";
 import { ControlledContentRenderer } from "@/components/learning/controlled-content-renderer";
 
-export const revalidate = 60; // ISR baseline
+// GAP2-2a: rendered per viewer (PRO documents are locked server-side); never cached across users.
+export const dynamic = "force-dynamic";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -183,7 +185,20 @@ export default async function ArticleReaderPage({ params }: Props) {
 
           {/* Article Body */}
           <div className="text-slate-800 leading-relaxed font-sans">
-            <ControlledContentRenderer contentMdx={article.contentBody || ""} />
+            {article.isLocked ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-6 sm:p-8 text-center space-y-3" data-testid="learning-locked-panel">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-800">
+                  <Lock className="h-6 w-6" />
+                </div>
+                <h2 className="text-lg font-bold text-slate-900">This lesson is part of Courage Library PRO</h2>
+                <p className="text-sm text-slate-600">Upgrade to PRO to read the full lesson, worked examples and exam traps.</p>
+                <Link href="/billing">
+                  <Button className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs">Upgrade to PRO</Button>
+                </Link>
+              </div>
+            ) : (
+              <ControlledContentRenderer contentMdx={article.contentBody || ""} />
+            )}
           </div>
 
           {/* Related Knowledge Graph Topics */}

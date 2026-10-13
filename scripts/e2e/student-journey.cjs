@@ -61,9 +61,20 @@ const pathOf = (url) => new URL(url).pathname.replace(/[0-9a-f-]{36}/g, ':id');
   await Promise.all([page.waitForURL(/\/take/, { timeout: 300000 }), agree.first().click()]);
   await page.waitForLoadState('networkidle');
   const begin = page.getByRole('button', { name: /Begin Test/i });
+  const submitBtn = page.getByRole('button', { name: /Submit Test/i }).first();
   await begin.first().waitFor({ state: 'visible', timeout: 300000 }).catch(() => undefined);
-  if (await begin.count()) await begin.first().click();
-  await page.getByRole('button', { name: /Submit Test/i }).first().waitFor({ state: 'visible', timeout: 300000 });
+  // Let the dev-server bundle hydrate before the first click (an early click can be lost), then
+  // retry Begin until the player shows.
+  await page.waitForTimeout(5000);
+  for (let i = 0; i < 10 && !(await submitBtn.isVisible().catch(() => false)); i++) {
+    if (await begin.count()) await begin.first().click().catch(() => undefined);
+    await submitBtn.waitFor({ state: 'visible', timeout: 20000 }).catch(() => undefined);
+  }
+  if (!(await submitBtn.isVisible().catch(() => false))) {
+    await shot(page, '04-player-not-started');
+    console.log('player text:', (await page.evaluate(() => document.body.innerText)).replace(/\s+/g, ' ').slice(0, 400));
+  }
+  await submitBtn.waitFor({ state: 'visible', timeout: 60000 });
   await page.waitForTimeout(1500);
   await shot(page, '04-player-started');
   step('E2E-03 player started', (await page.getByRole('button', { name: /submit/i }).count()) > 0);
@@ -79,7 +90,10 @@ const pathOf = (url) => new URL(url).pathname.replace(/[0-9a-f-]{36}/g, ':id');
     const k = key[i];
     const wantWrong = i < 3;
     const opt = wantWrong ? k.options.find((o) => o.option_key !== k.correct) : k.options.find((o) => o.option_key === k.correct);
-    await page.getByText(opt.option_text, { exact: true }).first().click();
+    // Scope to the option card (a bare text match can hit the question palette, e.g. "36").
+    const card = page.locator('div.cursor-pointer').filter({ has: page.getByText(opt.option_text, { exact: true }) }).first();
+    const clicked = await card.click({ timeout: 15000 }).then(() => true).catch(() => false);
+    if (!clicked) await page.keyboard.press(opt.option_key.toLowerCase());
     chosen.push({ i, key: opt.option_key, correct: k.correct, wrong: wantWrong });
     await page.waitForTimeout(700);
     if (i < 5) await nextBtn().click();

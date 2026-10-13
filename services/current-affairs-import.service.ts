@@ -221,7 +221,7 @@ export class CurrentAffairsImportService {
         if (norm.learningMappings && norm.learningMappings.length > 0) {
           const learnInserts = norm.learningMappings.map((lm) => ({
             article_id: articleId,
-            learning_resource_id: lm.learningResourceId,
+            learning_document_id: lm.learningDocumentId,
             display_order: lm.displayOrder || 1,
           }));
           await supabase.from('current_affairs_learning_mappings').insert(learnInserts);
@@ -358,9 +358,9 @@ export class CurrentAffairsImportService {
         for (const lm of norm.learningMappings) {
           await db.query(
             `INSERT INTO public.current_affairs_learning_mappings (
-              article_id, learning_resource_id, display_order
+              article_id, learning_document_id, display_order
             ) VALUES ($1, $2, $3)`,
-            [articleId, lm.learningResourceId, lm.displayOrder || 1]
+            [articleId, lm.learningDocumentId, lm.displayOrder || 1]
           );
         }
       }

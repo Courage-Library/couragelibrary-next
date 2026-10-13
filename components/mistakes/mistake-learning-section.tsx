@@ -15,6 +15,15 @@ import {
   CheckCircle2,
 } from "lucide-react";
 
+const DOC_TYPE_LABELS: Record<string, string> = {
+  CONCEPT_LESSON: "Concept Lesson",
+  TOPIC_SUMMARY_REVISION: "Topic Summary",
+  COMMON_TRAPS_AND_MISTAKES: "Common Traps",
+  WORKED_EXAMPLES: "Worked Examples",
+  FORMULA_SHORTCUT_SHEET: "Formula Sheet",
+  PYQ_DEEP_DIVE: "PYQ Deep Dive",
+};
+
 interface MistakeLearningSectionProps {
   vaultId: string;
   topicId?: string | null;
@@ -69,23 +78,10 @@ export function MistakeLearningSection({
           <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-50 to-teal-50/30 border border-teal-100/80 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <Badge
-                  variant="indigo"
-                  className={`text-[10px] font-bold uppercase tracking-wider ${
-                    primary.resourceType === "COURSE_LESSON"
-                      ? "bg-purple-700 text-white"
-                      : "bg-teal-700 text-white"
-                  }`}
-                >
-                  {primary.resourceType === "COURSE_LESSON" ? (
-                    <span className="flex items-center gap-1">
-                      <GraduationCap className="w-3 h-3" /> Course Lesson
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1">
-                      <BookOpen className="w-3 h-3" /> Article
-                    </span>
-                  )}
+                <Badge variant="indigo" className="text-[10px] font-bold uppercase tracking-wider bg-teal-700 text-white">
+                  <span className="flex items-center gap-1">
+                    <GraduationCap className="w-3 h-3" /> {DOC_TYPE_LABELS[primary.documentType] || "Lesson"}
+                  </span>
                 </Badge>
 
                 {primary.readingTimeMinutes && (
@@ -113,9 +109,9 @@ export function MistakeLearningSection({
               <h4 className="text-base font-bold text-slate-900 leading-snug">
                 {primary.title}
               </h4>
-              {primary.description && (
+              {primary.isLocked && (
                 <p className="text-xs text-slate-600 leading-relaxed font-normal">
-                  {primary.description}
+                  This lesson is part of Courage Library PRO.
                 </p>
               )}
             </div>
@@ -130,7 +126,7 @@ export function MistakeLearningSection({
                     className="w-full sm:w-auto bg-amber-600 hover:bg-amber-700 font-bold text-xs shadow-xs flex items-center gap-1.5"
                   >
                     <Lock className="w-3.5 h-3.5" />
-                    Upgrade to PRO to Access Resource
+                    Upgrade to PRO to unlock this lesson
                   </Button>
                 </Link>
               ) : (
@@ -140,14 +136,14 @@ export function MistakeLearningSection({
                     variant="default"
                     className="w-full sm:w-auto bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs shadow-xs flex items-center gap-1.5"
                   >
-                    {primary.resourceType === "COURSE_LESSON" ? "Open Course Lesson" : "Read Full Article"}
+                    Learn this topic
                     <ArrowRight className="w-3.5 h-3.5 ml-0.5" />
                   </Button>
                 </Link>
               )}
 
               <span className="text-[11px] text-slate-400 font-medium">
-                Canonical Resource • Curated by Subject Experts
+                Courage Library lesson
               </span>
             </div>
           </div>
@@ -184,7 +180,7 @@ export function MistakeLearningSection({
                       {res.title}
                     </span>
                     <Badge variant="outline" className="text-[10px] py-0">
-                      {res.resourceType}
+                      {DOC_TYPE_LABELS[res.documentType] || res.documentType}
                     </Badge>
                   </div>
                   <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-teal-700 transition-colors" />

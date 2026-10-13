@@ -28,6 +28,7 @@ import {
   createDraftVersionAction,
   getVersionSpecAction,
   createRevisionAction,
+  setDocumentAccessLevelAction,
 } from "@/app/admin/content/actions";
 import {
   BookOpen,
@@ -73,6 +74,7 @@ export function ContentStudioView({
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [newDocType, setNewDocType] = useState<DocumentType>("CONCEPT_LESSON");
+  const [newDocAccess, setNewDocAccess] = useState<"FREE" | "PRO">("FREE");
 
   // Modals
   const [showQModal, setShowQModal] = useState(false);
@@ -129,6 +131,29 @@ export function ContentStudioView({
     }
   };
 
+  // GAP2-2a: document access level (FREE / PRO); the service enforces admin-only.
+  const currentDoc =
+    (unitDetail?.documents || []).find((d: any) => d.id === currentVersion?.document_id) ||
+    unitDetail?.documents?.[0] ||
+    null;
+
+  const handleSetAccessLevel = async (documentId: string, accessLevel: "FREE" | "PRO") => {
+    setActionLoading(true);
+    try {
+      const res = await setDocumentAccessLevelAction(documentId, accessLevel);
+      if (!res.success) {
+        alert(res.error || "Failed to update access level.");
+        return;
+      }
+      if (selectedUnitId) {
+        const detailRes = await getLearningUnitDetailAction(selectedUnitId);
+        if (detailRes.success && detailRes.detail) setUnitDetail(detailRes.detail);
+      }
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleSpecChange = (updatedSpec: LessonDocumentSpec) => {
     setCurrentSpec(updatedSpec);
     setHasUnsavedChanges(true);
@@ -169,6 +194,7 @@ export function ContentStudioView({
         learningUnitId: selectedUnitId,
         canonicalSlug: slug,
         documentType: newDocType,
+        accessLevel: newDocAccess,
       });
 
       if (!docRes.success || !docRes.doc) {
@@ -457,6 +483,25 @@ export function ContentStudioView({
                             v{currentVersion.version_number} &bull; {currentVersion.review_status}
                           </span>
                         )}
+                        {currentDoc && (
+                          <label className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-600">
+                            Access
+                            <select
+                              aria-label="Document access level"
+                              value={currentDoc.access_level || "FREE"}
+                              disabled={actionLoading}
+                              onChange={(e) => handleSetAccessLevel(currentDoc.id, e.target.value as "FREE" | "PRO")}
+                              className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${
+                                (currentDoc.access_level || "FREE") === "PRO"
+                                  ? "bg-amber-50 text-amber-800 border-amber-200"
+                                  : "bg-slate-50 text-slate-700 border-slate-200"
+                              }`}
+                            >
+                              <option value="FREE">FREE</option>
+                              <option value="PRO">PRO</option>
+                            </select>
+                          </label>
+                        )}
                         {hasUnsavedChanges && (
                           <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-200">
                             Unsaved Changes
@@ -609,6 +654,15 @@ export function ContentStudioView({
                             <option value="COMMON_TRAPS_AND_MISTAKES">Common Traps & Mistakes (Exam Pitfalls)</option>
                             <option value="PYQ_DEEP_DIVE">PYQ Deep Dive (Authentic Exam Questions)</option>
                             <option value="TOPIC_SUMMARY_REVISION">Topic Summary & Revision (Last-Mile Review)</option>
+                          </select>
+                          <label className="text-left font-semibold text-slate-700 text-xs block">Access Level:</label>
+                          <select
+                            value={newDocAccess}
+                            onChange={(e) => setNewDocAccess(e.target.value as "FREE" | "PRO")}
+                            className="w-full rounded-lg border border-slate-200 bg-slate-50 p-2 text-xs font-semibold text-slate-800"
+                          >
+                            <option value="FREE">FREE (all learners)</option>
+                            <option value="PRO">PRO (PRO subscribers only)</option>
                           </select>
                           <button
                             type="button"

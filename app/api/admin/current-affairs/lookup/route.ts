@@ -53,15 +53,23 @@ export async function GET(req: NextRequest) {
 
     if (type === 'learning' || type === 'all') {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // GAP2-2a: CA learning mappings target PUBLISHED learning_documents.
       let learnQuery = (supabase as any)
-        .from('learning_resources')
-        .select('id, title, slug, resource_type')
+        .from('learning_documents')
+        .select('id, canonical_slug, document_type, learning_units!inner(title)')
+        .eq('status', 'PUBLISHED')
         .limit(20);
       if (query.trim()) {
-        learnQuery = learnQuery.ilike('title', `%${query.trim()}%`);
+        learnQuery = learnQuery.ilike('learning_units.title', `%${query.trim()}%`);
       }
       const { data } = await learnQuery;
-      results.learning = data || [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      results.learning = (data || []).map((d: any) => ({
+        id: d.id,
+        title: d.learning_units?.title || d.canonical_slug,
+        slug: d.canonical_slug,
+        document_type: d.document_type,
+      }));
     }
 
     if (type === 'questions' || type === 'all') {

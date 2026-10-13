@@ -2302,12 +2302,11 @@ export class AssessmentService {
 
     const rawQuestions = (questionsRes.data as any[]) || [];
 
-    // Extract unique topic keys for batch canonical Learning Content resolution
+    // GAP2-2a: batch learning resolution by topic id (LearningResolverService via ContentService)
     const topicKeys: string[] = [];
     rawQuestions.forEach((mq) => {
       const q = mq.question_versions?.questions;
       if (q?.canonical_topic_id) topicKeys.push(q.canonical_topic_id);
-      if (q?.topics?.slug) topicKeys.push(q.topics.slug);
     });
 
     const topicLearningMap = await ContentService.resolveLearningResourcesForTopics(topicKeys);
@@ -2330,7 +2329,7 @@ export class AssessmentService {
       const explanation = qa?.explanation_md || null;
       const topicId = qv?.questions?.canonical_topic_id;
       const topicSlug = qv?.questions?.topics?.slug;
-      const learningRes = (topicId && topicLearningMap.get(topicId)) || (topicSlug && topicLearningMap.get(topicSlug));
+      const learningRes = topicId ? topicLearningMap.get(topicId) : undefined;
 
       return {
         mockQuestionId: mq.id,

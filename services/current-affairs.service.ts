@@ -307,10 +307,12 @@ export class CurrentAffairsService {
 
         // Fetch learning mappings
         const learnRes = await db.query(
-          `SELECT lm.learning_resource_id, lr.title, lr.slug
+          `SELECT lm.learning_document_id, lu.title, ld.canonical_slug AS slug
            FROM public.current_affairs_learning_mappings lm
-           LEFT JOIN public.learning_resources lr ON lr.id = lm.learning_resource_id
-           WHERE lm.article_id = $1`,
+           JOIN public.learning_documents ld ON ld.id = lm.learning_document_id AND ld.status = 'PUBLISHED'
+           JOIN public.learning_units lu ON lu.id = ld.learning_unit_id
+           WHERE lm.article_id = $1
+           ORDER BY lm.display_order`,
           [row.id]
         );
 
@@ -372,7 +374,7 @@ export class CurrentAffairsService {
             isHighYield: em.is_high_yield,
           })),
           relatedLearningUnits: (learnRes.rows || []).map((lm: any) => ({
-            learningResourceId: lm.learning_resource_id,
+            learningDocumentId: lm.learning_document_id,
             title: lm.title || '',
             slug: lm.slug || '',
           })),
@@ -465,10 +467,13 @@ export class CurrentAffairsService {
         supabase
           .from('current_affairs_learning_mappings')
           .select(`
-            learning_resource_id,
-            learning_resources (title, slug)
+            learning_document_id,
+            display_order,
+            learning_documents!inner (canonical_slug, status, learning_units (title))
           `)
-          .eq('article_id', data.id),
+          .eq('article_id', data.id)
+          .eq('learning_documents.status', 'PUBLISHED')
+          .order('display_order', { ascending: true }),
       ]);
 
       const relatedArticles = await this.getRelatedArticles(data.category as CurrentAffairsCategory, data.id, 4);
@@ -512,9 +517,9 @@ export class CurrentAffairsService {
           isHighYield: em.is_high_yield,
         })),
         relatedLearningUnits: (learnRes.data || []).map((lm: any) => ({
-          learningResourceId: lm.learning_resource_id,
-          title: lm.learning_resources?.title || '',
-          slug: lm.learning_resources?.slug || '',
+          learningDocumentId: lm.learning_document_id,
+          title: lm.learning_documents?.learning_units?.title || '',
+          slug: lm.learning_documents?.canonical_slug || '',
         })),
         relatedQuestions: (qRes.data || []).map((qm: any) => ({
           questionId: qm.question_id,

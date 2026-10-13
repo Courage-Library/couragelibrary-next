@@ -300,8 +300,8 @@ export class AdminCurrentAffairsService {
       (supabase as any)
         .from('current_affairs_learning_mappings')
         .select(`
-          learning_resource_id,
-          learning_resources (title, slug)
+          learning_document_id,
+          learning_documents (canonical_slug, status, learning_units (title))
         `)
         .eq('article_id', articleId),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -400,9 +400,9 @@ export class AdminCurrentAffairsService {
       })),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       learningMappings: (learnRes.data || []).map((lm: any) => ({
-        learningResourceId: lm.learning_resource_id,
-        title: lm.learning_resources?.title || '',
-        slug: lm.learning_resources?.slug || '',
+        learningDocumentId: lm.learning_document_id,
+        title: lm.learning_documents?.learning_units?.title || lm.learning_documents?.canonical_slug || '',
+        slug: lm.learning_documents?.canonical_slug || '',
       })),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       questionMappings: (qRes.data || []).map((qm: any) => ({
@@ -569,7 +569,7 @@ export class AdminCurrentAffairsService {
     if (payload.learningMappings && payload.learningMappings.length > 0) {
       const learnToInsert = payload.learningMappings.map((lm) => ({
         article_id: articleId,
-        learning_resource_id: lm.learningResourceId,
+        learning_document_id: lm.learningDocumentId,
         display_order: lm.displayOrder || 1,
       }));
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
