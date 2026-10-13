@@ -1,5 +1,5 @@
+import { guardAdminRoute, toRouteErrorResponse } from "@/lib/auth/require-admin";
 import { NextRequest, NextResponse } from "next/server";
-import { AdminService } from "@/services/admin.service";
 import {
   OperationalSyllabusReconciliationService,
   OperationalSyllabusReconciliationError,
@@ -7,19 +7,8 @@ import {
 
 export async function GET(req: NextRequest) {
   try {
-    const authCheck = await AdminService.checkIsAdminOrStaff();
-    if (!authCheck.isAdmin || !authCheck.userId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: "FORBIDDEN",
-            message: "You do not have administrative permissions to access this endpoint.",
-          },
-        },
-        { status: 403 }
-      );
-    }
+    const authCheck = await guardAdminRoute({ allowStaff: true });
+    if (!authCheck.ok) return authCheck.response;
 
     const { searchParams } = new URL(req.url);
     const examId = searchParams.get("examId") || undefined;
@@ -42,17 +31,7 @@ export async function GET(req: NextRequest) {
     });
   } catch (error: any) {
     if (error instanceof OperationalSyllabusReconciliationError) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: error.code,
-            message: error.message,
-            details: error.details,
-          },
-        },
-        { status: error.statusCode }
-      );
+      return toRouteErrorResponse("admin/syllabus-reconciliation/versions GET", error);
     }
 
     console.error("[api/admin/syllabus-reconciliation/versions] Internal error:", error);

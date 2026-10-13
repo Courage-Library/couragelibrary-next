@@ -1,5 +1,6 @@
 "use client";
 
+import { actionErrorMessage } from "@/lib/actions/action-result";
 import React, { useState, useTransition } from "react";
 import { FlaskConical, UploadCloud, ShieldAlert, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -21,7 +22,7 @@ export function ImportTab() {
     startTransition(async () => {
       const res = await qfImportAction(raw, mode);
       if (res.data) setResult(res.data);
-      if (!res.success) setError(res.error || "Import failed.");
+      if (!res.success) setError(actionErrorMessage(res, "Import failed."));
     });
   };
 

@@ -431,8 +431,6 @@ export class StructuredContentImporter {
       );
     }
 
-    LearningDocumentService.cacheVersion(versionRecord as DocumentVersion);
-
     return {
       success: true,
       spec,

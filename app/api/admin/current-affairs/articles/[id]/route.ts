@@ -1,5 +1,5 @@
+import { guardAdminRoute, toRouteErrorResponse, sanitizeActionResult } from "@/lib/auth/require-admin";
 import { NextRequest, NextResponse } from 'next/server';
-import { AdminService } from '@/services/admin.service';
 import { AdminCurrentAffairsService } from '@/services/admin-current-affairs.service';
 
 export async function GET(
@@ -7,19 +7,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const authCheck = await AdminService.checkIsAdminOrStaff();
-    if (!authCheck.isAdmin || !authCheck.userId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: 'FORBIDDEN',
-            message: 'You do not have administrative permissions to access this endpoint.',
-          },
-        },
-        { status: 403 }
-      );
-    }
+    const authCheck = await guardAdminRoute({ allowStaff: true });
+    if (!authCheck.ok) return authCheck.response;
 
     const { id } = await params;
     const { searchParams } = new URL(req.url);
@@ -44,16 +33,7 @@ export async function GET(
       data: detail,
     });
   } catch (error: any) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: error.message || 'Failed to fetch article details',
-        },
-      },
-      { status: 500 }
-    );
+    return toRouteErrorResponse("admin/current-affairs/articles/[id] GET", error);
   }
 }
 
@@ -62,19 +42,8 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const authCheck = await AdminService.checkIsAdminOrStaff();
-    if (!authCheck.isAdmin || !authCheck.userId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: 'FORBIDDEN',
-            message: 'You do not have administrative permissions to access this endpoint.',
-          },
-        },
-        { status: 403 }
-      );
-    }
+    const authCheck = await guardAdminRoute({ allowStaff: true });
+    if (!authCheck.ok) return authCheck.response;
 
     const { id } = await params;
     const body = await req.json();
@@ -96,14 +65,14 @@ export async function PUT(
     const result = await AdminCurrentAffairsService.saveDraft(id, versionId, payload);
     if (!result.success) {
       return NextResponse.json(
-        {
+        sanitizeActionResult("admin/current-affairs/articles/[id]", {
           success: false,
           error: {
             code: 'SAVE_FAILED',
             message: result.error || 'Failed to save draft edits',
             errors: result.errors,
           },
-        },
+        }),
         { status: 400 }
       );
     }
@@ -113,16 +82,7 @@ export async function PUT(
       data: result,
     });
   } catch (error: any) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: error.message || 'Failed to save draft',
-        },
-      },
-      { status: 500 }
-    );
+    return toRouteErrorResponse("admin/current-affairs/articles/[id] PUT", error);
   }
 }
 
@@ -131,19 +91,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const authCheck = await AdminService.checkIsAdminOrStaff();
-    if (!authCheck.isAdmin || !authCheck.userId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: 'FORBIDDEN',
-            message: 'You do not have administrative permissions to access this endpoint.',
-          },
-        },
-        { status: 403 }
-      );
-    }
+    const authCheck = await guardAdminRoute({ allowStaff: true });
+    if (!authCheck.ok) return authCheck.response;
 
     const { id } = await params;
     const { searchParams } = new URL(req.url);
@@ -165,13 +114,13 @@ export async function DELETE(
     const result = await AdminCurrentAffairsService.discardDraft(id, versionId);
     if (!result.success) {
       return NextResponse.json(
-        {
+        sanitizeActionResult("admin/current-affairs/articles/[id]", {
           success: false,
           error: {
             code: 'DISCARD_FAILED',
             message: result.error || 'Failed to discard draft',
           },
-        },
+        }),
         { status: 400 }
       );
     }
@@ -181,15 +130,6 @@ export async function DELETE(
       data: result,
     });
   } catch (error: any) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: error.message || 'Failed to discard draft',
-        },
-      },
-      { status: 500 }
-    );
+    return toRouteErrorResponse("admin/current-affairs/articles/[id] DELETE", error);
   }
 }

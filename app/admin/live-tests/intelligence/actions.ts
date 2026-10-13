@@ -1,8 +1,9 @@
 "use server";
 
 
+
+import { guardAdminAction, requireAdmin, toActionFailure } from "@/lib/auth/require-admin";
 import { featureDisabledActionResult } from "@/lib/features/gates";
-import { AdminService } from "@/services/admin.service";
 import { AdminCompetitionIntelligenceService } from "@/services/admin-competition-intelligence.service";
 import {
   MacroCompetitionIntelligenceOverview,
@@ -15,11 +16,9 @@ import {
  * Validates that current session belongs to an authenticated user with administrative role.
  */
 async function verifyAdminPrivileges() {
-  const auth = await AdminService.checkIsAdminOrStaff();
-  if (!auth.isAdmin || !auth.userId) {
-    throw new Error("Administrative privileges required. Access denied.");
-  }
-  return { user: { id: auth.userId, email: auth.userEmail }, role: "admin" };
+  // SEC-1B: real session role (was hard-coded "admin", so the staff restriction below never applied).
+  const ctx = await requireAdmin({ allowStaff: true });
+  return { user: { id: ctx.userId, email: ctx.userEmail }, role: ctx.role };
 }
 
 /**
@@ -32,12 +31,14 @@ export async function getMacroCompetitionOverviewAction(): Promise<{
 }> {
   const featureGate = featureDisabledActionResult("LIVE_TESTS");
   if (featureGate) return featureGate as never;
+  const __auth = await guardAdminAction({ allowStaff: true });
+  if (!__auth.ok) return __auth;
   try {
     await verifyAdminPrivileges();
     const data = await AdminCompetitionIntelligenceService.getMacroCompetitionOverview();
     return { success: true, data };
   } catch (err: any) {
-    return { success: false, error: err?.message || "Failed to fetch macro intelligence overview." };
+    return toActionFailure("getMacroCompetitionOverviewAction", err);
   }
 }
 
@@ -53,12 +54,14 @@ export async function getEventCompetitionIntelligenceAction(
 }> {
   const featureGate = featureDisabledActionResult("LIVE_TESTS");
   if (featureGate) return featureGate as never;
+  const __auth = await guardAdminAction({ allowStaff: true });
+  if (!__auth.ok) return __auth;
   try {
     await verifyAdminPrivileges();
     const data = await AdminCompetitionIntelligenceService.getEventCompetitionIntelligence(eventId);
     return { success: true, data };
   } catch (err: any) {
-    return { success: false, error: err?.message || "Failed to fetch event intelligence." };
+    return toActionFailure("getEventCompetitionIntelligenceAction", err);
   }
 }
 
@@ -75,12 +78,14 @@ export async function getCrossEventComparisonAction(
 }> {
   const featureGate = featureDisabledActionResult("LIVE_TESTS");
   if (featureGate) return featureGate as never;
+  const __auth = await guardAdminAction({ allowStaff: true });
+  if (!__auth.ok) return __auth;
   try {
     await verifyAdminPrivileges();
     const data = await AdminCompetitionIntelligenceService.getCrossEventComparison(event1Id, event2Id);
     return { success: true, data };
   } catch (err: any) {
-    return { success: false, error: err?.message || "Failed to compare competition events." };
+    return toActionFailure("getCrossEventComparisonAction", err);
   }
 }
 
@@ -94,8 +99,11 @@ export async function getCandidateDrillDownAction(
   data?: CandidateDrillDownItem[];
   error?: string;
 }> {
+  // Candidate drill-down: admin only (staff restricted to aggregate metrics).
   const featureGate = featureDisabledActionResult("LIVE_TESTS");
   if (featureGate) return featureGate as never;
+  const __auth = await guardAdminAction();
+  if (!__auth.ok) return __auth;
   try {
     const { user, role } = await verifyAdminPrivileges();
     if (role === "staff") {
@@ -105,6 +113,6 @@ export async function getCandidateDrillDownAction(
     const data = await AdminCompetitionIntelligenceService.getCandidateDrillDown(eventId, user.id);
     return { success: true, data };
   } catch (err: any) {
-    return { success: false, error: err?.message || "Failed to fetch candidate drill-down." };
+    return toActionFailure("getCandidateDrillDownAction", err);
   }
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { actionErrorMessage } from "@/lib/actions/action-result";
 import React, { useState } from "react";
 import {
   Sparkles,
@@ -95,7 +96,7 @@ export function AIGenerationModal({
       });
 
       if (!res.success || !res.promptResult) {
-        setError(res.error || "Failed to generate curriculum prompt.");
+        setError(actionErrorMessage(res, "Failed to generate curriculum prompt."));
         return;
       }
 
@@ -137,7 +138,7 @@ export function AIGenerationModal({
       });
 
       if (!res.success || !res.validation) {
-        setError(res.error || "Validation execution failed.");
+        setError(actionErrorMessage(res, "Validation execution failed."));
         return;
       }
 
@@ -167,7 +168,7 @@ export function AIGenerationModal({
       });
 
       if (!res.success || !res.result) {
-        setError(res.error || "Failed to import AI content draft.");
+        setError(actionErrorMessage(res, "Failed to import AI content draft."));
         return;
       }
 
@@ -200,7 +201,7 @@ export function AIGenerationModal({
       });
 
       if (!res.success) {
-        setError(res.error || "Generation failed.");
+        setError(actionErrorMessage(res, "Generation failed."));
         return;
       }
 

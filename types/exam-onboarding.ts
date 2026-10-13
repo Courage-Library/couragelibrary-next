@@ -297,4 +297,6 @@ export interface ExamOnboardingImportCommitResult {
     sourcesCount: number;
     claimsCount: number;
   };
+  /** SEC-1B: rows that failed to persist (the import is then reported as unsuccessful). */
+  persistErrors?: string[];
 }

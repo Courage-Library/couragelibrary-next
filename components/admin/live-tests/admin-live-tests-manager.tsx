@@ -1,4 +1,5 @@
 "use client";
+import { actionErrorMessage } from "@/lib/actions/action-result";
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 
 import React, { useState, useTransition } from "react";
@@ -102,7 +103,7 @@ export function AdminLiveTestsManager({
         setNewTitle("");
         setNewSlug("");
       } else {
-        setCreateError(res.error || "Failed to create live event.");
+        setCreateError(actionErrorMessage(res, "Failed to create live event."));
       }
     });
   };
@@ -131,7 +132,7 @@ export function AdminLiveTestsManager({
         setSelectedEventForTransition(null);
         setTransitionReason("");
       } else {
-        setTransitionError(res.error || "Failed to update status.");
+        setTransitionError(actionErrorMessage(res, "Failed to update status."));
       }
     });
   };

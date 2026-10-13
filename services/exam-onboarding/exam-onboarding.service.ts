@@ -543,16 +543,17 @@ export class ExamOnboardingService {
 
       if (error) throw error;
       return { postId: created.id };
-    } catch (_) {
-      return { postId: post.id || 'simulated-post-id' };
+    } catch (err) {
+      // SEC-1B: no simulated success (previously returned 'simulated-post-id' on any failure).
+      throw err;
     }
   }
 
   static async deleteExamPost(postId: string, examId: string, customSupabase?: any): Promise<void> {
     const supabase = customSupabase || createAdminServerSupabaseClient();
-    try {
-      await supabase.from('exam_posts').delete().eq('id', postId).eq('exam_id', examId);
-    } catch (_) {}
+    // SEC-1B: a failed delete must surface (was swallowed and reported as success).
+    const { error } = await supabase.from('exam_posts').delete().eq('id', postId).eq('exam_id', examId);
+    if (error) throw error;
   }
 
   static async getCanonicalTaxonomy(customSupabase?: any): Promise<CanonicalTaxonomySubject[]> {

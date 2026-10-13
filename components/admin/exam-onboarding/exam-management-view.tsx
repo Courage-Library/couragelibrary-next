@@ -1,5 +1,6 @@
 "use client";
 
+import { actionErrorMessage } from "@/lib/actions/action-result";
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -146,7 +147,7 @@ export function ExamManagementView({
 
       const res = await createExamDraftAction(null, formData);
       if (res.error) {
-        setFormError(res.error);
+        setFormError(actionErrorMessage(res));
       } else if (res.success && res.data) {
         const orgDisplayName = isCreatingOrg
           ? newOrgName.trim()

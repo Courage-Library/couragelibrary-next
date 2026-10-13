@@ -4,7 +4,7 @@
  * Architecture Contract: Frozen v1.1.0
  */
 
-import { AdminService } from '@/services/admin.service';
+import { guardAdminAction, requireAdmin } from '@/lib/auth/require-admin';
 import { createAdminServerSupabaseClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { CurrentAffairsCompilerService } from '@/services/current-affairs-compiler.service';
@@ -35,19 +35,29 @@ export class AdminCurrentAffairsService {
     articleId: string,
     metadata?: Record<string, unknown>
   ): Promise<void> {
+    // SEC-1B: real admin_audit_logs columns (the previous insert used non-existent columns and its
+    // failure was swallowed, so no CA audit row was ever written). Audit failure is logged, not
+    // hidden; it does not undo the already-committed change.
+    let actorEmail = 'system:ingestion';
     try {
-      const supabase = createAdminServerSupabaseClient();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabase as any).from('admin_audit_logs').insert({
-        actor_id: actorId || null,
-        action,
-        entity_type: 'CURRENT_AFFAIR',
-        entity_id: articleId,
-        metadata: metadata || {},
-        created_at: new Date().toISOString(),
-      });
+      actorEmail = (await requireAdmin({ allowStaff: true })).userEmail || 'unknown';
     } catch {
-      // Non-blocking fallback for environments without admin_audit_logs table
+      actorEmail = actorId ? 'unknown' : 'system:ingestion';
+    }
+    const supabase = createAdminServerSupabaseClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase as any).from('admin_audit_logs').insert({
+      actor_id: actorId || null,
+      actor_email: actorEmail,
+      action_type: action,
+      target_entity: 'current_affair',
+      target_id: articleId,
+      old_value: null,
+      new_value: metadata || null,
+      reason: null,
+    });
+    if (error) {
+      console.error(`[AdminCurrentAffairsService] audit log insert failed for ${action}: ${error.code || 'unknown'}`);
     }
   }
 
@@ -55,8 +65,8 @@ export class AdminCurrentAffairsService {
    * Fetches high-level operational statistics for the Admin Dashboard
    */
   static async getDashboardStats(): Promise<AdminCurrentAffairsDashboardStats> {
-    const auth = await AdminService.checkIsAdminOrStaff();
-    if (!auth.isAdmin) {
+    const auth = await guardAdminAction({ allowStaff: true });
+    if (!auth.ok) {
       throw new Error('UNAUTHORIZED: Admin or staff privileges required.');
     }
 
@@ -133,8 +143,8 @@ export class AdminCurrentAffairsService {
     search?: string;
     date?: string;
   } = {}): Promise<AdminCurrentAffairsListResponse> {
-    const auth = await AdminService.checkIsAdminOrStaff();
-    if (!auth.isAdmin) {
+    const auth = await guardAdminAction({ allowStaff: true });
+    if (!auth.ok) {
       throw new Error('UNAUTHORIZED: Admin or staff privileges required.');
     }
 
@@ -250,8 +260,8 @@ export class AdminCurrentAffairsService {
     articleId: string,
     versionId?: string
   ): Promise<AdminCurrentAffairsFullArticle | null> {
-    const auth = await AdminService.checkIsAdminOrStaff();
-    if (!auth.isAdmin) {
+    const auth = await guardAdminAction({ allowStaff: true });
+    if (!auth.ok) {
       throw new Error('UNAUTHORIZED: Admin or staff privileges required.');
     }
 
@@ -417,8 +427,8 @@ export class AdminCurrentAffairsService {
    * Creates a new manual Current Affair draft with full 5-gate validation and DRAFT persistence
    */
   static async createManualDraft(payload: CurrentAffairsImportPayload) {
-    const auth = await AdminService.checkIsAdminOrStaff();
-    if (!auth.isAdmin) {
+    const auth = await guardAdminAction({ allowStaff: true });
+    if (!auth.ok) {
       return {
         success: false,
         error: 'UNAUTHORIZED: Admin or staff privileges required.',
@@ -443,8 +453,8 @@ export class AdminCurrentAffairsService {
     versionId: string,
     payload: CurrentAffairsImportPayload
   ): Promise<{ success: boolean; error?: string; errors?: string[] }> {
-    const auth = await AdminService.checkIsAdminOrStaff();
-    if (!auth.isAdmin) {
+    const auth = await guardAdminAction({ allowStaff: true });
+    if (!auth.ok) {
       return { success: false, error: 'UNAUTHORIZED: Admin or staff privileges required.' };
     }
 
@@ -600,8 +610,8 @@ export class AdminCurrentAffairsService {
    * Submits a DRAFT version for review
    */
   static async submitForReview(articleId: string, versionId: string): Promise<{ success: boolean; error?: string }> {
-    const auth = await AdminService.checkIsAdminOrStaff();
-    if (!auth.isAdmin) {
+    const auth = await guardAdminAction({ allowStaff: true });
+    if (!auth.ok) {
       return { success: false, error: 'UNAUTHORIZED: Admin or staff privileges required.' };
     }
 
@@ -638,8 +648,8 @@ export class AdminCurrentAffairsService {
     versionId: string,
     feedback: string
   ): Promise<{ success: boolean; error?: string }> {
-    const auth = await AdminService.checkIsAdminOrStaff();
-    if (!auth.isAdmin) {
+    const auth = await guardAdminAction({ allowStaff: true });
+    if (!auth.ok) {
       return { success: false, error: 'UNAUTHORIZED: Admin or staff privileges required.' };
     }
 
@@ -675,8 +685,8 @@ export class AdminCurrentAffairsService {
    * Approves an IN_REVIEW version after human checklist completion
    */
   static async approveDraft(articleId: string, versionId: string): Promise<{ success: boolean; error?: string }> {
-    const auth = await AdminService.checkIsAdminOrStaff();
-    if (!auth.isAdmin) {
+    const auth = await guardAdminAction({ allowStaff: true });
+    if (!auth.ok) {
       return { success: false, error: 'UNAUTHORIZED: Admin or staff privileges required.' };
     }
 
@@ -716,8 +726,8 @@ export class AdminCurrentAffairsService {
     articleId: string,
     versionId: string
   ): Promise<{ success: boolean; error?: string }> {
-    const auth = await AdminService.checkIsAdminOrStaff();
-    if (!auth.isAdmin) {
+    const auth = await guardAdminAction({ allowStaff: true });
+    if (!auth.ok) {
       return { success: false, error: 'UNAUTHORIZED: Admin or staff privileges required.' };
     }
 
@@ -784,8 +794,8 @@ export class AdminCurrentAffairsService {
     articleId: string,
     versionId: string
   ): Promise<{ success: boolean; error?: string }> {
-    const auth = await AdminService.checkIsAdminOrStaff();
-    if (!auth.isAdmin) {
+    const auth = await guardAdminAction({ allowStaff: true });
+    if (!auth.ok) {
       return { success: false, error: 'UNAUTHORIZED: Admin or staff privileges required.' };
     }
 
@@ -891,8 +901,8 @@ export class AdminCurrentAffairsService {
   static async createRevision(
     articleId: string
   ): Promise<{ success: boolean; nextVersionId?: string; versionNumber?: number; error?: string }> {
-    const auth = await AdminService.checkIsAdminOrStaff();
-    if (!auth.isAdmin) {
+    const auth = await guardAdminAction({ allowStaff: true });
+    if (!auth.ok) {
       return { success: false, error: 'UNAUTHORIZED: Admin or staff privileges required.' };
     }
 
@@ -977,8 +987,8 @@ export class AdminCurrentAffairsService {
    * Soft-archives a published article (retains historical attempts and AST)
    */
   static async archiveItem(articleId: string): Promise<{ success: boolean; error?: string }> {
-    const auth = await AdminService.checkIsAdminOrStaff();
-    if (!auth.isAdmin) {
+    const auth = await guardAdminAction({ allowStaff: true });
+    if (!auth.ok) {
       return { success: false, error: 'UNAUTHORIZED: Admin or staff privileges required.' };
     }
 
@@ -1025,8 +1035,8 @@ export class AdminCurrentAffairsService {
    * Discards an unapproved DRAFT or IN_REVIEW version
    */
   static async discardDraft(articleId: string, versionId: string): Promise<{ success: boolean; error?: string }> {
-    const auth = await AdminService.checkIsAdminOrStaff();
-    if (!auth.isAdmin) {
+    const auth = await guardAdminAction({ allowStaff: true });
+    if (!auth.ok) {
       return { success: false, error: 'UNAUTHORIZED: Admin or staff privileges required.' };
     }
 
@@ -1085,8 +1095,8 @@ export class AdminCurrentAffairsService {
     v1Number: number,
     v2Number: number
   ): Promise<VersionDiffResult | null> {
-    const auth = await AdminService.checkIsAdminOrStaff();
-    if (!auth.isAdmin) {
+    const auth = await guardAdminAction({ allowStaff: true });
+    if (!auth.ok) {
       throw new Error('UNAUTHORIZED: Admin or staff privileges required.');
     }
 

@@ -72,13 +72,17 @@ const filterVal = (ops, op, col) => {
 // ---------- Module mocks for admin auth / supabase factory ----------
 const authState = { isAdmin: true, userId: '11111111-1111-4111-8111-111111111111', userEmail: 'admin@example.test' };
 let currentSupabase = null;
+// SEC-1B: admin checks run through the canonical guard, which reads the session user.
+const sessionUser = () => (authState.isAdmin ? { id: authState.userId, email: authState.userEmail, app_metadata: { role: 'admin' }, user_metadata: {} } : null);
+const withSession = (client) => Object.assign(Object.create(null), client || {}, { auth: { getUser: async () => ({ data: { user: sessionUser() }, error: null }) } });
 const MOCKS = {
+  'server-only': {},
   '@/services/admin.service': {
     AdminService: { checkIsAdminOrStaff: async () => ({ ...authState }) },
   },
   '@/lib/supabase/server': {
     createAdminServerSupabaseClient: () => currentSupabase,
-    createServerSupabaseClient: async () => currentSupabase,
+    createServerSupabaseClient: async () => withSession(currentSupabase),
   },
 };
 const originalLoad = Module._load;

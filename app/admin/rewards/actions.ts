@@ -1,7 +1,8 @@
 "use server";
 
+
+import { guardAdminAction, dbFailure, sanitizeActionResult } from "@/lib/auth/require-admin";
 import { revalidatePath } from "next/cache";
-import { AdminService } from "@/services/admin.service";
 import { GamificationService, AdminRewardCatalogItem } from "@/services/gamification.service";
 import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -20,8 +21,8 @@ export async function createRewardAction(input: {
   displayOrder?: number;
   metadata?: Record<string, unknown>;
 }): Promise<{ success: boolean; reward?: AdminRewardCatalogItem; error?: string }> {
-  const { isAdmin } = await AdminService.checkIsAdminOrStaff();
-  if (!isAdmin) return { success: false, error: "Unauthorized. Admin privileges required." };
+  const __auth = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!__auth.ok) return __auth;
 
   const result = await GamificationService.adminCreateReward(input);
   if (result.success) {
@@ -30,7 +31,7 @@ export async function createRewardAction(input: {
     revalidatePath("/store");
     revalidatePath("/wallet");
   }
-  return result;
+  return sanitizeActionResult("createRewardAction", await (result));
 }
 
 /**
@@ -51,8 +52,8 @@ export async function updateRewardAction(
     metadata: Record<string, unknown>;
   }>
 ): Promise<{ success: boolean; error?: string }> {
-  const { isAdmin } = await AdminService.checkIsAdminOrStaff();
-  if (!isAdmin) return { success: false, error: "Unauthorized. Admin privileges required." };
+  const __auth1 = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!__auth1.ok) return __auth1;
 
   const result = await GamificationService.adminUpdateReward(id, updates);
   if (result.success) {
@@ -61,7 +62,7 @@ export async function updateRewardAction(
     revalidatePath("/store");
     revalidatePath("/wallet");
   }
-  return result;
+  return sanitizeActionResult("updateRewardAction", await (result));
 }
 
 /**
@@ -71,8 +72,8 @@ export async function toggleRewardActiveAction(
   id: string,
   isActive: boolean
 ): Promise<{ success: boolean; error?: string }> {
-  const { isAdmin } = await AdminService.checkIsAdminOrStaff();
-  if (!isAdmin) return { success: false, error: "Unauthorized. Admin privileges required." };
+  const __auth2 = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!__auth2.ok) return __auth2;
 
   const result = await GamificationService.adminToggleRewardActive(id, isActive);
   if (result.success) {
@@ -81,7 +82,7 @@ export async function toggleRewardActiveAction(
     revalidatePath("/store");
     revalidatePath("/wallet");
   }
-  return result;
+  return sanitizeActionResult("toggleRewardActiveAction", await (result));
 }
 
 /**
@@ -95,15 +96,15 @@ export async function updateRedemptionStatusAction(
     adminNotes?: string;
   }
 ): Promise<{ success: boolean; error?: string }> {
-  const { isAdmin } = await AdminService.checkIsAdminOrStaff();
-  if (!isAdmin) return { success: false, error: "Unauthorized. Admin privileges required." };
+  const __auth3 = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!__auth3.ok) return __auth3;
 
   const result = await GamificationService.adminUpdateRedemptionStatus(claimId, updates);
   if (result.success) {
     revalidatePath("/admin/rewards");
     revalidatePath("/store");
   }
-  return result;
+  return sanitizeActionResult("updateRedemptionStatusAction", await (result));
 }
 
 /**
@@ -112,8 +113,8 @@ export async function updateRedemptionStatusAction(
 export async function uploadRewardImageAction(
   formData: FormData
 ): Promise<{ success: boolean; url?: string; size?: number; format?: string; error?: string }> {
-  const { isAdmin } = await AdminService.checkIsAdminOrStaff();
-  if (!isAdmin) return { success: false, error: "Unauthorized. Admin privileges required." };
+  const __auth4 = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!__auth4.ok) return __auth4;
 
   const file = formData.get("file") as File;
   const rewardId = (formData.get("rewardId") as string) || "new";
@@ -149,7 +150,7 @@ export async function uploadRewardImageAction(
 
   if (uploadErr) {
     console.error("[uploadRewardImageAction] Storage error:", uploadErr);
-    return { success: false, error: `Upload failed: ${uploadErr.message}` };
+    return dbFailure("uploadRewardImageAction", uploadErr);
   }
 
   const { data: urlData } = supabase.storage.from("store-rewards").getPublicUrl(path);

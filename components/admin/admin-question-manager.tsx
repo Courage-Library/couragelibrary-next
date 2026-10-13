@@ -1,5 +1,6 @@
 "use client";
 
+import { actionErrorMessage } from "@/lib/actions/action-result";
 import React, { useState, useMemo, useTransition, useRef } from "react";
 import Link from "next/link";
 import {
@@ -249,7 +250,7 @@ export function AdminQuestionManager({
     startTransition(async () => {
       const res = await createQuestionHierarchyAction(null, formData);
       if (res.error) {
-        setActionFeedback({ type: "error", text: res.error });
+        setActionFeedback({ type: "error", text: actionErrorMessage(res) });
       } else {
         setActionFeedback({ type: "success", text: "✓ Question created successfully!" });
         setStatement("");
@@ -319,7 +320,7 @@ export function AdminQuestionManager({
     startTransition(async () => {
       const res = await updateQuestionHierarchyAction(null, formData);
       if (res.error) {
-        setActionFeedback({ type: "error", text: res.error });
+        setActionFeedback({ type: "error", text: actionErrorMessage(res) });
       } else {
         setActionFeedback({ type: "success", text: "✓ Question updated successfully!" });
         setEditingQuestion(null);
@@ -898,7 +899,7 @@ export function AdminQuestionManager({
                           if (confirm(`Are you sure you want to delete this question?`)) {
                             startTransition(async () => {
                               const res = await deleteQuestionAction(q.id);
-                              if (res.error) setActionFeedback({ type: "error", text: res.error });
+                              if (res.error) setActionFeedback({ type: "error", text: actionErrorMessage(res) });
                               if (res.message) setActionFeedback({ type: "success", text: res.message });
                             });
                           }

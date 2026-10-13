@@ -103,32 +103,10 @@ export class LearningDocumentService {
       published_at: null,
     };
 
-    LearningDocumentService.cacheVersion(versionData as DocumentVersion);
-
     return {
       version: versionData,
       compiledMdx: artifact.compiledMdx,
     };
   }
-
-  private static versionCache: Map<string, DocumentVersion> = new Map();
-
-  static cacheVersion(version: DocumentVersion): void {
-    if (version?.id) {
-      this.versionCache.set(version.id, { ...version });
-    }
-  }
-
-  static getCachedVersion(id: string): DocumentVersion | null {
-    const v = this.versionCache.get(id);
-    return v ? { ...v } : null;
-  }
-
-  static updateCachedVersion(id: string, updates: Partial<DocumentVersion>): DocumentVersion | null {
-    const existing = this.versionCache.get(id);
-    if (!existing) return null;
-    const updated = { ...existing, ...updates };
-    this.versionCache.set(id, updated);
-    return { ...updated };
-  }
+  // SEC-1B: the in-memory version cache (a silent fallback store for failed DB writes) was removed.
 }

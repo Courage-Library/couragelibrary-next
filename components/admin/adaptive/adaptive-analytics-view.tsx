@@ -1,5 +1,6 @@
 "use client";
 
+import { actionErrorMessage } from "@/lib/actions/action-result";
 import React, { useState, useEffect, useTransition } from "react";
 import {
   AdaptiveAnalyticsFilters,
@@ -174,7 +175,7 @@ export function AdaptiveAnalyticsView({ userEmail }: { userEmail: string }) {
         setAttemptDiagnostics(res.data as AttemptDiagnosticsReport);
       } else {
         setAttemptDiagnostics(null);
-        setErrorMessage(res.error || "Attempt state not found for diagnostics.");
+        setErrorMessage(actionErrorMessage(res, "Attempt state not found for diagnostics."));
       }
     });
   };

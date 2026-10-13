@@ -1,5 +1,6 @@
 "use client";
 
+import { actionErrorMessage } from "@/lib/actions/action-result";
 import React, { useMemo, useState, useTransition } from "react";
 import { Copy, Check, Wand2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -48,7 +49,7 @@ export function GenerateTab({ taxonomy }: { taxonomy: FactoryTaxonomy }) {
         count,
       });
       if (res.success && res.data) setResult(res.data);
-      else setError(res.error || "Failed to generate prompt.");
+      else setError(actionErrorMessage(res, "Failed to generate prompt."));
     });
   };
 

@@ -60,6 +60,7 @@ const mockSupabaseClient = () => ({
 });
 
 const MOCKS = {
+  'server-only': {}, // SEC-1B: Next.js-only marker imported by lib/auth/require-admin.ts
   '@/lib/supabase/server': {
     createServerSupabaseClient: async () => mockSupabaseClient(),
     createAdminServerSupabaseClient: () => mockSupabaseClient(),

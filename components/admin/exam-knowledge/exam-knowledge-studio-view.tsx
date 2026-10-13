@@ -1,5 +1,6 @@
 "use client";
 
+import { actionErrorMessage } from "@/lib/actions/action-result";
 import React, { useState, useEffect } from "react";
 import {
   LayoutDashboard,
@@ -323,7 +324,7 @@ export function ExamKnowledgeStudioView({
         setLastSavedTime(timeStr);
         setReviewMessage({ type: "success", text: `Draft saved successfully at ${timeStr}.` });
       } else {
-        setReviewMessage({ type: "error", text: res.error || "Failed to save draft." });
+        setReviewMessage({ type: "error", text: actionErrorMessage(res, "Failed to save draft.") });
       }
     } finally {
       setIsSavingDraft(false);
@@ -341,7 +342,7 @@ export function ExamKnowledgeStudioView({
           structuredPayload: editDraftPayload,
         });
         if (!saveRes.success) {
-          setReviewMessage({ type: "error", text: saveRes.error || "Failed to save changes before submitting." });
+          setReviewMessage({ type: "error", text: actionErrorMessage(saveRes, "Failed to save changes before submitting.") });
           setIsSubmittingReview(false);
           return;
         }
@@ -358,7 +359,7 @@ export function ExamKnowledgeStudioView({
         const kRes = await getAdminExamKnowledgeDashboardAction();
         if (kRes.success && kRes.kpis) setKpis(kRes.kpis);
       } else {
-        setReviewMessage({ type: "error", text: res.error || "Failed to submit draft for review." });
+        setReviewMessage({ type: "error", text: actionErrorMessage(res, "Failed to submit draft for review.") });
       }
       } finally {
         setIsSubmittingReview(false);
@@ -533,7 +534,7 @@ export function ExamKnowledgeStudioView({
         setContractVersion(res.data.promptContractVersion || "CL-EXAM-AUTHOR-v1.0");
         setContextHash(res.data.contextHash || "");
       } else {
-        setPromptError(res.error || "Failed to generate prompt.");
+        setPromptError(actionErrorMessage(res, "Failed to generate prompt."));
       }
     } catch (err: any) {
       setPromptError(err.message || "An unexpected error occurred while generating prompt.");
@@ -650,7 +651,7 @@ export function ExamKnowledgeStudioView({
         setReviewMessage({ type: "success", text: `Review status successfully updated to ${newStatus}.` });
         loadDocumentDetail(selectedVersionId);
       } else {
-        setReviewMessage({ type: "error", text: res.error || "Failed to update status." });
+        setReviewMessage({ type: "error", text: actionErrorMessage(res, "Failed to update status.") });
       }
     } finally {
       setIsUpdatingStatus(false);
@@ -667,7 +668,7 @@ export function ExamKnowledgeStudioView({
         setReviewMessage({ type: "success", text: "Document successfully compiled into MDX with verified security scan." });
         loadDocumentDetail(selectedVersionId);
       } else {
-        setReviewMessage({ type: "error", text: res.error || "Compilation failed." });
+        setReviewMessage({ type: "error", text: actionErrorMessage(res, "Compilation failed.") });
       }
     } finally {
       setIsCompiling(false);
@@ -687,7 +688,7 @@ export function ExamKnowledgeStudioView({
           if (kRes.success && kRes.kpis) setKpis(kRes.kpis);
         });
       } else {
-        setReviewMessage({ type: "error", text: res.error || "Publication failed." });
+        setReviewMessage({ type: "error", text: actionErrorMessage(res, "Publication failed.") });
       }
     } finally {
       setIsPublishing(false);
@@ -705,7 +706,7 @@ export function ExamKnowledgeStudioView({
         setReviewMessage({ type: "success", text: `New revision draft v${res.versionNumber} created successfully.` });
         await openEditDraft(res.newVersionId, documentDetail.document);
       } else {
-        setReviewMessage({ type: "error", text: res.error || "Failed to create revision draft." });
+        setReviewMessage({ type: "error", text: actionErrorMessage(res, "Failed to create revision draft.") });
       }
     } catch (err: any) {
       setReviewMessage({ type: "error", text: err.message || "Failed to create revision." });
@@ -729,7 +730,7 @@ export function ExamKnowledgeStudioView({
           loadDocumentDetail(selectedVersionId);
         }
       } else {
-        setReviewMessage({ type: "error", text: res.error || "Failed to update source verification." });
+        setReviewMessage({ type: "error", text: actionErrorMessage(res, "Failed to update source verification.") });
       }
     } finally {
       setIsVerifyingSource(false);
@@ -752,7 +753,7 @@ export function ExamKnowledgeStudioView({
         const kRes = await getAdminExamKnowledgeDashboardAction();
         if (kRes.success && kRes.kpis) setKpis(kRes.kpis);
       } else {
-        alert(res.error || "Failed to discard draft.");
+        alert(actionErrorMessage(res, "Failed to discard draft."));
       }
     } finally {
       setIsDiscarding(false);
@@ -779,7 +780,7 @@ export function ExamKnowledgeStudioView({
         const kRes = await getAdminExamKnowledgeDashboardAction();
         if (kRes.success && kRes.kpis) setKpis(kRes.kpis);
       } else {
-        alert(res.error || "Failed to request changes.");
+        alert(actionErrorMessage(res, "Failed to request changes."));
       }
     } finally {
       setIsRequestingChanges(false);
@@ -795,7 +796,7 @@ export function ExamKnowledgeStudioView({
       if (res.success && 'diff' in res && res.diff) {
         setDiffResult(res.diff);
       } else {
-        setDiffError(res.error || "Failed to compare versions.");
+        setDiffError(actionErrorMessage(res, "Failed to compare versions."));
         setDiffResult(null);
       }
     } catch (err: any) {

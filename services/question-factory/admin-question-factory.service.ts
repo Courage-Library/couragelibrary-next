@@ -6,7 +6,7 @@
  * generate prompt → import (dry-run / commit) → review queue → transitions → atomic publish.
  *
  * INVARIANTS:
- * - Every public method begins with AdminService.checkIsAdminOrStaff() (D11).
+ * - Every public method begins with the canonical guard (guardAdminAction / requireAdmin) (D11).
  * - The service-role client is created here, server-side only; never sent to the client.
  * - Lifecycle writes go exclusively through the QF SQL functions.
  * - Every mutation writes admin_audit_logs (actor_id, actor_email, action_type,
@@ -14,7 +14,7 @@
  *   logged as a non-sensitive warning, never silently swallowed.
  */
 
-import { AdminService } from '@/services/admin.service';
+import { guardAdminAction, safeMessage } from '@/lib/auth/require-admin';
 import { createAdminServerSupabaseClient } from '@/lib/supabase/server';
 import {
   QuestionAuthoringItem,
@@ -71,7 +71,9 @@ function preview(text: string): string {
 }
 
 function fail<T>(errorCode: string, error: string): ServiceResult<T> {
-  return { success: false, errorCode, error };
+  // SEC-1B: QF workflow messages (QF_*) are user-facing; raw database text is not.
+  const message = /^QF_[A-Z_]+/.test(error || '') ? error : safeMessage(error || 'Operation failed.');
+  return { success: false, errorCode, error: message };
 }
 
 function extractQfCode(message: string | undefined): string {
@@ -83,8 +85,8 @@ export class AdminQuestionFactoryService {
   // Auth + audit
   // ---------------------------------------------------------------------------
   private static async requireAdmin(): Promise<AdminContext> {
-    const auth = await AdminService.checkIsAdminOrStaff();
-    if (!auth.isAdmin || !auth.userId) {
+    const auth = await guardAdminAction({ allowStaff: true });
+    if (!auth.ok || !auth.userId) {
       throw new QuestionFactoryError('UNAUTHORIZED', 'Unauthorized: administrative staff privileges required.');
     }
     return { userId: auth.userId, userEmail: auth.userEmail || 'unknown', supabase: createAdminServerSupabaseClient() };

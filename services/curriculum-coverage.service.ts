@@ -729,18 +729,9 @@ export class CurriculumCoverageService {
 
       return { success: true, mapping: created };
     } catch (err: any) {
-      // In-memory mock response for testing if schema table is not present
-      return {
-        success: true,
-        mapping: {
-          id: 'mock-mapping-1',
-          learning_unit_id: params.learningUnitId,
-          exam_topic_mapping_id: params.examTopicMappingId,
-          required_depth: params.requiredDepth || 'STANDARD',
-          importance_tier: params.importanceTier || 'CORE',
-          is_mandatory: params.isMandatory !== undefined ? params.isMandatory : true,
-        },
-      };
+      // SEC-1B: no fake success (an in-memory mapping used to be returned on ANY error);
+      // the referenced exam_topic_mapping_id column does not exist — see GAP2-1a D2.)
+      throw err;
     }
   }
 }

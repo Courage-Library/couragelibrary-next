@@ -1,8 +1,9 @@
 "use server";
 
 
+
+import { guardAdminAction } from "@/lib/auth/require-admin";
 import { featureDisabledActionResult } from "@/lib/features/gates";
-import { AdminService } from "@/services/admin.service";
 import { revalidatePath } from "next/cache";
 import type {
   AdaptiveGlobalStatus,
@@ -29,8 +30,8 @@ export async function updateAdaptiveGlobalStatusAction(
 ): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -53,8 +54,8 @@ export async function toggleAdaptiveEmergencyAction(
 ): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -80,8 +81,8 @@ export async function updateAdaptiveSafetyLimitsAction(
 ): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -119,8 +120,8 @@ export async function createAdaptiveAlgorithmVersionAction(
 ): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -143,8 +144,8 @@ export async function activateAdaptiveAlgorithmVersionAction(
 ): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -186,8 +187,8 @@ export async function saveAdaptiveConfigAction(
 ): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -214,8 +215,8 @@ export async function recalibrateItemAction(
 ): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdaptiveCalibrationService } = await import("@/services/adaptive/adaptive-calibration.service");
@@ -238,8 +239,8 @@ export async function recalibrateBatchAction(
 ): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdaptiveCalibrationService } = await import("@/services/adaptive/adaptive-calibration.service");
@@ -262,8 +263,8 @@ export async function flagQuestionVersionAction(
 ): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdaptiveCalibrationService } = await import("@/services/adaptive/adaptive-calibration.service");
@@ -285,8 +286,8 @@ export async function unflagQuestionVersionAction(
 ): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdaptiveCalibrationService } = await import("@/services/adaptive/adaptive-calibration.service");
@@ -308,8 +309,8 @@ export async function deprecateQuestionVersionAction(
 ): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdaptiveCalibrationService } = await import("@/services/adaptive/adaptive-calibration.service");
@@ -331,8 +332,8 @@ export async function restoreQuestionVersionAction(
 ): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdaptiveCalibrationService } = await import("@/services/adaptive/adaptive-calibration.service");
@@ -353,8 +354,8 @@ export async function getItemCalibrationDetailAction(
 ): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdaptiveCalibrationService } = await import("@/services/adaptive/adaptive-calibration.service");
@@ -376,8 +377,8 @@ export async function updateEstimatorConfigAction(
 ): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -399,8 +400,8 @@ export async function getAttemptAbilityDetailAction(
 ): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -419,8 +420,8 @@ export async function getAttemptAbilityDetailAction(
 export async function getCATConfigAction(): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -438,8 +439,8 @@ export async function updateCATConfigAction(
 ): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -459,8 +460,8 @@ export async function updateCATConfigAction(
 export async function getCATHealthAction(): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -478,8 +479,8 @@ export async function getItemInformationExplorerAction(
 ): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -498,8 +499,8 @@ export async function getItemInformationExplorerAction(
 export async function getStoppingConfigAction(): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -517,8 +518,8 @@ export async function updateStoppingConfigAction(
 ): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -538,8 +539,8 @@ export async function updateStoppingConfigAction(
 export async function getStoppingHealthAction(): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -558,8 +559,8 @@ export async function getStoppingHealthAction(): Promise<AdminActionResult> {
 export async function getPersonalizationConfigAction(): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -577,8 +578,8 @@ export async function updatePersonalizationConfigAction(
 ): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -598,8 +599,8 @@ export async function updatePersonalizationConfigAction(
 export async function getPersonalizationHealthAction(): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -618,8 +619,8 @@ export async function getPersonalizationHealthAction(): Promise<AdminActionResul
 export async function getAdaptiveOverviewAction(filters?: Record<string, unknown>): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -634,8 +635,8 @@ export async function getAdaptiveOverviewAction(filters?: Record<string, unknown
 export async function getCandidateIntelligenceAction(filters?: Record<string, unknown>): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -650,8 +651,8 @@ export async function getCandidateIntelligenceAction(filters?: Record<string, un
 export async function getCandidateAdaptiveDetailAction(userId: string, examId?: string): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -666,8 +667,8 @@ export async function getCandidateAdaptiveDetailAction(userId: string, examId?: 
 export async function getItemIntelligenceAction(filters?: Record<string, unknown>): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -682,8 +683,8 @@ export async function getItemIntelligenceAction(filters?: Record<string, unknown
 export async function getCATIntelligenceAction(filters?: Record<string, unknown>): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -698,8 +699,8 @@ export async function getCATIntelligenceAction(filters?: Record<string, unknown>
 export async function getAbilityIntelligenceAction(filters?: Record<string, unknown>): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -714,8 +715,8 @@ export async function getAbilityIntelligenceAction(filters?: Record<string, unkn
 export async function getStoppingIntelligenceAction(filters?: Record<string, unknown>): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -730,8 +731,8 @@ export async function getStoppingIntelligenceAction(filters?: Record<string, unk
 export async function getPersonalizationIntelligenceAction(filters?: Record<string, unknown>): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -746,8 +747,8 @@ export async function getPersonalizationIntelligenceAction(filters?: Record<stri
 export async function getAlgorithmComparisonAction(filters?: Record<string, unknown>): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -762,8 +763,8 @@ export async function getAlgorithmComparisonAction(filters?: Record<string, unkn
 export async function getAdaptiveHealthAction(filters?: Record<string, unknown>): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -778,8 +779,8 @@ export async function getAdaptiveHealthAction(filters?: Record<string, unknown>)
 export async function getDataQualityDiagnosticsAction(): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -794,8 +795,8 @@ export async function getDataQualityDiagnosticsAction(): Promise<AdminActionResu
 export async function getAttemptDiagnosticsAction(attemptId: string): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");

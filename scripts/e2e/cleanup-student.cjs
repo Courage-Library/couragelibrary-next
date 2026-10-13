@@ -7,6 +7,8 @@
 const { Client } = require('pg');
 const { admin, findUser, pgConfig } = require('./_e2e-env.cjs');
 
+const KEEP_USER = process.env.E2E_KEEP_USER === '1';
+
 (async () => {
   const u = await findUser();
   if (!u) {
@@ -51,7 +53,8 @@ const { admin, findUser, pgConfig } = require('./_e2e-env.cjs');
     await del('gamification_events', `DELETE FROM public.gamification_events WHERE user_id = $1`);
     await del('streak_activity_logs', `DELETE FROM public.streak_activity_logs WHERE user_id = $1`);
     await del('user_streaks', `DELETE FROM public.user_streaks WHERE user_id = $1`);
-    await del('user_profiles', `DELETE FROM public.user_profiles WHERE id = $1`);
+    // SEC-1B: E2E_KEEP_USER=1 keeps a permanent QA identity (auth user + profile); only journey data goes.
+    if (!KEEP_USER) await del('user_profiles', `DELETE FROM public.user_profiles WHERE id = $1`);
 
     // Nothing referencing the student may remain.
     const cols = (await c.query(
@@ -64,6 +67,7 @@ const { admin, findUser, pgConfig } = require('./_e2e-env.cjs');
        UNION SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = 'public' AND column_name = 'user_id'`)).rows;
     const left = [];
     for (const r of cols) {
+      if (KEEP_USER && r.tbl === "user_profiles") continue;
       const n = Number((await c.query(`SELECT count(*) c FROM public."${r.tbl}" WHERE "${r.col}" = $1`, [uid])).rows[0].c);
       if (n) left.push(`${r.tbl}.${r.col}=${n}`);
     }
@@ -76,6 +80,10 @@ const { admin, findUser, pgConfig } = require('./_e2e-env.cjs');
     process.exit(1);
   }
   await c.end();
+  if (KEEP_USER) {
+    console.log('deleted (permanent identity kept):', JSON.stringify(counts));
+    return;
+  }
   const { error } = await admin.auth.admin.deleteUser(uid);
   counts['auth.users'] = error ? `ERROR ${error.message}` : 1;
   console.log('deleted:', JSON.stringify(counts));

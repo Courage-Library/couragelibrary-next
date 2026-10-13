@@ -1,5 +1,6 @@
 "use client";
 
+import { actionErrorMessage } from "@/lib/actions/action-result";
 import React, { useState, useMemo, useActionState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -269,7 +270,7 @@ export function AdminSchedulesManager({
     } else if (progSaveState?.error) {
       setToastMessage({
         title: "Program Launch Failed",
-        description: progSaveState.error,
+        description: actionErrorMessage(progSaveState),
         type: "error",
       });
     }
@@ -288,7 +289,7 @@ export function AdminSchedulesManager({
     } else if (updateProgState?.error) {
       setToastMessage({
         title: "Update Failed",
-        description: updateProgState.error,
+        description: actionErrorMessage(updateProgState),
         type: "error",
       });
     }
@@ -309,7 +310,7 @@ export function AdminSchedulesManager({
     } else if (deactivateProgState?.error) {
       setToastMessage({
         title: "Deactivation Failed",
-        description: deactivateProgState.error,
+        description: actionErrorMessage(deactivateProgState),
         type: "error",
       });
     }
@@ -328,7 +329,7 @@ export function AdminSchedulesManager({
     } else if (daySaveState?.error) {
       setToastMessage({
         title: "Update Failed",
-        description: daySaveState.error,
+        description: actionErrorMessage(daySaveState),
         type: "error",
       });
     }
@@ -577,13 +578,13 @@ export function AdminSchedulesManager({
       </Card>
 
       {/* Critical Server Action Errors (if any) */}
-      {daySaveState?.error && <Alert variant="error">{daySaveState.error}</Alert>}
-      {progSaveState?.error && <Alert variant="error">{progSaveState.error}</Alert>}
-      {updateProgState?.error && <Alert variant="error">{updateProgState.error}</Alert>}
-      {deactivateProgState?.error && <Alert variant="error">{deactivateProgState.error}</Alert>}
-      {createCycleState?.error && <Alert variant="error">{createCycleState.error}</Alert>}
+      {daySaveState?.error && <Alert variant="error">{actionErrorMessage(daySaveState)}</Alert>}
+      {progSaveState?.error && <Alert variant="error">{actionErrorMessage(progSaveState)}</Alert>}
+      {updateProgState?.error && <Alert variant="error">{actionErrorMessage(updateProgState)}</Alert>}
+      {deactivateProgState?.error && <Alert variant="error">{actionErrorMessage(deactivateProgState)}</Alert>}
+      {createCycleState?.error && <Alert variant="error">{actionErrorMessage(createCycleState)}</Alert>}
       {createCycleState?.message && <Alert variant="success">{createCycleState.message}</Alert>}
-      {editCycleState?.error && <Alert variant="error">{editCycleState.error}</Alert>}
+      {editCycleState?.error && <Alert variant="error">{actionErrorMessage(editCycleState)}</Alert>}
       {editCycleState?.message && <Alert variant="success">{editCycleState.message}</Alert>}
 
       {/* ========================================================================= */}
@@ -1077,7 +1078,7 @@ export function AdminSchedulesManager({
                         size="sm"
                         onClick={() => {
                           if (!launchValidation.isValid) {
-                            alert(launchValidation.error || "Launch date and time must be in the future.");
+                            alert(actionErrorMessage(launchValidation, "Launch date and time must be in the future."));
                             return;
                           }
                           setShowLaunchConfirmModal(true);
@@ -1096,7 +1097,7 @@ export function AdminSchedulesManager({
                 {!isProgramLaunchedInDb && !launchValidation.isValid && (
                   <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2 text-xs font-semibold text-amber-800">
                     <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                    <span>{launchValidation.error || "Launch date and time must be in the future (Asia/Kolkata / IST)."}</span>
+                    <span>{actionErrorMessage(launchValidation, "Launch date and time must be in the future (Asia/Kolkata / IST).")}</span>
                   </div>
                 )}
 
@@ -1795,7 +1796,7 @@ export function AdminSchedulesManager({
               </button>
             </div>
 
-            {editCycleState?.error && <Alert variant="error">{editCycleState.error}</Alert>}
+            {editCycleState?.error && <Alert variant="error">{actionErrorMessage(editCycleState)}</Alert>}
             {editCycleState?.message && <Alert variant="success">{editCycleState.message}</Alert>}
 
             <form

@@ -1,23 +1,12 @@
+import { guardAdminRoute, toRouteErrorResponse } from "@/lib/auth/require-admin";
 import { NextRequest, NextResponse } from 'next/server';
-import { AdminService } from '@/services/admin.service';
 import { CurrentAffairsValidationService } from '@/services/current-affairs-validation.service';
 import { CurrentAffairsImportPayload } from '@/types/current-affairs';
 
 export async function POST(req: NextRequest) {
   try {
-    const authCheck = await AdminService.checkIsAdminOrStaff();
-    if (!authCheck.isAdmin || !authCheck.userId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: 'FORBIDDEN',
-            message: 'You do not have administrative permissions to access this endpoint.',
-          },
-        },
-        { status: 403 }
-      );
-    }
+    const authCheck = await guardAdminRoute({ allowStaff: true });
+    if (!authCheck.ok) return authCheck.response;
 
     const body = await req.json();
     let payload: CurrentAffairsImportPayload;
@@ -30,16 +19,7 @@ export async function POST(req: NextRequest) {
       try {
         payload = JSON.parse(clean);
       } catch (err: any) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: {
-              code: 'INVALID_JSON',
-              message: `Malformed JSON string: ${err.message}`,
-            },
-          },
-          { status: 400 }
-        );
+        return toRouteErrorResponse("admin/current-affairs/validate POST", err);
       }
     } else {
       payload = body.rawPayload || body;
@@ -59,15 +39,6 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error: any) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: error.message || 'Validation execution failed',
-        },
-      },
-      { status: 500 }
-    );
+    return toRouteErrorResponse("admin/current-affairs/validate POST", error);
   }
 }

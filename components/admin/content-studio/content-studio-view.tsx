@@ -1,5 +1,6 @@
 "use client";
 
+import { actionErrorMessage } from "@/lib/actions/action-result";
 import React, { useState, useEffect } from "react";
 import { AcademicTaxonomyExplorer } from "./academic-taxonomy-explorer";
 import { StructuredLessonEditor } from "./structured-lesson-editor";
@@ -142,7 +143,7 @@ export function ContentStudioView({
     try {
       const res = await setDocumentAccessLevelAction(documentId, accessLevel);
       if (!res.success) {
-        alert(res.error || "Failed to update access level.");
+        alert(actionErrorMessage(res, "Failed to update access level."));
         return;
       }
       if (selectedUnitId) {
@@ -198,7 +199,7 @@ export function ContentStudioView({
       });
 
       if (!docRes.success || !docRes.doc) {
-        alert(docRes.error || "Failed to create document.");
+        alert(actionErrorMessage(docRes, "Failed to create document."));
         return;
       }
 
@@ -330,7 +331,7 @@ export function ContentStudioView({
         await handleSelectUnit(selectedUnitId!);
         await handleSelectVersion(res.version.id);
       } else {
-        alert(res.error || "Failed to create revision.");
+        alert(actionErrorMessage(res, "Failed to create revision."));
       }
     } finally {
       setActionLoading(false);

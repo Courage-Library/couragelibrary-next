@@ -1,5 +1,5 @@
+import { guardAdminRoute, toRouteErrorResponse } from "@/lib/auth/require-admin";
 import { NextResponse } from 'next/server';
-import { AdminService } from '@/services/admin.service';
 import { CurrentAffairsProductionSyncService } from '@/services/current-affairs-production-sync.service';
 
 /**
@@ -8,19 +8,8 @@ import { CurrentAffairsProductionSyncService } from '@/services/current-affairs-
  */
 export async function GET() {
   try {
-    const authCheck = await AdminService.checkIsAdminOrStaff();
-    if (!authCheck.isAdmin || !authCheck.userId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: 'UNAUTHORIZED',
-            message: 'Administrative privileges required to access synchronization telemetry.',
-          },
-        },
-        { status: 403 }
-      );
-    }
+    const authCheck = await guardAdminRoute({ allowStaff: true });
+    if (!authCheck.ok) return authCheck.response;
 
     const health = await CurrentAffairsProductionSyncService.checkHealth();
 
@@ -29,15 +18,6 @@ export async function GET() {
       data: health,
     });
   } catch (error: any) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: error.message || 'Failed to retrieve synchronization status',
-        },
-      },
-      { status: 500 }
-    );
+    return toRouteErrorResponse("admin/current-affairs/sync-status GET", error);
   }
 }

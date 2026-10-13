@@ -1,22 +1,11 @@
+import { guardAdminRoute, toRouteErrorResponse, sanitizeActionResult } from "@/lib/auth/require-admin";
 import { NextRequest, NextResponse } from 'next/server';
-import { AdminService } from '@/services/admin.service';
 import { AdminCurrentAffairsService } from '@/services/admin-current-affairs.service';
 
 export async function GET(req: NextRequest) {
   try {
-    const authCheck = await AdminService.checkIsAdminOrStaff();
-    if (!authCheck.isAdmin || !authCheck.userId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: 'FORBIDDEN',
-            message: 'You do not have administrative permissions to access this endpoint.',
-          },
-        },
-        { status: 403 }
-      );
-    }
+    const authCheck = await guardAdminRoute({ allowStaff: true });
+    if (!authCheck.ok) return authCheck.response;
 
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1', 10);
@@ -42,48 +31,28 @@ export async function GET(req: NextRequest) {
       data: result,
     });
   } catch (error: any) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: error.message || 'Failed to fetch current affairs articles list',
-        },
-      },
-      { status: 500 }
-    );
+    return toRouteErrorResponse("admin/current-affairs/articles GET", error);
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const authCheck = await AdminService.checkIsAdminOrStaff();
-    if (!authCheck.isAdmin || !authCheck.userId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: 'FORBIDDEN',
-            message: 'You do not have administrative permissions to access this endpoint.',
-          },
-        },
-        { status: 403 }
-      );
-    }
+    const authCheck = await guardAdminRoute({ allowStaff: true });
+    if (!authCheck.ok) return authCheck.response;
 
     const body = await req.json();
     const result = await AdminCurrentAffairsService.createManualDraft(body);
 
     if (!result.success) {
       return NextResponse.json(
-        {
+        sanitizeActionResult("admin/current-affairs/articles", {
           success: false,
           error: {
             code: 'CREATION_FAILED',
             message: result.error || 'Validation failed for manual draft',
             gateReport: (result as any).gateReport,
           },
-        },
+        }),
         { status: 400 }
       );
     }
@@ -93,15 +62,6 @@ export async function POST(req: NextRequest) {
       data: result,
     });
   } catch (error: any) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: error.message || 'Failed to create manual draft',
-        },
-      },
-      { status: 500 }
-    );
+    return toRouteErrorResponse("admin/current-affairs/articles POST", error);
   }
 }

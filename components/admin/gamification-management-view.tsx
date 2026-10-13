@@ -1,5 +1,6 @@
 "use client";
 
+import { actionErrorMessage } from "@/lib/actions/action-result";
 import React, { useState, useTransition } from "react";
 import { GamificationAdminStats } from "@/services/gamification.service";
 import { updateRewardPolicyAction } from "@/app/admin/gamification/actions";
@@ -69,7 +70,7 @@ export function GamificationManagementView({ stats }: GamificationManagementView
         setStatusMessage({ text: `Policy ${policyCode} updated successfully in database.` });
         setEditingPolicy(null);
       } else {
-        setStatusMessage({ text: res.error || "Failed to update policy", isError: true });
+        setStatusMessage({ text: actionErrorMessage(res, "Failed to update policy"), isError: true });
       }
     });
   };

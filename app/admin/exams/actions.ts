@@ -1,7 +1,8 @@
 "use server";
 
+
+import { guardAdminAction, toActionFailure } from "@/lib/auth/require-admin";
 import { revalidatePath } from "next/cache";
-import { AdminService } from "@/services/admin.service";
 import { ExamOnboardingService, SyllabusProjectionInput } from "@/services/exam-onboarding/exam-onboarding.service";
 import { ExamReadinessService, ExamReadinessReport } from "@/services/exam-onboarding/exam-readiness.service";
 import { ExamOnboardingContextBuilder } from "@/services/exam-onboarding/exam-onboarding-context-builder.service";
@@ -24,8 +25,8 @@ export async function createExamDraftAction(
   prevState: ExamActionResult | null,
   formData: FormData
 ): Promise<ExamActionResult> {
-  const auth = await AdminService.checkIsAdminOrStaff();
-  if (!auth.isAdmin) return { error: "Unauthorized access." };
+  const auth = await guardAdminAction({ allowStaff: true });
+  if (!auth.ok) return auth;
 
   const title = (formData.get("title") as string || "").trim();
   const slug = (formData.get("slug") as string || "").trim();
@@ -60,7 +61,7 @@ export async function createExamDraftAction(
       data: result,
     };
   } catch (err: any) {
-    return { error: err.message || "Failed to create exam draft." };
+    return toActionFailure("createExamDraftAction", err);
   }
 }
 
@@ -71,8 +72,8 @@ export async function updateExamIdentityAction(
   prevState: ExamActionResult | null,
   formData: FormData
 ): Promise<ExamActionResult> {
-  const auth = await AdminService.checkIsAdminOrStaff();
-  if (!auth.isAdmin) return { error: "Unauthorized access." };
+  const auth = await guardAdminAction({ allowStaff: true });
+  if (!auth.ok) return auth;
 
   const examId = formData.get("examId") as string;
   const title = (formData.get("title") as string || "").trim();
@@ -96,7 +97,7 @@ export async function updateExamIdentityAction(
     revalidatePath(`/admin/exams/onboarding?examId=${examId}`);
     return { success: true, message: "Exam identity updated successfully." };
   } catch (err: any) {
-    return { error: err.message || "Failed to update exam identity." };
+    return toActionFailure("updateExamIdentityAction", err);
   }
 }
 
@@ -107,8 +108,8 @@ export async function createOrUpdateExamCycleAction(
   prevState: ExamActionResult | null,
   formData: FormData
 ): Promise<ExamActionResult> {
-  const auth = await AdminService.checkIsAdminOrStaff();
-  if (!auth.isAdmin) return { error: "Unauthorized access." };
+  const auth = await guardAdminAction({ allowStaff: true });
+  if (!auth.ok) return auth;
 
   const examId = formData.get("examId") as string;
   const cycleId = (formData.get("cycleId") as string || "").trim();
@@ -139,7 +140,7 @@ export async function createOrUpdateExamCycleAction(
       data: cycle,
     };
   } catch (err: any) {
-    return { error: err.message || "Failed to configure recruitment cycle." };
+    return toActionFailure("createOrUpdateExamCycleAction", err);
   }
 }
 
@@ -150,8 +151,8 @@ export async function saveExamPostAction(
   prevState: ExamActionResult | null,
   formData: FormData
 ): Promise<ExamActionResult> {
-  const auth = await AdminService.checkIsAdminOrStaff();
-  if (!auth.isAdmin) return { error: "Unauthorized access." };
+  const auth = await guardAdminAction({ allowStaff: true });
+  if (!auth.ok) return auth;
 
   const examId = formData.get("examId") as string;
   const postId = (formData.get("postId") as string || "").trim();
@@ -183,7 +184,7 @@ export async function saveExamPostAction(
     revalidatePath(`/admin/exams/onboarding?examId=${examId}`);
     return { success: true, message: `Post "${postName}" saved successfully.`, data: result };
   } catch (err: any) {
-    return { error: err.message || "Failed to save post profile." };
+    return toActionFailure("saveExamPostAction", err);
   }
 }
 
@@ -191,8 +192,8 @@ export async function saveExamPostAction(
  * Server Action: Delete Exam Post
  */
 export async function deleteExamPostAction(postId: string, examId: string): Promise<ExamActionResult> {
-  const auth = await AdminService.checkIsAdminOrStaff();
-  if (!auth.isAdmin) return { error: "Unauthorized access." };
+  const auth = await guardAdminAction({ allowStaff: true });
+  if (!auth.ok) return auth;
 
   try {
     await ExamOnboardingService.deleteExamPost(postId, examId);
@@ -200,7 +201,7 @@ export async function deleteExamPostAction(postId: string, examId: string): Prom
     revalidatePath(`/admin/exams/onboarding?examId=${examId}`);
     return { success: true, message: "Post removed successfully." };
   } catch (err: any) {
-    return { error: err.message || "Failed to delete post." };
+    return toActionFailure("deleteExamPostAction", err);
   }
 }
 
@@ -210,8 +211,8 @@ export async function deleteExamPostAction(postId: string, examId: string): Prom
 export async function saveSyllabusProjectionAction(
   payload: SyllabusProjectionInput
 ): Promise<ExamActionResult> {
-  const auth = await AdminService.checkIsAdminOrStaff();
-  if (!auth.isAdmin) return { error: "Unauthorized access." };
+  const auth = await guardAdminAction({ allowStaff: true });
+  if (!auth.ok) return auth;
 
   try {
     await ExamOnboardingService.saveSyllabusProjection(payload);
@@ -219,7 +220,7 @@ export async function saveSyllabusProjectionAction(
     revalidatePath(`/admin/exams/onboarding?examId=${payload.examId}`);
     return { success: true, message: "Syllabus taxonomy projection saved successfully." };
   } catch (err: any) {
-    return { error: err.message || "Failed to save syllabus projection." };
+    return toActionFailure("saveSyllabusProjectionAction", err);
   }
 }
 
@@ -230,14 +231,14 @@ export async function evaluateExamReadinessAction(
   examId: string,
   cycleId?: string | null
 ): Promise<{ success: boolean; report?: ExamReadinessReport; error?: string }> {
-  const auth = await AdminService.checkIsAdminOrStaff();
-  if (!auth.isAdmin) return { success: false, error: "Unauthorized access." };
+  const auth = await guardAdminAction({ allowStaff: true });
+  if (!auth.ok) return auth;
 
   try {
     const report = await ExamReadinessService.evaluateReadiness(examId, cycleId);
     return { success: true, report };
   } catch (err: any) {
-    return { success: false, error: err.message || "Readiness evaluation failed." };
+    return toActionFailure("evaluateExamReadinessAction", err);
   }
 }
 
@@ -248,8 +249,8 @@ export async function publishExamAction(
   examId: string,
   cycleId?: string | null
 ): Promise<ExamActionResult> {
-  const auth = await AdminService.checkIsAdminOrStaff();
-  if (!auth.isAdmin) return { error: "Unauthorized access. Only verified administrators can publish exams." };
+  const auth = await guardAdminAction({ allowStaff: true });
+  if (!auth.ok) return auth;
 
   try {
     const result = await ExamOnboardingService.publishExam(examId, cycleId);
@@ -262,7 +263,7 @@ export async function publishExamAction(
       data: result,
     };
   } catch (err: any) {
-    return { error: err.message || "Publish gate rejected examination." };
+    return toActionFailure("publishExamAction", err);
   }
 }
 
@@ -270,8 +271,8 @@ export async function publishExamAction(
  * Server Action: Archive / Unpublish Exam
  */
 export async function archiveExamAction(examId: string): Promise<ExamActionResult> {
-  const auth = await AdminService.checkIsAdminOrStaff();
-  if (!auth.isAdmin) return { error: "Unauthorized access." };
+  const auth = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!auth.ok) return auth;
 
   try {
     await ExamOnboardingService.archiveExam(examId);
@@ -279,7 +280,7 @@ export async function archiveExamAction(examId: string): Promise<ExamActionResul
     revalidatePath("/exams");
     return { success: true, message: "Exam archived to draft status." };
   } catch (err: any) {
-    return { error: err.message || "Failed to archive exam." };
+    return toActionFailure("archiveExamAction", err);
   }
 }
 
@@ -289,14 +290,14 @@ export async function archiveExamAction(examId: string): Promise<ExamActionResul
 export async function evaluateExamDeletionEligibilityAction(
   examId: string
 ): Promise<{ success: boolean; report?: import("@/services/exam-onboarding/exam-onboarding.service").ExamDeletionEligibilityReport; error?: string }> {
-  const auth = await AdminService.checkIsAdminOrStaff();
-  if (!auth.isAdmin) return { success: false, error: "Unauthorized access." };
+  const auth = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!auth.ok) return auth;
 
   try {
     const report = await ExamOnboardingService.evaluateExamDeletionEligibility(examId);
     return { success: true, report };
   } catch (err: any) {
-    return { success: false, error: err.message || "Failed to evaluate deletion safety." };
+    return toActionFailure("evaluateExamDeletionEligibilityAction", err);
   }
 }
 
@@ -307,8 +308,8 @@ export async function deleteExamDraftAction(
   examId: string,
   confirmationSlug: string
 ): Promise<ExamActionResult> {
-  const auth = await AdminService.checkIsAdminOrStaff();
-  if (!auth.isAdmin) return { error: "Unauthorized access. Only verified administrators can delete examinations." };
+  const auth = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!auth.ok) return auth;
 
   try {
     const result = await ExamOnboardingService.deleteExam(
@@ -328,7 +329,7 @@ export async function deleteExamDraftAction(
       data: result.deletedExam,
     };
   } catch (err: any) {
-    return { error: err.message || "Failed to delete examination." };
+    return toActionFailure("deleteExamDraftAction", err);
   }
 }
 
@@ -345,8 +346,8 @@ export async function generateMasterExamPromptAction(
     additionalInstructions?: string;
   }
 ): Promise<{ success: boolean; promptText?: string; promptVersion?: string; contextHash?: string; error?: string }> {
-  const auth = await AdminService.checkIsAdminOrStaff();
-  if (!auth.isAdmin) return { success: false, error: "Unauthorized access." };
+  const auth = await guardAdminAction({ allowStaff: true });
+  if (!auth.ok) return auth;
 
   if (!params.examName && !params.examId) {
     return { success: false, error: "Exam name or Exam ID is required." };
@@ -369,7 +370,7 @@ export async function generateMasterExamPromptAction(
       contextHash: result.contextHash,
     };
   } catch (err: any) {
-    return { success: false, error: err.message || "Failed to generate AI prompt." };
+    return toActionFailure("generateMasterExamPromptAction", err);
   }
 }
 
@@ -385,8 +386,8 @@ export async function generateStepExamPromptAction(
     conductingOrgName?: string;
   }
 ): Promise<{ success: boolean; promptText?: string; promptVersion?: string; contextHash?: string; stepName?: string; error?: string }> {
-  const auth = await AdminService.checkIsAdminOrStaff();
-  if (!auth.isAdmin) return { success: false, error: "Unauthorized access." };
+  const auth = await guardAdminAction({ allowStaff: true });
+  if (!auth.ok) return auth;
 
   try {
     const context = await ExamOnboardingContextBuilder.buildContext({
@@ -405,7 +406,7 @@ export async function generateStepExamPromptAction(
       stepName: result.stepName,
     };
   } catch (err: any) {
-    return { success: false, error: err.message || "Failed to generate step AI prompt." };
+    return toActionFailure("generateStepExamPromptAction", err);
   }
 }
 
@@ -420,14 +421,14 @@ export async function validateAndPreviewAiImportAction(
     expectedContextHash?: string;
   }
 ): Promise<{ success: boolean; preview?: any; error?: string }> {
-  const auth = await AdminService.checkIsAdminOrStaff();
-  if (!auth.isAdmin) return { success: false, error: "Unauthorized access." };
+  const auth = await guardAdminAction({ allowStaff: true });
+  if (!auth.ok) return auth;
 
   try {
     const preview = await ExamOnboardingImporterService.generateImportPreview(rawJson, options);
     return { success: true, preview };
   } catch (err: any) {
-    return { success: false, error: err.message || "Failed to validate AI payload." };
+    return toActionFailure("validateAndPreviewAiImportAction", err);
   }
 }
 
@@ -440,8 +441,8 @@ export async function commitAiExamImportAction(
     resolvedConflicts?: Record<string, any>;
   }
 ): Promise<{ success: boolean; result?: any; error?: string }> {
-  const auth = await AdminService.checkIsAdminOrStaff();
-  if (!auth.isAdmin) return { success: false, error: "Unauthorized access." };
+  const auth = await guardAdminAction({ allowStaff: true });
+  if (!auth.ok) return auth;
 
   try {
     const commitRes = await ExamOnboardingImporterService.commitImportDraft(spec, {
@@ -457,7 +458,7 @@ export async function commitAiExamImportAction(
       result: commitRes,
     };
   } catch (err: any) {
-    return { success: false, error: err.message || "Failed to commit AI exam draft." };
+    return toActionFailure("commitAiExamImportAction", err);
   }
 }
 
