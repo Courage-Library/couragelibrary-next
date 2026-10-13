@@ -221,3 +221,18 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 Files: the two migrations, `docs/database/rollback/073_rollback.sql`, this report, every code file in §4–§6, `scripts/test_gap2_2b_retirement.cjs` + `scripts/fixtures/gap2_2b_lesson_spec.json`, and the updated suites (`test_drift1c_features`, `test_gap2_2a_learning`, `test_sec1b_admin_authz`). Never `.env*`, backups, CA files or scratch.
 
 Production checks after deploy: `GET /` and `/api/health` → 200; `/articles` → 200 (learning_documents only); a course route with the flag off → disabled / not-found; anonymous `/rest/v1/articles` (public anon key) → no rows / 404; anonymous `/admin` → 307.
+
+## 12. Production verification (commit `d541c2d`, couragelibrary-next.vercel.app)
+
+The new build was detected when `/courses` began serving the not-found UI.
+
+| Check | Result |
+|---|---|
+| `GET /`, `GET /api/health` | 200, 200 |
+| `GET /articles` | 200; learning_documents only (resolver), no `/courses` link |
+| `/courses`, `/courses/any-course`, `/courses/any-course/learn` (flag off) | not-found UI + `noindex` (HTTP 200 under ruling A), no course content |
+| `POST /api/courses/complete-lesson` (flag off) | 404 `FEATURE_DISABLED` |
+| Anonymous `/rest/v1/articles`, `learning_resources`, `learning_resource_topics`, `article_versions` (public anon key) | 404 each, no rows |
+| Anonymous `/admin` | 307 → `/auth/login` |
+
+**12/12.** GAP2-2b STATUS: CLOSED pending architect confirmation of migration 074 (§10 item 1).
