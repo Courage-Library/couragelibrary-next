@@ -204,7 +204,7 @@ export class AdminQuestionFactoryService {
       let query = ctx.supabase
         .from('question_versions')
         .select(
-          'id, question_id, version_number, question_text, difficulty, language, lifecycle_status, created_at, questions!inner(canonical_topic_id, topics(name)), question_version_authoring!inner(origin, import_batch_id)'
+          'id, question_id, version_number, question_text, difficulty, language, lifecycle_status, created_at, questions!inner(canonical_topic_id, topics:canonical_taxonomy_nodes!questions_canonical_topic_id_node_fkey(name)), question_version_authoring!inner(origin, import_batch_id)'
         )
         .order('created_at', { ascending: false })
         .limit(Math.min(Math.max(filters.limit ?? 100, 1), 500));
@@ -275,7 +275,7 @@ export class AdminQuestionFactoryService {
     const { data, error } = await ctx.supabase
       .from('question_versions')
       .select(
-        '*, questions!inner(canonical_topic_id, topics(name)), question_options(option_key, option_text, order_index), question_answers(correct_option_key, explanation_md), question_version_authoring(*)'
+        '*, questions!inner(canonical_topic_id, topics:canonical_taxonomy_nodes!questions_canonical_topic_id_node_fkey(name)), question_options(option_key, option_text, order_index), question_answers(correct_option_key, explanation_md), question_version_authoring(*)'
       )
       .eq('id', versionId)
       .maybeSingle();

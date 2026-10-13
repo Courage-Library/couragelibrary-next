@@ -174,7 +174,7 @@ export class BattleService {
     const [roomRes, participantsRes] = await Promise.all([
       supabase
         .from("quiz_battle_rooms")
-        .select("id, room_code, battle_type, topic_id, created_by_user_id, is_private, access_tier, max_participants, total_rounds, time_per_question_seconds, status, current_round, round_started_at, round_ends_at, winner_user_id, topics(name)")
+        .select("id, room_code, battle_type, topic_id, created_by_user_id, is_private, access_tier, max_participants, total_rounds, time_per_question_seconds, status, current_round, round_started_at, round_ends_at, winner_user_id, topics:canonical_taxonomy_nodes!quiz_battle_rooms_topic_id_node_fkey(name)")
         .eq("id", roomId)
         .maybeSingle(),
       supabase

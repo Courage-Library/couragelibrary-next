@@ -139,7 +139,7 @@ export class AcademicTaxonomyService {
     // Inbound: other topics that are prerequisites to this topic
     const { data: inRel, error: inErr } = await supabaseClient
       .from('topic_relationships')
-      .select('*, from_topic:topics!from_topic_id(*)')
+      .select('*, from_topic:canonical_taxonomy_nodes!topic_relationships_from_topic_id_node_fkey(id, subject_id:root_subject_id, name, slug, description:metadata->>description, importance_level:metadata->>importance_level, display_order, is_active, created_at, updated_at)')
       .eq('to_topic_id', topicId)
       .eq('is_active', true);
 
@@ -150,7 +150,7 @@ export class AcademicTaxonomyService {
     // Outbound: other topics where this topic is a prerequisite / advanced / related
     const { data: outRel, error: outErr } = await supabaseClient
       .from('topic_relationships')
-      .select('*, to_topic:topics!to_topic_id(*)')
+      .select('*, to_topic:canonical_taxonomy_nodes!topic_relationships_to_topic_id_node_fkey(id, subject_id:root_subject_id, name, slug, description:metadata->>description, importance_level:metadata->>importance_level, display_order, is_active, created_at, updated_at)')
       .eq('from_topic_id', topicId)
       .eq('is_active', true);
 
@@ -184,7 +184,7 @@ export class AcademicTaxonomyService {
   ): Promise<TopicHierarchy | null> {
     const { data: topic, error: topicErr } = await supabaseClient
       .from('topics')
-      .select('*, subject:subjects(*)')
+      .select('*, subject:canonical_taxonomy_nodes!topics_subject_id_node_fkey(id, name, slug, icon:metadata->>icon, display_order, is_active, created_at, updated_at)')
       .eq('id', topicId)
       .eq('is_active', true)
       .maybeSingle();

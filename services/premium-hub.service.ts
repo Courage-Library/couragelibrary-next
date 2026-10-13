@@ -467,23 +467,28 @@ export class PremiumHubService {
     const adminSb = createAdminServerSupabaseClient();
 
     try {
-      const { data: subjectsData } = await adminSb
-        .from("subjects")
+      // GAP2-3: SUBJECT nodes with their child TOPIC nodes (parent_id). The former subjects → topics
+      // embed relied on topics.subject_id → subjects, which now references canonical_taxonomy_nodes.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: subjectsData } = await (adminSb as any)
+        .from("canonical_taxonomy_nodes")
         .select(`
           id,
           name,
           slug,
-          topics(
+          topics:canonical_taxonomy_nodes!parent_id(
             id,
             name
           )
         `)
+        .eq("node_type", "SUBJECT")
         .eq("is_active", true)
         .order("display_order", { ascending: true });
 
       if (!subjectsData) return [];
 
-      return subjectsData.map((s) => ({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return subjectsData.map((s: any) => ({
         id: s.id,
         name: s.name,
         code: s.slug,

@@ -350,7 +350,7 @@ export class LiveTestResultService {
         .eq("mock_test_id", event.mock_test_id),
       (adminSb as any)
         .from("mock_questions")
-        .select("id, question_order, mock_section_id, marks, negative_mark, mock_sections(section_name), question_versions(id, question_text, question_image_url, options_type, question_options(id, option_key, option_text, option_image_url, order_index), question_answers(correct_option_key, explanation_md), questions(canonical_topic_id, topics(name, slug)))")
+        .select("id, question_order, mock_section_id, marks, negative_mark, mock_sections(section_name), question_versions(id, question_text, question_image_url, options_type, question_options(id, option_key, option_text, option_image_url, order_index), question_answers(correct_option_key, explanation_md), questions(canonical_topic_id, topics:canonical_taxonomy_nodes!questions_canonical_topic_id_node_fkey(name, slug)))")
         .eq("mock_test_id", event.mock_test_id)
         .order("question_order", { ascending: true }),
       (adminSb as any)

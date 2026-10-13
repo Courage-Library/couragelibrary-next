@@ -110,7 +110,7 @@ export class DescriptiveService {
 
     let query = supabase
       .from("descriptive_questions")
-      .select("id, slug, title, question_text, max_marks, word_limit_min, word_limit_max, time_limit_minutes, difficulty, exams(title), topics(name), subjects(name)")
+      .select("id, slug, title, question_text, max_marks, word_limit_min, word_limit_max, time_limit_minutes, difficulty, exams(title), topics:canonical_taxonomy_nodes!descriptive_questions_topic_id_node_fkey(name), subjects:canonical_taxonomy_nodes!descriptive_questions_subject_id_node_fkey(name)")
       .eq("is_published", true)
       .order("created_at", { ascending: false });
 
@@ -154,7 +154,7 @@ export class DescriptiveService {
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrSlug);
     let query = supabase
       .from("descriptive_questions")
-      .select("*, exams(title), topics(name), subjects(name)")
+      .select("*, exams(title), topics:canonical_taxonomy_nodes!descriptive_questions_topic_id_node_fkey(name), subjects:canonical_taxonomy_nodes!descriptive_questions_subject_id_node_fkey(name)")
       .eq("is_published", true);
 
     if (isUuid) {

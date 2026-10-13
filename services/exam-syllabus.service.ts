@@ -42,7 +42,7 @@ export class ExamSyllabusService {
     // 2. Fetch exam topics
     const { data: examTopics, error: topicErr } = await supabaseClient
       .from('exam_topics')
-      .select('*, topic:topics(*)')
+      .select('*, topic:canonical_taxonomy_nodes!exam_topics_topic_id_node_fkey(id, subject_id:root_subject_id, name, slug, description:metadata->>description, importance_level:metadata->>importance_level, display_order, is_active, created_at, updated_at)')
       .eq('exam_id', examId)
       .eq('is_active', true)
       .order('display_order', { ascending: true });
@@ -121,7 +121,7 @@ export class ExamSyllabusService {
   ): Promise<ExamTopicMapping[]> {
     let query = supabaseClient
       .from('exam_topics')
-      .select('*, topic:topics(*)')
+      .select('*, topic:canonical_taxonomy_nodes!exam_topics_topic_id_node_fkey(id, subject_id:root_subject_id, name, slug, description:metadata->>description, importance_level:metadata->>importance_level, display_order, is_active, created_at, updated_at)')
       .eq('exam_id', examId)
       .eq('is_active', true);
 

@@ -410,6 +410,7 @@ export type Database = {
       }
       batch_curriculum_assignments: {
         Row: {
+          topic_id_node_type: string | null
           learning_document_id: string | null
           assigned_by_user_id: string | null
           assignment_type: string
@@ -432,6 +433,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          topic_id_node_type?: never
           learning_document_id?: string | null
           assigned_by_user_id?: string | null
           assignment_type: string
@@ -526,11 +528,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "batch_curriculum_assignments_topic_id_fkey"
-            columns: ["topic_id"]
+            foreignKeyName: "batch_curriculum_assignments_topic_id_node_fkey"
+            columns: ["topic_id", "topic_id_node_type"]
             isOneToOne: false
-            referencedRelation: "topics"
-            referencedColumns: ["id"]
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id", "node_type"]
           },
         ]
       }
@@ -1405,6 +1407,7 @@ export type Database = {
       }
       daily_study_recommendations: {
         Row: {
+          topic_id_node_type: string | null
           action_type: string
           completed_at: string | null
           course_lesson_id: string | null
@@ -1425,6 +1428,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          topic_id_node_type?: never
           action_type: string
           completed_at?: string | null
           course_lesson_id?: string | null
@@ -1487,16 +1491,18 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "daily_study_recommendations_topic_id_fkey"
-            columns: ["topic_id"]
+            foreignKeyName: "daily_study_recommendations_topic_id_node_fkey"
+            columns: ["topic_id", "topic_id_node_type"]
             isOneToOne: false
-            referencedRelation: "topics"
-            referencedColumns: ["id"]
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id", "node_type"]
           },
         ]
       }
       descriptive_questions: {
         Row: {
+          topic_id_node_type: string | null
+          subject_id_node_type: string | null
           created_at: string
           difficulty: string
           evaluation_guidelines_md: string | null
@@ -1516,6 +1522,8 @@ export type Database = {
           word_limit_min: number | null
         }
         Insert: {
+          topic_id_node_type?: never
+          subject_id_node_type?: never
           created_at?: string
           difficulty?: string
           evaluation_guidelines_md?: string | null
@@ -1562,18 +1570,18 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "descriptive_questions_subject_id_fkey"
-            columns: ["subject_id"]
+            foreignKeyName: "descriptive_questions_subject_id_node_fkey"
+            columns: ["subject_id", "subject_id_node_type"]
             isOneToOne: false
-            referencedRelation: "subjects"
-            referencedColumns: ["id"]
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id", "node_type"]
           },
           {
-            foreignKeyName: "descriptive_questions_topic_id_fkey"
-            columns: ["topic_id"]
+            foreignKeyName: "descriptive_questions_topic_id_node_fkey"
+            columns: ["topic_id", "topic_id_node_type"]
             isOneToOne: false
-            referencedRelation: "topics"
-            referencedColumns: ["id"]
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id", "node_type"]
           },
         ]
       }
@@ -1792,6 +1800,7 @@ export type Database = {
       }
       discussion_threads: {
         Row: {
+          topic_id_node_type: string | null
           accepted_answer_id: string | null
           learning_document_id: string | null
           author_id: string
@@ -1812,6 +1821,7 @@ export type Database = {
           view_count: number
         }
         Insert: {
+          topic_id_node_type?: never
           accepted_answer_id?: string | null
           learning_document_id?: string | null
           author_id: string
@@ -1874,11 +1884,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "discussion_threads_topic_id_fkey"
-            columns: ["topic_id"]
+            foreignKeyName: "discussion_threads_topic_id_node_fkey"
+            columns: ["topic_id", "topic_id_node_type"]
             isOneToOne: false
-            referencedRelation: "topics"
-            referencedColumns: ["id"]
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id", "node_type"]
           },
           {
             foreignKeyName: "fk_thread_accepted_answer"
@@ -2276,6 +2286,7 @@ export type Database = {
       }
       exam_topics: {
         Row: {
+          topic_id_node_type: string | null
           created_at: string
           expected_questions: number | null
           id: string
@@ -2286,6 +2297,7 @@ export type Database = {
           weightage_level: string
         }
         Insert: {
+          topic_id_node_type?: never
           created_at?: string
           expected_questions?: number | null
           id?: string
@@ -2314,11 +2326,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "exam_topics_topic_id_fkey"
-            columns: ["topic_id"]
+            foreignKeyName: "exam_topics_topic_id_node_fkey"
+            columns: ["topic_id", "topic_id_node_type"]
             isOneToOne: false
-            referencedRelation: "topics"
-            referencedColumns: ["id"]
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id", "node_type"]
           },
         ]
       }
@@ -2368,6 +2380,8 @@ export type Database = {
       }
       flashcard_decks: {
         Row: {
+          topic_id_node_type: string | null
+          subject_id_node_type: string | null
           access_tier: string
           author_id: string | null
           card_count: number
@@ -2385,6 +2399,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          topic_id_node_type?: never
+          subject_id_node_type?: never
           access_tier?: string
           author_id?: string | null
           card_count?: number
@@ -2427,18 +2443,18 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "flashcard_decks_subject_id_fkey"
-            columns: ["subject_id"]
+            foreignKeyName: "flashcard_decks_subject_id_node_fkey"
+            columns: ["subject_id", "subject_id_node_type"]
             isOneToOne: false
-            referencedRelation: "subjects"
-            referencedColumns: ["id"]
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id", "node_type"]
           },
           {
-            foreignKeyName: "flashcard_decks_topic_id_fkey"
-            columns: ["topic_id"]
+            foreignKeyName: "flashcard_decks_topic_id_node_fkey"
+            columns: ["topic_id", "topic_id_node_type"]
             isOneToOne: false
-            referencedRelation: "topics"
-            referencedColumns: ["id"]
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id", "node_type"]
           },
         ]
       }
@@ -2724,6 +2740,7 @@ export type Database = {
       }
       learning_activity_events: {
         Row: {
+          topic_id_node_type: string | null
           event_type: string
           id: string
           metadata: Json | null
@@ -2734,6 +2751,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          topic_id_node_type?: never
           event_type: string
           id?: string
           metadata?: Json | null
@@ -2755,11 +2773,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "learning_activity_events_topic_id_fkey"
-            columns: ["topic_id"]
+            foreignKeyName: "learning_activity_events_topic_id_node_fkey"
+            columns: ["topic_id", "topic_id_node_type"]
             isOneToOne: false
-            referencedRelation: "topics"
-            referencedColumns: ["id"]
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id", "node_type"]
           },
         ]
       }
@@ -2853,6 +2871,7 @@ export type Database = {
       }
       mock_sections: {
         Row: {
+          subject_id_node_type: string | null
           created_at: string
           duration_minutes: number | null
           id: string
@@ -2865,6 +2884,7 @@ export type Database = {
           subject_id: string
         }
         Insert: {
+          subject_id_node_type?: never
           created_at?: string
           duration_minutes?: number | null
           id?: string
@@ -2897,11 +2917,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "mock_sections_subject_id_fkey"
-            columns: ["subject_id"]
+            foreignKeyName: "mock_sections_subject_id_node_fkey"
+            columns: ["subject_id", "subject_id_node_type"]
             isOneToOne: false
-            referencedRelation: "subjects"
-            referencedColumns: ["id"]
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id", "node_type"]
           },
         ]
       }
@@ -3100,6 +3120,7 @@ export type Database = {
       }
       pattern_sections: {
         Row: {
+          subject_id_node_type: string | null
           created_at: string
           id: string
           instructions: string | null
@@ -3115,6 +3136,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          subject_id_node_type?: never
           created_at?: string
           id?: string
           instructions?: string | null
@@ -3153,11 +3175,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "pattern_sections_subject_id_fkey"
-            columns: ["subject_id"]
+            foreignKeyName: "pattern_sections_subject_id_node_fkey"
+            columns: ["subject_id", "subject_id_node_type"]
             isOneToOne: false
-            referencedRelation: "subjects"
-            referencedColumns: ["id"]
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id", "node_type"]
           },
         ]
       }
@@ -3519,6 +3541,7 @@ export type Database = {
       }
       question_import_batches: {
         Row: {
+          target_topic_id_node_type: string | null
           accepted_count: number
           context_hash: string | null
           contract_version: string | null
@@ -3533,6 +3556,7 @@ export type Database = {
           target_topic_id: string
         }
         Insert: {
+          target_topic_id_node_type?: never
           accepted_count?: number
           context_hash?: string | null
           contract_version?: string | null
@@ -3768,6 +3792,8 @@ export type Database = {
       }
       questions: {
         Row: {
+          subtopic_id_node_type: string | null
+          canonical_topic_id_node_type: string | null
           canonical_topic_id: string
           created_at: string
           id: string
@@ -3776,6 +3802,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          subtopic_id_node_type?: never
+          canonical_topic_id_node_type?: never
           canonical_topic_id: string
           created_at?: string
           id?: string
@@ -3793,18 +3821,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "questions_canonical_topic_id_fkey"
-            columns: ["canonical_topic_id"]
+            foreignKeyName: "questions_canonical_topic_id_node_fkey"
+            columns: ["canonical_topic_id", "canonical_topic_id_node_type"]
             isOneToOne: false
-            referencedRelation: "topics"
-            referencedColumns: ["id"]
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id", "node_type"]
           },
           {
-            foreignKeyName: "questions_subtopic_id_fkey"
-            columns: ["subtopic_id"]
+            foreignKeyName: "questions_subtopic_id_node_fkey"
+            columns: ["subtopic_id", "subtopic_id_node_type"]
             isOneToOne: false
-            referencedRelation: "subtopics"
-            referencedColumns: ["id"]
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id", "node_type"]
           },
         ]
       }
@@ -3866,6 +3894,7 @@ export type Database = {
       }
       quiz_battle_rooms: {
         Row: {
+          topic_id_node_type: string | null
           access_tier: string
           battle_type: string
           created_at: string
@@ -3887,6 +3916,7 @@ export type Database = {
           winner_user_id: string | null
         }
         Insert: {
+          topic_id_node_type?: never
           access_tier?: string
           battle_type?: string
           created_at?: string
@@ -3937,11 +3967,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "quiz_battle_rooms_topic_id_fkey"
-            columns: ["topic_id"]
+            foreignKeyName: "quiz_battle_rooms_topic_id_node_fkey"
+            columns: ["topic_id", "topic_id_node_type"]
             isOneToOne: false
-            referencedRelation: "topics"
-            referencedColumns: ["id"]
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id", "node_type"]
           },
         ]
       }
@@ -4225,6 +4255,8 @@ export type Database = {
       }
       search_indexes: {
         Row: {
+          topic_id_node_type: string | null
+          subject_id_node_type: string | null
           access_tier: string
           body_snippet_en: string | null
           body_snippet_hi: string | null
@@ -4248,6 +4280,8 @@ export type Database = {
           year: number | null
         }
         Insert: {
+          topic_id_node_type?: never
+          subject_id_node_type?: never
           access_tier?: string
           body_snippet_en?: string | null
           body_snippet_hi?: string | null
@@ -4302,18 +4336,18 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "search_indexes_subject_id_fkey"
-            columns: ["subject_id"]
+            foreignKeyName: "search_indexes_subject_id_node_fkey"
+            columns: ["subject_id", "subject_id_node_type"]
             isOneToOne: false
-            referencedRelation: "subjects"
-            referencedColumns: ["id"]
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id", "node_type"]
           },
           {
-            foreignKeyName: "search_indexes_topic_id_fkey"
-            columns: ["topic_id"]
+            foreignKeyName: "search_indexes_topic_id_node_fkey"
+            columns: ["topic_id", "topic_id_node_type"]
             isOneToOne: false
-            referencedRelation: "topics"
-            referencedColumns: ["id"]
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id", "node_type"]
           },
         ]
       }
@@ -4415,6 +4449,7 @@ export type Database = {
       }
       spaced_repetition_schedules: {
         Row: {
+          topic_id_node_type: string | null
           created_at: string
           ease_factor: number
           id: string
@@ -4429,6 +4464,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          topic_id_node_type?: never
           created_at?: string
           ease_factor?: number
           id?: string
@@ -4465,11 +4501,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "spaced_repetition_schedules_topic_id_fkey"
-            columns: ["topic_id"]
+            foreignKeyName: "spaced_repetition_schedules_topic_id_node_fkey"
+            columns: ["topic_id", "topic_id_node_type"]
             isOneToOne: false
-            referencedRelation: "topics"
-            referencedColumns: ["id"]
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id", "node_type"]
           },
         ]
       }
@@ -4511,6 +4547,7 @@ export type Database = {
       }
       study_plan_items: {
         Row: {
+          topic_id_node_type: string | null
           completed_at: string | null
           created_at: string
           estimated_duration_minutes: number
@@ -4530,6 +4567,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          topic_id_node_type?: never
           completed_at?: string | null
           created_at?: string
           estimated_duration_minutes?: number
@@ -4583,11 +4621,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "study_plan_items_topic_id_fkey"
-            columns: ["topic_id"]
+            foreignKeyName: "study_plan_items_topic_id_node_fkey"
+            columns: ["topic_id", "topic_id_node_type"]
             isOneToOne: false
-            referencedRelation: "topics"
-            referencedColumns: ["id"]
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id", "node_type"]
           },
         ]
       }
@@ -4746,6 +4784,7 @@ export type Database = {
       }
       subtopics: {
         Row: {
+          topic_id_node_type: string | null
           created_at: string
           description: string | null
           display_order: number
@@ -4757,6 +4796,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          topic_id_node_type?: never
           created_at?: string
           description?: string | null
           display_order?: number
@@ -4780,11 +4820,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "subtopics_topic_id_fkey"
-            columns: ["topic_id"]
+            foreignKeyName: "subtopics_topic_id_node_fkey"
+            columns: ["topic_id", "topic_id_node_type"]
             isOneToOne: false
-            referencedRelation: "topics"
-            referencedColumns: ["id"]
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id", "node_type"]
           },
         ]
       }
@@ -4962,6 +5002,7 @@ export type Database = {
       }
       topics: {
         Row: {
+          subject_id_node_type: string | null
           created_at: string
           description: string | null
           display_order: number
@@ -4974,6 +5015,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          subject_id_node_type?: never
           created_at?: string
           description?: string | null
           display_order?: number
@@ -4999,11 +5041,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "topics_subject_id_fkey"
-            columns: ["subject_id"]
+            foreignKeyName: "topics_subject_id_node_fkey"
+            columns: ["subject_id", "subject_id_node_type"]
             isOneToOne: false
-            referencedRelation: "subjects"
-            referencedColumns: ["id"]
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id", "node_type"]
           },
         ]
       }
@@ -5742,6 +5784,7 @@ export type Database = {
       }
       user_mastery_history: {
         Row: {
+          canonical_topic_id_node_type: string | null
           algorithm_version: string
           canonical_topic_id: string
           confidence_factor: number
@@ -5755,6 +5798,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          canonical_topic_id_node_type?: never
           algorithm_version?: string
           canonical_topic_id: string
           confidence_factor: number
@@ -5782,16 +5826,17 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "user_mastery_history_canonical_topic_id_fkey"
-            columns: ["canonical_topic_id"]
+            foreignKeyName: "user_mastery_history_canonical_topic_id_node_fkey"
+            columns: ["canonical_topic_id", "canonical_topic_id_node_type"]
             isOneToOne: false
-            referencedRelation: "topics"
-            referencedColumns: ["id"]
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id", "node_type"]
           },
         ]
       }
       user_mistake_drills: {
         Row: {
+          topic_id_node_type: string | null
           cognitive_type_id: string | null
           coins_awarded: number
           completed_at: string | null
@@ -5808,6 +5853,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          topic_id_node_type?: never
           cognitive_type_id?: string | null
           coins_awarded?: number
           completed_at?: string | null
@@ -5848,11 +5894,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "user_mistake_drills_topic_id_fkey"
-            columns: ["topic_id"]
+            foreignKeyName: "user_mistake_drills_topic_id_node_fkey"
+            columns: ["topic_id", "topic_id_node_type"]
             isOneToOne: false
-            referencedRelation: "topics"
-            referencedColumns: ["id"]
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id", "node_type"]
           },
         ]
       }
@@ -5958,6 +6004,8 @@ export type Database = {
       }
       user_mistake_vault: {
         Row: {
+          topic_id_node_type: string | null
+          subject_id_node_type: string | null
           consecutive_correct_in_remediation: number
           created_at: string
           first_mistake_at: string
@@ -5977,6 +6025,8 @@ export type Database = {
           user_override_cognitive_type_id: string | null
         }
         Insert: {
+          topic_id_node_type?: never
+          subject_id_node_type?: never
           consecutive_correct_in_remediation?: number
           created_at?: string
           first_mistake_at?: string
@@ -6030,18 +6080,18 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "user_mistake_vault_subject_id_fkey"
-            columns: ["subject_id"]
+            foreignKeyName: "user_mistake_vault_subject_id_node_fkey"
+            columns: ["subject_id", "subject_id_node_type"]
             isOneToOne: false
-            referencedRelation: "subjects"
-            referencedColumns: ["id"]
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id", "node_type"]
           },
           {
-            foreignKeyName: "user_mistake_vault_topic_id_fkey"
-            columns: ["topic_id"]
+            foreignKeyName: "user_mistake_vault_topic_id_node_fkey"
+            columns: ["topic_id", "topic_id_node_type"]
             isOneToOne: false
-            referencedRelation: "topics"
-            referencedColumns: ["id"]
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id", "node_type"]
           },
           {
             foreignKeyName: "user_mistake_vault_user_override_cognitive_type_id_fkey"
@@ -6426,6 +6476,7 @@ export type Database = {
       }
       user_topic_mastery: {
         Row: {
+          canonical_topic_id_node_type: string | null
           algorithm_version: string
           canonical_topic_id: string
           confidence_factor: number
@@ -6444,6 +6495,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          canonical_topic_id_node_type?: never
           algorithm_version?: string
           canonical_topic_id: string
           confidence_factor?: number
@@ -6481,11 +6533,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "user_topic_mastery_canonical_topic_id_fkey"
-            columns: ["canonical_topic_id"]
+            foreignKeyName: "user_topic_mastery_canonical_topic_id_node_fkey"
+            columns: ["canonical_topic_id", "canonical_topic_id_node_type"]
             isOneToOne: false
-            referencedRelation: "topics"
-            referencedColumns: ["id"]
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id", "node_type"]
           },
         ]
       }

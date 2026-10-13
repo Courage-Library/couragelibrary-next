@@ -61,7 +61,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 const DOC_SELECT = `
   id, canonical_slug, document_type, access_level, status, current_published_version_id,
-  learning_units!inner(id, topic_id, title, estimated_minutes, is_active, topics(id, name, slug, subject_id, subjects(name))),
+  learning_units!inner(id, topic_id, title, estimated_minutes, is_active, topics:canonical_taxonomy_nodes!learning_units_topic_id_node_fkey(id, name, slug, subject_id:root_subject_id, subjects:root_subject_id(name))),
   current_version:document_versions!fk_learning_doc_current_published_version(id, is_published, review_status, published_at, compiled_artifact_storage_key)
 `;
 

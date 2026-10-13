@@ -262,7 +262,7 @@ export class AdminContentStudioService {
       { data: bindings },
       { data: examMappings },
     ] = await Promise.all([
-      supabase.from('learning_units').select('*, topics(id, name, subjects(id, name))').eq('id', unitId).single(),
+      supabase.from('learning_units').select('*, topics:canonical_taxonomy_nodes!learning_units_topic_id_node_fkey(id, name, subjects:root_subject_id(id, name))').eq('id', unitId).single(),
       supabase.from('learning_documents').select('*, document_versions(*)').eq('learning_unit_id', unitId),
       supabase.from('learning_unit_asset_bindings').select('*, learning_assets(*)').eq('learning_unit_id', unitId),
       supabase.from('exam_unit_mappings').select('*, exam_topic_mappings(*, exam_syllabi(*, exams(*)))').eq('learning_unit_id', unitId),

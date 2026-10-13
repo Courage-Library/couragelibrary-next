@@ -638,7 +638,7 @@ export class MistakeLongitudinalIntelligenceService {
     // 1. Fetch user mistake vault records (Query 1)
     const { data: vaultData } = await supabase
       .from("user_mistake_vault")
-      .select("id, question_id, topic_id, subject_id, total_mistakes_count, consecutive_correct_in_remediation, lifecycle_status, primary_cognitive_type_id, first_mistake_at, last_mistake_at, mastered_at, topics(id, name, subject_id, subjects(id, name))")
+      .select("id, question_id, topic_id, subject_id, total_mistakes_count, consecutive_correct_in_remediation, lifecycle_status, primary_cognitive_type_id, first_mistake_at, last_mistake_at, mastered_at, topics:canonical_taxonomy_nodes!user_mistake_vault_topic_id_node_fkey(id, name, subject_id:root_subject_id, subjects:root_subject_id(id, name))")
       .eq("user_id", userId);
 
     const vaultRecords = (vaultData || []) as any[];

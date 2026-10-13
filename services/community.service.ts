@@ -52,7 +52,7 @@ export class CommunityService {
 
     let query = supabase
       .from("discussion_threads")
-      .select("id, context_type, title, status, is_pinned, accepted_answer_id, has_faculty_answer, message_count, upvote_count, view_count, last_activity_at, created_at, author_id, topic_id, topics(name)")
+      .select("id, context_type, title, status, is_pinned, accepted_answer_id, has_faculty_answer, message_count, upvote_count, view_count, last_activity_at, created_at, author_id, topic_id, topics:canonical_taxonomy_nodes!discussion_threads_topic_id_node_fkey(name)")
       .order("is_pinned", { ascending: false })
       .order("last_activity_at", { ascending: false });
 
@@ -97,7 +97,7 @@ export class CommunityService {
 
     const { data: tData } = await supabase
       .from("discussion_threads")
-      .select("*, topics(name), discussion_messages(*)")
+      .select("*, topics:canonical_taxonomy_nodes!discussion_threads_topic_id_node_fkey(name), discussion_messages(*)")
       .eq("id", threadId)
       .maybeSingle();
 

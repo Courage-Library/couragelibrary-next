@@ -1473,7 +1473,7 @@ export class AssessmentService {
 
       const { data: rawQuestions } = await adminSb
         .from("questions")
-        .select("id, canonical_topic_id, topics(subject_id), question_versions!inner(id, version_number, question_text, is_current, lifecycle_status)")
+        .select("id, canonical_topic_id, topics:canonical_taxonomy_nodes!questions_canonical_topic_id_node_fkey(subject_id:root_subject_id), question_versions!inner(id, version_number, question_text, is_current, lifecycle_status)")
         // QF-1: only the current PUBLISHED version of a published question may enter a test.
         .eq("status", "published")
         .eq("question_versions.is_current", true)
@@ -2274,7 +2274,7 @@ export class AssessmentService {
     // Fetch section results, questions with answers & topics, user answers, and standing across same mock test
     const [sectionsRes, questionsRes, answersRes, allTestResultsRes] = await Promise.all([
       adminSb.from("section_results").select("*, mock_sections(id, section_name)").eq("test_result_id", r.id),
-      adminSb.from("mock_questions").select("id, question_order, mock_section_id, marks, negative_mark, mock_sections(id, section_name), question_versions(id, question_text, question_image_url, options_type, question_options(id, option_key, option_text, option_image_url, order_index), question_answers(correct_option_key, explanation_md), questions(canonical_topic_id, topics(name, slug)))").eq("mock_test_id", mt.id).order("question_order"),
+      adminSb.from("mock_questions").select("id, question_order, mock_section_id, marks, negative_mark, mock_sections(id, section_name), question_versions(id, question_text, question_image_url, options_type, question_options(id, option_key, option_text, option_image_url, order_index), question_answers(correct_option_key, explanation_md), questions(canonical_topic_id, topics:canonical_taxonomy_nodes!questions_canonical_topic_id_node_fkey(name, slug)))").eq("mock_test_id", mt.id).order("question_order"),
       adminSb.from("attempt_answers").select("mock_question_id, selected_option_key, is_correct, evaluated_marks, time_spent_seconds").eq("attempt_id", resolvedAttemptId),
       adminSb.from("test_results").select("id, user_id, total_score, max_score, accuracy_percentage, time_spent_seconds, created_at").eq("mock_test_id", mt.id).order("total_score", { ascending: false }).order("accuracy_percentage", { ascending: false }).order("time_spent_seconds", { ascending: true }),
     ]);

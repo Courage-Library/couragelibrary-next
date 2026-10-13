@@ -536,13 +536,7 @@ export class CandidateIntelligenceService {
         attempts_count,
         correct_count,
         last_attempted_at,
-        topic:topics(
-          id,
-          name,
-          subject:subjects(
-            name
-          )
-        )
+        topic:canonical_taxonomy_nodes!user_topic_mastery_canonical_topic_id_node_fkey(id, name, subject:root_subject_id(name))
       `)
       .eq("user_id", userId);
 

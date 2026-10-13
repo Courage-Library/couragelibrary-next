@@ -91,7 +91,7 @@ export class QuestionTaxonomyResolver {
   async getTopicById(topicId: string): Promise<ResolvedTopic | null> {
     const { data, error } = await this.supabase
       .from('topics')
-      .select('id, name, slug, description, is_active, subject_id, subjects(id, name, is_active)')
+      .select('id, name, slug, description, is_active, subject_id, subjects:canonical_taxonomy_nodes!topics_subject_id_node_fkey(id, name, is_active)')
       .eq('id', topicId)
       .maybeSingle();
     if (error) throw lookupError('Topic', error);
