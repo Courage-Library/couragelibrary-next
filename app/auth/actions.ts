@@ -4,6 +4,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { UserProfileService } from "@/services/user-profile.service";
 import { getAppEnv } from "@/config/env";
 import { redirect } from "next/navigation";
+import { sanitizeRedirectPath } from "@/lib/auth/safe-redirect";
 
 export interface AuthState {
   error?: string;
@@ -32,7 +33,10 @@ export async function loginAction(prevState: AuthState | null, formData: FormDat
     await UserProfileService.ensureProfile(data.user);
   }
 
-  redirect("/dashboard");
+  // SEC-1D: honour `next` (sanitized server-side; hostile values fall back to "/"). Admin targets still
+  // pass through requireAdminPage, so this grants nothing.
+  const next = formData.get("next");
+  redirect(typeof next === "string" && next !== "" ? sanitizeRedirectPath(next) : "/dashboard");
 }
 
 export async function signupAction(prevState: AuthState | null, formData: FormData): Promise<AuthState> {

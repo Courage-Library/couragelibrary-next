@@ -15,6 +15,8 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const queryMessage = searchParams.get("message");
   const queryError = searchParams.get("error");
+  // SEC-1D: carried as-is to loginAction, which sanitizes it server-side (hostile → "/").
+  const next = (searchParams.get("next") ?? "").slice(0, 1024);
 
   return (
     <Card className="w-full max-w-md border-slate-200/80 shadow-lg">
@@ -41,6 +43,7 @@ function LoginForm() {
           </Alert>
         )}
         <form action={formAction} className="space-y-4">
+          {next && <input type="hidden" name="next" value={next} />}
           <Input
             label="Email Address"
             name="email"

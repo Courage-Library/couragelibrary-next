@@ -13,7 +13,7 @@ export async function updateRewardPolicyAction(
     consistencyBonusCoins?: number;
   }
 ) {
-  const __auth = await guardAdminAction({ allowStaff: true });
+  const __auth = await guardAdminAction(); /* SEC-1D: admin only */
   if (!__auth.ok) return __auth;
 
   const result = await GamificationService.updateRewardPolicy(policyCode, updates);

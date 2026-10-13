@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function AdminBillingPage() {
-  await requireAdminPage({ allowStaff: true, path: "/admin/billing" });
+  await requireAdminPage({ path: "/admin/billing" }); // SEC-1D: admin only
   const billing = await AdminService.getAdminBilling();
 
   return <AdminBillingManager orders={billing.orders} plans={billing.plans} />;

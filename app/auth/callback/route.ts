@@ -1,11 +1,14 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { UserProfileService } from "@/services/user-profile.service";
+import { safeRedirectUrl } from "@/lib/auth/safe-redirect";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/dashboard";
+  // SEC-1D: `next` is sanitized and resolved with the URL parser on this origin (no concatenation).
+  const rawNext = searchParams.get("next");
+  const target = rawNext === null ? new URL("/dashboard", origin) : safeRedirectUrl(rawNext, origin);
 
   if (code) {
     const supabase = await createServerSupabaseClient();
@@ -19,9 +22,9 @@ export async function GET(request: NextRequest) {
           await UserProfileService.ensureProfile(userData.user);
         }
       }
-      return NextResponse.redirect(`${origin}${next}`);
+      return NextResponse.redirect(target);
     }
   }
 
-  return NextResponse.redirect(`${origin}/auth/login?error=Invalid+or+expired+code`);
+  return NextResponse.redirect(new URL("/auth/login?error=Invalid+or+expired+code", origin));
 }

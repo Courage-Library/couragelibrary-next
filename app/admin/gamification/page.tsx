@@ -6,7 +6,7 @@ import { requireAdminPage } from "@/lib/auth/require-admin";
 export const dynamic = "force-dynamic";
 
 export default async function AdminGamificationPage() {
-  await requireAdminPage({ allowStaff: true, path: "/admin/gamification" });
+  await requireAdminPage({ path: "/admin/gamification" }); // SEC-1D: admin only
   const stats = await GamificationService.getGamificationAdminStats();
   return <GamificationManagementView stats={stats} />;
 }

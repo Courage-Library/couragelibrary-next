@@ -18,7 +18,7 @@ export const metadata = {
 };
 
 export default async function AdminLiveTestResultsPage({ params }: Props) {
-  await requireAdminPage({ allowStaff: true, path: "/admin/live-tests" });
+  await requireAdminPage({ path: "/admin/live-tests" }); // SEC-1D: admin only
   if (!isFeatureEnabled("LIVE_TESTS")) return <FeatureDisabledPanel feature="LIVE_TESTS" />;
   const { id } = await params;
   const adminSb = createAdminServerSupabaseClient();

@@ -1288,7 +1288,7 @@ export async function createInstituteAction(prevState: AdminActionResult | null,
 }
 
 export async function createSubscriptionPlanAction(prevState: AdminActionResult | null, formData: FormData): Promise<AdminActionResult> {
-  const authCheck = await guardAdminAction({ allowStaff: true });
+  const authCheck = await guardAdminAction(); /* SEC-1D: admin only */
   if (!authCheck.ok) return authCheck;
 
   const name = formData.get("name") as string;
