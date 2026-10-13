@@ -204,3 +204,17 @@ Production checks after deploy:
 - `/articles` → 200;
 - `/admin/taxonomy` as qa-admin → 200;
 - anonymous `/admin` → 307.
+
+## 10. Production verification (commit `b1cdcf6`, couragelibrary-next.vercel.app)
+
+qa-student data was created by a local E2E run against the shared DB and removed afterwards; the final snapshot equals the closing baseline (§7), NO DIFF.
+
+| Check | Result |
+|---|---|
+| Mock result page `/mock-tests/<attempt>/result` (qa-student) | 200; score, accuracy and standing rendered (re-pointed `questions → topics` embed) |
+| Mistake Vault `/mistakes` (qa-student) | 200 with vault entries |
+| `/admin/taxonomy` (qa-admin) | 200 |
+| `GET /`, `/api/health`, `/articles` | 200, 200, 200 |
+| Anonymous `/admin` | 307 → login |
+
+**7/7.** GAP2-3 STATUS: CLOSED.
