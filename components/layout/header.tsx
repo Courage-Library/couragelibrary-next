@@ -47,12 +47,12 @@ export async function Header() {
 
         {/* Center: Primary Navigation (Centered) */}
         <div className="hidden lg:flex items-center justify-center flex-1">
-          <MainNav isAuthenticated={!!user} battlesEnabled={isFeatureEnabled("BATTLES")} />
+          <MainNav isAuthenticated={!!user} battlesEnabled={isFeatureEnabled("BATTLES")} coursesEnabled={isFeatureEnabled("COURSES")} />
         </div>
 
         {/* Right: Right Navigation Controls & Mobile Menu */}
         <div className="flex items-center gap-3 shrink-0">
-          <HeaderControls user={userData} coins={coins} streak={streak} battlesEnabled={isFeatureEnabled("BATTLES")} />
+          <HeaderControls user={userData} coins={coins} streak={streak} battlesEnabled={isFeatureEnabled("BATTLES")} coursesEnabled={isFeatureEnabled("COURSES")} />
         </div>
       </Container>
     </header>

@@ -1,3 +1,4 @@
+import { requireFeatureOrNotFound } from "@/lib/features/gates";
 import React from "react";
 import Link from "next/link";
 import { ContentService } from "@/services/content.service";
@@ -7,9 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { GraduationCap, Layers, ArrowRight } from "lucide-react";
 
-export const revalidate = 30;
+export const dynamic = "force-dynamic";
 
 export default async function CoursesCatalogPage() {
+  requireFeatureOrNotFound("COURSES"); // GAP2-2b: dormant behind FEATURE_COURSES (gate first, zero DB calls)
   const courses = await ContentService.getCourses();
 
   return (

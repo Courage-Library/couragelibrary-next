@@ -19,6 +19,7 @@ import { ContentSpecValidator } from '@/services/content-spec-validator';
 import { MdxSecurityScanner } from '@/services/mdx-security-scanner';
 import { AcademicValidator } from '@/services/ai/academic-validator.service';
 import { LearningDocumentService } from '@/services/learning-document.service';
+import { createReferenceCatalogs } from '@/services/learning/reference-catalog';
 import { getLearningArtifactStorage } from '@/services/storage/learning-artifact-storage';
 import { createAdminServerSupabaseClient } from '@/lib/supabase/server';
 import {
@@ -410,6 +411,7 @@ export class StructuredContentImporter {
       storageProvider,
       storageBucket,
       authorType: 'AI_ASSISTED',
+      referenceCatalogs: createReferenceCatalogs(supabase, storageProvider),
     });
 
     // 5. Insert Document Version with review_status = 'AI_GENERATED'

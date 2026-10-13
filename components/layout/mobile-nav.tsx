@@ -38,9 +38,11 @@ interface MobileNavProps {
   } | null;
   /** DRIFT-1c: server-evaluated FEATURE_BATTLES flag. */
   battlesEnabled?: boolean;
+  /** GAP2-2b: server-evaluated FEATURE_COURSES flag. */
+  coursesEnabled?: boolean;
 }
 
-export function MobileNav({ user, battlesEnabled = false }: MobileNavProps) {
+export function MobileNav({ user, battlesEnabled = false, coursesEnabled = false }: MobileNavProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
@@ -182,9 +184,11 @@ export function MobileNav({ user, battlesEnabled = false }: MobileNavProps) {
                     <Link href="/articles" className="flex items-center gap-2 py-1">
                       <BookOpen className="w-3.5 h-3.5 text-teal-500" /> Knowledge Articles
                     </Link>
-                    <Link href="/courses" className="flex items-center gap-2 py-1">
-                      <GraduationCap className="w-3.5 h-3.5 text-indigo-500" /> Structured Courses
-                    </Link>
+                    {coursesEnabled && (
+                      <Link href="/courses" className="flex items-center gap-2 py-1">
+                        <GraduationCap className="w-3.5 h-3.5 text-indigo-500" /> Structured Courses
+                      </Link>
+                    )}
                     <Link href="/descriptive" className="flex items-center gap-2 py-1">
                       <PenTool className="w-3.5 h-3.5 text-amber-500" /> Descriptive Mains Studio
                     </Link>

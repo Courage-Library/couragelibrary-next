@@ -25,9 +25,11 @@ interface MainNavProps {
   isAuthenticated?: boolean;
   /** DRIFT-1c: server-evaluated FEATURE_BATTLES flag. */
   battlesEnabled?: boolean;
+  /** GAP2-2b: server-evaluated FEATURE_COURSES flag. */
+  coursesEnabled?: boolean;
 }
 
-export function MainNav({ battlesEnabled = false }: MainNavProps = {}) {
+export function MainNav({ battlesEnabled = false, coursesEnabled = false }: MainNavProps = {}) {
   const [openCategory, setOpenCategory] = useState<string | null>(null);
   const navRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
@@ -259,13 +261,15 @@ export function MainNav({ battlesEnabled = false }: MainNavProps = {}) {
                 <div className="text-[10px] text-slate-500 font-normal">Editorial study notes</div>
               </div>
             </Link>
-            <Link href="/courses" className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-slate-100 text-slate-800 transition-colors">
-              <GraduationCap className="w-4 h-4 text-indigo-500 shrink-0" />
-              <div>
-                <div className="text-xs font-bold">Structured Courses</div>
-                <div className="text-[10px] text-slate-500 font-normal">Self-paced video modules</div>
-              </div>
-            </Link>
+            {coursesEnabled && (
+              <Link href="/courses" className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-slate-100 text-slate-800 transition-colors">
+                <GraduationCap className="w-4 h-4 text-indigo-500 shrink-0" />
+                <div>
+                  <div className="text-xs font-bold">Structured Courses</div>
+                  <div className="text-[10px] text-slate-500 font-normal">Self-paced video modules</div>
+                </div>
+              </Link>
+            )}
             <Link href="/descriptive" className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-slate-100 text-slate-800 transition-colors">
               <PenTool className="w-4 h-4 text-amber-500 shrink-0" />
               <div>

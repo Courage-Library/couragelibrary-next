@@ -361,7 +361,7 @@ function loadEntries() {
 }
 
 const matrix = { counts: {}, rows: [] };
-const FLAGS = ['FEATURE_ADAPTIVE', 'FEATURE_LIVE_TESTS', 'FEATURE_PSYCHOMETRICS', 'FEATURE_BATTLES'];
+const FLAGS = ['FEATURE_ADAPTIVE', 'FEATURE_LIVE_TESTS', 'FEATURE_PSYCHOMETRICS', 'FEATURE_BATTLES', 'FEATURE_COURSES']; // GAP2-2b: + COURSES
 const setFlags = (on) => FLAGS.forEach((k) => (on ? (process.env[k] = 'true') : delete process.env[k]));
 
 // Quarantined (feature-gated) actions keep the DRIFT-1c order: gate first, canonical guard right after.

@@ -2,6 +2,7 @@ import React from "react";
 import { notFound } from "next/navigation";
 import { CommunityService } from "@/services/community.service";
 import { DiscussionThreadClient } from "./thread-client";
+import { isFeatureEnabled } from "@/config/features";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -15,5 +16,5 @@ export default async function ThreadDetailPage({ params }: Props) {
     notFound();
   }
 
-  return <DiscussionThreadClient detail={detail} />;
+  return <DiscussionThreadClient detail={detail} coursesEnabled={isFeatureEnabled("COURSES")} />;
 }

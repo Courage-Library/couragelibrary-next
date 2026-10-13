@@ -20,10 +20,12 @@ import {
 } from "lucide-react";
 
 interface DiscussionThreadClientProps {
+  /** GAP2-2b: server-evaluated FEATURE_COURSES flag. */
+  coursesEnabled?: boolean;
   detail: ThreadDetail;
 }
 
-export function DiscussionThreadClient({ detail }: DiscussionThreadClientProps) {
+export function DiscussionThreadClient({ detail, coursesEnabled = false }: DiscussionThreadClientProps) {
   const router = useRouter();
   const { thread, messages, topicId, isAuthor } = detail;
 
@@ -188,11 +190,13 @@ export function DiscussionThreadClient({ detail }: DiscussionThreadClientProps) 
                     Read Topic Articles
                   </Button>
                 </Link>
-                <Link href="/courses">
-                  <Button size="sm" variant="outline" className="text-xs font-semibold">
-                    Study Courses
-                  </Button>
-                </Link>
+                {coursesEnabled && (
+                  <Link href="/courses">
+                    <Button size="sm" variant="outline" className="text-xs font-semibold">
+                      Study Courses
+                    </Button>
+                  </Link>
+                )}
               </div>
             </div>
           )}

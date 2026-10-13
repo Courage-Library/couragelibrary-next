@@ -1,105 +1,80 @@
 /**
  * COURAGE LIBRARY — ASSET REFERENCE RESOLVER
  * Phase 3C: Controlled Content Compilation & Rendering Pipeline
- * 
- * Resolves authorized learning media assets from Phase 3B learning_assets catalog.
- * 
+ * GAP2-2b (Q5): validates against the real asset catalog and fails closed.
+ *
+ * Resolves authorized learning media assets from the learning_assets catalog.
+ *
  * INVARIANTS:
- * 1. Assets must exist in learning_assets and have status = 'ACTIVE'.
+ * 1. The asset must exist in learning_assets with status = 'PUBLISHED', live in the private
+ *    learning-artifacts bucket, and its storage object must actually exist.
  * 2. Arbitrary external image URLs are rejected in DiagramBlock.
- * 3. Access class compatibility is verified.
+ * 3. No catalog client, an unknown id, a non-published asset, a missing object or a failed lookup
+ *    is a compile ERROR naming the reference. There is no placeholder result.
  */
 
 import { ResolvedAssetReference, CompilationError } from '@/types/learning-compiler';
 
 export interface AssetCatalogClient {
-  fetchAsset(assetId: string): Promise<any | null>;
+  /** Returns null when the asset does not exist; `status` is 'PUBLISHED' only when servable. */
+  fetchAsset(assetId: string): Promise<{
+    id: string;
+    status: string;
+    storage_key: string;
+    mime_type: string;
+    alt_text: string | null;
+    caption: string | null;
+    original_filename: string | null;
+    width: number | null;
+    height: number | null;
+    aspect_ratio: number | null;
+  } | null>;
 }
+
+const fail = (code: CompilationError['code'], path: string, message: string) => ({
+  resolved: null,
+  error: { code, severity: 'ERROR' as const, path, message },
+});
 
 export class AssetReferenceService {
   /**
-   * Resolves asset metadata and generates authorized storage URI reference.
+   * Resolves asset metadata and the storage reference of a published, existing asset.
    */
   static async resolve(
     assetId: string,
     client?: AssetCatalogClient
   ): Promise<{ resolved: ResolvedAssetReference | null; error: CompilationError | null }> {
     if (!assetId || typeof assetId !== 'string') {
-      return {
-        resolved: null,
-        error: {
-          code: 'INVALID_ASSET_REFERENCE',
-          severity: 'ERROR',
-          path: 'assetId',
-          message: 'assetId must be a non-empty string.',
-        },
-      };
+      return fail('INVALID_ASSET_REFERENCE', 'assetId', 'assetId must be a non-empty string.');
+    }
+    if (!client) {
+      return fail('REFERENCE_CATALOG_UNAVAILABLE', assetId, `Asset reference "${assetId}" could not be verified: the asset catalog is unavailable.`);
     }
 
-    if (client) {
-      try {
-        const raw = await client.fetchAsset(assetId);
-        if (!raw) {
-          return {
-            resolved: null,
-            error: {
-              code: 'ASSET_NOT_FOUND',
-              severity: 'ERROR',
-              path: assetId,
-              message: `Asset "${assetId}" was not found in learning_assets.`,
-            },
-          };
-        }
-
-        if (raw.status !== 'ACTIVE') {
-          return {
-            resolved: null,
-            error: {
-              code: 'ASSET_INACTIVE',
-              severity: 'ERROR',
-              path: assetId,
-              message: `Asset "${assetId}" is in "${raw.status}" state and cannot be referenced.`,
-            },
-          };
-        }
-
-        const resolved: ResolvedAssetReference = {
-          assetId: raw.id || assetId,
-          slug: raw.slug || 'asset-slug',
-          title: raw.title || 'Learning Asset',
-          altText: raw.alt_text || raw.altText || 'Educational Diagram',
-          mimeType: raw.mime_type || raw.mimeType || 'image/png',
-          storageUri: raw.storage_key || `learning/assets/${assetId}.png`,
-          width: raw.width,
-          height: raw.height,
-          aspectRatio: raw.aspect_ratio,
-        };
-
-        return { resolved, error: null };
-      } catch (err: any) {
-        return {
-          resolved: null,
-          error: {
-            code: 'INVALID_ASSET_REFERENCE',
-            severity: 'ERROR',
-            path: assetId,
-            message: `Failed to query asset catalog: ${err.message}`,
-          },
-        };
-      }
+    let raw: Awaited<ReturnType<AssetCatalogClient['fetchAsset']>>;
+    try {
+      raw = await client.fetchAsset(assetId);
+    } catch {
+      return fail('INVALID_ASSET_REFERENCE', assetId, `Asset reference "${assetId}" could not be verified (asset catalog lookup failed).`);
+    }
+    if (!raw) {
+      return fail('ASSET_NOT_FOUND', assetId, `Asset "${assetId}" was not found in learning_assets.`);
+    }
+    if (raw.status !== 'PUBLISHED') {
+      return fail('ASSET_INACTIVE', assetId, `Asset "${assetId}" is not published (${raw.status}) and cannot be referenced.`);
     }
 
     return {
       resolved: {
-        assetId,
-        slug: 'mock-asset-slug',
-        title: 'Mock Educational Diagram',
-        altText: 'Mock Diagram Alt Text',
-        mimeType: 'image/svg+xml',
-        storageUri: `learning/assets/diagram/${assetId}.svg`,
-        width: 800,
-        height: 600,
-        aspectRatio: 1.33,
+        assetId: raw.id,
+        slug: raw.id,
+        title: raw.caption || raw.original_filename || raw.id,
+        altText: raw.alt_text || '',
+        mimeType: raw.mime_type,
+        storageUri: raw.storage_key,
+        width: raw.width ?? undefined,
+        height: raw.height ?? undefined,
+        aspectRatio: raw.aspect_ratio ?? undefined,
       },
       error: null,
     };

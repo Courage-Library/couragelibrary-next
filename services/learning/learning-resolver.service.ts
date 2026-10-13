@@ -3,8 +3,8 @@
  * Phase GAP2-2a (L2-2): the single resolution path from the taxonomy to learning content.
  *
  * INVARIANTS:
- * - Source of truth: learning_documents (+ learning_units, document_versions). The legacy
- *   learning_resources / learning_resource_topics / articles stack is never read here.
+ * - Source of truth: learning_documents (+ learning_units, document_versions). The
+ *   legacy learning stack (moved to schema retired in GAP2-2b) is never read here.
  * - Only PUBLISHED documents with a current published version (is_published AND
  *   review_status = 'PUBLISHED') of an active unit are returned.
  * - Metadata is read with the session client (anon/authenticated). Existing RLS already limits
@@ -178,6 +178,25 @@ export class LearningResolverService {
     const { data } = await (supabase as any).from('questions').select('canonical_topic_id').eq('id', questionId).maybeSingle();
     const topicId = data?.canonical_topic_id as string | undefined;
     return topicId ? this.resolveForTopic(topicId) : [];
+  }
+
+  /**
+   * GAP2-2b: documents by id (course lessons reference learning_document_id). One query; only
+   * servable documents are returned; no bodies (the /articles page loads them with access checks).
+   */
+  static async resolveDocuments(documentIds: string[]): Promise<Map<string, ResolvedLearningDocument>> {
+    const ids = Array.from(new Set((documentIds || []).filter((t) => typeof t === 'string' && UUID_RE.test(t))));
+    const result = new Map<string, ResolvedLearningDocument>();
+    if (ids.length === 0) return result;
+    const supabase = await createServerSupabaseClient();
+    const [access, { data, error }] = await Promise.all([
+      this.getViewerAccess(),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (supabase as any).from('learning_documents').select(DOC_SELECT).eq('status', 'PUBLISHED').not('current_published_version_id', 'is', null).in('id', ids),
+    ]);
+    if (error || !Array.isArray(data)) return result;
+    for (const row of data) if (isServableDocumentRow(row)) result.set(row.id, toResolved(row, access));
+    return result;
   }
 
   /** Published documents for the /articles index (optionally one topic). No bodies. */
