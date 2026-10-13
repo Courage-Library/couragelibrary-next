@@ -81,7 +81,7 @@ export class CurriculumContextBuilder {
         const topicId = params.learningUnitId.slice(5);
         const { data: topicData } = await sb
           .from('topics')
-          .select('*, subject:subjects(*)')
+          .select('*, subject:canonical_taxonomy_nodes!topics_subject_id_node_fkey(id, name, slug, icon:metadata->>icon, display_order, is_active, created_at, updated_at)')
           .eq('id', topicId)
           .maybeSingle();
         if (topicData) {
@@ -100,7 +100,7 @@ export class CurriculumContextBuilder {
       } else if (params.learningUnitId === 'e0100000-0000-4000-8000-000000000001') {
         const { data: pctTopic } = await sb
           .from('topics')
-          .select('*, subject:subjects(*)')
+          .select('*, subject:canonical_taxonomy_nodes!topics_subject_id_node_fkey(id, name, slug, icon:metadata->>icon, display_order, is_active, created_at, updated_at)')
           .ilike('name', '%Percentage%')
           .maybeSingle();
         if (pctTopic) {
@@ -136,7 +136,7 @@ export class CurriculumContextBuilder {
     if ((!topic || !subject) && sb && unit?.topic_id) {
       const { data: topicData } = await sb
         .from('topics')
-        .select('*, subject:subjects(*)')
+        .select('*, subject:canonical_taxonomy_nodes!topics_subject_id_node_fkey(id, name, slug, icon:metadata->>icon, display_order, is_active, created_at, updated_at)')
         .eq('id', unit.topic_id)
         .maybeSingle();
       if (topicData) {
@@ -228,7 +228,7 @@ export class CurriculumContextBuilder {
     if (!rawRelationships && sb && topic.id) {
       const { data: rels } = await sb
         .from('topic_relationships')
-        .select('*, to_topic:topics!topic_relationships_to_topic_id_fkey(*)')
+        .select('*, to_topic:canonical_taxonomy_nodes!topic_relationships_to_topic_id_node_fkey(id, subject_id:root_subject_id, name, slug, description:metadata->>description, importance_level:metadata->>importance_level, display_order, is_active, created_at, updated_at)')
         .eq('from_topic_id', topic.id)
         .eq('is_active', true)
         .limit(MAX_RELATIONSHIPS);

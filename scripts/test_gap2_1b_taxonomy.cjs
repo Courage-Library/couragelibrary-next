@@ -399,10 +399,14 @@ async function db() {
   await test('DB-02 projection mirrors nodes exactly (live)', assertMirror);
 
   await test('DB-03 every value in every subject/topic/subtopic FK column is a node id (live)', async () => {
+    // GAP2-3: after 075 these FKs reference canonical_taxonomy_nodes (<col>, <col>_node_type) as *_node_fkey;
+    // the first key column is the taxonomy id. Before 075 they referenced the projection tables.
     const fks = await q(`SELECT cl.relname tbl, a.attname col FROM pg_constraint con
       JOIN pg_class cl ON cl.oid=con.conrelid JOIN pg_class tcl ON tcl.oid=con.confrelid
-      JOIN LATERAL unnest(con.conkey) k(n) ON true JOIN pg_attribute a ON a.attrelid=cl.oid AND a.attnum=k.n
-      WHERE con.contype='f' AND tcl.relname IN ('subjects','topics','subtopics') AND tcl.relnamespace='public'::regnamespace AND cl.relname<>'canonical_taxonomy_nodes'`);
+      JOIN pg_attribute a ON a.attrelid=cl.oid AND a.attnum=con.conkey[1]
+      WHERE con.contype='f' AND cl.relnamespace='public'::regnamespace AND cl.relname<>'canonical_taxonomy_nodes'
+        AND ((tcl.relname IN ('subjects','topics','subtopics') AND tcl.relnamespace='public'::regnamespace)
+             OR (tcl.relname = 'canonical_taxonomy_nodes' AND con.conname LIKE '%\\_node\\_fkey'))`);
     let bad = 0;
     for (const f of fks) {
       bad += (await one(`SELECT count(*)::int n FROM public."${f.tbl}" x WHERE x."${f.col}" IS NOT NULL AND NOT EXISTS (SELECT 1 FROM public.canonical_taxonomy_nodes n WHERE n.id = x."${f.col}")`)).n;

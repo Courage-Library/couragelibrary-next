@@ -627,7 +627,7 @@ export class PremiumQuestionGeneratorService {
     // Authoritative exam eligibility: questions MUST be mapped to target exam via exam_question_mappings
     let qQuery = adminSb
       .from("exam_question_mappings")
-      .select("question_id, questions!inner(id, canonical_topic_id, status, topics(id, subject_id))")
+      .select("question_id, questions!inner(id, canonical_topic_id, status, topics:canonical_taxonomy_nodes!questions_canonical_topic_id_node_fkey(id, subject_id:root_subject_id))")
       .eq("exam_id", options.examId)
       .eq("questions.status", "published");
 
@@ -676,7 +676,7 @@ export class PremiumQuestionGeneratorService {
         difficulty,
         language,
         is_current,
-        questions!inner(id, canonical_topic_id, topics(subject_id)),
+        questions!inner(id, canonical_topic_id, topics:canonical_taxonomy_nodes!questions_canonical_topic_id_node_fkey(subject_id:root_subject_id)),
         question_options(id, option_key, option_text, order_index),
         question_answers(correct_option_key, explanation_md)
       `)
@@ -780,7 +780,7 @@ export class PremiumQuestionGeneratorService {
 
     let query = adminSb
       .from("user_topic_mastery")
-      .select("canonical_topic_id, mastery_score, topics!inner(id, subject_id)")
+      .select("canonical_topic_id, mastery_score, topics:canonical_taxonomy_nodes!user_topic_mastery_canonical_topic_id_node_fkey!inner(id, subject_id:root_subject_id)")
       .eq("user_id", userId)
       .lt("mastery_score", 60)
       .order("mastery_score", { ascending: true })

@@ -1222,9 +1222,7 @@ export class AdminAdaptiveService {
           questions(
             question_text,
             canonical_topic_id,
-            topics(
-              name
-            )
+            topics:canonical_taxonomy_nodes!questions_canonical_topic_id_node_fkey(name)
           )
         `)
         .eq("is_current", true)

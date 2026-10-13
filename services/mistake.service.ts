@@ -811,7 +811,7 @@ export class MistakeService {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: questionRows } = await (adminSb as any)
         .from("questions")
-        .select("id, canonical_topic_id, topics(subject_id)")
+        .select("id, canonical_topic_id, topics:canonical_taxonomy_nodes!questions_canonical_topic_id_node_fkey(subject_id:root_subject_id)")
         .in("id", questionIds);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (questionRows || []).forEach((q: any) => {
@@ -910,7 +910,7 @@ export class MistakeService {
 
     const { data: records, error } = await supabase
       .from("user_mistake_vault")
-      .select("id, question_id, topic_id, total_mistakes_count, consecutive_correct_in_remediation, lifecycle_status, primary_cognitive_type_id, user_override_cognitive_type_id, topics(name), mistake_cognitive_types!primary_cognitive_type_id(id, name, description)")
+      .select("id, question_id, topic_id, total_mistakes_count, consecutive_correct_in_remediation, lifecycle_status, primary_cognitive_type_id, user_override_cognitive_type_id, topics:canonical_taxonomy_nodes!user_mistake_vault_topic_id_node_fkey(name), mistake_cognitive_types!primary_cognitive_type_id(id, name, description)")
       .eq("user_id", currentUserId);
 
     if (error || !records) {
@@ -1018,7 +1018,7 @@ export class MistakeService {
 
     let query = supabase
       .from("user_mistake_vault")
-      .select("id, question_id, total_mistakes_count, consecutive_correct_in_remediation, lifecycle_status, primary_cognitive_type_id, user_override_cognitive_type_id, user_custom_notes, last_mistake_at, mastered_at, topic_id, subject_id, topics(id, name), subjects(id, name), mistake_cognitive_types!primary_cognitive_type_id(name), questions(question_versions(question_text))", { count: "exact" })
+      .select("id, question_id, total_mistakes_count, consecutive_correct_in_remediation, lifecycle_status, primary_cognitive_type_id, user_override_cognitive_type_id, user_custom_notes, last_mistake_at, mastered_at, topic_id, subject_id, topics:canonical_taxonomy_nodes!user_mistake_vault_topic_id_node_fkey(id, name), subjects:canonical_taxonomy_nodes!user_mistake_vault_subject_id_node_fkey(id, name), mistake_cognitive_types!primary_cognitive_type_id(name), questions(question_versions(question_text))", { count: "exact" })
       .eq("user_id", user.id);
 
     if (bookmarkedQuestionIds !== null) {
@@ -1186,7 +1186,7 @@ export class MistakeService {
 
     const { data: vaultRow } = await supabase
       .from("user_mistake_vault")
-      .select("*, topics(name, slug), subjects(name), mistake_cognitive_types!primary_cognitive_type_id(name, description, remediation_guidance)")
+      .select("*, topics:canonical_taxonomy_nodes!user_mistake_vault_topic_id_node_fkey(name, slug), subjects:canonical_taxonomy_nodes!user_mistake_vault_subject_id_node_fkey(name), mistake_cognitive_types!primary_cognitive_type_id(name, description, remediation_guidance)")
       .eq("id", vaultId)
       .eq("user_id", user.id)
       .maybeSingle();
@@ -1964,8 +1964,7 @@ export class MistakeService {
           user_custom_notes,
           last_mistake_at,
           mastered_at,
-          topics(id, name, slug),
-          subjects(id, name),
+          topics:canonical_taxonomy_nodes!user_mistake_vault_topic_id_node_fkey(id, name, slug), subjects:canonical_taxonomy_nodes!user_mistake_vault_subject_id_node_fkey(id, name),
           mistake_cognitive_types!primary_cognitive_type_id(name),
           questions(question_versions(question_text))
         `)

@@ -84,7 +84,7 @@ export class FlashcardService {
     const { data: { user } } = await supabase.auth.getUser();
 
     const [decksRes, progressRes, dueReviewsRes] = await Promise.all([
-      supabase.from("flashcard_decks").select("id, slug, title_en, description, access_tier, card_count, is_curated, topics(name), subjects(name), exams(title)").eq("is_published", true).order("created_at", { ascending: false }),
+      supabase.from("flashcard_decks").select("id, slug, title_en, description, access_tier, card_count, is_curated, topics:canonical_taxonomy_nodes!flashcard_decks_topic_id_node_fkey(name), subjects:canonical_taxonomy_nodes!flashcard_decks_subject_id_node_fkey(name), exams(title)").eq("is_published", true).order("created_at", { ascending: false }),
       user ? supabase.from("user_deck_progress").select("deck_id, total_cards_mastered, total_cards_learning, mastery_percentage").eq("user_id", user.id) : Promise.resolve({ data: [] }),
       user ? supabase.from("user_flashcard_reviews").select("deck_id").eq("user_id", user.id).lte("next_review_due_at", new Date().toISOString()) : Promise.resolve({ data: [] }),
     ]);
@@ -129,7 +129,7 @@ export class FlashcardService {
     const { data: { user } } = await supabase.auth.getUser();
 
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrSlug);
-    let query = supabase.from("flashcard_decks").select("id, slug, title_en, description, access_tier, card_count, is_curated, topics(name, slug), subjects(name), exams(title)").eq("is_published", true);
+    let query = supabase.from("flashcard_decks").select("id, slug, title_en, description, access_tier, card_count, is_curated, topics:canonical_taxonomy_nodes!flashcard_decks_topic_id_node_fkey(name, slug), subjects:canonical_taxonomy_nodes!flashcard_decks_subject_id_node_fkey(name), exams(title)").eq("is_published", true);
 
     if (isUuid) {
       query = query.eq("id", idOrSlug);

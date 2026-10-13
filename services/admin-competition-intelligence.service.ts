@@ -893,7 +893,7 @@ export class AdminCompetitionIntelligenceService {
     // Check Question Topic Mappings
     const { data: questions } = await (supabase as any)
       .from("mock_questions")
-      .select("id, question_id, questions(topic_id, topics(id, name, subject_id, subjects(id, name)))")
+      .select("id, question_id, questions(topic_id, topics:canonical_taxonomy_nodes!questions_canonical_topic_id_node_fkey(id, name, subject_id:root_subject_id, subjects:root_subject_id(id, name)))")
       .eq("mock_test_id", mockTestId);
 
     const qList = questions || [];

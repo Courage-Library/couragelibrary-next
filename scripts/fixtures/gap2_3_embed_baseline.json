@@ -1,0 +1,1410 @@
+{
+ "capturedAt": "2026-10-13T14:33:10.152Z",
+ "entries": {
+  "AT-142:admin": {
+   "status": 200,
+   "rows": 0,
+   "shape": [],
+   "hash": "4f53cda18c2baa0c"
+  },
+  "AT-142:service": {
+   "status": 200,
+   "rows": 0,
+   "shape": [],
+   "hash": "4f53cda18c2baa0c"
+  },
+  "AT-153:admin": {
+   "status": 200,
+   "rows": 0,
+   "shape": [],
+   "hash": "4f53cda18c2baa0c"
+  },
+  "AT-153:service": {
+   "status": 200,
+   "rows": 0,
+   "shape": [],
+   "hash": "4f53cda18c2baa0c"
+  },
+  "AT-187:admin": {
+   "status": 200,
+   "rows": 5,
+   "shape": [
+    "[].created_at",
+    "[].description",
+    "[].display_order",
+    "[].id",
+    "[].importance_level",
+    "[].is_active",
+    "[].name",
+    "[].slug",
+    "[].subject",
+    "[].subject.created_at",
+    "[].subject.display_order",
+    "[].subject.icon",
+    "[].subject.id",
+    "[].subject.is_active",
+    "[].subject.name",
+    "[].subject.slug",
+    "[].subject.updated_at",
+    "[].subject_id",
+    "[].updated_at"
+   ],
+   "hash": "f819de4e85d5af51"
+  },
+  "AT-187:service": {
+   "status": 200,
+   "rows": 5,
+   "shape": [
+    "[].created_at",
+    "[].description",
+    "[].display_order",
+    "[].id",
+    "[].importance_level",
+    "[].is_active",
+    "[].name",
+    "[].slug",
+    "[].subject",
+    "[].subject.created_at",
+    "[].subject.display_order",
+    "[].subject.icon",
+    "[].subject.id",
+    "[].subject.is_active",
+    "[].subject.name",
+    "[].subject.slug",
+    "[].subject.updated_at",
+    "[].subject_id",
+    "[].updated_at"
+   ],
+   "hash": "f819de4e85d5af51"
+  },
+  "ADP-1225:admin": {
+   "status": 400,
+   "code": "42703",
+   "message": "column questions_1.question_text does not exist"
+  },
+  "ADP-1225:service": {
+   "status": 400,
+   "code": "42703",
+   "message": "column questions_1.question_text does not exist"
+  },
+  "ACI-896:admin": {
+   "status": 400,
+   "code": "PGRST200",
+   "message": "Could not find a relationship between 'mock_questions' and 'questions' in the schema cache"
+  },
+  "ACI-896:service": {
+   "status": 400,
+   "code": "PGRST200",
+   "message": "Could not find a relationship between 'mock_questions' and 'questions' in the schema cache"
+  },
+  "ACS-265:admin": {
+   "status": 200,
+   "rows": 0,
+   "shape": [],
+   "hash": "4f53cda18c2baa0c"
+  },
+  "ACS-265:service": {
+   "status": 200,
+   "rows": 1,
+   "shape": [
+    "[].created_at",
+    "[].display_order",
+    "[].estimated_minutes",
+    "[].id",
+    "[].is_active",
+    "[].slug",
+    "[].subtopic_id",
+    "[].title",
+    "[].topic_id",
+    "[].topics",
+    "[].topics.id",
+    "[].topics.name",
+    "[].topics.subjects",
+    "[].topics.subjects.id",
+    "[].topics.subjects.name",
+    "[].unit_type",
+    "[].updated_at"
+   ],
+   "hash": "fa2ce4668d1ed578"
+  },
+  "CCB-84:admin": {
+   "status": 200,
+   "rows": 5,
+   "shape": [
+    "[].created_at",
+    "[].description",
+    "[].display_order",
+    "[].id",
+    "[].importance_level",
+    "[].is_active",
+    "[].name",
+    "[].slug",
+    "[].subject",
+    "[].subject.created_at",
+    "[].subject.display_order",
+    "[].subject.icon",
+    "[].subject.id",
+    "[].subject.is_active",
+    "[].subject.name",
+    "[].subject.slug",
+    "[].subject.updated_at",
+    "[].subject_id",
+    "[].updated_at"
+   ],
+   "hash": "f819de4e85d5af51"
+  },
+  "CCB-84:service": {
+   "status": 200,
+   "rows": 5,
+   "shape": [
+    "[].created_at",
+    "[].description",
+    "[].display_order",
+    "[].id",
+    "[].importance_level",
+    "[].is_active",
+    "[].name",
+    "[].slug",
+    "[].subject",
+    "[].subject.created_at",
+    "[].subject.display_order",
+    "[].subject.icon",
+    "[].subject.id",
+    "[].subject.is_active",
+    "[].subject.name",
+    "[].subject.slug",
+    "[].subject.updated_at",
+    "[].subject_id",
+    "[].updated_at"
+   ],
+   "hash": "f819de4e85d5af51"
+  },
+  "CCB-231:admin": {
+   "status": 200,
+   "rows": 0,
+   "shape": [],
+   "hash": "4f53cda18c2baa0c"
+  },
+  "CCB-231:service": {
+   "status": 200,
+   "rows": 0,
+   "shape": [],
+   "hash": "4f53cda18c2baa0c"
+  },
+  "ASM-1476:admin": {
+   "status": 200,
+   "rows": 5,
+   "shape": [
+    "[].canonical_topic_id",
+    "[].id",
+    "[].question_versions",
+    "[].question_versions[].id",
+    "[].question_versions[].is_current",
+    "[].question_versions[].lifecycle_status",
+    "[].question_versions[].question_text",
+    "[].question_versions[].version_number",
+    "[].topics",
+    "[].topics.subject_id"
+   ],
+   "hash": "63d4cd884b8a3103"
+  },
+  "ASM-1476:service": {
+   "status": 200,
+   "rows": 5,
+   "shape": [
+    "[].canonical_topic_id",
+    "[].id",
+    "[].question_versions",
+    "[].question_versions[].id",
+    "[].question_versions[].is_current",
+    "[].question_versions[].lifecycle_status",
+    "[].question_versions[].question_text",
+    "[].question_versions[].version_number",
+    "[].topics",
+    "[].topics.subject_id"
+   ],
+   "hash": "63d4cd884b8a3103"
+  },
+  "ASM-2277:admin": {
+   "status": 403,
+   "code": "42501",
+   "message": "permission denied for table question_answers"
+  },
+  "ASM-2277:service": {
+   "status": 200,
+   "rows": 5,
+   "shape": [
+    "[].id",
+    "[].marks",
+    "[].mock_section_id",
+    "[].mock_sections",
+    "[].mock_sections.id",
+    "[].mock_sections.section_name",
+    "[].negative_mark",
+    "[].question_order",
+    "[].question_versions",
+    "[].question_versions.id",
+    "[].question_versions.options_type",
+    "[].question_versions.question_answers",
+    "[].question_versions.question_answers.correct_option_key",
+    "[].question_versions.question_answers.explanation_md",
+    "[].question_versions.question_image_url",
+    "[].question_versions.question_options",
+    "[].question_versions.question_options[].id",
+    "[].question_versions.question_options[].option_image_url",
+    "[].question_versions.question_options[].option_key",
+    "[].question_versions.question_options[].option_text",
+    "[].question_versions.question_options[].order_index",
+    "[].question_versions.question_text",
+    "[].question_versions.questions",
+    "[].question_versions.questions.canonical_topic_id",
+    "[].question_versions.questions.topics",
+    "[].question_versions.questions.topics.name",
+    "[].question_versions.questions.topics.slug"
+   ],
+   "hash": "4e5665076047c7fc"
+  },
+  "LTR-353:admin": {
+   "status": 403,
+   "code": "42501",
+   "message": "permission denied for table question_answers"
+  },
+  "LTR-353:service": {
+   "status": 200,
+   "rows": 5,
+   "shape": [
+    "[].id",
+    "[].marks",
+    "[].mock_section_id",
+    "[].mock_sections",
+    "[].mock_sections.section_name",
+    "[].negative_mark",
+    "[].question_order",
+    "[].question_versions",
+    "[].question_versions.id",
+    "[].question_versions.options_type",
+    "[].question_versions.question_answers",
+    "[].question_versions.question_answers.correct_option_key",
+    "[].question_versions.question_answers.explanation_md",
+    "[].question_versions.question_image_url",
+    "[].question_versions.question_options",
+    "[].question_versions.question_options[].id",
+    "[].question_versions.question_options[].option_image_url",
+    "[].question_versions.question_options[].option_key",
+    "[].question_versions.question_options[].option_text",
+    "[].question_versions.question_options[].order_index",
+    "[].question_versions.question_text",
+    "[].question_versions.questions",
+    "[].question_versions.questions.canonical_topic_id",
+    "[].question_versions.questions.topics",
+    "[].question_versions.questions.topics.name",
+    "[].question_versions.questions.topics.slug"
+   ],
+   "hash": "227cf5eea548a824"
+  },
+  "BAT-177:student": {
+   "status": 403,
+   "code": "42501",
+   "message": "permission denied for table quiz_battle_rooms"
+  },
+  "BAT-177:admin": {
+   "status": 403,
+   "code": "42501",
+   "message": "permission denied for table quiz_battle_rooms"
+  },
+  "BAT-177:service": {
+   "status": 200,
+   "rows": 0,
+   "shape": [],
+   "hash": "4f53cda18c2baa0c"
+  },
+  "COM-55:student": {
+   "status": 200,
+   "rows": 0,
+   "shape": [],
+   "hash": "4f53cda18c2baa0c"
+  },
+  "COM-55:admin": {
+   "status": 200,
+   "rows": 0,
+   "shape": [],
+   "hash": "4f53cda18c2baa0c"
+  },
+  "COM-55:service": {
+   "status": 200,
+   "rows": 0,
+   "shape": [],
+   "hash": "4f53cda18c2baa0c"
+  },
+  "COM-100:student": {
+   "status": 300,
+   "code": "PGRST201",
+   "message": "Could not embed because more than one relationship was found for 'discussion_threads' and 'discussion_messages'"
+  },
+  "COM-100:admin": {
+   "status": 300,
+   "code": "PGRST201",
+   "message": "Could not embed because more than one relationship was found for 'discussion_threads' and 'discussion_messages'"
+  },
+  "COM-100:service": {
+   "status": 300,
+   "code": "PGRST201",
+   "message": "Could not embed because more than one relationship was found for 'discussion_threads' and 'discussion_messages'"
+  },
+  "CS-206:student": {
+   "status": 200,
+   "rows": 0,
+   "shape": [],
+   "hash": "4f53cda18c2baa0c"
+  },
+  "CS-206:admin": {
+   "status": 200,
+   "rows": 0,
+   "shape": [],
+   "hash": "4f53cda18c2baa0c"
+  },
+  "CS-206:service": {
+   "status": 200,
+   "rows": 0,
+   "shape": [],
+   "hash": "4f53cda18c2baa0c"
+  },
+  "LR-64:student": {
+   "status": 200,
+   "rows": 0,
+   "shape": [],
+   "hash": "4f53cda18c2baa0c"
+  },
+  "LR-64:admin": {
+   "status": 200,
+   "rows": 0,
+   "shape": [],
+   "hash": "4f53cda18c2baa0c"
+  },
+  "LR-64:service": {
+   "status": 200,
+   "rows": 2,
+   "shape": [
+    "[].access_level",
+    "[].canonical_slug",
+    "[].current_published_version_id",
+    "[].current_version",
+    "[].current_version.compiled_artifact_storage_key",
+    "[].current_version.id",
+    "[].current_version.is_published",
+    "[].current_version.published_at",
+    "[].current_version.review_status",
+    "[].document_type",
+    "[].id",
+    "[].learning_units",
+    "[].learning_units.estimated_minutes",
+    "[].learning_units.id",
+    "[].learning_units.is_active",
+    "[].learning_units.title",
+    "[].learning_units.topic_id",
+    "[].learning_units.topics",
+    "[].learning_units.topics.id",
+    "[].learning_units.topics.name",
+    "[].learning_units.topics.slug",
+    "[].learning_units.topics.subject_id",
+    "[].learning_units.topics.subjects",
+    "[].learning_units.topics.subjects.name",
+    "[].status"
+   ],
+   "hash": "7491256739890019"
+  },
+  "DSH-88:student": {
+   "status": 400,
+   "code": "42703",
+   "message": "column user_topic_mastery.topic_id does not exist"
+  },
+  "DSH-88:admin": {
+   "status": 400,
+   "code": "42703",
+   "message": "column user_topic_mastery.topic_id does not exist"
+  },
+  "DSH-88:service": {
+   "status": 400,
+   "code": "42703",
+   "message": "column user_topic_mastery.topic_id does not exist"
+  },
+  "CI-539:student": {
+   "status": 400,
+   "code": "42703",
+   "message": "column user_topic_mastery.topic_id does not exist"
+  },
+  "CI-539:admin": {
+   "status": 400,
+   "code": "42703",
+   "message": "column user_topic_mastery.topic_id does not exist"
+  },
+  "CI-539:service": {
+   "status": 400,
+   "code": "42703",
+   "message": "column user_topic_mastery.topic_id does not exist"
+  },
+  "DES-113:student": {
+   "status": 403,
+   "code": "42501",
+   "message": "permission denied for table descriptive_questions"
+  },
+  "DES-113:admin": {
+   "status": 403,
+   "code": "42501",
+   "message": "permission denied for table descriptive_questions"
+  },
+  "DES-113:service": {
+   "status": 200,
+   "rows": 0,
+   "shape": [],
+   "hash": "4f53cda18c2baa0c"
+  },
+  "DES-157:student": {
+   "status": 403,
+   "code": "42501",
+   "message": "permission denied for table descriptive_questions"
+  },
+  "DES-157:admin": {
+   "status": 403,
+   "code": "42501",
+   "message": "permission denied for table descriptive_questions"
+  },
+  "DES-157:service": {
+   "status": 200,
+   "rows": 0,
+   "shape": [],
+   "hash": "4f53cda18c2baa0c"
+  },
+  "FC-87:student": {
+   "status": 403,
+   "code": "42501",
+   "message": "permission denied for table flashcard_decks"
+  },
+  "FC-87:admin": {
+   "status": 403,
+   "code": "42501",
+   "message": "permission denied for table flashcard_decks"
+  },
+  "FC-87:service": {
+   "status": 200,
+   "rows": 0,
+   "shape": [],
+   "hash": "4f53cda18c2baa0c"
+  },
+  "FC-132:student": {
+   "status": 403,
+   "code": "42501",
+   "message": "permission denied for table flashcard_decks"
+  },
+  "FC-132:admin": {
+   "status": 403,
+   "code": "42501",
+   "message": "permission denied for table flashcard_decks"
+  },
+  "FC-132:service": {
+   "status": 200,
+   "rows": 0,
+   "shape": [],
+   "hash": "4f53cda18c2baa0c"
+  },
+  "EKC-161:admin": {
+   "status": 200,
+   "rows": 5,
+   "shape": [
+    "[].created_at",
+    "[].expected_questions",
+    "[].id",
+    "[].is_mandatory",
+    "[].notes",
+    "[].priority",
+    "[].required_depth",
+    "[].syllabus_id",
+    "[].topic",
+    "[].topic.created_at",
+    "[].topic.description",
+    "[].topic.display_order",
+    "[].topic.id",
+    "[].topic.importance_level",
+    "[].topic.is_active",
+    "[].topic.name",
+    "[].topic.slug",
+    "[].topic.subject_id",
+    "[].topic.updated_at",
+    "[].topic_id",
+    "[].weightage_level",
+    "[].weightage_override"
+   ],
+   "hash": "7b141641daf65142"
+  },
+  "EKC-161:service": {
+   "status": 200,
+   "rows": 5,
+   "shape": [
+    "[].created_at",
+    "[].expected_questions",
+    "[].id",
+    "[].is_mandatory",
+    "[].notes",
+    "[].priority",
+    "[].required_depth",
+    "[].syllabus_id",
+    "[].topic",
+    "[].topic.created_at",
+    "[].topic.description",
+    "[].topic.display_order",
+    "[].topic.id",
+    "[].topic.importance_level",
+    "[].topic.is_active",
+    "[].topic.name",
+    "[].topic.slug",
+    "[].topic.subject_id",
+    "[].topic.updated_at",
+    "[].topic_id",
+    "[].weightage_level",
+    "[].weightage_override"
+   ],
+   "hash": "7b141641daf65142"
+  },
+  "EKX-184:admin": {
+   "status": 200,
+   "rows": 5,
+   "shape": [
+    "[].created_at",
+    "[].description",
+    "[].display_order",
+    "[].id",
+    "[].importance_level",
+    "[].is_active",
+    "[].name",
+    "[].slug",
+    "[].subject",
+    "[].subject.name",
+    "[].subject_id",
+    "[].updated_at"
+   ],
+   "hash": "e368c888695831eb"
+  },
+  "EKX-184:service": {
+   "status": 200,
+   "rows": 5,
+   "shape": [
+    "[].created_at",
+    "[].description",
+    "[].display_order",
+    "[].id",
+    "[].importance_level",
+    "[].is_active",
+    "[].name",
+    "[].slug",
+    "[].subject",
+    "[].subject.name",
+    "[].subject_id",
+    "[].updated_at"
+   ],
+   "hash": "e368c888695831eb"
+  },
+  "EKX-221:admin": {
+   "status": 400,
+   "code": "42703",
+   "message": "column questions.topic_id does not exist"
+  },
+  "EKX-221:service": {
+   "status": 400,
+   "code": "42703",
+   "message": "column questions.topic_id does not exist"
+  },
+  "ES-45:admin": {
+   "status": 200,
+   "rows": 5,
+   "shape": [
+    "[].created_at",
+    "[].expected_questions",
+    "[].id",
+    "[].is_mandatory",
+    "[].notes",
+    "[].priority",
+    "[].required_depth",
+    "[].syllabus_id",
+    "[].topic",
+    "[].topic.created_at",
+    "[].topic.description",
+    "[].topic.display_order",
+    "[].topic.id",
+    "[].topic.importance_level",
+    "[].topic.is_active",
+    "[].topic.name",
+    "[].topic.slug",
+    "[].topic.subject_id",
+    "[].topic.updated_at",
+    "[].topic_id",
+    "[].weightage_level",
+    "[].weightage_override"
+   ],
+   "hash": "7b141641daf65142"
+  },
+  "ES-45:service": {
+   "status": 200,
+   "rows": 5,
+   "shape": [
+    "[].created_at",
+    "[].expected_questions",
+    "[].id",
+    "[].is_mandatory",
+    "[].notes",
+    "[].priority",
+    "[].required_depth",
+    "[].syllabus_id",
+    "[].topic",
+    "[].topic.created_at",
+    "[].topic.description",
+    "[].topic.display_order",
+    "[].topic.id",
+    "[].topic.importance_level",
+    "[].topic.is_active",
+    "[].topic.name",
+    "[].topic.slug",
+    "[].topic.subject_id",
+    "[].topic.updated_at",
+    "[].topic_id",
+    "[].weightage_level",
+    "[].weightage_override"
+   ],
+   "hash": "7b141641daf65142"
+  },
+  "MLI-641:student": {
+   "status": 200,
+   "rows": 3,
+   "shape": [
+    "[].consecutive_correct_in_remediation",
+    "[].first_mistake_at",
+    "[].id",
+    "[].last_mistake_at",
+    "[].lifecycle_status",
+    "[].mastered_at",
+    "[].primary_cognitive_type_id",
+    "[].question_id",
+    "[].subject_id",
+    "[].topic_id",
+    "[].topics",
+    "[].topics.id",
+    "[].topics.name",
+    "[].topics.subject_id",
+    "[].topics.subjects",
+    "[].topics.subjects.id",
+    "[].topics.subjects.name",
+    "[].total_mistakes_count"
+   ],
+   "hash": "60698097be1607b9"
+  },
+  "MLI-641:admin": {
+   "status": 200,
+   "rows": 5,
+   "shape": [
+    "[].consecutive_correct_in_remediation",
+    "[].first_mistake_at",
+    "[].id",
+    "[].last_mistake_at",
+    "[].lifecycle_status",
+    "[].mastered_at",
+    "[].primary_cognitive_type_id",
+    "[].question_id",
+    "[].subject_id",
+    "[].topic_id",
+    "[].topics",
+    "[].topics.id",
+    "[].topics.name",
+    "[].topics.subject_id",
+    "[].topics.subjects",
+    "[].topics.subjects.id",
+    "[].topics.subjects.name",
+    "[].total_mistakes_count"
+   ],
+   "hash": "1156a1183b78fe8b"
+  },
+  "MLI-641:service": {
+   "status": 200,
+   "rows": 5,
+   "shape": [
+    "[].consecutive_correct_in_remediation",
+    "[].first_mistake_at",
+    "[].id",
+    "[].last_mistake_at",
+    "[].lifecycle_status",
+    "[].mastered_at",
+    "[].primary_cognitive_type_id",
+    "[].question_id",
+    "[].subject_id",
+    "[].topic_id",
+    "[].topics",
+    "[].topics.id",
+    "[].topics.name",
+    "[].topics.subject_id",
+    "[].topics.subjects",
+    "[].topics.subjects.id",
+    "[].topics.subjects.name",
+    "[].total_mistakes_count"
+   ],
+   "hash": "1156a1183b78fe8b"
+  },
+  "MS-814:admin": {
+   "status": 200,
+   "rows": 5,
+   "shape": [
+    "[].canonical_topic_id",
+    "[].id",
+    "[].topics",
+    "[].topics.subject_id"
+   ],
+   "hash": "284dde1348f4744e"
+  },
+  "MS-814:service": {
+   "status": 200,
+   "rows": 5,
+   "shape": [
+    "[].canonical_topic_id",
+    "[].id",
+    "[].topics",
+    "[].topics.subject_id"
+   ],
+   "hash": "284dde1348f4744e"
+  },
+  "MS-913:student": {
+   "status": 200,
+   "rows": 3,
+   "shape": [
+    "[].consecutive_correct_in_remediation",
+    "[].id",
+    "[].lifecycle_status",
+    "[].mistake_cognitive_types",
+    "[].mistake_cognitive_types.description",
+    "[].mistake_cognitive_types.id",
+    "[].mistake_cognitive_types.name",
+    "[].primary_cognitive_type_id",
+    "[].question_id",
+    "[].topic_id",
+    "[].topics",
+    "[].topics.name",
+    "[].total_mistakes_count",
+    "[].user_override_cognitive_type_id"
+   ],
+   "hash": "bae18be92aff536d"
+  },
+  "MS-913:admin": {
+   "status": 200,
+   "rows": 5,
+   "shape": [
+    "[].consecutive_correct_in_remediation",
+    "[].id",
+    "[].lifecycle_status",
+    "[].mistake_cognitive_types",
+    "[].mistake_cognitive_types.description",
+    "[].mistake_cognitive_types.id",
+    "[].mistake_cognitive_types.name",
+    "[].primary_cognitive_type_id",
+    "[].question_id",
+    "[].topic_id",
+    "[].topics",
+    "[].topics.name",
+    "[].total_mistakes_count",
+    "[].user_override_cognitive_type_id"
+   ],
+   "hash": "e156c8ec893bf82f"
+  },
+  "MS-913:service": {
+   "status": 200,
+   "rows": 5,
+   "shape": [
+    "[].consecutive_correct_in_remediation",
+    "[].id",
+    "[].lifecycle_status",
+    "[].mistake_cognitive_types",
+    "[].mistake_cognitive_types.description",
+    "[].mistake_cognitive_types.id",
+    "[].mistake_cognitive_types.name",
+    "[].primary_cognitive_type_id",
+    "[].question_id",
+    "[].topic_id",
+    "[].topics",
+    "[].topics.name",
+    "[].total_mistakes_count",
+    "[].user_override_cognitive_type_id"
+   ],
+   "hash": "e156c8ec893bf82f"
+  },
+  "MS-1021:student": {
+   "status": 200,
+   "rows": 3,
+   "shape": [
+    "[].consecutive_correct_in_remediation",
+    "[].id",
+    "[].last_mistake_at",
+    "[].lifecycle_status",
+    "[].mastered_at",
+    "[].mistake_cognitive_types",
+    "[].mistake_cognitive_types.name",
+    "[].primary_cognitive_type_id",
+    "[].question_id",
+    "[].questions",
+    "[].questions.question_versions",
+    "[].questions.question_versions[].question_text",
+    "[].subject_id",
+    "[].subjects",
+    "[].subjects.id",
+    "[].subjects.name",
+    "[].topic_id",
+    "[].topics",
+    "[].topics.id",
+    "[].topics.name",
+    "[].total_mistakes_count",
+    "[].user_custom_notes",
+    "[].user_override_cognitive_type_id"
+   ],
+   "hash": "2a110934fa13434b"
+  },
+  "MS-1021:admin": {
+   "status": 200,
+   "rows": 5,
+   "shape": [
+    "[].consecutive_correct_in_remediation",
+    "[].id",
+    "[].last_mistake_at",
+    "[].lifecycle_status",
+    "[].mastered_at",
+    "[].mistake_cognitive_types",
+    "[].mistake_cognitive_types.name",
+    "[].primary_cognitive_type_id",
+    "[].question_id",
+    "[].questions",
+    "[].questions.question_versions",
+    "[].questions.question_versions[].question_text",
+    "[].subject_id",
+    "[].subjects",
+    "[].subjects.id",
+    "[].subjects.name",
+    "[].topic_id",
+    "[].topics",
+    "[].topics.id",
+    "[].topics.name",
+    "[].total_mistakes_count",
+    "[].user_custom_notes",
+    "[].user_override_cognitive_type_id"
+   ],
+   "hash": "f0d9e2adba7ff148"
+  },
+  "MS-1021:service": {
+   "status": 200,
+   "rows": 5,
+   "shape": [
+    "[].consecutive_correct_in_remediation",
+    "[].id",
+    "[].last_mistake_at",
+    "[].lifecycle_status",
+    "[].mastered_at",
+    "[].mistake_cognitive_types",
+    "[].mistake_cognitive_types.name",
+    "[].primary_cognitive_type_id",
+    "[].question_id",
+    "[].questions",
+    "[].questions.question_versions",
+    "[].questions.question_versions[].question_text",
+    "[].subject_id",
+    "[].subjects",
+    "[].subjects.id",
+    "[].subjects.name",
+    "[].topic_id",
+    "[].topics",
+    "[].topics.id",
+    "[].topics.name",
+    "[].total_mistakes_count",
+    "[].user_custom_notes",
+    "[].user_override_cognitive_type_id"
+   ],
+   "hash": "f0d9e2adba7ff148"
+  },
+  "MS-1189:student": {
+   "status": 200,
+   "rows": 3,
+   "shape": [
+    "[].consecutive_correct_in_remediation",
+    "[].created_at",
+    "[].first_mistake_at",
+    "[].id",
+    "[].last_mistake_at",
+    "[].last_practiced_at",
+    "[].lifecycle_status",
+    "[].mastered_at",
+    "[].mistake_cognitive_types",
+    "[].mistake_cognitive_types.description",
+    "[].mistake_cognitive_types.name",
+    "[].mistake_cognitive_types.remediation_guidance",
+    "[].primary_cognitive_type_id",
+    "[].question_id",
+    "[].subject_id",
+    "[].subjects",
+    "[].subjects.name",
+    "[].topic_id",
+    "[].topics",
+    "[].topics.name",
+    "[].topics.slug",
+    "[].total_mistakes_count",
+    "[].updated_at",
+    "[].user_custom_notes",
+    "[].user_id",
+    "[].user_override_cognitive_type_id"
+   ],
+   "hash": "d1506db380a6c62a"
+  },
+  "MS-1189:admin": {
+   "status": 200,
+   "rows": 5,
+   "shape": [
+    "[].consecutive_correct_in_remediation",
+    "[].created_at",
+    "[].first_mistake_at",
+    "[].id",
+    "[].last_mistake_at",
+    "[].last_practiced_at",
+    "[].lifecycle_status",
+    "[].mastered_at",
+    "[].mistake_cognitive_types",
+    "[].mistake_cognitive_types.description",
+    "[].mistake_cognitive_types.name",
+    "[].mistake_cognitive_types.remediation_guidance",
+    "[].primary_cognitive_type_id",
+    "[].question_id",
+    "[].subject_id",
+    "[].subjects",
+    "[].subjects.name",
+    "[].topic_id",
+    "[].topics",
+    "[].topics.name",
+    "[].topics.slug",
+    "[].total_mistakes_count",
+    "[].updated_at",
+    "[].user_custom_notes",
+    "[].user_id",
+    "[].user_override_cognitive_type_id"
+   ],
+   "hash": "8465e2c0e7c89938"
+  },
+  "MS-1189:service": {
+   "status": 200,
+   "rows": 5,
+   "shape": [
+    "[].consecutive_correct_in_remediation",
+    "[].created_at",
+    "[].first_mistake_at",
+    "[].id",
+    "[].last_mistake_at",
+    "[].last_practiced_at",
+    "[].lifecycle_status",
+    "[].mastered_at",
+    "[].mistake_cognitive_types",
+    "[].mistake_cognitive_types.description",
+    "[].mistake_cognitive_types.name",
+    "[].mistake_cognitive_types.remediation_guidance",
+    "[].primary_cognitive_type_id",
+    "[].question_id",
+    "[].subject_id",
+    "[].subjects",
+    "[].subjects.name",
+    "[].topic_id",
+    "[].topics",
+    "[].topics.name",
+    "[].topics.slug",
+    "[].total_mistakes_count",
+    "[].updated_at",
+    "[].user_custom_notes",
+    "[].user_id",
+    "[].user_override_cognitive_type_id"
+   ],
+   "hash": "8465e2c0e7c89938"
+  },
+  "MS-1967:student": {
+   "status": 200,
+   "rows": 3,
+   "shape": [
+    "[].consecutive_correct_in_remediation",
+    "[].id",
+    "[].last_mistake_at",
+    "[].lifecycle_status",
+    "[].mastered_at",
+    "[].mistake_cognitive_types",
+    "[].mistake_cognitive_types.name",
+    "[].primary_cognitive_type_id",
+    "[].question_id",
+    "[].questions",
+    "[].questions.question_versions",
+    "[].questions.question_versions[].question_text",
+    "[].subject_id",
+    "[].subjects",
+    "[].subjects.id",
+    "[].subjects.name",
+    "[].topic_id",
+    "[].topics",
+    "[].topics.id",
+    "[].topics.name",
+    "[].topics.slug",
+    "[].total_mistakes_count",
+    "[].user_custom_notes",
+    "[].user_override_cognitive_type_id"
+   ],
+   "hash": "a3e38d910e962b53"
+  },
+  "MS-1967:admin": {
+   "status": 200,
+   "rows": 5,
+   "shape": [
+    "[].consecutive_correct_in_remediation",
+    "[].id",
+    "[].last_mistake_at",
+    "[].lifecycle_status",
+    "[].mastered_at",
+    "[].mistake_cognitive_types",
+    "[].mistake_cognitive_types.name",
+    "[].primary_cognitive_type_id",
+    "[].question_id",
+    "[].questions",
+    "[].questions.question_versions",
+    "[].questions.question_versions[].question_text",
+    "[].subject_id",
+    "[].subjects",
+    "[].subjects.id",
+    "[].subjects.name",
+    "[].topic_id",
+    "[].topics",
+    "[].topics.id",
+    "[].topics.name",
+    "[].topics.slug",
+    "[].total_mistakes_count",
+    "[].user_custom_notes",
+    "[].user_override_cognitive_type_id"
+   ],
+   "hash": "fd7937f454d60d8a"
+  },
+  "MS-1967:service": {
+   "status": 200,
+   "rows": 5,
+   "shape": [
+    "[].consecutive_correct_in_remediation",
+    "[].id",
+    "[].last_mistake_at",
+    "[].lifecycle_status",
+    "[].mastered_at",
+    "[].mistake_cognitive_types",
+    "[].mistake_cognitive_types.name",
+    "[].primary_cognitive_type_id",
+    "[].question_id",
+    "[].questions",
+    "[].questions.question_versions",
+    "[].questions.question_versions[].question_text",
+    "[].subject_id",
+    "[].subjects",
+    "[].subjects.id",
+    "[].subjects.name",
+    "[].topic_id",
+    "[].topics",
+    "[].topics.id",
+    "[].topics.name",
+    "[].topics.slug",
+    "[].total_mistakes_count",
+    "[].user_custom_notes",
+    "[].user_override_cognitive_type_id"
+   ],
+   "hash": "fd7937f454d60d8a"
+  },
+  "PG-630:admin": {
+   "status": 200,
+   "rows": 0,
+   "shape": [],
+   "hash": "4f53cda18c2baa0c"
+  },
+  "PG-630:service": {
+   "status": 200,
+   "rows": 0,
+   "shape": [],
+   "hash": "4f53cda18c2baa0c"
+  },
+  "PG-679:admin": {
+   "status": 403,
+   "code": "42501",
+   "message": "permission denied for table question_answers"
+  },
+  "PG-679:service": {
+   "status": 200,
+   "rows": 5,
+   "shape": [
+    "[].difficulty",
+    "[].id",
+    "[].is_current",
+    "[].language",
+    "[].question_answers",
+    "[].question_answers.correct_option_key",
+    "[].question_answers.explanation_md",
+    "[].question_id",
+    "[].question_options",
+    "[].question_options[].id",
+    "[].question_options[].option_key",
+    "[].question_options[].option_text",
+    "[].question_options[].order_index",
+    "[].question_text",
+    "[].questions",
+    "[].questions.canonical_topic_id",
+    "[].questions.id",
+    "[].questions.topics",
+    "[].questions.topics.subject_id",
+    "[].version_number"
+   ],
+   "hash": "11bc86625b6b9319"
+  },
+  "PG-783:student": {
+   "status": 200,
+   "rows": 0,
+   "shape": [],
+   "hash": "4f53cda18c2baa0c"
+  },
+  "PG-783:admin": {
+   "status": 200,
+   "rows": 0,
+   "shape": [],
+   "hash": "4f53cda18c2baa0c"
+  },
+  "PG-783:service": {
+   "status": 200,
+   "rows": 0,
+   "shape": [],
+   "hash": "4f53cda18c2baa0c"
+  },
+  "QF-207:admin": {
+   "status": 403,
+   "code": "42501",
+   "message": "permission denied for table question_version_authoring"
+  },
+  "QF-207:service": {
+   "status": 200,
+   "rows": 5,
+   "shape": [
+    "[].created_at",
+    "[].difficulty",
+    "[].id",
+    "[].language",
+    "[].lifecycle_status",
+    "[].question_id",
+    "[].question_text",
+    "[].question_version_authoring",
+    "[].question_version_authoring.import_batch_id",
+    "[].question_version_authoring.origin",
+    "[].questions",
+    "[].questions.canonical_topic_id",
+    "[].questions.topics",
+    "[].questions.topics.name",
+    "[].version_number"
+   ],
+   "hash": "2f6c3ea6bc2f5378"
+  },
+  "QF-278:admin": {
+   "status": 403,
+   "code": "42501",
+   "message": "permission denied for table question_answers"
+  },
+  "QF-278:service": {
+   "status": 200,
+   "rows": 5,
+   "shape": [
+    "[].content_checksum",
+    "[].created_at",
+    "[].difficulty",
+    "[].id",
+    "[].is_current",
+    "[].language",
+    "[].lifecycle_status",
+    "[].options_type",
+    "[].published_at",
+    "[].question_answers",
+    "[].question_answers.correct_option_key",
+    "[].question_answers.explanation_md",
+    "[].question_id",
+    "[].question_image_url",
+    "[].question_options",
+    "[].question_options[].option_key",
+    "[].question_options[].option_text",
+    "[].question_options[].order_index",
+    "[].question_text",
+    "[].question_version_authoring",
+    "[].question_version_authoring.authoring_metadata",
+    "[].question_version_authoring.context_hash",
+    "[].question_version_authoring.contract_version",
+    "[].question_version_authoring.created_at",
+    "[].question_version_authoring.created_by",
+    "[].question_version_authoring.import_batch_id",
+    "[].question_version_authoring.origin",
+    "[].question_version_authoring.review_notes",
+    "[].question_version_authoring.reviewed_at",
+    "[].question_version_authoring.reviewed_by",
+    "[].question_version_authoring.updated_at",
+    "[].question_version_authoring.version_id",
+    "[].questions",
+    "[].questions.canonical_topic_id",
+    "[].questions.topics",
+    "[].questions.topics.name",
+    "[].version_number"
+   ],
+   "hash": "b6c903db133b546c"
+  },
+  "QTR-94:admin": {
+   "status": 200,
+   "rows": 5,
+   "shape": [
+    "[].description",
+    "[].id",
+    "[].is_active",
+    "[].name",
+    "[].slug",
+    "[].subject_id",
+    "[].subjects",
+    "[].subjects.id",
+    "[].subjects.is_active",
+    "[].subjects.name"
+   ],
+   "hash": "fe109ac256915b5f"
+  },
+  "QTR-94:service": {
+   "status": 200,
+   "rows": 5,
+   "shape": [
+    "[].description",
+    "[].id",
+    "[].is_active",
+    "[].name",
+    "[].slug",
+    "[].subject_id",
+    "[].subjects",
+    "[].subjects.id",
+    "[].subjects.is_active",
+    "[].subjects.name"
+   ],
+   "hash": "fe109ac256915b5f"
+  },
+  "PH-476:admin": {
+   "status": 200,
+   "rows": 4,
+   "shape": [
+    "[].id",
+    "[].name",
+    "[].slug",
+    "[].topics",
+    "[].topics[].id",
+    "[].topics[].name"
+   ],
+   "hash": "a074d1496f2cce6d"
+  },
+  "EKC-155:admin": {
+   "status": 400,
+   "code": "PGRST200",
+   "message": "Could not find a relationship between 'exam_syllabi' and 'subjects' in the schema cache"
+  },
+  "ES-33:admin": {
+   "status": 400,
+   "code": "PGRST200",
+   "message": "Could not find a relationship between 'exam_syllabi' and 'subjects' in the schema cache"
+  }
+ },
+ "tables": {
+  "batch_curriculum_assignments": {
+   "rows": 0,
+   "md5": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "canonical_taxonomy_nodes": {
+   "rows": 40,
+   "md5": "44ec54ddc3fa97b9371fcbc458d40cc3"
+  },
+  "daily_study_recommendations": {
+   "rows": 0,
+   "md5": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "descriptive_questions": {
+   "rows": 0,
+   "md5": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "discussion_threads": {
+   "rows": 0,
+   "md5": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "exam_topics": {
+   "rows": 18,
+   "md5": "181f3c3d0e2d66968001a9a93e770efc"
+  },
+  "flashcard_decks": {
+   "rows": 0,
+   "md5": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "learning_activity_events": {
+   "rows": 0,
+   "md5": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "learning_units": {
+   "rows": 1,
+   "md5": "832c9053c16f4f17b3d3582be496d83a"
+  },
+  "mock_sections": {
+   "rows": 14,
+   "md5": "0927631037d7ee46102ee750210bf3f7"
+  },
+  "pattern_sections": {
+   "rows": 4,
+   "md5": "22537515f646330aafb98c5bb641f238"
+  },
+  "question_import_batches": {
+   "rows": 2,
+   "md5": "1ad2b5d5660373c4cd43d9d48d0ce55f"
+  },
+  "questions": {
+   "rows": 113,
+   "md5": "b66a2e2d649fb89ef32e83e5f0754b06"
+  },
+  "quiz_battle_rooms": {
+   "rows": 0,
+   "md5": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "search_indexes": {
+   "rows": 1,
+   "md5": "a29c991028cea6053b643a4085910194"
+  },
+  "spaced_repetition_schedules": {
+   "rows": 0,
+   "md5": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "study_plan_items": {
+   "rows": 0,
+   "md5": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "subtopics": {
+   "rows": 0,
+   "md5": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "topic_relationships": {
+   "rows": 0,
+   "md5": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "topics": {
+   "rows": 36,
+   "md5": "3c07a47f680206e4fe0680027bbad324"
+  },
+  "user_mastery_history": {
+   "rows": 0,
+   "md5": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "user_mistake_drills": {
+   "rows": 0,
+   "md5": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "user_mistake_vault": {
+   "rows": 15,
+   "md5": "01846761c864bee8f48228652c83401d"
+  },
+  "user_topic_mastery": {
+   "rows": 0,
+   "md5": "d41d8cd98f00b204e9800998ecf8427e"
+  }
+ }
+}

@@ -85,7 +85,7 @@ export class DashboardService {
       supabase.from("coin_wallets").select("current_balance, lifetime_earned").eq("user_id", userId).maybeSingle(),
       supabase.from("user_streaks").select("current_streak, longest_streak, freeze_active").eq("user_id", userId).maybeSingle(),
       supabase.from("user_exam_readiness").select("overall_readiness_pct, predicted_score").eq("user_id", userId).maybeSingle(),
-      supabase.from("user_topic_mastery").select("id, topic_id, mastery_percentage, status, topics(name)").eq("user_id", userId).order("mastery_percentage", { ascending: false }).limit(6),
+      supabase.from("user_topic_mastery").select("id, topic_id, mastery_percentage, status, topics:canonical_taxonomy_nodes!user_topic_mastery_canonical_topic_id_node_fkey(name)").eq("user_id", userId).order("mastery_percentage", { ascending: false }).limit(6),
       supabase.from("daily_study_recommendations").select("id, recommendation_title, item_type, estimated_minutes, priority, is_completed").eq("user_id", userId).limit(5),
       supabase.from("learning_activity_events").select("id, event_type, resource_slug, time_spent_seconds, occurred_at").eq("user_id", userId).order("occurred_at", { ascending: false }).limit(5),
       supabase.from("user_mistake_vault").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("status", "ACTIVE"),

@@ -203,7 +203,7 @@ export class ContentService {
     try {
       const { data: rels } = await supabase
         .from("topic_relationships")
-        .select("relationship_type, strength, to_topic_id, from_topic_id, topics!topic_relationships_to_topic_id_fkey(id, name, slug)")
+        .select("relationship_type, strength, to_topic_id, from_topic_id, topics:canonical_taxonomy_nodes!topic_relationships_to_topic_id_node_fkey(id, name, slug)")
         .or(`from_topic_id.eq.${topicId},to_topic_id.eq.${topicId}`)
         .eq("is_active", true);
 

@@ -181,7 +181,7 @@ export class ExamKnowledgeContextBuilder {
       // 6. Fetch Canonical Curriculum
       const [subjRes, topRes, subtopRes, unitsRes] = await Promise.all([
         supabaseClient.from('subjects').select('*').order('display_order', { ascending: true }),
-        supabaseClient.from('topics').select('*, subject:subjects(name)').order('display_order', { ascending: true }),
+        supabaseClient.from('topics').select('*, subject:canonical_taxonomy_nodes!topics_subject_id_node_fkey(name)').order('display_order', { ascending: true }),
         supabaseClient.from('subtopics').select('*', { count: 'exact', head: true }),
         supabaseClient.from('learning_units').select('*', { count: 'exact', head: true }),
       ]);
@@ -218,7 +218,7 @@ export class ExamKnowledgeContextBuilder {
       if (moduleKey === 'PREPARATION' || moduleKey === 'PREPARATION_STRATEGY' || moduleKey === 'SYLLABUS') {
         const { data: qs } = await supabaseClient
           .from('questions')
-          .select('id, topic_id, year, tier, topic:topics(name)')
+          .select('id, topic_id, year, tier, topic:canonical_taxonomy_nodes!questions_canonical_topic_id_node_fkey(name)')
           .limit(MAX_QUESTION_REFERENCES);
         questionsData = qs || [];
       }
