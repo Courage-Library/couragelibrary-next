@@ -110,3 +110,17 @@ Files:
 - `docs/reports/sec/SEC1D_REDIRECTS_ROLES_REPORT.md`.
 
 Production verification after deploy: callback with `next=//evil.com` stays on the origin; anonymous `/admin/gamification` → 307 login; `GET /` → 200 (§8).
+
+## 8. Production verification (commit `d4077e5`, couragelibrary-next.vercel.app)
+
+The new build was detected about 80 s after the push (the login page renders the hidden `next` field).
+
+| Check | Result |
+|---|---|
+| `/auth/callback?code=invalid&next=//evil.com` | 307 → `/auth/login?error=…` on **the same origin** |
+| `/auth/callback?code=invalid&next=@evil.com` | 307 → same origin |
+| Anonymous `/admin/gamification` | 307 → `/auth/login?next=%2Fadmin%2Fgamification` |
+| `GET /` | 200 |
+| SEC-1D live suite against production | **19/19**: login `next=/mistakes` → /mistakes; `next=//evil.com` → /; staff gamification/billing → not-found with no data; admin → 200 |
+
+SEC-1D STATUS: CLOSED
