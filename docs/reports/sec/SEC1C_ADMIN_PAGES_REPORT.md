@@ -213,3 +213,19 @@ Never `.env*`, backups, CA files or scratch.
 - **The dev answer keys for the 113 questions are treated as disclosed:** review or rotate them before any launch mock uses them.
 
 SEC-1C STATUS: CLOSED (ruling A)
+
+## 11. Production verification (commit `69f98d3`, couragelibrary-next.vercel.app)
+
+The new build was detected about 100 s after the push (anonymous `/admin` → 307).
+
+| Check | Result |
+|---|---|
+| SEC-1C live suite against production | **29/29** |
+| All 34 `/admin/*` anonymous (L-01 + exposure scanner) | **307 → `/auth/login?next=/admin…`**, body 15 bytes; 0 UUIDs, emails, status markers, PII/config keys, KPIs or admin links (before the fix: 200 with up to 1,517 UUIDs, PII and answer keys; §1) |
+| qa-student on `/admin/questions`, `/admin/content`, `/admin/reports`, `/admin/gamification`, `/admin/rewards` | not-found digest/UI + `noindex`; **0 foreign UUIDs, 0 data keys** (all 34 paths: L-03a/L-03b PASS) |
+| qa-staff | 27 staff pages allowed; 7 admin-only → not-found, no data |
+| qa-admin `/admin/questions` (sanity) | 200 with data (113 statements) |
+| `GET /`, `GET /api/health` | 200, 200 |
+| Anonymous `/api/admin/current-affairs/stats` | 401 `{ok,success,error,message}` uniform JSON |
+
+**INC-1 remediated in production.** No admin data reaches anonymous users, students, or staff on admin-only pages.
