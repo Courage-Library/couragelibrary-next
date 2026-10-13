@@ -5,7 +5,7 @@
  */
 
 import { createAdminServerSupabaseClient } from '@/lib/supabase/server';
-import { AdminService } from '@/services/admin.service';
+import { guardAdminAction } from '@/lib/auth/require-admin';
 import {
   DailyQuizEligibilityReport,
   DailyQuizEligibilityStatus,
@@ -249,8 +249,8 @@ export class CurrentAffairsDailyQuizService {
     // 1. Authorization check
     let authUserId = overrideUserId;
     if (!authUserId) {
-      const auth = await AdminService.checkIsAdminOrStaff();
-      if (!auth.isAdmin) {
+      const auth = await guardAdminAction({ allowStaff: true });
+      if (!auth.ok) {
         return { success: false, error: 'UNAUTHORIZED: Admin or staff privileges required.' };
       }
       authUserId = auth.userId || undefined;
@@ -536,8 +536,8 @@ export class CurrentAffairsDailyQuizService {
   ): Promise<{ success: boolean; mockTestId?: string; error?: string }> {
     let authUserId = overrideUserId;
     if (!authUserId) {
-      const auth = await AdminService.checkIsAdminOrStaff();
-      if (!auth.isAdmin) {
+      const auth = await guardAdminAction({ allowStaff: true });
+      if (!auth.ok) {
         return { success: false, error: 'UNAUTHORIZED: Admin or staff privileges required.' };
       }
       authUserId = auth.userId || undefined;

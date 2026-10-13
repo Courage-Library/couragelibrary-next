@@ -1,5 +1,6 @@
 "use client";
 
+import { actionErrorMessage } from "@/lib/actions/action-result";
 import React, { useState, useActionState } from "react";
 import { createDescriptiveAction } from "@/app/admin/actions";
 import { BulkImportModal } from "@/components/admin/bulk-import-modal";
@@ -69,7 +70,7 @@ export function AdminDescriptiveManager({ items }: Props) {
           <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
             <Sparkles className="w-4 h-4 text-blue-600" /> Create Mains Descriptive Question
           </h3>
-          {state?.error && <Alert variant="error">{state.error}</Alert>}
+          {state?.error && <Alert variant="error">{actionErrorMessage(state)}</Alert>}
           {state?.message && <Alert variant="success">{state.message}</Alert>}
 
           <form action={formAction} className="space-y-3">

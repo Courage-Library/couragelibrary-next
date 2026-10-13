@@ -1,4 +1,5 @@
 "use client";
+import { actionErrorMessage } from "@/lib/actions/action-result";
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 
 import React, { useState } from "react";
@@ -70,7 +71,7 @@ export function AdminLiveTestResultsManager({
           text: `Rewards successfully distributed! Settled: ${res.settledCount}, Top-ups: ${res.topupCount}, Protected drops: ${res.protectedCount}, Total Coins: +${res.totalCoinsDistributed} CL.`,
         });
       } else {
-        setStatusMessage({ type: "error", text: res.error || "Reward distribution failed." });
+        setStatusMessage({ type: "error", text: actionErrorMessage(res, "Reward distribution failed.") });
       }
     } catch (err: any) {
       setStatusMessage({ type: "error", text: err?.message || "Error distributing rewards." });
@@ -92,7 +93,7 @@ export function AdminLiveTestResultsManager({
         });
         window.location.reload();
       } else {
-        setStatusMessage({ type: "error", text: res.error || "Evaluation failed." });
+        setStatusMessage({ type: "error", text: actionErrorMessage(res, "Evaluation failed.") });
       }
     } catch (err: any) {
       setStatusMessage({ type: "error", text: err?.message || "Unexpected evaluation error." });
@@ -128,7 +129,7 @@ export function AdminLiveTestResultsManager({
         });
         window.location.reload();
       } else {
-        setStatusMessage({ type: "error", text: res.error || "Publication failed." });
+        setStatusMessage({ type: "error", text: actionErrorMessage(res, "Publication failed.") });
       }
     } catch (err: any) {
       setStatusMessage({ type: "error", text: err?.message || "Unexpected publication error." });
@@ -158,7 +159,7 @@ export function AdminLiveTestResultsManager({
         });
         window.location.reload();
       } else {
-        setStatusMessage({ type: "error", text: res.error || "Recalculation failed." });
+        setStatusMessage({ type: "error", text: actionErrorMessage(res, "Recalculation failed.") });
       }
     } catch (err: any) {
       setStatusMessage({ type: "error", text: err?.message || "Unexpected recalculation error." });
@@ -179,7 +180,7 @@ export function AdminLiveTestResultsManager({
         setStatusMessage({ type: "success", text: "Candidate attempt invalidated successfully." });
         window.location.reload();
       } else {
-        setStatusMessage({ type: "error", text: res.error || "Failed to void attempt." });
+        setStatusMessage({ type: "error", text: actionErrorMessage(res, "Failed to void attempt.") });
       }
     } catch (err: any) {
       setStatusMessage({ type: "error", text: err?.message || "Error voiding attempt." });

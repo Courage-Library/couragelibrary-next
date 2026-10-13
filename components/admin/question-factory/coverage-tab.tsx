@@ -1,5 +1,6 @@
 "use client";
 
+import { actionErrorMessage } from "@/lib/actions/action-result";
 import React, { useCallback, useEffect, useState, useTransition } from "react";
 import { RefreshCw, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,7 +24,7 @@ export function CoverageTab({ taxonomy }: { taxonomy: FactoryTaxonomy }) {
     startTransition(async () => {
       const res = await qfGetCoverageAction(subjectId);
       if (res.success && res.data) setRows(res.data);
-      else setError(res.error || "Failed to load coverage.");
+      else setError(actionErrorMessage(res, "Failed to load coverage."));
     });
   }, [subjectId]);
 

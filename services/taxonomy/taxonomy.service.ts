@@ -9,14 +9,14 @@
  *   trigger-maintained projection with the same ids (migration 070); writing them directly is
  *   rejected by the database.
  * - Server-only: uses the service-role client; never import from client components.
- * - Every public method begins with AdminService.checkIsAdminOrStaff().
+ * - Every public method begins with the canonical guard (guardAdminAction / requireAdmin).
  * - Every mutation writes admin_audit_logs (actor_id, actor_email, action_type, target_entity,
  *   target_id, old_value, new_value, reason).
  * - No taxonomy is ever created implicitly from free text elsewhere in the app; callers that
  *   need a subject/topic must pick an existing node.
  */
 
-import { AdminService } from '@/services/admin.service';
+import { guardAdminAction } from '@/lib/auth/require-admin';
 import { createAdminServerSupabaseClient } from '@/lib/supabase/server';
 
 import {
@@ -101,9 +101,10 @@ export function buildTaxonomyTree(nodes: TaxonomyNode[]): TaxonomyTreeNode[] {
 }
 
 export class TaxonomyService {
-  private static async requireAdmin(): Promise<AdminContext | null> {
-    const auth = await AdminService.checkIsAdminOrStaff();
-    if (!auth.isAdmin) return null;
+  /** SEC-1B Q1: structural writes are admin only; tree reads also allow staff. */
+  private static async requireAdmin(opts: { allowStaff?: boolean } = {}): Promise<AdminContext | null> {
+    const auth = await guardAdminAction({ allowStaff: Boolean(opts.allowStaff) });
+    if (!auth.ok) return null;
     return { userId: auth.userId || null, userEmail: auth.userEmail || 'unknown', supabase: createAdminServerSupabaseClient() };
   }
 
@@ -134,7 +135,7 @@ export class TaxonomyService {
 
   /** Full tree (all node types, active and inactive), ordered for display. */
   static async listTree(): Promise<TaxonomyResult<TaxonomyTreeNode[]>> {
-    const ctx = await this.requireAdmin();
+    const ctx = await this.requireAdmin({ allowStaff: true });
     if (!ctx) return fail('UNAUTHORIZED', 'Unauthorized.');
     const { data, error } = await ctx.supabase.from('canonical_taxonomy_nodes').select(NODE_COLUMNS).order('hierarchy_path', { ascending: true });
     if (error) return fail('DB_ERROR', 'Could not load the taxonomy.');
@@ -143,7 +144,7 @@ export class TaxonomyService {
 
   /** Nodes of one type (e.g. SUBJECT for section pickers). */
   static async listNodesByType(nodeType: TaxonomyNodeType, opts: { activeOnly?: boolean } = {}): Promise<TaxonomyResult<TaxonomyNode[]>> {
-    const ctx = await this.requireAdmin();
+    const ctx = await this.requireAdmin({ allowStaff: true });
     if (!ctx) return fail('UNAUTHORIZED', 'Unauthorized.');
     let query = ctx.supabase.from('canonical_taxonomy_nodes').select(NODE_COLUMNS).eq('node_type', nodeType);
     if (opts.activeOnly) query = query.eq('is_active', true);

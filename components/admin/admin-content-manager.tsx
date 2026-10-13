@@ -1,5 +1,6 @@
 "use client";
 
+import { actionErrorMessage } from "@/lib/actions/action-result";
 import React, { useState, useActionState } from "react";
 import { createArticleAction, createCourseAction } from "@/app/admin/actions";
 import { BulkImportModal } from "@/components/admin/bulk-import-modal";
@@ -112,7 +113,7 @@ export function AdminContentManager({ articles, courses }: Props) {
           <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
             <Sparkles className="w-4 h-4 text-teal-600" /> Create Editorial Study Article
           </h3>
-          {artState?.error && <Alert variant="error">{artState.error}</Alert>}
+          {artState?.error && <Alert variant="error">{actionErrorMessage(artState)}</Alert>}
           {artState?.message && <Alert variant="success">{artState.message}</Alert>}
 
           <form action={artAction} className="space-y-3">
@@ -147,7 +148,7 @@ export function AdminContentManager({ articles, courses }: Props) {
           <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
             <GraduationCap className="w-4 h-4 text-indigo-600" /> Create Video Course
           </h3>
-          {crsState?.error && <Alert variant="error">{crsState.error}</Alert>}
+          {crsState?.error && <Alert variant="error">{actionErrorMessage(crsState)}</Alert>}
           {crsState?.message && <Alert variant="success">{crsState.message}</Alert>}
 
           <form action={crsAction} className="space-y-3">

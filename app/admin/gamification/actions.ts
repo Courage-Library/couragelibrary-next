@@ -1,7 +1,8 @@
 "use server";
 
+
+import { guardAdminAction, sanitizeActionResult } from "@/lib/auth/require-admin";
 import { revalidatePath } from "next/cache";
-import { AdminService } from "@/services/admin.service";
 import { GamificationService } from "@/services/gamification.service";
 
 export async function updateRewardPolicyAction(
@@ -12,14 +13,12 @@ export async function updateRewardPolicyAction(
     consistencyBonusCoins?: number;
   }
 ) {
-  const { isAdmin } = await AdminService.checkIsAdminOrStaff();
-  if (!isAdmin) {
-    return { success: false, error: "Unauthorized. Staff or Admin privileges required." };
-  }
+  const __auth = await guardAdminAction({ allowStaff: true });
+  if (!__auth.ok) return __auth;
 
   const result = await GamificationService.updateRewardPolicy(policyCode, updates);
   if (result.success) {
     revalidatePath("/admin/gamification");
   }
-  return result;
+  return sanitizeActionResult("updateRewardPolicyAction", await (result));
 }

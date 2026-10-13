@@ -63,7 +63,11 @@ const opVal = (ops, op, col) => {
 const authState = { isAdmin: true, userId: '11111111-1111-4111-8111-111111111111', userEmail: 'admin@example.test' };
 let currentSupabase = null;
 const storageCalls = [];
+// SEC-1B: admin checks run through the canonical guard, which reads the session user.
+const sessionUser = () => (authState.isAdmin ? { id: authState.userId, email: authState.userEmail, app_metadata: { role: 'admin' }, user_metadata: {} } : null);
+const withSession = (client) => Object.assign(Object.create(null), client || {}, { auth: { getUser: async () => ({ data: { user: sessionUser() }, error: null }) } });
 const MOCKS = {
+  'server-only': {},
   '@/services/admin.service': { AdminService: { checkIsAdminOrStaff: async () => ({ ...authState }) } },
   '@/lib/supabase/server': {
     createAdminServerSupabaseClient: () => currentSupabase,
@@ -291,6 +295,10 @@ async function offline() {
       if (table === 'learning_documents') return { data: mode === 'single' ? { id: 'd1', access_level: 'PRO' } : { id: 'd1', access_level: 'FREE' }, error: null };
       return { data: null, error: null };
     });
+    // SEC-1B: the canonical guard reads the session user (admin per authState) for this test.
+    const realSession = MOCKS['@/lib/supabase/server'].createServerSupabaseClient;
+    MOCKS['@/lib/supabase/server'].createServerSupabaseClient = async () => withSession(currentSupabase);
+    try {
     const r = await AdminContentStudioService.setDocumentAccessLevel('d1', 'PRO');
     assert(r.access_level === 'PRO');
     const audit = currentSupabase.log.writes.find((w) => w.table === 'admin_audit_logs');
@@ -302,6 +310,9 @@ async function offline() {
     threw = false;
     try { await AdminContentStudioService.setDocumentAccessLevel('d1', 'FREE'); } catch { threw = true; } finally { authState.isAdmin = true; }
     assert(threw, 'non-admin must be rejected');
+    } finally {
+      MOCKS['@/lib/supabase/server'].createServerSupabaseClient = realSession;
+    }
   });
 
   await test('O-11 static: durable storage, DB-generated version ids, dynamic article routes, sitemap on learning_documents', async () => {

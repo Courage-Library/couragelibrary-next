@@ -1,6 +1,7 @@
 "use server";
 
-import { AdminService } from "@/services/admin.service";
+
+import { guardAdminAction } from "@/lib/auth/require-admin";
 import { AdminPremiumService, GeneratorPolicyConfig } from "@/services/admin-premium.service";
 import { revalidatePath } from "next/cache";
 
@@ -21,10 +22,8 @@ export async function updateGlobalPremiumConfigAction(payload: {
   emergencyDisableReason?: string | null;
   reason: string;
 }): Promise<PremiumActionResult> {
-  const auth = await AdminService.checkIsAdminOrStaff();
-  if (!auth.isAdmin || !auth.userEmail) {
-    return { success: false, error: "Unauthorized. Administrator credentials required." };
-  }
+  const auth = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!auth.ok) return auth;
 
   if (!payload.reason || payload.reason.trim().length === 0) {
     return { success: false, error: "A specific operational reason is required for global configuration changes." };
@@ -58,10 +57,8 @@ export async function setExamPremiumAvailabilityAction(payload: {
   isEnabled: boolean;
   reason: string;
 }): Promise<PremiumActionResult> {
-  const auth = await AdminService.checkIsAdminOrStaff();
-  if (!auth.isAdmin || !auth.userEmail) {
-    return { success: false, error: "Unauthorized. Administrator credentials required." };
-  }
+  const auth = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!auth.ok) return auth;
 
   if (!payload.examId) {
     return { success: false, error: "Target Exam ID is required." };
@@ -97,10 +94,8 @@ export async function setTestTypeAvailabilityAction(payload: {
   isEnabled: boolean;
   reason: string;
 }): Promise<PremiumActionResult> {
-  const auth = await AdminService.checkIsAdminOrStaff();
-  if (!auth.isAdmin || !auth.userEmail) {
-    return { success: false, error: "Unauthorized. Administrator credentials required." };
-  }
+  const auth = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!auth.ok) return auth;
 
   if (!payload.testType) {
     return { success: false, error: "Test type is required." };
@@ -135,10 +130,8 @@ export async function updateGeneratorPolicyAction(payload: {
   policy: Partial<GeneratorPolicyConfig>;
   reason: string;
 }): Promise<PremiumActionResult> {
-  const auth = await AdminService.checkIsAdminOrStaff();
-  if (!auth.isAdmin || !auth.userEmail) {
-    return { success: false, error: "Unauthorized. Administrator credentials required." };
-  }
+  const auth = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!auth.ok) return auth;
 
   if (!payload.reason || payload.reason.trim().length === 0) {
     return { success: false, error: "A reason is required to update generator policies." };
@@ -166,10 +159,8 @@ export async function updateGeneratorPolicyAction(payload: {
 export async function searchCandidateAction(
   emailOrId: string
 ): Promise<PremiumActionResult> {
-  const auth = await AdminService.checkIsAdminOrStaff();
-  if (!auth.isAdmin || !auth.userEmail) {
-    return { success: false, error: "Unauthorized. Administrator credentials required." };
-  }
+  const auth = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!auth.ok) return auth;
 
   try {
     const result = await AdminPremiumService.searchCandidate(emailOrId);
@@ -190,10 +181,8 @@ export async function grantPromotionalPassAction(payload: {
   customLimits?: Record<string, number>;
   reason: string;
 }): Promise<PremiumActionResult> {
-  const auth = await AdminService.checkIsAdminOrStaff();
-  if (!auth.isAdmin || !auth.userEmail) {
-    return { success: false, error: "Unauthorized. Administrator credentials required." };
-  }
+  const auth = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!auth.ok) return auth;
 
   try {
     const result = await AdminPremiumService.grantPromotionalPass({
@@ -221,10 +210,8 @@ export async function revokeEntitlementAction(payload: {
   entitlementId: string;
   reason: string;
 }): Promise<PremiumActionResult> {
-  const auth = await AdminService.checkIsAdminOrStaff();
-  if (!auth.isAdmin || !auth.userEmail) {
-    return { success: false, error: "Unauthorized. Administrator credentials required." };
-  }
+  const auth = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!auth.ok) return auth;
 
   try {
     const result = await AdminPremiumService.revokeEntitlement({
@@ -250,10 +237,8 @@ export async function updateCustomLimitsAction(payload: {
   customLimits: Record<string, number>;
   reason: string;
 }): Promise<PremiumActionResult> {
-  const auth = await AdminService.checkIsAdminOrStaff();
-  if (!auth.isAdmin || !auth.userEmail) {
-    return { success: false, error: "Unauthorized. Administrator credentials required." };
-  }
+  const auth = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!auth.ok) return auth;
 
   try {
     const result = await AdminPremiumService.updateCustomLimits({
@@ -280,10 +265,8 @@ export async function toggleTestSeriesStatusAction(payload: {
   isActive: boolean;
   reason: string;
 }): Promise<PremiumActionResult> {
-  const auth = await AdminService.checkIsAdminOrStaff();
-  if (!auth.isAdmin || !auth.userEmail) {
-    return { success: false, error: "Unauthorized. Administrator credentials required." };
-  }
+  const auth = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!auth.ok) return auth;
 
   try {
     const result = await AdminPremiumService.toggleTestSeriesStatus({
@@ -313,10 +296,8 @@ export async function updateMockCuratedStatusAction(payload: {
   curatedBadge?: string | null;
   reason: string;
 }): Promise<PremiumActionResult> {
-  const auth = await AdminService.checkIsAdminOrStaff();
-  if (!auth.isAdmin || !auth.userEmail) {
-    return { success: false, error: "Unauthorized. Administrator credentials required." };
-  }
+  const auth = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!auth.ok) return auth;
 
   try {
     const result = await AdminPremiumService.updateMockCuratedStatus({

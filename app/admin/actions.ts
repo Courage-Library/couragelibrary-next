@@ -1,6 +1,8 @@
 "use server";
 
 
+
+import { guardAdminAction, dbFailure, sanitizeActionResult } from "@/lib/auth/require-admin";
 import { featureDisabledActionResult } from "@/lib/features/gates";
 import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { AdminService, getIstTomorrowDateStr } from "@/services/admin.service";
@@ -38,6 +40,10 @@ async function getDefaultOrgId(supabase: any): Promise<string> {
  * Server Action: Execute Bulk Content Ingestion (Preview or Commit)
  */
 export async function executeBulkImportAction(payload: BulkImportPayload): Promise<BulkImportResult> {
+  const __auth = await guardAdminAction({ allowStaff: payload?.mode !== "commit" }) /* SEC-1B Q1: commit admin only */;
+  if (!__auth.ok) {
+    return { ...__auth, entity: String(payload?.entity ?? ""), totalRecords: 0, created: 0, updated: 0, skipped: 0, brokenReferencesCount: 0, errors: [__auth.message], warnings: [] };
+  }
   const result = await BulkImportEngine.processImport(payload);
   if (payload.mode === "commit") {
     revalidatePath("/admin");
@@ -48,7 +54,7 @@ export async function executeBulkImportAction(payload: BulkImportPayload): Promi
     revalidatePath("/admin/schedules");
     revalidatePath("/admin/mock-tests");
   }
-  return result;
+  return sanitizeActionResult("executeBulkImportAction", await (result));
 }
 
 /**
@@ -57,8 +63,8 @@ export async function executeBulkImportAction(payload: BulkImportPayload): Promi
 export async function uploadBulkImportImageAction(
   formData: FormData
 ): Promise<{ success: boolean; url?: string; filename?: string; error?: string }> {
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { success: false, error: "Unauthorized." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   const file = formData.get("file") as File;
   const folder = ((formData.get("folder") as string) || "questions").toLowerCase();
@@ -82,7 +88,7 @@ export async function uploadBulkImportImageAction(
     });
 
   if (uploadErr) {
-    return { success: false, error: uploadErr.message };
+    return dbFailure("uploadBulkImportImageAction", uploadErr);
   }
 
   const { data: urlData } = supabase.storage.from("question-images").getPublicUrl(path);
@@ -121,10 +127,8 @@ export async function importBulkQuestionsAction(
   rows: BulkImportQuestionRecord[],
   mode: "dry-run" | "commit" = "commit"
 ): Promise<{ success: boolean; inserted: number; failed: number; errors: string[]; warnings?: string[] }> {
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin || !authCheck.userId) {
-    return { success: false, inserted: 0, failed: rows.length, errors: ["Unauthorized access."] };
-  }
+  const authCheck = await guardAdminAction({ allowStaff: mode !== "commit" }) /* SEC-1B Q1: commit admin only */;
+  if (!authCheck.ok) return { ...authCheck, inserted: 0, failed: 0, errors: [authCheck.message] };
 
   const summary = await QuestionCsvImporterService.run({
     rows: rows as unknown as Record<string, unknown>[],
@@ -162,8 +166,8 @@ export async function createCategoryAction(
   prevState: AdminActionResult | null,
   formData: FormData
 ): Promise<AdminActionResult> {
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized access. Administrative privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   const title = (formData.get("title") as string || formData.get("name") as string || "").trim();
   const slug = (
@@ -189,7 +193,7 @@ export async function createCategoryAction(
     is_active: true,
   });
 
-  if (error) return { error: `Failed to create category: ${error.message}` };
+  if (error) return dbFailure("createCategoryAction", error);
 
   revalidatePath("/admin/categories");
   revalidatePath("/admin/patterns");
@@ -201,8 +205,8 @@ export async function updateCategoryAction(
   prevState: AdminActionResult | null,
   formData: FormData
 ): Promise<AdminActionResult> {
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized access." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   const id = formData.get("id") as string;
   const title = (formData.get("title") as string || "").trim();
@@ -224,7 +228,7 @@ export async function updateCategoryAction(
     updated_at: new Date().toISOString(),
   }).eq("id", id);
 
-  if (error) return { error: `Failed to update category: ${error.message}` };
+  if (error) return dbFailure("updateCategoryAction", error);
 
   revalidatePath("/admin/categories");
   revalidatePath("/admin/patterns");
@@ -232,15 +236,15 @@ export async function updateCategoryAction(
 }
 
 export async function toggleCategoryStatusAction(categoryId: string, currentActive: boolean): Promise<AdminActionResult> {
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized access." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = supabaseRaw as any;
 
   const { error } = await supabase.from("exams").update({ is_active: !currentActive }).eq("id", categoryId);
-  if (error) return { error: error.message };
+  if (error) return dbFailure("toggleCategoryStatusAction", error);
 
   revalidatePath("/admin/categories");
   return { success: true, message: `Category ${!currentActive ? "activated" : "deactivated"} successfully.` };
@@ -254,8 +258,8 @@ export async function createPatternAction(
   prevState: AdminActionResult | null,
   formData: FormData
 ): Promise<AdminActionResult> {
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized access." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   const categoryId = formData.get("categoryId") as string;
   const name = (formData.get("name") as string || "").trim();
@@ -283,7 +287,7 @@ export async function createPatternAction(
       })
       .select("id")
       .single();
-    if (cycErr) return { error: `Failed creating exam cycle: ${cycErr.message}` };
+    if (cycErr) return dbFailure("createPatternAction", cycErr);
     cycle = newCycle;
   }
 
@@ -298,7 +302,7 @@ export async function createPatternAction(
     is_active: true,
   });
 
-  if (error) return { error: `Failed to create pattern: ${error.message}` };
+  if (error) return dbFailure("createPatternAction", error);
 
   revalidatePath("/admin/patterns");
   revalidatePath("/admin/sections");
@@ -311,8 +315,8 @@ export async function updatePatternAction(
   prevState: AdminActionResult | null,
   formData: FormData
 ): Promise<AdminActionResult> {
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized access." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   const id = formData.get("id") as string;
   const name = (formData.get("name") as string || "").trim();
@@ -338,22 +342,22 @@ export async function updatePatternAction(
     updated_at: new Date().toISOString(),
   }).eq("id", id);
 
-  if (error) return { error: `Failed to update pattern: ${error.message}` };
+  if (error) return dbFailure("updatePatternAction", error);
 
   revalidatePath("/admin/patterns");
   return { success: true, message: `Pattern "${name}" updated successfully.` };
 }
 
 export async function togglePatternStatusAction(patternId: string, currentActive: boolean): Promise<AdminActionResult> {
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized access." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = supabaseRaw as any;
 
   const { error } = await supabase.from("exam_patterns").update({ is_active: !currentActive }).eq("id", patternId);
-  if (error) return { error: error.message };
+  if (error) return dbFailure("togglePatternStatusAction", error);
 
   revalidatePath("/admin/patterns");
   return { success: true, message: `Pattern ${!currentActive ? "activated" : "deactivated"} successfully.` };
@@ -363,8 +367,8 @@ export async function togglePatternStatusAction(patternId: string, currentActive
  * Server Action: Delete a Pattern safely with dependency verification
  */
 export async function deletePatternAction(patternId: string): Promise<AdminActionResult> {
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized access." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -392,7 +396,7 @@ export async function deletePatternAction(patternId: string): Promise<AdminActio
 
   const { error: delErr } = await supabase.from("exam_patterns").delete().eq("id", patternId);
   if (delErr) {
-    return { error: `Failed to delete pattern: ${delErr.message}` };
+    return dbFailure("deletePatternAction", delErr);
   }
 
   revalidatePath("/admin/patterns");
@@ -408,8 +412,8 @@ export async function createSectionAction(
   prevState: AdminActionResult | null,
   formData: FormData
 ): Promise<AdminActionResult> {
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized access." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   const patternId = (formData.get("patternId") as string || "").trim();
   const subjectId = (formData.get("subjectId") as string || "").trim();
@@ -472,7 +476,7 @@ export async function createSectionAction(
     section_order: nextOrder,
   });
 
-  if (insErr) return { error: `Failed to add section: ${insErr.message}` };
+  if (insErr) return dbFailure("createSectionAction", insErr);
 
   revalidatePath("/admin/sections");
   revalidatePath("/admin/patterns");
@@ -484,8 +488,8 @@ export async function updateSectionAction(
   prevState: AdminActionResult | null,
   formData: FormData
 ): Promise<AdminActionResult> {
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized access." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   const id = formData.get("id") as string;
   const name = (formData.get("name") as string || "").trim();
@@ -507,7 +511,7 @@ export async function updateSectionAction(
     updated_at: new Date().toISOString(),
   }).eq("id", id);
 
-  if (error) return { error: `Failed to update section: ${error.message}` };
+  if (error) return dbFailure("updateSectionAction", error);
 
   revalidatePath("/admin/sections");
   return { success: true, message: `Section "${name}" updated successfully.` };
@@ -517,15 +521,15 @@ export async function updateSectionAction(
  * Server Action: Safely Delete Section without deleting questions
  */
 export async function deleteSectionAction(sectionId: string): Promise<AdminActionResult> {
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized access." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = supabaseRaw as any;
 
   const { error } = await supabase.from("pattern_sections").delete().eq("id", sectionId);
-  if (error) return { error: `Failed to delete section: ${error.message}` };
+  if (error) return dbFailure("deleteSectionAction", error);
 
   revalidatePath("/admin/sections");
   revalidatePath("/admin/patterns");
@@ -541,8 +545,8 @@ export async function createScheduleAction(
   prevState: AdminActionResult | null,
   formData: FormData
 ): Promise<AdminActionResult> {
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized access." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   const categoryId = formData.get("categoryId") as string;
   const cycleYear = Number(formData.get("cycleYear") || 2026);
@@ -570,7 +574,7 @@ export async function createScheduleAction(
     status,
   });
 
-  if (error) return { error: `Failed to create schedule: ${error.message}` };
+  if (error) return dbFailure("createScheduleAction", error);
 
   revalidatePath("/admin/schedules");
   return { success: true, message: `Recruitment Schedule for ${cycleYear} created successfully.` };
@@ -580,8 +584,8 @@ export async function updateScheduleAction(
   prevState: AdminActionResult | null,
   formData: FormData
 ): Promise<AdminActionResult> {
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized access." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   const id = formData.get("id") as string;
   const cycleYear = Number(formData.get("cycleYear") || 2026);
@@ -609,15 +613,15 @@ export async function updateScheduleAction(
     updated_at: new Date().toISOString(),
   }).eq("id", id);
 
-  if (error) return { error: `Failed to update schedule: ${error.message}` };
+  if (error) return dbFailure("updateScheduleAction", error);
 
   revalidatePath("/admin/schedules");
   return { success: true, message: "Schedule updated successfully." };
 }
 
 export async function toggleScheduleStatusAction(scheduleId: string, currentStatus: string): Promise<AdminActionResult> {
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized access." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   const newStatus = currentStatus === "active" ? "archived" : "active";
   const supabaseRaw = createAdminServerSupabaseClient();
@@ -625,7 +629,7 @@ export async function toggleScheduleStatusAction(scheduleId: string, currentStat
   const supabase = supabaseRaw as any;
 
   const { error } = await supabase.from("exam_cycles").update({ status: newStatus }).eq("id", scheduleId);
-  if (error) return { error: error.message };
+  if (error) return dbFailure("toggleScheduleStatusAction", error);
 
   revalidatePath("/admin/schedules");
   return { success: true, message: `Schedule marked as ${newStatus}.` };
@@ -638,8 +642,8 @@ export async function saveDailyMockDayAction(
   prevState: AdminActionResult | null,
   formData: FormData
 ): Promise<AdminActionResult> {
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized access." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   const categoryId = formData.get("categoryId") as string;
   const dayOfWeek = (formData.get("dayOfWeek") as "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday") || "monday";
@@ -685,7 +689,7 @@ export async function saveDailyMockDayAction(
   );
 
   if (!result.success) {
-    return { error: result.error || "Failed to update daily mock day." };
+    return sanitizeActionResult("saveDailyMockDayAction", await ({ error: result.error || "Failed to update daily mock day." }));
   }
 
   revalidatePath("/admin/schedules");
@@ -700,8 +704,8 @@ export async function saveDailyMockProgramAction(
   prevState: AdminActionResult | null,
   formData: FormData
 ): Promise<AdminActionResult> {
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized access." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   const categoryId = formData.get("categoryId") as string;
   const launchDate = (formData.get("launchDate") as string) || getIstTomorrowDateStr();
@@ -744,8 +748,8 @@ export async function updateDailyMockProgramAction(
   prevState: AdminActionResult | null,
   formData: FormData
 ): Promise<AdminActionResult> {
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized access." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   const categoryId = formData.get("categoryId") as string;
   const launchDate = (formData.get("launchDate") as string) || getIstTomorrowDateStr();
@@ -786,8 +790,8 @@ export async function deactivateDailyMockProgramAction(
   prevState: AdminActionResult | null,
   formData: FormData
 ): Promise<AdminActionResult> {
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized access." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   const categoryId = formData.get("categoryId") as string;
   const confirmationText = formData.get("confirmationText") as string;
@@ -799,7 +803,7 @@ export async function deactivateDailyMockProgramAction(
 
   const result = await AdminService.deactivateAdminDailyMockProgram(categoryId, confirmationText);
   if (!result.success) {
-    return { error: result.error || "Failed to deactivate weekly program." };
+    return sanitizeActionResult("deactivateDailyMockProgramAction", await ({ error: result.error || "Failed to deactivate weekly program." }));
   }
 
   revalidatePath("/admin/schedules");
@@ -814,11 +818,11 @@ export async function deactivateDailyMockProgramAction(
  * Server Action: Toggle single day active status in Daily Mock Program
  */
 export async function toggleDailyMockDayAction(templateId: string, currentActive: boolean): Promise<AdminActionResult> {
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized access." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   const result = await AdminService.toggleDailyMockDayStatus(templateId, currentActive);
-  if (!result.success) return { error: result.error || "Failed to toggle status." };
+  if (!result.success) return sanitizeActionResult("toggleDailyMockDayAction", await ({ error: result.error || "Failed to toggle status." }));
 
   revalidatePath("/admin/schedules");
   revalidatePath("/mock-tests");
@@ -866,6 +870,8 @@ export async function createQuestionHierarchyAction(
   prevState: AdminActionResult | null,
   formData: FormData
 ): Promise<AdminActionResult> {
+  const __auth = await guardAdminAction({ allowStaff: true });
+  if (!__auth.ok) return __auth;
   const topicId = ((formData.get("topicId") as string) || "").trim();
   if (!((formData.get("statement") as string) || "").trim()) {
     return { error: "Question statement is required." };
@@ -876,7 +882,7 @@ export async function createQuestionHierarchyAction(
 
   const res = await AdminQuestionFactoryService.createManualDraft({ topicId }, questionFormToItem(formData));
   if (!res.success) {
-    return { error: res.error || "Question failed the Question Factory gates." };
+    return sanitizeActionResult("createQuestionHierarchyAction", await ({ error: res.error || "Question failed the Question Factory gates." }));
   }
 
   revalidatePath("/admin/questions");
@@ -895,10 +901,8 @@ export async function updateQuestionHierarchyAction(
   prevState: AdminActionResult | null,
   formData: FormData
 ): Promise<AdminActionResult> {
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) {
-    return { error: "Unauthorized access." };
-  }
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   const questionId = ((formData.get("questionId") as string) || "").trim();
   const topicId = ((formData.get("topicId") as string) || "").trim();
@@ -913,7 +917,7 @@ export async function updateQuestionHierarchyAction(
     .select("id, canonical_topic_id, question_versions(id, lifecycle_status)")
     .eq("id", questionId)
     .maybeSingle();
-  if (qErr) return { error: `Failed to load question: ${qErr.message}` };
+  if (qErr) return dbFailure("updateQuestionHierarchyAction", qErr);
   if (!question) return { error: "Question not found." };
 
   if (topicId && topicId !== question.canonical_topic_id) {
@@ -931,7 +935,7 @@ export async function updateQuestionHierarchyAction(
   const res = editable
     ? await AdminQuestionFactoryService.editDraft(editable.id, item)
     : await AdminQuestionFactoryService.createRevision(questionId, item);
-  if (!res.success) return { error: res.error || "Edit failed the Question Factory gates." };
+  if (!res.success) return sanitizeActionResult("updateQuestionHierarchyAction", await ({ error: res.error || "Edit failed the Question Factory gates." }));
 
   revalidatePath("/admin/questions");
   revalidatePath("/admin/questions/factory");
@@ -944,8 +948,8 @@ export async function updateQuestionHierarchyAction(
 }
 
 export async function toggleQuestionStatusAction(questionId: string, currentStatus: string): Promise<AdminActionResult> {
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized access." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   if (currentStatus !== "published" && currentStatus !== "archived") {
     return { error: "Draft questions are published only through review in the Question Factory." };
@@ -958,23 +962,27 @@ export async function toggleQuestionStatusAction(questionId: string, currentStat
 
   // Restoring an archived question is allowed by the DB only when its current version is PUBLISHED.
   const { error } = await supabase.from("questions").update({ status: newStatus }).eq("id", questionId);
-  if (error) return { error: error.message };
+  if (error) return dbFailure("toggleQuestionStatusAction", error);
 
   revalidatePath("/admin/questions");
   return { success: true, message: `Question status changed to ${newStatus}.` };
 }
 
 export async function createQuestionAction(prevState: AdminActionResult | null, formData: FormData): Promise<AdminActionResult> {
-  return createQuestionHierarchyAction(prevState, formData);
+  const __auth = await guardAdminAction({ allowStaff: true });
+  if (!__auth.ok) return __auth;
+  return sanitizeActionResult("createQuestionAction", await (createQuestionHierarchyAction(prevState, formData)));
 }
 
 export async function toggleQuestionPublishAction(questionId: string, currentStatus: boolean): Promise<AdminActionResult> {
-  return toggleQuestionStatusAction(questionId, currentStatus ? "published" : "archived");
+  const __auth = await guardAdminAction({ allowStaff: true });
+  if (!__auth.ok) return __auth;
+  return sanitizeActionResult("toggleQuestionPublishAction", await (toggleQuestionStatusAction(questionId, currentStatus ? "published" : "archived")));
 }
 
 export async function deleteQuestionAction(questionId: string): Promise<AdminActionResult> {
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized access." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -998,7 +1006,7 @@ export async function deleteQuestionAction(questionId: string): Promise<AdminAct
 
   if ((responses && responses.length > 0) || frozen || vErr) {
     const { error } = await supabase.from("questions").update({ status: "archived" }).eq("id", questionId);
-    if (error) return { error: error.message };
+    if (error) return dbFailure("deleteQuestionAction", error);
     revalidatePath("/admin/questions");
     return { success: true, message: "Question has published or attempt history; safely archived instead of deleting." };
   }
@@ -1025,8 +1033,8 @@ export async function deleteQuestionAction(questionId: string): Promise<AdminAct
 /* ========================================================================= */
 
 export async function createMockTestAction(prevState: AdminActionResult | null, formData: FormData): Promise<AdminActionResult> {
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized access." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   const categoryId = formData.get("categoryId") as string;
   const patternId = formData.get("patternId") as string;
@@ -1110,15 +1118,15 @@ export async function createMockTestAction(prevState: AdminActionResult | null, 
     status: "published",
   });
 
-  if (error) return { error: error.message };
+  if (error) return dbFailure("createMockTestAction", error);
 
   revalidatePath("/admin/mock-tests");
   return { success: true, message: `Mock test "${title}" published successfully.` };
 }
 
 export async function updateMockTestAction(prevState: AdminActionResult | null, formData: FormData): Promise<AdminActionResult> {
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized access." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   const id = formData.get("id") as string;
   const title = (formData.get("title") as string || "").trim();
@@ -1142,15 +1150,15 @@ export async function updateMockTestAction(prevState: AdminActionResult | null, 
     updated_at: new Date().toISOString(),
   }).eq("id", id);
 
-  if (error) return { error: error.message };
+  if (error) return dbFailure("updateMockTestAction", error);
 
   revalidatePath("/admin/mock-tests");
   return { success: true, message: `Mock test "${title}" updated successfully.` };
 }
 
 export async function toggleMockTestPublishAction(mockTestId: string, currentStatus: boolean): Promise<AdminActionResult> {
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized access." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   const newStatus = currentStatus ? "draft" : "published";
   const supabaseRaw = createAdminServerSupabaseClient();
@@ -1158,7 +1166,7 @@ export async function toggleMockTestPublishAction(mockTestId: string, currentSta
   const supabase = supabaseRaw as any;
 
   const { error } = await supabase.from("mock_tests").update({ status: newStatus }).eq("id", mockTestId);
-  if (error) return { error: error.message };
+  if (error) return dbFailure("toggleMockTestPublishAction", error);
 
   revalidatePath("/admin/mock-tests");
   return { success: true, message: `Mock test marked as ${newStatus}.` };
@@ -1169,8 +1177,8 @@ export async function toggleMockTestPublishAction(mockTestId: string, currentSta
 /* ========================================================================= */
 
 export async function createArticleAction(prevState: AdminActionResult | null, formData: FormData): Promise<AdminActionResult> {
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized access." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   const title = formData.get("title") as string;
   const slug = formData.get("slug") as string;
@@ -1191,15 +1199,15 @@ export async function createArticleAction(prevState: AdminActionResult | null, f
     access_level: "free",
   });
 
-  if (error) return { error: error.message };
+  if (error) return dbFailure("createArticleAction", error);
 
   revalidatePath("/admin/content");
   return { success: true, message: "Article created successfully." };
 }
 
 export async function createCourseAction(prevState: AdminActionResult | null, formData: FormData): Promise<AdminActionResult> {
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized access." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   const title = formData.get("title") as string;
   const slug = formData.get("slug") as string;
@@ -1219,15 +1227,15 @@ export async function createCourseAction(prevState: AdminActionResult | null, fo
     access_tier: "free",
   });
 
-  if (error) return { error: error.message };
+  if (error) return dbFailure("createCourseAction", error);
 
   revalidatePath("/admin/content");
   return { success: true, message: "Course created successfully." };
 }
 
 export async function createDescriptiveAction(prevState: AdminActionResult | null, formData: FormData): Promise<AdminActionResult> {
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized access." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   const title = formData.get("title") as string;
   const promptText = formData.get("promptText") as string;
@@ -1246,15 +1254,15 @@ export async function createDescriptiveAction(prevState: AdminActionResult | nul
     is_active: true,
   });
 
-  if (error) return { error: error.message };
+  if (error) return dbFailure("createDescriptiveAction", error);
 
   revalidatePath("/admin/descriptive");
   return { success: true, message: "Descriptive prompt created successfully." };
 }
 
 export async function createInstituteAction(prevState: AdminActionResult | null, formData: FormData): Promise<AdminActionResult> {
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized access." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   const name = formData.get("name") as string;
   const slug = formData.get("slug") as string;
@@ -1273,15 +1281,15 @@ export async function createInstituteAction(prevState: AdminActionResult | null,
     is_verified: true,
   });
 
-  if (error) return { error: error.message };
+  if (error) return dbFailure("createInstituteAction", error);
 
   revalidatePath("/admin/institutes");
   return { success: true, message: "Institute created successfully." };
 }
 
 export async function createSubscriptionPlanAction(prevState: AdminActionResult | null, formData: FormData): Promise<AdminActionResult> {
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized access." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   const name = formData.get("name") as string;
   const code = formData.get("code") as string;
@@ -1302,22 +1310,22 @@ export async function createSubscriptionPlanAction(prevState: AdminActionResult 
     is_active: true,
   });
 
-  if (error) return { error: error.message };
+  if (error) return dbFailure("createSubscriptionPlanAction", error);
 
   revalidatePath("/admin/billing");
   return { success: true, message: "Subscription plan created successfully." };
 }
 
 export async function resolveCommunityFlagAction(flagId: string, status: string = "resolved"): Promise<AdminActionResult> {
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized access." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = supabaseRaw as any;
 
   const { error } = await supabase.from("community_moderation_flags").update({ status: status.toLowerCase() }).eq("id", flagId);
-  if (error) return { error: error.message };
+  if (error) return dbFailure("resolveCommunityFlagAction", error);
 
   revalidatePath("/admin/community");
   return { success: true, message: "Flag resolved successfully." };
@@ -1333,8 +1341,8 @@ export async function updateAdaptiveGlobalStatusAction(
 ): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -1357,8 +1365,8 @@ export async function toggleAdaptiveEmergencyAction(
 ): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -1380,8 +1388,8 @@ export async function updateAdaptiveSafetyLimitsAction(
 ): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -1404,8 +1412,8 @@ export async function createAdaptiveAlgorithmVersionAction(
 ): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -1428,8 +1436,8 @@ export async function activateAdaptiveAlgorithmVersionAction(
 ): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -1452,8 +1460,8 @@ export async function saveAdaptiveConfigAction(
 ): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -1480,8 +1488,8 @@ export async function recalibrateItemAction(
 ): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdaptiveCalibrationService } = await import("@/services/adaptive/adaptive-calibration.service");
@@ -1504,8 +1512,8 @@ export async function recalibrateBatchAction(
 ): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdaptiveCalibrationService } = await import("@/services/adaptive/adaptive-calibration.service");
@@ -1528,8 +1536,8 @@ export async function flagQuestionVersionAction(
 ): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdaptiveCalibrationService } = await import("@/services/adaptive/adaptive-calibration.service");
@@ -1551,8 +1559,8 @@ export async function unflagQuestionVersionAction(
 ): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdaptiveCalibrationService } = await import("@/services/adaptive/adaptive-calibration.service");
@@ -1574,8 +1582,8 @@ export async function deprecateQuestionVersionAction(
 ): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdaptiveCalibrationService } = await import("@/services/adaptive/adaptive-calibration.service");
@@ -1597,8 +1605,8 @@ export async function restoreQuestionVersionAction(
 ): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdaptiveCalibrationService } = await import("@/services/adaptive/adaptive-calibration.service");
@@ -1619,8 +1627,8 @@ export async function getItemCalibrationDetailAction(
 ): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdaptiveCalibrationService } = await import("@/services/adaptive/adaptive-calibration.service");
@@ -1638,8 +1646,8 @@ export async function updateEstimatorConfigAction(
 ): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -1661,8 +1669,8 @@ export async function getAttemptAbilityDetailAction(
 ): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -1681,8 +1689,8 @@ export async function getAttemptAbilityDetailAction(
 export async function getCATConfigAction(): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -1700,8 +1708,8 @@ export async function updateCATConfigAction(
 ): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -1721,8 +1729,8 @@ export async function updateCATConfigAction(
 export async function getCATHealthAction(): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -1740,8 +1748,8 @@ export async function getItemInformationExplorerAction(
 ): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -1757,8 +1765,8 @@ export async function getItemInformationExplorerAction(
 export async function getStoppingConfigAction(): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -1776,8 +1784,8 @@ export async function updateStoppingConfigAction(
 ): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -1797,8 +1805,8 @@ export async function updateStoppingConfigAction(
 export async function getStoppingHealthAction(): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -1813,8 +1821,8 @@ export async function getStoppingHealthAction(): Promise<AdminActionResult> {
 export async function getPersonalizationConfigAction(): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -1832,8 +1840,8 @@ export async function updatePersonalizationConfigAction(
 ): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -1853,8 +1861,8 @@ export async function updatePersonalizationConfigAction(
 export async function getPersonalizationHealthAction(): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -1873,8 +1881,8 @@ export async function getPersonalizationHealthAction(): Promise<AdminActionResul
 export async function getAdaptiveOverviewAction(filters?: Record<string, unknown>): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -1889,8 +1897,8 @@ export async function getAdaptiveOverviewAction(filters?: Record<string, unknown
 export async function getCandidateIntelligenceAction(filters?: Record<string, unknown>): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -1905,8 +1913,8 @@ export async function getCandidateIntelligenceAction(filters?: Record<string, un
 export async function getCandidateAdaptiveDetailAction(userId: string, examId?: string): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -1921,8 +1929,8 @@ export async function getCandidateAdaptiveDetailAction(userId: string, examId?: 
 export async function getItemIntelligenceAction(filters?: Record<string, unknown>): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -1937,8 +1945,8 @@ export async function getItemIntelligenceAction(filters?: Record<string, unknown
 export async function getCATIntelligenceAction(filters?: Record<string, unknown>): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -1953,8 +1961,8 @@ export async function getCATIntelligenceAction(filters?: Record<string, unknown>
 export async function getAbilityIntelligenceAction(filters?: Record<string, unknown>): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -1969,8 +1977,8 @@ export async function getAbilityIntelligenceAction(filters?: Record<string, unkn
 export async function getStoppingIntelligenceAction(filters?: Record<string, unknown>): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -1985,8 +1993,8 @@ export async function getStoppingIntelligenceAction(filters?: Record<string, unk
 export async function getPersonalizationIntelligenceAction(filters?: Record<string, unknown>): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -2001,8 +2009,8 @@ export async function getPersonalizationIntelligenceAction(filters?: Record<stri
 export async function getAlgorithmComparisonAction(filters?: Record<string, unknown>): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -2017,8 +2025,8 @@ export async function getAlgorithmComparisonAction(filters?: Record<string, unkn
 export async function getAdaptiveHealthAction(filters?: Record<string, unknown>): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -2033,8 +2041,8 @@ export async function getAdaptiveHealthAction(filters?: Record<string, unknown>)
 export async function getDataQualityDiagnosticsAction(): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");
@@ -2049,8 +2057,8 @@ export async function getDataQualityDiagnosticsAction(): Promise<AdminActionResu
 export async function getAttemptDiagnosticsAction(attemptId: string): Promise<AdminActionResult> {
   const featureGate = featureDisabledActionResult("ADAPTIVE");
   if (featureGate) return featureGate as never;
-  const authCheck = await AdminService.checkIsAdminOrStaff();
-  if (!authCheck.isAdmin) return { error: "Unauthorized: Admin privileges required." };
+  const authCheck = await guardAdminAction({ allowStaff: true });
+  if (!authCheck.ok) return authCheck;
 
   try {
     const { AdminAdaptiveService } = await import("@/services/admin-adaptive.service");

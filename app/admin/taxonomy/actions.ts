@@ -1,5 +1,7 @@
 "use server";
 
+
+import { guardAdminAction, sanitizeActionResult } from "@/lib/auth/require-admin";
 import { revalidatePath } from "next/cache";
 import {
   TaxonomyService,
@@ -23,10 +25,12 @@ export async function createTaxonomyNodeAction(input: {
   slug?: string;
   description?: string;
 }): Promise<TaxonomyResult<TaxonomyNode>> {
+  const __auth = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!__auth.ok) return __auth;
   if (!TAXONOMY_NODE_TYPES.includes(input.nodeType as TaxonomyNodeType)) {
     return { success: false, code: "VALIDATION", error: "Unknown node type." };
   }
-  return done(
+  return sanitizeActionResult("createTaxonomyNodeAction", await (done(
     await TaxonomyService.createNode({
       parentId: input.parentId || null,
       nodeType: input.nodeType as TaxonomyNodeType,
@@ -34,17 +38,23 @@ export async function createTaxonomyNodeAction(input: {
       slug: input.slug,
       description: input.description,
     })
-  );
+  )));
 }
 
 export async function renameTaxonomyNodeAction(id: string, name: string, slug?: string): Promise<TaxonomyResult<TaxonomyNode>> {
-  return done(await TaxonomyService.renameNode(id, name, slug));
+  const __auth = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!__auth.ok) return __auth;
+  return sanitizeActionResult("renameTaxonomyNodeAction", await (done(await TaxonomyService.renameNode(id, name, slug))));
 }
 
 export async function setTaxonomyNodeActiveAction(id: string, isActive: boolean): Promise<TaxonomyResult<TaxonomyNode>> {
-  return done(await TaxonomyService.setActive(id, isActive));
+  const __auth = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!__auth.ok) return __auth;
+  return sanitizeActionResult("setTaxonomyNodeActiveAction", await (done(await TaxonomyService.setActive(id, isActive))));
 }
 
 export async function reorderTaxonomyNodesAction(parentId: string | null, orderedIds: string[]): Promise<TaxonomyResult<{ updated: number }>> {
-  return done(await TaxonomyService.reorder(parentId, orderedIds));
+  const __auth = await guardAdminAction() /* SEC-1B Q1: admin only */;
+  if (!__auth.ok) return __auth;
+  return sanitizeActionResult("reorderTaxonomyNodesAction", await (done(await TaxonomyService.reorder(parentId, orderedIds))));
 }

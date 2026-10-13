@@ -1,5 +1,6 @@
 "use client";
 
+import { actionErrorMessage } from "@/lib/actions/action-result";
 import React, { useState, useMemo, useEffect } from "react";
 import {
   AuthoringQueueTask,
@@ -328,7 +329,7 @@ export function AuthoringQueueView({ initialQueue = [], onSelectUnitDocType }: P
       });
 
       if (!res.success) {
-        setImportError(res.error || "Import failed");
+        setImportError(actionErrorMessage(res, "Import failed"));
       } else {
         setImportSuccess(res.result);
         await refreshQueue();

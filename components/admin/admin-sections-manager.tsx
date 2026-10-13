@@ -1,5 +1,6 @@
 "use client";
 
+import { actionErrorMessage } from "@/lib/actions/action-result";
 import React, { useState, useMemo, useActionState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -156,7 +157,7 @@ export function AdminSectionsManager({
       </div>
 
       {/* Feedback Alerts */}
-      {createState?.error && <Alert variant="error">{createState.error}</Alert>}
+      {createState?.error && <Alert variant="error">{actionErrorMessage(createState)}</Alert>}
       {createState?.message && <Alert variant="success">{createState.message}</Alert>}
       {actionFeedback && (
         <Alert variant={actionFeedback.type === "success" ? "success" : "error"}>
@@ -422,7 +423,7 @@ export function AdminSectionsManager({
                             if (confirm(`Delete section "${sec.name}"? This removes the blueprint rule.`)) {
                               startTransition(async () => {
                                 const res = await deleteSectionAction(sec.id);
-                                if (res.error) setActionFeedback({ type: "error", text: res.error });
+                                if (res.error) setActionFeedback({ type: "error", text: actionErrorMessage(res) });
                                 if (res.message) setActionFeedback({ type: "success", text: res.message });
                               });
                             }
@@ -520,7 +521,7 @@ export function AdminSectionsManager({
               </button>
             </div>
 
-            {editState?.error && <Alert variant="error">{editState.error}</Alert>}
+            {editState?.error && <Alert variant="error">{actionErrorMessage(editState)}</Alert>}
             {editState?.message && <Alert variant="success">{editState.message}</Alert>}
 
             <form action={editAction} className="space-y-4">

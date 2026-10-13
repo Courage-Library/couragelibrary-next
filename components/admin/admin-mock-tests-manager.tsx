@@ -1,5 +1,6 @@
 "use client";
 
+import { actionErrorMessage } from "@/lib/actions/action-result";
 import React, { useState, useMemo, useActionState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -173,7 +174,7 @@ export function AdminMockTestsManager({
       )}
 
       {/* Feedback Alerts */}
-      {createState?.error && <Alert variant="error">{createState.error}</Alert>}
+      {createState?.error && <Alert variant="error">{actionErrorMessage(createState)}</Alert>}
       {createState?.message && <Alert variant="success">{createState.message}</Alert>}
 
       {/* TWO COLUMN WORKSPACE */}
@@ -441,7 +442,7 @@ export function AdminMockTestsManager({
               </button>
             </div>
 
-            {editState?.error && <Alert variant="error">{editState.error}</Alert>}
+            {editState?.error && <Alert variant="error">{actionErrorMessage(editState)}</Alert>}
             {editState?.message && <Alert variant="success">{editState.message}</Alert>}
 
             <form action={editAction} className="space-y-4">

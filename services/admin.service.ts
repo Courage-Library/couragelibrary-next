@@ -1,5 +1,6 @@
 import { createServerSupabaseClient, createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { UserProfileService } from "@/services/user-profile.service";
+import { resolveRole } from "@/lib/auth/require-admin";
 import {
   getIstCurrentDateTime,
   getIstTomorrowDateStr,
@@ -240,15 +241,9 @@ export class AdminService {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { isAdmin: false };
 
-    const adminEmails = getConfiguredAdminEmails();
-
-    const isEmailAdmin = user.email ? adminEmails.includes(user.email.toLowerCase()) : false;
-    // Only app_metadata is trusted: it is writable by the service role alone.
-    // user_metadata is user-editable via auth.updateUser() and must never grant access.
-    const appRole = user.app_metadata?.role;
-    const isMetaAdmin = appRole === "admin" || appRole === "staff";
-
-    const isAuthorized = isEmailAdmin || isMetaAdmin;
+    // SEC-1B: the role decision is made only by the canonical guard (lib/auth/require-admin.ts):
+    // app_metadata.role admin/staff, or ADMIN_EMAILS → admin. user_metadata never grants access.
+    const isAuthorized = resolveRole(user) !== null;
 
     // Self-heal profile on admin access
     if (user) {

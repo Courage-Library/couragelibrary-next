@@ -1,10 +1,12 @@
 "use server";
 
+
+import { guardAdminAction, toActionFailure, sanitizeActionResult } from "@/lib/auth/require-admin";
 /**
  * COURAGE LIBRARY — ADMIN EXAM KNOWLEDGE SERVER ACTIONS
  * Phase 3H.4: Administrative Control Plane Actions
  * 
- * All actions are strictly guarded by AdminService.checkIsAdminOrStaff().
+ * All actions are guarded by the canonical guard (guardAdminAction, lib/auth/require-admin).
  * Browser clients are never trusted for authorization, validation, or publication.
  */
 
@@ -18,38 +20,32 @@ import {
 } from '@/types/exam-knowledge';
 
 export async function getAdminExamKnowledgeDashboardAction() {
-  const { isAdmin } = await AdminService.checkIsAdminOrStaff();
-  if (!isAdmin) {
-    return { success: false, error: 'UNAUTHORIZED: Admin or staff privileges required.' };
-  }
+  const __auth = await guardAdminAction({ allowStaff: true });
+  if (!__auth.ok) return __auth;
 
   try {
     const kpis = await AdminExamKnowledgeService.getDashboardKPIs();
     return { success: true, kpis };
   } catch (err: any) {
-    return { success: false, error: err.message || 'Failed to fetch dashboard KPIs.' };
+    return toActionFailure("getAdminExamKnowledgeDashboardAction", err);
   }
 }
 
 export async function getExamsAndCyclesAction() {
-  const { isAdmin } = await AdminService.checkIsAdminOrStaff();
-  if (!isAdmin) {
-    return { success: false, error: 'UNAUTHORIZED: Admin or staff privileges required.' };
-  }
+  const __auth1 = await guardAdminAction({ allowStaff: true });
+  if (!__auth1.ok) return __auth1;
 
   try {
     const data = await AdminExamKnowledgeService.getExamsAndCycles();
     return { success: true, exams: data.exams };
   } catch (err: any) {
-    return { success: false, error: err.message || 'Failed to fetch exams and cycles.' };
+    return toActionFailure("getExamsAndCyclesAction", err);
   }
 }
 
 export async function getExamWorkspaceAction(examId: string, cycleId?: string | null) {
-  const { isAdmin } = await AdminService.checkIsAdminOrStaff();
-  if (!isAdmin) {
-    return { success: false, error: 'UNAUTHORIZED: Admin or staff privileges required.' };
-  }
+  const __auth2 = await guardAdminAction({ allowStaff: true });
+  if (!__auth2.ok) return __auth2;
 
   if (!examId) {
     return { success: false, error: 'examId is required.' };
@@ -62,29 +58,25 @@ export async function getExamWorkspaceAction(examId: string, cycleId?: string | 
     }
     return { success: true, workspace };
   } catch (err: any) {
-    return { success: false, error: err.message || 'Failed to fetch exam workspace.' };
+    return toActionFailure("getExamWorkspaceAction", err);
   }
 }
 
 export async function getDraftsListAction(filters?: { examId?: string; reviewStatus?: ExamDocReviewStatus }) {
-  const { isAdmin } = await AdminService.checkIsAdminOrStaff();
-  if (!isAdmin) {
-    return { success: false, error: 'UNAUTHORIZED: Admin or staff privileges required.' };
-  }
+  const __auth3 = await guardAdminAction({ allowStaff: true });
+  if (!__auth3.ok) return __auth3;
 
   try {
     const drafts = await AdminExamKnowledgeService.getDraftsList(filters);
     return { success: true, drafts };
   } catch (err: any) {
-    return { success: false, error: err.message || 'Failed to fetch drafts list.' };
+    return toActionFailure("getDraftsListAction", err);
   }
 }
 
 export async function getDocumentDetailAction(versionId: string) {
-  const { isAdmin } = await AdminService.checkIsAdminOrStaff();
-  if (!isAdmin) {
-    return { success: false, error: 'UNAUTHORIZED: Admin or staff privileges required.' };
-  }
+  const __auth4 = await guardAdminAction({ allowStaff: true });
+  if (!__auth4.ok) return __auth4;
 
   if (!versionId) {
     return { success: false, error: 'versionId is required.' };
@@ -97,15 +89,13 @@ export async function getDocumentDetailAction(versionId: string) {
     }
     return { success: true, detail };
   } catch (err: any) {
-    return { success: false, error: err.message || 'Failed to fetch document detail.' };
+    return toActionFailure("getDocumentDetailAction", err);
   }
 }
 
 export async function getDocumentVersionHistoryAction(documentId: string) {
-  const { isAdmin } = await AdminService.checkIsAdminOrStaff();
-  if (!isAdmin) {
-    return { success: false, error: 'UNAUTHORIZED: Admin or staff privileges required.' };
-  }
+  const __auth5 = await guardAdminAction({ allowStaff: true });
+  if (!__auth5.ok) return __auth5;
 
   if (!documentId) {
     return { success: false, error: 'documentId is required.' };
@@ -113,9 +103,9 @@ export async function getDocumentVersionHistoryAction(documentId: string) {
 
   try {
     const res = await AdminExamKnowledgeService.getDocumentVersionHistory(documentId);
-    return res;
+    return sanitizeActionResult("getDocumentVersionHistoryAction", await (res));
   } catch (err: any) {
-    return { success: false, error: err.message || 'Failed to fetch version history.' };
+    return toActionFailure("getDocumentVersionHistoryAction", err);
   }
 }
 
@@ -123,10 +113,8 @@ export async function compareDocVersionsAction(params: {
   versionIdA: string;
   versionIdB: string;
 }) {
-  const { isAdmin } = await AdminService.checkIsAdminOrStaff();
-  if (!isAdmin) {
-    return { success: false, error: 'UNAUTHORIZED: Admin or staff privileges required.' };
-  }
+  const __auth6 = await guardAdminAction({ allowStaff: true });
+  if (!__auth6.ok) return __auth6;
 
   if (!params.versionIdA || !params.versionIdB) {
     return { success: false, error: 'Both versionIdA and versionIdB are required.' };
@@ -134,9 +122,9 @@ export async function compareDocVersionsAction(params: {
 
   try {
     const res = await AdminExamKnowledgeService.compareDocVersions(params);
-    return res;
+    return sanitizeActionResult("compareDocVersionsAction", await (res));
   } catch (err: any) {
-    return { success: false, error: err.message || 'Failed to compare document versions.' };
+    return toActionFailure("compareDocVersionsAction", err);
   }
 }
 
@@ -145,10 +133,9 @@ export async function updateDocVersionReviewStatusAction(params: {
   newStatus: ExamDocReviewStatus;
   feedback?: string;
 }) {
-  const { isAdmin, userId } = await AdminService.checkIsAdminOrStaff();
-  if (!isAdmin) {
-    return { success: false, error: 'UNAUTHORIZED: Admin or staff privileges required.' };
-  }
+  const __auth7 = await guardAdminAction({ allowStaff: true });
+  if (!__auth7.ok) return __auth7;
+  const { userId } = __auth7;
 
   try {
     const res = await AdminExamKnowledgeService.updateDocVersionReviewStatus({
@@ -157,9 +144,9 @@ export async function updateDocVersionReviewStatusAction(params: {
       feedback: params.feedback,
       userId: userId || undefined,
     });
-    return res;
+    return sanitizeActionResult("updateDocVersionReviewStatusAction", await (res));
   } catch (err: any) {
-    return { success: false, error: err.message || 'Failed to update review status.' };
+    return toActionFailure("updateDocVersionReviewStatusAction", err);
   }
 }
 
@@ -167,10 +154,9 @@ export async function requestChangesExamDocVersionAction(params: {
   versionId: string;
   feedback: string;
 }) {
-  const { isAdmin, userId } = await AdminService.checkIsAdminOrStaff();
-  if (!isAdmin) {
-    return { success: false, error: 'UNAUTHORIZED: Admin or staff privileges required.' };
-  }
+  const __auth8 = await guardAdminAction({ allowStaff: true });
+  if (!__auth8.ok) return __auth8;
+  const { userId } = __auth8;
 
   if (!params.versionId) {
     return { success: false, error: 'versionId is required.' };
@@ -193,31 +179,28 @@ export async function requestChangesExamDocVersionAction(params: {
         // Cache revalidation failure should not block response
       }
     }
-    return res;
+    return sanitizeActionResult("requestChangesExamDocVersionAction", await (res));
   } catch (err: any) {
-    return { success: false, error: err.message || 'Failed to request changes.' };
+    return toActionFailure("requestChangesExamDocVersionAction", err);
   }
 }
 
 export async function compileExamDocVersionAction(versionId: string) {
-  const { isAdmin } = await AdminService.checkIsAdminOrStaff();
-  if (!isAdmin) {
-    return { success: false, error: 'UNAUTHORIZED: Admin or staff privileges required.' };
-  }
+  const __auth9 = await guardAdminAction({ allowStaff: true });
+  if (!__auth9.ok) return __auth9;
 
   try {
     const res = await AdminExamKnowledgeService.compileExamDocVersion(versionId);
-    return res;
+    return sanitizeActionResult("compileExamDocVersionAction", await (res));
   } catch (err: any) {
-    return { success: false, error: err.message || 'Failed to compile document version.' };
+    return toActionFailure("compileExamDocVersionAction", err);
   }
 }
 
 export async function publishExamDocVersionAction(versionId: string) {
-  const { isAdmin, userId } = await AdminService.checkIsAdminOrStaff();
-  if (!isAdmin) {
-    return { success: false, error: 'UNAUTHORIZED: Admin or staff privileges required.' };
-  }
+  const __auth10 = await guardAdminAction({ allowStaff: true });
+  if (!__auth10.ok) return __auth10;
+  const { userId } = __auth10;
 
   try {
     const res = await AdminExamKnowledgeService.publishExamDocVersion({
@@ -246,9 +229,9 @@ export async function publishExamDocVersionAction(versionId: string) {
       }
     }
 
-    return res;
+    return sanitizeActionResult("publishExamDocVersionAction", await (res));
   } catch (err: any) {
-    return { success: false, error: err.message || 'Failed to publish document version.' };
+    return toActionFailure("publishExamDocVersionAction", err);
   }
 }
 
@@ -256,10 +239,9 @@ export async function createRevisionDraftAction(params: {
   documentId: string;
   baseVersionId: string;
 }) {
-  const { isAdmin, userId } = await AdminService.checkIsAdminOrStaff();
-  if (!isAdmin) {
-    return { success: false, error: 'UNAUTHORIZED: Admin or staff privileges required.' };
-  }
+  const __auth11 = await guardAdminAction({ allowStaff: true });
+  if (!__auth11.ok) return __auth11;
+  const { userId } = __auth11;
 
   try {
     const res = await AdminExamKnowledgeService.createRevisionDraft({
@@ -267,9 +249,9 @@ export async function createRevisionDraftAction(params: {
       baseVersionId: params.baseVersionId,
       userId: userId || undefined,
     });
-    return res;
+    return sanitizeActionResult("createRevisionDraftAction", await (res));
   } catch (err: any) {
-    return { success: false, error: err.message || 'Failed to create revision draft.' };
+    return toActionFailure("createRevisionDraftAction", err);
   }
 }
 
@@ -278,10 +260,9 @@ export async function verifyExamSourceAction(params: {
   status: ExamSourceVerificationStatus;
   notes?: string;
 }) {
-  const { isAdmin, userId } = await AdminService.checkIsAdminOrStaff();
-  if (!isAdmin) {
-    return { success: false, error: 'UNAUTHORIZED: Admin or staff privileges required.' };
-  }
+  const __auth12 = await guardAdminAction({ allowStaff: true });
+  if (!__auth12.ok) return __auth12;
+  const { userId } = __auth12;
 
   try {
     const res = await AdminExamKnowledgeService.updateSourceVerification({
@@ -290,9 +271,9 @@ export async function verifyExamSourceAction(params: {
       notes: params.notes,
       userId: userId || undefined,
     });
-    return res;
+    return sanitizeActionResult("verifyExamSourceAction", await (res));
   } catch (err: any) {
-    return { success: false, error: err.message || 'Failed to verify source.' };
+    return toActionFailure("verifyExamSourceAction", err);
   }
 }
 
@@ -300,10 +281,9 @@ export async function verifyExamClaimAction(params: {
   claimId: string;
   status: ExamClaimVerificationStatus;
 }) {
-  const { isAdmin, userId } = await AdminService.checkIsAdminOrStaff();
-  if (!isAdmin) {
-    return { success: false, error: 'UNAUTHORIZED: Admin or staff privileges required.' };
-  }
+  const __auth13 = await guardAdminAction({ allowStaff: true });
+  if (!__auth13.ok) return __auth13;
+  const { userId } = __auth13;
 
   try {
     const res = await AdminExamKnowledgeService.updateClaimVerification({
@@ -311,17 +291,15 @@ export async function verifyExamClaimAction(params: {
       status: params.status,
       userId: userId || undefined,
     });
-    return res;
+    return sanitizeActionResult("verifyExamClaimAction", await (res));
   } catch (err: any) {
-    return { success: false, error: err.message || 'Failed to verify claim.' };
+    return toActionFailure("verifyExamClaimAction", err);
   }
 }
 
 export async function discardDraftVersionAction(versionId: string) {
-  const { isAdmin } = await AdminService.checkIsAdminOrStaff();
-  if (!isAdmin) {
-    return { success: false, error: 'UNAUTHORIZED: Admin or staff privileges required.' };
-  }
+  const __auth14 = await guardAdminAction({ allowStaff: true });
+  if (!__auth14.ok) return __auth14;
 
   if (!versionId) {
     return { success: false, error: 'versionId is required.' };
@@ -336,9 +314,9 @@ export async function discardDraftVersionAction(versionId: string) {
         // Cache revalidation error should not block response
       }
     }
-    return res;
+    return sanitizeActionResult("discardDraftVersionAction", await (res));
   } catch (err: any) {
-    return { success: false, error: err.message || 'Failed to discard draft version.' };
+    return toActionFailure("discardDraftVersionAction", err);
   }
 }
 
@@ -346,10 +324,9 @@ export async function updateDraftPayloadAction(params: {
   versionId: string;
   structuredPayload: any;
 }) {
-  const { isAdmin, userId } = await AdminService.checkIsAdminOrStaff();
-  if (!isAdmin) {
-    return { success: false, error: 'UNAUTHORIZED: Admin or staff privileges required.' };
-  }
+  const __auth15 = await guardAdminAction({ allowStaff: true });
+  if (!__auth15.ok) return __auth15;
+  const { userId } = __auth15;
 
   if (!params.versionId) {
     return { success: false, error: 'versionId is required.' };
@@ -361,9 +338,9 @@ export async function updateDraftPayloadAction(params: {
       structuredPayload: params.structuredPayload,
       userId: userId || undefined,
     });
-    return res;
+    return sanitizeActionResult("updateDraftPayloadAction", await (res));
   } catch (err: any) {
-    return { success: false, error: err.message || 'Failed to update draft payload.' };
+    return toActionFailure("updateDraftPayloadAction", err);
   }
 }
 
@@ -371,10 +348,9 @@ export async function submitDraftForReviewAction(params: {
   versionId: string;
   feedback?: string;
 }) {
-  const { isAdmin, userId } = await AdminService.checkIsAdminOrStaff();
-  if (!isAdmin) {
-    return { success: false, error: 'UNAUTHORIZED: Admin or staff privileges required.' };
-  }
+  const __auth16 = await guardAdminAction({ allowStaff: true });
+  if (!__auth16.ok) return __auth16;
+  const { userId } = __auth16;
 
   if (!params.versionId) {
     return { success: false, error: 'versionId is required.' };
@@ -386,9 +362,9 @@ export async function submitDraftForReviewAction(params: {
       feedback: params.feedback,
       userId: userId || undefined,
     });
-    return res;
+    return sanitizeActionResult("submitDraftForReviewAction", await (res));
   } catch (err: any) {
-    return { success: false, error: err.message || 'Failed to submit draft for review.' };
+    return toActionFailure("submitDraftForReviewAction", err);
   }
 }
 

@@ -15,7 +15,7 @@
  * 10. Audit logging for all administrative actions
  */
 
-import { AdminService } from '@/services/admin.service';
+import { requireAdmin } from '@/lib/auth/require-admin';
 import { createServerSupabaseClient, createAdminServerSupabaseClient } from '@/lib/supabase/server';
 import {
   LessonDocumentSpec,
@@ -102,15 +102,15 @@ export class AdminContentStudioService {
   /**
    * Server-Side RBAC Guard: Ensures user has administrative staff privileges.
    */
-  static async requireAdminAuth(actionName: string, adminUserId?: string): Promise<{ userId: string; userEmail: string }> {
-    if (adminUserId) {
-      return { userId: adminUserId, userEmail: 'admin@couragelibrary.com' };
-    }
-    const authCheck = await AdminService.checkIsAdminOrStaff();
-    if (!authCheck.isAdmin || !authCheck.userId) {
-      throw new Error(`Unauthorized: Administrative staff privileges required for "${actionName}".`);
-    }
-    return { userId: authCheck.userId, userEmail: authCheck.userEmail || 'admin@couragelibrary.com' };
+  /**
+   * SEC-1B: authorization always comes from the session via the canonical guard. The optional
+   * `_callerSuppliedUserId` is accepted only for call-site compatibility and is IGNORED — it
+   * previously skipped the admin check entirely (reachable from reviewVersionAction params).
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  static async requireAdminAuth(actionName: string, _callerSuppliedUserId?: string): Promise<{ userId: string; userEmail: string }> {
+    const ctx = await requireAdmin({ allowStaff: true });
+    return { userId: ctx.userId, userEmail: ctx.userEmail || 'unknown' };
   }
 
   /**
@@ -498,11 +498,8 @@ export class AdminContentStudioService {
       .maybeSingle();
 
     if (!version) {
-      const cached = LearningDocumentService.getCachedVersion(versionId);
-      if (!cached) {
-        return { success: false, spec: null, compiledMdx: null, version: null };
-      }
-      return { success: true, spec: null, compiledMdx: null, version: cached };
+      // SEC-1B: no in-memory cache fallback.
+      return { success: false, spec: null, compiledMdx: null, version: null };
     }
 
     const storageProvider = getLearningArtifactStorage();
@@ -664,7 +661,8 @@ export class AdminContentStudioService {
   }
 
   /**
-   * Review Version (Approve or Reject)
+   * Review Version (Approve or Reject).
+   * SEC-1B: no in-memory fallback — a failed read or write throws (surfaced as DB_ERROR).
    */
   static async reviewVersion(params: {
     versionId: string;
@@ -672,21 +670,11 @@ export class AdminContentStudioService {
     feedback?: string;
     adminUserId?: string;
   }, supabaseClient?: any): Promise<DocumentVersion> {
-    const { userId } = await this.requireAdminAuth('reviewVersion', params.adminUserId);
+    const { userId } = await this.requireAdminAuth('reviewVersion');
     const supabase = supabaseClient || (createAdminServerSupabaseClient() as any);
 
-    let version: DocumentVersion | null = null;
-    try {
-      const { data } = await supabase.from('document_versions').select('*').eq('id', params.versionId).single();
-      version = data as DocumentVersion;
-    } catch (err) {
-      // Fallback to cache
-    }
-
-    if (!version) {
-      version = LearningDocumentService.getCachedVersion(params.versionId);
-    }
-
+    const { data: version, error: readErr } = await supabase.from('document_versions').select('*').eq('id', params.versionId).maybeSingle();
+    if (readErr) throw readErr;
     if (!version) throw new Error(`Version ${params.versionId} not found.`);
 
     LearningDocumentService.assertMutable(version as DocumentVersion);
@@ -696,62 +684,30 @@ export class AdminContentStudioService {
     }
 
     const targetStatus: ReviewStatus = params.decision === 'APPROVED' ? 'APPROVED' : 'REJECTED';
-    const nowIso = new Date().toISOString();
-
-    let updatedVersion: DocumentVersion | null = null;
-    try {
-      const { data, error } = await supabase
-        .from('document_versions')
-        .update({
-          review_status: targetStatus,
-          approved_by_user_id: params.decision === 'APPROVED' ? userId : null,
-          updated_at: nowIso,
-        })
-        .eq('id', params.versionId)
-        .select()
-        .single();
-      if (data && !error) {
-        updatedVersion = data as DocumentVersion;
-      }
-    } catch (err) {
-      // Fallback
-    }
-
-    if (!updatedVersion) {
-      updatedVersion = LearningDocumentService.updateCachedVersion(params.versionId, {
+    const { data, error } = await supabase
+      .from('document_versions')
+      .update({
         review_status: targetStatus,
         approved_by_user_id: params.decision === 'APPROVED' ? userId : null,
-        updated_at: nowIso,
-      }) || {
-        ...version,
-        review_status: targetStatus,
-        approved_by_user_id: params.decision === 'APPROVED' ? userId : null,
-        updated_at: nowIso,
-      };
-    }
-
-    return updatedVersion;
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', params.versionId)
+      .select()
+      .single();
+    if (error || !data) throw error || new Error('Review update returned no row.');
+    return data as DocumentVersion;
   }
 
   /**
-   * Compile Version
+   * Compile Version.
+   * SEC-1B: no in-memory fallback — read, storage and update failures throw.
    */
-  static async compileVersion(versionId: string, supabaseClient?: any, adminUserId?: string): Promise<{ success: boolean; result: CompilationResult; compiled_mdx?: string }> {
-    await this.requireAdminAuth('compileVersion', adminUserId);
+  static async compileVersion(versionId: string, supabaseClient?: any): Promise<{ success: boolean; result: CompilationResult; compiled_mdx?: string }> {
+    await this.requireAdminAuth('compileVersion');
     const supabase = supabaseClient || (createAdminServerSupabaseClient() as any);
 
-    let version: DocumentVersion | null = null;
-    try {
-      const { data } = await supabase.from('document_versions').select('*').eq('id', versionId).single();
-      version = data as DocumentVersion;
-    } catch (err) {
-      // Fallback
-    }
-
-    if (!version) {
-      version = LearningDocumentService.getCachedVersion(versionId);
-    }
-
+    const { data: version, error: readErr } = await supabase.from('document_versions').select('*').eq('id', versionId).maybeSingle();
+    if (readErr) throw readErr;
     if (!version) throw new Error(`Version ${versionId} not found.`);
 
     LearningDocumentService.assertMutable(version as DocumentVersion);
@@ -774,52 +730,30 @@ export class AdminContentStudioService {
       'text/mdx'
     );
 
-    const nowIso = new Date().toISOString();
-    try {
-      await supabase
-        .from('document_versions')
-        .update({
-          review_status: 'COMPILED',
-          compiled_artifact_hash: compResult.artifact.compiledArtifactHash,
-          updated_at: nowIso,
-        })
-        .eq('id', versionId);
-    } catch (err) {
-      // Fallback
-    }
-
-    LearningDocumentService.updateCachedVersion(versionId, {
-      review_status: 'COMPILED',
-      compiled_artifact_hash: compResult.artifact.compiledArtifactHash,
-      updated_at: nowIso,
-    });
+    const { error } = await supabase
+      .from('document_versions')
+      .update({
+        review_status: 'COMPILED',
+        compiled_artifact_hash: compResult.artifact.compiledArtifactHash,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', versionId);
+    if (error) throw error;
 
     return { success: true, result: compResult, compiled_mdx: compResult.artifact.compiledMdx };
   }
 
   /**
-   * Server-Authoritative Atomic Publishing with Immutability Lock
+   * Server-Authoritative Publishing with Immutability Lock.
+   * SEC-1B: no in-memory fallback — a failed version or document update throws; the result is
+   * always the persisted rows.
    */
-  static async publishVersion(versionId: string, supabaseClient?: any, adminUserId?: string): Promise<{ document: LearningDocument; version: DocumentVersion }> {
-    const { userId } = await this.requireAdminAuth('publishVersion', adminUserId);
+  static async publishVersion(versionId: string, supabaseClient?: any): Promise<{ document: LearningDocument; version: DocumentVersion }> {
+    const { userId } = await this.requireAdminAuth('publishVersion');
     const supabase = supabaseClient || (createAdminServerSupabaseClient() as any);
 
-    let version: DocumentVersion | null = null;
-    try {
-      const { data } = await supabase
-        .from('document_versions')
-        .select('*')
-        .eq('id', versionId)
-        .single();
-      version = data as DocumentVersion;
-    } catch (err) {
-      // Fallback
-    }
-
-    if (!version) {
-      version = LearningDocumentService.getCachedVersion(versionId);
-    }
-
+    const { data: version, error: readErr } = await supabase.from('document_versions').select('*').eq('id', versionId).maybeSingle();
+    if (readErr) throw readErr;
     if (!version) throw new Error(`Version ${versionId} not found.`);
     if (version.is_published) throw new Error(`Version ${versionId} is already published.`);
 
@@ -836,72 +770,31 @@ export class AdminContentStudioService {
     }
 
     const nowIso = new Date().toISOString();
-
-    let publishedVer: DocumentVersion | null = null;
-    try {
-      const { data } = await supabase
-        .from('document_versions')
-        .update({
-          is_published: true,
-          review_status: 'PUBLISHED',
-          published_at: nowIso,
-          approved_by_user_id: version.approved_by_user_id || userId,
-          updated_at: nowIso,
-        })
-        .eq('id', versionId)
-        .select()
-        .single();
-      publishedVer = data as DocumentVersion;
-    } catch (err) {
-      // Fallback
-    }
-
-    if (!publishedVer) {
-      publishedVer = LearningDocumentService.updateCachedVersion(versionId, {
+    const { data: publishedVer, error: verErr } = await supabase
+      .from('document_versions')
+      .update({
         is_published: true,
         review_status: 'PUBLISHED',
         published_at: nowIso,
         approved_by_user_id: version.approved_by_user_id || userId,
         updated_at: nowIso,
-      }) || {
-        ...version,
-        is_published: true,
-        review_status: 'PUBLISHED',
-        published_at: nowIso,
-        approved_by_user_id: version.approved_by_user_id || userId,
-        updated_at: nowIso,
-      };
-    }
+      })
+      .eq('id', versionId)
+      .select()
+      .single();
+    if (verErr || !publishedVer) throw verErr || new Error('Publish update returned no version row.');
 
-    let updatedDoc: LearningDocument | null = null;
-    try {
-      const { data } = await supabase
-        .from('learning_documents')
-        .update({
-          current_published_version_id: versionId,
-          status: 'PUBLISHED',
-          updated_at: nowIso,
-        })
-        .eq('id', version.document_id)
-        .select()
-        .single();
-      updatedDoc = data as LearningDocument;
-    } catch (err) {
-      // Fallback
-    }
-
-    if (!updatedDoc) {
-      updatedDoc = {
-        id: version.document_id,
-        learning_unit_id: version.document_id.replace(/^doc-/, '').split('-')[0] || '',
-        canonical_slug: `doc-${version.document_id}`,
-        document_type: 'CONCEPT_LESSON',
+    const { data: updatedDoc, error: docErr } = await supabase
+      .from('learning_documents')
+      .update({
         current_published_version_id: versionId,
         status: 'PUBLISHED',
-        created_at: nowIso,
         updated_at: nowIso,
-      };
-    }
+      })
+      .eq('id', version.document_id)
+      .select()
+      .single();
+    if (docErr || !updatedDoc) throw docErr || new Error('Publish update returned no document row.');
 
     return {
       document: updatedDoc as LearningDocument,

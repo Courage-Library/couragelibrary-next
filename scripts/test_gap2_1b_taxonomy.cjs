@@ -73,14 +73,19 @@ const opVal = (ops, op, col) => {
 // ---------- Module mocks ----------
 const authState = { isAdmin: true, userId: '11111111-1111-4111-8111-111111111111', userEmail: 'admin@example.test' };
 let currentSupabase = null;
+let sessionOverride = null; // --smoke: a real signed-in qa-admin client
+// SEC-1B: admin checks run through the canonical guard, which reads the session user.
+const sessionUser = () => (authState.isAdmin ? { id: authState.userId, email: authState.userEmail, app_metadata: { role: 'admin' }, user_metadata: {} } : null);
+const withSession = (client) => Object.assign(Object.create(null), client || {}, { auth: { getUser: async () => ({ data: { user: sessionUser() }, error: null }) } });
 const MOCKS = {
+  'server-only': {},
   '@/services/admin.service': {
     AdminService: { checkIsAdminOrStaff: async () => ({ ...authState }) },
     getIstTomorrowDateStr: () => '2026-01-01',
   },
   '@/lib/supabase/server': {
     createAdminServerSupabaseClient: () => currentSupabase,
-    createServerSupabaseClient: async () => currentSupabase,
+    createServerSupabaseClient: async () => sessionOverride || withSession(currentSupabase),
   },
   'next/cache': { revalidatePath: () => undefined, revalidateTag: () => undefined },
   '@/lib/admin/bulk-importer': { BulkImportEngine: {} },
@@ -602,9 +607,15 @@ async function smoke() {
   const { createClient } = require('@supabase/supabase-js');
   dbTarget(); // ref guard
   currentSupabase = createClient(env('NEXT_PUBLIC_SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'), { auth: { persistSession: false, autoRefreshToken: false } });
+  // SEC-1B: smoke writes run as the permanent qa-admin identity (docs/testing/QA_IDENTITIES.md) — a real
+  // signed-in session for the canonical guard; writes still use the service-role client.
+  const qaAdmin = createClient(env('NEXT_PUBLIC_SUPABASE_URL'), env('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY') || env('NEXT_PUBLIC_SUPABASE_ANON_KEY'), { auth: { persistSession: false, autoRefreshToken: false } });
+  const signIn = await qaAdmin.auth.signInWithPassword({ email: 'qa-admin@courage-library.test', password: env('QA_ADMIN_PASSWORD') });
+  if (signIn.error || !signIn.data.user) throw new Error('qa-admin sign-in failed (run scripts/qa/ensure-qa-identities.cjs)');
+  sessionOverride = qaAdmin;
   authState.isAdmin = true;
-  authState.userId = null;
-  authState.userEmail = 'qa-gap2-1b-smoke@example.test';
+  authState.userId = signIn.data.user.id;
+  authState.userEmail = 'qa-admin@courage-library.test';
   const { TaxonomyService } = require(path.join(ROOT, 'services/taxonomy/taxonomy.service.ts'));
   const c = new Client({ ...dbTarget().pg, port: 6543 });
   c.on('error', () => {});

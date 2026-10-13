@@ -322,6 +322,7 @@ export class ExamOnboardingImporterService {
     }
 
     // 6. Persist Knowledge Documents (Strictly review_status = "AI_GENERATED", is_published = false)
+    const persistErrors: string[] = [];
     let knowledgeDocsCreated = 0;
     for (const mod of spec.knowledge_modules || []) {
       try {
@@ -369,9 +370,15 @@ export class ExamOnboardingImporterService {
 
           if (!insertVerErr) {
             knowledgeDocsCreated++;
+          } else {
+            persistErrors.push(`Knowledge module ${mod.module_key}: version could not be saved.`);
           }
+        } else {
+          persistErrors.push(`Knowledge module ${mod.module_key}: document could not be saved.`);
         }
-      } catch (_) {}
+      } catch (_) {
+        persistErrors.push(`Knowledge module ${mod.module_key}: could not be saved.`);
+      }
     }
 
     // 7. Persist Sources (Status UNVERIFIED)
@@ -391,8 +398,12 @@ export class ExamOnboardingImporterService {
 
         if (!insertSrcErr) {
           sourcesCount++;
+        } else {
+          persistErrors.push(`Source "${src.title}": could not be saved.`);
         }
-      } catch (_) {}
+      } catch (_) {
+        persistErrors.push(`Source "${src.title}": could not be saved.`);
+      }
     }
 
     // 8. Persist Claims
@@ -410,15 +421,25 @@ export class ExamOnboardingImporterService {
 
         if (!insertClaimErr) {
           claimsCount++;
+        } else {
+          persistErrors.push(`Claim ${clm.claim_key}: could not be saved.`);
         }
-      } catch (_) {}
+      } catch (_) {
+        persistErrors.push(`Claim ${clm.claim_key}: could not be saved.`);
+      }
     }
 
     // 9. Recalculate 14-Dimension Readiness
     const readinessReport = await ExamReadinessService.evaluateReadiness(examId, cycleId, supabase);
 
+    if (persistErrors.length > 0) {
+      console.error(`[ExamOnboardingImporter] ${persistErrors.length} row(s) failed to persist for exam ${examId}`);
+    }
+
     return {
-      success: true,
+      // SEC-1B: a partially persisted import is not a success.
+      success: persistErrors.length === 0,
+      persistErrors,
       examId,
       examSlug,
       examTitle,

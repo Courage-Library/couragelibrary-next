@@ -1,5 +1,6 @@
 "use client";
 
+import { actionErrorMessage } from "@/lib/actions/action-result";
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -119,7 +120,7 @@ export function AiAssistedOnboardingStudio() {
         setContextHash(res.contextHash || "");
         setPhase("PROMPT_AND_IMPORT");
       } else {
-        setValidationError(res.error || "Failed to generate AI prompt.");
+        setValidationError(actionErrorMessage(res, "Failed to generate AI prompt."));
       }
     } finally {
       setIsGeneratingPrompt(false);
@@ -147,7 +148,7 @@ export function AiAssistedOnboardingStudio() {
         setActiveStep(stepNum);
         setPhase("PROMPT_AND_IMPORT");
       } else {
-        setValidationError(res.error || "Failed to generate step AI prompt.");
+        setValidationError(actionErrorMessage(res, "Failed to generate step AI prompt."));
       }
     } finally {
       setIsGeneratingPrompt(false);
@@ -214,7 +215,7 @@ export function AiAssistedOnboardingStudio() {
           );
         }
       } else {
-        setValidationError(res.error || "Failed to validate external AI response.");
+        setValidationError(actionErrorMessage(res, "Failed to validate external AI response."));
       }
     } finally {
       setIsValidating(false);
@@ -249,7 +250,7 @@ export function AiAssistedOnboardingStudio() {
           await handleGenerateStepPrompt(nextStep);
         }
       } else {
-        setCommitError(res.error || "Failed to save verified AI draft.");
+        setCommitError(actionErrorMessage(res, "Failed to save verified AI draft."));
       }
     } finally {
       setIsCommitting(false);
@@ -280,7 +281,7 @@ export function AiAssistedOnboardingStudio() {
       if (res.success) {
         setPhase("PUBLISHED");
       } else {
-        setPublishError(res.error || "Failed to publish examination.");
+        setPublishError(actionErrorMessage(res, "Failed to publish examination."));
       }
     } finally {
       setIsPublishing(false);

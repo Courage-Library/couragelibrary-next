@@ -1,5 +1,6 @@
 "use client";
 
+import { actionErrorMessage } from "@/lib/actions/action-result";
 import React, { useCallback, useEffect, useState, useTransition } from "react";
 import { RefreshCw, X, Send, CheckCircle2, XCircle, MessageSquareWarning, Rocket, Pencil, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -68,7 +69,7 @@ export function ReviewQueueTab({ taxonomy }: { taxonomy: FactoryTaxonomy }) {
         batchId: filters.batchId.trim() || undefined,
       });
       if (res.success && res.data) setItems(res.data);
-      else setError(res.error || "Failed to load review queue.");
+      else setError(actionErrorMessage(res, "Failed to load review queue."));
     });
   }, [filters]);
 
@@ -162,7 +163,7 @@ function VersionDrawer({ versionId, onClose, onChanged }: { versionId: string; o
       if (res.success && res.data) {
         setDetail(res.data);
         setError(null);
-      } else setError(res.error || "Failed to load version.");
+      } else setError(actionErrorMessage(res, "Failed to load version."));
     });
   }, [versionId]);
 
@@ -178,7 +179,7 @@ function VersionDrawer({ versionId, onClose, onChanged }: { versionId: string; o
     startTransition(async () => {
       const res = await fn();
       if (!res.success) {
-        setError(res.error || "Action failed.");
+        setError(actionErrorMessage(res, "Action failed."));
         return;
       }
       setNotes("");

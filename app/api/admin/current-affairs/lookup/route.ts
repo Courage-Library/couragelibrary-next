@@ -1,22 +1,11 @@
+import { guardAdminRoute, toRouteErrorResponse } from "@/lib/auth/require-admin";
 import { NextRequest, NextResponse } from 'next/server';
-import { AdminService } from '@/services/admin.service';
 import { createAdminServerSupabaseClient } from '@/lib/supabase/server';
 
 export async function GET(req: NextRequest) {
   try {
-    const authCheck = await AdminService.checkIsAdminOrStaff();
-    if (!authCheck.isAdmin || !authCheck.userId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: 'FORBIDDEN',
-            message: 'You do not have administrative permissions to access this endpoint.',
-          },
-        },
-        { status: 403 }
-      );
-    }
+    const authCheck = await guardAdminRoute({ allowStaff: true });
+    if (!authCheck.ok) return authCheck.response;
 
     const { searchParams } = new URL(req.url);
     const type = searchParams.get('type') || 'all'; // 'taxonomy' | 'exams' | 'learning' | 'questions' | 'all'
@@ -96,15 +85,6 @@ export async function GET(req: NextRequest) {
       data: results,
     });
   } catch (error: any) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: error.message || 'Failed to lookup entities',
-        },
-      },
-      { status: 500 }
-    );
+    return toRouteErrorResponse("admin/current-affairs/lookup GET", error);
   }
 }

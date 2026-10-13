@@ -50,6 +50,7 @@ const recorder = (label) =>
 const MOCK_PREFIXES = ['@/services/', '@/lib/supabase/'];
 const originalLoad = Module._load;
 Module._load = function (request, parent, isMain) {
+  if (request === 'server-only') return {}; // SEC-1B: Next.js-only marker (lib/auth/require-admin.ts)
   if (MOCK_PREFIXES.some((p) => request.startsWith(p))) return recorder(request);
   if (request === 'next/cache') return { revalidatePath: () => calls.push('revalidatePath'), revalidateTag: () => undefined, unstable_cache: (fn) => fn };
   if (request === 'next/headers') return { cookies: async () => { calls.push('cookies'); return { get: () => undefined, getAll: () => [] }; }, headers: async () => new Map() };

@@ -1,6 +1,6 @@
+import { guardAdminRoute, toRouteErrorResponse, sanitizeActionResult } from "@/lib/auth/require-admin";
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { AdminService } from '@/services/admin.service';
 import { CurrentAffairsImportService } from '@/services/current-affairs-import.service';
 
 /**
@@ -39,26 +39,13 @@ export async function POST(req: NextRequest) {
       authorUserId = null; // System / Automated Ingestion Actor
     }
 
-    // 2. Fall back to interactive Admin/Staff browser session cookie
+    // 2. Otherwise: interactive Admin/Staff session via the canonical guard (SEC-1B).
+    //    The bearer path above is the only non-session credential, for automated ingestion.
     if (!isAuthorized) {
-      const authCheck = await AdminService.checkIsAdminOrStaff();
-      if (authCheck.isAdmin && authCheck.userId) {
-        isAuthorized = true;
-        authorUserId = authCheck.userId;
-      }
-    }
-
-    if (!isAuthorized) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: 'UNAUTHORIZED',
-            message: 'Invalid authorization credentials or insufficient privileges to access this endpoint.',
-          },
-        },
-        { status: 401 }
-      );
+      const auth = await guardAdminRoute(); // SEC-1B Q1: ingestion trigger, admin only (session path)
+      if (!auth.ok) return auth.response;
+      isAuthorized = true;
+      authorUserId = auth.userId;
     }
 
     const body = await req.json();
@@ -68,14 +55,14 @@ export async function POST(req: NextRequest) {
 
     if (!result.success) {
       return NextResponse.json(
-        {
+        sanitizeActionResult("admin/current-affairs/import", {
           success: false,
           error: {
             code: 'IMPORT_REJECTED',
             message: result.error || 'Import failed validation gates',
             gateReport: result.gateReport,
           },
-        },
+        }),
         { status: 400 }
       );
     }
@@ -85,15 +72,6 @@ export async function POST(req: NextRequest) {
       data: result,
     });
   } catch (error: any) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: error.message || 'Failed to process external import',
-        },
-      },
-      { status: 500 }
-    );
+    return toRouteErrorResponse("admin/current-affairs/import POST", error);
   }
 }

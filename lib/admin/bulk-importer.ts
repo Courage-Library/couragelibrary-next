@@ -1,5 +1,5 @@
 import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
-import { AdminService } from "@/services/admin.service";
+import { guardAdminAction } from '@/lib/auth/require-admin';
 import { QuestionCsvImporterService } from "@/services/question-factory/question-csv-importer.service";
 
 export interface BulkImportRecord {
@@ -30,8 +30,8 @@ export class BulkImportEngine {
    * Main entry point for hierarchical bulk content importation.
    */
   static async processImport(payload: BulkImportPayload): Promise<BulkImportResult> {
-    const authCheck = await AdminService.checkIsAdminOrStaff();
-    if (!authCheck.isAdmin) {
+    const authCheck = await guardAdminAction({ allowStaff: true });
+    if (!authCheck.ok) {
       return {
         success: false,
         entity: payload.entity || "unknown",

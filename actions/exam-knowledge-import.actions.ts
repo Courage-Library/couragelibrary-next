@@ -1,5 +1,7 @@
 'use server';
 
+
+import { guardAdminAction, toActionFailure, sanitizeActionResult } from "@/lib/auth/require-admin";
 /**
  * COURAGE LIBRARY — EXAM KNOWLEDGE IMPORT SERVER ACTION
  * Phase 3H.3: Structured External AI Import & Five-Gate Validation Pipeline
@@ -8,7 +10,6 @@
  * and persist an external-AI draft in the Exam Knowledge System.
  */
 
-import { AdminService } from '@/services/admin.service';
 import { createAdminServerSupabaseClient } from '@/lib/supabase/server';
 import { ExamKnowledgeImporterService } from '@/services/exam-knowledge/exam-knowledge-importer.service';
 import {
@@ -39,14 +40,8 @@ export async function importExamKnowledgeAction(
 ): Promise<ImportExamKnowledgeActionResponse> {
   try {
     // 1. RBAC Guard: Administrative staff privileges required
-    const authCheck = await AdminService.checkIsAdminOrStaff();
-    if (!authCheck.isAdmin || !authCheck.userId) {
-      return {
-        success: false,
-        error: 'Unauthorized: Administrative staff privileges required for content import.',
-        errorCode: 'UNAUTHORIZED',
-      };
-    }
+    const authCheck = await guardAdminAction({ allowStaff: true });
+    if (!authCheck.ok) return sanitizeActionResult("importExamKnowledgeAction", await (authCheck));
 
     // 2. Server Supabase Client
     const supabase = createAdminServerSupabaseClient() as any;
@@ -69,17 +64,9 @@ export async function importExamKnowledgeAction(
     };
   } catch (err: any) {
     if (err instanceof ExamKnowledgeContextError) {
-      return {
-        success: false,
-        error: err.message,
-        errorCode: err.code,
-      };
+      return { ...toActionFailure("importExamKnowledgeAction", err), errorCode: err.code };
     }
 
-    return {
-      success: false,
-      error: err.message || 'An unexpected error occurred during import.',
-      errorCode: 'INTERNAL_ERROR',
-    };
+    return { ...toActionFailure("importExamKnowledgeAction", err), errorCode: 'INTERNAL_ERROR' };
   }
 }

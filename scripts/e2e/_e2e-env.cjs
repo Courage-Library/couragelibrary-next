@@ -51,8 +51,21 @@ async function findUser() {
   return null;
 }
 
-/** Ensures the student exists with NO app_metadata role and a fresh random password. */
+/**
+ * Ensures the student exists with NO app_metadata role and a fresh random password.
+ * SEC-1B: with E2E_STUDENT_PASSWORD_KEY (e.g. QA_STUDENT_PASSWORD) the journey signs in as a
+ * PERMANENT identity (docs/testing/QA_IDENTITIES.md): its stored password is read from .env.local
+ * and it is never created, modified or deleted here.
+ */
 async function ensureStudent() {
+  const passwordKey = env('E2E_STUDENT_PASSWORD_KEY');
+  if (passwordKey) {
+    const stored = env(passwordKey);
+    const permanent = await findUser();
+    if (!stored || !permanent) throw new Error('permanent E2E student or its stored password is missing (scripts/qa/ensure-qa-identities.cjs)');
+    if (permanent.app_metadata && permanent.app_metadata.role) throw new Error('test student must not have an app_metadata role');
+    return { user: permanent, password: stored };
+  }
   const password = crypto.randomBytes(18).toString('base64url') + 'aA1!';
   let user = await findUser();
   if (!user) {

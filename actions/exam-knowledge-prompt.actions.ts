@@ -1,5 +1,7 @@
 'use server';
 
+
+import { guardAdminAction, toActionFailure, sanitizeActionResult } from "@/lib/auth/require-admin";
 /**
  * COURAGE LIBRARY — EXAM KNOWLEDGE PROMPT GENERATION SERVER ACTION
  * Phase 3H.2: Exam Knowledge Context Builder & External AI Prompt Generator
@@ -8,7 +10,6 @@
  * a copyable prompt for external LLM authoring.
  */
 
-import { AdminService } from '@/services/admin.service';
 import { createAdminServerSupabaseClient } from '@/lib/supabase/server';
 import { ExamKnowledgeContextBuilder } from '@/services/exam-knowledge/exam-knowledge-context-builder.service';
 import { ExamKnowledgePromptBuilder } from '@/services/exam-knowledge/exam-knowledge-prompt-builder.service';
@@ -40,14 +41,8 @@ export async function generateExamKnowledgePromptAction(
 ): Promise<GenerateExamKnowledgePromptResponse> {
   try {
     // 1. RBAC Guard: Administrative staff privileges required
-    const authCheck = await AdminService.checkIsAdminOrStaff();
-    if (!authCheck.isAdmin || !authCheck.userId) {
-      return {
-        success: false,
-        error: 'Unauthorized: Administrative staff privileges required for prompt generation.',
-        errorCode: 'UNAUTHORIZED',
-      };
-    }
+    const authCheck = await guardAdminAction({ allowStaff: true });
+    if (!authCheck.ok) return sanitizeActionResult("generateExamKnowledgePromptAction", await (authCheck));
 
     // 2. Obtain Server Supabase Client
     const supabase = createAdminServerSupabaseClient() as any;
@@ -70,17 +65,9 @@ export async function generateExamKnowledgePromptAction(
     };
   } catch (err: any) {
     if (err instanceof ExamKnowledgeContextError) {
-      return {
-        success: false,
-        error: err.message,
-        errorCode: err.code,
-      };
+      return { ...toActionFailure("generateExamKnowledgePromptAction", err), errorCode: err.code };
     }
 
-    return {
-      success: false,
-      error: err.message || 'An unexpected error occurred during prompt generation.',
-      errorCode: 'INTERNAL_ERROR',
-    };
+    return { ...toActionFailure("generateExamKnowledgePromptAction", err), errorCode: 'INTERNAL_ERROR' };
   }
 }

@@ -1,6 +1,8 @@
 "use server";
 
 
+
+import { guardAdminAction, requireAdmin, toActionFailure, sanitizeActionResult } from "@/lib/auth/require-admin";
 import { featureDisabledActionResult } from "@/lib/features/gates";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { LiveTestFoundationService } from "@/services/live-test-foundation.service";
@@ -16,15 +18,12 @@ import {
   LiveTestCertificateGenerationResult,
   LiveCertificateStatus,
 } from "@/types/live-test";
-import { AdminService } from "@/services/admin.service";
 import { revalidatePath } from "next/cache";
 
+/** Actor identity from the session (every action already ran guardAdminAction first). */
 async function verifyAdminUser() {
-  const auth = await AdminService.checkIsAdminOrStaff();
-  if (!auth.isAdmin || !auth.userId) {
-    throw new Error("Administrative privileges required.");
-  }
-  return { id: auth.userId, email: auth.userEmail };
+  const ctx = await requireAdmin({ allowStaff: true });
+  return { id: ctx.userId, email: ctx.userEmail };
 }
 
 export async function createLiveEventAction(
@@ -32,6 +31,8 @@ export async function createLiveEventAction(
 ): Promise<{ success: boolean; data?: LiveTestEvent; error?: string }> {
   const featureGate = featureDisabledActionResult("LIVE_TESTS");
   if (featureGate) return featureGate as never;
+  const __auth = await guardAdminAction({ allowStaff: true });
+  if (!__auth.ok) return __auth;
   try {
     const user = await verifyAdminUser();
     const res = await LiveTestFoundationService.createLiveEvent(dto, user.id);
@@ -39,9 +40,9 @@ export async function createLiveEventAction(
       revalidatePath("/admin/live-tests");
       revalidatePath("/live-tests");
     }
-    return res;
+    return sanitizeActionResult("createLiveEventAction", await (res));
   } catch (err: any) {
-    return { success: false, error: err?.message || "Failed to create live event." };
+    return toActionFailure("createLiveEventAction", err);
   }
 }
 
@@ -52,6 +53,8 @@ export async function updateLiveEventStatusAction(
 ): Promise<{ success: boolean; data?: LiveTestEvent; error?: string }> {
   const featureGate = featureDisabledActionResult("LIVE_TESTS");
   if (featureGate) return featureGate as never;
+  const __auth = await guardAdminAction({ allowStaff: true });
+  if (!__auth.ok) return __auth;
   try {
     const user = await verifyAdminUser();
     const res = await LiveTestFoundationService.transitionEventStatus(
@@ -64,9 +67,9 @@ export async function updateLiveEventStatusAction(
       revalidatePath("/admin/live-tests");
       revalidatePath("/live-tests");
     }
-    return res;
+    return sanitizeActionResult("updateLiveEventStatusAction", await (res));
   } catch (err: any) {
-    return { success: false, error: err?.message || "Failed to transition event status." };
+    return toActionFailure("updateLiveEventStatusAction", err);
   }
 }
 
@@ -83,6 +86,8 @@ export async function updateLiveEventScheduleAction(
 ): Promise<{ success: boolean; data?: LiveTestEvent; error?: string }> {
   const featureGate = featureDisabledActionResult("LIVE_TESTS");
   if (featureGate) return featureGate as never;
+  const __auth = await guardAdminAction({ allowStaff: true });
+  if (!__auth.ok) return __auth;
   try {
     const user = await verifyAdminUser();
     const res = await LiveTestRegistrationService.updateEventSchedule(
@@ -95,15 +100,17 @@ export async function updateLiveEventScheduleAction(
       revalidatePath("/admin/live-tests");
       revalidatePath("/live-tests");
     }
-    return res;
+    return sanitizeActionResult("updateLiveEventScheduleAction", await (res));
   } catch (err: any) {
-    return { success: false, error: err?.message || "Failed to update event schedule." };
+    return toActionFailure("updateLiveEventScheduleAction", err);
   }
 }
 
 export async function evaluateLiveEventAction(eventId: string): Promise<LiveTestEvaluationResult> {
   const featureGate = featureDisabledActionResult("LIVE_TESTS");
   if (featureGate) return featureGate as never;
+  const __auth = await guardAdminAction({ allowStaff: true });
+  if (!__auth.ok) return __auth;
   try {
     const user = await verifyAdminUser();
     const { LiveTestResultService } = await import("@/services/live-test-result.service");
@@ -114,9 +121,9 @@ export async function evaluateLiveEventAction(eventId: string): Promise<LiveTest
       revalidatePath(`/admin/live-tests/${eventId}/results`);
       revalidatePath("/live-tests");
     }
-    return res;
+    return sanitizeActionResult("evaluateLiveEventAction", await (res));
   } catch (err: any) {
-    return { success: false, error: err?.message || "Failed to evaluate live event." };
+    return toActionFailure("evaluateLiveEventAction", err);
   }
 }
 
@@ -127,6 +134,8 @@ export async function publishLiveEventResultsAction(
 ): Promise<LiveTestPublicationResult> {
   const featureGate = featureDisabledActionResult("LIVE_TESTS");
   if (featureGate) return featureGate as never;
+  const __auth = await guardAdminAction({ allowStaff: true });
+  if (!__auth.ok) return __auth;
   try {
     const user = await verifyAdminUser();
     const { LiveTestResultService } = await import("@/services/live-test-result.service");
@@ -137,9 +146,9 @@ export async function publishLiveEventResultsAction(
       revalidatePath(`/admin/live-tests/${eventId}/results`);
       revalidatePath("/live-tests");
     }
-    return res;
+    return sanitizeActionResult("publishLiveEventResultsAction", await (res));
   } catch (err: any) {
-    return { success: false, error: err?.message || "Failed to publish live event results." };
+    return toActionFailure("publishLiveEventResultsAction", err);
   }
 }
 
@@ -149,6 +158,8 @@ export async function recalculateLiveEventResultsAction(
 ): Promise<LiveTestEvaluationResult> {
   const featureGate = featureDisabledActionResult("LIVE_TESTS");
   if (featureGate) return featureGate as never;
+  const __auth = await guardAdminAction({ allowStaff: true });
+  if (!__auth.ok) return __auth;
   try {
     const user = await verifyAdminUser();
     const { LiveTestResultService } = await import("@/services/live-test-result.service");
@@ -158,9 +169,9 @@ export async function recalculateLiveEventResultsAction(
       revalidatePath(`/admin/live-tests/${eventId}`);
       revalidatePath(`/admin/live-tests/${eventId}/results`);
     }
-    return res;
+    return sanitizeActionResult("recalculateLiveEventResultsAction", await (res));
   } catch (err: any) {
-    return { success: false, error: err?.message || "Failed to recalculate live event results." };
+    return toActionFailure("recalculateLiveEventResultsAction", err);
   }
 }
 
@@ -171,22 +182,26 @@ export async function voidLiveAttemptAction(
 ) {
   const featureGate = featureDisabledActionResult("LIVE_TESTS");
   if (featureGate) return featureGate as never;
+  const __auth = await guardAdminAction({ allowStaff: true });
+  if (!__auth.ok) return __auth;
   try {
     const user = await verifyAdminUser();
     const { LiveTestResultService } = await import("@/services/live-test-result.service");
-    return await LiveTestResultService.voidLiveAttempt(attemptId, user.id, reason);
+    return sanitizeActionResult("voidLiveAttemptAction", await (LiveTestResultService.voidLiveAttempt(attemptId, user.id, reason)));
   } catch (err: any) {
-    return { success: false, error: err?.message || "Failed to void live attempt." };
+    return toActionFailure("voidLiveAttemptAction", err);
   }
 }
 
 export async function getAdminLiveEventResultsSummaryAction(eventId: string) {
   const featureGate = featureDisabledActionResult("LIVE_TESTS");
   if (featureGate) return featureGate as never;
+  const __auth = await guardAdminAction({ allowStaff: true });
+  if (!__auth.ok) return __auth;
   try {
     await verifyAdminUser();
     const { LiveTestResultService } = await import("@/services/live-test-result.service");
-    return await LiveTestResultService.getAdminResultsSummary(eventId);
+    return sanitizeActionResult("getAdminLiveEventResultsSummaryAction", await (LiveTestResultService.getAdminResultsSummary(eventId)));
   } catch (err: any) {
     return { event: null, snapshots: [], activeSnapshot: null };
   }
@@ -197,6 +212,8 @@ export async function distributeLiveEventRewardsAction(
 ): Promise<LiveTestRewardDistributionResult> {
   const featureGate = featureDisabledActionResult("LIVE_TESTS");
   if (featureGate) return featureGate as never;
+  const __auth = await guardAdminAction({ allowStaff: true });
+  if (!__auth.ok) return __auth;
   try {
     const user = await verifyAdminUser();
     const { LiveTestRewardService } = await import("@/services/live-test-reward.service");
@@ -205,9 +222,9 @@ export async function distributeLiveEventRewardsAction(
       revalidatePath(`/admin/live-tests/${eventId}/results`);
       revalidatePath(`/live-tests/${eventId}/result`);
     }
-    return res;
+    return sanitizeActionResult("distributeLiveEventRewardsAction", await (res));
   } catch (err: any) {
-    return { success: false, error: err?.message || "Failed to distribute live event rewards." };
+    return toActionFailure("distributeLiveEventRewardsAction", err);
   }
 }
 
@@ -217,10 +234,12 @@ export async function getLiveEventRewardSettlementsAction(
 ) {
   const featureGate = featureDisabledActionResult("LIVE_TESTS");
   if (featureGate) return featureGate as never;
+  const __auth = await guardAdminAction({ allowStaff: true });
+  if (!__auth.ok) return __auth;
   try {
     await verifyAdminUser();
     const { LiveTestRewardService } = await import("@/services/live-test-reward.service");
-    return await LiveTestRewardService.getEventRewardSettlements(eventId, options);
+    return sanitizeActionResult("getLiveEventRewardSettlementsAction", await (LiveTestRewardService.getEventRewardSettlements(eventId, options)));
   } catch (err: any) {
     return { settlements: [], totalCount: 0 };
   }
@@ -235,6 +254,8 @@ export async function generateLiveEventCertificatesAction(
 ): Promise<LiveTestCertificateGenerationResult> {
   const featureGate = featureDisabledActionResult("LIVE_TESTS");
   if (featureGate) return featureGate as never;
+  const __auth = await guardAdminAction({ allowStaff: true });
+  if (!__auth.ok) return __auth;
   try {
     const user = await verifyAdminUser();
     const { LiveTestCertificateService } = await import("@/services/live-test-certificate.service");
@@ -244,9 +265,9 @@ export async function generateLiveEventCertificatesAction(
       revalidatePath(`/live-tests/${eventId}/result`);
       revalidatePath("/certificates");
     }
-    return res;
+    return sanitizeActionResult("generateLiveEventCertificatesAction", await (res));
   } catch (err: any) {
-    return { success: false, error: err?.message || "Failed to generate live event certificates." };
+    return toActionFailure("generateLiveEventCertificatesAction", err);
   }
 }
 
@@ -256,12 +277,14 @@ export async function getLiveEventCertificatesAction(
 ) {
   const featureGate = featureDisabledActionResult("LIVE_TESTS");
   if (featureGate) return featureGate as never;
+  const __auth = await guardAdminAction({ allowStaff: true });
+  if (!__auth.ok) return __auth;
   try {
     await verifyAdminUser();
     const { LiveTestCertificateService } = await import("@/services/live-test-certificate.service");
-    return await LiveTestCertificateService.getEventCertificatesAdmin(eventId, statusFilter);
+    return sanitizeActionResult("getLiveEventCertificatesAction", await (LiveTestCertificateService.getEventCertificatesAdmin(eventId, statusFilter)));
   } catch (err: any) {
-    return [];
+    return sanitizeActionResult("getLiveEventCertificatesAction", await ([]));
   }
 }
 
@@ -271,12 +294,14 @@ export async function revokeLiveEventCertificateAction(
 ) {
   const featureGate = featureDisabledActionResult("LIVE_TESTS");
   if (featureGate) return featureGate as never;
+  const __auth = await guardAdminAction({ allowStaff: true });
+  if (!__auth.ok) return __auth;
   try {
     const user = await verifyAdminUser();
     const { LiveTestCertificateService } = await import("@/services/live-test-certificate.service");
-    return await LiveTestCertificateService.revokeCertificate(certificateId, user.id, reason);
+    return sanitizeActionResult("revokeLiveEventCertificateAction", await (LiveTestCertificateService.revokeCertificate(certificateId, user.id, reason)));
   } catch (err: any) {
-    return { success: false, error: err?.message || "Failed to revoke certificate." };
+    return toActionFailure("revokeLiveEventCertificateAction", err);
   }
 }
 
@@ -289,6 +314,8 @@ export async function evaluateLiveEventAchievementsAction(
 ) {
   const featureGate = featureDisabledActionResult("LIVE_TESTS");
   if (featureGate) return featureGate as never;
+  const __auth = await guardAdminAction({ allowStaff: true });
+  if (!__auth.ok) return __auth;
   try {
     const user = await verifyAdminUser();
     const { LiveTestAchievementService } = await import("@/services/live-test-achievement.service");
@@ -298,9 +325,9 @@ export async function evaluateLiveEventAchievementsAction(
       revalidatePath(`/live-tests/${eventId}/result`);
       revalidatePath("/achievements");
     }
-    return res;
+    return sanitizeActionResult("evaluateLiveEventAchievementsAction", await (res));
   } catch (err: any) {
-    return { success: false, error: err?.message || "Failed to evaluate achievements." };
+    return toActionFailure("evaluateLiveEventAchievementsAction", err);
   }
 }
 
@@ -309,12 +336,14 @@ export async function getEventAchievementAwardsAction(
 ) {
   const featureGate = featureDisabledActionResult("LIVE_TESTS");
   if (featureGate) return featureGate as never;
+  const __auth = await guardAdminAction({ allowStaff: true });
+  if (!__auth.ok) return __auth;
   try {
     await verifyAdminUser();
     const { LiveTestAchievementService } = await import("@/services/live-test-achievement.service");
-    return await LiveTestAchievementService.getEventAchievementAwards(eventId);
+    return sanitizeActionResult("getEventAchievementAwardsAction", await (LiveTestAchievementService.getEventAchievementAwards(eventId)));
   } catch (err: any) {
-    return [];
+    return sanitizeActionResult("getEventAchievementAwardsAction", await ([]));
   }
 }
 
@@ -324,6 +353,8 @@ export async function revokeAchievementAwardAction(
 ) {
   const featureGate = featureDisabledActionResult("LIVE_TESTS");
   if (featureGate) return featureGate as never;
+  const __auth = await guardAdminAction({ allowStaff: true });
+  if (!__auth.ok) return __auth;
   try {
     const user = await verifyAdminUser();
     const { LiveTestAchievementService } = await import("@/services/live-test-achievement.service");
@@ -332,21 +363,23 @@ export async function revokeAchievementAwardAction(
       revalidatePath("/achievements");
       revalidatePath("/admin/achievements");
     }
-    return res;
+    return sanitizeActionResult("revokeAchievementAwardAction", await (res));
   } catch (err: any) {
-    return { success: false, error: err?.message || "Failed to revoke achievement award." };
+    return toActionFailure("revokeAchievementAwardAction", err);
   }
 }
 
 export async function getAchievementDefinitionsAction() {
   const featureGate = featureDisabledActionResult("LIVE_TESTS");
   if (featureGate) return featureGate as never;
+  const __auth = await guardAdminAction({ allowStaff: true });
+  if (!__auth.ok) return __auth;
   try {
     await verifyAdminUser();
     const { LiveTestAchievementService } = await import("@/services/live-test-achievement.service");
-    return await LiveTestAchievementService.getAchievementDefinitions();
+    return sanitizeActionResult("getAchievementDefinitionsAction", await (LiveTestAchievementService.getAchievementDefinitions()));
   } catch (err: any) {
-    return [];
+    return sanitizeActionResult("getAchievementDefinitionsAction", await ([]));
   }
 }
 

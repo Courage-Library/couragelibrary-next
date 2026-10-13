@@ -1,5 +1,6 @@
 "use client";
 
+import { actionErrorMessage } from "@/lib/actions/action-result";
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
@@ -83,7 +84,7 @@ export function ExamDangerZone({
     try {
       const res = await deleteExamDraftAction(examId, slugInput.trim());
       if (res.error) {
-        setDeleteError(res.error);
+        setDeleteError(actionErrorMessage(res));
         setIsDeleting(false);
       } else {
         setIsModalOpen(false);
@@ -102,7 +103,7 @@ export function ExamDangerZone({
     try {
       const res = await archiveExamAction(examId);
       if (res.error) {
-        setDeleteError(res.error);
+        setDeleteError(actionErrorMessage(res));
       } else {
         setArchiveSuccess("Examination archived to draft status.");
         await fetchEligibility();

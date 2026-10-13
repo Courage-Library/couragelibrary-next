@@ -1,4 +1,5 @@
 "use client";
+import { actionErrorMessage } from "@/lib/actions/action-result";
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 
 import React, { useState, useTransition } from "react";
@@ -153,7 +154,7 @@ export function AdminPremiumManager({
             setFeedback({ type: "success", message: res.message || "Global Premium status updated." });
             setGlobalReason("");
           } else {
-            setFeedback({ type: "error", message: res.error || "Failed to update global status." });
+            setFeedback({ type: "error", message: actionErrorMessage(res, "Failed to update global status.") });
           }
         });
       },
@@ -180,7 +181,7 @@ export function AdminPremiumManager({
             setFeedback({ type: "success", message: res.message || "Maintenance mode updated." });
             setGlobalReason("");
           } else {
-            setFeedback({ type: "error", message: res.error || "Failed to update maintenance mode." });
+            setFeedback({ type: "error", message: actionErrorMessage(res, "Failed to update maintenance mode.") });
           }
         });
       },
@@ -203,7 +204,7 @@ export function AdminPremiumManager({
         setFeedback({ type: "success", message: "Maintenance message updated successfully." });
         setGlobalReason("");
       } else {
-        setFeedback({ type: "error", message: res.error || "Failed to update maintenance message." });
+        setFeedback({ type: "error", message: actionErrorMessage(res, "Failed to update maintenance message.") });
       }
     });
   };
@@ -235,7 +236,7 @@ export function AdminPremiumManager({
             );
             setFeedback({ type: "success", message: res.message || "Exam availability updated." });
           } else {
-            setFeedback({ type: "error", message: res.error || "Failed to update exam availability." });
+            setFeedback({ type: "error", message: actionErrorMessage(res, "Failed to update exam availability.") });
           }
         });
       },
@@ -261,7 +262,7 @@ export function AdminPremiumManager({
         );
         setFeedback({ type: "success", message: res.message || "Test type governance updated." });
       } else {
-        setFeedback({ type: "error", message: res.error || "Failed to update test type governance." });
+        setFeedback({ type: "error", message: actionErrorMessage(res, "Failed to update test type governance.") });
       }
     });
   };
@@ -286,7 +287,7 @@ export function AdminPremiumManager({
         setFeedback({ type: "success", message: "Generator policy updated successfully." });
         setPolicyReason("");
       } else {
-        setFeedback({ type: "error", message: res.error || "Failed to update generator policy." });
+        setFeedback({ type: "error", message: actionErrorMessage(res, "Failed to update generator policy.") });
       }
     });
   };
@@ -307,7 +308,7 @@ export function AdminPremiumManager({
     if (res.success && res.data) {
       setCandidateData(res.data as CandidateLookupResult);
     } else {
-      setCandidateError(res.error || "No candidate matched your search query.");
+      setCandidateError(actionErrorMessage(res, "No candidate matched your search query."));
     }
   };
 
@@ -333,7 +334,7 @@ export function AdminPremiumManager({
           setCandidateData(refreshed.data as CandidateLookupResult);
         }
       } else {
-        setFeedback({ type: "error", message: res.error || "Failed to grant promotional access." });
+        setFeedback({ type: "error", message: actionErrorMessage(res, "Failed to grant promotional access.") });
       }
     });
   };
@@ -359,7 +360,7 @@ export function AdminPremiumManager({
               }
             }
           } else {
-            setFeedback({ type: "error", message: res.error || "Failed to revoke entitlement." });
+            setFeedback({ type: "error", message: actionErrorMessage(res, "Failed to revoke entitlement.") });
           }
         });
       },
@@ -389,7 +390,7 @@ export function AdminPremiumManager({
           }
         }
       } else {
-        setFeedback({ type: "error", message: res.error || "Failed to update custom limits." });
+        setFeedback({ type: "error", message: actionErrorMessage(res, "Failed to update custom limits.") });
       }
     });
   };
@@ -413,7 +414,7 @@ export function AdminPremiumManager({
         );
         setFeedback({ type: "success", message: res.message || "Test series updated." });
       } else {
-        setFeedback({ type: "error", message: res.error || "Failed to update test series." });
+        setFeedback({ type: "error", message: actionErrorMessage(res, "Failed to update test series.") });
       }
     });
   };
@@ -437,7 +438,7 @@ export function AdminPremiumManager({
         );
         setFeedback({ type: "success", message: "Mock test featuring updated." });
       } else {
-        setFeedback({ type: "error", message: res.error || "Failed to update mock test." });
+        setFeedback({ type: "error", message: actionErrorMessage(res, "Failed to update mock test.") });
       }
     });
   };
