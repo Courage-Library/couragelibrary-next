@@ -28,6 +28,7 @@ import {
 } from '@/types/learning-compiler';
 import { ContentSpecValidator } from '@/services/content-spec-validator';
 import { ControlledContentCompiler } from '@/services/controlled-content-compiler.service';
+import { createReferenceCatalogs } from '@/services/learning/reference-catalog';
 import { LearningDocumentService } from '@/services/learning-document.service';
 import { getLearningArtifactStorage } from '@/services/storage/learning-artifact-storage';
 
@@ -461,6 +462,7 @@ export class AdminContentStudioService {
       storageProvider,
       storageBucket,
       authorType: params.authorType || 'HUMAN',
+      referenceCatalogs: createReferenceCatalogs(supabase, storageProvider),
     });
 
     const { data, error } = await supabase
@@ -615,6 +617,7 @@ export class AdminContentStudioService {
       storageProvider,
       storageBucket,
       authorType: version.author_type,
+      referenceCatalogs: createReferenceCatalogs(supabase, storageProvider),
     });
 
     const { error: updateError } = await supabase
@@ -717,7 +720,7 @@ export class AdminContentStudioService {
     if (!specRes) throw new Error(`Source spec file not found in storage.`);
 
     const spec: LessonDocumentSpec = JSON.parse(specRes.data.toString('utf8'));
-    const compResult = await ControlledContentCompiler.compile(spec);
+    const compResult = await ControlledContentCompiler.compile(spec, createReferenceCatalogs(supabase, storageProvider));
 
     if (!compResult.success || !compResult.artifact) {
       return { success: false, result: compResult };
@@ -767,6 +770,16 @@ export class AdminContentStudioService {
     const exists = await storageProvider.exists('learning-artifacts', version.compiled_artifact_storage_key);
     if (!exists) {
       throw new Error(`Compiled artifact does not exist in storage.`);
+    }
+
+    // GAP2-2b (Q5): references are re-verified against the real catalogs at publish time — a
+    // version with any unresolved question/asset reference cannot be published.
+    const specRes = await storageProvider.get('learning-artifacts', version.source_spec_storage_key);
+    if (!specRes) throw new Error('[UNRESOLVED_REFERENCES] Source spec file not found in storage; the version cannot be published.');
+    const publishSpec: LessonDocumentSpec = JSON.parse(specRes.data.toString('utf8'));
+    const refCheck = await ControlledContentCompiler.verifyReferences(publishSpec, createReferenceCatalogs(supabase, storageProvider));
+    if (refCheck.errors.length > 0) {
+      throw new Error(`[UNRESOLVED_REFERENCES] ${refCheck.errors.map((e) => e.message).join(' ')}`);
     }
 
     const nowIso = new Date().toISOString();

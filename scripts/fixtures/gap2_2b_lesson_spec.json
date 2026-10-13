@@ -1,0 +1,145 @@
+{
+  "schemaVersion": "1.0.0",
+  "documentId": "doc-perc-001",
+  "unitSlug": "percentage_concept_lesson",
+  "language": "en",
+  "metadata": {
+    "title": "Mastering Percentages & Base Conversion",
+    "topicId": "top-perc-01",
+    "subjectId": "sub-quant-01",
+    "targetExamCategories": [
+      "SSC_CGL",
+      "BANK_PO"
+    ],
+    "estimatedReadingMinutes": 8,
+    "difficultyTier": "BEGINNER",
+    "authoritativeKeywords": [
+      "percentage",
+      "fraction",
+      "base"
+    ]
+  },
+  "learningObjectives": [
+    "Understand percentage as parts per hundred",
+    "Convert standard fractions into percentages rapidly"
+  ],
+  "prerequisites": [
+    {
+      "conceptSummary": "Basic arithmetic fractions and decimals"
+    }
+  ],
+  "sections": [
+    {
+      "id": "sec-intro",
+      "title": "Conceptual Foundation of Percentages",
+      "sectionType": "THEORY",
+      "contentMarkdown": "A percentage represents a fraction with denominator 100.",
+      "diagramAssetId": "asset-perc-grid-01",
+      "calloutNotes": [
+        {
+          "variant": "TIP",
+          "title": "Base Anchor Rule",
+          "body": "Always identify what the fraction is calculated relative to."
+        }
+      ]
+    }
+  ],
+  "formulaBlocks": [
+    {
+      "id": "form-01",
+      "name": "Percentage Fraction Equivalence",
+      "latexFormula": "P = \\frac{Part}{Whole} \\times 100\\%",
+      "variableDefinitions": [
+        {
+          "symbol": "P",
+          "meaning": "Percentage value"
+        },
+        {
+          "symbol": "Part",
+          "meaning": "Numerator portion"
+        },
+        {
+          "symbol": "Whole",
+          "meaning": "Denominator base"
+        }
+      ],
+      "applicableConditions": [
+        "Whole > 0"
+      ],
+      "speedShortcutTrick": "Multiply numerator by reciprocal base."
+    }
+  ],
+  "workedExamples": [
+    {
+      "id": "ex-01",
+      "difficulty": "EASY",
+      "problemText": "Convert 3/8 into a percentage.",
+      "stepByStepSolution": [
+        {
+          "stepNumber": 1,
+          "explanation": "Recall that 1/8 = 12.5%."
+        },
+        {
+          "stepNumber": 2,
+          "explanation": "Multiply by 3: 3 * 12.5% = 37.5%.",
+          "mathSnippet": "3 * 12.5 = 37.5%"
+        }
+      ],
+      "shortcutMethod": "Use standard fractional decimal ladder: 3/8 = 37.5%."
+    }
+  ],
+  "cognitiveTraps": [
+    {
+      "trapType": "CALCULATION_SLIP",
+      "misconception": "Confusing 1/6 (16.66%) with 1/7 (14.28%).",
+      "correctApproach": "Anchor 1/6 to 16.66% and 1/7 to 14.28%."
+    }
+  ],
+  "authenticPyqReferences": [
+    {
+      "questionVersionId": "qv-ssc-cgl-2024-q101",
+      "relevanceRationale": "Direct application of fractional base conversion in SSC CGL Tier 1."
+    }
+  ],
+  "quickChecks": [
+    {
+      "id": "qc-01",
+      "prompt": "What is 5/8 expressed as a percentage?",
+      "options": [
+        {
+          "id": "opt-a",
+          "text": "62.5%",
+          "isCorrect": true,
+          "feedbackExplanation": "Correct: 5 * 12.5% = 62.5%."
+        },
+        {
+          "id": "opt-b",
+          "text": "58.0%",
+          "isCorrect": false,
+          "feedbackExplanation": "Incorrect."
+        }
+      ]
+    }
+  ],
+  "revisionSummary": {
+    "keyTakeaways": [
+      "Percentage is ratio over 100.",
+      "Memorize 1/2 through 1/20 standard fraction ladder."
+    ],
+    "coreFormulas": [
+      "P = (Part/Whole) * 100"
+    ],
+    "speedRules": [
+      "1/8 = 12.5%",
+      "1/16 = 6.25%"
+    ]
+  },
+  "seo": {
+    "metaTitle": "Percentages Concept Lesson — Courage Library",
+    "metaDescription": "Learn percentage foundations, formulas, and shortcuts.",
+    "focusKeywords": [
+      "percentage",
+      "ssc cgl quant"
+    ]
+  }
+}

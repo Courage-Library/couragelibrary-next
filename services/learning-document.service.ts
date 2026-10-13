@@ -17,6 +17,8 @@ import {
   LessonDocumentSpec,
 } from '@/types/learning-compiler';
 import { ControlledContentCompiler } from './controlled-content-compiler.service';
+import type { QuestionBankClient } from '@/services/question-reference.service';
+import type { AssetCatalogClient } from '@/services/asset-reference.service';
 import { IStorageProvider } from './storage/storage-provider.interface';
 
 export class LearningDocumentService {
@@ -48,15 +50,18 @@ export class LearningDocumentService {
     storageProvider: IStorageProvider;
     storageBucket: string;
     authorType?: 'HUMAN' | 'AI_ASSISTED' | 'LEGACY_CONVERSION';
+    /** GAP2-2b: real Question Bank / asset catalogs. Without them any reference fails closed. */
+    referenceCatalogs?: { questionBankClient?: QuestionBankClient; assetCatalogClient?: AssetCatalogClient };
   }): Promise<{
     version: Partial<DocumentVersion>;
     compiledMdx: string;
   }> {
     // 1. Compile through controlled pipeline
-    const compilationResult = await ControlledContentCompiler.compile(params.spec);
+    const compilationResult = await ControlledContentCompiler.compile(params.spec, params.referenceCatalogs);
     if (!compilationResult.success || !compilationResult.artifact) {
-      const firstError = compilationResult.errors[0]?.message || 'Compilation failed';
-      throw new Error(`Compilation Error: ${firstError}`);
+      // GAP2-2b: name every unresolved reference (application message → VALIDATION, never DB text).
+      const messages = compilationResult.errors.map((e) => e.message).filter(Boolean);
+      throw new Error(`Compilation Error: ${messages.length ? messages.join(' ') : 'Compilation failed'}`);
     }
 
     const { artifact } = compilationResult;

@@ -172,8 +172,21 @@ export function CoursePlayerClient({ courseDetail, initialLessonId }: CoursePlay
                   </p>
                 </div>
               ) : (
-                <div className="p-5 rounded-2xl bg-slate-50 border border-slate-100 text-sm text-slate-800 leading-relaxed font-serif whitespace-pre-wrap">
-                  {activeLesson.title} — Conceptual lesson text body content...
+                <div className="p-5 rounded-2xl bg-slate-50 border border-slate-100 text-sm text-slate-800 leading-relaxed space-y-3">
+                  {/* GAP2-2b: lesson content comes only from LearningResolverService (learning_document_id). */}
+                  {activeLesson.learningDocument ? (
+                    <>
+                      <p className="font-semibold text-slate-900">{activeLesson.learningDocument.title}</p>
+                      {activeLesson.learningDocument.isLocked ? (
+                        <p className="text-xs text-amber-700">This lesson is part of PRO.</p>
+                      ) : null}
+                      <Link href={activeLesson.learningDocument.href} className="text-xs font-semibold text-purple-700 hover:text-purple-800">
+                        Open lesson →
+                      </Link>
+                    </>
+                  ) : (
+                    <p className="text-xs text-slate-500">This lesson is being prepared. Please check back shortly.</p>
+                  )}
                 </div>
               )}
 

@@ -1176,36 +1176,10 @@ export async function toggleMockTestPublishAction(mockTestId: string, currentSta
 /* 7. OTHER CMS ACTIONS                                                      */
 /* ========================================================================= */
 
-export async function createArticleAction(prevState: AdminActionResult | null, formData: FormData): Promise<AdminActionResult> {
-  const authCheck = await guardAdminAction({ allowStaff: true });
-  if (!authCheck.ok) return authCheck;
-
-  const title = formData.get("title") as string;
-  const slug = formData.get("slug") as string;
-  const content = formData.get("content") as string;
-
-  if (!title || !slug) return { error: "Title and Slug are required." };
-
-  const supabaseRaw = createAdminServerSupabaseClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = supabaseRaw as any;
-
-  const { error } = await supabase.from("articles").insert({
-    title,
-    slug,
-    body_md: content || "Draft content",
-    status: "published",
-    reading_time_minutes: 5,
-    access_level: "free",
-  });
-
-  if (error) return dbFailure("createArticleAction", error);
-
-  revalidatePath("/admin/content");
-  return { success: true, message: "Article created successfully." };
-}
-
 export async function createCourseAction(prevState: AdminActionResult | null, formData: FormData): Promise<AdminActionResult> {
+  // GAP2-2b: courses are dormant behind FEATURE_COURSES — gate first (zero calls), canonical guard second.
+  const __disabled = featureDisabledActionResult("COURSES");
+  if (__disabled) return __disabled;
   const authCheck = await guardAdminAction({ allowStaff: true });
   if (!authCheck.ok) return authCheck;
 

@@ -296,112 +296,6 @@ export type Database = {
         }
         Relationships: []
       }
-      article_versions: {
-        Row: {
-          article_id: string
-          changelog: string | null
-          content_body: string
-          content_format: string
-          created_at: string
-          created_by: string | null
-          id: string
-          is_current: boolean
-          published_at: string | null
-          version_number: number
-        }
-        Insert: {
-          article_id: string
-          changelog?: string | null
-          content_body: string
-          content_format?: string
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          is_current?: boolean
-          published_at?: string | null
-          version_number?: number
-        }
-        Update: {
-          article_id?: string
-          changelog?: string | null
-          content_body?: string
-          content_format?: string
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          is_current?: boolean
-          published_at?: string | null
-          version_number?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "article_versions_article_id_fkey"
-            columns: ["article_id"]
-            isOneToOne: false
-            referencedRelation: "articles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      articles: {
-        Row: {
-          canonical_url: string | null
-          created_at: string
-          excerpt: string | null
-          featured_image_url: string | null
-          id: string
-          learning_resource_id: string
-          meta_description: string | null
-          meta_title: string | null
-          og_image_url: string | null
-          published_at: string | null
-          reading_time_minutes: number
-          slug: string
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          canonical_url?: string | null
-          created_at?: string
-          excerpt?: string | null
-          featured_image_url?: string | null
-          id?: string
-          learning_resource_id: string
-          meta_description?: string | null
-          meta_title?: string | null
-          og_image_url?: string | null
-          published_at?: string | null
-          reading_time_minutes?: number
-          slug: string
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          canonical_url?: string | null
-          created_at?: string
-          excerpt?: string | null
-          featured_image_url?: string | null
-          id?: string
-          learning_resource_id?: string
-          meta_description?: string | null
-          meta_title?: string | null
-          og_image_url?: string | null
-          published_at?: string | null
-          reading_time_minutes?: number
-          slug?: string
-          status?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "articles_learning_resource_id_fkey"
-            columns: ["learning_resource_id"]
-            isOneToOne: true
-            referencedRelation: "learning_resources"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       attempt_answers: {
         Row: {
           attempt_id: string
@@ -516,7 +410,7 @@ export type Database = {
       }
       batch_curriculum_assignments: {
         Row: {
-          article_id: string | null
+          learning_document_id: string | null
           assigned_by_user_id: string | null
           assignment_type: string
           available_from: string
@@ -538,7 +432,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          article_id?: string | null
+          learning_document_id?: string | null
           assigned_by_user_id?: string | null
           assignment_type: string
           available_from?: string
@@ -560,7 +454,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          article_id?: string | null
+          learning_document_id?: string | null
           assigned_by_user_id?: string | null
           assignment_type?: string
           available_from?: string
@@ -583,10 +477,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "batch_curriculum_assignments_article_id_fkey"
-            columns: ["article_id"]
+            foreignKeyName: "batch_curriculum_assignments_learning_document_id_fkey"
+            columns: ["learning_document_id"]
             isOneToOne: false
-            referencedRelation: "articles"
+            referencedRelation: "learning_documents"
             referencedColumns: ["id"]
           },
           {
@@ -979,7 +873,6 @@ export type Database = {
           is_free_preview: boolean
           is_published: boolean
           learning_document_id: string | null
-          learning_resource_id: string | null
           lesson_type: string
           module_id: string
           slug: string
@@ -995,7 +888,6 @@ export type Database = {
           is_free_preview?: boolean
           is_published?: boolean
           learning_document_id?: string | null
-          learning_resource_id?: string | null
           lesson_type?: string
           module_id: string
           slug: string
@@ -1011,7 +903,6 @@ export type Database = {
           is_free_preview?: boolean
           is_published?: boolean
           learning_document_id?: string | null
-          learning_resource_id?: string | null
           lesson_type?: string
           module_id?: string
           slug?: string
@@ -1021,10 +912,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "course_lessons_learning_resource_id_fkey"
-            columns: ["learning_resource_id"]
-            isOneToOne: true
-            referencedRelation: "learning_resources"
+            foreignKeyName: "course_lessons_learning_document_id_fkey"
+            columns: ["learning_document_id"]
+            isOneToOne: false
+            referencedRelation: "learning_documents"
             referencedColumns: ["id"]
           },
           {
@@ -1527,7 +1418,7 @@ export type Database = {
           reason_code: string
           reason_text_snapshot: string
           recommendation_date: string
-          resource_id: string | null
+          learning_document_id: string | null
           signal_snapshot_json: Json
           status: string
           topic_id: string | null
@@ -1547,7 +1438,7 @@ export type Database = {
           reason_code: string
           reason_text_snapshot: string
           recommendation_date?: string
-          resource_id?: string | null
+          learning_document_id?: string | null
           signal_snapshot_json?: Json
           status?: string
           topic_id?: string | null
@@ -1567,7 +1458,7 @@ export type Database = {
           reason_code?: string
           reason_text_snapshot?: string
           recommendation_date?: string
-          resource_id?: string | null
+          learning_document_id?: string | null
           signal_snapshot_json?: Json
           status?: string
           topic_id?: string | null
@@ -1589,10 +1480,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "daily_study_recommendations_resource_id_fkey"
-            columns: ["resource_id"]
+            foreignKeyName: "daily_study_recommendations_learning_document_id_fkey"
+            columns: ["learning_document_id"]
             isOneToOne: false
-            referencedRelation: "learning_resources"
+            referencedRelation: "learning_documents"
             referencedColumns: ["id"]
           },
           {
@@ -1902,7 +1793,7 @@ export type Database = {
       discussion_threads: {
         Row: {
           accepted_answer_id: string | null
-          article_id: string | null
+          learning_document_id: string | null
           author_id: string
           context_type: string
           created_at: string
@@ -1922,7 +1813,7 @@ export type Database = {
         }
         Insert: {
           accepted_answer_id?: string | null
-          article_id?: string | null
+          learning_document_id?: string | null
           author_id: string
           context_type: string
           created_at?: string
@@ -1942,7 +1833,7 @@ export type Database = {
         }
         Update: {
           accepted_answer_id?: string | null
-          article_id?: string | null
+          learning_document_id?: string | null
           author_id?: string
           context_type?: string
           created_at?: string
@@ -1962,10 +1853,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "discussion_threads_article_id_fkey"
-            columns: ["article_id"]
+            foreignKeyName: "discussion_threads_learning_document_id_fkey"
+            columns: ["learning_document_id"]
             isOneToOne: false
-            referencedRelation: "articles"
+            referencedRelation: "learning_documents"
             referencedColumns: ["id"]
           },
           {
@@ -2871,106 +2762,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      learning_resource_topics: {
-        Row: {
-          created_at: string
-          display_order: number
-          id: string
-          is_primary: boolean
-          learning_resource_id: string
-          relevance_score: number
-          subtopic_id: string | null
-          topic_id: string
-        }
-        Insert: {
-          created_at?: string
-          display_order?: number
-          id?: string
-          is_primary?: boolean
-          learning_resource_id: string
-          relevance_score?: number
-          subtopic_id?: string | null
-          topic_id: string
-        }
-        Update: {
-          created_at?: string
-          display_order?: number
-          id?: string
-          is_primary?: boolean
-          learning_resource_id?: string
-          relevance_score?: number
-          subtopic_id?: string | null
-          topic_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "learning_resource_topics_learning_resource_id_fkey"
-            columns: ["learning_resource_id"]
-            isOneToOne: false
-            referencedRelation: "learning_resources"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "learning_resource_topics_subtopic_id_fkey"
-            columns: ["subtopic_id"]
-            isOneToOne: false
-            referencedRelation: "subtopics"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "learning_resource_topics_topic_id_fkey"
-            columns: ["topic_id"]
-            isOneToOne: false
-            referencedRelation: "topics"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      learning_resources: {
-        Row: {
-          access_level: string
-          author_id: string | null
-          created_at: string
-          description: string | null
-          estimated_study_seconds: number
-          id: string
-          published_at: string | null
-          resource_type: string
-          slug: string
-          status: string
-          title: string
-          updated_at: string
-        }
-        Insert: {
-          access_level?: string
-          author_id?: string | null
-          created_at?: string
-          description?: string | null
-          estimated_study_seconds?: number
-          id?: string
-          published_at?: string | null
-          resource_type: string
-          slug: string
-          status?: string
-          title: string
-          updated_at?: string
-        }
-        Update: {
-          access_level?: string
-          author_id?: string | null
-          created_at?: string
-          description?: string | null
-          estimated_study_seconds?: number
-          id?: string
-          published_at?: string | null
-          resource_type?: string
-          slug?: string
-          status?: string
-          title?: string
-          updated_at?: string
-        }
-        Relationships: []
       }
       mistake_cognitive_types: {
         Row: {
@@ -6953,16 +6744,6 @@ export type Database = {
           p_gateway_event_id: string
           p_payload: Json
           p_signature_verified: boolean
-        }
-        Returns: Json
-      }
-      fn_publish_article_version: {
-        Args: {
-          p_article_id: string
-          p_author_id?: string
-          p_changelog?: string
-          p_content_body: string
-          p_content_format?: string
         }
         Returns: Json
       }

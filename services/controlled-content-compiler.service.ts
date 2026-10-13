@@ -31,6 +31,32 @@ export const COMPONENT_CONTRACT_VERSION = '1.0.0';
 
 export class ControlledContentCompiler {
   /**
+   * GAP2-2b (Q5): checks every question and asset reference of a spec against the real catalogs.
+   * Without a catalog client each reference is an ERROR (REFERENCE_CATALOG_UNAVAILABLE) — there is
+   * no placeholder path. Used by compile and again by publish.
+   */
+  static async verifyReferences(
+    spec: LessonDocumentSpec,
+    options?: { questionBankClient?: QuestionBankClient; assetCatalogClient?: AssetCatalogClient }
+  ): Promise<{ errors: CompilationError[]; questionVersionIds: string[]; assetIds: string[] }> {
+    const errors: CompilationError[] = [];
+    const questionVersionIds: string[] = [];
+    for (const pyq of spec.authenticPyqReferences || []) {
+      questionVersionIds.push(pyq.questionVersionId);
+      const { error } = await QuestionReferenceService.resolve(pyq.questionVersionId, pyq.relevanceRationale, options?.questionBankClient);
+      if (error) errors.push(error);
+    }
+    const assetIds: string[] = [];
+    for (const sec of spec.sections || []) {
+      if (!sec.diagramAssetId) continue;
+      assetIds.push(sec.diagramAssetId);
+      const { error } = await AssetReferenceService.resolve(sec.diagramAssetId, options?.assetCatalogClient);
+      if (error) errors.push(error);
+    }
+    return { errors, questionVersionIds, assetIds };
+  }
+
+  /**
    * Compiles a LessonDocumentSpec into a validated, deterministic MDX artifact.
    */
   static async compile(
@@ -55,35 +81,10 @@ export class ControlledContentCompiler {
     }
     allWarnings.push(...specResult.warnings);
 
-    // Stage 2: Referential Integrity (Questions & Assets)
-    const questionVersionIds: string[] = [];
-    if (spec.authenticPyqReferences && spec.authenticPyqReferences.length > 0) {
-      for (const pyq of spec.authenticPyqReferences) {
-        questionVersionIds.push(pyq.questionVersionId);
-        const { error } = await QuestionReferenceService.resolve(
-          pyq.questionVersionId,
-          pyq.relevanceRationale,
-          options?.questionBankClient
-        );
-        if (error) {
-          allErrors.push(error);
-        }
-      }
-    }
-
-    const assetIds: string[] = [];
-    for (const sec of spec.sections) {
-      if (sec.diagramAssetId) {
-        assetIds.push(sec.diagramAssetId);
-        const { error } = await AssetReferenceService.resolve(
-          sec.diagramAssetId,
-          options?.assetCatalogClient
-        );
-        if (error) {
-          allErrors.push(error);
-        }
-      }
-    }
+    // Stage 2: Referential Integrity (Questions & Assets) — GAP2-2b: real catalogs, fail closed.
+    const refs = await this.verifyReferences(spec, options);
+    allErrors.push(...refs.errors);
+    const { questionVersionIds, assetIds } = refs;
 
     if (allErrors.length > 0) {
       return {

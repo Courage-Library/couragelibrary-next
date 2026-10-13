@@ -46,9 +46,11 @@ interface HeaderControlsProps {
   streak?: number;
   /** DRIFT-1c: server-evaluated FEATURE_BATTLES flag. */
   battlesEnabled?: boolean;
+  /** GAP2-2b: server-evaluated FEATURE_COURSES flag. */
+  coursesEnabled?: boolean;
 }
 
-export function HeaderControls({ user, coins = 0, streak = 0, battlesEnabled = false }: HeaderControlsProps) {
+export function HeaderControls({ user, coins = 0, streak = 0, battlesEnabled = false, coursesEnabled = false }: HeaderControlsProps) {
   // Single source of truth for active menu overlay: null | "mobile" | "profile"
   const [openOverlay, setOpenOverlay] = useState<null | "mobile" | "profile">(null);
   const [mounted, setMounted] = useState(false);
@@ -387,9 +389,11 @@ export function HeaderControls({ user, coins = 0, streak = 0, battlesEnabled = f
                     <Link href="/articles" onClick={() => setOpenOverlay(null)} className="flex items-center gap-2 py-1">
                       <BookOpen className="w-3.5 h-3.5 text-teal-500" /> Knowledge Articles
                     </Link>
-                    <Link href="/courses" onClick={() => setOpenOverlay(null)} className="flex items-center gap-2 py-1">
-                      <GraduationCap className="w-3.5 h-3.5 text-indigo-500" /> Structured Courses
-                    </Link>
+                    {coursesEnabled && (
+                      <Link href="/courses" onClick={() => setOpenOverlay(null)} className="flex items-center gap-2 py-1">
+                        <GraduationCap className="w-3.5 h-3.5 text-indigo-500" /> Structured Courses
+                      </Link>
+                    )}
                     <Link href="/descriptive" onClick={() => setOpenOverlay(null)} className="flex items-center gap-2 py-1">
                       <PenTool className="w-3.5 h-3.5 text-amber-500" /> Descriptive Mains Studio
                     </Link>

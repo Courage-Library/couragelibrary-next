@@ -278,7 +278,8 @@ export class AdminService {
       sb.from("user_profiles").select("*", { count: "exact", head: true }),
       sb.from("questions").select("*", { count: "exact", head: true }),
       sb.from("test_attempts").select("*", { count: "exact", head: true }),
-      sb.from("articles").select("*", { count: "exact", head: true }),
+      // GAP2-2b: learning articles = learning_documents (legacy articles retired).
+      sb.from("learning_documents").select("*", { count: "exact", head: true }),
       sb.from("courses").select("*", { count: "exact", head: true }),
       sb.from("mock_tests").select("*", { count: "exact", head: true }),
       sb.from("exam_patterns").select("*", { count: "exact", head: true }),
@@ -1568,42 +1569,6 @@ export class AdminService {
     }
 
     return list;
-  }
-
-  /**
-   * Admin: Articles & Courses content listing.
-   */
-  static async getAdminContent() {
-    const supabase = await createServerSupabaseClient();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = supabase as any;
-    const [articlesRes, coursesRes] = await Promise.all([
-      sb.from("articles").select("id, title, slug, status, reading_time_minutes, access_level, created_at").order("created_at", { ascending: false }),
-      sb.from("courses").select("id, title, slug, is_published, access_tier, price_inr, created_at").order("created_at", { ascending: false }),
-    ]);
-
-    return {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      articles: (articlesRes.data || []).map((a: any) => ({
-        id: a.id,
-        title: a.title,
-        slug: a.slug,
-        status: a.status,
-        readingTime: a.reading_time_minutes,
-        accessLevel: a.access_level,
-        createdAt: a.created_at,
-      })),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      courses: (coursesRes.data || []).map((c: any) => ({
-        id: c.id,
-        title: c.title,
-        slug: c.slug,
-        isPublished: c.is_published,
-        accessTier: c.access_tier,
-        priceInr: c.price_inr,
-        createdAt: c.created_at,
-      })),
-    };
   }
 
   /**

@@ -1,10 +1,8 @@
 import React from "react";
-import { AdminService } from "@/services/admin.service";
 import { AdminContentStudioService } from "@/services/admin-content-studio.service";
 import { CurriculumCoverageService } from "@/services/curriculum-coverage.service";
 import { AuthoringQueueService } from "@/services/authoring-queue.service";
 import { ContentStudioView } from "@/components/admin/content-studio/content-studio-view";
-import { AdminContentManager } from "@/components/admin/admin-content-manager";
 import { requireAdminPage } from "@/lib/auth/require-admin";
 
 export const dynamic = "force-dynamic";
@@ -13,8 +11,7 @@ export const revalidate = 0;
 
 export default async function AdminContentPage() {
   await requireAdminPage({ allowStaff: true, path: "/admin/content" });
-  const [content, stats, tree, coverage, matrix, queue] = await Promise.all([
-    AdminService.getAdminContent(),
+  const [stats, tree, coverage, matrix, queue] = await Promise.all([
     AdminContentStudioService.getDashboardStats().catch(() => ({
       totalLearningUnits: 0,
       unitsWithDocuments: 0,

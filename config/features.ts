@@ -9,21 +9,24 @@
  * explicit value disables it. When the variable is unset, the documented default applies.
  */
 
-export type FeatureKey = 'ADAPTIVE' | 'LIVE_TESTS' | 'PSYCHOMETRICS' | 'BATTLES';
+export type FeatureKey = 'ADAPTIVE' | 'LIVE_TESTS' | 'PSYCHOMETRICS' | 'BATTLES' | 'COURSES';
 
 export const FEATURE_ENV: Record<FeatureKey, string> = {
   ADAPTIVE: 'FEATURE_ADAPTIVE',
   LIVE_TESTS: 'FEATURE_LIVE_TESTS',
   PSYCHOMETRICS: 'FEATURE_PSYCHOMETRICS',
   BATTLES: 'FEATURE_BATTLES',
+  COURSES: 'FEATURE_COURSES',
 };
 
-/** Defaults when the env var is unset. BATTLES decided by the DRIFT-1c functional check. */
+/** Defaults when the env var is unset. BATTLES decided by the DRIFT-1c functional check.
+ *  COURSES (GAP2-2b): dormant packaging layer over learning_documents — off until enabled. */
 export const FEATURE_DEFAULTS: Record<FeatureKey, boolean> = {
   ADAPTIVE: false,
   LIVE_TESTS: false,
   PSYCHOMETRICS: false,
   BATTLES: false,
+  COURSES: false,
 };
 
 export const FEATURE_LABELS: Record<FeatureKey, string> = {
@@ -31,6 +34,7 @@ export const FEATURE_LABELS: Record<FeatureKey, string> = {
   LIVE_TESTS: 'Live tests',
   PSYCHOMETRICS: 'Performance intelligence',
   BATTLES: 'Quiz battles',
+  COURSES: 'Courses',
 };
 
 export function isFeatureEnabled(key: FeatureKey): boolean {
@@ -45,6 +49,7 @@ export function getFeatureFlags(): Record<FeatureKey, boolean> {
     LIVE_TESTS: isFeatureEnabled('LIVE_TESTS'),
     PSYCHOMETRICS: isFeatureEnabled('PSYCHOMETRICS'),
     BATTLES: isFeatureEnabled('BATTLES'),
+    COURSES: isFeatureEnabled('COURSES'),
   };
 }
 

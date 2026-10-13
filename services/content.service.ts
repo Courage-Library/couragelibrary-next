@@ -1,5 +1,6 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { LearningResolverService } from "@/services/learning/learning-resolver.service";
+import { FEATURE_DISABLED_CODE, isFeatureEnabled } from "@/config/features";
 
 export interface ArticleItem {
   id: string;
@@ -79,7 +80,10 @@ export interface CourseLessonItem {
   isFreePreview: boolean;
   displayOrder: number;
   isCompleted?: boolean;
-  learningResourceId?: string | null;
+  /** GAP2-2b: the lesson's learning document (learning_documents only). */
+  learningDocumentId?: string | null;
+  /** Resolved via LearningResolverService — servable documents only; no body (the /articles page loads it). */
+  learningDocument?: { title: string; href: string; isLocked: boolean; accessLevel: string } | null;
 }
 
 export interface CourseModuleItem {
@@ -244,6 +248,7 @@ export class ContentService {
    * Fetches published courses catalog.
    */
   static async getCourses(): Promise<CourseItem[]> {
+    if (!isFeatureEnabled("COURSES")) return []; // GAP2-2b: dormant (zero DB calls)
     const supabase = await createServerSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -295,6 +300,7 @@ export class ContentService {
    * Fetches detailed course syllabus and progress.
    */
   static async getCourseBySlug(slug: string): Promise<CourseDetail | null> {
+    if (!isFeatureEnabled("COURSES")) return null; // GAP2-2b: dormant (zero DB calls)
     const supabase = await createServerSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -352,9 +358,22 @@ export class ContentService {
             isFreePreview: l.is_free_preview,
             displayOrder: l.display_order,
             isCompleted: completedLessonIds.has(l.id),
-            learningResourceId: l.learning_resource_id,
+            learningDocumentId: l.learning_document_id ?? null,
+            learningDocument: null as CourseLessonItem["learningDocument"],
           })),
       }));
+
+    // GAP2-2b: lesson content comes ONLY from LearningResolverService (one batch query).
+    const docIds = modules.flatMap((m) => m.lessons.map((l) => l.learningDocumentId)).filter((id): id is string => Boolean(id));
+    if (docIds.length > 0) {
+      const docs = await LearningResolverService.resolveDocuments(docIds);
+      modules.forEach((m) =>
+        m.lessons.forEach((l) => {
+          const d = l.learningDocumentId ? docs.get(l.learningDocumentId) : undefined;
+          l.learningDocument = d ? { title: d.title, href: d.href, isLocked: d.is_locked, accessLevel: d.access_level } : null;
+        })
+      );
+    }
 
     const totalLessons = modules.reduce((acc, m) => acc + m.lessons.length, 0);
 
@@ -380,7 +399,8 @@ export class ContentService {
     lessonId: string,
     positionSeconds: number,
     elapsedRealSeconds = 10
-  ): Promise<{ success: boolean; error?: string }> {
+  ): Promise<{ success: boolean; error?: string; code?: string }> {
+    if (!isFeatureEnabled("COURSES")) return { success: false, error: "Courses is not enabled.", code: FEATURE_DISABLED_CODE };
     const supabase = await createServerSupabaseClient();
     const rpcCall = supabase.rpc as any;
 
@@ -408,7 +428,9 @@ export class ContentService {
     progress_pct?: number;
     is_course_completed?: boolean;
     error?: string;
+    code?: string;
   }> {
+    if (!isFeatureEnabled("COURSES")) return { success: false, error: "Courses is not enabled.", code: FEATURE_DISABLED_CODE };
     const supabase = await createServerSupabaseClient();
     const rpcCall = supabase.rpc as any;
 

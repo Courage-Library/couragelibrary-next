@@ -36,7 +36,8 @@ export interface BatchAssignmentItem {
   courseId: string | null;
   courseLessonId: string | null;
   flashcardDeckId: string | null;
-  articleId: string | null;
+  /** GAP2-2b: ARTICLE assignments reference learning_documents (legacy articles retired). */
+  learningDocumentId: string | null;
   topicId: string | null;
   isMandatory: boolean;
   dueAt: string | null;
@@ -225,7 +226,7 @@ export class InstituteService {
         courseId: a.course_id,
         courseLessonId: a.course_lesson_id,
         flashcardDeckId: a.flashcard_deck_id,
-        articleId: a.article_id,
+        learningDocumentId: a.learning_document_id ?? null,
         topicId: a.topic_id,
         isMandatory: a.is_mandatory,
         dueAt: a.due_at,

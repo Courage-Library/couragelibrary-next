@@ -183,6 +183,8 @@ export type CompilationErrorCode =
   | 'ASSET_NOT_FOUND'
   | 'ASSET_INACTIVE'
   | 'ASSET_ACCESS_DENIED'
+  /** GAP2-2b: no catalog client supplied — references cannot be verified, so compile fails closed. */
+  | 'REFERENCE_CATALOG_UNAVAILABLE'
   | 'SCHEMA_INVALID'
   | 'MDX_PARSE_ERROR'
   | 'COMPILATION_ERROR'

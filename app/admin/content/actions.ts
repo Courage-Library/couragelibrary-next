@@ -1,7 +1,7 @@
 "use server";
 
 
-import { guardAdminAction, toActionFailure, sanitizeActionResult } from "@/lib/auth/require-admin";
+import { guardAdminAction, toActionFailure, sanitizeActionResult, actionFailure } from "@/lib/auth/require-admin";
 import { AdminContentStudioService, type LearningAccessLevel } from "@/services/admin-content-studio.service";
 import {
   LessonDocumentSpec,
@@ -197,6 +197,11 @@ export async function compileVersionAction(versionId: string) {
   try {
     const res = await AdminContentStudioService.compileVersion(versionId);
     revalidatePath("/admin/content");
+    // GAP2-2b: a failed compile (e.g. unresolved references) is a VALIDATION failure naming them.
+    if (!res.success) {
+      const messages = (res.result?.errors || []).map((e) => e.message).filter(Boolean);
+      return { ...actionFailure("VALIDATION", messages.length ? messages.join(" ") : "Compilation failed."), result: res.result };
+    }
     return { success: true, result: res.result };
   } catch (err: any) {
     return toActionFailure("compileVersionAction", err);

@@ -1,3 +1,4 @@
+import { requireFeatureOrNotFound } from "@/lib/features/gates";
 import React from "react";
 import { notFound } from "next/navigation";
 import { ContentService } from "@/services/content.service";
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export default async function CourseLearnPage({ params, searchParams }: Props) {
+  requireFeatureOrNotFound("COURSES"); // GAP2-2b: dormant behind FEATURE_COURSES (gate first, zero DB calls)
   const { slug } = await params;
   const { lesson: lessonId } = await searchParams;
   const courseDetail = await ContentService.getCourseBySlug(slug);

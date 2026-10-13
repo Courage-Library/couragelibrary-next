@@ -115,6 +115,10 @@ const params = (obj) => ({ params: Promise.resolve(obj), searchParams: Promise.r
     ['app/performance/page.tsx', {}],
     ['app/battles/page.tsx', {}],
     ['app/battles/[id]/page.tsx', { id: 'x' }],
+    // GAP2-2b: courses dormant behind FEATURE_COURSES
+    ['app/courses/page.tsx', {}],
+    ['app/courses/[slug]/page.tsx', { slug: 'x' }],
+    ['app/courses/[slug]/learn/page.tsx', { slug: 'x' }],
   ];
   for (const [rel, p] of pages) {
     await test(`PAGE ${rel.replace('app', '').replace('/page.tsx', '') || '/'} → notFound() before any service/DB call`, async () => {
@@ -133,7 +137,7 @@ const params = (obj) => ({ params: Promise.resolve(obj), searchParams: Promise.r
   }
 
   // ===================== API routes → 404 FEATURE_DISABLED before auth/DB =====================
-  const apis = ['create', 'join', 'room-details', 'active-round', 'submit-answer', 'finalize'].map((r) => `app/api/battles/${r}/route.ts`).concat(['app/api/assessment/adaptive-step/route.ts']);
+  const apis = ['create', 'join', 'room-details', 'active-round', 'submit-answer', 'finalize'].map((r) => `app/api/battles/${r}/route.ts`).concat(['app/api/assessment/adaptive-step/route.ts', 'app/api/courses/complete-lesson/route.ts', 'app/api/courses/playback-heartbeat/route.ts']);
   for (const rel of apis) {
     await test(`API ${rel.replace('app', '').replace('/route.ts', '')} → 404 FEATURE_DISABLED before auth/DB`, async () => {
       calls.length = 0;

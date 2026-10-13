@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { BookOpen, Clock, ArrowRight, FileText, Sparkles, GraduationCap } from "lucide-react";
 import { constructMetadata } from "@/lib/seo/metadata";
+import { isFeatureEnabled } from "@/config/features";
 
 // GAP2-2a: lock badges depend on the viewer; render per request.
 export const dynamic = "force-dynamic";
@@ -46,15 +47,17 @@ export default async function ArticleLibraryPage() {
               <div className="space-y-1 max-w-sm mx-auto">
                 <h3 className="text-lg font-extrabold text-slate-900">No Published Articles Available</h3>
                 <p className="text-xs text-slate-500">
-                  Editorial study briefs and articles are being prepared. Explore structured video courses or practice topic-wise questions.
+                  Editorial study briefs and articles are being prepared. Practice topic-wise questions in the meantime.
                 </p>
               </div>
               <div className="flex items-center justify-center gap-3 pt-2">
-                <Link href="/courses">
-                  <Button variant="default" size="sm" className="bg-teal-700 hover:bg-teal-800 font-semibold shadow-xs">
-                    <GraduationCap className="w-3.5 h-3.5 mr-1" /> View Courses
-                  </Button>
-                </Link>
+                {isFeatureEnabled("COURSES") && (
+                  <Link href="/courses">
+                    <Button variant="default" size="sm" className="bg-teal-700 hover:bg-teal-800 font-semibold shadow-xs">
+                      <GraduationCap className="w-3.5 h-3.5 mr-1" /> View Courses
+                    </Button>
+                  </Link>
+                )}
                 <Link href="/practice">
                   <Button variant="outline" size="sm" className="font-semibold">
                     <Sparkles className="w-3.5 h-3.5 mr-1 text-amber-500" /> Practice Drills

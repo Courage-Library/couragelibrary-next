@@ -1,21 +1,37 @@
 /**
  * COURAGE LIBRARY — QUESTION REFERENCE RESOLVER
  * Phase 3C: Controlled Content Compilation & Rendering Pipeline
- * 
+ * GAP2-2b (Q5): validates against the real Question Bank and fails closed.
+ *
  * Resolves authoritative Question Bank references for QuestionReference components.
- * 
+ *
  * INVARIANTS:
  * 1. question_version_id is the authoritative primary reference.
- * 2. Question text, options, answers, and exam metadata are resolved from canonical tables.
+ * 2. Only the CURRENT PUBLISHED version of a published question is accepted
+ *    (question_versions.is_current AND lifecycle_status = 'PUBLISHED' AND questions.status = 'published').
  * 3. AI / content authors CANNOT override or fabricate canonical metadata.
- * 4. Inactive or missing question versions fail validation or compilation.
+ * 4. No catalog client, an unknown id, an unpublished/non-current version or a failed lookup is a
+ *    compile ERROR naming the reference. There is no placeholder result.
  */
 
 import { ResolvedQuestionReference, CompilationError } from '@/types/learning-compiler';
 
 export interface QuestionBankClient {
-  fetchQuestionVersion(questionVersionId: string): Promise<any | null>;
+  /** Returns null when the version does not exist; `status` is 'PUBLISHED' only when servable. */
+  fetchQuestionVersion(questionVersionId: string): Promise<{
+    id: string;
+    question_id: string;
+    version_number: number;
+    question_text: string;
+    question_type: string;
+    status: string;
+  } | null>;
 }
+
+const fail = (code: CompilationError['code'], path: string, message: string) => ({
+  resolved: null,
+  error: { code, severity: 'ERROR' as const, path, message },
+});
 
 export class QuestionReferenceService {
   /**
@@ -27,101 +43,45 @@ export class QuestionReferenceService {
     client?: QuestionBankClient
   ): Promise<{ resolved: ResolvedQuestionReference | null; error: CompilationError | null }> {
     if (!questionVersionId || typeof questionVersionId !== 'string') {
-      return {
-        resolved: null,
-        error: {
-          code: 'INVALID_QUESTION_REFERENCE',
-          severity: 'ERROR',
-          path: 'questionVersionId',
-          message: 'questionVersionId must be a non-empty string.',
-        },
-      };
+      return fail('INVALID_QUESTION_REFERENCE', 'questionVersionId', 'questionVersionId must be a non-empty string.');
+    }
+    if (!client) {
+      return fail(
+        'REFERENCE_CATALOG_UNAVAILABLE',
+        questionVersionId,
+        `Question reference "${questionVersionId}" could not be verified: the Question Bank catalog is unavailable.`
+      );
     }
 
-    if (client) {
-      try {
-        const raw = await client.fetchQuestionVersion(questionVersionId);
-        if (!raw) {
-          return {
-            resolved: null,
-            error: {
-              code: 'QUESTION_NOT_FOUND',
-              severity: 'ERROR',
-              path: questionVersionId,
-              message: `Question version "${questionVersionId}" does not exist in Question Bank.`,
-            },
-          };
-        }
-
-        if (raw.status && raw.status !== 'ACTIVE' && raw.status !== 'PUBLISHED') {
-          return {
-            resolved: null,
-            error: {
-              code: 'QUESTION_INACTIVE',
-              severity: 'ERROR',
-              path: questionVersionId,
-              message: `Question version "${questionVersionId}" is in ${raw.status} status and cannot be embedded.`,
-            },
-          };
-        }
-
-        const resolved: ResolvedQuestionReference = {
-          questionVersionId: raw.id || questionVersionId,
-          questionId: raw.question_id || raw.questionId || 'mock-q-id',
-          versionNumber: raw.version_number || raw.versionNumber || 1,
-          questionText: raw.question_text || raw.questionText || '',
-          questionType: raw.question_type || raw.questionType || 'SINGLE_CHOICE',
-          options: (raw.options || []).map((opt: any, idx: number) => ({
-            id: opt.id || `opt-${idx}`,
-            optionIndex: opt.option_index !== undefined ? opt.option_index : idx,
-            optionText: opt.option_text || opt.optionText || '',
-          })),
-          correctOptionId: raw.correct_option_id || raw.correctOptionId || '',
-          explanation: raw.explanation || null,
-          examMetadata: {
-            examTitle: raw.exam_title || raw.examTitle || null,
-            examCode: raw.exam_code || raw.examCode || null,
-            year: raw.year || null,
-            shift: raw.shift || null,
-            tier: raw.tier || null,
-          },
-          relevanceRationale,
-        };
-
-        return { resolved, error: null };
-      } catch (err: any) {
-        return {
-          resolved: null,
-          error: {
-            code: 'INVALID_QUESTION_REFERENCE',
-            severity: 'ERROR',
-            path: questionVersionId,
-            message: `Failed to query Question Bank: ${err.message}`,
-          },
-        };
-      }
+    let raw: Awaited<ReturnType<QuestionBankClient['fetchQuestionVersion']>>;
+    try {
+      raw = await client.fetchQuestionVersion(questionVersionId);
+    } catch {
+      return fail('INVALID_QUESTION_REFERENCE', questionVersionId, `Question reference "${questionVersionId}" could not be verified (Question Bank lookup failed).`);
+    }
+    if (!raw) {
+      return fail('QUESTION_NOT_FOUND', questionVersionId, `Question version "${questionVersionId}" was not found in the Question Bank.`);
+    }
+    if (raw.status !== 'PUBLISHED') {
+      return fail(
+        'QUESTION_INACTIVE',
+        questionVersionId,
+        `Question version "${questionVersionId}" is not the current published version (${raw.status}) and cannot be embedded.`
+      );
     }
 
+    // Answer keys and options are never resolved here: the renderer loads them with its own access rules.
     return {
       resolved: {
-        questionVersionId,
-        questionId: 'canonical-q-id',
-        versionNumber: 1,
-        questionText: 'Canonical Question Text from Question Bank',
-        questionType: 'SINGLE_CHOICE',
-        options: [
-          { id: 'opt-1', optionIndex: 0, optionText: 'Option A' },
-          { id: 'opt-2', optionIndex: 1, optionText: 'Option B' },
-        ],
-        correctOptionId: 'opt-1',
-        explanation: 'Canonical step-by-step explanation.',
-        examMetadata: {
-          examTitle: 'SSC CGL Tier 1',
-          examCode: 'SSC_CGL',
-          year: 2024,
-          shift: 'Shift 2',
-          tier: 'Tier 1',
-        },
+        questionVersionId: raw.id,
+        questionId: raw.question_id,
+        versionNumber: raw.version_number,
+        questionText: raw.question_text,
+        questionType: raw.question_type,
+        options: [],
+        correctOptionId: '',
+        explanation: null,
+        examMetadata: { examTitle: null, examCode: null, year: null, shift: null, tier: null },
         relevanceRationale,
       },
       error: null,

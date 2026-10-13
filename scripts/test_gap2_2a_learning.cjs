@@ -433,7 +433,8 @@ async function db() {
     const r = await one(`SELECT pg_get_constraintdef(oid) d FROM pg_constraint WHERE conname='course_lessons_learning_document_id_fkey'`);
     assert(r && /REFERENCES learning_documents\(id\) ON DELETE RESTRICT/.test(r.d), r && r.d);
     const lr = await one(`SELECT count(*)::int n FROM information_schema.columns WHERE table_schema='public' AND table_name='course_lessons' AND column_name='learning_resource_id'`);
-    assert(lr.n === 1, 'learning_resource_id must be untouched in 2a');
+    // GAP2-2b (073) retired the legacy column (old values preserved in retired.gap2_2b_legacy_refs).
+    assert(lr.n === 0, 'learning_resource_id must be gone after GAP2-2b');
   });
 
   await test('DB-06 RLS: anon sees only PUBLISHED documents/versions and cannot read the private bucket', async () => {
