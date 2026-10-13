@@ -132,7 +132,8 @@ const rel = (p) => path.relative(ROOT, p).replace(/\\/g, '/');
 const PAGES = walk(path.join(ROOT, 'app/admin')).filter((f) => /[\\/]page\.tsx$/.test(f)).map(rel).sort();
 const segOf = (p) => p.replace(/^app\/admin\/?/, '').replace(/\/?page\.tsx$/, '');
 // Decision #16 + SEC-1C: admin-only pages. Every other admin page allows staff.
-const ADMIN_ONLY = new Set(['premium', 'rewards', 'adaptive', 'taxonomy', 'live-tests/intelligence', 'live-tests/[id]/intelligence', 'users']);
+// SEC-1D: + gamification, billing, live-tests/[id]/results (PII pages).
+const ADMIN_ONLY = new Set(['premium', 'rewards', 'adaptive', 'taxonomy', 'live-tests/intelligence', 'live-tests/[id]/intelligence', 'users', 'gamification', 'billing', 'live-tests/[id]/results']);
 
 /** Body of the default-exported function (or a named function) — brace-matched. */
 function fnBody(src, header) {

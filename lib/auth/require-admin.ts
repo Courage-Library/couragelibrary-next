@@ -18,6 +18,7 @@ import "server-only";
 import { NextResponse } from "next/server";
 import { notFound, redirect } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { sanitizeAdminPath } from "@/lib/auth/safe-redirect";
 
 export type AdminRole = "admin" | "staff";
 export type AuthorizationCode = "UNAUTHORIZED" | "FORBIDDEN";
@@ -100,11 +101,10 @@ export const ADMIN_LOGIN_PATH = "/auth/login";
 /**
  * `next` target for the login redirect: only a relative /admin path (no scheme, host, `//`, `..`,
  * query or fragment); anything else falls back to "/admin". Prevents open redirects.
+ * SEC-1D: one implementation — the shared sanitizer plus the /admin constraint.
  */
 export function sanitizeAdminNext(path: unknown): string {
-  if (typeof path !== "string") return "/admin";
-  if (!/^\/admin(\/[A-Za-z0-9_\-[\]/]*)?$/.test(path) || path.includes("//") || path.includes("\\")) return "/admin";
-  return path;
+  return sanitizeAdminPath(path);
 }
 
 export interface RequireAdminPageOptions extends RequireAdminOptions {

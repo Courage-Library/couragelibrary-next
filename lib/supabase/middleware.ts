@@ -2,6 +2,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getAppEnv } from "@/config/env";
 import type { Database } from "@/types/database";
+import { sanitizeAdminPath } from "@/lib/auth/safe-redirect";
 
 export interface CookieToSet {
   name: string;
@@ -62,17 +63,11 @@ export async function updateSession(request: NextRequest) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/auth/login";
     loginUrl.search = "";
-    loginUrl.searchParams.set("next", sanitizeAdminNext(pathname));
+    loginUrl.searchParams.set("next", sanitizeAdminPath(pathname));
     const redirectResponse = NextResponse.redirect(loginUrl);
     supabaseResponse.cookies.getAll().forEach((c) => redirectResponse.cookies.set(c));
     return redirectResponse;
   }
 
   return supabaseResponse;
-}
-
-/** Relative /admin path only (mirror of lib/auth/require-admin sanitizeAdminNext; middleware cannot import server-only). */
-function sanitizeAdminNext(path: string): string {
-  if (!/^\/admin(\/[A-Za-z0-9_\-[\]/]*)?$/.test(path) || path.includes("//") || path.includes("\\")) return "/admin";
-  return path;
 }
