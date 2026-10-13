@@ -218,3 +218,7 @@ qa-student data was created by a local E2E run against the shared DB and removed
 | Anonymous `/admin` | 307 → login |
 
 **7/7.** GAP2-3 STATUS: CLOSED.
+
+## 11. Architect ruling
+
+GAP2-3 is **CLOSED** (`b1cdcf6` + `10c52ff`). The deployment-window breakage (§8 item 6) is accepted pre-launch. **Post-launch rule:** schema changes that alter query resolution follow **expand → deploy → contract** (add the new structure, deploy code that uses it, then remove the old structure in a later migration).

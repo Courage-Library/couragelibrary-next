@@ -236,3 +236,7 @@ The new build was detected when `/courses` began serving the not-found UI.
 | Anonymous `/admin` | 307 → `/auth/login` |
 
 **12/12.** GAP2-2b STATUS: CLOSED pending architect confirmation of migration 074 (§10 item 1).
+
+## 13. Architect confirmation of 074
+
+Migration 074 (function-only follow-up to 073) is **CONFIRMED** by the architect: disclosed, applied with full migration discipline (backup, dry-run, apply, ledger).
