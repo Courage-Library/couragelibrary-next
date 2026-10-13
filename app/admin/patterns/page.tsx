@@ -1,6 +1,9 @@
 import React from "react";
 import { AdminService } from "@/services/admin.service";
 import { AdminPatternsManager } from "@/components/admin/admin-patterns-manager";
+import { requireAdminPage } from "@/lib/auth/require-admin";
+
+export const dynamic = "force-dynamic";
 
 export const revalidate = 0;
 
@@ -9,6 +12,7 @@ interface Props {
 }
 
 export default async function AdminPatternsPage({ searchParams }: Props) {
+  await requireAdminPage({ allowStaff: true, path: "/admin/patterns" });
   const params = await searchParams;
   const categoryFilter = params.category;
 

@@ -16,10 +16,14 @@ import {
   ShieldCheck,
   ArrowRight,
 } from "lucide-react";
+import { requireAdminPage } from "@/lib/auth/require-admin";
+
+export const dynamic = "force-dynamic";
 
 export const revalidate = 0;
 
 export default async function AdminDashboardPage() {
+  await requireAdminPage({ allowStaff: true, path: "/admin" });
   const stats = await AdminService.getAdminOverview();
 
   const kpis = [

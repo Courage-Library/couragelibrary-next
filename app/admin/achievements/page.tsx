@@ -5,6 +5,9 @@ import { Metadata } from "next";
 import { LiveTestAchievementService } from "@/services/live-test-achievement.service";
 import { Award, ShieldCheck, Trophy, Layers, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { requireAdminPage } from "@/lib/auth/require-admin";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Live Test Achievements & Policy Definitions | Courage Library Admin",
@@ -12,6 +15,7 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminAchievementsPage() {
+  await requireAdminPage({ allowStaff: true, path: "/admin/achievements" });
   if (!isFeatureEnabled("LIVE_TESTS")) return <FeatureDisabledPanel feature="LIVE_TESTS" />;
   const definitions = await LiveTestAchievementService.getAchievementDefinitions();
 

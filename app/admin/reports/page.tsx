@@ -2,12 +2,16 @@ import React from "react";
 import { AdminService } from "@/services/admin.service";
 import { AdminQuestionReportsManager, AdminQuestionReportItem } from "@/components/admin/admin-question-reports-manager";
 import { Container } from "@/components/ui/container";
+import { requireAdminPage } from "@/lib/auth/require-admin";
+
+export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Question Reports & Errata | Admin Studio",
 };
 
 export default async function AdminReportsPage() {
+  await requireAdminPage({ allowStaff: true, path: "/admin/reports" });
   const initialReports = await AdminService.getQuestionReports();
 
   return (

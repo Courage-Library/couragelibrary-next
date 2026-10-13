@@ -1,39 +1,17 @@
 import React from "react";
-import Link from "next/link";
-import { AdminService } from "@/services/admin.service";
-import { Container } from "@/components/ui/container";
+import { requireAdminPage } from "@/lib/auth/require-admin";
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { isFeatureEnabled } from "@/config/features";
 import { AdminTopHeader } from "@/components/admin/admin-top-header";
-import { ShieldAlert, ArrowLeft } from "lucide-react";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
 }
 
 export default async function AdminLayout({ children }: AdminLayoutProps) {
-  const { isAdmin, userEmail } = await AdminService.checkIsAdminOrStaff();
-
-  if (!isAdmin) {
-    return (
-      <div className="py-20 bg-slate-50 min-h-screen flex items-center justify-center">
-        <Container className="max-w-md text-center space-y-4">
-          <div className="w-16 h-16 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
-            <ShieldAlert className="w-8 h-8" />
-          </div>
-          <h1 className="text-2xl font-bold text-slate-900">Access Restricted</h1>
-          <p className="text-xs text-slate-600">
-            You do not have staff or administrator privileges to access the Courage Library Admin Studio.
-          </p>
-          <Link href="/dashboard">
-            <button className="px-5 py-2.5 rounded-xl bg-slate-900 text-white font-bold text-xs inline-flex items-center gap-2">
-              <ArrowLeft className="w-4 h-4" /> Return to Dashboard
-            </button>
-          </Link>
-        </Container>
-      </div>
-    );
-  }
+  // SEC-1C: same page guard as every admin page (anonymous → login, no role → 404). Not a security
+  // boundary on its own — each page authorizes itself before fetching.
+  const { userEmail } = await requireAdminPage({ allowStaff: true, path: "/admin" });
 
   return (
     <div className="h-[100dvh] max-h-[100dvh] w-full flex flex-col md:flex-row overflow-hidden bg-slate-900 text-slate-900 antialiased">

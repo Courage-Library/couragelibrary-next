@@ -1,6 +1,9 @@
 import React from "react";
 import { AdminExamKnowledgeService } from "@/services/exam-knowledge/admin-exam-knowledge.service";
 import { ExamKnowledgeStudioView } from "@/components/admin/exam-knowledge/exam-knowledge-studio-view";
+import { requireAdminPage } from "@/lib/auth/require-admin";
+
+export const dynamic = "force-dynamic";
 
 export const revalidate = 0;
 
@@ -9,6 +12,7 @@ interface PageProps {
 }
 
 export default async function AdminExamKnowledgePage({ searchParams }: PageProps) {
+  await requireAdminPage({ allowStaff: true, path: "/admin/exam-knowledge" });
   const params = searchParams ? await searchParams : {};
   const [kpis, examsData] = await Promise.all([
     AdminExamKnowledgeService.getDashboardKPIs().catch(() => ({

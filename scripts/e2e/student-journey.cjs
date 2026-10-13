@@ -170,9 +170,10 @@ const pathOf = (url) => new URL(url).pathname.replace(/[0-9a-f-]{36}/g, ':id');
     step('E2E-12 open one mistake', false, 'no mistake links');
   }
 
-  // 11. Student cannot open /admin.
+  // 11. Student cannot open /admin (SEC-1C: signed in without a role → not-found page, no admin UI).
   await page.goto(`${BASE}/admin`, { waitUntil: 'networkidle', timeout: 240000 });
-  step('E2E-13 student blocked from /admin', /Access Restricted/i.test(await page.content()));
+  const adminHtml = await page.content();
+  step('E2E-13 student blocked from /admin', /Page Not Found/i.test(adminHtml) && !/QUESTION BANK|Admin Studio Console|aria-label="Admin/i.test(adminHtml));
   await shot(page, '10-admin-restricted');
 
   await browser.close();

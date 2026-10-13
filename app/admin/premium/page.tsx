@@ -1,9 +1,8 @@
 import React from "react";
 import { redirect } from "next/navigation";
-import { AdminService } from "@/services/admin.service";
 import { AdminPremiumService } from "@/services/admin-premium.service";
 import { AdminPremiumManager } from "@/components/admin/premium/admin-premium-manager";
-import { Alert } from "@/components/ui/alert";
+import { requireAdminPage } from "@/lib/auth/require-admin";
 
 export const metadata = {
   title: "Premium Control Center | Admin Studio | Courage Library",
@@ -13,17 +12,7 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function AdminPremiumPage() {
-  const auth = await AdminService.checkIsAdminOrStaff();
-
-  if (!auth.isAdmin) {
-    return (
-      <div className="p-8 max-w-2xl mx-auto">
-        <Alert variant="error">
-          Unauthorized access. You do not have permission to access the Premium Control Center.
-        </Alert>
-      </div>
-    );
-  }
+  await requireAdminPage({ path: "/admin/premium" }); // SEC-1C: admin only
 
   // Load consolidated overview, test series, and curated mocks in parallel
   const [overview, testSeries, curatedMocks] = await Promise.all([

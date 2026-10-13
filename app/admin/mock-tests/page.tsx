@@ -1,6 +1,9 @@
 import React from "react";
 import { AdminService } from "@/services/admin.service";
 import { AdminMockTestsManager, MockTestItem } from "@/components/admin/admin-mock-tests-manager";
+import { requireAdminPage } from "@/lib/auth/require-admin";
+
+export const dynamic = "force-dynamic";
 
 export const revalidate = 0;
 
@@ -12,6 +15,7 @@ interface Props {
 }
 
 export default async function AdminMockTestsPage({ searchParams }: Props) {
+  await requireAdminPage({ allowStaff: true, path: "/admin/mock-tests" });
   const params = await searchParams;
   const categoryFilter = params.category;
   const patternFilter = params.pattern;

@@ -4,6 +4,9 @@ import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { ExamOnboardingService } from "@/services/exam-onboarding/exam-onboarding.service";
 import { ExamReadinessService, ExamReadinessReport } from "@/services/exam-onboarding/exam-readiness.service";
 import { ExamOnboardingWizard } from "@/components/admin/exam-onboarding/exam-onboarding-wizard";
+import { requireAdminPage } from "@/lib/auth/require-admin";
+
+export const dynamic = "force-dynamic";
 
 export const revalidate = 0;
 
@@ -12,6 +15,7 @@ interface PageProps {
 }
 
 export default async function AdminExamOnboardingPage({ searchParams }: PageProps) {
+  await requireAdminPage({ allowStaff: true, path: "/admin/exams/onboarding" });
   const resolvedParams = searchParams ? await searchParams : {};
   const examId = resolvedParams.examId?.trim();
   const requestedCycleId = resolvedParams.cycleId?.trim();

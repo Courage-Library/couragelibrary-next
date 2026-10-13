@@ -5,16 +5,20 @@ import { notFound } from "next/navigation";
 import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { LiveTestResultService } from "@/services/live-test-result.service";
 import { AdminLiveTestResultsManager } from "@/components/admin/live-tests/admin-live-test-results-manager";
+import { requireAdminPage } from "@/lib/auth/require-admin";
 
 interface Props {
   params: Promise<{ id: string }>;
 }
+
+export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Admin Live Test Results Manager | Courage Library",
 };
 
 export default async function AdminLiveTestResultsPage({ params }: Props) {
+  await requireAdminPage({ allowStaff: true, path: "/admin/live-tests" });
   if (!isFeatureEnabled("LIVE_TESTS")) return <FeatureDisabledPanel feature="LIVE_TESTS" />;
   const { id } = await params;
   const adminSb = createAdminServerSupabaseClient();

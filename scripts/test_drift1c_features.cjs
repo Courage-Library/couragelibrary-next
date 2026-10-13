@@ -48,9 +48,16 @@ const recorder = (label) =>
     },
   });
 const MOCK_PREFIXES = ['@/services/', '@/lib/supabase/'];
+// SEC-1C: admin pages call requireAdminPage first; stub it as an authorized admin (recorded separately
+// from data calls) so the quarantine gate behind it is still exercised.
+const pageGuardCalls = [];
 const originalLoad = Module._load;
 Module._load = function (request, parent, isMain) {
   if (request === 'server-only') return {}; // SEC-1B: Next.js-only marker (lib/auth/require-admin.ts)
+  if (request === '@/lib/auth/require-admin') {
+    const real = originalLoad.call(this, request, parent, isMain);
+    return { ...real, requireAdminPage: async (opts) => { pageGuardCalls.push(opts || {}); return { userId: 'qa', role: 'admin', userEmail: '' }; } };
+  }
   if (MOCK_PREFIXES.some((p) => request.startsWith(p))) return recorder(request);
   if (request === 'next/cache') return { revalidatePath: () => calls.push('revalidatePath'), revalidateTag: () => undefined, unstable_cache: (fn) => fn };
   if (request === 'next/headers') return { cookies: async () => { calls.push('cookies'); return { get: () => undefined, getAll: () => [] }; }, headers: async () => new Map() };
@@ -171,17 +178,25 @@ const params = (obj) => ({ params: Promise.resolve(obj), searchParams: Promise.r
   });
 
   // ===================== Admin pages → panel, no service calls =====================
-  for (const [rel, key] of [['app/admin/adaptive/page.tsx', 'ADAPTIVE'], ['app/admin/live-tests/page.tsx', 'LIVE_TESTS'], ['app/admin/live-tests/[id]/results/page.tsx', 'LIVE_TESTS'], ['app/admin/achievements/page.tsx', 'LIVE_TESTS']]) {
+  // SEC-1C: the /admin/live-tests layout gate was removed (it hid the page guard's notFound); every
+  // live-tests page — incl. the two client intelligence views' server wrappers — gates itself.
+  for (const [rel, key] of [['app/admin/adaptive/page.tsx', 'ADAPTIVE'], ['app/admin/live-tests/page.tsx', 'LIVE_TESTS'], ['app/admin/live-tests/[id]/results/page.tsx', 'LIVE_TESTS'], ['app/admin/live-tests/intelligence/page.tsx', 'LIVE_TESTS'], ['app/admin/live-tests/[id]/intelligence/page.tsx', 'LIVE_TESTS'], ['app/admin/achievements/page.tsx', 'LIVE_TESTS']]) {
     await test(`ADMIN ${rel.replace('app', '').replace('/page.tsx', '')} → "Feature not enabled" panel, zero calls`, async () => {
       calls.length = 0;
+      pageGuardCalls.length = 0;
       const el = await load(rel).default(params({ id: 'x' }));
+      assert(pageGuardCalls.length === 1, `SEC-1C page guard calls: ${pageGuardCalls.length}`);
       assert(el && el.props && el.props.feature === key, `returned ${el && el.type && el.type.name}`);
       assert(calls.length === 0, calls.join(', '));
     });
   }
-  await test('ADMIN /admin/live-tests/** layout (covers client intelligence pages) renders the panel', async () => {
-    const el = load('app/admin/live-tests/layout.tsx').default({ children: 'CHILD' });
-    assert(el && el.props && el.props.feature === 'LIVE_TESTS');
+  await test('ADMIN /admin/live-tests/** client intelligence views are only reachable through a gated server wrapper', async () => {
+    for (const dir of ['app/admin/live-tests/intelligence', 'app/admin/live-tests/[id]/intelligence']) {
+      const files = fs.readdirSync(path.join(ROOT, dir));
+      const pages = files.filter((f) => f === 'page.tsx');
+      assert(pages.length === 1 && !/^\s*["']use client["']/.test(read(`${dir}/page.tsx`)), `${dir}: page.tsx must be a server wrapper`);
+      assert(/if \(!isFeatureEnabled\("LIVE_TESTS"\)\) return <FeatureDisabledPanel feature="LIVE_TESTS" \/>;/.test(read(`${dir}/page.tsx`)), `${dir}: gate missing`);
+    }
   });
 
   // ===================== Mock take page: adaptive detection skipped =====================
