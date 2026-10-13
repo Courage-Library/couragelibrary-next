@@ -1,6 +1,6 @@
 "use server";
 
-import { AdminContentStudioService } from "@/services/admin-content-studio.service";
+import { AdminContentStudioService, type LearningAccessLevel } from "@/services/admin-content-studio.service";
 import {
   LessonDocumentSpec,
   DocumentType,
@@ -39,10 +39,50 @@ export async function createLearningDocumentAction(params: {
   learningUnitId: string;
   canonicalSlug: string;
   documentType: DocumentType;
+  accessLevel?: LearningAccessLevel;
 }) {
   try {
     const doc = await AdminContentStudioService.createDocument(params);
     revalidatePath("/admin/content");
+    return { success: true, doc };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+/* GAP2-2a: access level (admin only — enforced in the service), unit creation, archive. */
+export async function setDocumentAccessLevelAction(documentId: string, accessLevel: LearningAccessLevel) {
+  try {
+    const doc = await AdminContentStudioService.setDocumentAccessLevel(documentId, accessLevel);
+    revalidatePath("/admin/content");
+    revalidatePath("/articles");
+    return { success: true, doc };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function createLearningUnitAction(params: {
+  topicId: string;
+  title: string;
+  slug: string;
+  unitType: DocumentType;
+  estimatedMinutes?: number;
+}) {
+  try {
+    const unit = await AdminContentStudioService.createLearningUnit(params);
+    revalidatePath("/admin/content");
+    return { success: true, unit };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function archiveLearningDocumentAction(documentId: string) {
+  try {
+    const doc = await AdminContentStudioService.archiveDocument(documentId);
+    revalidatePath("/admin/content");
+    revalidatePath("/articles");
     return { success: true, doc };
   } catch (err: any) {
     return { success: false, error: err.message };

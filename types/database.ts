@@ -978,6 +978,7 @@ export type Database = {
           id: string
           is_free_preview: boolean
           is_published: boolean
+          learning_document_id: string | null
           learning_resource_id: string | null
           lesson_type: string
           module_id: string
@@ -993,6 +994,7 @@ export type Database = {
           id?: string
           is_free_preview?: boolean
           is_published?: boolean
+          learning_document_id?: string | null
           learning_resource_id?: string | null
           lesson_type?: string
           module_id: string
@@ -1008,6 +1010,7 @@ export type Database = {
           id?: string
           is_free_preview?: boolean
           is_published?: boolean
+          learning_document_id?: string | null
           learning_resource_id?: string | null
           lesson_type?: string
           module_id?: string
@@ -1375,21 +1378,21 @@ export type Database = {
           created_at: string
           display_order: number
           id: string
-          learning_resource_id: string
+          learning_document_id: string
         }
         Insert: {
           article_id: string
           created_at?: string
           display_order?: number
           id?: string
-          learning_resource_id: string
+          learning_document_id: string
         }
         Update: {
           article_id?: string
           created_at?: string
           display_order?: number
           id?: string
-          learning_resource_id?: string
+          learning_document_id?: string
         }
         Relationships: [
           {
@@ -1400,10 +1403,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "current_affairs_learning_mappings_learning_resource_id_fkey"
-            columns: ["learning_resource_id"]
+            foreignKeyName: "current_affairs_learning_mappings_learning_document_id_fkey"
+            columns: ["learning_document_id"]
             isOneToOne: false
-            referencedRelation: "learning_resources"
+            referencedRelation: "learning_documents"
             referencedColumns: ["id"]
           },
         ]
@@ -7006,10 +7009,6 @@ export type Database = {
           p_resolution_notes?: string
           p_resolution_status: string
         }
-        Returns: Json
-      }
-      fn_resolve_learn_more: {
-        Args: { p_question_id: string; p_user_id?: string }
         Returns: Json
       }
       fn_reverse_reward_claim: {

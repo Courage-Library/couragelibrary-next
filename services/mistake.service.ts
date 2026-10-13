@@ -1,23 +1,17 @@
 import { createServerSupabaseClient, createAdminServerSupabaseClient } from "@/lib/supabase/server";
-import { PremiumEntitlementService } from "@/services/premium-entitlement.service";
+import { LearningResolverService, type ResolvedLearningDocument, type LearningDocumentType } from "@/services/learning/learning-resolver.service";
 
 export interface ResolvedLearningResource {
   id: string;
-  resourceType: "ARTICLE" | "COURSE_LESSON" | "REVISION_NOTE" | "FORMULA_SHEET" | "VIDEO" | "PDF_BRIEF" | "CURRENT_AFFAIRS";
+  documentType: LearningDocumentType;
   title: string;
   slug: string;
-  description: string | null;
-  accessLevel: "FREE" | "PRO" | "PAID_COURSE";
+  accessLevel: "FREE" | "PRO";
   isLocked: boolean;
-  estimatedStudySeconds: number;
-  readingTimeMinutes?: number;
+  readingTimeMinutes: number;
   canonicalUrl: string;
   topicId: string;
   topicName?: string | null;
-  isPrimary: boolean;
-  relevanceScore: number;
-  displayOrder: number;
-  sourceType: "EXPLICIT" | "CANONICAL_TOPIC" | "COURSE_LESSON";
 }
 
 export interface MistakeLearningContentResolution {
@@ -1220,7 +1214,6 @@ export class MistakeService {
     const learningContent = await this.resolveLearningContentForMistake({
       questionId: v.question_id,
       topicId: v.topic_id || v.topics?.id,
-      userId: user.id,
     });
 
     const dueRes = calculateRevisionDueState({
@@ -2121,7 +2114,7 @@ export class MistakeService {
 
     const top5 = candidatesToRank.slice(0, 5);
     const topTopicIds = Array.from(new Set(top5.map((i) => i.vaultRow.topic_id || i.vaultRow.topics?.id).filter(Boolean)));
-    const batchContentMap = await this.getBatchLearningContentForTopics(topTopicIds, currentUserId);
+    const batchContentMap = await this.getBatchLearningContentForTopics(topTopicIds);
 
     const nextBestRevisions: NextBestRevisionItem[] = top5.map((item) => {
       const vr = item.vaultRow;
@@ -2204,36 +2197,23 @@ export class MistakeService {
   }
 
   /**
-   * Deterministically resolves learning content for a given topic or question with strict authorization and no N+1 query.
+   * GAP2-2a: learning content for a mistake, via LearningResolverService only
+   * (learning_documents; entitlement from the session user — no caller-supplied user id).
    */
   static async resolveLearningContentForMistake(params: {
     questionId?: string;
     topicId?: string;
-    userId?: string;
-    language?: string;
   }): Promise<MistakeLearningContentResolution> {
-    const supabase = await createServerSupabaseClient();
-    let currentUserId = params.userId;
-    if (!currentUserId) {
-      const { data: { user } } = await supabase.auth.getUser();
-      currentUserId = user?.id;
-    }
+    let targetTopicId = params.topicId || null;
 
-    let targetTopicId = params.topicId;
-    let targetTopicName: string | null = null;
-
-    // If topicId not provided, look up canonical_topic_id from question
     if (!targetTopicId && params.questionId) {
+      const supabase = await createServerSupabaseClient();
       const { data: qData } = await supabase
         .from("questions")
-        .select("canonical_topic_id, topics(name)")
+        .select("canonical_topic_id")
         .eq("id", params.questionId)
         .maybeSingle();
-
-      if (qData) {
-        targetTopicId = (qData as any).canonical_topic_id;
-        targetTopicName = (qData as any).topics?.name || null;
-      }
+      targetTopicId = (qData as any)?.canonical_topic_id || null;
     }
 
     if (!targetTopicId) {
@@ -2247,280 +2227,57 @@ export class MistakeService {
       };
     }
 
-    // Check user premium access if authenticated
-    let isUserPremium = false;
-    if (currentUserId) {
-      try {
-        const premRes = await PremiumEntitlementService.checkPremiumAccess(currentUserId);
-        isUserPremium = premRes.hasAccess;
-      } catch {
-        isUserPremium = false;
-      }
-    }
-
-    // Query learning_resource_topics joined with published learning_resources, articles, and course lessons
-    const { data: lrtRows, error } = await supabase
-      .from("learning_resource_topics")
-      .select(`
-        id,
-        topic_id,
-        subtopic_id,
-        is_primary,
-        relevance_score,
-        display_order,
-        topics(name),
-        learning_resources!inner(
-          id,
-          resource_type,
-          title,
-          slug,
-          description,
-          access_level,
-          status,
-          estimated_study_seconds,
-          published_at,
-          articles(slug, reading_time_minutes, status),
-          course_lessons(id, slug, title, is_published, course_modules(course_id, courses(slug, is_published)))
-        )
-      `)
-      .eq("topic_id", targetTopicId)
-      .eq("learning_resources.status", "PUBLISHED");
-
-    if (error || !lrtRows || lrtRows.length === 0) {
-      return {
-        hasLearningContent: false,
-        topicId: targetTopicId,
-        topicName: targetTopicName,
-        primaryResource: null,
-        allResources: [],
-        reasonIfUnavailable: "NO_CONTENT_FOR_TOPIC",
-      };
-    }
-
-    const resolvedList: ResolvedLearningResource[] = [];
-
-    for (const row of lrtRows as any[]) {
-      const lr = row.learning_resources;
-      if (!lr || lr.status !== "PUBLISHED") continue;
-
-      if (!targetTopicName && row.topics?.name) {
-        targetTopicName = row.topics.name;
-      }
-
-      let canonicalUrl = `/articles/${lr.slug}`;
-      let readingTimeMinutes: number | undefined = Math.ceil((lr.estimated_study_seconds || 300) / 60);
-
-      const article = Array.isArray(lr.articles) ? lr.articles[0] : lr.articles;
-      if (article && article.slug) {
-        canonicalUrl = `/articles/${article.slug}`;
-        if (article.reading_time_minutes) {
-          readingTimeMinutes = article.reading_time_minutes;
-        }
-      }
-
-      const lesson = Array.isArray(lr.course_lessons) ? lr.course_lessons[0] : lr.course_lessons;
-      if (lesson && lesson.is_published) {
-        const courseSlug = lesson.course_modules?.courses?.slug;
-        if (courseSlug) {
-          canonicalUrl = `/courses/${courseSlug}/learn?lesson=${lesson.id}`;
-        }
-      }
-
-      const accessLevel = lr.access_level || "FREE";
-      const isLocked = (accessLevel === "PRO" || accessLevel === "PAID_COURSE") && !isUserPremium;
-
-      resolvedList.push({
-        id: lr.id,
-        resourceType: lr.resource_type || "ARTICLE",
-        title: lr.title,
-        slug: lr.slug,
-        description: lr.description || null,
-        accessLevel,
-        isLocked,
-        estimatedStudySeconds: lr.estimated_study_seconds || 300,
-        readingTimeMinutes,
-        canonicalUrl,
-        topicId: row.topic_id,
-        topicName: targetTopicName,
-        isPrimary: Boolean(row.is_primary),
-        relevanceScore: Number(row.relevance_score || 1.0),
-        displayOrder: Number(row.display_order || 0),
-        sourceType: "CANONICAL_TOPIC",
-      });
-    }
-
-    // Deterministic sorting: isPrimary DESC, relevanceScore DESC, displayOrder ASC, id ASC
-    resolvedList.sort((a, b) => {
-      if (a.isPrimary !== b.isPrimary) return a.isPrimary ? -1 : 1;
-      if (b.relevanceScore !== a.relevanceScore) return b.relevanceScore - a.relevanceScore;
-      if (a.displayOrder !== b.displayOrder) return a.displayOrder - b.displayOrder;
-      return a.id.localeCompare(b.id);
-    });
-
-    if (resolvedList.length === 0) {
-      return {
-        hasLearningContent: false,
-        topicId: targetTopicId,
-        topicName: targetTopicName,
-        primaryResource: null,
-        allResources: [],
-        reasonIfUnavailable: "NO_CONTENT_FOR_TOPIC",
-      };
-    }
-
-    return {
-      hasLearningContent: true,
-      topicId: targetTopicId,
-      topicName: targetTopicName,
-      primaryResource: resolvedList[0],
-      allResources: resolvedList,
-    };
+    const docs = await LearningResolverService.resolveForTopic(targetTopicId);
+    return toMistakeLearningResolution(targetTopicId, docs);
   }
 
   /**
-   * Batch resolves learning resources for an array of distinct topic IDs in a single query (0 N+1).
+   * GAP2-2a: batch learning content for distinct topic ids — one resolver query (0 N+1).
    */
   static async getBatchLearningContentForTopics(
-    topicIds: string[],
-    userId?: string
+    topicIds: string[]
   ): Promise<Record<string, MistakeLearningContentResolution>> {
     const resultMap: Record<string, MistakeLearningContentResolution> = {};
     const validTopicIds = Array.from(new Set(topicIds.filter(Boolean)));
-
     if (validTopicIds.length === 0) {
       return resultMap;
     }
-
+    const byTopic = await LearningResolverService.resolveForTopics(validTopicIds);
     for (const tId of validTopicIds) {
-      resultMap[tId] = {
-        hasLearningContent: false,
-        topicId: tId,
-        topicName: null,
-        primaryResource: null,
-        allResources: [],
-        reasonIfUnavailable: "NO_CONTENT_FOR_TOPIC",
-      };
+      resultMap[tId] = toMistakeLearningResolution(tId, byTopic.get(tId) || []);
     }
-
-    const supabase = await createServerSupabaseClient();
-    let isUserPremium = false;
-    if (userId) {
-      try {
-        const premRes = await PremiumEntitlementService.checkPremiumAccess(userId);
-        isUserPremium = premRes.hasAccess;
-      } catch {
-        isUserPremium = false;
-      }
-    }
-
-    const { data: lrtRows, error } = await supabase
-      .from("learning_resource_topics")
-      .select(`
-        id,
-        topic_id,
-        subtopic_id,
-        is_primary,
-        relevance_score,
-        display_order,
-        topics(name),
-        learning_resources!inner(
-          id,
-          resource_type,
-          title,
-          slug,
-          description,
-          access_level,
-          status,
-          estimated_study_seconds,
-          published_at,
-          articles(slug, reading_time_minutes, status),
-          course_lessons(id, slug, title, is_published, course_modules(course_id, courses(slug, is_published)))
-        )
-      `)
-      .in("topic_id", validTopicIds)
-      .eq("learning_resources.status", "PUBLISHED");
-
-    if (error || !lrtRows) {
-      return resultMap;
-    }
-
-    const groupedByTopic: Record<string, ResolvedLearningResource[]> = {};
-    const topicNameMap: Record<string, string> = {};
-
-    for (const row of lrtRows as any[]) {
-      const lr = row.learning_resources;
-      if (!lr || lr.status !== "PUBLISHED") continue;
-
-      const tId = row.topic_id;
-      if (row.topics?.name) {
-        topicNameMap[tId] = row.topics.name;
-      }
-
-      let canonicalUrl = `/articles/${lr.slug}`;
-      let readingTimeMinutes: number | undefined = Math.ceil((lr.estimated_study_seconds || 300) / 60);
-
-      const article = Array.isArray(lr.articles) ? lr.articles[0] : lr.articles;
-      if (article && article.slug) {
-        canonicalUrl = `/articles/${article.slug}`;
-        if (article.reading_time_minutes) {
-          readingTimeMinutes = article.reading_time_minutes;
-        }
-      }
-
-      const lesson = Array.isArray(lr.course_lessons) ? lr.course_lessons[0] : lr.course_lessons;
-      if (lesson && lesson.is_published) {
-        const courseSlug = lesson.course_modules?.courses?.slug;
-        if (courseSlug) {
-          canonicalUrl = `/courses/${courseSlug}/learn?lesson=${lesson.id}`;
-        }
-      }
-
-      const accessLevel = lr.access_level || "FREE";
-      const isLocked = (accessLevel === "PRO" || accessLevel === "PAID_COURSE") && !isUserPremium;
-
-      if (!groupedByTopic[tId]) {
-        groupedByTopic[tId] = [];
-      }
-
-      groupedByTopic[tId].push({
-        id: lr.id,
-        resourceType: lr.resource_type || "ARTICLE",
-        title: lr.title,
-        slug: lr.slug,
-        description: lr.description || null,
-        accessLevel,
-        isLocked,
-        estimatedStudySeconds: lr.estimated_study_seconds || 300,
-        readingTimeMinutes,
-        canonicalUrl,
-        topicId: tId,
-        topicName: topicNameMap[tId] || null,
-        isPrimary: Boolean(row.is_primary),
-        relevanceScore: Number(row.relevance_score || 1.0),
-        displayOrder: Number(row.display_order || 0),
-        sourceType: "CANONICAL_TOPIC",
-      });
-    }
-
-    for (const [tId, resources] of Object.entries(groupedByTopic)) {
-      resources.sort((a, b) => {
-        if (a.isPrimary !== b.isPrimary) return a.isPrimary ? -1 : 1;
-        if (b.relevanceScore !== a.relevanceScore) return b.relevanceScore - a.relevanceScore;
-        if (a.displayOrder !== b.displayOrder) return a.displayOrder - b.displayOrder;
-        return a.id.localeCompare(b.id);
-      });
-
-      if (resources.length > 0) {
-        resultMap[tId] = {
-          hasLearningContent: true,
-          topicId: tId,
-          topicName: topicNameMap[tId] || null,
-          primaryResource: resources[0],
-          allResources: resources,
-        };
-      }
-    }
-
     return resultMap;
   }
+}
+
+function toMistakeLearningResolution(topicId: string, docs: ResolvedLearningDocument[]): MistakeLearningContentResolution {
+  const resources: ResolvedLearningResource[] = docs.map((d) => ({
+    id: d.id,
+    documentType: d.document_type,
+    title: d.title,
+    slug: d.canonical_slug,
+    accessLevel: d.access_level,
+    isLocked: d.is_locked,
+    readingTimeMinutes: d.estimated_minutes,
+    canonicalUrl: d.href,
+    topicId: d.topic_id,
+    topicName: d.topic_name,
+  }));
+  if (resources.length === 0) {
+    return {
+      hasLearningContent: false,
+      topicId,
+      topicName: null,
+      primaryResource: null,
+      allResources: [],
+      reasonIfUnavailable: "NO_CONTENT_FOR_TOPIC",
+    };
+  }
+  return {
+    hasLearningContent: true,
+    topicId,
+    topicName: resources[0].topicName || null,
+    primaryResource: resources[0],
+    allResources: resources,
+  };
 }

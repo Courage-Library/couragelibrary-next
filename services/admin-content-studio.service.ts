@@ -29,7 +29,10 @@ import {
 import { ContentSpecValidator } from '@/services/content-spec-validator';
 import { ControlledContentCompiler } from '@/services/controlled-content-compiler.service';
 import { LearningDocumentService } from '@/services/learning-document.service';
-import { StorageFactory } from '@/services/storage/storage-factory';
+import { getLearningArtifactStorage } from '@/services/storage/learning-artifact-storage';
+
+export const LEARNING_ACCESS_LEVELS = ['FREE', 'PRO'] as const;
+export type LearningAccessLevel = (typeof LEARNING_ACCESS_LEVELS)[number];
 
 export interface StudioDashboardStats {
   totalLearningUnits: number;
@@ -192,7 +195,7 @@ export class AdminContentStudioService {
       supabase.from('subjects').select('id, name, slug').order('display_order', { ascending: true }),
       supabase.from('topics').select('id, subject_id, name, slug').order('display_order', { ascending: true }),
       supabase.from('subtopics').select('id, topic_id, name, slug').order('display_order', { ascending: true }),
-      supabase.from('learning_units').select('id, topic_id, subtopic_id, title, slug, unit_type, is_published').order('display_order', { ascending: true }),
+      supabase.from('learning_units').select('id, topic_id, subtopic_id, title, slug, unit_type, is_active').order('display_order', { ascending: true }),
       supabase.from('learning_documents').select('id, learning_unit_id, status'),
       supabase.from('exam_unit_mappings').select('learning_unit_id, exam_topic_mappings(exam_syllabi(exams(id, title)))'),
     ]);
@@ -281,9 +284,14 @@ export class AdminContentStudioService {
     learningUnitId: string;
     canonicalSlug: string;
     documentType: DocumentType;
+    accessLevel?: LearningAccessLevel;
   }): Promise<LearningDocument> {
-    await this.requireAdminAuth('createDocument');
+    const admin = await this.requireAdminAuth('createDocument');
     const supabase = createAdminServerSupabaseClient() as any;
+    const accessLevel = params.accessLevel ?? 'FREE';
+    if (!LEARNING_ACCESS_LEVELS.includes(accessLevel)) {
+      throw new Error(`Invalid access level "${String(accessLevel)}".`);
+    }
 
     const { data: existing } = await supabase
       .from('learning_documents')
@@ -301,6 +309,7 @@ export class AdminContentStudioService {
         learning_unit_id: params.learningUnitId,
         canonical_slug: params.canonicalSlug,
         document_type: params.documentType,
+        access_level: accessLevel,
         status: 'DRAFT',
       })
       .select()
@@ -310,7 +319,112 @@ export class AdminContentStudioService {
       throw new Error(`Failed to create learning document: ${error?.message}`);
     }
 
+    await this.audit(admin, 'LEARNING_DOCUMENT_CREATE', 'learning_document', data.id, null, {
+      canonical_slug: params.canonicalSlug,
+      document_type: params.documentType,
+      access_level: accessLevel,
+      learning_unit_id: params.learningUnitId,
+    });
     return data as LearningDocument;
+  }
+
+  /**
+   * GAP2-2a: Create a Learning Unit under an existing TOPIC (the unit binds documents to the taxonomy).
+   */
+  static async createLearningUnit(params: {
+    topicId: string;
+    title: string;
+    slug: string;
+    unitType: DocumentType;
+    estimatedMinutes?: number;
+  }): Promise<{ id: string; topic_id: string; title: string; slug: string }> {
+    const admin = await this.requireAdminAuth('createLearningUnit');
+    const supabase = createAdminServerSupabaseClient() as any;
+    const title = (params.title || '').trim();
+    if (!title) throw new Error('Unit title is required.');
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(params.slug || '')) throw new Error('Unit slug must be lowercase letters, digits and hyphens.');
+
+    const { data: topic } = await supabase.from('topics').select('id').eq('id', params.topicId).maybeSingle();
+    if (!topic) throw new Error('Topic not found. Pick an existing topic from the taxonomy.');
+
+    const { data, error } = await supabase
+      .from('learning_units')
+      .insert({
+        topic_id: params.topicId,
+        title,
+        slug: params.slug,
+        unit_type: params.unitType,
+        estimated_minutes: Math.max(1, Math.trunc(params.estimatedMinutes || 10)),
+        is_active: true,
+      })
+      .select('id, topic_id, title, slug')
+      .single();
+    if (error || !data) throw new Error(`Failed to create learning unit: ${error?.message}`);
+
+    await this.audit(admin, 'LEARNING_UNIT_CREATE', 'learning_unit', data.id, null, { ...data, unit_type: params.unitType });
+    return data;
+  }
+
+  /**
+   * GAP2-2a: Set a document's access level (FREE / PRO). Admin only, audited.
+   */
+  static async setDocumentAccessLevel(documentId: string, accessLevel: LearningAccessLevel): Promise<LearningDocument> {
+    const admin = await this.requireAdminAuth('setDocumentAccessLevel');
+    if (!LEARNING_ACCESS_LEVELS.includes(accessLevel)) throw new Error(`Invalid access level "${String(accessLevel)}".`);
+    const supabase = createAdminServerSupabaseClient() as any;
+    const { data: before } = await supabase.from('learning_documents').select('id, access_level').eq('id', documentId).maybeSingle();
+    if (!before) throw new Error('Document not found.');
+    const { data, error } = await supabase
+      .from('learning_documents')
+      .update({ access_level: accessLevel, updated_at: new Date().toISOString() })
+      .eq('id', documentId)
+      .select()
+      .single();
+    if (error || !data) throw new Error(`Failed to update access level: ${error?.message}`);
+    await this.audit(admin, 'LEARNING_DOCUMENT_ACCESS_LEVEL', 'learning_document', documentId, { access_level: before.access_level }, { access_level: accessLevel });
+    return data as LearningDocument;
+  }
+
+  /**
+   * GAP2-2a: Archive a document (status ARCHIVED). Published versions stay immutable and
+   * preserved; the document simply stops being served to candidates.
+   */
+  static async archiveDocument(documentId: string): Promise<LearningDocument> {
+    const admin = await this.requireAdminAuth('archiveDocument');
+    const supabase = createAdminServerSupabaseClient() as any;
+    const { data: before } = await supabase.from('learning_documents').select('id, status').eq('id', documentId).maybeSingle();
+    if (!before) throw new Error('Document not found.');
+    const { data, error } = await supabase
+      .from('learning_documents')
+      .update({ status: 'ARCHIVED', updated_at: new Date().toISOString() })
+      .eq('id', documentId)
+      .select()
+      .single();
+    if (error || !data) throw new Error(`Failed to archive document: ${error?.message}`);
+    await this.audit(admin, 'LEARNING_DOCUMENT_ARCHIVE', 'learning_document', documentId, { status: before.status }, { status: 'ARCHIVED' });
+    return data as LearningDocument;
+  }
+
+  private static async audit(
+    admin: { userId: string; userEmail: string },
+    actionType: string,
+    targetEntity: string,
+    targetId: string,
+    oldValue: Record<string, unknown> | null,
+    newValue: Record<string, unknown> | null
+  ): Promise<void> {
+    const supabase = createAdminServerSupabaseClient() as any;
+    const { error } = await supabase.from('admin_audit_logs').insert({
+      actor_id: /^[0-9a-f-]{36}$/i.test(admin.userId) ? admin.userId : null,
+      actor_email: admin.userEmail,
+      action_type: actionType,
+      target_entity: targetEntity,
+      target_id: targetId,
+      old_value: oldValue,
+      new_value: newValue,
+      reason: null,
+    });
+    if (error) console.warn(`[AdminContentStudioService] audit log insert failed for ${actionType}: ${error.code || 'unknown'}`);
   }
 
   /**
@@ -337,7 +451,7 @@ export class AdminContentStudioService {
     const validationResult = ContentSpecValidator.validate(params.spec);
     const initialStatus: ReviewStatus = validationResult.isValid ? 'STRUCTURALLY_VALID' : 'DRAFT';
 
-    const storageProvider = StorageFactory.getProvider();
+    const storageProvider = getLearningArtifactStorage();
     const storageBucket = 'learning-artifacts';
 
     const compileStore = await LearningDocumentService.compileAndStoreVersion({
@@ -391,7 +505,7 @@ export class AdminContentStudioService {
       return { success: true, spec: null, compiledMdx: null, version: cached };
     }
 
-    const storageProvider = StorageFactory.getProvider();
+    const storageProvider = getLearningArtifactStorage();
     let spec: LessonDocumentSpec | null = null;
     let compiledMdx: string | null = null;
 
@@ -494,7 +608,7 @@ export class AdminContentStudioService {
     const valResult = ContentSpecValidator.validate(params.spec);
     const updatedStatus: ReviewStatus = valResult.isValid ? 'STRUCTURALLY_VALID' : 'DRAFT';
 
-    const storageProvider = StorageFactory.getProvider();
+    const storageProvider = getLearningArtifactStorage();
     const storageBucket = 'learning-artifacts';
 
     const compileStore = await LearningDocumentService.compileAndStoreVersion({
@@ -642,7 +756,7 @@ export class AdminContentStudioService {
 
     LearningDocumentService.assertMutable(version as DocumentVersion);
 
-    const storageProvider = StorageFactory.getProvider();
+    const storageProvider = getLearningArtifactStorage();
     const specRes = await storageProvider.get('learning-artifacts', version.source_spec_storage_key);
     if (!specRes) throw new Error(`Source spec file not found in storage.`);
 
@@ -715,7 +829,7 @@ export class AdminContentStudioService {
       );
     }
 
-    const storageProvider = StorageFactory.getProvider();
+    const storageProvider = getLearningArtifactStorage();
     const exists = await storageProvider.exists('learning-artifacts', version.compiled_artifact_storage_key);
     if (!exists) {
       throw new Error(`Compiled artifact does not exist in storage.`);
@@ -869,7 +983,7 @@ export class AdminContentStudioService {
     ] = await Promise.all([
       supabase.from('subjects').select('id, name').order('display_order', { ascending: true }),
       supabase.from('topics').select('id, subject_id, name').order('display_order', { ascending: true }),
-      supabase.from('learning_units').select('id, topic_id, is_published'),
+      supabase.from('learning_units').select('id, topic_id, is_active'),
       supabase.from('learning_documents').select('id, learning_unit_id, status').eq('status', 'PUBLISHED'),
     ]);
 

@@ -73,7 +73,7 @@ export interface QuestionMappingInput {
 }
 
 export interface LearningMappingInput {
-  learningResourceId: string;
+  learningDocumentId: string;
   displayOrder?: number;
 }
 
@@ -185,7 +185,7 @@ export interface CurrentAffairsDetail {
     isHighYield: boolean;
   }>;
   relatedLearningUnits: Array<{
-    learningResourceId: string;
+    learningDocumentId: string;
     title: string;
     slug: string;
   }>;
@@ -323,7 +323,7 @@ export interface AdminCurrentAffairsFullArticle {
     isHighYield: boolean;
   }>;
   learningMappings: Array<{
-    learningResourceId: string;
+    learningDocumentId: string;
     title: string;
     slug: string;
   }>;
@@ -373,7 +373,7 @@ export interface DailyQuizQuestionPreview {
   displayOrder: number;
   topicName?: string | null;
   topicSlug?: string | null;
-  learningResourceId?: string | null;
+  learningDocumentId?: string | null;
 }
 
 export interface DailyQuizEligibilityReport {

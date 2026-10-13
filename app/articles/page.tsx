@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { BookOpen, Clock, ArrowRight, FileText, Sparkles, GraduationCap } from "lucide-react";
 import { constructMetadata } from "@/lib/seo/metadata";
 
-export const revalidate = 30;
+// GAP2-2a: lock badges depend on the viewer; render per request.
+export const dynamic = "force-dynamic";
 
 export const metadata = constructMetadata({
   title: "Articles & Exam Study Notes",

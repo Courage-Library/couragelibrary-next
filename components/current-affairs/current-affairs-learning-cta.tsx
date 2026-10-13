@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { BookOpen, HelpCircle, ArrowRight, Sparkles } from 'lucide-react';
 
 interface RelatedLearningUnit {
-  learningResourceId: string;
+  learningDocumentId: string;
   title: string;
   slug: string;
 }
@@ -55,7 +55,7 @@ export const CurrentAffairsLearningCta: React.FC<CurrentAffairsLearningCtaProps>
             <div className="space-y-2">
               {learningUnits.map((unit) => (
                 <Link
-                  key={unit.learningResourceId}
+                  key={unit.learningDocumentId}
                   href={`/articles/${unit.slug}`}
                   className="group flex items-center justify-between p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-500 transition-colors shadow-sm"
                 >

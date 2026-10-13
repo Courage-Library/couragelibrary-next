@@ -87,9 +87,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         .eq("status", "PUBLISHED")
         .not("current_published_version_id", "is", null),
       supabase
-        .from("articles")
-        .select("slug, updated_at, published_at")
-        .eq("status", "PUBLISHED"),
+        // GAP2-2a: learning documents (FREE + PRO) replace legacy articles.
+        .from("learning_documents")
+        .select("canonical_slug, updated_at")
+        .eq("status", "PUBLISHED")
+        .not("current_published_version_id", "is", null),
       supabase
         .from("courses")
         .select("slug, updated_at")
@@ -134,17 +136,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       }
     }
 
-    // C. Published Articles (/articles/[slug])
+    // C. Published learning documents (/articles/[canonical_slug])
     if (articlesRes.data && Array.isArray(articlesRes.data)) {
-      for (const art of articlesRes.data) {
-        if (!art.slug) continue;
+      for (const doc of articlesRes.data) {
+        if (!doc.canonical_slug) continue;
         dynamicEntries.push({
-          url: `${baseUrl}/articles/${art.slug}`,
-          lastModified: art.updated_at
-            ? new Date(art.updated_at)
-            : art.published_at
-            ? new Date(art.published_at)
-            : new Date(),
+          url: `${baseUrl}/articles/${doc.canonical_slug}`,
+          lastModified: doc.updated_at ? new Date(doc.updated_at) : new Date(),
           changeFrequency: "weekly",
           priority: 0.75,
         });

@@ -19,7 +19,7 @@ import { ContentSpecValidator } from '@/services/content-spec-validator';
 import { MdxSecurityScanner } from '@/services/mdx-security-scanner';
 import { AcademicValidator } from '@/services/ai/academic-validator.service';
 import { LearningDocumentService } from '@/services/learning-document.service';
-import { StorageFactory } from '@/services/storage/storage-factory';
+import { getLearningArtifactStorage } from '@/services/storage/learning-artifact-storage';
 import { createAdminServerSupabaseClient } from '@/lib/supabase/server';
 import {
   LessonDocumentSpec,
@@ -400,7 +400,7 @@ export class StructuredContentImporter {
     }
 
     // 4. Compile and Store Version Artifacts
-    const storageProvider = StorageFactory.getProvider();
+    const storageProvider = getLearningArtifactStorage();
     const storageBucket = 'learning-artifacts';
 
     const compileStore = await LearningDocumentService.compileAndStoreVersion({

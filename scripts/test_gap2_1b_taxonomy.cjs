@@ -559,7 +559,16 @@ async function db() {
   await test('DB-23 projection surfaces legacy uniqueness (topic slug used under another subject) → rejected', () =>
     expectError(() => insertNode({ parent: subject.id, name: `QA Dup ${tag}`, slug: existingTopicSlug, type: 'TOPIC' }), /23505.*topics_slug_key/));
 
-  await test('DB-24 D1: fn_resolve_learn_more not executable by anon/authenticated', async () => {
+  await test('DB-24 D1: fn_resolve_learn_more not executable by anon/authenticated (or dropped, GAP2-2a)', async () => {
+    const exists = (await one(`SELECT to_regprocedure('public.fn_resolve_learn_more(uuid,uuid)') IS NOT NULL e`)).e;
+    if (!exists) {
+      // GAP2-2a (migration 072) dropped the function; calling it as anon/authenticated must fail.
+      await expectError(async () => {
+        await c.query('SET LOCAL ROLE anon');
+        await c.query(`SELECT public.fn_resolve_learn_more($1, $2)`, [usedTopic.id, authState.userId]);
+      }, /42883|does not exist/);
+      return;
+    }
     const r = await one(`SELECT has_function_privilege('anon','public.fn_resolve_learn_more(uuid,uuid)','EXECUTE') anon,
                                 has_function_privilege('authenticated','public.fn_resolve_learn_more(uuid,uuid)','EXECUTE') auth,
                                 has_function_privilege('service_role','public.fn_resolve_learn_more(uuid,uuid)','EXECUTE') svc`);

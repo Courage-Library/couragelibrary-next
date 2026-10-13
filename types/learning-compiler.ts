@@ -130,6 +130,8 @@ export interface LearningDocument {
   document_type: DocumentType;
   current_published_version_id: string | null;
   status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+  /** GAP2-2a: FREE for everyone, PRO for PRO_SUBSCRIPTION / PROMOTIONAL_PASS holders. */
+  access_level?: 'FREE' | 'PRO';
   created_at: string;
   updated_at: string;
 }

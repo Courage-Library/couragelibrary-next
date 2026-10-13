@@ -1,5 +1,5 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { StorageFactory } from "@/services/storage/storage-factory";
+import { LearningResolverService } from "@/services/learning/learning-resolver.service";
 
 export interface ArticleItem {
   id: string;
@@ -9,6 +9,8 @@ export interface ArticleItem {
   excerpt: string | null;
   readingTimeMinutes: number;
   accessLevel: string;
+  /** GAP2-2a: true for PRO documents viewed without PRO. */
+  isLocked?: boolean;
   publishedAt: string | null;
   topicName?: string | null;
   topicId?: string | null;
@@ -37,6 +39,8 @@ export interface TopicLearningResolution {
   documentType?: string | null;
   isCanonical: boolean;
   readingTimeMinutes?: number;
+  isLocked?: boolean;
+  accessLevel?: string;
 }
 
 export interface RelatedLearningItem {
@@ -98,336 +102,91 @@ export interface CourseDetail extends CourseItem {
 
 export class ContentService {
   /**
-   * Fetches published articles list with canonical Learning Content precedence.
+   * GAP2-2a: published learning documents (learning_documents only — no legacy articles).
    */
   static async getArticles(filters?: { topicId?: string }): Promise<ArticleItem[]> {
-    const supabase = await createServerSupabaseClient();
-    const articlesMap = new Map<string, ArticleItem>();
-
-    // 1. Resolve published canonical Learning Documents
-    try {
-      const { data: docList } = await supabase
-        .from("learning_documents")
-        .select("id, canonical_slug, status, updated_at, learning_units(id, title, estimated_minutes, topic_id, topics(name))")
-        .eq("status", "PUBLISHED")
-        .order("updated_at", { ascending: false });
-
-      if (docList && Array.isArray(docList)) {
-        docList.forEach((d: any) => {
-          const u = d.learning_units;
-          const t = u?.topics;
-          if (filters?.topicId && u?.topic_id !== filters.topicId) {
-            return;
-          }
-          articlesMap.set(d.canonical_slug, {
-            id: d.id,
-            slug: d.canonical_slug,
-            title: u?.title || d.canonical_slug,
-            description: null,
-            excerpt: `Conceptual study unit for ${t?.name || "competitive exams"}.`,
-            readingTimeMinutes: u?.estimated_minutes || 10,
-            accessLevel: "FREE",
-            publishedAt: d.updated_at,
-            topicName: t?.name || null,
-            topicId: u?.topic_id || null,
-          });
-        });
-      }
-    } catch {
-      // Graceful fallback if learning_documents table is absent in remote DB
-    }
-
-    // 2. Resolve legacy articles and merge
-    try {
-      let query = supabase
-        .from("articles")
-        .select("id, slug, excerpt, reading_time_minutes, published_at, learning_resources!inner(id, title, description, access_level, status, learning_resource_topics(topic_id, topics(name)))")
-        .eq("status", "PUBLISHED")
-        .order("published_at", { ascending: false });
-
-      const { data: legacyData } = await query;
-      if (legacyData && Array.isArray(legacyData)) {
-        legacyData.forEach((a: any) => {
-          const lr = a.learning_resources;
-          const t = lr?.learning_resource_topics?.[0]?.topics;
-          const topicId = lr?.learning_resource_topics?.[0]?.topic_id || null;
-
-          if (filters?.topicId && topicId !== filters.topicId) {
-            return;
-          }
-
-          if (!articlesMap.has(a.slug)) {
-            articlesMap.set(a.slug, {
-              id: a.id,
-              slug: a.slug,
-              title: lr?.title || "Article",
-              description: lr?.description || null,
-              excerpt: a.excerpt || lr?.description || null,
-              readingTimeMinutes: a.reading_time_minutes || 5,
-              accessLevel: lr?.access_level || "FREE",
-              publishedAt: a.published_at,
-              topicName: t?.name || null,
-              topicId,
-            });
-          }
-        });
-      }
-    } catch {
-      // Graceful handling
-    }
-
-    return Array.from(articlesMap.values());
+    const docs = await LearningResolverService.listPublished({ topicId: filters?.topicId });
+    return docs.map((d) => ({
+      id: d.id,
+      slug: d.canonical_slug,
+      title: d.title,
+      description: null,
+      excerpt: d.topic_name ? `${d.document_type.toLowerCase().replace(/_/g, " ")} for ${d.topic_name}.` : null,
+      readingTimeMinutes: d.estimated_minutes,
+      accessLevel: d.access_level,
+      isLocked: d.is_locked,
+      publishedAt: null,
+      topicName: d.topic_name,
+      topicId: d.topic_id,
+    }));
   }
 
   /**
-   * Fetches article detail and current Markdown/MDX version.
-   * Priority: Published Canonical Learning Document -> Legacy Published Article.
+   * GAP2-2a: one published learning document. PRO documents for non-PRO viewers come back with
+   * isLocked = true and contentBody = null (the body is never loaded for them).
    */
   static async getArticleBySlug(slug: string): Promise<ArticleDetail | null> {
-    const supabase = await createServerSupabaseClient();
-
-    // 1. Try to resolve published canonical Learning Document
-    try {
-      const { data: docData } = await supabase
-        .from("learning_documents")
-        .select("id, canonical_slug, document_type, status, current_published_version_id, learning_units(id, title, estimated_minutes, topic_id, topics(name, subject_id, subjects(name))), document_versions(*)")
-        .eq("canonical_slug", slug)
-        .eq("status", "PUBLISHED")
-        .maybeSingle();
-
-      if (docData) {
-        const doc = docData as any;
-        const unit = doc.learning_units;
-        const topic = unit?.topics;
-        const versions = doc.document_versions || [];
-        const publishedVersion =
-          versions.find((v: any) => v.id === doc.current_published_version_id) ||
-          versions.find((v: any) => v.is_published && v.review_status === "PUBLISHED");
-
-        if (publishedVersion) {
-          let contentBody = "";
-          try {
-            const storageProvider = StorageFactory.getProvider();
-            const storageRes = await storageProvider.get(
-              "learning-artifacts",
-              publishedVersion.compiled_artifact_storage_key
-            );
-            if (storageRes?.data) {
-              contentBody = storageRes.data.toString("utf8");
-            } else {
-              contentBody = "Canonical learning content is currently being compiled.";
-            }
-          } catch {
-            contentBody = "Canonical learning content is currently being compiled.";
-          }
-
-          const subject = topic?.subjects;
-          return {
-            id: doc.id,
-            slug: doc.canonical_slug,
-            title: unit?.title || doc.canonical_slug,
-            description: null,
-            excerpt: `Comprehensive ${doc.document_type?.toLowerCase().replace(/_/g, " ")} for ${topic?.name || "competitive exams"}.`,
-            readingTimeMinutes: unit?.estimated_minutes || 10,
-            accessLevel: "FREE",
-            publishedAt: publishedVersion.published_at || publishedVersion.created_at,
-            contentBody,
-            metaTitle: `${unit?.title || "Learning Guide"} | Courage Library`,
-            metaDescription: `Read complete study brief on ${unit?.title || doc.canonical_slug} with formulas, examples, and PYQs.`,
-            featuredImageUrl: null,
-            topicName: topic?.name || null,
-            topicId: unit?.topic_id || null,
-            relatedTopicId: unit?.topic_id || null,
-            topicSlug: topic?.slug || null,
-            subjectName: subject?.name || null,
-            subjectId: topic?.subject_id || null,
-            documentType: doc.document_type || "CONCEPT_LESSON",
-            isCanonical: true,
-          };
-        }
-      }
-    } catch {
-      // Seamless fallback to legacy articles if table is absent
-    }
-
-    // 2. Fallback to resolve legacy published article
-    try {
-      const { data: artData } = await supabase
-        .from("articles")
-        .select("*, learning_resources(*, learning_resource_topics(topic_id, topics(name, slug, subject_id, subjects(name)))), article_versions(*)")
-        .eq("slug", slug)
-        .eq("status", "PUBLISHED")
-        .maybeSingle();
-
-      if (!artData) return null;
-      const a = artData as any;
-      const lr = a.learning_resources;
-      const currentVersion = (a.article_versions || []).find((v: any) => v.is_current) || a.article_versions?.[0];
-      const top = lr?.learning_resource_topics?.[0];
-      const topic = top?.topics;
-      const subject = topic?.subjects;
-
-      return {
-        id: a.id,
-        slug: a.slug,
-        title: lr?.title || "Article",
-        description: lr?.description || null,
-        excerpt: a.excerpt || lr?.description || null,
-        readingTimeMinutes: a.reading_time_minutes || 5,
-        accessLevel: lr?.access_level || "FREE",
-        publishedAt: a.published_at,
-        contentBody: currentVersion?.content_body || a.excerpt || "No content published.",
-        metaTitle: a.meta_title,
-        metaDescription: a.meta_description,
-        featuredImageUrl: a.featured_image_url,
-        topicName: topic?.name || null,
-        topicId: top?.topic_id || null,
-        relatedTopicId: top?.topic_id || null,
-        topicSlug: topic?.slug || null,
-        subjectName: subject?.name || null,
-        subjectId: topic?.subject_id || null,
-        documentType: "CONCEPT_LESSON",
-        isCanonical: false,
-      };
-    } catch {
-      return null;
-    }
+    const a = await LearningResolverService.getArticle(slug);
+    if (!a) return null;
+    return {
+      id: a.id,
+      slug: a.canonical_slug,
+      title: a.title,
+      description: null,
+      excerpt: `${a.document_type.toLowerCase().replace(/_/g, " ")}${a.topic_name ? ` for ${a.topic_name}` : ""}.`,
+      readingTimeMinutes: a.estimated_minutes,
+      accessLevel: a.access_level,
+      isLocked: a.is_locked,
+      publishedAt: a.published_at,
+      contentBody: a.is_locked ? null : a.body ?? "This lesson is being prepared. Please check back shortly.",
+      metaTitle: `${a.title} | Courage Library`,
+      metaDescription: `Study ${a.title}${a.topic_name ? ` (${a.topic_name})` : ""} on Courage Library.`,
+      featuredImageUrl: null,
+      topicName: a.topic_name,
+      topicId: a.topic_id,
+      relatedTopicId: a.topic_id,
+      topicSlug: a.topic_slug,
+      subjectName: a.subject_name,
+      subjectId: a.subject_id,
+      documentType: a.document_type,
+      isCanonical: true,
+    };
   }
 
   /**
-   * Deterministically resolves published canonical Learning Content for a batch of topics.
-   * Priority policy: CONCEPT_LESSON -> WORKED_EXAMPLES -> FORMULA_SHORTCUT_SHEET -> COMMON_TRAPS_AND_MISTAKES -> PYQ_DEEP_DIVE -> TOPIC_SUMMARY_REVISION -> Legacy Article.
+   * GAP2-2a: topic → primary published learning document, via LearningResolverService
+   * (single batch query; order CONCEPT_LESSON, TOPIC_SUMMARY_REVISION, COMMON_TRAPS_AND_MISTAKES,
+   * WORKED_EXAMPLES, FORMULA_SHORTCUT_SHEET, PYQ_DEEP_DIVE). Keys are topic ids.
    */
-  static async resolveLearningResourcesForTopics(
-    topicIdsOrSlugs: string[]
-  ): Promise<Map<string, TopicLearningResolution>> {
+  static async resolveLearningResourcesForTopics(topicIds: string[]): Promise<Map<string, TopicLearningResolution>> {
     const resultMap = new Map<string, TopicLearningResolution>();
-    if (!topicIdsOrSlugs || topicIdsOrSlugs.length === 0) {
-      return resultMap;
-    }
-
-    const uniqueKeys = Array.from(new Set(topicIdsOrSlugs.filter(Boolean)));
-    const supabase = await createServerSupabaseClient();
-
-    // Deterministic ranking policy for document types
-    const docTypeRank: Record<string, number> = {
-      CONCEPT_LESSON: 1,
-      WORKED_EXAMPLES: 2,
-      FORMULA_SHORTCUT_SHEET: 3,
-      COMMON_TRAPS_AND_MISTAKES: 4,
-      PYQ_DEEP_DIVE: 5,
-      TOPIC_SUMMARY_REVISION: 6,
-    };
-
-    // 1. Query canonical published Learning Documents
-    try {
-      const { data: docList } = await supabase
-        .from("learning_documents")
-        .select("id, canonical_slug, document_type, status, current_published_version_id, updated_at, learning_units!inner(id, topic_id, title, estimated_minutes, topics!inner(id, name, slug))")
-        .eq("status", "PUBLISHED")
-        .not("current_published_version_id", "is", null);
-
-      const rawDocs = ((docList as unknown) as any[]) || [];
-      if (rawDocs.length > 0) {
-        // Group by topic_id and pick top-ranked document
-        const topicDocs = new Map<string, any[]>();
-        rawDocs.forEach((d: any) => {
-          const tId = d.learning_units?.topic_id;
-          const tSlug = d.learning_units?.topics?.slug;
-          if (uniqueKeys.includes(tId) || (tSlug && uniqueKeys.includes(tSlug))) {
-            if (!topicDocs.has(tId)) topicDocs.set(tId, []);
-            topicDocs.get(tId)!.push(d);
-          }
-        });
-
-        topicDocs.forEach((docs, tId) => {
-          docs.sort((a, b) => {
-            const rankA = docTypeRank[a.document_type] || 99;
-            const rankB = docTypeRank[b.document_type] || 99;
-            return rankA - rankB;
-          });
-
-          const topDoc = docs[0];
-          const unit = topDoc.learning_units;
-          const topic = unit?.topics;
-
-          const res: TopicLearningResolution = {
-            topicId: tId,
-            topicName: topic?.name || null,
-            topicSlug: topic?.slug || null,
-            hasPublishedLearning: true,
-            learningSlug: topDoc.canonical_slug,
-            learningTitle: unit?.title || topDoc.canonical_slug,
-            documentType: topDoc.document_type,
-            isCanonical: true,
-            readingTimeMinutes: unit?.estimated_minutes || 10,
-          };
-
-          resultMap.set(tId, res);
-          if (topic?.slug) {
-            resultMap.set(topic.slug, res);
-          }
-        });
-      }
-    } catch {
-      // Graceful fallback
-    }
-
-    // 2. For topics without canonical learning documents, query legacy published articles
-    const unresolvedKeys = uniqueKeys.filter((k) => !resultMap.has(k));
-    if (unresolvedKeys.length > 0) {
-      try {
-        const { data: legacyData } = await supabase
-          .from("articles")
-          .select("id, slug, published_at, learning_resources!inner(title, status, learning_resource_topics!inner(topic_id, topics!inner(id, name, slug)))")
-          .eq("status", "PUBLISHED");
-
-        if (legacyData && Array.isArray(legacyData)) {
-          legacyData.forEach((a: any) => {
-            const lr = a.learning_resources;
-            const lrt = lr?.learning_resource_topics?.[0];
-            const tId = lrt?.topic_id;
-            const topic = lrt?.topics;
-            const tSlug = topic?.slug;
-
-            if (tId && (unresolvedKeys.includes(tId) || (tSlug && unresolvedKeys.includes(tSlug)))) {
-              if (!resultMap.has(tId)) {
-                const res: TopicLearningResolution = {
-                  topicId: tId,
-                  topicName: topic?.name || null,
-                  topicSlug: tSlug || null,
-                  hasPublishedLearning: true,
-                  learningSlug: a.slug,
-                  learningTitle: lr?.title || a.slug,
-                  documentType: "CONCEPT_LESSON",
-                  isCanonical: false,
-                  readingTimeMinutes: 5,
-                };
-                resultMap.set(tId, res);
-                if (tSlug) {
-                  resultMap.set(tSlug, res);
-                }
-              }
-            }
-          });
-        }
-      } catch {
-        // Graceful handling
-      }
-    }
-
+    const byTopic = await LearningResolverService.resolveForTopics(topicIds || []);
+    byTopic.forEach((docs, topicId) => {
+      const top = docs[0];
+      if (!top) return;
+      resultMap.set(topicId, {
+        topicId,
+        topicName: top.topic_name,
+        topicSlug: null,
+        hasPublishedLearning: true,
+        learningSlug: top.canonical_slug,
+        learningTitle: top.title,
+        documentType: top.document_type,
+        isCanonical: true,
+        readingTimeMinutes: top.estimated_minutes,
+        isLocked: top.is_locked,
+        accessLevel: top.access_level,
+      });
+    });
     return resultMap;
   }
 
   /**
-   * Resolves a single topic's primary published Learning Resource.
+   * Resolves a single topic's primary published learning document.
    */
-  static async resolveLearningResourceForTopic(
-    topicIdOrSlug: string,
-    preferredDocType?: string
-  ): Promise<TopicLearningResolution | null> {
-    const map = await this.resolveLearningResourcesForTopics([topicIdOrSlug]);
-    return map.get(topicIdOrSlug) || null;
+  static async resolveLearningResourceForTopic(topicId: string): Promise<TopicLearningResolution | null> {
+    const map = await this.resolveLearningResourcesForTopics([topicId]);
+    return map.get(topicId) || null;
   }
 
   /**
