@@ -16,6 +16,7 @@ import "server-only";
  */
 
 import { NextResponse } from "next/server";
+import { notFound, redirect } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export type AdminRole = "admin" | "staff";
@@ -91,6 +92,46 @@ export async function requireAdmin(opts: RequireAdminOptions = {}): Promise<Admi
     return { userId: user.id, role, userEmail: user.email ?? "" };
   }
   throw new AuthorizationError("FORBIDDEN");
+}
+
+/** Login page used for anonymous admin page requests. */
+export const ADMIN_LOGIN_PATH = "/auth/login";
+
+/**
+ * `next` target for the login redirect: only a relative /admin path (no scheme, host, `//`, `..`,
+ * query or fragment); anything else falls back to "/admin". Prevents open redirects.
+ */
+export function sanitizeAdminNext(path: unknown): string {
+  if (typeof path !== "string") return "/admin";
+  if (!/^\/admin(\/[A-Za-z0-9_\-[\]/]*)?$/.test(path) || path.includes("//") || path.includes("\\")) return "/admin";
+  return path;
+}
+
+export interface RequireAdminPageOptions extends RequireAdminOptions {
+  /** This page's path, used only as the post-login `next` target (sanitized). */
+  path?: string;
+}
+
+/**
+ * SEC-1C page guard (layouts are not security boundaries). Must be the FIRST awaited call in every
+ * app/admin page and generateMetadata, before any data fetch.
+ *   anonymous / session error → redirect to login (?next=<sanitized /admin path>)
+ *   signed in without a permitted role → notFound()
+ * Same session-only identity and resolveRole as requireAdmin; never accepts a user id.
+ */
+export async function requireAdminPage(opts: RequireAdminPageOptions = {}): Promise<AdminContext> {
+  let user: { id: string; email?: string | null; app_metadata?: Record<string, unknown> | null } | null = null;
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data } = await supabase.auth.getUser();
+    user = data?.user ?? null;
+  } catch {
+    user = null;
+  }
+  if (!user) redirect(`${ADMIN_LOGIN_PATH}?next=${encodeURIComponent(sanitizeAdminNext(opts.path))}`);
+  const role = resolveRole(user);
+  if (role === "admin" || (role === "staff" && opts.allowStaff)) return { userId: user.id, role, userEmail: user.email ?? "" };
+  notFound();
 }
 
 export function actionFailure(code: ActionFailureCode, message: string): ActionFailure {

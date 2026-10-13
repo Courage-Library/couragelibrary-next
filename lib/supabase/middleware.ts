@@ -47,7 +47,32 @@ export async function updateSession(request: NextRequest) {
   );
 
   // Refresh auth token
-  await supabase.auth.getUser();
+  let hasUser = false;
+  try {
+    const { data } = await supabase.auth.getUser();
+    hasUser = Boolean(data?.user);
+  } catch {
+    hasUser = false;
+  }
+
+  // SEC-1C defence in depth: anonymous requests for admin PAGES go to login. Role decisions stay in
+  // the canonical page guard (requireAdminPage); /api/admin routes keep their own 401 JSON.
+  const { pathname } = request.nextUrl;
+  if (!hasUser && (pathname === "/admin" || pathname.startsWith("/admin/"))) {
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = "/auth/login";
+    loginUrl.search = "";
+    loginUrl.searchParams.set("next", sanitizeAdminNext(pathname));
+    const redirectResponse = NextResponse.redirect(loginUrl);
+    supabaseResponse.cookies.getAll().forEach((c) => redirectResponse.cookies.set(c));
+    return redirectResponse;
+  }
 
   return supabaseResponse;
+}
+
+/** Relative /admin path only (mirror of lib/auth/require-admin sanitizeAdminNext; middleware cannot import server-only). */
+function sanitizeAdminNext(path: string): string {
+  if (!/^\/admin(\/[A-Za-z0-9_\-[\]/]*)?$/.test(path) || path.includes("//") || path.includes("\\")) return "/admin";
+  return path;
 }

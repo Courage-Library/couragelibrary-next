@@ -18,10 +18,14 @@ import {
   PlusCircle,
   Sparkles,
 } from "lucide-react";
+import { requireAdminPage } from "@/lib/auth/require-admin";
+
+export const dynamic = "force-dynamic";
 
 export const revalidate = 0;
 
 export default async function AdminMockTestsManagementPage() {
+  await requireAdminPage({ allowStaff: true, path: "/admin/mock-tests-management" });
   const [categories, patterns, sections, questionsCountRes, schedules, mockTests] =
     await Promise.all([
       AdminService.getAdminCategories(),

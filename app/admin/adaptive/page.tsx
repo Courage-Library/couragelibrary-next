@@ -1,10 +1,9 @@
 import { isFeatureEnabled } from "@/config/features";
 import { FeatureDisabledPanel } from "@/components/admin/feature-disabled-panel";
 import React from "react";
-import { AdminService } from "@/services/admin.service";
 import { AdminAdaptiveService } from "@/services/admin-adaptive.service";
 import { AdminAdaptiveManager } from "@/components/admin/adaptive/admin-adaptive-manager";
-import { Alert } from "@/components/ui/alert";
+import { requireAdminPage } from "@/lib/auth/require-admin";
 
 export const metadata = {
   title: "Adaptive Testing Control Center | Admin Studio | Courage Library",
@@ -14,18 +13,8 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function AdminAdaptivePage() {
+  const auth = await requireAdminPage({ path: "/admin/adaptive" }); // SEC-1C: admin only
   if (!isFeatureEnabled("ADAPTIVE")) return <FeatureDisabledPanel feature="ADAPTIVE" />;
-  const auth = await AdminService.checkIsAdminOrStaff();
-
-  if (!auth.isAdmin) {
-    return (
-      <div className="p-8 max-w-2xl mx-auto">
-        <Alert variant="error">
-          Unauthorized access. You do not have permission to access the Adaptive Testing Control Center.
-        </Alert>
-      </div>
-    );
-  }
 
   // Load overview, blueprints, calibrations, audit logs, ability estimation, CAT, stopping & personalization telemetry in parallel
   const [

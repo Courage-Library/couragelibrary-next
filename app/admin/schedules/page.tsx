@@ -1,6 +1,9 @@
 import React from "react";
 import { AdminService } from "@/services/admin.service";
 import { AdminSchedulesManager } from "@/components/admin/admin-schedules-manager";
+import { requireAdminPage } from "@/lib/auth/require-admin";
+
+export const dynamic = "force-dynamic";
 
 export const revalidate = 0;
 
@@ -9,6 +12,7 @@ interface Props {
 }
 
 export default async function AdminSchedulesPage({ searchParams }: Props) {
+  await requireAdminPage({ allowStaff: true, path: "/admin/schedules" });
   const params = await searchParams;
   const categoryFilter = params.category;
 

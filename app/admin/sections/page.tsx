@@ -2,6 +2,9 @@ import React from "react";
 import { AdminService } from "@/services/admin.service";
 import { AdminSectionsManager } from "@/components/admin/admin-sections-manager";
 import { TaxonomyService } from "@/services/taxonomy/taxonomy.service";
+import { requireAdminPage } from "@/lib/auth/require-admin";
+
+export const dynamic = "force-dynamic";
 
 export const revalidate = 0;
 
@@ -10,6 +13,7 @@ interface Props {
 }
 
 export default async function AdminSectionsPage({ searchParams }: Props) {
+  await requireAdminPage({ allowStaff: true, path: "/admin/sections" });
   const params = await searchParams;
   const patternFilter = params.pattern;
   const categoryFilter = params.category;
