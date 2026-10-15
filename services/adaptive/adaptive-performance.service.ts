@@ -1,5 +1,5 @@
 // TYPES-1:C-ADAPTIVE-PERFORMANCE — QUARANTINED (ADAPTIVE flag off; targets undeployed schema). Client via lib/supabase/quarantine.ts.
-import type { QuarantinedClient } from "@/lib/supabase/quarantine";
+import type { QuarantinedClient, QuarantinedRow } from "@/lib/supabase/quarantine";
 import {
   DifficultyTier,
   TopicPerformanceStat,
@@ -61,7 +61,7 @@ export class AdaptivePerformanceService {
 
       if (mistakes && mistakes.length > 0) {
         mistakeQuestionIds = new Set(
-          (mistakes ?? []).map((m) => m.question_id).filter(Boolean)
+          (mistakes ?? []).map((m: QuarantinedRow) => m.question_id).filter(Boolean)
         );
       }
     } catch {

@@ -1,5 +1,5 @@
 // TYPES-1:C-ADAPTIVE-STATE — QUARANTINED (ADAPTIVE flag off; targets undeployed schema). Client via lib/supabase/quarantine.ts.
-import type { QuarantinedClient } from "@/lib/supabase/quarantine";
+import type { QuarantinedClient, QuarantinedRow } from "@/lib/supabase/quarantine";
 import {
   AdaptiveAttemptStateRow,
   AdaptiveEngineError,
@@ -244,7 +244,7 @@ export class AdaptiveStateService {
       if (selectedOptionId.toUpperCase() === correctKey.toUpperCase()) {
         isCorrect = true;
       } else if (options && options.length > 0) {
-        const matchedOpt = options.find((o) => o.id === selectedOptionId);
+        const matchedOpt = options.find((o: QuarantinedRow) => o.id === selectedOptionId);
         if (matchedOpt && matchedOpt.option_key.toUpperCase() === correctKey.toUpperCase()) {
           isCorrect = true;
         }

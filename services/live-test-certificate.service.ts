@@ -15,6 +15,12 @@ import {
   LiveTestCertificateGenerationResult,
 } from "@/types/live-test";
 import crypto from "crypto";
+import { quarantinedClient } from "@/lib/supabase/quarantine";
+
+// TYPES-1:C-LIVE-TEST-CERTIFICATE — QUARANTINED (LIVE_TESTS flag off; known-broken against the live schema). The Supabase client is
+// obtained through lib/supabase/quarantine.ts (registered in docs/reports/types/TYPES1_ESCAPES.json).
+const QUARANTINE_TAG = "TYPES-1:C-LIVE-TEST-CERTIFICATE" as const;
+
 
 const SIGNING_KEYS: Record<string, string> = {
   v1: process.env.LIVE_CERTIFICATE_SIGNING_KEY_V1 || "COURAGE_LIVE_CERT_SIGNING_KEY_V1",
@@ -65,8 +71,8 @@ export class LiveTestCertificateService {
     adminId: string
   ): Promise<LiveTestCertificateGenerationResult> {
     try {
-      const adminSb = await createAdminServerSupabaseClient();
-      const { data, error } = await (adminSb.rpc as any)("fn_generate_live_test_certificates", {
+      const adminSb = quarantinedClient(await createAdminServerSupabaseClient(), QUARANTINE_TAG);
+      const { data, error } = await adminSb.rpc("fn_generate_live_test_certificates", {
         p_event_id: eventId,
         p_admin_id: adminId,
       });
@@ -80,7 +86,7 @@ export class LiveTestCertificateService {
         };
       }
 
-      const res = data as any;
+      const res = data;
       return {
         success: res?.success ?? true,
         eventId,
@@ -107,10 +113,10 @@ export class LiveTestCertificateService {
     ipHash: string = "UNTRACKED"
   ): Promise<LiveTestCertificatePublicVerification> {
     try {
-      const adminSb = await createAdminServerSupabaseClient();
+      const adminSb = quarantinedClient(await createAdminServerSupabaseClient(), QUARANTINE_TAG);
       const cleanCode = verificationCode.trim().toUpperCase();
 
-      const { data, error } = await (adminSb.rpc as any)("fn_verify_live_test_certificate_public", {
+      const { data, error } = await adminSb.rpc("fn_verify_live_test_certificate_public", {
         p_verification_code: cleanCode,
         p_ip_hash: ipHash,
       });
@@ -143,8 +149,8 @@ export class LiveTestCertificateService {
     userId: string
   ): Promise<LiveTestCertificate | null> {
     try {
-      const adminSb = await createAdminServerSupabaseClient();
-      const { data, error } = await (adminSb as any)
+      const adminSb = quarantinedClient(await createAdminServerSupabaseClient(), QUARANTINE_TAG);
+      const { data, error } = await adminSb
         .from("live_test_certificates")
         .select("*")
         .eq("live_test_event_id", eventId)
@@ -171,8 +177,8 @@ export class LiveTestCertificateService {
    */
   public static async getCandidateCertificates(userId: string): Promise<LiveTestCertificate[]> {
     try {
-      const adminSb = await createAdminServerSupabaseClient();
-      const { data, error } = await (adminSb as any)
+      const adminSb = quarantinedClient(await createAdminServerSupabaseClient(), QUARANTINE_TAG);
+      const { data, error } = await adminSb
         .from("live_test_certificates")
         .select("*")
         .eq("user_id", userId)
@@ -198,8 +204,8 @@ export class LiveTestCertificateService {
     statusFilter?: LiveCertificateStatus
   ): Promise<LiveTestCertificate[]> {
     try {
-      const adminSb = await createAdminServerSupabaseClient();
-      let query = (adminSb as any)
+      const adminSb = quarantinedClient(await createAdminServerSupabaseClient(), QUARANTINE_TAG);
+      let query = adminSb
         .from("live_test_certificates")
         .select("*")
         .eq("live_test_event_id", eventId)
@@ -231,8 +237,8 @@ export class LiveTestCertificateService {
     reason: string
   ): Promise<{ success: boolean; error?: string }> {
     try {
-      const adminSb = await createAdminServerSupabaseClient();
-      const { data, error } = await (adminSb.rpc as any)("fn_revoke_live_test_certificate", {
+      const adminSb = quarantinedClient(await createAdminServerSupabaseClient(), QUARANTINE_TAG);
+      const { data, error } = await adminSb.rpc("fn_revoke_live_test_certificate", {
         p_certificate_id: certificateId,
         p_admin_id: adminId,
         p_reason: reason,
@@ -243,7 +249,7 @@ export class LiveTestCertificateService {
         return { success: false, error: error.message };
       }
 
-      const res = data as any;
+      const res = data;
       return { success: res?.success ?? true };
     } catch (err: any) {
       return { success: false, error: err.message || "Failed to revoke certificate" };
@@ -257,8 +263,8 @@ export class LiveTestCertificateService {
     eventId?: string
   ): Promise<LiveTestCertificatePolicy[]> {
     try {
-      const adminSb = await createAdminServerSupabaseClient();
-      let query = (adminSb as any)
+      const adminSb = quarantinedClient(await createAdminServerSupabaseClient(), QUARANTINE_TAG);
+      let query = adminSb
         .from("live_test_certificate_policies")
         .select("*")
         .eq("is_active", true)

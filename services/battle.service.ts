@@ -1,4 +1,10 @@
-﻿import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
+
+import { quarantinedClient, type QuarantinedRow } from "@/lib/supabase/quarantine";
+
+// TYPES-1:C-BATTLE — QUARANTINED (BATTLES flag off; known-broken against the live schema). The Supabase client is
+// obtained through lib/supabase/quarantine.ts (registered in docs/reports/types/TYPES1_ESCAPES.json).
+const QUARANTINE_TAG = "TYPES-1:C-BATTLE" as const;
 
 export interface UserBattleStats {
   userId: string;
@@ -72,7 +78,7 @@ export class BattleService {
    * Fetches the user's battle stats (ELO, wins, losses, win streak).
    */
   static async getUserBattleStats(): Promise<UserBattleStats | null> {
-    const supabase = await createServerSupabaseClient();
+    const supabase = quarantinedClient(await createServerSupabaseClient(), QUARANTINE_TAG);
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) return null;
@@ -96,7 +102,7 @@ export class BattleService {
       };
     }
 
-    const d = data as any;
+    const d = data;
     return {
       userId: d.user_id,
       eloRating: d.elo_rating,
@@ -125,8 +131,8 @@ export class BattleService {
     countdown_seconds?: number;
     error?: string;
   }> {
-    const supabase = await createServerSupabaseClient();
-    const rpcCall = supabase.rpc as any;
+    const supabase = quarantinedClient(await createServerSupabaseClient(), QUARANTINE_TAG);
+    const rpcCall = supabase.rpc.bind(supabase);
 
     const { data, error } = await rpcCall("fn_find_or_create_battle_room", {
       p_topic_id: topicId || null,
@@ -151,8 +157,8 @@ export class BattleService {
     countdown_seconds?: number;
     error?: string;
   }> {
-    const supabase = await createServerSupabaseClient();
-    const rpcCall = supabase.rpc as any;
+    const supabase = quarantinedClient(await createServerSupabaseClient(), QUARANTINE_TAG);
+    const rpcCall = supabase.rpc.bind(supabase);
 
     const { data, error } = await rpcCall("fn_join_battle_by_code", {
       p_room_code: roomCode,
@@ -169,7 +175,7 @@ export class BattleService {
    * Fetches room metadata and participants (sanitized).
    */
   static async getBattleRoomDetails(roomId: string): Promise<BattleRoomDetails | null> {
-    const supabase = await createServerSupabaseClient();
+    const supabase = quarantinedClient(await createServerSupabaseClient(), QUARANTINE_TAG);
 
     const [roomRes, participantsRes] = await Promise.all([
       supabase
@@ -184,7 +190,7 @@ export class BattleService {
     ]);
 
     if (!roomRes.data) return null;
-    const r = roomRes.data as any;
+    const r = roomRes.data;
 
     return {
       id: r.id,
@@ -203,7 +209,7 @@ export class BattleService {
       roundStartedAt: r.round_started_at,
       roundEndsAt: r.round_ends_at,
       winnerUserId: r.winner_user_id,
-      participants: ((participantsRes.data as any[]) || []).map((p) => ({
+      participants: ((participantsRes.data) || []).map((p: QuarantinedRow) => ({
         id: p.id,
         userId: p.user_id,
         finalScore: p.final_score,
@@ -220,8 +226,8 @@ export class BattleService {
    * Zero answer key or future questions leakage.
    */
   static async getActiveBattleRound(roomId: string): Promise<ActiveRoundData> {
-    const supabase = await createServerSupabaseClient();
-    const rpcCall = supabase.rpc as any;
+    const supabase = quarantinedClient(await createServerSupabaseClient(), QUARANTINE_TAG);
+    const rpcCall = supabase.rpc.bind(supabase);
 
     const { data, error } = await rpcCall("fn_get_active_battle_round", {
       p_room_id: roomId,
@@ -242,8 +248,8 @@ export class BattleService {
     roundNumber: number,
     selectedOptionId: string
   ): Promise<BattleAnswerResult> {
-    const supabase = await createServerSupabaseClient();
-    const rpcCall = supabase.rpc as any;
+    const supabase = quarantinedClient(await createServerSupabaseClient(), QUARANTINE_TAG);
+    const rpcCall = supabase.rpc.bind(supabase);
 
     const { data, error } = await rpcCall("fn_submit_battle_round_answer", {
       p_room_id: roomId,
@@ -262,8 +268,8 @@ export class BattleService {
    * Finalizes battle room via fn_finalize_battle_room.
    */
   static async finalizeBattleRoom(roomId: string): Promise<{ success: boolean; winner_user_id?: string; error?: string }> {
-    const supabase = await createServerSupabaseClient();
-    const rpcCall = supabase.rpc as any;
+    const supabase = quarantinedClient(await createServerSupabaseClient(), QUARANTINE_TAG);
+    const rpcCall = supabase.rpc.bind(supabase);
 
     const { data, error } = await rpcCall("fn_finalize_battle_room", {
       p_room_id: roomId,

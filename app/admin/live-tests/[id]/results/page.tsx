@@ -6,6 +6,12 @@ import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { LiveTestResultService } from "@/services/live-test-result.service";
 import { AdminLiveTestResultsManager } from "@/components/admin/live-tests/admin-live-test-results-manager";
 import { requireAdminPage } from "@/lib/auth/require-admin";
+import { quarantinedClient } from "@/lib/supabase/quarantine";
+
+// TYPES-1:C-ADMIN-LIVE-TEST-RESULTS-PAGE — QUARANTINED (LIVE_TESTS flag off; known-broken against the live schema). The Supabase client is
+// obtained through lib/supabase/quarantine.ts (registered in docs/reports/types/TYPES1_ESCAPES.json).
+const QUARANTINE_TAG = "TYPES-1:C-ADMIN-LIVE-TEST-RESULTS-PAGE" as const;
+
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -21,10 +27,10 @@ export default async function AdminLiveTestResultsPage({ params }: Props) {
   await requireAdminPage({ path: "/admin/live-tests" }); // SEC-1D: admin only
   if (!isFeatureEnabled("LIVE_TESTS")) return <FeatureDisabledPanel feature="LIVE_TESTS" />;
   const { id } = await params;
-  const adminSb = createAdminServerSupabaseClient();
+  const adminSb = quarantinedClient(createAdminServerSupabaseClient(), QUARANTINE_TAG);
 
   // 1. Fetch Event
-  const { data: event } = await (adminSb as any)
+  const { data: event } = await adminSb
     .from("live_test_events")
     .select("*")
     .eq("id", id)
@@ -41,7 +47,7 @@ export default async function AdminLiveTestResultsPage({ params }: Props) {
   const targetSnapshotId = summary.activeSnapshot?.id || summary.snapshots[0]?.id;
   let leaderboardEntries: any[] = [];
   if (targetSnapshotId) {
-    const { data: entries } = await (adminSb as any)
+    const { data: entries } = await adminSb
       .from("live_test_leaderboard_entries")
       .select("*")
       .eq("snapshot_id", targetSnapshotId)

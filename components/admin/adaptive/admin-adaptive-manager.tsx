@@ -465,6 +465,7 @@ export function AdminAdaptiveManager({
     startTransition(async () => {
       const res = await recalibrateItemAction(questionVersionId, "Admin single item recalculation");
       if (res.success && res.data) {
+        // TYPES-1:C-ADAPTIVE-MANAGER quarantined ADAPTIVE admin UI: untyped action result until ADAPTIVE re-enable
         const result = res.data as any;
         setCalibrations((prev) => ({
           ...prev,
@@ -503,6 +504,7 @@ export function AdminAdaptiveManager({
     startTransition(async () => {
       const res = await recalibrateBatchAction(ids, `Batch recalibrated ${ids.length} items`);
       if (res.success && res.data) {
+        // TYPES-1:C-ADAPTIVE-MANAGER quarantined ADAPTIVE admin UI: untyped action result until ADAPTIVE re-enable
         showFeedback("success", `Batch completed: ${(res.data as any).processedCount} items recalibrated.`);
       } else {
         showFeedback("error", res.error || "Failed to execute batch recalibration.");

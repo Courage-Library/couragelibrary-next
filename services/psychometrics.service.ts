@@ -42,6 +42,12 @@ import {
   ReliabilityQualityFlagKey,
   ReliabilityQualityFlag,
 } from '@/types/psychometrics';
+import { quarantinedClient } from "@/lib/supabase/quarantine";
+
+// TYPES-1:C-PSYCHOMETRICS — QUARANTINED (PSYCHOMETRICS flag off; known-broken against the live schema). The Supabase client is
+// obtained through lib/supabase/quarantine.ts (registered in docs/reports/types/TYPES1_ESCAPES.json).
+const QUARANTINE_TAG = "TYPES-1:C-PSYCHOMETRICS" as const;
+
 
 export interface CandidateItemResponse {
   attemptId: string;
@@ -980,7 +986,7 @@ export class PsychometricsService {
   ): Promise<{ persistedCount: number }> {
     if (results.length === 0) return { persistedCount: 0 };
 
-    const supabase = createAdminServerSupabaseClient() as any;
+    const supabase = quarantinedClient(createAdminServerSupabaseClient(), QUARANTINE_TAG);
     const snapshotRows = results.map(r => ({
       question_version_id: r.questionVersionId,
       population: r.population,

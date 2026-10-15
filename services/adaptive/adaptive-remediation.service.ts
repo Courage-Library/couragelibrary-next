@@ -27,6 +27,11 @@ import {
   calculateRevisionPriority,
   calculateDecayScheduleState,
 } from "../mistake.service";
+import { type QuarantinedClient } from "@/lib/supabase/quarantine";
+
+// TYPES-1:C-ADAPTIVE-REMEDIATION — QUARANTINED (ADAPTIVE flag off; known-broken against the live schema). The Supabase client is
+// obtained through lib/supabase/quarantine.ts (registered in docs/reports/types/TYPES1_ESCAPES.json).
+
 
 export interface RemediationCandidateQuestion {
   question_id: string;
@@ -366,12 +371,12 @@ export class AdaptiveRemediationService {
    * Generates a CAT Adaptive Remediation session tailored to a specific candidate mistake.
    */
   public static async generateAdaptiveRemediationSession(
-    supabase: SupabaseClient<Database>,
+    supabase: QuarantinedClient,
     userId: string,
     config: AdaptiveRemediationSessionConfig
   ): Promise<AdaptiveRemediationSessionPayload> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = supabase as any;
+    const sb = supabase;
 
     // 1. Fetch target mistake vault record
     const { data: vaultRow, error: vaultErr } = await sb

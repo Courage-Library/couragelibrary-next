@@ -10,6 +10,12 @@ import {
 } from "@/types/live-test";
 import { ActiveTestQuestion, ActiveTestOption } from "@/services/assessment.service";
 import { LiveTestFoundationService } from "@/services/live-test-foundation.service";
+import { quarantinedClient } from "@/lib/supabase/quarantine";
+
+// TYPES-1:C-LIVE-TEST-RUNNER — QUARANTINED (LIVE_TESTS flag off; known-broken against the live schema). The Supabase client is
+// obtained through lib/supabase/quarantine.ts (registered in docs/reports/types/TYPES1_ESCAPES.json).
+const QUARANTINE_TAG = "TYPES-1:C-LIVE-TEST-RUNNER" as const;
+
 
 export class LiveTestRunnerService {
   /**
@@ -20,11 +26,11 @@ export class LiveTestRunnerService {
     eventSlugOrId: string,
     userId: string
   ): Promise<{ success: boolean; session?: ActiveLiveTestSession; error?: string; code?: string }> {
-    const adminSb = createAdminServerSupabaseClient();
+    const adminSb = quarantinedClient(createAdminServerSupabaseClient(), QUARANTINE_TAG);
 
     // 1. Fetch Event
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventSlugOrId);
-    const eventQuery = (adminSb as any)
+    const eventQuery = adminSb
       .from("live_test_events")
       .select("*");
     
@@ -58,7 +64,7 @@ export class LiveTestRunnerService {
     }
 
     // 4. Validate Registration
-    const { data: registration, error: regErr } = await (adminSb as any)
+    const { data: registration, error: regErr } = await adminSb
       .from("live_test_registrations")
       .select("*")
       .eq("live_test_event_id", event.id)
@@ -70,7 +76,7 @@ export class LiveTestRunnerService {
     }
 
     // 5. Check for Existing Attempt
-    const { data: existingAttempts } = await (adminSb as any)
+    const { data: existingAttempts } = await adminSb
       .from("test_attempts")
       .select("*")
       .eq("mock_test_id", event.mock_test_id)
@@ -96,7 +102,7 @@ export class LiveTestRunnerService {
       isLateJoined = new Date(existingAttempt.started_at).getTime() > (eventStart + 60000);
 
       // Update last activity
-      await (adminSb as any)
+      await adminSb
         .from("test_attempts")
         .update({ last_activity_at: now.toISOString(), updated_at: now.toISOString() })
         .eq("id", attemptId);
@@ -118,7 +124,7 @@ export class LiveTestRunnerService {
       }
 
       // Create new attempt
-      const { data: newAttempt, error: attemptCreateErr } = await (adminSb as any)
+      const { data: newAttempt, error: attemptCreateErr } = await adminSb
         .from("test_attempts")
         .insert({
           mock_test_id: event.mock_test_id,
@@ -140,14 +146,14 @@ export class LiveTestRunnerService {
 
       // Update registration to ATTENDED
       if (registration.status === "REGISTERED") {
-        await (adminSb as any)
+        await adminSb
           .from("live_test_registrations")
           .update({ status: "ATTENDED", updated_at: now.toISOString() })
           .eq("id", registration.id);
       }
 
       // Increment started counter
-      await (adminSb as any)
+      await adminSb
         .from("live_test_events")
         .update({ current_started_count: (event.current_started_count || 0) + 1, updated_at: now.toISOString() })
         .eq("id", event.id);
@@ -158,7 +164,7 @@ export class LiveTestRunnerService {
     const remainingSeconds = Math.max(0, Math.floor((new Date(effectiveEndAt).getTime() - now.getTime()) / 1000));
 
     // 7. Load Immutable Paper Snapshot
-    let { data: instance } = await (adminSb as any)
+    let { data: instance } = await adminSb
       .from("live_test_instances")
       .select("*")
       .eq("live_test_event_id", event.id)
@@ -171,7 +177,7 @@ export class LiveTestRunnerService {
     }
 
     // Load Sections & Questions from database / snapshot
-    const { data: sectionsData } = await (adminSb as any)
+    const { data: sectionsData } = await adminSb
       .from("mock_sections")
       .select("id, name, section_order, marks_per_question, negative_mark")
       .eq("mock_test_id", event.mock_test_id)
@@ -185,7 +191,7 @@ export class LiveTestRunnerService {
       negativeMark: Number(s.negative_mark)
     }));
 
-    const { data: questionsData } = await (adminSb as any)
+    const { data: questionsData } = await adminSb
       .from("mock_questions")
       .select(`
         id,
@@ -211,7 +217,7 @@ export class LiveTestRunnerService {
       .order("question_order", { ascending: true });
 
     // Load previously saved answers for this attempt
-    const { data: savedAnswersData } = await (adminSb as any)
+    const { data: savedAnswersData } = await adminSb
       .from("attempt_answers")
       .select("mock_question_id, selected_option_key, is_marked_for_review, time_spent_seconds")
       .eq("attempt_id", attemptId);
@@ -286,11 +292,11 @@ export class LiveTestRunnerService {
     payload: LiveAnswerPayload,
     userId: string
   ): Promise<LiveAnswerSaveResult> {
-    const adminSb = createAdminServerSupabaseClient();
+    const adminSb = quarantinedClient(createAdminServerSupabaseClient(), QUARANTINE_TAG);
     const now = new Date();
 
     // 1. Validate Attempt Ownership & Status
-    const { data: attempt, error: attemptErr } = await (adminSb as any)
+    const { data: attempt, error: attemptErr } = await adminSb
       .from("test_attempts")
       .select("id, mock_test_id, user_id, status, started_at")
       .eq("id", payload.attemptId)
@@ -306,7 +312,7 @@ export class LiveTestRunnerService {
     }
 
     // 2. Fetch Live Event Timing
-    const { data: event } = await (adminSb as any)
+    const { data: event } = await adminSb
       .from("live_test_events")
       .select("id, event_end_at, grace_period_seconds, current_submitted_count")
       .eq("mock_test_id", attempt.mock_test_id)
@@ -318,7 +324,7 @@ export class LiveTestRunnerService {
       
       // Auto-submit if expired
       if (now.getTime() > (eventEndMs + graceMs)) {
-        await (adminSb as any)
+        await adminSb
           .from("test_attempts")
           .update({
             status: "auto_submitted",
@@ -328,7 +334,7 @@ export class LiveTestRunnerService {
           })
           .eq("id", payload.attemptId);
 
-        await (adminSb as any)
+        await adminSb
           .from("live_test_events")
           .update({ current_submitted_count: (event.current_submitted_count || 0) + 1, updated_at: now.toISOString() })
           .eq("id", event.id);
@@ -343,7 +349,7 @@ export class LiveTestRunnerService {
     }
 
     // 3. Upsert into attempt_answers
-    const { error: saveErr } = await (adminSb as any)
+    const { error: saveErr } = await adminSb
       .from("attempt_answers")
       .upsert(
         {
@@ -363,7 +369,7 @@ export class LiveTestRunnerService {
     }
 
     // Update last activity
-    await (adminSb as any)
+    await adminSb
       .from("test_attempts")
       .update({ last_activity_at: now.toISOString(), updated_at: now.toISOString() })
       .eq("id", payload.attemptId);
@@ -384,11 +390,11 @@ export class LiveTestRunnerService {
     userId: string,
     isAutoSubmitted: boolean = false
   ): Promise<LiveTestSubmitResult> {
-    const adminSb = createAdminServerSupabaseClient();
+    const adminSb = quarantinedClient(createAdminServerSupabaseClient(), QUARANTINE_TAG);
     const now = new Date();
 
     // 1. Fetch Attempt
-    const { data: attempt, error: attemptErr } = await (adminSb as any)
+    const { data: attempt, error: attemptErr } = await adminSb
       .from("test_attempts")
       .select("id, mock_test_id, user_id, status, started_at, submitted_at")
       .eq("id", attemptId)
@@ -414,7 +420,7 @@ export class LiveTestRunnerService {
     const timeTakenSeconds = Math.max(0, Math.floor((now.getTime() - new Date(attempt.started_at).getTime()) / 1000));
 
     // 3. Update Attempt Status
-    const { error: updateErr } = await (adminSb as any)
+    const { error: updateErr } = await adminSb
       .from("test_attempts")
       .update({
         status: finalStatus,
@@ -429,14 +435,14 @@ export class LiveTestRunnerService {
     }
 
     // 4. Increment Submitted Count
-    const { data: event } = await (adminSb as any)
+    const { data: event } = await adminSb
       .from("live_test_events")
       .select("id, current_submitted_count")
       .eq("mock_test_id", attempt.mock_test_id)
       .maybeSingle();
 
     if (event) {
-      await (adminSb as any)
+      await adminSb
         .from("live_test_events")
         .update({
           current_submitted_count: (event.current_submitted_count || 0) + 1,

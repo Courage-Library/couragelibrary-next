@@ -26,7 +26,7 @@ const EMPTY_LIVE_QUERY: any = new Proxy(function () {}, {
   apply: () => EMPTY_LIVE_QUERY,
 });
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const liveTestsQuery = (client: any) => (isFeatureEnabled("LIVE_TESTS") ? client : EMPTY_LIVE_QUERY);
+const liveTestsQuery = (client: QuarantinedClient) => (isFeatureEnabled("LIVE_TESTS") ? client : EMPTY_LIVE_QUERY);
 import {
   CANDIDATE_INTELLIGENCE_POLICY_V1,
   CandidateIntelligencePolicy,
@@ -50,6 +50,12 @@ import {
   DataConfidenceBreakdown,
   SubjectClassification,
 } from "@/types/candidate-intelligence";
+import { quarantinedClient, type QuarantinedClient } from "@/lib/supabase/quarantine";
+
+// TYPES-1:C-CANDIDATE-INTEL — QUARANTINED (LIVE_TESTS flag off; known-broken against the live schema). The Supabase client is
+// obtained through lib/supabase/quarantine.ts (registered in docs/reports/types/TYPES1_ESCAPES.json).
+const QUARANTINE_TAG = "TYPES-1:C-CANDIDATE-INTEL" as const;
+
 
 export class CandidateIntelligenceService {
   /**
@@ -338,7 +344,7 @@ export class CandidateIntelligenceService {
     examId?: string,
     policy: CandidateIntelligencePolicy = CANDIDATE_INTELLIGENCE_POLICY_V1
   ): Promise<SubjectBreakdownData> {
-    const adminSb: any = await createAdminServerSupabaseClient();
+    const adminSb = quarantinedClient(await createAdminServerSupabaseClient(), QUARANTINE_TAG);
 
     // Query attempt answers for candidate
     let query = adminSb
@@ -403,7 +409,7 @@ export class CandidateIntelligenceService {
     const now = new Date().getTime();
     const lookbackMs = policy.dataConfidenceParameters.activeLookbackDays * 86400 * 1000;
 
-    for (const row of data as any[]) {
+    for (const row of data ?? []) {
       const section = row.mock_question?.mock_section;
       const sectionKey = section?.id || "uncategorized";
       const sectionName = section?.name || "General Section";
@@ -523,7 +529,7 @@ export class CandidateIntelligenceService {
     examId?: string,
     policy: CandidateIntelligencePolicy = CANDIDATE_INTELLIGENCE_POLICY_V1
   ): Promise<TopicPerformanceData> {
-    const adminSb: any = await createAdminServerSupabaseClient();
+    const adminSb = quarantinedClient(await createAdminServerSupabaseClient(), QUARANTINE_TAG);
 
     const { data, error } = await adminSb
       .from("user_topic_mastery")
@@ -551,7 +557,7 @@ export class CandidateIntelligenceService {
 
     const topics: TopicPerformanceItem[] = [];
 
-    for (const row of data as any[]) {
+    for (const row of data ?? []) {
       const total = Number(row.attempts_count || 0);
       const correct = Number(row.correct_count || 0);
       const incorrect = total - correct;
@@ -729,7 +735,7 @@ export class CandidateIntelligenceService {
     userId: string,
     limit: number = 50
   ): Promise<UnifiedTimelineEvent[]> {
-    const adminSb: any = await createAdminServerSupabaseClient();
+    const adminSb = quarantinedClient(await createAdminServerSupabaseClient(), QUARANTINE_TAG);
     const events: UnifiedTimelineEvent[] = [];
 
     // 1. Normalized Attempts (Live Tests, Mocks, Adaptives)
@@ -868,7 +874,7 @@ export class CandidateIntelligenceService {
     userId: string,
     examId?: string
   ): Promise<NormalizedHistoricalAttempt[]> {
-    const adminSb: any = await createAdminServerSupabaseClient();
+    const adminSb = quarantinedClient(await createAdminServerSupabaseClient(), QUARANTINE_TAG);
     const attempts: NormalizedHistoricalAttempt[] = [];
 
     // 1. Query Standard Mocks & Tests from public.test_attempts
@@ -1308,7 +1314,7 @@ export class CandidateIntelligenceService {
   }
 
   private static async getAchievementsSummary(userId: string) {
-    const adminSb: any = await createAdminServerSupabaseClient();
+    const adminSb = quarantinedClient(await createAdminServerSupabaseClient(), QUARANTINE_TAG);
     const { data: awards } = await liveTestsQuery(adminSb)
       .from("live_test_achievement_awards")
       .select("badge_code")
@@ -1334,7 +1340,7 @@ export class CandidateIntelligenceService {
   }
 
   private static async getCertificatesCount(userId: string): Promise<number> {
-    const adminSb: any = await createAdminServerSupabaseClient();
+    const adminSb = quarantinedClient(await createAdminServerSupabaseClient(), QUARANTINE_TAG);
     const { count } = await liveTestsQuery(adminSb)
       .from("live_test_certificates")
       .select("id", { count: "exact", head: true })
@@ -1345,7 +1351,7 @@ export class CandidateIntelligenceService {
   }
 
   private static async getTotalRewardsEarnedCL(userId: string): Promise<number> {
-    const adminSb: any = await createAdminServerSupabaseClient();
+    const adminSb = quarantinedClient(await createAdminServerSupabaseClient(), QUARANTINE_TAG);
     const { data } = await liveTestsQuery(adminSb)
       .from("live_test_reward_settlements")
       .select("coins_awarded")

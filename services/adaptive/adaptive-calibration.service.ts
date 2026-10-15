@@ -1,6 +1,12 @@
 import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { AdminAdaptiveService, AdaptiveCalibrationStatus } from "@/services/admin-adaptive.service";
 import type { Json } from "@/types/database";
+import { quarantinedClient } from "@/lib/supabase/quarantine";
+
+// TYPES-1:C-ADAPTIVE-CALIBRATION — QUARANTINED (ADAPTIVE flag off; known-broken against the live schema). The Supabase client is
+// obtained through lib/supabase/quarantine.ts (registered in docs/reports/types/TYPES1_ESCAPES.json).
+const QUARANTINE_TAG = "TYPES-1:C-ADAPTIVE-CALIBRATION" as const;
+
 
 // ============================================================================
 // TYPES & INTERFACES
@@ -92,7 +98,7 @@ export const CALIBRATION_CONFIG_DEFAULTS = {
 export class AdaptiveCalibrationService {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private static getClient(): any {
-    return createAdminServerSupabaseClient() as any;
+    return quarantinedClient(createAdminServerSupabaseClient(), QUARANTINE_TAG);
   }
 
   // ==========================================================================

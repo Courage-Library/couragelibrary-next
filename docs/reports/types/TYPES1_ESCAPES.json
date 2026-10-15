@@ -55,6 +55,177 @@
       "kind": "explicit row types for 4 undeployed tables",
       "owner": "ADAPTIVE re-enable",
       "precondition": "ADAPTIVE re-enable: deploy adaptive schema (migrations 038–051 superseded → new migration), npm run db:types, remove the quarantine and type the queries (DRIFT-1c Q7 also applies)"
+    },
+    {
+      "id": "TYPES-1:C-LIVE-TEST-RESULT",
+      "file": "services/live-test-result.service.ts",
+      "class": "C",
+      "module": "live-tests",
+      "kind": "quarantinedClient",
+      "owner": "LIVE_TESTS re-enable",
+      "precondition": "LIVE_TESTS re-enable: deploy/verify live-test schema, npm run db:types, remove the quarantine and type the queries; Q2 (drill-down audit blocking) and Q7 (quarantined error paths) are preconditions"
+    },
+    {
+      "id": "TYPES-1:C-COMPETITION-INTEL",
+      "file": "services/admin-competition-intelligence.service.ts",
+      "class": "C",
+      "module": "competition-intelligence",
+      "kind": "quarantinedClient",
+      "owner": "LIVE_TESTS re-enable",
+      "precondition": "LIVE_TESTS re-enable: deploy/verify live-test schema, npm run db:types, remove the quarantine and type the queries; Q2 (drill-down audit blocking) and Q7 (quarantined error paths) are preconditions"
+    },
+    {
+      "id": "TYPES-1:C-LIVE-TEST-RUNNER",
+      "file": "services/live-test-runner.service.ts",
+      "class": "C",
+      "module": "live-tests",
+      "kind": "quarantinedClient",
+      "owner": "LIVE_TESTS re-enable",
+      "precondition": "LIVE_TESTS re-enable: deploy/verify live-test schema, npm run db:types, remove the quarantine and type the queries; Q2 (drill-down audit blocking) and Q7 (quarantined error paths) are preconditions"
+    },
+    {
+      "id": "TYPES-1:C-LIVE-TEST-REWARD",
+      "file": "services/live-test-reward.service.ts",
+      "class": "C",
+      "module": "live-tests",
+      "kind": "quarantinedClient",
+      "owner": "LIVE_TESTS re-enable",
+      "precondition": "LIVE_TESTS re-enable: deploy/verify live-test schema, npm run db:types, remove the quarantine and type the queries; Q2 (drill-down audit blocking) and Q7 (quarantined error paths) are preconditions"
+    },
+    {
+      "id": "TYPES-1:C-ADMIN-ADAPTIVE",
+      "file": "services/admin-adaptive.service.ts",
+      "class": "C",
+      "module": "adaptive",
+      "kind": "quarantinedClient",
+      "owner": "ADAPTIVE re-enable",
+      "precondition": "ADAPTIVE re-enable: deploy adaptive schema (migrations 038–051 superseded → new migration), npm run db:types, remove the quarantine and type the queries (DRIFT-1c Q7 also applies)"
+    },
+    {
+      "id": "TYPES-1:C-CANDIDATE-INTEL",
+      "file": "services/candidate-intelligence.service.ts",
+      "class": "C",
+      "module": "candidate-intelligence",
+      "kind": "quarantinedClient",
+      "owner": "LIVE_TESTS re-enable",
+      "precondition": "LIVE_TESTS re-enable: deploy/verify live-test schema, npm run db:types, remove the quarantine and type the queries; Q2 (drill-down audit blocking) and Q7 (quarantined error paths) are preconditions"
+    },
+    {
+      "id": "TYPES-1:C-LIVE-TEST-ACHIEVEMENT",
+      "file": "services/live-test-achievement.service.ts",
+      "class": "C",
+      "module": "live-tests",
+      "kind": "quarantinedClient",
+      "owner": "LIVE_TESTS re-enable",
+      "precondition": "LIVE_TESTS re-enable: deploy/verify live-test schema, npm run db:types, remove the quarantine and type the queries; Q2 (drill-down audit blocking) and Q7 (quarantined error paths) are preconditions"
+    },
+    {
+      "id": "TYPES-1:C-LIVE-TEST-CERTIFICATE",
+      "file": "services/live-test-certificate.service.ts",
+      "class": "C",
+      "module": "live-tests",
+      "kind": "quarantinedClient",
+      "owner": "LIVE_TESTS re-enable",
+      "precondition": "LIVE_TESTS re-enable: deploy/verify live-test schema, npm run db:types, remove the quarantine and type the queries; Q2 (drill-down audit blocking) and Q7 (quarantined error paths) are preconditions"
+    },
+    {
+      "id": "TYPES-1:C-LIVE-TEST-FOUNDATION",
+      "file": "services/live-test-foundation.service.ts",
+      "class": "C",
+      "module": "live-tests",
+      "kind": "quarantinedClient",
+      "owner": "LIVE_TESTS re-enable",
+      "precondition": "LIVE_TESTS re-enable: deploy/verify live-test schema, npm run db:types, remove the quarantine and type the queries; Q2 (drill-down audit blocking) and Q7 (quarantined error paths) are preconditions"
+    },
+    {
+      "id": "TYPES-1:C-BATTLE",
+      "file": "services/battle.service.ts",
+      "class": "C",
+      "module": "battles",
+      "kind": "quarantinedClient",
+      "owner": "BATTLES re-enable",
+      "precondition": "BATTLES re-enable: verify battle schema against generated types (npm run db:types), remove the quarantine and type the queries"
+    },
+    {
+      "id": "TYPES-1:C-LIVE-TEST-REGISTRATION",
+      "file": "services/live-test-registration.service.ts",
+      "class": "C",
+      "module": "live-tests",
+      "kind": "quarantinedClient",
+      "owner": "LIVE_TESTS re-enable",
+      "precondition": "LIVE_TESTS re-enable: deploy/verify live-test schema, npm run db:types, remove the quarantine and type the queries; Q2 (drill-down audit blocking) and Q7 (quarantined error paths) are preconditions"
+    },
+    {
+      "id": "TYPES-1:C-ADMIN-LIVE-TESTS-PAGE",
+      "file": "app/admin/live-tests/page.tsx",
+      "class": "C",
+      "module": "live-tests",
+      "kind": "quarantinedClient",
+      "owner": "LIVE_TESTS re-enable",
+      "precondition": "LIVE_TESTS re-enable: deploy/verify live-test schema, npm run db:types, remove the quarantine and type the queries; Q2 (drill-down audit blocking) and Q7 (quarantined error paths) are preconditions"
+    },
+    {
+      "id": "TYPES-1:C-ADAPTIVE-ANALYTICS",
+      "file": "services/adaptive/adaptive-analytics.service.ts",
+      "class": "C",
+      "module": "adaptive",
+      "kind": "quarantinedClient",
+      "owner": "ADAPTIVE re-enable",
+      "precondition": "ADAPTIVE re-enable: deploy adaptive schema (migrations 038–051 superseded → new migration), npm run db:types, remove the quarantine and type the queries (DRIFT-1c Q7 also applies)"
+    },
+    {
+      "id": "TYPES-1:C-ADMIN-LIVE-TEST-RESULTS-PAGE",
+      "file": "app/admin/live-tests/[id]/results/page.tsx",
+      "class": "C",
+      "module": "live-tests",
+      "kind": "quarantinedClient",
+      "owner": "LIVE_TESTS re-enable",
+      "precondition": "LIVE_TESTS re-enable: deploy/verify live-test schema, npm run db:types, remove the quarantine and type the queries; Q2 (drill-down audit blocking) and Q7 (quarantined error paths) are preconditions"
+    },
+    {
+      "id": "TYPES-1:C-ADAPTIVE-SELECTION",
+      "file": "services/adaptive/adaptive-selection.service.ts",
+      "class": "C",
+      "module": "adaptive",
+      "kind": "quarantinedClient",
+      "owner": "ADAPTIVE re-enable",
+      "precondition": "ADAPTIVE re-enable: deploy adaptive schema (migrations 038–051 superseded → new migration), npm run db:types, remove the quarantine and type the queries (DRIFT-1c Q7 also applies)"
+    },
+    {
+      "id": "TYPES-1:C-ADAPTIVE-CALIBRATION",
+      "file": "services/adaptive/adaptive-calibration.service.ts",
+      "class": "C",
+      "module": "adaptive",
+      "kind": "quarantinedClient",
+      "owner": "ADAPTIVE re-enable",
+      "precondition": "ADAPTIVE re-enable: deploy adaptive schema (migrations 038–051 superseded → new migration), npm run db:types, remove the quarantine and type the queries (DRIFT-1c Q7 also applies)"
+    },
+    {
+      "id": "TYPES-1:C-ADAPTIVE-REMEDIATION",
+      "file": "services/adaptive/adaptive-remediation.service.ts",
+      "class": "C",
+      "module": "adaptive",
+      "kind": "quarantinedClient",
+      "owner": "ADAPTIVE re-enable",
+      "precondition": "ADAPTIVE re-enable: deploy adaptive schema (migrations 038–051 superseded → new migration), npm run db:types, remove the quarantine and type the queries (DRIFT-1c Q7 also applies)"
+    },
+    {
+      "id": "TYPES-1:C-PSYCHOMETRICS",
+      "file": "services/psychometrics.service.ts",
+      "class": "C",
+      "module": "psychometrics",
+      "kind": "quarantinedClient",
+      "owner": "PSYCHOMETRICS re-enable",
+      "precondition": "PSYCHOMETRICS re-enable: deploy psychometrics schema, npm run db:types, remove the quarantine and type the queries"
+    },
+    {
+      "id": "TYPES-1:C-ADAPTIVE-MANAGER",
+      "file": "components/admin/adaptive/admin-adaptive-manager.tsx",
+      "class": "C",
+      "module": "adaptive",
+      "kind": "tracked comment (client component: untyped action results)",
+      "owner": "ADAPTIVE re-enable",
+      "precondition": "ADAPTIVE re-enable: deploy adaptive schema (migrations 038–051 superseded → new migration), npm run db:types, remove the quarantine and type the queries (DRIFT-1c Q7 also applies)"
     }
   ]
 }
