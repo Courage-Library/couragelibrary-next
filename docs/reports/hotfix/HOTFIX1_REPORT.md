@@ -116,3 +116,22 @@ Run on a clean tree with B1 stashed.
 The earlier 27/29 and 17/19 failed only on the missing qa-student sign-in.
 
 **Status: all gates pass, so HOTFIX-1 is committed and pushed. Production smoke: see §7.**
+
+## 7. Production verification (`ac909e3`, https://couragelibrary-next.vercel.app)
+
+The new home page was live 100 s after the push. Smoke results (anonymous GETs):
+
+| Check | Result |
+|---|---|
+| `GET /` | 200 |
+| No "Supabase", "Connection State", "Phase 1B", "Auth Probe", "Target Project" or "Production" text | ✔ |
+| `couragelibrary-next` appears only as the site URL | ✔ |
+| **No Supabase project ref in the HTML** (sha256-compared, never printed) | ✔ |
+| Tagline and the `/exams` and `/auth/login` links | ✔ |
+| `GET /api/health` | 200 |
+| Anonymous `/admin` | **307 → `/auth/login?next=%2Fadmin`** |
+| Anonymous `/achievements`, `/certificates`, `/live-tests/[slug]/result`, `/performance?exam=…` (flags off) | **not-found, never `/login`** (architect ruling) |
+
+**Follow-up evidence.** The E2E journey run as qa-student (`E2E_KEEP_USER=1`, local production build of `ac909e3`) passed **13/13**, including E2E-11 at 3/3 mistakes visible. The B1 run's E2E-11 failure was therefore transient, during network errors. Afterwards the data-only cleanup ran with `E2E_KEEP_USER=1`, and the identity was kept.
+
+## STATUS: **CLOSED**
