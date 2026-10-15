@@ -69,8 +69,8 @@ export const siteConfig: SiteConfig = {
       exams: "/admin/exams",
     },
     auth: {
-      login: "/login",
-      register: "/register",
+      login: "/auth/login",
+      register: "/auth/signup",
     },
   },
 };

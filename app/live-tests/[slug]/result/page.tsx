@@ -1,6 +1,7 @@
 import { requireFeatureOrNotFound } from "@/lib/features/gates";
 import React from "react";
 import { notFound, redirect } from "next/navigation";
+import { loginRedirectPath } from "@/lib/auth/safe-redirect";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { LiveTestResultService } from "@/services/live-test-result.service";
 import { LiveTestResultClient } from "@/components/live-test/live-test-result-client";
@@ -18,7 +19,7 @@ export default async function LiveTestResultPage({ params }: Props) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect(`/login?next=/live-tests/${slug}/result`);
+    redirect(loginRedirectPath(`/live-tests/${encodeURIComponent(slug)}/result`));
   }
 
   const resultData = await LiveTestResultService.getCandidateScorecard(slug, user.id);
