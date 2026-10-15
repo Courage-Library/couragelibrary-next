@@ -1,5 +1,5 @@
-import { SupabaseClient } from "@supabase/supabase-js";
-import { Database } from "@/types/database";
+// TYPES-1:C-ADAPTIVE-SESSION — QUARANTINED (ADAPTIVE flag off; targets undeployed schema). Client via lib/supabase/quarantine.ts.
+import { quarantinedClient, type QuarantinedClient } from "@/lib/supabase/quarantine";
 import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import {
   ActiveAdaptiveSession,
@@ -32,9 +32,8 @@ export class AdaptiveSessionService {
   /**
    * Helper to acquire Supabase client (passed in or fallback to admin)
    */
-  private static async getClient(client?: SupabaseClient<any> | any): Promise<SupabaseClient<Database>> {
-    if (client) return client as SupabaseClient<Database>;
-    return await createAdminServerSupabaseClient();
+  private static async getClient(client?: unknown): Promise<QuarantinedClient> {
+    return quarantinedClient(client ?? (await createAdminServerSupabaseClient()), "TYPES-1:C-ADAPTIVE-SESSION");
   }
 
   /**
@@ -44,7 +43,7 @@ export class AdaptiveSessionService {
   public static async detectAdaptiveTest(
     identifier: string,
     userId?: string,
-    client?: SupabaseClient<any> | any
+    client?: unknown
   ): Promise<AdaptiveDetectionResult> {
     const supabase = await this.getClient(client);
 
@@ -59,13 +58,13 @@ export class AdaptiveSessionService {
       .maybeSingle();
 
     if (directState) {
-      const config = (directState as any).adaptive_test_configs as AdaptiveTestConfigRow;
+      const config = directState.adaptive_test_configs as AdaptiveTestConfigRow;
       return {
         isAdaptive: true,
         attemptId: identifier,
         configId: config.id,
         config,
-        existingState: directState as unknown as AdaptiveAttemptStateRow,
+        existingState: directState as AdaptiveAttemptStateRow,
       };
     }
 
@@ -94,14 +93,14 @@ export class AdaptiveSessionService {
           .maybeSingle();
 
         if (userActiveState) {
-          existingState = userActiveState as unknown as AdaptiveAttemptStateRow;
+          existingState = userActiveState as AdaptiveAttemptStateRow;
         }
       }
 
       return {
         isAdaptive: true,
         configId: directConfig.id,
-        config: directConfig as unknown as AdaptiveTestConfigRow,
+        config: directConfig as AdaptiveTestConfigRow,
         attemptId: existingState?.attempt_id,
         existingState,
       };
@@ -128,7 +127,7 @@ export class AdaptiveSessionService {
           return {
             isAdaptive: true,
             configId: linkedConfig.id,
-            config: linkedConfig as unknown as AdaptiveTestConfigRow,
+            config: linkedConfig as AdaptiveTestConfigRow,
             mockTestId: mockTest.id,
           };
         }
@@ -144,7 +143,7 @@ export class AdaptiveSessionService {
    */
   public static async startOrResumeAdaptiveAttempt(
     params: StartAdaptiveAttemptParams,
-    client?: SupabaseClient<any> | any
+    client?: unknown
   ): Promise<ActiveAdaptiveSession | null> {
     const supabase = await this.getClient(client);
     const { userId, identifier, overrideConfigId } = params;
@@ -161,7 +160,7 @@ export class AdaptiveSessionService {
         .eq("is_active", true)
         .single();
       if (cfg) {
-        targetConfig = cfg as unknown as AdaptiveTestConfigRow;
+        targetConfig = cfg as AdaptiveTestConfigRow;
       }
     }
 
@@ -199,7 +198,7 @@ export class AdaptiveSessionService {
           .maybeSingle();
 
         if (st) {
-          activeState = st as unknown as AdaptiveAttemptStateRow;
+          activeState = st as AdaptiveAttemptStateRow;
         }
       } else {
         const { data: st } = await supabase
@@ -213,7 +212,7 @@ export class AdaptiveSessionService {
           .maybeSingle();
 
         if (st) {
-          activeState = st as unknown as AdaptiveAttemptStateRow;
+          activeState = st as AdaptiveAttemptStateRow;
           attemptId = st.attempt_id;
         } else {
           // Check if user already has a completed attempt for this config
@@ -319,7 +318,7 @@ export class AdaptiveSessionService {
           user_id: userId,
           status: "in_progress",
           started_at: startedAtIso,
-        } as any)
+        })
         .select("id, started_at")
         .single();
 
@@ -359,7 +358,7 @@ export class AdaptiveSessionService {
   public static async getAdaptiveSession(
     attemptId: string,
     userId: string,
-    client?: SupabaseClient<any> | any
+    client?: unknown
   ): Promise<ActiveAdaptiveSession | null> {
     const supabase = await this.getClient(client);
 
@@ -390,8 +389,8 @@ export class AdaptiveSessionService {
       throw new AdaptiveEngineError("ATTEMPT_NOT_FOUND", "Adaptive state not found for attempt.");
     }
 
-    const state = stateData as unknown as AdaptiveAttemptStateRow;
-    const config = (stateData as any).adaptive_test_configs as AdaptiveTestConfigRow;
+    const state = stateData as AdaptiveAttemptStateRow;
+    const config = stateData.adaptive_test_configs as AdaptiveTestConfigRow;
 
     return await this.buildAdaptiveSession(
       supabase,
@@ -406,7 +405,7 @@ export class AdaptiveSessionService {
    * Helper: Build Safe ActiveAdaptiveSession object
    */
   private static async buildAdaptiveSession(
-    supabase: SupabaseClient<Database>,
+    supabase: QuarantinedClient,
     attemptId: string,
     config: AdaptiveTestConfigRow,
     state: AdaptiveAttemptStateRow,
@@ -427,7 +426,7 @@ export class AdaptiveSessionService {
           status: "submitted",
           submitted_at: new Date().toISOString(),
           time_taken_seconds: totalAllowedSeconds,
-        } as any)
+        })
         .eq("id", attemptId);
 
       try {
@@ -514,7 +513,7 @@ export class AdaptiveSessionService {
   public static async processAdaptiveStepSubmission(
     userId: string,
     request: AdaptiveStepSubmitRequest,
-    client?: SupabaseClient<any> | any
+    client?: unknown
   ): Promise<AdaptiveStepSubmitResponse> {
     const { attemptId, stepNumber, selectedOptionKey, timeSpentSeconds = 0, isMarkedForReview = false } = request;
 
@@ -576,8 +575,8 @@ export class AdaptiveSessionService {
         throw new AdaptiveEngineError("ATTEMPT_NOT_FOUND", `Adaptive state for attempt ${attemptId} was not found.`);
       }
 
-      const state = stateData as unknown as AdaptiveAttemptStateRow;
-      const config = (stateData as any).adaptive_test_configs as AdaptiveTestConfigRow;
+      const state = stateData as AdaptiveAttemptStateRow;
+      const config = stateData.adaptive_test_configs as AdaptiveTestConfigRow;
 
       if (state.status === "completed" || state.status === "terminated") {
         throw new AdaptiveEngineError("ATTEMPT_ALREADY_COMPLETED", "This adaptive attempt has already been finalized.");
@@ -597,7 +596,7 @@ export class AdaptiveSessionService {
             status: "submitted",
             submitted_at: new Date().toISOString(),
             time_taken_seconds: totalAllowedSeconds,
-          } as any)
+          })
           .eq("id", attemptId);
 
         try {
@@ -766,7 +765,7 @@ export class AdaptiveSessionService {
                 section_order: 1,
                 total_questions: config.max_questions,
                 duration_minutes: durationMinutes,
-              } as any)
+              })
               .select("id")
               .single();
             mockSectionId = newSec?.id;
@@ -782,7 +781,7 @@ export class AdaptiveSessionService {
                 question_order: stepNumber,
                 marks: 1,
                 negative_mark: 0,
-              } as any)
+              })
               .select("id")
               .single();
             resolvedMockQuestionId = newMq?.id || null;
@@ -940,8 +939,8 @@ export class AdaptiveSessionService {
           standard_error: abilityUpdate.updatedSe,
           correct_answers_count: newCorrectCount,
           incorrect_answers_count: newIncorrectCount,
-          sequence_history: sequenceHistory as any,
-          topic_breakdown: topicBreakdown as any,
+          sequence_history: sequenceHistory,
+          topic_breakdown: topicBreakdown,
           status: newStatus,
           stopping_reason: newStoppingReason,
           updated_at: new Date().toISOString(),

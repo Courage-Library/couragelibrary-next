@@ -1,0 +1,57 @@
+{
+  "phase": "TYPES-1",
+  "rule": "Values may only go down. scripts/test_types1.cjs T-03/T-07 fail if any current value is ABOVE these. Each batch lowers queryEscapes by its batch size and commits the new ratchet (node scripts/test_types1.cjs --update-ratchet).",
+  "remaining": [
+    {
+      "batch": "C",
+      "owner": "TYPES-1 batch C (tag only; quarantined modules)",
+      "count": 181,
+      "scope": "^(app/admin/live-tests/\\[id\\]/results/page\\.tsx|app/admin/live-tests/page\\.tsx|components/admin/adaptive/admin-adaptive-manager\\.tsx|services/adaptive/adaptive-analytics\\.service\\.ts|services/adaptive/adaptive-calibration\\.service\\.ts|services/adaptive/adaptive-remediation\\.service\\.ts|services/adaptive/adaptive-selection\\.service\\.ts|services/admin-adaptive\\.service\\.ts|services/admin-competition-intelligence\\.service\\.ts|services/battle\\.service\\.ts|services/candidate-intelligence\\.service\\.ts|services/live-test-achievement\\.service\\.ts|services/live-test-certificate\\.service\\.ts|services/live-test-foundation\\.service\\.ts|services/live-test-registration\\.service\\.ts|services/live-test-result\\.service\\.ts|services/live-test-reward\\.service\\.ts|services/live-test-runner\\.service\\.ts|services/psychometrics\\.service\\.ts)$"
+    },
+    {
+      "batch": "B1",
+      "owner": "TYPES-1 batch B1",
+      "count": 81,
+      "scope": "^(app/mistakes/actions\\.ts|app/mistakes/page\\.tsx|app/mock-tests/actions\\.ts|app/wallet/page\\.tsx|services/assessment\\.service\\.ts|services/billing\\.service\\.ts|services/bookmark\\.service\\.ts|services/content\\.service\\.ts|services/dashboard\\.service\\.ts|services/learning/learning-resolver\\.service\\.ts|services/mistake\\.service\\.ts|services/user-profile\\.service\\.ts)$"
+    },
+    {
+      "batch": "B2",
+      "owner": "TYPES-1 batch B2",
+      "count": 45,
+      "scope": "^(app/admin/rewards/actions\\.ts|services/community\\.service\\.ts|services/descriptive\\.service\\.ts|services/flashcard\\.service\\.ts|services/gamification\\.service\\.ts|services/institute\\.service\\.ts|services/premium-hub\\.service\\.ts)$"
+    },
+    {
+      "batch": "B3",
+      "owner": "DEFERRED until after TEST-CA (waiver W3)",
+      "count": 57,
+      "scope": "^(app/api/admin/current-affairs/articles/route\\.ts|app/api/admin/current-affairs/lookup/route\\.ts|services/admin-current-affairs\\.service\\.ts|services/current-affairs-daily-quiz\\.service\\.ts)$"
+    },
+    {
+      "batch": "B4",
+      "owner": "TYPES-1 batch B4",
+      "count": 52,
+      "scope": "^(services/admin-content-studio\\.service\\.ts|services/ai/ai-generation-orchestrator\\.service\\.ts|services/ai/curriculum-context-builder\\.service\\.ts|services/authoring-queue\\.service\\.ts|services/canonical-curriculum-blueprint\\.service\\.ts|services/content-artifact\\.service\\.ts|services/curriculum-coverage\\.service\\.ts|services/learning-asset\\.service\\.ts|services/learning/reference-catalog\\.ts)$"
+    },
+    {
+      "batch": "B5",
+      "owner": "MOVED to GAP2-4 step 0",
+      "count": 62,
+      "scope": "^(actions/exam-knowledge-import\\.actions\\.ts|actions/exam-knowledge-prompt\\.actions\\.ts|app/admin/exams/onboarding/page\\.tsx|services/academic-taxonomy\\.service\\.ts|services/exam-knowledge/admin-exam-knowledge\\.service\\.ts|services/exam-knowledge/exam-knowledge-candidate\\.service\\.ts|services/exam-knowledge/exam-knowledge-context-builder\\.service\\.ts|services/exam-syllabus-readiness\\.service\\.ts|services/exam-syllabus-reconciliation\\.service\\.ts|services/exam-syllabus-resolution\\.service\\.ts|services/exam-syllabus-tree-importer\\.service\\.ts|services/exam-syllabus\\.service\\.ts|services/operational-syllabus-reconciliation\\.service\\.ts)$"
+    },
+    {
+      "batch": "B6",
+      "owner": "TYPES-1 batch B6",
+      "count": 54,
+      "scope": "^(app/admin/actions\\.ts|components/admin/exam-onboarding/exam-management-view\\.tsx|components/layout/header\\.tsx|lib/admin/bulk-importer\\.ts|services/admin-premium\\.service\\.ts|services/admin\\.service\\.ts|services/storage/storage-factory\\.ts|services/storage/supabase-storage\\.provider\\.ts|services/taxonomy/taxonomy\\.service\\.ts)$"
+    }
+  ],
+  "values": {
+    "queryEscapes": 532,
+    "asAny": 609,
+    "colonAny": 960,
+    "unknownAs": 93,
+    "tsExpectError": 0,
+    "tsIgnore": 0
+  },
+  "updatedAt": "2026-10-15"
+}

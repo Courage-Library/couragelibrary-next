@@ -1,5 +1,5 @@
-import { SupabaseClient } from "@supabase/supabase-js";
-import { Database } from "@/types/database";
+// TYPES-1:C-ADAPTIVE-ENGINE — QUARANTINED (ADAPTIVE flag off; targets undeployed schema). Client via lib/supabase/quarantine.ts.
+import { quarantinedClient, type QuarantinedClient } from "@/lib/supabase/quarantine";
 import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import {
   AdaptiveAttemptStateRow,
@@ -25,9 +25,8 @@ export class AdaptiveEngineService {
   /**
    * Helper to acquire Supabase client (passed in or fallback to admin)
    */
-  private static async getClient(client?: SupabaseClient<Database>): Promise<SupabaseClient<Database>> {
-    if (client) return client;
-    return await createAdminServerSupabaseClient();
+  private static async getClient(client?: unknown): Promise<QuarantinedClient> {
+    return quarantinedClient(client ?? (await createAdminServerSupabaseClient()), "TYPES-1:C-ADAPTIVE-ENGINE");
   }
 
   /**
@@ -37,7 +36,7 @@ export class AdaptiveEngineService {
     userId: string,
     configId: string,
     attemptId: string,
-    client?: SupabaseClient<Database>
+    client?: unknown
   ): Promise<AdaptiveAttemptStateRow> {
     const supabase = await this.getClient(client);
 
@@ -64,7 +63,7 @@ export class AdaptiveEngineService {
       .maybeSingle();
 
     if (existingState) {
-      return existingState as unknown as AdaptiveAttemptStateRow;
+      return existingState as AdaptiveAttemptStateRow;
     }
 
     // 3. Fetch candidate prior signals (if any)
@@ -81,7 +80,7 @@ export class AdaptiveEngineService {
       : candidateSignals.overall_theta;
 
     // 4. Create initial adaptive attempt state record
-    const { data: newState, error: insertError } = await (supabase as any)
+    const { data: newState, error: insertError } = await supabase
       .from("adaptive_attempt_states")
       .insert({
         attempt_id: attemptId,
@@ -100,7 +99,7 @@ export class AdaptiveEngineService {
         stopping_policy_version: "stopping_v1_deterministic",
         personalization_policy_version: "personalization_v1_balanced",
         stopping_metadata: {},
-      } as any)
+      })
       .select()
       .single();
 
@@ -111,7 +110,7 @@ export class AdaptiveEngineService {
       );
     }
 
-    return newState as unknown as AdaptiveAttemptStateRow;
+    return newState as AdaptiveAttemptStateRow;
   }
 
   /**
@@ -120,7 +119,7 @@ export class AdaptiveEngineService {
   public static async getNextAdaptiveQuestion(
     attemptId: string,
     requestedStepNumber: number,
-    client?: SupabaseClient<Database>
+    client?: unknown
   ): Promise<SafeAdaptiveQuestionPayload> {
     const supabase = await this.getClient(client);
 
@@ -141,8 +140,8 @@ export class AdaptiveEngineService {
       );
     }
 
-    const typedState = state as unknown as AdaptiveAttemptStateRow;
-    const config = (state as any).adaptive_test_configs as AdaptiveTestConfigRow;
+    const typedState = state as AdaptiveAttemptStateRow;
+    const config = state.adaptive_test_configs as AdaptiveTestConfigRow;
 
     if (typedState.status === "completed" || typedState.status === "terminated") {
       throw new AdaptiveEngineError(
@@ -194,14 +193,14 @@ export class AdaptiveEngineService {
 
     if (stoppingEvaluation.shouldStop) {
       // Update state to stopping_rule_met
-      await (supabase as any)
+      await supabase
         .from("adaptive_attempt_states")
         .update({
           status: "stopping_rule_met",
           stopping_reason: stoppingEvaluation.reasonCode,
-          stopping_metadata: stoppingEvaluation as any,
+          stopping_metadata: stoppingEvaluation,
           updated_at: new Date().toISOString(),
-        } as any)
+        })
         .eq("id", typedState.id);
 
       throw new AdaptiveEngineError(
@@ -308,7 +307,7 @@ export class AdaptiveEngineService {
         selection_strategy: config.selection_policy
           ? ((config.selection_policy as any).strategy || "max_fisher_information")
           : "max_fisher_information",
-        decision_metadata: explainablePayload as any,
+        decision_metadata: explainablePayload,
       });
 
     if (decisionError) {
@@ -337,7 +336,7 @@ export class AdaptiveEngineService {
       .update({
         questions_served_count: requestedStepNumber,
         current_difficulty_tier: targetDifficulty,
-        sequence_history: updatedHistory as any,
+        sequence_history: updatedHistory,
         updated_at: new Date().toISOString(),
       })
       .eq("id", typedState.id);
@@ -363,7 +362,7 @@ export class AdaptiveEngineService {
     questionVersionId: string,
     selectedOptionId: string | null,
     timeSpentSeconds: number = 0,
-    client?: SupabaseClient<Database>
+    client?: unknown
   ): Promise<{
     stepNumber: number;
     isProcessed: boolean;
@@ -391,8 +390,8 @@ export class AdaptiveEngineService {
       );
     }
 
-    const typedState = state as unknown as AdaptiveAttemptStateRow;
-    const config = (state as any).adaptive_test_configs as AdaptiveTestConfigRow;
+    const typedState = state as AdaptiveAttemptStateRow;
+    const config = state.adaptive_test_configs as AdaptiveTestConfigRow;
 
     if (typedState.status === "completed" || typedState.status === "terminated") {
       throw new AdaptiveEngineError(
@@ -501,20 +500,20 @@ export class AdaptiveEngineService {
     }
 
     // 7. Save state to database
-    await (supabase as any)
+    await supabase
       .from("adaptive_attempt_states")
       .update({
         current_theta: abilityUpdate.updatedTheta,
         standard_error: abilityUpdate.updatedSe,
         correct_answers_count: newCorrectCount,
         incorrect_answers_count: newIncorrectCount,
-        sequence_history: sequenceHistory as any,
-        topic_breakdown: topicBreakdown as any,
+        sequence_history: sequenceHistory,
+        topic_breakdown: topicBreakdown,
         status: newStatus,
         stopping_reason: newStoppingReason,
-        stopping_metadata: stoppingEvaluation as any,
+        stopping_metadata: stoppingEvaluation,
         updated_at: new Date().toISOString(),
-      } as any)
+      })
       .eq("id", typedState.id);
 
     return {
@@ -533,7 +532,7 @@ export class AdaptiveEngineService {
   public static async finalizeAdaptiveAttempt(
     attemptId: string,
     reason: StoppingReason = "USER_SUBMITTED",
-    client?: SupabaseClient<Database>
+    client?: unknown
   ): Promise<{
     attemptId: string;
     status: string;
@@ -563,8 +562,8 @@ export class AdaptiveEngineService {
       );
     }
 
-    const typedState = state as unknown as AdaptiveAttemptStateRow;
-    const config = (state as any).adaptive_test_configs as AdaptiveTestConfigRow;
+    const typedState = state as AdaptiveAttemptStateRow;
+    const config = state.adaptive_test_configs as AdaptiveTestConfigRow;
 
     // Idempotency check: if attempt is already completed, return existing state without duplicate side-effects
     if (typedState.status === "completed") {
@@ -638,7 +637,7 @@ export class AdaptiveEngineService {
    */
   public static async getAdaptiveAttemptState(
     attemptId: string,
-    client?: SupabaseClient<Database>
+    client?: unknown
   ): Promise<AdaptiveAttemptStateRow> {
     const supabase = await this.getClient(client);
 
@@ -655,14 +654,14 @@ export class AdaptiveEngineService {
       );
     }
 
-    return state as unknown as AdaptiveAttemptStateRow;
+    return state as AdaptiveAttemptStateRow;
   }
 
   /**
    * Helper: Build Safe Question Payload without answer leakage
    */
   private static async buildSafeQuestionPayload(
-    supabase: SupabaseClient<Database>,
+    supabase: QuarantinedClient,
     questionVersionId: string,
     stepNumber: number,
     totalServed: number,

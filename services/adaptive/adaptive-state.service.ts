@@ -1,5 +1,5 @@
-import { SupabaseClient } from "@supabase/supabase-js";
-import { Database } from "@/types/database";
+// TYPES-1:C-ADAPTIVE-STATE — QUARANTINED (ADAPTIVE flag off; targets undeployed schema). Client via lib/supabase/quarantine.ts.
+import type { QuarantinedClient } from "@/lib/supabase/quarantine";
 import {
   AdaptiveAttemptStateRow,
   AdaptiveEngineError,
@@ -174,7 +174,7 @@ export class AdaptiveStateService {
    * Verifies if a given step number is already decided (idempotency check)
    */
   public static async getExistingStepDecision(
-    supabase: SupabaseClient<Database>,
+    supabase: QuarantinedClient,
     attemptId: string,
     stepNumber: number
   ) {
@@ -192,7 +192,7 @@ export class AdaptiveStateService {
    * Grades a candidate option submission securely against the database
    */
   public static async gradeQuestionSubmission(
-    supabase: SupabaseClient<Database>,
+    supabase: QuarantinedClient,
     questionVersionId: string,
     selectedOptionId: string | null
   ): Promise<{

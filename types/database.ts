@@ -1,3 +1,4 @@
+// GENERATED — DO NOT EDIT — regenerate with `npm run db:types` (TYPES-1; schema: public)
 export type Json =
   | string
   | number
@@ -10,220 +11,10 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17"
+    PostgrestVersion: "14.15"
   }
   public: {
     Tables: {
-      adaptive_attempt_states: {
-        Row: {
-          attempt_id: string
-          config_id: string
-          correct_answers_count: number
-          created_at: string
-          current_difficulty_tier: string
-          current_theta: number
-          id: string
-          incorrect_answers_count: number
-          questions_served_count: number
-          section_breakdown: Json
-          sequence_history: Json
-          standard_error: number
-          status: string
-          stopping_reason: string | null
-          topic_breakdown: Json
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          attempt_id: string
-          config_id: string
-          correct_answers_count?: number
-          created_at?: string
-          current_difficulty_tier?: string
-          current_theta?: number
-          id?: string
-          incorrect_answers_count?: number
-          questions_served_count?: number
-          section_breakdown?: Json
-          sequence_history?: Json
-          standard_error?: number
-          status?: string
-          stopping_reason?: string | null
-          topic_breakdown?: Json
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          attempt_id?: string
-          config_id?: string
-          correct_answers_count?: number
-          created_at?: string
-          current_difficulty_tier?: string
-          current_theta?: number
-          id?: string
-          incorrect_answers_count?: number
-          questions_served_count?: number
-          section_breakdown?: Json
-          sequence_history?: Json
-          standard_error?: number
-          status?: string
-          stopping_reason?: string | null
-          topic_breakdown?: Json
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "adaptive_attempt_states_attempt_id_fkey"
-            columns: ["attempt_id"]
-            isOneToOne: true
-            referencedRelation: "test_attempts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "adaptive_attempt_states_config_id_fkey"
-            columns: ["config_id"]
-            isOneToOne: false
-            referencedRelation: "adaptive_test_configs"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      adaptive_question_decisions: {
-        Row: {
-          attempt_id: string
-          attempt_state_id: string
-          created_at: string
-          decision_metadata: Json
-          id: string
-          question_version_id: string
-          selection_strategy: string
-          step_number: number
-          target_difficulty: string
-          target_topic_id: string | null
-          user_id: string
-        }
-        Insert: {
-          attempt_id: string
-          attempt_state_id: string
-          created_at?: string
-          decision_metadata?: Json
-          id?: string
-          question_version_id: string
-          selection_strategy?: string
-          step_number: number
-          target_difficulty?: string
-          target_topic_id?: string | null
-          user_id: string
-        }
-        Update: {
-          attempt_id?: string
-          attempt_state_id?: string
-          created_at?: string
-          decision_metadata?: Json
-          id?: string
-          question_version_id?: string
-          selection_strategy?: string
-          step_number?: number
-          target_difficulty?: string
-          target_topic_id?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "adaptive_question_decisions_attempt_id_fkey"
-            columns: ["attempt_id"]
-            isOneToOne: false
-            referencedRelation: "test_attempts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "adaptive_question_decisions_attempt_state_id_fkey"
-            columns: ["attempt_state_id"]
-            isOneToOne: false
-            referencedRelation: "adaptive_attempt_states"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "adaptive_question_decisions_question_version_id_fkey"
-            columns: ["question_version_id"]
-            isOneToOne: false
-            referencedRelation: "question_versions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      adaptive_test_configs: {
-        Row: {
-          created_at: string
-          difficulty_policy: Json
-          exam_id: string
-          id: string
-          is_active: boolean
-          max_questions: number
-          metadata: Json
-          min_questions: number
-          pattern_id: string | null
-          selection_policy: Json
-          slug: string
-          stopping_policy: Json
-          target_duration_minutes: number
-          test_type: string
-          title: string
-          topic_policy: Json
-          updated_at: string
-          version: number
-        }
-        Insert: {
-          created_at?: string
-          difficulty_policy?: Json
-          exam_id: string
-          id?: string
-          is_active?: boolean
-          max_questions?: number
-          metadata?: Json
-          min_questions?: number
-          pattern_id?: string | null
-          selection_policy?: Json
-          slug: string
-          stopping_policy?: Json
-          target_duration_minutes?: number
-          test_type?: string
-          title: string
-          topic_policy?: Json
-          updated_at?: string
-          version?: number
-        }
-        Update: {
-          created_at?: string
-          difficulty_policy?: Json
-          exam_id?: string
-          id?: string
-          is_active?: boolean
-          max_questions?: number
-          metadata?: Json
-          min_questions?: number
-          pattern_id?: string | null
-          selection_policy?: Json
-          slug?: string
-          stopping_policy?: Json
-          target_duration_minutes?: number
-          test_type?: string
-          title?: string
-          topic_policy?: Json
-          updated_at?: string
-          version?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "adaptive_test_configs_exam_id_fkey"
-            columns: ["exam_id"]
-            isOneToOne: false
-            referencedRelation: "exams"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       admin_audit_logs: {
         Row: {
           action_type: string
@@ -410,8 +201,6 @@ export type Database = {
       }
       batch_curriculum_assignments: {
         Row: {
-          topic_id_node_type: string | null
-          learning_document_id: string | null
           assigned_by_user_id: string | null
           assignment_type: string
           available_from: string
@@ -426,15 +215,15 @@ export type Database = {
           institute_id: string
           instructions_md: string | null
           is_mandatory: boolean
+          learning_document_id: string | null
           mock_test_id: string | null
           status: string
           title: string
           topic_id: string | null
+          topic_id_node_type: string | null
           updated_at: string
         }
         Insert: {
-          topic_id_node_type?: never
-          learning_document_id?: string | null
           assigned_by_user_id?: string | null
           assignment_type: string
           available_from?: string
@@ -449,14 +238,15 @@ export type Database = {
           institute_id: string
           instructions_md?: string | null
           is_mandatory?: boolean
+          learning_document_id?: string | null
           mock_test_id?: string | null
           status?: string
           title: string
           topic_id?: string | null
+          topic_id_node_type?: string | null
           updated_at?: string
         }
         Update: {
-          learning_document_id?: string | null
           assigned_by_user_id?: string | null
           assignment_type?: string
           available_from?: string
@@ -471,20 +261,15 @@ export type Database = {
           institute_id?: string
           instructions_md?: string | null
           is_mandatory?: boolean
+          learning_document_id?: string | null
           mock_test_id?: string | null
           status?: string
           title?: string
           topic_id?: string | null
+          topic_id_node_type?: string | null
           updated_at?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "batch_curriculum_assignments_learning_document_id_fkey"
-            columns: ["learning_document_id"]
-            isOneToOne: false
-            referencedRelation: "learning_documents"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "batch_curriculum_assignments_batch_id_fkey"
             columns: ["batch_id"]
@@ -518,6 +303,13 @@ export type Database = {
             columns: ["institute_id"]
             isOneToOne: false
             referencedRelation: "institutes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "batch_curriculum_assignments_learning_document_id_fkey"
+            columns: ["learning_document_id"]
+            isOneToOne: false
+            referencedRelation: "learning_documents"
             referencedColumns: ["id"]
           },
           {
@@ -673,6 +465,108 @@ export type Database = {
             columns: ["transaction_id"]
             isOneToOne: false
             referencedRelation: "payment_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      canonical_taxonomy_nodes: {
+        Row: {
+          created_at: string
+          display_order: number
+          hierarchy_path: string
+          id: string
+          is_active: boolean
+          legacy_subject_id: string | null
+          legacy_subject_id_node_type: string | null
+          legacy_subtopic_id: string | null
+          legacy_subtopic_id_node_type: string | null
+          legacy_topic_id: string | null
+          legacy_topic_id_node_type: string | null
+          metadata: Json
+          name: string
+          node_depth: number
+          node_type: string
+          parent_id: string | null
+          root_subject_id: string | null
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          hierarchy_path: string
+          id?: string
+          is_active?: boolean
+          legacy_subject_id?: string | null
+          legacy_subject_id_node_type?: string | null
+          legacy_subtopic_id?: string | null
+          legacy_subtopic_id_node_type?: string | null
+          legacy_topic_id?: string | null
+          legacy_topic_id_node_type?: string | null
+          metadata?: Json
+          name: string
+          node_depth: number
+          node_type?: string
+          parent_id?: string | null
+          root_subject_id?: string | null
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          hierarchy_path?: string
+          id?: string
+          is_active?: boolean
+          legacy_subject_id?: string | null
+          legacy_subject_id_node_type?: string | null
+          legacy_subtopic_id?: string | null
+          legacy_subtopic_id_node_type?: string | null
+          legacy_topic_id?: string | null
+          legacy_topic_id_node_type?: string | null
+          metadata?: Json
+          name?: string
+          node_depth?: number
+          node_type?: string
+          parent_id?: string | null
+          root_subject_id?: string | null
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "canonical_taxonomy_nodes_legacy_subject_id_node_fkey"
+            columns: ["legacy_subject_id", "legacy_subject_id_node_type"]
+            isOneToOne: false
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id", "node_type"]
+          },
+          {
+            foreignKeyName: "canonical_taxonomy_nodes_legacy_subtopic_id_node_fkey"
+            columns: ["legacy_subtopic_id", "legacy_subtopic_id_node_type"]
+            isOneToOne: false
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id", "node_type"]
+          },
+          {
+            foreignKeyName: "canonical_taxonomy_nodes_legacy_topic_id_node_fkey"
+            columns: ["legacy_topic_id", "legacy_topic_id_node_type"]
+            isOneToOne: false
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id", "node_type"]
+          },
+          {
+            foreignKeyName: "canonical_taxonomy_nodes_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "canonical_taxonomy_nodes_root_subject_id_fkey"
+            columns: ["root_subject_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_taxonomy_nodes"
             referencedColumns: ["id"]
           },
         ]
@@ -1009,6 +903,77 @@ export type Database = {
         }
         Relationships: []
       }
+      current_affairs_article_versions: {
+        Row: {
+          article_id: string
+          checksum_sha256: string
+          compiled_ast_json: Json | null
+          created_at: string
+          created_by: string | null
+          exam_relevance_notes: Json | null
+          headline: string
+          id: string
+          important_facts: Json
+          key_takeaways: Json
+          provenance_sources: Json
+          published_at: string | null
+          reviewed_by: string | null
+          status: string
+          summary_md: string
+          updated_at: string
+          validation_flags: Json
+          version_number: number
+        }
+        Insert: {
+          article_id: string
+          checksum_sha256: string
+          compiled_ast_json?: Json | null
+          created_at?: string
+          created_by?: string | null
+          exam_relevance_notes?: Json | null
+          headline: string
+          id?: string
+          important_facts?: Json
+          key_takeaways?: Json
+          provenance_sources?: Json
+          published_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          summary_md: string
+          updated_at?: string
+          validation_flags?: Json
+          version_number: number
+        }
+        Update: {
+          article_id?: string
+          checksum_sha256?: string
+          compiled_ast_json?: Json | null
+          created_at?: string
+          created_by?: string | null
+          exam_relevance_notes?: Json | null
+          headline?: string
+          id?: string
+          important_facts?: Json
+          key_takeaways?: Json
+          provenance_sources?: Json
+          published_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          summary_md?: string
+          updated_at?: string
+          validation_flags?: Json
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "current_affairs_article_versions_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "current_affairs_articles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       current_affairs_articles: {
         Row: {
           category: string
@@ -1020,7 +985,7 @@ export type Database = {
           news_date: string
           published_at: string | null
           published_version_id: string | null
-          slug: string
+          slug: string | null
           status: string
           updated_at: string
         }
@@ -1034,7 +999,7 @@ export type Database = {
           news_date: string
           published_at?: string | null
           published_version_id?: string | null
-          slug: string
+          slug?: string | null
           status?: string
           updated_at?: string
         }
@@ -1048,7 +1013,7 @@ export type Database = {
           news_date?: string
           published_at?: string | null
           published_version_id?: string | null
-          slug?: string
+          slug?: string | null
           status?: string
           updated_at?: string
         }
@@ -1069,73 +1034,125 @@ export type Database = {
           },
         ]
       }
-      current_affairs_article_versions: {
+      current_affairs_exam_mappings: {
         Row: {
           article_id: string
-          checksum_sha256: string
-          compiled_ast_json: Json | null
           created_at: string
-          created_by: string | null
-          exam_relevance_notes: Json
-          headline: string
+          display_priority: number
+          exam_id: string
           id: string
-          important_facts: Json
-          key_takeaways: Json
-          provenance_sources: Json
-          published_at: string | null
-          reviewed_by: string | null
-          status: string
-          summary_md: string
-          updated_at: string
-          validation_flags: Json
-          version_number: number
+          is_high_yield: boolean
+          relevance_weight: string
         }
         Insert: {
           article_id: string
-          checksum_sha256: string
-          compiled_ast_json?: Json | null
           created_at?: string
-          created_by?: string | null
-          exam_relevance_notes?: Json
-          headline: string
+          display_priority?: number
+          exam_id: string
           id?: string
-          important_facts?: Json
-          key_takeaways?: Json
-          provenance_sources?: Json
-          published_at?: string | null
-          reviewed_by?: string | null
-          status?: string
-          summary_md: string
-          updated_at?: string
-          validation_flags?: Json
-          version_number: number
+          is_high_yield?: boolean
+          relevance_weight?: string
         }
         Update: {
           article_id?: string
-          checksum_sha256?: string
-          compiled_ast_json?: Json | null
           created_at?: string
-          created_by?: string | null
-          exam_relevance_notes?: Json
-          headline?: string
+          display_priority?: number
+          exam_id?: string
           id?: string
-          important_facts?: Json
-          key_takeaways?: Json
-          provenance_sources?: Json
-          published_at?: string | null
-          reviewed_by?: string | null
-          status?: string
-          summary_md?: string
-          updated_at?: string
-          validation_flags?: Json
-          version_number?: number
+          is_high_yield?: boolean
+          relevance_weight?: string
         }
         Relationships: [
           {
-            foreignKeyName: "current_affairs_article_versions_article_id_fkey"
+            foreignKeyName: "current_affairs_exam_mappings_article_id_fkey"
             columns: ["article_id"]
             isOneToOne: false
             referencedRelation: "current_affairs_articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "current_affairs_exam_mappings_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      current_affairs_learning_mappings: {
+        Row: {
+          article_id: string
+          created_at: string
+          display_order: number
+          id: string
+          learning_document_id: string
+        }
+        Insert: {
+          article_id: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          learning_document_id: string
+        }
+        Update: {
+          article_id?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          learning_document_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "current_affairs_learning_mappings_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "current_affairs_articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "current_affairs_learning_mappings_learning_document_id_fkey"
+            columns: ["learning_document_id"]
+            isOneToOne: false
+            referencedRelation: "learning_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      current_affairs_question_mappings: {
+        Row: {
+          article_id: string
+          created_at: string
+          display_order: number
+          id: string
+          question_id: string
+        }
+        Insert: {
+          article_id: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          question_id: string
+        }
+        Update: {
+          article_id?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          question_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "current_affairs_question_mappings_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "current_affairs_articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "current_affairs_question_mappings_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "questions"
             referencedColumns: ["id"]
           },
         ]
@@ -1226,129 +1243,6 @@ export type Database = {
           },
         ]
       }
-      current_affairs_question_mappings: {
-        Row: {
-          article_id: string
-          created_at: string
-          display_order: number
-          id: string
-          question_id: string
-        }
-        Insert: {
-          article_id: string
-          created_at?: string
-          display_order?: number
-          id?: string
-          question_id: string
-        }
-        Update: {
-          article_id?: string
-          created_at?: string
-          display_order?: number
-          id?: string
-          question_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "current_affairs_question_mappings_article_id_fkey"
-            columns: ["article_id"]
-            isOneToOne: false
-            referencedRelation: "current_affairs_articles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "current_affairs_question_mappings_question_id_fkey"
-            columns: ["question_id"]
-            isOneToOne: false
-            referencedRelation: "questions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      current_affairs_learning_mappings: {
-        Row: {
-          article_id: string
-          created_at: string
-          display_order: number
-          id: string
-          learning_document_id: string
-        }
-        Insert: {
-          article_id: string
-          created_at?: string
-          display_order?: number
-          id?: string
-          learning_document_id: string
-        }
-        Update: {
-          article_id?: string
-          created_at?: string
-          display_order?: number
-          id?: string
-          learning_document_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "current_affairs_learning_mappings_article_id_fkey"
-            columns: ["article_id"]
-            isOneToOne: false
-            referencedRelation: "current_affairs_articles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "current_affairs_learning_mappings_learning_document_id_fkey"
-            columns: ["learning_document_id"]
-            isOneToOne: false
-            referencedRelation: "learning_documents"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      current_affairs_exam_mappings: {
-        Row: {
-          article_id: string
-          created_at: string
-          display_priority: number
-          exam_id: string
-          id: string
-          is_high_yield: boolean
-          relevance_weight: string
-        }
-        Insert: {
-          article_id: string
-          created_at?: string
-          display_priority?: number
-          exam_id: string
-          id?: string
-          is_high_yield?: boolean
-          relevance_weight?: string
-        }
-        Update: {
-          article_id?: string
-          created_at?: string
-          display_priority?: number
-          exam_id?: string
-          id?: string
-          is_high_yield?: boolean
-          relevance_weight?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "current_affairs_exam_mappings_article_id_fkey"
-            columns: ["article_id"]
-            isOneToOne: false
-            referencedRelation: "current_affairs_articles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "current_affairs_exam_mappings_exam_id_fkey"
-            columns: ["exam_id"]
-            isOneToOne: false
-            referencedRelation: "exams"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       custom_practice_sessions: {
         Row: {
           accuracy_pct: number | null
@@ -1407,7 +1301,6 @@ export type Database = {
       }
       daily_study_recommendations: {
         Row: {
-          topic_id_node_type: string | null
           action_type: string
           completed_at: string | null
           course_lesson_id: string | null
@@ -1416,19 +1309,19 @@ export type Database = {
           engine_version: string
           generated_at: string
           id: string
+          learning_document_id: string | null
           priority_rank: number
           priority_score: number
           reason_code: string
           reason_text_snapshot: string
           recommendation_date: string
-          learning_document_id: string | null
           signal_snapshot_json: Json
           status: string
           topic_id: string | null
+          topic_id_node_type: string | null
           user_id: string
         }
         Insert: {
-          topic_id_node_type?: never
           action_type: string
           completed_at?: string | null
           course_lesson_id?: string | null
@@ -1437,15 +1330,16 @@ export type Database = {
           engine_version?: string
           generated_at?: string
           id?: string
+          learning_document_id?: string | null
           priority_rank: number
           priority_score: number
           reason_code: string
           reason_text_snapshot: string
           recommendation_date?: string
-          learning_document_id?: string | null
           signal_snapshot_json?: Json
           status?: string
           topic_id?: string | null
+          topic_id_node_type?: string | null
           user_id: string
         }
         Update: {
@@ -1457,15 +1351,16 @@ export type Database = {
           engine_version?: string
           generated_at?: string
           id?: string
+          learning_document_id?: string | null
           priority_rank?: number
           priority_score?: number
           reason_code?: string
           reason_text_snapshot?: string
           recommendation_date?: string
-          learning_document_id?: string | null
           signal_snapshot_json?: Json
           status?: string
           topic_id?: string | null
+          topic_id_node_type?: string | null
           user_id?: string
         }
         Relationships: [
@@ -1501,8 +1396,6 @@ export type Database = {
       }
       descriptive_questions: {
         Row: {
-          topic_id_node_type: string | null
-          subject_id_node_type: string | null
           created_at: string
           difficulty: string
           evaluation_guidelines_md: string | null
@@ -1514,16 +1407,16 @@ export type Database = {
           question_text: string
           slug: string
           subject_id: string | null
+          subject_id_node_type: string | null
           time_limit_minutes: number | null
           title: string
           topic_id: string | null
+          topic_id_node_type: string | null
           updated_at: string
           word_limit_max: number
           word_limit_min: number | null
         }
         Insert: {
-          topic_id_node_type?: never
-          subject_id_node_type?: never
           created_at?: string
           difficulty?: string
           evaluation_guidelines_md?: string | null
@@ -1535,9 +1428,11 @@ export type Database = {
           question_text: string
           slug: string
           subject_id?: string | null
+          subject_id_node_type?: string | null
           time_limit_minutes?: number | null
           title: string
           topic_id?: string | null
+          topic_id_node_type?: string | null
           updated_at?: string
           word_limit_max?: number
           word_limit_min?: number | null
@@ -1554,9 +1449,11 @@ export type Database = {
           question_text?: string
           slug?: string
           subject_id?: string | null
+          subject_id_node_type?: string | null
           time_limit_minutes?: number | null
           title?: string
           topic_id?: string | null
+          topic_id_node_type?: string | null
           updated_at?: string
           word_limit_max?: number
           word_limit_min?: number | null
@@ -1800,9 +1697,7 @@ export type Database = {
       }
       discussion_threads: {
         Row: {
-          topic_id_node_type: string | null
           accepted_answer_id: string | null
-          learning_document_id: string | null
           author_id: string
           context_type: string
           created_at: string
@@ -1810,20 +1705,20 @@ export type Database = {
           id: string
           is_pinned: boolean
           last_activity_at: string
+          learning_document_id: string | null
           lesson_id: string | null
           message_count: number
           question_id: string | null
           status: string
           title: string
           topic_id: string | null
+          topic_id_node_type: string | null
           updated_at: string
           upvote_count: number
           view_count: number
         }
         Insert: {
-          topic_id_node_type?: never
           accepted_answer_id?: string | null
-          learning_document_id?: string | null
           author_id: string
           context_type: string
           created_at?: string
@@ -1831,19 +1726,20 @@ export type Database = {
           id?: string
           is_pinned?: boolean
           last_activity_at?: string
+          learning_document_id?: string | null
           lesson_id?: string | null
           message_count?: number
           question_id?: string | null
           status?: string
           title: string
           topic_id?: string | null
+          topic_id_node_type?: string | null
           updated_at?: string
           upvote_count?: number
           view_count?: number
         }
         Update: {
           accepted_answer_id?: string | null
-          learning_document_id?: string | null
           author_id?: string
           context_type?: string
           created_at?: string
@@ -1851,12 +1747,14 @@ export type Database = {
           id?: string
           is_pinned?: boolean
           last_activity_at?: string
+          learning_document_id?: string | null
           lesson_id?: string | null
           message_count?: number
           question_id?: string | null
           status?: string
           title?: string
           topic_id?: string | null
+          topic_id_node_type?: string | null
           updated_at?: string
           upvote_count?: number
           view_count?: number
@@ -1924,6 +1822,74 @@ export type Database = {
             columns: ["message_id"]
             isOneToOne: false
             referencedRelation: "discussion_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_versions: {
+        Row: {
+          approved_by_user_id: string | null
+          author_type: string
+          compiled_artifact_hash: string
+          compiled_artifact_storage_key: string
+          compiler_version: string
+          component_contract_version: string
+          created_at: string
+          document_id: string
+          id: string
+          is_published: boolean
+          published_at: string | null
+          review_status: string
+          schema_version: string
+          source_spec_hash: string
+          source_spec_storage_key: string
+          updated_at: string
+          version_number: number
+        }
+        Insert: {
+          approved_by_user_id?: string | null
+          author_type?: string
+          compiled_artifact_hash: string
+          compiled_artifact_storage_key: string
+          compiler_version?: string
+          component_contract_version?: string
+          created_at?: string
+          document_id: string
+          id?: string
+          is_published?: boolean
+          published_at?: string | null
+          review_status?: string
+          schema_version?: string
+          source_spec_hash: string
+          source_spec_storage_key: string
+          updated_at?: string
+          version_number: number
+        }
+        Update: {
+          approved_by_user_id?: string | null
+          author_type?: string
+          compiled_artifact_hash?: string
+          compiled_artifact_storage_key?: string
+          compiler_version?: string
+          component_contract_version?: string
+          created_at?: string
+          document_id?: string
+          id?: string
+          is_published?: boolean
+          published_at?: string | null
+          review_status?: string
+          schema_version?: string
+          source_spec_hash?: string
+          source_spec_storage_key?: string
+          updated_at?: string
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_versions_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "learning_documents"
             referencedColumns: ["id"]
           },
         ]
@@ -2041,6 +2007,109 @@ export type Database = {
           },
         ]
       }
+      exam_claim_sources: {
+        Row: {
+          claim_id: string
+          created_at: string
+          page_or_clause_reference: string | null
+          source_id: string
+        }
+        Insert: {
+          claim_id: string
+          created_at?: string
+          page_or_clause_reference?: string | null
+          source_id: string
+        }
+        Update: {
+          claim_id?: string
+          created_at?: string
+          page_or_clause_reference?: string | null
+          source_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_claim_sources_claim_id_fkey"
+            columns: ["claim_id"]
+            isOneToOne: false
+            referencedRelation: "exam_claims"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_claim_sources_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "exam_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exam_claims: {
+        Row: {
+          claim_key: string
+          created_at: string
+          doc_version_id: string | null
+          effective_end_date: string | null
+          effective_start_date: string | null
+          exam_cycle_id: string | null
+          exam_id: string
+          id: string
+          stated_value: string
+          updated_at: string
+          value_data_type: string
+          verification_status: string
+        }
+        Insert: {
+          claim_key: string
+          created_at?: string
+          doc_version_id?: string | null
+          effective_end_date?: string | null
+          effective_start_date?: string | null
+          exam_cycle_id?: string | null
+          exam_id: string
+          id?: string
+          stated_value: string
+          updated_at?: string
+          value_data_type?: string
+          verification_status?: string
+        }
+        Update: {
+          claim_key?: string
+          created_at?: string
+          doc_version_id?: string | null
+          effective_end_date?: string | null
+          effective_start_date?: string | null
+          exam_cycle_id?: string | null
+          exam_id?: string
+          id?: string
+          stated_value?: string
+          updated_at?: string
+          value_data_type?: string
+          verification_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_claims_doc_version_id_fkey"
+            columns: ["doc_version_id"]
+            isOneToOne: false
+            referencedRelation: "exam_doc_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_claims_exam_cycle_id_fkey"
+            columns: ["exam_cycle_id"]
+            isOneToOne: false
+            referencedRelation: "exam_cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_claims_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exam_cutoff_benchmarks: {
         Row: {
           category: string
@@ -2148,6 +2217,141 @@ export type Database = {
           },
         ]
       }
+      exam_doc_versions: {
+        Row: {
+          approved_by_user_id: string | null
+          author_type: string
+          compiled_artifact_hash: string | null
+          compiled_artifact_storage_key: string | null
+          compiled_mdx: string | null
+          created_at: string
+          document_id: string
+          id: string
+          is_published: boolean
+          published_at: string | null
+          review_feedback: string | null
+          review_status: string
+          reviewed_at: string | null
+          schema_version: string
+          source_spec_hash: string | null
+          source_spec_storage_key: string | null
+          structured_payload: Json
+          updated_at: string
+          version_number: number
+        }
+        Insert: {
+          approved_by_user_id?: string | null
+          author_type?: string
+          compiled_artifact_hash?: string | null
+          compiled_artifact_storage_key?: string | null
+          compiled_mdx?: string | null
+          created_at?: string
+          document_id: string
+          id?: string
+          is_published?: boolean
+          published_at?: string | null
+          review_feedback?: string | null
+          review_status?: string
+          reviewed_at?: string | null
+          schema_version?: string
+          source_spec_hash?: string | null
+          source_spec_storage_key?: string | null
+          structured_payload?: Json
+          updated_at?: string
+          version_number?: number
+        }
+        Update: {
+          approved_by_user_id?: string | null
+          author_type?: string
+          compiled_artifact_hash?: string | null
+          compiled_artifact_storage_key?: string | null
+          compiled_mdx?: string | null
+          created_at?: string
+          document_id?: string
+          id?: string
+          is_published?: boolean
+          published_at?: string | null
+          review_feedback?: string | null
+          review_status?: string
+          reviewed_at?: string | null
+          schema_version?: string
+          source_spec_hash?: string | null
+          source_spec_storage_key?: string | null
+          structured_payload?: Json
+          updated_at?: string
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_doc_versions_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "exam_knowledge_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exam_knowledge_documents: {
+        Row: {
+          canonical_slug: string
+          created_at: string
+          current_published_version_id: string | null
+          exam_cycle_id: string | null
+          exam_id: string
+          id: string
+          language: string
+          module_key: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          canonical_slug: string
+          created_at?: string
+          current_published_version_id?: string | null
+          exam_cycle_id?: string | null
+          exam_id: string
+          id?: string
+          language?: string
+          module_key: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          canonical_slug?: string
+          created_at?: string
+          current_published_version_id?: string | null
+          exam_cycle_id?: string | null
+          exam_id?: string
+          id?: string
+          language?: string
+          module_key?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_knowledge_documents_exam_cycle_id_fkey"
+            columns: ["exam_cycle_id"]
+            isOneToOne: false
+            referencedRelation: "exam_cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_knowledge_documents_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_exam_docs_current_pub_version"
+            columns: ["current_published_version_id"]
+            isOneToOne: false
+            referencedRelation: "exam_doc_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exam_patterns: {
         Row: {
           created_at: string
@@ -2207,6 +2411,71 @@ export type Database = {
           },
         ]
       }
+      exam_posts: {
+        Row: {
+          classification_group: string | null
+          cpc_basic_pay_max: number | null
+          cpc_basic_pay_min: number | null
+          created_at: string
+          department: string | null
+          display_order: number
+          exam_id: string
+          grade_pay: number | null
+          id: string
+          is_active: boolean
+          is_gazetted: boolean
+          ministry: string | null
+          pay_level: number
+          post_code: string | null
+          post_name: string
+          updated_at: string
+        }
+        Insert: {
+          classification_group?: string | null
+          cpc_basic_pay_max?: number | null
+          cpc_basic_pay_min?: number | null
+          created_at?: string
+          department?: string | null
+          display_order?: number
+          exam_id: string
+          grade_pay?: number | null
+          id?: string
+          is_active?: boolean
+          is_gazetted?: boolean
+          ministry?: string | null
+          pay_level?: number
+          post_code?: string | null
+          post_name: string
+          updated_at?: string
+        }
+        Update: {
+          classification_group?: string | null
+          cpc_basic_pay_max?: number | null
+          cpc_basic_pay_min?: number | null
+          created_at?: string
+          department?: string | null
+          display_order?: number
+          exam_id?: string
+          grade_pay?: number | null
+          id?: string
+          is_active?: boolean
+          is_gazetted?: boolean
+          ministry?: string | null
+          pay_level?: number
+          post_code?: string | null
+          post_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_posts_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exam_question_mappings: {
         Row: {
           created_at: string
@@ -2242,6 +2511,78 @@ export type Database = {
             columns: ["question_id"]
             isOneToOne: false
             referencedRelation: "questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exam_sources: {
+        Row: {
+          created_at: string
+          document_checksum: string | null
+          effective_date: string | null
+          exam_cycle_id: string | null
+          exam_id: string
+          id: string
+          issuing_authority: string
+          notes: string | null
+          published_date: string | null
+          source_type: string
+          source_url: string
+          title: string
+          updated_at: string
+          verification_status: string
+          verified_at: string | null
+          verified_by_user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          document_checksum?: string | null
+          effective_date?: string | null
+          exam_cycle_id?: string | null
+          exam_id: string
+          id?: string
+          issuing_authority: string
+          notes?: string | null
+          published_date?: string | null
+          source_type: string
+          source_url: string
+          title: string
+          updated_at?: string
+          verification_status?: string
+          verified_at?: string | null
+          verified_by_user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          document_checksum?: string | null
+          effective_date?: string | null
+          exam_cycle_id?: string | null
+          exam_id?: string
+          id?: string
+          issuing_authority?: string
+          notes?: string | null
+          published_date?: string | null
+          source_type?: string
+          source_url?: string
+          title?: string
+          updated_at?: string
+          verification_status?: string
+          verified_at?: string | null
+          verified_by_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_sources_exam_cycle_id_fkey"
+            columns: ["exam_cycle_id"]
+            isOneToOne: false
+            referencedRelation: "exam_cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_sources_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
             referencedColumns: ["id"]
           },
         ]
@@ -2284,38 +2625,241 @@ export type Database = {
           },
         ]
       }
+      exam_syllabus_canonical_mappings: {
+        Row: {
+          candidate_matches: Json | null
+          canonical_node_id: string | null
+          created_at: string
+          id: string
+          match_confidence: number
+          match_method: string | null
+          match_notes: string | null
+          match_status: string
+          reconciliation_metadata: Json | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          syllabus_node_id: string
+          updated_at: string
+        }
+        Insert: {
+          candidate_matches?: Json | null
+          canonical_node_id?: string | null
+          created_at?: string
+          id?: string
+          match_confidence?: number
+          match_method?: string | null
+          match_notes?: string | null
+          match_status: string
+          reconciliation_metadata?: Json | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          syllabus_node_id: string
+          updated_at?: string
+        }
+        Update: {
+          candidate_matches?: Json | null
+          canonical_node_id?: string | null
+          created_at?: string
+          id?: string
+          match_confidence?: number
+          match_method?: string | null
+          match_notes?: string | null
+          match_status?: string
+          reconciliation_metadata?: Json | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          syllabus_node_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_syllabus_canonical_mappings_canonical_node_id_fkey"
+            columns: ["canonical_node_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_syllabus_canonical_mappings_syllabus_node_id_fkey"
+            columns: ["syllabus_node_id"]
+            isOneToOne: true
+            referencedRelation: "exam_syllabus_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exam_syllabus_nodes: {
+        Row: {
+          created_at: string
+          display_order: number
+          expected_questions_max: number | null
+          expected_questions_min: number | null
+          id: string
+          is_mandatory: boolean
+          node_depth: number
+          parent_node_id: string | null
+          raw_slug: string
+          raw_title: string
+          required_cognitive_depth: string | null
+          syllabus_version_id: string
+          updated_at: string
+          weightage_tier: string | null
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          expected_questions_max?: number | null
+          expected_questions_min?: number | null
+          id?: string
+          is_mandatory?: boolean
+          node_depth: number
+          parent_node_id?: string | null
+          raw_slug: string
+          raw_title: string
+          required_cognitive_depth?: string | null
+          syllabus_version_id: string
+          updated_at?: string
+          weightage_tier?: string | null
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          expected_questions_max?: number | null
+          expected_questions_min?: number | null
+          id?: string
+          is_mandatory?: boolean
+          node_depth?: number
+          parent_node_id?: string | null
+          raw_slug?: string
+          raw_title?: string
+          required_cognitive_depth?: string | null
+          syllabus_version_id?: string
+          updated_at?: string
+          weightage_tier?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_syllabus_nodes_parent_node_id_fkey"
+            columns: ["parent_node_id"]
+            isOneToOne: false
+            referencedRelation: "exam_syllabus_nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_syllabus_nodes_syllabus_version_id_fkey"
+            columns: ["syllabus_version_id"]
+            isOneToOne: false
+            referencedRelation: "exam_syllabus_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exam_syllabus_versions: {
+        Row: {
+          created_at: string
+          exam_cycle_id: string | null
+          exam_id: string
+          id: string
+          is_active: boolean
+          metadata: Json
+          raw_payload_hash: string
+          source_document_id: string | null
+          status: string
+          updated_at: string
+          version_tag: string
+        }
+        Insert: {
+          created_at?: string
+          exam_cycle_id?: string | null
+          exam_id: string
+          id?: string
+          is_active?: boolean
+          metadata?: Json
+          raw_payload_hash: string
+          source_document_id?: string | null
+          status?: string
+          updated_at?: string
+          version_tag: string
+        }
+        Update: {
+          created_at?: string
+          exam_cycle_id?: string | null
+          exam_id?: string
+          id?: string
+          is_active?: boolean
+          metadata?: Json
+          raw_payload_hash?: string
+          source_document_id?: string | null
+          status?: string
+          updated_at?: string
+          version_tag?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_syllabus_versions_exam_cycle_id_fkey"
+            columns: ["exam_cycle_id"]
+            isOneToOne: false
+            referencedRelation: "exam_cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_syllabus_versions_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_syllabus_versions_source_document_id_fkey"
+            columns: ["source_document_id"]
+            isOneToOne: false
+            referencedRelation: "exam_knowledge_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exam_topics: {
         Row: {
-          topic_id_node_type: string | null
           created_at: string
           expected_questions: number | null
           id: string
+          is_mandatory: boolean
           notes: string | null
           priority: number
+          required_depth: string
           syllabus_id: string
           topic_id: string
+          topic_id_node_type: string | null
           weightage_level: string
+          weightage_override: number | null
         }
         Insert: {
-          topic_id_node_type?: never
           created_at?: string
           expected_questions?: number | null
           id?: string
+          is_mandatory?: boolean
           notes?: string | null
           priority?: number
+          required_depth?: string
           syllabus_id: string
           topic_id: string
+          topic_id_node_type?: string | null
           weightage_level?: string
+          weightage_override?: number | null
         }
         Update: {
           created_at?: string
           expected_questions?: number | null
           id?: string
+          is_mandatory?: boolean
           notes?: string | null
           priority?: number
+          required_depth?: string
           syllabus_id?: string
           topic_id?: string
+          topic_id_node_type?: string | null
           weightage_level?: string
+          weightage_override?: number | null
         }
         Relationships: [
           {
@@ -2331,6 +2875,51 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "canonical_taxonomy_nodes"
             referencedColumns: ["id", "node_type"]
+          },
+        ]
+      }
+      exam_unit_mappings: {
+        Row: {
+          created_at: string
+          exam_topic_id: string
+          id: string
+          is_active: boolean
+          is_exam_core: boolean
+          learning_unit_id: string
+          sequence_order: number
+        }
+        Insert: {
+          created_at?: string
+          exam_topic_id: string
+          id?: string
+          is_active?: boolean
+          is_exam_core?: boolean
+          learning_unit_id: string
+          sequence_order?: number
+        }
+        Update: {
+          created_at?: string
+          exam_topic_id?: string
+          id?: string
+          is_active?: boolean
+          is_exam_core?: boolean
+          learning_unit_id?: string
+          sequence_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_unit_mappings_exam_topic_id_fkey"
+            columns: ["exam_topic_id"]
+            isOneToOne: false
+            referencedRelation: "exam_topics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_unit_mappings_learning_unit_id_fkey"
+            columns: ["learning_unit_id"]
+            isOneToOne: false
+            referencedRelation: "learning_units"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -2380,8 +2969,6 @@ export type Database = {
       }
       flashcard_decks: {
         Row: {
-          topic_id_node_type: string | null
-          subject_id_node_type: string | null
           access_tier: string
           author_id: string | null
           card_count: number
@@ -2393,14 +2980,14 @@ export type Database = {
           is_published: boolean
           slug: string
           subject_id: string | null
+          subject_id_node_type: string | null
           title_en: string
           title_hi: string | null
           topic_id: string | null
+          topic_id_node_type: string | null
           updated_at: string
         }
         Insert: {
-          topic_id_node_type?: never
-          subject_id_node_type?: never
           access_tier?: string
           author_id?: string | null
           card_count?: number
@@ -2412,9 +2999,11 @@ export type Database = {
           is_published?: boolean
           slug: string
           subject_id?: string | null
+          subject_id_node_type?: string | null
           title_en: string
           title_hi?: string | null
           topic_id?: string | null
+          topic_id_node_type?: string | null
           updated_at?: string
         }
         Update: {
@@ -2429,9 +3018,11 @@ export type Database = {
           is_published?: boolean
           slug?: string
           subject_id?: string | null
+          subject_id_node_type?: string | null
           title_en?: string
           title_hi?: string | null
           topic_id?: string | null
+          topic_id_node_type?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -2740,7 +3331,6 @@ export type Database = {
       }
       learning_activity_events: {
         Row: {
-          topic_id_node_type: string | null
           event_type: string
           id: string
           metadata: Json | null
@@ -2748,10 +3338,10 @@ export type Database = {
           resource_slug: string
           time_spent_seconds: number
           topic_id: string
+          topic_id_node_type: string | null
           user_id: string
         }
         Insert: {
-          topic_id_node_type?: never
           event_type: string
           id?: string
           metadata?: Json | null
@@ -2759,6 +3349,7 @@ export type Database = {
           resource_slug: string
           time_spent_seconds?: number
           topic_id: string
+          topic_id_node_type?: string | null
           user_id: string
         }
         Update: {
@@ -2769,11 +3360,324 @@ export type Database = {
           resource_slug?: string
           time_spent_seconds?: number
           topic_id?: string
+          topic_id_node_type?: string | null
           user_id?: string
         }
         Relationships: [
           {
             foreignKeyName: "learning_activity_events_topic_id_node_fkey"
+            columns: ["topic_id", "topic_id_node_type"]
+            isOneToOne: false
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id", "node_type"]
+          },
+        ]
+      }
+      learning_assets: {
+        Row: {
+          access_class: string
+          alt_text: string
+          aspect_ratio: number | null
+          asset_type: string
+          attribution: string | null
+          byte_size: number
+          caption: string | null
+          created_at: string
+          height: number | null
+          id: string
+          is_sanitized_svg: boolean
+          language: string
+          mime_type: string
+          original_filename: string | null
+          sha256_hash: string
+          status: string
+          storage_bucket: string
+          storage_key: string
+          storage_provider: string
+          updated_at: string
+          width: number | null
+        }
+        Insert: {
+          access_class?: string
+          alt_text: string
+          aspect_ratio?: number | null
+          asset_type: string
+          attribution?: string | null
+          byte_size: number
+          caption?: string | null
+          created_at?: string
+          height?: number | null
+          id?: string
+          is_sanitized_svg?: boolean
+          language?: string
+          mime_type: string
+          original_filename?: string | null
+          sha256_hash: string
+          status?: string
+          storage_bucket?: string
+          storage_key: string
+          storage_provider?: string
+          updated_at?: string
+          width?: number | null
+        }
+        Update: {
+          access_class?: string
+          alt_text?: string
+          aspect_ratio?: number | null
+          asset_type?: string
+          attribution?: string | null
+          byte_size?: number
+          caption?: string | null
+          created_at?: string
+          height?: number | null
+          id?: string
+          is_sanitized_svg?: boolean
+          language?: string
+          mime_type?: string
+          original_filename?: string | null
+          sha256_hash?: string
+          status?: string
+          storage_bucket?: string
+          storage_key?: string
+          storage_provider?: string
+          updated_at?: string
+          width?: number | null
+        }
+        Relationships: []
+      }
+      learning_content_artifacts: {
+        Row: {
+          access_class: string
+          artifact_type: string
+          byte_size: number
+          compiler_version: string
+          content_version_id: string | null
+          created_at: string
+          id: string
+          is_renderable: boolean
+          is_source_artifact: boolean
+          language: string
+          learning_unit_id: string
+          mime_type: string
+          published_at: string | null
+          schema_version: string
+          sha256_hash: string
+          status: string
+          storage_bucket: string
+          storage_key: string
+          storage_provider: string
+          updated_at: string
+        }
+        Insert: {
+          access_class?: string
+          artifact_type: string
+          byte_size: number
+          compiler_version?: string
+          content_version_id?: string | null
+          created_at?: string
+          id?: string
+          is_renderable?: boolean
+          is_source_artifact?: boolean
+          language?: string
+          learning_unit_id: string
+          mime_type?: string
+          published_at?: string | null
+          schema_version?: string
+          sha256_hash: string
+          status?: string
+          storage_bucket?: string
+          storage_key: string
+          storage_provider?: string
+          updated_at?: string
+        }
+        Update: {
+          access_class?: string
+          artifact_type?: string
+          byte_size?: number
+          compiler_version?: string
+          content_version_id?: string | null
+          created_at?: string
+          id?: string
+          is_renderable?: boolean
+          is_source_artifact?: boolean
+          language?: string
+          learning_unit_id?: string
+          mime_type?: string
+          published_at?: string | null
+          schema_version?: string
+          sha256_hash?: string
+          status?: string
+          storage_bucket?: string
+          storage_key?: string
+          storage_provider?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "learning_content_artifacts_learning_unit_id_fkey"
+            columns: ["learning_unit_id"]
+            isOneToOne: false
+            referencedRelation: "learning_units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      learning_documents: {
+        Row: {
+          access_level: string
+          canonical_slug: string
+          created_at: string
+          current_published_version_id: string | null
+          document_type: string
+          id: string
+          learning_unit_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          access_level?: string
+          canonical_slug: string
+          created_at?: string
+          current_published_version_id?: string | null
+          document_type: string
+          id?: string
+          learning_unit_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          access_level?: string
+          canonical_slug?: string
+          created_at?: string
+          current_published_version_id?: string | null
+          document_type?: string
+          id?: string
+          learning_unit_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_learning_doc_current_published_version"
+            columns: ["current_published_version_id"]
+            isOneToOne: false
+            referencedRelation: "document_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "learning_documents_learning_unit_id_fkey"
+            columns: ["learning_unit_id"]
+            isOneToOne: false
+            referencedRelation: "learning_units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      learning_unit_asset_bindings: {
+        Row: {
+          artifact_id: string | null
+          asset_id: string
+          created_at: string
+          id: string
+          learning_unit_id: string
+          usage_context: string
+        }
+        Insert: {
+          artifact_id?: string | null
+          asset_id: string
+          created_at?: string
+          id?: string
+          learning_unit_id: string
+          usage_context?: string
+        }
+        Update: {
+          artifact_id?: string | null
+          asset_id?: string
+          created_at?: string
+          id?: string
+          learning_unit_id?: string
+          usage_context?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "learning_unit_asset_bindings_artifact_id_fkey"
+            columns: ["artifact_id"]
+            isOneToOne: false
+            referencedRelation: "learning_content_artifacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "learning_unit_asset_bindings_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "learning_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "learning_unit_asset_bindings_learning_unit_id_fkey"
+            columns: ["learning_unit_id"]
+            isOneToOne: false
+            referencedRelation: "learning_units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      learning_units: {
+        Row: {
+          created_at: string
+          display_order: number
+          estimated_minutes: number
+          id: string
+          is_active: boolean
+          slug: string
+          subtopic_id: string | null
+          subtopic_id_node_type: string | null
+          title: string
+          topic_id: string
+          topic_id_node_type: string | null
+          unit_type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          estimated_minutes?: number
+          id?: string
+          is_active?: boolean
+          slug: string
+          subtopic_id?: string | null
+          subtopic_id_node_type?: string | null
+          title: string
+          topic_id: string
+          topic_id_node_type?: string | null
+          unit_type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          estimated_minutes?: number
+          id?: string
+          is_active?: boolean
+          slug?: string
+          subtopic_id?: string | null
+          subtopic_id_node_type?: string | null
+          title?: string
+          topic_id?: string
+          topic_id_node_type?: string | null
+          unit_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "learning_units_subtopic_id_node_fkey"
+            columns: ["subtopic_id", "subtopic_id_node_type"]
+            isOneToOne: false
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id", "node_type"]
+          },
+          {
+            foreignKeyName: "learning_units_topic_id_node_fkey"
             columns: ["topic_id", "topic_id_node_type"]
             isOneToOne: false
             referencedRelation: "canonical_taxonomy_nodes"
@@ -2871,7 +3775,6 @@ export type Database = {
       }
       mock_sections: {
         Row: {
-          subject_id_node_type: string | null
           created_at: string
           duration_minutes: number | null
           id: string
@@ -2882,9 +3785,9 @@ export type Database = {
           section_name: string
           section_order: number
           subject_id: string
+          subject_id_node_type: string | null
         }
         Insert: {
-          subject_id_node_type?: never
           created_at?: string
           duration_minutes?: number | null
           id?: string
@@ -2895,6 +3798,7 @@ export type Database = {
           section_name: string
           section_order?: number
           subject_id: string
+          subject_id_node_type?: string | null
         }
         Update: {
           created_at?: string
@@ -2907,6 +3811,7 @@ export type Database = {
           section_name?: string
           section_order?: number
           subject_id?: string
+          subject_id_node_type?: string | null
         }
         Relationships: [
           {
@@ -3120,7 +4025,6 @@ export type Database = {
       }
       pattern_sections: {
         Row: {
-          subject_id_node_type: string | null
           created_at: string
           id: string
           instructions: string | null
@@ -3133,10 +4037,10 @@ export type Database = {
           section_name: string
           section_order: number
           subject_id: string
+          subject_id_node_type: string | null
           updated_at: string
         }
         Insert: {
-          subject_id_node_type?: never
           created_at?: string
           id?: string
           instructions?: string | null
@@ -3149,6 +4053,7 @@ export type Database = {
           section_name: string
           section_order?: number
           subject_id: string
+          subject_id_node_type?: string | null
           updated_at?: string
         }
         Update: {
@@ -3164,6 +4069,7 @@ export type Database = {
           section_name?: string
           section_order?: number
           subject_id?: string
+          subject_id_node_type?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -3541,7 +4447,6 @@ export type Database = {
       }
       question_import_batches: {
         Row: {
-          target_topic_id_node_type: string | null
           accepted_count: number
           context_hash: string | null
           contract_version: string | null
@@ -3554,9 +4459,9 @@ export type Database = {
           submitted_count: number
           target_exam_id: string | null
           target_topic_id: string
+          target_topic_id_node_type: string | null
         }
         Insert: {
-          target_topic_id_node_type?: never
           accepted_count?: number
           context_hash?: string | null
           contract_version?: string | null
@@ -3569,6 +4474,7 @@ export type Database = {
           submitted_count?: number
           target_exam_id?: string | null
           target_topic_id: string
+          target_topic_id_node_type?: string | null
         }
         Update: {
           accepted_count?: number
@@ -3583,8 +4489,24 @@ export type Database = {
           submitted_count?: number
           target_exam_id?: string | null
           target_topic_id?: string
+          target_topic_id_node_type?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "question_import_batches_target_exam_id_fkey"
+            columns: ["target_exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_import_batches_target_topic_id_node_fkey"
+            columns: ["target_topic_id", "target_topic_id_node_type"]
+            isOneToOne: false
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id", "node_type"]
+          },
+        ]
       }
       question_options: {
         Row: {
@@ -3726,6 +4648,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "question_version_authoring_import_batch_id_fkey"
+            columns: ["import_batch_id"]
+            isOneToOne: false
+            referencedRelation: "question_import_batches"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "question_version_authoring_version_id_fkey"
             columns: ["version_id"]
             isOneToOne: true
@@ -3737,12 +4666,12 @@ export type Database = {
       question_versions: {
         Row: {
           content_checksum: string | null
-          lifecycle_status: string
           created_at: string
           difficulty: string
           id: string
           is_current: boolean
           language: string
+          lifecycle_status: string
           options_type: string
           published_at: string | null
           question_id: string
@@ -3752,12 +4681,12 @@ export type Database = {
         }
         Insert: {
           content_checksum?: string | null
-          lifecycle_status?: string
           created_at?: string
           difficulty?: string
           id?: string
           is_current?: boolean
           language?: string
+          lifecycle_status?: string
           options_type?: string
           published_at?: string | null
           question_id: string
@@ -3767,12 +4696,12 @@ export type Database = {
         }
         Update: {
           content_checksum?: string | null
-          lifecycle_status?: string
           created_at?: string
           difficulty?: string
           id?: string
           is_current?: boolean
           language?: string
+          lifecycle_status?: string
           options_type?: string
           published_at?: string | null
           question_id?: string
@@ -3792,31 +4721,33 @@ export type Database = {
       }
       questions: {
         Row: {
-          subtopic_id_node_type: string | null
-          canonical_topic_id_node_type: string | null
           canonical_topic_id: string
+          canonical_topic_id_node_type: string | null
           created_at: string
           id: string
           status: string
           subtopic_id: string | null
+          subtopic_id_node_type: string | null
           updated_at: string
         }
         Insert: {
-          subtopic_id_node_type?: never
-          canonical_topic_id_node_type?: never
           canonical_topic_id: string
+          canonical_topic_id_node_type?: string | null
           created_at?: string
           id?: string
           status?: string
           subtopic_id?: string | null
+          subtopic_id_node_type?: string | null
           updated_at?: string
         }
         Update: {
           canonical_topic_id?: string
+          canonical_topic_id_node_type?: string | null
           created_at?: string
           id?: string
           status?: string
           subtopic_id?: string | null
+          subtopic_id_node_type?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -3894,7 +4825,6 @@ export type Database = {
       }
       quiz_battle_rooms: {
         Row: {
-          topic_id_node_type: string | null
           access_tier: string
           battle_type: string
           created_at: string
@@ -3911,12 +4841,12 @@ export type Database = {
           status: string
           time_per_question_seconds: number
           topic_id: string | null
+          topic_id_node_type: string | null
           total_rounds: number
           updated_at: string
           winner_user_id: string | null
         }
         Insert: {
-          topic_id_node_type?: never
           access_tier?: string
           battle_type?: string
           created_at?: string
@@ -3933,6 +4863,7 @@ export type Database = {
           status?: string
           time_per_question_seconds?: number
           topic_id?: string | null
+          topic_id_node_type?: string | null
           total_rounds?: number
           updated_at?: string
           winner_user_id?: string | null
@@ -3954,6 +4885,7 @@ export type Database = {
           status?: string
           time_per_question_seconds?: number
           topic_id?: string | null
+          topic_id_node_type?: string | null
           total_rounds?: number
           updated_at?: string
           winner_user_id?: string | null
@@ -4253,10 +5185,41 @@ export type Database = {
         }
         Relationships: []
       }
+      schema_migration_ledger: {
+        Row: {
+          applied_at: string | null
+          applied_by_tool: string | null
+          checksum_sha256: string
+          filename: string
+          notes: string | null
+          recorded_at: string
+          status: string
+          superseded_by: string | null
+        }
+        Insert: {
+          applied_at?: string | null
+          applied_by_tool?: string | null
+          checksum_sha256: string
+          filename: string
+          notes?: string | null
+          recorded_at?: string
+          status: string
+          superseded_by?: string | null
+        }
+        Update: {
+          applied_at?: string | null
+          applied_by_tool?: string | null
+          checksum_sha256?: string
+          filename?: string
+          notes?: string | null
+          recorded_at?: string
+          status?: string
+          superseded_by?: string | null
+        }
+        Relationships: []
+      }
       search_indexes: {
         Row: {
-          topic_id_node_type: string | null
-          subject_id_node_type: string | null
           access_tier: string
           body_snippet_en: string | null
           body_snippet_hi: string | null
@@ -4274,14 +5237,14 @@ export type Database = {
           source_id: string
           source_updated_at: string
           subject_id: string | null
+          subject_id_node_type: string | null
           title_en: string | null
           title_hi: string | null
           topic_id: string | null
+          topic_id_node_type: string | null
           year: number | null
         }
         Insert: {
-          topic_id_node_type?: never
-          subject_id_node_type?: never
           access_tier?: string
           body_snippet_en?: string | null
           body_snippet_hi?: string | null
@@ -4299,9 +5262,11 @@ export type Database = {
           source_id: string
           source_updated_at?: string
           subject_id?: string | null
+          subject_id_node_type?: string | null
           title_en?: string | null
           title_hi?: string | null
           topic_id?: string | null
+          topic_id_node_type?: string | null
           year?: number | null
         }
         Update: {
@@ -4322,9 +5287,11 @@ export type Database = {
           source_id?: string
           source_updated_at?: string
           subject_id?: string | null
+          subject_id_node_type?: string | null
           title_en?: string | null
           title_hi?: string | null
           topic_id?: string | null
+          topic_id_node_type?: string | null
           year?: number | null
         }
         Relationships: [
@@ -4449,7 +5416,6 @@ export type Database = {
       }
       spaced_repetition_schedules: {
         Row: {
-          topic_id_node_type: string | null
           created_at: string
           ease_factor: number
           id: string
@@ -4460,11 +5426,11 @@ export type Database = {
           repetition_level: number
           review_count: number
           topic_id: string | null
+          topic_id_node_type: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
-          topic_id_node_type?: never
           created_at?: string
           ease_factor?: number
           id?: string
@@ -4475,6 +5441,7 @@ export type Database = {
           repetition_level?: number
           review_count?: number
           topic_id?: string | null
+          topic_id_node_type?: string | null
           updated_at?: string
           user_id: string
         }
@@ -4489,6 +5456,7 @@ export type Database = {
           repetition_level?: number
           review_count?: number
           topic_id?: string | null
+          topic_id_node_type?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -4547,7 +5515,6 @@ export type Database = {
       }
       study_plan_items: {
         Row: {
-          topic_id_node_type: string | null
           completed_at: string | null
           created_at: string
           estimated_duration_minutes: number
@@ -4563,11 +5530,11 @@ export type Database = {
           study_plan_id: string
           task_type: string
           topic_id: string | null
+          topic_id_node_type: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
-          topic_id_node_type?: never
           completed_at?: string | null
           created_at?: string
           estimated_duration_minutes?: number
@@ -4583,6 +5550,7 @@ export type Database = {
           study_plan_id: string
           task_type: string
           topic_id?: string | null
+          topic_id_node_type?: string | null
           updated_at?: string
           user_id: string
         }
@@ -4602,6 +5570,7 @@ export type Database = {
           study_plan_id?: string
           task_type?: string
           topic_id?: string | null
+          topic_id_node_type?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -4745,6 +5714,7 @@ export type Database = {
           description: string | null
           display_order: number
           duration_days: number
+          feature_flags: Json
           id: string
           is_active: boolean
           name: string
@@ -4759,6 +5729,7 @@ export type Database = {
           description?: string | null
           display_order?: number
           duration_days: number
+          feature_flags?: Json
           id?: string
           is_active?: boolean
           name: string
@@ -4773,6 +5744,7 @@ export type Database = {
           description?: string | null
           display_order?: number
           duration_days?: number
+          feature_flags?: Json
           id?: string
           is_active?: boolean
           name?: string
@@ -4784,7 +5756,6 @@ export type Database = {
       }
       subtopics: {
         Row: {
-          topic_id_node_type: string | null
           created_at: string
           description: string | null
           display_order: number
@@ -4793,10 +5764,10 @@ export type Database = {
           name: string
           slug: string
           topic_id: string
+          topic_id_node_type: string | null
           updated_at: string
         }
         Insert: {
-          topic_id_node_type?: never
           created_at?: string
           description?: string | null
           display_order?: number
@@ -4805,6 +5776,7 @@ export type Database = {
           name: string
           slug: string
           topic_id: string
+          topic_id_node_type?: string | null
           updated_at?: string
         }
         Update: {
@@ -4816,6 +5788,7 @@ export type Database = {
           name?: string
           slug?: string
           topic_id?: string
+          topic_id_node_type?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -4827,6 +5800,77 @@ export type Database = {
             referencedColumns: ["id", "node_type"]
           },
         ]
+      }
+      taxonomy_aliases: {
+        Row: {
+          alias_context: string
+          alias_name: string
+          canonical_node_id: string
+          created_at: string
+          id: string
+          normalized_alias: string
+        }
+        Insert: {
+          alias_context?: string
+          alias_name: string
+          canonical_node_id: string
+          created_at?: string
+          id?: string
+          normalized_alias: string
+        }
+        Update: {
+          alias_context?: string
+          alias_name?: string
+          canonical_node_id?: string
+          created_at?: string
+          id?: string
+          normalized_alias?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "taxonomy_aliases_canonical_node_id_fkey"
+            columns: ["canonical_node_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      taxonomy_fk_flip_log: {
+        Row: {
+          column_name: string
+          expected_node_type: string
+          flipped_at: string
+          id: string
+          new_constraint: string
+          old_constraint: string
+          old_definition: string
+          old_target: string
+          table_name: string
+        }
+        Insert: {
+          column_name: string
+          expected_node_type: string
+          flipped_at?: string
+          id?: string
+          new_constraint: string
+          old_constraint: string
+          old_definition: string
+          old_target: string
+          table_name: string
+        }
+        Update: {
+          column_name?: string
+          expected_node_type?: string
+          flipped_at?: string
+          id?: string
+          new_constraint?: string
+          old_constraint?: string
+          old_definition?: string
+          old_target?: string
+          table_name?: string
+        }
+        Relationships: []
       }
       test_attempts: {
         Row: {
@@ -5000,9 +6044,62 @@ export type Database = {
           },
         ]
       }
+      topic_relationships: {
+        Row: {
+          created_at: string
+          from_topic_id: string
+          from_topic_id_node_type: string | null
+          id: string
+          is_active: boolean
+          notes: string | null
+          relationship_type: string
+          strength: string
+          to_topic_id: string
+          to_topic_id_node_type: string | null
+        }
+        Insert: {
+          created_at?: string
+          from_topic_id: string
+          from_topic_id_node_type?: string | null
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          relationship_type: string
+          strength?: string
+          to_topic_id: string
+          to_topic_id_node_type?: string | null
+        }
+        Update: {
+          created_at?: string
+          from_topic_id?: string
+          from_topic_id_node_type?: string | null
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          relationship_type?: string
+          strength?: string
+          to_topic_id?: string
+          to_topic_id_node_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "topic_relationships_from_topic_id_node_fkey"
+            columns: ["from_topic_id", "from_topic_id_node_type"]
+            isOneToOne: false
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id", "node_type"]
+          },
+          {
+            foreignKeyName: "topic_relationships_to_topic_id_node_fkey"
+            columns: ["to_topic_id", "to_topic_id_node_type"]
+            isOneToOne: false
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id", "node_type"]
+          },
+        ]
+      }
       topics: {
         Row: {
-          subject_id_node_type: string | null
           created_at: string
           description: string | null
           display_order: number
@@ -5012,10 +6109,10 @@ export type Database = {
           name: string
           slug: string
           subject_id: string
+          subject_id_node_type: string | null
           updated_at: string
         }
         Insert: {
-          subject_id_node_type?: never
           created_at?: string
           description?: string | null
           display_order?: number
@@ -5025,6 +6122,7 @@ export type Database = {
           name: string
           slug: string
           subject_id: string
+          subject_id_node_type?: string | null
           updated_at?: string
         }
         Update: {
@@ -5037,6 +6135,7 @@ export type Database = {
           name?: string
           slug?: string
           subject_id?: string
+          subject_id_node_type?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -5496,6 +6595,13 @@ export type Database = {
             referencedRelation: "exams"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "user_entitlements_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
         ]
       }
       user_exam_goals: {
@@ -5784,9 +6890,9 @@ export type Database = {
       }
       user_mastery_history: {
         Row: {
-          canonical_topic_id_node_type: string | null
           algorithm_version: string
           canonical_topic_id: string
+          canonical_topic_id_node_type: string | null
           confidence_factor: number
           coverage_factor: number
           created_at: string
@@ -5798,9 +6904,9 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          canonical_topic_id_node_type?: never
           algorithm_version?: string
           canonical_topic_id: string
+          canonical_topic_id_node_type?: string | null
           confidence_factor: number
           coverage_factor: number
           created_at?: string
@@ -5814,6 +6920,7 @@ export type Database = {
         Update: {
           algorithm_version?: string
           canonical_topic_id?: string
+          canonical_topic_id_node_type?: string | null
           confidence_factor?: number
           coverage_factor?: number
           created_at?: string
@@ -5836,7 +6943,6 @@ export type Database = {
       }
       user_mistake_drills: {
         Row: {
-          topic_id_node_type: string | null
           cognitive_type_id: string | null
           coins_awarded: number
           completed_at: string | null
@@ -5848,12 +6954,12 @@ export type Database = {
           started_at: string
           status: string
           topic_id: string | null
+          topic_id_node_type: string | null
           total_questions: number
           updated_at: string
           user_id: string
         }
         Insert: {
-          topic_id_node_type?: never
           cognitive_type_id?: string | null
           coins_awarded?: number
           completed_at?: string | null
@@ -5865,6 +6971,7 @@ export type Database = {
           started_at?: string
           status?: string
           topic_id?: string | null
+          topic_id_node_type?: string | null
           total_questions: number
           updated_at?: string
           user_id: string
@@ -5881,6 +6988,7 @@ export type Database = {
           started_at?: string
           status?: string
           topic_id?: string | null
+          topic_id_node_type?: string | null
           total_questions?: number
           updated_at?: string
           user_id?: string
@@ -5909,7 +7017,7 @@ export type Database = {
           id: string
           inferred_cognitive_type_id: string
           occurred_at: string
-          occurrence_status: "ACTIVE" | "REVOKED_ERRATA" | "REVOKED_VOID" | "SUPERSEDED" | string
+          occurrence_status: string
           question_id: string
           question_version_id: string | null
           response_time_seconds: number | null
@@ -5927,7 +7035,7 @@ export type Database = {
           id?: string
           inferred_cognitive_type_id?: string
           occurred_at?: string
-          occurrence_status?: "ACTIVE" | "REVOKED_ERRATA" | "REVOKED_VOID" | "SUPERSEDED" | string
+          occurrence_status?: string
           question_id: string
           question_version_id?: string | null
           response_time_seconds?: number | null
@@ -5945,7 +7053,7 @@ export type Database = {
           id?: string
           inferred_cognitive_type_id?: string
           occurred_at?: string
-          occurrence_status?: "ACTIVE" | "REVOKED_ERRATA" | "REVOKED_VOID" | "SUPERSEDED" | string
+          occurrence_status?: string
           question_id?: string
           question_version_id?: string | null
           response_time_seconds?: number | null
@@ -5958,13 +7066,6 @@ export type Database = {
           vault_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "user_mistake_occurrences_attempt_answer_id_fkey"
-            columns: ["attempt_answer_id"]
-            isOneToOne: false
-            referencedRelation: "attempt_answers"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "user_mistake_occurrences_inferred_cognitive_type_id_fkey"
             columns: ["inferred_cognitive_type_id"]
@@ -6004,8 +7105,6 @@ export type Database = {
       }
       user_mistake_vault: {
         Row: {
-          topic_id_node_type: string | null
-          subject_id_node_type: string | null
           consecutive_correct_in_remediation: number
           created_at: string
           first_mistake_at: string
@@ -6017,7 +7116,9 @@ export type Database = {
           primary_cognitive_type_id: string
           question_id: string
           subject_id: string | null
+          subject_id_node_type: string | null
           topic_id: string | null
+          topic_id_node_type: string | null
           total_mistakes_count: number
           updated_at: string
           user_custom_notes: string | null
@@ -6025,8 +7126,6 @@ export type Database = {
           user_override_cognitive_type_id: string | null
         }
         Insert: {
-          topic_id_node_type?: never
-          subject_id_node_type?: never
           consecutive_correct_in_remediation?: number
           created_at?: string
           first_mistake_at?: string
@@ -6038,7 +7137,9 @@ export type Database = {
           primary_cognitive_type_id?: string
           question_id: string
           subject_id?: string | null
+          subject_id_node_type?: string | null
           topic_id?: string | null
+          topic_id_node_type?: string | null
           total_mistakes_count?: number
           updated_at?: string
           user_custom_notes?: string | null
@@ -6057,7 +7158,9 @@ export type Database = {
           primary_cognitive_type_id?: string
           question_id?: string
           subject_id?: string | null
+          subject_id_node_type?: string | null
           topic_id?: string | null
+          topic_id_node_type?: string | null
           total_mistakes_count?: number
           updated_at?: string
           user_custom_notes?: string | null
@@ -6421,64 +7524,11 @@ export type Database = {
         }
         Relationships: []
       }
-      user_adaptive_profiles: {
-        Row: {
-          created_at: string
-          difficulty_accuracies: Json
-          exam_id: string
-          id: string
-          last_calibrated_at: string
-          overall_confidence: number
-          overall_theta: number
-          subject_abilities: Json
-          total_adaptive_questions_answered: number
-          total_adaptive_tests_completed: number
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          difficulty_accuracies?: Json
-          exam_id: string
-          id?: string
-          last_calibrated_at?: string
-          overall_confidence?: number
-          overall_theta?: number
-          subject_abilities?: Json
-          total_adaptive_questions_answered?: number
-          total_adaptive_tests_completed?: number
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          difficulty_accuracies?: Json
-          exam_id?: string
-          id?: string
-          last_calibrated_at?: string
-          overall_confidence?: number
-          overall_theta?: number
-          subject_abilities?: Json
-          total_adaptive_questions_answered?: number
-          total_adaptive_tests_completed?: number
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_adaptive_profiles_exam_id_fkey"
-            columns: ["exam_id"]
-            isOneToOne: false
-            referencedRelation: "exams"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       user_topic_mastery: {
         Row: {
-          canonical_topic_id_node_type: string | null
           algorithm_version: string
           canonical_topic_id: string
+          canonical_topic_id_node_type: string | null
           confidence_factor: number
           coverage_factor: number
           created_at: string
@@ -6495,9 +7545,9 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          canonical_topic_id_node_type?: never
           algorithm_version?: string
           canonical_topic_id: string
+          canonical_topic_id_node_type?: string | null
           confidence_factor?: number
           coverage_factor?: number
           created_at?: string
@@ -6516,6 +7566,7 @@ export type Database = {
         Update: {
           algorithm_version?: string
           canonical_topic_id?: string
+          canonical_topic_id_node_type?: string | null
           confidence_factor?: number
           coverage_factor?: number
           created_at?: string
@@ -6546,6 +7597,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      fn_authorize_and_start_test_attempt: {
+        Args: { p_mock_test_id: string; p_user_id: string }
+        Returns: Json
+      }
       fn_award_gamification_reward: {
         Args: {
           p_calculated_coins: number
@@ -6562,6 +7617,10 @@ export type Database = {
       fn_can_evaluate_submission: {
         Args: { p_submission_id: string; p_user_id: string }
         Returns: boolean
+      }
+      fn_check_premium_access_and_quota: {
+        Args: { p_exam_id?: string; p_test_type?: string; p_user_id: string }
+        Returns: Json
       }
       fn_claim_reward_item: {
         Args: {
@@ -6619,6 +7678,24 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_create_dynamic_mock_instance_atomic: {
+        Args: {
+          p_duration_minutes: number
+          p_exam_id: string
+          p_marks_per_question: number
+          p_metadata: Json
+          p_negative_mark: number
+          p_questions: Json
+          p_quota_key: string
+          p_slug: string
+          p_template_id: string
+          p_test_type: string
+          p_title: string
+          p_ttl_hours?: number
+          p_user_id: string
+        }
+        Returns: Json
+      }
       fn_create_payment_order: {
         Args: {
           p_coupon_code?: string
@@ -6627,6 +7704,20 @@ export type Database = {
           p_idempotency_key?: string
           p_order_type: string
           p_plan_id?: string
+        }
+        Returns: Json
+      }
+      fn_create_question_revision: {
+        Args: { p_actor: string; p_payload: Json; p_question_id: string }
+        Returns: Json
+      }
+      fn_delete_exam_controlled: {
+        Args: {
+          p_actor_email?: string
+          p_actor_id?: string
+          p_exam_id: string
+          p_reason?: string
+          p_slug: string
         }
         Returns: Json
       }
@@ -6674,26 +7765,16 @@ export type Database = {
         }
         Returns: Json
       }
-      fn_generate_custom_practice_session:
-        | {
-            Args: {
-              p_question_count?: number
-              p_session_mode: string
-              p_title: string
-              p_topic_ids?: string[]
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_manual_question_ids?: string[]
-              p_question_count?: number
-              p_session_mode: string
-              p_title: string
-              p_topic_ids?: string[]
-            }
-            Returns: Json
-          }
+      fn_generate_custom_practice_session: {
+        Args: {
+          p_manual_question_ids?: string[]
+          p_question_count?: number
+          p_session_mode: string
+          p_title: string
+          p_topic_ids?: string[]
+        }
+        Returns: Json
+      }
       fn_generate_daily_recommendations: {
         Args: { p_date?: string; p_engine_version?: string; p_user_id?: string }
         Returns: Json
@@ -6737,6 +7818,10 @@ export type Database = {
         Args: { p_batch_id: string; p_user_id: string }
         Returns: boolean
       }
+      fn_import_question_drafts: {
+        Args: { p_actor: string; p_batch: Json }
+        Returns: Json
+      }
       fn_is_batch_member: {
         Args: { p_batch_id: string; p_roles?: string[]; p_user_id: string }
         Returns: boolean
@@ -6750,6 +7835,7 @@ export type Database = {
         Returns: boolean
       }
       fn_join_battle_by_code: { Args: { p_room_code: string }; Returns: Json }
+      fn_jwt_is_admin_or_staff: { Args: never; Returns: boolean }
       fn_log_user_search: {
         Args: {
           p_clicked_entity_type?: string
@@ -6811,12 +7897,35 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_publish_question_version: {
+        Args: { p_actor: string; p_version_id: string }
+        Returns: Json
+      }
+      fn_qf_assert_item_shape: {
+        Args: { p_item: Json; p_label: string }
+        Returns: undefined
+      }
+      fn_qf_find_exact_duplicates: {
+        Args: {
+          p_exclude_question_id?: string
+          p_stems: string[]
+          p_topic_id: string
+        }
+        Returns: Json
+      }
+      fn_question_stem_checksum: { Args: { p_stem: string }; Returns: string }
+      fn_recompute_mistake_profile: {
+        Args: { p_question_id: string; p_user_id: string }
+        Returns: Json
+      }
       fn_reconcile_search_indexes: { Args: never; Returns: Json }
       fn_record_mistake_occurrence: {
         Args: {
+          p_attempt_answer_id?: string
           p_cognitive_type_id?: string
           p_confidence_pct?: number
           p_question_id: string
+          p_question_version_id?: string
           p_response_time_seconds?: number
           p_selected_option_id?: string
           p_source_context: string
@@ -6844,40 +7953,35 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_resolve_quota_key: { Args: { p_test_type: string }; Returns: string }
       fn_reverse_reward_claim: {
         Args: { p_admin_id: string; p_claim_id: string; p_reason?: string }
         Returns: Json
       }
-      fn_send_user_notification:
-        | {
-            Args: {
-              p_action_url?: string
-              p_body?: string
-              p_category?: string
-              p_idempotency_key?: string
-              p_metadata?: Json
-              p_priority?: string
-              p_template_code?: string
-              p_title?: string
-              p_user_id: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_action_url?: string
-              p_body?: string
-              p_category?: string
-              p_idempotency_key?: string
-              p_metadata?: Json
-              p_priority?: string
-              p_template_code?: string
-              p_title?: string
-              p_user_id: string
-              p_variables?: Json
-            }
-            Returns: Json
-          }
+      fn_revoke_mistakes_by_errata: {
+        Args: {
+          p_actor_id?: string
+          p_corrected_option_id: string
+          p_question_version_id: string
+          p_reason: string
+        }
+        Returns: Json
+      }
+      fn_send_user_notification: {
+        Args: {
+          p_action_url?: string
+          p_body?: string
+          p_category?: string
+          p_idempotency_key?: string
+          p_metadata?: Json
+          p_priority?: string
+          p_template_code?: string
+          p_title?: string
+          p_user_id: string
+          p_variables?: Json
+        }
+        Returns: Json
+      }
       fn_start_custom_practice_session: {
         Args: { p_session_id: string }
         Returns: Json
@@ -6909,6 +8013,16 @@ export type Database = {
         Args: { p_answers: Json; p_drill_id: string }
         Returns: Json
       }
+      fn_transition_question_version: {
+        Args: {
+          p_actor: string
+          p_checklist?: Json
+          p_notes?: string
+          p_to: string
+          p_version_id: string
+        }
+        Returns: Json
+      }
       fn_universal_search: {
         Args: {
           p_access_tier?: string
@@ -6931,6 +8045,10 @@ export type Database = {
           p_lesson_id: string
           p_position_seconds: number
         }
+        Returns: Json
+      }
+      fn_update_question_draft: {
+        Args: { p_actor: string; p_payload: Json; p_version_id: string }
         Returns: Json
       }
       fn_update_spaced_repetition_review: {
@@ -6983,12 +8101,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -7012,11 +8130,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -7037,11 +8155,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -7062,11 +8180,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -7079,11 +8197,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -7097,4 +8215,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-

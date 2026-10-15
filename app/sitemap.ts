@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/database";
 import { siteConfig } from "@/config/site";
 import { getAppEnv } from "@/config/env";
 import { ExamModuleRegistry } from "@/services/exam-knowledge/exam-module-registry";
@@ -68,7 +69,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       return staticEntries;
     }
 
-    const supabase = createClient(env.supabaseUrl, env.supabaseAnonKey, {
+    const supabase = createClient<Database>(env.supabaseUrl, env.supabaseAnonKey, {
       auth: {
         persistSession: false,
         autoRefreshToken: false,

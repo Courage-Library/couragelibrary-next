@@ -1,9 +1,77 @@
-import { Database } from "@/types/database";
+import type { Json } from "@/types/database";
 
-export type AdaptiveTestConfigRow = Database["public"]["Tables"]["adaptive_test_configs"]["Row"];
-export type AdaptiveAttemptStateRow = Database["public"]["Tables"]["adaptive_attempt_states"]["Row"];
-export type AdaptiveQuestionDecisionRow = Database["public"]["Tables"]["adaptive_question_decisions"]["Row"];
-export type UserAdaptiveProfileRow = Database["public"]["Tables"]["user_adaptive_profiles"]["Row"];
+/*
+ * TYPES-1:C-ADAPTIVE-TYPES — QUARANTINED. These four tables are NOT deployed (migrations 038–051 are
+ * SUPERSEDED_NOT_APPLIED, DRIFT-1a/1b), so the generated public types do not contain them. The row
+ * shapes below are the intended design (previous hand-written types). Re-enable precondition for ADAPTIVE:
+ * deploy the tables, regenerate types (npm run db:types) and derive these from Database again.
+ */
+export interface AdaptiveTestConfigRow {
+  created_at: string;
+  difficulty_policy: Json;
+  exam_id: string;
+  id: string;
+  is_active: boolean;
+  max_questions: number;
+  metadata: Json;
+  min_questions: number;
+  pattern_id: string | null;
+  selection_policy: Json;
+  slug: string;
+  stopping_policy: Json;
+  target_duration_minutes: number;
+  test_type: string;
+  title: string;
+  topic_policy: Json;
+  updated_at: string;
+  version: number;
+}
+export interface AdaptiveAttemptStateRow {
+  attempt_id: string;
+  config_id: string;
+  correct_answers_count: number;
+  created_at: string;
+  current_difficulty_tier: string;
+  current_theta: number;
+  id: string;
+  incorrect_answers_count: number;
+  questions_served_count: number;
+  section_breakdown: Json;
+  sequence_history: Json;
+  standard_error: number;
+  status: string;
+  stopping_reason: string | null;
+  topic_breakdown: Json;
+  updated_at: string;
+  user_id: string;
+}
+export interface AdaptiveQuestionDecisionRow {
+  attempt_id: string;
+  attempt_state_id: string;
+  created_at: string;
+  decision_metadata: Json;
+  id: string;
+  question_version_id: string;
+  selection_strategy: string;
+  step_number: number;
+  target_difficulty: string;
+  target_topic_id: string | null;
+  user_id: string;
+}
+export interface UserAdaptiveProfileRow {
+  created_at: string;
+  difficulty_accuracies: Json;
+  exam_id: string;
+  id: string;
+  last_calibrated_at: string;
+  overall_confidence: number;
+  overall_theta: number;
+  subject_abilities: Json;
+  total_adaptive_questions_answered: number;
+  total_adaptive_tests_completed: number;
+  updated_at: string;
+  user_id: string;
+}
 
 export type DifficultyTier = "easy" | "medium" | "hard";
 
