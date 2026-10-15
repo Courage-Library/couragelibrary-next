@@ -4,6 +4,13 @@
 > **Rollback:** `docs/database/rollback/076_rollback.sql`
 > **Test:** `scripts/test_sec_hotfix4_rls.cjs` (permanent gate)
 
+> ## ⚠ SECURITY INCIDENT INC-2 (pre-launch, dev data)
+> - **What:** any authenticated user, including students, could **read non-public rows** on the 11 tables below. The cause was a `FOR ALL TO authenticated USING (true)` policy combined with the table SELECT grant.
+> - **Measured before the fix:** across the 11 tables, 11 rows were readable by students but hidden from anon (`exam_sources`: students read 13/13; anon read 2).
+> - **No writes were possible:** `authenticated` holds no INSERT / UPDATE / DELETE grants (P-4).
+> - **Remediated:** by migration 076 (`9569ac2`), deployed 2026-10-16.
+> - **Permanent rule** (architect): no policy may grant `authenticated` blanket access (`FOR ALL` or `USING (true)`) on non-public data. It is enforced by `scripts/test_sec_hotfix4_rls.cjs` P-6.
+
 ## Scope
 
 These 11 tables each had one permissive policy, `FOR ALL TO authenticated USING (true) WITH CHECK (true)`:
@@ -43,6 +50,33 @@ On each table, the FOR ALL policy is dropped and replaced by four policies, all 
 
 `fn_jwt_is_admin_or_staff()` reads `app_metadata.role` from the JWT, which users cannot set themselves. The student read path is now exactly the public policies.
 
+## P-6 allow-list and pending ruling
+
+**Blanket write policies always fail.** A blanket read policy passes only on these tables:
+
+**`PUBLIC_REFERENCE`** (reference content with no user data):
+- `exam_topics`
+- `pattern_sections`
+- `taxonomy_aliases`
+- `exam_claim_sources`
+- `learning_unit_asset_bindings`
+- `mistake_cognitive_types`
+- `exam_cutoff_benchmarks`
+
+Adding a table to this list needs an architect ruling.
+
+**`PENDING_RULING`** (reported in every run):
+- **`leaderboard_weekly_snapshots`**
+  - It has `USING (true)` for PUBLIC, and **anon and authenticated both hold SELECT**.
+  - Its rows carry `user_id`, rank, accuracy and study minutes.
+  - It has 0 rows today.
+- **`user_battle_stats`**
+  - It has `USING (true)` for PUBLIC.
+  - No role holds SELECT, so this is inert today.
+  - It has 0 rows.
+
+**Decision needed:** are leaderboards public by design (with user display identity defined), or should both tables become own-row or RPC-only? Until there is a ruling, they stay on PENDING_RULING. No DB change has been made.
+
 ## Migration discipline
 
 | Step | Result |
@@ -64,6 +98,7 @@ Each table is tested inside `BEGIN READ WRITE … ROLLBACK`. The suite temporari
 | P-3: staff reads all rows; staff update reaches every row | PASS | PASS |
 | P-4: `authenticated` holds SELECT only | PASS | PASS |
 | P-5: the function is false for students, true for staff/admin; anon cannot execute it | PASS | PASS |
+| **P-6 (permanent rule, added 2026-10-16):** scans **all** public-schema policies; no blanket `USING (true)` / `WITH CHECK (true)` policy for `authenticated` / PUBLIC on non-public data; includes a self-test using the pre-076 policy shape | (would fail: 11 blanket FOR ALL policies) | PASS (242 policies scanned) |
 
 ## Gates
 
@@ -81,12 +116,26 @@ Run on a local production build.
 | QA guard / HOTFIX-2 | 8/8 · 5/5 |
 | Signed-in smoke `admin-pages` (now incl. `/admin/exam-knowledge`), `staff-content`, `student-pages` | all passed (3/3) |
 
-**Exam Knowledge suite failures (pre-existing).**
+**Exam Knowledge suite failures (pre-existing; proven).**
 - The failing checks are **static source assertions written before SEC-1B**: I43, H03, H07, S04, S05, S34, S42 and S44 grep for `checkIsAdminOrStaff()` call shapes, the layout guard, UI copy and the author_type literal, all of which have since been refactored.
 - S09 assumes the DB has 0 EK documents, but published documents now exist.
 - These suites use the **service-role client, which bypasses RLS**, and this phase changes no application source. **076 therefore cannot affect them.**
 - The staff/admin RLS path is covered instead by P-3 (staff reads and updates every row through the policies) and by the signed-in `staff-content` and `admin-pages` smokes (`/admin/exam-knowledge` included). All pass.
-- Updating the stale assertions is a follow-up (TEST-EK). It is out of scope here.
+- Updating the stale assertions is a follow-up (TEST-EK). It is out of scope here; see `docs/reports/BACKLOG.md`.
+
+**Proof that the failures are pre-existing** (2026-10-16, required by the architect's process rule):
+- **Method:** the three suites were run on the previous commit `5ea60f4` in a separate, detached worktree (dependencies linked, nothing installed), and on `9569ac2`. Both runs used the same dev DB.
+- **Result: identical failure sets.**
+
+| Suite | `5ea60f4` | `9569ac2` | Failing IDs (both) |
+|---|---|---|---|
+| 3H.3 importer | 45/46 | 45/46 | I43 |
+| 3H.4.1 hardening | 8/10 | 8/10 | H03, H07 |
+| 3H.4 studio | 42/48 | 42/48 | S04, S05, S09, S34, S42, S44 |
+
+The worktree was removed afterwards.
+
+**Process rule (permanent):** pre-authorised commit conditions are HARD. A failing gate counts as pre-existing only if the same suite, run on the previous commit, gives the identical failure set.
 
 **Production:** see the commit message and the session report. Signed-in production smokes are run by the owner.
 

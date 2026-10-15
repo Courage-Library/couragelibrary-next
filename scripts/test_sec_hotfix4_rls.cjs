@@ -11,6 +11,9 @@
  *       INSERT is rejected by row-level security
  *   P-3 staff session (app_metadata.role = staff): reads every row; UPDATE reaches every row (policy path intact)
  *   P-4 grants unchanged: authenticated holds SELECT only (writes stay service-role only)
+ *   P-6 PERMANENT RULE (whole public schema): no policy may give authenticated (or PUBLIC) blanket access, i.e.
+ *       USING (true) / WITH CHECK (true), on non-public data. Blanket write policies always fail; blanket read
+ *       policies are allowed only on the explicit PUBLIC_REFERENCE allow-list (or PENDING_RULING, reported loudly)
  *
  * Run: node scripts/test_sec_hotfix4_rls.cjs
  */
@@ -35,6 +38,27 @@ const PUBLIC_READ = {
   exam_claims: ['Public candidates can view verified exam claims', "(verification_status = 'VERIFIED'::text)"],
   exam_claim_sources: ['Public candidates can view claim sources', 'true'],
 };
+// P-6: tables whose rows are public by design (reference content, no user data). Additions need an architect ruling.
+const PUBLIC_REFERENCE = new Set([
+  'exam_topics', 'pattern_sections', 'taxonomy_aliases', 'exam_claim_sources', 'learning_unit_asset_bindings',
+  'mistake_cognitive_types', 'exam_cutoff_benchmarks',
+]);
+// P-6: per-user rows behind a blanket read policy; tolerated only until the architect rules (0 rows on 2026-10-16)
+const PENDING_RULING = new Set(['leaderboard_weekly_snapshots', 'user_battle_stats']);
+const isTrue = (s) => /^\(*\s*true\s*\)*$/i.test(String(s || '').trim());
+function blanketViolations(policies) {
+  const bad = [];
+  const pending = [];
+  for (const p of policies) {
+    if (!/authenticated|\{public\}/.test(p.roles)) continue;
+    const readBlanket = p.cmd !== 'INSERT' && isTrue(p.qual);
+    const writeBlanket = p.cmd !== 'SELECT' && (readBlanket || (p.cmd !== 'DELETE' && isTrue(p.wc)));
+    if (writeBlanket) bad.push(`${p.t}: blanket ${p.cmd} policy "${p.policyname}"`);
+    else if (readBlanket && PENDING_RULING.has(p.t)) pending.push(p.t);
+    else if (readBlanket && !PUBLIC_REFERENCE.has(p.t)) bad.push(`${p.t}: blanket read on non-allow-listed table "${p.policyname}"`);
+  }
+  return { bad, pending };
+}
 const STUDENT = { sub: '00000000-0000-4000-8000-0000000000a1', role: 'authenticated', app_metadata: {} };
 const STAFF = { sub: '00000000-0000-4000-8000-0000000000b2', role: 'authenticated', app_metadata: { role: 'staff' } };
 
@@ -158,6 +182,22 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assertion failed'); };
                                 WHERE table_schema='public' AND grantee='authenticated' AND table_name = ANY($1) GROUP BY 1`, [TABLES]);
       const bad = TABLES.filter((t) => (rows.find((r) => r.t === t) || {}).p !== 'SELECT');
       assert(bad.length === 0, bad.map((t) => `${t}: ${(rows.find((r) => r.t === t) || {}).p}`).join(', '));
+    });
+
+    await test('P-6 permanent rule: no blanket (USING/WITH CHECK true) policy for authenticated/PUBLIC on non-public data (whole schema)', async () => {
+      // self-test: the pre-076 policy shape and a blanket read on user data must both be caught
+      const fixture = blanketViolations([
+        { t: 'exam_sources', policyname: 'fixture', cmd: 'ALL', roles: '{authenticated}', qual: 'true', wc: 'true' },
+        { t: 'user_profiles', policyname: 'fixture-read', cmd: 'SELECT', roles: '{authenticated}', qual: '(true)', wc: '' },
+      ]);
+      assert(fixture.bad.length === 2, 'self-test: classifier missed the pre-076 pattern');
+      const { rows } = await q(`SELECT tablename t, policyname, cmd, roles::text roles, coalesce(qual,'') qual, coalesce(with_check,'') wc
+                                FROM pg_policies WHERE schemaname='public'`);
+      const { bad, pending } = blanketViolations(rows);
+      assert(bad.length === 0, bad.join('\n        '));
+      const pend = [...new Set(pending)];
+      return `${rows.length} policies scanned; ${PUBLIC_REFERENCE.size} allow-listed public tables` +
+        (pend.length ? `; PENDING RULING (per-user data under a blanket read): ${pend.join(', ')}` : '');
     });
   } finally {
     await c.end();

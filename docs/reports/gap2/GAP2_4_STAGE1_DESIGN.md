@@ -425,3 +425,21 @@ Drop the reconciliation columns from mappings in the same contract migration.
    *Recommended: retire in GAP2-4c.* Keep the normalizer as a read-only "suggest topics" helper.
 8. **RLS hardening of the 11 permissive policies:** in GAP2-4a, or a separate SEC phase sooner?
    *Recommended:* a small SEC hotfix **before** GAP2-4a for the 11 tables (policies only; grants already block writes). GAP2-4a then builds on the hardened baseline.
+
+## 10. Architect approval (2026-10-16)
+
+**Stage 1 is APPROVED.**
+- **Q1:** approved earlier.
+  - The 18 legacy rows become an **SSC GD** DRAFT version, never auto-published.
+  - SSC CGL is built fresh: SECTION nodes come from its exam pattern, and topics are drafted with Exam Knowledge assistance (content-factory pattern), then human-reviewed, then published.
+- **Q2–Q8:** the recommendations are accepted as written. Q8 is done by SEC-HOTFIX-4 (076).
+- **The 10-point DDL (§2.1) is accepted, with these additions:**
+  1. **Write RPCs:** every one is `SECURITY DEFINER`, with an explicit role check, a fixed `search_path`, and an **audit row written in the same transaction**.
+  2. **Roles:** staff edit DRAFTs; **only admins publish or archive**.
+  3. **Publish validation:**
+     - every UNIT is mapped;
+     - mapped topics are active TOPIC nodes;
+     - no SECTION is empty;
+     - weights are valid (in (0, 1], and summing to 1 per node when used).
+  4. **Student read model:** PUBLISHED versions only, with explicit empty and unavailable states (never fabricated).
+- **Sequencing:** GAP2-4a is built **after UX-1**.
