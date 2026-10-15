@@ -259,7 +259,7 @@ export class AdminService {
   static async getAdminOverview() {
     const supabase = await createServerSupabaseClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = supabase as any;
+    const sb = supabase;
 
     const [
       usersCount,
@@ -284,9 +284,9 @@ export class AdminService {
       sb.from("mock_tests").select("*", { count: "exact", head: true }),
       sb.from("exam_patterns").select("*", { count: "exact", head: true }),
       sb.from("exams").select("*", { count: "exact", head: true }),
-      sb.from("descriptive_prompts").select("*", { count: "exact", head: true }),
+      sb.from("descriptive_questions").select("*", { count: "exact", head: true }), // TYPES-1 B6 (Class B): descriptive_prompts never existed
       sb.from("institutes").select("*", { count: "exact", head: true }),
-      sb.from("community_moderation_flags").select("*", { count: "exact", head: true }),
+      sb.from("discussion_moderation_flags").select("*", { count: "exact", head: true }), // TYPES-1 B6 (Class B): community_moderation_flags never existed
       sb.from("payment_orders").select("*", { count: "exact", head: true }),
     ]);
 
@@ -316,7 +316,7 @@ export class AdminService {
   static async getAdminCategories(): Promise<AdminCategoryItem[]> {
     const supabase = await createServerSupabaseClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = supabase as any;
+    const sb = supabase;
 
     const { data: exams } = await sb
       .from("exams")
@@ -390,7 +390,7 @@ export class AdminService {
   static async getAdminPatterns(categoryFilter?: string): Promise<AdminPatternItem[]> {
     const supabase = await createServerSupabaseClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = supabase as any;
+    const sb = supabase;
 
     const [patternsRes, templatesRes, subjectsRes] = await Promise.all([
       sb.from("exam_patterns").select(`
@@ -422,7 +422,7 @@ export class AdminService {
     const templateList = templatesRes.data || [];
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let list: AdminPatternItem[] = (patternsRes.data || []).map((p: any) => {
+    let list: AdminPatternItem[] = (patternsRes.data || []).map((p) => {
       const exam = p.exam_cycles?.exams || {};
       const linkedTemplates = templateList.filter((t: any) => t.pattern_id === p.id);
       const mockCount = linkedTemplates.reduce((acc: number, t: any) => acc + (t.mock_tests?.length || 0), 0);
@@ -460,7 +460,7 @@ export class AdminService {
   static async getAdminSections(patternFilter?: string, categoryFilter?: string): Promise<AdminSectionItem[]> {
     const supabase = await createServerSupabaseClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = supabase as any;
+    const sb = supabase;
 
     const [patternSectionsRes, subjectsRes] = await Promise.all([
       sb.from("pattern_sections").select(`
@@ -485,32 +485,34 @@ export class AdminService {
             )
           )
         ),
-        subjects (
+        subjects:canonical_taxonomy_nodes!pattern_sections_subject_id_node_fkey (
           id,
           name,
           slug,
-          topics (
+          topics:canonical_taxonomy_nodes!root_subject_id (
             id,
             name,
-            questions (
+            node_type,
+            questions!questions_canonical_topic_id_node_fkey (
               id
             )
           )
         )
-      `).order("section_order", { ascending: true }),
-      sb.from("subjects").select(`
+      `).order("section_order", { ascending: true }), // TYPES-1 B6 (Class B): legacy subjects/topics embeds failed after GAP2-3 (PGRST200)
+      sb.from("canonical_taxonomy_nodes").select(`
         id,
         name,
         slug,
         is_active,
-        topics (
+        topics:canonical_taxonomy_nodes!root_subject_id (
           id,
           name,
-          questions (
+          node_type,
+          questions!questions_canonical_topic_id_node_fkey (
             id
           )
         )
-      `).order("name", { ascending: true }),
+      `).eq("node_type", "SUBJECT").order("name", { ascending: true }), // TYPES-1 B6 (Class B): canonical SUBJECT nodes (GAP2-3)
     ]);
 
     const patternSections = patternSectionsRes.data || [];
@@ -522,7 +524,7 @@ export class AdminService {
       const pat = ps.exam_patterns || {};
       const exam = pat.exam_cycles?.exams || {};
       const subj = ps.subjects || {};
-      const topics = subj.topics || [];
+      const topics = (subj.topics || []).filter((t: { node_type?: string }) => t.node_type === "TOPIC");
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const bankCount = topics.reduce((acc: number, t: any) => acc + (t.questions?.length || 0), 0);
       const reqCount = ps.num_questions || 25;
@@ -551,7 +553,7 @@ export class AdminService {
     if (list.length === 0) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       list = subjects.map((s: any) => {
-        const topics = s.topics || [];
+        const topics = (s.topics || []).filter((t: { node_type?: string }) => t.node_type === "TOPIC");
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const bankCount = topics.reduce((acc: number, t: any) => acc + (t.questions?.length || 0), 0);
         return {
@@ -592,7 +594,7 @@ export class AdminService {
   static async getAdminSchedules(categoryFilter?: string): Promise<AdminScheduleItem[]> {
     const supabase = await createServerSupabaseClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = supabase as any;
+    const sb = supabase;
 
     const { data: cycles } = await sb
       .from("exam_cycles")
@@ -654,7 +656,7 @@ export class AdminService {
   static async getAdminDailyMockProgram(categoryFilter?: string): Promise<AdminCategoryDailyProgramData> {
     const supabase = await createServerSupabaseClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = supabase as any;
+    const sb = supabase;
 
     // 1. Fetch categories
     const categories = await this.getAdminCategories();
@@ -945,7 +947,7 @@ export class AdminService {
   ): Promise<{ success: boolean; templateId?: string; error?: string }> {
     const supabase = createAdminServerSupabaseClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = supabase as any;
+    const sb = supabase;
 
     const { data: category } = await sb.from("exams").select("id, title, slug").eq("id", categoryId).single();
     if (!category) return { success: false, error: "Category not found." };
@@ -961,6 +963,7 @@ export class AdminService {
       }).select("id").single();
       cycleId = newCycle?.id;
     }
+    if (!cycleId) return { success: false, error: "Could not resolve an exam cycle for this category." };
 
     const dbTestType = mapUiTestTypeToDbTestType(dayConfig.testType);
     const templateSlug = `${category.slug}-daily-${dayConfig.dayOfWeek}`;
@@ -1196,7 +1199,7 @@ export class AdminService {
 
     const supabase = createAdminServerSupabaseClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = supabase as any;
+    const sb = supabase;
 
     const { data: category } = await sb.from("exams").select("id, title, slug").eq("id", categoryId).single();
     if (!category) return { success: false, deactivatedCount: 0, error: "Category not found." };
@@ -1237,7 +1240,7 @@ export class AdminService {
   static async toggleDailyMockDayStatus(templateId: string, currentActive: boolean): Promise<{ success: boolean; error?: string }> {
     const supabase = createAdminServerSupabaseClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = supabase as any;
+    const sb = supabase;
 
     const newActive = !currentActive;
     const { error: tErr } = await sb
@@ -1261,7 +1264,7 @@ export class AdminService {
   static async getAdminUsers(): Promise<{ users: AdminUserListItem[]; totalAuthUsers: number; totalProfiles: number; missingProfilesCount: number }> {
     const supabase = await createServerSupabaseClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = supabase as any;
+    const sb = supabase;
 
     const [{ data: authData }, { data: profileData }] = await Promise.all([
       sb.auth.admin.listUsers(),
@@ -1315,7 +1318,7 @@ export class AdminService {
   static async getAdminQuestionsWithHierarchy(): Promise<AdminQuestionsPageData> {
     const supabase = createAdminServerSupabaseClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = supabase as any;
+    const sb = supabase;
 
     // 1. Fetch Questions with full relational hierarchy
     const [questionsRes, examsRes, patternsRes, subjectsRes, topicsRes, mockTestsRes, patternSectionsRes] =
@@ -1328,16 +1331,11 @@ export class AdminService {
             status,
             created_at,
             updated_at,
-            topics (
+            topics:canonical_taxonomy_nodes!questions_canonical_topic_id_node_fkey (
               id,
               name,
               slug,
-              subject_id,
-              subjects (
-                id,
-                name,
-                slug
-              )
+              subject_id:root_subject_id
             ),
             question_versions (
               id,
@@ -1372,8 +1370,9 @@ export class AdminService {
 
         sb.from("exams").select("id, title, slug, category").order("title"),
         sb.from("exam_patterns").select("id, exam_cycle_id, name, tier_name, exam_cycles(exam_id)").order("name"),
-        sb.from("subjects").select("id, name, slug").order("name"),
-        sb.from("topics").select("id, subject_id, name, slug").order("name"),
+        // TYPES-1 B6 (Class B): canonical SUBJECT / TOPIC nodes (question topic ids are canonical node ids since GAP2-3)
+        sb.from("canonical_taxonomy_nodes").select("id, name, slug").eq("node_type", "SUBJECT").order("name"),
+        sb.from("canonical_taxonomy_nodes").select("id, subject_id:root_subject_id, name, slug").eq("node_type", "TOPIC").order("name"),
         sb.from("mock_tests").select("id, title, slug, template_id, duration_minutes, total_questions, total_marks, status, mock_templates(exams(title, slug), exam_patterns(name))").order("title"),
         sb.from("pattern_sections").select("id, section_name, pattern_id, subject_id, exam_patterns(id, name, exam_cycles(exams(id, title, slug)))"),
       ]);
@@ -1382,7 +1381,7 @@ export class AdminService {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const subjectHierarchyMap = new Map<string, { categoryId: string | null; categoryName: string; categorySlug: string | null; patternId: string | null; patternName: string; sectionName: string }>();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (patternSectionsRes.data || []).forEach((ps: any) => {
+    (patternSectionsRes.data || []).forEach((ps) => {
       if (ps.subject_id) {
         const pat = ps.exam_patterns;
         const exam = pat?.exam_cycles?.exams;
@@ -1397,15 +1396,17 @@ export class AdminService {
       }
     });
 
+    const subjectById = new Map((subjectsRes.data || []).map((sn) => [sn.id, sn]));
+
     // 2. Map Question Items
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const questions: AdminQuestionHierarchyItem[] = (questionsRes.data || []).map((q: any) => {
+    const questions: AdminQuestionHierarchyItem[] = (questionsRes.data || []).map((q) => {
       const version = q.question_versions?.[0] || {};
       const options = version.question_options || [];
       const answers = version.question_answers;
       const source = q.question_sources?.[0];
       const topic = q.topics;
-      const subject = topic?.subjects;
+      const subject = topic?.subject_id ? subjectById.get(topic.subject_id) : undefined;
 
       // Canonical Hierarchy Resolution via Subject
       const hierarchy = subject?.id ? subjectHierarchyMap.get(subject.id) : null;
@@ -1466,20 +1467,20 @@ export class AdminService {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const taxonomy: AdminQuestionTaxonomy = {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      exams: (examsRes.data || []).map((e: any) => ({ id: e.id, title: e.title, slug: e.slug, category: e.category })),
+      exams: (examsRes.data || []).map((e) => ({ id: e.id, title: e.title, slug: e.slug, category: e.category })),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      patterns: (patternsRes.data || []).map((p: any) => ({
+      patterns: (patternsRes.data || []).map((p) => ({
         id: p.id,
         examId: p.exam_cycles?.exam_id || null,
         name: p.name,
         tierName: p.tier_name,
       })),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      subjects: (subjectsRes.data || []).map((s: any) => ({ id: s.id, name: s.name, slug: s.slug })),
+      subjects: (subjectsRes.data || []).map((s) => ({ id: s.id, name: s.name, slug: s.slug })),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      topics: (topicsRes.data || []).map((t: any) => ({ id: t.id, subjectId: t.subject_id, name: t.name, slug: t.slug })),
+      topics: (topicsRes.data || []).flatMap((t) => (t.subject_id ? [{ id: t.id, subjectId: t.subject_id, name: t.name, slug: t.slug }] : [])),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      mockTests: (mockTestsRes.data || []).map((m: any) => ({ id: m.id, title: m.title, slug: m.slug })),
+      mockTests: (mockTestsRes.data || []).map((m) => ({ id: m.id, title: m.title, slug: m.slug })),
     };
 
     // 4. Calculate KPIs
@@ -1528,13 +1529,13 @@ export class AdminService {
   static async getAdminMockTests(patternFilter?: string, categoryFilter?: string) {
     const supabase = await createServerSupabaseClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data } = await (supabase as any)
+    const { data } = await supabase
       .from("mock_tests")
       .select("id, title, slug, duration_minutes, total_questions, total_marks, status, created_at, mock_templates(id, exam_id, pattern_id, exams(id, title, slug), exam_patterns(id, name))")
       .order("created_at", { ascending: false });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let list = (data || []).map((m: any) => {
+    let list = (data || []).map((m) => {
       const template = m.mock_templates || {};
       const exam = template.exams || {};
       const pattern = template.exam_patterns || {};
@@ -1577,18 +1578,18 @@ export class AdminService {
   static async getAdminDescriptive() {
     const supabase = await createServerSupabaseClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data } = await (supabase as any)
-      .from("descriptive_prompts")
-      .select("id, title, prompt_text, max_word_count, is_active, created_at")
+    // TYPES-1 B6 (Class B): descriptive_prompts never existed (PGRST205); the descriptive bank is descriptive_questions.
+    const { data } = await supabase
+      .from("descriptive_questions")
+      .select("id, title, question_text, word_limit_max, is_published, created_at")
       .order("created_at", { ascending: false });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (data || []).map((d: any) => ({
+    return (data || []).map((d) => ({
       id: d.id,
       title: d.title,
-      promptText: d.prompt_text,
-      maxWordCount: d.max_word_count,
-      isActive: d.is_active,
+      promptText: d.question_text,
+      maxWordCount: d.word_limit_max,
+      isActive: d.is_published,
       createdAt: d.created_at,
     }));
   }
@@ -1599,17 +1600,17 @@ export class AdminService {
   static async getAdminInstitutes() {
     const supabase = await createServerSupabaseClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data } = await (supabase as any)
+    const { data } = await supabase
       .from("institutes")
-      .select("id, name, slug, city, is_verified, created_at")
+      .select("id, name, slug, is_verified, created_at") // TYPES-1 B6 (Class B): institutes has no city column (42703)
       .order("created_at", { ascending: false });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (data || []).map((i: any) => ({
+    return (data || []).map((i) => ({
       id: i.id,
       name: i.name,
       slug: i.slug,
-      city: i.city,
+      city: null,
       isVerified: i.is_verified,
       createdAt: i.created_at,
     }));
@@ -1619,23 +1620,39 @@ export class AdminService {
    * Admin: Billing & Subscription Plans listing.
    */
   static async getAdminBilling() {
+    // TYPES-1 B6 (Class B): subscription_plans has plan_code / base_price_inr (code / price_inr do not exist → 42703),
+    // and /admin/billing expects { plans, orders } (the old array return crashed the page on plans.length).
     const supabase = await createServerSupabaseClient();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data } = await (supabase as any)
-      .from("subscription_plans")
-      .select("id, name, code, price_inr, duration_days, is_active, created_at")
-      .order("created_at", { ascending: false });
+    const [plansRes, ordersRes] = await Promise.all([
+      supabase
+        .from("subscription_plans")
+        .select("id, name, plan_code, base_price_inr, duration_days, is_active, created_at")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("payment_orders")
+        .select("id, order_type, total_payable_amount, gateway, status, created_at")
+        .order("created_at", { ascending: false })
+        .limit(200),
+    ]);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (data || []).map((b: any) => ({
+    const plans = (plansRes.data || []).map((b) => ({
       id: b.id,
       name: b.name,
-      code: b.code,
-      priceInr: b.price_inr,
+      code: b.plan_code,
+      priceInr: Number(b.base_price_inr),
       durationDays: b.duration_days,
       isActive: b.is_active,
       createdAt: b.created_at,
     }));
+    const orders = (ordersRes.data || []).map((o) => ({
+      id: o.id,
+      orderType: o.order_type,
+      amount: Number(o.total_payable_amount),
+      gateway: o.gateway,
+      status: o.status,
+      createdAt: o.created_at,
+    }));
+    return { plans, orders };
   }
 
   /**
@@ -1644,20 +1661,21 @@ export class AdminService {
   static async getAdminCommunityFlags() {
     const supabase = await createServerSupabaseClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data } = await (supabase as any)
-      .from("community_moderation_flags")
-      .select("id, reason, status, created_at, thread_id, reply_id, user_id")
+    // TYPES-1 B6 (Class B): the table is discussion_moderation_flags (target_type THREAD | MESSAGE + target_id);
+    // community_moderation_flags never existed (PGRST205), so /admin/community always listed nothing.
+    const { data } = await supabase
+      .from("discussion_moderation_flags")
+      .select("id, reason, status, created_at, target_type, target_id, reported_by_user_id")
       .order("created_at", { ascending: false });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (data || []).map((f: any) => ({
+    return (data || []).map((f) => ({
       id: f.id,
       reason: f.reason,
       status: f.status,
       createdAt: f.created_at,
-      threadId: f.thread_id,
-      replyId: f.reply_id,
-      userId: f.user_id,
+      threadId: f.target_type === "THREAD" ? f.target_id : null,
+      replyId: f.target_type === "MESSAGE" ? f.target_id : null,
+      userId: f.reported_by_user_id,
     }));
   }
 
@@ -1684,7 +1702,7 @@ export class AdminService {
       return [];
     }
 
-    return (data as any[]).map((r) => {
+    return data.map((r) => {
       const qv = r.question_versions;
       const options = (qv?.question_options || []).map((o: any) => ({
         id: o.id,

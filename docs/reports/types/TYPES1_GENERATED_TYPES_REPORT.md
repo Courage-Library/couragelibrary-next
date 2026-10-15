@@ -420,4 +420,101 @@ B2 has been removed from `remaining[]`.
 | Signed-in `student-pages` | **all passed** |
 | Baseline | **NO DIFF** (data-only cleanup after) |
 
-TYPES-1 STATUS: IN PROGRESS (B0, C, B1, B2 complete; next: B6).
+### B6: admin core, layout header, storage, taxonomy service; ssr client typing; `/api/health` version
+
+**Escapes.** All **54 of 54** planned query escapes are removed:
+- `app/admin/actions.ts` 27
+- `services/admin.service.ts` 17
+- admin-premium 3
+- storage 3
+- taxonomy 1
+- bulk-importer 1
+- exam-management view 1
+- layout header 1
+
+**Ratchet:**
+
+| Counter | Before | After |
+|---|---|---|
+| queryEscapes | 227 | **173** (−54) |
+| asAny | 324 | 276 |
+| colonAny | 939 | 919 |
+| unknownAs | 85 | 83 |
+| tsExpectError | 6 | **12** |
+| tsIgnore | 0 | 0 |
+
+- **The tsExpectError 6 → 12 increase is for architect review.** It uses the same registered Class B mechanism approved for B1, and is recorded in `exceptions[]` as batch B6.
+- The 6 new directives belong to three admin-module tags, two each (A2, items 9–11).
+- B6 has been removed from `remaining[]`.
+
+#### A1. Ruled items
+- **`@supabase/ssr` browser and middleware typing.**
+  - New `lib/supabase/types.ts`, with `AppSupabaseClient` and `fromSsrClient()`. This is the single documented adapter for ssr 0.5.2's pre-2.5x generic order.
+  - The server, browser (`lib/supabase/client.ts`) and middleware factories all use it, so every client-component query is now typed against `Database`. No component errors surfaced.
+  - **I chose the adapter over an upgrade:**
+    - zero runtime change to cookie and auth handling
+    - no install
+  - **Upgrade option for later:** a pinned `@supabase/ssr` release built against supabase-js 2.5x+ generics would let `fromSsrClient` be deleted. It needs its own phase with auth and E2E regression.
+- **`/api/health` `version`.**
+  - `lib/deploy/version.ts` `deployedVersion()` returns the 7-character lowercase hex SHA from `VERCEL_GIT_COMMIT_SHA`: "dev" when unset, "unknown" when not hex. No other environment data is exposed.
+  - **Deploy detection** now uses `scripts/smoke/wait-for-deploy.cjs <url> <sha>`.
+  - Tested by B6-2.
+- **`any` client parameters** became `AppSupabaseClient`: `getDefaultOrgId`, the storage factory and Supabase storage provider, and the taxonomy `AdminContext`.
+
+#### A2. Class B: 11 families (≤ 15). Live select audit: 10 failing → 0 failing.
+
+| # | Location | Defect | Effect before | Resolution |
+|---|---|---|---|---|
+| 1 | `actions.ts` `deleteQuestionAction` | Checked `test_responses`, which never existed (PGRST205), so the "has student responses" guard always passed | A question with attempt history but no frozen version could be hard-deleted | **Fixed:** checks `attempt_answers` → `mock_questions` → the question's versions |
+| 2 | `admin.service.ts` `getAdminSections` | Legacy `subjects` / `topics` embeds broke after the GAP2-3 FK flips (PGRST200) | `/admin/sections` bank and topic counts always 0 | **Fixed:** canonical nodes via `pattern_sections_subject_id_node_fkey` and the `root_subject_id` self-relation (TOPIC filter) |
+| 3 | Same function (fallback) | `subjects(topics(questions))` (PGRST200) | Fallback list empty | **Fixed:** canonical SUBJECT nodes |
+| 4 | `getAdminQuestionsWithHierarchy` | Legacy `topics(subjects)` embed (PGRST200), plus projection subject/topic filter lists | **`/admin/questions` (question bank) returned no rows** | **Fixed:** `topics:canonical_taxonomy_nodes!questions_canonical_topic_id_node_fkey`; subjects and topics from canonical nodes |
+| 5 | Admin dashboard stats | Counted `descriptive_prompts` and `community_moderation_flags`, which never existed | Those counts always 0 | **Fixed:** counts `descriptive_questions` and `discussion_moderation_flags` |
+| 6 | `getAdminBilling` + `/admin/billing` | `subscription_plans.code` / `price_inr` do not exist (42703), and the page read `.orders` / `.plans` from an array | **`/admin/billing` crashed** (`plans.length` of undefined) | **Fixed:** `plan_code`, `base_price_inr`, `payment_orders`; returns `{ plans, orders }` |
+| 7 | `createSubscriptionPlanAction` | Inserted `code` / `price_inr` | Creating a plan always failed | **Fixed:** `plan_code` / `base_price_inr` |
+| 8 | `getAdminCommunityFlags`, `getAdminDescriptive`, `getAdminInstitutes` (reads) | Non-existent tables and columns | The lists were always empty | **Fixed:** read `discussion_moderation_flags` (target → thread / message), `descriptive_questions`, `institutes` without `city` |
+| 9 | Admin descriptive create + page | `descriptive_prompts` never existed; `descriptive_questions` needs a slug policy; the manager's item type differs | Creating a prompt fails | **Tracked** `TYPES-1:B-ADM-DESCRIPTIVE` → Community |
+| 10 | Admin community resolve + page | Resolve needs a status mapping onto `PENDING` / `RESOLVED_REMOVED` / `RESOLVED_DISMISSED` + `resolution_action`; the item type differs | Resolving a flag fails | **Tracked** `TYPES-1:B-ADM-COMMUNITY` → Community |
+| 11 | Admin institutes create + page | `owner_user_id` is required (whose?), there is no `city` column, and the item type differs | Creating an institute fails | **Tracked** `TYPES-1:B-ADM-INSTITUTES` → Community |
+
+Bulk importer (included in 1–11 as a Class A guard):
+- `mock_templates.exam_cycle_id` / `pattern_id` and `mock_tests.template_id` are required, so those inserts always failed when missing.
+- The template now resolves the exam's latest cycle, and rows without a pattern, cycle or template are reported as row errors instead of DB failures.
+
+**Class A:**
+- fail-closed guards instead of casts: org id, exam cycle in `saveAdminDailyMockDay`, pattern id
+- `TablesUpdate<"mock_tests">` for the premium curation update
+- taxonomy audit payloads as `Json`
+- the node insert typed `Omit<TablesInsert<…>, 'hierarchy_path' | 'node_depth'>` (both are trigger-computed)
+- `rows.map(r => ({ ...r }))` instead of an `unknown as` cast
+
+**Class C:** none.
+
+**Tests:**
+- `scripts/test_types1_b6.cjs` (5/5): ssr factories, version, Class B fixes, register, live select audit.
+- New signed-in smoke check `admin-pages` (qa-admin): `/admin`, questions, sections, billing, community, descriptive, institutes, mock-tests-management, bulk-import, taxonomy, exams, with no error boundary.
+
+**Gates** (local production build, final B6 code):
+
+| Gate | Result |
+|---|---|
+| tsc / lint / build | 0 / 0 / OK |
+| test_types1 (incl. `db:types:check`) | 8/8 |
+| test_types1_b6 | 5/5 |
+| test_types1_b2 | 6/6 |
+| test_types1_b1 | 8/8 |
+| QF-1 | 73/73 + 15/15 |
+| GAP2-2a | 11/11 + 18/18 |
+| GAP2-3 | 15/15 |
+| SEC-1A | 20/20 |
+| SEC-1B | 26/26 + **live 32/32** |
+| SEC-1C | 22/22 + **live 29/29** |
+| SEC-1D | 14/14 + **live 19/19** |
+| DRIFT-1c | 46/46 |
+| QA identity guard | 8/8 |
+| HOTFIX-1 | 4/4 |
+| **E2E** | **13/13** |
+| Signed-in smokes | **`student-mistake`, `student-pages`, `admin-pages` all passed** |
+| Baseline | **NO DIFF** |
+
+TYPES-1 STATUS: IN PROGRESS (B0, C, B1, B2, B6 complete; next: B4).

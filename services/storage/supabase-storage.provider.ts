@@ -12,12 +12,13 @@ import {
   StorageMetadata,
   StorageProviderType,
 } from '@/types/learning-artifact';
+import type { AppSupabaseClient } from '@/lib/supabase/types';
 
 export class SupabaseStorageProvider implements IStorageProvider {
   readonly providerType: StorageProviderType = 'SUPABASE_STORAGE';
-  private supabaseClient: any;
+  private supabaseClient: AppSupabaseClient;
 
-  constructor(supabaseClient: any) {
+  constructor(supabaseClient: AppSupabaseClient) {
     this.supabaseClient = supabaseClient;
   }
 
@@ -78,7 +79,7 @@ export class SupabaseStorageProvider implements IStorageProvider {
       });
 
     if (error || !data) return false;
-    return data.some((f: any) => f.name === path.basename(key));
+    return data.some((f) => f.name === path.basename(key));
   }
 
   async delete(bucket: string, key: string): Promise<boolean> {

@@ -19,20 +19,14 @@
       "owner": "MOVED to GAP2-4 step 0",
       "count": 62,
       "scope": "^(actions/exam-knowledge-import\\.actions\\.ts|actions/exam-knowledge-prompt\\.actions\\.ts|app/admin/exams/onboarding/page\\.tsx|services/academic-taxonomy\\.service\\.ts|services/exam-knowledge/admin-exam-knowledge\\.service\\.ts|services/exam-knowledge/exam-knowledge-candidate\\.service\\.ts|services/exam-knowledge/exam-knowledge-context-builder\\.service\\.ts|services/exam-syllabus-readiness\\.service\\.ts|services/exam-syllabus-reconciliation\\.service\\.ts|services/exam-syllabus-resolution\\.service\\.ts|services/exam-syllabus-tree-importer\\.service\\.ts|services/exam-syllabus\\.service\\.ts|services/operational-syllabus-reconciliation\\.service\\.ts)$"
-    },
-    {
-      "batch": "B6",
-      "owner": "TYPES-1 batch B6",
-      "count": 54,
-      "scope": "^(app/admin/actions\\.ts|components/admin/exam-onboarding/exam-management-view\\.tsx|components/layout/header\\.tsx|lib/admin/bulk-importer\\.ts|services/admin-premium\\.service\\.ts|services/admin\\.service\\.ts|services/storage/storage-factory\\.ts|services/storage/supabase-storage\\.provider\\.ts|services/taxonomy/taxonomy\\.service\\.ts)$"
     }
   ],
   "values": {
-    "queryEscapes": 227,
-    "asAny": 324,
-    "colonAny": 939,
-    "unknownAs": 85,
-    "tsExpectError": 6,
+    "queryEscapes": 173,
+    "asAny": 276,
+    "colonAny": 919,
+    "unknownAs": 83,
+    "tsExpectError": 12,
     "tsIgnore": 0
   },
   "updatedAt": "2026-10-15",
@@ -42,6 +36,13 @@
       "key": "tsExpectError",
       "from": 0,
       "to": 6,
+      "reason": "tracked ambiguous Class B (architect rule 3); every directive carries a registered TYPES-1:B-<ID>"
+    },
+    {
+      "batch": "B6",
+      "key": "tsExpectError",
+      "from": 6,
+      "to": 12,
       "reason": "tracked ambiguous Class B (architect rule 3); every directive carries a registered TYPES-1:B-<ID>"
     }
   ]

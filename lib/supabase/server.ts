@@ -3,6 +3,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getAppEnv } from "@/config/env";
 import type { Database } from "@/types/database";
+import { fromSsrClient } from "@/lib/supabase/types";
 
 export interface CookieToSet {
   name: string;
@@ -43,7 +44,7 @@ export async function createServerSupabaseClient(): Promise<SupabaseClient<Datab
       },
     }
   );
-  return ssrClient as unknown as SupabaseClient<Database>;
+  return fromSsrClient(ssrClient);
 }
 
 /**

@@ -65,7 +65,7 @@ export class BulkImportEngine {
 
     const supabaseRaw = createAdminServerSupabaseClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const supabase = supabaseRaw as any;
+    const supabase = supabaseRaw;
 
     let created = 0;
     let updated = 0;
@@ -172,12 +172,18 @@ export class BulkImportEngine {
 
               if (tData) {
                 templateId = tData.id;
+              } else if (!patternId) {
+                errors.push(`Mock test "${title}": exam pattern "${patternRef}" not found — a template needs a pattern.`);
               } else {
-                const { data: newT } = await supabase
+                // TYPES-1 B6 (Class B): mock_templates.exam_cycle_id is required — the insert always failed without it.
+                const { data: cycleRow } = await supabase.from("exam_cycles").select("id").eq("exam_id", categoryId).order("cycle_year", { ascending: false }).limit(1).maybeSingle();
+                if (!cycleRow) errors.push(`Mock test "${title}": the exam has no cycle — a template needs one.`);
+                const { data: newT } = !cycleRow ? { data: null } : await supabase
                   .from("mock_templates")
                   .insert({
                     exam_id: categoryId,
-                    pattern_id: patternId || null,
+                    exam_cycle_id: cycleRow.id,
+                    pattern_id: patternId,
                     title: `${title} Template`,
                     slug: `${slug}-template`,
                     test_type: "full_length",
@@ -201,6 +207,9 @@ export class BulkImportEngine {
                 status: "published",
               }).eq("id", existingMock.id);
               updated++;
+            } else if (!templateId) {
+              // mock_tests.template_id is required (the insert always failed without a template)
+              errors.push(`Mock test "${title}": no template could be resolved — not inserted.`);
             } else {
               const { error: insErr } = await supabase.from("mock_tests").insert({
                 template_id: templateId,

@@ -4,6 +4,7 @@
 
 import { guardAdminAction, dbFailure, sanitizeActionResult } from "@/lib/auth/require-admin";
 import { featureDisabledActionResult } from "@/lib/features/gates";
+import type { AppSupabaseClient } from "@/lib/supabase/types";
 import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { AdminService, getIstTomorrowDateStr } from "@/services/admin.service";
 import { BulkImportEngine, BulkImportPayload, BulkImportResult } from "@/lib/admin/bulk-importer";
@@ -20,8 +21,7 @@ export interface AdminActionResult {
 }
 
 // Helper: Ensure conducting organization exists
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function getDefaultOrgId(supabase: any): Promise<string> {
+async function getDefaultOrgId(supabase: AppSupabaseClient): Promise<string | null> {
   const { data: org } = await supabase.from("conducting_orgs").select("id").limit(1).maybeSingle();
   if (org) return org.id;
   const { data: newOrg } = await supabase
@@ -33,7 +33,7 @@ async function getDefaultOrgId(supabase: any): Promise<string> {
     })
     .select("id")
     .single();
-  return newOrg?.id;
+  return newOrg?.id ?? null;
 }
 
 /**
@@ -72,7 +72,7 @@ export async function uploadBulkImportImageAction(
   if (!file) return { success: false, error: "No file provided." };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = createAdminServerSupabaseClient() as any;
+  const supabase = createAdminServerSupabaseClient();
   const ext = file.name.split(".").pop() || "png";
   const filename = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
   const path = `${folder}/${filename}`;
@@ -131,7 +131,7 @@ export async function importBulkQuestionsAction(
   if (!authCheck.ok) return { ...authCheck, inserted: 0, failed: 0, errors: [authCheck.message] };
 
   const summary = await QuestionCsvImporterService.run({
-    rows: rows as unknown as Record<string, unknown>[],
+    rows: rows.map((r) => ({ ...r })),
     mode: mode === "dry-run" ? "dry-run" : "commit",
     actorId: authCheck.userId,
     supabase: createAdminServerSupabaseClient(),
@@ -181,8 +181,9 @@ export async function createCategoryAction(
 
   const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = supabaseRaw as any;
+  const supabase = supabaseRaw;
   const orgId = await getDefaultOrgId(supabase);
+  if (!orgId) return { error: "Could not resolve the conducting organization." };
 
   const { error } = await supabase.from("exams").insert({
     org_id: orgId,
@@ -218,7 +219,7 @@ export async function updateCategoryAction(
 
   const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = supabaseRaw as any;
+  const supabase = supabaseRaw;
 
   const { error } = await supabase.from("exams").update({
     title,
@@ -241,7 +242,7 @@ export async function toggleCategoryStatusAction(categoryId: string, currentActi
 
   const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = supabaseRaw as any;
+  const supabase = supabaseRaw;
 
   const { error } = await supabase.from("exams").update({ is_active: !currentActive }).eq("id", categoryId);
   if (error) return dbFailure("toggleCategoryStatusAction", error);
@@ -273,7 +274,7 @@ export async function createPatternAction(
 
   const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = supabaseRaw as any;
+  const supabase = supabaseRaw;
 
   // Ensure exam cycle exists for category
   let { data: cycle } = await supabase.from("exam_cycles").select("id").eq("exam_id", categoryId).limit(1).maybeSingle();
@@ -330,7 +331,7 @@ export async function updatePatternAction(
 
   const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = supabaseRaw as any;
+  const supabase = supabaseRaw;
 
   const { error } = await supabase.from("exam_patterns").update({
     name,
@@ -354,7 +355,7 @@ export async function togglePatternStatusAction(patternId: string, currentActive
 
   const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = supabaseRaw as any;
+  const supabase = supabaseRaw;
 
   const { error } = await supabase.from("exam_patterns").update({ is_active: !currentActive }).eq("id", patternId);
   if (error) return dbFailure("togglePatternStatusAction", error);
@@ -372,7 +373,7 @@ export async function deletePatternAction(patternId: string): Promise<AdminActio
 
   const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = supabaseRaw as any;
+  const supabase = supabaseRaw;
 
   // Check dependent mock templates & mock tests
   const { data: templates } = await supabase
@@ -430,7 +431,7 @@ export async function createSectionAction(
 
   const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = supabaseRaw as any;
+  const supabase = supabaseRaw;
 
   // Duplicate Check: (pattern_id + section_name)
   const { data: existing } = await supabase
@@ -501,7 +502,7 @@ export async function updateSectionAction(
 
   const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = supabaseRaw as any;
+  const supabase = supabaseRaw;
 
   const { error } = await supabase.from("pattern_sections").update({
     section_name: name,
@@ -526,7 +527,7 @@ export async function deleteSectionAction(sectionId: string): Promise<AdminActio
 
   const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = supabaseRaw as any;
+  const supabase = supabaseRaw;
 
   const { error } = await supabase.from("pattern_sections").delete().eq("id", sectionId);
   if (error) return dbFailure("deleteSectionAction", error);
@@ -561,7 +562,7 @@ export async function createScheduleAction(
 
   const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = supabaseRaw as any;
+  const supabase = supabaseRaw;
 
   const { error } = await supabase.from("exam_cycles").insert({
     exam_id: categoryId,
@@ -600,7 +601,7 @@ export async function updateScheduleAction(
 
   const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = supabaseRaw as any;
+  const supabase = supabaseRaw;
 
   const { error } = await supabase.from("exam_cycles").update({
     cycle_year: cycleYear,
@@ -626,7 +627,7 @@ export async function toggleScheduleStatusAction(scheduleId: string, currentStat
   const newStatus = currentStatus === "active" ? "archived" : "active";
   const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = supabaseRaw as any;
+  const supabase = supabaseRaw;
 
   const { error } = await supabase.from("exam_cycles").update({ status: newStatus }).eq("id", scheduleId);
   if (error) return dbFailure("toggleScheduleStatusAction", error);
@@ -911,7 +912,7 @@ export async function updateQuestionHierarchyAction(
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = createAdminServerSupabaseClient() as any;
+  const supabase = createAdminServerSupabaseClient();
   const { data: question, error: qErr } = await supabase
     .from("questions")
     .select("id, canonical_topic_id, question_versions(id, lifecycle_status)")
@@ -958,7 +959,7 @@ export async function toggleQuestionStatusAction(questionId: string, currentStat
   const newStatus = currentStatus === "published" ? "archived" : "published";
   const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = supabaseRaw as any;
+  const supabase = supabaseRaw;
 
   // Restoring an archived question is allowed by the DB only when its current version is PUBLISHED.
   const { error } = await supabase.from("questions").update({ status: newStatus }).eq("id", questionId);
@@ -986,14 +987,20 @@ export async function deleteQuestionAction(questionId: string): Promise<AdminAct
 
   const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = supabaseRaw as any;
+  const supabase = supabaseRaw;
 
-  // Check if question has student responses
-  const { data: responses } = await supabase
-    .from("test_responses")
-    .select("id")
-    .eq("question_id", questionId)
-    .limit(1);
+  // Check if question has student responses.
+  // TYPES-1 B6 (Class B): test_responses never existed (PGRST205), so this check always passed. Student responses
+  // are attempt_answers on mock_questions that use any version of this question.
+  const { data: qVersionRows } = await supabase.from("question_versions").select("id").eq("question_id", questionId);
+  const qVersionIds = (qVersionRows || []).map((v) => v.id);
+  const { data: usedInMocks } = qVersionIds.length
+    ? await supabase.from("mock_questions").select("id").in("question_version_id", qVersionIds)
+    : { data: [] as { id: string }[] };
+  const mockQuestionIds = (usedInMocks || []).map((m) => m.id);
+  const { data: responses } = mockQuestionIds.length
+    ? await supabase.from("attempt_answers").select("id").in("mock_question_id", mockQuestionIds).limit(1)
+    : { data: [] as { id: string }[] };
 
   // QF-1: versions that were ever submitted, approved or published are immutable history.
   const { data: versions, error: vErr } = await supabase
@@ -1048,7 +1055,7 @@ export async function createMockTestAction(prevState: AdminActionResult | null, 
 
   const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = supabaseRaw as any;
+  const supabase = supabaseRaw;
 
   // Find or create template
   let templateId: string | null = null;
@@ -1069,7 +1076,7 @@ export async function createMockTestAction(prevState: AdminActionResult | null, 
       }
 
       // Ensure pattern exists
-      let resolvedPatternId = patternId;
+      let resolvedPatternId: string | undefined = patternId;
       if (!resolvedPatternId && cycle) {
         const { data: pat } = await supabase.from("exam_patterns").select("id").eq("exam_cycle_id", cycle.id).limit(1).maybeSingle();
         if (pat) {
@@ -1139,7 +1146,7 @@ export async function updateMockTestAction(prevState: AdminActionResult | null, 
 
   const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = supabaseRaw as any;
+  const supabase = supabaseRaw;
 
   const { error } = await supabase.from("mock_tests").update({
     title,
@@ -1163,7 +1170,7 @@ export async function toggleMockTestPublishAction(mockTestId: string, currentSta
   const newStatus = currentStatus ? "draft" : "published";
   const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = supabaseRaw as any;
+  const supabase = supabaseRaw;
 
   const { error } = await supabase.from("mock_tests").update({ status: newStatus }).eq("id", mockTestId);
   if (error) return dbFailure("toggleMockTestPublishAction", error);
@@ -1191,7 +1198,7 @@ export async function createCourseAction(prevState: AdminActionResult | null, fo
 
   const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = supabaseRaw as any;
+  const supabase = supabaseRaw;
 
   const { error } = await supabase.from("courses").insert({
     title,
@@ -1219,14 +1226,12 @@ export async function createDescriptiveAction(prevState: AdminActionResult | nul
 
   const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = supabaseRaw as any;
+  const supabase = supabaseRaw;
 
-  const { error } = await supabase.from("descriptive_prompts").insert({
-    title,
-    prompt_text: promptText,
-    max_word_count: maxWordCount,
-    is_active: true,
-  });
+  // TYPES-1:B-ADM-DESCRIPTIVE (tracked, owner Community) — descriptive_prompts never existed; the real table
+  // descriptive_questions needs a slug (uniqueness policy) and max marks, so creating via this form still fails.
+  // @ts-expect-error TYPES-1:B-ADM-DESCRIPTIVE — legacy table/columns (see above)
+  const { error } = await supabase.from("descriptive_prompts").insert({ title, prompt_text: promptText, max_word_count: maxWordCount, is_active: true });
 
   if (error) return dbFailure("createDescriptiveAction", error);
 
@@ -1240,20 +1245,19 @@ export async function createInstituteAction(prevState: AdminActionResult | null,
 
   const name = formData.get("name") as string;
   const slug = formData.get("slug") as string;
-  const city = formData.get("city") as string;
+  // TYPES-1 B6 (Class B): institutes has no city column — the insert always failed (42703). The form's city value
+  // has no column to go to (product follow-up: settings.city or a column; owner Community).
 
   if (!name || !slug) return { error: "Name and Slug are required." };
 
   const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = supabaseRaw as any;
+  const supabase = supabaseRaw;
 
-  const { error } = await supabase.from("institutes").insert({
-    name,
-    slug,
-    city: city || null,
-    is_verified: true,
-  });
+  // TYPES-1:B-ADM-INSTITUTES (tracked, owner Community) — institutes requires owner_user_id (which user owns an
+  // admin-created institute is a product decision) and has no city column; creating via this form still fails.
+  // @ts-expect-error TYPES-1:B-ADM-INSTITUTES — required owner_user_id missing (see above)
+  const { error } = await supabase.from("institutes").insert({ name, slug, is_verified: true });
 
   if (error) return dbFailure("createInstituteAction", error);
 
@@ -1274,12 +1278,12 @@ export async function createSubscriptionPlanAction(prevState: AdminActionResult 
 
   const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = supabaseRaw as any;
+  const supabase = supabaseRaw;
 
   const { error } = await supabase.from("subscription_plans").insert({
     name,
-    code,
-    price_inr: priceInr,
+    plan_code: code, // TYPES-1 B6 (Class B): columns are plan_code / base_price_inr (code / price_inr → 42703)
+    base_price_inr: priceInr,
     duration_days: durationDays,
     is_active: true,
   });
@@ -1296,8 +1300,11 @@ export async function resolveCommunityFlagAction(flagId: string, status: string 
 
   const supabaseRaw = createAdminServerSupabaseClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = supabaseRaw as any;
+  const supabase = supabaseRaw;
 
+  // TYPES-1:B-ADM-COMMUNITY (tracked, owner Community) — the table is discussion_moderation_flags whose status must be
+  // PENDING | RESOLVED_REMOVED | RESOLVED_DISMISSED (+ resolution_action); mapping "resolved" is a moderation decision.
+  // @ts-expect-error TYPES-1:B-ADM-COMMUNITY — legacy table (see above)
   const { error } = await supabase.from("community_moderation_flags").update({ status: status.toLowerCase() }).eq("id", flagId);
   if (error) return dbFailure("resolveCommunityFlagAction", error);
 
