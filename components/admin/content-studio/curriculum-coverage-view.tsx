@@ -5,6 +5,7 @@ import {
   CurriculumCoverageMatrix,
   CoverageSlotStatus,
   CANONICAL_DOCUMENT_TYPES,
+  COVERAGE_UNAVAILABLE_MESSAGE,
 } from "@/types/curriculum-coverage";
 import { DocumentType } from "@/types/learning-compiler";
 import {
@@ -169,6 +170,21 @@ export const CurriculumCoverageView: React.FC<Props> = ({
       })
       .filter((sub) => sub.topics.length > 0);
   }, [matrix, selectedSubjectId, selectedExamId, selectedDocType, selectedStatus, searchQuery]);
+
+  // HOTFIX-2 (decision #15): an unavailable matrix shows a notice — never numbers.
+  if (matrix && matrix.status === "UNAVAILABLE") {
+    return (
+      <div className="p-6" data-testid="coverage-unavailable">
+        <div role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-6 text-amber-900">
+          <h2 className="text-base font-semibold">{COVERAGE_UNAVAILABLE_MESSAGE}</h2>
+          <p className="mt-2 text-sm">
+            The curriculum coverage matrix is computed only from live syllabus and learning-unit data. That data model is
+            being rebuilt in GAP2-4, so no coverage figures are shown until it is available.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // If full matrix is not supplied, render legacy report fallback
   if (!matrix) {

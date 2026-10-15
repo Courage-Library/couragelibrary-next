@@ -9,7 +9,7 @@
 | **Authoritative Migration** | `supabase/migrations/20260909000048_phase5e1_rewards_and_settlement_rpc.sql` |
 | **Authoritative Service** | `services/live-test-reward.service.ts` |
 | **Authoritative RPC** | `public.fn_distribute_live_test_rewards(p_event_id, p_admin_id)` |
-| **Authoritative Test Suite** | `scripts/test_phase5e1_rewards.cjs` (20/20 PASS) |
+| **Authoritative Test Suite** | ~~`scripts/test_phase5e1_rewards.cjs`~~ removed in HOTFIX-2 (2026-10-15): it tested a local copy of the tier matcher, not `live-test-reward.service.ts`, and disabled TLS verification process-wide |
 | **Runtime Certification Gate** | `scripts/verify_phase5e1_production_runtime_gate.cjs` (62/62 PASS) |
 
 ---
@@ -125,7 +125,7 @@ Guaranteed single-execution via row-level locks on `public.coin_wallets` (`SELEC
 
 | Test Suite | Scope | Result | Status |
 | :--- | :--- | :---: | :---: |
-| `scripts/test_phase5e1_rewards.cjs` | Policy tier matching, Model A errata, Top-up logic, Idempotency | 20 / 20 | **PASS** |
+| ~~`scripts/test_phase5e1_rewards.cjs`~~ | Removed in HOTFIX-2 (tested a local copy, not product code; disabled TLS) | — | **REMOVED** |
 | `scripts/verify_phase5e1_production_runtime_gate.cjs` | Live Supabase execution, 12 core tables baseline audit, concurrency | 62 / 62 | **PASS** |
 | `npx tsc --noEmit` | Full TypeScript typecheck across entire application | 0 Errors | **PASS** |
 
