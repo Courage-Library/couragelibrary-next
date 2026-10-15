@@ -75,7 +75,7 @@ Adding a table to this list needs an architect ruling.
   - No role holds SELECT, so this is inert today.
   - It has 0 rows.
 
-**Decision needed:** are leaderboards public by design (with user display identity defined), or should both tables become own-row or RPC-only? Until there is a ruling, they stay on PENDING_RULING. No DB change has been made.
+**Ruled 2026-10-16: not public.** SEC-HOTFIX-5 (migration 077) made both tables own-rows-only; PENDING_RULING is now empty. See `docs/reports/sec/SEC_HOTFIX5_REPORT.md`.
 
 ## Migration discipline
 
