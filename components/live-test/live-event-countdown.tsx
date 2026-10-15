@@ -53,7 +53,7 @@ export function LiveEventCountdown({
 
   if (timeLeft.isExpired) {
     return (
-      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900">
+      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
         <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
         Live Now / Registration Closed
       </div>
@@ -92,8 +92,8 @@ export function LiveEventCountdown({
   }
 
   return (
-    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono font-medium bg-amber-50 text-amber-900 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
-      <span className="text-[11px] font-sans text-amber-700 dark:text-amber-400">{label}:</span>
+    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono font-medium bg-amber-50 text-amber-900 border border-amber-200">
+      <span className="text-[11px] font-sans text-amber-700">{label}:</span>
       <span>
         {timeLeft.days > 0 && `${timeLeft.days}d `}
         {String(timeLeft.hours).padStart(2, "0")}:{String(timeLeft.minutes).padStart(2, "0")}:

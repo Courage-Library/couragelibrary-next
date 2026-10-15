@@ -57,11 +57,8 @@ export function MistakeRevisionHealth({ intelligence }: MistakeRevisionHealthPro
                 <Activity className="w-4 h-4" />
               </span>
               <h2 className="text-base font-bold text-slate-900 tracking-tight">
-                Revision Health & Intelligence
+                Revision health
               </h2>
-              <Badge variant="indigo" className="bg-blue-50 text-blue-700 border-blue-200 text-[10px] px-2 py-0.5">
-                Deterministic Engine
-              </Badge>
             </div>
             <p className="text-xs text-slate-500">
               Personalized spaced recovery and priority recommendations based on your test mistakes.

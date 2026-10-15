@@ -14,6 +14,7 @@
  *       prefers-color-scheme anywhere, nothing sets data-theme="dark", <html> has no dark class
  *   R-4 one Latin font via next/font (self-hosted); no external font requests, no Devanagari font
  *   R-5 contrast: every pair in components/ui/contrast-pairs.json meets its WCAG threshold, computed from the tokens
+ *   R-7 config/brand.ts (theme-color meta + manifest) equals the primary-600 / ink-50 tokens and is the only source
  *   R-6 tokens never collide with legacy class names (no bare --color-primary / --color-card; no override of
  *       Tailwind's rounded-sm..2xl / shadow-sm..2xl) and the cn() registry lists every text / radius / shadow token
  *
@@ -87,7 +88,9 @@ function measure(file) {
 
 const METRICS = ['rawColor', 'paletteClass', 'darkClass', 'smallText', 'legacyImport'];
 const inScope = (r) => !r.startsWith('app/admin/') && !r.startsWith('components/admin/');
-const isDesignSystem = (r) => (r.startsWith('components/ui/') && !r.startsWith('components/ui/legacy/')) || r.startsWith('lib/format/');
+// UX-1b: the app shell and the shared brand logo are held to the same zero standard
+const isDesignSystem = (r) =>
+  (r.startsWith('components/ui/') && !r.startsWith('components/ui/legacy/')) || r.startsWith('lib/format/') || r.startsWith('components/shell/') || r.startsWith('components/brand/');
 
 const files = [...walk(path.join(ROOT, 'app')), ...walk(path.join(ROOT, 'components'))].filter((f) => inScope(rel(f)));
 const totals = Object.fromEntries(METRICS.map((m) => [m, 0]));
@@ -153,8 +156,8 @@ test('R-1 ratchet: no metric rises above the recorded baseline (app/ + component
   return METRICS.map((k) => `${k} ${totals[k]}`).join(' · ') + (fell.length ? ` (lower than baseline: ${fell.join(', ')}; re-record with --write)` : '');
 });
 
-test('R-2 the design system scores zero on every metric (components/ui/** except legacy/, lib/format)', () => {
-  const ds = [...walk(path.join(ROOT, 'components/ui')), ...walk(path.join(ROOT, 'lib/format'))].filter((f) => isDesignSystem(rel(f)));
+test('R-2 the design system scores zero on every metric (components/ui/** except legacy/, lib/format, components/shell, components/brand)', () => {
+  const ds = ['components/ui', 'lib/format', 'components/shell', 'components/brand'].flatMap((d) => walk(path.join(ROOT, d))).filter((f) => isDesignSystem(rel(f)));
   assert(ds.length >= 30, `expected ≥30 design-system files, found ${ds.length}`);
   const bad = [];
   for (const f of ds) {
@@ -241,6 +244,17 @@ test('R-6 token names are collision-free and registered in cn()', () => {
   for (const t of tok('radius')) if (!listed('radius').includes(`"${t}"`)) bad.push(`cn() radius registry misses "${t}"`);
   for (const t of tok('shadow')) if (!listed('shadow').includes(`"${t}"`)) bad.push(`cn() shadow registry misses "${t}"`);
   assert(bad.length === 0, bad.join('\n        '));
+});
+
+test('R-7 brand colours outside CSS (theme-color, manifest) mirror the tokens', () => {
+  const brand = fs.readFileSync(path.join(ROOT, 'config/brand.ts'), 'utf8');
+  const val = (k) => ((new RegExp(`export const ${k} = "(#[0-9a-fA-F]{6})"`).exec(brand) || [])[1] || '').toLowerCase();
+  assert(val('BRAND_THEME_COLOR') === resolveColor('primary-600').toLowerCase(), `BRAND_THEME_COLOR ${val('BRAND_THEME_COLOR')} != primary-600 ${resolveColor('primary-600')}`);
+  assert(val('BRAND_BACKGROUND_COLOR') === resolveColor('ink-50').toLowerCase(), 'BRAND_BACKGROUND_COLOR != ink-50');
+  const layout = fs.readFileSync(path.join(ROOT, 'app/layout.tsx'), 'utf8');
+  assert(/themeColor: BRAND_THEME_COLOR/.test(layout), 'layout themeColor must use BRAND_THEME_COLOR');
+  const manifest = fs.readFileSync(path.join(ROOT, 'app/manifest.ts'), 'utf8');
+  assert(/theme_color: BRAND_THEME_COLOR/.test(manifest) && /background_color: BRAND_BACKGROUND_COLOR/.test(manifest), 'manifest colours must use config/brand.ts');
 });
 
 if (WRITE) {

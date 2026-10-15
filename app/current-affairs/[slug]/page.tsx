@@ -98,7 +98,7 @@ export default async function CurrentAffairsArticleReaderPage({ params }: Articl
   ]);
 
   return (
-    <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950 py-8 md:py-12">
+    <div className="min-h-screen bg-slate-50/50 py-8 md:py-12">
       {/* JSON-LD Structured Data */}
       <script
         type="application/ld+json"
@@ -110,7 +110,7 @@ export default async function CurrentAffairsArticleReaderPage({ params }: Articl
       />
       <Container className="max-w-4xl space-y-8">
         {/* Breadcrumb Navigation */}
-        <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 overflow-x-auto whitespace-nowrap pb-1">
+        <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-slate-500 overflow-x-auto whitespace-nowrap pb-1">
           <Link href="/" className="hover:text-blue-600 transition-colors">
             Home
           </Link>
@@ -126,7 +126,7 @@ export default async function CurrentAffairsArticleReaderPage({ params }: Articl
             {formattedEventDate}
           </Link>
           <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-          <span className="text-slate-800 dark:text-slate-200 font-semibold truncate max-w-[200px] sm:max-w-xs">
+          <span className="text-slate-800 font-semibold truncate max-w-[200px] sm:max-w-xs">
             {article.headline}
           </span>
         </nav>
@@ -135,7 +135,7 @@ export default async function CurrentAffairsArticleReaderPage({ params }: Articl
         <div>
           <Link
             href={`/current-affairs/date/${article.newsDate}`}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-blue-600 transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-blue-600 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Back to {formattedEventDate} Intelligence Feed</span>
@@ -145,29 +145,29 @@ export default async function CurrentAffairsArticleReaderPage({ params }: Articl
         {/* Article Main Header */}
         <header className="space-y-4 pt-2">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 dark:bg-blue-950/70 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-200">
               {article.category.replace('_', ' ')}
             </span>
 
             {article.importanceTier === 'CRITICAL' && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-rose-100 text-rose-800 dark:bg-rose-950/70 dark:text-rose-200 border border-rose-300">
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-rose-100 text-rose-800 border border-rose-300">
                 <Flame className="w-3.5 h-3.5 text-rose-600 animate-pulse" />
                 CRITICAL EVENT
               </span>
             )}
             {article.importanceTier === 'HIGH' && (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-200 border border-amber-300">
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">
                 HIGH YIELD
               </span>
             )}
 
-            <div className="flex items-center text-xs text-slate-500 dark:text-slate-400 font-medium ml-auto">
+            <div className="flex items-center text-xs text-slate-500 font-medium ml-auto">
               <Calendar className="w-3.5 h-3.5 mr-1 text-slate-400" />
               <span>Event Date: {formattedEventDate}</span>
             </div>
           </div>
 
-          <h1 className="text-2xl md:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100 leading-tight">
+          <h1 className="text-2xl md:text-4xl font-extrabold tracking-tight text-slate-900 leading-tight">
             {article.headline}
           </h1>
         </header>
@@ -176,18 +176,18 @@ export default async function CurrentAffairsArticleReaderPage({ params }: Articl
         {article.keyTakeaways && article.keyTakeaways.length > 0 && (
           <section
             aria-labelledby="key-takeaways-heading"
-            className="rounded-2xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/50 dark:bg-amber-950/20 p-5 md:p-6 shadow-sm"
+            className="rounded-2xl border border-amber-200 bg-amber-50/50 p-5 md:p-6 shadow-sm"
           >
             <div className="flex items-center gap-2 mb-3">
-              <Sparkles className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-              <h2 id="key-takeaways-heading" className="text-base font-bold text-amber-900 dark:text-amber-200">
+              <Sparkles className="w-5 h-5 text-amber-600" />
+              <h2 id="key-takeaways-heading" className="text-base font-bold text-amber-900">
                 Key Exam Takeaways
               </h2>
             </div>
-            <ul className="space-y-2 text-sm text-slate-800 dark:text-slate-200">
+            <ul className="space-y-2 text-sm text-slate-800">
               {article.keyTakeaways.map((point, idx) => (
                 <li key={idx} className="flex items-start gap-2.5">
-                  <CheckCircle2 className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                  <CheckCircle2 className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                   <span>{point}</span>
                 </li>
               ))}
@@ -199,16 +199,16 @@ export default async function CurrentAffairsArticleReaderPage({ params }: Articl
         {article.importantFacts && article.importantFacts.length > 0 && (
           <section
             aria-labelledby="important-facts-heading"
-            className="rounded-2xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/30 dark:bg-blue-950/20 p-5 md:p-6 shadow-sm"
+            className="rounded-2xl border border-blue-200 bg-blue-50/30 p-5 md:p-6 shadow-sm"
           >
-            <h2 id="important-facts-heading" className="text-sm font-bold uppercase tracking-wider text-blue-900 dark:text-blue-300 mb-3">
+            <h2 id="important-facts-heading" className="text-sm font-bold uppercase tracking-wider text-blue-900 mb-3">
               Important Memorization Points
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {article.importantFacts.map((fact, idx) => (
                 <div
                   key={idx}
-                  className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-xs font-medium text-slate-800 dark:text-slate-200"
+                  className="p-3 rounded-xl bg-white border border-slate-200/80 text-xs font-medium text-slate-800"
                 >
                   {fact}
                 </div>
@@ -218,7 +218,7 @@ export default async function CurrentAffairsArticleReaderPage({ params }: Articl
         )}
 
         {/* Structured Analysis Body via ExamMdxArticleRenderer */}
-        <article className="prose prose-slate dark:prose-invert max-w-none pt-2">
+        <article className="prose prose-slate max-w-none pt-2">
           <ExamMdxArticleRenderer content={article.summaryMd} />
         </article>
 
@@ -243,8 +243,8 @@ export default async function CurrentAffairsArticleReaderPage({ params }: Articl
 
         {/* Related Articles in Same Category */}
         {article.relatedArticles && article.relatedArticles.length > 0 && (
-          <section aria-labelledby="related-articles-heading" className="pt-8 border-t border-slate-200 dark:border-slate-800 space-y-4">
-            <h2 id="related-articles-heading" className="text-lg font-bold text-slate-900 dark:text-slate-100">
+          <section aria-labelledby="related-articles-heading" className="pt-8 border-t border-slate-200 space-y-4">
+            <h2 id="related-articles-heading" className="text-lg font-bold text-slate-900">
               Related {article.category.replace('_', ' ')} Intelligence
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -252,13 +252,13 @@ export default async function CurrentAffairsArticleReaderPage({ params }: Articl
                 <Link
                   key={rel.id}
                   href={`/current-affairs/${rel.slug}`}
-                  className="group block p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-500 transition-colors shadow-sm"
+                  className="group block p-4 rounded-xl bg-white border border-slate-200 hover:border-blue-400 transition-colors shadow-sm"
                 >
                   <div className="flex items-center justify-between gap-2 text-xs text-slate-500 mb-1.5">
                     <span>{formatEventDate(rel.newsDate)}</span>
-                    <span className="font-semibold text-blue-600 dark:text-blue-400">{rel.category.replace('_', ' ')}</span>
+                    <span className="font-semibold text-blue-600">{rel.category.replace('_', ' ')}</span>
                   </div>
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 group-hover:text-blue-600 transition-colors line-clamp-2">
+                  <h3 className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-2">
                     {rel.headline}
                   </h3>
                 </Link>

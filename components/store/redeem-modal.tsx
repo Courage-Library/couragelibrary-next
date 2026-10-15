@@ -225,7 +225,7 @@ export function RedeemModal({
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-amber-600 font-bold">•</span>
-                    <span><strong>Server Verified:</strong> Authoritative deduction from your CL Coin ledger.</span>
+                    <span><strong>Secure:</strong> Coins are deducted from your CL Coin wallet only when you confirm.</span>
                   </li>
                 </>
               )}

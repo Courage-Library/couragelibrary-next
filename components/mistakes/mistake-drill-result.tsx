@@ -316,7 +316,7 @@ export function MistakeDrillResult({ result, onRestart }: MistakeDrillResultProp
                   {ev.explanation && (
                     <div className="p-4 rounded-xl bg-blue-50/50 border border-blue-100 space-y-1.5">
                       <span className="text-[11px] font-bold text-blue-900 flex items-center gap-1">
-                        <BookOpen className="w-3.5 h-3.5 text-blue-600" /> Authoritative Explanation
+                        <BookOpen className="w-3.5 h-3.5 text-blue-600" /> Explanation
                       </span>
                       <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-line">
                         {ev.explanation}

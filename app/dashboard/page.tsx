@@ -139,9 +139,6 @@ export default async function DashboardPage() {
                     Curated by your spaced repetition and readiness engine
                   </CardDescription>
                 </div>
-                <Badge variant="outline" className="text-xs">
-                  Phase 3J SRS
-                </Badge>
               </CardHeader>
               <CardContent>
                 {data.dailyRecommendations.length === 0 ? (
@@ -190,7 +187,7 @@ export default async function DashboardPage() {
                     Topic Mastery Matrix
                   </CardTitle>
                   <CardDescription className="text-xs">
-                    Phase 3C knowledge decay & readiness analytics
+                    How well you know each topic, and how ready you are
                   </CardDescription>
                 </div>
                 <Link href="/practice" className="text-xs text-blue-600 font-semibold hover:underline flex items-center gap-1">
@@ -235,7 +232,7 @@ export default async function DashboardPage() {
                   Institutional Batches
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Phase 3P coaching cohort memberships
+                  Coaching batches you belong to
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -269,7 +266,7 @@ export default async function DashboardPage() {
                   Recent Activity
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Phase 3C learning telemetry
+                  What you studied recently
                 </CardDescription>
               </CardHeader>
               <CardContent>

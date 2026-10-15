@@ -149,7 +149,7 @@ export default async function MockTestInstructionsPage({ params }: Props) {
               <ul className="space-y-2 text-xs text-slate-600 leading-relaxed">
                 <li className="flex items-start gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                  <span>The timer is authoritative and starts immediately upon clicking &quot;Start Test&quot;.</span>
+                  <span>The timer starts as soon as you click &quot;Start Test&quot;.</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />

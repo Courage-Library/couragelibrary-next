@@ -224,15 +224,17 @@ const params = (obj) => ({ params: Promise.resolve(obj), searchParams: Promise.r
   });
 
   // ===================== Navigation hides links =====================
-  await test('NAV battles link gated in main-nav, header-controls, mobile-nav; header passes server flag', async () => {
-    for (const f of ['components/layout/main-nav.tsx', 'components/layout/header-controls.tsx', 'components/layout/mobile-nav.tsx']) {
-      const s = read(f);
-      const i = s.indexOf('href="/battles"');
-      assert(i > 0 && /\{battlesEnabled && \(\s*$/.test(s.slice(Math.max(0, i - 120), i).split('<Link')[0]), `${f} not gated`);
-      assert(/battlesEnabled = false/.test(s), `${f} default not false`);
+  await test('NAV battles link gated in the UX-1b shell (nav-config flag + server-evaluated flag in AppShell)', async () => {
+    // UX-1b replaced components/layout/* with components/shell/*: every nav list goes through visibleItems()
+    const cfg = read('components/shell/nav-config.ts');
+    assert(/\{ href: "\/battles", label: "Battles", flag: "BATTLES" \}/.test(cfg), 'battles nav item not flagged');
+    assert(/return items\.filter\(\(i\) => !i\.flag \|\| flags\[i\.flag\]\);/.test(cfg), 'visibleItems does not filter flagged items');
+    assert(/BATTLES: isFeatureEnabled\("BATTLES"\)/.test(read('components/shell/app-shell.tsx')), 'shell does not pass the server flag');
+    const header = read('components/shell/header-bar.tsx');
+    assert(/visibleItems\(LEARN_MENU, flags\)/.test(header) && !/href="\/battles"/.test(header), 'header renders LEARN_MENU unfiltered or hard-codes /battles');
+    for (const f of ['components/shell/bottom-nav.tsx', 'components/shell/site-footer.tsx', 'components/shell/account-links.tsx', 'components/shell/nav-menu.tsx']) {
+      assert(!/\/battles/.test(read(f)), `${f} links /battles outside the flagged config`);
     }
-    const h = read('components/layout/header.tsx');
-    assert((h.match(/battlesEnabled=\{isFeatureEnabled\("BATTLES"\)\}/g) || []).length === 2, 'header does not pass flag to both');
   });
   await test('NAV dashboard battle card gated', async () => {
     const s = read('app/dashboard/page.tsx');

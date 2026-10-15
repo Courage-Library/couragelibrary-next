@@ -1845,7 +1845,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
             </div>
             <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-600 font-medium flex items-center justify-center gap-2">
               <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>Authoritative Evaluation in Progress</span>
+              <span>Scoring your test</span>
             </div>
           </div>
         </div>

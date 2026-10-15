@@ -13,10 +13,10 @@ export const DiagramBlock: React.FC<DiagramBlockProps> = ({
   const uri = resolvedAsset?.storageUri || `/api/learning/assets/${assetId}`;
 
   return (
-    <figure className="my-6 overflow-hidden rounded-xl border border-gray-200 bg-gray-50 p-4 text-center dark:border-gray-800 dark:bg-gray-900/60">
+    <figure className="my-6 overflow-hidden rounded-xl border border-gray-200 bg-gray-50 p-4 text-center">
       <div className="flex items-center justify-center">
         {/* Safe Render: Image reference through authorized internal handler */}
-        <div className="relative max-h-96 w-full overflow-hidden rounded-lg bg-white p-2 dark:bg-gray-950">
+        <div className="relative max-h-96 w-full overflow-hidden rounded-lg bg-white p-2">
           <img
             src={uri}
             alt={altText}
@@ -26,7 +26,7 @@ export const DiagramBlock: React.FC<DiagramBlockProps> = ({
         </div>
       </div>
       {caption && (
-        <figcaption className="mt-2 text-xs text-gray-500 italic dark:text-gray-400">
+        <figcaption className="mt-2 text-xs text-gray-500 italic">
           <ImageIcon className="mr-1 inline-block h-3.5 w-3.5" />
           {caption}
         </figcaption>

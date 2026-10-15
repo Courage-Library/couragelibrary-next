@@ -31,7 +31,7 @@ import { Button } from "@/components/ui/legacy/button";
 export const metadata: Metadata = {
   title: "Candidate Performance Intelligence | Courage Library",
   description:
-    "Authoritative multi-dimensional historical performance trajectories, accuracy, consistency, strengths, and unified activity timeline.",
+    "Your performance over time: accuracy, consistency, strengths and activity.",
 };
 
 interface PerformancePageProps {
@@ -147,7 +147,7 @@ export default async function CandidatePerformancePage({ searchParams }: Perform
               Performance Intelligence Hub
             </h1>
             <p className="text-sm text-slate-400 mt-1">
-              Server-verified historical trajectories, deterministic strengths, accuracy analytics, and credentials timeline.
+              Your accuracy, strengths and progress over time.
             </p>
           </div>
 
@@ -485,7 +485,7 @@ export default async function CandidatePerformancePage({ searchParams }: Perform
                 Subject & Section Breakdown
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                Sectional accuracy, negative marking drag, and deterministic mastery classification.
+                Accuracy by section, marks lost to negative marking, and topic mastery.
               </p>
             </div>
 

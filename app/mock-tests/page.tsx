@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export const metadata = constructMetadata({
-  title: "Mock Tests & Daily Practice Command Center",
+  title: "Mock Tests & Daily Practice",
   description:
     "Daily sectional tests, weekly mixed drills, full-length national mocks, and personalized multi-exam performance tracking.",
 });

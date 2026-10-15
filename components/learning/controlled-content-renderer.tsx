@@ -132,7 +132,7 @@ export const ControlledContentRenderer: React.FC<ControlledContentRendererProps>
     // 2. Headings
     if (line.startsWith("# ")) {
       renderedElements.push(
-        <h1 key={`h1-${idx}`} className="mt-8 mb-4 font-bold text-2xl sm:text-3xl text-gray-900 dark:text-gray-100 tracking-tight">
+        <h1 key={`h1-${idx}`} className="mt-8 mb-4 font-bold text-2xl sm:text-3xl text-gray-900 tracking-tight">
           {line.replace("# ", "")}
         </h1>
       );
@@ -141,7 +141,7 @@ export const ControlledContentRenderer: React.FC<ControlledContentRendererProps>
 
     if (line.startsWith("## ")) {
       renderedElements.push(
-        <h2 key={`h2-${idx}`} className="mt-6 mb-3 font-semibold text-xl text-gray-900 dark:text-gray-100 border-b border-gray-100 dark:border-gray-800 pb-2">
+        <h2 key={`h2-${idx}`} className="mt-6 mb-3 font-semibold text-xl text-gray-900 border-b border-gray-100 pb-2">
           {line.replace("## ", "")}
         </h2>
       );
@@ -150,7 +150,7 @@ export const ControlledContentRenderer: React.FC<ControlledContentRendererProps>
 
     if (line.startsWith("### ")) {
       renderedElements.push(
-        <h3 key={`h3-${idx}`} className="mt-4 mb-2 font-medium text-lg text-gray-800 dark:text-gray-200">
+        <h3 key={`h3-${idx}`} className="mt-4 mb-2 font-medium text-lg text-gray-800">
           {line.replace("### ", "")}
         </h3>
       );
@@ -160,7 +160,7 @@ export const ControlledContentRenderer: React.FC<ControlledContentRendererProps>
     // 3. Bullet points
     if (line.startsWith("- ")) {
       renderedElements.push(
-        <li key={`li-${idx}`} className="ml-5 list-disc text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+        <li key={`li-${idx}`} className="ml-5 list-disc text-sm text-gray-700 leading-relaxed">
           {line.replace("- ", "")}
         </li>
       );
@@ -170,7 +170,7 @@ export const ControlledContentRenderer: React.FC<ControlledContentRendererProps>
     // 4. Basic paragraphs
     if (trimmed && !trimmed.startsWith("<")) {
       renderedElements.push(
-        <p key={`p-${idx}`} className="my-2 text-sm leading-relaxed text-gray-700 dark:text-gray-300">
+        <p key={`p-${idx}`} className="my-2 text-sm leading-relaxed text-gray-700">
           {trimmed}
         </p>
       );

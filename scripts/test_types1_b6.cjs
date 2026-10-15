@@ -35,7 +35,7 @@ const load = (f) => {
   new Function('module', 'exports', 'require', 'process', js)(m, m.exports, require, process);
   return m.exports;
 };
-const B6_FILES = ['app/admin/actions.ts', 'components/admin/exam-onboarding/exam-management-view.tsx', 'components/layout/header.tsx', 'lib/admin/bulk-importer.ts', 'services/admin-premium.service.ts', 'services/admin.service.ts', 'services/storage/storage-factory.ts', 'services/storage/supabase-storage.provider.ts', 'services/taxonomy/taxonomy.service.ts'];
+const B6_FILES = ['app/admin/actions.ts', 'components/admin/exam-onboarding/exam-management-view.tsx', 'components/shell/app-shell.tsx', 'lib/admin/bulk-importer.ts', 'services/admin-premium.service.ts', 'services/admin.service.ts', 'services/storage/storage-factory.ts', 'services/storage/supabase-storage.provider.ts', 'services/taxonomy/taxonomy.service.ts'];
 
 (async () => {
   console.log('TYPES-1 B6 covering test');

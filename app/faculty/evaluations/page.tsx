@@ -18,7 +18,7 @@ export default async function FacultyEvaluationsQueuePage() {
         <div className="flex items-center justify-between">
           <div className="space-y-1">
             <Badge variant="indigo" className="text-xs">
-              Phase 3Q / 3P Faculty Evaluation Console
+              Faculty evaluation console
             </Badge>
             <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight flex items-center gap-2">
               <UserCheck className="w-7 h-7 text-purple-700" />

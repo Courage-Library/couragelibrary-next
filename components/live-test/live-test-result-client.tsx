@@ -304,7 +304,7 @@ export function LiveTestResultClient({
                   <Clock className="w-4 h-4 text-blue-400" />
                 </div>
                 <div className="text-2xl font-black text-slate-100">{formatTime(scorecard.timeSpentSeconds)}</div>
-                <div className="text-[11px] text-slate-500 mt-1">Authoritative duration</div>
+                <div className="text-[11px] text-slate-500 mt-1">Time taken</div>
               </div>
 
               <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4">

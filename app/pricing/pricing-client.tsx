@@ -58,7 +58,7 @@ export function PricingClient({ plans, subStatus, paymentsEnabled }: PricingClie
         {/* Header */}
         <div className="text-center space-y-3 max-w-2xl mx-auto">
           <Badge variant="indigo" className="bg-amber-100 text-amber-900 border-amber-200">
-            Phase 3I Authoritative Monetization
+            Plans and pricing
           </Badge>
           <h1 className="text-3xl sm:text-5xl font-black text-slate-900 tracking-tight">
             Unlock Full Courage Library PRO
@@ -168,7 +168,7 @@ export function PricingClient({ plans, subStatus, paymentsEnabled }: PricingClie
                     <Check className="w-4 h-4 text-amber-500 shrink-0" /> Smart Mistake Vault Remediation
                   </div>
                   <div className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-amber-500 shrink-0" /> Active Recall Flashcards & SRS
+                    <Check className="w-4 h-4 text-amber-500 shrink-0" /> Flashcards with spaced revision
                   </div>
                   <div className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-amber-500 shrink-0" /> 1v1 Quiz Battle Arena Access

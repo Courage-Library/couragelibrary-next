@@ -7,10 +7,10 @@
  * - Token names never collide with Tailwind defaults or with classes already used by legacy pages
  *   (no bare --color-primary / --color-card, no override of rounded-sm..xl or shadow-sm..xl),
  *   so legacy pages keep their look until UX-1b migrates them.
- * - Light only (owner decision): the `dark:` variant is made inert below; nothing ever sets data-theme="dark".
+ * - Light only (owner decision): the dark variant is made inert below; nothing ever sets data-theme="dark".
  */
 
-/* Dark mode disabled at the source: `dark:` classes only match under [data-theme=dark], which is never set. */
+/* Dark mode disabled at the source: dark-variant classes only match under [data-theme=dark], which is never set. */
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
 @theme static {

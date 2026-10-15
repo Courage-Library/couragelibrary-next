@@ -1,9 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { constructMetadata } from "@/lib/seo/metadata";
-import { Header } from "@/components/layout/header";
-import { Footer } from "@/components/layout/footer";
-import { PublicHeaderWrapper } from "@/components/layout/public-header-wrapper";
+import { AppShell } from "@/components/shell/app-shell";
+import { BRAND_THEME_COLOR } from "@/config/brand";
 import "./globals.css";
 
 // UX-1a: one Latin family, self-hosted by next/font at build time (no runtime request to Google).
@@ -15,7 +14,9 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
-  themeColor: "#2563eb",
+  // UX-1b: brand violet (primary-600); config/brand.ts mirrors the token (design ratchet R-7).
+  themeColor: BRAND_THEME_COLOR,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -25,12 +26,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`h-full ${inter.variable}`}>
-      <body className="flex min-h-full flex-col bg-slate-50 text-slate-900 antialiased selection:bg-blue-100 selection:text-blue-900">
-        <PublicHeaderWrapper>
-          <Header />
-        </PublicHeaderWrapper>
-        <main className="flex-1">{children}</main>
-        <Footer />
+      <body className="flex min-h-full flex-col bg-canvas text-fg antialiased selection:bg-primary-100 selection:text-primary-900">
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );

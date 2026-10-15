@@ -13,7 +13,7 @@ export default async function PracticeArenaPage() {
       <Container className="space-y-8 max-w-4xl">
         <div className="space-y-2">
           <Badge variant="indigo" className="text-xs">
-            Phase 3G Custom Practice Vault
+            Custom practice
           </Badge>
           <h1 className="text-3xl font-black text-slate-900 tracking-tight">
             Adaptive Practice Arena

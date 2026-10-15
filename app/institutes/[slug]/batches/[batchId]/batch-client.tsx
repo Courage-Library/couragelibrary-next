@@ -333,13 +333,13 @@ export function BatchDashboardClient({ batchDetail }: BatchDashboardClientProps)
                 </div>
 
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Content UUID Reference</label>
+                  <label className="font-bold text-slate-700 block mb-1">Content ID</label>
                   <input
                     type="text"
                     required
                     value={asgnContentId}
                     onChange={(e) => setAsgnContentId(e.target.value)}
-                    placeholder="Enter source content UUID"
+                    placeholder="Paste the content ID"
                     className="w-full p-3 rounded-xl border border-slate-200 bg-white font-mono outline-none focus:border-purple-600"
                   />
                 </div>

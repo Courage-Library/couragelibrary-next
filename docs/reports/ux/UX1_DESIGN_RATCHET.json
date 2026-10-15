@@ -2,11 +2,11 @@
   "$comment": "UX-1a design ratchet baseline (decision #40). Counts may only go down. Scope: app/ + components/, excluding app/admin and components/admin. Written by scripts/test_design_ratchet.cjs --write.",
   "recordedAt": "2026-10-15",
   "totals": {
-    "rawColor": 2,
-    "paletteClass": 5964,
-    "darkClass": 382,
-    "smallText": 489,
-    "legacyImport": 241
+    "rawColor": 1,
+    "paletteClass": 5232,
+    "darkClass": 0,
+    "smallText": 467,
+    "legacyImport": 236
   },
   "byArea": {
     "app/achievements": {
@@ -74,8 +74,8 @@
     },
     "app/current-affairs": {
       "rawColor": 0,
-      "paletteClass": 177,
-      "darkClass": 83,
+      "paletteClass": 95,
+      "darkClass": 0,
       "smallText": 0,
       "legacyImport": 4
     },
@@ -121,26 +121,12 @@
       "smallText": 0,
       "legacyImport": 8
     },
-    "app/globals.css": {
-      "rawColor": 0,
-      "paletteClass": 0,
-      "darkClass": 2,
-      "smallText": 0,
-      "legacyImport": 0
-    },
     "app/institutes": {
       "rawColor": 0,
       "paletteClass": 118,
       "darkClass": 0,
       "smallText": 18,
       "legacyImport": 11
-    },
-    "app/layout.tsx": {
-      "rawColor": 1,
-      "paletteClass": 4,
-      "darkClass": 0,
-      "smallText": 0,
-      "legacyImport": 0
     },
     "app/live-tests": {
       "rawColor": 0,
@@ -233,17 +219,10 @@
       "smallText": 2,
       "legacyImport": 4
     },
-    "components/brand": {
-      "rawColor": 0,
-      "paletteClass": 4,
-      "darkClass": 0,
-      "smallText": 0,
-      "legacyImport": 0
-    },
     "components/current-affairs": {
       "rawColor": 0,
-      "paletteClass": 329,
-      "darkClass": 141,
+      "paletteClass": 189,
+      "darkClass": 0,
       "smallText": 6,
       "legacyImport": 0
     },
@@ -268,32 +247,25 @@
       "smallText": 7,
       "legacyImport": 0
     },
-    "components/layout": {
-      "rawColor": 0,
-      "paletteClass": 343,
-      "darkClass": 0,
-      "smallText": 21,
-      "legacyImport": 5
-    },
     "components/learning": {
       "rawColor": 0,
-      "paletteClass": 269,
-      "darkClass": 133,
+      "paletteClass": 136,
+      "darkClass": 0,
       "smallText": 0,
       "legacyImport": 0
     },
     "components/live-test": {
       "rawColor": 0,
-      "paletteClass": 354,
-      "darkClass": 23,
+      "paletteClass": 331,
+      "darkClass": 0,
       "smallText": 36,
       "legacyImport": 4
     },
     "components/mistakes": {
       "rawColor": 0,
-      "paletteClass": 703,
+      "paletteClass": 700,
       "darkClass": 0,
-      "smallText": 81,
+      "smallText": 80,
       "legacyImport": 26
     },
     "components/premium": {

@@ -41,7 +41,7 @@ export default async function MockTestResultPage({ params }: Props) {
                 <Link href="/mock-tests" className="w-full sm:w-auto">
                   <Button variant="default" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs">
                     <ArrowLeft className="w-3.5 h-3.5 mr-1.5" />
-                    Mock Tests Command Center
+                    Mock tests
                   </Button>
                 </Link>
               </div>
@@ -73,7 +73,7 @@ export default async function MockTestResultPage({ params }: Props) {
               <Link href="/mock-tests" className="w-full sm:w-auto">
                 <Button variant="default" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs">
                   <ArrowLeft className="w-3.5 h-3.5 mr-1.5" />
-                  Mock Tests Command Center
+                  Mock tests
                 </Button>
               </Link>
             </div>
