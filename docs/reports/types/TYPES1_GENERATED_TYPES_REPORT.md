@@ -736,4 +736,28 @@ The remaining `supabaseClient?: any` parameters (32) became `AppSupabaseClient`.
   E2E_STUDENT_EMAIL=qa-student@courage-library.test E2E_KEEP_USER=1 node scripts/e2e/cleanup-student.cjs
   ```
 
-**TYPES-1 STATUS: CLOSED.** All batches B0, C, B1, B2, B6 and B4 are complete; B3 is owned by TEST-CA and B5 by GAP2-4. Every gate and the anonymous production checks passed. Per the architect policy, the owner runs the signed-in production smokes listed in §11.
+**Owner signed-in production smokes (2026-10-15, https://couragelibrary-next.vercel.app, deploy `94700f0`): ALL PASSED.**
+
+| Smoke | Result | Checks |
+|---|---|---|
+| `student-mistake` | **all passed** | signed in → `/dashboard`; `/mistakes` lists mistakes (6 links); mistake detail 200 with question text (80 chars), options A–D (4) and the correct answer marked; mock result renders a score |
+| `admin-pages` | **all passed** | `/admin`, `/admin/questions`, `/admin/sections`, `/admin/billing`, `/admin/community`, `/admin/descriptive`, `/admin/institutes`, `/admin/mock-tests-management`, `/admin/bulk-import`, `/admin/taxonomy`, `/admin/exams`: each 200 and renders |
+| `staff-content` | **all passed** | `/admin/content` 200 and renders |
+
+Afterwards the qa-student journey data was removed by the data-only cleanup (`E2E_KEEP_USER=1`). The account still exists, with no role.
+
+**Architect rulings at close:**
+1. **TYPES-1 CLOSED** (`94700f0`).
+2. **tsExpectError 6 → 17 APPROVED** (registered Class B tags only).
+3. **Owners confirmed:**
+
+   | Owner | Tags |
+   |---|---|
+   | Community | `B-ADM-COMMUNITY`, `B-ADM-DESCRIPTIVE`, `B-ADM-INSTITUTES` |
+   | GAP2-4 | `B-CURRICULUM-MAPPING` |
+   | LOOP-1 | `B-DSH-*` |
+   | Commerce | `B-BILLING-SUB-STATUS`, `B-DRILL-REWARD-ARGS` |
+
+4. **Rule: an owner phase cannot close while any of its B-tags remain.**
+
+**TYPES-1 STATUS: CLOSED.** All batches B0, C, B1, B2, B6 and B4 are complete; B3 is owned by TEST-CA and B5 by GAP2-4. Every gate and the anonymous production checks passed. The owner ran the signed-in production smokes, and all passed (§11).
