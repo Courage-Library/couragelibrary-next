@@ -130,6 +130,31 @@ The batches stay at ≤ 81 escapes each. The architect may merge B1+B2 or split 
 | Gates | tsc 0, lint 0, build OK, db:types:check OK, test_types1 green, covering suites + SEC-1B/1C offline, no DB changes, baseline no diff |
 | Commit | pre-authorised per batch (`chore(types-1/<batch>): …`) → push → production smoke (/, /api/health, anon /admin, plus one domain page). Any failure stops the sequence. |
 
+### 7b. Architect rulings: B1 resume (2026-10-15)
+
+- **B1 approved to resume.** The B1 work is re-applied unchanged on `a17f6e0` (after HOTFIX-1 and UX-0).
+- **tsExpectError 0 → 6 exception approved.**
+  - It applies only to registered `TYPES-1:B-<ID>` tags.
+  - It is recorded in the ratchet's `exceptions[]`.
+  - `--update-ratchet` allows the increase only when every directive carries a registered Class B id.
+- **Owners:**
+
+  | Tag | Owner |
+  |---|---|
+  | `B-DSH-VAULT-STATUS`, `B-DSH-MASTERY`, `B-DSH-RECOMMENDATIONS` | **LOOP-1** |
+  | `B-BILLING-SUB-STATUS` (×2) | **Commerce** |
+  | `B-DRILL-REWARD-ARGS` | **Commerce** |
+
+- **Required interim fix (honest data, decision #15).**
+  - A drill must not record `coins_awarded = 5` (or any value) when no coins were credited.
+  - It now records only what the reward RPC actually credited; until Commerce wires the reward this is 0.
+  - Covered by the test `test_types1_b1` B1-6.
+- **Mistake recording swallows insert errors** (`MistakeService.recordExamMistakes`). This is recorded as **LOOP-1's first item**. It is not fixed in B1.
+- **E2E must reach 13/13 on the new base** (up to 3 retries for network errors). No waiver.
+- **After B1:** continue B2 → B6 → B4 under the approved batch rules, then close TYPES-1.
+  - **B6** also handles the browser and middleware client typing (the `@supabase/ssr` 0.5.2 mismatch).
+  - A pinned, reviewed ssr upgrade is allowed if it is the clean fix, and must be reported.
+
 ## 8. Batch results
 
 ### B0: foundation
@@ -218,4 +243,87 @@ C has been removed from `remaining[]`.
 - DRIFT-1c 46/46, SEC-1B 26/26, SEC-1C 22/22, SEC-1A 20/20, QF-1 73/73;
 - baseline: **NO DIFF**.
 
-TYPES-1 STATUS: IN PROGRESS (B0, C complete; next: B1).
+### B1: student core
+
+**Escapes.** All **81 of 81** planned query escapes are removed, across 12 files:
+- 8 services: assessment, mistake, learning-resolver, content, dashboard, billing, bookmark, user-profile
+- 4 app files: mock-tests and mistakes actions, mistakes page, wallet
+
+The work was re-applied unchanged on `a17f6e0` (after HOTFIX-1 and UX-0) and re-gated there.
+
+**Ratchet:**
+
+| Counter | Before | After |
+|---|---|---|
+| queryEscapes | 353 | **272** (−81) |
+| asAny | 443 | 367 |
+| colonAny | 950 | 939 |
+| unknownAs | 89 | 85 |
+| tsExpectError | 0 | **6** (approved exception, recorded in `exceptions[]`) |
+| tsIgnore | 0 | 0 |
+
+B1 has been removed from `remaining[]`.
+
+**Class A: typing only, no runtime change.**
+- **`@supabase/ssr` 0.5.2 vs supabase-js 2.109.** The ssr client is declared with the pre-2.5x generic order, so every table on the session client resolved to `never`. This caused 165 of the 197 first-pass errors.
+  - **Fix:** `createServerSupabaseClient()` now returns `Promise<SupabaseClient<Database>>`.
+  - T-02 asserts this.
+  - The browser client (`lib/supabase/client.ts`) and middleware have the same mismatch. They are deferred to B6 per the ruling.
+- **Other Class A items:**
+  - the mistake lifecycle union
+  - drill payloads as JSON-compatible type aliases
+  - the course RPC JSON narrowing (`rpcJsonObject`)
+  - the `getTestResult` fallback re-query
+  - `formatIstDateTime(new Date())`
+  - 27 unused `eslint-disable` lines removed
+
+**Class B: real drift, 13 items (≤ 15).** Each fix has a live before/after check: the old select fails with 42703, the fixed one returns data. All are covered by `scripts/test_types1_b1.cjs` (8/8).
+
+| # | Location | Defect | Effect before | Resolution |
+|---|---|---|---|---|
+| 1 | `mistake.service.ts` `getMistakeDetail` | Non-existent columns `content_text`, `option_order`, `solution_explanation_md`; one-to-one `question_answers` read as an array | **Mistake detail showed an empty question with no options, and the correct answer was always "A"** (screenshot `docs/ux/ux0/screens/student/mistakes__vaultId`) | Fixed: live columns, one-to-one object |
+| 2 | Same function | The question plus answer embed ran with the **student session**, but students cannot read `question_answers` (RLS; E2E-07), so the whole embed returned nothing even after fix 1. Found during the B1 re-gate by the new signed-in smoke. | Same as 1 | Fixed: ownership is proven by the session-scoped vault row, then the question and answer are read server-side with the admin client, as `AssessmentService.getTestResult` does |
+| 3 | `mistake.service.ts` drill compile | Same non-existent option columns | Building a drill always failed | Fixed |
+| 4 | `mistake.service.ts` drill grading | Non-existent `solution_explanation_md`; answer read as an array; read every version of a question; read with the student session (RLS-denied) | Every drill answer graded against "A", with no explanation | Fixed: the compiled version ids, with the answer read server-side after the drill-ownership check |
+| 5 | `mistake.service.ts` drill reward | `.catch` called on a PostgREST builder, which is not a Promise | A TypeError aborted drill submission | Fixed: awaited inside try/catch |
+| 6 | Same block | `coins_awarded = 5` written although no coins were credited | Dishonest data (#15) | **Interim fix (ruling):** records only coins the RPC actually credited; 0 until Commerce wires the reward (B1-6) |
+| 7 | `assessment.service.ts:971, 1365` | `test_results` is one-to-one but was read as an array | The resume "answered" count was always 0 | Fixed (`oneToOne`) |
+| 8 | `assessment.service.ts:607` | Today's mock title was read but not selected | A fallback title was shown | Fixed |
+| 9 | `assessment.service.ts:530` | `subjects.code` does not exist | `getExamDetail` subjects were always empty (no callers) | Fixed (slug) |
+| 10 | `dashboard.service.ts:110` | `user_mistake_vault.status` does not exist | The dashboard mistake count fails | **Tracked** `TYPES-1:B-DSH-VAULT-STATUS` → LOOP-1 |
+| 11 | `dashboard.service.ts:121` | `user_topic_mastery` legacy columns (DSH-88) | The mastery panel is always empty | **Tracked** `B-DSH-MASTERY` → LOOP-1 |
+| 12 | `dashboard.service.ts:133` | `daily_study_recommendations` legacy columns | The recommendations panel is always empty | **Tracked** `B-DSH-RECOMMENDATIONS` → LOOP-1 |
+| 13 | `billing.service.ts:147,157` and `mistake.service.ts:1861` | `user_entitlements.status` / `valid_until` do not exist; reward RPC argument names are wrong | `/billing` and `/pricing` always show FREE; drill coins are never credited | **Tracked** `B-BILLING-SUB-STATUS` (×2), `B-DRILL-REWARD-ARGS` → Commerce |
+
+**Class C:** none in B1.
+
+**Recorded for LOOP-1 (first item; not fixed in B1).** `MistakeService.recordExamMistakes` swallows insert errors. In the first B1 E2E run, during network errors, 1 of 3 wrong answers produced no vault row. The re-gate runs passed 13/13.
+
+**New tooling:**
+- `scripts/test_types1_b1.cjs`: static, plus live read-only checks ref-locked to couragelibrary-next.
+- `scripts/smoke/signed-in-smoke.cjs`: signed-in smoke for the QA identities, with checks `student-mistake`, `admin-home` and `staff-content`.
+- The `--update-ratchet` Class B exception.
+
+**Gates** (local production build of `a17f6e0` + B1, final code):
+
+| Gate | Result |
+|---|---|
+| tsc / lint / build | 0 / 0 / OK |
+| `db:types:check` | OK |
+| test_types1 | 8/8 |
+| test_types1_b1 | 8/8 |
+| QF-1 | 73/73 + 15/15 |
+| GAP2-2a | 11/11 + 18/18 |
+| GAP2-3 | 15/15 |
+| SEC-1A | 20/20 |
+| SEC-1B | 26/26 + **live 32/32** |
+| SEC-1C | 22/22 + **live 29/29** |
+| SEC-1D | 14/14 + **live 19/19** |
+| DRIFT-1c | 46/46 |
+| QA identity guard | 8/8 |
+| HOTFIX-1 | 4/4 |
+| **E2E** | **13/13** (first try), as qa-student with `E2E_KEEP_USER=1` and a data-only cleanup after |
+| **Signed-in smoke `student-mistake`** | **all passed**: question text (80 chars), options A–D, correct answer marked, mock result renders a score |
+| Baseline | **NO DIFF** |
+
+TYPES-1 STATUS: IN PROGRESS (B0, C, B1 complete; next: B2).

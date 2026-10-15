@@ -70,7 +70,7 @@ export default async function MistakeVaultPage({ searchParams }: Props) {
     MistakeService.getAvailableFilterOptions(),
     MistakeService.getRevisionHealthIntelligence(),
     user
-      ? MistakeLongitudinalIntelligenceService.getLongitudinalOverview(supabase as any, user.id, {
+      ? MistakeLongitudinalIntelligenceService.getLongitudinalOverview(supabase, user.id, {
           windowDays: "30D",
         }).catch((err) => {
           console.error("[MistakeVaultPage] Failed to fetch longitudinal intelligence:", err);

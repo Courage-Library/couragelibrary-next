@@ -20,8 +20,7 @@ export async function addUserExamGoalAction(examId: string): Promise<ExamGoalAct
     return { error: "Please log in to set exam goals." };
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
+  const sb = supabase;
 
   // 1. Check if exam exists
   const { data: exam, error: examErr } = await sb
@@ -112,8 +111,7 @@ export async function removeUserExamGoalAction(examId: string): Promise<ExamGoal
     return { error: "Please log in to manage exam goals." };
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
+  const sb = supabase;
 
   const { error: updateErr } = await sb
     .from("user_exam_goals")

@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getAppEnv } from "@/config/env";
@@ -13,12 +13,17 @@ export interface CookieToSet {
 /**
  * Creates a server-side Supabase client with cookie storage support.
  * Safe to use in Server Components, Server Actions, and Route Handlers.
+ *
+ * TYPES-1 (Class A, typing only): @supabase/ssr 0.5.2 declares its result as the pre-2.5x generic order
+ * SupabaseClient<Database, SchemaName, Schema>, which supabase-js 2.109 reads as <Database, SchemaNameOrOptions,
+ * SchemaName> — every table then resolves to never. The runtime object IS a supabase-js SupabaseClient, so the
+ * factory states its real type. Remove this when @supabase/ssr is upgraded.
  */
-export async function createServerSupabaseClient() {
+export async function createServerSupabaseClient(): Promise<SupabaseClient<Database>> {
   const cookieStore = await cookies();
   const { supabaseUrl, supabaseAnonKey } = getAppEnv();
 
-  return createServerClient<Database>(
+  const ssrClient = createServerClient<Database>(
     supabaseUrl || "https://placeholder-url.supabase.co",
     supabaseAnonKey || "placeholder-key",
     {
@@ -38,6 +43,7 @@ export async function createServerSupabaseClient() {
       },
     }
   );
+  return ssrClient as unknown as SupabaseClient<Database>;
 }
 
 /**

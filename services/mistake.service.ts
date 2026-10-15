@@ -154,23 +154,24 @@ export interface MistakeDetail {
   recommendedReviewDate?: string;
 }
 
-export interface DrillQuestionOption {
+// Type aliases (not interfaces) so drill payloads are assignable to the jsonb column (questions_data: Json).
+export type DrillQuestionOption = {
   id: string;
   option_key: string;
   content_text: string;
   option_text?: string;
   option_order: number;
-}
+};
 
-export interface DrillQuestionContext {
+export type DrillQuestionContext = {
   cognitive_type_name?: string;
   total_mistakes_count?: number;
   consecutive_correct?: number;
   last_mistake_at?: string;
   user_custom_notes?: string | null;
-}
+};
 
-export interface DrillQuestion {
+export type DrillQuestion = {
   vault_id: string;
   question_id: string;
   question_version_id?: string | null;
@@ -179,7 +180,7 @@ export interface DrillQuestion {
   consecutive_correct: number;
   options: DrillQuestionOption[];
   context?: DrillQuestionContext;
-}
+};
 
 export type DrillQuestionPayload = DrillQuestion;
 
@@ -808,12 +809,10 @@ export class MistakeService {
     const questionIds = Array.from(new Set(params.mistakes.map((m) => m.questionId).filter(Boolean)));
     const taxonomyByQuestion = new Map<string, { topicId: string | null; subjectId: string | null }>();
     if (questionIds.length > 0) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: questionRows } = await (adminSb as any)
+      const { data: questionRows } = await adminSb
         .from("questions")
         .select("id, canonical_topic_id, topics:canonical_taxonomy_nodes!questions_canonical_topic_id_node_fkey(subject_id:root_subject_id)")
         .in("id", questionIds);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (questionRows || []).forEach((q: any) => {
         const topic = Array.isArray(q.topics) ? q.topics[0] : q.topics;
         taxonomyByQuestion.set(q.id, { topicId: q.canonical_topic_id ?? null, subjectId: topic?.subject_id ?? null });
@@ -823,8 +822,7 @@ export class MistakeService {
     for (const m of params.mistakes) {
       if (!m.questionId) continue;
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const sb = adminSb as any;
+      const sb = adminSb;
 
       // 1. Get or create vault record
       let { data: vaultRecord } = await sb
@@ -1003,8 +1001,7 @@ export class MistakeService {
     // Handle bookmarked filter
     let bookmarkedQuestionIds: string[] | null = null;
     if (filters?.bookmarkedOnly === true) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const sb = supabase as any;
+      const sb = supabase;
       const { data: bookmarks } = await sb
         .from("user_question_bookmarks")
         .select("question_id")
@@ -1058,7 +1055,7 @@ export class MistakeService {
       return { items: [], totalCount: 0, page, pageSize, totalPages: 0 };
     }
 
-    let items: MistakeListItem[] = (data as any[]).map((r) => {
+    let items: MistakeListItem[] = data.map((r) => {
       const qText = r.questions?.question_versions?.[0]?.question_text || "Question prompt unavailable";
       const customNote = r.user_custom_notes || null;
       
@@ -1106,7 +1103,7 @@ export class MistakeService {
         subjectName: r.subjects?.name || null,
         totalMistakesCount: r.total_mistakes_count,
         consecutiveCorrect: r.consecutive_correct_in_remediation,
-        lifecycleStatus: r.lifecycle_status,
+        lifecycleStatus: r.lifecycle_status as MistakeListItem["lifecycleStatus"],
         primaryCognitiveTypeId: r.primary_cognitive_type_id,
         primaryCognitiveName: r.mistake_cognitive_types?.name || r.primary_cognitive_type_id,
         userOverrideCognitiveTypeId: r.user_override_cognitive_type_id,
@@ -1194,21 +1191,27 @@ export class MistakeService {
     if (!vaultRow) return null;
     const v = vaultRow as any;
 
+    // TYPES-1 B1 (Class B): students cannot read question_answers (RLS; E2E-07), so the question + answer embed
+    // failed for the session client. Ownership is proven above (vault row of the session user); the question content
+    // is then read server-side with the admin client — the same pattern as AssessmentService.getTestResult.
+    const adminSb = createAdminServerSupabaseClient();
     const [occurrencesRes, questionRes] = await Promise.all([
       supabase.from("user_mistake_occurrences").select("id, source_context, response_time_seconds, inferred_cognitive_type_id, heuristic_confidence_pct, occurred_at, question_version_id, attempt_answer_id, occurrence_status, revoked_at, revocation_reason").eq("vault_id", vaultId).order("occurred_at", { ascending: false }),
-      supabase.from("questions").select("id, question_versions(id, question_text, question_options(id, option_key, content_text, option_order), question_answers(correct_option_key, solution_explanation_md))").eq("id", v.question_id).single(),
+      adminSb.from("questions").select("id, question_versions(id, question_text, question_options(id, option_key, option_text, order_index), question_answers(correct_option_key, explanation_md))").eq("id", v.question_id).single(),
     ]);
 
-    const qData = questionRes.data as any;
+    const qData = questionRes.data;
     const qv = qData?.question_versions?.[0];
+    // TYPES-1 B1 (Class B): question_answers is one-to-one with question_versions (object, not array).
+    const qAnswer = qv?.question_answers ?? null;
 
     const options = (qv?.question_options || [])
-      .sort((a: any, b: any) => (a.option_order || 0) - (b.option_order || 0))
-      .map((opt: any) => ({
+      .sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
+      .map((opt) => ({
         id: opt.id,
         key: opt.option_key,
-        text: opt.content_text,
-        isCorrect: opt.option_key === (qv?.question_answers?.[0]?.correct_option_key || "A"),
+        text: opt.option_text,
+        isCorrect: opt.option_key === (qAnswer?.correct_option_key || "A"),
       }));
 
     const learningContent = await this.resolveLearningContentForMistake({
@@ -1246,7 +1249,7 @@ export class MistakeService {
     });
 
     const repeatedSignal = detectRepeatedForgetting(
-      occurrencesRes.data as any[],
+      occurrencesRes.data ?? [],
       v.total_mistakes_count || 1,
       v.consecutive_correct_in_remediation || 0
     );
@@ -1257,8 +1260,8 @@ export class MistakeService {
       questionVersionId: qv?.id || v.occurrences?.[0]?.question_version_id || null,
       questionText: qv?.question_text || "",
       options,
-      correctOptionKey: qv?.question_answers?.[0]?.correct_option_key || "A",
-      explanation: qv?.question_answers?.[0]?.solution_explanation_md || null,
+      correctOptionKey: qAnswer?.correct_option_key || "A",
+      explanation: qAnswer?.explanation_md || null,
       topicId: v.topic_id || v.topics?.id || null,
       topicName: v.topics?.name || null,
       topicSlug: v.topics?.slug || null,
@@ -1275,7 +1278,7 @@ export class MistakeService {
       userCustomNotes: v.user_custom_notes,
       firstMistakeAt: v.first_mistake_at,
       lastMistakeAt: v.last_mistake_at,
-      occurrences: ((occurrencesRes.data as any[]) || []).map((o: any) => ({
+      occurrences: (occurrencesRes.data || []).map((o) => ({
         id: o.id,
         sourceContext: o.source_context,
         responseTimeSeconds: o.response_time_seconds,
@@ -1351,7 +1354,7 @@ export class MistakeService {
       .eq("user_id", user.id)
       .maybeSingle();
 
-    return (data as any)?.user_custom_notes || null;
+    return data?.user_custom_notes || null;
   }
 
   /**
@@ -1409,8 +1412,7 @@ export class MistakeService {
     // Handle bookmarked focus
     let bookmarkedQuestionIds: string[] | null = null;
     if (parsedConfig.focus === "BOOKMARKED") {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const sb = supabase as any;
+      const sb = supabase;
       const { data: bookmarks } = await sb
         .from("user_question_bookmarks")
         .select("question_id")
@@ -1422,8 +1424,7 @@ export class MistakeService {
       bookmarkedQuestionIds = bookmarks.map((b: { question_id: string }) => b.question_id);
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = supabase as any;
+    const sb = supabase;
     let query = sb
       .from("user_mistake_vault")
       .select("id, question_id, topic_id, subject_id, total_mistakes_count, consecutive_correct_in_remediation, lifecycle_status, primary_cognitive_type_id, user_override_cognitive_type_id, user_custom_notes, last_mistake_at, mastered_at, mistake_cognitive_types!primary_cognitive_type_id(name)")
@@ -1546,10 +1547,10 @@ export class MistakeService {
     const selectedMistakes = combined.slice(0, limit);
     const selectedQIds = selectedMistakes.map((m) => m.question_id);
 
-    // Fetch questions and options (SCRUBBED of correct_option_key and solution_explanation_md)
+    // Fetch questions and options (SCRUBBED of correct_option_key and explanation_md)
     const { data: questionsData, error: qError } = await sb
       .from("questions")
-      .select("id, question_versions!inner(id, question_text, is_current, lifecycle_status, question_options(id, option_key, content_text, option_order))")
+      .select("id, question_versions!inner(id, question_text, is_current, lifecycle_status, question_options(id, option_key, option_text, order_index))")
       .in("id", selectedQIds)
       // QF-1: drills use only the current PUBLISHED version of a published question.
       .eq("status", "published")
@@ -1565,13 +1566,13 @@ export class MistakeService {
       const qv = q.question_versions?.find((v: any) => v.is_current && v.lifecycle_status === "PUBLISHED");
       if (qv) {
         const sortedOptions: DrillQuestionOption[] = (qv.question_options || [])
-          .sort((a: any, b: any) => (a.option_order || 0) - (b.option_order || 0))
+          .sort((a: any, b: any) => (a.order_index || 0) - (b.order_index || 0))
           .map((opt: any) => ({
             id: opt.id,
             option_key: opt.option_key,
-            content_text: opt.content_text,
-            option_text: opt.content_text,
-            option_order: opt.option_order || 0,
+            content_text: opt.option_text,
+            option_text: opt.option_text,
+            option_order: opt.order_index || 0,
           }));
 
         qMap[q.id] = {
@@ -1689,8 +1690,7 @@ export class MistakeService {
       return { success: false, error: "Authentication required to submit drill." };
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = supabase as any;
+    const sb = supabase;
 
     // 1. Fetch and verify drill session
     const { data: drill, error: drillErr } = await sb
@@ -1712,16 +1712,26 @@ export class MistakeService {
     const questionIds = questionsData.map((q) => q.question_id);
 
     // 2. Load authoritative question answers and explanations
-    const { data: answersData } = await sb
-      .from("question_versions")
-      .select("question_id, question_text, question_answers(correct_option_key, solution_explanation_md)")
-      .in("question_id", questionIds);
+    // TYPES-1 B1 (Class B): answers of the exact versions the drill was compiled from (not every version of the
+    // question); drills stored without a version id fall back to the question's current version. Students cannot
+    // read question_answers (RLS), so grading reads them server-side with the admin client — the drill row was
+    // loaded for the session user above (ownership), and answers are never returned before submission.
+    const answerSb = createAdminServerSupabaseClient();
+    const ANSWER_SELECT = "question_id, question_text, question_answers(correct_option_key, explanation_md)";
+    const versionIds = questionsData.map((q) => q.question_version_id).filter((id): id is string => Boolean(id));
+    const unversionedIds = questionsData.filter((q) => !q.question_version_id).map((q) => q.question_id);
+    const answersData = [
+      ...(versionIds.length > 0 ? (await answerSb.from("question_versions").select(ANSWER_SELECT).in("id", versionIds)).data ?? [] : []),
+      ...(unversionedIds.length > 0
+        ? (await answerSb.from("question_versions").select(ANSWER_SELECT).in("question_id", unversionedIds).eq("is_current", true)).data ?? []
+        : []),
+    ];
 
     const answerMap: Record<string, { correctKey: string; explanation: string | null; text: string }> = {};
-    (answersData || []).forEach((row: any) => {
+    answersData.forEach((row) => {
       answerMap[row.question_id] = {
-        correctKey: row.question_answers?.[0]?.correct_option_key || "A",
-        explanation: row.question_answers?.[0]?.solution_explanation_md || null,
+        correctKey: row.question_answers?.correct_option_key || "A",
+        explanation: row.question_answers?.explanation_md || null,
         text: row.question_text || "",
       };
     });
@@ -1827,7 +1837,8 @@ export class MistakeService {
     }
 
     // 5. Coin Rewards (Gamification: 5 coins if total_questions >= 5, max 3/day)
-    let coinsAwarded = 0;
+    const DRILL_REWARD_COINS = 5;
+    let coinsAwarded = 0; // only what was actually credited (see below)
     const totalQuestions = questionsData.length;
     if (totalQuestions >= 5) {
       const todayStart = new Date();
@@ -1842,19 +1853,29 @@ export class MistakeService {
         .gt("coins_awarded", 0);
 
       if ((dailyCompletedCount || 0) < 3) {
-        coinsAwarded = 5;
-        // Award coins via RPC or coin ledger if available
-        const rpcCall = supabase.rpc as any;
-        await rpcCall("fn_award_gamification_reward", {
-          p_user_id: user.id,
-          p_event_type: "MISTAKE_DRILL_COMPLETED",
-          p_source_type: "MISTAKE_DRILL",
-          p_source_id: drillId,
-          p_idempotency_key: `mistake_drill_${drillId}_${user.id}`,
-          p_coins: 5,
-          p_reason: "MISTAKE_DRILL_COMPLETION",
-          p_metadata: { drill_id: drillId, correct_count: correctCount, resolved_count: masteredCount },
-        }).catch(() => null);
+        // Award coins via RPC or coin ledger if available (best effort).
+        // TYPES-1 B1 (Class B, fixed): a PostgREST builder is not a Promise, so the former `.catch(() => null)`
+        // threw a TypeError and aborted the drill submission; the award is now awaited inside try/catch.
+        // Honest data (#15, architect interim ruling): coins_awarded records ONLY coins the reward RPC actually
+        // credited. Until Commerce wires the reward (TYPES-1:B-DRILL-REWARD-ARGS) the call fails, so 0 is recorded.
+        try {
+          const { data: rewardRes, error: rewardErr } = await supabase.rpc("fn_award_gamification_reward", {
+            p_user_id: user.id,
+            p_event_type: "MISTAKE_DRILL_COMPLETED",
+            p_source_type: "MISTAKE_DRILL",
+            p_source_id: drillId,
+            p_idempotency_key: `mistake_drill_${drillId}_${user.id}`,
+            // @ts-expect-error TYPES-1:B-DRILL-REWARD-ARGS — the RPC takes p_calculated_coins / p_reason_code (coin economy decision); owner Commerce
+            p_coins: DRILL_REWARD_COINS,
+            p_reason: "MISTAKE_DRILL_COMPLETION",
+            p_metadata: { drill_id: drillId, correct_count: correctCount, resolved_count: masteredCount },
+          });
+          const rewardRejected =
+            rewardRes !== null && typeof rewardRes === "object" && !Array.isArray(rewardRes) && rewardRes.success === false;
+          if (!rewardErr && !rewardRejected) coinsAwarded = DRILL_REWARD_COINS;
+        } catch {
+          // reward is best effort; nothing was credited, so coinsAwarded stays 0
+        }
       }
     }
 
@@ -1945,8 +1966,7 @@ export class MistakeService {
       return defaultResult;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = supabase as any;
+    const sb = supabase;
 
     const [vaultRes, drillsRes] = await Promise.all([
       sb
@@ -1976,8 +1996,8 @@ export class MistakeService {
         .order("created_at", { ascending: false }),
     ]);
 
-    const vaultRows = (vaultRes.data as any[]) || [];
-    const drillRows = (drillsRes.data as any[]) || [];
+    const vaultRows = vaultRes.data || [];
+    const drillRows = drillsRes.data || [];
 
     if (vaultRows.length === 0) {
       const completedDrills = drillRows.filter((d) => d.status === "COMPLETED").length;

@@ -409,6 +409,27 @@ All specs are in [`docs/ux/pages/`](../../ux/pages/README.md):
 
 ---
 
+## §7 Architect rulings (2026-10-15)
+
+These are for later UX phases; no code changes now.
+
+1. **Primary colour:** pending owner confirmation. Recommended: violet `#5000F0` primary with cyan `#5CD8E6` as accent only.
+2. **Launch:** SSC CGL with the full experience. SSC CHSL and MTS launch as Exam Knowledge hubs marked "Preparation opening soon".
+3. **Free / Pro:** as recommended, pending owner confirmation. The correct answer is never paywalled.
+4. **Document URL:** `/learn/[slug]`, with a 308 from `/articles/[slug]`, introduced when the first documents publish.
+5. **Language:** English at launch, i18n-ready. The first Hindi exam is pending the owner.
+6. **Premium hub:** `/premium` is folded into `/pricing` + `/settings/subscription` (308).
+7. **Library and CNTS:**
+   - `/about` (Kanpur library) and `/cnts`, with footer links
+   - a "Made in Kanpur" landing section
+   - the CNTS app is linked, not merged
+8. **PROFILE-1:** a new 1:1 `candidate_profiles` table for preparation-intent fields only. Target exams stay in `user_exam_goals`; account fields stay in `user_profiles`. No field is stored twice.
+
+Also accepted:
+- the blueprint
+- the build order, with **test series (UX-5) before courses (UX-4)**
+- **PROFILE-1 before UX-3**
+
 ## FINAL STATUS: **CLOSED**
 
 All deliverables are complete: §1–§6, the IA, the design system, 16 page specs, and the anonymous and signed-in screenshot sets. The architect accepted the blueprint and build order: test series before courses, and PROFILE-1 inserted before UX-3. The primary colour awaits owner confirmation.

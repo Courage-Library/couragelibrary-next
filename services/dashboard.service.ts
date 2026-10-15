@@ -1,5 +1,24 @@
 ﻿import { createServerSupabaseClient } from "@/lib/supabase/server";
 
+/** Column set the dashboard still expects from user_topic_mastery (not deployed; TYPES-1:B-DSH-MASTERY). */
+interface DashboardLegacyMasteryRow {
+  id: string;
+  topic_id: string;
+  mastery_percentage: number | string | null;
+  status: string;
+  topics: { name: string } | null;
+}
+
+/** Column set the dashboard still expects from daily_study_recommendations (not deployed; TYPES-1:B-DSH-RECOMMENDATIONS). */
+interface DashboardLegacyRecommendationRow {
+  id: string;
+  recommendation_title: string | null;
+  item_type: string | null;
+  estimated_minutes: number | null;
+  priority: string | null;
+  is_completed: boolean | null;
+}
+
 export interface DashboardData {
   user: {
     id: string;
@@ -88,6 +107,7 @@ export class DashboardService {
       supabase.from("user_topic_mastery").select("id, topic_id, mastery_percentage, status, topics:canonical_taxonomy_nodes!user_topic_mastery_canonical_topic_id_node_fkey(name)").eq("user_id", userId).order("mastery_percentage", { ascending: false }).limit(6),
       supabase.from("daily_study_recommendations").select("id, recommendation_title, item_type, estimated_minutes, priority, is_completed").eq("user_id", userId).limit(5),
       supabase.from("learning_activity_events").select("id, event_type, resource_slug, time_spent_seconds, occurred_at").eq("user_id", userId).order("occurred_at", { ascending: false }).limit(5),
+      // @ts-expect-error TYPES-1:B-DSH-VAULT-STATUS — user_mistake_vault has lifecycle_status, not status (count always errors); owner LOOP-1
       supabase.from("user_mistake_vault").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("status", "ACTIVE"),
       supabase.from("batch_memberships").select("id, role, institute_batches(name), institutes(name)").eq("user_id", userId).eq("status", "ACTIVE"),
     ]);
@@ -96,7 +116,11 @@ export class DashboardService {
     const streakData = streakRes.data as { current_streak: number; longest_streak: number; freeze_active: boolean } | null;
     const readinessData = readinessRes.data as { overall_readiness_pct: number; predicted_score: number } | null;
 
-    const topicMastery = ((masteryRes.data as any[]) || []).map((m: any) => ({
+    // TYPES-1:B-DSH-MASTERY (tracked) — user_topic_mastery has canonical_topic_id / mastery_score and no status (DSH-88);
+    // the select always errors, so this list is empty in production. Owner LOOP-1.
+    // @ts-expect-error TYPES-1:B-DSH-MASTERY — legacy column set (see above)
+    const masteryRows: DashboardLegacyMasteryRow[] = masteryRes.data || [];
+    const topicMastery = masteryRows.map((m) => ({
       id: m.id,
       topic_id: m.topic_id,
       topic_name: m.topics?.name || "Topic",
@@ -104,7 +128,11 @@ export class DashboardService {
       status: m.status,
     }));
 
-    const dailyRecommendations = ((recRes.data as any[]) || []).map((r: any) => ({
+    // TYPES-1:B-DSH-RECOMMENDATIONS (tracked) — daily_study_recommendations has action_type / priority_rank / status,
+    // not recommendation_title / item_type / estimated_minutes / priority / is_completed (always errors). Owner LOOP-1.
+    // @ts-expect-error TYPES-1:B-DSH-RECOMMENDATIONS — legacy column set (see above)
+    const recommendationRows: DashboardLegacyRecommendationRow[] = recRes.data || [];
+    const dailyRecommendations = recommendationRows.map((r) => ({
       id: r.id,
       task_title: r.recommendation_title || "Daily Task",
       task_type: r.item_type || "PRACTICE",
@@ -113,14 +141,14 @@ export class DashboardService {
       is_completed: r.is_completed || false,
     }));
 
-    const enrolledBatches = ((batchesRes.data as any[]) || []).map((b: any) => ({
+    const enrolledBatches = (batchesRes.data || []).map((b) => ({
       id: b.id,
       batch_name: b.institute_batches?.name || "Batch",
       institute_name: b.institutes?.name || "Institute",
       role: b.role,
     }));
 
-    const recentActivity = ((activityRes.data as any[]) || []).map((act: any) => ({
+    const recentActivity = (activityRes.data || []).map((act) => ({
       id: act.id,
       event_type: act.event_type,
       resource_slug: act.resource_slug,

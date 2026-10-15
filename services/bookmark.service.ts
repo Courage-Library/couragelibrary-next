@@ -29,8 +29,7 @@ export class BookmarkService {
       };
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = supabase as any;
+    const sb = supabase;
 
     // 1. Check if bookmark already exists
     const { data: existing, error: checkError } = await sb
@@ -143,8 +142,7 @@ export class BookmarkService {
       return emptyMap;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = supabase as any;
+    const sb = supabase;
     const { data: bookmarks } = await sb
       .from("user_question_bookmarks")
       .select("question_id")
@@ -176,8 +174,7 @@ export class BookmarkService {
 
     if (!user) return false;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = supabase as any;
+    const sb = supabase;
     const { data } = await sb
       .from("user_question_bookmarks")
       .select("id")
@@ -199,8 +196,7 @@ export class BookmarkService {
 
     if (!user) return [];
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = supabase as any;
+    const sb = supabase;
     const { data } = await sb
       .from("user_question_bookmarks")
       .select("question_id")

@@ -3,12 +3,6 @@
   "rule": "Values may only go down. scripts/test_types1.cjs T-03/T-07 fail if any current value is ABOVE these. Each batch lowers queryEscapes by its batch size and commits the new ratchet (node scripts/test_types1.cjs --update-ratchet).",
   "remaining": [
     {
-      "batch": "B1",
-      "owner": "TYPES-1 batch B1",
-      "count": 81,
-      "scope": "^(app/mistakes/actions\\.ts|app/mistakes/page\\.tsx|app/mock-tests/actions\\.ts|app/wallet/page\\.tsx|services/assessment\\.service\\.ts|services/billing\\.service\\.ts|services/bookmark\\.service\\.ts|services/content\\.service\\.ts|services/dashboard\\.service\\.ts|services/learning/learning-resolver\\.service\\.ts|services/mistake\\.service\\.ts|services/user-profile\\.service\\.ts)$"
-    },
-    {
       "batch": "B2",
       "owner": "TYPES-1 batch B2",
       "count": 45,
@@ -40,12 +34,21 @@
     }
   ],
   "values": {
-    "queryEscapes": 353,
-    "asAny": 443,
-    "colonAny": 950,
-    "unknownAs": 89,
-    "tsExpectError": 0,
+    "queryEscapes": 272,
+    "asAny": 367,
+    "colonAny": 939,
+    "unknownAs": 85,
+    "tsExpectError": 6,
     "tsIgnore": 0
   },
-  "updatedAt": "2026-10-15"
+  "updatedAt": "2026-10-15",
+  "exceptions": [
+    {
+      "batch": "B1",
+      "key": "tsExpectError",
+      "from": 0,
+      "to": 6,
+      "reason": "tracked ambiguous Class B (architect rule 3); every directive carries a registered TYPES-1:B-<ID>"
+    }
+  ]
 }

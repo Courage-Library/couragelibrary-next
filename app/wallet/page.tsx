@@ -50,7 +50,7 @@ export default async function WalletPage() {
     display_order?: number | null;
   }
 
-  const rawCatalog = (catalogRes.data as unknown as DbRewardItem[]) || [];
+  const rawCatalog = (catalogRes.data as DbRewardItem[]) || [];
   const catalog: RewardCatalogItem[] = rawCatalog.slice(0, 3).map((item) => ({
     id: item.id,
     title: item.title,
