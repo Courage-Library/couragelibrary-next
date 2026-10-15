@@ -1,10 +1,12 @@
 # UX-0: Student Experience Discovery Report
 
-> **STATUS: OPEN.** All documents are complete. One evidence item is outstanding: the qa-student (signed-in) screenshots. They cannot be taken because the permanent qa-student identity was deleted during TYPES-1 B1 (§1a). After the owner runs `node scripts/qa/ensure-qa-identities.cjs`, the signed-in pass is a single script run, and UX-0 can close.
+> **STATUS: CLOSED.** The signed-in (qa-student) screenshots were captured after HOTFIX-1 (`ac909e3`) restored the identity.
 >
 > - **Scope:** documents and screenshots only. No production code, no DB writes, no packages.
 > - **Date:** 2026-10-15.
-> - **Build under test:** local production build (`next build` + `next start`, port 3100) of `main@8ef9bf7` **plus the uncommitted TYPES-1 B1 working tree** (student-core typing and Class B fixes). Visual output is unaffected except for the mistake detail and drill pages, which only render for signed-in users.
+> - **Builds under test** (both run locally with `next build` + `next start`, port 3100):
+>   - **Anonymous pass:** `main@8ef9bf7` plus the then-uncommitted TYPES-1 B1 working tree. Visual output is unaffected except for the mistake detail and drill pages, which only render for signed-in users.
+>   - **Signed-in pass:** `main@ac909e3` (HOTFIX-1) with B1 stashed, i.e. exactly what production runs.
 > - **Data:** read-only queries against couragelibrary-next (`BEGIN READ ONLY`, verified TLS, ref-locked). Counts only; no PII.
 
 **Deliverables:**
@@ -14,8 +16,8 @@
 | [`docs/ux/SITEMAP_IA.md`](../../ux/SITEMAP_IA.md) | Sitemap, URL scheme, navigation, journeys |
 | [`docs/ux/DESIGN_SYSTEM.md`](../../ux/DESIGN_SYSTEM.md) | Tokens with contrast proof, typography, implementation plan, 28 component specs, content style, CWV budgets |
 | [`docs/ux/pages/`](../../ux/pages/README.md) | 16 page specs plus an index |
-| `docs/ux/ux0/screens/anon/` | 64 screenshots: 31 reachable routes × desktop 1440 / mobile 390, plus 2 example 404 captures (achievements, courses) |
-
+| `docs/ux/ux0/screens/anon/` | 64 screenshots: 31 reachable routes × desktop 1440 / mobile 390, plus 2 example 404 captures (achievements, courses). The home page shots show the pre-HOTFIX-1 developer placeholder. |
+| `docs/ux/ux0/screens/student/` | 34 signed-in screenshots: 17 pages × desktop / mobile, with real journey data (one submitted mock, 3 mistakes) |
 ---
 
 ## §1 Inventory
@@ -124,10 +126,27 @@ The return parameter has three names in use (`next`, `redirect`, `redirectTo`), 
 | `/faculty/evaluations` | 200 | Faculty Review Queue | [desktop](../../ux/ux0/screens/anon/faculty__evaluations-d.jpg) · [mobile](../../ux/ux0/screens/anon/faculty__evaluations-m.jpg) |
 | `/verify/c/SAMPLE` | 404 (not-found) |  | — |
 
-**Signed-in (qa-student) screenshots: NOT CAPTURED (blocked).**
-- **Cause.** During TYPES-1 B1, `scripts/e2e/cleanup-student.cjs` was run without `E2E_KEEP_USER=1`, which deleted the qa-student auth user and profile.
-- **Remedy.** `node scripts/qa/ensure-qa-identities.cjs` (owner). Then re-run the capture script (kept outside the repo), which signs in through the login form as qa-student. It will capture dashboard, mistakes, wallet, store, premium, a mock result and the console.
-- qa-admin and qa-staff are intact.
+**Signed-in screenshot index (qa-student, `main@ac909e3`).** The data came from the E2E journey (13/13 passed: one submitted full mock with 3 wrong answers). Afterwards a data-only cleanup ran with `E2E_KEEP_USER=1`, and the identity was kept.
+
+| Page | Observation | Screens |
+|---|---|---|
+| `/` (signed-in header) | Header shows streak, coins, bell and avatar; holding page (HOTFIX-1) | [desktop](../../ux/ux0/screens/student/home-d.jpg) · [mobile](../../ux/ux0/screens/student/home-m.jpg) |
+| `/dashboard` | **System words in the UI:** "Phase 3J SRS", "Phase 3P coaching cohort", "Phase 3C learning telemetry". Recommendations, mastery and activity panels are empty (LOOP-1 drift). | [desktop](../../ux/ux0/screens/student/dashboard-d.jpg) · [mobile](../../ux/ux0/screens/student/dashboard-m.jpg) |
+| `/mock-tests` | Personalised (goals, streak); daily sectionals still labelled "Full-Length" | [desktop](../../ux/ux0/screens/student/mock-tests-d.jpg) · [mobile](../../ux/ux0/screens/student/mock-tests-m.jpg) |
+| `/mock-tests/[mockId]` | Instructions | [desktop](../../ux/ux0/screens/student/mock-tests__mockId-d.jpg) · [mobile](../../ux/ux0/screens/student/mock-tests__mockId-m.jpg) |
+| `/mock-tests/[attemptId]/result` | Result with real score | [desktop](../../ux/ux0/screens/student/mock-tests__attemptId__result-d.jpg) · [mobile](../../ux/ux0/screens/student/mock-tests__attemptId__result-m.jpg) |
+| `/mistakes` | Vault with 3 mistakes | [desktop](../../ux/ux0/screens/student/mistakes-d.jpg) · [mobile](../../ux/ux0/screens/student/mistakes-m.jpg) |
+| `/mistakes/[vaultId]` | **"QUESTION PROMPT" empty, no options.** This is the TYPES-1 B1 Class B defect (wrong column names) on `main`; the fix is in the stashed B1 work. | [desktop](../../ux/ux0/screens/student/mistakes__vaultId-d.jpg) · [mobile](../../ux/ux0/screens/student/mistakes__vaultId-m.jpg) |
+| `/mistakes/drill` | Drill builder | [desktop](../../ux/ux0/screens/student/mistakes__drill-d.jpg) · [mobile](../../ux/ux0/screens/student/mistakes__drill-m.jpg) |
+| `/exams/ssc-cgl` | Hub (signed-in) | [desktop](../../ux/ux0/screens/student/exams__ssc-cgl-d.jpg) · [mobile](../../ux/ux0/screens/student/exams__ssc-cgl-m.jpg) |
+| `/practice` | Placeholder (buttons inert) | [desktop](../../ux/ux0/screens/student/practice-d.jpg) · [mobile](../../ux/ux0/screens/student/practice-m.jpg) |
+| `/premium` | Premium hub | [desktop](../../ux/ux0/screens/student/premium-d.jpg) · [mobile](../../ux/ux0/screens/student/premium-m.jpg) |
+| `/pricing` | Plan list; status FREE (B-BILLING-SUB-STATUS) | [desktop](../../ux/ux0/screens/student/pricing-d.jpg) · [mobile](../../ux/ux0/screens/student/pricing-m.jpg) |
+| `/billing` | Status FREE | [desktop](../../ux/ux0/screens/student/billing-d.jpg) · [mobile](../../ux/ux0/screens/student/billing-m.jpg) |
+| `/wallet` | Coins (30 after one mock) | [desktop](../../ux/ux0/screens/student/wallet-d.jpg) · [mobile](../../ux/ux0/screens/student/wallet-m.jpg) |
+| `/store` | Rewards store | [desktop](../../ux/ux0/screens/student/store-d.jpg) · [mobile](../../ux/ux0/screens/student/store-m.jpg) |
+| `/notifications` | Hard-coded empty | [desktop](../../ux/ux0/screens/student/notifications-d.jpg) · [mobile](../../ux/ux0/screens/student/notifications-m.jpg) |
+| `/descriptive/submissions` | Empty | [desktop](../../ux/ux0/screens/student/descriptive__submissions-d.jpg) · [mobile](../../ux/ux0/screens/student/descriptive__submissions-m.jpg) |
 
 ### 1b. Styling today
 
@@ -390,6 +409,6 @@ All specs are in [`docs/ux/pages/`](../../ux/pages/README.md):
 
 ---
 
-## FINAL STATUS: **OPEN**
+## FINAL STATUS: **CLOSED**
 
-Everything required is delivered: §1–§6, IA, design system, and 16 page specs. **One item is open:** the signed-in (qa-student) screenshots, blocked by the deleted qa-student identity. After `node scripts/qa/ensure-qa-identities.cjs`, they take one capture run and a docs-only follow-up commit. UX-0 then closes.
+All deliverables are complete: §1–§6, the IA, the design system, 16 page specs, and the anonymous and signed-in screenshot sets. The architect accepted the blueprint and build order: test series before courses, and PROFILE-1 inserted before UX-3. The primary colour awaits owner confirmation.
