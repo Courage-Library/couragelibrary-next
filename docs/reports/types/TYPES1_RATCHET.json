@@ -3,12 +3,6 @@
   "rule": "Values may only go down. scripts/test_types1.cjs T-03/T-07 fail if any current value is ABOVE these. Each batch lowers queryEscapes by its batch size and commits the new ratchet (node scripts/test_types1.cjs --update-ratchet).",
   "remaining": [
     {
-      "batch": "C",
-      "owner": "TYPES-1 batch C (tag only; quarantined modules)",
-      "count": 181,
-      "scope": "^(app/admin/live-tests/\\[id\\]/results/page\\.tsx|app/admin/live-tests/page\\.tsx|components/admin/adaptive/admin-adaptive-manager\\.tsx|services/adaptive/adaptive-analytics\\.service\\.ts|services/adaptive/adaptive-calibration\\.service\\.ts|services/adaptive/adaptive-remediation\\.service\\.ts|services/adaptive/adaptive-selection\\.service\\.ts|services/admin-adaptive\\.service\\.ts|services/admin-competition-intelligence\\.service\\.ts|services/battle\\.service\\.ts|services/candidate-intelligence\\.service\\.ts|services/live-test-achievement\\.service\\.ts|services/live-test-certificate\\.service\\.ts|services/live-test-foundation\\.service\\.ts|services/live-test-registration\\.service\\.ts|services/live-test-result\\.service\\.ts|services/live-test-reward\\.service\\.ts|services/live-test-runner\\.service\\.ts|services/psychometrics\\.service\\.ts)$"
-    },
-    {
       "batch": "B1",
       "owner": "TYPES-1 batch B1",
       "count": 81,
@@ -46,10 +40,10 @@
     }
   ],
   "values": {
-    "queryEscapes": 532,
-    "asAny": 609,
-    "colonAny": 960,
-    "unknownAs": 93,
+    "queryEscapes": 353,
+    "asAny": 443,
+    "colonAny": 950,
+    "unknownAs": 89,
     "tsExpectError": 0,
     "tsIgnore": 0
   },

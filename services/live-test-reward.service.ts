@@ -5,6 +5,12 @@ import {
   LiveTestRewardDistributionResult,
   CandidateEventRewardSummary,
 } from "@/types/live-test";
+import { quarantinedClient } from "@/lib/supabase/quarantine";
+
+// TYPES-1:C-LIVE-TEST-REWARD — QUARANTINED (LIVE_TESTS flag off; known-broken against the live schema). The Supabase client is
+// obtained through lib/supabase/quarantine.ts (registered in docs/reports/types/TYPES1_ESCAPES.json).
+const QUARANTINE_TAG = "TYPES-1:C-LIVE-TEST-REWARD" as const;
+
 
 export class LiveTestRewardService {
   /**
@@ -31,12 +37,12 @@ export class LiveTestRewardService {
     eventId: string,
     adminId?: string
   ): Promise<LiveTestRewardDistributionResult> {
-    const adminSb = createAdminServerSupabaseClient();
+    const adminSb = quarantinedClient(createAdminServerSupabaseClient(), QUARANTINE_TAG);
     const startTime = Date.now();
 
     // 1. Attempt DB RPC execution first
     try {
-      const { data: rpcData, error: rpcError } = await (adminSb.rpc as any)(
+      const { data: rpcData, error: rpcError } = await adminSb.rpc(
         "fn_distribute_live_test_rewards",
         {
           p_event_id: eventId,
@@ -66,7 +72,7 @@ export class LiveTestRewardService {
 
     // 2. Authoritative Service-Level Execution
     // Validate Event
-    const { data: event, error: eventErr } = await (adminSb as any)
+    const { data: event, error: eventErr } = await adminSb
       .from("live_test_events")
       .select("id, status, title")
       .eq("id", eventId)
@@ -81,7 +87,7 @@ export class LiveTestRewardService {
     }
 
     // Fetch Active Snapshot
-    const { data: snapshot } = await (adminSb as any)
+    const { data: snapshot } = await adminSb
       .from("live_test_ranking_snapshots")
       .select("*")
       .eq("live_test_event_id", eventId)
@@ -97,7 +103,7 @@ export class LiveTestRewardService {
     const settlementVersion = snapshot.snapshot_version || 1;
 
     // Fetch Leaderboard Entries
-    const { data: entries } = await (adminSb as any)
+    const { data: entries } = await adminSb
       .from("live_test_leaderboard_entries")
       .select("*")
       .eq("snapshot_id", snapshot.id)
@@ -135,7 +141,7 @@ export class LiveTestRewardService {
       const { tierName, coinReward } = this.matchRewardTier(entry.rank, entry.percentile, policies);
 
       // Check existing settlements for this user on this event
-      const { data: priorSettlements } = await (adminSb as any)
+      const { data: priorSettlements } = await adminSb
         .from("live_test_reward_settlements")
         .select("coins_awarded, settlement_version, settlement_status")
         .eq("live_test_event_id", eventId)
@@ -173,7 +179,7 @@ export class LiveTestRewardService {
             entry.percentile
           );
 
-          await (adminSb as any).from("live_test_reward_settlements").insert({
+          await adminSb.from("live_test_reward_settlements").insert({
             live_test_event_id: eventId,
             snapshot_id: snapshot.id,
             user_id: entry.user_id,
@@ -196,7 +202,7 @@ export class LiveTestRewardService {
           settledCount++;
           totalCoinsDistributed += coinReward;
         } else {
-          await (adminSb as any).from("live_test_reward_settlements").insert({
+          await adminSb.from("live_test_reward_settlements").insert({
             live_test_event_id: eventId,
             snapshot_id: snapshot.id,
             user_id: entry.user_id,
@@ -227,7 +233,7 @@ export class LiveTestRewardService {
             entry.percentile
           );
 
-          await (adminSb as any).from("live_test_reward_settlements").insert({
+          await adminSb.from("live_test_reward_settlements").insert({
             live_test_event_id: eventId,
             snapshot_id: snapshot.id,
             user_id: entry.user_id,
@@ -251,7 +257,7 @@ export class LiveTestRewardService {
           totalCoinsDistributed += delta;
         } else if (coinReward < priorCoinsTotal) {
           // Model A: Protected Drop - DO NOT CLAW BACK
-          await (adminSb as any).from("live_test_reward_settlements").insert({
+          await adminSb.from("live_test_reward_settlements").insert({
             live_test_event_id: eventId,
             snapshot_id: snapshot.id,
             user_id: entry.user_id,
@@ -275,7 +281,7 @@ export class LiveTestRewardService {
           protectedCount++;
         } else {
           // Unchanged
-          await (adminSb as any).from("live_test_reward_settlements").insert({
+          await adminSb.from("live_test_reward_settlements").insert({
             live_test_event_id: eventId,
             snapshot_id: snapshot.id,
             user_id: entry.user_id,
@@ -301,7 +307,7 @@ export class LiveTestRewardService {
     const executionMs = Date.now() - startTime;
 
     // Audit log
-    await (adminSb as any).from("live_test_audit_logs").insert({
+    await adminSb.from("live_test_audit_logs").insert({
       live_test_event_id: eventId,
       action: "REWARDS_DISTRIBUTED",
       actor_id: adminId || null,
@@ -394,15 +400,15 @@ export class LiveTestRewardService {
     rank: number,
     percentile: number
   ): Promise<{ ledgerId: string | null }> {
-    const adminSb = createAdminServerSupabaseClient();
+    const adminSb = quarantinedClient(createAdminServerSupabaseClient(), QUARANTINE_TAG);
 
     // 1. Upsert wallet
-    await (adminSb as any)
+    await adminSb
       .from("coin_wallets")
       .upsert({ user_id: userId, current_balance: 0, lifetime_earned: 0, lifetime_spent: 0 }, { onConflict: "user_id" });
 
     // 2. Fetch current wallet
-    const { data: wallet } = await (adminSb as any)
+    const { data: wallet } = await adminSb
       .from("coin_wallets")
       .select("current_balance, lifetime_earned")
       .eq("user_id", userId)
@@ -414,7 +420,7 @@ export class LiveTestRewardService {
     const newEarned = curEarned + amount;
 
     // 3. Insert into coin_ledger
-    const { data: ledger, error: ledgerErr } = await (adminSb as any)
+    const { data: ledger, error: ledgerErr } = await adminSb
       .from("coin_ledger")
       .insert({
         user_id: userId,
@@ -444,7 +450,7 @@ export class LiveTestRewardService {
     }
 
     // 4. Update wallet cache
-    await (adminSb as any)
+    await adminSb
       .from("coin_wallets")
       .update({
         current_balance: newBal,
@@ -461,9 +467,9 @@ export class LiveTestRewardService {
    * Fetches active reward policies for an event, falling back to global defaults.
    */
   static async getRewardPolicies(eventId?: string): Promise<LiveTestRewardPolicy[]> {
-    const adminSb = createAdminServerSupabaseClient();
+    const adminSb = quarantinedClient(createAdminServerSupabaseClient(), QUARANTINE_TAG);
 
-    let query = (adminSb as any)
+    let query = adminSb
       .from("live_test_reward_policies")
       .select("*")
       .eq("is_active", true);
@@ -504,7 +510,7 @@ export class LiveTestRewardService {
     let userId = overrideUserId;
     if (!userId) {
       try {
-        const supabase = await createServerSupabaseClient();
+        const supabase = quarantinedClient(await createServerSupabaseClient(), QUARANTINE_TAG);
         const { data: { user } } = await supabase.auth.getUser();
         userId = user?.id;
       } catch {
@@ -514,10 +520,10 @@ export class LiveTestRewardService {
 
     if (!userId) return null;
 
-    const adminSb = createAdminServerSupabaseClient();
+    const adminSb = quarantinedClient(createAdminServerSupabaseClient(), QUARANTINE_TAG);
 
     // 1. Fetch settlements
-    const { data: settlements } = await (adminSb as any)
+    const { data: settlements } = await adminSb
       .from("live_test_reward_settlements")
       .select("*")
       .eq("live_test_event_id", eventId)
@@ -525,7 +531,7 @@ export class LiveTestRewardService {
       .order("settlement_version", { ascending: false });
 
     // 2. Fetch Leaderboard Entry
-    const { data: entry } = await (adminSb as any)
+    const { data: entry } = await adminSb
       .from("live_test_leaderboard_entries")
       .select("rank, percentile, attempt_id")
       .eq("live_test_event_id", eventId)
@@ -533,7 +539,7 @@ export class LiveTestRewardService {
       .maybeSingle();
 
     // 3. Fetch completion reward event if any
-    const { data: compEvent } = await (adminSb as any)
+    const { data: compEvent } = await adminSb
       .from("gamification_events")
       .select("actual_coins_awarded")
       .eq("source_type", "MOCK_TEST")
@@ -569,11 +575,11 @@ export class LiveTestRewardService {
     eventId: string,
     options: { limit?: number; offset?: number } = {}
   ): Promise<{ settlements: LiveTestRewardSettlement[]; totalCount: number }> {
-    const adminSb = createAdminServerSupabaseClient();
+    const adminSb = quarantinedClient(createAdminServerSupabaseClient(), QUARANTINE_TAG);
     const limit = options.limit || 50;
     const offset = options.offset || 0;
 
-    const { data, count, error } = await (adminSb as any)
+    const { data, count, error } = await adminSb
       .from("live_test_reward_settlements")
       .select("*", { count: "exact" })
       .eq("live_test_event_id", eventId)

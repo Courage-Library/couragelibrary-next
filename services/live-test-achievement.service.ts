@@ -13,6 +13,12 @@ import {
   LiveTestAchievementEvaluationResult,
   LiveTestAchievementRevokeResult,
 } from "@/types/live-test";
+import { quarantinedClient } from "@/lib/supabase/quarantine";
+
+// TYPES-1:C-LIVE-TEST-ACHIEVEMENT — QUARANTINED (LIVE_TESTS flag off; known-broken against the live schema). The Supabase client is
+// obtained through lib/supabase/quarantine.ts (registered in docs/reports/types/TYPES1_ESCAPES.json).
+const QUARANTINE_TAG = "TYPES-1:C-LIVE-TEST-ACHIEVEMENT" as const;
+
 
 export class LiveTestAchievementService {
   /**
@@ -23,8 +29,8 @@ export class LiveTestAchievementService {
     adminId: string
   ): Promise<LiveTestAchievementEvaluationResult> {
     try {
-      const adminSb = await createAdminServerSupabaseClient();
-      const { data, error } = await (adminSb.rpc as any)(
+      const adminSb = quarantinedClient(await createAdminServerSupabaseClient(), QUARANTINE_TAG);
+      const { data, error } = await adminSb.rpc(
         "fn_evaluate_live_test_achievements",
         {
           p_event_id: eventId,
@@ -41,7 +47,7 @@ export class LiveTestAchievementService {
         };
       }
 
-      const res = data as any;
+      const res = data;
       return {
         success: res?.success ?? true,
         eventId: res?.eventId || eventId,
@@ -70,8 +76,8 @@ export class LiveTestAchievementService {
     reason: string
   ): Promise<LiveTestAchievementRevokeResult> {
     try {
-      const adminSb = await createAdminServerSupabaseClient();
-      const { data, error } = await (adminSb.rpc as any)(
+      const adminSb = quarantinedClient(await createAdminServerSupabaseClient(), QUARANTINE_TAG);
+      const { data, error } = await adminSb.rpc(
         "fn_revoke_live_test_achievement_award",
         {
           p_award_id: awardId,
@@ -89,7 +95,7 @@ export class LiveTestAchievementService {
         };
       }
 
-      const res = data as any;
+      const res = data;
       return {
         success: res?.success ?? true,
         awardId: res?.awardId || awardId,
@@ -115,10 +121,10 @@ export class LiveTestAchievementService {
     userId: string
   ): Promise<CandidateAchievementSummary> {
     try {
-      const adminSb = await createAdminServerSupabaseClient();
+      const adminSb = quarantinedClient(await createAdminServerSupabaseClient(), QUARANTINE_TAG);
 
       // 1. Fetch user's owned badges from user_badges joined with badges
-      const { data: userBadgesData } = await (adminSb as any)
+      const { data: userBadgesData } = await adminSb
         .from("user_badges")
         .select(`
           id,
@@ -138,7 +144,7 @@ export class LiveTestAchievementService {
         .order("earned_at", { ascending: false });
 
       // 2. Fetch all awards for this user
-      const { data: awardsData } = await (adminSb as any)
+      const { data: awardsData } = await adminSb
         .from("live_test_achievement_awards")
         .select(`
           *,
@@ -265,8 +271,8 @@ export class LiveTestAchievementService {
     userId: string
   ): Promise<LiveAchievementAward[]> {
     try {
-      const adminSb = await createAdminServerSupabaseClient();
-      const { data } = await (adminSb as any)
+      const adminSb = quarantinedClient(await createAdminServerSupabaseClient(), QUARANTINE_TAG);
+      const { data } = await adminSb
         .from("live_test_achievement_awards")
         .select(`
           *,
@@ -321,8 +327,8 @@ export class LiveTestAchievementService {
     eventId: string
   ): Promise<LiveAchievementAward[]> {
     try {
-      const adminSb = await createAdminServerSupabaseClient();
-      const { data } = await (adminSb as any)
+      const adminSb = quarantinedClient(await createAdminServerSupabaseClient(), QUARANTINE_TAG);
+      const { data } = await adminSb
         .from("live_test_achievement_awards")
         .select(`
           *,
@@ -373,8 +379,8 @@ export class LiveTestAchievementService {
    */
   public static async getAchievementDefinitions(): Promise<LiveAchievementDefinition[]> {
     try {
-      const adminSb = await createAdminServerSupabaseClient();
-      const { data } = await (adminSb as any)
+      const adminSb = quarantinedClient(await createAdminServerSupabaseClient(), QUARANTINE_TAG);
+      const { data } = await adminSb
         .from("live_test_achievement_definitions")
         .select(`
           *,

@@ -11,6 +11,11 @@ import {
 } from "./adaptive-types";
 import { AdaptivePolicyService } from "./adaptive-policy.service";
 import { CandidatePerformanceSignals } from "./adaptive-performance.service";
+import { type QuarantinedClient } from "@/lib/supabase/quarantine";
+
+// TYPES-1:C-ADAPTIVE-SELECTION — QUARANTINED (ADAPTIVE flag off; known-broken against the live schema). The Supabase client is
+// obtained through lib/supabase/quarantine.ts (registered in docs/reports/types/TYPES1_ESCAPES.json).
+
 
 export interface SelectionContext {
   examId: string;
@@ -86,7 +91,7 @@ export class AdaptiveSelectionService {
    * Fetches candidate questions from the question bank for the given exam
    */
   public static async fetchEligibleQuestions(
-    supabase: SupabaseClient<Database>,
+    supabase: QuarantinedClient,
     examId: string,
     excludedVersionIds: Set<string>
   ): Promise<EligibleQuestionItem[]> {
@@ -124,7 +129,7 @@ export class AdaptiveSelectionService {
     if (questionVersionIds.length > 0) {
       // 2. Fetch active calibrations
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: calibs } = await (supabase as any)
+      const { data: calibs } = await supabase
         .from("adaptive_item_calibrations")
         .select("question_version_id, calibration_status, difficulty_b")
         .in("question_version_id", questionVersionIds);
@@ -140,7 +145,7 @@ export class AdaptiveSelectionService {
 
       // 3. Fetch exposure counts from adaptive_question_decisions
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: decisions } = await (supabase as any)
+      const { data: decisions } = await supabase
         .from("adaptive_question_decisions")
         .select("question_version_id");
 

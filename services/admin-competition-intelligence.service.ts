@@ -36,16 +36,22 @@ import {
   ScoreBandItem,
   DecileItem,
 } from "@/types/admin-competition-intelligence";
+import { quarantinedClient } from "@/lib/supabase/quarantine";
+
+// TYPES-1:C-COMPETITION-INTEL — QUARANTINED (LIVE_TESTS flag off; known-broken against the live schema). The Supabase client is
+// obtained through lib/supabase/quarantine.ts (registered in docs/reports/types/TYPES1_ESCAPES.json).
+const QUARANTINE_TAG = "TYPES-1:C-COMPETITION-INTEL" as const;
+
 
 export class AdminCompetitionIntelligenceService {
   /**
    * Retrieves high-level macro competition intelligence across all live events.
    */
   public static async getMacroCompetitionOverview(): Promise<MacroCompetitionIntelligenceOverview> {
-    const supabase = createAdminServerSupabaseClient();
+    const supabase = quarantinedClient(createAdminServerSupabaseClient(), QUARANTINE_TAG);
 
     // 1. Fetch all live test events ordered by start time desc
-    const { data: events, error: eventsErr } = await (supabase as any)
+    const { data: events, error: eventsErr } = await supabase
       .from("live_test_events")
       .select("id, title, status, start_time, end_time, total_marks, duration_minutes, exam_id, exams(title)")
       .order("start_time", { ascending: false });
@@ -71,13 +77,13 @@ export class AdminCompetitionIntelligenceService {
     }
 
     // 2. Fetch aggregate registrations count
-    const { count: totalRegistrations } = await (supabase as any)
+    const { count: totalRegistrations } = await supabase
       .from("live_test_registrations")
       .select("*", { count: "exact", head: true })
       .eq("status", "REGISTERED");
 
     // 3. Fetch aggregate attempts count
-    const { data: allAttempts } = await (supabase as any)
+    const { data: allAttempts } = await supabase
       .from("test_attempts")
       .select("id, event_id, status, total_score");
 
@@ -87,18 +93,18 @@ export class AdminCompetitionIntelligenceService {
     ).length;
 
     // 4. Fetch reward disbursements sum
-    const { data: rewards } = await (supabase as any)
+    const { data: rewards } = await supabase
       .from("live_test_reward_settlements")
       .select("coins_awarded");
     const totalCoinsDisbursed = (rewards || []).reduce((sum: number, r: any) => sum + (r.coins_awarded || 0), 0);
 
     // 5. Fetch certificates count
-    const { count: totalCertificatesIssued } = await (supabase as any)
+    const { count: totalCertificatesIssued } = await supabase
       .from("live_test_certificates")
       .select("*", { count: "exact", head: true });
 
     // 6. Fetch achievements count
-    const { count: totalAchievementsAwarded } = await (supabase as any)
+    const { count: totalAchievementsAwarded } = await supabase
       .from("live_test_achievement_awards")
       .select("*", { count: "exact", head: true });
 
@@ -117,7 +123,7 @@ export class AdminCompetitionIntelligenceService {
     let highDropoutEventsCount = 0;
 
     for (const evt of (events as any[]).slice(0, 15)) {
-      const { count: regCount } = await (supabase as any)
+      const { count: regCount } = await supabase
         .from("live_test_registrations")
         .select("*", { count: "exact", head: true })
         .eq("live_test_id", evt.id)
@@ -190,10 +196,10 @@ export class AdminCompetitionIntelligenceService {
     eventId: string,
     policy: CompetitionAnomalyPolicy = ADMIN_COMPETITION_INTELLIGENCE_POLICY_V1
   ): Promise<EventCompetitionIntelligence> {
-    const supabase = createAdminServerSupabaseClient();
+    const supabase = quarantinedClient(createAdminServerSupabaseClient(), QUARANTINE_TAG);
 
     // 1. Fetch Event Details
-    const { data: event, error: eventErr } = await (supabase as any)
+    const { data: event, error: eventErr } = await supabase
       .from("live_test_events")
       .select("*, exams(id, title)")
       .eq("id", eventId)
@@ -206,7 +212,7 @@ export class AdminCompetitionIntelligenceService {
     const isPublished = event.status === "PUBLISHED";
 
     // 2. Fetch Registrations
-    const { data: registrations } = await (supabase as any)
+    const { data: registrations } = await supabase
       .from("live_test_registrations")
       .select("id, user_id, status, registered_at")
       .eq("live_test_id", eventId)
@@ -215,7 +221,7 @@ export class AdminCompetitionIntelligenceService {
     const registeredCount = (registrations || []).length;
 
     // 3. Fetch Attempts
-    const { data: attempts } = await (supabase as any)
+    const { data: attempts } = await supabase
       .from("test_attempts")
       .select("id, user_id, status, started_at, submitted_at, time_spent_seconds, total_score, percentage_score")
       .eq("event_id", eventId);
@@ -227,7 +233,7 @@ export class AdminCompetitionIntelligenceService {
     const expiredCount = validAttempts.filter((a: any) => a.status === "EXPIRED").length;
 
     // 4. Fetch Active Snapshot and Leaderboard Entries
-    const { data: activeSnapshot } = await (supabase as any)
+    const { data: activeSnapshot } = await supabase
       .from("live_test_ranking_snapshots")
       .select("*")
       .eq("event_id", eventId)
@@ -236,7 +242,7 @@ export class AdminCompetitionIntelligenceService {
 
     let leaderboardEntries: any[] = [];
     if (activeSnapshot) {
-      const { data: entries } = await (supabase as any)
+      const { data: entries } = await supabase
         .from("live_test_leaderboard_entries")
         .select("*")
         .eq("snapshot_id", activeSnapshot.id)
@@ -459,7 +465,7 @@ export class AdminCompetitionIntelligenceService {
     const sectionTopic = await this.compileSectionTopicIntelligence(eventId, event.mock_test_id);
 
     // 9. Reward Intelligence
-    const { data: rewardRows } = await (supabase as any)
+    const { data: rewardRows } = await supabase
       .from("live_test_reward_settlements")
       .select("*")
       .eq("event_id", eventId);
@@ -488,7 +494,7 @@ export class AdminCompetitionIntelligenceService {
     };
 
     // 10. Certificate Intelligence
-    const { data: certRows } = await (supabase as any)
+    const { data: certRows } = await supabase
       .from("live_test_certificates")
       .select("*")
       .eq("event_id", eventId);
@@ -510,7 +516,7 @@ export class AdminCompetitionIntelligenceService {
     };
 
     // 11. Achievement Intelligence
-    const { data: achievementRows } = await (supabase as any)
+    const { data: achievementRows } = await supabase
       .from("live_test_achievement_awards")
       .select("id, achievement_id, badge_id, badges(name, category)")
       .eq("event_id", eventId);
@@ -565,7 +571,7 @@ export class AdminCompetitionIntelligenceService {
 
     if (userIds.length > 0) {
       // Check historical attempts prior to this event
-      const { data: priorAttempts } = await (supabase as any)
+      const { data: priorAttempts } = await supabase
         .from("test_attempts")
         .select("user_id")
         .in("user_id", userIds)
@@ -804,10 +810,10 @@ export class AdminCompetitionIntelligenceService {
     eventId: string,
     adminUserId: string
   ): Promise<CandidateDrillDownItem[]> {
-    const supabase = createAdminServerSupabaseClient();
+    const supabase = quarantinedClient(createAdminServerSupabaseClient(), QUARANTINE_TAG);
 
     // Log admin audit action
-    await (supabase as any).from("admin_audit_logs").insert({
+    await supabase.from("admin_audit_logs").insert({
       actor_id: adminUserId,
       actor_email: "admin@couragelibrary.internal",
       action_type: "ADMIN_CANDIDATE_INTELLIGENCE_INSPECT",
@@ -817,7 +823,7 @@ export class AdminCompetitionIntelligenceService {
       new_value: { timestamp: new Date().toISOString() },
     });
 
-    const { data: activeSnapshot } = await (supabase as any)
+    const { data: activeSnapshot } = await supabase
       .from("live_test_ranking_snapshots")
       .select("id")
       .eq("event_id", eventId)
@@ -826,7 +832,7 @@ export class AdminCompetitionIntelligenceService {
 
     if (!activeSnapshot) return [];
 
-    const { data: entries } = await (supabase as any)
+    const { data: entries } = await supabase
       .from("live_test_leaderboard_entries")
       .select("*, user_profiles(full_name, email)")
       .eq("snapshot_id", activeSnapshot.id)
@@ -861,7 +867,7 @@ export class AdminCompetitionIntelligenceService {
     eventId: string,
     mockTestId?: string
   ): Promise<SectionSubjectTopicIntelligence> {
-    const supabase = createAdminServerSupabaseClient();
+    const supabase = quarantinedClient(createAdminServerSupabaseClient(), QUARANTINE_TAG);
 
     if (!mockTestId) {
       return {
@@ -873,7 +879,7 @@ export class AdminCompetitionIntelligenceService {
       };
     }
 
-    const { data: mockSections } = await (supabase as any)
+    const { data: mockSections } = await supabase
       .from("mock_sections")
       .select("id, name, total_questions")
       .eq("mock_test_id", mockTestId);
@@ -891,7 +897,7 @@ export class AdminCompetitionIntelligenceService {
     }
 
     // Check Question Topic Mappings
-    const { data: questions } = await (supabase as any)
+    const { data: questions } = await supabase
       .from("mock_questions")
       .select("id, question_id, questions(topic_id, topics:canonical_taxonomy_nodes!questions_canonical_topic_id_node_fkey(id, name, subject_id:root_subject_id, subjects:root_subject_id(id, name)))")
       .eq("mock_test_id", mockTestId);

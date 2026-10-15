@@ -2,6 +2,12 @@ import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { LiveTestEvent, LiveTestRegistration, LiveEventCardData } from "@/types/live-test";
 import { LiveTestFoundationService } from "@/services/live-test-foundation.service";
 import { formatIstDateTime } from "@/lib/assessment/timing";
+import { quarantinedClient } from "@/lib/supabase/quarantine";
+
+// TYPES-1:C-LIVE-TEST-REGISTRATION — QUARANTINED (LIVE_TESTS flag off; known-broken against the live schema). The Supabase client is
+// obtained through lib/supabase/quarantine.ts (registered in docs/reports/types/TYPES1_ESCAPES.json).
+const QUARANTINE_TAG = "TYPES-1:C-LIVE-TEST-REGISTRATION" as const;
+
 
 export type { LiveEventCardData };
 
@@ -10,10 +16,10 @@ export class LiveTestRegistrationService {
    * Fetches all live events (upcoming, registration open, active, completed) with candidate registration status.
    */
   static async getLiveEventsDirectory(userId?: string | null): Promise<LiveEventCardData[]> {
-    const adminSb = createAdminServerSupabaseClient();
+    const adminSb = quarantinedClient(createAdminServerSupabaseClient(), QUARANTINE_TAG);
     const now = new Date().toISOString();
 
-    const { data: events, error } = await (adminSb as any)
+    const { data: events, error } = await adminSb
       .from("live_test_events")
       .select(`
         *,
@@ -38,7 +44,7 @@ export class LiveTestRegistrationService {
     // Fetch user registrations if logged in
     const userRegsMap = new Map<string, any>();
     if (userId) {
-      const { data: userRegs } = await (adminSb as any)
+      const { data: userRegs } = await adminSb
         .from("live_test_registrations")
         .select("*")
         .eq("user_id", userId);
@@ -92,10 +98,10 @@ export class LiveTestRegistrationService {
    * Fetches detailed information for a single live test event by slug or ID.
    */
   static async getLiveEventDetails(slugOrId: string, userId?: string | null): Promise<LiveEventCardData | null> {
-    const adminSb = createAdminServerSupabaseClient();
+    const adminSb = quarantinedClient(createAdminServerSupabaseClient(), QUARANTINE_TAG);
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slugOrId);
 
-    const query = (adminSb as any).from("live_test_events").select(`
+    const query = adminSb.from("live_test_events").select(`
       *,
       exams (id, title),
       mock_tests (id, total_questions, total_marks, duration_minutes)
@@ -112,7 +118,7 @@ export class LiveTestRegistrationService {
 
     let userReg = null;
     if (userId) {
-      const { data: reg } = await (adminSb as any)
+      const { data: reg } = await adminSb
         .from("live_test_registrations")
         .select("*")
         .eq("live_test_event_id", event.id)
@@ -168,10 +174,10 @@ export class LiveTestRegistrationService {
     eventId: string,
     userId: string
   ): Promise<{ success: boolean; data?: any; error?: string; code?: string }> {
-    const adminSb = createAdminServerSupabaseClient();
+    const adminSb = quarantinedClient(createAdminServerSupabaseClient(), QUARANTINE_TAG);
 
     // Call atomic RPC
-    const { data: rpcRes, error } = await (adminSb as any).rpc("fn_register_live_test", {
+    const { data: rpcRes, error } = await adminSb.rpc("fn_register_live_test", {
       p_event_id: eventId,
       p_user_id: userId,
     });
@@ -195,9 +201,9 @@ export class LiveTestRegistrationService {
     eventId: string,
     userId: string
   ): Promise<{ success: boolean; error?: string }> {
-    const adminSb = createAdminServerSupabaseClient();
+    const adminSb = quarantinedClient(createAdminServerSupabaseClient(), QUARANTINE_TAG);
 
-    const { data: rpcRes, error } = await (adminSb as any).rpc("fn_cancel_live_test_registration", {
+    const { data: rpcRes, error } = await adminSb.rpc("fn_cancel_live_test_registration", {
       p_event_id: eventId,
       p_user_id: userId,
     });
@@ -233,14 +239,14 @@ export class LiveTestRegistrationService {
       return { success: false, error: "A valid reason (minimum 5 characters) is required for schedule updates." };
     }
 
-    const adminSb = createAdminServerSupabaseClient();
-    const { data: currentEvent } = await (adminSb as any).from("live_test_events").select("*").eq("id", eventId).maybeSingle();
+    const adminSb = quarantinedClient(createAdminServerSupabaseClient(), QUARANTINE_TAG);
+    const { data: currentEvent } = await adminSb.from("live_test_events").select("*").eq("id", eventId).maybeSingle();
 
     if (!currentEvent) {
       return { success: false, error: "Event not found" };
     }
 
-    const { data: updated, error } = await (adminSb as any)
+    const { data: updated, error } = await adminSb
       .from("live_test_events")
       .update({
         ...updates,

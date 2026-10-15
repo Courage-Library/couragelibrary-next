@@ -183,4 +183,39 @@ The batches stay at ≤ 81 escapes each. The architect may merge B1+B2 or split 
 
 **Baseline:** no data diff except `admin_audit_logs` +7 (qa-admin `TAXONOMY_NODE_*` rows from the mandated GAP2-1b smoke run; the accepted QA-identity treatment).
 
-TYPES-1 STATUS: IN PROGRESS (B0 complete; next: C).
+### C: quarantined modules (tag only)
+
+**19 files** (live tests ×9 incl. 2 admin pages, competition / candidate intelligence, admin-adaptive + 4 adaptive services, battles, psychometrics, the adaptive admin UI component) now obtain their Supabase client through `quarantinedClient(…, QUARANTINE_TAG)`, with one `TYPES-1:C-<NAME>` constant per file. Per-line query escapes were removed. Register: **25 entries** (6 from B0 + 19), each mapped to its re-enable precondition (ADAPTIVE / LIVE_TESTS incl. Q2 + Q7 / BATTLES / PSYCHOMETRICS).
+
+**Helper hardened:**
+- **Problem:** `SupabaseClient<any, any, any>` still ran postgrest-js's type-level select parser, which produced embed arrays and bound `.rpc` to the generated function list, so it is not "explicitly untyped".
+- **Change:** `QuarantinedClient` is now a minimal interface (`from` / `rpc` / `schema` / `storage` / `auth` returning the single registered untyped alias), plus `QuarantinedRow` for callback parameters over quarantined results.
+- **Annotations:** 20 callback parameters annotated `: QuarantinedRow` (named quarantine, not `any`).
+
+**Client component exception:** `components/admin/adaptive/admin-adaptive-manager.tsx` is a client component and cannot import the server helper. Its 2 action-result casts carry tracked `TYPES-1:C-ADAPTIVE-MANAGER` comments (registered).
+
+**Runtime note (quarantined, flags off):**
+- `battle.service` previously called an **unbound** `supabase.rpc as any` (`const rpcCall = …; rpcCall(…)`), which loses `this`. It is now `supabase.rpc.bind(supabase)`.
+- `candidate-intelligence` iterates `data ?? []` instead of `data as any[]`, which also handles a `null` result.
+
+**Class A/B:** none surfaced. Class C: all tsc errors resolved through the quarantine (tsc 0).
+
+**Ratchet:**
+
+| Count | Before | After |
+|---|---|---|
+| queryEscapes | 532 | **353** (−179; batch size 181, of which 2 remain as tracked tags) |
+| asAny | 609 | 443 |
+| colonAny | 960 | 950 |
+| unknownAs | 93 | 89 |
+| tsExpectError | 0 | 0 |
+| tsIgnore | 0 | 0 |
+
+C has been removed from `remaining[]`.
+
+**Gates:**
+- tsc 0, lint 0, build OK, `db:types:check` OK, test_types1 **8/8**;
+- DRIFT-1c 46/46, SEC-1B 26/26, SEC-1C 22/22, SEC-1A 20/20, QF-1 73/73;
+- baseline: **NO DIFF**.
+
+TYPES-1 STATUS: IN PROGRESS (B0, C complete; next: B1).

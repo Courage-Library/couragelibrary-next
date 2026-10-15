@@ -56,6 +56,12 @@ import {
   DEFAULT_ADAPTIVE_GLOBAL_STATUS,
   DEFAULT_ADAPTIVE_SAFETY_LIMITS,
 } from "@/types/admin-adaptive";
+import { quarantinedClient, type QuarantinedRow } from "@/lib/supabase/quarantine";
+
+// TYPES-1:C-ADMIN-ADAPTIVE — QUARANTINED (ADAPTIVE flag off; known-broken against the live schema). The Supabase client is
+// obtained through lib/supabase/quarantine.ts (registered in docs/reports/types/TYPES1_ESCAPES.json).
+const QUARANTINE_TAG = "TYPES-1:C-ADMIN-ADAPTIVE" as const;
+
 
 // ============================================================================
 // SERVICE IMPLEMENTATION
@@ -64,7 +70,7 @@ import {
 export class AdminAdaptiveService {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private static getClient(): any {
-    return createAdminServerSupabaseClient() as any;
+    return quarantinedClient(createAdminServerSupabaseClient(), QUARANTINE_TAG);
   }
 
   /**
@@ -139,7 +145,7 @@ export class AdminAdaptiveService {
           .limit(20),
       ]);
 
-      const allAlgorithmVersions: AdaptiveAlgorithmVersion[] = ((algoVersionsRes?.data as any[]) || []).map((v) => ({
+      const allAlgorithmVersions: AdaptiveAlgorithmVersion[] = ((algoVersionsRes?.data) || []).map((v: QuarantinedRow) => ({
         ...v,
         hyperparameters: (v.hyperparameters as Record<string, unknown>) || {},
         exposure_control_config: (v.exposure_control_config as Record<string, unknown>) || {},
@@ -152,20 +158,20 @@ export class AdminAdaptiveService {
 
       const activeAlgorithmVersion = allAlgorithmVersions.find((v) => v.is_active) || null;
 
-      const configs = (configsRes?.data as any[]) || [];
+      const configs = (configsRes?.data) || [];
       const totalConfigsCount = configs.length;
-      const activeConfigsCount = configs.filter((c) => c.is_active).length;
+      const activeConfigsCount = configs.filter((c: QuarantinedRow) => c.is_active).length;
 
-      const attempts = (attemptsRes?.data as any[]) || [];
+      const attempts = (attemptsRes?.data) || [];
       const totalAdaptiveAttempts = attempts.length;
-      const completedAdaptiveAttempts = attempts.filter((a) => a.status === "completed" || a.status === "stopping_rule_met").length;
-      const inProgressAdaptiveAttempts = attempts.filter((a) => a.status === "in_progress").length;
+      const completedAdaptiveAttempts = attempts.filter((a: QuarantinedRow) => a.status === "completed" || a.status === "stopping_rule_met").length;
+      const inProgressAdaptiveAttempts = attempts.filter((a: QuarantinedRow) => a.status === "in_progress").length;
 
-      const calibrations = (calibrationsRes?.data as any[]) || [];
-      const calibratedItemsCount = calibrations.filter((c) => c.calibration_status === "calibrated").length;
-      const uncalibratedItemsCount = calibrations.filter((c) => c.calibration_status === "uncalibrated" || c.calibration_status === "provisional").length;
+      const calibrations = (calibrationsRes?.data) || [];
+      const calibratedItemsCount = calibrations.filter((c: QuarantinedRow) => c.calibration_status === "calibrated").length;
+      const uncalibratedItemsCount = calibrations.filter((c: QuarantinedRow) => c.calibration_status === "uncalibrated" || c.calibration_status === "provisional").length;
 
-      const recentAuditLogs: AdaptiveAuditLogItem[] = ((auditLogsRes?.data as any[]) || []).map((l) => ({
+      const recentAuditLogs: AdaptiveAuditLogItem[] = ((auditLogsRes?.data) || []).map((l: QuarantinedRow) => ({
         id: l.id,
         actor_id: l.actor_id,
         actor_email: l.actor_email,
@@ -391,7 +397,7 @@ export class AdminAdaptiveService {
         return [];
       }
 
-      return ((data as any[]) || []).map((v) => ({
+      return ((data) || []).map((v: QuarantinedRow) => ({
         ...v,
         hyperparameters: (v.hyperparameters as Record<string, unknown>) || {},
         exposure_control_config: (v.exposure_control_config as Record<string, unknown>) || {},
@@ -478,7 +484,7 @@ export class AdminAdaptiveService {
       actionType: "CREATE_ALGORITHM_VERSION",
       targetEntity: "ADAPTIVE_ALGORITHM",
       targetId: data.id,
-      newValue: data as unknown as Json,
+      newValue: data as Json,
       reason: adminContext.reason || `Created algorithm version ${params.version_code}`,
     });
 
@@ -590,7 +596,7 @@ export class AdminAdaptiveService {
         return [];
       }
 
-      return ((data as any[]) || []).map((row) => ({
+      return ((data) || []).map((row: QuarantinedRow) => ({
         id: row.id,
         exam_id: row.exam_id,
         pattern_id: row.pattern_id,
@@ -649,7 +655,7 @@ export class AdminAdaptiveService {
     let oldData: Json | null = null;
     if (config.id) {
       const { data } = await supabase.from("adaptive_test_configs").select("*").eq("id", config.id).single();
-      oldData = data as unknown as Json;
+      oldData = data as Json;
     }
 
     const payload = {
@@ -680,7 +686,7 @@ export class AdminAdaptiveService {
         .select()
         .single();
       if (error) throw new Error(`Failed to update config: ${error.message}`);
-      resultData = data as unknown as AdaptiveTestConfigItem;
+      resultData = data as AdaptiveTestConfigItem;
     } else {
       const { data, error } = await supabase
         .from("adaptive_test_configs")
@@ -688,7 +694,7 @@ export class AdminAdaptiveService {
         .select()
         .single();
       if (error) throw new Error(`Failed to create config: ${error.message}`);
-      resultData = data as unknown as AdaptiveTestConfigItem;
+      resultData = data as AdaptiveTestConfigItem;
     }
 
     await this.recordAuditLog({
@@ -735,7 +741,7 @@ export class AdminAdaptiveService {
       return { items: [], totalCount: 0 };
     }
 
-    const items: AdaptiveItemCalibration[] = ((data as any[]) || []).map((row) => ({
+    const items: AdaptiveItemCalibration[] = ((data) || []).map((row: QuarantinedRow) => ({
       id: row.id,
       question_version_id: row.question_version_id,
       algorithm_version_id: row.algorithm_version_id,
@@ -784,7 +790,7 @@ export class AdminAdaptiveService {
       return [];
     }
 
-    return ((data as any[]) || []).map((l) => ({
+    return ((data) || []).map((l: QuarantinedRow) => ({
       id: l.id,
       actor_id: l.actor_id,
       actor_email: l.actor_email,
@@ -961,7 +967,7 @@ export class AdminAdaptiveService {
 
       if (!data) return [];
 
-      return (data as any[]).map((row) => ({
+      return (data).map((row: QuarantinedRow) => ({
         id: row.id,
         attempt_id: row.attempt_id,
         user_id: row.user_id,
@@ -1235,7 +1241,7 @@ export class AdminAdaptiveService {
       let expMap: Record<string, number> = {};
 
       if (qvIds.length > 0) {
-        const { data: calibs } = await (supabase as any)
+        const { data: calibs } = await supabase
           .from("adaptive_item_calibrations")
           .select("question_version_id, calibration_status, difficulty_b")
           .in("question_version_id", qvIds);
@@ -1249,7 +1255,7 @@ export class AdminAdaptiveService {
           }
         }
 
-        const { data: decisions } = await (supabase as any)
+        const { data: decisions } = await supabase
           .from("adaptive_question_decisions")
           .select("question_version_id")
           .in("question_version_id", qvIds);

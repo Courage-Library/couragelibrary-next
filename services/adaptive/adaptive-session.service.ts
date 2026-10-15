@@ -1,5 +1,5 @@
 // TYPES-1:C-ADAPTIVE-SESSION — QUARANTINED (ADAPTIVE flag off; targets undeployed schema). Client via lib/supabase/quarantine.ts.
-import { quarantinedClient, type QuarantinedClient } from "@/lib/supabase/quarantine";
+import { quarantinedClient, type QuarantinedClient, type QuarantinedRow } from "@/lib/supabase/quarantine";
 import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import {
   ActiveAdaptiveSession,
@@ -705,7 +705,7 @@ export class AdaptiveSessionService {
 
       if (selectedOptionKey !== undefined && selectedOptionKey !== null && selectedOptionKey !== "") {
         const matchedOption = (options || []).find(
-          (opt) =>
+          (opt: QuarantinedRow) =>
             opt.option_key.toUpperCase() === selectedOptionKey.toUpperCase() ||
             opt.id === selectedOptionKey
         );

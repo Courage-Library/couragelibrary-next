@@ -10,6 +10,12 @@ import {
   LiveTestSectionSnapshot,
 } from "@/types/live-test";
 import crypto from "crypto";
+import { quarantinedClient } from "@/lib/supabase/quarantine";
+
+// TYPES-1:C-LIVE-TEST-FOUNDATION — QUARANTINED (LIVE_TESTS flag off; known-broken against the live schema). The Supabase client is
+// obtained through lib/supabase/quarantine.ts (registered in docs/reports/types/TYPES1_ESCAPES.json).
+const QUARANTINE_TAG = "TYPES-1:C-LIVE-TEST-FOUNDATION" as const;
+
 
 export class LiveTestFoundationService {
   /**
@@ -58,7 +64,7 @@ export class LiveTestFoundationService {
     dto: CreateLiveEventDTO,
     actorId: string
   ): Promise<{ success: boolean; data?: LiveTestEvent; error?: string }> {
-    const adminSb = createAdminServerSupabaseClient();
+    const adminSb = quarantinedClient(createAdminServerSupabaseClient(), QUARANTINE_TAG);
 
     // 1. Validate dates
     const regStart = new Date(dto.registration_start_at).getTime();
@@ -75,7 +81,7 @@ export class LiveTestFoundationService {
 
     const initialStatus: LiveEventStatus = "DRAFT";
 
-    const { data, error } = await (adminSb as any)
+    const { data, error } = await adminSb
       .from("live_test_events")
       .insert({
         exam_id: dto.exam_id,
@@ -115,10 +121,10 @@ export class LiveTestFoundationService {
    * Retrieves a live test event by ID or slug.
    */
   static async getLiveEvent(idOrSlug: string): Promise<LiveTestEvent | null> {
-    const adminSb = createAdminServerSupabaseClient();
+    const adminSb = quarantinedClient(createAdminServerSupabaseClient(), QUARANTINE_TAG);
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrSlug);
 
-    const query = (adminSb as any).from("live_test_events").select("*");
+    const query = adminSb.from("live_test_events").select("*");
     if (isUuid) {
       query.eq("id", idOrSlug);
     } else {
@@ -142,9 +148,9 @@ export class LiveTestFoundationService {
       return { success: false, error: "A valid reason (minimum 5 characters) is required for status transition." };
     }
 
-    const adminSb = createAdminServerSupabaseClient();
+    const adminSb = quarantinedClient(createAdminServerSupabaseClient(), QUARANTINE_TAG);
 
-    const { data: currentEvent } = await (adminSb as any)
+    const { data: currentEvent } = await adminSb
       .from("live_test_events")
       .select("*")
       .eq("id", eventId)
@@ -162,7 +168,7 @@ export class LiveTestFoundationService {
       };
     }
 
-    const { data: updatedEvent, error } = await (adminSb as any)
+    const { data: updatedEvent, error } = await adminSb
       .from("live_test_events")
       .update({ status: nextStatus, updated_at: new Date().toISOString() })
       .eq("id", eventId)
@@ -185,13 +191,13 @@ export class LiveTestFoundationService {
     eventId: string,
     actorId: string
   ): Promise<{ success: boolean; instance?: LiveTestInstance; error?: string }> {
-    const adminSb = createAdminServerSupabaseClient();
+    const adminSb = quarantinedClient(createAdminServerSupabaseClient(), QUARANTINE_TAG);
 
     const event = await this.getLiveEvent(eventId);
     if (!event) return { success: false, error: "Event not found" };
 
     // Fetch mock test structure
-    const { data: testData } = await (adminSb as any)
+    const { data: testData } = await adminSb
       .from("mock_tests")
       .select("id, duration_minutes, total_questions, total_marks")
       .eq("id", event.mock_test_id)
@@ -199,7 +205,7 @@ export class LiveTestFoundationService {
 
     if (!testData) return null as any;
 
-    const { data: sections } = await (adminSb as any)
+    const { data: sections } = await adminSb
       .from("mock_sections")
       .select("id, name, sequence_order, total_questions, total_marks")
       .eq("mock_test_id", event.mock_test_id)
@@ -213,7 +219,7 @@ export class LiveTestFoundationService {
       total_marks: Number(s.total_marks),
     }));
 
-    const { data: questions } = await (adminSb as any)
+    const { data: questions } = await adminSb
       .from("mock_questions")
       .select("id, current_version_id, mock_section_id, sequence_order, marks, negative_marks")
       .in("mock_section_id", sectionSnapshots.map((s) => s.section_id))
@@ -230,7 +236,7 @@ export class LiveTestFoundationService {
 
     const paperHash = this.computePaperHash(event.mock_test_id, questionSnapshots, sectionSnapshots);
 
-    const { data: instance, error } = await (adminSb as any)
+    const { data: instance, error } = await adminSb
       .from("live_test_instances")
       .upsert(
         {
@@ -271,8 +277,8 @@ export class LiveTestFoundationService {
     reason: string
   ): Promise<void> {
     try {
-      const adminSb = createAdminServerSupabaseClient();
-      await (adminSb as any).from("live_test_audit_logs").insert({
+      const adminSb = quarantinedClient(createAdminServerSupabaseClient(), QUARANTINE_TAG);
+      await adminSb.from("live_test_audit_logs").insert({
         live_test_event_id: eventId,
         action,
         actor_id: actorId,

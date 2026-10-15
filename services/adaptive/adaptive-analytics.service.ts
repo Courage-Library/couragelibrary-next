@@ -23,14 +23,20 @@ import type {
   StoppingReasonCode,
   DifficultyTier,
 } from "./adaptive-types";
+import { quarantinedClient, type QuarantinedClient } from "@/lib/supabase/quarantine";
+
+// TYPES-1:C-ADAPTIVE-ANALYTICS — QUARANTINED (ADAPTIVE flag off; known-broken against the live schema). The Supabase client is
+// obtained through lib/supabase/quarantine.ts (registered in docs/reports/types/TYPES1_ESCAPES.json).
+const QUARANTINE_TAG = "TYPES-1:C-ADAPTIVE-ANALYTICS" as const;
+
 
 export class AdaptiveAnalyticsService {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private supabase: any;
+  private supabase: QuarantinedClient;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  constructor(supabaseClient?: any) {
-    this.supabase = supabaseClient || (createAdminServerSupabaseClient() as any);
+  constructor(supabaseClient?: QuarantinedClient) {
+    this.supabase = supabaseClient || (quarantinedClient(createAdminServerSupabaseClient(), QUARANTINE_TAG));
   }
 
   // ==========================================================================

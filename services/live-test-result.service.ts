@@ -9,6 +9,12 @@ import {
 } from "@/types/live-test";
 import { MistakeService } from "@/services/mistake.service";
 import { GamificationService } from "@/services/gamification.service";
+import { quarantinedClient, type QuarantinedRow } from "@/lib/supabase/quarantine";
+
+// TYPES-1:C-LIVE-TEST-RESULT — QUARANTINED (LIVE_TESTS flag off; known-broken against the live schema). The Supabase client is
+// obtained through lib/supabase/quarantine.ts (registered in docs/reports/types/TYPES1_ESCAPES.json).
+const QUARANTINE_TAG = "TYPES-1:C-LIVE-TEST-RESULT" as const;
+
 
 export class LiveTestResultService {
   /**
@@ -19,9 +25,9 @@ export class LiveTestResultService {
     eventId: string,
     actorId: string
   ): Promise<LiveTestEvaluationResult> {
-    const adminSb = createAdminServerSupabaseClient();
+    const adminSb = quarantinedClient(createAdminServerSupabaseClient(), QUARANTINE_TAG);
 
-    const { data, error } = await (adminSb.rpc as any)("fn_evaluate_live_test_event", {
+    const { data, error } = await adminSb.rpc("fn_evaluate_live_test_event", {
       p_event_id: eventId,
       p_actor_id: actorId,
     });
@@ -33,7 +39,7 @@ export class LiveTestResultService {
       };
     }
 
-    const res = data as any;
+    const res = data;
     if (!res.success) {
       return {
         success: false,
@@ -64,10 +70,10 @@ export class LiveTestResultService {
    * Internal worker to synchronize Mistake Vault and CL Coin completion rewards post-evaluation.
    */
   private static async syncMistakesAndRewards(eventId: string): Promise<void> {
-    const adminSb = createAdminServerSupabaseClient();
+    const adminSb = quarantinedClient(createAdminServerSupabaseClient(), QUARANTINE_TAG);
 
     // 1. Fetch Event & Mock Test Details
-    const { data: eventData } = await (adminSb as any)
+    const { data: eventData } = await adminSb
       .from("live_test_events")
       .select("id, mock_test_id, mock_tests(id, total_questions, total_marks, mock_templates(test_type))")
       .eq("id", eventId)
@@ -78,7 +84,7 @@ export class LiveTestResultService {
     const testType = mt?.mock_templates?.test_type || "full_length";
 
     // 2. Fetch all evaluated attempts for this event's mock test
-    const { data: attempts } = await (adminSb as any)
+    const { data: attempts } = await adminSb
       .from("test_attempts")
       .select("id, user_id, started_at, submitted_at, time_taken_seconds, status, test_results(total_score, max_score, accuracy_percentage, correct_count, incorrect_count, unanswered_count, attempted_count)")
       .eq("mock_test_id", eventData.mock_test_id)
@@ -111,7 +117,7 @@ export class LiveTestResultService {
 
       // Record incorrect answers into Mistake Vault
       try {
-        const { data: wrongAnswers } = await (adminSb as any)
+        const { data: wrongAnswers } = await adminSb
           .from("attempt_answers")
           .select("id, mock_question_id, selected_option_key, time_spent_seconds, mock_questions(question_version_id, question_versions(id, question_id, question_options(id, option_key)))")
           .eq("attempt_id", att.id)
@@ -155,9 +161,9 @@ export class LiveTestResultService {
     actorId: string,
     reason: string
   ): Promise<LiveTestPublicationResult> {
-    const adminSb = createAdminServerSupabaseClient();
+    const adminSb = quarantinedClient(createAdminServerSupabaseClient(), QUARANTINE_TAG);
 
-    const { data, error } = await (adminSb.rpc as any)("fn_publish_live_test_results", {
+    const { data, error } = await adminSb.rpc("fn_publish_live_test_results", {
       p_event_id: eventId,
       p_snapshot_version: snapshotVersion,
       p_actor_id: actorId,
@@ -171,7 +177,7 @@ export class LiveTestResultService {
       };
     }
 
-    const res = data as any;
+    const res = data;
     if (!res.success) {
       return {
         success: false,
@@ -231,9 +237,9 @@ export class LiveTestResultService {
     actorId: string,
     reason: string
   ): Promise<{ success: boolean; error?: string }> {
-    const adminSb = createAdminServerSupabaseClient();
+    const adminSb = quarantinedClient(createAdminServerSupabaseClient(), QUARANTINE_TAG);
 
-    const { data, error } = await (adminSb.rpc as any)("fn_void_live_test_attempt", {
+    const { data, error } = await adminSb.rpc("fn_void_live_test_attempt", {
       p_attempt_id: attemptId,
       p_actor_id: actorId,
       p_reason: reason,
@@ -243,7 +249,7 @@ export class LiveTestResultService {
       return { success: false, error: error?.message || "Void attempt RPC failed." };
     }
 
-    return { success: (data as any).success, error: (data as any).message };
+    return { success: (data).success, error: (data).message };
   }
 
   /**
@@ -257,7 +263,7 @@ export class LiveTestResultService {
     let userId = overrideUserId;
     if (!userId) {
       try {
-        const supabase = await createServerSupabaseClient();
+        const supabase = quarantinedClient(await createServerSupabaseClient(), QUARANTINE_TAG);
         const { data: { user } } = await supabase.auth.getUser();
         userId = user?.id;
       } catch {
@@ -265,11 +271,11 @@ export class LiveTestResultService {
       }
     }
 
-    const adminSb = createAdminServerSupabaseClient();
+    const adminSb = quarantinedClient(createAdminServerSupabaseClient(), QUARANTINE_TAG);
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slugOrId);
 
     // Fetch live test event
-    const eventQuery = (adminSb as any).from("live_test_events").select("*");
+    const eventQuery = adminSb.from("live_test_events").select("*");
     if (isUuid) {
       eventQuery.eq("id", slugOrId);
     } else {
@@ -282,7 +288,7 @@ export class LiveTestResultService {
     const isPublished = event.status === "PUBLISHED";
 
     // Fetch mock test structure
-    const { data: mockTest } = await (adminSb as any)
+    const { data: mockTest } = await adminSb
       .from("mock_tests")
       .select("id, title, total_questions, total_marks, duration_minutes")
       .eq("id", event.mock_test_id)
@@ -311,7 +317,7 @@ export class LiveTestResultService {
     }
 
     // Fetch candidate's attempt
-    const { data: attempt } = await (adminSb as any)
+    const { data: attempt } = await adminSb
       .from("test_attempts")
       .select("id, started_at, submitted_at, time_taken_seconds, status")
       .eq("mock_test_id", event.mock_test_id)
@@ -327,50 +333,50 @@ export class LiveTestResultService {
 
     // Fetch active ranking snapshot, candidate leaderboard entry, rewards, certificate, and achievements
     const [snapshotRes, entryRes, testResultRes, sectionsRes, questionsRes, answersRes, settlementsRes, compRewardRes, certRes, awardsRes] = await Promise.all([
-      (adminSb as any)
+      adminSb
         .from("live_test_ranking_snapshots")
         .select("*")
         .eq("live_test_event_id", event.id)
         .eq("is_active", true)
         .maybeSingle(),
-      (adminSb as any)
+      adminSb
         .from("live_test_leaderboard_entries")
         .select("*")
         .eq("live_test_event_id", event.id)
         .eq("user_id", userId)
         .maybeSingle(),
-      (adminSb as any)
+      adminSb
         .from("test_results")
         .select("*")
         .eq("attempt_id", attempt.id)
         .maybeSingle(),
-      (adminSb as any)
+      adminSb
         .from("mock_sections")
         .select("id, section_name, marks_per_question, negative_mark")
         .eq("mock_test_id", event.mock_test_id),
-      (adminSb as any)
+      adminSb
         .from("mock_questions")
         .select("id, question_order, mock_section_id, marks, negative_mark, mock_sections(section_name), question_versions(id, question_text, question_image_url, options_type, question_options(id, option_key, option_text, option_image_url, order_index), question_answers(correct_option_key, explanation_md), questions(canonical_topic_id, topics:canonical_taxonomy_nodes!questions_canonical_topic_id_node_fkey(name, slug)))")
         .eq("mock_test_id", event.mock_test_id)
         .order("question_order", { ascending: true }),
-      (adminSb as any)
+      adminSb
         .from("attempt_answers")
         .select("mock_question_id, selected_option_key, is_correct, evaluated_marks, time_spent_seconds")
         .eq("attempt_id", attempt.id),
-      (adminSb as any)
+      adminSb
         .from("live_test_reward_settlements")
         .select("coins_awarded, reward_tier, settlement_status, settlement_version")
         .eq("live_test_event_id", event.id)
         .eq("user_id", userId)
         .order("settlement_version", { ascending: false }),
-      (adminSb as any)
+      adminSb
         .from("gamification_events")
         .select("actual_coins_awarded")
         .eq("source_type", "MOCK_TEST")
         .eq("source_id", event.mock_test_id)
         .eq("user_id", userId)
         .maybeSingle(),
-      (adminSb as any)
+      adminSb
         .from("live_test_certificates")
         .select("id, certificate_number, verification_code, certificate_type, status, issued_at")
         .eq("live_test_event_id", event.id)
@@ -379,7 +385,7 @@ export class LiveTestResultService {
         .order("issued_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
-      (adminSb as any)
+      adminSb
         .from("live_test_achievement_awards")
         .select("*, badges:badge_code(title, description, tier, icon_url)")
         .eq("live_test_event_id", event.id)
@@ -390,9 +396,9 @@ export class LiveTestResultService {
 
     const snapshot = snapshotRes.data as LiveTestRankingSnapshot | null;
     const entry = entryRes.data as LiveTestLeaderboardEntry | null;
-    const tr = testResultRes.data as any;
-    const cert = certRes?.data as any;
-    const awardsData = (awardsRes?.data as any[]) || [];
+    const tr = testResultRes.data;
+    const cert = certRes?.data;
+    const awardsData = (awardsRes?.data) || [];
 
     if (!tr && !entry) {
       return baseResponse;
@@ -418,8 +424,8 @@ export class LiveTestResultService {
     };
 
     // Populate reward summary
-    const settlements = (settlementsRes?.data as any[]) || [];
-    const rankCoins = settlements.reduce((acc, s) => acc + (s.coins_awarded || 0), 0);
+    const settlements = (settlementsRes?.data) || [];
+    const rankCoins = settlements.reduce((acc: QuarantinedRow, s: QuarantinedRow) => acc + (s.coins_awarded || 0), 0);
     const completionCoins = compRewardRes?.data?.actual_coins_awarded || 0;
     const latestSettlement = settlements.length > 0 ? settlements[0] : null;
 
@@ -470,11 +476,11 @@ export class LiveTestResultService {
     }));
 
     // Review questions & solutions
-    const answersList = (answersRes.data as any[]) || [];
+    const answersList = (answersRes.data) || [];
     const answersMap = new Map<string, any>();
-    answersList.forEach((a) => answersMap.set(a.mock_question_id, a));
+    answersList.forEach((a: QuarantinedRow) => answersMap.set(a.mock_question_id, a));
 
-    const rawQuestions = (questionsRes.data as any[]) || [];
+    const rawQuestions = (questionsRes.data) || [];
     baseResponse.reviewQuestions = rawQuestions.map((mq: any) => {
       const qv = mq.question_versions;
       const ans = answersMap.get(mq.id);
@@ -529,11 +535,11 @@ export class LiveTestResultService {
     snapshot: LiveTestRankingSnapshot | null;
     currentUserEntry?: LiveTestLeaderboardEntry | null;
   }> {
-    const adminSb = createAdminServerSupabaseClient();
+    const adminSb = quarantinedClient(createAdminServerSupabaseClient(), QUARANTINE_TAG);
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventIdOrSlug);
 
     // 1. Fetch Event
-    const eventQuery = (adminSb as any).from("live_test_events").select("id, status");
+    const eventQuery = adminSb.from("live_test_events").select("id, status");
     if (isUuid) {
       eventQuery.eq("id", eventIdOrSlug);
     } else {
@@ -546,7 +552,7 @@ export class LiveTestResultService {
     }
 
     // 2. Fetch Active Snapshot
-    const { data: snapshot } = await (adminSb as any)
+    const { data: snapshot } = await adminSb
       .from("live_test_ranking_snapshots")
       .select("*")
       .eq("live_test_event_id", event.id)
@@ -560,7 +566,7 @@ export class LiveTestResultService {
     const offset = Math.max(0, (page - 1) * limit);
 
     // 3. Fetch Leaderboard Entries
-    const { data: entriesData, count } = await (adminSb as any)
+    const { data: entriesData, count } = await adminSb
       .from("live_test_leaderboard_entries")
       .select("*, user_profiles(display_name, avatar_url)", { count: "exact" })
       .eq("snapshot_id", snapshot.id)
@@ -607,7 +613,7 @@ export class LiveTestResultService {
       if (found) {
         currentUserEntry = found;
       } else {
-        const { data: userEntryData } = await (adminSb as any)
+        const { data: userEntryData } = await adminSb
           .from("live_test_leaderboard_entries")
           .select("*, user_profiles(display_name, avatar_url)")
           .eq("snapshot_id", snapshot.id)
@@ -659,11 +665,11 @@ export class LiveTestResultService {
     snapshots: LiveTestRankingSnapshot[];
     activeSnapshot: LiveTestRankingSnapshot | null;
   }> {
-    const adminSb = createAdminServerSupabaseClient();
+    const adminSb = quarantinedClient(createAdminServerSupabaseClient(), QUARANTINE_TAG);
 
     const [eventRes, snapshotsRes] = await Promise.all([
-      (adminSb as any).from("live_test_events").select("*").eq("id", eventId).maybeSingle(),
-      (adminSb as any)
+      adminSb.from("live_test_events").select("*").eq("id", eventId).maybeSingle(),
+      adminSb
         .from("live_test_ranking_snapshots")
         .select("*")
         .eq("live_test_event_id", eventId)

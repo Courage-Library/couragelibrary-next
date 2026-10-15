@@ -1,5 +1,5 @@
 // TYPES-1:C-ADAPTIVE-ENGINE — QUARANTINED (ADAPTIVE flag off; targets undeployed schema). Client via lib/supabase/quarantine.ts.
-import { quarantinedClient, type QuarantinedClient } from "@/lib/supabase/quarantine";
+import { quarantinedClient, type QuarantinedClient, type QuarantinedRow } from "@/lib/supabase/quarantine";
 import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import {
   AdaptiveAttemptStateRow,
@@ -701,7 +701,7 @@ export class AdaptiveEngineService {
       .order("order_index", { ascending: true });
 
     // STRICT SECURITY: Strip answer keys, explanations, is_correct
-    const safeOptions: SafeAdaptiveOption[] = (options || []).map((opt) => ({
+    const safeOptions: SafeAdaptiveOption[] = (options || []).map((opt: QuarantinedRow) => ({
       id: opt.id,
       option_key: opt.option_key,
       option_text: opt.option_text,
