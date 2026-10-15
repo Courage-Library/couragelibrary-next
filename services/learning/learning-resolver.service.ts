@@ -78,7 +78,6 @@ export function sortLearningDocuments<T extends { document_type: string; title: 
 }
 
 /** True only for a PUBLISHED document whose current version is published and whose unit is active. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function isServableDocumentRow(row: any): boolean {
   const unit = Array.isArray(row?.learning_units) ? row.learning_units[0] : row?.learning_units;
   const ver = Array.isArray(row?.current_version) ? row.current_version[0] : row?.current_version;
@@ -94,7 +93,6 @@ export function isServableDocumentRow(row: any): boolean {
   );
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function toResolved(row: any, access: LearningViewerAccess): ResolvedLearningDocument {
   const unit = Array.isArray(row.learning_units) ? row.learning_units[0] : row.learning_units;
   const topic = Array.isArray(unit?.topics) ? unit.topics[0] : unit?.topics;
@@ -123,8 +121,7 @@ export class LearningResolverService {
     if (!user) return { isAuthenticated: false, hasPro: false };
     const nowIso = new Date().toISOString();
     // RLS ("Users can read own entitlements") restricts this to the session user's rows.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data } = await (supabase as any)
+    const { data } = await supabase
       .from('user_entitlements')
       .select('id, starts_at, expires_at')
       .in('entitlement_type', PRO_ENTITLEMENTS)
@@ -145,8 +142,7 @@ export class LearningResolverService {
     const supabase = await createServerSupabaseClient();
     const [access, { data, error }] = await Promise.all([
       this.getViewerAccess(),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (supabase as any)
+      supabase
         .from('learning_documents')
         .select(DOC_SELECT)
         .eq('status', 'PUBLISHED')
@@ -174,8 +170,7 @@ export class LearningResolverService {
   static async resolveForQuestion(questionId: string): Promise<ResolvedLearningDocument[]> {
     if (!questionId) return [];
     const supabase = await createServerSupabaseClient();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data } = await (supabase as any).from('questions').select('canonical_topic_id').eq('id', questionId).maybeSingle();
+    const { data } = await supabase.from('questions').select('canonical_topic_id').eq('id', questionId).maybeSingle();
     const topicId = data?.canonical_topic_id as string | undefined;
     return topicId ? this.resolveForTopic(topicId) : [];
   }
@@ -191,8 +186,7 @@ export class LearningResolverService {
     const supabase = await createServerSupabaseClient();
     const [access, { data, error }] = await Promise.all([
       this.getViewerAccess(),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (supabase as any).from('learning_documents').select(DOC_SELECT).eq('status', 'PUBLISHED').not('current_published_version_id', 'is', null).in('id', ids),
+      supabase.from('learning_documents').select(DOC_SELECT).eq('status', 'PUBLISHED').not('current_published_version_id', 'is', null).in('id', ids),
     ]);
     if (error || !Array.isArray(data)) return result;
     for (const row of data) if (isServableDocumentRow(row)) result.set(row.id, toResolved(row, access));
@@ -202,8 +196,7 @@ export class LearningResolverService {
   /** Published documents for the /articles index (optionally one topic). No bodies. */
   static async listPublished(filters: { topicId?: string } = {}): Promise<ResolvedLearningDocument[]> {
     const supabase = await createServerSupabaseClient();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let query = (supabase as any).from('learning_documents').select(DOC_SELECT).eq('status', 'PUBLISHED').not('current_published_version_id', 'is', null);
+    let query = supabase.from('learning_documents').select(DOC_SELECT).eq('status', 'PUBLISHED').not('current_published_version_id', 'is', null);
     if (filters.topicId) query = query.eq('learning_units.topic_id', filters.topicId);
     const [access, { data, error }] = await Promise.all([this.getViewerAccess(), query]);
     if (error || !Array.isArray(data)) return [];
@@ -219,8 +212,7 @@ export class LearningResolverService {
     const supabase = await createServerSupabaseClient();
     const [access, { data, error }] = await Promise.all([
       this.getViewerAccess(),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (supabase as any).from('learning_documents').select(DOC_SELECT).eq('canonical_slug', slug).eq('status', 'PUBLISHED').maybeSingle(),
+      supabase.from('learning_documents').select(DOC_SELECT).eq('canonical_slug', slug).eq('status', 'PUBLISHED').maybeSingle(),
     ]);
     if (error || !data || !isServableDocumentRow(data)) return null;
 

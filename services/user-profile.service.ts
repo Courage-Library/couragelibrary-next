@@ -19,17 +19,14 @@ export class UserProfileService {
   static async ensureProfile(user: {
     id: string;
     email?: string;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     user_metadata?: Record<string, any>;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     raw_user_meta_data?: Record<string, any>;
   }): Promise<UserProfileRecord | null> {
     if (!user || !user.id) return null;
 
     try {
       const supabaseRaw = await createServerSupabaseClient();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const supabase = supabaseRaw as any;
+      const supabase = supabaseRaw;
 
       const meta = user.user_metadata || user.raw_user_meta_data || {};
       const fullName = meta.full_name || meta.name || user.email?.split("@")[0] || "Student";
@@ -70,8 +67,7 @@ export class UserProfileService {
 
     try {
       const supabaseRaw = await createServerSupabaseClient();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const supabase = supabaseRaw as any;
+      const supabase = supabaseRaw;
 
       const { data, error } = await supabase
         .from("user_profiles")

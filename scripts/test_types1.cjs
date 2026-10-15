@@ -12,7 +12,8 @@
  *   T-08 lib/supabase/quarantine is imported only by quarantined modules; every quarantined file carries its tag
  *
  * Run: node scripts/test_types1.cjs [--offline] [--update-ratchet]
- *   --update-ratchet rewrites TYPES1_RATCHET.json to the CURRENT counts (only allowed downwards; refuses increases).
+ *   --update-ratchet [--batch=<B>] rewrites TYPES1_RATCHET.json to the CURRENT counts (only allowed downwards; refuses
+ *        increases — except tsExpectError when every directive is a registered TYPES-1:B-<ID>, recorded in exceptions[]).
  */
 
 const fs = require('fs');
@@ -64,11 +65,25 @@ function counts() {
   const now = counts();
   if (ARGS.has('--update-ratchet')) {
     const prev = fs.existsSync(RATCHET) ? JSON.parse(fs.readFileSync(RATCHET, 'utf8')) : null;
+    const exceptions = (prev && prev.exceptions) || [];
     if (prev && prev.values) {
-      const up = Object.keys(now).filter((k) => now[k] > prev.values[k]);
+      let up = Object.keys(now).filter((k) => now[k] > prev.values[k]);
+      // Architect rule 3: an ambiguous Class B error is tracked with `@ts-expect-error TYPES-1:B-<ID>`, so
+      // tsExpectError may rise — only when EVERY directive carries a Class B id registered in TYPES1_ESCAPES.json.
+      if (up.includes('tsExpectError')) {
+        const reg = JSON.parse(fs.readFileSync(REGISTER, 'utf8'));
+        const classB = new Set(reg.escapes.filter((e) => e.class === 'B').map((e) => e.id));
+        const directives = Object.values(SRC).flatMap((s) => s.split(/\r?\n/).filter((l) => /@ts-expect-error/.test(l)));
+        const untracked = directives.filter((l) => !classB.has((l.match(/TYPES-1:B-[A-Z0-9-]+/) || [])[0]));
+        if (untracked.length === 0) {
+          const batch = (process.argv.find((a) => a.startsWith('--batch=')) || '').slice(8) || 'unspecified';
+          exceptions.push({ batch, key: 'tsExpectError', from: prev.values.tsExpectError, to: now.tsExpectError, reason: 'tracked ambiguous Class B (architect rule 3); every directive carries a registered TYPES-1:B-<ID>' });
+          up = up.filter((k) => k !== 'tsExpectError');
+        }
+      }
       if (up.length) { console.error(`refusing to raise the ratchet: ${up.map((k) => `${k} ${prev.values[k]} → ${now[k]}`).join(', ')}`); process.exit(1); }
     }
-    const out = { ...(prev || {}), values: now, updatedAt: new Date().toISOString().slice(0, 10) };
+    const out = { ...(prev || {}), values: now, exceptions, updatedAt: new Date().toISOString().slice(0, 10) };
     fs.writeFileSync(RATCHET, JSON.stringify(out, null, 2) + '\n');
     console.log('ratchet updated', JSON.stringify(now));
     return;
@@ -100,6 +115,9 @@ function counts() {
         if (!m[2] || !/\bDatabase\b/.test(m[2])) bad.push(`${f}:${i + 1}: ${line.trim().slice(0, 120)}`);
       });
     }
+    // B1: @supabase/ssr 0.5.2 returns SupabaseClient<Database, SchemaName, Schema> (pre-2.5x generic order), which
+    // supabase-js 2.109 resolves to `never` tables — the session factory must state its real typed return.
+    if (!/export async function createServerSupabaseClient\(\): Promise<SupabaseClient<Database>>/.test(SRC['lib/supabase/server.ts'] || '')) bad.push('lib/supabase/server.ts: createServerSupabaseClient must return Promise<SupabaseClient<Database>>');
     // re-exported wrappers must not be untyped either
     for (const [f, src] of Object.entries(SRC)) if (/createClient\(\)\s+as\s+any/.test(src) && !QUARANTINED.test(f)) bad.push(`${f}: client factory result cast to any`);
     assert(bad.length === 0, bad.join('\n        '));

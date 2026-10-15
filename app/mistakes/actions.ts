@@ -133,7 +133,7 @@ export async function fetchLongitudinalOverviewAction(
     }
 
     const data = await MistakeLongitudinalIntelligenceService.getLongitudinalOverview(
-      supabase as any,
+      supabase,
       user.id,
       {
         windowDays: windowType,

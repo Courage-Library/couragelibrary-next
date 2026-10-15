@@ -226,6 +226,51 @@
       "kind": "tracked comment (client component: untyped action results)",
       "owner": "ADAPTIVE re-enable",
       "precondition": "ADAPTIVE re-enable: deploy adaptive schema (migrations 038–051 superseded → new migration), npm run db:types, remove the quarantine and type the queries (DRIFT-1c Q7 also applies)"
+    },
+    {
+      "id": "TYPES-1:B-DSH-MASTERY",
+      "file": "services/dashboard.service.ts",
+      "class": "B",
+      "module": "student dashboard",
+      "kind": "@ts-expect-error (legacy row shape)",
+      "owner": "LOOP-1 (architect ruling)",
+      "precondition": "LOOP-1: read user_topic_mastery by canonical_topic_id / mastery_score (no status column; DSH-88) or deploy the expected columns; then drop DashboardLegacyMasteryRow and the directive. Today the select errors (42703) and the mastery list is always empty."
+    },
+    {
+      "id": "TYPES-1:B-DSH-RECOMMENDATIONS",
+      "file": "services/dashboard.service.ts",
+      "class": "B",
+      "module": "student dashboard",
+      "kind": "@ts-expect-error (legacy row shape)",
+      "owner": "LOOP-1 (architect ruling)",
+      "precondition": "LOOP-1: replace the daily recommendations read (fn_generate_daily_recommendations deprecated in GAP2-2b) with the live columns (action_type / priority_rank / status / learning_document_id). Today the select errors (42703) and the list is always empty."
+    },
+    {
+      "id": "TYPES-1:B-DSH-VAULT-STATUS",
+      "file": "services/dashboard.service.ts",
+      "class": "B",
+      "module": "student dashboard",
+      "kind": "@ts-expect-error (non-existent filter column)",
+      "owner": "LOOP-1 (architect ruling)",
+      "precondition": "LOOP-1: decide which lifecycle_status values count as an \"active\" mistake (UNRESOLVED / REVISITING) and filter on lifecycle_status. Today the count request errors and the dashboard shows no mistake count."
+    },
+    {
+      "id": "TYPES-1:B-BILLING-SUB-STATUS",
+      "file": "services/billing.service.ts",
+      "class": "B",
+      "module": "billing",
+      "kind": "@ts-expect-error (legacy entitlement columns)",
+      "owner": "Commerce (architect ruling)",
+      "precondition": "Billing decision: which entitlement_type values mean PRO (PRO_SUBSCRIPTION / PROMOTIONAL_PASS as in LearningResolverService) and read is_active / starts_at / expires_at. Today the read errors (42703) and /billing + /pricing always show FREE."
+    },
+    {
+      "id": "TYPES-1:B-DRILL-REWARD-ARGS",
+      "file": "services/mistake.service.ts",
+      "class": "B",
+      "module": "mistake drills",
+      "kind": "@ts-expect-error (RPC argument names)",
+      "owner": "Commerce (architect ruling)",
+      "precondition": "Coin-economy decision: call fn_award_gamification_reward with p_calculated_coins / p_reason_code (and decide session vs service-role client, as GamificationService uses adminSb). Today the RPC call fails (no matching function), so no coins are credited; per the interim ruling the drill records coins_awarded = 0 until the reward is wired."
     }
   ]
 }

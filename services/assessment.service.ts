@@ -1,10 +1,17 @@
 import { createServerSupabaseClient, createAdminServerSupabaseClient } from "@/lib/supabase/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/database";
 import { revalidatePath } from "next/cache";
 import { GamificationService } from "@/services/gamification.service";
 import { MistakeService } from "@/services/mistake.service";
 import { PremiumEntitlementService } from "@/services/premium-entitlement.service";
 import { ContentService } from "@/services/content.service";
 import { formatIstDateTime, calculateExamDuration, getIstDateString } from "@/lib/assessment/timing";
+
+/** TYPES-1 B1: PostgREST returns a one-to-one embed (e.g. test_attempts → test_results) as an object or null. */
+function oneToOne<T>(v: T | T[] | null | undefined): T | null {
+  return Array.isArray(v) ? (v[0] ?? null) : (v ?? null);
+}
 
 export interface ExamDirectoryItem {
   id: string;
@@ -520,11 +527,11 @@ export class AssessmentService {
 
     const [mockTemplatesRes, subjectsRes] = await Promise.all([
       supabase.from("mock_templates").select("id, title, slug, mock_tests(id, title, slug, duration_minutes, total_questions, total_marks, is_free, status)").eq("exam_id", exam.id),
-      supabase.from("subjects").select("id, name, code").order("name"),
+      supabase.from("subjects").select("id, name, slug").order("name"), // TYPES-1 B1 (Class B): subjects has no code column
     ]);
 
     const mockTests: any[] = [];
-    const templates = (mockTemplatesRes.data as any[]) || [];
+    const templates = mockTemplatesRes.data || [];
 
     templates.forEach((t) => {
       (t.mock_tests || []).forEach((mt: any) => {
@@ -542,7 +549,7 @@ export class AssessmentService {
       });
     });
 
-    const subjects = (subjectsRes.data as any[]) || [];
+    const subjects = subjectsRes.data || [];
 
     return {
       id: exam.id,
@@ -555,7 +562,7 @@ export class AssessmentService {
       subjects: subjects.map((s) => ({
         id: s.id,
         name: s.name,
-        code: s.code,
+        code: s.slug,
         topicsCount: 0,
       })),
       mockTests,
@@ -567,8 +574,7 @@ export class AssessmentService {
    */
   static async getDailyMockHubData(categorySlug?: string, userId?: string): Promise<DailyMockHubData> {
     const supabase = await createServerSupabaseClient();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = supabase as any;
+    const sb = supabase;
 
     // 1. Fetch categories
     const { data: categoriesData } = await sb
@@ -598,13 +604,13 @@ export class AssessmentService {
         .eq("status", "published")
         .order("created_at", { ascending: false }),
       sb.from("mock_templates")
-        .select("id, title, slug, test_type, is_active, description, pattern_id, mock_tests(id, slug, duration_minutes, total_questions, total_marks, status)")
+        .select("id, title, slug, test_type, is_active, description, pattern_id, mock_tests(id, title, slug, duration_minutes, total_questions, total_marks, status)")
         .eq("exam_id", selectedCategory.id),
       sb.from("exam_patterns")
         .select("id, name, duration_minutes, total_questions, total_marks, negative_mark_value"),
     ]);
 
-    const allPublishedTests = (mockTestsRes.data as any[]) || [];
+    const allPublishedTests = mockTestsRes.data || [];
     const fullMockTests: MockTestItem[] = allPublishedTests
       .filter((mt) => {
         const tExamId = mt.mock_templates?.exam_id;
@@ -624,8 +630,8 @@ export class AssessmentService {
         publishedAt: mt.published_at,
       }));
 
-    const templates = (templatesRes.data as any[]) || [];
-    const patterns = (patternsRes.data as any[]) || [];
+    const templates = templatesRes.data || [];
+    const patterns = patternsRes.data || [];
 
     // 3. Determine current IST date and day
     const now = new Date();
@@ -808,13 +814,13 @@ export class AssessmentService {
     examSlugFilter?: string,
     userId?: string
   ): Promise<MockTestDashboardData> {
-    let supabase: any;
+    let supabase: SupabaseClient<Database>;
     try {
       supabase = await createServerSupabaseClient();
     } catch {
       supabase = createAdminServerSupabaseClient();
     }
-    const sb = supabase as any;
+    const sb = supabase;
 
     // 1. Fetch user (if not provided)
     let userObj: { id: string; email?: string; fullName?: string } | null = null;
@@ -874,16 +880,16 @@ export class AssessmentService {
         : Promise.resolve({ data: [] }),
     ]);
 
-    const allExams = (allExamsRes.data as any[]) || [];
-    const rawUserGoals = (userGoalsRes.data as any[]) || [];
-    const templates = (templatesRes.data as any[]) || [];
-    const publishedTests = (publishedTestsRes.data as any[]) || [];
-    const patterns = (patternsRes.data as any[]) || [];
-    const attempts = (attemptsRes.data as any[]) || [];
-    const streakRecord = streaksRes.data as any;
-    const walletRecord = walletRes.data as any;
-    const allBadges = (badgesRes.data as any[]) || [];
-    const userBadges = (userBadgesRes.data as any[]) || [];
+    const allExams = allExamsRes.data || [];
+    const rawUserGoals = userGoalsRes.data || [];
+    const templates = templatesRes.data || [];
+    const publishedTests = publishedTestsRes.data || [];
+    const patterns = patternsRes.data || [];
+    const attempts = attemptsRes.data || [];
+    const streakRecord = streaksRes.data;
+    const walletRecord = walletRes.data;
+    const allBadges = badgesRes.data || [];
+    const userBadges = userBadgesRes.data || [];
 
     // 3. Resolve active exam goals
     let activeExamGoals: MockDashboardExamGoal[] = rawUserGoals.map((g: any, i: number) => ({
@@ -962,7 +968,7 @@ export class AssessmentService {
       const mt = inProgressAttempt.mock_tests;
       const examTitle = mt?.mock_templates?.exams?.title || "Exam";
       const examSlug = mt?.mock_templates?.exams?.slug || "exam";
-      const answeredCount = inProgressAttempt.test_results?.[0]?.attempted_count || 0;
+      const answeredCount = oneToOne(inProgressAttempt.test_results)?.attempted_count || 0; // TYPES-1 B1 (Class B)
       const totalQ = mt?.total_questions || 25;
       resumableMock = {
         attemptId: inProgressAttempt.id,
@@ -1122,7 +1128,7 @@ export class AssessmentService {
     // Direct authoritative fetch fallback for any completed or evaluation_pending todayMock
     for (const m of todayMocks) {
       if ((m.status === "completed" || m.status === "evaluation_pending") && m.completedScore === undefined && m.attemptId) {
-        const adminSb = createAdminServerSupabaseClient() as any;
+        const adminSb = createAdminServerSupabaseClient();
         const { data: directRes } = await adminSb
           .from("test_results")
           .select("total_score, accuracy_percentage")
@@ -1356,7 +1362,7 @@ export class AssessmentService {
         );
         if (matchedAttempt) {
           const totalQ = inProgressTodayMock.questionCount || 25;
-          const answeredCount = matchedAttempt.test_results?.[0]?.attempted_count || 0;
+          const answeredCount = oneToOne(matchedAttempt.test_results)?.attempted_count || 0; // TYPES-1 B1 (Class B)
           nextMockAction = {
             type: "resume",
             resumable: {
@@ -1575,10 +1581,10 @@ export class AssessmentService {
       supabase.from("mock_sections").select("id, section_name, num_questions, marks_per_question, negative_mark, section_order").eq("mock_test_id", testId).order("section_order"),
     ]);
 
-    const t = testRes.data as any;
+    const t = testRes.data;
     if (!t) return null;
 
-    const sections = (sectionsRes.data as any[]) || [];
+    const sections = sectionsRes.data || [];
 
     return {
       test: {
@@ -1821,10 +1827,10 @@ export class AssessmentService {
       adminSb.from("attempt_answers").select("mock_question_id, selected_option_key, is_marked_for_review, time_spent_seconds").eq("attempt_id", attempt.id),
     ]);
 
-    const testData = testRes.data as any;
+    const testData = testRes.data;
     if (!testData) return null;
 
-    const savedAnswers = (answersRes.data as any[]) || [];
+    const savedAnswers = answersRes.data || [];
     const savedAnswersMap = new Map<string, { selectedOption: string | null; isMarkedForReview: boolean; timeSpentSeconds: number }>();
     savedAnswers.forEach((a) => {
       savedAnswersMap.set(a.mock_question_id, {
@@ -1834,13 +1840,13 @@ export class AssessmentService {
       });
     });
 
-    const sectionsData = (sectionsRes.data as any[]) || [];
+    const sectionsData = sectionsRes.data || [];
     const sectionsMap = new Map<string, string>();
     sectionsData.forEach((s) => {
       sectionsMap.set(s.id, s.section_name);
     });
 
-    const rawQuestions = (questionsRes.data as any[]) || [];
+    const rawQuestions = questionsRes.data || [];
     const questions: ActiveTestQuestion[] = rawQuestions.map((mq) => {
       const qv = mq.question_versions;
       const opts = (qv?.question_options || [])
@@ -1976,10 +1982,10 @@ export class AssessmentService {
       adminSb.from("attempt_answers").select("id, mock_question_id, selected_option_key, time_spent_seconds").eq("attempt_id", attemptId),
     ]);
 
-    const testData = testRes.data as any;
+    const testData = testRes.data;
     if (!testData) return { success: false, error: "Test metadata missing" };
 
-    const answersList = (answersRes.data as any[]) || [];
+    const answersList = answersRes.data || [];
     const answersMap = new Map<string, any>();
     answersList.forEach((a) => {
       answersMap.set(a.mock_question_id, a);
@@ -1991,7 +1997,7 @@ export class AssessmentService {
     let attemptedCount = 0;
     let totalTimeSpent = 0;
 
-    const sectionsList = (sectionsRes.data as any[]) || [];
+    const sectionsList = sectionsRes.data || [];
     const sectionMetrics = new Map<string, { total: number; attempted: number; correct: number; incorrect: number; score: number; maxScore: number; time: number }>();
     sectionsList.forEach((s) => {
       sectionMetrics.set(s.id, { total: 0, attempted: 0, correct: 0, incorrect: 0, score: 0, maxScore: 0, time: 0 });
@@ -2006,7 +2012,7 @@ export class AssessmentService {
       responseTimeSeconds?: number;
       cognitiveTypeId?: string;
     }> = [];
-    const questionsList = (questionsRes.data as any[]) || [];
+    const questionsList = questionsRes.data || [];
 
     questionsList.forEach((mq) => {
       const sec = sectionMetrics.get(mq.mock_section_id);
@@ -2213,7 +2219,7 @@ export class AssessmentService {
    * Fetches test results and question-by-question review with solutions, dynamic standing, and performance insights.
    */
   static async getTestResult(attemptId: string): Promise<TestResultSummary | null> {
-    let sb: any;
+    let sb: SupabaseClient<Database>;
     let user: any = null;
     try {
       const supabase = await createServerSupabaseClient();
@@ -2234,9 +2240,9 @@ export class AssessmentService {
     if (!resultRes?.data && !attemptRes?.data) {
       const { data: resById } = await sb.from("test_results").select("*").eq("id", attemptId).maybeSingle();
       if (resById) {
-        resolvedAttemptId = (resById as any).attempt_id;
+        resolvedAttemptId = resById.attempt_id;
         [resultRes, attemptRes] = await Promise.all([
-          Promise.resolve({ data: resById }),
+          sb.from("test_results").select("*").eq("attempt_id", resolvedAttemptId).maybeSingle(),
           sb.from("test_attempts").select("id, mock_test_id, user_id, started_at, submitted_at, mock_tests(id, title, duration_minutes, total_questions, total_marks)").eq("id", resolvedAttemptId).maybeSingle(),
         ]);
       }
@@ -2255,7 +2261,7 @@ export class AssessmentService {
         .maybeSingle();
 
       if (latestAttempt) {
-        resolvedAttemptId = (latestAttempt as any).id;
+        resolvedAttemptId = latestAttempt.id;
         [resultRes, attemptRes] = await Promise.all([
           sb.from("test_results").select("*").eq("attempt_id", resolvedAttemptId).maybeSingle(),
           sb.from("test_attempts").select("id, mock_test_id, user_id, started_at, submitted_at, mock_tests(id, title, duration_minutes, total_questions, total_marks)").eq("id", resolvedAttemptId).maybeSingle(),
@@ -2263,8 +2269,8 @@ export class AssessmentService {
       }
     }
 
-    const r = resultRes?.data as any;
-    const attemptData = attemptRes?.data as any;
+    const r = resultRes?.data;
+    const attemptData = attemptRes?.data;
 
     if (!r || !attemptData || !attemptData.mock_tests) return null;
     const mt = attemptData.mock_tests;
@@ -2279,13 +2285,13 @@ export class AssessmentService {
       adminSb.from("test_results").select("id, user_id, total_score, max_score, accuracy_percentage, time_spent_seconds, created_at").eq("mock_test_id", mt.id).order("total_score", { ascending: false }).order("accuracy_percentage", { ascending: false }).order("time_spent_seconds", { ascending: true }),
     ]);
 
-    const answersList = (answersRes.data as any[]) || [];
+    const answersList = answersRes.data || [];
     const answersMap = new Map<string, any>();
     answersList.forEach((a) => {
       answersMap.set(a.mock_question_id, a);
     });
 
-    const rawSections = (sectionsRes.data as any[]) || [];
+    const rawSections = sectionsRes.data || [];
     const sections = rawSections.map((sr) => ({
       id: sr.mock_sections?.id || sr.mock_section_id,
       sectionName: sr.mock_sections?.section_name || "Section",
@@ -2300,7 +2306,7 @@ export class AssessmentService {
       timeSpentSeconds: sr.time_spent_seconds ? Number(sr.time_spent_seconds) : undefined,
     }));
 
-    const rawQuestions = (questionsRes.data as any[]) || [];
+    const rawQuestions = questionsRes.data || [];
 
     // GAP2-2a: batch learning resolution by topic id (LearningResolverService via ContentService)
     const topicKeys: string[] = [];
@@ -2354,7 +2360,7 @@ export class AssessmentService {
     });
 
     // Compute Dynamic Standing & Percentile
-    const allResults = (allTestResultsRes.data as any[]) || [];
+    const allResults = allTestResultsRes.data || [];
     const bestUserAttempts = new Map<string, any>();
     allResults.forEach((tr) => {
       if (!bestUserAttempts.has(tr.user_id)) {
@@ -2401,7 +2407,7 @@ export class AssessmentService {
     const candidateIdShort = (candidateUserId || "CANDIDATE").slice(0, 4).toUpperCase();
     const maskedId = `CL••••${candidateIdShort}`;
     const attemptIdShort = attemptId.slice(0, 6).toUpperCase();
-    const formattedTimestamp = formatIstDateTime(attemptData.submitted_at || r.created_at || Date.now());
+    const formattedTimestamp = formatIstDateTime(attemptData.submitted_at || r.created_at || new Date());
 
     // Check if this attempt is a retake (prior submitted attempt exists for same mock test)
     const { data: priorAttempt } = await adminSb

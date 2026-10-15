@@ -110,7 +110,7 @@ export class BillingService {
 
     if (error || !data) return [];
 
-    const plans = data as unknown as RawPlanRecord[];
+    const plans = data as RawPlanRecord[];
     return plans.map((p) => ({
       id: p.id,
       planCode: p.plan_code,
@@ -136,11 +136,15 @@ export class BillingService {
       return { isPro: false, status: "FREE" };
     }
 
+    // TYPES-1:B-BILLING-SUB-STATUS (tracked) — user_entitlements has is_active / starts_at / expires_at and no
+    // status / valid_until, and no SUBSCRIPTION entitlement type: this read always errors, so /billing and /pricing
+    // always show FREE. Which entitlement types mean PRO is a billing decision. Owner Commerce (architect ruling).
     const { data } = await supabase
       .from("user_entitlements")
       .select("id, status, valid_until")
       .eq("user_id", user.id)
       .eq("entitlement_type", "SUBSCRIPTION")
+      // @ts-expect-error TYPES-1:B-BILLING-SUB-STATUS — legacy column (see above)
       .eq("status", "ACTIVE")
       .gt("valid_until", new Date().toISOString())
       .order("valid_until", { ascending: false })
@@ -150,7 +154,8 @@ export class BillingService {
       return { isPro: false, status: "FREE" };
     }
 
-    const ent = data as unknown as RawEntitlementRecord;
+    // @ts-expect-error TYPES-1:B-BILLING-SUB-STATUS — legacy column set (see above)
+    const ent: RawEntitlementRecord = data;
 
     return {
       isPro: true,
@@ -224,7 +229,7 @@ export class BillingService {
 
     if (error || !data) return [];
 
-    const invoices = data as unknown as RawInvoiceRecord[];
+    const invoices = data as RawInvoiceRecord[];
     return invoices.map((i) => ({
       id: i.id,
       invoiceNumber: i.invoice_number,
@@ -255,7 +260,7 @@ export class BillingService {
 
     if (error || !data) return [];
 
-    const orders = data as unknown as RawOrderRecord[];
+    const orders = data as RawOrderRecord[];
     return orders.map((o) => ({
       id: o.id,
       orderType: o.order_type,

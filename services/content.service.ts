@@ -1,6 +1,12 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { LearningResolverService } from "@/services/learning/learning-resolver.service";
 import { FEATURE_DISABLED_CODE, isFeatureEnabled } from "@/config/features";
+import type { Json } from "@/types/database";
+
+/** TYPES-1 B1: a jsonb RPC result that must be a JSON object (anything else → null). */
+function rpcJsonObject<T extends object>(value: Json): T | null {
+  return value !== null && typeof value === "object" && !Array.isArray(value) ? (value as T) : null;
+}
 
 export interface ArticleItem {
   id: string;
@@ -274,7 +280,7 @@ export class ContentService {
       }
     }
 
-    return (data as any[]).map((c) => {
+    return data.map((c) => {
       const modules = c.course_modules || [];
       const totalLessons = modules.reduce((acc: number, m: any) => acc + (m.course_lessons?.length || 0), 0);
       const prog = progressMap[c.id];
@@ -324,7 +330,7 @@ export class ContentService {
       ]);
 
       if (progRes.data) {
-        const p = progRes.data as any;
+        const p = progRes.data;
         userProgress = {
           totalLessons: p.total_lessons,
           completedLessons: p.completed_lessons,
@@ -335,7 +341,7 @@ export class ContentService {
       }
 
       if (compRes.data) {
-        (compRes.data as any[]).forEach((l) => completedLessonIds.add(l.lesson_id));
+        compRes.data.forEach((l) => completedLessonIds.add(l.lesson_id));
       }
     }
 
@@ -402,9 +408,7 @@ export class ContentService {
   ): Promise<{ success: boolean; error?: string; code?: string }> {
     if (!isFeatureEnabled("COURSES")) return { success: false, error: "Courses is not enabled.", code: FEATURE_DISABLED_CODE };
     const supabase = await createServerSupabaseClient();
-    const rpcCall = supabase.rpc as any;
-
-    const { data, error } = await rpcCall("fn_update_lesson_playback_position", {
+    const { data, error } = await supabase.rpc("fn_update_lesson_playback_position", {
       p_lesson_id: lessonId,
       p_position_seconds: Math.round(positionSeconds),
       p_elapsed_real_seconds: elapsedRealSeconds,
@@ -414,7 +418,7 @@ export class ContentService {
       return { success: false, error: error?.message || "Playback update failed" };
     }
 
-    return data;
+    return rpcJsonObject<{ success: boolean; error?: string; code?: string }>(data) ?? { success: false, error: "Playback update failed" };
   }
 
   /**
@@ -432,9 +436,7 @@ export class ContentService {
   }> {
     if (!isFeatureEnabled("COURSES")) return { success: false, error: "Courses is not enabled.", code: FEATURE_DISABLED_CODE };
     const supabase = await createServerSupabaseClient();
-    const rpcCall = supabase.rpc as any;
-
-    const { data, error } = await rpcCall("fn_complete_course_lesson", {
+    const { data, error } = await supabase.rpc("fn_complete_course_lesson", {
       p_lesson_id: lessonId,
     });
 
@@ -442,6 +444,6 @@ export class ContentService {
       return { success: false, error: error?.message || "Lesson completion failed" };
     }
 
-    return data;
+    return rpcJsonObject<{ success: boolean }>(data) ?? { success: false, error: "Lesson completion failed" };
   }
 }
