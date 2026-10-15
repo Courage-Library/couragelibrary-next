@@ -21,7 +21,8 @@ const suites = [
   { name: 'Phase 5C Gate — Live Test Runner Runtime Gate', script: 'scripts/verify_phase5c_production_runtime_gate.cjs' },
   { name: 'Phase 5D — Result Engine & National Ranking', script: 'scripts/test_phase5d_result_engine.cjs' },
   { name: 'Phase 5D Gate — Result & Ranking Runtime Gate', script: 'scripts/verify_phase5d_production_runtime_gate.cjs' },
-  { name: 'Phase 5E.1 — Rewards & CL Settlement', script: 'scripts/test_phase5e1_rewards.cjs' },
+  // HOTFIX-2: 'Phase 5E.1 — Rewards & CL Settlement' (scripts/test_phase5e1_rewards.cjs) removed — it tested a local copy of
+  // the tier matcher (no product code, no DB) while disabling TLS process-wide.
   { name: 'Phase 5E.1 Gate — Rewards & Settlement Runtime Gate', script: 'scripts/verify_phase5e1_production_runtime_gate.cjs' },
   { name: 'Phase 5E.2 — Certificates & Secure Verification', script: 'scripts/test_phase5e2_certificates.cjs' },
   { name: 'Phase 5E.2 Gate — Certificates Runtime Gate', script: 'scripts/verify_phase5e2_production_runtime_gate.cjs' },

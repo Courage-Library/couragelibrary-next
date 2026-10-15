@@ -135,6 +135,38 @@ export class CurriculumCoverageService {
   /**
    * Calculates the full multi-dimensional curriculum coverage matrix
    */
+  /** Explicit "no data" matrix (HOTFIX-2): zeros and empty lists, flagged UNAVAILABLE — the UI shows a notice, not values. */
+  static unavailableMatrix(reason: string): CurriculumCoverageMatrix {
+    const byDocumentType = Object.fromEntries(
+      CANONICAL_DOCUMENT_TYPES.map((dt) => [
+        dt,
+        { totalSlots: 0, publishedSlots: 0, draftSlots: 0, aiGeneratedSlots: 0, inReviewSlots: 0, approvedSlots: 0, compiledSlots: 0, notCreatedSlots: 0, coveragePct: 0 },
+      ])
+    ) as CurriculumCoverageMatrix['byDocumentType'];
+    return {
+      status: 'UNAVAILABLE',
+      unavailableReason: reason,
+      overall: {
+        totalSubjects: 0,
+        totalTopics: 0,
+        totalUnits: 0,
+        totalDocSlots: 0,
+        publishedDocSlots: 0,
+        draftDocSlots: 0,
+        aiGeneratedDocSlots: 0,
+        inReviewDocSlots: 0,
+        approvedDocSlots: 0,
+        compiledDocSlots: 0,
+        notCreatedDocSlots: 0,
+        overallCoveragePct: 0,
+        totalLinkedQuestions: 0,
+      },
+      byDocumentType,
+      subjects: [],
+      exams: [],
+    };
+  }
+
   static async getCurriculumCoverageMatrix(
     supabaseClient?: AppSupabaseClient,
     filters?: {
@@ -172,78 +204,34 @@ export class CurriculumCoverageService {
     const subjectsList = subjectsRes?.data || [];
     const topicsList = topicsRes?.data || [];
     // TYPES-1:B-CURRICULUM-MAPPING (tracked, GAP2-4) — learning_units has no is_published and exam_unit_mappings no longer
-    // links exam_topic_mappings / required_depth / importance_tier / is_mandatory: both reads always fail, and the
-    // fallbacks below then SYNTHESISE coverage (pilot document, default exam mappings). GAP2-4 replaces this matrix.
+    // links exam_topic_mappings / required_depth / importance_tier / is_mandatory: both reads always fail, so the matrix
+    // is reported UNAVAILABLE (HOTFIX-2; it no longer synthesises coverage). GAP2-4 replaces this matrix.
     // @ts-expect-error TYPES-1:B-CURRICULUM-MAPPING — legacy learning_units columns (see above)
-    let unitsList: LegacyCoverageUnitRow[] | null | undefined = unitsRes?.data;
-    let documentsList = docsRes?.data || [];
-    let versionsList = versionsRes?.data || [];
+    const unitsList: LegacyCoverageUnitRow[] | null | undefined = unitsRes?.data;
+    const documentsList = docsRes?.data || [];
+    const versionsList = versionsRes?.data || [];
     const questionsList = questionsRes?.data || [];
     // @ts-expect-error TYPES-1:B-CURRICULUM-MAPPING — legacy exam_unit_mappings shape (see above)
-    let examMappingsList: LegacyExamUnitMappingRow[] | null | undefined = examMappingsRes?.data;
+    const examMappingsList: LegacyExamUnitMappingRow[] | null | undefined = examMappingsRes?.data;
 
-    // Resilient fallback: If learning_units table is not populated/migrated, synthesize canonical units from active topics
-    if (!unitsList || unitsList.length === 0) {
-      unitsList = topicsList.map((top: any, idx: number) => {
-        const isPercentage = top.slug === 'percentage' || top.name.toLowerCase() === 'percentage';
-        return {
-          id: isPercentage ? 'e0100000-0000-4000-8000-000000000001' : `unit-${top.id}`,
-          topic_id: top.id,
-          subtopic_id: null,
-          title: isPercentage ? 'Percentages & Fraction Equivalence' : `${top.name} - Fundamentals & Core Concepts`,
-          slug: isPercentage ? 'percentages-and-fraction-equivalence' : `${top.slug}-fundamentals`,
-          unit_type: 'CONCEPT_LESSON',
-          display_order: idx + 1,
-          is_published: isPercentage,
-        };
-      });
-
-      // Also ensure Percentage pilot document is in fallback documentsList
-      if (documentsList.length === 0) {
-        const percentageUnit = unitsList.find((u: any) => u.slug === 'percentages-and-fraction-equivalence');
-        if (percentageUnit) {
-          documentsList = [
-            {
-              id: 'doc-pilot-percentage-concept',
-              learning_unit_id: percentageUnit.id,
-              canonical_slug: 'quantitative-aptitude/percentage/concept-lesson',
-              document_type: 'CONCEPT_LESSON',
-              status: 'PUBLISHED',
-              updated_at: new Date().toISOString(),
-            },
-          ];
-          versionsList = [
-            {
-              id: 'ver-pilot-percentage-v1',
-              document_id: 'doc-pilot-percentage-concept',
-              version_number: 1,
-              review_status: 'PUBLISHED',
-              author_type: 'AI_ASSISTED',
-              is_published: true,
-              updated_at: new Date().toISOString(),
-            },
-          ];
-        }
-      }
-    }
-
-    // Resilient fallback for exam mappings
-    if (!examMappingsList || examMappingsList.length === 0) {
-      const defaultExam = examsList[0] || { id: '5ecaf736-b8c4-41fb-990a-feb306429cfb', title: 'SSC CGL' };
-      examMappingsList = unitsList.map((u: any) => ({
-        learning_unit_id: u.id,
-        required_depth: 'STANDARD',
-        importance_tier: 'CORE',
-        is_mandatory: true,
-        exam_topic_mappings: {
-          exam_syllabi: {
-            exams: {
-              id: defaultExam.id,
-              title: defaultExam.title,
-            },
-          },
-        },
-      }));
+    // HOTFIX-2 (decision #15): never synthesise coverage. Any failed source read → an explicit UNAVAILABLE matrix
+    // (no units, documents, exam mappings or percentages are invented). An empty table is reported as empty.
+    const failedReads = (
+      [
+        ['exams', examsRes],
+        ['subjects', subjectsRes],
+        ['topics', topicsRes],
+        ['learning_units', unitsRes],
+        ['learning_documents', docsRes],
+        ['document_versions', versionsRes],
+        ['questions', questionsRes],
+        ['exam_unit_mappings', examMappingsRes],
+      ] as const
+    )
+      .filter(([, res]) => !res || res.error)
+      .map(([name]) => name);
+    if (failedReads.length > 0 || !unitsList || !examMappingsList) {
+      return CurriculumCoverageService.unavailableMatrix(`source reads failed: ${failedReads.join(', ') || 'learning_units / exam_unit_mappings'}`);
     }
 
     // Map versions by document_id
@@ -492,6 +480,7 @@ export class CurriculumCoverageService {
       totalDocSlots > 0 ? Math.round((publishedDocSlots / totalDocSlots) * 100) : 0;
 
     return {
+      status: 'AVAILABLE',
       overall: {
         totalSubjects: subjectCoverages.length,
         totalTopics: subjectCoverages.reduce((acc, s) => acc + s.topics.length, 0),
@@ -610,6 +599,7 @@ export class CurriculumCoverageService {
     });
 
     return {
+      status: matrix.status, // UNAVAILABLE propagates: no metrics are derived from an unavailable matrix
       totalLearningUnits: totalUnits,
       mappedLearningUnits: mappedUnits,
       unmappedLearningUnits: unmappedUnits,

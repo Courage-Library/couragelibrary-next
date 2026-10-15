@@ -86,7 +86,14 @@ export interface SubjectCoverage {
   topics: TopicCoverage[];
 }
 
+/** HOTFIX-2 (decision #15): coverage is either computed from live data or explicitly unavailable — never synthesised. */
+export type CoverageAvailability = 'AVAILABLE' | 'UNAVAILABLE';
+export const COVERAGE_UNAVAILABLE_MESSAGE = 'Coverage unavailable — pending syllabus rebuild (GAP2-4)';
+
 export interface CurriculumCoverageMatrix {
+  status: CoverageAvailability;
+  /** Set when status is UNAVAILABLE: which source reads failed (no values are shown in that state). */
+  unavailableReason?: string;
   overall: {
     totalSubjects: number;
     totalTopics: number;
@@ -121,6 +128,7 @@ export interface CurriculumCoverageMatrix {
 }
 
 export interface CurriculumQualityMetrics {
+  status: CoverageAvailability;
   totalLearningUnits: number;
   mappedLearningUnits: number;
   unmappedLearningUnits: number;

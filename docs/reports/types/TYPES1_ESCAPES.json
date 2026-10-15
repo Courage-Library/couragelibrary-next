@@ -315,7 +315,7 @@
       "module": "curriculum coverage / content studio exam mappings / AI context exam mappings",
       "kind": "@ts-expect-error ×5 + tracked comments (content studio, AI context builder)",
       "owner": "GAP2-4",
-      "precondition": "GAP2-4: replace the exam ↔ learning-unit mapping model (exam_unit_mappings now has exam_topic_id / is_exam_core / is_active; no exam_topic_mappings link, required_depth, importance_tier, is_mandatory; learning_units has no is_published) and rebuild the coverage matrix on the canonical syllabus. IMPORTANT: today both reads always fail and getCurriculumCoverageMatrix SYNTHESISES coverage (a \"PUBLISHED\" pilot Percentage document and default exam mappings) shown to staff on /admin/content — fabricated data (decision #15) to be removed in that rewrite. upsertExamUnitMapping always fails."
+      "precondition": "GAP2-4: replace the exam ↔ learning-unit mapping model (exam_unit_mappings now has exam_topic_id / is_exam_core / is_active; no exam_topic_mappings link, required_depth, importance_tier, is_mandatory; learning_units has no is_published) and rebuild the coverage matrix on the canonical syllabus. Today both reads always fail, so getCurriculumCoverageMatrix reports status UNAVAILABLE and /admin/content shows \"Coverage unavailable — pending syllabus rebuild (GAP2-4)\" (HOTFIX-2 removed the former synthesised coverage — decision #15). upsertExamUnitMapping always fails."
     }
   ]
 }

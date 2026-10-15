@@ -55,11 +55,12 @@ const B4_FILES = ['services/admin-content-studio.service.ts', 'services/ai/ai-ge
     assert(!/\bas LearningContentArtifact\b/.test(art.replace(/const toArtifact[^\n]*\n/, '')), 'per-call artifact casts remain');
   });
 
-  await test('B4-4 tracked GAP2-4 drift registered (incl. synthesised coverage warning)', async () => {
+  await test('B4-4 tracked GAP2-4 drift registered (HOTFIX-2: coverage UNAVAILABLE, not synthesised)', async () => {
     const e = JSON.parse(read('docs/reports/types/TYPES1_ESCAPES.json')).escapes.find((x) => x.id === 'TYPES-1:B-CURRICULUM-MAPPING');
     assert(e && e.class === 'B' && e.owner === 'GAP2-4', 'B-CURRICULUM-MAPPING not registered for GAP2-4');
-    assert(/SYNTHESISES coverage/.test(e.precondition), 'fabricated-coverage warning missing from the register');
-    assert(read('services/curriculum-coverage.service.ts').includes('SYNTHESISE coverage'), 'code comment must flag the synthesised fallback');
+    // HOTFIX-2 removed the synthesised coverage; the register must say so (and the matrix is UNAVAILABLE until GAP2-4)
+    assert(/UNAVAILABLE/.test(e.precondition) && /HOTFIX-2/.test(e.precondition), 'register must record the HOTFIX-2 unavailable state');
+    assert(read('services/curriculum-coverage.service.ts').includes('no longer synthesises coverage'), 'code comment must record HOTFIX-2');
   });
 
   if (OFFLINE) {
