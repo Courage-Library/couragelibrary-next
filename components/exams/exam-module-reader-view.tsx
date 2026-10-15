@@ -96,7 +96,7 @@ export function ExamModuleReaderView({
             <div className="space-y-3 pt-6 border-t border-slate-100">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                <span>Authoritative Sources & Official Citations</span>
+                <span>Official sources and citations</span>
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full">
                 {moduleData.officialSources.map((src, idx) => (

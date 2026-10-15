@@ -308,7 +308,8 @@ export function AdminBulkImportStudio({ categories, sections }: Props) {
   const [isPyq, setIsPyq] = useState(false);
   const [pyqSource, setPyqSource] = useState("");
   const [pyqYear, setPyqYear] = useState("");
-  const [language, setLanguage] = useState<"english" | "hindi">("english");
+  // English only (decision #35): AI batches are always generated in English.
+  const language = "english";
 
   const [generatedPrompt, setGeneratedPrompt] = useState<string>("");
   const [hasCopiedPrompt, setHasCopiedPrompt] = useState(false);
@@ -489,15 +490,8 @@ QUESTION TYPES IN THIS BATCH:
 ${types.length ? types.map((t, i) => `${i + 1}. ${t}`).join("\n") : "1. plain text question with text options"}
 
 LANGUAGE:
-${
-  language === "hindi"
-    ? `- ALL question_text and options must be in Hindi (Devanagari script: हिंदी).
-- Do NOT transliterate — use proper Unicode Devanagari characters.
-- Set language column = "hindi" for every single row.
-- topic must still be English standard name (e.g. "Blood Relations").`
-    : `- Questions are in English.
-- Set language column = "english" for every row.`
-}
+- Questions are in English.
+- Set language column = "english" for every row.
 
 OUTPUT RULES:
 - Output ONLY the raw CSV. No explanation, no markdown, no code fences.
@@ -1053,48 +1047,10 @@ Paste your questions below this line:`;
               )}
             </div>
 
-            {/* Language Selector */}
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-700">Question Language</label>
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setLanguage("english")}
-                  className={`flex-1 py-2 rounded-xl border text-xs font-bold transition ${
-                    language === "english"
-                      ? "border-indigo-600 bg-indigo-50 text-indigo-700"
-                      : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                  }`}
-                >
-                  🇬🇧 English
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setLanguage("hindi")}
-                  className={`flex-1 py-2 rounded-xl border text-xs font-bold transition ${
-                    language === "hindi"
-                      ? "border-orange-500 bg-orange-50 text-orange-700"
-                      : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                  }`}
-                >
-                  🇮🇳 Hindi (हिंदी)
-                </button>
-              </div>
-
-              {language === "hindi" && (
-                <div className="p-3 rounded-xl bg-orange-50 border border-orange-200 text-xs text-orange-700 space-y-1">
-                  <p className="font-bold flex items-center gap-1">
-                    <Info className="w-3.5 h-3.5" /> Hindi Batch Notes:
-                  </p>
-                  <ul className="list-disc list-inside space-y-0.5 text-[11px]">
-                    <li>AI will output statements &amp; options in Devanagari script.</li>
-                    <li>
-                      Prompt forces <code className="bg-orange-100 px-1 rounded">language = hindi</code>.
-                    </li>
-                  </ul>
-                </div>
-              )}
-            </div>
+            {/* Language: English only (decision #35) */}
+            <p className="text-xs text-slate-600">
+              Questions are generated in <span className="font-bold">English</span>.
+            </p>
 
             {/* Generate Prompt Button */}
             <Button

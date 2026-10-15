@@ -20,7 +20,7 @@ export const revalidate = 60; // ISR baseline
 export const metadata = constructMetadata({
   title: "National Competitive Exam Knowledge Hub",
   description:
-    "Authoritative, verified syllabus, exam patterns, eligibility criteria, pay scales, and previous year trends for Indian competitive examinations.",
+    "Verified syllabus, exam patterns, eligibility criteria, pay scales, and previous year trends for Indian competitive examinations.",
   canonicalUrl: "/exams",
 });
 
@@ -95,7 +95,7 @@ export default async function ExamsDirectoryPage() {
               <div className="space-y-1 max-w-sm mx-auto">
                 <h3 className="text-lg font-extrabold text-slate-900">No Published Exams Found</h3>
                 <p className="text-xs text-slate-500">
-                  Target exam taxonomies and knowledge bases are being populated into the authoritative repository.
+                  Exam details are being added. Check back soon.
                 </p>
               </div>
               <div className="flex items-center justify-center gap-3 pt-2">

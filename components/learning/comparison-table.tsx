@@ -9,15 +9,15 @@ export const ComparisonTable: React.FC<ComparisonTableProps> = ({
   rows = [],
 }) => {
   return (
-    <div className="my-6 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xs dark:border-gray-800 dark:bg-gray-900">
+    <div className="my-6 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xs">
       {caption && (
-        <div className="border-b border-gray-200 bg-gray-50 px-4 py-2 font-semibold text-gray-700 text-xs uppercase tracking-wider dark:border-gray-800 dark:bg-gray-800 dark:text-gray-300">
+        <div className="border-b border-gray-200 bg-gray-50 px-4 py-2 font-semibold text-gray-700 text-xs uppercase tracking-wider">
           {caption}
         </div>
       )}
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
-          <thead className="bg-gray-50 text-gray-700 text-xs uppercase dark:bg-gray-800 dark:text-gray-300">
+          <thead className="bg-gray-50 text-gray-700 text-xs uppercase">
             <tr>
               {headers.map((h, i) => (
                 <th key={i} className="px-4 py-3 font-semibold">
@@ -26,11 +26,11 @@ export const ComparisonTable: React.FC<ComparisonTableProps> = ({
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
+          <tbody className="divide-y divide-gray-200">
             {rows.map((row, rIdx) => (
-              <tr key={rIdx} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/40">
+              <tr key={rIdx} className="hover:bg-gray-50/50">
                 {row.map((cell, cIdx) => (
-                  <td key={cIdx} className="px-4 py-3 text-gray-800 dark:text-gray-200">
+                  <td key={cIdx} className="px-4 py-3 text-gray-800">
                     {cell}
                   </td>
                 ))}

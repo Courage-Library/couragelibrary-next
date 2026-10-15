@@ -162,7 +162,9 @@ const ADMIN = { id: UUID(1), email: 'admin@courage-library.test', app_metadata: 
     assert(!/value="articles"/.test(read('components/admin/bulk-import-modal.tsx')));
   });
   await test('S-03 /courses links gated by server-evaluated FEATURE_COURSES (nav, header, mobile, /articles, thread)', async () => {
-    const files = ['components/layout/main-nav.tsx', 'components/layout/header-controls.tsx', 'components/layout/mobile-nav.tsx', 'app/articles/page.tsx', 'app/community/[id]/thread-client.tsx'];
+    // UX-1b: the shell (components/shell) lists /courses only in nav-config with flag "COURSES" (filtered by visibleItems)
+    const files = ['components/shell/header-bar.tsx', 'components/shell/bottom-nav.tsx', 'components/shell/site-footer.tsx', 'app/articles/page.tsx', 'app/community/[id]/thread-client.tsx'];
+    assert(/\{ href: "\/courses", label: "Courses", flag: "COURSES" \}/.test(read('components/shell/nav-config.ts')), 'nav-config /courses not flagged');
     const bad = [];
     for (const f of files) {
       const s = read(f);
@@ -172,7 +174,7 @@ const ADMIN = { id: UUID(1), email: 'admin@courage-library.test', app_metadata: 
         if (!/\{(coursesEnabled|isFeatureEnabled\("COURSES"\)) && \(\s*<Link\s*$/.test(before)) bad.push(`${f}: ungated /courses link`);
       }
     }
-    assert(/coursesEnabled=\{isFeatureEnabled\("COURSES"\)\}/.test(read('components/layout/header.tsx')), 'header does not pass the flag');
+    assert(/COURSES: isFeatureEnabled\("COURSES"\)/.test(read('components/shell/app-shell.tsx')), 'shell does not pass the flag');
     assert(/coursesEnabled=\{isFeatureEnabled\("COURSES"\)\}/.test(read('app/community/[id]/page.tsx')), 'thread page does not pass the flag');
     assert(bad.length === 0, bad.join('\n        '));
   });

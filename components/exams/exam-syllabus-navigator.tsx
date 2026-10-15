@@ -28,7 +28,7 @@ export function ExamSyllabusNavigator({ subjects }: ExamSyllabusNavigatorProps) 
   if (!subjects || subjects.length === 0) {
     return (
       <Card className="p-8 text-center text-slate-400">
-        <p className="text-xs">Syllabus breakdown is being aligned with the canonical curriculum.</p>
+        <p className="text-xs">The detailed syllabus for this exam is being prepared.</p>
       </Card>
     );
   }

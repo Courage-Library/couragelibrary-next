@@ -20,7 +20,7 @@ export default async function BattlesLobbyPage() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 bg-gradient-to-r from-violet-900 via-purple-900 to-indigo-950 rounded-3xl p-6 sm:p-8 text-white shadow-lg">
           <div className="space-y-2">
             <Badge variant="indigo" className="bg-white/20 text-white border-white/20">
-              Phase 3N 1v1 Battle Arena
+              1v1 Battle Arena
             </Badge>
             <h1 className="text-2xl sm:text-4xl font-black tracking-tight flex items-center gap-3">
               <Swords className="w-8 h-8 text-amber-400" />

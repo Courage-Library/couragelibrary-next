@@ -26,7 +26,7 @@ export function LiveEventCard({ event }: LiveEventCardProps) {
           </span>
 
           {event.isPremiumOnly && (
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 border border-amber-500/20">
               <Sparkles className="w-3 h-3" />
               PREMIUM
             </span>
@@ -81,7 +81,7 @@ export function LiveEventCard({ event }: LiveEventCardProps) {
         )}
 
         {isLive && (
-          <span className="text-xs font-semibold text-rose-600 dark:text-rose-400">
+          <span className="text-xs font-semibold text-rose-600">
             Window Closing Soon
           </span>
         )}
@@ -95,7 +95,7 @@ export function LiveEventCard({ event }: LiveEventCardProps) {
         {/* Action Button */}
         <div className="flex items-center gap-2">
           {event.isRegistered ? (
-            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
               Registered
             </div>

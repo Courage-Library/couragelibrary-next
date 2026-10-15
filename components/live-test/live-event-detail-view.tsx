@@ -99,7 +99,7 @@ export function LiveEventDetailView({ event, isLoggedIn }: LiveEventDetailViewPr
             </span>
 
             {event.isPremiumOnly && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-600 border border-amber-500/20">
                 <Sparkles className="w-3.5 h-3.5" />
                 PREMIUM EXCLUSIVE
               </span>
@@ -206,7 +206,7 @@ export function LiveEventDetailView({ event, isLoggedIn }: LiveEventDetailViewPr
               All-India Test Rules & Invariants
             </h2>
             <ul className="text-xs text-muted-foreground space-y-2 list-disc list-inside leading-relaxed">
-              <li>Strict server-authoritative timer in Asia/Kolkata timezone.</li>
+              <li>The timer runs on our server in Indian Standard Time (IST).</li>
               <li>Single registration per candidate guaranteed.</li>
               <li>Test paper is locked and identical across all candidates.</li>
               <li>National Rank & Percentile computed after all submissions are evaluated.</li>
@@ -225,7 +225,7 @@ export function LiveEventDetailView({ event, isLoggedIn }: LiveEventDetailViewPr
 
             {isLive && (
               <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-center space-y-2">
-                <span className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">
+                <span className="text-xs font-bold text-rose-600 uppercase tracking-wider">
                   Test Window Open
                 </span>
                 <p className="text-sm font-semibold text-foreground">
@@ -236,12 +236,12 @@ export function LiveEventDetailView({ event, isLoggedIn }: LiveEventDetailViewPr
 
             {/* Notification messages */}
             {successMessage && (
-              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300">
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800">
                 {successMessage}
               </div>
             )}
             {errorMessage && (
-              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-300 flex items-center gap-2">
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{errorMessage}</span>
               </div>
@@ -251,7 +251,7 @@ export function LiveEventDetailView({ event, isLoggedIn }: LiveEventDetailViewPr
             <div className="space-y-2">
               {isRegistered ? (
                 <div className="space-y-3">
-                  <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800/60 flex items-center justify-center gap-2 text-emerald-700 dark:text-emerald-300 font-semibold text-xs">
+                  <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center gap-2 text-emerald-700 font-semibold text-xs">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                     Seat Confirmed & Registered
                   </div>

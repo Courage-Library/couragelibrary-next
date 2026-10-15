@@ -74,12 +74,12 @@ export const CurrentAffairsFeedContainer: React.FC<CurrentAffairsFeedContainerPr
           ))}
         </div>
       ) : (
-        <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 p-12 text-center">
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-12 text-center">
           <Newspaper className="w-10 h-10 text-slate-400 mx-auto mb-3" />
-          <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 mb-1">
+          <h3 className="text-base font-bold text-slate-900 mb-1">
             {emptyTitle}
           </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+          <p className="text-xs text-slate-500 max-w-sm mx-auto">
             {emptyDescription}
           </p>
           {(selectedCategory !== 'ALL' || selectedImportance !== 'ALL' || searchQuery) && (
@@ -89,7 +89,7 @@ export const CurrentAffairsFeedContainer: React.FC<CurrentAffairsFeedContainerPr
                 setSelectedImportance('ALL');
                 setSearchQuery('');
               }}
-              className="mt-4 px-4 py-2 rounded-xl text-xs font-semibold bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 hover:bg-blue-100 transition-colors"
+              className="mt-4 px-4 py-2 rounded-xl text-xs font-semibold bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
             >
               Reset Filters
             </button>

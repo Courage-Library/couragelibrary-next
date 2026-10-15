@@ -282,7 +282,7 @@ export function ResultViewClient({ data }: ResultViewClientProps) {
                   </div>
                   <div>
                     <h2 className="text-base font-extrabold text-slate-900 tracking-tight">CL Coins Earned</h2>
-                    <p className="text-[11px] text-slate-500 font-medium">Server-authoritative assessment rewards</p>
+                    <p className="text-[11px] text-slate-500 font-medium">Rewards for this test</p>
                   </div>
                 </div>
                 <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-900 text-xs font-black border border-amber-300 font-mono">

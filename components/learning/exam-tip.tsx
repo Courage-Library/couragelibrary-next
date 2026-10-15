@@ -21,14 +21,14 @@ export const ExamTip: React.FC<ExamTipProps> = ({
     );
 
   return (
-    <div className="my-5 rounded-xl border border-amber-200 bg-amber-50/40 p-4 shadow-xs dark:border-amber-900/50 dark:bg-amber-950/20">
+    <div className="my-5 rounded-xl border border-amber-200 bg-amber-50/40 p-4 shadow-xs">
       <div className="flex items-center gap-2">
         {icon}
-        <h4 className="font-semibold text-amber-900 text-sm uppercase tracking-wide dark:text-amber-300">
+        <h4 className="font-semibold text-amber-900 text-sm uppercase tracking-wide">
           Exam Tip: {title}
         </h4>
       </div>
-      <p className="mt-2 text-gray-800 text-sm leading-relaxed dark:text-gray-200">{content}</p>
+      <p className="mt-2 text-gray-800 text-sm leading-relaxed">{content}</p>
     </div>
   );
 };

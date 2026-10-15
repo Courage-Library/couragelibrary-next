@@ -47,7 +47,7 @@ export function FlashcardPlayer({
       {/* Session Progress Header */}
       <div className="flex items-center justify-between text-xs text-slate-500 font-semibold pb-2">
         <span className="flex items-center gap-1.5">
-          <Badge variant="indigo" className="text-[10px]">SM-2 SRS</Badge>
+          <Badge variant="indigo" className="text-[10px]">Spaced revision</Badge>
           <span>Card {cardNumber} of {totalCards}</span>
         </span>
         <span className="font-mono text-slate-400">
@@ -134,7 +134,7 @@ export function FlashcardPlayer({
       {isRevealed && (
         <div className="space-y-2 pt-2 animate-in fade-in duration-200">
           <span className="text-center text-xs font-bold text-slate-500 uppercase tracking-wider font-mono block">
-            Rate Your Recall (SM-2 Interval)
+            Rate your recall
           </span>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">

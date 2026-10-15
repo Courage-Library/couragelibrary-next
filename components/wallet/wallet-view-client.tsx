@@ -173,7 +173,7 @@ export function WalletViewClient({ wallet: initialWallet, catalog, streakEligibi
                 <span className="text-lg font-bold text-amber-400 font-mono">CL Coins</span>
               </div>
               <p className="text-xs text-slate-300 font-medium">
-                Server-authoritative internal reward currency earned via disciplined study &amp; assessments.
+                Coins you earn by studying and taking tests.
               </p>
             </div>
 

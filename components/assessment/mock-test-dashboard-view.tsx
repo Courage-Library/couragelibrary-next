@@ -99,7 +99,7 @@ export function MockTestDashboardView({ data }: Props) {
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="px-2.5 py-0.5 text-[11px] font-extrabold rounded-full bg-blue-50 text-blue-700 border border-blue-200/80">
-                Mock Test Command Center
+                Mock tests
               </span>
               {streak.currentStreak > 0 && (
                 <span className="px-2.5 py-0.5 text-[11px] font-extrabold rounded-full bg-amber-50 text-amber-800 border border-amber-200/80 flex items-center gap-1">

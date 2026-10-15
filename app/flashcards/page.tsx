@@ -13,7 +13,7 @@ export const revalidate = 30;
 
 export const metadata = constructMetadata({
   title: "Flashcards & Spaced Repetition",
-  description: "Retain formulas, key terminology, and high-yield facts using SM-2 spaced repetition algorithms.",
+  description: "Retain formulas, key terminology, and high-yield facts using spaced repetition.",
 });
 
 export default async function FlashcardsDirectoryPage() {
@@ -24,13 +24,13 @@ export default async function FlashcardsDirectoryPage() {
       <Container className="space-y-8">
         <div className="space-y-2">
           <Badge variant="indigo" className="text-xs">
-            Active Recall & SRS
+            Active recall and spaced revision
           </Badge>
           <h1 className="text-3xl font-black text-slate-900 tracking-tight">
             Flashcard Library & Visual Formulas
           </h1>
           <p className="text-sm text-slate-600 max-w-2xl">
-            Retain formulas, key terminology, and high-yield facts using SM-2 spaced repetition algorithms.
+            Retain formulas, key terminology, and high-yield facts using spaced repetition.
           </p>
         </div>
 

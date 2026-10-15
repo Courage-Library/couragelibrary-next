@@ -22,7 +22,7 @@ export default async function BillingPage() {
         {/* Header Banner */}
         <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-lg space-y-3">
           <Badge variant="indigo" className="bg-white/20 text-white border-white/20">
-            Phase 3I Billing Portal
+            Billing
           </Badge>
           <h1 className="text-2xl sm:text-4xl font-black tracking-tight flex items-center gap-3">
             <CreditCard className="w-8 h-8 text-indigo-400" />

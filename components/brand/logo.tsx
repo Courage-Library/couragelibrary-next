@@ -2,6 +2,7 @@ import React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { siteConfig } from "@/config/site";
+import { cn } from "@/components/ui/cn";
 
 interface BrandLogoProps {
   variant?: "full" | "icon" | "mark";
@@ -11,42 +12,36 @@ interface BrandLogoProps {
   showText?: boolean;
 }
 
-export function BrandLogo({
-  variant = "full",
-  size = "md",
-  href,
-  className = "",
-  showText = true,
-}: BrandLogoProps) {
-  const dimensions = {
-    sm: { width: 28, height: 28, textSize: "text-base" },
-    md: { width: 36, height: 36, textSize: "text-xl" },
-    lg: { width: 48, height: 48, textSize: "text-2xl" },
-  }[size];
+const DIMENSIONS = {
+  sm: { px: 28, text: "text-body" },
+  md: { px: 36, text: "text-body-lg" },
+  lg: { px: 48, text: "text-h3" },
+};
 
+/** Logo mark + wordmark (ink on light surfaces). With `href` the whole logo is one link named by the site name. */
+export function BrandLogo({ variant = "full", size = "md", href, className, showText = true }: BrandLogoProps) {
+  const d = DIMENSIONS[size];
+  const withText = variant !== "icon" && showText;
   const content = (
-    <div className={`inline-flex items-center gap-2.5 font-bold text-slate-900 group ${className}`}>
-      <div className="relative shrink-0 overflow-hidden rounded-xl">
-        <Image
-          src="/images/logo.png"
-          alt="Courage Library"
-          width={dimensions.width}
-          height={dimensions.height}
-          className="object-contain transition-transform group-hover:scale-105"
-          priority
-        />
-      </div>
-      {variant !== "icon" && showText && (
-        <span className={`font-extrabold tracking-tight bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-900 bg-clip-text text-transparent ${dimensions.textSize}`}>
-          {siteConfig.name}
-        </span>
-      )}
-    </div>
+    <span className={cn("inline-flex items-center gap-2.5 font-bold text-fg", className)}>
+      <Image
+        src="/images/logo.png"
+        alt={withText ? "" : siteConfig.name}
+        width={d.px}
+        height={d.px}
+        className="shrink-0 rounded-control object-contain"
+        priority
+      />
+      {withText && <span className={cn("tracking-tight", d.text)}>{siteConfig.name}</span>}
+    </span>
   );
 
   if (href) {
-    return <Link href={href}>{content}</Link>;
+    return (
+      <Link href={href} className="focus-ring inline-flex rounded-control">
+        {content}
+      </Link>
+    );
   }
-
   return content;
 }
