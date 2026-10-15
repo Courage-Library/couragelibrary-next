@@ -96,7 +96,7 @@ function readMistakeDetail() {
       if (href) await visit(href); else console.log(`INFO  no detail link on ${list} (no data)`);
     }
   } else if (CHECK === 'admin-pages') {
-    const ADMIN = ['/admin', '/admin/questions', '/admin/sections', '/admin/billing', '/admin/community', '/admin/descriptive', '/admin/institutes', '/admin/mock-tests-management', '/admin/bulk-import', '/admin/taxonomy', '/admin/exams'];
+    const ADMIN = ['/admin', '/admin/questions', '/admin/sections', '/admin/billing', '/admin/community', '/admin/descriptive', '/admin/institutes', '/admin/mock-tests-management', '/admin/bulk-import', '/admin/taxonomy', '/admin/exams', '/admin/syllabus-reconciliation'];
     for (const p of ADMIN) {
       const r = await page.goto(BASE + p, { waitUntil: 'networkidle', timeout: 180000 });
       const html = await page.content();
