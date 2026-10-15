@@ -41,7 +41,7 @@ export default async function MockTestInstructionsPage({ params }: Props) {
   if (user) {
     const { data: attempts } = await supabase
       .from("test_attempts")
-      .select("id, status, started_at, submitted_at, test_results(id, total_score, score)")
+      .select("id, status, started_at, submitted_at, test_results(id, total_score)") // TYPES-1 CLOSE (Class B): test_results has no `score` column (42703)
       .eq("mock_test_id", id)
       .eq("user_id", user.id)
       .order("started_at", { ascending: false });
