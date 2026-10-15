@@ -3,6 +3,7 @@ import React from "react";
 import Link from "next/link";
 import { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { loginRedirectPath } from "@/lib/auth/safe-redirect";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { CandidateIntelligenceService } from "@/services/candidate-intelligence.service";
 import { CANDIDATE_INTELLIGENCE_POLICY_V1 } from "@/types/candidate-intelligence";
@@ -50,7 +51,7 @@ export default async function CandidatePerformancePage({ searchParams }: Perform
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect(`/login?redirect=/performance${examFilter ? `?exam=${examFilter}` : ""}`);
+    redirect(loginRedirectPath(`/performance${examFilter ? `?exam=${encodeURIComponent(examFilter)}` : ""}`));
   }
 
   // Authoritative server-side aggregations

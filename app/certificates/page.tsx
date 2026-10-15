@@ -3,6 +3,7 @@ import React from "react";
 import Link from "next/link";
 import { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { loginRedirectPath } from "@/lib/auth/safe-redirect";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { LiveTestCertificateService } from "@/services/live-test-certificate.service";
 import { Award, ShieldCheck, Trophy, Calendar, ExternalLink, ArrowRight } from "lucide-react";
@@ -19,7 +20,7 @@ export default async function CandidateCertificatesPage() {
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login?redirect=/certificates");
+    redirect(loginRedirectPath("/certificates"));
   }
 
   const certificates = await LiveTestCertificateService.getCandidateCertificates(user.id);

@@ -3,6 +3,7 @@ import React from "react";
 import Link from "next/link";
 import { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { loginRedirectPath } from "@/lib/auth/safe-redirect";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { LiveTestAchievementService } from "@/services/live-test-achievement.service";
 import {
@@ -32,7 +33,7 @@ export default async function CandidateAchievementsPage() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login?redirect=/achievements");
+    redirect(loginRedirectPath("/achievements"));
   }
 
   const summary = await LiveTestAchievementService.getCandidateAchievements(user.id);

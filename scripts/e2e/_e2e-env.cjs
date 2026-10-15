@@ -18,6 +18,7 @@ const { readEnv, dbTarget } = require('../db/_db-env.cjs');
 
 if (typeof globalThis.WebSocket === 'undefined') globalThis.WebSocket = class DummyWebSocket {};
 const { createClient } = require('@supabase/supabase-js');
+const { findUserByEmail } = require('./find-user.cjs');
 
 const env = readEnv();
 const target = dbTarget(); // throws TARGET_REF_MISMATCH / TLS_CA_MISSING before anything connects
@@ -40,15 +41,9 @@ const admin = createClient(URL_, env('SUPABASE_SERVICE_ROLE_KEY'), noSession);
 const anonKey = env('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY') || env('NEXT_PUBLIC_SUPABASE_ANON_KEY');
 const userClient = () => createClient(URL_, anonKey, noSession);
 
-async function findUser() {
-  for (let page = 1; page < 20; page++) {
-    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 200 });
-    if (error) throw error;
-    const u = data.users.find((x) => x.email === EMAIL);
-    if (u) return u;
-    if (data.users.length < 200) return null;
-  }
-  return null;
+/** HOTFIX-1: looks up the given e-mail (defaults to E2E_STUDENT_EMAIL); it previously ignored its argument. */
+async function findUser(email = EMAIL) {
+  return findUserByEmail(admin, email);
 }
 
 /**

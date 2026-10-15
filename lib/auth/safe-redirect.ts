@@ -84,3 +84,11 @@ export function safeRedirectUrl(input: unknown, origin: string, fallback: string
   const target = new URL(sanitizeRedirectPath(input, fallback), base);
   return target.origin === base.origin ? target : new URL(fallback.startsWith("/") ? fallback : "/", base);
 }
+
+/**
+ * HOTFIX-1: the canonical login redirect target — "/auth/login?next=<sanitized path>". Every page that sends an
+ * anonymous visitor to sign in uses this; there is no bare top-level login route.
+ */
+export function loginRedirectPath(next: unknown): string {
+  return `/auth/login?next=${encodeURIComponent(sanitizeRedirectPath(next))}`;
+}

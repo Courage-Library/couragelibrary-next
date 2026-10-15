@@ -12,5 +12,9 @@ Introduced in SEC-1B. These are the **only** auth users tests may sign in as. Ne
 - **Roles** are set server-side with the service role (`app_metadata`). `user_metadata` never grants access.
 - **Passwords** live only in `.env.local` (`QA_ADMIN_PASSWORD`, `QA_STAFF_PASSWORD`, `QA_STUDENT_PASSWORD`), which is git-ignored. They are never printed, logged or committed.
 - **Create or repair** with `node scripts/qa/ensure-qa-identities.cjs`. It is idempotent: it creates missing identities, re-asserts roles, and stores generated passwords only when the keys are absent.
+- **Never deleted (HOTFIX-1 guard).** Every e-mail written in backticks in this document is protected by `scripts/qa/qa-identity-guard.cjs`.
+  - Scripts may delete an auth user only through `guardedDeleteUser`, which re-reads the e-mail by id and refuses a protected identity.
+  - `scripts/e2e/cleanup-student.cjs` refuses a protected identity unless `E2E_KEEP_USER=1` (data-only cleanup).
+  - Tested by `scripts/test_qa_identity_guard.cjs`.
 - **E2E student journeys** keep using the dedicated, cleaned-up journey student (`E2E_STUDENT_EMAIL`, see `scripts/e2e/`). That account writes no admin audit rows.
 - **Exception:** the GAP2-2a reviewer `qa-content-reviewer-gap22a@example.test` is banned dev-DB residue (waiver W2). Do not use or delete it.

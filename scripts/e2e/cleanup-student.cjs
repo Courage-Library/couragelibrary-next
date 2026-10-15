@@ -3,11 +3,21 @@
  * Refuses (rolls back) if any public row still references the student afterwards, or if a battle room
  * it created has other participants.
  * Usage: node scripts/e2e/cleanup-student.cjs
+ *
+ * HOTFIX-1: a permanent QA identity (docs/testing/QA_IDENTITIES.md) is NEVER deleted. For such an identity the
+ * script refuses to run unless E2E_KEEP_USER=1 (data-only cleanup), before it connects to anything, and the
+ * auth deletion itself goes through guardedDeleteUser (re-checks the e-mail by id).
  */
 const { Client } = require('pg');
-const { admin, findUser, pgConfig } = require('./_e2e-env.cjs');
+const { assertDeletable, isPermanentIdentity, guardedDeleteUser } = require('../qa/qa-identity-guard.cjs');
+const { admin, findUser, pgConfig, EMAIL } = require('./_e2e-env.cjs');
 
 const KEEP_USER = process.env.E2E_KEEP_USER === '1';
+
+if (!KEEP_USER && isPermanentIdentity(EMAIL)) {
+  console.log('REFUSED: E2E_STUDENT_EMAIL is a permanent QA identity. Re-run with E2E_KEEP_USER=1 (data-only cleanup).');
+  process.exit(1);
+}
 
 (async () => {
   const u = await findUser();
@@ -16,6 +26,7 @@ const KEEP_USER = process.env.E2E_KEEP_USER === '1';
     return;
   }
   const uid = u.id;
+  if (!KEEP_USER) assertDeletable(u.email); // the user found must be deletable too (defence in depth)
   const c = new Client(pgConfig());
   c.on('error', () => {});
   await c.connect();
@@ -84,7 +95,7 @@ const KEEP_USER = process.env.E2E_KEEP_USER === '1';
     console.log('deleted (permanent identity kept):', JSON.stringify(counts));
     return;
   }
-  const { error } = await admin.auth.admin.deleteUser(uid);
+  const { error } = await guardedDeleteUser(admin, uid);
   counts['auth.users'] = error ? `ERROR ${error.message}` : 1;
   console.log('deleted:', JSON.stringify(counts));
   if (error) process.exit(1);
