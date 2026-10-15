@@ -14,6 +14,8 @@
  *   P-6 PERMANENT RULE (whole public schema): no policy may give authenticated (or PUBLIC) blanket access, i.e.
  *       USING (true) / WITH CHECK (true), on non-public data. Blanket write policies always fail; blanket read
  *       policies are allowed only on the explicit PUBLIC_REFERENCE allow-list (or PENDING_RULING, reported loudly)
+ *   P-7 SEC-HOTFIX-5 (077): leaderboard_weekly_snapshots / user_battle_stats are own-rows-only for students,
+ *       anon cannot read the leaderboard; behaviour probed with two real users inside a rolled-back transaction
  *
  * Run: node scripts/test_sec_hotfix4_rls.cjs
  */
@@ -43,8 +45,14 @@ const PUBLIC_REFERENCE = new Set([
   'exam_topics', 'pattern_sections', 'taxonomy_aliases', 'exam_claim_sources', 'learning_unit_asset_bindings',
   'mistake_cognitive_types', 'exam_cutoff_benchmarks',
 ]);
-// P-6: per-user rows behind a blanket read policy; tolerated only until the architect rules (0 rows on 2026-10-16)
-const PENDING_RULING = new Set(['leaderboard_weekly_snapshots', 'user_battle_stats']);
+// P-6: per-user rows behind a blanket read policy, tolerated only until an architect ruling. Empty since
+// SEC-HOTFIX-5 (077): leaderboard_weekly_snapshots and user_battle_stats are own-rows-only.
+const PENDING_RULING = new Set([]);
+// P-7 (SEC-HOTFIX-5): per-user stats tables, own rows only, never readable by anon
+const OWN_ROWS = {
+  leaderboard_weekly_snapshots: (u) => [`INSERT INTO public.leaderboard_weekly_snapshots (user_id, leaderboard_type, rank, week_start_date) VALUES ($1, 'WEEKLY_EFFORT', 1, current_date)`, [u]],
+  user_battle_stats: (u) => [`INSERT INTO public.user_battle_stats (user_id) VALUES ($1)`, [u]],
+};
 const isTrue = (s) => /^\(*\s*true\s*\)*$/i.test(String(s || '').trim());
 function blanketViolations(policies) {
   const bad = [];
@@ -198,6 +206,56 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assertion failed'); };
       const pend = [...new Set(pending)];
       return `${rows.length} policies scanned; ${PUBLIC_REFERENCE.size} allow-listed public tables` +
         (pend.length ? `; PENDING RULING (per-user data under a blanket read): ${pend.join(', ')}` : '');
+    });
+
+    await test('P-7 per-user stats (SEC-HOTFIX-5): own rows only for students, no anon read, no blanket policy', async () => {
+      const tables = Object.keys(OWN_ROWS);
+      const { rows: pol } = await q(`SELECT tablename t, policyname, cmd, roles::text roles, coalesce(qual,'') qual FROM pg_policies
+                                     WHERE schemaname='public' AND tablename = ANY($1)`, [tables]);
+      const bad = [];
+      for (const t of tables) {
+        const reads = pol.filter((p) => p.t === t && (p.cmd === 'SELECT' || p.cmd === 'ALL'));
+        if (reads.some((p) => isTrue(p.qual))) bad.push(`${t}: blanket read policy still present`);
+        if (!reads.some((p) => p.cmd === 'SELECT' && /authenticated/.test(p.roles) && /user_id = auth\.uid\(\)/.test(p.qual))) bad.push(`${t}: no own-rows read policy`);
+      }
+      const g = await q(`SELECT has_table_privilege('anon','public.leaderboard_weekly_snapshots','SELECT') a`);
+      if (g.rows[0].a) bad.push('anon still holds SELECT on leaderboard_weekly_snapshots');
+      assert(bad.length === 0, bad.join('\n        '));
+
+      // behaviour, inside a rolled-back transaction: one row for each of two real users (ids never printed)
+      const seen = {};
+      await q('BEGIN READ WRITE');
+      try {
+        const users = (await q('SELECT id FROM auth.users ORDER BY created_at LIMIT 2')).rows.map((r) => r.id);
+        assert(users.length === 2, 'need two auth users for the own-rows probe');
+        for (const t of tables) for (const u of users) await q(...OWN_ROWS[t](u));
+        // test the POLICY, not the grant: user_battle_stats has no SELECT grant today
+        await q('GRANT SELECT ON public.user_battle_stats TO authenticated');
+        await q('SAVEPOINT anon_probe');
+        await as({}, 'anon');
+        try {
+          await q('SELECT count(*) FROM public.leaderboard_weekly_snapshots');
+          seen.anonLeaderboard = 'READABLE';
+        } catch (e) {
+          seen.anonLeaderboard = e.code === '42501' ? 'DENIED' : `ERR ${e.code}`;
+        }
+        await q('ROLLBACK TO SAVEPOINT anon_probe');
+        await q('RESET ROLE');
+        await as({ sub: users[0], role: 'authenticated', app_metadata: {} });
+        for (const t of tables) {
+          const r = (await q(`SELECT count(*)::int n, count(*) FILTER (WHERE user_id <> $1)::int other FROM public.${t}`, [users[0]])).rows[0];
+          seen[t] = r;
+        }
+        await q('RESET ROLE');
+        await as({ sub: '00000000-0000-4000-8000-0000000000c3', role: 'authenticated', app_metadata: {} });
+        seen.strangerLeaderboard = (await q('SELECT count(*)::int n FROM public.leaderboard_weekly_snapshots')).rows[0].n;
+      } finally {
+        await q('ROLLBACK');
+      }
+      assert(seen.anonLeaderboard === 'DENIED', `anon leaderboard read: ${seen.anonLeaderboard}`);
+      for (const t of tables) assert(seen[t].n === 1 && seen[t].other === 0, `${t}: student saw ${JSON.stringify(seen[t])} (expected own row only)`);
+      assert(seen.strangerLeaderboard === 0, `a user with no rows saw ${seen.strangerLeaderboard} leaderboard rows`);
+      return 'anon denied; student sees exactly own row in both tables; other users see none';
     });
   } finally {
     await c.end();
