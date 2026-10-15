@@ -17,7 +17,8 @@
 
 import { createAdminServerSupabaseClient } from '@/lib/supabase/server';
 import { ExamSyllabusReadinessService, TaxonomyWorkQueueService } from '@/services/exam-syllabus-readiness.service';
-import { ExamSyllabusResolutionService } from '@/services/exam-syllabus-resolution.service';
+import { ExamSyllabusResolutionService, SyllabusReconciliationUnavailableError } from '@/services/exam-syllabus-resolution.service';
+import { SYLLABUS_RECONCILIATION_UNAVAILABLE_MESSAGE } from '@/types/dynamic-syllabus-reconciliation';
 import type {
   ApiErrorCode,
   CanonicalNodeType,
@@ -741,6 +742,12 @@ export class OperationalSyllabusReconciliationService {
         );
     }
 
+    // HOTFIX-3 (decision #38): the atomic subtree action relied on a direct DB connection with TLS verification off.
+    // It fails closed here, before any write, with an explicit message (no partial writes, no fabricated success).
+    if (normalizedAction === 'CREATE_NEW_SUBTREE') {
+      throw new OperationalSyllabusReconciliationError('SERVICE_UNAVAILABLE', SYLLABUS_RECONCILIATION_UNAVAILABLE_MESSAGE, 503);
+    }
+
     // 5. Delegate mutation to authoritative Step 4 ExamSyllabusResolutionService
     const resolveParams: ResolveMatchParams = {
       syllabusNodeId,
@@ -764,6 +771,9 @@ export class OperationalSyllabusReconciliationService {
         supabase
       );
     } catch (mutationErr: any) {
+      if (mutationErr instanceof SyllabusReconciliationUnavailableError) {
+        throw new OperationalSyllabusReconciliationError('SERVICE_UNAVAILABLE', SYLLABUS_RECONCILIATION_UNAVAILABLE_MESSAGE, 503);
+      }
       throw new OperationalSyllabusReconciliationError(
         'INTERNAL_ERROR',
         `Resolution mutation failed: ${mutationErr.message}`,

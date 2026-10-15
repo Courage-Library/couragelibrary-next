@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { SYLLABUS_RECONCILIATION_UNAVAILABLE_MESSAGE } from "@/types/dynamic-syllabus-reconciliation";
 import { WorkbenchHeader } from "@/components/admin/syllabus-reconciliation/workbench-header";
 import { ReadinessSummaryCards } from "@/components/admin/syllabus-reconciliation/readiness-summary-cards";
 import { SyllabusTreeView } from "@/components/admin/syllabus-reconciliation/syllabus-tree-view";
@@ -167,6 +168,11 @@ export default function SyllabusReconciliationPage() {
 
   return (
     <div className="min-h-screen bg-[#090D16] text-slate-100 p-3 md:p-6 space-y-6 max-w-[1800px] mx-auto">
+      {/* HOTFIX-3: atomic subtree creation is disabled (it used a direct DB connection without TLS verification). */}
+      <div role="status" data-testid="reconciliation-unavailable" className="rounded-xl border border-amber-400/60 bg-amber-50 p-4 text-amber-900">
+        <p className="text-sm font-semibold">{SYLLABUS_RECONCILIATION_UNAVAILABLE_MESSAGE}</p>
+        <p className="mt-1 text-xs">Creating a new canonical subtree is disabled. Other review actions are unchanged; the GAP2-4 rebuild replaces this workflow.</p>
+      </div>
       {/* 1. Top Header & Version Selector */}
       <WorkbenchHeader
         versions={versions}

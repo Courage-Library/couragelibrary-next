@@ -26,6 +26,15 @@ import type {
   TaxonomyAlias,
   TaxonomyWorkItem,
 } from '@/types/dynamic-syllabus-reconciliation';
+import { SYLLABUS_RECONCILIATION_UNAVAILABLE_MESSAGE } from '@/types/dynamic-syllabus-reconciliation';
+
+/** Thrown when a reconciliation action cannot run from runtime code (HOTFIX-3, decision #38). */
+export class SyllabusReconciliationUnavailableError extends Error {
+  constructor() {
+    super(SYLLABUS_RECONCILIATION_UNAVAILABLE_MESSAGE);
+    this.name = 'SyllabusReconciliationUnavailableError';
+  }
+}
 
 export class ExamSyllabusResolutionService {
   /**
@@ -463,38 +472,13 @@ export class ExamSyllabusResolutionService {
   ): Promise<ResolutionResult> {
     const { syllabusNodeId, reviewerUserId, subtreeNodes = [], notes } = params;
 
-    let localPgClient: any = null;
-    let effectiveClient = client;
-
+    // HOTFIX-3 (decision #38): runtime code never opens a direct database connection. The atomic subtree path needs a
+    // transactional pg client, which only scripts may supply (verified TLS + ref guard). From runtime it FAILS CLOSED
+    // before any read or write — no partial writes, no fabricated success.
     if (!isPg) {
-      const connStr = process.env.DATABASE_URL || process.env.POSTGRES_URL_NON_POOLING || process.env.POSTGRES_URL;
-      if (connStr) {
-        const dns = require('dns');
-        if (dns.setDefaultResultOrder) {
-          dns.setDefaultResultOrder('ipv4first');
-        }
-        const { Client } = require('pg');
-        localPgClient = new Client({
-          connectionString: connStr,
-          connectionTimeoutMillis: 15000,
-          statement_timeout: 15000,
-          ssl: { rejectUnauthorized: false },
-        });
-        localPgClient.on('error', () => {});
-        for (let attempt = 1; attempt <= 3; attempt++) {
-          try {
-            await localPgClient.connect();
-            break;
-          } catch (connErr) {
-            if (attempt === 3) throw connErr;
-            await new Promise((r) => setTimeout(r, 1000));
-          }
-        }
-        effectiveClient = localPgClient;
-      } else {
-        throw new Error('Atomic subtree creation requires transactional PostgreSQL client connection.');
-      }
+      throw new SyllabusReconciliationUnavailableError();
     }
+    const effectiveClient = client;
 
     const createdNodeIds: string[] = [];
     const syllabusToCanonicalMap = new Map<string, string>();
@@ -556,12 +540,6 @@ export class ExamSyllabusResolutionService {
     } catch (err: any) {
       await effectiveClient.query('ROLLBACK');
       throw new Error(`Subtree creation transaction rolled back: ${err.message}`);
-    } finally {
-      if (localPgClient) {
-        try {
-          await localPgClient.end();
-        } catch (_) {}
-      }
     }
   }
 

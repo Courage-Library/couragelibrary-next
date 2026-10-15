@@ -494,7 +494,14 @@ export type ApiErrorCode =
   | 'RECONCILIATION_STALE'
   | 'DUPLICATE'
   | 'VALIDATION_FAILED'
+  | 'SERVICE_UNAVAILABLE'
   | 'INTERNAL_ERROR';
+
+/**
+ * HOTFIX-3 (decision #38: no direct database connections from runtime code). The atomic subtree creation used a
+ * direct pg connection with TLS verification disabled; it is unavailable until the GAP2-4 syllabus rebuild.
+ */
+export const SYLLABUS_RECONCILIATION_UNAVAILABLE_MESSAGE = 'Syllabus reconciliation is unavailable until the syllabus rebuild (GAP2-4)';
 
 export interface ApiErrorDetail {
   code: ApiErrorCode;
