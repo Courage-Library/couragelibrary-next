@@ -1,0 +1,60 @@
+{
+  "phase": "TYPES-1",
+  "note": "Tracked type escapes. One entry per quarantined file (quarantinedClient / explicit untyped row types) and per tracked @ts-expect-error. Must match the code exactly (scripts/test_types1.cjs T-05).",
+  "escapes": [
+    {
+      "id": "TYPES-1:C-ADAPTIVE-SESSION",
+      "file": "services/adaptive/adaptive-session.service.ts",
+      "class": "C",
+      "module": "adaptive",
+      "kind": "quarantinedClient",
+      "owner": "ADAPTIVE re-enable",
+      "precondition": "ADAPTIVE re-enable: deploy adaptive schema (migrations 038–051 superseded → new migration), npm run db:types, remove the quarantine and type the queries (DRIFT-1c Q7 also applies)"
+    },
+    {
+      "id": "TYPES-1:C-ADAPTIVE-ENGINE",
+      "file": "services/adaptive/adaptive-engine.service.ts",
+      "class": "C",
+      "module": "adaptive",
+      "kind": "quarantinedClient",
+      "owner": "ADAPTIVE re-enable",
+      "precondition": "ADAPTIVE re-enable: deploy adaptive schema (migrations 038–051 superseded → new migration), npm run db:types, remove the quarantine and type the queries (DRIFT-1c Q7 also applies)"
+    },
+    {
+      "id": "TYPES-1:C-ADAPTIVE-PERFORMANCE",
+      "file": "services/adaptive/adaptive-performance.service.ts",
+      "class": "C",
+      "module": "adaptive",
+      "kind": "QuarantinedClient parameter",
+      "owner": "ADAPTIVE re-enable",
+      "precondition": "ADAPTIVE re-enable: deploy adaptive schema (migrations 038–051 superseded → new migration), npm run db:types, remove the quarantine and type the queries (DRIFT-1c Q7 also applies)"
+    },
+    {
+      "id": "TYPES-1:C-ADAPTIVE-ABILITY",
+      "file": "services/adaptive/adaptive-ability.service.ts",
+      "class": "C",
+      "module": "adaptive",
+      "kind": "QuarantinedClient parameter",
+      "owner": "ADAPTIVE re-enable",
+      "precondition": "ADAPTIVE re-enable: deploy adaptive schema (migrations 038–051 superseded → new migration), npm run db:types, remove the quarantine and type the queries (DRIFT-1c Q7 also applies)"
+    },
+    {
+      "id": "TYPES-1:C-ADAPTIVE-STATE",
+      "file": "services/adaptive/adaptive-state.service.ts",
+      "class": "C",
+      "module": "adaptive",
+      "kind": "QuarantinedClient parameter",
+      "owner": "ADAPTIVE re-enable",
+      "precondition": "ADAPTIVE re-enable: deploy adaptive schema (migrations 038–051 superseded → new migration), npm run db:types, remove the quarantine and type the queries (DRIFT-1c Q7 also applies)"
+    },
+    {
+      "id": "TYPES-1:C-ADAPTIVE-TYPES",
+      "file": "services/adaptive/adaptive-types.ts",
+      "class": "C",
+      "module": "adaptive",
+      "kind": "explicit row types for 4 undeployed tables",
+      "owner": "ADAPTIVE re-enable",
+      "precondition": "ADAPTIVE re-enable: deploy adaptive schema (migrations 038–051 superseded → new migration), npm run db:types, remove the quarantine and type the queries (DRIFT-1c Q7 also applies)"
+    }
+  ]
+}

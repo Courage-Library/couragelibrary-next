@@ -81,6 +81,21 @@ FROM public.schema_migration_ledger ORDER BY filename;
 ROLLBACK;
 ```
 
+## 6. Regenerate database types (TYPES-1, decision #24) — mandatory after every apply
+
+```
+npm run db:types        # regenerates types/database.ts from the live public schema
+npm run db:types:check  # must print OK
+npx tsc --noEmit -p .   # fix every error the new types surface (no new escapes; see docs/reports/types)
+```
+
+Commit the regenerated `types/database.ts` **in the same commit as the migration**. Never edit it by hand.
+
+- `scripts/db/gen-types.cjs` is project-ref locked: the ref comes only from `.env.local` and must match
+  the couragelibrary-next fingerprint, otherwise it exits 1. It generates `--schema public` only.
+- It needs `SUPABASE_ACCESS_TOKEN` (personal access token) in `.env.local`. The token is never printed or committed.
+- CI or a pre-commit check can run `npm run db:types:check`. It exits 1 when the committed types drift from the live schema.
+
 ## Restore
 
 See `docs/reports/qf1/QF1B_DEV_DB_VERIFICATION_REPORT.md` §10 for the `pg_restore` command template. Pass the connection only through `PG*` environment variables, with `PGSSLMODE=verify-full` and `PGSSLROOTCERT=<CA path>`.

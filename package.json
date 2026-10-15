@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:types": "node scripts/db/gen-types.cjs",
+    "db:types:check": "node scripts/db/gen-types.cjs --check"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
@@ -31,6 +33,7 @@
     "pg": "^8.23.0",
     "playwright": "^1.63.0",
     "postcss": "^8",
+    "supabase": "2.118.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

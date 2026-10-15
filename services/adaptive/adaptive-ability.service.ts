@@ -1,5 +1,5 @@
-import { SupabaseClient } from "@supabase/supabase-js";
-import { Database } from "@/types/database";
+// TYPES-1:C-ADAPTIVE-ABILITY — QUARANTINED (ADAPTIVE flag off; targets undeployed schema). Client via lib/supabase/quarantine.ts.
+import type { QuarantinedClient } from "@/lib/supabase/quarantine";
 import { DifficultyTier } from "./adaptive-types";
 
 // ============================================================================
@@ -288,12 +288,12 @@ export class AdaptiveAbilityService {
    * Resolves item difficulty parameter (b) and records source using Phase 4D.2 calibration
    */
   public static async resolveItemDifficulty(
-    supabase: SupabaseClient<Database>,
+    supabase: QuarantinedClient,
     questionVersionId: string,
     authorDifficulty?: string | null
   ): Promise<{ difficulty_b: number; difficulty_source: DifficultySource }> {
     try {
-      const { data: calib } = await (supabase as any)
+      const { data: calib } = await supabase
         .from("adaptive_item_calibrations")
         .select("calibration_status, difficulty_b")
         .eq("question_version_id", questionVersionId)
@@ -333,11 +333,11 @@ export class AdaptiveAbilityService {
    * Records an immutable snapshot of the ability estimation state transition
    */
   public static async recordEstimationHistory(
-    supabase: SupabaseClient<Database>,
+    supabase: QuarantinedClient,
     params: RecordEstimationHistoryParams
   ): Promise<void> {
     try {
-      await (supabase as any)
+      await supabase
         .from("adaptive_ability_estimation_history")
         .insert({
           attempt_id: params.attempt_id,
@@ -370,7 +370,7 @@ export class AdaptiveAbilityService {
    * Resolves warm start initial theta for a candidate from user_adaptive_profiles
    */
   public static async getWarmStartTheta(
-    supabase: SupabaseClient<Database>,
+    supabase: QuarantinedClient,
     userId: string,
     examId: string,
     config: WarmStartConfig

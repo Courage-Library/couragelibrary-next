@@ -1,5 +1,5 @@
-import { SupabaseClient } from "@supabase/supabase-js";
-import { Database } from "@/types/database";
+// TYPES-1:C-ADAPTIVE-PERFORMANCE — QUARANTINED (ADAPTIVE flag off; targets undeployed schema). Client via lib/supabase/quarantine.ts.
+import type { QuarantinedClient } from "@/lib/supabase/quarantine";
 import {
   DifficultyTier,
   TopicPerformanceStat,
@@ -37,7 +37,7 @@ export class AdaptivePerformanceService {
    * Load candidate performance profile, mistake vault history, and prior calibration signals
    */
   public static async getCandidateSignals(
-    supabase: SupabaseClient<Database>,
+    supabase: QuarantinedClient,
     userId: string,
     examId: string
   ): Promise<CandidatePerformanceSignals> {
@@ -61,7 +61,7 @@ export class AdaptivePerformanceService {
 
       if (mistakes && mistakes.length > 0) {
         mistakeQuestionIds = new Set(
-          (mistakes as any[]).map((m) => m.question_id).filter(Boolean)
+          (mistakes ?? []).map((m) => m.question_id).filter(Boolean)
         );
       }
     } catch {
@@ -81,7 +81,7 @@ export class AdaptivePerformanceService {
       };
     }
 
-    const typedProfile = profile as unknown as UserAdaptiveProfileRow;
+    const typedProfile = profile as UserAdaptiveProfileRow;
     const subjectAbilities = (typedProfile.subject_abilities as Record<string, unknown>) || {};
     const topicMasteryMap: Record<string, TopicPerformanceStat> = {};
     const weakTopics: string[] = [];
@@ -135,7 +135,7 @@ export class AdaptivePerformanceService {
    * Updates or recalibrates the user adaptive profile upon attempt completion
    */
   public static async recordAttemptCompletion(
-    supabase: SupabaseClient<Database>,
+    supabase: QuarantinedClient,
     userId: string,
     examId: string,
     finalTheta: number,
@@ -186,8 +186,8 @@ export class AdaptivePerformanceService {
         .update({
           overall_theta: finalTheta,
           overall_confidence: confidence,
-          subject_abilities: mergedAbilities as any,
-          difficulty_accuracies: difficultyAccuracies as any,
+          subject_abilities: mergedAbilities,
+          difficulty_accuracies: difficultyAccuracies,
           total_adaptive_tests_completed: prevTests + 1,
           total_adaptive_questions_answered: prevQuestions + totalAnswered,
           last_calibrated_at: new Date().toISOString(),
@@ -210,8 +210,8 @@ export class AdaptivePerformanceService {
         exam_id: examId,
         overall_theta: finalTheta,
         overall_confidence: confidence,
-        subject_abilities: initialAbilities as any,
-        difficulty_accuracies: difficultyAccuracies as any,
+        subject_abilities: initialAbilities,
+        difficulty_accuracies: difficultyAccuracies,
         total_adaptive_tests_completed: 1,
         total_adaptive_questions_answered: totalAnswered,
         last_calibrated_at: new Date().toISOString(),

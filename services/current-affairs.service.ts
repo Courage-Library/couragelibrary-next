@@ -480,7 +480,7 @@ export class CurrentAffairsService {
 
       return {
         id: data.id,
-        slug: data.slug,
+        slug: data.slug ?? slug, // TYPES-1 (A): row matched by .eq("slug", slug); live column is nullable
         newsDate: data.news_date,
         category: data.category as CurrentAffairsCategory,
         importanceTier: data.importance_tier as CurrentAffairsImportanceTier,
