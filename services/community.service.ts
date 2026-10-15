@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { rpcJsonObject, sqlNullArg } from "@/lib/supabase/rpc";
 
 export interface DiscussionThreadItem {
   id: string;
@@ -69,11 +70,11 @@ export class CommunityService {
     const { data, error } = await query;
     if (error || !data) return [];
 
-    return (data as any[]).map((t) => ({
+    return data.map((t) => ({
       id: t.id,
-      contextType: t.context_type,
+      contextType: t.context_type as DiscussionThreadItem["contextType"],
       title: t.title,
-      status: t.status,
+      status: t.status as DiscussionThreadItem["status"],
       isPinned: t.is_pinned,
       acceptedAnswerId: t.accepted_answer_id,
       hasFacultyAnswer: t.has_faculty_answer,
@@ -97,7 +98,9 @@ export class CommunityService {
 
     const { data: tData } = await supabase
       .from("discussion_threads")
-      .select("*, topics:canonical_taxonomy_nodes!discussion_threads_topic_id_node_fkey(name), discussion_messages(*)")
+      // TYPES-1 B2 (Class B): two relationships link threads and messages (messages.thread_id and threads.accepted_answer_id);
+      // the unhinted embed failed with PGRST201, so every thread detail rendered not-found. Embed via the thread FK.
+      .select("*, topics:canonical_taxonomy_nodes!discussion_threads_topic_id_node_fkey(name), discussion_messages!discussion_messages_thread_id_fkey(*)")
       .eq("id", threadId)
       .maybeSingle();
 
@@ -171,11 +174,11 @@ export class CommunityService {
     error?: string;
   }> {
     const supabase = await createServerSupabaseClient();
-    const rpcCall = supabase.rpc as any;
+    const rpcCall = supabase.rpc.bind(supabase);
 
     const { data, error } = await rpcCall("fn_create_discussion_thread", {
       p_context_type: payload.contextType,
-      p_context_id: payload.contextId || null,
+      p_context_id: sqlNullArg(payload.contextId || null), // no SQL default; NULL = thread without a context row
       p_title: payload.title,
       p_initial_content: payload.initialContent,
     });
@@ -184,7 +187,7 @@ export class CommunityService {
       return { success: false, error: error?.message || "Failed to create discussion thread" };
     }
 
-    return data;
+    return rpcJsonObject<{ success: boolean }>(data) ?? { success: false, error: "Failed to create discussion thread" };
   }
 
   /**
@@ -200,19 +203,19 @@ export class CommunityService {
     error?: string;
   }> {
     const supabase = await createServerSupabaseClient();
-    const rpcCall = supabase.rpc as any;
+    const rpcCall = supabase.rpc.bind(supabase);
 
     const { data, error } = await rpcCall("fn_post_discussion_message", {
       p_thread_id: payload.threadId,
       p_content_markdown: payload.contentMarkdown,
-      p_parent_message_id: payload.parentMessageId || null,
+      p_parent_message_id: payload.parentMessageId || undefined, // SQL DEFAULT NULL
     });
 
     if (error || !data) {
       return { success: false, error: error?.message || "Failed to post message" };
     }
 
-    return data;
+    return rpcJsonObject<{ success: boolean }>(data) ?? { success: false, error: "Failed to post message" };
   }
 
   /**
@@ -223,7 +226,7 @@ export class CommunityService {
     action: "ADD" | "REMOVE"
   ): Promise<{ success: boolean; upvote_count?: number; error?: string }> {
     const supabase = await createServerSupabaseClient();
-    const rpcCall = supabase.rpc as any;
+    const rpcCall = supabase.rpc.bind(supabase);
 
     const { data, error } = await rpcCall("fn_vote_discussion_message", {
       p_message_id: messageId,
@@ -234,7 +237,7 @@ export class CommunityService {
       return { success: false, error: error?.message || "Failed to process vote" };
     }
 
-    return data;
+    return rpcJsonObject<{ success: boolean }>(data) ?? { success: false, error: "Failed to process vote" };
   }
 
   /**
@@ -245,7 +248,7 @@ export class CommunityService {
     messageId: string
   ): Promise<{ success: boolean; status?: string; error?: string }> {
     const supabase = await createServerSupabaseClient();
-    const rpcCall = supabase.rpc as any;
+    const rpcCall = supabase.rpc.bind(supabase);
 
     const { data, error } = await rpcCall("fn_mark_accepted_answer", {
       p_thread_id: threadId,
@@ -256,7 +259,7 @@ export class CommunityService {
       return { success: false, error: error?.message || "Failed to mark accepted answer" };
     }
 
-    return data;
+    return rpcJsonObject<{ success: boolean }>(data) ?? { success: false, error: "Failed to mark accepted answer" };
   }
 
   /**
@@ -269,19 +272,19 @@ export class CommunityService {
     details?: string;
   }): Promise<{ success: boolean; flag_id?: string; error?: string }> {
     const supabase = await createServerSupabaseClient();
-    const rpcCall = supabase.rpc as any;
+    const rpcCall = supabase.rpc.bind(supabase);
 
     const { data, error } = await rpcCall("fn_flag_discussion_content", {
       p_target_type: payload.targetType,
       p_target_id: payload.targetId,
       p_reason: payload.reason,
-      p_details: payload.details || null,
+      p_details: payload.details || undefined, // SQL DEFAULT NULL
     });
 
     if (error || !data) {
       return { success: false, error: error?.message || "Failed to flag content" };
     }
 
-    return data;
+    return rpcJsonObject<{ success: boolean }>(data) ?? { success: false, error: "Failed to flag content" };
   }
 }

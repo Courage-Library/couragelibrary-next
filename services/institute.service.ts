@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { rpcJsonObject } from "@/lib/supabase/rpc";
 
 export interface InstituteItem {
   id: string;
@@ -94,7 +95,7 @@ export class InstituteService {
 
     if (error || !data) return [];
 
-    return (data as any[]).map((inst) => ({
+    return data.map((inst) => ({
       id: inst.id,
       name: inst.name,
       slug: inst.slug,
@@ -196,7 +197,7 @@ export class InstituteService {
         isEnrolled = true;
       }
 
-      const rpcCall = supabase.rpc as any;
+      const rpcCall = supabase.rpc.bind(supabase);
       const { data: facCheck } = await rpcCall("fn_has_batch_faculty_access", {
         p_batch_id: batchId,
         p_user_id: user.id,
@@ -276,7 +277,7 @@ export class InstituteService {
     error?: string;
   }> {
     const supabase = await createServerSupabaseClient();
-    const rpcCall = supabase.rpc as any;
+    const rpcCall = supabase.rpc.bind(supabase);
 
     const { data, error } = await rpcCall("fn_enroll_batch_student", {
       p_batch_id: batchId,
@@ -288,7 +289,7 @@ export class InstituteService {
       return { success: false, error: error?.message || "Failed to enroll in batch" };
     }
 
-    return data;
+    return rpcJsonObject<{ success: boolean }>(data) ?? { success: false, error: "Failed to enroll in batch" };
   }
 
   /**
@@ -307,22 +308,22 @@ export class InstituteService {
     error?: string;
   }> {
     const supabase = await createServerSupabaseClient();
-    const rpcCall = supabase.rpc as any;
+    const rpcCall = supabase.rpc.bind(supabase);
 
     const { data, error } = await rpcCall("fn_create_batch_assignment", {
       p_batch_id: payload.batchId,
       p_title: payload.title,
       p_assignment_type: payload.assignmentType,
       p_content_id: payload.contentId,
-      p_due_at: payload.dueAt || null,
-      p_instructions_md: payload.instructionsMd || null,
+      p_due_at: payload.dueAt || undefined, // SQL DEFAULT NULL
+      p_instructions_md: payload.instructionsMd || undefined, // SQL DEFAULT NULL
     });
 
     if (error || !data) {
       return { success: false, error: error?.message || "Failed to create assignment" };
     }
 
-    return data;
+    return rpcJsonObject<{ success: boolean }>(data) ?? { success: false, error: "Failed to create assignment" };
   }
 
   /**
@@ -336,7 +337,7 @@ export class InstituteService {
     error?: string;
   }> {
     const supabase = await createServerSupabaseClient();
-    const rpcCall = supabase.rpc as any;
+    const rpcCall = supabase.rpc.bind(supabase);
 
     const { data, error } = await rpcCall("fn_get_batch_assignment_progress", {
       p_assignment_id: assignmentId,
@@ -346,6 +347,6 @@ export class InstituteService {
       return { success: false, error: error?.message || "Failed to fetch progress" };
     }
 
-    return data;
+    return rpcJsonObject<{ success: boolean }>(data) ?? { success: false, error: "Failed to fetch progress" };
   }
 }

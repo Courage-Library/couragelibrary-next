@@ -1,5 +1,6 @@
 import { createServerSupabaseClient, createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { LearningResolverService, type ResolvedLearningDocument, type LearningDocumentType } from "@/services/learning/learning-resolver.service";
+import { toPublicDrillQuestions } from "@/services/mistakes/drill-payload";
 
 export interface ResolvedLearningResource {
   id: string;
@@ -1633,7 +1634,8 @@ export class MistakeService {
       drill_id: newDrill.id,
       total_questions: drillQuestions.length,
       questions_count: drillQuestions.length,
-      questions: drillQuestions,
+      // Pre-submit payload: whitelist projection — never answers / keys / explanations (B2, architect ruling).
+      questions: toPublicDrillQuestions(drillQuestions),
       mode: parsedConfig.mode || "PRACTICE",
     };
   }
@@ -1666,7 +1668,8 @@ export class MistakeService {
       drill_id: d.id,
       total_questions: d.total_questions,
       questions_count: d.total_questions,
-      questions: d.questions_data as DrillQuestion[],
+      // Pre-submit payload (resume): the stored JSON is re-projected through the whitelist, never passed through.
+      questions: toPublicDrillQuestions(d.questions_data),
     };
   }
 

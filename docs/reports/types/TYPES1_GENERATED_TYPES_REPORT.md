@@ -155,6 +155,16 @@ The batches stay at ≤ 81 escapes each. The architect may merge B1+B2 or split 
   - **B6** also handles the browser and middleware client typing (the `@supabase/ssr` 0.5.2 mismatch).
   - A pinned, reviewed ssr upgrade is allowed if it is the clean fix, and must be reported.
 
+### 7c. Architect rulings: after B1 (2026-10-15)
+
+- **B1 CLOSED** (`dc8e885`). The production signed-in smoke `student-mistake` was run by the owner. **Its result was not filled in** in the ruling text (the placeholder was left), so it is still to be confirmed.
+- **Drill pre-submit payload must carry no answers.** Confirmed in code, and hardened and tested in B2 (B2-1, B2-2).
+- **Signed-in production policy:**
+  - For each batch: signed-in evidence from the local production build of the same commit, plus an anonymous production smoke.
+  - At TYPES-1 close, the owner runs all signed-in production smokes (`student-mistake`, `admin-home`, `staff-content`).
+- **B6:** add the deployed short SHA to `/api/health` (`version`, from `VERCEL_GIT_COMMIT_SHA`) and use it for deploy detection.
+
+
 ## 8. Batch results
 
 ### B0: foundation
@@ -326,4 +336,88 @@ B1 has been removed from `remaining[]`.
 | **Signed-in smoke `student-mistake`** | **all passed**: question text (80 chars), options A–D, correct answer marked, mock result renders a score |
 | Baseline | **NO DIFF** |
 
-TYPES-1 STATUS: IN PROGRESS (B0, C, B1 complete; next: B2).
+### B2: community, descriptive, flashcards, gamification, institutes, premium hub
+
+**Escapes.** All **45 of 45** planned query escapes are removed, across 7 files: admin rewards actions, community, descriptive, flashcard, gamification, institute, premium-hub.
+
+**Ratchet:**
+
+| Counter | Before | After |
+|---|---|---|
+| queryEscapes | 272 | **227** (−45) |
+| asAny | 367 | 324 |
+| colonAny | 939 | 939 |
+| unknownAs | 85 | 85 |
+| tsExpectError | 6 | 6 |
+| tsIgnore | 0 | 0 |
+
+B2 has been removed from `remaining[]`.
+
+**Architect item: the drill pre-submit payload.**
+- **Confirmed true by construction:**
+  - `DrillQuestion` has no answer fields.
+  - Drill compile selects only `question_options`.
+  - Answers reach the browser only in the post-submit result (`mistake-drill-result.tsx`).
+- **Gap:** the resume path (`getMistakeDrill`) passed stored `questions_data` through unfiltered.
+- **Hardening:** `services/mistakes/drill-payload.ts` `toPublicDrillQuestions()` rebuilds every pre-submit question (generate and resume) from an explicit whitelist.
+- **Tests:**
+  - B2-1: injected `correct_option_key`, `answer_key`, `is_correct`, `explanation*`, `solution*` and `question_answers` never survive.
+  - B2-2: both paths are projected; compile and the drill runner reference no answer data.
+
+**Class A: typing only.**
+- New `lib/supabase/rpc.ts`:
+  - `rpcJsonObject<T>()` narrows jsonb RPC results. It replaces B1's private copy in content.service.
+  - `sqlNullArg()` is the single documented place where SQL NULL is passed to a function argument that has no default, because the generator never types function arguments as nullable.
+- **RPC arguments declared `DEFAULT NULL` are now omitted (`|| undefined`)** instead of being passed as null. This is identical behaviour, verified read-only with `pg_get_function_arguments`:
+  - `fn_post_discussion_message`, `fn_flag_discussion_content`
+  - `fn_submit_descriptive_answer`, `fn_evaluate_descriptive_submission`
+  - `fn_create_batch_assignment`
+- **Literal-union narrowing:** `contextType`, `status`, `difficulty`, `submissionType`, `accessTier`.
+- **One-to-one embeds** read as objects: submission evaluations, test results.
+- **Reward metadata** narrowed to an object.
+
+**New tool: live select audit** (`scripts/types1-select-audit.cjs`).
+- It runs every literal `.from().select()` in the given files read-only against couragelibrary-next (ref-locked, `limit 1`).
+- It catches runtime drift that tsc cannot see, because those results are cast or never read in a typed way.
+- B2 files: 3 failures found and fixed (items 1–2 below). Re-run on the B1 files, it found **3 drifts B1 had missed** (items 3–5).
+
+**Class B: 6 items (≤ 15)**: 5 fixed, 1 tracked; item 6 is one defect family across 4 call sites. Before/after evidence is the select audit (failing → 0 failing, apart from tracked items). Covered by `scripts/test_types1_b2.cjs`.
+
+| # | Location | Defect | Effect before | Resolution |
+|---|---|---|---|---|
+| 1 | `community.service.ts` thread detail | `discussion_messages(*)` embed is ambiguous: two FKs (`messages.thread_id`, `threads.accepted_answer_id`), PGRST201 | **Every `/community/[id]` rendered not-found** | Fixed: hint `discussion_messages!discussion_messages_thread_id_fkey` |
+| 2 | `premium-hub.service.ts` (2 selects) | `test_results(score)` does not exist (42703) | Premium hub: attempt state, recent attempts, completed count and best score always empty | Fixed: `total_score`, one-to-one |
+| 3 | `assessment.service.ts:718` (B1 carry-over) | `test_results(score)` (42703) | Today's daily mock card never showed submitted / in-progress state for the student | Fixed |
+| 4 | `dashboard.service.ts` streak (B1 carry-over) | `user_streaks.freeze_active` does not exist (42703) | Dashboard streak panel always empty | Fixed: `is_frozen` (UI field unchanged) |
+| 5 | `dashboard.service.ts` readiness (B1 carry-over) | `user_exam_readiness.overall_readiness_pct` / `predicted_score` do not exist; the table is per exam with `readiness_index` | Dashboard readiness always empty | **Tracked** `TYPES-1:B-DSH-READINESS` → LOOP-1 (comment tag + register; no new `@ts-expect-error`) |
+| 6 | `premium-entitlement.service.ts` ×2, `premium-generator.service.ts`, `billing.service.ts` | **Unbound `supabase.rpc`** (`rpc as unknown as …`) loses `this`, so every call threw *"Cannot read properties of undefined (reading 'rest')"*. Not in any batch: the escape scanner does not count `rpc as unknown as`. Found by the new signed-in page smoke. | **`/premium` crashed (error boundary) for every signed-in user.** Premium attempt start, dynamic mock creation and payment-order creation would also throw (payments are off). | Fixed: `.rpc.bind(client)`, arguments unchanged. B2-6 bans unbound `rpc` repo-wide. |
+
+**Out-of-band finding (not run).** `scripts/test_phase5e1_rewards.cjs`, the only existing suite for these modules, sets `NODE_TLS_REJECT_UNAUTHORIZED = '0'`. That violates the TLS rule, so it was **not run** and is recorded for clean-up. B2 coverage instead comes from:
+- `test_types1_b2` (including the live select audit)
+- E2E, which exercises the gamification award, streak, coins and wallet
+- the new signed-in `student-pages` smoke (dashboard, community, descriptive, submissions, flashcards, institutes, premium, store, wallet, plus a thread / deck detail when data exists)
+
+**Gates** (local production build, final B2 code):
+
+| Gate | Result |
+|---|---|
+| tsc / lint / build | 0 / 0 / OK |
+| test_types1 (incl. `db:types:check`) | 8/8 |
+| test_types1_b2 | 6/6 (incl. live select audit: 151 ok, 3 tracked legacy) |
+| test_types1_b1 | 8/8 |
+| QF-1 | 73/73 + 15/15 |
+| GAP2-2a | 11/11 + 18/18 |
+| GAP2-3 | 15/15 |
+| SEC-1A | 20/20 |
+| SEC-1B | 26/26 + **live 32/32** |
+| SEC-1C | 22/22 + **live 29/29** |
+| SEC-1D | 14/14 + **live 19/19** |
+| DRIFT-1c | 46/46 |
+| QA identity guard | 8/8 |
+| HOTFIX-1 | 4/4 |
+| **E2E** | **13/13** (first try) |
+| Signed-in `student-mistake` | **all passed** |
+| Signed-in `student-pages` | **all passed** |
+| Baseline | **NO DIFF** (data-only cleanup after) |
+
+TYPES-1 STATUS: IN PROGRESS (B0, C, B1, B2 complete; next: B6).

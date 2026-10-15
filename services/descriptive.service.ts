@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { rpcJsonObject } from "@/lib/supabase/rpc";
 
 export interface DescriptiveQuestionItem {
   id: string;
@@ -127,7 +128,7 @@ export class DescriptiveService {
     const { data, error } = await query;
     if (error || !data) return [];
 
-    return (data as any[]).map((q) => ({
+    return data.map((q) => ({
       id: q.id,
       slug: q.slug,
       title: q.title,
@@ -136,7 +137,7 @@ export class DescriptiveService {
       wordLimitMin: q.word_limit_min,
       wordLimitMax: q.word_limit_max || 250,
       timeLimitMinutes: q.time_limit_minutes,
-      difficulty: q.difficulty,
+      difficulty: q.difficulty as DescriptiveQuestionItem["difficulty"],
       examTitle: q.exams?.title || null,
       topicName: q.topics?.name || null,
       subjectName: q.subjects?.name || null,
@@ -231,22 +232,22 @@ export class DescriptiveService {
     error?: string;
   }> {
     const supabase = await createServerSupabaseClient();
-    const rpcCall = supabase.rpc as any;
+    const rpcCall = supabase.rpc.bind(supabase);
 
     const { data, error } = await rpcCall("fn_submit_descriptive_answer", {
       p_question_id: payload.questionId,
-      p_answer_text: payload.answerText || null,
-      p_attachment_url: payload.attachmentUrl || null,
+      p_answer_text: payload.answerText || undefined, // SQL DEFAULT NULL
+      p_attachment_url: payload.attachmentUrl || undefined, // SQL DEFAULT NULL
       p_submission_type: payload.submissionType || "TYPED_TEXT",
-      p_batch_id: payload.batchId || null,
-      p_assignment_id: payload.assignmentId || null,
+      p_batch_id: payload.batchId || undefined, // SQL DEFAULT NULL
+      p_assignment_id: payload.assignmentId || undefined, // SQL DEFAULT NULL
     });
 
     if (error || !data) {
       return { success: false, error: error?.message || "Failed to submit descriptive answer" };
     }
 
-    return data;
+    return rpcJsonObject<{ success: boolean }>(data) ?? { success: false, error: "Failed to submit descriptive answer" };
   }
 
   /**
@@ -266,9 +267,9 @@ export class DescriptiveService {
 
     if (!data) return [];
 
-    return (data as any[]).map((s) => {
+    return data.map((s) => {
       const q = s.descriptive_questions;
-      const ev = s.submission_evaluations?.[0] || s.submission_evaluations;
+      const ev = s.submission_evaluations; // one-to-one embed (object or null)
 
       return {
         id: s.id,
@@ -276,9 +277,9 @@ export class DescriptiveService {
         questionTitle: q?.title || "Descriptive Question",
         examTitle: q?.exams?.title || null,
         attemptNumber: s.attempt_number,
-        submissionType: s.submission_type,
+        submissionType: s.submission_type as DescriptiveSubmissionItem["submissionType"],
         wordCount: s.word_count,
-        status: s.status,
+        status: s.status as DescriptiveSubmissionItem["status"],
         submittedAt: s.submitted_at,
         totalScoreAwarded: ev?.total_score_awarded !== undefined ? Number(ev.total_score_awarded) : undefined,
         maxMarks: q?.max_marks ? Number(q.max_marks) : undefined,
@@ -309,7 +310,7 @@ export class DescriptiveService {
 
     let canEvaluate = false;
     if (user) {
-      const rpcCall = supabase.rpc as any;
+      const rpcCall = supabase.rpc.bind(supabase);
       const { data: canEval } = await rpcCall("fn_can_evaluate_submission", {
         p_submission_id: submissionId,
         p_user_id: user.id,
@@ -382,15 +383,15 @@ export class DescriptiveService {
 
     if (!data) return [];
 
-    return (data as any[]).map((s) => ({
+    return data.map((s) => ({
       id: s.id,
       questionId: s.question_id,
       questionTitle: s.descriptive_questions?.title || "Descriptive Question",
       examTitle: s.descriptive_questions?.exams?.title || null,
       attemptNumber: s.attempt_number,
-      submissionType: s.submission_type,
+      submissionType: s.submission_type as DescriptiveSubmissionItem["submissionType"],
       wordCount: s.word_count,
-      status: s.status,
+      status: s.status as DescriptiveSubmissionItem["status"],
       submittedAt: s.submitted_at,
       maxMarks: s.descriptive_questions?.max_marks ? Number(s.descriptive_questions.max_marks) : undefined,
     }));
@@ -418,16 +419,16 @@ export class DescriptiveService {
     error?: string;
   }> {
     const supabase = await createServerSupabaseClient();
-    const rpcCall = supabase.rpc as any;
+    const rpcCall = supabase.rpc.bind(supabase);
 
     const { data, error } = await rpcCall("fn_evaluate_descriptive_submission", {
       p_submission_id: payload.submissionId,
       p_rubric_scores: payload.rubricScores,
       p_total_score: payload.totalScore,
-      p_strengths: payload.strengths || null,
-      p_weaknesses: payload.weaknesses || null,
-      p_suggestions: payload.suggestions || null,
-      p_model_comparison: payload.modelComparison || null,
+      p_strengths: payload.strengths || undefined, // SQL DEFAULT NULL
+      p_weaknesses: payload.weaknesses || undefined, // SQL DEFAULT NULL
+      p_suggestions: payload.suggestions || undefined, // SQL DEFAULT NULL
+      p_model_comparison: payload.modelComparison || undefined, // SQL DEFAULT NULL
       p_evaluator_type: payload.evaluatorType || "HUMAN_FACULTY",
     });
 
@@ -435,6 +436,6 @@ export class DescriptiveService {
       return { success: false, error: error?.message || "Failed to submit faculty evaluation" };
     }
 
-    return data;
+    return rpcJsonObject<{ success: boolean }>(data) ?? { success: false, error: "Failed to submit faculty evaluation" };
   }
 }

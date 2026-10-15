@@ -5,6 +5,8 @@
  * Usage: node scripts/smoke/signed-in-smoke.cjs <check> [baseUrl]
  *   check = student-mistake   qa-student: /mistakes lists ≥1 mistake; its detail shows the question text,
  *                             the options A–D and a marked correct answer; latest mock result renders a score
+ *           student-pages     qa-student: community, descriptive, flashcards, institutes, premium, store, wallet,
+ *                             dashboard render (200, no not-found, no error boundary); first thread / deck detail too
  *           admin-home        qa-admin:  /admin renders (200, no not-found)
  *           staff-content     qa-staff:  /admin/content renders (200, no not-found)
  *   baseUrl defaults to http://localhost:3100. Passwords come from .env.local (QA_*_PASSWORD).
@@ -18,6 +20,7 @@ const BASE = (BASE_ARG || 'http://localhost:3100').replace(/\/$/, '');
 const env = readEnv();
 const IDS = {
   'student-mistake': ['qa-student@courage-library.test', 'QA_STUDENT_PASSWORD'],
+  'student-pages': ['qa-student@courage-library.test', 'QA_STUDENT_PASSWORD'],
   'admin-home': ['qa-admin@courage-library.test', 'QA_ADMIN_PASSWORD'],
   'staff-content': ['qa-staff@courage-library.test', 'QA_STAFF_PASSWORD'],
 };
@@ -74,6 +77,20 @@ function readMistakeDetail() {
       check('mock result renders a score', r && r.status() === 200 && /score|marks|accuracy/i.test(await page.content()));
     } else {
       check('mock result link present on /mock-tests', false, 'none found');
+    }
+  } else if (CHECK === 'student-pages') {
+    const PAGES = ['/dashboard', '/community', '/descriptive', '/descriptive/submissions', '/flashcards', '/institutes', '/premium', '/store', '/wallet'];
+    const visit = async (p) => {
+      const r = await page.goto(BASE + p, { waitUntil: 'networkidle', timeout: 120000 });
+      const html = await page.content();
+      const errorBoundary = /Something went wrong|Application error/i.test(html);
+      check(`${p.replace(/[0-9a-f-]{36}/g, '[id]')} → 200, renders`, r && r.status() === 200 && !(await isNotFound(page)) && !errorBoundary, String(r && r.status()) + (errorBoundary ? ' error-boundary' : ''));
+    };
+    for (const p of PAGES) await visit(p);
+    for (const [list, re] of [['/community', /^\/community\/[0-9a-f-]{36}$/], ['/flashcards', /^\/flashcards\/[0-9a-f-]{36}$/]]) {
+      await page.goto(BASE + list, { waitUntil: 'networkidle', timeout: 120000 });
+      const href = await page.$$eval('a[href]', (as, src) => { const r = new RegExp(src); const h = as.map((a) => a.getAttribute('href')).find((x) => r.test(x || '')); return h || null; }, re.source);
+      if (href) await visit(href); else console.log(`INFO  no detail link on ${list} (no data)`);
     }
   } else {
     const p = CHECK === 'admin-home' ? '/admin' : '/admin/content';

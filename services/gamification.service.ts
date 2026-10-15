@@ -1,4 +1,5 @@
 import { createServerSupabaseClient, createAdminServerSupabaseClient } from "@/lib/supabase/server";
+import { rpcJsonObject } from "@/lib/supabase/rpc";
 
 export interface MockRewardCalculationInput {
   userId: string;
@@ -464,7 +465,7 @@ export class GamificationService {
     let isNewStreakMilestone = false;
 
     try {
-      const { data: streakResult } = await (adminSb as any).rpc("fn_record_qualifying_streak_activity", {
+      const { data: streakResult } = await adminSb.rpc("fn_record_qualifying_streak_activity", {
         p_user_id: userId,
         p_action_type: "MOCK_TEST",
         p_source_id: attemptId,
@@ -472,9 +473,10 @@ export class GamificationService {
         p_timezone: "Asia/Kolkata",
       });
 
-      if (streakResult?.success) {
-        currentStreak = Number(streakResult.streak || 1);
-        if (streakResult.status === "STREAK_INCREMENTED") {
+      const streakRes = rpcJsonObject<{ success?: boolean; streak?: number; status?: string }>(streakResult);
+      if (streakRes?.success) {
+        currentStreak = Number(streakRes.streak || 1);
+        if (streakRes.status === "STREAK_INCREMENTED") {
           streakCoins = 5; // +5 CL Daily consistency bonus
           streakReason = `${currentStreak}-Day Consistency Streak Bonus`;
         } else {
@@ -559,7 +561,7 @@ export class GamificationService {
     // 6. Execute Canonical Atomic RPC fn_award_gamification_reward
     let isSuccessfullyAwarded = false;
     try {
-      const { data: rpcRes, error: rpcErr } = await (adminSb as any).rpc("fn_award_gamification_reward", {
+      const { data: rpcRes, error: rpcErr } = await adminSb.rpc("fn_award_gamification_reward", {
         p_user_id: userId,
         p_event_type: "MOCK_TEST_COMPLETED",
         p_source_type: "MOCK_TEST",
@@ -572,7 +574,7 @@ export class GamificationService {
 
       if (rpcErr) {
         console.error("[GamificationService.awardMockCompletionReward] Database RPC Error:", rpcErr);
-      } else if (rpcRes?.success !== false) {
+      } else if (rpcJsonObject<{ success?: boolean }>(rpcRes)?.success !== false) {
         isSuccessfullyAwarded = true;
       }
     } catch (dbErr) {
@@ -636,11 +638,11 @@ export class GamificationService {
       adminSb.from("user_badges").select("badge_id, earned_at").eq("user_id", userId),
     ]);
 
-    const wallet = walletRes.data as any;
-    const streak = streakRes.data as any;
-    const ledger = (ledgerRes.data as any[]) || [];
-    const allBadges = (badgesRes.data as any[]) || [];
-    const userBadges = (userBadgesRes.data as any[]) || [];
+    const wallet = walletRes.data;
+    const streak = streakRes.data;
+    const ledger = ledgerRes.data || [];
+    const allBadges = badgesRes.data || [];
+    const userBadges = userBadgesRes.data || [];
 
     const userBadgeMap = new Map<string, string>();
     userBadges.forEach((ub) => userBadgeMap.set(ub.badge_id, ub.earned_at));
@@ -748,9 +750,9 @@ export class GamificationService {
       adminSb.from("reward_policies").select("*").order("created_at", { ascending: true }),
     ]);
 
-    const wallets = (walletsRes.data as any[]) || [];
-    const ledger = (ledgerRes.data as any[]) || [];
-    const dbPolicies = (policiesRes.data as any[]) || [];
+    const wallets = walletsRes.data || [];
+    const ledger = ledgerRes.data || [];
+    const dbPolicies = policiesRes.data || [];
 
     const totalCoinsInCirculation = wallets.reduce((acc, w) => acc + Number(w.current_balance || 0), 0);
     const lifetimeCoinsIssued = wallets.reduce((acc, w) => acc + Number(w.lifetime_earned || 0), 0);
@@ -843,7 +845,7 @@ export class GamificationService {
         .order("created_at", { ascending: false }),
     ]);
 
-    const catalogItems: StoreCatalogItem[] = ((catalogRes.data as any[]) || []).map((c) => ({
+    const catalogItems: StoreCatalogItem[] = (catalogRes.data || []).map((c) => ({
       id: c.id,
       title: c.title,
       slug: c.slug,
@@ -856,7 +858,7 @@ export class GamificationService {
       displayOrder: Number(c.display_order || 0),
     }));
 
-    const userClaims: StoreUserClaim[] = ((claimsRes.data as any[]) || []).map((cl) => ({
+    const userClaims: StoreUserClaim[] = (claimsRes.data || []).map((cl) => ({
       id: cl.id,
       rewardId: cl.reward_id,
       rewardTitle: cl.reward_catalog?.title || "Reward Item",
@@ -1080,11 +1082,11 @@ export class GamificationService {
         .limit(50),
     ]);
 
-    const wallets = (walletsRes.data as any[]) || [];
-    const catalogData = (catalogRes.data as any[]) || [];
-    const claimsData = (claimsRes.data as any[]) || [];
-    const dbPolicies = (policiesRes.data as any[]) || [];
-    const ledger = (ledgerRes.data as any[]) || [];
+    const wallets = walletsRes.data || [];
+    const catalogData = catalogRes.data || [];
+    const claimsData = claimsRes.data || [];
+    const dbPolicies = policiesRes.data || [];
+    const ledger = ledgerRes.data || [];
 
     const totalCoinsInCirculation = wallets.reduce((acc, w) => acc + Number(w.current_balance || 0), 0);
     const lifetimeCoinsIssued = wallets.reduce((acc, w) => acc + Number(w.lifetime_earned || 0), 0);
@@ -1111,7 +1113,7 @@ export class GamificationService {
       coinCost: Number(c.coin_cost || 0),
       stockQuantity: Number(c.stock_quantity ?? -1),
       imageUrl: c.image_url || null,
-      metadata: c.metadata || {},
+      metadata: rpcJsonObject<Record<string, unknown>>(c.metadata) ?? {},
       isActive: Boolean(c.is_active),
       displayOrder: Number(c.display_order || 0),
       totalRedemptions: redemptionsMap.get(c.id) || 0,
@@ -1433,10 +1435,10 @@ export class GamificationService {
     ]);
 
     const freezesHeld = Number(walletRes.data?.freezes_held || 0);
-    const streakRow = streakRes.data as any;
+    const streakRow = streakRes.data;
     const currentStreak = Number(streakRow?.current_streak || 0);
     const lastQualifyingDate = streakRow?.last_qualifying_date as string | null;
-    const activityLogs = (logsRes.data as any[]) || [];
+    const activityLogs = logsRes.data || [];
 
     // Map existing activity dates
     const activityDatesMap = new Map<string, string>();
