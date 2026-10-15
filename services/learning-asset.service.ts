@@ -13,6 +13,8 @@
  */
 
 import crypto from 'crypto';
+import type { Tables } from '@/types/database';
+import type { AppSupabaseClient } from '@/lib/supabase/types';
 import { IStorageProvider } from './storage/storage-provider.interface';
 import {
   LearningAsset,
@@ -24,6 +26,10 @@ import {
   LearningUnitAssetBinding,
   UploadValidationResult,
 } from '@/types/learning-artifact';
+
+/** Rows → domain: text columns hold the domain enum values (CHECK constraints), so a row is the domain type. */
+const toAsset = (row: Tables<'learning_assets'>): LearningAsset => row as LearningAsset;
+const toBinding = (row: Tables<'learning_unit_asset_bindings'> & { asset?: unknown }): LearningUnitAssetBinding => row as LearningUnitAssetBinding;
 
 export const ASSET_MIME_ALLOWLIST: AssetMimeType[] = [
   'image/png',
@@ -151,7 +157,7 @@ export class LearningAssetService {
       accessClass?: AccessClass;
     },
     storageProvider: IStorageProvider,
-    supabaseClient: any
+    supabaseClient: AppSupabaseClient
   ): Promise<LearningAsset> {
     const val = this.validateAssetUpload({
       data: params.data,
@@ -221,7 +227,7 @@ export class LearningAssetService {
       throw new Error(`Failed to create asset metadata: ${error.message}`);
     }
 
-    return data;
+    return toAsset(data);
   }
 
   /**
@@ -234,7 +240,7 @@ export class LearningAssetService {
       artifactId?: string | null;
       usageContext?: AssetUsageContext;
     },
-    supabaseClient: any
+    supabaseClient: AppSupabaseClient
   ): Promise<LearningUnitAssetBinding> {
     const bindingRecord = {
       learning_unit_id: params.learningUnitId,
@@ -253,7 +259,7 @@ export class LearningAssetService {
       throw new Error(`Failed to bind asset to learning unit: ${error.message}`);
     }
 
-    return data;
+    return toBinding(data);
   }
 
   /**
@@ -261,7 +267,7 @@ export class LearningAssetService {
    */
   static async getUnitAssets(
     learningUnitId: string,
-    supabaseClient: any
+    supabaseClient: AppSupabaseClient
   ): Promise<LearningUnitAssetBinding[]> {
     const { data, error } = await supabaseClient
       .from('learning_unit_asset_bindings')
@@ -272,6 +278,6 @@ export class LearningAssetService {
       throw new Error(`Failed to fetch unit assets for ${learningUnitId}: ${error.message}`);
     }
 
-    return data || [];
+    return (data || []).map((row) => toBinding(row));
   }
 }

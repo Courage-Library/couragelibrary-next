@@ -15,6 +15,7 @@
  */
 
 import crypto from 'crypto';
+import type { AppSupabaseClient } from '@/lib/supabase/types';
 import {
   CurriculumAIContext,
   AdminGenerationDirectives,
@@ -37,7 +38,7 @@ export interface ContextBuilderParams {
   requestedLanguage?: ContentLanguage;
   requestedDocumentType?: DocumentType;
   directives?: AdminGenerationDirectives;
-  supabaseClient?: any;
+  supabaseClient?: AppSupabaseClient;
   // Optional pre-fetched canonical entities for deterministic offline tests / fast-path
   prefetchedData?: {
     unit?: any;
@@ -179,6 +180,7 @@ export class CurriculumContextBuilder {
     // 3. Resolve Exam Mappings & Exam Projections
     let rawExamMappings = prefetched.examMappings;
     if (!rawExamMappings && sb) {
+      // TYPES-1:B-CURRICULUM-MAPPING (tracked, GAP2-4) — exam_topics → exams relation does not exist (PGRST200).
       const { data: mappings } = await sb
         .from('exam_unit_mappings')
         .select('*, exam_topic:exam_topics(*, exam:exams(*))')
@@ -266,21 +268,26 @@ export class CurriculumContextBuilder {
     }
 
     // 5. Resolve Canonical Question Bank References
+    // PYQ exam / year come from the question's first source (question_sources); flattened to the legacy row shape.
+    const toPyqRow = (r: { id: string; question_id: string; question_text: string; difficulty: string; questions: { question_sources: { exam_name: string | null; year: number | null }[] } | null }) => {
+      const src = r.questions?.question_sources?.[0];
+      return { id: r.id, question_id: r.question_id, question_text: r.question_text, difficulty: r.difficulty, pyq_exam: src?.exam_name ?? null, pyq_year: src?.year ?? null };
+    };
     let rawQuestions = prefetched.questions;
     if (!rawQuestions && sb && topic.id) {
       const { data: qData } = await sb
         .from('question_versions')
-        .select('id, question_id, question_text, difficulty, pyq_year, pyq_exam')
-        .eq('canonical_topic_id', topic.id)
+        .select('id, question_id, question_text, difficulty, questions!inner(canonical_topic_id, question_sources(exam_name, year))')
+        .eq('questions.canonical_topic_id', topic.id) // TYPES-1 B4 (Class B): the topic lives on questions, PYQ data on question_sources
         .limit(MAX_QUESTION_REFERENCES);
-      rawQuestions = qData || [];
+      rawQuestions = (qData || []).map(toPyqRow);
 
       if (rawQuestions && rawQuestions.length === 0) {
         const { data: qFallback } = await sb
           .from('question_versions')
-          .select('id, question_id, question_text, difficulty, pyq_year, pyq_exam')
+          .select('id, question_id, question_text, difficulty, questions!inner(canonical_topic_id, question_sources(exam_name, year))')
           .limit(MAX_QUESTION_REFERENCES);
-        rawQuestions = qFallback || [];
+        rawQuestions = (qFallback || []).map(toPyqRow);
       }
     } else if (!rawQuestions) {
       rawQuestions = [

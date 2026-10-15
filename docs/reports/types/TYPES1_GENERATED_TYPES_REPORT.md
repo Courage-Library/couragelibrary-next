@@ -517,4 +517,78 @@ Bulk importer (included in 1–11 as a Class A guard):
 | Signed-in smokes | **`student-mistake`, `student-pages`, `admin-pages` all passed** |
 | Baseline | **NO DIFF** |
 
-TYPES-1 STATUS: IN PROGRESS (B0, C, B1, B2, B6 complete; next: B4).
+### B4: content studio, authoring queue, curriculum blueprint and coverage, artifacts, assets, AI generation context
+
+**Escapes.** All **52 of 52** planned query escapes are removed:
+- content studio 24
+- authoring queue 7
+- coverage 5
+- blueprint 4
+- artifacts 3
+- assets 3
+- reference catalog 3
+- AI orchestrator 2
+- AI context builder 1
+
+The remaining `supabaseClient?: any` parameters (32) became `AppSupabaseClient`.
+
+**Ratchet:**
+
+| Counter | Before | After |
+|---|---|---|
+| queryEscapes | 173 | **121** (−52) |
+| asAny | 276 | 256 |
+| colonAny | 919 | 887 |
+| unknownAs | 83 | 83 |
+| tsExpectError | 12 | **17** |
+| tsIgnore | 0 | 0 |
+
+- The tsExpectError increase is +5 for the registered `B-CURRICULUM-MAPPING` tag (`exceptions[]` B4).
+- B4 has been removed from `remaining[]`.
+
+**Class B: 5 families (≤ 15).** Before/after evidence: the select audit went from 10 failing to 6, and those 6 are the tracked legacy mapping reads.
+
+| # | Location | Defect | Effect before | Resolution |
+|---|---|---|---|---|
+| 1 | `admin-content-studio.service.ts` unit workspace | `document_versions(*)` embed ambiguous: `document_versions.document_id` and `learning_documents.current_published_version_id` (PGRST201) | The unit workspace never loaded its documents | **Fixed:** hint `document_versions!document_versions_document_id_fkey` |
+| 2 | `admin-content-studio.service.ts` `searchQuestionBank` | `question_type` / `explanation` never existed on `question_versions` (42703) | **The content-studio question picker always returned nothing** | **Fixed:** live columns; all bank items are single-choice; explanation not loaded (it lives in `question_answers`) |
+| 3 | `ai/curriculum-context-builder.service.ts` question references | `pyq_year` / `pyq_exam` / `canonical_topic_id` filtered on `question_versions` (42703) | AI generation context never received real question references; it fell back to placeholder data | **Fixed:** `questions!inner(canonical_topic_id, question_sources(exam_name, year))`, flattened to the existing row shape |
+| 4 | `content-artifact` / `learning-asset` returns | DB text columns returned where union-typed domain types are expected | Typing only (Class A) | Centralised `toArtifact` / `toAsset` / `toBinding` narrowing |
+| 5 | `curriculum-coverage.service.ts` matrix + `upsertExamUnitMapping`; content-studio and AI exam-mapping reads | `exam_unit_mappings` no longer links `exam_topic_mappings` and has no `required_depth` / `importance_tier` / `is_mandatory`; `learning_units` has no `is_published`; `exam_topics` → `exams` relation missing | The reads always fail and the upsert always fails | **Tracked** `TYPES-1:B-CURRICULUM-MAPPING` → **GAP2-4** (5 directives + tracked comments) |
+
+> **⚠ Fabricated data on `/admin/content` (decision #15).** When the coverage reads fail, which today is always, `getCurriculumCoverageMatrix` **synthesises** coverage: a "PUBLISHED" pilot Percentage document, a pilot version, and default exam mappings. Staff therefore see coverage that does not exist. This is a GAP2-4 rewrite item and is recorded in the register and the code. It is **not** changed in TYPES-1, which makes no behaviour rewrites for tracked items. **Recommendation:** GAP2-4 removes the synthetic fallbacks as its first coverage item, or an earlier hotfix replaces them with honest empty states.
+
+**Class A:**
+- audit payloads typed as `Json`
+- `compileAndStoreVersion` output asserted to `TablesInsert<'document_versions'>` (it always sets every required column)
+- author type narrowed
+
+**Tests:**
+- `scripts/test_types1_b4.cjs` 5/5, including a live select audit that allows only the tracked legacy reads.
+- The B4 domain page is checked by the signed-in smoke `staff-content` (qa-staff `/admin/content`).
+
+**Gates** (local production build, final B4 code):
+
+| Gate | Result |
+|---|---|
+| tsc / lint / build | 0 / 0 / OK |
+| test_types1 (incl. `db:types:check`) | 8/8 |
+| test_types1_b4 | 5/5 |
+| test_types1_b6 | 5/5 |
+| test_types1_b2 | 6/6 |
+| test_types1_b1 | 8/8 |
+| QF-1 | 73/73 + 15/15 |
+| GAP2-2a | 11/11 + 18/18 |
+| GAP2-3 | 15/15 |
+| SEC-1A | 20/20 |
+| SEC-1B | 26/26 + **live 32/32** |
+| SEC-1C | 22/22 + **live 29/29** |
+| SEC-1D | 14/14 + **live 19/19** |
+| DRIFT-1c | 46/46 |
+| QA identity guard | 8/8 |
+| HOTFIX-1 | 4/4 |
+| **E2E** | **13/13** |
+| Signed-in smokes | **`student-mistake`, `student-pages`, `admin-pages`, `staff-content` all passed** |
+| Baseline | **NO DIFF** |
+
+TYPES-1 STATUS: IN PROGRESS (B0, C, B1, B2, B6, B4 complete; next: CLOSE).

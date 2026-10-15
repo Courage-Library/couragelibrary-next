@@ -9,12 +9,6 @@
       "scope": "^(app/api/admin/current-affairs/articles/route\\.ts|app/api/admin/current-affairs/lookup/route\\.ts|services/admin-current-affairs\\.service\\.ts|services/current-affairs-daily-quiz\\.service\\.ts)$"
     },
     {
-      "batch": "B4",
-      "owner": "TYPES-1 batch B4",
-      "count": 52,
-      "scope": "^(services/admin-content-studio\\.service\\.ts|services/ai/ai-generation-orchestrator\\.service\\.ts|services/ai/curriculum-context-builder\\.service\\.ts|services/authoring-queue\\.service\\.ts|services/canonical-curriculum-blueprint\\.service\\.ts|services/content-artifact\\.service\\.ts|services/curriculum-coverage\\.service\\.ts|services/learning-asset\\.service\\.ts|services/learning/reference-catalog\\.ts)$"
-    },
-    {
       "batch": "B5",
       "owner": "MOVED to GAP2-4 step 0",
       "count": 62,
@@ -22,11 +16,11 @@
     }
   ],
   "values": {
-    "queryEscapes": 173,
-    "asAny": 276,
-    "colonAny": 919,
+    "queryEscapes": 121,
+    "asAny": 256,
+    "colonAny": 887,
     "unknownAs": 83,
-    "tsExpectError": 12,
+    "tsExpectError": 17,
     "tsIgnore": 0
   },
   "updatedAt": "2026-10-15",
@@ -43,6 +37,13 @@
       "key": "tsExpectError",
       "from": 6,
       "to": 12,
+      "reason": "tracked ambiguous Class B (architect rule 3); every directive carries a registered TYPES-1:B-<ID>"
+    },
+    {
+      "batch": "B4",
+      "key": "tsExpectError",
+      "from": 12,
+      "to": 17,
       "reason": "tracked ambiguous Class B (architect rule 3); every directive carries a registered TYPES-1:B-<ID>"
     }
   ]

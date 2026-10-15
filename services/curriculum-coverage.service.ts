@@ -13,6 +13,7 @@
  */
 
 import { createServerSupabaseClient, createAdminServerSupabaseClient } from '@/lib/supabase/server';
+import type { AppSupabaseClient } from '@/lib/supabase/types';
 import { DocumentType, ReviewStatus } from '@/types/learning-compiler';
 import {
   CANONICAL_DOCUMENT_TYPES,
@@ -24,6 +25,25 @@ import {
   CurriculumCoverageMatrix,
   CurriculumQualityMetrics,
 } from '@/types/curriculum-coverage';
+
+/** Legacy row shapes the coverage matrix still expects (not in the live schema; TYPES-1:B-CURRICULUM-MAPPING, GAP2-4). */
+interface LegacyCoverageUnitRow {
+  id: string;
+  topic_id: string | null;
+  subtopic_id: string | null;
+  title: string;
+  slug: string;
+  unit_type: string;
+  display_order: number;
+  is_published: boolean;
+}
+interface LegacyExamUnitMappingRow {
+  learning_unit_id: string;
+  required_depth: string;
+  importance_tier: string;
+  is_mandatory: boolean;
+  exam_topic_mappings: { exam_syllabi: { exams: { id: string; title: string } | null } | null } | null;
+}
 
 export {
   CANONICAL_DOCUMENT_TYPES,
@@ -116,7 +136,7 @@ export class CurriculumCoverageService {
    * Calculates the full multi-dimensional curriculum coverage matrix
    */
   static async getCurriculumCoverageMatrix(
-    supabaseClient?: any,
+    supabaseClient?: AppSupabaseClient,
     filters?: {
       examId?: string;
       subjectId?: string;
@@ -151,11 +171,16 @@ export class CurriculumCoverageService {
     const examsList = examsRes?.data || [];
     const subjectsList = subjectsRes?.data || [];
     const topicsList = topicsRes?.data || [];
-    let unitsList = unitsRes?.data;
+    // TYPES-1:B-CURRICULUM-MAPPING (tracked, GAP2-4) — learning_units has no is_published and exam_unit_mappings no longer
+    // links exam_topic_mappings / required_depth / importance_tier / is_mandatory: both reads always fail, and the
+    // fallbacks below then SYNTHESISE coverage (pilot document, default exam mappings). GAP2-4 replaces this matrix.
+    // @ts-expect-error TYPES-1:B-CURRICULUM-MAPPING — legacy learning_units columns (see above)
+    let unitsList: LegacyCoverageUnitRow[] | null | undefined = unitsRes?.data;
     let documentsList = docsRes?.data || [];
     let versionsList = versionsRes?.data || [];
     const questionsList = questionsRes?.data || [];
-    let examMappingsList = examMappingsRes?.data;
+    // @ts-expect-error TYPES-1:B-CURRICULUM-MAPPING — legacy exam_unit_mappings shape (see above)
+    let examMappingsList: LegacyExamUnitMappingRow[] | null | undefined = examMappingsRes?.data;
 
     // Resilient fallback: If learning_units table is not populated/migrated, synthesize canonical units from active topics
     if (!unitsList || unitsList.length === 0) {
@@ -491,7 +516,7 @@ export class CurriculumCoverageService {
   /**
    * Calculate high-level curriculum quality and publishing readiness metrics
    */
-  static async getCurriculumQualityMetrics(supabaseClient?: any): Promise<CurriculumQualityMetrics> {
+  static async getCurriculumQualityMetrics(supabaseClient?: AppSupabaseClient): Promise<CurriculumQualityMetrics> {
     const matrix = await this.getCurriculumCoverageMatrix(supabaseClient);
     const supabase = supabaseClient || (await createServerSupabaseClient());
 
@@ -603,7 +628,7 @@ export class CurriculumCoverageService {
   static async checkDuplicateLearningUnit(
     topicId: string,
     titleOrSlug: string,
-    supabaseClient?: any
+    supabaseClient?: AppSupabaseClient
   ): Promise<{ exists: boolean; existingUnit?: any }> {
     const supabase = supabaseClient || (await createServerSupabaseClient());
     const slug = titleOrSlug.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -643,7 +668,7 @@ export class CurriculumCoverageService {
   static async checkDuplicateDocument(
     learningUnitId: string,
     documentType: DocumentType,
-    supabaseClient?: any
+    supabaseClient?: AppSupabaseClient
   ): Promise<{ exists: boolean; existingDoc?: any }> {
     const supabase = supabaseClient || (await createServerSupabaseClient());
 
@@ -677,7 +702,7 @@ export class CurriculumCoverageService {
       importanceTier?: string;
       isMandatory?: boolean;
     },
-    supabaseClient?: any
+    supabaseClient?: AppSupabaseClient
   ): Promise<{ success: boolean; mapping: any }> {
     const supabase = supabaseClient || createAdminServerSupabaseClient();
 
@@ -687,6 +712,7 @@ export class CurriculumCoverageService {
         .from('exam_unit_mappings')
         .select('*')
         .eq('learning_unit_id', params.learningUnitId)
+        // @ts-expect-error TYPES-1:B-CURRICULUM-MAPPING — legacy exam_unit_mappings columns; this upsert always fails today (GAP2-4)
         .eq('exam_topic_mapping_id', params.examTopicMappingId)
         .maybeSingle();
 
@@ -694,12 +720,8 @@ export class CurriculumCoverageService {
         // Update existing mapping attributes
         const { data: updated, error } = await supabase
           .from('exam_unit_mappings')
-          .update({
-            required_depth: params.requiredDepth || existing.required_depth,
-            importance_tier: params.importanceTier || existing.importance_tier,
-            is_mandatory: params.isMandatory !== undefined ? params.isMandatory : existing.is_mandatory,
-            updated_at: new Date().toISOString(),
-          })
+          // @ts-expect-error TYPES-1:B-CURRICULUM-MAPPING — legacy exam_unit_mappings columns (GAP2-4)
+          .update({ required_depth: params.requiredDepth || existing.required_depth, importance_tier: params.importanceTier || existing.importance_tier, is_mandatory: params.isMandatory !== undefined ? params.isMandatory : existing.is_mandatory, updated_at: new Date().toISOString() })
           .eq('id', existing.id)
           .select()
           .single();
@@ -715,6 +737,7 @@ export class CurriculumCoverageService {
         .from('exam_unit_mappings')
         .insert({
           learning_unit_id: params.learningUnitId,
+          // @ts-expect-error TYPES-1:B-CURRICULUM-MAPPING — legacy exam_unit_mappings columns (GAP2-4)
           exam_topic_mapping_id: params.examTopicMappingId,
           required_depth: params.requiredDepth || 'STANDARD',
           importance_tier: params.importanceTier || 'CORE',

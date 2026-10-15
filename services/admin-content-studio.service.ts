@@ -16,6 +16,8 @@
  */
 
 import { requireAdmin } from '@/lib/auth/require-admin';
+import type { Json, TablesInsert } from '@/types/database';
+import type { AppSupabaseClient } from '@/lib/supabase/types';
 import { createServerSupabaseClient, createAdminServerSupabaseClient } from '@/lib/supabase/server';
 import {
   LessonDocumentSpec,
@@ -119,7 +121,7 @@ export class AdminContentStudioService {
    */
   static async getDashboardStats(): Promise<StudioDashboardStats> {
     await this.requireAdminAuth('getDashboardStats');
-    const supabase = (await createServerSupabaseClient()) as any;
+    const supabase = await createServerSupabaseClient();
 
     const [
       { count: totalUnits },
@@ -183,7 +185,7 @@ export class AdminContentStudioService {
    */
   static async getAcademicHierarchy(examId?: string): Promise<AcademicExplorerNode[]> {
     await this.requireAdminAuth('getAcademicHierarchy');
-    const supabase = (await createServerSupabaseClient()) as any;
+    const supabase = await createServerSupabaseClient();
 
     const [
       { data: subjects },
@@ -254,7 +256,7 @@ export class AdminContentStudioService {
    */
   static async getLearningUnitDetail(unitId: string): Promise<any | null> {
     await this.requireAdminAuth('getLearningUnitDetail');
-    const supabase = (await createServerSupabaseClient()) as any;
+    const supabase = await createServerSupabaseClient();
 
     const [
       { data: unit },
@@ -263,8 +265,9 @@ export class AdminContentStudioService {
       { data: examMappings },
     ] = await Promise.all([
       supabase.from('learning_units').select('*, topics:canonical_taxonomy_nodes!learning_units_topic_id_node_fkey(id, name, subjects:root_subject_id(id, name))').eq('id', unitId).single(),
-      supabase.from('learning_documents').select('*, document_versions(*)').eq('learning_unit_id', unitId),
+      supabase.from('learning_documents').select('*, document_versions!document_versions_document_id_fkey(*)').eq('learning_unit_id', unitId), // TYPES-1 B4 (Class B): two FKs → PGRST201 without the hint
       supabase.from('learning_unit_asset_bindings').select('*, learning_assets(*)').eq('learning_unit_id', unitId),
+      // TYPES-1:B-CURRICULUM-MAPPING (tracked, GAP2-4) — exam_unit_mappings → exam_topic_mappings no longer exists (PGRST200).
       supabase.from('exam_unit_mappings').select('*, exam_topic_mappings(*, exam_syllabi(*, exams(*)))').eq('learning_unit_id', unitId),
     ]);
 
@@ -288,7 +291,7 @@ export class AdminContentStudioService {
     accessLevel?: LearningAccessLevel;
   }): Promise<LearningDocument> {
     const admin = await this.requireAdminAuth('createDocument');
-    const supabase = createAdminServerSupabaseClient() as any;
+    const supabase = createAdminServerSupabaseClient();
     const accessLevel = params.accessLevel ?? 'FREE';
     if (!LEARNING_ACCESS_LEVELS.includes(accessLevel)) {
       throw new Error(`Invalid access level "${String(accessLevel)}".`);
@@ -340,7 +343,7 @@ export class AdminContentStudioService {
     estimatedMinutes?: number;
   }): Promise<{ id: string; topic_id: string; title: string; slug: string }> {
     const admin = await this.requireAdminAuth('createLearningUnit');
-    const supabase = createAdminServerSupabaseClient() as any;
+    const supabase = createAdminServerSupabaseClient();
     const title = (params.title || '').trim();
     if (!title) throw new Error('Unit title is required.');
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(params.slug || '')) throw new Error('Unit slug must be lowercase letters, digits and hyphens.');
@@ -372,7 +375,7 @@ export class AdminContentStudioService {
   static async setDocumentAccessLevel(documentId: string, accessLevel: LearningAccessLevel): Promise<LearningDocument> {
     const admin = await this.requireAdminAuth('setDocumentAccessLevel');
     if (!LEARNING_ACCESS_LEVELS.includes(accessLevel)) throw new Error(`Invalid access level "${String(accessLevel)}".`);
-    const supabase = createAdminServerSupabaseClient() as any;
+    const supabase = createAdminServerSupabaseClient();
     const { data: before } = await supabase.from('learning_documents').select('id, access_level').eq('id', documentId).maybeSingle();
     if (!before) throw new Error('Document not found.');
     const { data, error } = await supabase
@@ -392,7 +395,7 @@ export class AdminContentStudioService {
    */
   static async archiveDocument(documentId: string): Promise<LearningDocument> {
     const admin = await this.requireAdminAuth('archiveDocument');
-    const supabase = createAdminServerSupabaseClient() as any;
+    const supabase = createAdminServerSupabaseClient();
     const { data: before } = await supabase.from('learning_documents').select('id, status').eq('id', documentId).maybeSingle();
     if (!before) throw new Error('Document not found.');
     const { data, error } = await supabase
@@ -414,15 +417,16 @@ export class AdminContentStudioService {
     oldValue: Record<string, unknown> | null,
     newValue: Record<string, unknown> | null
   ): Promise<void> {
-    const supabase = createAdminServerSupabaseClient() as any;
+    const supabase = createAdminServerSupabaseClient();
     const { error } = await supabase.from('admin_audit_logs').insert({
       actor_id: /^[0-9a-f-]{36}$/i.test(admin.userId) ? admin.userId : null,
       actor_email: admin.userEmail,
       action_type: actionType,
       target_entity: targetEntity,
       target_id: targetId,
-      old_value: oldValue,
-      new_value: newValue,
+      // audit payloads are plain JSON-serialisable objects built in this service
+      old_value: oldValue as Json | null,
+      new_value: newValue as Json | null,
       reason: null,
     });
     if (error) console.warn(`[AdminContentStudioService] audit log insert failed for ${actionType}: ${error.code || 'unknown'}`);
@@ -437,7 +441,7 @@ export class AdminContentStudioService {
     authorType?: AuthorType;
   }): Promise<DocumentVersion> {
     await this.requireAdminAuth('createDraftVersion');
-    const supabase = createAdminServerSupabaseClient() as any;
+    const supabase = createAdminServerSupabaseClient();
 
     const { data: latestVer } = await supabase
       .from('document_versions')
@@ -468,7 +472,8 @@ export class AdminContentStudioService {
     const { data, error } = await supabase
       .from('document_versions')
       .insert({
-        ...compileStore.version,
+        // compileAndStoreVersion always sets every required column (incl. compiled_artifact_hash)
+        ...(compileStore.version as TablesInsert<'document_versions'>),
         review_status: initialStatus,
       })
       .select()
@@ -491,7 +496,7 @@ export class AdminContentStudioService {
     version: DocumentVersion | null;
   }> {
     await this.requireAdminAuth('getVersionSpec');
-    const supabase = (await createServerSupabaseClient()) as any;
+    const supabase = await createServerSupabaseClient();
 
     const { data: version } = await supabase
       .from('document_versions')
@@ -543,7 +548,7 @@ export class AdminContentStudioService {
     authorType?: AuthorType;
   }): Promise<DocumentVersion> {
     await this.requireAdminAuth('createRevision');
-    const supabase = createAdminServerSupabaseClient() as any;
+    const supabase = createAdminServerSupabaseClient();
 
     let baseSpec: LessonDocumentSpec | null = null;
 
@@ -590,7 +595,7 @@ export class AdminContentStudioService {
     spec: LessonDocumentSpec;
   }): Promise<{ success: boolean; validation: ReturnType<typeof ContentSpecValidator.validate> }> {
     await this.requireAdminAuth('saveDraftSpec');
-    const supabase = createAdminServerSupabaseClient() as any;
+    const supabase = createAdminServerSupabaseClient();
 
     const { data: version } = await supabase
       .from('document_versions')
@@ -616,14 +621,15 @@ export class AdminContentStudioService {
       spec: params.spec,
       storageProvider,
       storageBucket,
-      authorType: version.author_type,
+      authorType: version.author_type as 'HUMAN' | 'AI_ASSISTED' | 'LEGACY_CONVERSION',
       referenceCatalogs: createReferenceCatalogs(supabase, storageProvider),
     });
 
     const { error: updateError } = await supabase
       .from('document_versions')
       .update({
-        ...compileStore.version,
+        // compileAndStoreVersion always sets every required column (incl. compiled_artifact_hash)
+        ...(compileStore.version as TablesInsert<'document_versions'>),
         review_status: updatedStatus,
         updated_at: new Date().toISOString(),
       })
@@ -639,9 +645,9 @@ export class AdminContentStudioService {
   /**
    * Submit Version for Review
    */
-  static async submitForReview(versionId: string, supabaseClient?: any, adminUserId?: string): Promise<DocumentVersion> {
+  static async submitForReview(versionId: string, supabaseClient?: AppSupabaseClient, adminUserId?: string): Promise<DocumentVersion> {
     await this.requireAdminAuth('submitForReview', adminUserId);
-    const supabase = supabaseClient || (createAdminServerSupabaseClient() as any);
+    const supabase = supabaseClient || (createAdminServerSupabaseClient());
 
     const { data: version } = await supabase.from('document_versions').select('*').eq('id', versionId).single();
     if (!version) throw new Error(`Version ${versionId} not found.`);
@@ -672,9 +678,9 @@ export class AdminContentStudioService {
     decision: 'APPROVED' | 'REJECTED';
     feedback?: string;
     adminUserId?: string;
-  }, supabaseClient?: any): Promise<DocumentVersion> {
+  }, supabaseClient?: AppSupabaseClient): Promise<DocumentVersion> {
     const { userId } = await this.requireAdminAuth('reviewVersion');
-    const supabase = supabaseClient || (createAdminServerSupabaseClient() as any);
+    const supabase = supabaseClient || (createAdminServerSupabaseClient());
 
     const { data: version, error: readErr } = await supabase.from('document_versions').select('*').eq('id', params.versionId).maybeSingle();
     if (readErr) throw readErr;
@@ -705,9 +711,9 @@ export class AdminContentStudioService {
    * Compile Version.
    * SEC-1B: no in-memory fallback — read, storage and update failures throw.
    */
-  static async compileVersion(versionId: string, supabaseClient?: any): Promise<{ success: boolean; result: CompilationResult; compiled_mdx?: string }> {
+  static async compileVersion(versionId: string, supabaseClient?: AppSupabaseClient): Promise<{ success: boolean; result: CompilationResult; compiled_mdx?: string }> {
     await this.requireAdminAuth('compileVersion');
-    const supabase = supabaseClient || (createAdminServerSupabaseClient() as any);
+    const supabase = supabaseClient || (createAdminServerSupabaseClient());
 
     const { data: version, error: readErr } = await supabase.from('document_versions').select('*').eq('id', versionId).maybeSingle();
     if (readErr) throw readErr;
@@ -751,9 +757,9 @@ export class AdminContentStudioService {
    * SEC-1B: no in-memory fallback — a failed version or document update throws; the result is
    * always the persisted rows.
    */
-  static async publishVersion(versionId: string, supabaseClient?: any): Promise<{ document: LearningDocument; version: DocumentVersion }> {
+  static async publishVersion(versionId: string, supabaseClient?: AppSupabaseClient): Promise<{ document: LearningDocument; version: DocumentVersion }> {
     const { userId } = await this.requireAdminAuth('publishVersion');
-    const supabase = supabaseClient || (createAdminServerSupabaseClient() as any);
+    const supabase = supabaseClient || (createAdminServerSupabaseClient());
 
     const { data: version, error: readErr } = await supabase.from('document_versions').select('*').eq('id', versionId).maybeSingle();
     if (readErr) throw readErr;
@@ -820,11 +826,13 @@ export class AdminContentStudioService {
    */
   static async searchQuestionBank(query: string, filters?: { subjectId?: string; topicId?: string }): Promise<QuestionSearchResultItem[]> {
     await this.requireAdminAuth('searchQuestionBank');
-    const supabase = (await createServerSupabaseClient()) as any;
+    const supabase = await createServerSupabaseClient();
 
     let q = supabase
       .from('question_versions')
-      .select('id, question_id, version_number, question_text, question_type, explanation, questions(id, status)')
+      // TYPES-1 B4 (Class B): question_type / explanation never existed on question_versions (42703) — the picker always
+      // returned nothing. All bank items are single-choice; explanations live in question_answers (not loaded here).
+      .select('id, question_id, version_number, question_text, questions(id, status)')
       .limit(20);
 
     if (query && query.trim()) {
@@ -834,15 +842,15 @@ export class AdminContentStudioService {
     const { data, error } = await q;
     if (error || !data) return [];
 
-    return (data as any[]).map((row) => ({
+    return data.map((row) => ({
       questionVersionId: row.id,
       questionId: row.question_id,
       versionNumber: row.version_number,
       questionText: row.question_text || '',
-      questionType: row.question_type || 'SINGLE_CHOICE',
+      questionType: 'SINGLE_CHOICE',
       options: [],
       correctOptionId: '',
-      explanation: row.explanation || null,
+      explanation: null,
       examMetadata: {
         examTitle: 'Canonical PYQ',
         year: 2024,
@@ -857,7 +865,7 @@ export class AdminContentStudioService {
    */
   static async searchAssets(query?: string, assetType?: string): Promise<any[]> {
     await this.requireAdminAuth('searchAssets');
-    const supabase = (await createServerSupabaseClient()) as any;
+    const supabase = await createServerSupabaseClient();
 
     let q = supabase.from('learning_assets').select('*').order('created_at', { ascending: false }).limit(30);
 
@@ -879,7 +887,7 @@ export class AdminContentStudioService {
    */
   static async getCurriculumCoverage(examId?: string): Promise<CurriculumCoverageReport> {
     await this.requireAdminAuth('getCurriculumCoverage');
-    const supabase = (await createServerSupabaseClient()) as any;
+    const supabase = await createServerSupabaseClient();
 
     const [
       { data: subjects },

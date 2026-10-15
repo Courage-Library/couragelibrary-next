@@ -13,6 +13,7 @@
  */
 
 import crypto from 'crypto';
+import type { AppSupabaseClient } from '@/lib/supabase/types';
 import {
   AIGenerationRequest,
   AINormalizedResponse,
@@ -42,7 +43,7 @@ export interface GenerateFromCurriculumParams {
   idempotencyKey?: string;
   providerId?: AIProviderId;
   targetModel?: string;
-  supabaseClient?: any;
+  supabaseClient?: AppSupabaseClient;
   prefetchedData?: ContextBuilderParams['prefetchedData'];
 }
 
@@ -56,7 +57,7 @@ export interface RegenerateSectionParams {
   adminEmail?: string;
   providerId?: AIProviderId;
   targetModel?: string;
-  supabaseClient?: any;
+  supabaseClient?: AppSupabaseClient;
   prefetchedData?: ContextBuilderParams['prefetchedData'];
 }
 

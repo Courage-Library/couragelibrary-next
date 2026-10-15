@@ -11,6 +11,7 @@
  */
 
 import type { QuestionBankClient } from '@/services/question-reference.service';
+import type { AppSupabaseClient } from '@/lib/supabase/types';
 import type { AssetCatalogClient } from '@/services/asset-reference.service';
 import type { IStorageProvider } from '@/services/storage/storage-provider.interface';
 import { LEARNING_ARTIFACT_BUCKET } from '@/services/storage/learning-artifact-storage';
@@ -18,7 +19,7 @@ import { LEARNING_ARTIFACT_BUCKET } from '@/services/storage/learning-artifact-s
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function createQuestionBankClient(supabase: any): QuestionBankClient {
+export function createQuestionBankClient(supabase: AppSupabaseClient): QuestionBankClient {
   return {
     async fetchQuestionVersion(id: string) {
       if (!UUID_RE.test(id)) return null;
@@ -44,7 +45,7 @@ export function createQuestionBankClient(supabase: any): QuestionBankClient {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function createAssetCatalogClient(supabase: any, storage: IStorageProvider): AssetCatalogClient {
+export function createAssetCatalogClient(supabase: AppSupabaseClient, storage: IStorageProvider): AssetCatalogClient {
   return {
     async fetchAsset(id: string) {
       if (!UUID_RE.test(id)) return null;
@@ -78,6 +79,6 @@ export function createAssetCatalogClient(supabase: any, storage: IStorageProvide
 
 /** Both clients for one compile/publish call. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function createReferenceCatalogs(supabase: any, storage: IStorageProvider) {
+export function createReferenceCatalogs(supabase: AppSupabaseClient, storage: IStorageProvider) {
   return { questionBankClient: createQuestionBankClient(supabase), assetCatalogClient: createAssetCatalogClient(supabase, storage) };
 }

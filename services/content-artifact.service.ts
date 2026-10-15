@@ -14,6 +14,8 @@
  */
 
 import crypto from 'crypto';
+import type { Tables } from '@/types/database';
+import type { AppSupabaseClient } from '@/lib/supabase/types';
 import { IStorageProvider } from './storage/storage-provider.interface';
 import {
   LearningContentArtifact,
@@ -24,6 +26,9 @@ import {
   ControlledMdxValidationResult,
   UploadValidationResult,
 } from '@/types/learning-artifact';
+
+/** Row → domain: text columns hold the domain enum values (CHECK constraints), so a row is the domain type. */
+const toArtifact = (row: Tables<'learning_content_artifacts'>): LearningContentArtifact => row as LearningContentArtifact;
 
 export const CONTROLLED_MDX_ALLOWLIST = [
   'FormulaCard',
@@ -169,7 +174,7 @@ export class ContentArtifactService {
       schemaVersion?: string;
     },
     storageProvider: IStorageProvider,
-    supabaseClient: any
+    supabaseClient: AppSupabaseClient
   ): Promise<LearningContentArtifact> {
     // 1. Validation
     const val = this.validateArtifactUpload({
@@ -228,7 +233,7 @@ export class ContentArtifactService {
       throw new Error(`Failed to create artifact metadata: ${error.message}`);
     }
 
-    return data;
+    return toArtifact(data);
   }
 
   /**
@@ -280,7 +285,7 @@ export class ContentArtifactService {
     artifactId: string,
     authContext: AuthContext,
     storageProvider: IStorageProvider,
-    supabaseClient: any
+    supabaseClient: AppSupabaseClient
   ): Promise<{ artifact: LearningContentArtifact; content: string }> {
     const { data: artifact, error } = await supabaseClient
       .from('learning_content_artifacts')
@@ -293,7 +298,7 @@ export class ContentArtifactService {
     }
 
     // 1. Authorization check
-    const authDecision = this.evaluateAccess(artifact, authContext);
+    const authDecision = this.evaluateAccess(toArtifact(artifact), authContext);
     if (!authDecision.allowed) {
       throw new Error(`Access Denied: ${authDecision.reason}`);
     }
@@ -313,7 +318,7 @@ export class ContentArtifactService {
     }
 
     return {
-      artifact,
+      artifact: toArtifact(artifact),
       content: storageItem.data.toString('utf8'),
     };
   }
@@ -321,7 +326,7 @@ export class ContentArtifactService {
   /**
    * Publishes an artifact, sealing its state as immutable.
    */
-  static async publishArtifact(artifactId: string, supabaseClient: any): Promise<LearningContentArtifact> {
+  static async publishArtifact(artifactId: string, supabaseClient: AppSupabaseClient): Promise<LearningContentArtifact> {
     const { data: existing, error: fetchErr } = await supabaseClient
       .from('learning_content_artifacts')
       .select('*')
@@ -333,7 +338,7 @@ export class ContentArtifactService {
     }
 
     if (existing.status === 'PUBLISHED') {
-      return existing; // Idempotent
+      return toArtifact(existing); // Idempotent
     }
 
     const { data, error } = await supabaseClient
@@ -351,6 +356,6 @@ export class ContentArtifactService {
       throw new Error(`Failed to publish artifact ${artifactId}: ${error.message}`);
     }
 
-    return data;
+    return toArtifact(data);
   }
 }
