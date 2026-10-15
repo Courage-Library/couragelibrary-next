@@ -185,7 +185,8 @@ export class BillingService {
     error?: string;
   }> {
     const supabase = await createServerSupabaseClient();
-    const rpcCall = supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
+    // TYPES-1 B2 (Class B): an unbound `supabase.rpc` loses `this` and threw "Cannot read properties of undefined (reading 'rest')".
+    const rpcCall = supabase.rpc.bind(supabase) as unknown as (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
 
     const { data, error } = await rpcCall("fn_create_payment_order", {
       p_order_type: payload.orderType,

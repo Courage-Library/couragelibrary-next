@@ -271,6 +271,15 @@
       "kind": "@ts-expect-error (RPC argument names)",
       "owner": "Commerce (architect ruling)",
       "precondition": "Coin-economy decision: call fn_award_gamification_reward with p_calculated_coins / p_reason_code (and decide session vs service-role client, as GamificationService uses adminSb). Today the RPC call fails (no matching function), so no coins are credited; per the interim ruling the drill records coins_awarded = 0 until the reward is wired."
+    },
+    {
+      "id": "TYPES-1:B-DSH-READINESS",
+      "file": "services/dashboard.service.ts",
+      "class": "B",
+      "module": "student dashboard",
+      "kind": "tracked comment (legacy select, result narrowed by cast)",
+      "owner": "LOOP-1 (architect ruling: dashboard items)",
+      "precondition": "LOOP-1: map the readiness model — user_exam_readiness is per exam (exam_id, exam_cycle_id) with readiness_index, weighted_mastery_pct, syllabus_coverage_pct, mock_benchmark_pct, retention_freshness_pct; there is no overall_readiness_pct / predicted_score. Today the read errors (42703) and the dashboard readiness is always empty. Found by the B2 live select audit (B1 carry-over)."
     }
   ]
 }

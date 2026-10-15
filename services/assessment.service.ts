@@ -716,7 +716,7 @@ export class AssessmentService {
 
         const { data: userAttempts } = await sb
           .from("test_attempts")
-          .select("id, status, started_at, submitted_at, test_results(total_score, score, accuracy_percentage)")
+          .select("id, status, started_at, submitted_at, test_results(total_score, accuracy_percentage)") // TYPES-1 B2 (Class B, B1 carry-over): no `score` column
           .eq("mock_test_id", testInstance.id)
           .eq("user_id", userId)
           .order("started_at", { ascending: false });

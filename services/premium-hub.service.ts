@@ -290,17 +290,17 @@ export class PremiumHubService {
         const mockTestIds = filtered.map((m) => m.id);
         const { data: userAttempts } = await adminSb
           .from("test_attempts")
-          .select("id, mock_test_id, status, test_results(score)")
+          .select("id, mock_test_id, status, test_results(total_score)") // TYPES-1 B2 (Class B): test_results has no `score` column
           .eq("user_id", userId)
           .in("mock_test_id", mockTestIds);
 
         const attemptMap = new Map<string, { status: string; id: string; score?: number }>();
         (userAttempts || []).forEach((att) => {
-          const res = Array.isArray(att.test_results) ? att.test_results[0] : att.test_results;
+          const res = att.test_results; // one-to-one embed (object or null)
           attemptMap.set(att.mock_test_id, {
             status: att.status,
             id: att.id,
-            score: res?.score != null ? Number(res.score) : undefined,
+            score: res?.total_score != null ? Number(res.total_score) : undefined,
           });
         });
 
@@ -359,7 +359,6 @@ export class PremiumHubService {
           ),
           test_results(
             id,
-            score,
             total_score,
             accuracy_percentage,
             percentile
@@ -378,18 +377,11 @@ export class PremiumHubService {
             mock_templates?: { test_type?: string } | null;
           } | null;
 
-          const res = Array.isArray(att.test_results)
-            ? att.test_results[0]
-            : (att.test_results as unknown as {
-                id?: string;
-                score?: number;
-                total_score?: number;
-                accuracy_percentage?: number;
-                percentile?: number;
-              } | null);
-
-          const score = res?.score != null ? Number(res.score) : undefined;
+          // TYPES-1 B2 (Class B): test_results has no `score` column (the select failed with 42703, so recent attempts,
+          // counts and best score were always empty). The score is total_score; the embed is one-to-one.
+          const res = att.test_results;
           const totalScore = res?.total_score != null ? Number(res.total_score) : undefined;
+          const score = totalScore;
           const accuracy = res?.accuracy_percentage != null ? Number(res.accuracy_percentage) : undefined;
           const percentile = res?.percentile != null ? Number(res.percentile) : undefined;
 
@@ -470,7 +462,7 @@ export class PremiumHubService {
       // GAP2-3: SUBJECT nodes with their child TOPIC nodes (parent_id). The former subjects → topics
       // embed relied on topics.subject_id → subjects, which now references canonical_taxonomy_nodes.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: subjectsData } = await (adminSb as any)
+      const { data: subjectsData } = await adminSb
         .from("canonical_taxonomy_nodes")
         .select(`
           id,

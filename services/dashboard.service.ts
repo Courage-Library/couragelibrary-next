@@ -102,7 +102,9 @@ export class DashboardService {
       batchesRes,
     ] = await Promise.all([
       supabase.from("coin_wallets").select("current_balance, lifetime_earned").eq("user_id", userId).maybeSingle(),
-      supabase.from("user_streaks").select("current_streak, longest_streak, freeze_active").eq("user_id", userId).maybeSingle(),
+      supabase.from("user_streaks").select("current_streak, longest_streak, is_frozen").eq("user_id", userId).maybeSingle(), // TYPES-1 B2 (Class B, B1 carry-over): column is is_frozen
+      // TYPES-1:B-DSH-READINESS (tracked, LOOP-1) — user_exam_readiness is per exam with readiness_index / *_pct factors and no
+      // overall_readiness_pct / predicted_score; this read always errors (42703). Mapping the readiness model is a LOOP-1 decision.
       supabase.from("user_exam_readiness").select("overall_readiness_pct, predicted_score").eq("user_id", userId).maybeSingle(),
       supabase.from("user_topic_mastery").select("id, topic_id, mastery_percentage, status, topics:canonical_taxonomy_nodes!user_topic_mastery_canonical_topic_id_node_fkey(name)").eq("user_id", userId).order("mastery_percentage", { ascending: false }).limit(6),
       supabase.from("daily_study_recommendations").select("id, recommendation_title, item_type, estimated_minutes, priority, is_completed").eq("user_id", userId).limit(5),
@@ -113,7 +115,7 @@ export class DashboardService {
     ]);
 
     const walletData = walletRes.data as { current_balance: number; lifetime_earned: number } | null;
-    const streakData = streakRes.data as { current_streak: number; longest_streak: number; freeze_active: boolean } | null;
+    const streakData = streakRes.data;
     const readinessData = readinessRes.data as { overall_readiness_pct: number; predicted_score: number } | null;
 
     // TYPES-1:B-DSH-MASTERY (tracked) — user_topic_mastery has canonical_topic_id / mastery_score and no status (DSH-88);
@@ -169,7 +171,7 @@ export class DashboardService {
       streak: streakData ? {
         current_streak: streakData.current_streak,
         longest_streak: streakData.longest_streak,
-        freeze_active: streakData.freeze_active,
+        freeze_active: streakData.is_frozen,
       } : { current_streak: 0, longest_streak: 0, freeze_active: false },
       readiness: readinessData ? {
         overall_score: Number(readinessData.overall_readiness_pct) || 0,

@@ -3,12 +3,6 @@
   "rule": "Values may only go down. scripts/test_types1.cjs T-03/T-07 fail if any current value is ABOVE these. Each batch lowers queryEscapes by its batch size and commits the new ratchet (node scripts/test_types1.cjs --update-ratchet).",
   "remaining": [
     {
-      "batch": "B2",
-      "owner": "TYPES-1 batch B2",
-      "count": 45,
-      "scope": "^(app/admin/rewards/actions\\.ts|services/community\\.service\\.ts|services/descriptive\\.service\\.ts|services/flashcard\\.service\\.ts|services/gamification\\.service\\.ts|services/institute\\.service\\.ts|services/premium-hub\\.service\\.ts)$"
-    },
-    {
       "batch": "B3",
       "owner": "DEFERRED until after TEST-CA (waiver W3)",
       "count": 57,
@@ -34,8 +28,8 @@
     }
   ],
   "values": {
-    "queryEscapes": 272,
-    "asAny": 367,
+    "queryEscapes": 227,
+    "asAny": 324,
     "colonAny": 939,
     "unknownAs": 85,
     "tsExpectError": 6,

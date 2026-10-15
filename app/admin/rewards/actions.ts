@@ -132,7 +132,7 @@ export async function uploadRewardImageAction(
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = createAdminServerSupabaseClient() as any;
+  const supabase = createAdminServerSupabaseClient();
   const ext = file.name.split(".").pop() || (file.type === "image/webp" ? "webp" : "png");
   const filename = `${rewardId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
   const path = `rewards/${filename}`;

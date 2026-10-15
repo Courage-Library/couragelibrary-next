@@ -850,7 +850,8 @@ export class PremiumQuestionGeneratorService {
       negative_mark: params.negativeMark,
     }));
 
-    const rpcCall = adminSb.rpc as unknown as (
+    // TYPES-1 B2 (Class B): an unbound `adminSb.rpc` loses `this` and threw "Cannot read properties of undefined (reading 'rest')".
+    const rpcCall = adminSb.rpc.bind(adminSb) as unknown as (
       fn: string,
       args: Record<string, unknown>
     ) => Promise<{ data: unknown; error: { message: string } | null }>;

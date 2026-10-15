@@ -1,12 +1,7 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { LearningResolverService } from "@/services/learning/learning-resolver.service";
 import { FEATURE_DISABLED_CODE, isFeatureEnabled } from "@/config/features";
-import type { Json } from "@/types/database";
-
-/** TYPES-1 B1: a jsonb RPC result that must be a JSON object (anything else → null). */
-function rpcJsonObject<T extends object>(value: Json): T | null {
-  return value !== null && typeof value === "object" && !Array.isArray(value) ? (value as T) : null;
-}
+import { rpcJsonObject } from "@/lib/supabase/rpc";
 
 export interface ArticleItem {
   id: string;

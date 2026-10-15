@@ -1,4 +1,5 @@
 ﻿import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { rpcJsonObject } from "@/lib/supabase/rpc";
 
 export interface FlashcardDeckItem {
   id: string;
@@ -89,14 +90,14 @@ export class FlashcardService {
       user ? supabase.from("user_flashcard_reviews").select("deck_id").eq("user_id", user.id).lte("next_review_due_at", new Date().toISOString()) : Promise.resolve({ data: [] }),
     ]);
 
-    const rawDecks = (decksRes.data as any[]) || [];
+    const rawDecks = decksRes.data || [];
     const progressMap = new Map<string, any>();
-    ((progressRes.data as any[]) || []).forEach((p) => {
+    (progressRes.data || []).forEach((p) => {
       progressMap.set(p.deck_id, p);
     });
 
     const dueMap = new Map<string, number>();
-    ((dueReviewsRes.data as any[]) || []).forEach((d) => {
+    (dueReviewsRes.data || []).forEach((d) => {
       dueMap.set(d.deck_id, (dueMap.get(d.deck_id) || 0) + 1);
     });
 
@@ -107,7 +108,7 @@ export class FlashcardService {
         slug: d.slug,
         title: d.title_en,
         description: d.description,
-        accessTier: d.access_tier,
+        accessTier: d.access_tier as FlashcardDeckItem["accessTier"],
         cardCount: d.card_count,
         isCurated: d.is_curated,
         topicName: d.topics?.name || null,
@@ -222,9 +223,9 @@ export class FlashcardService {
       user ? supabase.from("user_flashcard_reviews").select("card_id, repetition_level, interval_days, ease_factor").eq("deck_id", deckId).eq("user_id", user.id) : Promise.resolve({ data: [] }),
     ]);
 
-    const rawCards = (cardsRes.data as any[]) || [];
+    const rawCards = cardsRes.data || [];
     const reviewsMap = new Map<string, any>();
-    ((reviewsRes.data as any[]) || []).forEach((r) => {
+    (reviewsRes.data || []).forEach((r) => {
       reviewsMap.set(r.card_id, r);
     });
 
@@ -262,7 +263,7 @@ export class FlashcardService {
    */
   static async submitCardReview(cardId: string, rating: number): Promise<CardReviewResponse> {
     const supabase = await createServerSupabaseClient();
-    const rpcCall = supabase.rpc as any;
+    const rpcCall = supabase.rpc.bind(supabase);
 
     const { data, error } = await rpcCall("fn_submit_flashcard_review", {
       p_card_id: cardId,
@@ -273,7 +274,7 @@ export class FlashcardService {
       return { success: false, error: error?.message || "Failed to submit card review" };
     }
 
-    return data as CardReviewResponse;
+    return rpcJsonObject<CardReviewResponse>(data) ?? { success: false, error: "Failed to submit card review" };
   }
 
   /**
@@ -281,7 +282,7 @@ export class FlashcardService {
    */
   static async completeDeckSession(deckId: string): Promise<{ success: boolean; error?: string }> {
     const supabase = await createServerSupabaseClient();
-    const rpcCall = supabase.rpc as any;
+    const rpcCall = supabase.rpc.bind(supabase);
 
     const { data, error } = await rpcCall("fn_complete_deck_review_session", {
       p_deck_id: deckId,
