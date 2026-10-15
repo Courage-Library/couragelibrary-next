@@ -78,7 +78,7 @@ export default async function MockTestTakePage({ params }: Props) {
     // 2. If id is a mock_test_id, resolve today's completed attempt (for daily) or latest completed attempt
     const { data: userAttempts } = await adminSb
       .from("test_attempts")
-      .select("id, started_at, status, submitted_at, test_results(id, total_score, score)")
+      .select("id, started_at, status, submitted_at, test_results(id, total_score)") // TYPES-1 CLOSE (Class B): test_results has no `score` column (42703)
       .eq("mock_test_id", id)
       .eq("user_id", user.id)
       .order("started_at", { ascending: false });

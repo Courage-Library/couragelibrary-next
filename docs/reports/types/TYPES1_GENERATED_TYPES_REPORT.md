@@ -1,6 +1,9 @@
 # TYPES-1: Generated database types + typed Supabase clients (decision #24)
 
-> **STATUS: IN PROGRESS.** The batch plan is approved with changes (§7). Order: B0 → C → B1 → B2 → B6 → B4 → CLOSE. B5 moved to GAP2-4; B3 deferred until after TEST-CA. Per-batch results are in §8.
+> **STATUS: CLOSED** (2026-10-15).
+> - Order executed: B0 → C → B1 → B2 → B6 → B4 → CLOSE.
+> - B5 moved to GAP2-4; B3 deferred until after TEST-CA.
+> - Final state: §9. Tracked items by owner: §10. Owner production smokes: §11.
 
 ## 1. Forensics
 
@@ -591,4 +594,146 @@ The remaining `supabaseClient?: any` parameters (32) became `AppSupabaseClient`.
 | Signed-in smokes | **`student-mistake`, `student-pages`, `admin-pages`, `staff-content` all passed** |
 | Baseline | **NO DIFF** |
 
-TYPES-1 STATUS: IN PROGRESS (B0, C, B1, B2, B6, B4 complete; next: CLOSE).
+### CLOSE: full-codebase drift audit and final regressions
+
+**Close-time audit.**
+- The live select audit was run over **all** of `app/`, `services/`, `lib/`, `actions/` and `components/`: 823 literal selects, read-only.
+- It found **2 more live student defects**, in files that were in no batch because they had no escapes:
+
+| # | Location | Defect | Effect before | Resolution |
+|---|---|---|---|---|
+| X1 | `app/mock-tests/[id]/page.tsx` (instructions) | `test_results(score)` does not exist (42703) | The instructions page never recognised a submitted attempt, so it always offered "Start" instead of "View result" | **Fixed** (select `total_score` only) |
+| X2 | `app/mock-tests/[id]/take/page.tsx` | Same | A completed daily mock was never redirected to its result | **Fixed** |
+
+**Permanent guard: `scripts/test_types1_close.cjs`.**
+- **X-1** re-runs the full audit. Every failing select must belong to an owned bucket, or the test fails as **new drift**:
+  - a quarantined module: 170 failing selects, Class C, flags off
+  - a remaining batch scope: 10 (B3 / B5)
+  - a GAP2-4 / TEST-CA owned file: 2
+  - a registered tracked Class B read: 10
+- **X-2** checks the ratchet: only B3 and B5 remain, and the `tsExpectError` exceptions account for every directive.
+- **X-3** checks that every Class B tag has an owner.
+- Result: 631 ok / 192 failing, **all owned**.
+
+**Final regressions** (local production build of the close code):
+
+| Gate | Result |
+|---|---|
+| tsc / lint / build | 0 / 0 / OK |
+| test_types1 (incl. `db:types:check`) | 8/8 |
+| test_types1_close | 3/3 |
+| test_types1_b4 | 5/5 |
+| test_types1_b6 | 5/5 |
+| test_types1_b2 | 6/6 |
+| test_types1_b1 | 8/8 |
+| QF-1 | 73/73 + 15/15 |
+| GAP2-2a | 11/11 + 18/18 |
+| GAP2-3 | 15/15 |
+| SEC-1A | 20/20 |
+| SEC-1B | 26/26 + live 32/32 |
+| SEC-1C | 22/22 + live 29/29 |
+| SEC-1D | 14/14 + live 19/19 |
+| DRIFT-1c | 46/46 |
+| QA identity guard | 8/8 |
+| HOTFIX-1 | 4/4 |
+| **E2E** | **13/13** |
+| Signed-in smokes | **`student-mistake`, `student-pages`, `admin-pages` (incl. `/admin/questions`), `staff-content` all passed** |
+| Baseline | **NO DIFF** |
+
+## 9. Final state
+
+**Ratchet:**
+
+| Counter | Start (B0 inventory) | After C | **Final** |
+|---|---|---|---|
+| queryEscapes | 532 | 353 | **121** |
+| asAny | 609 | 443 | **256** |
+| colonAny | 960 | 950 | **887** |
+| unknownAs | 93 | 89 | **83** |
+| tsExpectError | 0 | 0 | **17** (all registered Class B; `exceptions[]` B1 +6, B6 +6, B4 +5) |
+| tsIgnore | 0 | 0 | **0** |
+
+**The 121 remaining query escapes:**
+
+| Count | Where | Owner |
+|---|---|---|
+| 57 | B3 current affairs | after TEST-CA (waiver W3; legacy CA suites disable TLS) |
+| 62 | B5 exam knowledge / syllabus | GAP2-4 step 0 |
+| 2 | Tracked `TYPES-1:C-ADAPTIVE-MANAGER` comments (client component) | ADAPTIVE re-enable |
+
+**Batches and commits:**
+
+| Batch | Commit |
+|---|---|
+| B0 | `ed380ae` |
+| C | `8ef9bf7` |
+| B1 | `dc8e885` |
+| B2 | `e4b3e4c` |
+| B6 | `9826eed` |
+| B4 | `763459a` |
+| CLOSE | this commit |
+
+**Infrastructure added** (all tested):
+- `types/database.ts` (ref-locked generator, `db:types:check`)
+- `lib/supabase/types.ts` (AppSupabaseClient, `fromSsrClient`)
+- `lib/supabase/rpc.ts` (`rpcJsonObject`, `sqlNullArg`)
+- `lib/supabase/quarantine.ts`
+- `lib/deploy/version.ts` + `/api/health` `version`
+- `scripts/types1-select-audit.cjs`
+- `scripts/smoke/signed-in-smoke.cjs`
+- `scripts/smoke/wait-for-deploy.cjs`
+
+**Class B over TYPES-1:** 36 found (B1 13, B2 6, B6 11, B4 4, CLOSE 2). **27 fixed**, each with live before/after evidence; **9 tracked** (10 register tags). Most of the fixes were user-visible failures:
+- mistake detail
+- drills
+- community threads
+- `/premium`
+- `/admin/billing`
+- the admin question bank
+- the content-studio picker
+- mock instructions / resume
+
+## 10. Tracked items by owner (register: `docs/reports/types/TYPES1_ESCAPES.json`)
+
+| Owner | Tags | What is broken today |
+|---|---|---|
+| **LOOP-1** | `B-DSH-MASTERY`, `B-DSH-RECOMMENDATIONS`, `B-DSH-VAULT-STATUS`, `B-DSH-READINESS` | Dashboard mastery, recommendations, mistake count and readiness are always empty (legacy columns). Also LOOP-1's first item: `recordExamMistakes` swallows insert errors. |
+| **Commerce** | `B-BILLING-SUB-STATUS` (×2), `B-DRILL-REWARD-ARGS` | `/billing` and `/pricing` always show FREE; drill coins are never credited (coins_awarded now honestly 0) |
+| **Community** | `B-ADM-DESCRIPTIVE`, `B-ADM-COMMUNITY`, `B-ADM-INSTITUTES` | Admin create descriptive prompt / resolve flag / create institute fail; the manager components' item types do not match the data (lists now read the real tables) |
+| **GAP2-4** | `B-CURRICULUM-MAPPING`; B5 (62 escapes) | Exam ↔ unit mapping on the legacy schema. ⚠ **`/admin/content` coverage shows synthesised (fabricated) coverage** when those reads fail, which is today always. |
+| **TEST-CA** | B3 (57 escapes) | Current affairs typing deferred; the legacy CA suites must not run until then |
+| **ADAPTIVE / LIVE_TESTS / BATTLES / PSYCHOMETRICS re-enable** | 25 `TYPES-1:C-*` | Quarantined modules (flags off), with 170 failing selects against undeployed schema |
+
+## 11. Follow-ups, production verification, status
+
+**Follow-ups recorded (not done in TYPES-1):**
+1. **⚠ Fabricated coverage on `/admin/content`** (decision #15). GAP2-4 should remove it first, or an earlier hotfix should.
+2. LOOP-1: dashboard model and mistake-recording reliability.
+3. Commerce: entitlement read and drill reward.
+4. Community: the three admin modules.
+5. **`scripts/test_phase5e1_rewards.cjs` sets `NODE_TLS_REJECT_UNAUTHORIZED='0'`.** It violates the TLS rule, was not run, and should be fixed or removed.
+6. A pinned `@supabase/ssr` upgrade would allow deleting `fromSsrClient`; it needs its own phase with auth/E2E regression.
+7. `scripts/types1-select-audit.cjs` only checks literal selects. Template or variable selects and RLS behaviour are outside its scope, so the signed-in smokes cover those.
+
+**Production verification:**
+- **Anonymous, done by me after every batch.** The deploy is detected by `/api/health` `version` from B6 on.
+  - `GET /` and `/api/health` → 200
+  - anonymous `/admin` → 307 to `/auth/login?next=%2Fadmin`
+  - `/articles` → 200 (B4 / close)
+- **Signed-in, by the owner at close (architect policy).** These need QA sign-in on the production site:
+
+  ```
+  node scripts/smoke/signed-in-smoke.cjs student-mistake https://couragelibrary-next.vercel.app
+  node scripts/smoke/signed-in-smoke.cjs admin-home      https://couragelibrary-next.vercel.app
+  node scripts/smoke/signed-in-smoke.cjs admin-pages     https://couragelibrary-next.vercel.app
+  node scripts/smoke/signed-in-smoke.cjs staff-content   https://couragelibrary-next.vercel.app
+  ```
+
+  - `student-mistake` needs qa-student journey data. It was prepared with a local journey run (`E2E_KEEP_USER=1`).
+  - Afterwards, run the data-only cleanup:
+
+  ```
+  E2E_STUDENT_EMAIL=qa-student@courage-library.test E2E_KEEP_USER=1 node scripts/e2e/cleanup-student.cjs
+  ```
+
+**TYPES-1 STATUS: CLOSED.** All batches B0, C, B1, B2, B6 and B4 are complete; B3 is owned by TEST-CA and B5 by GAP2-4. Every gate and the anonymous production checks passed. Per the architect policy, the owner runs the signed-in production smokes listed in §11.
