@@ -8,11 +8,12 @@ import { MemoryStorageProvider } from './memory-storage.provider';
 import { SupabaseStorageProvider } from './supabase-storage.provider';
 import { S3CompatibleStorageProvider } from './s3-storage.provider';
 import { StorageProviderType } from '@/types/learning-artifact';
+import type { AppSupabaseClient } from '@/lib/supabase/types';
 
 export class StorageFactory {
   private static defaultProvider: IStorageProvider | null = null;
 
-  static getProvider(type: StorageProviderType = 'MEMORY', supabaseClient?: any): IStorageProvider {
+  static getProvider(type: StorageProviderType = 'MEMORY', supabaseClient?: AppSupabaseClient): IStorageProvider {
     switch (type) {
       case 'MEMORY':
         return new MemoryStorageProvider();

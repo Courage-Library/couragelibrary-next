@@ -8,6 +8,8 @@
  *           student-pages     qa-student: community, descriptive, flashcards, institutes, premium, store, wallet,
  *                             dashboard render (200, no not-found, no error boundary); first thread / deck detail too
  *           admin-home        qa-admin:  /admin renders (200, no not-found)
+ *           admin-pages       qa-admin:  B6 admin pages render (questions, sections, billing, community, descriptive,
+ *                             institutes, mock-tests-management, bulk-import, taxonomy, exams) — no error boundary
  *           staff-content     qa-staff:  /admin/content renders (200, no not-found)
  *   baseUrl defaults to http://localhost:3100. Passwords come from .env.local (QA_*_PASSWORD).
  * The student check needs data: run the E2E journey first (E2E_KEEP_USER=1) and the data-only cleanup after.
@@ -22,6 +24,7 @@ const IDS = {
   'student-mistake': ['qa-student@courage-library.test', 'QA_STUDENT_PASSWORD'],
   'student-pages': ['qa-student@courage-library.test', 'QA_STUDENT_PASSWORD'],
   'admin-home': ['qa-admin@courage-library.test', 'QA_ADMIN_PASSWORD'],
+  'admin-pages': ['qa-admin@courage-library.test', 'QA_ADMIN_PASSWORD'],
   'staff-content': ['qa-staff@courage-library.test', 'QA_STAFF_PASSWORD'],
 };
 let fails = 0;
@@ -91,6 +94,14 @@ function readMistakeDetail() {
       await page.goto(BASE + list, { waitUntil: 'networkidle', timeout: 120000 });
       const href = await page.$$eval('a[href]', (as, src) => { const r = new RegExp(src); const h = as.map((a) => a.getAttribute('href')).find((x) => r.test(x || '')); return h || null; }, re.source);
       if (href) await visit(href); else console.log(`INFO  no detail link on ${list} (no data)`);
+    }
+  } else if (CHECK === 'admin-pages') {
+    const ADMIN = ['/admin', '/admin/questions', '/admin/sections', '/admin/billing', '/admin/community', '/admin/descriptive', '/admin/institutes', '/admin/mock-tests-management', '/admin/bulk-import', '/admin/taxonomy', '/admin/exams'];
+    for (const p of ADMIN) {
+      const r = await page.goto(BASE + p, { waitUntil: 'networkidle', timeout: 180000 });
+      const html = await page.content();
+      const errorBoundary = /Something went wrong|Application error/i.test(html);
+      check(`${p} → 200, renders`, r && r.status() === 200 && !(await isNotFound(page)) && !errorBoundary, String(r && r.status()) + (errorBoundary ? ' error-boundary' : ''));
     }
   } else {
     const p = CHECK === 'admin-home' ? '/admin' : '/admin/content';

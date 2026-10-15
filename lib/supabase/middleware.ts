@@ -2,6 +2,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getAppEnv } from "@/config/env";
 import type { Database } from "@/types/database";
+import { fromSsrClient } from "@/lib/supabase/types";
 import { sanitizeAdminPath } from "@/lib/auth/safe-redirect";
 
 export interface CookieToSet {
@@ -24,7 +25,8 @@ export async function updateSession(request: NextRequest) {
     return supabaseResponse;
   }
 
-  const supabase = createServerClient<Database>(
+  // TYPES-1 B6: typed as SupabaseClient<Database> via fromSsrClient (@supabase/ssr 0.5.2 generic-order mismatch).
+  const supabase = fromSsrClient(createServerClient<Database>(
     supabaseUrl,
     supabaseAnonKey,
     {
@@ -45,7 +47,7 @@ export async function updateSession(request: NextRequest) {
         },
       },
     }
-  );
+  ));
 
   // Refresh auth token
   let hasUser = false;

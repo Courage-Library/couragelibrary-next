@@ -17,6 +17,8 @@
  */
 
 import { guardAdminAction } from '@/lib/auth/require-admin';
+import type { AppSupabaseClient } from '@/lib/supabase/types';
+import type { Json, TablesInsert } from '@/types/database';
 import { createAdminServerSupabaseClient } from '@/lib/supabase/server';
 
 import {
@@ -45,8 +47,7 @@ export interface CreateTaxonomyNodeInput {
 interface AdminContext {
   userId: string | null;
   userEmail: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any;
+  supabase: AppSupabaseClient;
 }
 
 const NODE_COLUMNS = 'id, parent_id, root_subject_id, name, slug, node_type, node_depth, hierarchy_path, display_order, is_active';
@@ -121,8 +122,9 @@ export class TaxonomyService {
       action_type: actionType,
       target_entity: 'canonical_taxonomy_node',
       target_id: targetId,
-      old_value: oldValue,
-      new_value: newValue,
+      // audit payloads are plain JSON-serialisable objects built in this service
+      old_value: oldValue as Json | null,
+      new_value: newValue as Json | null,
       reason: null,
     });
     if (error) console.warn(`[TaxonomyService] audit log insert failed for ${actionType}: ${error.code || 'unknown'}`);
@@ -174,7 +176,8 @@ export class TaxonomyService {
       return fail('TAXONOMY_RULE', `A ${input.nodeType} node cannot be placed ${parentType ? `under a ${parentType} node` : 'at the root'}.`);
     }
 
-    const row: Record<string, unknown> = {
+    // hierarchy_path / node_depth are computed by the BEFORE INSERT trigger (GAP2-1b), so they are not sent.
+    const row: Omit<TablesInsert<'canonical_taxonomy_nodes'>, 'hierarchy_path' | 'node_depth'> = {
       parent_id: input.parentId || null,
       name,
       slug,
@@ -183,7 +186,7 @@ export class TaxonomyService {
       is_active: true,
       metadata: input.description && input.description.trim() ? { source: 'TAXONOMY_ADMIN', description: input.description.trim() } : { source: 'TAXONOMY_ADMIN' },
     };
-    const { data, error } = await ctx.supabase.from('canonical_taxonomy_nodes').insert(row).select(NODE_COLUMNS).single();
+    const { data, error } = await ctx.supabase.from('canonical_taxonomy_nodes').insert(row as TablesInsert<'canonical_taxonomy_nodes'>).select(NODE_COLUMNS).single();
     if (error || !data) {
       const m = mapTaxonomyDbError(error);
       return fail(m.code, m.error);

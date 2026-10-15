@@ -1,6 +1,7 @@
 import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { PremiumEntitlementService, PremiumQuotaKey } from "@/services/premium-entitlement.service";
-import type { Json } from "@/types/database";
+import type { Json, TablesUpdate } from "@/types/database";
+import { rpcJsonObject } from "@/lib/supabase/rpc";
 
 // ============================================================================
 // TYPES & INTERFACES
@@ -581,7 +582,7 @@ export class AdminPremiumService {
     if (!trimmed) throw new Error("Please provide a candidate email address or user ID.");
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const supabase = createAdminServerSupabaseClient() as any;
+    const supabase = createAdminServerSupabaseClient();
 
     // 1. Fetch user list from auth to resolve email reliably
     const { data: authData } = await supabase.auth.admin.listUsers();
@@ -979,7 +980,7 @@ export class AdminPremiumService {
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const supabase = createAdminServerSupabaseClient() as any;
+    const supabase = createAdminServerSupabaseClient();
     const { data: oldMock, error: fetchErr } = await supabase
       .from("mock_tests")
       .select("id, title, lifecycle_status, generation_metadata")
@@ -990,14 +991,14 @@ export class AdminPremiumService {
       throw new Error("Target mock test not found.");
     }
 
-    const currentMeta = (oldMock.generation_metadata as Record<string, unknown>) || {};
-    const updatedMeta: Record<string, unknown> = {
+    const currentMeta = rpcJsonObject<{ [key: string]: Json | undefined }>(oldMock.generation_metadata) ?? {};
+    const updatedMeta: { [key: string]: Json | undefined } = {
       ...currentMeta,
       ...(params.isFeatured !== undefined ? { is_featured: params.isFeatured } : {}),
       ...(params.curatedBadge !== undefined ? { curated_badge: params.curatedBadge } : {}),
     };
 
-    const updatePayload: Record<string, unknown> = {
+    const updatePayload: TablesUpdate<"mock_tests"> = {
       generation_metadata: updatedMeta,
       updated_at: new Date().toISOString(),
     };
@@ -1065,7 +1066,7 @@ export class AdminPremiumService {
 
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const supabase = createAdminServerSupabaseClient() as any;
+      const supabase = createAdminServerSupabaseClient();
       const nowIso = new Date().toISOString();
 
       const [activeEntitlementsRes, totalEntitlementsRes, attemptsRes, dynamicMocksRes] = await Promise.all([
@@ -1106,13 +1107,13 @@ export class AdminPremiumService {
       // Compute unique active candidate count
       const uniqueActiveUserIds = new Set<string>();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (activeEntitlementsRes?.data || []).forEach((e: any) => {
+      (activeEntitlementsRes?.data || []).forEach((e) => {
         if (e.user_id) uniqueActiveUserIds.add(e.user_id);
       });
 
       // Compute test starts, completions, and quota usage breakdown
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const attempts = (attemptsRes?.data || []).filter((att: any) => att.mock_tests?.is_free === false);
+      const attempts = (attemptsRes?.data || []).filter((att) => att.mock_tests?.is_free === false);
       const totalAttempts = attempts.length;
       let completedCount = 0;
       const quotaUsageMap: Record<string, number> = {

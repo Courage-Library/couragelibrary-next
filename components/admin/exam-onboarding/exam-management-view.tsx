@@ -157,7 +157,7 @@ export function ExamManagementView({
           examId: res.data.examId,
           slug: res.data.slug,
           title: res.data.title,
-          cycleId: (res.data as any).cycleId,
+          cycleId: res.data.cycleId,
           orgName: orgDisplayName,
         });
         router.refresh();

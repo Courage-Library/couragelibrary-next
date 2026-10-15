@@ -11,5 +11,7 @@ export default async function AdminDescriptivePage() {
   await requireAdminPage({ allowStaff: true, path: "/admin/descriptive" });
   const items = await AdminService.getAdminDescriptive();
 
+  // TYPES-1:B-ADM-DESCRIPTIVE (tracked, owner Community) — the manager component's item type (DescriptiveItem (minWords, …) does not match descriptive_questions).
+  // @ts-expect-error TYPES-1:B-ADM-DESCRIPTIVE — component/data shape mismatch (see above)
   return <AdminDescriptiveManager items={items} />;
 }
