@@ -15,6 +15,7 @@
  */
 
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import type { AppSupabaseClient } from '@/lib/supabase/types';
 import { DocumentType } from '@/types/learning-compiler';
 import { CANONICAL_DOCUMENT_TYPES } from '@/types/curriculum-coverage';
 
@@ -91,7 +92,7 @@ export class CanonicalCurriculumBlueprintService {
   /**
    * 1. Forensic Curriculum Inventory & Structural Hierarchy Audit
    */
-  static async auditCurriculumInventory(supabaseClient?: any): Promise<CurriculumInventoryAuditReport> {
+  static async auditCurriculumInventory(supabaseClient?: AppSupabaseClient): Promise<CurriculumInventoryAuditReport> {
     const supabase = supabaseClient || (await createServerSupabaseClient());
 
     const [
@@ -173,7 +174,7 @@ export class CanonicalCurriculumBlueprintService {
   /**
    * 2. Question Bank Coverage & Density Distribution Audit
    */
-  static async auditQuestionBankCoverage(supabaseClient?: any): Promise<QuestionBankCoverageAuditReport> {
+  static async auditQuestionBankCoverage(supabaseClient?: AppSupabaseClient): Promise<QuestionBankCoverageAuditReport> {
     const supabase = supabaseClient || (await createServerSupabaseClient());
 
     const [
@@ -356,7 +357,7 @@ export class CanonicalCurriculumBlueprintService {
    */
   static async evaluateAuthoringReadiness(
     unitId: string,
-    supabaseClient?: any
+    supabaseClient?: AppSupabaseClient
   ): Promise<AuthoringReadinessReport> {
     const supabase = supabaseClient || (await createServerSupabaseClient());
 
@@ -412,7 +413,7 @@ export class CanonicalCurriculumBlueprintService {
    */
   static async auditLearnMoreResolutionChain(
     questionId: string,
-    supabaseClient?: any
+    supabaseClient?: AppSupabaseClient
   ): Promise<LearnMoreResolutionResult> {
     const supabase = supabaseClient || (await createServerSupabaseClient());
 

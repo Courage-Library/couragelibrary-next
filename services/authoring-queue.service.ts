@@ -14,6 +14,7 @@
  */
 
 import { createServerSupabaseClient, createAdminServerSupabaseClient } from '@/lib/supabase/server';
+import type { AppSupabaseClient } from '@/lib/supabase/types';
 import { DocumentType, ReviewStatus } from '@/types/learning-compiler';
 import { CANONICAL_DOCUMENT_TYPES } from '@/types/curriculum-coverage';
 import {
@@ -97,7 +98,7 @@ export class AuthoringQueueService {
    * 1. Get Dynamic Authoring Queue Tasks
    */
   static async getQueueTasks(
-    supabaseClient?: any,
+    supabaseClient?: AppSupabaseClient,
     filters?: AuthoringQueueFilters
   ): Promise<AuthoringTask[]> {
     const matrix = await CurriculumCoverageService.getCurriculumCoverageMatrix(supabaseClient, {
@@ -218,7 +219,7 @@ export class AuthoringQueueService {
    * Alias for getQueueTasks
    */
   static async getAuthoringQueue(
-    supabaseClient?: any,
+    supabaseClient?: AppSupabaseClient,
     filters?: AuthoringQueueFilters
   ): Promise<AuthoringTask[]> {
     return this.getQueueTasks(supabaseClient, filters);
@@ -232,7 +233,7 @@ export class AuthoringQueueService {
     learningUnitIdOrTaskId: string,
     docTypeOrOptions?: any,
     targetExamIdOrClient?: any,
-    supabaseClient?: any
+    supabaseClient?: AppSupabaseClient
   ): Promise<{
     taskId: string;
     learningUnitId: string;
@@ -246,7 +247,7 @@ export class AuthoringQueueService {
     let unitId: string;
     let docType: DocumentType;
     let targetExamId: string | undefined;
-    let client: any;
+    let client: AppSupabaseClient;
 
     if (learningUnitIdOrTaskId.startsWith('task-')) {
       const parsed = this.parseTaskId(learningUnitIdOrTaskId);
@@ -308,7 +309,7 @@ export class AuthoringQueueService {
   static async generateBatchPromptBundle(
     taskIds: string[],
     optionsOrClient?: any,
-    supabaseClient?: any
+    supabaseClient?: AppSupabaseClient
   ): Promise<BatchPromptBundleResult> {
     if (!taskIds || taskIds.length === 0) {
       throw new Error('At least one task ID must be selected for batch prompt generation.');
@@ -376,7 +377,7 @@ export class AuthoringQueueService {
       adminUserId: string;
       adminEmail?: string;
     },
-    supabaseClient?: any
+    supabaseClient?: AppSupabaseClient
   ): Promise<{
     success: boolean;
     taskId: string;
@@ -504,7 +505,7 @@ export class AuthoringQueueService {
    * 5. Queue Summary KPIs
    */
   static async getQueueSummary(
-    supabaseClient?: any,
+    supabaseClient?: AppSupabaseClient,
     filters?: AuthoringQueueFilters
   ): Promise<AuthoringQueueSummary> {
     const tasks = await this.getQueueTasks(supabaseClient, filters);
