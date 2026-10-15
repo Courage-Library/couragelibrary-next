@@ -375,6 +375,13 @@ async function dbTests() {
   });
 
   await test('D-07 rollback dry-run: docs/database/rollback/075_rollback.sql executes inside BEGIN … ROLLBACK and restores projection FKs', () => rw(async () => {
+    // GAP2-4a (078) added a FK on canonical_taxonomy_nodes (id, node_type); the documented order is 080 → 079 → 078 → 075.
+    // The dependent rollbacks run first in the same rolled-back transaction (their own BEGIN; / COMMIT; lines removed).
+    for (const dep of ['080', '079', '078']) {
+      const sql = read(`docs/database/rollback/${dep}_rollback.sql`);
+      assert((sql.match(/^s*(BEGIN|COMMIT);s*$/gm) || []).length === 2, `${dep}_rollback.sql must have exactly one BEGIN; and one COMMIT;`);
+      await c.query(sql.replace(/^s*(BEGIN|COMMIT);s*$/gm, ''));
+    }
     await c.query(read(ROLLBACK));
     const back = (await q(`SELECT count(*)::int n FROM pg_constraint con JOIN pg_class t ON t.oid=con.confrelid WHERE con.contype='f' AND con.connamespace='public'::regnamespace AND t.relname IN ('subjects','topics','subtopics')`))[0].n;
     const gen = (await q(`SELECT count(*)::int n FROM information_schema.columns WHERE table_schema='public' AND column_name ~ '_node_type$' AND is_generated='ALWAYS'`))[0].n;

@@ -16,6 +16,9 @@
  *       policies are allowed only on the explicit PUBLIC_REFERENCE allow-list (or PENDING_RULING, reported loudly)
  *   P-7 SEC-HOTFIX-5 (077): leaderboard_weekly_snapshots / user_battle_stats are own-rows-only for students,
  *       anon cannot read the leaderboard; behaviour probed with two real users inside a rolled-back transaction
+ *   P-8 GAP2-4a syllabus: no direct writes for students / staff (grants), anon cannot EXECUTE write RPCs, students are
+ *       denied (42501), staff create / edit DRAFTs but cannot publish / archive, admin publishes, PUBLISHED rows are
+ *       immutable on the owner path except PUBLISHED → ARCHIVED (rolled back; QA staff / admin ids as JWT subjects)
  *
  * Run: node scripts/test_sec_hotfix4_rls.cjs
  */
@@ -257,9 +260,71 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assertion failed'); };
       assert(seen.strangerLeaderboard === 0, `a user with no rows saw ${seen.strangerLeaderboard} leaderboard rows`);
       return 'anon denied; student sees exactly own row in both tables; other users see none';
     });
+
+    await test('P-8 syllabus (GAP2-4a): no direct writes; student / anon cannot call write RPCs; staff edits DRAFT only; admin publishes; PUBLISHED immutable', async () => {
+      const rows = (await q(`SELECT email, id FROM auth.users WHERE email IN ('qa-staff@courage-library.test','qa-admin@courage-library.test')`)).rows;
+      const uid = Object.fromEntries(rows.map((r) => [r.email, r.id]));
+      const staff = { sub: uid['qa-staff@courage-library.test'], role: 'authenticated', app_metadata: { role: 'staff' } };
+      const admin = { sub: uid['qa-admin@courage-library.test'], role: 'authenticated', app_metadata: { role: 'admin' } };
+      const exam = (await q(`SELECT id FROM public.exams WHERE slug = 'ssc-gd'`)).rows[0].id;
+      const topic = (await q(`SELECT id FROM public.canonical_taxonomy_nodes WHERE node_type = 'TOPIC' AND is_active ORDER BY name LIMIT 1`)).rows[0].id;
+      const out = {};
+      const call = async (key, claims, role, sql, params) => {
+        await q('SAVEPOINT p8');
+        try {
+          if (role) await as(claims, role);
+          const r = (await q(sql, params)).rows[0];
+          out[key] = 'OK';
+          await q('RESET ROLE');
+          await q('RELEASE SAVEPOINT p8');
+          return r && r.r;
+        } catch (e) {
+          out[key] = e.code === '42501' ? 'DENIED' : `ERR ${e.code} ${String(e.message).slice(0, 60)}`;
+          await q('ROLLBACK TO SAVEPOINT p8');
+          await q('RESET ROLE');
+          return null;
+        }
+      };
+      await q('BEGIN READ WRITE');
+      try {
+        await call('anonCreate', {}, 'anon', `SELECT public.fn_syllabus_create_draft($1) r`, [exam]);
+        await call('studentCreate', STUDENT, 'authenticated', `SELECT public.fn_syllabus_create_draft($1) r`, [exam]);
+        await call('studentDirectInsert', STUDENT, 'authenticated', `INSERT INTO public.exam_syllabus_versions (exam_id, version_tag, version_number) VALUES ($1, 'p8', 999)`, [exam]);
+        await call('staffDirectInsert', staff, 'authenticated', `INSERT INTO public.exam_syllabus_versions (exam_id, version_tag, version_number) VALUES ($1, 'p8', 999)`, [exam]);
+        const d = await call('staffCreate', staff, 'authenticated', `SELECT public.fn_syllabus_create_draft($1) r`, [exam]);
+        const sec = await call('staffSection', staff, 'authenticated', `SELECT public.fn_syllabus_upsert_node($1, $2) r`, [d && d.version_id, { kind: 'SECTION', title: 'P8 section' }]);
+        const unit = await call('staffUnit', staff, 'authenticated', `SELECT public.fn_syllabus_upsert_node($1, $2) r`, [d && d.version_id, { kind: 'UNIT', title: 'P8 unit', parent_id: sec && sec.node_id }]);
+        await call('staffMap', staff, 'authenticated', `SELECT public.fn_syllabus_set_unit_mappings($1, $2) r`, [unit && unit.node_id, [topic]]);
+        await call('studentEditDraft', STUDENT, 'authenticated', `SELECT public.fn_syllabus_upsert_node($1, $2) r`, [d && d.version_id, { kind: 'UNIT', title: 'x', parent_id: sec && sec.node_id }]);
+        await call('staffPublish', staff, 'authenticated', `SELECT public.fn_syllabus_publish($1) r`, [d && d.version_id]);
+        await call('staffArchive', staff, 'authenticated', `SELECT public.fn_syllabus_archive_version($1) r`, [d && d.version_id]);
+        const pub = await call('adminPublish', admin, 'authenticated', `SELECT public.fn_syllabus_publish($1) r`, [d && d.version_id]);
+        await call('studentReadsPublished', STUDENT, 'authenticated', `SELECT count(*)::int r FROM public.exam_syllabus_nodes WHERE syllabus_version_id = $1`, [d && d.version_id]);
+        // owner / service-role path on the PUBLISHED version
+        await call('ownerEditPublished', null, null, `UPDATE public.exam_syllabus_nodes SET raw_title = 'x' WHERE id = $1`, [unit && unit.node_id]);
+        await call('ownerArchive', null, null, `UPDATE public.exam_syllabus_versions SET status = 'ARCHIVED', is_active = false, archived_at = now() WHERE id = $1`, [d && d.version_id]);
+        out.adminPublishSuccess = Boolean(pub && pub.success);
+      } finally {
+        await q('ROLLBACK');
+      }
+      const want = {
+        anonCreate: 'DENIED', studentCreate: 'DENIED', studentDirectInsert: 'DENIED', staffDirectInsert: 'DENIED', staffCreate: 'OK', staffSection: 'OK',
+        staffUnit: 'OK', staffMap: 'OK', studentEditDraft: 'DENIED', staffPublish: 'DENIED', staffArchive: 'DENIED', adminPublish: 'OK',
+        studentReadsPublished: 'OK', ownerArchive: 'OK', adminPublishSuccess: true,
+      };
+      const bad = Object.entries(want).filter(([k, v]) => out[k] !== v).map(([k, v]) => `${k}: ${out[k]} (expected ${v})`);
+      if (!/^ERR P0001 SYLLABUS_IMMUTABLE/.test(out.ownerEditPublished || '')) bad.push(`ownerEditPublished: ${out.ownerEditPublished} (expected SYLLABUS_IMMUTABLE)`);
+      assert(bad.length === 0, bad.join('\n        '));
+      return 'anon/student denied; direct inserts denied; staff drafts; admin publishes; published immutable, archivable';
+    });
   } finally {
     await c.end();
   }
   console.log(`\nSEC-HOTFIX-4 RLS: ${passed}/${passed + failed} passed`);
   process.exit(failed ? 1 : 0);
-})().catch((e) => { console.error('SUITE ERROR', String(e.message).replace(/postgres(ql)?:\/\/\S+/g, '[url]').slice(0, 300)); process.exit(1); });
+})().catch((e) => {
+  // AggregateError (e.g. connection failures) has an empty message; print code + nested errors so an abort is diagnosable
+  const detail = [e && e.code, e && e.message, ...((e && e.errors) || []).map((x) => `${x.code || ''} ${x.message || ''}`)].filter(Boolean).join(' | ');
+  console.error('SUITE ERROR', String(detail || e).replace(/postgres(ql)?:\/\/\S+/g, '[url]').slice(0, 600));
+  process.exit(1);
+});

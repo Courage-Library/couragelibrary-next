@@ -4,6 +4,8 @@
 -- ROLLED_BACK. Re-creates every original projection FK from taxonomy_fk_flip_log.old_definition
 -- (same names, same actions / deferrability), drops the node FKs, generated *_node_type columns,
 -- indexes created by 075, the UNIQUE (id, node_type) and the log table.
+-- PREREQUISITE (since GAP2-4a): roll back 080, 079 and 078 first. 078 adds
+-- exam_syllabus_canonical_mappings_topic_fkey → canonical_taxonomy_nodes (id, node_type), which depends on that UNIQUE.
 -- =============================================================================
 
 DO $$
