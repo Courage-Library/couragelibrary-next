@@ -3,10 +3,10 @@
 import React, { useState } from "react";
 import { executeBulkImportAction } from "@/app/admin/actions";
 import { BulkImportResult } from "@/lib/admin/bulk-importer";
-import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Alert } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/legacy/button";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/legacy/card";
+import { Alert } from "@/components/ui/legacy/alert";
+import { Badge } from "@/components/ui/legacy/badge";
 import { FileUp, AlertTriangle, X, Play, Eye } from "lucide-react";
 
 interface BulkImportModalProps {

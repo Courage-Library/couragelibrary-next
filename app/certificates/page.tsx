@@ -7,7 +7,7 @@ import { loginRedirectPath } from "@/lib/auth/safe-redirect";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { LiveTestCertificateService } from "@/services/live-test-certificate.service";
 import { Award, ShieldCheck, Trophy, Calendar, ExternalLink, ArrowRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/legacy/button";
 
 export const metadata: Metadata = {
   title: "My Certificates | Courage Library",

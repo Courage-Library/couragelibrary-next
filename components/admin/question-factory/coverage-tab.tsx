@@ -3,8 +3,8 @@
 import { actionErrorMessage } from "@/lib/actions/action-result";
 import React, { useCallback, useEffect, useState, useTransition } from "react";
 import { RefreshCw, ShieldAlert } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/legacy/button";
+import { Card } from "@/components/ui/legacy/card";
 import { qfGetCoverageAction } from "@/actions/question-factory.actions";
 import { QF_LIFECYCLE_STATUSES, type QuestionCoverageRow } from "@/types/question-factory";
 import { SELECT_CLASS, type FactoryTaxonomy } from "./types";

@@ -16,7 +16,7 @@ import { ReportIssueDialog } from "@/components/assessment/report-issue-dialog";
 import { InstructionsModal } from "@/components/assessment/instructions-modal";
 import { CandidateSecurityWatermark } from "@/components/assessment/candidate-security-watermark";
 import { OfflineAnswerQueue } from "@/lib/assessment/offline-queue";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/legacy/button";
 import {
   ChevronLeft,
   ChevronRight,

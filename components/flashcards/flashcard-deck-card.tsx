@@ -1,9 +1,9 @@
 ﻿import React from "react";
 import Link from "next/link";
 import { FlashcardDeckItem } from "@/services/flashcard.service";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/legacy/card";
+import { Badge } from "@/components/ui/legacy/badge";
+import { Button } from "@/components/ui/legacy/button";
 
 
 interface FlashcardDeckCardProps {

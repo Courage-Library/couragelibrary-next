@@ -4,9 +4,9 @@ import React, { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { DescriptiveQuestionDetail } from "@/services/descriptive.service";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/legacy/card";
+import { Badge } from "@/components/ui/legacy/badge";
+import { Button } from "@/components/ui/legacy/button";
 import { ArrowLeft, Send, Upload, FileText, ShieldAlert } from "lucide-react";
 
 interface AnswerWritingClientProps {

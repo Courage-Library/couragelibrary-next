@@ -6,9 +6,9 @@ import Link from "next/link";
 import { StudentWalletData, StreakRecoveryEligibility, StreakRecoveryResult, StoreCatalogItem } from "@/services/gamification.service";
 import { StreakRecoveryModal } from "@/components/gamification/streak-recovery-modal";
 import { RedeemModal } from "@/components/store/redeem-modal";
-import { Container } from "@/components/ui/container";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Container } from "@/components/ui/legacy/container";
+import { Card } from "@/components/ui/legacy/card";
+import { Badge } from "@/components/ui/legacy/badge";
 import {
   Coins,
   Flame,

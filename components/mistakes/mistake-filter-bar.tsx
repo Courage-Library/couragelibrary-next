@@ -3,7 +3,7 @@
 import React, { useState, useTransition } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Search, SlidersHorizontal, X, Bookmark } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/legacy/button";
 
 interface MistakeFilterBarProps {
   subjects: Array<{ id: string; name: string }>;

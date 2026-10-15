@@ -2,8 +2,8 @@
 
 import React from "react";
 import Link from "next/link";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/legacy/card";
+import { Badge } from "@/components/ui/legacy/badge";
 import { ArrowRight, BookOpen, ShieldCheck } from "lucide-react";
 import { CandidatePublishedModule, ExamModuleKey } from "@/types/exam-knowledge";
 

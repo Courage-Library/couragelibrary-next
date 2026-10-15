@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/legacy/badge";
+import { Button } from "@/components/ui/legacy/button";
 import {
   X,
   ShieldAlert,

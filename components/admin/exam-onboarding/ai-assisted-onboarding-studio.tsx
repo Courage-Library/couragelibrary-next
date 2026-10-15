@@ -4,9 +4,9 @@ import { actionErrorMessage } from "@/lib/actions/action-result";
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/legacy/card";
+import { Button } from "@/components/ui/legacy/button";
+import { Badge } from "@/components/ui/legacy/badge";
 import { AdminBreadcrumbs } from "@/components/admin/admin-breadcrumbs";
 import {
   generateMasterExamPromptAction,

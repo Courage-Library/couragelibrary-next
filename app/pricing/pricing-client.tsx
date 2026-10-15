@@ -3,10 +3,10 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { SubscriptionPlanItem, UserSubscriptionStatus } from "@/services/billing.service";
-import { Container } from "@/components/ui/container";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Container } from "@/components/ui/legacy/container";
+import { Card } from "@/components/ui/legacy/card";
+import { Badge } from "@/components/ui/legacy/badge";
+import { Button } from "@/components/ui/legacy/button";
 import { Check, Zap, ShieldAlert, Tag } from "lucide-react";
 
 interface PricingClientProps {

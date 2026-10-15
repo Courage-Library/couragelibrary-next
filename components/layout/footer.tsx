@@ -2,7 +2,7 @@
 
 import React from "react";
 import { usePathname } from "next/navigation";
-import { Container } from "@/components/ui/container";
+import { Container } from "@/components/ui/legacy/container";
 import { siteConfig } from "@/config/site";
 
 export function Footer() {

@@ -11,7 +11,7 @@ import { ExamSyllabusNavigator } from "@/components/exams/exam-syllabus-navigato
 import { ExamPostsTable } from "@/components/exams/exam-posts-table";
 import { ExamOfficialSources } from "@/components/exams/exam-official-sources";
 import { ExamFaqAccordion } from "@/components/exams/exam-faq-accordion";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/legacy/badge";
 import { FileText } from "lucide-react";
 import { constructMetadata } from "@/lib/seo/metadata";
 

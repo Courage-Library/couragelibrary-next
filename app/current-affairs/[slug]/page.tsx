@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Container } from '@/components/ui/container';
+import { Container } from '@/components/ui/legacy/container';
 import { CurrentAffairsService } from '@/services/current-affairs.service';
 import { ExamMdxArticleRenderer } from '@/components/exams/exam-mdx-article-renderer';
 import { CurrentAffairsSourcesCard } from '@/components/current-affairs/current-affairs-sources-card';

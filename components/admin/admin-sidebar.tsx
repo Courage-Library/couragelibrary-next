@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BrandLogo } from "@/components/brand/logo";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/legacy/badge";
 import {
   LayoutDashboard,
   Layers,

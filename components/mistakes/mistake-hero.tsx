@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/legacy/button";
+import { Badge } from "@/components/ui/legacy/badge";
 import { Zap } from "lucide-react";
 
 interface MistakeHeroProps {

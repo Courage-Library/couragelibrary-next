@@ -11,7 +11,7 @@ import { QuestionPalette, QuestionPaletteItem, QuestionStatus } from "@/componen
 import { SubmitDialog, SectionSubmitSummary } from "@/components/assessment/submit-dialog";
 import { CandidateSecurityWatermark } from "@/components/assessment/candidate-security-watermark";
 import { saveLiveAnswerAction, submitLiveAttemptAction } from "@/app/live-tests/actions";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/legacy/button";
 import {
   ChevronLeft,
   ChevronRight,

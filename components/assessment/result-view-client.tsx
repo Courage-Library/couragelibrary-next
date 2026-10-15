@@ -5,8 +5,8 @@ import Link from "next/link";
 import { TestResultSummary } from "@/services/assessment.service";
 import { QuestionReviewCard } from "@/components/assessment/question-review-card";
 import { CandidateSecurityWatermark } from "@/components/assessment/candidate-security-watermark";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/legacy/button";
+import { Badge } from "@/components/ui/legacy/badge";
 import {
   ArrowLeft,
   Trophy,

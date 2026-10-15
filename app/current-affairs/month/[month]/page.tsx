@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Container } from '@/components/ui/container';
+import { Container } from '@/components/ui/legacy/container';
 import { CurrentAffairsService } from '@/services/current-affairs.service';
 import { CurrentAffairsFeedContainer } from '@/components/current-affairs/current-affairs-feed-container';
 import {

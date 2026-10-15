@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { logoutAction } from "@/app/auth/actions";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/legacy/button";
 import { Coins, Bell, Flame, User, LogOut, LayoutDashboard, Shield, CreditCard, ChevronDown } from "lucide-react";
 
 interface UserNavProps {

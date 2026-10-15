@@ -1,8 +1,8 @@
 ﻿import React from "react";
 import Link from "next/link";
-import { Container } from "@/components/ui/container";
-import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Container } from "@/components/ui/legacy/container";
+import { Button } from "@/components/ui/legacy/button";
+import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/legacy/card";
 
 export default function NotFound() {
   return (

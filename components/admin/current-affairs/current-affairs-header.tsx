@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Newspaper, Plus, Sparkles, Wand2, RefreshCw } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/components/ui/legacy/badge';
 
 interface Props {
   onOpenCreate: () => void;

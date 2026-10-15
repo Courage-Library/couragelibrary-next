@@ -1,0 +1,328 @@
+{
+  "$comment": "UX-1a design ratchet baseline (decision #40). Counts may only go down. Scope: app/ + components/, excluding app/admin and components/admin. Written by scripts/test_design_ratchet.cjs --write.",
+  "recordedAt": "2026-10-15",
+  "totals": {
+    "rawColor": 2,
+    "paletteClass": 5964,
+    "darkClass": 382,
+    "smallText": 489,
+    "legacyImport": 241
+  },
+  "byArea": {
+    "app/achievements": {
+      "rawColor": 0,
+      "paletteClass": 91,
+      "darkClass": 0,
+      "smallText": 10,
+      "legacyImport": 1
+    },
+    "app/articles": {
+      "rawColor": 0,
+      "paletteClass": 73,
+      "darkClass": 0,
+      "smallText": 7,
+      "legacyImport": 8
+    },
+    "app/auth": {
+      "rawColor": 0,
+      "paletteClass": 30,
+      "darkClass": 0,
+      "smallText": 0,
+      "legacyImport": 16
+    },
+    "app/battles": {
+      "rawColor": 0,
+      "paletteClass": 88,
+      "darkClass": 0,
+      "smallText": 6,
+      "legacyImport": 6
+    },
+    "app/billing": {
+      "rawColor": 0,
+      "paletteClass": 36,
+      "darkClass": 0,
+      "smallText": 4,
+      "legacyImport": 4
+    },
+    "app/certificates": {
+      "rawColor": 0,
+      "paletteClass": 36,
+      "darkClass": 0,
+      "smallText": 5,
+      "legacyImport": 1
+    },
+    "app/checkout": {
+      "rawColor": 0,
+      "paletteClass": 55,
+      "darkClass": 0,
+      "smallText": 1,
+      "legacyImport": 11
+    },
+    "app/community": {
+      "rawColor": 0,
+      "paletteClass": 97,
+      "darkClass": 0,
+      "smallText": 13,
+      "legacyImport": 10
+    },
+    "app/courses": {
+      "rawColor": 0,
+      "paletteClass": 99,
+      "darkClass": 0,
+      "smallText": 6,
+      "legacyImport": 11
+    },
+    "app/current-affairs": {
+      "rawColor": 0,
+      "paletteClass": 177,
+      "darkClass": 83,
+      "smallText": 0,
+      "legacyImport": 4
+    },
+    "app/dashboard": {
+      "rawColor": 0,
+      "paletteClass": 64,
+      "darkClass": 0,
+      "smallText": 8,
+      "legacyImport": 4
+    },
+    "app/descriptive": {
+      "rawColor": 0,
+      "paletteClass": 164,
+      "darkClass": 0,
+      "smallText": 14,
+      "legacyImport": 19
+    },
+    "app/error.tsx": {
+      "rawColor": 0,
+      "paletteClass": 7,
+      "darkClass": 0,
+      "smallText": 0,
+      "legacyImport": 3
+    },
+    "app/exams": {
+      "rawColor": 0,
+      "paletteClass": 75,
+      "darkClass": 0,
+      "smallText": 8,
+      "legacyImport": 8
+    },
+    "app/faculty": {
+      "rawColor": 0,
+      "paletteClass": 63,
+      "darkClass": 0,
+      "smallText": 6,
+      "legacyImport": 7
+    },
+    "app/flashcards": {
+      "rawColor": 0,
+      "paletteClass": 37,
+      "darkClass": 0,
+      "smallText": 0,
+      "legacyImport": 8
+    },
+    "app/globals.css": {
+      "rawColor": 0,
+      "paletteClass": 0,
+      "darkClass": 2,
+      "smallText": 0,
+      "legacyImport": 0
+    },
+    "app/institutes": {
+      "rawColor": 0,
+      "paletteClass": 118,
+      "darkClass": 0,
+      "smallText": 18,
+      "legacyImport": 11
+    },
+    "app/layout.tsx": {
+      "rawColor": 1,
+      "paletteClass": 4,
+      "darkClass": 0,
+      "smallText": 0,
+      "legacyImport": 0
+    },
+    "app/live-tests": {
+      "rawColor": 0,
+      "paletteClass": 25,
+      "darkClass": 0,
+      "smallText": 0,
+      "legacyImport": 1
+    },
+    "app/loading.tsx": {
+      "rawColor": 0,
+      "paletteClass": 0,
+      "darkClass": 0,
+      "smallText": 0,
+      "legacyImport": 2
+    },
+    "app/mistakes": {
+      "rawColor": 0,
+      "paletteClass": 36,
+      "darkClass": 0,
+      "smallText": 3,
+      "legacyImport": 5
+    },
+    "app/mock-tests": {
+      "rawColor": 1,
+      "paletteClass": 264,
+      "darkClass": 0,
+      "smallText": 22,
+      "legacyImport": 8
+    },
+    "app/not-found.tsx": {
+      "rawColor": 0,
+      "paletteClass": 2,
+      "darkClass": 0,
+      "smallText": 0,
+      "legacyImport": 3
+    },
+    "app/notifications": {
+      "rawColor": 0,
+      "paletteClass": 9,
+      "darkClass": 0,
+      "smallText": 0,
+      "legacyImport": 3
+    },
+    "app/page.tsx": {
+      "rawColor": 0,
+      "paletteClass": 9,
+      "darkClass": 0,
+      "smallText": 0,
+      "legacyImport": 1
+    },
+    "app/performance": {
+      "rawColor": 0,
+      "paletteClass": 183,
+      "darkClass": 0,
+      "smallText": 14,
+      "legacyImport": 1
+    },
+    "app/practice": {
+      "rawColor": 0,
+      "paletteClass": 13,
+      "darkClass": 0,
+      "smallText": 0,
+      "legacyImport": 4
+    },
+    "app/pricing": {
+      "rawColor": 0,
+      "paletteClass": 52,
+      "darkClass": 0,
+      "smallText": 3,
+      "legacyImport": 4
+    },
+    "app/verify": {
+      "rawColor": 0,
+      "paletteClass": 71,
+      "darkClass": 0,
+      "smallText": 0,
+      "legacyImport": 0
+    },
+    "components/assessment": {
+      "rawColor": 0,
+      "paletteClass": 829,
+      "darkClass": 0,
+      "smallText": 97,
+      "legacyImport": 11
+    },
+    "components/battles": {
+      "rawColor": 0,
+      "paletteClass": 21,
+      "darkClass": 0,
+      "smallText": 2,
+      "legacyImport": 4
+    },
+    "components/brand": {
+      "rawColor": 0,
+      "paletteClass": 4,
+      "darkClass": 0,
+      "smallText": 0,
+      "legacyImport": 0
+    },
+    "components/current-affairs": {
+      "rawColor": 0,
+      "paletteClass": 329,
+      "darkClass": 141,
+      "smallText": 6,
+      "legacyImport": 0
+    },
+    "components/exams": {
+      "rawColor": 0,
+      "paletteClass": 217,
+      "darkClass": 0,
+      "smallText": 23,
+      "legacyImport": 17
+    },
+    "components/flashcards": {
+      "rawColor": 0,
+      "paletteClass": 95,
+      "darkClass": 0,
+      "smallText": 13,
+      "legacyImport": 7
+    },
+    "components/gamification": {
+      "rawColor": 0,
+      "paletteClass": 69,
+      "darkClass": 0,
+      "smallText": 7,
+      "legacyImport": 0
+    },
+    "components/layout": {
+      "rawColor": 0,
+      "paletteClass": 343,
+      "darkClass": 0,
+      "smallText": 21,
+      "legacyImport": 5
+    },
+    "components/learning": {
+      "rawColor": 0,
+      "paletteClass": 269,
+      "darkClass": 133,
+      "smallText": 0,
+      "legacyImport": 0
+    },
+    "components/live-test": {
+      "rawColor": 0,
+      "paletteClass": 354,
+      "darkClass": 23,
+      "smallText": 36,
+      "legacyImport": 4
+    },
+    "components/mistakes": {
+      "rawColor": 0,
+      "paletteClass": 703,
+      "darkClass": 0,
+      "smallText": 81,
+      "legacyImport": 26
+    },
+    "components/premium": {
+      "rawColor": 0,
+      "paletteClass": 347,
+      "darkClass": 0,
+      "smallText": 28,
+      "legacyImport": 0
+    },
+    "components/store": {
+      "rawColor": 0,
+      "paletteClass": 191,
+      "darkClass": 0,
+      "smallText": 11,
+      "legacyImport": 0
+    },
+    "components/ui": {
+      "rawColor": 0,
+      "paletteClass": 67,
+      "darkClass": 0,
+      "smallText": 0,
+      "legacyImport": 0
+    },
+    "components/wallet": {
+      "rawColor": 0,
+      "paletteClass": 148,
+      "darkClass": 0,
+      "smallText": 16,
+      "legacyImport": 3
+    }
+  }
+}

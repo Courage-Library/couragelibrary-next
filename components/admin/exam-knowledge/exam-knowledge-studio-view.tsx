@@ -43,7 +43,7 @@ import {
   FileDiff,
   ArrowRightLeft,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/legacy/badge";
 import { PromptViewerPanel } from "./prompt-viewer-panel";
 import { FiveGatePreviewPanel } from "./five-gate-preview-panel";
 import { AcademicReviewChecklist } from "./academic-review-checklist";

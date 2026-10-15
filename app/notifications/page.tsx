@@ -1,8 +1,8 @@
 import React from "react";
 import Link from "next/link";
-import { Container } from "@/components/ui/container";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Container } from "@/components/ui/legacy/container";
+import { Card, CardContent } from "@/components/ui/legacy/card";
+import { Button } from "@/components/ui/legacy/button";
 import { Bell, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { constructMetadata } from "@/lib/seo/metadata";
 

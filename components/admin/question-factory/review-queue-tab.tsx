@@ -3,9 +3,9 @@
 import { actionErrorMessage } from "@/lib/actions/action-result";
 import React, { useCallback, useEffect, useState, useTransition } from "react";
 import { RefreshCw, X, Send, CheckCircle2, XCircle, MessageSquareWarning, Rocket, Pencil, ShieldAlert } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/legacy/button";
+import { Card } from "@/components/ui/legacy/card";
+import { Badge } from "@/components/ui/legacy/badge";
 import { QuestionRenderer } from "@/components/assessment/question-renderer";
 import { QuestionOptions } from "@/components/assessment/question-options";
 import {

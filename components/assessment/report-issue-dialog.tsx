@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/legacy/button";
 import { Flag, X, CheckCircle2 } from "lucide-react";
 
 interface ReportIssueDialogProps {

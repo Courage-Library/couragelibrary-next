@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/legacy/card";
 import { ChevronDown, ChevronUp, HelpCircle } from "lucide-react";
 
 interface ExamFaqAccordionProps {

@@ -2,10 +2,10 @@ import React from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DescriptiveService } from "@/services/descriptive.service";
-import { Container } from "@/components/ui/container";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Container } from "@/components/ui/legacy/container";
+import { Card } from "@/components/ui/legacy/card";
+import { Badge } from "@/components/ui/legacy/badge";
+import { Button } from "@/components/ui/legacy/button";
 import { ArrowLeft, PenTool, Lock } from "lucide-react";
 
 interface Props {

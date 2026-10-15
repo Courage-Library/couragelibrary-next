@@ -1,9 +1,9 @@
 ﻿"use client";
 
 import React, { useEffect } from "react";
-import { Container } from "@/components/ui/container";
-import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { Container } from "@/components/ui/legacy/container";
+import { Button } from "@/components/ui/legacy/button";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/legacy/card";
 import { logger } from "@/lib/logger";
 
 export default function ErrorBoundary({

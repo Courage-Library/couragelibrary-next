@@ -12,9 +12,9 @@ import { ExamSyllabusNavigator } from "@/components/exams/exam-syllabus-navigato
 import { ExamPostsTable } from "@/components/exams/exam-posts-table";
 import { ExamOfficialSources } from "@/components/exams/exam-official-sources";
 import { ExamFaqAccordion } from "@/components/exams/exam-faq-accordion";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/legacy/card";
+import { Badge } from "@/components/ui/legacy/badge";
+import { Button } from "@/components/ui/legacy/button";
 import {
   FileText,
   CheckCircle2,

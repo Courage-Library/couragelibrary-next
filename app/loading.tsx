@@ -1,6 +1,6 @@
 ﻿import React from "react";
-import { Container } from "@/components/ui/container";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Container } from "@/components/ui/legacy/container";
+import { Skeleton } from "@/components/ui/legacy/skeleton";
 
 export default function Loading() {
   return (

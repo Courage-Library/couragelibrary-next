@@ -4,10 +4,10 @@ import React, { useActionState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { loginAction } from "@/app/auth/actions";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
-import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/legacy/button";
+import { Input } from "@/components/ui/legacy/input";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/legacy/card";
+import { Alert } from "@/components/ui/legacy/alert";
 import { BrandLogo } from "@/components/brand/logo";
 
 function LoginForm() {

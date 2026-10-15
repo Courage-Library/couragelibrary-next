@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useTransition } from "react";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/legacy/badge";
 import {
   LongitudinalWindowType,
   MistakeLongitudinalOverview,

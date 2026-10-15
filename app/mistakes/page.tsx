@@ -3,7 +3,7 @@ import { MistakeService } from "@/services/mistake.service";
 import { BookmarkService } from "@/services/bookmark.service";
 import { MistakeLongitudinalIntelligenceService } from "@/services/mistake-longitudinal-intelligence.service";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { Container } from "@/components/ui/container";
+import { Container } from "@/components/ui/legacy/container";
 import { MistakeHero } from "@/components/mistakes/mistake-hero";
 import { MistakeKpiStrip } from "@/components/mistakes/mistake-kpi-strip";
 import { MistakeRevisionHealth } from "@/components/mistakes/mistake-revision-health";

@@ -5,9 +5,9 @@ import Link from "next/link";
 import { BattleRoomDetails, ActiveRoundData } from "@/services/battle.service";
 import { QuestionRenderer } from "@/components/assessment/question-renderer";
 import { QuestionOptions } from "@/components/assessment/question-options";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/legacy/card";
+import { Badge } from "@/components/ui/legacy/badge";
+import { Button } from "@/components/ui/legacy/button";
 import {
   Swords,
   Trophy,

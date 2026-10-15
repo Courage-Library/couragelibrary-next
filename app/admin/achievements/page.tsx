@@ -4,7 +4,7 @@ import React from "react";
 import { Metadata } from "next";
 import { LiveTestAchievementService } from "@/services/live-test-achievement.service";
 import { Award, ShieldCheck, Trophy, Layers, Filter } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/legacy/button";
 import { requireAdminPage } from "@/lib/auth/require-admin";
 
 export const dynamic = "force-dynamic";

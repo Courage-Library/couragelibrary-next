@@ -6,9 +6,9 @@ import {
   AdminSectionItem,
 } from "@/services/admin.service";
 import { AdminBreadcrumbs } from "@/components/admin/admin-breadcrumbs";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/legacy/card";
+import { Button } from "@/components/ui/legacy/button";
+import { Badge } from "@/components/ui/legacy/badge";
 import {
   uploadBulkImportImageAction,
   importBulkQuestionsAction,

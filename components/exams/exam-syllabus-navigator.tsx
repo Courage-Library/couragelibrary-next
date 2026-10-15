@@ -2,9 +2,9 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/legacy/card";
+import { Badge } from "@/components/ui/legacy/badge";
+import { Button } from "@/components/ui/legacy/button";
 import { ChevronDown, ChevronUp, BookOpen, Target, Sparkles, Layers } from "lucide-react";
 import { CandidateExamSubject, CandidateExamTopic } from "@/types/exam-knowledge";
 

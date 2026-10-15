@@ -2,7 +2,7 @@ import { requireFeatureOrNotFound } from "@/lib/features/gates";
 import React from "react";
 import Link from "next/link";
 import { CheckCircle2, ShieldCheck, ArrowRight, Radio } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/legacy/button";
 
 interface Props {
   params: Promise<{ slug: string }>;

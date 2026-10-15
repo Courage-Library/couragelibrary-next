@@ -3,7 +3,7 @@
 import React, { useState, useTransition } from "react";
 import { toggleBookmarkAction } from "@/app/mistakes/actions";
 import { Bookmark, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/legacy/button";
 
 interface MistakeBookmarkButtonProps {
   questionId: string;

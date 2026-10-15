@@ -6,9 +6,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AdminExamListItem, ConductingOrgItem } from "@/services/exam-onboarding/exam-onboarding.service";
 import { AdminBreadcrumbs } from "@/components/admin/admin-breadcrumbs";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/legacy/card";
+import { Badge } from "@/components/ui/legacy/badge";
+import { Button } from "@/components/ui/legacy/button";
 import { createExamDraftAction } from "@/app/admin/exams/actions";
 import {
   GraduationCap,

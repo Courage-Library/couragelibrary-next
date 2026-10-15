@@ -1,9 +1,9 @@
 import React from "react";
 import Link from "next/link";
-import { Container } from "@/components/ui/container";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Container } from "@/components/ui/legacy/container";
+import { Card } from "@/components/ui/legacy/card";
+import { Badge } from "@/components/ui/legacy/badge";
+import { Button } from "@/components/ui/legacy/button";
 import { XCircle, ArrowLeft, RefreshCw } from "lucide-react";
 
 export default function CheckoutCancelPage() {
