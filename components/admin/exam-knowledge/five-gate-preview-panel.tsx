@@ -2,7 +2,7 @@
 
 import React from "react";
 import { CheckCircle2, AlertTriangle, XCircle, ShieldCheck, ShieldAlert, FileJson, Link2, Database } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/legacy/badge";
 import type { ExamFiveGateValidationResult } from "@/types/exam-knowledge";
 
 interface FiveGatePreviewPanelProps {

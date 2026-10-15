@@ -1,7 +1,7 @@
 import React from "react";
 import { AdminService } from "@/services/admin.service";
 import { AdminQuestionReportsManager, AdminQuestionReportItem } from "@/components/admin/admin-question-reports-manager";
-import { Container } from "@/components/ui/container";
+import { Container } from "@/components/ui/legacy/container";
 import { requireAdminPage } from "@/lib/auth/require-admin";
 
 export const dynamic = "force-dynamic";

@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Copy, Check, Terminal, FileText, Hash } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/legacy/badge";
 
 interface PromptViewerPanelProps {
   promptText: string;

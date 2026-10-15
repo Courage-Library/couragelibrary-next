@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/legacy/button";
 import { AlertTriangle, AlertCircle, ShieldCheck } from "lucide-react";
 
 export interface SectionSubmitSummary {

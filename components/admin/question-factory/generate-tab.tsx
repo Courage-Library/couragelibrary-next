@@ -3,8 +3,8 @@
 import { actionErrorMessage } from "@/lib/actions/action-result";
 import React, { useMemo, useState, useTransition } from "react";
 import { Copy, Check, Wand2, ShieldAlert } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/legacy/button";
+import { Card } from "@/components/ui/legacy/card";
 import { qfGeneratePromptAction } from "@/actions/question-factory.actions";
 import { QF_MAX_ITEMS_PER_BATCH } from "@/types/question-factory";
 import { SELECT_CLASS, type FactoryTaxonomy } from "./types";

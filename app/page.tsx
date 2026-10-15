@@ -1,6 +1,6 @@
 import React from "react";
 import Link from "next/link";
-import { Container } from "@/components/ui/container";
+import { Container } from "@/components/ui/legacy/container";
 import { JsonLd } from "@/components/seo/json-ld";
 import { generateOrganizationSchema } from "@/lib/seo/jsonld";
 import { siteConfig } from "@/config/site";

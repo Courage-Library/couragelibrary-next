@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/legacy/button";
 import { Play, RotateCcw, Loader2 } from "lucide-react";
 
 interface StartTestActionButtonProps {

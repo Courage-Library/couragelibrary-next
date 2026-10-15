@@ -12,10 +12,10 @@ import {
   deletePatternAction,
 } from "@/app/admin/actions";
 import { AdminBreadcrumbs } from "@/components/admin/admin-breadcrumbs";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Alert } from "@/components/ui/alert";
+import { Card } from "@/components/ui/legacy/card";
+import { Badge } from "@/components/ui/legacy/badge";
+import { Button } from "@/components/ui/legacy/button";
+import { Alert } from "@/components/ui/legacy/alert";
 import {
   GitBranch,
   Search,

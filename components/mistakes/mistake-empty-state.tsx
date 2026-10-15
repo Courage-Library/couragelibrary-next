@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/legacy/card";
+import { Button } from "@/components/ui/legacy/button";
 import { CheckCircle2, RotateCcw, Search, Sparkles, BookOpen } from "lucide-react";
 
 interface MistakeEmptyStateProps {

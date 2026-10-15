@@ -4,9 +4,9 @@ import { actionErrorMessage } from "@/lib/actions/action-result";
 import React, { useState, useTransition } from "react";
 import { GamificationAdminStats } from "@/services/gamification.service";
 import { updateRewardPolicyAction } from "@/app/admin/gamification/actions";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/legacy/card";
+import { Badge } from "@/components/ui/legacy/badge";
+import { Button } from "@/components/ui/legacy/button";
 import {
   Coins,
   TrendingUp,

@@ -3,7 +3,7 @@
 
 import React, { useState } from "react";
 import { Award, ShieldCheck, Download, Printer, Copy, Check, X, ExternalLink, Trophy } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/legacy/button";
 import { LiveCertificateType } from "@/types/live-test";
 
 interface CertificateModalProps {

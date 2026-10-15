@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { TestLeaderboardData } from "@/services/assessment.service";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/legacy/badge";
 import {
   ArrowLeft,
   Trophy,

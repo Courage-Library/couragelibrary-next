@@ -33,7 +33,7 @@ import {
   getDataQualityDiagnosticsAction,
   getAttemptDiagnosticsAction,
 } from "@/app/admin/adaptive/actions";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/legacy/badge";
 import {
   Activity,
   AlertTriangle,

@@ -1,9 +1,9 @@
 import { requireFeatureOrNotFound } from "@/lib/features/gates";
 import React from "react";
 import { BattleService } from "@/services/battle.service";
-import { Container } from "@/components/ui/container";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Container } from "@/components/ui/legacy/container";
+import { Card } from "@/components/ui/legacy/card";
+import { Badge } from "@/components/ui/legacy/badge";
 import { BattleLobbyClient } from "@/components/battles/battle-lobby-client";
 import { Swords, Trophy, Flame, Shield, Award } from "lucide-react";
 

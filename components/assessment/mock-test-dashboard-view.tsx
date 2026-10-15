@@ -8,10 +8,10 @@ import {
   addUserExamGoalAction,
   removeUserExamGoalAction,
 } from "@/app/mock-tests/actions";
-import { Container } from "@/components/ui/container";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Container } from "@/components/ui/legacy/container";
+import { Card, CardContent } from "@/components/ui/legacy/card";
+import { Badge } from "@/components/ui/legacy/badge";
+import { Button } from "@/components/ui/legacy/button";
 import { StartTestActionButton } from "@/components/assessment/start-test-action-button";
 import {
   Target,

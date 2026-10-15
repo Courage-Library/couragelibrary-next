@@ -3,10 +3,10 @@ import { isFeatureEnabled } from "@/config/features";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { DashboardService } from "@/services/dashboard.service";
-import { Container } from "@/components/ui/container";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Container } from "@/components/ui/legacy/container";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/legacy/card";
+import { Badge } from "@/components/ui/legacy/badge";
+import { Button } from "@/components/ui/legacy/button";
 import {
   Flame,
   Coins,

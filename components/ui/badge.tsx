@@ -1,30 +1,31 @@
-import React, { type HTMLAttributes } from "react";
-import { cn } from "@/lib/utils";
+import type { ComponentProps, ReactNode } from "react";
+import { Lock } from "lucide-react";
+import { cn } from "./cn";
 
-export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
-  variant?: "default" | "success" | "warning" | "destructive" | "error" | "outline" | "indigo" | "neutral";
-}
+export type BadgeTone = "neutral" | "primary" | "success" | "warning" | "danger" | "info" | "pro" | "free";
 
-const badgeVariants = {
-  default: "bg-blue-50 text-blue-700 border-blue-200/60",
-  success: "bg-emerald-50 text-emerald-700 border-emerald-200/60",
-  warning: "bg-amber-50 text-amber-700 border-amber-200/60",
-  destructive: "bg-rose-50 text-rose-700 border-rose-200/60",
-  error: "bg-rose-50 text-rose-700 border-rose-200/60",
-  outline: "bg-transparent text-slate-700 border-slate-300",
-  indigo: "bg-indigo-50 text-indigo-700 border-indigo-200/60",
-  neutral: "bg-slate-100 text-slate-700 border-slate-200",
+export const BADGE_TONES: Record<BadgeTone, string> = {
+  neutral: "border-ink-200 bg-ink-100 text-ink-700",
+  primary: "border-primary-200 bg-primary-50 text-primary-700",
+  success: "border-success-200 bg-success-50 text-success-800",
+  warning: "border-warning-200 bg-warning-50 text-warning-800",
+  danger: "border-danger-200 bg-danger-50 text-danger-800",
+  info: "border-info-200 bg-info-50 text-info-800",
+  pro: "border-primary-200 bg-primary-50 text-primary-800",
+  free: "border-accent-200 bg-accent-100 text-accent-900",
 };
 
-export function Badge({ className, variant = "default", ...props }: BadgeProps) {
+export const badgeClasses = (tone: BadgeTone) =>
+  cn("inline-flex items-center gap-1 rounded-badge border px-2 py-0.5 text-caption font-medium", BADGE_TONES[tone]);
+
+export type BadgeProps = ComponentProps<"span"> & { tone?: BadgeTone; icon?: ReactNode };
+
+/** Status label (≥12px). Never the only carrier of meaning: the text says it. */
+export function Badge({ tone = "neutral", icon, className, children, ...props }: BadgeProps) {
   return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold tracking-wide transition-colors",
-        badgeVariants[variant],
-        className
-      )}
-      {...props}
-    />
+    <span className={cn(badgeClasses(tone), className)} {...props}>
+      {tone === "pro" && !icon ? <Lock aria-hidden="true" className="size-3" /> : icon}
+      {children ?? (tone === "pro" ? "Pro" : tone === "free" ? "Free" : null)}
+    </span>
   );
 }

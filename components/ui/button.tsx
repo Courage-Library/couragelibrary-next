@@ -1,61 +1,129 @@
-﻿import React, { forwardRef, type ButtonHTMLAttributes } from "react";
-import { cn } from "@/lib/utils";
-import type { ComponentSize, ComponentVariant } from "@/types/ui";
+import type { ComponentProps, ReactNode } from "react";
+import Link from "next/link";
+import { cn } from "./cn";
+import { Spinner } from "./spinner";
 
-export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: ComponentVariant;
-  size?: ComponentSize;
-  isLoading?: boolean;
+export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+export type ButtonSize = "sm" | "md" | "lg";
+
+const VARIANTS: Record<ButtonVariant, string> = {
+  primary:
+    "bg-primary-600 text-fg-inverse hover:bg-primary-700 active:bg-primary-800 disabled:bg-ink-200 disabled:text-ink-600 aria-disabled:bg-ink-200 aria-disabled:text-ink-600",
+  secondary:
+    "border border-line-control bg-surface text-fg hover:bg-ink-50 active:bg-ink-100 disabled:border-ink-300 disabled:text-ink-600 aria-disabled:border-ink-300 aria-disabled:text-ink-600",
+  ghost:
+    "text-primary-700 hover:bg-primary-50 active:bg-primary-100 disabled:text-ink-600 aria-disabled:text-ink-600",
+  danger:
+    "bg-danger-600 text-fg-inverse hover:bg-danger-700 active:bg-danger-800 disabled:bg-ink-200 disabled:text-ink-600 aria-disabled:bg-ink-200 aria-disabled:text-ink-600",
+};
+
+const SIZES: Record<ButtonSize, string> = {
+  sm: "h-9 px-3 text-body-sm",
+  md: "h-11 px-4 text-body",
+  lg: "h-13 px-6 text-body-lg",
+};
+
+const ICON_ONLY: Record<ButtonSize, string> = { sm: "w-9 px-0", md: "w-11 px-0", lg: "w-13 px-0" };
+
+export function buttonClasses({
+  variant = "primary",
+  size = "md",
+  iconOnly = false,
+  fullWidth = false,
+  className,
+}: {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  iconOnly?: boolean;
+  fullWidth?: boolean;
+  className?: string;
+} = {}) {
+  return cn(
+    "focus-ring relative inline-flex shrink-0 select-none items-center justify-center gap-2 whitespace-nowrap rounded-control font-medium",
+    "transition-colors duration-120 ease-standard disabled:cursor-not-allowed aria-disabled:cursor-not-allowed",
+    VARIANTS[variant],
+    SIZES[size],
+    iconOnly && ICON_ONLY[size],
+    fullWidth && "w-full",
+    className,
+  );
 }
 
-const variantStyles: Record<ComponentVariant, string> = {
-  default: "bg-blue-600 text-white hover:bg-blue-700 shadow-sm active:scale-[0.98]",
-  primary: "bg-blue-700 text-white hover:bg-blue-800 shadow-md active:scale-[0.98]",
-  secondary: "bg-slate-100 text-slate-900 hover:bg-slate-200 active:scale-[0.98]",
-  outline: "border border-slate-300 bg-transparent hover:bg-slate-50 text-slate-800",
-  ghost: "hover:bg-slate-100 text-slate-700 hover:text-slate-900",
-  destructive: "bg-red-600 text-white hover:bg-red-700 shadow-sm active:scale-[0.98]",
+type CommonProps = {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  /** Square button; requires `aria-label`. */
+  iconOnly?: boolean;
+  fullWidth?: boolean;
+  leadingIcon?: ReactNode;
+  trailingIcon?: ReactNode;
 };
 
-const sizeStyles: Record<ComponentSize, string> = {
-  sm: "h-8 px-3 text-xs rounded-lg gap-1.5",
-  md: "h-10 px-4 text-sm rounded-xl gap-2",
-  lg: "h-12 px-6 text-base rounded-xl gap-2.5",
-  icon: "h-10 w-10 p-0 rounded-xl justify-center",
-};
+export type ButtonProps = ComponentProps<"button"> &
+  CommonProps & {
+    /** Shows a spinner, keeps the width, sets aria-busy and blocks clicks. */
+    loading?: boolean;
+  };
 
-export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  (
-    {
-      className,
-      variant = "default",
-      size = "md",
-      isLoading = false,
-      disabled,
-      children,
-      ...props
-    },
-    ref
-  ) => {
-    return (
-      <button
-        ref={ref}
-        disabled={disabled || isLoading}
-        className={cn(
-          "inline-flex items-center justify-center font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none select-none cursor-pointer",
-          variantStyles[variant],
-          sizeStyles[size],
-          className
-        )}
-        {...props}
-      >
-        {isLoading && (
-          <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
-        )}
+/**
+ * Native `<button>`. Variants primary | secondary | ghost | danger; sizes sm 36 · md 44 · lg 52 px.
+ * Disabled uses the `disabled` attribute. While loading the label stays in the accessibility tree.
+ */
+export function Button({
+  variant,
+  size,
+  iconOnly,
+  fullWidth,
+  leadingIcon,
+  trailingIcon,
+  loading = false,
+  disabled,
+  type = "button",
+  className,
+  children,
+  ...props
+}: ButtonProps) {
+  return (
+    <button
+      type={type}
+      disabled={disabled || loading}
+      aria-busy={loading || undefined}
+      className={buttonClasses({ variant, size, iconOnly, fullWidth, className })}
+      {...props}
+    >
+      {loading && (
+        <span className="absolute inset-0 flex items-center justify-center">
+          <Spinner />
+        </span>
+      )}
+      <span className={cn("inline-flex items-center gap-2", loading && "opacity-0")}>
+        {leadingIcon}
         {children}
-      </button>
-    );
-  }
-);
+        {trailingIcon}
+      </span>
+    </button>
+  );
+}
 
-Button.displayName = "Button";
+export type ButtonLinkProps = ComponentProps<typeof Link> & CommonProps;
+
+/** A link styled as a button (navigation, not an action). */
+export function ButtonLink({
+  variant,
+  size,
+  iconOnly,
+  fullWidth,
+  leadingIcon,
+  trailingIcon,
+  className,
+  children,
+  ...props
+}: ButtonLinkProps) {
+  return (
+    <Link className={buttonClasses({ variant, size, iconOnly, fullWidth, className })} {...props}>
+      {leadingIcon}
+      {children}
+      {trailingIcon}
+    </Link>
+  );
+}

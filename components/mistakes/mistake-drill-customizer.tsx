@@ -2,8 +2,8 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/legacy/button";
+import { Badge } from "@/components/ui/legacy/badge";
 import { generateDrillAction } from "@/app/mistakes/actions";
 import { DrillConfigOptions, DrillSessionPayload, DrillFocusMode } from "@/services/mistake.service";
 import {

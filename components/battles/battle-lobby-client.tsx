@@ -2,10 +2,10 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/legacy/card";
+import { Button } from "@/components/ui/legacy/button";
+import { Input } from "@/components/ui/legacy/input";
+import { Badge } from "@/components/ui/legacy/badge";
 import { Swords, Key, Zap, ShieldAlert } from "lucide-react";
 
 export function BattleLobbyClient() {

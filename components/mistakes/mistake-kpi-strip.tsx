@@ -1,6 +1,6 @@
 import React from "react";
 import Link from "next/link";
-import { Card } from "@/components/ui/card";
+import { Card } from "@/components/ui/legacy/card";
 import { AlertTriangle, RotateCcw, CheckCircle2, Flame, Layers } from "lucide-react";
 
 interface MistakeKpiStripProps {

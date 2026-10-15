@@ -1,10 +1,10 @@
 import React from "react";
 import Link from "next/link";
 import { InstituteService } from "@/services/institute.service";
-import { Container } from "@/components/ui/container";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Container } from "@/components/ui/legacy/container";
+import { Card, CardContent } from "@/components/ui/legacy/card";
+import { Badge } from "@/components/ui/legacy/badge";
+import { Button } from "@/components/ui/legacy/button";
 import { Building2, ArrowRight, ShieldCheck, Sparkles, HelpCircle } from "lucide-react";
 import { constructMetadata } from "@/lib/seo/metadata";
 

@@ -2,8 +2,8 @@
 
 import React, { useState, useMemo } from "react";
 import { AdminUserListItem } from "@/services/admin.service";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/legacy/card";
+import { Badge } from "@/components/ui/legacy/badge";
 import { Users, Search, CheckCircle2, AlertTriangle, Mail } from "lucide-react";
 
 interface Props {

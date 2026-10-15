@@ -3,8 +3,8 @@
 import { actionErrorMessage } from "@/lib/actions/action-result";
 import React, { useState, useTransition } from "react";
 import { FlaskConical, UploadCloud, ShieldAlert, CheckCircle2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/legacy/button";
+import { Card } from "@/components/ui/legacy/card";
 import { qfImportAction } from "@/actions/question-factory.actions";
 import { QF_MAX_PAYLOAD_BYTES, type QuestionImportResult } from "@/types/question-factory";
 import { GateChips, ItemGateDetail } from "./gate-report-view";

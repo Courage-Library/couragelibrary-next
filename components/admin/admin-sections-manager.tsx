@@ -11,9 +11,9 @@ import {
   deleteSectionAction,
 } from "@/app/admin/actions";
 import { AdminBreadcrumbs } from "@/components/admin/admin-breadcrumbs";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Alert } from "@/components/ui/alert";
+import { Card } from "@/components/ui/legacy/card";
+import { Button } from "@/components/ui/legacy/button";
+import { Alert } from "@/components/ui/legacy/alert";
 import {
   Layers,
   Search,

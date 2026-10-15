@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { Container } from '@/components/ui/container';
+import { Container } from '@/components/ui/legacy/container';
 import { CurrentAffairsService } from '@/services/current-affairs.service';
 import { CurrentAffairsDailyQuizCard } from '@/components/current-affairs/current-affairs-daily-quiz-card';
 import { CurrentAffairsFeedContainer } from '@/components/current-affairs/current-affairs-feed-container';

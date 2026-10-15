@@ -2,9 +2,9 @@
 
 import React, { useState } from "react";
 import { resolveCommunityFlagAction } from "@/app/admin/actions";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/legacy/card";
+import { Badge } from "@/components/ui/legacy/badge";
+import { Button } from "@/components/ui/legacy/button";
 import { MessageSquare, ShieldAlert, Check, X } from "lucide-react";
 
 interface ModerationFlagItem {

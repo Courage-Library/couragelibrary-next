@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/legacy/badge";
+import { Button } from "@/components/ui/legacy/button";
 import { MistakeListItem } from "@/services/mistake.service";
 import { MistakeBookmarkButton } from "@/components/mistakes/mistake-bookmark-button";
 import { RotateCcw, ArrowRight, Zap, CheckCircle2, AlertTriangle, Sparkles, StickyNote, BookOpen } from "lucide-react";

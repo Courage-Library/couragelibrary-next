@@ -1,39 +1,58 @@
-﻿import React, { forwardRef, type InputHTMLAttributes } from "react";
-import { cn } from "@/lib/utils";
+import type { ComponentProps, ReactNode } from "react";
+import { cn } from "./cn";
 
-export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
-  error?: string;
-  label?: string;
-  helperText?: string;
-}
-
-export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className, type = "text", error, label, helperText, id, ...props }, ref) => {
-    const inputId = id || (label ? label.toLowerCase().replace(/\s+/g, "-") : undefined);
-
-    return (
-      <div className="w-full space-y-1.5">
-        {label && (
-          <label htmlFor={inputId} className="block text-xs font-semibold text-slate-700">
-            {label}
-          </label>
-        )}
-        <input
-          id={inputId}
-          type={type}
-          ref={ref}
-          className={cn(
-            "flex h-10 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-50 transition-all",
-            error && "border-red-500 focus:border-red-500 focus:ring-red-500/20",
-            className
-          )}
-          {...props}
-        />
-        {helperText && !error && <p className="text-xs text-slate-500">{helperText}</p>}
-        {error && <p className="text-xs font-medium text-red-600">{error}</p>}
-      </div>
-    );
-  }
+export const controlClasses = cn(
+  "focus-ring w-full rounded-control border border-line-control bg-surface text-body text-fg",
+  "placeholder:text-fg-muted",
+  "disabled:cursor-not-allowed disabled:border-ink-300 disabled:bg-surface-sunken disabled:text-ink-600",
+  "read-only:bg-ink-50",
+  "aria-invalid:border-danger-600 aria-invalid:border-2",
 );
 
-Input.displayName = "Input";
+export type InputProps = Omit<ComponentProps<"input">, "prefix"> & {
+  /** Decorative or textual adornment before the value (e.g. "₹" or a search icon). */
+  prefix?: ReactNode;
+  suffix?: ReactNode;
+  /** Success state after validation (green border); never the only signal. */
+  valid?: boolean;
+};
+
+/** 44px text input. Wrap in <Field> for the label, help and error wiring. */
+export function Input({ prefix, suffix, valid, className, type = "text", ...props }: InputProps) {
+  const input = (
+    <input
+      type={type}
+      className={cn(
+        controlClasses,
+        "h-11 px-3",
+        prefix ? "pl-10" : undefined,
+        suffix ? "pr-10" : undefined,
+        valid && "border-success-600",
+        className,
+      )}
+      {...props}
+    />
+  );
+  if (!prefix && !suffix) return input;
+  return (
+    <div className="relative w-full">
+      {prefix && (
+        <span className="pointer-events-none absolute inset-y-0 left-0 flex w-10 items-center justify-center text-fg-secondary">
+          {prefix}
+        </span>
+      )}
+      {input}
+      {suffix && (
+        <span className="pointer-events-none absolute inset-y-0 right-0 flex w-10 items-center justify-center text-fg-secondary">
+          {suffix}
+        </span>
+      )}
+    </div>
+  );
+}
+
+export type TextareaProps = ComponentProps<"textarea">;
+
+export function Textarea({ className, rows = 4, ...props }: TextareaProps) {
+  return <textarea rows={rows} className={cn(controlClasses, "min-h-24 px-3 py-2", className)} {...props} />;
+}

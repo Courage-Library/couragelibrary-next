@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Factory, Wand2, FileJson, ListChecks, BarChart3, ShieldAlert } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/legacy/badge";
 import { QUESTION_CONTRACT_VERSION } from "@/types/question-factory";
 import { GenerateTab } from "./generate-tab";
 import { ImportTab } from "./import-tab";

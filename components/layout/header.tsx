@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React from "react";
-import { Container } from "@/components/ui/container";
+import { Container } from "@/components/ui/legacy/container";
 import { MainNav } from "@/components/layout/main-nav";
 import { isFeatureEnabled } from "@/config/features";
 import { HeaderControls } from "@/components/layout/header-controls";

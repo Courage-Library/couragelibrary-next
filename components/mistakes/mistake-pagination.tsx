@@ -2,7 +2,7 @@
 
 import React, { useTransition } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/legacy/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface MistakePaginationProps {

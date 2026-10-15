@@ -2,9 +2,9 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/legacy/button";
+import { Badge } from "@/components/ui/legacy/badge";
+import { Card } from "@/components/ui/legacy/card";
 import { DrillSubmissionResult } from "@/services/mistake.service";
 import { MistakeBookmarkButton } from "@/components/mistakes/mistake-bookmark-button";
 import {

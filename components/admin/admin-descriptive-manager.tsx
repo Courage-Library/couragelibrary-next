@@ -4,11 +4,11 @@ import { actionErrorMessage } from "@/lib/actions/action-result";
 import React, { useState, useActionState } from "react";
 import { createDescriptiveAction } from "@/app/admin/actions";
 import { BulkImportModal } from "@/components/admin/bulk-import-modal";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Alert } from "@/components/ui/alert";
+import { Card } from "@/components/ui/legacy/card";
+import { Badge } from "@/components/ui/legacy/badge";
+import { Button } from "@/components/ui/legacy/button";
+import { Input } from "@/components/ui/legacy/input";
+import { Alert } from "@/components/ui/legacy/alert";
 import { PenTool, Plus, FileUp, Sparkles } from "lucide-react";
 
 interface DescriptiveItem {

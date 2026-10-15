@@ -2,8 +2,8 @@
 
 import React from "react";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/legacy/badge";
+import { Button } from "@/components/ui/legacy/button";
 import { Building2, Calendar, BookOpen, Target, ExternalLink, ShieldCheck } from "lucide-react";
 import { ExamKnowledgeCandidateView } from "@/types/exam-knowledge";
 

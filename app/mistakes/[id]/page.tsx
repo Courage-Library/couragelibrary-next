@@ -6,10 +6,10 @@ import { BookmarkService } from "@/services/bookmark.service";
 import { MistakeNoteEditor } from "@/components/mistakes/mistake-note-editor";
 import { MistakeBookmarkButton } from "@/components/mistakes/mistake-bookmark-button";
 import { MistakeLearningSection } from "@/components/mistakes/mistake-learning-section";
-import { Container } from "@/components/ui/container";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Container } from "@/components/ui/legacy/container";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/legacy/card";
+import { Badge } from "@/components/ui/legacy/badge";
+import { Button } from "@/components/ui/legacy/button";
 import {
   ArrowLeft,
   Brain,

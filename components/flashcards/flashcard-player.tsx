@@ -2,9 +2,9 @@
 
 import React, { useState } from "react";
 import { ReviewFlashcard } from "@/services/flashcard.service";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/legacy/button";
 
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/legacy/badge";
 import {
   RotateCcw,
   HelpCircle,

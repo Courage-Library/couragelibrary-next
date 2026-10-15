@@ -1,49 +1,44 @@
-﻿import React, { type HTMLAttributes } from "react";
-import { cn } from "@/lib/utils";
+import type { ComponentProps, ReactNode } from "react";
+import { AlertTriangle, CheckCircle2, Info, XCircle } from "lucide-react";
+import { cn } from "./cn";
 
-export interface AlertProps extends HTMLAttributes<HTMLDivElement> {
-  variant?: "info" | "success" | "warning" | "error";
-}
+export type AlertTone = "info" | "success" | "warning" | "danger";
 
-const alertStyles = {
-  info: "bg-blue-50/80 border-blue-200 text-blue-900",
-  success: "bg-emerald-50/80 border-emerald-200 text-emerald-900",
-  warning: "bg-amber-50/80 border-amber-200 text-amber-900",
-  error: "bg-rose-50/80 border-rose-200 text-rose-900",
+const TONES: Record<AlertTone, { box: string; icon: string; Icon: typeof Info; label: string }> = {
+  info: { box: "border-info-200 bg-info-50 text-info-800", icon: "text-info-700", Icon: Info, label: "Information" },
+  success: { box: "border-success-200 bg-success-50 text-success-800", icon: "text-success-700", Icon: CheckCircle2, label: "Success" },
+  warning: { box: "border-warning-200 bg-warning-50 text-warning-800", icon: "text-warning-700", Icon: AlertTriangle, label: "Warning" },
+  danger: { box: "border-danger-200 bg-danger-50 text-danger-800", icon: "text-danger-700", Icon: XCircle, label: "Error" },
 };
 
-export function Alert({ className, variant = "info", children, ...props }: AlertProps) {
+export type AlertProps = Omit<ComponentProps<"div">, "title"> & {
+  tone?: AlertTone;
+  title?: ReactNode;
+  /** One follow-up action (link or button). */
+  action?: ReactNode;
+  /**
+   * Set when the notice appears in response to something the user did, so screen readers announce it
+   * (danger → role="alert", others → role="status"). Static page notices leave it off.
+   */
+  live?: boolean;
+};
+
+/** Inline notice / alert. Tone is also given as hidden text, so meaning never depends on colour. */
+export function Alert({ tone = "info", title, action, live = false, className, children, ...props }: AlertProps) {
+  const t = TONES[tone];
   return (
     <div
-      role="alert"
-      className={cn(
-        "relative w-full rounded-2xl border p-4 text-sm leading-relaxed shadow-xs",
-        alertStyles[variant],
-        className
-      )}
+      role={live ? (tone === "danger" ? "alert" : "status") : undefined}
+      className={cn("flex gap-3 rounded-card border p-4 text-body-sm", t.box, className)}
       {...props}
     >
-      {children}
-    </div>
-  );
-}
-
-export function AlertTitle({ className, children, ...props }: HTMLAttributes<HTMLHeadingElement>) {
-  return (
-    <h5 className={cn("mb-1 font-bold leading-none tracking-tight", className)} {...props}>
-      {children}
-    </h5>
-  );
-}
-
-export function AlertDescription({
-  className,
-  children,
-  ...props
-}: HTMLAttributes<HTMLParagraphElement>) {
-  return (
-    <div className={cn("text-xs opacity-90", className)} {...props}>
-      {children}
+      <t.Icon aria-hidden="true" className={cn("mt-0.5 size-5 shrink-0", t.icon)} />
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <span className="sr-only">{t.label}: </span>
+        {title && <p className="font-semibold">{title}</p>}
+        {children && <div>{children}</div>}
+        {action && <div className="mt-1">{action}</div>}
+      </div>
     </div>
   );
 }

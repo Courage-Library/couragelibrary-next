@@ -1,8 +1,8 @@
 import React from "react";
 import Link from "next/link";
 import { AdminService } from "@/services/admin.service";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/legacy/card";
+import { Badge } from "@/components/ui/legacy/badge";
 import {
   HelpCircle,
   FileCheck2,

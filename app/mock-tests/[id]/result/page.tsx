@@ -2,9 +2,9 @@ import React from "react";
 import Link from "next/link";
 import { AssessmentService } from "@/services/assessment.service";
 import { ResultViewClient } from "@/components/assessment/result-view-client";
-import { Container } from "@/components/ui/container";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Container } from "@/components/ui/legacy/container";
+import { Card } from "@/components/ui/legacy/card";
+import { Button } from "@/components/ui/legacy/button";
 import { AlertCircle, ArrowLeft, Clock } from "lucide-react";
 
 interface Props {

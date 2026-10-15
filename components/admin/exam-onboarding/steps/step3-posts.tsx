@@ -2,9 +2,9 @@
 
 import React, { useState } from "react";
 import { ExamPostItem } from "@/services/exam-onboarding/exam-onboarding.service";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/legacy/card";
+import { Badge } from "@/components/ui/legacy/badge";
+import { Button } from "@/components/ui/legacy/button";
 import { Users, PlusCircle, Trash2, Edit2, ShieldAlert } from "lucide-react";
 
 interface Props {

@@ -13,7 +13,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { AdminCurrentAffairsFullArticle } from '@/types/current-affairs';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/components/ui/legacy/badge';
 
 interface Props {
   isOpen: boolean;

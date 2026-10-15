@@ -2,9 +2,9 @@
 
 import React from "react";
 import Link from "next/link";
-import { Container } from "@/components/ui/container";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Container } from "@/components/ui/legacy/container";
+import { Card } from "@/components/ui/legacy/card";
+import { Badge } from "@/components/ui/legacy/badge";
 import { ArrowLeft, ShieldCheck, ExternalLink, HelpCircle } from "lucide-react";
 import { CandidatePublishedModule } from "@/types/exam-knowledge";
 import { ExamFaqAccordion } from "./exam-faq-accordion";
