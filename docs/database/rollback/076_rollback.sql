@@ -1,0 +1,62 @@
+-- =============================================================================
+-- COURAGE LIBRARY — ROLLBACK of 076 (sec_hotfix4_staff_only_rls)
+-- NOT a migration. Apply only with owner approval in ONE transaction, then mark the 076 ledger row
+-- ROLLED_BACK. Restores the original permissive FOR ALL policies (re-opens the read exposure).
+-- =============================================================================
+BEGIN;
+DROP POLICY IF EXISTS "canonical_taxonomy_nodes: admin/staff read" ON public.canonical_taxonomy_nodes;
+DROP POLICY IF EXISTS "canonical_taxonomy_nodes: admin/staff insert" ON public.canonical_taxonomy_nodes;
+DROP POLICY IF EXISTS "canonical_taxonomy_nodes: admin/staff update" ON public.canonical_taxonomy_nodes;
+DROP POLICY IF EXISTS "canonical_taxonomy_nodes: admin/staff delete" ON public.canonical_taxonomy_nodes;
+CREATE POLICY "Staff full management of canonical taxonomy nodes" ON public.canonical_taxonomy_nodes FOR ALL TO authenticated USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "taxonomy_aliases: admin/staff read" ON public.taxonomy_aliases;
+DROP POLICY IF EXISTS "taxonomy_aliases: admin/staff insert" ON public.taxonomy_aliases;
+DROP POLICY IF EXISTS "taxonomy_aliases: admin/staff update" ON public.taxonomy_aliases;
+DROP POLICY IF EXISTS "taxonomy_aliases: admin/staff delete" ON public.taxonomy_aliases;
+CREATE POLICY "Staff full management of taxonomy aliases" ON public.taxonomy_aliases FOR ALL TO authenticated USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "exam_syllabus_versions: admin/staff read" ON public.exam_syllabus_versions;
+DROP POLICY IF EXISTS "exam_syllabus_versions: admin/staff insert" ON public.exam_syllabus_versions;
+DROP POLICY IF EXISTS "exam_syllabus_versions: admin/staff update" ON public.exam_syllabus_versions;
+DROP POLICY IF EXISTS "exam_syllabus_versions: admin/staff delete" ON public.exam_syllabus_versions;
+CREATE POLICY "Staff full management of exam syllabus versions" ON public.exam_syllabus_versions FOR ALL TO authenticated USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "exam_syllabus_nodes: admin/staff read" ON public.exam_syllabus_nodes;
+DROP POLICY IF EXISTS "exam_syllabus_nodes: admin/staff insert" ON public.exam_syllabus_nodes;
+DROP POLICY IF EXISTS "exam_syllabus_nodes: admin/staff update" ON public.exam_syllabus_nodes;
+DROP POLICY IF EXISTS "exam_syllabus_nodes: admin/staff delete" ON public.exam_syllabus_nodes;
+CREATE POLICY "Staff full management of exam syllabus nodes" ON public.exam_syllabus_nodes FOR ALL TO authenticated USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "exam_syllabus_canonical_mappings: admin/staff read" ON public.exam_syllabus_canonical_mappings;
+DROP POLICY IF EXISTS "exam_syllabus_canonical_mappings: admin/staff insert" ON public.exam_syllabus_canonical_mappings;
+DROP POLICY IF EXISTS "exam_syllabus_canonical_mappings: admin/staff update" ON public.exam_syllabus_canonical_mappings;
+DROP POLICY IF EXISTS "exam_syllabus_canonical_mappings: admin/staff delete" ON public.exam_syllabus_canonical_mappings;
+CREATE POLICY "Staff full management of exam syllabus canonical mappings" ON public.exam_syllabus_canonical_mappings FOR ALL TO authenticated USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "exam_knowledge_documents: admin/staff read" ON public.exam_knowledge_documents;
+DROP POLICY IF EXISTS "exam_knowledge_documents: admin/staff insert" ON public.exam_knowledge_documents;
+DROP POLICY IF EXISTS "exam_knowledge_documents: admin/staff update" ON public.exam_knowledge_documents;
+DROP POLICY IF EXISTS "exam_knowledge_documents: admin/staff delete" ON public.exam_knowledge_documents;
+CREATE POLICY "Admin staff full management of exam knowledge documents" ON public.exam_knowledge_documents FOR ALL TO authenticated USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "exam_doc_versions: admin/staff read" ON public.exam_doc_versions;
+DROP POLICY IF EXISTS "exam_doc_versions: admin/staff insert" ON public.exam_doc_versions;
+DROP POLICY IF EXISTS "exam_doc_versions: admin/staff update" ON public.exam_doc_versions;
+DROP POLICY IF EXISTS "exam_doc_versions: admin/staff delete" ON public.exam_doc_versions;
+CREATE POLICY "Admin staff full management of exam doc versions" ON public.exam_doc_versions FOR ALL TO authenticated USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "exam_posts: admin/staff read" ON public.exam_posts;
+DROP POLICY IF EXISTS "exam_posts: admin/staff insert" ON public.exam_posts;
+DROP POLICY IF EXISTS "exam_posts: admin/staff update" ON public.exam_posts;
+DROP POLICY IF EXISTS "exam_posts: admin/staff delete" ON public.exam_posts;
+CREATE POLICY "Admin staff full management of exam posts" ON public.exam_posts FOR ALL TO authenticated USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "exam_sources: admin/staff read" ON public.exam_sources;
+DROP POLICY IF EXISTS "exam_sources: admin/staff insert" ON public.exam_sources;
+DROP POLICY IF EXISTS "exam_sources: admin/staff update" ON public.exam_sources;
+DROP POLICY IF EXISTS "exam_sources: admin/staff delete" ON public.exam_sources;
+CREATE POLICY "Admin staff full management of exam sources" ON public.exam_sources FOR ALL TO authenticated USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "exam_claims: admin/staff read" ON public.exam_claims;
+DROP POLICY IF EXISTS "exam_claims: admin/staff insert" ON public.exam_claims;
+DROP POLICY IF EXISTS "exam_claims: admin/staff update" ON public.exam_claims;
+DROP POLICY IF EXISTS "exam_claims: admin/staff delete" ON public.exam_claims;
+CREATE POLICY "Admin staff full management of exam claims" ON public.exam_claims FOR ALL TO authenticated USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "exam_claim_sources: admin/staff read" ON public.exam_claim_sources;
+DROP POLICY IF EXISTS "exam_claim_sources: admin/staff insert" ON public.exam_claim_sources;
+DROP POLICY IF EXISTS "exam_claim_sources: admin/staff update" ON public.exam_claim_sources;
+DROP POLICY IF EXISTS "exam_claim_sources: admin/staff delete" ON public.exam_claim_sources;
+CREATE POLICY "Admin staff full management of exam claim sources" ON public.exam_claim_sources FOR ALL TO authenticated USING (true) WITH CHECK (true);
+COMMIT;
