@@ -2629,8 +2629,10 @@ export type Database = {
         Row: {
           candidate_matches: Json | null
           canonical_node_id: string | null
+          canonical_node_type: string | null
           created_at: string
           id: string
+          mapping_weight: number | null
           match_confidence: number
           match_method: string | null
           match_notes: string | null
@@ -2644,8 +2646,10 @@ export type Database = {
         Insert: {
           candidate_matches?: Json | null
           canonical_node_id?: string | null
+          canonical_node_type?: string | null
           created_at?: string
           id?: string
+          mapping_weight?: number | null
           match_confidence?: number
           match_method?: string | null
           match_notes?: string | null
@@ -2659,8 +2663,10 @@ export type Database = {
         Update: {
           candidate_matches?: Json | null
           canonical_node_id?: string | null
+          canonical_node_type?: string | null
           created_at?: string
           id?: string
+          mapping_weight?: number | null
           match_confidence?: number
           match_method?: string | null
           match_notes?: string | null
@@ -2673,30 +2679,32 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "exam_syllabus_canonical_mappings_canonical_node_id_fkey"
-            columns: ["canonical_node_id"]
+            foreignKeyName: "exam_syllabus_canonical_mappings_syllabus_node_id_fkey"
+            columns: ["syllabus_node_id"]
             isOneToOne: false
-            referencedRelation: "canonical_taxonomy_nodes"
+            referencedRelation: "exam_syllabus_nodes"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "exam_syllabus_canonical_mappings_syllabus_node_id_fkey"
-            columns: ["syllabus_node_id"]
-            isOneToOne: true
-            referencedRelation: "exam_syllabus_nodes"
-            referencedColumns: ["id"]
+            foreignKeyName: "exam_syllabus_canonical_mappings_topic_fkey"
+            columns: ["canonical_node_id", "canonical_node_type"]
+            isOneToOne: false
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id", "node_type"]
           },
         ]
       }
       exam_syllabus_nodes: {
         Row: {
           created_at: string
+          description: string | null
           display_order: number
           expected_questions_max: number | null
           expected_questions_min: number | null
           id: string
           is_mandatory: boolean
           node_depth: number
+          node_kind: string
           parent_node_id: string | null
           raw_slug: string
           raw_title: string
@@ -2707,12 +2715,14 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          description?: string | null
           display_order?: number
           expected_questions_max?: number | null
           expected_questions_min?: number | null
           id?: string
           is_mandatory?: boolean
           node_depth: number
+          node_kind?: string
           parent_node_id?: string | null
           raw_slug: string
           raw_title: string
@@ -2723,12 +2733,14 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          description?: string | null
           display_order?: number
           expected_questions_max?: number | null
           expected_questions_min?: number | null
           id?: string
           is_mandatory?: boolean
           node_depth?: number
+          node_kind?: string
           parent_node_id?: string | null
           raw_slug?: string
           raw_title?: string
@@ -2756,42 +2768,63 @@ export type Database = {
       }
       exam_syllabus_versions: {
         Row: {
+          archived_at: string | null
           created_at: string
+          created_by: string | null
           exam_cycle_id: string | null
           exam_id: string
           id: string
           is_active: boolean
           metadata: Json
-          raw_payload_hash: string
+          published_at: string | null
+          published_by: string | null
+          raw_payload_hash: string | null
           source_document_id: string | null
+          source_kind: string
           status: string
+          supersedes_version_id: string | null
           updated_at: string
+          version_number: number
           version_tag: string
         }
         Insert: {
+          archived_at?: string | null
           created_at?: string
+          created_by?: string | null
           exam_cycle_id?: string | null
           exam_id: string
           id?: string
           is_active?: boolean
           metadata?: Json
-          raw_payload_hash: string
+          published_at?: string | null
+          published_by?: string | null
+          raw_payload_hash?: string | null
           source_document_id?: string | null
+          source_kind?: string
           status?: string
+          supersedes_version_id?: string | null
           updated_at?: string
+          version_number: number
           version_tag: string
         }
         Update: {
+          archived_at?: string | null
           created_at?: string
+          created_by?: string | null
           exam_cycle_id?: string | null
           exam_id?: string
           id?: string
           is_active?: boolean
           metadata?: Json
-          raw_payload_hash?: string
+          published_at?: string | null
+          published_by?: string | null
+          raw_payload_hash?: string | null
           source_document_id?: string | null
+          source_kind?: string
           status?: string
+          supersedes_version_id?: string | null
           updated_at?: string
+          version_number?: number
           version_tag?: string
         }
         Relationships: [
@@ -2814,6 +2847,13 @@ export type Database = {
             columns: ["source_document_id"]
             isOneToOne: false
             referencedRelation: "exam_knowledge_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_syllabus_versions_supersedes_version_id_fkey"
+            columns: ["supersedes_version_id"]
+            isOneToOne: false
+            referencedRelation: "exam_syllabus_versions"
             referencedColumns: ["id"]
           },
         ]
@@ -7742,6 +7782,10 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_exam_syllabus_read_model: {
+        Args: { p_exam_cycle_id?: string; p_exam_id: string }
+        Returns: Json
+      }
       fn_finalize_battle_room: { Args: { p_room_id: string }; Returns: Json }
       fn_find_or_create_battle_room:
         | {
@@ -7835,6 +7879,7 @@ export type Database = {
         Returns: boolean
       }
       fn_join_battle_by_code: { Args: { p_room_code: string }; Returns: Json }
+      fn_jwt_is_admin: { Args: never; Returns: boolean }
       fn_jwt_is_admin_or_staff: { Args: never; Returns: boolean }
       fn_log_user_search: {
         Args: {
@@ -8013,6 +8058,167 @@ export type Database = {
         Args: { p_answers: Json; p_drill_id: string }
         Returns: Json
       }
+      fn_syllabus__assert_role: {
+        Args: { p_admin_only: boolean }
+        Returns: undefined
+      }
+      fn_syllabus__audit: {
+        Args: {
+          p_action: string
+          p_entity: string
+          p_new: Json
+          p_old: Json
+          p_target: string
+        }
+        Returns: undefined
+      }
+      fn_syllabus__create_version: {
+        Args: {
+          p_exam_cycle_id: string
+          p_exam_id: string
+          p_metadata: Json
+          p_payload_hash: string
+          p_source_kind: string
+          p_supersedes: string
+          p_version_tag: string
+        }
+        Returns: {
+          archived_at: string | null
+          created_at: string
+          created_by: string | null
+          exam_cycle_id: string | null
+          exam_id: string
+          id: string
+          is_active: boolean
+          metadata: Json
+          published_at: string | null
+          published_by: string | null
+          raw_payload_hash: string | null
+          source_document_id: string | null
+          source_kind: string
+          status: string
+          supersedes_version_id: string | null
+          updated_at: string
+          version_number: number
+          version_tag: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "exam_syllabus_versions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      fn_syllabus__insert_node: {
+        Args: {
+          p_description: string
+          p_kind: string
+          p_mandatory: boolean
+          p_max: number
+          p_min: number
+          p_order: number
+          p_parent: string
+          p_slug: string
+          p_tier: string
+          p_title: string
+          p_version_id: string
+        }
+        Returns: string
+      }
+      fn_syllabus__lock_version: {
+        Args: { p_version_id: string }
+        Returns: {
+          archived_at: string | null
+          created_at: string
+          created_by: string | null
+          exam_cycle_id: string | null
+          exam_id: string
+          id: string
+          is_active: boolean
+          metadata: Json
+          published_at: string | null
+          published_by: string | null
+          raw_payload_hash: string | null
+          source_document_id: string | null
+          source_kind: string
+          status: string
+          supersedes_version_id: string | null
+          updated_at: string
+          version_number: number
+          version_tag: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "exam_syllabus_versions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      fn_syllabus__require_draft: {
+        Args: { p_version_id: string }
+        Returns: {
+          archived_at: string | null
+          created_at: string
+          created_by: string | null
+          exam_cycle_id: string | null
+          exam_id: string
+          id: string
+          is_active: boolean
+          metadata: Json
+          published_at: string | null
+          published_by: string | null
+          raw_payload_hash: string | null
+          source_document_id: string | null
+          source_kind: string
+          status: string
+          supersedes_version_id: string | null
+          updated_at: string
+          version_number: number
+          version_tag: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "exam_syllabus_versions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      fn_syllabus__slugify: { Args: { p_text: string }; Returns: string }
+      fn_syllabus__validate: { Args: { p_version_id: string }; Returns: Json }
+      fn_syllabus_archive_version: {
+        Args: { p_version_id: string }
+        Returns: Json
+      }
+      fn_syllabus_create_draft: {
+        Args: {
+          p_exam_cycle_id?: string
+          p_exam_id: string
+          p_from_version_id?: string
+          p_version_tag?: string
+        }
+        Returns: Json
+      }
+      fn_syllabus_delete_node: { Args: { p_node_id: string }; Returns: Json }
+      fn_syllabus_move_node: {
+        Args: {
+          p_display_order?: number
+          p_new_parent_id: string
+          p_node_id: string
+        }
+        Returns: Json
+      }
+      fn_syllabus_publish: { Args: { p_version_id: string }; Returns: Json }
+      fn_syllabus_seed_cgl_pattern_skeleton: { Args: never; Returns: Json }
+      fn_syllabus_seed_legacy_gd_draft: { Args: never; Returns: Json }
+      fn_syllabus_set_unit_mappings: {
+        Args: { p_node_id: string; p_topic_ids: string[]; p_weights?: number[] }
+        Returns: Json
+      }
+      fn_syllabus_upsert_node: {
+        Args: { p_node: Json; p_version_id: string }
+        Returns: Json
+      }
+      fn_syllabus_validate: { Args: { p_version_id: string }; Returns: Json }
       fn_transition_question_version: {
         Args: {
           p_actor: string

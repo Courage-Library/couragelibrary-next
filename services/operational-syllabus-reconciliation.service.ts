@@ -45,6 +45,13 @@ import type {
   WorkQueuePriority,
 } from '@/types/dynamic-syllabus-reconciliation';
 
+/**
+ * GAP2-4a: syllabus versions, nodes and mappings are written only through the role-checked, audited RPCs
+ * (migration 079). The workbench writes those tables directly with the service role, so every resolve action
+ * fails closed (503, before any read or write) until GAP2-4c retires the workbench.
+ */
+const RECONCILIATION_WRITES_ENABLED: boolean = false;
+
 export class OperationalSyllabusReconciliationError extends Error {
   code: ApiErrorCode;
   statusCode: number;
@@ -557,6 +564,9 @@ export class OperationalSyllabusReconciliationService {
   static async resolveWorkItem(
     params: ExecuteResolutionParams
   ): Promise<ResolveWorkItemApiResponse> {
+    if (!RECONCILIATION_WRITES_ENABLED) {
+      throw new OperationalSyllabusReconciliationError('SERVICE_UNAVAILABLE', SYLLABUS_RECONCILIATION_UNAVAILABLE_MESSAGE, 503);
+    }
     const { payload, reviewerUserId, supabaseClient } = params;
     const {
       syllabusVersionId,

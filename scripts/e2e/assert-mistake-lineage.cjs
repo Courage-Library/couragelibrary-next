@@ -4,6 +4,8 @@
  * - 3 mistake occurrences, ACTIVE, question_version_id NOT NULL and = attempt_answers.question_version_id
  * - vault rows carry topic_id (= questions.canonical_topic_id) and subject_id (= topics.subject_id)
  * - fn_revoke_mistakes_by_errata on one new version revokes the matching occurrence (then ROLLBACK)
+ * Every run ends with a per-assertion summary (DB-1 … DB-6: PASS / FAIL / NOT RUN), also when the script
+ * aborts, so a partial result always names the failing assertion (architect ruling, GAP2-4a).
  * Usage: node scripts/e2e/assert-mistake-lineage.cjs
  */
 const fs = require('fs');
@@ -11,8 +13,19 @@ const path = require('path');
 const { Client } = require('pg');
 const { EMAIL, OUT_DIR, pgConfig, stepRecorder } = require('./_e2e-env.cjs');
 
+const IDS = ['DB-1', 'DB-2', 'DB-3', 'DB-4', 'DB-5', 'DB-6'];
+const { results, step } = stepRecorder();
+function summary(error) {
+  console.log('\nLineage assertion summary:');
+  for (const id of IDS) {
+    const r = results.find((x) => x.name.startsWith(`${id} `));
+    const what = r ? `  ${r.name.slice(id.length + 1)}${r.detail ? ' — ' + r.detail : ''}` : '';
+    console.log(`  ${id}  ${r ? (r.ok ? 'PASS' : 'FAIL') : 'NOT RUN'}${what}`);
+  }
+  if (error) console.log(`  aborted: ${error}`);
+}
+
 (async () => {
-  const { results, step } = stepRecorder();
   const c = new Client(pgConfig());
   c.on('error', () => {});
   await c.connect();
@@ -62,10 +75,13 @@ const { EMAIL, OUT_DIR, pgConfig, stepRecorder } = require('./_e2e-env.cjs');
   await c.end();
 
   fs.writeFileSync(path.join(OUT_DIR, 'e2e_assert_result.json'), JSON.stringify(results, null, 1));
-  const failed = results.filter((r) => !r.ok).length;
-  console.log(`\nDB assertions: ${results.length - failed}/${results.length} passed`);
+  const notRun = IDS.filter((id) => !results.some((r) => r.name.startsWith(`${id} `))).length;
+  const failed = results.filter((r) => !r.ok).length + notRun;
+  summary();
+  console.log(`\nDB assertions: ${IDS.length - failed}/${IDS.length} passed`);
   process.exit(failed ? 1 : 0);
 })().catch((e) => {
   console.log('ERR', e.code || '', String(e.message).slice(0, 200));
+  summary(`${e.code || ''} ${String(e.message).slice(0, 120)}`);
   process.exit(1);
 });
