@@ -93,3 +93,15 @@ Run on a local production build.
 | Signed-in smoke `admin-pages` | **all passed** (12 pages, incl. `/admin/syllabus-reconciliation`) |
 
 Production: see the commit message and the session report.
+
+## Owner verification of the production environment (2026-10-15)
+
+The owner checked Vercel. It holds only:
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SITE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+
+**There is no direct DB connection string, so TLS-1 had no production exposure.** The removed code path could not have connected in production. In `services/exam-syllabus-resolution.service.ts` it would have thrown "Atomic subtree creation requires transactional PostgreSQL client connection.".
+
+**Database password rotation is deferred to pre-launch** (owner decision). Steps 1–3 of §d are unnecessary; steps 4–6 remain for pre-launch.

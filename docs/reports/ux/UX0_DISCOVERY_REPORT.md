@@ -425,6 +425,13 @@ These are for later UX phases; no code changes now.
    - the CNTS app is linked, not merged
 8. **PROFILE-1:** a new 1:1 `candidate_profiles` table for preparation-intent fields only. Target exams stay in `user_exam_goals`; account fields stay in `user_profiles`. No field is stored twice.
 
+**Owner decisions (2026-10-15)** supersede rulings 1, 3 and 5 above:
+- **Brand colours CONFIRMED:** violet `#5000F0` primary; cyan `#5CD8E6` accent only (never text on white).
+- **Free / Pro split:** provisionally confirmed as recommended. Details are settled with Commerce. The correct answer is never paywalled.
+- **Language: ENGLISH ONLY.**
+  - No Hindi, no i18n framework, no Devanagari font.
+  - The bilingual and Devanagari parts of `docs/ux/DESIGN_SYSTEM.md` (§2 Devanagari typography, §6 bilingual rules, the per-question EN / हिन्दी toggle) and the `/hi/` mirror rule in `docs/ux/SITEMAP_IA.md` are **superseded**. UX-1 implements Latin typography (Inter) only.
+
 Also accepted:
 - the blueprint
 - the build order, with **test series (UX-5) before courses (UX-4)**

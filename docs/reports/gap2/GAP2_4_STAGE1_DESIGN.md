@@ -67,6 +67,8 @@
 
   A read-only privilege check shows the `authenticated` role holds **no INSERT / UPDATE / DELETE privilege** on any of them, so writes are blocked today **only by grants**. These policies should be replaced with role-checked ones (§2.3).
 
+  > **Correction (SEC-HOTFIX-4, 2026-10-15):** `authenticated` *does* hold SELECT, and a `FOR ALL … USING (true)` policy also grants reads. Any signed-in user could therefore read rows hidden from the public (11 unverified `exam_sources` rows were readable). SEC-HOTFIX-4 (migration 076) replaced all 11 policies with admin/staff-only policies (`docs/reports/sec/SEC_HOTFIX4_REPORT.md`). §2.3 is done.
+
 **Functions and RPCs:**
 - Only the three node triggers above (plus unrelated `fn_reconcile_search_indexes`).
 - **No runtime code calls any syllabus RPC.**
