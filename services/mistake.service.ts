@@ -1,6 +1,7 @@
 import { createServerSupabaseClient, createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { LearningResolverService, type ResolvedLearningDocument, type LearningDocumentType } from "@/services/learning/learning-resolver.service";
 import { toPublicDrillQuestions } from "@/services/mistakes/drill-payload";
+import { rpcJsonObject } from "@/lib/supabase/rpc";
 
 export interface ResolvedLearningResource {
   id: string;
@@ -220,8 +221,10 @@ export interface DrillEvaluationItem {
   question_text: string;
   options: DrillQuestionOption[];
   selected_option_key: string | null;
-  correct_option_key: string;
+  /** null only for an ungradable item (no answer key for the compiled version; never drilled since DRILL-1) */
+  correct_option_key: string | null;
   is_correct: boolean;
+  ungradable?: boolean;
   explanation: string | null;
   previous_consecutive: number;
   new_consecutive: number;
@@ -1546,96 +1549,31 @@ export class MistakeService {
 
     const combined = [...freshMistakes, ...fatiguedMistakes];
     const selectedMistakes = combined.slice(0, limit);
-    const selectedQIds = selectedMistakes.map((m) => m.question_id);
-
-    // Fetch questions and options (SCRUBBED of correct_option_key and explanation_md)
-    const { data: questionsData, error: qError } = await sb
-      .from("questions")
-      .select("id, question_versions!inner(id, question_text, is_current, lifecycle_status, question_options(id, option_key, option_text, order_index))")
-      .in("id", selectedQIds)
-      // QF-1: drills use only the current PUBLISHED version of a published question.
-      .eq("status", "published")
-      .eq("question_versions.is_current", true)
-      .eq("question_versions.lifecycle_status", "PUBLISHED");
-
-    if (qError || !questionsData) {
-      return { success: false, error: "Failed to load question details for drill." };
-    }
-
-    const qMap: Record<string, any> = {};
-    (questionsData as any[]).forEach((q) => {
-      const qv = q.question_versions?.find((v: any) => v.is_current && v.lifecycle_status === "PUBLISHED");
-      if (qv) {
-        const sortedOptions: DrillQuestionOption[] = (qv.question_options || [])
-          .sort((a: any, b: any) => (a.order_index || 0) - (b.order_index || 0))
-          .map((opt: any) => ({
-            id: opt.id,
-            option_key: opt.option_key,
-            content_text: opt.option_text,
-            option_text: opt.option_text,
-            option_order: opt.order_index || 0,
-          }));
-
-        qMap[q.id] = {
-          question_version_id: qv.id,
-          question_text: qv.question_text || "",
-          options: sortedOptions,
-        };
-      }
+    // DRILL-1: the drill is created server-side. fn_generate_mistake_drill (SECURITY DEFINER, auth.uid()) re-checks that
+    // every vault row belongs to the caller, compiles the current PUBLISHED version of each question (only versions
+    // that have an answer key) and stores / returns the pre-submit projection — never answers or explanations.
+    // Students hold no write grant on user_mistake_drills (decisions #39 / #42).
+    const { data: rpcData, error: rpcError } = await supabase.rpc("fn_generate_mistake_drill", {
+      p_vault_ids: selectedMistakes.map((m) => m.id),
+      p_topic_id: parsedConfig.topicId && parsedConfig.topicId !== "ALL" ? parsedConfig.topicId : undefined,
+      p_cognitive_type_id: parsedConfig.cognitiveTypeId && parsedConfig.cognitiveTypeId !== "ALL" ? parsedConfig.cognitiveTypeId : undefined,
     });
-
-    const drillQuestions: DrillQuestion[] = [];
-    for (const m of selectedMistakes) {
-      const qDetails = qMap[m.question_id];
-      if (qDetails) {
-        drillQuestions.push({
-          vault_id: m.id,
-          question_id: m.question_id,
-          question_version_id: qDetails.question_version_id,
-          question_text: qDetails.question_text,
-          primary_cognitive_type_id: m.primary_cognitive_type_id,
-          consecutive_correct: m.consecutive_correct_in_remediation || 0,
-          options: qDetails.options,
-          context: {
-            cognitive_type_name: m.mistake_cognitive_types?.name || m.primary_cognitive_type_id,
-            total_mistakes_count: m.total_mistakes_count || 1,
-            consecutive_correct: m.consecutive_correct_in_remediation || 0,
-            last_mistake_at: m.last_mistake_at,
-            user_custom_notes: m.user_custom_notes || null,
-          },
-        });
-      }
+    if (rpcError) {
+      return { success: false, error: `Could not create the drill (${rpcError.code || "database error"}). Please try again.` };
     }
-
-    if (drillQuestions.length === 0) {
-      return { success: false, error: "Could not compile drill questions." };
+    const created = rpcJsonObject<{ success: boolean; code?: string; error?: string; drill_id?: string; total_questions?: number; questions?: unknown }>(rpcData);
+    if (!created || !created.success || !created.drill_id) {
+      return { success: false, error: created?.error || "Could not create the drill." };
     }
-
-    // Insert active drill session
-    const { data: newDrill, error: drillInsertError } = await sb
-      .from("user_mistake_drills")
-      .insert({
-        user_id: user.id,
-        topic_id: parsedConfig.topicId && parsedConfig.topicId !== "ALL" ? parsedConfig.topicId : null,
-        cognitive_type_id: parsedConfig.cognitiveTypeId && parsedConfig.cognitiveTypeId !== "ALL" ? parsedConfig.cognitiveTypeId : null,
-        total_questions: drillQuestions.length,
-        questions_data: drillQuestions,
-        status: "IN_PROGRESS",
-      })
-      .select("id")
-      .single();
-
-    if (drillInsertError || !newDrill) {
-      return { success: false, error: drillInsertError?.message || "Failed to create drill record." };
-    }
+    const questions = toPublicDrillQuestions(created.questions);
 
     return {
       success: true,
-      drill_id: newDrill.id,
-      total_questions: drillQuestions.length,
-      questions_count: drillQuestions.length,
+      drill_id: created.drill_id,
+      total_questions: questions.length,
+      questions_count: questions.length,
       // Pre-submit payload: whitelist projection — never answers / keys / explanations (B2, architect ruling).
-      questions: toPublicDrillQuestions(drillQuestions),
+      questions,
       mode: parsedConfig.mode || "PRACTICE",
     };
   }
@@ -1693,226 +1631,32 @@ export class MistakeService {
       return { success: false, error: "Authentication required to submit drill." };
     }
 
-    const sb = supabase;
-
-    // 1. Fetch and verify drill session
-    const { data: drill, error: drillErr } = await sb
-      .from("user_mistake_drills")
-      .select("*")
-      .eq("id", drillId)
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (drillErr || !drill) {
-      return { success: false, error: "Drill session not found or unauthorized." };
+    // DRILL-1: grading and every write happen server-side in fn_submit_mistake_drill (SECURITY DEFINER, auth.uid()):
+    // ownership + open state are checked, the drill's own questions are graded against the compiled versions' answer
+    // keys (client correctness / score fields are ignored, unanswered = incorrect), vault / occurrence / completion
+    // writes are row-count checked and roll back together, and a second submit returns the stored result.
+    // TYPES-1:B-DRILL-REWARD-ARGS — no coins are awarded (coins_awarded = 0) until Commerce wires the drill reward
+    // through the service-role GamificationService; the RPC calls no reward function.
+    const { data, error } = await supabase.rpc("fn_submit_mistake_drill", { p_drill_id: drillId, p_answers: responses });
+    if (error) {
+      return { success: false, error: `Drill submission failed (${error.code || "database error"}). Nothing was saved.` };
     }
-
-    if (drill.status !== "IN_PROGRESS") {
-      return { success: false, error: "Drill session is already completed or expired." };
+    const result = rpcJsonObject<{
+      success: boolean;
+      code?: string;
+      error?: string;
+      drill_id?: string;
+      idempotent?: boolean;
+      summary?: DrillSubmissionResult["summary"];
+      evaluations?: DrillEvaluationItem[];
+    }>(data);
+    if (!result) {
+      return { success: false, error: "Drill submission returned no result." };
     }
-
-    const questionsData: DrillQuestion[] = (drill.questions_data as DrillQuestion[]) || [];
-    const questionIds = questionsData.map((q) => q.question_id);
-
-    // 2. Load authoritative question answers and explanations
-    // TYPES-1 B1 (Class B): answers of the exact versions the drill was compiled from (not every version of the
-    // question); drills stored without a version id fall back to the question's current version. Students cannot
-    // read question_answers (RLS), so grading reads them server-side with the admin client — the drill row was
-    // loaded for the session user above (ownership), and answers are never returned before submission.
-    const answerSb = createAdminServerSupabaseClient();
-    const ANSWER_SELECT = "question_id, question_text, question_answers(correct_option_key, explanation_md)";
-    const versionIds = questionsData.map((q) => q.question_version_id).filter((id): id is string => Boolean(id));
-    const unversionedIds = questionsData.filter((q) => !q.question_version_id).map((q) => q.question_id);
-    const answersData = [
-      ...(versionIds.length > 0 ? (await answerSb.from("question_versions").select(ANSWER_SELECT).in("id", versionIds)).data ?? [] : []),
-      ...(unversionedIds.length > 0
-        ? (await answerSb.from("question_versions").select(ANSWER_SELECT).in("question_id", unversionedIds).eq("is_current", true)).data ?? []
-        : []),
-    ];
-
-    const answerMap: Record<string, { correctKey: string; explanation: string | null; text: string }> = {};
-    answersData.forEach((row) => {
-      answerMap[row.question_id] = {
-        correctKey: row.question_answers?.correct_option_key || "A",
-        explanation: row.question_answers?.explanation_md || null,
-        text: row.question_text || "",
-      };
-    });
-
-    // 3. Load candidate's vault records for streak calculation
-    const { data: vaultRecords } = await sb
-      .from("user_mistake_vault")
-      .select("id, question_id, consecutive_correct_in_remediation, total_mistakes_count, lifecycle_status")
-      .eq("user_id", user.id)
-      .in("question_id", questionIds);
-
-    const vaultMap: Record<string, any> = {};
-    (vaultRecords || []).forEach((v: any) => {
-      vaultMap[v.question_id] = v;
-    });
-
-    let correctCount = 0;
-    let masteredCount = 0;
-    let revisitingCount = 0;
-    let unresolvedCount = 0;
-    const evaluations: DrillEvaluationItem[] = [];
-
-    // 4. Evaluate each response and update vault records
-    for (const q of questionsData) {
-      const authAnswer = answerMap[q.question_id];
-      const correctKey = authAnswer?.correctKey || "A";
-      const resp = responses.find((r) => r.question_id === q.question_id);
-      const selectedKey = resp?.selected_option_key || null;
-      const isCorrect = selectedKey !== null && selectedKey === correctKey;
-
-      const vRecord = vaultMap[q.question_id];
-      const prevConsecutive = vRecord?.consecutive_correct_in_remediation || 0;
-      let newConsecutive = prevConsecutive;
-      let newStatus: "UNRESOLVED" | "REVISITING" | "MASTERED" = vRecord?.lifecycle_status || "UNRESOLVED";
-
-      if (isCorrect) {
-        correctCount++;
-        newConsecutive = prevConsecutive + 1;
-        if (newConsecutive >= 2) {
-          newStatus = "MASTERED";
-          masteredCount++;
-        } else {
-          newStatus = "REVISITING";
-          revisitingCount++;
-        }
-
-        if (vRecord?.id) {
-          await sb
-            .from("user_mistake_vault")
-            .update({
-              consecutive_correct_in_remediation: newConsecutive,
-              lifecycle_status: newStatus,
-              last_practiced_at: new Date().toISOString(),
-              mastered_at: newStatus === "MASTERED" ? new Date().toISOString() : null,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", vRecord.id);
-        }
-      } else {
-        unresolvedCount++;
-        newConsecutive = 0;
-        newStatus = "UNRESOLVED";
-
-        if (vRecord?.id) {
-          await sb
-            .from("user_mistake_vault")
-            .update({
-              consecutive_correct_in_remediation: 0,
-              lifecycle_status: "UNRESOLVED",
-              total_mistakes_count: (vRecord.total_mistakes_count || 1) + 1,
-              last_mistake_at: new Date().toISOString(),
-              last_practiced_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", vRecord.id);
-
-          // Log failure occurrence
-          await sb.from("user_mistake_occurrences").insert({
-            vault_id: vRecord.id,
-            user_id: user.id,
-            question_id: q.question_id,
-            source_context: "MISTAKE_DRILL",
-            source_reference_id: drillId,
-            selected_option_id: resp?.selected_option_id || null,
-            response_time_seconds: resp?.response_time_seconds || 30,
-            occurrence_status: "ACTIVE",
-          });
-        }
-      }
-
-      evaluations.push({
-        question_id: q.question_id,
-        question_text: q.question_text || authAnswer?.text || "",
-        options: q.options,
-        selected_option_key: selectedKey,
-        correct_option_key: correctKey,
-        is_correct: isCorrect,
-        explanation: authAnswer?.explanation || null,
-        previous_consecutive: prevConsecutive,
-        new_consecutive: newConsecutive,
-        new_status: newStatus,
-      });
+    if (!result.success) {
+      return { success: false, error: result.error || "Drill submission failed." };
     }
-
-    // 5. Coin Rewards (Gamification: 5 coins if total_questions >= 5, max 3/day)
-    const DRILL_REWARD_COINS = 5;
-    let coinsAwarded = 0; // only what was actually credited (see below)
-    const totalQuestions = questionsData.length;
-    if (totalQuestions >= 5) {
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-
-      const { count: dailyCompletedCount } = await sb
-        .from("user_mistake_drills")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .eq("status", "COMPLETED")
-        .gte("completed_at", todayStart.toISOString())
-        .gt("coins_awarded", 0);
-
-      if ((dailyCompletedCount || 0) < 3) {
-        // Award coins via RPC or coin ledger if available (best effort).
-        // TYPES-1 B1 (Class B, fixed): a PostgREST builder is not a Promise, so the former `.catch(() => null)`
-        // threw a TypeError and aborted the drill submission; the award is now awaited inside try/catch.
-        // Honest data (#15, architect interim ruling): coins_awarded records ONLY coins the reward RPC actually
-        // credited. Until Commerce wires the reward (TYPES-1:B-DRILL-REWARD-ARGS) the call fails, so 0 is recorded.
-        // SEC-HOTFIX-7 (083): the RPC is service-role only, so this session call is denied (42501); the reward must
-        // move to the service-role GamificationService.
-        try {
-          const { data: rewardRes, error: rewardErr } = await supabase.rpc("fn_award_gamification_reward", {
-            p_user_id: user.id,
-            p_event_type: "MISTAKE_DRILL_COMPLETED",
-            p_source_type: "MISTAKE_DRILL",
-            p_source_id: drillId,
-            p_idempotency_key: `mistake_drill_${drillId}_${user.id}`,
-            // @ts-expect-error TYPES-1:B-DRILL-REWARD-ARGS — the RPC takes p_calculated_coins / p_reason_code (coin economy decision); owner Commerce
-            p_coins: DRILL_REWARD_COINS,
-            p_reason: "MISTAKE_DRILL_COMPLETION",
-            p_metadata: { drill_id: drillId, correct_count: correctCount, resolved_count: masteredCount },
-          });
-          const rewardRejected =
-            rewardRes !== null && typeof rewardRes === "object" && !Array.isArray(rewardRes) && rewardRes.success === false;
-          if (!rewardErr && !rewardRejected) coinsAwarded = DRILL_REWARD_COINS;
-        } catch {
-          // reward is best effort; nothing was credited, so coinsAwarded stays 0
-        }
-      }
-    }
-
-    // 6. Complete Drill Record
-    await sb
-      .from("user_mistake_drills")
-      .update({
-        status: "COMPLETED",
-        correct_count: correctCount,
-        mistakes_resolved_count: masteredCount,
-        coins_awarded: coinsAwarded,
-        completed_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", drillId);
-
-    const accuracyPct = totalQuestions > 0 ? Number(((correctCount / totalQuestions) * 100).toFixed(1)) : 0;
-
-    return {
-      success: true,
-      drill_id: drillId,
-      summary: {
-        total_questions: totalQuestions,
-        correct_count: correctCount,
-        accuracy_pct: accuracyPct,
-        mastered_count: masteredCount,
-        revisiting_count: revisitingCount,
-        unresolved_count: unresolvedCount,
-        coins_awarded: coinsAwarded,
-      },
-      evaluations,
-    };
+    return { success: true, drill_id: result.drill_id, summary: result.summary, evaluations: result.evaluations || [] };
   }
 
   /**

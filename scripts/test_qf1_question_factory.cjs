@@ -732,7 +732,8 @@ const OPTS = { origin: 'AI_EXTERNAL', requireContextHash: true, cognitiveTrapCod
       ['services/premium-generator.service.ts', '.eq("lifecycle_status", "PUBLISHED")'],
       ['services/adaptive/adaptive-selection.service.ts', '.eq("lifecycle_status", "PUBLISHED")'],
       ['services/adaptive/adaptive-remediation.service.ts', '"question_versions.lifecycle_status", "PUBLISHED"'],
-      ['services/mistake.service.ts', '"question_versions.lifecycle_status", "PUBLISHED"'],
+      // DRILL-1 (085): drills are compiled server-side by fn_generate_mistake_drill
+      ['supabase/migrations/20261016000085_drill1_server_authoritative_drills.sql', "JOIN public.question_versions qv ON qv.question_id = q.id AND qv.is_current AND qv.lifecycle_status = 'PUBLISHED'"],
       ['services/current-affairs-daily-quiz.service.ts', "qv.lifecycle_status = 'PUBLISHED'"],
     ];
     checks.forEach(([f, needle]) => assert(read(f).includes(needle), `${f} missing filter`));

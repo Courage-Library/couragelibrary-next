@@ -11,10 +11,10 @@
   ],
   "values": {
     "queryEscapes": 59,
-    "asAny": 247,
-    "colonAny": 779,
+    "asAny": 246,
+    "colonAny": 774,
     "unknownAs": 83,
-    "tsExpectError": 12,
+    "tsExpectError": 11,
     "tsIgnore": 0
   },
   "updatedAt": "2026-10-16",
@@ -46,6 +46,13 @@
       "from": 17,
       "to": 12,
       "reason": "B-CURRICULUM-MAPPING resolved: coverage re-pointed to the canonical syllabus; its 5 tracked directives removed"
+    },
+    {
+      "batch": "DRILL-1",
+      "key": "tsExpectError",
+      "from": 12,
+      "to": 11,
+      "reason": "TYPES-1:B-DRILL-REWARD-ARGS directive removed: the drill reward call moved out of the app (fn_submit_mistake_drill awards no coins); the tag stays as a tracked comment (owner Commerce)"
     }
   ],
   "resolved": [

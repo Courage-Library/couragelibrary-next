@@ -1,9 +1,10 @@
 /**
- * SEC-HOTFIX-7: mistake-drill flow as the permanent QA student, against a LOCAL production build.
+ * Mistake-drill flow (SEC-HOTFIX-7 check, permanent gate since DRILL-1) as the permanent QA student, against a LOCAL
+ * production build.
  *
- * Since migration 083 fn_award_gamification_reward is service-role only, so the drill's session-client reward call
- * (services/mistake.service.ts, TYPES-1:B-DRILL-REWARD-ARGS) is denied with 42501. This check proves the drill
- * still completes and records coins_awarded = 0 honestly (no coin ledger row, no gamification event):
+ * Since DRILL-1 (085) the drill is generated and graded server-side (fn_generate_mistake_drill / fn_submit_mistake_drill,
+ * auth.uid()); the submit RPC awards no coins (TYPES-1:B-DRILL-REWARD-ARGS, Commerce). This check proves the UI flow
+ * completes and records coins_awarded = 0 honestly (no coin ledger row, no gamification event):
  *   D-01 sign in → /mistakes/drill → "Start Remediation Drill" → runner shows the drill
  *   D-02 "Submit Drill" (confirm unanswered) → the result screen renders
  *   D-03 the new user_mistake_drills row is COMPLETED with coins_awarded = 0
@@ -61,7 +62,7 @@ const { results, step } = stepRecorder();
   const { data: drills } = await admin.from('user_mistake_drills').select('id, status, coins_awarded').eq('user_id', uid);
   const fresh = (drills || []).filter((d) => !oldIds.has(d.id));
   const done = fresh.find((d) => d.status === 'COMPLETED');
-  step('D-03 drill row COMPLETED with coins_awarded = 0 (reward RPC is service-role only)', Boolean(done) && done.coins_awarded === 0,
+  step('D-03 drill row COMPLETED with coins_awarded = 0 (the submit RPC awards no coins)', Boolean(done) && done.coins_awarded === 0,
     done ? `status ${done.status}, coins_awarded ${done.coins_awarded}` : `new drills: ${JSON.stringify(fresh.map((d) => d.status))}`);
   const after = { ledger: await count('coin_ledger'), events: await count('gamification_events') };
   step('D-04 no coin ledger / gamification event written by the drill', after.ledger === before.ledger && after.events === before.events,

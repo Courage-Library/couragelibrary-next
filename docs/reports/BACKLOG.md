@@ -3,7 +3,7 @@
 These are items that no open phase owns. Phase-owned items stay in their own reports. Examples:
 - TEST-CA: the legacy Current Affairs suites
 - LOOP-1: the `B-DSH-*` tags
-- DRILL-1: the mistake-drill writes (DRILL-WRITES; next phase after GAP2-4c)
+- Commerce: the mistake-drill reward (`B-DRILL-REWARD-ARGS`)
 
 | ID | Item | Source | Notes |
 |---|---|---|---|
@@ -14,4 +14,4 @@ These are items that no open phase owns. Phase-owned items stay in their own rep
 | SEC-1E | `/admin/syllabus` lists exams (including inactive ones) through the service-role client after `requireAdminPage` (staff RLS sees only active exams) | Architect note at GAP2-4b acceptance (2026-10-16) | Accepted for now. Replace it with a role-checked read (an RPC or a staff policy for inactive exams) in a SEC phase. |
 | ~~SECDEF-RULING~~ | DONE in SEC-HOTFIX-7 (migration 083): all 14 functions were ruled and locked; the P-9 pending list is empty | `docs/reports/sec/SEC_HOTFIX7_REPORT.md` | — |
 | OBS-FN-STATS | `track_functions = none`: no function call statistics exist for incident analysis (INC-3) | `docs/reports/sec/SEC_HOTFIX6_REPORT.md` §1.1 | Owner: Platform ops (architect, SEC-HOTFIX-6 acceptance). Set `track_functions = 'pl'` if Supabase allows it. |
-| DRILL-WRITES | **High:** students cannot generate or complete mistake drills. Since 067 `authenticated` holds only SELECT on `user_mistake_drills`, but `MistakeService.generateMistakeDrill` / `submitMistakeDrill` insert and update the table with the session client (the completion update does not check its error) | `docs/reports/sec/SEC_HOTFIX7_REPORT.md` §3.1 | Pre-existing, independent of 083 (proven). Needs a ruling: move the writes to the `fn_generate_mistake_drill` / `fn_submit_mistake_drill` RPCs, or grant INSERT / UPDATE with own-row RLS. Then make `scripts/e2e/student-drill.cjs` a gate. The drill reward must go via the service-role GamificationService (TYPES-1:B-DRILL-REWARD-ARGS, Commerce). |
+| ~~DRILL-WRITES~~ | DONE in DRILL-1 (migration 085): drills are generated and submitted only through the server-authoritative RPCs `fn_generate_mistake_drill` / `fn_submit_mistake_drill` (auth.uid()); no student table write | `docs/reports/drill/DRILL1_REPORT.md` | — |
