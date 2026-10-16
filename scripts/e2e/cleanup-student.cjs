@@ -53,6 +53,8 @@ if (!KEEP_USER && isPermanentIdentity(EMAIL)) {
       await del('quiz_battle_rooms', `DELETE FROM public.quiz_battle_rooms WHERE id = ANY($1) AND created_by_user_id = $2`, [rooms, uid]);
     }
     await del('user_battle_stats', `DELETE FROM public.user_battle_stats WHERE user_id = $1`);
+    // SEC-HOTFIX-7: the drill check (scripts/e2e/student-drill.cjs) creates drill sessions for the QA student
+    await del('user_mistake_drills', `DELETE FROM public.user_mistake_drills WHERE user_id = $1`);
     await del('user_mistake_occurrences', `DELETE FROM public.user_mistake_occurrences WHERE user_id = $1`);
     await del('user_mistake_vault', `DELETE FROM public.user_mistake_vault WHERE user_id = $1`);
     await del('attempt_answers', `DELETE FROM public.attempt_answers WHERE attempt_id IN (SELECT id FROM public.test_attempts WHERE user_id = $1)`);

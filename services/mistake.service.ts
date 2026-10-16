@@ -1861,6 +1861,8 @@ export class MistakeService {
         // threw a TypeError and aborted the drill submission; the award is now awaited inside try/catch.
         // Honest data (#15, architect interim ruling): coins_awarded records ONLY coins the reward RPC actually
         // credited. Until Commerce wires the reward (TYPES-1:B-DRILL-REWARD-ARGS) the call fails, so 0 is recorded.
+        // SEC-HOTFIX-7 (083): the RPC is service-role only, so this session call is denied (42501); the reward must
+        // move to the service-role GamificationService.
         try {
           const { data: rewardRes, error: rewardErr } = await supabase.rpc("fn_award_gamification_reward", {
             p_user_id: user.id,
