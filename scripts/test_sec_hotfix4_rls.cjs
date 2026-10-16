@@ -22,7 +22,8 @@
  *   P-9 PERMANENT RULE (SEC-HOTFIX-6, 082): no SECURITY DEFINER function in public is EXECUTE-able by anon or PUBLIC
  *       and every one pins search_path — unless it is on the reviewed SECDEF_PUBLIC_OK allow-list (one-line
  *       justification each; trigger functions are not callable through PostgREST) or on SECDEF_PENDING_RULING
- *       (reported loudly; an entry that no longer violates must be removed). The INC-3 lockdown set stays
+ *       (MUST be empty since SEC-HOTFIX-7, 083). The service-role-only set (082 + 083) and the authenticated-only set
+ *       (083 rulings 2 + 3) are asserted; the INC-3 lockdown set stays
  *       service-role only. Behaviour (rolled back): anon / student calls of the locked functions → 42501; the service
  *       role deletes a throwaway exam created inside the transaction through fn_delete_exam_controlled
  *
@@ -80,25 +81,16 @@ function blanketViolations(policies) {
 const SECDEF_PUBLIC_OK = {
   fn_exam_syllabus_read_model: 'student syllabus read model: PUBLISHED rows only, read-only, search_path ""',
 };
-// P-9: SECURITY DEFINER functions awaiting an architect ruling (SEC_HOTFIX6_REPORT §2) — tolerated, reported loudly
-const SECDEF_PENDING_RULING = {
-  fn_award_gamification_reward: 'writes, no caller check, no search_path; session caller services/mistake.service.ts:1865 (+ service role gamification.service.ts:564)',
-  fn_claim_reward_item: 'writes, no caller check, no search_path; no app caller',
-  fn_reverse_reward_claim: 'writes, no caller check, no search_path; no app caller',
-  fn_create_batch_assignment: 'writes, internal auth checks; session caller services/institute.service.ts:313',
-  fn_enroll_batch_student: 'writes, internal auth checks; session caller services/institute.service.ts:282',
-  fn_evaluate_descriptive_submission: 'writes, internal auth checks; session caller services/descriptive.service.ts:424',
-  fn_submit_descriptive_answer: 'writes, auth.uid(); session caller services/descriptive.service.ts:237',
-  fn_check_premium_access_and_quota: 'read, no caller check (any user entitlement / quota); service-role caller services/premium-entitlement.service.ts:82',
-  fn_get_batch_assignment_progress: 'read, internal auth checks; session caller services/institute.service.ts:342',
-  fn_can_evaluate_submission: 'read predicate used by RLS policies; session caller services/descriptive.service.ts:314',
-  fn_has_batch_faculty_access: 'read predicate used by RLS policies; session caller services/institute.service.ts:201',
-  fn_is_batch_member: 'read predicate used by RLS policies',
-  fn_is_institute_member: 'read predicate used by RLS policies',
-  fn_sanitize_attempt_answer: 'trigger function without a pinned search_path',
-};
-// P-9: INC-3 lockdown set (082) — service_role only
-const SECDEF_LOCKED = ['fn_delete_exam_controlled', 'fn_authorize_and_start_test_attempt', 'fn_create_dynamic_mock_instance_atomic', 'fn_record_qualifying_streak_activity'];
+// P-9: SECURITY DEFINER functions awaiting an architect ruling — MUST stay empty (SEC-HOTFIX-7 ruled on all 14
+// items of SEC_HOTFIX6_REPORT §2.3; a new exposure needs a ruling + a fix, never an entry here)
+const SECDEF_PENDING_RULING = {};
+// P-9: service_role only — INC-3 set (082) + SEC-HOTFIX-7 ruling 1 (083)
+const SECDEF_LOCKED = ['fn_delete_exam_controlled', 'fn_authorize_and_start_test_attempt', 'fn_create_dynamic_mock_instance_atomic', 'fn_record_qualifying_streak_activity',
+  'fn_award_gamification_reward', 'fn_claim_reward_item', 'fn_reverse_reward_claim', 'fn_check_premium_access_and_quota'];
+// P-9: SEC-HOTFIX-7 rulings 2 + 3 (083) — authenticated + service_role, never anon / PUBLIC (internal auth checks /
+// RLS predicates whose policies are all TO authenticated)
+const SECDEF_AUTHENTICATED = ['fn_create_batch_assignment', 'fn_enroll_batch_student', 'fn_evaluate_descriptive_submission', 'fn_submit_descriptive_answer',
+  'fn_get_batch_assignment_progress', 'fn_can_evaluate_submission', 'fn_has_batch_faculty_access', 'fn_is_batch_member', 'fn_is_institute_member'];
 const STUDENT = { sub: '00000000-0000-4000-8000-0000000000a1', role: 'authenticated', app_metadata: {} };
 const STAFF = { sub: '00000000-0000-4000-8000-0000000000b2', role: 'authenticated', app_metadata: { role: 'staff' } };
 
@@ -365,6 +357,13 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assertion failed'); };
       }
       const stale = Object.keys(SECDEF_PENDING_RULING).filter((n) => !pending.has(n));
       if (stale.length) bad.push(`SECDEF_PENDING_RULING entries no longer violate (remove them): ${stale.join(', ')}`);
+      // SEC-HOTFIX-7 ruling 5: nothing may wait for a ruling any more
+      if (Object.keys(SECDEF_PENDING_RULING).length) bad.push(`SECDEF_PENDING_RULING must be empty (SEC-HOTFIX-7): ${Object.keys(SECDEF_PENDING_RULING).join(', ')}`);
+      for (const n of SECDEF_AUTHENTICATED) {
+        const f = rows.find((r) => r.n === n);
+        if (!f) bad.push(`${n} missing`);
+        else if (f.anon_x || f.public_x || !f.auth_x || !f.svc_x || !f.sp) bad.push(`${n} not authenticated-only: ${JSON.stringify({ anon: f.anon_x, auth: f.auth_x, public: f.public_x, service: f.svc_x, sp: f.sp })}`);
+      }
       for (const n of SECDEF_LOCKED) {
         const f = rows.find((r) => r.n === n);
         if (!f) bad.push(`${n} missing`);
@@ -380,14 +379,38 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assertion failed'); };
           fn_authorize_and_start_test_attempt: `SELECT public.fn_authorize_and_start_test_attempt(gen_random_uuid(), gen_random_uuid())`,
           fn_create_dynamic_mock_instance_atomic: `SELECT public.fn_create_dynamic_mock_instance_atomic(gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), 'x', 'x', 'x', 'x', 1, 1, 0, '{}'::jsonb, '[]'::jsonb, 1)`,
           fn_record_qualifying_streak_activity: `SELECT public.fn_record_qualifying_streak_activity(gen_random_uuid(), 'x', gen_random_uuid(), 0, 'UTC')`,
+          // SEC-HOTFIX-7 ruling 1 (083)
+          fn_award_gamification_reward: `SELECT public.fn_award_gamification_reward(gen_random_uuid(), 'x', 'x', gen_random_uuid(), 'sec-hotfix7-probe', 0, 'x', '{}'::jsonb)`,
+          fn_claim_reward_item: `SELECT public.fn_claim_reward_item(gen_random_uuid(), gen_random_uuid(), 'x', 'x', 'x', 'x', 'x', 'x', 'sec-hotfix7-probe')`,
+          fn_reverse_reward_claim: `SELECT public.fn_reverse_reward_claim(gen_random_uuid(), gen_random_uuid(), 'x')`,
+          fn_check_premium_access_and_quota: `SELECT public.fn_check_premium_access_and_quota(gen_random_uuid(), gen_random_uuid(), 'x')`,
+        };
+        const run = async (key, role, claims, sql) => {
+          await q('SAVEPOINT p9');
+          try { await as(claims, role); await q(sql); out[key] = 'ALLOWED'; } catch (e) { out[key] = e.code; }
+          await q('ROLLBACK TO SAVEPOINT p9');
+          await q('RESET ROLE');
         };
         for (const [n, sql] of Object.entries(call)) {
-          for (const [who, role, claims] of [['anon', 'anon', {}], ['student', 'authenticated', STUDENT]]) {
-            await q('SAVEPOINT p9');
-            try { await as(claims, role); await q(sql); out[`${n}:${who}`] = 'ALLOWED'; } catch (e) { out[`${n}:${who}`] = e.code; }
-            await q('ROLLBACK TO SAVEPOINT p9');
-            await q('RESET ROLE');
-          }
+          for (const [who, role, claims] of [['anon', 'anon', {}], ['student', 'authenticated', STUDENT]]) await run(`${n}:${who}`, role, claims, sql);
+          // the service role still reaches the function (any outcome but a privilege error)
+          await run(`svc:${n}`, 'service_role', {}, sql);
+        }
+        // rulings 2 + 3: anon denied; a student session still reaches the function (its own checks decide)
+        const authCall = {
+          fn_create_batch_assignment: `SELECT public.fn_create_batch_assignment(gen_random_uuid(), 'x', 'x', gen_random_uuid(), now(), 'x')`,
+          fn_enroll_batch_student: `SELECT public.fn_enroll_batch_student(gen_random_uuid(), gen_random_uuid(), 'x')`,
+          fn_evaluate_descriptive_submission: `SELECT public.fn_evaluate_descriptive_submission(gen_random_uuid(), '{}'::jsonb, 0, 'x', 'x', 'x', 'x', 'x')`,
+          fn_submit_descriptive_answer: `SELECT public.fn_submit_descriptive_answer(gen_random_uuid(), 'x', 'x', 'x', gen_random_uuid(), gen_random_uuid())`,
+          fn_get_batch_assignment_progress: `SELECT public.fn_get_batch_assignment_progress(gen_random_uuid())`,
+          fn_can_evaluate_submission: `SELECT public.fn_can_evaluate_submission(gen_random_uuid(), gen_random_uuid())`,
+          fn_has_batch_faculty_access: `SELECT public.fn_has_batch_faculty_access(gen_random_uuid(), gen_random_uuid())`,
+          fn_is_batch_member: `SELECT public.fn_is_batch_member(gen_random_uuid(), gen_random_uuid(), ARRAY['STUDENT'])`,
+          fn_is_institute_member: `SELECT public.fn_is_institute_member(gen_random_uuid(), gen_random_uuid(), ARRAY['STUDENT'])`,
+        };
+        for (const [n, sql] of Object.entries(authCall)) {
+          await run(`${n}:anon`, 'anon', {}, sql);
+          await run(`auth:${n}:student`, 'authenticated', STUDENT, sql);
         }
         const org = (await q(`SELECT org_id FROM public.exams WHERE slug = 'qa-syllabus-test'`)).rows[0];
         assert(org, 'QA test exam (081) missing');
@@ -399,11 +422,14 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assertion failed'); };
       } finally {
         await q('ROLLBACK');
       }
-      for (const [k, v] of Object.entries(out)) if (k !== 'serviceDelete' && v !== '42501') bad.push(`${k}: ${v} (expected 42501)`);
+      for (const [k, v] of Object.entries(out)) {
+        if (k === 'serviceDelete') continue;
+        if (k.startsWith('svc:') || k.startsWith('auth:')) { if (v === '42501') bad.push(`${k}: 42501 (must still reach the function)`); continue; }
+        if (v !== '42501') bad.push(`${k}: ${v} (expected 42501)`);
+      }
       if (out.serviceDelete !== true) bad.push('service role could not delete the throwaway exam through fn_delete_exam_controlled');
       assert(bad.length === 0, bad.join('\n        '));
-      if (pending.size) console.log(`  NOTE  P-9 pending architect ruling (${pending.size}): ${[...pending].join(', ')}`);
-      return `${rows.length} SECURITY DEFINER functions; locked ${SECDEF_LOCKED.length} (anon/student 42501, service role OK); pending ruling ${pending.size}`;
+      return `${rows.length} SECURITY DEFINER functions; service-role only ${SECDEF_LOCKED.length} (anon/student 42501, service role reaches them); authenticated-only ${SECDEF_AUTHENTICATED.length} (anon 42501, student reaches them); pending ruling 0`;
     });
   } finally {
     await c.end();

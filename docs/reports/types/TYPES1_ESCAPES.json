@@ -270,7 +270,7 @@
       "module": "mistake drills",
       "kind": "@ts-expect-error (RPC argument names)",
       "owner": "Commerce (architect ruling)",
-      "precondition": "Coin-economy decision: call fn_award_gamification_reward with p_calculated_coins / p_reason_code (and decide session vs service-role client, as GamificationService uses adminSb). Today the RPC call fails (no matching function), so no coins are credited; per the interim ruling the drill records coins_awarded = 0 until the reward is wired."
+      "precondition": "Coin-economy decision: call fn_award_gamification_reward with p_calculated_coins / p_reason_code. The reward MUST go via the service-role GamificationService: since SEC-HOTFIX-7 (migration 083) the function is EXECUTE-able by service_role only, so this session-client call is denied (42501). No coins are credited; per the interim ruling the drill records coins_awarded = 0 until the reward is wired."
     },
     {
       "id": "TYPES-1:B-DSH-READINESS",
