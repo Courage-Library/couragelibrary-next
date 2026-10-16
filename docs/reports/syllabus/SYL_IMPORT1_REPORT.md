@@ -193,6 +193,27 @@ The own DRAFT was deleted afterwards.
 - The migration apply hit one TLS-connect timeout and was refused before connecting; the retry succeeded (§4).
 - One UI-check DNS failure (`ENOTFOUND` pooler) cleared on retry.
 
+### 7.1 Finalisation re-run — GAP2-4b editor live gate on `2c6f91b` (architect, 2026-10-16)
+
+Ruling: network-caused "pre-existing" failures are not a pass when the phase touched the code under test. Re-run the live editor gate against a local production build of `2c6f91b`, at most 3 attempts. The build came from HEAD `76bc99f`, which differs from `2c6f91b` only in this report.
+
+**Pre-checks (all passed):**
+- DNS for the API and pooler hosts: A 2 / AAAA 0 each.
+- 3/3 verified-TLS HTTPS round trips to auth health: 200, 731 / 457 / 241 ms.
+- 3/3 verified-TLS DB connects: 7123 / 1527 / 357 ms.
+- No non-idle sessions and no advisory locks.
+
+| Attempt | Result | E-05 / E-06 failure | Network errors in the server log during the run |
+|---|---|---|---|
+| 1 | 5/8 | E-05 waited 120 s for "New empty draft"; E-06 "no draft from E-05"; E-07 "a seeded draft changed" (see below) | `fetch failed` ×1 |
+| 2 | 5/8 | same as attempt 1 | `fetch failed` (UND_ERR_CONNECT_TIMEOUT to the Supabase API, 10 s) ×several |
+| 3 | 6/8 + suite aborted | E-05 `read ECONNRESET`; E-06 waited 120 s on "Publish" (disabled while its action ran); then `SUITE ERROR Client has encountered a connection error` (the suite's own DB client), so its E-07 cleanup did not run | `fetch failed` ×5 |
+
+- **E-05 is not a missing control.** A read-only diagnostic signed in as qa-staff (no clicks after sign-in) loaded `/admin/syllabus?exam=<QA>`. The page took **35.5 s** to load and rendered every expected control: "New empty draft", "New draft from published", the import panel's "Validate" / "Create draft", and the QA exam heading. The gate's 120 s budgets are exhausted by Supabase connect timeouts, not by the UI.
+- **E-07 in attempts 1–2 is owner activity in the shared DB, not the suite.** A non-QA user, presumably the owner starting §10, created an empty DRAFT **ssc-cgl v2** (2026 cycle) at 17:00:27Z and archived **ssc-cgl v1 `pattern-skeleton-2026`** at 17:03:51Z. Both fell inside the suite's before/after snapshot of the seeded GD / CGL drafts. In attempt 3 nothing was changed and E-07's comparison held. The suite did not touch either version, and neither did I.
+- **Cleanup:** attempt 3's leftover QA draft (v25, MANUAL, created by qa-staff) was archived through `fn_syllabus_archive_version` as qa-admin, exactly what E-07 does. The QA exam now has 25 ARCHIVED versions, 0 DRAFT, and no non-idle sessions.
+- **Verdict (step 5):** still network-blocked after 3 attempts. **Not finalised.** Backlog item **DEV-NET** has been added. Server logs show network errors in every attempt, so this is not the step-4 "real regression" case. No code was changed in this step.
+
 ## 8. Production probes
 
 | Probe | Result |
@@ -242,7 +263,7 @@ The DRILL-1 `student-mistake` production smoke (DRILL1_REPORT §9) is also still
 
 **Owner steps for the SSC CGL Tier-1 syllabus:**
 1. **Topics.** No missing topics: all 36 already exist. If the step-4 review adds units for official items that the EK tables do not list, create those topics first in /admin/taxonomy (admin), under the matching subject.
-2. **Free the cycle.** In /admin/syllabus → SSC CGL, archive (admin) or delete the existing DRAFT `v1 · pattern-skeleton-2026` (2026 cycle). The import refuses with "A draft already exists for this cycle" while it exists.
+2. **Free the cycle.** In /admin/syllabus → SSC CGL, no DRAFT may exist for the 2026 cycle, or the import refuses with "A draft already exists for this cycle". *Update 17:14Z:* `v1 · pattern-skeleton-2026` is already ARCHIVED, but an **empty DRAFT `v2`** (2026 cycle, created 17:00:27Z by a non-QA user) now exists. Delete or archive it before importing, or the import will be refused.
 3. **Import.** /admin/syllabus → SSC CGL → "Import draft from JSON":
    1. Upload `data/syllabus-drafts/ssc-cgl-tier1.v1.json`.
    2. Click **Validate**. Expect: Valid · 1 paper · 4 sections · 36 units · 36 topic mappings · 0 missing topics.
@@ -268,4 +289,4 @@ The DRILL-1 `student-mistake` production smoke (DRILL1_REPORT §9) is also still
   - Both enforce the same rules (fixtures in I5–I8 run against both).
 - **The SHA-256 covers the normalised payload** that the server action sends: trimmed, defaults filled, `order` dropped since it equals the position. Direct RPC callers hash exactly what they send.
 
-SYL-IMPORT-1 status: CLOSED
+SYL-IMPORT-1 status: CLOSED — NOT FINALISED (GAP2-4b editor live gate network-blocked after 3 attempts; DEV-NET)
