@@ -12,6 +12,7 @@ import { Field } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
 import { formatDateShort } from "@/lib/format";
 import { archiveSyllabusVersionAction, createSyllabusDraftAction } from "@/app/admin/syllabus/actions";
+import { SyllabusImportDraft } from "@/components/admin/syllabus/import-draft";
 import type { SyllabusVersionRow } from "@/types/syllabus";
 
 const STATUS_TONE = { DRAFT: "warning", PUBLISHED: "success", ARCHIVED: "neutral" } as const;
@@ -25,7 +26,7 @@ export function SyllabusVersionList({
   isAdmin,
   loadError,
 }: {
-  exam: { id: string; title: string };
+  exam: { id: string; slug: string; title: string };
   cycles: Array<{ id: string; cycle_year: number }>;
   versions: SyllabusVersionRow[];
   publishers: Record<string, { email: string; at: string }>;
@@ -102,6 +103,8 @@ export function SyllabusVersionList({
         </Button>
         {!published && <p className="text-body-sm text-fg-secondary">No published version for this cycle yet, so only an empty draft is possible.</p>}
       </div>
+
+      <SyllabusImportDraft exam={exam} cycles={cycles} versions={versions} />
 
       {versions.length === 0 ? (
         <p className="rounded-card border border-dashed border-ink-300 bg-surface p-6 text-body text-fg-secondary">

@@ -7931,6 +7931,36 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      fn_syllabus__import_check_node: {
+        Args: { p_index: number; p_level: string; p_obj: Json; p_path: string }
+        Returns: string
+      }
+      fn_syllabus__import_count: {
+        Args: { p_key: string; p_obj: Json; p_path: string }
+        Returns: number
+      }
+      fn_syllabus__import_fail: {
+        Args: { p_code: string; p_message: string; p_path: string }
+        Returns: undefined
+      }
+      fn_syllabus__import_is_plain: {
+        Args: { p_text: string }
+        Returns: boolean
+      }
+      fn_syllabus__import_list: {
+        Args: { p_key: string; p_obj: Json; p_path: string }
+        Returns: Json
+      }
+      fn_syllabus__import_text: {
+        Args: {
+          p_key: string
+          p_max: number
+          p_obj: Json
+          p_path: string
+          p_required: boolean
+        }
+        Returns: string
+      }
       fn_syllabus__insert_node: {
         Args: {
           p_description: string
@@ -8021,6 +8051,10 @@ export type Database = {
         Returns: Json
       }
       fn_syllabus_delete_node: { Args: { p_node_id: string }; Returns: Json }
+      fn_syllabus_import_draft: {
+        Args: { p_exam_id: string; p_payload: Json }
+        Returns: Json
+      }
       fn_syllabus_move_node: {
         Args: {
           p_display_order?: number

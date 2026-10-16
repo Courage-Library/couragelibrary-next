@@ -15,6 +15,17 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { rpcJsonObject, sqlNullArg } from "@/lib/supabase/rpc";
 import { loadSyllabusEditorState } from "@/lib/syllabus/editor-state";
 import { mapSyllabusError } from "@/lib/syllabus/syllabus-errors";
+import {
+  importPayloadToJson,
+  parseImportRpcError,
+  resolveImportTopics,
+  validateImportText,
+  type ImportError,
+  type ImportStats,
+  type SyllabusImportPayload,
+} from "@/lib/syllabus/import-contract";
+import { loadImportCatalog } from "@/lib/syllabus/import-catalog";
+import { suggestTopics } from "@/lib/syllabus/topic-suggest";
 import type { Json } from "@/types/database";
 import type { SyllabusNodeInput, SyllabusValidationReport } from "@/types/syllabus";
 
@@ -178,4 +189,90 @@ export async function archiveSyllabusVersionAction(versionId: string) {
   if (error) return mapSyllabusError("archiveSyllabusVersionAction", error);
   refresh(versionId);
   return { ok: true as const };
+}
+
+// ---------------------------------------------------------------- SYL-IMPORT-1: import a DRAFT from JSON
+
+/** What the import dialog shows before anything is written. */
+export interface SyllabusImportPreview {
+  valid: boolean;
+  errors: ImportError[];
+  stats: ImportStats | null;
+  payload: SyllabusImportPayload | null;
+  /** topic path → topic name, for every resolved topic */
+  resolvedTopics: Record<string, string>;
+  missingTopics: Array<{ path: string; hints: string[] }>;
+}
+
+const MAX_IMPORT_CHARS = 300_000;
+const isImportContext = (v: unknown): v is { examSlug: string; cycleYears: number[] } => {
+  if (!v || typeof v !== "object") return false;
+  const slug: unknown = Reflect.get(v, "examSlug");
+  const years: unknown = Reflect.get(v, "cycleYears");
+  return typeof slug === "string" && slug.length <= 120 && Array.isArray(years) && years.length <= 50 && years.every((y) => Number.isInteger(y));
+};
+
+/**
+ * Validates pasted / uploaded JSON (lib/syllabus/import-contract — the one validator) and resolves its topics against
+ * the taxonomy. Read-only. `context` (exam slug + cycle years) comes from the server-rendered page and only drives the
+ * EXAM_MISMATCH / CYCLE_NOT_FOUND hints; fn_syllabus_import_draft re-checks both.
+ */
+export async function previewSyllabusImportAction(examId: string, rawText: string, context: { examSlug: string; cycleYears: number[] }) {
+  const __auth = await guardAdminAction({ allowStaff: true });
+  if (!__auth.ok) return __auth;
+  if (!isUuid(examId) || typeof rawText !== "string" || rawText.length > MAX_IMPORT_CHARS || !isImportContext(context)) return invalid("import request");
+  const checked = validateImportText(rawText);
+  if (!checked.ok) {
+    const preview: SyllabusImportPreview = { valid: false, errors: checked.errors, stats: null, payload: null, resolvedTopics: {}, missingTopics: [] };
+    return { ok: true as const, preview };
+  }
+  const supabase = await createServerSupabaseClient();
+  const catalog = await loadImportCatalog(supabase);
+  if (!catalog) return actionFailure("DB_ERROR", "The taxonomy could not be loaded. Please try again.");
+  const resolution = resolveImportTopics(checked.payload, catalog, context.examSlug);
+  const errors = [...resolution.errors];
+  if (checked.payload.cycle_year !== null && !context.cycleYears.includes(checked.payload.cycle_year)) {
+    errors.push({ code: "CYCLE_NOT_FOUND", path: "$.cycle_year", message: `The exam has no ${checked.payload.cycle_year} cycle.` });
+  }
+  const active = catalog.filter((t) => t.is_active);
+  const names = new Map(catalog.map((t) => [t.path, t.name]));
+  const resolvedTopics: Record<string, string> = {};
+  for (const path of Object.keys(resolution.resolved)) resolvedTopics[path] = names.get(path) ?? path;
+  // hints only: similar existing topic names for each missing path — never applied, never mapped
+  const missingTopics = resolution.missing.map((path) => ({
+    path,
+    hints: suggestTopics((path.split(".").pop() ?? path).replace(/-/g, " "), active, { limit: 3 }).map((s) => `${s.topic.name} (${s.topic.path})`),
+  }));
+  const preview: SyllabusImportPreview = {
+    valid: errors.length === 0,
+    errors,
+    stats: checked.stats,
+    payload: checked.payload,
+    resolvedTopics,
+    missingTopics,
+  };
+  return { ok: true as const, preview };
+}
+
+/**
+ * Creates ONE DRAFT version from the JSON through fn_syllabus_import_draft (migration 086: role check, full
+ * re-validation, version + nodes + mappings + audit row in one transaction). Never publishes; never creates topics.
+ */
+export async function importSyllabusDraftAction(examId: string, rawText: string) {
+  const __auth = await guardAdminAction({ allowStaff: true });
+  if (!__auth.ok) return __auth;
+  if (!isUuid(examId) || typeof rawText !== "string" || rawText.length > MAX_IMPORT_CHARS) return invalid("import request");
+  const checked = validateImportText(rawText);
+  if (!checked.ok) return { ...actionFailure("VALIDATION", "The file has errors. Validate it again and fix them first."), errors: checked.errors };
+  const supabase = await createServerSupabaseClient();
+  const { data, error } = await supabase.rpc("fn_syllabus_import_draft", { p_exam_id: examId, p_payload: importPayloadToJson(checked.payload) });
+  if (error) {
+    const importError = parseImportRpcError(error.message);
+    if (importError) return { ...actionFailure("VALIDATION", importError.message), errors: [importError] };
+    return mapSyllabusError("importSyllabusDraftAction", error);
+  }
+  const r = rpcJsonObject<{ version_id: string; version_number: number; nodes: number; mappings: number }>(data);
+  if (!r) return mapSyllabusError("importSyllabusDraftAction", null);
+  refresh();
+  return { ok: true as const, versionId: r.version_id, versionNumber: r.version_number, nodes: r.nodes, mappings: r.mappings };
 }
