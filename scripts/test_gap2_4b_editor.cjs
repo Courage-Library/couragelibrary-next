@@ -70,7 +70,10 @@ function loadTs(rel, stubs) {
 }
 
 const ACTION_FILE = 'app/admin/syllabus/actions.ts';
-const ACTIONS = ['createSyllabusDraftAction', 'upsertSyllabusNodeAction', 'moveSyllabusNodeAction', 'deleteSyllabusNodeAction', 'setUnitMappingsAction', 'validateSyllabusVersionAction', 'publishSyllabusVersionAction', 'archiveSyllabusVersionAction'];
+const ACTIONS = ['createSyllabusDraftAction', 'upsertSyllabusNodeAction', 'moveSyllabusNodeAction', 'deleteSyllabusNodeAction', 'setUnitMappingsAction', 'validateSyllabusVersionAction', 'publishSyllabusVersionAction', 'archiveSyllabusVersionAction',
+  'previewSyllabusImportAction', 'importSyllabusDraftAction'];
+// SYL-IMPORT-1: the import preview is read-only (validator + taxonomy read through lib/syllabus/import-catalog); no RPC
+const READ_ONLY = new Set(['previewSyllabusImportAction']);
 const ADMIN_ONLY = new Set(['publishSyllabusVersionAction', 'archiveSyllabusVersionAction']);
 const U = '11111111-1111-4111-8111-111111111111';
 const U2 = '22222222-2222-4222-8222-222222222222';
@@ -83,6 +86,8 @@ const SAMPLE_ARGS = {
   validateSyllabusVersionAction: [U],
   publishSyllabusVersionAction: [U],
   archiveSyllabusVersionAction: [U],
+  previewSyllabusImportAction: [U, '{', { examSlug: 'qa-syllabus-test', cycleYears: [] }],
+  importSyllabusDraftAction: [U, JSON.stringify({ contract_version: 1, exam: 'qa-syllabus-test', papers: [{ code: 'p', title: 'P', sections: [{ code: 's', title: 'S', units: [{ code: 'u', title: 'U' }] }] }] })],
 };
 
 function makeHarness() {
@@ -135,7 +140,8 @@ function makeHarness() {
       const body = src.slice(i, src.indexOf('\nexport async function', i + 10) > 0 ? src.indexOf('\nexport async function', i + 10) : undefined);
       const guard = ADMIN_ONLY.has(name) ? /^[^]*?\{\s*const __auth = await guardAdminAction\(\);\s*if \(!__auth\.ok\) return __auth;/ : /^[^]*?\{\s*const __auth = await guardAdminAction\(\{ allowStaff: true \}\);\s*if \(!__auth\.ok\) return __auth;/;
       if (!guard.test(body)) bad.push(`${name}: guard is not the first statement (or wrong staff policy)`);
-      if (!/supabase\.rpc\("fn_syllabus_/.test(body)) bad.push(`${name}: no fn_syllabus_* RPC`);
+      if (!READ_ONLY.has(name) && !/supabase\.rpc\("fn_syllabus_/.test(body)) bad.push(`${name}: no fn_syllabus_* RPC`);
+      if (READ_ONLY.has(name) && /supabase\.rpc\(/.test(body)) bad.push(`${name}: read-only action calls an RPC`);
     }
     if (/\.from\(|\.insert\(|\.update\(|\.upsert\(|\.delete\(/.test(src)) bad.push('table access in actions');
     if (/createAdminServerSupabaseClient|SERVICE_ROLE/.test(src)) bad.push('service role in actions');
@@ -187,7 +193,7 @@ function makeHarness() {
         state.nextRpc = null;
         const r = await actions[name](...SAMPLE_ARGS[name]);
         const allowed = role === 'admin' || (role === 'staff' && !ADMIN_ONLY.has(name));
-        if (allowed && (!r.ok || state.rpcCalls.length === 0)) bad.push(`${role} ${name}: expected allowed, got ${JSON.stringify(r).slice(0, 120)}`);
+        if (allowed && (!r.ok || (state.rpcCalls.length === 0) !== READ_ONLY.has(name))) bad.push(`${role} ${name}: expected allowed, got ${JSON.stringify(r).slice(0, 120)}`);
         if (!allowed && (r.ok || state.rpcCalls.length > 0)) bad.push(`${role} ${name}: expected denied before RPC, got ok=${r.ok} rpc=${state.rpcCalls.length}`);
         if (!allowed && role === 'anon' && r.error !== 'UNAUTHORIZED') bad.push(`anon ${name}: ${r.error}`);
         if (!allowed && role !== 'anon' && r.error !== 'FORBIDDEN') bad.push(`${role} ${name}: ${r.error}`);

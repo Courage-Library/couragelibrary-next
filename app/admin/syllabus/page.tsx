@@ -94,7 +94,7 @@ export default async function AdminSyllabusPage({ searchParams }: { searchParams
         <p className="text-body text-fg-secondary">No exams found.</p>
       ) : (
         <SyllabusVersionList
-          exam={{ id: selected.id, title: selected.title }}
+          exam={{ id: selected.id, slug: selected.slug, title: selected.title }}
           cycles={cycles}
           versions={versions}
           publishers={publishers}

@@ -1,0 +1,598 @@
+{
+  "contract_version": 1,
+  "exam": "ssc-cgl",
+  "cycle_year": 2026,
+  "version_tag": "tier1-ek-draft-v1",
+  "source_note": "Drafted from Exam Knowledge documents ssc-cgl-syllabus v1 and ssc-cgl-exam-pattern v1 (last verified 2026-10-01). Tier 1 only. The owner must verify every node against the official SSC CGL 2026 notification before publishing.",
+  "papers": [
+    {
+      "code": "tier-1",
+      "title": "Tier 1 (Computer Based Examination)",
+      "description": "100 questions, 200 marks, 60 minutes (80 minutes for PwBD candidates eligible for a scribe). 0.50 marks are deducted per wrong answer.",
+      "expected_questions_min": 100,
+      "expected_questions_max": 100,
+      "sections": [
+        {
+          "code": "tier1-gir",
+          "title": "Section I: General Intelligence and Reasoning",
+          "description": "25 questions, 50 marks.",
+          "weightage_tier": null,
+          "expected_questions_min": 25,
+          "expected_questions_max": 25,
+          "units": [
+            {
+              "code": "gir-classification",
+              "title": "Classification",
+              "description": "Odd-one-out in words, numbers, letters, and mixed patterns.",
+              "weightage_tier": "HIGH_YIELD",
+              "expected_questions_min": null,
+              "expected_questions_max": null,
+              "required_cognitive_depth": "APPLICATION",
+              "topics": [
+                {
+                  "topic": "general-intelligence-and-reasoning.classification",
+                  "weight": null
+                }
+              ]
+            },
+            {
+              "code": "gir-analogy",
+              "title": "Analogy",
+              "description": "Word analogy, number analogy, letter analogy, and semantic relationships.",
+              "weightage_tier": "HIGH_YIELD",
+              "expected_questions_min": null,
+              "expected_questions_max": null,
+              "required_cognitive_depth": "APPLICATION",
+              "topics": [
+                {
+                  "topic": "general-intelligence-and-reasoning.analogy",
+                  "weight": null
+                }
+              ]
+            },
+            {
+              "code": "gir-coding-decoding",
+              "title": "Coding-Decoding",
+              "description": "Letter shifting, number coding, symbolic coding, conditional coding.",
+              "weightage_tier": "HIGH_YIELD",
+              "expected_questions_min": null,
+              "expected_questions_max": null,
+              "required_cognitive_depth": "APPLICATION",
+              "topics": [
+                {
+                  "topic": "general-intelligence-and-reasoning.coding-decoding",
+                  "weight": null
+                }
+              ]
+            },
+            {
+              "code": "gir-blood-relations",
+              "title": "Blood Relations",
+              "description": "Direct and indirect relationships, family trees, coded blood relations.",
+              "weightage_tier": "HIGH_YIELD",
+              "expected_questions_min": null,
+              "expected_questions_max": null,
+              "required_cognitive_depth": "APPLICATION",
+              "topics": [
+                {
+                  "topic": "general-intelligence-and-reasoning.blood-relations",
+                  "weight": null
+                }
+              ]
+            },
+            {
+              "code": "gir-direction-sense",
+              "title": "Direction Sense",
+              "description": "Movement-based problems, shadow-based reasoning, distance and displacement.",
+              "weightage_tier": "HIGH_YIELD",
+              "expected_questions_min": null,
+              "expected_questions_max": null,
+              "required_cognitive_depth": "APPLICATION",
+              "topics": [
+                {
+                  "topic": "general-intelligence-and-reasoning.direction-sense",
+                  "weight": null
+                }
+              ]
+            },
+            {
+              "code": "gir-number-series",
+              "title": "Number Series",
+              "description": "Missing number series, wrong number series, alphabetic series, mixed series.",
+              "weightage_tier": "HIGH_YIELD",
+              "expected_questions_min": null,
+              "expected_questions_max": null,
+              "required_cognitive_depth": "APPLICATION",
+              "topics": [
+                {
+                  "topic": "general-intelligence-and-reasoning.number-series",
+                  "weight": null
+                }
+              ]
+            },
+            {
+              "code": "gir-syllogism",
+              "title": "Syllogism",
+              "description": "Standard syllogistic logic, Venn diagram approach, possibility cases.",
+              "weightage_tier": "HIGH_YIELD",
+              "expected_questions_min": null,
+              "expected_questions_max": null,
+              "required_cognitive_depth": "APPLICATION",
+              "topics": [
+                {
+                  "topic": "general-intelligence-and-reasoning.syllogism",
+                  "weight": null
+                }
+              ]
+            },
+            {
+              "code": "gir-general",
+              "title": "General Intelligence and Reasoning General Topics",
+              "description": "Statement-conclusion, statement-assumption, seating arrangement, puzzle solving, matrix-based reasoning, non-verbal reasoning (figure series, figure analogy, mirror and water images, paper folding, embedded figures).",
+              "weightage_tier": null,
+              "expected_questions_min": null,
+              "expected_questions_max": null,
+              "required_cognitive_depth": "APPLICATION",
+              "topics": [
+                {
+                  "topic": "general-intelligence-and-reasoning.general-intelligence-and-reasoning-general",
+                  "weight": null
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "code": "tier1-ga",
+          "title": "Section II: General Awareness",
+          "description": "25 questions, 50 marks.",
+          "weightage_tier": null,
+          "expected_questions_min": 25,
+          "expected_questions_max": 25,
+          "units": [
+            {
+              "code": "ga-history",
+              "title": "History",
+              "description": "Ancient, Medieval, Modern Indian History; freedom struggle; art and culture.",
+              "weightage_tier": "HIGH_YIELD",
+              "expected_questions_min": null,
+              "expected_questions_max": null,
+              "required_cognitive_depth": "APPLICATION",
+              "topics": [
+                {
+                  "topic": "general-awareness.history",
+                  "weight": null
+                }
+              ]
+            },
+            {
+              "code": "ga-polity",
+              "title": "Polity",
+              "description": "Constitution, fundamental rights, directive principles, Parliament, judiciary, executive, amendments, panchayati raj.",
+              "weightage_tier": "HIGH_YIELD",
+              "expected_questions_min": null,
+              "expected_questions_max": null,
+              "required_cognitive_depth": "APPLICATION",
+              "topics": [
+                {
+                  "topic": "general-awareness.polity",
+                  "weight": null
+                }
+              ]
+            },
+            {
+              "code": "ga-geography",
+              "title": "Geography",
+              "description": "Physical, Indian, and world geography; climate; rivers; resources; agriculture.",
+              "weightage_tier": "HIGH_YIELD",
+              "expected_questions_min": null,
+              "expected_questions_max": null,
+              "required_cognitive_depth": "APPLICATION",
+              "topics": [
+                {
+                  "topic": "general-awareness.geography",
+                  "weight": null
+                }
+              ]
+            },
+            {
+              "code": "ga-science-technology",
+              "title": "Science & Technology",
+              "description": "Physics, Chemistry, Biology, space, defence, computers, and emerging technologies.",
+              "weightage_tier": "HIGH_YIELD",
+              "expected_questions_min": null,
+              "expected_questions_max": null,
+              "required_cognitive_depth": "APPLICATION",
+              "topics": [
+                {
+                  "topic": "general-awareness.science-technology",
+                  "weight": null
+                }
+              ]
+            },
+            {
+              "code": "ga-economy",
+              "title": "Economy",
+              "description": "Basic economics, Indian economy, budget, banking, taxation, government schemes.",
+              "weightage_tier": "HIGH_YIELD",
+              "expected_questions_min": null,
+              "expected_questions_max": null,
+              "required_cognitive_depth": "APPLICATION",
+              "topics": [
+                {
+                  "topic": "general-awareness.economy",
+                  "weight": null
+                }
+              ]
+            },
+            {
+              "code": "ga-sports",
+              "title": "Sports",
+              "description": "Major tournaments, national and international sports events, awards, notable sportspersons.",
+              "weightage_tier": null,
+              "expected_questions_min": null,
+              "expected_questions_max": null,
+              "required_cognitive_depth": "APPLICATION",
+              "topics": [
+                {
+                  "topic": "general-awareness.sports",
+                  "weight": null
+                }
+              ]
+            },
+            {
+              "code": "ga-general",
+              "title": "General Awareness General Topics",
+              "description": "Current affairs, awards and honours, books and authors, important days, organisations, static GK.",
+              "weightage_tier": null,
+              "expected_questions_min": null,
+              "expected_questions_max": null,
+              "required_cognitive_depth": "APPLICATION",
+              "topics": [
+                {
+                  "topic": "general-awareness.general-awareness-general",
+                  "weight": null
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "code": "tier1-qa",
+          "title": "Section III: Quantitative Aptitude",
+          "description": "25 questions, 50 marks.",
+          "weightage_tier": null,
+          "expected_questions_min": 25,
+          "expected_questions_max": 25,
+          "units": [
+            {
+              "code": "qa-number-system",
+              "title": "Number System",
+              "description": "Divisibility, LCM/HCF, remainders, number properties, surds and indices.",
+              "weightage_tier": "HIGH_YIELD",
+              "expected_questions_min": null,
+              "expected_questions_max": null,
+              "required_cognitive_depth": "APPLICATION",
+              "topics": [
+                {
+                  "topic": "quantitative-aptitude.number-system",
+                  "weight": null
+                }
+              ]
+            },
+            {
+              "code": "qa-percentage",
+              "title": "Percentage",
+              "description": "Percentage change, successive percentage, percentage to fraction conversions, applications in Profit & Loss, SI/CI.",
+              "weightage_tier": "HIGH_YIELD",
+              "expected_questions_min": null,
+              "expected_questions_max": null,
+              "required_cognitive_depth": "APPLICATION",
+              "topics": [
+                {
+                  "topic": "quantitative-aptitude.percentage",
+                  "weight": null
+                }
+              ]
+            },
+            {
+              "code": "qa-ratio-proportion",
+              "title": "Ratio & Proportion",
+              "description": "Simple and compound ratios, proportions, partnership problems, mixture and alligation.",
+              "weightage_tier": "HIGH_YIELD",
+              "expected_questions_min": null,
+              "expected_questions_max": null,
+              "required_cognitive_depth": "APPLICATION",
+              "topics": [
+                {
+                  "topic": "quantitative-aptitude.ratio-proportion",
+                  "weight": null
+                }
+              ]
+            },
+            {
+              "code": "qa-profit-loss",
+              "title": "Profit & Loss",
+              "description": "Cost price, selling price, discount, marked price, successive discounts, profit/loss percentage chains.",
+              "weightage_tier": "HIGH_YIELD",
+              "expected_questions_min": null,
+              "expected_questions_max": null,
+              "required_cognitive_depth": "APPLICATION",
+              "topics": [
+                {
+                  "topic": "quantitative-aptitude.profit-loss",
+                  "weight": null
+                }
+              ]
+            },
+            {
+              "code": "qa-average",
+              "title": "Average",
+              "description": "Simple and weighted averages, mean of consecutive numbers, age problems, speed problems via averages.",
+              "weightage_tier": "HIGH_YIELD",
+              "expected_questions_min": null,
+              "expected_questions_max": null,
+              "required_cognitive_depth": "APPLICATION",
+              "topics": [
+                {
+                  "topic": "quantitative-aptitude.average",
+                  "weight": null
+                }
+              ]
+            },
+            {
+              "code": "qa-time-work",
+              "title": "Time & Work",
+              "description": "Work efficiency, pipes and cisterns, alternate-day work, work-rate combinations.",
+              "weightage_tier": "HIGH_YIELD",
+              "expected_questions_min": null,
+              "expected_questions_max": null,
+              "required_cognitive_depth": "APPLICATION",
+              "topics": [
+                {
+                  "topic": "quantitative-aptitude.time-work",
+                  "weight": null
+                }
+              ]
+            },
+            {
+              "code": "qa-speed-distance-time",
+              "title": "Speed Distance Time",
+              "description": "Relative speed, trains, boats and streams, circular tracks.",
+              "weightage_tier": "HIGH_YIELD",
+              "expected_questions_min": null,
+              "expected_questions_max": null,
+              "required_cognitive_depth": "APPLICATION",
+              "topics": [
+                {
+                  "topic": "quantitative-aptitude.speed-distance-time",
+                  "weight": null
+                }
+              ]
+            },
+            {
+              "code": "qa-algebra",
+              "title": "Algebra",
+              "description": "Linear equations, quadratic equations, polynomials, identities, algebraic simplifications, sequences and series.",
+              "weightage_tier": "HIGH_YIELD",
+              "expected_questions_min": null,
+              "expected_questions_max": null,
+              "required_cognitive_depth": "APPLICATION",
+              "topics": [
+                {
+                  "topic": "quantitative-aptitude.algebra",
+                  "weight": null
+                }
+              ]
+            },
+            {
+              "code": "qa-geometry",
+              "title": "Geometry",
+              "description": "Lines, angles, triangles, quadrilaterals, circles, mensuration (2D and 3D), coordinate geometry basics.",
+              "weightage_tier": "HIGH_YIELD",
+              "expected_questions_min": null,
+              "expected_questions_max": null,
+              "required_cognitive_depth": "APPLICATION",
+              "topics": [
+                {
+                  "topic": "quantitative-aptitude.geometry",
+                  "weight": null
+                }
+              ]
+            },
+            {
+              "code": "qa-trigonometry",
+              "title": "Trigonometry",
+              "description": "Trigonometric ratios, identities, heights and distances, angle of elevation and depression.",
+              "weightage_tier": "HIGH_YIELD",
+              "expected_questions_min": null,
+              "expected_questions_max": null,
+              "required_cognitive_depth": "APPLICATION",
+              "topics": [
+                {
+                  "topic": "quantitative-aptitude.trigonometry",
+                  "weight": null
+                }
+              ]
+            },
+            {
+              "code": "qa-general",
+              "title": "Quantitative Aptitude General Topics",
+              "description": "Data interpretation, statistics (mean, median, mode), basic probability, elementary graph reading.",
+              "weightage_tier": null,
+              "expected_questions_min": null,
+              "expected_questions_max": null,
+              "required_cognitive_depth": "APPLICATION",
+              "topics": [
+                {
+                  "topic": "quantitative-aptitude.quantitative-aptitude-general",
+                  "weight": null
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "code": "tier1-ec",
+          "title": "Section IV: English Comprehension",
+          "description": "25 questions, 50 marks.",
+          "weightage_tier": null,
+          "expected_questions_min": 25,
+          "expected_questions_max": 25,
+          "units": [
+            {
+              "code": "ec-synonyms",
+              "title": "Synonyms",
+              "description": "Contextual and literal synonym recognition.",
+              "weightage_tier": "HIGH_YIELD",
+              "expected_questions_min": null,
+              "expected_questions_max": null,
+              "required_cognitive_depth": "APPLICATION",
+              "topics": [
+                {
+                  "topic": "english-comprehension.synonyms",
+                  "weight": null
+                }
+              ]
+            },
+            {
+              "code": "ec-antonyms",
+              "title": "Antonyms",
+              "description": "Contextual and literal antonym recognition.",
+              "weightage_tier": "HIGH_YIELD",
+              "expected_questions_min": null,
+              "expected_questions_max": null,
+              "required_cognitive_depth": "APPLICATION",
+              "topics": [
+                {
+                  "topic": "english-comprehension.antonyms",
+                  "weight": null
+                }
+              ]
+            },
+            {
+              "code": "ec-spelling",
+              "title": "Spelling",
+              "description": "Correct spelling identification, spelling correction.",
+              "weightage_tier": "HIGH_YIELD",
+              "expected_questions_min": null,
+              "expected_questions_max": null,
+              "required_cognitive_depth": "APPLICATION",
+              "topics": [
+                {
+                  "topic": "english-comprehension.spelling",
+                  "weight": null
+                }
+              ]
+            },
+            {
+              "code": "ec-fill-in-the-blanks",
+              "title": "Fill in the Blanks",
+              "description": "Single-blank and multi-blank, grammar-based and vocabulary-based.",
+              "weightage_tier": "HIGH_YIELD",
+              "expected_questions_min": null,
+              "expected_questions_max": null,
+              "required_cognitive_depth": "APPLICATION",
+              "topics": [
+                {
+                  "topic": "english-comprehension.fill-in-the-blanks",
+                  "weight": null
+                }
+              ]
+            },
+            {
+              "code": "ec-error-spotting",
+              "title": "Error Spotting",
+              "description": "Grammar errors, subject-verb agreement, tense, preposition, article, parallelism.",
+              "weightage_tier": "HIGH_YIELD",
+              "expected_questions_min": null,
+              "expected_questions_max": null,
+              "required_cognitive_depth": "APPLICATION",
+              "topics": [
+                {
+                  "topic": "english-comprehension.error-spotting",
+                  "weight": null
+                }
+              ]
+            },
+            {
+              "code": "ec-one-word-substitution",
+              "title": "One Word Substitution",
+              "description": "Descriptive phrase to single word.",
+              "weightage_tier": "HIGH_YIELD",
+              "expected_questions_min": null,
+              "expected_questions_max": null,
+              "required_cognitive_depth": "APPLICATION",
+              "topics": [
+                {
+                  "topic": "english-comprehension.one-word-substitution",
+                  "weight": null
+                }
+              ]
+            },
+            {
+              "code": "ec-idioms-phrases",
+              "title": "Idioms & Phrases",
+              "description": "Meaning and contextual usage of common idioms.",
+              "weightage_tier": "HIGH_YIELD",
+              "expected_questions_min": null,
+              "expected_questions_max": null,
+              "required_cognitive_depth": "APPLICATION",
+              "topics": [
+                {
+                  "topic": "english-comprehension.idioms-phrases",
+                  "weight": null
+                }
+              ]
+            },
+            {
+              "code": "ec-active-passive",
+              "title": "Active Passive",
+              "description": "Voice conversion, sentence transformation.",
+              "weightage_tier": "HIGH_YIELD",
+              "expected_questions_min": null,
+              "expected_questions_max": null,
+              "required_cognitive_depth": "APPLICATION",
+              "topics": [
+                {
+                  "topic": "english-comprehension.active-passive",
+                  "weight": null
+                }
+              ]
+            },
+            {
+              "code": "ec-sentence-rearrangement",
+              "title": "Sentence Rearrangement",
+              "description": "Para jumbles, sentence sequencing, coherence.",
+              "weightage_tier": "HIGH_YIELD",
+              "expected_questions_min": null,
+              "expected_questions_max": null,
+              "required_cognitive_depth": "APPLICATION",
+              "topics": [
+                {
+                  "topic": "english-comprehension.sentence-rearrangement",
+                  "weight": null
+                }
+              ]
+            },
+            {
+              "code": "ec-general",
+              "title": "English Comprehension General Topics",
+              "description": "Reading comprehension (passages), cloze test, sentence improvement, direct-indirect speech, narration.",
+              "weightage_tier": null,
+              "expected_questions_min": null,
+              "expected_questions_max": null,
+              "required_cognitive_depth": "APPLICATION",
+              "topics": [
+                {
+                  "topic": "english-comprehension.english-comprehension-general",
+                  "weight": null
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
