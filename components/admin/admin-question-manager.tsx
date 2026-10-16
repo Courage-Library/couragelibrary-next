@@ -400,7 +400,7 @@ export function AdminQuestionManager({
             <HelpCircle className="w-6 h-6 text-blue-600" /> Question Bank Studio
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
-            Add and manage mock test questions with diagrams, options types, PYQ metadata, and bilingual support.
+            Add and manage mock test questions with diagrams, options types, and PYQ metadata. Questions are in English (decision #35).
           </p>
         </div>
       </div>
@@ -687,7 +687,6 @@ export function AdminQuestionManager({
                   className="w-full px-3 py-2.5 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-blue-500"
                 >
                   <option value="english">English</option>
-                  <option value="hindi">Hindi (हिंदी)</option>
                 </select>
               </div>
 
@@ -835,7 +834,6 @@ export function AdminQuestionManager({
               >
                 <option value="ALL">All Languages</option>
                 <option value="english">English</option>
-                <option value="hindi">Hindi</option>
               </select>
             </div>
 
@@ -939,11 +937,6 @@ export function AdminQuestionManager({
                     {q.optionsType && q.optionsType !== "text" && (
                       <span className="bg-indigo-50 border border-indigo-200 text-indigo-700 px-2 py-0.5 rounded-md font-semibold text-[11px]">
                         {q.optionsType} options
-                      </span>
-                    )}
-                    {q.language === "hindi" && (
-                      <span className="bg-orange-50 border border-orange-200 text-orange-700 px-2 py-0.5 rounded-md font-semibold text-[11px]">
-                        🇮🇳 Hindi
                       </span>
                     )}
                     {q.status !== "published" && (
@@ -1149,7 +1142,6 @@ export function AdminQuestionManager({
                   className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-blue-500"
                 >
                   <option value="english">English</option>
-                  <option value="hindi">Hindi (हिंदी)</option>
                 </select>
               </div>
 

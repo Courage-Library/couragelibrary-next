@@ -1599,7 +1599,7 @@ Paste your questions below this line:`;
                     {currentPreviewQuestion.difficulty || "medium"}
                   </Badge>
                   <Badge variant="outline" className="font-bold">
-                    {currentPreviewQuestion.language === "hindi" ? "🇮🇳 Hindi" : "🇬🇧 English"}
+                    {String(currentPreviewQuestion.language ?? "english").toLowerCase() === "english" ? "English" : "Not English (English only)"}
                   </Badge>
                   {currentPreviewQuestion.topic && (
                     <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">

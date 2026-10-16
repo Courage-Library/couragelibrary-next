@@ -193,6 +193,9 @@ const ADMIN_ONLY = new Set([
   // SEC-1D (decision #16 update): PII pages' actions — gamification + billing.
   'app/admin/gamification/actions.ts#updateRewardPolicyAction',
   'app/admin/actions.ts#createSubscriptionPlanAction',
+  // GAP2-4b: publishing / archiving a syllabus is admin-only (staff draft only)
+  'app/admin/syllabus/actions.ts#publishSyllabusVersionAction',
+  'app/admin/syllabus/actions.ts#archiveSyllabusVersionAction',
 ]);
 // Commit-only flips (preview / dry-run stay staff): checked separately in B-01.
 const COMMIT_ONLY = new Set(['app/admin/actions.ts#executeBulkImportAction', 'app/admin/actions.ts#importBulkQuestionsAction']);

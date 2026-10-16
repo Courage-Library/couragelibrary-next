@@ -34,6 +34,7 @@ import {
   GraduationCap,
   Newspaper,
   Factory,
+  ListTree,
 } from "lucide-react";
 
 interface Props {
@@ -306,6 +307,17 @@ export function AdminSidebar({ userEmail, adaptiveEnabled = false, liveTestsEnab
               >
                 <FolderTree className={`w-3.5 h-3.5 shrink-0 ${pathname.startsWith("/admin/taxonomy") ? "text-white" : "text-slate-400"}`} />
                 <span className="text-[11px]">Taxonomy</span>
+              </Link>
+              <Link
+                href="/admin/syllabus"
+                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors ${
+                  pathname === "/admin/syllabus" || pathname.startsWith("/admin/syllabus/")
+                    ? "bg-blue-600 text-white font-semibold"
+                    : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                }`}
+              >
+                <ListTree className={`w-3.5 h-3.5 shrink-0 ${pathname === "/admin/syllabus" || pathname.startsWith("/admin/syllabus/") ? "text-white" : "text-slate-400"}`} />
+                <span className="text-[11px]">Syllabus</span>
               </Link>
               <Link
                 href="/admin/syllabus-reconciliation"

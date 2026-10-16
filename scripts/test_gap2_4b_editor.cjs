@@ -1,0 +1,401 @@
+/**
+ * GAP2-4b batch 1 — admin syllabus editor + admin English-only cleanup.
+ *
+ * Offline (no network, no DB):
+ *   E-01 actions file: every export guards first (staff for drafting, ADMIN ONLY for publish / archive), writes only
+ *        through the role-checked fn_syllabus_* RPCs on the caller's session client, no service role, no table writes
+ *   E-02 error mapping: 42501 → FORBIDDEN; SYLLABUS_* codes → curated VALIDATION text; trigger / constraint
+ *        conditions recognised; anything else → generic DB_ERROR; no database text or ids reach the UI
+ *   E-03 server-action role matrix (stubbed guard, recording RPC mock): anon / student denied before any RPC;
+ *        staff drafts but cannot publish / archive; admin can; validation-blocked publish returns the report
+ *   E-04 English only (decision #35): no admin UI offers a Hindi / bilingual option or label
+ * Live (--live [http://localhost:3100]; local production build only; QA identities; QA test exam only):
+ *   E-05 qa-staff: new draft on the QA exam → add section + unit → map a topic → validate (no errors);
+ *        publish is disabled for staff with an explanation; keyboard tree navigation; every control labelled
+ *   E-06 qa-admin: publish the TEST version (confirm dialog) → read model AVAILABLE → archive → NO_SYLLABUS
+ *   E-07 the seeded GD / CGL drafts are untouched; no DRAFT is left on the QA exam (leftovers archived)
+ *
+ * Run: node scripts/test_gap2_4b_editor.cjs [--live [http://localhost:3100]]
+ */
+const fs = require('fs');
+const path = require('path');
+const Module = require('module');
+const ts = require('typescript');
+
+const ROOT = path.resolve(__dirname, '..');
+const args = process.argv.slice(2);
+const LIVE = args.includes('--live');
+const BASE = (args.find((a) => /^https?:/.test(a)) || 'http://localhost:3100').replace(/\/$/, '');
+const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
+
+let passed = 0;
+let failed = 0;
+async function test(name, fn) {
+  try {
+    const info = await fn();
+    passed++;
+    console.log(`  PASS  ${name}${info ? ' — ' + info : ''}`);
+  } catch (e) {
+    failed++;
+    console.log(`  FAIL  ${name}\n        ${String(e && e.message ? e.message : e).slice(0, 3000)}`);
+  }
+}
+const assert = (c, m) => {
+  if (!c) throw new Error(m || 'assertion failed');
+};
+
+// ---------------------------------------------------------------- tiny TS module loader with stubs
+function loadTs(rel, stubs) {
+  const file = path.join(ROOT, rel);
+  const js = ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.ReactJSX } }).outputText;
+  const m = new Module(file);
+  m.filename = file;
+  m.paths = Module._nodeModulePaths(path.dirname(file));
+  const req = (id) => {
+    if (stubs[id]) return stubs[id];
+    if (id.startsWith('@/')) {
+      const target = id.slice(2);
+      const cand = [`${target}.ts`, `${target}.tsx`, `${target}/index.ts`].find((c) => fs.existsSync(path.join(ROOT, c)));
+      if (!cand) throw new Error(`unresolved ${id}`);
+      return loadTs(cand, stubs);
+    }
+    return m.require(id);
+  };
+  new Function('module', 'exports', 'require', 'process', js)(m, m.exports, req, process);
+  return m.exports;
+}
+
+const ACTION_FILE = 'app/admin/syllabus/actions.ts';
+const ACTIONS = ['createSyllabusDraftAction', 'upsertSyllabusNodeAction', 'moveSyllabusNodeAction', 'deleteSyllabusNodeAction', 'setUnitMappingsAction', 'validateSyllabusVersionAction', 'publishSyllabusVersionAction', 'archiveSyllabusVersionAction'];
+const ADMIN_ONLY = new Set(['publishSyllabusVersionAction', 'archiveSyllabusVersionAction']);
+const U = '11111111-1111-4111-8111-111111111111';
+const U2 = '22222222-2222-4222-8222-222222222222';
+const SAMPLE_ARGS = {
+  createSyllabusDraftAction: [U, null, null],
+  upsertSyllabusNodeAction: [U, { kind: 'SECTION', title: 'S' }],
+  moveSyllabusNodeAction: [U, U2, null, 1],
+  deleteSyllabusNodeAction: [U, U2],
+  setUnitMappingsAction: [U, U2, [U], null],
+  validateSyllabusVersionAction: [U],
+  publishSyllabusVersionAction: [U],
+  archiveSyllabusVersionAction: [U],
+};
+
+function makeHarness() {
+  const state = { role: 'admin', rpcCalls: [], nextRpc: null };
+  const actionFailure = (code, message) => ({ ok: false, success: false, error: code, code, message });
+  const requireAdminStub = {
+    actionFailure,
+    async guardAdminAction(opts = {}) {
+      if (state.role === 'anon') return actionFailure('UNAUTHORIZED', 'Sign in required.');
+      if (state.role === 'student') return actionFailure('FORBIDDEN', 'You do not have permission to perform this action.');
+      if (state.role === 'staff' && !opts.allowStaff) return actionFailure('FORBIDDEN', 'You do not have permission to perform this action.');
+      return { ok: true, isAdmin: true, userId: U, role: state.role, userEmail: '' };
+    },
+  };
+  const stubs = {
+    '@/lib/auth/require-admin': requireAdminStub,
+    'next/cache': { revalidatePath() {} },
+    '@/lib/supabase/server': {
+      async createServerSupabaseClient() {
+        return {
+          async rpc(fn, params) {
+            state.rpcCalls.push({ fn, params });
+            if (state.nextRpc) return state.nextRpc(fn, params);
+            return { data: { success: true, version_id: U, version_number: 1, node_id: U2, created: true, deleted_nodes: 1, ok: true, errors: [], warnings: [], counts: {} }, error: null };
+          },
+          from() {
+            throw new Error('direct table access is not allowed in syllabus actions');
+          },
+        };
+      },
+      createAdminServerSupabaseClient() {
+        throw new Error('service role is not allowed in syllabus actions');
+      },
+    },
+  };
+  const actions = loadTs(ACTION_FILE, stubs);
+  const errors = loadTs('lib/syllabus/syllabus-errors.ts', stubs);
+  return { state, actions, errors };
+}
+
+(async () => {
+  console.log('GAP2-4b editor suite');
+
+  await test('E-01 actions: guard first (staff vs admin-only), RPC-only writes on the session client, no service role / table writes', async () => {
+    const src = read(ACTION_FILE);
+    const bad = [];
+    for (const name of ACTIONS) {
+      const i = src.indexOf(`export async function ${name}(`);
+      if (i < 0) { bad.push(`${name} missing`); continue; }
+      const body = src.slice(i, src.indexOf('\nexport async function', i + 10) > 0 ? src.indexOf('\nexport async function', i + 10) : undefined);
+      const guard = ADMIN_ONLY.has(name) ? /^[^]*?\{\s*const __auth = await guardAdminAction\(\);\s*if \(!__auth\.ok\) return __auth;/ : /^[^]*?\{\s*const __auth = await guardAdminAction\(\{ allowStaff: true \}\);\s*if \(!__auth\.ok\) return __auth;/;
+      if (!guard.test(body)) bad.push(`${name}: guard is not the first statement (or wrong staff policy)`);
+      if (!/supabase\.rpc\("fn_syllabus_/.test(body)) bad.push(`${name}: no fn_syllabus_* RPC`);
+    }
+    if (/\.from\(|\.insert\(|\.update\(|\.upsert\(|\.delete\(/.test(src)) bad.push('table access in actions');
+    if (/createAdminServerSupabaseClient|SERVICE_ROLE/.test(src)) bad.push('service role in actions');
+    const exported = [...src.matchAll(/export async function (\w+)\(/g)].map((m) => m[1]);
+    if (JSON.stringify(exported.sort()) !== JSON.stringify([...ACTIONS].sort())) bad.push(`unexpected exports: ${exported.join(', ')}`);
+    assert(bad.length === 0, bad.join('\n        '));
+    return `${ACTIONS.length} actions`;
+  });
+
+  await test('E-02 error mapping: FORBIDDEN / curated VALIDATION / generic DB_ERROR; no database text or ids', async () => {
+    const { errors } = makeHarness();
+    const map = (err) => errors.mapSyllabusError('t', err);
+    const cases = [
+      [{ code: '42501', message: 'SYLLABUS_FORBIDDEN: admin role required' }, 'FORBIDDEN'],
+      [{ code: '42501', message: 'permission denied for function fn_syllabus_publish' }, 'FORBIDDEN'],
+      [{ code: 'P0001', message: `SYLLABUS_NOT_DRAFT: version ${U} is PUBLISHED` }, 'VALIDATION'],
+      [{ code: 'P0001', message: `SYLLABUS_PARENT_OTHER_VERSION: parent node ${U} belongs to another syllabus version` }, 'VALIDATION'],
+      [{ code: '22023', message: 'SYLLABUS_WEIGHTS_INVALID: one weight per topic' }, 'VALIDATION'],
+      [{ code: '23503', message: `SYLLABUS_TOPICS_INVALID: not active TOPIC nodes: ["${U}"]` }, 'VALIDATION'],
+      [{ code: 'P0001', message: `Circular parent relationship detected: syllabus node ${U} is an ancestor` }, 'VALIDATION'],
+      [{ code: '23505', message: 'duplicate key value violates unique constraint "uq_syllabus_node_sibling_slug"' }, 'VALIDATION'],
+      [{ code: '42P01', message: 'relation "public.exam_syllabus_nodes" does not exist' }, 'DB_ERROR'],
+      [{ code: '57014', message: 'canceling statement due to statement timeout' }, 'DB_ERROR'],
+      [null, 'DB_ERROR'],
+    ];
+    const bad = [];
+    const orig = console.error;
+    console.error = () => {};
+    try {
+      for (const [err, want] of cases) {
+        const r = map(err);
+        if (r.ok !== false || r.error !== want) bad.push(`${JSON.stringify(err)} → ${r.error} (want ${want})`);
+        if (/[0-9a-f]{8}-[0-9a-f]{4}|relation|constraint|violates|statement|fn_|SYLLABUS_|public\./i.test(r.message)) bad.push(`raw text leaked: ${r.message}`);
+      }
+    } finally {
+      console.error = orig;
+    }
+    assert(bad.length === 0, bad.join('\n        '));
+    return `${cases.length} cases`;
+  });
+
+  await test('E-03 role matrix: anon / student denied before any RPC; staff drafts, not publish / archive; admin all; blocked publish returns report', async () => {
+    const { state, actions } = makeHarness();
+    const bad = [];
+    for (const role of ['anon', 'student', 'staff', 'admin']) {
+      for (const name of ACTIONS) {
+        state.role = role;
+        state.rpcCalls = [];
+        state.nextRpc = null;
+        const r = await actions[name](...SAMPLE_ARGS[name]);
+        const allowed = role === 'admin' || (role === 'staff' && !ADMIN_ONLY.has(name));
+        if (allowed && (!r.ok || state.rpcCalls.length === 0)) bad.push(`${role} ${name}: expected allowed, got ${JSON.stringify(r).slice(0, 120)}`);
+        if (!allowed && (r.ok || state.rpcCalls.length > 0)) bad.push(`${role} ${name}: expected denied before RPC, got ok=${r.ok} rpc=${state.rpcCalls.length}`);
+        if (!allowed && role === 'anon' && r.error !== 'UNAUTHORIZED') bad.push(`anon ${name}: ${r.error}`);
+        if (!allowed && role !== 'anon' && r.error !== 'FORBIDDEN') bad.push(`${role} ${name}: ${r.error}`);
+      }
+    }
+    // validation-blocked publish: nothing published, the report comes back, curated message
+    state.role = 'admin';
+    state.nextRpc = () => ({ data: { success: false, code: 'VALIDATION_FAILED', report: { ok: false, error_count: 1, errors: [{ code: 'UNIT_UNMAPPED', node_id: U2, topic_id: null, message: 'UNIT "x" is not mapped to any topic.' }], warnings: [] } }, error: null });
+    const blocked = await actions.publishSyllabusVersionAction(U);
+    if (blocked.ok || blocked.error !== 'VALIDATION' || !blocked.report || blocked.report.error_count !== 1) bad.push(`blocked publish: ${JSON.stringify(blocked).slice(0, 200)}`);
+    // RPC error mapping through an action
+    state.nextRpc = () => ({ data: null, error: { code: 'P0001', message: `SYLLABUS_IMMUTABLE: PUBLISHED syllabus version ${U} is read-only` } });
+    const imm = await actions.upsertSyllabusNodeAction(U, { id: U2, title: 'x' });
+    if (imm.ok || imm.error !== 'VALIDATION' || /[0-9a-f]{8}-/.test(imm.message)) bad.push(`immutable mapping: ${JSON.stringify(imm)}`);
+    // input validation happens before any RPC
+    state.rpcCalls = [];
+    state.nextRpc = null;
+    const badInput = await actions.setUnitMappingsAction(U, U2, ['not-a-uuid'], null);
+    const badWeights = await actions.setUnitMappingsAction(U, U2, [U], [0.5, 0.5]);
+    const badNode = await actions.upsertSyllabusNodeAction(U, { kind: 'CHAPTER', title: 'x' });
+    if (badInput.ok || badWeights.ok || badNode.ok || state.rpcCalls.length) bad.push('invalid input reached the RPC');
+    // empty expected range is sent as NULL, never 0
+    state.rpcCalls = [];
+    await actions.upsertSyllabusNodeAction(U, { kind: 'UNIT', title: 'x', expected_questions_min: null, expected_questions_max: null });
+    const sent = state.rpcCalls[0] && state.rpcCalls[0].params.p_node;
+    if (!sent || sent.expected_questions_min !== null || sent.expected_questions_max !== null) bad.push(`expected range not NULL: ${JSON.stringify(sent)}`);
+    assert(bad.length === 0, bad.join('\n        '));
+    return '4 roles × 8 actions; blocked publish; error + input mapping';
+  });
+
+  await test('E-04 English only: no admin UI offers a Hindi / bilingual option or label (decision #35)', async () => {
+    const walk = (dir) => fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(`${dir}/${e.name}`) : /\.tsx?$/.test(e.name) ? [`${dir}/${e.name}`] : []));
+    const files = [...walk('app/admin'), ...walk('components/admin')].filter((f) => !f.endsWith('.ts') || f.endsWith('page.ts'));
+    const bad = [];
+    for (const f of files) {
+      const s = read(f);
+      if (/<option[^>]*value=["'](hindi|hi|both)["']/i.test(s)) bad.push(`${f}: Hindi / bilingual <option>`);
+      if (/>\s*[^<{]*\b(Hindi|Bilingual)\b[^<{]*</.test(s)) bad.push(`${f}: Hindi / bilingual label`);
+      if (/हिं|Devanagari/.test(s)) bad.push(`${f}: Devanagari text`);
+    }
+    assert(bad.length === 0, bad.join('\n        '));
+    return `${files.length} admin UI files`;
+  });
+
+  if (LIVE) await live();
+  console.log(`\nGAP2-4b editor: ${passed}/${passed + failed} passed`);
+  process.exit(failed ? 1 : 0);
+})().catch((e) => {
+  console.error('SUITE ERROR', String(e && (e.message || e)).slice(0, 400));
+  process.exit(1);
+});
+
+// ---------------------------------------------------------------- live part
+async function live() {
+  if (!['localhost', '127.0.0.1', '[::1]'].includes(new URL(BASE).hostname)) throw new Error('live part runs against a local build only');
+  const { chromium } = require('playwright');
+  const { Client } = require('pg');
+  const { dbTarget, readEnv } = require('./db/_db-env.cjs');
+  const env = readEnv();
+  const db = new Client({ ...dbTarget().pg, port: 6543 });
+  db.on('error', () => {});
+  await db.connect();
+  const ro = async (sql, p) => {
+    await db.query('BEGIN READ ONLY');
+    try {
+      return (await db.query(sql, p)).rows;
+    } finally {
+      await db.query('ROLLBACK');
+    }
+  };
+  const qaExam = (await ro(`SELECT id FROM public.exams WHERE slug = 'qa-syllabus-test' AND NOT is_active`))[0];
+  assert(qaExam, 'QA test exam (migration 081) missing or active');
+  const seededShape = async () =>
+    JSON.stringify(await ro(`SELECT e.slug, v.status, v.updated_at, (SELECT count(*) FROM public.exam_syllabus_nodes n WHERE n.syllabus_version_id = v.id)::int nodes,
+      (SELECT max(n.updated_at) FROM public.exam_syllabus_nodes n WHERE n.syllabus_version_id = v.id) nu FROM public.exam_syllabus_versions v JOIN public.exams e ON e.id = v.exam_id
+      WHERE e.slug IN ('ssc-gd','ssc-cgl') ORDER BY e.slug, v.version_number`));
+  const before = await seededShape();
+  const readModel = async () => (await ro(`SELECT public.fn_exam_syllabus_read_model($1) r`, [qaExam.id]))[0].r;
+
+  const browser = await chromium.launch({ channel: 'chrome', headless: true });
+  const signIn = async (email, key) => {
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+    const page = await ctx.newPage();
+    // each edit = server action + RPC + router.refresh (several Supabase round trips); allow slow links
+    page.setDefaultTimeout(120000);
+    for (let i = 1; i <= 3; i++) {
+      await page.goto(`${BASE}/auth/login`, { waitUntil: 'networkidle', timeout: 120000 });
+      await page.fill('input[type="email"]', email);
+      await page.fill('input[type="password"]', env(key));
+      await Promise.all([page.waitForURL((u) => !/\/auth\/login/.test(String(u)), { timeout: 120000 }).catch(() => undefined), page.locator('button[type="submit"]').first().click()]);
+      if (!/\/auth\/login/.test(page.url())) return page;
+      await page.waitForTimeout(15000);
+    }
+    throw new Error(`sign-in failed (${email.split('@')[0]})`);
+  };
+  const waitMsg = async (page, rx) => page.locator('[role=status], [role=alert]').filter({ hasText: rx }).first().waitFor({ timeout: 120000 });
+  let versionUrl = null;
+  try {
+    await test('E-05 qa-staff: draft → section + unit → map topic → validate; publish disabled for staff; keyboard tree; labelled controls', async () => {
+      const page = await signIn('qa-staff@courage-library.test', 'QA_STAFF_PASSWORD');
+      await page.goto(`${BASE}/admin/syllabus?exam=${qaExam.id}`, { waitUntil: 'networkidle', timeout: 120000 });
+      await page.getByRole('button', { name: 'New empty draft' }).click();
+      // client-side router.push (no load event): poll the URL; on timeout report what the page says
+      const isEditor = () => /\/admin\/syllabus\/[0-9a-f-]{36}$/.test(page.url());
+      for (let t = 0; t < 120 && !isEditor(); t++) await page.waitForTimeout(1000);
+      if (!isEditor()) throw new Error(`no editor after New empty draft: ${(await page.locator('[role=status],[role=alert]').allTextContents()).join(' | ')}`);
+      versionUrl = page.url();
+      await page.waitForLoadState('networkidle');
+      await page.getByRole('button', { name: 'Add section' }).click();
+      await waitMsg(page, /Section added/);
+      await page.getByRole('treeitem').first().waitFor({ timeout: 120000 }); // the success message precedes the refreshed tree
+      await page.getByRole('treeitem').first().click();
+      await page.getByLabel('Title').fill('QA Section');
+      await page.getByRole('button', { name: 'Save details' }).click();
+      await waitMsg(page, /Details saved/);
+      await page.getByRole('button', { name: 'Add unit inside' }).click();
+      await waitMsg(page, /Unit added/);
+      await page.getByRole('treeitem', { level: 2 }).first().waitFor({ timeout: 120000 });
+      // keyboard: focus the section item, ArrowDown → the unit, Enter selects it
+      const items = page.getByRole('treeitem');
+      await items.first().focus();
+      await page.keyboard.press('ArrowDown');
+      const focused = await page.evaluate(() => document.activeElement && document.activeElement.getAttribute('aria-level'));
+      assert(focused === '2', `ArrowDown did not reach the unit (aria-level ${focused})`);
+      await page.keyboard.press('Enter');
+      await page.getByLabel('Title').fill('QA Unit');
+      await page.getByRole('button', { name: 'Save details' }).click();
+      await waitMsg(page, /Details saved/);
+      // ArrowLeft moves to the parent; ArrowLeft again collapses it
+      await page.getByRole('treeitem', { level: 2 }).first().focus();
+      await page.keyboard.press('ArrowLeft');
+      const lvl = await page.evaluate(() => document.activeElement && document.activeElement.getAttribute('aria-level'));
+      assert(lvl === '1', 'ArrowLeft did not move to the parent');
+      await page.keyboard.press('ArrowLeft');
+      assert((await page.getByRole('treeitem', { level: 1 }).first().getAttribute('aria-expanded')) === 'false', 'ArrowLeft did not collapse');
+      await page.keyboard.press('ArrowRight');
+      await page.getByRole('treeitem', { level: 2 }).first().click();
+      // map the first active topic
+      await page.locator('fieldset input[type=checkbox]').first().check();
+      await page.waitForTimeout(1500); // a late refresh must not wipe the unsaved selection (regression for the reset-on-refresh bug)
+      assert(await page.locator('fieldset input[type=checkbox]').first().isChecked(), 'topic selection was reset by a refresh');
+      assert(await page.getByRole('button', { name: 'Save topics (1)' }).isVisible(), 'selected topic not counted');
+      await page.getByRole('button', { name: /^Save topics/ }).click();
+      await waitMsg(page, /Topics saved/);
+      await page.getByRole('treeitem', { level: 2 }).filter({ hasText: '1 topic' }).waitFor({ timeout: 120000 });
+      await page.getByRole('button', { name: 'Validate now' }).click();
+      await waitMsg(page, /No errors/);
+      // staff cannot publish
+      const pub = page.getByRole('button', { name: 'Publish', exact: true });
+      assert(await pub.isDisabled(), 'Publish enabled for staff');
+      assert(await page.getByText('Only an admin can publish').isVisible(), 'no staff explanation');
+      // every visible form control is labelled
+      const unnamed = await page.evaluate(() =>
+        [...document.querySelectorAll('main input, main select, main textarea, main button, [role=treeitem]')]
+          .filter((el) => el.getClientRects().length && !el.closest('[hidden]'))
+          .filter((el) => {
+            const id = el.id;
+            const name = (el.getAttribute('aria-label') || (id && document.querySelector(`label[for="${CSS.escape(id)}"]`)?.textContent) || el.closest('label')?.textContent || el.textContent || '').trim();
+            return !name;
+          })
+          .map((el) => el.outerHTML.slice(0, 100)),
+      );
+      assert(unnamed.length === 0, `unnamed controls: ${unnamed.join(' | ')}`);
+      await page.context().close();
+      return 'draft built and valid; staff publish disabled';
+    });
+
+    await test('E-06 qa-admin: publish the TEST version → read model AVAILABLE → archive → NO_SYLLABUS', async () => {
+      assert(versionUrl, 'no draft from E-05');
+      const page = await signIn('qa-admin@courage-library.test', 'QA_ADMIN_PASSWORD');
+      await page.goto(versionUrl, { waitUntil: 'networkidle', timeout: 120000 });
+      await page.getByRole('button', { name: 'Publish', exact: true }).click();
+      const dlg = page.getByRole('dialog', { name: /^Publish version/ });
+      await dlg.waitFor();
+      assert(/No version is published|will be archived/.test(await dlg.textContent()), 'confirm dialog does not say what will be archived');
+      await dlg.getByRole('button', { name: 'Publish now' }).click();
+      await waitMsg(page, /is published/);
+      const rm = await readModel();
+      assert(rm.state === 'AVAILABLE' && rm.nodes.length === 2 && rm.nodes.some((n) => n.title === 'QA Unit' && n.topics.length === 1), `read model: ${JSON.stringify(rm).slice(0, 200)}`);
+      await page.goto(`${BASE}/admin/syllabus?exam=${qaExam.id}`, { waitUntil: 'networkidle', timeout: 120000 });
+      assert(await page.getByText('Published (live)').first().isVisible(), 'versions list does not show the live version');
+      await page.getByRole('button', { name: /^Archive version/ }).first().click();
+      await page.getByRole('dialog').getByRole('button', { name: 'Archive' }).click();
+      await waitMsg(page, /archived/);
+      const after = await readModel();
+      assert(after.state === 'NO_SYLLABUS', `after archive: ${after.state}`);
+      await page.context().close();
+      return 'published, visible in the read model, archived';
+    });
+  } finally {
+    // E-07 cleanup + invariants: archive any DRAFT left on the QA exam (admin JWT through the RPC), seeded drafts untouched
+    const admin = (await ro(`SELECT id FROM auth.users WHERE email = 'qa-admin@courage-library.test'`))[0];
+    const left = await ro(`SELECT id FROM public.exam_syllabus_versions WHERE exam_id = $1 AND status = 'DRAFT'`, [qaExam.id]);
+    for (const v of left) {
+      await db.query('BEGIN READ WRITE');
+      try {
+        await db.query('SET LOCAL ROLE authenticated');
+        await db.query(`SELECT set_config('request.jwt.claims', $1, true)`, [JSON.stringify({ sub: admin.id, role: 'authenticated', email: 'qa-admin@courage-library.test', app_metadata: { role: 'admin' } })]);
+        await db.query('SELECT public.fn_syllabus_archive_version($1)', [v.id]);
+        await db.query('COMMIT');
+      } catch (e) {
+        await db.query('ROLLBACK');
+        throw e;
+      }
+    }
+    await test('E-07 seeded GD / CGL drafts untouched; no DRAFT left on the QA exam', async () => {
+      assert((await seededShape()) === before, 'a seeded draft changed');
+      const drafts = await ro(`SELECT count(*)::int n FROM public.exam_syllabus_versions WHERE exam_id = $1 AND status <> 'ARCHIVED'`, [qaExam.id]);
+      assert(drafts[0].n === 0, `${drafts[0].n} non-archived versions on the QA exam`);
+      return left.length ? `${left.length} leftover draft(s) archived` : 'nothing left over';
+    });
+    await browser.close();
+    await db.end();
+  }
+}

@@ -241,6 +241,12 @@ Both drafts are built by owner-only seed functions on the **same core helpers as
   - `test_gap2_4a_syllabus` re-ran 12/12 afterwards, so the live state was unchanged.
 - **Hardening.** The suite's error handler now prints the error code and nested errors (`AggregateError` messages are empty), so a future abort names its cause.
 
+## 6b. Architect notes on acceptance (2026-10-16)
+
+1. **Terminating sessions.** Terminating a DB session is allowed ONLY for the suite's own orphaned session, after verifying the same DB user and its own statement, and it must be recorded (as above).
+2. **Backlog:** TEST-HARNESS-TXN, hardening the test harness against orphaned idle-in-transaction sessions (`docs/reports/BACKLOG.md`).
+3. **SSC GD stays DRAFT.** It is not a launch exam, unless the owner decides otherwise.
+
 ## 7. Next (GAP2-4b)
 
 - Admin syllabus editor UI on these RPCs: version list, tree editor, topic picker, validation panel, admin publish.
