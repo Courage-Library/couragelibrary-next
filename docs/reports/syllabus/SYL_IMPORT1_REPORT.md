@@ -195,7 +195,17 @@ The own DRAFT was deleted afterwards.
 
 ## 8. Production probes
 
-Recorded after the push (`wait-for-deploy`, then the anonymous smoke including anon `POST rpc/fn_syllabus_import_draft` → 401 / 42501).
+| Probe | Result |
+|---|---|
+| `wait-for-deploy` `2c6f91b` | deployed (200) |
+| anon `POST rpc/fn_syllabus_import_draft` | **401 / 42501** |
+| anon `POST rpc/fn_delete_exam_controlled` / `fn_award_gamification_reward` (082 / 083) | 401 / 42501 · 401 / 42501 |
+| anon drill RPCs + direct `user_mistake_drills` write (085) | 401 / 42501 ×3 |
+| anon `GET /rest/v1/exam_topics` (084, retired) | 404 PGRST205 |
+| `/exams/ssc-cgl` | 200, "Syllabus coming soon" (nothing published) |
+| Rest of the anonymous smoke (home page labels, `/api/health`, `/admin` redirect, flag-off pages) | all passed |
+
+Signed-in production smokes: owner (§10).
 
 ## 9. SSC CGL Tier-1 draft — summary
 
@@ -258,4 +268,4 @@ The DRILL-1 `student-mistake` production smoke (DRILL1_REPORT §9) is also still
   - Both enforce the same rules (fixtures in I5–I8 run against both).
 - **The SHA-256 covers the normalised payload** that the server action sends: trimmed, defaults filled, `order` dropped since it equals the position. Direct RPC callers hash exactly what they send.
 
-SYL-IMPORT-1 status: OPEN (production probes pending)
+SYL-IMPORT-1 status: CLOSED
