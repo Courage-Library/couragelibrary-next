@@ -179,7 +179,17 @@ The probes run after the push (`wait-for-deploy`, then the anonymous smoke):
 - a direct anon `POST /rest/v1/user_mistake_drills` → 42501;
 - the 082 / 083 / 084 probes.
 
-The results are recorded below in a docs-only follow-up commit.
+**Recorded results:**
+
+| Probe | Result |
+|---|---|
+| `wait-for-deploy` `64a040b` | deployed (200) |
+| anon `POST rpc/fn_generate_mistake_drill` | **401 / 42501** |
+| anon `POST rpc/fn_submit_mistake_drill` (zero uuid) | **401 / 42501** |
+| anon `POST /rest/v1/user_mistake_drills` (direct write) | **401 / 42501** |
+| anon `rpc/fn_delete_exam_controlled` · `rpc/fn_award_gamification_reward` (082 / 083) | 401 / 42501 · 401 / 42501 |
+| anon `GET /rest/v1/exam_topics` (084) | 404 PGRST205 |
+| home / health / admin redirect / flag-off routes / `/exams/ssc-cgl` | all passed |
 
 ## 9. OWNER TO RUN (not run by Claude)
 
