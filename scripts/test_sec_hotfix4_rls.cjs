@@ -19,6 +19,12 @@
  *   P-8 GAP2-4a syllabus: no direct writes for students / staff (grants), anon cannot EXECUTE write RPCs, students are
  *       denied (42501), staff create / edit DRAFTs but cannot publish / archive, admin publishes, PUBLISHED rows are
  *       immutable on the owner path except PUBLISHED → ARCHIVED (rolled back; QA staff / admin ids as JWT subjects)
+ *   P-9 PERMANENT RULE (SEC-HOTFIX-6, 082): no SECURITY DEFINER function in public is EXECUTE-able by anon or PUBLIC
+ *       and every one pins search_path — unless it is on the reviewed SECDEF_PUBLIC_OK allow-list (one-line
+ *       justification each; trigger functions are not callable through PostgREST) or on SECDEF_PENDING_RULING
+ *       (reported loudly; an entry that no longer violates must be removed). The INC-3 lockdown set stays
+ *       service-role only. Behaviour (rolled back): anon / student calls of the locked functions → 42501; the service
+ *       role deletes a throwaway exam created inside the transaction through fn_delete_exam_controlled
  *
  * Run: node scripts/test_sec_hotfix4_rls.cjs
  */
@@ -70,6 +76,29 @@ function blanketViolations(policies) {
   }
   return { bad, pending };
 }
+// P-9 (SEC-HOTFIX-6): SECURITY DEFINER functions intentionally executable by anon / PUBLIC (reviewed)
+const SECDEF_PUBLIC_OK = {
+  fn_exam_syllabus_read_model: 'student syllabus read model: PUBLISHED rows only, read-only, search_path ""',
+};
+// P-9: SECURITY DEFINER functions awaiting an architect ruling (SEC_HOTFIX6_REPORT §2) — tolerated, reported loudly
+const SECDEF_PENDING_RULING = {
+  fn_award_gamification_reward: 'writes, no caller check, no search_path; session caller services/mistake.service.ts:1865 (+ service role gamification.service.ts:564)',
+  fn_claim_reward_item: 'writes, no caller check, no search_path; no app caller',
+  fn_reverse_reward_claim: 'writes, no caller check, no search_path; no app caller',
+  fn_create_batch_assignment: 'writes, internal auth checks; session caller services/institute.service.ts:313',
+  fn_enroll_batch_student: 'writes, internal auth checks; session caller services/institute.service.ts:282',
+  fn_evaluate_descriptive_submission: 'writes, internal auth checks; session caller services/descriptive.service.ts:424',
+  fn_submit_descriptive_answer: 'writes, auth.uid(); session caller services/descriptive.service.ts:237',
+  fn_check_premium_access_and_quota: 'read, no caller check (any user entitlement / quota); service-role caller services/premium-entitlement.service.ts:82',
+  fn_get_batch_assignment_progress: 'read, internal auth checks; session caller services/institute.service.ts:342',
+  fn_can_evaluate_submission: 'read predicate used by RLS policies; session caller services/descriptive.service.ts:314',
+  fn_has_batch_faculty_access: 'read predicate used by RLS policies; session caller services/institute.service.ts:201',
+  fn_is_batch_member: 'read predicate used by RLS policies',
+  fn_is_institute_member: 'read predicate used by RLS policies',
+  fn_sanitize_attempt_answer: 'trigger function without a pinned search_path',
+};
+// P-9: INC-3 lockdown set (082) — service_role only
+const SECDEF_LOCKED = ['fn_delete_exam_controlled', 'fn_authorize_and_start_test_attempt', 'fn_create_dynamic_mock_instance_atomic', 'fn_record_qualifying_streak_activity'];
 const STUDENT = { sub: '00000000-0000-4000-8000-0000000000a1', role: 'authenticated', app_metadata: {} };
 const STAFF = { sub: '00000000-0000-4000-8000-0000000000b2', role: 'authenticated', app_metadata: { role: 'staff' } };
 
@@ -316,6 +345,65 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assertion failed'); };
       if (!/^ERR P0001 SYLLABUS_IMMUTABLE/.test(out.ownerEditPublished || '')) bad.push(`ownerEditPublished: ${out.ownerEditPublished} (expected SYLLABUS_IMMUTABLE)`);
       assert(bad.length === 0, bad.join('\n        '));
       return 'anon/student denied; direct inserts denied; staff drafts; admin publishes; published immutable, archivable';
+    });
+
+    await test('P-9 permanent rule: SECURITY DEFINER functions not EXECUTE-able by anon / PUBLIC and pin search_path (allow-list / pending ruling); INC-3 set locked', async () => {
+      const { rows } = await q(`SELECT p.proname n, p.oid::regprocedure::text sig, pg_get_function_result(p.oid) ret,
+          has_function_privilege('anon', p.oid, 'EXECUTE') anon_x, has_function_privilege('authenticated', p.oid, 'EXECUTE') auth_x,
+          has_function_privilege('service_role', p.oid, 'EXECUTE') svc_x,
+          EXISTS (SELECT 1 FROM aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a WHERE a.grantee = 0 AND a.privilege_type = 'EXECUTE') public_x,
+          EXISTS (SELECT 1 FROM unnest(coalesce(p.proconfig, '{}')) cfg WHERE cfg LIKE 'search_path=%') sp
+        FROM pg_proc p WHERE p.pronamespace = 'public'::regnamespace AND p.prosecdef`);
+      const bad = [];
+      const pending = new Set();
+      for (const f of rows) {
+        const callable = f.ret !== 'trigger'; // trigger functions cannot be called through PostgREST / SELECT
+        const exposed = callable && (f.anon_x || f.public_x);
+        if (SECDEF_PENDING_RULING[f.n]) { if (exposed || !f.sp) pending.add(f.n); continue; }
+        if (exposed && !SECDEF_PUBLIC_OK[f.n]) bad.push(`${f.sig}: EXECUTE-able by ${f.public_x ? 'PUBLIC' : 'anon'}`);
+        if (!f.sp) bad.push(`${f.sig}: no pinned search_path`);
+      }
+      const stale = Object.keys(SECDEF_PENDING_RULING).filter((n) => !pending.has(n));
+      if (stale.length) bad.push(`SECDEF_PENDING_RULING entries no longer violate (remove them): ${stale.join(', ')}`);
+      for (const n of SECDEF_LOCKED) {
+        const f = rows.find((r) => r.n === n);
+        if (!f) bad.push(`${n} missing`);
+        else if (f.anon_x || f.auth_x || f.public_x || !f.svc_x || !f.sp) bad.push(`${n} not locked: ${JSON.stringify({ anon: f.anon_x, auth: f.auth_x, public: f.public_x, service: f.svc_x, sp: f.sp })}`);
+      }
+      // behaviour (rolled back): anon / student denied before any execution; service role deletes a throwaway exam
+      const out = {};
+      await q('BEGIN READ WRITE');
+      try {
+        await q(`SET LOCAL lock_timeout = '5s'`);
+        const call = {
+          fn_delete_exam_controlled: `SELECT public.fn_delete_exam_controlled(gen_random_uuid(), 'sec-hotfix6-probe')`,
+          fn_authorize_and_start_test_attempt: `SELECT public.fn_authorize_and_start_test_attempt(gen_random_uuid(), gen_random_uuid())`,
+          fn_create_dynamic_mock_instance_atomic: `SELECT public.fn_create_dynamic_mock_instance_atomic(gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), 'x', 'x', 'x', 'x', 1, 1, 0, '{}'::jsonb, '[]'::jsonb, 1)`,
+          fn_record_qualifying_streak_activity: `SELECT public.fn_record_qualifying_streak_activity(gen_random_uuid(), 'x', gen_random_uuid(), 0, 'UTC')`,
+        };
+        for (const [n, sql] of Object.entries(call)) {
+          for (const [who, role, claims] of [['anon', 'anon', {}], ['student', 'authenticated', STUDENT]]) {
+            await q('SAVEPOINT p9');
+            try { await as(claims, role); await q(sql); out[`${n}:${who}`] = 'ALLOWED'; } catch (e) { out[`${n}:${who}`] = e.code; }
+            await q('ROLLBACK TO SAVEPOINT p9');
+            await q('RESET ROLE');
+          }
+        }
+        const org = (await q(`SELECT org_id FROM public.exams WHERE slug = 'qa-syllabus-test'`)).rows[0];
+        assert(org, 'QA test exam (081) missing');
+        const tmp = (await q(`INSERT INTO public.exams (org_id, title, slug, category, is_active) VALUES ($1, 'SEC-HOTFIX-6 probe (rolled back)', 'sec-hotfix6-probe', 'TEST', false) RETURNING id`, [org.org_id])).rows[0].id;
+        await q(`SET LOCAL ROLE service_role`);
+        const r = (await q(`SELECT public.fn_delete_exam_controlled($1, 'sec-hotfix6-probe') r`, [tmp])).rows[0].r;
+        await q('RESET ROLE');
+        out.serviceDelete = r && r.success === true && (await q(`SELECT count(*)::int n FROM public.exams WHERE id = $1`, [tmp])).rows[0].n === 0;
+      } finally {
+        await q('ROLLBACK');
+      }
+      for (const [k, v] of Object.entries(out)) if (k !== 'serviceDelete' && v !== '42501') bad.push(`${k}: ${v} (expected 42501)`);
+      if (out.serviceDelete !== true) bad.push('service role could not delete the throwaway exam through fn_delete_exam_controlled');
+      assert(bad.length === 0, bad.join('\n        '));
+      if (pending.size) console.log(`  NOTE  P-9 pending architect ruling (${pending.size}): ${[...pending].join(', ')}`);
+      return `${rows.length} SECURITY DEFINER functions; locked ${SECDEF_LOCKED.length} (anon/student 42501, service role OK); pending ruling ${pending.size}`;
     });
   } finally {
     await c.end();
