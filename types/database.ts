@@ -7648,8 +7648,8 @@ export type Database = {
       fn_generate_mistake_drill: {
         Args: {
           p_cognitive_type_id?: string
-          p_limit?: number
           p_topic_id?: string
+          p_vault_ids: string[]
         }
         Returns: Json
       }

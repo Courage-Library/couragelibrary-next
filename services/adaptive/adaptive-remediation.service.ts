@@ -653,23 +653,12 @@ export class AdaptiveRemediationService {
       fit_score: s.remediation_fit_score,
     }));
 
-    // 8. Persist drill session in user_mistake_drills
-    const { data: drillRecord } = await sb
-      .from("user_mistake_drills")
-      .insert({
-        user_id: userId,
-        topic_id: vaultRow.topic_id,
-        cognitive_type_id: cognitiveTypeId !== "UNCLASSIFIED" ? cognitiveTypeId : null,
-        total_questions: drillQuestions.length,
-        questions_data: drillQuestions,
-        status: "IN_PROGRESS",
-      })
-      .select("id")
-      .single();
-
+    // 8. DRILL-1: no direct write to user_mistake_drills from runtime code (students hold SELECT only; decisions
+    //    #39 / #42). This adaptive path has no runtime caller; persisting its session must go through the
+    //    server-authoritative fn_generate_mistake_drill when the adaptive phase wires it. Until then no session id.
     return {
       success: true,
-      session_id: drillRecord?.id || undefined,
+      session_id: undefined, // DRILL-1: not persisted here (see step 8)
       vault_id: vaultRow.id,
       target_topic_id: vaultRow.topic_id,
       target_cognitive_type: cognitiveTypeId,

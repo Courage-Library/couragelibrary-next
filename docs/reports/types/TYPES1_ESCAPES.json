@@ -268,9 +268,9 @@
       "file": "services/mistake.service.ts",
       "class": "B",
       "module": "mistake drills",
-      "kind": "@ts-expect-error (RPC argument names)",
+      "kind": "tracked comment (reward not wired; the drill RPC awards no coins)",
       "owner": "Commerce (architect ruling)",
-      "precondition": "Coin-economy decision: call fn_award_gamification_reward with p_calculated_coins / p_reason_code. The reward MUST go via the service-role GamificationService: since SEC-HOTFIX-7 (migration 083) the function is EXECUTE-able by service_role only, so this session-client call is denied (42501). No coins are credited; per the interim ruling the drill records coins_awarded = 0 until the reward is wired."
+      "precondition": "Coin-economy decision: wire the mistake-drill reward through the service-role GamificationService (fn_award_gamification_reward is service-role only since SEC-HOTFIX-7, 083). Since DRILL-1 (085) grading and every drill write run in fn_submit_mistake_drill (SECURITY DEFINER, auth.uid()), which calls no reward function and records coins_awarded = 0 honestly until Commerce wires the reward."
     },
     {
       "id": "TYPES-1:B-DSH-READINESS",

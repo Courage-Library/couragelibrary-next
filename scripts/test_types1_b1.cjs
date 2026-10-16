@@ -31,6 +31,9 @@ async function test(name, fn) {
 const assert = (c, m) => { if (!c) throw new Error(m || 'assertion failed'); };
 
 const MISTAKE = read('services/mistake.service.ts');
+// DRILL-1 (085): drill compile, grading and every drill write moved into fn_generate / fn_submit_mistake_drill
+const DRILL_SQL = read('supabase/migrations/20261016000085_drill1_server_authoritative_drills.sql');
+const SUBMIT_SQL = DRILL_SQL.slice(DRILL_SQL.indexOf('CREATE OR REPLACE FUNCTION public.fn_submit_mistake_drill'), DRILL_SQL.indexOf('-- EXECUTE: authenticated only'));
 const ASSESS = read('services/assessment.service.ts');
 
 const OLD = {
@@ -50,9 +53,12 @@ const NEW = {
   console.log('TYPES-1 B1 covering test');
 
   await test('B1-1 static: mistake detail / drill selects use the live columns; one-to-one question_answers', async () => {
-    for (const k of ['detail', 'drillCompile', 'drillGrade']) assert(MISTAKE.includes(NEW[k]), `fixed select missing: ${k}`);
+    assert(MISTAKE.includes(NEW.detail), 'fixed select missing: detail');
+    // drill compile + grade (DRILL-1): the RPCs read the live columns of the COMPILED version
+    assert(/'option_key', o\.option_key, 'content_text', o\.option_text,\s*'option_text', o\.option_text, 'option_order', coalesce\(o\.order_index, 0\)/.test(DRILL_SQL), 'drill compile: live option columns');
+    assert(/SELECT a\.correct_option_key, a\.explanation_md INTO v_correct, v_expl\s+FROM public\.question_answers a WHERE a\.question_version_id = v_version_id;/.test(SUBMIT_SQL), 'drill grade: answers of the compiled version');
     for (const bad of ['content_text, option_order', 'solution_explanation_md)', 'question_answers?.[0]', '.option_order ||', 'opt.content_text']) assert(!MISTAKE.includes(bad), `pre-fix form still present: ${bad}`);
-    assert(/\.from\("question_versions"\)\.select\(ANSWER_SELECT\)\.in\("id", versionIds\)/.test(MISTAKE), 'grading must read the drill\'s compiled versions by id');
+    assert(!/ANSWER_SELECT|answerSb/.test(MISTAKE), 'drill grading must not run in the app any more (DRILL-1)');
   });
 
   await test('B1-2/3/4 static: assessment one-to-one test_results, mock title selected, no subjects.code', async () => {
@@ -62,26 +68,18 @@ const NEW = {
     assert(!ASSESS.includes('select("id, name, code")'), 'subjects.code is selected');
   });
 
-  await test('B1-5 static: drill reward is awaited in try/catch (no .catch on a PostgREST builder)', async () => {
-    const i = MISTAKE.indexOf('"fn_award_gamification_reward"');
-    assert(i > 0, 'reward call missing');
-    const block = MISTAKE.slice(i - 600, i + 1200);
-    assert(/try \{[\s\S]{0,120}?= await supabase\.rpc\("fn_award_gamification_reward"/.test(block), 'reward must be awaited inside try');
-    assert(!/\}\)\.catch\(/.test(block), '.catch on the RPC builder');
+  await test('B1-5 static (DRILL-1): no drill reward call anywhere in the drill path (app or RPC); the failed-builder bug cannot recur', async () => {
+    const sub = MISTAKE.slice(MISTAKE.indexOf('static async submitMistakeDrill('), MISTAKE.indexOf('Dynamically loads available subjects'));
+    assert(!/fn_award_gamification_reward/.test(sub) && !/fn_award_gamification_reward/.test(SUBMIT_SQL), 'reward call in the drill path');
+    assert(/await supabase\.rpc\("fn_submit_mistake_drill"/.test(sub) && !/\}\)\.catch\(/.test(sub), 'submit must await the RPC (no .catch on a builder)');
+    assert(/TYPES-1:B-DRILL-REWARD-ARGS/.test(sub), 'tracked reward tag missing');
   });
 
-  await test('B1-6 static: drill records coins_awarded only when the reward RPC actually credited them (honest data, #15)', async () => {
-    const i = MISTAKE.indexOf('const DRILL_REWARD_COINS = 5;');
-    const j = MISTAKE.indexOf('// 6. Complete Drill Record');
-    assert(i > 0 && j > i, 'reward block not found');
-    const block = MISTAKE.slice(i, j);
-    const assigns = block.match(/(?<!let )coinsAwarded\s*=\s*[^=;][^;]*;/g) || [];
-    // exactly one assignment, guarded by RPC success; no unconditional "coinsAwarded = 5"
-    assert(assigns.length === 1, `expected one assignment, found ${assigns.length}: ${assigns.join(' | ')}`);
-    assert(/if \(!rewardErr && !rewardRejected\) coinsAwarded = DRILL_REWARD_COINS;/.test(block), 'assignment must be guarded by RPC success');
-    assert(/let coinsAwarded = 0;/.test(block), 'default must be 0');
-    assert(/rewardRes\.success === false/.test(block), 'an RPC that answers success:false must not count as credited');
-    assert(/coins_awarded: coinsAwarded,/.test(MISTAKE.slice(j, j + 600)), 'the drill row must store the credited value');
+  await test('B1-6 static (DRILL-1): coins_awarded is recorded honestly as 0 — nothing is credited (honest data, #15)', async () => {
+    assert(/coins_awarded = 0,/.test(SUBMIT_SQL) && /'coins_awarded', 0\)/.test(SUBMIT_SQL), 'the RPC must store and return coins_awarded = 0');
+    assert(!/v_coins_awarded|:= 5|coins_awarded = 5/.test(SUBMIT_SQL), 'a non-zero coin value in the submit RPC');
+    const sub = MISTAKE.slice(MISTAKE.indexOf('static async submitMistakeDrill('), MISTAKE.indexOf('Dynamically loads available subjects'));
+    assert(!/coinsAwarded|DRILL_REWARD_COINS/.test(sub), 'the app must not compute coins');
   });
 
   await test('B1-7 static: question_answers is read server-side (admin client) only after ownership is proven', async () => {
@@ -92,13 +90,13 @@ const NEW = {
     const adm = dBody.indexOf('const adminSb = createAdminServerSupabaseClient();');
     assert(own > 0 && adm > own, 'detail: admin read must come after the ownership-scoped vault read');
     assert(/adminSb\.from\("questions"\)\.select\("id, question_versions\(id, question_text, question_options\(id, option_key, option_text, order_index\), question_answers\(correct_option_key, explanation_md\)\)"\)\.eq\("id", v\.question_id\)/.test(dBody), 'detail: question + answer must be read with adminSb by the vault question_id');
-    const g = MISTAKE.indexOf('static async submitMistakeDrill(');
-    const gBody = MISTAKE.slice(g, MISTAKE.indexOf('static async', g + 30));
-    const gOwn = gBody.indexOf('.eq("user_id", user.id)');
-    const gAdm = gBody.indexOf('const answerSb = createAdminServerSupabaseClient();');
-    assert(gOwn > 0 && gAdm > gOwn, 'grading: admin read must come after the ownership-scoped drill read');
-    assert((gBody.match(/answerSb\.from\("question_versions"\)\.select\(ANSWER_SELECT\)/g) || []).length === 2, 'grading: both answer reads must use answerSb');
-    assert(!/\bsb\.from\("question_versions"\)\.select\(ANSWER_SELECT\)/.test(gBody), 'grading: session client must not read answers');
+    // DRILL-1 (085): grading reads question_answers inside the SECURITY DEFINER submit RPC, after the drill row was
+    // locked for auth.uid(); the app neither reads answers nor uses the service role for the drill
+    const gOwn = SUBMIT_SQL.indexOf('WHERE d.id = p_drill_id AND d.user_id = v_user_id');
+    const gAns = SUBMIT_SQL.indexOf('FROM public.question_answers a');
+    assert(gOwn > 0 && gAns > gOwn, 'grading: answers must be read after the ownership-scoped drill lock');
+    const sub = MISTAKE.slice(MISTAKE.indexOf('static async submitMistakeDrill('), MISTAKE.indexOf('Dynamically loads available subjects'));
+    assert(!/createAdminServerSupabaseClient|question_answers/.test(sub.replace(/\/\/[^\n]*/g, '')), 'grading: the app must not read answers or use the service role');
   });
 
   if (OFFLINE) {

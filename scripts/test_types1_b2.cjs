@@ -63,7 +63,11 @@ const FORBIDDEN = ['correct_option_key', 'answer_key', 'correct_answer', 'is_cor
   await test('B2-2 drill pre-submit paths project through the whitelist; compile never selects answers', async () => {
     const src = read('services/mistake.service.ts');
     assert(src.includes('import { toPublicDrillQuestions } from "@/services/mistakes/drill-payload";'), 'projection not imported');
-    assert(/questions: toPublicDrillQuestions\(drillQuestions\),/.test(src), 'generate path not projected');
+    // DRILL-1: the generate RPC returns the compiled payload; the app re-projects it through the whitelist
+    assert(/const questions = toPublicDrillQuestions\(created\.questions\);/.test(src), 'generate path not projected');
+    const sql = read('supabase/migrations/20261016000085_drill1_server_authoritative_drills.sql');
+    const gen = sql.slice(sql.indexOf('CREATE FUNCTION public.fn_generate_mistake_drill'), sql.indexOf('CREATE OR REPLACE FUNCTION public.fn_submit_mistake_drill'));
+    assert(!/correct_option_key|explanation/.test(gen.replace(/--[^\n]*/g, '')), 'the generate RPC references answer data');
     assert(/questions: toPublicDrillQuestions\(d\.questions_data\),/.test(src), 'resume path not projected');
     const g = src.indexOf('static async generateMistakeDrill(');
     const gBody = src.slice(g, src.indexOf('static async', g + 30));

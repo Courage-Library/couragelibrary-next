@@ -1,0 +1,4 @@
+# DRILL-1: SQL migrations and rollbacks must keep LF line endings in every checkout.
+# Rollbacks restore function bodies byte-exactly (md5); a CRLF checkout (core.autocrlf=true) would change them.
+supabase/migrations/*.sql text eol=lf
+docs/database/rollback/*.sql text eol=lf
