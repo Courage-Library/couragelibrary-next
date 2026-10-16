@@ -320,17 +320,6 @@ export function AdminSidebar({ userEmail, adaptiveEnabled = false, liveTestsEnab
                 <span className="text-[11px]">Syllabus</span>
               </Link>
               <Link
-                href="/admin/syllabus-reconciliation"
-                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors ${
-                  pathname.startsWith("/admin/syllabus-reconciliation")
-                    ? "bg-blue-600 text-white font-semibold"
-                    : "text-slate-400 hover:bg-slate-800 hover:text-white"
-                }`}
-              >
-                <GitBranch className={`w-3.5 h-3.5 shrink-0 ${pathname.startsWith("/admin/syllabus-reconciliation") ? "text-white" : "text-slate-400"}`} />
-                <span className="text-[11px]">Syllabus Reconciliation</span>
-              </Link>
-              <Link
                 href="/admin/descriptive"
                 className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors ${
                   pathname.startsWith("/admin/descriptive")

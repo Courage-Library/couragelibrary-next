@@ -9,8 +9,12 @@
  *   E-03 server-action role matrix (stubbed guard, recording RPC mock): anon / student denied before any RPC;
  *        staff drafts but cannot publish / archive; admin can; validation-blocked publish returns the report
  *   E-04 English only (decision #35): no admin UI offers a Hindi / bilingual option or label
+ *   E-08 GAP2-4c "Suggest topics": the pure helper ranks exact / contained / similar topic names, ignores
+ *        unrelated ones, is deterministic and bounded; the editor only pre-fills checkboxes (no action / RPC call,
+ *        no auto-mapping) and the helper imports nothing (no DB, no network)
  * Live (--live [http://localhost:3100]; local production build only; QA identities; QA test exam only):
- *   E-05 qa-staff: new draft on the QA exam → add section + unit → map a topic → validate (no errors);
+ *   E-05 qa-staff: new draft on the QA exam → add section + unit → "Suggest topics" lists the matching topic
+ *        unticked and maps nothing until "Save topics" → tick + save → validate (no errors);
  *        publish is disabled for staff with an explanation; keyboard tree navigation; every control labelled
  *   E-06 qa-admin: publish the TEST version (confirm dialog) → read model AVAILABLE → archive → NO_SYLLABUS
  *   E-07 the seeded GD / CGL drafts are untouched; no DRAFT is left on the QA exam (leftovers archived)
@@ -228,6 +232,35 @@ function makeHarness() {
     return `${files.length} admin UI files`;
   });
 
+  await test('E-08 Suggest topics: pure ranked helper; UI only pre-fills checkboxes (no auto-mapping)', async () => {
+    const src = read('lib/syllabus/topic-suggest.ts');
+    assert(!/^\s*import\b/m.test(src) && !/fetch\(|supabase|rpc\(/i.test(src.replace(/\/\*[\s\S]*?\*\//g, '')), 'helper must be pure (no imports, no network / DB)');
+    const { suggestTopics, normalizeTopicText, topicSimilarity } = loadTs('lib/syllabus/topic-suggest.ts', {});
+    const topics = [
+      { id: 't1', name: 'Percentage', subject_name: 'Quantitative Aptitude' },
+      { id: 't2', name: 'Profit & Loss', subject_name: 'Quantitative Aptitude' },
+      { id: 't3', name: 'Syllogism', subject_name: 'Reasoning' },
+      { id: 't4', name: 'Time and Work', subject_name: 'Quantitative Aptitude' },
+      { id: 't5', name: 'Indian Polity', subject_name: 'General Awareness' },
+    ];
+    assert(normalizeTopicText('  Profit & Loss (Basics) ') === 'profit and loss basics', 'normalizer');
+    assert(topicSimilarity('Percentage', 'percentage') === 1 && topicSimilarity('', 'x') === 0, 'similarity bounds');
+    const ids = (title, opts) => suggestTopics(title, topics, opts).map((x) => x.topic.id);
+    assert(ids('Percentage')[0] === 't1', 'exact match first');
+    assert(ids('Profit and loss')[0] === 't2', '"&" ≡ "and"');
+    assert(ids('Percentages')[0] === 't1', 'near match');
+    assert(ids('Percentage and profit').includes('t1'), 'topic named by a title word');
+    assert(ids('Time & Work problems')[0] === 't4', 'contained phrase');
+    assert(!ids('Constitution of India basics').includes('t3'), 'unrelated topic suggested');
+    assert(ids('').length === 0 && ids('Percentage', { limit: 1 }).length === 1, 'empty title / limit');
+    assert(JSON.stringify(suggestTopics('Percentage', topics)) === JSON.stringify(suggestTopics('Percentage', topics)), 'deterministic');
+    const ui = read('components/admin/syllabus/syllabus-editor.tsx');
+    assert(/setSuggestions\(suggestTopics\(selected\.title, topics\)\)/.test(ui), 'editor does not use the helper');
+    const block = ui.slice(ui.indexOf('{suggestions !== null'), ui.indexOf('Active topics</legend>'));
+    assert(/checked=\{picked\.some/.test(block) && !/Action\(|setUnitMappings|run\(/.test(block), 'suggestions must only toggle the pending selection');
+    return '8 ranking cases; UI pre-fill only';
+  });
+
   if (LIVE) await live();
   console.log(`\nGAP2-4b editor: ${passed}/${passed + failed} passed`);
   process.exit(failed ? 1 : 0);
@@ -256,6 +289,9 @@ async function live() {
   };
   const qaExam = (await ro(`SELECT id FROM public.exams WHERE slug = 'qa-syllabus-test' AND NOT is_active`))[0];
   assert(qaExam, 'QA test exam (migration 081) missing or active');
+  // GAP2-4c: the unit is titled after a real active topic so "Suggest topics" has an exact match
+  const suggestTopic = (await ro(`SELECT name FROM public.canonical_taxonomy_nodes WHERE node_type = 'TOPIC' AND is_active ORDER BY name LIMIT 1`))[0];
+  assert(suggestTopic, 'no active TOPIC');
   const seededShape = async () =>
     JSON.stringify(await ro(`SELECT e.slug, v.status, v.updated_at, (SELECT count(*) FROM public.exam_syllabus_nodes n WHERE n.syllabus_version_id = v.id)::int nodes,
       (SELECT max(n.updated_at) FROM public.exam_syllabus_nodes n WHERE n.syllabus_version_id = v.id) nu FROM public.exam_syllabus_versions v JOIN public.exams e ON e.id = v.exam_id
@@ -309,7 +345,7 @@ async function live() {
       const focused = await page.evaluate(() => document.activeElement && document.activeElement.getAttribute('aria-level'));
       assert(focused === '2', `ArrowDown did not reach the unit (aria-level ${focused})`);
       await page.keyboard.press('Enter');
-      await page.getByLabel('Title').fill('QA Unit');
+      await page.getByLabel('Title').fill(suggestTopic.name);
       await page.getByRole('button', { name: 'Save details' }).click();
       await waitMsg(page, /Details saved/);
       // ArrowLeft moves to the parent; ArrowLeft again collapses it
@@ -321,7 +357,17 @@ async function live() {
       assert((await page.getByRole('treeitem', { level: 1 }).first().getAttribute('aria-expanded')) === 'false', 'ArrowLeft did not collapse');
       await page.keyboard.press('ArrowRight');
       await page.getByRole('treeitem', { level: 2 }).first().click();
-      // map the first active topic
+      // GAP2-4c: "Suggest topics" lists the matching topic unticked and maps nothing by itself
+      await page.getByRole('button', { name: 'Suggest topics' }).click();
+      const sug = page.locator('fieldset', { has: page.locator('legend', { hasText: 'Suggested topics' }) });
+      await sug.waitFor({ timeout: 30000 });
+      assert((await sug.locator('label').first().textContent()).includes(suggestTopic.name), `top suggestion is not "${suggestTopic.name}"`);
+      assert(!(await sug.locator('input[type=checkbox]').first().isChecked()), 'a suggestion was pre-ticked');
+      assert(!(await page.getByRole('button', { name: /^Save topics \(1\)/ }).isVisible().catch(() => false)), 'suggestion counted as selected');
+      const mapped = await ro(`SELECT count(*)::int n FROM public.exam_syllabus_canonical_mappings m JOIN public.exam_syllabus_nodes n ON n.id = m.syllabus_node_id
+                                WHERE n.syllabus_version_id = $1`, [versionUrl.split('/').pop()]);
+      assert(mapped[0].n === 0, 'Suggest topics wrote a mapping');
+      // staff tick the suggestion, then save (the only write path)
       await page.locator('fieldset input[type=checkbox]').first().check();
       await page.waitForTimeout(1500); // a late refresh must not wipe the unsaved selection (regression for the reset-on-refresh bug)
       assert(await page.locator('fieldset input[type=checkbox]').first().isChecked(), 'topic selection was reset by a refresh');
@@ -362,7 +408,7 @@ async function live() {
       await dlg.getByRole('button', { name: 'Publish now' }).click();
       await waitMsg(page, /is published/);
       const rm = await readModel();
-      assert(rm.state === 'AVAILABLE' && rm.nodes.length === 2 && rm.nodes.some((n) => n.title === 'QA Unit' && n.topics.length === 1), `read model: ${JSON.stringify(rm).slice(0, 200)}`);
+      assert(rm.state === 'AVAILABLE' && rm.nodes.length === 2 && rm.nodes.some((n) => n.title === suggestTopic.name && n.topics.length === 1), `read model: ${JSON.stringify(rm).slice(0, 200)}`);
       await page.goto(`${BASE}/admin/syllabus?exam=${qaExam.id}`, { waitUntil: 'networkidle', timeout: 120000 });
       assert(await page.getByText('Published (live)').first().isVisible(), 'versions list does not show the live version');
       await page.getByRole('button', { name: /^Archive version/ }).first().click();

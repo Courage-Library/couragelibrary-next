@@ -104,7 +104,7 @@ function readMistakeDetail() {
     const hub = await page.content();
     check('/exams/ssc-cgl syllabus section → "Syllabus coming soon"', /id="syllabus"/.test(hub) && /Syllabus coming soon/.test(hub));
   } else if (CHECK === 'admin-pages') {
-    const ADMIN = ['/admin', '/admin/questions', '/admin/sections', '/admin/billing', '/admin/community', '/admin/descriptive', '/admin/institutes', '/admin/mock-tests-management', '/admin/bulk-import', '/admin/taxonomy', '/admin/exams', '/admin/syllabus-reconciliation', '/admin/exam-knowledge', '/admin/design-system', '/admin/syllabus'];
+    const ADMIN = ['/admin', '/admin/questions', '/admin/sections', '/admin/billing', '/admin/community', '/admin/descriptive', '/admin/institutes', '/admin/mock-tests-management', '/admin/bulk-import', '/admin/taxonomy', '/admin/exams', '/admin/exam-knowledge', '/admin/design-system', '/admin/syllabus'];
     for (const p of ADMIN) {
       const r = await page.goto(BASE + p, { waitUntil: 'networkidle', timeout: 180000 });
       const html = await page.content();

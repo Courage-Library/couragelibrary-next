@@ -6,7 +6,7 @@
  *   R-2 no `rejectUnauthorized` and no `NODE_TLS_REJECT_UNAUTHORIZED` (TLS verification can never be weakened at runtime)
  *   R-3 direct-connection env vars (DATABASE_URL, POSTGRES_*, SUPABASE_DB_URL) are referenced only by allow-listed files
  *       that never connect (parse-only), each with an owner; any new reference fails
- *   R-4 the HOTFIX-3 fail-closed path for atomic subtree creation stays in place
+ *   R-4 the HOTFIX-3 direct-pg subtree path is gone (GAP2-4c removed the reconciliation workbench)
  *
  * Direct pg is allowed only in scripts/ (verified TLS via scripts/db/_db-env.cjs + ref guard).
  * Run: node scripts/test_no_runtime_db.cjs
@@ -71,14 +71,15 @@ const scan = (re) => {
     return `allow-listed: ${Object.keys(ENV_ALLOW).length}`;
   });
 
-  await test('R-4 atomic subtree creation fails closed from runtime (HOTFIX-3)', async () => {
-    const svc = fs.readFileSync(path.join(ROOT, 'services/exam-syllabus-resolution.service.ts'), 'utf8');
-    assert(/if \(!isPg\) \{\s*throw new SyllabusReconciliationUnavailableError\(\);/.test(svc), 'createSubtree must throw before any read/write when no script client is supplied');
-    const op = fs.readFileSync(path.join(ROOT, 'services/operational-syllabus-reconciliation.service.ts'), 'utf8');
-    assert(/if \(normalizedAction === 'CREATE_NEW_SUBTREE'\) \{\s*throw new OperationalSyllabusReconciliationError\('SERVICE_UNAVAILABLE', SYLLABUS_RECONCILIATION_UNAVAILABLE_MESSAGE, 503\);/.test(op), 'operational service must reject CREATE_NEW_SUBTREE before delegation');
-    const types = fs.readFileSync(path.join(ROOT, 'types/dynamic-syllabus-reconciliation.ts'), 'utf8');
-    assert(types.includes("SYLLABUS_RECONCILIATION_UNAVAILABLE_MESSAGE = 'Syllabus reconciliation is unavailable until the syllabus rebuild (GAP2-4)'"), 'message text');
-    assert(fs.readFileSync(path.join(ROOT, 'app/admin/syllabus-reconciliation/syllabus-reconciliation-client.tsx'), 'utf8').includes('{SYLLABUS_RECONCILIATION_UNAVAILABLE_MESSAGE}'), 'admin page must show the message');
+  await test('R-4 the HOTFIX-3 direct-pg subtree path is gone with the retired reconciliation workbench (GAP2-4c)', async () => {
+    // HOTFIX-3 made CREATE_NEW_SUBTREE fail closed (it needed a direct pg transaction); GAP2-4c removed the whole
+    // workbench, so no runtime module can reach a script-only pg client any more.
+    const gone = ['services/exam-syllabus-resolution.service.ts', 'services/operational-syllabus-reconciliation.service.ts',
+      'types/dynamic-syllabus-reconciliation.ts', 'app/admin/syllabus-reconciliation', 'app/api/admin/syllabus-reconciliation'];
+    const present = gone.filter((f) => fs.existsSync(path.join(ROOT, f)));
+    assert(present.length === 0, `still present: ${present.join(', ')}`);
+    const hits = files.filter((f) => /createSubtree|CREATE_NEW_SUBTREE|PgQueryClient|isDirectPg/.test(code(f))).map((f) => path.relative(ROOT, f));
+    assert(hits.length === 0, `direct-pg resolution path referenced: ${hits.join(', ')}`);
   });
 
   console.log(`\nNo runtime DB: ${passed}/${passed + failed} passed`);

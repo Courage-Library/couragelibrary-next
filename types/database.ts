@@ -2587,44 +2587,6 @@ export type Database = {
           },
         ]
       }
-      exam_syllabi: {
-        Row: {
-          created_at: string
-          description: string | null
-          exam_cycle_id: string
-          id: string
-          is_active: boolean
-          updated_at: string
-          version_tag: string
-        }
-        Insert: {
-          created_at?: string
-          description?: string | null
-          exam_cycle_id: string
-          id?: string
-          is_active?: boolean
-          updated_at?: string
-          version_tag?: string
-        }
-        Update: {
-          created_at?: string
-          description?: string | null
-          exam_cycle_id?: string
-          id?: string
-          is_active?: boolean
-          updated_at?: string
-          version_tag?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "exam_syllabi_exam_cycle_id_fkey"
-            columns: ["exam_cycle_id"]
-            isOneToOne: false
-            referencedRelation: "exam_cycles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       exam_syllabus_canonical_mappings: {
         Row: {
           candidate_matches: Json | null
@@ -2854,111 +2816,6 @@ export type Database = {
             columns: ["supersedes_version_id"]
             isOneToOne: false
             referencedRelation: "exam_syllabus_versions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      exam_topics: {
-        Row: {
-          created_at: string
-          expected_questions: number | null
-          id: string
-          is_mandatory: boolean
-          notes: string | null
-          priority: number
-          required_depth: string
-          syllabus_id: string
-          topic_id: string
-          topic_id_node_type: string | null
-          weightage_level: string
-          weightage_override: number | null
-        }
-        Insert: {
-          created_at?: string
-          expected_questions?: number | null
-          id?: string
-          is_mandatory?: boolean
-          notes?: string | null
-          priority?: number
-          required_depth?: string
-          syllabus_id: string
-          topic_id: string
-          topic_id_node_type?: string | null
-          weightage_level?: string
-          weightage_override?: number | null
-        }
-        Update: {
-          created_at?: string
-          expected_questions?: number | null
-          id?: string
-          is_mandatory?: boolean
-          notes?: string | null
-          priority?: number
-          required_depth?: string
-          syllabus_id?: string
-          topic_id?: string
-          topic_id_node_type?: string | null
-          weightage_level?: string
-          weightage_override?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "exam_topics_syllabus_id_fkey"
-            columns: ["syllabus_id"]
-            isOneToOne: false
-            referencedRelation: "exam_syllabi"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "exam_topics_topic_id_node_fkey"
-            columns: ["topic_id", "topic_id_node_type"]
-            isOneToOne: false
-            referencedRelation: "canonical_taxonomy_nodes"
-            referencedColumns: ["id", "node_type"]
-          },
-        ]
-      }
-      exam_unit_mappings: {
-        Row: {
-          created_at: string
-          exam_topic_id: string
-          id: string
-          is_active: boolean
-          is_exam_core: boolean
-          learning_unit_id: string
-          sequence_order: number
-        }
-        Insert: {
-          created_at?: string
-          exam_topic_id: string
-          id?: string
-          is_active?: boolean
-          is_exam_core?: boolean
-          learning_unit_id: string
-          sequence_order?: number
-        }
-        Update: {
-          created_at?: string
-          exam_topic_id?: string
-          id?: string
-          is_active?: boolean
-          is_exam_core?: boolean
-          learning_unit_id?: string
-          sequence_order?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "exam_unit_mappings_exam_topic_id_fkey"
-            columns: ["exam_topic_id"]
-            isOneToOne: false
-            referencedRelation: "exam_topics"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "exam_unit_mappings_learning_unit_id_fkey"
-            columns: ["learning_unit_id"]
-            isOneToOne: false
-            referencedRelation: "learning_units"
             referencedColumns: ["id"]
           },
         ]
@@ -5838,41 +5695,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "canonical_taxonomy_nodes"
             referencedColumns: ["id", "node_type"]
-          },
-        ]
-      }
-      taxonomy_aliases: {
-        Row: {
-          alias_context: string
-          alias_name: string
-          canonical_node_id: string
-          created_at: string
-          id: string
-          normalized_alias: string
-        }
-        Insert: {
-          alias_context?: string
-          alias_name: string
-          canonical_node_id: string
-          created_at?: string
-          id?: string
-          normalized_alias: string
-        }
-        Update: {
-          alias_context?: string
-          alias_name?: string
-          canonical_node_id?: string
-          created_at?: string
-          id?: string
-          normalized_alias?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "taxonomy_aliases_canonical_node_id_fkey"
-            columns: ["canonical_node_id"]
-            isOneToOne: false
-            referencedRelation: "canonical_taxonomy_nodes"
-            referencedColumns: ["id"]
           },
         ]
       }

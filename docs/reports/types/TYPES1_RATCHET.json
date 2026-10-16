@@ -11,8 +11,8 @@
   ],
   "values": {
     "queryEscapes": 59,
-    "asAny": 250,
-    "colonAny": 806,
+    "asAny": 247,
+    "colonAny": 779,
     "unknownAs": 83,
     "tsExpectError": 12,
     "tsIgnore": 0
@@ -53,7 +53,7 @@
       "batch": "B5",
       "count": 62,
       "by": "GAP2-4b (feat(gap2-4b-2))",
-      "note": "exam knowledge / syllabus clients typed as AppSupabaseClient; reconciliation rows narrowed in lib/syllabus/reconciliation-rows.ts"
+      "note": "exam knowledge / syllabus clients typed as AppSupabaseClient; reconciliation rows were narrowed in lib/syllabus/reconciliation-rows.ts until GAP2-4c deleted the workbench (and that helper)"
     }
   ]
 }

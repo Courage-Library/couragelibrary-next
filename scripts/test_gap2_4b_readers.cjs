@@ -1,12 +1,14 @@
 /**
- * GAP2-4b batch 2 — syllabus readers re-pointed to the canonical read model.
+ * GAP2-4b batch 2 — syllabus readers re-pointed to the canonical read model (+ GAP2-4c: legacy tables retired).
  *
  * Static (no network):
  *   R-01 no runtime file (app / components / services / lib / actions / middleware) reads the legacy syllabus tables
- *        exam_syllabi / exam_topics / exam_unit_mappings / exam_topic_mappings (comments ignored)
+ *        exam_syllabi / exam_topics / exam_unit_mappings / exam_topic_mappings / taxonomy_aliases (comments
+ *        ignored), and none imports a module of the reconciliation workbench retired in GAP2-4c
  *   R-02 the exam hub and cycle pages render ExamSyllabusSection from the candidate service, which reads ONLY
  *        fn_exam_syllabus_read_model; the legacy navigator, ExamSyllabusService, mapUnitToExam, the onboarding
- *        projection and every B-CURRICULUM-MAPPING tag are gone; the tree importer fails closed
+ *        projection and every B-CURRICULUM-MAPPING tag are gone; the workbench pages / API routes / services and
+ *        its sidebar link are gone
  *   R-03 ExamSyllabusSection is built from components/ui and has the three honest states
  * DB (couragelibrary-next, verified TLS, every write inside BEGIN … ROLLBACK — nothing persists):
  *   R-04 SSC CGL today: the read model (anon) is NO_SYLLABUS, and it renders "Syllabus coming soon" with no topics,
@@ -19,6 +21,10 @@
  * Optional live check (a local production build):
  *   R-07 --base=http://localhost:3100 → GET /exams/ssc-cgl shows "Syllabus coming soon" and none of the legacy
  *        SSC GD topic names
+ * DB + PostgREST (GAP2-4c, migration 084):
+ *   R-08 exam_syllabi / exam_topics / exam_unit_mappings / taxonomy_aliases exist only in schema retired with their
+ *        rows; anon / authenticated have no USAGE on retired and no privilege on the tables; PostgREST answers
+ *        "not found" for each table as anon and as qa-student
  *
  * Run: node scripts/test_gap2_4b_readers.cjs [--offline] [--base=http://localhost:3100]
  */
@@ -83,7 +89,10 @@ function mockClient(results) {
     },
   };
 }
-const LEGACY = /\b(exam_syllabi|exam_topics|exam_unit_mappings|exam_topic_mappings)\b/;
+const LEGACY = /\b(exam_syllabi|exam_topics|exam_unit_mappings|exam_topic_mappings|taxonomy_aliases)\b/;
+// modules of the reconciliation workbench retired in GAP2-4c
+const WORKBENCH = /@\/(services\/(exam-syllabus-resolution|exam-syllabus-reconciliation|exam-syllabus-readiness|exam-syllabus-tree-importer|operational-syllabus-reconciliation)\.service|services\/reconciliation-normalizer|types\/dynamic-syllabus-reconciliation|lib\/syllabus\/reconciliation-rows|components\/admin\/syllabus-reconciliation\/)/;
+const RETIRED_TABLES = ['exam_syllabi', 'exam_topics', 'exam_unit_mappings', 'taxonomy_aliases'];
 
 (async () => {
   console.log('GAP2-4b readers (canonical syllabus read model)');
@@ -93,20 +102,20 @@ const LEGACY = /\b(exam_syllabi|exam_topics|exam_unit_mappings|exam_topic_mappin
   const render = (syllabus) => renderToStaticMarkup(React.createElement(ExamSyllabusSection, { syllabus, examTitle: 'Test Exam' }));
 
   // ---------------- static ----------------
-  await test('R-01 no runtime reader of exam_syllabi / exam_topics / exam_unit_mappings / exam_topic_mappings', async () => {
+  await test('R-01 no runtime reader of the legacy / retired syllabus tables; no import of a retired workbench module', async () => {
     const files = ['app', 'components', 'services', 'lib', 'actions', 'hooks'].flatMap((d) => walk(path.join(ROOT, d)));
     if (exists('middleware.ts')) files.push(path.join(ROOT, 'middleware.ts'));
     const bad = [];
     for (const f of files) {
       const rel = path.relative(ROOT, f).replace(/\\/g, '/');
       if (rel === 'types/database.ts') continue;
-      stripComments(fs.readFileSync(f, 'utf8')).split('\n').forEach((l, i) => { if (LEGACY.test(l)) bad.push(`${rel}:${i + 1}: ${l.trim().slice(0, 120)}`); });
+      stripComments(fs.readFileSync(f, 'utf8')).split('\n').forEach((l, i) => { if (LEGACY.test(l) || WORKBENCH.test(l)) bad.push(`${rel}:${i + 1}: ${l.trim().slice(0, 120)}`); });
     }
     assert(bad.length === 0, bad.join('\n        '));
     return `${files.length} files`;
   });
 
-  await test('R-02 hub reads only the read model; legacy navigator / service / mapUnitToExam / projection / B-tags gone; importer fails closed', async () => {
+  await test('R-02 hub reads only the read model; legacy navigator / service / mapUnitToExam / projection / B-tags / workbench gone', async () => {
     const bad = [];
     for (const page of ['app/exams/[slug]/page.tsx', 'app/exams/[slug]/cycle/[cycleYear]/page.tsx']) {
       const s = read(page);
@@ -122,9 +131,11 @@ const LEGACY = /\b(exam_syllabi|exam_topics|exam_unit_mappings|exam_topic_mappin
       if (/\bmapUnitToExam\b|saveSyllabusProjection|upsertExamUnitMapping/.test(s)) bad.push(`${rel}: mapUnitToExam / syllabus projection writer still present`);
       if (/B-CURRICULUM-MAPPING/.test(s)) bad.push(`${rel}: B-CURRICULUM-MAPPING tag`);
     }
-    const imp = read('services/exam-syllabus-tree-importer.service.ts');
-    const body = imp.slice(imp.indexOf('static async importSyllabusTree'), imp.indexOf('static async getSyllabusTree'));
-    if (!/throw new Error\('Syllabus tree import is retired/.test(body) || /\.insert\(|\.delete\(|\.update\(/.test(body)) bad.push('tree importer is not fail-closed');
+    for (const gone of ['app/admin/syllabus-reconciliation', 'app/api/admin/syllabus-reconciliation', 'components/admin/syllabus-reconciliation',
+      'services/exam-syllabus-tree-importer.service.ts', 'services/exam-syllabus-resolution.service.ts', 'services/operational-syllabus-reconciliation.service.ts',
+      'services/exam-syllabus-reconciliation.service.ts', 'services/exam-syllabus-readiness.service.ts', 'services/reconciliation-normalizer.ts',
+      'types/dynamic-syllabus-reconciliation.ts', 'lib/syllabus/reconciliation-rows.ts']) if (exists(gone)) bad.push(`${gone} still exists (GAP2-4c)`);
+    if (/syllabus-reconciliation/.test(read('components/admin/admin-sidebar.tsx'))) bad.push('admin sidebar still links the workbench');
     assert(bad.length === 0, bad.join('\n        '));
   });
 
@@ -140,7 +151,7 @@ const LEGACY = /\b(exam_syllabi|exam_topics|exam_unit_mappings|exam_topic_mappin
   });
 
   if (OFFLINE) {
-    console.log('  SKIP  R-04 … R-07 (--offline)');
+    console.log('  SKIP  R-04 … R-08 (--offline)');
     return finish();
   }
 
@@ -195,7 +206,8 @@ const LEGACY = /\b(exam_syllabi|exam_topics|exam_unit_mappings|exam_topic_mappin
     const fx = await tx('READ ONLY', async () => ({
       ids: Object.fromEntries((await q(`SELECT email, id FROM auth.users WHERE email IN ('qa-staff@courage-library.test','qa-admin@courage-library.test')`)).map((r) => [r.email, r.id])),
       exams: Object.fromEntries((await q(`SELECT slug, id, is_active FROM public.exams WHERE slug IN ('ssc-cgl','qa-syllabus-test')`)).map((r) => [r.slug, r])),
-      gdTopics: (await q(`SELECT DISTINCT t.name FROM public.exam_topics et JOIN public.canonical_taxonomy_nodes t ON t.id = et.topic_id`)).map((r) => r.name),
+      // GAP2-4c: the legacy SSC GD topics now live in schema retired (owner connection only)
+      gdTopics: (await q(`SELECT DISTINCT t.name FROM retired.exam_topics et JOIN public.canonical_taxonomy_nodes t ON t.id = et.topic_id`)).map((r) => r.name),
       topics: await q(`SELECT t.id::text id, t.name FROM public.canonical_taxonomy_nodes t
                          WHERE t.node_type = 'TOPIC' AND t.is_active
                          ORDER BY (SELECT count(*) FROM public.questions x WHERE x.canonical_topic_id = t.id AND x.status = 'published') DESC, t.name LIMIT 2`),
@@ -273,6 +285,55 @@ const LEGACY = /\b(exam_syllabi|exam_topics|exam_unit_mappings|exam_topic_mappin
       const others = m1.subjects.flatMap((s) => s.topics).filter((t) => ![fx.topic.id, fx.topic2.id].includes(t.topicId || t.id)).flatMap((t) => t.units);
       assert(!others.some((u) => u.mappedExams.some((e) => e.examId === qa)), 'exam attached to an unmapped topic');
       return `now ${m0.status} (${realPublished} published mappings); with TEST version AVAILABLE, ${units.length} unit(s) derived`;
+    });
+
+    await test('R-08 legacy tables only in schema retired (rows kept, no anon / authenticated access); PostgREST "not found" as anon and qa-student', async () => {
+      const cat = await tx('READ ONLY', async () => ({
+        where: await q(`SELECT c.relname, n.nspname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.relkind = 'r' AND c.relname = ANY($1)`, [RETIRED_TABLES]),
+        counts: (await q(`SELECT (SELECT count(*)::int FROM retired.exam_syllabi) exam_syllabi, (SELECT count(*)::int FROM retired.exam_topics) exam_topics,
+                                 (SELECT count(*)::int FROM retired.exam_unit_mappings) exam_unit_mappings, (SELECT count(*)::int FROM retired.taxonomy_aliases) taxonomy_aliases`))[0],
+        usage: (await q(`SELECT has_schema_privilege('anon', 'retired', 'USAGE') a, has_schema_privilege('authenticated', 'retired', 'USAGE') u`))[0],
+        privs: await q(`SELECT c.relname, r.rolname FROM pg_class c CROSS JOIN (VALUES ('anon'), ('authenticated')) r(rolname)
+                         WHERE c.relnamespace = 'retired'::regnamespace AND c.relname = ANY($1)
+                           AND (has_table_privilege(r.rolname, c.oid, 'SELECT') OR has_table_privilege(r.rolname, c.oid, 'INSERT')
+                                OR has_table_privilege(r.rolname, c.oid, 'UPDATE') OR has_table_privilege(r.rolname, c.oid, 'DELETE'))`, [RETIRED_TABLES]),
+      }));
+      const bad = [];
+      for (const t of RETIRED_TABLES) {
+        const at = cat.where.filter((w) => w.relname === t).map((w) => w.nspname);
+        if (JSON.stringify(at) !== JSON.stringify(['retired'])) bad.push(`${t} lives in ${at.join(',') || 'nowhere'}`);
+      }
+      if (JSON.stringify(cat.counts) !== JSON.stringify({ exam_syllabi: 1, exam_topics: 18, exam_unit_mappings: 0, taxonomy_aliases: 0 })) bad.push(`row counts ${JSON.stringify(cat.counts)}`);
+      if (cat.usage.a || cat.usage.u) bad.push('anon / authenticated have USAGE on retired');
+      if (cat.privs.length) bad.push(`privileges remain: ${cat.privs.map((p) => p.relname + ':' + p.rolname).join(', ')}`);
+      // PostgREST: the tables are not exposed (public schema only) — as anon and as the permanent QA student
+      const { readEnv } = require('./db/_db-env.cjs');
+      const env = readEnv();
+      const url = env('NEXT_PUBLIC_SUPABASE_URL');
+      const anon = env('NEXT_PUBLIC_SUPABASE_ANON_KEY');
+      let student = null;
+      for (let i = 1; i <= 3 && !student; i++) {
+        const r = await fetch(`${url}/auth/v1/token?grant_type=password`, { method: 'POST', headers: { apikey: anon, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: 'qa-student@courage-library.test', password: env('QA_STUDENT_PASSWORD') }) }).then((x) => x.json()).catch(() => ({}));
+        student = r.access_token || null;
+      }
+      assert(student, 'qa-student sign-in failed');
+      const seen = [];
+      for (const t of RETIRED_TABLES) {
+        for (const [who, bearer] of [['anon', anon], ['student', student]]) {
+          let res = null;
+          for (let i = 1; i <= 3 && !res; i++) res = await fetch(`${url}/rest/v1/${t}?select=*&limit=1`, { headers: { apikey: anon, Authorization: `Bearer ${bearer}` } }).catch(() => null);
+          assert(res, `${t}:${who} request failed`);
+          const body = await res.json().catch(() => null);
+          const code = body && !Array.isArray(body) ? body.code : null;
+          // 404 + PGRST205 = relation not in the exposed schema cache; 401/403/42501 = permission error
+          const ok = res.status === 404 || res.status === 401 || res.status === 403 || code === 'PGRST205' || code === '42501';
+          if (!ok) bad.push(`${t}:${who} → ${res.status}${Array.isArray(body) ? ' rows ' + body.length : ' ' + code}`);
+          seen.push(`${res.status}${code ? '/' + code : ''}`);
+        }
+      }
+      assert(bad.length === 0, bad.join('\n        '));
+      return `retired only; rows 1/18/0/0; REST ${[...new Set(seen)].join(', ')} (anon + student × ${RETIRED_TABLES.length})`;
     });
 
     if (BASE) {

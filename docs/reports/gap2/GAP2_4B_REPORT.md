@@ -241,6 +241,16 @@ Production verification runs after this commit is pushed:
 
 The result goes to the owner with the batch-2 hand-off. Signed-in production checks remain the owner's.
 
+**Recorded results (added in GAP2-4c):**
+
+| Check | Who | Result |
+|---|---|---|
+| `wait-for-deploy` `daf8441` | Claude | deployed (200) |
+| Anonymous smoke, incl. `/exams/ssc-cgl` → "Syllabus coming soon" | Claude | all passed |
+| Signed-in production smoke `admin-pages` | owner | **PASSED, 16/16** |
+| Signed-in production smoke `staff-content` | owner | **PASSED, 3/3** |
+| Signed-in production smoke `student-pages`, incl. `/exams/ssc-cgl` "Syllabus coming soon" | owner | **PASSED** |
+
 ### 2.8 Open items
 
 - **GAP2-4c:**
