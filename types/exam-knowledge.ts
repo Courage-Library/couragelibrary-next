@@ -1,3 +1,4 @@
+import type { SyllabusReadModel } from "./syllabus";
 /**
  * COURAGE LIBRARY — EXAM KNOWLEDGE DOMAIN TYPES
  * Phase 3H.1: Core Data Model & Schema Foundation
@@ -321,10 +322,10 @@ export interface AuthoritativeExamContext {
       id: string;
       name: string;
       tierName?: string | null;
-      durationMinutes: number;
-      totalQuestions: number;
-      totalMarks: number;
-      negativeMarkValue: number;
+      durationMinutes: number | null;
+      totalQuestions: number | null;
+      totalMarks: number | null;
+      negativeMarkValue: number | null;
     }>;
     posts: Array<{
       id: string;
@@ -574,42 +575,24 @@ export interface CandidateExamPost {
   vacanciesCount?: number | null;
 }
 
+/** GAP2-4b: values come from exam_patterns / pattern_sections only; null = not recorded (never a default). */
 export interface CandidateExamPatternSection {
   name: string;
-  questionCount: number;
-  marksPerQuestion: number;
+  order: number;
+  questionCount: number | null;
+  marksPerQuestion: number | null;
+  negativeMark: number | null;
 }
 
 export interface CandidateExamPattern {
   id: string;
   name: string;
   tierName: string | null;
-  durationMinutes: number;
-  totalQuestions: number;
-  totalMarks: number;
-  negativeMarkValue: number;
+  durationMinutes: number | null;
+  totalQuestions: number | null;
+  totalMarks: number | null;
+  negativeMarkValue: number | null;
   sections: CandidateExamPatternSection[];
-}
-
-export interface CandidateExamTopic {
-  id: string;
-  name: string;
-  slug: string;
-  importanceTier: 'HIGH_YIELD' | 'CORE' | 'OPTIONAL' | string;
-  requiredDepth: 'CONCEPTUAL' | 'APPLICATION' | 'ADVANCED' | string;
-  expectedQuestions: { min: number; max: number };
-  learningDocumentSlug: string | null;
-  pyqCount: number;
-  practiceAvailable: boolean;
-}
-
-export interface CandidateExamSubject {
-  id: string;
-  name: string;
-  slug: string;
-  code: string;
-  totalWeightagePercent: number | null;
-  topics: CandidateExamTopic[];
 }
 
 export interface CandidatePublishedModule {
@@ -694,9 +677,8 @@ export interface ExamKnowledgeCandidateView {
     };
     verifiedClaims: CandidateVerifiedClaim[];
   };
-  curriculum: {
-    subjects: CandidateExamSubject[];
-  };
+  /** GAP2-4b: the canonical syllabus (fn_exam_syllabus_read_model) — PUBLISHED versions only, explicit states. */
+  syllabus: SyllabusReadModel;
   publishedModules: Partial<Record<ExamModuleKey, CandidatePublishedModule | null>>;
   officialSources: CandidateOfficialSource[];
   availableModuleKeys: ExamModuleKey[];

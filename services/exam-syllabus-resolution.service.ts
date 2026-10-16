@@ -27,6 +27,16 @@ import type {
   TaxonomyWorkItem,
 } from '@/types/dynamic-syllabus-reconciliation';
 import { SYLLABUS_RECONCILIATION_UNAVAILABLE_MESSAGE } from '@/types/dynamic-syllabus-reconciliation';
+import type { AppSupabaseClient } from '@/lib/supabase/types';
+import { toCanonicalNode, toSyllabusNode } from '@/lib/syllabus/reconciliation-rows';
+
+/** Scripts pass a node-postgres client; runtime passes a Supabase client (writes are fail-closed, decision #38). */
+export interface PgQueryClient {
+  query(text: string, params?: unknown[]): Promise<{ rows: any[] }>;
+}
+type ResolutionClient = AppSupabaseClient | PgQueryClient;
+const asPg = (c: ResolutionClient) => c as PgQueryClient;
+const asSb = (c: ResolutionClient) => c as AppSupabaseClient;
 
 /** Thrown when a reconciliation action cannot run from runtime code (HOTFIX-3, decision #38). */
 export class SyllabusReconciliationUnavailableError extends Error {
@@ -42,7 +52,7 @@ export class ExamSyllabusResolutionService {
    */
   static async resolveWorkItem(
     params: ResolveMatchParams,
-    clientOrSupabase?: any
+    clientOrSupabase?: ResolutionClient
   ): Promise<ResolutionResult> {
     const {
       syllabusNodeId,
@@ -57,37 +67,37 @@ export class ExamSyllabusResolutionService {
       throw new Error('reviewerUserId is required for human resolution audit.');
     }
 
-    const isDirectPg = clientOrSupabase && typeof clientOrSupabase.query === 'function';
-    const supabase = !isDirectPg ? (clientOrSupabase || createAdminServerSupabaseClient()) : null;
+    const isDirectPg = Boolean(clientOrSupabase && typeof asPg(clientOrSupabase).query === 'function');
+    const supabase: ResolutionClient = !isDirectPg ? (clientOrSupabase || createAdminServerSupabaseClient()) : asPg(clientOrSupabase!);
 
     switch (action) {
       case 'ACCEPT_EXISTING_MATCH':
       case 'ACCEPT_PROPOSED_MATCH':
-        return this.acceptMatch(params, isDirectPg ? clientOrSupabase : supabase, isDirectPg);
+        return this.acceptMatch(params, supabase, isDirectPg);
 
       case 'RESOLVE_AMBIGUOUS':
-        return this.resolveAmbiguous(params, isDirectPg ? clientOrSupabase : supabase, isDirectPg);
+        return this.resolveAmbiguous(params, supabase, isDirectPg);
 
       case 'CREATE_NEW_CANONICAL_NODE':
-        return this.createCanonicalNode(params, isDirectPg ? clientOrSupabase : supabase, isDirectPg);
+        return this.createCanonicalNode(params, supabase, isDirectPg);
 
       case 'CREATE_NEW_SUBJECT':
-        return this.createSubject(params, isDirectPg ? clientOrSupabase : supabase, isDirectPg);
+        return this.createSubject(params, supabase, isDirectPg);
 
       case 'CREATE_NEW_SUBTREE':
-        return this.createSubtree(params, isDirectPg ? clientOrSupabase : supabase, isDirectPg);
+        return this.createSubtree(params, supabase, isDirectPg);
 
       case 'ADD_ALIAS':
-        return this.addTaxonomyAlias(params, isDirectPg ? clientOrSupabase : supabase, isDirectPg);
+        return this.addTaxonomyAlias(params, supabase, isDirectPg);
 
       case 'IGNORE_REQUIREMENT':
-        return this.ignoreRequirement(params, isDirectPg ? clientOrSupabase : supabase, isDirectPg);
+        return this.ignoreRequirement(params, supabase, isDirectPg);
 
       case 'REJECT_PROPOSAL':
-        return this.rejectProposal(params, isDirectPg ? clientOrSupabase : supabase, isDirectPg);
+        return this.rejectProposal(params, supabase, isDirectPg);
 
       case 'UNMAP_AND_REVIEW':
-        return this.unmapAndReview(params, isDirectPg ? clientOrSupabase : supabase, isDirectPg);
+        return this.unmapAndReview(params, supabase, isDirectPg);
 
       default:
         throw new Error(`Unsupported resolution action: ${action}`);
@@ -99,7 +109,7 @@ export class ExamSyllabusResolutionService {
   // ---------------------------------------------------------------------------
   private static async acceptMatch(
     params: ResolveMatchParams,
-    client: any,
+    client: ResolutionClient,
     isPg: boolean
   ): Promise<ResolutionResult> {
     const { syllabusNodeId, canonicalNodeId, reviewerUserId, notes, action } = params;
@@ -156,7 +166,7 @@ export class ExamSyllabusResolutionService {
   // ---------------------------------------------------------------------------
   private static async resolveAmbiguous(
     params: ResolveMatchParams,
-    client: any,
+    client: ResolutionClient,
     isPg: boolean
   ): Promise<ResolutionResult> {
     const { syllabusNodeId, canonicalNodeId, reviewerUserId, notes } = params;
@@ -211,7 +221,7 @@ export class ExamSyllabusResolutionService {
   // ---------------------------------------------------------------------------
   private static async createCanonicalNode(
     params: ResolveMatchParams,
-    client: any,
+    client: ResolutionClient,
     isPg: boolean
   ): Promise<ResolutionResult> {
     const {
@@ -264,7 +274,7 @@ export class ExamSyllabusResolutionService {
       // Insert new canonical node
       const displayOrder = sylNode.display_order || 99;
       if (isPg) {
-        const insRes = await client.query(
+        const insRes = await asPg(client).query(
           `INSERT INTO public.canonical_taxonomy_nodes (
             parent_id, name, slug, node_type, display_order, is_active, metadata
           ) VALUES ($1, $2, $3, $4, $5, true, $6::jsonb)
@@ -282,13 +292,16 @@ export class ExamSyllabusResolutionService {
         );
         canonicalId = insRes.rows[0].id;
       } else {
-        const { data: insData, error: insErr } = await client
+        const { data: insData, error: insErr } = await asSb(client)
           .from('canonical_taxonomy_nodes')
           .insert({
             parent_id: parentId,
             name: rawTitle,
             slug,
             node_type: nodeType,
+            // derived again by the BEFORE INSERT trigger (migration 058); passed for the typed insert
+            node_depth: parentNode.node_depth + 1,
+            hierarchy_path: `${parentNode.hierarchy_path}.${slug}`,
             display_order: displayOrder,
             is_active: true,
             metadata: { created_by_resolution: true, reviewer: reviewerUserId, created_at: new Date().toISOString() },
@@ -354,7 +367,7 @@ export class ExamSyllabusResolutionService {
   // ---------------------------------------------------------------------------
   private static async createSubject(
     params: ResolveMatchParams,
-    client: any,
+    client: ResolutionClient,
     isPg: boolean
   ): Promise<ResolutionResult> {
     const { syllabusNodeId, newNodeName, newNodeSlug, reviewerUserId, notes } = params;
@@ -379,7 +392,7 @@ export class ExamSyllabusResolutionService {
     } else {
       const displayOrder = sylNode.display_order || 99;
       if (isPg) {
-        const insRes = await client.query(
+        const insRes = await asPg(client).query(
           `INSERT INTO public.canonical_taxonomy_nodes (
             parent_id, name, slug, node_type, display_order, is_active, metadata
           ) VALUES (NULL, $1, $2, 'SUBJECT', $3, true, $4::jsonb)
@@ -395,13 +408,16 @@ export class ExamSyllabusResolutionService {
         );
         subjectId = insRes.rows[0].id;
       } else {
-        const { data: insData, error: insErr } = await client
+        const { data: insData, error: insErr } = await asSb(client)
           .from('canonical_taxonomy_nodes')
           .insert({
             parent_id: null,
             name: rawTitle,
             slug,
             node_type: 'SUBJECT',
+            // derived again by the BEFORE INSERT trigger (migration 058); passed for the typed insert
+            node_depth: 1,
+            hierarchy_path: slug,
             display_order: displayOrder,
             is_active: true,
             metadata: { created_by_resolution: true, reviewer: reviewerUserId, created_at: new Date().toISOString() },
@@ -467,7 +483,7 @@ export class ExamSyllabusResolutionService {
   // ---------------------------------------------------------------------------
   private static async createSubtree(
     params: ResolveMatchParams,
-    client: any,
+    client: ResolutionClient,
     isPg: boolean
   ): Promise<ResolutionResult> {
     const { syllabusNodeId, reviewerUserId, subtreeNodes = [], notes } = params;
@@ -478,7 +494,7 @@ export class ExamSyllabusResolutionService {
     if (!isPg) {
       throw new SyllabusReconciliationUnavailableError();
     }
-    const effectiveClient = client;
+    const effectiveClient = asPg(client);
 
     const createdNodeIds: string[] = [];
     const syllabusToCanonicalMap = new Map<string, string>();
@@ -548,7 +564,7 @@ export class ExamSyllabusResolutionService {
   // ---------------------------------------------------------------------------
   private static async addTaxonomyAlias(
     params: ResolveMatchParams,
-    client: any,
+    client: ResolutionClient,
     isPg: boolean
   ): Promise<ResolutionResult> {
     const { canonicalNodeId, aliasName, aliasContext = 'GENERAL', syllabusNodeId } = params;
@@ -567,7 +583,7 @@ export class ExamSyllabusResolutionService {
     let reused = false;
 
     if (isPg) {
-      const insRes = await client.query(
+      const insRes = await asPg(client).query(
         `INSERT INTO public.taxonomy_aliases (
           canonical_node_id, alias_name, normalized_alias, alias_context
         ) VALUES ($1, $2, $3, $4)
@@ -578,7 +594,7 @@ export class ExamSyllabusResolutionService {
       );
       aliasId = insRes.rows[0].id;
     } else {
-      const { data: insData, error: insErr } = await client
+      const { data: insData, error: insErr } = await asSb(client)
         .from('taxonomy_aliases')
         .upsert(
           {
@@ -615,7 +631,7 @@ export class ExamSyllabusResolutionService {
   // ---------------------------------------------------------------------------
   private static async ignoreRequirement(
     params: ResolveMatchParams,
-    client: any,
+    client: ResolutionClient,
     isPg: boolean
   ): Promise<ResolutionResult> {
     const { syllabusNodeId, reviewerUserId, notes } = params;
@@ -661,7 +677,7 @@ export class ExamSyllabusResolutionService {
   // ---------------------------------------------------------------------------
   private static async rejectProposal(
     params: ResolveMatchParams,
-    client: any,
+    client: ResolutionClient,
     isPg: boolean
   ): Promise<ResolutionResult> {
     const { syllabusNodeId, reviewerUserId, notes } = params;
@@ -707,7 +723,7 @@ export class ExamSyllabusResolutionService {
   // ---------------------------------------------------------------------------
   private static async unmapAndReview(
     params: ResolveMatchParams,
-    client: any,
+    client: ResolutionClient,
     isPg: boolean
   ): Promise<ResolutionResult> {
     const { syllabusNodeId, notes } = params;
@@ -849,33 +865,33 @@ export class ExamSyllabusResolutionService {
   // ---------------------------------------------------------------------------
   // Internal Helpers & Invariant Protections
   // ---------------------------------------------------------------------------
-  private static async fetchMapping(syllabusNodeId: string, client: any, isPg: boolean): Promise<any | null> {
+  private static async fetchMapping(syllabusNodeId: string, client: ResolutionClient, isPg: boolean): Promise<any | null> {
     if (isPg) {
-      const res = await client.query(`SELECT * FROM public.exam_syllabus_canonical_mappings WHERE syllabus_node_id = $1`, [syllabusNodeId]);
+      const res = await asPg(client).query(`SELECT * FROM public.exam_syllabus_canonical_mappings WHERE syllabus_node_id = $1`, [syllabusNodeId]);
       return res.rows[0] || null;
     } else {
-      const { data } = await client.from('exam_syllabus_canonical_mappings').select('*').eq('syllabus_node_id', syllabusNodeId).single();
+      const { data } = await asSb(client).from('exam_syllabus_canonical_mappings').select('*').eq('syllabus_node_id', syllabusNodeId).single();
       return data || null;
     }
   }
 
-  private static async fetchSyllabusNode(id: string, client: any, isPg: boolean): Promise<ExamSyllabusNode | null> {
+  private static async fetchSyllabusNode(id: string, client: ResolutionClient, isPg: boolean): Promise<ExamSyllabusNode | null> {
     if (isPg) {
-      const res = await client.query(`SELECT * FROM public.exam_syllabus_nodes WHERE id = $1`, [id]);
+      const res = await asPg(client).query(`SELECT * FROM public.exam_syllabus_nodes WHERE id = $1`, [id]);
       return res.rows[0] || null;
     } else {
-      const { data } = await client.from('exam_syllabus_nodes').select('*').eq('id', id).single();
-      return data || null;
+      const { data } = await asSb(client).from('exam_syllabus_nodes').select('*').eq('id', id).single();
+      return data ? toSyllabusNode(data) : null;
     }
   }
 
-  private static async fetchCanonicalNode(id: string, client: any, isPg: boolean): Promise<CanonicalTaxonomyNode | null> {
+  private static async fetchCanonicalNode(id: string, client: ResolutionClient, isPg: boolean): Promise<CanonicalTaxonomyNode | null> {
     if (isPg) {
-      const res = await client.query(`SELECT * FROM public.canonical_taxonomy_nodes WHERE id = $1`, [id]);
+      const res = await asPg(client).query(`SELECT * FROM public.canonical_taxonomy_nodes WHERE id = $1`, [id]);
       return res.rows[0] || null;
     } else {
-      const { data } = await client.from('canonical_taxonomy_nodes').select('*').eq('id', id).single();
-      return data || null;
+      const { data } = await asSb(client).from('canonical_taxonomy_nodes').select('*').eq('id', id).single();
+      return data ? toCanonicalNode(data) : null;
     }
   }
 
@@ -883,23 +899,23 @@ export class ExamSyllabusResolutionService {
     parentId: string | null,
     normalizedName: string,
     slug: string,
-    client: any,
+    client: ResolutionClient,
     isPg: boolean
   ): Promise<CanonicalTaxonomyNode | null> {
     if (isPg) {
-      const res = await client.query(
+      const res = await asPg(client).query(
         `SELECT * FROM public.canonical_taxonomy_nodes 
          WHERE (parent_id IS NOT DISTINCT FROM $1) AND (slug = $2 OR name ILIKE $3)`,
         [parentId, slug, normalizedName]
       );
       return res.rows[0] || null;
     } else {
-      let query = client.from('canonical_taxonomy_nodes').select('*');
+      let query = asSb(client).from('canonical_taxonomy_nodes').select('*');
       if (parentId) query = query.eq('parent_id', parentId);
       else query = query.is('parent_id', null);
       query = query.or(`slug.eq.${slug},name.ilike.${normalizedName}`);
       const { data } = await query.limit(1);
-      return (data && data[0]) || null;
+      return data && data[0] ? toCanonicalNode(data[0]) : null;
     }
   }
 
@@ -916,11 +932,11 @@ export class ExamSyllabusResolutionService {
       candidateMatches: any[];
       metadata: Record<string, any>;
     },
-    client: any,
+    client: ResolutionClient,
     isPg: boolean
   ): Promise<string> {
     if (isPg) {
-      const res = await client.query(
+      const res = await asPg(client).query(
         `INSERT INTO public.exam_syllabus_canonical_mappings (
           syllabus_node_id, canonical_node_id, match_status, match_confidence,
           match_method, match_notes, reviewed_by, reviewed_at,
@@ -953,7 +969,7 @@ export class ExamSyllabusResolutionService {
       );
       return res.rows[0].id;
     } else {
-      const { data, error } = await client
+      const { data, error } = await asSb(client)
         .from('exam_syllabus_canonical_mappings')
         .upsert(
           {

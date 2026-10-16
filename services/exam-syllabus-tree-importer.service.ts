@@ -24,6 +24,8 @@ import {
   SyllabusWeightageTier,
   CognitiveDepth,
 } from '@/types/dynamic-syllabus-reconciliation';
+import type { AppSupabaseClient } from '@/lib/supabase/types';
+import { toSyllabusNode } from '@/lib/syllabus/reconciliation-rows';
 
 export interface RawSyllabusNodeInput {
   title: string;
@@ -45,7 +47,7 @@ export interface SyllabusTreeImportParams {
   status?: SyllabusVersionStatus;
   metadata?: Record<string, any>;
   adminUserId?: string;
-  supabaseClient?: any;
+  supabaseClient?: AppSupabaseClient;
 }
 
 export interface SyllabusTreeImportResult {
@@ -94,215 +96,19 @@ export class ExamSyllabusTreeImporterService {
 
   /**
    * Imports a complete structured syllabus tree for an exam.
+   *
+   * GAP2-4b: RETIRED (fail-closed). It wrote exam_syllabus_versions / nodes directly — around the role-checked,
+   * audited fn_syllabus_* RPCs — and its inserts no longer match the canonical schema (version_number, node_depth,
+   * node_kind). Syllabi are authored in /admin/syllabus. The whole service is removed with the workbench in GAP2-4c.
    */
-  static async importSyllabusTree(params: SyllabusTreeImportParams): Promise<SyllabusTreeImportResult> {
-    const {
-      examId,
-      examCycleId = null,
-      versionTag,
-      sourceDocumentId = null,
-      rawTree,
-      status = 'DRAFT',
-      metadata = {},
-      supabaseClient,
-    } = params;
-
-    if (!examId) {
-      throw new Error('Exam ID is required for syllabus tree import.');
-    }
-    if (!versionTag) {
-      throw new Error('Version tag is required for syllabus tree import.');
-    }
-    if (!rawTree || !Array.isArray(rawTree) || rawTree.length === 0) {
-      throw new Error('Syllabus raw tree must be a non-empty array of node inputs.');
-    }
-
-    const supabase = supabaseClient || (await createAdminServerSupabaseClient());
-    const payloadHash = this.generatePayloadHash(rawTree);
-
-    // 1. Check for existing syllabus version
-    const { data: existingVersion, error: vErr } = await supabase
-      .from('exam_syllabus_versions')
-      .select('*')
-      .eq('exam_id', examId)
-      .eq('version_tag', versionTag)
-      .maybeSingle();
-
-    if (vErr) {
-      throw new Error(`Error checking existing syllabus version: ${vErr.message}`);
-    }
-
-    // 2. Idempotency Check
-    if (existingVersion) {
-      if (existingVersion.raw_payload_hash === payloadHash) {
-        // Identical payload hash: return existing version without re-provisioning
-        const { count: nodeCount } = await supabase
-          .from('exam_syllabus_nodes')
-          .select('*', { count: 'exact', head: true })
-          .eq('syllabus_version_id', existingVersion.id);
-
-        return {
-          versionId: existingVersion.id,
-          versionTag: existingVersion.version_tag,
-          rawPayloadHash: existingVersion.raw_payload_hash,
-          totalImportedNodes: nodeCount || 0,
-          rootNodesCount: rawTree.length,
-          maxTreeDepth: 1,
-          isDuplicatePayload: true,
-          status: existingVersion.status,
-        };
-      }
-
-      // If existing version is published, prevent destructive overwrite
-      if (existingVersion.status === 'PUBLISHED') {
-        throw new Error(
-          `Cannot overwrite published syllabus version "${versionTag}" for exam ${examId}. Published versions are immutable.`
-        );
-      }
-
-      // If draft version with modified payload: clean existing draft nodes and re-provision
-      await supabase
-        .from('exam_syllabus_nodes')
-        .delete()
-        .eq('syllabus_version_id', existingVersion.id);
-
-      await supabase
-        .from('exam_syllabus_versions')
-        .update({
-          raw_payload_hash: payloadHash,
-          exam_cycle_id: examCycleId,
-          source_document_id: sourceDocumentId,
-          metadata: { ...existingVersion.metadata, ...metadata, updated_at: new Date().toISOString() },
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', existingVersion.id);
-
-      const importStats = await this.provisionSyllabusTreeNodes(supabase, existingVersion.id, rawTree);
-
-      return {
-        versionId: existingVersion.id,
-        versionTag: existingVersion.version_tag,
-        rawPayloadHash: payloadHash,
-        totalImportedNodes: importStats.totalNodes,
-        rootNodesCount: rawTree.length,
-        maxTreeDepth: importStats.maxDepth,
-        isDuplicatePayload: false,
-        status: existingVersion.status,
-      };
-    }
-
-    // 3. Create new syllabus version
-    const { data: newVersion, error: createErr } = await supabase
-      .from('exam_syllabus_versions')
-      .insert({
-        exam_id: examId,
-        exam_cycle_id: examCycleId,
-        version_tag: versionTag,
-        source_document_id: sourceDocumentId,
-        raw_payload_hash: payloadHash,
-        status,
-        is_active: true,
-        metadata: {
-          ...metadata,
-          imported_at: new Date().toISOString(),
-        },
-      })
-      .select('*')
-      .single();
-
-    if (createErr) {
-      throw new Error(`Failed to create exam syllabus version: ${createErr.message}`);
-    }
-
-    // 4. Recursively provision syllabus nodes
-    const importStats = await this.provisionSyllabusTreeNodes(supabase, newVersion.id, rawTree);
-
-    return {
-      versionId: newVersion.id,
-      versionTag: newVersion.version_tag,
-      rawPayloadHash: payloadHash,
-      totalImportedNodes: importStats.totalNodes,
-      rootNodesCount: rawTree.length,
-      maxTreeDepth: importStats.maxDepth,
-      isDuplicatePayload: false,
-      status: newVersion.status,
-    };
-  }
-
-  /**
-   * Recursively provisions syllabus tree nodes for a given syllabus version.
-   */
-  private static async provisionSyllabusTreeNodes(
-    supabase: any,
-    versionId: string,
-    nodes: RawSyllabusNodeInput[],
-    parentNodeId: string | null = null,
-    currentDepth: number = 1
-  ): Promise<{ totalNodes: number; maxDepth: number }> {
-    let totalNodes = 0;
-    let maxDepth = currentDepth;
-    const siblingSlugs = new Set<string>();
-
-    for (let i = 0; i < nodes.length; i++) {
-      const nodeInput = nodes[i];
-      const rawTitle = nodeInput.title.trim();
-      let rawSlug = (nodeInput.slug || this.slugify(rawTitle)).trim();
-
-      // Ensure sibling slug uniqueness
-      if (siblingSlugs.has(rawSlug)) {
-        rawSlug = `${rawSlug}-${i + 1}`;
-      }
-      siblingSlugs.add(rawSlug);
-
-      const { data: insertedNode, error: nodeErr } = await supabase
-        .from('exam_syllabus_nodes')
-        .insert({
-          syllabus_version_id: versionId,
-          parent_node_id: parentNodeId,
-          raw_title: rawTitle,
-          raw_slug: rawSlug,
-          display_order: i + 1,
-          weightage_tier: nodeInput.weightageTier || null,
-          expected_questions_min: nodeInput.expectedQuestionsMin ?? 0,
-          expected_questions_max: nodeInput.expectedQuestionsMax ?? 0,
-          required_cognitive_depth: nodeInput.requiredCognitiveDepth || null,
-          is_mandatory: nodeInput.isMandatory !== false,
-        })
-        .select('id, node_depth')
-        .single();
-
-      if (nodeErr) {
-        throw new Error(`Failed to insert syllabus node "${rawTitle}": ${nodeErr.message}`);
-      }
-
-      totalNodes++;
-      if (insertedNode.node_depth > maxDepth) {
-        maxDepth = insertedNode.node_depth;
-      }
-
-      // Recursively provision children
-      if (nodeInput.children && Array.isArray(nodeInput.children) && nodeInput.children.length > 0) {
-        const childStats = await this.provisionSyllabusTreeNodes(
-          supabase,
-          versionId,
-          nodeInput.children,
-          insertedNode.id,
-          currentDepth + 1
-        );
-        totalNodes += childStats.totalNodes;
-        if (childStats.maxDepth > maxDepth) {
-          maxDepth = childStats.maxDepth;
-        }
-      }
-    }
-
-    return { totalNodes, maxDepth };
+  static async importSyllabusTree(_params: SyllabusTreeImportParams): Promise<SyllabusTreeImportResult> {
+    throw new Error('Syllabus tree import is retired. Author the syllabus in /admin/syllabus (GAP2-4b).');
   }
 
   /**
    * Retrieves full syllabus tree for an exam syllabus version.
    */
-  static async getSyllabusTree(versionId: string, supabaseClient?: any): Promise<ExamSyllabusNode[]> {
+  static async getSyllabusTree(versionId: string, supabaseClient?: AppSupabaseClient): Promise<ExamSyllabusNode[]> {
     const supabase = supabaseClient || (await createServerSupabaseClient());
 
     const { data: nodes, error } = await supabase
@@ -320,11 +126,12 @@ export class ExamSyllabusTreeImporterService {
     const nodeMap = new Map<string, ExamSyllabusNode>();
     const rootNodes: ExamSyllabusNode[] = [];
 
-    (nodes || []).forEach((n: ExamSyllabusNode) => {
+    const typed = (nodes || []).map(toSyllabusNode);
+    typed.forEach((n: ExamSyllabusNode) => {
       nodeMap.set(n.id, { ...n, children: [] });
     });
 
-    (nodes || []).forEach((n: ExamSyllabusNode) => {
+    typed.forEach((n: ExamSyllabusNode) => {
       const current = nodeMap.get(n.id)!;
       if (!n.parent_node_id) {
         rootNodes.push(current);

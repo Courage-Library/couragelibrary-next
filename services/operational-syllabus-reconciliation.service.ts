@@ -44,6 +44,8 @@ import type {
   WorkQueueListResponse,
   WorkQueuePriority,
 } from '@/types/dynamic-syllabus-reconciliation';
+import type { AppSupabaseClient } from '@/lib/supabase/types';
+import { toCanonicalMapping, toCanonicalNode } from '@/lib/syllabus/reconciliation-rows';
 
 /**
  * GAP2-4a: syllabus versions, nodes and mappings are written only through the role-checked, audited RPCs
@@ -72,7 +74,7 @@ export interface ListSyllabusVersionsParams {
   status?: SyllabusVersionStatus;
   page?: number;
   limit?: number;
-  supabaseClient?: any;
+  supabaseClient?: AppSupabaseClient;
 }
 
 export interface GetWorkQueueParams {
@@ -84,19 +86,19 @@ export interface GetWorkQueueParams {
   search?: string;
   page?: number;
   limit?: number;
-  supabaseClient?: any;
+  supabaseClient?: AppSupabaseClient;
 }
 
 export interface GetWorkItemDetailParams {
   syllabusVersionId: string;
   syllabusNodeId: string;
-  supabaseClient?: any;
+  supabaseClient?: AppSupabaseClient;
 }
 
 export interface ExecuteResolutionParams {
   payload: ResolveWorkItemApiPayload;
   reviewerUserId: string;
-  supabaseClient?: any;
+  supabaseClient?: AppSupabaseClient;
 }
 
 export class OperationalSyllabusReconciliationService {
@@ -206,7 +208,7 @@ export class OperationalSyllabusReconciliationService {
    */
   static async getSyllabusVersionDetail(
     syllabusVersionId: string,
-    supabaseClient?: any
+    supabaseClient?: AppSupabaseClient
   ): Promise<SyllabusReadinessReport> {
     if (!syllabusVersionId) {
       throw new OperationalSyllabusReconciliationError(
@@ -375,11 +377,12 @@ export class OperationalSyllabusReconciliationService {
     }
 
     // 2. Load existing mapping if present
-    const { data: mapping } = await supabase
+    const { data: mappingRow } = await supabase
       .from('exam_syllabus_canonical_mappings')
       .select('*')
       .eq('syllabus_node_id', syllabusNodeId)
       .maybeSingle();
+    const mapping = mappingRow ? toCanonicalMapping(mappingRow) : null;
 
     // 3. Load canonical target if mapped
     let canonicalTarget: CanonicalTaxonomyNode | null = null;
@@ -389,7 +392,7 @@ export class OperationalSyllabusReconciliationService {
         .select('*')
         .eq('id', mapping.canonical_node_id)
         .maybeSingle();
-      canonicalTarget = cNode || null;
+      canonicalTarget = cNode ? toCanonicalNode(cNode) : null;
     }
 
     // 4. Derive readiness state & available resolution actions

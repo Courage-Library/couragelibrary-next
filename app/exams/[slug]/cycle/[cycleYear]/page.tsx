@@ -7,7 +7,7 @@ import { ExamHero } from "@/components/exams/exam-hero";
 import { ExamCycleSnapshot } from "@/components/exams/exam-cycle-snapshot";
 import { ExamQuickNav } from "@/components/exams/exam-quick-nav";
 import { ExamModuleCard } from "@/components/exams/exam-module-card";
-import { ExamSyllabusNavigator } from "@/components/exams/exam-syllabus-navigator";
+import { ExamSyllabusSection } from "@/components/exams/exam-syllabus-section";
 import { ExamPostsTable } from "@/components/exams/exam-posts-table";
 import { ExamOfficialSources } from "@/components/exams/exam-official-sources";
 import { ExamFaqAccordion } from "@/components/exams/exam-faq-accordion";
@@ -65,7 +65,7 @@ export default async function ExamCycleHubPage({ params }: Props) {
   }
 
   const data = result.data;
-  const { exam, activeCycle, availableCycles, structuredFacts, curriculum, publishedModules, officialSources, metadata } = data;
+  const { exam, activeCycle, availableCycles, structuredFacts, syllabus, publishedModules, officialSources, metadata } = data;
 
   const allFaqs: Array<{ question: string; answer: string; category?: string }> = [];
   Object.values(publishedModules).forEach((mod) => {
@@ -121,7 +121,7 @@ export default async function ExamCycleHubPage({ params }: Props) {
         <ExamQuickNav
           availableModuleKeys={data.availableModuleKeys}
           hasPosts={structuredFacts.posts.length > 0}
-          hasCurriculum={curriculum.subjects.length > 0}
+          hasCurriculum
           hasSources={officialSources.length > 0}
           hasFaqs={allFaqs.length > 0}
         />
@@ -160,11 +160,13 @@ export default async function ExamCycleHubPage({ params }: Props) {
           </section>
         )}
 
-        {curriculum.subjects.length > 0 && (
-          <section id="syllabus" className="space-y-4">
-            <ExamSyllabusNavigator subjects={curriculum.subjects} />
-          </section>
-        )}
+        {/* Syllabus — canonical read model (GAP2-4b): always shown; "coming soon" until a version is published */}
+        <section id="syllabus" aria-labelledby="syllabus-title" className="flex flex-col gap-4">
+          <h2 id="syllabus-title" className="border-b border-line pb-2 text-h2 font-semibold text-fg">
+            Syllabus
+          </h2>
+          <ExamSyllabusSection syllabus={syllabus} examTitle={exam.title} />
+        </section>
 
         {allFaqs.length > 0 && (
           <section id="faqs" className="space-y-4">

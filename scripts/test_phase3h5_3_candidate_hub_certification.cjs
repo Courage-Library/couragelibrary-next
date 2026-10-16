@@ -7,8 +7,8 @@
  * - V02 Published Content Isolation
  * - V03 Cycle Isolation & Timeless Separation
  * - V04 Partial Knowledge & Graceful Fallback
- * - V05 Learning Domain Integration
- * - V06 Question Bank Practice Integration
+ * - V05 Learning Domain Integration (GAP2-4b: lessons = read model servable_documents)
+ * - V06 Question Bank Practice Integration (GAP2-4b: practice = read model published_questions)
  * - V07 Official Sources & Gazette Citations
  * - V08 FAQ Aggregation
  * - V09 SEO Metadata & Clean URLs
@@ -50,6 +50,7 @@ require.extensions['.ts'] = function (module, filename) {
 };
 
 const { ExamKnowledgeCandidateService } = require('../services/exam-knowledge/exam-knowledge-candidate.service');
+const { availableSyllabus } = require('./fixtures/syllabus_read_model.cjs');
 const { ExamModuleRegistry } = require('../services/exam-knowledge/exam-module-registry');
 
 const rootDir = path.resolve(__dirname, '..');
@@ -162,9 +163,10 @@ const mockPatterns = [
     total_marks: 200,
     negative_mark_value: 0.5,
     is_active: true,
-    exam_sections: [
-      { name: 'Quantitative Aptitude', question_count: 25, marks_per_question: 2 },
-      { name: 'General Intelligence', question_count: 25, marks_per_question: 2 },
+    // live schema (GAP2-4b): pattern_sections(section_name, section_order, num_questions, marks_per_question, negative_mark)
+    pattern_sections: [
+      { section_name: 'Quantitative Aptitude', section_order: 1, num_questions: 25, marks_per_question: 2, negative_mark: 0.5 },
+      { section_name: 'General Intelligence', section_order: 2, num_questions: 25, marks_per_question: 2, negative_mark: 0.5 },
     ],
   }
 ];
@@ -379,6 +381,16 @@ const prefetchedData = {
   unitMappings: mockUnitMappings,
   questions: mockQuestions,
   publishedDocs: mockPublishedDocs,
+  // GAP2-4b: the canonical read model is the hub's only syllabus source (percentage: published lesson + 2 questions;
+  // geometry: only a draft document → 0 servable, 0 questions)
+  syllabus: availableSyllabus('exam-cgl', [
+    { title: 'Quantitative Aptitude', tier: 'HIGH_YIELD', units: [
+      { title: 'Arithmetic', tier: 'CORE', topics: [
+        { id: 'top-percentage', name: 'Percentage', slug: 'percentage', q: 2, d: 1 },
+        { id: 'top-geometry', name: 'Geometry', slug: 'geometry', q: 0, d: 0 },
+      ] },
+    ] },
+  ]),
 };
 
 async function runCertificationSuite() {
@@ -477,37 +489,32 @@ async function runCertificationSuite() {
   });
 
   // --- V05: Learning Domain Integration ---
-  await asyncTest('V05', 'Learn CTA is visible ONLY for topics with PUBLISHED learning documents', async () => {
+  await asyncTest('V05', 'Lessons per topic come from the read model: published documents only (draft → 0)', async () => {
     const res = await ExamKnowledgeCandidateService.getExamKnowledgeCandidateView({
       examSlug: 'ssc-cgl',
       prefetchedData,
     });
-    const sub = res.data.curriculum.subjects[0];
-    const topPercentage = sub.topics.find((t) => t.slug === 'percentage');
-    const topGeometry = sub.topics.find((t) => t.slug === 'geometry');
+    assert.strictEqual(res.data.syllabus.state, 'AVAILABLE');
+    const topics = res.data.syllabus.nodes.flatMap((n) => n.topics);
+    const topPercentage = topics.find((t) => t.slug === 'percentage');
+    const topGeometry = topics.find((t) => t.slug === 'geometry');
 
-    // Percentage topic has published learning doc
-    assert.strictEqual(topPercentage.learningDocumentSlug, 'quant/percentage');
+    // Percentage topic has a published learning doc
+    assert.strictEqual(topPercentage.servable_documents, 1);
 
-    // Geometry topic has draft learning doc -> slug must be null
-    assert.strictEqual(topGeometry.learningDocumentSlug, null);
+    // Geometry topic has only a draft learning doc -> nothing servable
+    assert.strictEqual(topGeometry.servable_documents, 0);
   });
 
   // --- V06: Question Bank Practice Integration ---
-  await asyncTest('V06', 'Practice CTA binds to /practice?topic=[id] and displays exact pyqCount', async () => {
+  await asyncTest('V06', 'Practice per topic is the exact read model published_questions count', async () => {
     const res = await ExamKnowledgeCandidateService.getExamKnowledgeCandidateView({
       examSlug: 'ssc-cgl',
       prefetchedData,
     });
-    const sub = res.data.curriculum.subjects[0];
-    const topPercentage = sub.topics.find((t) => t.slug === 'percentage');
-    const topGeometry = sub.topics.find((t) => t.slug === 'geometry');
-
-    assert.strictEqual(topPercentage.pyqCount, 2);
-    assert.strictEqual(topPercentage.practiceAvailable, true);
-
-    assert.strictEqual(topGeometry.pyqCount, 0);
-    assert.strictEqual(topGeometry.practiceAvailable, false);
+    const topics = res.data.syllabus.nodes.flatMap((n) => n.topics);
+    assert.strictEqual(topics.find((t) => t.slug === 'percentage').published_questions, 2);
+    assert.strictEqual(topics.find((t) => t.slug === 'geometry').published_questions, 0);
   });
 
   // --- V07: Official Sources & Gazette Citations ---
@@ -563,7 +570,7 @@ async function runCertificationSuite() {
       'components/exams/exam-cycle-snapshot.tsx',
       'components/exams/exam-quick-nav.tsx',
       'components/exams/exam-module-card.tsx',
-      'components/exams/exam-syllabus-navigator.tsx',
+      'components/exams/exam-syllabus-section.tsx', // GAP2-4b: replaces exam-syllabus-navigator.tsx
       'components/exams/exam-posts-table.tsx',
       'components/exams/exam-official-sources.tsx',
       'components/exams/exam-faq-accordion.tsx',

@@ -4,10 +4,10 @@
  *   X-1 live select audit over ALL of app/, services/, lib/, actions/, components/ (read-only, ref-locked): every
  *       failing select must belong to an explicitly owned bucket —
  *         • a quarantined module (Class C, flags off; TYPES-1:C register),
- *         • a remaining batch scope (B3 → after TEST-CA, B5 → GAP2-4),
+ *         • the remaining batch scope (B3 → after TEST-CA; B5 closed by GAP2-4b),
  *         • a registered tracked Class B read (table + file listed below).
  *       Any other failing select is NEW drift and fails the test.
- *   X-2 ratchet: only B3 and B5 remain, each with its owner; tsExpectError exceptions recorded per batch
+ *   X-2 ratchet: only B3 remains (owner TEST-CA); no GAP2-4-owned register entry; tsExpectError exceptions recorded
  *   X-3 register: every Class B tag has an owner phase
  *
  * Run: node scripts/test_types1_close.cjs [--offline]   (--offline skips X-1)
@@ -29,18 +29,15 @@ const register = JSON.parse(fs.readFileSync(path.join(ROOT, 'docs/reports/types/
 
 // Same quarantine set as scripts/test_types1.cjs (T-08).
 const QUARANTINED = /^(services\/adaptive\/|services\/admin-adaptive\.service\.ts|services\/live-test-|app\/admin\/live-tests\/|app\/live-tests\/|services\/battle\.service\.ts|app\/battles\/|app\/api\/battles\/|services\/psychometrics\.service\.ts|app\/performance\/|services\/admin-competition-intelligence\.service\.ts|services\/candidate-intelligence\.service\.ts|components\/admin\/adaptive\/|components\/admin\/live-tests\/)/;
-// Files that GAP2-4 rewrites with B5 (exam knowledge / syllabus) and TEST-CA (current affairs) beyond the ratchet scopes.
+// Files that TEST-CA (current affairs) rewrites beyond the ratchet scope. GAP2-4b closed the B5 family (GAP2-4):
+// no exam knowledge / syllabus file is owned any more — a failing select there is NEW drift.
 const OWNED_FILES = [
-  { re: /^services\/exam-syllabus\.service\.ts$|^services\/exam-onboarding\/|^services\/exam-knowledge\//, owner: 'GAP2-4 (B5 family)' },
   { re: /^services\/current-affairs-validation\.service\.ts$/, owner: 'TEST-CA (B3 family)' },
 ];
 // Registered tracked Class B reads: file + table that is expected to fail until its owner phase.
 const TRACKED = [
   { file: 'services/dashboard.service.ts', table: /^(user_topic_mastery|daily_study_recommendations|user_exam_readiness)$/, tag: 'B-DSH-*' },
   { file: 'services/billing.service.ts', table: /^user_entitlements$/, tag: 'B-BILLING-SUB-STATUS' },
-  { file: 'services/curriculum-coverage.service.ts', table: /^(learning_units|exam_unit_mappings)$/, tag: 'B-CURRICULUM-MAPPING' },
-  { file: 'services/admin-content-studio.service.ts', table: /^exam_unit_mappings$/, tag: 'B-CURRICULUM-MAPPING' },
-  { file: 'services/ai/curriculum-context-builder.service.ts', table: /^exam_unit_mappings$/, tag: 'B-CURRICULUM-MAPPING' },
 ];
 
 function walk(dir, acc = []) {
@@ -80,10 +77,11 @@ function walk(dir, acc = []) {
     });
   }
 
-  await test('X-2 ratchet: only B3 (after TEST-CA) and B5 (GAP2-4) remain; tsExpectError exceptions recorded', async () => {
+  await test('X-2 ratchet: only B3 (after TEST-CA) remains (B5 closed by GAP2-4b); tsExpectError exceptions recorded', async () => {
     const batches = ratchet.remaining.map((x) => x.batch).sort();
-    assert(JSON.stringify(batches) === JSON.stringify(['B3', 'B5']), `remaining: ${batches.join(',')}`);
-    assert(/TEST-CA/.test(ratchet.remaining.find((x) => x.batch === 'B3').owner) && /GAP2-4/.test(ratchet.remaining.find((x) => x.batch === 'B5').owner), 'owners');
+    assert(JSON.stringify(batches) === JSON.stringify(['B3']), `remaining: ${batches.join(',')}`);
+    assert(/TEST-CA/.test(ratchet.remaining.find((x) => x.batch === 'B3').owner), 'owner');
+    assert(!register.some((e) => /GAP2-4/.test(e.owner || '')), 'a register entry is still owned by GAP2-4');
     const ex = ratchet.exceptions || [];
     const total = ex.reduce((a, e) => a + (e.to - e.from), 0);
     assert(total === ratchet.values.tsExpectError, `exceptions (${total}) must account for tsExpectError (${ratchet.values.tsExpectError})`);

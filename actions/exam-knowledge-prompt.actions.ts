@@ -45,7 +45,7 @@ export async function generateExamKnowledgePromptAction(
     if (!authCheck.ok) return sanitizeActionResult("generateExamKnowledgePromptAction", await (authCheck));
 
     // 2. Obtain Server Supabase Client
-    const supabase = createAdminServerSupabaseClient() as any;
+    const supabase = createAdminServerSupabaseClient();
 
     // 3. Build Authoritative Context
     const context = await ExamKnowledgeContextBuilder.buildContext({

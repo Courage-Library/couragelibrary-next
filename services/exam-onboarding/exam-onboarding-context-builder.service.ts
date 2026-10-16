@@ -26,12 +26,13 @@ export class ExamOnboardingContextBuilder {
     let examData: any = null;
     let activeCycle: any = null;
     let postsData: any[] = [];
-    let syllabusData: any[] = [];
 
     const targetExamName = (params.examName || '').trim();
 
     if (params.examId) {
-      const [examRes, cyclesRes, postsRes, syllabusRes] = await Promise.all([
+      // GAP2-4b: no legacy exam_topics read (it filtered a non-existent exam_id and its result was unused);
+      // exam_cycles has no cycle_name / is_active columns — the cycle status is read instead.
+      const [examRes, cyclesRes, postsRes] = await Promise.all([
         supabase
           .from('exams')
           .select('id, title, slug, category, description, org_id, conducting_org:conducting_orgs(id, name, slug, official_website)')
@@ -39,17 +40,12 @@ export class ExamOnboardingContextBuilder {
           .maybeSingle(),
         supabase
           .from('exam_cycles')
-          .select('id, cycle_year, cycle_name, notification_date, application_start_date, application_end_date, is_active')
+          .select('id, cycle_year, notification_date, application_start_date, application_end_date, status')
           .eq('exam_id', params.examId)
           .order('cycle_year', { ascending: false }),
         supabase
           .from('exam_posts')
           .select('id, post_name, pay_level, classification_group')
-          .eq('exam_id', params.examId)
-          .eq('is_active', true),
-        supabase
-          .from('exam_topics')
-          .select('topic_id')
           .eq('exam_id', params.examId)
           .eq('is_active', true),
       ]);
@@ -58,9 +54,8 @@ export class ExamOnboardingContextBuilder {
       const cycles = cyclesRes.data || [];
       activeCycle = params.cycleYear
         ? cycles.find((c: any) => c.cycle_year === params.cycleYear) || cycles[0] || null
-        : cycles.find((c: any) => c.is_active) || cycles[0] || null;
+        : cycles.find((c: any) => c.status === 'active') || cycles[0] || null;
       postsData = postsRes.data || [];
-      syllabusData = syllabusRes.data || [];
     }
 
     const canonicalTaxonomy = await ExamOnboardingService.getCanonicalTaxonomy(supabase);
@@ -104,7 +99,7 @@ export class ExamOnboardingContextBuilder {
       conductingOrgSlug: orgInfo?.slug,
       officialWebsite: orgInfo?.official_website,
       cycleYear: resolvedCycleYear,
-      cycleName: activeCycle?.cycle_name,
+      cycleName: activeCycle?.cycle_year ? `${activeCycle.cycle_year} cycle` : undefined,
       notificationDate: activeCycle?.notification_date,
       applicationStartDate: activeCycle?.application_start_date,
       applicationEndDate: activeCycle?.application_end_date,

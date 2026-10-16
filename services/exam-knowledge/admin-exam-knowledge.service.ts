@@ -36,6 +36,7 @@ import {
   ExamDocVersionHistoryItem,
   ExamDocDiffResult,
 } from '@/types/exam-knowledge';
+import type { AppSupabaseClient } from '@/lib/supabase/types';
 
 export interface AdminExamKnowledgeKPIs {
   totalExams: number;
@@ -88,7 +89,7 @@ export class AdminExamKnowledgeService {
    * 1. Get Live Dashboard KPIs
    * Queries real database counts without hardcoded defaults.
    */
-  static async getDashboardKPIs(supabaseClient?: any): Promise<AdminExamKnowledgeKPIs> {
+  static async getDashboardKPIs(supabaseClient?: AppSupabaseClient): Promise<AdminExamKnowledgeKPIs> {
     const supabase = supabaseClient || createAdminServerSupabaseClient();
 
     const [
@@ -126,7 +127,7 @@ export class AdminExamKnowledgeService {
   /**
    * 2. Get Exams and Cycles for selection
    */
-  static async getExamsAndCycles(supabaseClient?: any): Promise<{
+  static async getExamsAndCycles(supabaseClient?: AppSupabaseClient): Promise<{
     exams: Array<{
       id: string;
       name: string;
@@ -184,7 +185,7 @@ export class AdminExamKnowledgeService {
   static async getExamWorkspace(
     examId: string,
     cycleId?: string | null,
-    supabaseClient?: any
+    supabaseClient?: AppSupabaseClient
   ): Promise<ExamWorkspaceData | null> {
     const supabase = supabaseClient || createAdminServerSupabaseClient();
 
@@ -207,15 +208,15 @@ export class AdminExamKnowledgeService {
       if (cycle) {
         cycleData = {
           ...cycle,
-          year: cycle.cycle_year || cycle.year,
+          year: cycle.cycle_year,
           isActive: true,
         };
       }
     }
 
     const org = exam.conducting_org;
-    const orgName = org?.name || org?.title || exam.conducting_body || 'Government Body';
-    const orgWebsiteUrl = org?.official_portal_url || org?.official_website || null;
+    const orgName = org?.name || 'Government Body';
+    const orgWebsiteUrl = org?.official_website || null;
 
     // Fetch verified sources count
     const { count: verifiedSourcesCount } = await supabase
@@ -239,6 +240,7 @@ export class AdminExamKnowledgeService {
           version_number,
           review_status,
           is_published,
+          compiled_mdx,
           updated_at
         )
       `)
@@ -250,7 +252,7 @@ export class AdminExamKnowledgeService {
 
     const modules: ExamWorkspaceModuleStatus[] = allModules.map((m: ExamModuleDefinition) => {
       const applicabilityReport = ExamModuleRegistry.evaluateApplicability(
-        { id: exam.id, title: exam.title || exam.name || 'Exam', isActive: exam.is_active },
+        { id: exam.id, title: exam.title || 'Exam', isActive: exam.is_active },
         cycleData ? { id: cycleData.id, cycleYear: cycleData.year } : null,
         m.key,
         verifiedSourcesCount || 0,
@@ -287,7 +289,7 @@ export class AdminExamKnowledgeService {
         if (latestVer) {
           verId = latestVer.id;
           verNum = latestVer.version_number;
-          reviewStatus = latestVer.review_status;
+          reviewStatus = latestVer.review_status as ExamDocReviewStatus;
           isPublished = Boolean(doc.current_published_version_id || doc.status === 'PUBLISHED' || latestVer.is_published);
           lastUpdated = latestVer.updated_at;
 
@@ -331,7 +333,7 @@ export class AdminExamKnowledgeService {
     return {
       exam: {
         id: exam.id,
-        name: exam.name,
+        name: exam.title,
         slug: exam.slug,
         conductingOrgName: orgName || 'Government Body',
         isActive: Boolean(exam.is_active),
@@ -355,7 +357,7 @@ export class AdminExamKnowledgeService {
    */
   static async getDraftsList(
     filters?: { examId?: string; reviewStatus?: ExamDocReviewStatus },
-    supabaseClient?: any
+    supabaseClient?: AppSupabaseClient
   ): Promise<any[]> {
     const supabase = supabaseClient || createAdminServerSupabaseClient();
 
@@ -442,7 +444,7 @@ export class AdminExamKnowledgeService {
    */
   static async getDocumentDetail(
     versionId: string,
-    supabaseClient?: any
+    supabaseClient?: AppSupabaseClient
   ): Promise<any | null> {
     const supabase = supabaseClient || createAdminServerSupabaseClient();
 
@@ -481,11 +483,12 @@ export class AdminExamKnowledgeService {
     // Fetch related sources, claims, and complete version history for this document
     const [sourcesRes, claimsRes, versionsRes] = await Promise.all([
       supabase.from('exam_sources').select('*').eq('exam_id', examId),
+      // GAP2-4b: exam_claims has no module_key; the module is the claim's document (doc_version → document).
       supabase
         .from('exam_claims')
-        .select('*')
-        .eq('exam_id', examId)
-        .eq('module_key', version.exam_knowledge_documents?.module_key),
+        .select('*, doc_version:exam_doc_versions!inner(document:exam_knowledge_documents!exam_doc_versions_document_id_fkey!inner(module_key))')
+        .eq('exam_id', examId ?? '')
+        .eq('doc_version.document.module_key', version.exam_knowledge_documents?.module_key ?? ''),
       supabase
         .from('exam_doc_versions')
         .select(`
@@ -557,7 +560,7 @@ export class AdminExamKnowledgeService {
    */
   static async getDocumentVersionHistory(
     documentId: string,
-    supabaseClient?: any
+    supabaseClient?: AppSupabaseClient
   ): Promise<{ success: boolean; versions?: ExamDocVersionHistoryItem[]; versionHistory?: ExamDocVersionHistoryItem[]; error?: string }> {
     const supabase = supabaseClient || (await createAdminServerSupabaseClient());
 
@@ -641,7 +644,7 @@ export class AdminExamKnowledgeService {
       versionIdA: string;
       versionIdB: string;
     },
-    supabaseClient?: any
+    supabaseClient?: AppSupabaseClient
   ): Promise<{ success: boolean; diff?: ExamDocDiffResult; error?: string }> {
     const supabase = supabaseClient || (await createAdminServerSupabaseClient());
 
@@ -688,7 +691,7 @@ export class AdminExamKnowledgeService {
       feedback?: string;
       userId?: string;
     },
-    supabaseClient?: any
+    supabaseClient?: AppSupabaseClient
   ): Promise<{ success: boolean; error?: string }> {
     const supabase = supabaseClient || (await createAdminServerSupabaseClient());
 
@@ -746,7 +749,7 @@ export class AdminExamKnowledgeService {
       feedback: string;
       userId?: string;
     },
-    supabaseClient?: any
+    supabaseClient?: AppSupabaseClient
   ): Promise<{ success: boolean; versionNumber?: number; error?: string }> {
     const supabase = supabaseClient || (await createAdminServerSupabaseClient());
 
@@ -809,7 +812,7 @@ export class AdminExamKnowledgeService {
    */
   static async compileExamDocVersion(
     versionId: string,
-    supabaseClient?: any
+    supabaseClient?: AppSupabaseClient
   ): Promise<{ success: boolean; compiledMdx?: string; artifactHash?: string; error?: string }> {
     const supabase = supabaseClient || (await createAdminServerSupabaseClient());
 
@@ -829,7 +832,7 @@ export class AdminExamKnowledgeService {
       return { success: false, error: e.message };
     }
 
-    const rawPayload: ExamKnowledgeDocumentSpec = ver.structured_payload;
+    const rawPayload = ver.structured_payload as ExamKnowledgeDocumentSpec | null;
     if (!rawPayload || !rawPayload.contentSections) {
       return { success: false, error: 'Version has invalid or missing structured payload.' };
     }
@@ -918,7 +921,7 @@ export class AdminExamKnowledgeService {
    */
   static async publishExamDocVersion(
     params: { versionId: string; userId?: string },
-    supabaseClient?: any
+    supabaseClient?: AppSupabaseClient
   ): Promise<{ success: boolean; examSlug?: string; moduleSlug?: string; cycleYear?: number; error?: string }> {
     const supabase = supabaseClient || (await createAdminServerSupabaseClient());
 
@@ -994,7 +997,7 @@ export class AdminExamKnowledgeService {
    */
   static async createRevisionDraft(
     params: { documentId: string; baseVersionId: string; userId?: string },
-    supabaseClient?: any
+    supabaseClient?: AppSupabaseClient
   ): Promise<{ success: boolean; newVersionId?: string; versionNumber?: number; error?: string }> {
     const supabase = supabaseClient || (await createAdminServerSupabaseClient());
 
@@ -1055,7 +1058,7 @@ export class AdminExamKnowledgeService {
       notes?: string;
       userId?: string;
     },
-    supabaseClient?: any
+    supabaseClient?: AppSupabaseClient
   ): Promise<{ success: boolean; error?: string }> {
     const supabase = supabaseClient || (await createAdminServerSupabaseClient());
 
@@ -1086,16 +1089,15 @@ export class AdminExamKnowledgeService {
       status: ExamClaimVerificationStatus;
       userId?: string;
     },
-    supabaseClient?: any
+    supabaseClient?: AppSupabaseClient
   ): Promise<{ success: boolean; error?: string }> {
     const supabase = supabaseClient || (await createAdminServerSupabaseClient());
 
     const { error } = await supabase
       .from('exam_claims')
       .update({
+        // GAP2-4b: exam_claims has no verified_by_user_id / verified_at columns (the update failed with them).
         verification_status: params.status,
-        verified_by_user_id: params.userId || null,
-        verified_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
       .eq('id', params.claimId);
@@ -1114,7 +1116,7 @@ export class AdminExamKnowledgeService {
    */
   static async discardDraftVersion(
     versionId: string,
-    supabaseClient?: any
+    supabaseClient?: AppSupabaseClient
   ): Promise<{ success: boolean; deletedVersionId?: string; deletedDocumentId?: string; error?: string }> {
     const supabase = supabaseClient || (await createAdminServerSupabaseClient());
 
@@ -1191,7 +1193,7 @@ export class AdminExamKnowledgeService {
       structuredPayload: Partial<ExamKnowledgeDocumentSpec> | Record<string, any>;
       userId?: string;
     },
-    supabaseClient?: any
+    supabaseClient?: AppSupabaseClient
   ): Promise<{ success: boolean; versionId?: string; specHash?: string; error?: string }> {
     const supabase = supabaseClient || (await createAdminServerSupabaseClient());
 
@@ -1239,7 +1241,7 @@ export class AdminExamKnowledgeService {
         source_spec_hash: specHash,
         compiled_mdx: null, // Invalidate previous compilation when content changes
         compiled_artifact_hash: null,
-        review_status: ver.review_status === 'APPROVED' || ver.review_status === 'COMPILED' ? 'DRAFT' : ver.review_status,
+        review_status: ver.review_status, // only DRAFT / AI_GENERATED reach here (checked above)
         updated_at: nowIso,
       })
       .eq('id', params.versionId);
@@ -1261,7 +1263,7 @@ export class AdminExamKnowledgeService {
       feedback?: string;
       userId?: string;
     },
-    supabaseClient?: any
+    supabaseClient?: AppSupabaseClient
   ): Promise<{ success: boolean; error?: string }> {
     const supabase = supabaseClient || (await createAdminServerSupabaseClient());
 
@@ -1292,7 +1294,7 @@ export class AdminExamKnowledgeService {
       };
     }
 
-    const payload = ver.structured_payload;
+    const payload = ver.structured_payload as Partial<ExamKnowledgeDocumentSpec> | null;
     if (!payload?.contentSections || !Array.isArray(payload.contentSections) || payload.contentSections.length === 0) {
       return { success: false, error: 'Cannot submit draft without at least one content section.' };
     }

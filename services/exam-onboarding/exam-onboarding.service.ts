@@ -580,67 +580,6 @@ export class ExamOnboardingService {
     }));
   }
 
-  static async saveSyllabusProjection(
-    payload: SyllabusProjectionInput,
-    customSupabase?: any
-  ): Promise<void> {
-    const supabase = customSupabase || createAdminServerSupabaseClient();
-    const { examId, examCycleId, subjects } = payload;
-
-    // Resolve cycle ID if not passed
-    let cycleId = examCycleId;
-    if (!cycleId) {
-      const { data: c } = await supabase.from('exam_cycles').select('id').eq('exam_id', examId).limit(1).maybeSingle();
-      cycleId = c?.id;
-    }
-
-    if (!cycleId) {
-      const created = await this.createOrUpdateCycle(examId, { cycleYear: new Date().getFullYear() }, supabase);
-      cycleId = created.cycleId;
-    }
-
-    for (const subj of subjects) {
-      let { data: syllabus } = await supabase
-        .from('exam_syllabi')
-        .select('id')
-        .eq('exam_cycle_id', cycleId)
-        .maybeSingle();
-
-      if (!syllabus) {
-        const { data: newSyl, error: sylErr } = await supabase
-          .from('exam_syllabi')
-          .insert({
-            exam_cycle_id: cycleId,
-            version_tag: 'official',
-            description: 'Official projected syllabus',
-            is_active: true,
-          })
-          .select('id')
-          .single();
-
-        if (sylErr) throw new Error(`Failed to map syllabus subject: ${sylErr.message}`);
-        syllabus = newSyl;
-      }
-
-      for (const top of subj.topics) {
-        const { error: topErr } = await supabase
-          .from('exam_topics')
-          .upsert({
-            syllabus_id: syllabus.id,
-            topic_id: top.topicId,
-            weightage_level: (top.weightageLevel || 'medium').toLowerCase(),
-            priority: top.priority ?? 1,
-            expected_questions: top.expectedQuestions ?? 1,
-            notes: top.notes || null,
-          }, { onConflict: 'syllabus_id,topic_id' });
-
-        if (topErr) {
-          throw new Error(`Failed to map topic ${top.topicId}: ${topErr.message}`);
-        }
-      }
-    }
-  }
-
   static async getKnowledgeStatusMatrix(
     examId: string,
     cycleId?: string | null,
@@ -762,18 +701,19 @@ export class ExamOnboardingService {
       if (cycleErr) queryFailed = true;
       const cycleIds = (cycles || []).map((c: any) => c.id);
 
-      // 3. Fetch syllabi & topics
+      // 3. Canonical syllabus (GAP2-4b): versions + their nodes. Any version blocks hard deletion — published and
+      //    archived versions are immutable history and the version FK restricts exam deletion.
       let syllabiCount = 0;
       let topicsCount = 0;
-      if (cycleIds.length > 0) {
-        const { data: syllabi, error: sylErr } = await supabase.from('exam_syllabi').select('id').in('exam_cycle_id', cycleIds);
-        if (sylErr) queryFailed = true;
-        syllabiCount = (syllabi || []).length;
-        const sylIds = (syllabi || []).map((s: any) => s.id);
-        if (sylIds.length > 0) {
-          const { count: topCount, error: topErr } = await supabase.from('exam_topics').select('*', { count: 'exact', head: true }).in('syllabus_id', sylIds);
-          if (topErr) queryFailed = true;
-          topicsCount = topCount || 0;
+      {
+        const { data: versions, error: verErr } = await supabase.from('exam_syllabus_versions').select('id').eq('exam_id', examId);
+        if (verErr) queryFailed = true;
+        syllabiCount = (versions || []).length;
+        const versionIds = (versions || []).map((v: { id: string }) => v.id);
+        if (versionIds.length > 0) {
+          const { count: nodeCount, error: nodeErr } = await supabase.from('exam_syllabus_nodes').select('*', { count: 'exact', head: true }).in('syllabus_version_id', versionIds);
+          if (nodeErr) queryFailed = true;
+          topicsCount = nodeCount || 0;
         }
       }
 
@@ -878,6 +818,9 @@ export class ExamOnboardingService {
 
       if (queryFailed) {
         blockers.push('Failed to query dependency data or database connection was interrupted. Deletion is blocked for data safety.');
+      }
+      if (dependencies.syllabi > 0) {
+        blockers.push(`Syllabus versions exist (${dependencies.syllabi} version(s)). Syllabus history is permanent; archive or deactivate the exam instead.`);
       }
 
       if (dependencies.testAttempts > 0) {
@@ -1002,14 +945,7 @@ export class ExamOnboardingService {
     const { data: cycles } = await supabase.from('exam_cycles').select('id').eq('exam_id', examId);
     const cycleIds = (cycles || []).map((c: any) => c.id);
 
-    if (cycleIds.length > 0) {
-      const { data: syllabi } = await supabase.from('exam_syllabi').select('id').in('exam_cycle_id', cycleIds);
-      const sylIds = (syllabi || []).map((s: any) => s.id);
-      if (sylIds.length > 0) {
-        await supabase.from('exam_topics').delete().in('syllabus_id', sylIds);
-        await supabase.from('exam_syllabi').delete().in('id', sylIds);
-      }
-    }
+    // (GAP2-4b) no legacy exam_syllabi / exam_topics cleanup: eligibility blocks any exam that has a syllabus.
 
     const { data: docs } = await supabase.from('exam_knowledge_documents').select('id').eq('exam_id', examId);
     const docIds = (docs || []).map((d: any) => d.id);

@@ -307,15 +307,6 @@
       "kind": "@ts-expect-error ×2 (required owner_user_id on create; component item shape) — also app/admin/institutes/page.tsx",
       "owner": "Community (institutes)",
       "precondition": "Decide who owns an admin-created institute (owner_user_id is required) and where city lives (no column), then align AdminInstitutesManager's InstituteItem (verificationStatus, …) with institutes. Today creating an institute fails."
-    },
-    {
-      "id": "TYPES-1:B-CURRICULUM-MAPPING",
-      "file": "services/curriculum-coverage.service.ts",
-      "class": "B",
-      "module": "curriculum coverage / content studio exam mappings / AI context exam mappings",
-      "kind": "@ts-expect-error ×5 + tracked comments (content studio, AI context builder)",
-      "owner": "GAP2-4",
-      "precondition": "GAP2-4: replace the exam ↔ learning-unit mapping model (exam_unit_mappings now has exam_topic_id / is_exam_core / is_active; no exam_topic_mappings link, required_depth, importance_tier, is_mandatory; learning_units has no is_published) and rebuild the coverage matrix on the canonical syllabus. Today both reads always fail, so getCurriculumCoverageMatrix reports status UNAVAILABLE and /admin/content shows \"Coverage unavailable — pending syllabus rebuild (GAP2-4)\" (HOTFIX-2 removed the former synthesised coverage — decision #15). upsertExamUnitMapping always fails."
     }
   ]
 }

@@ -15,6 +15,9 @@
  * 3. Intermediate/Unapproved states (DRAFT, AI_GENERATED, IN_REVIEW, APPROVED, COMPILED) are 100% INVISIBLE.
  * 4. Zero Hardcoded Facts: All posts, eligibility rules, pay levels, and syllabus hierarchies are dynamically loaded from data.
  * 5. Bounded, parallel queries without N+1 loops.
+ * 6. GAP2-4b: the syllabus comes ONLY from the canonical read model (fn_exam_syllabus_read_model: PUBLISHED versions,
+ *    explicit NO_SYLLABUS / AVAILABLE / UNAVAILABLE states). Exam patterns are read through exam_cycles with their real
+ *    pattern_sections; numbers are never defaulted. No legacy exam_syllabi / exam_topics / exam_unit_mappings reads.
  */
 
 import { createServerSupabaseClient } from '@/lib/supabase/server';
@@ -24,8 +27,6 @@ import {
   ExamKnowledgeCandidateView,
   CandidateExamPost,
   CandidateExamPattern,
-  CandidateExamSubject,
-  CandidateExamTopic,
   CandidatePublishedModule,
   CandidateOfficialSource,
   CandidateVerifiedClaim,
@@ -33,6 +34,11 @@ import {
   ExamModuleKey,
 } from '@/types/exam-knowledge';
 import { ExamModuleRegistry } from './exam-module-registry';
+import { rpcJsonObject } from '@/lib/supabase/rpc';
+import type { SyllabusReadModel } from '@/types/syllabus';
+import type { AppSupabaseClient } from '@/lib/supabase/types';
+
+const num = (v: unknown): number | null => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) ? null : Number(v));
 
 export class ExamKnowledgeCandidateService {
   /**
@@ -68,11 +74,8 @@ export class ExamKnowledgeCandidateService {
     let patternsData: any[] = [];
     let sourcesData: any[] = [];
     let claimsData: any[] = [];
-    let syllabiData: any[] = [];
-    let topicsData: any[] = [];
-    let unitMappingsData: any[] = [];
     let publishedDocsData: any[] = [];
-    let questionsData: any[] = [];
+    let prefetchedSyllabus: SyllabusReadModel | null = null;
 
     if (prefetchedData) {
       examRecord = prefetchedData.exam;
@@ -81,11 +84,8 @@ export class ExamKnowledgeCandidateService {
       patternsData = prefetchedData.patterns || [];
       sourcesData = prefetchedData.sources || [];
       claimsData = prefetchedData.claims || [];
-      syllabiData = prefetchedData.syllabi || [];
-      topicsData = prefetchedData.topics || [];
-      unitMappingsData = prefetchedData.unitMappings || [];
       publishedDocsData = prefetchedData.publishedDocs || [];
-      questionsData = prefetchedData.questions || [];
+      prefetchedSyllabus = prefetchedData.syllabus || null;
     } else {
       // 2. Fetch Exam Identity
       const { data: exam, error: examErr } = await client
@@ -117,11 +117,7 @@ export class ExamKnowledgeCandidateService {
         patRes,
         sRes,
         clRes,
-        sylRes,
-        topRes,
-        unitRes,
         docRes,
-        qRes,
       ] = await Promise.all([
         client
           .from('exam_cycles')
@@ -134,10 +130,11 @@ export class ExamKnowledgeCandidateService {
           .eq('exam_id', examRecord.id)
           .eq('is_active', true)
           .order('display_order', { ascending: true }),
+        // patterns belong to cycles (exam_patterns has no exam_id); sections are pattern_sections
         client
           .from('exam_patterns')
-          .select('*, exam_sections(*)')
-          .eq('exam_id', examRecord.id)
+          .select('id, name, tier_name, duration_minutes, total_questions, total_marks, negative_mark_value, exam_cycle_id, pattern_sections(section_name, section_order, num_questions, marks_per_question, negative_mark), exam_cycles!inner(exam_id)')
+          .eq('exam_cycles.exam_id', examRecord.id)
           .eq('is_active', true),
         client
           .from('exam_sources')
@@ -151,31 +148,11 @@ export class ExamKnowledgeCandidateService {
           .eq('exam_id', examRecord.id)
           .eq('verification_status', 'VERIFIED'),
         client
-          .from('exam_syllabi')
-          .select('*, subject:subjects(*)')
-          .eq('exam_id', examRecord.id)
-          .eq('is_active', true)
-          .order('display_order', { ascending: true }),
-        client
-          .from('exam_topics')
-          .select('*, topic:canonical_taxonomy_nodes!exam_topics_topic_id_node_fkey(id, subject_id:root_subject_id, name, slug, description:metadata->>description, importance_level:metadata->>importance_level, display_order, is_active, created_at, updated_at)')
-          .eq('exam_id', examRecord.id)
-          .eq('is_active', true)
-          .order('display_order', { ascending: true }),
-        client
-          .from('exam_unit_mappings')
-          .select('*, learning_unit:learning_units(*, learning_documents:learning_documents(*))')
-          .eq('is_active', true)
-          .order('sequence_order', { ascending: true }),
-        client
           .from('exam_knowledge_documents')
           .select('*, current_published_version:exam_doc_versions!current_published_version_id(*)')
           .eq('exam_id', examRecord.id)
           .eq('language', language)
           .eq('status', 'PUBLISHED'),
-        client
-          .from('questions')
-          .select('id, topic_id'),
       ]);
 
       cyclesData = cRes.data || [];
@@ -183,11 +160,7 @@ export class ExamKnowledgeCandidateService {
       patternsData = patRes.data || [];
       sourcesData = sRes.data || [];
       claimsData = clRes.data || [];
-      syllabiData = sylRes.data || [];
-      topicsData = topRes.data || [];
-      unitMappingsData = unitRes.data || [];
       publishedDocsData = docRes.data || [];
-      questionsData = qRes.data || [];
     }
 
     if (!examRecord) {
@@ -322,23 +295,27 @@ export class ExamKnowledgeCandidateService {
       vacanciesCount: null,
     }));
 
-    // 7. Map Structured Patterns
-    const patterns: CandidateExamPattern[] = patternsData.map((pat) => ({
-      id: pat.id,
-      name: pat.name,
-      tierName: pat.tier_name || null,
-      durationMinutes: Number(pat.duration_minutes) || 60,
-      totalQuestions: Number(pat.total_questions) || 100,
-      totalMarks: Number(pat.total_marks) || 200,
-      negativeMarkValue: Number(pat.negative_mark_value) || 0.5,
-      sections: Array.isArray(pat.exam_sections)
-        ? pat.exam_sections.map((sec: any) => ({
-            name: sec.name,
-            questionCount: Number(sec.question_count) || 25,
-            marksPerQuestion: Number(sec.marks_per_question) || 2,
-          }))
-        : [],
-    }));
+    // 7. Map Structured Patterns (real values only; null when not recorded). Patterns of the active cycle first.
+    const patterns: CandidateExamPattern[] = [...patternsData]
+      .filter((pat) => !activeCycle || !pat.exam_cycle_id || pat.exam_cycle_id === activeCycle.id)
+      .map((pat) => ({
+        id: pat.id,
+        name: pat.name,
+        tierName: pat.tier_name || null,
+        durationMinutes: num(pat.duration_minutes),
+        totalQuestions: num(pat.total_questions),
+        totalMarks: num(pat.total_marks),
+        negativeMarkValue: num(pat.negative_mark_value),
+        sections: (Array.isArray(pat.pattern_sections) ? [...pat.pattern_sections] : [])
+          .sort((x: any, y: any) => (x.section_order ?? 0) - (y.section_order ?? 0))
+          .map((sec: any) => ({
+            name: sec.section_name,
+            order: sec.section_order ?? 0,
+            questionCount: num(sec.num_questions),
+            marksPerQuestion: num(sec.marks_per_question),
+            negativeMark: num(sec.negative_mark),
+          })),
+      }));
 
     // 8. Map Verified Claims (Strip internal audit IDs/notes)
     const verifiedClaims: CandidateVerifiedClaim[] = claimsData.map((c) => {
@@ -372,63 +349,21 @@ export class ExamKnowledgeCandidateService {
       publishedDate: src.published_date || null,
     }));
 
-    // 10. Map Question Density & Canonical Curriculum Tree
-    // Index questions count per topic_id
-    const questionsCountByTopicId = new Map<string, number>();
-    questionsData.forEach((q) => {
-      if (q.topic_id) {
-        questionsCountByTopicId.set(
-          q.topic_id,
-          (questionsCountByTopicId.get(q.topic_id) || 0) + 1
-        );
-      }
-    });
-
-    const curriculumSubjects: CandidateExamSubject[] = [];
-
-    for (const syl of syllabiData) {
-      const subject = syl.subject || {};
-      const matchedExamTopics = topicsData.filter((t) => t.subject_id === syl.subject_id);
-
-      const candidateTopics: CandidateExamTopic[] = matchedExamTopics.map((et) => {
-        const topic = et.topic || {};
-        const qCount = questionsCountByTopicId.get(et.topic_id) || 0;
-
-        // Resolve published learning document link via exam_unit_mappings
-        let learningDocSlug: string | null = null;
-        const matchedUnitMapping = unitMappingsData.find((um) => um.exam_topic_id === et.id);
-        if (matchedUnitMapping && matchedUnitMapping.learning_unit) {
-          const lDocs = matchedUnitMapping.learning_unit.learning_documents || [];
-          const publishedLDoc = lDocs.find((ld: any) => ld.status === 'PUBLISHED');
-          if (publishedLDoc && publishedLDoc.canonical_slug) {
-            learningDocSlug = publishedLDoc.canonical_slug;
-          }
-        }
-
-        return {
-          id: et.id,
-          name: topic.name || 'Untitled Topic',
-          slug: topic.slug || '',
-          importanceTier: et.importance_tier || 'CORE',
-          requiredDepth: et.required_depth || 'CONCEPTUAL',
-          expectedQuestions: {
-            min: Number(et.expected_questions_min) || 0,
-            max: Number(et.expected_questions_max) || 0,
-          },
-          learningDocumentSlug: learningDocSlug,
-          pyqCount: qCount,
-          practiceAvailable: qCount > 0,
-        };
+    // 10. Canonical syllabus (published only) for the exam and its active cycle — one RPC, derived live counts.
+    // Prefetched (offline) mode never touches the network: a caller that supplies no syllabus gets UNAVAILABLE.
+    let syllabus: SyllabusReadModel;
+    if (prefetchedData) {
+      syllabus = prefetchedSyllabus ?? { state: 'UNAVAILABLE', exam_id: examRecord.id, version: null, nodes: [], totals: null };
+    } else {
+      const { data: rm, error: rmErr } = await client.rpc('fn_exam_syllabus_read_model', {
+        p_exam_id: examRecord.id,
+        p_exam_cycle_id: activeCycle?.id ?? undefined,
       });
-
-      curriculumSubjects.push({
-        id: syl.id,
-        name: subject.name || 'General Subject',
-        slug: subject.slug || '',
-        code: subject.code || '',
-        totalWeightagePercent: syl.total_weightage_percent ? Number(syl.total_weightage_percent) : null,
-        topics: candidateTopics,
-      });
+      const parsed = rmErr ? null : rpcJsonObject<SyllabusReadModel>(rm);
+      syllabus =
+        parsed && (parsed.state === 'AVAILABLE' || parsed.state === 'NO_SYLLABUS')
+          ? parsed
+          : { state: 'UNAVAILABLE', exam_id: examRecord.id, version: null, nodes: [], totals: null };
     }
 
     // 11. Extract Candidate Eligibility Parameters from Verified Claims
@@ -475,9 +410,7 @@ export class ExamKnowledgeCandidateService {
         eligibilityParameters,
         verifiedClaims,
       },
-      curriculum: {
-        subjects: curriculumSubjects,
-      },
+      syllabus,
       publishedModules,
       officialSources,
       availableModuleKeys,
@@ -500,14 +433,9 @@ export class ExamKnowledgeCandidateService {
    * Retrieves summary directory of active exams with published module counts and latest cycle.
    */
   static async getExamsDirectory(params?: {
-    supabaseClient?: any;
+    supabaseClient?: AppSupabaseClient;
     prefetchedData?: any;
   }): Promise<CandidateExamDirectoryItem[]> {
-    let client = params?.supabaseClient;
-    if (!client && !params?.prefetchedData) {
-      client = await createServerSupabaseClient();
-    }
-
     if (params?.prefetchedData) {
       const exams = params.prefetchedData.exams || [];
       const cycles = params.prefetchedData.cycles || [];
@@ -540,6 +468,7 @@ export class ExamKnowledgeCandidateService {
         });
     }
 
+    const client = params?.supabaseClient ?? (await createServerSupabaseClient());
     const [examsRes, cyclesRes, docsRes] = await Promise.all([
       client
         .from('exams')

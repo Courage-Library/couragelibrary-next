@@ -150,24 +150,23 @@ export class ExamReadinessService {
       posts = [];
     }
 
-    // 5. Fetch Syllabus and Topics
-    let syllabi: any[] = [];
-    let examTopics: any[] = [];
-    if (resolvedCycleId) {
-      const { data: sylData } = await supabase
-        .from('exam_syllabi')
-        .select('id, exam_cycle_id, is_active')
-        .eq('exam_cycle_id', resolvedCycleId);
-      syllabi = sylData || [];
-
-      const sylIds = syllabi.map((s: any) => s.id);
-      if (sylIds.length > 0) {
-        const { data: topData } = await supabase
-          .from('exam_topics')
-          .select('id, syllabus_id, topic_id, weightage_level')
-          .in('syllabus_id', sylIds);
-        examTopics = topData || [];
+    // 5. Canonical syllabus (GAP2-4b): the published read model for the exam / cycle (no legacy tables)
+    let syllabusState: 'AVAILABLE' | 'NO_SYLLABUS' | 'UNAVAILABLE' = 'UNAVAILABLE';
+    let syllabusTopics = 0;
+    let syllabusUnits = 0;
+    try {
+      const { data: rm, error: rmErr } = await supabase.rpc('fn_exam_syllabus_read_model', {
+        p_exam_id: examId,
+        p_exam_cycle_id: resolvedCycleId ?? undefined,
+      });
+      if (!rmErr && rm && typeof rm === 'object' && !Array.isArray(rm)) {
+        const model = rm as { state?: string; totals?: { topics?: number } | null; nodes?: Array<{ kind?: string }> };
+        if (model.state === 'AVAILABLE' || model.state === 'NO_SYLLABUS') syllabusState = model.state;
+        syllabusTopics = Number(model.totals?.topics ?? 0);
+        syllabusUnits = (model.nodes ?? []).filter((n) => n.kind === 'UNIT').length;
       }
+    } catch (_) {
+      syllabusState = 'UNAVAILABLE';
     }
 
     // 6. Fetch Sources
@@ -341,25 +340,26 @@ export class ExamReadinessService {
     });
 
     // 7. SYLLABUS
-    const syllabusCount = (syllabi || []).length;
-    const syllabusTopicsCount = (examTopics || []).length;
     checks.push({
       id: 'CHK_SYL_SUBJECTS_PROJECTED',
       dimension: 'SYLLABUS',
       severity: 'BLOCKING',
-      title: 'Canonical Subject Mapping',
-      description: 'At least one canonical academic subject mapped to the exam syllabus projection.',
-      isPassed: syllabusCount > 0,
-      remediationHint: 'Map relevant canonical subjects in Step 4 (Syllabus Projection).',
+      title: 'Published syllabus',
+      description:
+        syllabusState === 'UNAVAILABLE'
+          ? 'The syllabus status could not be read.'
+          : 'A syllabus version is published for this exam (or this cycle).',
+      isPassed: syllabusState === 'AVAILABLE',
+      remediationHint: 'Build the syllabus in /admin/syllabus (staff draft) and have an admin publish it.',
     });
     checks.push({
       id: 'CHK_SYL_TOPICS_PROJECTED',
       dimension: 'SYLLABUS',
       severity: 'BLOCKING',
-      title: 'Canonical Topic Projections & Weightages',
-      description: 'At least one canonical topic projected with an explicit weightage tier.',
-      isPassed: syllabusTopicsCount > 0,
-      remediationHint: 'Select canonical topics and assign weightage tiers in Step 4.',
+      title: 'Units mapped to canonical topics',
+      description: `The published syllabus maps ${syllabusUnits} unit(s) to ${syllabusTopics} canonical topic(s).`,
+      isPassed: syllabusState === 'AVAILABLE' && syllabusTopics > 0,
+      remediationHint: 'Map every UNIT of the syllabus to canonical topics in /admin/syllabus, then publish.',
     });
 
     // 8. SOURCES

@@ -31,6 +31,9 @@ import {
   SyllabusDeltaItem,
   SyllabusReconciliationManifest,
 } from '@/types/dynamic-syllabus-reconciliation';
+import type { AppSupabaseClient } from '@/lib/supabase/types';
+import type { Database } from '@/types/database';
+import { toCanonicalMapping, toCanonicalNode, toJson, toSyllabusNode } from '@/lib/syllabus/reconciliation-rows';
 
 export interface ReconcileSyllabusParams {
   syllabusVersionId: string;
@@ -38,7 +41,7 @@ export interface ReconcileSyllabusParams {
   persistMappings?: boolean;
   compareWithPreviousVersionId?: string;
   adminUserId?: string;
-  supabaseClient?: any;
+  supabaseClient?: AppSupabaseClient;
 }
 
 export class ExamSyllabusReconciliationService {
@@ -86,12 +89,12 @@ export class ExamSyllabusReconciliationService {
     if (rawSyllabusNodesRes.error) {
       throw new Error(`Failed to fetch syllabus nodes: ${rawSyllabusNodesRes.error.message}`);
     }
-    const syllabusNodes: ExamSyllabusNode[] = rawSyllabusNodesRes.data || [];
+    const syllabusNodes: ExamSyllabusNode[] = (rawSyllabusNodesRes.data || []).map(toSyllabusNode);
 
     if (rawCanonicalNodesRes.error) {
       throw new Error(`Failed to fetch canonical taxonomy nodes: ${rawCanonicalNodesRes.error.message}`);
     }
-    const canonicalNodes: CanonicalTaxonomyNode[] = rawCanonicalNodesRes.data || [];
+    const canonicalNodes: CanonicalTaxonomyNode[] = (rawCanonicalNodesRes.data || []).map(toCanonicalNode);
 
     const aliases: TaxonomyAlias[] = rawAliasesRes.data || [];
 
@@ -105,7 +108,7 @@ export class ExamSyllabusReconciliationService {
       console.warn(`[Reconciliation] Warning fetching existing mappings: ${mErr.message}`);
     }
     const mappingMap = new Map<string, ExamSyllabusCanonicalMapping>();
-    (existingMappings || []).forEach((m: ExamSyllabusCanonicalMapping) => {
+    (existingMappings || []).map(toCanonicalMapping).forEach((m: ExamSyllabusCanonicalMapping) => {
       mappingMap.set(m.syllabus_node_id, m);
     });
 
@@ -551,11 +554,11 @@ export class ExamSyllabusReconciliationService {
    * Preserves any existing MANUALLY_MAPPED or reviewed rows.
    */
   private static async persistReconciliationMappings(
-    supabase: any,
+    supabase: AppSupabaseClient,
     syllabusNodes: ExamSyllabusNode[],
     itemMap: Map<string, SyllabusReconciliationItem>
   ): Promise<void> {
-    const rowsToUpsert = [];
+    const rowsToUpsert: Database['public']['Tables']['exam_syllabus_canonical_mappings']['Insert'][] = [];
     for (const node of syllabusNodes) {
       const item = itemMap.get(node.id);
       if (!item) continue;
@@ -570,7 +573,7 @@ export class ExamSyllabusReconciliationService {
         match_confidence: item.matchConfidence,
         match_method: item.matchMethod,
         match_notes: item.matchReason,
-        candidate_matches: item.candidateMatches || [],
+        candidate_matches: toJson(item.candidateMatches || []),
         reconciliation_metadata: {
           reconciled_at: new Date().toISOString(),
           node_depth: item.nodeDepth,
@@ -595,27 +598,30 @@ export class ExamSyllabusReconciliationService {
    * Computes structural deltas between two syllabus versions for the same exam.
    */
   private static async computeVersionDeltas(
-    supabase: any,
+    supabase: AppSupabaseClient,
     currentVersionId: string,
     previousVersionId: string
   ): Promise<SyllabusDeltaItem[]> {
-    const { data: currNodes } = await supabase
+    const { data: currRows } = await supabase
       .from('exam_syllabus_nodes')
       .select('*')
       .eq('syllabus_version_id', currentVersionId);
 
-    const { data: prevNodes } = await supabase
+    const { data: prevRows } = await supabase
       .from('exam_syllabus_nodes')
       .select('*')
       .eq('syllabus_version_id', previousVersionId);
 
+    const currNodes = (currRows || []).map(toSyllabusNode);
+    const prevNodes = (prevRows || []).map(toSyllabusNode);
+
     const prevMap = new Map<string, ExamSyllabusNode>();
-    (prevNodes || []).forEach((n: ExamSyllabusNode) => {
+    prevNodes.forEach((n: ExamSyllabusNode) => {
       prevMap.set(n.raw_slug, n);
     });
 
     const currMap = new Map<string, ExamSyllabusNode>();
-    (currNodes || []).forEach((n: ExamSyllabusNode) => {
+    currNodes.forEach((n: ExamSyllabusNode) => {
       currMap.set(n.raw_slug, n);
     });
 

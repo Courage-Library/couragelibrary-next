@@ -3,12 +3,12 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AdminBreadcrumbs } from "@/components/admin/admin-breadcrumbs";
-import { ConductingOrgItem, ExamPostItem, CanonicalTaxonomySubject, OnboardingKnowledgeModuleStatus, SyllabusProjectionInput } from "@/services/exam-onboarding/exam-onboarding.service";
+import { ConductingOrgItem, ExamPostItem, OnboardingKnowledgeModuleStatus } from "@/services/exam-onboarding/exam-onboarding.service";
 import { ExamReadinessReport } from "@/services/exam-onboarding/exam-readiness.service";
 import { Step1Identity } from "./steps/step1-identity";
 import { Step2Cycles } from "./steps/step2-cycles";
 import { Step3Posts } from "./steps/step3-posts";
-import { Step4Syllabus } from "./steps/step4-syllabus";
+import { Step4Syllabus, type OnboardingSyllabusStatus } from "./steps/step4-syllabus";
 import { Step5Knowledge } from "./steps/step5-knowledge";
 import { Step6Readiness } from "./steps/step6-readiness";
 import {
@@ -17,7 +17,6 @@ import {
   createOrUpdateExamCycleAction,
   saveExamPostAction,
   deleteExamPostAction,
-  saveSyllabusProjectionAction,
   publishExamAction,
   generateStepExamPromptAction,
 } from "@/app/admin/exams/actions";
@@ -45,8 +44,8 @@ interface Props {
     applicationEndDate?: string;
   } | null;
   posts: ExamPostItem[];
-  taxonomy: CanonicalTaxonomySubject[];
-  selectedTopicIds: string[];
+  /** GAP2-4b: canonical syllabus status (authoring happens in /admin/syllabus). */
+  syllabusStatus: OnboardingSyllabusStatus | null;
   knowledgeModules: OnboardingKnowledgeModuleStatus[];
   readinessReport: ExamReadinessReport;
   initialStep?: number;
@@ -57,8 +56,7 @@ export function ExamOnboardingWizard({
   orgs,
   activeCycle,
   posts,
-  taxonomy,
-  selectedTopicIds,
+  syllabusStatus,
   knowledgeModules,
   readinessReport,
   initialStep,
@@ -209,18 +207,6 @@ export function ExamOnboardingWizard({
     }
   };
 
-  // STEP 4: SYLLABUS
-  const handleSaveSyllabus = async (payload: SyllabusProjectionInput) => {
-    setIsSaving(true);
-    try {
-      const res = await saveSyllabusProjectionAction(payload);
-      if (res.error) throw new Error(res.error);
-      router.refresh();
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   // STEP 6: PUBLISH
   const handlePublish = async () => {
     if (!examId) return;
@@ -340,12 +326,9 @@ export function ExamOnboardingWizard({
         {currentStep === 4 && (
           <Step4Syllabus
             examId={examId || ""}
-            taxonomy={taxonomy}
-            initialSelectedTopicIds={selectedTopicIds}
-            onSaveSyllabus={handleSaveSyllabus}
+            status={syllabusStatus}
             onContinue={() => setCurrentStep(5)}
             onBack={() => setCurrentStep(3)}
-            isSaving={isSaving}
           />
         )}
 

@@ -88,7 +88,7 @@ export interface SubjectCoverage {
 
 /** HOTFIX-2 (decision #15): coverage is either computed from live data or explicitly unavailable — never synthesised. */
 export type CoverageAvailability = 'AVAILABLE' | 'UNAVAILABLE';
-export const COVERAGE_UNAVAILABLE_MESSAGE = 'Coverage unavailable — pending syllabus rebuild (GAP2-4)';
+export const COVERAGE_UNAVAILABLE_MESSAGE = 'Coverage unavailable — no syllabus is published yet, or a source could not be read';
 
 export interface CurriculumCoverageMatrix {
   status: CoverageAvailability;

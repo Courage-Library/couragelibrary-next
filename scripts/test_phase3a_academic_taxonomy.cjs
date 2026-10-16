@@ -73,7 +73,6 @@ const supabase = createClient(supabaseUrl, serviceRoleKey);
 
 // 4. Import Production Services
 const { AcademicTaxonomyService } = require('../services/academic-taxonomy.service.ts');
-const { ExamSyllabusService } = require('../services/exam-syllabus.service.ts');
 
 let passedCount = 0;
 let failedCount = 0;
@@ -275,144 +274,9 @@ async function runPhase3ATests() {
   assert(serviceCode.includes('getTopicRelationships'), 'T32', 'AcademicTaxonomyService exposes getTopicRelationships method');
 
   // ------------------------------------------------------------------------
-  // Track 4: Exam Syllabus Mapping & Multi-Exam Reuse (T33 - T45)
+  // Track 4 (T33 - T45) RETIRED in GAP2-4b: services/exam-syllabus.service.ts (legacy exam_topics model) was
+  // deleted; the canonical syllabus is covered by scripts/test_gap2_4a_syllabus.cjs and test_gap2_4b_*.cjs.
   // ------------------------------------------------------------------------
-  console.log('\n--- Track 4: Exam Syllabus Mapping & Multi-Exam Reuse (T33 - T45) ---');
-  const requiredDepths = ['FOUNDATIONAL_ONLY', 'INTERMEDIATE_APPLICATION', 'ADVANCED_COMPETITIVE'];
-  assert(requiredDepths.length === 3, 'T33', 'Exactly 3 required_depth tiers supported (FOUNDATIONAL, INTERMEDIATE, ADVANCED)');
-
-  // Exam A (SSC CGL) Topic Mappings
-  const sscTopics = [
-    {
-      id: 'ssc-map-1',
-      exam_id: 'exam-ssc-cgl',
-      subject_id: 'sub-quant-1',
-      topic_id: 'top-perc-1',
-      importance_tier: 'CORE',
-      required_depth: 'INTERMEDIATE_APPLICATION',
-      is_mandatory: true,
-      display_order: 1,
-      is_active: true,
-      created_at: new Date().toISOString(),
-      topic: { name: 'Percentages' }
-    },
-    {
-      id: 'ssc-map-2',
-      exam_id: 'exam-ssc-cgl',
-      subject_id: 'sub-quant-1',
-      topic_id: 'top-prof-2',
-      importance_tier: 'HIGH',
-      required_depth: 'INTERMEDIATE_APPLICATION',
-      is_mandatory: true,
-      display_order: 2,
-      is_active: true,
-      created_at: new Date().toISOString(),
-      topic: { name: 'Profit & Loss' }
-    },
-  ];
-
-  // Exam B (UPSC CSAT) Topic Mappings - Reusing SAME topic IDs with DIFFERENT depth/importance
-  const upscTopics = [
-    {
-      id: 'upsc-map-1',
-      exam_id: 'exam-upsc-csat',
-      subject_id: 'sub-quant-1',
-      topic_id: 'top-perc-1', // Same canonical topic!
-      importance_tier: 'HIGH',
-      required_depth: 'ADVANCED_COMPETITIVE', // Higher depth required
-      is_mandatory: true,
-      display_order: 1,
-      is_active: true,
-      created_at: new Date().toISOString(),
-      topic: { name: 'Percentages' }
-    },
-    {
-      id: 'upsc-map-2',
-      exam_id: 'exam-upsc-csat',
-      subject_id: 'sub-quant-1',
-      topic_id: 'top-perm-3', // Topic unique to UPSC CSAT
-      importance_tier: 'CORE',
-      required_depth: 'ADVANCED_COMPETITIVE',
-      is_mandatory: true,
-      display_order: 2,
-      is_active: true,
-      created_at: new Date().toISOString(),
-      topic: { name: 'Permutations & Combinations' }
-    },
-  ];
-
-  const comparison = ExamSyllabusService.compareExamSyllabi(sscTopics, upscTopics);
-  assert(comparison.sharedTopicsCount === 1, 'T34', 'Cross-exam comparator identifies exactly 1 shared canonical topic');
-  assert(comparison.uniqueToACount === 1, 'T35', 'Identifies 1 topic unique to SSC CGL');
-  assert(comparison.uniqueToBCount === 1, 'T36', 'Identifies 1 topic unique to UPSC CSAT');
-
-  const sharedComparison = comparison.comparisons.find(c => c.topicId === 'top-perc-1');
-  assert(sharedComparison && sharedComparison.depthDiffers === true, 'T37', 'Correctly detects required_depth difference on shared topic');
-  assert(sharedComparison && sharedComparison.importanceDiffers === true, 'T38', 'Correctly detects importance_tier difference on shared topic');
-
-  // Exam Unit Sequencing
-  const examUnits = [
-    {
-      id: 'eum-1',
-      exam_topic_id: 'ssc-map-1',
-      learning_unit_id: 'unit-1',
-      sequence_order: 1,
-      is_exam_core: true,
-      is_active: true,
-      created_at: new Date().toISOString(),
-      learning_unit: { estimated_minutes: 15 }
-    },
-    {
-      id: 'eum-2',
-      exam_topic_id: 'ssc-map-1',
-      learning_unit_id: 'unit-2',
-      sequence_order: 2,
-      is_exam_core: true,
-      is_active: true,
-      created_at: new Date().toISOString(),
-      learning_unit: { estimated_minutes: 20 }
-    },
-    {
-      id: 'eum-3',
-      exam_topic_id: 'ssc-map-1',
-      learning_unit_id: 'unit-3',
-      sequence_order: 3,
-      is_exam_core: false, // Optional advanced shortcut unit
-      is_active: true,
-      created_at: new Date().toISOString(),
-      learning_unit: { estimated_minutes: 10 }
-    }
-  ];
-
-  assert(examUnits.length === 3, 'T39', 'Exam unit sequencing allows custom order per exam');
-  assert(examUnits[0].sequence_order < examUnits[1].sequence_order, 'T40', 'Maintains ascending sequence order');
-
-  // Syllabus Coverage & Workload Calculation
-  const mockOverview = {
-    exam_id: 'exam-ssc-cgl',
-    total_subjects: 1,
-    total_topics: 1,
-    total_learning_units: 3,
-    estimated_total_minutes: 45,
-    subjects: [
-      {
-        syllabus: { id: 'syl-1', exam_id: 'exam-ssc-cgl', subject_id: 'sub-quant-1', display_order: 1, is_active: true, created_at: '' },
-        topics: [
-          {
-            mapping: sscTopics[0],
-            units: examUnits
-          }
-        ]
-      }
-    ]
-  };
-
-  const coverage = ExamSyllabusService.calculateSyllabusCoverage(mockOverview);
-  assert(coverage.totalUnits === 3, 'T41', 'Coverage calculates total learning units (3)');
-  assert(coverage.coreUnitsCount === 2, 'T42', 'Coverage separates core units (2)');
-  assert(coverage.optionalUnitsCount === 1, 'T43', 'Coverage separates optional units (1)');
-  assert(coverage.estimatedMinutes === 45, 'T44', 'Coverage computes total estimated study minutes (45m)');
-  assert(coverage.estimatedHours === 0.8, 'T45', 'Coverage converts minutes to decimal study hours (0.8h)');
 
   // ------------------------------------------------------------------------
   // Track 5: Frozen Baseline Invariants & 14 Protected Tables (T46 - T60)

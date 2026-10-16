@@ -26,24 +26,19 @@ import {
   CurriculumQualityMetrics,
 } from '@/types/curriculum-coverage';
 
-/** Legacy row shapes the coverage matrix still expects (not in the live schema; TYPES-1:B-CURRICULUM-MAPPING, GAP2-4). */
-interface LegacyCoverageUnitRow {
-  id: string;
-  topic_id: string | null;
-  subtopic_id: string | null;
-  title: string;
-  slug: string;
-  unit_type: string;
-  display_order: number;
-  is_published: boolean;
+/** GAP2-4b: exam relevance of units comes from PUBLISHED canonical syllabus mappings (see PublishedTopicMappingRow). */
+/** GAP2-4b: exam relevance of a canonical topic = the UNIT nodes of PUBLISHED syllabus versions that map it. */
+interface PublishedTopicMappingRow {
+  canonical_node_id: string | null;
+  node: {
+    weightage_tier: string | null;
+    required_cognitive_depth: string | null;
+    is_mandatory: boolean;
+    version: { exam_id: string; exam: { id: string; title: string } | null } | null;
+  } | null;
 }
-interface LegacyExamUnitMappingRow {
-  learning_unit_id: string;
-  required_depth: string;
-  importance_tier: string;
-  is_mandatory: boolean;
-  exam_topic_mappings: { exam_syllabi: { exams: { id: string; title: string } | null } | null } | null;
-}
+const PUBLISHED_TOPIC_MAPPINGS_SELECT =
+  'canonical_node_id, node:exam_syllabus_nodes!inner(weightage_tier, required_cognitive_depth, is_mandatory, version:exam_syllabus_versions!inner(exam_id, exam:exams(id, title)))';
 
 export {
   CANONICAL_DOCUMENT_TYPES,
@@ -193,26 +188,27 @@ export class CurriculumCoverageService {
       supabase.from('exams').select('id, title, slug').eq('is_active', true),
       supabase.from('subjects').select('id, name, slug, display_order').order('display_order', { ascending: true }),
       supabase.from('topics').select('id, subject_id, name, slug, display_order').order('display_order', { ascending: true }),
-      supabase.from('learning_units').select('id, topic_id, subtopic_id, title, slug, unit_type, display_order, is_published').order('display_order', { ascending: true }),
+      supabase.from('learning_units').select('id, topic_id, subtopic_id, title, slug, unit_type, display_order, is_active').order('display_order', { ascending: true }),
       supabase.from('learning_documents').select('id, learning_unit_id, canonical_slug, document_type, status, updated_at'),
       supabase.from('document_versions').select('id, document_id, version_number, review_status, author_type, is_published, updated_at'),
       supabase.from('questions').select('id, canonical_topic_id, status'),
-      supabase.from('exam_unit_mappings').select('learning_unit_id, required_depth, importance_tier, is_mandatory, exam_topic_mappings(exam_syllabi(exams(id, title)))'),
+      supabase
+        .from('exam_syllabus_canonical_mappings')
+        .select(PUBLISHED_TOPIC_MAPPINGS_SELECT)
+        .eq('node.node_kind', 'UNIT')
+        .eq('node.version.status', 'PUBLISHED')
+        .eq('node.version.is_active', true),
     ]);
 
     const examsList = examsRes?.data || [];
     const subjectsList = subjectsRes?.data || [];
     const topicsList = topicsRes?.data || [];
-    // TYPES-1:B-CURRICULUM-MAPPING (tracked, GAP2-4) — learning_units has no is_published and exam_unit_mappings no longer
-    // links exam_topic_mappings / required_depth / importance_tier / is_mandatory: both reads always fail, so the matrix
-    // is reported UNAVAILABLE (HOTFIX-2; it no longer synthesises coverage). GAP2-4 replaces this matrix.
-    // @ts-expect-error TYPES-1:B-CURRICULUM-MAPPING — legacy learning_units columns (see above)
-    const unitsList: LegacyCoverageUnitRow[] | null | undefined = unitsRes?.data;
+    // GAP2-4b: a unit counts as live when is_active (learning_units has no is_published)
+    const unitsList = unitsRes?.data;
     const documentsList = docsRes?.data || [];
     const versionsList = versionsRes?.data || [];
     const questionsList = questionsRes?.data || [];
-    // @ts-expect-error TYPES-1:B-CURRICULUM-MAPPING — legacy exam_unit_mappings shape (see above)
-    const examMappingsList: LegacyExamUnitMappingRow[] | null | undefined = examMappingsRes?.data;
+    const examMappingsList = examMappingsRes?.data as PublishedTopicMappingRow[] | null | undefined;
 
     // HOTFIX-2 (decision #15): never synthesise coverage. Any failed source read → an explicit UNAVAILABLE matrix
     // (no units, documents, exam mappings or percentages are invented). An empty table is reported as empty.
@@ -225,13 +221,17 @@ export class CurriculumCoverageService {
         ['learning_documents', docsRes],
         ['document_versions', versionsRes],
         ['questions', questionsRes],
-        ['exam_unit_mappings', examMappingsRes],
+        ['exam_syllabus_canonical_mappings', examMappingsRes],
       ] as const
     )
       .filter(([, res]) => !res || res.error)
       .map(([name]) => name);
     if (failedReads.length > 0 || !unitsList || !examMappingsList) {
-      return CurriculumCoverageService.unavailableMatrix(`source reads failed: ${failedReads.join(', ') || 'learning_units / exam_unit_mappings'}`);
+      return CurriculumCoverageService.unavailableMatrix(`source reads failed: ${failedReads.join(', ') || 'learning_units / exam_syllabus_canonical_mappings'}`);
+    }
+    // GAP2-4b: exam coverage is defined by published syllabi; with none published there is nothing to measure against.
+    if (examMappingsList.length === 0) {
+      return CurriculumCoverageService.unavailableMatrix('no published syllabus yet (publish one in /admin/syllabus)');
     }
 
     // Map versions by document_id
@@ -259,23 +259,23 @@ export class CurriculumCoverageService {
       }
     }
 
-    // Map exam mappings by learning_unit_id
-    const examMappingsByUnitId = new Map<string, any[]>();
+    // Exam relevance by canonical topic (from PUBLISHED syllabus UNIT mappings); a unit inherits its topic's exams
+    const examMappingsByTopicId = new Map<string, Array<{ examId: string; examTitle: string; requiredDepth?: string; importanceTier?: string; isMandatory: boolean }>>();
     for (const mapping of examMappingsList) {
-      const uId = mapping.learning_unit_id;
-      if (!examMappingsByUnitId.has(uId)) {
-        examMappingsByUnitId.set(uId, []);
-      }
-      const examObj = mapping.exam_topic_mappings?.exam_syllabi?.exams;
-      if (examObj) {
-        examMappingsByUnitId.get(uId)!.push({
+      const topicId = mapping.canonical_node_id;
+      const examObj = mapping.node?.version?.exam;
+      if (!topicId || !examObj || !mapping.node) continue;
+      const list = examMappingsByTopicId.get(topicId) ?? [];
+      if (!list.some((e) => e.examId === examObj.id)) {
+        list.push({
           examId: examObj.id,
           examTitle: examObj.title,
-          requiredDepth: mapping.required_depth,
-          importanceTier: mapping.importance_tier,
-          isMandatory: mapping.is_mandatory,
+          requiredDepth: mapping.node.required_cognitive_depth ?? undefined,
+          importanceTier: mapping.node.weightage_tier ?? undefined,
+          isMandatory: mapping.node.is_mandatory,
         });
       }
+      examMappingsByTopicId.set(topicId, list);
     }
 
     // Counters for overall and by-doctype metrics
@@ -335,7 +335,7 @@ export class CurriculumCoverageService {
         let topPublishedDocSlots = 0;
 
         for (const unit of topicUnits) {
-          const unitMappedExams = examMappingsByUnitId.get(unit.id) || [];
+          const unitMappedExams = (unit.topic_id ? examMappingsByTopicId.get(unit.topic_id) : undefined) || [];
 
           // Filter by examId if requested
           if (filters?.examId) {
@@ -509,17 +509,6 @@ export class CurriculumCoverageService {
     const matrix = await this.getCurriculumCoverageMatrix(supabaseClient);
     const supabase = supabaseClient || (await createServerSupabaseClient());
 
-    let mappedUnitIds = new Set<string>();
-    try {
-      const { data: rawMappings } = await supabase
-        .from('exam_unit_mappings')
-        .select('learning_unit_id, exam_topic_mappings(exam_syllabi(exams(id, title)))');
-      if (rawMappings) {
-        mappedUnitIds = new Set(rawMappings.map((m: any) => m.learning_unit_id));
-      }
-    } catch {
-      // Fallback
-    }
 
     let totalUnits = 0;
     let mappedUnits = 0;
@@ -537,8 +526,6 @@ export class CurriculumCoverageService {
         for (const u of top.units) {
           totalUnits++;
           if (u.mappedExams && u.mappedExams.length > 0) {
-            mappedUnits++;
-          } else if (mappedUnitIds.has(u.unitId)) {
             mappedUnits++;
           } else {
             unmappedUnits++;
@@ -680,71 +667,4 @@ export class CurriculumCoverageService {
     return { exists: false };
   }
 
-  /**
-   * Multi-Exam Mapping Governance: Maps an existing canonical learning unit to an exam syllabus topic
-   * Invariant: Updates exam_unit_mappings, NEVER duplicates the learning unit identity.
-   */
-  static async mapUnitToExam(
-    params: {
-      learningUnitId: string;
-      examTopicMappingId: string;
-      requiredDepth?: string;
-      importanceTier?: string;
-      isMandatory?: boolean;
-    },
-    supabaseClient?: AppSupabaseClient
-  ): Promise<{ success: boolean; mapping: any }> {
-    const supabase = supabaseClient || createAdminServerSupabaseClient();
-
-    try {
-      // Check if already mapped
-      const { data: existing } = await supabase
-        .from('exam_unit_mappings')
-        .select('*')
-        .eq('learning_unit_id', params.learningUnitId)
-        // @ts-expect-error TYPES-1:B-CURRICULUM-MAPPING — legacy exam_unit_mappings columns; this upsert always fails today (GAP2-4)
-        .eq('exam_topic_mapping_id', params.examTopicMappingId)
-        .maybeSingle();
-
-      if (existing) {
-        // Update existing mapping attributes
-        const { data: updated, error } = await supabase
-          .from('exam_unit_mappings')
-          // @ts-expect-error TYPES-1:B-CURRICULUM-MAPPING — legacy exam_unit_mappings columns (GAP2-4)
-          .update({ required_depth: params.requiredDepth || existing.required_depth, importance_tier: params.importanceTier || existing.importance_tier, is_mandatory: params.isMandatory !== undefined ? params.isMandatory : existing.is_mandatory, updated_at: new Date().toISOString() })
-          .eq('id', existing.id)
-          .select()
-          .single();
-
-        if (error) {
-          throw new Error(`Failed to update exam unit mapping: ${error.message}`);
-        }
-        return { success: true, mapping: updated };
-      }
-
-      // Insert new mapping
-      const { data: created, error } = await supabase
-        .from('exam_unit_mappings')
-        .insert({
-          learning_unit_id: params.learningUnitId,
-          // @ts-expect-error TYPES-1:B-CURRICULUM-MAPPING — legacy exam_unit_mappings columns (GAP2-4)
-          exam_topic_mapping_id: params.examTopicMappingId,
-          required_depth: params.requiredDepth || 'STANDARD',
-          importance_tier: params.importanceTier || 'CORE',
-          is_mandatory: params.isMandatory !== undefined ? params.isMandatory : true,
-        })
-        .select()
-        .single();
-
-      if (error) {
-        throw new Error(`Failed to create exam unit mapping: ${error.message}`);
-      }
-
-      return { success: true, mapping: created };
-    } catch (err: any) {
-      // SEC-1B: no fake success (an in-memory mapping used to be returned on ANY error);
-      // the referenced exam_topic_mapping_id column does not exist — see GAP2-1a D2.)
-      throw err;
-    }
-  }
 }

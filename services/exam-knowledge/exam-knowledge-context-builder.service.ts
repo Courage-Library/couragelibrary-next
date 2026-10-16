@@ -23,6 +23,7 @@ import {
   EXAM_PROMPT_CONTRACT_VERSION,
 } from '@/types/exam-knowledge';
 import { ExamModuleRegistry } from './exam-module-registry';
+import type { AppSupabaseClient } from '@/lib/supabase/types';
 
 const MAX_CONTEXT_CHARACTERS = 32000;
 const MAX_QUESTION_REFERENCES = 5;
@@ -34,7 +35,7 @@ export interface ExamKnowledgeContextParams {
   examCycleId?: string | null;
   moduleKey: ExamModuleKey;
   language?: string;
-  supabaseClient?: any;
+  supabaseClient?: AppSupabaseClient;
   prefetchedData?: {
     exam?: any;
     conductingOrg?: any;
@@ -143,7 +144,12 @@ export class ExamKnowledgeContextBuilder {
 
       // 3. Fetch Patterns & Posts
       const [pattRes, postsRes] = await Promise.all([
-        supabaseClient.from('exam_patterns').select('*').eq('category_id', examData.category_id || examData.id),
+        // GAP2-4b: patterns belong to cycles (exam_patterns has no category_id / exam_id)
+        supabaseClient
+          .from('exam_patterns')
+          .select('id, name, tier_name, duration_minutes, total_questions, total_marks, negative_mark_value, exam_cycle_id, exam_cycles!inner(exam_id)')
+          .eq('exam_cycles.exam_id', examId)
+          .eq('is_active', true),
         supabaseClient.from('exam_posts').select('*').eq('exam_id', examId).eq('is_active', true),
       ]);
       patternsData = pattRes.data || [];
@@ -158,11 +164,12 @@ export class ExamKnowledgeContextBuilder {
       sourcesData = srcs || [];
 
       // 5. Fetch Claims & Claim Sources
+      // GAP2-4b: exam_claims has no module_key; the module is the claim's document (doc_version → document).
       let claimQuery = supabaseClient
         .from('exam_claims')
-        .select('*')
+        .select('*, doc_version:exam_doc_versions!inner(document:exam_knowledge_documents!exam_doc_versions_document_id_fkey!inner(module_key))')
         .eq('exam_id', examId)
-        .eq('module_key', moduleKey);
+        .eq('doc_version.document.module_key', moduleKey);
       if (examCycleId) {
         claimQuery = claimQuery.or(`exam_cycle_id.eq.${examCycleId},exam_cycle_id.is.null`);
       }
@@ -216,9 +223,12 @@ export class ExamKnowledgeContextBuilder {
 
       // 8. Fetch Questions if module is PREPARATION or SYLLABUS
       if (moduleKey === 'PREPARATION' || moduleKey === 'PREPARATION_STRATEGY' || moduleKey === 'SYLLABUS') {
+        // GAP2-4b (EKX-221): questions have canonical_topic_id (no topic_id / year / tier); PYQ year and tier come
+        // from question_sources. Published questions only.
         const { data: qs } = await supabaseClient
           .from('questions')
-          .select('id, topic_id, year, tier, topic:canonical_taxonomy_nodes!questions_canonical_topic_id_node_fkey(name)')
+          .select('id, canonical_topic_id, topic:canonical_taxonomy_nodes!questions_canonical_topic_id_node_fkey(name, subject:root_subject_id(name)), question_sources(exam_name, year, tier_stage)')
+          .eq('status', 'published')
           .limit(MAX_QUESTION_REFERENCES);
         questionsData = qs || [];
       }
@@ -263,10 +273,11 @@ export class ExamKnowledgeContextBuilder {
         id: p.id,
         name: p.name || 'Standard Tier Pattern',
         tierName: p.tier_name || null,
-        durationMinutes: p.duration_minutes || 60,
-        totalQuestions: p.total_questions || 100,
-        totalMarks: p.total_marks || 200,
-        negativeMarkValue: Number(p.negative_mark_value || 0.5),
+        // real values only (null when not recorded)
+        durationMinutes: p.duration_minutes ?? null,
+        totalQuestions: p.total_questions ?? null,
+        totalMarks: p.total_marks ?? null,
+        negativeMarkValue: p.negative_mark_value === null || p.negative_mark_value === undefined ? null : Number(p.negative_mark_value),
       })),
       posts: postsData.map((post) => ({
         id: post.id,
@@ -317,17 +328,22 @@ export class ExamKnowledgeContextBuilder {
     // Format Question Bank Context
     const questionBankContext = {
       totalQuestionsAvailable: questionsData.length,
-      subjectDistribution: subjectsData.reduce((acc: Record<string, number>, s: any) => {
-        acc[s.name] = 25; // standard tier distribution
+      // counted from the fetched questions' canonical subjects (no assumed distribution)
+      subjectDistribution: questionsData.reduce((acc: Record<string, number>, q: any) => {
+        const subject = q.topic?.subject?.name;
+        if (subject) acc[subject] = (acc[subject] || 0) + 1;
         return acc;
       }, {}),
-      questionReferences: questionsData.slice(0, MAX_QUESTION_REFERENCES).map((q) => ({
-        questionVersionId: q.id,
-        questionId: q.id,
-        year: q.year || 2024,
-        tier: q.tier || 'Tier 1',
-        topicName: q.topic?.name || 'General Topic',
-      })),
+      questionReferences: questionsData.slice(0, MAX_QUESTION_REFERENCES).map((q) => {
+        const src = Array.isArray(q.question_sources) ? q.question_sources[0] : q.question_sources;
+        return {
+          questionVersionId: q.id,
+          questionId: q.id,
+          year: src?.year ?? undefined,
+          tier: src?.tier_stage ?? undefined,
+          topicName: q.topic?.name || 'Untagged',
+        };
+      }),
     };
 
     // Format Existing Document State

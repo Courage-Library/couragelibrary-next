@@ -10,6 +10,8 @@
  *   preBroken: the original select already fails before the flip (missing column / relationship);
  *              the test then only asserts no NEW relationship error appears.
  *   allowDiff: embedded keys whose VALUES may differ (node-backed `*` mappings); keys stay identical.
+ *   retired: the code site was removed later (GAP2-4b re-pointed syllabus readers to the canonical read model); the
+ *            static presence check skips it, the DB embed comparison (historical FK-flip proof) still runs.
  */
 
 // Node columns re-expressed in the shape of each projection table (keys identical to `*`).
@@ -89,13 +91,13 @@ module.exports = [
     select: 'id, slug, title_en, description, access_tier, card_count, is_curated, topics(name, slug), subjects(name), exams(title)',
     old: 'topics(name, slug), subjects(name)', neu: `topics:${fk('flashcard_decks', 'topic_id')}(name, slug), subjects:${fk('flashcard_decks', 'subject_id')}(name)` },
   // ---- exam knowledge / syllabus (admin) ----
-  { id: 'EKC-161', file: 'services/exam-knowledge/exam-knowledge-candidate.service.ts', line: 161, table: 'exam_topics', session: 'admin',
+  { id: 'EKC-161', file: 'services/exam-knowledge/exam-knowledge-candidate.service.ts', line: 161, table: 'exam_topics', session: 'admin', retired: 'GAP2-4b',
     select: '*, topic:topics(*)', old: 'topic:topics(*)', neu: `topic:${fk('exam_topics', 'topic_id')}(${TOPIC_STAR})`, allowDiff: STAR_DIFF },
   { id: 'EKX-184', file: 'services/exam-knowledge/exam-knowledge-context-builder.service.ts', line: 184, table: 'topics', session: 'admin',
     select: '*, subject:subjects(name)', old: 'subject:subjects(name)', neu: `subject:${fk('topics', 'subject_id')}(name)` },
-  { id: 'EKX-221', file: 'services/exam-knowledge/exam-knowledge-context-builder.service.ts', line: 221, table: 'questions', session: 'admin', preBroken: true,
+  { id: 'EKX-221', file: 'services/exam-knowledge/exam-knowledge-context-builder.service.ts', line: 221, table: 'questions', session: 'admin', preBroken: true, retired: 'GAP2-4b',
     select: 'id, topic_id, year, tier, topic:topics(name)', old: 'topic:topics(name)', neu: `topic:${fk('questions', 'canonical_topic_id')}(name)` },
-  { id: 'ES-45', file: 'services/exam-syllabus.service.ts', line: 45, all: true, table: 'exam_topics', session: 'admin',
+  { id: 'ES-45', file: 'services/exam-syllabus.service.ts', line: 45, all: true, table: 'exam_topics', session: 'admin', retired: 'GAP2-4b',
     select: '*, topic:topics(*)', old: 'topic:topics(*)', neu: `topic:${fk('exam_topics', 'topic_id')}(${TOPIC_STAR})`, allowDiff: STAR_DIFF },
   // ---- mistake vault (student) ----
   { id: 'MLI-641', file: 'services/mistake-longitudinal-intelligence.service.ts', line: 641, table: 'user_mistake_vault', session: 'student',
@@ -141,10 +143,8 @@ module.exports.SPECIAL = [
     before: { table: 'subjects', select: 'id, name, slug, topics(id, name)', filters: 'is_active=eq.true&order=display_order.asc' },
     after: { table: "canonical_taxonomy_nodes", select: `id, name, slug, topics:${N}!parent_id(id, name)`, filters: 'node_type=eq.SUBJECT&is_active=eq.true&order=display_order.asc' } },
 ];
-// Pre-existing broken and NOT taxonomy-flip related (root table has no taxonomy column): left untouched.
-module.exports.UNTOUCHED = [
-  { id: 'EKC-155', file: 'services/exam-knowledge/exam-knowledge-candidate.service.ts', table: 'exam_syllabi', select: '*, subject:subjects(*)', reason: 'exam_syllabi has no subject_id column — relationship never existed' },
-  { id: 'ES-33', file: 'services/exam-syllabus.service.ts', table: 'exam_syllabi', select: '*, subject:subjects(*)', reason: 'exam_syllabi has no subject_id column — relationship never existed' },
-];
+// Pre-existing broken and NOT taxonomy-flip related (root table has no taxonomy column). GAP2-4b removed both
+// sites (EKC-155 re-pointed to the syllabus read model; ES-33's dead service deleted), so the list is empty.
+module.exports.UNTOUCHED = [];
 module.exports.TOPIC_STAR = TOPIC_STAR;
 module.exports.SUBJECT_STAR = SUBJECT_STAR;

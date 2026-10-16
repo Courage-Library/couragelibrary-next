@@ -12,18 +12,21 @@ import {
   ExamModuleKey,
 } from '@/types/exam-knowledge';
 
+/** The fields the immutability guard reads (DB rows carry review_status as plain text). */
+type VersionMutabilityFields = Pick<Partial<ExamDocVersion>, 'id' | 'version_number' | 'is_published'> & { review_status?: string };
+
 export class ExamKnowledgeService {
   /**
    * Evaluates if a given version is immutable.
    */
-  static isImmutable(version: Partial<ExamDocVersion>): boolean {
+  static isImmutable(version: VersionMutabilityFields): boolean {
     return version.is_published === true || version.review_status === 'PUBLISHED';
   }
 
   /**
    * Enforces immutability guard before any update or delete.
    */
-  static assertMutable(version: Partial<ExamDocVersion>): void {
+  static assertMutable(version: VersionMutabilityFields): void {
     if (this.isImmutable(version)) {
       throw new Error(
         `ExamDocVersion ${version.id || 'unidentified'} (v${version.version_number}) is PUBLISHED and permanently immutable. Create a new version to apply changes.`

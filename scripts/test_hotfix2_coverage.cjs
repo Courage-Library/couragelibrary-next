@@ -2,14 +2,15 @@
  * HOTFIX-2: curriculum coverage never fabricates values (decision #15). Unit test, NO network.
  *
  * Runs the real CurriculumCoverageService (transpiled) against a mocked Supabase client:
- *   H2-1 failing learning_units / exam_unit_mappings reads (today's production state) → status UNAVAILABLE, zero values,
+ *   H2-1 failing learning_units / syllabus-mapping reads → status UNAVAILABLE, zero values,
  *        no subjects / exams, and NONE of the former fabricated values (pilot document, pilot version, default exam,
  *        synthesised "unit-…" ids) appear anywhere in the result
  *   H2-2 any other failing source read → UNAVAILABLE too (no partial numbers)
- *   H2-3 all reads succeed but tables are empty → AVAILABLE with honest zeros and nothing synthesised
+ *   H2-3 a published syllabus exists, other tables empty → AVAILABLE with honest zeros and nothing synthesised
  *   H2-4 quality metrics inherit UNAVAILABLE and report zero units
  *   H2-5 static: the fabrication code is gone; the coverage view renders the notice (no figures) when UNAVAILABLE;
- *        the B-CURRICULUM-MAPPING tags remain for GAP2-4
+ *        GAP2-4b: no legacy exam_unit_mappings / exam_syllabi / exam_topics reads and no B-CURRICULUM-MAPPING directives
+ *   H2-6 GAP2-4b: no published syllabus anywhere → UNAVAILABLE (nothing to measure against), zero values
  *
  * Run: node scripts/test_hotfix2_coverage.cjs
  */
@@ -66,6 +67,9 @@ function mockClient(results) {
   };
 }
 const FAIL = { data: null, error: { code: '42703', message: 'column does not exist' } };
+// one PUBLISHED syllabus UNIT mapping (shape of the canonical read used by the coverage service)
+const PUBLISHED_MAPPING = { data: [{ canonical_node_id: 'top-1', node: { weightage_tier: 'CORE', required_cognitive_depth: null, is_mandatory: true, version: { exam_id: 'exam-1', exam: { id: 'exam-1', title: 'SSC CGL' } } } }], error: null };
+const MAP = 'exam_syllabus_canonical_mappings';
 const LIVE_ROWS = {
   exams: { data: [{ id: 'exam-1', title: 'SSC CGL', slug: 'ssc-cgl' }], error: null },
   subjects: { data: [{ id: 'sub-1', name: 'Quantitative Aptitude', slug: 'quantitative-aptitude', display_order: 1 }], error: null },
@@ -81,10 +85,10 @@ const FABRICATED = ['doc-pilot-percentage-concept', 'ver-pilot-percentage-v1', '
   console.log('HOTFIX-2 curriculum coverage (no fabricated values)');
   const { CurriculumCoverageService } = require(path.join(ROOT, 'services/curriculum-coverage.service.ts'));
 
-  await test('H2-1 failing learning_units + exam_unit_mappings (production today) → UNAVAILABLE, no fabricated values', async () => {
-    const m = await CurriculumCoverageService.getCurriculumCoverageMatrix(mockClient({ ...LIVE_ROWS, learning_units: FAIL, exam_unit_mappings: FAIL }));
+  await test('H2-1 failing learning_units + syllabus mappings → UNAVAILABLE, no fabricated values', async () => {
+    const m = await CurriculumCoverageService.getCurriculumCoverageMatrix(mockClient({ ...LIVE_ROWS, learning_units: FAIL, [MAP]: FAIL }));
     assert(m.status === 'UNAVAILABLE', `status ${m.status}`);
-    assert(/learning_units/.test(m.unavailableReason) && /exam_unit_mappings/.test(m.unavailableReason), `reason: ${m.unavailableReason}`);
+    assert(/learning_units/.test(m.unavailableReason) && new RegExp(MAP).test(m.unavailableReason), `reason: ${m.unavailableReason}`);
     assert(m.subjects.length === 0 && m.exams.length === 0, 'subjects/exams must be empty');
     assert(Object.values(m.overall).every((v) => v === 0), `overall not zero: ${JSON.stringify(m.overall)}`);
     assert(Object.values(m.byDocumentType).every((d) => Object.values(d).every((v) => v === 0)), 'byDocumentType not zero');
@@ -95,15 +99,15 @@ const FABRICATED = ['doc-pilot-percentage-concept', 'ver-pilot-percentage-v1', '
 
   await test('H2-2 any other failing source read → UNAVAILABLE (no partial numbers)', async () => {
     for (const t of ['exams', 'subjects', 'topics', 'learning_documents', 'document_versions', 'questions']) {
-      const ok = { ...LIVE_ROWS, learning_units: { data: [], error: null }, exam_unit_mappings: { data: [], error: null }, [t]: FAIL };
+      const ok = { ...LIVE_ROWS, learning_units: { data: [], error: null }, [MAP]: PUBLISHED_MAPPING, [t]: FAIL };
       const m = await CurriculumCoverageService.getCurriculumCoverageMatrix(mockClient(ok));
       assert(m.status === 'UNAVAILABLE' && m.unavailableReason.includes(t), `${t}: ${m.status} ${m.unavailableReason}`);
     }
     return '6 tables';
   });
 
-  await test('H2-3 all reads succeed, tables empty → AVAILABLE, honest zeros, nothing synthesised', async () => {
-    const m = await CurriculumCoverageService.getCurriculumCoverageMatrix(mockClient({ ...LIVE_ROWS, learning_units: { data: [], error: null }, exam_unit_mappings: { data: [], error: null } }));
+  await test('H2-3 published syllabus, other tables empty → AVAILABLE, honest zeros, nothing synthesised', async () => {
+    const m = await CurriculumCoverageService.getCurriculumCoverageMatrix(mockClient({ ...LIVE_ROWS, learning_units: { data: [], error: null }, [MAP]: PUBLISHED_MAPPING }));
     assert(m.status === 'AVAILABLE', `status ${m.status}`);
     assert(m.overall.totalUnits === 0 && m.overall.publishedDocSlots === 0 && m.overall.overallCoveragePct === 0, JSON.stringify(m.overall));
     const json = JSON.stringify(m);
@@ -112,22 +116,30 @@ const FABRICATED = ['doc-pilot-percentage-concept', 'ver-pilot-percentage-v1', '
   });
 
   await test('H2-4 quality metrics inherit UNAVAILABLE and report zero units', async () => {
-    const q = await CurriculumCoverageService.getCurriculumQualityMetrics(mockClient({ ...LIVE_ROWS, learning_units: FAIL, exam_unit_mappings: FAIL }));
+    const q = await CurriculumCoverageService.getCurriculumQualityMetrics(mockClient({ ...LIVE_ROWS, learning_units: FAIL, [MAP]: FAIL }));
     assert(q.status === 'UNAVAILABLE', `status ${q.status}`);
     assert(q.totalLearningUnits === 0 && q.mappedLearningUnits === 0, JSON.stringify(q).slice(0, 200));
   });
 
-  await test('H2-5 static: fabrication code removed; view shows the notice; B-CURRICULUM-MAPPING tags kept', async () => {
+  await test('H2-5 static: fabrication code removed; view shows the notice; no legacy reads, no B-CURRICULUM-MAPPING directives', async () => {
     const svc = fs.readFileSync(path.join(ROOT, 'services/curriculum-coverage.service.ts'), 'utf8');
     for (const f of ['doc-pilot-percentage-concept', 'defaultExam', 'synthesize canonical units', '5ecaf736-b8c4-41fb-990a-feb306429cfb']) assert(!svc.includes(f), `service still contains ${f}`);
-    assert((svc.match(/@ts-expect-error TYPES-1:B-CURRICULUM-MAPPING/g) || []).length === 5, 'B-CURRICULUM-MAPPING directives must stay (GAP2-4)');
+    assert(!/B-CURRICULUM-MAPPING/.test(svc), 'B-CURRICULUM-MAPPING directives must be gone (GAP2-4b)');
+    assert(!/exam_unit_mappings|exam_syllabi|exam_topics|mapUnitToExam/.test(svc), 'legacy syllabus tables / mapUnitToExam still referenced');
     const view = fs.readFileSync(path.join(ROOT, 'components/admin/content-studio/curriculum-coverage-view.tsx'), 'utf8');
     const i = view.indexOf('if (matrix && matrix.status === "UNAVAILABLE")');
     assert(i > 0, 'view must branch on UNAVAILABLE');
     const block = view.slice(i, view.indexOf('// If full matrix is not supplied', i));
     assert(block.includes('{COVERAGE_UNAVAILABLE_MESSAGE}') && !/matrix\.overall|matrix\.subjects|%/.test(block.replace(/className="[^"]*"/g, '')), 'unavailable branch must show the notice and no figures');
     const types = fs.readFileSync(path.join(ROOT, 'types/curriculum-coverage.ts'), 'utf8');
-    assert(types.includes("COVERAGE_UNAVAILABLE_MESSAGE = 'Coverage unavailable — pending syllabus rebuild (GAP2-4)'"), 'message text');
+    assert(types.includes("COVERAGE_UNAVAILABLE_MESSAGE = 'Coverage unavailable — no syllabus is published yet, or a source could not be read'"), 'message text');
+  });
+
+  await test('H2-6 no published syllabus anywhere → UNAVAILABLE (nothing to measure against), zero values', async () => {
+    const m = await CurriculumCoverageService.getCurriculumCoverageMatrix(mockClient({ ...LIVE_ROWS, learning_units: { data: [], error: null }, [MAP]: { data: [], error: null } }));
+    assert(m.status === 'UNAVAILABLE' && /no published syllabus/.test(m.unavailableReason), `${m.status} ${m.unavailableReason}`);
+    assert(Object.values(m.overall).every((v) => v === 0) && m.subjects.length === 0, 'figures shown without a published syllabus');
+    return m.unavailableReason;
   });
 
   console.log(`\nHOTFIX-2 coverage: ${passed}/${passed + failed} passed`);
