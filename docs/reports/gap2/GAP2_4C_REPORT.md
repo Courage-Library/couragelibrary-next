@@ -157,7 +157,17 @@
 
 ## 7. Production
 
-PRODUCTION_RESULT
+| Check | Result |
+|---|---|
+| `wait-for-deploy` `bea0dc6` | deployed (200) |
+| Anonymous smoke (home, health, admin redirect, flag-off routes) | all passed |
+| anon `GET /rest/v1/exam_topics` | **404 PGRST205** (retired, not exposed) |
+| anon `POST /rest/v1/rpc/fn_delete_exam_controlled` / `fn_award_gamification_reward` (zero uuids) | 401 / 42501 · 401 / 42501 (082 / 083 lockdowns intact) |
+| `GET /exams/ssc-cgl` | 200, "Syllabus coming soon" |
+| `/api/admin/syllabus-reconciliation/work-queue` | 404 (route removed) |
+| `/admin/syllabus-reconciliation` (anonymous) | 307 to login (middleware, as for every `/admin/*` path); the page no longer exists |
+
+Signed-in production smokes (`admin-pages` 15 pages, `staff-content`) are the owner's.
 
 ## 8. Open items
 
