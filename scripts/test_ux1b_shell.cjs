@@ -5,7 +5,8 @@
  *       stripped. Forbidden: "Phase 3J", "Pilot", "Command Center", "authoritative", "deterministic",
  *       "telemetry", "SRS", "SM-2", "UUID", "canonical Question Bank / curriculum", "taxonomies", "debug",
  *       visible "Supabase"
- *   U-2 no dead links in the shell: every href in components/shell resolves to an app/ route (page.tsx)
+ *   U-2 no dead links in the shell: every href in components/shell resolves to an app/ route (page.tsx);
+ *       U-2b the same for the admin sidebar (GAP2-4c)
  *   U-3 shell structure: skip link → #main-content; one <main id="main-content">; header / nav / footer
  *       landmarks; the mobile menu and account sheet use the native-dialog Dialog; the bottom nav hides in
  *       admin and the test console and reserves its height (no layout shift)
@@ -139,6 +140,21 @@ test('U-2 no dead links: every shell href resolves to an existing app route', ()
   assert(hrefs.size >= 15, `only ${hrefs.size} hrefs found`);
   assert(bad.length === 0, `no route for: ${bad.join(', ')}`);
   return `${hrefs.size} hrefs, all routed`;
+});
+
+test('U-2b no dead links in the admin sidebar (GAP2-4c: retired workbench link removed)', () => {
+  const routes = new Set(
+    walk(path.join(ROOT, 'app'))
+      .map(rel)
+      .filter((r) => /\/page\.tsx$/.test(r))
+      .map((r) => '/' + r.replace(/^app\/?/, '').replace(/\/?page\.tsx$/, '')),
+  );
+  const s = read('components/admin/admin-sidebar.tsx');
+  const hrefs = new Set([...s.matchAll(/href(?:=|: )"([^"#?]+)"/g)].map((m) => m[1]));
+  const bad = [...hrefs].filter((h) => !routes.has(h.replace(/\/$/, '') || '/'));
+  assert(hrefs.size >= 20, `only ${hrefs.size} hrefs found`);
+  assert(bad.length === 0, `no route for: ${bad.join(', ')}`);
+  return `${hrefs.size} admin hrefs, all routed`;
 });
 
 test('U-3 shell structure: skip link, one main, landmarks, dialog-based menus, safe bottom nav', () => {

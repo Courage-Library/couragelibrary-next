@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition, type KeyboardEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowUp, ChevronRight, CornerDownRight, Lock, Plus, Rocket, ShieldCheck, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronRight, CornerDownRight, Lightbulb, Lock, Plus, Rocket, ShieldCheck, Trash2 } from "lucide-react";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,7 @@ import {
   type SyllabusWeightageTier,
 } from "@/types/syllabus";
 import type { SyllabusEditorState } from "@/lib/syllabus/editor-state";
+import { suggestTopics, type TopicSuggestion } from "@/lib/syllabus/topic-suggest";
 
 type Props = {
   version: SyllabusVersionRow;
@@ -319,8 +320,11 @@ export function SyllabusEditor({ version, exam, nodes: initialNodes, topics, ini
   const [subjectFilter, setSubjectFilter] = useState("");
   const [picked, setPicked] = useState<Array<{ topic_id: string; weight: string }>>([]);
   const [useWeights, setUseWeights] = useState(false);
+  // GAP2-4c: read-only suggestions from the unit title; staff still tick and press "Save topics" (no auto-mapping)
+  const [suggestions, setSuggestions] = useState<Array<TopicSuggestion<(typeof topics)[number]>> | null>(null);
   useEffect(() => {
     if (!selected) return;
+    setSuggestions(null);
     setPicked(selected.mappings.map((m) => ({ topic_id: m.topic_id, weight: m.weight === null ? "" : String(m.weight) })));
     setUseWeights(selected.mappings.some((m) => m.weight !== null));
     setQuery("");
@@ -561,6 +565,40 @@ export function SyllabusEditor({ version, exam, nodes: initialNodes, topics, ini
                     <Field id="topic-subject" label="Subject">
                       <Select value={subjectFilter} onChange={(e) => setSubjectFilter(e.target.value)} options={[{ value: "", label: "All subjects" }, ...subjects.map(([value, label]) => ({ value, label }))]} />
                     </Field>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <div>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => setSuggestions(suggestTopics(selected.title, topics))}
+                        leadingIcon={<Lightbulb aria-hidden="true" className="size-4" />}
+                      >
+                        Suggest topics
+                      </Button>
+                    </div>
+                    {suggestions !== null &&
+                      (suggestions.length === 0 ? (
+                        <p className="text-body-sm text-fg-secondary" role="status">
+                          No close matches for &ldquo;{selected.title}&rdquo;. Search the list below.
+                        </p>
+                      ) : (
+                        <fieldset className="rounded-control border border-line px-3 pb-2">
+                          <legend className="px-1 text-body-sm font-medium text-fg">Suggested topics</legend>
+                          <p className="text-body-sm text-fg-secondary">Suggestions only. Tick the topics that apply, then save.</p>
+                          {suggestions.map(({ topic: t, score }) => (
+                            <Checkbox
+                              key={t.id}
+                              label={t.name}
+                              description={`${t.subject_name ?? "Subject"} · ${Math.round(score * 100)}% match`}
+                              checked={picked.some((p) => p.topic_id === t.id)}
+                              onChange={(e) =>
+                                setPicked((cur) => (e.target.checked ? [...cur, { topic_id: t.id, weight: "" }] : cur.filter((p) => p.topic_id !== t.id)))
+                              }
+                            />
+                          ))}
+                        </fieldset>
+                      ))}
                   </div>
                   <fieldset className="max-h-64 overflow-y-auto rounded-control border border-line px-3">
                     <legend className="sr-only">Active topics</legend>

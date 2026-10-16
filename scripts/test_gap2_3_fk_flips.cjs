@@ -25,6 +25,9 @@ const MIGRATION = 'supabase/migrations/20261013000075_gap2_3_taxonomy_fk_flips.s
 // Tables whose rows come and go with permanent-QA-identity E2E runs (TYPES-1 B0 hardening; the baseline
 // was captured while qa-student held 3 transient rows there).
 const QA_VOLATILE = new Set(['user_mistake_vault']);
+// GAP2-4c (migration 084) moved these flipped tables to schema retired: their data is still hashed there (D-06), and
+// PostgREST must no longer expose them (E-01 / E-04 assert "not found" instead of comparing embeds).
+const RETIRED_LATER = new Set(['exam_topics']);
 const ROLLBACK = 'docs/database/rollback/075_rollback.sql';
 
 let passed = 0;
@@ -120,12 +123,14 @@ async function tableHashes(client) {
   const q = async (s, p = []) => (await c.query(s, p)).rows;
   await c.query('BEGIN READ ONLY');
   try {
-    const tables = (await q(`SELECT DISTINCT cl.relname t FROM pg_constraint con JOIN pg_class cl ON cl.oid=con.conrelid JOIN pg_class tg ON tg.oid=con.confrelid
-      WHERE con.contype='f' AND cl.relnamespace='public'::regnamespace AND (tg.relname IN ('subjects','topics','subtopics') OR con.conname ~ '_node_fkey$') ORDER BY 1`)).map((r) => r.t);
+    // public tables, plus flipped tables later moved to schema retired (GAP2-4c) — keyed by table name
+    const tables = await q(`SELECT DISTINCT cl.relname t, cl.relnamespace::regnamespace::text s FROM pg_constraint con JOIN pg_class cl ON cl.oid=con.conrelid JOIN pg_class tg ON tg.oid=con.confrelid
+      WHERE con.contype='f' AND (cl.relnamespace='public'::regnamespace OR (cl.relnamespace=to_regnamespace('retired') AND cl.relname = ANY($1)))
+        AND (tg.relname IN ('subjects','topics','subtopics') OR con.conname ~ '_node_fkey$') ORDER BY 1`, [[...RETIRED_LATER]]);
     const out = {};
-    for (const t of tables) {
-      const cols = (await q(`SELECT string_agg(quote_ident(column_name), ',' ORDER BY ordinal_position) c FROM information_schema.columns WHERE table_schema='public' AND table_name=$1 AND column_name !~ '_node_type$'`, [t]))[0].c;
-      const r = (await q(`SELECT count(*)::bigint n, md5(coalesce(string_agg(x::text, '|' ORDER BY x::text), '')) h FROM (SELECT ${cols} FROM public."${t}") x`))[0];
+    for (const { t, s } of tables) {
+      const cols = (await q(`SELECT string_agg(quote_ident(column_name), ',' ORDER BY ordinal_position) c FROM information_schema.columns WHERE table_schema=$2 AND table_name=$1 AND column_name !~ '_node_type$'`, [t, s]))[0].c;
+      const r = (await q(`SELECT count(*)::bigint n, md5(coalesce(string_agg(x::text, '|' ORDER BY x::text), '')) h FROM (SELECT ${cols} FROM ${s}."${t}") x`))[0];
       out[t] = { rows: Number(r.n), md5: r.h };
     }
     return out;
@@ -241,13 +246,13 @@ async function dbTests() {
     assert(uq.length === 1, 'UNIQUE (id, node_type) missing');
     const bad = [];
     for (const f of log) {
-      const con = (await q(`SELECT con.convalidated v, con.confdeltype d, con.confupdtype u, pg_get_constraintdef(con.oid) def FROM pg_constraint con WHERE con.conname=$1 AND con.conrelid=('public.'||$2)::regclass`, [f.new_constraint, f.table_name]))[0];
+      const con = (await q(`SELECT con.convalidated v, con.confdeltype d, con.confupdtype u, pg_get_constraintdef(con.oid) def FROM pg_constraint con WHERE con.conname=$1 AND con.conrelid=(SELECT c.oid FROM pg_class c WHERE c.relname=$2 AND c.relkind='r' AND c.relnamespace IN ('public'::regnamespace, to_regnamespace('retired')))`, [f.new_constraint, f.table_name]))[0];
       if (!con) { bad.push(`${f.table_name}.${f.column_name}: ${f.new_constraint} missing`); continue; }
       const want = `FOREIGN KEY (${f.column_name}, ${f.column_name}_node_type) REFERENCES canonical_taxonomy_nodes(id, node_type) ON DELETE RESTRICT`;
       if (!con.v || con.d !== 'r' || con.u !== 'a' || con.def !== want) bad.push(`${f.table_name}.${f.column_name}: ${con.def} v=${con.v} d=${con.d} u=${con.u}`);
-      const gen = (await q(`SELECT a.attgenerated g, pg_get_expr(d.adbin, d.adrelid) e FROM pg_attribute a JOIN pg_attrdef d ON d.adrelid=a.attrelid AND d.adnum=a.attnum WHERE a.attrelid=('public.'||$1)::regclass AND a.attname=$2`, [f.table_name, `${f.column_name}_node_type`]))[0];
+      const gen = (await q(`SELECT a.attgenerated g, pg_get_expr(d.adbin, d.adrelid) e FROM pg_attribute a JOIN pg_attrdef d ON d.adrelid=a.attrelid AND d.adnum=a.attnum WHERE a.attrelid=(SELECT c.oid FROM pg_class c WHERE c.relname=$1 AND c.relkind='r' AND c.relnamespace IN ('public'::regnamespace, to_regnamespace('retired'))) AND a.attname=$2`, [f.table_name, `${f.column_name}_node_type`]))[0];
       if (!gen || gen.g !== 's' || gen.e !== `'${f.expected_node_type}'::text`) bad.push(`${f.table_name}.${f.column_name}_node_type: ${JSON.stringify(gen)}`);
-      const idx = (await q(`SELECT count(*)::int n FROM pg_index i WHERE i.indrelid=('public.'||$1)::regclass AND i.indkey[0] = (SELECT attnum FROM pg_attribute WHERE attrelid=i.indrelid AND attname=$2)`, [f.table_name, f.column_name]))[0].n;
+      const idx = (await q(`SELECT count(*)::int n FROM pg_index i WHERE i.indrelid=(SELECT c.oid FROM pg_class c WHERE c.relname=$1 AND c.relkind='r' AND c.relnamespace IN ('public'::regnamespace, to_regnamespace('retired'))) AND i.indkey[0] = (SELECT attnum FROM pg_attribute WHERE attrelid=i.indrelid AND attname=$2)`, [f.table_name, f.column_name]))[0].n;
       if (!idx) bad.push(`${f.table_name}.${f.column_name}: no index`);
       if (!['subjects', 'topics', 'subtopics'].includes(f.old_target)) bad.push(`${f.table_name}.${f.column_name}: old_target ${f.old_target}`);
     }
@@ -313,6 +318,12 @@ async function dbTests() {
         const b = base[`${e.id}:${who}`];
         const now = summarize(await rest(S, who, e.table, afterSelect(e), filtersFor(e)), e.allowDiff);
         compared++;
+        if (RETIRED_LATER.has(e.table)) {
+          // GAP2-4c: the table is in schema retired — PostgREST must not expose it to anyone (incl. the service role)
+          if (now.status === 200) bad.push(`${e.id}:${who} retired table ${e.table} is still exposed (${now.rows} rows)`);
+          else if (!(now.status === 404 || now.code === 'PGRST205' || now.code === '42501')) bad.push(`${e.id}:${who} retired table ${e.table}: unexpected ${now.status} ${now.code}`);
+          continue;
+        }
         if (e.preBroken || b.status !== 200) {
           // A query that already failed before the flip (missing column, ambiguous unrelated embed, revoked
           // table) must fail the same way — or stop failing — but never with a NEW relationship error.
@@ -346,7 +357,7 @@ async function dbTests() {
   await test('E-04 node-backed `*` embeds equal the (unchanged) projection rows field by field, except importance_level / created_at / updated_at', async () => {
     const bad = [];
     let checked = 0;
-    for (const e of REG.filter((x) => x.allowDiff)) {
+    for (const e of REG.filter((x) => x.allowDiff && !RETIRED_LATER.has(x.table))) { // retired tables: see E-01
       const res = await rest(S, 'service', e.table, afterSelect(e), filtersFor(e));
       if (res.status !== 200) { bad.push(`${e.id}: ${res.status} ${res.code}`); continue; }
       const alias = norm(e.neu).split(':')[0];
@@ -379,8 +390,10 @@ async function dbTests() {
   });
 
   await test('D-07 rollback dry-run: docs/database/rollback/075_rollback.sql executes inside BEGIN … ROLLBACK and restores projection FKs', () => rw(async () => {
-    // GAP2-4a (078) added a FK on canonical_taxonomy_nodes (id, node_type); the documented order is 080 → 079 → 078 → 075.
+    // GAP2-4a (078) added a FK on canonical_taxonomy_nodes (id, node_type); the documented order is 084 → 080 → 079 → 078 → 075 (082 / 083 only change function grants).
     // The dependent rollbacks run first in the same rolled-back transaction (their own BEGIN; / COMMIT; lines removed).
+    // GAP2-4c (084) moved exam_topics to schema retired: its rollback runs first (084 → 080 → 079 → 078 → 075)
+    await c.query(read('docs/database/rollback/084_rollback.sql'));
     for (const dep of ['080', '079', '078']) {
       const sql = read(`docs/database/rollback/${dep}_rollback.sql`);
       assert((sql.match(/^s*(BEGIN|COMMIT);s*$/gm) || []).length === 2, `${dep}_rollback.sql must have exactly one BEGIN; and one COMMIT;`);

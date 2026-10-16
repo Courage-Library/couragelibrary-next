@@ -27,8 +27,8 @@
  *   G-11 seeded drafts: GD legacy DRAFT (4 SECTION / 18 UNIT / 18 mappings, LEGACY_MIGRATION, valid) and CGL
  *        skeleton (4 SECTIONs = pattern sections, no units); nothing PUBLISHED; GD seed idempotent (re-run → no
  *        change) and deterministic (delete + re-seed → identical tree and hash)
- *   G-12 legacy tables untouched (exam_syllabi 1, exam_topics 18, exam_unit_mappings 0); reconciliation writes
- *        fail closed in the app
+ *   G-12 legacy tables preserved in schema retired (exam_syllabi 1, exam_topics 18, exam_unit_mappings 0,
+ *        taxonomy_aliases 0; none left in public; GAP2-4c migration 084); the reconciliation workbench is removed
  *
  * Run: node scripts/test_gap2_4a_syllabus.cjs
  */
@@ -480,7 +480,8 @@ const CORE = ['fn_syllabus__assert_role', 'fn_syllabus__audit', 'fn_syllabus__sl
         const kinds = gdTree.reduce((a, n) => ({ ...a, [n.node_kind]: (a[n.node_kind] || 0) + 1 }), {});
         const maps = gdTree.filter((n) => n.maps).length;
         assert(kinds.SECTION === 4 && kinds.UNIT === 18 && maps === 18 && gdTree.every((n) => !n.maps || /LEGACY_MIGRATION/.test(n.maps)), `GD tree ${JSON.stringify(kinds)} maps ${maps}`);
-        const legacyMatch = await one(`SELECT count(*)::int n FROM public.exam_topics t JOIN public.exam_syllabi s ON s.id = t.syllabus_id
+        // GAP2-4c (084): the legacy rows live in schema retired (owner connection)
+        const legacyMatch = await one(`SELECT count(*)::int n FROM retired.exam_topics t JOIN retired.exam_syllabi s ON s.id = t.syllabus_id
             JOIN public.exam_syllabus_canonical_mappings m ON m.canonical_node_id = t.topic_id
             JOIN public.exam_syllabus_nodes n ON n.id = m.syllabus_node_id AND n.syllabus_version_id = $1`, [gd.id]);
         assert(legacyMatch.n === 18, `${legacyMatch.n}/18 legacy topics mapped`);
@@ -508,19 +509,21 @@ const CORE = ['fn_syllabus__assert_role', 'fn_syllabus__audit', 'fn_syllabus__sl
         return 'GD 4/18/18 valid; CGL 4 sections; re-run no-op; re-seed identical';
       }));
 
-    await test('G-12 legacy tables untouched; reconciliation writes fail closed in the app', async () => {
+    await test('G-12 legacy tables preserved in schema retired (GAP2-4c, 084); reconciliation workbench removed', async () => {
       await c.query('BEGIN READ ONLY');
       try {
-        const r = await one(`SELECT (SELECT count(*)::int FROM public.exam_syllabi) s, (SELECT count(*)::int FROM public.exam_topics) t, (SELECT count(*)::int FROM public.exam_unit_mappings) u`);
-        assert(r.s === 1 && r.t === 18 && r.u === 0, JSON.stringify(r));
+        const r = await one(`SELECT (SELECT count(*)::int FROM retired.exam_syllabi) s, (SELECT count(*)::int FROM retired.exam_topics) t,
+                                    (SELECT count(*)::int FROM retired.exam_unit_mappings) u, (SELECT count(*)::int FROM retired.taxonomy_aliases) a,
+                                    (SELECT count(*)::int FROM pg_class WHERE relnamespace = 'public'::regnamespace
+                                      AND relname IN ('exam_syllabi','exam_topics','exam_unit_mappings','taxonomy_aliases')) pub`);
+        assert(r.s === 1 && r.t === 18 && r.u === 0 && r.a === 0 && r.pub === 0, JSON.stringify(r));
       } finally {
         await c.query('ROLLBACK');
       }
-      const src = fs.readFileSync(path.join(__dirname, '..', 'services/operational-syllabus-reconciliation.service.ts'), 'utf8');
-      assert(/const RECONCILIATION_WRITES_ENABLED: boolean = false;/.test(src), 'flag missing or enabled');
-      const i = src.indexOf('static async resolveWorkItem(');
-      assert(i > 0 && /^\s*\): Promise<ResolveWorkItemApiResponse> \{\s*if \(!RECONCILIATION_WRITES_ENABLED\) \{\s*throw new OperationalSyllabusReconciliationError\('SERVICE_UNAVAILABLE'/.test(src.slice(src.indexOf(')', i + 30))), 'resolveWorkItem must fail closed before any read or write');
-      return 'exam_syllabi 1, exam_topics 18, exam_unit_mappings 0; workbench resolve → 503';
+      for (const f of ['services/operational-syllabus-reconciliation.service.ts', 'services/exam-syllabus-resolution.service.ts', 'app/api/admin/syllabus-reconciliation']) {
+        assert(!fs.existsSync(path.join(__dirname, '..', f)), `${f} still present`);
+      }
+      return 'retired: exam_syllabi 1, exam_topics 18, exam_unit_mappings 0, taxonomy_aliases 0; none in public; workbench gone';
     });
   } finally {
     await c.end();

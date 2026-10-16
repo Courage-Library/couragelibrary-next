@@ -1,11 +1,12 @@
 /**
- * SEC-HOTFIX-4 — admin/staff-only RLS on 11 content-authoring tables (migration 076).
+ * SEC-HOTFIX-4 — admin/staff-only RLS on the content-authoring tables of migration 076 (10 since GAP2-4c retired
+ *   taxonomy_aliases to schema retired, migration 084).
  *
  * DB suite, couragelibrary-next only (ref guard + verified TLS via scripts/db/_db-env.cjs). Every scenario runs inside
  * BEGIN … ROLLBACK; nothing is persisted. To test the POLICY (not the grants), each table temporarily GRANTs
  * INSERT/UPDATE/DELETE to authenticated inside the rolled-back transaction.
  *
- *   P-1 static: no FOR ALL policy; every INSERT/UPDATE/DELETE policy and every authenticated SELECT policy on the 11
+ *   P-1 static: no FOR ALL policy; every INSERT/UPDATE/DELETE policy and every authenticated SELECT policy on the 10
  *       tables is gated by fn_jwt_is_admin_or_staff(); the public read policies are unchanged
  *   P-2 student session (authenticated, no role): reads only what anon reads; UPDATE/DELETE affect 0 rows;
  *       INSERT is rejected by row-level security
@@ -34,14 +35,13 @@ const { Client } = require('pg');
 const { dbTarget } = require('./db/_db-env.cjs');
 
 const TABLES = [
-  'canonical_taxonomy_nodes', 'taxonomy_aliases',
+  'canonical_taxonomy_nodes',
   'exam_syllabus_versions', 'exam_syllabus_nodes', 'exam_syllabus_canonical_mappings',
   'exam_knowledge_documents', 'exam_doc_versions', 'exam_posts', 'exam_sources', 'exam_claims', 'exam_claim_sources',
 ];
 // public read policies that must stay exactly as they were (name → USING expression), captured before 076
 const PUBLIC_READ = {
   canonical_taxonomy_nodes: ['Public candidates can view active canonical taxonomy nodes', '(is_active = true)'],
-  taxonomy_aliases: ['Public candidates can view taxonomy aliases', 'true'],
   exam_syllabus_versions: ['Public candidates can view published exam syllabus versions', "((status = 'PUBLISHED'::text) AND (is_active = true))"],
   exam_knowledge_documents: ['Public candidates can view published exam knowledge documents', "((status = 'PUBLISHED'::text) AND (current_published_version_id IS NOT NULL))"],
   exam_doc_versions: ['Public candidates can view published exam doc versions', "((is_published = true) AND (review_status = 'PUBLISHED'::text))"],
@@ -52,7 +52,7 @@ const PUBLIC_READ = {
 };
 // P-6: tables whose rows are public by design (reference content, no user data). Additions need an architect ruling.
 const PUBLIC_REFERENCE = new Set([
-  'exam_topics', 'pattern_sections', 'taxonomy_aliases', 'exam_claim_sources', 'learning_unit_asset_bindings',
+  'pattern_sections', 'exam_claim_sources', 'learning_unit_asset_bindings', // exam_topics, taxonomy_aliases: retired (GAP2-4c)
   'mistake_cognitive_types', 'exam_cutoff_benchmarks',
 ]);
 // P-6: per-user rows behind a blanket read policy, tolerated only until an architect ruling. Empty since
@@ -209,7 +209,7 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assertion failed'); };
       return JSON.stringify(out);
     });
 
-    await test('P-4 grants unchanged: authenticated holds SELECT only on the 11 tables', async () => {
+    await test('P-4 grants unchanged: authenticated holds SELECT only on the 10 tables', async () => {
       const { rows } = await q(`SELECT table_name t, string_agg(privilege_type, ',' ORDER BY privilege_type) p FROM information_schema.role_table_grants
                                 WHERE table_schema='public' AND grantee='authenticated' AND table_name = ANY($1) GROUP BY 1`, [TABLES]);
       const bad = TABLES.filter((t) => (rows.find((r) => r.t === t) || {}).p !== 'SELECT');
@@ -357,6 +357,14 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assertion failed'); };
       }
       const stale = Object.keys(SECDEF_PENDING_RULING).filter((n) => !pending.has(n));
       if (stale.length) bad.push(`SECDEF_PENDING_RULING entries no longer violate (remove them): ${stale.join(', ')}`);
+      // GAP2-4c (084) re-pointed two functions with CREATE OR REPLACE: ACL and config must be what 080 / 082 set
+      const fx = (await q(`SELECT p.proname n, has_function_privilege('anon', p.oid, 'EXECUTE') a, has_function_privilege('authenticated', p.oid, 'EXECUTE') u,
+          has_function_privilege('service_role', p.oid, 'EXECUTE') s, coalesce(p.proconfig, '{}') @> ARRAY['search_path=""'] sp_empty
+        FROM pg_proc p WHERE p.oid IN ('public.fn_syllabus_seed_legacy_gd_draft()'::regprocedure, 'public.fn_delete_exam_controlled(uuid,text,uuid,text,text)'::regprocedure)`)).rows;
+      const seedFn = fx.find((r) => r.n === 'fn_syllabus_seed_legacy_gd_draft');
+      const delFn = fx.find((r) => r.n === 'fn_delete_exam_controlled');
+      if (!seedFn || seedFn.a || seedFn.u || seedFn.s || !seedFn.sp_empty) bad.push(`fn_syllabus_seed_legacy_gd_draft must stay owner-only with search_path '': ${JSON.stringify(seedFn)}`);
+      if (!delFn || !delFn.sp_empty) bad.push(`fn_delete_exam_controlled must keep search_path '': ${JSON.stringify(delFn)}`);
       // SEC-HOTFIX-7 ruling 5: nothing may wait for a ruling any more
       if (Object.keys(SECDEF_PENDING_RULING).length) bad.push(`SECDEF_PENDING_RULING must be empty (SEC-HOTFIX-7): ${Object.keys(SECDEF_PENDING_RULING).join(', ')}`);
       for (const n of SECDEF_AUTHENTICATED) {
