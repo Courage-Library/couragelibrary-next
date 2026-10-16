@@ -268,58 +268,10 @@ export class ExamOnboardingImporterService {
       postsCount++;
     }
 
-    // 5. Map Canonical Syllabus Topics
-    let syllabusTopicsMapped = 0;
-    const canonicalTaxonomy = await ExamOnboardingService.getCanonicalTaxonomy(supabase);
-
-    const mappedSubjects: any[] = [];
-    for (const subj of spec.syllabus?.subjects || []) {
-      const canonicalSubj = canonicalTaxonomy.find(
-        (cs) => cs.name.toLowerCase() === subj.subject_name.toLowerCase() || cs.slug === subj.subject_name.toLowerCase().replace(/[^a-z0-9]+/g, "-")
-      ) || canonicalTaxonomy[0];
-
-      if (canonicalSubj) {
-        const mappedTopics: any[] = [];
-        for (const top of subj.topics || []) {
-          let canonicalTop = canonicalSubj.topics.find(
-            (ct) => ct.name.toLowerCase() === top.topic_name.toLowerCase() || ct.slug === top.topic_name.toLowerCase().replace(/[^a-z0-9]+/g, "-")
-          );
-
-          if (!canonicalTop && canonicalSubj.topics.length > 0) {
-            canonicalTop = canonicalSubj.topics[0];
-          }
-
-          if (canonicalTop) {
-            mappedTopics.push({
-              topicId: canonicalTop.id,
-              weightageLevel: top.weightage_level || "medium",
-              priority: top.priority || 1,
-              expectedQuestions: top.expected_questions || 1,
-            });
-            syllabusTopicsMapped++;
-          }
-        }
-
-        if (mappedTopics.length > 0) {
-          mappedSubjects.push({
-            subjectId: canonicalSubj.id,
-            displayOrder: subj.display_order || 1,
-            topics: mappedTopics,
-          });
-        }
-      }
-    }
-
-    if (mappedSubjects.length > 0) {
-      await ExamOnboardingService.saveSyllabusProjection(
-        {
-          examId,
-          examCycleId: cycleId,
-          subjects: mappedSubjects,
-        },
-        supabase
-      );
-    }
+    // 5. Syllabus (GAP2-4b): not imported here. The canonical syllabus is authored as a DRAFT in /admin/syllabus
+    // (role-checked, audited RPCs) and published by an admin; the legacy exam_syllabi / exam_topics store is no
+    // longer written. The AI spec's syllabus section is still shown in the preview diff for the editor to use.
+    const syllabusTopicsMapped = 0;
 
     // 6. Persist Knowledge Documents (Strictly review_status = "AI_GENERATED", is_published = false)
     const persistErrors: string[] = [];

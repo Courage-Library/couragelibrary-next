@@ -25,7 +25,6 @@ export default async function AdminExamOnboardingPage({ searchParams }: PageProp
   const orgs = await ExamOnboardingService.getConductingOrgs(supabase).catch(() => []);
 
   if (!examId) {
-    const taxonomy = await ExamOnboardingService.getCanonicalTaxonomy(supabase).catch(() => []);
     const emptyReport: ExamReadinessReport = {
       status: "NOT_STARTED",
       examId: "",
@@ -49,8 +48,7 @@ export default async function AdminExamOnboardingPage({ searchParams }: PageProp
         orgs={orgs}
         activeCycle={null}
         posts={[]}
-        taxonomy={taxonomy}
-        selectedTopicIds={[]}
+        syllabusStatus={null}
         knowledgeModules={[]}
         readinessReport={emptyReport}
         initialStep={1}
@@ -84,7 +82,7 @@ export default async function AdminExamOnboardingPage({ searchParams }: PageProp
   // Fetch Posts
   let posts: any[] = [];
   try {
-    const { data: postData } = await (supabase as any)
+    const { data: postData } = await supabase
       .from("exam_posts")
       .select("*")
       .eq("exam_id", examId)
@@ -94,28 +92,21 @@ export default async function AdminExamOnboardingPage({ searchParams }: PageProp
     posts = [];
   }
 
-  // Fetch Taxonomy
-  const taxonomy = await ExamOnboardingService.getCanonicalTaxonomy(supabase).catch(() => []);
-
-  // Fetch Mapped Topics for Cycle
-  let selectedTopicIds: string[] = [];
-  if (activeCycle?.id) {
-    try {
-      const { data: sylData } = await (supabase as any)
-        .from("exam_syllabi")
-        .select("id")
-        .eq("exam_cycle_id", activeCycle.id);
-
-      const sylIds = (sylData || []).map((s: any) => s.id);
-      if (sylIds.length > 0) {
-        const { data: topData } = await (supabase as any)
-          .from("exam_topics")
-          .select("topic_id")
-          .in("syllabus_id", sylIds);
-        selectedTopicIds = (topData || []).map((t: any) => t.topic_id);
-      }
-    } catch (_) {
-      selectedTopicIds = [];
+  // Canonical syllabus status (GAP2-4b): authoring happens in /admin/syllabus; no legacy exam_syllabi / exam_topics reads.
+  let syllabusStatus: { publishedVersionNumber: number | null; draftCount: number } | null = null;
+  {
+    const { data: versions, error: vErr } = await supabase
+      .from("exam_syllabus_versions")
+      .select("version_number, status, is_active, exam_cycle_id")
+      .eq("exam_id", examId);
+    if (!vErr) {
+      const live = (versions ?? []).filter(
+        (v) => v.status === "PUBLISHED" && v.is_active && (!v.exam_cycle_id || v.exam_cycle_id === activeCycle?.id),
+      );
+      syllabusStatus = {
+        publishedVersionNumber: live.length ? Math.max(...live.map((v) => v.version_number)) : null,
+        draftCount: (versions ?? []).filter((v) => v.status === "DRAFT").length,
+      };
     }
   }
 
@@ -162,8 +153,7 @@ export default async function AdminExamOnboardingPage({ searchParams }: PageProp
         isActive: Boolean(p.is_active),
         displayOrder: p.display_order,
       }))}
-      taxonomy={taxonomy}
-      selectedTopicIds={selectedTopicIds}
+      syllabusStatus={syllabusStatus}
       knowledgeModules={knowledgeModules}
       readinessReport={readinessReport}
       initialStep={initialStep}

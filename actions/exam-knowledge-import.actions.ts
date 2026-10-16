@@ -44,7 +44,7 @@ export async function importExamKnowledgeAction(
     if (!authCheck.ok) return sanitizeActionResult("importExamKnowledgeAction", await (authCheck));
 
     // 2. Server Supabase Client
-    const supabase = createAdminServerSupabaseClient() as any;
+    const supabase = createAdminServerSupabaseClient();
 
     // 3. Execute Controlled 5-Gate Import Pipeline
     const result = await ExamKnowledgeImporterService.importContent({

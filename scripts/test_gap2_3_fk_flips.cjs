@@ -180,6 +180,10 @@ async function capture() {
   await test(`S-02 every registry re-point is present in code (${REG.length} fragments + premium-hub)`, async () => {
     const bad = [];
     for (const e of REG) {
+      if (e.retired) {
+        if (fs.existsSync(path.join(ROOT, e.file)) && norm(read(e.file)).includes(norm(e.old))) bad.push(`${e.id}: retired (${e.retired}) but the old embed is back in ${e.file}`);
+        continue;
+      }
       const src = norm(read(e.file));
       if (!src.includes(norm(e.neu))) bad.push(`${e.id}: replacement missing in ${e.file}`);
     }

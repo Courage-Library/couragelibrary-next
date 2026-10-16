@@ -21,12 +21,33 @@ import {
   RelationshipType,
   TopicHierarchy,
 } from '@/types/learning-taxonomy';
+import type { AppSupabaseClient } from '@/lib/supabase/types';
+
+// The topics projection stores importance as importance_level; the domain type calls it default_importance.
+type TopicRow = { importance_level: string | null; subject_id: string | null } & Omit<CanonicalTopic, 'default_importance' | 'subject' | 'subject_id'>;
+const toTopic = <T extends TopicRow>(t: T): Omit<T, 'subject_id'> & CanonicalTopic => ({
+  ...t,
+  subject_id: t.subject_id ?? '',
+  default_importance: t.importance_level ?? '',
+});
+const toUnit = <T extends { unit_type: string }>(u: T) => ({ ...u, unit_type: u.unit_type as LearningUnitType });
+type RelationshipRow = { relationship_type: string; strength: string; from_topic?: TopicRow | null; to_topic?: TopicRow | null } & Omit<
+  TopicRelationship,
+  'relationship_type' | 'strength' | 'from_topic' | 'to_topic'
+>;
+const toRelationship = (r: RelationshipRow): TopicRelationship => ({
+  ...r,
+  relationship_type: r.relationship_type as RelationshipType,
+  strength: r.strength as TopicRelationship['strength'],
+  from_topic: r.from_topic ? toTopic(r.from_topic) : undefined,
+  to_topic: r.to_topic ? toTopic(r.to_topic) : undefined,
+});
 
 export class AcademicTaxonomyService {
   /**
    * Fetches all active canonical subjects ordered by display_order.
    */
-  static async getCanonicalSubjects(supabaseClient: any): Promise<CanonicalSubject[]> {
+  static async getCanonicalSubjects(supabaseClient: AppSupabaseClient): Promise<CanonicalSubject[]> {
     const { data, error } = await supabaseClient
       .from('subjects')
       .select('*')
@@ -44,7 +65,7 @@ export class AcademicTaxonomyService {
    */
   static async getCanonicalSubjectBySlug(
     slug: string,
-    supabaseClient: any
+    supabaseClient: AppSupabaseClient
   ): Promise<CanonicalSubject | null> {
     const { data, error } = await supabaseClient
       .from('subjects')
@@ -64,7 +85,7 @@ export class AcademicTaxonomyService {
    */
   static async getSubjectTopics(
     subjectId: string,
-    supabaseClient: any
+    supabaseClient: AppSupabaseClient
   ): Promise<CanonicalTopic[]> {
     const { data, error } = await supabaseClient
       .from('topics')
@@ -76,7 +97,7 @@ export class AcademicTaxonomyService {
     if (error) {
       throw new Error(`Failed to fetch topics for subject ${subjectId}: ${error.message}`);
     }
-    return data || [];
+    return (data || []).map(toTopic);
   }
 
   /**
@@ -84,7 +105,7 @@ export class AcademicTaxonomyService {
    */
   static async getTopicSubtopics(
     topicId: string,
-    supabaseClient: any
+    supabaseClient: AppSupabaseClient
   ): Promise<CanonicalSubtopic[]> {
     const { data, error } = await supabaseClient
       .from('subtopics')
@@ -104,8 +125,8 @@ export class AcademicTaxonomyService {
    */
   static async getLearningUnitsForTopic(
     topicId: string,
-    subtopicId?: string,
-    supabaseClient?: any
+    subtopicId: string | undefined,
+    supabaseClient: AppSupabaseClient
   ): Promise<LearningUnit[]> {
     let query = supabaseClient
       .from('learning_units')
@@ -122,7 +143,7 @@ export class AcademicTaxonomyService {
     if (error) {
       throw new Error(`Failed to fetch learning units for topic ${topicId}: ${error.message}`);
     }
-    return data || [];
+    return (data || []).map(toUnit);
   }
 
   /**
@@ -130,7 +151,7 @@ export class AcademicTaxonomyService {
    */
   static async getTopicRelationships(
     topicId: string,
-    supabaseClient: any
+    supabaseClient: AppSupabaseClient
   ): Promise<{
     prerequisites: TopicRelationship[];
     related: TopicRelationship[];
@@ -158,8 +179,8 @@ export class AcademicTaxonomyService {
       throw new Error(`Failed to fetch topic outbound relationships: ${outErr.message}`);
     }
 
-    const allIn = inRel || [];
-    const allOut = outRel || [];
+    const allIn = (inRel || []).map(toRelationship);
+    const allOut = (outRel || []).map(toRelationship);
 
     const prerequisites = allIn.filter((r: TopicRelationship) => r.relationship_type === 'PREREQUISITE');
     const related = [
@@ -180,7 +201,7 @@ export class AcademicTaxonomyService {
    */
   static async getTopicHierarchy(
     topicId: string,
-    supabaseClient: any
+    supabaseClient: AppSupabaseClient
   ): Promise<TopicHierarchy | null> {
     const { data: topic, error: topicErr } = await supabaseClient
       .from('topics')
@@ -204,7 +225,7 @@ export class AcademicTaxonomyService {
     const advanced_applications = relationships.advanced.map((r: any) => r.to_topic).filter(Boolean);
 
     return {
-      topic,
+      topic: { ...toTopic(topic), subject: topic.subject ?? undefined },
       subtopics,
       learning_units: learningUnits,
       prerequisites,

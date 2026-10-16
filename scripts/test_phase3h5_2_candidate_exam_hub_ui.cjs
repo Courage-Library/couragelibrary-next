@@ -10,9 +10,10 @@
  * - UI06: Main Exam Hub renders Eligibility Summary (min age, max age, min qualification, nationality)
  * - UI07: Main Exam Hub renders Posts Table with post names, departments, ministries, pay levels, CPC basic pay ranges, gazetted status
  * - UI08: Main Exam Hub renders Exam Pattern with duration, total questions, marks, negative marking, section breakdown
- * - UI09: Main Exam Hub renders Syllabus Navigator with subject weightage, topic depth, expected questions
- * - UI10: Syllabus Navigator renders [Learn] button with link to /${canonicalSlug} ONLY if published learning doc exists
- * - UI11: Syllabus Navigator renders [Practice] button with link to /practice?topic=${topicId} ONLY if questions exist
+ * - UI09: GAP2-4b — the hub's syllabus is the canonical read model, passed through unchanged (sections / units / tiers /
+ *         expected ranges); prefetched mode without a syllabus is UNAVAILABLE (never derived from tables)
+ * - UI10: GAP2-4b — lesson availability per topic is the read model's servable_documents (published learning documents only)
+ * - UI11: GAP2-4b — practice availability per topic is the read model's published_questions (exact count)
  * - UI12: Main Exam Hub renders FAQs accordion with all published module FAQs
  * - UI13: Main Exam Hub renders Official Sources with verification badges, issuing authority, external links
  * - UI14: Deep-Dive Module Reader page displays full compiled MDX guide, source citations, module FAQs, back link
@@ -55,6 +56,7 @@ require.extensions['.ts'] = function (module, filename) {
 };
 
 const { ExamKnowledgeCandidateService } = require('../services/exam-knowledge/exam-knowledge-candidate.service');
+const { availableSyllabus, noSyllabus } = require('./fixtures/syllabus_read_model.cjs');
 const { ExamModuleRegistry } = require('../services/exam-knowledge/exam-module-registry');
 
 const rootDir = path.resolve(__dirname, '..');
@@ -201,11 +203,12 @@ const mockPatterns = [
     total_marks: 200,
     negative_mark_value: 0.5,
     is_active: true,
-    exam_sections: [
-      { name: 'General Intelligence & Reasoning', question_count: 25, marks_per_question: 2 },
-      { name: 'General Awareness', question_count: 25, marks_per_question: 2 },
-      { name: 'Quantitative Aptitude', question_count: 25, marks_per_question: 2 },
-      { name: 'English Comprehension', question_count: 25, marks_per_question: 2 },
+    // live schema (GAP2-4b): pattern_sections(section_name, section_order, num_questions, marks_per_question, negative_mark)
+    pattern_sections: [
+      { section_name: 'General Intelligence & Reasoning', section_order: 1, num_questions: 25, marks_per_question: 2, negative_mark: 0.5 },
+      { section_name: 'General Awareness', section_order: 2, num_questions: 25, marks_per_question: 2, negative_mark: 0.5 },
+      { section_name: 'Quantitative Aptitude', section_order: 3, num_questions: 25, marks_per_question: 2, negative_mark: 0.5 },
+      { section_name: 'English Comprehension', section_order: 4, num_questions: 25, marks_per_question: 2, negative_mark: 0.5 },
     ],
   },
 ];
@@ -486,6 +489,15 @@ const mockPrefetchedData = {
   unitMappings: mockUnitMappings,
   publishedDocs: mockPublishedDocs,
   questions: mockQuestions,
+  // GAP2-4b: the canonical read model (published syllabus) — the only syllabus source of the hub
+  syllabus: availableSyllabus('exam-cgl', [
+    { title: 'Quantitative Aptitude', tier: 'HIGH_YIELD', min: 25, max: 25, units: [
+      { title: 'Arithmetic', tier: 'CORE', topics: [{ id: 'top-percentages', name: 'Percentages & Fractions', slug: 'percentages', q: 3, d: 1 }] },
+    ] },
+    { title: 'General Intelligence & Reasoning', tier: 'CORE', units: [
+      { title: 'Logical reasoning', topics: [{ id: 'top-syllogism', name: 'Syllogism', slug: 'syllogism', q: 0, d: 0 }] },
+    ] },
+  ]),
 };
 
 async function runTests() {
@@ -631,53 +643,56 @@ async function runTests() {
     assert.strictEqual(patterns[0].sections[0].name, 'General Intelligence & Reasoning');
   });
 
-  // --- UI09: Syllabus Hierarchy ---
-  await asyncTest('UI09: Syllabus subjects map subject weightage and topic depth requirements', async () => {
+  // --- UI09: Syllabus = canonical read model ---
+  await asyncTest('UI09: Syllabus is the canonical read model (sections, units, tiers, ranges); missing → UNAVAILABLE', async () => {
     const res = await ExamKnowledgeCandidateService.getExamKnowledgeCandidateView({
       examSlug: 'ssc-cgl',
       prefetchedData: mockPrefetchedData,
     });
-    const subjects = res.data.curriculum.subjects;
-    assert.strictEqual(subjects.length, 2);
-    assert.strictEqual(subjects[0].name, 'Quantitative Aptitude');
-    assert.strictEqual(subjects[0].totalWeightagePercent, 25);
-    assert.strictEqual(subjects[0].topics.length, 1);
-    assert.strictEqual(subjects[0].topics[0].name, 'Percentages & Fractions');
-    assert.strictEqual(subjects[0].topics[0].importanceTier, 'CORE');
+    const syl = res.data.syllabus;
+    assert.deepStrictEqual(syl, mockPrefetchedData.syllabus);
+    assert.strictEqual(res.data.curriculum, undefined);
+    const qa = syl.nodes.find((n) => n.kind === 'SECTION' && n.title === 'Quantitative Aptitude');
+    assert.strictEqual(qa.weightage_tier, 'HIGH_YIELD');
+    assert.strictEqual(qa.expected_questions_min, 25);
+    const unit = syl.nodes.find((n) => n.parent_id === qa.id);
+    assert.strictEqual(unit.kind, 'UNIT');
+    assert.strictEqual(unit.weightage_tier, 'CORE');
+    assert.strictEqual(unit.expected_questions_min, null); // unknown stays null, never 0
+    const none = await ExamKnowledgeCandidateService.getExamKnowledgeCandidateView({
+      examSlug: 'ssc-cgl',
+      prefetchedData: { ...mockPrefetchedData, syllabus: noSyllabus('exam-cgl') },
+    });
+    assert.strictEqual(none.data.syllabus.state, 'NO_SYLLABUS');
+    const missing = await ExamKnowledgeCandidateService.getExamKnowledgeCandidateView({
+      examSlug: 'ssc-cgl',
+      prefetchedData: { ...mockPrefetchedData, syllabus: undefined },
+    });
+    assert.strictEqual(missing.data.syllabus.state, 'UNAVAILABLE');
+    assert.strictEqual(missing.data.syllabus.nodes.length, 0);
   });
 
-  // --- UI10: [Learn] Link Verification ---
-  await asyncTest('UI10: Topic [Learn] link is resolved ONLY when published learning doc exists', async () => {
+  // --- UI10: lessons per topic ---
+  await asyncTest('UI10: Topic lesson availability is the read model servable_documents count', async () => {
     const res = await ExamKnowledgeCandidateService.getExamKnowledgeCandidateView({
       examSlug: 'ssc-cgl',
       prefetchedData: mockPrefetchedData,
     });
-    const quant = res.data.curriculum.subjects.find((s) => s.code === 'QA');
-    const reasoning = res.data.curriculum.subjects.find((s) => s.code === 'GIR');
-    
-    // Quant percentage topic has a published learning document
-    assert.strictEqual(quant.topics[0].learningDocumentSlug, 'quantitative-aptitude/percentages');
-    
-    // Reasoning syllogism topic has NO published learning document mapping
-    assert.strictEqual(reasoning.topics[0].learningDocumentSlug, null);
+    const topics = res.data.syllabus.nodes.flatMap((n) => n.topics);
+    assert.strictEqual(topics.find((t) => t.slug === 'percentages').servable_documents, 1);
+    assert.strictEqual(topics.find((t) => t.slug === 'syllogism').servable_documents, 0);
   });
 
-  // --- UI11: [Practice] Link Verification ---
-  await asyncTest('UI11: Topic [Practice] availability and pyqCount is dynamically indexed from questions', async () => {
+  // --- UI11: practice per topic ---
+  await asyncTest('UI11: Topic practice availability is the read model published_questions count (exact)', async () => {
     const res = await ExamKnowledgeCandidateService.getExamKnowledgeCandidateView({
       examSlug: 'ssc-cgl',
       prefetchedData: mockPrefetchedData,
     });
-    const quant = res.data.curriculum.subjects.find((s) => s.code === 'QA');
-    const reasoning = res.data.curriculum.subjects.find((s) => s.code === 'GIR');
-
-    // Percentages topic has 3 questions
-    assert.strictEqual(quant.topics[0].pyqCount, 3);
-    assert.strictEqual(quant.topics[0].practiceAvailable, true);
-
-    // Syllogism topic has 0 questions
-    assert.strictEqual(reasoning.topics[0].pyqCount, 0);
-    assert.strictEqual(reasoning.topics[0].practiceAvailable, false);
+    const topics = res.data.syllabus.nodes.flatMap((n) => n.topics);
+    assert.strictEqual(topics.find((t) => t.slug === 'percentages').published_questions, 3);
+    assert.strictEqual(topics.find((t) => t.slug === 'syllogism').published_questions, 0);
+    assert.strictEqual(res.data.syllabus.totals.published_questions, 3);
   });
 
   // --- UI12: FAQs ---

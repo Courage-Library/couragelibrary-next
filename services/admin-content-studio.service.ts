@@ -18,6 +18,7 @@
 import { requireAdmin } from '@/lib/auth/require-admin';
 import type { Json, TablesInsert } from '@/types/database';
 import type { AppSupabaseClient } from '@/lib/supabase/types';
+import { loadPublishedExamsForTopics, type PublishedTopicExam } from '@/lib/syllabus/published-topic-exams';
 import { createServerSupabaseClient, createAdminServerSupabaseClient } from '@/lib/supabase/server';
 import {
   LessonDocumentSpec,
@@ -193,14 +194,12 @@ export class AdminContentStudioService {
       { data: subtopics },
       { data: units },
       { data: documents },
-      { data: examMappings },
     ] = await Promise.all([
       supabase.from('subjects').select('id, name, slug').order('display_order', { ascending: true }),
       supabase.from('topics').select('id, subject_id, name, slug').order('display_order', { ascending: true }),
       supabase.from('subtopics').select('id, topic_id, name, slug').order('display_order', { ascending: true }),
       supabase.from('learning_units').select('id, topic_id, subtopic_id, title, slug, unit_type, is_active').order('display_order', { ascending: true }),
       supabase.from('learning_documents').select('id, learning_unit_id, status'),
-      supabase.from('exam_unit_mappings').select('learning_unit_id, exam_topic_mappings(exam_syllabi(exams(id, title)))'),
     ]);
 
     const subList = subjects || [];
@@ -262,22 +261,23 @@ export class AdminContentStudioService {
       { data: unit },
       { data: documents },
       { data: bindings },
-      { data: examMappings },
     ] = await Promise.all([
       supabase.from('learning_units').select('*, topics:canonical_taxonomy_nodes!learning_units_topic_id_node_fkey(id, name, subjects:root_subject_id(id, name))').eq('id', unitId).single(),
       supabase.from('learning_documents').select('*, document_versions!document_versions_document_id_fkey(*)').eq('learning_unit_id', unitId), // TYPES-1 B4 (Class B): two FKs → PGRST201 without the hint
       supabase.from('learning_unit_asset_bindings').select('*, learning_assets(*)').eq('learning_unit_id', unitId),
-      // TYPES-1:B-CURRICULUM-MAPPING (tracked, GAP2-4) — exam_unit_mappings → exam_topic_mappings no longer exists (PGRST200).
-      supabase.from('exam_unit_mappings').select('*, exam_topic_mappings(*, exam_syllabi(*, exams(*)))').eq('learning_unit_id', unitId),
     ]);
 
     if (!unit) return null;
+
+    // GAP2-4b: exams come from PUBLISHED syllabus versions that map the unit's topic (empty when none is published).
+    const examsByTopic = unit.topic_id ? await loadPublishedExamsForTopics(supabase, [unit.topic_id]) : null;
+    const mappedExams: PublishedTopicExam[] = (unit.topic_id && examsByTopic?.get(unit.topic_id)) || [];
 
     return {
       unit,
       documents: documents || [],
       assets: bindings || [],
-      mappedExams: examMappings || [],
+      mappedExams,
     };
   }
 

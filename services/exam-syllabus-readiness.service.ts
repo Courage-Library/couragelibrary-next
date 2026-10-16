@@ -36,11 +36,13 @@ import {
   SyllabusDeltaItem,
   SyllabusDeltaType,
 } from '@/types/dynamic-syllabus-reconciliation';
+import type { AppSupabaseClient } from '@/lib/supabase/types';
+import { toCanonicalMapping, toSyllabusNode } from '@/lib/syllabus/reconciliation-rows';
 
 export interface GetSyllabusReadinessParams {
   syllabusVersionId: string;
   examId?: string;
-  supabaseClient?: any;
+  supabaseClient?: AppSupabaseClient;
 }
 
 export interface GetWorkQueueParams {
@@ -49,13 +51,13 @@ export interface GetWorkQueueParams {
   priority?: WorkQueuePriority;
   blockingOnly?: boolean;
   limit?: number;
-  supabaseClient?: any;
+  supabaseClient?: AppSupabaseClient;
 }
 
 export interface CompareSyllabusVersionsParams {
   versionAId: string;
   versionBId: string;
-  supabaseClient?: any;
+  supabaseClient?: AppSupabaseClient;
 }
 
 export class ExamSyllabusReadinessService {
@@ -107,7 +109,7 @@ export class ExamSyllabusReadinessService {
       throw new Error(`Syllabus version not found: ${syllabusVersionId}`);
     }
     const versionData = versionRes.data;
-    const examData = (versionData as any).exam;
+    const examData = versionData.exam;
     const examId = versionData.exam_id;
     const examName = examData?.title || 'Unknown Exam';
     const examCycleId = versionData.exam_cycle_id || null;
@@ -116,7 +118,7 @@ export class ExamSyllabusReadinessService {
     if (rawSyllabusNodesRes.error) {
       throw new Error(`Failed to fetch syllabus nodes: ${rawSyllabusNodesRes.error.message}`);
     }
-    const syllabusNodes: ExamSyllabusNode[] = rawSyllabusNodesRes.data || [];
+    const syllabusNodes: ExamSyllabusNode[] = (rawSyllabusNodesRes.data || []).map(toSyllabusNode);
 
     if (rawCanonicalNodesRes.error) {
       throw new Error(`Failed to fetch canonical nodes: ${rawCanonicalNodesRes.error.message}`);
@@ -136,7 +138,7 @@ export class ExamSyllabusReadinessService {
       if (mappingsRes.error) {
         throw new Error(`Failed to fetch syllabus mappings: ${mappingsRes.error.message}`);
       }
-      mappings = mappingsRes.data || [];
+      mappings = (mappingsRes.data || []).map(toCanonicalMapping);
     }
 
     const mappingMap = new Map<string, ExamSyllabusCanonicalMapping>(
@@ -705,7 +707,7 @@ export class ExamSyllabusReadinessService {
 
     const health: ReconciliationHealth = {
       lastReconciliationAt: latestMappingUpdate,
-      syllabusVersionHash: versionData.raw_payload_hash,
+      syllabusVersionHash: versionData.raw_payload_hash ?? '',
       canonicalTaxonomyLatestUpdatedAt: latestRelevantCanonicalUpdate,
       relevantCanonicalNodeCount: relevantCanonicalNodes.length,
       totalMappings: mappings.length,
@@ -752,8 +754,8 @@ export class ExamSyllabusReadinessService {
 
     const versionA = vARes.data;
     const versionB = vBRes.data;
-    const nodesA: ExamSyllabusNode[] = nodesARes.data || [];
-    const nodesB: ExamSyllabusNode[] = nodesBRes.data || [];
+    const nodesA: ExamSyllabusNode[] = (nodesARes.data || []).map(toSyllabusNode);
+    const nodesB: ExamSyllabusNode[] = (nodesBRes.data || []).map(toSyllabusNode);
 
     const mapABySlug = new Map<string, ExamSyllabusNode>(nodesA.map((n) => [n.raw_slug, n]));
     const mapBBySlug = new Map<string, ExamSyllabusNode>(nodesB.map((n) => [n.raw_slug, n]));

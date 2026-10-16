@@ -8,7 +8,7 @@ import { ExamHero } from "@/components/exams/exam-hero";
 import { ExamCycleSnapshot } from "@/components/exams/exam-cycle-snapshot";
 import { ExamQuickNav } from "@/components/exams/exam-quick-nav";
 import { ExamModuleCard } from "@/components/exams/exam-module-card";
-import { ExamSyllabusNavigator } from "@/components/exams/exam-syllabus-navigator";
+import { ExamSyllabusSection } from "@/components/exams/exam-syllabus-section";
 import { ExamPostsTable } from "@/components/exams/exam-posts-table";
 import { ExamOfficialSources } from "@/components/exams/exam-official-sources";
 import { ExamFaqAccordion } from "@/components/exams/exam-faq-accordion";
@@ -65,7 +65,7 @@ export default async function ExamKnowledgeHubPage({ params }: Props) {
   }
 
   const data = result.data;
-  const { exam, activeCycle, availableCycles, structuredFacts, curriculum, publishedModules, officialSources, metadata } = data;
+  const { exam, activeCycle, availableCycles, structuredFacts, syllabus, publishedModules, officialSources, metadata } = data;
 
   // Compile all published FAQs from all modules
   const allFaqs: Array<{ question: string; answer: string; category?: string }> = [];
@@ -140,7 +140,7 @@ export default async function ExamKnowledgeHubPage({ params }: Props) {
         <ExamQuickNav
           availableModuleKeys={data.availableModuleKeys}
           hasPosts={structuredFacts.posts.length > 0}
-          hasCurriculum={curriculum.subjects.length > 0}
+          hasCurriculum
           hasSources={officialSources.length > 0}
           hasFaqs={allFaqs.length > 0}
         />
@@ -274,15 +274,15 @@ export default async function ExamKnowledgeHubPage({ params }: Props) {
                     <div className="grid grid-cols-3 gap-2 text-center text-xs">
                       <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
                         <span className="text-slate-400 text-[10px] block">Duration</span>
-                        <span className="font-bold text-slate-800">{pat.durationMinutes} Mins</span>
+                        <span className="font-bold text-slate-800">{pat.durationMinutes !== null ? `${pat.durationMinutes} Mins` : "—"}</span>
                       </div>
                       <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
                         <span className="text-slate-400 text-[10px] block">Questions</span>
-                        <span className="font-bold text-slate-800">{pat.totalQuestions}</span>
+                        <span className="font-bold text-slate-800">{pat.totalQuestions ?? "—"}</span>
                       </div>
                       <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
                         <span className="text-slate-400 text-[10px] block">Marks</span>
-                        <span className="font-bold text-slate-800">{pat.totalMarks}</span>
+                        <span className="font-bold text-slate-800">{pat.totalMarks ?? "—"}</span>
                       </div>
                     </div>
 
@@ -299,7 +299,7 @@ export default async function ExamKnowledgeHubPage({ params }: Props) {
                             >
                               <span className="font-medium text-slate-700">{sec.name}</span>
                               <span className="font-mono text-slate-500 text-[11px]">
-                                {sec.questionCount} Qs • {sec.questionCount * sec.marksPerQuestion} M
+                                {sec.questionCount !== null ? `${sec.questionCount} Qs` : "—"}{sec.questionCount !== null && sec.marksPerQuestion !== null ? ` • ${sec.questionCount * sec.marksPerQuestion} M` : ""}
                               </span>
                             </div>
                           ))}
@@ -313,12 +313,13 @@ export default async function ExamKnowledgeHubPage({ params }: Props) {
           </section>
         )}
 
-        {/* 8. Canonical Syllabus Navigator */}
-        {curriculum.subjects.length > 0 && (
-          <section id="syllabus" className="space-y-4">
-            <ExamSyllabusNavigator subjects={curriculum.subjects} />
-          </section>
-        )}
+        {/* Syllabus — canonical read model (GAP2-4b): always shown; "coming soon" until a version is published */}
+        <section id="syllabus" aria-labelledby="syllabus-title" className="flex flex-col gap-4">
+          <h2 id="syllabus-title" className="border-b border-line pb-2 text-h2 font-semibold text-fg">
+            Syllabus
+          </h2>
+          <ExamSyllabusSection syllabus={syllabus} examTitle={exam.title} />
+        </section>
 
         {/* 9. FAQs */}
         {allFaqs.length > 0 && (

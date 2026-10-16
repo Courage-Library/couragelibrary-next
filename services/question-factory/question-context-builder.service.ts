@@ -224,41 +224,38 @@ export class QuestionContextBuilder {
     };
   }
 
-  /** Latest-cycle weightage/depth of the topic in the exam syllabus (exam_topics), if any. */
+  /**
+   * GAP2-4b: weightage / depth of the topic in the exam's PUBLISHED canonical syllabus (latest published version):
+   * the UNIT node that maps the topic. null when the exam has no published syllabus or the topic is not mapped.
+   */
   private static async fetchExamProjection(
     supabase: SupabaseLike,
     examId: string,
     topicId: string
   ): Promise<{ weightage: string | null; depth: string | null } | null> {
-    const { data: cycles, error: cycErr } = await supabase
-      .from('exam_cycles')
-      .select('id, cycle_year')
-      .eq('exam_id', examId);
-    if (cycErr) throw new QuestionFactoryError('CONTEXT_LOOKUP_FAILED', `Exam cycle lookup failed: ${cycErr.message}`);
-    const cycleYear = new Map<string, number>((cycles || []).map((c: { id: string; cycle_year: number }) => [c.id, c.cycle_year]));
-    if (cycleYear.size === 0) return null;
+    const { data: versions, error: vErr } = await supabase
+      .from('exam_syllabus_versions')
+      .select('id, published_at')
+      .eq('exam_id', examId)
+      .eq('status', 'PUBLISHED')
+      .eq('is_active', true)
+      .order('published_at', { ascending: false });
+    if (vErr) throw new QuestionFactoryError('CONTEXT_LOOKUP_FAILED', 'Exam syllabus lookup failed.');
+    const order = (versions || []).map((v: { id: string }) => v.id);
+    if (order.length === 0) return null;
 
-    const { data: syllabi, error: sylErr } = await supabase
-      .from('exam_syllabi')
-      .select('id, exam_cycle_id')
-      .in('exam_cycle_id', Array.from(cycleYear.keys()));
-    if (sylErr) throw new QuestionFactoryError('CONTEXT_LOOKUP_FAILED', `Exam syllabus lookup failed: ${sylErr.message}`);
-    const syllabusCycle = new Map<string, string>((syllabi || []).map((s: { id: string; exam_cycle_id: string }) => [s.id, s.exam_cycle_id]));
-    if (syllabusCycle.size === 0) return null;
+    const { data: nodes, error: nErr } = await supabase
+      .from('exam_syllabus_nodes')
+      .select('syllabus_version_id, weightage_tier, required_cognitive_depth, exam_syllabus_canonical_mappings!inner(canonical_node_id)')
+      .in('syllabus_version_id', order)
+      .eq('node_kind', 'UNIT')
+      .eq('exam_syllabus_canonical_mappings.canonical_node_id', topicId);
+    if (nErr) throw new QuestionFactoryError('CONTEXT_LOOKUP_FAILED', 'Exam syllabus topic lookup failed.');
+    if (!nodes || nodes.length === 0) return null;
 
-    const { data: rows, error: etErr } = await supabase
-      .from('exam_topics')
-      .select('syllabus_id, weightage_level, required_depth')
-      .eq('topic_id', topicId)
-      .in('syllabus_id', Array.from(syllabusCycle.keys()));
-    if (etErr) throw new QuestionFactoryError('CONTEXT_LOOKUP_FAILED', `Exam topic lookup failed: ${etErr.message}`);
-    if (!rows || rows.length === 0) return null;
-
-    const latest = [...rows].sort((a: { syllabus_id: string }, b: { syllabus_id: string }) => {
-      const ya = cycleYear.get(syllabusCycle.get(a.syllabus_id) || '') ?? 0;
-      const yb = cycleYear.get(syllabusCycle.get(b.syllabus_id) || '') ?? 0;
-      return yb - ya || (a.syllabus_id < b.syllabus_id ? -1 : 1);
-    })[0] as { weightage_level: string | null; required_depth: string | null };
-    return { weightage: latest.weightage_level ?? null, depth: latest.required_depth ?? null };
+    const latest = [...nodes].sort(
+      (x: { syllabus_version_id: string }, y: { syllabus_version_id: string }) => order.indexOf(x.syllabus_version_id) - order.indexOf(y.syllabus_version_id),
+    )[0] as { weightage_tier: string | null; required_cognitive_depth: string | null };
+    return { weightage: latest.weightage_tier ?? null, depth: latest.required_cognitive_depth ?? null };
   }
 }

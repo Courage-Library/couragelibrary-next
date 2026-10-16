@@ -7,23 +7,17 @@
       "owner": "DEFERRED until after TEST-CA (waiver W3)",
       "count": 57,
       "scope": "^(app/api/admin/current-affairs/articles/route\\.ts|app/api/admin/current-affairs/lookup/route\\.ts|services/admin-current-affairs\\.service\\.ts|services/current-affairs-daily-quiz\\.service\\.ts)$"
-    },
-    {
-      "batch": "B5",
-      "owner": "MOVED to GAP2-4 step 0",
-      "count": 62,
-      "scope": "^(actions/exam-knowledge-import\\.actions\\.ts|actions/exam-knowledge-prompt\\.actions\\.ts|app/admin/exams/onboarding/page\\.tsx|services/academic-taxonomy\\.service\\.ts|services/exam-knowledge/admin-exam-knowledge\\.service\\.ts|services/exam-knowledge/exam-knowledge-candidate\\.service\\.ts|services/exam-knowledge/exam-knowledge-context-builder\\.service\\.ts|services/exam-syllabus-readiness\\.service\\.ts|services/exam-syllabus-reconciliation\\.service\\.ts|services/exam-syllabus-resolution\\.service\\.ts|services/exam-syllabus-tree-importer\\.service\\.ts|services/exam-syllabus\\.service\\.ts|services/operational-syllabus-reconciliation\\.service\\.ts)$"
     }
   ],
   "values": {
-    "queryEscapes": 121,
-    "asAny": 256,
-    "colonAny": 887,
+    "queryEscapes": 59,
+    "asAny": 250,
+    "colonAny": 806,
     "unknownAs": 83,
-    "tsExpectError": 17,
+    "tsExpectError": 12,
     "tsIgnore": 0
   },
-  "updatedAt": "2026-10-15",
+  "updatedAt": "2026-10-16",
   "exceptions": [
     {
       "batch": "B1",
@@ -45,6 +39,21 @@
       "from": 12,
       "to": 17,
       "reason": "tracked ambiguous Class B (architect rule 3); every directive carries a registered TYPES-1:B-<ID>"
+    },
+    {
+      "batch": "GAP2-4b",
+      "key": "tsExpectError",
+      "from": 17,
+      "to": 12,
+      "reason": "B-CURRICULUM-MAPPING resolved: coverage re-pointed to the canonical syllabus; its 5 tracked directives removed"
+    }
+  ],
+  "resolved": [
+    {
+      "batch": "B5",
+      "count": 62,
+      "by": "GAP2-4b (feat(gap2-4b-2))",
+      "note": "exam knowledge / syllabus clients typed as AppSupabaseClient; reconciliation rows narrowed in lib/syllabus/reconciliation-rows.ts"
     }
   ]
 }

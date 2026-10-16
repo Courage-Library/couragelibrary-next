@@ -3,7 +3,7 @@
 
 import { guardAdminAction, toActionFailure } from "@/lib/auth/require-admin";
 import { revalidatePath } from "next/cache";
-import { ExamOnboardingService, SyllabusProjectionInput } from "@/services/exam-onboarding/exam-onboarding.service";
+import { ExamOnboardingService } from "@/services/exam-onboarding/exam-onboarding.service";
 import { ExamReadinessService, ExamReadinessReport } from "@/services/exam-onboarding/exam-readiness.service";
 import { ExamOnboardingContextBuilder } from "@/services/exam-onboarding/exam-onboarding-context-builder.service";
 import { ExamOnboardingPromptService } from "@/services/exam-onboarding/exam-onboarding-prompt.service";
@@ -205,24 +205,6 @@ export async function deleteExamPostAction(postId: string, examId: string): Prom
   }
 }
 
-/**
- * Server Action: Save Canonical Syllabus Projection
- */
-export async function saveSyllabusProjectionAction(
-  payload: SyllabusProjectionInput
-): Promise<ExamActionResult> {
-  const auth = await guardAdminAction({ allowStaff: true });
-  if (!auth.ok) return auth;
-
-  try {
-    await ExamOnboardingService.saveSyllabusProjection(payload);
-    revalidatePath("/admin/exams");
-    revalidatePath(`/admin/exams/onboarding?examId=${payload.examId}`);
-    return { success: true, message: "Syllabus taxonomy projection saved successfully." };
-  } catch (err: any) {
-    return toActionFailure("saveSyllabusProjectionAction", err);
-  }
-}
 
 /**
  * Server Action: Evaluate Server-Authoritative Readiness

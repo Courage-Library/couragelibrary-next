@@ -6,7 +6,8 @@
  *   check = student-mistake   qa-student: /mistakes lists ≥1 mistake; its detail shows the question text,
  *                             the options A–D and a marked correct answer; latest mock result renders a score
  *           student-pages     qa-student: community, descriptive, flashcards, institutes, premium, store, wallet,
- *                             dashboard render (200, no not-found, no error boundary); first thread / deck detail too
+ *                             dashboard render (200, no not-found, no error boundary); first thread / deck detail too;
+ *                             /exams/ssc-cgl renders its syllabus section as "Syllabus coming soon" (GAP2-4b)
  *           admin-home        qa-admin:  /admin renders (200, no not-found)
  *           admin-pages       qa-admin:  B6 admin pages render (questions, sections, billing, community, descriptive,
  *                             institutes, mock-tests-management, bulk-import, taxonomy, exams) — no error boundary
@@ -27,6 +28,9 @@ const IDS = {
   'admin-pages': ['qa-admin@courage-library.test', 'QA_ADMIN_PASSWORD'],
   'staff-content': ['qa-staff@courage-library.test', 'QA_STAFF_PASSWORD'],
 };
+// app/error.tsx ("Something went wrong") or Next's error page ("Application error: a client-side / server-side
+// exception has occurred"). Not a bare "Application error": published exam content can contain that phrase.
+const ERROR_BOUNDARY = /Something went wrong|Application error: a (client|server)-side exception/i;
 let fails = 0;
 const check = (name, ok, info) => { if (!ok) fails++; console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${info ? ' — ' + info : ''}`); };
 const isNotFound = async (page) => /NEXT_HTTP_ERROR_FALLBACK;404|This page could not be found/.test(await page.content());
@@ -86,7 +90,7 @@ function readMistakeDetail() {
     const visit = async (p) => {
       const r = await page.goto(BASE + p, { waitUntil: 'networkidle', timeout: 120000 });
       const html = await page.content();
-      const errorBoundary = /Something went wrong|Application error/i.test(html);
+      const errorBoundary = ERROR_BOUNDARY.test(html);
       check(`${p.replace(/[0-9a-f-]{36}/g, '[id]')} → 200, renders`, r && r.status() === 200 && !(await isNotFound(page)) && !errorBoundary, String(r && r.status()) + (errorBoundary ? ' error-boundary' : ''));
     };
     for (const p of PAGES) await visit(p);
@@ -95,12 +99,16 @@ function readMistakeDetail() {
       const href = await page.$$eval('a[href]', (as, src) => { const r = new RegExp(src); const h = as.map((a) => a.getAttribute('href')).find((x) => r.test(x || '')); return h || null; }, re.source);
       if (href) await visit(href); else console.log(`INFO  no detail link on ${list} (no data)`);
     }
+    // GAP2-4b: the exam hub's syllabus section comes from the canonical read model (no CGL syllabus is published yet)
+    await visit('/exams/ssc-cgl');
+    const hub = await page.content();
+    check('/exams/ssc-cgl syllabus section → "Syllabus coming soon"', /id="syllabus"/.test(hub) && /Syllabus coming soon/.test(hub));
   } else if (CHECK === 'admin-pages') {
     const ADMIN = ['/admin', '/admin/questions', '/admin/sections', '/admin/billing', '/admin/community', '/admin/descriptive', '/admin/institutes', '/admin/mock-tests-management', '/admin/bulk-import', '/admin/taxonomy', '/admin/exams', '/admin/syllabus-reconciliation', '/admin/exam-knowledge', '/admin/design-system', '/admin/syllabus'];
     for (const p of ADMIN) {
       const r = await page.goto(BASE + p, { waitUntil: 'networkidle', timeout: 180000 });
       const html = await page.content();
-      const errorBoundary = /Something went wrong|Application error/i.test(html);
+      const errorBoundary = ERROR_BOUNDARY.test(html);
       check(`${p} → 200, renders`, r && r.status() === 200 && !(await isNotFound(page)) && !errorBoundary, String(r && r.status()) + (errorBoundary ? ' error-boundary' : ''));
     }
   } else {

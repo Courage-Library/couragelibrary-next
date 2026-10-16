@@ -468,26 +468,6 @@ export async function getCurriculumQualityMetricsAction() {
   }
 }
 
-export async function mapUnitToExamAction(params: {
-  learningUnitId: string;
-  examTopicMappingId: string;
-  requiredDepth?: string;
-  importanceTier?: string;
-  isMandatory?: boolean;
-}) {
-  try {
-    const { AdminService } = await import('@/services/admin.service');
-    const { CurriculumCoverageService } = await import('@/services/curriculum-coverage.service');
-    const __auth5 = await guardAdminAction({ allowStaff: true });
-    if (!__auth5.ok) return __auth5;
-    const res = await CurriculumCoverageService.mapUnitToExam(params);
-    revalidatePath('/admin/content');
-    return sanitizeActionResult("mapUnitToExamAction", await (res));
-  } catch (err: any) {
-    return toActionFailure("mapUnitToExamAction", err);
-  }
-}
-
 export async function checkDuplicateLearningUnitAction(topicId: string, titleOrSlug: string) {
   try {
     const { AdminService } = await import('@/services/admin.service');

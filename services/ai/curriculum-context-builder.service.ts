@@ -26,6 +26,23 @@ import {
 } from '@/types/ai-curriculum-context';
 import { ContentLanguage, DifficultyTier, DocumentType } from '@/types/learning-compiler';
 import { RequiredDepth } from '@/types/learning-taxonomy';
+import { loadPublishedExamsForTopics, type PublishedTopicExam } from '@/lib/syllabus/published-topic-exams';
+
+/** Canonical syllabus UNIT vocabulary → the AI context's depth / importance vocabulary (unset stays unset). */
+const SYLLABUS_DEPTH_TO_REQUIRED: Record<string, RequiredDepth> = {
+  RECALL: 'FOUNDATIONAL_ONLY',
+  UNDERSTANDING: 'FOUNDATIONAL_ONLY',
+  APPLICATION: 'INTERMEDIATE_APPLICATION',
+  ANALYSIS: 'ADVANCED_COMPETITIVE',
+  COMPLEX_PROBLEM_SOLVING: 'ADVANCED_COMPETITIVE',
+};
+const SYLLABUS_TIER_TO_IMPORTANCE: Record<string, string> = {
+  HIGH_YIELD: 'VERY_HIGH',
+  CORE: 'CORE',
+  MODERATE: 'MEDIUM',
+  LOW: 'LOW',
+  OPTIONAL: 'OPTIONAL',
+};
 
 const MAX_RELATIONSHIPS = 10;
 const MAX_QUESTION_REFERENCES = 5;
@@ -180,12 +197,18 @@ export class CurriculumContextBuilder {
     // 3. Resolve Exam Mappings & Exam Projections
     let rawExamMappings = prefetched.examMappings;
     if (!rawExamMappings && sb) {
-      // TYPES-1:B-CURRICULUM-MAPPING (tracked, GAP2-4) — exam_topics → exams relation does not exist (PGRST200).
-      const { data: mappings } = await sb
-        .from('exam_unit_mappings')
-        .select('*, exam_topic:exam_topics(*, exam:exams(*))')
-        .eq('learning_unit_id', unit.id);
-      rawExamMappings = mappings || [];
+      // GAP2-4b: exams whose PUBLISHED syllabus maps this unit's topic (UNIT nodes). None published → no exam context.
+      const byTopic = unit.topic_id ? await loadPublishedExamsForTopics(sb, [unit.topic_id]) : null;
+      const exams: PublishedTopicExam[] = (unit.topic_id && byTopic?.get(unit.topic_id)) || [];
+      rawExamMappings = exams.map((e) => ({
+        exam_topic: {
+          exam_id: e.examId,
+          required_depth: SYLLABUS_DEPTH_TO_REQUIRED[e.requiredDepth ?? ''] ?? null,
+          importance_tier: SYLLABUS_TIER_TO_IMPORTANCE[e.weightageTier ?? ''] ?? 'NOT_SET',
+          is_mandatory: e.isMandatory,
+          exam: { name: e.examTitle },
+        },
+      }));
     } else if (!rawExamMappings) {
       rawExamMappings = [
         {
