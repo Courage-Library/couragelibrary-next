@@ -465,8 +465,10 @@ const CORE = ['fn_syllabus__assert_role', 'fn_syllabus__audit', 'fn_syllabus__sl
     await test('G-11 seeded drafts: GD legacy (4 / 18 / 18, valid, DRAFT) and CGL skeleton (4 pattern sections); GD seed idempotent + deterministic', async () =>
       tx(async () => {
         const vers = await q(`SELECT e.slug, v.id, v.status, v.source_kind, v.version_tag, v.raw_payload_hash h, v.exam_cycle_id::text cy FROM public.exam_syllabus_versions v JOIN public.exams e ON e.id = v.exam_id`);
-        const pub = vers.filter((v) => v.status !== 'DRAFT');
-        assert(pub.length === 0, `non-DRAFT versions exist: ${pub.map((v) => v.slug + ':' + v.status)}`);
+        // real exams hold only DRAFTs; the permanent QA test exam (migration 081) keeps ARCHIVED TEST versions as
+        // history but must never stay PUBLISHED
+        const pub = vers.filter((v) => (v.slug === 'qa-syllabus-test' ? v.status === 'PUBLISHED' : v.status !== 'DRAFT'));
+        assert(pub.length === 0, `unexpected non-DRAFT versions: ${pub.map((v) => v.slug + ':' + v.status)}`);
         const gd = vers.find((v) => v.slug === 'ssc-gd' && v.version_tag === 'legacy-official-2026');
         const cgl = vers.find((v) => v.slug === 'ssc-cgl' && v.version_tag === 'pattern-skeleton-2026');
         assert(gd && gd.source_kind === 'LEGACY_MIGRATION' && cgl && cgl.source_kind === 'MANUAL', 'seeded versions missing');

@@ -10,7 +10,7 @@
  *           admin-home        qa-admin:  /admin renders (200, no not-found)
  *           admin-pages       qa-admin:  B6 admin pages render (questions, sections, billing, community, descriptive,
  *                             institutes, mock-tests-management, bulk-import, taxonomy, exams) — no error boundary
- *           staff-content     qa-staff:  /admin/content renders (200, no not-found)
+ *           staff-content     qa-staff:  /admin/content and /admin/syllabus render (200, no not-found)
  *   baseUrl defaults to http://localhost:3100. Passwords come from .env.local (QA_*_PASSWORD).
  * The student check needs data: run the E2E journey first (E2E_KEEP_USER=1) and the data-only cleanup after.
  */
@@ -96,7 +96,7 @@ function readMistakeDetail() {
       if (href) await visit(href); else console.log(`INFO  no detail link on ${list} (no data)`);
     }
   } else if (CHECK === 'admin-pages') {
-    const ADMIN = ['/admin', '/admin/questions', '/admin/sections', '/admin/billing', '/admin/community', '/admin/descriptive', '/admin/institutes', '/admin/mock-tests-management', '/admin/bulk-import', '/admin/taxonomy', '/admin/exams', '/admin/syllabus-reconciliation', '/admin/exam-knowledge', '/admin/design-system'];
+    const ADMIN = ['/admin', '/admin/questions', '/admin/sections', '/admin/billing', '/admin/community', '/admin/descriptive', '/admin/institutes', '/admin/mock-tests-management', '/admin/bulk-import', '/admin/taxonomy', '/admin/exams', '/admin/syllabus-reconciliation', '/admin/exam-knowledge', '/admin/design-system', '/admin/syllabus'];
     for (const p of ADMIN) {
       const r = await page.goto(BASE + p, { waitUntil: 'networkidle', timeout: 180000 });
       const html = await page.content();
@@ -104,9 +104,11 @@ function readMistakeDetail() {
       check(`${p} → 200, renders`, r && r.status() === 200 && !(await isNotFound(page)) && !errorBoundary, String(r && r.status()) + (errorBoundary ? ' error-boundary' : ''));
     }
   } else {
-    const p = CHECK === 'admin-home' ? '/admin' : '/admin/content';
-    const r = await page.goto(BASE + p, { waitUntil: 'networkidle', timeout: 120000 });
-    check(`${p} → 200 and renders`, r && r.status() === 200 && !(await isNotFound(page)), String(r && r.status()));
+    // GAP2-4b: staff also reach the syllabus editor (publish stays admin-only)
+    for (const p of CHECK === 'admin-home' ? ['/admin'] : ['/admin/content', '/admin/syllabus']) {
+      const r = await page.goto(BASE + p, { waitUntil: 'networkidle', timeout: 120000 });
+      check(`${p} → 200 and renders`, r && r.status() === 200 && !(await isNotFound(page)), String(r && r.status()));
+    }
   }
   await browser.close();
   console.log(fails ? `\nSIGNED-IN SMOKE (${CHECK}): ${fails} failed` : `\nSIGNED-IN SMOKE (${CHECK}): all passed`);

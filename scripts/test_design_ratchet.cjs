@@ -90,7 +90,9 @@ const METRICS = ['rawColor', 'paletteClass', 'darkClass', 'smallText', 'legacyIm
 const inScope = (r) => !r.startsWith('app/admin/') && !r.startsWith('components/admin/');
 // UX-1b: the app shell and the shared brand logo are held to the same zero standard
 const isDesignSystem = (r) =>
-  (r.startsWith('components/ui/') && !r.startsWith('components/ui/legacy/')) || r.startsWith('lib/format/') || r.startsWith('components/shell/') || r.startsWith('components/brand/');
+  (r.startsWith('components/ui/') && !r.startsWith('components/ui/legacy/')) || r.startsWith('lib/format/') || r.startsWith('components/shell/') || r.startsWith('components/brand/') ||
+  // GAP2-4b: the admin syllabus editor is built on the design system (admin is otherwise outside the ratchet)
+  r.startsWith('components/admin/syllabus/') || r.startsWith('app/admin/syllabus/');
 
 const files = [...walk(path.join(ROOT, 'app')), ...walk(path.join(ROOT, 'components'))].filter((f) => inScope(rel(f)));
 const totals = Object.fromEntries(METRICS.map((m) => [m, 0]));
@@ -156,8 +158,8 @@ test('R-1 ratchet: no metric rises above the recorded baseline (app/ + component
   return METRICS.map((k) => `${k} ${totals[k]}`).join(' · ') + (fell.length ? ` (lower than baseline: ${fell.join(', ')}; re-record with --write)` : '');
 });
 
-test('R-2 the design system scores zero on every metric (components/ui/** except legacy/, lib/format, components/shell, components/brand)', () => {
-  const ds = ['components/ui', 'lib/format', 'components/shell', 'components/brand'].flatMap((d) => walk(path.join(ROOT, d))).filter((f) => isDesignSystem(rel(f)));
+test('R-2 the design system scores zero on every metric (components/ui/** except legacy/, lib/format, components/shell, components/brand, admin syllabus editor)', () => {
+  const ds = ['components/ui', 'lib/format', 'components/shell', 'components/brand', 'components/admin/syllabus', 'app/admin/syllabus'].flatMap((d) => walk(path.join(ROOT, d))).filter((f) => isDesignSystem(rel(f)));
   assert(ds.length >= 30, `expected ≥30 design-system files, found ${ds.length}`);
   const bad = [];
   for (const f of ds) {

@@ -90,9 +90,8 @@ export function AdminSchedulesManager({
 
   const [launchDate, setLaunchDate] = useState(() => initialProgram?.launchDate || getIstTomorrowDateStr());
   const [launchTime, setLaunchTime] = useState(() => initialProgram?.launchTime || "09:00");
-  const [defaultLanguage, setDefaultLanguage] = useState<"both" | "english" | "hindi">(
-    initialProgram?.defaultLanguage || "both"
-  );
+  // English only (decision #35): the medium is always English in the admin UI.
+  const [defaultLanguage, setDefaultLanguage] = useState<"both" | "english" | "hindi">("english");
   const [daysState, setDaysState] = useState<DailyMockDayConfig[]>(
     initialProgram?.days || []
   );
@@ -245,7 +244,7 @@ export function AdminSchedulesManager({
     if (initialProgram) {
       setLaunchDate(initialProgram.launchDate || getIstTomorrowDateStr());
       setLaunchTime(initialProgram.launchTime || "09:00");
-      setDefaultLanguage(initialProgram.defaultLanguage || "both");
+      setDefaultLanguage("english");
       setDaysState(initialProgram.days || []);
 
       if (initialProgram.isLaunched && initialProgram.status !== "NOT_LAUNCHED") {
@@ -730,10 +729,10 @@ export function AdminSchedulesManager({
                       Medium
                     </div>
                     <div className="text-xs font-extrabold text-slate-900 capitalize">
-                      {defaultLanguage === "both" ? "Bilingual" : `${defaultLanguage} Medium`}
+                      English medium
                     </div>
                     <div className="text-[10px] text-slate-500 font-semibold mt-0.5">
-                      Switchable
+                      English only
                     </div>
                   </div>
                 </div>
@@ -1146,12 +1145,10 @@ export function AdminSchedulesManager({
                       onChange={(e) => setDefaultLanguage(e.target.value as "both" | "english" | "hindi")}
                       className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 focus:outline-none focus:border-blue-500 focus:bg-white"
                     >
-                      <option value="both">Bilingual (Student Chooses)</option>
-                      <option value="hindi">Hindi Medium</option>
                       <option value="english">English Medium</option>
                     </select>
                     <span className="text-[10px] text-slate-400 mt-0.5 block">
-                      Students can switch language.
+                      English only (decision #35).
                     </span>
                   </div>
 
@@ -1745,11 +1742,9 @@ export function AdminSchedulesManager({
                   </label>
                   <select
                     name="language"
-                    defaultValue={editingDay.language}
+                    defaultValue="english"
                     className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white"
                   >
-                    <option value="both">Bilingual</option>
-                    <option value="hindi">Hindi</option>
                     <option value="english">English</option>
                   </select>
                 </div>

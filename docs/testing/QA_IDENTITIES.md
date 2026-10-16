@@ -18,3 +18,11 @@ Introduced in SEC-1B. These are the **only** auth users tests may sign in as. Ne
   - Tested by `scripts/test_qa_identity_guard.cjs`.
 - **E2E student journeys** keep using the dedicated, cleaned-up journey student (`E2E_STUDENT_EMAIL`, see `scripts/e2e/`). That account writes no admin audit rows.
 - **Exception:** the GAP2-2a reviewer `qa-content-reviewer-gap22a@example.test` is banned dev-DB residue (waiver W2). Do not use or delete it.
+
+## Permanent QA test exam (GAP2-4b, migration 081)
+
+- **Exam:** `qa-syllabus-test`, "QA Syllabus Test (internal)". It is **inactive** and must never be activated.
+- **Who uses it:** only the syllabus editor's live test (`scripts/test_gap2_4b_editor.cjs --live`). That test publishes and archives a TEST syllabus through the real UI. It must never do so on a real exam: published rows are student-visible, and published / archived versions are immutable.
+- **What accumulates:** archived TEST versions stay on this exam as history. Drafts left by an aborted run are archived by the test's cleanup.
+- **Never** run the live editor test with a missing or unresolved QA exam id: the version list falls back to the first active exam. The test asserts the id first.
+
