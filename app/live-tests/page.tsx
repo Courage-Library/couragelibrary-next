@@ -8,7 +8,7 @@ import { Radio, Calendar, Trophy, Sparkles } from "lucide-react";
 export const metadata = {
   title: "All-India Live Mock Tests | Courage Library",
   description:
-    "Participate in nationwide scheduled live mock tests, compete with thousands of aspirants, and evaluate your All-India Rank and percentile.",
+    "Take scheduled live mock tests under real exam timing and see your score, rank and percentile afterwards.",
 };
 
 export const revalidate = 60; // Revalidate every minute for live schedule sync

@@ -7,7 +7,8 @@ import { ExamMdxArticleRenderer } from '@/components/exams/exam-mdx-article-rend
 import { CurrentAffairsSourcesCard } from '@/components/current-affairs/current-affairs-sources-card';
 import { CurrentAffairsExamBadges } from '@/components/current-affairs/current-affairs-exam-badges';
 import { CurrentAffairsLearningCta } from '@/components/current-affairs/current-affairs-learning-cta';
-import { CurrentAffairsCard, formatEventDate } from '@/components/current-affairs/current-affairs-card';
+import { CurrentAffairsCard } from '@/components/current-affairs/current-affairs-card';
+import { formatEventDate } from '@/lib/current-affairs/format-event-date';
 import { constructMetadata } from '@/lib/seo/metadata';
 import { generateArticleSchema, generateBreadcrumbSchema } from '@/lib/seo/jsonld';
 import type { Metadata } from 'next';
