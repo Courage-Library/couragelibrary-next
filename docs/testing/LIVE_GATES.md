@@ -47,6 +47,24 @@ What `scripts/live/with-server.cjs` does:
   - Prefer Node scripts (no shell paths), or pass URL paths that don't start with `/`.
 - **Heredocs.** Bash heredocs and `node -e` strings mangle backslashes and quotes. Write scripts to files.
 
+## Pre-migration backup: BACKUP-RESILIENT-1 (architect ruling, 2026-10-17)
+
+A backup before a migration is mandatory. On this machine the **standard procedure** is the resilient mode:
+
+```bash
+node scripts/db/backup.cjs pre-<change> --resilient
+```
+
+How it works:
+- schema-only dump first;
+- then one short session per table, with **at most 3 attempts per table** and transaction-local `statement_timeout` / `idle_in_transaction_session_timeout`;
+- after any failed attempt, terminate only the script's own orphaned sessions and record their PIDs;
+- a `manifest.json` (table → rows → sha256) that must verify **100%** against live counts taken at the end.
+
+**If any table fails 3 times → BLOCKED: do not migrate.**
+
+Full procedure, restore path and restore dry test: `docs/database/MIGRATION_RUNBOOK.md` §1 and "Restore".
+
 ## Network (DEV-NET-1 outcome, 2026-10-17)
 
 This machine's path to Supabase has **bursty** instability: connect timeouts, ECONNRESET, an occasional DNS miss from the LAN resolver, multi-second TLS / TCP spikes. `scripts/diag/net-probe.cjs` (`docs/reports/ops/DEV_NET1_REPORT.md`) showed:

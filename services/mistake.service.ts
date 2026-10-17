@@ -2,6 +2,7 @@ import { createServerSupabaseClient, createAdminServerSupabaseClient } from "@/l
 import { LearningResolverService, type ResolvedLearningDocument, type LearningDocumentType } from "@/services/learning/learning-resolver.service";
 import { toPublicDrillQuestions } from "@/services/mistakes/drill-payload";
 import { rpcJsonObject } from "@/lib/supabase/rpc";
+import { validAnswerKey } from "@/lib/questions/answer-key";
 
 export interface ResolvedLearningResource {
   id: string;
@@ -111,7 +112,8 @@ export interface MistakeDetail {
     text: string;
     isCorrect?: boolean;
   }>;
-  correctOptionKey: string;
+  /** null = no valid answer key (QB-KEY-1) */
+  correctOptionKey: string | null;
   explanation: string | null;
   topicId?: string | null;
   topicName: string | null;
@@ -1208,6 +1210,8 @@ export class MistakeService {
     const qv = qData?.question_versions?.[0];
     // TYPES-1 B1 (Class B): question_answers is one-to-one with question_versions (object, not array).
     const qAnswer = qv?.question_answers ?? null;
+    // QB-KEY-1: the valid key or null — never a default letter
+    const validKey = validAnswerKey(qAnswer, qv?.question_options);
 
     const options = (qv?.question_options || [])
       .sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
@@ -1215,7 +1219,7 @@ export class MistakeService {
         id: opt.id,
         key: opt.option_key,
         text: opt.option_text,
-        isCorrect: opt.option_key === (qAnswer?.correct_option_key || "A"),
+        isCorrect: validKey !== null && opt.option_key === validKey,
       }));
 
     const learningContent = await this.resolveLearningContentForMistake({
@@ -1264,7 +1268,7 @@ export class MistakeService {
       questionVersionId: qv?.id || v.occurrences?.[0]?.question_version_id || null,
       questionText: qv?.question_text || "",
       options,
-      correctOptionKey: qAnswer?.correct_option_key || "A",
+      correctOptionKey: validKey,
       explanation: qAnswer?.explanation_md || null,
       topicId: v.topic_id || v.topics?.id || null,
       topicName: v.topics?.name || null,

@@ -31,6 +31,7 @@ import {
   FileCheck,
 } from "lucide-react";
 import { CertificateModal } from "@/components/live-test/certificate-modal";
+import { AnswerKeyUnavailableNotice } from "@/components/questions/answer-key-notice";
 
 interface LiveTestResultClientProps {
   data: LiveTestCandidateScorecard;
@@ -534,16 +535,18 @@ export function LiveTestResultClient({
                     {q.questionText}
                   </div>
 
+                  {q.correctOption === null && <AnswerKeyUnavailableNotice />}
+
                   {/* Options */}
                   <div className="space-y-2">
                     {q.options.map((opt) => {
-                      const isCorrectOpt = opt.key === q.correctOption;
+                      const isCorrectOpt = q.correctOption !== null && opt.key === q.correctOption;
                       const isUserSelected = opt.key === q.selectedOption;
 
                       let optStyle = "bg-slate-950/60 border-slate-800 text-slate-300";
                       if (isCorrectOpt) {
                         optStyle = "bg-emerald-950/40 border-emerald-500/50 text-emerald-200 font-bold";
-                      } else if (isUserSelected && !q.isCorrect) {
+                      } else if (isUserSelected && !q.isCorrect && q.correctOption !== null) {
                         optStyle = "bg-rose-950/40 border-rose-500/50 text-rose-200 font-bold";
                       }
 

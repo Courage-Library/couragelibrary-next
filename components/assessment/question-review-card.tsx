@@ -2,6 +2,7 @@ import React from "react";
 import Link from "next/link";
 import { CheckCircle2, XCircle, HelpCircle, BookOpen, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AnswerKeyUnavailableNotice } from "@/components/questions/answer-key-notice";
 
 interface QuestionReviewCardProps {
   questionOrder: number;
@@ -11,7 +12,8 @@ interface QuestionReviewCardProps {
   optionsType?: string;
   options: Array<{ key: string; text: string; imageUrl?: string | null }>;
   selectedOption: string | null;
-  correctOption: string;
+  /** null = no valid answer key (QB-KEY-1): no option is marked correct, the question is not scored */
+  correctOption: string | null;
   isCorrect: boolean;
   marksAwarded: number;
   explanation: string | null;
@@ -43,6 +45,7 @@ export function QuestionReviewCard({
   hasPublishedLearning,
 }: QuestionReviewCardProps) {
   const isUnanswered = selectedOption === null;
+  const keyUnavailable = correctOption === null;
 
   return (
     <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
@@ -59,7 +62,9 @@ export function QuestionReviewCard({
           )}
         </div>
         <div className="flex items-center gap-2 font-bold">
-          {isUnanswered ? (
+          {keyUnavailable ? (
+            <span className="rounded-badge border border-warning-200 bg-warning-50 px-2 py-0.5 text-caption font-medium text-warning-800">Not scored</span>
+          ) : isUnanswered ? (
             <span className="text-slate-500 flex items-center gap-1">
               <HelpCircle className="w-3.5 h-3.5" /> Unattempted (0.00)
             </span>
@@ -96,7 +101,7 @@ export function QuestionReviewCard({
       <div className={cn("grid gap-2 pt-1", optionsType === "image" ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1")}>
         {options.map((opt) => {
           const isUserChoice = selectedOption === opt.key;
-          const isTargetCorrect = correctOption === opt.key;
+          const isTargetCorrect = !keyUnavailable && correctOption === opt.key;
 
           return (
             <div
@@ -105,7 +110,7 @@ export function QuestionReviewCard({
                 "p-3 rounded-xl border text-xs flex items-start gap-3",
                 isTargetCorrect
                   ? "bg-emerald-50/80 border-emerald-500 text-emerald-950 font-semibold"
-                  : isUserChoice && !isCorrect
+                  : isUserChoice && !isCorrect && !keyUnavailable
                   ? "bg-red-50/80 border-red-400 text-red-950 font-semibold"
                   : "bg-slate-50/50 border-slate-200 text-slate-700"
               )}
@@ -115,7 +120,7 @@ export function QuestionReviewCard({
                   "w-5 h-5 rounded-md text-[10px] font-bold flex items-center justify-center shrink-0",
                   isTargetCorrect
                     ? "bg-emerald-600 text-white"
-                    : isUserChoice && !isCorrect
+                    : isUserChoice && !isCorrect && !keyUnavailable
                     ? "bg-red-600 text-white"
                     : "bg-slate-200 text-slate-600"
                 )}
@@ -138,6 +143,8 @@ export function QuestionReviewCard({
           );
         })}
       </div>
+
+      {keyUnavailable && <AnswerKeyUnavailableNotice />}
 
       {/* Explanation, Mistake Vault link & Canonical Learning Resolution */}
       <div className="pt-3 border-t border-slate-100 space-y-2.5">

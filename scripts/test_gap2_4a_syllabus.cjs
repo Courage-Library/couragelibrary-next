@@ -21,7 +21,8 @@
  *   G-08 immutability (owner / service-role path): PUBLISHED / ARCHIVED versions, nodes and mappings reject
  *        every write except PUBLISHED → ARCHIVED; versions are inserted as DRAFT only
  *   G-09 create_draft from a PUBLISHED version deep-copies the tree and mappings (supersedes set)
- *   G-10 read model: NO_SYLLABUS without a published version (anon); AVAILABLE on a published TEST version with
+ *   G-10 read model: SSC CGL agrees with the DB (PUBLISHED ⇔ AVAILABLE; QB-KEY-1 round 2 amendment, was pinned to
+ *        NO_SYLLABUS); NO_SYLLABUS for a DRAFT-only exam (anon); AVAILABLE on a published TEST version with
  *        counts equal to independent queries (published questions per topic; servable documents per topic with
  *        the LearningResolverService rule); subtree counts; no fabricated values
  *   G-11 seeded drafts: GD legacy DRAFT (4 SECTION / 18 UNIT / 18 mappings, LEGACY_MIGRATION, valid) and CGL
@@ -412,8 +413,12 @@ const CORE = ['fn_syllabus__assert_role', 'fn_syllabus__audit', 'fn_syllabus__sl
 
     await test('G-10 read model: NO_SYLLABUS (anon) without a published version; AVAILABLE with live derived counts', async () =>
       tx(async () => {
-        const none = await rpc('anon', 'fn_exam_syllabus_read_model', [exams['ssc-cgl'], null]);
-        assert(none.state === 'NO_SYLLABUS' && none.version === null && none.nodes.length === 0, `CGL: ${JSON.stringify(none).slice(0, 200)}`);
+        // QB-KEY-1 round 2 (audited amendment; was pinned: CGL → NO_SYLLABUS): the read model agrees with the DB —
+        // CGL has a PUBLISHED version ⇔ AVAILABLE with exactly that version and a non-empty tree; none ⇔ NO_SYLLABUS
+        const cglPublished = (await q(`SELECT id::text FROM public.exam_syllabus_versions WHERE exam_id = $1 AND status = 'PUBLISHED'`, [exams['ssc-cgl']])).map((r) => r.id);
+        const cgl = await rpc('anon', 'fn_exam_syllabus_read_model', [exams['ssc-cgl'], null]);
+        if (cglPublished.length) assert(cglPublished.length === 1 && cgl.state === 'AVAILABLE' && cgl.version && cgl.version.id === cglPublished[0] && cgl.nodes.length > 0, `CGL: ${cgl.state} vs ${cglPublished.length} PUBLISHED`);
+        else assert(cgl.state === 'NO_SYLLABUS' && cgl.version === null && cgl.nodes.length === 0, `CGL: ${JSON.stringify(cgl).slice(0, 200)}`);
         const draftOnly = await rpc('anon', 'fn_exam_syllabus_read_model', [exams['ssc-gd'], null]);
         assert(draftOnly.state === 'NO_SYLLABUS', 'a DRAFT leaked into the read model');
 

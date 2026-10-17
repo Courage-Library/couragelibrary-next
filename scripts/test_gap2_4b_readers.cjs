@@ -11,16 +11,18 @@
  *        its sidebar link are gone
  *   R-03 ExamSyllabusSection is built from components/ui and has the three honest states
  * DB (couragelibrary-next, verified TLS, every write inside BEGIN … ROLLBACK — nothing persists):
- *   R-04 SSC CGL today: the read model (anon) is NO_SYLLABUS, and it renders "Syllabus coming soon" with no topics,
- *        counts or tiers
+ *   R-04 SSC CGL now (QB-KEY-1 round 2 amendment; was pinned to NO_SYLLABUS): the read model (anon) agrees with the
+ *        DB — a PUBLISHED version ⇔ AVAILABLE with that version — and the section renders it: AVAILABLE → every
+ *        paper / section title, no "Syllabus coming soon", no legacy SSC GD topic outside the read model;
+ *        NO_SYLLABUS → "Syllabus coming soon" with no topics, counts or tiers
  *   R-05 a published TEST version on the inactive QA exam (rolled back) → AVAILABLE, rendered as the section / unit
  *        tree with weightage tier, the expected range only when known, and live topic counts
  *   R-06 coverage: with the published rows as they are now → UNAVAILABLE; with the TEST version published (same
  *        PostgREST rules as the service: UNIT nodes of PUBLISHED + active versions) → AVAILABLE and the unit carries
  *        the exam derived from the mapping
  * Optional live check (a local production build):
- *   R-07 --base=http://localhost:3100 → GET /exams/ssc-cgl shows "Syllabus coming soon" and none of the legacy
- *        SSC GD topic names
+ *   R-07 --base=http://localhost:3100 → GET /exams/ssc-cgl: the syllabus section matches the read model (same rule
+ *        as R-04; scripts/smoke/_syllabus-expect.cjs) and shows no legacy SSC GD topic outside it
  * DB + PostgREST (GAP2-4c, migration 084):
  *   R-08 exam_syllabi / exam_topics / exam_unit_mappings / taxonomy_aliases exist only in schema retired with their
  *        rows; anon / authenticated have no USAGE on retired and no privilege on the tables; PostgREST answers
@@ -34,6 +36,7 @@ const Module = require('module');
 const ts = require('typescript');
 
 const ROOT = path.resolve(__dirname, '..');
+const { checkSyllabusSection, syllabusSectionText } = require('./smoke/_syllabus-expect.cjs');
 const ARGS = process.argv.slice(2);
 const OFFLINE = ARGS.includes('--offline');
 const BASE = (ARGS.find((a) => a.startsWith('--base=')) || '').slice(7).replace(/\/$/, '');
@@ -223,12 +226,24 @@ const RETIRED_TABLES = ['exam_syllabi', 'exam_topics', 'exam_unit_mappings', 'ta
       admin: { sub: fx.ids['qa-admin@courage-library.test'], role: 'authenticated', email: 'qa-admin@courage-library.test', app_metadata: { role: 'admin' } },
     };
 
-    await test('R-04 SSC CGL today: read model NO_SYLLABUS (anon) → "Syllabus coming soon", no topics / counts / tiers', async () =>
+    // QB-KEY-1 round 2 (audited amendment; was: pinned NO_SYLLABUS + "Syllabus coming soon"): the read model must agree
+    // with the DB (a PUBLISHED version ⇔ AVAILABLE with that version) and the section must render what it says.
+    await test('R-04 SSC CGL now: read model (anon) agrees with the DB (PUBLISHED ⇔ AVAILABLE) and the section renders it', async () =>
       tx('READ ONLY', async () => {
+        const published = (await q(`SELECT id::text FROM public.exam_syllabus_versions WHERE exam_id = $1 AND status = 'PUBLISHED'`, [fx.exams['ssc-cgl'].id])).map((r) => r.id);
         const rm = await rpc('anon', 'fn_exam_syllabus_read_model', [fx.exams['ssc-cgl'].id, null]);
-        assert(rm.state === 'NO_SYLLABUS' && rm.nodes.length === 0, `CGL read model: ${rm.state}`);
         const html = render(rm);
-        assert(/Syllabus coming soon/.test(html), 'coming-soon state missing');
+        const sy = checkSyllabusSection(`<section id="syllabus">${html}</section>`, rm);
+        if (published.length) {
+          assert(published.length === 1 && rm.state === 'AVAILABLE' && rm.version && rm.version.id === published[0] && rm.nodes.length > 0, `CGL read model ${rm.state} vs ${published.length} PUBLISHED`);
+          assert(sy.ok, sy.detail);
+          // nothing beyond the read model: a legacy SSC GD topic name may appear only as a topic of the read model
+          const modelTopics = new Set(rm.nodes.flatMap((n) => (n.topics || []).map((t) => t.name)));
+          for (const t of fx.gdTopics) assert(!html.includes(t) || modelTopics.has(t), `legacy SSC GD topic rendered outside the read model: ${t}`);
+          return sy.detail;
+        }
+        assert(rm.state === 'NO_SYLLABUS' && rm.nodes.length === 0, `CGL read model: ${rm.state} (no PUBLISHED version)`);
+        assert(sy.ok, sy.detail);
         assert(!/practice question|lesson|High yield|Core|questions expected/i.test(html.replace(/We are preparing[^<]*/, '')), 'fabricated syllabus content rendered');
         for (const t of fx.gdTopics) assert(!html.includes(t), `legacy SSC GD topic rendered: ${t}`);
         return 'NO_SYLLABUS';
@@ -337,13 +352,18 @@ const RETIRED_TABLES = ['exam_syllabi', 'exam_topics', 'exam_unit_mappings', 'ta
     });
 
     if (BASE) {
-      await test(`R-07 ${BASE}/exams/ssc-cgl shows "Syllabus coming soon" and no legacy SSC GD topics`, async () => {
+      // QB-KEY-1 round 2 (audited amendment; was: pinned "Syllabus coming soon")
+      await test(`R-07 ${BASE}/exams/ssc-cgl syllabus section matches the read model; no legacy SSC GD topic outside it`, async () => {
         const res = await fetch(`${BASE}/exams/ssc-cgl`, { redirect: 'manual' });
         assert(res.status === 200, `status ${res.status}`);
         const html = await res.text();
-        assert(/Syllabus coming soon/.test(html), 'coming-soon state missing');
-        const sec = html.slice(html.indexOf('id="syllabus"'), html.indexOf('</section>', html.indexOf('id="syllabus"')));
-        for (const t of fx.gdTopics) assert(!sec.includes(t), `legacy topic in the syllabus section: ${t}`);
+        const rm = await tx('READ ONLY', () => rpc('anon', 'fn_exam_syllabus_read_model', [fx.exams['ssc-cgl'].id, null]));
+        const sy = checkSyllabusSection(html, rm);
+        assert(sy.ok, sy.detail);
+        const sec = syllabusSectionText(html);
+        const modelTopics = new Set((rm.nodes || []).flatMap((n) => (n.topics || []).map((t) => t.name)));
+        for (const t of fx.gdTopics) assert(!sec.includes(t) || modelTopics.has(t), `legacy topic in the syllabus section outside the read model: ${t}`);
+        return sy.detail;
       });
     }
   } finally {

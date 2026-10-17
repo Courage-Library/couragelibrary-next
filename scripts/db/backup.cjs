@@ -9,7 +9,13 @@
  * is printed. Requires PostgreSQL client tools ≥ server major (PG_BIN, default PostgreSQL 17).
  *
  * Usage: node scripts/db/backup.cjs [label]
+ *        node scripts/db/backup.cjs [label] --resilient   (BACKUP-RESILIENT-1: per-table, manifest-verified; the standard
+ *                                                         mode on an unreliable network — see backup-resilient.cjs)
  */
+if (process.argv.includes('--resilient')) {
+  require('./backup-resilient.cjs');
+  return;
+}
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');

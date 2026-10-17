@@ -309,7 +309,8 @@ export interface LiveTestCandidateScorecard {
       imageUrl: string | null;
     }>;
     selectedOption: string | null;
-    correctOption: string;
+    /** null = no valid answer key (QB-KEY-1) */
+    correctOption: string | null;
     isCorrect: boolean;
   marksAwarded: number;
     explanation: string | null;

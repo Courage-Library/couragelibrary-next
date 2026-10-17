@@ -7,7 +7,8 @@
  *                             the options A–D and a marked correct answer; latest mock result renders a score
  *           student-pages     qa-student: community, descriptive, flashcards, institutes, premium, store, wallet,
  *                             dashboard render (200, no not-found, no error boundary); first thread / deck detail too;
- *                             /exams/ssc-cgl renders its syllabus section as "Syllabus coming soon" (GAP2-4b)
+ *                             /exams/ssc-cgl renders its syllabus section as the read model says: AVAILABLE → the
+ *                             paper / section titles, no "coming soon"; NO_SYLLABUS → "Syllabus coming soon"
  *           admin-home        qa-admin:  /admin renders (200, no not-found)
  *           admin-pages       qa-admin:  B6 admin pages render (questions, sections, billing, community, descriptive,
  *                             institutes, mock-tests-management, bulk-import, taxonomy, exams) — no error boundary
@@ -18,6 +19,7 @@
  */
 const { chromium } = require('playwright');
 const { readEnv } = require('../db/_db-env.cjs');
+const { readModelForSlug, checkSyllabusSection } = require('./_syllabus-expect.cjs');
 
 const [, , CHECK = 'student-mistake', BASE_ARG] = process.argv;
 const BASE = (BASE_ARG || 'http://localhost:3100').replace(/\/$/, '');
@@ -100,10 +102,13 @@ function readMistakeDetail() {
       const href = await page.$$eval('a[href]', (as, src) => { const r = new RegExp(src); const h = as.map((a) => a.getAttribute('href')).find((x) => r.test(x || '')); return h || null; }, re.source);
       if (href) await visit(href); else console.log(`INFO  no detail link on ${list} (no data)`);
     }
-    // GAP2-4b: the exam hub's syllabus section comes from the canonical read model (no CGL syllabus is published yet)
+    // GAP2-4b + QB-KEY-1 round 2: the exam hub's syllabus section must match the canonical read model — AVAILABLE →
+    // the paper / section titles and no coming-soon; NO_SYLLABUS → "Syllabus coming soon" (scripts/smoke/_syllabus-expect.cjs)
     await visit('/exams/ssc-cgl');
     const hub = await page.content();
-    check('/exams/ssc-cgl syllabus section → "Syllabus coming soon"', /id="syllabus"/.test(hub) && /Syllabus coming soon/.test(hub));
+    const rm = await readModelForSlug(env, 'ssc-cgl');
+    const sy = checkSyllabusSection(hub, rm);
+    check('/exams/ssc-cgl syllabus section matches the read model', sy.ok, sy.detail);
   } else if (CHECK === 'admin-pages') {
     const ADMIN = ['/admin', '/admin/questions', '/admin/sections', '/admin/billing', '/admin/community', '/admin/descriptive', '/admin/institutes', '/admin/mock-tests-management', '/admin/bulk-import', '/admin/taxonomy', '/admin/exams', '/admin/exam-knowledge', '/admin/design-system', '/admin/syllabus'];
     for (const p of ADMIN) {

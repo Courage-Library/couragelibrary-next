@@ -849,7 +849,8 @@ function questionFormToItem(formData: FormData): QuestionAuthoringItem {
     language: language === "hindi" || language === "hi" ? "hi" : "en",
     difficulty: (text("difficulty") || "medium").toLowerCase(),
     options: (["A", "B", "C", "D"] as QuestionOptionKey[]).map((key) => ({ key, text: text(`opt${key}Text`) })),
-    correctKey: (text("correctOptionKey") || "A").toUpperCase(),
+    // QB-KEY-1: no default key — an empty key is rejected by the Question Factory validator
+    correctKey: text("correctOptionKey").toUpperCase(),
     explanationMd: text("explanation"),
     sourceType: pyqYear || pyqSource ? "PYQ" : "ORIGINAL",
   };
@@ -964,6 +965,23 @@ export async function toggleQuestionStatusAction(questionId: string, currentStat
   // Restoring an archived question is allowed by the DB only when its current version is PUBLISHED.
   const { error } = await supabase.from("questions").update({ status: newStatus }).eq("id", questionId);
   if (error) return dbFailure("toggleQuestionStatusAction", error);
+
+  // QB-KEY-1 (decision #53): retire / restore is audited (admin_audit_logs, same shape as the other admin
+  // services). If the audit row cannot be written the status change is reverted — no unaudited archive.
+  const { error: auditError } = await supabase.from("admin_audit_logs").insert({
+    actor_id: authCheck.userId,
+    actor_email: authCheck.userEmail,
+    action_type: newStatus === "archived" ? "QUESTION_ARCHIVE" : "QUESTION_UNARCHIVE",
+    target_entity: "question",
+    target_id: questionId,
+    old_value: { status: currentStatus },
+    new_value: { status: newStatus },
+    reason: null,
+  });
+  if (auditError) {
+    await supabase.from("questions").update({ status: currentStatus }).eq("id", questionId);
+    return dbFailure("toggleQuestionStatusAction", auditError);
+  }
 
   revalidatePath("/admin/questions");
   return { success: true, message: `Question status changed to ${newStatus}.` };

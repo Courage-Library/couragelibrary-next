@@ -364,15 +364,23 @@ async function counts(c) {
     assert(forbidden.every((f) => !cols.includes(f)), `found: ${forbidden.filter((f) => cols.includes(f))}`);
     assert(cols.includes('lifecycle_status') && cols.includes('content_checksum'));
   });
-  await test('SEC-DB all QF functions: SECURITY DEFINER, pinned search_path, not executable by anon/authenticated', async () => {
+  // Amended by QB-KEY-1 to decision #54 (least privilege; architect ruling 2026-10-17). Previously every function had to be
+  // SECURITY DEFINER with search_path exactly 'public, pg_temp'. Now:
+  //   - search_path pinned to '' or 'public, pg_temp' (unpinned or anything else → FAIL);
+  //   - SECURITY DEFINER required iff a client role (anon / authenticated / PUBLIC) has EXECUTE; INVOKER only without one;
+  //   - not executable by anon / authenticated (unchanged) and not by PUBLIC (new).
+  await test('SEC-DB all QF functions (#54): search_path pinned (\'\' or public, pg_temp); DEFINER required iff a client role has EXECUTE; not executable by anon/authenticated/PUBLIC', async () => {
     const rows = (await c.query(`SELECT p.proname, p.prosecdef, p.proconfig,
-        has_function_privilege('anon', p.oid, 'EXECUTE') anon_x, has_function_privilege('authenticated', p.oid, 'EXECUTE') auth_x
+        has_function_privilege('anon', p.oid, 'EXECUTE') anon_x, has_function_privilege('authenticated', p.oid, 'EXECUTE') auth_x,
+        has_function_privilege('public', p.oid, 'EXECUTE') public_x
       FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
       WHERE n.nspname = 'public' AND (p.proname LIKE 'fn_qf_%' OR p.proname IN ('fn_question_stem_checksum','fn_import_question_drafts','fn_update_question_draft','fn_create_question_revision','fn_transition_question_version','fn_publish_question_version'))`)).rows;
     assert(rows.length >= 12, `found ${rows.length}`);
     rows.forEach((r) => {
-      assert(r.prosecdef && (r.proconfig || []).some((x) => x === 'search_path=public, pg_temp'), `${r.proname} definer/search_path`);
+      assert((r.proconfig || []).some((x) => x === 'search_path=public, pg_temp' || x === 'search_path=""'), `${r.proname} search_path not pinned to '' or public, pg_temp`);
+      if (r.anon_x || r.auth_x || r.public_x) assert(r.prosecdef, `${r.proname} client-executable but not SECURITY DEFINER`);
       assert(!r.anon_x && !r.auth_x, `${r.proname} executable by anon/authenticated`);
+      assert(!r.public_x, `${r.proname} executable by PUBLIC`);
     });
   });
 

@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Badge } from "@/components/ui/legacy/badge";
 import { Button } from "@/components/ui/legacy/button";
+import { AnswerKeyUnavailableNotice } from "@/components/questions/answer-key-notice";
 import {
   Flag,
   Search,
@@ -31,7 +32,7 @@ export interface AdminQuestionReportItem {
   createdAt: string;
   questionText: string;
   options: Array<{ id: string; key: string; text: string }>;
-  correctOptionKey: string;
+  correctOptionKey: string | null;
   explanation: string | null;
 }
 
@@ -351,12 +352,13 @@ export function AdminQuestionReportsManager({ initialReports }: AdminQuestionRep
                   Options &amp; Correct Answer Key
                 </span>
                 <div className="space-y-1 text-xs">
+                  {activeReport.correctOptionKey === null && <AnswerKeyUnavailableNotice scored />}
                   {activeReport.options && activeReport.options.length > 0 ? (
                     activeReport.options.map((opt) => (
                       <div
                         key={opt.key}
                         className={`px-2.5 py-1.5 rounded-lg flex items-center justify-between ${
-                          opt.key === activeReport.correctOptionKey
+                          activeReport.correctOptionKey !== null && opt.key === activeReport.correctOptionKey
                             ? "bg-emerald-50 text-emerald-900 border border-emerald-200 font-bold"
                             : "bg-slate-50 text-slate-700"
                         }`}
@@ -365,7 +367,7 @@ export function AdminQuestionReportsManager({ initialReports }: AdminQuestionRep
                           <span className="font-mono font-bold mr-1.5">[{opt.key}]</span>
                           {opt.text}
                         </span>
-                        {opt.key === activeReport.correctOptionKey && (
+                        {activeReport.correctOptionKey !== null && opt.key === activeReport.correctOptionKey && (
                           <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                         )}
                       </div>

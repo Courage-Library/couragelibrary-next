@@ -285,7 +285,8 @@ export function AdminQuestionManager({
     setEditOptBText(optB?.text || "");
     setEditOptCText(optC?.text || "");
     setEditOptDText(optD?.text || "");
-    setEditCorrectAnswer(q.correctOptionKey || "A");
+    // QB-KEY-1: no default key — an invalid / missing key stays empty and must be chosen explicitly
+    setEditCorrectAnswer(q.correctOptionKey ?? "");
     setEditDifficulty(q.difficulty || "easy");
     setEditPyqSource(q.pyqSource || "");
     setEditPyqYear(q.pyqYear ? String(q.pyqYear) : "");

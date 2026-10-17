@@ -10,6 +10,7 @@ import { Container } from "@/components/ui/legacy/container";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/legacy/card";
 import { Badge } from "@/components/ui/legacy/badge";
 import { Button } from "@/components/ui/legacy/button";
+import { AnswerKeyUnavailableNotice } from "@/components/questions/answer-key-notice";
 import {
   ArrowLeft,
   Brain,
@@ -79,10 +80,12 @@ export default async function MistakeDetailPage({ params }: Props) {
             </div>
           </div>
 
+          {mistake.correctOptionKey === null && <AnswerKeyUnavailableNotice scored />}
+
           {/* Options */}
           <div className="space-y-2 pt-2">
             {mistake.options.map((opt) => {
-              const isTargetCorrect = opt.key === mistake.correctOptionKey;
+              const isTargetCorrect = mistake.correctOptionKey !== null && opt.key === mistake.correctOptionKey;
               return (
                 <div
                   key={opt.key}

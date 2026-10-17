@@ -8,7 +8,9 @@
  * Refuses unless ALL hold:
  *   1. Project-ref guard passes (POSTGRES_URL_NON_POOLING ref == NEXT_PUBLIC_SUPABASE_URL ref).
  *   2. TLS verifies against PROD_CA_PATH (no bypass of any kind).
- *   3. (apply only) A *-public.dump in BACKUP_DIR newer than 60 minutes passes `pg_restore --list`.
+ *   3. (apply only) The newest backup in BACKUP_DIR is younger than 60 minutes and valid: either a *-public.dump that
+ *      passes `pg_restore --list`, or a *-resilient/ directory whose manifest.json verified 100% (BACKUP-RESILIENT-1;
+ *      its schema.dump and every table file's sha256 are re-checked here).
  *   4. The file is not already APPLIED / BASELINED / SUPERSEDED_NOT_APPLIED in
  *      public.schema_migration_ledger (if the ledger exists).
  *
@@ -53,13 +55,14 @@ function verifyRecentBackup() {
   if (!fs.existsSync(dir)) fail(`backup dir not found (${dir})`);
   const dumps = fs
     .readdirSync(dir)
-    .filter((f) => f.endsWith('-public.dump'))
+    .filter((f) => f.endsWith('-public.dump') || (f.endsWith('-resilient') && fs.existsSync(path.join(dir, f, 'manifest.json'))))
     .map((f) => ({ f, t: fs.statSync(path.join(dir, f)).mtimeMs }))
     .sort((a, b) => b.t - a.t);
   if (!dumps.length) fail('no *-public.dump backup found; run scripts/db/backup.cjs first');
   const newest = dumps[0];
   if (Date.now() - newest.t > MAX_BACKUP_AGE_MS) fail(`newest backup is older than 60 minutes (${newest.f}); run scripts/db/backup.cjs`);
   const bin = path.join(target.pgBin, process.platform === 'win32' ? 'pg_restore.exe' : 'pg_restore');
+  if (newest.f.endsWith('-resilient')) return verifyResilient(path.join(dir, newest.f), newest.f, bin);
   let list;
   try {
     list = execFileSync(bin, ['--list', path.join(dir, newest.f)], { encoding: 'utf8' });
@@ -68,6 +71,29 @@ function verifyRecentBackup() {
   }
   if (!/ TABLE DATA public /.test(list)) fail(`backup ${newest.f} contains no public table data`);
   return newest.f;
+}
+
+function verifyResilient(bdir, name, bin) {
+  const sha = (f) => require('crypto').createHash('sha256').update(fs.readFileSync(f)).digest('hex');
+  let m;
+  try {
+    m = JSON.parse(fs.readFileSync(path.join(bdir, 'manifest.json'), 'utf8'));
+  } catch {
+    fail(`backup ${name}: manifest.json unreadable`);
+  }
+  if (m.method !== 'BACKUP-RESILIENT-1' || m.verified !== true) fail(`backup ${name}: manifest not verified`);
+  if (!m.schema || sha(path.join(bdir, m.schema.file)) !== m.schema.sha256) fail(`backup ${name}: schema.dump checksum mismatch`);
+  try {
+    execFileSync(bin, ['--list', path.join(bdir, m.schema.file)], { encoding: 'utf8' });
+  } catch {
+    fail(`backup ${name}: schema.dump failed pg_restore --list`);
+  }
+  if (!m.tables.some((e) => e.schema === 'public') || !m.tables.some((e) => e.schema === 'auth')) fail(`backup ${name}: public/auth tables missing`);
+  for (const e of m.tables) {
+    const f = path.join(bdir, e.file || '');
+    if (!e.file || !fs.existsSync(f) || sha(f) !== e.sha256) fail(`backup ${name}: ${e.schema}.${e.table} file missing or checksum mismatch`);
+  }
+  return `${name} (resilient, ${m.tables.length} tables, ${m.summary.rows} rows, manifest verified)`;
 }
 
 (async () => {

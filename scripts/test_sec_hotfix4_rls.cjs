@@ -96,8 +96,11 @@ const STAFF = { sub: '00000000-0000-4000-8000-0000000000b2', role: 'authenticate
 
 let passed = 0;
 let failed = 0;
+// QB-KEY-1: errors from the driver / network print their CODE only (a connect error message carries the pooler's IP /
+// host). Assertion failures (our own messages, no code) print as before.
+const errText = (e) => (e && e.code ? `error code ${e.code}` : String(e && e.message ? e.message : e));
 async function test(name, fn) {
-  try { const info = await fn(); passed++; console.log(`  PASS  ${name}${info ? ' — ' + info : ''}`); } catch (e) { failed++; console.log(`  FAIL  ${name}\n        ${String(e && e.message ? e.message : e).slice(0, 2500)}`); }
+  try { const info = await fn(); passed++; console.log(`  PASS  ${name}${info ? ' — ' + info : ''}`); } catch (e) { failed++; console.log(`  FAIL  ${name}\n        ${errText(e).slice(0, 2500)}`); }
 }
 const assert = (c, m) => { if (!c) throw new Error(m || 'assertion failed'); };
 
@@ -300,7 +303,7 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assertion failed'); };
           await q('RELEASE SAVEPOINT p8');
           return r && r.r;
         } catch (e) {
-          out[key] = e.code === '42501' ? 'DENIED' : `ERR ${e.code} ${String(e.message).slice(0, 60)}`;
+          out[key] = e.code === '42501' ? 'DENIED' : `ERR ${e.code} ${String(e.message).slice(0, 60)}`; // a DB exception message (no host): P-8 matches SYLLABUS_IMMUTABLE in it
           await q('ROLLBACK TO SAVEPOINT p8');
           await q('RESET ROLE');
           return null;
@@ -445,8 +448,8 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assertion failed'); };
   console.log(`\nSEC-HOTFIX-4 RLS: ${passed}/${passed + failed} passed`);
   process.exit(failed ? 1 : 0);
 })().catch((e) => {
-  // AggregateError (e.g. connection failures) has an empty message; print code + nested errors so an abort is diagnosable
-  const detail = [e && e.code, e && e.message, ...((e && e.errors) || []).map((x) => `${x.code || ''} ${x.message || ''}`)].filter(Boolean).join(' | ');
-  console.error('SUITE ERROR', String(detail || e).replace(/postgres(ql)?:\/\/\S+/g, '[url]').slice(0, 600));
+  // codes only (QB-KEY-1): a connect error's message names the pooler's IP / host. AggregateError → nested codes.
+  const codes = [e && e.code, ...((e && e.errors) || []).map((x) => x && x.code)].filter(Boolean);
+  console.error('SUITE ERROR', codes.length ? codes.join(' | ') : 'no error code (see the failing step above)');
   process.exit(1);
 });

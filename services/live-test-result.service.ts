@@ -10,6 +10,7 @@ import {
 import { MistakeService } from "@/services/mistake.service";
 import { GamificationService } from "@/services/gamification.service";
 import { quarantinedClient, type QuarantinedRow } from "@/lib/supabase/quarantine";
+import { validAnswerKey } from "@/lib/questions/answer-key";
 
 // TYPES-1:C-LIVE-TEST-RESULT — QUARANTINED (LIVE_TESTS flag off; known-broken against the live schema). The Supabase client is
 // obtained through lib/supabase/quarantine.ts (registered in docs/reports/types/TYPES1_ESCAPES.json).
@@ -502,7 +503,7 @@ export class LiveTestResultService {
         optionsType: qv?.options_type || "text",
         options: opts,
         selectedOption: ans?.selected_option_key || null,
-        correctOption: qa?.correct_option_key || "A",
+        correctOption: validAnswerKey(qv?.question_answers, qv?.question_options),
         isCorrect: ans?.is_correct ?? false,
         marksAwarded: Number(ans?.evaluated_marks || 0),
         explanation: qa?.explanation_md || null,

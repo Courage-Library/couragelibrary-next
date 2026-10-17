@@ -362,7 +362,8 @@ function DraftEditor({
   const [stem, setStem] = useState(detail.stem);
   const [difficulty, setDifficulty] = useState(detail.difficulty);
   const [options, setOptions] = useState(detail.options.map((o) => ({ ...o })));
-  const [correctKey, setCorrectKey] = useState(detail.correctKey || "A");
+  // QB-KEY-1: no default key — a missing key stays empty and must be chosen explicitly
+  const [correctKey, setCorrectKey] = useState(detail.correctKey ?? "");
   const [explanation, setExplanation] = useState(detail.explanationMd || "");
 
   const save = () => {

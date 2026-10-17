@@ -1,4 +1,5 @@
 import { createServerSupabaseClient, createAdminServerSupabaseClient } from "@/lib/supabase/server";
+import { validAnswerKey } from "@/lib/questions/answer-key";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 import { revalidatePath } from "next/cache";
@@ -453,7 +454,8 @@ export interface TestResultSummary {
     optionsType?: string;
     options: Array<{ key: string; text: string; imageUrl?: string | null }>;
     selectedOption: string | null;
-    correctOption: string;
+    /** null = no valid answer key (QB-KEY-1): not scored, no option marked correct */
+    correctOption: string | null;
     isCorrect: boolean;
     marksAwarded: number;
     explanation: string | null;
@@ -2013,11 +2015,24 @@ export class AssessmentService {
       cognitiveTypeId?: string;
     }> = [];
     const questionsList = questionsRes.data || [];
+    // QB-KEY-1: a question without a valid answer key is excluded from score AND max score — never marked
+    // incorrect, never negatively marked, never sent to the Mistake Vault — and logged as a data error (no PII).
+    let excludedCount = 0;
+    let excludedMarks = 0;
+    const keylessVersionIds: string[] = [];
 
     questionsList.forEach((mq) => {
       const sec = sectionMetrics.get(mq.mock_section_id);
       const marks = Number(mq.marks);
       const negMark = Number(mq.negative_mark);
+      const qv = mq.question_versions;
+      const correctOptionKey = validAnswerKey(qv?.question_answers, qv?.question_options);
+      if (!correctOptionKey) {
+        excludedCount += 1;
+        excludedMarks += Number.isFinite(marks) ? marks : 0;
+        keylessVersionIds.push(String(qv?.id ?? mq.question_version_id ?? mq.id));
+        return;
+      }
 
       if (sec) {
         sec.total += 1;
@@ -2025,11 +2040,6 @@ export class AssessmentService {
       }
 
       const ans = answersMap.get(mq.id);
-      const qv = mq.question_versions;
-      const qa = Array.isArray(qv?.question_answers)
-        ? qv?.question_answers[0]
-        : qv?.question_answers;
-      const correctOptionKey = qa?.correct_option_key;
 
       if (ans && ans.selected_option_key) {
         attemptedCount += 1;
@@ -2074,7 +2084,11 @@ export class AssessmentService {
       }
     });
 
-    const unansweredCount = testData.total_questions - attemptedCount;
+    if (keylessVersionIds.length > 0) {
+      console.warn(`[AssessmentService.submitTestAttempt] DATA_ERROR: ${keylessVersionIds.length} question version(s) without a valid answer key excluded from scoring (mock ${attempt.mock_test_id}; versions ${keylessVersionIds.join(", ")})`);
+    }
+    const scoredQuestions = Math.max(0, Number(testData.total_questions) - excludedCount);
+    const unansweredCount = scoredQuestions - attemptedCount;
     const accuracy = attemptedCount > 0 ? (correctCount / attemptedCount) * 100 : 0;
 
     const submittedAtIso = new Date().toISOString();
@@ -2094,13 +2108,13 @@ export class AssessmentService {
           attempt_id: attemptId,
           user_id: userId,
           mock_test_id: attempt.mock_test_id,
-          total_questions: testData.total_questions,
+          total_questions: scoredQuestions,
           attempted_count: attemptedCount,
           correct_count: correctCount,
           incorrect_count: incorrectCount,
           unanswered_count: unansweredCount,
           total_score: totalScore,
-          max_score: Number(testData.total_marks),
+          max_score: Math.max(0, Number(testData.total_marks) - excludedMarks),
           accuracy_percentage: Math.round(accuracy * 100) / 100,
           time_spent_seconds: finalDurationSeconds,
         } as any)
@@ -2331,7 +2345,7 @@ export class AssessmentService {
       const qa = Array.isArray(qv?.question_answers)
         ? qv?.question_answers[0]
         : qv?.question_answers;
-      const correctOption = qa?.correct_option_key || "A";
+      const correctOption = validAnswerKey(qv?.question_answers, qv?.question_options);
       const explanation = qa?.explanation_md || null;
       const topicId = qv?.questions?.canonical_topic_id;
       const topicSlug = qv?.questions?.topics?.slug;

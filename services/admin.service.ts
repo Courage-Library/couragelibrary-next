@@ -1,6 +1,7 @@
 import { createServerSupabaseClient, createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { UserProfileService } from "@/services/user-profile.service";
 import { resolveRole } from "@/lib/auth/require-admin";
+import { validAnswerKey } from "@/lib/questions/answer-key";
 import {
   getIstCurrentDateTime,
   getIstTomorrowDateStr,
@@ -171,7 +172,8 @@ export interface AdminQuestionHierarchyItem {
     imageUrl: string | null;
     orderIndex: number;
   }>;
-  correctOptionKey: string;
+  /** null = no valid answer key (QB-KEY-1) */
+  correctOptionKey: string | null;
   explanationMd: string;
   // Associations
   mockTestAssociations: Array<{
@@ -1457,7 +1459,7 @@ export class AdminService {
           imageUrl: opt.option_image_url || null,
           orderIndex: opt.order_index,
         })),
-        correctOptionKey: answers?.correct_option_key || "A",
+        correctOptionKey: validAnswerKey(answers),
         explanationMd: answers?.explanation_md || "No detailed explanation provided.",
         mockTestAssociations: [],
       };
@@ -1725,7 +1727,7 @@ export class AdminService {
         createdAt: r.created_at,
         questionText: qv?.question_text || "",
         options,
-        correctOptionKey: qa?.correct_option_key || "A",
+        correctOptionKey: validAnswerKey(qa),
         explanation: qa?.solution_explanation_md || qa?.explanation_md || null,
       };
     });

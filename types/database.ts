@@ -7772,6 +7772,10 @@ export type Database = {
         Args: { p_item: Json; p_label: string }
         Returns: undefined
       }
+      fn_qf_assert_version_publishable: {
+        Args: { p_version_id: string }
+        Returns: undefined
+      }
       fn_qf_find_exact_duplicates: {
         Args: {
           p_exclude_question_id?: string
@@ -7779,6 +7783,14 @@ export type Database = {
           p_topic_id: string
         }
         Returns: Json
+      }
+      fn_qf_version_is_servable: {
+        Args: { p_version_id: string }
+        Returns: boolean
+      }
+      fn_qf_version_key_problem: {
+        Args: { p_version_id: string }
+        Returns: string
       }
       fn_question_stem_checksum: { Args: { p_stem: string }; Returns: string }
       fn_recompute_mistake_profile: {

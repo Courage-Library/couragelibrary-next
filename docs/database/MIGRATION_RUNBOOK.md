@@ -24,16 +24,46 @@ backup  →  pre-check (dry-run)  →  apply via runner  →  verify  →  ledge
 - **Secrets:** no tool prints connection strings, hosts with project refs, keys or passwords.
 - **Read-only investigation sessions:** use transaction-scoped `BEGIN READ ONLY … ROLLBACK`. Do **not** run session-level `SET default_transaction_read_only = on` through the Supavisor transaction pooler (port 6543). The setting persists on the pooled backend and later clients inherit read-only sessions. (Observed in DRIFT-1b and reset with `RESET default_transaction_read_only`.)
 
-## 1. Backup (mandatory)
+## 1. Backup (mandatory) — standard procedure: BACKUP-RESILIENT-1
 
 ```bash
-node scripts/db/backup.cjs pre-<change-name>
+node scripts/db/backup.cjs pre-<change-name> --resilient
 ```
 
-- **What it does:** `pg_dump` of `public` (schema + data) and `auth` (data only), custom format, verify-full TLS, written to `BACKUP_DIR` (default `E:\CourageLibrary-Backups`, must be outside the repo).
-- **Verification:** `pg_restore --list` must succeed and contain table data.
-- **Requirements:** PostgreSQL client tools whose major version is at least the server's (server is 17). Default `PG_BIN` is `C:\Program Files\PostgreSQL\17\bin`.
-- **Freshness:** the runner refuses to apply unless a verified `*-public.dump` is **less than 60 minutes old**.
+Backup before a migration is **mandatory** (architect ruling, 2026-10-17). It is made **resilient** rather than retried as one big dump. One dropped connection kills a monolithic `pg_dump`, and it leaves an orphaned session "idle in transaction" holding every table lock (QB-KEY-1: 4 failed dumps, 2 orphans terminated).
+
+**How it works** (`scripts/db/backup-resilient.cjs`):
+
+1. **Schema.** A `pg_dump --schema-only` of `public` and `auth` (custom format, about 1 MB, one short session) → `schema.dump`. It is checked with `pg_restore --list`.
+2. **Data, per table.** Every table of `public` and `auth` gets its **own short session**: at most 4 run at a time, and each table has **at most 3 attempts**. Each session runs:
+   ```sql
+   BEGIN READ ONLY ISOLATION LEVEL REPEATABLE READ;
+   SET LOCAL statement_timeout = '120s';
+   SET LOCAL idle_in_transaction_session_timeout = '30s';
+   SELECT to_jsonb(t)::text FROM <schema>.<table> t;   -- → <schema>.<table>.ndjson, one JSON row per line
+   COMMIT;
+   ```
+   - **Timeouts.** They are set **for that transaction only**; nothing changes at server level. The Supavisor transaction pooler (port 6543) ignores startup options such as `PGOPTIONS`, so `SET LOCAL` inside the transaction is the only per-session setting that works.
+   - **Why that matters.** If the client dies mid-read, the server ends the backend within 30 s. Observed: a killed run's backend disappeared on its own.
+   - **Bounds.** Each session is also capped by a 300 s client-side limit.
+3. **Orphans.** After **any** failed attempt, the script terminates only its **own** orphaned sessions before retrying, and records their PIDs in the manifest. An own orphan means: same DB user, idle in transaction for more than 5 s, running this script's or `pg_dump`'s own statement.
+4. **Manifest and verification.** `manifest.json` records, per table: rows in the file, sha256, bytes and attempts. Then the script checks:
+   - every `public` and `auth` table is present;
+   - every file's sha256 and line count match the manifest;
+   - every table's row count equals a **live count taken at the end**. A table that changed in the meantime is re-dumped, still within its 3 attempts.
+
+   **The backup is valid only if the manifest verifies 100%** (`"verified": true`).
+5. **If any table fails 3 times → BLOCKED: do not migrate.** The output names the table.
+
+**Output:** `BACKUP_DIR/<label>-<stamp>-resilient/` containing `schema.dump`, `<schema>.<table>.ndjson` × N, `manifest.json` and `backup.log`. `BACKUP_DIR` is outside the repo; backup files are **never committed**.
+
+**Runner gate:** `apply-migration.cjs` refuses to apply unless the newest backup is **less than 60 minutes old** and valid. Valid means either:
+- a classic `*-public.dump` that passes `pg_restore --list`, or
+- a `*-resilient/` directory whose manifest is verified and whose files' sha256 values re-check.
+
+The classic monolithic mode (`node scripts/db/backup.cjs <label>`) still exists for a stable network (e.g. CI).
+
+**Requirements:** PostgreSQL client tools whose major version is at least the server's (17). The default `PG_BIN` is `C:\Program Files\PostgreSQL\17\bin`. Verified TLS only (`PROD_CA_PATH`). The script prints no secrets, hosts or connection strings.
 
 ## 2. Pre-check (dry-run)
 
@@ -98,4 +128,28 @@ Commit the regenerated `types/database.ts` **in the same commit as the migration
 
 ## Restore
 
-See `docs/reports/qf1/QF1B_DEV_DB_VERIFICATION_REPORT.md` §10 for the `pg_restore` command template. Pass the connection only through `PG*` environment variables, with `PGSSLMODE=verify-full` and `PGSSLROOTCERT=<CA path>`.
+**Classic dump:** see `docs/reports/qf1/QF1B_DEV_DB_VERIFICATION_REPORT.md` §10 for the `pg_restore` command template. Pass the connection only through `PG*` environment variables, with `PGSSLMODE=verify-full` and `PGSSLROOTCERT=<CA path>`.
+
+**Resilient backup (BACKUP-RESILIENT-1):**
+
+1. **Schema (only if objects are lost).** Use `pg_restore --schema-only` from `schema.dump`, or restore selected objects with `pg_restore -l` / `-L`. After a migration, the normal path is the migration's rollback script; it restores definitions byte-exactly.
+2. **Data, per table.** Do it in one transaction. Example for a single table:
+   ```sql
+   BEGIN;
+   SET LOCAL statement_timeout = '120s';
+   -- optional: TRUNCATE / DELETE the damaged rows first
+   INSERT INTO public.<table> (<non-generated columns>)
+   SELECT <non-generated columns>
+   FROM jsonb_populate_recordset(NULL::public.<table>, $1::jsonb);  -- $1 = '[' || lines of <table>.ndjson joined by ',' || ']'
+   -- verify count(*) against manifest.json, then COMMIT (or ROLLBACK)
+   COMMIT;
+   ```
+   - Load parent tables before children: FK order follows `pg_restore -l schema.dump`.
+   - Triggers still fire. For frozen QF-1 rows, restore through the documented rollback path instead.
+3. **Dry test (proves the path):**
+   ```bash
+   node scripts/db/backup-resilient.cjs --restore-test <backup-dir>
+   ```
+   - It takes the smallest non-empty `public` table (≤ 50 rows) and recreates it in a temporary schema `bk_restore_test` with `CREATE TABLE … (LIKE …)`.
+   - It loads the rows from the `.ndjson` file and compares count and row hash with live.
+   - **Everything runs in one transaction that is rolled back**, so nothing persists.
