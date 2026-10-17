@@ -209,7 +209,15 @@ No horizontal scroll at any width (scrollWidth = viewport); exactly one h1; no "
 
 ## 8. Production smoke
 
-Recorded after the push.
+| Probe | Result |
+|---|---|
+| `wait-for-deploy` `8aa9f24` | deployed (200) |
+| GET / | 200; brand line present; no "undefined" / "NaN" / "null"; JSON-LD parses (EducationalOrganization, support e-mail); exactly one h1 |
+| GET / diagnostics / ref checks (HOTFIX-1) | no "Supabase" / "Production" / … ; no project ref (sha-compared) |
+| Live counts on production "/" (3 fetches) | "8 free mock tests live", "24 guides published" every time — no fallback |
+| Rest of the anonymous smoke (082 / 083 / 084 / 085 / 086 probes, `/admin` redirect, flag-off pages, `/exams/ssc-cgl`) | all passed |
+
+Signed-in production checks: owner (§9).
 
 ## 9. OWNER REVIEW checklist
 
@@ -239,4 +247,4 @@ Review the live "/" on a phone and on a desktop:
 - **"/" shows the public header to signed-in visitors** (with "Go to dashboard"), as the brief asks. Their account menu is one click away on any other page, and phones keep the student bottom nav.
 - **Incident (minor): one forensics probe printed the project hostname (ref)** in my own tool output. An unhandled fetch timeout's error message included the host. It was not written to any file, commit or log in the repo. From then on every probe catches errors and prints only the error code. Recorded per the "never print refs" rule.
 
-UX-2a status: OPEN (production smoke pending)
+UX-2a status: CLOSED-PENDING-OWNER-REVIEW
