@@ -47,6 +47,19 @@ What `scripts/live/with-server.cjs` does:
   - Prefer Node scripts (no shell paths), or pass URL paths that don't start with `/`.
 - **Heredocs.** Bash heredocs and `node -e` strings mangle backslashes and quotes. Write scripts to files.
 
-## Network (DEV-NET)
+## Network (DEV-NET-1 outcome, 2026-10-17)
 
-This machine's connection to Supabase is intermittently slow or failing: connect timeouts, ECONNRESET, slow first TLS connect. The network-hardened way to run live gates on this machine, if one is found, is documented below by DEV-NET-1.
+This machine's path to Supabase has **bursty** instability: connect timeouts, ECONNRESET, an occasional DNS miss from the LAN resolver, multi-second TLS / TCP spikes. `scripts/diag/net-probe.cjs` (`docs/reports/ops/DEV_NET1_REPORT.md`) showed:
+- both Supabase hosts are **IPv4-only**, so `--dns-result-order=ipv4first` and auto-select-family change nothing (Node 20 already auto-selects);
+- **no network flag is required**, and none is a fix.
+
+Rules for live gates on this machine:
+1. Always use `scripts/live/with-server.cjs` (above).
+2. **At most 3 attempts per gate.**
+3. **Classify failures by the server log of that attempt:**
+   - network errors (`fetch failed`, ECONNRESET, connect timeout, ENOTFOUND) during the attempt → network-caused, retry;
+   - **a failure with a clean server log is a real regression → STOP** and report the locator + screenshot.
+4. When a suite aborts mid-way, restore its own QA data with the existing RPCs before retrying. For example, the GAP2-4b editor suite can leave a QA test version PUBLISHED → `fn_syllabus_archive_version` as qa-admin.
+5. Diagnose the network with `node scripts/diag/net-probe.cjs` (prints labels and families only, never hosts or keys).
+
+Long-term recommendation: run the live gates from CI (a stable network); this machine for development.
