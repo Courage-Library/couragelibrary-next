@@ -9,6 +9,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { cn } from "@/components/ui/cn";
 import { Dialog } from "@/components/ui/dialog";
+import { SHELL_COPY } from "@/content/landing";
 import { AccountLinks } from "./account-links";
 import { NavMenu, navLinkClasses } from "./nav-menu";
 import { LEARN_MENU, LEARN_PREFIXES, PUBLIC_NAV, STUDENT_NAV, isActive, visibleItems, type NavItem, type ShellFlags } from "./nav-config";
@@ -60,9 +61,11 @@ function MobileSection({ title, items, pathname, onNavigate }: { title: string; 
 }
 
 /**
- * Site header for every non-admin route. Signed out: public nav + Log in / Sign up. Signed in: student nav
+ * Site header for every non-admin route. Signed out: public nav + Sign in / Get started. Signed in: student nav
  * + account menu (desktop); on phones the student uses the bottom nav and this header keeps a menu button
- * for everything else. The mobile menu is a native-dialog sheet (focus trap, Esc closes).
+ * for everything else. UX-2a: the landing page ("/") always shows the public header; a signed-in visitor sees
+ * "Go to dashboard" there instead of Sign in / Get started. The mobile menu is a native-dialog sheet (focus
+ * trap, Esc closes). Content width 1200 px (decision #46).
  */
 export function HeaderBar({ account, flags }: { account: ShellAccount | null; flags: ShellFlags }) {
   const pathname = usePathname() ?? "/";
@@ -71,13 +74,15 @@ export function HeaderBar({ account, flags }: { account: ShellAccount | null; fl
   if (pathname.startsWith("/admin")) return null;
 
   const learn = visibleItems(LEARN_MENU, flags);
-  const primary = account ? STUDENT_NAV : PUBLIC_NAV;
-  const [before, after] = account ? [primary.slice(0, 3), primary.slice(3)] : [primary.slice(0, 2), primary.slice(2)];
+  const onLanding = pathname === "/";
+  const student = account !== null && !onLanding;
+  const primary = student ? STUDENT_NAV : PUBLIC_NAV;
+  const [before, after] = student ? [primary.slice(0, 3), primary.slice(3)] : [primary.slice(0, 2), primary.slice(2)];
 
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-surface">
-      <div className="mx-auto flex h-16 w-full max-w-7xl items-center gap-4 px-4 sm:px-6 lg:px-8">
-        <BrandLogo href={account ? "/dashboard" : "/"} size="md" />
+      <div className="mx-auto flex h-16 w-full max-w-[1200px] items-center gap-4 px-4 md:px-6 lg:px-8">
+        <BrandLogo href={student ? "/dashboard" : "/"} size="md" />
 
         <nav aria-label="Main" className="ml-4 hidden flex-1 lg:block">
           <ul className="flex items-center gap-1">
@@ -90,7 +95,7 @@ export function HeaderBar({ account, flags }: { account: ShellAccount | null; fl
         </nav>
 
         <div className="ml-auto flex items-center gap-2">
-          {account ? (
+          {account && student ? (
             <div className="hidden lg:block">
               <NavMenu
                 label={
@@ -107,13 +112,17 @@ export function HeaderBar({ account, flags }: { account: ShellAccount | null; fl
                 <AccountLinks account={account} />
               </NavMenu>
             </div>
+          ) : account ? (
+            <ButtonLink href="/dashboard" size="sm">
+              {SHELL_COPY.goToDashboard}
+            </ButtonLink>
           ) : (
             <>
               <ButtonLink href="/auth/login" variant="ghost" size="sm" className="hidden sm:inline-flex">
-                Log in
+                {SHELL_COPY.signIn}
               </ButtonLink>
               <ButtonLink href="/auth/signup" size="sm">
-                Sign up
+                {SHELL_COPY.getStarted}
               </ButtonLink>
             </>
           )}
@@ -134,15 +143,22 @@ export function HeaderBar({ account, flags }: { account: ShellAccount | null; fl
 
       <Dialog open={menuOpen} onOpenChange={setMenuOpen} variant="sheet" title="Menu">
         <nav aria-label="Mobile" className="flex flex-col gap-4">
-          <MobileSection title={account ? "Study" : "Explore"} items={primary} pathname={pathname} onNavigate={() => setMenuOpen(false)} />
+          <MobileSection title={student ? "Study" : "Explore"} items={primary} pathname={pathname} onNavigate={() => setMenuOpen(false)} />
           <MobileSection title="Learn" items={learn} pathname={pathname} onNavigate={() => setMenuOpen(false)} />
           {!account && (
             <div className="flex flex-col gap-2 border-t border-line pt-4">
               <ButtonLink href="/auth/signup" fullWidth onClick={() => setMenuOpen(false)}>
-                Sign up free
+                {SHELL_COPY.getStarted}
               </ButtonLink>
               <ButtonLink href="/auth/login" variant="secondary" fullWidth onClick={() => setMenuOpen(false)}>
-                Log in
+                {SHELL_COPY.signIn}
+              </ButtonLink>
+            </div>
+          )}
+          {account && !student && (
+            <div className="flex flex-col gap-2 border-t border-line pt-4">
+              <ButtonLink href="/dashboard" fullWidth onClick={() => setMenuOpen(false)}>
+                {SHELL_COPY.goToDashboard}
               </ButtonLink>
             </div>
           )}
