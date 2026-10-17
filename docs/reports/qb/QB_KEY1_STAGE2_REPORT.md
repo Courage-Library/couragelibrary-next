@@ -9,7 +9,7 @@ New decisions: **#52** question validity is a DB invariant; **#53** retire = aud
 
 Start condition met: SMOKE-FIXTURE-1 CLOSED and committed (`97452f7`), clean tree.
 
-**Status: all gates green; committed under the pre-authorised commit (round 2, 2026-10-17).** The commit, deploy and production smoke are recorded in §8.
+**Status: CLOSED (round 2, 2026-10-17).** Committed as `8203df0` under the pre-authorised commit, pushed and deployed; the anonymous production smoke passed (§8). OWNER TO RUN: the signed-in production smokes (§9).
 
 **Round 2 (architect ruling "QB-KEY-1 close (round 2)"):**
 - **Accepted:** the #54 gate amendment; K-14; the trigger keeping DEFINER; the RLS output fix; the gate order.
@@ -302,7 +302,14 @@ Nothing else changed.
 
 ## 8. Production smoke
 
-Not reached (no commit: SEC-1C live is not green).
+| Step | Result |
+|---|---|
+| Commit | `8203df0` (36 files, the listed set; no backup files, no `.env*`, no CA files; secret / host scan of the staged diff clean) |
+| Push | attempt 1 `Could not resolve host` (network) → attempt 2 OK |
+| `wait-for-deploy` `8203df0` | deployed (200) |
+| Anonymous production smoke (`scripts/smoke/anonymous-smoke.cjs`) | **28/28 passed**: landing / no diagnostics / JSON-LD; `/api/health`; anon `/admin` → login; flag-off routes → not-found; anon PostgREST probes 42501 / retired tables not exposed; **`/exams/ssc-cgl` AVAILABLE, 5 paper / section titles, no coming-soon** |
+
+Observation: on production the "no project ref in HTML" check scanned 0 candidate tokens (the minified HTML has no 20+ character lowercase runs), so it passed without testing anything. Not changed in this phase; a follow-up could scan script chunks too.
 
 ## 9. OWNER / ARCHITECT
 
@@ -314,7 +321,8 @@ Not reached (no commit: SEC-1C live is not green).
 2. ~~student-pages smoke expectation~~ **done in round 2 (§2b).** `/exams/ssc-cgl` now has a PUBLISHED syllabus (published today by a non-QA account).
    - Proposal: the check asserts that the syllabus section renders the published syllabus when a PUBLISHED version exists, and "Syllabus coming soon" only when none exists. That keeps it data-true and equally strict.
    - Alternatively, confirm that the publication was intended and the check should simply flip.
-3. **After the commit:** push, wait-for-deploy, anonymous production smoke. Then **OWNER TO RUN:** the admin-pages and student-mistake production smokes.
+3. **OWNER TO RUN** (production, signed in, per the round 2 ruling): the **admin-pages**, **student-mistake** and **student-pages** smokes. student-pages now expects the published SSC CGL syllabus (§2b).
+4. **Architect:** G-11 amendment proposal (§2b, "Found").
 
 **Backlog:**
 - **SECDEF-AUDIT:** review the existing SECURITY DEFINER functions against #54. Start with internal helpers and trigger functions that have no client EXECUTE, including `fn_qf_version_publishable_trg`, kept DEFINER as "genuinely needs elevated rights".
@@ -431,4 +439,4 @@ Not reached (no commit: SEC-1C live is not green).
 
 **Rollback order (if ever needed):** 088 → 087 → 086 …
 
-QB-KEY-1 status: BLOCKED
+QB-KEY-1 status: CLOSED
