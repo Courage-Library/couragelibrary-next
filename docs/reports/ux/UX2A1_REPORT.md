@@ -142,7 +142,15 @@ Setup:
 
 ## 8. Production smoke
 
-Recorded after the push.
+| Probe | Result |
+|---|---|
+| `wait-for-deploy` `dd8b305` | deployed (200) |
+| Anonymous smoke (HOTFIX-1 + UX-2a checks + 082–086 probes) | all passed |
+| `GET /current-affairs` | 200, **no error digest** (was 200 + digest before this commit) |
+| `GET /sitemap.xml` | 200, 31 URLs, no `/learn` / `/blog` |
+| `GET /manifest.webmanifest` | description = the #47 text exactly |
+
+Signed-in production checks: owner.
 
 ## 9. Owner notes
 
@@ -165,4 +173,4 @@ Recorded after the push.
 - **CA-5 / CA-6 not run** because they disable TLS verification (§7). Replaced for these routes by `test_ca_routes.cjs`.
 - **Runner path:** the architect note says `scripts/with-server.cjs`; the file is `scripts/live/with-server.cjs` (recorded in both docs).
 
-UX-2a.1 status: OPEN (production smoke pending)
+UX-2a.1 status: CLOSED

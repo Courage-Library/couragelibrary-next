@@ -214,6 +214,19 @@ Ruling: network-caused "pre-existing" failures are not a pass when the phase tou
 - **Cleanup:** attempt 3's leftover QA draft (v25, MANUAL, created by qa-staff) was archived through `fn_syllabus_archive_version` as qa-admin, exactly what E-07 does. The QA exam now has 25 ARCHIVED versions, 0 DRAFT, and no non-idle sessions.
 - **Verdict (step 5):** still network-blocked after 3 attempts. **Not finalised.** Backlog item **DEV-NET** has been added. Server logs show network errors in every attempt, so this is not the step-4 "real regression" case. No code was changed in this step.
 
+### 7.2 Finalisation — GAP2-4b editor live gate 8/8 (DEV-NET-1, 2026-10-17)
+
+- **Setup:** HEAD `dd8b305` (UX-2a.1; the syllabus editor code is unchanged since `2c6f91b`), local production build, run through the required runner `scripts/live/with-server.cjs`. That means a free-port check, health confirmed (≤ 120 s) before the gate, a 15-minute bound, and the server always stopped. Default network mode (DEV-NET-1 found no mode that changes reliability; `docs/reports/ops/DEV_NET1_REPORT.md`).
+- **Attempt 1:** 6/8.
+  - E-05 passed for the first time.
+  - E-06: the admin publish succeeded (audit `SYLLABUS_PUBLISH`), but the versions list did not refresh to show the live version.
+  - E-07: the QA test version was left PUBLISHED because E-06 stopped before archiving.
+  - The server log had ECONNRESET to Supabase during the run (network-affected).
+  - The leftover QA version (v26, created by qa-staff) was archived through `fn_syllabus_archive_version` as qa-admin, before the next attempt.
+- **Attempt 2: 8/8** (E-01 … E-08), **0 network errors in the server log**. E-07: seeded GD / CGL drafts untouched, nothing left on the QA exam.
+- **Verdict:** the E-05 / E-06 failures in §7 and §7.1 were network-caused; the editor works end to end. **SYL-IMPORT-1 is finalised.**
+- **Note:** a non-QA user created ssc-cgl DRAFT v2 and archived v1 on 2026-10-16 (owner activity, §7.1). v2 still blocks the CGL import until it is deleted or archived.
+
 ## 8. Production probes
 
 | Probe | Result |
@@ -289,4 +302,4 @@ The DRILL-1 `student-mistake` production smoke (DRILL1_REPORT §9) is also still
   - Both enforce the same rules (fixtures in I5–I8 run against both).
 - **The SHA-256 covers the normalised payload** that the server action sends: trimmed, defaults filled, `order` dropped since it equals the position. Direct RPC callers hash exactly what they send.
 
-SYL-IMPORT-1 status: CLOSED — NOT FINALISED (GAP2-4b editor live gate network-blocked after 3 attempts; DEV-NET)
+SYL-IMPORT-1 status: CLOSED — FINALISED (GAP2-4b editor live 8/8 on 2026-10-17, §7.2)
