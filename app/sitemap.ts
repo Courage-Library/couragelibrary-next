@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 import { siteConfig } from "@/config/site";
 import { getAppEnv } from "@/config/env";
+import { isFeatureEnabled } from "@/config/features";
 import { ExamModuleRegistry } from "@/services/exam-knowledge/exam-module-registry";
 import { ExamModuleKey } from "@/types/exam-knowledge";
 
@@ -11,7 +12,8 @@ export const revalidate = 3600; // Revalidate sitemap hourly
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = siteConfig.url;
 
-  // 1. Static Canonical Public Roots (Private/Admin routes strictly omitted)
+  // 1. Static public routes that exist and render for anonymous visitors (decision #49, UX-2a.1).
+  //    Private/admin routes are omitted; scripts/test_ux2a_landing.cjs checks every static URL answers 200.
   const staticEntries: MetadataRoute.Sitemap = [
     {
       url: baseUrl,
@@ -26,22 +28,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.9,
     },
     {
-      url: `${baseUrl}${siteConfig.routes.learn}`,
-      lastModified: new Date(),
-      changeFrequency: "daily",
-      priority: 0.9,
-    },
-    {
       url: `${baseUrl}${siteConfig.routes.currentAffairs}`,
       lastModified: new Date(),
       changeFrequency: "daily",
       priority: 0.8,
-    },
-    {
-      url: `${baseUrl}${siteConfig.routes.blog}`,
-      lastModified: new Date(),
-      changeFrequency: "weekly",
-      priority: 0.7,
     },
     {
       url: `${baseUrl}/practice`,
@@ -150,8 +140,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       }
     }
 
-    // D. Published Courses (/courses/[slug])
-    if (coursesRes.data && Array.isArray(coursesRes.data)) {
+    // D. Published Courses (/courses/[slug]) — only while FEATURE_COURSES is on (the pages 404 otherwise)
+    if (isFeatureEnabled("COURSES") && coursesRes.data && Array.isArray(coursesRes.data)) {
       for (const course of coursesRes.data) {
         if (!course.slug) continue;
         dynamicEntries.push({

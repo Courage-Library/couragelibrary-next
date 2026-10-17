@@ -31,6 +31,12 @@
  *        critical violations; CLS ≤ 0.1
  *   L-14 signed-in visitor (qa-student, local): "/" is not redirected, shows "Go to dashboard" (header + hero), no
  *        Sign in / Get started
+ * UX-2a.1 (decisions #47 / #48 / #49):
+ *   L-15 no root app/loading.tsx; every segment loading.tsx renders the design-system PageLoading; live: the "/" hero
+ *        is in the first HTML flush (before any streamed segment)
+ *   L-16 site default description is exactly the #47 text (siteConfig → metadata default, manifest, Organization
+ *        JSON-LD fallback); no exam-count claim ("50+", "thousands of") in any page metadata description
+ *   L-17 live: every URL in sitemap.xml answers 200 on the local build (no /learn, /blog or flagged-off routes)
  *
  * Run: node scripts/test_ux2a_landing.cjs [--offline] [http://localhost:3100]
  */
@@ -246,7 +252,50 @@ const UX2B_ROUTES = ['/about', '/contact', '/privacy', '/terms', '/cnts', '/lega
     return 'clean';
   });
 
-  if (OFFLINE) { console.log('  SKIP  live L-9 … L-14 (--offline)'); return finish(); }
+
+  await test('L-15 no root app/loading.tsx; segment loading UIs use the design-system PageLoading (#48)', async () => {
+    assert(!fs.existsSync(path.join(ROOT, 'app/loading.tsx')), 'root app/loading.tsx must not exist (#48)');
+    const found = [];
+    const walk = (dir) => {
+      for (const e of fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
+        const rel = `${dir}/${e.name}`;
+        if (e.isDirectory()) walk(rel);
+        else if (e.name === 'loading.tsx') found.push(rel);
+      }
+    };
+    walk('app');
+    const bad = found.filter((f) => !/import \{ PageLoading \} from "@\/components\/shell\/page-loading";/.test(read(f)) || /legacy/.test(read(f)));
+    assert(bad.length === 0, `not built from PageLoading: ${bad.join(', ')}`);
+    const pl = read('components/shell/page-loading.tsx');
+    assert(/from "@\/components\/ui\/skeleton"/.test(pl) && !/legacy|dark:|#[0-9a-f]{3,6}\b/i.test(stripComments(pl)), 'PageLoading must use components/ui only');
+    const PUBLIC = ['app/loading.tsx', 'app/exams/loading.tsx', 'app/mock-tests/loading.tsx', 'app/current-affairs/loading.tsx', 'app/pricing/loading.tsx'];
+    assert(!found.some((f) => PUBLIC.includes(f)), 'public routes must render static content immediately (no segment loading UI)');
+    return `${found.length} segment loading UIs: ${found.map((f) => f.replace(/^app\//, '/').replace(/\/loading\.tsx$/, '')).join(', ')}`;
+  });
+
+  await test('L-16 site default description is the #47 text; no exam-count claims in page metadata', async () => {
+    const WANT = 'Courage Library helps you prepare for Indian government exams with free mock tests, answer analysis and a Mistake Vault that turns every wrong answer into revision. Learn Smarter. Prepare Independently.';
+    const site = loadTs('config/site.ts', STUBS).siteConfig;
+    assert(site.description === WANT, `siteConfig.description: ${site.description}`);
+    assert(/description = siteConfig\.description/.test(read('lib/seo/metadata.ts')), 'metadata default must use siteConfig.description');
+    assert(/description: siteConfig\.description/.test(read('lib/seo/jsonld.ts')) && /description: siteConfig\.description/.test(read('app/manifest.ts')), 'Organization JSON-LD fallback / manifest must use siteConfig.description');
+    const claims = [];
+    const walk = (dir) => {
+      for (const e of fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
+        const rel = `${dir}/${e.name}`;
+        if (e.isDirectory()) { if (!rel.startsWith('app/admin') && !rel.startsWith('app/api')) walk(rel); continue; }
+        if (!/\.(ts|tsx)$/.test(e.name)) continue;
+        const src = read(rel);
+        for (const m of src.matchAll(/description:\s*(?:\n\s*)?["'`]([^"'`]+)["'`]/g)) if (/\b\d+\+|thousands of|lakhs? of|millions? of/i.test(m[1])) claims.push(`${rel}: ${m[1].slice(0, 80)}`);
+      }
+    };
+    walk('app');
+    walk('config');
+    assert(claims.length === 0, claims.join(' | '));
+    return 'exact; 0 count claims in metadata';
+  });
+
+  if (OFFLINE) { console.log('  SKIP  live L-9 … L-17 (--offline)'); return finish(); }
   if (!['localhost', '127.0.0.1', '[::1]'].includes(new URL(BASE).hostname)) { console.log('  FAIL  live checks run against a local build only'); failed++; return finish(); }
 
   // ---------------------------------------------------------------- live (local build)
@@ -257,6 +306,30 @@ const UX2B_ROUTES = ['/about', '/contact', '/privacy', '/terms', '/cnts', '/lega
   const home = await get('/');
   const html = await home.text();
   const visible = html.replace(/<script[\s\S]*?<\/script>/g, ' ').replace(/<style[\s\S]*?<\/style>/g, ' ').replace(/<[^>]+>/g, ' ');
+
+  await test('L-15b live: the "/" hero is in the first HTML flush (no streamed root loading boundary)', async () => {
+    const hero = html.indexOf('id="hero-title"');
+    const seg = html.indexOf('<div hidden id="S:');
+    assert(hero > 0, 'hero missing');
+    assert(seg === -1 || hero < seg, `hero at ${hero} comes after the first streamed segment at ${seg}`);
+    return seg === -1 ? 'no streamed segments before the hero' : `hero ${hero} < first segment ${seg}`;
+  });
+
+  await test('L-17 every sitemap URL answers 200 on the local build (#49)', async () => {
+    const xml = await (await get('/sitemap.xml')).text();
+    const paths = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => new URL(m[1]).pathname + new URL(m[1]).search);
+    assert(paths.length > 0, 'empty sitemap');
+    assert(!paths.some((p) => p === '/learn' || p === '/blog'), 'removed routes still listed');
+    const bad = [];
+    for (const p of paths) {
+      let r = null;
+      for (let i = 1; i <= 3 && (!r || r.status >= 500); i++) r = await get(p);
+      if (r.status !== 200) bad.push(`${p} ${r.status}`);
+    }
+    assert(bad.length === 0, bad.join(', '));
+    return `${paths.length} URLs, all 200`;
+  });
+
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   // the rendered text (React streams some segments out of order in the HTML; the DOM has them in place)
   const domText = await (async () => {

@@ -13,7 +13,7 @@ import {
   ArrowLeft,
   Sparkles,
 } from 'lucide-react';
-import { formatEventDate } from '@/components/current-affairs/current-affairs-card';
+import { formatEventDate } from '@/lib/current-affairs/format-event-date';
 import { constructMetadata } from '@/lib/seo/metadata';
 import type { Metadata } from 'next';
 

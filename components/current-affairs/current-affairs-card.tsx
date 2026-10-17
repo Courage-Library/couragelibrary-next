@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { formatEventDate } from '@/lib/current-affairs/format-event-date';
 import {
   Calendar,
   Layers,
@@ -44,16 +45,6 @@ const IMPORTANCE_BADGES: Record<CurrentAffairsImportanceTier, { label: string; c
   LOW: { label: 'STANDARD', className: 'bg-slate-50 text-slate-600 border-slate-200' },
 };
 
-export function formatEventDate(dateStr: string): string {
-  if (!dateStr) return '';
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const parts = dateStr.split('-');
-  if (parts.length !== 3) return dateStr;
-  const d = parts[2];
-  const m = parseInt(parts[1], 10) - 1;
-  const y = parts[0];
-  return `${d} ${months[m] || parts[1]} ${y}`;
-}
 
 export const CurrentAffairsCard: React.FC<CurrentAffairsCardProps> = ({
   article,

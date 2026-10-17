@@ -39,8 +39,9 @@
 export const siteConfig: SiteConfig = {
   name: "Courage Library",
   tagline: "The One-Stop Government Exam Preparation Platform",
+  // Decision #47 (UX-2a.1): the site default description; honest, no exam counts.
   description:
-    "Master SSC, Defence, Railway, Banking, Police and 50+ government exams with structured learning, adaptive mock tests, and actionable preparation intelligence.",
+    "Courage Library helps you prepare for Indian government exams with free mock tests, answer analysis and a Mistake Vault that turns every wrong answer into revision. Learn Smarter. Prepare Independently.",
   url: process.env.NEXT_PUBLIC_SITE_URL || "https://couragelibrary.in",
   ogImage: "/images/logo.png",
   // Placeholder social links — to be configured with official handles upon production launch

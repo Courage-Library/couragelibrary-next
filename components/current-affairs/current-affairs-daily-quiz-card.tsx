@@ -13,7 +13,7 @@ import {
   BrainCircuit,
 } from 'lucide-react';
 import { DailyQuizEligibilityStatus } from '@/types/current-affairs';
-import { formatEventDate } from './current-affairs-card';
+import { formatEventDate } from '@/lib/current-affairs/format-event-date';
 
 interface CurrentAffairsDailyQuizCardProps {
   dateStr: string;

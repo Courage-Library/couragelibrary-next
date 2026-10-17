@@ -14,7 +14,7 @@ import {
   History,
   TrendingUp,
 } from 'lucide-react';
-import { formatEventDate } from '@/components/current-affairs/current-affairs-card';
+import { formatEventDate } from '@/lib/current-affairs/format-event-date';
 import { constructMetadata } from '@/lib/seo/metadata';
 
 export const revalidate = 60; // ISR cache revalidation every 60 seconds
