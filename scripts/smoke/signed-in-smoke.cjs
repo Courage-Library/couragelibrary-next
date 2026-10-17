@@ -13,7 +13,8 @@
  *                             institutes, mock-tests-management, bulk-import, taxonomy, exams) — no error boundary
  *           staff-content     qa-staff:  /admin/content and /admin/syllabus render (200, no not-found)
  *   baseUrl defaults to http://localhost:3100. Passwords come from .env.local (QA_*_PASSWORD).
- * The student check needs data: run the E2E journey first (E2E_KEEP_USER=1) and the data-only cleanup after.
+ * The student check needs data: run scripts/e2e/ensure-student-fixture.cjs first (SMOKE-FIXTURE-1; idempotent,
+ * creates one completed mock attempt with wrong answers for qa-student only when missing).
  */
 const { chromium } = require('playwright');
 const { readEnv } = require('../db/_db-env.cjs');
