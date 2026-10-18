@@ -66,6 +66,9 @@ const CHECKLIST = JSON.stringify({
 let passed = 0;
 let failed = 0;
 const lines = [];
+// a dropped DB connection must FAIL the suite cleanly — never crash the process (unhandled 'error' event), never pass
+const connLost = [];
+const onConnError = (name) => (e) => { connLost.push(`${name}: ${e && e.code ? e.code : 'connection error'}`); };
 async function test(name, fn) {
   try {
     await fn();
@@ -93,6 +96,7 @@ async function counts(c) {
 
 (async () => {
   const c = new Client(pgConfig);
+  c.on('error', onConnError('main client'));
   try {
     await c.connect();
   } catch (e) {
@@ -215,6 +219,7 @@ async function counts(c) {
   await test('IMP-3 parallel imports of the same stem (2 connections) → exactly one succeeds', async () => {
     const f = await fixture();
     const c2 = new Client(pgConfig);
+    c2.on('error', onConnError('second client (IMP-3)'));
     await c2.connect();
     const stem = `${tag} concurrency probe identical stem`;
     const payload = JSON.stringify({ origin: 'AI_EXTERNAL', target_topic_id: f.topicId, items: [mkItem(90, stem)] });
@@ -430,16 +435,19 @@ async function counts(c) {
     await test('RLS-API anon client (requires the publishable / anon key)', async () => { throw new Error('no publishable/anon key in .env.local — the anon RLS proof cannot run'); });
   }
 
-  const after = await counts(c);
+  let after = {};
+  try { after = await counts(c); } catch (e) { after = null; }
   await test('BASE-1 baseline counts identical before/after the suite', async () => {
+    assert(after, 'baseline counts could not be read after the suite (connection lost)');
     const diff = BASELINE_TABLES.filter((t) => before[t] !== after[t]);
     assert(diff.length === 0, `changed: ${diff.map((t) => `${t} ${before[t]}→${after[t]}`).join(', ')}`);
   });
 
-  await c.end();
+  await c.end().catch(() => undefined);
+  if (connLost.length) { failed++; lines.push(`  FAIL  CONN a DB connection was lost during the suite — results incomplete\n        ${connLost.join('; ')}`); }
   console.log(lines.join('\n'));
   console.log('Baseline (before → after):');
-  BASELINE_TABLES.forEach((t) => console.log(`  ${t}: ${before[t]} → ${after[t]}`));
+  BASELINE_TABLES.forEach((t) => console.log(`  ${t}: ${before[t]} → ${after ? after[t] : '?'}`));
   console.log(`\nQF-1 DB suite: ${passed}/${passed + failed} passed`);
   process.exit(failed === 0 ? 0 : 1);
 })().catch((e) => {

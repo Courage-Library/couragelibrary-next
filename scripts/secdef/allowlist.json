@@ -1,0 +1,727 @@
+{
+ "decision": "#54 least privilege for DB functions (architect, 2026-10-17)",
+ "snapshot": "SECDEF-AUDIT Stage 1 (9ae36cd) inventory, re-verified live by scripts/test_secdef_ratchet.cjs (SECDEF-S2-1)",
+ "rules": [
+  "every SECURITY DEFINER function in public is listed here; a new one fails the gate until reviewed and added",
+  "client EXECUTE (anon / authenticated / PUBLIC) only as listed; any new client grant fails",
+  "anon / PUBLIC EXECUTE on a callable function only with public_ok (P-9 SECDEF_PUBLIC_OK)",
+  "search_path pinned and unchanged from this file; new functions use '' or 'public, pg_temp' (rls_auto_enable() is recorded as pg_catalog)",
+  "max counts may only go down: lower them (and remove entries) in the same change that revokes / drops"
+ ],
+ "max": {
+  "total": 95,
+  "client_executable_callable": 51,
+  "anon_or_public": 8,
+  "A": 37,
+  "C": 14,
+  "B-trigger": 15,
+  "B-service": 29,
+  "B-internal": 0
+ },
+ "public_ok": [
+  "fn_exam_syllabus_read_model(p_exam_id uuid, p_exam_cycle_id uuid)"
+ ],
+ "functions": {
+  "fn_authorize_and_start_test_attempt(p_user_id uuid, p_mock_test_id uuid)": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "public, pg_temp",
+   "reason": "service-role RPC with an app caller (F-5 INVOKER conversion deferred)"
+  },
+  "fn_award_gamification_reward(p_user_id uuid, p_event_type text, p_source_type text, p_source_id uuid, p_idempotency_key text, p_calculated_coins integer, p_reason_code text, p_metadata jsonb)": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "\"\"",
+   "reason": "service-role RPC with an app caller (F-5 INVOKER conversion deferred)"
+  },
+  "fn_can_evaluate_submission(p_submission_id uuid, p_user_id uuid)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "RLS predicate used by policies (F-3 deferred)"
+  },
+  "fn_check_premium_access_and_quota(p_user_id uuid, p_exam_id uuid, p_test_type text)": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "public, pg_temp",
+   "reason": "service-role RPC with an app caller (F-5 INVOKER conversion deferred)"
+  },
+  "fn_claim_reward_item(p_user_id uuid, p_reward_id uuid, p_idempotency_key text, p_shipping_name text, p_shipping_phone text, p_shipping_address text, p_shipping_city text, p_shipping_state text, p_shipping_pincode text)": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "\"\"",
+   "reason": "service-role / owner only, no caller — approved for revoke (SEC-1 track)"
+  },
+  "fn_clear_user_search_history()": {
+   "class": "C",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "client-executable, no app caller — approved for REVOKE (SEC-1 track)"
+  },
+  "fn_complete_course_lesson(p_lesson_id uuid)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "client entrypoint; own check: auth.uid()"
+  },
+  "fn_complete_deck_review_session(p_deck_id uuid)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "client entrypoint; own check: auth.uid()"
+  },
+  "fn_complete_diagnostic_assessment(p_attempt_id uuid)": {
+   "class": "C",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "client-executable, no app caller — approved for REVOKE (SEC-1 track)"
+  },
+  "fn_create_batch_assignment(p_batch_id uuid, p_title text, p_assignment_type text, p_content_id uuid, p_due_at timestamp with time zone, p_instructions_md text)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "client entrypoint; own check: auth.uid() + JWT role"
+  },
+  "fn_create_custom_flashcard_deck(p_title text, p_description text, p_topic_id uuid, p_cards jsonb)": {
+   "class": "C",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "client-executable, no app caller — approved for REVOKE (SEC-1 track)"
+  },
+  "fn_create_discussion_thread(p_context_type text, p_context_id uuid, p_title text, p_initial_content text)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "client entrypoint; own check: auth.uid()"
+  },
+  "fn_create_dynamic_mock_instance_atomic(p_user_id uuid, p_exam_id uuid, p_template_id uuid, p_title text, p_slug text, p_test_type text, p_quota_key text, p_duration_minutes integer, p_marks_per_question numeric, p_negative_mark numeric, p_metadata jsonb, p_questions jsonb, p_ttl_hours integer)": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "public, pg_temp",
+   "reason": "service-role RPC with an app caller (F-5 INVOKER conversion deferred)"
+  },
+  "fn_create_payment_order(p_order_type text, p_plan_id uuid, p_course_id uuid, p_coupon_code text, p_gateway text, p_idempotency_key text)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "client entrypoint; own check: auth.uid()"
+  },
+  "fn_create_question_revision(p_question_id uuid, p_actor uuid, p_payload jsonb)": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "public, pg_temp",
+   "reason": "service-role RPC with an app caller (F-5 INVOKER conversion deferred)"
+  },
+  "fn_delete_exam_controlled(p_exam_id uuid, p_slug text, p_actor_id uuid, p_actor_email text, p_reason text)": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "\"\"",
+   "reason": "service-role RPC with an app caller (F-5 INVOKER conversion deferred)"
+  },
+  "fn_edit_discussion_message(p_message_id uuid, p_content_markdown text)": {
+   "class": "C",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "client-executable, no app caller — approved for REVOKE (SEC-1 track)"
+  },
+  "fn_enforce_errata_state_machine()": {
+   "class": "B-trigger",
+   "client": [
+    "anon",
+    "authenticated",
+    "PUBLIC"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "trigger function (not callable); default PUBLIC EXECUTE — approved for revoke (SEC-1 track)"
+  },
+  "fn_enforce_practice_session_lifecycle()": {
+   "class": "B-trigger",
+   "client": [
+    "anon",
+    "authenticated",
+    "PUBLIC"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "trigger function (not callable); default PUBLIC EXECUTE — approved for revoke (SEC-1 track)"
+  },
+  "fn_enroll_batch_student(p_batch_id uuid, p_student_user_id uuid, p_role text)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "client entrypoint; own check: auth.uid() + JWT role"
+  },
+  "fn_evaluate_descriptive_submission(p_submission_id uuid, p_rubric_scores jsonb, p_total_score numeric, p_strengths text, p_weaknesses text, p_suggestions text, p_model_comparison text, p_evaluator_type text)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "client entrypoint; own check: auth.uid() + JWT role"
+  },
+  "fn_exam_syllabus_read_model(p_exam_id uuid, p_exam_cycle_id uuid)": {
+   "class": "A",
+   "client": [
+    "anon",
+    "authenticated"
+   ],
+   "search_path": "\"\"",
+   "reason": "public read model: PUBLISHED rows only, read-only (P-9 SECDEF_PUBLIC_OK)"
+  },
+  "fn_finalize_battle_room(p_room_id uuid)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "battle entrypoint; caller must be a room participant or the service role (SECDEF-S2-1, 089)"
+  },
+  "fn_find_or_create_battle_room(p_topic_id uuid, p_is_private boolean)": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "public, pg_temp",
+   "reason": "service-role RPC with an app caller (F-5 INVOKER conversion deferred)"
+  },
+  "fn_find_or_create_battle_room(p_topic_id uuid, p_is_private boolean, p_access_tier text)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "client entrypoint; own check: auth.uid()"
+  },
+  "fn_flag_discussion_content(p_target_type text, p_target_id uuid, p_reason text, p_details text)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "client entrypoint; own check: auth.uid()"
+  },
+  "fn_generate_custom_practice_session(p_title text, p_session_mode text, p_topic_ids uuid[], p_question_count integer, p_manual_question_ids uuid[])": {
+   "class": "C",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "client-executable, no app caller — approved for REVOKE (SEC-1 track)"
+  },
+  "fn_generate_daily_recommendations(p_user_id uuid, p_date date, p_engine_version text)": {
+   "class": "C",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "client-executable, no app caller — approved for REVOKE (SEC-1 track)"
+  },
+  "fn_generate_mistake_drill(p_vault_ids uuid[], p_topic_id uuid, p_cognitive_type_id text)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "\"\"",
+   "reason": "client entrypoint; own check: auth.uid()"
+  },
+  "fn_get_active_battle_round(p_room_id uuid)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "client entrypoint; own check: auth.uid()"
+  },
+  "fn_get_batch_assignment_progress(p_assignment_id uuid)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "client entrypoint; own check: auth.uid() + JWT role"
+  },
+  "fn_get_due_flashcards(p_deck_id uuid, p_limit integer)": {
+   "class": "C",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "client-executable, no app caller — approved for REVOKE (SEC-1 track)"
+  },
+  "fn_has_batch_faculty_access(p_batch_id uuid, p_user_id uuid)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "RLS predicate used by policies (F-3 deferred)"
+  },
+  "fn_import_question_drafts(p_batch jsonb, p_actor uuid)": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "public, pg_temp",
+   "reason": "service-role RPC with an app caller (F-5 INVOKER conversion deferred)"
+  },
+  "fn_is_batch_member(p_batch_id uuid, p_user_id uuid, p_roles text[])": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "RLS predicate used by policies (F-3 deferred)"
+  },
+  "fn_is_battle_participant(p_room_id uuid, p_user_id uuid)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "RLS predicate used by policies (F-3 deferred)"
+  },
+  "fn_is_institute_member(p_institute_id uuid, p_user_id uuid, p_roles text[])": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "RLS predicate used by policies (F-3 deferred)"
+  },
+  "fn_join_battle_by_code(p_room_code text)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "client entrypoint; own check: auth.uid()"
+  },
+  "fn_log_user_search(p_query text, p_result_count integer, p_latency_ms integer, p_is_zero_result boolean, p_clicked_entity_type text, p_clicked_source_id uuid)": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "public, pg_temp",
+   "reason": "service-role / owner only, no caller — approved for revoke (SEC-1 track)"
+  },
+  "fn_mark_accepted_answer(p_thread_id uuid, p_message_id uuid)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "client entrypoint; own check: auth.uid() + JWT role"
+  },
+  "fn_mark_notification_as_read(p_notification_id uuid)": {
+   "class": "C",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "client-executable, no app caller — approved for REVOKE (SEC-1 track)"
+  },
+  "fn_moderate_flagged_content(p_flag_id uuid, p_resolution_action text, p_moderator_note text)": {
+   "class": "C",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "client-executable, no app caller — approved for REVOKE (SEC-1 track)"
+  },
+  "fn_override_mistake_cognitive_type(p_vault_id uuid, p_user_override_type_id text)": {
+   "class": "C",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "client-executable, no app caller — approved for REVOKE (SEC-1 track)"
+  },
+  "fn_post_discussion_message(p_thread_id uuid, p_content_markdown text, p_parent_message_id uuid)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "client entrypoint; own check: auth.uid()"
+  },
+  "fn_process_payment_webhook(p_gateway text, p_gateway_event_id text, p_event_type text, p_payload jsonb, p_signature_verified boolean)": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "public, pg_temp",
+   "reason": "service-role / owner only, no caller — approved for revoke (SEC-1 track)"
+  },
+  "fn_project_canonical_taxonomy_node()": {
+   "class": "B-trigger",
+   "client": [],
+   "search_path": "public, pg_temp",
+   "reason": "writes projection tables the writing role has no grants on (genuinely elevated)"
+  },
+  "fn_protect_user_notification_fields()": {
+   "class": "B-trigger",
+   "client": [
+    "anon",
+    "authenticated",
+    "PUBLIC"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "trigger function (not callable); default PUBLIC EXECUTE — approved for revoke (SEC-1 track)"
+  },
+  "fn_publish_exam_announcement(p_exam_id uuid, p_exam_cycle_id uuid, p_announcement_type text, p_title text, p_summary text, p_source_url text, p_priority text)": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "public, pg_temp",
+   "reason": "service-role / owner only, no caller — approved for revoke (SEC-1 track)"
+  },
+  "fn_publish_question_version(p_version_id uuid, p_actor uuid)": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "public, pg_temp",
+   "reason": "service-role RPC with an app caller (F-5 INVOKER conversion deferred)"
+  },
+  "fn_qf_assert_item_shape(p_item jsonb, p_label text)": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "public, pg_temp",
+   "reason": "internal helper of DEFINER callers (F-5 deferred)"
+  },
+  "fn_qf_enforce_authoring_integrity()": {
+   "class": "B-trigger",
+   "client": [],
+   "search_path": "public, pg_temp",
+   "reason": "trigger function (not callable)"
+  },
+  "fn_qf_enforce_question_child_integrity()": {
+   "class": "B-trigger",
+   "client": [],
+   "search_path": "public, pg_temp",
+   "reason": "trigger function (not callable)"
+  },
+  "fn_qf_enforce_question_version_integrity()": {
+   "class": "B-trigger",
+   "client": [],
+   "search_path": "public, pg_temp",
+   "reason": "trigger function (not callable)"
+  },
+  "fn_qf_find_exact_duplicates(p_topic_id uuid, p_stems text[], p_exclude_question_id uuid)": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "public, pg_temp",
+   "reason": "service-role RPC with an app caller (F-5 INVOKER conversion deferred)"
+  },
+  "fn_qf_guard_mock_question_version()": {
+   "class": "B-trigger",
+   "client": [],
+   "search_path": "public, pg_temp",
+   "reason": "trigger function (not callable)"
+  },
+  "fn_qf_guard_question_publication()": {
+   "class": "B-trigger",
+   "client": [],
+   "search_path": "public, pg_temp",
+   "reason": "trigger function (not callable)"
+  },
+  "fn_qf_version_publishable_trg()": {
+   "class": "B-trigger",
+   "client": [],
+   "search_path": "\"\"",
+   "reason": "commit-time validity check; must see the true options / answer (#54 elevated-rights clause, QB-KEY-1 ruling)"
+  },
+  "fn_question_stem_checksum(p_stem text)": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "public, pg_temp",
+   "reason": "internal helper of DEFINER callers (F-5 deferred)"
+  },
+  "fn_recompute_mistake_profile(p_user_id uuid, p_question_id uuid)": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "public, pg_temp",
+   "reason": "internal helper of DEFINER callers (F-5 deferred)"
+  },
+  "fn_reconcile_search_indexes()": {
+   "class": "C",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "client-executable, no app caller — approved for REVOKE (SEC-1 track)"
+  },
+  "fn_record_mistake_occurrence(p_user_id uuid, p_question_id uuid, p_source_context text, p_source_reference_id uuid, p_selected_option_id uuid, p_response_time_seconds integer, p_cognitive_type_id text, p_confidence_pct integer, p_question_version_id uuid, p_attempt_answer_id uuid)": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "public, pg_temp",
+   "reason": "service-role / owner only, no caller — approved for revoke (SEC-1 track)"
+  },
+  "fn_record_qualifying_streak_activity(p_user_id uuid, p_action_type text, p_source_id uuid, p_duration_seconds integer, p_timezone text)": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "\"\"",
+   "reason": "service-role RPC with an app caller (F-5 INVOKER conversion deferred)"
+  },
+  "fn_resolve_errata_report(p_report_id uuid, p_resolution_status text, p_resolution_notes text, p_bounty_coins integer)": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "public, pg_temp",
+   "reason": "service-role / owner only, no caller — approved for revoke (SEC-1 track)"
+  },
+  "fn_reverse_reward_claim(p_claim_id uuid, p_admin_id uuid, p_reason text)": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "\"\"",
+   "reason": "service-role / owner only, no caller — approved for revoke (SEC-1 track)"
+  },
+  "fn_revoke_mistakes_by_errata(p_question_version_id uuid, p_corrected_option_id uuid, p_reason text, p_actor_id uuid)": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "public, pg_temp",
+   "reason": "service-role / owner only, no caller — approved for revoke (SEC-1 track)"
+  },
+  "fn_sanitize_attempt_answer()": {
+   "class": "B-trigger",
+   "client": [
+    "anon",
+    "authenticated",
+    "PUBLIC"
+   ],
+   "search_path": "\"\"",
+   "reason": "trigger function (not callable); default PUBLIC EXECUTE — approved for revoke (SEC-1 track)"
+  },
+  "fn_send_user_notification(p_user_id uuid, p_template_code text, p_title text, p_body text, p_action_url text, p_category text, p_priority text, p_idempotency_key text, p_metadata jsonb, p_variables jsonb)": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "public, pg_temp",
+   "reason": "internal helper of DEFINER callers (F-5 deferred)"
+  },
+  "fn_start_custom_practice_session(p_session_id uuid)": {
+   "class": "C",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "client-executable, no app caller — approved for REVOKE (SEC-1 track)"
+  },
+  "fn_submit_battle_round_answer(p_room_id uuid, p_round_number integer, p_selected_option_id uuid)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "client entrypoint; own check: auth.uid()"
+  },
+  "fn_submit_descriptive_answer(p_question_id uuid, p_answer_text text, p_attachment_url text, p_submission_type text, p_batch_id uuid, p_assignment_id uuid)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "client entrypoint; own check: auth.uid()"
+  },
+  "fn_submit_flashcard_review(p_card_id uuid, p_rating integer)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "client entrypoint; own check: auth.uid() + JWT role"
+  },
+  "fn_submit_mistake_drill(p_drill_id uuid, p_answers jsonb)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "\"\"",
+   "reason": "client entrypoint; own check: auth.uid()"
+  },
+  "fn_syllabus_archive_version(p_version_id uuid)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "\"\"",
+   "reason": "client entrypoint; own check: fn_syllabus__assert_role"
+  },
+  "fn_syllabus_create_draft(p_exam_id uuid, p_exam_cycle_id uuid, p_from_version_id uuid, p_version_tag text)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "\"\"",
+   "reason": "client entrypoint; own check: fn_syllabus__assert_role"
+  },
+  "fn_syllabus_delete_node(p_node_id uuid)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "\"\"",
+   "reason": "client entrypoint; own check: fn_syllabus__assert_role"
+  },
+  "fn_syllabus_import_draft(p_exam_id uuid, p_payload jsonb)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "\"\"",
+   "reason": "client entrypoint; own check: fn_syllabus__assert_role"
+  },
+  "fn_syllabus_move_node(p_node_id uuid, p_new_parent_id uuid, p_display_order integer)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "\"\"",
+   "reason": "client entrypoint; own check: fn_syllabus__assert_role"
+  },
+  "fn_syllabus_publish(p_version_id uuid)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "\"\"",
+   "reason": "client entrypoint; own check: fn_syllabus__assert_role"
+  },
+  "fn_syllabus_set_unit_mappings(p_node_id uuid, p_topic_ids uuid[], p_weights numeric[])": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "\"\"",
+   "reason": "client entrypoint; own check: fn_syllabus__assert_role"
+  },
+  "fn_syllabus_upsert_node(p_version_id uuid, p_node jsonb)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "\"\"",
+   "reason": "client entrypoint; own check: fn_syllabus__assert_role"
+  },
+  "fn_syllabus_validate(p_version_id uuid)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "\"\"",
+   "reason": "client entrypoint; own check: fn_syllabus__assert_role"
+  },
+  "fn_transition_question_version(p_version_id uuid, p_to text, p_actor uuid, p_notes text, p_checklist jsonb)": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "public, pg_temp",
+   "reason": "service-role RPC with an app caller (F-5 INVOKER conversion deferred)"
+  },
+  "fn_universal_search(p_query text, p_entity_types text[], p_exam_id uuid, p_topic_id uuid, p_access_tier text, p_limit integer, p_offset integer)": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "public, pg_temp",
+   "reason": "service-role / owner only, no caller — approved for revoke (SEC-1 track)"
+  },
+  "fn_update_daily_recommendation_status(p_recommendation_id uuid, p_status text)": {
+   "class": "C",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "client-executable, no app caller — approved for REVOKE (SEC-1 track)"
+  },
+  "fn_update_lesson_playback_position(p_lesson_id uuid, p_position_seconds integer, p_elapsed_real_seconds integer)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "client entrypoint; own check: auth.uid()"
+  },
+  "fn_update_question_draft(p_version_id uuid, p_actor uuid, p_payload jsonb)": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "public, pg_temp",
+   "reason": "service-role RPC with an app caller (F-5 INVOKER conversion deferred)"
+  },
+  "fn_update_spaced_repetition_review(p_user_id uuid, p_question_id uuid, p_topic_id uuid, p_quality integer)": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "public, pg_temp",
+   "reason": "service-role / owner only, no caller — approved for revoke (SEC-1 track)"
+  },
+  "fn_validate_bookmark_folder_ownership()": {
+   "class": "B-trigger",
+   "client": [
+    "anon",
+    "authenticated",
+    "PUBLIC"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "trigger function (not callable); default PUBLIC EXECUTE — approved for revoke (SEC-1 track)"
+  },
+  "fn_validate_exam_announcement_cycle()": {
+   "class": "B-trigger",
+   "client": [
+    "anon",
+    "authenticated",
+    "PUBLIC"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "trigger function (not callable); default PUBLIC EXECUTE — approved for revoke (SEC-1 track)"
+  },
+  "fn_validate_payment_order_transition()": {
+   "class": "B-trigger",
+   "client": [
+    "anon",
+    "authenticated",
+    "PUBLIC"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "trigger function (not callable); default PUBLIC EXECUTE — approved for revoke (SEC-1 track)"
+  },
+  "fn_verify_and_fulfill_payment(p_order_id uuid, p_gateway_payment_id text, p_gateway_signature text, p_payment_method text, p_amount numeric, p_billing_name text, p_billing_address text, p_billing_state text)": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "public, pg_temp",
+   "reason": "service-role / owner only, no caller — approved for revoke (SEC-1 track)"
+  },
+  "fn_verify_faculty_answer(p_message_id uuid, p_is_verified boolean)": {
+   "class": "C",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "client-executable, no app caller — approved for REVOKE (SEC-1 track)"
+  },
+  "fn_vote_discussion_message(p_message_id uuid, p_vote_action text)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "public, pg_temp",
+   "reason": "client entrypoint; own check: auth.uid()"
+  },
+  "rls_auto_enable()": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "pg_catalog",
+   "reason": "service-role / owner only, no caller — approved for revoke (SEC-1 track)"
+  },
+  "trg_enforce_mock_attempt_lifecycle()": {
+   "class": "B-trigger",
+   "client": [],
+   "search_path": "public, pg_temp",
+   "reason": "trigger function (not callable)"
+  }
+ }
+}
