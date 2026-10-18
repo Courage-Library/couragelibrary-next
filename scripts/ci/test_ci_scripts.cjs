@@ -80,5 +80,50 @@ test('C-6 with-server binds next start to 127.0.0.1', () => {
   return 'bound';
 });
 
+// ---- PUBLIC-HARDEN-1: public-repo log hardening
+const fakeGate = (body) => { const d = fs.mkdtempSync(path.join(os.tmpdir(), 'rq-')); const f = path.join(d, 'gate.cjs'); fs.writeFileSync(f, body); return { d, f }; };
+const quiet = (id, file, env = {}) => spawnSync(process.execPath, [path.join(__dirname, 'run-quiet.cjs'), '--id', id, '--', process.execPath, file],
+  { encoding: 'utf8', env: { PATH: process.env.PATH, SystemRoot: process.env.SystemRoot, RUNNER_TEMP: os.tmpdir(), ...env } });
+
+test('C-7 run-quiet prints ONE summary line (ID, status, counts, failing IDs) and no detail text', () => {
+  const { d, f } = fakeGate("console.log('  PASS  K-1 secret-detail-alpha ok');\nconsole.log('  FAIL  P-9 exposes fn_detail_beta to anon');\nconsole.log('  WARN  VACUOUS x');\nconsole.log('\\nSuite: 1/2 passed');\nprocess.exit(1);\n");
+  const r = quiet('FAKE-GATE', f);
+  fs.rmSync(d, { recursive: true, force: true });
+  const out = r.stdout.trim();
+  assert(r.status === 1, `exit ${r.status}`);
+  assert(out.split('\n').length === 1 && /^FAKE-GATE FAIL exit 1 — passed 1\/2 · fail-lines 1 · warns 1 · failing \[P-9\]$/.test(out), `summary: ${out}`);
+  assert(!/detail-alpha|fn_detail_beta|exposes/.test(out), 'detail text leaked');
+  return out;
+});
+
+test('C-8 run-quiet: a planted secret in the gate output → FAIL, output withheld', () => {
+  const { d, f } = fakeGate("console.log('  PASS  X ok ' + process.env.SUPABASE_SERVICE_ROLE_KEY);\n");
+  const r = quiet('LEAKY-GATE', f, { SUPABASE_SERVICE_ROLE_KEY: 'fake-planted-service-role-0123456789' });
+  fs.rmSync(d, { recursive: true, force: true });
+  assert(r.status === 1 && /^LEAKY-GATE FAIL — log scan: 1 finding\(s\) \[secret\] — output withheld$/.test(r.stdout.trim()), `got ${r.status}: ${r.stdout.trim()}`);
+  assert(!r.stdout.includes('fake-planted'), 'secret printed');
+  return 'withheld';
+});
+
+test('C-9 with-server never prints the server log tail when CI_QUIET=1', () => {
+  const s = fs.readFileSync(path.join(ROOT, 'scripts/live/with-server.cjs'), 'utf8');
+  assert(/if \(process\.env\.CI_QUIET === '1'\) return '\(server log withheld in CI/.test(s), 'CI_QUIET guard missing in tail()');
+  return 'guarded';
+});
+
+test('C-10 workflow is public-safe: no artifact upload, no tee, CI_QUIET=1, every gate via run-quiet, actions pinned, dispatch-only', () => {
+  const w = fs.readFileSync(path.join(ROOT, '.github/workflows/ci-gates.yml'), 'utf8');
+  assert(!/upload-artifact/.test(w), 'artifact upload present');
+  assert(!/\btee\b/.test(w), 'tee present');
+  assert(/CI_QUIET: '1'/.test(w), 'CI_QUIET not set');
+  const gateLines = w.split('\n').filter((l) => /node scripts\/(test_|smoke\/|e2e\/|diag\/net-probe|ci\/db-sessions)/.test(l) && !/^\s*#/.test(l));
+  const unwrapped = gateLines.filter((l) => !/run-quiet\.cjs --id|\$Q [A-Z0-9-]+ --|\bq [A-Z0-9-]+ /.test(l));
+  assert(gateLines.length >= 40 && unwrapped.length === 0, `gate lines ${gateLines.length}; unwrapped: ${unwrapped.map((l) => l.trim().slice(0, 60)).join(' | ')}`);
+  const uses = w.match(/uses: \S+/g) || [];
+  assert(uses.length >= 6 && uses.every((u) => /@[0-9a-f]{40}$/.test(u)), 'unpinned action');
+  assert(/^on:\n {2}workflow_dispatch:/m.test(w) && !/^ {2}push:/m.test(w) && !/pull_request/.test(w.replace(/#.*$/gm, '')), 'trigger is not dispatch-only');
+  return `${gateLines.length} gate lines wrapped; ${uses.length} actions pinned`;
+});
+
 console.log(`\nCI support: ${passed}/${passed + failed} passed`);
 process.exit(failed ? 1 : 0);

@@ -39,6 +39,8 @@ const redact = (s) => s
   .replace(/eyJ[A-Za-z0-9._-]{20,}/g, '<jwt>')
   .replace(/postgres(ql)?:\/\/[^\s"']+/gi, '<connection-string>');
 const tail = (file, n = 40) => {
+  // PUBLIC-HARDEN-1: in CI (public repo) the server log is never printed; it stays in the runner's temp dir
+  if (process.env.CI_QUIET === '1') return '(server log withheld in CI — kept in the runner temp dir only)';
   try { return redact(fs.readFileSync(file, 'utf8').split(/\r?\n/).slice(-n).join('\n')); } catch { return '(no log)'; }
 };
 const portFree = (port) => new Promise((resolve) => {

@@ -1,7 +1,13 @@
-# CI-1 Stage 2 (architect ruling, 2026-10-18) — permanent gates on GitHub-hosted runners.
-# Design: docs/ops/CI1_DESIGN.md. Report: docs/reports/ops/CI1_STAGE2_REPORT.md.
-# Trigger: MANUAL DISPATCH ONLY until the owner's first manual run is green (see the TODO below).
-# No pull_request trigger, ever: no fork / branch code runs with secrets. All actions pinned by commit SHA.
+# CI-1 Stage 2 + PUBLIC-HARDEN-1 (#57: the repository is PUBLIC — logs are world-readable).
+# Design: docs/ops/CI1_DESIGN.md. Reports: docs/reports/ops/CI1_STAGE2_REPORT.md, docs/reports/ops/PUBLIC_HARDEN1_REPORT.md.
+# Public-repo rules enforced here:
+#   - NO artifact upload of any kind
+#   - every gate runs through scripts/ci/run-quiet.cjs: its full output is captured to the runner's temp dir (discarded
+#     with the runner), log-scanned BEFORE anything is printed, and only "<ID> PASS|FAIL exit n — counts · failing [IDs]"
+#     reaches the log; security gates therefore print check IDs only
+#   - CI_QUIET=1: with-server.cjs never prints the server log tail
+# Trigger: MANUAL DISPATCH ONLY until the owner's first manual run is green (TODO below). No pull_request trigger, ever.
+# All actions pinned by commit SHA.
 
 name: ci-gates
 
@@ -27,7 +33,6 @@ on:
 permissions:
   contents: read
 
-# One run at a time against couragelibrary-next; never cancelled mid-suite.
 concurrency:
   group: couragelibrary-next-db
   cancel-in-progress: false
@@ -35,6 +40,7 @@ concurrency:
 env:
   NODE_VERSION: '20.19.4'
   CI: 'true'
+  CI_QUIET: '1'
   NEXT_TELEMETRY_DISABLED: '1'
 
 jobs:
@@ -51,41 +57,37 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - name: Install (lockfile only)
-        run: npm ci --no-audit --no-fund
+        run: npm ci --no-audit --no-fund --loglevel=error
       - name: Guard — TLS verification is never disabled
         run: test -z "${NODE_TLS_REJECT_UNAUTHORIZED:-}"
-      - name: Typecheck
-        run: npx tsc --noEmit -p .
-      - name: Lint
-        run: npm run lint
-      - name: Offline suites
+      - name: Offline gates (summary lines only)
         run: |
-          set -o pipefail
-          mkdir -p "$RUNNER_TEMP/logs"
-          for t in \
-            "scripts/ci/test_ci_scripts.cjs" \
-            "scripts/test_no_runtime_db.cjs" \
-            "scripts/test_design_ratchet.cjs" \
-            "scripts/test_ux1b_shell.cjs" \
-            "scripts/test_qf1_question_factory.cjs" \
-            "scripts/test_sec1b_admin_authz.cjs" \
-            "scripts/test_sec1c_admin_pages.cjs" \
-            "scripts/test_sec1d_redirects.cjs" \
-            "scripts/test_qb_key1.cjs --offline" \
-            "scripts/test_drill1.cjs --offline" \
-            "scripts/test_syl_import1.cjs --offline" \
-            "scripts/test_gap2_4b_readers.cjs --offline" \
-            "scripts/test_gap2_4b_editor.cjs" \
-            "scripts/test_ux2a_landing.cjs --offline" \
-            "scripts/test_types1.cjs --offline" \
-            "scripts/smoke/anonymous-smoke.cjs --self-test"; do
-            echo "::group::$t"
-            node $t 2>&1 | tee -a "$RUNNER_TEMP/logs/offline.log"
-            echo "::endgroup::"
-          done
-      - name: Log scan
+          q() { node scripts/ci/run-quiet.cjs --id "$1" -- "${@:2}"; }
+          fail=0
+          q TSC npx tsc --noEmit -p . || fail=1
+          q LINT npm run lint || fail=1
+          q CI-SUPPORT node scripts/ci/test_ci_scripts.cjs || fail=1
+          q NO-PERSONAL-DATA node scripts/test_no_personal_data.cjs || fail=1
+          q NO-RUNTIME-DB node scripts/test_no_runtime_db.cjs || fail=1
+          q DESIGN-RATCHET node scripts/test_design_ratchet.cjs || fail=1
+          q UX1B-SHELL node scripts/test_ux1b_shell.cjs || fail=1
+          q QF1-OFFLINE node scripts/test_qf1_question_factory.cjs || fail=1
+          q SEC1B node scripts/test_sec1b_admin_authz.cjs || fail=1
+          q SEC1C node scripts/test_sec1c_admin_pages.cjs || fail=1
+          q SEC1D node scripts/test_sec1d_redirects.cjs || fail=1
+          q QBKEY1-OFFLINE node scripts/test_qb_key1.cjs --offline || fail=1
+          q DRILL1-OFFLINE node scripts/test_drill1.cjs --offline || fail=1
+          q SYLIMPORT1-OFFLINE node scripts/test_syl_import1.cjs --offline || fail=1
+          q READERS-OFFLINE node scripts/test_gap2_4b_readers.cjs --offline || fail=1
+          q EDITOR node scripts/test_gap2_4b_editor.cjs || fail=1
+          q UX2A-OFFLINE node scripts/test_ux2a_landing.cjs --offline || fail=1
+          q TYPES1-OFFLINE node scripts/test_types1.cjs --offline || fail=1
+          q REFSCAN-SELFTEST node scripts/smoke/anonymous-smoke.cjs --self-test || fail=1
+          q NPD-SELFTEST node scripts/test_no_personal_data.cjs --self-test || fail=1
+          exit $fail
+      - name: Log scan of the captured outputs
         if: always()
-        run: node scripts/ci/log-scan.cjs "$RUNNER_TEMP/logs"
+        run: node scripts/ci/log-scan.cjs "$RUNNER_TEMP/ci-quiet"
 
   # ------------------------------------------------------------------ (b) live gates — environment ci-live (main only)
   live:
@@ -115,7 +117,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - name: Install (lockfile only)
-        run: npm ci --no-audit --no-fund
+        run: npm ci --no-audit --no-fund --loglevel=error
       - name: Mask values derived from secrets
         run: node scripts/ci/mask-derived.cjs
       - name: CA certificate for verified TLS (from secret, mode 0600, runner temp)
@@ -127,69 +129,61 @@ jobs:
           echo "PROD_CA_PATH=$RUNNER_TEMP/prod-ca.pem" >> "$GITHUB_ENV"
       - name: Guard — TLS verification is never disabled
         run: test -z "${NODE_TLS_REJECT_UNAUTHORIZED:-}"
-      - name: Production build (local to the runner)
-        run: npm run build
+      - name: Production build (summary only)
+        run: node scripts/ci/run-quiet.cjs --id BUILD --timeout 1200 -- npm run build
       - name: Pre-flight — network probe + no open own DB sessions
         run: |
-          set -o pipefail
-          mkdir -p "$RUNNER_TEMP/logs"
-          node scripts/diag/net-probe.cjs --n=3 2>&1 | tee "$RUNNER_TEMP/logs/preflight.log"
-          node scripts/ci/db-sessions.cjs --fail-on-own-open 2>&1 | tee -a "$RUNNER_TEMP/logs/preflight.log"
-      - name: Live gates (one server, documented GATE ORDER; #56 smokes 3x)
+          mkdir -p "$RUNNER_TEMP/server" "$RUNNER_TEMP/ci-quiet"
+          node scripts/ci/run-quiet.cjs --id NET-PROBE -- node scripts/diag/net-probe.cjs --n=3
+          node scripts/ci/run-quiet.cjs --id DB-SESSIONS-PRE -- node scripts/ci/db-sessions.cjs --fail-on-own-open
+      - name: Live gates (one server, documented GATE ORDER; #56 smokes 3x; summary lines only)
         run: |
-          set -o pipefail
-          node scripts/live/with-server.cjs --port=3100 --log="$RUNNER_TEMP/logs/server.log" -- \
-            "node scripts/test_secdef_ratchet.cjs" \
-            "node scripts/test_sec_hotfix4_rls.cjs" \
-            "node scripts/test_qf1_db.cjs" \
-            "node scripts/test_qb_key1.cjs" \
-            "node scripts/test_secdef_s2_1.cjs" \
-            "node scripts/test_types1_close.cjs" \
-            "node scripts/test_gap2_4a_syllabus.cjs" \
-            "node scripts/test_gap2_4b_readers.cjs --base=http://localhost:3100" \
-            "node scripts/test_syl_import1.cjs" \
-            "node scripts/e2e/cleanup-student.cjs" \
-            "node scripts/e2e/student-journey.cjs" \
-            "node scripts/e2e/assert-mistake-lineage.cjs" \
-            "node scripts/test_drill1.cjs" \
-            "node scripts/e2e/student-drill.cjs" \
-            "node scripts/e2e/cleanup-student.cjs" \
-            "node scripts/e2e/ensure-student-fixture.cjs http://localhost:3100" \
-            "node scripts/smoke/signed-in-smoke.cjs student-mistake http://localhost:3100" \
-            "node scripts/smoke/signed-in-smoke.cjs student-mistake http://localhost:3100" \
-            "node scripts/smoke/signed-in-smoke.cjs student-mistake http://localhost:3100" \
-            "node scripts/smoke/signed-in-smoke.cjs admin-pages http://localhost:3100" \
-            "node scripts/smoke/signed-in-smoke.cjs admin-pages http://localhost:3100" \
-            "node scripts/smoke/signed-in-smoke.cjs admin-pages http://localhost:3100" \
-            "node scripts/smoke/signed-in-smoke.cjs student-pages http://localhost:3100" \
-            "node scripts/smoke/signed-in-smoke.cjs staff-content http://localhost:3100" \
-            "node scripts/smoke/signed-in-smoke.cjs admin-home http://localhost:3100" \
-            "node scripts/test_ux2a_landing.cjs http://localhost:3100" \
-            "node scripts/test_ca_routes.cjs http://localhost:3100" \
-            "node scripts/test_sec1b_admin_authz.cjs --live" \
-            "node scripts/test_sec1c_admin_pages.cjs --live http://localhost:3100" \
-            "node scripts/test_sec1d_redirects.cjs --live http://localhost:3100" \
-            "node scripts/smoke/anonymous-smoke.cjs http://localhost:3100" \
-            2>&1 | tee "$RUNNER_TEMP/logs/live.log"
+          Q='node scripts/ci/run-quiet.cjs --id'
+          B='http://localhost:3100'
+          node scripts/live/with-server.cjs --port=3100 --log="$RUNNER_TEMP/server/server.log" -- \
+            "$Q SECDEF-RATCHET -- node scripts/test_secdef_ratchet.cjs" \
+            "$Q RLS -- node scripts/test_sec_hotfix4_rls.cjs" \
+            "$Q QF1-DB -- node scripts/test_qf1_db.cjs" \
+            "$Q QBKEY1 -- node scripts/test_qb_key1.cjs" \
+            "$Q SECDEF-S2-1 -- node scripts/test_secdef_s2_1.cjs" \
+            "$Q TYPES1-CLOSE -- node scripts/test_types1_close.cjs" \
+            "$Q GAP2-4A -- node scripts/test_gap2_4a_syllabus.cjs" \
+            "$Q READERS -- node scripts/test_gap2_4b_readers.cjs --base=$B" \
+            "$Q SYLIMPORT1 -- node scripts/test_syl_import1.cjs" \
+            "$Q CLEANUP-1 -- node scripts/e2e/cleanup-student.cjs" \
+            "$Q JOURNEY -- node scripts/e2e/student-journey.cjs" \
+            "$Q LINEAGE -- node scripts/e2e/assert-mistake-lineage.cjs" \
+            "$Q DRILL1 -- node scripts/test_drill1.cjs" \
+            "$Q STUDENT-DRILL -- node scripts/e2e/student-drill.cjs" \
+            "$Q CLEANUP-2 -- node scripts/e2e/cleanup-student.cjs" \
+            "$Q FIXTURE -- node scripts/e2e/ensure-student-fixture.cjs $B" \
+            "$Q SMOKE-STUDENT-MISTAKE-1 -- node scripts/smoke/signed-in-smoke.cjs student-mistake $B" \
+            "$Q SMOKE-STUDENT-MISTAKE-2 -- node scripts/smoke/signed-in-smoke.cjs student-mistake $B" \
+            "$Q SMOKE-STUDENT-MISTAKE-3 -- node scripts/smoke/signed-in-smoke.cjs student-mistake $B" \
+            "$Q SMOKE-ADMIN-PAGES-1 -- node scripts/smoke/signed-in-smoke.cjs admin-pages $B" \
+            "$Q SMOKE-ADMIN-PAGES-2 -- node scripts/smoke/signed-in-smoke.cjs admin-pages $B" \
+            "$Q SMOKE-ADMIN-PAGES-3 -- node scripts/smoke/signed-in-smoke.cjs admin-pages $B" \
+            "$Q SMOKE-STUDENT-PAGES -- node scripts/smoke/signed-in-smoke.cjs student-pages $B" \
+            "$Q SMOKE-STAFF-CONTENT -- node scripts/smoke/signed-in-smoke.cjs staff-content $B" \
+            "$Q SMOKE-ADMIN-HOME -- node scripts/smoke/signed-in-smoke.cjs admin-home $B" \
+            "$Q UX2A-LIVE -- node scripts/test_ux2a_landing.cjs $B" \
+            "$Q CA-ROUTES -- node scripts/test_ca_routes.cjs $B" \
+            "$Q SEC1B-LIVE -- node scripts/test_sec1b_admin_authz.cjs --live" \
+            "$Q SEC1C-LIVE -- node scripts/test_sec1c_admin_pages.cjs --live $B" \
+            "$Q SEC1D-LIVE -- node scripts/test_sec1d_redirects.cjs --live $B" \
+            "$Q ANON-SMOKE-LOCAL -- node scripts/smoke/anonymous-smoke.cjs $B"
       - name: Cleanup — QA data back to the kept smoke fixture (always)
         if: always()
         run: |
-          node scripts/e2e/cleanup-student.cjs 2>&1 | tee -a "$RUNNER_TEMP/logs/cleanup.log" || true
-          node scripts/live/with-server.cjs --port=3100 --log="$RUNNER_TEMP/logs/server-cleanup.log" -- \
-            "node scripts/e2e/ensure-student-fixture.cjs http://localhost:3100" 2>&1 | tee -a "$RUNNER_TEMP/logs/cleanup.log" || true
+          node scripts/ci/run-quiet.cjs --id CLEANUP-FINAL -- node scripts/e2e/cleanup-student.cjs || true
+          node scripts/live/with-server.cjs --port=3100 --log="$RUNNER_TEMP/server/server-cleanup.log" -- \
+            "node scripts/ci/run-quiet.cjs --id FIXTURE-FINAL -- node scripts/e2e/ensure-student-fixture.cjs http://localhost:3100" || true
       - name: Orphan-session check (always; never terminates)
         if: always()
-        run: node scripts/ci/db-sessions.cjs --fail-on-own-open 2>&1 | tee -a "$RUNNER_TEMP/logs/sessions.log"
-      - name: Log scan (always)
+        run: node scripts/ci/run-quiet.cjs --id DB-SESSIONS-POST -- node scripts/ci/db-sessions.cjs --fail-on-own-open
+      - name: Log scan of the captured outputs (always)
         if: always()
-        run: node scripts/ci/log-scan.cjs "$RUNNER_TEMP/logs"
-      - name: Upload scanned logs
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: live-gate-logs
-          path: ${{ runner.temp }}/logs/
-          retention-days: 7
+        run: node scripts/ci/log-scan.cjs "$RUNNER_TEMP/ci-quiet"
 
   # ------------------------------------------------------------------ (c) anonymous production smoke — environment ci-public
   prod-smoke:
@@ -211,16 +205,13 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - name: Install (lockfile only)
-        run: npm ci --no-audit --no-fund
+        run: npm ci --no-audit --no-fund --loglevel=error
       - name: Mask values derived from secrets
         run: node scripts/ci/mask-derived.cjs
       - name: Wait for the Vercel deployment of this commit
-        run: node scripts/smoke/wait-for-deploy.cjs https://couragelibrary-next.vercel.app "${GITHUB_SHA::7}"
-      - name: Anonymous production smoke (anonymous GETs only)
-        run: |
-          set -o pipefail
-          mkdir -p "$RUNNER_TEMP/logs"
-          node scripts/smoke/anonymous-smoke.cjs https://couragelibrary-next.vercel.app 2>&1 | tee "$RUNNER_TEMP/logs/prod.log"
-      - name: Log scan
+        run: node scripts/ci/run-quiet.cjs --id WAIT-FOR-DEPLOY --timeout 960 -- node scripts/smoke/wait-for-deploy.cjs https://couragelibrary-next.vercel.app "${GITHUB_SHA::7}"
+      - name: Anonymous production smoke (summary only)
+        run: node scripts/ci/run-quiet.cjs --id ANON-SMOKE-PROD -- node scripts/smoke/anonymous-smoke.cjs https://couragelibrary-next.vercel.app
+      - name: Log scan of the captured outputs
         if: always()
-        run: node scripts/ci/log-scan.cjs "$RUNNER_TEMP/logs"
+        run: node scripts/ci/log-scan.cjs "$RUNNER_TEMP/ci-quiet"
