@@ -91,6 +91,11 @@ A read-only sweep of the 23 permanent suites found the pattern.
 
 ## 5. Commit, deploy, production
 
-Recorded after the push (§5 update).
+| Step | Result |
+|---|---|
+| Commit | `77ed801` (22 files, tests / docs only; secret / host scan clean; the only hit is the self-test's fake ref) |
+| Push | attempt 1 OK |
+| `wait-for-deploy` `77ed801` | deployed (200) |
+| Anonymous production smoke | **all passed**. Project-ref check: **1 document + 11/11 chunks, 24 candidate tokens, no ref** (before: 0 tokens, vacuous). `/exams/ssc-cgl` AVAILABLE, 5 titles |
 
 GATE-HYGIENE-1 status: CLOSED
