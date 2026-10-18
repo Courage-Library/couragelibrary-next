@@ -122,6 +122,11 @@ Network during the run: net-probe 90.5% overall success, API TLS p95 up to 3.3 s
 
 ## 7. Commit, deploy, production
 
-Recorded after the push.
+| Step | Result |
+|---|---|
+| Commit | `dc0f190` (8 files: 089 + rollback, S2-1 tests, ratchet + allow-list, QF-1 handlers, gate rows, report); secret / host scan of the staged diff clean |
+| Push | attempt 1 OK |
+| `wait-for-deploy` `dc0f190` | deployed (200) |
+| Anonymous production smoke | all passed (project-ref scan: 1 document + 11/11 chunks, 24 tokens) |
 
 SECDEF-S2-1 status: CLOSED

@@ -1,0 +1,207 @@
+# DRAFT — CI-1 Stage 1 (design only). NOT ACTIVE: this file lives in docs/ops/drafts/ on purpose.
+# Activating it (copying to .github/workflows/ci-gates.yml) is CI-1 Stage 2 and needs the architect's go + the owner's
+# secrets. See docs/ops/CI1_DESIGN.md.
+#
+# Runs the permanent gates on GitHub-hosted runners (stable network) for pushes to main and manual dispatch only.
+# No pull_request trigger at all (no fork code ever runs with secrets). All actions pinned by commit SHA.
+
+name: ci-gates
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      live:
+        description: 'Run the live (DB) gates'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+# One run at a time against couragelibrary-next: never two live suites on the same DB.
+concurrency:
+  group: couragelibrary-next-db
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '20.19.4'
+  CI: 'true'
+  NEXT_TELEMETRY_DISABLED: '1'
+
+jobs:
+  # ---------------------------------------------------------------- (a) offline gates — no secrets at all
+  offline:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Install (lockfile only; no new dependencies)
+        run: npm ci --no-audit --no-fund
+      - name: Guard — TLS verification must never be disabled
+        run: |
+          test -z "${NODE_TLS_REJECT_UNAUTHORIZED:-}" || { echo "NODE_TLS_REJECT_UNAUTHORIZED is set"; exit 1; }
+      - name: Typecheck
+        run: npx tsc --noEmit -p .
+      - name: Lint
+        run: npm run lint
+      - name: Offline suites (static / stubbed; no network, no DB)
+        run: |
+          set -o pipefail
+          mkdir -p "$RUNNER_TEMP/logs"
+          for t in \
+            "scripts/test_no_runtime_db.cjs" \
+            "scripts/test_design_ratchet.cjs" \
+            "scripts/test_ux1b_shell.cjs" \
+            "scripts/test_qf1_question_factory.cjs" \
+            "scripts/test_sec1b_admin_authz.cjs" \
+            "scripts/test_sec1c_admin_pages.cjs" \
+            "scripts/test_sec1d_redirects.cjs" \
+            "scripts/test_qb_key1.cjs --offline" \
+            "scripts/test_drill1.cjs --offline" \
+            "scripts/test_syl_import1.cjs --offline" \
+            "scripts/test_gap2_4b_readers.cjs --offline" \
+            "scripts/test_gap2_4b_editor.cjs" \
+            "scripts/test_ux2a_landing.cjs --offline" \
+            "scripts/test_types1.cjs --offline" \
+            "scripts/smoke/anonymous-smoke.cjs --self-test"; do
+            echo "::group::$t"; node $t 2>&1 | tee -a "$RUNNER_TEMP/logs/offline.log"; echo "::endgroup::"
+          done
+      - name: Log scan (no secret / host / IP / token pattern)
+        if: always()
+        run: node scripts/ci/log-scan.cjs "$RUNNER_TEMP/logs"   # Stage 2: new script (see design §6)
+
+  # ---------------------------------------------------------------- (b) live gates — protected environment
+  live:
+    needs: offline
+    if: github.event_name == 'push' || inputs.live
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    environment: ci-live          # owner-protected: branch main only (+ optional required reviewer)
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      POSTGRES_URL_NON_POOLING: ${{ secrets.POSTGRES_URL_NON_POOLING }}
+      QA_STUDENT_PASSWORD: ${{ secrets.QA_STUDENT_PASSWORD }}
+      QA_STAFF_PASSWORD: ${{ secrets.QA_STAFF_PASSWORD }}
+      QA_ADMIN_PASSWORD: ${{ secrets.QA_ADMIN_PASSWORD }}
+      E2E_STUDENT_EMAIL: qa-student@courage-library.test
+      E2E_STUDENT_PASSWORD_KEY: QA_STUDENT_PASSWORD
+      E2E_KEEP_USER: '1'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Install
+        run: npm ci --no-audit --no-fund
+      - name: Mask derived values (project ref, DB host / user)
+        run: node scripts/ci/mask-derived.cjs   # Stage 2: prints ::add-mask:: for values derived from secrets, never the values
+      - name: CA certificate for verified TLS (from secret, 0600, runner temp)
+        env:
+          PROD_CA_PEM: ${{ secrets.PROD_CA_PEM }}
+        run: |
+          umask 077
+          printf '%s\n' "$PROD_CA_PEM" > "$RUNNER_TEMP/prod-ca.pem"
+          echo "PROD_CA_PATH=$RUNNER_TEMP/prod-ca.pem" >> "$GITHUB_ENV"
+      - name: Guard — TLS verification must never be disabled
+        run: test -z "${NODE_TLS_REJECT_UNAUTHORIZED:-}"
+      - name: Production build (local to the runner)
+        run: npm run build
+      - name: Pre-flight — network probe + no open DB sessions
+        run: |
+          node scripts/diag/net-probe.cjs --n=3
+          node scripts/ci/db-sessions.cjs --fail-on-own-open   # Stage 2: committed version of the session check
+      - name: Live gates (one server, documented GATE ORDER)
+        run: |
+          set -o pipefail
+          mkdir -p "$RUNNER_TEMP/logs"
+          node scripts/live/with-server.cjs --port=3100 --log="$RUNNER_TEMP/logs/server.log" -- \
+            "node scripts/test_secdef_ratchet.cjs" \
+            "node scripts/test_sec_hotfix4_rls.cjs" \
+            "node scripts/test_qf1_db.cjs" \
+            "node scripts/test_qb_key1.cjs" \
+            "node scripts/test_secdef_s2_1.cjs" \
+            "node scripts/test_types1_close.cjs" \
+            "node scripts/test_gap2_4a_syllabus.cjs" \
+            "node scripts/test_gap2_4b_readers.cjs --base=http://localhost:3100" \
+            "node scripts/test_syl_import1.cjs" \
+            "node scripts/e2e/cleanup-student.cjs" \
+            "node scripts/e2e/student-journey.cjs" \
+            "node scripts/e2e/assert-mistake-lineage.cjs" \
+            "node scripts/test_drill1.cjs" \
+            "node scripts/e2e/student-drill.cjs" \
+            "node scripts/e2e/cleanup-student.cjs" \
+            "node scripts/e2e/ensure-student-fixture.cjs http://localhost:3100" \
+            "node scripts/smoke/signed-in-smoke.cjs student-mistake http://localhost:3100" \
+            "node scripts/smoke/signed-in-smoke.cjs student-pages http://localhost:3100" \
+            "node scripts/smoke/signed-in-smoke.cjs admin-pages http://localhost:3100" \
+            "node scripts/smoke/signed-in-smoke.cjs staff-content http://localhost:3100" \
+            "node scripts/test_ux2a_landing.cjs http://localhost:3100" \
+            "node scripts/test_ca_routes.cjs http://localhost:3100" \
+            "node scripts/test_sec1b_admin_authz.cjs --live" \
+            "node scripts/test_sec1c_admin_pages.cjs --live http://localhost:3100" \
+            "node scripts/test_sec1d_redirects.cjs --live http://localhost:3100" \
+            "node scripts/smoke/anonymous-smoke.cjs http://localhost:3100" \
+            2>&1 | tee "$RUNNER_TEMP/logs/live.log"
+      - name: Cleanup — QA data back to the kept fixture (always)
+        if: always()
+        run: |
+          node scripts/e2e/cleanup-student.cjs || true
+          node scripts/live/with-server.cjs --port=3100 -- "node scripts/e2e/ensure-student-fixture.cjs http://localhost:3100" || true
+      - name: Orphan-session check (always; report own sessions, never terminate others)
+        if: always()
+        run: node scripts/ci/db-sessions.cjs --fail-on-own-open
+      - name: Log scan (no secret / host / IP / token pattern)
+        if: always()
+        run: node scripts/ci/log-scan.cjs "$RUNNER_TEMP/logs"
+      - name: Upload redacted logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: live-gate-logs
+          path: ${{ runner.temp }}/logs/
+          retention-days: 7
+
+  # ---------------------------------------------------------------- (c) anonymous production smoke after deploy
+  prod-smoke:
+    needs: offline
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: ci-public        # public values only (anon key + URL); no service role, no DB, no passwords
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Wait for the Vercel deployment of this commit
+        run: node scripts/smoke/wait-for-deploy.cjs https://couragelibrary-next.vercel.app "${GITHUB_SHA::7}"
+      - name: Anonymous production smoke (anonymous GETs only)
+        run: |
+          set -o pipefail
+          mkdir -p "$RUNNER_TEMP/logs"
+          node scripts/smoke/anonymous-smoke.cjs https://couragelibrary-next.vercel.app 2>&1 | tee "$RUNNER_TEMP/logs/prod.log"
+      - name: Log scan
+        if: always()
+        run: node scripts/ci/log-scan.cjs "$RUNNER_TEMP/logs"

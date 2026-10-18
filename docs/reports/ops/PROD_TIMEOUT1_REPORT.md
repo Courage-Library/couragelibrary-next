@@ -95,4 +95,62 @@ It asserts more than today (content, plus loop and stall detection), does not de
 
 No app code, smoke or gate was changed.
 
-PROD-TIMEOUT-1 status: OPEN. No code regression; awaiting the owner's signed-in production re-check (§4); wait-strategy change proposed (§5).
+## 7. Ruling round (2026-10-18): wait-strategy change (item 1)
+
+**Approved:** replace `networkidle` in `scripts/smoke/signed-in-smoke.cjs` (the only smoke that used it) with `load` + a page-specific required element + a no-loop assertion.
+
+The other `networkidle` users are gates or E2E scripts, not smokes, and are unchanged:
+- `ensure-student-fixture`, `student-journey`, `student-drill`;
+- the GAP2-4b editor, SEC-1C / 1D live, UX-1a / UX-1b a11y and UX-2a.
+
+They are candidates for the same treatment later.
+
+**New navigation (`go()`):**
+1. `page.goto(…, { waitUntil: 'load' })`.
+2. The required element must become visible (same budget as before: 120 s, 180 s for admin).
+3. Observe for 3 s.
+4. FAIL if any **loop-revealing** request (document, fetch / XHR / RSC, script, other) to the same path repeats **> 3×**, if any **static** resource (image, font, media, stylesheet, manifest, or an image / font / CSS path) repeats **> 10×**, or if any request stays open **> 30 s**.
+
+Counts are recorded on every page. A failure records the final URL and the visible headings.
+
+**Deviation, stated:** static resources have a separate cap of 10.
+- Every page has 2 next/image logo elements. The browser fetches `/images/logo.png` 4× (reported by Chromium as type `other`) and `/_next/image` for the srcset variants. That is not a loop, but it would fail a literal "> 3×".
+- The cap of 10 still catches an image loop.
+
+**Required element per page (old vs new):**
+
+| Page | Old (`networkidle`) | New (`load` + required element) |
+|---|---|---|
+| `/auth/login` | network quiet | `input[type=email]` |
+| `/mistakes` | network quiet | a mistake detail link (`a[href^="/mistakes/"]`, not `/mistakes/drill`). The list renders client-side after `load` (seen at ~6 s), so the element doubles as the "data loaded" wait |
+| mistake detail | network quiet | "Question prompt" heading |
+| `/mock-tests` | network quiet | "Mock Tests" heading (then the result link, up to 30 s) |
+| mock result | network quiet | "Question Review" heading |
+| `/dashboard` · `/community` · `/descriptive` · `/descriptive/submissions` · `/flashcards` · `/institutes` · `/premium` · `/store` | network quiet | their `h1`: "Welcome back…", "Community Knowledge Exchange", "Descriptive Answer Writing Studio", "My Descriptive Submissions", "Flashcard Library…", "Partner Coaching Institutes…", "Candidate Premium Hub", "Turn your consistency…" |
+| `/wallet` | network quiet | "How to Earn CL Coins" (the page has no `h1`) |
+| community / deck detail | network quiet | an `h1` (VACUOUS WARN when no detail exists, as before) |
+| `/exams/ssc-cgl` | network quiet | `section#syllabus` (plus the read-model check, unchanged) |
+| 14 admin pages | network quiet (180 s) | each page's `h1`: "Admin Studio Overview", "Question Bank Studio", "Pattern Sections", "Subscription Plans & Payment Orders…", "Community Discussion Moderation", "Mains Descriptive Questions…", "Partner Coaching Institutes CMS", "Mock Test Management", "Bulk Question Importer", "Academic Taxonomy", "Examination Management Hub", "Exam Knowledge Studio", "Design system", "Syllabus" |
+| `/admin/content` (staff) | network quiet | "Admin Content Studio" |
+
+**Local results** (with-server, local build):
+
+| Smoke | Result |
+|---|---|
+| student-mistake | **3 consecutive passes** (38–62 s each) |
+| student-pages | pass (2 VACUOUS WARN: no community thread / flashcard deck) |
+| staff-content / admin-home | pass |
+| **admin-pages** | **not 3 consecutive**: passes in 4 of 8 runs, at most 2 in a row |
+
+Every admin-pages failure was network-caused, with server-log network errors in every such run (19–43):
+- **`now at /auth/login`:** the required heading never appeared, typically on the first admin page after sign-in. The middleware's `getUser` hit a connect timeout and sent the request to login.
+- **`5× GET /auth/login` on one page:** the RSC prefetches of protected links were redirected to login for the same reason.
+- **`/admin/exams` document > 30 s:** this page loads in 4.5–15 s on a quiet network and spiked during bursts.
+
+**The new check is doing its job:** it turns a silent hang into a named cause (session dropped to login, a slow document) within the budget.
+
+**App finding (not fixed; out of scope):** when the Supabase auth call in the middleware fails transiently, the middleware treats the user as signed out and redirects them to `/auth/login`. On production that means a network blip can bounce a signed-in user to the login page. Proposal for a later phase: on a network error (as opposed to "no session"), let the request through to the page, which already re-checks the session itself, or retry once.
+
+**Not committed:** the `signed-in-smoke.cjs` change is held in the working tree, because the ruling's condition (3 consecutive local passes of both smokes) is not met for admin-pages on this network. It is the first thing CI-1 Stage 2 can prove on a stable network.
+
+PROD-TIMEOUT-1 status: OPEN. The wait-strategy change is built and student-mistake passes 3× in a row; admin-pages is blocked locally by network-caused session drops. Owner re-run of the two production smokes is still pending.
