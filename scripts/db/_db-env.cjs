@@ -16,7 +16,12 @@ const DEFAULT_PG_BIN = 'C:/Program Files/PostgreSQL/17/bin';
 
 function readEnv() {
   const file = path.join(ROOT, '.env.local');
-  if (!fs.existsSync(file)) throw new Error('ENV_MISSING: .env.local not found');
+  if (!fs.existsSync(file)) {
+    // CI-1 Stage 2 (architect-approved): on CI the values come from the job environment (GitHub environment secrets).
+    // Only when CI=true AND .env.local is absent; nothing is ever written to disk.
+    if (process.env.CI === 'true') return (k) => process.env[k];
+    throw new Error('ENV_MISSING: .env.local not found');
+  }
   const lines = fs.readFileSync(file, 'utf8').split(/\r?\n/);
   return (k) => {
     if (process.env[k]) return process.env[k];

@@ -102,7 +102,8 @@ function runGate(cmd) {
   fs.writeFileSync(LOG, '');
   const out = fs.openSync(LOG, 'a');
   const nextBin = path.join(ROOT, 'node_modules', 'next', 'dist', 'bin', 'next');
-  server = spawn(process.execPath, [nextBin, 'start', '-p', String(PORT)], { cwd: ROOT, stdio: ['ignore', out, out], detached: process.platform !== 'win32', env: process.env });
+  // CI-1 Stage 2: bind to 127.0.0.1 so the server banner never prints the machine's LAN / runner IP
+  server = spawn(process.execPath, [nextBin, 'start', '-p', String(PORT), '-H', '127.0.0.1'], { cwd: ROOT, stdio: ['ignore', out, out], detached: process.platform !== 'win32', env: process.env });
   console.log(`[with-server] next start on :${PORT} (pid ${server.pid}); log: ${LOG}`);
   const healthErr = await waitHealthy();
   if (healthErr) {

@@ -19,11 +19,8 @@ const path = require('path');
 const { Client } = require('pg');
 
 const ROOT = path.resolve(__dirname, '..');
-const envLines = fs.readFileSync(path.join(ROOT, '.env.local'), 'utf8').split(/\r?\n/);
-const env = (k) => {
-  const v = envLines.filter((l) => l.startsWith(k + '=')).map((l) => l.slice(k.length + 1).trim().replace(/^["']|["']$/g, ''));
-  return v[v.length - 1];
-};
+// CI-1 Stage 2: the shared helper (.env.local locally; process.env on CI when CI=true and the file is absent)
+const env = require('./db/_db-env.cjs').readEnv();
 
 function blocked(reason) {
   console.log(`QF-1 DB suite: BLOCKED — ${reason}`);

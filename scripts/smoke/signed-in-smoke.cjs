@@ -52,6 +52,53 @@ function readMistakeDetail() {
   return { promptLen: /^My Revision Note$/.test(prompt) ? 0 : prompt.length, optionLetters: letters.size, correctMarked: marked };
 }
 
+// PROD-TIMEOUT-1 (architect-approved): no 'networkidle'. Every navigation waits for 'load', then a page-specific required
+// element, then observes a short window and FAILS if any path is requested > 3× or any request stays open > 30 s
+// (counts recorded). networkidle measured "prefetching stopped", not "page ready", and timed out on prefetch bursts.
+const OBSERVE_MS = 3000;
+// loop-revealing requests (document, fetch / XHR / RSC, script, other) may repeat at most 3× per path; static resources
+// (images, fonts, media, stylesheets, manifest) at most 10× — a page with several <img> of the same logo legitimately
+// fetches it more than 3× (srcset variants), which is not a loop. Both maxima are recorded.
+const STATIC_TYPES = new Set(['image', 'font', 'media', 'stylesheet', 'manifest']);
+// Chromium reports some image fetches (e.g. the logo preloaded by next/image) as type "other": the path decides too
+const STATIC_PATH = /^\/_next\/(image|static\/media)\b|\.(png|jpe?g|gif|svg|webp|avif|ico|woff2?|ttf|otf|css)$/i;
+const MAX_REPEAT = 3;
+const MAX_STATIC_REPEAT = 10;
+const H = (name) => (pg) => pg.getByRole('heading', { name }).first();
+const REQUIRED = {
+  '/auth/login': ['email field', (pg) => pg.locator('input[type="email"]').first()],
+  '/mistakes': ['a mistake detail link', (pg) => pg.locator('a[href^="/mistakes/"]:not([href^="/mistakes/drill"])').first()],
+  'mistake-detail': ['"Question prompt" heading', H(/question prompt/i)],
+  '/mock-tests': ['"Mock Tests" heading', H(/^Mock Tests$/)],
+  'mock-result': ['"Question Review" heading', H(/Question Review/i)],
+  '/dashboard': ['"Welcome back" heading', H(/^Welcome back/)],
+  '/community': ['"Community Knowledge Exchange" heading', H(/Community Knowledge Exchange/)],
+  '/descriptive': ['"Descriptive Answer Writing Studio" heading', H(/Descriptive Answer Writing Studio/)],
+  '/descriptive/submissions': ['"My Descriptive Submissions" heading', H(/My Descriptive Submissions/)],
+  '/flashcards': ['"Flashcard Library" heading', H(/Flashcard Library/)],
+  '/institutes': ['"Partner Coaching Institutes" heading', H(/Partner Coaching Institutes/)],
+  '/premium': ['"Candidate Premium Hub" heading', H(/Candidate Premium Hub/)],
+  '/store': ['"Turn your consistency" heading', H(/Turn your consistency/)],
+  '/wallet': ['"How to Earn CL Coins" heading', H(/How to Earn CL Coins/)],
+  'detail-h1': ['an h1', (pg) => pg.locator('h1').first()],
+  '/exams/ssc-cgl': ['"SSC CGL" heading + syllabus section', (pg) => pg.locator('section#syllabus')],
+  '/admin': ['"Admin Studio Overview" heading', H(/Admin Studio Overview/)],
+  '/admin/questions': ['"Question Bank Studio" heading', H(/Question Bank Studio/)],
+  '/admin/sections': ['"Pattern Sections" heading', H(/Pattern Sections/)],
+  '/admin/billing': ['"Subscription Plans" heading', H(/Subscription Plans & Payment Orders/)],
+  '/admin/community': ['"Community Discussion Moderation" heading', H(/Community Discussion Moderation/)],
+  '/admin/descriptive': ['"Mains Descriptive Questions" heading', H(/Mains Descriptive Questions/)],
+  '/admin/institutes': ['"Partner Coaching Institutes CMS" heading', H(/Partner Coaching Institutes CMS/)],
+  '/admin/mock-tests-management': ['"Mock Test Management" heading', H(/^Mock Test Management$/)],
+  '/admin/bulk-import': ['"Bulk Question Importer" heading', H(/Bulk Question Importer/)],
+  '/admin/taxonomy': ['"Academic Taxonomy" heading', H(/Academic Taxonomy/)],
+  '/admin/exams': ['"Examination Management Hub" heading', H(/Examination Management Hub/)],
+  '/admin/exam-knowledge': ['"Exam Knowledge Studio" heading', H(/Exam Knowledge Studio/)],
+  '/admin/design-system': ['"Design system" heading', H(/^Design system$/)],
+  '/admin/syllabus': ['"Syllabus" heading', H(/^Syllabus$/)],
+  '/admin/content': ['"Admin Content Studio" heading', H(/Admin Content Studio/)],
+};
+
 (async () => {
   if (!IDS[CHECK]) throw new Error(`unknown check ${CHECK}`);
   const [email, key] = IDS[CHECK];
@@ -59,8 +106,41 @@ function readMistakeDetail() {
   if (!password) throw new Error(`${key} missing in .env.local`);
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   const page = await (await browser.newContext()).newPage();
+  const NET = { reqs: new Map(), active: false };
+  const origin = new URL(BASE).origin;
+  const pathOf = (u) => { try { const x = new URL(u); return (x.origin === origin ? '' : x.hostname.endsWith('supabase.co') ? '[supabase]' : '[external]') + x.pathname; } catch { return '?'; } };
+  page.on('request', (r) => { if (NET.active) NET.reqs.set(r, { key: `${r.method()} ${pathOf(r.url())}`, isStatic: STATIC_TYPES.has(r.resourceType()) || STATIC_PATH.test(pathOf(r.url())), start: Date.now(), end: null }); });
+  page.on('requestfinished', (r) => { const e = NET.reqs.get(r); if (e) e.end = Date.now(); });
+  page.on('requestfailed', (r) => { const e = NET.reqs.get(r); if (e) e.end = Date.now(); });
+  /** navigate: 'load' → required element visible → observe; checks the element and the request pattern; returns the response */
+  const go = async (p, reqKey, timeout = 120000) => {
+    const label = p.replace(/[0-9a-f-]{36}/g, '[id]');
+    const [what, locate] = REQUIRED[reqKey || p];
+    NET.reqs = new Map();
+    NET.active = true;
+    const res = await page.goto(BASE + p, { waitUntil: 'load', timeout });
+    let visible = true;
+    try { await locate(page).waitFor({ state: 'visible', timeout }); } catch { visible = false; }
+    await page.waitForTimeout(OBSERVE_MS);
+    NET.active = false;
+    const now = Date.now();
+    const all = [...NET.reqs.values()];
+    const tally = (list) => { const m = {}; for (const e of list) m[e.key] = (m[e.key] || 0) + 1; return Object.entries(m).sort((a, b) => b[1] - a[1])[0] || ['-', 0]; };
+    const [topKey, top] = tally(all.filter((e) => !e.isStatic));
+    const [sKey, sTop] = tally(all.filter((e) => e.isStatic));
+    const long = all.filter((e) => (e.end === null ? now : e.end) - e.start > 30000);
+    let where = '';
+    if (!visible) {
+      const at = await page.evaluate(() => ({ path: location.pathname, h: [...document.querySelectorAll('h1,h2')].filter((e) => e.offsetParent !== null).map((e) => e.innerText.trim().slice(0, 40)).slice(0, 3) })).catch(() => ({ path: '?', h: [] }));
+      where = `; now at ${at.path.replace(/[0-9a-f-]{36}/g, '[id]')}, headings ${JSON.stringify(at.h)}`;
+    }
+    check(`${label} required element visible (${what})`, visible, visible ? '' : `not visible within ${timeout / 1000} s${where}`);
+    check(`${label} network: no path requested > ${MAX_REPEAT}× (static > ${MAX_STATIC_REPEAT}×), nothing open > 30 s`, top <= MAX_REPEAT && sTop <= MAX_STATIC_REPEAT && long.length === 0,
+      `${all.length} requests, max ${top}× ${topKey}, static max ${sTop}× ${sKey}${long.length ? `, ${long.length} > 30 s: ${long.slice(0, 3).map((e) => e.key).join(', ')}` : ', none > 30 s'}`);
+    return res;
+  };
   for (let i = 1; i <= 3; i++) {
-    await page.goto(`${BASE}/auth/login`, { waitUntil: 'networkidle', timeout: 120000 });
+    await go('/auth/login');
     await page.fill('input[type="email"]', email);
     await page.fill('input[type="password"]', password);
     await Promise.all([page.waitForURL((u) => !/\/auth\/login/.test(String(u)), { timeout: 60000 }).catch(() => undefined), page.locator('button[type="submit"]').first().click()]);
@@ -70,38 +150,39 @@ function readMistakeDetail() {
   check('signed in', true, new URL(page.url()).pathname);
 
   if (CHECK === 'student-mistake') {
-    await page.goto(`${BASE}/mistakes`, { waitUntil: 'networkidle', timeout: 120000 });
+    await go('/mistakes');
     const hrefs = await page.$$eval('a[href^="/mistakes/"]', (as) => as.map((a) => a.getAttribute('href')).filter((h) => /^\/mistakes\/[0-9a-f-]{36}$/.test(h)));
     check('/mistakes lists at least one mistake', hrefs.length > 0, `${hrefs.length} links`);
     if (hrefs.length) {
-      const res = await page.goto(BASE + hrefs[0], { waitUntil: 'networkidle', timeout: 120000 });
+      const res = await go(hrefs[0], 'mistake-detail');
       const info = await page.evaluate(readMistakeDetail);
       check('mistake detail → 200, not not-found', res && res.status() === 200 && !(await isNotFound(page)), String(res && res.status()));
       check('mistake detail shows question text (non-empty prompt)', info.promptLen > 10, `${info.promptLen} chars`);
       check('mistake detail shows the options A–D', info.optionLetters >= 2, `${info.optionLetters} option letters`);
       check('mistake detail marks the correct answer', info.correctMarked);
     }
-    await page.goto(`${BASE}/mock-tests`, { waitUntil: 'networkidle', timeout: 120000 });
+    await go('/mock-tests');
+    await page.locator('a[href*="/result"]').first().waitFor({ state: 'visible', timeout: 30000 }).catch(() => undefined);
     const resultHref = await page.$$eval('a[href*="/result"]', (as) => (as[0] ? as[0].getAttribute('href') : null));
     if (resultHref) {
-      const r = await page.goto(BASE + resultHref, { waitUntil: 'networkidle', timeout: 120000 });
+      const r = await go(resultHref, 'mock-result');
       check('mock result renders a score', r && r.status() === 200 && /score|marks|accuracy/i.test(await page.content()));
     } else {
       check('mock result link present on /mock-tests', false, 'none found');
     }
   } else if (CHECK === 'student-pages') {
     const PAGES = ['/dashboard', '/community', '/descriptive', '/descriptive/submissions', '/flashcards', '/institutes', '/premium', '/store', '/wallet'];
-    const visit = async (p) => {
-      const r = await page.goto(BASE + p, { waitUntil: 'networkidle', timeout: 120000 });
+    const visit = async (p, reqKey) => {
+      const r = await go(p, reqKey);
       const html = await page.content();
       const errorBoundary = ERROR_BOUNDARY.test(html);
       check(`${p.replace(/[0-9a-f-]{36}/g, '[id]')} → 200, renders`, r && r.status() === 200 && !(await isNotFound(page)) && !errorBoundary, String(r && r.status()) + (errorBoundary ? ' error-boundary' : ''));
     };
     for (const p of PAGES) await visit(p);
     for (const [list, re] of [['/community', /^\/community\/[0-9a-f-]{36}$/], ['/flashcards', /^\/flashcards\/[0-9a-f-]{36}$/]]) {
-      await page.goto(BASE + list, { waitUntil: 'networkidle', timeout: 120000 });
+      await go(list);
       const href = await page.$$eval('a[href]', (as, src) => { const r = new RegExp(src); const h = as.map((a) => a.getAttribute('href')).find((x) => r.test(x || '')); return h || null; }, re.source);
-      if (href) await visit(href); else { vacuous++; console.log(`WARN  VACUOUS (0 items): no detail link on ${list} — its detail page was not checked`); }
+      if (href) await visit(href, 'detail-h1'); else { vacuous++; console.log(`WARN  VACUOUS (0 items): no detail link on ${list} — its detail page was not checked`); }
     }
     // GAP2-4b + QB-KEY-1 round 2: the exam hub's syllabus section must match the canonical read model — AVAILABLE →
     // the paper / section titles and no coming-soon; NO_SYLLABUS → "Syllabus coming soon" (scripts/smoke/_syllabus-expect.cjs)
@@ -113,7 +194,7 @@ function readMistakeDetail() {
   } else if (CHECK === 'admin-pages') {
     const ADMIN = ['/admin', '/admin/questions', '/admin/sections', '/admin/billing', '/admin/community', '/admin/descriptive', '/admin/institutes', '/admin/mock-tests-management', '/admin/bulk-import', '/admin/taxonomy', '/admin/exams', '/admin/exam-knowledge', '/admin/design-system', '/admin/syllabus'];
     for (const p of ADMIN) {
-      const r = await page.goto(BASE + p, { waitUntil: 'networkidle', timeout: 180000 });
+      const r = await go(p, undefined, 180000);
       const html = await page.content();
       const errorBoundary = ERROR_BOUNDARY.test(html);
       check(`${p} → 200, renders`, r && r.status() === 200 && !(await isNotFound(page)) && !errorBoundary, String(r && r.status()) + (errorBoundary ? ' error-boundary' : ''));
@@ -121,7 +202,7 @@ function readMistakeDetail() {
   } else {
     // GAP2-4b: staff also reach the syllabus editor (publish stays admin-only)
     for (const p of CHECK === 'admin-home' ? ['/admin'] : ['/admin/content', '/admin/syllabus']) {
-      const r = await page.goto(BASE + p, { waitUntil: 'networkidle', timeout: 120000 });
+      const r = await go(p);
       check(`${p} → 200 and renders`, r && r.status() === 200 && !(await isNotFound(page)), String(r && r.status()));
     }
   }

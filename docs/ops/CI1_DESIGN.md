@@ -2,7 +2,7 @@
 
 Phase brief: architect, 2026-10-18. **Goal:** run the permanent gates on GitHub-hosted runners (a stable network) instead of the owner's Wi-Fi.
 
-**Stage 1 is design only.** Nothing is pushed to `.github/workflows`. The draft workflow is `docs/ops/drafts/ci-gates.yml`.
+**Stage 2 (built):** `.github/workflows/ci-gates.yml`, manual dispatch only until the first green run. The Stage 1 draft stays in `docs/ops/drafts/` for history.
 
 Why: during SECDEF-S2-1 alone, the live gates needed up to 3 attempts each on this machine, and QF-1 DB stayed network-unresolved (net-probe 90–95% success, TLS p95 up to 3.3 s, dropped pooler connections). On a GitHub-hosted runner the same gates run on a datacentre network.
 
@@ -130,21 +130,46 @@ The **owner** sets these in GitHub. They are never pasted in chat, never committ
 | `scripts/diag/*` (net-probe in pre-flight only), `page-timing.cjs --owner` | diagnostics |
 | CA-4 / 5 / 6 legacy suites | disable TLS; never run anywhere |
 
-## 9. Owner instructions (Stage 2, after the architect's go)
+## 9. Owner instructions (CI-1 Stage 2: the workflow is committed and runs on manual dispatch only)
 
-1. **Create the environments:** GitHub → repository **Settings → Environments → New environment**.
-   - **`ci-live`:**
-     - *Deployment branches and tags* → **Selected branches** → add `main`.
-     - Optionally, *Required reviewers* → yourself (every live run then waits for your click).
-     - *Environment secrets* → add each, values copied from your local `.env.local` / CA file and never into chat: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `POSTGRES_URL_NON_POOLING`, `PROD_CA_PEM` (the full PEM text of the file `PROD_CA_PATH` points to), `QA_STUDENT_PASSWORD`, `QA_STAFF_PASSWORD`, `QA_ADMIN_PASSWORD`.
-   - **`ci-public`:** branches: `main` only. Secrets: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
-2. **Settings → Actions → General:**
-   - *Workflow permissions*: **Read repository contents**.
-   - *Fork pull request workflows*: leave disabled.
-3. Do **not** add `SUPABASE_ACCESS_TOKEN` or any other key.
-4. Tell the agent "secrets added". The agent then implements the Stage 2 changes (§6), copies the draft to `.github/workflows/ci-gates.yml` in a pre-authorised commit, and runs it once by `workflow_dispatch`, watching the log scan.
+**Never paste a secret value in chat, an issue, a commit or a PR.** Values go only into the GitHub secret fields, copied from your local `.env.local` and CA file.
 
-## 10. Decisions for the architect
+**(a) Create the two environments (branch rule `main` only, no required reviewer, per ruling):**
+1. GitHub → the repository → **Settings** → left menu **Environments** → **New environment** → name `ci-live` → **Configure environment**.
+2. Under **Deployment branches and tags**, choose **Selected branches and tags** → **Add deployment branch or tag rule** → type **Branch**, pattern `main` → **Add rule**.
+3. Leave **Required reviewers** unticked (ruling §10.2).
+4. Repeat steps 1–3 for an environment named `ci-public`.
+
+**(b) Add the secrets, by name, in the right environment.** In **Settings → Environments →** (environment) → **Environment secrets** → **Add environment secret**, add one secret per row:
+
+| Secret name | `ci-live` | `ci-public` | Value comes from |
+|---|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | ✔ | ✔ | `.env.local` |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | ✔ | ✔ | `.env.local` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✔ | ✔ | `.env.local` |
+| `SUPABASE_SERVICE_ROLE_KEY` | ✔ | — | `.env.local` |
+| `POSTGRES_URL_NON_POOLING` | ✔ | — | `.env.local` |
+| `PROD_CA_PEM` | ✔ | — | the **full text** of the CA file that `PROD_CA_PATH` in `.env.local` points to (from `-----BEGIN CERTIFICATE-----` to `-----END CERTIFICATE-----`) |
+| `QA_STUDENT_PASSWORD` | ✔ | — | `.env.local` |
+| `QA_STAFF_PASSWORD` | ✔ | — | `.env.local` |
+| `QA_ADMIN_PASSWORD` | ✔ | — | `.env.local` |
+
+So `ci-live` gets 9 secrets and `ci-public` gets 3. Do **not** add `SUPABASE_ACCESS_TOKEN` or any other key, and do not use *Repository secrets* for these.
+
+**(c) Actions permissions:**
+1. **Settings → Actions → General → Workflow permissions** → choose **Read repository contents and packages permissions** → **Save**.
+2. On the same page, leave **Allow GitHub Actions to create and approve pull requests** unticked.
+
+**(d) Run the workflow manually:**
+1. Repository → **Actions** tab → left list **ci-gates** → **Run workflow** (right) → Branch: `main`; keep **Run the live (DB) gates** and **Run the anonymous production smoke** ticked → **Run workflow**.
+2. Do **not** run local live gates while it runs: one DB, one run at a time.
+3. Expected duration: offline ~8 min; live ~60–90 min (it includes the #56 proof: student-mistake and admin-pages 3× each); prod-smoke ~5 min.
+4. When it finishes, report in chat only **green / red per job**: offline, live, prod-smoke. If live is red, also give the **name of the first failed gate**, shown in the "Live gates" step summary.
+5. The agent can diagnose from the redacted artifact **live-gate-logs** (run page → *Artifacts*). Download it only if asked; it has already passed the log scan.
+
+**After a green manual run:** the agent's next commit enables `push` to `main` (with `paths-ignore: docs/**, **/*.md`) and closes PROD-TIMEOUT-1 with the CI evidence. **After a red run:** diagnose first; nothing is enabled.
+
+## 10. Decisions for the architect (ruled 2026-10-18: §10.1 approved; §10.2 no required reviewer, branch rule main; §10.3 paths-ignore docs/** and **/*.md only; §10.4 red CI blocks the next phase, not deploys; §10.5 prove #56 on CI)
 
 1. Approve the **Stage 2 code changes** in §6: the `readEnv` CI fallback, with-server binding to 127.0.0.1, and three small `scripts/ci/*` scripts.
 2. **Required reviewer** on `ci-live`: yes (safer; every run needs a click) or no (fully automatic on `main`)?
