@@ -25,9 +25,10 @@
  *        NO_SYLLABUS); NO_SYLLABUS for a DRAFT-only exam (anon); AVAILABLE on a published TEST version with
  *        counts equal to independent queries (published questions per topic; servable documents per topic with
  *        the LearningResolverService rule); subtree counts; no fabricated values
- *   G-11 seeded drafts: GD legacy DRAFT (4 SECTION / 18 UNIT / 18 mappings, LEGACY_MIGRATION, valid) and CGL
- *        skeleton (4 SECTIONs = pattern sections, no units); nothing PUBLISHED; GD seed idempotent (re-run → no
- *        change) and deterministic (delete + re-seed → identical tree and hash)
+ *   G-11 seeds (GATE-HYGIENE-1 amendment): GD legacy DRAFT (4 SECTION / 18 UNIT / 18 mappings, LEGACY_MIGRATION,
+ *        valid); CGL skeleton shape (4 SECTIONs = pattern sections, no units) only while it is a DRAFT; real exams
+ *        may hold PUBLISHED / ARCHIVED history but ≤ 1 PUBLISHED per exam + cycle; the QA exam never PUBLISHED;
+ *        seeds idempotent (re-run → no change) and GD deterministic (delete + re-seed → identical tree and hash)
  *   G-12 legacy tables preserved in schema retired (exam_syllabi 1, exam_topics 18, exam_unit_mappings 0,
  *        taxonomy_aliases 0; none left in public; GAP2-4c migration 084); the reconciliation workbench is removed
  *
@@ -467,16 +468,22 @@ const CORE = ['fn_syllabus__assert_role', 'fn_syllabus__audit', 'fn_syllabus__sl
         return `topics q=${sumQ} docs=${sumD} match independent queries`;
       }));
 
-    await test('G-11 seeded drafts: GD legacy (4 / 18 / 18, valid, DRAFT) and CGL skeleton (4 pattern sections); GD seed idempotent + deterministic', async () =>
+    // GATE-HYGIENE-1 (architect-approved amendment of G-11; was: "real exams hold only DRAFTs" + the CGL skeleton DRAFT
+    // must exist). Real exams may now hold PUBLISHED / ARCHIVED history (the owner published SSC CGL, 2026-10-17), but
+    // never more than one PUBLISHED version per exam + cycle; the QA test exam must never stay PUBLISHED. The seeds'
+    // idempotence / determinism is asserted on SSC GD; the CGL skeleton's shape only while that version is a DRAFT.
+    await test('G-11 seeds: GD legacy DRAFT (4 / 18 / 18, valid) idempotent + deterministic; CGL skeleton shape while DRAFT; ≤ 1 PUBLISHED per exam + cycle', async () =>
       tx(async () => {
         const vers = await q(`SELECT e.slug, v.id, v.status, v.source_kind, v.version_tag, v.raw_payload_hash h, v.exam_cycle_id::text cy FROM public.exam_syllabus_versions v JOIN public.exams e ON e.id = v.exam_id`);
-        // real exams hold only DRAFTs; the permanent QA test exam (migration 081) keeps ARCHIVED TEST versions as
-        // history but must never stay PUBLISHED
-        const pub = vers.filter((v) => (v.slug === 'qa-syllabus-test' ? v.status === 'PUBLISHED' : v.status !== 'DRAFT'));
-        assert(pub.length === 0, `unexpected non-DRAFT versions: ${pub.map((v) => v.slug + ':' + v.status)}`);
+        const qaPublished = vers.filter((v) => v.slug === 'qa-syllabus-test' && v.status === 'PUBLISHED');
+        assert(qaPublished.length === 0, `the QA test exam has ${qaPublished.length} PUBLISHED version(s)`);
+        const perScope = {};
+        for (const v of vers.filter((x) => x.status === 'PUBLISHED')) perScope[`${v.slug}/${v.cy || '-'}`] = (perScope[`${v.slug}/${v.cy || '-'}`] || 0) + 1;
+        const multi = Object.entries(perScope).filter(([, n]) => n > 1);
+        assert(multi.length === 0, `more than one PUBLISHED version: ${multi.map(([k, n]) => `${k.split('/')[0]}×${n}`)}`);
         const gd = vers.find((v) => v.slug === 'ssc-gd' && v.version_tag === 'legacy-official-2026');
         const cgl = vers.find((v) => v.slug === 'ssc-cgl' && v.version_tag === 'pattern-skeleton-2026');
-        assert(gd && gd.source_kind === 'LEGACY_MIGRATION' && cgl && cgl.source_kind === 'MANUAL', 'seeded versions missing');
+        assert(gd && gd.status === 'DRAFT' && gd.source_kind === 'LEGACY_MIGRATION' && cgl && cgl.source_kind === 'MANUAL', 'seeded versions missing');
         const tree = async (id) => (await q(`SELECT n.node_kind, n.raw_title, n.raw_slug, n.display_order, n.weightage_tier, n.is_mandatory, p.raw_slug parent,
               (SELECT string_agg(m.canonical_node_id::text || '/' || m.match_method, ',') FROM public.exam_syllabus_canonical_mappings m WHERE m.syllabus_node_id = n.id) maps
             FROM public.exam_syllabus_nodes n LEFT JOIN public.exam_syllabus_nodes p ON p.id = n.parent_node_id WHERE n.syllabus_version_id = $1
@@ -492,13 +499,18 @@ const CORE = ['fn_syllabus__assert_role', 'fn_syllabus__audit', 'fn_syllabus__sl
         assert(legacyMatch.n === 18, `${legacyMatch.n}/18 legacy topics mapped`);
         const gdVal = await rpc('staff', 'fn_syllabus_validate', [gd.id]);
         assert(gdVal.ok, `GD draft invalid: ${gdVal.errors.map((e) => e.code)}`);
-        const cglTree = await tree(cgl.id);
-        const sections = await q(`SELECT ps.section_name FROM public.pattern_sections ps JOIN public.exam_patterns p ON p.id = ps.pattern_id
-            JOIN public.exam_cycles cy ON cy.id = p.exam_cycle_id WHERE cy.exam_id = $1 AND p.is_active ORDER BY ps.section_order`, [exams['ssc-cgl']]);
-        assert(cglTree.length === 4 && cglTree.every((n) => n.node_kind === 'SECTION' && !n.parent && !n.maps), `CGL tree ${JSON.stringify(cglTree).slice(0, 200)}`);
-        assert(JSON.stringify(cglTree.map((n) => n.raw_title)) === JSON.stringify(sections.map((s) => s.section_name)), 'CGL sections differ from the pattern');
+        let cglNote = `CGL skeleton ${cgl.status}: shape not asserted (only while DRAFT)`;
+        if (cgl.status === 'DRAFT') {
+          const cglTree = await tree(cgl.id);
+          const sections = await q(`SELECT ps.section_name FROM public.pattern_sections ps JOIN public.exam_patterns p ON p.id = ps.pattern_id
+              JOIN public.exam_cycles cy ON cy.id = p.exam_cycle_id WHERE cy.exam_id = $1 AND p.is_active ORDER BY ps.section_order`, [exams['ssc-cgl']]);
+          assert(sections.length > 0, 'no active CGL pattern sections to compare with');
+          assert(cglTree.length === 4 && cglTree.every((n) => n.node_kind === 'SECTION' && !n.parent && !n.maps), `CGL tree ${JSON.stringify(cglTree).slice(0, 200)}`);
+          assert(JSON.stringify(cglTree.map((n) => n.raw_title)) === JSON.stringify(sections.map((s) => s.section_name)), 'CGL sections differ from the pattern');
+          cglNote = 'CGL 4 sections';
+        }
 
-        // idempotent: re-run → no change
+        // idempotent: re-run → no change (the CGL seed matches its tag in any status, so it stays a no-op when ARCHIVED)
         const r1 = (await one(`SELECT public.fn_syllabus_seed_legacy_gd_draft() r`)).r;
         const r2 = (await one(`SELECT public.fn_syllabus_seed_cgl_pattern_skeleton() r`)).r;
         assert(r1.created === false && r1.reason === 'ALREADY_EXISTS' && r2.created === false, `re-run: ${JSON.stringify([r1, r2])}`);
@@ -511,7 +523,7 @@ const CORE = ['fn_syllabus__assert_role', 'fn_syllabus__audit', 'fn_syllabus__sl
         assert(again.h === gd.h && JSON.stringify(await tree(r3.version_id)) === JSON.stringify(gdTree), 're-seed is not identical');
         const r4 = (await one(`SELECT public.fn_syllabus_seed_legacy_gd_draft() r`)).r;
         assert(r4.created === false, 'second seed in a row created again');
-        return 'GD 4/18/18 valid; CGL 4 sections; re-run no-op; re-seed identical';
+        return `GD 4/18/18 valid; ${cglNote}; re-run no-op; re-seed identical; PUBLISHED scopes ${Object.keys(perScope).length} (≤ 1 each)`;
       }));
 
     await test('G-12 legacy tables preserved in schema retired (GAP2-4c, 084); reconciliation workbench removed', async () => {

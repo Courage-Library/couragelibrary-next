@@ -31,6 +31,10 @@ Every code phase must pass these before it is committed. Phase-specific suites a
 | Production (after push) | `node scripts/smoke/wait-for-deploy.cjs https://couragelibrary-next.vercel.app <sha>`, then `node scripts/smoke/anonymous-smoke.cjs https://couragelibrary-next.vercel.app` (anonymous only; also locally against the build) | Signed-in production smokes are run by the owner. Syllabus checks follow the read model (`scripts/smoke/_syllabus-expect.cjs`): AVAILABLE → paper / section titles, no coming-soon; NO_SYLLABUS → "Syllabus coming soon" |
 
 **Rules:**
+- **No vacuous passes** (architect, GATE-HYGIENE-1, 2026-10-18). A check that passes having scanned 0 items is a defect, not a pass.
+  - A set that should never be empty gets a minimum-coverage assertion (files, links, chunks, rows, titles).
+  - A set that can legitimately be empty prints `WARN  VACUOUS (0 items): …` and is never a silent PASS.
+  - Every scan reports how many items it covered.
 - **Never run scripts that disable TLS verification.** See the inventory in `docs/reports/hotfix/HOTFIX2_REPORT.md`.
 - **Student-data gate order** (architect, 2026-10-17). The E2E journey and the smoke fixture share qa-student and the `ssc-cgl-daily-monday-mock` mock, so always run them in this order, all through `with-server.cjs`:
   1. `cleanup-student` (`E2E_KEEP_USER=1`)

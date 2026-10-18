@@ -158,6 +158,7 @@ function mock({ results = {}, rpc }) {
     await test('D1 qa-student generates a drill from its own vault (server RPC)', async () => {
       const r = await rpc(studentTok, 'fn_generate_mistake_drill', { p_vault_ids: vault.map((v) => v.id) });
       assert(r.status === 200 && r.body && r.body.success === true && r.body.drill_id, `generate: ${r.status} ${JSON.stringify(r.body).slice(0, 300)}`);
+      assert(Array.isArray(r.body.questions) && r.body.questions.length >= 1, 'drill has 0 questions: D2 (no answers before submit) would pass vacuously'); // GATE-HYGIENE-1
       const row = (await ro(`SELECT user_id, status, total_questions, coins_awarded FROM public.user_mistake_drills WHERE id = $1`, [r.body.drill_id]))[0];
       assert(row && row.user_id === STUDENT && row.status === 'IN_PROGRESS' && row.total_questions === r.body.questions.length, `row ${JSON.stringify(row)}`);
       drill = r.body;

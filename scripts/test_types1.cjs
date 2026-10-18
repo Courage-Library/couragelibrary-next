@@ -91,6 +91,13 @@ function counts() {
   const ratchet = JSON.parse(fs.readFileSync(RATCHET, 'utf8'));
   const register = JSON.parse(fs.readFileSync(REGISTER, 'utf8'));
 
+  // GATE-HYGIENE-1: 0 files scanned would make T-02 … T-08 and the ratchet counts pass vacuously
+  await test('T-00 minimum coverage: every scanned dir exists and holds files; ≥ 400 .ts/.tsx files', async () => {
+    const empty = DIRS.filter((d) => !fs.existsSync(path.join(ROOT, d)) || walk(path.join(ROOT, d)).length === 0);
+    assert(empty.length === 0 && FILES.length >= 400, `missing / empty dirs: ${empty.join(', ') || 'none'}; files ${FILES.length} (min 400)`);
+    return `${FILES.length} files`;
+  });
+
   await test('T-01 db:types:check — committed types/database.ts equals the live public schema', async () => {
     if (ARGS.has('--offline')) return 'skipped (--offline)';
     let r;

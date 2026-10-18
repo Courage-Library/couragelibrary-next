@@ -35,6 +35,7 @@ const IDS = {
 // exception has occurred"). Not a bare "Application error": published exam content can contain that phrase.
 const ERROR_BOUNDARY = /Something went wrong|Application error: a (client|server)-side exception/i;
 let fails = 0;
+let vacuous = 0; // GATE-HYGIENE-1: a skipped check is reported as VACUOUS, never a silent pass
 const check = (name, ok, info) => { if (!ok) fails++; console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${info ? ' — ' + info : ''}`); };
 const isNotFound = async (page) => /NEXT_HTTP_ERROR_FALLBACK;404|This page could not be found/.test(await page.content());
 
@@ -100,7 +101,7 @@ function readMistakeDetail() {
     for (const [list, re] of [['/community', /^\/community\/[0-9a-f-]{36}$/], ['/flashcards', /^\/flashcards\/[0-9a-f-]{36}$/]]) {
       await page.goto(BASE + list, { waitUntil: 'networkidle', timeout: 120000 });
       const href = await page.$$eval('a[href]', (as, src) => { const r = new RegExp(src); const h = as.map((a) => a.getAttribute('href')).find((x) => r.test(x || '')); return h || null; }, re.source);
-      if (href) await visit(href); else console.log(`INFO  no detail link on ${list} (no data)`);
+      if (href) await visit(href); else { vacuous++; console.log(`WARN  VACUOUS (0 items): no detail link on ${list} — its detail page was not checked`); }
     }
     // GAP2-4b + QB-KEY-1 round 2: the exam hub's syllabus section must match the canonical read model — AVAILABLE →
     // the paper / section titles and no coming-soon; NO_SYLLABUS → "Syllabus coming soon" (scripts/smoke/_syllabus-expect.cjs)
@@ -125,6 +126,7 @@ function readMistakeDetail() {
     }
   }
   await browser.close();
-  console.log(fails ? `\nSIGNED-IN SMOKE (${CHECK}): ${fails} failed` : `\nSIGNED-IN SMOKE (${CHECK}): all passed`);
+  const vac = vacuous ? ` (${vacuous} VACUOUS WARN)` : '';
+  console.log(fails ? `\nSIGNED-IN SMOKE (${CHECK}): ${fails} failed${vac}` : `\nSIGNED-IN SMOKE (${CHECK}): all passed${vac}`);
   process.exit(fails ? 1 : 0);
 })().catch((e) => { console.error('SIGNED-IN SMOKE ERROR', String(e.message).slice(0, 200)); process.exit(1); });

@@ -227,6 +227,7 @@ function makeHarness() {
   await test('E-04 English only: no admin UI offers a Hindi / bilingual option or label (decision #35)', async () => {
     const walk = (dir) => fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(`${dir}/${e.name}`) : /\.tsx?$/.test(e.name) ? [`${dir}/${e.name}`] : []));
     const files = [...walk('app/admin'), ...walk('components/admin')].filter((f) => !f.endsWith('.ts') || f.endsWith('page.ts'));
+    assert(files.length >= 30, `admin UI files scanned ${files.length} (min 30)`); // GATE-HYGIENE-1
     const bad = [];
     for (const f of files) {
       const s = read(f);

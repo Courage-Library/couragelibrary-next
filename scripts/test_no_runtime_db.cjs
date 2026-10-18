@@ -50,6 +50,13 @@ const scan = (re) => {
 (async () => {
   console.log('Decision #38: no runtime direct DB connections');
 
+  // GATE-HYGIENE-1: 0 files scanned would make R-1 … R-4 pass vacuously
+  await test('R-0 minimum coverage: every runtime dir exists and holds files; ≥ 400 runtime files scanned', async () => {
+    const empty = RUNTIME_DIRS.filter((d) => !fs.existsSync(path.join(ROOT, d)) || walk(path.join(ROOT, d)).length === 0);
+    assert(empty.length === 0 && files.length >= 400, `missing / empty dirs: ${empty.join(', ') || 'none'}; files ${files.length} (min 400)`);
+    return `${files.length} files in ${RUNTIME_DIRS.length} dirs`;
+  });
+
   await test('R-1 no pg / postgres / pg-pool import or require in runtime code', async () => {
     const hits = scan(/(?:require\s*\(\s*|import\s*\(\s*|from\s+)['"](pg|postgres|pg-pool)(\/[^'"]*)?['"]/);
     assert(hits.length === 0, hits.join('\n        '));

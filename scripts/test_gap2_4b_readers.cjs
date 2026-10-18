@@ -108,6 +108,7 @@ const RETIRED_TABLES = ['exam_syllabi', 'exam_topics', 'exam_unit_mappings', 'ta
   await test('R-01 no runtime reader of the legacy / retired syllabus tables; no import of a retired workbench module', async () => {
     const files = ['app', 'components', 'services', 'lib', 'actions', 'hooks'].flatMap((d) => walk(path.join(ROOT, d)));
     if (exists('middleware.ts')) files.push(path.join(ROOT, 'middleware.ts'));
+    assert(files.length >= 300, `files scanned ${files.length} (min 300)`); // GATE-HYGIENE-1
     const bad = [];
     for (const f of files) {
       const rel = path.relative(ROOT, f).replace(/\\/g, '/');
@@ -130,6 +131,7 @@ const RETIRED_TABLES = ['exam_syllabi', 'exam_topics', 'exam_unit_mappings', 'ta
     if (/\.from\('(topics|subjects|questions)'\)/.test(cand)) bad.push('candidate service still derives a syllabus from tables');
     for (const gone of ['components/exams/exam-syllabus-navigator.tsx', 'services/exam-syllabus.service.ts']) if (exists(gone)) bad.push(`${gone} still exists`);
     const code = ['app', 'components', 'services', 'lib', 'actions'].flatMap((d) => walk(path.join(ROOT, d))).map((f) => [path.relative(ROOT, f).replace(/\\/g, '/'), fs.readFileSync(f, 'utf8')]);
+    assert(code.length >= 300, `files scanned ${code.length} (min 300)`); // GATE-HYGIENE-1
     for (const [rel, s] of code) {
       if (/\bmapUnitToExam\b|saveSyllabusProjection|upsertExamUnitMapping/.test(s)) bad.push(`${rel}: mapUnitToExam / syllabus projection writer still present`);
       if (/B-CURRICULUM-MAPPING/.test(s)) bad.push(`${rel}: B-CURRICULUM-MAPPING tag`);
@@ -145,6 +147,7 @@ const RETIRED_TABLES = ['exam_syllabi', 'exam_topics', 'exam_unit_mappings', 'ta
   await test('R-03 ExamSyllabusSection: components/ui only; NO_SYLLABUS / UNAVAILABLE / AVAILABLE states', async () => {
     const s = read('components/exams/exam-syllabus-section.tsx');
     const imports = [...s.matchAll(/from "([^"]+)"/g)].map((m) => m[1]);
+    assert(imports.length >= 1, 'no imports parsed from exam-syllabus-section.tsx'); // GATE-HYGIENE-1
     const foreign = imports.filter((i) => !/^@\/components\/ui\/|^@\/lib\/format$|^@\/types\/syllabus$|^lucide-react$/.test(i));
     assert(foreign.length === 0, `unexpected imports: ${foreign}`);
     const none = render({ state: 'NO_SYLLABUS', exam_id: 'x', version: null, nodes: [], totals: null });
@@ -219,6 +222,8 @@ const RETIRED_TABLES = ['exam_syllabi', 'exam_topics', 'exam_unit_mappings', 'ta
     assert(fx.exams['ssc-cgl'] && fx.exams['qa-syllabus-test'], 'ssc-cgl or the QA test exam (migration 081) missing');
     assert(fx.exams['qa-syllabus-test'].is_active === false, 'the QA test exam must stay inactive');
     assert(fx.topics.length === 2, 'need two active TOPICs');
+    // GATE-HYGIENE-1: R-04 / R-07 legacy-topic leak checks iterate gdTopics — an empty set would pass vacuously
+    assert(fx.gdTopics.length >= 1, 'no legacy SSC GD topic names resolved from retired.exam_topics');
     fx.topic = fx.topics[0];
     fx.topic2 = fx.topics[1];
     CLAIMS = {

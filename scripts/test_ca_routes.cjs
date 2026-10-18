@@ -78,6 +78,7 @@ const month = today.slice(0, 7);
     assert(hub.status === 200, `status ${hub.status}`);
     assert(!ERROR_DIGEST.test(hub.body), 'error digest / error UI in the response');
     const articleLinks = (hub.body.replace(/href="\/current-affairs\/(date|month)\/[^"]+"/g, '').match(/href="\/current-affairs\/[a-z0-9-]{8,}"/g) || []).length;
+    if (published.length > 0) assert(articleLinks >= 1, `${published.length} published but 0 article links on the hub`); // GATE-HYGIENE-1
     if (published.length === 0) {
       assert(articleLinks === 0, `${articleLinks} article link(s) shown with 0 published`);
       assert(/Events Being Processed|No [^<]{0,40}events/i.test(hub.body), 'no empty-state block');
@@ -117,6 +118,7 @@ const month = today.slice(0, 7);
 
   await test('C-5 no DRAFT leak: non-published slugs / headlines never shown; their URLs → 404', async () => {
     const pages = [hub.body, dateOk.body, monthOk.body].join('\n');
+    if (hidden.length === 0) console.log('  WARN  VACUOUS (0 items): C-5 there are no non-published articles, so no draft leak could be tested'); // GATE-HYGIENE-1
     const leaks = hidden.filter((a) => (a.slug && pages.includes(a.slug)) || (a.headline && a.headline.length > 12 && pages.includes(a.headline)));
     assert(leaks.length === 0, `${leaks.length} non-published article(s) visible (status ${[...new Set(leaks.map((l) => l.status))].join(', ')})`);
     const sample = hidden.slice(0, 10);
@@ -133,7 +135,8 @@ const month = today.slice(0, 7);
       const r = await get(`/current-affairs/${encodeURIComponent(a.slug)}`);
       assert(r.status === 200 && !ERROR_DIGEST.test(r.body), `published article → ${r.status}`);
     }
-    return published.length ? `${Math.min(20, published.length)} checked` : 'none published';
+    if (!published.length) console.log('  WARN  VACUOUS (0 items): C-6 no published article to request'); // GATE-HYGIENE-1
+    return published.length ? `${Math.min(20, published.length)} checked` : 'VACUOUS: none published';
   });
   finish();
 })().catch((e) => { console.error('SUITE ERROR', e.code || e.name || 'error'); process.exit(1); });

@@ -325,6 +325,18 @@ async function counts(c) {
         const nonPub = (await c.query(`SELECT count(*)::int n FROM public.question_versions WHERE id = ANY($1::uuid[]) AND NOT (lifecycle_status = 'PUBLISHED' AND is_current)`, [ids])).rows[0].n;
         assert(nonPub === 0, `${nonPub} non-published selected`);
       }
+      // GATE-HYGIENE-1: the topic probe can legitimately select nothing; a manual selection of the draft's question plus
+      // published questions must select ≥ 1 version and never the draft (non-vacuous proof)
+      const pubQs = (await c.query(`SELECT q.id FROM public.questions q JOIN public.question_versions v ON v.question_id = q.id AND v.is_current AND v.lifecycle_status = 'PUBLISHED' WHERE q.status = 'published' LIMIT 3`)).rows.map((r) => r.id);
+      assert(pubQs.length >= 1, 'no published question to probe with');
+      await c.query('SAVEPOINT p2');
+      await c.query(`SELECT set_config('request.jwt.claims', $1, true)`, [JSON.stringify({ sub: f.actor, role: 'authenticated' })]);
+      await c.query('SET LOCAL ROLE authenticated');
+      const man = (await c.query(`SELECT public.fn_generate_custom_practice_session('qf1-probe', 'MANUAL_SELECTION', '{}'::uuid[], 100, $1::uuid[]) AS r`, [[d.items[0].question_id, ...pubQs]])).rows[0].r;
+      await c.query('ROLLBACK TO SAVEPOINT p2');
+      const manIds = (man && man.question_version_ids) || [];
+      assert(manIds.length >= 1 && !manIds.includes(draftV), `manual selection: ${manIds.length} selected, draft ${manIds.includes(draftV) ? 'SELECTED' : 'excluded'}`);
+      if (!ids.length) lines.push('  WARN  VACUOUS (0 items): SEL-1 topic probe selected nothing (the manual probe above is the non-vacuous proof)');
     }));
 
   // ---------------- RLS (SQL role simulation with real draft rows) ----------------
@@ -392,6 +404,12 @@ async function counts(c) {
       if (typeof globalThis.WebSocket === 'undefined') globalThis.WebSocket = class DummyWebSocket {};
       const { createClient } = require('@supabase/supabase-js');
       const anon = createClient(apiUrl, anonKey, { auth: { persistSession: false, autoRefreshToken: false } });
+      // GATE-HYGIENE-1: each "not readable" probe is only meaningful if such rows exist — count them as the owner first
+      const exist = (await c.query(`SELECT (SELECT count(*)::int FROM public.question_versions WHERE lifecycle_status NOT IN ('PUBLISHED', 'SUPERSEDED')) drafts,
+          (SELECT count(*)::int FROM public.question_answers) answers, (SELECT count(*)::int FROM public.question_version_authoring) authoring,
+          (SELECT count(*)::int FROM public.question_import_batches) batches`)).rows[0];
+      for (const [k, n] of Object.entries(exist)) if (n === 0) lines.push(`  WARN  VACUOUS (0 items): RLS-API ${k} — no such rows exist, so "not readable by anon" proves nothing for it`);
+      assert(exist.answers >= 1, 'no question_answers rows: the answers-hidden probe would be vacuous');
       const drafts = await anon.from('question_versions').select('id').neq('lifecycle_status', 'PUBLISHED').neq('lifecycle_status', 'SUPERSEDED').limit(5);
       assert(!drafts.error && drafts.data.length === 0, `non-published readable: ${drafts.error ? drafts.error.message : drafts.data.length}`);
       const pub = await anon.from('question_versions').select('*').eq('lifecycle_status', 'PUBLISHED').limit(1);
@@ -408,7 +426,8 @@ async function counts(c) {
       assert(batches.error || batches.data.length === 0, 'batches readable');
     });
   } else {
-    lines.push('  SKIP  RLS-API (no publishable/anon key in .env.local)');
+    // GATE-HYGIENE-1: a missing key must not turn the anon RLS proof into a silent skip
+    await test('RLS-API anon client (requires the publishable / anon key)', async () => { throw new Error('no publishable/anon key in .env.local — the anon RLS proof cannot run'); });
   }
 
   const after = await counts(c);

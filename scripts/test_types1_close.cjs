@@ -58,6 +58,10 @@ function walk(dir, acc = []) {
     await test('X-1 every failing live select is owned (quarantine / remaining batch / tracked Class B)', async () => {
       const files = ['app', 'services', 'lib', 'actions', 'components'].flatMap((d) => walk(path.join(ROOT, d))).map((f) => path.relative(ROOT, f));
       const r = spawnSync(process.execPath, [path.join(ROOT, 'scripts/types1-select-audit.cjs'), ...files], { cwd: ROOT, encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
+      // GATE-HYGIENE-1: an audit that crashed or audited nothing would leave 0 FAIL lines (a vacuous pass)
+      const summary = /select audit: (\d+) ok, (\d+) failing/.exec(r.stdout || '');
+      assert(!r.error && r.status !== null && summary && Number(summary[1]) + Number(summary[2]) >= 1 && files.length >= 300,
+        `select audit did not run fully (status ${r.status}, summary ${summary ? summary[0] : 'missing'}, files ${files.length})`);
       const lines = (r.stdout || '').split('\n').filter((l) => l.startsWith('FAIL'));
       const remaining = ratchet.remaining.map((x) => ({ re: new RegExp(x.scope), owner: x.owner }));
       const counts = { quarantine: 0, remaining: 0, owned: 0, tracked: 0 };

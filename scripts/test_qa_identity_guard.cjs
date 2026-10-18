@@ -99,6 +99,7 @@ function mockAdmin(usersById, { lookupError = false } = {}) {
 
   await test('G-07 no direct auth.admin.deleteUser outside the guard (scripts, lib, services, app)', async () => {
     const offenders = [];
+    let scanned = 0;
     const walk = (dir) => {
       if (!fs.existsSync(dir)) return;
       for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -107,13 +108,16 @@ function mockAdmin(usersById, { lookupError = false } = {}) {
         if (!/\.(c?js|mjs|ts|tsx)$/.test(e.name)) continue;
         const rel = path.relative(ROOT, p).replace(/\\/g, '/');
         if (rel === 'scripts/qa/qa-identity-guard.cjs' || rel === 'scripts/test_qa_identity_guard.cjs') continue;
+        scanned++;
         fs.readFileSync(p, 'utf8').split(/\r?\n/).forEach((l, i) => {
           if (/\.deleteUser\s*\(/.test(l)) offenders.push(`${rel}:${i + 1}`); // mocks define `deleteUser:` (property), not a call
         });
       }
     };
     ['scripts', 'lib', 'services', 'app'].forEach((d) => walk(path.join(ROOT, d)));
+    assert(scanned >= 300, `files scanned ${scanned} (min 300)`); // GATE-HYGIENE-1
     assert(offenders.length === 0, offenders.join(', '));
+    return `${scanned} files scanned`;
   });
 
   await test('G-08 findUserByEmail uses its argument (pagination, case-insensitive, fail-closed) and findUser forwards it', async () => {

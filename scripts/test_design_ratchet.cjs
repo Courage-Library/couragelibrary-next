@@ -141,6 +141,12 @@ console.log('UX-1a design ratchet');
 const WRITE = process.argv.includes('--write');
 const base = fs.existsSync(BASELINE) ? JSON.parse(fs.readFileSync(BASELINE, 'utf8')) : null;
 
+// GATE-HYGIENE-1: missing dirs would lower every total and let the ratchet pass
+test('R-0 minimum coverage: app/ and components/ exist; ≥ 200 in-scope files scanned', () => {
+  assert(fs.existsSync(path.join(ROOT, 'app')) && fs.existsSync(path.join(ROOT, 'components')) && files.length >= 200, `in-scope files ${files.length} (min 200)`);
+  return `${files.length} files`;
+});
+
 test('R-1 ratchet: no metric rises above the recorded baseline (app/ + components/, admin excluded)', () => {
   assert(base, `baseline missing: run with --write to record ${rel(BASELINE)}`);
   const rose = METRICS.filter((k) => totals[k] > base.totals[k]);
@@ -174,6 +180,7 @@ test('R-3 dark mode disabled at the source (inert dark: variant, no prefers-colo
   assert(/@custom-variant dark \(&:where\(\[data-theme=dark\], \[data-theme=dark\] \*\)\);/.test(css), 'globals.css must bind the dark variant to [data-theme=dark]');
   assert(/color-scheme:\s*light/.test(css), ':root must declare color-scheme: light');
   const all = [...walk(path.join(ROOT, 'app')), ...walk(path.join(ROOT, 'components')), ...walk(path.join(ROOT, 'lib'))];
+  assert(all.length >= 300, `files scanned ${all.length} (min 300)`); // GATE-HYGIENE-1
   const bad = [];
   for (const f of all) {
     const s = fs.readFileSync(f, 'utf8');
@@ -193,6 +200,7 @@ test('R-4 one Latin font via next/font (self-hosted): no external font requests,
   assert(/variable: "--font-inter"/.test(layout) && /inter\.variable/.test(layout), '--font-inter must be set on <html>');
   assert(/--font-sans: var\(--font-inter\)/.test(css), '--font-sans must use --font-inter');
   const all = [...walk(path.join(ROOT, 'app')), ...walk(path.join(ROOT, 'components')), ...walk(path.join(ROOT, 'lib'))];
+  assert(all.length >= 300, `files scanned ${all.length} (min 300)`); // GATE-HYGIENE-1
   const bad = [];
   for (const f of all) {
     const s = fs.readFileSync(f, 'utf8');
@@ -206,6 +214,7 @@ test('R-4 one Latin font via next/font (self-hosted): no external font requests,
 
 test('R-5 contrast: every registered pair meets WCAG 2.2 AA (computed from app/globals.css)', () => {
   const reg = JSON.parse(fs.readFileSync(path.join(ROOT, 'components/ui/contrast-pairs.json'), 'utf8')).pairs;
+  assert(Array.isArray(reg) && reg.length >= 40, `contrast pairs registered: ${reg && reg.length} (min 40)`); // GATE-HYGIENE-1
   const bad = [];
   const rows = [];
   for (const p of reg) {
@@ -242,6 +251,7 @@ test('R-6 token names are collision-free and registered in cn()', () => {
   const cn = fs.readFileSync(path.join(ROOT, 'components/ui/cn.ts'), 'utf8');
   const listed = (key) => (new RegExp(`${key}: \\[([^\\]]*)\\]`).exec(cn) || [, ''])[1];
   const tok = (prefix) => [...css.matchAll(new RegExp(`--${prefix}-([\\w-]+?)\\s*:`, 'g'))].map((m) => m[1]).filter((n) => !n.includes('--'));
+  for (const k of ['text', 'radius', 'shadow']) assert(tok(k).length >= 1, `no --${k}-* tokens found in globals.css`); // GATE-HYGIENE-1
   for (const t of tok('text')) if (!listed('text').includes(`"${t}"`)) bad.push(`cn() text registry misses "${t}"`);
   for (const t of tok('radius')) if (!listed('radius').includes(`"${t}"`)) bad.push(`cn() radius registry misses "${t}"`);
   for (const t of tok('shadow')) if (!listed('shadow').includes(`"${t}"`)) bad.push(`cn() shadow registry misses "${t}"`);

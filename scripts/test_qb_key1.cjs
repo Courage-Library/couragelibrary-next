@@ -201,16 +201,19 @@ function supaMock(results) {
 
   await test('K-12 UI: no fabricated default key anywhere; review card shows "Answer key unavailable"; all views null-safe', async () => {
     const hits = [];
+    let scanned = 0;
     const walk = (dir) => {
       for (const e of fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
         const rel = `${dir}/${e.name}`;
         if (e.isDirectory()) { if (!['node_modules', '.next', 'design-system'].includes(e.name)) walk(rel); continue; }
         if (!/\.(ts|tsx)$/.test(e.name)) continue;
+        scanned++;
         const s = stripComments(fs.readFileSync(path.join(ROOT, rel), 'utf8'));
         s.split('\n').forEach((l, i) => { if (/(\|\||\?\?)\s*["'][A-D]["']/.test(l)) hits.push(`${rel}:${i + 1}`); });
       }
     };
     ['app', 'services', 'components', 'lib'].forEach(walk);
+    assert(scanned >= 300, `files scanned ${scanned} (min 300)`); // GATE-HYGIENE-1
     assert(hits.length === 0, `default key fallback: ${hits.join(', ')}`);
     for (const f of ['services/assessment.service.ts', 'services/live-test-result.service.ts', 'services/admin.service.ts', 'services/mistake.service.ts']) {
       assert(/validAnswerKey\(/.test(read(f)), `${f} does not use the shared helper`);
@@ -422,6 +425,7 @@ function supaMock(results) {
       assert(student, 'qa-student not found');
       const valid = (await ro(() => q(`SELECT q.id FROM public.questions q JOIN public.question_versions v ON v.question_id = q.id AND v.is_current
           WHERE q.status = 'published' AND public.fn_qf_version_is_servable(v.id) AND q.id <> ALL($1) ORDER BY q.id LIMIT 5`, [FIXTURES]))).map((r) => r.id);
+      assert(valid.length >= 1, 'no servable published question to probe with'); // GATE-HYGIENE-1
       /** runs `call` as qa-student, then checks the served versions / questions as the owner; always rolled back */
       const asStudent = (call, served) => rolledBack(async () => {
         await c.query(`SELECT set_config('request.jwt.claims', $1, true)`, [JSON.stringify({ sub: student.id, role: 'authenticated' })]);
@@ -461,7 +465,8 @@ function supaMock(results) {
         const m = await asStudent({ sql: `SELECT public.fn_generate_custom_practice_session('QB-KEY-1 K-14', $1, '{}'::uuid[], 20, NULL) r`, params: [mode] },
           async (r) => (r && r.success ? checkVersions(r.question_version_ids) : { n: 0, bad: 0 }));
         assert(m.out && (m.out.success || /No qualifying/.test(m.out.error || '')) && m.bad === 0, `practice ${mode}: ${JSON.stringify(m).slice(0, 300)}`);
-        out.push(`${mode} ${m.out.success ? m.n : 'none'}`);
+        if (!m.out.success) console.log(`  WARN  VACUOUS (0 items): K-14 practice ${mode} selected no question for qa-student`); // GATE-HYGIENE-1
+        out.push(`${mode} ${m.out.success ? m.n : 'VACUOUS'}`);
       }
       // drill: generate from qa-student's own vault rows
       const vault = (await ro(() => q(`SELECT id FROM public.user_mistake_vault WHERE user_id = $1`, [student.id]))).map((r) => r.id);
@@ -470,7 +475,7 @@ function supaMock(results) {
           async (r) => (r && r.success ? checkVersions(r.questions.map((x) => x.question_version_id)) : {}));
         assert(d.out && (d.out.success ? d.bad === 0 && d.n === d.out.total_questions : d.out.code === 'NOTHING_TO_DRILL'), `drill: ${JSON.stringify(d).slice(0, 300)}`);
         out.push(`drill ${d.out.success ? d.n + ' valid' : d.out.code}`);
-      } else out.push('drill: qa-student has no vault rows (covered by student-drill E2E)');
+      } else { console.log('  WARN  VACUOUS (0 items): K-14 drill — qa-student has no vault rows (run ensure-student-fixture)'); out.push('drill VACUOUS'); } // GATE-HYGIENE-1
       // battle (feature flag off in the app; the RPC is still granted to authenticated): room questions all valid
       const b = await asStudent({ sql: `SELECT public.fn_find_or_create_battle_room(NULL, false, 'FREE') r` },
         async (r) => (r && r.success ? checkQuestions((await q(`SELECT question_ids FROM public.quiz_battle_rooms WHERE id = $1`, [r.room_id]))[0].question_ids) : {}));
@@ -479,6 +484,7 @@ function supaMock(results) {
       // mock start serves the mock's assembled questions: every assembled question is valid (the start itself: E2E journey)
       const mk = await ro(() => q(`SELECT count(*)::int n, count(*) FILTER (WHERE NOT public.fn_qf_version_is_servable(mq.question_version_id) OR q.status <> 'published')::int bad
           FROM public.mock_questions mq JOIN public.question_versions v ON v.id = mq.question_version_id JOIN public.questions q ON q.id = v.question_id`));
+      assert(mk[0].n >= 1, 'no assembled mock question to check'); // GATE-HYGIENE-1
       assert(mk[0].bad === 0, `mock questions not servable: ${mk[0].bad}`);
       out.push(`mocks ${mk[0].n} assembled, 0 invalid`);
       return out.join('; ');

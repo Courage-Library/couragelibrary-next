@@ -210,7 +210,9 @@ function firstGuardViolation(body) {
     assert(/matcher/.test(read('middleware.ts')), 'middleware matcher missing');
   });
   await test('S-07 components/admin: no server component fetches data on its own', async () => {
-    const bad = walk(path.join(ROOT, 'components/admin')).filter((f) => /\.tsx?$/.test(f)).filter((f) => {
+    const adminFiles = walk(path.join(ROOT, 'components/admin')).filter((f) => /\.tsx?$/.test(f));
+    assert(adminFiles.length >= 30, `components/admin files scanned ${adminFiles.length} (min 30)`); // GATE-HYGIENE-1
+    const bad = adminFiles.filter((f) => {
       const s = fs.readFileSync(f, 'utf8');
       return !/^\s*["']use client["']/.test(s) && /Service\.|createServerSupabaseClient|createAdminServerSupabaseClient|\.from\(/.test(s);
     }).map(rel);

@@ -191,6 +191,10 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assertion failed'); };
       assert(bad.length === 0, bad.map((r) => `${r.t}: read ${r.stCount}/${r.total} (anon ${r.anonCount}), update ${r.stUpd}, delete ${r.stDel}, insert ${r.insert}`).join('\n        '));
       const hidden = results.reduce((a, r) => a + (r.total - r.stCount), 0);
       const trig = results.filter((r) => r.insert === 'TRIGGER_FIRST').map((r) => r.t);
+      // GATE-HYGIENE-1: an empty table proves nothing about UPDATE / DELETE reach — say so loudly
+      const empty = results.filter((r) => r.total === 0).map((r) => r.t);
+      if (empty.length) console.log(`  WARN  VACUOUS (0 rows): P-2 / P-3 row-reach not proven for ${empty.join(', ')}`);
+      assert(results.length >= 1 && results.some((r) => r.total > 0), 'every RLS table is empty: P-2 / P-3 would be vacuous');
       return `${results.length} tables; ${hidden} non-public rows hidden from students; insert denied by RLS on ${results.length - trig.length}${trig.length ? `, trigger-first on ${trig.join(', ')} (see P-5)` : ''}`;
     });
 

@@ -188,18 +188,21 @@ const CASES = [
     }
     // no second validator anywhere in TS (contract constants / rules are defined once)
     const dupes = [];
+    let scanned = 0;
     const walk = (dir) => {
       for (const e of fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
         const rel = `${dir}/${e.name}`;
         if (e.isDirectory()) { if (!['node_modules', '.next'].includes(e.name)) walk(rel); continue; }
         if (!/\.(ts|tsx)$/.test(e.name) || rel === 'lib/syllabus/import-contract.ts') continue;
+        scanned++;
         const s = fs.readFileSync(path.join(ROOT, rel), 'utf8');
         if (/function (validateImport|isPlainText|countImportNodes)|IMPORT_MAX_NODES\s*=|CODE_RE\s*=\s*\/\^\[a-z0-9\]\+/.test(s)) dupes.push(rel);
       }
     };
     ['app', 'lib', 'components', 'services'].forEach(walk);
+    assert(scanned >= 300, `files scanned ${scanned} (min 300)`); // GATE-HYGIENE-1
     assert(dupes.length === 0, `second validator: ${dupes.join(', ')}`);
-    return 'one validator; 0 casts';
+    return `one validator (${scanned} files scanned); 0 casts`;
   });
 
   await test('I10s importer never creates topics and never publishes (migration, actions, UI)', async () => {

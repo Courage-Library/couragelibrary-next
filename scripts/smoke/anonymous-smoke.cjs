@@ -6,12 +6,16 @@
  *   anon PostgREST probes (42501 / retired tables not exposed);
  *   /exams/ssc-cgl syllabus section matches the read model (AVAILABLE → paper / section titles, no coming-soon;
  *   NO_SYLLABUS → "Syllabus coming soon") — scripts/smoke/_syllabus-expect.cjs
- * Usage: node scripts/smoke/anonymous-smoke.cjs <baseUrl> [--expect-redirects]
+ *   GATE-HYGIENE-1: the project-ref scan covers the HTML and every same-origin JS chunk, with a minimum-coverage
+ *   assertion (0 chunks / 0 tokens scanned = FAIL); --self-test proves offline that a planted ref is caught.
+ * Usage: node scripts/smoke/anonymous-smoke.cjs <baseUrl> [--expect-redirects] | --self-test
  */
 const path = require('path');
 const crypto = require('crypto');
 const ROOT = path.resolve(__dirname, '..', '..');
 const { readModelForSlug, checkSyllabusSection } = require('./_syllabus-expect.cjs');
+const { scanRef, chunkPaths, selfTest } = require('./_ref-scan.cjs');
+if (process.argv.includes('--self-test')) process.exit(selfTest() ? 0 : 1); // offline: planted-ref fixture
 const { readEnv } = require(path.join(ROOT, 'scripts/db/_db-env.cjs'));
 const { refFromEnv, assertProjectRef } = require(path.join(ROOT, 'scripts/db/gen-types.cjs'));
 const BASE = (process.argv[2] || 'http://localhost:3100').replace(/\/$/, '');
@@ -30,8 +34,20 @@ const get = async (p) => { for (let i = 1; i <= 3; i++) { try { return await fet
   for (const bad of ['Supabase', 'Connection State', 'Phase 1B', 'Auth Probe', 'Target Project', 'Production']) check(`GET / has no "${bad}"`, !html.includes(bad));
   const outsideSiteUrl = html.split('https://couragelibrary-next.vercel.app').join('');
   check('GET / mentions couragelibrary-next only as the site URL (no project label)', !outsideSiteUrl.includes('couragelibrary-next'));
-  const tokens = new Set(); for (const run of html.match(/[a-z0-9]{20,}/g) || []) for (let i = 0; i + 20 <= run.length; i++) tokens.add(run.slice(i, i + 20));
-  check('GET / HTML contains no project ref (sha-compared)', ![...tokens].some((t) => sha(t) === refHash), `${tokens.size} candidate tokens checked`);
+  // GATE-HYGIENE-1: scan the HTML AND every same-origin JS chunk it loads; 0 chunks or 0 tokens scanned is a FAIL
+  {
+    const paths = chunkPaths(html);
+    const sources = [{ name: 'GET /', text: html }];
+    let chunkFails = 0;
+    for (const p of paths) {
+      const r = await get(p).catch(() => null);
+      if (r && r.status === 200) sources.push({ name: p, text: await r.text() }); else chunkFails++;
+    }
+    const scan = scanRef(sources, refHash);
+    const chunks = sources.length - 1;
+    check('GET / HTML + JS chunks: minimum coverage (≥ 1 chunk, ≥ 1 candidate token, every chunk fetched)', chunks >= 1 && scan.tokens >= 1 && chunkFails === 0, `${chunks}/${paths.length} chunk(s) fetched, ${scan.tokens} candidate tokens`);
+    check('GET / HTML + JS chunks contain no project ref (sha-compared, never printed)', scan.hits.length === 0, scan.hits.length ? `found in ${scan.hits.length} source(s): ${scan.hits.join(', ')}` : `1 document + ${chunks} chunk(s) scanned`);
+  }
   check('GET / has tagline + links', html.includes('Learn Smarter. Prepare Independently.') && html.includes('href="/exams"') && html.includes('href="/auth/login"'));
   // UX-2a: landing page content checks
   {

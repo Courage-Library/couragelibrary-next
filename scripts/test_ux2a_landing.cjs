@@ -144,6 +144,7 @@ const UX2B_ROUTES = ['/about', '/contact', '/privacy', '/terms', '/cnts', '/lega
       const s = read(f);
       for (const m of s.matchAll(/href(?:=|: )"(\/[^"]*)"/g)) hrefs.add(m[1]);
     }
+    assert(hrefs.size >= 15, `only ${hrefs.size} hrefs found in the landing / header / footer sources (min 15)`); // GATE-HYGIENE-1
     hrefs.add('/exams/ssc-cgl');
     const dead = [...hrefs].filter((h) => !routeExists(h));
     const ux2b = [...hrefs].filter((h) => UX2B_ROUTES.some((r) => h === r || h.startsWith(`${r}/`)));
@@ -264,6 +265,7 @@ const UX2B_ROUTES = ['/about', '/contact', '/privacy', '/terms', '/cnts', '/lega
       }
     };
     walk('app');
+    if (!found.length) console.log('  WARN  VACUOUS (0 items): L-15 no segment loading.tsx found to check'); // GATE-HYGIENE-1
     const bad = found.filter((f) => !/import \{ PageLoading \} from "@\/components\/shell\/page-loading";/.test(read(f)) || /legacy/.test(read(f)));
     assert(bad.length === 0, `not built from PageLoading: ${bad.join(', ')}`);
     const pl = read('components/shell/page-loading.tsx');
@@ -280,19 +282,21 @@ const UX2B_ROUTES = ['/about', '/contact', '/privacy', '/terms', '/cnts', '/lega
     assert(/description = siteConfig\.description/.test(read('lib/seo/metadata.ts')), 'metadata default must use siteConfig.description');
     assert(/description: siteConfig\.description/.test(read('lib/seo/jsonld.ts')) && /description: siteConfig\.description/.test(read('app/manifest.ts')), 'Organization JSON-LD fallback / manifest must use siteConfig.description');
     const claims = [];
+    let descriptions = 0;
     const walk = (dir) => {
       for (const e of fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
         const rel = `${dir}/${e.name}`;
         if (e.isDirectory()) { if (!rel.startsWith('app/admin') && !rel.startsWith('app/api')) walk(rel); continue; }
         if (!/\.(ts|tsx)$/.test(e.name)) continue;
         const src = read(rel);
-        for (const m of src.matchAll(/description:\s*(?:\n\s*)?["'`]([^"'`]+)["'`]/g)) if (/\b\d+\+|thousands of|lakhs? of|millions? of/i.test(m[1])) claims.push(`${rel}: ${m[1].slice(0, 80)}`);
+        for (const m of src.matchAll(/description:\s*(?:\n\s*)?["'`]([^"'`]+)["'`]/g)) if (++descriptions && /\b\d+\+|thousands of|lakhs? of|millions? of/i.test(m[1])) claims.push(`${rel}: ${m[1].slice(0, 80)}`);
       }
     };
     walk('app');
     walk('config');
+    assert(descriptions >= 5, `only ${descriptions} metadata descriptions scanned (min 5)`); // GATE-HYGIENE-1
     assert(claims.length === 0, claims.join(' | '));
-    return 'exact; 0 count claims in metadata';
+    return `exact; 0 count claims in ${descriptions} metadata descriptions`;
   });
 
   if (OFFLINE) { console.log('  SKIP  live L-9 … L-17 (--offline)'); return finish(); }
@@ -362,6 +366,7 @@ const UX2B_ROUTES = ['/about', '/contact', '/privacy', '/terms', '/cnts', '/lega
     const rest = async (p, init) => { for (let i = 1; i <= 3; i++) { try { return await fetch(`${URL_}/rest/v1/${p}`, { headers: h, ...init }); } catch (e) { if (i === 3) throw new Error(`rest: ${e.cause ? e.cause.code : 'network error'}`); } } };
     const total = (r) => Number((r.headers.get('content-range') || '*/0').split('/')[1]);
     const exams = await (await rest('exams?select=id,slug,title&is_active=eq.true')).json();
+    assert(Array.isArray(exams) && exams.length >= 1, `active exams read: ${Array.isArray(exams) ? exams.length : 'error'} (min 1)`); // GATE-HYGIENE-1
     assert(!/could not be loaded right now/.test(domText), 'the page shows the fallback (live read failed on the server)');
     let mocksAll = 0;
     let guidesAll = 0;
@@ -393,6 +398,7 @@ const UX2B_ROUTES = ['/about', '/contact', '/privacy', '/terms', '/cnts', '/lega
 
   await test('L-11 every internal link on "/" answers < 400 for an anonymous visitor', async () => {
     const hrefs = [...new Set([...html.matchAll(/href="(\/[^"#]*)"/g)].map((m) => m[1]).filter((h) => !h.startsWith('/_next') && !/\.(png|ico|svg|webmanifest|json)$/.test(h)))];
+    assert(hrefs.length >= 10, `only ${hrefs.length} internal links on "/" (min 10)`); // GATE-HYGIENE-1
     const bad = [];
     for (const h of hrefs) {
       const r = await get(h.replace(/&amp;/g, '&'));

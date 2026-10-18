@@ -108,6 +108,7 @@ const DEV_LABELS = [
 console.log('UX-1b shell (static)');
 
 test('U-1 no internal / dev labels in student-facing UI (comments excluded)', () => {
+  assert(STUDENT_FILES.length >= 200, `student-facing files scanned ${STUDENT_FILES.length} (min 200)`); // GATE-HYGIENE-1
   const bad = [];
   for (const f of STUDENT_FILES) {
     const src = stripComments(read(f)).replace(/^\s*import .*$/gm, '');
@@ -184,7 +185,9 @@ test('U-4 old layout removed; root layout renders AppShell', () => {
 });
 
 test('U-5 the shell makes no database queries (session only)', () => {
-  const bad = walk(path.join(ROOT, 'components/shell'))
+  const shellFiles = walk(path.join(ROOT, 'components/shell'));
+  assert(shellFiles.length >= 3, `shell files scanned ${shellFiles.length} (min 3)`); // GATE-HYGIENE-1
+  const bad = shellFiles
     .map(rel)
     .filter((f) => /\.from\(|\.rpc\(|createAdminServerSupabaseClient|AdminService/.test(read(f)));
   assert(bad.length === 0, bad.join(', '));
