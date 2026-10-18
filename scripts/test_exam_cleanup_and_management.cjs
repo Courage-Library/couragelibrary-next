@@ -298,7 +298,7 @@ async function runTests() {
     const { data: chsl } = await supabase.from('exams').select('id').eq('slug', 'ssc-chsl').single();
     let rejected = false;
     try {
-      await ExamOnboardingService.deleteExam(chsl.id, 'wrong-slug', null, 'admin@test.com', supabase);
+      await ExamOnboardingService.deleteExam(chsl.id, 'wrong-slug', null, 'admin@exam-cleanup.test', supabase);
     } catch (err) {
       rejected = true;
       assert(err.message.includes('Slug confirmation mismatch'), 'Error must specify slug confirmation mismatch');
@@ -377,7 +377,7 @@ async function runTests() {
     let idorRejected = false;
     try {
       // Try to delete with mismatched ID and slug
-      await ExamOnboardingService.deleteExam(chsl.id, 'ssc-cgl', null, 'admin@test.com', supabase);
+      await ExamOnboardingService.deleteExam(chsl.id, 'ssc-cgl', null, 'admin@exam-cleanup.test', supabase);
     } catch (err) {
       idorRejected = true;
       assert(err.message.includes('Slug confirmation mismatch'));
