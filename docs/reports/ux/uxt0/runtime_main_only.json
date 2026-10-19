@@ -1,0 +1,4252 @@
+{
+ "base": "local next start (with-server)",
+ "generated": "2026-10-19T09:51:22.182Z",
+ "results": [
+  {
+   "route": "/mock-tests",
+   "signedIn": false,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/mock-tests",
+   "loadMs": 5109,
+   "shot": "docs/reports/ux/uxt0/shots/out_mock-tests_360.jpg",
+   "path": "/mock-tests",
+   "title": "Mock Tests & Daily Practice | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Mock Tests"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 17,
+   "tapUnder44": 16,
+   "tapUnder24": 4,
+   "under44Examples": [
+    "Add / Manage Exams 141x16",
+    "SSC CGL 104x32",
+    "Add Exam 107x34",
+    "Sign In to Start Mock 199x20",
+    "Sign In to Start 294x32",
+    "Sign In to Start 294x32"
+   ],
+   "textEls": 147,
+   "textUnder12": 53,
+   "tinySizes": {
+    "11px": 14,
+    "10px": 30,
+    "9px": 9
+   },
+   "tinyExamples": [
+    "Mock tests @11px",
+    "PREVIEW MODE @10px",
+    "SSC CGL @10px",
+    "● Available @10px"
+   ],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 40,
+    "500": 11,
+    "600": 15,
+    "700": 40,
+    "800": 21,
+    "900": 20
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 4698,
+   "domContentLoaded": 3566,
+   "axe": null
+  },
+  {
+   "route": "/mock-tests",
+   "signedIn": false,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/mock-tests",
+   "loadMs": 23027,
+   "shot": "docs/reports/ux/uxt0/shots/out_mock-tests_768.jpg",
+   "path": "/mock-tests",
+   "title": "Mock Tests & Daily Practice | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Mock Tests"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 17,
+   "tapUnder44": 16,
+   "tapUnder24": 4,
+   "under44Examples": [
+    "Add / Manage Exams 141x16",
+    "SSC CGL 104x32",
+    "Add Exam 107x34",
+    "Sign In to Start Mock 199x20",
+    "Sign In to Start 311x32",
+    "Sign In to Start 311x32"
+   ],
+   "textEls": 147,
+   "textUnder12": 53,
+   "tinySizes": {
+    "11px": 14,
+    "10px": 30,
+    "9px": 9
+   },
+   "tinyExamples": [
+    "Mock tests @11px",
+    "PREVIEW MODE @10px",
+    "SSC CGL @10px",
+    "● Available @10px"
+   ],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 40,
+    "500": 11,
+    "600": 15,
+    "700": 40,
+    "800": 21,
+    "900": 20
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 2994,
+   "domContentLoaded": 21486,
+   "axe": null
+  },
+  {
+   "route": "/mock-tests",
+   "signedIn": false,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/mock-tests",
+   "loadMs": 3715,
+   "shot": "docs/reports/ux/uxt0/shots/out_mock-tests_1280.jpg",
+   "path": "/mock-tests",
+   "title": "Mock Tests & Daily Practice | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Mock Tests"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 17,
+   "tapUnder44": 16,
+   "tapUnder24": 4,
+   "under44Examples": [
+    "Add / Manage Exams 141x16",
+    "SSC CGL 104x32",
+    "Add Exam 107x34",
+    "Sign In to Start Mock 199x20",
+    "Sign In to Start 495x32",
+    "Sign In to Start 495x32"
+   ],
+   "textEls": 147,
+   "textUnder12": 53,
+   "tinySizes": {
+    "11px": 14,
+    "10px": 30,
+    "9px": 9
+   },
+   "tinyExamples": [
+    "Mock tests @11px",
+    "PREVIEW MODE @10px",
+    "SSC CGL @10px",
+    "● Available @10px"
+   ],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 40,
+    "500": 11,
+    "600": 15,
+    "700": 40,
+    "800": 21,
+    "900": 20
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 2404,
+   "domContentLoaded": 2165,
+   "axe": null
+  },
+  {
+   "route": "/mock-tests/[id]",
+   "signedIn": false,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/mock-tests/[id]",
+   "loadMs": 3617,
+   "shot": "docs/reports/ux/uxt0/shots/out_mock-tests_id__360.jpg",
+   "path": "/mock-tests/aa36204b-a0f3-489e-a405-bd33dcf532de",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 4,
+   "tapUnder44": 3,
+   "tapUnder24": 1,
+   "under44Examples": [
+    "Back to Mock Tests 133x16",
+    "Back to Dashboard 107x43",
+    "Back to Dashboard 107x40"
+   ],
+   "textEls": 23,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 6,
+    "500": 1,
+    "600": 8,
+    "700": 4,
+    "900": 4
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1900,
+   "domContentLoaded": 2031,
+   "axe": null
+  },
+  {
+   "route": "/mock-tests/[id]",
+   "signedIn": false,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/mock-tests/[id]",
+   "loadMs": 4402,
+   "shot": "docs/reports/ux/uxt0/shots/out_mock-tests_id__768.jpg",
+   "path": "/mock-tests/aa36204b-a0f3-489e-a405-bd33dcf532de",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 4,
+   "tapUnder44": 3,
+   "tapUnder24": 1,
+   "under44Examples": [
+    "Back to Mock Tests 133x16",
+    "Back to Dashboard 161x40",
+    "Back to Dashboard 161x40"
+   ],
+   "textEls": 23,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 6,
+    "500": 1,
+    "600": 8,
+    "700": 4,
+    "900": 4
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1493,
+   "domContentLoaded": 2863,
+   "axe": null
+  },
+  {
+   "route": "/mock-tests/[id]",
+   "signedIn": false,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/mock-tests/[id]",
+   "loadMs": 9872,
+   "shot": "docs/reports/ux/uxt0/shots/out_mock-tests_id__1280.jpg",
+   "path": "/mock-tests/aa36204b-a0f3-489e-a405-bd33dcf532de",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 4,
+   "tapUnder44": 3,
+   "tapUnder24": 1,
+   "under44Examples": [
+    "Back to Mock Tests 133x16",
+    "Back to Dashboard 161x40",
+    "Back to Dashboard 161x40"
+   ],
+   "textEls": 23,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 6,
+    "500": 1,
+    "600": 8,
+    "700": 4,
+    "900": 4
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1287,
+   "domContentLoaded": 8315,
+   "axe": null
+  },
+  {
+   "route": "/current-affairs",
+   "signedIn": false,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/current-affairs",
+   "loadMs": 22424,
+   "shot": "docs/reports/ux/uxt0/shots/out_current-affairs_360.jpg",
+   "path": "/current-affairs",
+   "title": "Current Affairs — Exam-Oriented Daily Intelligence & Daily 10Q Quiz | Courage Library",
+   "overflowX": 0,
+   "wide": [
+    "div.absolute.top-0.right-0",
+    "a.shrink-0.px-3.py-1.5",
+    "a.shrink-0.px-3.py-1.5",
+    "a.shrink-0.px-3.py-1.5",
+    "a.shrink-0.px-3.py-1.5"
+   ],
+   "h1": [
+    "Current Affairs"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 1,
+   "anims": 1,
+   "tapTargets": 8,
+   "tapUnder44": 8,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Today 62x30",
+    "Yesterday 84x30",
+    "17 Oct 2026 95x30",
+    "16 Oct 2026 96x30",
+    "15 Oct 2026 95x30",
+    "14 Oct 2026 96x30"
+   ],
+   "textEls": 26,
+   "textUnder12": 1,
+   "tinySizes": {
+    "11px": 1
+   },
+   "tinyExamples": [
+    "Today's 10-question evaluati @11px"
+   ],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 7,
+    "500": 2,
+    "600": 9,
+    "700": 6,
+    "800": 2
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 2174,
+   "domContentLoaded": 20866,
+   "axe": null
+  },
+  {
+   "route": "/current-affairs",
+   "signedIn": false,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/current-affairs",
+   "loadMs": 3960,
+   "shot": "docs/reports/ux/uxt0/shots/out_current-affairs_768.jpg",
+   "path": "/current-affairs",
+   "title": "Current Affairs — Exam-Oriented Daily Intelligence & Daily 10Q Quiz | Courage Library",
+   "overflowX": 0,
+   "wide": [
+    "div.absolute.top-0.right-0",
+    "a.shrink-0.px-3.py-1.5",
+    "a.shrink-0.inline-flex.items-center",
+    "svg.[object.SVGAnimatedString]",
+    "rect.[object.SVGAnimatedString]"
+   ],
+   "h1": [
+    "Current Affairs"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 1,
+   "anims": 1,
+   "tapTargets": 8,
+   "tapUnder44": 8,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Today 62x30",
+    "Yesterday 84x30",
+    "17 Oct 2026 95x30",
+    "16 Oct 2026 96x30",
+    "15 Oct 2026 95x30",
+    "14 Oct 2026 96x30"
+   ],
+   "textEls": 26,
+   "textUnder12": 1,
+   "tinySizes": {
+    "11px": 1
+   },
+   "tinyExamples": [
+    "Today's 10-question evaluati @11px"
+   ],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 7,
+    "500": 2,
+    "600": 9,
+    "700": 6,
+    "800": 2
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1570,
+   "domContentLoaded": 2430,
+   "axe": null
+  },
+  {
+   "route": "/current-affairs",
+   "signedIn": false,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/current-affairs",
+   "loadMs": 3825,
+   "shot": "docs/reports/ux/uxt0/shots/out_current-affairs_1280.jpg",
+   "path": "/current-affairs",
+   "title": "Current Affairs — Exam-Oriented Daily Intelligence & Daily 10Q Quiz | Courage Library",
+   "overflowX": 0,
+   "wide": [
+    "div.absolute.top-0.right-0"
+   ],
+   "h1": [
+    "Current Affairs"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 1,
+   "anims": 1,
+   "tapTargets": 8,
+   "tapUnder44": 8,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Today 62x30",
+    "Yesterday 84x30",
+    "17 Oct 2026 95x30",
+    "16 Oct 2026 96x30",
+    "15 Oct 2026 95x30",
+    "14 Oct 2026 96x30"
+   ],
+   "textEls": 26,
+   "textUnder12": 1,
+   "tinySizes": {
+    "11px": 1
+   },
+   "tinyExamples": [
+    "Today's 10-question evaluati @11px"
+   ],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 7,
+    "500": 2,
+    "600": 9,
+    "700": 6,
+    "800": 2
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1309,
+   "domContentLoaded": 2278,
+   "axe": null
+  },
+  {
+   "route": "/exams",
+   "signedIn": false,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/exams",
+   "loadMs": 2380,
+   "shot": "docs/reports/ux/uxt0/shots/out_exams_360.jpg",
+   "path": "/exams",
+   "title": "National Competitive Exam Knowledge Hub | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Target Competitive Examinations"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 1,
+   "tapUnder44": 0,
+   "tapUnder24": 0,
+   "under44Examples": [],
+   "textEls": 11,
+   "textUnder12": 2,
+   "tinySizes": {
+    "10px": 2
+   },
+   "tinyExamples": [
+    "Commission @10px",
+    "Cycle 2026 @10px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 2,
+    "500": 2,
+    "600": 4,
+    "700": 2,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1797,
+   "domContentLoaded": 814,
+   "axe": null
+  },
+  {
+   "route": "/exams",
+   "signedIn": false,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/exams",
+   "loadMs": 2718,
+   "shot": "docs/reports/ux/uxt0/shots/out_exams_768.jpg",
+   "path": "/exams",
+   "title": "National Competitive Exam Knowledge Hub | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Target Competitive Examinations"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 1,
+   "tapUnder44": 0,
+   "tapUnder24": 0,
+   "under44Examples": [],
+   "textEls": 11,
+   "textUnder12": 2,
+   "tinySizes": {
+    "10px": 2
+   },
+   "tinyExamples": [
+    "Commission @10px",
+    "Cycle 2026 @10px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 2,
+    "500": 2,
+    "600": 4,
+    "700": 2,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1493,
+   "domContentLoaded": 1184,
+   "axe": null
+  },
+  {
+   "route": "/exams",
+   "signedIn": false,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/exams",
+   "loadMs": 4612,
+   "shot": "docs/reports/ux/uxt0/shots/out_exams_1280.jpg",
+   "path": "/exams",
+   "title": "National Competitive Exam Knowledge Hub | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Target Competitive Examinations"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 1,
+   "tapUnder44": 0,
+   "tapUnder24": 0,
+   "under44Examples": [],
+   "textEls": 11,
+   "textUnder12": 2,
+   "tinySizes": {
+    "10px": 2
+   },
+   "tinyExamples": [
+    "Commission @10px",
+    "Cycle 2026 @10px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 2,
+    "500": 2,
+    "600": 4,
+    "700": 2,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1287,
+   "domContentLoaded": 3078,
+   "axe": null
+  },
+  {
+   "route": "/exams/ssc-cgl",
+   "signedIn": false,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/exams/ssc-cgl",
+   "loadMs": 19004,
+   "shot": "docs/reports/ux/uxt0/shots/out_exams_ssc-cgl_360.jpg",
+   "path": "/exams/ssc-cgl",
+   "title": "SSC CGL 2026 — Complete Exam Knowledge Hub | Courage Library",
+   "overflowX": 0,
+   "wide": [
+    "a.whitespace-nowrap.px-3.py-1.5",
+    "a.whitespace-nowrap.px-3.py-1.5"
+   ],
+   "h1": [
+    "SSC CGL"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 472,
+   "tapUnder44": 61,
+   "tapUnder24": 24,
+   "under44Examples": [
+    "Explore Syllabus 176x40",
+    "Explore Syllabus 176x40",
+    "Practice PYQs 160x40",
+    "Practice PYQs 160x40",
+    "Overview 80x28",
+    "Exam Guides 100x28"
+   ],
+   "textEls": 814,
+   "textUnder12": 66,
+   "tinySizes": {
+    "11px": 12,
+    "10px": 54
+   },
+   "tinyExamples": [
+    "active @11px",
+    "NOTIFICATION DATE @11px",
+    "APPLICATION WINDOW @11px",
+    "EXAM SCHEDULE @11px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 154,
+    "500": 71,
+    "600": 108,
+    "700": 473,
+    "800": 1,
+    "900": 7
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 62072,
+   "domContentLoaded": 17469,
+   "axe": null
+  },
+  {
+   "route": "/exams/ssc-cgl",
+   "signedIn": false,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/exams/ssc-cgl",
+   "loadMs": 10370,
+   "shot": "docs/reports/ux/uxt0/shots/out_exams_ssc-cgl_768.jpg",
+   "path": "/exams/ssc-cgl",
+   "title": "SSC CGL 2026 — Complete Exam Knowledge Hub | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "SSC CGL"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 472,
+   "tapUnder44": 61,
+   "tapUnder24": 24,
+   "under44Examples": [
+    "Explore Syllabus 176x40",
+    "Explore Syllabus 176x40",
+    "Practice PYQs 160x40",
+    "Practice PYQs 160x40",
+    "Overview 80x28",
+    "Exam Guides 100x28"
+   ],
+   "textEls": 814,
+   "textUnder12": 66,
+   "tinySizes": {
+    "11px": 12,
+    "10px": 54
+   },
+   "tinyExamples": [
+    "active @11px",
+    "NOTIFICATION DATE @11px",
+    "APPLICATION WINDOW @11px",
+    "EXAM SCHEDULE @11px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 154,
+    "500": 71,
+    "600": 108,
+    "700": 473,
+    "800": 1,
+    "900": 7
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 51927,
+   "domContentLoaded": 8845,
+   "axe": null
+  },
+  {
+   "route": "/exams/ssc-cgl",
+   "signedIn": false,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/exams/ssc-cgl",
+   "loadMs": 4076,
+   "shot": "docs/reports/ux/uxt0/shots/out_exams_ssc-cgl_1280.jpg",
+   "path": "/exams/ssc-cgl",
+   "title": "SSC CGL 2026 — Complete Exam Knowledge Hub | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "SSC CGL"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 472,
+   "tapUnder44": 61,
+   "tapUnder24": 24,
+   "under44Examples": [
+    "Explore Syllabus 176x40",
+    "Explore Syllabus 176x40",
+    "Practice PYQs 160x40",
+    "Practice PYQs 160x40",
+    "Overview 80x28",
+    "Exam Guides 100x28"
+   ],
+   "textEls": 814,
+   "textUnder12": 66,
+   "tinySizes": {
+    "11px": 12,
+    "10px": 54
+   },
+   "tinyExamples": [
+    "active @11px",
+    "NOTIFICATION DATE @11px",
+    "APPLICATION WINDOW @11px",
+    "EXAM SCHEDULE @11px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 154,
+    "500": 71,
+    "600": 108,
+    "700": 473,
+    "800": 1,
+    "900": 7
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 50395,
+   "domContentLoaded": 2548,
+   "axe": null
+  },
+  {
+   "route": "/practice",
+   "signedIn": false,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/practice",
+   "loadMs": 1845,
+   "shot": "docs/reports/ux/uxt0/shots/out_practice_360.jpg",
+   "path": "/practice",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Adaptive Practice Arena"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 2,
+   "tapUnder44": 2,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Start Weak Topic Drill 278x40",
+    "Practice Bookmarks 278x40"
+   ],
+   "textEls": 9,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 3,
+    "600": 3,
+    "700": 2,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1797,
+   "domContentLoaded": 289,
+   "axe": null
+  },
+  {
+   "route": "/practice",
+   "signedIn": false,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/practice",
+   "loadMs": 1637,
+   "shot": "docs/reports/ux/uxt0/shots/out_practice_768.jpg",
+   "path": "/practice",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Adaptive Practice Arena"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 2,
+   "tapUnder44": 2,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Start Weak Topic Drill 302x40",
+    "Practice Bookmarks 302x40"
+   ],
+   "textEls": 9,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 3,
+    "600": 3,
+    "700": 2,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1493,
+   "domContentLoaded": 112,
+   "axe": null
+  },
+  {
+   "route": "/practice",
+   "signedIn": false,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/practice",
+   "loadMs": 1743,
+   "shot": "docs/reports/ux/uxt0/shots/out_practice_1280.jpg",
+   "path": "/practice",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Adaptive Practice Arena"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 2,
+   "tapUnder44": 2,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Start Weak Topic Drill 358x40",
+    "Practice Bookmarks 358x40"
+   ],
+   "textEls": 9,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 3,
+    "600": 3,
+    "700": 2,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1287,
+   "domContentLoaded": 220,
+   "axe": null
+  },
+  {
+   "route": "/pricing",
+   "signedIn": false,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/pricing",
+   "loadMs": 2570,
+   "shot": "docs/reports/ux/uxt0/shots/out_pricing_360.jpg",
+   "path": "/pricing",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Unlock Full Courage Library PRO"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 3,
+   "tapUnder44": 3,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "e.g. EARLYBIRD20 294x38",
+    "Current Base Access 278x40",
+    "Payments Temporarily Unavailab 276x40"
+   ],
+   "textEls": 26,
+   "textUnder12": 3,
+   "tinySizes": {
+    "10px": 3
+   },
+   "tinyExamples": [
+    "FREE TIER @10px",
+    "MOST POPULAR @10px",
+    "PRO PASS @10px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 7,
+    "500": 6,
+    "600": 4,
+    "700": 3,
+    "900": 6
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 2351,
+   "domContentLoaded": 977,
+   "axe": null
+  },
+  {
+   "route": "/pricing",
+   "signedIn": false,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/pricing",
+   "loadMs": 42043,
+   "shot": "docs/reports/ux/uxt0/shots/out_pricing_768.jpg",
+   "path": "/pricing",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Unlock Full Courage Library PRO"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 3,
+   "tapUnder44": 3,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "e.g. EARLYBIRD20 414x38",
+    "Current Base Access 174x40",
+    "Payments Temporarily Unavailab 172x40"
+   ],
+   "textEls": 26,
+   "textUnder12": 3,
+   "tinySizes": {
+    "10px": 3
+   },
+   "tinyExamples": [
+    "FREE TIER @10px",
+    "MOST POPULAR @10px",
+    "PRO PASS @10px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 7,
+    "500": 6,
+    "600": 4,
+    "700": 3,
+    "900": 6
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1652,
+   "domContentLoaded": 40495,
+   "axe": null
+  },
+  {
+   "route": "/pricing",
+   "signedIn": false,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/pricing",
+   "loadMs": 2099,
+   "shot": "docs/reports/ux/uxt0/shots/out_pricing_1280.jpg",
+   "path": "/pricing",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Unlock Full Courage Library PRO"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 3,
+   "tapUnder44": 3,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "e.g. EARLYBIRD20 414x38",
+    "Current Base Access 254x40",
+    "Payments Temporarily Unavailab 252x40"
+   ],
+   "textEls": 26,
+   "textUnder12": 3,
+   "tinySizes": {
+    "10px": 3
+   },
+   "tinyExamples": [
+    "FREE TIER @10px",
+    "MOST POPULAR @10px",
+    "PRO PASS @10px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 7,
+    "500": 6,
+    "600": 4,
+    "700": 3,
+    "900": 6
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1366,
+   "domContentLoaded": 550,
+   "axe": null
+  },
+  {
+   "route": "/auth/login",
+   "signedIn": false,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/auth/login",
+   "loadMs": 1689,
+   "shot": "docs/reports/ux/uxt0/shots/out_auth_login_360.jpg",
+   "path": "/auth/login",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 5,
+   "tapUnder44": 4,
+   "tapUnder24": 2,
+   "under44Examples": [
+    "you@example.com 278x40",
+    "Forgot password? 103x16",
+    "•••••••• 278x40",
+    "Create an account 106x16"
+   ],
+   "textEls": 8,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 2,
+    "500": 1,
+    "600": 4,
+    "800": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1797,
+   "domContentLoaded": 124,
+   "axe": null
+  },
+  {
+   "route": "/auth/login",
+   "signedIn": false,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/auth/login",
+   "loadMs": 1678,
+   "shot": "docs/reports/ux/uxt0/shots/out_auth_login_768.jpg",
+   "path": "/auth/login",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 5,
+   "tapUnder44": 4,
+   "tapUnder24": 2,
+   "under44Examples": [
+    "you@example.com 398x40",
+    "Forgot password? 103x16",
+    "•••••••• 398x40",
+    "Create an account 106x16"
+   ],
+   "textEls": 8,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 2,
+    "500": 1,
+    "600": 4,
+    "800": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1493,
+   "domContentLoaded": 123,
+   "axe": null
+  },
+  {
+   "route": "/auth/login",
+   "signedIn": false,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/auth/login",
+   "loadMs": 1826,
+   "shot": "docs/reports/ux/uxt0/shots/out_auth_login_1280.jpg",
+   "path": "/auth/login",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 5,
+   "tapUnder44": 4,
+   "tapUnder24": 2,
+   "under44Examples": [
+    "you@example.com 398x40",
+    "Forgot password? 103x16",
+    "•••••••• 398x40",
+    "Create an account 106x16"
+   ],
+   "textEls": 8,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 2,
+    "500": 1,
+    "600": 4,
+    "800": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1287,
+   "domContentLoaded": 272,
+   "axe": null
+  },
+  {
+   "route": "/auth/signup",
+   "signedIn": false,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/auth/signup",
+   "loadMs": 1671,
+   "shot": "docs/reports/ux/uxt0/shots/out_auth_signup_360.jpg",
+   "path": "/auth/signup",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 5,
+   "tapUnder44": 4,
+   "tapUnder24": 1,
+   "under44Examples": [
+    "Aarav Sharma 278x40",
+    "you@example.com 278x40",
+    "At least 8 characters 278x40",
+    "Sign In 39x16"
+   ],
+   "textEls": 8,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 2,
+    "600": 5,
+    "800": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1797,
+   "domContentLoaded": 97,
+   "axe": null
+  },
+  {
+   "route": "/auth/signup",
+   "signedIn": false,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/auth/signup",
+   "loadMs": 1656,
+   "shot": "docs/reports/ux/uxt0/shots/out_auth_signup_768.jpg",
+   "path": "/auth/signup",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 5,
+   "tapUnder44": 4,
+   "tapUnder24": 1,
+   "under44Examples": [
+    "Aarav Sharma 398x40",
+    "you@example.com 398x40",
+    "At least 8 characters 398x40",
+    "Sign In 39x16"
+   ],
+   "textEls": 8,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 2,
+    "600": 5,
+    "800": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1493,
+   "domContentLoaded": 106,
+   "axe": null
+  },
+  {
+   "route": "/auth/signup",
+   "signedIn": false,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/auth/signup",
+   "loadMs": 1811,
+   "shot": "docs/reports/ux/uxt0/shots/out_auth_signup_1280.jpg",
+   "path": "/auth/signup",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 5,
+   "tapUnder44": 4,
+   "tapUnder24": 1,
+   "under44Examples": [
+    "Aarav Sharma 398x40",
+    "you@example.com 398x40",
+    "At least 8 characters 398x40",
+    "Sign In 39x16"
+   ],
+   "textEls": 8,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 2,
+    "600": 5,
+    "800": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1287,
+   "domContentLoaded": 273,
+   "axe": null
+  },
+  {
+   "route": "/articles",
+   "signedIn": false,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/articles",
+   "loadMs": 2072,
+   "shot": "docs/reports/ux/uxt0/shots/out_articles_360.jpg",
+   "path": "/articles",
+   "title": "Articles & Exam Study Notes | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Articles & Exam Study Notes"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 2,
+   "tapUnder44": 2,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Practice Drills 130x32",
+    "Practice Drills 130x32"
+   ],
+   "textEls": 6,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 2,
+    "600": 2,
+    "800": 1,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1797,
+   "domContentLoaded": 508,
+   "axe": null
+  },
+  {
+   "route": "/articles",
+   "signedIn": false,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/articles",
+   "loadMs": 2081,
+   "shot": "docs/reports/ux/uxt0/shots/out_articles_768.jpg",
+   "path": "/articles",
+   "title": "Articles & Exam Study Notes | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Articles & Exam Study Notes"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 2,
+   "tapUnder44": 2,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Practice Drills 130x32",
+    "Practice Drills 130x32"
+   ],
+   "textEls": 6,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 2,
+    "600": 2,
+    "800": 1,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1493,
+   "domContentLoaded": 553,
+   "axe": null
+  },
+  {
+   "route": "/articles",
+   "signedIn": false,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/articles",
+   "loadMs": 6889,
+   "shot": "docs/reports/ux/uxt0/shots/out_articles_1280.jpg",
+   "path": "/articles",
+   "title": "Articles & Exam Study Notes | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Articles & Exam Study Notes"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 2,
+   "tapUnder44": 2,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Practice Drills 130x32",
+    "Practice Drills 130x32"
+   ],
+   "textEls": 6,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 2,
+    "600": 2,
+    "800": 1,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1287,
+   "domContentLoaded": 5303,
+   "axe": null
+  },
+  {
+   "route": "/flashcards",
+   "signedIn": false,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/flashcards",
+   "loadMs": 2201,
+   "shot": "docs/reports/ux/uxt0/shots/out_flashcards_360.jpg",
+   "path": "/flashcards",
+   "title": "Flashcards & Spaced Repetition | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Flashcard Library & Visual Formulas"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 4,
+   "tapUnder44": 4,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Practice Questions 147x32",
+    "Practice Questions 147x32",
+    "Read Articles 119x32",
+    "Read Articles 119x32"
+   ],
+   "textEls": 7,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 2,
+    "600": 3,
+    "800": 1,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1797,
+   "domContentLoaded": 623,
+   "axe": null
+  },
+  {
+   "route": "/flashcards",
+   "signedIn": false,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/flashcards",
+   "loadMs": 2331,
+   "shot": "docs/reports/ux/uxt0/shots/out_flashcards_768.jpg",
+   "path": "/flashcards",
+   "title": "Flashcards & Spaced Repetition | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Flashcard Library & Visual Formulas"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 4,
+   "tapUnder44": 4,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Practice Questions 158x32",
+    "Practice Questions 158x32",
+    "Read Articles 127x32",
+    "Read Articles 127x32"
+   ],
+   "textEls": 7,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 2,
+    "600": 3,
+    "800": 1,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1493,
+   "domContentLoaded": 795,
+   "axe": null
+  },
+  {
+   "route": "/flashcards",
+   "signedIn": false,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/flashcards",
+   "loadMs": 2688,
+   "shot": "docs/reports/ux/uxt0/shots/out_flashcards_1280.jpg",
+   "path": "/flashcards",
+   "title": "Flashcards & Spaced Repetition | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Flashcard Library & Visual Formulas"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 4,
+   "tapUnder44": 4,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Practice Questions 158x32",
+    "Practice Questions 158x32",
+    "Read Articles 127x32",
+    "Read Articles 127x32"
+   ],
+   "textEls": 7,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 2,
+    "600": 3,
+    "800": 1,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1287,
+   "domContentLoaded": 1159,
+   "axe": null
+  },
+  {
+   "route": "/courses",
+   "signedIn": false,
+   "width": 360,
+   "status": 404,
+   "finalPath": "/courses",
+   "loadMs": 1705,
+   "shot": "docs/reports/ux/uxt0/shots/out_courses_360.jpg",
+   "path": "/courses",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 2,
+   "tapUnder44": 2,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Return to Home 136x40",
+    "Return to Home 136x40"
+   ],
+   "textEls": 4,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 1,
+    "500": 1,
+    "700": 1,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": true,
+   "docHeight": 1797,
+   "domContentLoaded": 129,
+   "axe": null
+  },
+  {
+   "route": "/courses",
+   "signedIn": false,
+   "width": 768,
+   "status": 404,
+   "finalPath": "/courses",
+   "loadMs": 1645,
+   "shot": "docs/reports/ux/uxt0/shots/out_courses_768.jpg",
+   "path": "/courses",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 2,
+   "tapUnder44": 2,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Return to Home 136x40",
+    "Return to Home 136x40"
+   ],
+   "textEls": 4,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 1,
+    "500": 1,
+    "700": 1,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": true,
+   "docHeight": 1493,
+   "domContentLoaded": 104,
+   "axe": null
+  },
+  {
+   "route": "/courses",
+   "signedIn": false,
+   "width": 1280,
+   "status": 404,
+   "finalPath": "/courses",
+   "loadMs": 1694,
+   "shot": "docs/reports/ux/uxt0/shots/out_courses_1280.jpg",
+   "path": "/courses",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 2,
+   "tapUnder44": 2,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Return to Home 136x40",
+    "Return to Home 136x40"
+   ],
+   "textEls": 4,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 1,
+    "500": 1,
+    "700": 1,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": true,
+   "docHeight": 1287,
+   "domContentLoaded": 171,
+   "axe": null
+  },
+  {
+   "route": "/dashboard",
+   "signedIn": true,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/dashboard",
+   "loadMs": 4178,
+   "shot": "docs/reports/ux/uxt0/shots/in_dashboard_360.jpg",
+   "path": "/dashboard",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Welcome back, QA student!"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 4,
+   "tapUnder44": 1,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "View All 47x32"
+   ],
+   "textEls": 26,
+   "textUnder12": 2,
+   "tinySizes": {
+    "11px": 2
+   },
+   "tinyExamples": [
+    "Day Streak @11px",
+    "Coins @11px"
+   ],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 12,
+    "500": 2,
+    "600": 2,
+    "700": 7,
+    "800": 1,
+    "900": 2
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 2709,
+   "domContentLoaded": 2655,
+   "axe": null
+  },
+  {
+   "route": "/dashboard",
+   "signedIn": true,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/dashboard",
+   "loadMs": 5441,
+   "shot": "docs/reports/ux/uxt0/shots/in_dashboard_768.jpg",
+   "path": "/dashboard",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Welcome back, QA student!"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 4,
+   "tapUnder44": 1,
+   "tapUnder24": 1,
+   "under44Examples": [
+    "View All 63x16"
+   ],
+   "textEls": 26,
+   "textUnder12": 2,
+   "tinySizes": {
+    "11px": 2
+   },
+   "tinyExamples": [
+    "Day Streak @11px",
+    "Coins @11px"
+   ],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 12,
+    "500": 2,
+    "600": 2,
+    "700": 7,
+    "800": 1,
+    "900": 2
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1933,
+   "domContentLoaded": 3921,
+   "axe": null
+  },
+  {
+   "route": "/dashboard",
+   "signedIn": true,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/dashboard",
+   "loadMs": 4027,
+   "shot": "docs/reports/ux/uxt0/shots/in_dashboard_1280.jpg",
+   "path": "/dashboard",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Welcome back, QA student!"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 4,
+   "tapUnder44": 1,
+   "tapUnder24": 1,
+   "under44Examples": [
+    "View All 63x16"
+   ],
+   "textEls": 26,
+   "textUnder12": 2,
+   "tinySizes": {
+    "11px": 2
+   },
+   "tinyExamples": [
+    "Day Streak @11px",
+    "Coins @11px"
+   ],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 12,
+    "500": 2,
+    "600": 2,
+    "700": 7,
+    "800": 1,
+    "900": 2
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1287,
+   "domContentLoaded": 2498,
+   "axe": null
+  },
+  {
+   "route": "/mock-tests",
+   "signedIn": true,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/mock-tests",
+   "loadMs": 4791,
+   "shot": "docs/reports/ux/uxt0/shots/in_mock-tests_360.jpg",
+   "path": "/mock-tests",
+   "title": "Mock Tests & Daily Practice | Courage Library",
+   "overflowX": 0,
+   "wide": [
+    "div.absolute.top-0.right-0"
+   ],
+   "h1": [
+    "Mock Tests"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 18,
+   "tapUnder44": 17,
+   "tapUnder24": 4,
+   "under44Examples": [
+    "Add / Manage Exams 141x16",
+    "SSC CGL 104x32",
+    "Add Exam 107x34",
+    "Start Mock 294x32",
+    "Focus on SSC CGL 286x16",
+    "Start Full Mock 286x32"
+   ],
+   "textEls": 171,
+   "textUnder12": 67,
+   "tinySizes": {
+    "11px": 23,
+    "10px": 34,
+    "9px": 10
+   },
+   "tinyExamples": [
+    "Mock tests @11px",
+    "1 Day Streak @11px",
+    "ACCURACY @10px",
+    "SOLVED @10px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 40,
+    "500": 16,
+    "600": 19,
+    "700": 50,
+    "800": 23,
+    "900": 23
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 5186,
+   "domContentLoaded": 3094,
+   "axe": null
+  },
+  {
+   "route": "/mock-tests",
+   "signedIn": true,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/mock-tests",
+   "loadMs": 4454,
+   "shot": "docs/reports/ux/uxt0/shots/in_mock-tests_768.jpg",
+   "path": "/mock-tests",
+   "title": "Mock Tests & Daily Practice | Courage Library",
+   "overflowX": 0,
+   "wide": [
+    "div.absolute.top-0.right-0"
+   ],
+   "h1": [
+    "Mock Tests"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 18,
+   "tapUnder44": 17,
+   "tapUnder24": 4,
+   "under44Examples": [
+    "Add / Manage Exams 141x16",
+    "SSC CGL 104x32",
+    "Add Exam 107x34",
+    "Start Mock 311x32",
+    "Focus on SSC CGL 311x16",
+    "Start Full Mock 311x32"
+   ],
+   "textEls": 171,
+   "textUnder12": 67,
+   "tinySizes": {
+    "11px": 23,
+    "10px": 34,
+    "9px": 10
+   },
+   "tinyExamples": [
+    "Mock tests @11px",
+    "1 Day Streak @11px",
+    "ACCURACY @10px",
+    "SOLVED @10px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 40,
+    "500": 16,
+    "600": 19,
+    "700": 50,
+    "800": 23,
+    "900": 23
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 3361,
+   "domContentLoaded": 2896,
+   "axe": null
+  },
+  {
+   "route": "/mock-tests",
+   "signedIn": true,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/mock-tests",
+   "loadMs": 3276,
+   "shot": "docs/reports/ux/uxt0/shots/in_mock-tests_1280.jpg",
+   "path": "/mock-tests",
+   "title": "Mock Tests & Daily Practice | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Mock Tests"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 18,
+   "tapUnder44": 17,
+   "tapUnder24": 4,
+   "under44Examples": [
+    "Add / Manage Exams 141x16",
+    "SSC CGL 104x32",
+    "Add Exam 107x34",
+    "Start Mock 495x32",
+    "Focus on SSC CGL 311x16",
+    "Start Full Mock 311x32"
+   ],
+   "textEls": 171,
+   "textUnder12": 67,
+   "tinySizes": {
+    "11px": 23,
+    "10px": 34,
+    "9px": 10
+   },
+   "tinyExamples": [
+    "Mock tests @11px",
+    "1 Day Streak @11px",
+    "ACCURACY @10px",
+    "SOLVED @10px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 40,
+    "500": 16,
+    "600": 19,
+    "700": 50,
+    "800": 23,
+    "900": 23
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 2681,
+   "domContentLoaded": 1733,
+   "axe": null
+  },
+  {
+   "route": "/mock-tests/[id]",
+   "signedIn": true,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/mock-tests/[id]",
+   "loadMs": 6328,
+   "shot": "docs/reports/ux/uxt0/shots/in_mock-tests_id__360.jpg",
+   "path": "/mock-tests/aa36204b-a0f3-489e-a405-bd33dcf532de",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 5,
+   "tapUnder44": 3,
+   "tapUnder24": 1,
+   "under44Examples": [
+    "Back to Mock Tests 133x16",
+    "Back to Dashboard 107x43",
+    "Back to Dashboard 107x40"
+   ],
+   "textEls": 23,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 6,
+    "500": 1,
+    "600": 8,
+    "700": 4,
+    "900": 4
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1965,
+   "domContentLoaded": 4768,
+   "axe": null
+  },
+  {
+   "route": "/mock-tests/[id]",
+   "signedIn": true,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/mock-tests/[id]",
+   "loadMs": 5319,
+   "shot": "docs/reports/ux/uxt0/shots/in_mock-tests_id__768.jpg",
+   "path": "/mock-tests/aa36204b-a0f3-489e-a405-bd33dcf532de",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 5,
+   "tapUnder44": 3,
+   "tapUnder24": 1,
+   "under44Examples": [
+    "Back to Mock Tests 133x16",
+    "Back to Dashboard 161x40",
+    "Back to Dashboard 161x40"
+   ],
+   "textEls": 23,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 6,
+    "500": 1,
+    "600": 8,
+    "700": 4,
+    "900": 4
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1558,
+   "domContentLoaded": 3789,
+   "axe": null
+  },
+  {
+   "route": "/mock-tests/[id]",
+   "signedIn": true,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/mock-tests/[id]",
+   "loadMs": 14003,
+   "shot": "docs/reports/ux/uxt0/shots/in_mock-tests_id__1280.jpg",
+   "path": "/mock-tests/aa36204b-a0f3-489e-a405-bd33dcf532de",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 5,
+   "tapUnder44": 3,
+   "tapUnder24": 1,
+   "under44Examples": [
+    "Back to Mock Tests 133x16",
+    "Back to Dashboard 161x40",
+    "Back to Dashboard 161x40"
+   ],
+   "textEls": 23,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 6,
+    "500": 1,
+    "600": 8,
+    "700": 4,
+    "900": 4
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1287,
+   "domContentLoaded": 12464,
+   "axe": null
+  },
+  {
+   "route": "/mock-tests/[id]/result",
+   "signedIn": true,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/mock-tests/[id]/result",
+   "loadMs": 4745,
+   "shot": "docs/reports/ux/uxt0/shots/in_mock-tests_id_result_360.jpg",
+   "path": "/mock-tests/348dc257-b99e-4bad-8f1d-b77874f4517c/result",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "SSC CGL Daily Monday Mock"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 20,
+   "tapUnder44": 17,
+   "tapUnder24": 9,
+   "under44Examples": [
+    "Back to Mock Tests 134x16",
+    "View Full Leaderboard 159x38",
+    "View Full Leaderboard 159x32",
+    "View CL Wallet → 55x33",
+    "Review Mistakes 124x32",
+    "All (25) 66x28"
+   ],
+   "textEls": 174,
+   "textUnder12": 60,
+   "tinySizes": {
+    "11px": 40,
+    "10px": 20
+   },
+   "tinyExamples": [
+    "CL••••199E • 348DC2 @11px",
+    "OFFICIAL ASSESSMENT @11px",
+    "Correct @11px",
+    "Wrong @11px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 31,
+    "500": 21,
+    "600": 22,
+    "700": 71,
+    "800": 13,
+    "900": 16
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 6964,
+   "domContentLoaded": 3191,
+   "axe": null
+  },
+  {
+   "route": "/mock-tests/[id]/result",
+   "signedIn": true,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/mock-tests/[id]/result",
+   "loadMs": 4574,
+   "shot": "docs/reports/ux/uxt0/shots/in_mock-tests_id_result_768.jpg",
+   "path": "/mock-tests/348dc257-b99e-4bad-8f1d-b77874f4517c/result",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "SSC CGL Daily Monday Mock"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 20,
+   "tapUnder44": 17,
+   "tapUnder24": 10,
+   "under44Examples": [
+    "Back to Mock Tests 134x16",
+    "View Full Leaderboard 179x32",
+    "View Full Leaderboard 179x32",
+    "View CL Wallet → 95x17",
+    "Review Mistakes 124x32",
+    "All (25) 66x28"
+   ],
+   "textEls": 174,
+   "textUnder12": 60,
+   "tinySizes": {
+    "11px": 40,
+    "10px": 20
+   },
+   "tinyExamples": [
+    "CL••••199E • 348DC2 @11px",
+    "OFFICIAL ASSESSMENT @11px",
+    "Correct @11px",
+    "Wrong @11px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 31,
+    "500": 21,
+    "600": 22,
+    "700": 71,
+    "800": 13,
+    "900": 16
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 5264,
+   "domContentLoaded": 3042,
+   "axe": null
+  },
+  {
+   "route": "/mock-tests/[id]/result",
+   "signedIn": true,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/mock-tests/[id]/result",
+   "loadMs": 5648,
+   "shot": "docs/reports/ux/uxt0/shots/in_mock-tests_id_result_1280.jpg",
+   "path": "/mock-tests/348dc257-b99e-4bad-8f1d-b77874f4517c/result",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "SSC CGL Daily Monday Mock"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 20,
+   "tapUnder44": 17,
+   "tapUnder24": 10,
+   "under44Examples": [
+    "Back to Mock Tests 134x16",
+    "View Full Leaderboard 179x32",
+    "View Full Leaderboard 179x32",
+    "View CL Wallet → 95x17",
+    "Review Mistakes 124x32",
+    "All (25) 66x28"
+   ],
+   "textEls": 174,
+   "textUnder12": 60,
+   "tinySizes": {
+    "11px": 40,
+    "10px": 20
+   },
+   "tinyExamples": [
+    "CL••••199E • 348DC2 @11px",
+    "OFFICIAL ASSESSMENT @11px",
+    "Correct @11px",
+    "Wrong @11px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 31,
+    "500": 21,
+    "600": 22,
+    "700": 71,
+    "800": 13,
+    "900": 16
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 4916,
+   "domContentLoaded": 4117,
+   "axe": null
+  },
+  {
+   "route": "/mistakes",
+   "signedIn": true,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/mistakes",
+   "loadMs": 4689,
+   "shot": "docs/reports/ux/uxt0/shots/in_mistakes_360.jpg",
+   "path": "/mistakes",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Mistake Vault"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 42,
+   "tapUnder44": 34,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Start Smart Drill 134x32",
+    "Start Smart Drill 134x32",
+    "Drill 65x32",
+    "Drill 65x32",
+    "A 32x32",
+    "BUTTON 32x32"
+   ],
+   "textEls": 143,
+   "textUnder12": 64,
+   "tinySizes": {
+    "10px": 24,
+    "11px": 40
+   },
+   "tinyExamples": [
+    "HEALTH SCORE @10px",
+    "DUE FOR REVISION @10px",
+    "Urgent slip reviews @10px",
+    "HIGH PRIORITY @10px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 38,
+    "500": 16,
+    "600": 29,
+    "700": 42,
+    "900": 18
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 5340,
+   "domContentLoaded": 3163,
+   "axe": null
+  },
+  {
+   "route": "/mistakes",
+   "signedIn": true,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/mistakes",
+   "loadMs": 6110,
+   "shot": "docs/reports/ux/uxt0/shots/in_mistakes_768.jpg",
+   "path": "/mistakes",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Mistake Vault"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 42,
+   "tapUnder44": 34,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Start Smart Drill 107x32",
+    "Start Smart Drill 107x32",
+    "Drill 65x32",
+    "Drill 65x32",
+    "A 32x32",
+    "BUTTON 32x32"
+   ],
+   "textEls": 143,
+   "textUnder12": 64,
+   "tinySizes": {
+    "10px": 24,
+    "11px": 40
+   },
+   "tinyExamples": [
+    "HEALTH SCORE @10px",
+    "DUE FOR REVISION @10px",
+    "Urgent slip reviews @10px",
+    "HIGH PRIORITY @10px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 38,
+    "500": 16,
+    "600": 29,
+    "700": 42,
+    "900": 18
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 3561,
+   "domContentLoaded": 4559,
+   "axe": null
+  },
+  {
+   "route": "/mistakes",
+   "signedIn": true,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/mistakes",
+   "loadMs": 4555,
+   "shot": "docs/reports/ux/uxt0/shots/in_mistakes_1280.jpg",
+   "path": "/mistakes",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Mistake Vault"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 42,
+   "tapUnder44": 34,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Start Smart Drill 137x32",
+    "Start Smart Drill 137x32",
+    "Drill 65x32",
+    "Drill 65x32",
+    "A 32x32",
+    "BUTTON 32x32"
+   ],
+   "textEls": 143,
+   "textUnder12": 64,
+   "tinySizes": {
+    "10px": 24,
+    "11px": 40
+   },
+   "tinyExamples": [
+    "HEALTH SCORE @10px",
+    "DUE FOR REVISION @10px",
+    "Urgent slip reviews @10px",
+    "HIGH PRIORITY @10px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 38,
+    "500": 16,
+    "600": 29,
+    "700": 42,
+    "900": 18
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 2456,
+   "domContentLoaded": 3003,
+   "axe": null
+  },
+  {
+   "route": "/performance",
+   "signedIn": true,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/performance",
+   "loadMs": 2573,
+   "shot": "docs/reports/ux/uxt0/shots/in_performance_360.jpg",
+   "path": "/performance",
+   "title": "Candidate Performance Intelligence | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 2,
+   "tapUnder44": 2,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Return to Home 136x40",
+    "Return to Home 136x40"
+   ],
+   "textEls": 4,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 1,
+    "500": 1,
+    "700": 1,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": true,
+   "docHeight": 1862,
+   "domContentLoaded": 1036,
+   "axe": null
+  },
+  {
+   "route": "/performance",
+   "signedIn": true,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/performance",
+   "loadMs": 2229,
+   "shot": "docs/reports/ux/uxt0/shots/in_performance_768.jpg",
+   "path": "/performance",
+   "title": "Candidate Performance Intelligence | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 2,
+   "tapUnder44": 2,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Return to Home 136x40",
+    "Return to Home 136x40"
+   ],
+   "textEls": 4,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 1,
+    "500": 1,
+    "700": 1,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": true,
+   "docHeight": 1558,
+   "domContentLoaded": 688,
+   "axe": null
+  },
+  {
+   "route": "/performance",
+   "signedIn": true,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/performance",
+   "loadMs": 4898,
+   "shot": "docs/reports/ux/uxt0/shots/in_performance_1280.jpg",
+   "path": "/performance",
+   "title": "Candidate Performance Intelligence | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 2,
+   "tapUnder44": 2,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Return to Home 136x40",
+    "Return to Home 136x40"
+   ],
+   "textEls": 4,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 1,
+    "500": 1,
+    "700": 1,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": true,
+   "docHeight": 1287,
+   "domContentLoaded": 3346,
+   "axe": null
+  },
+  {
+   "route": "/current-affairs",
+   "signedIn": true,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/current-affairs",
+   "loadMs": 5016,
+   "shot": "docs/reports/ux/uxt0/shots/in_current-affairs_360.jpg",
+   "path": "/current-affairs",
+   "title": "Current Affairs — Exam-Oriented Daily Intelligence & Daily 10Q Quiz | Courage Library",
+   "overflowX": 0,
+   "wide": [
+    "div.absolute.top-0.right-0",
+    "a.shrink-0.px-3.py-1.5",
+    "a.shrink-0.px-3.py-1.5",
+    "a.shrink-0.px-3.py-1.5",
+    "a.shrink-0.px-3.py-1.5"
+   ],
+   "h1": [
+    "Current Affairs"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 1,
+   "anims": 1,
+   "tapTargets": 8,
+   "tapUnder44": 8,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Today 62x30",
+    "Yesterday 84x30",
+    "17 Oct 2026 95x30",
+    "16 Oct 2026 96x30",
+    "15 Oct 2026 95x30",
+    "14 Oct 2026 96x30"
+   ],
+   "textEls": 26,
+   "textUnder12": 1,
+   "tinySizes": {
+    "11px": 1
+   },
+   "tinyExamples": [
+    "Today's 10-question evaluati @11px"
+   ],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 7,
+    "500": 2,
+    "600": 9,
+    "700": 6,
+    "800": 2
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 2239,
+   "domContentLoaded": 3445,
+   "axe": null
+  },
+  {
+   "route": "/current-affairs",
+   "signedIn": true,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/current-affairs",
+   "loadMs": 3580,
+   "shot": "docs/reports/ux/uxt0/shots/in_current-affairs_768.jpg",
+   "path": "/current-affairs",
+   "title": "Current Affairs — Exam-Oriented Daily Intelligence & Daily 10Q Quiz | Courage Library",
+   "overflowX": 0,
+   "wide": [
+    "div.absolute.top-0.right-0",
+    "a.shrink-0.px-3.py-1.5",
+    "a.shrink-0.inline-flex.items-center",
+    "svg.[object.SVGAnimatedString]",
+    "rect.[object.SVGAnimatedString]"
+   ],
+   "h1": [
+    "Current Affairs"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 1,
+   "anims": 1,
+   "tapTargets": 8,
+   "tapUnder44": 8,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Today 62x30",
+    "Yesterday 84x30",
+    "17 Oct 2026 95x30",
+    "16 Oct 2026 96x30",
+    "15 Oct 2026 95x30",
+    "14 Oct 2026 96x30"
+   ],
+   "textEls": 26,
+   "textUnder12": 1,
+   "tinySizes": {
+    "11px": 1
+   },
+   "tinyExamples": [
+    "Today's 10-question evaluati @11px"
+   ],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 7,
+    "500": 2,
+    "600": 9,
+    "700": 6,
+    "800": 2
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1635,
+   "domContentLoaded": 2061,
+   "axe": null
+  },
+  {
+   "route": "/current-affairs",
+   "signedIn": true,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/current-affairs",
+   "loadMs": 8477,
+   "shot": "docs/reports/ux/uxt0/shots/in_current-affairs_1280.jpg",
+   "path": "/current-affairs",
+   "title": "Current Affairs — Exam-Oriented Daily Intelligence & Daily 10Q Quiz | Courage Library",
+   "overflowX": 0,
+   "wide": [
+    "div.absolute.top-0.right-0"
+   ],
+   "h1": [
+    "Current Affairs"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 1,
+   "anims": 1,
+   "tapTargets": 8,
+   "tapUnder44": 8,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Today 62x30",
+    "Yesterday 84x30",
+    "17 Oct 2026 95x30",
+    "16 Oct 2026 96x30",
+    "15 Oct 2026 95x30",
+    "14 Oct 2026 96x30"
+   ],
+   "textEls": 26,
+   "textUnder12": 1,
+   "tinySizes": {
+    "11px": 1
+   },
+   "tinyExamples": [
+    "Today's 10-question evaluati @11px"
+   ],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 7,
+    "500": 2,
+    "600": 9,
+    "700": 6,
+    "800": 2
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1309,
+   "domContentLoaded": 6946,
+   "axe": null
+  },
+  {
+   "route": "/exams",
+   "signedIn": true,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/exams",
+   "loadMs": 7689,
+   "shot": "docs/reports/ux/uxt0/shots/in_exams_360.jpg",
+   "path": "/exams",
+   "title": "National Competitive Exam Knowledge Hub | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Target Competitive Examinations"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 1,
+   "tapUnder44": 0,
+   "tapUnder24": 0,
+   "under44Examples": [],
+   "textEls": 11,
+   "textUnder12": 2,
+   "tinySizes": {
+    "10px": 2
+   },
+   "tinyExamples": [
+    "Commission @10px",
+    "Cycle 2026 @10px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 2,
+    "500": 2,
+    "600": 4,
+    "700": 2,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1862,
+   "domContentLoaded": 6137,
+   "axe": null
+  },
+  {
+   "route": "/exams",
+   "signedIn": true,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/exams",
+   "loadMs": 3794,
+   "shot": "docs/reports/ux/uxt0/shots/in_exams_768.jpg",
+   "path": "/exams",
+   "title": "National Competitive Exam Knowledge Hub | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Target Competitive Examinations"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 1,
+   "tapUnder44": 0,
+   "tapUnder24": 0,
+   "under44Examples": [],
+   "textEls": 11,
+   "textUnder12": 2,
+   "tinySizes": {
+    "10px": 2
+   },
+   "tinyExamples": [
+    "Commission @10px",
+    "Cycle 2026 @10px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 2,
+    "500": 2,
+    "600": 4,
+    "700": 2,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1558,
+   "domContentLoaded": 2255,
+   "axe": null
+  },
+  {
+   "route": "/exams",
+   "signedIn": true,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/exams",
+   "loadMs": 3138,
+   "shot": "docs/reports/ux/uxt0/shots/in_exams_1280.jpg",
+   "path": "/exams",
+   "title": "National Competitive Exam Knowledge Hub | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Target Competitive Examinations"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 1,
+   "tapUnder44": 0,
+   "tapUnder24": 0,
+   "under44Examples": [],
+   "textEls": 11,
+   "textUnder12": 2,
+   "tinySizes": {
+    "10px": 2
+   },
+   "tinyExamples": [
+    "Commission @10px",
+    "Cycle 2026 @10px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 2,
+    "500": 2,
+    "600": 4,
+    "700": 2,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1287,
+   "domContentLoaded": 1590,
+   "axe": null
+  },
+  {
+   "route": "/exams/ssc-cgl",
+   "signedIn": true,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/exams/ssc-cgl",
+   "loadMs": 5275,
+   "shot": "docs/reports/ux/uxt0/shots/in_exams_ssc-cgl_360.jpg",
+   "path": "/exams/ssc-cgl",
+   "title": "SSC CGL 2026 — Complete Exam Knowledge Hub | Courage Library",
+   "overflowX": 0,
+   "wide": [
+    "a.whitespace-nowrap.px-3.py-1.5",
+    "a.whitespace-nowrap.px-3.py-1.5"
+   ],
+   "h1": [
+    "SSC CGL"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 472,
+   "tapUnder44": 61,
+   "tapUnder24": 24,
+   "under44Examples": [
+    "Explore Syllabus 176x40",
+    "Explore Syllabus 176x40",
+    "Practice PYQs 160x40",
+    "Practice PYQs 160x40",
+    "Overview 80x28",
+    "Exam Guides 100x28"
+   ],
+   "textEls": 814,
+   "textUnder12": 66,
+   "tinySizes": {
+    "11px": 12,
+    "10px": 54
+   },
+   "tinyExamples": [
+    "active @11px",
+    "NOTIFICATION DATE @11px",
+    "APPLICATION WINDOW @11px",
+    "EXAM SCHEDULE @11px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 154,
+    "500": 71,
+    "600": 108,
+    "700": 473,
+    "800": 1,
+    "900": 7
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 62137,
+   "domContentLoaded": 3750,
+   "axe": null
+  },
+  {
+   "route": "/exams/ssc-cgl",
+   "signedIn": true,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/exams/ssc-cgl",
+   "loadMs": 8171,
+   "shot": "docs/reports/ux/uxt0/shots/in_exams_ssc-cgl_768.jpg",
+   "path": "/exams/ssc-cgl",
+   "title": "SSC CGL 2026 — Complete Exam Knowledge Hub | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "SSC CGL"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 472,
+   "tapUnder44": 61,
+   "tapUnder24": 24,
+   "under44Examples": [
+    "Explore Syllabus 176x40",
+    "Explore Syllabus 176x40",
+    "Practice PYQs 160x40",
+    "Practice PYQs 160x40",
+    "Overview 80x28",
+    "Exam Guides 100x28"
+   ],
+   "textEls": 814,
+   "textUnder12": 66,
+   "tinySizes": {
+    "11px": 12,
+    "10px": 54
+   },
+   "tinyExamples": [
+    "active @11px",
+    "NOTIFICATION DATE @11px",
+    "APPLICATION WINDOW @11px",
+    "EXAM SCHEDULE @11px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 154,
+    "500": 71,
+    "600": 108,
+    "700": 473,
+    "800": 1,
+    "900": 7
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 51992,
+   "domContentLoaded": 6647,
+   "axe": null
+  },
+  {
+   "route": "/exams/ssc-cgl",
+   "signedIn": true,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/exams/ssc-cgl",
+   "loadMs": 7584,
+   "shot": "docs/reports/ux/uxt0/shots/in_exams_ssc-cgl_1280.jpg",
+   "path": "/exams/ssc-cgl",
+   "title": "SSC CGL 2026 — Complete Exam Knowledge Hub | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "SSC CGL"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 472,
+   "tapUnder44": 61,
+   "tapUnder24": 24,
+   "under44Examples": [
+    "Explore Syllabus 176x40",
+    "Explore Syllabus 176x40",
+    "Practice PYQs 160x40",
+    "Practice PYQs 160x40",
+    "Overview 80x28",
+    "Exam Guides 100x28"
+   ],
+   "textEls": 814,
+   "textUnder12": 66,
+   "tinySizes": {
+    "11px": 12,
+    "10px": 54
+   },
+   "tinyExamples": [
+    "active @11px",
+    "NOTIFICATION DATE @11px",
+    "APPLICATION WINDOW @11px",
+    "EXAM SCHEDULE @11px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 154,
+    "500": 71,
+    "600": 108,
+    "700": 473,
+    "800": 1,
+    "900": 7
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 50395,
+   "domContentLoaded": 6063,
+   "axe": null
+  },
+  {
+   "route": "/practice",
+   "signedIn": true,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/practice",
+   "loadMs": 2589,
+   "shot": "docs/reports/ux/uxt0/shots/in_practice_360.jpg",
+   "path": "/practice",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Adaptive Practice Arena"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 2,
+   "tapUnder44": 2,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Start Weak Topic Drill 278x40",
+    "Practice Bookmarks 278x40"
+   ],
+   "textEls": 9,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 3,
+    "600": 3,
+    "700": 2,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1862,
+   "domContentLoaded": 1013,
+   "axe": null
+  },
+  {
+   "route": "/practice",
+   "signedIn": true,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/practice",
+   "loadMs": 2496,
+   "shot": "docs/reports/ux/uxt0/shots/in_practice_768.jpg",
+   "path": "/practice",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Adaptive Practice Arena"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 2,
+   "tapUnder44": 2,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Start Weak Topic Drill 302x40",
+    "Practice Bookmarks 302x40"
+   ],
+   "textEls": 9,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 3,
+    "600": 3,
+    "700": 2,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1558,
+   "domContentLoaded": 964,
+   "axe": null
+  },
+  {
+   "route": "/practice",
+   "signedIn": true,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/practice",
+   "loadMs": 10402,
+   "shot": "docs/reports/ux/uxt0/shots/in_practice_1280.jpg",
+   "path": "/practice",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Adaptive Practice Arena"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 2,
+   "tapUnder44": 2,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Start Weak Topic Drill 358x40",
+    "Practice Bookmarks 358x40"
+   ],
+   "textEls": 9,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 3,
+    "600": 3,
+    "700": 2,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1287,
+   "domContentLoaded": 8850,
+   "axe": null
+  },
+  {
+   "route": "/pricing",
+   "signedIn": true,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/pricing",
+   "loadMs": 3573,
+   "shot": "docs/reports/ux/uxt0/shots/in_pricing_360.jpg",
+   "path": "/pricing",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Unlock Full Courage Library PRO"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 3,
+   "tapUnder44": 3,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "e.g. EARLYBIRD20 294x38",
+    "Current Base Access 278x40",
+    "Payments Temporarily Unavailab 276x40"
+   ],
+   "textEls": 26,
+   "textUnder12": 3,
+   "tinySizes": {
+    "10px": 3
+   },
+   "tinyExamples": [
+    "FREE TIER @10px",
+    "MOST POPULAR @10px",
+    "PRO PASS @10px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 7,
+    "500": 6,
+    "600": 4,
+    "700": 3,
+    "900": 6
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 2416,
+   "domContentLoaded": 1967,
+   "axe": null
+  },
+  {
+   "route": "/pricing",
+   "signedIn": true,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/pricing",
+   "loadMs": 2230,
+   "shot": "docs/reports/ux/uxt0/shots/in_pricing_768.jpg",
+   "path": "/pricing",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Unlock Full Courage Library PRO"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 3,
+   "tapUnder44": 3,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "e.g. EARLYBIRD20 414x38",
+    "Current Base Access 174x40",
+    "Payments Temporarily Unavailab 172x40"
+   ],
+   "textEls": 26,
+   "textUnder12": 3,
+   "tinySizes": {
+    "10px": 3
+   },
+   "tinyExamples": [
+    "FREE TIER @10px",
+    "MOST POPULAR @10px",
+    "PRO PASS @10px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 7,
+    "500": 6,
+    "600": 4,
+    "700": 3,
+    "900": 6
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1717,
+   "domContentLoaded": 692,
+   "axe": null
+  },
+  {
+   "route": "/pricing",
+   "signedIn": true,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/pricing",
+   "loadMs": 3216,
+   "shot": "docs/reports/ux/uxt0/shots/in_pricing_1280.jpg",
+   "path": "/pricing",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Unlock Full Courage Library PRO"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 3,
+   "tapUnder44": 3,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "e.g. EARLYBIRD20 414x38",
+    "Current Base Access 254x40",
+    "Payments Temporarily Unavailab 252x40"
+   ],
+   "textEls": 26,
+   "textUnder12": 3,
+   "tinySizes": {
+    "10px": 3
+   },
+   "tinyExamples": [
+    "FREE TIER @10px",
+    "MOST POPULAR @10px",
+    "PRO PASS @10px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 7,
+    "500": 6,
+    "600": 4,
+    "700": 3,
+    "900": 6
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1366,
+   "domContentLoaded": 1674,
+   "axe": null
+  },
+  {
+   "route": "/articles",
+   "signedIn": true,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/articles",
+   "loadMs": 3530,
+   "shot": "docs/reports/ux/uxt0/shots/in_articles_360.jpg",
+   "path": "/articles",
+   "title": "Articles & Exam Study Notes | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Articles & Exam Study Notes"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 2,
+   "tapUnder44": 2,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Practice Drills 130x32",
+    "Practice Drills 130x32"
+   ],
+   "textEls": 6,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 2,
+    "600": 2,
+    "800": 1,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1862,
+   "domContentLoaded": 1958,
+   "axe": null
+  },
+  {
+   "route": "/articles",
+   "signedIn": true,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/articles",
+   "loadMs": 2830,
+   "shot": "docs/reports/ux/uxt0/shots/in_articles_768.jpg",
+   "path": "/articles",
+   "title": "Articles & Exam Study Notes | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Articles & Exam Study Notes"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 2,
+   "tapUnder44": 2,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Practice Drills 130x32",
+    "Practice Drills 130x32"
+   ],
+   "textEls": 6,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 2,
+    "600": 2,
+    "800": 1,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1558,
+   "domContentLoaded": 1284,
+   "axe": null
+  },
+  {
+   "route": "/articles",
+   "signedIn": true,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/articles",
+   "loadMs": 4834,
+   "shot": "docs/reports/ux/uxt0/shots/in_articles_1280.jpg",
+   "path": "/articles",
+   "title": "Articles & Exam Study Notes | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Articles & Exam Study Notes"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 2,
+   "tapUnder44": 2,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Practice Drills 130x32",
+    "Practice Drills 130x32"
+   ],
+   "textEls": 6,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 2,
+    "600": 2,
+    "800": 1,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1287,
+   "domContentLoaded": 3302,
+   "axe": null
+  },
+  {
+   "route": "/flashcards",
+   "signedIn": true,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/flashcards",
+   "loadMs": 5593,
+   "shot": "docs/reports/ux/uxt0/shots/in_flashcards_360.jpg",
+   "path": "/flashcards",
+   "title": "Flashcards & Spaced Repetition | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Flashcard Library & Visual Formulas"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 4,
+   "tapUnder44": 4,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Practice Questions 147x32",
+    "Practice Questions 147x32",
+    "Read Articles 119x32",
+    "Read Articles 119x32"
+   ],
+   "textEls": 7,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 2,
+    "600": 3,
+    "800": 1,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1862,
+   "domContentLoaded": 4024,
+   "axe": null
+  },
+  {
+   "route": "/flashcards",
+   "signedIn": true,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/flashcards",
+   "loadMs": 2920,
+   "shot": "docs/reports/ux/uxt0/shots/in_flashcards_768.jpg",
+   "path": "/flashcards",
+   "title": "Flashcards & Spaced Repetition | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Flashcard Library & Visual Formulas"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 4,
+   "tapUnder44": 4,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Practice Questions 158x32",
+    "Practice Questions 158x32",
+    "Read Articles 127x32",
+    "Read Articles 127x32"
+   ],
+   "textEls": 7,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 2,
+    "600": 3,
+    "800": 1,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1558,
+   "domContentLoaded": 1387,
+   "axe": null
+  },
+  {
+   "route": "/flashcards",
+   "signedIn": true,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/flashcards",
+   "loadMs": 3509,
+   "shot": "docs/reports/ux/uxt0/shots/in_flashcards_1280.jpg",
+   "path": "/flashcards",
+   "title": "Flashcards & Spaced Repetition | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Flashcard Library & Visual Formulas"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 4,
+   "tapUnder44": 4,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Practice Questions 158x32",
+    "Practice Questions 158x32",
+    "Read Articles 127x32",
+    "Read Articles 127x32"
+   ],
+   "textEls": 7,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 2,
+    "600": 3,
+    "800": 1,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1287,
+   "domContentLoaded": 1970,
+   "axe": null
+  },
+  {
+   "route": "/courses",
+   "signedIn": true,
+   "width": 360,
+   "status": 404,
+   "finalPath": "/courses",
+   "loadMs": 2636,
+   "shot": "docs/reports/ux/uxt0/shots/in_courses_360.jpg",
+   "path": "/courses",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 2,
+   "tapUnder44": 2,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Return to Home 136x40",
+    "Return to Home 136x40"
+   ],
+   "textEls": 4,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 1,
+    "500": 1,
+    "700": 1,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": true,
+   "docHeight": 1862,
+   "domContentLoaded": 1041,
+   "axe": null
+  },
+  {
+   "route": "/courses",
+   "signedIn": true,
+   "width": 768,
+   "status": 404,
+   "finalPath": "/courses",
+   "loadMs": 3434,
+   "shot": "docs/reports/ux/uxt0/shots/in_courses_768.jpg",
+   "path": "/courses",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 2,
+   "tapUnder44": 2,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Return to Home 136x40",
+    "Return to Home 136x40"
+   ],
+   "textEls": 4,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 1,
+    "500": 1,
+    "700": 1,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": true,
+   "docHeight": 1558,
+   "domContentLoaded": 1829,
+   "axe": null
+  },
+  {
+   "route": "/courses",
+   "signedIn": true,
+   "width": 1280,
+   "status": 404,
+   "finalPath": "/courses",
+   "loadMs": 3017,
+   "shot": "docs/reports/ux/uxt0/shots/in_courses_1280.jpg",
+   "path": "/courses",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 2,
+   "tapUnder44": 2,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Return to Home 136x40",
+    "Return to Home 136x40"
+   ],
+   "textEls": 4,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 1,
+    "500": 1,
+    "700": 1,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": true,
+   "docHeight": 1287,
+   "domContentLoaded": 1397,
+   "axe": null
+  },
+  {
+   "route": "/achievements",
+   "signedIn": true,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/achievements",
+   "loadMs": 2557,
+   "shot": "docs/reports/ux/uxt0/shots/in_achievements_360.jpg",
+   "path": "/achievements",
+   "title": "Achievements & Badges | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 2,
+   "tapUnder44": 2,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Return to Home 136x40",
+    "Return to Home 136x40"
+   ],
+   "textEls": 4,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 1,
+    "500": 1,
+    "700": 1,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": true,
+   "docHeight": 1862,
+   "domContentLoaded": 998,
+   "axe": null
+  },
+  {
+   "route": "/achievements",
+   "signedIn": true,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/achievements",
+   "loadMs": 2139,
+   "shot": "docs/reports/ux/uxt0/shots/in_achievements_768.jpg",
+   "path": "/achievements",
+   "title": "Achievements & Badges | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 2,
+   "tapUnder44": 2,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Return to Home 136x40",
+    "Return to Home 136x40"
+   ],
+   "textEls": 4,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 1,
+    "500": 1,
+    "700": 1,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": true,
+   "docHeight": 1558,
+   "domContentLoaded": 609,
+   "axe": null
+  },
+  {
+   "route": "/achievements",
+   "signedIn": true,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/achievements",
+   "loadMs": 2910,
+   "shot": "docs/reports/ux/uxt0/shots/in_achievements_1280.jpg",
+   "path": "/achievements",
+   "title": "Achievements & Badges | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 2,
+   "tapUnder44": 2,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Return to Home 136x40",
+    "Return to Home 136x40"
+   ],
+   "textEls": 4,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 1,
+    "500": 1,
+    "700": 1,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": true,
+   "docHeight": 1287,
+   "domContentLoaded": 1377,
+   "axe": null
+  },
+  {
+   "route": "/notifications",
+   "signedIn": true,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/notifications",
+   "loadMs": 3106,
+   "shot": "docs/reports/ux/uxt0/shots/in_notifications_360.jpg",
+   "path": "/notifications",
+   "title": "Notifications | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Notifications"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 4,
+   "tapUnder44": 4,
+   "tapUnder24": 1,
+   "under44Examples": [
+    "Back to Dashboard 109x32",
+    "Back to Dashboard 109x32",
+    "Start Practice Drill 129x20",
+    "Start Practice Drill 129x32"
+   ],
+   "textEls": 6,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 1,
+    "500": 1,
+    "600": 2,
+    "800": 1,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1862,
+   "domContentLoaded": 1540,
+   "axe": null
+  },
+  {
+   "route": "/notifications",
+   "signedIn": true,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/notifications",
+   "loadMs": 2491,
+   "shot": "docs/reports/ux/uxt0/shots/in_notifications_768.jpg",
+   "path": "/notifications",
+   "title": "Notifications | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Notifications"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 4,
+   "tapUnder44": 4,
+   "tapUnder24": 1,
+   "under44Examples": [
+    "Back to Dashboard 155x32",
+    "Back to Dashboard 155x32",
+    "Start Practice Drill 129x20",
+    "Start Practice Drill 129x32"
+   ],
+   "textEls": 6,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 1,
+    "500": 1,
+    "600": 2,
+    "800": 1,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1558,
+   "domContentLoaded": 963,
+   "axe": null
+  },
+  {
+   "route": "/notifications",
+   "signedIn": true,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/notifications",
+   "loadMs": 2081,
+   "shot": "docs/reports/ux/uxt0/shots/in_notifications_1280.jpg",
+   "path": "/notifications",
+   "title": "Notifications | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Notifications"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 4,
+   "tapUnder44": 4,
+   "tapUnder24": 1,
+   "under44Examples": [
+    "Back to Dashboard 155x32",
+    "Back to Dashboard 155x32",
+    "Start Practice Drill 129x20",
+    "Start Practice Drill 129x32"
+   ],
+   "textEls": 6,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 1,
+    "500": 1,
+    "600": 2,
+    "800": 1,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1287,
+   "domContentLoaded": 543,
+   "axe": null
+  }
+ ],
+ "nonGetRequests": [
+  {
+   "who": "student",
+   "method": "POST",
+   "path": "/auth/login",
+   "action": "server-action"
+  }
+ ]
+}

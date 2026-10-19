@@ -1,0 +1,755 @@
+{
+  "/dashboard": {
+    "page": "app/dashboard/page.tsx",
+    "files": 1,
+    "rawColor": 0,
+    "paletteClass": 64,
+    "darkClass": 0,
+    "smallText": 8,
+    "legacyImport": 4,
+    "rawButton": 0,
+    "primButton": 1,
+    "rawInput": 0,
+    "primInput": 0,
+    "transitionAll": 5,
+    "emptyState": false,
+    "loading": "app/dashboard/loading.tsx",
+    "error": "app/error.tsx",
+    "topFiles": [
+      [
+        "app/dashboard/page.tsx",
+        64,
+        8,
+        4
+      ]
+    ]
+  },
+  "/mock-tests": {
+    "page": "app/mock-tests/page.tsx",
+    "files": 4,
+    "rawColor": 0,
+    "paletteClass": 246,
+    "darkClass": 0,
+    "smallText": 29,
+    "legacyImport": 5,
+    "rawButton": 7,
+    "primButton": 13,
+    "rawInput": 0,
+    "primInput": 0,
+    "transitionAll": 9,
+    "emptyState": false,
+    "loading": null,
+    "error": "app/error.tsx",
+    "topFiles": [
+      [
+        "components/assessment/mock-test-dashboard-view.tsx",
+        241,
+        29,
+        4
+      ],
+      [
+        "components/assessment/start-test-action-button.tsx",
+        5,
+        0,
+        1
+      ],
+      [
+        "app/mock-tests/page.tsx",
+        0,
+        0,
+        0
+      ],
+      [
+        "app/mock-tests/actions.ts",
+        0,
+        0,
+        0
+      ]
+    ]
+  },
+  "/mock-tests/[id]": {
+    "page": "app/mock-tests/[id]/page.tsx",
+    "files": 2,
+    "rawColor": 0,
+    "paletteClass": 41,
+    "darkClass": 0,
+    "smallText": 0,
+    "legacyImport": 5,
+    "rawButton": 0,
+    "primButton": 3,
+    "rawInput": 0,
+    "primInput": 0,
+    "transitionAll": 1,
+    "emptyState": false,
+    "loading": null,
+    "error": "app/error.tsx",
+    "topFiles": [
+      [
+        "app/mock-tests/[id]/page.tsx",
+        36,
+        0,
+        4
+      ],
+      [
+        "components/assessment/start-test-action-button.tsx",
+        5,
+        0,
+        1
+      ]
+    ]
+  },
+  "/mock-tests/[id]/result": {
+    "page": "app/mock-tests/[id]/result/page.tsx",
+    "files": 5,
+    "rawColor": 0,
+    "paletteClass": 257,
+    "darkClass": 0,
+    "smallText": 31,
+    "legacyImport": 5,
+    "rawButton": 7,
+    "primButton": 6,
+    "rawInput": 0,
+    "primInput": 0,
+    "transitionAll": 1,
+    "emptyState": false,
+    "loading": "app/mock-tests/[id]/result/loading.tsx",
+    "error": "app/error.tsx",
+    "topFiles": [
+      [
+        "components/assessment/result-view-client.tsx",
+        192,
+        28,
+        2
+      ],
+      [
+        "components/assessment/question-review-card.tsx",
+        47,
+        3,
+        0
+      ],
+      [
+        "app/mock-tests/[id]/result/page.tsx",
+        18,
+        0,
+        3
+      ],
+      [
+        "components/assessment/candidate-security-watermark.tsx",
+        0,
+        0,
+        0
+      ],
+      [
+        "components/questions/answer-key-notice.tsx",
+        0,
+        0,
+        0
+      ]
+    ]
+  },
+  "/mock-tests/[id]/take (console, static only)": {
+    "page": "app/mock-tests/[id]/take/page.tsx",
+    "files": 12,
+    "rawColor": 1,
+    "paletteClass": 465,
+    "darkClass": 0,
+    "smallText": 44,
+    "legacyImport": 4,
+    "rawButton": 25,
+    "primButton": 30,
+    "rawInput": 3,
+    "primInput": 0,
+    "transitionAll": 10,
+    "emptyState": false,
+    "loading": "app/mock-tests/[id]/take/loading.tsx",
+    "error": "app/error.tsx",
+    "topFiles": [
+      [
+        "app/mock-tests/[id]/take/player-client.tsx",
+        210,
+        22,
+        1
+      ],
+      [
+        "components/assessment/question-palette.tsx",
+        66,
+        6,
+        0
+      ],
+      [
+        "components/assessment/instructions-modal.tsx",
+        44,
+        5,
+        1
+      ],
+      [
+        "components/assessment/submit-dialog.tsx",
+        38,
+        5,
+        1
+      ],
+      [
+        "components/assessment/question-renderer.tsx",
+        30,
+        3,
+        0
+      ]
+    ]
+  },
+  "/live-tests/[slug]/take (console, static only)": {
+    "page": "app/live-tests/[slug]/take/page.tsx",
+    "files": 9,
+    "rawColor": 0,
+    "paletteClass": 210,
+    "darkClass": 0,
+    "smallText": 14,
+    "legacyImport": 2,
+    "rawButton": 11,
+    "primButton": 8,
+    "rawInput": 1,
+    "primInput": 1,
+    "transitionAll": 6,
+    "emptyState": false,
+    "loading": "app/live-tests/[slug]/take/loading.tsx",
+    "error": "app/error.tsx",
+    "topFiles": [
+      [
+        "components/assessment/question-palette.tsx",
+        66,
+        6,
+        0
+      ],
+      [
+        "components/live-test/live-test-player-client.tsx",
+        54,
+        0,
+        1
+      ],
+      [
+        "components/assessment/submit-dialog.tsx",
+        38,
+        5,
+        1
+      ],
+      [
+        "components/assessment/question-renderer.tsx",
+        30,
+        3,
+        0
+      ],
+      [
+        "components/assessment/question-options.tsx",
+        22,
+        0,
+        0
+      ]
+    ]
+  },
+  "/mistakes": {
+    "page": "app/mistakes/page.tsx",
+    "files": 12,
+    "rawColor": 0,
+    "paletteClass": 410,
+    "darkClass": 0,
+    "smallText": 52,
+    "legacyImport": 15,
+    "rawButton": 7,
+    "primButton": 17,
+    "rawInput": 4,
+    "primInput": 0,
+    "transitionAll": 11,
+    "emptyState": false,
+    "loading": "app/mistakes/loading.tsx",
+    "error": "app/error.tsx",
+    "topFiles": [
+      [
+        "components/mistakes/mistake-longitudinal-card.tsx",
+        102,
+        23,
+        1
+      ],
+      [
+        "components/mistakes/mistake-revision-health.tsx",
+        91,
+        13,
+        2
+      ],
+      [
+        "components/mistakes/mistake-filter-bar.tsx",
+        54,
+        2,
+        1
+      ],
+      [
+        "components/mistakes/mistake-card.tsx",
+        42,
+        12,
+        2
+      ],
+      [
+        "components/mistakes/mistake-empty-state.tsx",
+        38,
+        0,
+        2
+      ]
+    ]
+  },
+  "/performance": {
+    "page": "app/performance/page.tsx",
+    "files": 1,
+    "rawColor": 0,
+    "paletteClass": 183,
+    "darkClass": 0,
+    "smallText": 14,
+    "legacyImport": 1,
+    "rawButton": 0,
+    "primButton": 4,
+    "rawInput": 0,
+    "primInput": 0,
+    "transitionAll": 0,
+    "emptyState": false,
+    "loading": "app/performance/loading.tsx",
+    "error": "app/error.tsx",
+    "topFiles": [
+      [
+        "app/performance/page.tsx",
+        183,
+        14,
+        1
+      ]
+    ]
+  },
+  "/current-affairs": {
+    "page": "app/current-affairs/page.tsx",
+    "files": 5,
+    "rawColor": 0,
+    "paletteClass": 150,
+    "darkClass": 0,
+    "smallText": 3,
+    "legacyImport": 1,
+    "rawButton": 4,
+    "primButton": 0,
+    "rawInput": 2,
+    "primInput": 0,
+    "transitionAll": 5,
+    "emptyState": false,
+    "loading": null,
+    "error": "app/error.tsx",
+    "topFiles": [
+      [
+        "components/current-affairs/current-affairs-card.tsx",
+        64,
+        0,
+        0
+      ],
+      [
+        "app/current-affairs/page.tsx",
+        28,
+        0,
+        1
+      ],
+      [
+        "components/current-affairs/current-affairs-filters.tsx",
+        25,
+        1,
+        0
+      ],
+      [
+        "components/current-affairs/current-affairs-daily-quiz-card.tsx",
+        25,
+        2,
+        0
+      ],
+      [
+        "components/current-affairs/current-affairs-feed-container.tsx",
+        8,
+        0,
+        0
+      ]
+    ]
+  },
+  "/current-affairs/[slug]": {
+    "page": "app/current-affairs/[slug]/page.tsx",
+    "files": 6,
+    "rawColor": 0,
+    "paletteClass": 264,
+    "darkClass": 0,
+    "smallText": 6,
+    "legacyImport": 1,
+    "rawButton": 0,
+    "primButton": 0,
+    "rawInput": 0,
+    "primInput": 0,
+    "transitionAll": 2,
+    "emptyState": false,
+    "loading": null,
+    "error": "app/error.tsx",
+    "topFiles": [
+      [
+        "components/exams/exam-mdx-article-renderer.tsx",
+        90,
+        3,
+        0
+      ],
+      [
+        "components/current-affairs/current-affairs-card.tsx",
+        64,
+        0,
+        0
+      ],
+      [
+        "app/current-affairs/[slug]/page.tsx",
+        43,
+        0,
+        1
+      ],
+      [
+        "components/current-affairs/current-affairs-exam-badges.tsx",
+        25,
+        2,
+        0
+      ],
+      [
+        "components/current-affairs/current-affairs-sources-card.tsx",
+        24,
+        1,
+        0
+      ]
+    ]
+  },
+  "/exams": {
+    "page": "app/exams/page.tsx",
+    "files": 1,
+    "rawColor": 0,
+    "paletteClass": 23,
+    "darkClass": 0,
+    "smallText": 2,
+    "legacyImport": 4,
+    "rawButton": 0,
+    "primButton": 1,
+    "rawInput": 0,
+    "primInput": 0,
+    "transitionAll": 1,
+    "emptyState": false,
+    "loading": null,
+    "error": "app/error.tsx",
+    "topFiles": [
+      [
+        "app/exams/page.tsx",
+        23,
+        2,
+        4
+      ]
+    ]
+  },
+  "/exams/[slug]": {
+    "page": "app/exams/[slug]/page.tsx",
+    "files": 9,
+    "rawColor": 0,
+    "paletteClass": 135,
+    "darkClass": 0,
+    "smallText": 20,
+    "legacyImport": 14,
+    "rawButton": 2,
+    "primButton": 3,
+    "rawInput": 0,
+    "primInput": 0,
+    "transitionAll": 2,
+    "emptyState": true,
+    "loading": null,
+    "error": "app/error.tsx",
+    "topFiles": [
+      [
+        "app/exams/[slug]/page.tsx",
+        48,
+        6,
+        3
+      ],
+      [
+        "components/exams/exam-cycle-snapshot.tsx",
+        22,
+        5,
+        2
+      ],
+      [
+        "components/exams/exam-module-card.tsx",
+        16,
+        3,
+        2
+      ],
+      [
+        "components/exams/exam-posts-table.tsx",
+        14,
+        4,
+        2
+      ],
+      [
+        "components/exams/exam-hero.tsx",
+        13,
+        0,
+        2
+      ]
+    ]
+  },
+  "/practice": {
+    "page": "app/practice/page.tsx",
+    "files": 1,
+    "rawColor": 0,
+    "paletteClass": 13,
+    "darkClass": 0,
+    "smallText": 0,
+    "legacyImport": 4,
+    "rawButton": 0,
+    "primButton": 2,
+    "rawInput": 0,
+    "primInput": 0,
+    "transitionAll": 2,
+    "emptyState": false,
+    "loading": null,
+    "error": "app/error.tsx",
+    "topFiles": [
+      [
+        "app/practice/page.tsx",
+        13,
+        0,
+        4
+      ]
+    ]
+  },
+  "/pricing": {
+    "page": "app/pricing/page.tsx",
+    "files": 2,
+    "rawColor": 0,
+    "paletteClass": 52,
+    "darkClass": 0,
+    "smallText": 3,
+    "legacyImport": 4,
+    "rawButton": 0,
+    "primButton": 2,
+    "rawInput": 1,
+    "primInput": 0,
+    "transitionAll": 0,
+    "emptyState": false,
+    "loading": null,
+    "error": "app/error.tsx",
+    "topFiles": [
+      [
+        "app/pricing/pricing-client.tsx",
+        52,
+        3,
+        4
+      ],
+      [
+        "app/pricing/page.tsx",
+        0,
+        0,
+        0
+      ]
+    ]
+  },
+  "/auth/login": {
+    "page": "app/auth/login/page.tsx",
+    "files": 3,
+    "rawColor": 0,
+    "paletteClass": 10,
+    "darkClass": 0,
+    "smallText": 0,
+    "legacyImport": 4,
+    "rawButton": 0,
+    "primButton": 1,
+    "rawInput": 1,
+    "primInput": 2,
+    "transitionAll": 0,
+    "emptyState": false,
+    "loading": null,
+    "error": "app/error.tsx",
+    "topFiles": [
+      [
+        "app/auth/login/page.tsx",
+        10,
+        0,
+        4
+      ],
+      [
+        "components/brand/logo.tsx",
+        0,
+        0,
+        0
+      ],
+      [
+        "app/auth/actions.ts",
+        0,
+        0,
+        0
+      ]
+    ]
+  },
+  "/auth/signup": {
+    "page": "app/auth/signup/page.tsx",
+    "files": 3,
+    "rawColor": 0,
+    "paletteClass": 6,
+    "darkClass": 0,
+    "smallText": 0,
+    "legacyImport": 4,
+    "rawButton": 0,
+    "primButton": 1,
+    "rawInput": 0,
+    "primInput": 3,
+    "transitionAll": 0,
+    "emptyState": false,
+    "loading": null,
+    "error": "app/error.tsx",
+    "topFiles": [
+      [
+        "app/auth/signup/page.tsx",
+        6,
+        0,
+        4
+      ],
+      [
+        "components/brand/logo.tsx",
+        0,
+        0,
+        0
+      ],
+      [
+        "app/auth/actions.ts",
+        0,
+        0,
+        0
+      ]
+    ]
+  },
+  "/articles": {
+    "page": "app/articles/page.tsx",
+    "files": 1,
+    "rawColor": 0,
+    "paletteClass": 24,
+    "darkClass": 0,
+    "smallText": 3,
+    "legacyImport": 4,
+    "rawButton": 0,
+    "primButton": 3,
+    "rawInput": 0,
+    "primInput": 0,
+    "transitionAll": 1,
+    "emptyState": false,
+    "loading": null,
+    "error": "app/error.tsx",
+    "topFiles": [
+      [
+        "app/articles/page.tsx",
+        24,
+        3,
+        4
+      ]
+    ]
+  },
+  "/flashcards": {
+    "page": "app/flashcards/page.tsx",
+    "files": 2,
+    "rawColor": 0,
+    "paletteClass": 24,
+    "darkClass": 0,
+    "smallText": 4,
+    "legacyImport": 7,
+    "rawButton": 0,
+    "primButton": 4,
+    "rawInput": 0,
+    "primInput": 0,
+    "transitionAll": 2,
+    "emptyState": false,
+    "loading": null,
+    "error": "app/error.tsx",
+    "topFiles": [
+      [
+        "components/flashcards/flashcard-deck-card.tsx",
+        15,
+        4,
+        3
+      ],
+      [
+        "app/flashcards/page.tsx",
+        9,
+        0,
+        4
+      ]
+    ]
+  },
+  "/courses": {
+    "page": "app/courses/page.tsx",
+    "files": 1,
+    "rawColor": 0,
+    "paletteClass": 23,
+    "darkClass": 0,
+    "smallText": 1,
+    "legacyImport": 4,
+    "rawButton": 0,
+    "primButton": 1,
+    "rawInput": 0,
+    "primInput": 0,
+    "transitionAll": 2,
+    "emptyState": false,
+    "loading": null,
+    "error": "app/error.tsx",
+    "topFiles": [
+      [
+        "app/courses/page.tsx",
+        23,
+        1,
+        4
+      ]
+    ]
+  },
+  "/achievements": {
+    "page": "app/achievements/page.tsx",
+    "files": 1,
+    "rawColor": 0,
+    "paletteClass": 91,
+    "darkClass": 0,
+    "smallText": 10,
+    "legacyImport": 1,
+    "rawButton": 0,
+    "primButton": 3,
+    "rawInput": 0,
+    "primInput": 0,
+    "transitionAll": 0,
+    "emptyState": false,
+    "loading": "app/achievements/loading.tsx",
+    "error": "app/error.tsx",
+    "topFiles": [
+      [
+        "app/achievements/page.tsx",
+        91,
+        10,
+        1
+      ]
+    ]
+  },
+  "/notifications": {
+    "page": "app/notifications/page.tsx",
+    "files": 1,
+    "rawColor": 0,
+    "paletteClass": 9,
+    "darkClass": 0,
+    "smallText": 0,
+    "legacyImport": 3,
+    "rawButton": 0,
+    "primButton": 2,
+    "rawInput": 0,
+    "primInput": 0,
+    "transitionAll": 0,
+    "emptyState": false,
+    "loading": "app/notifications/loading.tsx",
+    "error": "app/error.tsx",
+    "topFiles": [
+      [
+        "app/notifications/page.tsx",
+        9,
+        0,
+        3
+      ]
+    ]
+  }
+}

@@ -1,0 +1,329 @@
+{
+ "base": "local next start (with-server)",
+ "generated": "2026-10-19T09:43:56.083Z",
+ "results": [
+  {
+   "route": "/mock-tests/[id]",
+   "signedIn": false,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/mock-tests/[id]",
+   "loadMs": 2663,
+   "shot": "docs/reports/ux/uxt0/shots/out_mock-tests_id__360.jpg",
+   "path": "/mock-tests/aa36204b-a0f3-489e-a405-bd33dcf532de",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 19,
+   "tapUnder44": 6,
+   "tapUnder24": 1,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Get started 99x36",
+    "Back to Mock Tests 133x16",
+    "Back to Dashboard 107x43",
+    "Back to Dashboard 107x40",
+    "Exams 44x44"
+   ],
+   "textEls": 45,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 20,
+    "500": 2,
+    "600": 13,
+    "700": 6,
+    "900": 4
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1900,
+   "domContentLoaded": 1069,
+   "axe": [
+    {
+     "id": "target-size",
+     "impact": "serious",
+     "nodes": 1,
+     "sample": ".pt-6.border-slate-100.justify-between > a[href$=\"mock-tests\"]"
+    }
+   ]
+  },
+  {
+   "route": "/mock-tests/[id]",
+   "signedIn": false,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/mock-tests/[id]",
+   "loadMs": 5100,
+   "shot": "docs/reports/ux/uxt0/shots/out_mock-tests_id__768.jpg",
+   "path": "/mock-tests/aa36204b-a0f3-489e-a405-bd33dcf532de",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 20,
+   "tapUnder44": 18,
+   "tapUnder24": 1,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Sign in 69x36",
+    "Get started 99x36",
+    "Back to Mock Tests 133x16",
+    "Back to Dashboard 161x40"
+   ],
+   "textEls": 46,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 20,
+    "500": 3,
+    "600": 13,
+    "700": 6,
+    "900": 4
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1493,
+   "domContentLoaded": 3545,
+   "axe": null
+  },
+  {
+   "route": "/mock-tests/[id]",
+   "signedIn": false,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/mock-tests/[id]",
+   "loadMs": 14831,
+   "shot": "docs/reports/ux/uxt0/shots/out_mock-tests_id__1280.jpg",
+   "path": "/mock-tests/aa36204b-a0f3-489e-a405-bd33dcf532de",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 24,
+   "tapUnder44": 18,
+   "tapUnder24": 1,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Sign in 69x36",
+    "Get started 99x36",
+    "Back to Mock Tests 133x16",
+    "Back to Dashboard 161x40"
+   ],
+   "textEls": 51,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 20,
+    "500": 8,
+    "600": 13,
+    "700": 6,
+    "900": 4
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1287,
+   "domContentLoaded": 13284,
+   "axe": []
+  },
+  {
+   "route": "/mock-tests/[id]",
+   "signedIn": true,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/mock-tests/[id]",
+   "loadMs": 5298,
+   "shot": "docs/reports/ux/uxt0/shots/in_mock-tests_id__360.jpg",
+   "path": "/mock-tests/aa36204b-a0f3-489e-a405-bd33dcf532de",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 24,
+   "tapUnder44": 6,
+   "tapUnder24": 1,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Back to Mock Tests 133x16",
+    "Back to Dashboard 107x43",
+    "Back to Dashboard 107x40",
+    "Exams 44x44"
+   ],
+   "textEls": 49,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 20,
+    "500": 6,
+    "600": 13,
+    "700": 6,
+    "900": 4
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1965,
+   "domContentLoaded": 3705,
+   "axe": [
+    {
+     "id": "target-size",
+     "impact": "serious",
+     "nodes": 1,
+     "sample": ".pt-6.border-slate-100.justify-between > a[href$=\"mock-tests\"]"
+    }
+   ]
+  },
+  {
+   "route": "/mock-tests/[id]",
+   "signedIn": true,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/mock-tests/[id]",
+   "loadMs": 4371,
+   "shot": "docs/reports/ux/uxt0/shots/in_mock-tests_id__768.jpg",
+   "path": "/mock-tests/aa36204b-a0f3-489e-a405-bd33dcf532de",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 24,
+   "tapUnder44": 16,
+   "tapUnder24": 1,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Back to Mock Tests 133x16",
+    "Back to Dashboard 161x40",
+    "Back to Dashboard 161x40",
+    "Exams 44x36"
+   ],
+   "textEls": 49,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 20,
+    "500": 6,
+    "600": 13,
+    "700": 6,
+    "900": 4
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1558,
+   "domContentLoaded": 2838,
+   "axe": null
+  },
+  {
+   "route": "/mock-tests/[id]",
+   "signedIn": true,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/mock-tests/[id]",
+   "loadMs": 6290,
+   "shot": "docs/reports/ux/uxt0/shots/in_mock-tests_id__1280.jpg",
+   "path": "/mock-tests/aa36204b-a0f3-489e-a405-bd33dcf532de",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 25,
+   "tapUnder44": 16,
+   "tapUnder24": 1,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Back to Mock Tests 133x16",
+    "Back to Dashboard 161x40",
+    "Back to Dashboard 161x40",
+    "Exams 44x36"
+   ],
+   "textEls": 52,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 20,
+    "500": 8,
+    "600": 14,
+    "700": 6,
+    "900": 4
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1287,
+   "domContentLoaded": 4755,
+   "axe": [
+    {
+     "id": "color-contrast",
+     "impact": "serious",
+     "nodes": 1,
+     "sample": ".active\\:scale-\\[0\\.98\\]"
+    }
+   ]
+  }
+ ],
+ "nonGetRequests": [
+  {
+   "who": "student",
+   "method": "POST",
+   "path": "/auth/login",
+   "action": "server-action"
+  }
+ ]
+}
