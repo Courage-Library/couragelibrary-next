@@ -1,8 +1,8 @@
 /**
- * UX-2b.H: honest copy (H-1 … H-11). Every sentence a student reads must be true today.
+ * UX-2b.H + UX-2b.H2: honest copy (H-1 … H-11, E-1 … E-7). Every sentence a student reads must be true today.
  *
  * Offline (no network):
- *   U-1  isFullLengthMock / mockLengthLabel boundaries (lib/assessment/display-rules.ts)
+ *   U-1  formatMockShape: "{N} question(s) · {duration}", 0 / missing / NaN handled (lib/assessment/display-rules.ts)
  *   U-2  canShowRank boundaries (RANK_MIN_COHORT)
  *   S-1  banned phrases are gone from the touched source files (comments excluded)
  *   S-2  pricing: the payments-OFF view returns before the unchanged payments-ON markup and contains no price,
@@ -10,16 +10,19 @@
  *   S-3  result view: every standing.rank / standing.percentile use sits inside the canShowRank(...) branch
  *   S-4  current affairs: the hub calls only CurrentAffairsService.getHubData (no new query path); the quiz section and
  *        card render only for status ALREADY_PUBLISHED; no "being curated" / "5-gate" / "fact-checked" copy
- *   S-5  mock labels come from mockLengthLabel; no "Full-Length" / "Full Mock" / "full-length exam" copy
+ *   S-5  mock size comes from formatMockShape; no "Full-length mock" / "Shorter mock" / old mislabels
+ *   S-6  (H2) unbacked official / verified / authoritative / commission-accurate / partner claims gone from the
+ *        touched source files (H2_STATIC; the same patterns hit HEAD before UX-2b.H2)
+ *   S-7  (H2) CA sources card: canonical tier names and only the real review process
  * Live (local build via scripts/live/with-server.cjs; qa-student from .env.local, never printed; read-only):
  *   L-1  each H-item's banned phrase is absent on its route, signed out and signed in, at 360 and 1280
- *   L-2  global guard on the touched routes (allow-list in ALLOW below, each justified)
+ *   L-2  global guard on every view, every match (H + H2 phrases; allow-list ALLOW below, each with its rule)
  *   L-3  pricing with payments OFF: no purchasable price / GST / "most popular" / coupon / checkout button; only the
  *        live free features are ticked; Pro reads "Opening soon" + "Pricing announced soon"
  *   L-4  current affairs: honest empty state for a day with 0 published; latest-published link when one exists
  *        (VACUOUS when nothing is published); no quiz card without a published quiz
  *   L-5  rank gate: the QA result (cohort below RANK_MIN_COHORT) shows no rank / percentile and the honest line
- *   L-6  mock list: every card's length label matches the rule applied to the size it displays
+ *   L-6  mock list: every card states "{N} question(s) · {duration}"; no length judgement
  *   L-7  axe 0 critical / serious and exactly one h1 on every touched route (360, 1280)
  *   L-8  /live-tests is still flag-off (404) and its copy is checked statically (S-1)
  *   L-9  read-only: no non-GET request except the sign-in
@@ -51,7 +54,8 @@ const warnVacuous = (id, name) => {
   vacuous++;
   console.log(`  WARN  VACUOUS (0 items): ${id} ${name}`);
 };
-const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
+// line endings normalised: a core.autocrlf checkout must not change what the static checks see
+const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8').replace(/\r\n/g, '\n');
 const code = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\{\/\*[\s\S]*?\*\/\}/g, '').replace(/^\s*\/\/.*$/gm, '');
 
 // Banned per H-item (rendered and source). /live-tests is flag-off, so H-2 is checked in source only.
@@ -65,12 +69,25 @@ const H = {
   'H-7': { route: '/pricing', file: null, banned: [/most popular/i, /\+\s*18%\s*GST/i, /discount coupon/i, /upgrade to pro now/i] },
   'H-8': { route: 'RESULT|MOCK|LEADERBOARD', file: null, banned: [/\bofficial\b/i] },
   'H-9': { route: 'RESULT', file: null, banned: [/verified candidate/i, /top 3 podium/i, /live competition/i, /\btopper\b/i] },
-  'H-10': { route: '/mock-tests|/dashboard', file: 'components/assessment/mock-test-dashboard-view.tsx', banned: [/full-length mock tests/i, /full-length mocks scheduled/i, /start full mock/i, /full-length exam/i, /full-length simulations/i] },
+  'H-10': { route: '/mock-tests|/dashboard', file: 'components/assessment/mock-test-dashboard-view.tsx', banned: [/full-length mock\b/i, /shorter mock/i, /full-length mock tests/i, /full-length mocks scheduled/i, /start full mock/i, /full-length exam/i, /full-length simulations/i] },
   'H-11': { route: '/dashboard', file: 'app/dashboard/page.tsx', banned: [/readiness engine/i, /spaced repetition/i, /great job/i] },
 };
-const GLOBAL = [/thousands of/i, /\bofficial\b/i, /most popular/i, /fact verification/i, /being curated/i, /one-stop/i, /verified candidate/i];
-// Allow-list: legitimate uses only (none needed on the touched routes today; kept explicit for future additions).
-const ALLOW = [];
+const GLOBAL = [/thousands of/i, /\bofficial\b/i, /most popular/i, /fact verification/i, /being curated/i, /one-stop/i, /verified candidate/i,
+  // UX-2b.H2
+  /\bverified\b/i, /authoritative/i, /commission-accurate/i, /verified national press/i, /verified sources/i, /verified provenance/i];
+// "Full-length mock" / "Shorter mock" (E-7) are checked on /mock-tests only (H-10 + L-6): the wallet's earning rule
+// "Full-Length Mock +25 CL" is a reward-rule label outside UX-2b.H2's approved wallet wording (report §6).
+// Allow-list (UX-2b.H2 report §3). Each entry: the rule that makes the use true. Matched against ±80 characters around a hit.
+const ALLOW = [
+  { id: 'A-1', rule: 'names a third party\'s official material we show or link: the exam\'s "Official Sources" section / nav lists the commission\'s own notices', rx: /Official [Ss]ources/ },
+  { id: 'A-2', rule: 'third party\'s official notice / website (the commission\'s notification, an institute\'s own website)', rx: /official (commission )?(notification|notice)|official website|Official Website/i },
+  { id: 'A-3', rule: 'CA source-type name (canonical Tier 1 = official government / statutory)', rx: /Tier 1 — Official government/ },
+  // A-4 is scoped: STORED exam-guide content (published exam-knowledge module titles, descriptions, articles, FAQs) on
+  // /exams/<slug>/… only, and only these words. It mostly names SSC's own material ("the official SSC portal"); the
+  // "Authoritative guide …" descriptions are content claims listed for the content phase (data, not editable here).
+  // Our own UI wording on those routes is checked strictly by L-11.
+  { id: 'A-4', rule: 'stored exam-guide content (DB) on /exams/<slug>/… (content phase; UI chrome checked by L-11)', routes: /^\/exams\/[a-z0-9-]+(\/|$)/, words: /^(official|verified|authoritative)$/i, rx: /[\s\S]/ },
+];
 
 function loadTs(rel) {
   const ts = require('typescript');
@@ -83,18 +100,25 @@ function loadTs(rel) {
 function offline() {
   console.log('Offline');
   const R = loadTs('lib/assessment/display-rules.ts');
+  // UX-2b.H2 (E-7): the mock size is stated as facts; the H-10 full-length rule and its helpers are gone
   const cases = [
-    [{ totalQuestions: 100, durationMinutes: 60 }, true],
-    [{ totalQuestions: 99, durationMinutes: 60 }, false],
-    [{ totalQuestions: 100, durationMinutes: 59 }, false],
-    [{ totalQuestions: 25, durationMinutes: 15 }, false],
-    [{ totalQuestions: 100, durationMinutes: 90 }, true],
-    [{ totalQuestions: 150, durationMinutes: 120 }, true],
-    [{ totalQuestions: 25, durationMinutes: 60 }, false],
-    [{ totalQuestions: NaN, durationMinutes: 60 }, false],
+    [{ totalQuestions: 1, durationMinutes: 1 }, '1 question · 1 min'],
+    [{ totalQuestions: 25, durationMinutes: 15 }, '25 questions · 15 min'],
+    [{ totalQuestions: 100, durationMinutes: 60 }, '100 questions · 1 hr'],
+    [{ totalQuestions: 90, durationMinutes: 90 }, '90 questions · 1 hr 30 min'],
+    [{ totalQuestions: 80, durationMinutes: 60 }, '80 questions · 1 hr'],
+    [{ totalQuestions: 150, durationMinutes: 125 }, '150 questions · 2 hr 5 min'],
+    [{ totalQuestions: 0, durationMinutes: 0 }, ''],
+    [{ totalQuestions: 25, durationMinutes: 0 }, '25 questions'],
+    [{ totalQuestions: undefined, durationMinutes: 15 }, '15 min'],
+    [{ totalQuestions: NaN, durationMinutes: NaN }, ''],
+    [{ totalQuestions: null, durationMinutes: null }, ''],
+    [{}, ''],
   ];
-  const bad = cases.filter(([m, want]) => R.isFullLengthMock(m) !== want || R.mockLengthLabel(m) !== (want ? 'Full-length mock' : 'Shorter mock'));
-  check('U-1', `full-length rule: ≥ ${R.FULL_LENGTH_MIN_QUESTIONS} questions AND ≥ ${R.FULL_LENGTH_MIN_MINUTES} min (${cases.length} boundary cases)`, bad.length === 0, bad.map(([m]) => JSON.stringify(m)).join(' '));
+  const bad = cases.filter(([m, want]) => R.formatMockShape(m) !== want);
+  check('U-1', `formatMockShape: "{N} question(s) · {duration}" (${cases.length} cases incl. 1 question, 90/90 → 1 hr 30 min, 0 / missing / NaN → no "NaN")`,
+    bad.length === 0 && typeof R.isFullLengthMock === 'undefined' && typeof R.mockLengthLabel === 'undefined',
+    bad.map(([m, w]) => `${JSON.stringify(m)} → "${R.formatMockShape(m)}" (want "${w}")`).join('; '));
   const rk = [[29, false], [30, true], [3, false], [0, false], [500, true], [NaN, false]];
   const rbad = rk.filter(([n, want]) => R.canShowRank(n) !== want);
   check('U-2', `rank gate: shown only for a cohort ≥ RANK_MIN_COHORT (${R.RANK_MIN_COHORT}; placeholder pending owner)`, R.RANK_MIN_COHORT === 30 && rbad.length === 0, rbad.map(([n]) => n).join(','));
@@ -138,9 +162,38 @@ function offline() {
 
   const mv = code(read('components/assessment/mock-test-dashboard-view.tsx'));
   const dash = code(read('app/dashboard/page.tsx'));
-  check('S-5', 'mock labels from mockLengthLabel; no full-length mislabels on /mock-tests or /dashboard',
-    /mockLengthLabel\(test\)/.test(mv) && !/Full-Length|Full Mock|full-length (exam|simulations)/i.test(mv) && !/full-length/i.test(dash));
+  check('S-5', 'mock size from formatMockShape; no length judgement ("Full-length mock" / "Shorter mock") or old mislabels on /mock-tests or /dashboard',
+    /formatMockShape\(test\)/.test(mv) && !/mockLengthLabel|isFullLengthMock|Full-length mock|Shorter mock|Full-Length|Full Mock|full-length (exam|simulations)/i.test(mv) &&
+      !/full-length/i.test(dash));
+
+  // UX-2b.H2: unbacked official / verified claims removed from the touched source files (comments excluded)
+  const H2_SRC = H2_STATIC.map(([f, rxs]) => [f, rxs.filter((rx) => rx.test(code(read(f)))).map((rx) => rx.source)]).filter(([, h]) => h.length);
+  check('S-6', `H2 claims gone from ${H2_STATIC.length} touched source files (official / verified / authoritative / commission-accurate / provenance / partner)`,
+    H2_SRC.length === 0, H2_SRC.map(([f, h]) => `${f}: ${h.join(',')}`).join('; '));
+  const sc = read('components/current-affairs/current-affairs-sources-card.tsx');
+  const tiers = ['Tier 1 — Official government / statutory', 'Tier 2 — Intergovernmental / public institution', 'Tier 3 — Reputable national media', 'Tier 4 — Secondary (blogs, social media, coaching)'];
+  check('S-7', 'CA sources card uses the canonical tier names and states only the real review process',
+    tiers.every((t) => sc.includes(`label: '${t}'`)) && /passes automated checks and a review by our staff/.test(sc) && !/Every event point is checked/.test(sc));
 }
+
+// Static H2 checks (file → patterns that must be absent outside comments). Run against HEAD they must hit (report §7).
+const H2_STATIC = [
+  ['app/exams/page.tsx', [/Official Knowledge Repository/, /commission-accurate/i, /\bVerified\b/, /official notification timelines/i]],
+  ['components/exams/exam-hero.tsx', [/Official Verified/]],
+  ['app/exams/[slug]/page.tsx', [/Official notification dates/]],
+  ['app/exams/[slug]/cycle/[cycleYear]/page.tsx', [/Official notification details/]],
+  ['components/exams/exam-module-card.tsx', [/Verified: \{/, /verified parameters/i]],
+  ['components/exams/exam-module-reader-view.tsx', [/Verified: \{/]],
+  ['components/current-affairs/current-affairs-sources-card.tsx', [/Verified National Press/, /Verified Sources/, /Fact Provenance/, /Every event point is checked/]],
+  ['components/current-affairs/current-affairs-card.tsx', [/Verified Sources/]],
+  ['app/current-affairs/date/[date]/page.tsx', [/verified provenance/i]],
+  ['components/assessment/leaderboard-view-client.tsx', [/Verified Position/]],
+  ['components/assessment/result-view-client.tsx', [/submission verified/i, /Verified answer keys/i]],
+  ['components/wallet/wallet-view-client.tsx', [/Verified CL Wallet/]],
+  ['app/institutes/page.tsx', [/verified institutional/i, /being verified/i, /Partner/]],
+  ['components/premium/premium-hub-view.tsx', [/official question papers/i, /Official Papers/, /simulate official test/i, /previous year questions/i]],
+  ['components/store/redeem-modal.tsx', [/Official Courage Library study gear/]],
+];
 
 async function live() {
   const { chromium } = require('playwright');
@@ -201,7 +254,19 @@ async function live() {
   // resolve a test id (the list links no pre-test page: id from the page payload, as in UX-T0)
   await anon.goto(BASE + '/mock-tests', { waitUntil: 'load' });
   const testId = ((await anon.content()).match(/testId\W{1,6}([0-9a-f]{8}-[0-9a-f-]{27})/) || [])[1];
-  const routesOut = ['/auth/signup', '/current-affairs', '/pricing', '/mock-tests', testId ? `/mock-tests/${testId}` : null].filter(Boolean);
+  // UX-2b.H2 routes: exam directory, hub, cycle and one module page; CA day page; /institutes (signed out too)
+  await anon.goto(BASE + '/exams/ssc-cgl', { waitUntil: 'load' });
+  const examLinks = await anon.$$eval('a[href^="/exams/ssc-cgl/"]', (as) => as.map((a) => a.getAttribute('href')));
+  // the hub does not link its cycle page; use the active cycle year it shows ("Cycle 2026 …") when that page answers 200
+  const cycleYear = ((await anon.evaluate(() => document.body.innerText)).match(/Cycle (\d{4})/) || [])[1];
+  const cycleOk = cycleYear ? (await anon.request.get(`${BASE}/exams/ssc-cgl/cycle/${cycleYear}`, { maxRedirects: 0 })).status() === 200 : false;
+  const cycleHref = examLinks.find((h) => /\/cycle\/\d{4}$/.test(h)) || (cycleOk ? `/exams/ssc-cgl/cycle/${cycleYear}` : null);
+  const moduleHref = examLinks.find((h) => /^\/exams\/ssc-cgl\/[a-z0-9-]+$/.test(h) && !/\/cycle/.test(h)) || null;
+  const todayIst = new Date(Date.now() + 5.5 * 3600e3).toISOString().slice(0, 10);
+  const H2_ROUTES = ['/exams', '/exams/ssc-cgl', cycleHref, moduleHref, `/current-affairs/date/${todayIst}`, '/institutes'].filter(Boolean);
+  if (!cycleHref) warnVacuous('L-10', 'no cycle link on /exams/ssc-cgl');
+  if (!moduleHref) warnVacuous('L-10', 'no module link on /exams/ssc-cgl');
+  const routesOut = ['/auth/signup', '/current-affairs', '/pricing', '/mock-tests', testId ? `/mock-tests/${testId}` : null, ...H2_ROUTES].filter(Boolean);
   const seen = {};
   for (const r of routesOut) for (const w of [360, 1280]) seen[`out ${r} @${w}`] = { ...(await view(anon, r, w)), axe: await axe(anon) };
 
@@ -222,7 +287,8 @@ async function live() {
   await page.goto(BASE + '/mock-tests', { waitUntil: 'load' });
   await page.locator('a[href*="/result"]').first().waitFor({ state: 'visible', timeout: 30000 }).catch(() => undefined);
   const resultHref = await page.$$eval('a[href*="/result"]', (as) => (as[0] ? as[0].getAttribute('href') : null));
-  const routesIn = ['/dashboard', '/mock-tests', '/current-affairs', '/pricing', resultHref, testId ? `/mock-tests/${testId}` : null, testId ? `/mock-tests/${testId}/leaderboard` : null].filter(Boolean);
+  const routesIn = ['/dashboard', '/mock-tests', '/current-affairs', '/pricing', resultHref, testId ? `/mock-tests/${testId}` : null, testId ? `/mock-tests/${testId}/leaderboard` : null,
+    ...H2_ROUTES, '/wallet', '/premium', '/store'].filter(Boolean);
   for (const r of routesIn) for (const w of [360, 1280]) seen[`in ${r} @${w}`] = { ...(await view(page, r, w)), axe: await axe(page) };
   const label = (k) => k.replace(/[0-9a-f]{8}-[0-9a-f-]{27}/g, '[id]');
 
@@ -240,11 +306,19 @@ async function live() {
 
   // L-2 global guard
   const g = [];
+  const allowed = {};
   for (const [k, v] of Object.entries(seen)) for (const rx of GLOBAL) {
-    const m = v.text.match(rx);
-    if (m && !ALLOW.some((a) => a.test(v.text.slice(Math.max(0, m.index - 60), m.index + 60)))) g.push(`${label(k)}: "${m[0]}"`);
+    // every match, not only the first: an allowed use must not hide a later disallowed one
+    for (const m of v.text.matchAll(new RegExp(rx.source, rx.flags.includes('g') ? rx.flags : rx.flags + 'g'))) {
+      const ctx = v.text.slice(Math.max(0, m.index - 80), m.index + m[0].length + 80);
+      const route = k.split(' ')[1];
+      const a = ALLOW.find((x) => (!x.routes || x.routes.test(route)) && (!x.words || x.words.test(m[0])) && x.rx.test(ctx));
+      if (a) allowed[a.id] = (allowed[a.id] || 0) + 1;
+      else g.push(`${label(k)}: "${ctx.replace(/\s+/g, ' ').slice(60, 150)}"`);
+    }
   }
-  check('L-2', `global guard on ${Object.keys(seen).length} views (thousands of, official, most popular, fact verification, being curated, one-stop, verified candidate)`, g.length === 0, g.join('; '));
+  check('L-2', `global guard on ${Object.keys(seen).length} views (H + H2 phrases; every match; allow-list ${ALLOW.map((a) => a.id).join(',')})`, g.length === 0,
+    `${g.length} disallowed${g.length ? ': ' + [...new Set(g)].slice(0, 8).join(' | ') : ''}; allowed ${JSON.stringify(allowed)}`);
 
   // L-3 pricing (payments OFF here)
   for (const k of Object.keys(seen).filter((x) => / \/pricing @/.test(x))) {
@@ -295,19 +369,42 @@ async function live() {
       /Your rank appears once more students take this mock\./.test(t) && !/#\d+\s*of\s*\d+/.test(t) && !/Percentile/.test(t) && !/scored higher than/i.test(t));
   }
 
-  // L-6 mock labels match the rule on the sizes the cards show
+  // L-6 (UX-2b.H2, E-7): every card in "More Mock Tests" states its size as "{N} question(s) · {duration}"; no judgement
   for (const k of Object.keys(seen).filter((x) => / \/mock-tests @/.test(x))) {
     const t = seen[k].text;
-    const sec = t.slice(t.indexOf('More Mock Tests'));
-    const cards = [...sec.matchAll(/(Full-length mock|Shorter mock)[\s\S]*?(\d+)m Duration\s*•\s*(\d+) Questions/g)];
-    const wrong = cards.filter(([, lab, m, q]) => (Number(q) >= 100 && Number(m) >= 60) !== (lab === 'Full-length mock'));
-    if (cards.length === 0) warnVacuous('L-6', `${label(k)} no mock cards in "More Mock Tests"`);
-    else check('L-6', `${label(k)}: ${cards.length} card labels match the full-length rule`, wrong.length === 0, `${cards.filter((c) => c[1] === 'Full-length mock').length} full-length, ${cards.filter((c) => c[1] === 'Shorter mock').length} shorter`);
+    const start = t.indexOf('More Mock Tests');
+    const endIdx = t.indexOf('Recent Attempts', start);
+    const sec = start < 0 ? '' : t.slice(start, endIdx > start ? endIdx : undefined);
+    const cards = (sec.match(/\d+ Marks/g) || []).length;
+    const shaped = [...sec.matchAll(/(\d+) (question|questions) · (\d+ hr(?: \d+ min)?|\d+ min)\s*•\s*\d+ Marks/g)];
+    const plural = shaped.every((m) => (m[1] === '1') === (m[2] === 'question'));
+    if (cards === 0) warnVacuous('L-6', `${label(k)} no mock cards in "More Mock Tests"`);
+    else check('L-6', `${label(k)}: ${cards} cards state "{N} question(s) · {duration}"; no "Full-length mock" / "Shorter mock" / "NaN"`,
+      shaped.length === cards && plural && !/Full-length mock|Shorter mock|NaN/i.test(t),
+      `${shaped.length}/${cards} shaped, e.g. "${shaped[0] ? shaped[0][0].split('•')[0].trim() : ''}"`);
   }
 
-  // L-7 a11y on every view
-  const a11y = Object.entries(seen).filter(([, v]) => v.axe.length > 0 || v.h1 !== 1 || v.status !== 200).map(([k, v]) => `${label(k)} ${v.status} h1=${v.h1} [${v.axe.join(',')}]`);
-  check('L-7', `axe 0 critical/serious, one h1, 200 on ${Object.keys(seen).length} views`, a11y.length === 0, a11y.join('; '));
+  // L-7 a11y on every view. ONE recorded exception (owner ruling, UX-2b.H2: further failures go to a follow-up a11y
+  // phase): /wallet @1280, 1 color-contrast node (components/wallet/wallet-view-client.tsx:545 transaction-date cell).
+  // It is matched exactly (route, width, rule, node count), so any other or additional failure still fails here.
+  const KNOWN_A11Y = [{ key: /^in \/wallet @1280$/, axe: ['color-contrast×1'], why: 'wallet-view-client.tsx:545 (follow-up a11y phase)' }];
+  const known = [];
+  const a11y = Object.entries(seen)
+    .filter(([, v]) => v.axe.length > 0 || v.h1 !== 1 || v.status !== 200)
+    .filter(([k, v]) => {
+      const kx = KNOWN_A11Y.find((x) => x.key.test(k) && v.h1 === 1 && v.status === 200 && v.axe.join(',') === x.axe.join(','));
+      if (kx) known.push(`${k} [${v.axe.join(',')}] ${kx.why}`);
+      return !kx;
+    })
+    .map(([k, v]) => `${label(k)} ${v.status} h1=${v.h1} [${v.axe.join(',')}]`);
+  check('L-7', `axe 0 critical/serious, one h1, 200 on ${Object.keys(seen).length} views (${known.length} recorded exception)`, a11y.length === 0, [...a11y, ...known.map((x) => 'KNOWN ' + x)].join('; '));
+
+  // L-11 (H2) our own UI wording on the exam pages (stored guide text is A-4, listed for the content phase)
+  const chrome = [/Official Verified/, /Official Knowledge Repository/, /commission-accurate/i, /Verified: \d/, /verified parameters/i, /Verified syllabus/i];
+  const examViews = Object.keys(seen).filter((k) => /^\/exams(\/|$)/.test(k.split(' ')[1]));
+  const ch = examViews.flatMap((k) => chrome.filter((rx) => rx.test(seen[k].text)).map((rx) => `${label(k)}: ${rx.source}`));
+  check('L-11', `exam pages: no "Official Verified" / "Official Knowledge Repository" / "commission-accurate" / "Verified: {date}" UI copy (${examViews.length} views)`,
+    examViews.length >= 8 && ch.length === 0 && examViews.some((k) => /Information as of /.test(seen[k].text)), ch.join('; '));
 
   // L-8 live tests still flag-off
   const lt = await anon.request.get(BASE + '/live-tests', { maxRedirects: 0 });

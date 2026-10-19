@@ -165,7 +165,7 @@ export function LeaderboardViewClient({ data }: LeaderboardViewClientProps) {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-5 h-5 text-blue-700" />
-                <h3 className="font-black text-sm text-blue-950">Your Verified Position</h3>
+                <h3 className="font-black text-sm text-blue-950">Your position</h3>
               </div>
               <Badge variant="indigo" className="text-xs font-extrabold">
                 Rank #{userStanding.rank} of {totalParticipants}

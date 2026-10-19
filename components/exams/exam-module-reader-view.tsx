@@ -5,7 +5,8 @@ import Link from "next/link";
 import { Container } from "@/components/ui/legacy/container";
 import { Card } from "@/components/ui/legacy/card";
 import { Badge } from "@/components/ui/legacy/badge";
-import { ArrowLeft, ShieldCheck, ExternalLink, HelpCircle } from "lucide-react";
+import { ArrowLeft, ShieldCheck, ExternalLink, HelpCircle, CalendarDays } from "lucide-react";
+import { formatDateShort } from "@/lib/format";
 import { CandidatePublishedModule } from "@/types/exam-knowledge";
 import { ExamFaqAccordion } from "./exam-faq-accordion";
 import { ExamMdxArticleRenderer } from "./exam-mdx-article-renderer";
@@ -59,9 +60,9 @@ export function ExamModuleReaderView({
                 </Badge>
               )}
               {moduleData.lastVerifiedDate && (
-                <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200/60">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Verified: {moduleData.lastVerifiedDate}</span>
+                <div className="flex items-center gap-1 text-caption font-medium text-fg-secondary bg-surface-sunken px-2.5 py-0.5 rounded-full border border-line">
+                  <CalendarDays aria-hidden="true" className="w-3.5 h-3.5" />
+                  <span>Information as of {/^\d{4}-\d{2}-\d{2}/.test(moduleData.lastVerifiedDate) ? formatDateShort(moduleData.lastVerifiedDate) : moduleData.lastVerifiedDate}</span>
                 </div>
               )}
             </div>

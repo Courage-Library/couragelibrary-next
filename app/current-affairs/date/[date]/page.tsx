@@ -38,7 +38,7 @@ export async function generateMetadata({ params }: DateFeedPageProps): Promise<M
 
   return constructMetadata({
     title: `Current Affairs — ${formattedDate}`,
-    description: `Read ${feed.totalArticles} exam-oriented current affairs event(s) for ${formattedDate}. Daily 10Q quiz and verified provenance for government competitive exams.`,
+    description: `Read ${feed.totalArticles} exam-oriented current affairs event(s) for ${formattedDate}. Each event lists its key facts and sources, for government exams.`,
     canonicalUrl: `/current-affairs/date/${date}`,
     keywords: [`Current Affairs ${formattedDate}`, `Daily Current Affairs ${date}`, 'Exam Intelligence'],
     noIndex,

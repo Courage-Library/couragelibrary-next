@@ -8,7 +8,7 @@ import {
   Layers,
   BookOpen,
   HelpCircle,
-  ShieldCheck,
+  FileText,
   ChevronRight,
   Flame,
 } from 'lucide-react';
@@ -115,9 +115,10 @@ export const CurrentAffairsCard: React.FC<CurrentAffairsCardProps> = ({
       <div className="pt-3 mt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
         <div className="flex items-center gap-3">
           {article.sourcesCount > 0 && (
-            <span className="inline-flex items-center gap-1" title={`${article.sourcesCount} Verified Sources`}>
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+            <span className="inline-flex items-center gap-1" title={`${article.sourcesCount} ${article.sourcesCount === 1 ? 'source' : 'sources'}`}>
+              <FileText aria-hidden="true" className="w-3.5 h-3.5 text-fg-secondary" />
               <span>{article.sourcesCount}</span>
+              <span className="sr-only">{article.sourcesCount === 1 ? 'source' : 'sources'}</span>
             </span>
           )}
 

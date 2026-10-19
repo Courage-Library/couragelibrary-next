@@ -153,8 +153,9 @@ export function WalletViewClient({ wallet: initialWallet, catalog, streakEligibi
           >
             <ArrowLeft className="w-3.5 h-3.5" /> Back to Mock Tests
           </Link>
-          <Badge variant="indigo" className="text-xs font-extrabold uppercase tracking-wide">
-            <ShieldCheck className="w-3.5 h-3.5 mr-1" /> Verified CL Wallet
+          <h1 className="sr-only">Courage Library Wallet</h1>
+          <Badge variant="indigo" className="text-xs font-extrabold uppercase tracking-wide" aria-hidden="true">
+            <ShieldCheck className="w-3.5 h-3.5 mr-1" /> Courage Library Wallet
           </Badge>
         </div>
 
@@ -228,7 +229,7 @@ export function WalletViewClient({ wallet: initialWallet, catalog, streakEligibi
                   <span className="text-[11px] text-slate-500 font-medium">Daily practice consistency</span>
                 </div>
               </div>
-              <span className="text-lg font-black text-orange-600 font-mono">
+              <span className="text-lg font-black text-warning-700 font-mono">
                 {wallet.streak.currentStreak} Days
               </span>
             </div>
@@ -505,7 +506,7 @@ export function WalletViewClient({ wallet: initialWallet, catalog, streakEligibi
               No transactions recorded yet. Complete today&apos;s mock test to earn your first CL Coins.
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Recent coin transactions">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="bg-slate-50/80 border-b border-slate-100 text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">

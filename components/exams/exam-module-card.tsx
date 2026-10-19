@@ -4,7 +4,8 @@ import React from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/legacy/card";
 import { Badge } from "@/components/ui/legacy/badge";
-import { ArrowRight, BookOpen, ShieldCheck } from "lucide-react";
+import { ArrowRight, BookOpen, CalendarDays } from "lucide-react";
+import { formatDateShort } from "@/lib/format";
 import { CandidatePublishedModule, ExamModuleKey } from "@/types/exam-knowledge";
 
 interface ExamModuleCardProps {
@@ -39,13 +40,14 @@ export function ExamModuleCard({
         </div>
 
         <p className="text-xs text-slate-500 leading-relaxed line-clamp-2">
-          {moduleData?.description || `Comprehensive guidance and verified parameters for ${displayName}.`}
+          {moduleData?.description || `Guide to ${displayName}.`}
         </p>
 
+        {/* UX-2b.H2 (E-4): lastVerifiedDate is the date stated in the imported content, not a review record */}
         {isAvailable && moduleData?.lastVerifiedDate && (
-          <div className="flex items-center gap-1 text-[10px] font-semibold text-slate-400">
-            <ShieldCheck className="w-3 h-3 text-emerald-600" />
-            <span>Verified: {moduleData.lastVerifiedDate}</span>
+          <div className="flex items-center gap-1 text-caption font-medium text-fg-secondary">
+            <CalendarDays aria-hidden="true" className="w-3 h-3" />
+            <span>Information as of {/^\d{4}-\d{2}-\d{2}/.test(moduleData.lastVerifiedDate) ? formatDateShort(moduleData.lastVerifiedDate) : moduleData.lastVerifiedDate}</span>
           </div>
         )}
       </CardContent>

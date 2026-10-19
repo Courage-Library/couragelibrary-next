@@ -20,7 +20,7 @@ export const revalidate = 60; // ISR baseline
 export const metadata = constructMetadata({
   title: "National Competitive Exam Knowledge Hub",
   description:
-    "Verified syllabus, exam patterns, eligibility criteria, pay scales, and previous year trends for Indian competitive examinations.",
+    "Guides to Indian government exams: exam pattern, syllabus, eligibility, important dates, pay and past cut-offs, with links to the source documents.",
   canonicalUrl: "/exams",
 });
 
@@ -75,14 +75,11 @@ export default async function ExamsDirectoryPage() {
       />
       <Container className="space-y-10">
         <div className="space-y-3 max-w-2xl">
-          <Badge variant="indigo" className="text-xs">
-            Official Knowledge Repository
-          </Badge>
           <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
             Target Competitive Examinations
           </h1>
           <p className="text-sm text-slate-600 leading-relaxed">
-            Verified, commission-accurate exam blueprints, structured syllabus breakdowns, official notification timelines, and career pay matrices.
+            Guides to each exam: pattern, syllabus, eligibility, important dates, pay and past cut-offs, with links to the source documents.
           </p>
         </div>
 

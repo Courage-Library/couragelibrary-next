@@ -294,7 +294,7 @@ export function ResultViewClient({ data }: ResultViewClientProps) {
                       <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                       <div>
                         <span className="text-xs font-bold text-slate-900 block">{data.rewards.completionReason}</span>
-                        <span className="text-[11px] text-slate-500 font-medium">First completed submission verified</span>
+                        <span className="text-caption text-fg-secondary font-medium">Reward for your first completed attempt</span>
                       </div>
                     </div>
                     <span className="text-xs font-extrabold text-emerald-700 font-mono">+{data.rewards.completionCoins} CL</span>
@@ -519,7 +519,7 @@ export function ResultViewClient({ data }: ResultViewClientProps) {
                 Question Review &amp; Detailed Solutions
               </h2>
               <p className="text-xs text-slate-500 font-medium">
-                Verified answer keys and full conceptual explanations
+                Answer keys with explanations
               </p>
             </div>
 

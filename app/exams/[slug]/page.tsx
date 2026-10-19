@@ -49,7 +49,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: `${exam.title}${cycleText} — Complete Exam Knowledge Hub`,
     description:
       exam.description ||
-      `Official notification dates, detailed syllabus, exam pattern, eligibility rules, and posts for ${exam.title}.`,
+      `Notification dates, syllabus, exam pattern, eligibility rules and posts for ${exam.title}.`,
     canonicalUrl: `/exams/${slug}`,
   });
 }
@@ -230,7 +230,7 @@ export default async function ExamKnowledgeHubPage({ params }: Props) {
 
               {publishedModules.ELIGIBILITY && (
                 <div className="mt-6 pt-4 border-t border-slate-100 flex justify-end">
-                  <Link href={`/exams/${exam.slug}/eligibility`}>
+                  <Link href={`/exams/${exam.slug}/eligibility`} className="inline-flex">
                     <Button variant="outline" size="sm" className="font-semibold text-xs gap-1.5">
                       View Full Eligibility & Age Relaxations <ArrowRight className="w-3.5 h-3.5" />
                     </Button>
@@ -273,15 +273,15 @@ export default async function ExamKnowledgeHubPage({ params }: Props) {
 
                     <div className="grid grid-cols-3 gap-2 text-center text-xs">
                       <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
-                        <span className="text-slate-400 text-[10px] block">Duration</span>
+                        <span className="text-fg-secondary text-caption block">Duration</span>
                         <span className="font-bold text-slate-800">{pat.durationMinutes !== null ? `${pat.durationMinutes} Mins` : "—"}</span>
                       </div>
                       <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
-                        <span className="text-slate-400 text-[10px] block">Questions</span>
+                        <span className="text-fg-secondary text-caption block">Questions</span>
                         <span className="font-bold text-slate-800">{pat.totalQuestions ?? "—"}</span>
                       </div>
                       <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
-                        <span className="text-slate-400 text-[10px] block">Marks</span>
+                        <span className="text-fg-secondary text-caption block">Marks</span>
                         <span className="font-bold text-slate-800">{pat.totalMarks ?? "—"}</span>
                       </div>
                     </div>

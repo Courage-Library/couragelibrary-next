@@ -42,7 +42,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   return constructMetadata({
     title: `${exam.title} (${yearNum} Cycle) — Complete Exam Knowledge Hub`,
-    description: `Official notification details, syllabus, exam patterns, posts, and eligibility for ${exam.title} ${yearNum}.`,
+    description: `Notification details, syllabus, exam pattern, posts and eligibility for ${exam.title} ${yearNum}.`,
     canonicalUrl: `/exams/${slug}/cycle/${cycleYear}`,
   });
 }

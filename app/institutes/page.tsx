@@ -11,8 +11,8 @@ import { constructMetadata } from "@/lib/seo/metadata";
 export const revalidate = 30;
 
 export const metadata = constructMetadata({
-  title: "Partner Coaching Institutes & Cohorts",
-  description: "Join verified institutional coaching batches, complete assigned curriculum, and track your progress with faculty guidance.",
+  title: "Coaching Institutes & Batches",
+  description: "Join a coaching batch run by an institute on Courage Library, complete the work your batch assigns and track your progress.",
 });
 
 export default async function InstitutesDirectoryPage() {
@@ -24,14 +24,14 @@ export default async function InstitutesDirectoryPage() {
         {/* Header Banner */}
         <div className="bg-gradient-to-r from-blue-950 via-indigo-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-lg space-y-3">
           <Badge variant="indigo" className="bg-white/20 text-white border-white/20">
-            Coaching Partner Portal
+            Coaching institutes
           </Badge>
           <h1 className="text-2xl sm:text-4xl font-black tracking-tight flex items-center gap-3">
             <Building2 className="w-8 h-8 text-indigo-400" />
-            Partner Coaching Institutes & Cohorts
+            Coaching Institutes & Batches
           </h1>
           <p className="text-indigo-100 text-sm max-w-2xl">
-            Join verified institutional coaching batches, complete assigned curriculum, and track your progress with faculty guidance.
+            Join a coaching batch run by an institute on Courage Library, complete the work your batch assigns and track your progress.
           </p>
         </div>
 
@@ -43,9 +43,9 @@ export default async function InstitutesDirectoryPage() {
                 <Building2 className="w-8 h-8" />
               </div>
               <div className="space-y-1 max-w-sm mx-auto">
-                <h3 className="text-lg font-extrabold text-slate-900">No Partner Institutes Listed Yet</h3>
+                <h3 className="text-lg font-extrabold text-slate-900">No institutes are listed yet.</h3>
                 <p className="text-xs text-slate-500">
-                  Coaching institutes and cohort registrations are being verified. In the meantime, access self-paced practice tests or join community discussions.
+                  In the meantime, you can practise or join the community discussions.
                 </p>
               </div>
               <div className="flex items-center justify-center gap-3 pt-2">

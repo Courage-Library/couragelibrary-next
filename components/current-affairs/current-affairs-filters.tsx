@@ -74,6 +74,7 @@ export const CurrentAffairsFilters: React.FC<CurrentAffairsFiltersProps> = ({
           <div className="flex items-center gap-2 shrink-0">
             <SlidersHorizontal className="w-4 h-4 text-slate-400" />
             <select
+              aria-label="Filter by importance"
               value={selectedImportance}
               onChange={(e) => onImportanceChange(e.target.value as CurrentAffairsImportanceTier | 'ALL')}
               className="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-50 border border-slate-200 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"

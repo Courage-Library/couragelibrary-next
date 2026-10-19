@@ -13,7 +13,7 @@ import { Card, CardContent } from "@/components/ui/legacy/card";
 import { Badge } from "@/components/ui/legacy/badge";
 import { Button } from "@/components/ui/legacy/button";
 import { StartTestActionButton } from "@/components/assessment/start-test-action-button";
-import { mockLengthLabel } from "@/lib/assessment/display-rules";
+import { formatMockShape } from "@/lib/assessment/display-rules";
 import {
   Target,
   Clock,
@@ -646,7 +646,7 @@ export function MockTestDashboardView({ data }: Props) {
         )}
 
         {/* ========================================================================= */}
-        {/* 7. MORE MOCK TESTS (UX-2b.H: labelled by real size, lib/assessment/display-rules) */}
+        {/* 7. MORE MOCK TESTS (UX-2b.H2: size stated as facts, formatMockShape in lib/assessment/display-rules) */}
         {/* ========================================================================= */}
         <div className="space-y-3 pt-2">
           <div className="flex items-center justify-between">
@@ -676,7 +676,6 @@ export function MockTestDashboardView({ data }: Props) {
                       <Badge variant="outline" className="text-[10px] font-bold">
                         {test.examTitle}
                       </Badge>
-                      <span className="text-caption font-medium text-fg-secondary">{mockLengthLabel(test)}</span>
                       {test.isFree && (
                         <span className="px-2 py-0.2 text-[9px] font-black rounded-md bg-emerald-100 text-emerald-800">
                           FREE
@@ -687,9 +686,7 @@ export function MockTestDashboardView({ data }: Props) {
                       <h3 className="font-extrabold text-sm text-slate-900">{test.title}</h3>
                     </div>
                     <div className="flex items-center gap-3 text-xs text-slate-500 pt-2 border-t border-slate-100">
-                      <span>{test.durationMinutes}m Duration</span>
-                      <span>&bull;</span>
-                      <span>{test.totalQuestions} Questions</span>
+                      <span>{formatMockShape(test)}</span>
                       <span>&bull;</span>
                       <span>{test.totalMarks} Marks</span>
                     </div>

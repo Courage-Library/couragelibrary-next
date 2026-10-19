@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/legacy/badge";
 import { Button } from "@/components/ui/legacy/button";
-import { Building2, Calendar, BookOpen, Target, ExternalLink, ShieldCheck } from "lucide-react";
+import { Building2, Calendar, BookOpen, Target, ExternalLink } from "lucide-react";
 import { ExamKnowledgeCandidateView } from "@/types/exam-knowledge";
 
 interface ExamHeroProps {
@@ -12,7 +12,7 @@ interface ExamHeroProps {
 }
 
 export function ExamHero({ data }: ExamHeroProps) {
-  const { exam, activeCycle, metadata } = data;
+  const { exam, activeCycle } = data;
 
   return (
     <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-10 shadow-xs space-y-6">
@@ -31,12 +31,8 @@ export function ExamHero({ data }: ExamHeroProps) {
             {activeCycle.cycleLabel} ({activeCycle.status})
           </Badge>
         )}
-        {metadata.overallFreshnessStatus === 'VERIFIED_CURRENT' && (
-          <div className="flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 rounded-full">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Official Verified</span>
-          </div>
-        )}
+        {/* UX-2b.H2 (E-2): no "Official Verified" badge. VERIFIED_CURRENT only means an active cycle exists, which the
+            cycle badge above already states; nothing verifies the content itself. */}
       </div>
 
       <div className="space-y-3 max-w-3xl">

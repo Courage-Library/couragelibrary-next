@@ -1,0 +1,2951 @@
+{
+ "base": "local next start (with-server)",
+ "generated": "2026-10-19T16:33:38.301Z",
+ "results": [
+  {
+   "route": "/exams/ssc-cgl/cycle/2026",
+   "signedIn": false,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/exams/ssc-cgl/cycle/2026",
+   "loadMs": 9232,
+   "shot": "before/shots/out_exams_ssc-cgl_cycle_2026_360.jpg",
+   "path": "/exams/ssc-cgl/cycle/2026",
+   "title": "SSC CGL (2026 Cycle) — Complete Exam Knowledge Hub | Courage Library",
+   "overflowX": 0,
+   "wide": [
+    "a.whitespace-nowrap.px-3.py-1.5",
+    "a.whitespace-nowrap.px-3.py-1.5"
+   ],
+   "h1": [
+    "SSC CGL"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 485,
+   "tapUnder44": 62,
+   "tapUnder24": 24,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Get started 99x36",
+    "Explore Syllabus 176x40",
+    "Explore Syllabus 176x40",
+    "Practice PYQs 160x40",
+    "Practice PYQs 160x40"
+   ],
+   "textEls": 808,
+   "textUnder12": 57,
+   "tinySizes": {
+    "11px": 7,
+    "10px": 50
+   },
+   "tinyExamples": [
+    "active @11px",
+    "NOTIFICATION DATE @11px",
+    "APPLICATION WINDOW @11px",
+    "EXAM SCHEDULE @11px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 161,
+    "500": 68,
+    "600": 106,
+    "700": 469,
+    "800": 1,
+    "900": 3
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 60876,
+   "domContentLoaded": 7655,
+   "axe": [
+    {
+     "id": "color-contrast",
+     "impact": "serious",
+     "nodes": 24,
+     "sample": ".h-full.shadow-sm.hover\\:border-blue-300:nth-child(1) > .space-y-3.p-5 > .text-\\[10px\\].font-semibold.gap-1 > span | .h-full.shadow-sm.hover\\:border-blue-300:nt"
+    }
+   ]
+  },
+  {
+   "route": "/exams/ssc-cgl/cycle/2026",
+   "signedIn": false,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/exams/ssc-cgl/cycle/2026",
+   "loadMs": 15305,
+   "shot": "before/shots/out_exams_ssc-cgl_cycle_2026_768.jpg",
+   "path": "/exams/ssc-cgl/cycle/2026",
+   "title": "SSC CGL (2026 Cycle) — Complete Exam Knowledge Hub | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "SSC CGL"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 486,
+   "tapUnder44": 74,
+   "tapUnder24": 24,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Sign in 69x36",
+    "Get started 99x36",
+    "Explore Syllabus 176x40",
+    "Explore Syllabus 176x40"
+   ],
+   "textEls": 809,
+   "textUnder12": 57,
+   "tinySizes": {
+    "11px": 7,
+    "10px": 50
+   },
+   "tinyExamples": [
+    "active @11px",
+    "NOTIFICATION DATE @11px",
+    "APPLICATION WINDOW @11px",
+    "EXAM SCHEDULE @11px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 161,
+    "500": 69,
+    "600": 106,
+    "700": 469,
+    "800": 1,
+    "900": 3
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 51029,
+   "domContentLoaded": 13777,
+   "axe": null
+  },
+  {
+   "route": "/exams/ssc-cgl/cycle/2026",
+   "signedIn": false,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/exams/ssc-cgl/cycle/2026",
+   "loadMs": 6379,
+   "shot": "before/shots/out_exams_ssc-cgl_cycle_2026_1280.jpg",
+   "path": "/exams/ssc-cgl/cycle/2026",
+   "title": "SSC CGL (2026 Cycle) — Complete Exam Knowledge Hub | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "SSC CGL"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 490,
+   "tapUnder44": 74,
+   "tapUnder24": 24,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Sign in 69x36",
+    "Get started 99x36",
+    "Explore Syllabus 176x40",
+    "Explore Syllabus 176x40"
+   ],
+   "textEls": 814,
+   "textUnder12": 57,
+   "tinySizes": {
+    "11px": 7,
+    "10px": 50
+   },
+   "tinyExamples": [
+    "active @11px",
+    "NOTIFICATION DATE @11px",
+    "APPLICATION WINDOW @11px",
+    "EXAM SCHEDULE @11px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 161,
+    "500": 74,
+    "600": 106,
+    "700": 469,
+    "800": 1,
+    "900": 3
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 49575,
+   "domContentLoaded": 4852,
+   "axe": [
+    {
+     "id": "color-contrast",
+     "impact": "serious",
+     "nodes": 24,
+     "sample": ".h-full.shadow-sm.hover\\:border-blue-300:nth-child(1) > .space-y-3.p-5 > .text-\\[10px\\].font-semibold.gap-1 > span | .h-full.shadow-sm.hover\\:border-blue-300:nt"
+    }
+   ]
+  },
+  {
+   "route": "/exams/ssc-cgl/exam-overview",
+   "signedIn": false,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/exams/ssc-cgl/exam-overview",
+   "loadMs": 14334,
+   "shot": "before/shots/out_exams_ssc-cgl_exam-overview_360.jpg",
+   "path": "/exams/ssc-cgl/exam-overview",
+   "title": "Exam Overview & Conducting Authority — SSC CGL | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Exam Overview & Conducting Authority | SSC CGL 2026"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 22,
+   "tapUnder44": 10,
+   "tapUnder24": 2,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Get started 99x36",
+    "Back to SSC CGL Hub 145x16",
+    "https://ssc.gov.in 135x23",
+    "Open source Combined Graduate  32x32",
+    "Open source Reopening of Onlin 32x32"
+   ],
+   "textEls": 134,
+   "textUnder12": 12,
+   "tinySizes": {
+    "11px": 6,
+    "10px": 6
+   },
+   "tinyExamples": [
+    "Verified: 2026-09-29 @11px",
+    "INFO @10px",
+    "INFO @10px",
+    "WARNING @10px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 60,
+    "500": 2,
+    "600": 10,
+    "700": 51,
+    "900": 11
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 10755,
+   "domContentLoaded": 12632,
+   "axe": []
+  },
+  {
+   "route": "/exams/ssc-cgl/exam-overview",
+   "signedIn": false,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/exams/ssc-cgl/exam-overview",
+   "loadMs": 24219,
+   "shot": "before/shots/out_exams_ssc-cgl_exam-overview_768.jpg",
+   "path": "/exams/ssc-cgl/exam-overview",
+   "title": "Exam Overview & Conducting Authority — SSC CGL | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Exam Overview & Conducting Authority | SSC CGL 2026"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 23,
+   "tapUnder44": 22,
+   "tapUnder24": 1,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Sign in 69x36",
+    "Get started 99x36",
+    "Back to SSC CGL Hub 145x16",
+    "https://ssc.gov.in 152x26"
+   ],
+   "textEls": 135,
+   "textUnder12": 12,
+   "tinySizes": {
+    "11px": 6,
+    "10px": 6
+   },
+   "tinyExamples": [
+    "Verified: 2026-09-29 @11px",
+    "INFO @10px",
+    "INFO @10px",
+    "WARNING @10px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 60,
+    "500": 3,
+    "600": 10,
+    "700": 51,
+    "900": 11
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 7457,
+   "domContentLoaded": 22580,
+   "axe": null
+  },
+  {
+   "route": "/exams/ssc-cgl/exam-overview",
+   "signedIn": false,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/exams/ssc-cgl/exam-overview",
+   "loadMs": 6650,
+   "shot": "before/shots/out_exams_ssc-cgl_exam-overview_1280.jpg",
+   "path": "/exams/ssc-cgl/exam-overview",
+   "title": "Exam Overview & Conducting Authority — SSC CGL | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Exam Overview & Conducting Authority | SSC CGL 2026"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 27,
+   "tapUnder44": 22,
+   "tapUnder24": 1,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Sign in 69x36",
+    "Get started 99x36",
+    "Back to SSC CGL Hub 145x16",
+    "https://ssc.gov.in 152x26"
+   ],
+   "textEls": 140,
+   "textUnder12": 12,
+   "tinySizes": {
+    "11px": 6,
+    "10px": 6
+   },
+   "tinyExamples": [
+    "Verified: 2026-09-29 @11px",
+    "INFO @10px",
+    "INFO @10px",
+    "WARNING @10px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 60,
+    "500": 8,
+    "600": 10,
+    "700": 51,
+    "900": 11
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 6718,
+   "domContentLoaded": 5116,
+   "axe": []
+  },
+  {
+   "route": "/institutes",
+   "signedIn": false,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/institutes",
+   "loadMs": 2638,
+   "shot": "before/shots/out_institutes_360.jpg",
+   "path": "/institutes",
+   "title": "Partner Coaching Institutes & Cohorts | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Partner Coaching Institutes & Cohorts"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 19,
+   "tapUnder44": 7,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Get started 99x36",
+    "Practice Drills 124x32",
+    "Practice Drills 124x32",
+    "Community Q&A 142x32",
+    "Community Q&A 142x32"
+   ],
+   "textEls": 29,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 16,
+    "500": 1,
+    "600": 8,
+    "700": 2,
+    "800": 1,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1797,
+   "domContentLoaded": 1045,
+   "axe": []
+  },
+  {
+   "route": "/institutes",
+   "signedIn": false,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/institutes",
+   "loadMs": 7133,
+   "shot": "before/shots/out_institutes_768.jpg",
+   "path": "/institutes",
+   "title": "Partner Coaching Institutes & Cohorts | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Partner Coaching Institutes & Cohorts"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 20,
+   "tapUnder44": 19,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Sign in 69x36",
+    "Get started 99x36",
+    "Practice Drills 128x32",
+    "Practice Drills 128x32"
+   ],
+   "textEls": 30,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 16,
+    "500": 2,
+    "600": 8,
+    "700": 2,
+    "800": 1,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1493,
+   "domContentLoaded": 5591,
+   "axe": null
+  },
+  {
+   "route": "/institutes",
+   "signedIn": false,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/institutes",
+   "loadMs": 2328,
+   "shot": "before/shots/out_institutes_1280.jpg",
+   "path": "/institutes",
+   "title": "Partner Coaching Institutes & Cohorts | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Partner Coaching Institutes & Cohorts"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 24,
+   "tapUnder44": 19,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Sign in 69x36",
+    "Get started 99x36",
+    "Practice Drills 128x32",
+    "Practice Drills 128x32"
+   ],
+   "textEls": 35,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 16,
+    "500": 7,
+    "600": 8,
+    "700": 2,
+    "800": 1,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1287,
+   "domContentLoaded": 774,
+   "axe": []
+  },
+  {
+   "route": "/mock-tests",
+   "signedIn": false,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/mock-tests",
+   "loadMs": 14698,
+   "shot": "before/shots/out_mock-tests_360.jpg",
+   "path": "/mock-tests",
+   "title": "Mock Tests & Daily Practice | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Mock Tests"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 32,
+   "tapUnder44": 19,
+   "tapUnder24": 4,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Get started 99x36",
+    "Add / Manage Exams 141x16",
+    "SSC CGL 104x32",
+    "Add Exam 107x34",
+    "Sign In to Start Mock 199x20"
+   ],
+   "textEls": 177,
+   "textUnder12": 42,
+   "tinySizes": {
+    "11px": 14,
+    "10px": 19,
+    "9px": 9
+   },
+   "tinyExamples": [
+    "Mock tests @11px",
+    "PREVIEW MODE @10px",
+    "SSC CGL @10px",
+    "● Available @10px"
+   ],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 54,
+    "500": 20,
+    "600": 20,
+    "700": 42,
+    "800": 21,
+    "900": 20
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 4702,
+   "domContentLoaded": 12840,
+   "axe": []
+  },
+  {
+   "route": "/mock-tests",
+   "signedIn": false,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/mock-tests",
+   "loadMs": 26672,
+   "shot": "before/shots/out_mock-tests_768.jpg",
+   "path": "/mock-tests",
+   "title": "Mock Tests & Daily Practice | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Mock Tests"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 33,
+   "tapUnder44": 31,
+   "tapUnder24": 4,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Sign in 69x36",
+    "Get started 99x36",
+    "Add / Manage Exams 141x16",
+    "SSC CGL 104x32"
+   ],
+   "textEls": 178,
+   "textUnder12": 42,
+   "tinySizes": {
+    "11px": 14,
+    "10px": 19,
+    "9px": 9
+   },
+   "tinyExamples": [
+    "Mock tests @11px",
+    "PREVIEW MODE @10px",
+    "SSC CGL @10px",
+    "● Available @10px"
+   ],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 54,
+    "500": 21,
+    "600": 20,
+    "700": 42,
+    "800": 21,
+    "900": 20
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 2996,
+   "domContentLoaded": 25116,
+   "axe": null
+  },
+  {
+   "route": "/mock-tests",
+   "signedIn": false,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/mock-tests",
+   "loadMs": 20970,
+   "shot": "before/shots/out_mock-tests_1280.jpg",
+   "path": "/mock-tests",
+   "title": "Mock Tests & Daily Practice | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Mock Tests"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 37,
+   "tapUnder44": 31,
+   "tapUnder24": 4,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Sign in 69x36",
+    "Get started 99x36",
+    "Add / Manage Exams 141x16",
+    "SSC CGL 104x32"
+   ],
+   "textEls": 183,
+   "textUnder12": 42,
+   "tinySizes": {
+    "11px": 14,
+    "10px": 19,
+    "9px": 9
+   },
+   "tinyExamples": [
+    "Mock tests @11px",
+    "PREVIEW MODE @10px",
+    "SSC CGL @10px",
+    "● Available @10px"
+   ],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 54,
+    "500": 26,
+    "600": 20,
+    "700": 42,
+    "800": 21,
+    "900": 20
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 2405,
+   "domContentLoaded": 19392,
+   "axe": []
+  },
+  {
+   "route": "/exams",
+   "signedIn": false,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/exams",
+   "loadMs": 23465,
+   "shot": "before/shots/out_exams_360.jpg",
+   "path": "/exams",
+   "title": "National Competitive Exam Knowledge Hub | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Target Competitive Examinations"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 16,
+   "tapUnder44": 3,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Get started 99x36",
+    "Exams 44x44"
+   ],
+   "textEls": 33,
+   "textUnder12": 2,
+   "tinySizes": {
+    "10px": 2
+   },
+   "tinyExamples": [
+    "Commission @10px",
+    "Cycle 2026 @10px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 16,
+    "500": 3,
+    "600": 9,
+    "700": 4,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1797,
+   "domContentLoaded": 21895,
+   "axe": []
+  },
+  {
+   "route": "/exams",
+   "signedIn": false,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/exams",
+   "loadMs": 3822,
+   "shot": "before/shots/out_exams_768.jpg",
+   "path": "/exams",
+   "title": "National Competitive Exam Knowledge Hub | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Target Competitive Examinations"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 17,
+   "tapUnder44": 15,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Sign in 69x36",
+    "Get started 99x36",
+    "Exams 44x36",
+    "Mock tests 73x36"
+   ],
+   "textEls": 34,
+   "textUnder12": 2,
+   "tinySizes": {
+    "10px": 2
+   },
+   "tinyExamples": [
+    "Commission @10px",
+    "Cycle 2026 @10px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 16,
+    "500": 4,
+    "600": 9,
+    "700": 4,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1493,
+   "domContentLoaded": 2281,
+   "axe": null
+  },
+  {
+   "route": "/exams",
+   "signedIn": false,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/exams",
+   "loadMs": 3093,
+   "shot": "before/shots/out_exams_1280.jpg",
+   "path": "/exams",
+   "title": "National Competitive Exam Knowledge Hub | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Target Competitive Examinations"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 21,
+   "tapUnder44": 15,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Sign in 69x36",
+    "Get started 99x36",
+    "Exams 44x36",
+    "Mock tests 73x36"
+   ],
+   "textEls": 39,
+   "textUnder12": 2,
+   "tinySizes": {
+    "10px": 2
+   },
+   "tinyExamples": [
+    "Commission @10px",
+    "Cycle 2026 @10px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 16,
+    "500": 9,
+    "600": 9,
+    "700": 4,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1287,
+   "domContentLoaded": 1530,
+   "axe": []
+  },
+  {
+   "route": "/exams/ssc-cgl",
+   "signedIn": false,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/exams/ssc-cgl",
+   "loadMs": 7010,
+   "shot": "before/shots/out_exams_ssc-cgl_360.jpg",
+   "path": "/exams/ssc-cgl",
+   "title": "SSC CGL 2026 — Complete Exam Knowledge Hub | Courage Library",
+   "overflowX": 0,
+   "wide": [
+    "a.whitespace-nowrap.px-3.py-1.5",
+    "a.whitespace-nowrap.px-3.py-1.5"
+   ],
+   "h1": [
+    "SSC CGL"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 487,
+   "tapUnder44": 64,
+   "tapUnder24": 24,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Get started 99x36",
+    "Explore Syllabus 176x40",
+    "Explore Syllabus 176x40",
+    "Practice PYQs 160x40",
+    "Practice PYQs 160x40"
+   ],
+   "textEls": 836,
+   "textUnder12": 66,
+   "tinySizes": {
+    "11px": 12,
+    "10px": 54
+   },
+   "tinyExamples": [
+    "active @11px",
+    "NOTIFICATION DATE @11px",
+    "APPLICATION WINDOW @11px",
+    "EXAM SCHEDULE @11px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 168,
+    "500": 72,
+    "600": 113,
+    "700": 475,
+    "800": 1,
+    "900": 7
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 62072,
+   "domContentLoaded": 5483,
+   "axe": [
+    {
+     "id": "color-contrast",
+     "impact": "serious",
+     "nodes": 27,
+     "sample": ".h-full.hover\\:border-blue-300.border-slate-200\\/80:nth-child(1) > .space-y-3.p-5 > .text-\\[10px\\].font-semibold.gap-1 > span | .h-full.hover\\:border-blue-300.b"
+    },
+    {
+     "id": "target-size",
+     "impact": "serious",
+     "nodes": 1,
+     "sample": ".mt-6 > a[href$=\"eligibility\"]"
+    }
+   ]
+  },
+  {
+   "route": "/exams/ssc-cgl",
+   "signedIn": false,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/exams/ssc-cgl",
+   "loadMs": 8086,
+   "shot": "before/shots/out_exams_ssc-cgl_768.jpg",
+   "path": "/exams/ssc-cgl",
+   "title": "SSC CGL 2026 — Complete Exam Knowledge Hub | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "SSC CGL"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 488,
+   "tapUnder44": 76,
+   "tapUnder24": 24,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Sign in 69x36",
+    "Get started 99x36",
+    "Explore Syllabus 176x40",
+    "Explore Syllabus 176x40"
+   ],
+   "textEls": 837,
+   "textUnder12": 66,
+   "tinySizes": {
+    "11px": 12,
+    "10px": 54
+   },
+   "tinyExamples": [
+    "active @11px",
+    "NOTIFICATION DATE @11px",
+    "APPLICATION WINDOW @11px",
+    "EXAM SCHEDULE @11px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 168,
+    "500": 73,
+    "600": 113,
+    "700": 475,
+    "800": 1,
+    "900": 7
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 51927,
+   "domContentLoaded": 6555,
+   "axe": null
+  },
+  {
+   "route": "/exams/ssc-cgl",
+   "signedIn": false,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/exams/ssc-cgl",
+   "loadMs": 30985,
+   "shot": "before/shots/out_exams_ssc-cgl_1280.jpg",
+   "path": "/exams/ssc-cgl",
+   "title": "SSC CGL 2026 — Complete Exam Knowledge Hub | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "SSC CGL"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 492,
+   "tapUnder44": 76,
+   "tapUnder24": 24,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Sign in 69x36",
+    "Get started 99x36",
+    "Explore Syllabus 176x40",
+    "Explore Syllabus 176x40"
+   ],
+   "textEls": 842,
+   "textUnder12": 66,
+   "tinySizes": {
+    "11px": 12,
+    "10px": 54
+   },
+   "tinyExamples": [
+    "active @11px",
+    "NOTIFICATION DATE @11px",
+    "APPLICATION WINDOW @11px",
+    "EXAM SCHEDULE @11px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 168,
+    "500": 78,
+    "600": 113,
+    "700": 475,
+    "800": 1,
+    "900": 7
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 50395,
+   "domContentLoaded": 29459,
+   "axe": [
+    {
+     "id": "color-contrast",
+     "impact": "serious",
+     "nodes": 27,
+     "sample": ".h-full.hover\\:border-blue-300.border-slate-200\\/80:nth-child(1) > .space-y-3.p-5 > .text-\\[10px\\].font-semibold.gap-1 > span | .h-full.hover\\:border-blue-300.b"
+    }
+   ]
+  },
+  {
+   "route": "/exams/ssc-cgl/cycle/2026",
+   "signedIn": true,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/exams/ssc-cgl/cycle/2026",
+   "loadMs": 10537,
+   "shot": "before/shots/in_exams_ssc-cgl_cycle_2026_360.jpg",
+   "path": "/exams/ssc-cgl/cycle/2026",
+   "title": "SSC CGL (2026 Cycle) — Complete Exam Knowledge Hub | Courage Library",
+   "overflowX": 0,
+   "wide": [
+    "a.whitespace-nowrap.px-3.py-1.5",
+    "a.whitespace-nowrap.px-3.py-1.5"
+   ],
+   "h1": [
+    "SSC CGL"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 489,
+   "tapUnder44": 62,
+   "tapUnder24": 24,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Explore Syllabus 176x40",
+    "Explore Syllabus 176x40",
+    "Practice PYQs 160x40",
+    "Practice PYQs 160x40"
+   ],
+   "textEls": 812,
+   "textUnder12": 57,
+   "tinySizes": {
+    "11px": 7,
+    "10px": 50
+   },
+   "tinyExamples": [
+    "active @11px",
+    "NOTIFICATION DATE @11px",
+    "APPLICATION WINDOW @11px",
+    "EXAM SCHEDULE @11px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 161,
+    "500": 72,
+    "600": 106,
+    "700": 469,
+    "800": 1,
+    "900": 3
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 60941,
+   "domContentLoaded": 8993,
+   "axe": [
+    {
+     "id": "color-contrast",
+     "impact": "serious",
+     "nodes": 24,
+     "sample": ".h-full.shadow-sm.hover\\:border-blue-300:nth-child(1) > .space-y-3.p-5 > .text-\\[10px\\].font-semibold.gap-1 > span | .h-full.shadow-sm.hover\\:border-blue-300:nt"
+    }
+   ]
+  },
+  {
+   "route": "/exams/ssc-cgl/cycle/2026",
+   "signedIn": true,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/exams/ssc-cgl/cycle/2026",
+   "loadMs": 5803,
+   "shot": "before/shots/in_exams_ssc-cgl_cycle_2026_768.jpg",
+   "path": "/exams/ssc-cgl/cycle/2026",
+   "title": "SSC CGL (2026 Cycle) — Complete Exam Knowledge Hub | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "SSC CGL"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 489,
+   "tapUnder44": 72,
+   "tapUnder24": 24,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Explore Syllabus 176x40",
+    "Explore Syllabus 176x40",
+    "Practice PYQs 160x40",
+    "Practice PYQs 160x40"
+   ],
+   "textEls": 812,
+   "textUnder12": 57,
+   "tinySizes": {
+    "11px": 7,
+    "10px": 50
+   },
+   "tinyExamples": [
+    "active @11px",
+    "NOTIFICATION DATE @11px",
+    "APPLICATION WINDOW @11px",
+    "EXAM SCHEDULE @11px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 161,
+    "500": 72,
+    "600": 106,
+    "700": 469,
+    "800": 1,
+    "900": 3
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 51094,
+   "domContentLoaded": 4274,
+   "axe": null
+  },
+  {
+   "route": "/exams/ssc-cgl/cycle/2026",
+   "signedIn": true,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/exams/ssc-cgl/cycle/2026",
+   "loadMs": 9564,
+   "shot": "before/shots/in_exams_ssc-cgl_cycle_2026_1280.jpg",
+   "path": "/exams/ssc-cgl/cycle/2026",
+   "title": "SSC CGL (2026 Cycle) — Complete Exam Knowledge Hub | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "SSC CGL"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 490,
+   "tapUnder44": 72,
+   "tapUnder24": 24,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Explore Syllabus 176x40",
+    "Explore Syllabus 176x40",
+    "Practice PYQs 160x40",
+    "Practice PYQs 160x40"
+   ],
+   "textEls": 815,
+   "textUnder12": 57,
+   "tinySizes": {
+    "11px": 7,
+    "10px": 50
+   },
+   "tinyExamples": [
+    "active @11px",
+    "NOTIFICATION DATE @11px",
+    "APPLICATION WINDOW @11px",
+    "EXAM SCHEDULE @11px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 161,
+    "500": 74,
+    "600": 107,
+    "700": 469,
+    "800": 1,
+    "900": 3
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 49575,
+   "domContentLoaded": 8025,
+   "axe": [
+    {
+     "id": "color-contrast",
+     "impact": "serious",
+     "nodes": 24,
+     "sample": ".h-full.shadow-sm.hover\\:border-blue-300:nth-child(1) > .space-y-3.p-5 > .text-\\[10px\\].font-semibold.gap-1 > span | .h-full.shadow-sm.hover\\:border-blue-300:nt"
+    }
+   ]
+  },
+  {
+   "route": "/exams/ssc-cgl/exam-overview",
+   "signedIn": true,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/exams/ssc-cgl/exam-overview",
+   "loadMs": 10109,
+   "shot": "before/shots/in_exams_ssc-cgl_exam-overview_360.jpg",
+   "path": "/exams/ssc-cgl/exam-overview",
+   "title": "Exam Overview & Conducting Authority — SSC CGL | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Exam Overview & Conducting Authority | SSC CGL 2026"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 26,
+   "tapUnder44": 10,
+   "tapUnder24": 2,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Back to SSC CGL Hub 145x16",
+    "https://ssc.gov.in 135x23",
+    "Open source Combined Graduate  32x32",
+    "Open source Reopening of Onlin 32x32"
+   ],
+   "textEls": 138,
+   "textUnder12": 12,
+   "tinySizes": {
+    "11px": 6,
+    "10px": 6
+   },
+   "tinyExamples": [
+    "Verified: 2026-09-29 @11px",
+    "INFO @10px",
+    "INFO @10px",
+    "WARNING @10px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 60,
+    "500": 6,
+    "600": 10,
+    "700": 51,
+    "900": 11
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 10820,
+   "domContentLoaded": 8429,
+   "axe": []
+  },
+  {
+   "route": "/exams/ssc-cgl/exam-overview",
+   "signedIn": true,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/exams/ssc-cgl/exam-overview",
+   "loadMs": 6439,
+   "shot": "before/shots/in_exams_ssc-cgl_exam-overview_768.jpg",
+   "path": "/exams/ssc-cgl/exam-overview",
+   "title": "Exam Overview & Conducting Authority — SSC CGL | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Exam Overview & Conducting Authority | SSC CGL 2026"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 26,
+   "tapUnder44": 20,
+   "tapUnder24": 1,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Back to SSC CGL Hub 145x16",
+    "https://ssc.gov.in 152x26",
+    "Open source Combined Graduate  32x32",
+    "Open source Reopening of Onlin 32x32"
+   ],
+   "textEls": 138,
+   "textUnder12": 12,
+   "tinySizes": {
+    "11px": 6,
+    "10px": 6
+   },
+   "tinyExamples": [
+    "Verified: 2026-09-29 @11px",
+    "INFO @10px",
+    "INFO @10px",
+    "WARNING @10px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 60,
+    "500": 6,
+    "600": 10,
+    "700": 51,
+    "900": 11
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 7522,
+   "domContentLoaded": 4869,
+   "axe": null
+  },
+  {
+   "route": "/exams/ssc-cgl/exam-overview",
+   "signedIn": true,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/exams/ssc-cgl/exam-overview",
+   "loadMs": 6588,
+   "shot": "before/shots/in_exams_ssc-cgl_exam-overview_1280.jpg",
+   "path": "/exams/ssc-cgl/exam-overview",
+   "title": "Exam Overview & Conducting Authority — SSC CGL | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Exam Overview & Conducting Authority | SSC CGL 2026"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 27,
+   "tapUnder44": 20,
+   "tapUnder24": 1,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Back to SSC CGL Hub 145x16",
+    "https://ssc.gov.in 152x26",
+    "Open source Combined Graduate  32x32",
+    "Open source Reopening of Onlin 32x32"
+   ],
+   "textEls": 141,
+   "textUnder12": 12,
+   "tinySizes": {
+    "11px": 6,
+    "10px": 6
+   },
+   "tinyExamples": [
+    "Verified: 2026-09-29 @11px",
+    "INFO @10px",
+    "INFO @10px",
+    "WARNING @10px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 60,
+    "500": 8,
+    "600": 11,
+    "700": 51,
+    "900": 11
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 6718,
+   "domContentLoaded": 5021,
+   "axe": []
+  },
+  {
+   "route": "/institutes",
+   "signedIn": true,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/institutes",
+   "loadMs": 2649,
+   "shot": "before/shots/in_institutes_360.jpg",
+   "path": "/institutes",
+   "title": "Partner Coaching Institutes & Cohorts | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Partner Coaching Institutes & Cohorts"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 23,
+   "tapUnder44": 7,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Practice Drills 124x32",
+    "Practice Drills 124x32",
+    "Community Q&A 142x32",
+    "Community Q&A 142x32"
+   ],
+   "textEls": 33,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 16,
+    "500": 5,
+    "600": 8,
+    "700": 2,
+    "800": 1,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1862,
+   "domContentLoaded": 1061,
+   "axe": []
+  },
+  {
+   "route": "/institutes",
+   "signedIn": true,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/institutes",
+   "loadMs": 3021,
+   "shot": "before/shots/in_institutes_768.jpg",
+   "path": "/institutes",
+   "title": "Partner Coaching Institutes & Cohorts | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Partner Coaching Institutes & Cohorts"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 23,
+   "tapUnder44": 17,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Practice Drills 128x32",
+    "Practice Drills 128x32",
+    "Community Q&A 146x32",
+    "Community Q&A 146x32"
+   ],
+   "textEls": 33,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 16,
+    "500": 5,
+    "600": 8,
+    "700": 2,
+    "800": 1,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1558,
+   "domContentLoaded": 1491,
+   "axe": null
+  },
+  {
+   "route": "/institutes",
+   "signedIn": true,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/institutes",
+   "loadMs": 2524,
+   "shot": "before/shots/in_institutes_1280.jpg",
+   "path": "/institutes",
+   "title": "Partner Coaching Institutes & Cohorts | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Partner Coaching Institutes & Cohorts"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 24,
+   "tapUnder44": 17,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Practice Drills 128x32",
+    "Practice Drills 128x32",
+    "Community Q&A 146x32",
+    "Community Q&A 146x32"
+   ],
+   "textEls": 36,
+   "textUnder12": 0,
+   "tinySizes": {},
+   "tinyExamples": [],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 16,
+    "500": 7,
+    "600": 9,
+    "700": 2,
+    "800": 1,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1287,
+   "domContentLoaded": 986,
+   "axe": []
+  },
+  {
+   "route": "/wallet",
+   "signedIn": true,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/wallet",
+   "loadMs": 8622,
+   "shot": "before/shots/in_wallet_360.jpg",
+   "path": "/wallet",
+   "title": "CL Coins Wallet & Rewards Studio | Courage Library",
+   "overflowX": 0,
+   "wide": [
+    "table.w-full.text-left.text-xs",
+    "thead.",
+    "tr.bg-slate-50/80.border-b.border-slate-100",
+    "th.py-2.5.px-4",
+    "th.py-2.5.px-4"
+   ],
+   "h1": [],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 27,
+   "tapUnder44": 10,
+   "tapUnder24": 2,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Back to Mock Tests 134x16",
+    "Get a Streak Freeze → 130x16",
+    "Need 35 more CL 294x34",
+    "Need 235 more CL 294x34"
+   ],
+   "textEls": 95,
+   "textUnder12": 19,
+   "tinySizes": {
+    "10px": 6,
+    "11px": 13
+   },
+   "tinyExamples": [
+    "LIFETIME EARNED @10px",
+    "REDEEMED @10px",
+    "Daily practice consistency @11px",
+    "Missed study day protection @11px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 17,
+    "500": 20,
+    "600": 5,
+    "700": 33,
+    "800": 6,
+    "900": 14
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 4205,
+   "domContentLoaded": 6942,
+   "axe": [
+    {
+     "id": "color-contrast",
+     "impact": "serious",
+     "nodes": 1,
+     "sample": ".text-orange-600.text-lg.font-black"
+    },
+    {
+     "id": "scrollable-region-focusable",
+     "impact": "serious",
+     "nodes": 1,
+     "sample": ".overflow-x-auto"
+    }
+   ]
+  },
+  {
+   "route": "/wallet",
+   "signedIn": true,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/wallet",
+   "loadMs": 7986,
+   "shot": "before/shots/in_wallet_768.jpg",
+   "path": "/wallet",
+   "title": "CL Coins Wallet & Rewards Studio | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 27,
+   "tapUnder44": 21,
+   "tapUnder24": 2,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Back to Mock Tests 134x16",
+    "Get a Streak Freeze → 130x16",
+    "Explore Full Store → 145x30",
+    "Need 35 more CL 316x34"
+   ],
+   "textEls": 95,
+   "textUnder12": 19,
+   "tinySizes": {
+    "10px": 6,
+    "11px": 13
+   },
+   "tinyExamples": [
+    "LIFETIME EARNED @10px",
+    "REDEEMED @10px",
+    "Daily practice consistency @11px",
+    "Missed study day protection @11px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 17,
+    "500": 20,
+    "600": 5,
+    "700": 33,
+    "800": 6,
+    "900": 14
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 2744,
+   "domContentLoaded": 6432,
+   "axe": null
+  },
+  {
+   "route": "/wallet",
+   "signedIn": true,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/wallet",
+   "loadMs": 12849,
+   "shot": "before/shots/in_wallet_1280.jpg",
+   "path": "/wallet",
+   "title": "CL Coins Wallet & Rewards Studio | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 28,
+   "tapUnder44": 21,
+   "tapUnder24": 2,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Back to Mock Tests 134x16",
+    "Get a Streak Freeze → 130x16",
+    "Explore Full Store → 145x30",
+    "Need 35 more CL 273x34"
+   ],
+   "textEls": 98,
+   "textUnder12": 19,
+   "tinySizes": {
+    "10px": 6,
+    "11px": 13
+   },
+   "tinyExamples": [
+    "LIFETIME EARNED @10px",
+    "REDEEMED @10px",
+    "Daily practice consistency @11px",
+    "Missed study day protection @11px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 17,
+    "500": 22,
+    "600": 6,
+    "700": 33,
+    "800": 6,
+    "900": 14
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1914,
+   "domContentLoaded": 11322,
+   "axe": [
+    {
+     "id": "color-contrast",
+     "impact": "serious",
+     "nodes": 2,
+     "sample": ".text-orange-600.text-lg.font-black | .hover\\:bg-slate-50\\/50 > .text-right"
+    }
+   ]
+  },
+  {
+   "route": "/premium",
+   "signedIn": true,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/premium",
+   "loadMs": 16149,
+   "shot": "before/shots/in_premium_360.jpg",
+   "path": "/premium",
+   "title": "Premium Practice Hub | Courage Library",
+   "overflowX": 0,
+   "wide": [
+    "button.px-3.py-1.5.rounded-xl",
+    "button.px-3.py-1.5.rounded-xl",
+    "table.w-full.text-left.text-xs",
+    "thead.",
+    "tr.border-b.border-slate-200.text-slate-400"
+   ],
+   "h1": [
+    "Candidate Premium Hub"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 44,
+   "tapUnder44": 28,
+   "tapUnder24": 1,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "SSC CGL 89x19",
+    "Upgrade 74x28",
+    "Select Full Mock 286x36",
+    "Simulate PYQ Shift 286x36"
+   ],
+   "textEls": 158,
+   "textUnder12": 40,
+   "tinySizes": {
+    "10px": 16,
+    "11px": 20,
+    "9px": 4
+   },
+   "tinyExamples": [
+    "TARGET EXAM @10px",
+    "Upgrade to unlock all 8 mode @11px",
+    "Across all premium categorie @11px",
+    "Best score: 5 marks @11px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 55,
+    "500": 17,
+    "600": 7,
+    "700": 68,
+    "800": 4,
+    "900": 7
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 6110,
+   "domContentLoaded": 14539,
+   "axe": [
+    {
+     "id": "color-contrast",
+     "impact": "serious",
+     "nodes": 5,
+     "sample": ".bg-emerald-600 > span | th:nth-child(1)"
+    },
+    {
+     "id": "select-name",
+     "impact": "critical",
+     "nodes": 1,
+     "sample": "select"
+    }
+   ]
+  },
+  {
+   "route": "/premium",
+   "signedIn": true,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/premium",
+   "loadMs": 30030,
+   "shot": "before/shots/in_premium_768.jpg",
+   "path": "/premium",
+   "title": "Premium Practice Hub | Courage Library",
+   "overflowX": 0,
+   "wide": [
+    "button.px-3.py-1.5.rounded-xl"
+   ],
+   "h1": [
+    "Candidate Premium Hub"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 44,
+   "tapUnder44": 38,
+   "tapUnder24": 1,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "SSC CGL 89x19",
+    "Upgrade 74x28",
+    "Select Full Mock 308x36",
+    "Simulate PYQ Shift 308x36"
+   ],
+   "textEls": 158,
+   "textUnder12": 40,
+   "tinySizes": {
+    "10px": 16,
+    "11px": 20,
+    "9px": 4
+   },
+   "tinyExamples": [
+    "TARGET EXAM @10px",
+    "Upgrade to unlock all 8 mode @11px",
+    "Across all premium categorie @11px",
+    "Best score: 5 marks @11px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 55,
+    "500": 17,
+    "600": 7,
+    "700": 68,
+    "800": 4,
+    "900": 7
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 3392,
+   "domContentLoaded": 28464,
+   "axe": null
+  },
+  {
+   "route": "/premium",
+   "signedIn": true,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/premium",
+   "loadMs": 11663,
+   "shot": "before/shots/in_premium_1280.jpg",
+   "path": "/premium",
+   "title": "Premium Practice Hub | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Candidate Premium Hub"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 45,
+   "tapUnder44": 38,
+   "tapUnder24": 1,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "SSC CGL 89x19",
+    "Upgrade 74x28",
+    "Select Full Mock 247x36",
+    "Simulate PYQ Shift 247x36"
+   ],
+   "textEls": 161,
+   "textUnder12": 40,
+   "tinySizes": {
+    "10px": 16,
+    "11px": 20,
+    "9px": 4
+   },
+   "tinyExamples": [
+    "TARGET EXAM @10px",
+    "Upgrade to unlock all 8 mode @11px",
+    "Across all premium categorie @11px",
+    "Best score: 5 marks @11px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 55,
+    "500": 19,
+    "600": 8,
+    "700": 68,
+    "800": 4,
+    "900": 7
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 2288,
+   "domContentLoaded": 10121,
+   "axe": [
+    {
+     "id": "color-contrast",
+     "impact": "serious",
+     "nodes": 7,
+     "sample": ".bg-emerald-600 > span | th:nth-child(1)"
+    },
+    {
+     "id": "select-name",
+     "impact": "critical",
+     "nodes": 1,
+     "sample": "select"
+    }
+   ]
+  },
+  {
+   "route": "/mock-tests/[id]/leaderboard",
+   "signedIn": true,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/mock-tests/[id]/leaderboard",
+   "loadMs": 4714,
+   "shot": "before/shots/in_mock-tests_id_leaderboard_360.jpg",
+   "path": "/mock-tests/aa36204b-a0f3-489e-a405-bd33dcf532de/leaderboard",
+   "title": "Courage Library — Learn Smarter. Prepare Independently.",
+   "overflowX": 0,
+   "wide": [
+    "table.w-full.text-left.text-xs",
+    "thead.",
+    "tr.border-b.border-slate-200.text-slate-500",
+    "th.py-3.px-3.text-right",
+    "tbody.divide-y.divide-slate-100.font-medium"
+   ],
+   "h1": [
+    "SSC CGL Daily Monday Mock"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 20,
+   "tapUnder44": 4,
+   "tapUnder24": 1,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Back to Mock Tests 134x16",
+    "Exams 44x44"
+   ],
+   "textEls": 87,
+   "textUnder12": 21,
+   "tinySizes": {
+    "11px": 9,
+    "10px": 12
+   },
+   "tinyExamples": [
+    "TOTAL CANDIDATES @11px",
+    "AVERAGE SCORE @11px",
+    "TOP SCORE @11px",
+    "59% acc @10px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 14,
+    "500": 12,
+    "600": 8,
+    "700": 28,
+    "800": 5,
+    "900": 20
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 2452,
+   "domContentLoaded": 2976,
+   "axe": []
+  },
+  {
+   "route": "/mock-tests/[id]/leaderboard",
+   "signedIn": true,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/mock-tests/[id]/leaderboard",
+   "loadMs": 4350,
+   "shot": "before/shots/in_mock-tests_id_leaderboard_768.jpg",
+   "path": "/mock-tests/aa36204b-a0f3-489e-a405-bd33dcf532de/leaderboard",
+   "title": "Courage Library — Learn Smarter. Prepare Independently.",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "SSC CGL Daily Monday Mock"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 20,
+   "tapUnder44": 14,
+   "tapUnder24": 1,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Back to Mock Tests 134x16",
+    "Exams 44x36",
+    "Mock tests 73x36",
+    "Practice 54x36"
+   ],
+   "textEls": 87,
+   "textUnder12": 21,
+   "tinySizes": {
+    "11px": 9,
+    "10px": 12
+   },
+   "tinyExamples": [
+    "TOTAL CANDIDATES @11px",
+    "AVERAGE SCORE @11px",
+    "TOP SCORE @11px",
+    "59% acc @10px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 14,
+    "500": 12,
+    "600": 8,
+    "700": 28,
+    "800": 5,
+    "900": 20
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1880,
+   "domContentLoaded": 2808,
+   "axe": null
+  },
+  {
+   "route": "/mock-tests/[id]/leaderboard",
+   "signedIn": true,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/mock-tests/[id]/leaderboard",
+   "loadMs": 5957,
+   "shot": "before/shots/in_mock-tests_id_leaderboard_1280.jpg",
+   "path": "/mock-tests/aa36204b-a0f3-489e-a405-bd33dcf532de/leaderboard",
+   "title": "Courage Library — Learn Smarter. Prepare Independently.",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "SSC CGL Daily Monday Mock"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 21,
+   "tapUnder44": 14,
+   "tapUnder24": 1,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Back to Mock Tests 134x16",
+    "Exams 44x36",
+    "Mock tests 73x36",
+    "Practice 54x36"
+   ],
+   "textEls": 90,
+   "textUnder12": 21,
+   "tinySizes": {
+    "11px": 9,
+    "10px": 12
+   },
+   "tinyExamples": [
+    "TOTAL CANDIDATES @11px",
+    "AVERAGE SCORE @11px",
+    "TOP SCORE @11px",
+    "59% acc @10px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 14,
+    "500": 14,
+    "600": 9,
+    "700": 28,
+    "800": 5,
+    "900": 20
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1608,
+   "domContentLoaded": 4426,
+   "axe": []
+  },
+  {
+   "route": "/mock-tests",
+   "signedIn": true,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/mock-tests",
+   "loadMs": 3296,
+   "shot": "before/shots/in_mock-tests_360.jpg",
+   "path": "/mock-tests",
+   "title": "Mock Tests & Daily Practice | Courage Library",
+   "overflowX": 0,
+   "wide": [
+    "div.absolute.top-0.right-0"
+   ],
+   "h1": [
+    "Mock Tests"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 37,
+   "tapUnder44": 20,
+   "tapUnder24": 4,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Add / Manage Exams 141x16",
+    "SSC CGL 104x32",
+    "Add Exam 107x34",
+    "Start Mock 294x32"
+   ],
+   "textEls": 205,
+   "textUnder12": 56,
+   "tinySizes": {
+    "11px": 23,
+    "10px": 23,
+    "9px": 10
+   },
+   "tinyExamples": [
+    "Mock tests @11px",
+    "1 Day Streak @11px",
+    "ACCURACY @10px",
+    "SOLVED @10px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 54,
+    "500": 29,
+    "600": 24,
+    "700": 52,
+    "800": 23,
+    "900": 23
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 5190,
+   "domContentLoaded": 1674,
+   "axe": []
+  },
+  {
+   "route": "/mock-tests",
+   "signedIn": true,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/mock-tests",
+   "loadMs": 27205,
+   "shot": "before/shots/in_mock-tests_768.jpg",
+   "path": "/mock-tests",
+   "title": "Mock Tests & Daily Practice | Courage Library",
+   "overflowX": 0,
+   "wide": [
+    "div.absolute.top-0.right-0"
+   ],
+   "h1": [
+    "Mock Tests"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 37,
+   "tapUnder44": 30,
+   "tapUnder24": 4,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Add / Manage Exams 141x16",
+    "SSC CGL 104x32",
+    "Add Exam 107x34",
+    "Start Mock 311x32"
+   ],
+   "textEls": 205,
+   "textUnder12": 56,
+   "tinySizes": {
+    "11px": 23,
+    "10px": 23,
+    "9px": 10
+   },
+   "tinyExamples": [
+    "Mock tests @11px",
+    "1 Day Streak @11px",
+    "ACCURACY @10px",
+    "SOLVED @10px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 54,
+    "500": 29,
+    "600": 24,
+    "700": 52,
+    "800": 23,
+    "900": 23
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 3363,
+   "domContentLoaded": 25516,
+   "axe": null
+  },
+  {
+   "route": "/mock-tests",
+   "signedIn": true,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/mock-tests",
+   "loadMs": 29445,
+   "shot": "before/shots/in_mock-tests_1280.jpg",
+   "path": "/mock-tests",
+   "title": "Mock Tests & Daily Practice | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Mock Tests"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 37,
+   "tapUnder44": 31,
+   "tapUnder24": 4,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Sign in 69x36",
+    "Get started 99x36",
+    "Add / Manage Exams 141x16",
+    "SSC CGL 104x32"
+   ],
+   "textEls": 183,
+   "textUnder12": 42,
+   "tinySizes": {
+    "11px": 14,
+    "10px": 19,
+    "9px": 9
+   },
+   "tinyExamples": [
+    "Mock tests @11px",
+    "PREVIEW MODE @10px",
+    "SSC CGL @10px",
+    "● Available @10px"
+   ],
+   "fonts": [
+    "Inter"
+   ],
+   "weights": {
+    "400": 54,
+    "500": 26,
+    "600": 20,
+    "700": 42,
+    "800": 21,
+    "900": 20
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 2405,
+   "domContentLoaded": 27716,
+   "axe": []
+  },
+  {
+   "route": "/mock-tests/[id]/result",
+   "signedIn": true,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/mock-tests/[id]/result",
+   "loadMs": 18991,
+   "shot": "before/shots/in_mock-tests_id_result_360.jpg",
+   "path": "/mock-tests/348dc257-b99e-4bad-8f1d-b77874f4517c/result",
+   "title": "Courage Library — Learn Smarter. Prepare Independently.",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "SSC CGL Daily Monday Mock"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 38,
+   "tapUnder44": 18,
+   "tapUnder24": 9,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Back to Mock Tests 134x16",
+    "View CL Wallet → 55x33",
+    "Review Mistakes 124x32",
+    "All (25) 66x28"
+   ],
+   "textEls": 193,
+   "textUnder12": 48,
+   "tinySizes": {
+    "11px": 28,
+    "10px": 20
+   },
+   "tinyExamples": [
+    "EXAM-PATTERN MOCK @11px",
+    "Correct @11px",
+    "Wrong @11px",
+    "Unattempted @11px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 47,
+    "500": 26,
+    "600": 27,
+    "700": 67,
+    "800": 13,
+    "900": 13
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 6808,
+   "domContentLoaded": 17439,
+   "axe": []
+  },
+  {
+   "route": "/mock-tests/[id]/result",
+   "signedIn": true,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/mock-tests/[id]/result",
+   "loadMs": 15967,
+   "shot": "before/shots/in_mock-tests_id_result_768.jpg",
+   "path": "/mock-tests/348dc257-b99e-4bad-8f1d-b77874f4517c/result",
+   "title": "Courage Library — Learn Smarter. Prepare Independently.",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "SSC CGL Daily Monday Mock"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 38,
+   "tapUnder44": 28,
+   "tapUnder24": 10,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Back to Mock Tests 134x16",
+    "View CL Wallet → 95x17",
+    "Review Mistakes 124x32",
+    "All (25) 66x28"
+   ],
+   "textEls": 193,
+   "textUnder12": 48,
+   "tinySizes": {
+    "11px": 28,
+    "10px": 20
+   },
+   "tinyExamples": [
+    "EXAM-PATTERN MOCK @11px",
+    "Correct @11px",
+    "Wrong @11px",
+    "Unattempted @11px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 47,
+    "500": 26,
+    "600": 27,
+    "700": 67,
+    "800": 13,
+    "900": 13
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 5278,
+   "domContentLoaded": 14389,
+   "axe": null
+  },
+  {
+   "route": "/mock-tests/[id]/result",
+   "signedIn": true,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/mock-tests/[id]/result",
+   "loadMs": 7028,
+   "shot": "before/shots/in_mock-tests_id_result_1280.jpg",
+   "path": "/mock-tests/348dc257-b99e-4bad-8f1d-b77874f4517c/result",
+   "title": "Courage Library — Learn Smarter. Prepare Independently.",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "SSC CGL Daily Monday Mock"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 39,
+   "tapUnder44": 28,
+   "tapUnder24": 10,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Back to Mock Tests 134x16",
+    "View CL Wallet → 95x17",
+    "Review Mistakes 124x32",
+    "All (25) 66x28"
+   ],
+   "textEls": 196,
+   "textUnder12": 48,
+   "tinySizes": {
+    "11px": 28,
+    "10px": 20
+   },
+   "tinyExamples": [
+    "EXAM-PATTERN MOCK @11px",
+    "Correct @11px",
+    "Wrong @11px",
+    "Unattempted @11px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 47,
+    "500": 28,
+    "600": 28,
+    "700": 67,
+    "800": 13,
+    "900": 13
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 4934,
+   "domContentLoaded": 5507,
+   "axe": []
+  },
+  {
+   "route": "/exams",
+   "signedIn": true,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/exams",
+   "loadMs": 4935,
+   "shot": "before/shots/in_exams_360.jpg",
+   "path": "/exams",
+   "title": "National Competitive Exam Knowledge Hub | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Target Competitive Examinations"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 20,
+   "tapUnder44": 3,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Exams 44x44"
+   ],
+   "textEls": 37,
+   "textUnder12": 2,
+   "tinySizes": {
+    "10px": 2
+   },
+   "tinyExamples": [
+    "Commission @10px",
+    "Cycle 2026 @10px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 16,
+    "500": 7,
+    "600": 9,
+    "700": 4,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1862,
+   "domContentLoaded": 3317,
+   "axe": []
+  },
+  {
+   "route": "/exams",
+   "signedIn": true,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/exams",
+   "loadMs": 2616,
+   "shot": "before/shots/in_exams_768.jpg",
+   "path": "/exams",
+   "title": "National Competitive Exam Knowledge Hub | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Target Competitive Examinations"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 20,
+   "tapUnder44": 13,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Exams 44x36",
+    "Mock tests 73x36",
+    "Practice 54x36",
+    "Flashcards 72x36"
+   ],
+   "textEls": 37,
+   "textUnder12": 2,
+   "tinySizes": {
+    "10px": 2
+   },
+   "tinyExamples": [
+    "Commission @10px",
+    "Cycle 2026 @10px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 16,
+    "500": 7,
+    "600": 9,
+    "700": 4,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1558,
+   "domContentLoaded": 1053,
+   "axe": null
+  },
+  {
+   "route": "/exams",
+   "signedIn": true,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/exams",
+   "loadMs": 26937,
+   "shot": "before/shots/in_exams_1280.jpg",
+   "path": "/exams",
+   "title": "National Competitive Exam Knowledge Hub | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Target Competitive Examinations"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 21,
+   "tapUnder44": 13,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Exams 44x36",
+    "Mock tests 73x36",
+    "Practice 54x36",
+    "Flashcards 72x36"
+   ],
+   "textEls": 40,
+   "textUnder12": 2,
+   "tinySizes": {
+    "10px": 2
+   },
+   "tinyExamples": [
+    "Commission @10px",
+    "Cycle 2026 @10px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 16,
+    "500": 9,
+    "600": 10,
+    "700": 4,
+    "900": 1
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 1287,
+   "domContentLoaded": 25375,
+   "axe": []
+  },
+  {
+   "route": "/exams/ssc-cgl",
+   "signedIn": true,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/exams/ssc-cgl",
+   "loadMs": 7596,
+   "shot": "before/shots/in_exams_ssc-cgl_360.jpg",
+   "path": "/exams/ssc-cgl",
+   "title": "SSC CGL 2026 — Complete Exam Knowledge Hub | Courage Library",
+   "overflowX": 0,
+   "wide": [
+    "a.whitespace-nowrap.px-3.py-1.5",
+    "a.whitespace-nowrap.px-3.py-1.5"
+   ],
+   "h1": [
+    "SSC CGL"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 491,
+   "tapUnder44": 64,
+   "tapUnder24": 24,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Explore Syllabus 176x40",
+    "Explore Syllabus 176x40",
+    "Practice PYQs 160x40",
+    "Practice PYQs 160x40"
+   ],
+   "textEls": 840,
+   "textUnder12": 66,
+   "tinySizes": {
+    "11px": 12,
+    "10px": 54
+   },
+   "tinyExamples": [
+    "active @11px",
+    "NOTIFICATION DATE @11px",
+    "APPLICATION WINDOW @11px",
+    "EXAM SCHEDULE @11px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 168,
+    "500": 76,
+    "600": 113,
+    "700": 475,
+    "800": 1,
+    "900": 7
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 62137,
+   "domContentLoaded": 6065,
+   "axe": [
+    {
+     "id": "color-contrast",
+     "impact": "serious",
+     "nodes": 27,
+     "sample": ".h-full.hover\\:border-blue-300.border-slate-200\\/80:nth-child(1) > .space-y-3.p-5 > .text-\\[10px\\].font-semibold.gap-1 > span | .h-full.hover\\:border-blue-300.b"
+    },
+    {
+     "id": "target-size",
+     "impact": "serious",
+     "nodes": 1,
+     "sample": ".mt-6 > a[href$=\"eligibility\"]"
+    }
+   ]
+  },
+  {
+   "route": "/exams/ssc-cgl",
+   "signedIn": true,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/exams/ssc-cgl",
+   "loadMs": 16917,
+   "shot": "before/shots/in_exams_ssc-cgl_768.jpg",
+   "path": "/exams/ssc-cgl",
+   "title": "SSC CGL 2026 — Complete Exam Knowledge Hub | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "SSC CGL"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 491,
+   "tapUnder44": 74,
+   "tapUnder24": 24,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Explore Syllabus 176x40",
+    "Explore Syllabus 176x40",
+    "Practice PYQs 160x40",
+    "Practice PYQs 160x40"
+   ],
+   "textEls": 840,
+   "textUnder12": 66,
+   "tinySizes": {
+    "11px": 12,
+    "10px": 54
+   },
+   "tinyExamples": [
+    "active @11px",
+    "NOTIFICATION DATE @11px",
+    "APPLICATION WINDOW @11px",
+    "EXAM SCHEDULE @11px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 168,
+    "500": 76,
+    "600": 113,
+    "700": 475,
+    "800": 1,
+    "900": 7
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 51992,
+   "domContentLoaded": 15388,
+   "axe": null
+  },
+  {
+   "route": "/exams/ssc-cgl",
+   "signedIn": true,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/exams/ssc-cgl",
+   "loadMs": 5963,
+   "shot": "before/shots/in_exams_ssc-cgl_1280.jpg",
+   "path": "/exams/ssc-cgl",
+   "title": "SSC CGL 2026 — Complete Exam Knowledge Hub | Courage Library",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "SSC CGL"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 492,
+   "tapUnder44": 74,
+   "tapUnder24": 24,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Explore Syllabus 176x40",
+    "Explore Syllabus 176x40",
+    "Practice PYQs 160x40",
+    "Practice PYQs 160x40"
+   ],
+   "textEls": 843,
+   "textUnder12": 66,
+   "tinySizes": {
+    "11px": 12,
+    "10px": 54
+   },
+   "tinyExamples": [
+    "active @11px",
+    "NOTIFICATION DATE @11px",
+    "APPLICATION WINDOW @11px",
+    "EXAM SCHEDULE @11px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 168,
+    "500": 78,
+    "600": 114,
+    "700": 475,
+    "800": 1,
+    "900": 7
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 50395,
+   "domContentLoaded": 4083,
+   "axe": [
+    {
+     "id": "color-contrast",
+     "impact": "serious",
+     "nodes": 27,
+     "sample": ".h-full.hover\\:border-blue-300.border-slate-200\\/80:nth-child(1) > .space-y-3.p-5 > .text-\\[10px\\].font-semibold.gap-1 > span | .h-full.hover\\:border-blue-300.b"
+    }
+   ]
+  }
+ ],
+ "nonGetRequests": [
+  {
+   "who": "student",
+   "method": "POST",
+   "path": "/auth/login",
+   "action": "server-action"
+  }
+ ]
+}

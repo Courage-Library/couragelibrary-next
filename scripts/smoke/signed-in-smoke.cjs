@@ -76,7 +76,7 @@ const REQUIRED = {
   '/descriptive': ['"Descriptive Answer Writing Studio" heading', H(/Descriptive Answer Writing Studio/)],
   '/descriptive/submissions': ['"My Descriptive Submissions" heading', H(/My Descriptive Submissions/)],
   '/flashcards': ['"Flashcard Library" heading', H(/Flashcard Library/)],
-  '/institutes': ['"Partner Coaching Institutes" heading', H(/Partner Coaching Institutes/)],
+  '/institutes': ['"Coaching Institutes" heading', H(/^Coaching Institutes/)],
   '/premium': ['"Candidate Premium Hub" heading', H(/Candidate Premium Hub/)],
   '/store': ['"Turn your consistency" heading', H(/Turn your consistency/)],
   '/wallet': ['"How to Earn CL Coins" heading', H(/How to Earn CL Coins/)],

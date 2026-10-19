@@ -210,7 +210,7 @@ export function RedeemModal({
                 <>
                   <li className="flex items-start gap-2">
                     <span className="text-emerald-600 font-bold">•</span>
-                    <span><strong>Premium Merchandise:</strong> Official Courage Library study gear crafted for dedicated students.</span>
+                    <span><strong>Premium Merchandise:</strong> Courage Library study gear crafted for dedicated students.</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-emerald-600 font-bold">•</span>

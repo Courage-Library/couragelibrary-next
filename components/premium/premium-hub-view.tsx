@@ -320,6 +320,7 @@ export function PremiumHubView({ initialData }: PremiumHubViewProps) {
               <div>
                 <div className="text-[10px] uppercase font-bold text-indigo-200 tracking-wider">Target Exam</div>
                 <select
+                  aria-label="Target exam"
                   value={selectedExamId}
                   onChange={(e) => handleExamChange(e.target.value)}
                   className="bg-transparent text-sm font-bold text-white border-none outline-none cursor-pointer focus:ring-0 pr-2"
@@ -545,7 +546,7 @@ export function PremiumHubView({ initialData }: PremiumHubViewProps) {
                   PYQ Exam Shifts
                 </h3>
                 <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
-                  Practice authentic past year official question papers year-wise and shift-wise with detailed solutions.
+                  No previous years&apos; papers are available yet.
                 </p>
               </div>
 
@@ -590,7 +591,7 @@ export function PremiumHubView({ initialData }: PremiumHubViewProps) {
               <div className="mt-5 pt-3 border-t border-slate-100">
                 <button
                   onClick={() => setActiveModal("topic")}
-                  className="w-full inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-colors"
+                  className="w-full inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-success-700 hover:bg-success-800 text-white font-bold text-xs shadow-sm transition-colors"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>Configure Topic Test</span>
@@ -799,10 +800,10 @@ export function PremiumHubView({ initialData }: PremiumHubViewProps) {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h2 className="text-lg font-extrabold text-slate-900">
-                Curated Tests & Official Papers
+                Curated Tests
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Full-length mocks, previous year questions, and curated series for {data.selectedExam?.name || "your target exam"}.
+                Full-length mocks and curated series for {data.selectedExam?.name || "your target exam"}.
               </p>
             </div>
 
@@ -942,7 +943,7 @@ export function PremiumHubView({ initialData }: PremiumHubViewProps) {
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="border-b border-slate-200 text-slate-400 font-mono text-[10px] uppercase">
+                  <tr className="border-b border-slate-200 text-fg-secondary font-mono text-[10px] uppercase">
                     <th className="py-2.5 px-3">Test Title</th>
                     <th className="py-2.5 px-3">Category</th>
                     <th className="py-2.5 px-3">Date</th>
@@ -1143,7 +1144,7 @@ export function PremiumHubView({ initialData }: PremiumHubViewProps) {
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-900">PYQ Simulation</h3>
-                  <p className="text-[11px] text-slate-500">Pick year & shift to simulate official test</p>
+                  <p className="text-[11px] text-slate-500">Pick a year and shift to practise in the real exam pattern</p>
                 </div>
               </div>
               <button onClick={() => setActiveModal(null)} className="text-slate-400 hover:text-slate-700 p-1">

@@ -22,22 +22,22 @@ const TIER_CONFIG: Record<
   { label: string; badgeClass: string; icon: React.ComponentType<{ className?: string }> }
 > = {
   TIER_1: {
-    label: 'Tier 1 — Official Govt / Statutory',
+    label: 'Tier 1 — Official government / statutory',
     badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300',
     icon: Building2,
   },
   TIER_2: {
-    label: 'Tier 2 — Institutional / Multilateral',
+    label: 'Tier 2 — Intergovernmental / public institution',
     badgeClass: 'bg-blue-100 text-blue-800 border-blue-300',
     icon: ShieldCheck,
   },
   TIER_3: {
-    label: 'Tier 3 — Verified National Press',
+    label: 'Tier 3 — Reputable national media',
     badgeClass: 'bg-indigo-100 text-indigo-800 border-indigo-300',
     icon: Newspaper,
   },
   TIER_4: {
-    label: 'Tier 4 — Secondary Reference',
+    label: 'Tier 4 — Secondary (blogs, social media, coaching)',
     badgeClass: 'bg-slate-100 text-slate-700 border-slate-300',
     icon: FileText,
   },
@@ -49,13 +49,13 @@ export const CurrentAffairsSourcesCard: React.FC<CurrentAffairsSourcesCardProps>
   return (
     <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-5 md:p-6 my-8">
       <div className="flex items-center gap-2.5 mb-4">
-        <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
-        <h3 className="text-base font-bold text-slate-900">
-          Verified Sources &amp; Fact Provenance
-        </h3>
+        <FileText aria-hidden="true" className="w-5 h-5 text-fg-secondary shrink-0" />
+        <h3 className="text-base font-bold text-slate-900">Sources</h3>
       </div>
-      <p className="text-xs text-slate-500 mb-4">
-        Every event point is checked against official government, statutory, or verified national news sources.
+      {/* UX-2b.H2 (E-5): the real process (admin-current-affairs.service: validation gates, staff approval, publish) */}
+      <p className="text-xs text-fg-secondary mb-4">
+        Every published item passes automated checks and a review by our staff before it goes live. Its sources are listed
+        below by tier.
       </p>
 
       <div className="space-y-3">

@@ -4,27 +4,24 @@
  */
 
 /**
- * Full-length vs shorter mocks (H-10).
- *
- * A mock is "full-length" when it has at least FULL_LENGTH_MIN_QUESTIONS questions AND at least
- * FULL_LENGTH_MIN_MINUTES minutes. The full first-stage papers of the exams on the platform's roadmap all meet both
- * (SSC CGL / CHSL Tier 1: 100 questions, 60 min; IBPS / SBI prelims: 100 questions, 60 min; RRB NTPC CBT-1:
- * 100 questions, 90 min). Anything smaller (e.g. the 25-question, 15-minute daily sectionals) is a shorter mock.
- * The page does not receive the exam pattern itself, so the rule uses the mock's own size only; revisit it when an
- * exam with a smaller full paper is added (owner to confirm).
+ * Mock size as plain facts (UX-2b.H2, E-7; replaces the H-10 "Full-length" / "Shorter" label). A single threshold
+ * mislabels real exams (SSC GD 80 questions / 60 min, SSC MTS 90 / 90 would read "Shorter"), so the page states the
+ * size instead of judging it: "25 questions · 15 min", "1 question · 1 hr 30 min".
+ * Missing, zero or invalid parts are left out (never "NaN"); nothing valid → "".
  */
-export const FULL_LENGTH_MIN_QUESTIONS = 100;
-export const FULL_LENGTH_MIN_MINUTES = 60;
-
-export function isFullLengthMock(mock: { totalQuestions: number; durationMinutes: number }): boolean {
-  const q = Number(mock.totalQuestions);
-  const m = Number(mock.durationMinutes);
-  return Number.isFinite(q) && Number.isFinite(m) && q >= FULL_LENGTH_MIN_QUESTIONS && m >= FULL_LENGTH_MIN_MINUTES;
+export function formatDurationMinutes(minutes: number | null | undefined): string {
+  const m = Math.round(Number(minutes));
+  if (!Number.isFinite(m) || m <= 0) return "";
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  const rest = m % 60;
+  return rest === 0 ? `${h} hr` : `${h} hr ${rest} min`;
 }
 
-/** "Full-length mock" or "Shorter mock", from the mock's size. */
-export function mockLengthLabel(mock: { totalQuestions: number; durationMinutes: number }): string {
-  return isFullLengthMock(mock) ? "Full-length mock" : "Shorter mock";
+export function formatMockShape(mock: { totalQuestions?: number | null; durationMinutes?: number | null }): string {
+  const q = Math.round(Number(mock.totalQuestions));
+  const questions = Number.isFinite(q) && q > 0 ? `${q} ${q === 1 ? "question" : "questions"}` : "";
+  return [questions, formatDurationMinutes(mock.durationMinutes)].filter(Boolean).join(" · ");
 }
 
 /**
