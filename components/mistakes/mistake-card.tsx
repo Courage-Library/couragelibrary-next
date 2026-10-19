@@ -1,10 +1,11 @@
 import React from "react";
-import Link from "next/link";
-import { Badge } from "@/components/ui/legacy/badge";
-import { Button } from "@/components/ui/legacy/button";
+import { AlertTriangle, BookOpen, CheckCircle2, RotateCcw, Sparkles, StickyNote } from "lucide-react";
 import { MistakeListItem } from "@/services/mistake.service";
 import { MistakeBookmarkButton } from "@/components/mistakes/mistake-bookmark-button";
-import { RotateCcw, ArrowRight, Zap, CheckCircle2, AlertTriangle, Sparkles, StickyNote, BookOpen } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { Badge, type BadgeTone } from "@/components/ui/badge";
+import { ButtonLink } from "@/components/ui/button";
+import { formatDateShort } from "@/lib/format";
 
 interface MistakeCardProps {
   mistake: MistakeListItem;
@@ -17,173 +18,70 @@ interface MistakeCardProps {
   } | null;
 }
 
-export function MistakeCard({ mistake, isBookmarked = false, learningContent }: MistakeCardProps) {
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "MASTERED":
-        return (
-          <Badge variant="success" className="text-[10px] font-bold px-2 py-0.5 flex items-center gap-1">
-            <CheckCircle2 className="w-3 h-3" /> Mastered
-          </Badge>
-        );
-      case "REVISITING":
-        return (
-          <Badge variant="warning" className="text-[10px] font-bold px-2 py-0.5 flex items-center gap-1">
-            <Sparkles className="w-3 h-3" /> Improving
-          </Badge>
-        );
-      default:
-        return (
-          <Badge variant="destructive" className="text-[10px] font-bold px-2 py-0.5 flex items-center gap-1">
-            <AlertTriangle className="w-3 h-3" /> Needs Revision
-          </Badge>
-        );
-    }
-  };
+const STATUS: Record<string, { tone: BadgeTone; label: string; Icon: typeof CheckCircle2 }> = {
+  MASTERED: { tone: "success", label: "Mastered", Icon: CheckCircle2 },
+  REVISITING: { tone: "info", label: "Correct once", Icon: Sparkles },
+};
+const NEEDS_REVISION = { tone: "danger" as BadgeTone, label: "Needs revision", Icon: AlertTriangle };
 
-  const isRepeated = mistake.totalMistakesCount >= 2;
-  const formattedDate = mistake.lastMistakeAt
-    ? new Date(mistake.lastMistakeAt).toLocaleDateString(undefined, {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      })
-    : null;
+export function MistakeCard({ mistake, isBookmarked = false, learningContent }: MistakeCardProps) {
+  const status = STATUS[mistake.lifecycleStatus] ?? NEEDS_REVISION;
+  const timesWrong = mistake.totalMistakesCount;
+  const lastWrong = mistake.lastMistakeAt ? formatDateShort(mistake.lastMistakeAt) : null;
+  // context for repeated link names ("Review solution: Percentage")
+  const name = mistake.topicName || mistake.subjectName || mistake.questionText.slice(0, 60);
 
   return (
-    <div className="p-5 rounded-2xl bg-white border border-slate-200 hover:border-slate-300 hover:shadow-xs transition-all space-y-3.5">
-      {/* Top Header Row */}
-      <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+    <Card as="article" padding="sm" aria-label={`Mistake: ${name}`}>
+      <div className="flex items-start justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          {getStatusBadge(mistake.lifecycleStatus)}
-
-          <span className="font-bold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-md text-[11px]">
-            {mistake.primaryCognitiveName}
-          </span>
-
-          {mistake.subjectName && (
-            <span className="text-slate-500 font-medium text-[11px]">
-              {mistake.subjectName}
-            </span>
+          <Badge tone={status.tone} icon={<status.Icon aria-hidden="true" className="size-3.5" />}>
+            {status.label}
+          </Badge>
+          {timesWrong >= 2 && (
+            <Badge tone="warning" icon={<RotateCcw aria-hidden="true" className="size-3.5" />}>
+              Wrong {timesWrong} times
+            </Badge>
           )}
-
-          {mistake.topicName && (
-            <span className="text-slate-400 text-[11px]">
-              • {mistake.topicName}
-            </span>
-          )}
-
-          {/* Subtle Note Indicator */}
+          {mistake.hasRepeatedForgetting && <Badge tone="danger">Wrong again after revising</Badge>}
+          {mistake.decayState === "REFRESH_DUE" && <Badge tone="info">Refresh due</Badge>}
+          {mistake.primaryCognitiveName && <Badge tone="neutral">{mistake.primaryCognitiveName}</Badge>}
           {mistake.hasNote && (
-            <span
-              title="Personal revision note recorded"
-              className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-md"
-            >
-              <StickyNote className="w-3 h-3 text-indigo-600" />
+            <Badge tone="neutral" icon={<StickyNote aria-hidden="true" className="size-3.5" />}>
               Note
-            </span>
+            </Badge>
           )}
         </div>
-
-        <div className="flex items-center gap-2">
-          {mistake.hasRepeatedForgetting && (
-            <Badge variant="outline" className="text-[10px] font-bold text-rose-700 bg-rose-50 border-rose-200 flex items-center gap-1" title="Repeatedly missed after previous revision">
-              <RotateCcw className="w-3 h-3 text-rose-600" />
-              Repeatedly Missed
-            </Badge>
-          )}
-
-          {mistake.decayState === "REFRESH_DUE" && (
-            <Badge variant="outline" className="text-[10px] font-bold text-blue-700 bg-blue-50 border-blue-200 flex items-center gap-1" title="Mastered concept due for refresher review">
-              <Sparkles className="w-3 h-3 text-blue-600" />
-              Refresh Due
-            </Badge>
-          )}
-
-          {isRepeated ? (
-            <Badge variant="outline" className="text-[10px] font-bold text-amber-700 bg-amber-50 border-amber-200 flex items-center gap-1">
-              <RotateCcw className="w-3 h-3" />
-              Wrong {mistake.totalMistakesCount} times
-            </Badge>
-          ) : (
-            <span className="text-[11px] text-slate-400 font-mono">
-              1 slip
-            </span>
-          )}
-
-          {/* Card Bookmark Toggle */}
-          <MistakeBookmarkButton
-            questionId={mistake.questionId}
-            initialBookmarked={isBookmarked}
-            variant="icon"
-          />
-        </div>
+        <MistakeBookmarkButton questionId={mistake.questionId} initialBookmarked={isBookmarked} variant="icon" />
       </div>
 
-      {/* Question Prompt Preview */}
-      <p className="text-sm font-medium text-slate-900 line-clamp-2 leading-relaxed">
-        {mistake.questionText}
+      <p className="line-clamp-2 text-body text-fg">{mistake.questionText}</p>
+
+      <p className="flex flex-wrap gap-x-3 gap-y-1 text-body-sm text-fg-secondary">
+        {(mistake.subjectName || mistake.topicName) && (
+          <span>{[mistake.subjectName, mistake.topicName].filter(Boolean).join(" › ")}</span>
+        )}
+        <span>Drill streak {mistake.consecutiveCorrect} of 2</span>
+        {lastWrong && <span>Last wrong {lastWrong}</span>}
       </p>
 
-      {/* Bottom Actions and Progress Row */}
-      <div className="flex flex-wrap items-center justify-between pt-3 border-t border-slate-100 text-xs gap-3">
-        <div className="flex items-center gap-3 text-[11px] text-slate-500">
-          <span>
-            Remediation:{" "}
-            <strong
-              className={
-                mistake.consecutiveCorrect >= 2
-                  ? "text-emerald-700 font-bold"
-                  : mistake.consecutiveCorrect === 1
-                  ? "text-amber-700 font-bold"
-                  : "text-slate-700 font-bold"
-              }
-            >
-              {mistake.consecutiveCorrect}/2
-            </strong>
-          </span>
-          {formattedDate && (
-            <span className="text-slate-400 font-mono">
-              • Last slip: {formattedDate}
-            </span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2">
-          {learningContent?.hasContent && learningContent.canonicalUrl && (
-            <Link href={learningContent.canonicalUrl}>
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-xs h-8 font-semibold text-teal-800 hover:text-teal-950 bg-teal-50/60 hover:bg-teal-100/70 border-teal-200/80 flex items-center gap-1.5"
-              >
-                <BookOpen className="w-3 h-3 text-teal-600" />
-                Study Topic
-              </Button>
-            </Link>
-          )}
-
-          <Link href={`/mistakes/${mistake.vaultId}`}>
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-xs h-8 font-semibold text-slate-700 hover:text-slate-900 border-slate-200"
-            >
-              Review Solution <ArrowRight className="w-3 h-3 ml-1" />
-            </Button>
-          </Link>
-
-          <Link href="/mistakes/drill">
-            <Button
-              size="sm"
-              className="text-xs h-8 font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs flex items-center gap-1"
-            >
-              <Zap className="w-3 h-3 text-amber-300 fill-amber-300" />
-              Practice
-            </Button>
-          </Link>
-        </div>
+      <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3">
+        <ButtonLink href={`/mistakes/${mistake.vaultId}`} variant="secondary">
+          Review solution<span className="sr-only">: {name}</span>
+        </ButtonLink>
+        <ButtonLink href={`/mistakes/drill?vaultId=${mistake.vaultId}`} variant="ghost">
+          Drill<span className="sr-only"> this mistake: {name}</span>
+        </ButtonLink>
+        {learningContent?.hasContent && learningContent.canonicalUrl && (
+          <ButtonLink
+            href={learningContent.canonicalUrl}
+            variant="ghost"
+            leadingIcon={<BookOpen aria-hidden="true" className="size-4" />}
+          >
+            Study topic<span className="sr-only">: {name}</span>
+          </ButtonLink>
+        )}
       </div>
-    </div>
+    </Card>
   );
 }

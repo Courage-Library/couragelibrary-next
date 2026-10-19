@@ -1,60 +1,81 @@
 ﻿import React from "react";
-import { Container } from "@/components/ui/legacy/container";
-import { Card } from "@/components/ui/legacy/card";
-import { Badge } from "@/components/ui/legacy/badge";
-import { Button } from "@/components/ui/legacy/button";
-import { Zap, BookOpen } from "lucide-react";
+import { Bookmark, BookOpen, Zap } from "lucide-react";
+import { Container } from "@/components/ui/layout";
+import { Card, CardBody, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { ButtonLink } from "@/components/ui/button";
 
 export const revalidate = 60;
 
-export default async function PracticeArenaPage() {
+// UX-2b.3 (F-01): every card links to a route that works today. Practice here draws on the questions a student
+// got wrong in mocks; topic-by-topic practice sessions do not exist yet, so nothing below promises them.
+const CARDS = [
+  {
+    id: "drill",
+    icon: Zap,
+    title: "Drill your mistakes",
+    description:
+      "Pick 5 to 20 questions from your mistakes, highest priority first. Answer one correctly twice in a row in a drill and it counts as mastered.",
+    href: "/mistakes/drill",
+    cta: "Start a drill",
+    variant: "primary" as const,
+  },
+  {
+    id: "bookmarked",
+    icon: Bookmark,
+    title: "Bookmarked mistakes",
+    description: "Go back to the mistakes you bookmarked and review their solutions.",
+    href: "/mistakes?bookmarked=true",
+    cta: "Open bookmarked mistakes",
+    variant: "secondary" as const,
+  },
+];
+
+export default async function PracticePage() {
   return (
-    <div className="py-10 bg-slate-50/50 min-h-[calc(100vh-4rem)]">
-      <Container className="space-y-8 max-w-4xl">
-        <div className="space-y-2">
-          <Badge variant="indigo" className="text-xs">
-            Custom practice
-          </Badge>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">
-            Adaptive Practice Arena
-          </h1>
-          <p className="text-sm text-slate-600 max-w-2xl">
-            Target your weak topics, previous years&apos; questions (PYQ), and bookmark collections with focused practice drills.
-          </p>
-        </div>
+    <Container className="flex flex-col gap-8 py-8 lg:py-12">
+      <header className="flex max-w-2xl flex-col gap-2">
+        <h1 className="text-h1 font-bold text-fg">Practice</h1>
+        <p className="text-body text-fg-secondary">
+          Practise the questions you got wrong in mock tests until you get them right.
+        </p>
+      </header>
 
-        <div className="grid sm:grid-cols-2 gap-4">
-          <Card className="p-6 space-y-4 hover:border-blue-300 hover:shadow-md transition-all">
-            <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
-              <Zap className="w-6 h-6" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="font-bold text-base text-slate-900">Weak Area Remediation</h3>
-              <p className="text-xs text-slate-500 leading-relaxed">
-                Adaptive practice algorithm pulls questions from topics with lowest mastery scores.
-              </p>
-            </div>
-            <Button size="md" variant="default" className="w-full font-semibold">
-              Start Weak Topic Drill
-            </Button>
-          </Card>
+      <ul className="grid gap-4 sm:grid-cols-2">
+        {CARDS.map((c) => {
+          const Icon = c.icon;
+          return (
+            <li key={c.id}>
+              <Card className="h-full">
+                <CardHeader>
+                  <span
+                    aria-hidden="true"
+                    className="mb-2 flex size-12 items-center justify-center rounded-card bg-primary-50 text-primary-700"
+                  >
+                    <Icon className="size-6" />
+                  </span>
+                  <CardTitle as="h2">{c.title}</CardTitle>
+                </CardHeader>
+                <CardBody>
+                  <CardDescription className="text-body">{c.description}</CardDescription>
+                </CardBody>
+                <CardFooter>
+                  <ButtonLink href={c.href} variant={c.variant} fullWidth>
+                    {c.cta}
+                  </ButtonLink>
+                </CardFooter>
+              </Card>
+            </li>
+          );
+        })}
+      </ul>
 
-          <Card className="p-6 space-y-4 hover:border-indigo-300 hover:shadow-md transition-all">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-              <BookOpen className="w-6 h-6" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="font-bold text-base text-slate-900">Bookmarked Questions</h3>
-              <p className="text-xs text-slate-500 leading-relaxed">
-                Review and re-solve questions you previously flagged for revision across mock tests.
-              </p>
-            </div>
-            <Button size="md" variant="outline" className="w-full font-semibold">
-              Practice Bookmarks
-            </Button>
-          </Card>
-        </div>
-      </Container>
-    </div>
+      <p className="flex items-center gap-2 text-body-sm text-fg-secondary">
+        <BookOpen aria-hidden="true" className="size-4 shrink-0 text-fg-muted" />
+        No mistakes yet? Take a mock test first: every question you get wrong is saved for practice.
+        <ButtonLink href="/mock-tests" variant="ghost" size="md" className="-my-2">
+          Mock tests
+        </ButtonLink>
+      </p>
+    </Container>
   );
 }

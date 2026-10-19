@@ -3,16 +3,17 @@ import { MistakeService } from "@/services/mistake.service";
 import { BookmarkService } from "@/services/bookmark.service";
 import { MistakeLongitudinalIntelligenceService } from "@/services/mistake-longitudinal-intelligence.service";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { Container } from "@/components/ui/legacy/container";
+import { Container } from "@/components/ui/layout";
+import { Accordion } from "@/components/ui/accordion";
 import { MistakeHero } from "@/components/mistakes/mistake-hero";
 import { MistakeKpiStrip } from "@/components/mistakes/mistake-kpi-strip";
-import { MistakeRevisionHealth } from "@/components/mistakes/mistake-revision-health";
+import { MistakeRevisionToday, MistakeRevisionPlan } from "@/components/mistakes/mistake-revision-health";
 import { MistakeLongitudinalCard } from "@/components/mistakes/mistake-longitudinal-card";
 import { MistakeFilterBar } from "@/components/mistakes/mistake-filter-bar";
 import { MistakeCard } from "@/components/mistakes/mistake-card";
 import { MistakePagination } from "@/components/mistakes/mistake-pagination";
-import { MistakeEmptyState } from "@/components/mistakes/mistake-empty-state";
-import { MistakeSidebar } from "@/components/mistakes/mistake-sidebar";
+import { MistakeEmptyState, type MistakeEmptyStateType } from "@/components/mistakes/mistake-empty-state";
+import { MistakeReasons, MistakeFocusTopics } from "@/components/mistakes/mistake-sidebar";
 
 export const revalidate = 0; // Dynamic server
 
@@ -88,7 +89,8 @@ export default async function MistakeVaultPage({ searchParams }: Props) {
     MistakeService.getBatchLearningContentForTopics(pageTopicIds),
   ]);
 
-  const determineEmptyStateType = () => {
+  const otherFiltersActive = Boolean(searchQuery.trim()) || subjectId !== "ALL" || cognitiveType !== "ALL";
+  const determineEmptyStateType = (): MistakeEmptyStateType => {
     if (summary.totalMistakes === 0) {
       return "NO_MISTAKES_EVER";
     }
@@ -101,101 +103,118 @@ export default async function MistakeVaultPage({ searchParams }: Props) {
     if (status === "REVISITING" && summary.revisitingCount === 0) {
       return "NO_IMPROVING";
     }
+    if (isBookmarked && !otherFiltersActive) {
+      return "NO_BOOKMARKED";
+    }
     return "NO_FILTER_MATCH";
   };
 
+  const hasMistakes = summary.totalMistakes > 0;
+  const query: Record<string, string | undefined> = { ...params, page: undefined };
+
   return (
-    <div className="py-8 sm:py-10 bg-slate-50/50 min-h-[calc(100vh-4rem)]">
-      <Container className="space-y-6 sm:space-y-8">
-        {/* 1. Header / Hero */}
-        <MistakeHero
-          activeMistakesCount={summary.activeMistakesCount}
-          totalMistakesCount={summary.totalMistakes}
-        />
+    <Container className="flex flex-col gap-6 py-8 lg:py-10">
+      {/* 1. Header */}
+      <MistakeHero activeMistakesCount={summary.activeMistakesCount} totalMistakesCount={summary.totalMistakes} />
 
-        {/* 2. KPI Strip */}
-        <MistakeKpiStrip
-          activeMistakesCount={summary.activeMistakesCount}
-          unresolvedCount={summary.unresolvedCount}
-          repeatedCount={summary.repeatedCount}
-          revisitingCount={summary.revisitingCount}
-          masteredCount={summary.masteredCount}
-          currentStatus={status}
-          isRepeated={isRepeated}
-        />
+      {!hasMistakes ? (
+        <MistakeEmptyState type="NO_MISTAKES_EVER" />
+      ) : (
+        <>
+          {/* 2. Primary task: what to revise today, one primary action */}
+          <MistakeRevisionToday intelligence={intelligence} />
 
-        {/* 3. Revision Health & Spaced Intelligence Dashboard */}
-        <MistakeRevisionHealth intelligence={intelligence} />
+          {/* 3. Counts */}
+          <MistakeKpiStrip
+            activeMistakesCount={summary.activeMistakesCount}
+            unresolvedCount={summary.unresolvedCount}
+            repeatedCount={summary.repeatedCount}
+            revisitingCount={summary.revisitingCount}
+            masteredCount={summary.masteredCount}
+          />
 
-        {/* 4. Longitudinal Journey & Cross-Exam Intelligence */}
-        <MistakeLongitudinalCard initialData={longitudinalData} />
+          {/* 4. List (filters + cards) and secondary insights */}
+          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
+            <section aria-labelledby="mistake-list-title" className="flex flex-col gap-4 lg:col-span-8">
+              <h2 id="mistake-list-title" className="text-h2 font-semibold text-fg">
+                Your mistakes
+              </h2>
+              <MistakeFilterBar
+                subjects={filterOptions.subjects}
+                cognitiveTypes={filterOptions.cognitiveTypes}
+                currentStatus={status}
+                currentRepeated={isRepeated}
+                currentBookmarked={isBookmarked}
+                currentSubject={subjectId}
+                currentCognitive={cognitiveType}
+                currentSort={sortBy}
+                currentQuery={searchQuery}
+                query={query}
+              />
 
-        {/* 5. Main Content Grid (Feed + Sidebar) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-start">
-          {/* Main Feed Column */}
-          <div className="lg:col-span-8 space-y-4">
-            {/* Composable Filter Bar */}
-            <MistakeFilterBar
-              subjects={filterOptions.subjects}
-              cognitiveTypes={filterOptions.cognitiveTypes}
-              currentStatus={status}
-              currentRepeated={isRepeated}
-              currentBookmarked={isBookmarked}
-              currentSubject={subjectId}
-              currentCognitive={cognitiveType}
-              currentSort={sortBy}
-              currentQuery={searchQuery}
-            />
+              {paginatedData.items.length === 0 ? (
+                <MistakeEmptyState type={determineEmptyStateType()} />
+              ) : (
+                <>
+                  <ul className="flex flex-col gap-3">
+                    {paginatedData.items.map((m) => {
+                      const topicRes = m.topicId ? learningContentMap[m.topicId] : null;
+                      const learningInfo =
+                        topicRes?.hasLearningContent && topicRes.primaryResource
+                          ? {
+                              hasContent: true,
+                              title: topicRes.primaryResource.title,
+                              canonicalUrl: topicRes.primaryResource.canonicalUrl,
+                              isLocked: topicRes.primaryResource.isLocked,
+                            }
+                          : null;
 
-            {/* Mistakes List or Context-Aware Empty State */}
-            {paginatedData.items.length === 0 ? (
-              <MistakeEmptyState type={determineEmptyStateType()} />
-            ) : (
-              <div className="space-y-3.5">
-                {paginatedData.items.map((m) => {
-                  const topicRes = m.topicId ? learningContentMap[m.topicId] : null;
-                  const learningInfo =
-                    topicRes?.hasLearningContent && topicRes.primaryResource
-                      ? {
-                          hasContent: true,
-                          title: topicRes.primaryResource.title,
-                          canonicalUrl: topicRes.primaryResource.canonicalUrl,
-                          isLocked: topicRes.primaryResource.isLocked,
-                        }
-                      : null;
+                      return (
+                        <li key={m.vaultId}>
+                          <MistakeCard mistake={m} isBookmarked={bookmarkMap[m.questionId] ?? false} learningContent={learningInfo} />
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  <MistakePagination
+                    currentPage={paginatedData.page}
+                    totalPages={paginatedData.totalPages}
+                    totalCount={paginatedData.totalCount}
+                    pageSize={paginatedData.pageSize}
+                    query={query}
+                  />
+                </>
+              )}
+            </section>
 
-                  return (
-                    <MistakeCard
-                      key={m.vaultId}
-                      mistake={m}
-                      isBookmarked={bookmarkMap[m.questionId] ?? false}
-                      learningContent={learningInfo}
-                    />
-                  );
-                })}
-
-                {/* Pagination Controls */}
-                <MistakePagination
-                  currentPage={paginatedData.page}
-                  totalPages={paginatedData.totalPages}
-                  totalCount={paginatedData.totalCount}
-                  pageSize={paginatedData.pageSize}
-                />
-              </div>
-            )}
+            <section aria-labelledby="mistake-insights-title" className="flex flex-col gap-4 lg:col-span-4">
+              <h2 id="mistake-insights-title" className="text-h2 font-semibold text-fg">
+                More about your mistakes
+              </h2>
+              <Accordion
+                type="multiple"
+                headingLevel={3}
+                items={[
+                  { id: "plan", title: "Revision plan", content: <MistakeRevisionPlan intelligence={intelligence} /> },
+                  { id: "progress", title: "Your progress over time", content: <MistakeLongitudinalCard initialData={longitudinalData} /> },
+                  {
+                    id: "reasons",
+                    title: "Why you got it wrong",
+                    content: (
+                      <MistakeReasons
+                        cognitiveBreakdown={summary.cognitiveBreakdown}
+                        currentCognitive={cognitiveType !== "ALL" ? cognitiveType : undefined}
+                        currentStatus={status !== "ALL" ? status : undefined}
+                      />
+                    ),
+                  },
+                  { id: "topics", title: "Topics to focus on", content: <MistakeFocusTopics weakTopics={summary.weakTopics} /> },
+                ]}
+              />
+            </section>
           </div>
-
-          {/* Right Sidebar Column */}
-          <div className="lg:col-span-4">
-            <MistakeSidebar
-              cognitiveBreakdown={summary.cognitiveBreakdown}
-              weakTopics={summary.weakTopics}
-              currentCognitive={cognitiveType !== "ALL" ? cognitiveType : undefined}
-              currentStatus={status !== "ALL" ? status : undefined}
-            />
-          </div>
-        </div>
-      </Container>
-    </div>
+        </>
+      )}
+    </Container>
   );
 }

@@ -1,0 +1,241 @@
+{
+ "base": "local next start (with-server)",
+ "generated": "2026-10-19T10:45:03.816Z",
+ "results": [
+  {
+   "route": "/mistakes",
+   "signedIn": true,
+   "width": 360,
+   "status": 200,
+   "finalPath": "/mistakes",
+   "loadMs": 24330,
+   "shot": "before/shots/in_mistakes_360.jpg",
+   "path": "/mistakes",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Mistake Vault"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 61,
+   "tapUnder44": 37,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Start Smart Drill 134x32",
+    "Start Smart Drill 134x32",
+    "Drill 65x32",
+    "Drill 65x32"
+   ],
+   "textEls": 169,
+   "textUnder12": 64,
+   "tinySizes": {
+    "10px": 24,
+    "11px": 40
+   },
+   "tinyExamples": [
+    "HEALTH SCORE @10px",
+    "DUE FOR REVISION @10px",
+    "Urgent slip reviews @10px",
+    "HIGH PRIORITY @10px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 52,
+    "500": 21,
+    "600": 34,
+    "700": 44,
+    "900": 18
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 5340,
+   "domContentLoaded": 22797,
+   "axe": [
+    {
+     "id": "button-name",
+     "impact": "critical",
+     "nodes": 2,
+     "sample": ".p-3\\.5.bg-slate-50\\/40.sm\\:flex-row:nth-child(1) > .self-end.sm\\:self-center.shrink-0 > a:nth-child(2) > .hover\\:text-slate-800.hover\\:bg-slate-100.h-8 | .p-3\\"
+    },
+    {
+     "id": "color-contrast",
+     "impact": "serious",
+     "nodes": 15,
+     "sample": ".opacity-75 | .hover\\:bg-slate-200\\/50.hover\\:text-slate-900.py-1:nth-child(1)"
+    },
+    {
+     "id": "link-name",
+     "impact": "serious",
+     "nodes": 2,
+     "sample": ".p-3\\.5.bg-slate-50\\/40.sm\\:flex-row:nth-child(1) > .self-end.sm\\:self-center.shrink-0 > a:nth-child(2) | .p-3\\.5.bg-slate-50\\/40.sm\\:flex-row:nth-child(2) > .s"
+    },
+    {
+     "id": "select-name",
+     "impact": "critical",
+     "nodes": 2,
+     "sample": ".sm\\:col-span-3:nth-child(2) > select | .sm\\:col-span-3:nth-child(3) > select"
+    }
+   ]
+  },
+  {
+   "route": "/mistakes",
+   "signedIn": true,
+   "width": 768,
+   "status": 200,
+   "finalPath": "/mistakes",
+   "loadMs": 15548,
+   "shot": "before/shots/in_mistakes_768.jpg",
+   "path": "/mistakes",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Mistake Vault"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 61,
+   "tapUnder44": 47,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Start Smart Drill 107x32",
+    "Start Smart Drill 107x32",
+    "Drill 65x32",
+    "Drill 65x32"
+   ],
+   "textEls": 169,
+   "textUnder12": 64,
+   "tinySizes": {
+    "10px": 24,
+    "11px": 40
+   },
+   "tinyExamples": [
+    "HEALTH SCORE @10px",
+    "DUE FOR REVISION @10px",
+    "Urgent slip reviews @10px",
+    "HIGH PRIORITY @10px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 52,
+    "500": 21,
+    "600": 34,
+    "700": 44,
+    "900": 18
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 3561,
+   "domContentLoaded": 14032,
+   "axe": null
+  },
+  {
+   "route": "/mistakes",
+   "signedIn": true,
+   "width": 1280,
+   "status": 200,
+   "finalPath": "/mistakes",
+   "loadMs": 4694,
+   "shot": "before/shots/in_mistakes_1280.jpg",
+   "path": "/mistakes",
+   "title": "Courage Library — The One-Stop Government Exam Preparation Platform",
+   "overflowX": 0,
+   "wide": [],
+   "h1": [
+    "Mistake Vault"
+   ],
+   "imgsNoAlt": 0,
+   "spinners": 0,
+   "pulses": 0,
+   "anims": 0,
+   "tapTargets": 62,
+   "tapUnder44": 47,
+   "tapUnder24": 0,
+   "under44Examples": [
+    "Skip to content 32x24",
+    "Courage Library 181x34",
+    "Start Smart Drill 137x32",
+    "Start Smart Drill 137x32",
+    "Drill 65x32",
+    "Drill 65x32"
+   ],
+   "textEls": 172,
+   "textUnder12": 64,
+   "tinySizes": {
+    "10px": 24,
+    "11px": 40
+   },
+   "tinyExamples": [
+    "HEALTH SCORE @10px",
+    "DUE FOR REVISION @10px",
+    "Urgent slip reviews @10px",
+    "HIGH PRIORITY @10px"
+   ],
+   "fonts": [
+    "Inter",
+    "ui-monospace"
+   ],
+   "weights": {
+    "400": 52,
+    "500": 23,
+    "600": 35,
+    "700": 44,
+    "900": 18
+   },
+   "hasError": false,
+   "notFound": false,
+   "docHeight": 2456,
+   "domContentLoaded": 3161,
+   "axe": [
+    {
+     "id": "button-name",
+     "impact": "critical",
+     "nodes": 2,
+     "sample": ".p-3\\.5.bg-slate-50\\/40.sm\\:flex-row:nth-child(1) > .self-end.sm\\:self-center.shrink-0 > a:nth-child(2) > .hover\\:text-slate-800.hover\\:bg-slate-100.h-8 | .p-3\\"
+    },
+    {
+     "id": "color-contrast",
+     "impact": "serious",
+     "nodes": 15,
+     "sample": ".opacity-75 | .hover\\:bg-slate-200\\/50.hover\\:text-slate-900.py-1:nth-child(1)"
+    },
+    {
+     "id": "link-name",
+     "impact": "serious",
+     "nodes": 2,
+     "sample": ".p-3\\.5.bg-slate-50\\/40.sm\\:flex-row:nth-child(1) > .self-end.sm\\:self-center.shrink-0 > a:nth-child(2) | .p-3\\.5.bg-slate-50\\/40.sm\\:flex-row:nth-child(2) > .s"
+    },
+    {
+     "id": "select-name",
+     "impact": "critical",
+     "nodes": 2,
+     "sample": ".sm\\:col-span-3:nth-child(2) > select | .sm\\:col-span-3:nth-child(3) > select"
+    }
+   ]
+  }
+ ],
+ "nonGetRequests": [
+  {
+   "who": "student",
+   "method": "POST",
+   "path": "/auth/login",
+   "action": "server-action"
+  }
+ ]
+}

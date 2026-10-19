@@ -1,104 +1,85 @@
 import React from "react";
 import Link from "next/link";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/legacy/card";
-import { Brain, Sparkles, BookOpen } from "lucide-react";
+import { cn } from "@/components/ui/cn";
 
-interface MistakeSidebarProps {
-  cognitiveBreakdown: Array<{
-    id: string;
-    name: string;
-    count: number;
-    description: string;
-  }>;
-  weakTopics: Array<{
-    topicId: string;
-    topicName: string;
-    mistakeCount: number;
-  }>;
-  currentCognitive?: string;
-  currentStatus?: string;
+interface CognitiveItem {
+  id: string;
+  name: string;
+  count: number;
+  description: string;
 }
 
-export function MistakeSidebar({
+interface WeakTopic {
+  topicId: string;
+  topicName: string;
+  mistakeCount: number;
+}
+
+const plural = (n: number) => `${n} ${n === 1 ? "mistake" : "mistakes"}`;
+
+/**
+ * "Why you got it wrong": one filter link per mistake type. The hrefs keep the existing /mistakes query contract
+ * (?cognitive=<id>[&status=<status>]); selecting the active type again clears it.
+ */
+export function MistakeReasons({
   cognitiveBreakdown,
-  weakTopics,
   currentCognitive,
   currentStatus,
-}: MistakeSidebarProps) {
+}: {
+  cognitiveBreakdown: CognitiveItem[];
+  currentCognitive?: string;
+  currentStatus?: string;
+}) {
+  const statusQs = currentStatus && currentStatus !== "ALL" ? `status=${currentStatus}` : "";
+  const withMistakes = cognitiveBreakdown.filter((c) => c.count > 0);
+  if (withMistakes.length === 0) {
+    return <p className="text-body-sm text-fg-secondary">No reasons recorded yet.</p>;
+  }
   return (
-    <div className="space-y-6">
-      {/* Cognitive Archetypes Breakdown */}
-      <Card className="bg-white border-slate-200">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-900">
-            <Brain className="w-4 h-4 text-purple-600" />
-            Cognitive Error Diagnosis
-          </CardTitle>
-          <CardDescription className="text-xs text-slate-500">
-            Breakdown of root error patterns
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-2 pt-0">
-          {cognitiveBreakdown.map((cog) => {
-            const isSelected = currentCognitive === cog.id;
-            return (
-              <Link
-                key={cog.id}
-                href={
-                  isSelected
-                    ? `/mistakes${currentStatus && currentStatus !== "ALL" ? `?status=${currentStatus}` : ""}`
-                    : `/mistakes?cognitive=${cog.id}${currentStatus && currentStatus !== "ALL" ? `&status=${currentStatus}` : ""}`
-                }
-                className={`p-2.5 rounded-xl border flex items-center justify-between text-xs transition-colors block ${
-                  isSelected
-                    ? "bg-purple-50 border-purple-300 text-purple-900"
-                    : "bg-slate-50/60 border-slate-100 hover:border-slate-200 text-slate-800"
-                }`}
-              >
-                <div className="pr-2">
-                  <span className="font-bold block text-xs">{cog.name}</span>
-                  <span className="text-[10px] text-slate-500 line-clamp-1">{cog.description}</span>
-                </div>
-                <span className="font-mono font-bold text-xs bg-white px-2 py-0.5 rounded-md border border-slate-200 shrink-0">
-                  {cog.count}
-                </span>
-              </Link>
-            );
-          })}
-        </CardContent>
-      </Card>
+    <ul className="flex flex-col gap-2">
+      {withMistakes.map((cog) => {
+        const isSelected = currentCognitive === cog.id;
+        const href = isSelected
+          ? `/mistakes${statusQs ? `?${statusQs}` : ""}`
+          : `/mistakes?cognitive=${cog.id}${statusQs ? `&${statusQs}` : ""}`;
+        return (
+          <li key={cog.id}>
+            <Link
+              href={href}
+              aria-current={isSelected ? "true" : undefined}
+              className={cn(
+                "focus-ring flex min-h-11 items-center justify-between gap-3 rounded-control border px-3 py-2 transition-colors duration-120 ease-standard",
+                isSelected ? "border-primary-600 bg-primary-50 text-fg" : "border-line bg-surface text-fg hover:bg-ink-50",
+              )}
+            >
+              {/* name only: the stored descriptions use system wording ("telemetry", "deterministically"), which
+                  UX-1b keeps out of student UI; the description is data, so it is not shown rather than edited */}
+              <span className="min-w-0 text-body-sm font-semibold">{cog.name}</span>
+              <span className="shrink-0 text-body-sm font-semibold tabular-nums text-fg">
+                {cog.count}
+                <span className="sr-only"> {cog.count === 1 ? "mistake" : "mistakes"}</span>
+              </span>
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
 
-      {/* High-Error Weak Topics */}
-      <Card className="bg-white border-slate-200">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-900">
-            <Sparkles className="w-4 h-4 text-amber-500" />
-            High-Error Topics
-          </CardTitle>
-          <CardDescription className="text-xs text-slate-500">
-            Prioritize these areas for revision
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-2 pt-0">
-          {weakTopics.length === 0 ? (
-            <p className="text-xs text-slate-400 py-3 text-center">No concentrated weak topics detected.</p>
-          ) : (
-            weakTopics.map((wt) => (
-              <div
-                key={wt.topicId}
-                className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/70 border border-slate-100 text-xs"
-              >
-                <span className="font-semibold text-slate-800 truncate max-w-[160px] sm:max-w-[180px]">
-                  {wt.topicName}
-                </span>
-                <span className="font-mono font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-100 text-[11px] shrink-0">
-                  {wt.mistakeCount} {wt.mistakeCount === 1 ? "slip" : "slips"}
-                </span>
-              </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
-    </div>
+/** "Topics to focus on": the student's topics with the most mistakes. */
+export function MistakeFocusTopics({ weakTopics }: { weakTopics: WeakTopic[] }) {
+  if (weakTopics.length === 0) {
+    return <p className="text-body-sm text-fg-secondary">No topic stands out yet.</p>;
+  }
+  return (
+    <ul className="flex flex-col divide-y divide-line">
+      {weakTopics.map((wt) => (
+        <li key={wt.topicId} className="flex items-center justify-between gap-3 py-2">
+          <span className="min-w-0 truncate text-body-sm font-medium text-fg">{wt.topicName}</span>
+          <span className="shrink-0 text-body-sm text-fg-secondary">{plural(wt.mistakeCount)}</span>
+        </li>
+      ))}
+    </ul>
   );
 }

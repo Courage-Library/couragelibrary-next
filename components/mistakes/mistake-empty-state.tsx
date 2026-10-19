@@ -1,126 +1,82 @@
 import React from "react";
-import Link from "next/link";
-import { Card } from "@/components/ui/legacy/card";
-import { Button } from "@/components/ui/legacy/button";
-import { CheckCircle2, RotateCcw, Search, Sparkles, BookOpen } from "lucide-react";
+import { Bookmark, BookOpen, CheckCircle2, RotateCcw, Search, Sparkles } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ButtonLink } from "@/components/ui/button";
+
+export type MistakeEmptyStateType =
+  | "NO_MISTAKES_EVER"
+  | "ALL_MASTERED"
+  | "NO_REPEATED"
+  | "NO_IMPROVING"
+  | "NO_BOOKMARKED"
+  | "NO_FILTER_MATCH";
 
 interface MistakeEmptyStateProps {
-  type: "NO_MISTAKES_EVER" | "ALL_MASTERED" | "NO_REPEATED" | "NO_IMPROVING" | "NO_FILTER_MATCH";
-  onResetFilters?: () => void;
+  type: MistakeEmptyStateType;
 }
 
+// One clear next action per state (DESIGN_SYSTEM Empty state). Copy states only what is true.
+const STATES: Record<MistakeEmptyStateType, { icon: React.ReactNode; title: string; description: string; href: string; cta: string; primary?: boolean }> = {
+  NO_MISTAKES_EVER: {
+    icon: <BookOpen />,
+    title: "No mistakes yet",
+    description: "Take a mock test. Every question you get wrong is saved here so you can revise it.",
+    href: "/mock-tests",
+    cta: "Take a mock test",
+    primary: true,
+  },
+  ALL_MASTERED: {
+    icon: <CheckCircle2 />,
+    title: "You have mastered every mistake",
+    description: "Nothing is left to revise. Take another mock test to find new questions to work on.",
+    href: "/mock-tests",
+    cta: "Take a mock test",
+    primary: true,
+  },
+  NO_REPEATED: {
+    icon: <RotateCcw />,
+    title: "No repeated mistakes",
+    description: "You have not got any question wrong more than once.",
+    href: "/mistakes",
+    cta: "Show all mistakes",
+  },
+  NO_IMPROVING: {
+    icon: <Sparkles />,
+    title: "Nothing in progress yet",
+    description: "A mistake moves here after you answer it correctly once in a drill.",
+    href: "/mistakes/drill",
+    cta: "Start a drill",
+    primary: true,
+  },
+  NO_BOOKMARKED: {
+    icon: <Bookmark />,
+    title: "No bookmarked mistakes",
+    description: "Use the bookmark button on a mistake to keep it here for quick review.",
+    href: "/mistakes",
+    cta: "Show all mistakes",
+  },
+  NO_FILTER_MATCH: {
+    icon: <Search />,
+    title: "No mistakes match these filters",
+    description: "Try a different search or clear the filters.",
+    href: "/mistakes",
+    cta: "Clear filters",
+  },
+};
+
 export function MistakeEmptyState({ type }: MistakeEmptyStateProps) {
-  if (type === "ALL_MASTERED") {
-    return (
-      <Card className="p-10 sm:p-14 text-center space-y-4 border-slate-200 bg-white">
-        <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto border border-emerald-200">
-          <CheckCircle2 className="w-6 h-6" />
-        </div>
-        <div className="space-y-1.5 max-w-sm mx-auto">
-          <h3 className="text-base font-bold text-slate-800">All Active Mistakes Mastered</h3>
-          <p className="text-xs text-slate-500 leading-relaxed">
-            Outstanding! You have successfully mastered your active revision queue. Take another mock exam to discover new challenges.
-          </p>
-        </div>
-        <div className="pt-2">
-          <Link href="/mock-tests">
-            <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs">
-              <BookOpen className="w-3.5 h-3.5 mr-1.5" /> Take a Mock Test
-            </Button>
-          </Link>
-        </div>
-      </Card>
-    );
-  }
-
-  if (type === "NO_REPEATED") {
-    return (
-      <Card className="p-10 sm:p-14 text-center space-y-4 border-slate-200 bg-white">
-        <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mx-auto border border-amber-200">
-          <RotateCcw className="w-6 h-6" />
-        </div>
-        <div className="space-y-1.5 max-w-sm mx-auto">
-          <h3 className="text-base font-bold text-slate-800">No Repeated Mistakes</h3>
-          <p className="text-xs text-slate-500 leading-relaxed">
-            You don&apos;t have any questions answered incorrectly multiple times. All slips are currently isolated to single occurrences.
-          </p>
-        </div>
-        <div className="pt-2">
-          <Link href="/mistakes">
-            <Button variant="outline" size="sm" className="text-xs font-semibold border-slate-200">
-              View All Mistakes
-            </Button>
-          </Link>
-        </div>
-      </Card>
-    );
-  }
-
-  if (type === "NO_IMPROVING") {
-    return (
-      <Card className="p-10 sm:p-14 text-center space-y-4 border-slate-200 bg-white">
-        <div className="w-12 h-12 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto border border-indigo-200">
-          <Sparkles className="w-6 h-6" />
-        </div>
-        <div className="space-y-1.5 max-w-sm mx-auto">
-          <h3 className="text-base font-bold text-slate-800">No Mistakes in Improving Stage</h3>
-          <p className="text-xs text-slate-500 leading-relaxed">
-            Items reach the improving stage after you get them right once in remediation. Start a drill to begin mastering your unresolved slips.
-          </p>
-        </div>
-        <div className="pt-2">
-          <Link href="/mistakes/drill">
-            <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs">
-              Start a Drill
-            </Button>
-          </Link>
-        </div>
-      </Card>
-    );
-  }
-
-  if (type === "NO_FILTER_MATCH") {
-    return (
-      <Card className="p-10 sm:p-14 text-center space-y-4 border-slate-200 bg-white">
-        <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center mx-auto">
-          <Search className="w-6 h-6" />
-        </div>
-        <div className="space-y-1.5 max-w-sm mx-auto">
-          <h3 className="text-base font-bold text-slate-800">No Matching Mistakes</h3>
-          <p className="text-xs text-slate-500 leading-relaxed">
-            No mistake records matched your active filters or search terms. Try adjusting your search query or subject filters.
-          </p>
-        </div>
-        <div className="pt-2">
-          <Link href="/mistakes">
-            <Button variant="outline" size="sm" className="text-xs font-semibold border-slate-200 text-slate-700">
-              Reset Filters
-            </Button>
-          </Link>
-        </div>
-      </Card>
-    );
-  }
-
-  // Default: NO_MISTAKES_EVER
+  const s = STATES[type];
   return (
-    <Card className="p-10 sm:p-14 text-center space-y-4 border-slate-200 bg-white">
-      <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto border border-blue-200">
-        <BookOpen className="w-6 h-6" />
-      </div>
-      <div className="space-y-1.5 max-w-sm mx-auto">
-        <h3 className="text-base font-bold text-slate-800">Your Mistake Notebook is Empty</h3>
-        <p className="text-xs text-slate-500 leading-relaxed">
-          You haven&apos;t logged any test mistakes yet. As you take mock tests and sectional exams, incorrect responses will automatically appear here for targeted revision.
-        </p>
-      </div>
-      <div className="pt-2">
-        <Link href="/mock-tests">
-          <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs">
-            Start Your First Mock Test
-          </Button>
-        </Link>
-      </div>
-    </Card>
+    <EmptyState
+      icon={s.icon}
+      title={s.title}
+      description={s.description}
+      headingLevel={3}
+      action={
+        <ButtonLink href={s.href} variant={s.primary ? "primary" : "secondary"}>
+          {s.cta}
+        </ButtonLink>
+      }
+    />
   );
 }

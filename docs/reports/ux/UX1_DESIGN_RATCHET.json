@@ -1,12 +1,12 @@
 {
   "$comment": "UX-1a design ratchet baseline (decision #40). Counts may only go down. Scope: app/ + components/, excluding app/admin and components/admin. Written by scripts/test_design_ratchet.cjs --write.",
-  "recordedAt": "2026-10-15",
+  "recordedAt": "2026-10-19",
   "totals": {
     "rawColor": 1,
-    "paletteClass": 5232,
+    "paletteClass": 4785,
     "darkClass": 0,
-    "smallText": 467,
-    "legacyImport": 236
+    "smallText": 411,
+    "legacyImport": 211
   },
   "byArea": {
     "app/achievements": {
@@ -135,19 +135,12 @@
       "smallText": 0,
       "legacyImport": 1
     },
-    "app/loading.tsx": {
-      "rawColor": 0,
-      "paletteClass": 0,
-      "darkClass": 0,
-      "smallText": 0,
-      "legacyImport": 2
-    },
     "app/mistakes": {
       "rawColor": 0,
-      "paletteClass": 36,
+      "paletteClass": 35,
       "darkClass": 0,
       "smallText": 3,
-      "legacyImport": 5
+      "legacyImport": 4
     },
     "app/mock-tests": {
       "rawColor": 1,
@@ -170,26 +163,12 @@
       "smallText": 0,
       "legacyImport": 3
     },
-    "app/page.tsx": {
-      "rawColor": 0,
-      "paletteClass": 9,
-      "darkClass": 0,
-      "smallText": 0,
-      "legacyImport": 1
-    },
     "app/performance": {
       "rawColor": 0,
       "paletteClass": 183,
       "darkClass": 0,
       "smallText": 14,
       "legacyImport": 1
-    },
-    "app/practice": {
-      "rawColor": 0,
-      "paletteClass": 13,
-      "darkClass": 0,
-      "smallText": 0,
-      "legacyImport": 4
     },
     "app/pricing": {
       "rawColor": 0,
@@ -228,10 +207,10 @@
     },
     "components/exams": {
       "rawColor": 0,
-      "paletteClass": 217,
+      "paletteClass": 202,
       "darkClass": 0,
-      "smallText": 23,
-      "legacyImport": 17
+      "smallText": 19,
+      "legacyImport": 14
     },
     "components/flashcards": {
       "rawColor": 0,
@@ -263,10 +242,10 @@
     },
     "components/mistakes": {
       "rawColor": 0,
-      "paletteClass": 700,
+      "paletteClass": 291,
       "darkClass": 0,
-      "smallText": 80,
-      "legacyImport": 26
+      "smallText": 28,
+      "legacyImport": 12
     },
     "components/premium": {
       "rawColor": 0,
