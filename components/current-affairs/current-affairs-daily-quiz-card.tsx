@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   Clock,
   Award,
-  AlertCircle,
   ArrowRight,
   Target,
   BrainCircuit,
@@ -31,10 +30,10 @@ export const CurrentAffairsDailyQuizCard: React.FC<CurrentAffairsDailyQuizCardPr
   dateStr,
   dailyQuiz,
 }) => {
-  const isAvailable =
-    dailyQuiz.status === 'READY' ||
-    dailyQuiz.status === 'ALREADY_PUBLISHED' ||
-    Boolean(dailyQuiz.mockTestId);
+  // UX-2b.H (H-5): render only a PUBLISHED quiz mock. READY means no mock exists yet (the link would be dead) and
+  // DRAFT_EXISTS still carries the draft mock's id, so neither may show a "Start" link or a "being curated" claim.
+  const isAvailable = dailyQuiz.status === 'ALREADY_PUBLISHED' && Boolean(dailyQuiz.mockTestId);
+  if (!isAvailable) return null;
 
   const formattedDate = formatEventDate(dateStr);
   const quizTargetHref = `/mock-tests/${dailyQuiz.mockTestId || dailyQuiz.mockTestSlug}`;
@@ -57,12 +56,12 @@ export const CurrentAffairsDailyQuizCard: React.FC<CurrentAffairsDailyQuizCardPr
             </span>
           </div>
 
-          <h2 className="text-xl md:text-2xl font-extrabold tracking-tight text-white">
+          <h2 id="daily-quiz-heading" className="text-xl md:text-2xl font-extrabold tracking-tight text-white">
             Daily Current Affairs Quiz
           </h2>
 
           <p className="text-sm text-slate-300 leading-relaxed">
-            10 exam-standard multiple-choice questions mapped directly to today&apos;s verified events.
+            10 multiple-choice questions on today&apos;s current affairs.
             Wrong answers are automatically synced to your <strong className="text-amber-300">Mistake Vault</strong> for spaced revision.
           </p>
 
@@ -85,30 +84,18 @@ export const CurrentAffairsDailyQuizCard: React.FC<CurrentAffairsDailyQuizCardPr
 
         {/* CTA Actions */}
         <div className="flex flex-col items-start md:items-end justify-center shrink-0">
-          {isAvailable ? (
-            <div className="space-y-2 w-full md:w-auto">
-              <Link
-                href={quizTargetHref}
-                className="w-full md:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-lg shadow-blue-500/25 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-              >
-                <span>Start Daily Quiz</span>
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-              <p className="text-[11px] text-slate-400 text-center md:text-right">
-                Free • Instant Result & Solution Key
-              </p>
-            </div>
-          ) : (
-            <div className="rounded-xl bg-white/5 border border-white/10 p-4 text-left md:text-right max-w-xs">
-              <div className="flex items-center gap-2 text-amber-400 font-semibold text-xs mb-1">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>Quiz Curation In Progress</span>
-              </div>
-              <p className="text-[11px] text-slate-300 leading-normal">
-                Today&apos;s 10-question evaluation is being curated by editorial staff. Check back shortly.
-              </p>
-            </div>
-          )}
+          <div className="space-y-2 w-full md:w-auto">
+            <Link
+              href={quizTargetHref}
+              className="w-full md:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-lg shadow-blue-500/25 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <span>Start Daily Quiz</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+            <p className="text-[11px] text-slate-400 text-center md:text-right">
+              Free • Instant Result & Solution Key
+            </p>
+          </div>
         </div>
       </div>
     </div>

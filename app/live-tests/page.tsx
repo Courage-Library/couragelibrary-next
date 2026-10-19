@@ -39,7 +39,7 @@ export default async function LiveTestsPage() {
             All-India Live Mock Tests
           </h1>
           <p className="text-sm md:text-base text-muted-foreground leading-relaxed">
-            Experience authentic national examination conditions. Compete simultaneously with thousands of candidates, benchmark your accuracy, and discover your real-time All-India Rank.
+            Take a timed mock at a fixed start time, together with every other student registered for it. Results and your rank among those students are published after the test closes.
           </p>
         </div>
       </div>

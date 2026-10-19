@@ -38,7 +38,7 @@
 
 export const siteConfig: SiteConfig = {
   name: "Courage Library",
-  tagline: "The One-Stop Government Exam Preparation Platform",
+  tagline: "Learn Smarter. Prepare Independently.",
   // Decision #47 (UX-2a.1): the site default description; honest, no exam counts.
   description:
     "Courage Library helps you prepare for Indian government exams with free mock tests, answer analysis and a Mistake Vault that turns every wrong answer into revision. Learn Smarter. Prepare Independently.",

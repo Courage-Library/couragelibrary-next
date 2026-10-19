@@ -75,7 +75,7 @@ export default async function DashboardPage() {
               </div>
               <div>
                 <h4 className="font-bold text-sm text-slate-900">Take Mock Test</h4>
-                <p className="text-xs text-slate-500 mt-0.5">Timed full-length exam</p>
+                <p className="text-xs text-slate-500 mt-0.5">Timed mock tests</p>
               </div>
             </Card>
           </Link>
@@ -136,15 +136,15 @@ export default async function DashboardPage() {
                     Daily Recommended Tasks
                   </CardTitle>
                   <CardDescription className="text-xs">
-                    Curated by your spaced repetition and readiness engine
+                    Study tasks suggested for you today
                   </CardDescription>
                 </div>
               </CardHeader>
               <CardContent>
                 {data.dailyRecommendations.length === 0 ? (
-                  <div className="text-center py-6 text-slate-400 space-y-2">
+                  <div className="text-center py-6 text-fg-secondary space-y-2">
                     <BookOpen className="w-8 h-8 mx-auto opacity-50" />
-                    <p className="text-xs">No pending recommendations for today. Great job!</p>
+                    <p className="text-xs">No study tasks for today.</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -196,7 +196,7 @@ export default async function DashboardPage() {
               </CardHeader>
               <CardContent>
                 {data.topicMastery.length === 0 ? (
-                  <div className="text-center py-6 text-slate-400 space-y-2">
+                  <div className="text-center py-6 text-fg-secondary space-y-2">
                     <Layers className="w-8 h-8 mx-auto opacity-50" />
                     <p className="text-xs">Practice questions to build your topic mastery profile.</p>
                   </div>
@@ -237,7 +237,7 @@ export default async function DashboardPage() {
               </CardHeader>
               <CardContent>
                 {data.enrolledBatches.length === 0 ? (
-                  <div className="text-center py-4 text-slate-400 text-xs">
+                  <div className="text-center py-4 text-fg-secondary text-xs">
                     Not currently enrolled in an institutional cohort.
                   </div>
                 ) : (
@@ -271,7 +271,7 @@ export default async function DashboardPage() {
               </CardHeader>
               <CardContent>
                 {data.recentActivity.length === 0 ? (
-                  <div className="text-center py-4 text-slate-400 text-xs">
+                  <div className="text-center py-4 text-fg-secondary text-xs">
                     No recent activity recorded.
                   </div>
                 ) : (

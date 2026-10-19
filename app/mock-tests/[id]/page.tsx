@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AssessmentService } from "@/services/assessment.service";
 import { Container } from "@/components/ui/legacy/container";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/legacy/card";
+import { Card, CardHeader, CardDescription, CardContent, CardFooter } from "@/components/ui/legacy/card";
 import { Badge } from "@/components/ui/legacy/badge";
 import { Button } from "@/components/ui/legacy/button";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -82,7 +82,7 @@ export default async function MockTestInstructionsPage({ params }: Props) {
       <Container className="max-w-3xl space-y-6">
         <Link
           href="/mock-tests"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors"
+          className="inline-flex min-h-11 items-center gap-1.5 text-xs font-semibold text-fg-secondary hover:text-fg transition-colors"
         >
           <ArrowLeft className="w-3.5 h-3.5" /> Back to Mock Tests
         </Link>
@@ -95,11 +95,9 @@ export default async function MockTestInstructionsPage({ params }: Props) {
               </Badge>
               <span className="text-xs text-slate-500 font-semibold">{data.exam.title}</span>
             </div>
-            <CardTitle className="text-2xl font-black text-slate-900 tracking-tight">
-              {data.test.title}
-            </CardTitle>
+            <h1 className="text-h2 font-bold text-fg">{data.test.title}</h1>
             <CardDescription className="text-xs text-slate-500">
-              Official Examination Simulation &bull; Read instructions before launching test
+              Exam-pattern mock &bull; Read the instructions before you start
             </CardDescription>
           </CardHeader>
 
@@ -168,14 +166,14 @@ export default async function MockTestInstructionsPage({ params }: Props) {
           </CardContent>
 
           <CardFooter className="flex items-center justify-between pt-6 border-t border-slate-100">
-            <Link href="/mock-tests" prefetch={false}>
+            <Link href="/mock-tests" prefetch={false} className="inline-flex">
               <Button variant="outline" size="md">
-                Back to Dashboard
+                Back to mock tests
               </Button>
             </Link>
             {isCompleted && userAttempt ? (
               <Link href={`/mock-tests/${userAttempt.id}/result`} prefetch={false}>
-                <Button variant="default" size="lg" className="bg-emerald-600 hover:bg-emerald-700 font-bold px-8 shadow-sm text-white">
+                <Button variant="default" size="lg" className="bg-success-700 hover:bg-success-800 font-bold px-8 shadow-sm text-white">
                   <Eye className="w-4 h-4 mr-2" />
                   View Completed Result
                 </Button>

@@ -8,6 +8,11 @@ import { Card } from "@/components/ui/legacy/card";
 import { Badge } from "@/components/ui/legacy/badge";
 import { Button } from "@/components/ui/legacy/button";
 import { Check, Zap, ShieldAlert, Tag } from "lucide-react";
+import { Container as DsContainer } from "@/components/ui/layout";
+import { Badge as DsBadge } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
+import { PricingCard, type PricingFeature } from "@/components/ui/domain/pricing-card";
+import { formatDateShort } from "@/lib/format";
 
 interface PricingClientProps {
   plans: SubscriptionPlanItem[];
@@ -51,6 +56,9 @@ export function PricingClient({ plans, subStatus, paymentsEnabled }: PricingClie
       setIsSubmitting(false);
     }
   };
+
+  // UX-2b.H (H-7): while payments are off, nothing may look purchasable. The payments-ON markup below is unchanged.
+  if (!paymentsEnabled) return <PaymentsOffView subStatus={subStatus} />;
 
   return (
     <div className="py-12 bg-slate-50/50 min-h-[calc(100vh-4rem)]">
@@ -193,5 +201,63 @@ export function PricingClient({ plans, subStatus, paymentsEnabled }: PricingClie
         </div>
       </Container>
     </div>
+  );
+}
+
+// Features a free account can use today. Each one is live and verified (UX-2b.H report §2); dormant features
+// (courses, battles, live tests, descriptive evaluation) are not listed while their flags are off.
+const FREE_FEATURES: PricingFeature[] = [
+  { label: "Mock tests with full answer review", included: true },
+  { label: "Mistake Vault: revise and drill every question you got wrong", included: true },
+  { label: "Exam guides: pattern, syllabus and eligibility", included: true },
+];
+
+/** Payments off: DESIGN_SYSTEM Pricing card "Opening soon" variant; no price, no checkout, no coupon, no badge. */
+function PaymentsOffView({ subStatus }: { subStatus: UserSubscriptionStatus }) {
+  return (
+    <DsContainer className="flex flex-col gap-8 py-8 lg:py-12">
+      <header className="mx-auto flex max-w-2xl flex-col gap-2 text-center">
+        <h1 className="text-h1 font-bold text-fg">Plans and pricing</h1>
+        <p className="text-body text-fg-secondary">
+          Courage Library is free during early access. Pro is not open yet, and there is nothing to pay today.
+        </p>
+      </header>
+
+      {subStatus.isPro && subStatus.validUntil && (
+        <Alert tone="success" className="mx-auto w-full max-w-xl">
+          You&apos;re on Pro until {formatDateShort(subStatus.validUntil)}.
+        </Alert>
+      )}
+
+      <div className="mx-auto grid w-full max-w-4xl gap-6 md:grid-cols-2">
+        <PricingCard
+          name="Free"
+          priceInr={0}
+          period={null}
+          features={FREE_FEATURES}
+          ctaHref="/mock-tests"
+          ctaLabel="Take a free mock test"
+        />
+
+        <section aria-labelledby="plan-pro" className="flex flex-col gap-4 rounded-card border border-line bg-surface p-6">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 id="plan-pro" className="text-h3 font-semibold text-fg">
+              Pro
+            </h3>
+            <DsBadge tone="neutral">Opening soon</DsBadge>
+          </div>
+          <p className="text-h3 font-semibold text-fg">Pricing announced soon</p>
+          <p className="text-body-sm text-fg-secondary">
+            Pro is not open yet. What it includes and what it costs will be announced here before it opens.
+          </p>
+          <span
+            className="mt-auto inline-flex h-11 w-full items-center justify-center rounded-control border border-line-control bg-surface text-body font-medium text-fg-secondary"
+            aria-disabled="true"
+          >
+            Opening soon
+          </span>
+        </section>
+      </div>
+    </DsContainer>
   );
 }

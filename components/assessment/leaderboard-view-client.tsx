@@ -42,7 +42,7 @@ export function LeaderboardViewClient({ data }: LeaderboardViewClientProps) {
             <ArrowLeft className="w-3.5 h-3.5" /> Back to Mock Tests
           </Link>
           <Badge variant="indigo" className="text-xs font-extrabold uppercase tracking-wide">
-            Official Ranked Leaderboard
+            Leaderboard
           </Badge>
         </div>
 
@@ -55,7 +55,7 @@ export function LeaderboardViewClient({ data }: LeaderboardViewClientProps) {
             {test.title}
           </h1>
           <p className="text-xs text-slate-500 font-medium">
-            Ranked by Score &bull; Accuracy &bull; Time Taken (Best attempt per verified candidate)
+            Ranked by score, then accuracy, then time taken (best attempt per student)
           </p>
         </div>
 
@@ -176,12 +176,12 @@ export function LeaderboardViewClient({ data }: LeaderboardViewClientProps) {
               <div className="p-3 rounded-xl bg-white border border-blue-200">
                 <span className="text-[10px] font-bold text-slate-500 uppercase font-mono block">Your Score</span>
                 <span className="text-lg font-black text-blue-700 block mt-0.5">
-                  {userStanding.score.toFixed(1)} <span className="text-xs text-slate-400 font-medium">/ {userStanding.maxScore}</span>
+                  {userStanding.score.toFixed(1)} <span className="text-xs text-fg-secondary font-medium">/ {userStanding.maxScore}</span>
                 </span>
               </div>
               <div className="p-3 rounded-xl bg-white border border-blue-200">
                 <span className="text-[10px] font-bold text-slate-500 uppercase font-mono block">Accuracy</span>
-                <span className="text-lg font-black text-emerald-600 block mt-0.5">
+                <span className="text-lg font-black text-success-700 block mt-0.5">
                   {userStanding.accuracyPercentage.toFixed(1)}%
                 </span>
               </div>
@@ -194,7 +194,7 @@ export function LeaderboardViewClient({ data }: LeaderboardViewClientProps) {
               <div className="p-3 rounded-xl bg-white border border-blue-200">
                 <span className="text-[10px] font-bold text-slate-500 uppercase font-mono block">Rank Standing</span>
                 <span className="text-lg font-black text-amber-700 block mt-0.5">
-                  #{userStanding.rank} <span className="text-xs text-slate-400 font-medium">/ {totalParticipants}</span>
+                  #{userStanding.rank} <span className="text-xs text-fg-secondary font-medium">/ {totalParticipants}</span>
                 </span>
               </div>
             </div>
@@ -210,7 +210,7 @@ export function LeaderboardViewClient({ data }: LeaderboardViewClientProps) {
             <span className="text-xs text-slate-500 font-semibold">{leaderboard.length} candidates</span>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Leaderboard table">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[10px] font-mono">
@@ -262,7 +262,7 @@ export function LeaderboardViewClient({ data }: LeaderboardViewClientProps) {
                         </div>
                       </td>
                       <td className="py-3 px-3 text-right font-bold text-slate-900">
-                        {entry.score.toFixed(1)} <span className="text-slate-400 text-[10px]">/ {entry.maxScore}</span>
+                        {entry.score.toFixed(1)} <span className="text-fg-secondary text-caption">/ {entry.maxScore}</span>
                       </td>
                       <td className="py-3 px-3 text-right">
                         <span

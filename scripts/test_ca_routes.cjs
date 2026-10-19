@@ -81,9 +81,9 @@ const month = today.slice(0, 7);
     if (published.length > 0) assert(articleLinks >= 1, `${published.length} published but 0 article links on the hub`); // GATE-HYGIENE-1
     if (published.length === 0) {
       assert(articleLinks === 0, `${articleLinks} article link(s) shown with 0 published`);
-      assert(/Events Being Processed|No [^<]{0,40}events/i.test(hub.body), 'no empty-state block');
-      // wording honesty is a human review item: the current block claims articles are "undergoing 5-gate fact verification"
-      if (/undergoing 5-gate fact verification/.test(hub.body)) console.log('  WARN  C-1 empty-state wording implies articles exist ("undergoing 5-gate fact verification") while 0 exist — UX-2b copy item');
+      assert(/No current affairs published for[\s\S]{0,120}?yet\./i.test(hub.body), 'no empty-state block'); // UX-2b.H heading; the date may sit in its own tag / comment
+      // UX-2b.H: the old copy claimed articles exist while 0 do; it must never return
+      assert(!/undergoing 5-gate fact verification|Events Being Processed/i.test(hub.body), 'old empty-state wording is back ("5-gate fact verification" / "Events Being Processed")');
     }
     return published.length ? `${published.length} published` : 'empty-state block, 0 article links';
   });

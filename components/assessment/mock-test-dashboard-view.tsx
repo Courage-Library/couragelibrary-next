@@ -13,6 +13,7 @@ import { Card, CardContent } from "@/components/ui/legacy/card";
 import { Badge } from "@/components/ui/legacy/badge";
 import { Button } from "@/components/ui/legacy/button";
 import { StartTestActionButton } from "@/components/assessment/start-test-action-button";
+import { mockLengthLabel } from "@/lib/assessment/display-rules";
 import {
   Target,
   Clock,
@@ -329,7 +330,7 @@ export function MockTestDashboardView({ data }: Props) {
                     <span>{nextMockAction.todayMock.totalMarks} Marks</span>
                   </div>
                   <div className="flex items-center gap-1.5 bg-slate-100/80 px-2.5 py-1 rounded-lg">
-                    <span className="text-rose-600 font-bold">-{nextMockAction.todayMock.negativeMark}</span>
+                    <span className="text-danger-700 font-bold">-{nextMockAction.todayMock.negativeMark}</span>
                     <span>Negative</span>
                   </div>
                 </div>
@@ -439,7 +440,7 @@ export function MockTestDashboardView({ data }: Props) {
           {todayMocks.length === 0 ? (
             <Card className="p-8 text-center bg-white border border-slate-200 rounded-2xl">
               <p className="text-xs text-slate-500 font-medium">
-                No daily mocks scheduled today for this selection. Explore full-length simulations below.
+                No daily mocks scheduled today for this selection. Explore more mock tests below.
               </p>
             </Card>
           ) : (
@@ -634,7 +635,7 @@ export function MockTestDashboardView({ data }: Props) {
                     <div className="text-[11px] font-bold text-slate-900 line-clamp-1">
                       {day.sectionName || day.testType.replace("_", " ")}
                     </div>
-                    <div className="text-[10px] text-slate-500 font-semibold">
+                    <div className="text-caption text-fg-secondary font-semibold">
                       {day.questionCount} Qs &bull; {day.durationMinutes}m
                     </div>
                   </div>
@@ -645,13 +646,13 @@ export function MockTestDashboardView({ data }: Props) {
         )}
 
         {/* ========================================================================= */}
-        {/* 7. FULL-LENGTH MOCK TESTS                                                 */}
+        {/* 7. MORE MOCK TESTS (UX-2b.H: labelled by real size, lib/assessment/display-rules) */}
         {/* ========================================================================= */}
         <div className="space-y-3 pt-2">
           <div className="flex items-center justify-between">
             <h2 className="text-base sm:text-lg font-extrabold text-slate-900 flex items-center gap-2">
               <Target className="w-5 h-5 text-blue-600" />
-              Full-Length Mock Tests
+              More Mock Tests
             </h2>
           </div>
 
@@ -659,8 +660,8 @@ export function MockTestDashboardView({ data }: Props) {
             <Card className="border-slate-200/80 shadow-xs">
               <CardContent className="py-10 text-center space-y-2">
                 <Target className="w-8 h-8 text-slate-400 mx-auto" />
-                <h3 className="text-xs font-bold text-slate-700">Full-Length Mocks Scheduled Soon</h3>
-                <p className="text-[11px] text-slate-500">Practice with the active Daily Mocks above.</p>
+                <h3 className="text-body-sm font-semibold text-fg">No other mock tests yet</h3>
+                <p className="text-body-sm text-fg-secondary">Practise with today&apos;s daily mock above.</p>
               </CardContent>
             </Card>
           ) : (
@@ -675,6 +676,7 @@ export function MockTestDashboardView({ data }: Props) {
                       <Badge variant="outline" className="text-[10px] font-bold">
                         {test.examTitle}
                       </Badge>
+                      <span className="text-caption font-medium text-fg-secondary">{mockLengthLabel(test)}</span>
                       {test.isFree && (
                         <span className="px-2 py-0.2 text-[9px] font-black rounded-md bg-emerald-100 text-emerald-800">
                           FREE
@@ -720,7 +722,7 @@ export function MockTestDashboardView({ data }: Props) {
                         testId={test.id}
                         size="sm"
                         className="w-full text-xs"
-                        label="Start Full Mock"
+                        label="Start Mock"
                       />
                     )}
                   </div>
@@ -794,11 +796,11 @@ export function MockTestDashboardView({ data }: Props) {
                   className={`p-2.5 rounded-xl border text-center ${
                     m.achieved
                       ? "bg-amber-50 border-amber-200 text-amber-900 font-bold"
-                      : "bg-slate-50 border-slate-200 text-slate-400 font-medium"
+                      : "bg-surface-sunken border-line text-fg-secondary font-medium"
                   }`}
                 >
                   <span className="text-xs block">{m.days} Days</span>
-                  <span className="text-[10px] uppercase tracking-wider">{m.achieved ? "✓ Done" : "Target"}</span>
+                  <span className="text-caption uppercase tracking-wider">{m.achieved ? "✓ Done" : "Target"}</span>
                 </div>
               ))}
             </div>
@@ -850,7 +852,7 @@ export function MockTestDashboardView({ data }: Props) {
                   className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border flex items-center gap-1 ${
                     b.unlocked
                       ? "bg-purple-50 text-purple-800 border-purple-200"
-                      : "bg-slate-50 text-slate-400 border-slate-200 opacity-60"
+                      : "bg-surface-sunken text-fg-secondary border-line"
                   }`}
                 >
                   <Award className="w-3 h-3" />

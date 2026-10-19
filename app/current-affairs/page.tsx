@@ -6,7 +6,6 @@ import { CurrentAffairsDailyQuizCard } from '@/components/current-affairs/curren
 import { CurrentAffairsFeedContainer } from '@/components/current-affairs/current-affairs-feed-container';
 import {
   Calendar,
-  Sparkles,
   Archive,
   ArrowRight,
   Flame,
@@ -20,9 +19,9 @@ import { constructMetadata } from '@/lib/seo/metadata';
 export const revalidate = 60; // ISR cache revalidation every 60 seconds
 
 export const metadata = constructMetadata({
-  title: 'Current Affairs — Exam-Oriented Daily Intelligence & Daily 10Q Quiz',
+  title: 'Current Affairs for Government Exams',
   description:
-    'Curated, fact-checked daily Current Affairs intelligence mapped to competitive exam syllabi (UPSC, SSC, Banking, State PSC). Read structured event breakdowns, verified provenance, and evaluate your recall with the Daily 10Q Quiz.',
+    'Daily current affairs for Indian government exams: each event with its key facts, sources and the exams it matters for. Practise with the daily quiz when one is published.',
   canonicalUrl: '/current-affairs',
   keywords: [
     'Daily Current Affairs',
@@ -38,6 +37,9 @@ export const metadata = constructMetadata({
 export default async function CurrentAffairsHubPage() {
   const hubData = await CurrentAffairsService.getHubData();
   const { todayDate, todayFeed, recentArticles, categoryCounts, dailyQuiz } = hubData;
+  // newest PUBLISHED news date other than today (recentArticles: status PUBLISHED, ordered by news_date desc)
+  const latestPublishedDate =
+    recentArticles.map((a) => String(a.newsDate || '').slice(0, 10)).find((d) => /^\d{4}-\d{2}-\d{2}$/.test(d) && d !== todayDate) || null;
 
   const istYear = parseInt(todayDate.split('-')[0], 10);
   const istMonth = parseInt(todayDate.split('-')[1], 10);
@@ -58,29 +60,26 @@ export default async function CurrentAffairsHubPage() {
       <Container className="space-y-10">
         {/* Hub Hero Header */}
         <div className="space-y-4 max-w-3xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-200">
-            <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-            <span>EXAM-ORIENTED EVENT INTELLIGENCE</span>
-          </div>
-
           <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-slate-900">
             Current Affairs
           </h1>
 
-          <p className="text-base md:text-lg text-slate-600 leading-relaxed">
-            Curated, fact-checked daily news intelligence mapped to competitive exam syllabi.
-            Read structured event breakdowns, verified provenance, and evaluate your recall with the Daily 10Q Quiz.
+          <p className="text-base md:text-lg text-fg-secondary leading-relaxed">
+            Daily current affairs for government exams. Each event comes with its key facts, its sources and the exams it
+            matters for, and you can practise with the daily quiz when one is published.
           </p>
         </div>
 
-        {/* Daily 10Q Quiz Section */}
-        <section aria-labelledby="daily-quiz-heading">
-          <CurrentAffairsDailyQuizCard dateStr={todayDate} dailyQuiz={dailyQuiz} />
-        </section>
+        {/* Daily 10Q Quiz Section: only when today's quiz mock is published (UX-2b.H, H-5) */}
+        {dailyQuiz.status === 'ALREADY_PUBLISHED' && (
+          <section aria-labelledby="daily-quiz-heading">
+            <CurrentAffairsDailyQuizCard dateStr={todayDate} dailyQuiz={dailyQuiz} />
+          </section>
+        )}
 
         {/* Date Jump Navigation Strip */}
         <nav aria-label="Recent Date Navigation" className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-          <div className="flex items-center gap-1.5 text-xs font-bold uppercase text-slate-400 mr-2 shrink-0">
+          <div className="flex items-center gap-1.5 text-xs font-bold uppercase text-fg-secondary mr-2 shrink-0">
             <History className="w-3.5 h-3.5" />
             <span>Daily Feeds:</span>
           </div>
@@ -117,7 +116,7 @@ export default async function CurrentAffairsHubPage() {
             <div className="flex items-center gap-2.5">
               <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
               <h2 id="today-feed-heading" className="text-xl md:text-2xl font-bold text-slate-900">
-                Today&apos;s Published Intelligence
+                Today&apos;s current affairs
               </h2>
             </div>
             <span className="text-xs font-medium text-slate-500">
@@ -129,18 +128,29 @@ export default async function CurrentAffairsHubPage() {
             <CurrentAffairsFeedContainer
               articles={todayFeed.articles}
               categoryCounts={categoryCounts}
-              emptyTitle="No today's events matching filter"
+              emptyTitle="No events today match this filter"
               emptyDescription="Try selecting another category or clear your search."
             />
           ) : (
-            <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center space-y-2">
-              <Calendar className="w-8 h-8 text-slate-400 mx-auto" />
-              <h3 className="text-base font-bold text-slate-800">
-                Today&apos;s Events Being Processed
+            // UX-2b.H (H-3): say only what is true. The latest published day comes from recentArticles, which the
+            // service already reads from PUBLISHED articles only, newest news_date first (no new query).
+            <div className="rounded-card border border-dashed border-line bg-surface p-8 text-center space-y-3">
+              <Calendar aria-hidden="true" className="w-8 h-8 text-fg-muted mx-auto" />
+              <h3 className="text-h3 font-semibold text-fg">
+                No current affairs published for {formatEventDate(todayDate)} yet.
               </h3>
-              <p className="text-xs text-slate-500 max-w-md mx-auto">
-                Articles for {formatEventDate(todayDate)} are undergoing 5-gate fact verification. Explore recent high-yield intelligence below.
-              </p>
+              {latestPublishedDate ? (
+                <p className="text-body text-fg-secondary">
+                  <Link
+                    href={`/current-affairs/date/${latestPublishedDate}`}
+                    className="font-medium text-link underline underline-offset-2 hover:text-primary-700"
+                  >
+                    Read the latest published day: {formatEventDate(latestPublishedDate)}
+                  </Link>
+                </p>
+              ) : (
+                <p className="text-body text-fg-secondary">Nothing has been published yet. Check back later.</p>
+              )}
             </div>
           )}
         </section>
@@ -152,7 +162,7 @@ export default async function CurrentAffairsHubPage() {
               <div className="flex items-center gap-2.5">
                 <TrendingUp className="w-5 h-5 text-blue-600" />
                 <h2 id="recent-feed-heading" className="text-xl md:text-2xl font-bold text-slate-900">
-                  Recent High-Yield Intelligence
+                  Recently published
                 </h2>
               </div>
               <Link

@@ -56,7 +56,7 @@ export function QuestionReviewCard({
           </span>
           <span className="text-slate-500 font-medium">{sectionName}</span>
           {timeSpentSeconds !== undefined && timeSpentSeconds > 0 && (
-            <span className="text-[11px] text-slate-400 font-mono">
+            <span className="text-caption text-fg-secondary font-mono">
               &bull; {timeSpentSeconds >= 60 ? `${Math.floor(timeSpentSeconds / 60)}m ${timeSpentSeconds % 60}s` : `${timeSpentSeconds}s`}
             </span>
           )}

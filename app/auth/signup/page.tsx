@@ -5,7 +5,7 @@ import Link from "next/link";
 import { signupAction } from "@/app/auth/actions";
 import { Button } from "@/components/ui/legacy/button";
 import { Input } from "@/components/ui/legacy/input";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/legacy/card";
+import { Card, CardHeader, CardDescription, CardContent, CardFooter } from "@/components/ui/legacy/card";
 import { Alert } from "@/components/ui/legacy/alert";
 import { BrandLogo } from "@/components/brand/logo";
 
@@ -19,11 +19,10 @@ export default function SignupPage() {
           <div className="flex justify-center mb-2">
             <BrandLogo variant="icon" size="lg" />
           </div>
-          <CardTitle className="text-2xl font-extrabold text-slate-900 tracking-tight">
-            Create an account
-          </CardTitle>
-          <CardDescription className="text-sm text-slate-500">
-            Join thousands of aspirants preparing for competitive exams
+          {/* UX-2b.H (H-1): the page's one h1; no unverifiable "thousands of aspirants" claim (#47) */}
+          <h1 className="text-h2 font-bold text-fg">Create your free account</h1>
+          <CardDescription className="text-body-sm text-fg-secondary">
+            Free during early access: mock tests with full answer review and a Mistake Vault for your wrong answers.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

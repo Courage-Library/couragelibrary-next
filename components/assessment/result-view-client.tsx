@@ -7,6 +7,8 @@ import { QuestionReviewCard } from "@/components/assessment/question-review-card
 import { CandidateSecurityWatermark } from "@/components/assessment/candidate-security-watermark";
 import { Button } from "@/components/ui/legacy/button";
 import { Badge } from "@/components/ui/legacy/badge";
+import { canShowRank } from "@/lib/assessment/display-rules";
+import { ButtonLink } from "@/components/ui/button";
 import {
   ArrowLeft,
   Trophy,
@@ -107,11 +109,11 @@ export function ResultViewClient({ data }: ResultViewClientProps) {
             <ArrowLeft className="w-3.5 h-3.5" /> Back to Mock Tests
           </Link>
           <div className="flex items-center gap-2">
-            <span className="text-[11px] font-mono text-slate-400 font-bold">
+            <span className="text-caption font-mono text-fg-secondary font-bold">
               {security.maskedId} &bull; {security.attemptIdShort}
             </span>
             <Badge variant="indigo" className="text-[11px] font-extrabold uppercase tracking-wide">
-              Official Assessment
+              Exam-pattern mock
             </Badge>
           </div>
         </div>
@@ -197,53 +199,47 @@ export function ResultViewClient({ data }: ResultViewClientProps) {
               <Trophy className="w-5 h-5 text-amber-500" />
               <h2 className="text-base font-extrabold text-slate-900 tracking-tight">Your Standing</h2>
             </div>
-            <Link href={`/mock-tests/${test.id}/leaderboard`}>
-              <Button variant="ghost" size="sm" className="text-xs font-bold text-blue-600 hover:text-blue-700 hover:bg-blue-50 cursor-pointer">
-                View Full Leaderboard <ArrowRight className="w-3.5 h-3.5 ml-1" />
-              </Button>
-            </Link>
+            <ButtonLink href={`/mock-tests/${test.id}/leaderboard`} variant="ghost" trailingIcon={<ArrowRight aria-hidden="true" className="size-4" />}>
+              View leaderboard
+            </ButtonLink>
           </div>
 
+          {/* UX-2b.H (H-9): rank and percentile only for a cohort of at least RANK_MIN_COHORT (display only) */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {/* Rank Card */}
-            <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-50/80 to-amber-100/50 border border-amber-200/80">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-amber-800 block font-mono">
-                Current Rank
-              </span>
-              <div className="flex items-baseline gap-1.5 mt-1">
-                <span className="text-3xl font-black text-amber-950">#{standing.rank}</span>
-                <span className="text-xs font-bold text-amber-700">/ {standing.totalParticipants}</span>
+            {canShowRank(standing.totalParticipants) ? (
+              <>
+                <div className="p-4 rounded-card border border-line bg-surface">
+                  <span className="text-body-sm font-medium text-fg-secondary block">Your rank</span>
+                  <div className="flex items-baseline gap-1.5 mt-1">
+                    <span className="text-h2 font-bold text-fg">#{standing.rank}</span>
+                    <span className="text-body-sm text-fg-secondary">of {standing.totalParticipants}</span>
+                  </div>
+                  <span className="text-body-sm text-fg-secondary block mt-1">Among students who completed this mock</span>
+                </div>
+                <div className="p-4 rounded-card border border-line bg-surface">
+                  <span className="text-body-sm font-medium text-fg-secondary block">Percentile</span>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-h2 font-bold text-fg">{standing.percentile.toFixed(1)}</span>
+                  </div>
+                  <span className="text-body-sm text-fg-secondary block mt-1">
+                    You scored higher than {standing.percentile.toFixed(0)}% of them
+                  </span>
+                </div>
+              </>
+            ) : (
+              <div className="sm:col-span-2 p-4 rounded-card border border-line bg-surface-sunken">
+                <span className="text-body-sm font-medium text-fg-secondary block">Your rank</span>
+                <p className="text-body text-fg mt-1">Your rank appears once more students take this mock.</p>
               </div>
-              <span className="text-[11px] text-amber-800 font-medium block mt-1">
-                Across all verified candidate submissions
-              </span>
-            </div>
+            )}
 
-            {/* Percentile Card */}
-            <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-50/80 to-blue-100/50 border border-blue-200/80">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-blue-800 block font-mono">
-                Percentile Score
-              </span>
+            <div className="p-4 rounded-card border border-line bg-surface">
+              <span className="text-body-sm font-medium text-fg-secondary block">Students</span>
               <div className="flex items-baseline gap-1 mt-1">
-                <span className="text-3xl font-black text-blue-950">{standing.percentile.toFixed(1)}</span>
-                <span className="text-xs font-bold text-blue-700">%ile</span>
+                <span className="text-h2 font-bold text-fg">{standing.totalParticipants}</span>
               </div>
-              <span className="text-[11px] text-blue-800 font-medium block mt-1">
-                Better than {standing.percentile.toFixed(0)}% of candidates
-              </span>
-            </div>
-
-            {/* Total Participants Card */}
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block font-mono">
-                Participants
-              </span>
-              <div className="flex items-baseline gap-1 mt-1">
-                <span className="text-3xl font-black text-slate-900">{standing.totalParticipants}</span>
-                <span className="text-xs font-bold text-slate-500">candidates</span>
-              </div>
-              <span className="text-[11px] text-slate-500 font-medium block mt-1">
-                Completed this official test
+              <span className="text-body-sm text-fg-secondary block mt-1">
+                {standing.totalParticipants === 1 ? "has completed this mock" : "have completed this mock"}
               </span>
             </div>
           </div>
@@ -338,7 +334,7 @@ export function ResultViewClient({ data }: ResultViewClientProps) {
                         <span className="text-[11px] text-slate-500 font-medium">Daily study streak maintained</span>
                       </div>
                     </div>
-                    <span className="text-xs font-extrabold text-orange-600 font-mono">
+                    <span className="text-xs font-extrabold text-warning-700 font-mono">
                       +{data.rewards.streakCoins} CL
                     </span>
                   </div>
@@ -406,7 +402,7 @@ export function ResultViewClient({ data }: ResultViewClientProps) {
               <span className="text-2xl font-black text-slate-800 block mt-1">{standing.averageScore.toFixed(1)}</span>
             </div>
             <div className="p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-200/80">
-              <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider font-mono block">Topper Score</span>
+              <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider font-mono block">Highest Score</span>
               <span className="text-2xl font-black text-emerald-950 block mt-1">{standing.topScore.toFixed(1)}</span>
             </div>
           </div>
@@ -439,7 +435,7 @@ export function ResultViewClient({ data }: ResultViewClientProps) {
                       </div>
                       <div className="flex items-center gap-3 text-right">
                         <span className="font-black text-sm text-blue-700">
-                          {sec.sectionScore.toFixed(1)} <span className="text-slate-400 font-semibold text-xs">/ {sec.maxScore}</span>
+                          {sec.sectionScore.toFixed(1)} <span className="text-fg-secondary font-semibold text-xs">/ {sec.maxScore}</span>
                         </span>
                         <span className="text-xs font-extrabold px-2 py-0.5 rounded-lg bg-blue-50 text-blue-800 border border-blue-200">
                           {sec.accuracyPercentage.toFixed(0)}% Accuracy
@@ -701,11 +697,11 @@ export function ResultViewClient({ data }: ResultViewClientProps) {
         <div className="p-6 rounded-3xl bg-gradient-to-r from-blue-700 to-indigo-800 text-white shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
             <span className="text-blue-200 text-xs font-bold uppercase tracking-wider font-mono">
-              Live Competition Leaderboard
+              Leaderboard
             </span>
-            <h3 className="text-lg sm:text-xl font-black">See the Full Rankings &amp; Top 3 Podium</h3>
+            <h3 className="text-lg sm:text-xl font-black">See how your score compares</h3>
             <p className="text-xs text-blue-100/90 font-medium">
-              Compare your score, speed, and accuracy with all {standing.totalParticipants} participating candidates.
+              Compare your score, accuracy and time with the {standing.totalParticipants} {standing.totalParticipants === 1 ? "student" : "students"} who completed this mock.
             </p>
           </div>
           <Link href={`/mock-tests/${test.id}/leaderboard`} className="shrink-0">
