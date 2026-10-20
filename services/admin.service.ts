@@ -223,17 +223,6 @@ export interface AdminUserListItem {
   lastSignInAt: string | null;
 }
 
-/**
- * Admin emails from the ADMIN_EMAILS env var (comma-separated).
- * Fails closed: unset or empty grants nothing via the email path.
- */
-function getConfiguredAdminEmails(): string[] {
-  return (process.env.ADMIN_EMAILS || "")
-    .split(",")
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-}
-
 export class AdminService {
   /**
    * Check if current user is admin/staff
@@ -244,7 +233,7 @@ export class AdminService {
     if (!user) return { isAdmin: false };
 
     // SEC-1B: the role decision is made only by the canonical guard (lib/auth/require-admin.ts):
-    // app_metadata.role admin/staff, or ADMIN_EMAILS → admin. user_metadata never grants access.
+    // app_metadata.role admin/staff only (AUTH-1 #60: no email-based grant). user_metadata never grants access.
     const isAuthorized = resolveRole(user) !== null;
 
     // Self-heal profile on admin access
@@ -1279,8 +1268,6 @@ export class AdminService {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const profileMap = new Map<string, any>(profiles.map((p: any) => [p.id, p]));
-    const adminEmails = getConfiguredAdminEmails();
-
     let missingCount = 0;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1289,14 +1276,14 @@ export class AdminService {
       const hasProfile = Boolean(profile);
       if (!hasProfile) missingCount++;
 
-      const isStaff = u.email && adminEmails.includes(u.email.toLowerCase());
       const meta = u.user_metadata || u.raw_user_meta_data || {};
 
       return {
         id: u.id,
         email: u.email || "No Email",
         fullName: profile?.full_name || meta.full_name || meta.name || u.email?.split("@")[0] || "Student",
-        role: isStaff ? "admin" : (meta.role || "student"),
+        // AUTH-1 #60: the displayed role comes from the same source as the guard (app_metadata), never user_metadata
+        role: resolveRole(u) ?? "student",
         languagePreference: profile?.language_preference === "hi" ? "Hindi" : "English",
         isActive: profile ? profile.is_active : true,
         hasProfile,

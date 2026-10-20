@@ -1,9 +1,12 @@
 import React from "react";
 import { redirect } from "next/navigation";
 import { GamificationService } from "@/services/gamification.service";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { constructMetadata } from "@/lib/seo/metadata";
 import { WalletViewClient, RewardCatalogItem } from "@/components/wallet/wallet-view-client";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getServerSession } from "@/lib/auth/session";
+import { SessionUnavailable } from "@/components/auth/session-unavailable";
+import { loginRedirectPath } from "@/lib/auth/safe-redirect";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -14,14 +17,12 @@ export const metadata = constructMetadata({
 });
 
 export default async function WalletPage() {
+  // AUTH-1 2a: tri-state session — a Supabase outage shows a retry state, never a login redirect or data
+  const session = await getServerSession();
+  if (session.state === "error") return <SessionUnavailable />;
+  if (session.state === "none") redirect(loginRedirectPath("/wallet"));
+  const user = session.user;
   const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/auth/login?next=/wallet");
-  }
 
   const [wallet, catalogRes, streakEligibility] = await Promise.all([
     GamificationService.getStudentWallet(user.id),

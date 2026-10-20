@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { isFeatureEnabled } from "@/config/features";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { classifyAuthResult } from "@/lib/auth/session-state";
+import { SessionUnavailableBanner } from "@/components/auth/session-unavailable";
 import { BottomNav } from "./bottom-nav";
 import { HeaderBar } from "./header-bar";
 import type { ShellFlags } from "./nav-config";
@@ -14,10 +16,13 @@ import { SiteFooter } from "./site-footer";
  * below the fold and never jumps while page content streams in (CLS).
  */
 export async function AppShell({ children }: { children: ReactNode }) {
+  // AUTH-1 2a: tri-state session. "error" (Supabase unreachable) shows a retry banner instead of a signed-out shell.
   const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const session = await supabase.auth.getUser().then(
+    ({ data, error }) => classifyAuthResult(data?.user ?? null, error),
+    () => ({ state: "error" as const }),
+  );
+  const user = session.state === "user" ? session.user : null;
   const flags: ShellFlags = { COURSES: isFeatureEnabled("COURSES"), BATTLES: isFeatureEnabled("BATTLES") };
   const role = (user?.app_metadata as { role?: string } | undefined)?.role;
   const account: ShellAccount | null = user
@@ -37,6 +42,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
         Skip to content
       </a>
       <HeaderBar account={account} flags={flags} />
+      {session.state === "error" && <SessionUnavailableBanner />}
       <main id="main-content" tabIndex={-1} className="min-h-dvh flex-1 outline-none">
         {children}
       </main>

@@ -4,6 +4,8 @@ import { getAppEnv } from "@/config/env";
 import type { Database } from "@/types/database";
 import { fromSsrClient } from "@/lib/supabase/types";
 import { sanitizeAdminPath } from "@/lib/auth/safe-redirect";
+import { getSessionState } from "@/lib/auth/session-state";
+import { authTimeoutFetch } from "@/lib/supabase/auth-fetch";
 
 export interface CookieToSet {
   name: string;
@@ -30,6 +32,8 @@ export async function updateSession(request: NextRequest) {
     supabaseUrl,
     supabaseAnonKey,
     {
+      // AUTH-1 2a: auth requests are time-limited (a hanging Auth endpoint must not hang every request)
+      global: { fetch: authTimeoutFetch },
       cookies: {
         getAll() {
           return request.cookies.getAll();
@@ -49,19 +53,14 @@ export async function updateSession(request: NextRequest) {
     }
   ));
 
-  // Refresh auth token
-  let hasUser = false;
-  try {
-    const { data } = await supabase.auth.getUser();
-    hasUser = Boolean(data?.user);
-  } catch {
-    hasUser = false;
-  }
+  // Refresh auth token. AUTH-1 2a: tri-state — a transient Supabase failure ("error") is not "signed out".
+  const session = await getSessionState(supabase);
 
   // SEC-1C defence in depth: anonymous requests for admin PAGES go to login. Role decisions stay in
   // the canonical page guard (requireAdminPage); /api/admin routes keep their own 401 JSON.
+  // On "error" nothing is redirected here: requireAdminPage denies and shows the retry page (fail closed).
   const { pathname } = request.nextUrl;
-  if (!hasUser && (pathname === "/admin" || pathname.startsWith("/admin/"))) {
+  if (session.state === "none" && (pathname === "/admin" || pathname.startsWith("/admin/"))) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/auth/login";
     loginUrl.search = "";

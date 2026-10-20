@@ -44,7 +44,7 @@ export default function UpdatePasswordPage() {
               type="password"
               placeholder="••••••••"
               required
-              minLength={6}
+              minLength={8}
             />
             <Input
               label="Confirm New Password"
@@ -52,7 +52,7 @@ export default function UpdatePasswordPage() {
               type="password"
               placeholder="••••••••"
               required
-              minLength={6}
+              minLength={8}
             />
             <Button
               type="submit"

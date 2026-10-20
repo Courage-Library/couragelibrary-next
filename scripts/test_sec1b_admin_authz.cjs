@@ -263,12 +263,12 @@ async function invoke(entry, scenarioUser, opts = {}) {
 // ---------- Part 1: guard unit ----------
 async function part1() {
   const G = require(path.join(ROOT, 'lib/auth/require-admin.ts'));
-  await test('U-01 resolveRole: app_metadata only; user_metadata never grants; ADMIN_EMAILS → admin', async () => {
+  await test('U-01 resolveRole: app_metadata only; user_metadata never grants; an ADMIN_EMAILS match never grants (AUTH-1 #60)', async () => {
     assert(G.resolveRole(USERS.admin) === 'admin' && G.resolveRole(USERS.staff) === 'staff');
     assert(G.resolveRole(USERS.student) === null && G.resolveRole(USERS.userMetaAdmin) === null && G.resolveRole(null) === null);
     process.env.ADMIN_EMAILS = 'Student@Courage-Library.test';
     try {
-      assert(G.resolveRole(USERS.student) === 'admin', 'ADMIN_EMAILS fallback (unchanged until SEC-1)');
+      assert(G.resolveRole(USERS.student) === null, 'an email listed in ADMIN_EMAILS must not grant admin');
     } finally {
       delete process.env.ADMIN_EMAILS;
     }

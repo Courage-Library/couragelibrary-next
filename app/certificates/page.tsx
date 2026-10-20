@@ -4,10 +4,11 @@ import Link from "next/link";
 import { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { loginRedirectPath } from "@/lib/auth/safe-redirect";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { LiveTestCertificateService } from "@/services/live-test-certificate.service";
 import { Award, ShieldCheck, Trophy, Calendar, ExternalLink, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/legacy/button";
+import { getServerSession } from "@/lib/auth/session";
+import { SessionUnavailable } from "@/components/auth/session-unavailable";
 
 export const metadata: Metadata = {
   title: "My Certificates | Courage Library",
@@ -16,12 +17,11 @@ export const metadata: Metadata = {
 
 export default async function CandidateCertificatesPage() {
   requireFeatureOrNotFound("LIVE_TESTS");
-  const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect(loginRedirectPath("/certificates"));
-  }
+  // AUTH-1 2a: tri-state session — a Supabase outage shows a retry state, never a login redirect or data
+  const session = await getServerSession();
+  if (session.state === "error") return <SessionUnavailable />;
+  if (session.state === "none") redirect(loginRedirectPath("/certificates"));
+  const user = session.user;
 
   const certificates = await LiveTestCertificateService.getCandidateCertificates(user.id);
 

@@ -4,6 +4,7 @@ import React, { useActionState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { loginAction } from "@/app/auth/actions";
+import { authNotice } from "@/lib/auth/messages";
 import { Button } from "@/components/ui/legacy/button";
 import { Input } from "@/components/ui/legacy/input";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/legacy/card";
@@ -13,8 +14,9 @@ import { BrandLogo } from "@/components/brand/logo";
 function LoginForm() {
   const [state, formAction, isPending] = useActionState(loginAction, null);
   const searchParams = useSearchParams();
-  const queryMessage = searchParams.get("message");
-  const queryError = searchParams.get("error");
+  // AUTH-1 2a: messages from the URL only via an allow-listed code (?m=CODE); unknown codes and any other
+  // query text (?error=, ?message=) are ignored, so nobody can put their own words on this page.
+  const notice = authNotice(searchParams.get("m"));
   // SEC-1D: carried as-is to loginAction, which sanitizes it server-side (hostile → "/").
   const next = (searchParams.get("next") ?? "").slice(0, 1024);
 
@@ -32,14 +34,14 @@ function LoginForm() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {queryMessage && (
-          <Alert variant="success">
-            {queryMessage}
+        {notice && !state?.error && (
+          <Alert variant={notice.tone} data-auth-notice="">
+            {notice.text}
           </Alert>
         )}
-        {(state?.error || queryError) && (
-          <Alert variant="error">
-            {state?.error || queryError}
+        {state?.error && (
+          <Alert variant="error" data-auth-error={state.code ?? ""}>
+            {state.error}
           </Alert>
         )}
         <form action={formAction} className="space-y-4">

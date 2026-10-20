@@ -239,9 +239,9 @@ function firstGuardViolation(body) {
     const r = await run(USERS.anon, { allowStaff: true, path: '/admin/content' });
     assert(r.redirect === '/auth/login?next=%2Fadmin%2Fcontent', JSON.stringify(r));
   });
-  await test('U-02 session error (getUser throws) → redirect to login, not allowed', async () => {
+  await test('U-02 session error (getUser throws) → denied: retry page, not allowed, not login (AUTH-1 #60)', async () => {
     const r = await run(USERS.admin, { allowStaff: true, path: '/admin' }, true);
-    assert(r.redirect === '/auth/login?next=%2Fadmin', JSON.stringify(r));
+    assert(r.redirect === '/auth/unavailable?next=%2Fadmin', JSON.stringify(r));
   });
   await test('U-03 bad next values are sanitized to /admin (no open redirect)', async () => {
     const bad = ['https://evil.example/x', '//evil.example', '/notadmin', '/admin/../etc', '/admin//evil.example', '/admin\\evil', '/admin?x=1', '/admin#x', '/adminx', 'admin', undefined, null, 42, '/admin/%2F%2Fevil'];

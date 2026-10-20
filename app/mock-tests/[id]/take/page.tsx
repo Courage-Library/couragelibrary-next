@@ -5,6 +5,9 @@ import { AssessmentService } from "@/services/assessment.service";
 import { AdaptiveSessionService } from "@/services/adaptive/adaptive-session.service";
 import { createServerSupabaseClient, createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { MockTestPlayerClient } from "./player-client";
+import { getServerSession } from "@/lib/auth/session";
+import { SessionUnavailable } from "@/components/auth/session-unavailable";
+import { loginRedirectPath } from "@/lib/auth/safe-redirect";
 
 export const revalidate = 0;
 
@@ -22,14 +25,12 @@ interface Props {
 
 export default async function MockTestTakePage({ params }: Props) {
   const { id } = await params;
+  // AUTH-1 2a: tri-state session — a Supabase outage shows a retry state, never a login redirect or data
+  const authSession = await getServerSession();
+  if (authSession.state === "error") return <SessionUnavailable />;
+  if (authSession.state === "none") redirect(loginRedirectPath(`/mock-tests/${id}/take`));
+  const user = authSession.user;
   const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect(`/auth/login?next=/mock-tests/${id}/take`);
-  }
 
   // 1. Server-Authoritative Adaptive Detection
   // DRIFT-1c: adaptive detection reads adaptive tables that are not deployed; skip when quarantined.

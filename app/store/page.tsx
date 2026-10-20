@@ -1,8 +1,10 @@
 import { redirect } from "next/navigation";
 import { Metadata } from "next";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { GamificationService } from "@/services/gamification.service";
 import { StoreViewClient } from "@/components/store/store-view-client";
+import { getServerSession } from "@/lib/auth/session";
+import { SessionUnavailable } from "@/components/auth/session-unavailable";
+import { loginRedirectPath } from "@/lib/auth/safe-redirect";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -13,12 +15,11 @@ export const metadata: Metadata = {
 };
 
 export default async function StorePage() {
-  const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/auth/login?redirectTo=/store");
-  }
+  // AUTH-1 2a: tri-state session — a Supabase outage shows a retry state, never a login redirect or data
+  const session = await getServerSession();
+  if (session.state === "error") return <SessionUnavailable />;
+  if (session.state === "none") redirect(loginRedirectPath("/store"));
+  const user = session.user;
 
   const storeData = await GamificationService.getStoreData(user.id);
 

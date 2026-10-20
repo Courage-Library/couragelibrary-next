@@ -7,6 +7,9 @@ import { Container } from "@/components/ui/legacy/container";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/legacy/card";
 import { Badge } from "@/components/ui/legacy/badge";
 import { Button } from "@/components/ui/legacy/button";
+import { getServerSession } from "@/lib/auth/session";
+import { SessionUnavailable } from "@/components/auth/session-unavailable";
+import { loginRedirectPath } from "@/lib/auth/safe-redirect";
 import {
   Flame,
   Coins,
@@ -25,10 +28,16 @@ import {
 export const revalidate = 0; // Dynamic server page
 
 export default async function DashboardPage() {
+  // AUTH-1 2a: tri-state session first — a Supabase outage shows a retry state, never a login redirect
+  const authSession = await getServerSession();
+  if (authSession.state === "error") return <SessionUnavailable />;
+  if (authSession.state === "none") redirect(loginRedirectPath("/dashboard"));
+
   const data = await DashboardService.getStudentDashboardData();
 
   if (!data.user) {
-    redirect("/auth/login");
+    // the service's own read can still fail transiently after the session check passed
+    return <SessionUnavailable />;
   }
 
   return (

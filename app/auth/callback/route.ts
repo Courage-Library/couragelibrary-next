@@ -10,6 +10,11 @@ export async function GET(request: NextRequest) {
   const rawNext = searchParams.get("next");
   const target = rawNext === null ? new URL("/dashboard", origin) : safeRedirectUrl(rawNext, origin);
 
+  // AUTH-1 2a: a provider-reported error (e.g. the user cancelled at Google) is answered with a fixed code.
+  if (searchParams.get("error")) {
+    return NextResponse.redirect(new URL("/auth/login?m=oauth-failed", origin));
+  }
+
   if (code) {
     const supabase = await createServerSupabaseClient();
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
@@ -26,5 +31,6 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.redirect(new URL("/auth/login?error=Invalid+or+expired+code", origin));
+  // AUTH-1 2a: fixed message code (the login page renders allow-listed codes only)
+  return NextResponse.redirect(new URL("/auth/login?m=link-expired", origin));
 }

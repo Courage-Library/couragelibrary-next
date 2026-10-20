@@ -4,7 +4,6 @@ import Link from "next/link";
 import { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { loginRedirectPath } from "@/lib/auth/safe-redirect";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { CandidateIntelligenceService } from "@/services/candidate-intelligence.service";
 import { CANDIDATE_INTELLIGENCE_POLICY_V1 } from "@/types/candidate-intelligence";
 import {
@@ -27,6 +26,8 @@ import {
   Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/legacy/button";
+import { getServerSession } from "@/lib/auth/session";
+import { SessionUnavailable } from "@/components/auth/session-unavailable";
 
 export const metadata: Metadata = {
   title: "Candidate Performance Intelligence | Courage Library",
@@ -45,14 +46,11 @@ export default async function CandidatePerformancePage({ searchParams }: Perform
   const resolvedParams = await searchParams;
   const examFilter = resolvedParams.exam || undefined;
 
-  const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect(loginRedirectPath(`/performance${examFilter ? `?exam=${encodeURIComponent(examFilter)}` : ""}`));
-  }
+  // AUTH-1 2a: tri-state session — a Supabase outage shows a retry state, never a login redirect or data
+  const session = await getServerSession();
+  if (session.state === "error") return <SessionUnavailable />;
+  if (session.state === "none") redirect(loginRedirectPath(`/performance${examFilter ? `?exam=${encodeURIComponent(examFilter)}` : ""}`));
+  const user = session.user;
 
   // Authoritative server-side aggregations
   const overview = await CandidateIntelligenceService.getCandidatePerformanceOverview(

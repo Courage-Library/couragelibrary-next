@@ -9,8 +9,8 @@ import "server-only";
  *   here accepts a caller-supplied user id.
  * - Roles come ONLY from app_metadata.role (writable by the service role alone):
  *     'admin' → admin, 'staff' → staff. user_metadata is never consulted.
- * - ADMIN_EMAILS (comma-separated env var) still grants admin, unchanged from SEC-1A; its removal
- *   is SEC-1. Unset/empty grants nothing.
+ * - AUTH-1 decision #60: there is NO email-based grant. The former ADMIN_EMAILS fallback is removed; an
+ *   email address (any provider, verified or not) never makes anyone admin or staff.
  * - Fail-closed: requireAdmin() throws AuthorizationError; the action/route helpers convert that
  *   into a uniform denial. Any unexpected error while resolving the session is a denial too.
  */
@@ -19,6 +19,7 @@ import { NextResponse } from "next/server";
 import { notFound, redirect } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { sanitizeAdminPath } from "@/lib/auth/safe-redirect";
+import { getSessionState, type SessionState } from "@/lib/auth/session-state";
 
 export type AdminRole = "admin" | "staff";
 export type AuthorizationCode = "UNAUTHORIZED" | "FORBIDDEN";
@@ -58,19 +59,11 @@ export interface ActionFailure {
 
 export type GuardResult = ({ ok: true; isAdmin: true } & AdminContext) | ActionFailure;
 
-function configuredAdminEmails(): string[] {
-  return (process.env.ADMIN_EMAILS || "")
-    .split(",")
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-}
-
 /** Role of a session user, or null. Pure — exported for tests and for AdminService.checkIsAdminOrStaff. */
 export function resolveRole(user: { email?: string | null; app_metadata?: Record<string, unknown> | null } | null): AdminRole | null {
   if (!user) return null;
   const appRole = user.app_metadata?.role;
   if (appRole === "admin") return "admin";
-  if (user.email && configuredAdminEmails().includes(user.email.toLowerCase())) return "admin";
   if (appRole === "staff") return "staff";
   return null;
 }
@@ -79,15 +72,18 @@ export function resolveRole(user: { email?: string | null; app_metadata?: Record
  * Throws AuthorizationError unless the session user is an admin (or staff when allowStaff).
  */
 export async function requireAdmin(opts: RequireAdminOptions = {}): Promise<AdminContext> {
-  let user: { id: string; email?: string | null; app_metadata?: Record<string, unknown> | null } | null = null;
+  type SessionUser = { id: string; email?: string | null; app_metadata?: Record<string, unknown> | null };
+  // AUTH-1 2a: tri-state read. "error" (Supabase unreachable) is a denial too: admin guards fail closed.
+  let session: SessionState<SessionUser>;
   try {
     const supabase = await createServerSupabaseClient();
-    const { data } = await supabase.auth.getUser();
-    user = data?.user ?? null;
+    session = await getSessionState<SessionUser>(supabase);
   } catch {
-    throw new AuthorizationError("UNAUTHORIZED");
+    session = { state: "error" };
   }
-  if (!user) throw new AuthorizationError("UNAUTHORIZED");
+  if (session.state === "error") throw new AuthorizationError("UNAUTHORIZED", "We couldn't confirm your sign-in. Please try again.");
+  if (session.state === "none") throw new AuthorizationError("UNAUTHORIZED");
+  const user = session.user;
   const role = resolveRole(user);
   if (role === "admin" || (role === "staff" && opts.allowStaff)) {
     return { userId: user.id, role, userEmail: user.email ?? "" };
@@ -97,6 +93,8 @@ export async function requireAdmin(opts: RequireAdminOptions = {}): Promise<Admi
 
 /** Login page used for anonymous admin page requests. */
 export const ADMIN_LOGIN_PATH = "/auth/login";
+/** AUTH-1 2a: retry page used when the session cannot be confirmed (Supabase unreachable). */
+export const SESSION_UNAVAILABLE_PATH = "/auth/unavailable";
 
 /**
  * `next` target for the login redirect: only a relative /admin path (no scheme, host, `//`, `..`,
@@ -120,15 +118,18 @@ export interface RequireAdminPageOptions extends RequireAdminOptions {
  * Same session-only identity and resolveRole as requireAdmin; never accepts a user id.
  */
 export async function requireAdminPage(opts: RequireAdminPageOptions = {}): Promise<AdminContext> {
-  let user: { id: string; email?: string | null; app_metadata?: Record<string, unknown> | null } | null = null;
+  type SessionUser = { id: string; email?: string | null; app_metadata?: Record<string, unknown> | null };
+  // AUTH-1 2a: tri-state read. "error" denies (no admin data) and goes to the retry page, never to login.
+  let session: SessionState<SessionUser>;
   try {
     const supabase = await createServerSupabaseClient();
-    const { data } = await supabase.auth.getUser();
-    user = data?.user ?? null;
+    session = await getSessionState<SessionUser>(supabase);
   } catch {
-    user = null;
+    session = { state: "error" };
   }
-  if (!user) redirect(`${ADMIN_LOGIN_PATH}?next=${encodeURIComponent(sanitizeAdminNext(opts.path))}`);
+  if (session.state === "error") redirect(`${SESSION_UNAVAILABLE_PATH}?next=${encodeURIComponent(sanitizeAdminNext(opts.path))}`);
+  if (session.state === "none") redirect(`${ADMIN_LOGIN_PATH}?next=${encodeURIComponent(sanitizeAdminNext(opts.path))}`);
+  const user = session.user;
   const role = resolveRole(user);
   if (role === "admin" || (role === "staff" && opts.allowStaff)) return { userId: user.id, role, userEmail: user.email ?? "" };
   notFound();

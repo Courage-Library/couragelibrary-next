@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { getAppEnv } from "@/config/env";
 import type { Database } from "@/types/database";
 import { fromSsrClient } from "@/lib/supabase/types";
+import { authTimeoutFetch } from "@/lib/supabase/auth-fetch";
 
 export interface CookieToSet {
   name: string;
@@ -28,6 +29,8 @@ export async function createServerSupabaseClient(): Promise<SupabaseClient<Datab
     supabaseUrl || "https://placeholder-url.supabase.co",
     supabaseAnonKey || "placeholder-key",
     {
+      // AUTH-1 2a: auth requests are time-limited (a hanging Auth endpoint must not hang the page)
+      global: { fetch: authTimeoutFetch },
       cookies: {
         getAll() {
           return cookieStore.getAll();

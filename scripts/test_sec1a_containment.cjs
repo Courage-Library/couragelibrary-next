@@ -150,9 +150,10 @@ const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
     const r = await check({ id: 'u5', email: 'x@example.com', app_metadata: { role: 'staff' } }, '');
     assert(r.isAdmin === true, `got ${r.isAdmin}`);
   });
-  await test('S1-6 email in ADMIN_EMAILS (case-insensitive, trimmed) -> true', async () => {
+  // AUTH-1 decision #60: the email-based grant is removed; an email listed in ADMIN_EMAILS no longer makes anyone admin.
+  await test('S1-6 email in ADMIN_EMAILS (no app_metadata role) -> false (AUTH-1 #60: roles only from app_metadata)', async () => {
     const r = await check({ id: 'u6', email: 'Owner@Example.COM' }, '  other@example.com ,  OWNER@example.com  ');
-    assert(r.isAdmin === true, `got ${r.isAdmin}`);
+    assert(r.isAdmin === false, `got ${r.isAdmin}`);
     assert(r.userId === 'u6' && r.userEmail === 'Owner@Example.COM', 'return shape changed');
   });
   await test('S1-7 ADMIN_EMAILS unset + no app_metadata -> false for previously hard-coded addresses', async () => {

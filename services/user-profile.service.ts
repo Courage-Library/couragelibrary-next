@@ -32,27 +32,29 @@ export class UserProfileService {
       const fullName = meta.full_name || meta.name || user.email?.split("@")[0] || "Student";
       const langPref = meta.language_preference === "hi" ? "hi" : "en";
 
-      const { data, error } = await supabase
-        .from("user_profiles")
-        .upsert(
-          {
-            id: user.id,
-            full_name: fullName,
-            language_preference: langPref,
-            is_active: true,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "id" }
-        )
-        .select("*")
-        .single();
+      // AUTH-1 2a: insert-only (INSERT … ON CONFLICT (id) DO NOTHING). An existing profile is never overwritten:
+      // a name the student edited survives the next sign-in, and a deactivated profile stays deactivated.
+      const { error: insertError } = await supabase.from("user_profiles").upsert(
+        {
+          id: user.id,
+          full_name: fullName,
+          language_preference: langPref,
+        },
+        { onConflict: "id", ignoreDuplicates: true }
+      );
 
-      if (error) {
-        console.error(`[UserProfileService] Error ensuring profile for user ${user.id}:`, error.message);
+      if (insertError) {
+        console.error("[UserProfileService] Error ensuring profile:", insertError.message);
         return null;
       }
 
-      return data as UserProfileRecord;
+      const { data, error } = await supabase.from("user_profiles").select("*").eq("id", user.id).maybeSingle();
+      if (error) {
+        console.error("[UserProfileService] Error reading profile:", error.message);
+        return null;
+      }
+
+      return (data as UserProfileRecord | null) ?? null;
     } catch (err) {
       console.error(`[UserProfileService] Unexpected error ensuring profile:`, err);
       return null;
