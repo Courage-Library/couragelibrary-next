@@ -62,6 +62,8 @@ function killTree(child) {
   else { try { process.kill(-child.pid, 'SIGKILL'); } catch { try { child.kill('SIGKILL'); } catch { /* gone */ } } }
 }
 
+const { foreignServerProcesses } = require('./_foreign.cjs');
+
 let server = null;
 let stopping = false; // set once the runner itself stops the server (an exit before that is unexpected)
 const cleanup = () => {
@@ -108,6 +110,14 @@ function runGate(cmd) {
 (async () => {
   if (!fs.existsSync(path.join(ROOT, '.next', 'BUILD_ID'))) { console.error('[with-server] no production build (.next/BUILD_ID): run `npm run build` first'); process.exit(2); }
   if (!(await portFree(PORT))) { console.error(`[with-server] port ${PORT} is in use — stop the other server first (refusing to start)`); process.exit(2); }
+  // SECDEF-S2-2 port finding: another project's `next start` / Lighthouse runs on this machine made our server
+  // unreachable and got it terminated from outside JS. Fail fast; report kind + pid only; never touch them.
+  const foreign = foreignServerProcesses(ROOT, PORT);
+  if (foreign.length) {
+    console.error(`[with-server] foreign server / audit process(es) detected — refusing to start: ${foreign.map((p) => `${p.kind} (pid ${p.pid})`).join(', ')}`);
+    console.error('[with-server] stop them (they belong to another project / session) or wait, then retry');
+    process.exit(2);
+  }
   fs.writeFileSync(LOG, '');
   const out = fs.openSync(LOG, 'a');
   const nextBin = path.join(ROOT, 'node_modules', 'next', 'dist', 'bin', 'next');

@@ -125,5 +125,25 @@ test('C-10 workflow is public-safe: no artifact upload, no tee, CI_QUIET=1, ever
   return `${gateLines.length} gate lines wrapped; ${uses.length} actions pinned`;
 });
 
+test('C-11 with-server precheck: foreign next server / lighthouse / port-targeting processes detected; ours ignored (SECDEF-S2-2)', () => {
+  const { classifyCommand } = require(path.join(ROOT, 'scripts/live/_foreign.cjs'));
+  const R = 'E:\\Courage Library';
+  const cases = [
+    ['node C:/npm/node_modules/npm/bin/npx-cli.js next start -p 3100', 'next server'],
+    ['"node" "D:\\Other\\node_modules\\.bin\\..\\next\\dist\\bin\\next" start -p 3100', 'next server'],
+    ['node C:/tmp/scratchpad/lh/cls.mjs http://localhost:3100', 'lighthouse / audit script'],
+    ['node D:/x/node_modules/lighthouse/cli/index.js http://localhost:3000', 'lighthouse / audit script'],
+    ['node E:\\Courage Library\\node_modules\\next\\dist\\bin\\next start -p 3300 -H 127.0.0.1', null],
+    ['node scripts/test_auth1.cjs --live', null],
+    ['node D:/other/serve.js http://localhost:3300/x', 'process targeting :3300'],
+    ['node D:/other/serve.js --port=33001', null],
+  ];
+  const bad = cases.filter(([c, want]) => classifyCommand(c, R, 3300) !== want).map(([c, want]) => `${want} ← ${c.slice(0, 50)}`);
+  assert(bad.length === 0, bad.join(' | '));
+  const src = fs.readFileSync(path.join(ROOT, 'scripts/live/with-server.cjs'), 'utf8');
+  assert(/foreignServerProcesses\(ROOT, PORT\)/.test(src) && /refusing to start/.test(src), 'runner does not refuse on foreign processes');
+  return `${cases.length} cases; runner refuses`;
+});
+
 console.log(`\nCI support: ${passed}/${passed + failed} passed`);
 process.exit(failed ? 1 : 0);

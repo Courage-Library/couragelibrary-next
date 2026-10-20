@@ -476,8 +476,9 @@ async function dbTests() {
       fn_create_discussion_thread: 'postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres',
       fn_create_batch_assignment: '=X/postgres,postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres',
       fn_complete_course_lesson: 'postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres',
-      fn_reconcile_search_indexes: 'postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres',
-      fn_generate_daily_recommendations: 'postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres',
+      // SECDEF-S2-2 (090): authenticated EXECUTE revoked (no app caller) — narrowed, never widened
+      fn_reconcile_search_indexes: 'postgres=X/postgres,service_role=X/postgres',
+      fn_generate_daily_recommendations: 'postgres=X/postgres,service_role=X/postgres',
     };
     for (const f of fns) {
       assert(f.prosecdef && /search_path=public, pg_temp/.test(f.cfg), `${f.proname}: secdef/search_path`);

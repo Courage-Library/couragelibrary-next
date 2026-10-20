@@ -315,10 +315,18 @@ async function counts(c) {
       const mq = (await c.query(`SELECT mock_test_id, mock_section_id FROM public.mock_questions LIMIT 1`)).rows[0];
       assert(mq, 'need an existing mock_questions row to test the guard');
       await expectError(`INSERT INTO public.mock_questions (mock_test_id, mock_section_id, question_version_id, question_order) VALUES ($1, $2, $3, 99999)`, [mq.mock_test_id, mq.mock_section_id, draftV], 'QF_UNPUBLISHED_VERSION_IN_TEST');
-      // Practice generator as the authenticated user (auth.uid() via JWT claims).
-      await c.query('SAVEPOINT p');
+      // SECDEF-S2-2 (090): the practice generator is no longer client-callable — an authenticated caller gets 42501
+      await c.query('SAVEPOINT p0');
       await c.query(`SELECT set_config('request.jwt.claims', $1, true)`, [JSON.stringify({ sub: f.actor, role: 'authenticated' })]);
       await c.query('SET LOCAL ROLE authenticated');
+      let denied = 'ALLOWED';
+      try { await c.query(`SELECT public.fn_generate_custom_practice_session('qf1-probe', 'MIXED', ARRAY[$1::uuid], 100, NULL)`, [f.topicId]); } catch (e) { denied = e.code; }
+      await c.query('ROLLBACK TO SAVEPOINT p0');
+      assert(denied === '42501', `practice generator as authenticated: ${denied} (want 42501 since 090)`);
+      // Practice generator selection logic, as service_role with the same user claims (auth.uid() via JWT claims).
+      await c.query('SAVEPOINT p');
+      await c.query(`SELECT set_config('request.jwt.claims', $1, true)`, [JSON.stringify({ sub: f.actor, role: 'service_role' })]);
+      await c.query('SET LOCAL ROLE service_role');
       const res = (await c.query(`SELECT public.fn_generate_custom_practice_session('qf1-probe', 'MIXED', ARRAY[$1::uuid], 100, NULL) AS r`, [f.topicId])).rows[0].r;
       await c.query('ROLLBACK TO SAVEPOINT p');
       const ids = (res && res.question_version_ids) || [];
@@ -332,8 +340,8 @@ async function counts(c) {
       const pubQs = (await c.query(`SELECT q.id FROM public.questions q JOIN public.question_versions v ON v.question_id = q.id AND v.is_current AND v.lifecycle_status = 'PUBLISHED' WHERE q.status = 'published' LIMIT 3`)).rows.map((r) => r.id);
       assert(pubQs.length >= 1, 'no published question to probe with');
       await c.query('SAVEPOINT p2');
-      await c.query(`SELECT set_config('request.jwt.claims', $1, true)`, [JSON.stringify({ sub: f.actor, role: 'authenticated' })]);
-      await c.query('SET LOCAL ROLE authenticated');
+      await c.query(`SELECT set_config('request.jwt.claims', $1, true)`, [JSON.stringify({ sub: f.actor, role: 'service_role' })]);
+      await c.query('SET LOCAL ROLE service_role');
       const man = (await c.query(`SELECT public.fn_generate_custom_practice_session('qf1-probe', 'MANUAL_SELECTION', '{}'::uuid[], 100, $1::uuid[]) AS r`, [[d.items[0].question_id, ...pubQs]])).rows[0].r;
       await c.query('ROLLBACK TO SAVEPOINT p2');
       const manIds = (man && man.question_version_ids) || [];

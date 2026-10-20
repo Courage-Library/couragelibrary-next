@@ -21,11 +21,12 @@
  *   K-6  existing data: 111 published versions servable; superseding / archiving not blocked
  *   K-7  live grants: the 4 new functions owner-only; the 7 replaced functions keep their ACLs; P-9 shape
  *   K-9  question_versions / question_options / question_answers byte-identical to the pre-087 baseline
- *   K-10 the 8 fixtures archived with 8 audit rows; not served by practice (student session), battles' pool,
- *        drills (predicate) or mock assembly (guard)
+ *   K-10 the 8 fixtures archived with 8 audit rows; not served by practice (service_role with student claims — the
+ *        practice RPC is not client-callable since SECDEF-S2-2 / 090), battles' pool, drills (predicate) or mock assembly (guard)
  *   K-14 decision #54 invoker safety: as qa-student (role authenticated + JWT claims): the helpers are not callable
- *        directly (42501); practice (manual + 5 modes; 2 with a pre-existing 42703), drill generate, battle room and the assembled mocks serve only
- *        valid-key published questions and do not error (each probe rolled back)
+ *        directly (42501) and, since 090, neither is the practice RPC (42501); practice (manual + 5 modes, run as
+ *        service_role with qa-student's claims; 2 with a pre-existing 42703), drill generate, battle room and the assembled
+ *        mocks serve only valid-key published questions and do not error (each probe rolled back)
  *
  * Run: node scripts/test_qb_key1.cjs [--offline]
  */
@@ -369,7 +370,8 @@ function supaMock(results) {
         'fn_publish_question_version(uuid,uuid)': 'postgres=X/postgres,service_role=X/postgres',
         'fn_transition_question_version(uuid,text,uuid,text,jsonb)': 'postgres=X/postgres,service_role=X/postgres',
         'fn_qf_guard_mock_question_version()': 'postgres=X/postgres',
-        'fn_generate_custom_practice_session(text,text,uuid[],integer,uuid[])': 'postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres',
+        // SECDEF-S2-2 (090): authenticated EXECUTE revoked (no app caller)
+        'fn_generate_custom_practice_session(text,text,uuid[],integer,uuid[])': 'postgres=X/postgres,service_role=X/postgres',
         'fn_generate_mistake_drill(uuid[],uuid,text)': 'postgres=X/postgres,authenticated=X/postgres',
         'fn_find_or_create_battle_room(uuid,boolean)': 'postgres=X/postgres,service_role=X/postgres',
         'fn_find_or_create_battle_room(uuid,boolean,text)': 'postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres',
@@ -396,10 +398,11 @@ function supaMock(results) {
       assert(st.archived === 8, `${st.archived} archived`);
       const audit = (await q(`SELECT count(*)::int n FROM public.admin_audit_logs WHERE action_type = 'QUESTION_ARCHIVE' AND reason = 'QB-KEY-1: CA-4 test fixture retired' AND target_id = ANY($1::text[])`, [FIXTURES]))[0].n;
       assert(audit === 8, `${audit} audit rows`);
-      // practice as a (simulated) student: manual selection of exactly the fixtures → nothing served
+      // practice: manual selection of exactly the fixtures → nothing served. SECDEF-S2-2 (090): the RPC is no longer
+      // client-callable (authenticated → 42501), so the selection is exercised as service_role with the same claims
       await c.query('SAVEPOINT pr');
-      await c.query('SET LOCAL ROLE authenticated');
-      await c.query(`SELECT set_config('request.jwt.claims', $1, true)`, [JSON.stringify({ sub: '00000000-0000-4000-8000-0000000000a1', role: 'authenticated', app_metadata: {} })]);
+      await c.query(`SELECT set_config('request.jwt.claims', $1, true)`, [JSON.stringify({ sub: '00000000-0000-4000-8000-0000000000a1', role: 'service_role', app_metadata: {} })]);
+      await c.query('SET LOCAL ROLE service_role');
       const pr = (await q(`SELECT public.fn_generate_custom_practice_session('qb-key1', 'MANUAL_SELECTION', NULL, 10, $1::uuid[]) r`, [FIXTURES]))[0].r;
       await c.query('ROLLBACK TO SAVEPOINT pr');
       assert(!pr.success || !(pr.question_version_ids || []).length, `practice served fixtures: ${JSON.stringify(pr).slice(0, 200)}`);
@@ -446,9 +449,25 @@ function supaMock(results) {
       });
       assert(denied === '42501', `direct helper call as authenticated: ${denied}`);
       out.push('helper direct 42501');
+      // practice (SECDEF-S2-2, 090): the practice RPC is no longer client-callable — qa-student → 42501. The selection
+      // logic (DEFINER RPC → INVOKER helper) is still exercised, as service_role with qa-student's claims.
+      const practiceDenied = await rolledBack(async () => {
+        await c.query(`SELECT set_config('request.jwt.claims', $1, true)`, [JSON.stringify({ sub: student.id, role: 'authenticated' })]);
+        await c.query('SET LOCAL ROLE authenticated');
+        try { await c.query(`SELECT public.fn_generate_custom_practice_session('QB-KEY-1 K-14', 'PYQ', '{}'::uuid[], 20, NULL)`); return 'ALLOWED'; } catch (e) { return e.code; }
+      });
+      assert(practiceDenied === '42501', `practice RPC as qa-student: ${practiceDenied} (want 42501 since 090)`);
+      out.push('practice as qa-student 42501');
+      const asPracticeService = (call, served) => rolledBack(async () => {
+        await c.query(`SELECT set_config('request.jwt.claims', $1, true)`, [JSON.stringify({ sub: student.id, role: 'service_role' })]);
+        await c.query('SET LOCAL ROLE service_role');
+        const out = (await c.query(call.sql, call.params || [])).rows[0].r;
+        await c.query('RESET ROLE');
+        return served ? { out, ...(await served(out)) } : { out };
+      });
       // practice: manual selection of 5 valid questions + all 8 fixtures → only the 5 valid ones are served.
       // p_topic_ids is '{}', not NULL: the RPC stores to_jsonb(p_topic_ids) in a NOT NULL column (pre-existing, unchanged by 087)
-      const pr = await asStudent({ sql: `SELECT public.fn_generate_custom_practice_session('QB-KEY-1 K-14', 'MANUAL_SELECTION', '{}'::uuid[], 20, $1::uuid[]) r`, params: [[...valid, ...FIXTURES]] },
+      const pr = await asPracticeService({ sql: `SELECT public.fn_generate_custom_practice_session('QB-KEY-1 K-14', 'MANUAL_SELECTION', '{}'::uuid[], 20, $1::uuid[]) r`, params: [[...valid, ...FIXTURES]] },
         async (r) => (r && r.success ? checkVersions(r.question_version_ids) : {}));
       assert(pr.out && pr.out.success && pr.n === valid.length && pr.bad === 0, `practice: ${JSON.stringify(pr).slice(0, 300)}`);
       out.push(`practice ${pr.n}/${valid.length} valid, 0 fixtures`);
@@ -456,13 +475,13 @@ function supaMock(results) {
       // Pre-existing and identical with 087 rolled back (QB-KEY-1 report §2a, backlog PRACTICE-RPC-DRIFT); asserted here
       // to stay exactly that — never a permission error, which would mean the invoker helper broke the path.
       for (const [mode, col] of [['WEAK_TOPICS', 'confidence_level'], ['FORGOTTEN_TOPICS', 'last_evaluated_at']]) {
-        const err = await asStudent({ sql: `SELECT public.fn_generate_custom_practice_session('QB-KEY-1 K-14', $1, '{}'::uuid[], 20, NULL) r`, params: [mode] }).then(() => null, (e) => e);
+        const err = await asPracticeService({ sql: `SELECT public.fn_generate_custom_practice_session('QB-KEY-1 K-14', $1, '{}'::uuid[], 20, NULL) r`, params: [mode] }).then(() => null, (e) => e);
         assert(err && err.code === '42703' && err.message.includes(col), `practice ${mode}: ${err ? err.code + ' ' + err.message.slice(0, 80) : 'no error (drift fixed? update K-14)'}`);
         out.push(`${mode} pre-existing 42703`);
       }
       // practice: the other modes must not error (a "no qualifying questions" business result is not an error)
       for (const mode of ['BOOKMARKED', 'PYQ', 'WRONG_QUESTIONS']) {
-        const m = await asStudent({ sql: `SELECT public.fn_generate_custom_practice_session('QB-KEY-1 K-14', $1, '{}'::uuid[], 20, NULL) r`, params: [mode] },
+        const m = await asPracticeService({ sql: `SELECT public.fn_generate_custom_practice_session('QB-KEY-1 K-14', $1, '{}'::uuid[], 20, NULL) r`, params: [mode] },
           async (r) => (r && r.success ? checkVersions(r.question_version_ids) : { n: 0, bad: 0 }));
         assert(m.out && (m.out.success || /No qualifying/.test(m.out.error || '')) && m.bad === 0, `practice ${mode}: ${JSON.stringify(m).slice(0, 300)}`);
         if (!m.out.success) console.log(`  WARN  VACUOUS (0 items): K-14 practice ${mode} selected no question for qa-student`); // GATE-HYGIENE-1

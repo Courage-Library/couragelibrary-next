@@ -1,6 +1,6 @@
 {
  "decision": "#54 least privilege for DB functions (architect, 2026-10-17)",
- "snapshot": "SECDEF-AUDIT Stage 1 (9ae36cd) inventory, re-verified live by scripts/test_secdef_ratchet.cjs (SECDEF-S2-1)",
+ "snapshot": "SECDEF-AUDIT Stage 1 (9ae36cd) inventory; SECDEF-S2-1 (089) and SECDEF-S2-2 (090) applied; re-verified live by scripts/test_secdef_ratchet.cjs",
  "rules": [
   "every SECURITY DEFINER function in public is listed here; a new one fails the gate until reviewed and added",
   "client EXECUTE (anon / authenticated / PUBLIC) only as listed; any new client grant fails",
@@ -10,10 +10,10 @@
  ],
  "max": {
   "total": 95,
-  "client_executable_callable": 51,
-  "anon_or_public": 8,
+  "client_executable_callable": 37,
+  "anon_or_public": 1,
   "A": 37,
-  "C": 14,
+  "C": 0,
   "B-trigger": 15,
   "B-service": 29,
   "B-internal": 0
@@ -52,15 +52,13 @@
    "class": "B-service",
    "client": [],
    "search_path": "\"\"",
-   "reason": "service-role / owner only, no caller — approved for revoke (SEC-1 track)"
+   "reason": "service-role / owner only, no caller — client EXECUTE absence asserted by SECDEF-S2-2 (090)"
   },
   "fn_clear_user_search_history()": {
    "class": "C",
-   "client": [
-    "authenticated"
-   ],
+   "client": [],
    "search_path": "public, pg_temp",
-   "reason": "client-executable, no app caller — approved for REVOKE (SEC-1 track)"
+   "reason": "no app caller; client EXECUTE revoked by SECDEF-S2-2 (090) — service_role / owner only"
   },
   "fn_complete_course_lesson(p_lesson_id uuid)": {
    "class": "A",
@@ -80,11 +78,9 @@
   },
   "fn_complete_diagnostic_assessment(p_attempt_id uuid)": {
    "class": "C",
-   "client": [
-    "authenticated"
-   ],
+   "client": [],
    "search_path": "public, pg_temp",
-   "reason": "client-executable, no app caller — approved for REVOKE (SEC-1 track)"
+   "reason": "no app caller; client EXECUTE revoked by SECDEF-S2-2 (090) — service_role / owner only"
   },
   "fn_create_batch_assignment(p_batch_id uuid, p_title text, p_assignment_type text, p_content_id uuid, p_due_at timestamp with time zone, p_instructions_md text)": {
    "class": "A",
@@ -96,11 +92,9 @@
   },
   "fn_create_custom_flashcard_deck(p_title text, p_description text, p_topic_id uuid, p_cards jsonb)": {
    "class": "C",
-   "client": [
-    "authenticated"
-   ],
+   "client": [],
    "search_path": "public, pg_temp",
-   "reason": "client-executable, no app caller — approved for REVOKE (SEC-1 track)"
+   "reason": "no app caller; client EXECUTE revoked by SECDEF-S2-2 (090) — service_role / owner only"
   },
   "fn_create_discussion_thread(p_context_type text, p_context_id uuid, p_title text, p_initial_content text)": {
    "class": "A",
@@ -138,31 +132,21 @@
   },
   "fn_edit_discussion_message(p_message_id uuid, p_content_markdown text)": {
    "class": "C",
-   "client": [
-    "authenticated"
-   ],
+   "client": [],
    "search_path": "public, pg_temp",
-   "reason": "client-executable, no app caller — approved for REVOKE (SEC-1 track)"
+   "reason": "no app caller; client EXECUTE revoked by SECDEF-S2-2 (090) — service_role / owner only"
   },
   "fn_enforce_errata_state_machine()": {
    "class": "B-trigger",
-   "client": [
-    "anon",
-    "authenticated",
-    "PUBLIC"
-   ],
+   "client": [],
    "search_path": "public, pg_temp",
-   "reason": "trigger function (not callable); default PUBLIC EXECUTE — approved for revoke (SEC-1 track)"
+   "reason": "trigger function (not callable); PUBLIC / anon / authenticated EXECUTE revoked by SECDEF-S2-2 (090); service_role kept"
   },
   "fn_enforce_practice_session_lifecycle()": {
    "class": "B-trigger",
-   "client": [
-    "anon",
-    "authenticated",
-    "PUBLIC"
-   ],
+   "client": [],
    "search_path": "public, pg_temp",
-   "reason": "trigger function (not callable); default PUBLIC EXECUTE — approved for revoke (SEC-1 track)"
+   "reason": "trigger function (not callable); PUBLIC / anon / authenticated EXECUTE revoked by SECDEF-S2-2 (090); service_role kept"
   },
   "fn_enroll_batch_student(p_batch_id uuid, p_student_user_id uuid, p_role text)": {
    "class": "A",
@@ -221,19 +205,15 @@
   },
   "fn_generate_custom_practice_session(p_title text, p_session_mode text, p_topic_ids uuid[], p_question_count integer, p_manual_question_ids uuid[])": {
    "class": "C",
-   "client": [
-    "authenticated"
-   ],
+   "client": [],
    "search_path": "public, pg_temp",
-   "reason": "client-executable, no app caller — approved for REVOKE (SEC-1 track)"
+   "reason": "no app caller; client EXECUTE revoked by SECDEF-S2-2 (090) — service_role / owner only"
   },
   "fn_generate_daily_recommendations(p_user_id uuid, p_date date, p_engine_version text)": {
    "class": "C",
-   "client": [
-    "authenticated"
-   ],
+   "client": [],
    "search_path": "public, pg_temp",
-   "reason": "client-executable, no app caller — approved for REVOKE (SEC-1 track)"
+   "reason": "no app caller; client EXECUTE revoked by SECDEF-S2-2 (090) — service_role / owner only"
   },
   "fn_generate_mistake_drill(p_vault_ids uuid[], p_topic_id uuid, p_cognitive_type_id text)": {
    "class": "A",
@@ -261,11 +241,9 @@
   },
   "fn_get_due_flashcards(p_deck_id uuid, p_limit integer)": {
    "class": "C",
-   "client": [
-    "authenticated"
-   ],
+   "client": [],
    "search_path": "public, pg_temp",
-   "reason": "client-executable, no app caller — approved for REVOKE (SEC-1 track)"
+   "reason": "no app caller; client EXECUTE revoked by SECDEF-S2-2 (090) — service_role / owner only"
   },
   "fn_has_batch_faculty_access(p_batch_id uuid, p_user_id uuid)": {
    "class": "A",
@@ -317,7 +295,7 @@
    "class": "B-service",
    "client": [],
    "search_path": "public, pg_temp",
-   "reason": "service-role / owner only, no caller — approved for revoke (SEC-1 track)"
+   "reason": "service-role / owner only, no caller — client EXECUTE absence asserted by SECDEF-S2-2 (090)"
   },
   "fn_mark_accepted_answer(p_thread_id uuid, p_message_id uuid)": {
    "class": "A",
@@ -329,27 +307,21 @@
   },
   "fn_mark_notification_as_read(p_notification_id uuid)": {
    "class": "C",
-   "client": [
-    "authenticated"
-   ],
+   "client": [],
    "search_path": "public, pg_temp",
-   "reason": "client-executable, no app caller — approved for REVOKE (SEC-1 track)"
+   "reason": "no app caller; client EXECUTE revoked by SECDEF-S2-2 (090) — service_role / owner only"
   },
   "fn_moderate_flagged_content(p_flag_id uuid, p_resolution_action text, p_moderator_note text)": {
    "class": "C",
-   "client": [
-    "authenticated"
-   ],
+   "client": [],
    "search_path": "public, pg_temp",
-   "reason": "client-executable, no app caller — approved for REVOKE (SEC-1 track)"
+   "reason": "no app caller; client EXECUTE revoked by SECDEF-S2-2 (090) — service_role / owner only"
   },
   "fn_override_mistake_cognitive_type(p_vault_id uuid, p_user_override_type_id text)": {
    "class": "C",
-   "client": [
-    "authenticated"
-   ],
+   "client": [],
    "search_path": "public, pg_temp",
-   "reason": "client-executable, no app caller — approved for REVOKE (SEC-1 track)"
+   "reason": "no app caller; client EXECUTE revoked by SECDEF-S2-2 (090) — service_role / owner only"
   },
   "fn_post_discussion_message(p_thread_id uuid, p_content_markdown text, p_parent_message_id uuid)": {
    "class": "A",
@@ -363,7 +335,7 @@
    "class": "B-service",
    "client": [],
    "search_path": "public, pg_temp",
-   "reason": "service-role / owner only, no caller — approved for revoke (SEC-1 track)"
+   "reason": "service-role / owner only, no caller — client EXECUTE absence asserted by SECDEF-S2-2 (090)"
   },
   "fn_project_canonical_taxonomy_node()": {
    "class": "B-trigger",
@@ -373,19 +345,15 @@
   },
   "fn_protect_user_notification_fields()": {
    "class": "B-trigger",
-   "client": [
-    "anon",
-    "authenticated",
-    "PUBLIC"
-   ],
+   "client": [],
    "search_path": "public, pg_temp",
-   "reason": "trigger function (not callable); default PUBLIC EXECUTE — approved for revoke (SEC-1 track)"
+   "reason": "trigger function (not callable); PUBLIC / anon / authenticated EXECUTE revoked by SECDEF-S2-2 (090); service_role kept"
   },
   "fn_publish_exam_announcement(p_exam_id uuid, p_exam_cycle_id uuid, p_announcement_type text, p_title text, p_summary text, p_source_url text, p_priority text)": {
    "class": "B-service",
    "client": [],
    "search_path": "public, pg_temp",
-   "reason": "service-role / owner only, no caller — approved for revoke (SEC-1 track)"
+   "reason": "service-role / owner only, no caller — client EXECUTE absence asserted by SECDEF-S2-2 (090)"
   },
   "fn_publish_question_version(p_version_id uuid, p_actor uuid)": {
    "class": "B-service",
@@ -455,17 +423,15 @@
   },
   "fn_reconcile_search_indexes()": {
    "class": "C",
-   "client": [
-    "authenticated"
-   ],
+   "client": [],
    "search_path": "public, pg_temp",
-   "reason": "client-executable, no app caller — approved for REVOKE (SEC-1 track)"
+   "reason": "no app caller; client EXECUTE revoked by SECDEF-S2-2 (090) — service_role / owner only"
   },
   "fn_record_mistake_occurrence(p_user_id uuid, p_question_id uuid, p_source_context text, p_source_reference_id uuid, p_selected_option_id uuid, p_response_time_seconds integer, p_cognitive_type_id text, p_confidence_pct integer, p_question_version_id uuid, p_attempt_answer_id uuid)": {
    "class": "B-service",
    "client": [],
    "search_path": "public, pg_temp",
-   "reason": "service-role / owner only, no caller — approved for revoke (SEC-1 track)"
+   "reason": "service-role / owner only, no caller — client EXECUTE absence asserted by SECDEF-S2-2 (090)"
   },
   "fn_record_qualifying_streak_activity(p_user_id uuid, p_action_type text, p_source_id uuid, p_duration_seconds integer, p_timezone text)": {
    "class": "B-service",
@@ -477,29 +443,25 @@
    "class": "B-service",
    "client": [],
    "search_path": "public, pg_temp",
-   "reason": "service-role / owner only, no caller — approved for revoke (SEC-1 track)"
+   "reason": "service-role / owner only, no caller — client EXECUTE absence asserted by SECDEF-S2-2 (090)"
   },
   "fn_reverse_reward_claim(p_claim_id uuid, p_admin_id uuid, p_reason text)": {
    "class": "B-service",
    "client": [],
    "search_path": "\"\"",
-   "reason": "service-role / owner only, no caller — approved for revoke (SEC-1 track)"
+   "reason": "service-role / owner only, no caller — client EXECUTE absence asserted by SECDEF-S2-2 (090)"
   },
   "fn_revoke_mistakes_by_errata(p_question_version_id uuid, p_corrected_option_id uuid, p_reason text, p_actor_id uuid)": {
    "class": "B-service",
    "client": [],
    "search_path": "public, pg_temp",
-   "reason": "service-role / owner only, no caller — approved for revoke (SEC-1 track)"
+   "reason": "service-role / owner only, no caller — client EXECUTE absence asserted by SECDEF-S2-2 (090)"
   },
   "fn_sanitize_attempt_answer()": {
    "class": "B-trigger",
-   "client": [
-    "anon",
-    "authenticated",
-    "PUBLIC"
-   ],
+   "client": [],
    "search_path": "\"\"",
-   "reason": "trigger function (not callable); default PUBLIC EXECUTE — approved for revoke (SEC-1 track)"
+   "reason": "trigger function (not callable); PUBLIC / anon / authenticated EXECUTE revoked by SECDEF-S2-2 (090); service_role kept"
   },
   "fn_send_user_notification(p_user_id uuid, p_template_code text, p_title text, p_body text, p_action_url text, p_category text, p_priority text, p_idempotency_key text, p_metadata jsonb, p_variables jsonb)": {
    "class": "B-service",
@@ -509,11 +471,9 @@
   },
   "fn_start_custom_practice_session(p_session_id uuid)": {
    "class": "C",
-   "client": [
-    "authenticated"
-   ],
+   "client": [],
    "search_path": "public, pg_temp",
-   "reason": "client-executable, no app caller — approved for REVOKE (SEC-1 track)"
+   "reason": "no app caller; client EXECUTE revoked by SECDEF-S2-2 (090) — service_role / owner only"
   },
   "fn_submit_battle_round_answer(p_room_id uuid, p_round_number integer, p_selected_option_id uuid)": {
    "class": "A",
@@ -629,15 +589,13 @@
    "class": "B-service",
    "client": [],
    "search_path": "public, pg_temp",
-   "reason": "service-role / owner only, no caller — approved for revoke (SEC-1 track)"
+   "reason": "service-role / owner only, no caller — client EXECUTE absence asserted by SECDEF-S2-2 (090)"
   },
   "fn_update_daily_recommendation_status(p_recommendation_id uuid, p_status text)": {
    "class": "C",
-   "client": [
-    "authenticated"
-   ],
+   "client": [],
    "search_path": "public, pg_temp",
-   "reason": "client-executable, no app caller — approved for REVOKE (SEC-1 track)"
+   "reason": "no app caller; client EXECUTE revoked by SECDEF-S2-2 (090) — service_role / owner only"
   },
   "fn_update_lesson_playback_position(p_lesson_id uuid, p_position_seconds integer, p_elapsed_real_seconds integer)": {
    "class": "A",
@@ -657,51 +615,37 @@
    "class": "B-service",
    "client": [],
    "search_path": "public, pg_temp",
-   "reason": "service-role / owner only, no caller — approved for revoke (SEC-1 track)"
+   "reason": "service-role / owner only, no caller — client EXECUTE absence asserted by SECDEF-S2-2 (090)"
   },
   "fn_validate_bookmark_folder_ownership()": {
    "class": "B-trigger",
-   "client": [
-    "anon",
-    "authenticated",
-    "PUBLIC"
-   ],
+   "client": [],
    "search_path": "public, pg_temp",
-   "reason": "trigger function (not callable); default PUBLIC EXECUTE — approved for revoke (SEC-1 track)"
+   "reason": "trigger function (not callable); PUBLIC / anon / authenticated EXECUTE revoked by SECDEF-S2-2 (090); service_role kept"
   },
   "fn_validate_exam_announcement_cycle()": {
    "class": "B-trigger",
-   "client": [
-    "anon",
-    "authenticated",
-    "PUBLIC"
-   ],
+   "client": [],
    "search_path": "public, pg_temp",
-   "reason": "trigger function (not callable); default PUBLIC EXECUTE — approved for revoke (SEC-1 track)"
+   "reason": "trigger function (not callable); PUBLIC / anon / authenticated EXECUTE revoked by SECDEF-S2-2 (090); service_role kept"
   },
   "fn_validate_payment_order_transition()": {
    "class": "B-trigger",
-   "client": [
-    "anon",
-    "authenticated",
-    "PUBLIC"
-   ],
+   "client": [],
    "search_path": "public, pg_temp",
-   "reason": "trigger function (not callable); default PUBLIC EXECUTE — approved for revoke (SEC-1 track)"
+   "reason": "trigger function (not callable); PUBLIC / anon / authenticated EXECUTE revoked by SECDEF-S2-2 (090); service_role kept"
   },
   "fn_verify_and_fulfill_payment(p_order_id uuid, p_gateway_payment_id text, p_gateway_signature text, p_payment_method text, p_amount numeric, p_billing_name text, p_billing_address text, p_billing_state text)": {
    "class": "B-service",
    "client": [],
    "search_path": "public, pg_temp",
-   "reason": "service-role / owner only, no caller — approved for revoke (SEC-1 track)"
+   "reason": "service-role / owner only, no caller — client EXECUTE absence asserted by SECDEF-S2-2 (090)"
   },
   "fn_verify_faculty_answer(p_message_id uuid, p_is_verified boolean)": {
    "class": "C",
-   "client": [
-    "authenticated"
-   ],
+   "client": [],
    "search_path": "public, pg_temp",
-   "reason": "client-executable, no app caller — approved for REVOKE (SEC-1 track)"
+   "reason": "no app caller; client EXECUTE revoked by SECDEF-S2-2 (090) — service_role / owner only"
   },
   "fn_vote_discussion_message(p_message_id uuid, p_vote_action text)": {
    "class": "A",
@@ -715,7 +659,7 @@
    "class": "B-service",
    "client": [],
    "search_path": "pg_catalog",
-   "reason": "service-role / owner only, no caller — approved for revoke (SEC-1 track)"
+   "reason": "service-role / owner only, no caller — client EXECUTE absence asserted by SECDEF-S2-2 (090)"
   },
   "trg_enforce_mock_attempt_lifecycle()": {
    "class": "B-trigger",

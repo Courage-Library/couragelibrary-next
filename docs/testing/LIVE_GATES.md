@@ -27,11 +27,28 @@ Build first, then let the runner own the server lifecycle:
 npm run build
 ```
 ```bash
-node scripts/live/with-server.cjs --port=3100 -- "node scripts/test_ux2a_landing.cjs http://localhost:3100" "node scripts/test_ux1b_shell_a11y.cjs http://localhost:3100"
+node scripts/live/with-server.cjs --port=3300 -- "node scripts/test_ux2a_landing.cjs http://localhost:3300" "node scripts/test_ux1b_shell_a11y.cjs http://localhost:3300"
 ```
+
+**Port 3300 (architect ruling, SECDEF-S2-2, 2026-10-20).**
+- Live gates run on `--port=3300`; the runner's default (3100) is kept only for CI.
+- Pass the base URL explicitly to every gate:
+  - the runner exports `BASE_URL`;
+  - the E2E harness reads `E2E_BASE_URL=http://localhost:3300`;
+  - the smoke and fixture scripts take `http://localhost:3300` as an argument.
+- **Why:** another project on this machine ran its own `next start -p 3100` plus Lighthouse / audit scripts. While it ran, our server on 3100 never answered readiness and was terminated from outside JavaScript (exit code 4294967295, no JS exit stack). This is the root cause of the unexplained server exits recorded in AUTH-1 Stage 2a.
+
+**Precheck before each attempt:**
+- `node scripts/diag/net-probe.cjs --n=3` (100%);
+- free memory ≥ 2 GB;
+- no foreign process on the port;
+- no orphan DB sessions.
 
 What `scripts/live/with-server.cjs` does:
 - Refuses without `.next/BUILD_ID` or if the port is busy.
+- **Refuses if a foreign server / audit process is running:** a `next start` / `next-server` from another directory, a Lighthouse-style script, or any process whose command line targets the chosen port. It prints the kind + pid only, never paths, and never touches them (`scripts/live/_foreign.cjs`, tested by CI support C-11).
+- Records an unexpected server exit (time, code, signal), checks after every gate that the server still accepts connections, and stops with SKIP for the rest when it does not.
+- Preloads `scripts/live/server-diag.cjs` into the server: memory every 30 s, exit stacks / codes, and a Node report on a fatal error.
 - Starts `next start` directly (node + the next binary, no npx / shell wrappers), with the log in a temp file.
 - Polls health with Node `fetch` (no curl), max 120 s.
 - Runs each gate with a 15-minute hard limit (`--gate-timeout=<s>` to lower it).
