@@ -26,8 +26,12 @@ import { siteConfig } from "@/config/site";
 import { ComingSoonHub } from "@/components/public/coming-soon-hub";
 import { COMING_SOON_EXAMS, COMING_SOON_HUB } from "@/content/public-pages";
 
-/** UX-2b: an inactive exam listed as coming soon gets an honest noindex hub instead of a 404 (decision #32). */
-const comingSoonFor = (status: string, slug: string) => (status === "INACTIVE" ? COMING_SOON_EXAMS.find((e) => e.slug === slug) ?? null : null);
+/**
+ * UX-2b: an exam listed as coming soon gets an honest noindex hub instead of a 404 while it is not active (decision
+ * #32). Any non-FOUND status counts: for anonymous visitors RLS hides inactive exam rows, so the service reports
+ * NOT_FOUND rather than INACTIVE. An active exam returns FOUND and gets its real hub; unlisted slugs still 404.
+ */
+const comingSoonFor = (status: string, slug: string) => (status !== "FOUND" ? COMING_SOON_EXAMS.find((e) => e.slug === slug) ?? null : null);
 
 export const revalidate = 60; // ISR baseline
 

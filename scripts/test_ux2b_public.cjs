@@ -148,7 +148,8 @@ async function offline() {
 
   await test('P-6 coming-soon hubs: listed slugs only, only while inactive, noindex; sitemap: active exams + six pages', () => {
     const hub = read('app/exams/[slug]/page.tsx');
-    assert(/status === "INACTIVE" \? COMING_SOON_EXAMS\.find/.test(hub), 'coming-soon is not limited to inactive listed exams');
+    // any non-FOUND status (anonymous RLS hides inactive rows → NOT_FOUND); FOUND (active) renders the real hub
+    assert(/status !== "FOUND" \? COMING_SOON_EXAMS\.find/.test(hub), 'coming-soon must apply to listed exams whenever they are not FOUND');
     const metaLine = hub.split('\n').find((l) => l.includes('(coming soon)')) || '';
     assert(/noIndex: true/.test(metaLine), 'coming-soon metadata is not noindex');
     assert(/if \(soon\) return <ComingSoonHub/.test(hub) && /notFound\(\)/.test(hub), 'unlisted exams must still 404');
@@ -206,7 +207,13 @@ async function renderChecks() {
   require.extensions['.ts'] = transpile;
   require.extensions['.tsx'] = transpile;
   let landingData = { ok: false };
+  let examStatus = 'NOT_FOUND';
+  class NotFoundSignal extends Error {}
   const MOCKS = {
+    'next/navigation': { notFound: () => { throw new NotFoundSignal('NEXT_NOT_FOUND'); }, redirect: () => { throw new Error('redirect'); } },
+    '@/services/exam-knowledge/exam-knowledge-candidate.service': {
+      ExamKnowledgeCandidateService: { getExamKnowledgeCandidateView: async () => ({ status: examStatus, data: null }) },
+    },
     'server-only': {},
     'next/headers': { cookies: async () => ({ getAll: () => [], get: () => undefined, set: () => undefined }), headers: async () => new Map() },
     '@/lib/supabase/server': { createServerSupabaseClient: async () => ({}) },
@@ -255,6 +262,24 @@ async function renderChecks() {
     assert(/href="\/exams\/ssc-cgl"/.test(h) && /href="\/exams"/.test(h), 'links back missing');
     assert(!/\d/.test(t), 'digits rendered');
     return 'honest hub';
+  });
+  await test('P-9e exam hub: a listed exam that is not FOUND (anonymous RLS → NOT_FOUND, or INACTIVE) renders the noindex hub; unlisted → 404', async () => {
+    const hubMod = require(path.join(ROOT, 'app/exams/[slug]/page.tsx'));
+    const out = [];
+    for (const status of ['NOT_FOUND', 'INACTIVE']) {
+      examStatus = status;
+      const h = renderToStaticMarkup(await hubMod.default({ params: Promise.resolve({ slug: 'ssc-chsl' }) }));
+      assert(/data-coming-soon-hub/.test(h) && /SSC CHSL/.test(text(h)), `${status}: hub not rendered for ssc-chsl`);
+      const meta = await hubMod.generateMetadata({ params: Promise.resolve({ slug: 'ssc-chsl' }) });
+      assert(meta.robots && meta.robots.index === false, `${status}: hub metadata is indexable`);
+      for (const slug of ['ssc-gd', 'qa-syllabus-test']) {
+        let nf = false;
+        try { await hubMod.default({ params: Promise.resolve({ slug }) }); } catch (e) { nf = e instanceof NotFoundSignal; }
+        assert(nf, `${status}: ${slug} did not 404`);
+      }
+      out.push(status);
+    }
+    return `${out.join(' / ')}: CHSL hub noindex; GD + QA exam 404`;
   });
   await test('P-9d legal pages → the draft notice renders before the first section', async () => {
     for (const f of ['app/privacy/page.tsx', 'app/terms/page.tsx']) {
