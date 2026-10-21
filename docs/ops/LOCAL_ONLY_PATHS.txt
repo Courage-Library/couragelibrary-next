@@ -1,0 +1,5 @@
+# Local-only paths: must NEVER be tracked by git (the repository is public, #57).
+# One repo-relative path per line; paths only, never content. Enforced by scripts/test_no_local_only_tracked.cjs
+# (offline gate + CI offline job), which also rejects any docs/reports/**/*_LOCAL*.md.
+docs/reports/auth/AUTH1_STAGE1_LOCAL_FINDING.md
+docs/reports/ops/PUBLIC_REPO1_REPORT.md

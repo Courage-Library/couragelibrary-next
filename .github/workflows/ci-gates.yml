@@ -68,6 +68,7 @@ jobs:
           q LINT npm run lint || fail=1
           q CI-SUPPORT node scripts/ci/test_ci_scripts.cjs || fail=1
           q NO-PERSONAL-DATA node scripts/test_no_personal_data.cjs || fail=1
+          q NO-LOCAL-ONLY node scripts/test_no_local_only_tracked.cjs || fail=1
           q NO-RUNTIME-DB node scripts/test_no_runtime_db.cjs || fail=1
           q DESIGN-RATCHET node scripts/test_design_ratchet.cjs || fail=1
           q UX1B-SHELL node scripts/test_ux1b_shell.cjs || fail=1
@@ -84,6 +85,7 @@ jobs:
           q TYPES1-OFFLINE node scripts/test_types1.cjs --offline || fail=1
           q REFSCAN-SELFTEST node scripts/smoke/anonymous-smoke.cjs --self-test || fail=1
           q NPD-SELFTEST node scripts/test_no_personal_data.cjs --self-test || fail=1
+          q LOCAL-ONLY-SELFTEST node scripts/test_no_local_only_tracked.cjs --self-test || fail=1
           exit $fail
       - name: Log scan of the captured outputs
         if: always()

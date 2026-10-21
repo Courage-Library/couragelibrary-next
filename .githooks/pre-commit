@@ -1,0 +1,7 @@
+#!/bin/sh
+# Opt-in (once per clone): git config core.hooksPath .githooks
+# Refuses a commit that would track a local-only file (docs/ops/LOCAL_ONLY_PATHS.txt, docs/reports/**/*_LOCAL*.md).
+node scripts/test_no_local_only_tracked.cjs >/dev/null 2>&1 || {
+  echo "pre-commit: a local-only file is staged — run: node scripts/test_no_local_only_tracked.cjs" >&2
+  exit 1
+}
