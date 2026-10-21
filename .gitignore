@@ -45,3 +45,9 @@ next-env.d.ts
 
 # Supabase CLI link/version state (TYPES-1): never commit
 supabase/.temp/
+
+# Local-only reports: never tracked (security findings / exposure audits). Listed in docs/ops/LOCAL_ONLY_PATHS.txt;
+# enforced by scripts/test_no_local_only_tracked.cjs
+docs/reports/**/*_LOCAL*.md
+docs/reports/auth/AUTH1_STAGE1_LOCAL_FINDING.md
+docs/reports/ops/PUBLIC_REPO1_REPORT.md
