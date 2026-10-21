@@ -6,7 +6,7 @@
 #     with the runner), log-scanned BEFORE anything is printed, and only "<ID> PASS|FAIL exit n — counts · failing [IDs]"
 #     reaches the log; security gates therefore print check IDs only
 #   - CI_QUIET=1: with-server.cjs never prints the server log tail
-# Trigger: MANUAL DISPATCH ONLY until the owner's first manual run is green (TODO below). No pull_request trigger, ever.
+# Trigger: push to main (code changes; docs-only skipped) + manual dispatch. No pull_request trigger, ever.
 # All actions pinned by commit SHA.
 
 name: ci-gates
@@ -22,13 +22,23 @@ on:
         description: 'Run the anonymous production smoke'
         type: boolean
         default: true
-  # TODO(CI-1 Stage 2 ruling, 2026-10-18): enable after the owner's first manual run is green, in a separate commit:
-  # push:
-  #   branches: [main]
-  #   paths-ignore:
-  #     - 'docs/**'
-  #     - '**/*.md'
-  #   # never ignored: scripts/**, app/**, supabase/**, package*.json, .github/**
+  # CI-1 finalised (architect, 2026-10-21; first runs green): every push to main runs the gates, except docs-only changes.
+  # `paths` with ordered negations (later patterns win): docs/** and *.md are skipped, but scripts/**, app/**, lib/**,
+  # services/**, components/**, supabase/**, package*.json and .github/** are ALWAYS included (even .md files there).
+  push:
+    branches: [main]
+    paths:
+      - '**'
+      - '!docs/**'
+      - '!**/*.md'
+      - 'scripts/**'
+      - 'app/**'
+      - 'lib/**'
+      - 'services/**'
+      - 'components/**'
+      - 'supabase/**'
+      - 'package*.json'
+      - '.github/**'
 
 permissions:
   contents: read
@@ -94,7 +104,8 @@ jobs:
   # ------------------------------------------------------------------ (b) live gates — environment ci-live (main only)
   live:
     needs: offline
-    if: inputs.live
+    # on push the dispatch inputs are empty: live gates always run on push (#65 CI-first loop)
+    if: github.event_name == 'push' || inputs.live
     runs-on: ubuntu-24.04
     timeout-minutes: 150
     environment: ci-live
@@ -190,7 +201,7 @@ jobs:
   # ------------------------------------------------------------------ (c) anonymous production smoke — environment ci-public
   prod-smoke:
     needs: offline
-    if: inputs.prod_smoke
+    if: github.event_name == 'push' || inputs.prod_smoke
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     environment: ci-public

@@ -111,7 +111,7 @@ test('C-9 with-server never prints the server log tail when CI_QUIET=1', () => {
   return 'guarded';
 });
 
-test('C-10 workflow is public-safe: no artifact upload, no tee, CI_QUIET=1, every gate via run-quiet, actions pinned, dispatch-only', () => {
+test('C-10 workflow is public-safe: no artifact upload, no tee, CI_QUIET=1, every gate via run-quiet, actions pinned, push main (code only) + dispatch, never pull_request', () => {
   const w = fs.readFileSync(path.join(ROOT, '.github/workflows/ci-gates.yml'), 'utf8');
   assert(!/upload-artifact/.test(w), 'artifact upload present');
   assert(!/\btee\b/.test(w), 'tee present');
@@ -121,7 +121,17 @@ test('C-10 workflow is public-safe: no artifact upload, no tee, CI_QUIET=1, ever
   assert(gateLines.length >= 40 && unwrapped.length === 0, `gate lines ${gateLines.length}; unwrapped: ${unwrapped.map((l) => l.trim().slice(0, 60)).join(' | ')}`);
   const uses = w.match(/uses: \S+/g) || [];
   assert(uses.length >= 6 && uses.every((u) => /@[0-9a-f]{40}$/.test(u)), 'unpinned action');
-  assert(/^on:\n {2}workflow_dispatch:/m.test(w) && !/^ {2}push:/m.test(w) && !/pull_request/.test(w.replace(/#.*$/gm, '')), 'trigger is not dispatch-only');
+  // CI-1 finalised (#65): dispatch kept + push to main for code changes (docs-only skipped); never pull_request
+  const code = w.replace(/#.*$/gm, '');
+  assert(/^on:\n {2}workflow_dispatch:/m.test(code) && !/pull_request/.test(code), 'dispatch missing or pull_request present');
+  const push = (code.match(/^ {2}push:\n((?: {4}.*\n)+)/m) || [])[1] || '';
+  assert(/branches: \[main\]/.test(push) && !/paths-ignore/.test(push), 'push must be main-only with an ordered paths filter');
+  const pats = [...push.matchAll(/^ {6}- '([^']+)'$/gm)].map((m) => m[1]);
+  const lastNeg = Math.max(pats.indexOf('!docs/**'), pats.indexOf('!**/*.md'));
+  const must = ['scripts/**', 'app/**', 'lib/**', 'services/**', 'components/**', 'supabase/**', 'package*.json', '.github/**'];
+  assert(pats[0] === '**' && lastNeg > 0 && must.every((p) => pats.indexOf(p) > lastNeg), `paths filter: ${pats.join(' ')}`);
+  assert(/if: github\.event_name == 'push' \|\| inputs\.live/.test(code) && /if: github\.event_name == 'push' \|\| inputs\.prod_smoke/.test(code), 'live / prod-smoke must run on push');
+  assert(/cancel-in-progress: false/.test(code), 'concurrency must not cancel in progress');
   return `${gateLines.length} gate lines wrapped; ${uses.length} actions pinned`;
 });
 

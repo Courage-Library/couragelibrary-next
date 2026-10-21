@@ -43,7 +43,12 @@ Every code phase must pass these before it is committed. Phase-specific suites a
   - A set that should never be empty gets a minimum-coverage assertion (files, links, chunks, rows, titles).
   - A set that can legitimately be empty prints `WARN  VACUOUS (0 items): …` and is never a silent PASS.
   - Every scan reports how many items it covered.
-- **E-1 open** (architect, SECDEF-S2-2, 2026-10-20): first CI run must pass E2E journey, lineage, student-mistake smoke before any DB-writing phase.
+- **Loop #65 (CI-first, architect 2026-10-21):**
+  - Locally run the offline gates only: tsc, lint, build, offline suites, ratchets, no-personal-data, design ratchet.
+  - Then the pre-authorised commit + push. CI runs the live gates on every push to `main` (code changes; docs-only skipped).
+  - A phase is CLOSED only when the owner reports CI green.
+  - Local live gates only when cheap and needed for development.
+  - (Exception E-1 cleared by CI run #2.)
 - **Commit procedure (LOCAL-ONLY-1):** stage explicit paths only; never "Stage All" / `git add -A` / `git add .` with untracked files present. A local-only file must be listed in `docs/ops/LOCAL_ONLY_PATHS.txt` **and** git-ignored the moment it is created.
 - **A new gate's first run must be proven non-writing** (architect, SECDEF-S2-2, 2026-10-20).
   - Before a new gate makes any committed client call (PostgREST / HTTP / server action), its first run is either read-only or entirely inside rolled-back transactions.

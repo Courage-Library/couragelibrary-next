@@ -276,4 +276,9 @@ No test script changed after these passes. Only the runner's foreign-process pre
 
 **State:** 090 APPLIED (rollback ready and round-trip proven). The student-mistake fixture is in place.
 
-SECDEF-S2-2 status: CLOSED-PENDING-CI
+
+## 8. Closure (architect, 2026-10-21)
+
+Exception E-1 is **cleared**. CI run #2 (`221898e`) passed the E2E journey, lineage and student-mistake smoke in the live job, and the offline and prod-smoke jobs were green too.
+
+SECDEF-S2-2 status: CLOSED

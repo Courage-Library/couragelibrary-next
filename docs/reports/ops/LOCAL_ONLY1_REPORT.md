@@ -33,7 +33,30 @@
 
 ## 4. History purge
 
-Stage 1 is a dry run on a fresh mirror; it follows in a separate report section. Removing the files from HEAD does not remove them from history.
+Removing the files from HEAD does not remove them from history.
+
+**Stage 1: dry run, DONE 2026-10-21.**
+- Method (PUBLIC-HARDEN-1): a fresh `--mirror` clone of `origin` (HEAD `9daa72d`), kept pristine; a copy rewritten with git-filter-repo `a40bce548d2c`.
+  - `--invert-paths` on exactly the two paths;
+  - `--prune-empty never --prune-degenerate never` (1:1 history).
+- Nothing was pushed.
+
+| Check | Result |
+|---|---|
+| HEAD tree vs post-untrack HEAD (`9daa72d`) | **identical** (`396eb59`) |
+| Commit count | 194 → 194 |
+| Purged paths reachable | 0 commits (pristine: 2) |
+| Distinctive strings from both files (pickaxe over all history) | 0 (pristine: 2 each) |
+| Author / committer names, emails, dates | identical on every commit |
+| Commits whose SHA changed | 3: `221898e` → `1be5d74`, `8a660a0` → `30787eb`, `9daa72d` → `9caab75`; all earlier SHAs unchanged |
+| Commit messages | 3 lines changed, each only by a cited-SHA update |
+| Personal-data / secret scans | HEAD tree identical to the scanned HEAD; the purge only removes content |
+
+**Stage 2: force-push, on the owner's "GO force-push" after the legacy project is locked down.**
+- Any commit pushed after `9daa72d` also changes SHA, so Stage 1 is **re-run** on a fresh mirror immediately before Stage 2.
+- Push with `--force-with-lease` against the then-current `origin/main`.
+- `docs/ops/COMMIT_MAP.md` gets a LOCAL-ONLY-1 section regenerated from filter-repo's commit-map.
+- Then ask GitHub Support to purge cached views of the removed paths.
 
 **Owner actions** (outside the repository; details are in the local-only audit):
 - lock down the legacy project;

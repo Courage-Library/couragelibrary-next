@@ -93,6 +93,16 @@ The log scan fails on:
 - `docs/testing/PERMANENT_GATES.md` (#56, CI rows)
 - this report
 
-PROD-TIMEOUT-1 status: OPEN (closable after CI proof)
+PROD-TIMEOUT-1 status: CLOSED (2026-10-21, #56 proven on CI run #2)
 
 CI-1 Stage 2 status: AWAITING-OWNER-RUN
+
+
+## Closure (architect, 2026-10-21)
+
+CI run #2 on `221898e` was **GREEN**: offline ✅, live ✅ (E2E journey, lineage, student-mistake smoke and the #56 smoke wait strategy proven on CI), prod-smoke ✅.
+- The push trigger is enabled: main, code changes only, docs-only skipped (`.github/workflows/ci-gates.yml`).
+- Live and prod-smoke jobs run on every push.
+- Loop #65: CI-first.
+
+CI-1 status: CLOSED

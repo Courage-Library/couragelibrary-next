@@ -154,3 +154,10 @@ Every admin-pages failure was network-caused, with server-log network errors in 
 **Not committed:** the `signed-in-smoke.cjs` change is held in the working tree, because the ruling's condition (3 consecutive local passes of both smokes) is not met for admin-pages on this network. It is the first thing CI-1 Stage 2 can prove on a stable network.
 
 PROD-TIMEOUT-1 status: OPEN. The wait-strategy change is built and student-mistake passes 3× in a row; admin-pages is blocked locally by network-caused session drops. Owner re-run of the two production smokes is still pending.
+
+
+## Closure (architect, 2026-10-21)
+
+CI run #2 on `221898e` was **GREEN**: offline ✅, live ✅ (E2E journey, lineage, student-mistake smoke and the #56 smoke wait strategy proven on CI), prod-smoke ✅.
+
+PROD-TIMEOUT-1 status: CLOSED
