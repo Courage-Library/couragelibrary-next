@@ -43,6 +43,16 @@ function refFromEnv(env = readEnv()) {
   return apiRef;
 }
 
+/**
+ * Ref from the PUBLIC API URL only (CI-1 ci-public): for callers that never touch the database (the anonymous smoke).
+ * Needs no DB secret; the caller still applies assertProjectRef (sha256 ref lock). Throws ENV_MISSING naming the var.
+ */
+function refFromPublicUrl(env = readEnv()) {
+  const api = env('NEXT_PUBLIC_SUPABASE_URL');
+  if (!api) throw new Error('ENV_MISSING: NEXT_PUBLIC_SUPABASE_URL');
+  return new URL(api).hostname.split('.')[0];
+}
+
 /** Refuses any ref that is not couragelibrary-next (pure; unit-tested with fake refs). */
 function assertProjectRef(ref) {
   if (typeof ref !== 'string' || !/^[a-z0-9]{20}$/.test(ref)) throw new Error('REF_LOCK: malformed project ref');
@@ -124,4 +134,4 @@ if (require.main === module) {
   main(mode).catch((e) => { console.error(String(e.message || e)); process.exit(1); });
 }
 
-module.exports = { assertProjectRef, refFromEnv, scrub, EXPECTED_REF_SHA256, HEADER };
+module.exports = { assertProjectRef, refFromEnv, refFromPublicUrl, scrub, EXPECTED_REF_SHA256, HEADER };

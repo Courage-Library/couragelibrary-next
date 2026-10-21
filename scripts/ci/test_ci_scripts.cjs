@@ -145,5 +145,28 @@ test('C-11 with-server precheck: foreign next server / lighthouse / port-targeti
   return `${cases.length} cases; runner refuses`;
 });
 
+test('C-12 run-quiet: a crash with 0 summary lines yields ONE safe diag token (names only, log-scanned); self-test', () => {
+  const st = spawnSync(process.execPath, [path.join(ROOT, 'scripts/ci/run-quiet.cjs'), '--self-test'], { encoding: 'utf8' });
+  assert(st.status === 0, `self-test: ${st.stdout.trim()}`);
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'rq-crash-'));
+  const crash = path.join(tmp, 'crash.cjs');
+  const SECRET = 'planted-value-must-not-print-0123456789';
+  fs.writeFileSync(crash, `console.error('value ${SECRET}'); throw new Error('ENV_MISSING: NEXT_PUBLIC_SUPABASE_URL / POSTGRES_URL_NON_POOLING');\n`);
+  const r = spawnSync(process.execPath, [path.join(ROOT, 'scripts/ci/run-quiet.cjs'), '--id', 'C12-CRASH', '--', process.execPath, crash], { encoding: 'utf8', env: { ...process.env, RUNNER_TEMP: tmp } });
+  const line = (r.stdout || '').trim();
+  assert(r.status === 1 && /C12-CRASH FAIL exit 1 .* · diag MISSING_ENV:NEXT_PUBLIC_SUPABASE_URL,POSTGRES_URL_NON_POOLING$/.test(line), `summary: ${line}`);
+  assert(!line.includes(SECRET) && line.split('\n').length === 1, 'detail text leaked into the summary');
+  fs.rmSync(tmp, { recursive: true, force: true });
+  return line.replace(/^C12-CRASH /, '');
+});
+
+test('C-13 anonymous smoke needs ONLY public values (ci-public least privilege): no DB / CA / service-role read', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'scripts/smoke/anonymous-smoke.cjs'), 'utf8');
+  const bad = ['refFromEnv', 'dbTarget', 'POSTGRES_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'PROD_CA', 'SUPABASE_ACCESS_TOKEN'].filter((k) => src.includes(k));
+  assert(bad.length === 0, `anonymous smoke references: ${bad.join(', ')}`);
+  assert(/refFromPublicUrl\(env\)/.test(src) && /assertProjectRef\(/.test(src), 'ref lock (public URL + sha256) missing');
+  return 'public URL ref lock only';
+});
+
 console.log(`\nCI support: ${passed}/${passed + failed} passed`);
 process.exit(failed ? 1 : 0);

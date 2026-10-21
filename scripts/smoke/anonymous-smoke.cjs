@@ -17,11 +17,12 @@ const { readModelForSlug, checkSyllabusSection } = require('./_syllabus-expect.c
 const { scanRef, chunkPaths, selfTest } = require('./_ref-scan.cjs');
 if (process.argv.includes('--self-test')) process.exit(selfTest() ? 0 : 1); // offline: planted-ref fixture
 const { readEnv } = require(path.join(ROOT, 'scripts/db/_db-env.cjs'));
-const { refFromEnv, assertProjectRef } = require(path.join(ROOT, 'scripts/db/gen-types.cjs'));
+// CI-1 (ci-public, least privilege): the anonymous smoke needs ONLY public values — the ref lock uses the public API URL
+const { refFromPublicUrl, assertProjectRef } = require(path.join(ROOT, 'scripts/db/gen-types.cjs'));
 const BASE = (process.argv[2] || 'http://localhost:3100').replace(/\/$/, '');
 const EXPECT_REDIRECTS = process.argv.includes('--expect-redirects');
 const env = readEnv();
-const refHash = crypto.createHash('sha256').update(assertProjectRef(refFromEnv(env))).digest('hex');
+const refHash = crypto.createHash('sha256').update(assertProjectRef(refFromPublicUrl(env))).digest('hex');
 const sha = (s) => crypto.createHash('sha256').update(s).digest('hex');
 let fails = 0;
 const check = (name, ok, info) => { if (!ok) fails++; console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${info ? ' — ' + info : ''}`); };
