@@ -91,7 +91,7 @@ const month = today.slice(0, 7);
   const dateOk = await get(`/current-affairs/date/${today}`);
   await test('C-2 /current-affairs/date: valid date → 200 (empty state if none); malformed → 404', async () => {
     assert(dateOk.status === 200 && !ERROR_DIGEST.test(dateOk.body), `valid date: status ${dateOk.status}${ERROR_DIGEST.test(dateOk.body) ? ' + error digest' : ''}`);
-    if (!published.some((a) => a.d === today)) assert(/No events recorded for/.test(dateOk.body), 'empty state missing');
+    if (!published.some((a) => a.d === today)) assert(/Nothing published for/.test(dateOk.body), 'empty state missing');
     for (const bad of ['not-a-date', '2026-1-1', '20261017']) {
       const r = await get(`/current-affairs/date/${bad}`);
       assert(notFoundShape(r), `${bad}: status ${r.status}`);
@@ -102,7 +102,7 @@ const month = today.slice(0, 7);
   const monthOk = await get(`/current-affairs/month/${month}`);
   await test('C-3 /current-affairs/month: valid month → 200 (empty state if none); malformed / month 13 → 404', async () => {
     assert(monthOk.status === 200 && !ERROR_DIGEST.test(monthOk.body), `valid month: status ${monthOk.status}`);
-    if (!published.some((a) => (a.d || '').startsWith(month))) assert(/No events recorded in/.test(monthOk.body), 'empty state missing');
+    if (!published.some((a) => (a.d || '').startsWith(month))) assert(/Nothing published for/.test(monthOk.body), 'empty state missing');
     for (const bad of ['2026-13', 'bad', '2026-1']) {
       const r = await get(`/current-affairs/month/${bad}`);
       assert(notFoundShape(r), `${bad}: status ${r.status}`);

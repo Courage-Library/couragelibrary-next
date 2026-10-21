@@ -20,7 +20,7 @@ export function SignupForm() {
           <div className="flex justify-center mb-2">
             <BrandLogo variant="icon" size="lg" />
           </div>
-          {/* UX-2b.H (H-1): the page's one h1; no unverifiable "thousands of aspirants" claim (#47) */}
+          {/* UX-2b.H (H-1): the page's one h1; no unverifiable audience-size claim (#47) */}
           <h1 className="text-h2 font-bold text-fg">Create your free account</h1>
           <CardDescription className="text-body-sm text-fg-secondary">
             Free during early access: mock tests with full answer review and a Mistake Vault for your wrong answers.

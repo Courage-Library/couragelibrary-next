@@ -22,6 +22,12 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { constructMetadata } from "@/lib/seo/metadata";
+import { siteConfig } from "@/config/site";
+import { ComingSoonHub } from "@/components/public/coming-soon-hub";
+import { COMING_SOON_EXAMS, COMING_SOON_HUB } from "@/content/public-pages";
+
+/** UX-2b: an inactive exam listed as coming soon gets an honest noindex hub instead of a 404 (decision #32). */
+const comingSoonFor = (status: string, slug: string) => (status === "INACTIVE" ? COMING_SOON_EXAMS.find((e) => e.slug === slug) ?? null : null);
 
 export const revalidate = 60; // ISR baseline
 
@@ -35,6 +41,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     examSlug: slug,
   });
 
+  const soon = comingSoonFor(result.status, slug);
+  if (soon) {
+    return constructMetadata({ title: `${soon.title} (coming soon)`, description: COMING_SOON_HUB.metaDescription(soon.title), canonicalUrl: `/exams/${slug}`, noIndex: true });
+  }
   if (result.status !== "FOUND" || !result.data) {
     return constructMetadata({
       title: "Exam Not Found",
@@ -60,6 +70,8 @@ export default async function ExamKnowledgeHubPage({ params }: Props) {
     examSlug: slug,
   });
 
+  const soon = comingSoonFor(result.status, slug);
+  if (soon) return <ComingSoonHub title={soon.title} />;
   if (result.status !== "FOUND" || !result.data) {
     notFound();
   }
@@ -85,19 +97,19 @@ export default async function ExamKnowledgeHubPage({ params }: Props) {
             "@type": "ListItem",
             position: 1,
             name: "Home",
-            item: "https://couragelibrary.com",
+            item: siteConfig.url,
           },
           {
             "@type": "ListItem",
             position: 2,
             name: "Exams",
-            item: "https://couragelibrary.com/exams",
+            item: `${siteConfig.url}/exams`,
           },
           {
             "@type": "ListItem",
             position: 3,
             name: exam.title,
-            item: `https://couragelibrary.com/exams/${exam.slug}`,
+            item: `${siteConfig.url}/exams/${exam.slug}`,
           },
         ],
       },

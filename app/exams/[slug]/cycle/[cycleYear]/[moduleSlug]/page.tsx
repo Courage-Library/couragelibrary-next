@@ -1,4 +1,5 @@
 import React from "react";
+import { siteConfig } from "@/config/site";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import { ExamKnowledgeCandidateService } from "@/services/exam-knowledge/exam-knowledge-candidate.service";
@@ -74,25 +75,25 @@ export default async function ExamCycleModuleReaderPage({ params }: Props) {
         "@type": "ListItem",
         position: 1,
         name: "Home",
-        item: "https://couragelibrary.com",
+        item: siteConfig.url,
       },
       {
         "@type": "ListItem",
         position: 2,
         name: "Exams",
-        item: "https://couragelibrary.com/exams",
+        item: `${siteConfig.url}/exams`,
       },
       {
         "@type": "ListItem",
         position: 3,
         name: data.exam.title,
-        item: `https://couragelibrary.com/exams/${data.exam.slug}`,
+        item: `${siteConfig.url}/exams/${data.exam.slug}`,
       },
       {
         "@type": "ListItem",
         position: 4,
         name: `${publishedModule.displayName} (${yearNum})`,
-        item: `https://couragelibrary.com/exams/${data.exam.slug}/cycle/${yearNum}/${moduleSlug}`,
+        item: `${siteConfig.url}/exams/${data.exam.slug}/cycle/${yearNum}/${moduleSlug}`,
       },
     ],
   };

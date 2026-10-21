@@ -511,7 +511,7 @@ async function offline() {
     ['app/performance/page.tsx', {}],
     ['app/achievements/page.tsx', {}],
     ['app/certificates/page.tsx', {}],
-    ['app/premium/page.tsx', {}],
+    // app/premium/page.tsx removed by UX-2b (/premium → 308 /pricing)
     ['app/store/page.tsx', {}],
     ['app/wallet/page.tsx', {}],
     ['app/mock-tests/[id]/take/page.tsx', { id: 'm-1' }],

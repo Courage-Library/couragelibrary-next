@@ -17,6 +17,8 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // UX-2b: the former Premium hub is retired; plans live on /pricing ("Free during early access. Pro coming soon.")
+  redirects: async () => [{ source: "/premium", destination: "/pricing", permanent: true }],
   headers: async () => [
     {
       source: "/(.*)",

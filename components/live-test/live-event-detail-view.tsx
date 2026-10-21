@@ -207,7 +207,7 @@ export function LiveEventDetailView({ event, isLoggedIn }: LiveEventDetailViewPr
             </h2>
             <ul className="text-xs text-muted-foreground space-y-2 list-disc list-inside leading-relaxed">
               <li>The timer runs on our server in Indian Standard Time (IST).</li>
-              <li>Single registration per candidate guaranteed.</li>
+              <li>One registration per candidate.</li>
               <li>Test paper is locked and identical across all candidates.</li>
               <li>National Rank & Percentile computed after all submissions are evaluated.</li>
               <li>Watermarking and full-screen proctoring enabled.</li>

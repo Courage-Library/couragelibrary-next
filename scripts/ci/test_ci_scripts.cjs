@@ -178,5 +178,16 @@ test('C-13 anonymous smoke needs ONLY public values (ci-public least privilege):
   return 'public URL ref lock only';
 });
 
+test('C-14 run-quiet passes a wrapped gate\'s "--self-test" to the gate (it must not run run-quiet\'s own self-test)', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'rq-flag-'));
+  const gate = path.join(tmp, 'gate.cjs');
+  fs.writeFileSync(gate, "console.log(process.argv.includes('--self-test') ? 'PASS  gate ran its own self-test' : 'FAIL  flag lost');\n");
+  const r = spawnSync(process.execPath, [path.join(ROOT, 'scripts/ci/run-quiet.cjs'), '--id', 'C14', '--', process.execPath, gate, '--self-test'], { encoding: 'utf8', env: { ...process.env, RUNNER_TEMP: tmp } });
+  fs.rmSync(tmp, { recursive: true, force: true });
+  const line = (r.stdout || '').trim();
+  assert(r.status === 0 && /^C14 PASS exit 0 — passed 1 line\(s\) · fail-lines 0/.test(line), `got: ${line}`);
+  return 'gate executed with its flag';
+});
+
 console.log(`\nCI support: ${passed}/${passed + failed} passed`);
 process.exit(failed ? 1 : 0);

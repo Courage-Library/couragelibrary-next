@@ -88,9 +88,10 @@ function selfTest() {
 
 function main() {
   const argv = process.argv.slice(2);
-  if (argv.includes('--self-test')) process.exit(selfTest() ? 0 : 1);
   const sep = argv.indexOf('--');
   const opts = argv.slice(0, sep < 0 ? argv.length : sep);
+  // only run-quiet's OWN flag (before "--"): a wrapped gate's "--self-test" must reach the gate, not trigger this one
+  if (opts.includes('--self-test')) process.exit(selfTest() ? 0 : 1);
   const cmd = sep < 0 ? [] : argv.slice(sep + 1);
   const opt = (k, d) => { const i = opts.indexOf(k); return i >= 0 ? opts[i + 1] : d; };
   const ID = opt('--id', '');

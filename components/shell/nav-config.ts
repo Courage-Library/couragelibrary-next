@@ -1,8 +1,11 @@
 /**
  * UX-1b navigation. Every link points to a route that exists and works today (checked on a local
  * production build, anonymous and signed in). Flagged routes only appear when the server-evaluated
- * feature flag is on. Omitted until UX-2 builds them: About, Contact, Privacy, Terms, Profile / Settings.
+ * feature flag is on. UX-2b added About, CNTS, Contact (footer) and the draft Privacy / Terms pages (footer bar).
+ * Still omitted: Profile / Settings.
  */
+import { FOOTER_ABOUT } from "@/content/public-pages";
+
 export type ShellFlags = { COURSES: boolean; BATTLES: boolean };
 
 export type NavItem = {
@@ -75,7 +78,11 @@ export const FOOTER_NAV: Array<{ heading: string; items: NavItem[] }> = [
       { href: "/pricing", label: "Pricing" },
     ],
   },
+  { heading: FOOTER_ABOUT.heading, items: FOOTER_ABOUT.items.map((i) => ({ ...i })) },
 ];
+
+/** UX-2b footer bar links: the legal pages (drafts under legal review). */
+export const FOOTER_LEGAL: NavItem[] = FOOTER_ABOUT.legal.map((i) => ({ ...i }));
 
 export const LEARN_PREFIXES = ["/practice", "/articles", "/flashcards", "/descriptive", "/courses", "/battles"];
 

@@ -121,7 +121,8 @@ const routeExists = (href) => {
     return re.test(p);
   });
 };
-const UX2B_ROUTES = ['/about', '/contact', '/privacy', '/terms', '/cnts', '/legal'];
+// routes not built yet (UX-2b built /about, /contact, /privacy, /terms, /cnts — they are real routes now)
+const UX2B_ROUTES = ['/legal'];
 
 (async () => {
   console.log('UX-2a landing + public shell');
@@ -137,8 +138,8 @@ const UX2B_ROUTES = ['/about', '/contact', '/privacy', '/terms', '/cnts', '/lega
     return 'no digits except 2024';
   });
 
-  await test('L-2 no dead links: every landing / header / footer href routes; nothing points to UX-2b pages', async () => {
-    const files = [CONTENT, SECTIONS, CTA, HEADER, FOOTER, 'components/shell/nav-config.ts'];
+  await test('L-2 no dead links: every landing / header / footer / public-page href routes; nothing points to unbuilt pages', async () => {
+    const files = [CONTENT, SECTIONS, CTA, HEADER, FOOTER, 'components/shell/nav-config.ts', 'content/public-pages.ts'];
     const hrefs = new Set();
     for (const f of files) {
       const s = read(f);

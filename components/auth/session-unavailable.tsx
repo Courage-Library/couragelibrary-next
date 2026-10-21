@@ -36,7 +36,8 @@ export function SessionUnavailable({ headingLevel = 1, retryHref }: { headingLev
   const icon = <RefreshCw aria-hidden="true" className="size-4" />;
   return (
     <Container className="py-12">
-      {headingLevel === 1 && <h1 className="sr-only">{title}</h1>}
+      {/* UX-2b.A11Y-1: page-level h1 with distinct text, so screen readers don't hear the same heading twice */}
+      {headingLevel === 1 && <h1 className="sr-only">We couldn&apos;t check your sign-in</h1>}
       <div role="status" data-session-unavailable="">
         <EmptyState
           icon={<WifiOff />}

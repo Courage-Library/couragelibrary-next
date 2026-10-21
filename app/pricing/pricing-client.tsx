@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { PRICING_META } from "@/content/public-pages";
 import { useRouter } from "next/navigation";
 import { SubscriptionPlanItem, UserSubscriptionStatus } from "@/services/billing.service";
 import { Container } from "@/components/ui/legacy/container";
@@ -218,6 +219,7 @@ function PaymentsOffView({ subStatus }: { subStatus: UserSubscriptionStatus }) {
     <DsContainer className="flex flex-col gap-8 py-8 lg:py-12">
       <header className="mx-auto flex max-w-2xl flex-col gap-2 text-center">
         <h1 className="text-h1 font-bold text-fg">Plans and pricing</h1>
+        <p className="text-body-lg font-semibold text-fg" data-pricing-headline="">{PRICING_META.headline}</p>
         <p className="text-body text-fg-secondary">
           Courage Library is free during early access. Pro is not open yet, and there is nothing to pay today.
         </p>

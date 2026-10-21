@@ -77,7 +77,8 @@ const REQUIRED = {
   '/descriptive/submissions': ['"My Descriptive Submissions" heading', H(/My Descriptive Submissions/)],
   '/flashcards': ['"Flashcard Library" heading', H(/Flashcard Library/)],
   '/institutes': ['"Coaching Institutes" heading', H(/^Coaching Institutes/)],
-  '/premium': ['"Candidate Premium Hub" heading', H(/Candidate Premium Hub/)],
+  // UX-2b: /premium permanently redirects to /pricing; the smoke follows the redirect and expects the pricing page
+  '/premium': ['"Plans and pricing" heading (redirected from /premium)', H(/^Plans and pricing$/)],
   '/store': ['"Turn your consistency" heading', H(/Turn your consistency/)],
   '/wallet': ['"How to Earn CL Coins" heading', H(/How to Earn CL Coins/)],
   'detail-h1': ['an h1', (pg) => pg.locator('h1').first()],

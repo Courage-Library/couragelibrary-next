@@ -148,8 +148,8 @@ export default async function CurrentAffairsDateFeedPage({ params }: DateFeedPag
 
           <CurrentAffairsFeedContainer
             articles={feed.articles}
-            emptyTitle={`No events recorded for ${formatEventDate(date)}`}
-            emptyDescription="Events for this historical date may not have been curated or are still in draft review."
+            emptyTitle={`Nothing published for ${formatEventDate(date)}`}
+            emptyDescription="We have not published current affairs for this date."
           />
         </section>
       </Container>

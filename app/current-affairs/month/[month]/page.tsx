@@ -59,7 +59,7 @@ export async function generateMetadata({ params }: MonthArchivePageProps): Promi
 
   return constructMetadata({
     title: `Current Affairs — ${monthTitle}`,
-    description: `Explore ${feed.totalArticles} exam-oriented current affairs event(s) across ${monthTitle}. Fact-checked news intelligence and syllabus mappings for government exam aspirants.`,
+    description: `Current affairs published on Courage Library for ${monthTitle}.`,
     canonicalUrl: `/current-affairs/month/${month}`,
     keywords: [`Current Affairs ${monthTitle}`, `Monthly Current Affairs ${month}`, 'Government Exam Intelligence'],
     noIndex,
@@ -162,8 +162,8 @@ export default async function CurrentAffairsMonthlyArchivePage({ params }: Month
           <CurrentAffairsFeedContainer
             articles={monthlyFeed.articles}
             categoryCounts={categoryCounts}
-            emptyTitle={`No events recorded in ${monthTitle}`}
-            emptyDescription="No published Current Affairs items were found for this month."
+            emptyTitle={`Nothing published for ${monthTitle}`}
+            emptyDescription="We have not published current affairs for this month."
           />
         </section>
       </Container>
