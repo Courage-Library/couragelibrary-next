@@ -73,7 +73,7 @@
 - `signed-in-smoke`: `/premium` now expects the pricing heading (follows the 308).
 - `test_auth1`: guard list without the removed premium page.
 
-**Local live runs were not possible:** the precheck was NO-GO (two foreign `next` servers running, 0.7 GB free memory, net-probe 95%). Under loop #65 the live gates run in CI. **axe and the 360 / 1440 px screenshots are taken against production after the deploy (§5).**
+**Local live runs were not possible:** the precheck was NO-GO (two foreign `next` servers running, 0.7 GB free memory, net-probe 95%). Under loop #65 the live gates run in CI. axe and the 360 / 1440 px screenshots were taken against production (§5): 9 pages × 2 widths, all 200, one h1, **0 serious / critical axe violations**, no horizontal scroll.
 
 ## 4. Full copy for owner review
 
@@ -229,9 +229,38 @@ Generated from `content/public-pages.ts` (exact shipped strings).
 
 ## 5. Visual review (production)
 
-Screenshots at 360 and 1440 px, and an axe scan of each new page, are added here after the deploy (anonymous, read-only).
+Production (`couragelibrary-next.vercel.app`, deploy `1b36848`), anonymous, read-only.
 
-SCREENSHOTS_PLACEHOLDER
+| Page | Width | Status | h1 | axe serious / critical | Horizontal scroll | Screenshot |
+|---|---|---|---|---|---|---|
+| `/exams` | 360 | 200 | 1 | 0 | no | [exams-360.png](ux2b/exams-360.png) |
+| `/exams/ssc-chsl` | 360 | 200 | 1 | 0 | no | [exams_ssc-chsl-360.png](ux2b/exams_ssc-chsl-360.png) |
+| `/exams/ssc-mts` | 360 | 200 | 1 | 0 | no | [exams_ssc-mts-360.png](ux2b/exams_ssc-mts-360.png) |
+| `/pricing` | 360 | 200 | 1 | 0 | no | [pricing-360.png](ux2b/pricing-360.png) |
+| `/about` | 360 | 200 | 1 | 0 | no | [about-360.png](ux2b/about-360.png) |
+| `/cnts` | 360 | 200 | 1 | 0 | no | [cnts-360.png](ux2b/cnts-360.png) |
+| `/contact` | 360 | 200 | 1 | 0 | no | [contact-360.png](ux2b/contact-360.png) |
+| `/privacy` | 360 | 200 | 1 | 0 | no | [privacy-360.png](ux2b/privacy-360.png) |
+| `/terms` | 360 | 200 | 1 | 0 | no | [terms-360.png](ux2b/terms-360.png) |
+| `/exams` | 1440 | 200 | 1 | 0 | no | [exams-1440.png](ux2b/exams-1440.png) |
+| `/exams/ssc-chsl` | 1440 | 200 | 1 | 0 | no | [exams_ssc-chsl-1440.png](ux2b/exams_ssc-chsl-1440.png) |
+| `/exams/ssc-mts` | 1440 | 200 | 1 | 0 | no | [exams_ssc-mts-1440.png](ux2b/exams_ssc-mts-1440.png) |
+| `/pricing` | 1440 | 200 | 1 | 0 | no | [pricing-1440.png](ux2b/pricing-1440.png) |
+| `/about` | 1440 | 200 | 1 | 0 | no | [about-1440.png](ux2b/about-1440.png) |
+| `/cnts` | 1440 | 200 | 1 | 0 | no | [cnts-1440.png](ux2b/cnts-1440.png) |
+| `/contact` | 1440 | 200 | 1 | 0 | no | [contact-1440.png](ux2b/contact-1440.png) |
+| `/privacy` | 1440 | 200 | 1 | 0 | no | [privacy-1440.png](ux2b/privacy-1440.png) |
+| `/terms` | 1440 | 200 | 1 | 0 | no | [terms-1440.png](ux2b/terms-1440.png) |
+
+**Also checked on production:**
+- `/premium` → **308** `/pricing`;
+- `/exams/ssc-chsl` carries `<meta name="robots" content="noindex, nofollow">`.
+
+**Found on production and fixed:**
+- The first deploy (`5fcac5d`) returned **404 for the coming-soon hubs**: anonymous RLS hides inactive exam rows, so the service reported `NOT_FOUND`, not `INACTIVE`. Fixed in `1b36848`.
+  - The new render check P-9e fails on the old code.
+  - CI's `UX2B-LIVE` (W-3) would also have caught it.
+- `/cnts` repeated "Registrations open soon" as the section heading and the notice title. The notice title was dropped in the follow-up commit; the screenshot above predates that.
 
 ## 6. OWNER REVIEW checklist
 

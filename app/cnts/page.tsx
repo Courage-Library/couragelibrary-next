@@ -17,7 +17,8 @@ export default function CntsPage() {
     <>
       <PublicPageHeader title={CNTS_PAGE.title} lead={CNTS_PAGE.lead} crumbs={[{ label: "CNTS" }]} />
       <PublicSection id="registration" title={CNTS_PAGE.registrationTitle}>
-        <Alert tone="info" title={CNTS_PAGE.registrationTitle} data-cnts-registration-closed="" className="max-w-prose">
+        {/* the section heading already says "Registrations open soon"; no duplicate title on the notice */}
+        <Alert tone="info" data-cnts-registration-closed="" className="max-w-prose">
           {CNTS_PAGE.registrationText}
         </Alert>
       </PublicSection>
