@@ -35,6 +35,10 @@ export const AUTH_ERRORS = {
   "rate-limited": "Too many attempts. Please wait a few minutes and try again.",
   "signup-closed": "Registrations are not open yet.",
   "session-missing": "Your reset link has expired. Please request a new one.",
+  // AUTH-1 2b-1 (decision #66): Sign in with Google. "signup-closed" above doubles as the registrations-closed code.
+  "google-disabled": "Google sign-in is not available right now. Please sign in with your email and password.",
+  "google-failed": "We couldn't sign you in with Google. Please try again, or use your email and password.",
+  "google-nonce": "This sign-in page has expired. Please reload the page and try Google again.",
   generic: "Something went wrong on our side. Please try again in a few minutes.",
 } as const;
 

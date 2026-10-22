@@ -93,6 +93,8 @@ jobs:
           q EDITOR node scripts/test_gap2_4b_editor.cjs || fail=1
           q UX2A-OFFLINE node scripts/test_ux2a_landing.cjs --offline || fail=1
           q UX2B-OFFLINE node scripts/test_ux2b_public.cjs || fail=1
+          q AUTH1-OFFLINE node scripts/test_auth1.cjs || fail=1
+          q AUTH1-2B1-OFFLINE node scripts/test_auth1_2b1.cjs || fail=1
           q TYPES1-OFFLINE node scripts/test_types1.cjs --offline || fail=1
           q REFSCAN-SELFTEST node scripts/smoke/anonymous-smoke.cjs --self-test || fail=1
           q NPD-SELFTEST node scripts/test_no_personal_data.cjs --self-test || fail=1
@@ -182,6 +184,7 @@ jobs:
             "$Q SMOKE-ADMIN-HOME -- node scripts/smoke/signed-in-smoke.cjs admin-home $B" \
             "$Q UX2A-LIVE -- node scripts/test_ux2a_landing.cjs $B" \
             "$Q UX2B-LIVE -- node scripts/test_ux2b_public.cjs --live" \
+            "$Q AUTH1-2B1-LIVE -- node scripts/test_auth1_2b1.cjs --live" \
             "$Q CA-ROUTES -- node scripts/test_ca_routes.cjs $B" \
             "$Q SEC1B-LIVE -- node scripts/test_sec1b_admin_authz.cjs --live" \
             "$Q SEC1C-LIVE -- node scripts/test_sec1c_admin_pages.cjs --live $B" \

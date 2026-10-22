@@ -184,7 +184,8 @@ const VALID = [
     assert(bad.length === 0, bad.join('\n        '));
   });
   await test('C-05 login page passes `next` to the action via a hidden field (sanitized server-side)', async () => {
-    const s = read('app/auth/login/page.tsx');
+    // AUTH-1 2b-1 split the login page: server page.tsx + client login-form.tsx (markup unchanged)
+    const s = read('app/auth/login/page.tsx') + read('app/auth/login/login-form.tsx');
     assert(/searchParams\.get\("next"\)/.test(s) && /<input type="hidden" name="next" value=\{next\} \/>/.test(s));
     assert(/sanitizeRedirectPath\(next\)/.test(read('app/auth/actions.ts')));
   });

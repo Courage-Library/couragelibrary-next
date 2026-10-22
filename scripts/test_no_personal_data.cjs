@@ -37,7 +37,8 @@ const SKIP_EXT = /\.(png|jpe?g|gif|webp|ico|svg|pdf|woff2?|ttf|otf|zip|gz|mp4|we
 
 const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
 const PHONE = /(?<![\dA-Za-z.\-_/#])(?:\+91[ -]?)?[6-9]\d{9}(?![\dA-Za-z])|(?<![\dA-Za-z])\+\d{11,14}(?!\d)/g;
-const PII_KEY = /^(e-?mail|user_?email|contact_?email|phone|mobile|contact_?phone|phone_?number|dob|date_?of_?birth|birth_?date|address|street|full_?name|first_?name|last_?name)$/i;
+const GOOGLE_SECRET = new RegExp(['GOC', 'SPX-'].join(''), 'g');
+const PII_KEY =/^(e-?mail|user_?email|contact_?email|phone|mobile|contact_?phone|phone_?number|dob|date_?of_?birth|birth_?date|address|street|full_?name|first_?name|last_?name)$/i;
 
 function emailAllowed(e, file) {
   const low = e.toLowerCase();
@@ -74,6 +75,10 @@ function scanText(text, file) {
   if (phones) out.phone = phones;
   const dumps = dumpShapes(text, file);
   if (dumps) out['data-dump'] = dumps;
+  // AUTH-1 2b-1: a Google OAuth client SECRET must never be in the repo (it lives only in the Supabase dashboard).
+  // Any occurrence of its prefix counts; the prefix is assembled at runtime so this file stays clean.
+  const gsecret = (text.match(GOOGLE_SECRET) || []).length;
+  if (gsecret) out['google-client-secret'] = gsecret;
   return out;
 }
 
@@ -119,6 +124,8 @@ function selfTest() {
   results.push(['fixture array with only .test emails and names passes', run(['e.json']).findings.length === 0]);
   W('f.md', `see /${at('login', 'evil.com')}`);
   results.push(['hostile vector outside its allowed file is caught', run(['f.md']).findings.length === 1]);
+  W('g.env', `GOOGLE_SECRET=${['GOC', 'SPX-'].join('')}fakeFakeFakeFakeFake0123456789`);
+  results.push(['planted Google client-secret prefix is caught', run(['g.env']).findings[0]?.[1]['google-client-secret'] === 1]);
   results.push(['empty input is a FAIL (minimum coverage)', report(run([]), 1) === false]);
   fs.rmSync(dir, { recursive: true, force: true });
   for (const [n, ok] of results) console.log(`${ok ? 'PASS' : 'FAIL'}  self-test: ${n}`);

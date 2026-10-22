@@ -37,6 +37,8 @@ const PATTERNS = [
   ['pg-url', /postgres(ql)?:\/\/[^\s/@]+@/i],
   ['auth-header', /authorization\s*[:=]\s*["']?bearer\s+\S{8,}/i],
   ['sb-key', /\bsb_(secret|publishable)_[A-Za-z0-9_-]{10,}/],
+  // AUTH-1 2b-1: Google OAuth client-secret prefix (assembled at runtime so this source stays clean)
+  ['google-secret', new RegExp(['GOC', 'SPX-'].join(''))],
 ];
 const IPV4 = /(?<![\d.])(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})(?![\d.])/g;
 const IPV6 = /(?<![0-9a-f:])(?:[0-9a-f]{1,4}:){4,7}[0-9a-f]{1,4}(?![0-9a-f:])/gi;
