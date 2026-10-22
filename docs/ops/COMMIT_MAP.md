@@ -57,3 +57,33 @@ This table maps every old short SHA cited in `docs/**` and the root-level docs t
 | `8aa9f24` | `a76a670` | 2026-10-17 | 1 |
 | `77ed801` | `9f622d7` | 2026-10-18 | 1 |
 | `dc0f190` | `e53900e` | 2026-10-18 | 1 |
+
+## LOCAL-ONLY-1 history rewrite (2026-10-22)
+
+Two local-only files, added by mistake in `221898e`, were removed from **all** history (git-filter-repo `--invert-paths`).
+
+**Flags:** `--prune-empty never --prune-degenerate never --preserve-commit-hashes`.
+- Commit count is unchanged (198), as are authors, committers, dates and **messages, byte for byte**.
+- Messages therefore still cite the old SHAs; translate them with this table.
+- The final tree is identical (`96d8842`), so there is no content change at HEAD.
+- Only the commit that added the files and its descendants changed SHA; every commit from `14fe94f` down is unchanged.
+
+- Old `main`: `7710eb3db74f` → new `main`: `1c2db2bc0f31` (force-pushed with lease).
+
+| Old | New | Date | Subject |
+|---|---|---|---|
+| `7710eb3` | `1c2db2b` | 2026-10-21 | docs(ux-2b): production visual review (360 / 1440, axe) + CNTS duplicate heading |
+| `1b36848` | `84a5bba` | 2026-10-21 | fix(ux-2b): coming-soon hub for listed exams whenever not FOUND (anonymous RLS hides inact |
+| `5fcac5d` | `f0c4b35` | 2026-10-21 | feat(ux-2b): public pages in the UX-2a look; /premium -> /pricing; honest copy fixes |
+| `57d189d` | `41f6d2d` | 2026-10-21 | ci(ci-1): enable push trigger on main (code changes; docs-only skipped); close SECDEF-S2-2 |
+| `9daa72d` | `2724209` | 2026-10-21 | test(local-only-1): guard against tracking local-only files; root cause of 221898e |
+| `8a660a0` | `effe888` | 2026-10-21 | chore(security): untrack local-only reports published by 221898e |
+| `221898e` | `1be5d74` | 2026-10-21 | feat(ci): enhance run-quiet with self-test and safe diagnostic tokens; add public URL ref  |
+| `14fe94f` | `14fe94f` (unchanged) | 2026-10-20 | fix(secdef-s2-2): revoke unused client EXECUTE on 33 SECURITY DEFINER functions (090) |
+| `02bc441` | `02bc441` (unchanged) | 2026-10-20 | feat(auth-1): stage 2a: app_metadata-only roles, insert-only profiles, /auth/confirm, erro |
+| `bc4f520` | `bc4f520` (unchanged) | 2026-10-20 | docs(auth-1): Stage 1 forensics + design report (read-only) |
+| `b6a533c` | `b6a533c` (unchanged) | 2026-10-20 | fix(ux-2b.h2): remove unbacked official/verified claims; CA canonical tier labels; plain m |
+| `ec580b1` | `ec580b1` (unchanged) | 2026-10-19 | fix(ux-2b.h): honest copy: pricing payments-off variant, CA empty states, no 'official', r |
+| `165c605` | `165c605` (unchanged) | 2026-10-19 | feat(ux-2b.3): mistakes + practice: P0 a11y/dead CTA fixes, honest stats, design-system mi |
+| `bf2672b` | `bf2672b` (unchanged) | 2026-10-19 | chore(ux-t0): design skills calibration + design audit |
+| `ccd6465` | `ccd6465` (unchanged) | 2026-10-18 | test(public-harden-1): no-personal-data permanent gate; commit map + reports |
