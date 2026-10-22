@@ -5,6 +5,7 @@ import Script from "next/script";
 import { Alert } from "@/components/ui/alert";
 import { signInWithGoogleAction } from "@/app/auth/google-actions";
 import type { AuthState } from "@/app/auth/actions";
+import { googleRetryUrl } from "@/lib/auth/google-signin";
 
 /**
  * AUTH-1 2b-1 (decision #66): "Continue with Google" via Google Identity Services, rendered on our own origin
@@ -37,7 +38,14 @@ export function GoogleSignInButton({ clientId, nonceHash, next }: { clientId: st
         startTransition(async () => {
           // success redirects on the server; only a fixed-code failure comes back
           const r = await signInWithGoogleAction(credential, next);
-          if (r) setResult(r);
+          if (!r) return;
+          if (r.code === "google-disabled") {
+            setResult(r); // nothing to retry: Google sign-in is off
+            return;
+          }
+          // 2b-1a: the nonce was spent, so reload the page in FULL (fresh nonce + fresh GIS); the message comes back
+          // through the ?m= allow-list. No soft navigation, no automatic retry.
+          window.location.replace(googleRetryUrl(r.code ?? "google-failed", next));
         });
       },
     });

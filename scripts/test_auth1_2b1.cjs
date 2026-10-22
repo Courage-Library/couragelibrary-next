@@ -16,6 +16,12 @@
  *   T-11 no role / user_metadata / claims read in the new files (static)
  *   T-12 the Google client-secret prefix occurs 0 times in all tracked files
  *   T-13 flag helper: client id must end with .apps.googleusercontent.com
+ *   T-14 (2b-1a) static: middleware mints GET-only; the button's error path is a FULL page load (no setResult-only /
+ *        router.push), google-disabled excepted
+ *   T-15 (2b-1a) middleware: POST /auth/login without a cookie → no Set-Cookie, nothing forwarded; GET still mints;
+ *        GET with a valid cookie still reuses
+ *   T-16 (2b-1a) ?m= allow-list: the 4 Google codes render their fixed texts (= the action texts); unknown / markup → none
+ *   T-17 (2b-1a) retry URL keeps a safe internal `next`, drops external / protocol-relative / javascript: ones
  * Live (--live, CI ci-live, NEW project only; non-writing):
  *   L-01 signInWithIdToken with a well-formed but fake token → a fixed error code; auth user count unchanged
  *   L-02 no profile row created (user_profiles count unchanged)
@@ -155,8 +161,8 @@ async function offline() {
     walk(el);
     return { html: renderToStaticMarkup(el), formProps };
   };
-  const mw = async (url, headers = {}) => {
-    const res = await middleware(new NextRequest(url, { headers }));
+  const mw = async (url, headers = {}, method = 'GET') => {
+    const res = await middleware(new NextRequest(url, { headers, method }));
     const set = res.headers.get('set-cookie') || '';
     const fwd = res.headers.get('x-middleware-request-cookie') || res.headers.get('x-middleware-override-headers') || '';
     return { set, fwd, res };
@@ -389,6 +395,79 @@ async function offline() {
     const bad = cases.filter(([env, want]) => flagMod.isGoogleSignInEnabled(env) !== want);
     assert(bad.length === 0, bad.map(([e]) => JSON.stringify(e)).join('; '));
     return `${cases.length} cases`;
+  });
+
+  // ---------------- 2b-1a: retry after a failed attempt ----------------
+  await test('T-14 static: middleware mints GET-only; button error path = full page load (google-disabled excepted)', () => {
+    const m = code(read('middleware.ts'));
+    assert(/request\.method === "GET" && request\.nextUrl\.pathname === "\/auth\/login" && isGoogleSignInEnabled\(\)/.test(m), 'mint condition is not GET-only');
+    const b = code(read('components/auth/google-signin-button.tsx'));
+    assert(/window\.location\.replace\(googleRetryUrl\(/.test(b), 'error path does not reload the page in full');
+    assert(!/router\.(push|replace|refresh)|useRouter/.test(b), 'soft navigation used');
+    const cb = b.slice(b.indexOf('signInWithGoogleAction(credential'), b.indexOf('window.location.replace'));
+    assert(/r\.code === "google-disabled"/.test(cb) && (cb.match(/setResult\(r\)/g) || []).length === 1, 'setResult is used for more than the google-disabled case');
+    assert(!/\.prompt\(/.test(b), 'One Tap / automatic prompt');
+    return 'GET-only mint; location.replace on error';
+  });
+
+  await test('T-15 middleware: POST /auth/login (server action) never mints or forwards; GET mints; GET with a valid cookie reuses', async () => {
+    flag(true);
+    const post = await mw('http://localhost/auth/login', { 'next-action': 'x', 'content-type': 'text/plain;charset=UTF-8' }, 'POST');
+    assert(!post.set.includes(core.GOOGLE_NONCE_COOKIE), 'POST minted a nonce cookie');
+    assert(!post.fwd.includes(`${core.GOOGLE_NONCE_COOKIE}=`), 'POST forwarded a nonce on the request');
+    for (const method of ['PUT', 'DELETE', 'PATCH']) assert(!(await mw('http://localhost/auth/login', {}, method)).set.includes(core.GOOGLE_NONCE_COOKIE), `${method} minted`);
+    const get = await mw('http://localhost/auth/login');
+    assert(get.set.includes(core.GOOGLE_NONCE_COOKIE), 'GET no longer mints');
+    const existing = core.randomRawNonce();
+    const reuse = await mw('http://localhost/auth/login', { cookie: `${core.GOOGLE_NONCE_COOKIE}=${existing}` });
+    assert(!reuse.set.includes(core.GOOGLE_NONCE_COOKIE) && reuse.fwd.includes(existing), 'GET with a valid cookie does not reuse');
+    return 'POST/PUT/DELETE/PATCH 0 mints; GET mints; GET reuses';
+  });
+
+  await test('T-16 ?m= allow-list: the 4 Google codes render their fixed texts; unknown / markup codes render nothing', async () => {
+    const msgs = require(path.join(ROOT, 'lib/auth/messages.ts'));
+    const codes = ['google-failed', 'google-nonce', 'signup-closed', 'generic'];
+    for (const c of codes) {
+      const n = msgs.authNotice(c);
+      assert(n && n.text === msgs.AUTH_ERRORS[c], `${c}: notice ${JSON.stringify(n)} ≠ action text`);
+    }
+    assert(/session expired/i.test(msgs.AUTH_NOTICES['google-nonce'].text) && /try again/i.test(msgs.AUTH_NOTICES['google-nonce'].text), 'google-nonce text');
+    assert(msgs.AUTH_NOTICES['signup-closed'].text === 'Registrations are not open yet.', 'signup-closed text');
+    for (const bad of ['google-disabled', 'google_failed', 'GOOGLE-FAILED', '<b>google-failed</b>', 'google-failed"><script>', 'x', '']) assert(msgs.authNotice(bad) === null, `${JSON.stringify(bad)} rendered`);
+    // rendered on the login page from ?m=
+    const nav = MOCKS['next/navigation'];
+    const orig = nav.useSearchParams;
+    try {
+      flag(false);
+      for (const c of codes) {
+        nav.useSearchParams = () => new URLSearchParams({ m: c });
+        const { html } = await renderLogin();
+        const want = msgs.AUTH_NOTICES[c].text.replace(/'/g, '&#x27;');
+        assert(html.includes('data-auth-notice') && html.includes(want), `${c}: notice not rendered`);
+      }
+      nav.useSearchParams = () => new URLSearchParams({ m: '<img src=x onerror=alert(1)>' });
+      assert(!(await renderLogin()).html.includes('data-auth-notice'), 'markup code rendered');
+    } finally {
+      nav.useSearchParams = orig;
+    }
+    return `${codes.length} codes rendered; unknown / markup ignored`;
+  });
+
+  await test('T-17 retry URL keeps a safe internal `next`, drops external / protocol-relative / javascript: ones', () => {
+    const cases = [
+      ['/performance', '/auth/login?m=google-nonce&next=%2Fperformance'],
+      ['/exams/ssc-cgl?tab=syllabus', '/auth/login?m=google-nonce&next=%2Fexams%2Fssc-cgl%3Ftab%3Dsyllabus'],
+      ['https://evil.example/x', '/auth/login?m=google-nonce'],
+      ['//evil.example', '/auth/login?m=google-nonce'],
+      ['/\\evil.example', '/auth/login?m=google-nonce'],
+      ['javascript:alert(1)', '/auth/login?m=google-nonce'],
+      ['', '/auth/login?m=google-nonce'],
+      [undefined, '/auth/login?m=google-nonce'],
+    ];
+    const bad = cases.filter(([n, want]) => signin.googleRetryUrl('google-nonce', n) !== want).map(([n]) => `${JSON.stringify(n)} → ${signin.googleRetryUrl('google-nonce', n)}`);
+    assert(bad.length === 0, bad.join('; '));
+    assert(signin.googleRetryUrl('signup-closed', '/dashboard') === '/auth/login?m=signup-closed&next=%2Fdashboard', 'code param');
+    return `${cases.length} next values`;
   });
 
   console.error = origError;

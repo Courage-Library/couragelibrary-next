@@ -5,6 +5,19 @@
  */
 import type { AuthErrorCode } from "@/lib/auth/messages";
 import { isTransientAuthError } from "@/lib/auth/session-state";
+import { sanitizeRedirectPath } from "@/lib/auth/safe-redirect";
+
+/**
+ * 2b-1a: after a failed Google attempt the nonce is spent, so the button reloads the sign-in page in full (a fresh GET
+ * mints / reuses a nonce and re-initialises Google Identity Services). The message survives through the ?m= allow-list;
+ * `next` is kept only if lib/auth/safe-redirect accepts it (invalid → omitted). Pure; safe in the browser.
+ */
+export function googleRetryUrl(code: string, next: unknown): string {
+  const params = new URLSearchParams({ m: code });
+  const safeNext = sanitizeRedirectPath(next, "");
+  if (safeNext) params.set("next", safeNext);
+  return `/auth/login?${params.toString()}`;
+}
 
 export const MAX_ID_TOKEN_LENGTH = 4096;
 const SEGMENT = /^[A-Za-z0-9_-]+$/;

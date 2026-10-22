@@ -14,6 +14,12 @@ export const AUTH_NOTICES = {
   "signed-out": { tone: "info", text: "You have been signed out." },
   "link-expired": { tone: "error", text: "That link is invalid or has expired. Please request a new one." },
   "oauth-failed": { tone: "error", text: "We couldn't complete that sign-in. Please try again." },
+  // AUTH-1 2b-1a: after a failed Google attempt the sign-in page reloads in full with ?m=<code>; same fixed texts as the
+  // action errors below (scripts/test_auth1_2b1.cjs T-16 checks they stay identical)
+  "google-failed": { tone: "error", text: "We couldn't sign you in with Google. Please try again, or use your email and password." },
+  "google-nonce": { tone: "error", text: "Your sign-in session expired. Please try again." },
+  "signup-closed": { tone: "info", text: "Registrations are not open yet." },
+  generic: { tone: "error", text: "Something went wrong on our side. Please try again in a few minutes." },
 } as const satisfies Record<string, { tone: AuthNoticeTone; text: string }>;
 
 export type AuthNoticeCode = keyof typeof AUTH_NOTICES;
@@ -38,7 +44,7 @@ export const AUTH_ERRORS = {
   // AUTH-1 2b-1 (decision #66): Sign in with Google. "signup-closed" above doubles as the registrations-closed code.
   "google-disabled": "Google sign-in is not available right now. Please sign in with your email and password.",
   "google-failed": "We couldn't sign you in with Google. Please try again, or use your email and password.",
-  "google-nonce": "This sign-in page has expired. Please reload the page and try Google again.",
+  "google-nonce": "Your sign-in session expired. Please try again.",
   generic: "Something went wrong on our side. Please try again in a few minutes.",
 } as const;
 

@@ -7,9 +7,10 @@ export async function middleware(request: NextRequest) {
   // AUTH-1 2b-1 (decision #66): the single-use Google nonce for the sign-in page (Server Components cannot set cookies).
   // An existing valid nonce cookie is reused (prefetches / second tabs never replace it); otherwise a new raw nonce is
   // minted into the httpOnly cookie. Either way it is forwarded on this request so the page renders its SHA-256 hash;
-  // only the hash reaches the browser. Flag off → nothing happens.
+  // only the hash reaches the browser. Flag off → nothing happens. GET only (2b-1a): a server-action POST to
+  // /auth/login must never mint, so a stale retry fails fast at the action's "missing nonce" check, before Supabase.
   let minted: string | null = null;
-  if (request.nextUrl.pathname === "/auth/login" && isGoogleSignInEnabled()) {
+  if (request.method === "GET" && request.nextUrl.pathname === "/auth/login" && isGoogleSignInEnabled()) {
     const nonce = nonceForLoginRequest(request.cookies.get(GOOGLE_NONCE_COOKIE)?.value);
     if (nonce.minted) {
       minted = nonce.raw;

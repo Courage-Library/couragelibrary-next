@@ -21,12 +21,16 @@ Google is the primary sign-in, with email + password as the fallback (#59 / #60)
    5. On success: insert-only `ensureProfile`, then a redirect through `lib/auth/safe-redirect.ts` (default `/dashboard`, #20).
 4. **Roles never change.** Roles come only from `app_metadata` (#60). Nothing reads Google claims or `user_metadata` for roles.
 5. **Fixed messages only.** No Google or Supabase error text is shown, and the server log records only code, status and error name.
+6. **Retry after a failure (2b-1a).**
+   - Every attempt spends the nonce. So after any error except `google-disabled`, the button reloads `/auth/login?m=<code>` **in full**, keeping `next` only if `lib/auth/safe-redirect.ts` accepts it.
+   - The fresh page load mints or reuses a nonce and re-initialises Google; the message comes back through the `?m=` allow-list.
+   - The middleware mints **only on GET**: a server-action POST never mints, so a stale retry fails at the action's missing-nonce check, before any Supabase call.
 
 | Situation | Code | Message |
 |---|---|---|
 | Flag off | `google-disabled` | Google sign-in is not available right now. Please sign in with your email and password. |
 | Bad / foreign token, provider off | `google-failed` | We couldn't sign you in with Google. Please try again, or use your email and password. |
-| Nonce missing / mismatched | `google-nonce` | This sign-in page has expired. Please reload the page and try Google again. |
+| Nonce missing / mismatched | `google-nonce` | Your sign-in session expired. Please try again. |
 | New Google user while sign-ups are off | `signup-closed` | Registrations are not open yet. |
 | Supabase unreachable / timeout | `generic` | Something went wrong on our side. Please try again in a few minutes. |
 
