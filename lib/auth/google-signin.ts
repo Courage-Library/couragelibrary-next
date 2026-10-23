@@ -6,6 +6,7 @@
 import type { AuthErrorCode } from "@/lib/auth/messages";
 import { isTransientAuthError } from "@/lib/auth/session-state";
 import { sanitizeRedirectPath } from "@/lib/auth/safe-redirect";
+import { isCaptchaError } from "@/lib/auth/captcha";
 
 /**
  * 2b-1a: after a failed Google attempt the nonce is spent, so the button reloads the sign-in page in full (a fresh GET
@@ -34,6 +35,7 @@ type ErrLike = { message?: string; code?: string; status?: number; name?: string
 /**
  * signInWithIdToken error → fixed code:
  *   Supabase unreachable / timeout (decision #61)       → "generic" (the existing outage code)
+ *   Turnstile token rejected by Supabase (2b-2)          → "captcha-failed"
  *   sign-ups disabled / user not found (new Google user) → "signup-closed" ("Registrations are not open yet.")
  *   nonce mismatch / missing                             → "google-nonce"
  *   anything else (bad token, provider off, audience…)   → "google-failed"
@@ -41,6 +43,7 @@ type ErrLike = { message?: string; code?: string; status?: number; name?: string
 export function mapGoogleError(err: unknown): AuthErrorCode {
   const e = (err || {}) as ErrLike;
   if (isTransientAuthError(err)) return "generic";
+  if (isCaptchaError(err)) return "captcha-failed";
   const code = (e.code || "").toLowerCase();
   const msg = (e.message || "").toLowerCase();
   if (code === "signup_disabled" || code === "user_not_found" || msg.includes("signups not allowed") || msg.includes("signup is disabled") || msg.includes("user not found")) return "signup-closed";

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useActionState } from "react";
+import React, { useActionState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { loginAction } from "@/app/auth/actions";
@@ -11,12 +11,20 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Alert } from "@/components/ui/legacy/alert";
 import { BrandLogo } from "@/components/brand/logo";
 import { GoogleSignInButton } from "@/components/auth/google-signin-button";
+import { TurnstileWidget } from "@/components/auth/turnstile-widget";
+import type { CaptchaConfig } from "@/lib/auth/captcha";
 
 /** AUTH-1 2b-1: Google config from the server page — null when the flag is off (then nothing Google is rendered). */
 export type LoginGoogleConfig = { clientId: string; nonceHash: string } | null;
 
-export function LoginForm({ google }: { google: LoginGoogleConfig }) {
+export function LoginForm({ google, captcha = null }: { google: LoginGoogleConfig; captcha?: CaptchaConfig }) {
   const [state, formAction, isPending] = useActionState(loginAction, null);
+  // 2b-2: one widget for the whole page; the Google button reads the current token when its callback fires
+  const captchaToken = useRef<string | null>(null);
+  const onCaptchaToken = useCallback((t: string | null) => {
+    captchaToken.current = t;
+  }, []);
+  const getCaptchaToken = useCallback(() => captchaToken.current ?? undefined, []);
   const searchParams = useSearchParams();
   // AUTH-1 2a: messages from the URL only via an allow-listed code (?m=CODE); unknown codes and any other
   // query text (?error=, ?message=) are ignored, so nobody can put their own words on this page.
@@ -50,7 +58,12 @@ export function LoginForm({ google }: { google: LoginGoogleConfig }) {
         )}
         {google && (
           <>
-            <GoogleSignInButton clientId={google.clientId} nonceHash={google.nonceHash} next={next} />
+            <GoogleSignInButton
+              clientId={google.clientId}
+              nonceHash={google.nonceHash}
+              next={next}
+              getCaptchaToken={captcha ? getCaptchaToken : undefined}
+            />
             <div className="flex items-center gap-3 text-body-sm text-fg-secondary" aria-hidden="true">
               <span className="h-px flex-1 bg-line" />
               or
@@ -86,6 +99,7 @@ export function LoginForm({ google }: { google: LoginGoogleConfig }) {
               autoComplete="current-password"
             />
           </div>
+          {captcha && <TurnstileWidget siteKey={captcha.siteKey} action="login" resetKey={state} onToken={onCaptchaToken} />}
           <Button
             type="submit"
             variant="default"

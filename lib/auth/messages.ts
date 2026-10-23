@@ -19,6 +19,9 @@ export const AUTH_NOTICES = {
   "google-failed": { tone: "error", text: "We couldn't sign you in with Google. Please try again, or use your email and password." },
   "google-nonce": { tone: "error", text: "Your sign-in session expired. Please try again." },
   "signup-closed": { tone: "info", text: "Registrations are not open yet." },
+  // AUTH-1 2b-2: Turnstile codes (a failed Google attempt reloads with ?m=, so they must be renderable here too)
+  "captcha-required": { tone: "error", text: "Please complete the security check and try again." },
+  "captcha-failed": { tone: "error", text: "The security check didn't work. Please try again." },
   generic: { tone: "error", text: "Something went wrong on our side. Please try again in a few minutes." },
 } as const satisfies Record<string, { tone: AuthNoticeTone; text: string }>;
 
@@ -45,6 +48,9 @@ export const AUTH_ERRORS = {
   "google-disabled": "Google sign-in is not available right now. Please sign in with your email and password.",
   "google-failed": "We couldn't sign you in with Google. Please try again, or use your email and password.",
   "google-nonce": "Your sign-in session expired. Please try again.",
+  // AUTH-1 2b-2: Cloudflare Turnstile (verified by Supabase); same texts as the ?m= notices above
+  "captcha-required": "Please complete the security check and try again.",
+  "captcha-failed": "The security check didn't work. Please try again.",
   generic: "Something went wrong on our side. Please try again in a few minutes.",
 } as const;
 
@@ -70,6 +76,8 @@ export function mapAuthError(err: unknown): AuthErrorCode {
   const e = (err || {}) as ErrLike;
   const code = (e.code || "").toLowerCase();
   const msg = (e.message || "").toLowerCase();
+  // AUTH-1 2b-2: Supabase rejects a missing / invalid Turnstile token before it looks at the account → reveals nothing
+  if (code.includes("captcha") || msg.includes("captcha")) return "captcha-failed";
   if (e.status === 429 || code.includes("rate_limit") || code === "over_request_rate_limit" || code === "over_email_send_rate_limit" || msg.includes("rate limit") || msg.includes("too many")) return "rate-limited";
   if (code === "invalid_credentials" || msg.includes("invalid login credentials")) return "invalid-credentials";
   if (code === "email_not_confirmed" || msg.includes("email not confirmed")) return "email-not-confirmed";

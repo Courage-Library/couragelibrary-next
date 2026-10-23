@@ -13,8 +13,20 @@ import { googleRetryUrl } from "@/lib/auth/google-signin";
  * is no script, no button and no request to Google. Receives only the SHA-256 hash of the nonce (the raw value stays
  * in an httpOnly cookie). No One Tap / auto prompt. The credential goes straight to the server action and is never
  * logged or stored here.
+ * 2b-2: with Turnstile on, the page's widget token is read when the callback fires and passed to the action (a spent
+ * or missing token ends in the usual full reload, which renders a fresh widget).
  */
-export function GoogleSignInButton({ clientId, nonceHash, next }: { clientId: string; nonceHash: string; next: string }) {
+export function GoogleSignInButton({
+  clientId,
+  nonceHash,
+  next,
+  getCaptchaToken,
+}: {
+  clientId: string;
+  nonceHash: string;
+  next: string;
+  getCaptchaToken?: () => string | undefined;
+}) {
   const slot = useRef<HTMLDivElement>(null);
   const initialised = useRef(false);
   const [result, setResult] = useState<AuthState | null>(null);
@@ -37,7 +49,7 @@ export function GoogleSignInButton({ clientId, nonceHash, next }: { clientId: st
         setResult(null);
         startTransition(async () => {
           // success redirects on the server; only a fixed-code failure comes back
-          const r = await signInWithGoogleAction(credential, next);
+          const r = await signInWithGoogleAction(credential, next, getCaptchaToken?.());
           if (!r) return;
           if (r.code === "google-disabled") {
             setResult(r); // nothing to retry: Google sign-in is off
@@ -58,7 +70,7 @@ export function GoogleSignInButton({ clientId, nonceHash, next }: { clientId: st
       logo_alignment: "left",
       width: Math.min(Math.max(slot.current.offsetWidth, 200), 400),
     });
-  }, [clientId, nonceHash, next]);
+  }, [clientId, nonceHash, next, getCaptchaToken]);
 
   return (
     <div className="flex flex-col gap-3" data-google-signin="">

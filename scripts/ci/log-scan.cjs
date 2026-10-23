@@ -39,6 +39,8 @@ const PATTERNS = [
   ['sb-key', /\bsb_(secret|publishable)_[A-Za-z0-9_-]{10,}/],
   // AUTH-1 2b-1: Google OAuth client-secret prefix (assembled at runtime so this source stays clean)
   ['google-secret', new RegExp(['GOC', 'SPX-'].join(''))],
+  // AUTH-1 2b-2: Cloudflare Turnstile secret-key shape (site keys are shorter and pass)
+  ['turnstile-secret', /(?<![A-Za-z0-9_-])[0-3]x(?=[A-Za-z0-9_-]{30,}(?![A-Za-z0-9_-]))(?:4AAAA|0{10})/],
 ];
 const IPV4 = /(?<![\d.])(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})(?![\d.])/g;
 const IPV6 = /(?<![0-9a-f:])(?:[0-9a-f]{1,4}:){4,7}[0-9a-f]{1,4}(?![0-9a-f:])/gi;
@@ -105,6 +107,7 @@ function selfTest() {
     'pg-url': 'url postgres://someone:pw@db.example.org:5432/postgres',
     'auth-header': 'Authorization: Bearer abcdefghijklmnop',
     dbhost: 'host fake-pooler.example.net refused',
+    'turnstile-secret': `captcha secret ${['0x4AAAA', 'AAAfakeFakeFakeFakeFake012345'].join('')} set`,
   };
   const results = [];
   for (const [name, line] of Object.entries(planted)) {

@@ -33,6 +33,10 @@ Google is the primary sign-in, with email + password as the fallback (#59 / #60)
 | Nonce missing / mismatched | `google-nonce` | Your sign-in session expired. Please try again. |
 | New Google user while sign-ups are off | `signup-closed` | Registrations are not open yet. |
 | Supabase unreachable / timeout | `generic` | Something went wrong on our side. Please try again in a few minutes. |
+| Turnstile on, token missing (2b-2) | `captcha-required` | Please complete the security check and try again. |
+| Turnstile token rejected (2b-2) | `captcha-failed` | The security check didn't work. Please try again. |
+
+**2b-2:** with Turnstile on (see `docs/auth/TURNSTILE.md`), the action checks the widget token after the credential shape and **before** it spends the nonce, and passes it as `options.captchaToken`.
 
 **Files:**
 - `lib/auth/google-flag.ts`

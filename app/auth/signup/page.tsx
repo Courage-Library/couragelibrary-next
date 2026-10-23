@@ -4,6 +4,7 @@ import { Card, CardBody, CardDescription, CardHeader } from "@/components/ui/car
 import { ButtonLink } from "@/components/ui/button";
 import { BrandLogo } from "@/components/brand/logo";
 import { SignupForm } from "./signup-form";
+import { isCaptchaEnabled, turnstileSiteKey } from "@/lib/auth/captcha";
 
 export const dynamic = "force-dynamic";
 
@@ -11,9 +12,12 @@ export const dynamic = "force-dynamic";
  * AUTH-1 Stage 2a (decision #60.2): while public registration is off (the Supabase project's "Allow new users to sign
  * up" setting, or AUTH_SIGNUP_ENABLED=false), the page says so honestly and shows no form. The form and the
  * server action keep working for when registration is re-opened.
+ * AUTH-1 2b-2: when the form is shown and the Turnstile flag is on, the public site key is passed to it.
  */
 export default async function SignupPage() {
-  if ((await getSignupAvailability()) !== "closed") return <SignupForm />;
+  if ((await getSignupAvailability()) !== "closed") {
+    return <SignupForm captcha={isCaptchaEnabled() ? { siteKey: turnstileSiteKey() as string } : null} />;
+  }
 
   return (
     <div className="flex min-h-[80vh] items-center justify-center px-4 py-12">

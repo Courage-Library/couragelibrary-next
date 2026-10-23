@@ -56,6 +56,26 @@ What `scripts/live/with-server.cjs` does:
 
 **Do not** start the server by hand with `npx next start … &` plus `until curl …` loops.
 
+## Server checks in CI (decision #69, 2026-10-23)
+
+The owner's machine cannot keep the 2 GB free-memory floor that a local `next start` needs. So the server-based checks that need **no database** run in the CI job **`server-checks`** (`.github/workflows/ci-gates.yml`).
+
+**Setup:**
+- `needs: offline`, `ubuntu-24.04`, 20 min timeout.
+- No environment and no secrets. The Supabase URL and key are fake placeholders.
+- No artifacts. Every gate runs through `run-quiet`, and the captured output is log-scanned.
+
+**What it does:** one build, then four bounded runs, each through `scripts/live/with-server.cjs` (port 3300, `--health-path=auth/login`, `--gate-timeout=300`). In every run, Supabase is blackholed inside the server by `scripts/live/supabase-blackhole.cjs`.
+
+1. Flags OFF, Supabase refused: `test_auth1_2b2.cjs --probe` and `test_auth1_2b1.cjs --probe`.
+2. Flags ON (Cloudflare's public always-pass TEST site key, a test Google client id), Supabase refused: the same two probes.
+3. `test_auth1.cjs --resilience=refuse`.
+4. `test_auth1.cjs --resilience=hang`.
+
+**Local runs of these checks are optional from now on;** a green `server-checks` job is the gate result.
+
+**What still runs locally or in the `live` job:** live gates that need the database, run with the same runner.
+
 ## Windows / Git Bash pitfalls (recorded)
 
 - **Git Bash path conversion.**

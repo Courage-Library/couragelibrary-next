@@ -17,6 +17,7 @@ const ROOT = path.resolve(__dirname, '..');
 // Allow-list (reviewed). Anything else fails. Keep entries specific; add a reason for every new one.
 const ALLOW_PATTERNS = [
   [/^support@couragelibrary\.in$/i, 'the public support address'],
+  [/^no-reply@couragelibrary\.in$/i, 'the transactional email sender (role address; AUTH-1 2b-2 templates / docs)'],
   [/@([a-z0-9-]+\.)*[a-z0-9-]+\.test$/i, '.test is reserved for testing (RFC 2606) — QA identities and fixtures'],
   [/@([a-z0-9-]+\.)*example\.(com|org|net)$/i, 'example domains are reserved (RFC 2606)'],
   [/@([a-z0-9-]+\.)*[a-z0-9-]+\.local$/i, '.local is special-use (RFC 6762) — synthetic system actor in app code'],
@@ -38,6 +39,9 @@ const SKIP_EXT = /\.(png|jpe?g|gif|webp|ico|svg|pdf|woff2?|ttf|otf|zip|gz|mp4|we
 const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
 const PHONE = /(?<![\dA-Za-z.\-_/#])(?:\+91[ -]?)?[6-9]\d{9}(?![\dA-Za-z])|(?<![\dA-Za-z])\+\d{11,14}(?!\d)/g;
 const GOOGLE_SECRET = new RegExp(['GOC', 'SPX-'].join(''), 'g');
+// AUTH-1 2b-2: a Cloudflare Turnstile SECRET key (0x4AAAA… production, or the [1-3]x000… test secrets) is 2 + 33 chars;
+// site keys (public, 2 + 22) are shorter and do not match. The secret lives only in the Supabase dashboard.
+const TURNSTILE_SECRET = /(?<![A-Za-z0-9_-])[0-3]x(?=[A-Za-z0-9_-]{30,}(?![A-Za-z0-9_-]))(?:4AAAA|0{10})/g;
 const PII_KEY =/^(e-?mail|user_?email|contact_?email|phone|mobile|contact_?phone|phone_?number|dob|date_?of_?birth|birth_?date|address|street|full_?name|first_?name|last_?name)$/i;
 
 function emailAllowed(e, file) {
@@ -79,6 +83,8 @@ function scanText(text, file) {
   // Any occurrence of its prefix counts; the prefix is assembled at runtime so this file stays clean.
   const gsecret = (text.match(GOOGLE_SECRET) || []).length;
   if (gsecret) out['google-client-secret'] = gsecret;
+  const tsecret = (text.match(TURNSTILE_SECRET) || []).length;
+  if (tsecret) out['turnstile-secret'] = tsecret;
   return out;
 }
 
@@ -126,6 +132,10 @@ function selfTest() {
   results.push(['hostile vector outside its allowed file is caught', run(['f.md']).findings.length === 1]);
   W('g.env', `GOOGLE_SECRET=${['GOC', 'SPX-'].join('')}fakeFakeFakeFakeFake0123456789`);
   results.push(['planted Google client-secret prefix is caught', run(['g.env']).findings[0]?.[1]['google-client-secret'] === 1]);
+  W('h.env', `TURNSTILE_SECRET=${['0x4AAAA', 'AAAfakeFakeFakeFakeFake012345'].join('')}\nT2=${['2x', '0'.repeat(31), 'AA'].join('')}`);
+  results.push(['planted Turnstile secrets (production + test shape) are caught', run(['h.env']).findings[0]?.[1]['turnstile-secret'] === 2]);
+  W('i.ts', `const siteKey = '${['1x', '0'.repeat(20), 'AA'].join('')}'; const prod = '${['0x4AAAA', 'AAAfakeSiteKey12'].join('')}'; const sender = 'no-reply@couragelibrary.in';`);
+  results.push(['Turnstile SITE keys and the sender address pass', run(['i.ts']).findings.length === 0]);
   results.push(['empty input is a FAIL (minimum coverage)', report(run([]), 1) === false]);
   fs.rmSync(dir, { recursive: true, force: true });
   for (const [n, ok] of results) console.log(`${ok ? 'PASS' : 'FAIL'}  self-test: ${n}`);

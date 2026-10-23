@@ -25,7 +25,13 @@
  * Live (--live, CI ci-live, NEW project only; non-writing):
  *   L-01 signInWithIdToken with a well-formed but fake token → a fixed error code; auth user count unchanged
  *   L-02 no profile row created (user_profiles count unchanged)
+ * Probe (--probe, via scripts/live/with-server.cjs against the LOCAL production build; CI job server-checks, decision #69;
+ * expectation from the server's env AUTH_GOOGLE_ENABLED + NEXT_PUBLIC_GOOGLE_CLIENT_ID):
+ *   P-01 GIS script / button / nonce cookie iff the flag is on; cookie attributes; page carries sha256(raw) only
+ *   P-02 (2b-1a) an existing nonce is reused; a POST never mints; ?m=google-nonce renders on the retry page
  * Prints no secrets, tokens, nonces or emails.
+ * AUTH-1 2b-2: every action call also passes a Turnstile test token, so this suite must pass 17/17 with the CAPTCHA flag
+ * off (token ignored) AND on (AUTH_CAPTCHA_ENABLED=true + a site key in the environment) — scripts/test_auth1_2b2.cjs runs both.
  */
 const fs = require('fs');
 const path = require('path');
@@ -39,6 +45,7 @@ const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 const SECRET_PREFIX = ['GOC', 'SPX-'].join(''); // assembled: this file must not contain the literal
 const CLIENT_ID = 'test-client-1234.apps.googleusercontent.com';
 const PROVIDER_TEXT = 'PROVIDER-RAW-TEXT-g2b1';
+const CAPTCHA_TOKEN = 'g2b1-turnstile-test-token';
 
 let passed = 0;
 let failed = 0;
@@ -252,7 +259,7 @@ async function offline() {
   const GOOD_TOKEN = ['eyJhbGciOiJSUzI1NiJ9', 'eyJzdWIiOiJ4In0', 'c2lnbmF0dXJl'].join('.');
   const call = async (credential, next) => {
     try {
-      return { result: await actions.signInWithGoogleAction(credential, next) };
+      return { result: await actions.signInWithGoogleAction(credential, next, CAPTCHA_TOKEN) };
     } catch (e) {
       if (e instanceof RedirectSignal) return { redirect: e.url };
       throw e;
@@ -542,9 +549,69 @@ async function live() {
   });
 }
 
+// ---------- probe: the local production build (scripts/live/with-server.cjs sets BASE_URL; CI job server-checks) ----------
+// Expectation from the server's own env (inherited by the gate): AUTH_GOOGLE_ENABLED=true + a test client id → ON.
+// Non-writing, no Supabase and no Google request (the page only references the GIS script; the server never fetches it).
+async function probe() {
+  const base = process.env.BASE_URL;
+  assert(base && /^http:\/\/localhost:\d+$/.test(base), 'BASE_URL must be the local server (with-server.cjs)');
+  const on = process.env.AUTH_GOOGLE_ENABLED === 'true' && /\.apps\.googleusercontent\.com$/.test(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '');
+  const NONCE = 'cl_g_nonce';
+  const get = async (p, opts = {}) => {
+    for (let i = 1; i <= 3; i++) {
+      try {
+        const res = await fetch(base + p, { redirect: 'manual', signal: AbortSignal.timeout(30000), ...opts });
+        return { status: res.status, html: await res.text(), cookies: res.headers.getSetCookie ? res.headers.getSetCookie() : [] };
+      } catch (e) {
+        if (i === 3) throw e;
+      }
+    }
+  };
+  const nonceCookie = (r) => r.cookies.find((c) => c.startsWith(`${NONCE}=`)) || '';
+  const sha = (s) => crypto.createHash('sha256').update(s).digest('hex');
+
+  await test(`P-01 real server, Google flag ${on ? 'ON' : 'OFF'}: GET /auth/login → GIS script, button and nonce cookie iff on`, async () => {
+    const r = await get('/auth/login');
+    assert(r.status === 200, `HTTP ${r.status}`);
+    const script = r.html.includes('accounts.google.com/gsi/client');
+    const button = r.html.includes('data-google-signin');
+    const c = nonceCookie(r);
+    if (!on) {
+      assert(!script && !button && !c, `flag off: script ${script}, button ${button}, cookie ${!!c}`);
+      return 'no script, no button, no cookie';
+    }
+    assert(script && button && c, `flag on: script ${script}, button ${button}, cookie ${!!c}`);
+    for (const attr of [/HttpOnly/i, /SameSite=lax/i, /Path=\//, /Max-Age=600/]) assert(attr.test(c), `cookie lacks ${attr}`);
+    const raw = (c.match(/^cl_g_nonce=([0-9a-f]{64});/) || [])[1];
+    assert(raw, 'nonce cookie value is not 64 hex');
+    assert(r.html.includes(sha(raw)) && !r.html.includes(raw), 'page does not carry sha256(raw) only');
+    return 'cookie attributes ok; page has the hash, never the raw value';
+  });
+
+  await test(`P-02 real server, Google flag ${on ? 'ON' : 'OFF'}: an existing nonce is reused; POST never mints (2b-1a)`, async () => {
+    if (!on) {
+      const post = await get('/auth/login', { method: 'POST', headers: { 'content-type': 'text/plain;charset=UTF-8' }, body: '[]' });
+      assert(!nonceCookie(post), 'POST minted with the flag off');
+      return 'flag off: nothing minted';
+    }
+    const first = await get('/auth/login');
+    const raw = (nonceCookie(first).match(/^cl_g_nonce=([0-9a-f]{64});/) || [])[1];
+    assert(raw, 'no nonce on the first GET');
+    const again = await get('/auth/login', { headers: { cookie: `${NONCE}=${raw}` } });
+    assert(again.status === 200 && !nonceCookie(again) && again.html.includes(sha(raw)), 'existing valid nonce not reused');
+    const post = await get('/auth/login', { method: 'POST', headers: { 'content-type': 'text/plain;charset=UTF-8', 'next-action': '0'.repeat(40) }, body: '[]' });
+    assert(!nonceCookie(post), 'a POST to /auth/login minted a nonce');
+    const retry = await get('/auth/login?m=google-nonce');
+    assert(retry.status === 200 && retry.html.includes('data-auth-notice') && /session expired/i.test(retry.html), '?m=google-nonce notice not rendered on the retry page');
+    return 'reuse ok; POST 0 mints; retry notice rendered';
+  });
+}
+
 (async () => {
-  console.log(`AUTH-1 2b-1 Google sign-in (${LIVE ? 'live' : 'offline'})`);
-  if (LIVE) await live();
+  const PROBE = process.argv.includes('--probe');
+  console.log(`AUTH-1 2b-1 Google sign-in (${PROBE ? 'probe' : LIVE ? 'live' : 'offline'})`);
+  if (PROBE) await probe();
+  else if (LIVE) await live();
   else await offline();
   console.log(`\nAUTH-1 2b-1: ${passed}/${passed + failed} passed`);
   process.exit(failed ? 1 : 0);

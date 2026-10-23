@@ -8,9 +8,11 @@ import { Input } from "@/components/ui/legacy/input";
 import { Card, CardHeader, CardDescription, CardContent, CardFooter } from "@/components/ui/legacy/card";
 import { Alert } from "@/components/ui/legacy/alert";
 import { BrandLogo } from "@/components/brand/logo";
+import { TurnstileWidget } from "@/components/auth/turnstile-widget";
+import type { CaptchaConfig } from "@/lib/auth/captcha";
 
-/** AUTH-1 2a: the sign-up form (rendered by page.tsx only while registration is open). */
-export function SignupForm() {
+/** AUTH-1 2a: the sign-up form (rendered by page.tsx only while registration is open). 2b-2: Turnstile when on. */
+export function SignupForm({ captcha = null }: { captcha?: CaptchaConfig }) {
   const [state, formAction, isPending] = useActionState(signupAction, null);
 
   return (
@@ -63,6 +65,7 @@ export function SignupForm() {
               minLength={8}
               autoComplete="new-password"
             />
+            {captcha && <TurnstileWidget siteKey={captcha.siteKey} action="signup" resetKey={state} />}
             <Button
               type="submit"
               variant="default"

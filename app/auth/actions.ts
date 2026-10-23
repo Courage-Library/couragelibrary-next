@@ -16,11 +16,15 @@ import {
 } from "@/lib/auth/messages";
 import { getSignupAvailability } from "@/lib/auth/signup-availability";
 import { isTransientAuthError } from "@/lib/auth/session-state";
+import { CAPTCHA_FIELD, checkCaptchaToken } from "@/lib/auth/captcha";
 
 /**
  * AUTH-1 Stage 2a: auth server actions. Every response text comes from lib/auth/messages (fixed codes); Supabase
  * error text is never returned. Sign-up and password reset answer identically whether or not the account exists.
  * Field names (email, password, next, fullName, confirmPassword) are unchanged: QA sign-in, smokes and E2E use them.
+ * AUTH-1 2b-2: with the Turnstile flag on, sign-in, sign-up and password reset read the widget token (field
+ * "captchaToken"), shape-check it BEFORE calling Supabase (missing → captcha-required, malformed → captcha-failed) and
+ * pass it as options.captchaToken; Supabase verifies it. Flag off → no token is required or sent.
  */
 
 export interface AuthState {
@@ -52,9 +56,15 @@ export async function loginAction(prevState: AuthState | null, formData: FormDat
   if (typeof email !== "string" || typeof password !== "string" || !email || !password) {
     return fail("missing-fields");
   }
+  const captcha = checkCaptchaToken(formData.get(CAPTCHA_FIELD));
+  if (!captcha.ok) return fail(captcha.code);
 
   const supabase = await createServerSupabaseClient();
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+    ...(captcha.token ? { options: { captchaToken: captcha.token } } : {}),
+  });
 
   if (error) {
     const code = mapAuthError(error);
@@ -64,7 +74,7 @@ export async function loginAction(prevState: AuthState | null, formData: FormDat
     if (isTransientAuthError(error)) return fail("generic");
     // Never confirm or deny that an account exists: everything that is not rate limiting / unconfirmed is
     // "incorrect email or password".
-    return fail(code === "rate-limited" || code === "email-not-confirmed" ? code : "invalid-credentials");
+    return fail(code === "rate-limited" || code === "email-not-confirmed" || code === "captcha-failed" ? code : "invalid-credentials");
   }
 
   if (data?.user) {
@@ -88,6 +98,8 @@ export async function signupAction(prevState: AuthState | null, formData: FormDa
   if (!isPlausibleEmail(email)) return fail("invalid-email");
   if (!isAcceptablePassword(password)) return fail("weak-password");
   if ((await getSignupAvailability()) === "closed") return fail("signup-closed");
+  const captcha = checkCaptchaToken(formData.get(CAPTCHA_FIELD));
+  if (!captcha.ok) return fail(captcha.code);
 
   const supabase = await createServerSupabaseClient();
   const { data, error } = await supabase.auth.signUp({
@@ -96,6 +108,7 @@ export async function signupAction(prevState: AuthState | null, formData: FormDa
     options: {
       data: { full_name: typeof fullName === "string" ? fullName.trim().slice(0, 120) : "" },
       emailRedirectTo: confirmUrl("/dashboard"),
+      ...(captcha.token ? { captchaToken: captcha.token } : {}),
     },
   });
 
@@ -103,7 +116,7 @@ export async function signupAction(prevState: AuthState | null, formData: FormDa
     // "already registered" must look exactly like a new sign-up (no enumeration).
     if (!isAccountExistenceError(error)) {
       const code = mapAuthError(error);
-      if (code === "rate-limited" || code === "weak-password" || code === "invalid-email" || code === "signup-closed") return fail(code);
+      if (code === "rate-limited" || code === "weak-password" || code === "invalid-email" || code === "signup-closed" || code === "captcha-failed") return fail(code);
       logAuthError("sign-up", error);
       return fail("generic");
     }
@@ -128,15 +141,19 @@ export async function forgotPasswordAction(prevState: AuthState | null, formData
   const email = formData.get("email");
 
   if (!isPlausibleEmail(email)) return fail("invalid-email");
+  const captcha = checkCaptchaToken(formData.get(CAPTCHA_FIELD));
+  if (!captcha.ok) return fail(captcha.code);
 
   const supabase = await createServerSupabaseClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email as string, {
     redirectTo: confirmUrl("/auth/update-password"),
+    ...(captcha.token ? { captchaToken: captcha.token } : {}),
   });
 
   if (error && !isAccountExistenceError(error)) {
     const code = mapAuthError(error);
-    if (code === "rate-limited") return fail(code);
+    // captcha-failed is decided before Supabase looks at the address, so it reveals nothing
+    if (code === "rate-limited" || code === "captcha-failed") return fail(code);
     logAuthError("password-reset", error);
     // Infrastructure trouble: still answer success-shaped so the response does not depend on the address.
   }
