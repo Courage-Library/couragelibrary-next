@@ -51,3 +51,5 @@ supabase/.temp/
 docs/reports/**/*_LOCAL*.md
 docs/reports/auth/AUTH1_STAGE1_LOCAL_FINDING.md
 docs/reports/ops/PUBLIC_REPO1_REPORT.md
+# BRAND-1 visual review screenshots (local only, listed in docs/ops/LOCAL_ONLY_PATHS.txt)
+docs/reports/ux/brand1-local/

@@ -1,3 +1,4 @@
+import { BRAND_PALETTE } from "@/config/brand";
 export interface AIBriefConfig {
   title: string;
   category: string; // 'PHYSICAL' | 'DIGITAL' | 'FEATURE_UNLOCK' | string
@@ -22,11 +23,11 @@ export const COURAGE_LIBRARY_CANONICAL_SPEC: CourageLibraryImageSpec = {
   heroCanvasOccupancy: "65%–75% subject coverage",
   marginStandard: "10%–12% safe breathing margins, complete subject naturally inside 4:3 canvas, zero cropping",
   primaryPalette: [
-    "Deep Navy (#0A192F / #0F172A)",
-    "Sapphire Blue (#1E3A8A / #2563EB)",
-    "Restrained Warm Gold (#D4AF37 / #C59B27)",
-    "Clean White (#FFFFFF)",
-    "Neutral Slate / Charcoal (#334155 / #1E293B)",
+    // BRAND-1 (#70): Navy + Saffron, values mirrored from the design tokens (config/brand.ts)
+    `Brand Navy (${BRAND_PALETTE["primary-600"]}) with Interactive Blue (${BRAND_PALETTE["primary-500"]})`,
+    `Saffron accent, used sparingly (${BRAND_PALETTE["accent-500"]} / ${BRAND_PALETTE["accent-700"]})`,
+    "Clean White",
+    `Neutral Ink / Slate (${BRAND_PALETTE["ink-900"]} / ${BRAND_PALETTE["ink-600"]}) on a light slate ground (${BRAND_PALETTE["ink-50"]})`,
   ],
   backgroundFamily: "Neutral warm-slate / dark-neutral matte studio backdrop with subtle tonal vignette",
   brandIdentity: "Premium, realistic, academic excellence, discipline, consistency, aspirational, and minimalist",

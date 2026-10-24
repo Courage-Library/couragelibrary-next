@@ -1,12 +1,12 @@
 {
   "$comment": "UX-1a design ratchet baseline (decision #40). Counts may only go down. Scope: app/ + components/, excluding app/admin and components/admin. Written by scripts/test_design_ratchet.cjs --write.",
-  "recordedAt": "2026-10-19",
+  "recordedAt": "2026-10-24",
   "totals": {
-    "rawColor": 1,
-    "paletteClass": 4785,
+    "rawColor": 0,
+    "paletteClass": 4667,
     "darkClass": 0,
-    "smallText": 411,
-    "legacyImport": 211
+    "smallText": 390,
+    "legacyImport": 207
   },
   "byArea": {
     "app/achievements": {
@@ -25,7 +25,7 @@
     },
     "app/auth": {
       "rawColor": 0,
-      "paletteClass": 30,
+      "paletteClass": 28,
       "darkClass": 0,
       "smallText": 0,
       "legacyImport": 16
@@ -74,14 +74,14 @@
     },
     "app/current-affairs": {
       "rawColor": 0,
-      "paletteClass": 95,
+      "paletteClass": 85,
       "darkClass": 0,
       "smallText": 0,
       "legacyImport": 4
     },
     "app/dashboard": {
       "rawColor": 0,
-      "paletteClass": 64,
+      "paletteClass": 60,
       "darkClass": 0,
       "smallText": 8,
       "legacyImport": 4
@@ -102,10 +102,10 @@
     },
     "app/exams": {
       "rawColor": 0,
-      "paletteClass": 75,
+      "paletteClass": 49,
       "darkClass": 0,
-      "smallText": 8,
-      "legacyImport": 8
+      "smallText": 3,
+      "legacyImport": 4
     },
     "app/faculty": {
       "rawColor": 0,
@@ -120,6 +120,13 @@
       "darkClass": 0,
       "smallText": 0,
       "legacyImport": 8
+    },
+    "app/globals.css": {
+      "rawColor": 0,
+      "paletteClass": 2,
+      "darkClass": 0,
+      "smallText": 0,
+      "legacyImport": 0
     },
     "app/institutes": {
       "rawColor": 0,
@@ -143,8 +150,8 @@
       "legacyImport": 4
     },
     "app/mock-tests": {
-      "rawColor": 1,
-      "paletteClass": 264,
+      "rawColor": 0,
+      "paletteClass": 259,
       "darkClass": 0,
       "smallText": 22,
       "legacyImport": 8
@@ -186,9 +193,9 @@
     },
     "components/assessment": {
       "rawColor": 0,
-      "paletteClass": 829,
+      "paletteClass": 775,
       "darkClass": 0,
-      "smallText": 97,
+      "smallText": 84,
       "legacyImport": 11
     },
     "components/battles": {
@@ -200,16 +207,16 @@
     },
     "components/current-affairs": {
       "rawColor": 0,
-      "paletteClass": 189,
+      "paletteClass": 184,
       "darkClass": 0,
-      "smallText": 6,
+      "smallText": 5,
       "legacyImport": 0
     },
     "components/exams": {
       "rawColor": 0,
-      "paletteClass": 202,
+      "paletteClass": 192,
       "darkClass": 0,
-      "smallText": 19,
+      "smallText": 17,
       "legacyImport": 14
     },
     "components/flashcards": {
@@ -249,7 +256,7 @@
     },
     "components/premium": {
       "rawColor": 0,
-      "paletteClass": 347,
+      "paletteClass": 344,
       "darkClass": 0,
       "smallText": 28,
       "legacyImport": 0
@@ -270,7 +277,7 @@
     },
     "components/wallet": {
       "rawColor": 0,
-      "paletteClass": 148,
+      "paletteClass": 147,
       "darkClass": 0,
       "smallText": 16,
       "legacyImport": 3

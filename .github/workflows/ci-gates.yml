@@ -81,6 +81,7 @@ jobs:
           q NO-LOCAL-ONLY node scripts/test_no_local_only_tracked.cjs || fail=1
           q NO-RUNTIME-DB node scripts/test_no_runtime_db.cjs || fail=1
           q DESIGN-RATCHET node scripts/test_design_ratchet.cjs || fail=1
+          q BRAND1 node scripts/test_brand1.cjs || fail=1
           q UX1B-SHELL node scripts/test_ux1b_shell.cjs || fail=1
           q QF1-OFFLINE node scripts/test_qf1_question_factory.cjs || fail=1
           q SEC1B node scripts/test_sec1b_admin_authz.cjs || fail=1

@@ -70,11 +70,11 @@ export function QuestionReviewCard({
             </span>
           ) : isCorrect ? (
             <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60 flex items-center gap-1">
-              <CheckCircle2 className="w-3.5 h-3.5" /> +{marksAwarded.toFixed(1)}
+              <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" /> <span className="sr-only">Correct:</span> +{marksAwarded.toFixed(1)}
             </span>
           ) : (
             <span className="text-red-700 bg-red-50 px-2 py-0.5 rounded-md border border-red-200/60 flex items-center gap-1">
-              <XCircle className="w-3.5 h-3.5" /> {marksAwarded.toFixed(2)}
+              <XCircle className="w-3.5 h-3.5" aria-hidden="true" /> <span className="sr-only">Incorrect:</span> {marksAwarded.toFixed(2)}
             </span>
           )}
         </div>
@@ -102,6 +102,8 @@ export function QuestionReviewCard({
         {options.map((opt) => {
           const isUserChoice = selectedOption === opt.key;
           const isTargetCorrect = !keyUnavailable && correctOption === opt.key;
+          // BRAND-1: right / wrong is never colour-only — an icon plus screen-reader text name the state
+          const isWrongChoice = isUserChoice && !isCorrect && !keyUnavailable;
 
           return (
             <div
@@ -138,7 +140,17 @@ export function QuestionReviewCard({
                   />
                 )}
                 {opt.text && <div className="pt-0.5">{opt.text}</div>}
+                {(isTargetCorrect || isUserChoice) && (
+                  <span className="sr-only">
+                    {isTargetCorrect && isUserChoice ? "Your answer, correct answer" : isTargetCorrect ? "Correct answer" : isWrongChoice ? "Your answer, incorrect" : "Your answer"}
+                  </span>
+                )}
               </div>
+              {isTargetCorrect ? (
+                <CheckCircle2 className="w-4 h-4 shrink-0 text-success-700" aria-hidden="true" />
+              ) : isWrongChoice ? (
+                <XCircle className="w-4 h-4 shrink-0 text-danger-700" aria-hidden="true" />
+              ) : null}
             </div>
           );
         })}

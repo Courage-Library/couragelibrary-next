@@ -158,7 +158,7 @@ export function AdminSidebar({ userEmail, adaptiveEnabled = false, liveTestsEnab
 
       {/* Sidebar Panel — STRICTLY FIXED AT VIEWPORT TOP & NON-SCROLLING ON DESKTOP */}
       <aside
-        className={`fixed md:static inset-y-0 left-0 z-50 md:z-20 w-[270px] h-[100dvh] max-h-[100dvh] bg-[#0F172A] text-slate-300 p-3.5 shrink-0 border-r border-slate-800 flex flex-col justify-between transition-transform duration-200 ease-in-out md:translate-x-0 overflow-y-auto md:overflow-hidden ${
+        className={`fixed md:static inset-y-0 left-0 z-50 md:z-20 w-[270px] h-[100dvh] max-h-[100dvh] bg-ink-900 text-slate-300 p-3.5 shrink-0 border-r border-slate-800 flex flex-col justify-between transition-transform duration-200 ease-in-out md:translate-x-0 overflow-y-auto md:overflow-hidden ${
           isMobileOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"
         }`}
       >

@@ -3,7 +3,7 @@
 These are the branded templates for the Supabase auth emails of project **couragelibrary-next**.
 
 - **Sender:** `no-reply@couragelibrary.in`, via the ZeptoMail SMTP the owner has already configured. Do not change the SMTP settings.
-- **Design:** inline CSS only, the brand colours (`#5000f0` primary, slate text), and a text logo.
+- **Design:** BRAND-1 Navy + Saffron (decision #70): 600px max, system fonts, navy header bar with the text logo, white card on the light page colour, one navy button (≥ 44px, white text) with a plain-text link under it, a hidden preheader and a short "You received this because…" footer. Colours are the design tokens; inline CSS only.
 - **Kept out on purpose:** images, tracking pixels and external assets.
 - **Plain-text friendly:** each email also shows the link as text.
 

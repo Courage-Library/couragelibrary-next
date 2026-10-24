@@ -26,6 +26,36 @@
 
 ## 1. Colour
 
+> **Superseded by BRAND-1 (decision #70, 2026-10-24): Navy + Saffron.** The violet / cyan choice below is kept as history only. The logo artwork is unchanged.
+>
+> - **Tokens:** `app/globals.css` is the only source; `config/brand.ts` is a gated mirror.
+> - **Primary:** navy `#1E3A8A` (`primary-600` / `brand`), used for headers, primary buttons and the focus ring.
+> - **Interactive:** `#1D4ED8` (`primary-500` / `interactive` / `link`), used for links.
+> - **Accent:** saffron `#F59E0B` (`accent-500`), fill only, with `#0F172A` text on it.
+> - **Accent text:** `#B45309` (`accent-700` / `accent-text`).
+> - **Success:** `#047857` (`success-700`).
+> - **Error:** `#BE123C` (`danger-700`), errors only.
+> - **Warning:** the accent family.
+> - **Info:** the primary family.
+> - **Text and surfaces:** text `#0F172A`, muted `#475569`, page `#F8FAFC`, surface `#FFFFFF`, border `#E2E8F0`.
+>
+> **Rules:**
+> - 60% neutral, 30% primary, 10% accent;
+> - at most one accent CTA per screen;
+> - right / wrong is never shown by colour alone (icon + text);
+> - in the exam engine, no red except errors, and the timer is neutral, turning to the accent only in the final minutes.
+>
+> **Legacy Tailwind palette classes** (`bg-blue-600`, `text-slate-500`, …) resolve to these brand scales, as aliases defined in the token file:
+> - blue / indigo / violet / purple / sky / cyan → primary;
+> - amber / yellow / orange → accent;
+> - emerald / green / teal / lime → success;
+> - red / rose / pink / fuchsia → danger;
+> - slate / gray / zinc / neutral / stone → ink.
+>
+> **Gates:**
+> - `scripts/test_brand1.cjs` (values, contrast, no colour literals, email templates, exam rules);
+> - design ratchet R-5 / R-7 / R-8.
+
 ### 1.1 Primary colour (derived from the logo)
 
 The logo has two colours, and only one of them can carry text:

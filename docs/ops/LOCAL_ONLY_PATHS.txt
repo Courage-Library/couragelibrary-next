@@ -3,3 +3,4 @@
 # (offline gate + CI offline job), which also rejects any docs/reports/**/*_LOCAL*.md.
 docs/reports/auth/AUTH1_STAGE1_LOCAL_FINDING.md
 docs/reports/ops/PUBLIC_REPO1_REPORT.md
+docs/reports/ux/brand1-local/

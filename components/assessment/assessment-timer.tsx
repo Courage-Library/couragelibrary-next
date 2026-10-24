@@ -82,20 +82,22 @@ export function AssessmentTimer({
       aria-label={`Time remaining: ${formatTime(seconds)}`}
       className={cn(
         "flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-mono font-bold transition-all select-none",
+        // BRAND-1 (#70): the exam timer is neutral and turns to the accent only in the final minutes — never red
+        // (red is for errors only). The warning icon carries the state too, not colour alone.
         isUnder1Min
-          ? "bg-red-50 border-red-300 text-red-700 animate-pulse shadow-xs"
+          ? "bg-accent-100 border-accent-700 text-fg animate-pulse shadow-xs"
           : isUnder5Min
-          ? "bg-amber-50 border-amber-300 text-amber-800 shadow-xs"
-          : "bg-slate-50 border-slate-200 text-slate-800",
+          ? "bg-accent-50 border-accent-300 text-fg shadow-xs"
+          : "bg-canvas border-line text-fg",
         className
       )}
     >
       {isUnder1Min ? (
-        <AlertTriangle className="w-3.5 h-3.5 text-red-600 shrink-0" />
+        <AlertTriangle className="w-3.5 h-3.5 text-accent-700 shrink-0" />
       ) : isUnder5Min ? (
-        <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+        <AlertTriangle className="w-3.5 h-3.5 text-accent-700 shrink-0" />
       ) : (
-        <Clock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+        <Clock className="w-3.5 h-3.5 text-fg-muted shrink-0" />
       )}
       <span className="tabular-nums">{formatTime(seconds)}</span>
 

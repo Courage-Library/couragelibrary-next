@@ -26,7 +26,7 @@ export function TokenValue({ name }: { name: string }) {
 function toRgb(color: string): [number, number, number] | null {
   const c = document.createElement("canvas").getContext("2d");
   if (!c) return null;
-  c.fillStyle = "#000";
+  c.fillStyle = "black";
   c.fillStyle = color;
   const hex = c.fillStyle as string;
   const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);

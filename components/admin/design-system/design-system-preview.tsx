@@ -35,7 +35,7 @@ import { ContrastTable, DialogDemos, LoadingButtonDemo, TagDemo, ToastDemo, Toke
 // Every class below is written out in full so Tailwind generates it.
 const SCALES: Array<{ name: string; swatches: Array<[string, string]> }> = [
   {
-    name: "Primary (logo violet, brand = 600)",
+    name: "Primary (navy, brand = 600; 500 = interactive blue for links)",
     swatches: [
       ["primary-50", "bg-primary-50"], ["primary-100", "bg-primary-100"], ["primary-200", "bg-primary-200"], ["primary-300", "bg-primary-300"],
       ["primary-400", "bg-primary-400"], ["primary-500", "bg-primary-500"], ["primary-600", "bg-primary-600"], ["primary-700", "bg-primary-700"],
@@ -43,7 +43,7 @@ const SCALES: Array<{ name: string; swatches: Array<[string, string]> }> = [
     ],
   },
   {
-    name: "Accent (logo cyan, brand = 300; decorative only)",
+    name: "Accent (saffron, fill = 500 with ink text; accent text = 700; one accent CTA per screen)",
     swatches: [
       ["accent-50", "bg-accent-50"], ["accent-100", "bg-accent-100"], ["accent-200", "bg-accent-200"], ["accent-300", "bg-accent-300"],
       ["accent-400", "bg-accent-400"], ["accent-500", "bg-accent-500"], ["accent-600", "bg-accent-600"], ["accent-700", "bg-accent-700"],
@@ -71,7 +71,7 @@ const SCALES: Array<{ name: string; swatches: Array<[string, string]> }> = [
     name: "Semantic aliases (what components use)",
     swatches: [
       ["canvas", "bg-canvas"], ["surface", "bg-surface"], ["surface-sunken", "bg-surface-sunken"], ["fg", "bg-fg"], ["fg-secondary", "bg-fg-secondary"],
-      ["fg-muted", "bg-fg-muted"], ["fg-disabled", "bg-fg-disabled"], ["line", "bg-line"], ["line-control", "bg-line-control"], ["link", "bg-link"], ["focus", "bg-focus"],
+      ["fg-muted", "bg-fg-muted"], ["fg-disabled", "bg-fg-disabled"], ["line", "bg-line"], ["line-control", "bg-line-control"], ["brand", "bg-brand"], ["interactive", "bg-interactive"], ["link", "bg-link"], ["focus", "bg-focus"], ["on-accent", "bg-on-accent"], ["accent-text", "bg-accent-text"],
       ["answer-correct-border", "bg-answer-correct-border"], ["answer-correct-bg", "bg-answer-correct-bg"], ["answer-wrong-border", "bg-answer-wrong-border"],
       ["answer-wrong-bg", "bg-answer-wrong-bg"], ["answer-selected-border", "bg-answer-selected-border"], ["answer-selected-bg", "bg-answer-selected-bg"],
     ],
@@ -167,7 +167,7 @@ export function DesignSystemPreview() {
         </nav>
       </header>
 
-      <DSSection id="colour" title="Colour" intro="One primary (violet, carries text) and one restrained accent (cyan, decorative). Semantic colours only for status and right / wrong.">
+      <DSSection id="colour" title="Colour" intro="Navy + Saffron (decision #70): 60% neutral, 30% navy primary, 10% saffron accent. Semantic colours only for status and right / wrong, never colour alone.">
         {SCALES.map((scale) => (
           <Demo key={scale.name} label={scale.name} className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-11">
             {scale.swatches.map(([name, cls]) => (

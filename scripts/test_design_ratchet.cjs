@@ -14,7 +14,10 @@
  *       prefers-color-scheme anywhere, nothing sets data-theme="dark", <html> has no dark class
  *   R-4 one Latin font via next/font (self-hosted); no external font requests, no Devanagari font
  *   R-5 contrast: every pair in components/ui/contrast-pairs.json meets its WCAG threshold, computed from the tokens
- *   R-7 config/brand.ts (theme-color meta + manifest) equals the primary-600 / ink-50 tokens and is the only source
+ *   R-7 config/brand.ts (theme-color meta, manifest, BRAND_PALETTE) mirrors the tokens exactly; it is not a second source
+ *   R-8 (BRAND-1 amendment, decision #70) single token source: every legacy Tailwind palette name (slate-*, blue-*, …)
+ *       is redefined in app/globals.css as var(--color-<brand scale>-N), never a raw value, so palette classes cannot
+ *       reintroduce off-brand colours; strengthened by the contrast gates (R-5 and scripts/test_brand1.cjs)
  *   R-6 tokens never collide with legacy class names (no bare --color-primary / --color-card; no override of
  *       Tailwind's rounded-sm..2xl / shadow-sm..2xl) and the cn() registry lists every text / radius / shadow token
  *
@@ -267,6 +270,32 @@ test('R-7 brand colours outside CSS (theme-color, manifest) mirror the tokens', 
   assert(/themeColor: BRAND_THEME_COLOR/.test(layout), 'layout themeColor must use BRAND_THEME_COLOR');
   const manifest = fs.readFileSync(path.join(ROOT, 'app/manifest.ts'), 'utf8');
   assert(/theme_color: BRAND_THEME_COLOR/.test(manifest) && /background_color: BRAND_BACKGROUND_COLOR/.test(manifest), 'manifest colours must use config/brand.ts');
+  // BRAND-1: every BRAND_PALETTE entry equals its token
+  const palette = [...brand.matchAll(/"([a-z]+-\d+)": "(#[0-9a-fA-F]{6})"/g)];
+  assert(palette.length >= 5, `BRAND_PALETTE entries ${palette.length} (min 5)`); // GATE-HYGIENE-1
+  const drift = palette.filter(([, tok, hex]) => (resolveColor(tok) || '').toLowerCase() !== hex.toLowerCase()).map(([, tok, hex]) => `${tok}: ${hex} != ${resolveColor(tok)}`);
+  assert(drift.length === 0, drift.join('; '));
+});
+
+test('R-8 single token source: legacy palette names resolve to brand scales via var(), never raw values (BRAND-1)', () => {
+  const LEGACY = 'slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose';
+  const BRAND = ['primary', 'accent', 'ink', 'success', 'danger'];
+  const shades = ['50', '100', '200', '300', '400', '500', '600', '700', '800', '900', '950'];
+  const bad = [];
+  let n = 0;
+  for (const name of LEGACY.split('|')) {
+    for (const k of shades) {
+      const v = vars[`color-${name}-${k}`];
+      n++;
+      const m = /^var\(--color-([a-z]+)-(\d+)\)$/.exec(v || '');
+      if (!m || !BRAND.includes(m[1]) || m[2] !== k) bad.push(`${name}-${k}: ${v === undefined ? 'missing' : 'not a brand var()'}`);
+    }
+  }
+  for (const k of shades) for (const b of BRAND) if (!/^#[0-9a-f]{6}$/i.test(resolveColor(`${b}-${k}`) || '')) bad.push(`${b}-${k} does not resolve to a hex value`);
+  for (const role of ['warning', 'info']) for (const k of shades) if (!/^var\(--color-(accent|primary)-\d+\)$/.test(vars[`color-${role}-${k}`] || '')) bad.push(`${role}-${k} is not an alias of a brand scale`);
+  assert(n === 22 * 11, `checked ${n}`); // GATE-HYGIENE-1
+  assert(bad.length === 0, bad.slice(0, 20).join('; '));
+  return `${n} legacy palette names → brand tokens; warning → accent, info → primary`;
 });
 
 if (WRITE) {

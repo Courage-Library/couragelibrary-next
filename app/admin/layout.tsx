@@ -23,7 +23,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
       />
 
       {/* Main Admin Application Workspace — Clean Light Mode */}
-      <div className="flex-1 min-w-0 h-[100dvh] max-h-[100dvh] flex flex-col overflow-hidden bg-[#F8FAFC]">
+      <div className="flex-1 min-w-0 h-[100dvh] max-h-[100dvh] flex flex-col overflow-hidden bg-canvas">
         {/* Stationary Context Header */}
         <AdminTopHeader userEmail={userEmail} />
 

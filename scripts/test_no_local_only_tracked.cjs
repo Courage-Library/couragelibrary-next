@@ -27,8 +27,11 @@ function readList(root) {
 
 /** Pure: tracked paths that are local-only (listed or matching the pattern). */
 function violations(tracked, listed) {
-  const set = new Set(listed.map((p) => p.replace(/\\/g, '/')));
-  return tracked.filter((p) => set.has(p) || PATTERN.test(p));
+  const norm = listed.map((p) => p.replace(/\\/g, '/'));
+  const set = new Set(norm);
+  // BRAND-1: an entry ending in "/" is a local-only DIRECTORY (e.g. review screenshots): everything under it counts
+  const dirs = norm.filter((p) => p.endsWith('/'));
+  return tracked.filter((p) => set.has(p) || dirs.some((d) => p.startsWith(d)) || PATTERN.test(p));
 }
 
 function check(root) {
@@ -59,9 +62,17 @@ function selfTest() {
     fs.writeFileSync(path.join(dir, '.gitignore'), 'docs/reports/**/*_LOCAL*.md\ndocs/reports/sec/FAKE_AUDIT.md\n');
     const r2 = check(dir);
     const clean = r2.bad.length === 0 && r2.notIgnored.length === 0;
+    // BRAND-1: a listed directory (trailing "/") covers every file under it
+    fs.writeFileSync(path.join(dir, LIST), '# test\ndocs/reports/sec/FAKE_AUDIT.md\ndocs/reports/ux/shots/\n');
+    fs.mkdirSync(path.join(dir, 'docs/reports/ux/shots/sub'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'docs/reports/ux/shots/sub/a.png'), 'planted\n');
+    git(dir, ['add', '-f', 'docs/reports/ux/shots/sub/a.png']);
+    const r3 = check(dir);
+    const dirCaught = r3.bad.join(',') === 'docs/reports/ux/shots/sub/a.png';
     console.log(`  ${caught ? 'PASS' : 'FAIL'}  self-test: planted listed path + *_LOCAL* file staged → caught (${r1.bad.length}); not ignored → caught`);
     console.log(`  ${clean ? 'PASS' : 'FAIL'}  self-test: untracked + git-ignored → clean`);
-    return caught && clean;
+    console.log(`  ${dirCaught ? 'PASS' : 'FAIL'}  self-test: file under a listed local-only directory staged → caught`);
+    return caught && clean && dirCaught;
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -71,7 +82,7 @@ function main() {
 if (process.argv.includes('--self-test')) {
   console.log('no-local-only-tracked self-test');
   const ok = selfTest();
-  console.log(`\nno-local-only-tracked self-test: ${ok ? '2/2 passed' : 'FAILED'}`);
+  console.log(`\nno-local-only-tracked self-test: ${ok ? "3/3 passed" : "FAILED"}`);
   process.exit(ok ? 0 : 1);
 }
 
