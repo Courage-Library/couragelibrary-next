@@ -20,7 +20,8 @@ const isNextStart = /[\\/]next[\\/]dist[\\/]bin[\\/]next$/.test(process.argv[1] 
 if ((MODE === 'refuse' || MODE === 'hang') && isNextStart) {
   const net = require('net');
   const tls = require('tls');
-  const isSupabaseHost = (h) => /\.supabase\.(co|in)$/i.test(String(h || ''));
+  // CI-LEAN-1: also the reserved .invalid TLD (RFC 6761), the fake Supabase host of the CI server-checks job
+  const isSupabaseHost = (h) => /\.supabase\.(co|in)$|\.invalid$/i.test(String(h || ''));
   const hits = { fetch: 0, socket: 0 };
   const count = (layer) => {
     hits[layer]++;

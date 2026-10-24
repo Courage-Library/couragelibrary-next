@@ -26,8 +26,53 @@ const QA_DOMAIN = '@courage-library.test';
 class QaSessionError extends Error {
   constructor(code, status) {
     super(`QA_SESSION_${code}${status ? ` (status ${status})` : ''}`);
+    this.name = 'QaSessionError';
     this.code = `QA_SESSION_${code}`;
     this.status = status || null;
+  }
+}
+
+/**
+ * CI-LEAN-1 diagnostics: CI shows check IDs only (run-quiet), so when QA_SESSION_DIAG=1 (live CI step) a failed mint
+ * prints ONE safe line whose ID is the fixed error code + HTTP status, e.g. "FAIL  QS-VERIFYFAILED-403". Fixed
+ * vocabulary only — never an e-mail, token, link or message text.
+ */
+function diag(err) {
+  if (process.env.QA_SESSION_DIAG !== '1' || !(err instanceof QaSessionError)) return;
+  const id = `QS-${err.code.replace(/^QA_SESSION_/, '').replace(/_/g, '')}${err.status ? `-${Number(err.status)}` : ''}`;
+  console.log(`  FAIL  ${id} (qa-session mint failed)`);
+}
+
+/**
+ * CI-LEAN-1 session cache (live CI job only: QA_SESSION_CACHE_DIR = a job-scoped runner temp dir). One session per QA
+ * identity per job instead of one per gate (~30 mints → 3): fewer magic links, and no gate can overwrite another
+ * identity's pending link token. Files are 0600, named by sha256(e-mail), contain only the token pair + expiry, and are
+ * never printed. Reused only while > 15 min of validity remain (the app never needs to refresh within a job).
+ */
+function cachePath(email) {
+  const dir = process.env.QA_SESSION_CACHE_DIR;
+  if (!dir) return null;
+  return require('path').join(dir, `${require('crypto').createHash('sha256').update(email).digest('hex').slice(0, 32)}.json`);
+}
+function cacheRead(email) {
+  const p = cachePath(email);
+  if (!p) return null;
+  try {
+    const s = JSON.parse(require('fs').readFileSync(p, 'utf8'));
+    return s && s.access_token && s.refresh_token && Number(s.expires_at) * 1000 - Date.now() > 15 * 60 * 1000 ? s : null;
+  } catch {
+    return null;
+  }
+}
+function cacheWrite(email, s) {
+  const p = cachePath(email);
+  if (!p) return;
+  try {
+    const fs = require('fs');
+    fs.mkdirSync(require('path').dirname(p), { recursive: true, mode: 0o700 });
+    fs.writeFileSync(p, JSON.stringify(s), { mode: 0o600 });
+  } catch {
+    /* cache is an optimisation only */
   }
 }
 
@@ -70,6 +115,32 @@ const retry = async (fn, tries = 3) => {
 async function qaSession(email, deps = {}) {
   const e = assertQaEmail(email);
   const cfg = projectConfig(deps);
+  if (!deps.noCache) {
+    const cached = cacheRead(e);
+    if (cached) return cached;
+  }
+  try {
+    const s = await mintWith429Retry(e, cfg, deps);
+    if (!deps.noCache) cacheWrite(e, s);
+    return s;
+  } catch (err) {
+    diag(err);
+    throw err;
+  }
+}
+
+/** One bounded retry when the auth server rate-limits (HTTP 429); everything else fails at once. */
+async function mintWith429Retry(e, cfg, deps) {
+  try {
+    return await mint(e, cfg, deps);
+  } catch (err) {
+    if (!(err instanceof QaSessionError) || err.status !== 429) throw err;
+    await new Promise((r) => setTimeout(r, deps.retryDelayMs === undefined ? 30000 : deps.retryDelayMs));
+    return mint(e, cfg, deps);
+  }
+}
+
+async function mint(e, cfg, deps) {
   const { createClient } = deps.supabase || require('@supabase/supabase-js');
   const { findUserByEmail } = deps.findUser || require('../e2e/find-user.cjs');
   const admin = createClient(cfg.url, cfg.service, NO_SESSION);
@@ -157,7 +228,7 @@ if (require.main === module && process.argv.includes('--probe')) {
     console.log('QA session probe (decision #74)');
     const checks = [];
     try {
-      const c = await qaUserClient('qa-student@courage-library.test');
+      const c = await qaUserClient('qa-student@courage-library.test', { noCache: true }); // always a FRESH mint
       const { data, error } = await c.auth.getUser();
       checks.push(['Q-01 magic-link session for qa-student (generateLink → verifyOtp; /verify not captcha-gated)', !error && data && data.user ? '' : 'getUser failed']);
       await c.auth.signOut({ scope: 'local' }).catch(() => {});

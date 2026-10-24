@@ -6,7 +6,8 @@
 #     with the runner), log-scanned BEFORE anything is printed, and only "<ID> PASS|FAIL exit n — counts · failing [IDs]"
 #     reaches the log; security gates therefore print check IDs only
 #   - CI_QUIET=1: with-server.cjs never prints the server log tail
-# Trigger: push to main (code changes; docs-only skipped) + manual dispatch. No pull_request trigger, ever.
+# Trigger: push to main (code changes; docs-only skipped) + manual dispatch + nightly schedule (live gates: schedule / dispatch
+# only, decision #73). No pull_request trigger, ever.
 # All actions pinned by commit SHA.
 
 name: ci-gates
@@ -39,10 +40,16 @@ on:
       - 'supabase/**'
       - 'package*.json'
       - '.github/**'
+  # CI-LEAN-1 (decision #73): the live (DB) suite is NIGHTLY + manual only — ~02:30 IST (21:00 UTC). Push runs are
+  # offline + server-checks + prod-smoke.
+  schedule:
+    - cron: '0 21 * * *'
 
 permissions:
   contents: read
 
+# One run at a time. GitHub keeps at most ONE pending run per group: a newer run replaces an older PENDING one, and an
+# in-progress run (e.g. a live job) is never cancelled (cancel-in-progress: false).
 concurrency:
   group: couragelibrary-next-db
   cancel-in-progress: false
@@ -60,10 +67,10 @@ jobs:
     # CI-FIX-1: every job has a hard limit so a run can never hang for hours (green: offline ~1 min)
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
         with:
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0 (node24)
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -113,24 +120,25 @@ jobs:
   # ------------------------------------------------------------------ (a2) server checks — no secrets, no DB (decision #69)
   # The owner's machine cannot hold the 2 GB free-memory floor for a local `next start`, so the server-based checks
   # that need NO database run here: one build, then the local production server under the Supabase blackhole preload
-  # (every *.supabase.co / *.supabase.in connection refused or hung inside the server; nothing leaves the runner).
+  # (every *.supabase.co / *.supabase.in / *.invalid connection refused or hung inside the server; nothing leaves the runner).
   # The Supabase URL / key below are FAKE placeholders, not secrets. No environment, no secrets, no artifacts.
   server-checks:
     needs: offline
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
-      NEXT_PUBLIC_SUPABASE_URL: https://ciblackhole.supabase.in
+      # CI-LEAN-1: reserved .invalid TLD (RFC 6761) — can never resolve to a real host, even without the blackhole
+      NEXT_PUBLIC_SUPABASE_URL: https://ciblackhole.invalid
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-fake-anon-key
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-fake-anon-key
       # Cloudflare's PUBLIC always-pass TEST site key, and a test Google client id (no Google request is made)
       CI_TURNSTILE_TEST_SITE_KEY: 1x00000000000000000000AA
       CI_GOOGLE_TEST_CLIENT_ID: ci-test-client.apps.googleusercontent.com
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
         with:
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0 (node24)
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -173,8 +181,8 @@ jobs:
   # ------------------------------------------------------------------ (b) live gates — environment ci-live (main only)
   live:
     needs: offline
-    # on push the dispatch inputs are empty: live gates always run on push (#65 CI-first loop)
-    if: github.event_name == 'push' || inputs.live
+    # CI-LEAN-1 (decision #73): nightly schedule or a manual dispatch with live=true — never on push
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.live)
     runs-on: ubuntu-24.04
     # CI-FIX-1: hard limit (green runs ~30 min); the always-run cleanup steps still execute after a timeout
     timeout-minutes: 45
@@ -192,10 +200,10 @@ jobs:
       E2E_STUDENT_PASSWORD_KEY: QA_STUDENT_PASSWORD
       E2E_KEEP_USER: '1'
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
         with:
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0 (node24)
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -220,6 +228,10 @@ jobs:
           node scripts/ci/run-quiet.cjs --id NET-PROBE -- node scripts/diag/net-probe.cjs --n=3
           node scripts/ci/run-quiet.cjs --id DB-SESSIONS-PRE -- node scripts/ci/db-sessions.cjs --fail-on-own-open
       - name: Live gates (one server, documented GATE ORDER; #56 smokes 3x; summary lines only)
+        env:
+          # CI-LEAN-1: one QA session per identity per job (0600 files, runner temp, never printed) + safe failure IDs
+          QA_SESSION_CACHE_DIR: ${{ runner.temp }}/qa-session
+          QA_SESSION_DIAG: '1'
         run: |
           Q='node scripts/ci/run-quiet.cjs --id'
           B='http://localhost:3100'
@@ -260,6 +272,9 @@ jobs:
             "$Q ANON-SMOKE-LOCAL -- node scripts/smoke/anonymous-smoke.cjs $B"
       - name: Cleanup — QA data back to the kept smoke fixture (always)
         if: always()
+        env:
+          QA_SESSION_CACHE_DIR: ${{ runner.temp }}/qa-session
+          QA_SESSION_DIAG: '1'
         run: |
           node scripts/ci/run-quiet.cjs --id CLEANUP-FINAL -- node scripts/e2e/cleanup-student.cjs || true
           # CI-FIX-1: a cancelled / timed-out live step can leave its server on :3100 (run #13) — stop ONLY ours first
@@ -276,7 +291,8 @@ jobs:
   # ------------------------------------------------------------------ (c) anonymous production smoke — environment ci-public
   prod-smoke:
     needs: offline
-    if: github.event_name == 'push' || inputs.prod_smoke
+    # CI-LEAN-1: after a push (a new deployment) or on a manual dispatch with prod_smoke=true; not on the nightly schedule
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.prod_smoke)
     runs-on: ubuntu-24.04
     # CI-FIX-1: hard limit; the Vercel deploy wait inside is ≤ 16 min (WAIT-FOR-DEPLOY --timeout 960)
     timeout-minutes: 20
@@ -286,10 +302,10 @@ jobs:
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
         with:
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0 (node24)
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm

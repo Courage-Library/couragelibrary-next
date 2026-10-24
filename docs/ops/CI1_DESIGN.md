@@ -8,6 +8,21 @@ Why: during SECDEF-S2-1 alone, the live gates needed up to 3 attempts each on th
 
 ## 1. Triggers and trust boundary
 
+> **Current (CI-LEAN-1, decisions #73 / #74 / #75, 2026-10-25):** this section is the original Stage 1 design. The current workflow (`.github/workflows/ci-gates.yml`) is:
+>
+> | Trigger | Jobs |
+> |---|---|
+> | push to `main` (docs-only skipped) | offline + server-checks + prod-smoke |
+> | nightly schedule (~02:30 IST, cron `0 21 * * *` UTC) | offline + server-checks + **live** |
+> | `workflow_dispatch` | live / prod-smoke as chosen |
+>
+> - **Job time limits:** offline 15, server-checks 20, live 45, prod-smoke 20 minutes (CI-support C-15).
+> - **Concurrency:** one run at a time; a newer run replaces an older pending one; an in-progress live job is never cancelled.
+> - **Sign-in:** Supabase CAPTCHA is ON, so the live suite signs the QA identities in through `scripts/live/qa-session.cjs` (magic-link token minted server-side). It never uses a password (CI-support C-16; `docs/testing/LIVE_GATES.md`).
+> - **Server-checks:** uses a fake Supabase host on the reserved `.invalid` TLD.
+> - **Actions:** `actions/checkout` v7.0.1 and `actions/setup-node` v7.1.0 (Node 24 runtime), pinned by full commit SHA.
+
+
 - **`push` to `main`** and **`workflow_dispatch`** (manual; an input lets the owner skip the live job).
 - **No `pull_request` / `pull_request_target` trigger at all.** Code from forks or branches never runs with secrets, and only code already on `main` reaches the protected environment.
 - `permissions: contents: read` at workflow level. No write token; `persist-credentials: false` on checkout.

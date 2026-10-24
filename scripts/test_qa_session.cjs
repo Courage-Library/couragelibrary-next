@@ -235,6 +235,77 @@ const spyOff = () => Object.assign(console, { error: orig.error, warn: orig.warn
     return '3 QA identities, magic link only';
   });
 
+  await test('Q-10 (CI-LEAN-1) job session cache: one mint per identity, 0600 file, not reused near expiry, bypassed by noCache', async () => {
+    const os = require('os');
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qa-cache-'));
+    const prev = process.env.QA_SESSION_CACHE_DIR;
+    process.env.QA_SESSION_CACHE_DIR = dir;
+    try {
+      const A = makeDeps();
+      const now = Math.floor(Date.now() / 1000);
+      // fresh tokens valid for an hour
+      A.deps.supabase = { createClient: (...args) => { const c = makeDeps().deps.supabase.createClient(...args); const v = c.auth.verifyOtp; c.auth.verifyOtp = async (x) => { A.calls.verifyOtp.push(x); const r = await v(x); r.data.session.expires_at = now + 3600; return r; }; return c; } };
+      await H.qaSession(EMAIL, A.deps);
+      await H.qaSession(EMAIL, A.deps);
+      assert(A.calls.verifyOtp.length === 1, `minted ${A.calls.verifyOtp.length}× (want 1, then cache)`);
+      const files = fs.readdirSync(dir);
+      assert(files.length === 1 && !files[0].includes('qa-student'), 'cache file name must not contain the e-mail');
+      if (process.platform !== 'win32') assert((fs.statSync(path.join(dir, files[0])).mode & 0o777) === 0o600, 'cache file not 0600');
+      await H.qaSession(EMAIL, { ...A.deps, noCache: true });
+      assert(A.calls.verifyOtp.length === 2, 'noCache did not mint fresh');
+      // near expiry (< 15 min) → not reused
+      fs.writeFileSync(path.join(dir, files[0]), JSON.stringify({ access_token: 'x', refresh_token: 'y', expires_at: now + 600 }));
+      await H.qaSession(EMAIL, A.deps);
+      assert(A.calls.verifyOtp.length === 3, 'a nearly expired cached session was reused');
+    } finally {
+      if (prev === undefined) delete process.env.QA_SESSION_CACHE_DIR;
+      else process.env.QA_SESSION_CACHE_DIR = prev;
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+    return '1 mint / identity; 0600; expiry + noCache honoured';
+  });
+
+  await test('Q-11 (CI-LEAN-1) HTTP 429 → exactly one bounded retry; other errors are not retried', async () => {
+    const { calls, deps } = makeDeps();
+    let n = 0;
+    const base = deps.supabase.createClient;
+    deps.supabase = { createClient: (...args) => { const c = base(...args); const g = c.auth.admin.generateLink; c.auth.admin.generateLink = async (x) => (++n === 1 ? { data: null, error: { status: 429, message: 'rate limited' } } : g(x)); return c; } };
+    deps.retryDelayMs = 0;
+    const s = await H.qaSession(EMAIL, deps);
+    assert(s.access_token === SECRETS.access && n === 2, `generateLink ${n}×`);
+    const B = makeDeps({ verify: 'captcha' });
+    B.deps.retryDelayMs = 0;
+    let err = null;
+    try {
+      await H.qaSession(EMAIL, B.deps);
+    } catch (e) {
+      err = e;
+    }
+    assert(err && err.code === 'QA_SESSION_VERIFY_CAPTCHA_GATED' && B.calls.generateLink.length === 1, 'a non-429 error was retried');
+    return `429 → retried once (${calls.generateLink.length + n} link calls)`;
+  });
+
+  await test('Q-12 (CI-LEAN-1) diagnostics: only with QA_SESSION_DIAG=1, one line, fixed code + status, nothing secret', async () => {
+    const out = [];
+    const prevLog = console.log;
+    const prev = process.env.QA_SESSION_DIAG;
+    try {
+      console.log = (...a) => out.push(a.join(' '));
+      delete process.env.QA_SESSION_DIAG;
+      await H.qaSession(EMAIL, makeDeps({ verify: 'captcha' }).deps).catch(() => {});
+      assert(out.length === 0, 'printed without QA_SESSION_DIAG=1');
+      process.env.QA_SESSION_DIAG = '1';
+      await H.qaSession(EMAIL, makeDeps({ verify: 'captcha' }).deps).catch(() => {});
+    } finally {
+      console.log = prevLog;
+      if (prev === undefined) delete process.env.QA_SESSION_DIAG;
+      else process.env.QA_SESSION_DIAG = prev;
+    }
+    assert(out.length === 1 && /^ {2}FAIL {2}QS-VERIFYCAPTCHAGATED-400 \(qa-session mint failed\)$/.test(out[0]), JSON.stringify(out));
+    assert(![...Object.values(SECRETS), EMAIL].some((v) => out[0].includes(v)), 'secret in the diagnostic line');
+    return out[0].trim();
+  });
+
   console.log(`\nQA session helper: ${passed}/${passed + failed} passed`);
   process.exit(failed ? 1 : 0);
 })();

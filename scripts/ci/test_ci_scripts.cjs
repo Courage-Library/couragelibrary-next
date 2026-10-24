@@ -130,7 +130,10 @@ test('C-10 workflow is public-safe: no artifact upload, no tee, CI_QUIET=1, ever
   const lastNeg = Math.max(pats.indexOf('!docs/**'), pats.indexOf('!**/*.md'));
   const must = ['scripts/**', 'app/**', 'lib/**', 'services/**', 'components/**', 'supabase/**', 'package*.json', '.github/**'];
   assert(pats[0] === '**' && lastNeg > 0 && must.every((p) => pats.indexOf(p) > lastNeg), `paths filter: ${pats.join(' ')}`);
-  assert(/if: github\.event_name == 'push' \|\| inputs\.live/.test(code) && /if: github\.event_name == 'push' \|\| inputs\.prod_smoke/.test(code), 'live / prod-smoke must run on push');
+  // CI-LEAN-1 (decision #73): live = nightly schedule + manual dispatch only (never on push); prod-smoke after a push / dispatch
+  assert(/if: github\.event_name == 'schedule' \|\| \(github\.event_name == 'workflow_dispatch' && inputs\.live\)/.test(code), 'live must run on schedule / dispatch only');
+  assert(/if: github\.event_name == 'push' \|\| \(github\.event_name == 'workflow_dispatch' && inputs\.prod_smoke\)/.test(code), 'prod-smoke must run on push / dispatch');
+  assert(/^ {2}schedule:\n {4}- cron: '0 21 \* \* \*'/m.test(code), 'nightly schedule (~02:30 IST) missing');
   assert(/cancel-in-progress: false/.test(code), 'concurrency must not cancel in progress');
   return `${gateLines.length} gate lines wrapped; ${uses.length} actions pinned`;
 });

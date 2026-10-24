@@ -76,6 +76,16 @@ The owner's machine cannot keep the 2 GB free-memory floor that a local `next st
 
 **What still runs locally or in the `live` job:** live gates that need the database, run with the same runner.
 
+## When the live suite runs (CI-LEAN-1, decision #73)
+
+The CI `live` job runs **nightly**, around 02:30 IST, and on **manual dispatch**. It does not run on push; push runs only offline, server-checks and prod-smoke.
+
+**Locally:** live runs stay optional (#69 memory floor).
+
+**In the live job:**
+- **One session per identity per job:** `QA_SESSION_CACHE_DIR` is set, so the helper mints one session per QA identity for the whole job (0600 files in the runner temp dir, never printed).
+- **Failure IDs:** `QA_SESSION_DIAG=1` makes a failed mint print a fixed-vocabulary check ID such as `QS-VERIFYFAILED-403`, so CI's ID-only summary shows the cause.
+
 ## QA sign-in under Supabase CAPTCHA (CI-FIX-1, decision #74)
 
 Supabase Attack Protection (Turnstile CAPTCHA) is ON and stays ON. Live tests never solve, bypass or fake the captcha, and they never sign the QA identities in with a password.
