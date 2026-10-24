@@ -17,6 +17,11 @@ import { getSignupAvailability } from "@/lib/auth/signup-availability";
  * Reads the session once; no database queries. <main> is at least one viewport tall so the footer starts
  * below the fold and never jumps while page content streams in (CLS).
  */
+/** Never rejects; streamed to the header so no page waits on the Supabase setting (UX-FIX-1, AUTH1-RESILIENCE-HANG). */
+function signupOpen(): Promise<boolean> {
+  return getSignupAvailability().then((a) => a !== "closed", () => false);
+}
+
 export async function AppShell({ children }: { children: ReactNode }) {
   // AUTH-1 2a: tri-state session. "error" (Supabase unreachable) shows a retry banner instead of a signed-out shell.
   const supabase = await createServerSupabaseClient();
@@ -45,7 +50,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
         Skip to content
       </a>
       {/* UX-FIX-1: start actions point to /auth/signup only while public sign-up is open */}
-      <HeaderBar account={account} flags={flags} signupOpen={account === null && (await getSignupAvailability()) !== "closed"} />
+      <HeaderBar account={account} flags={flags} signup={account === null ? signupOpen() : undefined} />
       {session.state === "error" && <SessionUnavailableBanner />}
       <main id="main-content" tabIndex={-1} className="min-h-dvh flex-1 outline-none">
         {children}

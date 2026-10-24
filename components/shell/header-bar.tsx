@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, use, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
@@ -62,6 +62,20 @@ function MobileSection({ title, items, pathname, onNavigate }: { title: string; 
   );
 }
 
+/** The sign-up-dependent start action: the closed view until the setting is known (and whenever it cannot be read). */
+function StartAction({ signup, open, closed }: { signup?: Promise<boolean>; open: ReactNode; closed: ReactNode }) {
+  if (!signup) return closed;
+  return (
+    <Suspense fallback={closed}>
+      <ResolvedStartAction signup={signup} open={open} closed={closed} />
+    </Suspense>
+  );
+}
+
+function ResolvedStartAction({ signup, open, closed }: { signup: Promise<boolean>; open: ReactNode; closed: ReactNode }) {
+  return use(signup) ? open : closed;
+}
+
 /**
  * Site header for every non-admin route. Signed out: public nav + Sign in / Get started. Signed in: student nav
  * + account menu (desktop); on phones the student uses the bottom nav and this header keeps a menu button
@@ -71,11 +85,13 @@ function MobileSection({ title, items, pathname, onNavigate }: { title: string; 
  * BRAND-2 (#72): the PUBLIC header (signed out, and the landing page) is the floating glass pill (GlassNav) with the
  * text wordmark and 48 px pill actions; the signed-in student header — also shown above the exam player — stays a
  * solid bar (no glass in the exam engine).
- * UX-FIX-1: "Sign in" is always visible in the bar (phones too). While public sign-up is CLOSED (signupOpen false) no
- * action points to /auth/signup — the start action is "Explore SSC CGL"; when it is open the one label is "Start free"
- * in amber (the start-action colour).
+ * UX-FIX-1: "Sign in" is always visible in the bar (phones too). While public sign-up is CLOSED no action points to
+ * /auth/signup — the start action is "Explore SSC CGL"; when it is open the one label is "Start free" in amber (the
+ * start-action colour). `signup` is a promise streamed from AppShell: the start action resolves it in its own Suspense
+ * boundary whose fallback is the closed view, so the shell never waits on the sign-up setting (Supabase outage → the
+ * page still renders at once; AUTH1-RESILIENCE-HANG).
  */
-export function HeaderBar({ account, flags, signupOpen = false }: { account: ShellAccount | null; flags: ShellFlags; signupOpen?: boolean }) {
+export function HeaderBar({ account, flags, signup }: { account: ShellAccount | null; flags: ShellFlags; signup?: Promise<boolean> }) {
   const pathname = usePathname() ?? "/";
   const [menuOpen, setMenuOpen] = useState(false);
   useEffect(() => setMenuOpen(false), [pathname]);
@@ -128,15 +144,19 @@ export function HeaderBar({ account, flags, signupOpen = false }: { account: She
               <ButtonLink href="/auth/login" variant="ghost" size="md" className="min-h-12 rounded-full px-3">
                 {SHELL_COPY.signIn}
               </ButtonLink>
-              {signupOpen ? (
-                <PillLink href="/auth/signup" variant="accent-on-light" className="hidden px-5 sm:inline-flex">
-                  {SHELL_COPY.startFree}
-                </PillLink>
-              ) : (
-                <PillLink href={LANDING_HERO.secondaryCta.href} className="hidden px-5 sm:inline-flex">
-                  {LANDING_HERO.secondaryCta.label}
-                </PillLink>
-              )}
+              <StartAction
+                signup={signup}
+                open={
+                  <PillLink href="/auth/signup" variant="accent-on-light" className="hidden px-5 sm:inline-flex">
+                    {SHELL_COPY.startFree}
+                  </PillLink>
+                }
+                closed={
+                  <PillLink href={LANDING_HERO.secondaryCta.href} className="hidden px-5 sm:inline-flex">
+                    {LANDING_HERO.secondaryCta.label}
+                  </PillLink>
+                }
+              />
             </>
           )}
           <Button
@@ -162,15 +182,19 @@ export function HeaderBar({ account, flags, signupOpen = false }: { account: She
           <MobileSection title="Learn" items={learn} pathname={pathname} onNavigate={() => setMenuOpen(false)} />
           {!account && (
             <div className="flex flex-col gap-2 border-t border-line pt-4">
-              {signupOpen ? (
-                <PillLink href="/auth/signup" variant="accent-on-light" fullWidth onClick={() => setMenuOpen(false)}>
-                  {SHELL_COPY.startFree}
-                </PillLink>
-              ) : (
-                <ButtonLink href={LANDING_HERO.secondaryCta.href} fullWidth onClick={() => setMenuOpen(false)}>
-                  {LANDING_HERO.secondaryCta.label}
-                </ButtonLink>
-              )}
+              <StartAction
+                signup={signup}
+                open={
+                  <PillLink href="/auth/signup" variant="accent-on-light" fullWidth onClick={() => setMenuOpen(false)}>
+                    {SHELL_COPY.startFree}
+                  </PillLink>
+                }
+                closed={
+                  <ButtonLink href={LANDING_HERO.secondaryCta.href} fullWidth onClick={() => setMenuOpen(false)}>
+                    {LANDING_HERO.secondaryCta.label}
+                  </ButtonLink>
+                }
+              />
               <ButtonLink href="/auth/login" variant="secondary" fullWidth onClick={() => setMenuOpen(false)}>
                 {SHELL_COPY.signIn}
               </ButtonLink>
