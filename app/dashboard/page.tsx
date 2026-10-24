@@ -6,6 +6,7 @@ import { DashboardService } from "@/services/dashboard.service";
 import { Container } from "@/components/ui/legacy/container";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/legacy/card";
 import { Badge } from "@/components/ui/legacy/badge";
+import { GlassChip } from "@/components/ui/glass";
 import { Button } from "@/components/ui/legacy/button";
 import { getServerSession } from "@/lib/auth/session";
 import { SessionUnavailable } from "@/components/auth/session-unavailable";
@@ -44,33 +45,32 @@ export default async function DashboardPage() {
     <div className="py-8 bg-slate-50/50 min-h-[calc(100vh-4rem)]">
       <Container className="space-y-8">
         {/* Welcome Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-900 rounded-3xl p-6 sm:p-8 text-white shadow-md">
+        {/* BRAND-2 (#72): hero gradient header; its chips are the only glass on the dashboard */}
+        <div className="hero-gradient flex flex-col md:flex-row md:items-center md:justify-between gap-4 rounded-hero p-6 sm:p-8">
           <div className="space-y-2">
-            <Badge variant="indigo" className="bg-white/20 text-white border-white/20 backdrop-blur-xs">
-              Candidate Hub
-            </Badge>
+            <GlassChip>Candidate Hub</GlassChip>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
               Welcome back, {data.user.fullName}!
             </h1>
-            <p className="text-blue-100 text-sm max-w-xl">
+            <p className="text-hero-fg-muted text-sm max-w-xl">
               Consistent daily practice builds rank. Complete today&apos;s recommendations to maintain your streak!
             </p>
           </div>
-          <div className="flex items-center gap-4 bg-white/10 p-4 rounded-2xl backdrop-blur-xs border border-white/10">
+          <div className="glass-dark flex items-center gap-4 p-4 rounded-sheet">
             <div className="text-center px-3">
-              <div className="flex items-center justify-center gap-1 text-amber-300 font-black text-xl">
-                <Flame className="w-5 h-5 fill-amber-300" />
+              <div className="flex items-center justify-center gap-1 text-hero-accent-text font-black text-xl">
+                <Flame className="w-5 h-5 fill-current" />
                 {data.streak?.current_streak || 0}
               </div>
-              <span className="text-[11px] text-blue-200 font-medium">Day Streak</span>
+              <span className="text-caption text-hero-fg-muted font-medium">Day Streak</span>
             </div>
-            <div className="w-px h-8 bg-white/20" />
+            <div className="w-px h-8 bg-hero-fg-muted/30" />
             <div className="text-center px-3">
-              <div className="flex items-center justify-center gap-1 text-amber-300 font-black text-xl">
-                <Coins className="w-5 h-5 fill-amber-300" />
+              <div className="flex items-center justify-center gap-1 text-hero-accent-text font-black text-xl">
+                <Coins className="w-5 h-5 fill-current" />
                 {data.wallet?.current_balance || 0}
               </div>
-              <span className="text-[11px] text-blue-200 font-medium">Coins</span>
+              <span className="text-caption text-hero-fg-muted font-medium">Coins</span>
             </div>
           </div>
         </div>

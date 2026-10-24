@@ -82,6 +82,7 @@ jobs:
           q NO-RUNTIME-DB node scripts/test_no_runtime_db.cjs || fail=1
           q DESIGN-RATCHET node scripts/test_design_ratchet.cjs || fail=1
           q BRAND1 node scripts/test_brand1.cjs || fail=1
+          q BRAND2 node scripts/test_brand2.cjs || fail=1
           q UX1B-SHELL node scripts/test_ux1b_shell.cjs || fail=1
           q QF1-OFFLINE node scripts/test_qf1_question_factory.cjs || fail=1
           q SEC1B node scripts/test_sec1b_admin_authz.cjs || fail=1
@@ -148,7 +149,8 @@ jobs:
           # 1) flags OFF (Supabase refused): no Turnstile, no Google markup or nonce
           AUTH1_BLACKHOLE=refuse $WS --log="$RUNNER_TEMP/server/off.log" -- \
             "$Q AUTH1-2B2-PROBE-OFF -- node scripts/test_auth1_2b2.cjs --probe" \
-            "$Q AUTH1-2B1-PROBE-OFF -- node scripts/test_auth1_2b1.cjs --probe" || fail=1
+            "$Q AUTH1-2B1-PROBE-OFF -- node scripts/test_auth1_2b1.cjs --probe" \
+            "$Q BRAND2-PROBE -- node scripts/test_brand2.cjs --probe" || fail=1
           # 2) flags ON with test keys (Supabase refused): widget on the 3 pages; nonce mint / reuse / GET-only
           AUTH1_BLACKHOLE=refuse AUTH_CAPTCHA_ENABLED=true NEXT_PUBLIC_TURNSTILE_SITE_KEY="$CI_TURNSTILE_TEST_SITE_KEY" \
             AUTH_GOOGLE_ENABLED=true NEXT_PUBLIC_GOOGLE_CLIENT_ID="$CI_GOOGLE_TEST_CLIENT_ID" \

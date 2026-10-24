@@ -63,24 +63,27 @@ const ratio = (a, b) => {
 };
 const NEED = { text: 4.5, large: 3, nontext: 3 };
 
-console.log('BRAND-1 Navy + Saffron');
+console.log('BRAND-1 colour system (values: BRAND-2 Royal Blue + Amber, decision #71)');
 
 test('B-01 tokens carry the approved values; semantic roles point at them', () => {
+  // BRAND-2 (decision #71) values; the BRAND-1 architecture (single source, semantic roles) is unchanged
   const SPEC = {
-    brand: '#1e3a8a', // primary: headers, primary buttons
-    focus: '#1e3a8a', // focus ring
-    interactive: '#1d4ed8',
+    brand: '#2563eb', // primary-600: primary buttons
+    focus: '#2563eb', // focus ring
+    interactive: '#1d4ed8', // primary-700: links / text
     link: '#1d4ed8',
+    'primary-900': '#0b1b4d', // hero
     'accent-500': '#f59e0b',
-    'on-accent': '#0f172a',
+    'on-accent': '#111827',
     'accent-text': '#b45309',
-    'success-700': '#047857',
-    'danger-700': '#be123c',
-    fg: '#0f172a',
-    'fg-muted': '#475569',
+    'hero-accent-text': '#fcd34d',
+    'success-700': '#15803d',
+    'danger-700': '#b91c1c',
+    fg: '#111827',
+    'fg-muted': '#4b5563',
     canvas: '#f8fafc',
     surface: '#ffffff',
-    line: '#e2e8f0',
+    line: '#e5e7eb',
     'warning-700': '#b45309',
   };
   const bad = Object.entries(SPEC).filter(([t, v]) => (resolveColor(t) || '').toLowerCase() !== v).map(([t, v]) => `${t}: ${resolveColor(t)} (want ${v})`);
@@ -187,14 +190,15 @@ test('B-05 email templates: 2b-2 checks + brand layout, token colours only, cont
   const tokenHex = new Set(Object.keys(vars).filter((k) => k.startsWith('color-')).map((k) => resolveColor(k.slice(6))).filter(Boolean).map((h) => h.toLowerCase()));
   const files = fs.readdirSync(path.join(ROOT, 'docs/auth/email-templates')).filter((f) => f.endsWith('.html'));
   assert(files.length === 5, `templates ${files.length}`);
-  const navy = resolveColor('brand');
+  const navy = resolveColor('interactive'); // BRAND-2: email header + button = primary-700 #1D4ED8
   const out = [];
   for (const f of files) {
     const s = read(`docs/auth/email-templates/${f}`);
     const bad = [];
     if (!/max-width:600px/.test(s)) bad.push('600px max');
     if (!/font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto/.test(s)) bad.push('system font stack');
-    if (!new RegExp(`<td bgcolor="${navy}"[^>]*>Courage Library</td>`).test(s)) bad.push('navy header bar with the text logo');
+    // BRAND-2: the wordmark carries a small decorative amber dot before the text
+    if (!new RegExp(`<td bgcolor="${navy}"[^>]*>(?:<span style="[^"]*background-color:${resolveColor('accent-500')};[^"]*"></span>)?Courage Library</td>`).test(s)) bad.push('blue header bar with the text wordmark');
     const buttons = [...s.matchAll(/<td bgcolor="([^"]+)"[^>]*>\s*<a href="[^"]+" style="([^"]+)">([^<]+)<\/a>/g)];
     if (buttons.length !== 1) bad.push(`${buttons.length} buttons (want 1)`);
     else {

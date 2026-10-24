@@ -14,7 +14,8 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
   const { userEmail } = await requireAdminPage({ allowStaff: true, path: "/admin" });
 
   return (
-    <div className="h-[100dvh] max-h-[100dvh] w-full flex flex-col md:flex-row overflow-hidden bg-slate-900 text-slate-900 antialiased">
+    // BRAND-2 (#72): admin is a "never glass" zone (data-no-glass turns every backdrop blur off)
+    <div data-no-glass="" className="h-[100dvh] max-h-[100dvh] w-full flex flex-col md:flex-row overflow-hidden bg-slate-900 text-slate-900 antialiased">
       {/* Desktop Fixed Non-Scrolling Sidebar at Viewport Top */}
       <AdminSidebar
         userEmail={userEmail || "admin@couragelibrary.com"}

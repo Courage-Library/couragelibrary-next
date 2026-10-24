@@ -33,7 +33,7 @@ export function LoginForm({ google, captcha = null }: { google: LoginGoogleConfi
   const next = (searchParams.get("next") ?? "").slice(0, 1024);
 
   return (
-    <Card className="w-full max-w-md border-slate-200/80 shadow-lg">
+    <Card className="glass-light w-full max-w-md">
       <CardHeader className="space-y-1 text-center">
         <div className="flex justify-center mb-2">
           <BrandLogo variant="icon" size="lg" />

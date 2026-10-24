@@ -3,9 +3,9 @@
   "recordedAt": "2026-10-24",
   "totals": {
     "rawColor": 0,
-    "paletteClass": 4667,
+    "paletteClass": 4654,
     "darkClass": 0,
-    "smallText": 390,
+    "smallText": 388,
     "legacyImport": 207
   },
   "byArea": {
@@ -25,7 +25,7 @@
     },
     "app/auth": {
       "rawColor": 0,
-      "paletteClass": 28,
+      "paletteClass": 25,
       "darkClass": 0,
       "smallText": 0,
       "legacyImport": 16
@@ -81,9 +81,9 @@
     },
     "app/dashboard": {
       "rawColor": 0,
-      "paletteClass": 60,
+      "paletteClass": 50,
       "darkClass": 0,
-      "smallText": 8,
+      "smallText": 6,
       "legacyImport": 4
     },
     "app/descriptive": {

@@ -25,7 +25,7 @@ export default async function MistakeDrillPage({ searchParams }: DrillPageProps)
   const { subjects, cognitiveTypes } = await MistakeService.getAvailableFilterOptions();
 
   return (
-    <div className="py-8 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto min-h-[calc(100vh-4rem)]">
+    <div data-no-glass="" className="py-8 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto min-h-[calc(100vh-4rem)]">
       <MistakeDrillPageClient
         initialDrill={initialDrill}
         initialSubjectId={params.subjectId}

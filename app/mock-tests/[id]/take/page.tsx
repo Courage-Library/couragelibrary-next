@@ -8,6 +8,7 @@ import { MockTestPlayerClient } from "./player-client";
 import { getServerSession } from "@/lib/auth/session";
 import { SessionUnavailable } from "@/components/auth/session-unavailable";
 import { loginRedirectPath } from "@/lib/auth/safe-redirect";
+import { NoGlassZone } from "@/components/ui/no-glass-zone";
 
 export const revalidate = 0;
 
@@ -55,7 +56,11 @@ export default async function MockTestTakePage({ params }: Props) {
       redirect("/mock-tests");
     }
 
-    return <MockTestPlayerClient session={adaptiveSession} />;
+    return (
+      <NoGlassZone>
+        <MockTestPlayerClient session={adaptiveSession} />
+      </NoGlassZone>
+    );
   }
 
   // 2. Fixed Mock Engine flow (100% untouched)
@@ -122,5 +127,9 @@ export default async function MockTestTakePage({ params }: Props) {
     redirect("/mock-tests");
   }
 
-  return <MockTestPlayerClient session={session} />;
+  return (
+    <NoGlassZone>
+      <MockTestPlayerClient session={session} />
+    </NoGlassZone>
+  );
 }

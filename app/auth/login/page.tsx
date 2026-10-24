@@ -24,7 +24,7 @@ export default async function LoginPage() {
   const google = await googleConfig();
   const captcha = isCaptchaEnabled() ? { siteKey: turnstileSiteKey() as string } : null;
   return (
-    <div className="min-h-[80vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="auth-gradient min-h-[80vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <Suspense fallback={<div className="text-xs text-slate-400">Loading sign in...</div>}>
         <LoginForm google={google} captcha={captcha} />
       </Suspense>

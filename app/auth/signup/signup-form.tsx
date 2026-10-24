@@ -16,8 +16,8 @@ export function SignupForm({ captcha = null }: { captcha?: CaptchaConfig }) {
   const [state, formAction, isPending] = useActionState(signupAction, null);
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <Card className="w-full max-w-md border-slate-200/80 shadow-lg">
+    <div className="auth-gradient min-h-[80vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <Card className="glass-light w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-2">
             <BrandLogo variant="icon" size="lg" />

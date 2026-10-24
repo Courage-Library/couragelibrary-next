@@ -26,6 +26,32 @@
 
 ## 1. Colour
 
+> **Current: BRAND-2 (decisions #71 / #72, 2026-10-24): Royal Blue + Amber + "modern glass".** This replaces the BRAND-1 values below; the BRAND-1 architecture (single token source, semantic roles, palette aliases, gates) is unchanged.
+>
+> - **Tokens:**
+>   - `primary-600` #2563EB (brand, primary buttons, focus);
+>   - `primary-700` #1D4ED8 (links / text);
+>   - `primary-900` #0B1B4D (hero);
+>   - accent #F59E0B as a fill with ink text; accent text #B45309;
+>   - hero accent text #FCD34D (hero only);
+>   - success #15803D; error #B91C1C (errors only);
+>   - ink #111827, muted #4B5563, page #F8FAFC, surface #FFF, border #E5E7EB.
+> - **Categorical (subjects / charts):** blue #2563EB, teal #0D9488, violet #7C3AED, amber #D97706, rose #E11D48, slate #475569 (`subject-*`, `lib/ui/subject-colors.ts`).
+> - **Legacy palette names:** violet / purple / fuchsia → violet; teal / cyan / green / lime → teal; rose / pink → rose; emerald → success; red → danger.
+> - **Semantic layer:** components use only semantic names (canvas, surface, fg, brand, link, hero-*), so a dark theme can later be added by redefining that layer. There is no dark mode now.
+> - **Type:**
+>   - Inter for body / UI, with Noto Sans Devanagari 400/600 for Hindi;
+>   - Poppins 600/700 for headings;
+>   - all via next/font, only Inter preloaded;
+>   - base 16px, line-height 1.6 (1.7 for `lang="hi"`).
+> - **Glass (#72):**
+>   - Components: `GlassNav`, `GlassCard`, `GlassChip`, `PillButton` / `PillLink` (primary / accent / ghost-on-dark), `GradientHero`.
+>   - Allowed only on the public nav, the home hero, the auth card and the dashboard header chips, with at most 3 glass groups per viewport.
+>   - Never in the exam engine, question review or admin (`[data-no-glass]`).
+>   - Solid by default. Blur only with `@supports`, without reduced transparency, and not `html.lite` (low-end device or Save-Data).
+>
+> Gates: `scripts/test_brand2.cjs` (+ `--probe` in CI), `scripts/test_brand1.cjs`, design ratchet R-4 / R-8 amendments.
+
 > **Superseded by BRAND-1 (decision #70, 2026-10-24): Navy + Saffron.** The violet / cyan choice below is kept as history only. The logo artwork is unchanged.
 >
 > - **Tokens:** `app/globals.css` is the only source; `config/brand.ts` is a gated mirror.

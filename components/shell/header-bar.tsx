@@ -4,11 +4,13 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
-import { BrandLogo } from "@/components/brand/logo";
+import { BrandWordmark } from "@/components/brand/wordmark";
 import { Avatar } from "@/components/ui/avatar";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { cn } from "@/components/ui/cn";
 import { Dialog } from "@/components/ui/dialog";
+import { GlassNav } from "@/components/ui/glass";
+import { PillLink } from "@/components/ui/pill-button";
 import { SHELL_COPY } from "@/content/landing";
 import { AccountLinks } from "./account-links";
 import { NavMenu, navLinkClasses } from "./nav-menu";
@@ -66,6 +68,9 @@ function MobileSection({ title, items, pathname, onNavigate }: { title: string; 
  * for everything else. UX-2a: the landing page ("/") always shows the public header; a signed-in visitor sees
  * "Go to dashboard" there instead of Sign in / Get started. The mobile menu is a native-dialog sheet (focus
  * trap, Esc closes). Content width 1200 px (decision #46).
+ * BRAND-2 (#72): the PUBLIC header (signed out, and the landing page) is the floating glass pill (GlassNav) with the
+ * text wordmark and 48 px pill actions; the signed-in student header — also shown above the exam player — stays a
+ * solid bar (no glass in the exam engine).
  */
 export function HeaderBar({ account, flags }: { account: ShellAccount | null; flags: ShellFlags }) {
   const pathname = usePathname() ?? "/";
@@ -79,10 +84,9 @@ export function HeaderBar({ account, flags }: { account: ShellAccount | null; fl
   const primary = student ? STUDENT_NAV : PUBLIC_NAV;
   const [before, after] = student ? [primary.slice(0, 3), primary.slice(3)] : [primary.slice(0, 2), primary.slice(2)];
 
-  return (
-    <header className="sticky top-0 z-30 border-b border-line bg-surface">
-      <div className="mx-auto flex h-16 w-full max-w-[1200px] items-center gap-4 px-4 md:px-6 lg:px-8">
-        <BrandLogo href={student ? "/dashboard" : "/"} size="md" />
+  const inner = (
+    <>
+        <BrandWordmark href={student ? "/dashboard" : "/"} size="md" />
 
         <nav aria-label="Main" className="ml-4 hidden flex-1 lg:block">
           <ul className="flex items-center gap-1">
@@ -113,24 +117,24 @@ export function HeaderBar({ account, flags }: { account: ShellAccount | null; fl
               </NavMenu>
             </div>
           ) : account ? (
-            <ButtonLink href="/dashboard" size="sm">
+            <PillLink href="/dashboard" className="px-5">
               {SHELL_COPY.goToDashboard}
-            </ButtonLink>
+            </PillLink>
           ) : (
             <>
-              <ButtonLink href="/auth/login" variant="ghost" size="sm" className="hidden sm:inline-flex">
+              <ButtonLink href="/auth/login" variant="ghost" size="md" className="hidden min-h-12 rounded-full sm:inline-flex">
                 {SHELL_COPY.signIn}
               </ButtonLink>
-              <ButtonLink href="/auth/signup" size="sm">
+              <PillLink href="/auth/signup" className="px-5">
                 {SHELL_COPY.getStarted}
-              </ButtonLink>
+              </PillLink>
             </>
           )}
           <Button
             variant="ghost"
             size="md"
             iconOnly
-            className="lg:hidden"
+            className="size-12 rounded-full lg:hidden"
             aria-label="Open menu"
             aria-haspopup="dialog"
             aria-expanded={menuOpen}
@@ -139,8 +143,10 @@ export function HeaderBar({ account, flags }: { account: ShellAccount | null; fl
             <Menu aria-hidden="true" className="size-6" />
           </Button>
         </div>
-      </div>
+    </>
+  );
 
+  const menu = (
       <Dialog open={menuOpen} onOpenChange={setMenuOpen} variant="sheet" title="Menu">
         <nav aria-label="Mobile" className="flex flex-col gap-4">
           <MobileSection title={student ? "Study" : "Explore"} items={primary} pathname={pathname} onNavigate={() => setMenuOpen(false)} />
@@ -164,6 +170,13 @@ export function HeaderBar({ account, flags }: { account: ShellAccount | null; fl
           )}
         </nav>
       </Dialog>
+  );
+
+  if (!student) return <GlassNav after={menu}>{inner}</GlassNav>;
+  return (
+    <header className="sticky top-0 z-30 border-b border-line bg-surface">
+      <div className="mx-auto flex h-16 w-full max-w-[1200px] items-center gap-4 px-4 md:px-6 lg:px-8">{inner}</div>
+      {menu}
     </header>
   );
 }

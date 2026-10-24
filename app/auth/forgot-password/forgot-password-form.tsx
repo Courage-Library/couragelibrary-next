@@ -15,8 +15,8 @@ export function ForgotPasswordForm({ captcha = null }: { captcha?: CaptchaConfig
   const [state, formAction, isPending] = useActionState(forgotPasswordAction, null);
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <Card className="w-full max-w-md border-slate-200/80 shadow-lg">
+    <div className="auth-gradient min-h-[80vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <Card className="glass-light w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
           <CardTitle className="text-2xl font-extrabold text-slate-900 tracking-tight">
             Reset Password

@@ -20,8 +20,8 @@ export default async function SignupPage() {
   }
 
   return (
-    <div className="flex min-h-[80vh] items-center justify-center px-4 py-12">
-      <Card className="w-full max-w-md text-center" data-signup-closed="">
+    <div className="auth-gradient flex min-h-[80vh] items-center justify-center px-4 py-12">
+      <Card className="glass-light w-full max-w-md text-center" data-signup-closed="">
         <CardHeader className="items-center">
           <BrandLogo variant="icon" size="lg" />
           <h1 className="text-h2 font-bold text-fg">Registrations open soon</h1>

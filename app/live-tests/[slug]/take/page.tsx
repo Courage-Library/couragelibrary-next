@@ -6,6 +6,7 @@ import { LiveTestPlayerClient } from "@/components/live-test/live-test-player-cl
 import { getServerSession } from "@/lib/auth/session";
 import { SessionUnavailable } from "@/components/auth/session-unavailable";
 import { loginRedirectPath } from "@/lib/auth/safe-redirect";
+import { NoGlassZone } from "@/components/ui/no-glass-zone";
 
 export const revalidate = 0;
 
@@ -35,5 +36,9 @@ export default async function LiveTestTakePage({ params }: Props) {
     redirect(`/live-tests/${slug}`);
   }
 
-  return <LiveTestPlayerClient session={result.session} />;
+  return (
+    <NoGlassZone>
+      <LiveTestPlayerClient session={result.session} />
+    </NoGlassZone>
+  );
 }

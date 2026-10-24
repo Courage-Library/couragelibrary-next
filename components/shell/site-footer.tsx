@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BrandLogo } from "@/components/brand/logo";
+import { BrandWordmark } from "@/components/brand/wordmark";
 import { siteConfig } from "@/config/site";
 import { LANDING_BRAND_LINE, SHELL_COPY } from "@/content/landing";
 import { FOOTER_LEGAL, FOOTER_NAV } from "./nav-config";
@@ -22,7 +22,7 @@ export function SiteFooter() {
     <footer className="border-t border-line bg-surface">
       <div className="mx-auto grid w-full max-w-[1200px] gap-8 px-4 py-12 md:grid-cols-3 md:px-6 lg:grid-cols-6 lg:px-8">
         <div className="flex flex-col gap-3 md:col-span-3 lg:col-span-1">
-          <BrandLogo size="sm" />
+          <BrandWordmark size="sm" />
           <p className="max-w-xs text-body-sm text-fg-secondary">{LANDING_BRAND_LINE}</p>
         </div>
         {FOOTER_NAV.map((group) => (

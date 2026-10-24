@@ -6,6 +6,7 @@ import { Container } from "@/components/ui/legacy/container";
 import { Card } from "@/components/ui/legacy/card";
 import { Button } from "@/components/ui/legacy/button";
 import { AlertCircle, ArrowLeft, Clock } from "lucide-react";
+import { NoGlassZone } from "@/components/ui/no-glass-zone";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -83,5 +84,9 @@ export default async function MockTestResultPage({ params }: Props) {
     );
   }
 
-  return <ResultViewClient data={data} />;
+  return (
+    <NoGlassZone>
+      <ResultViewClient data={data} />
+    </NoGlassZone>
+  );
 }

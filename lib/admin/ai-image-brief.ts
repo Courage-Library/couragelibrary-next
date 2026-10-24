@@ -23,9 +23,9 @@ export const COURAGE_LIBRARY_CANONICAL_SPEC: CourageLibraryImageSpec = {
   heroCanvasOccupancy: "65%–75% subject coverage",
   marginStandard: "10%–12% safe breathing margins, complete subject naturally inside 4:3 canvas, zero cropping",
   primaryPalette: [
-    // BRAND-1 (#70): Navy + Saffron, values mirrored from the design tokens (config/brand.ts)
-    `Brand Navy (${BRAND_PALETTE["primary-600"]}) with Interactive Blue (${BRAND_PALETTE["primary-500"]})`,
-    `Saffron accent, used sparingly (${BRAND_PALETTE["accent-500"]} / ${BRAND_PALETTE["accent-700"]})`,
+    // BRAND-2 (#71): Royal Blue + Amber, values mirrored from the design tokens (config/brand.ts)
+    `Royal Blue (${BRAND_PALETTE["primary-600"]} / ${BRAND_PALETTE["primary-700"]}) with Deep Blue (${BRAND_PALETTE["primary-900"]})`,
+    `Amber accent, used sparingly (${BRAND_PALETTE["accent-500"]} / ${BRAND_PALETTE["accent-700"]})`,
     "Clean White",
     `Neutral Ink / Slate (${BRAND_PALETTE["ink-900"]} / ${BRAND_PALETTE["ink-600"]}) on a light slate ground (${BRAND_PALETTE["ink-50"]})`,
   ],

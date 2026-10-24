@@ -161,8 +161,8 @@ const UX2B_ROUTES = ['/legal'];
     assert(C.LANDING_HERO.secondaryCta.href === '/exams/ssc-cgl' && C.LANDING_HERO.secondaryCta.label === 'Explore SSC CGL', 'Explore SSC CGL');
     assert(C.LANDING_HERO.title === 'Learn Smarter. Prepare Independently.' && C.LANDING_BRAND_LINE === C.LANDING_HERO.title, 'brand line');
     const header = read(HEADER);
-    assert(/href="\/auth\/login"[^>]*>\s*\{SHELL_COPY\.signIn\}/.test(header) && /href="\/auth\/signup" size="sm">\s*\{SHELL_COPY\.getStarted\}/.test(header), 'Sign in / Get started');
-    assert(/href="\/dashboard" size="sm">\s*\{SHELL_COPY\.goToDashboard\}/.test(header) && /const onLanding = pathname === "\/";/.test(header), 'Go to dashboard on "/"');
+    assert(/href="\/auth\/login"[^>]*>\s*\{SHELL_COPY\.signIn\}/.test(header) && /href="\/auth\/signup"[^>]*>\s*\{SHELL_COPY\.getStarted\}/.test(header), 'Sign in / Get started'); // BRAND-2: 48 px pill, any size prop
+    assert(/href="\/dashboard"[^>]*>\s*\{SHELL_COPY\.goToDashboard\}/.test(header) && /const onLanding = pathname === "\/";/.test(header), 'Go to dashboard on "/"');
     const page = stripComments(read(PAGE));
     const cta = stripComments(read(CTA));
     assert(!/redirect\(|notFound\(|requireAuth|getUser\(\)/.test(page + cta), '"/" must not redirect or gate (display-only session check)');

@@ -1,35 +1,36 @@
 @import "tailwindcss";
 
 /*
- * UX-1a design tokens (docs/ux/DESIGN_SYSTEM.md; report docs/reports/ux/UX1A_REPORT.md).
+ * Design tokens: UX-1a structure (docs/ux/DESIGN_SYSTEM.md), BRAND-1 single-source architecture, BRAND-2 values.
  *
- * - This file is the ONLY place raw colour values may appear (design ratchet, scripts/test_design_ratchet.cjs).
- * - Token names never collide with Tailwind defaults or with classes already used by legacy pages
- *   (no bare --color-primary / --color-card, no override of rounded-sm..xl or shadow-sm..xl),
- *   so legacy pages keep their look until UX-1b migrates them.
- * - Light only (owner decision): the dark variant is made inert below; nothing ever sets data-theme="dark".
+ * - This file is the ONLY place raw colour values may appear (design ratchet R-5/R-7/R-8, scripts/test_brand1.cjs,
+ *   scripts/test_brand2.cjs). config/brand.ts is a gated mirror for places CSS cannot reach.
+ * - Components use SEMANTIC names only (canvas, surface, fg, brand, link, hero-*, glass-*): a future dark theme
+ *   redefines the semantic layer under one selector; no dark theme exists yet (light only, owner decision).
+ * - Token names never collide with Tailwind defaults (no bare --color-primary / --color-card, no rounded-sm..xl or
+ *   shadow-sm..xl override).
  */
 
 /* Dark mode disabled at the source: dark-variant classes only match under [data-theme=dark], which is never set. */
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
 @theme static {
-  /* BRAND-1 (decision #70, supersedes the colour part of #55): Navy + Saffron. 60% neutral / 30% primary / 10% accent.
-     Primary: navy, brand = 600 (#1E3A8A: headers, primary buttons, focus ring); 500 = interactive blue (#1D4ED8: links). */
+  /* BRAND-2 (decision #71, supersedes the colours of #70): Royal Blue + Amber. 60% neutral / 30% primary / 10% accent.
+     Primary: 600 #2563EB (brand: primary buttons, focus) · 700 #1D4ED8 (links, text) · 900 #0B1B4D (hero). */
   --color-primary-50: #eff6ff;
   --color-primary-100: #dbeafe;
   --color-primary-200: #bfdbfe;
   --color-primary-300: #93c5fd;
   --color-primary-400: #60a5fa;
-  --color-primary-500: #1d4ed8;
-  --color-primary-600: #1e3a8a;
-  --color-primary-700: #1a3275;
-  --color-primary-800: #172a63;
-  --color-primary-900: #13234f;
-  --color-primary-950: #0c1633;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  --color-primary-700: #1d4ed8;
+  --color-primary-800: #132e7a;
+  --color-primary-900: #0b1b4d;
+  --color-primary-950: #071233;
 
-  /* Accent: saffron (#F59E0B = 500), fills only, with ink-900 text on it; accent TEXT on white = 700 (#B45309).
-     At most ONE accent CTA per screen. Warning uses this family. */
+  /* Accent: amber #F59E0B (500), a FILL that always carries ink text; accent TEXT on light = 700 (#B45309); hero accent
+     text = 300 (#FCD34D), only on primary-900 / 800. At most ONE accent CTA per screen. Warning uses this family. */
   --color-accent-50: #fffbeb;
   --color-accent-100: #fef3c7;
   --color-accent-200: #fde68a;
@@ -42,33 +43,32 @@
   --color-accent-900: #78350f;
   --color-accent-950: #451a03;
 
-  /* Ink: cool neutral (text #0F172A = 900, muted #475569 = 600, page #F8FAFC = 50, border = 200). */
+  /* Ink: neutral (text #111827 = 900, muted #4B5563 = 600, page #F8FAFC = 50, border #E5E7EB = 200). */
   --color-ink-50: #f8fafc;
-  --color-ink-100: #f1f5f9;
-  --color-ink-200: #e2e8f0;
-  --color-ink-300: #cbd5e1;
-  --color-ink-400: #94a3b8;
-  --color-ink-500: #64748b;
-  --color-ink-600: #475569;
-  --color-ink-700: #334155;
-  --color-ink-800: #1e293b;
-  --color-ink-900: #0f172a;
-  --color-ink-950: #020617;
+  --color-ink-100: #f3f4f6;
+  --color-ink-200: #e5e7eb;
+  --color-ink-300: #d1d5db;
+  --color-ink-400: #9ca3af;
+  --color-ink-500: #6b7280;
+  --color-ink-600: #4b5563;
+  --color-ink-700: #374151;
+  --color-ink-800: #1f2937;
+  --color-ink-900: #111827;
+  --color-ink-950: #030712;
 
-  /* Status roles: 50 tint bg · 200 tint border · 600 icon/border/strong fill · 700 text on white · 800 text on tint.
-     Success #047857 = 700. Error #BE123C = danger-700 (errors only; never decoration, never the exam timer).
-     Warning = the accent family; info = the primary family (no extra hues). */
-  --color-success-50: #ecfdf5;
-  --color-success-100: #d1fae5;
-  --color-success-200: #a7f3d0;
-  --color-success-300: #6ee7b7;
-  --color-success-400: #34d399;
-  --color-success-500: #10b981;
-  --color-success-600: #059669;
-  --color-success-700: #047857;
-  --color-success-800: #065f46;
-  --color-success-900: #064e3b;
-  --color-success-950: #022c22;
+  /* Status: success #15803D = 700; error #B91C1C = danger-700 (errors only; never decoration, never the exam timer).
+     Warning = the accent family; info = the primary family. */
+  --color-success-50: #f0fdf4;
+  --color-success-100: #dcfce7;
+  --color-success-200: #bbf7d0;
+  --color-success-300: #86efac;
+  --color-success-400: #4ade80;
+  --color-success-500: #22c55e;
+  --color-success-600: #16a34a;
+  --color-success-700: #15803d;
+  --color-success-800: #166534;
+  --color-success-900: #14532d;
+  --color-success-950: #052e16;
 
   --color-warning-50: var(--color-accent-50);
   --color-warning-100: var(--color-accent-100);
@@ -82,17 +82,17 @@
   --color-warning-900: var(--color-accent-900);
   --color-warning-950: var(--color-accent-950);
 
-  --color-danger-50: #fff1f2;
-  --color-danger-100: #ffe4e6;
-  --color-danger-200: #fecdd3;
-  --color-danger-300: #fda4af;
-  --color-danger-400: #fb7185;
-  --color-danger-500: #f43f5e;
-  --color-danger-600: #e11d48;
-  --color-danger-700: #be123c;
-  --color-danger-800: #9f1239;
-  --color-danger-900: #881337;
-  --color-danger-950: #4c0519;
+  --color-danger-50: #fef2f2;
+  --color-danger-100: #fee2e2;
+  --color-danger-200: #fecaca;
+  --color-danger-300: #fca5a5;
+  --color-danger-400: #f87171;
+  --color-danger-500: #ef4444;
+  --color-danger-600: #dc2626;
+  --color-danger-700: #b91c1c;
+  --color-danger-800: #991b1b;
+  --color-danger-900: #7f1d1d;
+  --color-danger-950: #450a0a;
 
   --color-info-50: var(--color-primary-50);
   --color-info-100: var(--color-primary-100);
@@ -106,8 +106,58 @@
   --color-info-900: var(--color-primary-900);
   --color-info-950: var(--color-primary-950);
 
-  /* Legacy Tailwind palette classes (bg-blue-600, text-slate-500, …; still used by pages not yet migrated) resolve to
-     the brand tokens, so this file stays the single colour source. New code uses the semantic tokens, never these. */
+  /* Categorical scales for subjects / charts (BRAND-2 fixes the BRAND-1 hue collapse): teal #0D9488, violet #7C3AED,
+     rose #E11D48 and slate #475569 at 600; blue = primary, amber = accent. Never used for status meaning. */
+  --color-cat-teal-50: #f0fdfa;
+  --color-cat-teal-100: #ccfbf1;
+  --color-cat-teal-200: #99f6e4;
+  --color-cat-teal-300: #5eead4;
+  --color-cat-teal-400: #2dd4bf;
+  --color-cat-teal-500: #14b8a6;
+  --color-cat-teal-600: #0d9488;
+  --color-cat-teal-700: #0f766e;
+  --color-cat-teal-800: #115e59;
+  --color-cat-teal-900: #134e4a;
+  --color-cat-teal-950: #042f2e;
+
+  --color-cat-violet-50: #f5f3ff;
+  --color-cat-violet-100: #ede9fe;
+  --color-cat-violet-200: #ddd6fe;
+  --color-cat-violet-300: #c4b5fd;
+  --color-cat-violet-400: #a78bfa;
+  --color-cat-violet-500: #8b5cf6;
+  --color-cat-violet-600: #7c3aed;
+  --color-cat-violet-700: #6d28d9;
+  --color-cat-violet-800: #5b21b6;
+  --color-cat-violet-900: #4c1d95;
+  --color-cat-violet-950: #2e1065;
+
+  --color-cat-rose-50: #fff1f2;
+  --color-cat-rose-100: #ffe4e6;
+  --color-cat-rose-200: #fecdd3;
+  --color-cat-rose-300: #fda4af;
+  --color-cat-rose-400: #fb7185;
+  --color-cat-rose-500: #f43f5e;
+  --color-cat-rose-600: #e11d48;
+  --color-cat-rose-700: #be123c;
+  --color-cat-rose-800: #9f1239;
+  --color-cat-rose-900: #881337;
+  --color-cat-rose-950: #4c0519;
+
+  --color-cat-slate-50: #f8fafc;
+  --color-cat-slate-100: #f1f5f9;
+  --color-cat-slate-200: #e2e8f0;
+  --color-cat-slate-300: #cbd5e1;
+  --color-cat-slate-400: #94a3b8;
+  --color-cat-slate-500: #64748b;
+  --color-cat-slate-600: #475569;
+  --color-cat-slate-700: #334155;
+  --color-cat-slate-800: #1e293b;
+  --color-cat-slate-900: #0f172a;
+  --color-cat-slate-950: #020617;
+
+  /* Legacy Tailwind palette classes (bg-blue-600, text-slate-500, …; pages not yet migrated) resolve to the brand /
+     categorical scales, so this file stays the single colour source (design ratchet R-8). New code uses semantic tokens. */
   --color-slate-50: var(--color-ink-50);
   --color-slate-100: var(--color-ink-100);
   --color-slate-200: var(--color-ink-200);
@@ -185,28 +235,6 @@
   --color-indigo-800: var(--color-primary-800);
   --color-indigo-900: var(--color-primary-900);
   --color-indigo-950: var(--color-primary-950);
-  --color-violet-50: var(--color-primary-50);
-  --color-violet-100: var(--color-primary-100);
-  --color-violet-200: var(--color-primary-200);
-  --color-violet-300: var(--color-primary-300);
-  --color-violet-400: var(--color-primary-400);
-  --color-violet-500: var(--color-primary-500);
-  --color-violet-600: var(--color-primary-600);
-  --color-violet-700: var(--color-primary-700);
-  --color-violet-800: var(--color-primary-800);
-  --color-violet-900: var(--color-primary-900);
-  --color-violet-950: var(--color-primary-950);
-  --color-purple-50: var(--color-primary-50);
-  --color-purple-100: var(--color-primary-100);
-  --color-purple-200: var(--color-primary-200);
-  --color-purple-300: var(--color-primary-300);
-  --color-purple-400: var(--color-primary-400);
-  --color-purple-500: var(--color-primary-500);
-  --color-purple-600: var(--color-primary-600);
-  --color-purple-700: var(--color-primary-700);
-  --color-purple-800: var(--color-primary-800);
-  --color-purple-900: var(--color-primary-900);
-  --color-purple-950: var(--color-primary-950);
   --color-sky-50: var(--color-primary-50);
   --color-sky-100: var(--color-primary-100);
   --color-sky-200: var(--color-primary-200);
@@ -218,17 +246,94 @@
   --color-sky-800: var(--color-primary-800);
   --color-sky-900: var(--color-primary-900);
   --color-sky-950: var(--color-primary-950);
-  --color-cyan-50: var(--color-primary-50);
-  --color-cyan-100: var(--color-primary-100);
-  --color-cyan-200: var(--color-primary-200);
-  --color-cyan-300: var(--color-primary-300);
-  --color-cyan-400: var(--color-primary-400);
-  --color-cyan-500: var(--color-primary-500);
-  --color-cyan-600: var(--color-primary-600);
-  --color-cyan-700: var(--color-primary-700);
-  --color-cyan-800: var(--color-primary-800);
-  --color-cyan-900: var(--color-primary-900);
-  --color-cyan-950: var(--color-primary-950);
+  --color-violet-50: var(--color-cat-violet-50);
+  --color-violet-100: var(--color-cat-violet-100);
+  --color-violet-200: var(--color-cat-violet-200);
+  --color-violet-300: var(--color-cat-violet-300);
+  --color-violet-400: var(--color-cat-violet-400);
+  --color-violet-500: var(--color-cat-violet-500);
+  --color-violet-600: var(--color-cat-violet-600);
+  --color-violet-700: var(--color-cat-violet-700);
+  --color-violet-800: var(--color-cat-violet-800);
+  --color-violet-900: var(--color-cat-violet-900);
+  --color-violet-950: var(--color-cat-violet-950);
+  --color-purple-50: var(--color-cat-violet-50);
+  --color-purple-100: var(--color-cat-violet-100);
+  --color-purple-200: var(--color-cat-violet-200);
+  --color-purple-300: var(--color-cat-violet-300);
+  --color-purple-400: var(--color-cat-violet-400);
+  --color-purple-500: var(--color-cat-violet-500);
+  --color-purple-600: var(--color-cat-violet-600);
+  --color-purple-700: var(--color-cat-violet-700);
+  --color-purple-800: var(--color-cat-violet-800);
+  --color-purple-900: var(--color-cat-violet-900);
+  --color-purple-950: var(--color-cat-violet-950);
+  --color-fuchsia-50: var(--color-cat-violet-50);
+  --color-fuchsia-100: var(--color-cat-violet-100);
+  --color-fuchsia-200: var(--color-cat-violet-200);
+  --color-fuchsia-300: var(--color-cat-violet-300);
+  --color-fuchsia-400: var(--color-cat-violet-400);
+  --color-fuchsia-500: var(--color-cat-violet-500);
+  --color-fuchsia-600: var(--color-cat-violet-600);
+  --color-fuchsia-700: var(--color-cat-violet-700);
+  --color-fuchsia-800: var(--color-cat-violet-800);
+  --color-fuchsia-900: var(--color-cat-violet-900);
+  --color-fuchsia-950: var(--color-cat-violet-950);
+  --color-cyan-50: var(--color-cat-teal-50);
+  --color-cyan-100: var(--color-cat-teal-100);
+  --color-cyan-200: var(--color-cat-teal-200);
+  --color-cyan-300: var(--color-cat-teal-300);
+  --color-cyan-400: var(--color-cat-teal-400);
+  --color-cyan-500: var(--color-cat-teal-500);
+  --color-cyan-600: var(--color-cat-teal-600);
+  --color-cyan-700: var(--color-cat-teal-700);
+  --color-cyan-800: var(--color-cat-teal-800);
+  --color-cyan-900: var(--color-cat-teal-900);
+  --color-cyan-950: var(--color-cat-teal-950);
+  --color-teal-50: var(--color-cat-teal-50);
+  --color-teal-100: var(--color-cat-teal-100);
+  --color-teal-200: var(--color-cat-teal-200);
+  --color-teal-300: var(--color-cat-teal-300);
+  --color-teal-400: var(--color-cat-teal-400);
+  --color-teal-500: var(--color-cat-teal-500);
+  --color-teal-600: var(--color-cat-teal-600);
+  --color-teal-700: var(--color-cat-teal-700);
+  --color-teal-800: var(--color-cat-teal-800);
+  --color-teal-900: var(--color-cat-teal-900);
+  --color-teal-950: var(--color-cat-teal-950);
+  --color-green-50: var(--color-cat-teal-50);
+  --color-green-100: var(--color-cat-teal-100);
+  --color-green-200: var(--color-cat-teal-200);
+  --color-green-300: var(--color-cat-teal-300);
+  --color-green-400: var(--color-cat-teal-400);
+  --color-green-500: var(--color-cat-teal-500);
+  --color-green-600: var(--color-cat-teal-600);
+  --color-green-700: var(--color-cat-teal-700);
+  --color-green-800: var(--color-cat-teal-800);
+  --color-green-900: var(--color-cat-teal-900);
+  --color-green-950: var(--color-cat-teal-950);
+  --color-lime-50: var(--color-cat-teal-50);
+  --color-lime-100: var(--color-cat-teal-100);
+  --color-lime-200: var(--color-cat-teal-200);
+  --color-lime-300: var(--color-cat-teal-300);
+  --color-lime-400: var(--color-cat-teal-400);
+  --color-lime-500: var(--color-cat-teal-500);
+  --color-lime-600: var(--color-cat-teal-600);
+  --color-lime-700: var(--color-cat-teal-700);
+  --color-lime-800: var(--color-cat-teal-800);
+  --color-lime-900: var(--color-cat-teal-900);
+  --color-lime-950: var(--color-cat-teal-950);
+  --color-emerald-50: var(--color-success-50);
+  --color-emerald-100: var(--color-success-100);
+  --color-emerald-200: var(--color-success-200);
+  --color-emerald-300: var(--color-success-300);
+  --color-emerald-400: var(--color-success-400);
+  --color-emerald-500: var(--color-success-500);
+  --color-emerald-600: var(--color-success-600);
+  --color-emerald-700: var(--color-success-700);
+  --color-emerald-800: var(--color-success-800);
+  --color-emerald-900: var(--color-success-900);
+  --color-emerald-950: var(--color-success-950);
   --color-amber-50: var(--color-accent-50);
   --color-amber-100: var(--color-accent-100);
   --color-amber-200: var(--color-accent-200);
@@ -262,50 +367,6 @@
   --color-orange-800: var(--color-accent-800);
   --color-orange-900: var(--color-accent-900);
   --color-orange-950: var(--color-accent-950);
-  --color-emerald-50: var(--color-success-50);
-  --color-emerald-100: var(--color-success-100);
-  --color-emerald-200: var(--color-success-200);
-  --color-emerald-300: var(--color-success-300);
-  --color-emerald-400: var(--color-success-400);
-  --color-emerald-500: var(--color-success-500);
-  --color-emerald-600: var(--color-success-600);
-  --color-emerald-700: var(--color-success-700);
-  --color-emerald-800: var(--color-success-800);
-  --color-emerald-900: var(--color-success-900);
-  --color-emerald-950: var(--color-success-950);
-  --color-green-50: var(--color-success-50);
-  --color-green-100: var(--color-success-100);
-  --color-green-200: var(--color-success-200);
-  --color-green-300: var(--color-success-300);
-  --color-green-400: var(--color-success-400);
-  --color-green-500: var(--color-success-500);
-  --color-green-600: var(--color-success-600);
-  --color-green-700: var(--color-success-700);
-  --color-green-800: var(--color-success-800);
-  --color-green-900: var(--color-success-900);
-  --color-green-950: var(--color-success-950);
-  --color-teal-50: var(--color-success-50);
-  --color-teal-100: var(--color-success-100);
-  --color-teal-200: var(--color-success-200);
-  --color-teal-300: var(--color-success-300);
-  --color-teal-400: var(--color-success-400);
-  --color-teal-500: var(--color-success-500);
-  --color-teal-600: var(--color-success-600);
-  --color-teal-700: var(--color-success-700);
-  --color-teal-800: var(--color-success-800);
-  --color-teal-900: var(--color-success-900);
-  --color-teal-950: var(--color-success-950);
-  --color-lime-50: var(--color-success-50);
-  --color-lime-100: var(--color-success-100);
-  --color-lime-200: var(--color-success-200);
-  --color-lime-300: var(--color-success-300);
-  --color-lime-400: var(--color-success-400);
-  --color-lime-500: var(--color-success-500);
-  --color-lime-600: var(--color-success-600);
-  --color-lime-700: var(--color-success-700);
-  --color-lime-800: var(--color-success-800);
-  --color-lime-900: var(--color-success-900);
-  --color-lime-950: var(--color-success-950);
   --color-red-50: var(--color-danger-50);
   --color-red-100: var(--color-danger-100);
   --color-red-200: var(--color-danger-200);
@@ -317,76 +378,72 @@
   --color-red-800: var(--color-danger-800);
   --color-red-900: var(--color-danger-900);
   --color-red-950: var(--color-danger-950);
-  --color-rose-50: var(--color-danger-50);
-  --color-rose-100: var(--color-danger-100);
-  --color-rose-200: var(--color-danger-200);
-  --color-rose-300: var(--color-danger-300);
-  --color-rose-400: var(--color-danger-400);
-  --color-rose-500: var(--color-danger-500);
-  --color-rose-600: var(--color-danger-600);
-  --color-rose-700: var(--color-danger-700);
-  --color-rose-800: var(--color-danger-800);
-  --color-rose-900: var(--color-danger-900);
-  --color-rose-950: var(--color-danger-950);
-  --color-pink-50: var(--color-danger-50);
-  --color-pink-100: var(--color-danger-100);
-  --color-pink-200: var(--color-danger-200);
-  --color-pink-300: var(--color-danger-300);
-  --color-pink-400: var(--color-danger-400);
-  --color-pink-500: var(--color-danger-500);
-  --color-pink-600: var(--color-danger-600);
-  --color-pink-700: var(--color-danger-700);
-  --color-pink-800: var(--color-danger-800);
-  --color-pink-900: var(--color-danger-900);
-  --color-pink-950: var(--color-danger-950);
-  --color-fuchsia-50: var(--color-danger-50);
-  --color-fuchsia-100: var(--color-danger-100);
-  --color-fuchsia-200: var(--color-danger-200);
-  --color-fuchsia-300: var(--color-danger-300);
-  --color-fuchsia-400: var(--color-danger-400);
-  --color-fuchsia-500: var(--color-danger-500);
-  --color-fuchsia-600: var(--color-danger-600);
-  --color-fuchsia-700: var(--color-danger-700);
-  --color-fuchsia-800: var(--color-danger-800);
-  --color-fuchsia-900: var(--color-danger-900);
-  --color-fuchsia-950: var(--color-danger-950);
+  --color-rose-50: var(--color-cat-rose-50);
+  --color-rose-100: var(--color-cat-rose-100);
+  --color-rose-200: var(--color-cat-rose-200);
+  --color-rose-300: var(--color-cat-rose-300);
+  --color-rose-400: var(--color-cat-rose-400);
+  --color-rose-500: var(--color-cat-rose-500);
+  --color-rose-600: var(--color-cat-rose-600);
+  --color-rose-700: var(--color-cat-rose-700);
+  --color-rose-800: var(--color-cat-rose-800);
+  --color-rose-900: var(--color-cat-rose-900);
+  --color-rose-950: var(--color-cat-rose-950);
+  --color-pink-50: var(--color-cat-rose-50);
+  --color-pink-100: var(--color-cat-rose-100);
+  --color-pink-200: var(--color-cat-rose-200);
+  --color-pink-300: var(--color-cat-rose-300);
+  --color-pink-400: var(--color-cat-rose-400);
+  --color-pink-500: var(--color-cat-rose-500);
+  --color-pink-600: var(--color-cat-rose-600);
+  --color-pink-700: var(--color-cat-rose-700);
+  --color-pink-800: var(--color-cat-rose-800);
+  --color-pink-900: var(--color-cat-rose-900);
+  --color-pink-950: var(--color-cat-rose-950);
 
-  /* Typography: one Latin family (Inter via next/font, self-hosted). Minimum student text = caption (12px). */
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* Typography (BRAND-2, bilingual): body / UI = Inter (variable) with Noto Sans Devanagari for Hindi; headings =
+     Poppins 600/700 (Latin + Devanagari). All self-hosted by next/font at build time; Devanagari faces download only
+     when Devanagari text is on the page (unicode-range). Minimum student text = caption (12px). */
+  --font-sans: var(--font-inter), var(--font-devanagari), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-heading: var(--font-poppins), var(--font-inter), var(--font-devanagari), ui-sans-serif, system-ui, sans-serif;
 
   --text-caption: 0.75rem;
   --text-caption--line-height: 1rem;
   --text-body-sm: 0.875rem;
   --text-body-sm--line-height: 1.25rem;
   --text-body: 1rem;
-  --text-body--line-height: 1.5rem;
+  --text-body--line-height: 1.6;
   --text-body-lg: 1.125rem;
-  --text-body-lg--line-height: 1.75rem;
+  --text-body-lg--line-height: 1.6;
   --text-h3: clamp(1.125rem, 1.05rem + 0.25vw, 1.25rem);
   --text-h3--line-height: 1.4;
   --text-h2: clamp(1.375rem, 1.2rem + 0.6vw, 1.75rem);
   --text-h2--line-height: 1.3;
   --text-h1: clamp(1.75rem, 1.45rem + 1vw, 2.25rem);
   --text-h1--line-height: 1.25;
-  --text-display: clamp(2.25rem, 1.8rem + 1.6vw, 3rem);
-  --text-display--line-height: 1.18;
+  --text-display: clamp(2.25rem, 1.6rem + 2.6vw, 3.75rem);
+  --text-display--line-height: 1.1;
 
-  /* Shape. Named tokens (not sm/md/lg) so legacy rounded-* keeps its current size. */
+  /* Shape: 12 card · 16 sheet · 20 panel · 24 hero · full = rounded-full. Named tokens (not sm/md/lg). */
   --radius-badge: 6px;
   --radius-control: 8px;
   --radius-card: 12px;
   --radius-sheet: 16px;
+  --radius-panel: 20px;
+  --radius-hero: 24px;
 
-  /* Elevation (state is never conveyed by elevation alone). */
-  --shadow-e1: 0 1px 2px rgb(15 23 42 / 0.06);
-  --shadow-e2: 0 4px 12px rgb(15 23 42 / 0.08);
-  --shadow-e3: 0 12px 32px rgb(15 23 42 / 0.12);
+  /* Elevation (state is never conveyed by elevation alone). Soft = floating nav / glass; glass = hero glass card. */
+  --shadow-e1: 0 1px 2px rgb(17 24 39 / 0.06);
+  --shadow-e2: 0 4px 12px rgb(17 24 39 / 0.08);
+  --shadow-e3: 0 12px 32px rgb(17 24 39 / 0.12);
+  --shadow-soft: 0 8px 30px rgb(11 27 77 / 0.14);
+  --shadow-glass: 0 20px 50px rgb(7 18 51 / 0.28);
 
   /* Motion: 120 micro · 200 enter/exit · 300 sheets; only opacity/transform; components use motion-safe:. */
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
 }
 
-/* Semantic aliases: what components use. `static` emits every token as a CSS variable on :root (the preview reads them). */
+/* Semantic aliases: what components use (the future dark theme redefines only this layer). */
 @theme static {
   --color-canvas: var(--color-ink-50);
   --color-surface: #ffffff;
@@ -399,11 +456,29 @@
   --color-line: var(--color-ink-200);
   --color-line-control: var(--color-ink-500);
   --color-brand: var(--color-primary-600);
-  --color-interactive: var(--color-primary-500);
+  --color-brand-hover: var(--color-primary-700);
+  --color-interactive: var(--color-primary-700);
   --color-link: var(--color-interactive);
   --color-focus: var(--color-primary-600);
   --color-on-accent: var(--color-ink-900);
   --color-accent-text: var(--color-accent-700);
+
+  /* Hero (GradientHero, final CTA band): dark royal-blue surface. */
+  --color-hero-bg: var(--color-primary-900);
+  --color-hero-bg-mid: var(--color-primary-800);
+  --color-hero-bg-end: var(--color-primary-700);
+  --color-hero-fg: #ffffff;
+  --color-hero-fg-muted: var(--color-primary-100);
+  --color-hero-accent-text: var(--color-accent-300);
+  --color-hero-focus: var(--color-accent-300);
+
+  /* Categorical (subjects, charts): one token per hue, the same order everywhere. */
+  --color-subject-blue: var(--color-primary-600);
+  --color-subject-teal: var(--color-cat-teal-600);
+  --color-subject-violet: var(--color-cat-violet-600);
+  --color-subject-amber: var(--color-accent-600);
+  --color-subject-rose: var(--color-cat-rose-600);
+  --color-subject-slate: var(--color-cat-slate-600);
 
   --color-answer-correct-fg: var(--color-success-800);
   --color-answer-correct-border: var(--color-success-600);
@@ -416,8 +491,7 @@
   --color-answer-selected-bg: var(--color-primary-50);
 }
 
-/* Focus ring for every design-system control (2px primary-600 navy, offset 2px; ≥ 3:1 on white and canvas, gated). Opt-in so legacy
-   pages keep their current focus styling until migrated. */
+/* Focus ring for every design-system control (2px brand, offset 2px; ≥ 3:1 on white and canvas, gated). */
 @utility focus-ring {
   &:focus-visible {
     outline: 2px solid var(--color-focus);
@@ -425,11 +499,100 @@
   }
 }
 
+/* Focus ring on the dark hero (hero accent text colour; ≥ 3:1 on primary-900, gated). */
+@utility focus-ring-on-dark {
+  &:focus-visible {
+    outline: 2px solid var(--color-hero-focus);
+    outline-offset: 2px;
+  }
+}
+
+/*
+ * BRAND-2 "modern glass" (decision #72). Glass is ONLY: the public nav, home hero chips / card, the auth card and the
+ * dashboard header chips (scripts/test_brand2.cjs forbids it in the exam engine, question review and admin).
+ * Progressive enhancement — the SOLID look is the default; blur is added only when ALL hold:
+ *   backdrop-filter is supported · the user has not asked for reduced transparency · html is not .lite
+ * html.lite is set before first paint by a tiny inline script (app/layout.tsx) on low-end devices
+ * (deviceMemory <= 4, hardwareConcurrency <= 4 or Save-Data): solid surfaces, no blur, no large shadows.
+ */
+/* Unlayered on purpose: these must beat utility backgrounds / shadows (e.g. the legacy Card's bg-white) on the few
+   elements that opt in. */
+.glass-light {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-line);
+  }
+  .glass-dark {
+    background-color: var(--color-hero-bg-mid);
+    border: 1px solid var(--color-hero-bg-end);
+    color: var(--color-hero-fg);
+  }
+  .hero-gradient {
+    background-color: var(--color-hero-bg);
+    background-image:
+      radial-gradient(600px 400px at 85% 8%, color-mix(in srgb, var(--color-accent-500) 22%, transparent), transparent 60%),
+      radial-gradient(700px 500px at 8% 92%, color-mix(in srgb, var(--color-primary-600) 55%, transparent), transparent 60%),
+      linear-gradient(160deg, var(--color-hero-bg) 0%, var(--color-hero-bg-mid) 60%, var(--color-hero-bg-end) 100%);
+    color: var(--color-hero-fg);
+  }
+  .auth-gradient {
+    background-color: var(--color-primary-50);
+    background-image:
+      radial-gradient(420px 320px at 85% 15%, color-mix(in srgb, var(--color-accent-500) 18%, transparent), transparent 60%),
+      linear-gradient(150deg, var(--color-primary-100), var(--color-primary-50) 50%, var(--color-accent-100));
+  }
+
+  @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    html:not(.lite) .glass-light {
+      background-color: color-mix(in srgb, var(--color-surface) 82%, transparent);
+      border-color: color-mix(in srgb, var(--color-surface) 75%, transparent);
+      -webkit-backdrop-filter: blur(18px) saturate(160%);
+      backdrop-filter: blur(18px) saturate(160%);
+      box-shadow: var(--shadow-soft);
+    }
+    html:not(.lite) .glass-dark {
+      /* dark tint (not white): keeps text contrast on the lightest part of the gradient (gated worst case) */
+      background-color: color-mix(in srgb, var(--color-hero-bg) 40%, transparent);
+      border-color: color-mix(in srgb, var(--color-surface) 24%, transparent);
+      -webkit-backdrop-filter: blur(16px);
+      backdrop-filter: blur(16px);
+    }
+  }
+
+  /* the user asked for reduced transparency → solid, whatever the support */
+  @media (prefers-reduced-transparency: reduce) {
+    html .glass-light {
+      background-color: var(--color-surface);
+      border-color: var(--color-line);
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+    html .glass-dark {
+      background-color: var(--color-hero-bg-mid);
+      border-color: var(--color-hero-bg-end);
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+  }
+
+  /* "never glass" zones (exam engine, question review, admin — components/ui/no-glass-zone.tsx): no backdrop blur at
+     all, legacy blur classes included */
+  [data-no-glass],
+  [data-no-glass] * {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  /* low-end device: no large shadows either */
+  html.lite .shadow-glass,
+  html.lite .shadow-soft {
+    box-shadow: var(--shadow-e1);
+  }
+
 @layer base {
   :root {
     color-scheme: light;
 
-    /* Legacy variables (pre-UX-1), still read by legacy pages; removed in UX-1b. */
+    /* Legacy variables (pre-UX-1), still read by legacy pages. */
     --background: var(--color-canvas);
     --foreground: var(--color-fg);
     --card: var(--color-surface);
@@ -444,14 +607,31 @@
     border-color: var(--border);
   }
 
+  html {
+    font-size: 100%; /* base 16px; user zoom respected */
+  }
+
   body {
     background-color: var(--background);
     color: var(--foreground);
     font-family: var(--font-sans);
+    line-height: 1.6;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+  }
+
+  /* Devanagari needs more vertical room (matras above / below the line). */
+  :lang(hi) {
+    line-height: 1.7;
+  }
+
+  h1,
+  h2,
+  h3,
+  .font-heading {
+    font-family: var(--font-heading);
   }
 }

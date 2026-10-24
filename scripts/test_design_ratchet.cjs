@@ -12,7 +12,8 @@
  *   R-2 the design system itself scores ZERO on every metric (components/ui/** except legacy/, lib/format)
  *   R-3 dark mode is disabled at the source: `@custom-variant dark` bound to [data-theme=dark], no
  *       prefers-color-scheme anywhere, nothing sets data-theme="dark", <html> has no dark class
- *   R-4 one Latin font via next/font (self-hosted); no external font requests, no Devanagari font
+ *   R-4 (BRAND-2 amendment) fonts: exactly Inter + Poppins + Noto Sans Devanagari via next/font in the root layout
+ *       (self-hosted, only Inter preloaded); no external font requests
  *   R-5 contrast: every pair in components/ui/contrast-pairs.json meets its WCAG threshold, computed from the tokens
  *   R-7 config/brand.ts (theme-color meta, manifest, BRAND_PALETTE) mirrors the tokens exactly; it is not a second source
  *   R-8 (BRAND-1 amendment, decision #70) single token source: every legacy Tailwind palette name (slate-*, blue-*, …)
@@ -197,18 +198,22 @@ test('R-3 dark mode disabled at the source (inert dark: variant, no prefers-colo
   assert(bad.length === 0, bad.join('\n        '));
 });
 
-test('R-4 one Latin font via next/font (self-hosted): no external font requests, no Devanagari font', () => {
+// BRAND-2 amendment (decision #71, bilingual typography): the font set is exactly Inter (body / UI), Poppins 600/700
+// (headings) and Noto Sans Devanagari 400/600 (Hindi), all through next/font in the root layout (self-hosted at build),
+// with only Inter preloaded. Still: no external font request, no other family, no second next/font import.
+test('R-4 fonts: exactly Inter + Poppins + Noto Sans Devanagari via next/font (self-hosted, one import), no external requests', () => {
   const layout = fs.readFileSync(path.join(ROOT, 'app/layout.tsx'), 'utf8');
-  assert(/import \{ Inter \} from "next\/font\/google"/.test(layout), 'Inter must load through next/font');
+  assert(/import \{ Inter, Noto_Sans_Devanagari, Poppins \} from "next\/font\/google"/.test(layout), 'the root layout must import exactly Inter, Noto_Sans_Devanagari and Poppins from next/font/google');
   assert(/variable: "--font-inter"/.test(layout) && /inter\.variable/.test(layout), '--font-inter must be set on <html>');
-  assert(/--font-sans: var\(--font-inter\)/.test(css), '--font-sans must use --font-inter');
+  assert(/variable: "--font-poppins", preload: false/.test(layout) && /variable: "--font-devanagari", preload: false/.test(layout), 'Poppins and Noto Sans Devanagari must not be preloaded');
+  assert(/--font-sans: var\(--font-inter\), var\(--font-devanagari\)/.test(css) && /--font-heading: var\(--font-poppins\)/.test(css), '--font-sans / --font-heading stacks');
   const all = [...walk(path.join(ROOT, 'app')), ...walk(path.join(ROOT, 'components')), ...walk(path.join(ROOT, 'lib'))];
   assert(all.length >= 300, `files scanned ${all.length} (min 300)`); // GATE-HYGIENE-1
   const bad = [];
   for (const f of all) {
     const s = fs.readFileSync(f, 'utf8');
     if (/fonts\.googleapis\.com|fonts\.gstatic\.com|use\.typekit|@import\s+url\(/.test(s)) bad.push(`${rel(f)}: external font request`);
-    if (/Noto_Sans_Devanagari|Noto Sans Devanagari|font-family[^;]*Devanagari|--font-devanagari/.test(s)) bad.push(`${rel(f)}: Devanagari font`);
+    if (rel(f) !== 'app/layout.tsx' && /from ["']next\/font\/|\b(?:Noto_Sans_Devanagari|Poppins|Inter)\(\{/.test(s)) bad.push(`${rel(f)}: font loaded outside the root layout`);
   }
   const fontImports = (layout.match(/from "next\/font\/(google|local)"/g) || []).length;
   assert(fontImports === 1, `expected exactly one next/font import in the root layout, found ${fontImports}`);
@@ -279,7 +284,8 @@ test('R-7 brand colours outside CSS (theme-color, manifest) mirror the tokens', 
 
 test('R-8 single token source: legacy palette names resolve to brand scales via var(), never raw values (BRAND-1)', () => {
   const LEGACY = 'slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose';
-  const BRAND = ['primary', 'accent', 'ink', 'success', 'danger'];
+  // BRAND-2: + the categorical scales (teal, violet, rose, slate) so subject hues no longer collapse into the primary
+  const BRAND = ['primary', 'accent', 'ink', 'success', 'danger', 'cat-teal', 'cat-violet', 'cat-rose', 'cat-slate'];
   const shades = ['50', '100', '200', '300', '400', '500', '600', '700', '800', '900', '950'];
   const bad = [];
   let n = 0;
@@ -287,7 +293,7 @@ test('R-8 single token source: legacy palette names resolve to brand scales via 
     for (const k of shades) {
       const v = vars[`color-${name}-${k}`];
       n++;
-      const m = /^var\(--color-([a-z]+)-(\d+)\)$/.exec(v || '');
+      const m = /^var\(--color-([a-z-]+)-(\d+)\)$/.exec(v || '');
       if (!m || !BRAND.includes(m[1]) || m[2] !== k) bad.push(`${name}-${k}: ${v === undefined ? 'missing' : 'not a brand var()'}`);
     }
   }

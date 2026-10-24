@@ -3,6 +3,7 @@ import { CheckCircle2, ChevronDown, Circle, CircleDot, Lock } from "lucide-react
 import { Badge } from "../badge";
 import { cn } from "../cn";
 import { ProgressRing } from "../progress";
+import { subjectSwatchFor } from "@/lib/ui/subject-colors";
 
 export type TopicStatus = "not_started" | "in_progress" | "mastered" | "locked";
 export type WeightageTier = "high" | "medium" | "low";
@@ -85,6 +86,8 @@ export function SubjectNode({ name, mastered, total, defaultOpen = false, headin
     <details open={defaultOpen} className="group rounded-card border border-line bg-surface">
       <summary className="focus-ring flex min-h-14 cursor-pointer list-none items-center gap-3 rounded-card px-4 py-3 hover:bg-ink-50 [&::-webkit-details-marker]:hidden">
         <ProgressRing label={`${name} progress`} value={mastered} max={Math.max(total, 1)} valueText={`${mastered} of ${total} topics mastered`} size={44} />
+        {/* BRAND-2: categorical subject colour (decorative; the name is the label) */}
+        <span aria-hidden="true" className={cn("size-2.5 shrink-0 rounded-full", subjectSwatchFor(name))} />
         <Heading className="flex-1 text-body-lg font-semibold text-fg">{name}</Heading>
         <span className="text-body-sm text-fg-secondary">
           {mastered}/{total}

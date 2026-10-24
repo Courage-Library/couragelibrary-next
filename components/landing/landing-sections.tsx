@@ -3,12 +3,15 @@
  * the shared shell. Copy comes from content/landing.ts; numbers only from LandingData (read live); when the read
  * failed (`data.ok === false`) every section renders its no-number fallback.
  */
-import { ArrowRight, BookOpenCheck, ClipboardCheck, Compass, Gauge, GraduationCap, Library, Lock, NotebookPen, Repeat, Search, Target } from "lucide-react";
+import { ArrowRight, BookOpenCheck, Check, ClipboardCheck, Compass, Gauge, GraduationCap, Library, Lock, NotebookPen, Repeat, Search, Target } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardDescription, CardLink, CardTitle } from "@/components/ui/card";
 import { Container, Section } from "@/components/ui/layout";
+import { GlassCard, GlassChip } from "@/components/ui/glass";
+import { GradientHero } from "@/components/ui/gradient-hero";
+import { PillLink } from "@/components/ui/pill-button";
 import {
   LANDING_EXAMS,
   LANDING_FEATURES,
@@ -35,28 +38,74 @@ function SectionHeading({ id, title, lead }: { id: string; title: string; lead?:
   );
 }
 
+/** Hero glass chips: feature titles that are live today (copy from LANDING_FEATURES; no new claims, no numbers). */
+const HERO_CHIPS = [LANDING_FEATURES.items.mocks.title, LANDING_FEATURES.items.analysis.title, LANDING_FEATURES.items.mistakes.title];
+/** Hero glass card: three steps of the loop (copy from LANDING_LOOP). */
+const HERO_STEPS = [3, 4, 5].map((i) => ({ n: i + 1, ...LANDING_LOOP.steps[i] }));
+
+/**
+ * BRAND-2 (#72) hero: GradientHero (CSS gradients, no image), the brand line split over two lines (second line in
+ * hero-accent-text), ONE accent CTA, a ghost-on-dark secondary, glass chips and one glass card (2 glass layers +
+ * the floating nav = 3 per viewport, the maximum). Existing copy only.
+ */
 export function LandingHero() {
   const secondary = LANDING_HERO.secondaryCta;
+  const [line1, ...rest] = LANDING_HERO.title.split(". ");
   return (
-    <section aria-labelledby="hero-title" className="border-b border-line bg-gradient-to-b from-primary-50 to-canvas">
-      <Container className="flex flex-col items-start gap-6 py-16 lg:py-24">
-        <p className="inline-flex items-center gap-2 rounded-badge border border-primary-200 bg-surface px-3 py-1 text-body-sm font-medium text-primary-700">
-          <span aria-hidden="true" className="size-2 rounded-full bg-accent-400" />
-          {LANDING_HERO.eyebrow}
-        </p>
-        <h1 id="hero-title" className="max-w-3xl text-display font-bold tracking-tight text-fg">
-          {LANDING_HERO.title}
-        </h1>
-        <p className="max-w-2xl text-body-lg text-fg-secondary">{LANDING_HERO.lead}</p>
-        <div className="flex flex-wrap items-center gap-3">
-          <LandingCta spot="hero" />
-          <ButtonLink href={secondary.href} size="lg" variant="secondary">
-            {secondary.label}
-          </ButtonLink>
+    <GradientHero aria-labelledby="hero-title">
+      <Container className="grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="flex flex-col items-start gap-6">
+          <p className="inline-flex items-center gap-2 text-body-sm font-semibold uppercase tracking-wider text-hero-accent-text">
+            <span aria-hidden="true" className="size-2 rounded-full bg-accent-500" />
+            {LANDING_HERO.eyebrow}
+          </p>
+          <h1 id="hero-title" className="max-w-3xl text-display font-bold tracking-tight text-hero-fg">
+            {rest.length ? (
+              <>
+                {line1}.<br />
+                <span className="text-hero-accent-text">{rest.join(". ")}</span>
+              </>
+            ) : (
+              LANDING_HERO.title
+            )}
+          </h1>
+          <p className="max-w-2xl text-body-lg text-hero-fg-muted">{LANDING_HERO.lead}</p>
+          <div className="flex flex-wrap items-center gap-3">
+            <LandingCta spot="hero" />
+            <PillLink href={secondary.href} variant="ghost-on-dark">
+              {secondary.label}
+            </PillLink>
+          </div>
+          <ul aria-label={LANDING_FEATURES.heading} className="flex flex-wrap gap-2">
+            {HERO_CHIPS.map((chip) => (
+              <li key={chip}>
+                <GlassChip>
+                  <Check aria-hidden="true" className="size-4 text-hero-accent-text" />
+                  {chip}
+                </GlassChip>
+              </li>
+            ))}
+          </ul>
+          <p className="text-body-sm text-hero-fg-muted">{LANDING_HERO.note}</p>
         </div>
-        <p className="text-body-sm text-fg-secondary">{LANDING_HERO.note}</p>
+        <GlassCard tone="dark" className="flex flex-col gap-3">
+          <p className="font-heading text-body-lg font-semibold text-hero-fg">{LANDING_LOOP.heading}</p>
+          <ol className="flex flex-col gap-2">
+            {HERO_STEPS.map((s) => (
+              <li key={s.title} className="flex items-start gap-3 rounded-card bg-hero-bg/40 p-3">
+                <span aria-hidden="true" className="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-accent-500 text-body-sm font-semibold text-on-accent">
+                  {s.n}
+                </span>
+                <span className="flex flex-col">
+                  <span className="text-body font-semibold text-hero-fg">{s.title}</span>
+                  <span className="text-body-sm text-hero-fg-muted">{s.text}</span>
+                </span>
+              </li>
+            ))}
+          </ol>
+        </GlassCard>
       </Container>
-    </section>
+    </GradientHero>
   );
 }
 
@@ -280,13 +329,13 @@ export function LandingTrust() {
 
 export function LandingFinalCta() {
   return (
-    <Section aria-labelledby="final-cta-title" className="bg-primary-700">
+    <Section aria-labelledby="final-cta-title" className="hero-gradient">
       <Container className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-2">
           <h2 id="final-cta-title" className="text-h2 font-bold tracking-tight text-fg-inverse">
             {LANDING_FINAL_CTA.heading}
           </h2>
-          <p className="text-body-lg text-primary-100">{LANDING_FINAL_CTA.text}</p>
+          <p className="text-body-lg text-hero-fg-muted">{LANDING_FINAL_CTA.text}</p>
         </div>
         <LandingCta spot="final" />
       </Container>

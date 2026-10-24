@@ -2,6 +2,8 @@ import type { TestResultSummary } from "@/services/assessment.service";
 import { ProgressRing } from "../progress";
 import { StatTile } from "../stat-tile";
 import { formatDuration, formatPercent, formatScore } from "@/lib/format";
+import { subjectSwatch } from "@/lib/ui/subject-colors";
+import { cn } from "../cn";
 
 export type ResultSummaryProps = {
   /** Existing data shape from AssessmentService (only the parts the summary needs). */
@@ -65,9 +67,13 @@ export function ResultSummary({ data, previousBest = null, headingLevel = 2 }: R
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {sections.map((s) => (
+              {sections.map((s, i) => (
                 <tr key={s.id ?? s.sectionName}>
-                  <th scope="row" className="px-4 py-3 font-medium text-fg">{s.sectionName}</th>
+                  <th scope="row" className="px-4 py-3 font-medium text-fg">
+                    {/* BRAND-2: categorical section colour (decorative; the section name is the label) */}
+                    <span aria-hidden="true" className={cn("mr-2 inline-block size-2.5 rounded-full align-middle", subjectSwatch(i))} />
+                    {s.sectionName}
+                  </th>
                   <td className="px-4 py-3 tabular-nums">{formatScore(s.sectionScore, s.maxScore)}</td>
                   <td className="px-4 py-3 tabular-nums">{s.correctCount}</td>
                   <td className="px-4 py-3 tabular-nums">{s.incorrectCount}</td>

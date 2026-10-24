@@ -67,7 +67,7 @@ The owner's machine cannot keep the 2 GB free-memory floor that a local `next st
 
 **What it does:** one build, then four bounded runs, each through `scripts/live/with-server.cjs` (port 3300, `--health-path=auth/login`, `--gate-timeout=300`). In every run, Supabase is blackholed inside the server by `scripts/live/supabase-blackhole.cjs`.
 
-1. Flags OFF, Supabase refused: `test_auth1_2b2.cjs --probe` and `test_auth1_2b1.cjs --probe`.
+1. Flags OFF, Supabase refused: `test_auth1_2b2.cjs --probe`, `test_auth1_2b1.cjs --probe` and `test_brand2.cjs --probe` (BRAND-2: fonts, Hindi rendering, touch targets, lite mode, reduced transparency, front-end performance budget).
 2. Flags ON (Cloudflare's public always-pass TEST site key, a test Google client id), Supabase refused: the same two probes.
 3. `test_auth1.cjs --resilience=refuse`.
 4. `test_auth1.cjs --resilience=hang`.
