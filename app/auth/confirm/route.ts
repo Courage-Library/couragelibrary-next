@@ -3,6 +3,7 @@ import type { EmailOtpType } from "@supabase/supabase-js";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { UserProfileService } from "@/services/user-profile.service";
 import { safeRedirectUrl } from "@/lib/auth/safe-redirect";
+import { postLoginTarget } from "@/lib/onboarding/server";
 
 /**
  * AUTH-1 Stage 2a: email-link landing (sign-up confirmation, password recovery, email change).
@@ -40,6 +41,12 @@ export async function GET(request: NextRequest) {
       const { data, error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash });
       if (error || !data?.user) return fail();
       if (type !== "recovery") await UserProfileService.ensureProfile(data.user);
+      // F0 (#76): sign-up confirmation / magic-link sign-in may go to /onboarding once (recovery, invite and e-mail
+      // change keep their own targets). Flag ONBOARDING_ENABLED, default off.
+      if (type === "signup" || type === "email") {
+        const path = await postLoginTarget(supabase, `${target.pathname}${target.search}`);
+        return NextResponse.redirect(new URL(path, origin));
+      }
       return NextResponse.redirect(target);
     }
     if (code) {

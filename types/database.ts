@@ -7680,6 +7680,7 @@ export type Database = {
           repetition_level: number
         }[]
       }
+      fn_get_my_onboarding: { Args: never; Returns: Json }
       fn_has_batch_faculty_access: {
         Args: { p_batch_id: string; p_user_id: string }
         Returns: boolean
@@ -7843,6 +7844,17 @@ export type Database = {
           p_corrected_option_id: string
           p_question_version_id: string
           p_reason: string
+        }
+        Returns: Json
+      }
+      fn_save_onboarding: {
+        Args: {
+          p_action: string
+          p_attempt?: string
+          p_daily_minutes?: number
+          p_exam_date?: string
+          p_exam_ids?: string[]
+          p_language?: string
         }
         Returns: Json
       }

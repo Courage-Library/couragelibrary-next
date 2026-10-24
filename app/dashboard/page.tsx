@@ -11,6 +11,10 @@ import { Button } from "@/components/ui/legacy/button";
 import { getServerSession } from "@/lib/auth/session";
 import { SessionUnavailable } from "@/components/auth/session-unavailable";
 import { loginRedirectPath } from "@/lib/auth/safe-redirect";
+import { isOnboardingEnabled } from "@/lib/onboarding/flag";
+import { getOnboardingState } from "@/lib/onboarding/server";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { OnboardingCard } from "@/components/onboarding/onboarding-card";
 import {
   Flame,
   Coins,
@@ -35,6 +39,9 @@ export default async function DashboardPage() {
   if (authSession.state === "none") redirect(loginRedirectPath("/dashboard"));
 
   const data = await DashboardService.getStudentDashboardData();
+  // F0 (#76): one dismissible card while onboarding is not completed (flag off / state unknown → no card)
+  const onboarding = isOnboardingEnabled() ? (await getOnboardingState(await createServerSupabaseClient())).status : null;
+  const showOnboardingCard = onboarding !== null && !onboarding.completed;
 
   if (!data.user) {
     // the service's own read can still fail transiently after the session check passed
@@ -44,6 +51,7 @@ export default async function DashboardPage() {
   return (
     <div className="py-8 bg-slate-50/50 min-h-[calc(100vh-4rem)]">
       <Container className="space-y-8">
+        {showOnboardingCard && <OnboardingCard />}
         {/* Welcome Header */}
         {/* BRAND-2 (#72): hero gradient header; its chips are the only glass on the dashboard */}
         <div className="hero-gradient flex flex-col md:flex-row md:items-center md:justify-between gap-4 rounded-hero p-6 sm:p-8">

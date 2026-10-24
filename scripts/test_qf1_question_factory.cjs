@@ -689,7 +689,8 @@ const OPTS = { origin: 'AI_EXTERNAL', requireContextHash: true, cognitiveTrapCod
     const sql = read('supabase/migrations/20261012000063_qf1_question_factory_core.sql');
     assert(sql.indexOf('mock_questions reference non-PUBLISHED') < sql.indexOf('CREATE POLICY "QF1 candidate read published question versions"'));
     const { execFileSync } = require('child_process');
-    const changed = execFileSync('git', ['diff', '--name-only', 'HEAD', '--', 'supabase/migrations'], { cwd: ROOT, encoding: 'utf8' }).trim();
+    // F0: only EDITS of existing migrations count (modified / deleted / renamed); a new, staged migration is allowed
+    const changed = execFileSync('git', ['diff', '--name-only', '--diff-filter=MDR', 'HEAD', '--', 'supabase/migrations'], { cwd: ROOT, encoding: 'utf8' }).trim();
     assert(changed === '', `existing migrations modified: ${changed}`);
   });
   await test('A1-1 question_versions gains only lifecycle_status + content_checksum', async () => {

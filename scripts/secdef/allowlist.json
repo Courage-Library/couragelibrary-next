@@ -6,13 +6,14 @@
   "client EXECUTE (anon / authenticated / PUBLIC) only as listed; any new client grant fails",
   "anon / PUBLIC EXECUTE on a callable function only with public_ok (P-9 SECDEF_PUBLIC_OK)",
   "search_path pinned and unchanged from this file; new functions use '' or 'public, pg_temp' (rls_auto_enable() is recorded as pg_catalog)",
-  "max counts may only go down: lower them (and remove entries) in the same change that revokes / drops"
+  "max counts may only go down: lower them (and remove entries) in the same change that revokes / drops",
+  "F0 (decision #76, 2026-10-25): max total / client_executable_callable / A raised by exactly 1 for fn_save_onboarding — a NEW reviewed client entrypoint authorised by the F0 brief (#42 RPC-only writes)"
  ],
  "max": {
-  "total": 95,
-  "client_executable_callable": 37,
+  "total": 96,
+  "client_executable_callable": 38,
   "anon_or_public": 1,
-  "A": 37,
+  "A": 38,
   "C": 0,
   "B-trigger": 15,
   "B-service": 29,
@@ -666,6 +667,14 @@
    "client": [],
    "search_path": "public, pg_temp",
    "reason": "trigger function (not callable)"
+  },
+  "fn_save_onboarding(p_action text, p_language text, p_exam_ids uuid[], p_exam_date date, p_attempt text, p_daily_minutes integer)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "\"\"",
+   "reason": "client entrypoint (F0 onboarding, decision #76); own check: auth.uid(); migration 091 — listed before the owner applies it (the live ratchet only notes a not-yet-present function)"
   }
  }
 }

@@ -8,6 +8,7 @@ import { HeaderBar } from "./header-bar";
 import type { ShellFlags } from "./nav-config";
 import type { ShellAccount } from "./shell-types";
 import { SiteFooter } from "./site-footer";
+import { isOnboardingEnabled } from "@/lib/onboarding/flag";
 
 /**
  * UX-1b app shell around every route: skip link, header (public or student), <main id="main-content">,
@@ -30,6 +31,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
         name: (user.user_metadata?.full_name as string | undefined)?.trim() || user.email?.split("@")[0] || "Student",
         email: user.email ?? null,
         isStaff: role === "admin" || role === "staff",
+        studyPreferences: isOnboardingEnabled(),
       }
     : null;
 

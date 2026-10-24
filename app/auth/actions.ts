@@ -16,6 +16,7 @@ import {
 } from "@/lib/auth/messages";
 import { getSignupAvailability } from "@/lib/auth/signup-availability";
 import { isTransientAuthError } from "@/lib/auth/session-state";
+import { postLoginTarget } from "@/lib/onboarding/server";
 import { CAPTCHA_FIELD, checkCaptchaToken } from "@/lib/auth/captcha";
 
 /**
@@ -84,7 +85,9 @@ export async function loginAction(prevState: AuthState | null, formData: FormDat
   // SEC-1D: honour `next` (sanitized server-side; hostile values fall back to "/"). Admin targets still
   // pass through requireAdminPage, so this grants nothing.
   const next = formData.get("next");
-  redirect(typeof next === "string" && next !== "" ? sanitizeRedirectPath(next) : "/dashboard");
+  const target = typeof next === "string" && next !== "" ? sanitizeRedirectPath(next) : "/dashboard";
+  // F0 (#76): once, while onboarding is neither completed nor skipped (flag ONBOARDING_ENABLED, default off)
+  redirect(await postLoginTarget(supabase, target));
 }
 
 export async function signupAction(prevState: AuthState | null, formData: FormData): Promise<AuthState> {

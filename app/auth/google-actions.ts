@@ -10,6 +10,7 @@ import { consumeNonce } from "@/lib/auth/google-nonce";
 import { isWellFormedIdToken, mapGoogleError } from "@/lib/auth/google-signin";
 import { checkCaptchaToken } from "@/lib/auth/captcha";
 import type { AuthState } from "@/app/auth/actions";
+import { postLoginTarget } from "@/lib/onboarding/server";
 
 /**
  * AUTH-1 2b-1 (decision #66): Sign in with Google. The Google Identity Services button (rendered on our own origin)
@@ -51,7 +52,9 @@ export async function signInWithGoogleAction(credential: unknown, next: unknown,
 
   // insert-only profile (#60): an existing name / is_active is never overwritten; no role fields are written
   await UserProfileService.ensureProfile(user);
-  redirect(typeof next === "string" && next !== "" ? sanitizeRedirectPath(next, "/dashboard") : "/dashboard");
+  const target = typeof next === "string" && next !== "" ? sanitizeRedirectPath(next, "/dashboard") : "/dashboard";
+  // F0 (#76): once, while onboarding is neither completed nor skipped (flag ONBOARDING_ENABLED, default off)
+  redirect(await postLoginTarget(supabase, target));
 }
 
 function logGoogleError(err: unknown) {
