@@ -736,16 +736,21 @@ async function live() {
       };
       const a = await errFor(QA_STUDENT);
       const b = await errFor('nobody-auth1@example.test');
-      assert(JSON.stringify(a) === JSON.stringify(b) && a[0] === 'invalid-credentials', `${JSON.stringify(a)} vs ${JSON.stringify(b)}`);
+      // CI-FIX-1 (#74): with Supabase CAPTCHA on, both answers are the fixed captcha code instead — still identical
+      assert(JSON.stringify(a) === JSON.stringify(b) && ['invalid-credentials', 'captcha-failed', 'captcha-required'].includes(a[0]), `${JSON.stringify(a)} vs ${JSON.stringify(b)}`);
     });
-    await test('L-7 QA password sign-in still works (field names unchanged) and honours a safe `next`', async () => {
-      const pw = env('QA_STUDENT_PASSWORD');
-      if (!pw) throw new Error('QA_STUDENT_PASSWORD missing in .env.local');
+    await test('L-7 (NEGATIVE, CI-FIX-1 #74) login form under CAPTCHA: field names unchanged, a fixed captcha code is shown, `next` is not followed', async () => {
+      // Supabase CAPTCHA is ON: the form cannot sign in from a test (never solved / bypassed). A fixed dummy password —
+      // never a real one. Signed-in behaviour is covered with CAPTCHA-safe QA sessions (scripts/live/qa-session.cjs).
       await loginAt('?next=%2Fperformance');
       await page.fill('input[name="email"]', QA_STUDENT);
-      await page.fill('input[name="password"]', pw);
-      await Promise.all([page.waitForURL((u) => !/\/auth\/login/.test(String(u)), { timeout: 90000 }), page.locator('button[type="submit"]').first().click()]);
-      assert(new URL(page.url()).pathname === '/performance', `landed on ${new URL(page.url()).pathname}`);
+      await page.fill('input[name="password"]', 'not-the-password-1');
+      await page.locator('button[type="submit"]').first().click();
+      const el = page.locator('[data-auth-error]').first();
+      await el.waitFor({ state: 'visible', timeout: 60000 });
+      const code = await el.getAttribute('data-auth-error');
+      assert(['captcha-failed', 'captcha-required'].includes(code), `code ${code}`);
+      assert(new URL(page.url()).pathname === '/auth/login', `moved to ${new URL(page.url()).pathname}`);
     });
     await test('L-8 /auth/unavailable renders the retry UI with a sanitized retry link', async () => {
       await page.goto(`${BASE}/auth/unavailable?next=${encodeURIComponent('//evil.example')}`, { waitUntil: 'load', timeout: 120000 });

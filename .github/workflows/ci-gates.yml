@@ -57,7 +57,8 @@ jobs:
   # ------------------------------------------------------------------ (a) offline gates — no secrets
   offline:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    # CI-FIX-1: every job has a hard limit so a run can never hang for hours (green: offline ~1 min)
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -102,6 +103,8 @@ jobs:
           q REFSCAN-SELFTEST node scripts/smoke/anonymous-smoke.cjs --self-test || fail=1
           q NPD-SELFTEST node scripts/test_no_personal_data.cjs --self-test || fail=1
           q LOCAL-ONLY-SELFTEST node scripts/test_no_local_only_tracked.cjs --self-test || fail=1
+          q QA-SESSION-UNIT node scripts/test_qa_session.cjs || fail=1
+          q KILL-LEFTOVER-SELFTEST node scripts/ci/kill-leftover-server.cjs --self-test || fail=1
           exit $fail
       - name: Log scan of the captured outputs
         if: always()
@@ -173,7 +176,8 @@ jobs:
     # on push the dispatch inputs are empty: live gates always run on push (#65 CI-first loop)
     if: github.event_name == 'push' || inputs.live
     runs-on: ubuntu-24.04
-    timeout-minutes: 150
+    # CI-FIX-1: hard limit (green runs ~30 min); the always-run cleanup steps still execute after a timeout
+    timeout-minutes: 45
     environment: ci-live
     env:
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
@@ -220,6 +224,7 @@ jobs:
           Q='node scripts/ci/run-quiet.cjs --id'
           B='http://localhost:3100'
           node scripts/live/with-server.cjs --port=3100 --log="$RUNNER_TEMP/server/server.log" -- \
+            "$Q QA-SESSION-PROBE -- node scripts/live/qa-session.cjs --probe" \
             "$Q SECDEF-RATCHET -- node scripts/test_secdef_ratchet.cjs" \
             "$Q RLS -- node scripts/test_sec_hotfix4_rls.cjs" \
             "$Q QF1-DB -- node scripts/test_qf1_db.cjs" \
@@ -257,6 +262,8 @@ jobs:
         if: always()
         run: |
           node scripts/ci/run-quiet.cjs --id CLEANUP-FINAL -- node scripts/e2e/cleanup-student.cjs || true
+          # CI-FIX-1: a cancelled / timed-out live step can leave its server on :3100 (run #13) — stop ONLY ours first
+          node scripts/ci/kill-leftover-server.cjs --port=3100 || true
           node scripts/live/with-server.cjs --port=3100 --log="$RUNNER_TEMP/server/server-cleanup.log" -- \
             "node scripts/ci/run-quiet.cjs --id FIXTURE-FINAL -- node scripts/e2e/ensure-student-fixture.cjs http://localhost:3100" || true
       - name: Orphan-session check (always; never terminates)
@@ -271,7 +278,8 @@ jobs:
     needs: offline
     if: github.event_name == 'push' || inputs.prod_smoke
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    # CI-FIX-1: hard limit; the Vercel deploy wait inside is ≤ 16 min (WAIT-FOR-DEPLOY --timeout 960)
+    timeout-minutes: 20
     environment: ci-public
     env:
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}

@@ -79,15 +79,9 @@ const sha = (x) => crypto.createHash('sha256').update(JSON.stringify(x)).digest(
 async function sessions(env) {
   const url = env('NEXT_PUBLIC_SUPABASE_URL');
   const anon = env('NEXT_PUBLIC_SUPABASE_ANON_KEY');
-  const tok = async (email, key) => {
-    for (let i = 1; i <= 3; i++) {
-      try {
-        const r = await fetch(`${url}/auth/v1/token?grant_type=password`, { method: 'POST', headers: { apikey: anon, 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password: env(key) }) }).then((x) => x.json());
-        if (r.access_token) return r.access_token;
-      } catch { /* retry */ }
-    }
-    throw new Error(`sign-in failed (${email.split('@')[0]})`);
-  };
+  // CI-FIX-1 (#74): CAPTCHA-safe QA session (scripts/live/qa-session.cjs); `key` is unused
+  const { qaAccessToken } = require('./live/qa-session.cjs');
+  const tok = async (email) => qaAccessToken(email);
   const service = env('SUPABASE_SERVICE_ROLE_KEY');
   if (!service) throw new Error('SUPABASE_SERVICE_ROLE_KEY not set');
   return { url, anon, service, admin: await tok('qa-admin@courage-library.test', 'QA_ADMIN_PASSWORD'), student: await tok('qa-student@courage-library.test', 'QA_STUDENT_PASSWORD') };

@@ -190,20 +190,10 @@ function audit() {
   return out;
 }
 
+// CI-FIX-1 (#74): CAPTCHA-safe QA session cookies (no login form; scripts/live/qa-session.cjs). `env` is unused.
+// eslint-disable-next-line no-unused-vars
 async function signIn(page, env) {
-  const password = env('QA_ADMIN_PASSWORD');
-  if (!password) throw new Error('QA_ADMIN_PASSWORD missing in .env.local');
-  for (let i = 1; i <= 3; i++) {
-    await page.goto(`${BASE}/auth/login`, { waitUntil: 'networkidle', timeout: 120000 });
-    await page.fill('input[type="email"]', 'qa-admin@courage-library.test');
-    await page.fill('input[type="password"]', password);
-    await Promise.all([
-      page.waitForURL((u) => !/\/auth\/login/.test(String(u)), { timeout: 60000 }).catch(() => undefined),
-      page.locator('button[type="submit"]').first().click(),
-    ]);
-    if (!/\/auth\/login/.test(page.url())) return;
-  }
-  throw new Error('sign-in failed (admin)');
+  await require('./live/qa-session.cjs').qaBrowserLogin(page.context(), 'qa-admin@courage-library.test', BASE);
 }
 
 const UNCLIP = `html,body,body *{max-height:none!important}

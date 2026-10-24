@@ -18,6 +18,7 @@
  * creates one completed mock attempt with wrong answers for qa-student only when missing).
  */
 const { chromium } = require('playwright');
+const { qaBrowserLogin } = require('../live/qa-session.cjs');
 const { readEnv } = require('../db/_db-env.cjs');
 const { readModelForSlug, checkSyllabusSection } = require('./_syllabus-expect.cjs');
 
@@ -140,15 +141,12 @@ const REQUIRED = {
       `${all.length} requests, max ${top}× ${topKey}, static max ${sTop}× ${sKey}${long.length ? `, ${long.length} > 30 s: ${long.slice(0, 3).map((e) => e.key).join(', ')}` : ', none > 30 s'}`);
     return res;
   };
-  for (let i = 1; i <= 3; i++) {
-    await go('/auth/login');
-    await page.fill('input[type="email"]', email);
-    await page.fill('input[type="password"]', password);
-    await Promise.all([page.waitForURL((u) => !/\/auth\/login/.test(String(u)), { timeout: 60000 }).catch(() => undefined), page.locator('button[type="submit"]').first().click()]);
-    if (!/\/auth\/login/.test(page.url())) break;
-    if (i === 3) throw new Error(`sign-in failed (${CHECK.split('-')[0]})`);
-  }
-  check('signed in', true, new URL(page.url()).pathname);
+  // the sign-in page itself still renders (no form submit: password sign-in is captcha-protected, decision #74)
+  await go('/auth/login');
+  // CI-FIX-1 (#74): CAPTCHA-safe QA session cookies (scripts/live/qa-session.cjs)
+  await qaBrowserLogin(page.context(), email, BASE);
+  await page.goto(BASE + '/dashboard', { waitUntil: 'load', timeout: 120000 });
+  check('signed in (QA session)', !/\/auth\/login/.test(page.url()), new URL(page.url()).pathname);
 
   if (CHECK === 'student-mistake') {
     await go('/mistakes');

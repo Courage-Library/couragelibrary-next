@@ -643,15 +643,11 @@ async function part5() {
   globalThis.fetch = realFetch;
   const { createClient } = require('@supabase/supabase-js');
   const G = require(path.join(ROOT, 'lib/auth/require-admin.ts'));
-  const signIn = async (email, password) => {
-    const c = createClient(env('NEXT_PUBLIC_SUPABASE_URL'), env('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY') || env('NEXT_PUBLIC_SUPABASE_ANON_KEY'), { auth: { persistSession: false, autoRefreshToken: false } });
-    for (let i = 0; i < 3; i++) {
-      const { error } = await c.auth.signInWithPassword({ email, password });
-      if (!error) return c;
-      if (!/fetch|timeout|network/i.test(error.message || '')) throw new Error(`sign-in failed for ${email} (${error.status || 'unknown'})`);
-    }
-    throw new Error(`sign-in timed out for ${email}`);
-  };
+  // CI-FIX-1 (#74): CAPTCHA-safe QA session (magic-link token minted server-side); the password argument is unused
+  const { qaUserClient } = require('./live/qa-session.cjs');
+  const signIn = async (email) => qaUserClient(email).catch((e) => {
+    throw new Error(`QA session failed for ${email.split('@')[0]} (${e.code || e.name})`);
+  });
   const decide = async (client, opts) => {
     sessionOverride = client;
     try {

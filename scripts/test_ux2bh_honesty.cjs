@@ -271,18 +271,12 @@ async function live() {
   for (const r of routesOut) for (const w of [360, 1280]) seen[`out ${r} @${w}`] = { ...(await view(anon, r, w)), axe: await axe(anon) };
 
   // ---- signed in ----
-  const page = await browser.newPage();
+  const signedInCtx = await browser.newContext();
+  // CI-FIX-1 (#74): CAPTCHA-safe QA session cookies (no login form; scripts/live/qa-session.cjs)
+  await require('./live/qa-session.cjs').qaBrowserLogin(signedInCtx, 'qa-student@courage-library.test', BASE);
+  const page = await signedInCtx.newPage();
   watch(page, 'student');
   page.setDefaultTimeout(60000);
-  const password = readEnv()('QA_STUDENT_PASSWORD');
-  for (let i = 1; i <= 3; i++) {
-    await page.goto(BASE + '/auth/login', { waitUntil: 'load' });
-    await page.fill('input[type="email"]', 'qa-student@courage-library.test');
-    await page.fill('input[type="password"]', password);
-    await Promise.all([page.waitForURL((u) => !/\/auth\/login/.test(String(u)), { timeout: 60000 }).catch(() => undefined), page.locator('button[type="submit"]').first().click()]);
-    if (!/\/auth\/login/.test(page.url())) break;
-    if (i === 3) throw new Error('sign-in failed');
-  }
   page.__signedIn = true;
   await page.goto(BASE + '/mock-tests', { waitUntil: 'load' });
   await page.locator('a[href*="/result"]').first().waitFor({ state: 'visible', timeout: 30000 }).catch(() => undefined);

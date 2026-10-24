@@ -331,13 +331,9 @@ const RETIRED_TABLES = ['exam_syllabi', 'exam_topics', 'exam_unit_mappings', 'ta
       const env = readEnv();
       const url = env('NEXT_PUBLIC_SUPABASE_URL');
       const anon = env('NEXT_PUBLIC_SUPABASE_ANON_KEY');
-      let student = null;
-      for (let i = 1; i <= 3 && !student; i++) {
-        const r = await fetch(`${url}/auth/v1/token?grant_type=password`, { method: 'POST', headers: { apikey: anon, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: 'qa-student@courage-library.test', password: env('QA_STUDENT_PASSWORD') }) }).then((x) => x.json()).catch(() => ({}));
-        student = r.access_token || null;
-      }
-      assert(student, 'qa-student sign-in failed');
+      // CI-FIX-1 (#74): CAPTCHA-safe QA session (magic-link token minted server-side; no password sign-in)
+      const { qaAccessToken } = require('./live/qa-session.cjs');
+      const student = await qaAccessToken('qa-student@courage-library.test').catch((e) => assert(false, `qa-student session failed (${e.code || e.name})`));
       const seen = [];
       for (const t of RETIRED_TABLES) {
         for (const [who, bearer] of [['anon', anon], ['student', student]]) {

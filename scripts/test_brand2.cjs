@@ -21,7 +21,7 @@
  * Probe (--probe; CI server-checks, LOCAL production build, decision #69):
  *   P-01 font payload on "/" (cold) ≤ 160 KB; no Devanagari file on an English page
  *   P-02 a Hindi sample renders with the Devanagari web font (body) and Poppins (heading), not a system fallback
- *   P-03 touch targets ≥ 48 px measured on /, /auth/login, /auth/forgot-password (360 px)
+ *   P-03a…h touch targets ≥ 48 px measured at 360 px, one ID per target (CI shows which one fails)
  *   P-04 lite mode (deviceMemory 2) → html.lite, no backdrop blur; capable device → blur on the nav
  *   P-05 prefers-reduced-transparency: reduce → no backdrop blur
  *   P-06 "/" front-end budget, Moto-G-class emulation (4x CPU, Fast 4G, cold): LCP ≤ 2.5 s, CLS ≤ 0.1, transfer ≤ 500 KB
@@ -398,29 +398,33 @@ async function probe() {
       return `body: ${bodyDeva.familyName}; heading: ${headPoppins.familyName}; line-height ${lh.toFixed(2)}`;
     });
 
-    await test('P-03 touch targets ≥ 48 px measured on /, /auth/login, /auth/forgot-password at 360 px', async () => {
-      const ctx = await browser.newContext({ viewport: { width: 360, height: 780 } });
-      const page = await ctx.newPage();
-      const bad = [];
-      let n = 0;
-      const CHECK = {
-        '/': ['header a[href="/auth/signup"]', 'header button[aria-label="Open menu"]', '#main-content section a[href="/auth/signup"], #main-content section a[href="/dashboard"]', 'a[href="/exams/ssc-cgl"]'],
-        '/auth/login': ['form button[type="submit"]', 'header button[aria-label="Open menu"]'],
-        '/auth/forgot-password': ['form button[type="submit"]'],
-      };
-      for (const [p, sels] of Object.entries(CHECK)) {
-        await page.goto(base + p, { waitUntil: 'load', timeout: 60000 });
-        for (const sel of sels) {
-          const box = await page.locator(sel).first().boundingBox();
-          n++;
-          if (!box) bad.push(`${p} ${sel}: not visible`);
-          else if (box.height < 47.5 || box.width < 47.5) bad.push(`${p} ${sel}: ${Math.round(box.width)}×${Math.round(box.height)}`);
+    // P-03a…h (CI-FIX-1): one check ID per target, so CI's summary line (IDs only) names the failing target
+    const TARGETS = [
+      ['P-03a', 'home nav "Get started"', '/', 'header a[href="/auth/signup"]'],
+      ['P-03b', 'home nav menu button', '/', 'header button[aria-label="Open menu"]'],
+      ['P-03c', 'home hero primary CTA', '/', '#main-content section a[href="/auth/signup"], #main-content section a[href="/dashboard"]'],
+      ['P-03d', 'home hero "Explore SSC CGL"', '/', 'a[href="/exams/ssc-cgl"]'],
+      ['P-03e', 'login submit', '/auth/login', 'form button[type="submit"]'],
+      ['P-03f', 'login nav menu button', '/auth/login', 'header button[aria-label="Open menu"]'],
+      ['P-03g', 'forgot-password submit', '/auth/forgot-password', 'form button[type="submit"]'],
+      ['P-03h', 'home nav wordmark link', '/', 'header a[href="/"]'],
+    ];
+    const ctx360 = await browser.newContext({ viewport: { width: 360, height: 780 } });
+    const page360 = await ctx360.newPage();
+    let loaded = null;
+    for (const [id, label, p, sel] of TARGETS) {
+      await test(`${id} touch target ≥ 48 px at 360 px: ${label} (${p})`, async () => {
+        if (loaded !== p) {
+          await page360.goto(base + p, { waitUntil: 'load', timeout: 60000 });
+          loaded = p;
         }
-      }
-      await ctx.close();
-      assert(bad.length === 0, bad.join('; '));
-      return `${n} targets ≥ 48 px`;
-    });
+        const box = await page360.locator(sel).first().boundingBox();
+        assert(box, 'not visible');
+        assert(box.height >= 47.5 && box.width >= 47.5, `${box.width.toFixed(1)}×${box.height.toFixed(1)}`);
+        return `${box.width.toFixed(1)}×${box.height.toFixed(1)}`;
+      });
+    }
+    await ctx360.close();
 
     await test('P-04 lite mode: low-end device → html.lite + no blur; capable device → blur on the public nav', async () => {
       const out = [];

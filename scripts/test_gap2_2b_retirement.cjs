@@ -407,14 +407,8 @@ async function dbTests() {
         } catch (e) { if (i === 3) throw e; }
       }
     };
-    let tokenRes;
-    for (let i = 1; i <= 3; i++) {
-      try {
-        tokenRes = await fetch(`${url}/auth/v1/token?grant_type=password`, { method: 'POST', headers: { apikey: anon, 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'qa-student@courage-library.test', password: env('QA_STUDENT_PASSWORD') }) }).then((r) => r.json());
-        break;
-      } catch (e) { if (i === 3) throw e; }
-    }
-    const studentToken = tokenRes && tokenRes.access_token;
+    // CI-FIX-1 (#74): CAPTCHA-safe QA session (scripts/live/qa-session.cjs)
+    const studentToken = await require('./live/qa-session.cjs').qaAccessToken('qa-student@courage-library.test').catch(() => null);
     assert(studentToken, 'qa-student sign-in failed');
     const bad = [];
     for (const [who, tok] of [['anon', anon], ['qa-student', studentToken]]) {

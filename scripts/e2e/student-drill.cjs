@@ -14,6 +14,7 @@
  * Usage: E2E_STUDENT_EMAIL=qa-student@courage-library.test E2E_STUDENT_PASSWORD_KEY=QA_STUDENT_PASSWORD node scripts/e2e/student-drill.cjs
  */
 const { chromium } = require('playwright');
+const { qaBrowserLogin } = require('../live/qa-session.cjs');
 const { BASE, EMAIL, admin, ensureStudent, stepRecorder } = require('./_e2e-env.cjs');
 
 const { results, step } = stepRecorder();
@@ -21,7 +22,7 @@ const { results, step } = stepRecorder();
 (async () => {
   if (!process.env.E2E_STUDENT_PASSWORD_KEY) throw new Error('E2E_STUDENT_PASSWORD_KEY is required (permanent QA student only; never a throwaway user)');
   if (!['localhost', '127.0.0.1', '[::1]'].includes(new URL(BASE).hostname)) throw new Error('runs against a local build only');
-  const { user, password } = await ensureStudent();
+  const { user } = await ensureStudent();
   const uid = user.id;
 
   const count = async (table) => {
@@ -37,12 +38,11 @@ const { results, step } = stepRecorder();
 
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   try {
-    const page = await (await browser.newContext({ viewport: { width: 1366, height: 900 } })).newPage();
+    const context = await browser.newContext({ viewport: { width: 1366, height: 900 } });
+    // CI-FIX-1 (#74): CAPTCHA-safe QA session cookies (no login form; scripts/live/qa-session.cjs)
+    await qaBrowserLogin(context, EMAIL, BASE);
+    const page = await context.newPage();
     page.setDefaultTimeout(120000);
-    await page.goto(`${BASE}/auth/login`, { waitUntil: 'networkidle', timeout: 240000 });
-    await page.fill('input[name="email"]', EMAIL);
-    await page.fill('input[name="password"]', password);
-    await Promise.all([page.waitForURL((u) => !u.pathname.startsWith('/auth/login'), { timeout: 180000 }), page.click('button[type="submit"]')]);
 
     await page.goto(`${BASE}/mistakes/drill`, { waitUntil: 'networkidle', timeout: 240000 });
     await page.getByRole('button', { name: /Start Remediation Drill/i }).click();

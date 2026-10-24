@@ -309,18 +309,12 @@ async function live() {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   const signIn = async (email, key) => {
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+    // CI-FIX-1 (#74): CAPTCHA-safe QA session cookies (no login form; scripts/live/qa-session.cjs). `key` is unused.
+    await require('./live/qa-session.cjs').qaBrowserLogin(ctx, email, BASE);
     const page = await ctx.newPage();
     // each edit = server action + RPC + router.refresh (several Supabase round trips); allow slow links
     page.setDefaultTimeout(120000);
-    for (let i = 1; i <= 3; i++) {
-      await page.goto(`${BASE}/auth/login`, { waitUntil: 'networkidle', timeout: 120000 });
-      await page.fill('input[type="email"]', email);
-      await page.fill('input[type="password"]', env(key));
-      await Promise.all([page.waitForURL((u) => !/\/auth\/login/.test(String(u)), { timeout: 120000 }).catch(() => undefined), page.locator('button[type="submit"]').first().click()]);
-      if (!/\/auth\/login/.test(page.url())) return page;
-      await page.waitForTimeout(15000);
-    }
-    throw new Error(`sign-in failed (${email.split('@')[0]})`);
+    return page;
   };
   const waitMsg = async (page, rx) => page.locator('[role=status], [role=alert]').filter({ hasText: rx }).first().waitFor({ timeout: 120000 });
   let versionUrl = null;

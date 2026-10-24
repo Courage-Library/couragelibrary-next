@@ -9,7 +9,7 @@
  * which option to click — the same approach as scripts/e2e/student-journey.cjs.
  *
  * Safety:
- *   - only qa-student@courage-library.test (permanent identity; stored password from .env.local); it is never
+ *   - only qa-student@courage-library.test (permanent identity; CAPTCHA-safe QA session via scripts/live/qa-session.cjs, CI-FIX-1); it is never
  *     created, modified or deleted here, and no other user is touched;
  *   - local build only (refuses any non-localhost base); run it through the live-gate runner:
  *       node scripts/live/with-server.cjs -- "node scripts/e2e/ensure-student-fixture.cjs http://localhost:3100"
@@ -23,15 +23,13 @@
  */
 const { Client } = require('pg');
 const { chromium } = require('playwright');
-const { dbTarget, readEnv } = require('../db/_db-env.cjs');
+const { qaBrowserLogin } = require('../live/qa-session.cjs');
+const { dbTarget } = require('../db/_db-env.cjs');
 
 const BASE = (process.argv.slice(2).find((a) => /^https?:/.test(a)) || process.env.BASE_URL || 'http://localhost:3100').replace(/\/$/, '');
 if (!['localhost', '127.0.0.1', '[::1]'].includes(new URL(BASE).hostname)) { console.error('refused: local build only'); process.exit(2); }
 const SLUG_ARG = (process.argv.find((a) => a.startsWith('--mock-slug=')) || '').split('=')[1] || null;
 const EMAIL = 'qa-student@courage-library.test';
-const env = readEnv();
-const PASSWORD = env('QA_STUDENT_PASSWORD');
-if (!PASSWORD) { console.error('QA_STUDENT_PASSWORD missing in .env.local'); process.exit(2); }
 
 // QB-KEY-1: the 8 retired CA-4 fixture questions (docs/reports/qb/QB_KEY1_STAGE1_REPORT.md §1.1) — never in the fixture mock
 const CA4_FIXTURE_QUESTION_PREFIXES = ['c6cbfdbf', '234486ee', '597c1c98', '1fdd3747', 'd00219c2', '3735364e', '78bd0707', '94b30583'];
@@ -107,18 +105,13 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   let ok = false;
   try {
-    const page = await (await browser.newContext({ viewport: { width: 1366, height: 900 } })).newPage();
+    const context = await browser.newContext({ viewport: { width: 1366, height: 900 } });
+    // CI-FIX-1 (#74): CAPTCHA-safe QA session cookies (no login form; scripts/live/qa-session.cjs)
+    await qaBrowserLogin(context, EMAIL, BASE);
+    const page = await context.newPage();
     page.setDefaultTimeout(120000);
-    // sign in (≤ 3 attempts; the network to Supabase is bursty on this machine)
-    for (let i = 1; i <= 3; i++) {
-      await page.goto(`${BASE}/auth/login`, { waitUntil: 'networkidle', timeout: 180000 });
-      await page.fill('input[type="email"]', EMAIL);
-      await page.fill('input[type="password"]', PASSWORD);
-      await Promise.all([page.waitForURL((u) => !u.pathname.startsWith('/auth/login'), { timeout: 120000 }).catch(() => undefined), page.locator('button[type="submit"]').first().click()]);
-      if (!new URL(page.url()).pathname.startsWith('/auth/login')) break;
-      await sleep(15000);
-    }
-    if (new URL(page.url()).pathname.startsWith('/auth/login')) throw new Error('sign-in failed (qa-student)');
+    await page.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle', timeout: 180000 });
+    if (new URL(page.url()).pathname.startsWith('/auth/login')) throw new Error('QA session not accepted (qa-student)');
     console.log('signed in');
 
     // start the mock (same UI path as the E2E journey)

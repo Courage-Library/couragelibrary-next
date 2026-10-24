@@ -189,5 +189,53 @@ test('C-14 run-quiet passes a wrapped gate\'s "--self-test" to the gate (it must
   return 'gate executed with its flag';
 });
 
+test('C-15 every job has timeout-minutes (CI-FIX-1: offline 15 · server-checks 20 · live 45 · prod-smoke 20)', () => {
+  const w = fs.readFileSync(path.join(ROOT, '.github/workflows/ci-gates.yml'), 'utf8');
+  const jobsAt = w.indexOf('\njobs:\n');
+  assert(jobsAt > 0, 'no jobs block');
+  const blocks = w.slice(jobsAt).split(/\n(?= {2}[a-z][\w-]*:\n)/).slice(1);
+  const want = { offline: 15, 'server-checks': 20, live: 45, 'prod-smoke': 20 };
+  const got = {};
+  for (const b of blocks) {
+    const name = b.match(/^ {2}([a-z][\w-]*):/)[1];
+    const t = b.match(/^ {4}timeout-minutes: (\d+)$/m);
+    got[name] = t ? Number(t[1]) : null;
+  }
+  const names = Object.keys(got);
+  assert(names.length >= 4, `jobs found: ${names.join(', ')}`); // GATE-HYGIENE-1
+  const missing = names.filter((n) => got[n] === null);
+  assert(missing.length === 0, `jobs without timeout-minutes: ${missing.join(', ')}`);
+  const wrong = Object.entries(want).filter(([n, v]) => got[n] !== v).map(([n, v]) => `${n}: ${got[n]} (want ${v})`);
+  assert(wrong.length === 0, wrong.join('; '));
+  return names.map((n) => `${n} ${got[n]}`).join(' · ');
+});
+
+test('C-16 no QA password sign-in in any script (decision #74: CAPTCHA-safe QA sessions); only the negative login-page tests submit the form, with fixed dummy passwords', () => {
+  const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? (e.name === 'node_modules' ? [] : walk(path.join(d, e.name))) : /\.c?js$/.test(e.name) ? [path.join(d, e.name)] : []));
+  const files = walk(path.join(ROOT, 'scripts'));
+  assert(files.length >= 100, `scripts scanned ${files.length}`); // GATE-HYGIENE-1
+  const rel = (f) => path.relative(ROOT, f).split(path.sep).join('/');
+  const SELF = new Set(['scripts/ci/test_ci_scripts.cjs', 'scripts/live/qa-session.cjs', 'scripts/test_qa_session.cjs']);
+  // negative login-page tests (CAPTCHA on): they may type a FIXED dummy password into the form — never a real one
+  const DUMMY_FILL_ALLOWED = new Set(['scripts/test_auth1.cjs', 'scripts/test_sec1d_redirects.cjs']);
+  const bad = [];
+  let fills = 0;
+  for (const f of files) {
+    const r = rel(f);
+    if (SELF.has(r)) continue;
+    const src = fs.readFileSync(f, 'utf8');
+    if (/\.signInWithPassword\(/.test(src)) bad.push(`${r}: signInWithPassword() call`);
+    if (/grant_type=password/.test(src)) bad.push(`${r}: password grant`);
+    for (const m of src.matchAll(/\.fill\(\s*(['"`])((?:(?!\1).)*password(?:(?!\1).)*)\1\s*,\s*([^)]*)\)/gi)) {
+      const arg = m[3].trim();
+      fills++;
+      if (!DUMMY_FILL_ALLOWED.has(r)) bad.push(`${r}: types into a password field`);
+      else if (!/^'[^'$]*'$/.test(arg)) bad.push(`${r}: password field filled with a non-literal value`);
+    }
+  }
+  assert(bad.length === 0, bad.join('; '));
+  return `${files.length} scripts; ${fills} dummy password fill(s), all in negative login-page tests`;
+});
+
 console.log(`\nCI support: ${passed}/${passed + failed} passed`);
 process.exit(failed ? 1 : 0);

@@ -8,7 +8,8 @@
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
-const { BASE, EMAIL, OUT_DIR, SCREENS_DIR, admin, userClient, ensureStudent, resolveMockId, stepRecorder } = require('./_e2e-env.cjs');
+const { qaBrowserLogin, qaUserClient } = require('../live/qa-session.cjs');
+const { BASE, EMAIL, OUT_DIR, SCREENS_DIR, admin, ensureStudent, resolveMockId, stepRecorder } = require('./_e2e-env.cjs');
 
 const { results, step } = stepRecorder();
 if (SCREENS_DIR) fs.mkdirSync(SCREENS_DIR, { recursive: true });
@@ -19,7 +20,7 @@ const pathOf = (url) => new URL(url).pathname.replace(/[0-9a-f-]{36}/g, ':id');
 
 (async () => {
   const MOCK = await resolveMockId();
-  const { user, password } = await ensureStudent();
+  const { user } = await ensureStudent();
   const uid = user.id;
   console.log('student id prefix:', uid.slice(0, 8));
 
@@ -37,15 +38,13 @@ const pathOf = (url) => new URL(url).pathname.replace(/[0-9a-f-]{36}/g, ':id');
   });
 
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
-  const page = await (await browser.newContext({ viewport: { width: 1366, height: 900 } })).newPage();
+  const context = await browser.newContext({ viewport: { width: 1366, height: 900 } });
+  // 1. Sign in — CI-FIX-1 (#74): CAPTCHA-safe QA session cookies (no login form; scripts/live/qa-session.cjs)
+  await qaBrowserLogin(context, EMAIL, BASE);
+  const page = await context.newPage();
   page.setDefaultTimeout(120000);
-
-  // 1. Login
-  await page.goto(`${BASE}/auth/login`, { waitUntil: 'networkidle', timeout: 240000 });
-  await page.fill('input[name="email"]', EMAIL);
-  await page.fill('input[name="password"]', password);
-  await Promise.all([page.waitForURL((u) => !u.pathname.startsWith('/auth/login'), { timeout: 180000 }), page.click('button[type="submit"]')]);
-  step('E2E-01 login', new URL(page.url()).pathname === '/dashboard', new URL(page.url()).pathname);
+  await page.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle', timeout: 240000 });
+  step('E2E-01 signed in (QA session) → dashboard', new URL(page.url()).pathname === '/dashboard', new URL(page.url()).pathname);
   await shot(page, '01-dashboard');
 
   // 2. Mock tests list
@@ -111,9 +110,7 @@ const pathOf = (url) => new URL(url).pathname.replace(/[0-9a-f-]{36}/g, ':id');
   await shot(page, '05-answered');
 
   // 5. Concurrent second attempt on the same daily mock (student session, direct insert) is rejected.
-  const uc = userClient();
-  const { error: signErr } = await uc.auth.signInWithPassword({ email: EMAIL, password });
-  if (signErr) throw signErr;
+  const uc = await qaUserClient(EMAIL); // CI-FIX-1 (#74): CAPTCHA-safe QA session
   const { error: dupErr } = await uc.from('test_attempts').insert({ user_id: uid, mock_test_id: MOCK, status: 'in_progress', started_at: new Date().toISOString() });
   step('E2E-06 second concurrent attempt rejected', !!dupErr && /23505|ACTIVE_ATTEMPT_EXISTS|duplicate/i.test(`${dupErr.code} ${dupErr.message}`), dupErr ? `${dupErr.code}` : 'INSERTED (unexpected)');
 

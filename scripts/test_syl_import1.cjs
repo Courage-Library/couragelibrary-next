@@ -262,13 +262,11 @@ const CASES = [
   c.on('error', () => {});
   await c.connect();
   const ro = async (sql, p) => { await c.query('BEGIN READ ONLY'); try { return (await c.query(sql, p)).rows; } finally { await c.query('ROLLBACK'); } };
-  const token = async (email, key) => {
-    for (let i = 1; i <= 3; i++) {
-      const r = await fetch(`${URL_}/auth/v1/token?grant_type=password`, { method: 'POST', headers: { apikey: ANON, 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password: env(key) }) }).then((x) => x.json()).catch(() => ({}));
-      if (r.access_token) return r.access_token;
-    }
-    throw new Error(`sign-in failed (${email.split('@')[0]})`);
-  };
+  // CI-FIX-1 (#74): CAPTCHA-safe QA session (scripts/live/qa-session.cjs); the second argument is kept for call sites
+  const { qaAccessToken } = require('./live/qa-session.cjs');
+  const token = async (email) => qaAccessToken(email).catch((e) => {
+    throw new Error(`QA session failed (${email.split('@')[0]}: ${e.code || e.name})`);
+  });
   const rpc = async (bearer, fn, args) => {
     for (let i = 1; i <= 3; i++) {
       try {

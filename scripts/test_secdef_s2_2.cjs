@@ -178,11 +178,10 @@ const assert = (c, m) => {
   });
   await test('S-3 PostgREST as authenticated (qa-student): every callable target → 403 / 42501', async () => {
     assert(catalogueClean, 'not probed: the catalogue still grants client EXECUTE (a PostgREST probe would execute function bodies)');
-    const sb = createClient(URL_, ANON, { auth: { persistSession: false, autoRefreshToken: false } });
-    const pw = env('QA_STUDENT_PASSWORD');
-    assert(pw, 'QA_STUDENT_PASSWORD missing in .env.local');
-    const { data, error } = await sb.auth.signInWithPassword({ email: QA_STUDENT, password: pw });
-    assert(!error && data.session, `qa-student sign-in failed (${error && (error.code || error.status)})`);
+    // CI-FIX-1 (#74): CAPTCHA-safe QA session (scripts/live/qa-session.cjs)
+    const sb = await require('./live/qa-session.cjs').qaUserClient(QA_STUDENT);
+    const { data, error } = await sb.auth.getSession();
+    assert(!error && data.session, `qa-student session failed (${error && (error.code || error.status)})`);
     const res = await Promise.all(callable.map(async (f) => ({ f, r: await rpc(f, data.session.access_token) })));
     await sb.auth.signOut({ scope: 'local' }).catch(() => {});
     const { bad, unresolved } = judge(res);

@@ -23,15 +23,11 @@ const clean = (u) => { try { const x = new URL(u); return (x.origin === new URL(
 
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
-  const page = await (await browser.newContext()).newPage();
-  for (let i = 1; WHO !== 'anon' && i <= 3; i++) {
-    await page.goto(`${BASE}/auth/login`, { waitUntil: 'load', timeout: 120000 });
-    await page.fill('input[type="email"]', ID[0]);
-    await page.fill('input[type="password"]', env(ID[1]));
-    await Promise.all([page.waitForURL((u) => !/\/auth\/login/.test(String(u)), { timeout: 60000 }).catch(() => undefined), page.locator('button[type="submit"]').first().click()]);
-    if (!/\/auth\/login/.test(page.url())) break;
-    if (i === 3) throw new Error('sign-in failed');
-  }
+  const context = await browser.newContext();
+  // CI-FIX-1 (#74): CAPTCHA-safe QA session cookies (no login form; scripts/live/qa-session.cjs)
+  if (WHO !== 'anon') await require('../live/qa-session.cjs').qaBrowserLogin(context, ID[0], BASE);
+  const page = await context.newPage();
+  if (WHO !== 'anon') await page.goto(`${BASE}/dashboard`, { waitUntil: 'load', timeout: 120000 });
   await page.waitForLoadState('load').catch(() => {});
   await page.waitForTimeout(1500);
   const reqs = new Map();

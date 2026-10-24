@@ -196,15 +196,8 @@ async function live() {
   const page = await ctx.newPage();
   page.setDefaultTimeout(60000);
   watch(page, 'student');
-  // sign in (≤ 3 attempts; password never printed)
-  for (let i = 1; i <= 3; i++) {
-    await page.goto(BASE + '/auth/login', { waitUntil: 'load' });
-    await page.fill('input[type="email"]', 'qa-student@courage-library.test');
-    await page.fill('input[type="password"]', password);
-    await Promise.all([page.waitForURL((u) => !/\/auth\/login/.test(String(u)), { timeout: 60000 }).catch(() => undefined), page.locator('button[type="submit"]').first().click()]);
-    if (!/\/auth\/login/.test(page.url())) break;
-    if (i === 3) throw new Error('sign-in failed');
-  }
+  // CI-FIX-1 (#74): CAPTCHA-safe QA session cookies (no login form; scripts/live/qa-session.cjs)
+  await require('./live/qa-session.cjs').qaBrowserLogin(ctx, 'qa-student@courage-library.test', BASE);
   console.log('Live (signed in as the QA student)');
   // A signed-in render is required: the server's getUser() can time out on a slow network and render the anonymous view.
   const go = async (url, width = 1280) => {

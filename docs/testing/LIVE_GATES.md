@@ -76,6 +76,30 @@ The owner's machine cannot keep the 2 GB free-memory floor that a local `next st
 
 **What still runs locally or in the `live` job:** live gates that need the database, run with the same runner.
 
+## QA sign-in under Supabase CAPTCHA (CI-FIX-1, decision #74)
+
+Supabase Attack Protection (Turnstile CAPTCHA) is ON and stays ON. Live tests never solve, bypass or fake the captcha, and they never sign the QA identities in with a password.
+
+**How tests sign in:** every live suite and fixture script uses `scripts/live/qa-session.cjs`. Pick the call by what the test needs:
+
+| Need | Call |
+|---|---|
+| a bearer token | `qaAccessToken(email)` |
+| a signed-in supabase-js client | `qaUserClient(email)` |
+| a signed-in browser | `qaBrowserLogin(context, email, baseUrl)` (the app's own auth cookies, written by @supabase/ssr) |
+
+**How the session is made:**
+1. Service-role `generateLink({ type: 'magiclink' })` creates a link. It sends no e-mail.
+2. Anon `verifyOtp({ type: 'email', token_hash })` turns it into a session.
+
+**Rules:**
+- **Allowed accounts:** only the three permanent QA identities on the reserved `.test` domain. Anything else is refused before any network call.
+- **Project:** ref-locked to couragelibrary-next.
+- **No account creation:** a missing identity is never created.
+- **Nothing logged:** no e-mails, tokens, links or cookies.
+- **Probe:** the first live CI gate (`QA-SESSION-PROBE`) proves that `/verify` is not captcha-gated. If it ever is, the code is `QA_SESSION_VERIFY_CAPTCHA_GATED`: stop and report; do not look for another path.
+- **The login form itself** is tested only negatively. A fixed dummy password must show `captcha-failed` / `captcha-required`, and the page must stay on `/auth/login` (SEC1D L-01 / L-02, AUTH-1 L-6 / L-7).
+
 ## Windows / Git Bash pitfalls (recorded)
 
 - **Git Bash path conversion.**

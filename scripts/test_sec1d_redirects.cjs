@@ -208,35 +208,50 @@ const VALID = [
   // ===================== Part 5: live =====================
   if (LIVE) {
     const { chromium } = require(path.join(ROOT, 'node_modules/playwright'));
-    const { readEnv } = require(path.join(ROOT, 'scripts/db/_db-env.cjs'));
-    const env = readEnv();
     const browser = await chromium.launch({ channel: 'chrome', headless: true });
     const baseOrigin = new URL(LIVE_BASE).origin;
-    const loginTo = async (email, pwKey, next) => {
+    // CI-FIX-1 (#74): Supabase CAPTCHA (Turnstile) is ON, so the login FORM cannot sign in from a test (and tests never
+    // solve or bypass the captcha). Signed-in checks use a CAPTCHA-safe QA session (scripts/live/qa-session.cjs); the
+    // `next` sanitising itself is covered offline (R-tests above with the mocked sign-in).
+    const { qaBrowserLogin } = require(path.join(ROOT, 'scripts/live/qa-session.cjs'));
+    const loginTo = async (email) => {
+      const ctx = await browser.newContext();
+      try {
+        await qaBrowserLogin(ctx, email, LIVE_BASE);
+        return { ctx, page: await ctx.newPage() };
+      } catch (e) {
+        await ctx.close();
+        throw new Error(`QA session failed (${email.split('@')[0]}: ${e.code || e.name})`);
+      }
+    };
+    /** NEGATIVE login-page test: submit the real form (a fixed dummy password — never a real one) without a captcha
+     *  token → the fixed captcha code is shown, the page stays on same-origin /auth/login, `next` is never followed */
+    const formUnderCaptcha = async (next) => {
       const ctx = await browser.newContext();
       const page = await ctx.newPage();
-      for (let i = 1; i <= 3; i++) {
-        try {
-          await page.goto(`${LIVE_BASE}/auth/login${next === undefined ? '' : '?next=' + encodeURIComponent(next)}`, { waitUntil: 'networkidle', timeout: 180000 });
-          await page.fill('input[name="email"]', email);
-          await page.fill('input[name="password"]', env(pwKey));
-          await Promise.all([page.waitForURL((u) => !u.pathname.startsWith('/auth/login'), { timeout: 120000 }), page.click('button[type="submit"]')]);
-          await page.waitForLoadState('networkidle', { timeout: 120000 }).catch(() => undefined);
-          return { ctx, page, url: new URL(page.url()) };
-        } catch { /* retry */ }
+      try {
+        await page.goto(`${LIVE_BASE}/auth/login?next=${encodeURIComponent(next)}`, { waitUntil: 'networkidle', timeout: 180000 });
+        await page.fill('input[name="email"]', 'qa-student@courage-library.test');
+        await page.fill('input[name="password"]', 'not-the-password-1');
+        await page.click('button[type="submit"]');
+        const err = page.locator('[data-auth-error]').first();
+        await err.waitFor({ state: 'visible', timeout: 60000 });
+        return { code: await err.getAttribute('data-auth-error'), url: new URL(page.url()) };
+      } finally {
+        await ctx.close();
       }
-      await ctx.close();
-      throw new Error(`sign-in failed after 3 attempts (${email.split('@')[0]})`);
     };
-    await test(`L-01 qa-student /auth/login?next=/mistakes → lands on /mistakes (${LIVE_BASE})`, async () => {
-      const s = await loginTo('qa-student@courage-library.test', 'QA_STUDENT_PASSWORD', '/mistakes');
-      const u = s.url; await s.ctx.close();
-      assert(u.origin === baseOrigin && u.pathname === '/mistakes', `${u.origin === baseOrigin ? 'same origin' : 'OTHER ORIGIN'} ${u.pathname}`);
+    await test(`L-01 login form under CAPTCHA, ?next=/mistakes → fixed captcha code, stays on /auth/login (${LIVE_BASE})`, async () => {
+      const r = await formUnderCaptcha('/mistakes');
+      assert(['captcha-failed', 'captcha-required'].includes(r.code), `code ${r.code}`);
+      assert(r.url.origin === baseOrigin && r.url.pathname === '/auth/login', `${r.url.origin === baseOrigin ? 'same origin' : 'OTHER ORIGIN'} ${r.url.pathname}`);
+      return r.code;
     });
-    await test('L-02 qa-student /auth/login?next=//evil.com → lands on "/" (same origin)', async () => {
-      const s = await loginTo('qa-student@courage-library.test', 'QA_STUDENT_PASSWORD', '//evil.com');
-      const u = s.url; await s.ctx.close();
-      assert(u.origin === baseOrigin && u.pathname === '/', `${u.origin === baseOrigin ? 'same origin' : 'OTHER ORIGIN'} ${u.pathname}`);
+    await test('L-02 login form under CAPTCHA, ?next=//evil.com → fixed captcha code, same origin, never redirected', async () => {
+      const r = await formUnderCaptcha('//evil.com');
+      assert(['captcha-failed', 'captcha-required'].includes(r.code), `code ${r.code}`);
+      assert(r.url.origin === baseOrigin && r.url.pathname === '/auth/login', `${r.url.origin === baseOrigin ? 'same origin' : 'OTHER ORIGIN'} ${r.url.pathname}`);
+      return r.code;
     });
     await test('L-03 /auth/callback?next=//evil.com (no valid code) → redirect stays on origin', async () => {
       for (let i = 1; i <= 3; i++) {
@@ -259,7 +274,7 @@ const VALID = [
     };
     const DATA = /\\?"(userName|userId|policyCode|baseCoins|priceInr|price_inr|durationDays|orders|plans|reasonCode|balanceAfter)\\?"\s*:/g;
     await test('L-04 qa-staff /admin/gamification, /admin/billing → not-found UI, no data', async () => {
-      const s = await loginTo('qa-staff@courage-library.test', 'QA_STAFF_PASSWORD', undefined);
+      const s = await loginTo('qa-staff@courage-library.test');
       const bad = [];
       for (const p of ['/admin/gamification', '/admin/billing']) {
         const r = await pageCheck(s.ctx, p);
@@ -271,7 +286,7 @@ const VALID = [
       assert(bad.length === 0, bad.join('\n        '));
     });
     await test('L-05 qa-admin /admin/gamification, /admin/billing → 200', async () => {
-      const s = await loginTo('qa-admin@courage-library.test', 'QA_ADMIN_PASSWORD', undefined);
+      const s = await loginTo('qa-admin@courage-library.test');
       const out = [];
       for (const p of ['/admin/gamification', '/admin/billing']) {
         let r = await pageCheck(s.ctx, p);

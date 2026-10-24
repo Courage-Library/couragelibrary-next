@@ -449,17 +449,10 @@ const UX2B_ROUTES = ['/legal'];
 
     await test('L-14 signed-in visitor (qa-student, local): "/" stays public, shows Go to dashboard, no Sign in / Get started', async () => {
       const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+      // CI-FIX-1 (#74): CAPTCHA-safe QA session cookies (no login form; scripts/live/qa-session.cjs)
+      await require('./live/qa-session.cjs').qaBrowserLogin(ctx, 'qa-student@courage-library.test', BASE);
       const page = await ctx.newPage();
       page.setDefaultTimeout(120000);
-      for (let i = 1; i <= 3; i++) {
-        await page.goto(`${BASE}/auth/login`, { waitUntil: 'networkidle' });
-        await page.fill('input[type="email"]', 'qa-student@courage-library.test');
-        await page.fill('input[type="password"]', env('QA_STUDENT_PASSWORD'));
-        await Promise.all([page.waitForURL((u) => !/\/auth\/login/.test(String(u))).catch(() => undefined), page.locator('button[type="submit"]').first().click()]);
-        if (!/\/auth\/login/.test(page.url())) break;
-        await page.waitForTimeout(15000);
-      }
-      assert(!/\/auth\/login/.test(page.url()), 'sign-in failed (qa-student)');
       const resp = await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
       assert(new URL(page.url()).pathname === '/' && resp.status() === 200, `redirected to ${new URL(page.url()).pathname}`);
       const banner = page.getByRole('banner');

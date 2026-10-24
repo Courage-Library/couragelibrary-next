@@ -613,9 +613,10 @@ async function smoke() {
   currentSupabase = createClient(env('NEXT_PUBLIC_SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'), { auth: { persistSession: false, autoRefreshToken: false } });
   // SEC-1B: smoke writes run as the permanent qa-admin identity (docs/testing/QA_IDENTITIES.md) — a real
   // signed-in session for the canonical guard; writes still use the service-role client.
-  const qaAdmin = createClient(env('NEXT_PUBLIC_SUPABASE_URL'), env('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY') || env('NEXT_PUBLIC_SUPABASE_ANON_KEY'), { auth: { persistSession: false, autoRefreshToken: false } });
-  const signIn = await qaAdmin.auth.signInWithPassword({ email: 'qa-admin@courage-library.test', password: env('QA_ADMIN_PASSWORD') });
-  if (signIn.error || !signIn.data.user) throw new Error('qa-admin sign-in failed (run scripts/qa/ensure-qa-identities.cjs)');
+  // CI-FIX-1 (#74): CAPTCHA-safe QA session (magic-link token minted server-side; scripts/live/qa-session.cjs)
+  const qaAdmin = await require('./live/qa-session.cjs').qaUserClient('qa-admin@courage-library.test');
+  const signIn = await qaAdmin.auth.getUser();
+  if (signIn.error || !signIn.data.user) throw new Error('qa-admin session failed (run scripts/qa/ensure-qa-identities.cjs)');
   sessionOverride = qaAdmin;
   authState.isAdmin = true;
   authState.userId = signIn.data.user.id;

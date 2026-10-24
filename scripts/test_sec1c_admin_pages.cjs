@@ -347,8 +347,6 @@ function firstGuardViolation(body) {
   if (LIVE) {
     globalThis.fetch = realFetch;
     const { chromium } = require(path.join(ROOT, 'node_modules/playwright'));
-    const { readEnv } = require(path.join(ROOT, 'scripts/db/_db-env.cjs'));
-    const env = readEnv();
     const DUMMY = '00000000-0000-4000-8000-000000000000';
     const LIVE_PATHS = PAGES.map((p) => '/admin' + (segOf(p) ? '/' + segOf(p).replace(/\[id\]/g, DUMMY) : ''));
     const segFromPath = (u) => u.replace(/^\/admin\/?/, '').replace(new RegExp(DUMMY, 'g'), '[id]');
@@ -372,20 +370,17 @@ function firstGuardViolation(body) {
         } catch (e) { if (i === 3) return { status: 0, location: '', body: '', err: String(e.message).slice(0, 100) }; }
       }
     };
-    const signIn = async (email, pwKey) => {
+    // CI-FIX-1 (#74): CAPTCHA-safe QA session cookies (no login form; scripts/live/qa-session.cjs). pwKey is unused.
+    const { qaBrowserLogin } = require(path.join(ROOT, 'scripts/live/qa-session.cjs'));
+    const signIn = async (email) => {
       const ctx = await browser.newContext();
-      const page = await ctx.newPage();
-      for (let i = 1; i <= 3; i++) {
-        try {
-          await page.goto(LIVE_BASE + '/auth/login', { waitUntil: 'networkidle', timeout: 180000 });
-          await page.fill('input[name="email"]', email);
-          await page.fill('input[name="password"]', env(pwKey));
-          await Promise.all([page.waitForURL((u) => !u.pathname.startsWith('/auth/login'), { timeout: 120000 }), page.click('button[type="submit"]')]);
-          return ctx;
-        } catch { /* retry */ }
+      try {
+        await qaBrowserLogin(ctx, email, LIVE_BASE);
+        return ctx;
+      } catch (e) {
+        await ctx.close();
+        throw new Error(`QA session failed (${email.split('@')[0]}: ${e.code || e.name})`);
       }
-      await ctx.close();
-      throw new Error(`sign-in failed after 3 attempts (${email.split('@')[0]})`);
     };
     const anonCtx = await browser.newContext();
     await test(`L-01 anonymous: every /admin path → 30x to /auth/login, no admin markers / RSC data (${LIVE_BASE})`, async () => {
@@ -412,7 +407,7 @@ function firstGuardViolation(body) {
     // not-found UI; (status) denied → HTTP 404, allowed → 200 (or an in-admin redirect).
     const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g;
     const roleRun = async (email, pwKey, expectFor) => {
-      const ctx = await signIn(email, pwKey);
+      const ctx = await signIn(email);
       const base404 = await get(ctx.request, '/zz-sec1c-baseline-404');
       const b = scan(base404.body);
       const ownUuids = new Set(base404.body.match(UUID_RE) || []);
