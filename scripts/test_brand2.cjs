@@ -214,6 +214,10 @@ async function offline() {
     const blurOutside = css.replace(supports, '').match(/backdrop-filter: blur/g);
     assert(!blurOutside, 'backdrop blur declared outside the @supports block');
     assert(/@media \(prefers-reduced-transparency: reduce\) \{[\s\S]*?\.glass-light \{[^}]*backdrop-filter: none[\s\S]*?\.glass-dark \{[^}]*backdrop-filter: none/.test(css), 'reduced-transparency reset missing');
+    // specificity: the reset must use the SAME selector as the blur rule (html:not(.lite) …) and come after it, or the
+    // blur wins (first CI run of P-05 caught exactly this)
+    const rt = css.indexOf('@media (prefers-reduced-transparency: reduce)');
+    assert(rt > css.indexOf('@supports ((backdrop-filter') && /@media \(prefers-reduced-transparency: reduce\) \{\s*html:not\(\.lite\) \.glass-light,/.test(css) && /html:not\(\.lite\) \.glass-dark,\s*html\.lite \.glass-dark \{\s*background-color: var\(--color-hero-bg-mid\)/.test(css), 'reduced-transparency reset is weaker than (or before) the blur rule');
     assert(/html\.lite \.shadow-glass,\s*html\.lite \.shadow-soft \{[^}]*box-shadow: var\(--shadow-e1\)/.test(css), 'lite: large shadows not dropped');
     const layout = read('app/layout.tsx');
     assert(/<head>\s*\{\/\*[^*]*\*\/\}\s*<script dangerouslySetInnerHTML=\{\{ __html: LITE_MODE_SCRIPT \}\} \/>\s*<\/head>/.test(layout), 'lite script not inline in <head>');

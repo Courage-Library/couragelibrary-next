@@ -558,15 +558,18 @@
     }
   }
 
-  /* the user asked for reduced transparency → solid, whatever the support */
+  /* the user asked for reduced transparency → solid, whatever the support. Same specificity as the blur rules above
+     (html:not(.lite) …) and later in the file, so this always wins (caught by test_brand2 --probe P-05). */
   @media (prefers-reduced-transparency: reduce) {
-    html .glass-light {
+    html:not(.lite) .glass-light,
+    html.lite .glass-light {
       background-color: var(--color-surface);
       border-color: var(--color-line);
       -webkit-backdrop-filter: none;
       backdrop-filter: none;
     }
-    html .glass-dark {
+    html:not(.lite) .glass-dark,
+    html.lite .glass-dark {
       background-color: var(--color-hero-bg-mid);
       border-color: var(--color-hero-bg-end);
       -webkit-backdrop-filter: none;
