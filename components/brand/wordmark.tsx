@@ -7,7 +7,8 @@ import { cn } from "@/components/ui/cn";
  * auth cards until the new logo artwork exists (BRAND-LOGO, owner + designer). The PNG logo stays in the repo and
  * is still used by the exam player and admin (components/brand/logo.tsx). The dot is decorative.
  */
-const SIZES = { sm: "text-body", md: "text-body-lg", lg: "text-h3" } as const;
+// md steps down on phones so the wordmark stays on one line inside the 360 px floating nav
+const SIZES = { sm: "text-body", md: "text-body-sm sm:text-body-lg", lg: "text-h3" } as const;
 
 export function BrandWordmark({
   size = "md",
@@ -21,7 +22,7 @@ export function BrandWordmark({
   className?: string;
 }) {
   const mark = (
-    <span className={cn("inline-flex items-center gap-2 font-heading font-bold tracking-tight", tone === "ink" ? "text-fg" : "text-hero-fg", SIZES[size], className)}>
+    <span className={cn("inline-flex items-center gap-2 whitespace-nowrap font-heading font-bold tracking-tight", tone === "ink" ? "text-fg" : "text-hero-fg", SIZES[size], className)}>
       <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full bg-accent-500" />
       {siteConfig.name}
     </span>

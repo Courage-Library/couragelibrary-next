@@ -125,7 +125,7 @@ export function HeaderBar({ account, flags }: { account: ShellAccount | null; fl
               <ButtonLink href="/auth/login" variant="ghost" size="md" className="hidden min-h-12 rounded-full sm:inline-flex">
                 {SHELL_COPY.signIn}
               </ButtonLink>
-              <PillLink href="/auth/signup" className="px-5">
+              <PillLink href="/auth/signup" className="px-4 text-body-sm sm:px-5 sm:text-body">
                 {SHELL_COPY.getStarted}
               </PillLink>
             </>

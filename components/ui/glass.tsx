@@ -39,7 +39,7 @@ export function GlassChip({ tone = "dark", className, ...props }: ComponentProps
 export function GlassNav({ className, children, after, ...props }: ComponentProps<"header"> & { after?: React.ReactNode }) {
   return (
     <header className={cn("pointer-events-none sticky top-0 z-30 px-3 pt-3", className)} {...props}>
-      <div className="glass-light pointer-events-auto mx-auto flex h-16 w-full max-w-[1200px] items-center gap-3 rounded-full pl-5 pr-2">{children}</div>
+      <div className="glass-light pointer-events-auto mx-auto flex h-16 w-full max-w-[1200px] items-center gap-2 rounded-full pl-4 pr-2 sm:gap-3 sm:pl-5">{children}</div>
       {after}
     </header>
   );
