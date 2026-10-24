@@ -27,7 +27,8 @@ export async function getOnboardingState(supabase: AppSupabaseClient): Promise<O
       status: { completed: Boolean(d.completed_at), skipped: Boolean(d.skipped_at) },
       answers: {
         language: pick(d.language, LANGUAGES),
-        examIds: Array.isArray(d.exam_ids) ? d.exam_ids.filter((x): x is string => typeof x === "string").slice(0, 3) : [],
+        // ALL active goals in priority order (F0-a): callers derive what step 2 shows with shownGoals()
+        examIds: Array.isArray(d.exam_ids) ? d.exam_ids.filter((x): x is string => typeof x === "string").slice(0, 50) : [],
         examDate: typeof d.exam_date === "string" ? d.exam_date : null,
         attempt: pick(d.attempt_band, ATTEMPTS),
         dailyMinutes: pick(d.daily_minutes, DAILY_MINUTES),

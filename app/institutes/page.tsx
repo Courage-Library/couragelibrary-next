@@ -13,6 +13,8 @@ export const revalidate = 30;
 export const metadata = constructMetadata({
   title: "Coaching Institutes & Batches",
   description: "Join a coaching batch run by an institute on Courage Library, complete the work your batch assigns and track your progress.",
+  // UX-FIX-1: not linked from the nav / footer until it has real published content → noindex
+  noIndex: true,
 });
 
 export default async function InstitutesDirectoryPage() {
@@ -45,7 +47,7 @@ export default async function InstitutesDirectoryPage() {
               <div className="space-y-1 max-w-sm mx-auto">
                 <h3 className="text-lg font-extrabold text-slate-900">No institutes are listed yet.</h3>
                 <p className="text-xs text-slate-500">
-                  In the meantime, you can practise or join the community discussions.
+                  In the meantime, you can practice or join the community discussions.
                 </p>
               </div>
               <div className="flex items-center justify-center gap-3 pt-2">

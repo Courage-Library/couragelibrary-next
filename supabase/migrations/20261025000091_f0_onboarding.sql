@@ -5,13 +5,16 @@
 -- Stores ONLY: language, target exams, exam date (nullable), attempt band, daily minutes, completed / skipped time.
 -- Reuses the canonical tables:
 --   language     → public.user_profiles.language_preference (CHECK widened: 'en' | 'hi' | 'hinglish')
---   target exams → public.user_exam_goals (one active goal per chosen exam, priority = order chosen, the exam's
---                  latest existing cycle; daily_study_minutes mirrored on those goals). No exam_cycles row is created.
+--   target exams → public.user_exam_goals — NON-DESTRUCTIVE (F0-a): the selected exams are upserted / activated
+--                  (priority = order chosen, the exam's latest existing cycle, daily_study_minutes from step 4); every
+--                  other goal stays exactly as it is. Only goals the user explicitly UNTICKED in step 2 (they were shown
+--                  pre-selected) are deactivated — p_remove_exam_ids, the caller's own active goals only — and the
+--                  result lists them ('removed') for the finish screen. No exam_cycles row is created.
 -- New (owner-scoped): public.user_onboarding — one row per user (exam date, attempt band, daily minutes,
 --   completed_at / skipped_at). RLS: the user reads only their own row; admins read all; NO client write — every
 --   write goes through fn_save_onboarding (decisions #39 / #42).
 -- Functions:
---   fn_save_onboarding(p_action, p_language, p_exam_ids, p_exam_date, p_attempt, p_daily_minutes)
+--   fn_save_onboarding(p_action, p_language, p_exam_ids, p_exam_date, p_attempt, p_daily_minutes, p_remove_exam_ids)
 --     SECURITY DEFINER, search_path '', caller = auth.uid() only (never an argument); validates every input and
 --     answers {success, code[, field]} without raising; 'skip' only sets skipped_at; roles are never touched.
 --     EXECUTE: authenticated only (revoked from PUBLIC, anon, service_role). SECDEF allow-list: class A.
@@ -64,7 +67,8 @@ CREATE FUNCTION public.fn_save_onboarding(
     p_exam_ids      uuid[]  DEFAULT NULL,
     p_exam_date     date    DEFAULT NULL,
     p_attempt       text    DEFAULT NULL,
-    p_daily_minutes integer DEFAULT NULL
+    p_daily_minutes integer DEFAULT NULL,
+    p_remove_exam_ids uuid[] DEFAULT NULL
 )
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -78,6 +82,8 @@ DECLARE
     v_exam    uuid;
     v_cycle   uuid;
     v_rank    integer := 0;
+    v_remove  uuid[] := '{}'::uuid[];
+    v_removed uuid[] := '{}'::uuid[];
 BEGIN
     IF v_user_id IS NULL THEN
         RETURN jsonb_build_object('success', false, 'code', 'AUTH_REQUIRED');
@@ -127,14 +133,32 @@ BEGIN
         END IF;
     END IF;
 
+    -- explicit unticks only (F0-a): distinct, at most 10, never also selected
+    IF p_remove_exam_ids IS NOT NULL THEN
+        SELECT coalesce(array_agg(DISTINCT r.id), '{}'::uuid[]) INTO v_remove
+          FROM unnest(p_remove_exam_ids) AS r(id) WHERE r.id IS NOT NULL;
+        IF cardinality(v_remove) > 10 OR (v_ids IS NOT NULL AND v_remove && v_ids) THEN
+            RETURN jsonb_build_object('success', false, 'code', 'INVALID_INPUT', 'field', 'remove_exam_ids');
+        END IF;
+    END IF;
+
     -- ---- writes (own rows only)
     IF p_language IS NOT NULL THEN
         UPDATE public.user_profiles SET language_preference = p_language, updated_at = now() WHERE id = v_user_id;
     END IF;
 
+    -- NON-DESTRUCTIVE: only the caller's own ACTIVE goals the user explicitly unticked are deactivated; nothing else
+    IF cardinality(v_remove) > 0 THEN
+        WITH d AS (
+            UPDATE public.user_exam_goals SET is_active = false, updated_at = now()
+             WHERE user_id = v_user_id AND is_active AND exam_id = ANY (v_remove)
+         RETURNING exam_id
+        )
+        SELECT coalesce(array_agg(DISTINCT d.exam_id), '{}'::uuid[]) INTO v_removed FROM d;
+    END IF;
+
+    -- selected exams: upsert / activate (idempotent: the same input gives the same rows)
     IF v_ids IS NOT NULL AND cardinality(v_ids) > 0 THEN
-        UPDATE public.user_exam_goals SET is_active = false, updated_at = now()
-         WHERE user_id = v_user_id AND is_active AND exam_id <> ALL (v_ids);
         FOREACH v_exam IN ARRAY v_ids LOOP
             v_rank := v_rank + 1;
             SELECT c.id INTO v_cycle FROM public.exam_cycles c
@@ -156,12 +180,12 @@ BEGIN
        SET exam_date = EXCLUDED.exam_date, attempt_band = EXCLUDED.attempt_band, daily_minutes = EXCLUDED.daily_minutes,
            completed_at = now(), updated_at = now();
 
-    RETURN jsonb_build_object('success', true, 'code', 'SAVED');
+    RETURN jsonb_build_object('success', true, 'code', 'SAVED', 'removed', to_jsonb(v_removed));
 END;
 $function$;
 
-REVOKE ALL ON FUNCTION public.fn_save_onboarding(text, text, uuid[], date, text, integer) FROM PUBLIC, anon, service_role;
-GRANT EXECUTE ON FUNCTION public.fn_save_onboarding(text, text, uuid[], date, text, integer) TO authenticated;
+REVOKE ALL ON FUNCTION public.fn_save_onboarding(text, text, uuid[], date, text, integer, uuid[]) FROM PUBLIC, anon, service_role;
+GRANT EXECUTE ON FUNCTION public.fn_save_onboarding(text, text, uuid[], date, text, integer, uuid[]) TO authenticated;
 
 -- ------------------------------------------------------------------ 4. read RPC (RLS applies: own rows only)
 CREATE FUNCTION public.fn_get_my_onboarding()

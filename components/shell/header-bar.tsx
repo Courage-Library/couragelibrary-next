@@ -11,7 +11,7 @@ import { cn } from "@/components/ui/cn";
 import { Dialog } from "@/components/ui/dialog";
 import { GlassNav } from "@/components/ui/glass";
 import { PillLink } from "@/components/ui/pill-button";
-import { SHELL_COPY } from "@/content/landing";
+import { LANDING_HERO, SHELL_COPY } from "@/content/landing";
 import { AccountLinks } from "./account-links";
 import { NavMenu, navLinkClasses } from "./nav-menu";
 import { LEARN_MENU, LEARN_PREFIXES, PUBLIC_NAV, STUDENT_NAV, isActive, visibleItems, type NavItem, type ShellFlags } from "./nav-config";
@@ -71,8 +71,11 @@ function MobileSection({ title, items, pathname, onNavigate }: { title: string; 
  * BRAND-2 (#72): the PUBLIC header (signed out, and the landing page) is the floating glass pill (GlassNav) with the
  * text wordmark and 48 px pill actions; the signed-in student header — also shown above the exam player — stays a
  * solid bar (no glass in the exam engine).
+ * UX-FIX-1: "Sign in" is always visible in the bar (phones too). While public sign-up is CLOSED (signupOpen false) no
+ * action points to /auth/signup — the start action is "Explore SSC CGL"; when it is open the one label is "Start free"
+ * in amber (the start-action colour).
  */
-export function HeaderBar({ account, flags }: { account: ShellAccount | null; flags: ShellFlags }) {
+export function HeaderBar({ account, flags, signupOpen = false }: { account: ShellAccount | null; flags: ShellFlags; signupOpen?: boolean }) {
   const pathname = usePathname() ?? "/";
   const [menuOpen, setMenuOpen] = useState(false);
   useEffect(() => setMenuOpen(false), [pathname]);
@@ -122,12 +125,18 @@ export function HeaderBar({ account, flags }: { account: ShellAccount | null; fl
             </PillLink>
           ) : (
             <>
-              <ButtonLink href="/auth/login" variant="ghost" size="md" className="hidden min-h-12 rounded-full sm:inline-flex">
+              <ButtonLink href="/auth/login" variant="ghost" size="md" className="min-h-12 rounded-full px-3">
                 {SHELL_COPY.signIn}
               </ButtonLink>
-              <PillLink href="/auth/signup" className="px-4 text-body-sm sm:px-5 sm:text-body">
-                {SHELL_COPY.getStarted}
-              </PillLink>
+              {signupOpen ? (
+                <PillLink href="/auth/signup" variant="accent-on-light" className="hidden px-5 sm:inline-flex">
+                  {SHELL_COPY.startFree}
+                </PillLink>
+              ) : (
+                <PillLink href={LANDING_HERO.secondaryCta.href} className="hidden px-5 sm:inline-flex">
+                  {LANDING_HERO.secondaryCta.label}
+                </PillLink>
+              )}
             </>
           )}
           <Button
@@ -153,9 +162,15 @@ export function HeaderBar({ account, flags }: { account: ShellAccount | null; fl
           <MobileSection title="Learn" items={learn} pathname={pathname} onNavigate={() => setMenuOpen(false)} />
           {!account && (
             <div className="flex flex-col gap-2 border-t border-line pt-4">
-              <ButtonLink href="/auth/signup" fullWidth onClick={() => setMenuOpen(false)}>
-                {SHELL_COPY.getStarted}
-              </ButtonLink>
+              {signupOpen ? (
+                <PillLink href="/auth/signup" variant="accent-on-light" fullWidth onClick={() => setMenuOpen(false)}>
+                  {SHELL_COPY.startFree}
+                </PillLink>
+              ) : (
+                <ButtonLink href={LANDING_HERO.secondaryCta.href} fullWidth onClick={() => setMenuOpen(false)}>
+                  {LANDING_HERO.secondaryCta.label}
+                </ButtonLink>
+              )}
               <ButtonLink href="/auth/login" variant="secondary" fullWidth onClick={() => setMenuOpen(false)}>
                 {SHELL_COPY.signIn}
               </ButtonLink>

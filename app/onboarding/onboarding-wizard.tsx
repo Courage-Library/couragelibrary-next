@@ -61,6 +61,9 @@ export function OnboardingWizard({ exams, initial, next, today }: { exams: PlanE
   const [s, dispatch] = useReducer(wizardReducer, initial, initWizard);
   const [dateKnown, setDateKnown] = useState<boolean>(initial.examDate !== null);
   const [error, setError] = useState<string | null>(null);
+  // F0-a: what the server actually deactivated (only goals shown pre-selected and explicitly unticked)
+  const [removed, setRemoved] = useState<string[]>([]);
+  const hadGoals = initial.examIds.length > 0;
   const [pending, startTransition] = useTransition();
   const a = s.answers;
   const onPlan = s.step > TOTAL_STEPS;
@@ -76,7 +79,10 @@ export function OnboardingWizard({ exams, initial, next, today }: { exams: PlanE
     }
     startTransition(async () => {
       const r = await saveOnboardingAction(v.value);
-      if (r.ok) dispatch({ type: "next" });
+      if (r.ok) {
+        setRemoved(r.removed ?? []);
+        dispatch({ type: "next" });
+      }
       else setError(`${C.error.hi} ${C.error.en}`);
     });
   };
@@ -100,6 +106,13 @@ export function OnboardingWizard({ exams, initial, next, today }: { exams: PlanE
             <Bi as="p" b={C.plan.noExam} className="text-body text-fg-secondary" />
           )}
           {plan.primary.kind === "exam" && <Bi as="p" b={C.plan.practiceNotReady} className="text-body-sm text-fg-secondary" />}
+          {removed.length > 0 && (
+            <Bi
+              as="p"
+              b={C.plan.removed(removed.map((id) => exams.find((e) => e.id.toLowerCase() === id.toLowerCase())?.title ?? "—").join(", "))}
+              className="text-body-sm font-medium text-fg"
+            />
+          )}
         </Card>
         <div className="flex flex-col items-start gap-3">
           <PillLink href={plan.primary.href}>
@@ -146,6 +159,7 @@ export function OnboardingWizard({ exams, initial, next, today }: { exams: PlanE
           <fieldset className="flex flex-col gap-3">
             <legend className="mb-2"><Bi b={C.steps.exams.title} className="text-h2 font-bold text-fg" /></legend>
             <Bi as="p" b={a.examIds.length >= MAX_EXAMS ? C.steps.exams.max : C.steps.exams.note} className="text-body-sm text-fg-secondary" />
+            {hadGoals && <Bi as="p" b={C.steps.exams.existing} className="text-body-sm text-fg-secondary" />}
             {exams.length === 0 ? (
               <Bi as="p" b={C.steps.exams.none} className="text-body text-fg" />
             ) : (

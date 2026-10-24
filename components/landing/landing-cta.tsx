@@ -1,44 +1,81 @@
 /**
  * UX-2a: the two session-dependent CTA spots of the landing page (hero + final band). Display only: a session
- * cookie switches "Start free" to "Go to dashboard"; nothing protected is read or shown. Each spot is its own
- * Suspense boundary (fallback: the signed-out CTA), so the rest of the page never waits for the session read.
+ * cookie switches the start action to "Go to dashboard"; nothing protected is read or shown. Each spot is its own
+ * Suspense boundary, so the rest of the page never waits for the session / sign-up reads.
+ * UX-FIX-1: while public sign-up is CLOSED (lib/auth/signup-availability) no start action points to /auth/signup —
+ * the primary action is "Explore SSC CGL"; when sign-up is open the one label is "Start free" (amber = start action).
+ * The Suspense fallback is the closed-state view (never a link to a closed sign-up).
  */
 import { Suspense } from "react";
 import { ArrowRight } from "lucide-react";
 import { PillLink } from "@/components/ui/pill-button";
 import { LANDING_FINAL_CTA, LANDING_HERO } from "@/content/landing";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getSignupAvailability } from "@/lib/auth/signup-availability";
 
 type Spot = "hero" | "final";
+type Mode = "signed-in" | "signup-open" | "signup-closed";
 
-async function hasSessionCookie(): Promise<boolean> {
+async function resolveMode(): Promise<Mode> {
   try {
     const supabase = await createServerSupabaseClient();
     const { data } = await supabase.auth.getSession();
-    return data.session !== null;
+    if (data.session !== null) return "signed-in";
   } catch {
-    return false;
+    /* treated as signed out */
   }
+  return (await getSignupAvailability()) === "closed" ? "signup-closed" : "signup-open";
 }
 
-function Cta({ spot, signedIn }: { spot: Spot; signedIn: boolean }) {
-  const copy = spot === "hero" ? LANDING_HERO : LANDING_FINAL_CTA;
-  const target = signedIn ? copy.signedInCta : spot === "hero" ? LANDING_HERO.primaryCta : LANDING_FINAL_CTA.cta;
+const arrow = <ArrowRight aria-hidden="true" className="size-5" />;
+
+function Cta({ spot, mode }: { spot: Spot; mode: Mode }) {
+  const explore = LANDING_HERO.secondaryCta;
+  if (mode === "signed-in") {
+    const t = spot === "hero" ? LANDING_HERO.signedInCta : LANDING_FINAL_CTA.signedInCta;
+    return (
+      <>
+        <PillLink href={t.href} variant={spot === "hero" ? "accent" : "ghost-on-dark"} trailingIcon={arrow}>
+          {t.label}
+        </PillLink>
+        {spot === "hero" && (
+          <PillLink href={explore.href} variant="ghost-on-dark">
+            {explore.label}
+          </PillLink>
+        )}
+      </>
+    );
+  }
+  if (mode === "signup-closed") {
+    // the ONE primary action while registrations are closed
+    return (
+      <PillLink href={explore.href} variant="accent" trailingIcon={arrow}>
+        {explore.label}
+      </PillLink>
+    );
+  }
+  const start = spot === "hero" ? LANDING_HERO.primaryCta : LANDING_FINAL_CTA.cta;
   return (
-    // BRAND-2: the hero CTA is the page's ONE accent CTA; the final band (same dark gradient) uses ghost-on-dark
-    <PillLink href={target.href} variant={spot === "hero" ? "accent" : "ghost-on-dark"} trailingIcon={<ArrowRight aria-hidden="true" className="size-5" />}>
-      {target.label}
-    </PillLink>
+    <>
+      <PillLink href={start.href} variant="accent" trailingIcon={arrow}>
+        {start.label}
+      </PillLink>
+      {spot === "hero" && (
+        <PillLink href={explore.href} variant="ghost-on-dark">
+          {explore.label}
+        </PillLink>
+      )}
+    </>
   );
 }
 
 async function SessionCta({ spot }: { spot: Spot }) {
-  return <Cta spot={spot} signedIn={await hasSessionCookie()} />;
+  return <Cta spot={spot} mode={await resolveMode()} />;
 }
 
 export function LandingCta({ spot }: { spot: Spot }) {
   return (
-    <Suspense fallback={<Cta spot={spot} signedIn={false} />}>
+    <Suspense fallback={<Cta spot={spot} mode="signup-closed" />}>
       <SessionCta spot={spot} />
     </Suspense>
   );

@@ -267,7 +267,9 @@ async function offline() {
     const pill = read('components/ui/pill-button.tsx');
     assert(/inline-flex min-h-12 /.test(pill), 'PillLink / PillButton not min-h-12');
     const header = read('components/shell/header-bar.tsx');
-    assert(/<PillLink href="\/auth\/signup"/.test(header) && /className="hidden min-h-12 rounded-full sm:inline-flex"/.test(header) && /className="size-12 rounded-full lg:hidden"/.test(header), 'nav actions / menu button < 48 px');
+    // UX-FIX-1: Sign in is always in the bar (48 px); the start action (sign-up open: Start free / closed: Explore SSC CGL)
+    // is a 48 px pill from sm up; the menu button is 48 px
+    assert(/className="min-h-12 rounded-full px-3"/.test(header) && /<PillLink href="\/auth\/signup" variant="accent-on-light"/.test(header) && /className="size-12 rounded-full lg:hidden"/.test(header), 'nav actions / menu button < 48 px');
     assert(/inline-flex min-h-12 items-center/.test(read('components/brand/wordmark.tsx')), 'wordmark link < 48 px');
     const legacy = read('components/ui/legacy/button.tsx');
     assert(/lg: "h-12 /.test(legacy), 'legacy lg button no longer 48 px');
@@ -400,10 +402,11 @@ async function probe() {
 
     // P-03a…h (CI-FIX-1): one check ID per target, so CI's summary line (IDs only) names the failing target
     const TARGETS = [
-      ['P-03a', 'home nav "Get started"', '/', 'header a[href="/auth/signup"]'],
+      ['P-03a', 'home nav "Sign in" (always in the bar, UX-FIX-1)', '/', 'header a[href="/auth/login"]'],
       ['P-03b', 'home nav menu button', '/', 'header button[aria-label="Open menu"]'],
-      ['P-03c', 'home hero primary CTA', '/', '#main-content section a[href="/auth/signup"], #main-content section a[href="/dashboard"]'],
-      ['P-03d', 'home hero "Explore SSC CGL"', '/', 'a[href="/exams/ssc-cgl"]'],
+      // UX-FIX-1: the hero's primary action depends on sign-up (open: Start free / closed: Explore SSC CGL)
+      ['P-03c', 'home hero primary CTA', '/', '#main-content section a[href="/auth/signup"], #main-content section a[href="/dashboard"], #main-content section a[href="/exams/ssc-cgl"]'],
+      ['P-03d', 'home hero "Explore SSC CGL"', '/', '#main-content a[href="/exams/ssc-cgl"]'],
       ['P-03e', 'login submit', '/auth/login', 'form button[type="submit"]'],
       ['P-03f', 'login nav menu button', '/auth/login', 'header button[aria-label="Open menu"]'],
       ['P-03g', 'forgot-password submit', '/auth/forgot-password', 'form button[type="submit"]'],

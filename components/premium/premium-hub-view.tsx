@@ -1144,7 +1144,7 @@ export function PremiumHubView({ initialData }: PremiumHubViewProps) {
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-900">PYQ Simulation</h3>
-                  <p className="text-[11px] text-slate-500">Pick a year and shift to practise in the real exam pattern</p>
+                  <p className="text-[11px] text-slate-500">Pick a year and shift to practice in the real exam pattern</p>
                 </div>
               </div>
               <button onClick={() => setActiveModal(null)} className="text-slate-400 hover:text-slate-700 p-1">

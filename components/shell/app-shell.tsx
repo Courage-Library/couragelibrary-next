@@ -9,6 +9,7 @@ import type { ShellFlags } from "./nav-config";
 import type { ShellAccount } from "./shell-types";
 import { SiteFooter } from "./site-footer";
 import { isOnboardingEnabled } from "@/lib/onboarding/flag";
+import { getSignupAvailability } from "@/lib/auth/signup-availability";
 
 /**
  * UX-1b app shell around every route: skip link, header (public or student), <main id="main-content">,
@@ -43,7 +44,8 @@ export async function AppShell({ children }: { children: ReactNode }) {
       >
         Skip to content
       </a>
-      <HeaderBar account={account} flags={flags} />
+      {/* UX-FIX-1: start actions point to /auth/signup only while public sign-up is open */}
+      <HeaderBar account={account} flags={flags} signupOpen={account === null && (await getSignupAvailability()) !== "closed"} />
       {session.state === "error" && <SessionUnavailableBanner />}
       <main id="main-content" tabIndex={-1} className="min-h-dvh flex-1 outline-none">
         {children}

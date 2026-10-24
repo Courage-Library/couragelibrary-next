@@ -21,7 +21,7 @@ export const revalidate = 60; // ISR cache revalidation every 60 seconds
 export const metadata = constructMetadata({
   title: 'Current Affairs for Government Exams',
   description:
-    'Daily current affairs for Indian government exams: each event with its key facts, sources and the exams it matters for. Practise with the daily quiz when one is published.',
+    'Daily current affairs for Indian government exams: each event with its key facts, sources and the exams it matters for. Practice with the daily quiz when one is published.',
   canonicalUrl: '/current-affairs',
   keywords: [
     'Daily Current Affairs',
@@ -66,7 +66,7 @@ export default async function CurrentAffairsHubPage() {
 
           <p className="text-base md:text-lg text-fg-secondary leading-relaxed">
             Daily current affairs for government exams. Each event comes with its key facts, its sources and the exams it
-            matters for, and you can practise with the daily quiz when one is published.
+            matters for, and you can practice with the daily quiz when one is published.
           </p>
         </div>
 

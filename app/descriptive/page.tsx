@@ -12,7 +12,9 @@ export const revalidate = 30;
 
 export const metadata = constructMetadata({
   title: "Descriptive Answer Writing Studio",
-  description: "Practice Mains answer writing with structured rubrics, word limit enforcement, and expert faculty evaluation.",
+  description: "Practice Mains answer writing with structured rubrics and word-limit checks.",
+  // UX-FIX-1: not linked from the nav / footer until it has real published content → noindex
+  noIndex: true,
 });
 
 interface Props {
@@ -37,7 +39,7 @@ export default async function DescriptiveLibraryPage({ searchParams }: Props) {
               Descriptive Answer Writing Studio
             </h1>
             <p className="text-blue-100 text-sm max-w-xl">
-              Practice Mains answer writing with structured rubrics, word limit enforcement, and expert faculty evaluation.
+              Practice Mains answer writing with structured rubrics and word-limit checks.
             </p>
           </div>
 

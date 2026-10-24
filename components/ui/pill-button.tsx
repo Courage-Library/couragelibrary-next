@@ -6,14 +6,16 @@ import { cn } from "./cn";
  * BRAND-2 (decision #72) pill buttons. Touch target ≥ 48 px (min-h-12) on every size.
  *   primary       brand blue, white text            (any light surface)
  *   accent        amber fill, ink text              (at most ONE per screen — scripts/test_brand1.cjs B-07)
+ *   accent-on-light the same amber start action on a light surface (brand focus ring, UX-FIX-1 header)
  *   ghost-on-dark transparent, white text + border  (only on the dark hero / CTA band)
  * Links navigate (PillLink); buttons act (PillButton).
  */
-export type PillVariant = "primary" | "accent" | "ghost-on-dark";
+export type PillVariant = "primary" | "accent" | "accent-on-light" | "ghost-on-dark";
 
 const VARIANTS: Record<PillVariant, string> = {
   primary: "focus-ring bg-brand text-fg-inverse shadow-soft hover:bg-brand-hover",
   accent: "focus-ring-on-dark bg-accent-500 text-on-accent hover:bg-accent-400",
+  "accent-on-light": "focus-ring bg-accent-500 text-on-accent hover:bg-accent-400",
   "ghost-on-dark": "focus-ring-on-dark border border-hero-fg-muted text-hero-fg hover:bg-hero-bg-mid",
 };
 

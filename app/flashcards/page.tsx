@@ -14,6 +14,8 @@ export const revalidate = 30;
 export const metadata = constructMetadata({
   title: "Flashcards & Spaced Repetition",
   description: "Retain formulas, key terminology, and high-yield facts using spaced repetition.",
+  // UX-FIX-1: not linked from the nav / footer until it has real published content → noindex
+  noIndex: true,
 });
 
 export default async function FlashcardsDirectoryPage() {

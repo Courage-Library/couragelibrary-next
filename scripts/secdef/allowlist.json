@@ -668,7 +668,7 @@
    "search_path": "public, pg_temp",
    "reason": "trigger function (not callable)"
   },
-  "fn_save_onboarding(p_action text, p_language text, p_exam_ids uuid[], p_exam_date date, p_attempt text, p_daily_minutes integer)": {
+  "fn_save_onboarding(p_action text, p_language text, p_exam_ids uuid[], p_exam_date date, p_attempt text, p_daily_minutes integer, p_remove_exam_ids uuid[])": {
    "class": "A",
    "client": [
     "authenticated"

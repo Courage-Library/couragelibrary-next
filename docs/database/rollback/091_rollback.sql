@@ -3,10 +3,11 @@
 BEGIN;
 
 DROP FUNCTION IF EXISTS public.fn_get_my_onboarding();
-DROP FUNCTION IF EXISTS public.fn_save_onboarding(text, text, uuid[], date, text, integer);
+DROP FUNCTION IF EXISTS public.fn_save_onboarding(text, text, uuid[], date, text, integer, uuid[]);
 DROP TABLE IF EXISTS public.user_onboarding;
 
--- user_exam_goals rows written by onboarding are ordinary goals (same shape as the follow-exam action) and stay.
+-- user_exam_goals rows written by onboarding are ordinary goals (same shape as the follow-exam action) and stay;
+-- goals the user explicitly unticked (is_active = false) also stay as they are.
 
 UPDATE public.user_profiles SET language_preference = 'en' WHERE language_preference = 'hinglish';
 ALTER TABLE public.user_profiles DROP CONSTRAINT IF EXISTS user_profiles_language_preference_check;

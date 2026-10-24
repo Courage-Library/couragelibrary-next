@@ -31,6 +31,7 @@ export const ONBOARDING_COPY = {
       note: { hi: "ज़्यादा से ज़्यादा 3 परीक्षाएँ चुनें।", en: "Choose up to 3 exams." },
       max: { hi: "आप 3 परीक्षाएँ चुन चुके हैं।", en: "You have chosen 3 exams." },
       none: { hi: "अभी कोई परीक्षा उपलब्ध नहीं है। यह सवाल छोड़ दें।", en: "No exam is available yet. Please skip this question." },
+      existing: { hi: "आपके मौजूदा लक्ष्य पहले से चुने हुए हैं। किसी को हटाना हो तो उसका निशान हटाएँ।", en: "Your current goals are already ticked. Untick one only if you want to remove it." },
     },
     timing: {
       title: { hi: "आपकी परीक्षा कब है?", en: "When is your exam?" },
@@ -64,6 +65,7 @@ export const ONBOARDING_COPY = {
       en: "Practice sets for this exam are not ready yet. Until then, use the exam page for free mock tests and the syllabus.",
     },
     later: { hi: "डैशबोर्ड पर जाएँ", en: "Go to dashboard" },
+    removed: (names: string): Bilingual => ({ hi: `आपके लक्ष्यों से हटाया गया: ${names}`, en: `Removed from your goals: ${names}` }),
     edit: { hi: "जवाब बदलें", en: "Change answers" },
   },
   dashboardCard: {

@@ -15,6 +15,8 @@ export const dynamic = "force-dynamic";
 export const metadata = constructMetadata({
   title: "Articles & Exam Study Notes",
   description: "In-depth conceptual articles, revision notes, and exam briefs designed for competitive exam preparation.",
+  // UX-FIX-1: not linked from the nav / footer until it has real published content → noindex
+  noIndex: true,
 });
 
 export default async function ArticleLibraryPage() {

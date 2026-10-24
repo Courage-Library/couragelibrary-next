@@ -3,6 +3,8 @@
  * production build, anonymous and signed in). Flagged routes only appear when the server-evaluated
  * feature flag is on. UX-2b added About, CNTS, Contact (footer) and the draft Privacy / Terms pages (footer bar).
  * Still omitted: Profile / Settings.
+ * UX-FIX-1: Flashcards, Descriptive writing, Discussions, Institutes and Articles are NOT linked until each has real
+ * published content (the routes stay, noindex); "/practice" is labelled "Mistake drills" until topic practice (F2).
  */
 import { FOOTER_ABOUT } from "@/content/public-pages";
 
@@ -18,10 +20,7 @@ export type NavItem = {
 };
 
 export const LEARN_MENU: NavItem[] = [
-  { href: "/practice", label: "Practice" },
-  { href: "/articles", label: "Articles" },
-  { href: "/flashcards", label: "Flashcards" },
-  { href: "/descriptive", label: "Descriptive writing" },
+  { href: "/practice", label: "Mistake drills" },
   { href: "/courses", label: "Courses", flag: "COURSES" },
   { href: "/battles", label: "Battles", flag: "BATTLES" },
 ];
@@ -58,25 +57,13 @@ export const FOOTER_NAV: Array<{ heading: string; items: NavItem[] }> = [
     items: [
       { href: "/exams", label: "Exams" },
       { href: "/mock-tests", label: "Mock tests" },
-      { href: "/practice", label: "Practice" },
-      { href: "/flashcards", label: "Flashcards" },
+      { href: "/practice", label: "Mistake drills" },
+      { href: "/pricing", label: "Pricing" },
     ],
   },
   {
     heading: "Read",
-    items: [
-      { href: "/current-affairs", label: "Current affairs" },
-      { href: "/articles", label: "Articles" },
-      { href: "/descriptive", label: "Descriptive writing" },
-    ],
-  },
-  {
-    heading: "Community",
-    items: [
-      { href: "/community", label: "Discussions" },
-      { href: "/institutes", label: "Institutes" },
-      { href: "/pricing", label: "Pricing" },
-    ],
+    items: [{ href: "/current-affairs", label: "Current affairs" }],
   },
   { heading: FOOTER_ABOUT.heading, items: FOOTER_ABOUT.items.map((i) => ({ ...i })) },
 ];

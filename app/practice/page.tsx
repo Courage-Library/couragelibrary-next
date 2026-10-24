@@ -36,7 +36,7 @@ export default async function PracticePage() {
       <header className="flex max-w-2xl flex-col gap-2">
         <h1 className="text-h1 font-bold text-fg">Practice</h1>
         <p className="text-body text-fg-secondary">
-          Practise the questions you got wrong in mock tests until you get them right.
+          Practice the questions you got wrong in mock tests until you get them right.
         </p>
       </header>
 

@@ -5,7 +5,7 @@ import { getSessionState } from "@/lib/auth/session-state";
 import { sanitizeRedirectPath } from "@/lib/auth/safe-redirect";
 import { isOnboardingEnabled } from "@/lib/onboarding/flag";
 import { getOnboardingState, pickableExams } from "@/lib/onboarding/server";
-import { firstSyllabusSection, todayInIndia, type PlanExam } from "@/lib/onboarding/schema";
+import { firstSyllabusSection, shownGoals, todayInIndia, type PlanExam } from "@/lib/onboarding/schema";
 import { ONBOARDING_COPY } from "@/content/onboarding";
 import { OnboardingWizard } from "./onboarding-wizard";
 
@@ -43,5 +43,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
   // exam-wise practice sets do not exist yet (app/practice: mistake drills only) → practiceHref null for every exam
   const planExams: PlanExam[] = exams.map((e, i) => ({ id: e.id, title: e.title, slug: e.slug, firstSection: sections[i], practiceHref: null }));
 
-  return <OnboardingWizard exams={planExams} initial={state.answers} next={next} today={todayInIndia()} />;
+  // F0-a: existing active goals are shown pre-selected (pickable ones, max 3); the user decides what stays
+  const initial = { ...state.answers, examIds: shownGoals(state.answers.examIds, exams.map((e) => e.id)) };
+  return <OnboardingWizard exams={planExams} initial={initial} next={next} today={todayInIndia()} />;
 }

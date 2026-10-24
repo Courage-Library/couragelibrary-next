@@ -97,6 +97,9 @@ const STUBS = {
   'next/link': { __esModule: true, default: ({ href, children, ...p }) => React.createElement('a', { href: String(href), ...p }, children) },
   // the session-dependent CTA spots render their signed-out fallback in the static render
   '@/lib/supabase/server': { createServerSupabaseClient: async () => { throw new Error('no session in the offline render'); } },
+  // UX-FIX-1: the CTA spots also read the sign-up availability (server-only module); the static render shows the fallback
+  'server-only': {},
+  '@/lib/auth/signup-availability': { getSignupAvailability: async () => 'closed' },
 };
 
 // ---------------------------------------------------------------- routes
@@ -161,13 +164,14 @@ const UX2B_ROUTES = ['/legal'];
     assert(C.LANDING_HERO.secondaryCta.href === '/exams/ssc-cgl' && C.LANDING_HERO.secondaryCta.label === 'Explore SSC CGL', 'Explore SSC CGL');
     assert(C.LANDING_HERO.title === 'Learn Smarter. Prepare Independently.' && C.LANDING_BRAND_LINE === C.LANDING_HERO.title, 'brand line');
     const header = read(HEADER);
-    assert(/href="\/auth\/login"[^>]*>\s*\{SHELL_COPY\.signIn\}/.test(header) && /href="\/auth\/signup"[^>]*>\s*\{SHELL_COPY\.getStarted\}/.test(header), 'Sign in / Get started'); // BRAND-2: 48 px pill, any size prop
+    assert(/href="\/auth\/login"[^>]*>\s*\{SHELL_COPY\.signIn\}/.test(header) && /href="\/auth\/signup"[^>]*>\s*\{SHELL_COPY\.startFree\}/.test(header), 'Sign in / Start free'); // UX-FIX-1: one label "Start free" (only while sign-up is open)
     assert(/href="\/dashboard"[^>]*>\s*\{SHELL_COPY\.goToDashboard\}/.test(header) && /const onLanding = pathname === "\/";/.test(header), 'Go to dashboard on "/"');
     const page = stripComments(read(PAGE));
     const cta = stripComments(read(CTA));
     assert(!/redirect\(|notFound\(|requireAuth|getUser\(\)/.test(page + cta), '"/" must not redirect or gate (display-only session check)');
     assert(/export default function HomePage\(\)/.test(page), 'HomePage must be synchronous (hero in the first HTML flush, not behind app/loading.tsx)');
-    assert(/auth\.getSession\(\)/.test(cta) && /<Suspense fallback=\{<Cta spot=\{spot\} signedIn=\{false\} \/>\}>/.test(cta), 'display-only session check in its own Suspense (signed-out fallback)');
+    // UX-FIX-1: the fallback is the signed-out, sign-up-CLOSED view (never a link to a closed sign-up)
+    assert(/auth\.getSession\(\)/.test(cta) && /<Suspense fallback=\{<Cta spot=\{spot\} mode="signup-closed" \/>\}>/.test(cta), 'display-only session check in its own Suspense (signed-out, sign-up-closed fallback)');
     return 'hero, final CTA, header';
   });
 

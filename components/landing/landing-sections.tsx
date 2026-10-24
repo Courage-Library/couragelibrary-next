@@ -9,9 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardDescription, CardLink, CardTitle } from "@/components/ui/card";
 import { Container, Section } from "@/components/ui/layout";
-import { GlassCard, GlassChip } from "@/components/ui/glass";
+import { GlassCard } from "@/components/ui/glass";
 import { GradientHero } from "@/components/ui/gradient-hero";
-import { PillLink } from "@/components/ui/pill-button";
 import {
   LANDING_EXAMS,
   LANDING_FEATURES,
@@ -38,18 +37,18 @@ function SectionHeading({ id, title, lead }: { id: string; title: string; lead?:
   );
 }
 
-/** Hero glass chips: feature titles that are live today (copy from LANDING_FEATURES; no new claims, no numbers). */
+/** Hero feature list: feature titles that are live today (copy from LANDING_FEATURES; no new claims, no numbers).
+ *  UX-FIX-1: plain text with an icon — not pills (they are not tappable). */
 const HERO_CHIPS = [LANDING_FEATURES.items.mocks.title, LANDING_FEATURES.items.analysis.title, LANDING_FEATURES.items.mistakes.title];
-/** Hero glass card: three steps of the loop (copy from LANDING_LOOP). */
-const HERO_STEPS = [3, 4, 5].map((i) => ({ n: i + 1, ...LANDING_LOOP.steps[i] }));
+/** Hero glass card: the FIRST three steps of the loop + a link to all 7 (UX-FIX-1; copy from LANDING_LOOP). */
+const HERO_STEPS = [0, 1, 2].map((i) => ({ n: i + 1, ...LANDING_LOOP.steps[i] }));
 
 /**
  * BRAND-2 (#72) hero: GradientHero (CSS gradients, no image), the brand line split over two lines (second line in
- * hero-accent-text), ONE accent CTA, a ghost-on-dark secondary, glass chips and one glass card (2 glass layers +
- * the floating nav = 3 per viewport, the maximum). Existing copy only.
+ * hero-accent-text), ONE accent CTA (+ a ghost-on-dark secondary when sign-up is open — components/landing/landing-cta),
+ * a plain feature list and one glass card (1 glass layer + the floating nav). Existing copy only.
  */
 export function LandingHero() {
-  const secondary = LANDING_HERO.secondaryCta;
   const [line1, ...rest] = LANDING_HERO.title.split(". ");
   return (
     <GradientHero aria-labelledby="hero-title">
@@ -72,17 +71,12 @@ export function LandingHero() {
           <p className="max-w-2xl text-body-lg text-hero-fg-muted">{LANDING_HERO.lead}</p>
           <div className="flex flex-wrap items-center gap-3">
             <LandingCta spot="hero" />
-            <PillLink href={secondary.href} variant="ghost-on-dark">
-              {secondary.label}
-            </PillLink>
           </div>
-          <ul aria-label={LANDING_FEATURES.heading} className="flex flex-wrap gap-2">
+          <ul aria-label={LANDING_FEATURES.heading} className="flex flex-wrap gap-x-5 gap-y-2">
             {HERO_CHIPS.map((chip) => (
-              <li key={chip}>
-                <GlassChip>
-                  <Check aria-hidden="true" className="size-4 text-hero-accent-text" />
-                  {chip}
-                </GlassChip>
+              <li key={chip} className="inline-flex items-center gap-2 text-body-sm font-medium text-hero-fg">
+                <Check aria-hidden="true" className="size-4 shrink-0 text-hero-accent-text" />
+                {chip}
               </li>
             ))}
           </ul>
@@ -103,6 +97,10 @@ export function LandingHero() {
               </li>
             ))}
           </ol>
+          <a href="#loop-title" className="focus-ring-on-dark inline-flex min-h-12 items-center gap-2 self-start rounded-control text-body-sm font-semibold text-hero-accent-text underline underline-offset-2">
+            {LANDING_LOOP.seeAll(LANDING_LOOP.steps.length)}
+            <ArrowRight aria-hidden="true" className="size-4" />
+          </a>
         </GlassCard>
       </Container>
     </GradientHero>
@@ -335,7 +333,6 @@ export function LandingFinalCta() {
           <h2 id="final-cta-title" className="text-h2 font-bold tracking-tight text-fg-inverse">
             {LANDING_FINAL_CTA.heading}
           </h2>
-          <p className="text-body-lg text-hero-fg-muted">{LANDING_FINAL_CTA.text}</p>
         </div>
         <LandingCta spot="final" />
       </Container>

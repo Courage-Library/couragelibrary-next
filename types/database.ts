@@ -7855,6 +7855,7 @@ export type Database = {
           p_exam_date?: string
           p_exam_ids?: string[]
           p_language?: string
+          p_remove_exam_ids?: string[]
         }
         Returns: Json
       }

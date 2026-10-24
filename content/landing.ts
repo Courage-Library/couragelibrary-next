@@ -19,7 +19,7 @@ export const LANDING_META = {
 export const LANDING_HERO = {
   eyebrow: "Government exam preparation",
   title: LANDING_BRAND_LINE,
-  lead: "Courage Library helps government-exam aspirants practise with real exam-style mock tests, see exactly where marks were lost, and fix those mistakes until they stick.",
+  lead: "Courage Library helps government-exam aspirants practice with real exam-style mock tests, see exactly where marks were lost, and fix those mistakes until they stick.",
   primaryCta: { label: "Start free", href: "/auth/signup" },
   signedInCta: { label: "Go to dashboard", href: "/dashboard" },
   secondaryCta: { label: "Explore SSC CGL", href: "/exams/ssc-cgl" },
@@ -30,6 +30,8 @@ export const LANDING_LOOP = {
   heading: "How Courage Library works",
   lead: "One simple loop, repeated until the exam day.",
   stepLabel: (n: number) => `Step ${n}: `,
+  /** UX-FIX-1: the hero shows steps 1–3 and links here (the count comes from `steps`, never typed in) */
+  seeAll: (n: number) => `See all ${n} steps`,
   steps: [
     { title: "Explore", text: "Understand your exam: pattern, eligibility and what is asked." },
     { title: "Learn", text: "Study one topic at a time, in plain language." },
@@ -126,7 +128,8 @@ export const LANDING_FINAL_CTA = {
 /** Public shell (header / footer) strings added in UX-2a. */
 export const SHELL_COPY = {
   signIn: "Sign in",
-  getStarted: "Get started",
+  /** UX-FIX-1: one label for every start action (shown only while sign-up is open) */
+  startFree: "Start free",
   goToDashboard: "Go to dashboard",
   footerContactHeading: "Contact",
   supportEmail: "support@couragelibrary.in",

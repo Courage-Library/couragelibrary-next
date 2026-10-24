@@ -83,6 +83,19 @@ export function validateAnswers(raw: unknown, opts: { today?: string; allowedExa
   };
 }
 
+// ---------------------------------------------------------------- existing goals (F0-a: non-destructive)
+/** Step 2 shows the user's existing ACTIVE goals pre-selected: those that are pickable, in priority order, at most 3. */
+export function shownGoals(activeGoalExamIds: readonly string[], pickableExamIds: readonly string[]): string[] {
+  const pickable = new Set(pickableExamIds.map((x) => x.toLowerCase()));
+  return activeGoalExamIds.filter((x) => pickable.has(x.toLowerCase())).slice(0, MAX_EXAMS);
+}
+
+/** Only goals that were SHOWN pre-selected and then explicitly UNTICKED are removed; every other goal is untouched. */
+export function goalChanges(shown: readonly string[], selected: readonly string[]): { remove: string[] } {
+  const keep = new Set(selected.map((x) => x.toLowerCase()));
+  return { remove: [...new Set(shown.map((x) => x.toLowerCase()))].filter((x) => !keep.has(x)) };
+}
+
 // ---------------------------------------------------------------- wizard state (Back never loses answers)
 export type WizardState = { step: number; answers: OnboardingAnswers };
 export type WizardAction =

@@ -661,7 +661,7 @@ export function MockTestDashboardView({ data }: Props) {
               <CardContent className="py-10 text-center space-y-2">
                 <Target className="w-8 h-8 text-slate-400 mx-auto" />
                 <h3 className="text-body-sm font-semibold text-fg">No other mock tests yet</h3>
-                <p className="text-body-sm text-fg-secondary">Practise with today&apos;s daily mock above.</p>
+                <p className="text-body-sm text-fg-secondary">Practice with today&apos;s daily mock above.</p>
               </CardContent>
             </Card>
           ) : (

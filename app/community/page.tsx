@@ -13,6 +13,8 @@ export const revalidate = 0;
 export const metadata = constructMetadata({
   title: "Community Knowledge Exchange",
   description: "Ask doubts, discuss exam strategy, solve questions together, and learn with peers and faculty.",
+  // UX-FIX-1: not linked from the nav / footer until it has real published content → noindex
+  noIndex: true,
 });
 
 interface Props {

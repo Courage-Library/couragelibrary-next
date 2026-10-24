@@ -196,17 +196,18 @@ const run = async (fn) => {
     sessionUser = null;
     assert((await ACT.saveOnboardingAction({})).code === 'auth' && spy.rpc.length === 0, 'signed out');
     sessionUser = { id: 'u-f0' };
+    const saves = () => spy.rpc.filter((c) => c.fn === 'fn_save_onboarding');
     const inv = await ACT.saveOnboardingAction({ examIds: [EXAM_D] }); // exam without a cycle → not pickable
-    assert(inv.code === 'invalid' && inv.field === 'examIds' && spy.rpc.length === 0, JSON.stringify(inv));
-    rpcImpl = async () => ({ data: { success: true, code: 'SAVED' }, error: null });
+    assert(inv.code === 'invalid' && inv.field === 'examIds' && saves().length === 0, JSON.stringify(inv));
+    rpcImpl = async (fn) => (fn === 'fn_save_onboarding' ? { data: { success: true, code: 'SAVED', removed: [] }, error: null } : { data: { exam_ids: [] }, error: null });
     const ok = await ACT.saveOnboardingAction({ language: 'hi', examIds: [EXAM_B, EXAM_A], examDate: null, attempt: 'first', dailyMinutes: 30 });
     assert(ok.ok, JSON.stringify(ok));
-    const args = spy.rpc[0].args;
-    assert(spy.rpc[0].fn === 'fn_save_onboarding' && args.p_action === 'complete' && args.p_language === 'hi' && JSON.stringify(args.p_exam_ids) === JSON.stringify([EXAM_B, EXAM_A]) && args.p_exam_date === undefined && args.p_attempt === 'first' && args.p_daily_minutes === 30, JSON.stringify(args));
+    const args = saves()[0].args;
+    assert(saves()[0].fn === 'fn_save_onboarding' && args.p_action === 'complete' && args.p_language === 'hi' && JSON.stringify(args.p_exam_ids) === JSON.stringify([EXAM_B, EXAM_A]) && args.p_exam_date === undefined && args.p_attempt === 'first' && args.p_daily_minutes === 30, JSON.stringify(args));
     assert(!('p_user_id' in args), 'the user must never be an argument');
     spy.rpc.length = 0;
     await ACT.saveOnboardingAction({});
-    assert(spy.rpc[0].args.p_exam_ids === undefined, 'a skipped exam step must not touch goals');
+    assert(saves()[0].args.p_exam_ids === undefined && saves()[0].args.p_remove_exam_ids === undefined, 'a skipped exam step must not touch goals');
     rpcImpl = async () => ({ data: { success: false, code: 'INVALID_INPUT', field: 'exam_date' }, error: null });
     const r1 = await ACT.saveOnboardingAction({});
     assert(r1.code === 'invalid', JSON.stringify(r1));
@@ -306,8 +307,14 @@ const run = async (fn) => {
       [/p_exam_date < v_today OR p_exam_date > v_today \+ 1830/, 'date bounds'],
       [/\(now\(\) AT TIME ZONE 'Asia\/Kolkata'\)::date/, 'India date'],
       [/e\.is_active/, 'active exams only'],
-      [/REVOKE ALL ON FUNCTION public\.fn_save_onboarding\(text, text, uuid\[\], date, text, integer\) FROM PUBLIC, anon, service_role;/, 'EXECUTE revoked'],
-      [/GRANT EXECUTE ON FUNCTION public\.fn_save_onboarding\(text, text, uuid\[\], date, text, integer\) TO authenticated;/, 'EXECUTE authenticated'],
+      [/REVOKE ALL ON FUNCTION public\.fn_save_onboarding\(text, text, uuid\[\], date, text, integer, uuid\[\]\) FROM PUBLIC, anon, service_role;/, 'EXECUTE revoked'],
+      [/GRANT EXECUTE ON FUNCTION public\.fn_save_onboarding\(text, text, uuid\[\], date, text, integer, uuid\[\]\) TO authenticated;/, 'EXECUTE authenticated'],
+      // F0-a: non-destructive — the ONLY goal deactivation is the caller's own explicitly unticked active goals
+      [/UPDATE public\.user_exam_goals SET is_active = false, updated_at = now\(\)\s+WHERE user_id = v_user_id AND is_active AND exam_id = ANY \(v_remove\)/, 'deactivate only explicit unticks'],
+      [/v_remove && v_ids/, 'untick ∩ selected rejected'],
+      [/cardinality\(v_remove\) > 10/, 'bounded untick list'],
+      [/'removed', to_jsonb\(v_removed\)/, 'removed list returned'],
+      [/ON CONFLICT \(user_id, exam_id, exam_cycle_id\) DO UPDATE/, 'idempotent upsert'],
       [/CREATE FUNCTION public\.fn_get_my_onboarding\(\)[\s\S]*?SECURITY INVOKER\s+SET search_path TO ''/, 'read RPC is INVOKER'],
       [/CHECK \(language_preference IN \('en', 'hi', 'hinglish'\)\)/, 'language CHECK widened'],
     ];
@@ -318,6 +325,7 @@ const run = async (fn) => {
       [/INSERT INTO public\.exam_cycles/i, 'creates exam cycles'],
       [/p_user_id/i, 'user id as an argument'],
       [/app_metadata|raw_user_meta_data|role\s*=/i, 'role handling'],
+      [/<>\s*ALL/i, 'deactivates every goal not selected (destructive)'],
       [/GRANT[^;]*\bTO\b[^;]*\b(anon|PUBLIC)\b[^;]*;/, 'grant to anon / PUBLIC'],
     ];
     const hits = forbidden.filter(([rx]) => rx.test(code)).map(([, l]) => l);
@@ -328,13 +336,13 @@ const run = async (fn) => {
 
   await test('O-09 SECDEF allow-list entry (class A, authenticated) + max raised by exactly 1; typed RPC entries', () => {
     const a = JSON.parse(read('scripts/secdef/allowlist.json'));
-    const sig = 'fn_save_onboarding(p_action text, p_language text, p_exam_ids uuid[], p_exam_date date, p_attempt text, p_daily_minutes integer)';
+    const sig = 'fn_save_onboarding(p_action text, p_language text, p_exam_ids uuid[], p_exam_date date, p_attempt text, p_daily_minutes integer, p_remove_exam_ids uuid[])';
     const e = a.functions[sig];
     assert(e && e.class === 'A' && JSON.stringify(e.client) === '["authenticated"]' && e.search_path === '""', JSON.stringify(e));
     assert(a.max.total === 96 && a.max.client_executable_callable === 38 && a.max.A === 38 && a.max.anon_or_public === 1, JSON.stringify(a.max));
     assert(!a.functions['fn_get_my_onboarding()'], 'the read RPC is INVOKER — it must not be in the SECDEF allow-list');
     const t = read('types/database.ts');
-    assert(/fn_get_my_onboarding: \{ Args: never; Returns: Json \}/.test(t) && /fn_save_onboarding: \{\s+Args: \{\s+p_action: string/.test(t), 'types/database.ts entries');
+    assert(/fn_get_my_onboarding: \{ Args: never; Returns: Json \}/.test(t) && /fn_save_onboarding: \{\s+Args: \{\s+p_action: string[\s\S]*?p_remove_exam_ids\?: string\[\]/.test(t), 'types/database.ts entries');
     return 'allow-list 96 / 38 / 38';
   });
 
@@ -363,6 +371,59 @@ const run = async (fn) => {
     assert(roles.length === 0, `role reads in ${roles.join(', ')}`);
     assert(!/insert|upsert/i.test(read('lib/onboarding/server.ts').replace(/insert-only/g, '')), 'server helper must not write tables');
     return 'R4 R5 R10 R11 #60';
+  });
+
+  await test('O-12 (F0-a) non-destructive goals: unshown goals untouched, explicit untick removes only that one, idempotent, other users untouched', async () => {
+    // pure rules
+    assert(JSON.stringify(S.shownGoals([EXAM_D, EXAM_A, EXAM_B, EXAM_C], [EXAM_A, EXAM_B, EXAM_C])) === JSON.stringify([EXAM_A, EXAM_B, EXAM_C]), 'shown = pickable active goals in priority order');
+    assert(S.shownGoals([EXAM_A, EXAM_B, EXAM_C, EXAM_D], [EXAM_A, EXAM_B, EXAM_C, EXAM_D]).length === 3, 'at most 3 shown');
+    assert(JSON.stringify(S.goalChanges([EXAM_A, EXAM_B], [EXAM_A, EXAM_C]).remove) === JSON.stringify([EXAM_B]), 'untick B → remove only B');
+    assert(S.goalChanges([EXAM_A, EXAM_B], [EXAM_B, EXAM_A]).remove.length === 0, 'nothing unticked → nothing removed');
+    assert(S.goalChanges([], [EXAM_A]).remove.length === 0, 'no existing goals → nothing removed');
+
+    // action level: the server computes the unticks from the user's OWN goals (never from the client)
+    flag(true);
+    sessionUser = { id: 'u-f0' };
+    const saves = () => spy.rpc.filter((c) => c.fn === 'fn_save_onboarding');
+    const withGoals = (ids) => async (fn) => (fn === 'fn_save_onboarding' ? { data: { success: true, code: 'SAVED', removed: [] }, error: null } : { data: { exam_ids: ids, completed_at: null }, error: null });
+    rpcImpl = withGoals([EXAM_A, EXAM_B, EXAM_D]); // D: active goal that is NOT pickable → never shown → never removed
+    spy.rpc.length = 0;
+    await ACT.saveOnboardingAction({ examIds: [EXAM_A] });
+    assert(JSON.stringify(saves()[0].args.p_remove_exam_ids) === JSON.stringify([EXAM_B]), `untick B: ${JSON.stringify(saves()[0].args)}`);
+    spy.rpc.length = 0;
+    await ACT.saveOnboardingAction({ examIds: [EXAM_A, EXAM_B, EXAM_C] });
+    assert(saves()[0].args.p_remove_exam_ids === undefined, 'everything kept → nothing removed');
+    spy.rpc.length = 0;
+    await ACT.saveOnboardingAction({ examIds: [EXAM_C], removeExamIds: [EXAM_D] }); // a client-sent removal list is ignored
+    assert(JSON.stringify(saves()[0].args.p_remove_exam_ids) === JSON.stringify([EXAM_A, EXAM_B]), `client list must be ignored: ${JSON.stringify(saves()[0].args)}`);
+
+    // reference model of the RPC's goal writes (statically tied to the SQL in O-08)
+    const apply = (rows, uid, selected, remove, minutes) => {
+      const out = rows.map((r) => ({ ...r }));
+      for (const r of out) if (r.user_id === uid && r.is_active && remove.includes(r.exam_id)) r.is_active = false;
+      selected.forEach((exam, i) => {
+        const hit = out.find((r) => r.user_id === uid && r.exam_id === exam);
+        if (hit) Object.assign(hit, { is_active: true, priority_rank: i + 1, daily_study_minutes: minutes ?? hit.daily_study_minutes });
+        else out.push({ user_id: uid, exam_id: exam, is_active: true, priority_rank: i + 1, daily_study_minutes: minutes ?? 120 });
+      });
+      return out;
+    };
+    const start = [
+      { user_id: 'me', exam_id: EXAM_A, is_active: true, priority_rank: 1, daily_study_minutes: 120 },
+      { user_id: 'me', exam_id: EXAM_B, is_active: true, priority_rank: 2, daily_study_minutes: 120 },
+      { user_id: 'me', exam_id: EXAM_D, is_active: true, priority_rank: 3, daily_study_minutes: 120 },
+      { user_id: 'other', exam_id: EXAM_B, is_active: true, priority_rank: 1, daily_study_minutes: 60 },
+    ];
+    const once = apply(start, 'me', [EXAM_C, EXAM_A], [EXAM_B], 30);
+    const twice = apply(once, 'me', [EXAM_C, EXAM_A], [EXAM_B], 30);
+    assert(JSON.stringify(once) === JSON.stringify(twice), 'not idempotent');
+    assert(once.find((r) => r.user_id === 'me' && r.exam_id === EXAM_D).is_active, 'an unshown goal was touched');
+    assert(!once.find((r) => r.user_id === 'me' && r.exam_id === EXAM_B).is_active, 'the explicit untick was not applied');
+    assert(JSON.stringify(once.find((r) => r.user_id === 'other')) === JSON.stringify(start[3]), "another user's row changed");
+    // every goal write in the SQL is keyed on the caller
+    const goalWrites = code.match(/(UPDATE public\.user_exam_goals[\s\S]*?;|INSERT INTO public\.user_exam_goals[\s\S]*?;)/g) || [];
+    assert(goalWrites.length === 2 && goalWrites.every((w) => /v_user_id/.test(w)), `goal writes: ${goalWrites.length}`);
+    return 'unticks only; idempotent; caller-scoped';
   });
 
   console.error = origError;
