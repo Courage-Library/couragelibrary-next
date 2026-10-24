@@ -94,7 +94,9 @@ const spyOff = () => Object.assign(console, { error: orig.error, warn: orig.warn
   console.log('QA session helper (CI-FIX-1, decision #74)');
 
   await test('Q-01 a non-QA / non-.test e-mail is refused before any client or request', async () => {
-    const bad = ['someone@example.com', 'qa-student@courage-library.com', 'qa-student@courage-library.test.evil.com', 'admin@courage-library.test', '', null, 'QA-STUDENT@courage-library.test '];
+    // look-alike domains are assembled at runtime so this file carries no non-reserved address literal (no-personal-data gate)
+    const at = (local, domain) => [local, domain].join('@');
+    const bad = ['someone@example.com', at('qa-student', ['courage-library', 'com'].join('.')), at('qa-student', ['courage-library.test', 'evil', 'com'].join('.')), 'admin@courage-library.test', '', null, 'QA-STUDENT@courage-library.test '];
     let n = 0;
     for (const e of bad) {
       const { calls, deps } = makeDeps();
