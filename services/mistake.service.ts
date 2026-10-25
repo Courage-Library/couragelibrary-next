@@ -915,7 +915,8 @@ export class MistakeService {
     const { data: records, error } = await supabase
       .from("user_mistake_vault")
       .select("id, question_id, topic_id, total_mistakes_count, consecutive_correct_in_remediation, lifecycle_status, primary_cognitive_type_id, user_override_cognitive_type_id, topics:canonical_taxonomy_nodes!user_mistake_vault_topic_id_node_fkey(name), mistake_cognitive_types!primary_cognitive_type_id(id, name, description)")
-      .eq("user_id", currentUserId);
+      .eq("user_id", currentUserId)
+      .gte("total_mistakes_count", 1); // F5: manual Memory Lock items (0 mistakes) are not mistakes
 
     if (error || !records) {
       return {
@@ -1022,7 +1023,8 @@ export class MistakeService {
     let query = supabase
       .from("user_mistake_vault")
       .select("id, question_id, total_mistakes_count, consecutive_correct_in_remediation, lifecycle_status, primary_cognitive_type_id, user_override_cognitive_type_id, user_custom_notes, last_mistake_at, mastered_at, topic_id, subject_id, topics:canonical_taxonomy_nodes!user_mistake_vault_topic_id_node_fkey(id, name), subjects:canonical_taxonomy_nodes!user_mistake_vault_subject_id_node_fkey(id, name), mistake_cognitive_types!primary_cognitive_type_id(name), questions(question_versions(question_text))", { count: "exact" })
-      .eq("user_id", user.id);
+      .eq("user_id", user.id)
+      .gte("total_mistakes_count", 1); // F5: manual Memory Lock items are not mistakes
 
     if (bookmarkedQuestionIds !== null) {
       query = query.in("question_id", bookmarkedQuestionIds);
@@ -1436,7 +1438,8 @@ export class MistakeService {
     let query = sb
       .from("user_mistake_vault")
       .select("id, question_id, topic_id, subject_id, total_mistakes_count, consecutive_correct_in_remediation, lifecycle_status, primary_cognitive_type_id, user_override_cognitive_type_id, user_custom_notes, last_mistake_at, mastered_at, mistake_cognitive_types!primary_cognitive_type_id(name)")
-      .eq("user_id", user.id);
+      .eq("user_id", user.id)
+      .gte("total_mistakes_count", 1); // F5: drills use mistakes only
 
     if (parsedConfig.singleVaultId) {
       query = query.eq("id", parsedConfig.singleVaultId);
@@ -1741,7 +1744,8 @@ export class MistakeService {
           mistake_cognitive_types!primary_cognitive_type_id(name),
           questions(question_versions(question_text))
         `)
-        .eq("user_id", currentUserId),
+        .eq("user_id", currentUserId)
+        .gte("total_mistakes_count", 1), // F5: manual Memory Lock items are not mistakes
       sb
         .from("user_mistake_drills")
         .select("id, status, coins_awarded, questions_data, created_at, completed_at")

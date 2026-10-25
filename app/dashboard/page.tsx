@@ -31,6 +31,7 @@ import {
   Lock,
 } from "lucide-react";
 import { MEMORY_LOCK } from "@/content/memory-lock";
+import { isMemoryLockEnabled } from "@/lib/memory-lock/flag";
 
 export const revalidate = 0; // Dynamic server page
 
@@ -127,8 +128,21 @@ export default async function DashboardPage() {
               </div>
             </Card>
           </Link>
-          {/* Memory Lock: a plain, non-interactive card until F5 (Revision Engine) ships — no link, no dead link;
-              the visible "Coming soon" text says it is not available yet */}
+          {/* Memory Lock (F5): ONE real link to /memory-lock when MEMORY_LOCK_ENABLED (migration 095 applied); until then a
+              plain, non-interactive card — no link, no dead link; the visible "Coming soon" says it is not available yet */}
+          {isMemoryLockEnabled() ? (
+          <Link href="/memory-lock" className="group" data-memory-lock-card="" data-memory-lock-live="">
+            <Card className="p-4 h-full flex flex-col justify-between hover:border-primary-300 hover:shadow-md transition-all">
+              <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-700 flex items-center justify-center mb-3">
+                <Lock aria-hidden="true" className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-bold text-sm text-slate-900">{MEMORY_LOCK.name}</h4>
+                <p className="text-xs text-slate-500 mt-0.5">{MEMORY_LOCK.tagline}</p>
+              </div>
+            </Card>
+          </Link>
+          ) : (
           <div data-memory-lock-card="">
             <Card className="p-4 h-full flex flex-col justify-between">
               <div className="flex items-start justify-between gap-2 mb-3">
@@ -145,6 +159,7 @@ export default async function DashboardPage() {
               </div>
             </Card>
           </div>
+          )}
           {isFeatureEnabled("BATTLES") && (
           <Link href="/battles" className="group">
             <Card className="p-4 hover:border-amber-300 hover:shadow-md transition-all h-full flex flex-col justify-between">
