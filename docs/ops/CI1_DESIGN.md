@@ -123,6 +123,20 @@ The **owner** sets these in GitHub. They are never pasted in chat, never committ
      `CRASH:<Class>[/<CODE>]@<frame>`. The path is repo-relative or starts at `node_modules/`; a path outside the repo
      becomes `external`. No line numbers, message text, env or values; the token stays under `SAFE_TOKEN` and the log scan.
    - A failing BRAND2-PROBE P-03 check also prints a reason sub-ID: `<id>-NAV`, `<id>-NOTVISIBLE` or `<id>-W<w>H<h>`.
+   - SC-BUILD also runs with `--crash-message` (215d6ca, 07:15 UTC): a crash prints its first `<Class>: <message>` line
+     when the log scan finds nothing in it.
+   - **Findings 2026-10-25 18:00 UTC.** Every non-green run since 2026-10-24, sorted by cause:
+     - SC-BUILD `CRASH:TypeError`: last seen 40162915461 (04:46 UTC), before the frame / message diagnostics existed.
+       Root cause not yet observed.
+     - BRAND2-PROBE `P-03e`: once (40161974092, 04:38 UTC), before the P-03 reason sub-IDs.
+     - AUTH1-RESILIENCE-HANG (40134940018): root cause fixed in UX-FIX-1 (the AppShell no longer awaits the sign-up
+       setting, whose 5 s timeout equalled the health probe).
+     - The live-job failures on manual runs (40172113589, 40175937180: SEC1C/SEC1D-LIVE, student pages;
+       40190600286: TYPES1-CLOSE X-1) were real regressions, fixed in the next commits (green 40180596914; 094 types
+       adopted). They were not flakes.
+     - Since then: 28/28 push runs green, 23 of them with the full diagnostics. Nothing is weakened.
+     - Status: OPEN (monitoring). The next SC-BUILD or P-03 failure will carry the class, frame and message (or the
+       reason sub-ID) needed to fix the root cause.
 
 **Stage 2 code changes needed** (small, test / script only):
 - `scripts/db/_db-env.cjs` `readEnv()`: read `process.env` only when `CI=true` and `.env.local` is absent. Today it throws `ENV_MISSING`, and every suite that calls it would fail.
