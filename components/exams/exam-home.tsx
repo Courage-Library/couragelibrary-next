@@ -184,9 +184,9 @@ export function ExamMocks({ mocks, statuses }: { mocks: MockListItem[]; statuses
 }
 
 /** Totals from the published syllabus read model; the full syllabus (the existing section) in a disclosure. */
-export function ExamSyllabusHome({ totals, children }: { totals: { topics: number; published_questions: number } | null; children: ReactNode }) {
+export function ExamSyllabusHome({ id, totals, children }: { id: string; totals: { topics: number; published_questions: number } | null; children: ReactNode }) {
   return (
-    <HomeSection id="syllabus-home" title={C.syllabus.title}>
+    <HomeSection id={id} title={C.syllabus.title}>
       {totals && (
         <p className="flex items-center gap-2 text-body text-fg">
           <BookOpen aria-hidden="true" className="size-5 text-primary-600" />

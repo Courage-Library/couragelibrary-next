@@ -107,10 +107,9 @@ export default async function ExamHomePage({ params }: Props) {
       </Suspense>
 
       {/* Syllabus — canonical read model (GAP2-4b); "coming soon" until a version is published */}
-      <ExamSyllabusHome totals={totals}>
-        <div id="syllabus">
-          <ExamSyllabusSection syllabus={syllabus} examTitle={exam.title} />
-        </div>
+      {/* section#syllabus: the signed-in smoke + the read-model check (scripts/smoke/_syllabus-expect.cjs) read it */}
+      <ExamSyllabusHome id="syllabus" totals={totals}>
+        <ExamSyllabusSection syllabus={syllabus} examTitle={exam.title} />
       </ExamSyllabusHome>
 
       <ExamGuides

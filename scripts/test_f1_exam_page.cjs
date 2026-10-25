@@ -95,7 +95,7 @@ function fullPage(cta, statuses) {
       h(V.ExamGlance, { examTitle: 'SSC CGL', table: L.glanceRows([PATTERN]) }),
       h(V.ExamCycle, { info: L.cycleInfo({ id: 'c', cycleYear: 2026, cycleLabel: '', status: 'active', notificationDate: null, applicationStartDate: null, applicationEndDate: null, examStartDate: null, examEndDate: null, totalVacancies: null, isTentative: true }) }),
       h(V.ExamMocks, { mocks: MOCKS_LIST, statuses }),
-      h(V.ExamSyllabusHome, { totals: { topics: 41, published_questions: 977 } }, h('div', { id: 'syllabus' })),
+      h(V.ExamSyllabusHome, { id: 'syllabus', totals: { topics: 41, published_questions: 977 } }, h('div', null)),
       h(V.ExamGuides, { groups: L.guideGroups(MODULES, SLUG, (k) => `Guide ${k.toLowerCase()}`), sources: [{ id: 's1', title: 'Notice', issuingAuthority: 'SSC', sourceUrl: 'https://ssc.gov.in/x' }] }),
     ),
   );
@@ -254,7 +254,9 @@ function fullPage(cta, statuses) {
     const page = code(read('app/exams/[slug]/page.tsx'));
     assert(/<Suspense fallback=\{<ExamCtaView examId=\{exam\.id\} cta=\{signedOutCta\} \/>\}>/.test(page) && /resolveExamCta\(\{ signedIn: false, signupOpen: false \}, exam\.slug\)/.test(page), 'CTA fallback must be the signed-out, sign-up-closed view');
     assert(/<Suspense fallback=\{<ExamMocks mocks=\{mocks\} statuses=\{null\} \/>\}>/.test(page), 'mock statuses must stream');
-    assert(/<ExamSyllabusSection\b/.test(page) && /id="syllabus"/.test(page), 'syllabus section');
+    assert(/<ExamSyllabusSection\b/.test(page) && /<ExamSyllabusHome id="syllabus"/.test(page), 'syllabus section');
+    // the signed-in smoke waits for section#syllabus and reads it up to its </section> (scripts/smoke/_syllabus-expect.cjs)
+    assert(/<section[^>]*\bid="syllabus"/.test(fullPage(L.resolveExamCta({ signedIn: false, signupOpen: false }, SLUG), null)), 'no <section id="syllabus"> rendered');
     assert((page.match(/getSignupAvailability\(\)/g) || []).length === 1 && /async function HeaderCta/.test(page), 'sign-up read only inside the streamed CTA');
     const loader = code(read('lib/exams/exam-page-server.ts'));
     assert(/^import "server-only";/m.test(read('lib/exams/exam-page-server.ts')), 'server-only');
