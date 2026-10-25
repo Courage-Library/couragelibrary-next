@@ -417,13 +417,26 @@ async function probe() {
     let loaded = null;
     for (const [id, label, p, sel] of TARGETS) {
       await test(`${id} touch target ≥ 48 px at 360 px: ${label} (${p})`, async () => {
+        // CI-FLAKE-1: on failure also print a SAFE reason sub-ID (run-quiet shows only check IDs): NAV, NOTVISIBLE or W<w>H<h>
+        const why = (code, msg) => {
+          console.log(`  FAIL  ${id}-${code}`);
+          throw new Error(msg);
+        };
         if (loaded !== p) {
-          await page360.goto(base + p, { waitUntil: 'load', timeout: 60000 });
+          try {
+            await page360.goto(base + p, { waitUntil: 'load', timeout: 60000 });
+          } catch (e) {
+            loaded = null;
+            why('NAV', String(e && e.message));
+          }
           loaded = p;
         }
-        const box = await page360.locator(sel).first().boundingBox();
-        assert(box, 'not visible');
-        assert(box.height >= 47.5 && box.width >= 47.5, `${box.width.toFixed(1)}×${box.height.toFixed(1)}`);
+        const el = page360.locator(sel).first();
+        // bounded: a streamed (Suspense) element may attach just after "load"; the size rule itself is unchanged
+        await el.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
+        const box = await el.boundingBox();
+        if (!box) why('NOTVISIBLE', 'not visible');
+        if (!(box.height >= 47.5 && box.width >= 47.5)) why(`W${Math.round(box.width)}H${Math.round(box.height)}`, `${box.width.toFixed(1)}×${box.height.toFixed(1)}`);
         return `${box.width.toFixed(1)}×${box.height.toFixed(1)}`;
       });
     }
