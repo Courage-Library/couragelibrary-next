@@ -7,6 +7,7 @@ import { PublicPageHeader } from "@/components/public/public-page";
 import { Container, Section } from "@/components/ui/layout";
 import { HELP_PAGE, SUPPORT_EMAIL } from "@/content/support";
 import { constructMetadata } from "@/lib/seo/metadata";
+import { isSupportTicketsEnabled } from "@/lib/support/tickets";
 
 /** F11 (#79) help centre: static answers about what the product does today (R12), plain English (R9). */
 export const metadata: Metadata = constructMetadata({ title: HELP_PAGE.meta.title, description: HELP_PAGE.meta.description, canonicalUrl: "/help" });
@@ -47,6 +48,11 @@ export default function HelpPage() {
               <CardTitle as="h2">{HELP_PAGE.contactTitle}</CardTitle>
             </div>
             <p className="text-body text-fg-secondary">{HELP_PAGE.contactLead}</p>
+            {isSupportTicketsEnabled() && (
+              <Link href="/help/tickets/new" className="focus-ring inline-flex min-h-12 w-fit items-center text-body font-semibold text-link underline underline-offset-2" data-help-ticket="">
+                Send a support ticket
+              </Link>
+            )}
             <a href={`mailto:${SUPPORT_EMAIL}`} className="focus-ring inline-flex min-h-12 w-fit items-center text-body-lg font-semibold text-link underline underline-offset-2">
               {SUPPORT_EMAIL}
             </a>

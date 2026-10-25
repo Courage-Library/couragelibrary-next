@@ -5790,6 +5790,48 @@ export type Database = {
           },
         ]
       }
+      support_tickets: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          message: string
+          ref: string
+          resolved_at: string | null
+          staff_reply: string | null
+          status: string
+          subject: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          message: string
+          ref: string
+          resolved_at?: string | null
+          staff_reply?: string | null
+          status?: string
+          subject: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          message?: string
+          ref?: string
+          resolved_at?: string | null
+          staff_reply?: string | null
+          status?: string
+          subject?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       taxonomy_fk_flip_log: {
         Row: {
           column_name: string
@@ -7763,6 +7805,10 @@ export type Database = {
       }
       fn_create_question_revision: {
         Args: { p_actor: string; p_payload: Json; p_question_id: string }
+        Returns: Json
+      }
+      fn_create_support_ticket: {
+        Args: { p_category: string; p_message: string; p_subject: string }
         Returns: Json
       }
       fn_delete_exam_controlled: {
