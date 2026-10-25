@@ -1,6 +1,6 @@
 -- =====================================================================================================================
 -- 103 (= "099b", 099-KEYCHECK) — a student's answer must belong to a question of the attempt's own mock
--- NOT APPLIED until the architect's "go". Rollback: docs/database/rollback/103_rollback.sql
+-- Architect GO 2026-10-25 (pre-count: 0 of 358 existing answers outside their mock). Rollback: docs/database/rollback/103_rollback.sql
 -- No BEGIN / COMMIT here: scripts/db/apply-migration.cjs runs the file and its ledger row in ONE transaction.
 --
 -- FINDING (rolled-back test as the QA student, 2026-10-25): the 099 answer policies check the attempt (own, in progress,
