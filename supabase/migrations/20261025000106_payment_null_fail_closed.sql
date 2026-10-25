@@ -1,6 +1,6 @@
 -- =====================================================================================================================
 -- 106 PAY-NULL-1 — payment RPCs fail CLOSED on NULL / absent values (payments: STRICT — NOT APPLIED until the architect's
--- separate "go"; no live payment call, no gateway API). Rollback: docs/database/rollback/106_rollback.sql
+-- separate "go" — GIVEN 2026-10-25; no live payment call, no gateway API). Rollback: docs/database/rollback/106_rollback.sql
 -- No BEGIN / COMMIT here: the runner owns the transaction. Generated from the live definitions (exact substitutions).
 -- Report: docs/reports/security/PAY_NULL_1.md
 --
