@@ -20,6 +20,7 @@
  *   T-11 flag OFF: /practice is the Mistake-drills hub, /practice/session is 404, reports use the pre-093 path
  *   T-12 migration 093 static: practice_answers owner-only read + no client writes; SECDEF search_path ''; errata
  *        client INSERT / SELECT revoked; allow-list entries; report button on practice, mock review and drills
+ *   T-13 Memory Lock core card: not clickable until F5 (aria-disabled, "Coming soon"), primary-blue lock; brand spelling
  * Run: node scripts/test_f2_practice.cjs
  */
 const fs = require('fs');
@@ -328,6 +329,24 @@ const ROW = (qid, vid, lang = 'en', extra = {}) => ({
     assert(read('components/mistakes/mistake-drill-result.tsx').includes('<ReportQuestionButton questionId={ev.question_id} questionVersionId={null} />'), 'drills');
     assert(read('components/practice/practice-runner.tsx').includes('<ReportQuestionButton questionId={q.questionId} questionVersionId={view.versionId} />'), 'practice');
     return 'RLS · SECDEF · grants · allow-list · 3 surfaces';
+  });
+
+  await test('T-13 Memory Lock card: not a link until F5 (aria-disabled, "Coming soon"), lock icon in primary blue; brand spelling everywhere', () => {
+    const ML = require(path.join(ROOT, 'content/memory-lock.ts')).MEMORY_LOCK;
+    assert(ML.name === 'Memory Lock' && ML.tagline === 'Spaced revision, right on time' && ML.comingSoon === 'Coming soon', JSON.stringify(ML));
+    const dash = code(read('app/dashboard/page.tsx'));
+    const card = (dash.match(/<div role="link" aria-disabled="true" data-memory-lock-card=""[\s\S]*?\n {10}<\/div>/) || [''])[0];
+    assert(card, 'Memory Lock card missing (role="link" aria-disabled="true")');
+    assert(!/href=|<Link\b|<a\b|onClick/.test(card), 'Memory Lock card must not be clickable before F5');
+    assert(/<Lock aria-hidden="true"/.test(card) && /bg-primary-50 text-primary-700/.test(card) && !/red-|rose-|amber-|accent-|Alarm|Bell/.test(card), 'lock icon in the primary blue family only');
+    assert(/\{MEMORY_LOCK\.comingSoon\}/.test(card) && /\{MEMORY_LOCK\.name\}/.test(card) && /\{MEMORY_LOCK\.tagline\}/.test(card), 'copy from content/memory-lock.ts');
+    const order = ['href="/mock-tests"', 'href="/practice"', 'href="/mistakes"', 'data-memory-lock-card'].map((s) => dash.indexOf(s));
+    assert(order.every((i, k) => i > 0 && (k === 0 || i > order[k - 1])), 'Memory Lock must be the 4th core card');
+    // brand term: any "memory lock" in shipped UI code is spelled exactly "Memory Lock"
+    const walk = (d) => fs.readdirSync(path.join(ROOT, d), { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(`${d}/${e.name}`) : /\.(tsx?)$/.test(e.name) ? [`${d}/${e.name}`] : []));
+    const bad = ['app', 'components', 'content', 'lib'].flatMap(walk).flatMap((f) => [...read(f).matchAll(/memory[\s-]?lock/gi)].filter((m) => m[0] !== 'Memory Lock' && !/MEMORY_LOCK|memory-lock/.test(m[0])).map((m) => `${f}: "${m[0]}"`));
+    assert(bad.length === 0, bad.join('; '));
+    return 'not clickable · blue lock · brand spelling';
   });
 
   console.log(`\nF2 practice: ${passed}/${passed + failed} passed`);

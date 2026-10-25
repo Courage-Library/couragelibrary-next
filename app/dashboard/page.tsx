@@ -28,7 +28,9 @@ import {
   Swords,
   GraduationCap,
   Layers,
+  Lock,
 } from "lucide-react";
+import { MEMORY_LOCK } from "@/content/memory-lock";
 
 export const revalidate = 0; // Dynamic server page
 
@@ -125,6 +127,23 @@ export default async function DashboardPage() {
               </div>
             </Card>
           </Link>
+          {/* Memory Lock: not a link until F5 (Revision Engine) ships — no dead link, announced as unavailable */}
+          <div role="link" aria-disabled="true" data-memory-lock-card="" className="cursor-default">
+            <Card className="p-4 h-full flex flex-col justify-between">
+              <div className="flex items-start justify-between gap-2 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-700 flex items-center justify-center">
+                  <Lock aria-hidden="true" className="w-5 h-5" />
+                </div>
+                <span className="px-1.5 py-0.5 rounded-md border border-primary-200 bg-primary-50 text-primary-800 text-caption font-medium">
+                  {MEMORY_LOCK.comingSoon}
+                </span>
+              </div>
+              <div>
+                <h4 className="font-bold text-sm text-slate-900">{MEMORY_LOCK.name}</h4>
+                <p className="text-xs text-slate-500 mt-0.5">{MEMORY_LOCK.tagline}</p>
+              </div>
+            </Card>
+          </div>
           {isFeatureEnabled("BATTLES") && (
           <Link href="/battles" className="group">
             <Card className="p-4 hover:border-amber-300 hover:shadow-md transition-all h-full flex flex-col justify-between">
