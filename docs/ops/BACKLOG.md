@@ -33,9 +33,13 @@ Logged by the architect (2026-10-25). 098 makes `fn_jwt_is_admin_or_staff()` req
 
 Found with ATTEMPT-INTEGRITY-1 (099): a table-level INSERT / UPDATE grant to `authenticated` overrides column revokes. Thirteen more tables have table-level client write grants plus client write policies: learning_activity_events, custom_practice_sessions, discussion_threads / discussion_messages / discussion_votes / discussion_moderation_flags, study_plan_items, user_study_plans, user_bookmark_folders, user_question_bookmarks, user_exam_goals, user_lesson_notes, user_notification_preferences. Report: docs/reports/security/GRANT_AUDIT_1.md. Fix: migration 100 (held, dry-run + smoke 13/13 rolled back), applied only on the architect's go.
 
-## COMMUNITY-REPLY-1: community replies always fail (pre-existing)
+## COMMUNITY-REPLY-1: community replies always fail — DONE 2026-10-25 (migration 101)
 
-Found during GRANT-AUDIT-1 (2026-10-25). `fn_post_discussion_message` inserts an activity row into `learning_activity_events` without `topic_id` (NOT NULL), so every reply fails with 23502 — with or without migration 100. Fix in a separate change: skip the activity insert when there is no topic, or use the thread's topic.
+`fn_post_discussion_message` now takes the activity row's topic from the thread (no topic → no row), uses an allowed event type with `metadata.kind = COMMUNITY_DOUBT_ANSWERED`, and can never fail a reply because of analytics.
+
+## TOPIC-CONTEXT-1: topic threads cannot be created through the RPC
+
+Found while testing 101 (2026-10-25). `fn_create_discussion_thread('TOPIC', …)` checks the retired legacy `public.topics` table instead of `canonical_taxonomy_nodes` (node_type `TOPIC`), so a topic thread cannot be created through the app. Fix in a separate function-only migration.
 
 ## DOMAIN-CUTOVER-1: couragelibrary.in still serves the legacy site
 
