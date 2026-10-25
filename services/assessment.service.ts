@@ -11,6 +11,7 @@ import { formatIstDateTime, calculateExamDuration, getIstDateString } from "@/li
 import { attemptDeadline, isFinalizeEnabled, isPastDeadline, staleOutcome, type AttemptLike } from "@/lib/assessment/finalize";
 import { RANK_MIN_COHORT } from "@/lib/assessment/display-rules";
 import { buildTakeaways, buildTrend, cohortStanding, isTestAccountEmail, negativeMarksLost, type CohortRow, type Standing, type Takeaway, type TrendPoint } from "@/lib/assessment/result-analysis";
+import { isLeaderboardOptedIn, leaderboardView, type LeaderboardEntry } from "@/lib/assessment/leaderboard";
 import { isPracticeEnabled } from "@/lib/practice/flag";
 
 /** TYPES-1 B1: PostgREST returns a one-to-one embed (e.g. test_attempts → test_results) as an object or null. */
@@ -357,14 +358,11 @@ export interface ActiveAttemptSession {
 
 export interface TestLeaderboardItem {
   rank: number;
-  userId: string;
   displayName: string;
-  avatarUrl?: string | null;
   score: number;
   maxScore: number;
   accuracyPercentage: number;
   timeSpentSeconds: number;
-  submittedAt: string;
   isCurrentUser: boolean;
 }
 
@@ -483,6 +481,7 @@ export interface TestResultSummary {
   }>;
 }
 
+/** LEADERBOARD-GATE-1: ranks only from >= RANK_MIN_COHORT real students; public rows only for opted-in students. */
 export interface TestLeaderboardData {
   test: {
     id: string;
@@ -491,12 +490,9 @@ export interface TestLeaderboardData {
     totalMarks: number;
     totalQuestions: number;
   };
-  userStanding?: TestLeaderboardItem | null;
-  topScore: number;
-  averageScore: number;
-  totalParticipants: number;
-  podium: TestLeaderboardItem[];
-  leaderboard: TestLeaderboardItem[];
+  view: { state: "not_enough" } | { state: "ranked"; n: number; entries: TestLeaderboardItem[]; viewer: (TestLeaderboardItem & { optedIn: boolean }) | null };
+  /** the signed-in viewer's opt-in (null = signed out) */
+  viewerOptedIn: boolean | null;
 }
 
 export class AssessmentService {
@@ -2695,19 +2691,29 @@ export class AssessmentService {
   private static async realCohortStanding(adminSb: SupabaseClient<Database>, rows: CohortRow[], viewerId: string, score: number): Promise<Standing | null> {
     const users = new Set(rows.map((r) => r.userId));
     if (users.size < RANK_MIN_COHORT) return null;
-    const testIds = new Set<string>();
+    const flags = await AssessmentService.accountFlags(adminSb);
+    if (!flags) return null;
+    return cohortStanding(rows.map((r) => ({ ...r, isTestAccount: flags.get(r.userId)?.isTest ?? false })), viewerId, score);
+  }
+
+  /**
+   * Per account: test account (reserved .test domain) and leaderboard opt-in (own user_metadata). null when the
+   * accounts cannot all be read — callers then omit rank data (fail closed).
+   */
+  private static async accountFlags(adminSb: SupabaseClient<Database>): Promise<Map<string, { isTest: boolean; optedIn: boolean }> | null> {
+    const out = new Map<string, { isTest: boolean; optedIn: boolean }>();
     try {
       for (let page = 1; ; page++) {
         if (page > 20) return null; // more accounts than we check: omit rather than guess
         const { data, error } = await adminSb.auth.admin.listUsers({ page, perPage: 1000 });
         if (error) return null;
-        for (const u of data.users) if (isTestAccountEmail(u.email)) testIds.add(u.id);
+        for (const u of data.users) out.set(u.id, { isTest: isTestAccountEmail(u.email), optedIn: isLeaderboardOptedIn(u.user_metadata) });
         if (data.users.length < 1000) break;
       }
     } catch {
       return null;
     }
-    return cohortStanding(rows.map((r) => ({ ...r, isTestAccount: testIds.has(r.userId) })), viewerId, score);
+    return out;
   }
 
   /** F4: this user's scored attempts of mocks of the same exam (abandoned attempts excluded) as trend points. */
@@ -2741,96 +2747,68 @@ export class AssessmentService {
   }
 
   /**
-   * Fetches official assessment leaderboard for a specific mock test with masked privacy protection.
+   * LEADERBOARD-GATE-1 (R12): ranks only when >= RANK_MIN_COHORT real students (test accounts excluded) have a scored
+   * first attempt of this mock; public rows only for students who opted in (masked names); the viewer sees their own
+   * rank privately. Fewer students, or accounts that cannot be read: "not_enough" — no ranks, no counts.
    */
-  static async getTestLeaderboard(testId: string, currentUserId?: string | null): Promise<TestLeaderboardData | null> {
+  static async getTestLeaderboard(testId: string, currentUserId?: string | null, viewerOptedIn: boolean | null = null): Promise<TestLeaderboardData | null> {
     const adminSb = createAdminServerSupabaseClient();
-
-    // 1. Fetch test details
-    const { data: testData } = await adminSb
-      .from("mock_tests")
-      .select("id, title, duration_minutes, total_questions, total_marks")
-      .eq("id", testId)
-      .maybeSingle();
-
+    const { data: testData } = await adminSb.from("mock_tests").select("id, title, duration_minutes, total_questions, total_marks").eq("id", testId).maybeSingle();
     if (!testData) return null;
+    const test = {
+      id: testData.id,
+      title: testData.title,
+      durationMinutes: testData.duration_minutes,
+      totalMarks: Number(testData.total_marks || 0),
+      totalQuestions: testData.total_questions || 0,
+    };
+    const notEnough: TestLeaderboardData = { test, view: { state: "not_enough" }, viewerOptedIn };
 
-    // 2. Fetch all submitted results for this test
     const { data: resultsData } = await adminSb
       .from("test_results")
-      .select("id, user_id, total_score, max_score, accuracy_percentage, time_spent_seconds, created_at")
+      .select("user_id, total_score, max_score, accuracy_percentage, time_spent_seconds, created_at")
       .eq("mock_test_id", testId)
-      .order("total_score", { ascending: false })
-      .order("accuracy_percentage", { ascending: false })
-      .order("time_spent_seconds", { ascending: true })
       .order("created_at", { ascending: true });
+    const results = resultsData ?? [];
+    if (new Set(results.map((r) => r.user_id)).size < RANK_MIN_COHORT) return notEnough;
+    const flags = await AssessmentService.accountFlags(adminSb);
+    if (!flags) return notEnough;
 
-    const allResults = (resultsData as any[]) || [];
+    const maxScore = new Map(results.map((r) => [r.user_id, Number(r.max_score)]));
+    const view = leaderboardView(
+      results.map((r) => ({
+        userId: r.user_id,
+        score: Number(r.total_score),
+        accuracy: Number(r.accuracy_percentage),
+        timeSeconds: Number(r.time_spent_seconds),
+        createdAt: String(r.created_at ?? ""),
+        isTestAccount: flags.get(r.user_id)?.isTest ?? false,
+        optedIn: flags.get(r.user_id)?.optedIn ?? false,
+      })),
+      currentUserId ?? null,
+    );
+    if (view.state === "not_enough") return notEnough;
 
-    // 3. Deduplicate best attempt per user
-    const bestUserAttempts = new Map<string, any>();
-    allResults.forEach((tr) => {
-      if (!bestUserAttempts.has(tr.user_id)) {
-        bestUserAttempts.set(tr.user_id, tr);
-      }
-    });
-
-    const rankedCandidates = Array.from(bestUserAttempts.values());
-    const totalParticipants = Math.max(1, rankedCandidates.length);
-    const topScore = rankedCandidates.length > 0 ? Number(rankedCandidates[0].total_score) : 0;
-    const totalSum = rankedCandidates.reduce((acc, c) => acc + Number(c.total_score), 0);
-    const averageScore = Math.round((totalSum / totalParticipants) * 10) / 10;
-
-    // 4. Fetch profiles for masked names and avatars
-    const userIds = rankedCandidates.map((c) => c.user_id);
-    const profilesMap = new Map<string, any>();
-    if (userIds.length > 0) {
-      const { data: profs } = await adminSb
-        .from("user_profiles")
-        .select("id, full_name, avatar_url")
-        .in("id", userIds);
-
-      (profs || []).forEach((p) => profilesMap.set(p.id, p));
-    }
-
-    const leaderboard: TestLeaderboardItem[] = rankedCandidates.map((c, idx) => {
-      const prof = profilesMap.get(c.user_id);
-      const isCurrentUser = Boolean(currentUserId && c.user_id === currentUserId);
-      const displayName = isCurrentUser
-        ? (prof?.full_name ? `${prof.full_name} (You)` : "You")
-        : AssessmentService.maskCandidateName(prof?.full_name || `Candidate #${c.user_id.slice(0, 4).toUpperCase()}`);
-
+    const ids = [...new Set([...view.entries.map((e) => e.userId), ...(view.viewer ? [view.viewer.userId] : [])])];
+    const { data: profs } = ids.length ? await adminSb.from("user_profiles").select("id, full_name").in("id", ids) : { data: [] as Array<{ id: string; full_name: string | null }> };
+    const names = new Map((profs ?? []).map((p) => [p.id, p.full_name]));
+    const item = (e: LeaderboardEntry): TestLeaderboardItem => {
+      const isCurrentUser = Boolean(currentUserId && e.userId === currentUserId);
       return {
-        rank: idx + 1,
-        userId: c.user_id,
-        displayName,
-        avatarUrl: prof?.avatar_url || null,
-        score: Number(c.total_score),
-        maxScore: Number(c.max_score),
-        accuracyPercentage: Number(c.accuracy_percentage),
-        timeSpentSeconds: Number(c.time_spent_seconds),
-        submittedAt: c.created_at,
+        rank: e.rank,
+        displayName: isCurrentUser ? "You" : AssessmentService.maskCandidateName(names.get(e.userId) || "Candidate"),
+        score: e.score,
+        maxScore: maxScore.get(e.userId) ?? test.totalMarks,
+        accuracyPercentage: e.accuracy,
+        timeSpentSeconds: e.timeSeconds,
         isCurrentUser,
       };
-    });
-
-    const userStanding = currentUserId ? leaderboard.find((l) => l.userId === currentUserId) || null : null;
-    const podium = leaderboard.slice(0, 3);
-
+    };
     return {
-      test: {
-        id: testData.id,
-        title: testData.title,
-        durationMinutes: testData.duration_minutes,
-        totalMarks: Number(testData.total_marks || 0),
-        totalQuestions: testData.total_questions || 0,
-      },
-      userStanding,
-      topScore,
-      averageScore,
-      totalParticipants,
-      podium,
-      leaderboard,
+      test,
+      view: { state: "ranked", n: view.n, entries: view.entries.map(item), viewer: view.viewer ? { ...item(view.viewer), optedIn: view.viewer.optedIn } : null },
+      viewerOptedIn,
     };
   }
+
 }
