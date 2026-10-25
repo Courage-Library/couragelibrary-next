@@ -151,6 +151,41 @@ export type Database = {
           },
         ]
       }
+      attempt_proctor_events: {
+        Row: {
+          attempt_id: string
+          client_seq: number
+          event_type: Database["public"]["Enums"]["proctor_event_type"]
+          id: number
+          occurred_at: string
+          user_id: string
+        }
+        Insert: {
+          attempt_id: string
+          client_seq: number
+          event_type: Database["public"]["Enums"]["proctor_event_type"]
+          id?: never
+          occurred_at?: string
+          user_id: string
+        }
+        Update: {
+          attempt_id?: string
+          client_seq?: number
+          event_type?: Database["public"]["Enums"]["proctor_event_type"]
+          id?: never
+          occurred_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attempt_proctor_events_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "test_attempts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       badges: {
         Row: {
           category: string
@@ -8331,7 +8366,11 @@ export type Database = {
       show_trgm: { Args: { "": string }; Returns: string[] }
     }
     Enums: {
-      [_ in never]: never
+      proctor_event_type:
+        | "tab_hidden"
+        | "tab_visible"
+        | "fullscreen_exit"
+        | "fullscreen_enter"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -8458,6 +8497,13 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      proctor_event_type: [
+        "tab_hidden",
+        "tab_visible",
+        "fullscreen_exit",
+        "fullscreen_enter",
+      ],
+    },
   },
 } as const
