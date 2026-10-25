@@ -13,9 +13,9 @@ function safeNext(raw: FormDataEntryValue | null): string {
 }
 
 /**
- * AGE-18: the signed-in user confirms 18+ once. The checkbox is required (server-side); fn_confirm_age() records the
- * time on the profile (set once) and the time is mirrored into user_metadata for the middleware. Any failure keeps the
- * user on this page (fail CLOSED) with a fixed message code.
+ * AGE-18: the signed-in user confirms 18+ once. The checkbox is required (server-side); fn_confirm_age() records it on
+ * user_profiles.adult_confirmed_at (set once), then the server sets app_metadata.adult_confirmed (service role) for the
+ * middleware. Any failure keeps the user on this page (fail CLOSED) with a fixed message code.
  */
 export async function confirmAgeAction(formData: FormData) {
   const next = safeNext(formData.get("next"));
@@ -27,7 +27,8 @@ export async function confirmAgeAction(formData: FormData) {
   const { data } = await supabase.auth.getUser();
   if (!data?.user) redirect(`/auth/login?next=${encodeURIComponent(AGE_CONFIRM_PATH)}`);
 
-  const at = await recordAgeConfirmation(supabase);
-  if (!at) redirect(back("failed"));
+  // fn_confirm_age first; app_metadata is mirrored (service role) only after it succeeded — any failure stays here
+  const ok = await recordAgeConfirmation(supabase);
+  if (!ok) redirect(back("failed"));
   redirect(next);
 }

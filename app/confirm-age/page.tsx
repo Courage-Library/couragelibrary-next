@@ -35,7 +35,7 @@ export default async function ConfirmAgePage({ searchParams }: { searchParams: P
   const session = await getSessionState(supabase);
   if (session.state === "none") redirect(`/auth/login?next=${encodeURIComponent(AGE_CONFIRM_PATH)}`);
   if (session.state === "error") redirect(`/auth/unavailable?next=${encodeURIComponent(AGE_CONFIRM_PATH)}`);
-  if (hasAgeConfirmation(session.user.user_metadata)) redirect(target);
+  if (hasAgeConfirmation(session.user.app_metadata)) redirect(target);
 
   const error = typeof sp.e === "string" ? ERRORS[sp.e] : undefined;
 

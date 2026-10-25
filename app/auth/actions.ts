@@ -15,7 +15,7 @@ import {
   type AuthErrorCode,
 } from "@/lib/auth/messages";
 import { getSignupAvailability } from "@/lib/auth/signup-availability";
-import { AGE_CHECKBOX_FIELD, AGE_METADATA_KEY, isAgeConfirmedInput, isAgeGateEnabled } from "@/lib/auth/age-gate";
+import { AGE_CHECKBOX_FIELD, AGE_SIGNUP_STAMP_KEY, isAgeConfirmedInput, isAgeGateEnabled } from "@/lib/auth/age-gate";
 import { isTransientAuthError } from "@/lib/auth/session-state";
 import { postLoginTarget } from "@/lib/onboarding/server";
 import { CAPTCHA_FIELD, checkCaptchaToken } from "@/lib/auth/captcha";
@@ -113,9 +113,9 @@ export async function signupAction(prevState: AuthState | null, formData: FormDa
     email,
     password,
     options: {
-      // AGE-18: no session exists until the email is confirmed, so the confirmation time travels in the sign-up
-      // metadata; the first sign-in records it on the profile (fn_confirm_age, see lib/auth/age-confirm.ts)
-      data: { full_name: typeof fullName === "string" ? fullName.trim().slice(0, 120) : "", ...(ageGate ? { [AGE_METADATA_KEY]: new Date().toISOString() } : {}) },
+      // AGE-18: no session exists until the email is confirmed, so the checkbox time travels in the sign-up metadata as
+      // an INPUT only; the first sign-in records it with fn_confirm_age and the server mirrors app_metadata (age-confirm.ts)
+      data: { full_name: typeof fullName === "string" ? fullName.trim().slice(0, 120) : "", ...(ageGate ? { [AGE_SIGNUP_STAMP_KEY]: new Date().toISOString() } : {}) },
       emailRedirectTo: confirmUrl("/dashboard"),
       ...(captcha.token ? { captchaToken: captcha.token } : {}),
     },
