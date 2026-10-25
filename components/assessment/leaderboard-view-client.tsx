@@ -1,12 +1,10 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React from "react";
 import Link from "next/link";
 import { ArrowLeft, Users } from "lucide-react";
 import type { TestLeaderboardData } from "@/services/assessment.service";
-import { setLeaderboardOptInAction } from "@/app/mock-tests/[id]/leaderboard/actions";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Switch } from "@/components/ui/switch";
 import { formatDuration, formatPercent } from "@/lib/format";
 import { fmtMarks } from "@/lib/assessment/result-analysis";
 import { cn } from "@/lib/utils";
@@ -78,42 +76,7 @@ export function LeaderboardViewClient({ data }: { data: TestLeaderboardData }) {
           </section>
         )}
 
-        {data.viewerOptedIn !== null && <OptInToggle initial={data.viewerOptedIn} mockId={test.id} />}
       </div>
-    </div>
-  );
-}
-
-function OptInToggle({ initial, mockId }: { initial: boolean; mockId: string }) {
-  const [on, setOn] = useState(initial);
-  const [failed, setFailed] = useState(false);
-  const [pending, start] = useTransition();
-  return (
-    <div className="rounded-card border border-line bg-surface px-4 py-2" data-leaderboard-optin="">
-      <Switch
-        label="Show me on mock leaderboards"
-        description="Off by default. When on, your masked name, score, accuracy and time appear to other students on leaderboards with enough students."
-        checked={on}
-        disabled={pending}
-        className="min-h-12"
-        onChange={(e) => {
-          const next = e.target.checked;
-          setOn(next);
-          setFailed(false);
-          start(async () => {
-            const r = await setLeaderboardOptInAction({ optIn: next, mockId }).catch(() => ({ ok: false }));
-            if (!r.ok) {
-              setOn(!next);
-              setFailed(true);
-            }
-          });
-        }}
-      />
-      {failed && (
-        <p role="alert" className="pb-2 text-body-sm text-danger-700">
-          Your choice was not saved. Try again.
-        </p>
-      )}
     </div>
   );
 }

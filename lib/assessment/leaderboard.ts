@@ -4,7 +4,9 @@
  *   mock; otherwise the page shows a plain "Not enough students yet" state — no ranks, no counts, no podium.
  * - Ranks are computed over the whole real cohort (each student's FIRST attempt, as on the result page), but a public
  *   row is listed ONLY for students who opted in. The viewer always sees their own rank (private), opted in or not.
- * Opt-in lives in the student's own auth user_metadata.leaderboard_opt_in (no schema change; default off).
+ * Opt-in (architect ruling, 2026-10-25): ONLY user_profiles.leaderboard_opt_in, written ONLY by fn_set_leaderboard_opt_in
+ * (migration 096; under-18 cannot opt in). auth user_metadata is user-writable and is never read for this (#60). Until
+ * 096 is applied nobody is opted in: ranked boards list no rows, the viewer still sees their own rank.
  */
 import { RANK_MIN_COHORT } from "./display-rules";
 
@@ -37,6 +39,3 @@ export function leaderboardView(rows: LeaderboardRow[], viewerId: string | null)
   };
 }
 
-export function isLeaderboardOptedIn(meta: unknown): boolean {
-  return Boolean(meta && typeof meta === "object" && (meta as Record<string, unknown>).leaderboard_opt_in === true);
-}

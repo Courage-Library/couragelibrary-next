@@ -11,7 +11,7 @@ import { formatIstDateTime, calculateExamDuration, getIstDateString } from "@/li
 import { attemptDeadline, isFinalizeEnabled, isPastDeadline, staleOutcome, type AttemptLike } from "@/lib/assessment/finalize";
 import { RANK_MIN_COHORT } from "@/lib/assessment/display-rules";
 import { buildTakeaways, buildTrend, cohortStanding, isTestAccountEmail, negativeMarksLost, type CohortRow, type Standing, type Takeaway, type TrendPoint } from "@/lib/assessment/result-analysis";
-import { isLeaderboardOptedIn, leaderboardView, type LeaderboardEntry } from "@/lib/assessment/leaderboard";
+import { leaderboardView, type LeaderboardEntry } from "@/lib/assessment/leaderboard";
 import { isPracticeEnabled } from "@/lib/practice/flag";
 
 /** TYPES-1 B1: PostgREST returns a one-to-one embed (e.g. test_attempts → test_results) as an object or null. */
@@ -2700,14 +2700,14 @@ export class AssessmentService {
    * Per account: test account (reserved .test domain) and leaderboard opt-in (own user_metadata). null when the
    * accounts cannot all be read — callers then omit rank data (fail closed).
    */
-  private static async accountFlags(adminSb: SupabaseClient<Database>): Promise<Map<string, { isTest: boolean; optedIn: boolean }> | null> {
-    const out = new Map<string, { isTest: boolean; optedIn: boolean }>();
+  private static async accountFlags(adminSb: SupabaseClient<Database>): Promise<Map<string, { isTest: boolean }> | null> {
+    const out = new Map<string, { isTest: boolean }>();
     try {
       for (let page = 1; ; page++) {
         if (page > 20) return null; // more accounts than we check: omit rather than guess
         const { data, error } = await adminSb.auth.admin.listUsers({ page, perPage: 1000 });
         if (error) return null;
-        for (const u of data.users) out.set(u.id, { isTest: isTestAccountEmail(u.email), optedIn: isLeaderboardOptedIn(u.user_metadata) });
+        for (const u of data.users) out.set(u.id, { isTest: isTestAccountEmail(u.email) }); // user_metadata is never read (#60)
         if (data.users.length < 1000) break;
       }
     } catch {
@@ -2747,6 +2747,14 @@ export class AssessmentService {
   }
 
   /**
+   * Leaderboard opt-ins — ONLY from user_profiles.leaderboard_opt_in (migration 096, written by fn_set_leaderboard_opt_in;
+   * under-18 cannot opt in). Until 096 is applied the column does not exist: nobody is opted in.
+   */
+  private static async leaderboardOptIns(): Promise<Set<string>> {
+    return new Set<string>();
+  }
+
+  /**
    * LEADERBOARD-GATE-1 (R12): ranks only when >= RANK_MIN_COHORT real students (test accounts excluded) have a scored
    * first attempt of this mock; public rows only for students who opted in (masked names); the viewer sees their own
    * rank privately. Fewer students, or accounts that cannot be read: "not_enough" — no ranks, no counts.
@@ -2773,6 +2781,7 @@ export class AssessmentService {
     if (new Set(results.map((r) => r.user_id)).size < RANK_MIN_COHORT) return notEnough;
     const flags = await AssessmentService.accountFlags(adminSb);
     if (!flags) return notEnough;
+    const optIns = await AssessmentService.leaderboardOptIns();
 
     const maxScore = new Map(results.map((r) => [r.user_id, Number(r.max_score)]));
     const view = leaderboardView(
@@ -2783,7 +2792,7 @@ export class AssessmentService {
         timeSeconds: Number(r.time_spent_seconds),
         createdAt: String(r.created_at ?? ""),
         isTestAccount: flags.get(r.user_id)?.isTest ?? false,
-        optedIn: flags.get(r.user_id)?.optedIn ?? false,
+        optedIn: optIns.has(r.user_id),
       })),
       currentUserId ?? null,
     );
