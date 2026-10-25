@@ -126,6 +126,7 @@ jobs:
           q MEMORY-LOCK-F5 node scripts/test_memory_lock_f5.cjs || fail=1
           q F8-PROFILE node scripts/test_f8_profile.cjs || fail=1
           q F11-TICKETS node scripts/test_f11_tickets.cjs || fail=1
+          q FLAGS-LIVE-STATIC node scripts/test_flags_live_static.cjs || fail=1
           q MIGRATION-RUNNER-SELFTEST node scripts/db/apply-migration.cjs --self-test || fail=1
           q KILL-LEFTOVER-SELFTEST node scripts/ci/kill-leftover-server.cjs --self-test || fail=1
           exit $fail
@@ -278,6 +279,7 @@ jobs:
             "$Q SMOKE-STUDENT-PAGES -- node scripts/smoke/signed-in-smoke.cjs student-pages $B" \
             "$Q SMOKE-STAFF-CONTENT -- node scripts/smoke/signed-in-smoke.cjs staff-content $B" \
             "$Q SMOKE-ADMIN-HOME -- node scripts/smoke/signed-in-smoke.cjs admin-home $B" \
+            "$Q FLAGS-LIVE -- node scripts/live/test_flags_live.cjs $B" \
             "$Q UX2A-LIVE -- node scripts/test_ux2a_landing.cjs $B" \
             "$Q UX2B-LIVE -- node scripts/test_ux2b_public.cjs --live" \
             "$Q AUTH1-2B1-LIVE -- node scripts/test_auth1_2b1.cjs --live" \
