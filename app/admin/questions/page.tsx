@@ -13,6 +13,7 @@ interface Props {
     pattern?: string;
     section?: string;
     topic?: string;
+    question?: string;
   }>;
 }
 
@@ -30,6 +31,7 @@ export default async function AdminQuestionsPage({ searchParams }: Props) {
       initialPattern={params.pattern}
       initialSection={params.section}
       initialTopic={params.topic}
+      initialQuestionId={params.question}
     />
   );
 }

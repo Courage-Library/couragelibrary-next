@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { Badge } from "@/components/ui/legacy/badge";
 import { Button } from "@/components/ui/legacy/button";
 import { AnswerKeyUnavailableNotice } from "@/components/questions/answer-key-notice";
@@ -344,6 +345,16 @@ export function AdminQuestionReportsManager({ initialReports }: AdminQuestionRep
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 font-medium leading-relaxed">
                   {activeReport.questionText || "No question text available"}
                 </div>
+                {/* Q7: open the reported question in the admin question editor (admin side; no access change) */}
+                {activeReport.questionId && (
+                  <Link
+                    href={`/admin/questions?question=${encodeURIComponent(activeReport.questionId)}`}
+                    data-open-question
+                    className="inline-flex min-h-12 items-center text-xs font-bold text-primary-700 underline underline-offset-2"
+                  >
+                    Open question
+                  </Link>
+                )}
               </div>
 
               {/* Options & Correct Answer Key */}

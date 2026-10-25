@@ -1,7 +1,7 @@
 "use client";
 
 import { actionErrorMessage } from "@/lib/actions/action-result";
-import React, { useState, useMemo, useTransition, useRef } from "react";
+import React, { useState, useMemo, useTransition, useRef, useEffect } from "react";
 import Link from "next/link";
 import {
   AdminQuestionHierarchyItem,
@@ -42,6 +42,8 @@ interface Props {
   initialPattern?: string;
   initialSection?: string;
   initialTopic?: string;
+  /** Q7: open this question's edit dialog on load (the "Open question" link on a question report) */
+  initialQuestionId?: string;
 }
 
 const PAGE_SIZE = 20;
@@ -52,6 +54,7 @@ export function AdminQuestionManager({
   initialCategory,
   initialPattern,
   initialSection,
+  initialQuestionId,
 }: Props) {
   // ----------------------------------------------------
   // Cascading Add Form State
@@ -294,6 +297,15 @@ export function AdminQuestionManager({
     setEditExplanation(q.explanationMd || "");
     setEditIsActive(q.status === "published");
   };
+
+  // Q7: /admin/questions?question=<id> opens that question once (a question not in the list opens nothing)
+  const openedFromLink = useRef(false);
+  useEffect(() => {
+    if (openedFromLink.current || !initialQuestionId) return;
+    openedFromLink.current = true;
+    const target = questions.find((x) => x.id === initialQuestionId);
+    if (target) openEditModal(target);
+  }, [initialQuestionId, questions]);
 
   const handleSaveEdit = (e: React.FormEvent) => {
     e.preventDefault();
