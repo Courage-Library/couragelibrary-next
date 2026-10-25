@@ -14,6 +14,7 @@ import { QuestionPalette, QuestionStatus } from "@/components/assessment/questio
 import { SubmitDialog, SectionSubmitSummary } from "@/components/assessment/submit-dialog";
 import { ReportQuestionButton } from "@/components/practice/report-question-button";
 import { Tooltip } from "@/components/ui/tooltip";
+import { nextProctorSeq, type ProctorEvent } from "@/lib/assessment/proctor";
 import { InstructionsModal } from "@/components/assessment/instructions-modal";
 import { CandidateSecurityWatermark } from "@/components/assessment/candidate-security-watermark";
 import { OfflineAnswerQueue } from "@/lib/assessment/offline-queue";
@@ -310,10 +311,32 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
     }
   }, [fixedSession, progressKey, currentIndex, visitedQuestions]);
 
+  // PROCTOR-LOG-1: fire-and-forget event (server records it only when PROCTOR_LOG_ENABLED and 094 are live); never
+  // awaited, never shown — the test is not disturbed (R8)
+  const sendProctorEvent = useCallback(
+    (type: ProctorEvent) => {
+      let storage: Storage | null = null;
+      try {
+        storage = window.localStorage;
+      } catch {
+        storage = null;
+      }
+      const seq = nextProctorSeq(session.attemptId, storage);
+      fetch("/api/assessment/proctor-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ attemptId: session.attemptId, type, seq }),
+        keepalive: true,
+      }).catch(() => undefined);
+    },
+    [session.attemptId]
+  );
+
   // Security: Fullscreen Change Listener
   useEffect(() => {
     const handleFullscreenChange = () => {
       const isNowFullscreen = Boolean(document.fullscreenElement);
+      if (isExamStarted) sendProctorEvent(isNowFullscreen ? "fullscreen_enter" : "fullscreen_exit");
       setSecurityState((prev) => {
         if (!isNowFullscreen && prev.isFullscreen && isExamStarted) {
           return {
@@ -333,7 +356,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
 
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
-  }, [isExamStarted]);
+  }, [isExamStarted, sendProctorEvent]);
 
   // Explicit User Gesture Fullscreen Handler (Starts Exam)
   const handleStartExamWithFullscreen = useCallback(() => {
@@ -433,12 +456,14 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
     const handleVisibilityChange = () => {
       if (!isExamStarted) return;
       if (document.visibilityState === "hidden") {
+        sendProctorEvent("tab_hidden");
         flushCurrentQuestionActiveTime();
         setSecurityState((prev) => ({
           ...prev,
           tabSwitchCount: prev.tabSwitchCount + 1,
         }));
       } else if (document.visibilityState === "visible") {
+        sendProctorEvent("tab_visible");
         activeQuestionStartTimeRef.current = Date.now();
         setSecurityState((prev) => {
           if (prev.tabSwitchCount > 0) {
@@ -454,7 +479,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [isExamStarted, flushCurrentQuestionActiveTime]);
+  }, [isExamStarted, flushCurrentQuestionActiveTime, sendProctorEvent]);
 
   // Safe Navigation Wrappers for Fixed Mock
   const navigateToQuestionIndex = useCallback(
@@ -1092,8 +1117,8 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
   // =========================================================================
   // ACTIVE EXAM WORKSPACE
   // F3: R4 one primary action ("Save & Next"); R5 status always visible; R6 CBT controls + palette; R7 honest save
-  // status; R8 calm (no blocking alarms — security events are a quiet, non-blocking notice, counted on this device only — nothing is stored server-side
-  // yet: see PROCTOR-LOG-1 in docs/reports/ux/F3_PLAYER_AUDIT.md; never claim "recorded" until it ships);
+  // status; R8 calm (no blocking alarms — security events are a quiet, non-blocking notice, sent quietly to PROCTOR-LOG-1 (migration 094) — not
+  // stored until 094 is applied and PROCTOR_LOG_ENABLED is on; never claim "recorded" before that);
   // R10 ≥ 48 px targets, accessible dialogs, focus rings.
   // =========================================================================
   const isLastFixed = !isAdaptive && currentIndex === (fixedSession?.questions.length || 1) - 1;

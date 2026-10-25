@@ -118,6 +118,7 @@ jobs:
           q EXAM-FINALIZE1 node scripts/test_exam_finalize1.cjs || fail=1
           q F3-PLAYER node scripts/test_f3_player.cjs || fail=1
           q F4-RESULT node scripts/test_f4_result.cjs || fail=1
+          q PROCTOR-LOG1 node scripts/test_proctor_log1.cjs || fail=1
           q LEADERBOARD-GATE1 node scripts/test_leaderboard_gate1.cjs || fail=1
           q F6-LEARN node scripts/test_f6_learn.cjs || fail=1
           q F7-CA node scripts/test_f7_ca.cjs || fail=1

@@ -343,7 +343,12 @@ const run = async (fn) => {
     const e = a.functions[sig];
     assert(e && e.class === 'A' && JSON.stringify(e.client) === '["authenticated"]' && e.search_path === '""', JSON.stringify(e));
     // F0 set 96 / 38 / 38; later phases may only add documented, exactly-sized raises (F2 #79: +2 client entrypoints)
-    const later = a.rules.some((r) => /^F2 \(decision #79, 2026-10-25\): max total \/ client_executable_callable \/ A raised by exactly 2/.test(r)) ? 2 : 0;
+    // later reviewed raises are each documented in the rules (F2 +2, PROCTOR-LOG-1 +1, ...): F0's own +1 stays exact
+    const later = a.rules
+      .filter((r) => !/^F0 /.test(r))
+      .map((r) => (r.match(/max total \/ client_executable_callable \/ A raised by exactly (\d+)/) || [])[1])
+      .filter(Boolean)
+      .reduce((sum, x) => sum + Number(x), 0);
     assert(a.max.total === 96 + later && a.max.client_executable_callable === 38 + later && a.max.A === 38 + later && a.max.anon_or_public === 1, JSON.stringify(a.max));
     assert(!a.functions['fn_get_my_onboarding()'], 'the read RPC is INVOKER — it must not be in the SECDEF allow-list');
     const t = read('types/database.ts');
