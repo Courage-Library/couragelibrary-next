@@ -7914,6 +7914,14 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_record_proctor_event: {
+        Args: {
+          p_attempt_id: string
+          p_client_seq: number
+          p_event_type: string
+        }
+        Returns: Json
+      }
       fn_record_qualifying_streak_activity: {
         Args: {
           p_action_type: string

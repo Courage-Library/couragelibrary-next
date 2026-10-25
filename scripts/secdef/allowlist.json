@@ -8,13 +8,14 @@
   "search_path pinned and unchanged from this file; new functions use '' or 'public, pg_temp' (rls_auto_enable() is recorded as pg_catalog)",
   "max counts may only go down: lower them (and remove entries) in the same change that revokes / drops",
   "F0 (decision #76, 2026-10-25): max total / client_executable_callable / A raised by exactly 1 for fn_save_onboarding — a NEW reviewed client entrypoint authorised by the F0 brief (#42 RPC-only writes)",
-  "F2 (decision #79, 2026-10-25): max total / client_executable_callable / A raised by exactly 2 for fn_check_practice_answer and fn_report_question — NEW reviewed client entrypoints authorised by the F2 brief (answers checked one at a time on the server; reports via RPC only)"
+  "F2 (decision #79, 2026-10-25): max total / client_executable_callable / A raised by exactly 2 for fn_check_practice_answer and fn_report_question — NEW reviewed client entrypoints authorised by the F2 brief (answers checked one at a time on the server; reports via RPC only)",
+  "PROCTOR-LOG-1 (2026-10-25): max total / client_executable_callable / A raised by exactly 1 for fn_record_proctor_event — a NEW reviewed client entrypoint authorised by the architect's PROCTOR-LOG-1 GO (append-only, own open attempt only)"
  ],
  "max": {
-  "total": 98,
-  "client_executable_callable": 40,
+  "total": 99,
+  "client_executable_callable": 41,
   "anon_or_public": 1,
-  "A": 40,
+  "A": 41,
   "C": 0,
   "B-trigger": 15,
   "B-service": 29,
@@ -692,6 +693,14 @@
    ],
    "search_path": "\"\"",
    "reason": "client entrypoint (F2 \"Report this question\", decision #79); own check: auth.uid(); one report per user per question, 20/day; migration 093 — listed before the owner applies it"
+  },
+  "fn_record_proctor_event(p_attempt_id uuid, p_event_type text, p_client_seq integer)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "\"\"",
+   "reason": "client entrypoint (PROCTOR-LOG-1, architect GO 2026-10-25); own check: auth.uid() + the caller's OWN open attempt; append-only insert, idempotent per (attempt, client_seq), rate-capped (300/attempt, 60/min/user); migration 094 — listed before the owner applies it (the live ratchet only notes a not-yet-present function)"
   }
  }
 }
