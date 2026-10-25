@@ -9,6 +9,7 @@ import type { ShellFlags } from "./nav-config";
 import type { ShellAccount } from "./shell-types";
 import { SiteFooter } from "./site-footer";
 import { isOnboardingEnabled } from "@/lib/onboarding/flag";
+import { isProfilesEnabled } from "@/lib/profile/flag";
 import { getSignupAvailability } from "@/lib/auth/signup-availability";
 import { isPracticeEnabled } from "@/lib/practice/flag";
 
@@ -39,6 +40,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
         email: user.email ?? null,
         isStaff: role === "admin" || role === "staff",
         studyPreferences: isOnboardingEnabled(),
+        profile: isProfilesEnabled(),
       }
     : null;
 

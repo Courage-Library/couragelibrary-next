@@ -10,7 +10,8 @@ import type { ShellAccount } from "./shell-types";
 import { ONBOARDING_COPY } from "@/content/onboarding";
 
 export function accountItems(account: ShellAccount): NavItem[] {
-  const items = account.studyPreferences ? [...ACCOUNT_MENU, { href: "/onboarding", label: ONBOARDING_COPY.menuLink }] : ACCOUNT_MENU;
+  const base = account.profile ? [{ href: "/settings/profile", label: "Profile" }, ...ACCOUNT_MENU] : ACCOUNT_MENU;
+  const items = account.studyPreferences ? [...base, { href: "/onboarding", label: ONBOARDING_COPY.menuLink }] : base;
   return account.isStaff ? [...items, { href: "/admin", label: "Admin studio" }] : items;
 }
 

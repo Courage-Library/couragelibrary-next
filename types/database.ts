@@ -7331,34 +7331,49 @@ export type Database = {
       }
       user_profiles: {
         Row: {
+          adult_confirmed_at: string | null
           avatar_url: string | null
           created_at: string
           full_name: string | null
           id: string
           is_active: boolean
           language_preference: string
+          leaderboard_opt_in: boolean
           phone: string | null
+          profile_public: boolean
           updated_at: string
+          username: string | null
+          username_changed_at: string | null
         }
         Insert: {
+          adult_confirmed_at?: string | null
           avatar_url?: string | null
           created_at?: string
           full_name?: string | null
           id: string
           is_active?: boolean
           language_preference?: string
+          leaderboard_opt_in?: boolean
           phone?: string | null
+          profile_public?: boolean
           updated_at?: string
+          username?: string | null
+          username_changed_at?: string | null
         }
         Update: {
+          adult_confirmed_at?: string | null
           avatar_url?: string | null
           created_at?: string
           full_name?: string | null
           id?: string
           is_active?: boolean
           language_preference?: string
+          leaderboard_opt_in?: boolean
           phone?: string | null
+          profile_public?: boolean
           updated_at?: string
+          username?: string | null
+          username_changed_at?: string | null
         }
         Relationships: []
       }
@@ -8064,6 +8079,18 @@ export type Database = {
           p_user_id: string
           p_variables?: Json
         }
+        Returns: Json
+      }
+      fn_set_leaderboard_opt_in: {
+        Args: { p_opt_in: boolean }
+        Returns: Json
+      }
+      fn_set_profile_visibility: {
+        Args: { p_confirm_adult: boolean; p_public: boolean }
+        Returns: Json
+      }
+      fn_set_username: {
+        Args: { p_username: string }
         Returns: Json
       }
       fn_start_custom_practice_session: {

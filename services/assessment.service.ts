@@ -2701,7 +2701,7 @@ export class AssessmentService {
   }
 
   /**
-   * Per account: test account (reserved .test domain) and leaderboard opt-in (own user_metadata). null when the
+   * Per account: test account (reserved .test domain); the leaderboard opt-in is read separately (leaderboardOptIns). null when the
    * accounts cannot all be read — callers then omit rank data (fail closed).
    */
   private static async accountFlags(adminSb: SupabaseClient<Database>): Promise<Map<string, { isTest: boolean }> | null> {
@@ -2752,10 +2752,16 @@ export class AssessmentService {
 
   /**
    * Leaderboard opt-ins — ONLY from user_profiles.leaderboard_opt_in (migration 096, written by fn_set_leaderboard_opt_in;
-   * under-18 cannot opt in). Until 096 is applied the column does not exist: nobody is opted in.
+   * under-18 cannot opt in; a CHECK also requires the 18+ confirmation). Never auth user_metadata (#60).
    */
   private static async leaderboardOptIns(): Promise<Set<string>> {
-    return new Set<string>();
+    const { data } = await createAdminServerSupabaseClient()
+      .from("user_profiles")
+      .select("id")
+      .eq("leaderboard_opt_in", true)
+      .not("adult_confirmed_at", "is", null)
+      .limit(10000);
+    return new Set((data ?? []).map((r) => r.id));
   }
 
   /**

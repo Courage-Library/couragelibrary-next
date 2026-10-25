@@ -6,4 +6,6 @@ export type ShellAccount = {
   isStaff: boolean;
   /** F0 (#76): ONBOARDING_ENABLED — shows the "Study preferences" link (edit onboarding answers). */
   studyPreferences?: boolean;
+  /** F8 (#80): PROFILES_ENABLED — shows the "Profile" link (username + opt-in public profile). */
+  profile?: boolean;
 };

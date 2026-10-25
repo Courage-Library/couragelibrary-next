@@ -10,13 +10,14 @@
   "F0 (decision #76, 2026-10-25): max total / client_executable_callable / A raised by exactly 1 for fn_save_onboarding — a NEW reviewed client entrypoint authorised by the F0 brief (#42 RPC-only writes)",
   "F2 (decision #79, 2026-10-25): max total / client_executable_callable / A raised by exactly 2 for fn_check_practice_answer and fn_report_question — NEW reviewed client entrypoints authorised by the F2 brief (answers checked one at a time on the server; reports via RPC only)",
   "PROCTOR-LOG-1 (2026-10-25): max total / client_executable_callable / A raised by exactly 1 for fn_record_proctor_event — a NEW reviewed client entrypoint authorised by the architect's PROCTOR-LOG-1 GO (append-only, own open attempt only)",
+  "F8 (#80, 2026-10-25): max total / client_executable_callable / A raised by exactly 3 for fn_set_username, fn_set_profile_visibility and fn_set_leaderboard_opt_in — NEW reviewed client entrypoints authorised by the F8 brief and architect ruling (a) (usernames, opt-in public profile and leaderboard opt-in, 18+ only)",
   "F5 (decision #77, 2026-10-25): max total / client_executable_callable / A raised by exactly 2 for fn_memory_lock_answer and fn_memory_lock_add — NEW reviewed client entrypoints authorised by the F5 brief (one atomic answer RPC; manual add)"
  ],
  "max": {
-  "total": 101,
-  "client_executable_callable": 43,
+  "total": 104,
+  "client_executable_callable": 46,
   "anon_or_public": 1,
-  "A": 43,
+  "A": 46,
   "C": 0,
   "B-trigger": 15,
   "B-service": 29,
@@ -718,6 +719,30 @@
    ],
    "search_path": "\"\"",
    "reason": "client entrypoint (F5 \"Add to Memory Lock\", decision #77); own check: auth.uid(); published servable questions only; idempotent; 100 manual adds/day; migration 095 — listed before the owner applies it"
+  },
+  "fn_set_username(p_username text)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "\"\"",
+   "reason": "client entrypoint (F8 usernames, #80); own check: auth.uid(); format + reserved / profanity blocklist; first choice free then once per 30 days; unique; migration 096 — listed before the owner applies it"
+  },
+  "fn_set_profile_visibility(p_public boolean, p_confirm_adult boolean)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "\"\"",
+   "reason": "client entrypoint (F8 opt-in public profile, #80); own check: auth.uid(); public only with a username AND the 18+ confirmation (also a table CHECK); migration 096 — listed before the owner applies it"
+  },
+  "fn_set_leaderboard_opt_in(p_opt_in boolean)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "\"\"",
+   "reason": "client entrypoint (F8 leaderboard opt-in, architect ruling (a) 2026-10-25 — replaces the user_metadata flag, #60); own check: auth.uid(); opt-in only with the 18+ confirmation (also a table CHECK); migration 096 — listed before the owner applies it"
   }
  }
 }
