@@ -56,7 +56,11 @@ async function withClient(fn) {
   }
 }
 
-/** terminates ONLY own orphaned sessions; returns the PIDs terminated */
+/**
+ * INC-7 / LIVE-LOCK-SAFETY: NEVER terminates a session — it REPORTS own orphaned sessions (pids) for the owner. Every
+ * backup session sets idle_in_transaction_session_timeout = 30s, so an orphan ends itself. Returns the PIDs found.
+ * (Before 2026-10-25 this terminated own orphans; the name and manifest field are kept for compatibility.)
+ */
 async function terminateOwnOrphans(log) {
   try {
     return await withClient(async (c) => {
@@ -64,13 +68,9 @@ async function terminateOwnOrphans(log) {
           WHERE datname = current_database() AND pid <> pg_backend_pid() AND usename = current_user
             AND state IN ('idle in transaction', 'idle in transaction (aborted)')
             AND now() - state_change > interval '5 seconds'`)).rows.filter((r) => OWN_STATEMENT.test(r.query || ''));
-      const done = [];
-      for (const r of rows) {
-        const ok = (await c.query('SELECT pg_terminate_backend($1) ok', [r.pid])).rows[0].ok;
-        if (ok) done.push(r.pid);
-      }
-      if (done.length) log(`  terminated own orphaned session(s): ${done.join(', ')}`);
-      return done;
+      const found = rows.map((r) => r.pid);
+      if (found.length) log(`  own orphaned session(s) found — NOT terminated, report to the owner: ${found.join(', ')} (they end within 30 s by idle_in_transaction_session_timeout)`);
+      return found;
     });
   } catch (e) {
     log(`  orphan check failed (${errCode(e)}) — the 30 s idle-in-transaction timeout still bounds any orphan`);
@@ -222,7 +222,7 @@ function finish(dir, manifest, logLines, verified) {
   fs.writeFileSync(path.join(dir, 'manifest.json'), JSON.stringify(manifest, null, 1));
   fs.writeFileSync(path.join(dir, 'backup.log'), logLines.join('\n') + '\n');
   if (verified) {
-    console.log(`BACKUP OK (resilient): ${path.basename(dir)} — ${manifest.summary.tables} tables, ${manifest.summary.rows} rows, retries ${manifest.summary.retries}, orphans terminated ${manifest.summary.orphansTerminated}; manifest verified 100%`);
+    console.log(`BACKUP OK (resilient): ${path.basename(dir)} — ${manifest.summary.tables} tables, ${manifest.summary.rows} rows, retries ${manifest.summary.retries}, own orphans found (never terminated) ${manifest.summary.orphansTerminated}; manifest verified 100%`);
   } else {
     console.log(`BACKUP FAILED (resilient): ${manifest.failed ? `stopped at ${manifest.failed} after ${MAX_ATTEMPTS} attempts` : `manifest did not verify (${(manifest.problems || []).length} problem(s): ${(manifest.problems || []).slice(0, 5).join('; ')})`}`);
   }
