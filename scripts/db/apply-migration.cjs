@@ -27,6 +27,7 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 const { Client } = require('pg');
 const { ROOT, dbTarget, redactor, fileChecksum } = require('./_db-env.cjs');
+const { applyLiveSafety, isLockTimeout, installStopHandler } = require('./live-safety.cjs');
 
 const TOOL = 'scripts/db/apply-migration.cjs';
 const MAX_BACKUP_AGE_MS = 60 * 60 * 1000;
@@ -71,7 +72,14 @@ if (args.includes('--self-test')) {
     ok = false;
     console.log(`apply-migration self-test FAIL: transaction control in ${hits.join(', ')}`);
   }
-  console.log(`apply-migration self-test: ${ok ? 'OK' : 'FAIL'} — ${cases.length} cases, migrations clean`);
+  // LIVE-LOCK-SAFETY: the runner sets the lock / statement timeouts right after BEGIN, at the rule's values
+  const self = fs.readFileSync(__filename, 'utf8');
+  const safety = require('./live-safety.cjs');
+  if (!/await c\.query\('BEGIN READ WRITE'\);\s*\/\/ LIVE-LOCK-SAFETY[^\r\n]*\r?\n\s*await applyLiveSafety\(c\);/.test(self) || safety.LOCK_TIMEOUT !== '3s' || safety.STATEMENT_TIMEOUT !== '60s') {
+    ok = false;
+    console.log('apply-migration self-test FAIL: LIVE-LOCK-SAFETY defaults missing (lock_timeout 3s, statement_timeout 60s after BEGIN)');
+  }
+  console.log(`apply-migration self-test: ${ok ? 'OK' : 'FAIL'} — ${cases.length} cases, migrations clean, live-lock-safety on`);
   process.exit(ok ? 0 : 1);
 }
 const dryRun = args.includes('--dry-run');
@@ -151,6 +159,7 @@ function verifyResilient(bdir, name, bin) {
   } catch (e) {
     fail(`connection/TLS failed (${e.code || 'error'})`);
   }
+  installStopHandler(c); // INC-7: SIGINT / SIGTERM → ROLLBACK first, then close
 
   const ledgerExists = (await c.query(`SELECT to_regclass('public.schema_migration_ledger') IS NOT NULL AS e`)).rows[0].e;
   if (ledgerExists) {
@@ -166,6 +175,8 @@ function verifyResilient(bdir, name, bin) {
   try {
     // Explicit READ WRITE: never inherit a session default from a pooled backend.
     await c.query('BEGIN READ WRITE');
+    // LIVE-LOCK-SAFETY: lock_timeout 3s, statement_timeout 60s (never raised to force a run)
+    await applyLiveSafety(c);
     await c.query(sql);
     const ledgerNow = (await c.query(`SELECT to_regclass('public.schema_migration_ledger') IS NOT NULL AS e`)).rows[0].e;
     if (!ledgerNow) {
@@ -195,6 +206,7 @@ function verifyResilient(bdir, name, bin) {
   } catch (e) {
     await c.query('ROLLBACK').catch(() => undefined);
     console.error(`${dryRun ? 'DRY-RUN' : 'APPLY'} FAILED (rolled back): ${e.code || ''} ${redact(e.message).slice(0, 500)}`);
+    if (isLockTimeout(e)) console.error('LIVE-LOCK-SAFETY: lock timeout — make sure no other live session touches these objects, retry ONCE, then STOP and report.');
     if (!dryRun && ledgerExists) {
       await c
         .query(

@@ -23,6 +23,15 @@ backup  →  pre-check (dry-run)  →  apply via runner  →  verify  →  ledge
 - **Never edit an applied or baselined migration.** Every change is a new, forward-only file `supabase/migrations/YYYYMMDDNNNNNN_name.sql`.
 - **Checksums:** sha256 of the file with CRLF normalized to LF.
 - **Secrets:** no tool prints connection strings, hosts with project refs, keys or passwords.
+- **LIVE-LOCK-SAFETY (permanent rule, 2026-10-25):** these rules cover every live smoke, verify, dry-run and apply session.
+  - **Timeouts:** `lock_timeout = '3s'` and `statement_timeout = '60s'`. The runner sets them with `SET LOCAL` right after `BEGIN`; scripts import them from `scripts/db/live-safety.cjs` (`applyLiveSafety(client)`).
+  - **One session at a time:** never run two live sessions that touch the same objects at once. No dry-run while a smoke is running. (Observed: a 102 dry-run deadlocked, 40P01, against a running smoke.)
+  - **Small transactions:** split long smokes that take DDL locks into small rolled-back transactions, one object group each, so no lock is held for more than a few seconds.
+  - **On a lock timeout (55P03):** retry once, then STOP and report. Never raise a timeout to force a run.
+  - **Script structure (INC-7):** every script wraps its work in `try/finally`, which runs ROLLBACK and then `client.end()`. On SIGINT / SIGTERM it runs ROLLBACK first. `withLiveTransaction(client, fn)` and `installStopHandler(client)` in `scripts/db/live-safety.cjs` do both.
+  - **Session check (INC-7):** before starting any live DB work, and after stopping any, run `node scripts/ci/db-sessions.cjs` (read-only) and report your own leftover sessions.
+  - **Never terminate sessions yourself:** report the pid to the owner.
+  - **Orphaned sessions:** `idle_in_transaction_session_timeout = '30s'` is also set, so a session whose client died mid-transaction ends itself and releases its locks. (Incident 2026-10-25: a stopped 102 smoke left a pooled backend "idle in transaction (aborted)" holding ACCESS EXCLUSIVE locks on 27 tables; the server default is 0, meaning never. The owner terminated that one backend.)
 - **Read-only investigation sessions:** use transaction-scoped `BEGIN READ ONLY … ROLLBACK`. Do **not** run session-level `SET default_transaction_read_only = on` through the Supavisor transaction pooler (port 6543). The setting persists on the pooled backend and later clients inherit read-only sessions. (Observed in DRIFT-1b and reset with `RESET default_transaction_read_only`.)
 
 ## 1. Backup (mandatory) — standard procedure: BACKUP-RESILIENT-1
