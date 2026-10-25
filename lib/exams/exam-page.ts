@@ -60,16 +60,19 @@ export type MockStatus =
   | { state: "in-progress"; href: string }
   | { state: "done"; href: string; score: number | null; maxScore: number | null };
 
-const DONE = new Set(["submitted", "auto_submitted"]);
+const DONE = new Set(["submitted", "auto_submitted", "completed", "evaluated"]);
 
-/** Per mock: an open attempt → In progress (resumes from the test page); a submitted one → Done with the best score. */
+/**
+ * Per mock, the same precedence as the test page it opens (app/mock-tests/[id]): a submitted attempt dominates → Done
+ * with the best score; else an open attempt → In progress (resumes there); else Not started.
+ */
 export function mockStatuses(mocks: MockListItem[], attempts: MockAttemptRow[]): Map<string, MockStatus> {
   const out = new Map<string, MockStatus>();
   for (const m of mocks) {
     const mine = attempts.filter((a) => a.mockTestId === m.id);
     const open = mine.find((a) => a.status === "in_progress" && a.submittedAt === null);
-    const done = mine.filter((a) => DONE.has(a.status));
-    if (open) out.set(m.id, { state: "in-progress", href: `/mock-tests/${m.id}` });
+    const done = mine.filter((a) => a.submittedAt !== null || DONE.has(a.status));
+    if (done.length === 0 && open) out.set(m.id, { state: "in-progress", href: `/mock-tests/${m.id}` });
     else if (done.length > 0) {
       const scored = done.filter((a) => a.score !== null);
       const best = scored.sort((a, b) => (b.score ?? 0) - (a.score ?? 0))[0] ?? null;

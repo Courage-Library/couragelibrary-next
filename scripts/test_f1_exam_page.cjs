@@ -223,6 +223,9 @@ function fullPage(cta, statuses) {
     assert(s.get('m1').state === 'done' && s.get('m1').score === 50 && s.get('m1').href === '/mock-tests/a2/result', 'done + best score');
     assert(s.get('m2').state === 'in-progress' && s.get('m2').href === '/mock-tests/m2', 'in progress resumes from the test page');
     assert(s.get('m3').state === 'not-started', 'abandoned → not started');
+    // same precedence as /mock-tests/[id]: a submitted attempt dominates a stale open one
+    const s2 = L.mockStatuses(MOCKS_LIST, [...attempts, { id: 'a5', mockTestId: 'm1', status: 'in_progress', submittedAt: null, startedAt: '2026-10-04', score: null, maxScore: null }]);
+    assert(s2.get('m1').state === 'done', 'a stale open attempt must not hide a submitted one');
     const t = text(html(h(V.ExamMocks, { mocks: MOCKS_LIST, statuses: s })));
     assert(/Done · Score 50 \/ 207/.test(t) && /In progress/.test(t) && /Not started/.test(t), 'status badges');
     assert(/Free/.test(t) && /Pro/.test(t), 'free / pro badges');
