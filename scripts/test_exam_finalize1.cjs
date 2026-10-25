@@ -10,6 +10,7 @@
  *   E-05 superseded → "abandoned": never scored (no result row), not shown as done / resumable (status rules)
  *   E-06 wiring: finalize-on-read in player / result / mock list / exam page / instructions; ONE scoring path; the
  *        daily cron route fails closed without CRON_SECRET and returns counts only; vercel.json daily schedule
+ *   E-08 expired with ZERO saved answers → abandoned (architect rule); ≥ 1 saved answer → finalized
  *   E-07 flag OFF (EXAM_FINALIZE_ENABLED unset, the default): finalize-on-read and the sweep change nothing
  * Run: node scripts/test_exam_finalize1.cjs
  */
@@ -50,6 +51,7 @@ function makeDb() {
     let single = false;
     let maybe = false;
     let lim = null;
+    let countOnly = false;
     const rows = () => t[table].filter((r) => f.every((p) => p(r)));
     const exec = async () => {
       await tick();
@@ -68,13 +70,15 @@ function makeDb() {
         return { data: hit, error: null };
       }
       let out = rows();
+      if (countOnly) return { data: null, count: out.length, error: null };
       if (lim !== null) out = out.slice(0, lim);
       if (single) return out.length === 1 ? { data: out[0], error: null } : { data: null, error: { message: 'single' } };
       if (maybe) return { data: out[0] ?? null, error: null };
       return { data: out, error: null };
     };
     const b = {
-      select() { return b; },
+      select(_c, o) { if (o && o.count) countOnly = true; return b; },
+      not(k, op, v) { f.push((r) => (op === 'is' ? (r[k] ?? null) !== v : true)); return b; },
       insert(p) { op = 'insert'; payload = p; return b; },
       update(p) { op = 'update'; payload = p; return b; },
       eq(k, v) { f.push((r) => r[k] === v); return b; },
@@ -164,6 +168,7 @@ const SCORE_FIELDS = ['total_questions', 'attempted_count', 'correct_count', 'in
     assert(F.staleOutcome(a, 60, [{ ...later, userId: 'other' }], now) === 'finalize' && F.staleOutcome(a, 60, [{ ...later, mockTestId: 'x' }], now) === 'finalize', 'other user / other mock never supersede');
     assert(F.staleOutcome(a, 60, [], new Date('2026-10-01T10:30:00Z')) === 'active', 'before the deadline: untouched');
     assert(F.staleOutcome({ ...a, status: 'submitted' }, 60, [], now) === 'none', 'only in-progress attempts');
+    assert(F.staleOutcome(a, 60, [], now, 0) === 'abandon' && F.staleOutcome(a, 60, [], now, 1) === 'finalize', 'zero saved answers → abandon; ≥ 1 → finalize');
     return 'deadline + supersede rule';
   });
 
@@ -262,6 +267,20 @@ const SCORE_FIELDS = ['total_questions', 'attempted_count', 'correct_count', 'in
     const v = JSON.parse(read('vercel.json'));
     assert(v.crons && v.crons.length === 1 && v.crons[0].path === '/api/cron/finalize-attempts' && /^\d+ \d+ \* \* \*$/.test(v.crons[0].schedule) && !v.regions, 'vercel.json: one daily cron, no region pin');
     return '5 read paths · 1 scoring path · cron 401 ×3 / 200';
+  });
+
+  await test('E-08 expired with ZERO saved answers → abandoned (no result row, not shown); marked-only rows are not answers', async () => {
+    DB = makeDb();
+    const m = seedMock();
+    const empty = seedAttempt(m, { startedAt: hoursAgo(30), answers: [null, null, null, null] });
+    const one = seedAttempt(m, { userId: 'u3', startedAt: hoursAgo(30), answers: [null, 'B', null, null] });
+    const counts = await AssessmentService.finalizeExpiredAttempts({ limit: 50 });
+    assert(counts.abandoned === 1 && counts.finalized === 1 && counts.failed === 0, JSON.stringify(counts));
+    const a = DB.t.test_attempts.find((x) => x.id === empty);
+    assert(a.status === 'abandoned' && a.submitted_at === null && !DB.t.test_results.some((r) => r.attempt_id === empty), 'zero-answer attempt was scored');
+    const r1 = DB.t.test_results.find((r) => r.attempt_id === one);
+    assert(r1 && r1.attempted_count === 1 && r1.total_score === 2, `one-answer attempt: ${JSON.stringify(r1)}`);
+    return '0 answers → abandoned · 1 answer → finalized (score 2)';
   });
 
   await test('E-07 flag OFF (default): finalize-on-read and the sweep change nothing', async () => {

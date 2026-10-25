@@ -1944,7 +1944,8 @@ export class AssessmentService {
   /**
    * EXAM-FINALIZE-1: finalize the in-progress attempts whose server deadline (started_at + duration) has passed —
    * finalize-on-read (player, result, mock list, exam page; userId given) and the daily sweep (no userId; bounded).
-   * Superseded ones (a SUBMITTED attempt of the same mock started later) become "abandoned": never scored or shown.
+   * Superseded ones (a SUBMITTED attempt of the same mock started later) and ones with ZERO saved answers become
+ * "abandoned": never scored or shown. Only attempts with ≥ 1 saved answer are scored (submitted_at = deadline).
    * Idempotent; returns counts only (never ids or user data).
    */
   static async finalizeExpiredAttempts(opts: { userId?: string; limit?: number } = {}): Promise<{ finalized: number; abandoned: number; failed: number }> {
@@ -1975,7 +1976,13 @@ export class AssessmentService {
           .eq("mock_test_id", r.mock_test_id);
         type Row = { id: string; user_id: string; mock_test_id: string; status: string; started_at: string; submitted_at: string | null };
         const toLike = (x: Row): AttemptLike => ({ id: x.id, userId: x.user_id, mockTestId: x.mock_test_id, status: x.status, startedAt: x.started_at, submittedAt: x.submitted_at });
-        const outcome = staleOutcome(toLike(r), duration, (sibs ?? []).map(toLike), now);
+        // saved answers = answered rows (a "marked for review" row without a choice is not an answer)
+        const { count: saved } = await adminSb
+          .from("attempt_answers")
+          .select("id", { count: "exact", head: true })
+          .eq("attempt_id", r.id)
+          .not("selected_option_key", "is", null);
+        const outcome = staleOutcome(toLike(r), duration, (sibs ?? []).map(toLike), now, saved ?? 0);
         if (outcome === "abandon") {
           // conditional: only a still-in-progress row changes (a concurrent finalize / submit wins cleanly)
           const { error } = await adminSb.from("test_attempts").update({ status: "abandoned" }).eq("id", r.id).eq("status", "in_progress");
