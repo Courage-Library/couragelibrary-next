@@ -6,6 +6,10 @@
  * Usage: node scripts/types1-select-audit.cjs <file…>     (exit 1 if any select fails)
  * Notes: only single-literal selects are checked (template / variable selects are listed as "skipped").
  *        `!inner` filters and RLS are not exercised (service role) — this audits shape, not authorization.
+ *        Least privilege (#54): tables created after the default-ACL hardening grant service_role no SELECT (e.g.
+ *        practice_answers, user_onboarding) and the app reads them as the signed-in student. A 42501 from the service
+ *        role is therefore re-checked ONCE as the shared QA student (role authenticated, read-only, limit 1): PostgREST
+ *        validates the select's shape before RLS filters rows, so shape drift still fails. No grant is widened for this.
  */
 const fs = require('fs');
 const path = require('path');
@@ -35,8 +39,20 @@ function extract(src) {
   return out;
 }
 
+let studentDb = null;
+async function asStudent() {
+  if (!studentDb) {
+    const { qaAccessToken, projectConfig } = require('./live/qa-session.cjs');
+    const cfg = projectConfig();
+    const token = await qaAccessToken('qa-student@courage-library.test');
+    studentDb = new PostgrestClient(`${cfg.url}/rest/v1`, { headers: { apikey: cfg.anon, Authorization: `Bearer ${token}` } });
+  }
+  return studentDb;
+}
+
 (async () => {
   let bad = 0;
+  let asAuthenticated = 0;
   let ok = 0;
   let skipped = 0;
   for (const f of files) {
@@ -48,12 +64,18 @@ function extract(src) {
         r = await db.from(q.table).select(q.select).limit(1);
         if (!r.error || r.error.code) break; // retry only network-level failures
       }
+      if (r.error && r.error.code === '42501') {
+        // service role has no SELECT by design (#54): verify the shape as the authenticated student instead
+        const s2 = await (await asStudent()).from(q.table).select(q.select).limit(1);
+        if (!s2.error) { asAuthenticated++; ok++; continue; }
+        r = s2;
+      }
       if (r.error) {
         bad++;
         console.log(`FAIL  ${rel}:${q.line}  ${q.table}  ${r.error.code || ''} ${String(r.error.message || '').slice(0, 160)}`);
       } else ok++;
     }
   }
-  console.log(`\nselect audit: ${ok} ok, ${bad} failing, ${skipped} skipped (template)`);
+  console.log(`\nselect audit: ${ok} ok, ${bad} failing, ${skipped} skipped (template)${asAuthenticated ? `; ${asAuthenticated} verified as authenticated (no service_role SELECT by design)` : ''}`);
   process.exit(bad ? 1 : 0);
 })().catch((e) => { console.error('AUDIT ERROR', String(e.message).slice(0, 200)); process.exit(1); });
