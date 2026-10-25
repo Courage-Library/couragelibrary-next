@@ -160,8 +160,8 @@ function firstGuardViolation(body) {
 
 (async () => {
   // ===================== Part 1: static =====================
-  await test(`S-01 inventory: ${PAGES.length} app/admin page.tsx files (expected 38: +design-system UX-1a, +syllabus + syllabus/[id] GAP2-4b, −syllabus-reconciliation GAP2-4c, +question-reports F2, +content/topics F6, +support F11)`, async () => {
-    assert(PAGES.length === 39, `found ${PAGES.length}`);
+  await test(`S-01 inventory: ${PAGES.length} app/admin page.tsx files (expected 38: +design-system UX-1a, +syllabus + syllabus/[id] GAP2-4b, −syllabus-reconciliation GAP2-4c, +question-reports F2, +content/topics F6, +support F11, +mfa AUTH-1 2b-3)`, async () => {
+    assert(PAGES.length === 40, `found ${PAGES.length}`);
   });
   await test('S-02 every admin page: requireAdminPage is the FIRST awaited call (before any data/service/gate)', async () => {
     const bad = [];

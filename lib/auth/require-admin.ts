@@ -16,6 +16,7 @@ import "server-only";
  */
 
 import { NextResponse } from "next/server";
+import { ADMIN_MFA_PATH, adminMfaSatisfied, currentAal, isAdminMfaRequired } from "./mfa";
 import { notFound, redirect } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { sanitizeAdminPath } from "@/lib/auth/safe-redirect";
@@ -75,8 +76,9 @@ export async function requireAdmin(opts: RequireAdminOptions = {}): Promise<Admi
   type SessionUser = { id: string; email?: string | null; app_metadata?: Record<string, unknown> | null };
   // AUTH-1 2a: tri-state read. "error" (Supabase unreachable) is a denial too: admin guards fail closed.
   let session: SessionState<SessionUser>;
+  let supabase: Awaited<ReturnType<typeof createServerSupabaseClient>> | null = null;
   try {
-    const supabase = await createServerSupabaseClient();
+    supabase = await createServerSupabaseClient();
     session = await getSessionState<SessionUser>(supabase);
   } catch {
     session = { state: "error" };
@@ -86,6 +88,10 @@ export async function requireAdmin(opts: RequireAdminOptions = {}): Promise<Admi
   const user = session.user;
   const role = resolveRole(user);
   if (role === "admin" || (role === "staff" && opts.allowStaff)) {
+    // AUTH-1 2b-3: with ADMIN_MFA_REQUIRED on, an admin / staff session must be AAL2 (fails closed on any error)
+    if (isAdminMfaRequired() && !adminMfaSatisfied(true, supabase ? await currentAal(supabase) : null)) {
+      throw new AuthorizationError("FORBIDDEN", "Two-step verification is required for admin actions. Verify your authenticator code first.");
+    }
     return { userId: user.id, role, userEmail: user.email ?? "" };
   }
   throw new AuthorizationError("FORBIDDEN");
@@ -108,6 +114,8 @@ export function sanitizeAdminNext(path: unknown): string {
 export interface RequireAdminPageOptions extends RequireAdminOptions {
   /** This page's path, used only as the post-login `next` target (sanitized). */
   path?: string;
+  /** AUTH-1 2b-3: ONLY the MFA enrol / verify page itself may render for an AAL1 admin session. */
+  allowAal1?: boolean;
 }
 
 /**
@@ -121,8 +129,9 @@ export async function requireAdminPage(opts: RequireAdminPageOptions = {}): Prom
   type SessionUser = { id: string; email?: string | null; app_metadata?: Record<string, unknown> | null };
   // AUTH-1 2a: tri-state read. "error" denies (no admin data) and goes to the retry page, never to login.
   let session: SessionState<SessionUser>;
+  let supabase: Awaited<ReturnType<typeof createServerSupabaseClient>> | null = null;
   try {
-    const supabase = await createServerSupabaseClient();
+    supabase = await createServerSupabaseClient();
     session = await getSessionState<SessionUser>(supabase);
   } catch {
     session = { state: "error" };
@@ -131,7 +140,13 @@ export async function requireAdminPage(opts: RequireAdminPageOptions = {}): Prom
   if (session.state === "none") redirect(`${ADMIN_LOGIN_PATH}?next=${encodeURIComponent(sanitizeAdminNext(opts.path))}`);
   const user = session.user;
   const role = resolveRole(user);
-  if (role === "admin" || (role === "staff" && opts.allowStaff)) return { userId: user.id, role, userEmail: user.email ?? "" };
+  if (role === "admin" || (role === "staff" && opts.allowStaff)) {
+    // AUTH-1 2b-3: an AAL1 admin / staff session goes to the enrol / verify page (students never reach this branch)
+    if (!opts.allowAal1 && isAdminMfaRequired() && !adminMfaSatisfied(true, supabase ? await currentAal(supabase) : null)) {
+      redirect(`${ADMIN_MFA_PATH}?next=${encodeURIComponent(sanitizeAdminNext(opts.path))}`);
+    }
+    return { userId: user.id, role, userEmail: user.email ?? "" };
+  }
   notFound();
 }
 
