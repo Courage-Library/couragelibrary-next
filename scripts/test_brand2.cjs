@@ -269,7 +269,7 @@ async function offline() {
     const header = read('components/shell/header-bar.tsx');
     // UX-FIX-1: Sign in is always in the bar (48 px); the start action (sign-up open: Start free / closed: Explore SSC CGL)
     // is a 48 px pill from sm up; the menu button is 48 px
-    assert(/className="min-h-12 rounded-full px-3"/.test(header) && /<PillLink href="\/auth\/signup" variant="accent-on-light"/.test(header) && /className="size-12 rounded-full lg:hidden"/.test(header), 'nav actions / menu button < 48 px');
+    assert(/className="min-h-12 rounded-full px-3"/.test(header) && /<PillLink href="\/auth\/signup" variant="outline"/.test(header) && /className="size-12 rounded-full lg:hidden"/.test(header), 'nav actions / menu button < 48 px');
     assert(/inline-flex min-h-12 items-center/.test(read('components/brand/wordmark.tsx')), 'wordmark link < 48 px');
     const legacy = read('components/ui/legacy/button.tsx');
     assert(/lg: "h-12 /.test(legacy), 'legacy lg button no longer 48 px');

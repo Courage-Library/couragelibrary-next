@@ -2,7 +2,8 @@
 /**
  * UX-FIX-1 (Phase 3 audit) — offline, static gate.
  *   X-01 while sign-up is closed no start action links to /auth/signup (header, mobile menu, landing hero + final band);
- *        the primary action is "Explore SSC CGL"; when open the one label is "Start free" in amber (accent)
+ *        the primary action is "Explore SSC CGL"; when open the one label is "Start free" — outline pill in the header,
+ *        amber (accent) only for the in-page primary (two-amber ruling)
  *   X-02 the closing "Create a free account" line is gone from the landing page
  *   X-03 no nav / menu / footer link to /flashcards, /descriptive, /community, /institutes, /articles; those routes are
  *        noindex (page metadata + segment layout) and /flashcards is not in the sitemap
@@ -38,11 +39,14 @@ const code = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/
 
 console.log('UX-FIX-1');
 
-test('X-01 sign-up closed → no /auth/signup start action, primary "Explore SSC CGL"; open → "Start free" in amber', () => {
+test('X-01 sign-up closed → no /auth/signup start action, primary "Explore SSC CGL"; open → "Start free" (header outline, in-page amber)', () => {
   const header = code(read('components/shell/header-bar.tsx'));
   const signupLinks = header.match(/href="\/auth\/signup"/g) || [];
   assert(signupLinks.length === 2, `header /auth/signup links: ${signupLinks.length} (bar + menu, both inside signupOpen)`);
-  assert((header.match(/<StartAction\s+signup=\{signup\}\s+open=\{\s*<PillLink href="\/auth\/signup" variant="accent-on-light"/g) || []).length === 2, 'header signup links must be the amber "open" branch of StartAction');
+  assert((header.match(/<StartAction\s+signup=\{signup\}\s+open=\{\s*<PillLink href="\/auth\/signup" variant="outline"/g) || []).length === 2, 'header signup links must be the outline "open" branch of StartAction');
+  // two-amber ruling: the header never uses the amber fill; amber is only the in-page primary
+  assert(!/variant="accent|bg-accent-/.test(header), 'header uses an amber (accent) CTA');
+  assert(/outline: "focus-ring border border-primary-600 text-primary-700/.test(read('components/ui/pill-button.tsx')), 'outline pill variant');
   assert((header.match(/closed=\{\s*<(PillLink|ButtonLink) href=\{LANDING_HERO\.secondaryCta\.href\}/g) || []).length === 2, 'closed: Explore SSC CGL in the bar and the menu');
   assert(/<Suspense fallback=\{closed\}>/.test(header) && /if \(!signup\) return closed;/.test(header) && /return use\(signup\) \? open : closed;/.test(header), 'start action must fall back to the closed view');
   // the shell must never wait on the Supabase setting (AUTH1-RESILIENCE-HANG): a never-rejecting promise, not an await

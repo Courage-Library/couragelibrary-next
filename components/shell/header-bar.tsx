@@ -86,8 +86,8 @@ function ResolvedStartAction({ signup, open, closed }: { signup: Promise<boolean
  * text wordmark and 48 px pill actions; the signed-in student header — also shown above the exam player — stays a
  * solid bar (no glass in the exam engine).
  * UX-FIX-1: "Sign in" is always visible in the bar (phones too). While public sign-up is CLOSED no action points to
- * /auth/signup — the start action is "Explore SSC CGL"; when it is open the one label is "Start free" in amber (the
- * start-action colour). `signup` is a promise streamed from AppShell: the start action resolves it in its own Suspense
+ * /auth/signup — the start action is "Explore SSC CGL"; when it is open the one label is "Start free" as an outline
+ * pill (amber is reserved for the in-page primary — never two amber CTAs on one screen). `signup` is a promise streamed from AppShell: the start action resolves it in its own Suspense
  * boundary whose fallback is the closed view, so the shell never waits on the sign-up setting (Supabase outage → the
  * page still renders at once; AUTH1-RESILIENCE-HANG).
  */
@@ -147,7 +147,7 @@ export function HeaderBar({ account, flags, signup }: { account: ShellAccount | 
               <StartAction
                 signup={signup}
                 open={
-                  <PillLink href="/auth/signup" variant="accent-on-light" className="hidden px-5 sm:inline-flex">
+                  <PillLink href="/auth/signup" variant="outline" className="hidden px-5 sm:inline-flex">
                     {SHELL_COPY.startFree}
                   </PillLink>
                 }
@@ -185,7 +185,7 @@ export function HeaderBar({ account, flags, signup }: { account: ShellAccount | 
               <StartAction
                 signup={signup}
                 open={
-                  <PillLink href="/auth/signup" variant="accent-on-light" fullWidth onClick={() => setMenuOpen(false)}>
+                  <PillLink href="/auth/signup" variant="outline" fullWidth onClick={() => setMenuOpen(false)}>
                     {SHELL_COPY.startFree}
                   </PillLink>
                 }
