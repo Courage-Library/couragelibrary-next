@@ -32,6 +32,7 @@ backup  →  pre-check (dry-run)  →  apply via runner  →  verify  →  ledge
   - **Session check (INC-7):** before starting any live DB work, and after stopping any, run `node scripts/ci/db-sessions.cjs` (read-only) and report your own leftover sessions.
   - **Never terminate sessions yourself:** report the pid to the owner.
   - **Orphaned sessions:** `idle_in_transaction_session_timeout = '30s'` is also set, so a session whose client died mid-transaction ends itself and releases its locks. (Incident 2026-10-25: a stopped 102 smoke left a pooled backend "idle in transaction (aborted)" holding ACCESS EXCLUSIVE locks on 27 tables; the server default is 0, meaning never. The owner terminated that one backend.)
+- **GIT-SAFETY (permanent rule, 2026-10-25):** never run `git stash`, `git reset --hard`, `git checkout -- <path>` or `git clean` on a dirty tree. Commit work in progress to a local branch instead, for example `git switch -c wip/<topic>` and `git commit`. (Observed 2026-10-25: a stray `git stash` hid uncommitted AGE-18 work. It was restored with `git stash pop` and nothing was lost.)
 - **Read-only investigation sessions:** use transaction-scoped `BEGIN READ ONLY … ROLLBACK`. Do **not** run session-level `SET default_transaction_read_only = on` through the Supavisor transaction pooler (port 6543). The setting persists on the pooled backend and later clients inherit read-only sessions. (Observed in DRIFT-1b and reset with `RESET default_transaction_read_only`.)
 
 ## 1. Backup (mandatory) — standard procedure: BACKUP-RESILIENT-1
