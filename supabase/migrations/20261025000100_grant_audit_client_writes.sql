@@ -1,6 +1,6 @@
 -- =====================================================================================================================
 -- 100 GRANT-AUDIT-1 — remove table-level client writes the app never uses (same class of gap as 099)
--- NOT APPLIED until the architect's "go". Rollback: docs/database/rollback/100_rollback.sql
+-- Architect GO 2026-10-25. Rollback: docs/database/rollback/100_rollback.sql
 -- No BEGIN / COMMIT here: scripts/db/apply-migration.cjs runs the file and its ledger row in ONE transaction.
 --
 -- A table-level INSERT / UPDATE grant lets a client write EVERY column its RLS row check allows. Findings
