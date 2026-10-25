@@ -253,6 +253,8 @@ export const FOOTER_ABOUT = {
     { href: "/about", label: "About" },
     { href: "/cnts", label: "CNTS" },
     { href: "/contact", label: "Contact" },
+    { href: "/help", label: "Help" },
+    { href: "/grievance", label: "Grievance redressal" },
   ],
   legal: [
     { href: "/privacy", label: "Privacy (draft)" },
