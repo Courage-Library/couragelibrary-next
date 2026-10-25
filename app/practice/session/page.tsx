@@ -11,6 +11,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getSessionState } from "@/lib/auth/session-state";
 import { userContentLanguage } from "@/lib/exams/exam-page-server";
 import { isPracticeEnabled } from "@/lib/practice/flag";
+import { isMemoryLockEnabled } from "@/lib/memory-lock/flag";
 import { DIAGNOSTIC_SIZE, parseSetSize, pickDiagnostic, pickSet, type PracticeMode } from "@/lib/practice/engine";
 import { examSections, loadPracticeQuestions, practiceExams, topicArticles, topicCandidates, topicContext } from "@/lib/practice/server";
 
@@ -111,6 +112,7 @@ export default async function PracticeSessionPage({ searchParams }: Props) {
           againHref={againHref}
           nextTopicHref={nextTopicHref}
           chooseHref={back}
+          canAddToMemoryLock={isMemoryLockEnabled()}
         />
       )}
     </Container>

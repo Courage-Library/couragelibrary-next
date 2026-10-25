@@ -20,7 +20,8 @@
  *   T-11 flag OFF: /practice is the Mistake-drills hub, /practice/session is 404, reports use the pre-093 path
  *   T-12 migration 093 static: practice_answers owner-only read + no client writes; SECDEF search_path ''; errata
  *        client INSERT / SELECT revoked; allow-list entries; report button on practice, mock review and drills
- *   T-13 Memory Lock core card: plain non-interactive card until F5 (visible "Coming soon"), primary-blue lock; brand spelling
+ *   T-13 Memory Lock core card (F5, updated with intent): ONE real link to /memory-lock when MEMORY_LOCK_ENABLED, else the
+ *        plain non-interactive "Coming soon" card; primary-blue lock; brand spelling in UI text
  * Run: node scripts/test_f2_practice.cjs
  */
 const fs = require('fs');
@@ -258,7 +259,10 @@ const ROW = (qid, vid, lang = 'en', extra = {}) => ({
     assert((runner.match(/<label class="[^"]*min-h-12/g) || []).length === 4, 'options ≥ 48 px');
     assert(/data-report-question=""[^>]*class="[^"]*min-h-12|class="[^"]*min-h-12[^"]*"[^>]*data-report-question/.test(runner), 'report button ≥ 48 px');
     const src = read('components/practice/practice-runner.tsx');
-    assert((src.match(/variant="accent-on-light"/g) || []).length === 3 && /\{result \? \(\s*<PillButton variant="accent-on-light" onClick=\{next\}>[\s\S]*?\) : \(\s*<PillButton variant="accent-on-light" onClick=\{check\}/.test(src), 'result screen: Next replaces Check (still one amber); end: Practice again only');
+    // F5: the Memory Lock end screen (a separate return) has its own single amber "Back to Memory Lock" → 4 in the file
+    const mlEnd = src.slice(src.indexOf('data-memory-lock-end'), src.indexOf('if (finished || !q || !view) {\n    const rows'));
+    assert((mlEnd.match(/variant="accent-on-light"/g) || []).length === 1, 'Memory Lock end: one amber');
+    assert((src.match(/variant="accent-on-light"/g) || []).length === 4 && /\{result \? \(\s*<PillButton variant="accent-on-light" onClick=\{next\}>[\s\S]*?\) : \(\s*<PillButton variant="accent-on-light" onClick=\{check\}/.test(src), 'result screen: Next replaces Check (still one amber); end: Practice again only');
     // chooser
     process.env.PRACTICE_ENABLED = 'true';
     MOCKS['@/lib/supabase/server'] = { createServerSupabaseClient: async () => ({}) };
@@ -331,21 +335,25 @@ const ROW = (qid, vid, lang = 'en', extra = {}) => ({
     return 'RLS · SECDEF · grants · allow-list · 3 surfaces';
   });
 
-  await test('T-13 Memory Lock card: plain non-interactive card until F5 (visible "Coming soon"), lock icon in primary blue; brand spelling everywhere', () => {
+  await test('T-13 Memory Lock card: one real link when MEMORY_LOCK_ENABLED, else the plain "Coming soon" card; primary-blue lock; brand spelling', () => {
     const ML = require(path.join(ROOT, 'content/memory-lock.ts')).MEMORY_LOCK;
     assert(ML.name === 'Memory Lock' && ML.tagline === 'Spaced revision, right on time' && ML.comingSoon === 'Coming soon', JSON.stringify(ML));
     const dash = code(read('app/dashboard/page.tsx'));
     const card = (dash.match(/<div data-memory-lock-card="">[\s\S]*?\n {10}<\/div>/) || [''])[0];
     assert(card, 'Memory Lock card missing');
-    // a plain card: no link, no button, no click handler, and no interactive ARIA on a non-interactive element
-    assert(!/href=|<Link\b|<a\b|<button\b|onClick|role=|aria-disabled|tabIndex/.test(card), 'Memory Lock card must be a plain, non-interactive card before F5');
+    // flag off: a plain card — no link, no button, no click handler, and no interactive ARIA on a non-interactive element
+    assert(!/href=|<Link\b|<a\b|<button\b|onClick|role=|aria-disabled|tabIndex/.test(card), 'Memory Lock card must be a plain, non-interactive card while the flag is off');
+    // flag on (F5): exactly ONE link to /memory-lock, nothing interactive inside it, no "Coming soon"
+    const live = (dash.match(/\{isMemoryLockEnabled\(\) \? \(\s*<Link href="\/memory-lock"[^>]*data-memory-lock-live=""[^>]*>[\s\S]*?<\/Link>\s*\) : \(/) || [''])[0];
+    assert(live && (live.match(/<Link\b|<a\b|href=/g) || []).length === 2 && !/<button\b|onClick|comingSoon/.test(live) && /<Lock aria-hidden="true"/.test(live), 'live card: one link to /memory-lock');
     assert(/<Lock aria-hidden="true"/.test(card) && /bg-primary-50 text-primary-700/.test(card) && !/red-|rose-|amber-|accent-|Alarm|Bell/.test(card), 'lock icon in the primary blue family only');
     assert(/\{MEMORY_LOCK\.comingSoon\}/.test(card) && /\{MEMORY_LOCK\.name\}/.test(card) && /\{MEMORY_LOCK\.tagline\}/.test(card), 'copy from content/memory-lock.ts');
-    const order = ['href="/mock-tests"', 'href="/practice"', 'href="/mistakes"', 'data-memory-lock-card'].map((s) => dash.indexOf(s));
+    const order = ['href="/mock-tests"', 'href="/practice"', 'href="/mistakes"', 'data-memory-lock-card=""'].map((s) => dash.indexOf(s));
     assert(order.every((i, k) => i > 0 && (k === 0 || i > order[k - 1])), 'Memory Lock must be the 4th core card');
-    // brand term: any "memory lock" in shipped UI code is spelled exactly "Memory Lock"
+    // brand term: any "memory lock" in shipped UI code is spelled exactly "Memory Lock" (F5: camelCase code identifiers
+    // such as isMemoryLockEnabled / memoryLock are not UI text and are allowed)
     const walk = (d) => fs.readdirSync(path.join(ROOT, d), { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(`${d}/${e.name}`) : /\.(tsx?)$/.test(e.name) ? [`${d}/${e.name}`] : []));
-    const bad = ['app', 'components', 'content', 'lib'].flatMap(walk).flatMap((f) => [...read(f).matchAll(/memory[\s-]?lock/gi)].filter((m) => m[0] !== 'Memory Lock' && !/MEMORY_LOCK|memory-lock/.test(m[0])).map((m) => `${f}: "${m[0]}"`));
+    const bad = ['app', 'components', 'content', 'lib'].flatMap(walk).flatMap((f) => [...read(f).matchAll(/memory[\s-]?lock/gi)].filter((m) => m[0] !== 'Memory Lock' && !/MEMORY_LOCK|memory-lock/.test(m[0]) && !/^(memoryLock|MemoryLock)$/.test(m[0])).map((m) => `${f}: "${m[0]}"`));
     assert(bad.length === 0, bad.join('; '));
     return 'not clickable · blue lock · brand spelling';
   });

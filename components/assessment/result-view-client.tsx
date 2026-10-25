@@ -267,6 +267,7 @@ export function ResultViewClient({ data }: { data: TestResultSummary }) {
                   hasPublishedLearning={q.hasPublishedLearning}
                   questionId={q.questionId}
                   questionVersionId={q.questionVersionId}
+                  canAddToMemoryLock={analysis.memoryLockEnabled}
                 />
               ))}
             </div>

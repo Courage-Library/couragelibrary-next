@@ -7032,6 +7032,15 @@ export type Database = {
           last_practiced_at: string | null
           lifecycle_status: string
           mastered_at: string | null
+          ml_consecutive_correct_days: number
+          ml_due_at: string
+          ml_interval_days: number
+          ml_lapses: number
+          ml_last_advance_on: string | null
+          ml_last_result: string | null
+          ml_last_reviewed_at: string | null
+          ml_source: string
+          ml_state: string
           primary_cognitive_type_id: string
           question_id: string
           subject_id: string | null
@@ -7053,6 +7062,15 @@ export type Database = {
           last_practiced_at?: string | null
           lifecycle_status?: string
           mastered_at?: string | null
+          ml_consecutive_correct_days?: number
+          ml_due_at?: string
+          ml_interval_days?: number
+          ml_lapses?: number
+          ml_last_advance_on?: string | null
+          ml_last_result?: string | null
+          ml_last_reviewed_at?: string | null
+          ml_source?: string
+          ml_state?: string
           primary_cognitive_type_id?: string
           question_id: string
           subject_id?: string | null
@@ -7074,6 +7092,15 @@ export type Database = {
           last_practiced_at?: string | null
           lifecycle_status?: string
           mastered_at?: string | null
+          ml_consecutive_correct_days?: number
+          ml_due_at?: string
+          ml_interval_days?: number
+          ml_lapses?: number
+          ml_last_advance_on?: string | null
+          ml_last_result?: string | null
+          ml_last_reviewed_at?: string | null
+          ml_source?: string
+          ml_state?: string
           primary_cognitive_type_id?: string
           question_id?: string
           subject_id?: string | null
@@ -7821,6 +7848,21 @@ export type Database = {
       }
       fn_mark_notification_as_read: {
         Args: { p_notification_id: string }
+        Returns: Json
+      }
+      fn_memory_lock_add: {
+        Args: {
+          p_question_id: string
+        }
+        Returns: Json
+      }
+      fn_memory_lock_answer: {
+        Args: {
+          p_question_version_id: string
+          p_selected_option_key: string | null
+          p_session_id: string
+          p_time_taken_ms: number
+        }
         Returns: Json
       }
       fn_moderate_flagged_content: {

@@ -13,6 +13,7 @@ import { RANK_MIN_COHORT } from "@/lib/assessment/display-rules";
 import { buildTakeaways, buildTrend, cohortStanding, isTestAccountEmail, negativeMarksLost, type CohortRow, type Standing, type Takeaway, type TrendPoint } from "@/lib/assessment/result-analysis";
 import { leaderboardView, type LeaderboardEntry } from "@/lib/assessment/leaderboard";
 import { isPracticeEnabled } from "@/lib/practice/flag";
+import { isMemoryLockEnabled } from "@/lib/memory-lock/flag";
 
 /** TYPES-1 B1: PostgREST returns a one-to-one embed (e.g. test_attempts → test_results) as an object or null. */
 function oneToOne<T>(v: T | T[] | null | undefined): T | null {
@@ -437,6 +438,8 @@ export interface TestResultSummary {
     takeaways: Takeaway[];
     trend: TrendPoint[] | null;
     examSlug: string | null;
+    /** F5: show "Add to Memory Lock" on reviewed questions */
+    memoryLockEnabled: boolean;
   };
   sections: Array<{
     id?: string;
@@ -2678,6 +2681,7 @@ export class AssessmentService {
         takeaways,
         trend,
         examSlug,
+        memoryLockEnabled: isMemoryLockEnabled(),
       },
       sections,
       reviewQuestions,

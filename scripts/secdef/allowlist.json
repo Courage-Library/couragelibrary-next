@@ -9,13 +9,14 @@
   "max counts may only go down: lower them (and remove entries) in the same change that revokes / drops",
   "F0 (decision #76, 2026-10-25): max total / client_executable_callable / A raised by exactly 1 for fn_save_onboarding — a NEW reviewed client entrypoint authorised by the F0 brief (#42 RPC-only writes)",
   "F2 (decision #79, 2026-10-25): max total / client_executable_callable / A raised by exactly 2 for fn_check_practice_answer and fn_report_question — NEW reviewed client entrypoints authorised by the F2 brief (answers checked one at a time on the server; reports via RPC only)",
-  "PROCTOR-LOG-1 (2026-10-25): max total / client_executable_callable / A raised by exactly 1 for fn_record_proctor_event — a NEW reviewed client entrypoint authorised by the architect's PROCTOR-LOG-1 GO (append-only, own open attempt only)"
+  "PROCTOR-LOG-1 (2026-10-25): max total / client_executable_callable / A raised by exactly 1 for fn_record_proctor_event — a NEW reviewed client entrypoint authorised by the architect's PROCTOR-LOG-1 GO (append-only, own open attempt only)",
+  "F5 (decision #77, 2026-10-25): max total / client_executable_callable / A raised by exactly 2 for fn_memory_lock_answer and fn_memory_lock_add — NEW reviewed client entrypoints authorised by the F5 brief (one atomic answer RPC; manual add)"
  ],
  "max": {
-  "total": 99,
-  "client_executable_callable": 41,
+  "total": 101,
+  "client_executable_callable": 43,
   "anon_or_public": 1,
-  "A": 41,
+  "A": 43,
   "C": 0,
   "B-trigger": 15,
   "B-service": 29,
@@ -701,6 +702,22 @@
    ],
    "search_path": "\"\"",
    "reason": "client entrypoint (PROCTOR-LOG-1, architect GO 2026-10-25); own check: auth.uid() + the caller's OWN open attempt; append-only insert, idempotent per (attempt, client_seq), rate-capped (300/attempt, 60/min/user); migration 094 — listed before the owner applies it (the live ratchet only notes a not-yet-present function)"
+  },
+  "fn_memory_lock_answer(p_question_version_id uuid, p_selected_option_key text, p_time_taken_ms integer, p_session_id uuid)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "\"\"",
+   "reason": "client entrypoint (F5 Memory Lock, decision #77); own check: auth.uid() + the caller's own vault item; one question per call, key returned only after the answer is recorded, idempotent per session x version, shares the practice rate limit (30/min, 1500/day); migration 095 — listed before the owner applies it"
+  },
+  "fn_memory_lock_add(p_question_id uuid)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "\"\"",
+   "reason": "client entrypoint (F5 \"Add to Memory Lock\", decision #77); own check: auth.uid(); published servable questions only; idempotent; 100 manual adds/day; migration 095 — listed before the owner applies it"
   }
  }
 }

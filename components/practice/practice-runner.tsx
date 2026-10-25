@@ -6,6 +6,9 @@
  * question's result + explanation. Rules: one primary action per screen (R4) — "Check answer", then "Next question";
  * progress always visible (R5); result shown by text + icon, never colour alone; feedback about the task (R3); UI in
  * English, question content in the chosen language with an EN/HI toggle only when the other version exists (R9).
+ * F5: the same runner reviews Memory Lock items (`memoryLock` prop): each answer goes to checkMemoryLockAnswerAction
+ * (fn_memory_lock_answer: check + record + reschedule in one transaction) and the result shows the next due date
+ * ("Back in 3 days"); `canAddToMemoryLock` shows the quiet "Add to Memory Lock" action after a topic-practice answer.
  */
 import { useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
@@ -19,12 +22,15 @@ import { cn } from "@/components/ui/cn";
 import { PRACTICE_COPY } from "@/content/practice";
 import { takeaways, type ContentLanguage, type PracticeMode, type PracticeQuestion } from "@/lib/practice/engine";
 import { checkPracticeAnswerAction, type CheckAnswerResult } from "@/app/practice/actions";
+import { checkMemoryLockAnswerAction } from "@/app/memory-lock/actions";
+import { MEMORY_LOCK } from "@/content/memory-lock";
+import { AddToMemoryLockButton } from "@/components/memory-lock/add-to-memory-lock-button";
 import { ReportQuestionButton } from "./report-question-button";
 
 const C = PRACTICE_COPY.runner;
 const E = PRACTICE_COPY.end;
 
-type Checked = Extract<CheckAnswerResult, { ok: true }>;
+type Checked = Extract<CheckAnswerResult, { ok: true }> & { backIn?: string };
 
 export function PracticeRunner(props: {
   setId: string;
@@ -36,6 +42,9 @@ export function PracticeRunner(props: {
   againHref: string;
   nextTopicHref: string | null;
   chooseHref: string;
+  /** F5: review Memory Lock items (session id = idempotency key per answer) */
+  memoryLock?: { sessionId: string; endHref: string };
+  canAddToMemoryLock?: boolean;
 }) {
   const { questions } = props;
   const [index, setIndex] = useState(0);
@@ -57,6 +66,20 @@ export function PracticeRunner(props: {
     return alt ? { versionId: alt.versionId, text: alt.text, options: alt.options, language: alt.language } : { versionId: q.versionId, text: q.text, options: q.options, language: q.language };
   }, [q, lang]);
 
+  if ((finished || !q || !view) && props.memoryLock) {
+    const correct = questions.filter((x) => results[x.questionId]?.isCorrect).length;
+    return (
+      <Card className="flex flex-col gap-4" data-practice-end="" data-memory-lock-end="">
+        <h2 className="text-h2 font-bold text-fg">{MEMORY_LOCK.done}</h2>
+        <p className="text-body-lg font-semibold text-fg">{E.score(correct, questions.length)}</p>
+        <div>
+          <PillLink href={props.memoryLock.endHref} variant="accent-on-light">
+            {MEMORY_LOCK.back}
+          </PillLink>
+        </div>
+      </Card>
+    );
+  }
   if (finished || !q || !view) {
     const rows = questions.map((x) => ({ questionId: x.questionId, topicName: x.topicId ? props.topicNames[x.topicId] ?? null : null, isCorrect: results[x.questionId]?.isCorrect ?? false, answered: Boolean(results[x.questionId]) && selected[x.questionId] != null }));
     const correct = rows.filter((r) => r.isCorrect).length;
@@ -95,9 +118,12 @@ export function PracticeRunner(props: {
       return;
     }
     start(async () => {
-      const r = await checkPracticeAnswerAction({ versionId: view.versionId, selected: choice, timeMs: Date.now() - shownAt.current, setId: props.setId, mode: props.mode }).catch(() => ({ ok: false as const, code: "FAILED" as const }));
+      const timeMs = Date.now() - shownAt.current;
+      const r = props.memoryLock
+        ? await checkMemoryLockAnswerAction({ versionId: view.versionId, selected: choice, timeMs, sessionId: props.memoryLock.sessionId }).catch(() => ({ ok: false as const, code: "FAILED" as const }))
+        : await checkPracticeAnswerAction({ versionId: view.versionId, selected: choice, timeMs, setId: props.setId, mode: props.mode }).catch(() => ({ ok: false as const, code: "FAILED" as const }));
       if (r.ok) setResults((m) => ({ ...m, [q.questionId]: r }));
-      else setError(C.errors[r.code] ?? C.errors.FAILED);
+      else setError(C.errors[r.code] ?? MEMORY_LOCK.errors[r.code] ?? C.errors.FAILED);
     });
   };
   const next = () => {
@@ -176,7 +202,13 @@ export function PracticeRunner(props: {
             </p>
             <h3 className="text-body-sm font-semibold text-fg">{C.explanation}</h3>
             <p className="whitespace-pre-line text-body text-fg-secondary">{result.explanation ?? C.noExplanation}</p>
-            {!result.isCorrect && result.savedToMistakes && <p className="text-body-sm text-fg-secondary">{C.savedToDrills}</p>}
+            {result.backIn ? (
+              <p className="text-body font-semibold text-fg" data-memory-lock-back-in="">
+                {result.backIn}
+              </p>
+            ) : (
+              !result.isCorrect && result.savedToMistakes && <p className="text-body-sm text-fg-secondary">{C.savedToDrills}</p>
+            )}
             {article && (
               <Link href={article} className="focus-ring inline-flex min-h-12 items-center gap-2 text-body-sm font-medium text-link underline underline-offset-2">
                 <BookOpen aria-hidden="true" className="size-4" />
@@ -188,7 +220,10 @@ export function PracticeRunner(props: {
 
         {/* ONE primary action (R4) */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
-          <ReportQuestionButton questionId={q.questionId} questionVersionId={view.versionId} />
+          <div className="flex flex-wrap items-center gap-2">
+            <ReportQuestionButton questionId={q.questionId} questionVersionId={view.versionId} />
+            {props.canAddToMemoryLock && !props.memoryLock && result && <AddToMemoryLockButton questionId={q.questionId} />}
+          </div>
           {result ? (
             <PillButton variant="accent-on-light" onClick={next}>
               {isLast ? C.finish : C.next}

@@ -4,6 +4,7 @@ import { CheckCircle2, XCircle, HelpCircle, BookOpen, AlertTriangle } from "luci
 import { cn } from "@/lib/utils";
 import { AnswerKeyUnavailableNotice } from "@/components/questions/answer-key-notice";
 import { ReportQuestionButton } from "@/components/practice/report-question-button";
+import { AddToMemoryLockButton } from "@/components/memory-lock/add-to-memory-lock-button";
 
 interface QuestionReviewCardProps {
   questionOrder: number;
@@ -29,6 +30,8 @@ interface QuestionReviewCardProps {
   /** F2: "Report this question" (shown when the question is known) */
   questionId?: string | null;
   questionVersionId?: string | null;
+  /** F5: quiet "Add to Memory Lock" (only when Memory Lock is on) */
+  canAddToMemoryLock?: boolean;
 }
 
 export function QuestionReviewCard({
@@ -52,6 +55,7 @@ export function QuestionReviewCard({
   hasPublishedLearning,
   questionId,
   questionVersionId,
+  canAddToMemoryLock = false,
 }: QuestionReviewCardProps) {
   const isUnanswered = selectedOption === null;
   const keyUnavailable = correctOption === null;
@@ -186,6 +190,7 @@ export function QuestionReviewCard({
 
           <div className="flex flex-wrap items-center gap-3">
             {questionId && <ReportQuestionButton questionId={questionId} questionVersionId={questionVersionId ?? null} />}
+            {questionId && canAddToMemoryLock && <AddToMemoryLockButton questionId={questionId} />}
             {!isCorrect && !isUnanswered && (
               <Link
                 href="/mistakes"

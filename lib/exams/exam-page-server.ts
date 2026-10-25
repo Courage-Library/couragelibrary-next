@@ -74,6 +74,7 @@ export const examPageUser = cache(async (examId: string): Promise<ExamPageUser> 
         .select("lifecycle_status, total_mistakes_count, consecutive_correct_in_remediation, last_mistake_at, mastered_at")
         .eq("user_id", uid)
         .neq("lifecycle_status", "MASTERED")
+        .gte("total_mistakes_count", 1) // F5: manual Memory Lock items are not mistakes
         .limit(200),
     ]);
     const rows: MockAttemptRow[] = (attempts.data ?? []).map((a) => {
