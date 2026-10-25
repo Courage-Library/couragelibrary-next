@@ -113,6 +113,7 @@ jobs:
           q QA-SESSION-UNIT node scripts/test_qa_session.cjs || fail=1
           q ONBOARDING-F0 node scripts/test_onboarding_f0.cjs || fail=1
           q UXFIX1 node scripts/test_uxfix1.cjs || fail=1
+          q F1-EXAM-PAGE node scripts/test_f1_exam_page.cjs || fail=1
           q KILL-LEFTOVER-SELFTEST node scripts/ci/kill-leftover-server.cjs --self-test || fail=1
           exit $fail
       - name: Log scan of the captured outputs

@@ -205,8 +205,9 @@ export class ExamKnowledgeCandidateService {
           notificationDate: targetCycle.notification_date || null,
           applicationStartDate: targetCycle.application_start_date || null,
           applicationEndDate: targetCycle.application_end_date || null,
-          examStartDate: targetCycle.exam_start_date || null,
-          examEndDate: targetCycle.exam_end_date || null,
+          // F1: the columns are exam_window_start / exam_window_end (the old *_date names never existed → always null)
+          examStartDate: targetCycle.exam_window_start || targetCycle.exam_start_date || null,
+          examEndDate: targetCycle.exam_window_end || targetCycle.exam_end_date || null,
           totalVacancies: targetCycle.total_vacancies ? Number(targetCycle.total_vacancies) : null,
           isTentative: !targetCycle.notification_date,
         }

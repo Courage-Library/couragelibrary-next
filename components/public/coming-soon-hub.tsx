@@ -1,21 +1,35 @@
 /**
  * UX-2b: honest hub for an exam that is listed as coming soon (content/public-pages COMING_SOON_EXAMS) while it is not
  * active (decision #32). No content, no numbers, no dates; noindex is set by the page metadata.
+ * F1 (#75): the same skeleton as the exam home page — header, at a glance (all "Not published yet"), then mock tests,
+ * syllabus and guides as honest "coming soon" states. No start action and no "Notify me" (no waitlist exists yet).
  */
-import { CircleDashed } from "lucide-react";
+import { CircleDashed, ClipboardList, FileText, BookOpen } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
-import { PublicPageHeader, PublicSection } from "@/components/public/public-page";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PublicSection } from "@/components/public/public-page";
+import { ExamGlance, ExamHomeHeader } from "@/components/exams/exam-home";
+import { EXAM_PAGE } from "@/content/exam-page";
 import { COMING_SOON_HUB } from "@/content/public-pages";
+import { glanceRows } from "@/lib/exams/exam-page";
 
 export function ComingSoonHub({ title }: { title: string }) {
+  const S = EXAM_PAGE.comingSoon;
   return (
     <div data-coming-soon-hub="">
-      <PublicPageHeader
-        title={title}
-        badge={COMING_SOON_HUB.badge}
-        lead={COMING_SOON_HUB.lead(title)}
-        crumbs={[{ label: "Exams", href: "/exams" }, { label: title }]}
-      />
+      <ExamHomeHeader title={title} body={null} badge={COMING_SOON_HUB.badge}>
+        <p className="max-w-2xl text-body-lg text-fg-secondary">{COMING_SOON_HUB.lead(title)}</p>
+      </ExamHomeHeader>
+      <ExamGlance examTitle={title} table={glanceRows([])} />
+      <PublicSection id="coming-soon-content" title={EXAM_PAGE.mocks.title}>
+        <EmptyState icon={<ClipboardList />} title={S.mocks} />
+      </PublicSection>
+      <PublicSection id="coming-soon-syllabus" title={EXAM_PAGE.syllabus.title}>
+        <EmptyState icon={<BookOpen />} title={S.syllabus} />
+      </PublicSection>
+      <PublicSection id="coming-soon-guides" title={EXAM_PAGE.guides.title}>
+        <EmptyState icon={<FileText />} title={S.guides} />
+      </PublicSection>
       <PublicSection id="planned" title={COMING_SOON_HUB.plannedHeading}>
         <ul className="flex max-w-prose flex-col gap-2">
           {COMING_SOON_HUB.planned.map((p) => (

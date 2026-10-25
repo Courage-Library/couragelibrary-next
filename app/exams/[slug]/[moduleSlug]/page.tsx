@@ -7,6 +7,7 @@ import { ExamModuleRegistry } from "@/services/exam-knowledge/exam-module-regist
 import { ExamModuleReaderView } from "@/components/exams/exam-module-reader-view";
 import { ExamModuleKey } from "@/types/exam-knowledge";
 import { constructMetadata } from "@/lib/seo/metadata";
+import { userContentLanguage } from "@/lib/exams/exam-page-server";
 
 export const revalidate = 60; // ISR baseline
 
@@ -57,7 +58,12 @@ export default async function ExamModuleReaderPage({ params }: Props) {
   }
 
   const data = result.data;
-  const publishedModule = data.publishedModules[moduleKey as ExamModuleKey];
+  // F1 (#82): the guide follows the student's content language where a Hindi version is published (else English)
+  let publishedModule = data.publishedModules[moduleKey as ExamModuleKey];
+  if ((await userContentLanguage()) === "hi") {
+    const hi = await ExamKnowledgeCandidateService.getExamKnowledgeCandidateView({ examSlug: slug, language: "hi" });
+    publishedModule = (hi.status === "FOUND" && hi.data?.publishedModules[moduleKey as ExamModuleKey]) || publishedModule;
+  }
 
   if (!publishedModule) {
     notFound();
