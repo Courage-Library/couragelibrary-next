@@ -1,6 +1,6 @@
 -- =====================================================================================================================
 -- 098 AUTH-1 2b-3 — admin MFA in the database: the shared staff predicate requires an AAL2 JWT when switched on
--- NOT APPLIED until the architect's "go". Rollback: docs/database/rollback/098_rollback.sql
+-- Architect GO 2026-10-25 (after 099 closed). Rollback: docs/database/rollback/098_rollback.sql
 -- No BEGIN / COMMIT here: scripts/db/apply-migration.cjs runs the file and its ledger row in ONE transaction.
 --
 -- 1. public.security_settings — ONE row (id = true): admin_mfa_required (default FALSE → today's behaviour exactly).
