@@ -41,9 +41,17 @@ Found with ATTEMPT-INTEGRITY-1 (099): a table-level INSERT / UPDATE grant to `au
 
 Found by the 102 smoke (2026-10-25). Once its access checks pass, `fn_submit_flashcard_review` inserts into `learning_activity_events` without `topic_id` (NOT NULL), so every review fails with 23502. This is the same defect class as COMMUNITY-REPLY-1. Fix the same way (function-only): take the topic from the deck, skip the activity row when there is none, and never fail the review because of analytics.
 
-## TOPIC-CONTEXT-1: topic threads cannot be created through the RPC
+## TOPIC-CONTEXT-1: CLOSED — not a bug (2026-10-25)
 
-Found while testing 101 (2026-10-25). `fn_create_discussion_thread('TOPIC', …)` checks the retired legacy `public.topics` table instead of `canonical_taxonomy_nodes` (node_type `TOPIC`), so a topic thread cannot be created through the app. Fix in a separate function-only migration.
+Logged in error while testing 101. `public.topics` is a live table that mirrors the 36 canonical `TOPIC` nodes (same ids), so `fn_create_discussion_thread('TOPIC', …)` already works. The 104 smoke proved it, B-1. Migration 104 (validate against `canonical_taxonomy_nodes` directly) is on branch `held-104` and NOT applied. Apply it only if `public.topics` is retired later.
+
+## NULL-BYPASS-2: deny branches a NULL can skip (fixes held as 105)
+
+Report: `docs/reports/security/NULL_BYPASS_2.md`. Migration 105 is on branch `held-105`: chunked smoke 10/10, dry-run OK, NOT applied, needs the architect's go.
+- `fn_submit_battle_round_answer`: an answer is accepted before the round has a start time, with latency 0. Proven, rolled back.
+- `fn_submit_flashcard_review`: an author-less private deck can be reviewed by anyone. Proven, rolled back.
+
+Payment functions with the same pattern (`fn_process_payment_webhook`, `fn_verify_and_fulfill_payment`) are listed for a separate payments ruling.
 
 ## DOMAIN-CUTOVER-1: couragelibrary.in still serves the legacy site
 
