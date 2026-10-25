@@ -231,8 +231,9 @@ test('B-05 email templates: 2b-2 checks + brand layout, token colours only, cont
 test('B-06 exam rules: timer neutral → accent (no red); answer review uses icon + text, never colour alone', () => {
   const t = read('components/assessment/assessment-timer.tsx');
   assert(!/(?:bg|text|border)-(?:red|rose|danger)-/.test(t), 'timer uses red / danger');
-  assert(/isUnder1Min[\s\S]*bg-accent-100[\s\S]*isUnder5Min[\s\S]*bg-accent-50[\s\S]*"bg-canvas border-line text-fg"/.test(t), 'timer is not neutral → accent');
-  assert(/AlertTriangle/.test(t), 'timer state has no icon');
+  // F3 (R8): ONE quiet final-minutes state (neutral → accent, never red); the state is also TEXT ("5 min left")
+  assert(/phase === "final" \? "bg-accent-50 border-accent-300 text-fg" : "bg-canvas border-line text-fg"/.test(t), 'timer is not neutral → accent');
+  assert(/5 min left/.test(t) && /<Clock aria-hidden="true"/.test(t), 'timer state has no non-colour cue (text + icon)');
   const q = read('components/assessment/question-review-card.tsx');
   assert(/<CheckCircle2 className="w-4 h-4 shrink-0 text-success-700" aria-hidden="true" \/>/.test(q) && /<XCircle className="w-4 h-4 shrink-0 text-danger-700" aria-hidden="true" \/>/.test(q), 'option rows lack the correct / wrong icon');
   assert(/"Correct answer"/.test(q) && /"Your answer, incorrect"/.test(q) && /sr-only">Correct:/.test(q) && /sr-only">Incorrect:/.test(q), 'option rows / verdict lack the text label');

@@ -20,7 +20,7 @@ import { reportQuestionAction } from "@/app/practice/actions";
 const C = PRACTICE_COPY.report;
 const DONE = new Set(["REPORTED", "ALREADY_REPORTED"]);
 
-export function ReportQuestionButton({ questionId, questionVersionId, className }: { questionId: string; questionVersionId: string | null; className?: string }) {
+export function ReportQuestionButton({ questionId, questionVersionId, className }: { questionId: string | null; questionVersionId: string | null; className?: string }) {
   const id = useId();
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState<ReportReason | null>(null);

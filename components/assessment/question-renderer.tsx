@@ -35,7 +35,7 @@ export function QuestionRenderer({
             Q{questionNumber}
           </span>
           {totalQuestions && (
-            <span className="text-xs font-semibold text-slate-400">
+            <span className="text-xs font-semibold text-fg-secondary">
               of {totalQuestions}
             </span>
           )}

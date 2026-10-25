@@ -56,7 +56,7 @@ export async function checkPracticeAnswerAction(input: { versionId: string; sele
   };
 }
 
-export async function reportQuestionAction(input: { questionId: string; questionVersionId: string | null; reason: string; note: string }): Promise<ReportCode> {
+export async function reportQuestionAction(input: { questionId: string | null; questionVersionId: string | null; reason: string; note: string }): Promise<ReportCode> {
   const supabase = await createServerSupabaseClient();
   const session = await getSessionState(supabase);
   if (session.state !== "user") return session.state === "none" ? "NOT_SIGNED_IN" : "FAILED";

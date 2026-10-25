@@ -137,7 +137,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
       const k = key[i];
       const wantWrong = i < WRONG;
       const opt = wantWrong ? k.opts.find((o) => o.k !== k.correct) : k.opts.find((o) => o.k === k.correct);
-      const card = page.locator('div.cursor-pointer').filter({ has: page.getByText(opt.t, { exact: true }) }).first();
+      const card = page.locator('button[role="radio"]').filter({ has: page.getByText(opt.t, { exact: true }) }).first();
       const clicked = await card.click({ timeout: 15000 }).then(() => true).catch(() => false);
       if (!clicked) await page.keyboard.press(opt.k.toLowerCase());
       await sleep(700);

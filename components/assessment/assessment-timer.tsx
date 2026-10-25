@@ -1,115 +1,85 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
-import { Clock, AlertTriangle, Volume2, VolumeX } from "lucide-react";
-import { MockAudio } from "@/lib/assessment/audio-alerts";
+import React, { useEffect, useRef, useState } from "react";
+import { Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { remainingSecondsAt, timerPhase } from "@/lib/assessment/timer";
 
 interface AssessmentTimerProps {
+  /** server-authoritative remaining time when the page was rendered */
   initialRemainingSeconds: number;
   onTimeExpired: () => void;
   className?: string;
 }
 
-export function AssessmentTimer({
-  initialRemainingSeconds,
-  onTimeExpired,
-  className,
-}: AssessmentTimerProps) {
-  const [seconds, setSeconds] = useState(initialRemainingSeconds);
-  const [isMuted, setIsMuted] = useState(false);
-  const played5mWarning = useRef(false);
-  const played1mWarning = useRef(false);
+/**
+ * F3 (R7 / R8) exam timer.
+ * - The deadline is anchored ONCE from the server's remaining time; every tick recomputes from the clock, so a parent
+ *   re-render can never restart or slow the countdown, and a background tab catches up immediately.
+ * - onTimeExpired fires exactly ONCE (callback kept in a ref; a fired flag guards repeats).
+ * - Calm: no sound, no flashing / pulsing. One quiet final-minutes state (≤ 5 min: amber surface + "5 min left"
+ *   text, announced once to screen readers). Colour is never the only signal.
+ */
+export function AssessmentTimer({ initialRemainingSeconds, onTimeExpired, className }: AssessmentTimerProps) {
+  const deadlineRef = useRef<number | null>(null);
+  const firedRef = useRef(false);
+  const onExpiredRef = useRef(onTimeExpired);
+  onExpiredRef.current = onTimeExpired;
+  const [seconds, setSeconds] = useState(Math.max(0, Math.floor(initialRemainingSeconds)));
+  const [announce, setAnnounce] = useState("");
 
   useEffect(() => {
-    if (seconds <= 0) {
-      onTimeExpired();
-      return;
-    }
+    if (deadlineRef.current === null) deadlineRef.current = Date.now() + Math.max(0, initialRemainingSeconds) * 1000;
+    const tick = () => {
+      const left = remainingSecondsAt(deadlineRef.current as number, Date.now());
+      setSeconds(left);
+      if (left <= 0 && !firedRef.current) {
+        firedRef.current = true;
+        onExpiredRef.current();
+      }
+    };
+    tick();
+    const interval = setInterval(tick, 500);
+    const onVisible = () => document.visibilityState === "visible" && tick();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+    // anchored once: the server value is read only on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    const interval = setInterval(() => {
-      setSeconds((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          onTimeExpired();
-          return 0;
-        }
-
-        const next = prev - 1;
-
-        // 5-minute audio warning
-        if (next === 300 && !played5mWarning.current) {
-          played5mWarning.current = true;
-          MockAudio.playReminderBeep();
-        }
-
-        // 1-minute audio warning
-        if (next === 60 && !played1mWarning.current) {
-          played1mWarning.current = true;
-          MockAudio.playUrgentDoubleBeep();
-        }
-
-        return next;
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [seconds, onTimeExpired]);
-
-  const toggleAudioMute = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const muted = MockAudio.toggleMute();
-    setIsMuted(muted);
-  };
+  const phase = timerPhase(seconds);
+  useEffect(() => {
+    if (phase === "final") setAnnounce("5 minutes or less left.");
+  }, [phase]);
 
   const formatTime = (totalSeconds: number) => {
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     const secs = totalSeconds % 60;
-
-    if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-    }
+    if (hours > 0) return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
     return `${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
-
-  const isUnder1Min = seconds > 0 && seconds <= 60;
-  const isUnder5Min = seconds > 0 && seconds <= 300;
 
   return (
     <div
       role="timer"
-      aria-label={`Time remaining: ${formatTime(seconds)}`}
+      aria-label={`Time left: ${formatTime(seconds)}`}
+      data-timer-phase={phase}
       className={cn(
-        "flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-mono font-bold transition-all select-none",
-        // BRAND-1 (#70): the exam timer is neutral and turns to the accent only in the final minutes — never red
-        // (red is for errors only). The warning icon carries the state too, not colour alone.
-        isUnder1Min
-          ? "bg-accent-100 border-accent-700 text-fg animate-pulse shadow-xs"
-          : isUnder5Min
-          ? "bg-accent-50 border-accent-300 text-fg shadow-xs"
-          : "bg-canvas border-line text-fg",
-        className
+        "flex min-h-12 items-center gap-2 rounded-xl border px-3 text-sm font-mono font-bold select-none",
+        phase === "final" ? "bg-accent-50 border-accent-300 text-fg" : "bg-canvas border-line text-fg",
+        className,
       )}
     >
-      {isUnder1Min ? (
-        <AlertTriangle className="w-3.5 h-3.5 text-accent-700 shrink-0" />
-      ) : isUnder5Min ? (
-        <AlertTriangle className="w-3.5 h-3.5 text-accent-700 shrink-0" />
-      ) : (
-        <Clock className="w-3.5 h-3.5 text-fg-muted shrink-0" />
-      )}
+      <Clock aria-hidden="true" className={cn("size-4 shrink-0", phase === "final" ? "text-accent-800" : "text-fg-muted")} />
       <span className="tabular-nums">{formatTime(seconds)}</span>
-
-      {/* Audio Mute / Unmute Toggle */}
-      <button
-        type="button"
-        onClick={toggleAudioMute}
-        title={isMuted ? "Unmute Timer Sound Alerts" : "Mute Timer Sound Alerts"}
-        className="p-0.5 rounded text-slate-400 hover:text-slate-700 transition cursor-pointer"
-      >
-        {isMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
-      </button>
+      {phase === "final" && <span className="font-sans text-caption font-semibold text-fg">5 min left</span>}
+      <span className="sr-only" aria-live="polite">
+        {announce}
+      </span>
     </div>
   );
 }

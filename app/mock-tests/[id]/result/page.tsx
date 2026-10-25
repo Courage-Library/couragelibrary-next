@@ -26,7 +26,7 @@ export default async function MockTestResultPage({ params }: Props) {
           <Container className="max-w-xl">
             <Card className="p-8 text-center bg-white border border-blue-200/80 rounded-3xl shadow-sm space-y-5">
               <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto border border-blue-200">
-                <Clock className="w-6 h-6 animate-pulse" />
+                <Clock aria-hidden="true" className="w-6 h-6" />
               </div>
 
               <div className="space-y-2">

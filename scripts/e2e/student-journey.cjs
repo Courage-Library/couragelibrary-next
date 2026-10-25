@@ -90,7 +90,8 @@ const pathOf = (url) => new URL(url).pathname.replace(/[0-9a-f-]{36}/g, ':id');
     const wantWrong = i < 3;
     const opt = wantWrong ? k.options.find((o) => o.option_key !== k.correct) : k.options.find((o) => o.option_key === k.correct);
     // Scope to the option card (a bare text match can hit the question palette, e.g. "36").
-    const card = page.locator('div.cursor-pointer').filter({ has: page.getByText(opt.option_text, { exact: true }) }).first();
+    // F3: options are a radio group (button[role=radio]); a bare text match could hit the palette, so scope to the radio
+    const card = page.locator('button[role="radio"]').filter({ has: page.getByText(opt.option_text, { exact: true }) }).first();
     const clicked = await card.click({ timeout: 15000 }).then(() => true).catch(() => false);
     if (!clicked) await page.keyboard.press(opt.option_key.toLowerCase());
     chosen.push({ i, key: opt.option_key, correct: k.correct, wrong: wantWrong });
@@ -126,10 +127,11 @@ const pathOf = (url) => new URL(url).pathname.replace(/[0-9a-f-]{36}/g, ':id');
   if (await resume.count()) await resume.first().click();
   await page.waitForTimeout(2000);
   const tAfter = await timerText();
-  const q1 = page.getByRole('button', { name: /^1$/ }).first();
+  // F3: resume restores the LAST question, so go back to question 1 via the palette (cell name "Question 1: <state>")
+  const q1 = page.getByRole('button', { name: /^Question 1:/ }).first();
   if (await q1.count()) await q1.click();
   await page.waitForTimeout(800);
-  const selectedNow = await page.$$eval('[class*="border-blue-500"]', (els) => els.map((e) => (e.innerText || '').trim().slice(0, 60)));
+  const selectedNow = await page.$$eval('[role="radio"][aria-checked="true"]', (els) => els.map((e) => (e.innerText || '').trim().slice(0, 80)));
   const firstWrongText = key[0].options.find((o) => o.option_key === chosen[0].key).option_text;
   step('E2E-08 reload restores answers', selectedNow.some((t) => t.includes(firstWrongText.slice(0, 20))), `selected after reload: ${selectedNow.length}`);
   step('E2E-09 reload restores timer (from started_at)', !!tBefore && !!tAfter, `before ${tBefore} → after ${tAfter}`);

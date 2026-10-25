@@ -12,10 +12,12 @@ import { QuestionRenderer } from "@/components/assessment/question-renderer";
 import { QuestionOptions } from "@/components/assessment/question-options";
 import { QuestionPalette, QuestionStatus } from "@/components/assessment/question-palette";
 import { SubmitDialog, SectionSubmitSummary } from "@/components/assessment/submit-dialog";
-import { ReportIssueDialog } from "@/components/assessment/report-issue-dialog";
+import { ReportQuestionButton } from "@/components/practice/report-question-button";
 import { InstructionsModal } from "@/components/assessment/instructions-modal";
 import { CandidateSecurityWatermark } from "@/components/assessment/candidate-security-watermark";
 import { OfflineAnswerQueue } from "@/lib/assessment/offline-queue";
+import { createAnswerSync, mergePending, type SaveStatus } from "@/lib/assessment/answer-sync";
+import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/legacy/button";
 import {
   ChevronLeft,
@@ -24,23 +26,17 @@ import {
   Send,
   RotateCcw,
   Menu,
-  X,
   WifiOff,
-  CheckCircle2,
   Undo2,
-  Flag,
   HelpCircle,
   Maximize2,
   Minimize2,
   RefreshCw,
   Check,
-  ShieldAlert,
   AlertTriangle,
-  Monitor,
   ArrowRight,
   ShieldCheck,
   AlertCircle,
-  Sparkles,
 } from "lucide-react";
 
 export type MockTestPlayerSession = ActiveAttemptSession | ActiveAdaptiveSession;
@@ -54,8 +50,6 @@ interface SavedAnswerState {
   isMarkedForReview: boolean;
   timeSpentSeconds: number;
 }
-
-type SaveStatus = "saved" | "saving" | "offline" | "synced";
 
 interface SecurityState {
   isFullscreen: boolean;
@@ -159,8 +153,6 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [isMobilePaletteOpen, setIsMobilePaletteOpen] = useState(false);
   const [isInstructionsOpen, setIsInstructionsOpen] = useState(false);
-  const [isReportOpen, setIsReportOpen] = useState(false);
-  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
 
   // Active Question Time Tracking Ref
   const activeQuestionStartTimeRef = useRef<number>(Date.now());
@@ -181,7 +173,29 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
   } | null>(null);
 
   const undoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const saveDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSubmitAutoRef = useRef(false);
+
+  // F3 (R7): autosave engine — per-question debounce, "Saved" only on server confirmation, retry with backoff,
+  // offline = kept on this device, 409 = attempt closed (lib/assessment/answer-sync.ts)
+  const syncRef = useRef<ReturnType<typeof createAnswerSync> | null>(null);
+  const getSync = useCallback(() => {
+    if (!syncRef.current) {
+      syncRef.current = createAnswerSync(session.attemptId, {
+        post: (body) =>
+          fetch("/api/assessment/save-answer", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then((r) => ({
+            status: r.status,
+            json: () => r.json(),
+          })),
+        setTimer: (fn, ms) => setTimeout(fn, ms),
+        clearTimer: (t) => clearTimeout(t as ReturnType<typeof setTimeout>),
+        isOnline: () => typeof navigator === "undefined" || navigator.onLine,
+        keep: (id, a) => OfflineAnswerQueue.enqueue(session.attemptId, id, a.selectedOption, a.isMarkedForReview, a.timeSpentSeconds),
+        forget: (id) => OfflineAnswerQueue.dequeue(session.attemptId, id),
+        onStatus: setSaveStatus,
+      });
+    }
+    return syncRef.current;
+  }, [session.attemptId]);
 
   // Determine current active question
   const hasQuestions = isAdaptive ? generatedSteps.length > 0 : Boolean(fixedSession?.questions && fixedSession.questions.length > 0);
@@ -198,6 +212,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
         mockQuestionId: `adaptive_step_${currentAdaptiveStep.step_number}`,
         questionOrder: currentAdaptiveStep.step_number,
         questionVersionId: currentAdaptiveStep.question_version_id,
+        questionId: null as string | null, // resolved from the version on the server when reporting
         questionText: currentAdaptiveStep.question_text || "",
         questionImageUrl: currentAdaptiveStep.question_image_url,
         marks: 1,
@@ -246,19 +261,8 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
 
   // Network offline/online listeners with automatic queue flushing
   useEffect(() => {
-    const handleOnline = async () => {
-      setSaveStatus("synced");
-      const syncedCount = await OfflineAnswerQueue.flush(session.attemptId);
-      if (syncedCount > 0) {
-        setTimeout(() => setSaveStatus("saved"), 3000);
-      } else {
-        setSaveStatus("saved");
-      }
-    };
-
-    const handleOffline = () => {
-      setSaveStatus("offline");
-    };
+    const handleOnline = () => getSync().flushAll();
+    const handleOffline = () => setSaveStatus(getSync().status());
 
     if (typeof window !== "undefined") {
       if (!navigator.onLine) setSaveStatus("offline");
@@ -270,7 +274,40 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
     };
-  }, [session.attemptId]);
+  }, [getSync]);
+
+  // F3 (R7) resume: answers kept on this device but never confirmed are newer than the server copy — merge them and
+  // send them again; restore the last question and the visited set (this device; fixed mocks)
+  const progressKey = `cl_mock_progress_${session.attemptId}`;
+  useEffect(() => {
+    if (!fixedSession) return;
+    const known = new Set(fixedSession.questions.map((q) => q.mockQuestionId));
+    const pending = OfflineAnswerQueue.getPending(session.attemptId).filter((p) => known.has(p.mockQuestionId));
+    if (pending.length > 0) {
+      setAnswers((prev) => {
+        const merged = mergePending(prev, pending, known) as Record<string, SavedAnswerState>;
+        pending.forEach((p) => getSync().save(p.mockQuestionId, merged[p.mockQuestionId]));
+        return merged;
+      });
+    }
+    try {
+      const saved = JSON.parse(localStorage.getItem(progressKey) || "null") as { index?: number; visited?: string[] } | null;
+      if (saved && Number.isInteger(saved.index) && (saved.index as number) >= 0 && (saved.index as number) < fixedSession.questions.length) setCurrentIndex(saved.index as number);
+      if (saved && Array.isArray(saved.visited)) setVisitedQuestions((prev) => new Set([...prev, ...saved.visited!.filter((v) => known.has(v))]));
+    } catch {
+      /* no saved position: start at question 1 */
+    }
+    // once, on load
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (!fixedSession) return;
+    try {
+      localStorage.setItem(progressKey, JSON.stringify({ index: currentIndex, visited: [...visitedQuestions] }));
+    } catch {
+      /* storage unavailable: resume falls back to question 1 */
+    }
+  }, [fixedSession, progressKey, currentIndex, visitedQuestions]);
 
   // Security: Fullscreen Change Listener
   useEffect(() => {
@@ -352,53 +389,13 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
     }));
   };
 
-  // Helper to persist answer via local buffer & background API (Fixed Mock only)
+  // Persist through the autosave engine (fixed mocks; adaptive answers are persisted by the step API on Next)
   const persistAnswer = useCallback(
     (mockQuestionId: string, updated: SavedAnswerState) => {
-      if (isAdaptive) return; // Adaptive answers are authoritatively persisted on explicit Next
-
-      OfflineAnswerQueue.enqueue(
-        session.attemptId,
-        mockQuestionId,
-        updated.selectedOption,
-        updated.isMarkedForReview,
-        updated.timeSpentSeconds
-      );
-
-      if (navigator.onLine) {
-        setSaveStatus("saving");
-      } else {
-        setSaveStatus("offline");
-        return;
-      }
-
-      if (saveDebounceRef.current) clearTimeout(saveDebounceRef.current);
-      saveDebounceRef.current = setTimeout(() => {
-        fetch("/api/assessment/save-answer", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            attemptId: session.attemptId,
-            mockQuestionId,
-            selectedOption: updated.selectedOption,
-            isMarkedForReview: updated.isMarkedForReview,
-            timeSpentSeconds: updated.timeSpentSeconds,
-          }),
-        })
-          .then((res) => {
-            if (res.ok) {
-              OfflineAnswerQueue.dequeue(session.attemptId, mockQuestionId);
-              setSaveStatus("saved");
-            } else {
-              setSaveStatus("offline");
-            }
-          })
-          .catch(() => {
-            setSaveStatus("offline");
-          });
-      }, 150);
+      if (isAdaptive) return;
+      getSync().save(mockQuestionId, updated);
     },
-    [isAdaptive, session.attemptId]
+    [isAdaptive, getSync]
   );
 
   // Flush active question time spent before transitioning or saving
@@ -498,7 +495,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
       const elapsedSec = Math.max(0, Math.round((now - activeQuestionStartTimeRef.current) / 1000));
       activeQuestionStartTimeRef.current = now;
 
-      const newSelected = currentAnswer.selectedOption === optionKey ? null : optionKey;
+      const newSelected = optionKey; // F3 (R6): no deselect on re-click; Clear Response removes an answer
       const updated: SavedAnswerState = {
         ...currentAnswer,
         selectedOption: newSelected,
@@ -542,12 +539,6 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
     }
   }, [currentQ, isViewingPastStep, currentAnswer, isAdaptive, persistAnswer]);
 
-  // Prompt Confirmation for Clear Response
-  const handleClearResponseClick = useCallback(() => {
-    if (!currentQ || !currentAnswer.selectedOption || isViewingPastStep) return;
-    setIsClearConfirmOpen(true);
-  }, [currentQ, currentAnswer.selectedOption, isViewingPastStep]);
-
   // Execute Clear Response with 2.5s Undo Capability
   const executeClearResponse = useCallback(() => {
     if (!currentQ || !currentAnswer.selectedOption || isViewingPastStep) return;
@@ -570,7 +561,6 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
     if (!isAdaptive) {
       persistAnswer(currentQ.mockQuestionId, updated);
     }
-    setIsClearConfirmOpen(false);
 
     setUndoClearState({
       mockQuestionId: currentQ.mockQuestionId,
@@ -580,7 +570,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
     if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
     undoTimeoutRef.current = setTimeout(() => {
       setUndoClearState(null);
-    }, 2500);
+    }, 5000);
   }, [currentQ, currentAnswer, isViewingPastStep, isAdaptive, persistAnswer]);
 
   // Restore Cleared Answer
@@ -610,6 +600,39 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
     setUndoClearState(null);
     if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
   }, [undoClearState, answers, isAdaptive, persistAnswer]);
+
+  // F3 (R6): CBT controls. "Save & Next" saves and moves on (and, as in the real CBT, an answered question it leaves is
+  // no longer "marked"); "Mark for Review & Next" marks and moves on. On the last question both open the submit summary.
+  const goNextOrSummary = useCallback(() => {
+    if (!fixedSession) return;
+    if (currentIndex < fixedSession.questions.length - 1) navigateToQuestionIndex(currentIndex + 1);
+    else {
+      flushCurrentQuestionActiveTime();
+      setIsSubmitOpen(true);
+    }
+  }, [fixedSession, currentIndex, navigateToQuestionIndex, flushCurrentQuestionActiveTime]);
+
+  const setMark = useCallback(
+    (marked: boolean) => {
+      if (!currentQ || isViewingPastStep || currentAnswer.isMarkedForReview === marked) return;
+      const updated: SavedAnswerState = { ...currentAnswer, isMarkedForReview: marked };
+      setAnswers((prev) => ({ ...prev, [currentQ.mockQuestionId]: { ...(prev[currentQ.mockQuestionId] ?? currentAnswer), isMarkedForReview: marked } }));
+      persistAnswer(currentQ.mockQuestionId, updated);
+    },
+    [currentQ, isViewingPastStep, currentAnswer, persistAnswer]
+  );
+
+  const handleSaveAndNext = useCallback(() => {
+    if (isAdaptive) return;
+    setMark(false);
+    goNextOrSummary();
+  }, [isAdaptive, setMark, goNextOrSummary]);
+
+  const handleMarkAndNext = useCallback(() => {
+    if (isAdaptive) return;
+    setMark(true);
+    goNextOrSummary();
+  }, [isAdaptive, setMark, goNextOrSummary]);
 
   // =========================================================================
   // ADAPTIVE NEXT STEP SUBMISSION & STEP PROGRESSION
@@ -716,10 +739,8 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
         !isExamStarted ||
         isSubmitOpen ||
         isInstructionsOpen ||
-        isReportOpen ||
-        isClearConfirmOpen ||
-        securityState.showFullscreenWarning ||
-        securityState.showTabSwitchWarning ||
+        isMobilePaletteOpen ||
+        document.querySelector("dialog[open]") !== null ||
         isSubmittingRef.current ||
         isStepTransitioning
       ) {
@@ -729,8 +750,8 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
       if (e.key === "ArrowRight" || e.key === "n" || e.key === "N") {
         if (isAdaptive) {
           handleAdaptiveNextStep();
-        } else if (fixedSession && currentIndex < fixedSession.questions.length - 1) {
-          navigateToQuestionIndex(currentIndex + 1);
+        } else {
+          handleSaveAndNext();
         }
       } else if (e.key === "ArrowLeft" || e.key === "p" || e.key === "P") {
         if (isAdaptive) {
@@ -741,9 +762,8 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
           navigateToQuestionIndex(currentIndex - 1);
         }
       } else if (e.key === "m" || e.key === "M") {
-        handleToggleReview();
-      } else if (e.key === "c" || e.key === "C") {
-        handleClearResponseClick();
+        if (isAdaptive) handleToggleReview();
+        else handleMarkAndNext();
       } else if (e.key === "?") {
         setIsInstructionsOpen((prev) => !prev);
       } else {
@@ -780,14 +800,12 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
     isExamStarted,
     isSubmitOpen,
     isInstructionsOpen,
-    isReportOpen,
-    isClearConfirmOpen,
-    securityState.showFullscreenWarning,
-    securityState.showTabSwitchWarning,
+    isMobilePaletteOpen,
     currentQ,
     handleSelectOption,
     handleToggleReview,
-    handleClearResponseClick,
+    handleSaveAndNext,
+    handleMarkAndNext,
     navigateToQuestionIndex,
   ]);
 
@@ -796,14 +814,13 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
     async (isAutoSubmit = false) => {
       if (isSubmittingRef.current) return;
       isSubmittingRef.current = true;
+      lastSubmitAutoRef.current = isAutoSubmit;
       setIsSubmitting(true);
       setSubmissionState(isAutoSubmit ? "time_expired" : "submitting");
       setSubmissionError(null);
 
       setIsSubmitOpen(false);
       setIsInstructionsOpen(false);
-      setIsReportOpen(false);
-      setIsClearConfirmOpen(false);
       setIsMobilePaletteOpen(false);
 
       flushCurrentQuestionActiveTime();
@@ -817,8 +834,8 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
           body: JSON.stringify({ attemptId: session.attemptId }),
         });
 
-        const data = await res.json();
-        if (data.success && data.resultId) {
+        const data = (await res.json().catch(() => ({}))) as { success?: boolean; resultId?: string };
+        if (res.ok && data.success && data.resultId) {
           setSubmissionState("submitted");
           OfflineAnswerQueue.clear(session.attemptId);
           router.push(`/mock-tests/${session.attemptId}/result`);
@@ -826,15 +843,15 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
           isSubmittingRef.current = false;
           setIsSubmitting(false);
           setSubmissionState("error");
-          setSubmissionError(
-            data.error || "We couldn't complete your submission. Your responses are preserved. Please try again."
-          );
+          setSubmissionError("Your answers are kept. Please try again.");
+          if (!isAutoSubmit) setIsSubmitOpen(true); // F3 (R7): the failure is shown, never swallowed
         }
       } catch {
         isSubmittingRef.current = false;
         setIsSubmitting(false);
         setSubmissionState("error");
-        setSubmissionError("Network communication error. Your responses are preserved locally. Please try again.");
+        setSubmissionError("We could not reach the server. Your answers are kept on this device. Please try again.");
+        if (!isAutoSubmit) setIsSubmitOpen(true);
       }
     },
     [session.attemptId, flushCurrentQuestionActiveTime, router]
@@ -960,7 +977,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
     return (
       <div className="fixed inset-0 z-50 bg-slate-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-3xl max-w-md w-full p-8 text-center space-y-5 border border-slate-200 shadow-xl">
-          <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto border border-amber-200">
+          <div className="w-14 h-14 rounded-2xl bg-ink-100 text-fg-secondary flex items-center justify-center mx-auto border border-line">
             <AlertTriangle className="w-7 h-7" />
           </div>
           <div className="space-y-1.5">
@@ -971,15 +988,15 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
           </div>
           <div className="flex items-center gap-3 pt-2">
             <Link href="/mock-tests" className="w-1/2">
-              <Button variant="outline" size="sm" className="w-full text-xs font-bold">
+              <Button variant="outline" size="lg" className="min-h-12 w-full font-semibold">
                 Back to Mocks
               </Button>
             </Link>
             <Button
               variant="default"
-              size="sm"
+              size="lg"
               onClick={() => window.location.reload()}
-              className="w-1/2 bg-blue-600 hover:bg-blue-700 text-xs font-bold"
+              className="min-h-12 w-1/2 font-semibold"
             >
               <RefreshCw className="w-3.5 h-3.5 mr-1" /> Retry
             </Button>
@@ -1056,7 +1073,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
             >
               Enter Fullscreen &amp; Begin Test <ArrowRight className="w-4 h-4 ml-1.5" />
             </Button>
-            <Link href="/mock-tests" className="block text-xs font-semibold text-slate-400 hover:text-slate-600">
+            <Link href="/mock-tests" className="focus-ring inline-flex min-h-12 items-center justify-center text-body-sm font-semibold text-fg-secondary underline underline-offset-2 hover:text-fg">
               Return to Mock Test Dashboard
             </Link>
           </div>
@@ -1067,46 +1084,48 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
 
   // =========================================================================
   // ACTIVE EXAM WORKSPACE
+  // F3: R4 one primary action ("Save & Next"); R5 status always visible; R6 CBT controls + palette; R7 honest save
+  // status; R8 calm (no blocking alarms — security events are a quiet, non-blocking notice and are still counted);
+  // R10 ≥ 48 px targets, accessible dialogs, focus rings.
   // =========================================================================
+  const isLastFixed = !isAdaptive && currentIndex === (fixedSession?.questions.length || 1) - 1;
+  const securityNotice = securityState.showFullscreenWarning
+    ? "Fullscreen is off. Your answers are safe; return to fullscreen when you are ready."
+    : securityState.showTabSwitchWarning
+    ? `You left the test window (${securityState.tabSwitchCount} time${securityState.tabSwitchCount > 1 ? "s" : ""}). This is recorded with your attempt.`
+    : null;
+  const showSubmitOverlay =
+    submissionState === "time_expired" || submissionState === "submitting" || submissionState === "submitted" || (submissionState === "error" && lastSubmitAutoRef.current);
+  const iconButton = "focus-ring flex size-12 items-center justify-center rounded-xl text-fg-secondary hover:bg-ink-100 hover:text-fg";
+
   return (
-    <div className="fixed inset-0 z-50 bg-slate-100 flex flex-col overflow-hidden select-none">
-      {/* Network Offline Status Banner */}
+    <div className="fixed inset-0 z-50 bg-canvas flex flex-col overflow-hidden select-none" data-player="">
+      {/* Offline: neutral notice (never amber / alarm) */}
       {saveStatus === "offline" && (
-        <div className="bg-amber-600 text-white text-[11px] font-bold py-1 px-4 text-center flex items-center justify-center gap-1.5 shadow-xs z-50">
-          <WifiOff className="w-3.5 h-3.5" />
-          <span>Offline mode active — answers are safely preserved on your device and will sync automatically.</span>
+        <div role="status" className="flex items-center justify-center gap-2 border-b border-line bg-ink-100 px-4 py-2 text-center text-body-sm font-medium text-fg z-50">
+          <WifiOff aria-hidden="true" className="size-4 shrink-0" />
+          <span>You are offline. Your answers are kept on this device and will be sent when you are back online.</span>
         </div>
       )}
 
-      {/* Transition Error Retry Banner (Adaptive Mode) */}
+      {/* Adaptive step error: static, next to the action (no slide-in) */}
       {stepTransitionError && (
-        <div className="bg-rose-600 text-white text-xs font-bold py-2 px-4 text-center flex items-center justify-between gap-2 shadow-md z-50 animate-in slide-in-from-top-1">
-          <div className="flex items-center gap-2 mx-auto">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>{stepTransitionError}</span>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleAdaptiveNextStep}
-              className="ml-2 bg-white text-rose-700 hover:bg-rose-50 h-7 text-xs font-black cursor-pointer"
-            >
-              <RefreshCw className="w-3 h-3 mr-1" /> Retry
-            </Button>
-          </div>
+        <div role="alert" className="flex flex-wrap items-center justify-center gap-3 border-b border-danger-200 bg-danger-50 px-4 py-2 text-body-sm font-medium text-danger-800 z-50">
+          <AlertCircle aria-hidden="true" className="size-4 shrink-0" />
+          <span>{stepTransitionError}</span>
+          <Button size="lg" variant="outline" onClick={handleAdaptiveNextStep} className="min-h-12 bg-surface font-semibold">
+            <RefreshCw aria-hidden="true" className="mr-1 size-4" /> Try again
+          </Button>
         </div>
       )}
 
       {/* ========================================================================= */}
       {/* EXAM PLAYER HEADER                                                        */}
       {/* ========================================================================= */}
-      <header className="h-14 sm:h-16 bg-white border-b border-slate-200 px-3 sm:px-6 flex items-center justify-between shrink-0 z-20">
-        {/* ZONE 1: BRAND IDENTITY & ADAPTIVE BADGE */}
-        <div className="flex items-center gap-2 sm:gap-3.5 shrink-0">
+      <header className="min-h-16 bg-surface border-b border-line px-3 sm:px-6 flex items-center justify-between gap-2 shrink-0 z-20">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3.5 shrink-0">
           <BrandLogo size="sm" variant="icon" showText={false} />
-          <span className="font-black tracking-tight text-slate-900 text-xs sm:text-[15px] select-none whitespace-nowrap">
-            COURAGE LIBRARY
-          </span>
-          <div className="hidden md:block h-5 sm:h-6 w-px bg-slate-200" />
+          <span className="hidden font-black tracking-tight text-fg text-sm sm:inline sm:text-[15px] select-none whitespace-nowrap">COURAGE LIBRARY</span>
           {isAdaptive && (
             <div className="hidden sm:block">
               <AdaptiveProgressBadge
@@ -1120,144 +1139,88 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
           )}
         </div>
 
-        {/* ZONE 2: TEST IDENTITY & METADATA */}
         <div className="hidden md:flex flex-col items-center justify-center text-center px-4 min-w-0 max-w-sm lg:max-w-md xl:max-w-lg">
-          <h1 className="font-black text-xs sm:text-sm text-slate-900 truncate w-full tracking-tight" title={session.testTitle}>
+          <h1 className="font-bold text-body-sm text-fg truncate w-full" title={session.testTitle}>
             {session.testTitle}
           </h1>
-          <span className="text-[10px] text-slate-500 font-bold font-mono tracking-wider">
-            Attempt #{session.attemptId.slice(0, 6).toUpperCase()}
-          </span>
         </div>
 
-        {/* ZONE 3: CONTROLS & DESKTOP SUBMIT */}
-        <div className="flex items-center gap-2 sm:gap-2.5">
-          {/* Live Save Status Indicator */}
-          <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-50 border border-slate-200/80 text-[11px] font-bold text-slate-600">
-            {isStepTransitioning || saveStatus === "saving" ? (
-              <>
-                <RefreshCw className="w-3 h-3 text-blue-600 animate-spin" />
-                <span>Saving...</span>
-              </>
-            ) : saveStatus === "offline" ? (
-              <>
-                <WifiOff className="w-3 h-3 text-amber-600" />
-                <span className="text-amber-700">Offline (Saved)</span>
-              </>
-            ) : saveStatus === "synced" ? (
-              <>
-                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                <span className="text-emerald-700">All Synced</span>
-              </>
-            ) : (
-              <>
-                <Check className="w-3 h-3 text-emerald-600" />
-                <span className="text-slate-600">Saved</span>
-              </>
-            )}
+        <div className="flex min-w-0 items-center gap-1.5 sm:gap-2.5">
+          <div className="hidden md:block">
+            <SaveStatusChip status={isStepTransitioning ? "saving" : saveStatus} />
           </div>
-
-          {/* Persistent Timer */}
-          <AssessmentTimer
-            initialRemainingSeconds={session.remainingSeconds}
-            onTimeExpired={() => handleSubmitAttempt(true)}
-          />
-
-          {/* Desktop Instructions / Help Button */}
-          <button
-            type="button"
-            onClick={() => setIsInstructionsOpen(true)}
-            title="View Instructions (?)"
-            className="hidden md:flex items-center gap-1 p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer text-xs font-bold"
-          >
-            <HelpCircle className="w-4 h-4" />
+          <AssessmentTimer initialRemainingSeconds={session.remainingSeconds} onTimeExpired={() => handleSubmitAttempt(true)} />
+          <button type="button" onClick={() => setIsInstructionsOpen(true)} aria-label="Instructions" className={`hidden md:flex ${iconButton}`}>
+            <HelpCircle aria-hidden="true" className="size-5" />
           </button>
-
-          {/* Desktop Fullscreen Button */}
           <button
             type="button"
             onClick={handleReturnToFullscreen}
-            title={securityState.isFullscreen ? "Fullscreen Active" : "Enter Fullscreen"}
-            className="hidden md:flex items-center p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer"
+            aria-label={securityState.isFullscreen ? "Fullscreen is on" : "Enter fullscreen"}
+            className={`hidden md:flex ${iconButton}`}
           >
-            {securityState.isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            {securityState.isFullscreen ? <Minimize2 aria-hidden="true" className="size-5" /> : <Maximize2 aria-hidden="true" className="size-5" />}
           </button>
-
-          {/* DESKTOP ONLY: Submit Test Button */}
+          {/* quiet secondary action (R4): "Save & Next" stays the one primary action */}
           <Button
-            size="sm"
-            variant="default"
+            size="lg"
+            variant="outline"
             disabled={isSubmitting || isStepTransitioning}
-            className="hidden md:inline-flex bg-emerald-600 hover:bg-emerald-700 font-bold text-xs shadow-xs"
-            onClick={() => setIsSubmitOpen(true)}
+            className="hidden min-h-12 font-semibold md:inline-flex"
+            onClick={() => {
+              flushCurrentQuestionActiveTime();
+              setIsSubmitOpen(true);
+            }}
           >
-            <Send className="w-3.5 h-3.5 mr-1" /> Submit Test
+            <Send aria-hidden="true" className="mr-1.5 size-4" /> Submit test
           </Button>
-
-          {/* Mobile / Tablet Palette Drawer Toggle Button */}
-          <button
-            type="button"
-            className="lg:hidden p-2 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition cursor-pointer flex items-center gap-1 text-xs font-bold border border-slate-200/80"
-            onClick={() => setIsMobilePaletteOpen(true)}
-            aria-label="Open Question Palette"
-          >
-            <Menu className="w-4 h-4" />
-            <span className="hidden xs:inline text-[11px]">Palette</span>
+          <button type="button" className={`lg:hidden ${iconButton} border border-line`} onClick={() => setIsMobilePaletteOpen(true)} aria-label="Open question palette">
+            <Menu aria-hidden="true" className="size-5" />
           </button>
         </div>
       </header>
 
-      {/* ========================================================================= */}
-      {/* MOBILE TEST CONTEXT & ADAPTIVE STRIP                                      */}
-      {/* ========================================================================= */}
-      <div className="md:hidden bg-slate-50/95 border-b border-slate-200 px-3.5 py-1.5 flex items-center justify-between gap-2 shrink-0 z-10">
-        <div className="min-w-0 flex-1">
-          <div className="font-extrabold text-[12px] text-slate-900 truncate leading-tight" title={session.testTitle}>
-            {session.testTitle}
-          </div>
-          <div className="text-[10px] text-slate-500 font-bold font-mono tracking-wide leading-none mt-0.5">
-            Attempt #{session.attemptId.slice(0, 6).toUpperCase()}
-          </div>
+      {/* Quiet, non-blocking security notice (R8) */}
+      {securityNotice && (
+        <div role="status" className="flex flex-wrap items-center justify-center gap-2 border-b border-line bg-info-50 px-4 py-1.5 text-body-sm text-fg z-10" data-security-notice="">
+          <span>{securityNotice}</span>
+          {securityState.showFullscreenWarning && (
+            <Button size="lg" variant="outline" className="min-h-12 bg-surface font-semibold" onClick={handleReturnToFullscreen}>
+              Return to fullscreen
+            </Button>
+          )}
+          <Button
+            size="lg"
+            variant="ghost"
+            className="min-h-12"
+            onClick={() => {
+              handleDismissTabWarning();
+              setSecurityState((prev) => ({ ...prev, showFullscreenWarning: false }));
+            }}
+          >
+            Dismiss
+          </Button>
         </div>
+      )}
 
-        {isAdaptive ? (
-          <AdaptiveProgressBadge
-            currentStep={viewingStepNumber}
-            minQuestions={adaptiveSession?.adaptive.minQuestions || 20}
-            maxQuestions={adaptiveSession?.adaptive.maxQuestions || 50}
-            difficultyTier={currentDifficultyTier}
-            isStoppingRuleMet={stoppingRuleMet}
-            className="text-[10px] py-0.5 px-2"
-          />
-        ) : (
-          <div className="shrink-0 flex items-center gap-1 text-[10px] font-bold text-slate-600 bg-white px-2 py-0.5 rounded-md border border-slate-200 shadow-2xs">
-            {saveStatus === "saving" ? (
-              <>
-                <RefreshCw className="w-2.5 h-2.5 text-blue-600 animate-spin" />
-                <span>Saving</span>
-              </>
-            ) : saveStatus === "offline" ? (
-              <>
-                <WifiOff className="w-2.5 h-2.5 text-amber-600" />
-                <span className="text-amber-700">Offline</span>
-              </>
-            ) : (
-              <>
-                <Check className="w-2.5 h-2.5 text-emerald-600" />
-                <span>Saved</span>
-              </>
-            )}
-          </div>
-        )}
+      {/* ========================================================================= */}
+      {/* MOBILE STATUS STRIP (R5: progress + save status always visible)          */}
+      {/* ========================================================================= */}
+      <div className="md:hidden bg-surface-sunken border-b border-line px-3.5 py-1.5 flex items-center justify-between gap-2 shrink-0 z-10">
+        <div className="min-w-0 flex-1 text-body-sm font-semibold text-fg tabular-nums">
+          {isAdaptive ? `Step ${viewingStepNumber}` : `Q ${currentIndex + 1} of ${fixedSession?.questions.length || 0}`}
+          <span className="ml-2 font-normal text-fg-secondary">
+            {answeredCount} answered · {markedCount} marked
+          </span>
+        </div>
+        <SaveStatusChip status={isStepTransitioning ? "saving" : saveStatus} compact />
       </div>
 
       {/* ========================================================================= */}
       {/* EXAM WORKSPACE BODY                                                       */}
       {/* ========================================================================= */}
       <div className="flex-1 flex overflow-hidden z-10">
-        {/* Main Question Viewport */}
-        <main className="relative flex-1 bg-white p-4 sm:p-7 overflow-y-auto flex flex-col justify-between pb-28 md:pb-6">
-          {/* Dynamic Candidate Security Watermark */}
+        <main className="relative flex-1 bg-surface p-4 sm:p-7 overflow-y-auto flex flex-col justify-between pb-40 md:pb-6">
           <CandidateSecurityWatermark
             examTitle={session.testTitle}
             maskedCandidateId={`CL••••${session.attemptId.slice(0, 4).toUpperCase()}`}
@@ -1266,24 +1229,18 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
           />
 
           <div className="relative z-10 max-w-3xl w-full mx-auto space-y-4 sm:space-y-6">
-            {/* Read-Only Past Step Notice Banner */}
             {isViewingPastStep && (
-              <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs font-semibold text-amber-800 flex items-center justify-between">
-                <span>Viewing Step {viewingStepNumber} (Answer Locked). Click Next to return to active question.</span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setViewingStepNumber(activeStepNumber)}
-                  className="h-6 text-[11px] font-bold bg-white text-amber-900 border-amber-300"
-                >
-                  Go to Active Step ({activeStepNumber})
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface-sunken p-2.5 text-body-sm font-medium text-fg">
+                <span>Viewing step {viewingStepNumber} (answer locked).</span>
+                <Button size="lg" variant="outline" onClick={() => setViewingStepNumber(activeStepNumber)} className="min-h-12 bg-surface font-semibold">
+                  Go to current step ({activeStepNumber})
                 </Button>
               </div>
             )}
 
-            {/* Section Switcher Tabs (Fixed Mock Only) */}
+            {/* Section tabs (fixed mocks): a real tablist (R6 / R10) */}
             {!isAdaptive && fixedSession && fixedSession.sections.length > 1 && (
-              <div className="flex items-center gap-1.5 p-1 bg-slate-100/90 rounded-2xl overflow-x-auto">
+              <div role="tablist" aria-label="Sections" className="flex items-center gap-1.5 p-1 bg-ink-100 rounded-2xl overflow-x-auto">
                 {fixedSession.sections.map((sec) => {
                   const isCurrentSec = currentQ?.sectionId === sec.id;
                   const secQuestions = fixedSession.questions.filter((q) => q.sectionId === sec.id);
@@ -1292,18 +1249,18 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
                     <button
                       key={sec.id}
                       type="button"
+                      role="tab"
+                      aria-selected={isCurrentSec}
                       onClick={() => {
                         const firstInSec = fixedSession.questions.findIndex((q) => q.sectionId === sec.id);
                         if (firstInSec !== -1) navigateToQuestionIndex(firstInSec);
                       }}
-                      className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap cursor-pointer flex items-center gap-2 ${
-                        isCurrentSec
-                          ? "bg-white text-blue-700 shadow-2xs"
-                          : "text-slate-600 hover:text-slate-900"
+                      className={`focus-ring min-h-12 px-3 text-body-sm font-semibold rounded-xl whitespace-nowrap flex items-center gap-2 border-b-2 ${
+                        isCurrentSec ? "bg-surface text-fg border-primary-600 shadow-xs" : "text-fg-secondary border-transparent hover:text-fg"
                       }`}
                     >
                       <span>{sec.name}</span>
-                      <span className={`text-[10px] px-1.5 py-0.2 rounded-md ${isCurrentSec ? "bg-blue-50 text-blue-800" : "bg-slate-200 text-slate-700"}`}>
+                      <span className="text-caption text-fg-secondary tabular-nums">
                         {secAnswered}/{secQuestions.length}
                       </span>
                     </button>
@@ -1312,11 +1269,10 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
               </div>
             )}
 
-            {/* Question Text & Figure Renderer */}
             {currentQ && (
               <QuestionRenderer
                 questionNumber={currentQ.questionOrder}
-                totalQuestions={isAdaptive ? (adaptiveSession?.adaptive.maxQuestions || 50) : (fixedSession?.questions.length || 0)}
+                totalQuestions={isAdaptive ? undefined : fixedSession?.questions.length || 0}
                 questionText={currentQ.questionText || ""}
                 questionImageUrl={currentQ.questionImageUrl}
                 marks={currentQ.marks || 1}
@@ -1325,7 +1281,6 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
               />
             )}
 
-            {/* Clickable Option Cards */}
             {currentQ && (
               <QuestionOptions
                 options={currentQ.options || []}
@@ -1333,170 +1288,67 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
                 selectedOption={currentAnswer.selectedOption}
                 onSelectOption={handleSelectOption}
                 disabled={isSubmitting || isStepTransitioning || isViewingPastStep}
+                label={`Answer options for question ${currentQ.questionOrder}`}
               />
             )}
           </div>
 
-          {/* Desktop Bottom Action Footer */}
-          <div className="hidden md:flex relative z-10 max-w-3xl w-full mx-auto pt-4 mt-6 border-t border-slate-100 flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant={currentAnswer.isMarkedForReview ? "secondary" : "outline"}
-                size="sm"
-                disabled={isViewingPastStep || isStepTransitioning}
-                className={
-                  currentAnswer.isMarkedForReview
-                    ? "bg-purple-50 text-purple-700 border-purple-300 font-bold"
-                    : "font-semibold"
-                }
-                onClick={handleToggleReview}
-              >
-                <Bookmark className="w-3.5 h-3.5 mr-1.5" />
-                {currentAnswer.isMarkedForReview ? "Marked for Review" : "Mark for Review"}
+          {/* Desktop action footer — CBT controls; ONE primary (Save & Next) */}
+          <div className="hidden md:flex relative z-10 max-w-3xl w-full mx-auto pt-4 mt-6 border-t border-line flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              {isAdaptive ? (
+                <Button type="button" size="lg" variant="outline" disabled={isViewingPastStep || isStepTransitioning} aria-pressed={currentAnswer.isMarkedForReview} className="min-h-12 font-semibold" onClick={handleToggleReview}>
+                  <Bookmark aria-hidden="true" className="mr-1.5 size-4" />
+                  {currentAnswer.isMarkedForReview ? "Marked for review" : "Mark for review"}
+                </Button>
+              ) : (
+                <Button type="button" size="lg" variant="outline" className="min-h-12 font-semibold" onClick={handleMarkAndNext} data-cbt="mark-next">
+                  <Bookmark aria-hidden="true" className="mr-1.5 size-4" /> Mark for Review &amp; Next
+                </Button>
+              )}
+              <Button type="button" size="lg" variant="ghost" disabled={!currentAnswer.selectedOption || isViewingPastStep || isStepTransitioning} onClick={executeClearResponse} className="min-h-12 font-semibold" data-cbt="clear">
+                <RotateCcw aria-hidden="true" className="mr-1.5 size-4" /> Clear Response
               </Button>
-
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={!currentAnswer.selectedOption || isViewingPastStep || isStepTransitioning}
-                onClick={handleClearResponseClick}
-                className="text-xs text-slate-500 hover:text-red-700 hover:bg-red-50 font-semibold disabled:opacity-40"
-              >
-                <RotateCcw className="w-3.5 h-3.5 mr-1" /> Clear Response
-              </Button>
-
-              <button
-                type="button"
-                onClick={() => setIsReportOpen(true)}
-                title="Report issue with question"
-                className="p-2 text-slate-400 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition text-xs font-semibold flex items-center gap-1 cursor-pointer"
-              >
-                <Flag className="w-3.5 h-3.5" />
-                <span>Report</span>
-              </button>
+              {currentQ && <ReportQuestionButton questionId={currentQ.questionId ?? null} questionVersionId={currentQ.questionVersionId || null} />}
             </div>
 
             <div className="flex items-center gap-2">
               <Button
                 type="button"
+                size="lg"
                 variant="outline"
-                size="sm"
-                disabled={isAdaptive ? (viewingStepNumber <= 1 || isStepTransitioning) : (currentIndex === 0)}
-                onClick={() => {
-                  if (isAdaptive) {
-                    setViewingStepNumber((prev) => Math.max(1, prev - 1));
-                  } else {
-                    navigateToQuestionIndex(currentIndex - 1);
-                  }
-                }}
-                className="font-bold"
+                disabled={isAdaptive ? viewingStepNumber <= 1 || isStepTransitioning : currentIndex === 0}
+                onClick={() => (isAdaptive ? setViewingStepNumber((prev) => Math.max(1, prev - 1)) : navigateToQuestionIndex(currentIndex - 1))}
+                className="min-h-12 font-semibold"
               >
-                <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+                <ChevronLeft aria-hidden="true" className="mr-1 size-4" /> Previous
               </Button>
-
               {isAdaptive ? (
                 stoppingRuleMet || activeStepNumber >= (adaptiveSession?.adaptive.maxQuestions || 50) ? (
-                  <Button
-                    type="button"
-                    variant="default"
-                    size="sm"
-                    onClick={() => setIsSubmitOpen(true)}
-                    className="font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
-                  >
-                    Review &amp; Submit <Send className="w-3.5 h-3.5 ml-1.5" />
+                  <Button type="button" size="lg" onClick={() => setIsSubmitOpen(true)} className="min-h-12 font-semibold">
+                    Review &amp; submit <Send aria-hidden="true" className="ml-1.5 size-4" />
                   </Button>
                 ) : (
-                  <Button
-                    type="button"
-                    variant="default"
-                    size="sm"
-                    disabled={isStepTransitioning}
-                    onClick={handleAdaptiveNextStep}
-                    className="font-bold bg-blue-600 hover:bg-blue-700 text-white min-w-[130px]"
-                  >
-                    {isStepTransitioning ? (
-                      <>
-                        <RefreshCw className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Next Question...
-                      </>
-                    ) : (
-                      <>
-                        Next Question <ChevronRight className="w-4 h-4 ml-1" />
-                      </>
-                    )}
+                  <Button type="button" size="lg" disabled={isStepTransitioning} onClick={handleAdaptiveNextStep} className="min-h-12 min-w-[150px] font-semibold">
+                    {isStepTransitioning ? "Saving…" : "Save & Next"} <ChevronRight aria-hidden="true" className="ml-1 size-4" />
                   </Button>
                 )
-              ) : currentIndex === (fixedSession?.questions.length || 1) - 1 ? (
-                <Button
-                  type="button"
-                  variant="default"
-                  size="sm"
-                  onClick={() => setIsSubmitOpen(true)}
-                  className="font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
-                >
-                  Review &amp; Submit <Send className="w-3.5 h-3.5 ml-1.5" />
-                </Button>
               ) : (
-                <Button
-                  type="button"
-                  variant="default"
-                  size="sm"
-                  onClick={() => navigateToQuestionIndex(currentIndex + 1)}
-                  className="font-bold bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  Next <ChevronRight className="w-4 h-4 ml-1" />
+                <Button type="button" size="lg" onClick={handleSaveAndNext} className="min-h-12 font-semibold" data-cbt="save-next">
+                  {isLastFixed ? "Save & review summary" : "Save & Next"} <ChevronRight aria-hidden="true" className="ml-1 size-4" />
                 </Button>
               )}
             </div>
           </div>
         </main>
 
-        {/* Question Palette Sidebar (Desktop) */}
-        <aside className="hidden lg:block w-80 bg-slate-50 border-l border-slate-200 p-5 overflow-y-auto shrink-0 space-y-4">
-          {!isAdaptive && fixedSession && fixedSession.sections.length > 1 && (
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-[11px] font-bold text-slate-600 uppercase tracking-wider font-mono">
-                <span>Sections</span>
-                <span>
-                  {fixedSession.sections.findIndex((s) => s.id === currentSection?.id) + 1} of {fixedSession.sections.length}
-                </span>
-              </div>
-              <div className="grid grid-cols-2 gap-1.5">
-                {fixedSession.sections.map((sec) => {
-                  const isSecActive = currentSection?.id === sec.id;
-                  const secQs = fixedSession.questions.filter((q) => q.sectionId === sec.id);
-                  const secAns = secQs.filter((q) => Boolean(answers[q.mockQuestionId]?.selectedOption)).length;
-                  return (
-                    <button
-                      key={sec.id}
-                      type="button"
-                      onClick={() => {
-                        const firstInSec = fixedSession.questions.findIndex((q) => q.sectionId === sec.id);
-                        if (firstInSec !== -1) navigateToQuestionIndex(firstInSec);
-                      }}
-                      className={`p-2 rounded-xl text-left border transition-all cursor-pointer ${
-                        isSecActive
-                          ? "bg-blue-50/90 border-blue-300 text-blue-900 shadow-2xs font-bold"
-                          : "bg-white border-slate-200 text-slate-600 hover:bg-slate-100/80 font-medium"
-                      }`}
-                    >
-                      <div className="text-[11px] font-bold truncate">{sec.name}</div>
-                      <div className="text-[10px] text-slate-400 font-mono">
-                        {secAns}/{secQs.length} answered
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
+        {/* Question palette sidebar (desktop) — the section tabs above the question are the one section switcher */}
+        <aside className="hidden lg:block w-80 bg-surface-sunken border-l border-line p-5 overflow-y-auto shrink-0 space-y-4">
           <QuestionPalette
             questions={sectionPaletteItems}
-            currentOrder={isAdaptive ? viewingStepNumber : (currentQ?.questionOrder || 1)}
+            currentOrder={isAdaptive ? viewingStepNumber : currentQ?.questionOrder || 1}
             sectionName={currentSection?.name}
-            globalTotal={isAdaptive ? (adaptiveSession?.adaptive.maxQuestions || 50) : fixedSession?.questions.length}
+            globalTotal={isAdaptive ? undefined : fixedSession?.questions.length}
             globalAnswered={answeredCount}
             onSelectQuestion={navigateToQuestionOrder}
           />
@@ -1504,354 +1356,150 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
       </div>
 
       {/* ========================================================================= */}
-      {/* MOBILE FIXED BOTTOM ACTION BAR                                            */}
+      {/* MOBILE BOTTOM ACTION BAR — ONE primary (Save & Next); Submit lives in the palette sheet / last question */}
       {/* ========================================================================= */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200/90 z-30 px-3 pt-2 pb-[max(0.6rem,env(safe-area-inset-bottom))] shadow-[0_-4px_16px_color-mix(in_srgb,var(--color-ink-900)_6%,transparent)]">
-        {/* Row 1: Utility Actions */}
-        <div className="flex items-center justify-between gap-1.5 pb-2 border-b border-slate-100">
-          <button
-            type="button"
-            disabled={isViewingPastStep || isStepTransitioning}
-            onClick={handleToggleReview}
-            className={`flex-1 py-1 px-2 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 transition cursor-pointer ${
-              currentAnswer.isMarkedForReview
-                ? "bg-purple-100 text-purple-800 border border-purple-300 shadow-2xs"
-                : "bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200"
-            }`}
-          >
-            <Bookmark className="w-3.5 h-3.5" />
-            <span>{currentAnswer.isMarkedForReview ? "Marked" : "Review"}</span>
-          </button>
-
-          <button
-            type="button"
-            disabled={!currentAnswer.selectedOption || isViewingPastStep || isStepTransitioning}
-            onClick={handleClearResponseClick}
-            className="flex-1 py-1 px-2 rounded-lg text-[11px] font-bold text-slate-600 hover:text-red-700 bg-slate-50 hover:bg-red-50 border border-slate-200 flex items-center justify-center gap-1 transition cursor-pointer disabled:opacity-40 disabled:hover:bg-slate-50 disabled:hover:text-slate-600 disabled:cursor-not-allowed"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>Clear</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setIsReportOpen(true)}
-            className="py-1 px-2.5 rounded-lg text-[11px] font-bold text-slate-600 hover:text-amber-700 bg-slate-50 hover:bg-amber-50 border border-slate-200 flex items-center justify-center gap-1 transition cursor-pointer"
-            title="Report Question Issue"
-          >
-            <Flag className="w-3.5 h-3.5" />
-            <span>Report</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setIsInstructionsOpen(true)}
-            className="py-1 px-2 rounded-lg text-[11px] font-bold text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 flex items-center justify-center transition cursor-pointer"
-            title="View Instructions"
-          >
-            <HelpCircle className="w-3.5 h-3.5" />
-          </button>
-        </div>
-
-        {/* Row 2: Navigation & Direct Submit Actions */}
-        <div className="flex items-center gap-2 pt-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={isAdaptive ? (viewingStepNumber <= 1 || isStepTransitioning) : (currentIndex === 0)}
-            onClick={() => {
-              if (isAdaptive) {
-                setViewingStepNumber((prev) => Math.max(1, prev - 1));
-              } else {
-                navigateToQuestionIndex(currentIndex - 1);
-              }
-            }}
-            className="flex-1 h-9 font-bold text-xs"
-          >
-            <ChevronLeft className="w-4 h-4 mr-0.5" /> Prev
-          </Button>
-
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-surface border-t border-line z-30 px-3 pt-2 pb-[max(0.6rem,env(safe-area-inset-bottom))]">
+        <div className="flex items-center gap-2 pb-2">
           {isAdaptive ? (
-            stoppingRuleMet || activeStepNumber >= (adaptiveSession?.adaptive.maxQuestions || 50) ? (
-              <Button
-                type="button"
-                variant="default"
-                size="sm"
-                disabled={isSubmitting || isStepTransitioning}
-                onClick={() => setIsSubmitOpen(true)}
-                className="flex-2 h-9 font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
-              >
-                Review &amp; Submit <Send className="w-3.5 h-3.5 ml-1.5" />
-              </Button>
-            ) : (
-              <>
-                <Button
-                  type="button"
-                  variant="default"
-                  size="sm"
-                  disabled={isStepTransitioning}
-                  onClick={handleAdaptiveNextStep}
-                  className="flex-1 h-9 font-bold text-xs bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  {isStepTransitioning ? "Next..." : "Next"} <ChevronRight className="w-4 h-4 ml-0.5" />
-                </Button>
-
-                <Button
-                  type="button"
-                  variant="default"
-                  size="sm"
-                  disabled={isSubmitting || isStepTransitioning}
-                  onClick={() => setIsSubmitOpen(true)}
-                  className="h-9 px-3.5 font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shrink-0 shadow-xs"
-                >
-                  <Send className="w-3.5 h-3.5 mr-1" /> Submit
-                </Button>
-              </>
-            )
-          ) : currentIndex === (fixedSession?.questions.length || 1) - 1 ? (
-            <Button
-              type="button"
-              variant="default"
-              size="sm"
-              disabled={isSubmitting}
-              onClick={() => setIsSubmitOpen(true)}
-              className="flex-2 h-9 font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
-            >
-              Review &amp; Submit <Send className="w-3.5 h-3.5 ml-1.5" />
+            <Button type="button" size="lg" variant="outline" disabled={isViewingPastStep || isStepTransitioning} aria-pressed={currentAnswer.isMarkedForReview} onClick={handleToggleReview} className="min-h-12 flex-1 font-semibold">
+              <Bookmark aria-hidden="true" className="mr-1 size-4" /> {currentAnswer.isMarkedForReview ? "Marked" : "Mark"}
             </Button>
           ) : (
-            <>
-              <Button
-                type="button"
-                variant="default"
-                size="sm"
-                onClick={() => navigateToQuestionIndex(currentIndex + 1)}
-                className="flex-1 h-9 font-bold text-xs bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                Next <ChevronRight className="w-4 h-4 ml-0.5" />
+            <Button type="button" size="lg" variant="outline" onClick={handleMarkAndNext} className="min-h-12 flex-1 font-semibold">
+              <Bookmark aria-hidden="true" className="mr-1 size-4" /> Mark &amp; Next
+            </Button>
+          )}
+          <Button type="button" size="lg" variant="ghost" disabled={!currentAnswer.selectedOption || isViewingPastStep || isStepTransitioning} onClick={executeClearResponse} className="min-h-12 flex-1 font-semibold">
+            <RotateCcw aria-hidden="true" className="mr-1 size-4" /> Clear
+          </Button>
+          <button type="button" onClick={() => setIsInstructionsOpen(true)} aria-label="Instructions" className={`${iconButton} border border-line`}>
+            <HelpCircle aria-hidden="true" className="size-5" />
+          </button>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            size="lg"
+            variant="outline"
+            disabled={isAdaptive ? viewingStepNumber <= 1 || isStepTransitioning : currentIndex === 0}
+            onClick={() => (isAdaptive ? setViewingStepNumber((prev) => Math.max(1, prev - 1)) : navigateToQuestionIndex(currentIndex - 1))}
+            className="min-h-12 flex-1 font-semibold"
+          >
+            <ChevronLeft aria-hidden="true" className="mr-0.5 size-4" /> Prev
+          </Button>
+          {isAdaptive ? (
+            stoppingRuleMet || activeStepNumber >= (adaptiveSession?.adaptive.maxQuestions || 50) ? (
+              <Button type="button" size="lg" disabled={isSubmitting || isStepTransitioning} onClick={() => setIsSubmitOpen(true)} className="min-h-12 flex-[2] font-semibold">
+                Review &amp; submit
               </Button>
-
-              <Button
-                type="button"
-                variant="default"
-                size="sm"
-                disabled={isSubmitting}
-                onClick={() => setIsSubmitOpen(true)}
-                className="h-9 px-3.5 font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shrink-0 shadow-xs"
-              >
-                <Send className="w-3.5 h-3.5 mr-1" /> Submit
+            ) : (
+              <Button type="button" size="lg" disabled={isStepTransitioning} onClick={handleAdaptiveNextStep} className="min-h-12 flex-[2] font-semibold">
+                {isStepTransitioning ? "Saving…" : "Save & Next"} <ChevronRight aria-hidden="true" className="ml-0.5 size-4" />
               </Button>
-            </>
+            )
+          ) : (
+            <Button type="button" size="lg" onClick={handleSaveAndNext} className="min-h-12 flex-[2] font-semibold">
+              {isLastFixed ? "Save & review" : "Save & Next"} <ChevronRight aria-hidden="true" className="ml-0.5 size-4" />
+            </Button>
           )}
         </div>
       </div>
 
-      {/* ========================================================================= */}
-      {/* MOBILE PALETTE DRAWER                                                     */}
-      {/* ========================================================================= */}
-      {isMobilePaletteOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden bg-slate-900/60 backdrop-blur-xs flex justify-end animate-in fade-in">
-          <div className="w-80 bg-white h-full p-5 overflow-y-auto space-y-4 shadow-2xl flex flex-col justify-between">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                <h3 className="font-bold text-sm text-slate-900">Question Palette</h3>
+      {/* Mobile palette: accessible bottom sheet (focus trap, Esc) */}
+      <Dialog open={isMobilePaletteOpen} onOpenChange={setIsMobilePaletteOpen} variant="sheet" title="Question palette">
+        <div className="flex flex-col gap-4">
+          {!isAdaptive && fixedSession && fixedSession.sections.length > 1 && (
+            <div role="tablist" aria-label="Sections" className="flex items-center gap-1 overflow-x-auto pb-1">
+              {fixedSession.sections.map((sec) => (
                 <button
+                  key={sec.id}
                   type="button"
-                  onClick={() => setIsMobilePaletteOpen(false)}
-                  className="p-1 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer"
+                  role="tab"
+                  aria-selected={currentQ?.sectionId === sec.id}
+                  onClick={() => {
+                    const firstInSec = fixedSession.questions.findIndex((q) => q.sectionId === sec.id);
+                    if (firstInSec !== -1) navigateToQuestionIndex(firstInSec);
+                  }}
+                  className={`focus-ring min-h-12 px-3 text-body-sm font-semibold rounded-lg whitespace-nowrap ${currentQ?.sectionId === sec.id ? "bg-primary-50 text-fg border-2 border-primary-600" : "bg-ink-100 text-fg"}`}
                 >
-                  <X className="w-5 h-5" />
+                  {sec.name}
                 </button>
-              </div>
-
-              {!isAdaptive && fixedSession && fixedSession.sections.length > 1 && (
-                <div className="flex items-center gap-1 overflow-x-auto pb-1">
-                  {fixedSession.sections.map((sec) => (
-                    <button
-                      key={sec.id}
-                      type="button"
-                      onClick={() => {
-                        const firstInSec = fixedSession.questions.findIndex((q) => q.sectionId === sec.id);
-                        if (firstInSec !== -1) navigateToQuestionIndex(firstInSec);
-                      }}
-                      className={`px-2.5 py-1 text-[11px] font-bold rounded-lg whitespace-nowrap cursor-pointer ${
-                        currentQ?.sectionId === sec.id
-                          ? "bg-blue-600 text-white"
-                          : "bg-slate-100 text-slate-700"
-                      }`}
-                    >
-                      {sec.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              <QuestionPalette
-                questions={sectionPaletteItems}
-                currentOrder={isAdaptive ? viewingStepNumber : (currentQ?.questionOrder || 1)}
-                sectionName={currentSection?.name}
-                globalTotal={isAdaptive ? (adaptiveSession?.adaptive.maxQuestions || 50) : fixedSession?.questions.length}
-                globalAnswered={answeredCount}
-                onSelectQuestion={(order) => {
-                  navigateToQuestionOrder(order);
-                  setIsMobilePaletteOpen(false);
-                }}
-              />
+              ))}
             </div>
-
-            <Button
-              size="sm"
-              variant="default"
-              className="w-full bg-emerald-600 hover:bg-emerald-700 font-bold cursor-pointer"
-              onClick={() => {
-                setIsMobilePaletteOpen(false);
-                setIsSubmitOpen(true);
-              }}
-            >
-              <Send className="w-3.5 h-3.5 mr-1" /> Submit Test
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Clear Response Confirmation Modal */}
-      {isClearConfirmOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 text-center space-y-4 shadow-2xl border border-slate-200 animate-in zoom-in-95">
-            <div className="w-12 h-12 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center mx-auto border border-red-200">
-              <RotateCcw className="w-6 h-6" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-base font-black text-slate-900">Clear Selected Response?</h3>
-              <p className="text-xs text-slate-500 font-medium">
-                Are you sure you want to clear your selected answer for Question {currentQ?.questionOrder}?
-              </p>
-            </div>
-            <div className="flex items-center gap-2.5 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setIsClearConfirmOpen(false)}
-                className="w-1/2 text-xs font-bold"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                variant="default"
-                size="sm"
-                onClick={executeClearResponse}
-                className="w-1/2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold"
-              >
-                Clear Response
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Undo Clear Toast */}
-      {undoClearState && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-slate-900 text-white text-xs font-bold px-4 py-2.5 rounded-2xl shadow-xl flex items-center gap-3 animate-in slide-in-from-bottom-2">
-          <span>Response cleared</span>
-          <button
-            type="button"
-            onClick={handleUndoClear}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1 rounded-lg text-xs font-extrabold flex items-center gap-1 transition cursor-pointer"
+          )}
+          <QuestionPalette
+            questions={sectionPaletteItems}
+            currentOrder={isAdaptive ? viewingStepNumber : currentQ?.questionOrder || 1}
+            sectionName={currentSection?.name}
+            globalTotal={isAdaptive ? undefined : fixedSession?.questions.length}
+            globalAnswered={answeredCount}
+            onSelectQuestion={(order) => {
+              navigateToQuestionOrder(order);
+              setIsMobilePaletteOpen(false);
+            }}
+          />
+          {currentQ && <ReportQuestionButton questionId={currentQ.questionId ?? null} questionVersionId={currentQ.questionVersionId || null} />}
+          <Button
+            size="lg"
+            variant="outline"
+            className="min-h-12 w-full font-semibold"
+            onClick={() => {
+              setIsMobilePaletteOpen(false);
+              flushCurrentQuestionActiveTime();
+              setIsSubmitOpen(true);
+            }}
           >
-            <Undo2 className="w-3 h-3" /> Undo
+            <Send aria-hidden="true" className="mr-1.5 size-4" /> Submit test
+          </Button>
+        </div>
+      </Dialog>
+
+      {/* Clear Response: one click + quiet undo (R6 / R8) */}
+      {undoClearState && (
+        <div role="status" className="fixed bottom-36 md:bottom-6 left-1/2 -translate-x-1/2 z-50 bg-ink-900 text-fg-inverse text-body-sm font-medium pl-4 pr-1.5 py-1.5 rounded-2xl shadow-e2 flex items-center gap-3">
+          <span>Response cleared</span>
+          <button type="button" onClick={handleUndoClear} className="focus-ring-on-dark min-h-12 rounded-xl bg-surface px-3 text-body-sm font-semibold text-fg flex items-center gap-1">
+            <Undo2 aria-hidden="true" className="size-4" /> Undo
           </button>
         </div>
       )}
 
-      {/* Security Modal 1: Fullscreen Exited Warning */}
-      {securityState.showFullscreenWarning && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 text-center space-y-4 shadow-2xl border border-slate-200 animate-in zoom-in-95">
-            <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto border border-amber-200">
-              <Monitor className="w-7 h-7" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-lg font-black text-slate-900">Fullscreen Mode Exited</h3>
-              <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                Examination rules require full-screen focus. Please return to fullscreen mode to continue your test.
-              </p>
-            </div>
-            {securityState.fullscreenExitCount > 1 && (
-              <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs font-bold text-amber-800">
-                Notice #{securityState.fullscreenExitCount} &bull; Security events are recorded with your attempt.
-              </div>
-            )}
-            <div className="pt-2">
-              <Button
-                type="button"
-                size="md"
-                onClick={handleReturnToFullscreen}
-                className="w-full bg-blue-600 hover:bg-blue-700 font-extrabold text-xs rounded-xl shadow-xs"
-              >
-                Return to Fullscreen <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
-              </Button>
-            </div>
-          </div>
+      {/* Submitting / time over: non-dismissible status dialog; a failed AUTO submit shows a retry here (R7) */}
+      <Dialog
+        open={showSubmitOverlay}
+        onOpenChange={() => undefined}
+        dismissible={false}
+        title={
+          submissionState === "error"
+            ? "Your test was not submitted yet"
+            : submissionState === "time_expired"
+            ? "Time is over"
+            : "Submitting your test"
+        }
+        footer={
+          submissionState === "error" ? (
+            <Button size="lg" className="min-h-12" onClick={() => handleSubmitAttempt(true)} data-retry-submit="">
+              Try submitting again
+            </Button>
+          ) : undefined
+        }
+      >
+        <div className="flex items-start gap-3 text-body text-fg-secondary" data-submit-overlay={submissionState}>
+          {submissionState === "error" ? (
+            <AlertCircle aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-danger-700" />
+          ) : (
+            <RefreshCw aria-hidden="true" className="mt-0.5 size-5 shrink-0 animate-spin text-primary-600 motion-reduce:animate-none" />
+          )}
+          <p role="status">
+            {submissionState === "error"
+              ? submissionError ?? "Your answers are kept. Please try again."
+              : submissionState === "time_expired"
+              ? "Your answers saved so far are being submitted. Please keep this page open."
+              : "Please keep this page open."}
+          </p>
         </div>
-      )}
+      </Dialog>
 
-      {/* Security Modal 2: Tab Switch Detected Warning */}
-      {securityState.showTabSwitchWarning && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 text-center space-y-4 shadow-2xl border border-slate-200 animate-in zoom-in-95">
-            <div className="w-14 h-14 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center mx-auto border border-red-200">
-              <ShieldAlert className="w-7 h-7" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-lg font-black text-slate-900">Exam Window Changed</h3>
-              <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                You navigated away from the examination window ({securityState.tabSwitchCount} time{securityState.tabSwitchCount > 1 ? "s" : ""}).
-                Please remain on this page until your test is submitted.
-              </p>
-            </div>
-            <div className="pt-2">
-              <Button
-                type="button"
-                size="md"
-                onClick={handleDismissTabWarning}
-                className="w-full bg-blue-600 hover:bg-blue-700 font-extrabold text-xs rounded-xl shadow-xs"
-              >
-                Continue Examination
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Submitting / Time Expired Fullscreen Overlay */}
-      {(submissionState === "time_expired" || submissionState === "submitting" || submissionState === "submitted") && (
-        <div className="fixed inset-0 z-[100] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-8 text-center space-y-4 shadow-2xl border border-slate-200 animate-in zoom-in-95">
-            <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto border border-blue-200">
-              <RefreshCw className="w-8 h-8 animate-spin" />
-            </div>
-            <div className="space-y-1.5">
-              <h3 className="text-lg font-black text-slate-900">
-                {submissionState === "time_expired" ? "Time Expired — Securing Test" : "Submitting Examination"}
-              </h3>
-              <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                {submissionState === "time_expired"
-                  ? "Your examination timer has ended. Finalizing responses and submitting test for evaluation."
-                  : "Securing your responses and calculating performance metrics. Please do not close or refresh."}
-              </p>
-            </div>
-            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-600 font-medium flex items-center justify-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>Scoring your test</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Submit Confirmation Dialog */}
       <SubmitDialog
         isOpen={isSubmitOpen}
         answeredCount={answeredCount}
@@ -1864,22 +1512,25 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
         submissionError={submissionError}
       />
 
-      {/* Report Issue Dialog */}
-      {currentQ && (
-        <ReportIssueDialog
-          isOpen={isReportOpen}
-          questionNumber={currentQ.questionOrder}
-          mockQuestionId={currentQ.mockQuestionId}
-          questionVersionId={currentQ.questionVersionId}
-          onClose={() => setIsReportOpen(false)}
-        />
-      )}
+      <InstructionsModal isOpen={isInstructionsOpen} onClose={() => setIsInstructionsOpen(false)} />
+    </div>
+  );
+}
 
-      {/* Instructions Reference Modal */}
-      <InstructionsModal
-        isOpen={isInstructionsOpen}
-        onClose={() => setIsInstructionsOpen(false)}
-      />
+/** R7: the save status is never optimistic — "Saved" only when every answer is confirmed by the server. */
+function SaveStatusChip({ status, compact = false }: { status: SaveStatus; compact?: boolean }) {
+  const view: Record<SaveStatus, { icon: React.ReactNode; text: string; short: string; tone: string }> = {
+    saved: { icon: <Check aria-hidden="true" className="size-4 text-success-700" />, text: "Saved", short: "Saved", tone: "text-fg" },
+    saving: { icon: <RefreshCw aria-hidden="true" className="size-4 animate-spin text-primary-600 motion-reduce:animate-none" />, text: "Saving…", short: "Saving…", tone: "text-fg" },
+    retrying: { icon: <AlertCircle aria-hidden="true" className="size-4 text-danger-700" />, text: "Not saved — retrying", short: "Not saved — retrying", tone: "text-danger-800" },
+    offline: { icon: <WifiOff aria-hidden="true" className="size-4 text-fg-secondary" />, text: "Offline — kept on this device", short: "Offline", tone: "text-fg" },
+    closed: { icon: <AlertCircle aria-hidden="true" className="size-4 text-fg-secondary" />, text: "Time is over — saving stopped", short: "Saving stopped", tone: "text-fg" },
+  };
+  const v = view[status];
+  return (
+    <div role="status" aria-live="polite" data-save-status={status} className={`flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1.5 text-caption font-semibold ${v.tone}`}>
+      {v.icon}
+      <span>{compact ? v.short : v.text}</span>
     </div>
   );
 }

@@ -36,7 +36,7 @@ export function AdaptiveProgressBadge({
       )}
     >
       <div className="flex items-center gap-1">
-        <Sparkles className="w-3.5 h-3.5 text-blue-600 animate-pulse" />
+        <Sparkles aria-hidden="true" className="w-3.5 h-3.5 text-blue-600" />
         <span className="font-extrabold font-mono uppercase tracking-wider text-[11px]">
           Adaptive Step {currentStep}
         </span>

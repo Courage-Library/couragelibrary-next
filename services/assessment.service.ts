@@ -326,6 +326,8 @@ export interface ActiveTestQuestion {
   sectionId: string;
   sectionName: string;
   questionVersionId: string;
+  /** F3: canonical question id ("Report this question" in the player) */
+  questionId?: string | null;
   questionText: string;
   questionImageUrl?: string | null;
   optionsType: string;
@@ -1832,7 +1834,7 @@ export class AssessmentService {
     const [testRes, sectionsRes, questionsRes, answersRes] = await Promise.all([
       adminSb.from("mock_tests").select("id, title, duration_minutes").eq("id", targetMockTestId).single(),
       adminSb.from("mock_sections").select("id, section_name, section_order").eq("mock_test_id", targetMockTestId).order("section_order"),
-      adminSb.from("mock_questions").select("id, question_order, mock_section_id, marks, negative_mark, question_versions(id, question_text, question_image_url, options_type, question_options(id, option_key, option_text, option_image_url, order_index))").eq("mock_test_id", targetMockTestId).order("question_order"),
+      adminSb.from("mock_questions").select("id, question_order, mock_section_id, marks, negative_mark, question_versions(id, question_id, question_text, question_image_url, options_type, question_options(id, option_key, option_text, option_image_url, order_index))").eq("mock_test_id", targetMockTestId).order("question_order"),
       adminSb.from("attempt_answers").select("mock_question_id, selected_option_key, is_marked_for_review, time_spent_seconds").eq("attempt_id", attempt.id),
     ]);
 
@@ -1872,6 +1874,7 @@ export class AssessmentService {
         sectionId: mq.mock_section_id,
         sectionName: sectionsMap.get(mq.mock_section_id) || "Section",
         questionVersionId: qv?.id || "",
+        questionId: qv?.question_id ?? null,
         questionText: qv?.question_text || "",
         questionImageUrl: qv?.question_image_url || null,
         optionsType: qv?.options_type || "text",
@@ -1918,7 +1921,7 @@ export class AssessmentService {
     selectedOption: string | null,
     isMarkedForReview: boolean,
     timeSpentSeconds: number
-  ): Promise<boolean> {
+  ): Promise<"ok" | "closed" | "error"> {
     const supabase = await createServerSupabaseClient();
 
     const { error } = await supabase
@@ -1934,7 +1937,10 @@ export class AssessmentService {
         onConflict: "attempt_id,mock_question_id",
       });
 
-    return !error;
+    // F3 (R7): the client shows "Saved" only on a confirmed write. RLS lets a student write answers only to their own
+    // IN-PROGRESS attempt, so a policy refusal (42501) means the attempt is closed (submitted / time over): stop retrying.
+    if (!error) return "ok";
+    return (error as { code?: string }).code === "42501" ? "closed" : "error";
   }
 
   /**

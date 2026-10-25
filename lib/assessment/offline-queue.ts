@@ -123,9 +123,14 @@ export const OfflineAnswerQueue = {
           }),
         });
 
-        if (res.ok) {
+        // F3 (R7): synced ONLY when the server confirms ({ success: true }); 409 = the attempt is closed (nothing
+        // more can be saved — drop it); anything else stays queued for the next flush
+        const body = res.ok ? ((await res.json().catch(() => null)) as { success?: unknown } | null) : null;
+        if (res.ok && body && body.success === true) {
           this.dequeue(attemptId, item.mockQuestionId);
           syncedCount++;
+        } else if (res.status === 409) {
+          this.dequeue(attemptId, item.mockQuestionId);
         }
       } catch {
         // Still offline or failed — leave in queue for next flush attempt

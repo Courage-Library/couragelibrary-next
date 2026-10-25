@@ -59,3 +59,39 @@ Token facts used in this audit:
 - Adaptive-mode resume of marks is not traced server-side (the client seeds `isMarkedForReview:false`).
 
 All `player-client.tsx` references are to `app/mock-tests/[id]/take/player-client.tsx`.
+
+## F3 status (2026-10-25)
+
+Every P0 and P1 finding was re-checked against the code before fixing. **None was false; none was dropped.** Refinements found on re-check:
+- P0-3 is worse than reported: the timer effect also depended on `seconds`, so it restarted every tick.
+- The double submit at 0 was already blocked by `isSubmittingRef`. The drift and the repeated expiry calls were real.
+
+Gate: `scripts/test_f3_player.cjs` (CI `F3-PLAYER`), 10/10. Against the pre-F3 code, 8 of 10 fail.
+
+| # | Item | Status |
+|---|---|---|
+| P0-1 | Save failures shown as "Saved" | **Fixed.** The route returns 200 `{success:true}`, 409 `ATTEMPT_CLOSED` (RLS 42501) or 503 `SAVE_FAILED`, and never error text. The engine (`lib/assessment/answer-sync.ts`) shows "Saved" only on confirmation. The offline queue dequeues only confirmed saves. |
+| P0-2 | Submit / auto-submit errors invisible | **Fixed.** A failed manual submit reopens the summary with the error and "Try submitting again". A failed auto-submit keeps a non-dismissible dialog with a retry. |
+| P0-3 | Timer restarts, refires, drifts | **Fixed.** The deadline is anchored once from the server value, every tick recomputes from the clock, and it fires once (`lib/assessment/timer.ts`). |
+| P0-4 | Beeps on by default, pulse | **Fixed.** No sound (the audio module is removed) and no pulse. One quiet final-minutes state: amber surface, "5 min left" text, and one polite announcement. |
+| P0-5 | Options not keyboard / screen-reader operable | **Fixed.** A real radio group: `role=radio`, `aria-checked`, roving tab stop, ↑/↓, 48 px. The zoom button is now a sibling. Shared component; props unchanged. |
+| P0-6 | Pending local answers not replayed | **Fixed.** On load, unconfirmed answers on the device are merged (they win) and sent again. |
+| P1-07 | Resume at last question + visited | **Fixed on this device** (`localStorage`, no schema change). Resuming on another device starts at Q1. |
+| P1-08 | CBT buttons | **Fixed.** Save & Next (clears the review mark, as in the CBT), Mark for Review & Next, no deselect on re-click, one-click Clear Response with a 5 s undo. `C` now selects option C. |
+| P1-09 | Palette shapes / icons | **Fixed.** Answered: green square + ✓. Not answered: red square + –. Not visited: grey square. Marked: purple circle. Answered & marked: purple circle + ✓. The palette, legend and instructions share `PALETTE_STATES`. |
+| P1-10 | One primary action | **Fixed.** "Save & Next" is the only filled action. Submit is an outline button in the header and in the mobile palette sheet. |
+| P1-11 | Blocking tab / fullscreen modals | **Fixed.** A quiet, non-blocking inline notice; events are still counted. |
+| P1-12 | 48 px targets | **Fixed** across the player, palette, dialogs and mobile bars. |
+| P1-13 | Accessible dialogs | **Fixed.** Submit, instructions, palette sheet, option zoom and the time-over/submitting status all use `components/ui/dialog`. The custom clear-confirm and security modals are removed. |
+| P1-14 | "Not saved — retrying" | **Fixed.** Distinct states: Saved, Saving…, Not saved — retrying, Offline — kept on this device, Time is over — saving stopped. Debounce is per question; backoff runs 1 → 30 s. |
+| P2 | Trivial ones done | Contrast of "of N"; no total shown for adaptive tests; one section switcher, now a tablist with `aria-selected`; pulse removed (adaptive badge, result page); wordmark hidden below `sm`; offline banner neutral. |
+| P2 | Not done (not trivial) | Result page: one primary action ("Review mistakes"), quiet leaderboard, fewer ambers, light hero (#17). The pre-exam screen's 11 px copy. |
+
+**Proposal (schema change, not made): PLAYER-RESUME-SERVER.** Add `last_question_order` and a visited set on `test_attempts`, so a resume restores the exact position on any device.
+
+**E2E selectors updated with intent:** `scripts/e2e/student-journey.cjs` and `ensure-student-fixture.cjs`:
+- options are `button[role=radio]`;
+- the palette cell name is "Question n: state";
+- the selected option is `[aria-checked=true]`.
+
+BRAND-1 B-06 now asserts the one-state timer, still never red, with a non-colour cue.

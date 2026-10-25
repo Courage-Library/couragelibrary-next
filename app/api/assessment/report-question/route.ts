@@ -6,7 +6,7 @@ import { PRACTICE_COPY } from "@/content/practice";
 import type { ReportReason } from "@/lib/practice/engine";
 
 /**
- * Mock player "Report issue" (components/assessment/report-issue-dialog.tsx) — F2: a thin adapter over the ONE report
+ * Legacy "Report issue" endpoint (F3: the player now uses ReportQuestionButton) — F2: a thin adapter over the ONE report
  * path (lib/practice/report.ts): the dialog's category keys map onto the four reasons, its text becomes the optional
  * note (≤ 500), and the response carries fixed copy only. The mock question id is resolved to its canonical question
  * and version on the server (never trusted from the client).

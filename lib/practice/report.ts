@@ -25,8 +25,13 @@ export async function submitQuestionReport(
 ): Promise<ReportCode> {
   const v = validateReport(input.reason, input.note);
   if (!v.ok) return v.code;
-  const questionId = String(input.questionId ?? "");
-  if (!ID_RX.test(questionId)) return "INVALID_INPUT";
+  let questionId = input.questionId == null ? "" : String(input.questionId);
+  // surfaces that know only the version (adaptive mock steps) report its canonical question, resolved here
+  if (!questionId && input.questionVersionId != null && ID_RX.test(String(input.questionVersionId))) {
+    const { data } = await supabase.from("question_versions").select("question_id").eq("id", String(input.questionVersionId)).maybeSingle();
+    questionId = data?.question_id ?? "";
+  }
+  if (!ID_RX.test(questionId)) return questionId ? "INVALID_INPUT" : "NOT_FOUND";
   // surfaces that know only the question (drill results) report its current version
   let versionId = input.questionVersionId == null ? "" : String(input.questionVersionId);
   if (!versionId) {
