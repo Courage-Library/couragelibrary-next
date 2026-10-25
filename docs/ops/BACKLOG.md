@@ -29,6 +29,13 @@ Add `last_question_order` and the visited set to `test_attempts`, so a resume re
 
 Once 095 is live, `fn_generate_mistake_drill` may pick manual Memory Lock items, which have 0 mistakes. The app-side lists already filter `total_mistakes_count >= 1`; the SQL generator needs the same filter.
 
+## CRLF-1 — line-ending normalisation (`.gitattributes`)
+Logged by the architect (2026-10-25). The repository is LF in git but this Windows checkout uses `core.autocrlf=true`,
+so working copies are CRLF and several offline gates that read files with `
+` fail locally only (C-10, F2 T-09) and
+branch switches abort on EOL-only "changes". Fix: add `.gitattributes` (`* text=auto eol=lf`, binary types marked),
+renormalise in ONE separate commit, re-run every offline gate. Not now — a separate change later.
+
 ## Also open
 
 - **STAFF-REPORTS-1:** staff view of question reports.
