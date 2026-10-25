@@ -5,7 +5,7 @@ import { Accordion } from "@/components/ui/accordion";
 import { Card, CardTitle } from "@/components/ui/card";
 import { PublicPageHeader } from "@/components/public/public-page";
 import { Container, Section } from "@/components/ui/layout";
-import { HELP_PAGE, SUPPORT_EMAIL } from "@/content/support";
+import { GRIEVANCE_OFFICER, GRIEVANCE_PHONE_HREF, GRIEVANCE_TIMELINES, HELP_PAGE, SUPPORT_EMAIL } from "@/content/support";
 import { constructMetadata } from "@/lib/seo/metadata";
 import { isSupportTicketsEnabled } from "@/lib/support/tickets";
 
@@ -59,6 +59,13 @@ export default function HelpPage() {
             <Link href="/grievance" className="focus-ring inline-flex min-h-12 w-fit items-center text-body-sm font-medium text-link underline underline-offset-2">
               {HELP_PAGE.grievanceLink}
             </Link>
+            <p className="text-body-sm text-fg-secondary" data-help-grievance-officer="">
+              {GRIEVANCE_OFFICER.designation}: {GRIEVANCE_OFFICER.name} ·{" "}
+              <a href={GRIEVANCE_PHONE_HREF} className="focus-ring inline-flex min-h-12 items-center text-link underline underline-offset-2">
+                {GRIEVANCE_OFFICER.phone}
+              </a>{" "}
+              ({GRIEVANCE_OFFICER.phoneHours}) · {GRIEVANCE_TIMELINES.acknowledge} {GRIEVANCE_TIMELINES.resolve}
+            </p>
           </Card>
         </Container>
       </Section>

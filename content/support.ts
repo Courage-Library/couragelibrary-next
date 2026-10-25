@@ -2,9 +2,8 @@
  * F11 (#79) support copy: help centre + grievance redressal. Plain English UI (R9); every statement describes what the
  * product does TODAY (R12) — nothing promised that is not built.
  *
- * OWNER: fill GRIEVANCE_OFFICER with the real, appointed person's details. Until ALL four fields are set, the page shows
- * "details will be published here" and the support email as the interim channel — it never shows an invented person.
- * Set GRIEVANCE_TIMELINES.confirmed = true only after you have approved the response times shown there.
+ * GRIEVANCE_OFFICER / GRIEVANCE_TIMELINES are the owner-approved, public details (architect Q1, 2026-10-25) and the
+ * SINGLE source for /grievance and the /help footer.
  */
 import { SHELL_COPY } from "@/content/landing";
 
@@ -59,19 +58,22 @@ export const HELP_PAGE = {
   grievanceLink: "Complaints and grievance redressal",
 } as const;
 
-/** OWNER: the appointed Grievance Officer. Leave null until the real details are approved. */
-export const GRIEVANCE_OFFICER: { name: string | null; designation: string | null; email: string | null; postalAddress: string | null } = {
-  name: null,
-  designation: null,
-  email: null,
-  postalAddress: null,
-};
+/** The appointed Grievance Officer (IT Rules 2021 / Consumer Protection (E-Commerce) Rules 2020) — public details. */
+export const GRIEVANCE_OFFICER = {
+  name: "Jan",
+  designation: "Founder & Grievance Officer",
+  email: SUPPORT_EMAIL,
+  phone: "+91 83606 03173",
+  phoneHours: "Mon–Sat, 10 AM–6 PM IST",
+  postalAddress: "Bus Stop Ramaipur, Kanpur Nagar, Uttar Pradesh 209214",
+} as const;
 
-/** OWNER: shown only when confirmed. */
+/** tel: link target (digits and the leading +) */
+export const GRIEVANCE_PHONE_HREF = `tel:${GRIEVANCE_OFFICER.phone.replace(/[^+\d]/g, "")}`;
+
 export const GRIEVANCE_TIMELINES = {
-  confirmed: false,
-  acknowledge: "We acknowledge a complaint within 24 hours.",
-  resolve: "We aim to resolve it within 15 days.",
+  acknowledge: "Acknowledgement within 24 hours.",
+  resolve: "Resolution within 15 days.",
 } as const;
 
 export const GRIEVANCE_PAGE = {
@@ -79,8 +81,10 @@ export const GRIEVANCE_PAGE = {
   title: "Grievance redressal",
   lead: "If something went wrong — with your account, a test, a question or your data — tell us and we will look into it.",
   officerTitle: "Grievance Officer",
-  officerPending: "The Grievance Officer's details will be published on this page.",
-  interim: (email: string) => `Until then, email ${email} with “Grievance” in the subject line.`,
+  /** with the ticket form on; without it the same channels minus the ticket */
+  channels: "Raise a ticket online (fastest). Email/phone also accepted.",
+  channelsNoTickets: "Email or phone us.",
+  ticketLink: "Raise a ticket",
   howTitle: "How to raise a complaint",
   how: [
     "Write from the email address you use for Courage Library.",
@@ -89,7 +93,3 @@ export const GRIEVANCE_PAGE = {
   ],
   timelinesTitle: "Response times",
 } as const;
-
-export function grievanceOfficerReady(o = GRIEVANCE_OFFICER): boolean {
-  return Boolean(o.name && o.designation && o.email && o.postalAddress);
-}
