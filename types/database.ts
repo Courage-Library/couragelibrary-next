@@ -5874,6 +5874,7 @@ export type Database = {
           created_at: string
           id: string
           last_activity_at: string
+          last_question_order: number | null
           mock_test_id: string
           started_at: string
           status: string
@@ -5881,12 +5882,14 @@ export type Database = {
           time_taken_seconds: number
           updated_at: string
           user_id: string
+          visited_orders: number[] | null
         }
         Insert: {
           client_ip?: string | null
           created_at?: string
           id?: string
           last_activity_at?: string
+          last_question_order?: number | null
           mock_test_id: string
           started_at?: string
           status?: string
@@ -5894,12 +5897,14 @@ export type Database = {
           time_taken_seconds?: number
           updated_at?: string
           user_id: string
+          visited_orders?: number[] | null
         }
         Update: {
           client_ip?: string | null
           created_at?: string
           id?: string
           last_activity_at?: string
+          last_question_order?: number | null
           mock_test_id?: string
           started_at?: string
           status?: string
@@ -5907,6 +5912,7 @@ export type Database = {
           time_taken_seconds?: number
           updated_at?: string
           user_id?: string
+          visited_orders?: number[] | null
         }
         Relationships: [
           {
