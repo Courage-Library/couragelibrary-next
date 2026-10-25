@@ -25,7 +25,7 @@ Each item has an owner condition. It is not started until the architect schedule
 
 Done by migration 099 + Q6 part B: `test_attempts.last_question_order` / `visited_orders` hold the position; the player restores it from the server and keeps localStorage as a cache only.
 
-## MFA-DB-2: admin MFA in every staff policy and function (mandatory before launch)
+## MFA-DB-2: admin MFA in every staff policy and function — DONE 2026-10-25 (migration 102, with the NULL-BYPASS-1 fix)
 
 Logged by the architect (2026-10-25). 098 makes `fn_jwt_is_admin_or_staff()` require AAL2 when the flag is on, but 43 inline RLS policies and 15 functions check the staff / admin role without it. Each must use the AAL2-aware helper (or an equivalent check) before launch.
 
@@ -36,6 +36,10 @@ Found with ATTEMPT-INTEGRITY-1 (099): a table-level INSERT / UPDATE grant to `au
 ## COMMUNITY-REPLY-1: community replies always fail — DONE 2026-10-25 (migration 101)
 
 `fn_post_discussion_message` now takes the activity row's topic from the thread (no topic → no row), uses an allowed event type with `metadata.kind = COMMUNITY_DOUBT_ANSWERED`, and can never fail a reply because of analytics.
+
+## FLASHCARD-REVIEW-1: every flashcard review fails (pre-existing)
+
+Found by the 102 smoke (2026-10-25). Once its access checks pass, `fn_submit_flashcard_review` inserts into `learning_activity_events` without `topic_id` (NOT NULL), so every review fails with 23502. This is the same defect class as COMMUNITY-REPLY-1. Fix the same way (function-only): take the topic from the deck, skip the activity row when there is none, and never fail the review because of analytics.
 
 ## TOPIC-CONTEXT-1: topic threads cannot be created through the RPC
 

@@ -49,8 +49,9 @@ function installStopHandler(client) {
 async function withLiveTransaction(client, fn, { readOnly = false } = {}) {
   const remove = installStopHandler(client);
   try {
-    await client.query(readOnly ? 'BEGIN READ ONLY' : 'BEGIN');
-    await applyLiveSafety(client);
+    // BEGIN and the settings in ONE round trip: a connection that stalls right after BEGIN can never leave a transaction
+    // without the idle-in-transaction timeout (observed 2026-10-25: a backend "idle in transaction" after a bare BEGIN)
+    await client.query(`${readOnly ? 'BEGIN READ ONLY' : 'BEGIN'}; ${LIVE_SAFETY_SQL}`);
     return await fn(client);
   } finally {
     await client.query('ROLLBACK').catch(() => undefined);

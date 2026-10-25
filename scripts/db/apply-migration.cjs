@@ -27,7 +27,7 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 const { Client } = require('pg');
 const { ROOT, dbTarget, redactor, fileChecksum } = require('./_db-env.cjs');
-const { applyLiveSafety, isLockTimeout, installStopHandler } = require('./live-safety.cjs');
+const { LIVE_SAFETY_SQL, isLockTimeout, installStopHandler } = require('./live-safety.cjs');
 
 const TOOL = 'scripts/db/apply-migration.cjs';
 const MAX_BACKUP_AGE_MS = 60 * 60 * 1000;
@@ -75,9 +75,9 @@ if (args.includes('--self-test')) {
   // LIVE-LOCK-SAFETY: the runner sets the lock / statement timeouts right after BEGIN, at the rule's values
   const self = fs.readFileSync(__filename, 'utf8');
   const safety = require('./live-safety.cjs');
-  if (!/await c\.query\('BEGIN READ WRITE'\);\s*\/\/ LIVE-LOCK-SAFETY[^\r\n]*\r?\n\s*await applyLiveSafety\(c\);/.test(self) || safety.LOCK_TIMEOUT !== '3s' || safety.STATEMENT_TIMEOUT !== '60s') {
+  if (!/await c\.query\(`BEGIN READ WRITE; \$\{LIVE_SAFETY_SQL\}`\);/.test(self) || safety.LOCK_TIMEOUT !== '3s' || safety.STATEMENT_TIMEOUT !== '60s' || safety.IDLE_IN_TX_TIMEOUT !== '30s') {
     ok = false;
-    console.log('apply-migration self-test FAIL: LIVE-LOCK-SAFETY defaults missing (lock_timeout 3s, statement_timeout 60s after BEGIN)');
+    console.log('apply-migration self-test FAIL: LIVE-LOCK-SAFETY defaults missing (BEGIN + lock_timeout 3s / statement_timeout 60s / idle-in-tx 30s in one round trip)');
   }
   console.log(`apply-migration self-test: ${ok ? 'OK' : 'FAIL'} — ${cases.length} cases, migrations clean, live-lock-safety on`);
   process.exit(ok ? 0 : 1);
@@ -174,9 +174,9 @@ function verifyResilient(bdir, name, bin) {
   const started = Date.now();
   try {
     // Explicit READ WRITE: never inherit a session default from a pooled backend.
-    await c.query('BEGIN READ WRITE');
-    // LIVE-LOCK-SAFETY: lock_timeout 3s, statement_timeout 60s (never raised to force a run)
-    await applyLiveSafety(c);
+    // LIVE-LOCK-SAFETY: lock_timeout 3s, statement_timeout 60s, idle-in-transaction 30s — sent in the SAME round trip as
+    // BEGIN, so a stalled connection can never hold a transaction without them (never raised to force a run)
+    await c.query(`BEGIN READ WRITE; ${LIVE_SAFETY_SQL}`);
     await c.query(sql);
     const ledgerNow = (await c.query(`SELECT to_regclass('public.schema_migration_ledger') IS NOT NULL AS e`)).rows[0].e;
     if (!ledgerNow) {
