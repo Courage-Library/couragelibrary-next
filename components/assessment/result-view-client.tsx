@@ -661,6 +661,8 @@ export function ResultViewClient({ data }: ResultViewClientProps) {
                   learningSlug={q.learningSlug}
                   learningDocTitle={q.learningDocTitle}
                   hasPublishedLearning={q.hasPublishedLearning}
+                  questionId={q.questionId}
+                  questionVersionId={q.questionVersionId}
                 />
               ))
             )}

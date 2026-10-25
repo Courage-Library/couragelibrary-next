@@ -197,12 +197,13 @@ const VALID = [
       assert(call && !/allowStaff/.test(call), `${p}: ${call}`);
     }
   });
-  await test('R-02 actions admin-only: updateRewardPolicyAction, createSubscriptionPlanAction (reports stays staff)', async () => {
+  await test('R-02 actions admin-only: updateRewardPolicyAction, createSubscriptionPlanAction (reports admin-only since F2 #79)', async () => {
     const g = read('app/admin/gamification/actions.ts');
     assert(/export async function updateRewardPolicyAction[\s\S]{0,300}guardAdminAction\(\);/.test(g), 'gamification action');
     const a = read('app/admin/actions.ts');
     assert(/export async function createSubscriptionPlanAction[\s\S]{0,200}guardAdminAction\(\);/.test(a), 'billing action');
-    assert(/requireAdminPage\(\{ allowStaff: true, path: "\/admin\/reports" \}\)/.test(read('app/admin/reports/page.tsx')), 'reports must stay staff');
+    // F2 (#79) supersedes the SEC-1D "reports stays staff" ruling: question reports are admin-only read
+    assert(/requireAdminPage\(\{ path: "\/admin\/reports" \}\)/.test(read('app/admin/reports/page.tsx')) && /requireAdminPage\(\{ path: "\/admin\/question-reports" \}\)/.test(read('app/admin/question-reports/page.tsx')), 'reports must be admin-only');
   });
 
   // ===================== Part 5: live =====================

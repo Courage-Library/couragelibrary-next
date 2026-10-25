@@ -107,6 +107,11 @@ export function OnboardingWizard({ exams, initial, next, today }: { exams: PlanE
             {primaryLabel}
           </PillLink>
           <div className="flex flex-wrap gap-4 text-body-sm">
+            {plan.exam?.diagnosticHref && (
+              <Link href={plan.exam.diagnosticHref} className="focus-ring inline-flex min-h-12 items-center rounded-control text-link underline underline-offset-2" data-onboarding-diagnostic="">
+                {C.plan.diagnostic}
+              </Link>
+            )}
             <Link href={next} className="focus-ring inline-flex min-h-12 items-center rounded-control text-link underline underline-offset-2">
               {C.plan.later}
             </Link>

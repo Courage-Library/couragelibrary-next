@@ -151,7 +151,7 @@ export function practiceSetSize(minutes: DailyMinutes | null): number {
   }
 }
 
-export type PlanExam = { id: string; title: string; slug: string; firstSection: string | null; practiceHref: string | null };
+export type PlanExam = { id: string; title: string; slug: string; firstSection: string | null; practiceHref: string | null; diagnosticHref?: string | null };
 export type Plan = {
   setSize: number;
   exam: PlanExam | null;

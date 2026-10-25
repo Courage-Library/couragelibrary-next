@@ -51,6 +51,7 @@ const MOCK_TEST_ROUTES = [
   "/admin/sections",
   "/admin/questions",
   "/admin/reports",
+  "/admin/question-reports",
   "/admin/schedules",
   "/admin/mock-tests",
   "/admin/bulk-import",
@@ -107,7 +108,7 @@ export function AdminSidebar({ userEmail, adaptiveEnabled = false, liveTestsEnab
     },
     {
       label: "Question Reports",
-      href: "/admin/reports",
+      href: "/admin/question-reports",
       icon: Flag,
     },
     {

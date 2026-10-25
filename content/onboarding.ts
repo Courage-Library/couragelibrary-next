@@ -62,6 +62,7 @@ export const ONBOARDING_COPY = {
     later: "Go to dashboard",
     removed: (names: string) => `Removed from your goals: ${names}`,
     edit: "Change answers",
+    diagnostic: "Take a 10-question diagnostic",
   },
   dashboardCard: {
     title: "Set up your preparation",

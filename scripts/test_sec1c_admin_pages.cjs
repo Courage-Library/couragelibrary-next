@@ -133,7 +133,8 @@ const PAGES = walk(path.join(ROOT, 'app/admin')).filter((f) => /[\\/]page\.tsx$/
 const segOf = (p) => p.replace(/^app\/admin\/?/, '').replace(/\/?page\.tsx$/, '');
 // Decision #16 + SEC-1C: admin-only pages. Every other admin page allows staff.
 // SEC-1D: + gamification, billing, live-tests/[id]/results (PII pages).
-const ADMIN_ONLY = new Set(['premium', 'rewards', 'adaptive', 'taxonomy', 'live-tests/intelligence', 'live-tests/[id]/intelligence', 'users', 'gamification', 'billing', 'live-tests/[id]/results']);
+// F2 (#79): question reports are admin-only (reports → redirect to question-reports)
+const ADMIN_ONLY = new Set(['premium', 'rewards', 'adaptive', 'taxonomy', 'live-tests/intelligence', 'live-tests/[id]/intelligence', 'users', 'gamification', 'billing', 'live-tests/[id]/results', 'reports', 'question-reports']);
 
 /** Body of the default-exported function (or a named function) — brace-matched. */
 function fnBody(src, header) {
@@ -159,8 +160,8 @@ function firstGuardViolation(body) {
 
 (async () => {
   // ===================== Part 1: static =====================
-  await test(`S-01 inventory: ${PAGES.length} app/admin page.tsx files (expected 36: +design-system UX-1a, +syllabus + syllabus/[id] GAP2-4b, −syllabus-reconciliation GAP2-4c)`, async () => {
-    assert(PAGES.length === 36, `found ${PAGES.length}`);
+  await test(`S-01 inventory: ${PAGES.length} app/admin page.tsx files (expected 37: +design-system UX-1a, +syllabus + syllabus/[id] GAP2-4b, −syllabus-reconciliation GAP2-4c, +question-reports F2)`, async () => {
+    assert(PAGES.length === 37, `found ${PAGES.length}`);
   });
   await test('S-02 every admin page: requireAdminPage is the FIRST awaited call (before any data/service/gate)', async () => {
     const bad = [];

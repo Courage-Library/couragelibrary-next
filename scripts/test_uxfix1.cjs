@@ -12,7 +12,7 @@
  *   X-06 the hero shows loop steps 1–3 + a "See all N steps" link (≥ 48 px); no step 4–6 copy in the hero
  *   X-07 the hero feature list is plain text + icon (no pill / glass chip)
  *   X-08 exam cards: exactly one link per card (stretched CardLink), the "Open exam" cue is decorative
- *   X-09 the /practice nav label is "Mistake drills"
+ *   X-09 the /practice nav label is "Mistake drills" (F2: "Practice" with PRACTICE on; "Mistake drills" → /mistakes/drill)
  *   X-10 one spelling: no "practise / practised / practising" in public copy
  */
 const fs = require('fs');
@@ -123,11 +123,14 @@ test('X-08 exam cards: one stretched link per card, the cue is decorative', () =
   return 'single link';
 });
 
-test('X-09 the /practice nav label is "Mistake drills"', () => {
+test('X-09 the /practice nav label is "Mistake drills" (F2: "Practice" once topic practice is on; drills stay a separate entry)', () => {
   const nav = read('components/shell/nav-config.ts');
-  const labels = [...nav.matchAll(/\{ href: "\/practice", label: "([^"]+)"/g)].map((m) => m[1]);
-  assert(labels.length >= 2 && labels.every((l) => l === 'Mistake drills'), JSON.stringify(labels));
-  return `${labels.length} places`;
+  const items = [...nav.matchAll(/\{ href: "(\/practice|\/mistakes\/drill)", label: "([^"]+)"(?:, (flag|unlessFlag): "([A-Z]+)")? \}/g)].map((m) => ({ href: m[1], label: m[2], kind: m[3] || null, flag: m[4] || null }));
+  const off = items.filter((i) => i.href === '/practice' && i.kind !== 'flag');
+  const on = items.filter((i) => i.kind === 'flag' && i.flag === 'PRACTICE');
+  assert(off.length >= 2 && off.every((i) => i.label === 'Mistake drills' && i.kind === 'unlessFlag' && i.flag === 'PRACTICE'), `flag off: ${JSON.stringify(off)}`);
+  assert(on.length >= 4 && on.filter((i) => i.href === '/practice').every((i) => i.label === 'Practice') && on.filter((i) => i.href === '/mistakes/drill').every((i) => i.label === 'Mistake drills'), `flag on: ${JSON.stringify(on)}`);
+  return `${off.length} flag-off + ${on.length} flag-on entries`;
 });
 
 test('X-10 one spelling: no "practise" forms in public copy', () => {

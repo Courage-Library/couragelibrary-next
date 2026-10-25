@@ -10,6 +10,7 @@ import type { ShellAccount } from "./shell-types";
 import { SiteFooter } from "./site-footer";
 import { isOnboardingEnabled } from "@/lib/onboarding/flag";
 import { getSignupAvailability } from "@/lib/auth/signup-availability";
+import { isPracticeEnabled } from "@/lib/practice/flag";
 
 /**
  * UX-1b app shell around every route: skip link, header (public or student), <main id="main-content">,
@@ -30,7 +31,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
     () => ({ state: "error" as const }),
   );
   const user = session.state === "user" ? session.user : null;
-  const flags: ShellFlags = { COURSES: isFeatureEnabled("COURSES"), BATTLES: isFeatureEnabled("BATTLES") };
+  const flags: ShellFlags = { COURSES: isFeatureEnabled("COURSES"), BATTLES: isFeatureEnabled("BATTLES"), PRACTICE: isPracticeEnabled() };
   const role = (user?.app_metadata as { role?: string } | undefined)?.role;
   const account: ShellAccount | null = user
     ? {
@@ -55,7 +56,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
       <main id="main-content" tabIndex={-1} className="min-h-dvh flex-1 outline-none">
         {children}
       </main>
-      <SiteFooter />
+      <SiteFooter flags={flags} />
       {account && <BottomNav account={account} />}
     </>
   );

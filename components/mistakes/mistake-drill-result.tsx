@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/legacy/badge";
 import { Card } from "@/components/ui/legacy/card";
 import { DrillSubmissionResult } from "@/services/mistake.service";
 import { MistakeBookmarkButton } from "@/components/mistakes/mistake-bookmark-button";
+import { ReportQuestionButton } from "@/components/practice/report-question-button";
 import {
   CheckCircle2,
   Trophy,
@@ -323,6 +324,10 @@ export function MistakeDrillResult({ result, onRestart }: MistakeDrillResultProp
                       </p>
                     </div>
                   )}
+                  {/* F2: "Report this question" (its current version is resolved on the server) */}
+                  <div className="flex justify-end">
+                    <ReportQuestionButton questionId={ev.question_id} questionVersionId={null} />
+                  </div>
                 </div>
               )}
             </Card>

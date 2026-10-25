@@ -226,7 +226,11 @@ function supaMock(results) {
     assert(/useState\(detail\.correctKey \?\? ""\)/.test(read('components/admin/question-factory/review-queue-tab.tsx')), 'review form default');
     // render the mock review card
     const { renderToStaticMarkup } = require('react-dom/server');
-    const stubs = { 'next/link': { __esModule: true, default: ({ href, children, ...p }) => React.createElement('a', { href: String(href), ...p }, children) } };
+    const stubs = {
+      'next/link': { __esModule: true, default: ({ href, children, ...p }) => React.createElement('a', { href: String(href), ...p }, children) },
+      // F2: the card's "Report this question" control (server action) is covered by scripts/test_f2_practice.cjs
+      '@/components/practice/report-question-button': { ReportQuestionButton: () => null },
+    };
     const { QuestionReviewCard } = loadTs('components/assessment/question-review-card.tsx', stubs);
     const base = { questionOrder: 1, sectionName: 'S', questionText: 'Q?', options: ['A', 'B', 'C', 'D'].map((k) => ({ key: k, text: `opt ${k}` })), selectedOption: 'B', isCorrect: false, marksAwarded: 0, explanation: null, topicName: null, topicSlug: null };
     const none = renderToStaticMarkup(React.createElement(QuestionReviewCard, { ...base, correctOption: null }));

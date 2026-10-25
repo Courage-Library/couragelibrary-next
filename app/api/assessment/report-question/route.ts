@@ -1,141 +1,67 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient, createAdminServerSupabaseClient } from "@/lib/supabase/server";
+import { getSessionState } from "@/lib/auth/session-state";
+import { submitQuestionReport, type ReportCode } from "@/lib/practice/report";
+import { PRACTICE_COPY } from "@/content/practice";
+import type { ReportReason } from "@/lib/practice/engine";
+
+/**
+ * Mock player "Report issue" (components/assessment/report-issue-dialog.tsx) — F2: a thin adapter over the ONE report
+ * path (lib/practice/report.ts): the dialog's category keys map onto the four reasons, its text becomes the optional
+ * note (≤ 500), and the response carries fixed copy only. The mock question id is resolved to its canonical question
+ * and version on the server (never trusted from the client).
+ */
+const REASON: Record<string, ReportReason> = {
+  wrong_answer_key: "WRONG_ANSWER_KEY",
+  INCORRECT_ANSWER: "WRONG_ANSWER_KEY",
+  typo: "TYPO_OR_UNCLEAR",
+  TYPO: "TYPO_OR_UNCLEAR",
+  wrong_options: "TYPO_OR_UNCLEAR",
+  AMBIGUOUS: "TYPO_OR_UNCLEAR",
+  question_text_error: "TYPO_OR_UNCLEAR",
+  QUESTION_TEXT_ERROR: "TYPO_OR_UNCLEAR",
+  translation_error: "TRANSLATION_ERROR",
+  TRANSLATION_ERROR: "TRANSLATION_ERROR",
+};
+const STATUS: Partial<Record<ReportCode, number>> = { REPORTED: 200, ALREADY_REPORTED: 200, NOT_SIGNED_IN: 401, NOT_FOUND: 404, RATE_LIMITED: 429, FAILED: 500 };
 
 export async function POST(req: NextRequest) {
-  try {
-    const supabase = await createServerSupabaseClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
-    }
-
-    const body = await req.json();
-    const { mockQuestionId, questionId, questionVersionId, issueType, description, suggestedFix } = body;
-
-    if (!description || description.trim().length < 5) {
-      return NextResponse.json(
-        { success: false, error: "Please provide a brief description (at least 5 characters)." },
-        { status: 400 }
-      );
-    }
-
-    const adminSb = createAdminServerSupabaseClient();
-
-    let resolvedQuestionId = questionId;
-    let resolvedQuestionVersionId = questionVersionId;
-
-    // If only mockQuestionId is provided, resolve the canonical question_id and question_version_id
-    if (!resolvedQuestionId || !resolvedQuestionVersionId) {
-      if (!mockQuestionId) {
-        return NextResponse.json(
-          { success: false, error: "Missing question reference." },
-          { status: 400 }
-        );
-      }
-
-      const { data: mqData } = await (adminSb.from("mock_questions") as any)
-        .select("question_version_id, question_versions(question_id)")
-        .eq("id", mockQuestionId)
-        .maybeSingle();
-
-      if (!mqData) {
-        return NextResponse.json(
-          { success: false, error: "Question could not be found." },
-          { status: 404 }
-        );
-      }
-
-      resolvedQuestionVersionId = mqData.question_version_id;
-      const qvData = mqData.question_versions as unknown as { question_id: string } | null;
-      resolvedQuestionId = qvData?.question_id;
-    }
-
-    if (!resolvedQuestionId || !resolvedQuestionVersionId) {
-      return NextResponse.json(
-        { success: false, error: "Invalid question data." },
-        { status: 400 }
-      );
-    }
-
-    // Map UI category keys to database enum
-    const issueTypeMap: Record<string, string> = {
-      typo: "TYPO",
-      TYPO: "TYPO",
-      wrong_options: "AMBIGUOUS",
-      AMBIGUOUS: "AMBIGUOUS",
-      image_issue: "FORMATTING",
-      FORMATTING: "FORMATTING",
-      wrong_answer_key: "INCORRECT_ANSWER",
-      INCORRECT_ANSWER: "INCORRECT_ANSWER",
-      question_text_error: "QUESTION_TEXT_ERROR",
-      QUESTION_TEXT_ERROR: "QUESTION_TEXT_ERROR",
-      outdated: "OUTDATED_INFORMATION",
-      OUTDATED_INFORMATION: "OUTDATED_INFORMATION",
-      duplicate: "DUPLICATE",
-      DUPLICATE: "DUPLICATE",
-      explanation_error: "INCORRECT_EXPLANATION",
-      INCORRECT_EXPLANATION: "INCORRECT_EXPLANATION",
-      other: "OTHER",
-      OTHER: "OTHER",
-    };
-
-    const canonicalIssueType = issueTypeMap[issueType] || "OTHER";
-    const cleanDescription = (description || "").trim().slice(0, 3000);
-    const cleanSuggestedFix = suggestedFix ? suggestedFix.trim().slice(0, 3000) : null;
-
-    // Check if an active open report for this user, question, and issueType already exists
-    const { data: existingReport } = await (adminSb.from("question_errata_reports") as any)
-      .select("id, status")
-      .eq("reporter_user_id", user.id)
-      .eq("question_id", resolvedQuestionId)
-      .eq("issue_type", canonicalIssueType)
-      .in("status", ["OPEN", "UNDER_REVIEW"])
-      .maybeSingle();
-
-    if (existingReport) {
-      const rep = existingReport as { id: string; status: string };
-      return NextResponse.json({
-        success: true,
-        message: "Your report for this question is already recorded and under review by our subject experts.",
-        reportId: rep.id,
-      });
-    }
-
-    // Insert new errata report
-    const { data: newReport, error: insertErr } = await (adminSb.from("question_errata_reports") as any)
-      .insert({
-        reporter_user_id: user.id,
-        question_id: resolvedQuestionId,
-        question_version_id: resolvedQuestionVersionId,
-        issue_type: canonicalIssueType,
-        description: cleanDescription.length >= 10 ? cleanDescription : cleanDescription.padEnd(10, "."),
-        suggested_fix: cleanSuggestedFix,
-        status: "OPEN",
-      })
-      .select("id")
-      .single();
-
-    if (insertErr || !newReport) {
-      console.error("[report-question] Insertion error:", insertErr);
-      return NextResponse.json(
-        { success: false, error: "Failed to submit question report. Please try again." },
-        { status: 500 }
-      );
-    }
-
-    const createdReport = newReport as { id: string };
-    return NextResponse.json({
-      success: true,
-      reportId: createdReport.id,
-      message: "Question issue reported successfully.",
-    });
-  } catch (error) {
-    console.error("[report-question] Handler error:", error);
-    return NextResponse.json(
-      { success: false, error: "Internal server error" },
-      { status: 500 }
+  const supabase = await createServerSupabaseClient();
+  const session = await getSessionState(supabase);
+  const reply = (code: ReportCode) =>
+    NextResponse.json(
+      { success: code === "REPORTED" || code === "ALREADY_REPORTED", code, message: PRACTICE_COPY.report.results[code], error: code === "REPORTED" || code === "ALREADY_REPORTED" ? undefined : PRACTICE_COPY.report.results[code] },
+      { status: STATUS[code] ?? 400 },
     );
+  if (session.state !== "user") return reply(session.state === "none" ? "NOT_SIGNED_IN" : "FAILED");
+
+  let body: Record<string, unknown>;
+  try {
+    body = (await req.json()) as Record<string, unknown>;
+  } catch {
+    return reply("INVALID_INPUT");
   }
+  let questionId = typeof body.questionId === "string" ? body.questionId : null;
+  let questionVersionId = typeof body.questionVersionId === "string" ? body.questionVersionId : null;
+  if (typeof body.mockQuestionId === "string") {
+    // mock_questions is not client-readable: resolve the canonical question + version server-side
+    const { data } = await createAdminServerSupabaseClient()
+      .from("mock_questions")
+      .select("question_version_id, question_versions(question_id)")
+      .eq("id", body.mockQuestionId)
+      .maybeSingle();
+    const qv = data?.question_versions as unknown as { question_id: string } | null;
+    if (!data || !qv) return reply("NOT_FOUND");
+    questionId = qv.question_id;
+    questionVersionId = data.question_version_id;
+  }
+  if (!questionId) return reply("INVALID_INPUT");
+  const note = typeof body.description === "string" ? body.description.trim().slice(0, 500) : "";
+  const code = await submitQuestionReport(supabase, session.user.id, {
+    questionId,
+    questionVersionId,
+    reason: REASON[String(body.issueType)] ?? "OTHER",
+    note,
+  });
+  return reply(code);
 }

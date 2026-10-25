@@ -8,6 +8,8 @@ import { getOnboardingState, pickableExams } from "@/lib/onboarding/server";
 import { firstSyllabusSection, shownGoals, todayInIndia, type PlanExam } from "@/lib/onboarding/schema";
 import { ONBOARDING_COPY } from "@/content/onboarding";
 import { OnboardingWizard } from "./onboarding-wizard";
+import { isPracticeEnabled } from "@/lib/practice/flag";
+import { examSections } from "@/lib/practice/server";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: ONBOARDING_COPY.pageTitle, robots: { index: false, follow: false } };
@@ -40,8 +42,19 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
         ),
     ),
   );
-  // exam-wise practice sets do not exist yet (app/practice: mistake drills only) → practiceHref null for every exam
-  const planExams: PlanExam[] = exams.map((e, i) => ({ id: e.id, title: e.title, slug: e.slug, firstSection: sections[i], practiceHref: null }));
+  // F2 (#79): topic practice + the 10-question diagnostic exist only with PRACTICE_ENABLED and only for an exam that
+  // has at least one practice topic; otherwise both stay null and the plan points to the exam page (as in F0)
+  const practiceReady = isPracticeEnabled()
+    ? await Promise.all(exams.map((e) => examSections(supabase, e.id).then((s) => s.some((x) => x.topics.length > 0), () => false)))
+    : exams.map(() => false);
+  const planExams: PlanExam[] = exams.map((e, i) => ({
+    id: e.id,
+    title: e.title,
+    slug: e.slug,
+    firstSection: sections[i],
+    practiceHref: practiceReady[i] ? `/practice?exam=${encodeURIComponent(e.slug)}` : null,
+    diagnosticHref: practiceReady[i] ? `/practice/session?exam=${encodeURIComponent(e.slug)}&mode=diagnostic` : null,
+  }));
 
   // F0-a: existing active goals are shown pre-selected (pickable ones, max 3); the user decides what stays
   const initial = { ...state.answers, examIds: shownGoals(state.answers.examIds, exams.map((e) => e.id)) };

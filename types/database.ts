@@ -4207,6 +4207,63 @@ export type Database = {
         }
         Relationships: []
       }
+      practice_answers: {
+        Row: {
+          answered_at: string
+          id: string
+          is_correct: boolean
+          language: string
+          mode: string
+          question_id: string
+          question_version_id: string
+          selected_option_key: string | null
+          set_id: string
+          time_taken_ms: number | null
+          user_id: string
+        }
+        Insert: {
+          answered_at?: string
+          id?: string
+          is_correct: boolean
+          language: string
+          mode: string
+          question_id: string
+          question_version_id: string
+          selected_option_key?: string | null
+          set_id: string
+          time_taken_ms?: number | null
+          user_id: string
+        }
+        Update: {
+          answered_at?: string
+          id?: string
+          is_correct?: boolean
+          language?: string
+          mode?: string
+          question_id?: string
+          question_version_id?: string
+          selected_option_key?: string | null
+          set_id?: string
+          time_taken_ms?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "practice_answers_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "practice_answers_question_version_id_fkey"
+            columns: ["question_version_id"]
+            isOneToOne: false
+            referencedRelation: "question_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       premium_system_configs: {
         Row: {
           config_domain: string
@@ -7513,6 +7570,16 @@ export type Database = {
         Args: { p_submission_id: string; p_user_id: string }
         Returns: boolean
       }
+      fn_check_practice_answer: {
+        Args: {
+          p_mode: string
+          p_question_version_id: string
+          p_selected_option_key: string
+          p_set_id: string
+          p_time_taken_ms: number
+        }
+        Returns: Json
+      }
       fn_check_premium_access_and_quota: {
         Args: { p_exam_id?: string; p_test_type?: string; p_user_id: string }
         Returns: Json
@@ -7854,6 +7921,15 @@ export type Database = {
           p_source_id: string
           p_timezone?: string
           p_user_id: string
+        }
+        Returns: Json
+      }
+      fn_report_question: {
+        Args: {
+          p_note: string
+          p_question_id: string
+          p_question_version_id: string
+          p_reason: string
         }
         Returns: Json
       }

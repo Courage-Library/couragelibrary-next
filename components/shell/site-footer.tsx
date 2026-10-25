@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { BrandWordmark } from "@/components/brand/wordmark";
 import { siteConfig } from "@/config/site";
 import { LANDING_BRAND_LINE, SHELL_COPY } from "@/content/landing";
-import { FOOTER_LEGAL, FOOTER_NAV } from "./nav-config";
+import { FOOTER_LEGAL, FOOTER_NAV, visibleItems, type ShellFlags } from "./nav-config";
 
 const linkClasses =
   "focus-ring inline-flex min-h-11 items-center rounded-badge text-body-sm text-fg-secondary underline-offset-2 hover:text-fg hover:underline md:min-h-9";
@@ -15,7 +15,7 @@ const linkClasses =
  * the bottom bar). UX-2a: brand line, support e-mail and location; content width 1200 px (decision #46). Hidden in
  * admin (admin has its own layout).
  */
-export function SiteFooter() {
+export function SiteFooter({ flags }: { flags: ShellFlags }) {
   const pathname = usePathname() ?? "/";
   if (pathname.startsWith("/admin")) return null;
   return (
@@ -29,8 +29,8 @@ export function SiteFooter() {
           <nav key={group.heading} aria-label={group.heading} className="flex flex-col gap-2">
             <h2 className="text-body-sm font-semibold text-fg">{group.heading}</h2>
             <ul className="flex flex-col">
-              {group.items.map((it) => (
-                <li key={it.href}>
+              {visibleItems(group.items, flags).map((it) => (
+                <li key={`${it.href}-${it.label}`}>
                   <Link href={it.href} className={linkClasses}>
                     {it.label}
                   </Link>

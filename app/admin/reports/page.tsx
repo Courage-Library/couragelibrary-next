@@ -1,29 +1,10 @@
-import React from "react";
-import { AdminService } from "@/services/admin.service";
-import { AdminQuestionReportsManager, AdminQuestionReportItem } from "@/components/admin/admin-question-reports-manager";
-import { Container } from "@/components/ui/legacy/container";
+import { redirect } from "next/navigation";
 import { requireAdminPage } from "@/lib/auth/require-admin";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = {
-  title: "Question Reports & Errata | Admin Studio",
-};
-
+/** F2 (#79): question reports are admin-only and live at /admin/question-reports (this old address redirects). */
 export default async function AdminReportsPage() {
-  await requireAdminPage({ allowStaff: true, path: "/admin/reports" });
-  const initialReports = await AdminService.getQuestionReports();
-
-  return (
-    <Container className="py-8 space-y-6 max-w-7xl">
-      <div>
-        <h1 className="text-2xl font-black text-slate-900 tracking-tight">Question Reports &amp; Errata</h1>
-        <p className="text-xs text-slate-500 font-medium mt-1">
-          Review candidate-reported question issues, typos, disputed answer keys, and resolution workflows.
-        </p>
-      </div>
-
-      <AdminQuestionReportsManager initialReports={initialReports as unknown as AdminQuestionReportItem[]} />
-    </Container>
-  );
+  await requireAdminPage({ path: "/admin/reports" });
+  redirect("/admin/question-reports");
 }

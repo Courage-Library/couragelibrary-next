@@ -5,10 +5,11 @@
  * Still omitted: Profile / Settings.
  * UX-FIX-1: Flashcards, Descriptive writing, Discussions, Institutes and Articles are NOT linked until each has real
  * published content (the routes stay, noindex); "/practice" is labelled "Mistake drills" until topic practice (F2).
+ * F2 (#79): with PRACTICE on, "/practice" is "Practice" (topic practice) and "Mistake drills" links /mistakes/drill.
  */
 import { FOOTER_ABOUT } from "@/content/public-pages";
 
-export type ShellFlags = { COURSES: boolean; BATTLES: boolean };
+export type ShellFlags = { COURSES: boolean; BATTLES: boolean; PRACTICE: boolean };
 
 export type NavItem = {
   href: string;
@@ -17,10 +18,14 @@ export type NavItem = {
   match?: string[];
   /** Shown only when this server-evaluated feature flag is on. */
   flag?: keyof ShellFlags;
+  /** Shown only when this flag is OFF (the pre-flag version of an entry). */
+  unlessFlag?: keyof ShellFlags;
 };
 
 export const LEARN_MENU: NavItem[] = [
-  { href: "/practice", label: "Mistake drills" },
+  { href: "/practice", label: "Practice", flag: "PRACTICE" },
+  { href: "/mistakes/drill", label: "Mistake drills", flag: "PRACTICE" },
+  { href: "/practice", label: "Mistake drills", unlessFlag: "PRACTICE" },
   { href: "/courses", label: "Courses", flag: "COURSES" },
   { href: "/battles", label: "Battles", flag: "BATTLES" },
 ];
@@ -57,7 +62,9 @@ export const FOOTER_NAV: Array<{ heading: string; items: NavItem[] }> = [
     items: [
       { href: "/exams", label: "Exams" },
       { href: "/mock-tests", label: "Mock tests" },
-      { href: "/practice", label: "Mistake drills" },
+      { href: "/practice", label: "Practice", flag: "PRACTICE" },
+      { href: "/mistakes/drill", label: "Mistake drills", flag: "PRACTICE" },
+      { href: "/practice", label: "Mistake drills", unlessFlag: "PRACTICE" },
       { href: "/pricing", label: "Pricing" },
     ],
   },
@@ -77,7 +84,7 @@ export const LEARN_PREFIXES = ["/practice", "/articles", "/flashcards", "/descri
 export const CONSOLE_ROUTES = [/^\/mock-tests\/[^/]+\/take/, /^\/live-tests\/[^/]+\/take/];
 
 export function visibleItems(items: NavItem[], flags: ShellFlags): NavItem[] {
-  return items.filter((i) => !i.flag || flags[i.flag]);
+  return items.filter((i) => (!i.flag || flags[i.flag]) && (!i.unlessFlag || !flags[i.unlessFlag]));
 }
 
 export function isActive(pathname: string, item: Pick<NavItem, "href" | "match">): boolean {

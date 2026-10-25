@@ -3,6 +3,7 @@ import Link from "next/link";
 import { CheckCircle2, XCircle, HelpCircle, BookOpen, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AnswerKeyUnavailableNotice } from "@/components/questions/answer-key-notice";
+import { ReportQuestionButton } from "@/components/practice/report-question-button";
 
 interface QuestionReviewCardProps {
   questionOrder: number;
@@ -23,6 +24,9 @@ interface QuestionReviewCardProps {
   learningSlug?: string | null;
   learningDocTitle?: string | null;
   hasPublishedLearning?: boolean;
+  /** F2: "Report this question" (shown when the question is known) */
+  questionId?: string | null;
+  questionVersionId?: string | null;
 }
 
 export function QuestionReviewCard({
@@ -43,6 +47,8 @@ export function QuestionReviewCard({
   learningSlug,
   learningDocTitle,
   hasPublishedLearning,
+  questionId,
+  questionVersionId,
 }: QuestionReviewCardProps) {
   const isUnanswered = selectedOption === null;
   const keyUnavailable = correctOption === null;
@@ -175,6 +181,7 @@ export function QuestionReviewCard({
           ) : <div />}
 
           <div className="flex flex-wrap items-center gap-3">
+            {questionId && <ReportQuestionButton questionId={questionId} questionVersionId={questionVersionId ?? null} />}
             {!isCorrect && !isUnanswered && (
               <Link
                 href="/mistakes"

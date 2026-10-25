@@ -190,6 +190,7 @@ const ADMIN_ONLY = new Set([
   ...ADAPTIVE_ADMIN_ONLY.map((n) => `app/admin/adaptive/actions.ts#${n}`),
   ...ADAPTIVE_ADMIN_ONLY.map((n) => `app/admin/actions.ts#${n}`),
   'app/api/admin/current-affairs/import/route.ts#POST', // session path; bearer path unchanged
+  'app/api/admin/reports/update-status/route.ts#POST', // F2 (#79): question reports are admin-only
   // SEC-1D (decision #16 update): PII pages' actions — gamification + billing.
   'app/admin/gamification/actions.ts#updateRewardPolicyAction',
   'app/admin/actions.ts#createSubscriptionPlanAction',

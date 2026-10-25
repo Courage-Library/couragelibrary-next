@@ -4,7 +4,8 @@ import { AdminService } from "@/services/admin.service";
 
 export async function POST(req: NextRequest) {
   try {
-    const authCheck = await guardAdminRoute({ allowStaff: true });
+    // F2 (#79): question reports are admin-only (staff no longer read or change them)
+    const authCheck = await guardAdminRoute();
     if (!authCheck.ok) return authCheck.response;
 
     const body = await req.json();
