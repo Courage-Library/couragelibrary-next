@@ -7177,6 +7177,39 @@ export type Database = {
           },
         ]
       }
+      user_onboarding: {
+        Row: {
+          attempt_band: string | null
+          completed_at: string | null
+          created_at: string
+          daily_minutes: number | null
+          exam_date: string | null
+          skipped_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attempt_band?: string | null
+          completed_at?: string | null
+          created_at?: string
+          daily_minutes?: number | null
+          exam_date?: string | null
+          skipped_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attempt_band?: string | null
+          completed_at?: string | null
+          created_at?: string
+          daily_minutes?: number | null
+          exam_date?: string | null
+          skipped_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_profiles: {
         Row: {
           avatar_url: string | null
