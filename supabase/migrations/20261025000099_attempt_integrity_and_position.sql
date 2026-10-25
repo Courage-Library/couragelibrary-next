@@ -1,6 +1,6 @@
 -- =====================================================================================================================
 -- 099 ATTEMPT-INTEGRITY-1 + PLAYER-RESUME-SERVER (Q6 part B)
--- NOT APPLIED until the architect's "go" (suspected security issue reported 2026-10-25). Rollback:
+-- Architect GO 2026-10-25 (security issue reported the same day). Rollback:
 -- docs/database/rollback/099_rollback.sql. No BEGIN / COMMIT here: the runner owns the transaction.
 --
 -- FINDING: `authenticated` holds TABLE-LEVEL INSERT / UPDATE on public.test_attempts and public.attempt_answers
@@ -14,7 +14,7 @@
 -- 1. test_attempts: no client INSERT; client UPDATE only (last_activity_at, last_question_order, visited_orders) —
 --    RLS (own, in_progress) unchanged.
 -- 2. attempt_answers: client INSERT only (attempt_id, mock_question_id, selected_option_key, is_marked_for_review,
---    time_spent_seconds, updated_at); client UPDATE only (selected_option_key, is_marked_for_review, time_spent_seconds,
+--    time_spent_seconds, updated_at); client UPDATE only (attempt_id, mock_question_id [upsert keys], selected_option_key, is_marked_for_review, time_spent_seconds,
 --    updated_at). INSERT / UPDATE policies also require the server deadline (started_at + duration + 30 s for answers in
 --    flight) — the database refuses late answers even when the app check is bypassed.
 -- 3. PLAYER-RESUME-SERVER: test_attempts.last_question_order (≥ 1) + visited_orders (≤ 1000 entries) — the resume
@@ -33,7 +33,9 @@ DROP POLICY IF EXISTS "Users can create own attempts" ON public.test_attempts;
 -- 2: attempt_answers client writes (columns) + the server deadline in RLS
 REVOKE INSERT, UPDATE ON public.attempt_answers FROM anon, authenticated;
 GRANT INSERT (attempt_id, mock_question_id, selected_option_key, is_marked_for_review, time_spent_seconds, updated_at) ON public.attempt_answers TO authenticated;
-GRANT UPDATE (selected_option_key, is_marked_for_review, time_spent_seconds, updated_at) ON public.attempt_answers TO authenticated;
+-- the conflict keys are in the UPDATE grant because a PostgREST upsert writes every payload column in DO UPDATE SET;
+-- the UPDATE policy's WITH CHECK still pins the row to the student's own in-progress attempt inside the deadline
+GRANT UPDATE (attempt_id, mock_question_id, selected_option_key, is_marked_for_review, time_spent_seconds, updated_at) ON public.attempt_answers TO authenticated;
 
 DROP POLICY IF EXISTS "Users can insert own attempt answers" ON public.attempt_answers;
 CREATE POLICY "Users can insert own attempt answers" ON public.attempt_answers
