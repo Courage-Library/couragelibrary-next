@@ -5,6 +5,11 @@
  */
 export const FINAL_PHASE_SECONDS = 300;
 
+/** Q6: a monotonic clock (performance.now) — changing the device's wall clock never moves the countdown. */
+export function monotonicNowMs(): number {
+  return typeof performance !== "undefined" && typeof performance.now === "function" ? performance.now() : Date.now();
+}
+
 export function remainingSecondsAt(deadlineMs: number, nowMs: number): number {
   return Math.max(0, Math.ceil((deadlineMs - nowMs) / 1000));
 }

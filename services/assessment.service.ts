@@ -8,7 +8,7 @@ import { MistakeService } from "@/services/mistake.service";
 import { PremiumEntitlementService } from "@/services/premium-entitlement.service";
 import { ContentService } from "@/services/content.service";
 import { formatIstDateTime, calculateExamDuration, getIstDateString } from "@/lib/assessment/timing";
-import { attemptDeadline, isFinalizeEnabled, isPastDeadline, staleOutcome, type AttemptLike } from "@/lib/assessment/finalize";
+import { SAVE_GRACE_SECONDS, attemptDeadline, isFinalizeEnabled, isPastDeadline, staleOutcome, type AttemptLike } from "@/lib/assessment/finalize";
 import { RANK_MIN_COHORT } from "@/lib/assessment/display-rules";
 import { buildTakeaways, buildTrend, cohortStanding, isTestAccountEmail, negativeMarksLost, type CohortRow, type Standing, type Takeaway, type TrendPoint } from "@/lib/assessment/result-analysis";
 import { leaderboardView, type LeaderboardEntry } from "@/lib/assessment/leaderboard";
@@ -1932,6 +1932,14 @@ export class AssessmentService {
   ): Promise<"ok" | "closed" | "error"> {
     const supabase = await createServerSupabaseClient();
 
+    // Q6: the server's clock decides. A save after the server deadline (+ SAVE_GRACE_SECONDS for answers in flight)
+    // is refused as "closed", whatever time the device shows.
+    const { data: att } = await supabase.from("test_attempts").select("status, started_at, mock_tests(duration_minutes)").eq("id", attemptId).maybeSingle();
+    if (!att || att.status !== "in_progress") return "closed";
+    const duration = Number(oneToOne(att.mock_tests)?.duration_minutes);
+    if (!Number.isFinite(duration) || duration <= 0) return "error";
+    if (Date.now() > attemptDeadline(att.started_at, duration).getTime() + SAVE_GRACE_SECONDS * 1000) return "closed";
+
     const { error } = await supabase
       .from("attempt_answers")
       .upsert({
@@ -2065,7 +2073,7 @@ export class AssessmentService {
 
     // Fetch test, sections, questions with answer keys, options, and student answers
     const [testRes, sectionsRes, questionsRes, answersRes] = await Promise.all([
-      adminSb.from("mock_tests").select("id, total_questions, total_marks, mock_templates(id, title, test_type)").eq("id", attempt.mock_test_id).single(),
+      adminSb.from("mock_tests").select("id, total_questions, total_marks, duration_minutes, mock_templates(id, title, test_type)").eq("id", attempt.mock_test_id).single(),
       adminSb.from("mock_sections").select("id, marks_per_question, negative_mark").eq("mock_test_id", attempt.mock_test_id),
       adminSb.from("mock_questions").select("id, mock_section_id, question_version_id, marks, negative_mark, question_versions(id, question_id, question_answers(correct_option_key), question_options(id, option_key))").eq("mock_test_id", attempt.mock_test_id),
       adminSb.from("attempt_answers").select("id, mock_question_id, selected_option_key, time_spent_seconds").eq("attempt_id", attemptId),
@@ -2178,7 +2186,9 @@ export class AssessmentService {
     const unansweredCount = scoredQuestions - attemptedCount;
     const accuracy = attemptedCount > 0 ? (correctCount / attemptedCount) * 100 : 0;
 
-    const submittedAtIso = opts?.submittedAt ?? new Date().toISOString();
+    // Q6: a submit that arrives after the server deadline is stamped AT the deadline (never later)
+    const serverDeadline = attemptDeadline(attempt.started_at, Number(testData.duration_minutes) || 0);
+    const submittedAtIso = opts?.submittedAt ?? (Date.now() > serverDeadline.getTime() ? serverDeadline.toISOString() : new Date().toISOString());
     const authoritativeWallClockSeconds = calculateExamDuration(attempt.started_at, submittedAtIso);
     const finalDurationSeconds = Math.max(authoritativeWallClockSeconds, totalTimeSpent);
 

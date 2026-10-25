@@ -128,6 +128,7 @@ jobs:
           q F11-TICKETS node scripts/test_f11_tickets.cjs || fail=1
           q FLAGS-LIVE-STATIC node scripts/test_flags_live_static.cjs || fail=1
           q ADMIN-MFA node scripts/test_admin_mfa.cjs || fail=1
+          q PLAYER-RESUME node scripts/test_player_resume.cjs || fail=1
           q MIGRATION-RUNNER-SELFTEST node scripts/db/apply-migration.cjs --self-test || fail=1
           q KILL-LEFTOVER-SELFTEST node scripts/ci/kill-leftover-server.cjs --self-test || fail=1
           exit $fail

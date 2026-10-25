@@ -23,6 +23,9 @@ export function attemptDeadline(startedAt: string, durationMinutes: number): Dat
   return new Date(new Date(startedAt).getTime() + Math.max(0, Number(durationMinutes) || 0) * 60_000);
 }
 
+/** Q6: answers in flight when time runs out are accepted for this many seconds after the server deadline, never later. */
+export const SAVE_GRACE_SECONDS = 30;
+
 export function isPastDeadline(startedAt: string, durationMinutes: number, now: Date = new Date()): boolean {
   return now.getTime() > attemptDeadline(startedAt, durationMinutes).getTime();
 }

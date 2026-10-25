@@ -217,10 +217,16 @@ const P = code(read(PLAYER));
     assert(T.remainingSecondsAt(10_000, 0) === 10 && T.remainingSecondsAt(10_000, 9_001) === 1 && T.remainingSecondsAt(10_000, 10_000) === 0 && T.remainingSecondsAt(10_000, 99_999) === 0, 'remaining');
     assert(T.timerPhase(301) === 'normal' && T.timerPhase(300) === 'final' && T.timerPhase(1) === 'final' && T.timerPhase(0) === 'over', 'phases');
     const src = code(read('components/assessment/assessment-timer.tsx'));
-    assert(/if \(deadlineRef\.current === null\) deadlineRef\.current = Date\.now\(\) \+/.test(src), 'deadline anchored once');
+    // Q6 (updated with intent): anchored once on the MONOTONIC clock — a changed device clock cannot move the countdown
+    assert(/if \(deadlineRef\.current === null\) deadlineRef\.current = monotonicNowMs\(\) \+/.test(src) && !/Date\.now\(\)/.test(src), 'deadline anchored once (monotonic, no wall clock)');
+    const realNow = Date.now;
+    Date.now = () => realNow() + 3_600_000; // a device clock pushed one hour ahead
+    const m1 = T.monotonicNowMs();
+    Date.now = realNow;
+    assert(Math.abs(T.monotonicNowMs() - m1) < 1000, 'monotonic clock ignores wall-clock jumps');
     assert(/onExpiredRef\.current = onTimeExpired;/.test(src) && /if \(left <= 0 && !firedRef\.current\) \{\s*firedRef\.current = true;\s*onExpiredRef\.current\(\);/.test(src), 'fires once via ref');
     assert(/\}, \[\]\);/.test(src) && !/\[seconds, onTimeExpired\]/.test(src), 'interval effect must not depend on seconds / the callback');
-    assert(/remainingSecondsAt\(deadlineRef\.current as number, Date\.now\(\)\)/.test(src), 'ticks recompute from the clock');
+    assert(/remainingSecondsAt\(deadlineRef\.current as number, monotonicNowMs\(\)\)/.test(src), 'ticks recompute from the monotonic clock');
     return 'anchored · once · stable';
   });
 

@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { remainingSecondsAt, timerPhase } from "@/lib/assessment/timer";
+import { monotonicNowMs, remainingSecondsAt, timerPhase } from "@/lib/assessment/timer";
 
 interface AssessmentTimerProps {
   /** server-authoritative remaining time when the page was rendered */
@@ -29,9 +29,10 @@ export function AssessmentTimer({ initialRemainingSeconds, onTimeExpired, classN
   const [announce, setAnnounce] = useState("");
 
   useEffect(() => {
-    if (deadlineRef.current === null) deadlineRef.current = Date.now() + Math.max(0, initialRemainingSeconds) * 1000;
+    // anchored once on a MONOTONIC clock: the server's remaining time + elapsed real time; the wall clock is ignored (Q6)
+    if (deadlineRef.current === null) deadlineRef.current = monotonicNowMs() + Math.max(0, initialRemainingSeconds) * 1000;
     const tick = () => {
-      const left = remainingSecondsAt(deadlineRef.current as number, Date.now());
+      const left = remainingSecondsAt(deadlineRef.current as number, monotonicNowMs());
       setSeconds(left);
       if (left <= 0 && !firedRef.current) {
         firedRef.current = true;
