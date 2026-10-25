@@ -5403,6 +5403,24 @@ export type Database = {
           },
         ]
       }
+      security_settings: {
+        Row: {
+          admin_mfa_required: boolean
+          id: boolean
+          updated_at: string
+        }
+        Insert: {
+          admin_mfa_required?: boolean
+          id?: boolean
+          updated_at?: string
+        }
+        Update: {
+          admin_mfa_required?: boolean
+          id?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       spaced_repetition_schedules: {
         Row: {
           created_at: string
