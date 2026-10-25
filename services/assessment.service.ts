@@ -9,6 +9,9 @@ import { PremiumEntitlementService } from "@/services/premium-entitlement.servic
 import { ContentService } from "@/services/content.service";
 import { formatIstDateTime, calculateExamDuration, getIstDateString } from "@/lib/assessment/timing";
 import { attemptDeadline, isFinalizeEnabled, isPastDeadline, staleOutcome, type AttemptLike } from "@/lib/assessment/finalize";
+import { RANK_MIN_COHORT } from "@/lib/assessment/display-rules";
+import { buildTakeaways, buildTrend, cohortStanding, isTestAccountEmail, negativeMarksLost, type CohortRow, type Standing, type Takeaway, type TrendPoint } from "@/lib/assessment/result-analysis";
+import { isPracticeEnabled } from "@/lib/practice/flag";
 
 /** TYPES-1 B1: PostgREST returns a one-to-one embed (e.g. test_attempts → test_results) as an object or null. */
 function oneToOne<T>(v: T | T[] | null | undefined): T | null {
@@ -365,14 +368,8 @@ export interface TestLeaderboardItem {
   isCurrentUser: boolean;
 }
 
-export interface TestStandingInfo {
-  rank: number;
-  totalParticipants: number;
-  percentile: number;
-  candidateScore: number;
-  averageScore: number;
-  topScore: number;
-}
+/** F4 (R12): rank / percentile among n real students' first attempts — present only when n ≥ RANK_MIN_COHORT. */
+export type TestStandingInfo = Standing;
 
 export interface TestCandidateSecurityInfo {
   candidateId: string;
@@ -425,7 +422,8 @@ export interface TestResultSummary {
     totalQuestions: number;
     totalMarks: number;
   };
-  standing: TestStandingInfo;
+  /** null = fewer than RANK_MIN_COHORT real students: the page omits rank / percentile entirely */
+  standing: TestStandingInfo | null;
   security: TestCandidateSecurityInfo;
   rewards: TestRewardSummary;
   insights: {
@@ -434,6 +432,13 @@ export interface TestResultSummary {
     accuracyLevel: string;
     speedSecondsPerQuestion: number;
     reviewCount: number;
+  };
+  /** F4 analysis (server values only) */
+  analysis: {
+    negativeMarksLost: number;
+    takeaways: Takeaway[];
+    trend: TrendPoint[] | null;
+    examSlug: string | null;
   };
   sections: Array<{
     id?: string;
@@ -455,6 +460,10 @@ export interface TestResultSummary {
     questionVersionId: string | null;
     questionOrder: number;
     sectionName: string;
+    /** F4: canonical topic node (practice link) and full marks of the question */
+    topicId: string | null;
+    marks: number;
+    isMarked: boolean;
     questionText: string;
     questionImageUrl?: string | null;
     optionsType?: string;
@@ -2382,8 +2391,9 @@ export class AssessmentService {
     const [sectionsRes, questionsRes, answersRes, allTestResultsRes] = await Promise.all([
       adminSb.from("section_results").select("*, mock_sections(id, section_name)").eq("test_result_id", r.id),
       adminSb.from("mock_questions").select("id, question_order, mock_section_id, marks, negative_mark, mock_sections(id, section_name), question_versions(id, question_id, question_text, question_image_url, options_type, question_options(id, option_key, option_text, option_image_url, order_index), question_answers(correct_option_key, explanation_md), questions(canonical_topic_id, topics:canonical_taxonomy_nodes!questions_canonical_topic_id_node_fkey(name, slug)))").eq("mock_test_id", mt.id).order("question_order"),
-      adminSb.from("attempt_answers").select("mock_question_id, selected_option_key, is_correct, evaluated_marks, time_spent_seconds").eq("attempt_id", resolvedAttemptId),
-      adminSb.from("test_results").select("id, user_id, total_score, max_score, accuracy_percentage, time_spent_seconds, created_at").eq("mock_test_id", mt.id).order("total_score", { ascending: false }).order("accuracy_percentage", { ascending: false }).order("time_spent_seconds", { ascending: true }),
+      adminSb.from("attempt_answers").select("mock_question_id, selected_option_key, is_marked_for_review, is_correct, evaluated_marks, time_spent_seconds").eq("attempt_id", resolvedAttemptId),
+      // F4 cohort: every scored result of this mock (only submitted attempts have a test_results row)
+      adminSb.from("test_results").select("user_id, total_score, created_at").eq("mock_test_id", mt.id).order("created_at", { ascending: true }),
     ]);
 
     const answersList = answersRes.data || [];
@@ -2444,6 +2454,9 @@ export class AssessmentService {
         questionVersionId: qv?.id ?? null,
         questionOrder: mq.question_order,
         sectionName: mq.mock_sections?.section_name || "General",
+        topicId: topicId ?? null,
+        marks: Number(mq.marks || 0),
+        isMarked: ans?.is_marked_for_review === true,
         questionText: qv?.question_text || "",
         questionImageUrl: qv?.question_image_url || null,
         optionsType: qv?.options_type || "text",
@@ -2462,30 +2475,10 @@ export class AssessmentService {
       };
     });
 
-    // Compute Dynamic Standing & Percentile
-    const allResults = allTestResultsRes.data || [];
-    const bestUserAttempts = new Map<string, any>();
-    allResults.forEach((tr) => {
-      if (!bestUserAttempts.has(tr.user_id)) {
-        bestUserAttempts.set(tr.user_id, tr);
-      }
-    });
-
-    const rankedCandidates = Array.from(bestUserAttempts.values());
-    const totalParticipants = Math.max(1, rankedCandidates.length);
-    const topScore = rankedCandidates.length > 0 ? Number(rankedCandidates[0].total_score) : Number(r.total_score);
-    const totalSum = rankedCandidates.reduce((acc, c) => acc + Number(c.total_score), 0);
-    const averageScore = Math.round((totalSum / totalParticipants) * 10) / 10;
-
-    // Find candidate's rank
+    // F4 (R12): rank / percentile only from >= RANK_MIN_COHORT real students' first submitted attempts; never estimated
     const candidateUserId = attemptData.user_id;
-    let candidateRank = rankedCandidates.findIndex((c) => c.user_id === candidateUserId) + 1;
-    if (candidateRank <= 0) candidateRank = 1;
-
-    // Percentile = ((Total - Rank) / (Total - 1)) * 100
-    const percentile = totalParticipants > 1
-      ? Math.round(((totalParticipants - candidateRank) / (totalParticipants - 1)) * 1000) / 10
-      : 100.0;
+    const cohortRows: CohortRow[] = (allTestResultsRes.data || []).map((tr) => ({ userId: tr.user_id, score: Number(tr.total_score), createdAt: String(tr.created_at ?? ""), isTestAccount: false }));
+    const standing = await AssessmentService.realCohortStanding(adminSb, cohortRows, candidateUserId, Number(r.total_score));
 
     // Identify strongest / weakest sections
     const sortedSections = [...sections].sort((a, b) => b.accuracyPercentage - a.accuracyPercentage);
@@ -2506,6 +2499,32 @@ export class AssessmentService {
         : r.accuracy_percentage >= 50
         ? "Moderate Accuracy"
         : "Needs Improvement";
+
+    // F4: exam of this mock (practice links + trend over the same exam)
+    const { data: mockMeta } = await adminSb.from("mock_tests").select("mock_templates(exam_id, exams(slug))").eq("id", mt.id).maybeSingle();
+    const tmpl = oneToOne(mockMeta?.mock_templates);
+    const examId: string | null = tmpl?.exam_id ?? null;
+    const examSlug: string | null = oneToOne(tmpl?.exams)?.slug ?? null;
+    const trend = examId ? await AssessmentService.examTrend(adminSb, candidateUserId, examId, resolvedAttemptId) : null;
+
+    const wrongTopicIds = [...new Set(reviewQuestions.filter((q) => q.selectedOption !== null && q.correctOption !== null && !q.isCorrect).map((q) => q.topicId).filter((t): t is string => Boolean(t)))];
+    const practiceTopicIds = new Set<string>();
+    if (isPracticeEnabled() && wrongTopicIds.length > 0) {
+      const { servableTopicCounts } = await import("@/lib/practice/server"); // server-only module, loaded on use
+      const counts = await servableTopicCounts(sb, wrongTopicIds);
+      counts.forEach((n, t) => {
+        if (n > 0) practiceTopicIds.add(t);
+      });
+    }
+    const takeaways = buildTakeaways({
+      questions: reviewQuestions,
+      maxScore: Number(r.max_score),
+      accuracyPercentage: Number(r.accuracy_percentage),
+      timeUsedSeconds: totalSeconds,
+      durationMinutes: Number(mt.duration_minutes) || 0,
+      examSlug,
+      practiceTopicIds,
+    });
 
     const candidateIdShort = (candidateUserId || "CANDIDATE").slice(0, 4).toUpperCase();
     const maskedId = `CL••••${candidateIdShort}`;
@@ -2632,8 +2651,8 @@ export class AssessmentService {
         maxScore: Number(r.max_score),
         accuracyPercentage: Number(r.accuracy_percentage),
         timeSpentSeconds: totalSeconds,
-        rank: candidateRank,
-        percentile,
+        rank: standing?.rank ?? null,
+        percentile: standing?.percentile ?? null,
       },
       test: {
         id: mt.id,
@@ -2642,14 +2661,7 @@ export class AssessmentService {
         totalQuestions: mt.total_questions || r.total_questions,
         totalMarks: Number(mt.total_marks || r.max_score),
       },
-      standing: {
-        rank: candidateRank,
-        totalParticipants,
-        percentile,
-        candidateScore: Number(r.total_score),
-        averageScore,
-        topScore,
-      },
+      standing,
       security: {
         candidateId: candidateUserId,
         maskedId,
@@ -2665,9 +2677,67 @@ export class AssessmentService {
         speedSecondsPerQuestion,
         reviewCount: r.incorrect_count,
       },
+      analysis: {
+        negativeMarksLost: negativeMarksLost(reviewQuestions),
+        takeaways,
+        trend,
+        examSlug,
+      },
       sections,
       reviewQuestions,
     };
+  }
+
+  /**
+   * F4 (R12): standing among REAL students; test / QA accounts (reserved .test domain) never count. The account
+   * lookup runs only when the cohort could reach RANK_MIN_COHORT; if it fails, the standing is omitted (fail closed).
+   */
+  private static async realCohortStanding(adminSb: SupabaseClient<Database>, rows: CohortRow[], viewerId: string, score: number): Promise<Standing | null> {
+    const users = new Set(rows.map((r) => r.userId));
+    if (users.size < RANK_MIN_COHORT) return null;
+    const testIds = new Set<string>();
+    try {
+      for (let page = 1; ; page++) {
+        if (page > 20) return null; // more accounts than we check: omit rather than guess
+        const { data, error } = await adminSb.auth.admin.listUsers({ page, perPage: 1000 });
+        if (error) return null;
+        for (const u of data.users) if (isTestAccountEmail(u.email)) testIds.add(u.id);
+        if (data.users.length < 1000) break;
+      }
+    } catch {
+      return null;
+    }
+    return cohortStanding(rows.map((r) => ({ ...r, isTestAccount: testIds.has(r.userId) })), viewerId, score);
+  }
+
+  /** F4: this user's scored attempts of mocks of the same exam (abandoned attempts excluded) as trend points. */
+  private static async examTrend(adminSb: SupabaseClient<Database>, userId: string, examId: string, currentAttemptId: string): Promise<TrendPoint[] | null> {
+    const { data: mocks } = await adminSb.from("mock_tests").select("id, title, mock_templates!inner(exam_id)").eq("mock_templates.exam_id", examId).limit(500);
+    const titles = new Map((mocks ?? []).map((m) => [m.id, m.title]));
+    if (titles.size === 0) return null;
+    const { data: results } = await adminSb
+      .from("test_results")
+      .select("attempt_id, mock_test_id, total_score, max_score, accuracy_percentage, created_at")
+      .eq("user_id", userId)
+      .in("mock_test_id", [...titles.keys()])
+      .order("created_at", { ascending: true })
+      .limit(200);
+    const rows = results ?? [];
+    if (rows.length < 2) return null;
+    const { data: attempts } = await adminSb.from("test_attempts").select("id, status, submitted_at").in("id", rows.map((x) => x.attempt_id));
+    const att = new Map((attempts ?? []).map((a) => [a.id, a]));
+    return buildTrend(
+      rows.map((x) => ({
+        attemptId: x.attempt_id,
+        status: att.get(x.attempt_id)?.status ?? "abandoned", // unknown attempt: never shown
+        mockTitle: titles.get(x.mock_test_id) ?? "Mock test",
+        submittedAt: String(att.get(x.attempt_id)?.submitted_at ?? x.created_at ?? ""),
+        score: Number(x.total_score),
+        maxScore: Number(x.max_score),
+        accuracy: Number(x.accuracy_percentage),
+      })),
+      currentAttemptId,
+    );
   }
 
   /**

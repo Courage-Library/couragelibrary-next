@@ -85,7 +85,8 @@ Gate: `scripts/test_f3_player.cjs` (CI `F3-PLAYER`), 10/10. Against the pre-F3 c
 | P1-13 | Accessible dialogs | **Fixed.** Submit, instructions, palette sheet, option zoom and the time-over/submitting status all use `components/ui/dialog`. The custom clear-confirm and security modals are removed. |
 | P1-14 | "Not saved — retrying" | **Fixed.** Distinct states: Saved, Saving…, Not saved — retrying, Offline — kept on this device, Time is over — saving stopped. Debounce is per question; backoff runs 1 → 30 s. |
 | P2 | Trivial ones done | Contrast of "of N"; no total shown for adaptive tests; one section switcher, now a tablist with `aria-selected`; pulse removed (adaptive badge, result page); wordmark hidden below `sm`; offline banner neutral. |
-| P2 | Not done (not trivial) | Result page: one primary action ("Review mistakes"), quiet leaderboard, fewer ambers, light hero (#17). The pre-exam screen's 11 px copy. |
+| P2 | Not done (not trivial) | The pre-exam screen's 11 px copy. |
+| P2 #17 | Result page | **Done in F4** (`scripts/test_f4_result.cjs`): light score card, one primary action (the top takeaway), one amber, leaderboard link only beside a real standing. |
 
 **Follow-up check (2026-10-25): tab-switch / fullscreen-exit / devtools events were never recorded server-side**, before or after F3.
 - `player-client.tsx` keeps `tabSwitchCount` / `fullscreenExitCount` in React state only; neither the pre-F3 player (15829db) nor the current one sends them anywhere.

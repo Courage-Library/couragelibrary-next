@@ -16,6 +16,8 @@ interface QuestionReviewCardProps {
   /** null = no valid answer key (QB-KEY-1): no option is marked correct, the question is not scored */
   correctOption: string | null;
   isCorrect: boolean;
+  /** F4: marked for review in the player */
+  isMarked?: boolean;
   marksAwarded: number;
   explanation: string | null;
   topicName: string | null;
@@ -39,6 +41,7 @@ export function QuestionReviewCard({
   selectedOption,
   correctOption,
   isCorrect,
+  isMarked = false,
   marksAwarded,
   explanation,
   topicName,
@@ -60,7 +63,8 @@ export function QuestionReviewCard({
           <span className="font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded-md">
             Q{questionOrder}
           </span>
-          <span className="text-slate-500 font-medium">{sectionName}</span>
+          <span className="text-fg-secondary font-medium">{sectionName}</span>
+          {isMarked && <span className="rounded-badge border border-line px-2 py-0.5 text-caption font-medium text-fg">Marked for review</span>}
           {timeSpentSeconds !== undefined && timeSpentSeconds > 0 && (
             <span className="text-caption text-fg-secondary font-mono">
               &bull; {timeSpentSeconds >= 60 ? `${Math.floor(timeSpentSeconds / 60)}m ${timeSpentSeconds % 60}s` : `${timeSpentSeconds}s`}
@@ -72,7 +76,7 @@ export function QuestionReviewCard({
             <span className="rounded-badge border border-warning-200 bg-warning-50 px-2 py-0.5 text-caption font-medium text-warning-800">Not scored</span>
           ) : isUnanswered ? (
             <span className="text-slate-500 flex items-center gap-1">
-              <HelpCircle className="w-3.5 h-3.5" /> Unattempted (0.00)
+              <HelpCircle aria-hidden="true" className="w-3.5 h-3.5" /> Skipped (0)
             </span>
           ) : isCorrect ? (
             <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60 flex items-center gap-1">
@@ -175,7 +179,7 @@ export function QuestionReviewCard({
 
         <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
           {topicName ? (
-            <span className="text-[11px] text-slate-500">
+            <span className="text-caption text-fg-secondary">
               Topic: <strong className="text-slate-700">{topicName}</strong>
             </span>
           ) : <div />}
@@ -185,28 +189,21 @@ export function QuestionReviewCard({
             {!isCorrect && !isUnanswered && (
               <Link
                 href="/mistakes"
-                className="text-xs font-semibold text-rose-600 hover:text-rose-700 flex items-center gap-1 hover:underline"
+                className="focus-ring inline-flex min-h-12 items-center gap-1 text-body-sm font-semibold text-danger-700 hover:underline"
               >
-                <AlertTriangle className="w-3.5 h-3.5" /> Review in Mistake Vault
+                <AlertTriangle aria-hidden="true" className="w-3.5 h-3.5" /> Review in Mistake Vault
               </Link>
             )}
 
             {learningSlug ? (
               <Link
                 href={`/articles/${learningSlug}`}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-50 border border-teal-200/80 text-teal-800 hover:bg-teal-100 font-bold text-xs shadow-2xs transition"
+                className="focus-ring inline-flex min-h-12 items-center gap-1.5 rounded-lg border border-line px-3 text-body-sm font-semibold text-link hover:bg-ink-50"
               >
-                <BookOpen className="w-3.5 h-3.5 text-teal-700" />
-                <span>Learn Concept: {topicName || "Study Notes"}</span>
+                <BookOpen aria-hidden="true" className="w-3.5 h-3.5" />
+                <span>Learn more{topicName ? `: ${topicName}` : ""}</span>
               </Link>
-            ) : (
-              <Link
-                href={topicSlug ? `/practice?topic=${topicSlug}` : "/practice"}
-                className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 hover:underline"
-              >
-                <BookOpen className="w-3.5 h-3.5" /> Practice Topic Questions
-              </Link>
-            )}
+            ) : null}
           </div>
         </div>
       </div>

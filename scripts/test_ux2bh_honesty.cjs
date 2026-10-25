@@ -7,7 +7,7 @@
  *   S-1  banned phrases are gone from the touched source files (comments excluded)
  *   S-2  pricing: the payments-OFF view returns before the unchanged payments-ON markup and contains no price,
  *        GST, "most popular", coupon, checkout or fetch
- *   S-3  result view: every standing.rank / standing.percentile use sits inside the canShowRank(...) branch
+ *   S-3  result view: every standing.rank / percentile / n use sits inside the {standing && ...} branch (null < RANK_MIN_COHORT)
  *   S-4  current affairs: the hub calls only CurrentAffairsService.getHubData (no new query path); the quiz section and
  *        card render only for status ALREADY_PUBLISHED; no "being curated" / "5-gate" / "fact-checked" copy
  *   S-5  mock size comes from formatMockShape; no "Full-length mock" / "Shorter mock" / old mislabels
@@ -145,12 +145,15 @@ function offline() {
     offIdx > 0 && onIdx > offIdx && offView.length > 200 && !/₹|GST|MOST POPULAR|most popular|[Cc]oupon|handleCheckout|fetch\(|create-order|basePriceInr/.test(offView),
     `off@${offIdx} on@${onIdx}`);
 
+  // F4: the builder returns standing = null below RANK_MIN_COHORT (cohortStanding); the view renders rank / percentile
+  // only inside the {standing && (...)} branch, and nothing about the cohort outside it
   const rv = read('components/assessment/result-view-client.tsx');
-  const g0 = rv.indexOf('canShowRank(standing.totalParticipants) ? (');
-  const g1 = rv.indexOf(') : (', g0);
-  const uses = [...rv.matchAll(/standing\.(rank|percentile)\b/g)].map((m) => m.index);
-  check('S-3', 'result view: every standing.rank / standing.percentile is inside the canShowRank branch',
-    g0 > 0 && uses.length >= 3 && uses.every((i) => i > g0 && i < g1), `${uses.length} uses`);
+  const g0 = rv.indexOf('{standing && (');
+  const g1 = rv.indexOf('</section>', g0);
+  const uses = [...rv.matchAll(/standing\.(rank|percentile|n)\b/g)].map((m) => m.index);
+  const ra = read('lib/assessment/result-analysis.ts');
+  check('S-3', 'result view: every standing.rank / percentile / n is inside the standing branch; null below RANK_MIN_COHORT',
+    g0 > 0 && uses.length >= 3 && uses.every((i) => i > g0 && i < g1) && /if \(n < RANK_MIN_COHORT\) return null;/.test(ra), `${uses.length} uses`);
 
   const ca = read('app/current-affairs/page.tsx');
   const calls = [...new Set([...ca.matchAll(/CurrentAffairsService\.(\w+)/g)].map((m) => m[1]))];

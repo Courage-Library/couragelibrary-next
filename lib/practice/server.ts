@@ -80,6 +80,11 @@ async function servableByTopic(supabase: AppSupabaseClient, topicIds: string[]):
   return out;
 }
 
+/** F4: topic id → servable question count (the result page links "Practise <topic>" only when > 0). */
+export async function servableTopicCounts(supabase: AppSupabaseClient, topicIds: string[]): Promise<Map<string, number>> {
+  return servableCounts(supabase, topicIds);
+}
+
 async function servableCounts(supabase: AppSupabaseClient, topicIds: string[]): Promise<Map<string, number>> {
   const by = await servableByTopic(supabase, topicIds);
   return new Map([...by.entries()].map(([k, v]) => [k, v.length]));
