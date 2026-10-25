@@ -37,17 +37,37 @@ Found with ATTEMPT-INTEGRITY-1 (099): a table-level INSERT / UPDATE grant to `au
 
 `fn_post_discussion_message` now takes the activity row's topic from the thread (no topic → no row), uses an allowed event type with `metadata.kind = COMMUNITY_DOUBT_ANSWERED`, and can never fail a reply because of analytics.
 
-## FLASHCARD-REVIEW-1: every flashcard review fails — fix HELD (107 + 108, coins)
+## FLASHCARD-REVIEW-1: DONE 2026-10-25 (107 + 108, with COINS-OFF-1)
 
-`fn_submit_flashcard_review` (107) and `fn_complete_deck_review_session` (108) are fixed with the 101 pattern on branches `held-107` and `held-108`: smoke passes, dry-run OK, NOT applied. Making them succeed also starts the existing coin rewards in the same functions: 1 coin per card per day and a 10-coin deck bonus, both written as REWARDED `gamification_events`. That is under the coins hard limit and needs an explicit go, or a ruling to disable those rewards until F10 (Coins).
+Reviews and deck completions work again: the activity row follows the 101 pattern and the coin-reward inserts were removed (comment: "coin rewards: re-enable in F10 via the coin ledger"). Verified live: zero new REWARDED rows, and the 102 / 105 gates still deny.
 
-## PAY-FULFIL-1: payment fulfilment cannot succeed (pre-existing, payments)
+## F10-COINS-INVENTORY: everything that awards or moves coins (for F10)
 
-`fn_verify_and_fulfill_payment` writes `user_entitlements.status`, `valid_from` and `valid_until`, which don't exist (the table has `starts_at`, `expires_at` and `is_active`), and uses `entitlement_type 'SUBSCRIPTION'`, which the CHECK doesn't allow. Every fulfil fails with 42703. Payments are off and the route returns 501. Needs a payments ruling. It must also fit the owner's 2026-10-25 decision: paid plans are one-time (3, 6 or 12 months) with no auto-renew. See `docs/reports/security/PAY_NULL_1.md`; the NULL fail-closed fix is migration 106, held.
+Read-only, 2026-10-25. **Existing data:** 10 REWARDED `gamification_events` rows, all `MOCK_TEST_COMPLETED`, worth 208 coins; `coin_ledger` has 11 rows and `coin_wallets` 6.
 
-## CUSTOM-PRACTICE-1: custom practice sessions cannot start (pre-existing)
+**Database functions** (client-callable unless marked service):
+- `fn_award_gamification_reward` (service): events, ledger and wallets.
+- `fn_claim_reward_item` and `fn_reverse_reward_claim` (service): ledger and wallets.
+- `fn_record_qualifying_streak_activity` (service): wallets.
+- `fn_resolve_errata_report` (service): awards a bounty through `fn_award_gamification_reward`.
+- `fn_evaluate_descriptive_submission` and `fn_finalize_battle_room`: award through `fn_award_gamification_reward`.
+- `fn_mark_accepted_answer` and `fn_vote_discussion_message` (5-upvote milestone): REWARDED events.
+- `fn_submit_flashcard_review` and `fn_complete_deck_review_session`: rewards **removed by 107 / 108**.
 
-`fn_start_custom_practice_session` inserts a `test_attempts` row without `mock_test_id` (NOT NULL), so it always fails. It has no app caller today. This needs a design decision: a container mock, or attempts without a mock. See `docs/reports/security/ACTIVITY_INSERT_SWEEP.md` (on branch `held-108`).
+**App code:**
+- `services/assessment.service.ts`: the mock-completion gamification event, and the wallet read.
+- `services/live-test-reward.service.ts`: ledger and wallet writes.
+- `services/gamification.service.ts`.
+
+## PAY-FULFIL-1 → F9 (DO NOT FIX before F9)
+
+Architect ruling, 2026-10-25. `fn_verify_and_fulfill_payment` is rebuilt in F9 (Pricing + Razorpay) on the canonical `user_entitlements` schema (`starts_at`, `expires_at`, `is_active`), for one-time 3, 6 or 12-month plans with no auto-renew. Until then it stays service-role-only, unused and fail-closed (106 applied).
+
+Two 106 checks were SKIPPED and move into F9: "valid → PAID once, replay → no double fulfil" and "the same payment id on another order → rejected".
+
+## CUSTOM-PRACTICE-1: redesign custom practice on the practice engine
+
+Architect ruling, 2026-10-25. Custom practice must use the practice engine and never exam attempts. `fn_start_custom_practice_session` inserts `test_attempts` without `mock_test_id`, so it always fails today. Nothing calls it: no app code and no database function. Client EXECUTE has been revoked since 090 (SECDEF-S2-2): only `service_role` and the owner can run it. So the planned migration 110 would have been a no-op and was not created.
 
 ## TOPIC-CONTEXT-1: CLOSED — not a bug (2026-10-25)
 
