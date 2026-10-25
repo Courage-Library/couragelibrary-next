@@ -7621,6 +7621,21 @@ export type Database = {
           },
         ]
       }
+      username_blocklist: {
+        Row: {
+          kind: string
+          term: string
+        }
+        Insert: {
+          kind: string
+          term: string
+        }
+        Update: {
+          kind?: string
+          term?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -8081,18 +8096,12 @@ export type Database = {
         }
         Returns: Json
       }
-      fn_set_leaderboard_opt_in: {
-        Args: { p_opt_in: boolean }
-        Returns: Json
-      }
+      fn_set_leaderboard_opt_in: { Args: { p_opt_in: boolean }; Returns: Json }
       fn_set_profile_visibility: {
         Args: { p_confirm_adult: boolean; p_public: boolean }
         Returns: Json
       }
-      fn_set_username: {
-        Args: { p_username: string }
-        Returns: Json
-      }
+      fn_set_username: { Args: { p_username: string }; Returns: Json }
       fn_start_custom_practice_session: {
         Args: { p_session_id: string }
         Returns: Json
