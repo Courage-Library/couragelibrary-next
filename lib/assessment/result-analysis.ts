@@ -89,7 +89,7 @@ export type TakeawayInput = {
   durationMinutes: number;
   /** exam slug for the practice link; null = no link */
   examSlug: string | null;
-  /** topics that can be practised now (practice on AND ≥ 1 servable question) */
+  /** topics that can be practiced now (practice on AND ≥ 1 servable question) */
   practiceTopicIds: ReadonlySet<string>;
 };
 
@@ -118,12 +118,12 @@ export function topicLosses(qs: AnalysisQuestion[]): TopicLoss[] {
 }
 
 function topicTakeaway(t: TopicLoss, input: TakeawayInput): Takeaway {
-  const canPractise = input.practiceTopicIds.has(t.topicId);
+  const canPractice = input.practiceTopicIds.has(t.topicId);
   return {
     kind: "TOPIC",
     text: `${t.topicName} (${t.sectionName}) cost you ${fmtMarks(t.lost)} marks: ${t.wrong} of ${t.total} wrong.`,
-    action: canPractise
-      ? { kind: "practice", href: practiceHref(t.topicId, input.examSlug), label: `Practise ${t.topicName}` }
+    action: canPractice
+      ? { kind: "practice", href: practiceHref(t.topicId, input.examSlug), label: `Practice ${t.topicName}` }
       : { kind: "filter", filter: "wrong", label: "Review wrong answers" },
   };
 }

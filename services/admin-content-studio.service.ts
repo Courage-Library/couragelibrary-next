@@ -348,8 +348,8 @@ export class AdminContentStudioService {
     if (!title) throw new Error('Unit title is required.');
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(params.slug || '')) throw new Error('Unit slug must be lowercase letters, digits and hyphens.');
 
-    const { data: topic } = await supabase.from('topics').select('id').eq('id', params.topicId).maybeSingle();
-    if (!topic) throw new Error('Topic not found. Pick an existing topic from the taxonomy.');
+    // F6: validate against the canonical taxonomy (learning_units.topic_id references canonical TOPIC nodes since GAP2-3)
+    if (!(await this.isActiveCanonicalTopic(supabase, params.topicId))) throw new Error('Topic not found. Pick an existing topic from the taxonomy.');
 
     const { data, error } = await supabase
       .from('learning_units')
@@ -366,6 +366,57 @@ export class AdminContentStudioService {
     if (error || !data) throw new Error(`Failed to create learning unit: ${error?.message}`);
 
     await this.audit(admin, 'LEARNING_UNIT_CREATE', 'learning_unit', data.id, null, { ...data, unit_type: params.unitType });
+    return data;
+  }
+
+  private static async isActiveCanonicalTopic(supabase: AppSupabaseClient, topicId: string): Promise<boolean> {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(topicId))) return false;
+    const { data } = await supabase.from('canonical_taxonomy_nodes').select('id').eq('id', topicId).eq('node_type', 'TOPIC').eq('is_active', true).maybeSingle();
+    return Boolean(data);
+  }
+
+  /**
+   * F6: topics ↔ study notes. Every active canonical TOPIC (with its section) and the learning units (study notes)
+   * linked to it, with each unit's document count and published count. Admin / staff only.
+   */
+  static async getTopicLinks(): Promise<Array<{ id: string; name: string; sectionName: string | null; units: Array<{ id: string; title: string; slug: string; isActive: boolean; documents: number; published: number }> }>> {
+    await this.requireAdminAuth('getTopicLinks');
+    const supabase = createAdminServerSupabaseClient();
+    const [{ data: topics }, { data: units }] = await Promise.all([
+      supabase.from('canonical_taxonomy_nodes').select('id, name, parent_id, display_order').eq('node_type', 'TOPIC').eq('is_active', true).order('display_order', { ascending: true }).limit(2000),
+      supabase.from('learning_units').select('id, topic_id, title, slug, is_active, learning_documents(id, status)').limit(5000),
+    ]);
+    const parentIds = [...new Set((topics ?? []).map((t) => t.parent_id).filter((x): x is string => Boolean(x)))];
+    const { data: parents } = parentIds.length ? await supabase.from('canonical_taxonomy_nodes').select('id, name').in('id', parentIds) : { data: [] as Array<{ id: string; name: string }> };
+    const parentName = new Map((parents ?? []).map((x) => [x.id, x.name]));
+    return (topics ?? []).map((t) => ({
+      id: t.id,
+      name: t.name,
+      sectionName: t.parent_id ? parentName.get(t.parent_id) ?? null : null,
+      units: (units ?? [])
+        .filter((u) => u.topic_id === t.id)
+        .map((u) => {
+          const docs = Array.isArray(u.learning_documents) ? u.learning_documents : u.learning_documents ? [u.learning_documents] : [];
+          return { id: u.id, title: u.title, slug: u.slug, isActive: u.is_active !== false, documents: docs.length, published: docs.filter((d) => d.status === 'PUBLISHED').length };
+        }),
+    }));
+  }
+
+  /**
+   * F6: move a learning unit (and so its articles) to another canonical topic. Admin / staff only, audited. The
+   * per-topic slug stays unique (UNIQUE (topic_id, slug)); nothing is copied (no duplicate content).
+   */
+  static async relinkLearningUnitTopic(unitId: string, topicId: string): Promise<{ id: string; topic_id: string }> {
+    const admin = await this.requireAdminAuth('relinkLearningUnitTopic');
+    const supabase = createAdminServerSupabaseClient();
+    if (!(await this.isActiveCanonicalTopic(supabase, topicId))) throw new Error('Topic not found. Pick an existing topic from the taxonomy.');
+    const { data: before } = await supabase.from('learning_units').select('id, topic_id, slug').eq('id', unitId).maybeSingle();
+    if (!before) throw new Error('Study unit not found.');
+    if (before.topic_id === topicId) return { id: before.id, topic_id: before.topic_id };
+    const { data, error } = await supabase.from('learning_units').update({ topic_id: topicId, updated_at: new Date().toISOString() }).eq('id', unitId).select('id, topic_id').single();
+    if (error?.code === '23505') throw new Error('That topic already has a study unit with the same slug. Rename one of them first.');
+    if (error || !data) throw new Error('Failed to move the study unit.');
+    await this.audit(admin, 'LEARNING_UNIT_RELINK', 'learning_unit', unitId, { topic_id: before.topic_id }, { topic_id: data.topic_id });
     return data;
   }
 

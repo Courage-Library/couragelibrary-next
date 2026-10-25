@@ -2,59 +2,44 @@ import React from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
+import { ArrowLeft, ArrowRight, BookOpen, Clock, Lock } from "lucide-react";
 import { ContentService } from "@/services/content.service";
-import { Container } from "@/components/ui/legacy/container";
-import { Card } from "@/components/ui/legacy/card";
-import { Badge } from "@/components/ui/legacy/badge";
-import { Button } from "@/components/ui/legacy/button";
-import {
-  ArrowLeft,
-  Target,
-  BookOpen,
-  ChevronRight,
-  GitFork,
-  CheckCircle2,
-  Clock,
-  Layers,
-  Lock,
-} from "lucide-react";
+import { Container } from "@/components/ui/layout";
+import { ButtonLink } from "@/components/ui/button";
 import { constructMetadata } from "@/lib/seo/metadata";
 import { generateArticleSchema, generateBreadcrumbSchema } from "@/lib/seo/jsonld";
 import { ControlledContentRenderer } from "@/components/learning/controlled-content-renderer";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { topicLearnHref, topicPracticeHref } from "@/lib/learn/topic";
 
 // GAP2-2a: rendered per viewer (PRO documents are locked server-side); never cached across users.
 export const dynamic = "force-dynamic";
 
+/**
+ * F6 article reader (R1, R4, R10): light reading surface; the ONE primary action is "Practice this topic" (F2 topic
+ * practice — shown only when the topic can be practiced); related topics go to their article or their canonical topic
+ * entry (/learn/topics/<id>) — never to a dead practice link. One article per document type per topic (no duplicates).
+ */
 interface Props {
   params: Promise<{ slug: string }>;
 }
 
 const DOCUMENT_TYPE_LABELS: Record<string, string> = {
-  CONCEPT_LESSON: "Concept Lesson",
-  WORKED_EXAMPLES: "Worked Examples",
-  FORMULA_SHORTCUT_SHEET: "Formula & Shortcut Sheet",
-  COMMON_TRAPS_AND_MISTAKES: "Common Traps & Mistakes",
-  PYQ_DEEP_DIVE: "PYQ Deep Dive",
-  TOPIC_SUMMARY_REVISION: "Topic Summary & Revision",
+  CONCEPT_LESSON: "Concept lesson",
+  WORKED_EXAMPLES: "Worked examples",
+  FORMULA_SHORTCUT_SHEET: "Formula and shortcut sheet",
+  COMMON_TRAPS_AND_MISTAKES: "Common traps and mistakes",
+  PYQ_DEEP_DIVE: "Previous-year questions explained",
+  TOPIC_SUMMARY_REVISION: "Topic summary for revision",
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const article = await ContentService.getArticleBySlug(slug);
-
-  if (!article) {
-    return constructMetadata({
-      title: "Article Not Found",
-      noIndex: true,
-    });
-  }
-
+  if (!article) return constructMetadata({ title: "Article not found", noIndex: true });
   return constructMetadata({
     title: article.metaTitle || article.title,
-    description:
-      article.metaDescription ||
-      article.excerpt ||
-      `Read complete article on ${article.title} at Courage Library.`,
+    description: article.metaDescription || article.excerpt || `Study notes: ${article.title}.`,
     canonicalUrl: `/articles/${slug}`,
     ogType: "article",
     publishedTime: article.publishedAt || undefined,
@@ -65,48 +50,28 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ArticleReaderPage({ params }: Props) {
   const { slug } = await params;
   const article = await ContentService.getArticleBySlug(slug);
+  if (!article) notFound();
 
-  if (!article) {
-    notFound();
-  }
-
-  // Fetch knowledge graph relationships if topic ID is available
-  const relatedResources = (article.topicId || article.relatedTopicId)
-    ? await ContentService.getRelatedLearningResources(article.topicId || article.relatedTopicId!)
-    : [];
+  const topicId = article.topicId || article.relatedTopicId || null;
+  const supabase = await createServerSupabaseClient();
+  const [relatedResources, practiceHref] = await Promise.all([
+    topicId ? ContentService.getRelatedLearningResources(topicId) : Promise.resolve([]),
+    topicPracticeHref(supabase, topicId),
+  ]);
 
   const breadcrumbsList = [
     { label: "Home", href: "/" },
     { label: "Articles", href: "/articles" },
+    ...(article.subjectName ? [{ label: article.subjectName, href: `/articles?subject=${encodeURIComponent(article.subjectName)}` }] : []),
+    { label: article.title, href: `/articles/${article.slug}` },
   ];
-
-  if (article.subjectName) {
-    breadcrumbsList.push({
-      label: article.subjectName,
-      href: `/articles?subject=${encodeURIComponent(article.subjectName)}`,
-    });
-  }
-
-  if (article.topicName) {
-    breadcrumbsList.push({
-      label: article.topicName,
-      href: article.topicSlug ? `/practice?topic=${article.topicSlug}` : `/articles`,
-    });
-  }
-
-  breadcrumbsList.push({
-    label: article.title,
-    href: `/articles/${article.slug}`,
-  });
-
   const jsonLd = {
     "@context": "https://schema.org",
     "@graph": [
       generateBreadcrumbSchema(breadcrumbsList),
       generateArticleSchema({
         headline: article.metaTitle || article.title,
-        description:
-          article.metaDescription || article.excerpt || article.title,
+        description: article.metaDescription || article.excerpt || article.title,
         url: `/articles/${article.slug}`,
         image: article.featuredImageUrl || undefined,
         datePublished: article.publishedAt || undefined,
@@ -114,155 +79,94 @@ export default async function ArticleReaderPage({ params }: Props) {
       }),
     ],
   };
-
-  const docTypeLabel = article.documentType
-    ? DOCUMENT_TYPE_LABELS[article.documentType] || article.documentType.replace(/_/g, " ")
-    : "Article";
+  const docTypeLabel = article.documentType ? DOCUMENT_TYPE_LABELS[article.documentType] || article.documentType.replace(/_/g, " ").toLowerCase() : "Article";
 
   return (
-    <div className="py-8 sm:py-10 bg-slate-50/50 min-h-[calc(100vh-4rem)]">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
-      <Container className="space-y-6 max-w-4xl">
-        {/* Academic Breadcrumbs Navigation */}
-        <nav aria-label="Breadcrumbs" className="flex items-center flex-wrap gap-1.5 text-xs text-slate-500 font-medium">
-          <Link
-            href="/articles"
-            className="inline-flex items-center gap-1 hover:text-slate-900 transition-colors"
-          >
-            <ArrowLeft className="w-3 h-3 mr-0.5" /> Articles
+    <div className="min-h-[calc(100vh-4rem)] bg-canvas py-6 sm:py-10">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <Container className="flex max-w-3xl flex-col gap-6">
+        <nav aria-label="Breadcrumbs" className="flex flex-wrap items-center gap-x-2 text-body-sm text-fg-secondary">
+          <Link href="/articles" className="focus-ring inline-flex min-h-12 items-center gap-1.5 font-medium hover:text-fg">
+            <ArrowLeft aria-hidden="true" className="size-4" /> Articles
           </Link>
-          {article.subjectName && (
-            <>
-              <ChevronRight className="w-3 h-3 text-slate-400" />
-              <span className="text-slate-600 font-semibold">{article.subjectName}</span>
-            </>
-          )}
-          {article.topicName && (
-            <>
-              <ChevronRight className="w-3 h-3 text-slate-400" />
-              <span className="text-slate-700 font-bold">{article.topicName}</span>
-            </>
-          )}
+          {article.subjectName && <span>/ {article.subjectName}</span>}
+          {article.topicName && <span>/ {article.topicName}</span>}
         </nav>
 
-        {/* Article Reader Card */}
-        <Card className="p-6 sm:p-10 space-y-6 border-slate-200 shadow-sm bg-white">
-          <div className="space-y-3 pb-6 border-b border-slate-100">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="indigo" className="text-[11px] font-bold uppercase tracking-wider bg-teal-700 text-white">
-                {docTypeLabel}
-              </Badge>
-              <Badge variant="outline" className="text-[11px] font-mono font-semibold text-slate-600 flex items-center gap-1">
-                <Clock className="w-3 h-3 text-slate-400" />
-                {article.readingTimeMinutes} MIN READ
-              </Badge>
-              {article.isCanonical && (
-                <Badge variant="outline" className="text-[11px] font-bold text-teal-800 bg-teal-50/70 border-teal-200 flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3 text-teal-600" />
-                  Canonical Lesson
-                </Badge>
-              )}
-              {article.topicName && (
-                <span className="text-xs font-bold text-slate-500 font-mono">
-                  • {article.topicName}
-                </span>
-              )}
-            </div>
+        <article className="flex flex-col gap-6 rounded-card border border-line bg-surface p-4 sm:p-8" data-article="">
+          <header className="flex flex-col gap-3 border-b border-line pb-6">
+            <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-body-sm text-fg-secondary">
+              <span className="font-semibold text-fg">{docTypeLabel}</span>
+              <span className="inline-flex items-center gap-1">
+                <Clock aria-hidden="true" className="size-4" /> {article.readingTimeMinutes} min read
+              </span>
+              {article.topicName && <span>Topic: {article.topicName}</span>}
+            </p>
+            <h1 className="text-h1 font-bold text-fg">{article.title}</h1>
+            {article.excerpt && <p className="text-body-lg text-fg-secondary">{article.excerpt}</p>}
+          </header>
 
-            <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight leading-tight">
-              {article.title}
-            </h1>
-
-            {article.excerpt && (
-              <p className="text-sm sm:text-base text-slate-600 font-medium leading-relaxed">
-                {article.excerpt}
-              </p>
-            )}
-          </div>
-
-          {/* Article Body */}
-          <div className="text-slate-800 leading-relaxed font-sans">
+          <div className="text-body text-fg">
             {article.isLocked ? (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-6 sm:p-8 text-center space-y-3" data-testid="learning-locked-panel">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-800">
-                  <Lock className="h-6 w-6" />
-                </div>
-                <h2 className="text-lg font-bold text-slate-900">This lesson is part of Courage Library PRO</h2>
-                <p className="text-sm text-slate-600">Upgrade to PRO to read the full lesson, worked examples and exam traps.</p>
-                <Link href="/billing">
-                  <Button className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs">Upgrade to PRO</Button>
-                </Link>
+              <div className="flex flex-col items-center gap-3 rounded-card border border-line bg-surface-sunken p-6 text-center" data-testid="learning-locked-panel">
+                <Lock aria-hidden="true" className="size-6 text-fg-secondary" />
+                <h2 className="text-h3 font-semibold text-fg">This lesson is part of Courage Library PRO</h2>
+                <p className="text-body text-fg-secondary">The full lesson, worked examples and exam traps are in PRO.</p>
+                <ButtonLink href="/billing" variant="secondary" size="lg" className="min-h-12">
+                  See PRO
+                </ButtonLink>
               </div>
             ) : (
               <ControlledContentRenderer contentMdx={article.contentBody || ""} />
             )}
           </div>
 
-          {/* Related Knowledge Graph Topics */}
           {relatedResources.length > 0 && (
-            <div className="pt-6 border-t border-slate-100 space-y-3">
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-700 uppercase tracking-wider font-mono">
-                <GitFork className="w-3.5 h-3.5 text-indigo-600" />
-                Related Topics &amp; Knowledge Graph
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <section aria-labelledby="related-title" className="flex flex-col gap-3 border-t border-line pt-6">
+              <h2 id="related-title" className="text-h3 font-semibold text-fg">
+                Related topics
+              </h2>
+              <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {relatedResources.map((rel) => (
-                  <Link
-                    key={rel.topicId}
-                    href={rel.learningSlug ? `/articles/${rel.learningSlug}` : `/practice?topic=${rel.topicSlug || rel.topicId}`}
-                    className="p-3 rounded-xl border border-slate-200 hover:border-teal-300 hover:bg-teal-50/30 transition flex items-center justify-between group"
-                  >
-                    <div className="space-y-0.5">
-                      <div className="text-xs font-bold text-slate-900 group-hover:text-teal-900">
+                  <li key={rel.topicId}>
+                    <Link
+                      href={rel.learningSlug ? `/articles/${rel.learningSlug}` : topicLearnHref(rel.topicId)}
+                      className="focus-ring flex min-h-12 items-center justify-between gap-2 rounded-control border border-line px-3 py-2 text-body text-fg hover:bg-ink-50"
+                    >
+                      <span>
                         {rel.topicName}
-                      </div>
-                      <div className="text-[10px] text-slate-500 font-medium capitalize">
-                        {rel.relationshipType ? rel.relationshipType.toLowerCase().replace(/_/g, " ") : "Prerequisite / Related"}
-                        {rel.learningSlug && " • Full Lesson"}
-                      </div>
-                    </div>
-                    <BookOpen className="w-4 h-4 text-slate-400 group-hover:text-teal-600 shrink-0 ml-2" />
-                  </Link>
+                        <span className="block text-body-sm text-fg-secondary">{rel.relationshipType ? rel.relationshipType.toLowerCase().replace(/_/g, " ") : "related"}</span>
+                      </span>
+                      <BookOpen aria-hidden="true" className="size-4 shrink-0 text-fg-secondary" />
+                    </Link>
+                  </li>
                 ))}
-              </div>
-            </div>
+              </ul>
+            </section>
           )}
 
-          {/* Learn More Topic Action Integration (Closed Learning Loop) */}
-          {(article.topicId || article.relatedTopicId) && (
-            <div className="p-6 rounded-2xl bg-gradient-to-r from-teal-950 via-slate-900 to-indigo-950 text-white space-y-3.5 mt-8 border border-teal-800/40 shadow-lg">
-              <div className="flex items-center gap-2 font-black text-sm tracking-tight text-teal-300">
-                <Target className="w-4 h-4 text-teal-400" />
-                Closed Learning Loop: Master This Topic
-              </div>
-              <p className="text-xs text-slate-300 font-medium leading-relaxed">
-                Reinforce what you learned in this study guide by testing your conceptual recall with practice questions, flashcards, or a timed mock exam.
-              </p>
-              <div className="flex flex-wrap gap-2.5 pt-1">
-                <Link href={article.topicSlug ? `/practice?topic=${article.topicSlug}` : `/practice?topic=${article.topicId || article.relatedTopicId}`}>
-                  <Button size="sm" variant="default" className="bg-teal-500 hover:bg-teal-600 text-slate-950 font-extrabold text-xs shadow-xs">
-                    <BookOpen className="w-3.5 h-3.5 mr-1" /> Practice Topic Questions
-                  </Button>
-                </Link>
-                <Link href="/flashcards">
-                  <Button size="sm" variant="outline" className="border-white/30 text-white hover:bg-white/10 font-semibold text-xs">
-                    <Layers className="w-3.5 h-3.5 mr-1" /> Review Flashcards
-                  </Button>
-                </Link>
-                <Link href="/mock-tests">
-                  <Button size="sm" variant="outline" className="border-white/30 text-white hover:bg-white/10 font-semibold text-xs">
-                    Take Full Mock Test
-                  </Button>
-                </Link>
-              </div>
-            </div>
+          {topicId && (
+            <section aria-labelledby="next-step-title" className="flex flex-col gap-3 border-t border-line pt-6" data-article-next="">
+              <h2 id="next-step-title" className="text-h3 font-semibold text-fg">
+                Next step
+              </h2>
+              {practiceHref ? (
+                <>
+                  <p className="text-body text-fg-secondary">Check what you just read: questions on this topic, each with its explanation.</p>
+                  <ButtonLink href={practiceHref} size="lg" className="min-h-12 self-start" trailingIcon={<ArrowRight aria-hidden="true" className="size-4" />} data-practice-topic="">
+                    Practice this topic
+                  </ButtonLink>
+                </>
+              ) : (
+                <p className="text-body text-fg-secondary">Practice questions for this topic are not ready yet.</p>
+              )}
+              <Link href="/mock-tests" className="focus-ring inline-flex min-h-12 w-fit items-center text-body-sm font-medium text-link underline underline-offset-2">
+                Or take a mock test
+              </Link>
+            </section>
           )}
-        </Card>
+        </article>
       </Container>
     </div>
   );
 }
-

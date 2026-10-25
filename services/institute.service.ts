@@ -211,7 +211,7 @@ export class InstituteService {
     const getDeepLink = (a: any) => {
       if (a.mock_test_id) return `/mock-tests/${a.mock_test_id}`;
       if (a.flashcard_deck_id) return `/flashcards/${a.flashcard_deck_id}`;
-      if (a.topic_id) return `/practice?topic=${a.topic_id}`;
+      if (a.topic_id) return `/learn/topics/${a.topic_id}`; // F6: canonical topic entry (article, else practice)
       if (a.course_id) return `/practice`;
       return "/dashboard";
     };

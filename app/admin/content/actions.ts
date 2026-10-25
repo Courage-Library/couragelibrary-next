@@ -92,6 +92,20 @@ export async function createLearningUnitAction(params: {
   }
 }
 
+/* F6: move a study unit (its articles) to another canonical topic — admin / staff, audited in the service. */
+export async function relinkLearningUnitTopicAction(unitId: string, topicId: string) {
+  const __auth = await guardAdminAction({ allowStaff: true });
+  if (!__auth.ok) return __auth;
+  try {
+    const unit = await AdminContentStudioService.relinkLearningUnitTopic(unitId, topicId);
+    revalidatePath("/admin/content/topics");
+    revalidatePath("/articles");
+    return { success: true, unit };
+  } catch (err) {
+    return toActionFailure("relinkLearningUnitTopicAction", err);
+  }
+}
+
 export async function archiveLearningDocumentAction(documentId: string) {
   const __auth = await guardAdminAction({ allowStaff: true });
   if (!__auth.ok) return __auth;

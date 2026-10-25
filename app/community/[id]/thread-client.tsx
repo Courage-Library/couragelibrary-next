@@ -180,9 +180,9 @@ export function DiscussionThreadClient({ detail, coursesEnabled = false }: Discu
                 Related Topic Resources
               </div>
               <div className="flex flex-wrap gap-2 pt-1">
-                <Link href={`/practice?topic=${topicId}`}>
+                <Link href={`/learn/topics/${topicId}`}>
                   <Button size="sm" variant="default" className="bg-indigo-600 hover:bg-indigo-700 font-bold text-xs">
-                    Practice Topic Questions
+                    Study this topic
                   </Button>
                 </Link>
                 <Link href="/articles">

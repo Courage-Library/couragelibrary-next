@@ -127,7 +127,7 @@ const input = (o = {}) => ({ questions: paper(), maxScore: 50, accuracyPercentag
 
   await test('F4-02 practice link only when the topic can be practised; primary = top takeaway action', () => {
     const a = RA.buildTakeaways(input());
-    eq(a[0].action, { kind: 'practice', href: '/practice/session?topic=aaaaaaaa-0000-4000-8000-000000000001&exam=ssc-cgl&n=10', label: 'Practise Time and Distance' }, 'practice action');
+    eq(a[0].action, { kind: 'practice', href: '/practice/session?topic=aaaaaaaa-0000-4000-8000-000000000001&exam=ssc-cgl&n=10', label: 'Practice Time and Distance' }, 'practice action');
     eq(RA.primaryAction(a), a[0].action, 'primary = top takeaway action');
     const off = RA.buildTakeaways(input({ practiceTopicIds: new Set() }));
     eq(off[0].action, { kind: 'filter', filter: 'wrong', label: 'Review wrong answers' }, 'no practice → review filter, never a dead link');
