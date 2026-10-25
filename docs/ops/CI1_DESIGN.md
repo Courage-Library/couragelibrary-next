@@ -116,6 +116,13 @@ The **owner** sets these in GitHub. They are never pasted in chat, never committ
 
    It reports the file, the line number and the pattern class only.
 4. Only scanned logs are uploaded (7-day retention).
+5. **CI-FLAKE-1 (2026-10-25):** server-checks `SC-BUILD` intermittently fails with only `diag CRASH:TypeError`.
+   - Seen on manual run #19, on 278dfa0 (its re-run was green) and on 6032cfb; e9602be, 2e033f7 and the Vercel builds all
+     succeeded.
+   - Change: `scripts/ci/run-quiet.cjs` now adds the FILE PATH of the error's first stack frame:
+     `CRASH:<Class>[/<CODE>]@<frame>`. The path is repo-relative or starts at `node_modules/`; a path outside the repo
+     becomes `external`. No line numbers, message text, env or values; the token stays under `SAFE_TOKEN` and the log scan.
+   - A failing BRAND2-PROBE P-03 check also prints a reason sub-ID: `<id>-NAV`, `<id>-NOTVISIBLE` or `<id>-W<w>H<h>`.
 
 **Stage 2 code changes needed** (small, test / script only):
 - `scripts/db/_db-env.cjs` `readEnv()`: read `process.env` only when `CI=true` and `.env.local` is absent. Today it throws `ENV_MISSING`, and every suite that calls it would fail.

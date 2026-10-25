@@ -7,7 +7,9 @@
  * - otherwise prints ONE summary line: <ID> PASS|FAIL exit <code> — passed n/m · fail-lines f · warns w · failing [check IDs]
  *   (check IDs = the first token after "FAIL" when it is an ID like P-9 / K-14 / L-03a or a route path) — never detail text
  * - CI-1: when a failing gate printed NO summary lines (a startup crash), one SAFE diagnostic token is appended:
- *   MISSING_ENV:<VAR[,VAR]> | TLS_CA_MISSING | REF_LOCK | TARGET_REF_MISMATCH | CRASH:<ErrorClass>[/<CODE>] | CRASH:UNKNOWN.
+ *   MISSING_ENV:<VAR[,VAR]> | TLS_CA_MISSING | REF_LOCK | TARGET_REF_MISMATCH | CRASH:<ErrorClass>[/<CODE>][@<frame>] | CRASH:UNKNOWN.
+ *   CI-FLAKE-1: <frame> = the FILE PATH of the error's first stack frame only (repo-relative, or from node_modules/ on;
+ *   no line numbers, no message text; a path outside the repo is "external").
  *   Names only (strict charset), never values; the token itself is run through the log scan (any hit → CRASH:REDACTED).
  * - exit code = the gate's (1 if the scan fails, 124 on timeout)
  */
@@ -30,7 +32,22 @@ function summarize(text) {
   return { passLines, failLines: failLines.length, warns, ids, totals: totals ? `${totals[1]}/${totals[2]}` : null };
 }
 
-const SAFE_TOKEN = /^(MISSING_ENV:[A-Z][A-Z0-9_]{1,40}(,[A-Z][A-Z0-9_]{1,40}){0,2}|TLS_CA_MISSING|REF_LOCK|TARGET_REF_MISMATCH|CRASH:[A-Z][A-Za-z]{0,40}(\/[A-Z][A-Z0-9_]{1,40})?|CRASH:UNKNOWN|CRASH:REDACTED)$/;
+const SAFE_TOKEN = /^(MISSING_ENV:[A-Z][A-Z0-9_]{1,40}(,[A-Z][A-Z0-9_]{1,40}){0,2}|TLS_CA_MISSING|REF_LOCK|TARGET_REF_MISMATCH|CRASH:[A-Z][A-Za-z]{0,40}(\/[A-Z][A-Z0-9_]{1,40})?(@[A-Za-z0-9_./()[\]-]{1,120})?|CRASH:UNKNOWN|CRASH:REDACTED)$/;
+
+/** CI-FLAKE-1 (pure): the file path of the first stack frame after `from`, made safe — repo-relative or from node_modules/ on. */
+function firstFrame(t, from, cwd = process.cwd()) {
+  const line = (t.slice(from).match(/^\s+at\s+([^\r\n]+)$/m) || [])[1]; // the FIRST frame only
+  const m = line && (line.match(/\((?:file:\/\/)?([^()\r\n]+?)(?::\d+){1,2}\)\s*$/) || line.match(/^(?:file:\/\/)?(\S+?)(?::\d+){1,2}\s*$/));
+  if (!m) return null;
+  let f = m[1].replace(/\\/g, '/').replace(/^webpack-internal:\/\/\/(\([a-z-]+\)\/)?\.?\/?/, '');
+  const root = cwd.replace(/\\/g, '/').replace(/\/?$/, '/');
+  const nm = f.lastIndexOf('node_modules/');
+  if (nm >= 0) f = f.slice(nm);
+  else if (f.startsWith(root)) f = f.slice(root.length);
+  else if (/^(\/|[A-Za-z]:\/)/.test(f)) f = 'external';
+  if (f.startsWith('node:')) f = f.replace(':', '-');
+  return /^[A-Za-z0-9_./()[\]-]{1,120}$/.test(f) ? f : null;
+}
 
 /**
  * Pure: the safe diagnostic token for a gate that failed without printing any summary line, else null.
@@ -49,9 +66,11 @@ function crashToken(text, exit, summary, secrets = []) {
     const known = t.match(/\b(TLS_CA_MISSING|REF_LOCK|TARGET_REF_MISMATCH)\b/);
     if (known) tok = known[1];
     else {
-      const cls = (t.match(/^\s*(?:Uncaught\s+)?((?:[A-Z][A-Za-z]{0,38})?Error)\b/m) || t.match(/\b((?:[A-Z][A-Za-z]{0,38})?Error)\b/) || [])[1];
+      const hit = t.match(/^\s*(?:Uncaught\s+)?((?:[A-Z][A-Za-z]{0,38})?Error)\b/m) || t.match(/\b((?:[A-Z][A-Za-z]{0,38})?Error)\b/);
+      const cls = (hit || [])[1];
       const code = (t.match(/\bcode:\s*'([A-Z][A-Z0-9_]{1,40})'/) || [])[1];
-      tok = cls ? `CRASH:${cls}${code ? `/${code}` : ''}` : 'CRASH:UNKNOWN';
+      const frame = hit ? firstFrame(t, hit.index) : null;
+      tok = cls ? `CRASH:${cls}${code ? `/${code}` : ''}${frame ? `@${frame}` : ''}` : 'CRASH:UNKNOWN';
     }
   }
   if (!SAFE_TOKEN.test(tok) || scanLine(tok, secrets).length) return 'CRASH:REDACTED';
@@ -68,6 +87,11 @@ function selfTest() {
     ["TypeError: fetch failed\n  [cause]: Error: connect\n    code: 'UND_ERR_CONNECT_TIMEOUT'", 1, S, 'CRASH:TypeError/UND_ERR_CONNECT_TIMEOUT'],
     ["Error: Cannot find module 'x'\n  code: 'MODULE_NOT_FOUND'", 1, S, 'CRASH:Error/MODULE_NOT_FOUND'],
     ['something odd happened', 1, S, 'CRASH:UNKNOWN'],
+    // CI-FLAKE-1: class + first frame FILE only (no line/col, no message, no absolute path)
+    [`TypeError: Cannot read properties of undefined (reading 'x')\n    at f (${process.cwd()}/.next/server/chunks/611.js:1:2345)\n    at g (/x/y.js:1:1)`, 1, S, 'CRASH:TypeError@.next/server/chunks/611.js'],
+    ['TypeError: fetch failed\n    at node:internal/deps/undici/undici:13502:13', 1, S, 'CRASH:TypeError@node-internal/deps/undici/undici'],
+    ['TypeError: x\n    at Object.<anonymous> (/opt/hostedtoolcache/x/lib/node_modules/next/dist/build/index.js:9:9)', 1, S, 'CRASH:TypeError@node_modules/next/dist/build/index.js'],
+    ['TypeError: x\n    at run (/home/someone/secret-place/build.js:9:9)', 1, S, 'CRASH:TypeError@external'],
     // a value that is a secret must never come out — even if it looks like an env var name
     ['Error: ENV_MISSING: SUPER_SECRET_PASSWORD_VALUE', 1, S, 'CRASH:REDACTED'],
     // hosts / JWTs / urls in the crash text are never part of the token
