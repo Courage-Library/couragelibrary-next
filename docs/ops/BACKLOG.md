@@ -37,9 +37,17 @@ Found with ATTEMPT-INTEGRITY-1 (099): a table-level INSERT / UPDATE grant to `au
 
 `fn_post_discussion_message` now takes the activity row's topic from the thread (no topic → no row), uses an allowed event type with `metadata.kind = COMMUNITY_DOUBT_ANSWERED`, and can never fail a reply because of analytics.
 
-## FLASHCARD-REVIEW-1: every flashcard review fails (pre-existing)
+## FLASHCARD-REVIEW-1: every flashcard review fails — fix HELD (107 + 108, coins)
 
-Found by the 102 smoke (2026-10-25). Once its access checks pass, `fn_submit_flashcard_review` inserts into `learning_activity_events` without `topic_id` (NOT NULL), so every review fails with 23502. This is the same defect class as COMMUNITY-REPLY-1. Fix the same way (function-only): take the topic from the deck, skip the activity row when there is none, and never fail the review because of analytics.
+`fn_submit_flashcard_review` (107) and `fn_complete_deck_review_session` (108) are fixed with the 101 pattern on branches `held-107` and `held-108`: smoke passes, dry-run OK, NOT applied. Making them succeed also starts the existing coin rewards in the same functions: 1 coin per card per day and a 10-coin deck bonus, both written as REWARDED `gamification_events`. That is under the coins hard limit and needs an explicit go, or a ruling to disable those rewards until F10 (Coins).
+
+## PAY-FULFIL-1: payment fulfilment cannot succeed (pre-existing, payments)
+
+`fn_verify_and_fulfill_payment` writes `user_entitlements.status`, `valid_from` and `valid_until`, which don't exist (the table has `starts_at`, `expires_at` and `is_active`), and uses `entitlement_type 'SUBSCRIPTION'`, which the CHECK doesn't allow. Every fulfil fails with 42703. Payments are off and the route returns 501. Needs a payments ruling. It must also fit the owner's 2026-10-25 decision: paid plans are one-time (3, 6 or 12 months) with no auto-renew. See `docs/reports/security/PAY_NULL_1.md`; the NULL fail-closed fix is migration 106, held.
+
+## CUSTOM-PRACTICE-1: custom practice sessions cannot start (pre-existing)
+
+`fn_start_custom_practice_session` inserts a `test_attempts` row without `mock_test_id` (NOT NULL), so it always fails. It has no app caller today. This needs a design decision: a container mock, or attempts without a mock. See `docs/reports/security/ACTIVITY_INSERT_SWEEP.md` (on branch `held-108`).
 
 ## TOPIC-CONTEXT-1: CLOSED — not a bug (2026-10-25)
 
