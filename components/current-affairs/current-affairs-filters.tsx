@@ -50,7 +50,7 @@ export const CurrentAffairsFilters: React.FC<CurrentAffairsFiltersProps> = ({
       <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
         {/* Search input */}
         <div className="relative flex-1">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-fg-secondary pointer-events-none" />
           <input
             type="text"
             value={searchQuery}
@@ -61,7 +61,7 @@ export const CurrentAffairsFilters: React.FC<CurrentAffairsFiltersProps> = ({
           {searchQuery && (
             <button
               onClick={() => onSearchChange('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-fg-secondary hover:text-slate-600"
               aria-label="Clear search"
             >
               <X className="w-4 h-4" />
@@ -72,16 +72,16 @@ export const CurrentAffairsFilters: React.FC<CurrentAffairsFiltersProps> = ({
         {/* Importance Tier Filter */}
         {onImportanceChange && (
           <div className="flex items-center gap-2 shrink-0">
-            <SlidersHorizontal className="w-4 h-4 text-slate-400" />
+            <SlidersHorizontal className="w-4 h-4 text-fg-secondary" />
             <select
               aria-label="Filter by importance"
               value={selectedImportance}
               onChange={(e) => onImportanceChange(e.target.value as CurrentAffairsImportanceTier | 'ALL')}
-              className="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-50 border border-slate-200 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="focus-ring min-h-12 rounded-control border border-line-control bg-surface px-3 text-body-sm font-semibold text-fg"
             >
-              <option value="ALL">All Importance</option>
-              <option value="CRITICAL">Critical Only</option>
-              <option value="HIGH">High Yield</option>
+              <option value="ALL">All importance</option>
+              <option value="CRITICAL">Critical only</option>
+              <option value="HIGH">High relevance</option>
               <option value="MEDIUM">Medium</option>
               <option value="LOW">Standard</option>
             </select>
@@ -93,7 +93,7 @@ export const CurrentAffairsFilters: React.FC<CurrentAffairsFiltersProps> = ({
       <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-200 no-scrollbar">
         <button
           onClick={() => onCategoryChange('ALL')}
-          className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
+          className={`focus-ring inline-flex min-h-12 items-center shrink-0 px-3.5 rounded-full text-body-sm font-semibold transition-all ${
             selectedCategory === 'ALL'
               ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20'
               : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -109,7 +109,7 @@ export const CurrentAffairsFilters: React.FC<CurrentAffairsFiltersProps> = ({
             <button
               key={cat}
               onClick={() => onCategoryChange(cat)}
-              className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all ${
+              className={`focus-ring inline-flex min-h-12 items-center shrink-0 px-3.5 rounded-full text-body-sm font-medium transition-all ${
                 isSelected
                   ? 'bg-blue-600 text-white font-semibold shadow-sm shadow-blue-500/20'
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -117,7 +117,7 @@ export const CurrentAffairsFilters: React.FC<CurrentAffairsFiltersProps> = ({
             >
               {CATEGORY_DISPLAY_NAMES[cat]}
               {count !== undefined && count > 0 && (
-                <span className={`ml-1.5 text-[11px] opacity-80 ${isSelected ? 'text-blue-100' : 'text-slate-500'}`}>
+                <span className={`ml-1.5 text-caption opacity-80 ${isSelected ? 'text-blue-100' : 'text-slate-500'}`}>
                   {count}
                 </span>
               )}

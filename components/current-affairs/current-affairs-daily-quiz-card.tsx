@@ -2,17 +2,10 @@
 
 import React from 'react';
 import Link from 'next/link';
-import {
-  Sparkles,
-  CheckCircle2,
-  Clock,
-  Award,
-  ArrowRight,
-  Target,
-  BrainCircuit,
-} from 'lucide-react';
+import { ArrowRight, ListChecks } from 'lucide-react';
 import { DailyQuizEligibilityStatus } from '@/types/current-affairs';
 import { formatEventDate } from '@/lib/current-affairs/format-event-date';
+import { formatMockShape } from '@/lib/assessment/display-rules';
 
 interface CurrentAffairsDailyQuizCardProps {
   dateStr: string;
@@ -24,12 +17,16 @@ interface CurrentAffairsDailyQuizCardProps {
     mockTestSlug: string;
     mockTestId?: string | null;
   };
+  /** F7 (R12): facts read from the published mock; null → no figures are shown */
+  shape?: { totalQuestions: number; durationMinutes: number; totalMarks: number } | null;
 }
 
-export const CurrentAffairsDailyQuizCard: React.FC<CurrentAffairsDailyQuizCardProps> = ({
-  dateStr,
-  dailyQuiz,
-}) => {
+/**
+ * F7 Daily 10Q card in the design system: light surface, ONE primary action ("Start today's quiz"), only true facts
+ * (from the mock itself), no glow / gradient / pulse (R4, R8, R10, R12). The quiz runs in the standard mock player and
+ * its result page; wrong answers reach the Mistake Vault through the one submit path.
+ */
+export const CurrentAffairsDailyQuizCard: React.FC<CurrentAffairsDailyQuizCardProps> = ({ dateStr, dailyQuiz, shape = null }) => {
   // UX-2b.H (H-5): render only a PUBLISHED quiz mock. READY means no mock exists yet (the link would be dead) and
   // DRAFT_EXISTS still carries the draft mock's id, so neither may show a "Start" link or a "being curated" claim.
   const isAvailable = dailyQuiz.status === 'ALREADY_PUBLISHED' && Boolean(dailyQuiz.mockTestId);
@@ -37,67 +34,32 @@ export const CurrentAffairsDailyQuizCard: React.FC<CurrentAffairsDailyQuizCardPr
 
   const formattedDate = formatEventDate(dateStr);
   const quizTargetHref = `/mock-tests/${dailyQuiz.mockTestId || dailyQuiz.mockTestSlug}`;
+  const facts = shape ? `${formatMockShape(shape)} · ${shape.totalMarks} marks` : null;
 
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-900 via-indigo-900 to-slate-900 text-white p-6 md:p-8 shadow-xl border border-blue-700/40">
-      {/* Subtle background glow effect */}
-      <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-blue-500/20 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
-
-      <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="space-y-3 max-w-xl">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-500/30 text-blue-200 border border-blue-400/40 backdrop-blur-sm">
-              <BrainCircuit className="w-3.5 h-3.5 text-blue-300" />
-              DAILY 10Q EVALUATION
-            </span>
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white/10 text-slate-200">
-              {formattedDate}
-            </span>
-          </div>
-
-          <h2 id="daily-quiz-heading" className="text-xl md:text-2xl font-extrabold tracking-tight text-white">
-            Daily Current Affairs Quiz
+    <div className="flex flex-col gap-4 rounded-card border border-line bg-surface p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6" data-daily-quiz-card="">
+      <div className="flex gap-3">
+        <span aria-hidden="true" className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700">
+          <ListChecks className="size-6" />
+        </span>
+        <div className="flex flex-col gap-1">
+          <p className="text-body-sm font-medium text-fg-secondary">{formattedDate}</p>
+          <h2 id="daily-quiz-heading" className="text-h3 font-bold text-fg">
+            Daily current affairs quiz
           </h2>
-
-          <p className="text-sm text-slate-300 leading-relaxed">
-            10 multiple-choice questions on today&apos;s current affairs.
-            Wrong answers are automatically synced to your <strong className="text-amber-300">Mistake Vault</strong> for spaced revision.
+          {facts && <p className="text-body-sm text-fg-secondary" data-daily-quiz-facts="">{facts}</p>}
+          <p className="text-body-sm text-fg-secondary">
+            Questions on today&apos;s published events. Wrong answers go to your Mistake drills.
           </p>
-
-          {/* Quiz Metadata Pills */}
-          <div className="flex flex-wrap items-center gap-4 pt-1 text-xs text-slate-300">
-            <div className="flex items-center gap-1.5">
-              <Target className="w-4 h-4 text-emerald-400" />
-              <span>10 Questions</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Clock className="w-4 h-4 text-blue-400" />
-              <span>10 Minutes</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Award className="w-4 h-4 text-amber-400" />
-              <span>20 Marks (+2 / -0.5)</span>
-            </div>
-          </div>
-        </div>
-
-        {/* CTA Actions */}
-        <div className="flex flex-col items-start md:items-end justify-center shrink-0">
-          <div className="space-y-2 w-full md:w-auto">
-            <Link
-              href={quizTargetHref}
-              className="w-full md:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-lg shadow-blue-500/25 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-            >
-              <span>Start Daily Quiz</span>
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-            <p className="text-[11px] text-slate-400 text-center md:text-right">
-              Free • Instant Result & Solution Key
-            </p>
-          </div>
         </div>
       </div>
+      <Link
+        href={quizTargetHref}
+        className="focus-ring inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-control bg-primary-600 px-5 text-body font-semibold text-fg-inverse hover:bg-primary-700"
+      >
+        Start today&apos;s quiz
+        <ArrowRight aria-hidden="true" className="size-4" />
+      </Link>
     </div>
   );
 };

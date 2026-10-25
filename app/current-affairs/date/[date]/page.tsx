@@ -93,7 +93,7 @@ export default async function CurrentAffairsDateFeedPage({ params }: DateFeedPag
           <div className="flex items-center gap-2">
             <Link
               href={`/current-affairs/date/${prevDate}`}
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 transition-colors"
+              className="focus-ring inline-flex min-h-12 items-center gap-1 px-3 rounded-xl text-body-sm font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 transition-colors"
             >
               <ChevronLeft className="w-3.5 h-3.5" />
               <span>{formatEventDate(prevDate)}</span>
@@ -102,7 +102,7 @@ export default async function CurrentAffairsDateFeedPage({ params }: DateFeedPag
             {hasNextDate && (
               <Link
                 href={`/current-affairs/date/${nextDate}`}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 transition-colors"
+                className="focus-ring inline-flex min-h-12 items-center gap-1 px-3 rounded-xl text-body-sm font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 transition-colors"
               >
                 <span>{formatEventDate(nextDate)}</span>
                 <ChevronRight className="w-3.5 h-3.5" />

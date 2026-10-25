@@ -119,7 +119,7 @@ export default async function CurrentAffairsMonthlyArchivePage({ params }: Month
           <div className="flex items-center gap-2">
             <Link
               href={`/current-affairs/month/${prevSlug}`}
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 transition-colors"
+              className="focus-ring inline-flex min-h-12 items-center gap-1 px-3 rounded-xl text-body-sm font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 transition-colors"
             >
               <ChevronLeft className="w-3.5 h-3.5" />
               <span>{MONTH_NAMES[prevMonthNum - 1]} {prevYear}</span>
@@ -128,7 +128,7 @@ export default async function CurrentAffairsMonthlyArchivePage({ params }: Month
             {hasNextMonth && (
               <Link
                 href={`/current-affairs/month/${nextSlug}`}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 transition-colors"
+                className="focus-ring inline-flex min-h-12 items-center gap-1 px-3 rounded-xl text-body-sm font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 transition-colors"
               >
                 <span>{MONTH_NAMES[nextMonthNum - 1]} {nextYear}</span>
                 <ChevronRight className="w-3.5 h-3.5" />

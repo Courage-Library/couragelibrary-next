@@ -62,7 +62,7 @@ export const CurrentAffairsLearningCta: React.FC<CurrentAffairsLearningCtaProps>
                   <span className="text-xs font-semibold text-slate-900 group-hover:text-blue-600 line-clamp-1">
                     {unit.title || 'Learning Article'}
                   </span>
-                  <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
+                  <ArrowRight className="w-3.5 h-3.5 text-fg-secondary group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
                 </Link>
               ))}
             </div>

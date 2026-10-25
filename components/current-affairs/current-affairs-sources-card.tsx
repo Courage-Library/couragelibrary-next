@@ -71,7 +71,7 @@ export const CurrentAffairsSourcesCard: React.FC<CurrentAffairsSourcesCardProps>
               <div className="space-y-1.5 min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span
-                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${tierInfo.badgeClass}`}
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption font-semibold border ${tierInfo.badgeClass}`}
                   >
                     <TierIcon className="w-3 h-3" />
                     {tierInfo.label}
@@ -98,7 +98,7 @@ export const CurrentAffairsSourcesCard: React.FC<CurrentAffairsSourcesCardProps>
                     href={source.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors"
+                    className="focus-ring inline-flex min-h-12 items-center gap-1 px-3 rounded-lg text-body-sm font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors"
                   >
                     <span>Inspect Source</span>
                     <ExternalLink className="w-3 h-3" />

@@ -18,7 +18,7 @@ interface CurrentAffairsExamBadgesProps {
 
 const WEIGHT_BADGES: Record<string, { label: string; className: string }> = {
   CRITICAL: { label: 'Direct Syllabus Match', className: 'bg-rose-100 text-rose-800 border-rose-300' },
-  HIGH: { label: 'High Probability', className: 'bg-amber-100 text-amber-800 border-amber-300' },
+  HIGH: { label: 'High relevance', className: 'bg-primary-50 text-primary-800 border-primary-200' },
   MEDIUM: { label: 'Relevant Context', className: 'bg-blue-100 text-blue-800 border-blue-300' },
   LOW: { label: 'Background Reading', className: 'bg-slate-100 text-slate-700 border-slate-300' },
 };
@@ -59,15 +59,15 @@ export const CurrentAffairsExamBadges: React.FC<CurrentAffairsExamBadgesProps> =
                     {mapping.examTitle || 'Competitive Exam'}
                   </span>
                   {mapping.isHighYield && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300">
-                      <Flame className="w-3 h-3 text-amber-600" />
-                      HIGH YIELD
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption font-extrabold bg-primary-50 text-primary-800 border border-primary-200">
+                      <Flame aria-hidden="true" className="w-3 h-3 text-primary-700" />
+                      High relevance
                     </span>
                   )}
                 </div>
 
                 <div className="flex items-center gap-2 mb-2">
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold border ${badge.className}`}>
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-caption font-semibold border ${badge.className}`}>
                     {badge.label}
                   </span>
                 </div>

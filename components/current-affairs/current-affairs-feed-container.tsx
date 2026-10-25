@@ -75,7 +75,7 @@ export const CurrentAffairsFeedContainer: React.FC<CurrentAffairsFeedContainerPr
         </div>
       ) : (
         <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-12 text-center">
-          <Newspaper className="w-10 h-10 text-slate-400 mx-auto mb-3" />
+          <Newspaper className="w-10 h-10 text-fg-secondary mx-auto mb-3" />
           <h3 className="text-base font-bold text-slate-900 mb-1">
             {emptyTitle}
           </h3>

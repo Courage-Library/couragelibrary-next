@@ -115,18 +115,18 @@ export default async function CurrentAffairsArticleReaderPage({ params }: Articl
           <Link href="/" className="hover:text-blue-600 transition-colors">
             Home
           </Link>
-          <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+          <ChevronRight className="w-3.5 h-3.5 text-fg-secondary shrink-0" />
           <Link href="/current-affairs" className="hover:text-blue-600 transition-colors">
             Current Affairs
           </Link>
-          <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+          <ChevronRight className="w-3.5 h-3.5 text-fg-secondary shrink-0" />
           <Link
             href={`/current-affairs/date/${article.newsDate}`}
             className="hover:text-blue-600 transition-colors"
           >
             {formattedEventDate}
           </Link>
-          <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+          <ChevronRight className="w-3.5 h-3.5 text-fg-secondary shrink-0" />
           <span className="text-slate-800 font-semibold truncate max-w-[200px] sm:max-w-xs">
             {article.headline}
           </span>
@@ -152,18 +152,18 @@ export default async function CurrentAffairsArticleReaderPage({ params }: Articl
 
             {article.importanceTier === 'CRITICAL' && (
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-rose-100 text-rose-800 border border-rose-300">
-                <Flame className="w-3.5 h-3.5 text-rose-600 animate-pulse" />
-                CRITICAL EVENT
+                <Flame className="w-3.5 h-3.5 text-rose-600" />
+                Critical event
               </span>
             )}
             {article.importanceTier === 'HIGH' && (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">
-                HIGH YIELD
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary-50 text-primary-800 border border-primary-200">
+                High relevance
               </span>
             )}
 
             <div className="flex items-center text-xs text-slate-500 font-medium ml-auto">
-              <Calendar className="w-3.5 h-3.5 mr-1 text-slate-400" />
+              <Calendar className="w-3.5 h-3.5 mr-1 text-fg-secondary" />
               <span>Event Date: {formattedEventDate}</span>
             </div>
           </div>
@@ -177,18 +177,18 @@ export default async function CurrentAffairsArticleReaderPage({ params }: Articl
         {article.keyTakeaways && article.keyTakeaways.length > 0 && (
           <section
             aria-labelledby="key-takeaways-heading"
-            className="rounded-2xl border border-amber-200 bg-amber-50/50 p-5 md:p-6 shadow-sm"
+            className="rounded-card border border-line bg-surface-sunken p-5 md:p-6"
           >
             <div className="flex items-center gap-2 mb-3">
-              <Sparkles className="w-5 h-5 text-amber-600" />
-              <h2 id="key-takeaways-heading" className="text-base font-bold text-amber-900">
+              <Sparkles aria-hidden="true" className="w-5 h-5 text-primary-700" />
+              <h2 id="key-takeaways-heading" className="text-h3 font-bold text-fg">
                 Key Exam Takeaways
               </h2>
             </div>
             <ul className="space-y-2 text-sm text-slate-800">
               {article.keyTakeaways.map((point, idx) => (
                 <li key={idx} className="flex items-start gap-2.5">
-                  <CheckCircle2 className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <CheckCircle2 aria-hidden="true" className="w-4 h-4 text-success-700 shrink-0 mt-0.5" />
                   <span>{point}</span>
                 </li>
               ))}

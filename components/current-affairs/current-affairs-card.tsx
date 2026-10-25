@@ -30,7 +30,7 @@ const CATEGORY_COLORS: Record<CurrentAffairsCategory, { bg: string; text: string
   DEFENCE: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200' },
   SCIENCE_TECH: { bg: 'bg-cyan-50', text: 'text-cyan-700', border: 'border-cyan-200' },
   ENVIRONMENT: { bg: 'bg-teal-50', text: 'text-teal-700', border: 'border-teal-200' },
-  GOVT_SCHEMES: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
+  GOVT_SCHEMES: { bg: 'bg-ink-100', text: 'text-fg', border: 'border-line' },
   SPORTS: { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200' },
   AWARDS_HONOURS: { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200' },
   PERSONS_IN_NEWS: { bg: 'bg-pink-50', text: 'text-pink-700', border: 'border-pink-200' },
@@ -40,7 +40,7 @@ const CATEGORY_COLORS: Record<CurrentAffairsCategory, { bg: string; text: string
 
 const IMPORTANCE_BADGES: Record<CurrentAffairsImportanceTier, { label: string; className: string }> = {
   CRITICAL: { label: 'CRITICAL', className: 'bg-rose-100 text-rose-800 border-rose-300' },
-  HIGH: { label: 'HIGH YIELD', className: 'bg-amber-100 text-amber-800 border-amber-300' },
+  HIGH: { label: 'High relevance', className: 'bg-primary-50 text-primary-800 border-primary-200' },
   MEDIUM: { label: 'MEDIUM', className: 'bg-slate-100 text-slate-700 border-slate-200' },
   LOW: { label: 'STANDARD', className: 'bg-slate-50 text-slate-600 border-slate-200' },
 };
@@ -68,7 +68,7 @@ export const CurrentAffairsCard: React.FC<CurrentAffairsCardProps> = ({
 
             {article.importanceTier === 'CRITICAL' && (
               <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border ${impBadge.className}`}>
-                <Flame className="w-3 h-3 text-rose-600 animate-pulse" />
+                <Flame className="w-3 h-3 text-rose-600" />
                 {impBadge.label}
               </span>
             )}
@@ -80,7 +80,7 @@ export const CurrentAffairsCard: React.FC<CurrentAffairsCardProps> = ({
           </div>
 
           <div className="flex items-center text-xs text-slate-500 font-medium">
-            <Calendar className="w-3.5 h-3.5 mr-1 text-slate-400" />
+            <Calendar className="w-3.5 h-3.5 mr-1 text-fg-secondary" />
             <time dateTime={article.newsDate}>{formattedDate}</time>
           </div>
         </div>
