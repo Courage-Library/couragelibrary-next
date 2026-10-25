@@ -56,3 +56,5 @@ docs/reports/ux/brand1-local/
 # Owner design references (local only, listed in docs/ops/LOCAL_ONLY_PATHS.txt)
 Claude outputs/
 docs/reports/ux/brand2-local/
+# Operational snapshots with ids (EXAM-FINALIZE-1 stale-attempt export; local only, listed in docs/ops/LOCAL_ONLY_PATHS.txt)
+docs/ops/local/

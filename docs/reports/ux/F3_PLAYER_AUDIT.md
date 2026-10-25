@@ -80,12 +80,26 @@ Gate: `scripts/test_f3_player.cjs` (CI `F3-PLAYER`), 10/10. Against the pre-F3 c
 | P1-08 | CBT buttons | **Fixed.** Save & Next (clears the review mark, as in the CBT), Mark for Review & Next, no deselect on re-click, one-click Clear Response with a 5 s undo. `C` now selects option C. |
 | P1-09 | Palette shapes / icons | **Fixed.** Answered: green square + ✓. Not answered: red square + –. Not visited: grey square. Marked: purple circle. Answered & marked: purple circle + ✓. The palette, legend and instructions share `PALETTE_STATES`. |
 | P1-10 | One primary action | **Fixed.** "Save & Next" is the only filled action. Submit is an outline button in the header and in the mobile palette sheet. |
-| P1-11 | Blocking tab / fullscreen modals | **Fixed.** A quiet, non-blocking inline notice; events are still counted. |
+| P1-11 | Blocking tab / fullscreen modals | **Fixed.** A quiet, non-blocking inline notice; events are counted in the browser only (see PROCTOR-LOG-1 below). |
 | P1-12 | 48 px targets | **Fixed** across the player, palette, dialogs and mobile bars. |
 | P1-13 | Accessible dialogs | **Fixed.** Submit, instructions, palette sheet, option zoom and the time-over/submitting status all use `components/ui/dialog`. The custom clear-confirm and security modals are removed. |
 | P1-14 | "Not saved — retrying" | **Fixed.** Distinct states: Saved, Saving…, Not saved — retrying, Offline — kept on this device, Time is over — saving stopped. Debounce is per question; backoff runs 1 → 30 s. |
 | P2 | Trivial ones done | Contrast of "of N"; no total shown for adaptive tests; one section switcher, now a tablist with `aria-selected`; pulse removed (adaptive badge, result page); wordmark hidden below `sm`; offline banner neutral. |
 | P2 | Not done (not trivial) | Result page: one primary action ("Review mistakes"), quiet leaderboard, fewer ambers, light hero (#17). The pre-exam screen's 11 px copy. |
+
+**Follow-up check (2026-10-25): tab-switch / fullscreen-exit / devtools events were never recorded server-side**, before or after F3.
+- `player-client.tsx` keeps `tabSwitchCount` / `fullscreenExitCount` in React state only; neither the pre-F3 player (15829db) nor the current one sends them anywhere.
+- No devtools detection exists in the code.
+- The database has no place for them: no proctoring table, and no such column on `test_attempts`.
+- The F3 notice said "This is recorded with your attempt". That was false and is corrected to neutral copy.
+
+**Proposal (schema change, not made): PROCTOR-LOG-1.** An append-only `attempt_integrity_events` table:
+- columns: attempt_id, user_id, kind (TAB_HIDDEN / FULLSCREEN_EXIT), occurred_at, server received_at;
+- RLS: no client grants;
+- writes through a SECDEF RPC that takes `auth.uid()`, checks the attempt is the caller's and in progress, and rate-limits;
+- the player sends events fire-and-forget, so the UI stays quiet;
+- no devtools detection (unreliable and a false-positive risk);
+- staff read only.
 
 **Proposal (schema change, not made): PLAYER-RESUME-SERVER.** Add `last_question_order` and a visited set on `test_attempts`, so a resume restores the exact position on any device.
 

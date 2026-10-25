@@ -6,3 +6,4 @@ docs/reports/ops/PUBLIC_REPO1_REPORT.md
 docs/reports/ux/brand1-local/
 Claude outputs/
 docs/reports/ux/brand2-local/
+docs/ops/local/

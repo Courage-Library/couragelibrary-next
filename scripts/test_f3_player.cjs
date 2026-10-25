@@ -281,6 +281,8 @@ const P = code(read(PLAYER));
     assert(/variant="outline"\s+disabled=\{isSubmitting \|\| isStepTransitioning\}\s+className="hidden min-h-12 font-semibold md:inline-flex"/.test(P), 'header Submit is quiet (outline)');
     // P1-11 quiet notices
     assert(!/Exam Window Changed|Fullscreen Mode Exited|ShieldAlert/.test(P) && /data-security-notice=""/.test(P), 'security notices are inline, non-blocking');
+    // honesty: events are not stored server-side yet (PROCTOR-LOG-1) — the copy must not claim they are
+    assert(!/recorded with your attempt|is (being )?(recorded|logged|monitored)/i.test(P), 'player claims security events are recorded (they are not: PROCTOR-LOG-1)');
     // P1-12 48 px
     const smallTarget = /<Button[^>]*\bsize="sm"|<button[^>]*className=[{"`][^>]*\b(h-(6|7|8|9)|p-0\.5|p-1|py-1)\b/;
     assert(!smallTarget.test(P), `small targets remain in the player: ${(P.match(smallTarget) || [''])[0].slice(0, 80)}`);

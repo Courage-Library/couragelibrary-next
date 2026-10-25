@@ -1085,14 +1085,15 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
   // =========================================================================
   // ACTIVE EXAM WORKSPACE
   // F3: R4 one primary action ("Save & Next"); R5 status always visible; R6 CBT controls + palette; R7 honest save
-  // status; R8 calm (no blocking alarms — security events are a quiet, non-blocking notice and are still counted);
+  // status; R8 calm (no blocking alarms — security events are a quiet, non-blocking notice, counted on this device only — nothing is stored server-side
+  // yet: see PROCTOR-LOG-1 in docs/reports/ux/F3_PLAYER_AUDIT.md; never claim "recorded" until it ships);
   // R10 ≥ 48 px targets, accessible dialogs, focus rings.
   // =========================================================================
   const isLastFixed = !isAdaptive && currentIndex === (fixedSession?.questions.length || 1) - 1;
   const securityNotice = securityState.showFullscreenWarning
     ? "Fullscreen is off. Your answers are safe; return to fullscreen when you are ready."
     : securityState.showTabSwitchWarning
-    ? `You left the test window (${securityState.tabSwitchCount} time${securityState.tabSwitchCount > 1 ? "s" : ""}). This is recorded with your attempt.`
+    ? `You left the test window (${securityState.tabSwitchCount} time${securityState.tabSwitchCount > 1 ? "s" : ""}). Stay on this window during the test.`
     : null;
   const showSubmitOverlay =
     submissionState === "time_expired" || submissionState === "submitting" || submissionState === "submitted" || (submissionState === "error" && lastSubmitAutoRef.current);
