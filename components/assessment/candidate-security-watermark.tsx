@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { BRAND_PALETTE } from "@/config/brand";
 
 interface CandidateSecurityWatermarkProps {
   examTitle?: string;
@@ -11,6 +12,17 @@ interface CandidateSecurityWatermarkProps {
   isLighter?: boolean;
 }
 
+/**
+ * F3-polish: anti-leak watermark, deliberately light and sparse. ONE mark per tile, tile ≥ 400 × 300 px, so it is
+ * never denser than ~1 mark per 400 × 300 px; the opacity keeps question text (fg / fg-secondary on the surface)
+ * at ≥ 4.5:1 against the watermarked background. Both limits are measured by scripts/test_f3_player.cjs (P2-WM).
+ */
+export const WATERMARK_TILE = { width: 440, height: 320 } as const;
+export const WATERMARK_MARKS_PER_TILE = 1;
+export const WATERMARK_INK = BRAND_PALETTE["ink-900"];
+export const WATERMARK_OPACITY = 0.035;
+export const WATERMARK_OPACITY_LIGHTER = 0.03;
+
 export function CandidateSecurityWatermark({
   examTitle = "COURAGE LIBRARY",
   maskedCandidateId = "CL••••73",
@@ -19,38 +31,29 @@ export function CandidateSecurityWatermark({
   className = "",
   isLighter = false,
 }: CandidateSecurityWatermarkProps) {
-  // Format clean line 1 & line 2 (Clear security strings with uppercase branding)
-  const line1 = `COURAGE LIBRARY \u2022 ${examTitle.toUpperCase().slice(0, 26)}`;
-  const line2 = `CANDIDATE \u2022 #${maskedCandidateId} \u2022 ATTEMPT #${attemptIdShort}`;
-  const line3 = timestamp ? timestamp.toUpperCase() : "";
+  const line1 = `COURAGE LIBRARY • ${examTitle.toUpperCase().slice(0, 26)}`;
+  const line2 = `CANDIDATE #${maskedCandidateId} • ATTEMPT #${attemptIdShort}${timestamp ? ` • ${timestamp.toUpperCase()}` : ""}`;
+  const { width: W, height: H } = WATERMARK_TILE;
 
-  // Encode SVG Pattern into data URI with larger tile and legible typography (14px font, 360x210 tile)
   const svgContent = `
-    <svg xmlns='http://www.w3.org/2000/svg' width='360' height='210' viewBox='0 0 360 210'>
-      <g transform='rotate(-22 180 105)' fill='%230f172a' font-family='monospace, -apple-system, sans-serif' font-size='14' font-weight='700' letter-spacing='1.5'>
-        <text x='15' y='50'>${line1}</text>
-        <text x='15' y='72'>${line2}</text>
-        ${line3 ? `<text x='15' y='94'>${line3}</text>` : ""}
-        <text x='200' y='155'>${line1}</text>
-        <text x='200' y='177'>${line2}</text>
-        ${line3 ? `<text x='200' y='199'>${line3}</text>` : ""}
+    <svg xmlns='http://www.w3.org/2000/svg' width='${W}' height='${H}' viewBox='0 0 ${W} ${H}'>
+      <g transform='rotate(-20 ${W / 2} ${H / 2})' fill='${WATERMARK_INK}' font-family='monospace, -apple-system, sans-serif' font-size='13' font-weight='600' letter-spacing='1'>
+        <text x='40' y='${H / 2 - 8}'>${line1}</text>
+        <text x='40' y='${H / 2 + 12}'>${line2}</text>
       </g>
     </svg>
   `.trim().replace(/\n/g, "").replace(/\s+/g, " ");
 
-  const encodedSvg = encodeURIComponent(svgContent);
-
   return (
     <div
       aria-hidden="true"
-      className={`pointer-events-none absolute inset-0 z-0 select-none overflow-hidden transition-opacity duration-300 ${
-        isLighter ? "opacity-[0.055]" : "opacity-[0.08]"
-      } ${className}`}
+      data-watermark=""
+      className={`pointer-events-none absolute inset-0 z-0 select-none overflow-hidden ${className}`}
       style={{
-        backgroundImage: `url("data:image/svg+xml,${encodedSvg}")`,
+        opacity: isLighter ? WATERMARK_OPACITY_LIGHTER : WATERMARK_OPACITY,
+        backgroundImage: `url("data:image/svg+xml,${encodeURIComponent(svgContent)}")`,
         backgroundRepeat: "repeat",
       }}
     />
   );
 }
-

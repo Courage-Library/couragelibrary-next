@@ -108,7 +108,7 @@ export function QuestionPalette({ questions, currentOrder, sectionName, globalTo
       type="button"
       onClick={() => setFilter(key)}
       aria-pressed={filter === key}
-      className={cn("focus-ring min-h-12 whitespace-nowrap rounded-lg px-3 text-body-sm font-semibold", filter === key ? "bg-surface text-fg shadow-xs" : "text-fg-secondary hover:text-fg")}
+      className={cn("focus-ring min-h-12 rounded-lg px-2 text-center text-body-sm font-semibold leading-tight", filter === key ? "bg-surface text-fg shadow-xs" : "text-fg-secondary hover:text-fg")}
     >
       {label}
     </button>
@@ -145,7 +145,7 @@ export function QuestionPalette({ questions, currentOrder, sectionName, globalTo
         ))}
       </ul>
 
-      <div role="group" aria-label="Show questions" className="flex items-center gap-1 overflow-x-auto rounded-xl bg-ink-100 p-1">
+      <div role="group" aria-label="Show questions" data-palette-filters="" className="grid grid-cols-2 gap-1 rounded-xl bg-ink-100 p-1">
         {pill("all", `All (${questions.length})`)}
         {pill("unanswered", "Not answered")}
         {pill("answered", "Answered")}

@@ -5,6 +5,8 @@ import { AlertCircle } from "lucide-react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
+import { PALETTE_STATES, PaletteSwatch } from "@/components/assessment/question-palette";
+import type { QuestionStatus } from "@/components/assessment/question-palette";
 
 export interface SectionSubmitSummary {
   id: string;
@@ -23,6 +25,8 @@ interface SubmitDialogProps {
   onCancel: () => void;
   isSubmitting?: boolean;
   submissionError?: string | null;
+  /** F3-polish: per-state counts — shown with the palette's exact terms (Answered … Answered & marked for review) */
+  stateCounts?: Record<QuestionStatus, number>;
 }
 
 /**
@@ -41,7 +45,15 @@ export function SubmitDialog({
   onCancel,
   isSubmitting = false,
   submissionError = null,
+  stateCounts,
 }: SubmitDialogProps) {
+  const counts: Array<{ key: string; label: string; n: number; status?: QuestionStatus }> = stateCounts
+    ? PALETTE_STATES.map((s) => ({ key: s.status, label: s.label, n: stateCounts[s.status] ?? 0, status: s.status }))
+    : [
+        { key: "answered", label: "Answered", n: answeredCount },
+        { key: "not_answered", label: "Not answered", n: unansweredCount },
+        { key: "marked", label: "Marked for review", n: markedCount },
+      ];
   return (
     <Dialog
       open={isOpen}
@@ -63,15 +75,14 @@ export function SubmitDialog({
       }
     >
       <div className="flex flex-col gap-4" data-submit-dialog="">
-        <dl className="grid grid-cols-3 gap-2 text-center">
-          {[
-            ["Answered", answeredCount],
-            ["Not answered", unansweredCount],
-            ["Marked for review", markedCount],
-          ].map(([label, n]) => (
-            <div key={label as string} className="rounded-xl border border-line bg-surface-sunken p-3">
-              <dd className="text-h3 font-bold text-fg tabular-nums">{n as number}</dd>
-              <dt className="text-caption font-medium text-fg-secondary">{label as string}</dt>
+        <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2" data-submit-counts="">
+          {counts.map((c) => (
+            <div key={c.key} className="flex items-center justify-between gap-3 rounded-xl border border-line bg-surface-sunken px-3 py-2">
+              <dt className="flex items-center gap-2 text-body-sm font-medium text-fg">
+                {c.status && <PaletteSwatch status={c.status} />}
+                {c.label}
+              </dt>
+              <dd className="text-h3 font-bold text-fg tabular-nums">{c.n}</dd>
             </div>
           ))}
         </dl>

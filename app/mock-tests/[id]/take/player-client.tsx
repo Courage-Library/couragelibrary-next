@@ -13,6 +13,7 @@ import { QuestionOptions } from "@/components/assessment/question-options";
 import { QuestionPalette, QuestionStatus } from "@/components/assessment/question-palette";
 import { SubmitDialog, SectionSubmitSummary } from "@/components/assessment/submit-dialog";
 import { ReportQuestionButton } from "@/components/practice/report-question-button";
+import { Tooltip } from "@/components/ui/tooltip";
 import { InstructionsModal } from "@/components/assessment/instructions-modal";
 import { CandidateSecurityWatermark } from "@/components/assessment/candidate-security-watermark";
 import { OfflineAnswerQueue } from "@/lib/assessment/offline-queue";
@@ -944,6 +945,12 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
   const markedCount = Object.values(answers).filter((a) => a.isMarkedForReview).length;
   const totalQuestionCount = isAdaptive ? activeStepNumber : (fixedSession?.questions.length || 0);
   const unansweredCount = Math.max(0, totalQuestionCount - answeredCount);
+  // F3-polish: the submit summary uses the palette's five states and terms
+  const stateCounts = useMemo(() => {
+    const c: Record<QuestionStatus, number> = { answered: 0, not_answered: 0, not_visited: 0, marked: 0, marked_answered: 0 };
+    for (const p of paletteItems) c[p.status] += 1;
+    return c;
+  }, [paletteItems]);
 
   // Section Breakdown for Submit Dialog
   const sectionsSummary: SectionSubmitSummary[] = useMemo(() => {
@@ -1098,6 +1105,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
   const showSubmitOverlay =
     submissionState === "time_expired" || submissionState === "submitting" || submissionState === "submitted" || (submissionState === "error" && lastSubmitAutoRef.current);
   const iconButton = "focus-ring flex size-12 items-center justify-center rounded-xl text-fg-secondary hover:bg-ink-100 hover:text-fg";
+  const labelButton = "focus-ring flex min-h-12 min-w-12 items-center justify-center gap-2 rounded-xl px-3 text-body-sm font-semibold text-fg-secondary hover:bg-ink-100 hover:text-fg";
 
   return (
     <div className="fixed inset-0 z-50 bg-canvas flex flex-col overflow-hidden select-none" data-player="">
@@ -1151,17 +1159,26 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
             <SaveStatusChip status={isStepTransitioning ? "saving" : saveStatus} />
           </div>
           <AssessmentTimer initialRemainingSeconds={session.remainingSeconds} onTimeExpired={() => handleSubmitAttempt(true)} />
-          <button type="button" onClick={() => setIsInstructionsOpen(true)} aria-label="Instructions" className={`hidden md:flex ${iconButton}`}>
-            <HelpCircle aria-hidden="true" className="size-5" />
-          </button>
-          <button
-            type="button"
-            onClick={handleReturnToFullscreen}
-            aria-label={securityState.isFullscreen ? "Fullscreen is on" : "Enter fullscreen"}
-            className={`hidden md:flex ${iconButton}`}
-          >
-            {securityState.isFullscreen ? <Minimize2 aria-hidden="true" className="size-5" /> : <Maximize2 aria-hidden="true" className="size-5" />}
-          </button>
+          {/* F3-polish: icon + visible text at >= 1024 px; icon with tooltip + aria-label below */}
+          <Tooltip content="Instructions" side="bottom" className="lg:hidden">
+            <button type="button" onClick={() => setIsInstructionsOpen(true)} aria-label="Instructions" className={`hidden md:flex ${labelButton}`} data-header-label="instructions">
+              <HelpCircle aria-hidden="true" className="size-5" />
+              <span aria-hidden="true" className="hidden lg:inline">Instructions</span>
+            </button>
+          </Tooltip>
+          <Tooltip content="Full screen" side="bottom" className="lg:hidden">
+            <button
+              type="button"
+              onClick={handleReturnToFullscreen}
+              aria-label="Full screen"
+              aria-pressed={securityState.isFullscreen}
+              className={`hidden md:flex ${labelButton}`}
+              data-header-label="fullscreen"
+            >
+              {securityState.isFullscreen ? <Minimize2 aria-hidden="true" className="size-5" /> : <Maximize2 aria-hidden="true" className="size-5" />}
+              <span aria-hidden="true" className="hidden lg:inline">Full screen</span>
+            </button>
+          </Tooltip>
           {/* quiet secondary action (R4): "Save & Next" stays the one primary action */}
           <Button
             size="lg"
@@ -1241,7 +1258,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
 
             {/* Section tabs (fixed mocks): a real tablist (R6 / R10) */}
             {!isAdaptive && fixedSession && fixedSession.sections.length > 1 && (
-              <div role="tablist" aria-label="Sections" className="flex items-center gap-1.5 p-1 bg-ink-100 rounded-2xl overflow-x-auto">
+              <div role="tablist" aria-label="Sections" data-section-tabs="" className="[scrollbar-width:none] [&::-webkit-scrollbar]:hidden flex items-center gap-1.5 overflow-x-auto rounded-2xl bg-ink-100 p-1 lg:flex-wrap lg:overflow-visible">
                 {fixedSession.sections.map((sec) => {
                   const isCurrentSec = currentQ?.sectionId === sec.id;
                   const secQuestions = fixedSession.questions.filter((q) => q.sectionId === sec.id);
@@ -1256,7 +1273,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
                         const firstInSec = fixedSession.questions.findIndex((q) => q.sectionId === sec.id);
                         if (firstInSec !== -1) navigateToQuestionIndex(firstInSec);
                       }}
-                      className={`focus-ring min-h-12 px-3 text-body-sm font-semibold rounded-xl whitespace-nowrap flex items-center gap-2 border-b-2 ${
+                      className={`focus-ring min-h-12 px-3 text-body-sm font-semibold rounded-xl whitespace-nowrap lg:whitespace-normal flex items-center gap-2 border-b-2 ${
                         isCurrentSec ? "bg-surface text-fg border-primary-600 shadow-xs" : "text-fg-secondary border-transparent hover:text-fg"
                       }`}
                     >
@@ -1292,6 +1309,17 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
                 label={`Answer options for question ${currentQ.questionOrder}`}
               />
             )}
+
+            {/* F3-polish: "Report this question" is a quiet link under the options, not in the control row */}
+            {currentQ && (
+              <div className="flex justify-end" data-report-slot="">
+                <ReportQuestionButton
+                  questionId={currentQ.questionId ?? null}
+                  questionVersionId={currentQ.questionVersionId || null}
+                  className="min-h-12 px-2 text-body-sm font-medium text-fg-secondary hover:text-fg"
+                />
+              </div>
+            )}
           </div>
 
           {/* Desktop action footer — CBT controls; ONE primary (Save & Next) */}
@@ -1310,7 +1338,6 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
               <Button type="button" size="lg" variant="ghost" disabled={!currentAnswer.selectedOption || isViewingPastStep || isStepTransitioning} onClick={executeClearResponse} className="min-h-12 font-semibold" data-cbt="clear">
                 <RotateCcw aria-hidden="true" className="mr-1.5 size-4" /> Clear Response
               </Button>
-              {currentQ && <ReportQuestionButton questionId={currentQ.questionId ?? null} questionVersionId={currentQ.questionVersionId || null} />}
             </div>
 
             <div className="flex items-center gap-2">
@@ -1410,7 +1437,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
       <Dialog open={isMobilePaletteOpen} onOpenChange={setIsMobilePaletteOpen} variant="sheet" title="Question palette">
         <div className="flex flex-col gap-4">
           {!isAdaptive && fixedSession && fixedSession.sections.length > 1 && (
-            <div role="tablist" aria-label="Sections" className="flex items-center gap-1 overflow-x-auto pb-1">
+            <div role="tablist" aria-label="Sections" className="[scrollbar-width:none] [&::-webkit-scrollbar]:hidden flex items-center gap-1 overflow-x-auto pb-1">
               {fixedSession.sections.map((sec) => (
                 <button
                   key={sec.id}
@@ -1439,7 +1466,6 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
               setIsMobilePaletteOpen(false);
             }}
           />
-          {currentQ && <ReportQuestionButton questionId={currentQ.questionId ?? null} questionVersionId={currentQ.questionVersionId || null} />}
           <Button
             size="lg"
             variant="outline"
@@ -1507,6 +1533,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
         unansweredCount={unansweredCount}
         markedCount={markedCount}
         sectionsSummary={sectionsSummary}
+        stateCounts={stateCounts}
         onConfirm={() => handleSubmitAttempt(false)}
         onCancel={() => setIsSubmitOpen(false)}
         isSubmitting={isSubmitting}

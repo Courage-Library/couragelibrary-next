@@ -294,6 +294,46 @@ const P = code(read(PLAYER));
     return '07–14';
   });
 
+  // F3-polish (owner follow-up B): one static check per item, no screenshots
+  await test('F3-polish: watermark density + contrast, submit terms, tabs, palette filters, header labels, quiet report', () => {
+    const P = code(read('app/mock-tests/[id]/take/player-client.tsx'));
+    // B1 watermark: ≤ 1 mark per 400×300 px; question text ≥ 4.5:1 against the watermarked surface (measured)
+    const W = read('components/assessment/candidate-security-watermark.tsx');
+    const num = (name) => Number((W.match(new RegExp(`export const ${name} = ([0-9.]+)`)) || [])[1]);
+    const tile = W.match(/WATERMARK_TILE = \{ width: (\d+), height: (\d+) \}/);
+    const inkTok = (W.match(/WATERMARK_INK = BRAND_PALETTE\["([a-z0-9-]+)"\]/) || [])[1];
+    assert(tile && Number(tile[1]) * Number(tile[2]) >= 400 * 300 && Number(tile[1]) >= 400 && Number(tile[2]) >= 300, 'watermark tile smaller than 400×300');
+    assert(num('WATERMARK_MARKS_PER_TILE') === 1 && (W.match(/<text /g) || []).length === 2, 'watermark: exactly one two-line mark per tile');
+    assert(/data-watermark=""/.test(W) && /<CandidateSecurityWatermark/.test(P), 'watermark still present in the player (anti-leak)');
+    const css = read('app/globals.css');
+    const tok = (n) => (css.match(new RegExp(`--color-${n}: (#[0-9a-f]{6})`, 'i')) || [])[1];
+    const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+    const lum = (c) => { const [r, g, b] = c.map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+    const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
+    const worst = Math.max(num('WATERMARK_OPACITY'), num('WATERMARK_OPACITY_LIGHTER'));
+    const ink = tok(inkTok);
+    const bg = rgb('#ffffff').map((v, i) => v * (1 - worst) + rgb(ink)[i] * worst); // surface under a watermark glyph
+    const contrasts = ['ink-900', 'ink-600'].map((t) => ratio(rgb(tok(t)), bg));
+    assert(contrasts.every((c) => c >= 4.5), `text contrast on watermark ${contrasts.map((c) => c.toFixed(2)).join(' / ')} < 4.5`);
+    // B2 submit dialog = palette terms (5 counts) + section table kept
+    const SD = read('components/assessment/submit-dialog.tsx');
+    assert(/PALETTE_STATES\.map\(\(s\) => \(\{ key: s\.status, label: s\.label/.test(SD) && /stateCounts=\{stateCounts\}/.test(P) && /By section/.test(SD), 'submit dialog does not use the five palette states / section table');
+    // B3 section tabs: wrap (no horizontal scroll) at ≥ 1024 px; mobile scrolls with no visible scrollbar
+    assert(/data-section-tabs="" className="\[scrollbar-width:none\] \[&::-webkit-scrollbar\]:hidden [^"]*overflow-x-auto[^"]*lg:flex-wrap lg:overflow-visible"/.test(P) && /lg:whitespace-normal/.test(P), 'section tabs scroll on desktop');
+    // B4 palette filters: no truncation / scroll
+    const PAL = read('components/assessment/question-palette.tsx');
+    const filt = PAL.slice(PAL.indexOf('const pill ='), PAL.indexOf('return (', PAL.indexOf('const pill ='))) + PAL.slice(PAL.indexOf('data-palette-filters'), PAL.indexOf('</div>', PAL.indexOf('data-palette-filters')));
+    assert(/data-palette-filters="" className="grid grid-cols-2/.test(filt) && !/truncate|whitespace-nowrap|overflow-x-auto/.test(filt), 'palette filter labels can truncate / scroll');
+    // B5 header: visible labels at ≥ 1024 px, tooltip + aria-label below
+    assert(/<Tooltip content="Instructions"[^>]*className="lg:hidden">/.test(P) && /aria-label="Instructions"[^>]*data-header-label="instructions"/.test(P) && /className="hidden lg:inline">Instructions</.test(P), 'Instructions label');
+    assert(/<Tooltip content="Full screen"[^>]*className="lg:hidden">/.test(P) && /aria-label="Full screen"/.test(P) && /className="hidden lg:inline">Full screen</.test(P), 'Full screen label');
+    // B6 report: once, a quiet link under the options — not in the control row / palette sheet
+    const footStart = P.indexOf('data-cbt="mark-next"');
+    const footer = P.slice(footStart, P.indexOf('</main>'));
+    assert((P.match(/<ReportQuestionButton/g) || []).length === 1 && /data-report-slot=""[\s\S]{0,80}<ReportQuestionButton/.test(P) && !/ReportQuestionButton/.test(footer) && footStart > 0 && P.indexOf('<ReportQuestionButton') < footStart, 'report button still in the control row');
+    return `contrast ${contrasts.map((c) => c.toFixed(1)).join(' / ')}:1 at opacity ${worst}`;
+  });
+
   console.log(`\nF3 player: ${passed}/${passed + failed} passed`);
   process.exit(failed ? 1 : 0);
 })();
