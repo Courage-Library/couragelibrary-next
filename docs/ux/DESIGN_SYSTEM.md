@@ -7,6 +7,9 @@
 > - WCAG 2.2 AA throughout, and bilingual-ready (English + Hindi).
 >
 > Status: spec for review. It is implemented in UX-1 (tokens and primitives); no code changes in UX-0.
+>
+> **Design rules R1–R12 (binding): [DESIGN_RULES.md](DESIGN_RULES.md).** R9 overrides "bilingual-ready" above for the
+> website UI: plain English only (#82); learning content follows the user's English / Hindi preference.
 
 ## 0. Where we start (evidence: discovery report, section 1b)
 

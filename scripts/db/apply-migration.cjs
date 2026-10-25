@@ -13,6 +13,10 @@
  *      its schema.dump and every table file's sha256 are re-checked here).
  *   4. The file is not already APPLIED / BASELINED / SUPERSEDED_NOT_APPLIED in
  *      public.schema_migration_ledger (if the ledger exists).
+ *   5. (F1-a) The file contains NO top-level transaction control (BEGIN / COMMIT / ROLLBACK / END / SAVEPOINT …):
+ *      the runner owns the transaction. A COMMIT inside the file ends it early, so a --dry-run would PERSIST the
+ *      migration and its ledger row (incident 2026-10-25, 092). Function bodies ($$ … $$) and comments are ignored.
+ *   Self-test: node scripts/db/apply-migration.cjs --self-test
  *
  * The migration and its ledger row are written in ONE transaction. On failure everything
  * rolls back and (if the ledger exists) a FAILED row is recorded in a separate transaction.
@@ -32,7 +36,44 @@ function fail(msg, code = 2) {
   process.exit(code);
 }
 
+/** Pure: the first top-level transaction-control statement in `sql` (outside $$ bodies, comments, strings), or null. */
+function transactionControl(sql) {
+  const stripped = String(sql)
+    .replace(/\$([A-Za-z_]*)\$[\s\S]*?\$\1\$/g, ' ')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/--.*$/gm, ' ')
+    .replace(/'(?:[^']|'')*'/g, "''");
+  const m = stripped.match(/(?:^|;)\s*((?:BEGIN|START\s+TRANSACTION|COMMIT|ROLLBACK|END|SAVEPOINT|RELEASE)\b[^;]*);/i);
+  return m ? m[1].trim().replace(/\s+/g, ' ').slice(0, 40) : null;
+}
+
 const args = process.argv.slice(2);
+if (args.includes('--self-test')) {
+  const cases = [
+    ['BEGIN;\nCREATE TABLE t (id int);\nCOMMIT;', 'BEGIN'],
+    ['CREATE TABLE t (id int);\ncommit;', 'commit'],
+    ['CREATE FUNCTION f() RETURNS void LANGUAGE plpgsql AS $$\nBEGIN\n  PERFORM 1;\nEND;\n$$;\nSELECT 1;', null],
+    ['CREATE FUNCTION f() RETURNS trigger LANGUAGE plpgsql AS $function$ BEGIN RETURN NEW; END; $function$;', null],
+    ["-- COMMIT;\n/* ROLLBACK; */\nSELECT 'COMMIT;';", null],
+    ["DO $$ BEGIN RAISE NOTICE 'x'; END $$;\nSTART TRANSACTION;", 'START TRANSACTION'],
+  ];
+  let ok = true;
+  for (const [sql, want] of cases) {
+    const got = transactionControl(sql);
+    if (got !== want) {
+      ok = false;
+      console.log(`apply-migration self-test FAIL: want ${want} got ${got}`);
+    }
+  }
+  const dir = path.resolve(ROOT, 'supabase', 'migrations');
+  const hits = fs.readdirSync(dir).filter((f) => f.endsWith('.sql') && transactionControl(fs.readFileSync(path.join(dir, f), 'utf8')));
+  if (hits.length) {
+    ok = false;
+    console.log(`apply-migration self-test FAIL: transaction control in ${hits.join(', ')}`);
+  }
+  console.log(`apply-migration self-test: ${ok ? 'OK' : 'FAIL'} — ${cases.length} cases, migrations clean`);
+  process.exit(ok ? 0 : 1);
+}
 const dryRun = args.includes('--dry-run');
 const fileArg = args.find((a) => !a.startsWith('--'));
 if (!fileArg) fail('usage: apply-migration.cjs <migration.sql> [--dry-run]');
@@ -41,6 +82,8 @@ if (!fs.existsSync(file) || !file.endsWith('.sql')) fail('migration file not fou
 const migrationsDir = path.resolve(ROOT, 'supabase', 'migrations');
 if (path.dirname(file).toLowerCase() !== migrationsDir.toLowerCase()) fail('migration must live in supabase/migrations');
 const filename = path.basename(file);
+const txn = transactionControl(fs.readFileSync(file, 'utf8'));
+if (txn) fail(`the file contains transaction control ("${txn}"); the runner owns the transaction — remove it`);
 
 let target;
 try {

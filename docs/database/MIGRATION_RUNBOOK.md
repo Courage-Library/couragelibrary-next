@@ -19,6 +19,7 @@ backup  →  pre-check (dry-run)  →  apply via runner  →  verify  →  ledge
   | `SUPERSEDED_NOT_APPLIED` | Never applied and **must never be replayed** (033, 037–052). `superseded_by` says where its objects were re-created, or that the feature is deferred. |
   | `FAILED` | Last apply attempt rolled back; the error is in `notes` |
 
+- **No transaction control in migration files** (no `BEGIN;` / `COMMIT;` / `ROLLBACK;`): the runner owns the transaction, and a `COMMIT` in the file would end it early, so even `--dry-run` would persist the migration and its ledger row (F1-a incident, 2026-10-25: 092 was live for about 75 s and was reverted with its rollback; ledger row set to `FAILED` with the note). The runner refuses such files (`node scripts/db/apply-migration.cjs --self-test`, CI `MIGRATION-RUNNER-SELFTEST`).
 - **Never edit an applied or baselined migration.** Every change is a new, forward-only file `supabase/migrations/YYYYMMDDNNNNNN_name.sql`.
 - **Checksums:** sha256 of the file with CRLF normalized to LF.
 - **Secrets:** no tool prints connection strings, hosts with project refs, keys or passwords.

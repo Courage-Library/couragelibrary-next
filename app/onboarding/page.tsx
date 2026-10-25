@@ -10,7 +10,7 @@ import { ONBOARDING_COPY } from "@/content/onboarding";
 import { OnboardingWizard } from "./onboarding-wizard";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: ONBOARDING_COPY.pageTitle.en, robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: ONBOARDING_COPY.pageTitle, robots: { index: false, follow: false } };
 
 /**
  * F0 onboarding (decision #76): ≤ 4 skippable steps → a deterministic plan. Behind ONBOARDING_ENABLED (default off →

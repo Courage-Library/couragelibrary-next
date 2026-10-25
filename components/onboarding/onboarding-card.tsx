@@ -33,19 +33,16 @@ export function OnboardingCard() {
   return (
     <section aria-labelledby="onboarding-card-title" className="flex flex-col gap-3 rounded-card border border-line bg-surface p-4 sm:flex-row sm:items-center sm:justify-between" data-onboarding-card="">
       <div className="flex flex-col gap-1">
-        <h2 id="onboarding-card-title" className="flex flex-col text-body-lg font-semibold text-fg">
-          <span lang="hi">{C.dashboardCard.title.hi}</span>
-          <span>{C.dashboardCard.title.en}</span>
+        <h2 id="onboarding-card-title" className="text-body-lg font-semibold text-fg">
+          {C.dashboardCard.title}
         </h2>
-        <p className="text-body-sm text-fg-secondary">
-          <span lang="hi">{C.dashboardCard.text.hi}</span> {C.dashboardCard.text.en}
-        </p>
+        <p className="text-body-sm text-fg-secondary">{C.dashboardCard.text}</p>
       </div>
       <div className="flex items-center gap-2">
         <ButtonLink href="/onboarding" variant="secondary" size="md" className="min-h-12">
-          {C.dashboardCard.cta.en} · <span lang="hi">{C.dashboardCard.cta.hi}</span>
+          {C.dashboardCard.cta}
         </ButtonLink>
-        <button type="button" onClick={dismiss} aria-label={`${C.dashboardCard.dismiss.en} · ${C.dashboardCard.dismiss.hi}`} className="focus-ring inline-flex size-12 items-center justify-center rounded-control text-fg-secondary hover:bg-ink-100">
+        <button type="button" onClick={dismiss} aria-label={C.dashboardCard.dismiss} className="focus-ring inline-flex size-12 items-center justify-center rounded-control text-fg-secondary hover:bg-ink-100">
           <X aria-hidden="true" className="size-5" />
         </button>
       </div>

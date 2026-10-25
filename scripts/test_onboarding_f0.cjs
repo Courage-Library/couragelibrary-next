@@ -11,7 +11,7 @@
  *        then never again; completed / skipped / unknown state (RPC missing) → no redirect
  *   O-06 deterministic plan (no AI): set size by minutes; first chosen exam; first top-level syllabus section; the
  *        primary action is the exam page while exam-wise practice does not exist; no exam → /exams
- *   O-07 every onboarding label has Hindi (Devanagari) AND English
+ *   O-07 UX-LANG-1 (R9, #82): every onboarding label is plain English; no Hindi UI; the language step sets content language
  *   O-08 migration 091 (static): RLS on, own read + admin read, no client write policy / grant, SECURITY DEFINER RPC
  *        with search_path '' and auth.uid() only, input validation, no exam_cycles insert; read RPC SECURITY INVOKER
  *   O-09 SECDEF allow-list entry (class A, authenticated) + max raised by exactly 1; typed RPC entries present
@@ -266,15 +266,14 @@ const run = async (fn) => {
     return 'deterministic';
   });
 
-  await test('O-07 every onboarding label has Hindi (Devanagari) and English', () => {
+  await test('O-07 UX-LANG-1 (R9, #82): every onboarding label is plain English; no Hindi UI anywhere in onboarding', () => {
     const DEV = /[ऀ-ॿ]/;
     const bad = [];
     let n = 0;
     const walk = (o, at) => {
-      if (o && typeof o === 'object' && typeof o.hi === 'string' && typeof o.en === 'string') {
+      if (typeof o === 'string') {
         n++;
-        if (!DEV.test(o.hi)) bad.push(`${at}.hi`);
-        if (!o.en || DEV.test(o.en)) bad.push(`${at}.en`);
+        if (!o.trim() || DEV.test(o)) bad.push(at);
         return;
       }
       if (typeof o === 'function') return walk(o(2, 4, 'X'), `${at}()`);
@@ -282,10 +281,14 @@ const run = async (fn) => {
     };
     walk(ONBOARDING_COPY, 'copy');
     for (const step of ['language', 'exams', 'timing', 'time']) assert(ONBOARDING_COPY.steps[step], `step ${step} has no copy`);
-    assert(n >= 40 && bad.length === 0, `${n} labels; missing: ${bad.join(', ')}`);
-    const w = read('app/onboarding/onboarding-wizard.tsx');
-    assert(/lang="hi"/.test(w), 'Hindi must be marked lang="hi" (Devanagari face, line-height 1.7)');
-    return `${n} bilingual labels`;
+    assert(n >= 40 && bad.length === 0, `${n} labels; not plain English: ${bad.join(', ')}`);
+    for (const f of ['app/onboarding/onboarding-wizard.tsx', 'components/onboarding/onboarding-card.tsx', 'components/shell/account-links.tsx', 'app/onboarding/page.tsx', 'content/onboarding.ts']) {
+      const src = read(f);
+      assert(!/lang="hi"/.test(src) && !DEV.test(src), `${f}: Hindi UI`);
+    }
+    // the language step sets the CONTENT language, not the UI
+    assert(/questions and guides/i.test(ONBOARDING_COPY.steps.language.title) && /website itself is in English/.test(ONBOARDING_COPY.steps.language.note), 'language step must say it sets the content language');
+    return `${n} English labels; 0 Hindi UI`;
   });
 
   const mig = read('supabase/migrations/20261025000091_f0_onboarding.sql');
@@ -362,7 +365,7 @@ const run = async (fn) => {
     const w = read('app/onboarding/onboarding-wizard.tsx');
     const primaries = (w.match(/<Button size="lg"(?![^>]*variant=)/g) || []).length;
     assert(primaries === 1, `primary buttons on a step: ${primaries}`);
-    assert(/<ProgressBar label=\{`\$\{progress\.en\} · \$\{progress\.hi\}`\}/.test(w) && /Step \$\{n\} of \$\{total\}/.test(read('content/onboarding.ts')), 'progress');
+    assert(/<ProgressBar label=\{progress\}/.test(w) && /Step \$\{n\} of \$\{total\}/.test(read('content/onboarding.ts')), 'progress');
     assert((w.match(/min-h-12/g) || []).length >= 6 && /size-12/.test(read('components/onboarding/onboarding-card.tsx')), '48 px targets');
     const copy = read('content/onboarding.ts');
     assert(!/hurry|last chance|only today|limited time|don.t miss|falling behind|lazy|failure|जल्दी करें|आखिरी मौका/i.test(copy), 'urgency / shame wording');

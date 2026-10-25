@@ -7,10 +7,10 @@ import { logoutAction } from "@/app/auth/actions";
 import { cn } from "@/components/ui/cn";
 import { ACCOUNT_MENU, isActive, type NavItem } from "./nav-config";
 import type { ShellAccount } from "./shell-types";
-import { ONBOARDING_COPY, both } from "@/content/onboarding";
+import { ONBOARDING_COPY } from "@/content/onboarding";
 
 export function accountItems(account: ShellAccount): NavItem[] {
-  const items = account.studyPreferences ? [...ACCOUNT_MENU, { href: "/onboarding", label: both(ONBOARDING_COPY.menuLink) }] : ACCOUNT_MENU;
+  const items = account.studyPreferences ? [...ACCOUNT_MENU, { href: "/onboarding", label: ONBOARDING_COPY.menuLink }] : ACCOUNT_MENU;
   return account.isStaff ? [...items, { href: "/admin", label: "Admin studio" }] : items;
 }
 
