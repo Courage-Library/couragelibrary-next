@@ -8,6 +8,7 @@ import { MistakeService } from "@/services/mistake.service";
 import { PremiumEntitlementService } from "@/services/premium-entitlement.service";
 import { ContentService } from "@/services/content.service";
 import { formatIstDateTime, calculateExamDuration, getIstDateString } from "@/lib/assessment/timing";
+import { attemptDeadline, isFinalizeEnabled, isPastDeadline, staleOutcome, type AttemptLike } from "@/lib/assessment/finalize";
 
 /** TYPES-1 B1: PostgREST returns a one-to-one embed (e.g. test_attempts → test_results) as an object or null. */
 function oneToOne<T>(v: T | T[] | null | undefined): T | null {
@@ -849,6 +850,9 @@ export class AssessmentService {
         fullName: profile?.full_name || "Aspirant",
       };
     }
+
+    // EXAM-FINALIZE-1 (finalize-on-read): the mock list never shows an expired attempt as resumable
+    if (resolvedUserId) await AssessmentService.finalizeExpiredAttempts({ userId: resolvedUserId, limit: 20 });
 
     // 2. Fetch all exams, user goals, templates, mock_tests, patterns in parallel
     const [
@@ -1885,9 +1889,11 @@ export class AssessmentService {
     const totalAllowedSeconds = testData.duration_minutes * 60;
     const remainingSeconds = Math.max(0, totalAllowedSeconds - elapsedSeconds);
 
-    // If attempt has already expired in the background, auto-finalize it
+    // If attempt has already expired in the background, finalize it exactly as the timer would (EXAM-FINALIZE-1):
+    // submitted_at = the server deadline, scored from the saved answers by the one submit path
     if (remainingSeconds <= 0) {
-      await AssessmentService.submitTestAttempt(attempt.id);
+      if (isFinalizeEnabled()) await AssessmentService.finalizeExpiredAttempts({ userId: attempt.user_id, limit: 20 });
+      else await AssessmentService.submitTestAttempt(attempt.id, attempt.user_id, { submittedAt: new Date(startTimeMs + totalAllowedSeconds * 1000).toISOString() });
       return null;
     }
 
@@ -1935,7 +1941,64 @@ export class AssessmentService {
    * Evaluates attempt against authoritative answer keys, populates test_results,
    * section_results, awards Phase 3D coins, logs Phase 3C activity, and logs Phase 3O mistakes.
    */
-  static async submitTestAttempt(attemptId: string, overrideUserId?: string): Promise<{ success: boolean; resultId?: string; error?: string }> {
+  /**
+   * EXAM-FINALIZE-1: finalize the in-progress attempts whose server deadline (started_at + duration) has passed —
+   * finalize-on-read (player, result, mock list, exam page; userId given) and the daily sweep (no userId; bounded).
+   * Superseded ones (a SUBMITTED attempt of the same mock started later) become "abandoned": never scored or shown.
+   * Idempotent; returns counts only (never ids or user data).
+   */
+  static async finalizeExpiredAttempts(opts: { userId?: string; limit?: number } = {}): Promise<{ finalized: number; abandoned: number; failed: number }> {
+    const counts = { finalized: 0, abandoned: 0, failed: 0 };
+    if (!isFinalizeEnabled()) return counts; // off until the architect's go (EXAM_FINALIZE_ENABLED)
+    const limit = Math.min(Math.max(1, opts.limit ?? 200), 500);
+    try {
+      const adminSb = createAdminServerSupabaseClient();
+      let q = adminSb
+        .from("test_attempts")
+        .select("id, user_id, mock_test_id, status, started_at, submitted_at, mock_tests(duration_minutes)")
+        .eq("status", "in_progress")
+        .is("submitted_at", null)
+        .order("started_at", { ascending: true })
+        .limit(limit * 4);
+      if (opts.userId) q = q.eq("user_id", opts.userId);
+      const { data: rows } = await q;
+      const now = new Date();
+      const expired = (rows ?? [])
+        .map((r) => ({ r, duration: Number(oneToOne(r.mock_tests)?.duration_minutes) }))
+        .filter(({ r, duration }) => Number.isFinite(duration) && duration > 0 && isPastDeadline(r.started_at, duration, now))
+        .slice(0, limit);
+      for (const { r, duration } of expired) {
+        const { data: sibs } = await adminSb
+          .from("test_attempts")
+          .select("id, user_id, mock_test_id, status, started_at, submitted_at")
+          .eq("user_id", r.user_id)
+          .eq("mock_test_id", r.mock_test_id);
+        type Row = { id: string; user_id: string; mock_test_id: string; status: string; started_at: string; submitted_at: string | null };
+        const toLike = (x: Row): AttemptLike => ({ id: x.id, userId: x.user_id, mockTestId: x.mock_test_id, status: x.status, startedAt: x.started_at, submittedAt: x.submitted_at });
+        const outcome = staleOutcome(toLike(r), duration, (sibs ?? []).map(toLike), now);
+        if (outcome === "abandon") {
+          // conditional: only a still-in-progress row changes (a concurrent finalize / submit wins cleanly)
+          const { error } = await adminSb.from("test_attempts").update({ status: "abandoned" }).eq("id", r.id).eq("status", "in_progress");
+          if (error) counts.failed++;
+          else counts.abandoned++;
+        } else if (outcome === "finalize") {
+          const res = await AssessmentService.submitTestAttempt(r.id, r.user_id, { submittedAt: attemptDeadline(r.started_at, duration).toISOString() });
+          if (res.success) counts.finalized++;
+          else counts.failed++;
+        }
+      }
+    } catch {
+      counts.failed++;
+    }
+    return counts;
+  }
+
+  /**
+   * The ONE submit / scoring path. EXAM-FINALIZE-1: `opts.submittedAt` = the server deadline when an expired attempt is
+   * finalized (timer expiry, finalize-on-read, daily sweep) — scored from saved answers only, exactly like a submit.
+   * Concurrency: test_results.attempt_id is UNIQUE; a parallel submit that loses the insert returns the winner's result.
+   */
+  static async submitTestAttempt(attemptId: string, overrideUserId?: string, opts?: { submittedAt?: string }): Promise<{ success: boolean; resultId?: string; error?: string }> {
     let userId = overrideUserId;
     if (!userId) {
       try {
@@ -2094,7 +2157,7 @@ export class AssessmentService {
     const unansweredCount = scoredQuestions - attemptedCount;
     const accuracy = attemptedCount > 0 ? (correctCount / attemptedCount) * 100 : 0;
 
-    const submittedAtIso = new Date().toISOString();
+    const submittedAtIso = opts?.submittedAt ?? new Date().toISOString();
     const authoritativeWallClockSeconds = calculateExamDuration(attempt.started_at, submittedAtIso);
     const finalDurationSeconds = Math.max(authoritativeWallClockSeconds, totalTimeSpent);
 
@@ -2124,6 +2187,11 @@ export class AssessmentService {
         .select("id")
         .single();
 
+      if (resultErr && (resultErr as { code?: string }).code === "23505") {
+        // a concurrent submit / finalize of the same attempt won the UNIQUE(attempt_id) race: one result, same answer
+        const { data: winner } = await adminSb.from("test_results").select("id").eq("attempt_id", attemptId).maybeSingle();
+        if (winner) return { success: true, resultId: (winner as any).id };
+      }
       if (resultErr || !testResultData) {
         console.error("[AssessmentService.submitTestAttempt] Error inserting test_results:", resultErr);
         return { success: false, error: "We couldn't complete your submission. Your responses are preserved. Please try again." };
@@ -2246,6 +2314,9 @@ export class AssessmentService {
     } catch {
       sb = createAdminServerSupabaseClient();
     }
+
+    // EXAM-FINALIZE-1 (finalize-on-read): an expired in-progress attempt of this user is scored before the result read
+    if (user?.id) await AssessmentService.finalizeExpiredAttempts({ userId: user.id, limit: 20 });
 
     let resolvedAttemptId = attemptId;
     let [resultRes, attemptRes] = await Promise.all([

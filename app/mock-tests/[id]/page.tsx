@@ -38,6 +38,8 @@ export default async function MockTestInstructionsPage({ params }: Props) {
   } = await supabase.auth.getUser();
 
   let userAttempt: { id: string; status: string } | null = null;
+  // EXAM-FINALIZE-1 (finalize-on-read): an expired attempt is never offered as "resume"
+  if (user) await AssessmentService.finalizeExpiredAttempts({ userId: user.id, limit: 20 });
   if (user) {
     const { data: attempts } = await supabase
       .from("test_attempts")

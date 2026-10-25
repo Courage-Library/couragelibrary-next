@@ -9,6 +9,7 @@ import { cache } from "react";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getSessionState } from "@/lib/auth/session-state";
 import { calculateRevisionDueState } from "@/services/mistake.service";
+import { AssessmentService } from "@/services/assessment.service";
 import { contentLanguage, mockStatuses, type ContentLanguage, type MockAttemptRow, type MockListItem, type MockStatus } from "@/lib/exams/exam-page";
 
 /** Published mocks of the exam (day-window daily tests excluded), full-length first. Public data. */
@@ -55,6 +56,8 @@ export const examPageUser = cache(async (examId: string): Promise<ExamPageUser> 
     const session = await getSessionState(supabase);
     if (session.state !== "user") return { signedIn: false };
     const uid = session.user.id;
+    // EXAM-FINALIZE-1 (finalize-on-read): expired in-progress attempts are scored / abandoned before the status read
+    await AssessmentService.finalizeExpiredAttempts({ userId: uid, limit: 20 });
     const mocks = await examMocks(examId);
     const [goals, attempts, vault] = await Promise.all([
       supabase.from("user_exam_goals").select("exam_id").eq("user_id", uid).eq("exam_id", examId).eq("is_active", true).limit(1),
