@@ -21,7 +21,8 @@ export type MemoryLockAnswerResult =
 
 export async function checkMemoryLockAnswerAction(input: { versionId: string; selected: string | null; timeMs: number; sessionId: string }): Promise<MemoryLockAnswerResult> {
   if (!isMemoryLockEnabled()) return { ok: false, code: "FAILED" };
-  const selected = input.selected === null ? null : KEYS.find((k) => k === input.selected) ?? undefined;
+  // the runner only checks a chosen option ("Choose an option first"); the generated RPC type takes a non-null key
+  const selected = KEYS.find((k) => k === input.selected);
   const timeMs = Number.isFinite(input.timeMs) ? Math.min(3600000, Math.max(0, Math.round(input.timeMs))) : null;
   if (!ID_RX.test(String(input.versionId)) || !ID_RX.test(String(input.sessionId)) || selected === undefined) return { ok: false, code: "FAILED" };
   const supabase = await createServerSupabaseClient();

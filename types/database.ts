@@ -7885,21 +7885,19 @@ export type Database = {
         Args: { p_notification_id: string }
         Returns: Json
       }
-      fn_memory_lock_add: {
-        Args: {
-          p_question_id: string
-        }
-        Returns: Json
-      }
+      fn_memory_lock_add: { Args: { p_question_id: string }; Returns: Json }
       fn_memory_lock_answer: {
         Args: {
           p_question_version_id: string
-          p_selected_option_key: string | null
+          p_selected_option_key: string
           p_session_id: string
           p_time_taken_ms: number
         }
         Returns: Json
       }
+      fn_ml_day_start: { Args: { p_day: string }; Returns: string }
+      fn_ml_ist_today: { Args: never; Returns: string }
+      fn_ml_next_step: { Args: { p_interval: number }; Returns: number }
       fn_moderate_flagged_content: {
         Args: {
           p_flag_id: string
