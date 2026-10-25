@@ -20,7 +20,7 @@
  *   T-11 flag OFF: /practice is the Mistake-drills hub, /practice/session is 404, reports use the pre-093 path
  *   T-12 migration 093 static: practice_answers owner-only read + no client writes; SECDEF search_path ''; errata
  *        client INSERT / SELECT revoked; allow-list entries; report button on practice, mock review and drills
- *   T-13 Memory Lock core card: not clickable until F5 (aria-disabled, "Coming soon"), primary-blue lock; brand spelling
+ *   T-13 Memory Lock core card: plain non-interactive card until F5 (visible "Coming soon"), primary-blue lock; brand spelling
  * Run: node scripts/test_f2_practice.cjs
  */
 const fs = require('fs');
@@ -331,13 +331,14 @@ const ROW = (qid, vid, lang = 'en', extra = {}) => ({
     return 'RLS · SECDEF · grants · allow-list · 3 surfaces';
   });
 
-  await test('T-13 Memory Lock card: not a link until F5 (aria-disabled, "Coming soon"), lock icon in primary blue; brand spelling everywhere', () => {
+  await test('T-13 Memory Lock card: plain non-interactive card until F5 (visible "Coming soon"), lock icon in primary blue; brand spelling everywhere', () => {
     const ML = require(path.join(ROOT, 'content/memory-lock.ts')).MEMORY_LOCK;
     assert(ML.name === 'Memory Lock' && ML.tagline === 'Spaced revision, right on time' && ML.comingSoon === 'Coming soon', JSON.stringify(ML));
     const dash = code(read('app/dashboard/page.tsx'));
-    const card = (dash.match(/<div role="link" aria-disabled="true" data-memory-lock-card=""[\s\S]*?\n {10}<\/div>/) || [''])[0];
-    assert(card, 'Memory Lock card missing (role="link" aria-disabled="true")');
-    assert(!/href=|<Link\b|<a\b|onClick/.test(card), 'Memory Lock card must not be clickable before F5');
+    const card = (dash.match(/<div data-memory-lock-card="">[\s\S]*?\n {10}<\/div>/) || [''])[0];
+    assert(card, 'Memory Lock card missing');
+    // a plain card: no link, no button, no click handler, and no interactive ARIA on a non-interactive element
+    assert(!/href=|<Link\b|<a\b|<button\b|onClick|role=|aria-disabled|tabIndex/.test(card), 'Memory Lock card must be a plain, non-interactive card before F5');
     assert(/<Lock aria-hidden="true"/.test(card) && /bg-primary-50 text-primary-700/.test(card) && !/red-|rose-|amber-|accent-|Alarm|Bell/.test(card), 'lock icon in the primary blue family only');
     assert(/\{MEMORY_LOCK\.comingSoon\}/.test(card) && /\{MEMORY_LOCK\.name\}/.test(card) && /\{MEMORY_LOCK\.tagline\}/.test(card), 'copy from content/memory-lock.ts');
     const order = ['href="/mock-tests"', 'href="/practice"', 'href="/mistakes"', 'data-memory-lock-card'].map((s) => dash.indexOf(s));

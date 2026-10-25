@@ -127,8 +127,9 @@ export default async function DashboardPage() {
               </div>
             </Card>
           </Link>
-          {/* Memory Lock: not a link until F5 (Revision Engine) ships — no dead link, announced as unavailable */}
-          <div role="link" aria-disabled="true" data-memory-lock-card="" className="cursor-default">
+          {/* Memory Lock: a plain, non-interactive card until F5 (Revision Engine) ships — no link, no dead link;
+              the visible "Coming soon" text says it is not available yet */}
+          <div data-memory-lock-card="">
             <Card className="p-4 h-full flex flex-col justify-between">
               <div className="flex items-start justify-between gap-2 mb-3">
                 <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-700 flex items-center justify-center">
