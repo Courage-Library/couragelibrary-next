@@ -1,8 +1,9 @@
 "use client";
 
 /**
- * F1: "Add to my exams" — reuses the existing goal action (app/mock-tests/actions addUserExamGoalAction). The amber
- * primary of the exam page in the "signed in, not following" state. Shows only fixed copy, never the action's text.
+ * F1: "Add to my exams" — the goal action (app/mock-tests/actions addUserExamGoalAction; F1-a: existing cycle only, max 3). The amber
+ * primary of the exam page in the "signed in, not following" state. Shows fixed copy only (the action never returns
+ * database text).
  */
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -22,9 +23,10 @@ export function AddExamButton({ examId, label }: { examId: string; label: string
         aria-busy={pending}
         onClick={() =>
           start(async () => {
-            const r = await addUserExamGoalAction(examId).catch(() => ({ success: false }));
-            setMsg(r && "success" in r && r.success ? EXAM_PAGE.cta.added : EXAM_PAGE.cta.addFailed);
-            if (r && "success" in r && r.success) router.refresh();
+            // the action returns fixed copy only (F1-a): "Added…", the 3-exam limit, or a generic failure
+            const r = await addUserExamGoalAction(examId).catch(() => null);
+            setMsg(r?.success ? EXAM_PAGE.cta.added : (r?.error ?? EXAM_PAGE.cta.addFailed));
+            if (r?.success) router.refresh();
           })
         }
       >

@@ -2,125 +2,94 @@
 
 import { revalidatePath } from "next/cache";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getSessionState } from "@/lib/auth/session-state";
+
+export type ExamGoalCode = "ADDED" | "REMOVED" | "SIGN_IN" | "NOT_FOUND" | "NO_CYCLE" | "GOALS_FULL" | "FAILED";
 
 export interface ExamGoalActionResult {
   success?: boolean;
+  code?: ExamGoalCode;
   message?: string;
   error?: string;
 }
 
+/** Fixed copy only — never database text (F1-a). */
+const COPY: Record<ExamGoalCode, string> = {
+  ADDED: "Added to your exams.",
+  REMOVED: "Removed from your exams.",
+  SIGN_IN: "Please sign in to manage your exams.",
+  NOT_FOUND: "This exam is not available.",
+  NO_CYCLE: "This exam can't be added yet.",
+  GOALS_FULL: "You can follow up to 3 exams. Remove one first to add this one.",
+  FAILED: "Could not update your exams right now. Please try again.",
+};
+const fail = (code: ExamGoalCode): ExamGoalActionResult => ({ success: false, code, error: COPY[code] });
+
+const MAX_ACTIVE_GOALS = 3; // same rule as onboarding; enforced in the database by trg_user_exam_goals_guard (092)
+
 /**
- * Server Action: Add or activate an exam goal for the current student
+ * Server Action: follow an exam (F1-a). Attaches the goal to the exam's EXISTING active / upcoming cycle (active first,
+ * newest year) — never creates a cycle (exam_cycles is admin-only). At most 3 active goals: checked here for a clear
+ * message, enforced by the database trigger for every path (a GOALS_LIMIT error maps to the same fixed copy).
  */
 export async function addUserExamGoalAction(examId: string): Promise<ExamGoalActionResult> {
   const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const session = await getSessionState(supabase);
+  if (session.state !== "user") return fail(session.state === "none" ? "SIGN_IN" : "FAILED");
+  const userId = session.user.id;
 
-  if (!user) {
-    return { error: "Please log in to set exam goals." };
-  }
+  const { data: exam, error: examErr } = await supabase.from("exams").select("id, is_active").eq("id", examId).maybeSingle();
+  if (examErr) return fail("FAILED");
+  if (!exam || !exam.is_active) return fail("NOT_FOUND");
 
-  const sb = supabase;
-
-  // 1. Check if exam exists
-  const { data: exam, error: examErr } = await sb
-    .from("exams")
-    .select("id, title, slug")
-    .eq("id", examId)
-    .single();
-
-  if (examErr || !exam) {
-    return { error: "Selected exam could not be found." };
-  }
-
-  // 2. Fetch cycle for foreign key
-  const { data: cycle } = await sb
+  const { data: cycles, error: cycleErr } = await supabase
     .from("exam_cycles")
-    .select("id")
+    .select("id, status, cycle_year")
     .eq("exam_id", examId)
-    .limit(1)
-    .maybeSingle();
+    .in("status", ["active", "upcoming"]);
+  if (cycleErr) return fail("FAILED");
+  const cycle = [...(cycles ?? [])].sort((a, b) => Number(b.status === "active") - Number(a.status === "active") || b.cycle_year - a.cycle_year)[0];
+  if (!cycle) return fail("NO_CYCLE");
 
-  let cycleId = cycle?.id;
-  if (!cycleId) {
-    const { data: newCycle } = await sb
-      .from("exam_cycles")
-      .insert({
+  const { data: goals, error: goalsErr } = await supabase.from("user_exam_goals").select("id, exam_id, exam_cycle_id, is_active").eq("user_id", userId);
+  if (goalsErr) return fail("FAILED");
+  const mine = goals ?? [];
+  if (mine.some((g) => g.is_active && g.exam_id === examId)) return { success: true, code: "ADDED", message: COPY.ADDED };
+  if (mine.filter((g) => g.is_active).length >= MAX_ACTIVE_GOALS) return fail("GOALS_FULL");
+
+  const existing = mine.find((g) => g.exam_id === examId && g.exam_cycle_id === cycle.id);
+  const { error: writeErr } = existing
+    ? await supabase.from("user_exam_goals").update({ is_active: true, updated_at: new Date().toISOString() }).eq("id", existing.id).eq("user_id", userId)
+    : await supabase.from("user_exam_goals").insert({
+        user_id: userId,
         exam_id: examId,
-        cycle_year: new Date().getFullYear(),
-        status: "active",
-      })
-      .select("id")
-      .single();
-    cycleId = newCycle?.id;
-  }
-
-  if (!cycleId) {
-    return { error: "Could not associate exam cycle." };
-  }
-
-  // 3. Upsert into user_exam_goals
-  const { data: existingGoal } = await sb
-    .from("user_exam_goals")
-    .select("id")
-    .eq("user_id", user.id)
-    .eq("exam_id", examId)
-    .maybeSingle();
-
-  if (existingGoal) {
-    const { error: updateErr } = await sb
-      .from("user_exam_goals")
-      .update({ is_active: true, updated_at: new Date().toISOString() })
-      .eq("id", existingGoal.id);
-
-    if (updateErr) return { error: updateErr.message };
-  } else {
-    // Determine next priority rank
-    const { data: currentGoals } = await sb
-      .from("user_exam_goals")
-      .select("priority_rank")
-      .eq("user_id", user.id);
-
-    const nextRank = (currentGoals?.length || 0) + 1;
-
-    const { error: insertErr } = await sb
-      .from("user_exam_goals")
-      .insert({
-        user_id: user.id,
-        exam_id: examId,
-        exam_cycle_id: cycleId,
+        exam_cycle_id: cycle.id,
         is_active: true,
-        priority_rank: nextRank,
+        priority_rank: mine.filter((g) => g.is_active).length + 1,
       });
-
-    if (insertErr) return { error: insertErr.message };
-  }
+  if (writeErr) return fail(/GOALS_LIMIT/.test(writeErr.message) ? "GOALS_FULL" : "FAILED");
 
   revalidatePath("/mock-tests");
-  return { success: true, message: `${exam.title} added to your preparation goals.` };
+  revalidatePath("/exams/[slug]", "page");
+  return { success: true, code: "ADDED", message: COPY.ADDED };
 }
 
 /**
- * Server Action: Remove or deactivate an exam goal for the current student
+ * Server Action: stop following an exam (deactivates the student's goal rows for it; never deletes).
  */
 export async function removeUserExamGoalAction(examId: string): Promise<ExamGoalActionResult> {
   const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const session = await getSessionState(supabase);
+  if (session.state !== "user") return fail(session.state === "none" ? "SIGN_IN" : "FAILED");
 
-  if (!user) {
-    return { error: "Please log in to manage exam goals." };
-  }
-
-  const sb = supabase;
-
-  const { error: updateErr } = await sb
+  const { error: updateErr } = await supabase
     .from("user_exam_goals")
     .update({ is_active: false, updated_at: new Date().toISOString() })
-    .eq("user_id", user.id)
+    .eq("user_id", session.user.id)
     .eq("exam_id", examId);
-
-  if (updateErr) return { error: updateErr.message };
+  if (updateErr) return fail("FAILED");
 
   revalidatePath("/mock-tests");
-  return { success: true, message: "Exam goal updated." };
+  revalidatePath("/exams/[slug]", "page");
+  return { success: true, code: "REMOVED", message: COPY.REMOVED };
 }

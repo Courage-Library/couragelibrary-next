@@ -14,6 +14,7 @@
  *   F-09 English UI only (#82): no Hindi labels; content language: Hindi guide when published, else English
  *   F-10 wiring: user parts stream in Suspense with signed-out fallbacks; the user loader only reads (no writes, no
  *        service role); syllabus section kept; no rank / percentile / "verified" / "official" claims (CCPA, H2)
+ *   F-11 (F1-a) goal action: existing active / upcoming cycle only, never creates a cycle, max 3, fixed copy; 092 guard
  * Run: node scripts/test_f1_exam_page.cjs
  */
 const fs = require('fs');
@@ -262,6 +263,22 @@ function fullPage(cta, statuses) {
     const ui = ['components/exams/exam-home.tsx', 'content/exam-page.ts', 'app/exams/[slug]/page.tsx'].map((f) => code(read(f))).join('\n');
     for (const bad of [/\brank\b/i, /percentile/i, /\bverified\b/i, /\bofficial\b/i, /guarantee/i, /\btop(per)?\b/i, /glass-/]) assert(!bad.test(ui), `claim / glass: ${bad}`);
     return 'Suspense fallbacks + read-only loader';
+  });
+
+  await test('F-11 (F1-a) goal action: existing active / upcoming cycle only, never creates a cycle, max 3, fixed copy; 092 guard', () => {
+    const act = code(read('app/mock-tests/actions.ts'));
+    assert(!/from\("exam_cycles"\)[\s\S]{0,80}\.(insert|upsert|update|delete)\(/.test(act) && !/exam_cycles"\)\s*\.insert/.test(act), 'action writes exam_cycles');
+    assert(/\.in\("status", \["active", "upcoming"\]\)/.test(act) && /return fail\("NO_CYCLE"\)/.test(act), 'must attach to an existing active / upcoming cycle');
+    assert(/MAX_ACTIVE_GOALS = 3/.test(act) && /return fail\("GOALS_FULL"\)/.test(act) && /GOALS_LIMIT/.test(act), '3-goal limit + DB error mapping');
+    assert(!/error: \w+(Err|Error)\.message/.test(act) && !/\.message \}/.test(act), 'database text returned to the client');
+    assert((act.match(/getSessionState\(supabase\)/g) || []).length === 2 && !/auth\.getUser\(/.test(act), 'session via helper');
+    const mig = read('supabase/migrations/20261025000092_f1a_exam_goal_guard.sql');
+    const m = mig.replace(/--.*$/gm, '');
+    assert(/SECURITY INVOKER/.test(m) && !/SECURITY DEFINER/.test(m) && /SET search_path = ''/.test(m), '092 guard must be INVOKER with pinned search_path');
+    assert(/RAISE EXCEPTION 'GOALS_LIMIT'/.test(m) && /IF v_active >= 3 THEN/.test(m) && /'GOAL_CYCLE_MISMATCH'/.test(m) && /'GOAL_EXAM_NOT_OPEN'/.test(m), '092 rules');
+    assert(/BEFORE INSERT OR UPDATE ON public\.user_exam_goals/.test(m) && !/^\s*(BEGIN|COMMIT)\s*;/m.test(m), '092 trigger / no transaction control');
+    assert(/REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public\.exam_cycles FROM anon, authenticated;/.test(m), 'exam_cycles client write ban');
+    return 'action + 092 static';
   });
 
   console.log(`\nF1 exam home page: ${passed}/${passed + failed} passed`);

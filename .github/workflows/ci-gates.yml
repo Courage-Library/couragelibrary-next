@@ -151,7 +151,7 @@ jobs:
       - name: Guard — TLS verification is never disabled
         run: test -z "${NODE_TLS_REJECT_UNAUTHORIZED:-}"
       - name: Production build (summary only)
-        run: node scripts/ci/run-quiet.cjs --id SC-BUILD --timeout 900 -- npm run build
+        run: node scripts/ci/run-quiet.cjs --id SC-BUILD --timeout 900 --crash-message -- npm run build
       - name: Server checks (4 bounded server runs; summary lines only)
         env:
           # step-level only (the preload file exists after checkout); inert unless AUTH1_BLACKHOLE is set in `next start`

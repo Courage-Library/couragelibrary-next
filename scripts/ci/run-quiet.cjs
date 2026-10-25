@@ -77,6 +77,20 @@ function crashToken(text, exit, summary, secrets = []) {
   return tok;
 }
 
+/**
+ * CI-FLAKE-1 (pure; opt-in --crash-message, used on SC-BUILD only — that job runs with fake env, no secrets): for a
+ * crash (no summary lines) the first "<Class>: <message>" line, control characters stripped, ≤ 200 chars — printed ONLY
+ * if the log scan finds nothing in it (secret values, hosts, JWTs, DB URLs, IPs, keys); otherwise "REDACTED [classes]".
+ */
+function crashMessage(text, exit, summary, secrets = []) {
+  if (exit === 0 || summary.passLines > 0 || summary.failLines > 0) return null;
+  const m = String(text || '').match(/^\s*(?:Uncaught\s+)?((?:[A-Z][A-Za-z]{0,38})?Error)\b:?[ \t]*([^\r\n]*)$/m);
+  if (!m) return null;
+  const line = `${m[1]}: ${m[2]}`.replace(/[\u0000-\u001f\u007f]|\u001b\[[0-9;]*m/g, '').trim().slice(0, 200);
+  const hits = scanLine(line, secrets);
+  return hits.length ? `REDACTED [${[...new Set(hits)].join(', ')}]` : line;
+}
+
 function selfTest() {
   const secrets = ['FAKE_SECRET_VALUE_0123456789', 'SUPER_SECRET_PASSWORD_VALUE'];
   const S = { passLines: 0, failLines: 0 };
@@ -106,7 +120,20 @@ function selfTest() {
     const safe = got === null || (SAFE_TOKEN.test(got) && scanLine(got, secrets).length === 0);
     if (got !== want || !safe) { ok = false; console.log(`run-quiet self-test FAIL: want ${want} got ${got}`); }
   }
-  console.log(`run-quiet self-test: ${ok ? 'OK' : 'FAIL'} — ${cases.length} cases`);
+  const S2 = { passLines: 0, failLines: 0 };
+  const msgCases = [
+    ["TypeError: fetch failed\n    at node:internal/deps/undici/undici:1:1", 1, S2, 'TypeError: fetch failed'],
+    ['Error: connect to https://abcdefghijklmnopqrst.supabase.co failed', 1, S2, 'REDACTED [host]'],
+    ['TypeError: bad SUPER_SECRET_PASSWORD_VALUE here', 1, S2, 'REDACTED [secret]'],
+    ['RangeError: ' + 'x'.repeat(400), 1, S2, 'RangeError: ' + 'x'.repeat(188)],
+    ['TypeError: boom', 0, S2, null],
+    ['TypeError: boom', 1, { passLines: 1, failLines: 0 }, null],
+  ];
+  for (const [text, exit, s, want] of msgCases) {
+    const got = crashMessage(text, exit, s, secrets);
+    if (got !== want) { ok = false; console.log(`run-quiet self-test FAIL (crash message): want ${want} got ${got}`); }
+  }
+  console.log(`run-quiet self-test: ${ok ? 'OK' : 'FAIL'} — ${cases.length + msgCases.length} cases`);
   return ok;
 }
 
@@ -120,6 +147,7 @@ function main() {
   const opt = (k, d) => { const i = opts.indexOf(k); return i >= 0 ? opts[i + 1] : d; };
   const ID = opt('--id', '');
   const TIMEOUT = Number(opt('--timeout', '900')) * 1000;
+  const CRASH_MESSAGE = opts.includes('--crash-message');
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,40}$/.test(ID) || !cmd.length) { console.log('usage: run-quiet.cjs --id <GATE-ID> [--timeout <s>] -- <command> [args...]'); process.exit(2); }
 
   const dir = path.join(process.env.RUNNER_TEMP || os.tmpdir(), 'ci-quiet');
@@ -151,10 +179,14 @@ function main() {
     const status = exit === 0 ? 'PASS' : 'FAIL';
     const diag = timedOut ? null : crashToken(text, exit, s, secretValues(process.env));
     console.log(`${ID} ${status} exit ${exit}${timedOut ? ' (timeout)' : ''} — passed ${s.totals || `${s.passLines} line(s)`} · fail-lines ${s.failLines} · warns ${s.warns}${s.ids.length ? ` · failing [${s.ids.join(', ')}]` : ''}${diag ? ` · diag ${diag}` : ''}`);
+    if (CRASH_MESSAGE && diag) {
+      const msg = crashMessage(text, exit, s, secretValues(process.env));
+      if (msg) console.log(`${ID} crash-message: ${msg}`);
+    }
     process.exit(exit);
   });
 }
 
 if (require.main === module) main();
 
-module.exports = { summarize, crashToken, selfTest, SAFE_TOKEN };
+module.exports = { summarize, crashToken, crashMessage, selfTest, SAFE_TOKEN };

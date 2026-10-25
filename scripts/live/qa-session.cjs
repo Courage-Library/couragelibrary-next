@@ -20,6 +20,12 @@
  *       qaBrowserLogin(context, email, baseUrl)  (Playwright BrowserContext)
  * Probe: node scripts/live/qa-session.cjs --probe   (first live CI gate: proves /verify is not captcha-gated)
  */
+// CI-LEAN-1 root cause (F1-a): supabase-js 2.109 resolves a WebSocket constructor whenever ANY client is created and
+// throws on Node < 22 ("Node.js 20 detected without native WebSocket support"). CI runs Node 20, so every gate that
+// signed in through this helper crashed (Q-01, fixtures, smokes, SEC1C / SEC1D cookies…). Scripts never use Realtime:
+// the same inert stand-in as scripts/e2e/_e2e-env.cjs, installed only when no WebSocket exists (never replaces one).
+if (typeof globalThis.WebSocket === 'undefined') globalThis.WebSocket = class DummyWebSocket {};
+
 const QA_IDENTITIES = Object.freeze(['qa-student@courage-library.test', 'qa-staff@courage-library.test', 'qa-admin@courage-library.test']);
 const QA_DOMAIN = '@courage-library.test';
 

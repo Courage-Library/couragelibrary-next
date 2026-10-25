@@ -11,6 +11,7 @@
  *   Q-07 nothing secret is ever printed or put into error messages (console + errors spied: tokens, hashes, e-mail)
  *   Q-08 qaCookies: cookies come from @supabase/ssr's own writer, carry the auth-token name, scoped to the base URL
  *   Q-09 no password sign-in API is used by the helper (static)
+ *   Q-13 (CI-LEAN-1 root cause) supabase-js clients construct on Node < 22 once the helper is loaded (WebSocket stand-in)
  */
 const fs = require('fs');
 const path = require('path');
@@ -304,6 +305,17 @@ const spyOff = () => Object.assign(console, { error: orig.error, warn: orig.warn
     assert(out.length === 1 && /^ {2}FAIL {2}QS-VERIFYCAPTCHAGATED-400 \(qa-session mint failed\)$/.test(out[0]), JSON.stringify(out));
     assert(![...Object.values(SECRETS), EMAIL].some((v) => out[0].includes(v)), 'secret in the diagnostic line');
     return out[0].trim();
+  });
+
+  await test('Q-13 (CI-LEAN-1 root cause) real supabase-js clients can be created on Node < 22 once the helper is loaded', () => {
+    const src = fs.readFileSync(path.join(__dirname, 'live', 'qa-session.cjs'), 'utf8');
+    const shim = src.indexOf("if (typeof globalThis.WebSocket === 'undefined') globalThis.WebSocket = class DummyWebSocket {};");
+    assert(shim > 0 && shim < src.indexOf("require('@supabase/supabase-js')") && shim < src.indexOf("require('@supabase/ssr')"), 'WebSocket stand-in must be installed at module load, before any supabase require');
+    // behaviour: with the helper loaded, the REAL library constructs a client (no network on construction)
+    require(path.join(__dirname, 'live', 'qa-session.cjs'));
+    const { createClient } = require('@supabase/supabase-js');
+    createClient('https://example.invalid', 'k', { auth: { persistSession: false, autoRefreshToken: false } });
+    return `node ${process.versions.node}: client constructed`;
   });
 
   console.log(`\nQA session helper: ${passed}/${passed + failed} passed`);
