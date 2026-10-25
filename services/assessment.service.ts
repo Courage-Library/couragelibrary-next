@@ -8,6 +8,7 @@ import { MistakeService } from "@/services/mistake.service";
 import { PremiumEntitlementService } from "@/services/premium-entitlement.service";
 import { ContentService } from "@/services/content.service";
 import { formatIstDateTime, calculateExamDuration, getIstDateString } from "@/lib/assessment/timing";
+import type { AttemptPosition } from "@/lib/assessment/position";
 import { SAVE_GRACE_SECONDS, attemptDeadline, isFinalizeEnabled, isPastDeadline, staleOutcome, type AttemptLike } from "@/lib/assessment/finalize";
 import { RANK_MIN_COHORT } from "@/lib/assessment/display-rules";
 import { buildTakeaways, buildTrend, cohortStanding, isTestAccountEmail, negativeMarksLost, type CohortRow, type Standing, type Takeaway, type TrendPoint } from "@/lib/assessment/result-analysis";
@@ -355,6 +356,9 @@ export interface ActiveAttemptSession {
   remainingSeconds: number;
   sections: Array<{ id: string; name: string }>;
   questions: ActiveTestQuestion[];
+  /** Q6 part B (099): the server-kept resume position — the question order last shown and the orders visited */
+  resumeOrder?: number | null;
+  visitedOrders?: number[];
 }
 
 export interface TestLeaderboardItem {
@@ -1839,11 +1843,12 @@ export class AssessmentService {
     await AssessmentService.ensureMockTestQuestions(targetMockTestId);
 
     // Fetch test details, sections, and questions with options
-    const [testRes, sectionsRes, questionsRes, answersRes] = await Promise.all([
+    const [testRes, sectionsRes, questionsRes, answersRes, positionRes] = await Promise.all([
       adminSb.from("mock_tests").select("id, title, duration_minutes").eq("id", targetMockTestId).single(),
       adminSb.from("mock_sections").select("id, section_name, section_order").eq("mock_test_id", targetMockTestId).order("section_order"),
       adminSb.from("mock_questions").select("id, question_order, mock_section_id, marks, negative_mark, question_versions(id, question_id, question_text, question_image_url, options_type, question_options(id, option_key, option_text, option_image_url, order_index))").eq("mock_test_id", targetMockTestId).order("question_order"),
       adminSb.from("attempt_answers").select("mock_question_id, selected_option_key, is_marked_for_review, time_spent_seconds").eq("attempt_id", attempt.id),
+      adminSb.from("test_attempts").select("last_question_order, visited_orders").eq("id", attempt.id).maybeSingle(),
     ]);
 
     const testData = testRes.data;
@@ -1917,7 +1922,27 @@ export class AssessmentService {
       remainingSeconds,
       sections: sectionsData.map((s) => ({ id: s.id, name: s.section_name })),
       questions,
+      // Q6 part B: the resume position comes from the server (localStorage is only a cache)
+      resumeOrder: positionRes.data?.last_question_order ?? null,
+      visitedOrders: positionRes.data?.visited_orders ?? [],
     };
+  }
+
+  /**
+   * Q6 part B (099): keeps the resume position on the server. The student's own client may update only
+   * last_activity_at / last_question_order / visited_orders (column grants), and RLS limits it to their own in-progress
+   * attempt — a closed or foreign attempt changes nothing and returns "closed".
+   */
+  static async saveAttemptPosition(attemptId: string, position: AttemptPosition): Promise<"ok" | "closed" | "error"> {
+    const supabase = await createServerSupabaseClient();
+    const { data, error } = await supabase
+      .from("test_attempts")
+      .update({ last_question_order: position.order, visited_orders: position.visited, last_activity_at: new Date().toISOString() })
+      .eq("id", attemptId)
+      .eq("status", "in_progress")
+      .select("id");
+    if (error) return "error";
+    return data && data.length > 0 ? "ok" : "closed";
   }
 
   /**

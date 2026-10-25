@@ -18,6 +18,7 @@ import { nextProctorSeq, type ProctorEvent } from "@/lib/assessment/proctor";
 import { InstructionsModal } from "@/components/assessment/instructions-modal";
 import { CandidateSecurityWatermark } from "@/components/assessment/candidate-security-watermark";
 import { OfflineAnswerQueue } from "@/lib/assessment/offline-queue";
+import { resumeIndex } from "@/lib/assessment/position";
 import { createAnswerSync, mergePending, type SaveStatus } from "@/lib/assessment/answer-sync";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/legacy/button";
@@ -42,6 +43,9 @@ import {
 } from "lucide-react";
 
 export type MockTestPlayerSession = ActiveAttemptSession | ActiveAdaptiveSession;
+
+/** Q6 part B: the position is sent to the server this long after the student stops moving between questions */
+const POSITION_SAVE_DEBOUNCE_MS = 1500;
 
 interface MockTestPlayerClientProps {
   session: MockTestPlayerSession;
@@ -279,7 +283,8 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
   }, [getSync]);
 
   // F3 (R7) resume: answers kept on this device but never confirmed are newer than the server copy — merge them and
-  // send them again; restore the last question and the visited set (this device; fixed mocks)
+  // send them again. Q6 part B (099): the last question and the visited set come from the SERVER; this device's copy
+  // (localStorage) is only a cache, used when the server has no position yet.
   const progressKey = `cl_mock_progress_${session.attemptId}`;
   useEffect(() => {
     if (!fixedSession) return;
@@ -292,12 +297,19 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
         return merged;
       });
     }
-    try {
-      const saved = JSON.parse(localStorage.getItem(progressKey) || "null") as { index?: number; visited?: string[] } | null;
-      if (saved && Number.isInteger(saved.index) && (saved.index as number) >= 0 && (saved.index as number) < fixedSession.questions.length) setCurrentIndex(saved.index as number);
-      if (saved && Array.isArray(saved.visited)) setVisitedQuestions((prev) => new Set([...prev, ...saved.visited!.filter((v) => known.has(v))]));
-    } catch {
-      /* no saved position: start at question 1 */
+    const orders = fixedSession.questions.map((q) => q.questionOrder);
+    if (fixedSession.resumeOrder != null) {
+      setCurrentIndex(resumeIndex(orders, fixedSession.resumeOrder));
+      const visitedIds = fixedSession.questions.filter((q) => (fixedSession.visitedOrders ?? []).includes(q.questionOrder)).map((q) => q.mockQuestionId);
+      setVisitedQuestions((prev) => new Set([...prev, ...visitedIds]));
+    } else {
+      try {
+        const saved = JSON.parse(localStorage.getItem(progressKey) || "null") as { index?: number; visited?: string[] } | null;
+        if (saved && Number.isInteger(saved.index) && (saved.index as number) >= 0 && (saved.index as number) < fixedSession.questions.length) setCurrentIndex(saved.index as number);
+        if (saved && Array.isArray(saved.visited)) setVisitedQuestions((prev) => new Set([...prev, ...saved.visited!.filter((v) => known.has(v))]));
+      } catch {
+        /* no saved position: start at question 1 */
+      }
     }
     // once, on load
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -307,9 +319,26 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
     try {
       localStorage.setItem(progressKey, JSON.stringify({ index: currentIndex, visited: [...visitedQuestions] }));
     } catch {
-      /* storage unavailable: resume falls back to question 1 */
+      /* storage unavailable: resume uses the server position */
     }
   }, [fixedSession, progressKey, currentIndex, visitedQuestions]);
+
+  // Q6 part B: send the position to the server (debounced, fire-and-forget — never blocks or disturbs the test)
+  useEffect(() => {
+    if (!fixedSession || !isExamStarted) return;
+    const q = fixedSession.questions[currentIndex];
+    if (!q) return;
+    const visited = fixedSession.questions.filter((x) => visitedQuestions.has(x.mockQuestionId)).map((x) => x.questionOrder);
+    const t = window.setTimeout(() => {
+      fetch("/api/assessment/position", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ attemptId: session.attemptId, order: q.questionOrder, visited }),
+        keepalive: true,
+      }).catch(() => undefined);
+    }, POSITION_SAVE_DEBOUNCE_MS);
+    return () => window.clearTimeout(t);
+  }, [fixedSession, isExamStarted, currentIndex, visitedQuestions, session.attemptId]);
 
   // PROCTOR-LOG-1: fire-and-forget event (server records it only when PROCTOR_LOG_ENABLED and 094 are live); never
   // awaited, never shown — the test is not disturbed (R8)
