@@ -12,7 +12,7 @@
  *   Q-08 qaCookies: cookies come from @supabase/ssr's own writer, carry the auth-token name, scoped to the base URL
  *   Q-09 no password sign-in API is used by the helper (static)
  *   Q-13 (CI-LEAN-1 root cause) supabase-js clients construct on Node < 22 once the helper is loaded (WebSocket stand-in)
- *   Q-14 (CI-LEAN-1) scripts that use the helper sign out LOCALLY only (a global sign-out revokes the job session cache)
+ *   Q-14 (CI-LEAN-1) scripts that use the helper never sign out (any scope revokes the shared job session on the server)
  */
 const fs = require('fs');
 const path = require('path');
@@ -319,17 +319,18 @@ const spyOff = () => Object.assign(console, { error: orig.error, warn: orig.warn
     return `node ${process.versions.node}: client constructed`;
   });
 
-  await test('Q-14 (CI-LEAN-1) no script that uses the QA session helper signs out globally (it would revoke the job cache)', () => {
+  await test('Q-14 (CI-LEAN-1) no script that uses the QA session helper signs out at all (any scope revokes the shared job session)', () => {
     const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? (e.name === 'node_modules' ? [] : walk(path.join(d, e.name))) : /\.c?js$/.test(e.name) ? [path.join(d, e.name)] : []));
-    const users = walk(__dirname).filter((f) => /qa-session/.test(fs.readFileSync(f, 'utf8')) && !/test_qa_session\.cjs$/.test(f));
+    // qa-session.cjs itself is excluded: its probe signs out only its own FRESH (noCache) session
+    const users = walk(__dirname).filter((f) => /qa-session/.test(fs.readFileSync(f, 'utf8')) && !/test_qa_session\.cjs$|[\\/]live[\\/]qa-session\.cjs$/.test(f));
     assert(users.length >= 8, `scripts using the helper: ${users.length} (min 8)`);
     const bad = [];
     for (const f of users) {
       const src = fs.readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
-      for (const m of src.matchAll(/\.signOut\(([^)]*)\)/g)) if (!/scope:\s*['"]local['"]/.test(m[1])) bad.push(`${path.relative(__dirname, f)}: signOut(${m[1]})`);
+      for (const m of src.matchAll(/\.signOut\(([^)]*)\)/g)) bad.push(`${path.relative(__dirname, f)}: signOut(${m[1]})`);
     }
     assert(bad.length === 0, bad.join('; '));
-    return `${users.length} scripts; local sign-out only`;
+    return `${users.length} scripts; no sign-out on shared sessions`;
   });
 
   console.log(`\nQA session helper: ${passed}/${passed + failed} passed`);

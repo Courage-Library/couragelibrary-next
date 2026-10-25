@@ -183,7 +183,7 @@ const assert = (c, m) => {
     const { data, error } = await sb.auth.getSession();
     assert(!error && data.session, `qa-student session failed (${error && (error.code || error.status)})`);
     const res = await Promise.all(callable.map(async (f) => ({ f, r: await rpc(f, data.session.access_token) })));
-    await sb.auth.signOut({ scope: 'local' }).catch(() => {});
+    // no sign-out: the QA session may be the live job's SHARED cached session (any scope revokes it on the server)
     const { bad, unresolved } = judge(res);
     assert(bad.length === 0, bad.join('; '));
     return `${res.length - unresolved.length}/25 denied (42501)${unresolved.length ? `; not resolved by PostgREST (404, denied at SQL level in S-2b): ${unresolved.join(', ')}` : ''}`;

@@ -707,9 +707,9 @@ async function part5() {
       sessionOverride = null;
     }
   });
-  // LOCAL sign-out only: the default (global) scope revokes EVERY session of the QA user — including the live job's
-  // shared session cache (CI-LEAN-1), which made every later gate (SEC1C, SEC1D, FIXTURE-FINAL) fail signed out.
-  await Promise.all([admin, staff, student].map((c) => c.auth.signOut({ scope: 'local' }))).catch(() => undefined);
+  // NO sign-out: these clients hold the live job's SHARED QA sessions (CI-LEAN-1 cache). Any auth.signOut() — even
+  // { scope: 'local' }, which still revokes the current session on the server — made every later gate (SEC1C, SEC1D,
+  // FIXTURE-FINAL) run signed out. The clients are in-memory only (persistSession false); nothing to clean up.
 }
 
 (async () => {
