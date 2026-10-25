@@ -1,6 +1,6 @@
 -- =====================================================================================================================
 -- 105 NULL-BYPASS-2 — deny branches that a NULL value could skip (`IF <deny condition> THEN` is not taken when the
--- condition is NULL). NOT APPLIED until the architect's "go". Rollback: docs/database/rollback/105_rollback.sql
+-- condition is NULL). Architect GO 2026-10-25. Rollback: docs/database/rollback/105_rollback.sql
 -- No BEGIN / COMMIT here: the runner owns the transaction. Generated from the live definitions (exact substitutions).
 -- Report: docs/reports/security/NULL_BYPASS_2.md
 --
