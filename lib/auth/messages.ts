@@ -51,6 +51,8 @@ export const AUTH_ERRORS = {
   // AUTH-1 2b-2: Cloudflare Turnstile (verified by Supabase); same texts as the ?m= notices above
   "captcha-required": "Please complete the security check and try again.",
   "captcha-failed": "The security check didn't work. Please try again.",
+  // AGE-18 (owner decision): the sign-up checkbox is required while AGE_GATE_ENABLED
+  "age-required": "Please confirm that you are 18 or older. Courage Library is for adults only.",
   generic: "Something went wrong on our side. Please try again in a few minutes.",
 } as const;
 

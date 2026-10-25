@@ -6,6 +6,7 @@ import { fromSsrClient } from "@/lib/supabase/types";
 import { sanitizeAdminPath } from "@/lib/auth/safe-redirect";
 import { getSessionState } from "@/lib/auth/session-state";
 import { authTimeoutFetch } from "@/lib/supabase/auth-fetch";
+import { AGE_CONFIRM_PATH, isAgeGateEnabled, needsAgeGate } from "@/lib/auth/age-gate";
 
 export interface CookieToSet {
   name: string;
@@ -66,6 +67,22 @@ export async function updateSession(request: NextRequest) {
     loginUrl.search = "";
     loginUrl.searchParams.set("next", sanitizeAdminPath(pathname));
     const redirectResponse = NextResponse.redirect(loginUrl);
+    supabaseResponse.cookies.getAll().forEach((c) => redirectResponse.cookies.set(c));
+    return redirectResponse;
+  }
+
+  // AGE-18 (owner decision; flag AGE_GATE_ENABLED, default off): a signed-in user who has not confirmed 18+ opens
+  // /confirm-age first (GET page requests only; auth, API and public legal pages are exempt). Decided from the session's
+  // user_metadata — no database query here; the record of truth is user_profiles.age_confirmed_at (fn_confirm_age).
+  if (
+    session.state === "user" &&
+    needsAgeGate({ enabled: isAgeGateEnabled(), method: request.method, pathname, signedIn: true, userMetadata: (session.user as { user_metadata?: Record<string, unknown> }).user_metadata })
+  ) {
+    const ageUrl = request.nextUrl.clone();
+    ageUrl.pathname = AGE_CONFIRM_PATH;
+    ageUrl.search = "";
+    ageUrl.searchParams.set("next", `${pathname}${request.nextUrl.search}`.slice(0, 512));
+    const redirectResponse = NextResponse.redirect(ageUrl);
     supabaseResponse.cookies.getAll().forEach((c) => redirectResponse.cookies.set(c));
     return redirectResponse;
   }

@@ -7398,6 +7398,7 @@ export type Database = {
       user_profiles: {
         Row: {
           adult_confirmed_at: string | null
+          age_confirmed_at: string | null
           avatar_url: string | null
           created_at: string
           full_name: string | null
@@ -7413,6 +7414,7 @@ export type Database = {
         }
         Insert: {
           adult_confirmed_at?: string | null
+          age_confirmed_at?: string | null
           avatar_url?: string | null
           created_at?: string
           full_name?: string | null
@@ -7428,6 +7430,7 @@ export type Database = {
         }
         Update: {
           adult_confirmed_at?: string | null
+          age_confirmed_at?: string | null
           avatar_url?: string | null
           created_at?: string
           full_name?: string | null
@@ -7769,6 +7772,7 @@ export type Database = {
         Args: { p_attempt_id: string }
         Returns: Json
       }
+      fn_confirm_age: { Args: never; Returns: Json }
       fn_create_batch_assignment: {
         Args: {
           p_assignment_type: string

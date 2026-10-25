@@ -10,9 +10,13 @@ import { Alert } from "@/components/ui/legacy/alert";
 import { BrandLogo } from "@/components/brand/logo";
 import { TurnstileWidget } from "@/components/auth/turnstile-widget";
 import type { CaptchaConfig } from "@/lib/auth/captcha";
+import { AGE_CHECKBOX_FIELD, AGE_CONFIRM_LABEL } from "@/lib/auth/age-gate";
 
-/** AUTH-1 2a: the sign-up form (rendered by page.tsx only while registration is open). 2b-2: Turnstile when on. */
-export function SignupForm({ captcha = null }: { captcha?: CaptchaConfig }) {
+/**
+ * AUTH-1 2a: the sign-up form (rendered by page.tsx only while registration is open). 2b-2: Turnstile when on.
+ * AGE-18: with AGE_GATE_ENABLED a required "18 or older" checkbox (never pre-ticked); the server re-checks it.
+ */
+export function SignupForm({ captcha = null, ageGate = false }: { captcha?: CaptchaConfig; ageGate?: boolean }) {
   const [state, formAction, isPending] = useActionState(signupAction, null);
 
   return (
@@ -65,6 +69,12 @@ export function SignupForm({ captcha = null }: { captcha?: CaptchaConfig }) {
               minLength={8}
               autoComplete="new-password"
             />
+            {ageGate && (
+              <label className="flex min-h-12 items-start gap-3 text-body-sm text-fg" data-age-confirm="">
+                <input type="checkbox" name={AGE_CHECKBOX_FIELD} required className="mt-0.5 size-5 shrink-0 accent-primary-600" />
+                <span>{AGE_CONFIRM_LABEL}. Courage Library is for adults only.</span>
+              </label>
+            )}
             {captcha && <TurnstileWidget siteKey={captcha.siteKey} action="signup" resetKey={state} />}
             <Button
               type="submit"

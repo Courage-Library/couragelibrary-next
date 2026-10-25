@@ -15,6 +15,7 @@ import {
   type AuthErrorCode,
 } from "@/lib/auth/messages";
 import { getSignupAvailability } from "@/lib/auth/signup-availability";
+import { AGE_CHECKBOX_FIELD, AGE_METADATA_KEY, isAgeConfirmedInput, isAgeGateEnabled } from "@/lib/auth/age-gate";
 import { isTransientAuthError } from "@/lib/auth/session-state";
 import { postLoginTarget } from "@/lib/onboarding/server";
 import { CAPTCHA_FIELD, checkCaptchaToken } from "@/lib/auth/captcha";
@@ -100,6 +101,9 @@ export async function signupAction(prevState: AuthState | null, formData: FormDa
   }
   if (!isPlausibleEmail(email)) return fail("invalid-email");
   if (!isAcceptablePassword(password)) return fail("weak-password");
+  // AGE-18: the 18+ checkbox is required (server-side; the browser's `required` is only a convenience)
+  const ageGate = isAgeGateEnabled();
+  if (ageGate && !isAgeConfirmedInput(formData.get(AGE_CHECKBOX_FIELD))) return fail("age-required");
   if ((await getSignupAvailability()) === "closed") return fail("signup-closed");
   const captcha = checkCaptchaToken(formData.get(CAPTCHA_FIELD));
   if (!captcha.ok) return fail(captcha.code);
@@ -109,7 +113,9 @@ export async function signupAction(prevState: AuthState | null, formData: FormDa
     email,
     password,
     options: {
-      data: { full_name: typeof fullName === "string" ? fullName.trim().slice(0, 120) : "" },
+      // AGE-18: no session exists until the email is confirmed, so the confirmation time travels in the sign-up
+      // metadata; the first sign-in records it on the profile (fn_confirm_age, see lib/auth/age-confirm.ts)
+      data: { full_name: typeof fullName === "string" ? fullName.trim().slice(0, 120) : "", ...(ageGate ? { [AGE_METADATA_KEY]: new Date().toISOString() } : {}) },
       emailRedirectTo: confirmUrl("/dashboard"),
       ...(captcha.token ? { captchaToken: captcha.token } : {}),
     },

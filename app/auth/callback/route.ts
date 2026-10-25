@@ -1,6 +1,7 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { UserProfileService } from "@/services/user-profile.service";
 import { safeRedirectUrl } from "@/lib/auth/safe-redirect";
+import { syncAgeConfirmationOnSignIn } from "@/lib/auth/age-confirm";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function GET(request: NextRequest) {
@@ -27,6 +28,8 @@ export async function GET(request: NextRequest) {
           await UserProfileService.ensureProfile(userData.user);
         }
       }
+      // AGE-18: email-confirmation links land here — copy the sign-up checkbox time to the profile (flag off → no-op)
+      await syncAgeConfirmationOnSignIn(supabase);
       return NextResponse.redirect(target);
     }
   }

@@ -5,6 +5,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { BrandLogo } from "@/components/brand/logo";
 import { SignupForm } from "./signup-form";
 import { isCaptchaEnabled, turnstileSiteKey } from "@/lib/auth/captcha";
+import { isAgeGateEnabled } from "@/lib/auth/age-gate";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function SignupPage() {
   if ((await getSignupAvailability()) !== "closed") {
-    return <SignupForm captcha={isCaptchaEnabled() ? { siteKey: turnstileSiteKey() as string } : null} />;
+    return <SignupForm captcha={isCaptchaEnabled() ? { siteKey: turnstileSiteKey() as string } : null} ageGate={isAgeGateEnabled()} />;
   }
 
   return (

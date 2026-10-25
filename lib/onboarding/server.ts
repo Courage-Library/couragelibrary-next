@@ -3,6 +3,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import type { AppSupabaseClient } from "@/lib/supabase/types";
 import { isOnboardingEnabled } from "@/lib/onboarding/flag";
+import { syncAgeConfirmationOnSignIn } from "@/lib/auth/age-confirm";
 import { onboardingRedirectDecision, type OnboardingAnswers, type OnboardingStatus, EMPTY_ANSWERS, LANGUAGES, ATTEMPTS, DAILY_MINUTES } from "@/lib/onboarding/schema";
 
 /**
@@ -44,6 +45,9 @@ export async function getOnboardingState(supabase: AppSupabaseClient): Promise<O
  * (lib/auth/safe-redirect). Redirects to /onboarding at most once per device, then the user is never nagged again.
  */
 export async function postLoginTarget(supabase: AppSupabaseClient, target: string): Promise<string> {
+  // AGE-18: an email sign-up's checkbox time is copied to the profile on the first sign-in (no-op when the flag is off).
+  // The 18+ gate itself runs in the middleware, BEFORE onboarding: an unconfirmed user opens /confirm-age first.
+  await syncAgeConfirmationOnSignIn(supabase);
   if (!isOnboardingEnabled()) return target;
   const jar = await cookies();
   if (jar.get(ONBOARDING_PROMPTED_COOKIE)?.value) return target;

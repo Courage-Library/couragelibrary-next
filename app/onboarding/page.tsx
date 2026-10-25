@@ -4,6 +4,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getSessionState } from "@/lib/auth/session-state";
 import { sanitizeRedirectPath } from "@/lib/auth/safe-redirect";
 import { isOnboardingEnabled } from "@/lib/onboarding/flag";
+import { AGE_CONFIRM_PATH, isAgeGateEnabled, userNeedsAgeConfirmation } from "@/lib/auth/age-gate";
 import { getOnboardingState, pickableExams } from "@/lib/onboarding/server";
 import { firstSyllabusSection, shownGoals, todayInIndia, type PlanExam } from "@/lib/onboarding/schema";
 import { ONBOARDING_COPY } from "@/content/onboarding";
@@ -29,6 +30,10 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
   const session = await getSessionState(supabase);
   if (session.state === "none") redirect(`/auth/login?next=${encodeURIComponent("/onboarding")}`);
   if (session.state === "error") redirect(`/auth/unavailable?next=${encodeURIComponent("/onboarding")}`);
+  // AGE-18: the 18+ confirmation is step one and cannot be skipped (the middleware gates first; this is the backstop)
+  if (isAgeGateEnabled() && userNeedsAgeConfirmation(session.user)) {
+    redirect(`${AGE_CONFIRM_PATH}?next=${encodeURIComponent("/onboarding")}`);
+  }
 
   const [state, exams] = await Promise.all([getOnboardingState(supabase), pickableExams(supabase)]);
   const sections = await Promise.all(

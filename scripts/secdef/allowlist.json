@@ -12,13 +12,14 @@
   "PROCTOR-LOG-1 (2026-10-25): max total / client_executable_callable / A raised by exactly 1 for fn_record_proctor_event — a NEW reviewed client entrypoint authorised by the architect's PROCTOR-LOG-1 GO (append-only, own open attempt only)",
   "F8 (#80, 2026-10-25): max total / client_executable_callable / A raised by exactly 3 for fn_set_username, fn_set_profile_visibility and fn_set_leaderboard_opt_in — NEW reviewed client entrypoints authorised by the F8 brief and architect ruling (a) (usernames, opt-in public profile and leaderboard opt-in, 18+ only)",
   "F11 (#79, 2026-10-25): max total / client_executable_callable / A raised by exactly 1 for fn_create_support_ticket — a NEW reviewed client entrypoint authorised by the F11 brief (ticket form)",
-  "F5 (decision #77, 2026-10-25): max total / client_executable_callable / A raised by exactly 2 for fn_memory_lock_answer and fn_memory_lock_add — NEW reviewed client entrypoints authorised by the F5 brief (one atomic answer RPC; manual add)"
+  "F5 (decision #77, 2026-10-25): max total / client_executable_callable / A raised by exactly 2 for fn_memory_lock_answer and fn_memory_lock_add — NEW reviewed client entrypoints authorised by the F5 brief (one atomic answer RPC; manual add)",
+  "AGE-18 (owner decision, legal, 2026-10-25): max total / client_executable_callable / A raised by exactly 1 for fn_confirm_age — a NEW reviewed client entrypoint authorised by the architect's AGE-18 brief (auth.uid() only, sets age_confirmed_at once, never clears it)"
  ],
  "max": {
-  "total": 105,
-  "client_executable_callable": 47,
+  "total": 106,
+  "client_executable_callable": 48,
   "anon_or_public": 1,
-  "A": 47,
+  "A": 48,
   "C": 0,
   "B-trigger": 15,
   "B-service": 29,
@@ -752,6 +753,14 @@
    ],
    "search_path": "\"\"",
    "reason": "client entrypoint (F11 support tickets, #79); own check: auth.uid(); validated category / subject / message; 2 per 10 min and 5 per day; migration 097 — listed before the owner applies it"
+  },
+  "fn_confirm_age()": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "\"\"",
+   "reason": "client entrypoint (AGE-18, owner decision 18+ only); own check: auth.uid(); sets user_profiles.age_confirmed_at once (coalesce) and adult_confirmed_at when empty; never clears; migration 109 — listed before the owner applies it"
   }
  }
 }
