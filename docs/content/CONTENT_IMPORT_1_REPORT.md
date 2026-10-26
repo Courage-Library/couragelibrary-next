@@ -1,0 +1,75 @@
+# CONTENT-IMPORT-1 — dry-run report (SSC GD 2025 PYQ CSVs → canonical bank)
+
+**Status: DRY-RUN done, COMMIT HELD for one ruling (gate 4, below).** Nothing was written: the question_versions,
+questions, import batches, audit and question_sources row counts were identical before and after both runs
+(113 / 113 / 2 / 243 / 0).
+
+- **Tool:** `scripts/content/content-import-1.cjs` (dry-run by default). It reads `D:\Courage Library\csv` (CONTENT-SOURCE-1 S1) read-only.
+- **Import path:** the EXISTING `QuestionCsvImporterService` → five quality gates → `fn_import_question_drafts`.
+- **Per-row reports** (with question text) are outside the repo, in `E:\CourageLibrary-Backups\content-import-1\`.
+- **Topic mapping:** `scripts/content/content-import-1.topic-map.json`, exact names only (unmapped = skipped, never guessed).
+
+## Result
+
+1,283 CSV lines = 1,215 data rows + 68 embedded header rows.
+
+| | Now (gate 4 as is) | What-if (gate 4 accepts the inactive SSC GD exam) |
+|---|---|---|
+| Would import | **0** | **689** |
+| → IN_REVIEW (enter Focus review) | 0 | **635** |
+| → stay DRAFT, flagged | 0 | **54** (near-duplicate 45 · NEEDS_FIGURE 6 · EN↔HI pair candidate 4 — some rows carry 2 flags) |
+| Rejected by gate 4 (PYQ exam not resolved) | **689** | 0 |
+
+**Skipped in both runs, by reason:**
+
+| Reason | Rows |
+|---|---|
+| UNMAPPED_SUBJECT: `Hindi.csv` (the Hindi-language paper; the taxonomy has no Hindi subject) | 240 |
+| UNMAPPED_TOPIC (no exact canonical topic): Comprehension, Awards & Honours, Current Affairs, Books & Authors, Simplification, Seating Arrangement, Mirror Image, Venn Diagram, Paper Folding, Missing Number, Figure / Alpha / Alphabet Series, Mathematical Operations, Dice | 158 |
+| NEEDS_FIGURE_OPTIONS (image options; images never fetched) | 46 |
+| DUPLICATE_IN_IMPORT_BATCH (exact or near-duplicate stem within the import) | 32 |
+| SHIFTED_OR_INVALID_KEY (column-shifted rows; not auto-repaired) | 20 |
+| EXPLANATION_MISSING_OR_SHORT (< 40 chars; the import function requires ≥ 40) | 15 |
+| DUP_IN_SOURCE (exact stem + options repeated in the CSVs) | 11 |
+| OPTION_TEXT_DUPLICATE (two identical options) | 3 |
+| THIRD_PARTY_MARKER (publisher / site text) | 1 |
+
+**Duplicates of the existing bank (the 113 CGL questions): 0.**
+
+**What-if import by subject:**
+
+| Subject | IN_REVIEW | Imported, by language |
+|---|---|---|
+| English Comprehension | 154 | 173 en + 6 hi |
+| General Awareness | 174 | 28 en + 147 hi |
+| Quantitative Aptitude | 179 | 36 en + 159 hi |
+| General Intelligence and Reasoning | 128 | 26 en + 114 hi |
+
+## Rules applied
+
+- **Official questions only:** every row is marked SSC GD 2025 PYQ. The date and shift are not in the source and are recorded as "not recorded". The 1 row with a publisher / site marker was skipped.
+- **Explanations:** the legacy Courage Library ones, marked "to verify in review" in `authoring_metadata.importInfo`. Rows without a usable one were skipped (see the HOLD below).
+- **De-duplication:** exact stem + options inside the source; the bank checksum and near-duplicates via gate 5. A re-run imports 0 rows, because gate 5 finds every row already in the bank.
+- **EN / HI:** language comes from the script (the CSV label is wrong for 194 + 40 rows). The CSVs contain **no** real translation pairs. 4 numeric-fingerprint coincidences are flagged PAIR_CANDIDATE, never paired automatically.
+- **NEEDS_FIGURE:** image URLs are dropped and never fetched. Text-only rows that mention a figure stay DRAFT, flagged.
+- **Flags and reasons:** stored per item in `authoring_metadata.importInfo` (a server-side importer option, not part of the item contract; no gate changed).
+- **Nothing is published.** The commit only moves clean items DRAFT → IN_REVIEW, through `fn_transition_question_version`, with an audit row.
+
+## Needs a ruling
+
+1. **Gate 4 vs the inactive SSC GD exam (blocks the whole import).**
+   - The provenance gate resolves a PYQ's exam only if it is **active** (`resolveExamSlug`). SSC GD Constable is inactive.
+   - The SQL import function itself accepts any existing exam for provenance (and the import maps no exam).
+   - **Options:**
+     - **A** — the owner activates SSC GD;
+     - **B (recommended)** — amend gate 4 to accept an *existing* exam for PYQ provenance whether or not it is active, matching the SQL function. Exam visibility rules stay unchanged.
+   - Not changed without a ruling.
+2. **The 60 legacy practice questions (S2) with answers: HELD.**
+   - They have no explanations, and the existing import function rejects an explanation under 40 characters, so "empty + flagged" is not possible through it.
+   - Options: **(a)** we write the explanations (then they go through the normal path); **(b)** a migration allows an empty explanation for DRAFT only (publish would still require one). They also need an HTML parser.
+3. **Bilingual model (for later).**
+   - Publishing a version supersedes **every** other current version of the question, whatever its language. Two live languages of one question are therefore impossible today.
+   - Not needed for this batch (no pairs). Any EN + HI pairing needs a migration first (proposed **BILINGUAL-1**: one current version per question *and language*).
+4. **The 240 Hindi-paper rows:** a "Hindi" subject would have to be created in the taxonomy first (owner / syllabus decision).
+
+**Content health after the import:** unchanged at this point (nothing was written). Only published questions count, and the import publishes nothing.

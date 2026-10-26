@@ -185,7 +185,13 @@ async function counts(pg) {
     r.gate = res.status;
     r.gateErrors = res.errors;
     r.gateWarnings = res.warnings;
-    if (res.status === 'REJECTED') r.skip = /duplicat/i.test(res.errors.join(' ')) ? 'DUPLICATE_IN_BANK' : /examSlug/.test(res.errors.join(' ')) ? 'GATE4_PYQ_EXAM_NOT_RESOLVED' : 'GATE_REJECTED';
+    if (res.status === 'REJECTED') {
+      const e = res.errors.join(' ');
+      r.skip = /Duplicate option text/.test(e) ? 'OPTION_TEXT_DUPLICATE'
+        : /duplicate[^.]*of batch item/i.test(e) ? 'DUPLICATE_IN_IMPORT_BATCH'
+        : /duplicat/i.test(e) ? 'DUPLICATE_IN_BANK'
+        : /examSlug/.test(e) ? 'GATE4_PYQ_EXAM_NOT_RESOLVED' : 'GATE_REJECTED';
+    }
     else if (res.warnings.some((w) => /near-dup|similar/i.test(w))) r.flags.push('NEAR_DUPLICATE');
   });
 
