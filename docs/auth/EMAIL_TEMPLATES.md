@@ -3,8 +3,8 @@
 These are the branded templates for the Supabase auth emails of project **couragelibrary-next**.
 
 - **Sender:** `no-reply@couragelibrary.in`, via the ZeptoMail SMTP the owner has already configured. Do not change the SMTP settings.
-- **Design:** BRAND-2 Royal Blue + Amber (decision #71): 600px max, system fonts only (email clients cannot load web fonts reliably), a blue #1D4ED8 header bar with the text wordmark and a small amber dot, white card on the light page colour, one blue button (≥ 44px, white text) with a plain-text link under it, a hidden preheader and a short "You received this because…" footer. Colours are the design tokens; inline CSS only.
-- **Kept out on purpose:** images, tracking pixels and external assets.
+- **Design:** the owner's **Brand Band** (EMAIL RULING option 2 + amendment 2026-10-27): 600px max, system fonts only, the banner image on a blue #1D4ED8 header bar (alt text "Courage Library" shows when images are off), white card on the light page colour, one solid #1D4ED8 button (≥ 44px, white text) with a plain-text link under it, two tiles (Government Exams, CNTS), a hidden preheader and a short "You received this because…" footer with the support mailto. Colours are the design tokens; inline CSS only. **Generated** by `scripts/email/build-auth-templates.cjs`; the paste-ready subjects + bodies are in `docs/email-assets/SUPABASE_TEMPLATES.md`.
+- **Allow-list (exact, gated by AUTH-1 T-12, BRAND-2 C-11 and BRAND-1 B-05 via `scripts/lib/email-allowlist.cjs`):** images only https://couragelibrary.in/email/{banner,strip-main,strip-cnts}.png (alt + width/height); links only the `/auth/confirm` link (twice), https://couragelibrary.in/, https://cnts.couragelibrary.in/ and mailto:support@couragelibrary.in. No `utm_`, no tracking pixels, no other remote resource.
 - **Plain-text friendly:** each email also shows the link as text.
 
 ## Link format
@@ -24,11 +24,11 @@ The route (`app/auth/confirm/route.ts`) works like this:
 
 | File | Supabase field (Authentication → Emails → Templates) | Subject | `type` | `next` |
 |---|---|---|---|---|
-| `email-templates/confirm-signup.html` | **Confirm signup** | Confirm your email for Courage Library | `email` | `/dashboard` |
-| `email-templates/invite.html` | **Invite user** | You're invited to Courage Library | `invite` | `/auth/update-password` (the invited user then chooses a password) |
-| `email-templates/magic-link.html` | **Magic Link** | Your Courage Library sign-in link | `email` | `/dashboard` |
-| `email-templates/change-email.html` | **Change Email Address** | Confirm your email change for Courage Library | `email_change` | `/dashboard` |
-| `email-templates/reset-password.html` | **Reset Password** | Reset your Courage Library password | `recovery` | `/auth/update-password` |
+| `email-templates/confirm-signup.html` | **Confirm signup** | Verify your email | `email` | `/dashboard` |
+| `email-templates/invite.html` | **Invite user** | You've been invited to Courage Library | `invite` | `/auth/update-password` (the invited user then chooses a password) |
+| `email-templates/magic-link.html` | **Magic Link** | Your sign-in link | `email` | `/dashboard` |
+| `email-templates/change-email.html` | **Change Email Address** | Confirm your new email | `email_change` | `/dashboard` |
+| `email-templates/reset-password.html` | **Reset Password** | Reset your password | `recovery` | `/auth/update-password` |
 
 **Why `type=email` for sign-up and magic link:** Supabase recommends `email` for token-hash verification of both. The route also still accepts `signup`.
 

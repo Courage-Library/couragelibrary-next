@@ -11,7 +11,7 @@
  *   B-05 email templates: still pass the AUTH-1 2b-2 template checks (T-12); 600px max, system font stack, navy header
  *        bar with the text logo, one navy button ≥ 44px with white text, plain-text fallback link under it, hidden
  *        preheader, "You received this because…" footer, light colour scheme declared; only token colours, each
- *        text pair ≥ 4.5:1; no images / tracking
+ *        text pair ≥ 4.5:1; links + images ONLY from the exact allow-list (scripts/lib/email-allowlist.cjs); no tracking
  *   B-06 exam rules: the timer is neutral → accent only (no red / danger); answer review marks right / wrong with an
  *        icon + text, never colour alone
  *   B-07 at most ONE accent-filled CTA per screen (static: per file)
@@ -213,7 +213,8 @@ test('B-05 email templates: 2b-2 checks + brand layout, token colours only, cont
     if (!/max-width:600px/.test(s)) bad.push('600px max');
     if (!/font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto/.test(s)) bad.push('system font stack');
     // BRAND-3 (#84): the wordmark carries a small decorative CYAN dot (accent-400) before the text — never amber
-    if (!new RegExp(`<td bgcolor="${navy}"[^>]*>(?:<span style="[^"]*background-color:${resolveColor('accent-400')};[^"]*"></span>)?Courage Library</td>`).test(s)) bad.push('blue header bar with the text wordmark');
+    // header: the text wordmark (optional cyan dot) OR the Brand Band banner image (EMAIL AMENDMENT 2026-10-27)
+    if (!new RegExp(`<td bgcolor="${navy}"[^>]*>(?:(?:<span style="[^"]*background-color:${resolveColor('accent-400')};[^"]*"></span>)?Courage Library|<img src="https://couragelibrary\\.in/email/banner\\.png"[^>]*alt="Courage Library"[^>]*>)</td>`).test(s)) bad.push('blue header bar with the wordmark / banner');
     const buttons = [...s.matchAll(/<td bgcolor="([^"]+)"[^>]*>\s*<a href="[^"]+" style="([^"]+)">([^<]+)<\/a>/g)];
     if (buttons.length !== 1) bad.push(`${buttons.length} buttons (want 1)`);
     else {
@@ -230,7 +231,9 @@ test('B-05 email templates: 2b-2 checks + brand layout, token colours only, cont
     if (!/<div style="display:none;max-height:0;[^"]*">[^<]{10,}<\/div>/.test(s)) bad.push('hidden preheader');
     if (!/You received this because/.test(s)) bad.push('"You received this because…" footer');
     if (!/<meta name="color-scheme" content="light">/.test(s)) bad.push('color-scheme meta');
-    if (/<img\b|url\(|<script\b|<link\b|utm_|pixel/i.test(s)) bad.push('image / tracking / external asset');
+    // images / links: ONLY the exact allow-list shared with T-12 and C-11 (3 own-domain images, 4 link targets); no tracking
+    for (const p of require(path.join(ROOT, 'scripts/lib/email-allowlist.cjs')).checkTemplate(s, null)) bad.push(p);
+    if (/pixel|<img\b[^>]*\b(?:width|height)="1"/i.test(s)) bad.push('tracking pixel');
     const used = [...new Set((s.match(HEX) || []).map((h) => h.toLowerCase()))];
     const off = used.filter((h) => !tokenHex.has(h));
     if (off.length) bad.push(`non-token colours ${off.join(', ')}`);

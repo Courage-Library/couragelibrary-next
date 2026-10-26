@@ -13,7 +13,8 @@
  *   T-09 single use: forms pass resetKey={state}; the widget resets + clears the token after each submit (static + unit)
  *   T-10 ?m= allow-list: captcha-required / captcha-failed render their fixed texts (= action texts)
  *   T-11 2b-1 Google suite 17/17 with the CAPTCHA flag off AND on
- *   T-12 email templates: {{ .TokenHash }}, /auth/confirm, type accepted by the route, no http:// links, no <img>,
+ *   T-12 email templates: {{ .TokenHash }}, /auth/confirm, type accepted by the route, no http:// links, links + <img>
+ *        ONLY from the exact allow-list (scripts/lib/email-allowlist.cjs, EMAIL AMENDMENT 2026-10-27),
  *        no {{ .ConfirmationURL }}, sender no-reply@couragelibrary.in
  *   T-13 secret gate: Turnstile-secret-looking values and the Google client-secret prefix: 0 in tracked files (counts)
  *   T-14 static: no Turnstile secret env var / siteverify call in app code; tokens never logged; Google flow intact
@@ -494,7 +495,7 @@ function nonOffline() {
 }
 
 function templates() {
-  return test('T-12 email templates: token_hash → /auth/confirm, accepted type, https only, no images, no ConfirmationURL', () => {
+  return test('T-12 email templates: token_hash → /auth/confirm, accepted type, https only, allow-listed links + images only, no ConfirmationURL', () => {
     const route = read('app/auth/confirm/route.ts');
     const typeSet = new Set([...(route.match(/new Set<EmailOtpType>\(\[([^\]]+)\]\)/) || [])[1].matchAll(/"([a-z_]+)"/g)].map((m) => m[1]));
     assert(typeSet.size === 5, `route types: ${[...typeSet]}`);
@@ -503,23 +504,43 @@ function templates() {
     const out = [];
     for (const [name, type] of Object.entries(WANT)) {
       const s = read(`docs/auth/email-templates/${name}.html`);
-      const hrefs = [...s.matchAll(/href="([^"]+)"/g)].map((m) => m[1]);
-      assert(hrefs.length >= 2, `${name}: ${hrefs.length} links`);
+      // EMAIL AMENDMENT (2026-10-27): ONE allow-list shared with BRAND-2 C-11 and BRAND-1 B-05 (scripts/lib/email-allowlist.cjs)
+      const AL = require(path.join(ROOT, 'scripts/lib/email-allowlist.cjs'));
+      const hrefs = AL.hrefsOf(s).filter((h) => AL.CONFIRM_RE.test(h));
+      assert(hrefs.length === 2, `${name}: ${hrefs.length} confirm links (want button + fallback)`);
       for (const h of hrefs) {
-        const m = h.match(/^\{\{ \.SiteURL \}\}\/auth\/confirm\?token_hash=\{\{ \.TokenHash \}\}&type=([a-z_]+)&next=(\/[A-Za-z0-9/_-]*)$/);
-        assert(m, `${name}: unexpected link shape`);
+        const m = h.match(AL.CONFIRM_RE);
         assert(m[1] === type && typeSet.has(m[1]), `${name}: type ${m[1]} (want ${type}, route accepts ${[...typeSet]})`);
         const sanitize = require(path.join(ROOT, 'lib/auth/safe-redirect.ts')).sanitizeRedirectPath;
         assert(sanitize(m[2], '') === m[2], `${name}: next ${m[2]} not kept by the sanitizer`);
       }
+      const al = AL.checkTemplate(s, null);
+      assert(al.length === 0, `${name}: ${al.join('; ')}`);
       assert(s.includes('{{ .TokenHash }}'), `${name}: no TokenHash`);
       assert(!/http:\/\//i.test(s), `${name}: http:// link`);
-      assert(!/<img\b/i.test(s) && !/url\(/i.test(s) && !/<link\b/i.test(s) && !/<script\b/i.test(s), `${name}: external asset / image / script`);
       assert(!s.includes('ConfirmationURL'), `${name}: ConfirmationURL used`);
       assert(s.includes('no-reply@couragelibrary.in') && s.includes('Courage Library'), `${name}: branding / sender`);
       if (type === 'recovery') assert(hrefs.every((h) => h.endsWith('next=/auth/update-password')), 'recovery next');
       out.push(`${name}:${type}`);
     }
+    // the allow-list rejects everything else (self-test on a real template, mutated)
+    const AL = require(path.join(ROOT, 'scripts/lib/email-allowlist.cjs'));
+    const base = read('docs/auth/email-templates/confirm-signup.html');
+    const confirmUrl = '{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/dashboard';
+    assert(AL.checkTemplate(base, confirmUrl).length === 0, 'allow-list self-test baseline');
+    const mutants = {
+      utm: base.replace('href="https://couragelibrary.in/"', 'href="https://couragelibrary.in/?utm_source=email"'),
+      otherLink: base.replace('href="https://cnts.couragelibrary.in/"', 'href="https://example.com/"'),
+      otherImage: base.replace('https://couragelibrary.in/email/strip-cnts.png', 'https://cdn.example.com/x.png'),
+      noAlt: base.replace(/alt="Courage Library"/, 'alt=""'),
+      noHeight: base.replace('height="120"', ''),
+      thirdConfirm: base.replace('</body>', `<a href="${confirmUrl}">again</a></body>`),
+      cssUrl: base.replace('</style>', '.x{background:url(https://couragelibrary.in/email/banner.png)}</style>'),
+    };
+    for (const [k, m] of Object.entries(mutants)) assert(AL.checkTemplate(m, confirmUrl).length > 0, `allow-list accepted the ${k} mutant`);
+    // the paste file (docs/email-assets/SUPABASE_TEMPLATES.md) carries exactly the repo copies (minus the header comment)
+    const paste = read('docs/email-assets/SUPABASE_TEMPLATES.md');
+    for (const n of Object.keys(WANT)) assert(paste.includes(read(`docs/auth/email-templates/${n}.html`).replace(/<!--[\s\S]*?-->\n/, '')), `SUPABASE_TEMPLATES.md out of sync with ${n}.html (re-run scripts/email/build-auth-templates.cjs)`);
     const doc = read('docs/auth/EMAIL_TEMPLATES.md');
     assert(Object.keys(WANT).every((n) => doc.includes(`email-templates/${n}.html`)) && /no-reply@couragelibrary\.in/.test(doc), 'EMAIL_TEMPLATES.md incomplete');
     return out.join(', ');

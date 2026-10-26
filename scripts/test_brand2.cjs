@@ -18,7 +18,8 @@
  *   C-09 categorical tokens are used by subject / section colours; legacy violet / teal / cyan / green no longer
  *        collapse into the primary
  *   C-10 no banned claim phrases in public copy (CCPA coaching-advertising guidelines 2024)
- *   C-11 email templates: blue #1D4ED8 header with the text wordmark, system fonts only, /auth/confirm links exact
+ *   C-11 email templates: blue #1D4ED8 header (text wordmark or the Brand Band banner image), system fonts only, the
+ *        /auth/confirm link exactly twice + only the allow-listed links / images (EMAIL AMENDMENT 2026-10-27)
  * Probe (--probe; CI server-checks, LOCAL production build, decision #69):
  *   P-01 font payload on "/" (cold) ≤ 160 KB; no Devanagari file on an English page
  *   P-02 a Hindi sample renders with the Devanagari web font (body) and Poppins (heading), not a system fallback
@@ -315,15 +316,17 @@ async function offline() {
     return `${files.length} files, ${BANNED.length} patterns, 0 hits`;
   });
 
-  await test('C-11 email templates: blue #1D4ED8 header with the text wordmark, system fonts only, /auth/confirm links exact', () => {
+  await test('C-11 email templates: blue #1D4ED8 header (text wordmark or the banner image), system fonts only, allow-listed links + images', () => {
+    const AL = require(path.join(ROOT, 'scripts/lib/email-allowlist.cjs'));
     const WANT = { 'confirm-signup': ['email', '/dashboard'], 'reset-password': ['recovery', '/auth/update-password'], 'magic-link': ['email', '/dashboard'], 'change-email': ['email_change', '/dashboard'], invite: ['invite', '/auth/update-password'] };
     const bad = [];
     for (const [name, [type, next]] of Object.entries(WANT)) {
       const s = read(`docs/auth/email-templates/${name}.html`);
       const url = `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=${type}&next=${next}`;
-      const hrefs = [...s.matchAll(/href="([^"]+)"/g)].map((m) => m[1]);
-      if (hrefs.length !== 2 || hrefs.some((h) => h !== url)) bad.push(`${name}: links differ from ${url}`);
-      if (!/<td bgcolor="#1d4ed8"[^>]*>.*Courage Library<\/td>/.test(s)) bad.push(`${name}: header`);
+      // EMAIL AMENDMENT (2026-10-27): the shared exact allow-list; the confirm link exactly twice (button + fallback)
+      for (const p of AL.checkTemplate(s, url)) bad.push(`${name}: ${p}`);
+      // header: the text wordmark OR the Brand Band banner image (alt "Courage Library") on the #1D4ED8 bar
+      if (!/<td bgcolor="#1d4ed8"[^>]*>(?:.*Courage Library|<img src="https:\/\/couragelibrary\.in\/email\/banner\.png"[^>]*alt="Courage Library"[^>]*>)<\/td>/.test(s)) bad.push(`${name}: header`);
       if (/@font-face|fonts\.googleapis|Poppins|Inter['",]/.test(s)) bad.push(`${name}: web font`);
       if (!/font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto/.test(s)) bad.push(`${name}: system font stack`);
     }
