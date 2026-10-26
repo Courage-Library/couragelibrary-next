@@ -58,7 +58,7 @@ export function AdminDescriptiveManager({ items }: Props) {
             variant="default"
             size="sm"
             onClick={() => setShowCreate(!showCreate)}
-            className="font-bold bg-blue-600 hover:bg-blue-700 shadow-xs"
+            className="font-bold bg-primary-700 hover:bg-primary-800 shadow-xs"
           >
             <Plus className="w-4 h-4 mr-1.5" /> Create Question
           </Button>
@@ -109,7 +109,7 @@ export function AdminDescriptiveManager({ items }: Props) {
               <Button type="button" variant="outline" size="sm" onClick={() => setShowCreate(false)}>
                 Cancel
               </Button>
-              <Button type="submit" variant="default" size="sm" isLoading={isPending} className="font-bold bg-blue-600 hover:bg-blue-700">
+              <Button type="submit" variant="default" size="sm" isLoading={isPending} className="font-bold bg-primary-700 hover:bg-primary-800">
                 Save & Activate Question
               </Button>
             </div>

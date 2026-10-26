@@ -1,4 +1,5 @@
 import { requireFeatureOrNotFound } from "@/lib/features/gates";
+import { isCoinsEnabled } from "@/lib/coins/flag";
 import React from "react";
 import Link from "next/link";
 import { Metadata } from "next";
@@ -177,7 +178,7 @@ export default async function CandidatePerformancePage({ searchParams }: Perform
                 size="sm"
                 className={`text-xs ${
                   !examFilter
-                    ? "bg-indigo-600 hover:bg-indigo-500 text-white"
+                    ? "bg-primary-700 hover:bg-primary-800 text-white"
                     : "border-slate-800 bg-slate-900/40 text-slate-300 hover:bg-slate-800"
                 }`}
               >
@@ -191,7 +192,7 @@ export default async function CandidatePerformancePage({ searchParams }: Perform
                   size="sm"
                   className={`text-xs ${
                     examFilter === scope.examId
-                      ? "bg-indigo-600 hover:bg-indigo-500 text-white"
+                      ? "bg-primary-700 hover:bg-primary-800 text-white"
                       : "border-slate-800 bg-slate-900/40 text-slate-300 hover:bg-slate-800"
                   }`}
                 >
@@ -605,7 +606,7 @@ export default async function CandidatePerformancePage({ searchParams }: Perform
                         Rank #{evt.rank}
                       </div>
                     )}
-                    {evt.coinsEarned !== undefined && evt.coinsEarned !== null && (
+                    {isCoinsEnabled() && evt.coinsEarned !== undefined && evt.coinsEarned !== null && (
                       <div className="text-xs font-bold text-accent-700">
                         +{evt.coinsEarned} CL
                       </div>

@@ -459,7 +459,7 @@ export function AdminQuestionReportsManager({ initialReports, initialStatus = "A
                   size="sm"
                   disabled={isUpdating}
                   onClick={() => handleUpdateStatus(activeReport.id, resolutionStatus, resolutionNotes)}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs"
+                  className="w-full bg-primary-700 hover:bg-primary-800 text-white font-bold text-xs shadow-xs"
                 >
                   {isUpdating ? "Saving..." : "Update Report Status"}
                 </Button>

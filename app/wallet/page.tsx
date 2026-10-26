@@ -1,4 +1,6 @@
 import React from "react";
+import { isCoinsEnabled } from "@/lib/coins/flag";
+import { CoinsPaused } from "@/components/coins/coins-paused";
 import { redirect } from "next/navigation";
 import { GamificationService } from "@/services/gamification.service";
 import { constructMetadata } from "@/lib/seo/metadata";
@@ -21,6 +23,8 @@ export default async function WalletPage() {
   const session = await getServerSession();
   if (session.state === "error") return <SessionUnavailable />;
   if (session.state === "none") redirect(loginRedirectPath("/wallet"));
+  // BRAND-3 fix 1: coins paused → no balance, no catalogue (nothing is read)
+  if (!isCoinsEnabled()) return <CoinsPaused />;
   const user = session.user;
   const supabase = await createServerSupabaseClient();
 

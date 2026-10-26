@@ -186,7 +186,7 @@ export function BulkImportModal({ defaultEntity = "questions", onClose }: BulkIm
               onClick={handleCommit}
               isLoading={isLoading}
               disabled={!jsonContent.trim()}
-              className="font-bold bg-indigo-600 hover:bg-indigo-700 shadow-xs"
+              className="font-bold bg-primary-700 hover:bg-primary-800 shadow-xs"
             >
               <Play className="w-3.5 h-3.5 mr-1" /> Confirm & Ingest Payload
             </Button>

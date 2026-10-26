@@ -152,7 +152,7 @@ export function Step6Readiness({ report, onPublish, onBack, isPublishing }: Prop
             report.isActive
               ? "bg-emerald-600 text-white cursor-default"
               : report.isPublishable
-              ? "bg-blue-600 hover:bg-blue-700 text-white"
+              ? "bg-primary-700 hover:bg-primary-800 text-white"
               : "bg-slate-200 text-slate-400 cursor-not-allowed"
           }`}
         >

@@ -208,7 +208,7 @@ export function ExamManagementView({
 
         <Button
           onClick={handleOpenAddModal}
-          className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-xs transition-colors"
+          className="bg-primary-700 hover:bg-primary-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-xs transition-colors"
         >
           <PlusCircle className="w-4 h-4" /> Add New Examination
         </Button>
@@ -530,7 +530,7 @@ export function ExamManagementView({
                   <Button
                     type="submit"
                     disabled={isSubmitting || !title.trim()}
-                    className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-5 py-2 rounded-xl shadow-xs disabled:opacity-50"
+                    className="bg-primary-700 hover:bg-primary-800 text-white text-xs font-bold px-5 py-2 rounded-xl shadow-xs disabled:opacity-50"
                   >
                     {isSubmitting ? (
                       <>
@@ -575,7 +575,7 @@ export function ExamManagementView({
                   <Link
                     href={`/admin/exam-knowledge?examId=${createdResult.examId}${createdResult.cycleId ? `&cycleId=${createdResult.cycleId}` : ""}`}
                   >
-                    <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-5 py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-xs">
+                    <Button className="w-full bg-primary-700 hover:bg-primary-800 text-white text-xs font-bold px-5 py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-xs">
                       <BookOpen className="w-4 h-4" /> Open Exam Knowledge Studio →
                     </Button>
                   </Link>

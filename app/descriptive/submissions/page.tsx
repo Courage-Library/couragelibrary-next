@@ -36,7 +36,7 @@ export default async function StudentSubmissionsPage() {
             </h1>
           </div>
           <Link href="/descriptive">
-            <Button size="sm" variant="default" className="bg-blue-600 hover:bg-blue-700 font-bold">
+            <Button size="sm" variant="default" className="bg-primary-700 hover:bg-primary-800 font-bold">
               <PenTool className="w-3.5 h-3.5 mr-1.5" /> Write New Answer
             </Button>
           </Link>

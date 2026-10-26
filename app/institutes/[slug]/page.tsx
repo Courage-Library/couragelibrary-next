@@ -101,7 +101,7 @@ export default async function InstituteDetailPage({ params }: Props) {
                       </span>
                     )}
                     {b.isEnrolled && (
-                      <Badge variant="indigo" className="text-[10px] bg-indigo-600">ENROLLED ({b.userRole})</Badge>
+                      <Badge variant="indigo" className="text-[10px] bg-primary-700">ENROLLED ({b.userRole})</Badge>
                     )}
                   </div>
 
@@ -122,7 +122,7 @@ export default async function InstituteDetailPage({ params }: Props) {
 
                 <div className="flex items-center justify-end pt-2 border-t border-slate-100">
                   <Link href={`/institutes/${institute.slug}/batches/${b.id}`}>
-                    <Button size="sm" variant="default" className="bg-indigo-600 hover:bg-indigo-700 font-bold text-xs">
+                    <Button size="sm" variant="default" className="bg-primary-700 hover:bg-primary-800 font-bold text-xs">
                       Open Batch Dashboard <ArrowRight className="w-3.5 h-3.5 ml-1" />
                     </Button>
                   </Link>

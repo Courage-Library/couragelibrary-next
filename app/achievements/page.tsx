@@ -145,7 +145,7 @@ export default async function CandidateAchievementsPage() {
                 Take your first All-India Live Mock Test to unlock the <strong>Live Test Pioneer</strong> badge, climb the national leaderboard, and earn rare honors.
               </p>
               <Link href="/live-tests" className="inline-block mt-2">
-                <Button size="sm" className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold">
+                <Button size="sm" className="bg-primary-700 hover:bg-primary-800 text-white font-semibold">
                   Take a Live Test
                 </Button>
               </Link>

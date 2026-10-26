@@ -221,7 +221,7 @@ export function MistakeLongitudinalCard({ initialData }: MistakeLongitudinalCard
                     </span>
                   </span>
                   <span aria-hidden="true" className="h-1.5 w-full overflow-hidden rounded-full bg-ink-200">
-                    <span className="block h-full rounded-full bg-primary-600" style={{ width: `${Math.max(4, share)}%` }} />
+                    <span className="block h-full rounded-full bg-primary-700" style={{ width: `${Math.max(4, share)}%` }} />
                   </span>
                 </li>
               );

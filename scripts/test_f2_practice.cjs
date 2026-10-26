@@ -82,7 +82,8 @@ const h = React.createElement;
 const html = (el) => renderToStaticMarkup(el);
 const text = (s) => s.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<[^>]+>/g, ' ').replace(/&#x27;|&apos;/g, "'").replace(/&amp;/g, '&').replace(/\s+/g, ' ');
 // BRAND-3 (#84, R4 revised): the ONE primary = solid blue-700 (bg-brand; it was the amber fill). Name kept for history.
-const amber = (s) => (s.match(/class="[^"]*\bbg-brand\b/g) || []).length;
+// a native <dialog> (e.g. "Report this question") is its own screen when open — its primary is not counted here
+const amber = (s) => (s.replace(/<dialog\b[\s\S]*?<\/dialog>/g, '').match(/class="[^"]*\bbg-brand\b/g) || []).length;
 
 /** A fake PostgREST: from(table) → chainable filters; the result is whatever `data[table]` returns for the filters. */
 function fakeSupabase(data) {

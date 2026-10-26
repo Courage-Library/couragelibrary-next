@@ -8,4 +8,6 @@ export type ShellAccount = {
   studyPreferences?: boolean;
   /** F8 (#80): PROFILES_ENABLED — shows the "Profile" link (username + opt-in public profile). */
   profile?: boolean;
+  /** BRAND-3 fix 1: COINS_ENABLED — shows the Wallet and Rewards store links (hidden while coins are paused). */
+  coins?: boolean;
 };

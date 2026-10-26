@@ -216,7 +216,7 @@ export function AdminLiveTestResultsManager({
           <Button
             onClick={handleEvaluate}
             disabled={isLoading}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl gap-2 shadow-sm"
+            className="bg-primary-700 hover:bg-primary-800 text-white font-bold text-xs rounded-xl gap-2 shadow-sm"
           >
             <Play className="w-3.5 h-3.5" /> Run Batch Evaluation
           </Button>

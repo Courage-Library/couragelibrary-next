@@ -215,7 +215,7 @@ export function RewardsStudioView({ initialData }: RewardsStudioViewProps) {
               setEditingReward(null);
               setEditorModalOpen(true);
             }}
-            className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm transition-all inline-flex items-center gap-1.5"
+            className="px-4 py-2 text-xs font-bold text-white bg-primary-700 hover:bg-primary-800 rounded-xl shadow-sm transition-all inline-flex items-center gap-1.5"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -428,7 +428,7 @@ export function RewardsStudioView({ initialData }: RewardsStudioViewProps) {
                   setEditingReward(null);
                   setEditorModalOpen(true);
                 }}
-                className="px-4 py-2 text-xs font-bold text-white bg-blue-600 rounded-xl shadow-sm hover:bg-blue-700 transition-colors"
+                className="px-4 py-2 text-xs font-bold text-white bg-primary-700 rounded-xl shadow-sm hover:bg-primary-800 transition-colors"
               >
                 + Create Reward
               </button>

@@ -96,7 +96,7 @@ export function Step3Posts({ examId, initialPosts, onSavePost, onDeletePost, onC
         </div>
         <Button
           onClick={openNewPost}
-          className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-xs"
+          className="bg-primary-700 hover:bg-primary-800 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-xs"
         >
           <PlusCircle className="w-4 h-4" /> Add Post Profile
         </Button>
@@ -246,7 +246,7 @@ export function Step3Posts({ examId, initialPosts, onSavePost, onDeletePost, onC
                 <Button
                   type="submit"
                   disabled={isSaving}
-                  className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-5 py-2 rounded-xl shadow-xs"
+                  className="bg-primary-700 hover:bg-primary-800 text-white text-xs font-bold px-5 py-2 rounded-xl shadow-xs"
                 >
                   Save Post
                 </Button>
@@ -268,7 +268,7 @@ export function Step3Posts({ examId, initialPosts, onSavePost, onDeletePost, onC
         <Button
           type="button"
           onClick={onContinue}
-          className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-6 py-2.5 rounded-xl shadow-xs"
+          className="bg-primary-700 hover:bg-primary-800 text-white text-xs font-bold px-6 py-2.5 rounded-xl shadow-xs"
         >
           Continue to Step 4 →
         </Button>

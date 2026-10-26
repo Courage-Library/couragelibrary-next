@@ -57,7 +57,7 @@ export function PromptViewerPanel({
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-sm ${
               copied
                 ? "bg-emerald-600 text-white"
-                : "bg-blue-600 hover:bg-blue-500 text-white"
+                : "bg-primary-700 hover:bg-primary-800 text-white"
             }`}
             aria-label="Copy prompt to clipboard"
           >

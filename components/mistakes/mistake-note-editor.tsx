@@ -156,7 +156,7 @@ export function MistakeNoteEditor({ vaultId, initialNote }: MistakeNoteEditorPro
               <button
                 type="button"
                 onClick={handleManualSave}
-                className="underline text-rose-700 font-bold ml-1 hover:text-rose-900"
+                className="underline text-primary-700 font-bold ml-1 hover:text-primary-800"
               >
                 Retry
               </button>
@@ -237,7 +237,7 @@ export function MistakeNoteEditor({ vaultId, initialNote }: MistakeNoteEditorPro
             size="sm"
             onClick={handleManualSave}
             disabled={saveStatus === "saving" || !hasUnsavedChanges}
-            className="text-xs h-8 font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs disabled:opacity-50"
+            className="text-xs h-8 font-semibold bg-primary-700 hover:bg-primary-800 text-white shadow-xs disabled:opacity-50"
           >
             {saveStatus === "saving" ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />

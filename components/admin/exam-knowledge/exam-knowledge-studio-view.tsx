@@ -942,7 +942,7 @@ export function ExamKnowledgeStudioView({
               <p className="text-xs text-slate-600 leading-relaxed">Generate deterministic, provider-neutral prompts for external AI models, validate structured JSON responses across 5 rigorous gates, and review candidate-ready exam guides.</p>
             </div>
             <div className="flex flex-wrap gap-3 pt-2">
-              <button onClick={() => setActiveTab("EXAMS")} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-xs transition">
+              <button onClick={() => setActiveTab("EXAMS")} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-700 hover:bg-primary-800 text-white text-xs font-bold shadow-xs transition">
                 <span>Browse Exam Modules Matrix</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
@@ -1028,7 +1028,7 @@ export function ExamKnowledgeStudioView({
                               <span>Inspect (v{mod.versionNumber})</span>
                             </button>
                           ) : mod.status === "DRAFT" || mod.status === "AI_RESPONSE_PENDING" ? (
-                            <button onClick={() => { if (mod.versionId) openEditDraft(mod.versionId); }} className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-[11px] transition inline-flex items-center gap-1 shadow-xs">
+                            <button onClick={() => { if (mod.versionId) openEditDraft(mod.versionId); }} className="px-3 py-1 rounded-lg bg-primary-700 hover:bg-primary-800 text-white font-bold text-[11px] transition inline-flex items-center gap-1 shadow-xs">
                               <Edit3 className="w-3 h-3" />
                               <span>Edit Draft (v{mod.versionNumber})</span>
                             </button>
@@ -1043,7 +1043,7 @@ export function ExamKnowledgeStudioView({
                               <span>Preview & Publish (v{mod.versionNumber})</span>
                             </button>
                           ) : (
-                            <button disabled={mod.applicability !== "APPLICABLE"} onClick={() => openNewAuthoring(selectedExamId, selectedCycleId, mod.moduleKey)} className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white font-bold text-[11px] transition inline-flex items-center gap-1 shadow-xs">
+                            <button disabled={mod.applicability !== "APPLICABLE"} onClick={() => openNewAuthoring(selectedExamId, selectedCycleId, mod.moduleKey)} className="px-3 py-1 rounded-lg bg-primary-700 hover:bg-primary-800 disabled:opacity-40 text-white font-bold text-[11px] transition inline-flex items-center gap-1 shadow-xs">
                               <Sparkles className="w-3 h-3" />
                               <span>Author</span>
                             </button>
@@ -1732,7 +1732,7 @@ export function ExamKnowledgeStudioView({
                   </div>
                 </div>
                 <div className="flex justify-end pt-2">
-                  <button disabled={isGeneratingPrompt} onClick={handleGeneratePrompt} className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-bold shadow-xs transition">
+                  <button disabled={isGeneratingPrompt} onClick={handleGeneratePrompt} className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary-700 hover:bg-primary-800 disabled:opacity-50 text-white text-xs font-bold shadow-xs transition">
                     {isGeneratingPrompt ? (<><RefreshCw className="w-3.5 h-3.5 animate-spin" /><span>Compiling Context...</span></>) : (<><Sparkles className="w-3.5 h-3.5" /><span>Generate Authoritative Prompt</span></>)}
                   </button>
                 </div>
@@ -1850,7 +1850,7 @@ export function ExamKnowledgeStudioView({
                           {d.reviewStatus === "DRAFT" || d.reviewStatus === "AI_GENERATED" ? (
                             <button
                               onClick={() => openEditDraft(d.id)}
-                              className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-[11px] transition inline-flex items-center gap-1 shadow-xs"
+                              className="px-3 py-1 rounded-lg bg-primary-700 hover:bg-primary-800 text-white font-bold text-[11px] transition inline-flex items-center gap-1 shadow-xs"
                             >
                               <Edit3 className="w-3 h-3" />
                               <span>Edit Draft</span>
@@ -2018,7 +2018,7 @@ export function ExamKnowledgeStudioView({
                           <button
                             disabled={isUpdatingStatus || !isChecklistComplete}
                             onClick={() => handleUpdateReviewStatus("APPROVED")}
-                            className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5"
+                            className="px-3.5 py-1.5 rounded-xl bg-primary-700 hover:bg-primary-800 disabled:opacity-40 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5"
                           >
                             <ShieldCheck className="w-3.5 h-3.5" />
                             <span>Approve Revision</span>
@@ -2378,7 +2378,7 @@ export function ExamKnowledgeStudioView({
                           documentDetail.versionHistory[documentDetail.versionHistory.length - 1]?.id,
                           documentDetail.document?.current_published_version_id || documentDetail.version?.id
                         )}
-                        className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5"
+                        className="px-3 py-1.5 rounded-xl bg-primary-700 hover:bg-primary-800 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5"
                       >
                         <GitCompare className="w-3.5 h-3.5" />
                         <span>Compare Versions</span>
@@ -2502,7 +2502,7 @@ export function ExamKnowledgeStudioView({
                                 {!verItem.isPublished && (verItem.reviewStatus === "DRAFT" || verItem.reviewStatus === "AI_GENERATED") && (
                                   <button
                                     onClick={() => openEditDraft(verItem.id, documentDetail.document)}
-                                    className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5"
+                                    className="px-3 py-1.5 rounded-xl bg-primary-700 hover:bg-primary-800 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5"
                                   >
                                     <Edit3 className="w-3.5 h-3.5" />
                                     <span>Edit Draft</span>
@@ -2646,7 +2646,7 @@ export function ExamKnowledgeStudioView({
                             handleExecuteDiff(diffVersionAId, diffVersionBId);
                           }
                         }}
-                        className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5"
+                        className="px-4 py-2 rounded-xl bg-primary-700 hover:bg-primary-800 disabled:opacity-40 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5"
                       >
                         {isLoadingDiff ? (
                           <>

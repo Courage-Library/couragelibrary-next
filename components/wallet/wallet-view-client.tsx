@@ -271,7 +271,7 @@ export function WalletViewClient({ wallet: initialWallet, catalog, streakEligibi
                   <button
                     type="button"
                     onClick={() => setIsRecoveryModalOpen(true)}
-                    className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-xs shrink-0"
+                    className="px-3 py-1.5 rounded-lg bg-primary-700 hover:bg-primary-800 text-white text-xs font-bold transition-all shadow-xs shrink-0"
                   >
                     Restore Streak
                   </button>

@@ -56,7 +56,7 @@ export function ProgressBar({
         <div
           className={cn(
             "h-full rounded-full",
-            tone === "success" ? "bg-success-600" : "bg-primary-600",
+            tone === "success" ? "bg-success-600" : "bg-primary-700",
             indeterminate && "w-1/3 motion-safe:animate-pulse",
           )}
           style={indeterminate ? undefined : { width: `${p}%` }}
@@ -132,7 +132,7 @@ export function ProgressSteps({ label, steps, current, className }: ProgressStep
                 aria-hidden="true"
                 className={cn(
                   "flex size-7 items-center justify-center rounded-full border text-caption font-semibold",
-                  done && "border-primary-600 bg-primary-600 text-fg-inverse",
+                  done && "border-primary-600 bg-primary-700 text-fg-inverse",
                   isCurrent && "border-2 border-primary-600 bg-primary-50 text-primary-800",
                   !done && !isCurrent && "border-line-control bg-surface text-fg-secondary",
                 )}

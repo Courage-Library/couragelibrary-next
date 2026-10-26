@@ -23,7 +23,7 @@ export default function AboutPage() {
           {ABOUT_PAGE.loopSteps.map((step, i) => (
             <li key={step.title} className="flex flex-col gap-1 rounded-card border border-line bg-surface p-4">
               <h3 className="flex items-center gap-2 text-body-lg font-semibold text-fg">
-                <span aria-hidden="true" className="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-primary-600 text-body-sm font-semibold text-fg-inverse">
+                <span aria-hidden="true" className="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-primary-700 text-body-sm font-semibold text-fg-inverse">
                   {i + 1}
                 </span>
                 <span className="sr-only">{`Step ${i + 1}: `}</span>

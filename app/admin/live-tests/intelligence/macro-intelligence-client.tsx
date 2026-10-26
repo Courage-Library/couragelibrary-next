@@ -246,7 +246,7 @@ export default function AdminMacroCompetitionIntelligencePage() {
                     <td className="px-5 py-3.5 text-right">
                       <Link
                         href={`/admin/live-tests/${evt.id}/intelligence`}
-                        className="px-3 py-1.5 text-xs font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-xs transition-colors"
+                        className="px-3 py-1.5 text-xs font-medium bg-primary-700 hover:bg-primary-800 text-white rounded-lg shadow-xs transition-colors"
                       >
                         Deep Dive →
                       </Link>
@@ -304,7 +304,7 @@ export default function AdminMacroCompetitionIntelligencePage() {
           <button
             onClick={handleCompare}
             disabled={comparing || !cmpEvent1 || !cmpEvent2}
-            className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-100 disabled:text-slate-400 text-white font-medium rounded-lg text-sm transition-colors shadow-xs"
+            className="w-full py-2 bg-primary-700 hover:bg-primary-800 disabled:bg-slate-100 disabled:text-slate-400 text-white font-medium rounded-lg text-sm transition-colors shadow-xs"
           >
             {comparing ? "Evaluating Compatibility..." : "Run Comparison →"}
           </button>

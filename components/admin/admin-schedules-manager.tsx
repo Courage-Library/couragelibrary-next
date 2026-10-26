@@ -1065,7 +1065,7 @@ export function AdminSchedulesManager({
                           type="submit"
                           size="sm"
                           disabled={isUpdatingProg}
-                          className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 px-4 py-2 rounded-xl transition"
+                          className="bg-primary-700 hover:bg-primary-800 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 px-4 py-2 rounded-xl transition"
                         >
                           <Edit className="w-4 h-4" />
                           {isUpdatingProg ? "Saving Changes..." : "Save Schedule Updates"}
@@ -1303,7 +1303,7 @@ export function AdminSchedulesManager({
                                       onClick={() => handleToggleMixedSection(day.dayOfWeek, s.id)}
                                       className={`px-1.5 py-0.5 text-[9px] font-bold rounded border transition-all ${
                                         isChecked
-                                          ? "bg-blue-600 text-white border-blue-600 shadow-2xs"
+                                          ? "bg-primary-700 text-white border-blue-600 shadow-2xs"
                                           : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
                                       }`}
                                       title={`Toggle ${s.name}`}
@@ -1519,7 +1519,7 @@ export function AdminSchedulesManager({
                 <Button
                   type="submit"
                   disabled={isCreatingCycle}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold"
+                  className="w-full bg-primary-700 hover:bg-primary-800 text-white font-bold"
                 >
                   <PlusCircle className="w-4 h-4 mr-2" />
                   {isCreatingCycle ? "Publishing Schedule..." : "Publish Recruitment Schedule"}
@@ -1763,7 +1763,7 @@ export function AdminSchedulesManager({
                   type="submit"
                   size="sm"
                   disabled={isSavingDay}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold"
+                  className="bg-primary-700 hover:bg-primary-800 text-white font-bold"
                 >
                   {isSavingDay ? "Saving..." : `Save ${editingDay.dayLabel}`}
                 </Button>
@@ -1864,7 +1864,7 @@ export function AdminSchedulesManager({
                 <Button type="button" variant="outline" size="sm" onClick={() => setEditingCycle(null)}>
                   Cancel
                 </Button>
-                <Button type="submit" variant="default" size="sm" disabled={isEditingCycle} className="font-bold bg-blue-600 hover:bg-blue-700">
+                <Button type="submit" variant="default" size="sm" disabled={isEditingCycle} className="font-bold bg-primary-700 hover:bg-primary-800">
                   {isEditingCycle ? "Updating..." : "Save Changes"}
                 </Button>
               </div>

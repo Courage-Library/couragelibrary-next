@@ -720,7 +720,7 @@ export function AdminQuestionManager({
                 type="submit"
                 variant="default"
                 disabled={isPending || isUploadingImg}
-                className="w-full font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-2xs flex items-center justify-center gap-2 py-2.5 rounded-xl transition"
+                className="w-full font-semibold bg-primary-700 hover:bg-primary-800 text-white shadow-2xs flex items-center justify-center gap-2 py-2.5 rounded-xl transition"
               >
                 <PlusCircle className="w-4 h-4" />
                 {isPending ? "Saving Question..." : "Add Question"}
@@ -983,7 +983,7 @@ export function AdminQuestionManager({
                   size="sm"
                   onClick={() => setCurrentPage(pgNum)}
                   className={`text-xs px-3 py-1 font-bold ${
-                    pgNum === validPage ? "bg-blue-600 text-white" : "border-slate-200 text-slate-700"
+                    pgNum === validPage ? "bg-primary-700 text-white" : "border-slate-200 text-slate-700"
                   }`}
                 >
                   {pgNum}
@@ -1187,7 +1187,7 @@ export function AdminQuestionManager({
                 <Button type="button" variant="outline" size="sm" onClick={() => setEditingQuestion(null)}>
                   Cancel
                 </Button>
-                <Button type="submit" variant="default" size="sm" disabled={isPending} className="font-bold bg-blue-600 hover:bg-blue-700 text-white">
+                <Button type="submit" variant="default" size="sm" disabled={isPending} className="font-bold bg-primary-700 hover:bg-primary-800 text-white">
                   {isPending ? "Saving..." : "Save Changes"}
                 </Button>
               </div>

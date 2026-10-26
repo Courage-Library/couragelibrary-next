@@ -276,7 +276,7 @@ export function AdminPatternsManager({ patterns, categories, currentCategory }: 
                 type="submit"
                 variant="default"
                 disabled={isCreating}
-                className="w-full font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-2xs flex items-center justify-center gap-2 py-2.5 rounded-xl transition"
+                className="w-full font-semibold bg-primary-700 hover:bg-primary-800 text-white shadow-2xs flex items-center justify-center gap-2 py-2.5 rounded-xl transition"
               >
                 <PlusCircle className="w-4 h-4" />
                 {isCreating ? "Creating Pattern..." : "Create Pattern"}
@@ -502,7 +502,7 @@ export function AdminPatternsManager({ patterns, categories, currentCategory }: 
                   size="sm"
                   onClick={() => setCurrentPage(pgNum)}
                   className={`text-xs px-3 py-1 font-bold ${
-                    pgNum === validPage ? "bg-indigo-600 text-white" : "border-slate-200 text-slate-700"
+                    pgNum === validPage ? "bg-primary-700 text-white" : "border-slate-200 text-slate-700"
                   }`}
                 >
                   {pgNum}
@@ -613,7 +613,7 @@ export function AdminPatternsManager({ patterns, categories, currentCategory }: 
                 <Button type="button" variant="outline" size="sm" onClick={() => setEditingPattern(null)}>
                   Cancel
                 </Button>
-                <Button type="submit" variant="default" size="sm" disabled={isEditing} className="font-bold bg-indigo-600 hover:bg-indigo-700">
+                <Button type="submit" variant="default" size="sm" disabled={isEditing} className="font-bold bg-primary-700 hover:bg-primary-800">
                   {isEditing ? "Updating..." : "Save Changes"}
                 </Button>
               </div>

@@ -34,7 +34,7 @@ export default function CheckoutSuccessPage() {
 
           <div className="flex flex-col gap-2 pt-2">
             <Link href="/dashboard">
-              <Button size="lg" variant="default" className="w-full bg-indigo-600 hover:bg-indigo-700 font-bold text-xs">
+              <Button size="lg" variant="default" className="w-full bg-primary-700 hover:bg-primary-800 font-bold text-xs">
                 Go to Dashboard <ArrowRight className="w-4 h-4 ml-1.5" />
               </Button>
             </Link>

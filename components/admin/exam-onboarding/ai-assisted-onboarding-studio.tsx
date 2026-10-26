@@ -376,7 +376,7 @@ export function AiAssistedOnboardingStudio() {
                   onClick={() => handleSelectStep(step.num as any)}
                   className={`flex items-center gap-2 p-2 rounded-xl text-xs font-bold transition flex-1 justify-center select-none ${
                     isCurrent
-                      ? "bg-blue-600 text-white shadow-xs"
+                      ? "bg-primary-700 text-white shadow-xs"
                       : isDone
                       ? "bg-blue-50 text-blue-700 hover:bg-blue-100"
                       : "text-slate-400 hover:text-slate-600"
@@ -387,7 +387,7 @@ export function AiAssistedOnboardingStudio() {
                       isCurrent
                         ? "bg-white text-blue-600"
                         : isDone
-                        ? "bg-blue-600 text-white"
+                        ? "bg-primary-700 text-white"
                         : "bg-slate-100 text-slate-400"
                     }`}
                   >
@@ -506,7 +506,7 @@ export function AiAssistedOnboardingStudio() {
             <Button
               onClick={() => handleGenerateMasterPrompt()}
               disabled={!examName.trim() || isGeneratingPrompt}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-2xl flex items-center justify-center gap-2 shadow-sm transition-all text-sm disabled:opacity-50"
+              className="w-full bg-primary-700 hover:bg-primary-800 text-white font-bold py-3 rounded-2xl flex items-center justify-center gap-2 shadow-sm transition-all text-sm disabled:opacity-50"
             >
               {isGeneratingPrompt ? (
                 <>
@@ -654,7 +654,7 @@ export function AiAssistedOnboardingStudio() {
               <Button
                 onClick={handleVerifyResponse}
                 disabled={!rawJsonInput.trim() || isValidating}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-xs transition-all disabled:opacity-50"
+                className="w-full bg-primary-700 hover:bg-primary-800 text-white text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-xs transition-all disabled:opacity-50"
               >
                 {isValidating ? (
                   <>
@@ -950,7 +950,7 @@ export function AiAssistedOnboardingStudio() {
               <Button
                 onClick={handlePublishExam}
                 disabled={!readinessReport.isPublishable || isPublishing}
-                className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-6 py-2 rounded-xl flex items-center gap-2 shadow-xs transition-all disabled:opacity-50"
+                className="bg-primary-700 hover:bg-primary-800 text-white text-xs font-bold px-6 py-2 rounded-xl flex items-center gap-2 shadow-xs transition-all disabled:opacity-50"
               >
                 {isPublishing ? (
                   <>

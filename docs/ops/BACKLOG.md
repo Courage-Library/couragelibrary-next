@@ -85,6 +85,12 @@ Payment functions with the same pattern (`fn_process_payment_webhook`, `fn_verif
 
 Logged by the architect (2026-10-25). `couragelibrary.in` / `www.couragelibrary.in` still serve the legacy site; the new app is only on `couragelibrary-next.vercel.app` (the email images are at `/email/*.png` there). After the cutover: optionally point the email image base to `couragelibrary.in/email/`, and update the Supabase Site URL / redirect URLs. Do not touch DNS or the legacy project from this repo.
 
+**After-cutover check (architect, 2026-10-26):** the live auth emails load `https://couragelibrary.in/email/{banner,strip-main,strip-cnts}.png`. Verify that each returns **200 `image/png`** and matches `public/email/*.png` (sha256). On 2026-10-26 all three returned 307 → `www.couragelibrary.in` → **404** (`text/plain`), so the emails currently show alt text instead of images. The same files ARE served by `couragelibrary-next.vercel.app/email/` (sha256 equal, the cyan v3 CNTS tile).
+
+## STUDENT-DASH-1: new-student dashboard
+
+Logged by the architect (2026-10-26). A brand-new student sees empty cards on `/dashboard`. Replace them with first-step guidance (pick an exam → take the first free mock → see the Mistake Vault fill up). It must use real state only (R12), with one primary per screen (R4).
+
 ## F5-DRILLS-MANUAL: manual Memory Lock items in drills
 
 Once 095 is live, `fn_generate_mistake_drill` may pick manual Memory Lock items, which have 0 mistakes. The app-side lists already filter `total_mistakes_count >= 1`; the SQL generator needs the same filter.

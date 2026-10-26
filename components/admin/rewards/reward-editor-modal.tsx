@@ -615,7 +615,7 @@ export function RewardEditorModal({
                           className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all shadow-2xs inline-flex items-center gap-1.5 ${
                             copiedPrompt
                               ? "bg-emerald-600 text-white border border-emerald-700 ring-2 ring-emerald-500/20"
-                              : "bg-indigo-600 text-white hover:bg-indigo-700 border border-indigo-700"
+                              : "bg-primary-700 text-white hover:bg-primary-800 border border-indigo-700"
                           }`}
                         >
                           {copiedPrompt ? (
@@ -677,7 +677,7 @@ export function RewardEditorModal({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm transition-all disabled:opacity-50 inline-flex items-center gap-1.5"
+              className="px-5 py-2 text-xs font-bold text-white bg-primary-700 hover:bg-primary-800 rounded-xl shadow-sm transition-all disabled:opacity-50 inline-flex items-center gap-1.5"
             >
               {isSubmitting ? (
                 <>

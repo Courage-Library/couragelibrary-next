@@ -65,7 +65,7 @@ export function AdminBillingManager({ orders, plans }: Props) {
             variant="default"
             size="sm"
             onClick={() => setShowCreate(!showCreate)}
-            className="font-bold bg-indigo-600 hover:bg-indigo-700 shadow-xs text-white"
+            className="font-bold bg-primary-700 hover:bg-primary-800 shadow-xs text-white"
           >
             <Plus className="w-4 h-4 mr-1.5" /> Create Plan Tier
           </Button>
@@ -106,7 +106,7 @@ export function AdminBillingManager({ orders, plans }: Props) {
               <Button type="button" variant="outline" size="sm" onClick={() => setShowCreate(false)}>
                 Cancel
               </Button>
-              <Button type="submit" variant="default" size="sm" isLoading={isPending} className="font-bold bg-indigo-600 hover:bg-indigo-700 text-white">
+              <Button type="submit" variant="default" size="sm" isLoading={isPending} className="font-bold bg-primary-700 hover:bg-primary-800 text-white">
                 Save & Activate Plan
               </Button>
             </div>

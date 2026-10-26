@@ -146,7 +146,7 @@ export function TaxonomyManager({ tree, loadError }: Props) {
         <button
           type="button"
           onClick={() => setEditor({ mode: "create", parentId: null, parentType: null })}
-          className="px-3 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold inline-flex items-center gap-1.5 hover:bg-blue-700"
+          className="px-3 py-2 rounded-xl bg-primary-700 text-white text-xs font-bold inline-flex items-center gap-1.5 hover:bg-primary-800"
         >
           <Plus className="w-4 h-4" /> Add subject
         </button>
@@ -255,7 +255,7 @@ function NodeEditor({
         <button type="button" onClick={onCancel} className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700">
           Cancel
         </button>
-        <button type="submit" disabled={pending} className="px-3 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold disabled:opacity-50">
+        <button type="submit" disabled={pending} className="px-3 py-2 rounded-xl bg-primary-700 text-white text-xs font-bold disabled:opacity-50">
           {pending ? "Saving…" : editor.mode === "create" ? "Create" : "Save"}
         </button>
       </div>

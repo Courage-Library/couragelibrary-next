@@ -41,7 +41,7 @@ export function StartTestActionButton({
       className={`font-bold transition-all ${
         isResume
           ? "bg-primary-700 hover:bg-primary-800 text-white"
-          : "bg-blue-600 hover:bg-blue-700 text-white"
+          : "bg-primary-700 hover:bg-primary-800 text-white"
       } ${isLoading ? "opacity-90 cursor-not-allowed" : "cursor-pointer"} ${className}`}
     >
       {isLoading ? (

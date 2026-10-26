@@ -521,7 +521,7 @@ export function LiveTestPlayerClient({ session }: LiveTestPlayerClientProps) {
                     size="sm"
                     onClick={handleNext}
                     disabled={currentIndex === session.questions.length - 1}
-                    className="text-xs bg-indigo-600 hover:bg-indigo-500 text-white"
+                    className="text-xs bg-primary-700 hover:bg-primary-800 text-white"
                   >
                     Next
                     <ChevronRight className="w-4 h-4 ml-1" />

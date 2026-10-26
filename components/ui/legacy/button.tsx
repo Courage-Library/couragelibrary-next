@@ -9,7 +9,7 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantStyles: Record<ComponentVariant, string> = {
-  default: "bg-blue-600 text-white hover:bg-blue-700 shadow-sm active:scale-[0.98]",
+  default: "bg-primary-700 text-white hover:bg-primary-800 shadow-sm active:scale-[0.98]",
   primary: "bg-blue-700 text-white hover:bg-blue-800 shadow-md active:scale-[0.98]",
   secondary: "bg-slate-100 text-slate-900 hover:bg-slate-200 active:scale-[0.98]",
   outline: "border border-slate-300 bg-transparent hover:bg-slate-50 text-slate-800",

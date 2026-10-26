@@ -246,14 +246,14 @@ export function ExamOnboardingWizard({
                 disabled={!examId && step.num > 1}
                 className={`flex items-center gap-2 p-2 rounded-xl text-xs font-bold transition flex-1 justify-center select-none ${
                   isCurrent
-                    ? "bg-blue-600 text-white shadow-xs"
+                    ? "bg-primary-700 text-white shadow-xs"
                     : isDone
                     ? "bg-blue-50 text-blue-700 hover:bg-blue-100"
                     : "text-slate-400 cursor-not-allowed"
                 }`}
               >
                 <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-mono font-bold ${
-                  isCurrent ? "bg-white text-blue-600" : isDone ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-400"
+                  isCurrent ? "bg-white text-blue-600" : isDone ? "bg-primary-700 text-white" : "bg-slate-100 text-slate-400"
                 }`}>
                   {isDone ? <Check className="w-3.5 h-3.5" /> : step.num}
                 </div>

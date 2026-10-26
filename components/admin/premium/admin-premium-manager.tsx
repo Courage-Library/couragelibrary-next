@@ -697,7 +697,7 @@ export function AdminPremiumManager({
                 size="sm"
                 onClick={handleSaveMaintenanceMessage}
                 disabled={isPending || !globalReason.trim()}
-                className="font-bold bg-indigo-600 hover:bg-indigo-700 text-white"
+                className="font-bold bg-primary-700 hover:bg-primary-800 text-white"
               >
                 Save Maintenance Notice
               </Button>
@@ -902,7 +902,7 @@ export function AdminPremiumManager({
                 size="sm"
                 onClick={handleSavePolicy}
                 disabled={isPending || !policyReason.trim()}
-                className="font-bold bg-indigo-600 hover:bg-indigo-700 text-white"
+                className="font-bold bg-primary-700 hover:bg-primary-800 text-white"
               >
                 Save Generator Policy
               </Button>
@@ -954,7 +954,7 @@ export function AdminPremiumManager({
                     variant="default"
                     size="sm"
                     onClick={() => setShowGrantModal(true)}
-                    className="font-bold bg-indigo-600 hover:bg-indigo-700 text-white text-xs"
+                    className="font-bold bg-primary-700 hover:bg-primary-800 text-white text-xs"
                   >
                     Grant Promotional Pass
                   </Button>
@@ -1084,7 +1084,7 @@ export function AdminPremiumManager({
                     size="sm"
                     onClick={handleGrantPromotionalPass}
                     disabled={isPending || !grantReason.trim()}
-                    className="font-bold bg-indigo-600 hover:bg-indigo-700 text-white"
+                    className="font-bold bg-primary-700 hover:bg-primary-800 text-white"
                   >
                     Confirm Grant
                   </Button>
@@ -1145,7 +1145,7 @@ export function AdminPremiumManager({
                     size="sm"
                     onClick={handleSaveCustomLimits}
                     disabled={isPending || !quotaReason.trim()}
-                    className="font-bold bg-indigo-600 hover:bg-indigo-700 text-white"
+                    className="font-bold bg-primary-700 hover:bg-primary-800 text-white"
                   >
                     Save Quotas
                   </Button>

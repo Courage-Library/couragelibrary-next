@@ -209,7 +209,7 @@ export function AdaptiveAnalyticsView({ userEmail }: { userEmail: string }) {
                 key={t}
                 onClick={() => setTimeWindow(t)}
                 className={`px-2.5 py-1 rounded-md capitalize font-medium transition ${
-                  timeWindow === t ? "bg-blue-600 text-white font-semibold" : "text-slate-600 hover:text-slate-900"
+                  timeWindow === t ? "bg-primary-700 text-white font-semibold" : "text-slate-600 hover:text-slate-900"
                 }`}
               >
                 {t === "all" ? "All Time" : t}
@@ -241,7 +241,7 @@ export function AdaptiveAnalyticsView({ userEmail }: { userEmail: string }) {
           onClick={() => setSubTab("overview")}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition ${
             subTab === "overview"
-              ? "bg-blue-600 text-white font-semibold shadow-xs border border-blue-600"
+              ? "bg-primary-700 text-white font-semibold shadow-xs border border-blue-600"
               : "bg-white text-slate-700 border border-slate-200/80 hover:bg-blue-50/60 hover:text-blue-700 hover:border-blue-200 shadow-2xs"
           }`}
         >
@@ -251,7 +251,7 @@ export function AdaptiveAnalyticsView({ userEmail }: { userEmail: string }) {
           onClick={() => setSubTab("candidates")}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition ${
             subTab === "candidates"
-              ? "bg-blue-600 text-white font-semibold shadow-xs border border-blue-600"
+              ? "bg-primary-700 text-white font-semibold shadow-xs border border-blue-600"
               : "bg-white text-slate-700 border border-slate-200/80 hover:bg-blue-50/60 hover:text-blue-700 hover:border-blue-200 shadow-2xs"
           }`}
         >
@@ -261,7 +261,7 @@ export function AdaptiveAnalyticsView({ userEmail }: { userEmail: string }) {
           onClick={() => setSubTab("items")}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition ${
             subTab === "items"
-              ? "bg-blue-600 text-white font-semibold shadow-xs border border-blue-600"
+              ? "bg-primary-700 text-white font-semibold shadow-xs border border-blue-600"
               : "bg-white text-slate-700 border border-slate-200/80 hover:bg-blue-50/60 hover:text-blue-700 hover:border-blue-200 shadow-2xs"
           }`}
         >
@@ -271,7 +271,7 @@ export function AdaptiveAnalyticsView({ userEmail }: { userEmail: string }) {
           onClick={() => setSubTab("cat_ability")}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition ${
             subTab === "cat_ability"
-              ? "bg-blue-600 text-white font-semibold shadow-xs border border-blue-600"
+              ? "bg-primary-700 text-white font-semibold shadow-xs border border-blue-600"
               : "bg-white text-slate-700 border border-slate-200/80 hover:bg-blue-50/60 hover:text-blue-700 hover:border-blue-200 shadow-2xs"
           }`}
         >
@@ -281,7 +281,7 @@ export function AdaptiveAnalyticsView({ userEmail }: { userEmail: string }) {
           onClick={() => setSubTab("stopping_personalization")}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition ${
             subTab === "stopping_personalization"
-              ? "bg-blue-600 text-white font-semibold shadow-xs border border-blue-600"
+              ? "bg-primary-700 text-white font-semibold shadow-xs border border-blue-600"
               : "bg-white text-slate-700 border border-slate-200/80 hover:bg-blue-50/60 hover:text-blue-700 hover:border-blue-200 shadow-2xs"
           }`}
         >
@@ -291,7 +291,7 @@ export function AdaptiveAnalyticsView({ userEmail }: { userEmail: string }) {
           onClick={() => setSubTab("algorithms")}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition ${
             subTab === "algorithms"
-              ? "bg-blue-600 text-white font-semibold shadow-xs border border-blue-600"
+              ? "bg-primary-700 text-white font-semibold shadow-xs border border-blue-600"
               : "bg-white text-slate-700 border border-slate-200/80 hover:bg-blue-50/60 hover:text-blue-700 hover:border-blue-200 shadow-2xs"
           }`}
         >
@@ -301,7 +301,7 @@ export function AdaptiveAnalyticsView({ userEmail }: { userEmail: string }) {
           onClick={() => setSubTab("health_diagnostics")}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition ${
             subTab === "health_diagnostics"
-              ? "bg-blue-600 text-white font-semibold shadow-xs border border-blue-600"
+              ? "bg-primary-700 text-white font-semibold shadow-xs border border-blue-600"
               : "bg-white text-slate-700 border border-slate-200/80 hover:bg-blue-50/60 hover:text-blue-700 hover:border-blue-200 shadow-2xs"
           }`}
         >
@@ -644,7 +644,7 @@ export function AdaptiveAnalyticsView({ userEmail }: { userEmail: string }) {
               />
               <button
                 onClick={loadAnalytics}
-                className="px-3 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold"
+                className="px-3 py-1 rounded bg-primary-700 hover:bg-primary-800 text-white text-xs font-bold"
               >
                 Search
               </button>
@@ -949,7 +949,7 @@ export function AdaptiveAnalyticsView({ userEmail }: { userEmail: string }) {
               <button
                 onClick={handleInspectAttempt}
                 disabled={diagnosticsLoading}
-                className="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition flex items-center gap-1.5"
+                className="px-4 py-1.5 rounded-lg bg-primary-700 hover:bg-primary-800 text-white text-xs font-bold transition flex items-center gap-1.5"
               >
                 {diagnosticsLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Eye className="w-3.5 h-3.5" />}
                 Inspect Attempt

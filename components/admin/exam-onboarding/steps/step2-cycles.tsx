@@ -156,7 +156,7 @@ export function Step2Cycles({ initialCycle, onSave, onBack, isSaving }: Props) {
         <Button
           type="submit"
           disabled={isSaving}
-          className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-6 py-2.5 rounded-xl shadow-xs"
+          className="bg-primary-700 hover:bg-primary-800 text-white text-xs font-bold px-6 py-2.5 rounded-xl shadow-xs"
         >
           {isSaving ? "Saving..." : "Save & Continue to Step 3 →"}
         </Button>

@@ -95,7 +95,7 @@ export default async function InstitutesDirectoryPage() {
 
                 <div className="pt-4 border-t border-slate-100">
                   <Link href={`/institutes/${inst.slug}`}>
-                    <Button variant="default" size="sm" className="w-full bg-indigo-600 hover:bg-indigo-700 font-bold">
+                    <Button variant="default" size="sm" className="w-full bg-primary-700 hover:bg-primary-800 font-bold">
                       View Batches & Portal <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
                     </Button>
                   </Link>

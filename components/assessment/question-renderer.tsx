@@ -31,7 +31,7 @@ export function QuestionRenderer({
       {/* Header bar with Q number, section, PYQ and mark indicators */}
       <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100">
         <div className="flex items-center gap-2">
-          <span className="w-8 h-8 rounded-xl bg-blue-600 text-white font-black text-xs flex items-center justify-center shadow-xs">
+          <span className="w-8 h-8 rounded-xl bg-primary-700 text-white font-black text-xs flex items-center justify-center shadow-xs">
             Q{questionNumber}
           </span>
           {totalQuestions && (

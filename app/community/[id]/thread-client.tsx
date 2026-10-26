@@ -181,7 +181,7 @@ export function DiscussionThreadClient({ detail, coursesEnabled = false }: Discu
               </div>
               <div className="flex flex-wrap gap-2 pt-1">
                 <Link href={`/learn/topics/${topicId}`}>
-                  <Button size="sm" variant="default" className="bg-indigo-600 hover:bg-indigo-700 font-bold text-xs">
+                  <Button size="sm" variant="default" className="bg-primary-700 hover:bg-primary-800 font-bold text-xs">
                     Study this topic
                   </Button>
                 </Link>
@@ -254,7 +254,7 @@ export function DiscussionThreadClient({ detail, coursesEnabled = false }: Discu
                     onClick={() => handleVote(m)}
                     className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg font-mono text-xs font-bold transition-all ${
                       m.userHasVoted
-                        ? "bg-indigo-600 text-white shadow-xs"
+                        ? "bg-primary-700 text-white shadow-xs"
                         : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                     }`}
                   >
@@ -303,7 +303,7 @@ export function DiscussionThreadClient({ detail, coursesEnabled = false }: Discu
                 type="submit"
                 size="md"
                 variant="default"
-                className="bg-indigo-600 hover:bg-indigo-700 font-bold px-6 text-xs"
+                className="bg-primary-700 hover:bg-primary-800 font-bold px-6 text-xs"
                 isLoading={isSubmittingReply}
               >
                 <Send className="w-4 h-4 mr-2" /> Post Reply

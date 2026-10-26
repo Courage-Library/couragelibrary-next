@@ -818,7 +818,7 @@ Paste your questions below this line:`;
           onClick={() => setActiveTab("prompt")}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-xs transition select-none shadow-2xs ${
             activeTab === "prompt"
-              ? "bg-blue-600 text-white"
+              ? "bg-primary-700 text-white"
               : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 hover:text-slate-900"
           }`}
         >
@@ -829,7 +829,7 @@ Paste your questions below this line:`;
           onClick={() => setActiveTab("images")}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-xs transition select-none shadow-2xs ${
             activeTab === "images"
-              ? "bg-blue-600 text-white"
+              ? "bg-primary-700 text-white"
               : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 hover:text-slate-900"
           }`}
         >
@@ -840,7 +840,7 @@ Paste your questions below this line:`;
           onClick={() => setActiveTab("csv")}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-xs transition select-none shadow-2xs ${
             activeTab === "csv"
-              ? "bg-blue-600 text-white"
+              ? "bg-primary-700 text-white"
               : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 hover:text-slate-900"
           }`}
         >
@@ -856,7 +856,7 @@ Paste your questions below this line:`;
           {/* Config Left Column */}
           <Card className="lg:col-span-6 p-6 bg-white border-slate-200 space-y-5 shadow-xs">
             <h2 className="text-sm font-black text-slate-900 flex items-center gap-2">
-              <span className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-mono">
+              <span className="w-6 h-6 rounded-full bg-primary-700 text-white flex items-center justify-center text-xs font-mono">
                 1
               </span>{" "}
               Configure Your Question Set
@@ -1055,7 +1055,7 @@ Paste your questions below this line:`;
             {/* Generate Prompt Button */}
             <Button
               onClick={handleGeneratePrompt}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-3 rounded-xl shadow-xs"
+              className="w-full bg-primary-700 hover:bg-primary-800 text-white font-bold text-xs py-3 rounded-xl shadow-xs"
             >
               <Wand2 className="w-4 h-4 mr-2" /> Generate Prompt
             </Button>
@@ -1066,7 +1066,7 @@ Paste your questions below this line:`;
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-black text-slate-900 flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-mono">
+                  <span className="w-6 h-6 rounded-full bg-primary-700 text-white flex items-center justify-center text-xs font-mono">
                     2
                   </span>{" "}
                   Copy Prompt → Give to AI
@@ -1135,7 +1135,7 @@ Paste your questions below this line:`;
           {/* Upload Drop Zone Left Column */}
           <Card className="lg:col-span-6 p-6 bg-white border-slate-200 space-y-5 shadow-xs">
             <h2 className="text-sm font-black text-slate-900 flex items-center gap-2">
-              <span className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-mono">
+              <span className="w-6 h-6 rounded-full bg-primary-700 text-white flex items-center justify-center text-xs font-mono">
                 2
               </span>{" "}
               Upload Question / Option Images
@@ -1150,7 +1150,7 @@ Paste your questions below this line:`;
                   onClick={() => setUploadFolder("questions")}
                   className={`flex-1 py-2 rounded-xl border text-xs font-bold transition ${
                     uploadFolder === "questions"
-                      ? "border-indigo-600 bg-indigo-600 text-white"
+                      ? "border-indigo-600 bg-primary-700 text-white"
                       : "border-slate-200 text-slate-600 hover:bg-slate-50"
                   }`}
                 >
@@ -1161,7 +1161,7 @@ Paste your questions below this line:`;
                   onClick={() => setUploadFolder("options")}
                   className={`flex-1 py-2 rounded-xl border text-xs font-bold transition ${
                     uploadFolder === "options"
-                      ? "border-indigo-600 bg-indigo-600 text-white"
+                      ? "border-indigo-600 bg-primary-700 text-white"
                       : "border-slate-200 text-slate-600 hover:bg-slate-50"
                   }`}
                 >
@@ -1257,7 +1257,7 @@ Paste your questions below this line:`;
                 </div>
                 <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-indigo-600 transition-all duration-300"
+                    className="h-full bg-primary-700 transition-all duration-300"
                     style={{ width: `${uploadPct}%` }}
                   />
                 </div>
@@ -1353,7 +1353,7 @@ Paste your questions below this line:`;
           <Card className="p-6 bg-white border-slate-200 space-y-4 shadow-xs">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-black text-slate-900 flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-mono">
+                <span className="w-6 h-6 rounded-full bg-primary-700 text-white flex items-center justify-center text-xs font-mono">
                   3
                 </span>{" "}
                 Paste CSV from AI
@@ -1384,7 +1384,7 @@ Paste your questions below this line:`;
             <div className="flex items-center gap-3">
               <Button
                 onClick={handleValidateCsv}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-6 py-2.5 rounded-xl shadow-xs"
+                className="bg-primary-700 hover:bg-primary-800 text-white font-bold text-xs px-6 py-2.5 rounded-xl shadow-xs"
               >
                 <Check className="w-4 h-4 mr-1.5" /> Validate CSV
               </Button>

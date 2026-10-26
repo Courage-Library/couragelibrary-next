@@ -593,7 +593,7 @@ export function CurrentAffairsEditorDrawer({
           <button
             onClick={handleSave}
             disabled={isSaving || !headline.trim() || !summaryMd.trim()}
-            className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs disabled:opacity-40"
+            className="px-5 py-2 rounded-xl bg-primary-700 hover:bg-primary-800 text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs disabled:opacity-40"
           >
             <Save className="w-3.5 h-3.5" />
             <span>{isSaving ? 'Saving...' : isEditing ? 'Save Changes' : 'Create Draft'}</span>

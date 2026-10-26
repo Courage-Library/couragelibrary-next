@@ -80,5 +80,33 @@ test('CF-05 the freeze never deletes or resets existing coin data', () => {
   assert(!/DELETE FROM public\.(coin_ledger|coin_wallets|gamification_events)|TRUNCATE|current_balance\s*=\s*0/i.test(code), 'deletes / resets');
 });
 
+test('CF-06 BRAND-3 fix 1: with COINS_ENABLED off NO coin UI renders (balance, earned lines, wallet / store links)', () => {
+  // the flag reaches client components through ONE provider in the shell (default false = no coin UI)
+  const ctx = read('lib/coins/flag-context.tsx');
+  assert(/createContext\(false\)/.test(ctx), 'the client context defaults to no coin UI');
+  const shell = read('components/shell/app-shell.tsx');
+  assert(/<CoinsFlagProvider enabled=\{isCoinsEnabled\(\)\}>\{children\}<\/CoinsFlagProvider>/.test(shell) && /coins: isCoinsEnabled\(\),/.test(shell), 'shell provides the flag');
+  assert(/account\.coins \? ACCOUNT_MENU : ACCOUNT_MENU\.filter\(\(it\) => it\.href !== "\/wallet" && it\.href !== "\/store"\)/.test(read('components/shell/account-links.tsx')), 'wallet / store links hidden');
+  for (const f of ['app/wallet/page.tsx', 'app/store/page.tsx']) {
+    const s = read(f);
+    assert(/if \(!isCoinsEnabled\(\)\) return <CoinsPaused \/>;/.test(s) && s.indexOf('if (!isCoinsEnabled())') < s.indexOf('GamificationService.'), `${f}: paused before any coin data is read`);
+  }
+  // every coin-UI block (marked data-coin-ui) sits inside a flag check
+  const GUARDED = {
+    'app/dashboard/page.tsx': /\{isCoinsEnabled\(\) && \(/,
+    'components/assessment/result-view-client.tsx': /\{coinsEnabled && rewards && rewards\.totalCoinsEarned > 0 &&/,
+    'components/assessment/mock-test-dashboard-view.tsx': /\{coinsEnabled && \(\s*<Link\s*href="\/wallet"/,
+    'components/gamification/streak-recovery-modal.tsx': /\{coinsEnabled && \(\s*<Link\s*href="\/store"/,
+    'app/battles/[id]/arena-client.tsx': /\{coinsEnabled && \(/,
+    'components/flashcards/flashcard-completion.tsx': /\{coinsEnabled && \(/,
+    'components/mistakes/mistake-drill-result.tsx': /\{coinsEnabled && summary\.coins_awarded > 0 &&/,
+    'components/live-test/live-test-result-client.tsx': /\{coinsEnabled && data\.reward && data\.reward\.totalCoins > 0 &&/,
+    'app/performance/page.tsx': /\{isCoinsEnabled\(\) && evt\.coinsEarned !== undefined/,
+  };
+  for (const [f, rx] of Object.entries(GUARDED)) assert(rx.test(read(f)), `${f}: coin UI not behind the flag`);
+  assert(!/earn CL Coins|earn coin rewards/i.test(read('components/assessment/mock-test-dashboard-view.tsx') + read('app/battles/page.tsx')), 'coin promise copy');
+  return `${Object.keys(GUARDED).length} coin-UI sites gated; wallet / store paused; links hidden`;
+});
+
 console.log(`\nCOINS-FREEZE: ${passed}/${passed + failed} passed`);
 process.exit(failed ? 1 : 0);

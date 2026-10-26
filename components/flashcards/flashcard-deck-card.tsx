@@ -52,7 +52,7 @@ export function FlashcardDeckCard({ deck }: FlashcardDeckCardProps) {
           </div>
           <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
             <div
-              className="h-full bg-blue-600 rounded-full transition-all"
+              className="h-full bg-primary-700 rounded-full transition-all"
               style={{ width: `${Math.min(100, deck.masteryPercentage)}%` }}
             />
           </div>
@@ -66,7 +66,7 @@ export function FlashcardDeckCard({ deck }: FlashcardDeckCardProps) {
           </Button>
         </Link>
         <Link href={`/flashcards/${deck.id}/review`} className="w-1/2">
-          <Button variant="default" size="sm" className="w-full text-xs font-bold bg-blue-600 hover:bg-blue-700">
+          <Button variant="default" size="sm" className="w-full text-xs font-bold bg-primary-700 hover:bg-primary-800">
             Review Now
           </Button>
         </Link>

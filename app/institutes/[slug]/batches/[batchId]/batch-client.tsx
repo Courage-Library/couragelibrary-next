@@ -142,7 +142,7 @@ export function BatchDashboardClient({ batchDetail }: BatchDashboardClientProps)
                 isLoading={isEnrolling}
                 size="lg"
                 variant="default"
-                className="bg-indigo-600 hover:bg-indigo-700 font-bold text-xs"
+                className="bg-primary-700 hover:bg-primary-800 font-bold text-xs"
               >
                 {isFull ? "Batch Capacity Full" : "Enroll in Batch"}
               </Button>
@@ -186,7 +186,7 @@ export function BatchDashboardClient({ batchDetail }: BatchDashboardClientProps)
               onClick={() => setActiveTab("CURRICULUM")}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                 activeTab === "CURRICULUM"
-                  ? "bg-indigo-600 text-white shadow-xs"
+                  ? "bg-primary-700 text-white shadow-xs"
                   : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
               }`}
             >
@@ -198,7 +198,7 @@ export function BatchDashboardClient({ batchDetail }: BatchDashboardClientProps)
                 onClick={() => setActiveTab("ROSTER")}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                   activeTab === "ROSTER"
-                    ? "bg-indigo-600 text-white shadow-xs"
+                    ? "bg-primary-700 text-white shadow-xs"
                     : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
                 }`}
               >
@@ -265,7 +265,7 @@ export function BatchDashboardClient({ batchDetail }: BatchDashboardClientProps)
 
                   <div className="flex items-center justify-end pt-2 border-t border-slate-100">
                     <Link href={asgn.deepLinkUrl}>
-                      <Button size="sm" variant="default" className="bg-indigo-600 hover:bg-indigo-700 font-bold text-xs">
+                      <Button size="sm" variant="default" className="bg-primary-700 hover:bg-primary-800 font-bold text-xs">
                         {getCtaText(asgn.assignmentType)} <ArrowRight className="w-3.5 h-3.5 ml-1" />
                       </Button>
                     </Link>

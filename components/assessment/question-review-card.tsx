@@ -1,6 +1,6 @@
 import React from "react";
 import Link from "next/link";
-import { CheckCircle2, XCircle, HelpCircle, BookOpen, AlertTriangle } from "lucide-react";
+import { CheckCircle2, XCircle, HelpCircle, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AnswerKeyUnavailableNotice } from "@/components/questions/answer-key-notice";
 import { ReportQuestionButton } from "@/components/practice/report-question-button";
@@ -201,9 +201,10 @@ export function QuestionReviewCard({
             {!isCorrect && !isUnanswered && (
               <Link
                 href="/mistakes"
-                className="focus-ring inline-flex min-h-12 items-center gap-1 text-body-sm font-semibold text-danger-700 hover:underline"
+                className="focus-ring inline-flex min-h-12 items-center gap-1 text-body-sm font-semibold text-link hover:underline"
               >
-                <AlertTriangle aria-hidden="true" className="w-3.5 h-3.5" /> Review in Mistake Vault
+                {/* BRAND-3 fix 2 (R13): an ACTION link is blue; red is only the wrong-answer mark / tint */}
+                <BookOpen aria-hidden="true" className="w-3.5 h-3.5" /> Review in Mistake Vault
               </Link>
             )}
 

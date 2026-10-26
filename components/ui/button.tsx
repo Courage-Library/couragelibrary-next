@@ -8,7 +8,7 @@ export type ButtonSize = "sm" | "md" | "lg";
 
 const VARIANTS: Record<ButtonVariant, string> = {
   primary:
-    "bg-primary-600 text-fg-inverse hover:bg-primary-700 active:bg-primary-800 disabled:bg-ink-200 disabled:text-ink-600 aria-disabled:bg-ink-200 aria-disabled:text-ink-600",
+    "bg-brand text-fg-inverse hover:bg-brand-hover active:bg-primary-900 disabled:bg-ink-200 disabled:text-ink-600 aria-disabled:bg-ink-200 aria-disabled:text-ink-600",
   secondary:
     "border border-line-control bg-surface text-fg hover:bg-ink-50 active:bg-ink-100 disabled:border-ink-300 disabled:text-ink-600 aria-disabled:border-ink-300 aria-disabled:text-ink-600",
   ghost:

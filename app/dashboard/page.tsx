@@ -33,6 +33,7 @@ import {
 import { MEMORY_LOCK } from "@/content/memory-lock";
 import { isMemoryLockEnabled } from "@/lib/memory-lock/flag";
 import { isProEnabled } from "@/config/payments";
+import { isCoinsEnabled } from "@/lib/coins/flag";
 import { getProEndingSoon } from "@/lib/payments/pro-server";
 import { ProEndingBanner } from "@/components/payments/pro-ending-banner";
 
@@ -81,14 +82,19 @@ export default async function DashboardPage() {
               </div>
               <span className="text-caption text-hero-fg-muted font-medium">Day Streak</span>
             </div>
-            <div className="w-px h-8 bg-hero-fg-muted/30" />
-            <div className="text-center px-3">
-              <div className="flex items-center justify-center gap-1 text-hero-accent-text font-black text-xl">
-                <Coins className="w-5 h-5 fill-current" />
-                {data.wallet?.current_balance || 0}
-              </div>
-              <span className="text-caption text-hero-fg-muted font-medium">Coins</span>
-            </div>
+            {/* BRAND-3 fix 1: no coin balance while COINS_ENABLED is off (the streak stays) */}
+            {isCoinsEnabled() && (
+              <>
+                <div className="w-px h-8 bg-hero-fg-muted/30" />
+                <div className="text-center px-3" data-coin-ui="">
+                  <div className="flex items-center justify-center gap-1 text-hero-accent-text font-black text-xl">
+                    <Coins className="w-5 h-5 fill-current" />
+                    {data.wallet?.current_balance || 0}
+                  </div>
+                  <span className="text-caption text-hero-fg-muted font-medium">Coins</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -268,7 +274,7 @@ export default async function DashboardPage() {
                         </div>
                         <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-blue-600 rounded-full transition-all"
+                            className="h-full bg-primary-700 rounded-full transition-all"
                             style={{ width: `${Math.min(100, tm.mastery_percentage)}%` }}
                           />
                         </div>

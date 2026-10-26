@@ -1,4 +1,6 @@
 import { redirect } from "next/navigation";
+import { isCoinsEnabled } from "@/lib/coins/flag";
+import { CoinsPaused } from "@/components/coins/coins-paused";
 import { Metadata } from "next";
 import { GamificationService } from "@/services/gamification.service";
 import { StoreViewClient } from "@/components/store/store-view-client";
@@ -19,6 +21,8 @@ export default async function StorePage() {
   const session = await getServerSession();
   if (session.state === "error") return <SessionUnavailable />;
   if (session.state === "none") redirect(loginRedirectPath("/store"));
+  // BRAND-3 fix 1: coins paused → no balance, no catalogue (nothing is read)
+  if (!isCoinsEnabled()) return <CoinsPaused />;
   const user = session.user;
 
   const storeData = await GamificationService.getStoreData(user.id);

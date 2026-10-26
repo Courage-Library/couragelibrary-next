@@ -1,5 +1,6 @@
 "use client";
 
+import { useCoinsEnabled } from "@/lib/coins/flag-context";
 import React, { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/legacy/button";
@@ -28,6 +29,7 @@ interface MistakeDrillResultProps {
 }
 
 export function MistakeDrillResult({ result, onRestart }: MistakeDrillResultProps) {
+  const coinsEnabled = useCoinsEnabled();
   const [activeFilter, setActiveFilter] = useState<"ALL" | "CORRECT" | "INCORRECT">("ALL");
   const [expandedQuestions, setExpandedQuestions] = useState<Record<string, boolean>>({});
 
@@ -87,7 +89,7 @@ export function MistakeDrillResult({ result, onRestart }: MistakeDrillResultProp
               <Badge variant="indigo" className="text-xs px-2.5 py-0.5">
                 Drill Completed
               </Badge>
-              {summary.coins_awarded > 0 && (
+              {coinsEnabled && summary.coins_awarded > 0 && (
                 <Badge variant="outline" className="text-xs font-bold text-accent-700 bg-accent-50 border-accent-200 flex items-center gap-1">
                   <Coins className="w-3.5 h-3.5 text-accent-700 fill-accent-700" />
                   +{summary.coins_awarded} Coins
@@ -156,7 +158,7 @@ export function MistakeDrillResult({ result, onRestart }: MistakeDrillResultProp
           <Button
             size="sm"
             onClick={onRestart}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-xs flex items-center gap-1.5"
+            className="bg-primary-700 hover:bg-primary-800 text-white font-bold shadow-xs flex items-center gap-1.5"
           >
             <RotateCcw className="w-4 h-4" /> Start Another Drill
           </Button>
@@ -193,7 +195,7 @@ export function MistakeDrillResult({ result, onRestart }: MistakeDrillResultProp
               type="button"
               onClick={() => setActiveFilter("INCORRECT")}
               className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                activeFilter === "INCORRECT" ? "bg-white text-rose-700 shadow-xs" : "text-slate-600 hover:text-rose-700"
+                activeFilter === "INCORRECT" ? "bg-white text-primary-700 shadow-xs" : "text-slate-600 hover:text-primary-700"
               }`}
             >
               Incorrect ({summary.total_questions - summary.correct_count})

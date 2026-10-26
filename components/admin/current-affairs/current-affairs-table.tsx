@@ -264,7 +264,7 @@ export function CurrentAffairsTable({
                           </button>
                           <button
                             onClick={() => onReview(item)}
-                            className="px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1 transition-colors shadow-xs"
+                            className="px-2.5 py-1.5 rounded-lg bg-primary-700 hover:bg-primary-800 text-white text-xs font-bold flex items-center gap-1 transition-colors shadow-xs"
                             title="Open Review Workbench"
                           >
                             <Clock className="w-3.5 h-3.5" />

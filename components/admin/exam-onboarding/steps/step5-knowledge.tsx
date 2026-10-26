@@ -33,7 +33,7 @@ export function Step5Knowledge({ examId, cycleId, modules, onContinue, onBack }:
         <Link
           href={`/admin/exam-knowledge?examId=${examId}${cycleId ? `&cycleId=${cycleId}` : ''}`}
           target="_blank"
-          className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-xs transition"
+          className="bg-primary-700 hover:bg-primary-800 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-xs transition"
         >
           <ExternalLink className="w-3.5 h-3.5" /> Open Exam Knowledge Studio
         </Link>
@@ -42,7 +42,7 @@ export function Step5Knowledge({ examId, cycleId, modules, onContinue, onBack }:
       {/* Progress Pill Card */}
       <Card className="p-4 bg-blue-50/50 border border-blue-100 rounded-2xl flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-sm font-mono">
+          <div className="w-10 h-10 rounded-xl bg-primary-700 text-white flex items-center justify-center font-bold text-sm font-mono">
             {publishedCount}/{modules.length}
           </div>
           <div>
@@ -117,7 +117,7 @@ export function Step5Knowledge({ examId, cycleId, modules, onContinue, onBack }:
         <Button
           type="button"
           onClick={onContinue}
-          className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-6 py-2.5 rounded-xl shadow-xs"
+          className="bg-primary-700 hover:bg-primary-800 text-white text-xs font-bold px-6 py-2.5 rounded-xl shadow-xs"
         >
           Continue to Step 6 (Readiness Gate) →
         </Button>

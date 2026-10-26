@@ -196,7 +196,9 @@ function fullPage(cta, statuses) {
     assert(/data-coming-soon-hub/.test(out) && /Coming soon/.test(t) && /At a glance/.test(t) && /Not published yet/.test(t), 'skeleton');
     assert(/Mock tests for this exam are coming soon/.test(t) && /syllabus for this exam is coming soon/.test(t) && /Exam guides for this exam are coming soon/.test(t), 'honest coming-soon sections');
     assert(!/\d/.test(t), 'digits rendered');
-    assert(amber(out) === 0 && !/\/auth\/(signup|login)/.test(out) && !/notify/i.test(t), 'start / notify action present');
+    // BRAND-3: every primary is blue now — the rule is NO start / sign-up / notify action and at most ONE primary (R4);
+    // the one allowed primary is "Explore SSC CGL" (an available exam), never a start action for this exam
+    assert(amber(out) <= 1 && !/\/auth\/(signup|login)/.test(out) && !/notify/i.test(t) && !/\/take\b|\/practice\/session/.test(out), 'start / notify action present');
     return 'skeleton ok';
   });
 

@@ -71,7 +71,7 @@ export function QuestionOptions({ options, optionsType = "text", selectedOption,
               >
                 <span
                   aria-hidden="true"
-                  className={cn("mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold", isSelected ? "bg-primary-600 text-fg-inverse" : "bg-ink-100 text-fg")}
+                  className={cn("mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold", isSelected ? "bg-primary-700 text-fg-inverse" : "bg-ink-100 text-fg")}
                 >
                   {option.key}
                 </span>

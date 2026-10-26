@@ -232,7 +232,7 @@ export function RedemptionDetailModal({
             type="button"
             onClick={handleUpdate}
             disabled={isSubmitting}
-            className="px-5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm transition-all disabled:opacity-50 inline-flex items-center gap-1.5"
+            className="px-5 py-2 text-xs font-bold text-white bg-primary-700 hover:bg-primary-800 rounded-xl shadow-sm transition-all disabled:opacity-50 inline-flex items-center gap-1.5"
           >
             {isSubmitting ? "Updating..." : "Save Fulfillment Status"}
           </button>

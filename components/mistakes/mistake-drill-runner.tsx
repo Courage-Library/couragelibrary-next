@@ -188,7 +188,7 @@ export function MistakeDrillRunner({
       {/* Progress Bar */}
       <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
         <div
-          className="bg-blue-600 h-full transition-all duration-300 ease-out"
+          className="bg-primary-700 h-full transition-all duration-300 ease-out"
           style={{ width: `${Math.max(5, progressPct)}%` }}
         />
       </div>
@@ -260,7 +260,7 @@ export function MistakeDrillRunner({
                 <div
                   className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-colors ${
                     isSelected
-                      ? "bg-blue-600 text-white"
+                      ? "bg-primary-700 text-white"
                       : "bg-white border border-slate-300 text-slate-700"
                   }`}
                 >
@@ -306,7 +306,7 @@ export function MistakeDrillRunner({
                   }}
                   className={`w-7 h-7 rounded-lg text-xs font-bold transition-all ${
                     isCurrent
-                      ? "bg-blue-600 text-white ring-2 ring-blue-600/30"
+                      ? "bg-primary-700 text-white ring-2 ring-blue-600/30"
                       : isAnswered
                       ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
                       : "bg-slate-100 text-slate-500 hover:bg-slate-200"
@@ -367,7 +367,7 @@ export function MistakeDrillRunner({
               <Button
                 size="sm"
                 onClick={handleSubmit}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs"
+                className="bg-primary-700 hover:bg-primary-800 text-white font-bold text-xs rounded-xl shadow-xs"
               >
                 Confirm Submit
               </Button>

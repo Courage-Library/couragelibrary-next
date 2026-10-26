@@ -201,5 +201,16 @@ test('U-6 English only: the Bulk Import Studio has no Hindi generation option (d
   assert(/const language = "english";/.test(s), 'language must be fixed to english');
 });
 
+test('U-7 nothing under the mobile tab bar (BRAND-3 fix 4): spacer = bar height + safe area; toasts and the player clear it', () => {
+  const nav = read('components/shell/bottom-nav.tsx');
+  // bar: h-16 (4rem) list + 1px top border + safe-area padding; the in-flow spacer is exactly that, below every page
+  assert(/className="mx-auto grid h-16 /.test(nav) && /border-t border-line bg-surface pb-\[env\(safe-area-inset-bottom\)\]/.test(nav), 'bar height changed — update the spacer');
+  assert(/<div aria-hidden="true" className="h-\[calc\(4rem\+1px\+env\(safe-area-inset-bottom\)\)\] lg:hidden" \/>/.test(nav), 'spacer ≠ bar height + safe area');
+  const shell = read('components/shell/app-shell.tsx');
+  assert(shell.indexOf('<SiteFooter') < shell.indexOf('<BottomNav'), 'the spacer must follow the footer (page content + footer end above the bar)');
+  assert(/bottom-\[calc\(4rem\+1px\+env\(safe-area-inset-bottom\)\+1rem\)\][^"]*lg:bottom-4/.test(read('components/ui/toast.tsx')), 'toasts sit under the tab bar on phones');
+  assert(/pb-\[calc\(10rem\+env\(safe-area-inset-bottom\)\)\] md:pb-6/.test(read('app/mock-tests/[id]/take/player-client.tsx')), 'player content does not clear its own action bar + safe area');
+});
+
 console.log(`\nUX-1b shell: ${passed}/${passed + failed} passed`);
 process.exit(failed ? 1 : 0);

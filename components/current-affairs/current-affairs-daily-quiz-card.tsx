@@ -55,7 +55,7 @@ export const CurrentAffairsDailyQuizCard: React.FC<CurrentAffairsDailyQuizCardPr
       </div>
       <Link
         href={quizTargetHref}
-        className="focus-ring inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-control bg-primary-600 px-5 text-body font-semibold text-fg-inverse hover:bg-primary-700"
+        className="focus-ring inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-control bg-primary-700 px-5 text-body font-semibold text-fg-inverse hover:bg-primary-800"
       >
         Start today&apos;s quiz
         <ArrowRight aria-hidden="true" className="size-4" />

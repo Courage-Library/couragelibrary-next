@@ -290,7 +290,7 @@ export function AdminMockTestsManager({
                 type="submit"
                 variant="default"
                 disabled={isCreating}
-                className="w-full font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-2xs flex items-center justify-center gap-2 py-2.5 rounded-xl transition"
+                className="w-full font-semibold bg-primary-700 hover:bg-primary-800 text-white shadow-2xs flex items-center justify-center gap-2 py-2.5 rounded-xl transition"
               >
                 <PlusCircle className="w-4 h-4" />
                 {isCreating ? "Creating Mock Test..." : "Create Mock Test"}

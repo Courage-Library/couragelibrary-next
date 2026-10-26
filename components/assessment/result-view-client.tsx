@@ -1,5 +1,6 @@
 "use client";
 
+import { useCoinsEnabled } from "@/lib/coins/flag-context";
 import React, { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, ChevronDown, ChevronUp } from "lucide-react";
@@ -24,6 +25,7 @@ const PAGE = 5;
 export function ResultViewClient({ data }: { data: TestResultSummary }) {
   const { result, test, standing, security, sections, reviewQuestions, analysis, rewards } = data;
   const [filter, setFilter] = useState<ReviewFilter>("all");
+  const coinsEnabled = useCoinsEnabled();
   const [section, setSection] = useState<string>("all");
   const [expanded, setExpanded] = useState(false);
   const reviewRef = useRef<HTMLElement>(null);
@@ -95,7 +97,8 @@ export function ResultViewClient({ data }: { data: TestResultSummary }) {
                 </div>
               ))}
             </dl>
-            {rewards && rewards.totalCoinsEarned > 0 && <p className="text-body-sm text-fg-secondary">CL Coins earned for this test: +{rewards.totalCoinsEarned}</p>}
+            {/* BRAND-3 fix 1: no coin line while COINS_ENABLED is off */}
+            {coinsEnabled && rewards && rewards.totalCoinsEarned > 0 && <p className="text-body-sm text-fg-secondary" data-coin-ui="">CL Coins earned for this test: +{rewards.totalCoinsEarned}</p>}
           </div>
         </section>
 
@@ -138,7 +141,7 @@ export function ResultViewClient({ data }: { data: TestResultSummary }) {
                       </span>
                     </div>
                     <div aria-hidden="true" className="h-3 w-full overflow-hidden rounded-full bg-ink-100">
-                      <div className="h-full rounded-full bg-primary-600" style={{ width: `${pct}%` }} />
+                      <div className="h-full rounded-full bg-primary-700" style={{ width: `${pct}%` }} />
                     </div>
                     <p className="text-body-sm text-fg-secondary tabular-nums">
                       Accuracy {formatPercent(s.accuracyPercentage)} · {s.correctCount} correct, {s.incorrectCount} wrong, {s.unansweredCount} skipped
@@ -181,7 +184,7 @@ export function ResultViewClient({ data }: { data: TestResultSummary }) {
                           {fmtMarks(p.score)} / {fmtMarks(p.maxScore)} ({formatPercent(p.scorePct)})
                         </span>
                         <span aria-hidden="true" className="mt-1 block h-1.5 w-full max-w-32 overflow-hidden rounded-full bg-ink-100">
-                          <span className="block h-full rounded-full bg-primary-600" style={{ width: `${Math.min(100, Math.max(0, p.scorePct))}%` }} />
+                          <span className="block h-full rounded-full bg-primary-700" style={{ width: `${Math.min(100, Math.max(0, p.scorePct))}%` }} />
                         </span>
                       </td>
                       <td className="py-2 tabular-nums text-fg">{formatPercent(p.accuracy)}</td>

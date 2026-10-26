@@ -25,7 +25,7 @@ export function CurrentAffairsHeader({
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-5 border-b border-slate-200">
       <div className="space-y-1">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs">
+          <div className="w-9 h-9 rounded-xl bg-primary-700 text-white flex items-center justify-center shadow-xs">
             <Newspaper className="w-5 h-5" />
           </div>
           <div>
@@ -81,7 +81,7 @@ export function CurrentAffairsHeader({
 
         <button
           onClick={onOpenCreate}
-          className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs"
+          className="px-3.5 py-2 rounded-xl bg-primary-700 hover:bg-primary-800 text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs"
         >
           <Plus className="w-4 h-4" />
           <span>New Current Affair</span>

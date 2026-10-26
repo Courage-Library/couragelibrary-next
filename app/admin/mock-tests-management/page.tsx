@@ -162,7 +162,7 @@ export default async function AdminMockTestsManagementPage() {
             </Button>
           </Link>
           <Link href="/admin/bulk-import">
-            <Button variant="default" size="sm" className="text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white">
+            <Button variant="default" size="sm" className="text-xs font-bold bg-primary-700 hover:bg-primary-800 text-white">
               <FileUp className="w-3.5 h-3.5 mr-1" /> Bulk Import
             </Button>
           </Link>

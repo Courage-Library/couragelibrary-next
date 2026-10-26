@@ -1,5 +1,6 @@
 "use client";
 
+import { useCoinsEnabled } from "@/lib/coins/flag-context";
 import React, { useState } from "react";
 import Link from "next/link";
 import { StreakRecoveryEligibility, StreakRecoveryResult } from "@/services/gamification.service";
@@ -18,6 +19,7 @@ export function StreakRecoveryModal({
   onSuccess,
 }: StreakRecoveryModalProps) {
   const [step, setStep] = useState<"REVIEW" | "CONFIRM" | "SUCCESS">("REVIEW");
+  const coinsEnabled = useCoinsEnabled();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successResult, setSuccessResult] = useState<StreakRecoveryResult | null>(null);
@@ -168,13 +170,16 @@ export function StreakRecoveryModal({
                   <div className="p-3 bg-accent-50 border border-accent-200 rounded-xl text-xs font-medium text-accent-900">
                     You have 0 / 2 Streak Freeze Shields available.
                   </div>
+                  {coinsEnabled && (
                   <Link
                     href="/store"
+                    data-coin-ui=""
                     onClick={handleClose}
                     className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold text-accent-800 bg-accent-100/80 hover:bg-accent-200/80 transition-colors"
                   >
                     <span>Get a Streak Freeze in Store</span>
                   </Link>
+                  )}
                 </div>
               )}
             </div>
@@ -215,7 +220,7 @@ export function StreakRecoveryModal({
                   type="button"
                   onClick={handleExecuteRecovery}
                   disabled={isSubmitting}
-                  className="inline-flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-all shadow-xs disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-white bg-primary-700 hover:bg-primary-800 rounded-xl transition-all shadow-xs disabled:opacity-50"
                 >
                   {isSubmitting ? (
                     <>

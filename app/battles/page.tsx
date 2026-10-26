@@ -27,7 +27,7 @@ export default async function BattlesLobbyPage() {
               1v1 Live Quiz Arena
             </h1>
             <p className="text-purple-100 text-sm max-w-xl">
-              Challenge peers in real-time speed & accuracy duels. Gain ELO rank, climb global leaderboards, and earn coin rewards.
+              Challenge peers in real-time speed & accuracy duels. Gain ELO rank and climb global leaderboards.
             </p>
           </div>
 

@@ -100,7 +100,7 @@ export function AiPromptModal({
             <Button
               size="sm"
               onClick={handleCopy}
-              className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl flex items-center gap-2 shadow-xs"
+              className="bg-primary-700 hover:bg-primary-800 text-white text-xs font-bold rounded-xl flex items-center gap-2 shadow-xs"
             >
               {copied ? (
                 <>

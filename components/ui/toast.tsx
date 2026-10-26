@@ -89,7 +89,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={{ show }}>
       {children}
-      <div className="pointer-events-none fixed inset-x-4 bottom-4 z-70 flex flex-col gap-2 md:left-auto md:right-4 md:w-96">
+      {/* BRAND-3 fix 4: below lg the student tab bar (4rem + 1px + safe area) owns the bottom edge — toasts sit above it */}
+      <div className="pointer-events-none fixed inset-x-4 bottom-[calc(4rem+1px+env(safe-area-inset-bottom)+1rem)] z-70 flex flex-col gap-2 md:left-auto md:right-4 md:w-96 lg:bottom-4">
         <div role="alert" aria-live="assertive" className="flex flex-col gap-2">
           {assertive.map((t) => (
             <ToastCard key={t.id} toast={t} onDismiss={dismiss} />

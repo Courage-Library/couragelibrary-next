@@ -1130,7 +1130,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
               type="button"
               size="lg"
               onClick={handleStartExamWithFullscreen}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-sm rounded-xl shadow-md cursor-pointer"
+              className="w-full bg-primary-700 hover:bg-primary-800 text-white font-extrabold text-sm rounded-xl shadow-md cursor-pointer"
             >
               Enter Fullscreen &amp; Begin Test <ArrowRight className="w-4 h-4 ml-1.5" />
             </Button>
@@ -1292,7 +1292,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
       {/* EXAM WORKSPACE BODY                                                       */}
       {/* ========================================================================= */}
       <div className="flex-1 flex overflow-hidden z-10">
-        <main className="relative flex-1 bg-surface p-4 sm:p-7 overflow-y-auto flex flex-col justify-between pb-40 md:pb-6">
+        <main className="relative flex-1 bg-surface p-4 sm:p-7 overflow-y-auto flex flex-col justify-between pb-[calc(10rem+env(safe-area-inset-bottom))] md:pb-6">
           <CandidateSecurityWatermark
             examTitle={session.testTitle}
             maskedCandidateId={`CL••••${session.attemptId.slice(0, 4).toUpperCase()}`}

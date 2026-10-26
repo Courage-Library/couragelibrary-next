@@ -29,7 +29,7 @@ export default function CheckoutCancelPage() {
 
           <div className="flex flex-col gap-2 pt-2">
             <Link href="/pricing">
-              <Button size="lg" variant="default" className="w-full bg-indigo-600 hover:bg-indigo-700 font-bold text-xs">
+              <Button size="lg" variant="default" className="w-full bg-primary-700 hover:bg-primary-800 font-bold text-xs">
                 <RefreshCw className="w-4 h-4 mr-1.5" /> Try Purchasing PRO Again
               </Button>
             </Link>

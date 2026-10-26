@@ -591,7 +591,7 @@ export function AdminAdaptiveManager({
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white border border-slate-200/80 rounded-xl shadow-xs p-5 shadow-xs">
         <div>
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-lg bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
+            <div className="w-9 h-9 rounded-lg bg-primary-700/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
               <Cpu className="w-5 h-5" />
             </div>
             <div>
@@ -679,7 +679,7 @@ export function AdminAdaptiveManager({
             onClick={() => setActiveTab("overview")}
             className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium transition-all text-center leading-tight min-h-[42px] ${
               activeTab === "overview"
-                ? "bg-blue-600 text-white font-semibold shadow-xs border border-blue-600"
+                ? "bg-primary-700 text-white font-semibold shadow-xs border border-blue-600"
                 : "bg-white text-slate-700 border border-slate-200/80 hover:bg-blue-50/60 hover:text-blue-700 hover:border-blue-200 shadow-2xs"
             }`}
           >
@@ -690,7 +690,7 @@ export function AdminAdaptiveManager({
             onClick={() => setActiveTab("analytics")}
             className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium transition-all text-center leading-tight min-h-[42px] ${
               activeTab === "analytics"
-                ? "bg-blue-600 text-white font-semibold shadow-xs border border-blue-600"
+                ? "bg-primary-700 text-white font-semibold shadow-xs border border-blue-600"
                 : "bg-white text-slate-700 border border-slate-200/80 hover:bg-blue-50/60 hover:text-blue-700 hover:border-blue-200 shadow-2xs"
             }`}
           >
@@ -701,7 +701,7 @@ export function AdminAdaptiveManager({
             onClick={() => setActiveTab("versions")}
             className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium transition-all text-center leading-tight min-h-[42px] ${
               activeTab === "versions"
-                ? "bg-blue-600 text-white font-semibold shadow-xs border border-blue-600"
+                ? "bg-primary-700 text-white font-semibold shadow-xs border border-blue-600"
                 : "bg-white text-slate-700 border border-slate-200/80 hover:bg-blue-50/60 hover:text-blue-700 hover:border-blue-200 shadow-2xs"
             }`}
           >
@@ -712,7 +712,7 @@ export function AdminAdaptiveManager({
             onClick={() => setActiveTab("blueprints")}
             className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium transition-all text-center leading-tight min-h-[42px] ${
               activeTab === "blueprints"
-                ? "bg-blue-600 text-white font-semibold shadow-xs border border-blue-600"
+                ? "bg-primary-700 text-white font-semibold shadow-xs border border-blue-600"
                 : "bg-white text-slate-700 border border-slate-200/80 hover:bg-blue-50/60 hover:text-blue-700 hover:border-blue-200 shadow-2xs"
             }`}
           >
@@ -723,7 +723,7 @@ export function AdminAdaptiveManager({
             onClick={() => setActiveTab("calibration")}
             className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium transition-all text-center leading-tight min-h-[42px] ${
               activeTab === "calibration"
-                ? "bg-blue-600 text-white font-semibold shadow-xs border border-blue-600"
+                ? "bg-primary-700 text-white font-semibold shadow-xs border border-blue-600"
                 : "bg-white text-slate-700 border border-slate-200/80 hover:bg-blue-50/60 hover:text-blue-700 hover:border-blue-200 shadow-2xs"
             }`}
           >
@@ -738,7 +738,7 @@ export function AdminAdaptiveManager({
             onClick={() => setActiveTab("ability")}
             className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium transition-all text-center leading-tight min-h-[42px] ${
               activeTab === "ability"
-                ? "bg-blue-600 text-white font-semibold shadow-xs border border-blue-600"
+                ? "bg-primary-700 text-white font-semibold shadow-xs border border-blue-600"
                 : "bg-white text-slate-700 border border-slate-200/80 hover:bg-blue-50/60 hover:text-blue-700 hover:border-blue-200 shadow-2xs"
             }`}
           >
@@ -754,7 +754,7 @@ export function AdminAdaptiveManager({
             }}
             className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium transition-all text-center leading-tight min-h-[42px] ${
               activeTab === "cat"
-                ? "bg-blue-600 text-white font-semibold shadow-xs border border-blue-600"
+                ? "bg-primary-700 text-white font-semibold shadow-xs border border-blue-600"
                 : "bg-white text-slate-700 border border-slate-200/80 hover:bg-blue-50/60 hover:text-blue-700 hover:border-blue-200 shadow-2xs"
             }`}
           >
@@ -765,7 +765,7 @@ export function AdminAdaptiveManager({
             onClick={() => setActiveTab("stopping")}
             className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium transition-all text-center leading-tight min-h-[42px] ${
               activeTab === "stopping"
-                ? "bg-blue-600 text-white font-semibold shadow-xs border border-blue-600"
+                ? "bg-primary-700 text-white font-semibold shadow-xs border border-blue-600"
                 : "bg-white text-slate-700 border border-slate-200/80 hover:bg-blue-50/60 hover:text-blue-700 hover:border-blue-200 shadow-2xs"
             }`}
           >
@@ -776,7 +776,7 @@ export function AdminAdaptiveManager({
             onClick={() => setActiveTab("personalization")}
             className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium transition-all text-center leading-tight min-h-[42px] ${
               activeTab === "personalization"
-                ? "bg-blue-600 text-white font-semibold shadow-xs border border-blue-600"
+                ? "bg-primary-700 text-white font-semibold shadow-xs border border-blue-600"
                 : "bg-white text-slate-700 border border-slate-200/80 hover:bg-blue-50/60 hover:text-blue-700 hover:border-blue-200 shadow-2xs"
             }`}
           >
@@ -787,7 +787,7 @@ export function AdminAdaptiveManager({
             onClick={() => setActiveTab("safety")}
             className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium transition-all text-center leading-tight min-h-[42px] ${
               activeTab === "safety"
-                ? "bg-blue-600 text-white font-semibold shadow-xs border border-blue-600"
+                ? "bg-primary-700 text-white font-semibold shadow-xs border border-blue-600"
                 : "bg-white text-slate-700 border border-slate-200/80 hover:bg-blue-50/60 hover:text-blue-700 hover:border-blue-200 shadow-2xs"
             }`}
           >
@@ -798,7 +798,7 @@ export function AdminAdaptiveManager({
             onClick={() => setActiveTab("audit")}
             className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium transition-all text-center leading-tight min-h-[42px] ${
               activeTab === "audit"
-                ? "bg-blue-600 text-white font-semibold shadow-xs border border-blue-600"
+                ? "bg-primary-700 text-white font-semibold shadow-xs border border-blue-600"
                 : "bg-white text-slate-700 border border-slate-200/80 hover:bg-blue-50/60 hover:text-blue-700 hover:border-blue-200 shadow-2xs"
             }`}
           >
@@ -892,7 +892,7 @@ export function AdminAdaptiveManager({
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
                     globalStatus.is_adaptive_enabled
                       ? "bg-white hover:bg-slate-50 text-slate-700 border border-slate-200"
-                      : "bg-blue-600 hover:bg-blue-700 text-white"
+                      : "bg-primary-700 hover:bg-primary-800 text-white"
                   }`}
                 >
                   {globalStatus.is_adaptive_enabled ? "Pause Engine" : "Activate Engine"}
@@ -955,7 +955,7 @@ export function AdminAdaptiveManager({
             </div>
             <button
               onClick={() => setShowCreateVersionModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-700 hover:bg-primary-800 text-white text-xs font-bold shadow-xs transition"
             >
               <Plus className="w-3.5 h-3.5" /> Register Algorithm Version
             </button>
@@ -1115,7 +1115,7 @@ export function AdminAdaptiveManager({
               <button
                 onClick={() => handleRecalibrateBatch(filteredCalibrations)}
                 disabled={isPending || filteredCalibrations.length === 0}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-700 hover:bg-primary-800 text-white text-xs font-bold shadow-xs transition"
               >
                 <RefreshCw className="w-3.5 h-3.5" /> Recalibrate Filtered ({Math.min(50, filteredCalibrations.length)})
               </button>
@@ -1256,7 +1256,7 @@ export function AdminAdaptiveManager({
                 setEstimatorForm(estimatorConfig);
                 setIsEditingEstimator(true);
               }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-700 hover:bg-primary-800 text-white text-xs font-semibold shadow-xs transition cursor-pointer"
             >
               <Sliders className="w-3.5 h-3.5" /> Configure Ability Estimator
             </button>
@@ -2576,7 +2576,7 @@ export function AdminAdaptiveManager({
                 <button
                   type="submit"
                   disabled={isPending}
-                  className="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold cursor-pointer"
+                  className="px-4 py-1.5 rounded-lg bg-primary-700 hover:bg-primary-800 text-white font-semibold cursor-pointer"
                 >
                   Save Configuration
                 </button>
@@ -2716,7 +2716,7 @@ export function AdminAdaptiveManager({
                 <button
                   onClick={() => handleRecalibrateSingle(selectedItemDetail.question_version_id)}
                   disabled={isPending}
-                  className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold inline-flex items-center gap-1.5"
+                  className="px-3 py-1.5 rounded-lg bg-primary-700 hover:bg-primary-800 text-white text-xs font-bold inline-flex items-center gap-1.5"
                 >
                   <RefreshCw className="w-3.5 h-3.5" /> Recalibrate Now
                 </button>
@@ -2754,7 +2754,7 @@ export function AdminAdaptiveManager({
               <button
                 onClick={handleExecuteStatusChange}
                 disabled={isPending || statusModal.reason.trim().length < 5}
-                className="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-slate-900 text-xs font-bold"
+                className="px-4 py-1.5 rounded-lg bg-primary-700 hover:bg-primary-800 disabled:opacity-50 text-slate-900 text-xs font-bold"
               >
                 Confirm Status Change
               </button>
@@ -2872,7 +2872,7 @@ export function AdminAdaptiveManager({
               <button
                 type="submit"
                 disabled={isPending}
-                className="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold"
+                className="px-4 py-1.5 rounded-lg bg-primary-700 hover:bg-primary-800 text-white text-xs font-bold"
               >
                 Register Version
               </button>

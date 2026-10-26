@@ -120,7 +120,7 @@ export function LandingLoop() {
                 <div className="flex items-center gap-2">
                   <span
                     aria-hidden="true"
-                    className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-600 text-body-sm font-semibold text-fg-inverse"
+                    className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-700 text-body-sm font-semibold text-fg-inverse"
                   >
                     {i + 1}
                   </span>

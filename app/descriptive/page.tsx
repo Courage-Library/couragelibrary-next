@@ -66,7 +66,7 @@ export default async function DescriptiveLibraryPage({ searchParams }: Props) {
               href={`/descriptive?difficulty=${tab.val}`}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
                 difficulty === tab.val
-                  ? "bg-blue-600 text-white shadow-xs"
+                  ? "bg-primary-700 text-white shadow-xs"
                   : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
               }`}
             >
@@ -153,7 +153,7 @@ export default async function DescriptiveLibraryPage({ searchParams }: Props) {
                     </Button>
                   </Link>
                   <Link href={`/descriptive/${q.slug}/write`} className="w-1/2">
-                    <Button variant="default" size="sm" className="w-full text-xs font-bold bg-blue-600 hover:bg-blue-700">
+                    <Button variant="default" size="sm" className="w-full text-xs font-bold bg-primary-700 hover:bg-primary-800">
                       Write Answer
                     </Button>
                   </Link>

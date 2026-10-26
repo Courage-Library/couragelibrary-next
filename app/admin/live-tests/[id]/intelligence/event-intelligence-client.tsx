@@ -370,7 +370,7 @@ export default function AdminEventCompetitionIntelligenceDeepDivePage() {
                       <span className="w-24 text-slate-600 font-mono">{band.label} Marks</span>
                       <div className="flex-1 bg-slate-100 h-5 rounded overflow-hidden border border-slate-200 flex">
                         <div
-                          className="bg-indigo-600 h-full rounded transition-all duration-500"
+                          className="bg-primary-700 h-full rounded transition-all duration-500"
                           style={{ width: `${Math.max(1, band.percentage)}%` }}
                         ></div>
                       </div>

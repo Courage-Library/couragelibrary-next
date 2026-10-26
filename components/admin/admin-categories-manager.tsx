@@ -149,7 +149,7 @@ export function AdminCategoriesManager({ categories }: Props) {
                 type="submit"
                 variant="default"
                 disabled={isCreating}
-                className="w-full font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-sm flex items-center justify-center gap-2"
+                className="w-full font-bold bg-primary-700 hover:bg-primary-800 text-white shadow-sm flex items-center justify-center gap-2"
               >
                 <PlusCircle className="w-4 h-4" />
                 {isCreating ? "Creating Category..." : "Create Category"}
@@ -350,7 +350,7 @@ export function AdminCategoriesManager({ categories }: Props) {
                 <Button type="button" variant="outline" size="sm" onClick={() => setEditingCategory(null)}>
                   Cancel
                 </Button>
-                <Button type="submit" variant="default" size="sm" disabled={isEditing} className="font-bold bg-blue-600 hover:bg-blue-700">
+                <Button type="submit" variant="default" size="sm" disabled={isEditing} className="font-bold bg-primary-700 hover:bg-primary-800">
                   {isEditing ? "Updating..." : "Save Changes"}
                 </Button>
               </div>

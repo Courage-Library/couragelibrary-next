@@ -59,7 +59,7 @@ export default async function CandidateCertificatesPage() {
               Participate in All-India Live Mock Tests and achieve outstanding national percentile to earn official certificates of merit and podium standing.
             </p>
             <Link href="/live-tests" className="inline-block mt-2">
-              <Button className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold">
+              <Button className="bg-primary-700 hover:bg-primary-800 text-white font-semibold">
                 Explore Upcoming Live Tests
               </Button>
             </Link>

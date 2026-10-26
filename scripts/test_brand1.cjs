@@ -278,7 +278,25 @@ test('B-07 R4 (revised, #84): the primary action is solid blue-700; no accent / 
   return `${files.length} files; primary = blue-700, header outline only`;
 });
 
-const AMBER_HEX = /#(?:f59e0b|fcd34d|fef3c7|b45309|fbbf24|d97706|fde68a|fffbeb|92400e|78350f|451a03|eab308|facc15|fde047|fef08a|fef9c3|ca8a04|a16207|854d0e)\b/i;
+test('B-09 every solid primary is exactly blue-700 #1D4ED8 with hover blue-800 #1E40AF (fix 3) — no #2563EB primary fill anywhere', () => {
+  assert(resolveColor('brand') === '#1d4ed8' && resolveColor('brand-hover') === '#1e40af', 'brand / brand-hover tokens');
+  assert(/primary:\s*"bg-brand text-fg-inverse hover:bg-brand-hover /.test(read('components/ui/button.tsx')), 'DS Button primary is not bg-brand / hover:bg-brand-hover');
+  assert(/primary: "focus-ring bg-brand text-fg-inverse shadow-soft hover:bg-brand-hover"/.test(read('components/ui/pill-button.tsx')), 'Pill primary is not bg-brand / hover:bg-brand-hover');
+  const lb = read('components/ui/legacy/button.tsx');
+  assert(/default: "bg-primary-700 text-white hover:bg-primary-800 /.test(lb) && /primary: "bg-blue-700 text-white hover:bg-blue-800 /.test(lb), 'legacy Button default / primary are not blue-700 / blue-800');
+  const bad = [];
+  for (const f of ['app', 'components'].flatMap((d) => walk(path.join(ROOT, d))).filter((x) => /\.tsx$/.test(x))) {
+    const s = fs.readFileSync(f, 'utf8');
+    const n600 = (s.match(/(?:^|[\s"'`])bg-(?:primary|blue|indigo|sky)-600\b/g) || []).length;
+    const lighterHover = (s.match(/hover:bg-(?:primary|blue|indigo|sky)-(?:500|600)\b/g) || []).length;
+    if (n600) bad.push(`${rel(f)}: ${n600} × bg-*-600 (#2563EB) fill`);
+    if (lighterHover) bad.push(`${rel(f)}: ${lighterHover} × lighter blue hover`);
+  }
+  assert(bad.length === 0, bad.join('; '));
+  return 'DS / pill / legacy primaries = #1D4ED8 → #1E40AF; 0 #2563EB fills';
+});
+
+const AMBER_HEX =/#(?:f59e0b|fcd34d|fef3c7|b45309|fbbf24|d97706|fde68a|fffbeb|92400e|78350f|451a03|eab308|facc15|fde047|fef08a|fef9c3|ca8a04|a16207|854d0e)\b/i;
 const AMBER_CLASS = /\b(?:bg|text|border|ring|from|via|to|fill|stroke|outline|divide|decoration|shadow|caret|accent|placeholder)-(?:amber|yellow)-\d/;
 
 test('B-08 NO yellow / amber anywhere (#84): tokens reset, no amber / yellow class or hex in code, emails or email assets', () => {

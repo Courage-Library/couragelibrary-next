@@ -1,5 +1,6 @@
 "use client";
 
+import { useCoinsEnabled } from "@/lib/coins/flag-context";
 import React, { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -45,6 +46,7 @@ function formatScore(score: number | undefined | null): string {
 export function MockTestDashboardView({ data }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const coinsEnabled = useCoinsEnabled();
 
   // State for "+ Add Exam" Modal
   const [showAddExamModal, setShowAddExamModal] = useState(false);
@@ -159,7 +161,7 @@ export function MockTestDashboardView({ data }: Props) {
                 onClick={() => handleSelectExam("all")}
                 className={`px-4 py-2 text-xs font-extrabold rounded-xl transition-all whitespace-nowrap flex items-center gap-1.5 ${
                   isAllExamsSelected
-                    ? "bg-blue-600 text-white shadow-xs"
+                    ? "bg-primary-700 text-white shadow-xs"
                     : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
                 }`}
               >
@@ -178,7 +180,7 @@ export function MockTestDashboardView({ data }: Props) {
                   onClick={() => handleSelectExam(exam.slug)}
                   className={`px-4 py-2 text-xs font-extrabold rounded-xl transition-all whitespace-nowrap flex items-center gap-1.5 ${
                     isSelected
-                      ? "bg-blue-600 text-white shadow-xs"
+                      ? "bg-primary-700 text-white shadow-xs"
                       : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
                   }`}
                 >
@@ -270,7 +272,7 @@ export function MockTestDashboardView({ data }: Props) {
                   Daily Mock Tests &amp; National Rank Tracking
                 </h2>
                 <p className="text-xs sm:text-sm text-slate-600 font-medium">
-                  Attempt fresh daily sectional drills, mixed weekly mocks, and earn CL Coins &amp; streaks.
+                  Attempt fresh daily sectional drills and mixed weekly mocks, and keep your streak going.
                 </p>
               </div>
 
@@ -278,7 +280,7 @@ export function MockTestDashboardView({ data }: Props) {
                 <Link href="/auth/login?next=/mock-tests">
                   <Button
                     size="lg"
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-sm px-7 py-3 rounded-2xl shadow-md cursor-pointer"
+                    className="bg-primary-700 hover:bg-primary-800 text-white font-extrabold text-sm px-7 py-3 rounded-2xl shadow-md cursor-pointer"
                   >
                     Sign In to Start Mock
                   </Button>
@@ -295,7 +297,7 @@ export function MockTestDashboardView({ data }: Props) {
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
               <div className="space-y-3 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="px-2.5 py-0.5 text-[10px] font-black tracking-wider uppercase rounded-full bg-blue-600 text-white">
+                  <span className="px-2.5 py-0.5 text-[10px] font-black tracking-wider uppercase rounded-full bg-primary-700 text-white">
                     YOUR NEXT MOCK &bull; {nextMockAction.todayMock.dayLabel.toUpperCase()}
                   </span>
                   <span className="px-2.5 py-0.5 text-[10px] font-bold rounded-full bg-slate-100 text-slate-700">
@@ -341,7 +343,7 @@ export function MockTestDashboardView({ data }: Props) {
                   <StartTestActionButton
                     testId={nextMockAction.todayMock.testId}
                     size="lg"
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-sm px-7 py-3 rounded-2xl shadow-md"
+                    className="bg-primary-700 hover:bg-primary-800 text-white font-extrabold text-sm px-7 py-3 rounded-2xl shadow-md"
                     label="Start Today's Mock"
                   />
                 ) : (
@@ -523,7 +525,7 @@ export function MockTestDashboardView({ data }: Props) {
                       />
                     ) : !user ? (
                       <Link href={`/auth/login?next=/mock-tests/${mock.testId}/take`} className="w-full">
-                        <Button size="sm" className="w-full text-xs bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-xs">
+                        <Button size="sm" className="w-full text-xs bg-primary-700 hover:bg-primary-800 text-white font-bold rounded-xl shadow-xs">
                           Sign In to Start
                         </Button>
                       </Link>
@@ -626,7 +628,7 @@ export function MockTestDashboardView({ data }: Props) {
                       {day.dayLabel.slice(0, 3)}
                     </span>
                     {day.isToday && (
-                      <span className="text-[9px] font-black bg-blue-600 text-white px-1.5 py-0.2 rounded-md">
+                      <span className="text-[9px] font-black bg-primary-700 text-white px-1.5 py-0.2 rounded-md">
                         TODAY
                       </span>
                     )}
@@ -820,13 +822,16 @@ export function MockTestDashboardView({ data }: Props) {
                   {rewards.levelTitle}
                 </h3>
               </div>
-              <Link
-                href="/wallet"
-                className="text-xs font-bold text-purple-700 hover:text-purple-900 hover:underline transition-colors"
-                title="View CL Wallet & Rewards"
-              >
-                {rewards.currentCoins} CL Coins &rarr;
-              </Link>
+              {coinsEnabled && (
+                <Link
+                  href="/wallet"
+                  className="text-xs font-bold text-purple-700 hover:text-purple-900 hover:underline transition-colors"
+                  title="View CL Wallet & Rewards"
+                  data-coin-ui=""
+                >
+                  {rewards.currentCoins} CL Coins &rarr;
+                </Link>
+              )}
             </div>
 
             <div className="space-y-1.5">
@@ -906,7 +911,7 @@ export function MockTestDashboardView({ data }: Props) {
                       onClick={() => handleToggleExamGoal(exam.id, isCurrentlyActive)}
                       className={`text-xs font-bold h-8 ${
                         isCurrentlyActive
-                          ? "bg-blue-600 text-white"
+                          ? "bg-primary-700 text-white"
                           : "border-slate-200 text-slate-700"
                       }`}
                     >

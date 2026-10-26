@@ -95,7 +95,7 @@ export const CurrentAffairsFilters: React.FC<CurrentAffairsFiltersProps> = ({
           onClick={() => onCategoryChange('ALL')}
           className={`focus-ring inline-flex min-h-12 items-center shrink-0 px-3.5 rounded-full text-body-sm font-semibold transition-all ${
             selectedCategory === 'ALL'
-              ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20'
+              ? 'bg-primary-700 text-white shadow-sm shadow-blue-500/20'
               : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
           }`}
         >
@@ -111,7 +111,7 @@ export const CurrentAffairsFilters: React.FC<CurrentAffairsFiltersProps> = ({
               onClick={() => onCategoryChange(cat)}
               className={`focus-ring inline-flex min-h-12 items-center shrink-0 px-3.5 rounded-full text-body-sm font-medium transition-all ${
                 isSelected
-                  ? 'bg-blue-600 text-white font-semibold shadow-sm shadow-blue-500/20'
+                  ? 'bg-primary-700 text-white font-semibold shadow-sm shadow-blue-500/20'
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >

@@ -102,7 +102,7 @@ export default async function DescriptiveQuestionDetailPage({ params }: Props) {
           {/* CTAs */}
           <div className="pt-2 flex flex-col sm:flex-row gap-3">
             <Link href={`/descriptive/${question.slug}/write`} className="w-full">
-              <Button size="lg" variant="default" className="w-full bg-blue-600 hover:bg-blue-700 font-bold">
+              <Button size="lg" variant="default" className="w-full bg-primary-700 hover:bg-primary-800 font-bold">
                 <PenTool className="w-4 h-4 mr-2" /> Start Writing Answer
               </Button>
             </Link>

@@ -51,7 +51,7 @@ export default async function LiveTestSubmittedPage({ params }: Props) {
           </div>
 
           <Link href="/live-tests" className="w-full">
-            <Button className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2.5 rounded-xl gap-2">
+            <Button className="w-full bg-primary-700 hover:bg-primary-800 text-white font-medium py-2.5 rounded-xl gap-2">
               Back to Live Mock Tests
               <ArrowRight className="w-4 h-4" />
             </Button>

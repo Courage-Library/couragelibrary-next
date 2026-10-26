@@ -12,6 +12,8 @@ import { isOnboardingEnabled } from "@/lib/onboarding/flag";
 import { isProfilesEnabled } from "@/lib/profile/flag";
 import { getSignupAvailability } from "@/lib/auth/signup-availability";
 import { isPracticeEnabled } from "@/lib/practice/flag";
+import { isCoinsEnabled } from "@/lib/coins/flag";
+import { CoinsFlagProvider } from "@/lib/coins/flag-context";
 
 /**
  * UX-1b app shell around every route: skip link, header (public or student), <main id="main-content">,
@@ -41,6 +43,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
         isStaff: role === "admin" || role === "staff",
         studyPreferences: isOnboardingEnabled(),
         profile: isProfilesEnabled(),
+        coins: isCoinsEnabled(),
       }
     : null;
 
@@ -56,7 +59,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
       <HeaderBar account={account} flags={flags} signup={account === null ? signupOpen() : undefined} />
       {session.state === "error" && <SessionUnavailableBanner />}
       <main id="main-content" tabIndex={-1} className="min-h-dvh flex-1 outline-none">
-        {children}
+        <CoinsFlagProvider enabled={isCoinsEnabled()}>{children}</CoinsFlagProvider>
       </main>
       <SiteFooter flags={flags} />
       {account && <BottomNav account={account} />}

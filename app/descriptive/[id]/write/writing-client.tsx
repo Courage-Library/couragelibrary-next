@@ -114,7 +114,7 @@ export function AnswerWritingClient({ question }: AnswerWritingClientProps) {
             onClick={() => setSubmissionType("TYPED_TEXT")}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
               submissionType === "TYPED_TEXT"
-                ? "bg-blue-600 text-white shadow-xs"
+                ? "bg-primary-700 text-white shadow-xs"
                 : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
             }`}
           >
@@ -125,7 +125,7 @@ export function AnswerWritingClient({ question }: AnswerWritingClientProps) {
             onClick={() => setSubmissionType("ATTACHED_SCRIPT_PDF")}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
               submissionType === "ATTACHED_SCRIPT_PDF"
-                ? "bg-blue-600 text-white shadow-xs"
+                ? "bg-primary-700 text-white shadow-xs"
                 : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
             }`}
           >
@@ -187,7 +187,7 @@ export function AnswerWritingClient({ question }: AnswerWritingClientProps) {
               type="submit"
               size="lg"
               variant="default"
-              className="bg-blue-600 hover:bg-blue-700 font-bold px-8"
+              className="bg-primary-700 hover:bg-primary-800 font-bold px-8"
               isLoading={isSubmitting}
             >
               <Send className="w-4 h-4 mr-2" /> Submit for Evaluation

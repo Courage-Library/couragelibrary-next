@@ -1,4 +1,7 @@
-﻿import React from "react";
+"use client";
+
+import { useCoinsEnabled } from "@/lib/coins/flag-context";
+import React from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/legacy/button";
 import { Card } from "@/components/ui/legacy/card";
@@ -15,6 +18,7 @@ export function FlashcardCompletion({
   ratingsCount,
   onReviewAgain,
 }: FlashcardCompletionProps) {
+  const coinsEnabled = useCoinsEnabled();
   return (
     <div className="min-h-[80vh] flex items-center justify-center p-4">
       <Card className="max-w-md w-full p-6 text-center space-y-6 border-slate-200 shadow-lg">
@@ -46,16 +50,18 @@ export function FlashcardCompletion({
           </div>
         </div>
 
-        <div className="p-3 rounded-2xl bg-accent-50/60 border border-accent-200 flex items-center justify-center gap-2 text-xs font-bold text-accent-900">
-          <Coins className="w-4 h-4 text-accent-700 fill-accent-700" />
-          <span>Active Recall Coins Awarded to Wallet!</span>
-        </div>
+        {coinsEnabled && (
+          <div className="p-3 rounded-2xl bg-accent-50/60 border border-accent-200 flex items-center justify-center gap-2 text-xs font-bold text-accent-900" data-coin-ui="">
+            <Coins className="w-4 h-4 text-accent-700 fill-accent-700" />
+            <span>Active Recall Coins Awarded to Wallet!</span>
+          </div>
+        )}
 
         <div className="space-y-2 pt-2">
           <Button
             size="lg"
             variant="default"
-            className="w-full bg-blue-600 hover:bg-blue-700 font-bold"
+            className="w-full bg-primary-700 hover:bg-primary-800 font-bold"
             onClick={onReviewAgain}
           >
             <RotateCcw className="w-4 h-4 mr-1.5" /> Review Deck Again

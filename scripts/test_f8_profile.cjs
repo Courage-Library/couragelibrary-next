@@ -138,7 +138,8 @@ const MIG = 'supabase/migrations/20261025000096_f8_profile_username.sql';
     assert((await S.loadPublicProfile('bad name!')) === null, 'invalid → null');
     for (const f of ['app/u/[username]/page.tsx', 'app/settings/profile/page.tsx']) assert(/if \(!isProfilesEnabled\(\)\) notFound\(\);/.test(code(read(f))), `${f}: flag off → 404`);
     const links = code(read('components/shell/account-links.tsx'));
-    assert(/account\.profile \? \[\{ href: "\/settings\/profile", label: "Profile" \}, \.\.\.ACCOUNT_MENU\] : ACCOUNT_MENU/.test(links) && /profile: isProfilesEnabled\(\),/.test(read('components/shell/app-shell.tsx')), 'menu link only with the flag');
+    // BRAND-3 fix 1: the base menu is ACCOUNT_MENU minus the coin links while coins are off (`menu`); the Profile link is unchanged
+    assert(/account\.profile \? \[\{ href: "\/settings\/profile", label: "Profile" \}, \.\.\.menu\] : menu/.test(links) && /const menu = account\.coins \? ACCOUNT_MENU : ACCOUNT_MENU\.filter\(/.test(links) && /profile: isProfilesEnabled\(\),/.test(read('components/shell/app-shell.tsx')), 'menu link only with the flag');
     const form = code(read('components/profile/profile-settings-form.tsx'));
     assert(/I confirm I am 18 or older/.test(form) && /disabled=\{pending \|\| \(!isPublic && \(!props\.username \|\| !adult\)\)\}/.test(form), 'public toggle needs a username and the 18+ tick');
   });

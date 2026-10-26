@@ -1,5 +1,6 @@
 "use client";
 
+import { useCoinsEnabled } from "@/lib/coins/flag-context";
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { BattleRoomDetails, ActiveRoundData } from "@/services/battle.service";
@@ -24,6 +25,7 @@ interface BattleArenaClientProps {
 }
 
 export function BattleArenaClient({ initialRoom }: BattleArenaClientProps) {
+  const coinsEnabled = useCoinsEnabled();
   const [room, setRoom] = useState<BattleRoomDetails>(initialRoom);
   const [roundData, setRoundData] = useState<ActiveRoundData | null>(null);
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
@@ -230,10 +232,12 @@ export function BattleArenaClient({ initialRoom }: BattleArenaClientProps) {
             </div>
           </div>
 
-          <div className="p-3 rounded-2xl bg-accent-50/60 border border-accent-200 flex items-center justify-center gap-2 text-xs font-bold text-accent-900">
-            <Coins className="w-4 h-4 text-accent-700 fill-accent-700" />
-            <span>Coin Rewards Added to Wallet</span>
-          </div>
+          {coinsEnabled && (
+            <div className="p-3 rounded-2xl bg-accent-50/60 border border-accent-200 flex items-center justify-center gap-2 text-xs font-bold text-accent-900" data-coin-ui="">
+              <Coins className="w-4 h-4 text-accent-700 fill-accent-700" />
+              <span>Coin Rewards Added to Wallet</span>
+            </div>
+          )}
 
           <div className="space-y-2 pt-2">
             <Link href="/mistakes" className="block">

@@ -90,7 +90,7 @@ export function AdminUsersManager({ users, total, totalAuthUsers, totalProfiles,
             />
           </div>
         </div>
-        <button type="submit" className="focus-ring min-h-11 px-4 rounded-lg bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700">
+        <button type="submit" className="focus-ring min-h-11 px-4 rounded-lg bg-primary-700 text-white text-sm font-semibold hover:bg-primary-800">
           Search
         </button>
         {query && (

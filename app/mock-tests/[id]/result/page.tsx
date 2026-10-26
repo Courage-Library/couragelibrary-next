@@ -40,7 +40,7 @@ export default async function MockTestResultPage({ params }: Props) {
 
               <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
                 <Link href="/mock-tests" className="w-full sm:w-auto">
-                  <Button variant="default" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs">
+                  <Button variant="default" className="w-full bg-primary-700 hover:bg-primary-800 text-white font-bold text-xs rounded-xl shadow-xs">
                     <ArrowLeft className="w-3.5 h-3.5 mr-1.5" />
                     Mock tests
                   </Button>
@@ -72,7 +72,7 @@ export default async function MockTestResultPage({ params }: Props) {
 
             <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link href="/mock-tests" className="w-full sm:w-auto">
-                <Button variant="default" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs">
+                <Button variant="default" className="w-full bg-primary-700 hover:bg-primary-800 text-white font-bold text-xs rounded-xl shadow-xs">
                   <ArrowLeft className="w-3.5 h-3.5 mr-1.5" />
                   Mock tests
                 </Button>

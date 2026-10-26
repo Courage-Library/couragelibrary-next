@@ -45,7 +45,7 @@ export default async function CommunityPage({ searchParams }: Props) {
 
           <div className="flex items-center gap-3">
             <Link href="/community/new">
-              <Button size="lg" variant="default" className="bg-indigo-600 hover:bg-indigo-700 font-bold text-xs shadow-md">
+              <Button size="lg" variant="default" className="bg-primary-700 hover:bg-primary-800 font-bold text-xs shadow-md">
                 <Plus className="w-4 h-4 mr-2" /> Ask a Question / Start Thread
               </Button>
             </Link>
@@ -64,7 +64,7 @@ export default async function CommunityPage({ searchParams }: Props) {
               href={`/community?status=${tab.val}`}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
                 status === tab.val
-                  ? "bg-indigo-600 text-white shadow-xs"
+                  ? "bg-primary-700 text-white shadow-xs"
                   : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
               }`}
             >
@@ -88,7 +88,7 @@ export default async function CommunityPage({ searchParams }: Props) {
               </div>
               <div className="pt-2">
                 <Link href="/community/new">
-                  <Button variant="default" size="sm" className="bg-indigo-600 hover:bg-indigo-700 font-bold text-xs shadow-xs">
+                  <Button variant="default" size="sm" className="bg-primary-700 hover:bg-primary-800 font-bold text-xs shadow-xs">
                     <Plus className="w-4 h-4 mr-1.5" /> Start First Discussion Thread
                   </Button>
                 </Link>
@@ -105,7 +105,7 @@ export default async function CommunityPage({ searchParams }: Props) {
                 <div className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
                     {t.isPinned && (
-                      <Badge variant="indigo" className="text-[10px] bg-indigo-600">
+                      <Badge variant="indigo" className="text-[10px] bg-primary-700">
                         <Pin className="w-3 h-3 mr-1" /> PINNED
                       </Badge>
                     )}

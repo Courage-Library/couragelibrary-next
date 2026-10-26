@@ -78,7 +78,7 @@ export default async function FlashcardDeckDetailPage({ params }: Props) {
 
           <div className="pt-2">
             <Link href={`/flashcards/${deck.id}/review`}>
-              <Button size="lg" variant="default" className="w-full bg-blue-600 hover:bg-blue-700 font-bold">
+              <Button size="lg" variant="default" className="w-full bg-primary-700 hover:bg-primary-800 font-bold">
                 Start Spaced Repetition Review
               </Button>
             </Link>

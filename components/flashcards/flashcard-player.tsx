@@ -121,7 +121,7 @@ export function FlashcardPlayer({
             <Button
               size="lg"
               variant="default"
-              className="bg-blue-600 hover:bg-blue-700 font-bold px-10 shadow-sm"
+              className="bg-primary-700 hover:bg-primary-800 font-bold px-10 shadow-sm"
               onClick={handleReveal}
             >
               <Eye className="w-4 h-4 mr-2" /> Show Answer

@@ -59,7 +59,7 @@ export function Pagination({ page, totalPages, hrefFor, className }: PaginationP
                 href={hrefFor(p)}
                 aria-current={p === page ? "page" : undefined}
                 aria-label={`Page ${p}`}
-                className={cn(item, p === page ? "bg-primary-600 text-fg-inverse" : "text-fg hover:bg-ink-100")}
+                className={cn(item, p === page ? "bg-primary-700 text-fg-inverse" : "text-fg hover:bg-ink-100")}
               >
                 {p}
               </Link>

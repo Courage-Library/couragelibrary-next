@@ -274,7 +274,7 @@ export function CurrentAffairsImportModal({
           {step === 1 && (
             <button
               onClick={() => setStep(2)}
-              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs"
+              className="px-4 py-2 rounded-xl bg-primary-700 hover:bg-primary-800 text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs"
             >
               Continue to Paste JSON <ArrowRight className="w-3.5 h-3.5" />
             </button>
@@ -284,7 +284,7 @@ export function CurrentAffairsImportModal({
             <button
               onClick={handleValidate}
               disabled={isValidating || !rawJson.trim()}
-              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs disabled:opacity-40"
+              className="px-4 py-2 rounded-xl bg-primary-700 hover:bg-primary-800 text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs disabled:opacity-40"
             >
               {isValidating ? 'Running 5 Gates...' : 'Validate 5 Gates'}
               <ArrowRight className="w-3.5 h-3.5" />
@@ -295,7 +295,7 @@ export function CurrentAffairsImportModal({
             <button
               onClick={handleCreateDraft}
               disabled={isImporting || !validationReport?.passed}
-              className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs disabled:opacity-40 disabled:cursor-not-allowed"
+              className="px-5 py-2 rounded-xl bg-primary-700 hover:bg-primary-800 text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {isImporting ? 'Creating Draft...' : 'Create Draft in Database'}
               <CheckCircle2 className="w-3.5 h-3.5" />

@@ -394,7 +394,7 @@ export function ExamMdxArticleRenderer({
                 ) : isSources ? (
                   <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
                 ) : (
-                  <span className="w-1.5 h-5 bg-blue-600 rounded-full inline-block shrink-0" />
+                  <span className="w-1.5 h-5 bg-primary-700 rounded-full inline-block shrink-0" />
                 )}
                 <span>{renderInlineMarkdown(block.text)}</span>
               </h2>

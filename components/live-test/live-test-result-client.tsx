@@ -1,4 +1,5 @@
 "use client";
+import { useCoinsEnabled } from "@/lib/coins/flag-context";
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 
 import React, { useState, useMemo } from "react";
@@ -51,6 +52,7 @@ export function LiveTestResultClient({
   leaderboard,
   currentUserId,
 }: LiveTestResultClientProps) {
+  const coinsEnabled = useCoinsEnabled();
   const { isPublished, event, scorecard, reviewQuestions, securityWatermark } = data;
 
   const [activeTab, setActiveTab] = useState<"scorecard" | "leaderboard" | "solutions">("scorecard");
@@ -131,7 +133,7 @@ export function LiveTestResultClient({
             </div>
 
             <Link href="/live-tests" className="w-full">
-              <Button className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2.5 rounded-xl">
+              <Button className="w-full bg-primary-700 hover:bg-primary-800 text-white font-medium py-2.5 rounded-xl">
                 Back to Live Mock Tests
               </Button>
             </Link>
@@ -220,7 +222,7 @@ export function LiveTestResultClient({
                 </div>
 
                 {/* Reward Cardlet */}
-                {data.reward && data.reward.totalCoins > 0 && (
+                {coinsEnabled && data.reward && data.reward.totalCoins > 0 && (
                   <div className="bg-slate-900/90 border border-accent-500/30 rounded-2xl p-4 min-w-[120px] text-center shadow-lg">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-accent-700">CL Coins</span>
                     <div className="text-2xl font-black text-accent-300 mt-0.5 flex items-center justify-center gap-1">
@@ -333,7 +335,7 @@ export function LiveTestResultClient({
             <div className="flex flex-wrap gap-3 pt-2">
               <Button
                 onClick={() => setActiveTab("solutions")}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl gap-2 text-xs font-bold"
+                className="bg-primary-700 hover:bg-primary-800 text-white rounded-xl gap-2 text-xs font-bold"
               >
                 <BookOpen className="w-3.5 h-3.5" /> View Solutions & Explanations
               </Button>
@@ -389,7 +391,7 @@ export function LiveTestResultClient({
             {leaderboard.currentUserEntry && (
               <div className="bg-indigo-950/60 border-2 border-indigo-500/50 rounded-2xl p-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <Badge className="bg-indigo-600 text-white font-black text-xs px-2.5 py-0.5">
+                  <Badge className="bg-primary-700 text-white font-black text-xs px-2.5 py-0.5">
                     #{leaderboard.currentUserEntry.rank}
                   </Badge>
                   <div>
@@ -480,7 +482,7 @@ export function LiveTestResultClient({
                     onClick={() => setActiveFilter(f)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-colors ${
                       activeFilter === f
-                        ? "bg-indigo-600 text-white"
+                        ? "bg-primary-700 text-white"
                         : "bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200"
                     }`}
                   >

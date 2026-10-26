@@ -518,7 +518,7 @@ export function PremiumHubView({ initialData }: PremiumHubViewProps) {
                       el?.scrollIntoView({ behavior: "smooth" });
                     }
                   }}
-                  className="w-full inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-slate-900 hover:bg-blue-600 text-white font-bold text-xs transition-colors"
+                  className="w-full inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-slate-900 hover:bg-primary-700 text-white font-bold text-xs transition-colors"
                 >
                   <span>Select Full Mock</span>
                   <ChevronRight className="w-3.5 h-3.5" />
@@ -553,7 +553,7 @@ export function PremiumHubView({ initialData }: PremiumHubViewProps) {
               <div className="mt-5 pt-3 border-t border-slate-100">
                 <button
                   onClick={() => setActiveModal("pyq")}
-                  className="w-full inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-slate-900 hover:bg-indigo-600 text-white font-bold text-xs transition-colors"
+                  className="w-full inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-slate-900 hover:bg-primary-700 text-white font-bold text-xs transition-colors"
                 >
                   <span>Simulate PYQ Shift</span>
                   <ChevronRight className="w-3.5 h-3.5" />
@@ -903,7 +903,7 @@ export function PremiumHubView({ initialData }: PremiumHubViewProps) {
                     ) : (
                       <Link
                         href={`/mock-tests/${mock.id}/take`}
-                        className="w-full inline-flex items-center justify-center gap-1.5 py-2 rounded-xl bg-slate-900 hover:bg-indigo-600 text-white font-bold text-xs shadow-xs transition-colors"
+                        className="w-full inline-flex items-center justify-center gap-1.5 py-2 rounded-xl bg-slate-900 hover:bg-primary-700 text-white font-bold text-xs shadow-xs transition-colors"
                       >
                         <span>Start Test</span>
                         <ChevronRight className="w-3.5 h-3.5" />
@@ -1188,7 +1188,7 @@ export function PremiumHubView({ initialData }: PremiumHubViewProps) {
               <button
                 onClick={handleGeneratePyqSimulation}
                 disabled={isPending}
-                className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md disabled:opacity-50 transition-all flex items-center gap-1.5"
+                className="px-5 py-2.5 rounded-xl bg-primary-700 hover:bg-primary-800 text-white text-xs font-bold shadow-md disabled:opacity-50 transition-all flex items-center gap-1.5"
               >
                 {isPending ? "Generating..." : "Start PYQ Shift"}
               </button>

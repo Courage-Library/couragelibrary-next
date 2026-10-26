@@ -10,7 +10,9 @@ import type { ShellAccount } from "./shell-types";
 import { ONBOARDING_COPY } from "@/content/onboarding";
 
 export function accountItems(account: ShellAccount): NavItem[] {
-  const base = account.profile ? [{ href: "/settings/profile", label: "Profile" }, ...ACCOUNT_MENU] : ACCOUNT_MENU;
+  // BRAND-3 fix 1: no coin UI while COINS_ENABLED is off — the Wallet and Rewards store links disappear
+  const menu = account.coins ? ACCOUNT_MENU : ACCOUNT_MENU.filter((it) => it.href !== "/wallet" && it.href !== "/store");
+  const base = account.profile ? [{ href: "/settings/profile", label: "Profile" }, ...menu] : menu;
   const items = account.studyPreferences ? [...base, { href: "/onboarding", label: ONBOARDING_COPY.menuLink }] : base;
   return account.isStaff ? [...items, { href: "/admin", label: "Admin studio" }] : items;
 }

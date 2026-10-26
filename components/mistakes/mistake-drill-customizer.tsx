@@ -114,7 +114,7 @@ export function MistakeDrillCustomizer({
                 onClick={() => setQuestionLimit(count)}
                 className={`py-2.5 rounded-xl text-xs font-bold transition-all border ${
                   questionLimit === count
-                    ? "bg-blue-600 text-white border-blue-600 shadow-xs ring-2 ring-blue-600/20"
+                    ? "bg-primary-700 text-white border-blue-600 shadow-xs ring-2 ring-blue-600/20"
                     : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300"
                 }`}
               >
@@ -220,7 +220,7 @@ export function MistakeDrillCustomizer({
             size="lg"
             onClick={handleStartDrill}
             disabled={isGenerating}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 text-sm shadow-sm flex items-center justify-center gap-2 rounded-xl"
+            className="w-full bg-primary-700 hover:bg-primary-800 text-white font-bold py-3.5 text-sm shadow-sm flex items-center justify-center gap-2 rounded-xl"
           >
             {isGenerating ? (
               <span className="flex items-center gap-2">

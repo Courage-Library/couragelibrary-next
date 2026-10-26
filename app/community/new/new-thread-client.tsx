@@ -132,7 +132,7 @@ export function NewThreadClient() {
                 type="submit"
                 size="lg"
                 variant="default"
-                className="bg-indigo-600 hover:bg-indigo-700 font-bold px-8"
+                className="bg-primary-700 hover:bg-primary-800 font-bold px-8"
                 isLoading={isSubmitting}
               >
                 <Send className="w-4 h-4 mr-2" /> Post Thread
