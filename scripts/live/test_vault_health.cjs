@@ -5,6 +5,7 @@
  * user + question. Catches a silently failing mistake-recording path (the 095 regression went unnoticed for ~15 h).
  *   VH-1 recent submitted attempts with wrong answers: every wrong answer has its vault row (counts only — no ids / PII)
  *   VH-2 the recording path is reachable: service_role holds EXECUTE on the Memory Lock trigger helpers (110)
+ *   VH-3 COINS-FREEZE: no REWARDED gamification event and no coin_ledger CREDIT since 112 (the nightly completes a mock)
  * LIVE-LOCK-SAFETY: one READ ONLY transaction with lock / statement / idle timeouts (scripts/db/live-safety.cjs).
  * Run: node scripts/live/test_vault_health.cjs [--n=25]
  */
@@ -16,6 +17,7 @@ const { withLiveTransaction } = require(path.join(ROOT, 'scripts/db/live-safety.
 
 const N = Math.max(1, Math.min(200, Number((process.argv.find((a) => a.startsWith('--n=')) || '--n=25').slice(4)) || 25));
 const SINCE = '2026-10-26T05:26:00Z'; // 110 applied — earlier attempts are the known 095 window (QA only)
+const COINS_FROZEN_AT = '2026-10-26T06:29:00Z'; // 112 applied
 let passed = 0;
 let failed = 0;
 const result = (ok, name, info) => {
@@ -49,6 +51,11 @@ const result = (ok, name, info) => {
       const [g] = (await c.query(`SELECT has_function_privilege('service_role','public.fn_ml_ist_today()','EXECUTE') a,
                                          has_function_privilege('service_role','public.fn_ml_day_start(date)','EXECUTE') b`)).rows;
       result(g.a && g.b, 'VH-2 service_role can run the vault trigger helpers (110)', JSON.stringify(g));
+      // COINS-FREEZE (112, 2026-10-26 06:29 UTC): the nightly fixture completes a real mock as the QA student — no coin
+      // award may appear anywhere after the freeze (no REWARDED event, no ledger CREDIT)
+      const [cz] = (await c.query(`SELECT (SELECT count(*)::int FROM public.gamification_events WHERE reward_status = 'REWARDED' AND occurred_at >= $1::timestamptz) rewarded,
+                                          (SELECT count(*)::int FROM public.coin_ledger WHERE direction = 'CREDIT' AND created_at >= $1::timestamptz) credits`, [COINS_FROZEN_AT])).rows;
+      result(cz.rewarded === 0 && cz.credits === 0, 'VH-3 COINS-FREEZE: zero new coin awards since 112 (mock completions included)', `${cz.rewarded} REWARDED event(s), ${cz.credits} ledger credit(s)`);
     }, { readOnly: true });
   } catch (e) {
     failed++;
