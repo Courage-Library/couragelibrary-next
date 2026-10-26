@@ -1,18 +1,10 @@
-import { BillingService } from "@/services/billing.service";
-import { NextResponse, type NextRequest } from "next/server";
-import { PAYMENTS_DISABLED_ERROR, isPaymentsEnabled } from "@/config/payments";
+import { NextResponse } from "next/server";
 
-export async function POST(request: NextRequest) {
-  if (!isPaymentsEnabled()) {
-    return NextResponse.json({ success: false, error: PAYMENTS_DISABLED_ERROR }, { status: 503 });
-  }
-
-  try {
-    const payload = await request.json();
-    const result = await BillingService.createPaymentOrder(payload);
-    return NextResponse.json(result);
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Internal Server Error";
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
-  }
+/**
+ * F9-B: the legacy order endpoint is retired. It called fn_create_payment_order, whose client EXECUTE was revoked by
+ * migration 113; Pro orders are created only by the createProOrderAction server action (fn_create_pro_order, server
+ * price). Always 410.
+ */
+export async function POST() {
+  return NextResponse.json({ success: false, error: { code: "ENDPOINT_RETIRED", message: "This endpoint is no longer used." } }, { status: 410 });
 }

@@ -48,8 +48,8 @@ Synthetic rows only, no network, one rolled-back transaction, run as `service_ro
 | W-2 after: `true` + valid → stored once; replay → `duplicate`, not stored again | PASS |
 | W-3 after: NULL event id rejected | PASS |
 | F-1 after: NULL amount, NULL signature and a wrong amount rejected | PASS |
-| F-2 valid → PAID once; replay → no double fulfil | **blocked by PAY-FULFIL-1** (42703 before any write) |
-| F-3 the same payment id on another order → rejected | **blocked by PAY-FULFIL-1** |
+| F-2 valid → PAID once; replay → no double fulfil | **PASS** (F9-B, 2026-10-26: the ONE fulfil path `fn_fulfil_pro_order`, migration 114; live gate `F9-PRICING`) |
+| F-3 the same payment id on another order → rejected | **PASS** (F9-B: `PAYMENT_ID_REUSED`; live gate `F9-PRICING`) |
 | M-1 SECURITY DEFINER, no client EXECUTE | PASS |
 | R-1 live unchanged, no synthetic rows left | PASS |
 

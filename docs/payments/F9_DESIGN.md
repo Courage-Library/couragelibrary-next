@@ -255,3 +255,25 @@ Any signature or amount mismatch is a 400 with no fulfil; it is logged with ids 
 4. **Library members:** may they buy while their grant is active (stacking after the grant), or never?
 5. **Founding count display:** show the real remaining count on the pricing page, or nothing?
 6. **Business details:** the business name, address and contact printed on receipts. These are owner data (Q1 grievance details exist; a legal entity name is still missing, LEGAL-AUDIT-1 #13).
+
+## 8. F9-B build status (2026-10-26, TEST MODE ONLY)
+
+**Rulings applied (architect GO, my recommendations accepted):** founding race → fulfil at the snapshot price; full refund ends that period now, partial shortens it pro rata; new `payment_receipts` table; library members may buy (a paid period stacks after the grant), only an open-ended grant blocks buying; no live founding counter on the page; receipts carry the brand name until the owner supplies the legal entity details.
+
+**Database (APPLIED 2026-10-26, 851540c, CI green):** migrations 113 (schema) and 114 (8 service-role-only SECDEF functions). Chunked smoke AS THE REAL ROLES 27/27 before and after apply (rolled back), dry-runs OK, resilient backups pre-113 / pre-114, counts equal, types = generated, SECDEF ratchet 6/6. `fn_create_payment_order` client EXECUTE revoked. Permanent live gate `scripts/live/test_f9_pricing.cjs` (CI live `F9-PRICING`) includes the two 106 checks F-2 / F-3, now PASS.
+
+**App:**
+- `config/payments.ts`: `isProEnabled`, `checkoutState` (both flags, 3 keys, TEST key only, live refused until F9-C, refund policy published), honest closed messages.
+- `lib/payments/razorpay-core.ts` (pure): checkout + webhook HMAC (constant-time), payment-vs-snapshot check, webhook parser, minimal REST client.
+- `lib/payments/pro-flows.ts` (pure orchestration): order (server price → Razorpay order → attach), client verify, webhook (event id claimed once; failed events retried) → the ONE fulfil path.
+- `lib/payments/pro-server.ts` (server-only): wiring, `hasPro()` (fails closed), `getAppSettings()` (Free limits), `getProPricing()`, `getProEndingSoon()`.
+- Routes: server action `createProOrderAction`; `POST /api/payments/verify`; `POST /api/webhooks/razorpay`; `GET /api/cron/pro-reminders` (CRON_SECRET; counts only, not scheduled); legacy `POST /api/billing/create-order` → 410.
+- UI: pricing Pro view (one Pay button, total + exact dates + "No auto-renew" + Terms / Refund / Privacy before paying; 18+ confirm link; sign-in link); Billing receipts list; dashboard banner 7 days before the end; admin `/admin/pro-library` (grant / revoke, admin only, end date required).
+- Offline gate `scripts/test_f9b_payments.cjs` (CI `F9B-PAYMENTS`).
+
+**Open / pending:**
+- Refund policy page (LEGAL-AUDIT-1): checkout stays closed (`REFUND_POLICY_PUBLISHED = false`) until the owner approves the text.
+- Live test-mode E2E: pending the owner adding TEST keys + webhook secret in Vercel (and the webhook URL in the Razorpay test dashboard).
+- Receipt + reminder emails: no mail transport in the app yet (owner choice); nothing is sent or marked sent; receipts are in Billing.
+- Free-limit ENFORCEMENT (practice 30/day, Memory Lock 50 active, 1 mock/day) and routing the scattered premium checks to `hasPro()`: next slice (needs the limit-reached copy ruled; no change while PRO_ENABLED is off).
+- `fn_has_pro` counts exam-scoped promotional passes as global Pro (0 such rows); rule needed before admin promo passes are used with PRO_ENABLED on.

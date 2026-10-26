@@ -197,6 +197,9 @@ const ADMIN_ONLY = new Set([
   // GAP2-4b: publishing / archiving a syllabus is admin-only (staff draft only)
   'app/admin/syllabus/actions.ts#publishSyllabusVersionAction',
   'app/admin/syllabus/actions.ts#archiveSyllabusVersionAction',
+  // F9-B: library Pro grants are admin-only (staff cannot grant Pro)
+  'app/admin/pro-library/actions.ts#grantLibraryProAction',
+  'app/admin/pro-library/actions.ts#revokeLibraryProAction',
 ]);
 // Commit-only flips (preview / dry-run stay staff): checked separately in B-01.
 const COMMIT_ONLY = new Set(['app/admin/actions.ts#executeBulkImportAction', 'app/admin/actions.ts#importBulkQuestionsAction']);

@@ -32,6 +32,9 @@ import {
 } from "lucide-react";
 import { MEMORY_LOCK } from "@/content/memory-lock";
 import { isMemoryLockEnabled } from "@/lib/memory-lock/flag";
+import { isProEnabled } from "@/config/payments";
+import { getProEndingSoon } from "@/lib/payments/pro-server";
+import { ProEndingBanner } from "@/components/payments/pro-ending-banner";
 
 export const revalidate = 0; // Dynamic server page
 
@@ -45,6 +48,8 @@ export default async function DashboardPage() {
   // F0 (#76): one dismissible card while onboarding is not completed (flag off / state unknown → no card)
   const onboarding = isOnboardingEnabled() ? (await getOnboardingState(await createServerSupabaseClient())).status : null;
   const showOnboardingCard = onboarding !== null && !onboarding.completed;
+  // F9-B: Pro ending within 7 days (flag off → never queried)
+  const proEnding = isProEnabled() ? await getProEndingSoon(authSession.user.id) : null;
 
   if (!data.user) {
     // the service's own read can still fail transiently after the session check passed
@@ -55,6 +60,7 @@ export default async function DashboardPage() {
     <div className="py-8 bg-slate-50/50 min-h-[calc(100vh-4rem)]">
       <Container className="space-y-8">
         {showOnboardingCard && <OnboardingCard />}
+        {proEnding && <ProEndingBanner endsAt={proEnding.endsAt} daysLeft={proEnding.daysLeft} />}
         {/* Welcome Header */}
         {/* BRAND-2 (#72): hero gradient header; its chips are the only glass on the dashboard */}
         <div className="hero-gradient flex flex-col md:flex-row md:items-center md:justify-between gap-4 rounded-hero p-6 sm:p-8">

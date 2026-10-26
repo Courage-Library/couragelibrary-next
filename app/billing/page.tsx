@@ -6,10 +6,23 @@ import { Card } from "@/components/ui/legacy/card";
 import { Badge } from "@/components/ui/legacy/badge";
 import { Button } from "@/components/ui/legacy/button";
 import { CreditCard, FileText, Zap, ArrowRight } from "lucide-react";
+import { isProEnabled } from "@/config/payments";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { formatDateShort, formatInr } from "@/lib/format";
 
 export const revalidate = 0;
 
 export default async function BillingPage() {
+  // F9-B: own Pro payment receipts (RLS: own rows only); flag off → not queried
+  const receipts = isProEnabled()
+    ? ((
+        await (await createServerSupabaseClient())
+          .from("payment_receipts")
+          .select("receipt_number, plan_code, period_start, period_end, amount_paise, gateway_payment_id, business_name, created_at")
+          .order("created_at", { ascending: false })
+          .limit(50)
+      ).data ?? [])
+    : [];
   const [subStatus, invoices, orders] = await Promise.all([
     BillingService.getUserSubscriptionStatus(),
     BillingService.getUserInvoices(),
@@ -135,6 +148,26 @@ export default async function BillingPage() {
             </div>
           )}
         </div>
+        {receipts.length > 0 && (
+          <Card className="p-6 space-y-3 border-slate-200 bg-white" data-pro-receipts="">
+            <h2 className="text-lg font-black text-slate-900">Payment receipts</h2>
+            <p className="text-xs text-slate-500">One-time Pro payments. No GST is charged.</p>
+            <ul className="divide-y divide-slate-100">
+              {receipts.map((r) => (
+                <li key={r.receipt_number} className="py-3 text-sm text-slate-700 flex flex-wrap justify-between gap-2">
+                  <span className="font-mono">{r.receipt_number}</span>
+                  <span>
+                    {r.plan_code} · {formatDateShort(r.period_start)} – {formatDateShort(r.period_end)}
+                  </span>
+                  <span className="font-semibold">{formatInr(r.amount_paise / 100)}</span>
+                  <span className="w-full text-xs text-slate-500">
+                    Paid {formatDateShort(r.created_at)} to {r.business_name} · payment {r.gateway_payment_id}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
       </Container>
     </div>
   );

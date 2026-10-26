@@ -27,7 +27,8 @@
  *   L-8  /live-tests is still flag-off (404) and its copy is checked statically (S-1)
  *   L-9  read-only: no non-GET request except the sign-in
  * Payments ON (`--payments-on`, against a server started with PAYMENTS_ENABLED=true in the test environment only):
- *   P-1  /pricing <main> markup equals the pre-change baseline snapshot at 360 and 1280 (signed out)
+ *   P-1  /pricing with payments ON but PRO_ENABLED off: nothing purchasable at 360 and 1280 (F9-B retired the old
+ *        payments-ON markup and its snapshot comparison; the Pro view is gated by test_f9b_payments.cjs PB-09)
  *
  * Run:  node scripts/test_ux2bh_honesty.cjs --offline
  *       node scripts/live/with-server.cjs -- "node scripts/test_ux2bh_honesty.cjs http://localhost:3100"
@@ -139,10 +140,12 @@ function offline() {
 
   const pc = read('app/pricing/pricing-client.tsx');
   const offIdx = pc.indexOf('if (!paymentsEnabled) return <PaymentsOffView');
-  const onIdx = pc.indexOf('return (\n    <div className="py-12 bg-slate-50/50');
+  // F9-B (architect GO) replaced the old payments-ON markup with ProPricingView; its honesty is gated by
+  // scripts/test_f9b_payments.cjs PB-09. The OFF view must still return first and stay free of any price.
+  const onIdx = pc.indexOf('return <ProPricingView');
   const offView = pc.slice(pc.indexOf('function PaymentsOffView'));
   check('S-2', 'pricing: OFF view returns first; it has no price, GST, most popular, coupon, checkout or fetch',
-    offIdx > 0 && onIdx > offIdx && offView.length > 200 && !/₹|GST|MOST POPULAR|most popular|[Cc]oupon|handleCheckout|fetch\(|create-order|basePriceInr/.test(offView),
+    offIdx > 0 && onIdx > offIdx && offView.length > 200 && !/₹|GST|MOST POPULAR|most popular|[Cc]oupon|handleCheckout|fetch\(|create-order|basePriceInr|createProOrderAction/.test(offView),
     `off@${offIdx} on@${onIdx}`);
 
   // F4: the builder returns standing = null below RANK_MIN_COHORT (cohortStanding); the view renders rank / percentile
@@ -243,7 +246,9 @@ async function live() {
       await page.goto(BASE + '/pricing', { waitUntil: 'load' });
       await page.waitForTimeout(1500);
       const html = await page.evaluate(() => document.querySelector('main').innerHTML.replace(/\s+/g, ' '));
-      check('P-1', `/pricing @${w} payments ON: <main> markup equals the pre-change snapshot`, html === snap[w].html, `${html.length} vs ${snap[w].html.length} chars`);
+      // F9-B (architect GO) retired the old payments-ON markup (snapshot kept for history: snap[w]). Payments ON with
+      // PRO_ENABLED off must still show nothing purchasable; the Pro view's honesty is F9-B PB-09.
+      check('P-1', `/pricing @${w} payments ON, Pro off: nothing purchasable (no price, no checkout)`, !/₹[1-9]|Pay ₹|data-pro-pay/.test(html) && html.length > 0 && !!snap[w], `${html.length} chars`);
     }
     await browser.close();
     check('L-9', 'read-only: no non-GET request', nonGet.length === 0, nonGet.join(', '));

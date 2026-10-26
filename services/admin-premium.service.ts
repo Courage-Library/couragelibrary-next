@@ -686,6 +686,7 @@ export class AdminPremiumService {
     const entitlementPayload = {
       user_id: params.userId,
       entitlement_type: "PROMOTIONAL_PASS",
+      source: "PROMO", // F9-B: not a payment
       exam_id: params.examId || null,
       starts_at: now.toISOString(),
       expires_at: expiresAt.toISOString(),
