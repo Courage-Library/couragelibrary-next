@@ -104,7 +104,7 @@ Every guard stays exactly as it is.
 | `/community` | S | Moderation flags | legacy | **Resolve / Dismiss always fail** (see §3); "Target type" blank; buttons are 10 px |
 | `/question-reports` | A | Triage errata reports | legacy, about 124 | KPI "Resolved" count ≠ its filter; clickable divs; unlabeled filters; `alert()` |
 | `/reports` | A | Redirect → question-reports | — | Duplicate URL |
-| `/support` | S (flag `SUPPORT_TICKETS_ENABLED`) | Answer tickets | **NEW** | Not linked anywhere; no filter or search; 200 cap; flag off and migration 097 pending |
+| `/support` | S (flag `SUPPORT_TICKETS_ENABLED`) | Answer tickets | **NEW** | Not linked anywhere; no filter or search; 200 cap (097 is applied — see the VERIFY-097 note under §4) |
 | `/users` | A | List auth users + profile sync | legacy, about 53 | **List likely empty or wrong** (§3); no detail view; client-side search only |
 | `/pro-library` | A | Library Pro grants (F9-B) | **NEW** | Not in the sidebar; grants list shows only a truncated user id; duplicates the Premium "candidate access" tab |
 | `/premium` | A | Premium governance (8 tabs) | legacy, about 228 | 1,382 lines; tabs without ARIA or URL; 0 `htmlFor`; 9 px text |
@@ -159,8 +159,21 @@ Counting rules:
 | **T1** Review + publish a question draft | **11** (from IN_REVIEW) / **12** (from DRAFT) + close · 1 · 1 drawer | Factory opens on "Generate"; Review tab not in the URL; 6 separate checklist boxes; Approve and Publish separate; no "next item" | **≤ 3** · 1 · 0 | Today card "Open queue" (1) → checklist confirmed with one action (1, *owner decision Q-3*) → **Approve & publish, next opens** (1). Without the checklist change: **8** (6 boxes stay; keys 1–6 toggle them) |
 | **T2** Review + publish a CA draft | **6** (from IN_REVIEW) / **7** (from DRAFT) · 1 · 1 modal; +2 if a status filter hides the row after each step | Workbench modal; separate Compile click although Publish compiles; row disappears from the filtered list | **≤ 3** · 1 · 0 | Today card (1) → review drawer with "Select all checks" (1) → **Approve & publish** (1; the publish route already compiles) |
 | **T3** Handle a question report | **5–7** · 1 (+1 to fix the question) · 0 | Select-based status; note in a separate field; fixing the question = navigate away | **3** · 1 · 0 | Today card opens the report in a drawer (1) → resolution as a segmented control: Fixed / Not an error / Duplicate (1) → **Save & next** (1). "Edit question" opens a second drawer, with no navigation |
-| **T4** Answer a ticket | **Impossible in the UI today** (unlinked; flag off; migration 097 not applied). When enabled: 4 clicks, 1 typed-URL load, scroll through up to 200 tickets | No link, filter or search | **3** · 1 · 0 | Sidebar / Today "Tickets" (1) → open ticket in a drawer (1) → type the reply → **Send & resolve** (1). Default filter: Open, oldest first; "past 24 h" chip |
+| **T4** Answer a ticket | **4 clicks + 1 typed-URL page load** (the page is linked nowhere) + scrolling through up to 200 tickets | No link, filter or search | **3** · 1 · 0 | Sidebar / Today "Tickets" (1) → open ticket in a drawer (1) → type the reply → **Send & resolve** (1). Default filter: Open, oldest first; "past 24 h" chip |
 | **T5** Find a user by e-mail | **2** · 1 · 0, **but likely returns nothing** (D-2); only the first 50 users; no detail | Client-side filter over a broken list; no detail view | **1** (Ctrl/Cmd+K, type, Enter) · 0 · 0 | Global search → user result opens the user drawer (read-only summary: profile, entitlements, tickets). Needs D-2 fixed first |
+
+---
+
+> **VERIFY-097 (2026-10-26, read-only on live — corrects the first version of this report):** migration 097 **is applied**. The facts on live:
+> - **Ledger:** `schema_migration_ledger` row APPLIED 2026-10-25 15:14 UTC via `apply-migration.cjs`, with resilient backup pre-097.
+> - **Table:** `support_tickets` exists, RLS on, 0 rows.
+> - **Policy:** one policy, `p_support_tickets_select_own` (SELECT, authenticated).
+> - **Grants:**
+>   - authenticated: SELECT only, on the student-visible columns;
+>   - service_role: SELECT plus column-level UPDATE on `status, staff_reply, updated_at, resolved_at`;
+>   - no client INSERT / UPDATE / DELETE.
+> - **Function:** `fn_create_support_ticket(text,text,text)` is SECURITY DEFINER, EXECUTE for authenticated only (anon and PUBLIC revoked).
+> - **Cause of the error:** the "NOT APPLIED until the architect's go" line is a stale header comment in the migration file. That file is applied and checksummed in the ledger, so it is left unchanged.
 
 ---
 
@@ -200,7 +213,7 @@ Each card shows a count and one link to the already-filtered list. Amber top edg
 | Question drafts awaiting review (IN_REVIEW) + awaiting publish (APPROVED) | `question_versions.lifecycle_status`; reader `listReviewQueue` (`admin-question-factory.service.ts:202`) — add a count-only query | Factory tab + filter in the URL (phase C) |
 | CA drafts awaiting review | `AdminCurrentAffairsService.getDashboardStats` (`admin-current-affairs.service.ts:67`) already returns per-status counts + "needs changes" | CA status filter in the URL |
 | Open question reports + oldest age | `question_errata_reports` OPEN / UNDER_REVIEW; indexed (`idx_qer_staff_queue`) | Status filter in the URL |
-| Open tickets + past 24 h | `support_tickets` status OPEN and `created_at < now() − 24h`. There is no `acknowledged_at` column, so "past 24 h without a staff reply" = OPEN + old (first-reply time could come from the `SUPPORT_TICKET_UPDATE` audit rows) | Shown only when `SUPPORT_TICKETS_ENABLED` is on and 097 is applied |
+| Open tickets + past 24 h | `support_tickets` status OPEN and `created_at < now() − 24h`. There is no `acknowledged_at` column, so "past 24 h without a staff reply" = OPEN + old (first-reply time could come from the `SUPPORT_TICKET_UPDATE` audit rows) | Shown when `SUPPORT_TICKETS_ENABLED` is on (097 is applied) |
 | Grievances open | `support_tickets` with category GRIEVANCE | same |
 | Community flags pending | `discussion_moderation_flags` status PENDING (indexed) | Card links to `/community`, which cannot act until D-1 is fixed |
 | Library Pro ending in 7 days | `user_entitlements` source LIBRARY | — |
