@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ADMIN-UX-1 wireframe 1 — shell + Today</title>
+<link rel="stylesheet" href="wf.css" />
+</head>
+<body>
+<div class="shell">
+  <nav class="side" aria-label="Admin">
+    <div class="brand">Courage Library · Admin<span class="m">1</span></div>
+    <a class="on" href="#">Today <span class="n">14</span></a>
+    <div class="grp">Review</div>
+    <a href="#">Question drafts <span class="n">6</span></a>
+    <a href="#">Question reports <span class="n">3</span></a>
+    <a href="#">Current affairs review <span class="n">2</span></a>
+    <a href="#">Community flags <span class="n">0</span></a>
+    <div class="grp">Content</div>
+    <a href="#">Questions</a>
+    <a href="#">Mock tests</a>
+    <a href="#">Learning</a>
+    <a href="#">Current affairs</a>
+    <a href="#">Syllabus &amp; taxonomy</a>
+    <a href="#">Exams</a>
+    <div class="grp">People</div>
+    <a href="#">Users</a>
+    <a href="#">Tickets <span class="n">3</span></a>
+    <a href="#">Library Pro</a>
+    <a href="#">Institutes</a>
+    <div class="grp">System</div>
+    <a href="#">Security (MFA)</a>
+    <a href="#">Audit log</a>
+    <a href="#">Health</a>
+    <a href="#">Design system</a>
+    <div class="grp">Not live yet</div>
+    <a class="dormant" href="#">Payments · Live tests · Rewards …</a>
+  </nav>
+  <div class="main">
+    <header class="top">
+      <div class="search" role="button" aria-label="Search (Ctrl+K)">Search questions, users, tickets… <span class="kbd">Ctrl K</span><span class="m">5</span></div>
+      <div class="who">QA Admin · admin · MFA on <span class="btn ghost">Student site ↗</span></div>
+    </header>
+    <main class="page">
+      <div class="ph">
+        <h1>Today</h1><span class="count">Monday, 26 Oct · 14 items need attention</span>
+        <div class="actions"><span class="btn primary">Start reviewing (6)</span><span class="m">2</span></div>
+      </div>
+
+      <div class="cards">
+        <div class="card warn"><div class="k">6<span class="m">3</span></div><div class="l">Question drafts awaiting review</div><div class="go">Open queue →</div></div>
+        <div class="card warn"><div class="k">3</div><div class="l">Open question reports · oldest 2 days</div><div class="go">Handle reports →</div></div>
+        <div class="card"><div class="k">2</div><div class="l">Current affairs drafts</div><div class="go">Review CA →</div></div>
+        <div class="card warn"><div class="k">3 · 1 late</div><div class="l">Open tickets · 1 past 24 h acknowledgement</div><div class="go">Answer tickets →</div></div>
+        <div class="card ok"><div class="k">0</div><div class="l">Community flags</div><div class="go">View →</div></div>
+        <div class="card"><div class="k">0<span class="m">4</span></div><div class="l">Write failures (last 24 h)</div><div class="go">Details →</div></div>
+        <div class="card ok"><div class="k">Green</div><div class="l">Last nightly checks · 26 Oct 02:31</div><div class="go">Run details ↗</div></div>
+        <div class="card"><div class="k">4</div><div class="l">Library Pro ending in 7 days</div><div class="go">Library Pro →</div></div>
+      </div>
+
+      <div class="two">
+        <section class="panel"><h2>Recently changed (audit log)</h2>
+          <div class="row"><span>Question #1042 published</span><span>09:12 · QA Admin</span></div>
+          <div class="row"><span>CA draft "Monetary policy" approved</span><span>08:40 · Staff</span></div>
+          <div class="row"><span>Ticket T-0193 answered</span><span>yesterday</span></div>
+          <div class="row"><span>Syllabus SSC CGL v3 published</span><span>17 Oct</span></div>
+        </section>
+        <section class="panel"><h2>Content at a glance</h2>
+          <div class="row"><span>Published questions</span><b>103</b></div>
+          <div class="row"><span>Mock tests (full / sectional)</span><b>2 / 6</b></div>
+          <div class="row"><span>Current affairs (90 days)</span><b>0</b></div>
+          <div class="row"><span>Learning documents</span><b>0</b></div>
+        </section>
+      </div>
+          <ol class="legend"><li>Sidebar: Today + 4 groups (Review, Content, People, System); counts only on queues; Payments hidden while PAYMENTS_ENABLED is off; dormant features folded into one "Not live yet" entry — no dead links.</li><li>ONE primary action per screen (amber, R4) = the busiest queue.</li><li>Cards: a count + ONE link to the already-filtered list (URL query). Amber top edge only when something waits or is late; zero shows as a calm number, never hidden (R12).</li><li>Write failures and nightly status need a source the app can read (report §5.3). Until then the card says "Not available yet" — never a made-up value.</li><li>Global search (Ctrl/Cmd+K): questions by ID / text, users by email / username, tickets by ID. Server-side, admin guard, results show IDs + short labels only.</li></ol>
+    </main>
+  </div>
+</div>
+</body>
+</html>

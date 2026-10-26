@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ADMIN-UX-1 wireframe 3 — question review queue</title>
+<link rel="stylesheet" href="wf.css" />
+<style>
+  .queue { display: grid; grid-template-columns: 340px 1fr; gap: 12px; align-items: start; }
+  .list { background: #fff; border: 1px solid var(--ink-200); border-radius: 10px; }
+  .li { padding: 10px 12px; border-bottom: 1px solid var(--ink-100); display: flex; flex-direction: column; gap: 4px; }
+  .li.on { background: var(--primary-50); box-shadow: inset 3px 0 0 var(--primary-600); }
+  .detail { background: #fff; border: 1px solid var(--ink-200); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+  .decide { position: sticky; bottom: 0; display: flex; gap: 8px; align-items: center; padding-top: 12px; border-top: 1px solid var(--ink-200); }
+  .reason { border: 1px solid var(--ink-300); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 6px; background: var(--ink-50); }
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav class="side" aria-label="Admin">
+    <div class="brand">Courage Library · Admin</div>
+    <a href="#">Today <span class="n">14</span></a>
+    <div class="grp">Review</div>
+    <a class="on" href="#">Question drafts <span class="n">6</span></a>
+    <a href="#">Question reports <span class="n">3</span></a>
+    <a href="#">Current affairs review <span class="n">2</span></a>
+    <a href="#">Community flags <span class="n">0</span></a>
+    <div class="grp">Content</div>
+    <a href="#">Questions</a>
+    <a href="#">Mock tests</a>
+    <a href="#">Current affairs</a>
+    <div class="grp">People</div>
+    <a href="#">Users</a>
+    <a href="#">Tickets <span class="n">3</span></a>
+  </nav>
+  <div class="main">
+    <header class="top">
+      <span class="crumbs">Review / Question drafts</span>
+      <div class="search">Search… <span class="kbd">Ctrl K</span></div>
+      <div class="who">QA Admin</div>
+    </header>
+    <main class="page">
+      <div class="ph">
+        <h1>Question drafts</h1><span class="count">6 awaiting review · 2 of 6</span>
+        <div class="actions"><span class="f">Batch: Factory 26 Oct ▾</span><span class="f">Subject ▾</span><span class="btn">Approve all simple (4)…</span><span class="m">1</span></div>
+      </div>
+      <div class="queue">
+        <div class="list" aria-label="Queue">
+          <div class="li"><span class="keys">#1041 · Reasoning · Analogy</span><span class="bar" style="width:240px"></span><span class="chip approved" style="width:max-content">Approved ✓</span></div>
+          <div class="li on"><span class="keys">#1042 · Quant · Percentage</span><span class="bar" style="width:260px"></span><span class="chip review" style="width:max-content">In review</span></div>
+          <div class="li"><span class="keys">#1043 · English · Idioms</span><span class="bar" style="width:200px"></span><span class="chip review" style="width:max-content">In review</span></div>
+          <div class="li"><span class="keys">#1044 · GA · Polity · duplicate?</span><span class="bar" style="width:220px"></span><span class="chip review" style="width:max-content">In review</span></div>
+          <div class="li"><span class="keys">#1045 · Quant · Ratio</span><span class="bar" style="width:180px"></span><span class="chip review" style="width:max-content">In review</span></div>
+          <div class="li"><span class="keys">#1046 · GA · History</span><span class="bar" style="width:230px"></span><span class="chip review" style="width:max-content">In review</span></div>
+        </div>
+        <section class="detail" aria-label="Draft 1042">
+          <div class="qrow"><b>#1042</b><span class="chip review">In review</span><span class="keys">Quant · Percentage · difficulty medium · source: Factory batch 26 Oct · checks: answer key ✓ · duplicate check ✓ · syllabus topic ✓</span><span class="m">4</span></div>
+          <div class="box" style="min-height:72px">Question text — exactly as students will see it (preview)</div>
+          <div class="opt">A <span class="bar" style="width:160px"></span></div>
+          <div class="opt correct">B <span class="bar" style="width:140px"></span> ✓ correct</div>
+          <div class="opt">C <span class="bar" style="width:180px"></span></div>
+          <div class="opt">D <span class="bar" style="width:120px"></span></div>
+          <div class="box">Explanation</div>
+          <div class="reason" aria-label="Reject reason (shown after R)">
+            <b>Reject — reason (required)</b><span class="m">3</span>
+            <div class="keys"><span class="f">Wrong answer key</span><span class="f">Unclear wording</span><span class="f">Duplicate</span><span class="f">Off syllabus</span><span class="f">Other…</span></div>
+            <span class="box">Note to author (optional)</span>
+          </div>
+          <div class="decide">
+            <span class="btn primary">Approve &amp; next  (A)</span><span class="m">2</span>
+            <span class="btn danger">Reject…  (R)</span>
+            <span class="btn">Edit  (E)</span>
+            <span class="btn ghost">Skip  (J)</span>
+            <span style="margin-left:auto" class="keys">J next (skip) · K previous · A approve · R reject · E edit · ? all shortcuts</span>
+          </div>
+        </section>
+      </div>
+          <ol class="legend"><li>"Approve all simple": only drafts where every automatic check is green; the confirm dialog lists the IDs; the server still checks each one.</li><li>After Approve / Reject the NEXT item opens automatically (no page load). Shortcuts: J/K next/previous, A approve, R reject, E edit, ? help — never while typing in a field.</li><li>Reject always asks for a reason (one click on a common reason, optional note to the author).</li><li>The automatic checks the server already runs are shown up front so the reviewer reads, not hunts. Publishing rules stay as today (phase D changes speed, not rules).</li></ol>
+    </main>
+  </div>
+</div>
+</body>
+</html>

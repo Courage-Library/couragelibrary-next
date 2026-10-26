@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ADMIN-UX-1 wireframe 2 — standard list + drawer</title>
+<link rel="stylesheet" href="wf.css" />
+</head>
+<body class="has-drawer">
+<div class="shell">
+  <nav class="side" aria-label="Admin">
+    <div class="brand">Courage Library · Admin</div>
+    <a href="#">Today <span class="n">14</span></a>
+    <div class="grp">Review</div>
+    <a href="#">Question drafts <span class="n">6</span></a>
+    <a href="#">Question reports <span class="n">3</span></a>
+    <a href="#">Current affairs review <span class="n">2</span></a>
+    <a href="#">Community flags <span class="n">0</span></a>
+    <div class="grp">Content</div>
+    <a class="on" href="#">Questions</a>
+    <a href="#">Mock tests</a>
+    <a href="#">Learning</a>
+    <a href="#">Current affairs</a>
+    <a href="#">Syllabus &amp; taxonomy</a>
+    <a href="#">Exams</a>
+    <div class="grp">People</div>
+    <a href="#">Users</a>
+    <a href="#">Tickets <span class="n">3</span></a>
+    <a href="#">Library Pro</a>
+    <div class="grp">System</div>
+    <a href="#">Security (MFA)</a>
+    <a href="#">Audit log</a>
+  </nav>
+  <div class="main">
+    <header class="top">
+      <span class="crumbs">Content / Questions</span>
+      <div class="search">Search questions, users, tickets… <span class="kbd">Ctrl K</span></div>
+      <div class="who">QA Admin</div>
+    </header>
+    <main class="page">
+      <div class="ph">
+        <h1>Questions<span class="m">1</span></h1><span class="count">113 total · 103 published</span>
+        <div class="actions"><span class="btn">Import</span><span class="btn primary">New question</span></div>
+      </div>
+      <div class="filters">
+        <span class="f">Search text or ID…</span><span class="m">2</span>
+        <span class="f on">Exam: SSC CGL ▾</span>
+        <span class="f">Subject ▾</span><span class="f">Topic ▾</span>
+        <span class="f">Status: any ▾</span><span class="f">Difficulty ▾</span>
+        <span class="btn ghost">Clear</span>
+        <span style="margin-left:auto" class="f">Saved view: My drafts ▾</span>
+      </div>
+      <div class="filters" style="background:var(--primary-50); border-color:#bfdbfe;">
+        <b>2 selected</b><span class="m">3</span><span class="btn">Send to review</span><span class="btn">Archive</span><span class="btn ghost">Deselect</span>
+      </div>
+      <table>
+        <thead><tr><th><input type="checkbox" aria-label="Select all" /></th><th>ID ↕</th><th>Question</th><th>Subject / topic</th><th>Status</th><th>Updated ↓</th><th></th></tr></thead>
+        <tbody>
+          <tr class="sel focus"><td><input type="checkbox" checked aria-label="Select" /></td><td>1042<span class="m">4</span></td><td><span class="bar" style="width:320px"></span></td><td>Quant · Percentage</td><td><span class="chip review">In review</span></td><td>09:12</td><td>⋯</td></tr>
+          <tr class="sel"><td><input type="checkbox" checked aria-label="Select" /></td><td>1041</td><td><span class="bar" style="width:260px"></span></td><td>Reasoning · Analogy</td><td><span class="chip draft">Draft</span></td><td>08:55</td><td>⋯</td></tr>
+          <tr><td><input type="checkbox" aria-label="Select" /></td><td>1038</td><td><span class="bar" style="width:300px"></span></td><td>English · Idioms</td><td><span class="chip approved">Approved</span></td><td>yesterday</td><td>⋯</td></tr>
+          <tr><td><input type="checkbox" aria-label="Select" /></td><td>1031</td><td><span class="bar" style="width:240px"></span></td><td>GA · Polity</td><td><span class="chip published">Published</span></td><td>24 Oct</td><td>⋯</td></tr>
+          <tr><td><input type="checkbox" aria-label="Select" /></td><td>1027</td><td><span class="bar" style="width:280px"></span></td><td>Quant · Ratio</td><td><span class="chip rejected">Rejected</span></td><td>23 Oct</td><td>⋯</td></tr>
+          <tr><td><input type="checkbox" aria-label="Select" /></td><td>0998</td><td><span class="bar" style="width:200px"></span></td><td>GA · History</td><td><span class="chip archived">Archived</span></td><td>12 Oct</td><td>⋯</td></tr>
+        </tbody>
+      </table>
+      <div class="pager"><span>1–25 of 113</span><span>‹ Prev · 1 2 3 4 5 · Next ›  · 25 per page ▾</span></div>
+      <div class="box">Empty state: "No questions match these filters." + Clear filters. Loading: skeleton rows (same height). Error: inline Alert + Retry; filters kept.</div>
+          <ol class="legend"><li>Header: title + count + ONE amber primary (R4); secondary actions quieter.</li><li>Filter bar: every filter lives in the URL (shareable, back button works, Today cards deep-link here).</li><li>Bulk bar appears only when rows are selected; destructive bulk actions confirm with the exact count.</li><li>Table: sticky header, sortable columns (↕), keyboard row focus (↑/↓, Enter opens), the same status chips on every page.</li><li>Detail / edit opens in a DRAWER: the list, scroll and filters stay; Esc closes; "Open full page" for deep links. Empty / loading / error states are part of the template.</li></ol>
+    </main>
+  </div>
+</div>
+<aside class="drawer" aria-label="Question 1042">
+  <header><b>Question 1042</b><span class="m">5</span><span class="chip review">In review</span><span style="margin-left:auto" class="btn ghost">Open full page ↗</span><span class="btn" aria-label="Close">✕</span></header>
+  <div class="body">
+    <div class="keys">Quant · Percentage · SSC CGL Tier 1 · v3 · edited by Staff 09:12</div>
+    <div class="box" style="min-height:64px">Question text (rendered as students see it)</div>
+    <div class="opt">A <span class="bar" style="width:160px"></span></div>
+    <div class="opt correct">B <span class="bar" style="width:140px"></span> ✓ correct</div>
+    <div class="opt">C <span class="bar" style="width:180px"></span></div>
+    <div class="opt">D <span class="bar" style="width:120px"></span></div>
+    <div class="box">Explanation</div>
+    <div class="box">History (versions · who · when) — collapsed</div>
+  </div>
+  <footer><span class="btn">Edit</span><span class="btn danger">Archive</span><span style="margin-left:auto" class="keys">Esc closes · ↑↓ moves row</span></footer>
+</aside>
+</body>
+</html>
