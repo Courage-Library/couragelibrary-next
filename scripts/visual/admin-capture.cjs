@@ -87,6 +87,12 @@ async function axe(page) {
           row.status = typeof res.status === 'function' ? res.status() : null;
           row.finalPath = new URL(page.url()).pathname;
           await page.waitForTimeout(400);
+          // the admin layout scrolls inside #admin-content (h-dvh): unroll it so a full-page shot shows the whole page
+          await page.evaluate(() => {
+            for (const el of [document.getElementById('admin-content'), document.querySelector('[data-no-glass]'), ...document.querySelectorAll('[data-no-glass] > div')]) {
+              if (el) Object.assign(el.style, { height: 'auto', maxHeight: 'none', overflow: 'visible' });
+            }
+          });
           const m = await maskEmails(page);
           if (m.left) summary.emailLeaks.push(`${who} ${route}@${w}: ${m.left}`);
           const file = `${who}${route.replace(/\//g, '_') || '_root'}@${w}.png`;

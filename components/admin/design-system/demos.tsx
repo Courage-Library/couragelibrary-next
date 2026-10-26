@@ -252,7 +252,7 @@ export function StudyComfortDemo() {
           <StatusChip key={st} status={st} />
         ))}
       </div>
-      <div className="brand-gradient flex min-h-24 max-w-xl items-end rounded-card p-4">
+      <div className="brand-gradient flex min-h-24 max-w-xl items-end justify-end rounded-card p-4">
         <span className="text-h3 font-bold text-fg-inverse">Brand gradient · brand moments only</span>
       </div>
     </div>
