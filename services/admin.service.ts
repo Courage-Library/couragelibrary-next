@@ -1,3 +1,4 @@
+import { errorCode, reportWriteFailure } from "@/lib/ops/write-failure";
 import { createServerSupabaseClient, createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { UserProfileService } from "@/services/user-profile.service";
 import { resolveRole } from "@/lib/auth/require-admin";
@@ -1759,14 +1760,33 @@ export class AdminService {
             .eq("id", reportId);
           return !error;
         } else if (targetStatus === "VERIFIED") {
-          await (adminSb.from("question_errata_reports") as any).update({ status: "UNDER_REVIEW" }).eq("id", reportId);
+          // SILENT-FAIL-1: an intermediate state-machine step must succeed before the next one
+          {
+            const { error: stepError } = await (adminSb.from("question_errata_reports") as any).update({ status: "UNDER_REVIEW" }).eq("id", reportId);
+            if (stepError) {
+              reportWriteFailure({ fn: "AdminService.updateQuestionReportStatus", table: "question_errata_reports", op: "update", code: errorCode(stepError), ids: { reportId } });
+              return false;
+            }
+          }
           const { error } = await (adminSb.from("question_errata_reports") as any)
             .update({ status: "VERIFIED", resolution_notes: resolutionNotes || null, updated_at: new Date().toISOString() })
             .eq("id", reportId);
           return !error;
         } else if (targetStatus === "RESOLVED") {
-          await (adminSb.from("question_errata_reports") as any).update({ status: "UNDER_REVIEW" }).eq("id", reportId);
-          await (adminSb.from("question_errata_reports") as any).update({ status: "VERIFIED" }).eq("id", reportId);
+          {
+            const { error: stepError } = await (adminSb.from("question_errata_reports") as any).update({ status: "UNDER_REVIEW" }).eq("id", reportId);
+            if (stepError) {
+              reportWriteFailure({ fn: "AdminService.updateQuestionReportStatus", table: "question_errata_reports", op: "update", code: errorCode(stepError), ids: { reportId } });
+              return false;
+            }
+          }
+          {
+            const { error: stepError } = await (adminSb.from("question_errata_reports") as any).update({ status: "VERIFIED" }).eq("id", reportId);
+            if (stepError) {
+              reportWriteFailure({ fn: "AdminService.updateQuestionReportStatus", table: "question_errata_reports", op: "update", code: errorCode(stepError), ids: { reportId } });
+              return false;
+            }
+          }
           const { error } = await (adminSb.from("question_errata_reports") as any)
             .update({ status: "RESOLVED", resolution_notes: resolutionNotes || null, updated_at: new Date().toISOString() })
             .eq("id", reportId);
@@ -1779,7 +1799,13 @@ export class AdminService {
             .eq("id", reportId);
           return !error;
         } else if (targetStatus === "RESOLVED") {
-          await (adminSb.from("question_errata_reports") as any).update({ status: "VERIFIED" }).eq("id", reportId);
+          {
+            const { error: stepError } = await (adminSb.from("question_errata_reports") as any).update({ status: "VERIFIED" }).eq("id", reportId);
+            if (stepError) {
+              reportWriteFailure({ fn: "AdminService.updateQuestionReportStatus", table: "question_errata_reports", op: "update", code: errorCode(stepError), ids: { reportId } });
+              return false;
+            }
+          }
           const { error } = await (adminSb.from("question_errata_reports") as any)
             .update({ status: "RESOLVED", resolution_notes: resolutionNotes || null, updated_at: new Date().toISOString() })
             .eq("id", reportId);

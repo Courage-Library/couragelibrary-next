@@ -1,4 +1,5 @@
 import { createServerSupabaseClient, createAdminServerSupabaseClient } from "@/lib/supabase/server";
+import { errorCode, reportWriteFailure } from "@/lib/ops/write-failure";
 import {
   LiveTestEvent,
   ActiveLiveTestSession,
@@ -102,10 +103,11 @@ export class LiveTestRunnerService {
       isLateJoined = new Date(existingAttempt.started_at).getTime() > (eventStart + 60000);
 
       // Update last activity
-      await adminSb
+      const { error: activityError } = await adminSb
         .from("test_attempts")
         .update({ last_activity_at: now.toISOString(), updated_at: now.toISOString() })
         .eq("id", attemptId);
+      if (activityError) reportWriteFailure({ fn: "LiveTestRunnerService.start(resume)", table: "test_attempts", op: "update", code: errorCode(activityError), ids: { attemptId } });
     } else {
       // First-time start: check late join cutoff
       if (event.late_join_cutoff_minutes > 0) {
@@ -324,7 +326,7 @@ export class LiveTestRunnerService {
       
       // Auto-submit if expired
       if (now.getTime() > (eventEndMs + graceMs)) {
-        await adminSb
+        const { error: autoSubmitError } = await adminSb
           .from("test_attempts")
           .update({
             status: "auto_submitted",
@@ -333,6 +335,7 @@ export class LiveTestRunnerService {
             updated_at: now.toISOString()
           })
           .eq("id", payload.attemptId);
+        if (autoSubmitError) reportWriteFailure({ fn: "LiveTestRunnerService.saveAnswer(auto-submit)", table: "test_attempts", op: "update", code: errorCode(autoSubmitError), ids: { attemptId: payload.attemptId } });
 
         await adminSb
           .from("live_test_events")
@@ -369,10 +372,11 @@ export class LiveTestRunnerService {
     }
 
     // Update last activity
-    await adminSb
+    const { error: activityError } = await adminSb
       .from("test_attempts")
       .update({ last_activity_at: now.toISOString(), updated_at: now.toISOString() })
       .eq("id", payload.attemptId);
+    if (activityError) reportWriteFailure({ fn: "LiveTestRunnerService.saveAnswer", table: "test_attempts", op: "update", code: errorCode(activityError), ids: { attemptId: payload.attemptId } });
 
     return {
       success: true,

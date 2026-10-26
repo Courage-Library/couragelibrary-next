@@ -5,6 +5,7 @@
 
 import { isFeatureEnabled } from "@/config/features";
 import { createAdminServerSupabaseClient } from '@/lib/supabase/server';
+import { errorCode, reportWriteFailure } from '@/lib/ops/write-failure';
 import { ExamReadinessService, ExamReadinessReport } from './exam-readiness.service';
 import { ExamModuleRegistry } from '@/services/exam-knowledge/exam-module-registry';
 import { ExamModuleKey } from '@/types/exam-knowledge';
@@ -974,7 +975,7 @@ export class ExamOnboardingService {
 
     // 6. Write audit log
     try {
-      await supabase.from('admin_audit_logs').insert({
+      const { error: auditError } = await supabase.from('admin_audit_logs').insert({
         actor_id: actorUuid,
         actor_email: adminUserEmail || 'admin@couragelibrary.com',
         action_type: 'EXAMINATION_PERMANENTLY_DELETED',
@@ -988,6 +989,7 @@ export class ExamOnboardingService {
         reason: `Controlled deletion of draft/test fixture "${report.exam.title}" (${report.exam.slug})`,
         created_at: new Date().toISOString(),
       });
+      if (auditError) reportWriteFailure({ fn: 'ExamOnboardingService.deleteExam', table: 'admin_audit_logs', op: 'insert', code: errorCode(auditError), ids: { examId } });
     } catch (auditErr) {
       console.warn('Warning: Failed to write admin audit log:', auditErr);
     }

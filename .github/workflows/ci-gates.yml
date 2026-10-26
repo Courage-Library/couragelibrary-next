@@ -131,6 +131,7 @@ jobs:
           q PLAYER-RESUME node scripts/test_player_resume.cjs || fail=1
           q Q7-REPORT-LINK node scripts/test_q7_report_link.cjs || fail=1
           q AGE-18 node scripts/test_age18.cjs || fail=1
+          q SILENT-FAIL-1 node scripts/test_silent_fail1.cjs || fail=1
           q MIGRATION-RUNNER-SELFTEST node scripts/db/apply-migration.cjs --self-test || fail=1
           q KILL-LEFTOVER-SELFTEST node scripts/ci/kill-leftover-server.cjs --self-test || fail=1
           exit $fail
@@ -277,6 +278,7 @@ jobs:
             "$Q SMOKE-STUDENT-MISTAKE-1 -- node scripts/smoke/signed-in-smoke.cjs student-mistake $B" \
             "$Q SMOKE-STUDENT-MISTAKE-2 -- node scripts/smoke/signed-in-smoke.cjs student-mistake $B" \
             "$Q SMOKE-STUDENT-MISTAKE-3 -- node scripts/smoke/signed-in-smoke.cjs student-mistake $B" \
+            "$Q VAULT-HEALTH -- node scripts/live/test_vault_health.cjs" \
             "$Q SMOKE-ADMIN-PAGES-1 -- node scripts/smoke/signed-in-smoke.cjs admin-pages $B" \
             "$Q SMOKE-ADMIN-PAGES-2 -- node scripts/smoke/signed-in-smoke.cjs admin-pages $B" \
             "$Q SMOKE-ADMIN-PAGES-3 -- node scripts/smoke/signed-in-smoke.cjs admin-pages $B" \

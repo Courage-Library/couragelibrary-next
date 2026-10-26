@@ -5,6 +5,7 @@
  * status / reply update (admin / staff only, service role column grant: status / staff_reply / timestamps, audited).
  */
 import { revalidatePath } from "next/cache";
+import { errorCode, reportWriteFailure } from "@/lib/ops/write-failure";
 import { createAdminServerSupabaseClient, createServerSupabaseClient } from "@/lib/supabase/server";
 import { getSessionState } from "@/lib/auth/session-state";
 import { guardAdminAction } from "@/lib/auth/require-admin";
@@ -47,7 +48,8 @@ export async function updateTicketAction(input: { id: string; status: string; re
     .update({ status, staff_reply: reply || null, updated_at: now, resolved_at: status === "RESOLVED" || status === "CLOSED" ? now : null })
     .eq("id", input.id);
   if (error) return { ok: false };
-  await sb.from("admin_audit_logs").insert({
+  // SILENT-FAIL-1: the ticket update succeeded; a failed audit row is logged, never ignored
+  const { error: auditError } = await sb.from("admin_audit_logs").insert({
     actor_id: auth.userId,
     actor_email: auth.userEmail,
     action_type: "SUPPORT_TICKET_UPDATE",
@@ -57,6 +59,7 @@ export async function updateTicketAction(input: { id: string; status: string; re
     new_value: { status, replied: Boolean(reply) },
     reason: null,
   });
+  if (auditError) reportWriteFailure({ fn: "updateTicketAction", table: "admin_audit_logs", op: "insert", code: errorCode(auditError), ids: { ticketId: input.id } });
   revalidatePath("/admin/support");
   return { ok: true };
 }

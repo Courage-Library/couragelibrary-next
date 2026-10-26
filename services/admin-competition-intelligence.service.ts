@@ -10,6 +10,7 @@
  */
 
 import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
+import { errorCode, reportWriteFailure } from "@/lib/ops/write-failure";
 import {
   ADMIN_COMPETITION_INTELLIGENCE_POLICY_V1,
   CompetitionAnomalyPolicy,
@@ -812,8 +813,8 @@ export class AdminCompetitionIntelligenceService {
   ): Promise<CandidateDrillDownItem[]> {
     const supabase = quarantinedClient(createAdminServerSupabaseClient(), QUARANTINE_TAG);
 
-    // Log admin audit action
-    await supabase.from("admin_audit_logs").insert({
+    // Log admin audit action (SILENT-FAIL-1: read { error } and log it; the inspection itself continues)
+    const { error: auditError } = await supabase.from("admin_audit_logs").insert({
       actor_id: adminUserId,
       actor_email: "admin@couragelibrary.internal",
       action_type: "ADMIN_CANDIDATE_INTELLIGENCE_INSPECT",
@@ -822,6 +823,7 @@ export class AdminCompetitionIntelligenceService {
       reason: "Admin candidate intelligence drill-down inspection",
       new_value: { timestamp: new Date().toISOString() },
     });
+    if (auditError) reportWriteFailure({ fn: "AdminCompetitionIntelligenceService.drillDown", table: "admin_audit_logs", op: "insert", code: errorCode(auditError), ids: { eventId } });
 
     const { data: activeSnapshot } = await supabase
       .from("live_test_ranking_snapshots")

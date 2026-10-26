@@ -1,6 +1,7 @@
 // TYPES-1:C-ADAPTIVE-SESSION — QUARANTINED (ADAPTIVE flag off; targets undeployed schema). Client via lib/supabase/quarantine.ts.
 import { quarantinedClient, type QuarantinedClient, type QuarantinedRow } from "@/lib/supabase/quarantine";
 import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
+import { errorCode, reportWriteFailure } from "@/lib/ops/write-failure";
 import {
   ActiveAdaptiveSession,
   AdaptiveAttemptStateRow,
@@ -420,7 +421,7 @@ export class AdaptiveSessionService {
     // If time has expired in the background, auto-finalize attempt
     if (remainingSeconds <= 0 && state.status === "in_progress") {
       await AdaptiveEngineService.finalizeAdaptiveAttempt(attemptId, "TIME_EXPIRED", supabase);
-      await supabase
+      const { error: finalizeError } = await supabase
         .from("test_attempts")
         .update({
           status: "submitted",
@@ -428,6 +429,7 @@ export class AdaptiveSessionService {
           time_taken_seconds: totalAllowedSeconds,
         })
         .eq("id", attemptId);
+      if (finalizeError) reportWriteFailure({ fn: "AdaptiveSessionService.finalize(expired)", table: "test_attempts", op: "update", code: errorCode(finalizeError), ids: { attemptId } });
 
       try {
         await AssessmentService.submitTestAttempt(attemptId, state.user_id);
@@ -590,7 +592,7 @@ export class AdaptiveSessionService {
 
       if (remainingSeconds <= 0) {
         await AdaptiveEngineService.finalizeAdaptiveAttempt(attemptId, "TIME_EXPIRED", supabase);
-        await supabase
+        const { error: finalizeError } = await supabase
           .from("test_attempts")
           .update({
             status: "submitted",
@@ -598,6 +600,7 @@ export class AdaptiveSessionService {
             time_taken_seconds: totalAllowedSeconds,
           })
           .eq("id", attemptId);
+        if (finalizeError) reportWriteFailure({ fn: "AdaptiveSessionService.step(expired)", table: "test_attempts", op: "update", code: errorCode(finalizeError), ids: { attemptId } });
 
         try {
           await AssessmentService.submitTestAttempt(attemptId, userId);
@@ -789,7 +792,7 @@ export class AdaptiveSessionService {
         }
 
         if (resolvedMockQuestionId) {
-          await supabase
+          const { error: answerError } = await supabase
             .from("attempt_answers")
             .upsert(
               {
@@ -806,6 +809,7 @@ export class AdaptiveSessionService {
                 onConflict: "attempt_id,mock_question_id",
               }
             );
+          if (answerError) reportWriteFailure({ fn: "AdaptiveSessionService.processAdaptiveStepSubmission", table: "attempt_answers", op: "upsert", code: errorCode(answerError), ids: { attemptId, mockQuestionId: resolvedMockQuestionId } });
         }
       } catch (err) {
         console.warn("[processAdaptiveStepSubmission] Non-fatal attempt_answers upsert error:", err);

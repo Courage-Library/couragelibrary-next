@@ -1,4 +1,5 @@
 import { createServerSupabaseClient, createAdminServerSupabaseClient } from "@/lib/supabase/server";
+import { errorCode, reportWriteFailure } from "@/lib/ops/write-failure";
 import { LearningResolverService, type ResolvedLearningDocument, type LearningDocumentType } from "@/services/learning/learning-resolver.service";
 import { toPublicDrillQuestions } from "@/services/mistakes/drill-payload";
 import { rpcJsonObject } from "@/lib/supabase/rpc";
@@ -807,9 +808,15 @@ export class MistakeService {
       responseTimeSeconds?: number;
       cognitiveTypeId?: string;
     }>;
-  }): Promise<{ success: boolean; recordedCount: number }> {
+  }): Promise<{ success: boolean; recordedCount: number; failedCount: number }> {
     const adminSb = createAdminServerSupabaseClient();
     let recordedCount = 0;
+    let failedCount = 0;
+    // SILENT-FAIL-1: every failed write is logged (ops.write_failure, ids only) and counted — never swallowed
+    const fail = (table: string, op: "select" | "insert" | "update", err: unknown, questionId: string) => {
+      failedCount++;
+      reportWriteFailure({ fn: "MistakeService.recordExamMistakes", table, op, code: errorCode(err), ids: { attemptId: params.attemptId, questionId } });
+    };
 
     // Resolve taxonomy server-side from the canonical question (never from client input).
     const questionIds = Array.from(new Set(params.mistakes.map((m) => m.questionId).filter(Boolean)));
@@ -831,15 +838,20 @@ export class MistakeService {
       const sb = adminSb;
 
       // 1. Get or create vault record
-      let { data: vaultRecord } = await sb
+      const found = await sb
         .from("user_mistake_vault")
         .select("id, total_mistakes_count")
         .eq("user_id", params.userId)
         .eq("question_id", m.questionId)
         .maybeSingle();
+      if (found.error) {
+        fail("user_mistake_vault", "select", found.error, m.questionId);
+        continue;
+      }
+      let vaultRecord = found.data;
 
       if (!vaultRecord) {
-        const { data: newRecord } = await sb
+        const { data: newRecord, error: insertError } = await sb
           .from("user_mistake_vault")
           .insert({
             user_id: params.userId,
@@ -852,9 +864,13 @@ export class MistakeService {
           })
           .select("id, total_mistakes_count")
           .single();
+        if (insertError) {
+          fail("user_mistake_vault", "insert", insertError, m.questionId);
+          continue;
+        }
         vaultRecord = newRecord;
       } else {
-        await sb
+        const { error: updateError } = await sb
           .from("user_mistake_vault")
           .update({
             total_mistakes_count: (vaultRecord.total_mistakes_count || 1) + 1,
@@ -864,11 +880,15 @@ export class MistakeService {
             updated_at: new Date().toISOString(),
           })
           .eq("id", vaultRecord.id);
+        if (updateError) {
+          fail("user_mistake_vault", "update", updateError, m.questionId);
+          continue;
+        }
       }
 
       if (vaultRecord?.id) {
         // 2. Insert mistake occurrence with lineage
-        await sb.from("user_mistake_occurrences").insert({
+        const { error: occurrenceError } = await sb.from("user_mistake_occurrences").insert({
           vault_id: vaultRecord.id,
           user_id: params.userId,
           question_id: m.questionId,
@@ -881,11 +901,15 @@ export class MistakeService {
           attempt_answer_id: m.attemptAnswerId || null,
           occurrence_status: "ACTIVE",
         });
+        if (occurrenceError) {
+          fail("user_mistake_occurrences", "insert", occurrenceError, m.questionId);
+          continue;
+        }
         recordedCount++;
       }
     }
 
-    return { success: true, recordedCount };
+    return { success: failedCount === 0, recordedCount, failedCount };
   }
 
   /**

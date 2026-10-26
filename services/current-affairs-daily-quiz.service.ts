@@ -5,6 +5,7 @@
  */
 
 import { createAdminServerSupabaseClient } from '@/lib/supabase/server';
+import { errorCode, reportWriteFailure } from '@/lib/ops/write-failure';
 import { guardAdminAction } from '@/lib/auth/require-admin';
 import {
   DailyQuizEligibilityReport,
@@ -503,13 +504,15 @@ export class CurrentAffairsDailyQuizService {
 
       // 7. Audit log
       if (authUserId) {
-        await sb.from('admin_audit_logs').insert({
+        // SILENT-FAIL-1: a PostgREST insert never rejects — read { error } and log it (the quiz itself is already saved)
+        const { error: auditError } = await sb.from('admin_audit_logs').insert({
           user_id: authUserId,
           action: 'GENERATE_CA_DAILY_QUIZ',
           target_entity_type: 'mock_tests',
           target_entity_id: mockTestId,
           metadata: { date: dateStr, slug, totalQuestions: 10 },
-        }).catch(() => {});
+        });
+        if (auditError) reportWriteFailure({ fn: 'CurrentAffairsDailyQuizService.generate', table: 'admin_audit_logs', op: 'insert', code: errorCode(auditError), ids: { mockTestId } });
       }
 
       return {
@@ -635,13 +638,14 @@ export class CurrentAffairsDailyQuizService {
     }
 
     if (authUserId) {
-      await sb.from('admin_audit_logs').insert({
+      const { error: auditError } = await sb.from('admin_audit_logs').insert({
         user_id: authUserId,
         action: 'PUBLISH_CA_DAILY_QUIZ',
         target_entity_type: 'mock_tests',
         target_entity_id: mockTest.id,
         metadata: { date: dateStr, slug, publishedAt: now },
-      }).catch(() => {});
+      });
+      if (auditError) reportWriteFailure({ fn: 'CurrentAffairsDailyQuizService.publish', table: 'admin_audit_logs', op: 'insert', code: errorCode(auditError), ids: { mockTestId: mockTest.id } });
     }
 
     return { success: true, mockTestId: mockTest.id };

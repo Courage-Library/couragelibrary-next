@@ -9,6 +9,7 @@ import { PremiumEntitlementService } from "@/services/premium-entitlement.servic
 import { ContentService } from "@/services/content.service";
 import { formatIstDateTime, calculateExamDuration, getIstDateString } from "@/lib/assessment/timing";
 import type { AttemptPosition } from "@/lib/assessment/position";
+import { WRITE_FAILURE_TAG, errorCode, reportWriteFailure } from "@/lib/ops/write-failure";
 import { SAVE_GRACE_SECONDS, attemptDeadline, isFinalizeEnabled, isPastDeadline, staleOutcome, type AttemptLike } from "@/lib/assessment/finalize";
 import { RANK_MIN_COHORT } from "@/lib/assessment/display-rules";
 import { buildTakeaways, buildTrend, cohortStanding, isTestAccountEmail, negativeMarksLost, type CohortRow, type Standing, type Takeaway, type TrendPoint } from "@/lib/assessment/result-analysis";
@@ -2218,9 +2219,10 @@ export class AssessmentService {
     const finalDurationSeconds = Math.max(authoritativeWallClockSeconds, totalTimeSpent);
 
     try {
-      // 1. Update attempt answers evaluation using adminSb
+      // 1. Update attempt answers evaluation using adminSb (SILENT-FAIL-1: a failed row is logged, the submit continues)
       for (const ea of evaluatedAnswers) {
-        await (adminSb.from("attempt_answers") as any).update({ is_correct: ea.is_correct, evaluated_marks: ea.evaluated_marks }).eq("id", ea.id);
+        const { error: evalError } = await (adminSb.from("attempt_answers") as any).update({ is_correct: ea.is_correct, evaluated_marks: ea.evaluated_marks }).eq("id", ea.id);
+        if (evalError) reportWriteFailure({ fn: "AssessmentService.submitTestAttempt", table: "attempt_answers", op: "update", code: errorCode(evalError), ids: { attemptId, answerId: ea.id } });
       }
 
       // 2. Insert test_results using adminSb
@@ -2273,19 +2275,22 @@ export class AssessmentService {
       }
 
       // 4. Mark attempt as submitted with authoritative completion timestamp using adminSb
-      await (adminSb.from("test_attempts") as any).update({
+      const { error: statusError } = await (adminSb.from("test_attempts") as any).update({
         status: "submitted",
         submitted_at: submittedAtIso,
         time_taken_seconds: finalDurationSeconds,
       } as any).eq("id", attemptId);
+      if (statusError) reportWriteFailure({ fn: "AssessmentService.submitTestAttempt", table: "test_attempts", op: "update", code: errorCode(statusError), ids: { attemptId } });
 
-      // 5. Connect to Mistake Vault: Record all wrong answers
+      // 5. Connect to Mistake Vault: Record all wrong answers. SILENT-FAIL-1: the student still gets the result, but
+      // every failure is logged (ops.write_failure) and the nightly VAULT-HEALTH check catches missing rows.
       if (wrongAnswersForVault.length > 0) {
-        await MistakeService.recordExamMistakes({
-          userId: userId,
-          attemptId,
-          mistakes: wrongAnswersForVault,
-        }).catch((err) => console.error("[submitTestAttempt] Mistake Vault notice:", err));
+        try {
+          const vault = await MistakeService.recordExamMistakes({ userId: userId, attemptId, mistakes: wrongAnswersForVault });
+          if (vault.failedCount > 0) console.error(JSON.stringify({ tag: WRITE_FAILURE_TAG, fn: "AssessmentService.submitTestAttempt", summary: "mistake_vault_partial", ids: { attemptId }, failed: vault.failedCount, recorded: vault.recordedCount }));
+        } catch (err) {
+          reportWriteFailure({ fn: "AssessmentService.submitTestAttempt", table: "user_mistake_vault", op: "insert", code: errorCode(err), ids: { attemptId } });
+        }
       }
 
       // 6. Award Server-Authoritative CL Coins via GamificationService
