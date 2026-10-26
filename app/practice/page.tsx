@@ -104,7 +104,7 @@ export default async function PracticePage({ searchParams }: Props) {
                 {C.diagnostic.title(exam.title)}
               </h2>
               <p className="text-body text-fg-secondary">{C.diagnostic.lead}</p>
-              <PillLink href={`/practice/session?${new URLSearchParams({ exam: exam.slug, mode: "diagnostic" })}`} variant="accent-on-light">
+              <PillLink href={`/practice/session?${new URLSearchParams({ exam: exam.slug, mode: "diagnostic" })}`} variant="primary">
                 {C.diagnostic.cta}
               </PillLink>
             </section>

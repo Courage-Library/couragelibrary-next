@@ -96,7 +96,7 @@ export default async function DescriptiveLibraryPage({ searchParams }: Props) {
                 </Link>
                 <Link href="/articles">
                   <Button variant="outline" size="sm" className="font-semibold">
-                    <Sparkles className="w-3.5 h-3.5 mr-1 text-amber-500" /> Read Study Notes
+                    <Sparkles className="w-3.5 h-3.5 mr-1 text-accent-700" /> Read Study Notes
                   </Button>
                 </Link>
               </div>

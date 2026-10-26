@@ -144,8 +144,8 @@ export function AdminSchedulesManager({
       return {
         status: "PARTIALLY_ACTIVE" as const,
         badgeLabel: "PARTIALLY ACTIVE",
-        badgeClass: "bg-amber-50 text-amber-800 border-amber-200",
-        dotClass: "bg-amber-500",
+        badgeClass: "bg-accent-50 text-accent-800 border-accent-200",
+        dotClass: "bg-primary-700",
         icon: AlertTriangle,
         description: `${activeDays.length} of 7 days are active. Some days are individually paused.`,
       };
@@ -761,7 +761,7 @@ export function AdminSchedulesManager({
                         className={`py-3.5 px-3 rounded-xl transition-all flex flex-col md:flex-row md:items-center justify-between gap-3 ${
                           day.isActive
                             ? dayStatus.isWeekend
-                              ? "bg-amber-50/20 hover:bg-amber-50/40"
+                              ? "bg-accent-50/20 hover:bg-accent-50/40"
                               : "hover:bg-slate-50/60"
                             : "bg-slate-50/50 opacity-60"
                         }`}
@@ -772,14 +772,14 @@ export function AdminSchedulesManager({
                             className={`w-10 h-10 rounded-xl flex flex-col items-center justify-center font-black text-xs shrink-0 ${
                               day.isActive
                                 ? dayStatus.isWeekend
-                                  ? "bg-amber-100 text-amber-900 border border-amber-300/80 shadow-2xs"
+                                  ? "bg-accent-100 text-accent-900 border border-accent-300/80 shadow-2xs"
                                   : "bg-blue-100 text-blue-900 border border-blue-200/80 shadow-2xs"
                                 : "bg-slate-100 text-slate-400 border border-slate-200"
                             }`}
                           >
                             <span className="text-[10px] font-black">{day.dayLabel.slice(0, 3)}</span>
                             {dayStatus.isWeekend && (
-                              <span className="text-[7px] font-black text-amber-700 tracking-tighter uppercase">W-END</span>
+                              <span className="text-[7px] font-black text-accent-700 tracking-tighter uppercase">W-END</span>
                             )}
                           </span>
                           <div>
@@ -895,7 +895,7 @@ export function AdminSchedulesManager({
                       className={`p-5 bg-white border rounded-2xl shadow-2xs transition-all ${
                         day.isActive
                           ? dayStatus.isWeekend
-                            ? "border-amber-200/80 bg-gradient-to-r from-white to-amber-50/20"
+                            ? "border-accent-200/80 bg-gradient-to-r from-white to-accent-50/20"
                             : "border-slate-200/80"
                           : "border-slate-200/50 bg-slate-50/40 opacity-70"
                       }`}
@@ -906,14 +906,14 @@ export function AdminSchedulesManager({
                             className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center font-black text-xs shrink-0 ${
                               day.isActive
                                 ? dayStatus.isWeekend
-                                  ? "bg-amber-100 text-amber-900 border border-amber-300/80"
+                                  ? "bg-accent-100 text-accent-900 border border-accent-300/80"
                                   : "bg-blue-100 text-blue-900 border border-blue-200/80"
                                 : "bg-slate-100 text-slate-400 border border-slate-200"
                             }`}
                           >
                             <span className="text-[11px] font-black">{day.dayLabel.slice(0, 3)}</span>
                             {dayStatus.isWeekend && (
-                              <span className="text-[7px] font-black text-amber-700 tracking-tighter uppercase">W-END</span>
+                              <span className="text-[7px] font-black text-accent-700 tracking-tighter uppercase">W-END</span>
                             )}
                           </span>
                           <div>
@@ -1094,8 +1094,8 @@ export function AdminSchedulesManager({
 
                 {/* Validation Feedback Warning */}
                 {!isProgramLaunchedInDb && !launchValidation.isValid && (
-                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2 text-xs font-semibold text-amber-800">
-                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <div className="p-3 bg-accent-50 border border-accent-200 rounded-xl flex items-center gap-2 text-xs font-semibold text-accent-800">
+                    <AlertTriangle className="w-4 h-4 text-accent-700 shrink-0" />
                     <span>{actionErrorMessage(launchValidation, "Launch date and time must be in the future (Asia/Kolkata / IST).")}</span>
                   </div>
                 )}
@@ -1191,7 +1191,7 @@ export function AdminSchedulesManager({
                       className={`p-4 sm:p-5 bg-white border rounded-2xl transition-all shadow-2xs ${
                         day.isActive
                           ? dayStatus.isWeekend
-                            ? "border-amber-200/80 bg-gradient-to-r from-white to-amber-50/20 hover:border-amber-300"
+                            ? "border-accent-200/80 bg-gradient-to-r from-white to-accent-50/20 hover:border-accent-300"
                             : "border-slate-200/80 hover:border-slate-300"
                           : "border-slate-200/50 bg-slate-50/40 opacity-70"
                       }`}
@@ -1203,14 +1203,14 @@ export function AdminSchedulesManager({
                             className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center font-black text-xs shrink-0 ${
                               day.isActive
                                 ? dayStatus.isWeekend
-                                  ? "bg-amber-100 text-amber-900 border border-amber-300/80 shadow-2xs"
+                                  ? "bg-accent-100 text-accent-900 border border-accent-300/80 shadow-2xs"
                                   : "bg-blue-100 text-blue-900 border border-blue-200/80 shadow-2xs"
                                 : "bg-slate-100 text-slate-400 border border-slate-200"
                             }`}
                           >
                             <span className="text-[11px] font-black">{day.dayLabel.slice(0, 3)}</span>
                             {dayStatus.isWeekend && (
-                              <span className="text-[8px] font-extrabold text-amber-700 tracking-tighter uppercase">W-END</span>
+                              <span className="text-[8px] font-extrabold text-accent-700 tracking-tighter uppercase">W-END</span>
                             )}
                           </span>
                           <div>
@@ -1923,7 +1923,7 @@ export function AdminSchedulesManager({
               </div>
               <div className="flex justify-between items-center text-xs">
                 <span className="font-semibold text-slate-500">Total Weekly Marks:</span>
-                <span className="font-bold text-amber-700">
+                <span className="font-bold text-accent-700">
                   {daysState.filter((d) => d.isActive).reduce((acc, d) => acc + d.totalMarks, 0)} Marks
                 </span>
               </div>

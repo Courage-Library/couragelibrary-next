@@ -431,9 +431,9 @@ export function ExamMdxArticleRenderer({
                 icon: <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />,
               },
               WARNING: {
-                bg: "bg-amber-50/70 border-amber-200/90 text-amber-950",
-                badgeBg: "bg-amber-100 text-amber-900",
-                icon: <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />,
+                bg: "bg-accent-50/70 border-accent-200/90 text-accent-950",
+                badgeBg: "bg-accent-100 text-accent-900",
+                icon: <AlertTriangle className="w-4 h-4 text-accent-700 shrink-0" />,
               },
               IMPORTANT: {
                 bg: "bg-rose-50/70 border-rose-200/90 text-rose-950",

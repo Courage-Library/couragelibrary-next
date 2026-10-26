@@ -455,7 +455,7 @@ export function AdminPremiumManager({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-200">
         <div>
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600">
+            <div className="p-2 rounded-xl bg-primary-700/10 border border-accent-500/20 text-white">
               <Sparkles className="w-6 h-6" />
             </div>
             <div>
@@ -589,7 +589,7 @@ export function AdminPremiumManager({
               <p className="text-2xl font-black text-slate-900 mt-1">
                 {analytics.dynamicMocksGenerated}
               </p>
-              <span className="text-[10px] text-amber-600 font-bold">Dynamic instances</span>
+              <span className="text-[10px] text-accent-700 font-bold">Dynamic instances</span>
             </Card>
           </div>
 
@@ -1356,7 +1356,7 @@ export function AdminPremiumManager({
       {confirmModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
           <Card className="max-w-md w-full p-6 bg-white border-slate-200 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
-            <div className="flex items-center gap-2.5 text-amber-600">
+            <div className="flex items-center gap-2.5 text-accent-700">
               <AlertTriangle className="w-5 h-5" />
               <h3 className="text-base font-extrabold text-slate-900">{confirmModal.title}</h3>
             </div>

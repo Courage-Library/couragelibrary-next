@@ -1,27 +1,27 @@
 {
   "$comment": "UX-1a design ratchet baseline (decision #40). Counts may only go down. Scope: app/ + components/, excluding app/admin and components/admin. Written by scripts/test_design_ratchet.cjs --write.",
-  "recordedAt": "2026-10-24",
+  "recordedAt": "2026-10-26",
   "totals": {
     "rawColor": 0,
-    "paletteClass": 4654,
+    "paletteClass": 3381,
     "darkClass": 0,
-    "smallText": 388,
-    "legacyImport": 207
+    "smallText": 304,
+    "legacyImport": 190
   },
   "byArea": {
     "app/achievements": {
       "rawColor": 0,
-      "paletteClass": 91,
+      "paletteClass": 76,
       "darkClass": 0,
       "smallText": 10,
       "legacyImport": 1
     },
     "app/articles": {
       "rawColor": 0,
-      "paletteClass": 73,
+      "paletteClass": 23,
       "darkClass": 0,
-      "smallText": 7,
-      "legacyImport": 8
+      "smallText": 3,
+      "legacyImport": 4
     },
     "app/auth": {
       "rawColor": 0,
@@ -32,28 +32,28 @@
     },
     "app/battles": {
       "rawColor": 0,
-      "paletteClass": 88,
+      "paletteClass": 68,
       "darkClass": 0,
       "smallText": 6,
       "legacyImport": 6
     },
     "app/billing": {
       "rawColor": 0,
-      "paletteClass": 36,
+      "paletteClass": 39,
       "darkClass": 0,
       "smallText": 4,
       "legacyImport": 4
     },
     "app/certificates": {
       "rawColor": 0,
-      "paletteClass": 36,
+      "paletteClass": 29,
       "darkClass": 0,
       "smallText": 5,
       "legacyImport": 1
     },
     "app/checkout": {
       "rawColor": 0,
-      "paletteClass": 55,
+      "paletteClass": 41,
       "darkClass": 0,
       "smallText": 1,
       "legacyImport": 11
@@ -67,28 +67,28 @@
     },
     "app/courses": {
       "rawColor": 0,
-      "paletteClass": 99,
+      "paletteClass": 98,
       "darkClass": 0,
       "smallText": 6,
       "legacyImport": 11
     },
     "app/current-affairs": {
       "rawColor": 0,
-      "paletteClass": 85,
+      "paletteClass": 55,
       "darkClass": 0,
       "smallText": 0,
       "legacyImport": 4
     },
     "app/dashboard": {
       "rawColor": 0,
-      "paletteClass": 50,
+      "paletteClass": 51,
       "darkClass": 0,
       "smallText": 6,
       "legacyImport": 4
     },
     "app/descriptive": {
       "rawColor": 0,
-      "paletteClass": 164,
+      "paletteClass": 158,
       "darkClass": 0,
       "smallText": 14,
       "legacyImport": 19
@@ -102,10 +102,10 @@
     },
     "app/exams": {
       "rawColor": 0,
-      "paletteClass": 49,
+      "paletteClass": 4,
       "darkClass": 0,
-      "smallText": 3,
-      "legacyImport": 4
+      "smallText": 0,
+      "legacyImport": 1
     },
     "app/faculty": {
       "rawColor": 0,
@@ -116,7 +116,7 @@
     },
     "app/flashcards": {
       "rawColor": 0,
-      "paletteClass": 37,
+      "paletteClass": 35,
       "darkClass": 0,
       "smallText": 0,
       "legacyImport": 8
@@ -130,14 +130,14 @@
     },
     "app/institutes": {
       "rawColor": 0,
-      "paletteClass": 118,
+      "paletteClass": 117,
       "darkClass": 0,
       "smallText": 18,
       "legacyImport": 11
     },
     "app/live-tests": {
       "rawColor": 0,
-      "paletteClass": 25,
+      "paletteClass": 24,
       "darkClass": 0,
       "smallText": 0,
       "legacyImport": 1
@@ -151,9 +151,9 @@
     },
     "app/mock-tests": {
       "rawColor": 0,
-      "paletteClass": 259,
+      "paletteClass": 73,
       "darkClass": 0,
-      "smallText": 22,
+      "smallText": 4,
       "legacyImport": 8
     },
     "app/not-found.tsx": {
@@ -172,112 +172,105 @@
     },
     "app/performance": {
       "rawColor": 0,
-      "paletteClass": 183,
+      "paletteClass": 172,
       "darkClass": 0,
       "smallText": 14,
       "legacyImport": 1
     },
-    "app/pricing": {
-      "rawColor": 0,
-      "paletteClass": 52,
-      "darkClass": 0,
-      "smallText": 3,
-      "legacyImport": 4
-    },
     "app/verify": {
       "rawColor": 0,
-      "paletteClass": 71,
+      "paletteClass": 52,
       "darkClass": 0,
       "smallText": 0,
       "legacyImport": 0
     },
     "components/assessment": {
       "rawColor": 0,
-      "paletteClass": 775,
+      "paletteClass": 282,
       "darkClass": 0,
-      "smallText": 84,
-      "legacyImport": 11
+      "smallText": 33,
+      "legacyImport": 5
     },
     "components/battles": {
       "rawColor": 0,
-      "paletteClass": 21,
+      "paletteClass": 18,
       "darkClass": 0,
       "smallText": 2,
       "legacyImport": 4
     },
     "components/current-affairs": {
       "rawColor": 0,
-      "paletteClass": 184,
+      "paletteClass": 135,
       "darkClass": 0,
-      "smallText": 5,
+      "smallText": 0,
       "legacyImport": 0
     },
     "components/exams": {
       "rawColor": 0,
-      "paletteClass": 192,
+      "paletteClass": 185,
       "darkClass": 0,
       "smallText": 17,
       "legacyImport": 14
     },
     "components/flashcards": {
       "rawColor": 0,
-      "paletteClass": 95,
+      "paletteClass": 74,
       "darkClass": 0,
       "smallText": 13,
       "legacyImport": 7
     },
     "components/gamification": {
       "rawColor": 0,
-      "paletteClass": 69,
+      "paletteClass": 55,
       "darkClass": 0,
       "smallText": 7,
       "legacyImport": 0
     },
     "components/learning": {
       "rawColor": 0,
-      "paletteClass": 136,
+      "paletteClass": 129,
       "darkClass": 0,
       "smallText": 0,
       "legacyImport": 0
     },
     "components/live-test": {
       "rawColor": 0,
-      "paletteClass": 331,
+      "paletteClass": 267,
       "darkClass": 0,
       "smallText": 36,
       "legacyImport": 4
     },
     "components/mistakes": {
       "rawColor": 0,
-      "paletteClass": 291,
+      "paletteClass": 255,
       "darkClass": 0,
       "smallText": 28,
       "legacyImport": 12
     },
     "components/premium": {
       "rawColor": 0,
-      "paletteClass": 344,
+      "paletteClass": 297,
       "darkClass": 0,
       "smallText": 28,
       "legacyImport": 0
     },
     "components/store": {
       "rawColor": 0,
-      "paletteClass": 191,
+      "paletteClass": 141,
       "darkClass": 0,
       "smallText": 11,
       "legacyImport": 0
     },
     "components/ui": {
       "rawColor": 0,
-      "paletteClass": 67,
+      "paletteClass": 61,
       "darkClass": 0,
       "smallText": 0,
       "legacyImport": 0
     },
     "components/wallet": {
       "rawColor": 0,
-      "paletteClass": 147,
+      "paletteClass": 127,
       "darkClass": 0,
       "smallText": 16,
       "legacyImport": 3

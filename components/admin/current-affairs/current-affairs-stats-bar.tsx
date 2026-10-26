@@ -40,8 +40,8 @@ export function CurrentAffairsStatsBar({
       label: 'Drafts',
       count: stats?.draft || 0,
       icon: FileText,
-      color: 'text-amber-700 bg-amber-50',
-      activeBorder: 'border-amber-500 bg-amber-50/50',
+      color: 'text-accent-700 bg-accent-50',
+      activeBorder: 'border-accent-500 bg-accent-50/50',
     },
     {
       id: 'IN_REVIEW',

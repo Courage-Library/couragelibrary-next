@@ -63,7 +63,7 @@ export function CurrentAffairsHistoryModal({
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'DRAFT':
-        return <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">DRAFT</span>;
+        return <span className="text-[10px] font-bold text-accent-700 bg-accent-50 px-2 py-0.5 rounded border border-accent-200">DRAFT</span>;
       case 'IN_REVIEW':
         return <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">IN REVIEW</span>;
       case 'APPROVED':

@@ -62,7 +62,7 @@ export function ExamCycleSnapshot({ activeCycle, availableCycles, examSlug }: Ex
               {activeCycle.notificationDate ? (
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
               ) : (
-                <Clock className="w-3.5 h-3.5 text-amber-500" />
+                <Clock className="w-3.5 h-3.5 text-accent-700" />
               )}
               <span>{formatDate(activeCycle.notificationDate)}</span>
             </div>

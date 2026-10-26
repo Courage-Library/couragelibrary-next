@@ -217,11 +217,11 @@ export function CurrentAffairsReviewWorkbench({
                     </ul>
                   </div>
 
-                  <div className="p-3 rounded-xl bg-amber-50/40 border border-amber-200 space-y-1">
-                    <span className="font-bold text-amber-900 text-[11px] block">
+                  <div className="p-3 rounded-xl bg-accent-50/40 border border-accent-200 space-y-1">
+                    <span className="font-bold text-accent-900 text-[11px] block">
                       Essential Facts ({version.importantFacts.length})
                     </span>
-                    <ul className="list-disc pl-4 space-y-0.5 text-amber-950 text-[11px]">
+                    <ul className="list-disc pl-4 space-y-0.5 text-accent-950 text-[11px]">
                       {version.importantFacts.map((f, i) => (
                         <li key={i}>{f}</li>
                       ))}

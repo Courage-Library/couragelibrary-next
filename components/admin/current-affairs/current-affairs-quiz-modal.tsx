@@ -235,11 +235,11 @@ export function CurrentAffairsQuizModal({ isOpen, onClose }: CurrentAffairsQuizM
 
           {/* Shortage Blocked Alert */}
           {isShortage && (
-            <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-3 text-sm text-amber-900">
-              <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div className="p-4 rounded-xl bg-accent-50 border border-accent-200 flex items-start gap-3 text-sm text-accent-900">
+              <AlertTriangle className="w-5 h-5 text-accent-700 shrink-0 mt-0.5" />
               <div>
                 <p className="font-semibold">Shortage Blocked — Incomplete Quizzes Prohibited</p>
-                <p className="text-xs mt-1 text-amber-800 leading-relaxed">
+                <p className="text-xs mt-1 text-accent-800 leading-relaxed">
                   The Daily Current Affairs Quiz strictly requires exactly 10 eligible questions. Only{' '}
                   <span className="font-bold">{report?.totalEligibleCount}</span> eligible questions were found for
                   the week of {report?.weekStartDate} to {report?.weekEndDate} (Shortage: {report?.shortageCount}).

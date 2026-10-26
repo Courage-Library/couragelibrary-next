@@ -26,7 +26,7 @@ export function LiveEventCard({ event }: LiveEventCardProps) {
           </span>
 
           {event.isPremiumOnly && (
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 border border-amber-500/20">
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary-700/10 text-white border border-accent-500/20">
               <Sparkles className="w-3 h-3" />
               PREMIUM
             </span>

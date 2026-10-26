@@ -39,7 +39,7 @@ export default async function FlashcardsDirectoryPage() {
         {decks.length === 0 ? (
           <Card className="border-slate-200/80 shadow-xs">
             <CardContent className="py-16 text-center space-y-4">
-              <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto shadow-xs">
+              <div className="w-16 h-16 rounded-2xl bg-accent-50 text-accent-700 flex items-center justify-center mx-auto shadow-xs">
                 <Zap className="w-8 h-8" />
               </div>
               <div className="space-y-1 max-w-sm mx-auto">

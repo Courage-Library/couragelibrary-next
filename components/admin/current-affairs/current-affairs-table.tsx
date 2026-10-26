@@ -64,8 +64,8 @@ export function CurrentAffairsTable({
     switch (status) {
       case 'DRAFT':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Draft
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-accent-50 text-accent-700 border border-accent-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary-700" /> Draft
           </span>
         );
       case 'IN_REVIEW':

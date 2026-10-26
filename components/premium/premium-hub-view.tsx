@@ -295,13 +295,13 @@ export function PremiumHubView({ initialData }: PremiumHubViewProps) {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-400/20 text-amber-300 border border-amber-400/30">
-                  <Sparkles className="w-3.5 h-3.5 fill-amber-300" />
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-primary-700/20 text-accent-300 border border-accent-400/30">
+                  <Sparkles className="w-3.5 h-3.5 fill-accent-300" />
                   COURAGE PREMIUM PRACTICE
                 </span>
                 {data.globalStatus.isMaintenanceMode && (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-200 border border-amber-500/40">
-                    <AlertTriangle className="w-3 h-3 text-amber-300" />
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary-700/20 text-accent-200 border border-accent-500/40">
+                    <AlertTriangle className="w-3 h-3 text-accent-300" />
                     Maintenance Active
                   </span>
                 )}
@@ -349,8 +349,8 @@ export function PremiumHubView({ initialData }: PremiumHubViewProps) {
                     </>
                   ) : (
                     <>
-                      <Lock className="w-4 h-4 text-amber-400" />
-                      <span className="text-amber-300">Free Tier</span>
+                      <Lock className="w-4 h-4 text-accent-700" />
+                      <span className="text-accent-300">Free Tier</span>
                     </>
                   )}
                 </div>
@@ -365,7 +365,7 @@ export function PremiumHubView({ initialData }: PremiumHubViewProps) {
               {!isEntitled && (
                 <Link
                   href="/pricing"
-                  className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-bold text-xs shadow-md hover:brightness-105 transition-all"
+                  className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-accent-400 to-accent-500 text-slate-950 font-bold text-xs shadow-md hover:brightness-105 transition-all"
                 >
                   Upgrade
                 </Link>
@@ -416,7 +416,7 @@ export function PremiumHubView({ initialData }: PremiumHubViewProps) {
         {/* 2. IN-PROGRESS ACTIVE TEST BANNER (RESUME) */}
         {/* -------------------------------------------------------------------- */}
         {data.activeAttempt && (
-          <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 rounded-3xl p-5 sm:p-6 text-white shadow-xl shadow-amber-500/20 border border-amber-400/40 animate-pulse-subtle">
+          <div className="brand-gradient rounded-3xl p-5 sm:p-6 text-white shadow-xl shadow-accent-500/20 border border-accent-400/40 animate-pulse-subtle">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3.5">
                 <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shrink-0">
@@ -424,13 +424,13 @@ export function PremiumHubView({ initialData }: PremiumHubViewProps) {
                 </div>
                 <div>
                   <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-black bg-black/20 text-white uppercase tracking-wider mb-1">
-                    <Flame className="w-3.5 h-3.5 fill-amber-200 text-amber-200" />
+                    <Flame className="w-3.5 h-3.5 fill-accent-200 text-accent-200" />
                     Active Attempt In-Progress
                   </div>
                   <h3 className="text-lg sm:text-xl font-black text-white">
                     {data.activeAttempt.title}
                   </h3>
-                  <p className="text-xs text-amber-100 mt-0.5">
+                  <p className="text-xs text-accent-100 mt-0.5">
                     Started at {new Date(data.activeAttempt.startedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} • Duration: {data.activeAttempt.durationMinutes} mins
                   </p>
                 </div>
@@ -438,7 +438,7 @@ export function PremiumHubView({ initialData }: PremiumHubViewProps) {
 
               <Link
                 href={`/mock-tests/${data.activeAttempt.mockTestId}/take`}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-white text-slate-900 font-extrabold text-sm shadow-lg hover:bg-amber-50 hover:scale-105 active:scale-95 transition-all"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-white text-slate-900 font-extrabold text-sm shadow-lg hover:bg-accent-50 hover:scale-105 active:scale-95 transition-all"
               >
                 <span>Resume Test Now</span>
                 <ChevronRight className="w-4 h-4 text-slate-900" />
@@ -600,10 +600,10 @@ export function PremiumHubView({ initialData }: PremiumHubViewProps) {
             </div>
 
             {/* 4. WEAK AREA ACCELERATOR */}
-            <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-sm hover:shadow-md transition-all flex flex-col justify-between group border-l-4 border-l-amber-500">
+            <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-sm hover:shadow-md transition-all flex flex-col justify-between group border-l-4 border-l-accent-500">
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+                  <div className="w-10 h-10 rounded-2xl bg-accent-50 text-accent-700 flex items-center justify-center font-bold">
                     <Target className="w-5 h-5" />
                   </div>
                   {(() => {
@@ -615,9 +615,9 @@ export function PremiumHubView({ initialData }: PremiumHubViewProps) {
                     );
                   })()}
                 </div>
-                <h3 className="text-base font-bold text-slate-900 group-hover:text-amber-600 transition-colors flex items-center gap-1.5">
+                <h3 className="text-base font-bold text-slate-900 group-hover:text-accent-700 transition-colors flex items-center gap-1.5">
                   <span>Weak Area Drills</span>
-                  <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-amber-100 text-amber-800">
+                  <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-accent-100 text-accent-800">
                     AUTO
                   </span>
                 </h3>
@@ -629,7 +629,7 @@ export function PremiumHubView({ initialData }: PremiumHubViewProps) {
               <div className="mt-5 pt-3 border-t border-slate-100">
                 <button
                   onClick={() => setActiveModal("weak_area")}
-                  className="w-full inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-sm transition-colors"
+                  className="w-full inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-primary-700 hover:bg-primary-800 text-white font-bold text-xs shadow-sm transition-colors"
                 >
                   <Target className="w-3.5 h-3.5" />
                   <span>Generate Weak Area Drill</span>
@@ -878,7 +878,7 @@ export function PremiumHubView({ initialData }: PremiumHubViewProps) {
                     {mock.userAttemptStatus === "in_progress" ? (
                       <Link
                         href={`/mock-tests/${mock.id}/take`}
-                        className="w-full inline-flex items-center justify-center gap-1.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-xs transition-colors"
+                        className="w-full inline-flex items-center justify-center gap-1.5 py-2 rounded-xl bg-primary-700 hover:bg-primary-800 text-white font-bold text-xs shadow-xs transition-colors"
                       >
                         <Play className="w-3 h-3 fill-slate-950" />
                         <span>Resume Test</span>
@@ -1203,7 +1203,7 @@ export function PremiumHubView({ initialData }: PremiumHubViewProps) {
           <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-xl bg-accent-50 text-accent-700 flex items-center justify-center">
                   <Target className="w-5 h-5" />
                 </div>
                 <div>
@@ -1217,8 +1217,8 @@ export function PremiumHubView({ initialData }: PremiumHubViewProps) {
             </div>
 
             <div className="space-y-4 text-xs">
-              <div className="bg-amber-50/70 p-3 rounded-2xl border border-amber-200/70">
-                <div className="text-[11px] font-bold text-amber-900 mb-1">Identified Low-Accuracy Topics:</div>
+              <div className="bg-accent-50/70 p-3 rounded-2xl border border-accent-200/70">
+                <div className="text-[11px] font-bold text-accent-900 mb-1">Identified Low-Accuracy Topics:</div>
                 {data.weakTopics.length > 0 ? (
                   <div className="space-y-1">
                     {data.weakTopics.map((wt) => (
@@ -1240,7 +1240,7 @@ export function PremiumHubView({ initialData }: PremiumHubViewProps) {
                 <select
                   value={weakAreaForm.questionCount}
                   onChange={(e) => setWeakAreaForm({ ...weakAreaForm, questionCount: Number(e.target.value) })}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-none"
+                  className="w-full p-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-accent-500 outline-none"
                 >
                   <option value={15}>15 Questions</option>
                   <option value={25}>25 Questions (Recommended)</option>
@@ -1256,7 +1256,7 @@ export function PremiumHubView({ initialData }: PremiumHubViewProps) {
               <button
                 onClick={handleGenerateWeakAreaTest}
                 disabled={isPending}
-                className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold shadow-md disabled:opacity-50 transition-all flex items-center gap-1.5"
+                className="px-5 py-2.5 rounded-xl bg-primary-700 hover:bg-primary-800 text-white text-xs font-bold shadow-md disabled:opacity-50 transition-all flex items-center gap-1.5"
               >
                 {isPending ? "Generating..." : "Generate Drill"}
               </button>
@@ -1392,8 +1392,8 @@ export function PremiumHubView({ initialData }: PremiumHubViewProps) {
       {activeModal === "upsell" && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 text-center">
-            <div className="w-14 h-14 rounded-3xl bg-amber-50 text-amber-500 flex items-center justify-center mx-auto mb-3 shadow-inner">
-              <Sparkles className="w-7 h-7 fill-amber-400" />
+            <div className="w-14 h-14 rounded-3xl bg-accent-50 text-accent-700 flex items-center justify-center mx-auto mb-3 shadow-inner">
+              <Sparkles className="w-7 h-7 fill-accent-700" />
             </div>
             <h3 className="text-lg font-black text-slate-900">Unlock Premium Practice</h3>
             <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto">
@@ -1403,7 +1403,7 @@ export function PremiumHubView({ initialData }: PremiumHubViewProps) {
             <div className="mt-6 space-y-2">
               <Link
                 href="/pricing"
-                className="w-full inline-flex items-center justify-center gap-2 py-3 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-black text-sm shadow-md hover:brightness-105 transition-all"
+                className="w-full inline-flex items-center justify-center gap-2 py-3 rounded-2xl bg-gradient-to-r from-accent-400 to-accent-500 text-slate-950 font-black text-sm shadow-md hover:brightness-105 transition-all"
               >
                 <span>View Premium Plans</span>
                 <ChevronRight className="w-4 h-4" />

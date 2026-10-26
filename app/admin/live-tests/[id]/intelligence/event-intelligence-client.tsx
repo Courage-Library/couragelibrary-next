@@ -154,7 +154,7 @@ export default function AdminEventCompetitionIntelligenceDeepDivePage() {
 
         <div className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-xs">
           <div className="text-xs text-slate-500">Mean / Median Score</div>
-          <div className="text-xl font-bold text-amber-600 mt-0.5">
+          <div className="text-xl font-bold text-accent-700 mt-0.5">
             {intel.scoreDistribution.meanScore != null ? `${intel.scoreDistribution.meanScore} / ${intel.scoreDistribution.medianScore}` : "Suppressed"}
           </div>
           <div className="text-xs text-slate-500">Max Marks: {intel.totalMarks}</div>
@@ -273,7 +273,7 @@ export default function AdminEventCompetitionIntelligenceDeepDivePage() {
 
             <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl shadow-xs">
               <div className="text-xs text-slate-500 font-medium">5. Ranked</div>
-              <div className="text-2xl font-bold text-amber-600 mt-1">{intel.funnel.rankedCount}</div>
+              <div className="text-2xl font-bold text-accent-700 mt-1">{intel.funnel.rankedCount}</div>
               <div className="text-xs text-slate-500 mt-1">National Roster</div>
             </div>
 
@@ -287,7 +287,7 @@ export default function AdminEventCompetitionIntelligenceDeepDivePage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-slate-100 text-sm">
             <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 shadow-xs">
               <div className="text-xs text-slate-500">Dropout Rate</div>
-              <div className="text-lg font-bold text-amber-600 mt-1">{intel.funnel.dropoutRate}%</div>
+              <div className="text-lg font-bold text-accent-700 mt-1">{intel.funnel.dropoutRate}%</div>
               <div className="text-xs text-slate-500 mt-1">Candidates who started but did not submit</div>
             </div>
 
@@ -312,7 +312,7 @@ export default function AdminEventCompetitionIntelligenceDeepDivePage() {
           {intel.scoreDistribution.privacySuppressed ? (
             <div className="p-6 bg-slate-50 border border-slate-200 rounded-xl text-center space-y-2">
               <span className="text-2xl">🔒</span>
-              <h3 className="text-base font-semibold text-amber-700">Cohort Distribution Suppressed for Privacy</h3>
+              <h3 className="text-base font-semibold text-accent-700">Cohort Distribution Suppressed for Privacy</h3>
               <p className="text-xs text-slate-500 max-w-md mx-auto">
                 In accordance with Policy V1, continuous distribution statistics are suppressed for cohorts smaller than 5 candidates to prevent individual score reverse-engineering.
               </p>
@@ -345,7 +345,7 @@ export default function AdminEventCompetitionIntelligenceDeepDivePage() {
 
                 <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 shadow-xs">
                   <div className="text-xs text-slate-500">IQR (Q3 - Q1)</div>
-                  <div className="text-xl font-bold text-amber-600 mt-1">{intel.scoreDistribution.iqr}</div>
+                  <div className="text-xl font-bold text-accent-700 mt-1">{intel.scoreDistribution.iqr}</div>
                 </div>
 
                 <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 shadow-xs">
@@ -409,7 +409,7 @@ export default function AdminEventCompetitionIntelligenceDeepDivePage() {
                   <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3 text-xs shadow-xs">
                     <div className="flex justify-between items-center">
                       <span className="text-slate-600">Top 1% Elite Cutoff (P99):</span>
-                      <span className="font-bold text-amber-600 text-sm">{intel.rankingPercentile.eliteThresholds.top1PercentScore} Marks</span>
+                      <span className="font-bold text-accent-700 text-sm">{intel.rankingPercentile.eliteThresholds.top1PercentScore} Marks</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-slate-600">Top 5% Cutoff (P95):</span>
@@ -467,7 +467,7 @@ export default function AdminEventCompetitionIntelligenceDeepDivePage() {
                 className={`px-2.5 py-0.5 rounded text-xs font-medium ${
                   intel.sectionTopic.topicStatus === "TOPIC_DATA_AVAILABLE"
                     ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                    : "bg-amber-50 text-amber-700 border border-amber-200"
+                    : "bg-accent-50 text-accent-700 border border-accent-200"
                 }`}
               >
                 {intel.sectionTopic.topicStatus} ({Math.round(intel.sectionTopic.mappedQuestionsRatio * 100)}% Mapped)
@@ -475,7 +475,7 @@ export default function AdminEventCompetitionIntelligenceDeepDivePage() {
             </div>
 
             {intel.sectionTopic.topicStatus === "TOPIC_DATA_INSUFFICIENT" ? (
-              <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800">
+              <div className="p-4 bg-accent-50 border border-accent-200 rounded-xl text-xs text-accent-800">
                 ⚠️ Less than 50% of questions in this competition are mapped to authoritative topic taxonomies. Topic-level aggregations are withheld to prevent misleading diagnostics.
               </div>
             ) : (
@@ -507,13 +507,13 @@ export default function AdminEventCompetitionIntelligenceDeepDivePage() {
             <div className="p-5 bg-slate-50 rounded-xl border border-slate-200 space-y-3 shadow-xs">
               <div className="flex justify-between items-center">
                 <span className="text-xs font-semibold text-slate-500 uppercase">Phase 5E.1 Rewards</span>
-                <span className="text-xs text-amber-700 font-medium bg-amber-100 px-2 py-0.5 rounded">{intel.rewards.settlementStatus}</span>
+                <span className="text-xs text-accent-700 font-medium bg-accent-100 px-2 py-0.5 rounded">{intel.rewards.settlementStatus}</span>
               </div>
-              <div className="text-2xl font-bold text-amber-600">{intel.rewards.totalCoinsDisbursed} <span className="text-xs text-slate-500">Coins</span></div>
+              <div className="text-2xl font-bold text-accent-700">{intel.rewards.totalCoinsDisbursed} <span className="text-xs text-slate-500">Coins</span></div>
               <div className="text-xs space-y-1 text-slate-600">
                 <div>Podium Top Finisher Coins: <span className="text-slate-900 font-semibold">{intel.rewards.podiumCoinsDisbursed}</span></div>
                 <div>Participation Coins: <span className="text-slate-900 font-semibold">{intel.rewards.participationCoinsDisbursed}</span></div>
-                <div>Settled: <span className="text-emerald-700 font-medium">{intel.rewards.settledCount}</span> • Pending: <span className="text-amber-700 font-medium">{intel.rewards.pendingCount}</span></div>
+                <div>Settled: <span className="text-emerald-700 font-medium">{intel.rewards.settledCount}</span> • Pending: <span className="text-accent-700 font-medium">{intel.rewards.pendingCount}</span></div>
               </div>
             </div>
 
@@ -525,7 +525,7 @@ export default function AdminEventCompetitionIntelligenceDeepDivePage() {
               </div>
               <div className="text-2xl font-bold text-indigo-600">{intel.certificates.totalCertificatesIssued}</div>
               <div className="text-xs space-y-1 text-slate-600">
-                <div>Merit: <span className="text-amber-700 font-medium">{intel.certificates.tierCounts.merit}</span></div>
+                <div>Merit: <span className="text-accent-700 font-medium">{intel.certificates.tierCounts.merit}</span></div>
                 <div>Excellence: <span className="text-indigo-700 font-medium">{intel.certificates.tierCounts.excellence}</span></div>
                 <div>Participation: <span className="text-slate-700">{intel.certificates.tierCounts.participation}</span></div>
                 <div>Public Verification Scans: <span className="text-slate-900 font-semibold">{intel.certificates.verificationScanCount}</span></div>
@@ -578,7 +578,7 @@ export default function AdminEventCompetitionIntelligenceDeepDivePage() {
                   anom.triggered
                     ? anom.severity === "CRITICAL"
                       ? "bg-red-50 border-red-200 text-red-900"
-                      : "bg-amber-50 border-amber-200 text-amber-900"
+                      : "bg-accent-50 border-accent-200 text-accent-900"
                     : "bg-slate-50 border-slate-200 text-slate-700"
                 }`}
               >
@@ -596,7 +596,7 @@ export default function AdminEventCompetitionIntelligenceDeepDivePage() {
                       anom.triggered
                         ? anom.severity === "CRITICAL"
                           ? "bg-red-600 text-white"
-                          : "bg-amber-600 text-white"
+                          : "bg-primary-700 text-white"
                         : "bg-emerald-50 text-emerald-700 border border-emerald-200"
                     }`}
                   >
@@ -655,7 +655,7 @@ export default function AdminEventCompetitionIntelligenceDeepDivePage() {
                 <tbody className="divide-y divide-slate-100">
                   {drillDownList.map((c) => (
                     <tr key={c.userId} className="hover:bg-slate-50/80">
-                      <td className="p-3 font-bold text-amber-600">#{c.rank}</td>
+                      <td className="p-3 font-bold text-accent-700">#{c.rank}</td>
                       <td className="p-3 font-medium text-slate-900">
                         <div>{c.fullName}</div>
                         {c.email && <div className="text-slate-400 text-[10px]">{c.email}</div>}

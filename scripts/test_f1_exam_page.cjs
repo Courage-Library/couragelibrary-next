@@ -68,7 +68,8 @@ const { renderToStaticMarkup } = require('react-dom/server');
 const h = React.createElement;
 const html = (el) => renderToStaticMarkup(el);
 const text = (s) => s.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<[^>]+>/g, ' ').replace(/&#x27;|&apos;/g, "'").replace(/&amp;/g, '&').replace(/\s+/g, ' ');
-const amber = (s) => (s.match(/class="[^"]*\bbg-accent-(?:400|500|600)\b/g) || []).length;
+// BRAND-3 (#84, R4 revised): the ONE primary = solid blue-700 (bg-brand; it was the amber fill). Name kept for history.
+const amber = (s) => (s.match(/class="[^"]*\bbg-brand\b/g) || []).length;
 
 const L = require(path.join(ROOT, 'lib/exams/exam-page.ts'));
 const V = require(path.join(ROOT, 'components/exams/exam-home.tsx'));

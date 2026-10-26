@@ -48,7 +48,7 @@ export function CheckoutClient({ order }: CheckoutClientProps) {
                 SECURE CHECKOUT
               </Badge>
               <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-                <CreditCard className="w-6 h-6 text-amber-500" /> Order Checkout & Billing
+                <CreditCard className="w-6 h-6 text-accent-700" /> Order Checkout & Billing
               </h1>
             </div>
 
@@ -57,8 +57,8 @@ export function CheckoutClient({ order }: CheckoutClientProps) {
             </Badge>
           </div>
 
-          <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-semibold flex items-center gap-2">
-            <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
+          <div className="p-4 rounded-2xl bg-accent-50 border border-accent-200 text-accent-900 text-xs font-semibold flex items-center gap-2">
+            <ShieldAlert className="w-4 h-4 text-accent-700 shrink-0" />
             <span>{PAYMENTS_UNAVAILABLE_MESSAGE}</span>
           </div>
 
@@ -97,7 +97,7 @@ export function CheckoutClient({ order }: CheckoutClientProps) {
 
             <div className="flex justify-between text-base font-black text-slate-900 pt-2 border-t border-slate-200">
               <span>Total Payable Amount</span>
-              <span className="text-amber-600">₹{order.totalPayableAmount.toFixed(2)} {order.currency}</span>
+              <span className="text-accent-700">₹{order.totalPayableAmount.toFixed(2)} {order.currency}</span>
             </div>
           </div>
 
@@ -138,7 +138,7 @@ export function CheckoutClient({ order }: CheckoutClientProps) {
               variant="default"
               size="lg"
               disabled
-              className="w-full sm:w-auto bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs px-8 shadow-md"
+              className="w-full sm:w-auto bg-primary-700 hover:bg-primary-800 text-white font-black text-xs px-8 shadow-md"
             >
               <CheckCircle2 className="w-4 h-4 mr-2" /> Payments Temporarily Unavailable
             </Button>

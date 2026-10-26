@@ -77,7 +77,7 @@ export function CurrentAffairsPreviewModal({
 
         {/* Watermark Banner for Drafts */}
         {!isPublished && (
-          <div className="bg-amber-500 text-white font-bold text-center py-1.5 text-[11px] tracking-wider uppercase font-mono shadow-inner flex items-center justify-center gap-2">
+          <div className="bg-primary-700 text-white font-bold text-center py-1.5 text-[11px] tracking-wider uppercase font-mono shadow-inner flex items-center justify-center gap-2">
             <AlertTriangle className="w-3.5 h-3.5" />
             <span>DRAFT PREVIEW — NOT PUBLIC</span>
             <AlertTriangle className="w-3.5 h-3.5" />
@@ -132,9 +132,9 @@ export function CurrentAffairsPreviewModal({
 
               {/* Important Facts */}
               {version.importantFacts && version.importantFacts.length > 0 && (
-                <div className="p-4 rounded-xl bg-amber-50/40 border border-amber-200 space-y-2">
-                  <h3 className="font-bold text-amber-900 text-xs">Essential Facts &amp; Data</h3>
-                  <ul className="list-disc pl-5 space-y-1 text-amber-950 text-xs">
+                <div className="p-4 rounded-xl bg-accent-50/40 border border-accent-200 space-y-2">
+                  <h3 className="font-bold text-accent-900 text-xs">Essential Facts &amp; Data</h3>
+                  <ul className="list-disc pl-5 space-y-1 text-accent-950 text-xs">
                     {version.importantFacts.map((f, i) => (
                       <li key={i}>{f}</li>
                     ))}

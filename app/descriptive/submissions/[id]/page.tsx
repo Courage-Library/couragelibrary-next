@@ -64,11 +64,11 @@ export default async function SubmissionEvaluationDetailPage({ params }: Props) 
             </div>
           </div>
         ) : (
-          <div className="p-6 rounded-3xl bg-amber-50 border border-amber-200 text-amber-900 flex items-center justify-between">
+          <div className="p-6 rounded-3xl bg-accent-50 border border-accent-200 text-accent-900 flex items-center justify-between">
             <div className="space-y-1">
-              <span className="text-xs font-bold uppercase tracking-wider text-amber-700">STATUS: SUBMITTED</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-accent-700">STATUS: SUBMITTED</span>
               <h2 className="text-lg font-bold">Awaiting Faculty Evaluation</h2>
-              <p className="text-xs text-amber-800">Your answer has been submitted and queued for rubric grading.</p>
+              <p className="text-xs text-accent-800">Your answer has been submitted and queued for rubric grading.</p>
             </div>
           </div>
         )}

@@ -96,11 +96,11 @@ export function LiveTestResultClient({
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 text-center shadow-2xl relative overflow-hidden">
-          <div className="absolute -top-24 -left-24 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -top-24 -left-24 w-48 h-48 bg-primary-700/10 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
 
           <div className="relative z-10 flex flex-col items-center">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 mb-6">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-primary-700/10 text-white border border-accent-500/20 mb-6">
               <Radio className="w-3.5 h-3.5 animate-pulse" />
               Evaluation Staging
             </div>
@@ -124,7 +124,7 @@ export function LiveTestResultClient({
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Scheduled Publication</span>
-                <span className="text-amber-400 font-mono font-medium">
+                <span className="text-accent-700 font-mono font-medium">
                   {data.resultPublishAt ? new Date(data.resultPublishAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : "Shortly"}
                 </span>
               </div>
@@ -203,9 +203,9 @@ export function LiveTestResultClient({
                 </div>
 
                 {/* Rank Cardlet */}
-                <div className="bg-slate-900/90 border border-amber-500/30 rounded-2xl p-4 min-w-[120px] text-center shadow-lg">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400">National Rank</span>
-                  <div className="text-2xl font-black text-amber-300 mt-0.5">
+                <div className="bg-slate-900/90 border border-accent-500/30 rounded-2xl p-4 min-w-[120px] text-center shadow-lg">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-accent-700">National Rank</span>
+                  <div className="text-2xl font-black text-accent-300 mt-0.5">
                     #{scorecard.rank}
                     <span className="text-xs font-normal text-slate-400"> / {scorecard.rankedCandidates}</span>
                   </div>
@@ -221,10 +221,10 @@ export function LiveTestResultClient({
 
                 {/* Reward Cardlet */}
                 {data.reward && data.reward.totalCoins > 0 && (
-                  <div className="bg-slate-900/90 border border-yellow-500/30 rounded-2xl p-4 min-w-[120px] text-center shadow-lg">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-yellow-400">CL Coins</span>
-                    <div className="text-2xl font-black text-yellow-300 mt-0.5 flex items-center justify-center gap-1">
-                      <Coins className="w-5 h-5 text-yellow-400" />
+                  <div className="bg-slate-900/90 border border-accent-500/30 rounded-2xl p-4 min-w-[120px] text-center shadow-lg">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-accent-700">CL Coins</span>
+                    <div className="text-2xl font-black text-accent-300 mt-0.5 flex items-center justify-center gap-1">
+                      <Coins className="w-5 h-5 text-accent-700" />
                       +{data.reward.totalCoins}
                     </div>
                   </div>
@@ -234,13 +234,13 @@ export function LiveTestResultClient({
                 {data.certificate && (
                   <button
                     onClick={() => setIsCertModalOpen(true)}
-                    className="bg-slate-900/90 border border-amber-500/40 hover:border-amber-400 hover:bg-slate-900 rounded-2xl p-4 min-w-[130px] text-center shadow-lg transition group cursor-pointer"
+                    className="bg-slate-900/90 border border-accent-500/40 hover:border-accent-400 hover:bg-slate-900 rounded-2xl p-4 min-w-[130px] text-center shadow-lg transition group cursor-pointer"
                   >
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 flex items-center justify-center gap-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-accent-700 flex items-center justify-center gap-1">
                       <Award className="w-3.5 h-3.5" /> Certificate
                     </span>
-                    <div className="text-xs font-bold text-amber-300 mt-1 flex items-center justify-center gap-1 group-hover:underline">
-                      <FileCheck className="w-4 h-4 text-amber-400" />
+                    <div className="text-xs font-bold text-accent-300 mt-1 flex items-center justify-center gap-1 group-hover:underline">
+                      <FileCheck className="w-4 h-4 text-accent-700" />
                       View & Print
                     </div>
                   </button>
@@ -358,9 +358,9 @@ export function LiveTestResultClient({
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
                 {podium.map((p, idx) => {
                   const colors = [
-                    "from-amber-500/20 to-amber-600/10 border-amber-500/40 text-amber-300",
+                    "from-accent-500/20 to-accent-600/10 border-accent-500/40 text-accent-300",
                     "from-slate-400/20 to-slate-500/10 border-slate-400/40 text-slate-200",
-                    "from-amber-700/20 to-amber-800/10 border-amber-700/40 text-amber-400",
+                    "from-accent-700/20 to-accent-800/10 border-accent-700/40 text-accent-700",
                   ];
                   const medals = ["🥇 Rank 1", "🥈 Rank 2", "🥉 Rank 3"];
 
@@ -439,7 +439,7 @@ export function LiveTestResultClient({
                         >
                           <td className="px-4 py-3 font-mono font-bold">
                             {entry.rank <= 3 ? (
-                              <span className="text-amber-400 font-black">#{entry.rank}</span>
+                              <span className="text-accent-700 font-black">#{entry.rank}</span>
                             ) : (
                               `#${entry.rank}`
                             )}

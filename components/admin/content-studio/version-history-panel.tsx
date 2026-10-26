@@ -77,7 +77,7 @@ export const VersionHistoryPanel: React.FC<Props> = ({
                     type="button"
                     disabled={loading}
                     onClick={() => onSubmitForReview(v.id)}
-                    className="flex items-center gap-1 rounded-lg bg-amber-600 px-2.5 py-1 font-bold text-white text-[10px] hover:bg-amber-700 shadow-2xs transition disabled:opacity-50"
+                    className="flex items-center gap-1 rounded-lg bg-primary-700 px-2.5 py-1 font-bold text-white text-[10px] hover:bg-primary-800 shadow-2xs transition disabled:opacity-50"
                   >
                     <Send className="h-3 w-3" /> Submit for Review
                   </button>

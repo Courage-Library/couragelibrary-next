@@ -23,7 +23,7 @@ export function GateChips({ gates }: { gates: Partial<Record<string, Pick<Questi
                 : !passed
                 ? "bg-rose-50 text-rose-700 border-rose-200"
                 : warn
-                ? "bg-amber-50 text-amber-700 border-amber-200"
+                ? "bg-accent-50 text-accent-700 border-accent-200"
                 : "bg-emerald-50 text-emerald-700 border-emerald-200"
             }`}
           >
@@ -45,7 +45,7 @@ export function ItemGateDetail({ item }: { item: Pick<QuestionItemGateReport, "e
         </ul>
       )}
       {item.warnings.length > 0 && (
-        <ul className="space-y-0.5 text-amber-700">
+        <ul className="space-y-0.5 text-accent-700">
           {item.warnings.map((w, i) => <li key={i}>⚠ {w}</li>)}
         </ul>
       )}

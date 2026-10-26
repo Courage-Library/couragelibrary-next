@@ -23,11 +23,11 @@ export const COURAGE_LIBRARY_CANONICAL_SPEC: CourageLibraryImageSpec = {
   heroCanvasOccupancy: "65%–75% subject coverage",
   marginStandard: "10%–12% safe breathing margins, complete subject naturally inside 4:3 canvas, zero cropping",
   primaryPalette: [
-    // BRAND-2 (#71): Royal Blue + Amber, values mirrored from the design tokens (config/brand.ts)
-    `Royal Blue (${BRAND_PALETTE["primary-600"]} / ${BRAND_PALETTE["primary-700"]}) with Deep Blue (${BRAND_PALETTE["primary-900"]})`,
-    `Amber accent, used sparingly (${BRAND_PALETTE["accent-500"]} / ${BRAND_PALETTE["accent-700"]})`,
+    // BRAND-3 (#84): blue primary + cyan accent, no yellow; values mirrored from the design tokens (config/brand.ts)
+    `Blue (${BRAND_PALETTE["primary-700"]} / ${BRAND_PALETTE["primary-800"]}) with Navy (${BRAND_PALETTE["primary-900"]}); brand gradient cyan → blue → violet (${BRAND_PALETTE["brand-violet"]}) for brand moments only`,
+    `Cyan accent, used sparingly (${BRAND_PALETTE["accent-400"]} / ${BRAND_PALETTE["accent-700"]}); no yellow or amber`,
     "Clean White",
-    `Neutral Ink / Slate (${BRAND_PALETTE["ink-900"]} / ${BRAND_PALETTE["ink-600"]}) on a light slate ground (${BRAND_PALETTE["ink-50"]})`,
+    `Navy ink / Slate (${BRAND_PALETTE["ink-900"]} / ${BRAND_PALETTE["ink-700"]}) on a light canvas (${BRAND_PALETTE["ink-50"]})`,
   ],
   backgroundFamily: "Neutral warm-slate / dark-neutral matte studio backdrop with subtle tonal vignette",
   brandIdentity: "Premium, realistic, academic excellence, discipline, consistency, aspirational, and minimalist",
@@ -71,7 +71,7 @@ export function buildRewardImagePrompt(config: AIBriefConfig): string {
   if (isDigital) {
     // DIGITAL REWARDS / FEATURE UNLOCKS / DIGITAL ASSETS
     if (lowerTitle.includes("shield") || lowerTitle.includes("freeze") || lowerTitle.includes("streak")) {
-      productConcept = `Official Courage Library Study Streak Shield Digital Collectible Asset. A refined geometric emblem with multi-layered dimensional facets, subtle sapphire blue and amber luminescence along inner bevels, representing academic dedication and uninterrupted exam preparation momentum.`;
+      productConcept = `Official Courage Library Study Streak Shield Digital Collectible Asset. A refined geometric emblem with multi-layered dimensional facets, subtle sapphire blue and cyan luminescence along inner bevels, representing academic dedication and uninterrupted exam preparation momentum.`;
       materialDetails =
         materialDetails ||
         "Polished digital glassmorphic layers, precision micro-bevels, crisp luminescent vectors, and ultra-clean specular refraction.";
@@ -105,7 +105,7 @@ export function buildRewardImagePrompt(config: AIBriefConfig): string {
         materialDetails ||
         "Food-grade 18/8 stainless steel, tactile scratch-resistant matte powder coating, brushed steel trim, and food-grade silicone seals.";
     } else if (lowerTitle.includes("diary") || lowerTitle.includes("notebook") || lowerTitle.includes("journal") || lowerTitle.includes("planner")) {
-      productConcept = `Official Courage Library Hardbound Study & Revision Diary, A5 format. Structured book binding with rounded corners, premium textured vegan leather hardcover in midnight navy, amber-gold satin ribbon page marker, elastic closure band, and a subtle debossed gold-foil Courage Library emblem centered on the front cover.`;
+      productConcept = `Official Courage Library Hardbound Study & Revision Diary, A5 format. Structured book binding with rounded corners, premium textured vegan leather hardcover in midnight navy, cyan satin ribbon page marker, elastic closure band, and a subtle debossed gold-foil Courage Library emblem centered on the front cover.`;
       materialDetails =
         materialDetails ||
         "Textured vegan leatherette hardcover, 100 GSM acid-free ivory revision paper, gold hot-stamping foil, and reinforced Smyth-sewn binding.";

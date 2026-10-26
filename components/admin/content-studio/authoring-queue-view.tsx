@@ -73,9 +73,9 @@ const STATUS_CONFIG: Record<
   },
   AWAITING_EXTERNAL_AI: {
     label: "Awaiting AI",
-    bg: "bg-amber-50",
-    text: "text-amber-800",
-    border: "border-amber-200",
+    bg: "bg-accent-50",
+    text: "text-accent-800",
+    border: "border-accent-200",
     icon: BrainCircuit,
   },
   OUTPUT_RECEIVED: {
@@ -146,7 +146,7 @@ const STATUS_CONFIG: Record<
 const PRIORITY_BADGES: Record<AuthoringTaskPriority, { label: string; bg: string; text: string }> = {
   CRITICAL: { label: "Critical Priority", bg: "bg-rose-100 text-rose-800 border border-rose-200", text: "text-rose-800" },
   HIGH: { label: "High Priority", bg: "bg-orange-100 text-orange-800 border border-orange-200", text: "text-orange-800" },
-  NORMAL: { label: "Normal Priority", bg: "bg-amber-50 text-amber-800 border border-amber-200", text: "text-amber-800" },
+  NORMAL: { label: "Normal Priority", bg: "bg-accent-50 text-accent-800 border border-accent-200", text: "text-accent-800" },
   LOW: { label: "Low Priority", bg: "bg-slate-100 text-slate-700 border border-slate-200", text: "text-slate-700" },
 };
 

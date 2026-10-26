@@ -23,7 +23,7 @@ export default async function BattlesLobbyPage() {
               1v1 Battle Arena
             </Badge>
             <h1 className="text-2xl sm:text-4xl font-black tracking-tight flex items-center gap-3">
-              <Swords className="w-8 h-8 text-amber-400" />
+              <Swords className="w-8 h-8 text-accent-700" />
               1v1 Live Quiz Arena
             </h1>
             <p className="text-purple-100 text-sm max-w-xl">
@@ -36,13 +36,13 @@ export default async function BattlesLobbyPage() {
             <div className="flex items-center gap-4 bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/15 shrink-0">
               <div className="text-center px-3">
                 <span className="text-[10px] text-purple-200 uppercase tracking-wider font-bold block">ELO Rating</span>
-                <span className="text-2xl sm:text-3xl font-black text-amber-400 font-mono">{stats.eloRating}</span>
+                <span className="text-2xl sm:text-3xl font-black text-accent-700 font-mono">{stats.eloRating}</span>
               </div>
               <div className="h-8 w-px bg-white/20" />
               <div className="text-center px-3">
                 <span className="text-[10px] text-purple-200 uppercase tracking-wider font-bold block">Win Streak</span>
                 <span className="text-xl font-bold text-emerald-400 flex items-center justify-center gap-1 font-mono">
-                  <Flame className="w-4 h-4 fill-amber-500 text-amber-500" />
+                  <Flame className="w-4 h-4 fill-accent-700 text-accent-700" />
                   {stats.currentWinStreak}
                 </span>
               </div>
@@ -63,7 +63,7 @@ export default async function BattlesLobbyPage() {
             <Card className="p-4 bg-white border-slate-200">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-slate-500 font-semibold">Victories</span>
-                <Trophy className="w-4 h-4 text-amber-500" />
+                <Trophy className="w-4 h-4 text-accent-700" />
               </div>
               <span className="text-2xl font-black text-emerald-600 mt-1 block font-mono">{stats.wins}</span>
             </Card>

@@ -231,10 +231,10 @@ export function ExamManagementView({
         </Card>
 
         <Card className="p-4 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-1">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-amber-600 font-mono">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-accent-700 font-mono">
             Onboarding Drafts
           </span>
-          <div className="text-2xl font-bold text-amber-600 font-mono">{draftExams}</div>
+          <div className="text-2xl font-bold text-accent-700 font-mono">{draftExams}</div>
         </Card>
       </div>
 
@@ -567,7 +567,7 @@ export function ExamManagementView({
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">Status:</span>
-                    <span className="font-bold text-amber-700">DRAFT (Unpublished)</span>
+                    <span className="font-bold text-accent-700">DRAFT (Unpublished)</span>
                   </div>
                 </div>
 

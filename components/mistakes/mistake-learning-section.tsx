@@ -94,7 +94,7 @@ export function MistakeLearningSection({
                 {primary.accessLevel !== "FREE" && (
                   <Badge variant="warning" className="text-[10px] font-bold">
                     {primary.isLocked ? (
-                      <span className="flex items-center gap-1 text-amber-900">
+                      <span className="flex items-center gap-1 text-accent-900">
                         <Lock className="w-3 h-3" /> PRO Required
                       </span>
                     ) : (
@@ -123,7 +123,7 @@ export function MistakeLearningSection({
                   <Button
                     size="sm"
                     variant="default"
-                    className="w-full sm:w-auto bg-amber-600 hover:bg-amber-700 font-bold text-xs shadow-xs flex items-center gap-1.5"
+                    className="w-full sm:w-auto bg-primary-700 hover:bg-primary-800 font-bold text-xs shadow-xs flex items-center gap-1.5"
                   >
                     <Lock className="w-3.5 h-3.5" />
                     Upgrade to PRO to unlock this lesson
@@ -196,7 +196,7 @@ export function MistakeLearningSection({
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="space-y-1 max-w-xl">
             <div className="flex items-center gap-2">
-              <Badge variant="warning" className="text-[10px] font-bold uppercase tracking-wider bg-amber-400 text-slate-950">
+              <Badge variant="warning" className="text-[10px] font-bold uppercase tracking-wider bg-primary-700 text-white">
                 <Zap className="w-3 h-3 mr-1 fill-current" /> Personal Remediation Loop
               </Badge>
             </div>
@@ -219,7 +219,7 @@ export function MistakeLearningSection({
               <Button
                 size="lg"
                 variant="default"
-                className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs shadow-md flex items-center gap-1.5"
+                className="bg-primary-700 hover:bg-primary-800 text-white font-black text-xs shadow-md flex items-center gap-1.5"
               >
                 <Zap className="w-4 h-4 fill-slate-950" />
                 Launch Remediation Drill

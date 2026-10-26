@@ -145,7 +145,7 @@ export function BattleArenaClient({ initialRoom }: BattleArenaClientProps) {
     return (
       <div className="py-12 bg-slate-50/50 min-h-[calc(100vh-4rem)] flex items-center justify-center p-4">
         <Card className="max-w-md w-full p-8 text-center space-y-6 border-slate-200 shadow-md">
-          <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto border border-amber-200">
+          <div className="w-14 h-14 rounded-2xl bg-accent-50 text-accent-700 flex items-center justify-center mx-auto border border-accent-200">
             <Users className="w-8 h-8" />
           </div>
 
@@ -185,12 +185,12 @@ export function BattleArenaClient({ initialRoom }: BattleArenaClientProps) {
     return (
       <div className="py-16 bg-slate-50/50 min-h-[calc(100vh-4rem)] flex items-center justify-center p-4">
         <Card className="max-w-md w-full p-8 text-center space-y-6 border-slate-200 shadow-lg bg-gradient-to-b from-purple-900 to-indigo-950 text-white">
-          <Swords className="w-12 h-12 text-amber-400 mx-auto animate-bounce" />
+          <Swords className="w-12 h-12 text-accent-700 mx-auto animate-bounce" />
           <div className="space-y-2">
             <h2 className="text-3xl font-black">Opponent Matched!</h2>
             <p className="text-xs text-purple-200">Get ready for 1v1 Round 1...</p>
           </div>
-          <div className="text-5xl font-black text-amber-400 font-mono animate-pulse">
+          <div className="text-5xl font-black text-accent-700 font-mono animate-pulse">
             5
           </div>
         </Card>
@@ -207,7 +207,7 @@ export function BattleArenaClient({ initialRoom }: BattleArenaClientProps) {
     return (
       <div className="py-12 bg-slate-50/50 min-h-[calc(100vh-4rem)] flex items-center justify-center p-4">
         <Card className="max-w-md w-full p-8 text-center space-y-6 border-slate-200 shadow-lg">
-          <div className="w-16 h-16 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mx-auto border border-amber-200">
+          <div className="w-16 h-16 rounded-full bg-accent-50 text-accent-700 flex items-center justify-center mx-auto border border-accent-200">
             <Trophy className="w-10 h-10" />
           </div>
 
@@ -230,8 +230,8 @@ export function BattleArenaClient({ initialRoom }: BattleArenaClientProps) {
             </div>
           </div>
 
-          <div className="p-3 rounded-2xl bg-amber-50/60 border border-amber-200 flex items-center justify-center gap-2 text-xs font-bold text-amber-900">
-            <Coins className="w-4 h-4 text-amber-500 fill-amber-500" />
+          <div className="p-3 rounded-2xl bg-accent-50/60 border border-accent-200 flex items-center justify-center gap-2 text-xs font-bold text-accent-900">
+            <Coins className="w-4 h-4 text-accent-700 fill-accent-700" />
             <span>Coin Rewards Added to Wallet</span>
           </div>
 
@@ -259,7 +259,7 @@ export function BattleArenaClient({ initialRoom }: BattleArenaClientProps) {
         {/* Battle Arena Header Bar */}
         <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-900 text-white shadow-sm">
           <div className="flex items-center gap-3">
-            <Swords className="w-5 h-5 text-amber-400" />
+            <Swords className="w-5 h-5 text-accent-700" />
             <div>
               <span className="text-xs font-bold text-slate-300 block">
                 Round {roundData?.current_round || room.currentRound} of {roundData?.total_rounds || room.totalRounds}
@@ -270,7 +270,7 @@ export function BattleArenaClient({ initialRoom }: BattleArenaClientProps) {
 
           {/* Live Timer */}
           <div className="flex items-center gap-2 font-mono font-bold text-base bg-slate-800 px-3.5 py-1.5 rounded-xl border border-slate-700">
-            <Clock className="w-4 h-4 text-amber-400" />
+            <Clock className="w-4 h-4 text-accent-700" />
             <span className={timeLeftSeconds <= 3 ? "text-red-400 animate-pulse" : "text-white"}>
               {timeLeftSeconds}s
             </span>

@@ -113,7 +113,7 @@ export default async function CandidatePerformancePage({ searchParams }: Perform
         );
       case "VOLATILE":
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-primary-700/10 text-white border border-accent-500/20">
             <AlertTriangle className="w-3.5 h-3.5" /> VOLATILE
           </span>
         );
@@ -152,7 +152,7 @@ export default async function CandidatePerformancePage({ searchParams }: Perform
           <div className="flex items-center gap-3">
             <Link href="/achievements">
               <Button variant="outline" size="sm" className="border-slate-800 bg-slate-900/60 hover:bg-slate-800 text-xs">
-                <Trophy className="w-4 h-4 mr-1.5 text-amber-400" />
+                <Trophy className="w-4 h-4 mr-1.5 text-accent-700" />
                 Badges ({overview.achievementsSummary.totalBadgesEarned})
               </Button>
             </Link>
@@ -249,8 +249,8 @@ export default async function CandidatePerformancePage({ searchParams }: Perform
         {(overview.personalBests.bestScore ||
           overview.personalBests.bestRank ||
           overview.personalBests.bestPercentile) && (
-          <div className="bg-gradient-to-r from-amber-500/10 via-slate-900/60 to-indigo-500/10 border border-amber-500/20 rounded-2xl p-6">
-            <div className="flex items-center gap-2 text-amber-400 mb-4">
+          <div className="bg-gradient-to-r from-accent-500/10 via-slate-900/60 to-indigo-500/10 border border-accent-500/20 rounded-2xl p-6">
+            <div className="flex items-center gap-2 text-accent-700 mb-4">
               <Trophy className="w-5 h-5" />
               <h2 className="text-base font-bold text-white uppercase tracking-wider">
                 Personal Best Milestones
@@ -260,7 +260,7 @@ export default async function CandidatePerformancePage({ searchParams }: Perform
               {overview.personalBests.bestScore && (
                 <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4">
                   <div className="text-xs text-slate-400 font-medium">Highest Score</div>
-                  <div className="text-2xl font-black text-amber-400 mt-1">
+                  <div className="text-2xl font-black text-accent-700 mt-1">
                     {overview.personalBests.bestScore.value} / {overview.personalBests.bestScore.maxScore}
                   </div>
                   <div className="text-xs text-slate-300 font-semibold mt-0.5">
@@ -569,13 +569,13 @@ export default async function CandidatePerformancePage({ searchParams }: Perform
                         <Zap className="w-4 h-4 text-purple-400" />
                       )}
                       {evt.eventType === "BADGE_EARNED" && (
-                        <Trophy className="w-4 h-4 text-amber-400" />
+                        <Trophy className="w-4 h-4 text-accent-700" />
                       )}
                       {evt.eventType === "CERTIFICATE_ISSUED" && (
                         <ShieldCheck className="w-4 h-4 text-emerald-400" />
                       )}
                       {evt.eventType === "REWARD_SETTLED" && (
-                        <Sparkles className="w-4 h-4 text-amber-300" />
+                        <Sparkles className="w-4 h-4 text-accent-300" />
                       )}
                     </div>
                     <div>
@@ -606,7 +606,7 @@ export default async function CandidatePerformancePage({ searchParams }: Perform
                       </div>
                     )}
                     {evt.coinsEarned !== undefined && evt.coinsEarned !== null && (
-                      <div className="text-xs font-bold text-amber-400">
+                      <div className="text-xs font-bold text-accent-700">
                         +{evt.coinsEarned} CL
                       </div>
                     )}

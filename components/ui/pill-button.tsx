@@ -3,22 +3,22 @@ import Link from "next/link";
 import { cn } from "./cn";
 
 /**
- * BRAND-2 (decision #72) pill buttons. Touch target ≥ 48 px (min-h-12) on every size.
- *   primary       brand blue, white text            (any light surface)
- *   accent        amber fill, ink text              (at most ONE per screen — scripts/test_brand1.cjs B-07)
- *   accent-on-light the in-page amber primary on a LIGHT surface (F1 exam page) — still at most one amber per screen
- *   outline       brand-blue border + text on a light surface — the HEADER start action (UX-FIX-1 ruling: amber only
- *                 for the in-page primary, so a screen never shows two amber CTAs)
- *   ghost-on-dark transparent, white text + border  (only on the dark hero / CTA band)
+ * Pill buttons (BRAND-3, decision #84). Touch target ≥ 48 px (min-h-12) on every size.
+ *   primary       THE primary action: solid blue-700, white text, any light surface — at most ONE per screen (R4 revised,
+ *                 scripts/test_brand1.cjs B-07)
+ *   on-dark       the primary action on the dark / brand-gradient hero and CTA band: white fill, blue-700 text (a solid
+ *                 blue pill would disappear into the blue hero) — also the ONE primary of that screen
+ *   outline       blue-700 border + text on a light surface — secondary actions and the HEADER start action (a screen
+ *                 never shows two solid primaries)
+ *   ghost-on-dark transparent, white text + border  (secondary, only on the dark hero / CTA band)
  * Links navigate (PillLink); buttons act (PillButton).
  */
-export type PillVariant = "primary" | "accent" | "accent-on-light" | "outline" | "ghost-on-dark";
+export type PillVariant = "primary" | "on-dark" | "outline" | "ghost-on-dark";
 
 const VARIANTS: Record<PillVariant, string> = {
   primary: "focus-ring bg-brand text-fg-inverse shadow-soft hover:bg-brand-hover",
-  accent: "focus-ring-on-dark bg-accent-500 text-on-accent hover:bg-accent-400",
-  "accent-on-light": "focus-ring bg-accent-500 text-on-accent hover:bg-accent-400",
-  outline: "focus-ring border border-primary-600 text-primary-700 hover:bg-primary-50",
+  "on-dark": "focus-ring-on-dark bg-surface text-primary-700 shadow-soft hover:bg-primary-50",
+  outline: "focus-ring border border-primary-700 text-primary-700 hover:bg-primary-50",
   "ghost-on-dark": "focus-ring-on-dark border border-hero-fg-muted text-hero-fg hover:bg-hero-bg-mid",
 };
 

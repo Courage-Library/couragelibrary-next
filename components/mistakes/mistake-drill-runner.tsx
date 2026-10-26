@@ -145,7 +145,7 @@ export function MistakeDrillRunner({
           <div className="h-4 w-px bg-slate-200 hidden sm:block" />
           <div className="flex items-center gap-2">
             <Badge variant="indigo" className="text-xs px-2.5 py-0.5">
-              <Zap className="w-3 h-3 mr-1 text-amber-400 fill-amber-400" /> Remediation Drill
+              <Zap className="w-3 h-3 mr-1 text-accent-700 fill-accent-700" /> Remediation Drill
             </Badge>
             <span className="text-xs font-bold text-slate-700">
               Q{currentIndex + 1} of {questions.length}
@@ -202,13 +202,13 @@ export function MistakeDrillRunner({
           </span>
 
           {(currentQ.context?.total_mistakes_count ?? 1) >= 2 && (
-            <Badge variant="outline" className="text-[11px] font-bold text-amber-700 bg-amber-50 border-amber-200 flex items-center gap-1">
+            <Badge variant="outline" className="text-[11px] font-bold text-accent-700 bg-accent-50 border-accent-200 flex items-center gap-1">
               <RotateCcw className="w-3 h-3" /> Wrong {currentQ.context?.total_mistakes_count}x
             </Badge>
           )}
 
           <span className="text-slate-500 text-xs font-semibold flex items-center gap-1">
-            <Flame className="w-3.5 h-3.5 text-amber-500" />
+            <Flame className="w-3.5 h-3.5 text-accent-700" />
             Streak: <strong className="text-slate-800">{currentQ.consecutive_correct}/2</strong>
           </span>
         </div>
@@ -343,7 +343,7 @@ export function MistakeDrillRunner({
       {showConfirmModal && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
           <Card className="max-w-md w-full p-6 bg-white rounded-3xl border-slate-200 shadow-xl space-y-5">
-            <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center mx-auto">
+            <div className="w-12 h-12 rounded-2xl bg-accent-50 text-accent-700 border border-accent-200 flex items-center justify-center mx-auto">
               <AlertTriangle className="w-6 h-6" />
             </div>
 

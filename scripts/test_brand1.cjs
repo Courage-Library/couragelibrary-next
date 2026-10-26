@@ -61,37 +61,47 @@ const ratio = (a, b) => {
   const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p);
   return (x + 0.05) / (y + 0.05);
 };
-const NEED = { text: 4.5, large: 3, nontext: 3 };
+const NEED = { text: 4.5, large: 3, nontext: 3, reading: 7 }; // reading = question / article text (R13, #84)
 
-console.log('BRAND-1 colour system (values: BRAND-2 Royal Blue + Amber, decision #71)');
+console.log("BRAND-1 colour system (values: BRAND-3 Brand Colour System v3, decision #84)");
 
-test('B-01 tokens carry the approved values; semantic roles point at them', () => {
-  // BRAND-2 (decision #71) values; the BRAND-1 architecture (single source, semantic roles) is unchanged
+test('B-01 tokens carry the approved v3 values (#84); semantic roles point at them', () => {
+  // BRAND-3 (decision #84, owner-final): Brand Colour System v3; the BRAND-1 architecture (single source, roles) is unchanged
   const SPEC = {
-    brand: '#2563eb', // primary-600: primary buttons
-    focus: '#2563eb', // focus ring
-    interactive: '#1d4ed8', // primary-700: links / text
+    brand: '#1d4ed8', // primary blue-700: THE primary action (R4 revised)
+    'brand-hover': '#1e40af', // blue-800
+    'primary-50': '#eff4ff', // tint
+    interactive: '#1d4ed8',
     link: '#1d4ed8',
-    'primary-900': '#0b1b4d', // hero
-    'accent-500': '#f59e0b',
-    'on-accent': '#111827',
-    'accent-text': '#b45309',
-    'hero-accent-text': '#fcd34d',
-    'success-700': '#15803d',
-    'danger-700': '#b91c1c',
-    fg: '#111827',
-    'fg-muted': '#4b5563',
-    canvas: '#f8fafc',
+    focus: '#1d4ed8',
+    'accent-400': '#22c7dc', // cyan accent (never text on white)
+    'accent-700': '#0e7490', // cyan text / info
+    'accent-50': '#e8fafc', // cyan tint
+    'accent-text': '#0e7490',
+    'info-700': '#0e7490',
+    'gradient-start': '#5cd8e6',
+    'gradient-mid': '#3b82f6',
+    'gradient-end': '#5000f0', // violet: gradient end only
+    'primary-900': '#0b1b4d', // navy ink / sidebar / hero
+    fg: '#0b1b4d', // headings / question text (navy)
+    'fg-secondary': '#33415c', // body (slate-700)
+    'fg-muted': '#64708a', // muted (slate-500)
+    canvas: '#f7f8fc',
     surface: '#ffffff',
-    line: '#e5e7eb',
-    'warning-700': '#b45309',
+    line: '#e6e9f2',
+    'success-600': '#16a34a',
+    'danger-600': '#dc2626',
+    'warning-600': '#ea580c', // orange, not yellow
+    'focus-surround': '#0a1230', // focus-mode surround
+    'hero-accent-text': '#a1eaf2', // cyan-200: the lighter cyan keeps ≥ 4.5:1 over the whole hero
   };
   const bad = Object.entries(SPEC).filter(([t, v]) => (resolveColor(t) || '').toLowerCase() !== v).map(([t, v]) => `${t}: ${resolveColor(t)} (want ${v})`);
   for (const k of ['50', '100', '200', '300', '400', '500', '600', '700', '800', '900', '950']) {
-    if (vars[`color-warning-${k}`] !== `var(--color-accent-${k})`) bad.push(`warning-${k} is not the accent family`);
+    if (vars[`color-info-${k}`] !== `var(--color-accent-${k})`) bad.push(`info-${k} is not the cyan accent family`);
+    if (!/^#[0-9a-f]{6}$/.test(vars[`color-warning-${k}`] || '')) bad.push(`warning-${k} is not the orange scale`);
   }
   assert(bad.length === 0, bad.join('; '));
-  return `${Object.keys(SPEC).length} roles; warning = accent family`;
+  return `${Object.keys(SPEC).length} v3 roles; info = cyan, warning = orange`;
 });
 
 const BRAND_PAIRS = [
@@ -103,8 +113,13 @@ const BRAND_PAIRS = [
   { use: 'White on navy (header bar, primary button)', fg: 'white', bg: 'brand', kind: 'text' },
   { use: 'Link on surface', fg: 'link', bg: 'surface', kind: 'text' },
   { use: 'Link on page bg', fg: 'link', bg: 'canvas', kind: 'text' },
-  { use: 'Text on accent fill', fg: 'on-accent', bg: 'accent-500', kind: 'text' },
-  { use: 'Accent text on surface', fg: 'accent-text', bg: 'surface', kind: 'text' },
+  { use: 'Ink on the cyan accent fill', fg: 'on-accent', bg: 'accent-400', kind: 'text' },
+  { use: 'Cyan text on surface', fg: 'accent-text', bg: 'surface', kind: 'text' },
+  { use: 'Question text on surface (R13)', fg: 'fg', bg: 'surface', kind: 'reading' },
+  { use: 'Question text on page bg (R13)', fg: 'fg', bg: 'canvas', kind: 'reading' },
+  { use: 'Body (slate-700) on surface (R13)', fg: 'fg-secondary', bg: 'surface', kind: 'reading' },
+  { use: 'Timer normal: blue on blue tint', fg: 'primary-800', bg: 'primary-50', kind: 'text' },
+  { use: 'Timer last 5 min: orange on orange tint', fg: 'warning-800', bg: 'warning-50', kind: 'text' },
   { use: 'Accent text on page bg', fg: 'accent-text', bg: 'canvas', kind: 'text' },
   { use: 'Success text on surface', fg: 'success-700', bg: 'surface', kind: 'text' },
   { use: 'Error text on surface', fg: 'danger-700', bg: 'surface', kind: 'text' },
@@ -173,9 +188,9 @@ test('B-03 no colour literals outside the token file, its mirror and the email t
 test('B-04 config/brand.ts mirrors the tokens exactly', () => {
   const brand = read('config/brand.ts');
   const val = (k) => ((new RegExp(`export const ${k} = "(#[0-9a-fA-F]{6})"`).exec(brand) || [])[1] || '').toLowerCase();
-  assert(val('BRAND_THEME_COLOR') === resolveColor('primary-600'), `theme colour ${val('BRAND_THEME_COLOR')}`);
+  assert(val('BRAND_THEME_COLOR') === resolveColor('brand'), `theme colour ${val('BRAND_THEME_COLOR')} (want the brand blue-700)`);
   assert(val('BRAND_BACKGROUND_COLOR') === resolveColor('ink-50'), 'background colour');
-  const pal = [...brand.matchAll(/"([a-z]+-\d+)": "(#[0-9a-fA-F]{6})"/g)];
+  const pal = [...brand.matchAll(/"([a-z]+(?:-[a-z]+)*(?:-\d+)?)": "(#[0-9a-fA-F]{6})"/g)];
   assert(pal.length >= 5, `palette entries ${pal.length}`);
   const drift = pal.filter(([, t, h]) => resolveColor(t) !== h.toLowerCase()).map(([, t]) => t);
   assert(drift.length === 0, `drift: ${drift.join(', ')}`);
@@ -197,8 +212,8 @@ test('B-05 email templates: 2b-2 checks + brand layout, token colours only, cont
     const bad = [];
     if (!/max-width:600px/.test(s)) bad.push('600px max');
     if (!/font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto/.test(s)) bad.push('system font stack');
-    // BRAND-2: the wordmark carries a small decorative amber dot before the text
-    if (!new RegExp(`<td bgcolor="${navy}"[^>]*>(?:<span style="[^"]*background-color:${resolveColor('accent-500')};[^"]*"></span>)?Courage Library</td>`).test(s)) bad.push('blue header bar with the text wordmark');
+    // BRAND-3 (#84): the wordmark carries a small decorative CYAN dot (accent-400) before the text — never amber
+    if (!new RegExp(`<td bgcolor="${navy}"[^>]*>(?:<span style="[^"]*background-color:${resolveColor('accent-400')};[^"]*"></span>)?Courage Library</td>`).test(s)) bad.push('blue header bar with the text wordmark');
     const buttons = [...s.matchAll(/<td bgcolor="([^"]+)"[^>]*>\s*<a href="[^"]+" style="([^"]+)">([^<]+)<\/a>/g)];
     if (buttons.length !== 1) bad.push(`${buttons.length} buttons (want 1)`);
     else {
@@ -228,11 +243,14 @@ test('B-05 email templates: 2b-2 checks + brand layout, token colours only, cont
   return `${files.length} templates; links unchanged (2b-2 T-12)`;
 });
 
-test('B-06 exam rules: timer neutral → accent (no red); answer review uses icon + text, never colour alone', () => {
+test('B-06 exam rules: timer blue → orange in the last 5 min (never red / flashing); a wrong answer → soft red + "Here\'s why"; icon + text', () => {
   const t = read('components/assessment/assessment-timer.tsx');
-  assert(!/(?:bg|text|border)-(?:red|rose|danger)-/.test(t), 'timer uses red / danger');
-  // F3 (R8): ONE quiet final-minutes state (neutral → accent, never red); the state is also TEXT ("5 min left")
-  assert(/phase === "final" \? "bg-accent-50 border-accent-300 text-fg" : "bg-canvas border-line text-fg"/.test(t), 'timer is not neutral → accent');
+  assert(!/(?:bg|text|border)-(?:red|rose|danger)-/.test(t) && !/animate-/.test(t), 'timer uses red / danger or animates');
+  // R8 + R13 (#84): BLUE normally; ONE quiet final-minutes state in ORANGE (warning); the state is also TEXT ("5 min left")
+  assert(/phase === "final" \? "bg-warning-50 border-warning-600 text-warning-800" : "bg-primary-50 border-primary-200 text-primary-800"/.test(t), 'timer is not blue → orange');
+  const qc = read('components/assessment/question-review-card.tsx');
+  assert(/"bg-danger-50 border-danger-300 text-fg font-semibold"/.test(qc) && /Here&apos;s why/.test(qc) && /data-heres-why/.test(qc), 'review: soft red tint + a prominent "Here\'s why"');
+  assert(/C\.heresWhy/.test(read('components/practice/practice-runner.tsx')) && /heresWhy: "Here's why"/.test(read('content/practice.ts')), 'practice: "Here\'s why" after a wrong answer');
   assert(/5 min left/.test(t) && /<Clock aria-hidden="true"/.test(t), 'timer state has no non-colour cue (text + icon)');
   const q = read('components/assessment/question-review-card.tsx');
   assert(/<CheckCircle2 className="w-4 h-4 shrink-0 text-success-700" aria-hidden="true" \/>/.test(q) && /<XCircle className="w-4 h-4 shrink-0 text-danger-700" aria-hidden="true" \/>/.test(q), 'option rows lack the correct / wrong icon');
@@ -242,16 +260,43 @@ test('B-06 exam rules: timer neutral → accent (no red); answer review uses ico
   return 'timer accent-only; review: icon + text';
 });
 
-test('B-07 at most one accent-filled CTA per screen (static, per file)', () => {
+test('B-07 R4 (revised, #84): the primary action is solid blue-700; no accent / cyan CTA fill; pills never mix two solid primaries', () => {
+  const pill = read('components/ui/pill-button.tsx');
+  assert(/primary: "focus-ring bg-brand text-fg-inverse/.test(pill) && /"on-dark": "focus-ring-on-dark bg-surface text-primary-700/.test(pill) && !/accent/.test(pill.replace(/\/\*[\s\S]*?\*\//g, '')), 'pill variants: primary = solid brand blue; on-dark = white with blue text; no accent variant');
   const files = ['app', 'components'].flatMap((d) => walk(path.join(ROOT, d))).filter((f) => /\.tsx$/.test(f) && !/design-system/.test(f));
   const bad = [];
   for (const f of files) {
     const s = fs.readFileSync(f, 'utf8');
-    const n = [...s.matchAll(/<(?:button|a|Link|Button|ButtonLink)\b[^>]*className="[^"]*\bbg-accent-(?:400|500|600)\b/g)].length;
-    if (n > 1) bad.push(`${rel(f)}: ${n}`);
+    const accentCta = [...s.matchAll(/<(?:button|a|Link|Button|ButtonLink)\b[^>]*className="[^"]*\bbg-accent-(?:300|400|500|600)\b/g)].length;
+    if (accentCta) bad.push(`${rel(f)}: ${accentCta} cyan-filled CTA (the primary is blue-700)`);
+    const solid = (s.match(/variant="(?:primary|on-dark)"/g) || []).length;
+    if (solid > 4) bad.push(`${rel(f)}: ${solid} solid pill primaries`);
+  }
+  const header = read('components/shell/header-bar.tsx');
+  assert(!/<PillLink\b(?![^>]*variant="outline")[^>]*>/.test(header), 'the header uses outline pills only (the page owns the one primary)');
+  assert(bad.length === 0, bad.join('; '));
+  return `${files.length} files; primary = blue-700, header outline only`;
+});
+
+const AMBER_HEX = /#(?:f59e0b|fcd34d|fef3c7|b45309|fbbf24|d97706|fde68a|fffbeb|92400e|78350f|451a03|eab308|facc15|fde047|fef08a|fef9c3|ca8a04|a16207|854d0e)\b/i;
+const AMBER_CLASS = /\b(?:bg|text|border|ring|from|via|to|fill|stroke|outline|divide|decoration|shadow|caret|accent|placeholder)-(?:amber|yellow)-\d/;
+
+test('B-08 NO yellow / amber anywhere (#84): tokens reset, no amber / yellow class or hex in code, emails or email assets', () => {
+  assert(/--color-amber-\*: initial;/.test(css) && /--color-yellow-\*: initial;/.test(css), 'amber / yellow namespaces are not reset in app/globals.css');
+  assert(!Object.keys(vars).some((k) => /^color-(?:amber|yellow)-\d/.test(k)), 'an amber / yellow token is defined');
+  const tokenHexes = Object.keys(vars).filter((k) => k.startsWith('color-')).map((k) => (vars[k] || '').toLowerCase()).filter((v) => v.startsWith('#'));
+  const yellowish = tokenHexes.filter((h) => AMBER_HEX.test(h));
+  assert(yellowish.length === 0, `amber / yellow token values: ${yellowish.join(', ')}`);
+  const code = [...['app', 'components', 'lib', 'content', 'config', 'services', 'types'].flatMap((d) => walk(path.join(ROOT, d)))];
+  const emails = [...fs.readdirSync(path.join(ROOT, 'docs/auth/email-templates')).map((f) => path.join(ROOT, 'docs/auth/email-templates', f)), ...fs.readdirSync(path.join(ROOT, 'docs/email-assets')).filter((f) => /\.html$/.test(f)).map((f) => path.join(ROOT, 'docs/email-assets', f))];
+  const bad = [];
+  for (const f of [...code, ...emails]) {
+    const s = fs.readFileSync(f, 'utf8');
+    if (AMBER_CLASS.test(s)) bad.push(`${rel(f)}: amber / yellow class`);
+    if (AMBER_HEX.test(s)) bad.push(`${rel(f)}: amber / yellow hex`);
   }
   assert(bad.length === 0, bad.join('; '));
-  return `${files.length} files; ≤ 1 accent CTA each`;
+  return `${code.length} code files + ${emails.length} email files clean; amber / yellow reset`;
 });
 
 console.log(`\nBRAND-1: ${passed}/${passed + failed} passed`);

@@ -214,8 +214,8 @@ export const StructuredLessonEditor: React.FC<Props> = ({
     <div className="flex flex-col h-full bg-slate-50/50">
       {/* Read-Only Status Banner */}
       {isReadOnly && (
-        <div className="bg-amber-500/10 border-b border-amber-200 px-4 py-2 text-xs font-semibold text-amber-900 flex items-center gap-2">
-          <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+        <div className="bg-primary-700/10 border-b border-accent-200 px-4 py-2 text-xs font-semibold text-white flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 text-accent-700 shrink-0" />
           <span>This version is published and permanently immutable. Editing is locked. Create a new revision to make changes.</span>
         </div>
       )}
@@ -424,7 +424,7 @@ export const StructuredLessonEditor: React.FC<Props> = ({
                     <button
                       type="button"
                       onClick={() => addCallout(idx)}
-                      className="flex items-center gap-1 rounded-lg bg-amber-50 border border-amber-200/80 px-2 py-1 text-[11px] font-bold text-amber-800 hover:bg-amber-100 transition"
+                      className="flex items-center gap-1 rounded-lg bg-accent-50 border border-accent-200/80 px-2 py-1 text-[11px] font-bold text-accent-800 hover:bg-accent-100 transition"
                     >
                       <Plus className="h-3 w-3" /> Add Callout Note
                     </button>
@@ -433,16 +433,16 @@ export const StructuredLessonEditor: React.FC<Props> = ({
 
                 {/* Callout Notes */}
                 {(sec.calloutNotes && sec.calloutNotes.length > 0) && (
-                  <div className="mt-3 space-y-2 pl-3 border-l-2 border-amber-300">
+                  <div className="mt-3 space-y-2 pl-3 border-l-2 border-accent-300">
                     {sec.calloutNotes.map((callout, cIdx) => (
-                      <div key={cIdx} className="rounded-lg bg-amber-50/60 border border-amber-200/80 p-2.5 space-y-1.5">
+                      <div key={cIdx} className="rounded-lg bg-accent-50/60 border border-accent-200/80 p-2.5 space-y-1.5">
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2 flex-1">
                             <select
                               disabled={isReadOnly}
                               value={callout.variant}
                               onChange={(e) => updateField(`sections.${idx}.calloutNotes.${cIdx}.variant`, e.target.value as CalloutVariant)}
-                              className="rounded border border-amber-200 bg-white px-1.5 py-0.5 text-[10px] font-bold text-amber-900"
+                              className="rounded border border-accent-200 bg-white px-1.5 py-0.5 text-[10px] font-bold text-accent-900"
                             >
                               <option value="TIP">TIP</option>
                               <option value="WARNING">WARNING</option>
@@ -455,14 +455,14 @@ export const StructuredLessonEditor: React.FC<Props> = ({
                               value={callout.title}
                               onChange={(e) => updateField(`sections.${idx}.calloutNotes.${cIdx}.title`, e.target.value)}
                               placeholder="Callout Title"
-                              className="font-bold text-amber-950 text-xs bg-transparent border-b border-amber-200/60 flex-1 focus:outline-hidden"
+                              className="font-bold text-accent-950 text-xs bg-transparent border-b border-accent-200/60 flex-1 focus:outline-hidden"
                             />
                           </div>
                           {!isReadOnly && (
                             <button
                               type="button"
                               onClick={() => removeCallout(idx, cIdx)}
-                              className="text-amber-700 hover:text-rose-600 p-0.5"
+                              className="text-accent-700 hover:text-rose-600 p-0.5"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -474,7 +474,7 @@ export const StructuredLessonEditor: React.FC<Props> = ({
                           value={callout.body}
                           onChange={(e) => updateField(`sections.${idx}.calloutNotes.${cIdx}.body`, e.target.value)}
                           placeholder="Callout body text..."
-                          className="w-full rounded border border-amber-200 bg-white p-1.5 text-xs text-amber-950 focus:outline-hidden"
+                          className="w-full rounded border border-accent-200 bg-white p-1.5 text-xs text-accent-950 focus:outline-hidden"
                         />
                       </div>
                     ))}

@@ -103,8 +103,8 @@ export function MockTestDashboardView({ data }: Props) {
                 Mock tests
               </span>
               {streak.currentStreak > 0 && (
-                <span className="px-2.5 py-0.5 text-[11px] font-extrabold rounded-full bg-amber-50 text-amber-800 border border-amber-200/80 flex items-center gap-1">
-                  <Flame className="w-3.5 h-3.5 text-amber-600" />
+                <span className="px-2.5 py-0.5 text-[11px] font-extrabold rounded-full bg-accent-50 text-accent-800 border border-accent-200/80 flex items-center gap-1">
+                  <Flame className="w-3.5 h-3.5 text-accent-700" />
                   {streak.currentStreak} Day Streak
                 </span>
               )}
@@ -208,7 +208,7 @@ export function MockTestDashboardView({ data }: Props) {
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
               <div className="space-y-3 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="px-2.5 py-0.5 text-[10px] font-black tracking-wider uppercase rounded-full bg-amber-400 text-slate-950 flex items-center gap-1">
+                  <span className="px-2.5 py-0.5 text-[10px] font-black tracking-wider uppercase rounded-full bg-primary-700 text-white flex items-center gap-1">
                     <RotateCcw className="w-3 h-3" />
                     Resume Unfinished Test
                   </span>
@@ -234,7 +234,7 @@ export function MockTestDashboardView({ data }: Props) {
                   </div>
                   <div className="w-full h-2.5 bg-white/20 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-amber-400 rounded-full transition-all"
+                      className="h-full bg-primary-700 rounded-full transition-all"
                       style={{ width: `${nextMockAction.resumable.progressPercentage}%` }}
                     />
                   </div>
@@ -246,7 +246,7 @@ export function MockTestDashboardView({ data }: Props) {
                   testId={nextMockAction.resumable.testId}
                   isResume
                   size="lg"
-                  className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-sm px-7 py-3 rounded-2xl shadow-lg"
+                  className="bg-primary-700 hover:bg-primary-800 text-white font-black text-sm px-7 py-3 rounded-2xl shadow-lg"
                   label="Resume Mock Now"
                 />
               </div>
@@ -322,7 +322,7 @@ export function MockTestDashboardView({ data }: Props) {
                     <span>{nextMockAction.todayMock.questionCount} Questions</span>
                   </div>
                   <div className="flex items-center gap-1.5 bg-slate-100/80 px-2.5 py-1 rounded-lg">
-                    <Clock className="w-3.5 h-3.5 text-amber-600" />
+                    <Clock className="w-3.5 h-3.5 text-accent-700" />
                     <span>{nextMockAction.todayMock.durationMinutes} Minutes</span>
                   </div>
                   <div className="flex items-center gap-1.5 bg-slate-100/80 px-2.5 py-1 rounded-lg">
@@ -462,7 +462,7 @@ export function MockTestDashboardView({ data }: Props) {
                             : mock.status === "evaluation_pending"
                             ? "bg-indigo-50 text-indigo-700 border-indigo-200"
                             : mock.status === "in_progress"
-                            ? "bg-amber-50 text-amber-800 border-amber-200"
+                            ? "bg-accent-50 text-accent-800 border-accent-200"
                             : mock.status === "available"
                             ? "bg-blue-50 text-blue-700 border-blue-200"
                             : "bg-slate-100 text-slate-600 border-slate-200"
@@ -776,7 +776,7 @@ export function MockTestDashboardView({ data }: Props) {
           <Card className="md:col-span-6 p-5 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-3">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <div className="flex items-center gap-2">
-                <Flame className="w-5 h-5 text-amber-500" />
+                <Flame className="w-5 h-5 text-accent-700" />
                 <h3 className="text-sm font-extrabold text-slate-900">
                   {streak.currentStreak} Day Practice Streak
                 </h3>
@@ -792,7 +792,7 @@ export function MockTestDashboardView({ data }: Props) {
                   key={m.days}
                   className={`p-2.5 rounded-xl border text-center ${
                     m.achieved
-                      ? "bg-amber-50 border-amber-200 text-amber-900 font-bold"
+                      ? "bg-accent-50 border-accent-200 text-accent-900 font-bold"
                       : "bg-surface-sunken border-line text-fg-secondary font-medium"
                   }`}
                 >
@@ -803,8 +803,8 @@ export function MockTestDashboardView({ data }: Props) {
             </div>
 
             {!streak.isTodayAttempted && (
-              <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl flex items-center justify-between gap-2">
-                <span className="text-xs font-bold text-amber-900">
+              <div className="p-3 bg-accent-50/70 border border-accent-200 rounded-xl flex items-center justify-between gap-2">
+                <span className="text-xs font-bold text-accent-900">
                   Streak at risk &bull; Take today&apos;s daily mock to extend streak.
                 </span>
               </div>

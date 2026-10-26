@@ -115,7 +115,7 @@ export function CurrentAffairsImportModal({
             </ul>
           )}
           {gate.warnings && gate.warnings.length > 0 && (
-            <ul className="pl-6 list-disc space-y-0.5 text-[11px] text-amber-700">
+            <ul className="pl-6 list-disc space-y-0.5 text-[11px] text-accent-700">
               {gate.warnings.map((warn, i) => (
                 <li key={i}>{warn}</li>
               ))}
@@ -186,8 +186,8 @@ export function CurrentAffairsImportModal({
                 </ul>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-[11px] flex items-start gap-2.5">
-                <ShieldAlert className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
+              <div className="p-3.5 rounded-xl bg-accent-50 border border-accent-200 text-accent-900 text-[11px] flex items-start gap-2.5">
+                <ShieldAlert className="w-4 h-4 shrink-0 text-accent-700 mt-0.5" />
                 <div>
                   <strong>Human Review Invariant:</strong> External AI content is strictly imported in <code>DRAFT</code> status with <code>published_version_id = NULL</code>. AI-generated content is never published automatically.
                 </div>

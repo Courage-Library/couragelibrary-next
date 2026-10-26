@@ -258,7 +258,7 @@ function VersionDrawer({ versionId, onClose, onChanged }: { versionId: string; o
               <p>Source: {String(meta.sourceType || "—")} · Cognitive trap: {String(meta.cognitiveTrap || "—")}</p>
               {pyq && <p>PYQ: {pyq.examSlug} {pyq.year} — {pyq.reference}</p>}
               {detail.contractVersion && <p className="font-mono text-[10px] text-slate-500">{detail.contractVersion} · {detail.contextHash?.slice(0, 16)}…</p>}
-              {detail.reviewNotes && <p className="text-amber-800">Reviewer notes: {detail.reviewNotes}</p>}
+              {detail.reviewNotes && <p className="text-accent-800">Reviewer notes: {detail.reviewNotes}</p>}
             </section>
 
             {detail.gateReport && (

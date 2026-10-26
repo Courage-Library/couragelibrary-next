@@ -44,9 +44,9 @@ test('X-01 sign-up closed → no /auth/signup start action, primary "Explore SSC
   const signupLinks = header.match(/href="\/auth\/signup"/g) || [];
   assert(signupLinks.length === 2, `header /auth/signup links: ${signupLinks.length} (bar + menu, both inside signupOpen)`);
   assert((header.match(/<StartAction\s+signup=\{signup\}\s+open=\{\s*<PillLink href="\/auth\/signup" variant="outline"/g) || []).length === 2, 'header signup links must be the outline "open" branch of StartAction');
-  // two-amber ruling: the header never uses the amber fill; amber is only the in-page primary
-  assert(!/variant="accent|bg-accent-/.test(header), 'header uses an amber (accent) CTA');
-  assert(/outline: "focus-ring border border-primary-600 text-primary-700/.test(read('components/ui/pill-button.tsx')), 'outline pill variant');
+  // R4 (revised, #84): the header never uses a solid primary; the ONE primary belongs to the page
+  assert(!/variant="(?:primary|on-dark|accent)|bg-accent-|bg-brand/.test(header), 'the header uses a solid primary CTA (BRAND-3 R4: the page owns the one primary)');
+  assert(/outline: "focus-ring border border-primary-700 text-primary-700/.test(read('components/ui/pill-button.tsx')), 'outline pill variant');
   assert((header.match(/closed=\{\s*<(PillLink|ButtonLink) href=\{LANDING_HERO\.secondaryCta\.href\}/g) || []).length === 2, 'closed: Explore SSC CGL in the bar and the menu');
   assert(/<Suspense fallback=\{closed\}>/.test(header) && /if \(!signup\) return closed;/.test(header) && /return use\(signup\) \? open : closed;/.test(header), 'start action must fall back to the closed view');
   // the shell must never wait on the Supabase setting (AUTH1-RESILIENCE-HANG): a never-rejecting promise, not an await
@@ -54,9 +54,9 @@ test('X-01 sign-up closed → no /auth/signup start action, primary "Explore SSC
   assert(/signup=\{account === null \? signupOpen\(\) : undefined\}/.test(shell) && /getSignupAvailability\(\)\.then\(\(a\) => a !== "closed", \(\) => false\)/.test(shell), 'AppShell must stream the sign-up state');
   assert(!/await getSignupAvailability/.test(shell), 'AppShell awaits the sign-up setting (blocks every page during an outage)');
   const cta = code(read('components/landing/landing-cta.tsx'));
-  assert(/if \(mode === "signup-closed"\) \{[\s\S]*?<PillLink href=\{explore\.href\} variant="accent"/.test(cta), 'closed: one amber "Explore SSC CGL"');
+  assert(/if \(mode === "signup-closed"\) \{[\s\S]*?<PillLink href=\{explore\.href\} variant="on-dark"/.test(cta), 'closed: ONE primary "Explore SSC CGL"');
   assert(/<Suspense fallback=\{<Cta spot=\{spot\} mode="signup-closed" \/>\}>/.test(cta), 'fallback must be the closed view');
-  assert(/const start = spot === "hero" \? LANDING_HERO\.primaryCta : LANDING_FINAL_CTA\.cta;\s+return \(\s+<>\s+<PillLink href=\{start\.href\} variant="accent"/.test(cta), 'open: amber Start free');
+  assert(/const start = spot === "hero" \? LANDING_HERO\.primaryCta : LANDING_FINAL_CTA\.cta;\s+return \(\s+<>\s+<PillLink href=\{start\.href\} variant="on-dark"/.test(cta), 'open: ONE primary Start free');
   const L = read('content/landing.ts');
   assert(/primaryCta: \{ label: "Start free"/.test(L) && /cta: \{ label: "Start free"/.test(L) && /startFree: "Start free"/.test(L) && !/Get started/.test(L), 'one label "Start free"');
   assert(/secondaryCta: \{ label: "Explore SSC CGL", href: "\/exams\/ssc-cgl" \}/.test(L), 'explore target');

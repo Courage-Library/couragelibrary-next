@@ -86,7 +86,7 @@ export function MistakeDrillCustomizer({
         <div className="relative space-y-3">
           <div className="flex items-center gap-2">
             <Badge variant="indigo" className="bg-blue-500/20 text-blue-200 border-blue-400/30 text-xs px-2.5 py-0.5">
-              <Zap className="w-3 h-3 mr-1 text-amber-400 fill-amber-400" /> Personal Revision Drill
+              <Zap className="w-3 h-3 mr-1 text-accent-700 fill-accent-700" /> Personal Revision Drill
             </Badge>
             <span className="text-xs text-slate-300">Adaptive Priority Scoring</span>
           </div>
@@ -228,7 +228,7 @@ export function MistakeDrillCustomizer({
               </span>
             ) : (
               <span className="flex items-center gap-2">
-                <Zap className="w-4 h-4 text-amber-300 fill-amber-300" /> Start Remediation Drill ({questionLimit} Questions)
+                <Zap className="w-4 h-4 text-accent-300 fill-accent-300" /> Start Remediation Drill ({questionLimit} Questions)
               </span>
             )}
           </Button>

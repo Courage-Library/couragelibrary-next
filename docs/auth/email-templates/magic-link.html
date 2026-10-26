@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  Courage Library — Supabase email template: magic-link (AUTH-1 2b-2; restyled BRAND-2, decision #71 Royal Blue + Amber).
+  Courage Library — Supabase email template: magic-link (AUTH-1 2b-2; restyled BRAND-3, decision #84 Brand Colour System v3).
   Paste into Supabase → Authentication → Emails → Templates (see docs/auth/EMAIL_TEMPLATES.md).
   Link: the /auth/confirm token_hash flow (type=email); works on any device. No images, no tracking, no external assets.
   Colours are the design tokens (app/globals.css); meaning never depends on colour (scripts/test_brand1.cjs).
@@ -13,19 +13,19 @@
 <meta name="supported-color-schemes" content="light">
 <title>Your sign-in link</title>
 </head>
-<body style="margin:0;padding:0;background-color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;color:#111827;">
-<div style="display:none;max-height:0;max-width:0;overflow:hidden;opacity:0;mso-hide:all;font-size:1px;line-height:1px;color:#f8fafc;">Your one-time link to sign in to Courage Library.</div>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f8fafc" style="background-color:#f8fafc;">
+<body style="margin:0;padding:0;background-color:#f7f8fc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;color:#0b1b4d;">
+<div style="display:none;max-height:0;max-width:0;overflow:hidden;opacity:0;mso-hide:all;font-size:1px;line-height:1px;color:#f7f8fc;">Your one-time link to sign in to Courage Library.</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f7f8fc" style="background-color:#f7f8fc;">
   <tr>
     <td align="center" style="padding:24px 16px;">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;">
         <tr>
-          <td bgcolor="#1d4ed8" style="background-color:#1d4ed8;padding:18px 32px;border-radius:12px 12px 0 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:20px;line-height:28px;font-weight:bold;color:#ffffff;"><span style="display:inline-block;width:10px;height:10px;border-radius:5px;background-color:#f59e0b;margin-right:8px;vertical-align:middle;"></span>Courage Library</td>
+          <td bgcolor="#1d4ed8" style="background-color:#1d4ed8;padding:18px 32px;border-radius:12px 12px 0 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:20px;line-height:28px;font-weight:bold;color:#ffffff;"><span style="display:inline-block;width:10px;height:10px;border-radius:5px;background-color:#22c7dc;margin-right:8px;vertical-align:middle;"></span>Courage Library</td>
         </tr>
         <tr>
-          <td bgcolor="#ffffff" style="background-color:#ffffff;border:1px solid #e5e7eb;border-top:0;border-radius:0 0 12px 12px;padding:28px 32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
-            <h1 style="margin:0;font-size:22px;line-height:30px;font-weight:bold;color:#111827;">Sign in to Courage Library</h1>
-            <p style="margin:12px 0 0 0;font-size:16px;line-height:24px;color:#111827;">Use the button below to sign in to your Courage Library account.</p>
+          <td bgcolor="#ffffff" style="background-color:#ffffff;border:1px solid #e6e9f2;border-top:0;border-radius:0 0 12px 12px;padding:28px 32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
+            <h1 style="margin:0;font-size:22px;line-height:30px;font-weight:bold;color:#0b1b4d;">Sign in to Courage Library</h1>
+            <p style="margin:12px 0 0 0;font-size:16px;line-height:24px;color:#0b1b4d;">Use the button below to sign in to your Courage Library account.</p>
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0 0 0;">
               <tr>
                 <td bgcolor="#1d4ed8" style="background-color:#1d4ed8;border-radius:8px;">
@@ -33,14 +33,14 @@
                 </td>
               </tr>
             </table>
-            <p style="margin:20px 0 0 0;font-size:14px;line-height:22px;color:#4b5563;">If the button doesn't work, copy this link into your browser:<br>
+            <p style="margin:20px 0 0 0;font-size:14px;line-height:22px;color:#64708a;">If the button doesn't work, copy this link into your browser:<br>
             <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/dashboard" style="color:#1d4ed8;text-decoration:underline;word-break:break-all;">{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/dashboard</a></p>
-            <p style="margin:16px 0 0 0;font-size:14px;line-height:22px;color:#4b5563;">This link can be used once and expires after a short time.</p>
-            <p style="margin:16px 0 0 0;font-size:14px;line-height:22px;color:#4b5563;">If you didn't try to sign in, you can ignore this email.</p>
+            <p style="margin:16px 0 0 0;font-size:14px;line-height:22px;color:#64708a;">This link can be used once and expires after a short time.</p>
+            <p style="margin:16px 0 0 0;font-size:14px;line-height:22px;color:#64708a;">If you didn't try to sign in, you can ignore this email.</p>
           </td>
         </tr>
         <tr>
-          <td style="padding:16px 32px 0 32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:12px;line-height:18px;color:#4b5563;">You received this because a sign-in link was requested for this email address.<br>Courage Library · Sent from no-reply@couragelibrary.in · Questions? support@couragelibrary.in · No tracking.</td>
+          <td style="padding:16px 32px 0 32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:12px;line-height:18px;color:#64708a;">You received this because a sign-in link was requested for this email address.<br>Courage Library · Sent from no-reply@couragelibrary.in · Questions? support@couragelibrary.in · No tracking.</td>
         </tr>
       </table>
     </td>

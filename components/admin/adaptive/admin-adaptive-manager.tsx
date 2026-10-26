@@ -619,7 +619,7 @@ export function AdminAdaptiveManager({
               <CheckCircle2 className="w-3.5 h-3.5" /> ENGINE ACTIVE
             </Badge>
           ) : (
-            <Badge variant="outline" className="px-3 py-1 text-xs font-mono font-bold bg-amber-50 text-amber-800 border-amber-200 flex items-center gap-1.5">
+            <Badge variant="outline" className="px-3 py-1 text-xs font-mono font-bold bg-accent-50 text-accent-800 border-accent-200 flex items-center gap-1.5">
               <AlertTriangle className="w-3.5 h-3.5" /> ENGINE PAUSED
             </Badge>
           )}
@@ -823,7 +823,7 @@ export function AdminAdaptiveManager({
               <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-1">
                 <span className="text-emerald-400 font-semibold">{overview.completedAdaptiveAttempts} completed</span>
                 <span>•</span>
-                <span className="text-amber-400">{overview.inProgressAdaptiveAttempts} active</span>
+                <span className="text-accent-700">{overview.inProgressAdaptiveAttempts} active</span>
               </div>
             </div>
 
@@ -839,7 +839,7 @@ export function AdminAdaptiveManager({
             <div className="bg-white border border-slate-200/80 rounded-xl shadow-xs p-4">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium text-slate-400">Question Item Calibration</span>
-                <Scale className="w-4 h-4 text-amber-400" />
+                <Scale className="w-4 h-4 text-accent-700" />
               </div>
               <p className="text-2xl font-bold text-slate-900 mt-2">{overview.calibratedItemsCount}</p>
               <p className="text-[11px] text-slate-500 mt-1">
@@ -997,7 +997,7 @@ export function AdminAdaptiveManager({
                             : v.status === "testing"
                             ? "bg-purple-950 text-purple-300 border border-purple-800"
                             : v.status === "deprecated"
-                            ? "bg-amber-950 text-amber-300 border border-amber-800"
+                            ? "bg-primary-950 text-accent-300 border border-accent-800"
                             : "bg-slate-100 text-slate-600 border border-slate-200"
                         }`}
                       >
@@ -1124,7 +1124,7 @@ export function AdminAdaptiveManager({
 
           {/* Transparency Alert */}
           <div className="bg-white border border-slate-200/80 rounded-xl shadow-xs p-4 text-xs text-slate-500 flex items-start gap-3">
-            <Scale className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+            <Scale className="w-5 h-5 text-accent-700 shrink-0 mt-0.5" />
             <div>
               <span className="font-bold text-slate-900">Calibration Transparency Guarantee:</span>
               <p className="mt-0.5 text-slate-400">
@@ -1205,7 +1205,7 @@ export function AdminAdaptiveManager({
                               : item.calibration_status === "flagged"
                               ? "bg-rose-950 text-rose-300 border border-rose-800"
                               : item.calibration_status === "deprecated"
-                              ? "bg-amber-950 text-amber-300 border border-amber-800"
+                              ? "bg-primary-950 text-accent-300 border border-accent-800"
                               : "bg-slate-100 text-slate-600 border border-slate-200"
                           }`}
                         >
@@ -1346,7 +1346,7 @@ export function AdminAdaptiveManager({
                         <td className="p-3.5 font-mono text-[11px] text-slate-400">{a.attempt_id.slice(0, 8)}...</td>
                         <td className="p-3.5 text-slate-300 font-medium truncate max-w-xs">{a.exam_title || "Adaptive Mock"}</td>
                         <td className="p-3.5 font-mono font-bold text-slate-900">
-                          <span className={a.current_theta >= 0 ? "text-emerald-400" : "text-amber-400"}>
+                          <span className={a.current_theta >= 0 ? "text-emerald-400" : "text-accent-700"}>
                             {a.current_theta >= 0 ? "+" + a.current_theta.toFixed(2) : a.current_theta.toFixed(2)}
                           </span>
                         </td>
@@ -1766,7 +1766,7 @@ export function AdminAdaptiveManager({
               </div>
               <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
                 <span className="text-xs text-slate-500">Max Question Stops</span>
-                <p className="text-xl font-bold text-amber-400 mt-0.5">
+                <p className="text-xl font-bold text-accent-700 mt-0.5">
                   {stoppingHealth?.stopped_by_max_questions || 0}
                 </p>
               </div>
@@ -2000,7 +2000,7 @@ export function AdminAdaptiveManager({
               </div>
               <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
                 <span className="text-xs text-slate-500">Weak-Area Boosts</span>
-                <p className="text-xl font-bold text-amber-400 mt-0.5">
+                <p className="text-xl font-bold text-accent-700 mt-0.5">
                   {personalizationHealth?.weak_area_boosted_decisions || 0}
                 </p>
               </div>

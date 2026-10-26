@@ -11,7 +11,7 @@ export const ExamTip: React.FC<ExamTipProps> = ({
 }) => {
   const icon =
     variant === "SPEED" ? (
-      <Zap className="h-5 w-5 text-amber-500" />
+      <Zap className="h-5 w-5 text-accent-700" />
     ) : variant === "MEMORY" ? (
       <Brain className="h-5 w-5 text-purple-500" />
     ) : variant === "HIGH_YIELD" ? (
@@ -21,10 +21,10 @@ export const ExamTip: React.FC<ExamTipProps> = ({
     );
 
   return (
-    <div className="my-5 rounded-xl border border-amber-200 bg-amber-50/40 p-4 shadow-xs">
+    <div className="my-5 rounded-xl border border-accent-200 bg-accent-50/40 p-4 shadow-xs">
       <div className="flex items-center gap-2">
         {icon}
-        <h4 className="font-semibold text-amber-900 text-sm uppercase tracking-wide">
+        <h4 className="font-semibold text-accent-900 text-sm uppercase tracking-wide">
           Exam Tip: {title}
         </h4>
       </div>

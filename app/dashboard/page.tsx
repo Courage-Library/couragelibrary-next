@@ -168,8 +168,8 @@ export default async function DashboardPage() {
           )}
           {isFeatureEnabled("BATTLES") && (
           <Link href="/battles" className="group">
-            <Card className="p-4 hover:border-amber-300 hover:shadow-md transition-all h-full flex flex-col justify-between">
-              <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+            <Card className="p-4 hover:border-accent-300 hover:shadow-md transition-all h-full flex flex-col justify-between">
+              <div className="w-10 h-10 rounded-xl bg-accent-50 text-accent-700 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                 <Swords className="w-5 h-5" />
               </div>
               <div>

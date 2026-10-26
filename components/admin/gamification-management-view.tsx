@@ -81,7 +81,7 @@ export function GamificationManagementView({ stats }: GamificationManagementView
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-            <Coins className="w-6 h-6 text-amber-500" />
+            <Coins className="w-6 h-6 text-accent-700" />
             CL Coin Economy &amp; Gamification Studio
           </h1>
           <p className="text-xs text-slate-500 font-medium mt-1">
@@ -118,13 +118,13 @@ export function GamificationManagementView({ stats }: GamificationManagementView
         <Card className="p-4 bg-white border-slate-200/90 shadow-2xs">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">In Circulation</span>
-            <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600">
+            <div className="w-8 h-8 rounded-xl bg-accent-100 flex items-center justify-center text-accent-700">
               <Coins className="w-4 h-4" />
             </div>
           </div>
           <div className="mt-2 flex items-baseline gap-1">
             <span className="text-2xl font-black text-slate-900 font-mono">{stats.totalCoinsInCirculation.toLocaleString()}</span>
-            <span className="text-xs font-bold text-amber-600 font-mono">CL</span>
+            <span className="text-xs font-bold text-accent-700 font-mono">CL</span>
           </div>
           <span className="text-[10px] text-slate-400 font-medium block mt-1">Across {stats.activeWalletsCount} candidate wallets</span>
         </Card>
@@ -255,7 +255,7 @@ export function GamificationManagementView({ stats }: GamificationManagementView
                       </div>
                       <div>
                         <span className="text-slate-400 font-bold block text-[10px]">Streak Bonus</span>
-                        <strong className="text-amber-700 font-mono">+{pol.consistencyBonusCoins} CL</strong>
+                        <strong className="text-accent-700 font-mono">+{pol.consistencyBonusCoins} CL</strong>
                       </div>
                     </div>
                   ) : (
@@ -332,15 +332,15 @@ export function GamificationManagementView({ stats }: GamificationManagementView
             ))}
           </div>
 
-          <div className="p-3.5 rounded-2xl bg-amber-50/60 border border-amber-200/80 text-[11px] text-amber-950 space-y-1.5">
-            <div className="flex items-center gap-1.5 font-bold text-amber-900">
+          <div className="p-3.5 rounded-2xl bg-accent-50/60 border border-accent-200/80 text-[11px] text-accent-950 space-y-1.5">
+            <div className="flex items-center gap-1.5 font-bold text-accent-900">
               <Flame className="w-4 h-4 text-orange-500 shrink-0" />
               <span>Safety &amp; Anti-Farming Invariants</span>
             </div>
-            <p className="text-[11px] text-amber-800 leading-relaxed">
+            <p className="text-[11px] text-accent-800 leading-relaxed">
               • <strong>First Attempt Rule:</strong> Only the first completed attempt of any mock test qualifies for completion &amp; accuracy rewards. Retakes yield 0 CL.
             </p>
-            <p className="text-[11px] text-amber-800 leading-relaxed">
+            <p className="text-[11px] text-accent-800 leading-relaxed">
               • <strong>Attempt Threshold:</strong> <code>Ceil(Total Questions × 0.50)</code> must be attempted to unlock accuracy bonuses.
             </p>
           </div>

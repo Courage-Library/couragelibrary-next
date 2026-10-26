@@ -1,5 +1,8 @@
 "use client";
 
+import { AssessmentTimer } from "@/components/assessment/assessment-timer";
+import { StatusChip } from "@/components/admin/status-chip";
+
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -218,5 +221,40 @@ export function LoadingButtonDemo() {
     >
       Save answer
     </Button>
+  );
+}
+
+/** BRAND-3 (#84) R13 study-comfort demo: the REAL AssessmentTimer in both phases + "Here's why" + the v3 chips. */
+export function StudyComfortDemo() {
+  return (
+    <div className="flex flex-col gap-6" data-study-comfort="">
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="flex flex-col gap-1">
+          <span className="text-caption text-fg-secondary">Timer · normal</span>
+          <AssessmentTimer initialRemainingSeconds={40 * 60} onTimeExpired={() => undefined} />
+        </div>
+        <div className="flex flex-col gap-1">
+          <span className="text-caption text-fg-secondary">Timer · last 5 minutes</span>
+          <AssessmentTimer initialRemainingSeconds={4 * 60 + 59} onTimeExpired={() => undefined} />
+        </div>
+      </div>
+      <div className="flex max-w-xl flex-col gap-2">
+        <div className="flex items-start gap-3 rounded-xl border border-danger-300 bg-danger-50 p-3 text-body font-semibold text-fg">
+          <span className="font-bold">C.</span> TCIPPM <span className="sr-only">Your answer, incorrect</span>
+        </div>
+        <section aria-label="Here's why" className="rounded-xl border border-primary-200 border-l-4 border-l-primary-700 bg-surface p-4">
+          <h4 className="text-body-lg font-semibold text-fg">Here&apos;s why</h4>
+          <p className="mt-1 text-body leading-[1.6] text-fg">Each letter moves one step forward: S→T, C→D, H→I, O→P, O→P, L→M. So SCHOOL → TDIPPM.</p>
+        </section>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {["DRAFT", "IN_REVIEW", "APPROVED", "PUBLISHED", "REJECTED", "ARCHIVED"].map((st) => (
+          <StatusChip key={st} status={st} />
+        ))}
+      </div>
+      <div className="brand-gradient flex min-h-24 max-w-xl items-end rounded-card p-4">
+        <span className="text-h3 font-bold text-fg-inverse">Brand gradient · brand moments only</span>
+      </div>
+    </div>
   );
 }

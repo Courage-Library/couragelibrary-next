@@ -8,7 +8,7 @@ export const SUBJECT_SWATCHES = [
   "bg-subject-blue",
   "bg-subject-teal",
   "bg-subject-violet",
-  "bg-subject-amber",
+  "bg-subject-cyan",
   "bg-subject-rose",
   "bg-subject-slate",
 ] as const;

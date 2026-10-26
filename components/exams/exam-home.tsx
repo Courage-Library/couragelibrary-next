@@ -1,6 +1,6 @@
 /**
  * F1 (#75): the exam home page views (/exams/[slug]). Pure: plain props in, markup out (rendered offline by
- * scripts/test_f1_exam_page.cjs). Rules: one amber primary per page (the header action), whole cards are single links
+ * scripts/test_f1_exam_page.cjs). Rules: one solid blue-700 primary per page (the header action, R4 revised #84), whole cards are single links
  * (CardLink, ≥ 48 px), no glass in content, English UI (#82), every number from the database, honest empty states.
  */
 import type { ReactNode } from "react";
@@ -38,7 +38,7 @@ export function ExamHomeHeader({ title, body, badge, children }: { title: string
   );
 }
 
-/** The ONE primary action (amber) + an optional secondary link. */
+/** The ONE primary action (solid blue-700, R4) + an optional secondary link. */
 export function ExamCtaView({ cta, examId }: { cta: ExamCta; examId: string }) {
   return (
     <div className="flex flex-col items-start gap-2" data-exam-cta={cta.kind}>
@@ -46,7 +46,7 @@ export function ExamCtaView({ cta, examId }: { cta: ExamCta; examId: string }) {
         {cta.kind === "add" ? (
           <AddExamButton examId={examId} label={cta.label} />
         ) : (
-          <PillLink href={cta.href} variant="accent-on-light" trailingIcon={<ArrowRight aria-hidden="true" className="size-5" />}>
+          <PillLink href={cta.href} variant="primary" trailingIcon={<ArrowRight aria-hidden="true" className="size-5" />}>
             {cta.label}
           </PillLink>
         )}

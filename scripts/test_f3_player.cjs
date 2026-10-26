@@ -240,7 +240,7 @@ const P = code(read(PLAYER));
     }
     assert(!fs.existsSync(path.join(ROOT, 'lib/assessment/audio-alerts.ts')), 'audio module still present');
     const timer = code(read('components/assessment/assessment-timer.tsx'));
-    assert(/phase === "final" \? "bg-accent-50 border-accent-300 text-fg" : "bg-canvas border-line text-fg"/.test(timer) && /5 min left/.test(timer) && /aria-live="polite"/.test(timer), 'one quiet final state with text + polite announcement');
+    assert(/phase === "final" \? "bg-warning-50 border-warning-600 text-warning-800" : "bg-primary-50 border-primary-200 text-primary-800"/.test(timer) && /5 min left/.test(timer) && /aria-live="polite"/.test(timer), 'one quiet final state (BRAND-3 #84: blue → orange, never red) with text + polite announcement');
     return `${files.length} files calm`;
   });
 

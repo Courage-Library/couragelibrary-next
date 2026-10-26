@@ -58,7 +58,7 @@ export default async function InstitutesDirectoryPage() {
                 </Link>
                 <Link href="/community">
                   <Button variant="outline" size="sm" className="font-semibold">
-                    <Sparkles className="w-3.5 h-3.5 mr-1 text-amber-500" /> Community Q&A
+                    <Sparkles className="w-3.5 h-3.5 mr-1 text-accent-700" /> Community Q&A
                   </Button>
                 </Link>
               </div>

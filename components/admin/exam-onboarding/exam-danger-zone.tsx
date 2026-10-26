@@ -222,7 +222,7 @@ export function ExamDangerZone({
                 variant="outline"
                 onClick={handleArchive}
                 disabled={isArchiving}
-                className="text-xs font-bold text-amber-700 border-amber-300 hover:bg-amber-50 rounded-xl flex items-center gap-1.5 shadow-2xs"
+                className="text-xs font-bold text-accent-700 border-accent-300 hover:bg-accent-50 rounded-xl flex items-center gap-1.5 shadow-2xs"
               >
                 <Archive className="w-3.5 h-3.5" /> {isArchiving ? "Archiving..." : "Archive / Deactivate"}
               </Button>

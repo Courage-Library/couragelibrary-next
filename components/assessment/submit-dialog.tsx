@@ -32,7 +32,7 @@ interface SubmitDialogProps {
 /**
  * F3 (R4 / R7 / R10): the final-submit confirmation on the shared accessible Dialog (native <dialog>: focus trapped,
  * Esc / "Return to test" close it, focus returns to the opener). ONE primary action ("Submit test"); counts are shown
- * neutrally (no amber); a failed submission is shown here (the player reopens this dialog) with the answers kept.
+ * neutrally (no alarm colour); a failed submission is shown here (the player reopens this dialog) with the answers kept.
  * Shared by the mock player and the live-test player (same props).
  */
 export function SubmitDialog({

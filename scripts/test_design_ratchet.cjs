@@ -138,7 +138,7 @@ const ratio = (a, b) => {
   const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p);
   return (x + 0.05) / (y + 0.05);
 };
-const NEED = { text: 4.5, large: 3, nontext: 3 };
+const NEED = { text: 4.5, large: 3, nontext: 3, reading: 7 }; // reading = question / article text (R13, #84)
 
 // ---------------------------------------------------------------- tests
 console.log('UX-1a design ratchet');
@@ -269,23 +269,25 @@ test('R-6 token names are collision-free and registered in cn()', () => {
 test('R-7 brand colours outside CSS (theme-color, manifest) mirror the tokens', () => {
   const brand = fs.readFileSync(path.join(ROOT, 'config/brand.ts'), 'utf8');
   const val = (k) => ((new RegExp(`export const ${k} = "(#[0-9a-fA-F]{6})"`).exec(brand) || [])[1] || '').toLowerCase();
-  assert(val('BRAND_THEME_COLOR') === resolveColor('primary-600').toLowerCase(), `BRAND_THEME_COLOR ${val('BRAND_THEME_COLOR')} != primary-600 ${resolveColor('primary-600')}`);
+  // BRAND-3 (#84): theme-color = the brand primary (blue-700)
+  assert(val('BRAND_THEME_COLOR') === resolveColor('brand').toLowerCase(), `BRAND_THEME_COLOR ${val('BRAND_THEME_COLOR')} != brand ${resolveColor('brand')}`);
   assert(val('BRAND_BACKGROUND_COLOR') === resolveColor('ink-50').toLowerCase(), 'BRAND_BACKGROUND_COLOR != ink-50');
   const layout = fs.readFileSync(path.join(ROOT, 'app/layout.tsx'), 'utf8');
   assert(/themeColor: BRAND_THEME_COLOR/.test(layout), 'layout themeColor must use BRAND_THEME_COLOR');
   const manifest = fs.readFileSync(path.join(ROOT, 'app/manifest.ts'), 'utf8');
   assert(/theme_color: BRAND_THEME_COLOR/.test(manifest) && /background_color: BRAND_BACKGROUND_COLOR/.test(manifest), 'manifest colours must use config/brand.ts');
   // BRAND-1: every BRAND_PALETTE entry equals its token
-  const palette = [...brand.matchAll(/"([a-z]+-\d+)": "(#[0-9a-fA-F]{6})"/g)];
+  const palette = [...brand.matchAll(/"([a-z]+(?:-[a-z]+)*(?:-\d+)?)": "(#[0-9a-fA-F]{6})"/g)];
   assert(palette.length >= 5, `BRAND_PALETTE entries ${palette.length} (min 5)`); // GATE-HYGIENE-1
   const drift = palette.filter(([, tok, hex]) => (resolveColor(tok) || '').toLowerCase() !== hex.toLowerCase()).map(([, tok, hex]) => `${tok}: ${hex} != ${resolveColor(tok)}`);
   assert(drift.length === 0, drift.join('; '));
 });
 
 test('R-8 single token source: legacy palette names resolve to brand scales via var(), never raw values (BRAND-1)', () => {
-  const LEGACY = 'slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose';
-  // BRAND-2: + the categorical scales (teal, violet, rose, slate) so subject hues no longer collapse into the primary
-  const BRAND = ['primary', 'accent', 'ink', 'success', 'danger', 'cat-teal', 'cat-violet', 'cat-rose', 'cat-slate'];
+  // BRAND-3 (#84): amber and yellow are NOT aliased — their namespaces are reset (no colour at all); every other legacy
+  // name resolves to a brand scale; warning (v3 orange) is a brand scale of its own
+  const LEGACY = 'slate|gray|zinc|neutral|stone|red|orange|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose';
+  const BRAND = ['primary', 'accent', 'ink', 'success', 'danger', 'warning', 'cat-teal', 'cat-violet', 'cat-rose', 'cat-slate'];
   const shades = ['50', '100', '200', '300', '400', '500', '600', '700', '800', '900', '950'];
   const bad = [];
   let n = 0;
@@ -298,10 +300,14 @@ test('R-8 single token source: legacy palette names resolve to brand scales via 
     }
   }
   for (const k of shades) for (const b of BRAND) if (!/^#[0-9a-f]{6}$/i.test(resolveColor(`${b}-${k}`) || '')) bad.push(`${b}-${k} does not resolve to a hex value`);
-  for (const role of ['warning', 'info']) for (const k of shades) if (!/^var\(--color-(accent|primary)-\d+\)$/.test(vars[`color-${role}-${k}`] || '')) bad.push(`${role}-${k} is not an alias of a brand scale`);
-  assert(n === 22 * 11, `checked ${n}`); // GATE-HYGIENE-1
+  for (const k of shades) if (vars[`color-info-${k}`] !== `var(--color-accent-${k})`) bad.push(`info-${k} is not the cyan accent`);
+  for (const f of ['amber', 'yellow']) {
+    if (!css.includes(`--color-${f}-*: initial;`)) bad.push(`${f} namespace not reset`);
+    if (shades.some((k) => vars[`color-${f}-${k}`] !== undefined)) bad.push(`${f} still defines colours`);
+  }
+  assert(n === 20 * 11, `checked ${n}`); // GATE-HYGIENE-1
   assert(bad.length === 0, bad.slice(0, 20).join('; '));
-  return `${n} legacy palette names → brand tokens; warning → accent, info → primary`;
+  return `${n} legacy palette names → brand tokens; amber / yellow reset; info → cyan, warning = orange scale`;
 });
 
 if (WRITE) {

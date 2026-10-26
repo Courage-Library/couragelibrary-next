@@ -227,7 +227,7 @@ export function AdminCategoriesManager({ categories }: Props) {
                         disabled={isToggling}
                         className={`p-1.5 rounded-lg border ${
                           cat.isActive
-                            ? "border-amber-200 text-amber-600 hover:bg-amber-50"
+                            ? "border-accent-200 text-accent-700 hover:bg-accent-50"
                             : "border-emerald-200 text-emerald-600 hover:bg-emerald-50"
                         } transition`}
                         title={cat.isActive ? "Deactivate" : "Activate"}

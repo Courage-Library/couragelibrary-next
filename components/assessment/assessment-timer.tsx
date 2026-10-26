@@ -17,8 +17,9 @@ interface AssessmentTimerProps {
  * - The deadline is anchored ONCE from the server's remaining time; every tick recomputes from the clock, so a parent
  *   re-render can never restart or slow the countdown, and a background tab catches up immediately.
  * - onTimeExpired fires exactly ONCE (callback kept in a ref; a fired flag guards repeats).
- * - Calm: no sound, no flashing / pulsing. One quiet final-minutes state (≤ 5 min: amber surface + "5 min left"
- *   text, announced once to screen readers). Colour is never the only signal.
+ * - Calm (R8 + R13, decision #84): no sound, no flashing / pulsing, never red. BLUE normally; ONE quiet final-minutes
+ *   state (≤ 5 min: ORANGE warning-600 border + text and "5 min left", announced once to screen readers). Colour is never
+ *   the only signal.
  */
 export function AssessmentTimer({ initialRemainingSeconds, onTimeExpired, className }: AssessmentTimerProps) {
   const deadlineRef = useRef<number | null>(null);
@@ -71,13 +72,13 @@ export function AssessmentTimer({ initialRemainingSeconds, onTimeExpired, classN
       data-timer-phase={phase}
       className={cn(
         "flex min-h-12 items-center gap-2 rounded-xl border px-3 text-sm font-mono font-bold select-none",
-        phase === "final" ? "bg-accent-50 border-accent-300 text-fg" : "bg-canvas border-line text-fg",
+        phase === "final" ? "bg-warning-50 border-warning-600 text-warning-800" : "bg-primary-50 border-primary-200 text-primary-800",
         className,
       )}
     >
-      <Clock aria-hidden="true" className={cn("size-4 shrink-0", phase === "final" ? "text-accent-800" : "text-fg-muted")} />
+      <Clock aria-hidden="true" className={cn("size-4 shrink-0", phase === "final" ? "text-warning-700" : "text-primary-700")} />
       <span className="tabular-nums">{formatTime(seconds)}</span>
-      {phase === "final" && <span className="font-sans text-caption font-semibold text-fg">5 min left</span>}
+      {phase === "final" && <span className="font-sans text-caption font-semibold text-warning-800">5 min left</span>}
       <span className="sr-only" aria-live="polite">
         {announce}
       </span>

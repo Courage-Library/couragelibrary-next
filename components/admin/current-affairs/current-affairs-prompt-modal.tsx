@@ -137,8 +137,8 @@ Return ONLY the valid JSON object.`;
             </pre>
           </div>
 
-          <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-[11px] flex items-start gap-2">
-            <ShieldAlert className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
+          <div className="p-3 rounded-xl bg-accent-50 border border-accent-200 text-accent-800 text-[11px] flex items-start gap-2">
+            <ShieldAlert className="w-4 h-4 shrink-0 text-accent-700 mt-0.5" />
             <div>
               <strong>Human Editorial Authority:</strong> External AI is an authoring assistant only. The generated JSON must still pass all 5 validation gates and require human review before publishing.
             </div>

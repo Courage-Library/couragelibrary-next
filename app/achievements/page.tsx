@@ -42,7 +42,7 @@ export default async function CandidateAchievementsPage() {
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-6">
           <div>
-            <div className="flex items-center gap-2 text-amber-400 mb-1">
+            <div className="flex items-center gap-2 text-accent-700 mb-1">
               <Sparkles className="w-5 h-5" />
               <span className="text-xs font-bold uppercase tracking-wider">
                 Candidate Honors & Achievements
@@ -62,7 +62,7 @@ export default async function CandidateAchievementsPage() {
                 size="sm"
                 className="bg-slate-900 border-slate-700 text-slate-200 hover:bg-slate-800"
               >
-                <Award className="w-4 h-4 mr-1.5 text-amber-400" />
+                <Award className="w-4 h-4 mr-1.5 text-accent-700" />
                 Certificates
               </Button>
             </Link>
@@ -90,9 +90,9 @@ export default async function CandidateAchievementsPage() {
           </div>
 
           <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 text-center">
-            <Trophy className="w-5 h-5 text-amber-400 mx-auto mb-1.5" />
+            <Trophy className="w-5 h-5 text-accent-700 mx-auto mb-1.5" />
             <span className="text-[11px] font-semibold text-slate-400 block">Podium Finishes</span>
-            <span className="text-xl sm:text-2xl font-black text-amber-400">
+            <span className="text-xl sm:text-2xl font-black text-accent-700">
               {summary.podiumCount}
             </span>
           </div>
@@ -161,9 +161,9 @@ export default async function CandidateAchievementsPage() {
 
                 const tierColors: Record<string, string> = {
                   PLATINUM: "from-cyan-500/20 to-indigo-500/10 border-cyan-500/30 text-cyan-300",
-                  GOLD: "from-amber-500/20 to-yellow-500/10 border-amber-500/30 text-amber-300",
+                  GOLD: "from-accent-500/20 to-accent-500/10 border-accent-500/30 text-accent-300",
                   SILVER: "from-slate-400/20 to-slate-500/10 border-slate-400/30 text-slate-300",
-                  BRONZE: "from-amber-700/20 to-amber-800/10 border-amber-700/30 text-amber-400",
+                  BRONZE: "from-accent-700/20 to-accent-800/10 border-accent-700/30 text-accent-700",
                   COMMON: "from-slate-800 to-slate-900 border-slate-700 text-slate-400",
                 };
 
@@ -178,7 +178,7 @@ export default async function CandidateAchievementsPage() {
                       <div className="flex items-center gap-2.5">
                         <div className="w-10 h-10 rounded-xl bg-slate-950/70 border border-white/10 flex items-center justify-center shrink-0">
                           {badge.category === "PODIUM" ? (
-                            <Trophy className="w-5 h-5 text-amber-400" />
+                            <Trophy className="w-5 h-5 text-accent-700" />
                           ) : badge.category === "NATIONAL" ? (
                             <Medal className="w-5 h-5 text-blue-400" />
                           ) : badge.category === "PERSONAL_BEST" ? (
@@ -244,7 +244,7 @@ export default async function CandidateAchievementsPage() {
                   <div key={award.id} className="p-4 flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-center">
-                        <Award className="w-4 h-4 text-amber-400" />
+                        <Award className="w-4 h-4 text-accent-700" />
                       </div>
                       <div>
                         <h4 className="text-sm font-bold text-white">
@@ -258,7 +258,7 @@ export default async function CandidateAchievementsPage() {
 
                     <div className="flex items-center gap-4 text-xs">
                       {award.achieved_rank && (
-                        <span className="text-amber-400 font-bold">
+                        <span className="text-accent-700 font-bold">
                           Rank #{award.achieved_rank}
                         </span>
                       )}

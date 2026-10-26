@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /**
- * BRAND-2 gate — Royal Blue + Amber (#71), "modern glass" (#72), bilingual typography, performance budget.
+ * BRAND-2 gate — colour values now BRAND-3 v3 (#84: blue + cyan, no amber), "modern glass" (#72), bilingual typography,
+ * performance budget.
  * Offline (default; deterministic, reads source only):
- *   C-01 tokens carry the #71 values; categorical tokens exist; the semantic layer (dark-theme-ready names) is complete
+ *   C-01 tokens carry the #84 (v3) values; categorical tokens exist; the semantic layer (dark-theme-ready names) is complete
  *   C-02 contrast incl. WORST-CASE glass-on-gradient (alpha-composited from the percentages in app/globals.css) and
  *        hero-accent-text, which may only be used on the hero (primary-900 / 800)
  *   C-03 no glass in the exam engine, question review or admin (static): no glass component / class there, and every
@@ -93,12 +94,13 @@ function mixPct(selectorRx, token) {
 }
 
 async function offline() {
-  await test('C-01 #71 token values, categorical tokens, complete semantic layer (dark-theme-ready names)', () => {
+  await test('C-01 #84 (v3) token values, categorical tokens, complete semantic layer (dark-theme-ready names)', () => {
+    // BRAND-3 (#84) values; the BRAND-2 structure (glass, categorical scales, semantic layer) is unchanged
     const SPEC = {
-      'primary-600': '#2563eb', 'primary-700': '#1d4ed8', 'primary-900': '#0b1b4d', 'accent-500': '#f59e0b', 'accent-text': '#b45309',
-      'hero-accent-text': '#fcd34d', 'success-700': '#15803d', 'danger-700': '#b91c1c', fg: '#111827', 'fg-muted': '#4b5563',
-      canvas: '#f8fafc', surface: '#ffffff', line: '#e5e7eb', 'on-accent': '#111827', link: '#1d4ed8',
-      'subject-blue': '#2563eb', 'subject-teal': '#0d9488', 'subject-violet': '#7c3aed', 'subject-amber': '#d97706', 'subject-rose': '#e11d48', 'subject-slate': '#475569',
+      brand: '#1d4ed8', 'primary-700': '#1d4ed8', 'primary-800': '#1e40af', 'primary-900': '#0b1b4d', 'accent-400': '#22c7dc', 'accent-text': '#0e7490',
+      'hero-accent-text': '#a1eaf2', 'success-600': '#16a34a', 'danger-600': '#dc2626', 'warning-600': '#ea580c', fg: '#0b1b4d', 'fg-muted': '#64708a',
+      canvas: '#f7f8fc', surface: '#ffffff', line: '#e6e9f2', 'on-accent': '#0b1b4d', link: '#1d4ed8',
+      'subject-blue': '#2563eb', 'subject-teal': '#0d9488', 'subject-violet': '#7c3aed', 'subject-cyan': '#0e7490', 'subject-rose': '#e11d48', 'subject-slate': '#475569',
     };
     const bad = Object.entries(SPEC).filter(([t, v]) => (resolveColor(t) || '').toLowerCase() !== v).map(([t, v]) => `${t}: ${resolveColor(t)} (want ${v})`);
     const SEMANTIC = ['canvas', 'surface', 'surface-sunken', 'fg', 'fg-secondary', 'fg-muted', 'fg-inverse', 'line', 'line-control', 'brand', 'brand-hover', 'interactive', 'link', 'focus', 'on-accent', 'accent-text', 'hero-bg', 'hero-bg-mid', 'hero-bg-end', 'hero-fg', 'hero-fg-muted', 'hero-accent-text', 'hero-focus'];
@@ -111,18 +113,21 @@ async function offline() {
   await test('C-02 contrast incl. worst-case glass-on-gradient and hero-accent-text (alpha-composited from globals.css)', () => {
     const lightGlass = mixPct(/html:not\(\.lite\) \.glass-light \{[^}]*\}/, 'surface');
     const darkGlass = mixPct(/html:not\(\.lite\) \.glass-dark \{[^}]*\}/, 'hero-bg'); // dark-tinted glass
-    const accentGlow = mixPct(/\.hero-gradient \{[^}]*\}/, 'accent-500');
+    const accentGlow = mixPct(/\.hero-gradient \{[^}]*\}/, 'gradient-start'); // BRAND-3: cyan glow (gradient start)
+    const violetGlow = mixPct(/\.hero-gradient \{[^}]*\}/, 'gradient-end'); // BRAND-3: violet glow (gradient end)
     const blueGlow = mixPct(/\.hero-gradient \{[^}]*\}/, 'primary-600');
-    const authGlow = mixPct(/\.auth-gradient \{[^}]*\}/, 'accent-500');
+    const authGlow = mixPct(/\.auth-gradient \{[^}]*\}/, 'gradient-start');
     const white = tok('surface');
     // hero regions (worst = lightest possible point under the content)
     const heroLeft = over(tok('primary-600'), blueGlow, tok('hero-bg-mid')); // text column: blue glow over the mid stop
-    const heroRight = over(tok('accent-500'), accentGlow, tok('hero-bg-end')); // card side: amber glow over the light stop
+    // card side: the cyan glow over the light stop (worse for white text than the violet glow — both are checked)
+    const heroRight = over(tok('gradient-start'), accentGlow, tok('hero-bg-end'));
+    const heroViolet = over(tok('gradient-end'), violetGlow, tok('hero-bg-end'));
     const heroCard = over(tok('hero-bg'), darkGlass, heroRight); // glass-dark (hero-bg tint) on that
     const heroChips = over(tok('hero-bg'), darkGlass, heroLeft);
     const navOnHero = over(white, lightGlass, tok('hero-bg')); // floating nav at the top of the hero (darkest → worst for ink)
     const navOnCanvas = over(white, lightGlass, tok('canvas'));
-    const authBg = over(tok('accent-500'), authGlow, tok('primary-100'));
+    const authBg = over(tok('gradient-start'), authGlow, tok('primary-100'));
     const authCard = over(white, lightGlass, authBg);
     const P = [
       ['Hero headline / lead (white) on the text column', tok('hero-fg'), heroLeft, 4.5],
@@ -133,7 +138,8 @@ async function offline() {
       ['Hero glass card secondary text (hero-fg-muted) — worst case', tok('hero-fg-muted'), heroCard, 4.5],
       ['Hero glass chip text (white) — worst case', tok('hero-fg'), heroChips, 4.5],
       ['Hero chip check icon (hero-accent-text, UI) — worst case', tok('hero-accent-text'), heroChips, 3],
-      ['Accent pill: ink on amber', tok('on-accent'), tok('accent-500'), 4.5],
+      ['Primary pill on the hero (on-dark): blue-700 text on white', tok('primary-700'), tok('surface'), 4.5],
+      ['Hero glass card text (white) — over the violet glow', tok('hero-fg'), over(tok('hero-bg'), darkGlass, heroViolet), 4.5],
       ['Ghost-on-dark pill text (white) on the text column', tok('hero-fg'), heroLeft, 4.5],
       ['Nav glass: ink text over the darkest hero point', tok('fg'), navOnHero, 4.5],
       ['Nav glass: link / Sign in (primary-700) over the darkest hero point', tok('link'), navOnHero, 4.5],
@@ -279,11 +285,12 @@ async function offline() {
   });
 
   await test('C-09 categorical tokens drive subject / section colours; no hue collapse into the primary', () => {
-    const LEGACY = { violet: 'cat-violet', purple: 'cat-violet', fuchsia: 'cat-violet', teal: 'cat-teal', cyan: 'cat-teal', green: 'cat-teal', lime: 'cat-teal', rose: 'cat-rose', pink: 'cat-rose' };
+    // BRAND-3 (#84): legacy cyan-* is now the brand accent (cyan); the other hues stay on the categorical scales
+    const LEGACY = { violet: 'cat-violet', purple: 'cat-violet', fuchsia: 'cat-violet', teal: 'cat-teal', cyan: 'accent', green: 'cat-teal', lime: 'cat-teal', rose: 'cat-rose', pink: 'cat-rose' };
     const bad = Object.entries(LEGACY).filter(([n, to]) => vars[`color-${n}-600`] !== `var(--color-${to}-600)`).map(([n]) => n);
     assert(bad.length === 0, `legacy hues not on categorical scales: ${bad.join(', ')}`);
     const sc = read('lib/ui/subject-colors.ts');
-    for (const t of ['blue', 'teal', 'violet', 'amber', 'rose', 'slate']) assert(sc.includes(`"bg-subject-${t}"`), `subject-colors misses ${t}`);
+    for (const t of ['blue', 'teal', 'violet', 'cyan', 'rose', 'slate']) assert(sc.includes(`"bg-subject-${t}"`), `subject-colors misses ${t}`);
     assert(/subjectSwatch\(i\)/.test(read('components/ui/domain/result-summary.tsx')), 'result sections do not use categorical colours');
     assert(/subjectSwatchFor\(name\)/.test(read('components/ui/domain/topic-node.tsx')), 'subject nodes do not use categorical colours');
     return '6 categorical tokens; result sections + subject nodes';

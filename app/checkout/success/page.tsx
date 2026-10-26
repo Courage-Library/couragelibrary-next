@@ -27,8 +27,8 @@ export default function CheckoutSuccessPage() {
             </p>
           </div>
 
-          <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900 font-semibold flex items-center justify-center gap-2">
-            <Zap className="w-4 h-4 text-amber-500 fill-amber-500" />
+          <div className="p-4 rounded-2xl bg-accent-50 border border-accent-200 text-xs text-accent-900 font-semibold flex items-center justify-center gap-2">
+            <Zap className="w-4 h-4 text-accent-700 fill-accent-700" />
             <span>Full Access to Mock Tests, Mistake Vault & Flashcards Unlocked!</span>
           </div>
 

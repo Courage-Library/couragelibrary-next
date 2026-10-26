@@ -77,7 +77,7 @@ export default async function BillingPage() {
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 text-xs text-slate-600 flex items-center justify-between">
               <span>Upgrade to PRO to unlock full mock tests, mistake remediation, and flashcards.</span>
               <Link href="/pricing">
-                <Button size="sm" variant="default" className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs">
+                <Button size="sm" variant="default" className="bg-primary-700 hover:bg-primary-800 text-white font-bold text-xs">
                   Upgrade to PRO <ArrowRight className="w-3.5 h-3.5 ml-1" />
                 </Button>
               </Link>

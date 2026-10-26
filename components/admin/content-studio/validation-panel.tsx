@@ -53,12 +53,12 @@ export const ValidationPanel: React.FC<Props> = ({
       )}
 
       {warnings.length > 0 && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-3.5 text-amber-950 shadow-2xs">
-          <div className="flex items-center gap-2 font-bold text-amber-800">
-            <AlertTriangle className="h-4 w-4 text-amber-600" />
+        <div className="rounded-xl border border-accent-200 bg-accent-50/80 p-3.5 text-accent-950 shadow-2xs">
+          <div className="flex items-center gap-2 font-bold text-accent-800">
+            <AlertTriangle className="h-4 w-4 text-accent-700" />
             <span>Warnings ({warnings.length})</span>
           </div>
-          <ul className="mt-2 list-disc list-inside space-y-1 text-[11px] text-amber-900/90">
+          <ul className="mt-2 list-disc list-inside space-y-1 text-[11px] text-accent-900/90">
             {warnings.map((w, idx) => (
               <li key={idx}>{w}</li>
             ))}

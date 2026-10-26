@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
  *   (numbers always visible; bars are decoration) · 4 trend (only with ≥ 2 scored attempts of the same exam) ·
  *   5 question review (All / Wrong / Skipped / Marked) · 6 rank / percentile ONLY when the service returns a standing
  *   (≥ RANK_MIN_COHORT real students; otherwise the section is omitted entirely — never estimated).
- * One amber on the page: the top takeaway's marker.
+ * One accent on the page: the top takeaway's cyan marker.
  */
 const PAGE = 5;
 

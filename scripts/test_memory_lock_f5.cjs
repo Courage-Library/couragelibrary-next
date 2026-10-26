@@ -173,7 +173,7 @@ const MIG = 'supabase/migrations/20261025000095_f5_memory_lock.sql';
     assert(!/question_answers|correct_option_key|explanation/.test(load), 'loader never selects keys / explanations');
     for (const f of ['app/memory-lock/page.tsx', 'app/memory-lock/session/page.tsx']) assert(/if \(!isMemoryLockEnabled\(\)\) notFound\(\);/.test(code(read(f))), `${f}: flag off → 404`);
     const page = code(read('app/memory-lock/page.tsx'));
-    assert((page.match(/variant="accent-on-light"/g) || []).length === 1 && /data-memory-lock-start=""/.test(page), 'overview: ONE primary ("Start")');
+    assert((page.match(/variant="primary"/g) || []).length === 1 && /data-memory-lock-start=""/.test(page), 'overview: ONE primary ("Start")');
     assert(!/streak|hurry|don['’]t lose|miss out/i.test(code(read('content/memory-lock.ts'))), 'no streak shaming / fake urgency (R11)');
     assert(/canAddToMemoryLock=\{isMemoryLockEnabled\(\)\}/.test(code(read('app/practice/session/page.tsx'))) && /memoryLockEnabled: isMemoryLockEnabled\(\)/.test(code(read('services/assessment.service.ts'))), 'add button only with the flag');
     const runner = code(read('components/practice/practice-runner.tsx'));

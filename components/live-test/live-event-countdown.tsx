@@ -92,8 +92,8 @@ export function LiveEventCountdown({
   }
 
   return (
-    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono font-medium bg-amber-50 text-amber-900 border border-amber-200">
-      <span className="text-[11px] font-sans text-amber-700">{label}:</span>
+    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono font-medium bg-accent-50 text-accent-900 border border-accent-200">
+      <span className="text-[11px] font-sans text-accent-700">{label}:</span>
       <span>
         {timeLeft.days > 0 && `${timeLeft.days}d `}
         {String(timeLeft.hours).padStart(2, "0")}:{String(timeLeft.minutes).padStart(2, "0")}:

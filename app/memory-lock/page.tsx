@@ -59,7 +59,7 @@ export default async function MemoryLockPage() {
                 </ul>
                 {ml.dueTotal > ml.total && <p className="text-body-sm text-fg-secondary">{MEMORY_LOCK.moreDue(ml.dueTotal - ml.total)}</p>}
                 <div>
-                  <PillLink href="/memory-lock/session" variant="accent-on-light" data-memory-lock-start="">
+                  <PillLink href="/memory-lock/session" variant="primary" data-memory-lock-start="">
                     {MEMORY_LOCK.start}
                   </PillLink>
                 </div>

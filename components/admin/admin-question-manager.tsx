@@ -590,7 +590,7 @@ export function AdminQuestionManager({
                   { key: "A", text: optAText, setText: setOptAText, img: optAImg, setImg: setOptAImg, color: "text-emerald-700" },
                   { key: "B", text: optBText, setText: setOptBText, img: optBImg, setImg: setOptBImg, color: "text-blue-700" },
                   { key: "C", text: optCText, setText: setOptCText, img: optCImg, setImg: setOptCImg, color: "text-purple-700" },
-                  { key: "D", text: optDText, setText: setOptDText, img: optDImg, setImg: setOptDImg, color: "text-amber-700" },
+                  { key: "D", text: optDText, setText: setOptDText, img: optDImg, setImg: setOptDImg, color: "text-accent-700" },
                 ].map((opt) => (
                   <div key={opt.key} className="p-3 rounded-xl border border-slate-200 bg-white space-y-2">
                     <label className={`block text-xs font-bold ${opt.color}`}>Option {opt.key}</label>
@@ -666,10 +666,10 @@ export function AdminQuestionManager({
               </div>
 
               {/* PYQ Details */}
-              <div className="p-4 rounded-xl border border-amber-200 bg-amber-50/60 space-y-3">
-                <label className="block text-xs font-bold text-amber-900 flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5 text-amber-600" />
-                  PYQ Details <span className="text-amber-700 font-normal">(optional)</span>
+              <div className="p-4 rounded-xl border border-accent-200 bg-accent-50/60 space-y-3">
+                <label className="block text-xs font-bold text-accent-900 flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-accent-700" />
+                  PYQ Details <span className="text-accent-700 font-normal">(optional)</span>
                 </label>
                 <div className="grid grid-cols-2 gap-3">
                   <input
@@ -677,7 +677,7 @@ export function AdminQuestionManager({
                     value={pyqSource}
                     onChange={(e) => setPyqSource(e.target.value)}
                     placeholder="e.g. SSC CGL, Railway"
-                    className="w-full px-3 py-2 text-xs font-semibold rounded-lg border border-amber-200 bg-white focus:outline-hidden focus:border-amber-500"
+                    className="w-full px-3 py-2 text-xs font-semibold rounded-lg border border-accent-200 bg-white focus:outline-hidden focus:border-accent-500"
                   />
                   <input
                     type="number"
@@ -686,7 +686,7 @@ export function AdminQuestionManager({
                     placeholder="e.g. 2022"
                     min={1990}
                     max={2030}
-                    className="w-full px-3 py-2 text-xs font-semibold rounded-lg border border-amber-200 bg-white focus:outline-hidden focus:border-amber-500"
+                    className="w-full px-3 py-2 text-xs font-semibold rounded-lg border border-accent-200 bg-white focus:outline-hidden focus:border-accent-500"
                   />
                 </div>
               </div>
@@ -936,14 +936,14 @@ export function AdminQuestionManager({
                         q.difficulty === "easy"
                           ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                           : q.difficulty === "medium"
-                          ? "bg-amber-50 text-amber-700 border-amber-200"
+                          ? "bg-accent-50 text-accent-700 border-accent-200"
                           : "bg-rose-50 text-rose-700 border-rose-200"
                       }`}
                     >
                       {q.difficulty}
                     </span>
                     {(q.pyqYear || q.pyqSource) && (
-                      <span className="bg-amber-50 border border-amber-200 text-amber-800 px-2 py-0.5 rounded-md font-semibold text-[11px]">
+                      <span className="bg-accent-50 border border-accent-200 text-accent-800 px-2 py-0.5 rounded-md font-semibold text-[11px]">
                         PYQ {q.pyqSource ? `${q.pyqSource} · ` : ""}{q.pyqYear || ""}
                       </span>
                     )}
@@ -1079,7 +1079,7 @@ export function AdminQuestionManager({
                   { key: "A", val: editOptAText, setVal: setEditOptAText, color: "bg-emerald-100 text-emerald-800" },
                   { key: "B", val: editOptBText, setVal: setEditOptBText, color: "bg-blue-100 text-blue-800" },
                   { key: "C", val: editOptCText, setVal: setEditOptCText, color: "bg-purple-100 text-purple-800" },
-                  { key: "D", val: editOptDText, setVal: setEditOptDText, color: "bg-amber-100 text-amber-800" },
+                  { key: "D", val: editOptDText, setVal: setEditOptDText, color: "bg-accent-100 text-accent-800" },
                 ].map((opt) => (
                   <div key={opt.key} className="flex items-center gap-2">
                     <span className={`w-7 h-7 rounded-lg text-xs font-black flex items-center justify-center shrink-0 ${opt.color}`}>
@@ -1126,22 +1126,22 @@ export function AdminQuestionManager({
               </div>
 
               {/* PYQ */}
-              <div className="p-3 rounded-xl border border-amber-200 bg-amber-50/60 space-y-2">
-                <label className="block text-xs font-bold text-amber-900">PYQ Details</label>
+              <div className="p-3 rounded-xl border border-accent-200 bg-accent-50/60 space-y-2">
+                <label className="block text-xs font-bold text-accent-900">PYQ Details</label>
                 <div className="grid grid-cols-2 gap-2">
                   <input
                     type="text"
                     value={editPyqSource}
                     onChange={(e) => setEditPyqSource(e.target.value)}
                     placeholder="e.g. SSC CGL"
-                    className="w-full px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-amber-200 bg-white"
+                    className="w-full px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-accent-200 bg-white"
                   />
                   <input
                     type="number"
                     value={editPyqYear}
                     onChange={(e) => setEditPyqYear(e.target.value)}
                     placeholder="e.g. 2022"
-                    className="w-full px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-amber-200 bg-white"
+                    className="w-full px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-accent-200 bg-white"
                   />
                 </div>
               </div>

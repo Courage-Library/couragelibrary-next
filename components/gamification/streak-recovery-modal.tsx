@@ -128,8 +128,8 @@ export function StreakRecoveryModal({
               <div className="grid grid-cols-2 gap-3 p-4 rounded-xl bg-slate-50 border border-slate-200/80 text-xs">
                 <div className="space-y-0.5">
                   <span className="text-[10px] uppercase font-bold text-slate-400 font-mono">Streak Before Missed Day</span>
-                  <div className="flex items-center gap-1 text-base font-black text-amber-600 font-mono">
-                    <svg className="w-4 h-4 text-amber-500 fill-amber-500" viewBox="0 0 24 24">
+                  <div className="flex items-center gap-1 text-base font-black text-accent-700 font-mono">
+                    <svg className="w-4 h-4 text-accent-700 fill-accent-700" viewBox="0 0 24 24">
                       <circle cx="12" cy="12" r="10" />
                     </svg>
                     <span>{currentStreak} Days</span>
@@ -165,13 +165,13 @@ export function StreakRecoveryModal({
                 </button>
               ) : (
                 <div className="space-y-2 text-center">
-                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs font-medium text-amber-900">
+                  <div className="p-3 bg-accent-50 border border-accent-200 rounded-xl text-xs font-medium text-accent-900">
                     You have 0 / 2 Streak Freeze Shields available.
                   </div>
                   <Link
                     href="/store"
                     onClick={handleClose}
-                    className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold text-amber-800 bg-amber-100/80 hover:bg-amber-200/80 transition-colors"
+                    className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold text-accent-800 bg-accent-100/80 hover:bg-accent-200/80 transition-colors"
                   >
                     <span>Get a Streak Freeze in Store</span>
                   </Link>
@@ -249,8 +249,8 @@ export function StreakRecoveryModal({
 
               {/* Status Pill Card */}
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2 text-xs">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-900 border border-amber-500/20 font-bold text-xs">
-                  <svg className="w-3.5 h-3.5 text-amber-500 fill-amber-500" viewBox="0 0 24 24">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary-700/10 text-white border border-accent-500/20 font-bold text-xs">
+                  <svg className="w-3.5 h-3.5 text-accent-700 fill-accent-700" viewBox="0 0 24 24">
                     <circle cx="12" cy="12" r="10" />
                   </svg>
                   <span>{successResult?.preservedStreak || currentStreak}-Day Streak Preserved</span>

@@ -124,7 +124,7 @@ export function BattleLobbyClient() {
         {/* Private Room / Invite Code Card */}
         <Card className="p-6 sm:p-8 space-y-5 border-slate-200 shadow-sm flex flex-col justify-between">
           <div className="space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-700 flex items-center justify-center border border-amber-200/60">
+            <div className="w-12 h-12 rounded-2xl bg-accent-50 text-accent-700 flex items-center justify-center border border-accent-200/60">
               <Key className="w-6 h-6" />
             </div>
             <div>

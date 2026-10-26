@@ -56,7 +56,7 @@ export default async function MockTestResultPage({ params }: Props) {
       <div className="min-h-[calc(100vh-4rem)] bg-slate-50/60 py-12 flex items-center">
         <Container className="max-w-xl">
           <Card className="p-8 text-center bg-white border border-slate-200/80 rounded-3xl shadow-sm space-y-5">
-            <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto border border-amber-200">
+            <div className="w-12 h-12 bg-accent-50 text-accent-700 rounded-2xl flex items-center justify-center mx-auto border border-accent-200">
               <AlertCircle className="w-6 h-6" />
             </div>
 

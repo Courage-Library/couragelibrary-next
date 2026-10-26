@@ -109,7 +109,7 @@ export const AcademicTaxonomyExplorer: React.FC<Props> = ({
                           ) : (
                             <ChevronRight className="h-3 w-3 shrink-0 text-slate-400" />
                           )}
-                          <Folder className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+                          <Folder className="h-3.5 w-3.5 shrink-0 text-accent-700" />
                           <span className="truncate">{topic.name}</span>
                         </div>
                         <span className="text-[10px] text-slate-500 font-mono">

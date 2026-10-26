@@ -148,7 +148,7 @@ export default function AdminMacroCompetitionIntelligencePage() {
 
         <div className="p-5 rounded-xl bg-white border border-slate-200/80 shadow-xs">
           <div className="text-xs font-medium text-slate-500 uppercase tracking-wider">Rewards &amp; Credentials</div>
-          <div className="text-2xl md:text-3xl font-bold text-amber-600 mt-1">
+          <div className="text-2xl md:text-3xl font-bold text-accent-700 mt-1">
             {overview.totalCoinsDisbursed.toLocaleString()} <span className="text-xs font-normal text-slate-500">CL Coins</span>
           </div>
           <div className="text-xs text-slate-500 mt-1">
@@ -159,14 +159,14 @@ export default function AdminMacroCompetitionIntelligencePage() {
 
       {/* Anomalies Banner if any */}
       {overview.anomaliesSummary.totalAnomaliesTriggered > 0 && (
-        <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-between text-amber-900 text-sm shadow-xs">
+        <div className="p-4 rounded-xl bg-accent-50 border border-accent-200 flex items-center justify-between text-accent-900 text-sm shadow-xs">
           <div className="flex items-center gap-3">
             <span className="text-lg">⚠️</span>
             <div>
               <span className="font-semibold">Operational Diagnostics:</span> {overview.anomaliesSummary.totalAnomaliesTriggered} event-level anomalies flagged by Policy V1.
             </div>
           </div>
-          <span className="text-xs bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full border border-amber-300 font-medium">
+          <span className="text-xs bg-accent-100 text-accent-800 px-2.5 py-1 rounded-full border border-accent-300 font-medium">
             {overview.anomaliesSummary.highDropoutEventsCount} High Dropout
           </span>
         </div>
@@ -234,7 +234,7 @@ export default function AdminMacroCompetitionIntelligencePage() {
                     </td>
                     <td className="px-4 py-3.5">
                       {evt.anomalyCount > 0 ? (
-                        <span className="px-2 py-0.5 text-xs rounded bg-amber-50 text-amber-700 border border-amber-200 font-medium">
+                        <span className="px-2 py-0.5 text-xs rounded bg-accent-50 text-accent-700 border border-accent-200 font-medium">
                           ⚠️ {evt.anomalyCount} Alert{evt.anomalyCount > 1 ? "s" : ""}
                         </span>
                       ) : (
@@ -319,7 +319,7 @@ export default function AdminMacroCompetitionIntelligencePage() {
         {comparisonResult && (
           <div className="mt-4 border-t border-slate-100 pt-4 space-y-4">
             {comparisonResult.compatibilityStatus === "COMPARISON_NOT_COMPARABLE" ? (
-              <div className="p-4 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl text-sm">
+              <div className="p-4 bg-accent-50 border border-accent-200 text-accent-900 rounded-xl text-sm">
                 <div className="font-semibold mb-1">❌ Incompatible Events for Direct Comparison</div>
                 <div>{comparisonResult.reasonIfNotComparable}</div>
               </div>
@@ -363,7 +363,7 @@ export default function AdminMacroCompetitionIntelligencePage() {
                     <div className="text-xs text-slate-500">Mean Score Delta</div>
                     <div
                       className={`text-lg font-bold mt-1 ${
-                        (comparisonResult.deltas?.meanScoreDelta || 0) >= 0 ? "text-emerald-600" : "text-amber-600"
+                        (comparisonResult.deltas?.meanScoreDelta || 0) >= 0 ? "text-emerald-600" : "text-accent-700"
                       }`}
                     >
                       {(comparisonResult.deltas?.meanScoreDelta || 0) > 0 ? "+" : ""}

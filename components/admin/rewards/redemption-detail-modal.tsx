@@ -118,8 +118,8 @@ export function RedemptionDetailModal({
                 ) : null}
                 <div>
                   <p className="font-bold text-slate-900">{redemption.rewardTitle}</p>
-                  <div className="flex items-center gap-1.5 mt-0.5 text-amber-700 font-bold">
-                    <svg className="w-3.5 h-3.5 text-amber-600 fill-amber-500" viewBox="0 0 24 24">
+                  <div className="flex items-center gap-1.5 mt-0.5 text-accent-700 font-bold">
+                    <svg className="w-3.5 h-3.5 text-accent-700 fill-accent-700" viewBox="0 0 24 24">
                       <circle cx="12" cy="12" r="10" />
                     </svg>
                     <span>{redemption.coinsSpent.toLocaleString()} CL Coins</span>

@@ -87,7 +87,7 @@ function ResolvedStartAction({ signup, open, closed }: { signup: Promise<boolean
  * solid bar (no glass in the exam engine).
  * UX-FIX-1: "Sign in" is always visible in the bar (phones too). While public sign-up is CLOSED no action points to
  * /auth/signup — the start action is "Explore SSC CGL"; when it is open the one label is "Start free" as an outline
- * pill (amber is reserved for the in-page primary — never two amber CTAs on one screen). `signup` is a promise streamed from AppShell: the start action resolves it in its own Suspense
+ * pill (BRAND-3 R4: the solid blue-700 primary belongs to the page — the header never adds a second solid CTA). `signup` is a promise streamed from AppShell: the start action resolves it in its own Suspense
  * boundary whose fallback is the closed view, so the shell never waits on the sign-up setting (Supabase outage → the
  * page still renders at once; AUTH1-RESILIENCE-HANG).
  */
@@ -136,7 +136,7 @@ export function HeaderBar({ account, flags, signup }: { account: ShellAccount | 
               </NavMenu>
             </div>
           ) : account ? (
-            <PillLink href="/dashboard" className="px-5">
+            <PillLink href="/dashboard" variant="outline" className="px-5">
               {SHELL_COPY.goToDashboard}
             </PillLink>
           ) : (
@@ -152,7 +152,7 @@ export function HeaderBar({ account, flags, signup }: { account: ShellAccount | 
                   </PillLink>
                 }
                 closed={
-                  <PillLink href={LANDING_HERO.secondaryCta.href} className="hidden px-5 sm:inline-flex">
+                  <PillLink href={LANDING_HERO.secondaryCta.href} variant="outline" className="hidden px-5 sm:inline-flex">
                     {LANDING_HERO.secondaryCta.label}
                   </PillLink>
                 }

@@ -29,7 +29,57 @@
 
 ## 1. Colour
 
-> **Current: BRAND-2 (decisions #71 / #72, 2026-10-24): Royal Blue + Amber + "modern glass".** This replaces the BRAND-1 values below; the BRAND-1 architecture (single token source, semantic roles, palette aliases, gates) is unchanged.
+> **Current: BRAND-3 — decision #84 (owner-final, 2026-10-26): Brand Colour System v3 + "Courage Studio" admin.** It replaces the BRAND-2 colour values below. The BRAND-1 architecture (single token source, semantic roles, palette aliases, gates) and the BRAND-2 glass / typography rules are unchanged. Reference: `docs/reports/ux/admin_ux_1/concept/brand-colour-system-v3.png`.
+>
+> - **Primary:**
+>   - blue-700 `#1D4ED8` = `brand`, THE primary action, links and focus;
+>   - hover blue-800 `#1E40AF`;
+>   - tint blue-50 `#EFF4FF`.
+> - **Accent (cyan):**
+>   - cyan-400 `#22C7DC` is a fill / decoration only, never text on white;
+>   - cyan-700 `#0E7490` for cyan text and info;
+>   - tint cyan-50 `#E8FAFC`.
+> - **Brand gradient:** `linear-gradient(115deg, #5CD8E6, #3B82F6 50%, #5000F0)` (`.brand-gradient`, tokens `gradient-start / mid / end`).
+>   - Brand moments only: hero glows, the Today mission card, the email band, the active nav marker, the logo dot.
+>   - Violet `#5000F0` is the gradient end only, never a button, text or status colour.
+>   - Text on it must be white and large, over its blue → violet part.
+> - **Neutrals (≈ 70 % of every screen):**
+>   - navy-900 `#0B1B4D` for headings, question text (`fg`) and the sidebar;
+>   - slate-700 `#33415C` for body (`fg-secondary`);
+>   - slate-500 `#64708A` for muted text;
+>   - canvas `#F7F8FC`, surface `#FFFFFF`, line `#E6E9F2`.
+> - **Status (meaning only):**
+>   - success `#16A34A`;
+>   - danger `#DC2626`;
+>   - warning `#EA580C` (orange, not yellow);
+>   - info `#0E7490`;
+>   - focus-mode surround `#0A1230`.
+> - **Status chips (everywhere, `lib/admin/status.ts`):**
+>   - DRAFT slate;
+>   - IN_REVIEW blue-50 / blue-700;
+>   - APPROVED cyan-50 / cyan-700;
+>   - PUBLISHED green;
+>   - REJECTED red;
+>   - ARCHIVED muted.
+> - **No yellow / amber anywhere:**
+>   - the `amber-*` / `yellow-*` namespaces are reset in `app/globals.css`;
+>   - legacy `orange-*` → the warning scale;
+>   - legacy `cyan-*` → the accent.
+> - **Pills (R4 revised):**
+>   - `primary` is solid blue-700;
+>   - `on-dark` is the white pill with blue text, the primary on the hero;
+>   - `outline` is the header and secondary actions;
+>   - `ghost-on-dark`.
+> - **Study comfort:**
+>   - R13 (light reading surfaces, question text ≥ 7:1, the timer blue → orange, "Here's why" after a wrong answer);
+>   - contrast kinds `reading` = 7:1 in `components/ui/contrast-pairs.json`.
+> - **Categorical:** blue, teal, violet, **cyan** `#0E7490` (was amber), rose, slate.
+> - **Gates:**
+>   - `scripts/test_brand1.cjs`: B-01 v3 values; B-02 contrast incl. 7:1 reading; B-06 timer + "Here's why"; B-07 R4; B-08 no amber / yellow anywhere;
+>   - `scripts/test_brand2.cjs`: C-01 / C-02 / C-09;
+>   - design ratchet R-5 / R-7 / R-8.
+
+> **Superseded by BRAND-3 (#84) — BRAND-2 (decisions #71 / #72, 2026-10-24): Royal Blue + Amber + "modern glass".** This replaces the BRAND-1 values below; the BRAND-1 architecture (single token source, semantic roles, palette aliases, gates) is unchanged.
 >
 > - **Tokens:**
 >   - `primary-600` #2563EB (brand, primary buttons, focus);

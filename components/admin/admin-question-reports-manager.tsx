@@ -166,15 +166,15 @@ export function AdminQuestionReportsManager({ initialReports, initialStatus = "A
         <div
           onClick={() => setSelectedStatus("OPEN")}
           className={`p-4 rounded-2xl bg-white border cursor-pointer transition-all ${
-            selectedStatus === "OPEN" ? "border-amber-500 ring-2 ring-amber-100 shadow-xs" : "border-slate-200 hover:border-slate-300"
+            selectedStatus === "OPEN" ? "border-accent-500 ring-2 ring-accent-100 shadow-xs" : "border-slate-200 hover:border-slate-300"
           }`}
         >
-          <div className="flex items-center justify-between text-amber-700">
+          <div className="flex items-center justify-between text-accent-700">
             <span className="text-[11px] font-bold uppercase tracking-wider">New / Open</span>
-            <AlertCircle className="w-4 h-4 text-amber-600" />
+            <AlertCircle className="w-4 h-4 text-accent-700" />
           </div>
-          <p className="text-2xl font-black text-amber-900 mt-2">{openCount}</p>
-          <span className="text-[10px] text-amber-600 font-medium">Pending triage</span>
+          <p className="text-2xl font-black text-accent-900 mt-2">{openCount}</p>
+          <span className="text-[10px] text-accent-700 font-medium">Pending triage</span>
         </div>
 
         <div
@@ -295,7 +295,7 @@ export function AdminQuestionReportsManager({ initialReports, initialStatus = "A
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <Flag className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <Flag className="w-3.5 h-3.5 text-accent-700 shrink-0" />
                       <span className="text-xs font-bold text-slate-900">{r.issueType}</span>
                       <span className="text-[10px] font-mono text-slate-400">#{r.id.slice(0, 8)}</span>
                     </div>
@@ -405,13 +405,13 @@ export function AdminQuestionReportsManager({ initialReports, initialStatus = "A
 
               {/* Candidate Feedback */}
               <div className="space-y-1.5">
-                <span className="text-[11px] font-bold text-amber-700 uppercase tracking-wider">
+                <span className="text-[11px] font-bold text-accent-700 uppercase tracking-wider">
                   Candidate Feedback ({activeReport.issueType})
                 </span>
-                <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl text-xs text-amber-950 font-medium">
+                <div className="p-3 bg-accent-50/80 border border-accent-200 rounded-xl text-xs text-accent-950 font-medium">
                   {activeReport.description}
                   {activeReport.suggestedFix && (
-                    <div className="mt-2 pt-2 border-t border-amber-200/80 text-[11px]">
+                    <div className="mt-2 pt-2 border-t border-accent-200/80 text-[11px]">
                       <span className="font-bold">Candidate Suggested Fix: </span>
                       {activeReport.suggestedFix}
                     </div>

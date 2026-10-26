@@ -81,7 +81,8 @@ const { renderToStaticMarkup } = require('react-dom/server');
 const h = React.createElement;
 const html = (el) => renderToStaticMarkup(el);
 const text = (s) => s.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<[^>]+>/g, ' ').replace(/&#x27;|&apos;/g, "'").replace(/&amp;/g, '&').replace(/\s+/g, ' ');
-const amber = (s) => (s.match(/class="[^"]*\bbg-accent-(?:400|500|600)\b/g) || []).length;
+// BRAND-3 (#84, R4 revised): the ONE primary = solid blue-700 (bg-brand; it was the amber fill). Name kept for history.
+const amber = (s) => (s.match(/class="[^"]*\bbg-brand\b/g) || []).length;
 
 /** A fake PostgREST: from(table) → chainable filters; the result is whatever `data[table]` returns for the filters. */
 function fakeSupabase(data) {
@@ -261,8 +262,8 @@ const ROW = (qid, vid, lang = 'en', extra = {}) => ({
     const src = read('components/practice/practice-runner.tsx');
     // F5: the Memory Lock end screen (a separate return) has its own single amber "Back to Memory Lock" → 4 in the file
     const mlEnd = src.slice(src.indexOf('data-memory-lock-end'), src.indexOf('if (finished || !q || !view) {\n    const rows'));
-    assert((mlEnd.match(/variant="accent-on-light"/g) || []).length === 1, 'Memory Lock end: one amber');
-    assert((src.match(/variant="accent-on-light"/g) || []).length === 4 && /\{result \? \(\s*<PillButton variant="accent-on-light" onClick=\{next\}>[\s\S]*?\) : \(\s*<PillButton variant="accent-on-light" onClick=\{check\}/.test(src), 'result screen: Next replaces Check (still one amber); end: Practice again only');
+    assert((mlEnd.match(/variant="primary"/g) || []).length === 1, 'Memory Lock end: ONE primary');
+    assert((src.match(/variant="primary"/g) || []).length === 4 && /\{result \? \(\s*<PillButton variant="primary" onClick=\{next\}>[\s\S]*?\) : \(\s*<PillButton variant="primary" onClick=\{check\}/.test(src), 'result screen: Next replaces Check (still one amber); end: Practice again only');
     // chooser
     process.env.PRACTICE_ENABLED = 'true';
     MOCKS['@/lib/supabase/server'] = { createServerSupabaseClient: async () => ({}) };

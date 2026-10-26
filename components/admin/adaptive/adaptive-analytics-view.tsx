@@ -335,12 +335,12 @@ export function AdaptiveAnalyticsView({ userEmail }: { userEmail: string }) {
             </div>
             <div className="p-3.5 rounded-xl bg-white border border-slate-200/80 shadow-xs">
               <span className="text-[11px] font-semibold text-slate-500 block uppercase tracking-wider">Avg Final SE</span>
-              <span className="text-xl font-bold text-amber-400 mt-1 block">{overview.avgFinalSE}</span>
+              <span className="text-xl font-bold text-accent-700 mt-1 block">{overview.avgFinalSE}</span>
               <span className="text-[10px] text-slate-500 mt-0.5 block">Median: {overview.medianFinalSE}</span>
             </div>
             <div className="p-3.5 rounded-xl bg-white border border-slate-200/80 shadow-xs">
               <span className="text-[11px] font-semibold text-slate-500 block uppercase tracking-wider">CAT Fallback Rate</span>
-              <span className={`text-xl font-bold mt-1 block ${overview.fallbackRate > 20 ? "text-amber-400" : "text-emerald-400"}`}>
+              <span className={`text-xl font-bold mt-1 block ${overview.fallbackRate > 20 ? "text-accent-700" : "text-emerald-400"}`}>
                 {overview.fallbackRate}%
               </span>
               <span className="text-[10px] text-slate-500 mt-0.5 block">Cold start: {overview.coldStartRate}%</span>
@@ -460,7 +460,7 @@ export function AdaptiveAnalyticsView({ userEmail }: { userEmail: string }) {
           {/* Top Weakest Topics Hotspots */}
           <div className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-xs">
             <h3 className="text-xs font-bold text-slate-900 mb-3 flex items-center gap-2">
-              <AlertTriangle className="w-3.5 h-3.5 text-amber-400" /> Candidate Weak Area Hotspots (Lowest Mastery)
+              <AlertTriangle className="w-3.5 h-3.5 text-accent-700" /> Candidate Weak Area Hotspots (Lowest Mastery)
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {candidates.weakestTopics.map((t) => (
@@ -500,7 +500,7 @@ export function AdaptiveAnalyticsView({ userEmail }: { userEmail: string }) {
                       <td className="py-2.5 px-3 font-mono font-bold text-blue-400">{c.currentTheta}</td>
                       <td className="py-2.5 px-3 font-mono text-slate-400">{c.standardError}</td>
                       <td className="py-2.5 px-3">
-                        <span className={`font-semibold ${c.completionRate >= 80 ? "text-emerald-400" : "text-amber-400"}`}>
+                        <span className={`font-semibold ${c.completionRate >= 80 ? "text-emerald-400" : "text-accent-700"}`}>
                           {c.completionRate}%
                         </span>
                       </td>
@@ -538,7 +538,7 @@ export function AdaptiveAnalyticsView({ userEmail }: { userEmail: string }) {
                   </div>
                   <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
                     <span className="text-[10px] text-slate-500 block">Standard Error</span>
-                    <span className="text-base font-bold text-amber-400">{selectedCandidate.standardError}</span>
+                    <span className="text-base font-bold text-accent-700">{selectedCandidate.standardError}</span>
                   </div>
                   <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
                     <span className="text-[10px] text-slate-500 block">Total Questions</span>
@@ -611,7 +611,7 @@ export function AdaptiveAnalyticsView({ userEmail }: { userEmail: string }) {
             </div>
             <div className="p-3 rounded-xl bg-white border border-slate-200/80 shadow-xs">
               <span className="text-[10px] font-semibold text-slate-500 block uppercase">Quality Alerts</span>
-              <span className="text-lg font-bold text-amber-400">{items.itemsWithAlertsCount}</span>
+              <span className="text-lg font-bold text-accent-700">{items.itemsWithAlertsCount}</span>
             </div>
           </div>
 
@@ -692,7 +692,7 @@ export function AdaptiveAnalyticsView({ userEmail }: { userEmail: string }) {
                             <Badge
                               key={f}
                               variant="destructive"
-                              className="text-[9px] font-mono px-1 py-0 bg-amber-50 text-amber-800 border-amber-200"
+                              className="text-[9px] font-mono px-1 py-0 bg-accent-50 text-accent-800 border-accent-200"
                             >
                               {f}
                             </Badge>
@@ -783,7 +783,7 @@ export function AdaptiveAnalyticsView({ userEmail }: { userEmail: string }) {
                 {stopping.continuationGatesEncountered.map((g) => (
                   <div key={g.gate} className="p-2 rounded bg-slate-50 border border-slate-200 flex justify-between font-mono">
                     <span className="text-slate-300">{g.gate}</span>
-                    <span className="text-amber-400 font-bold">{g.count} times</span>
+                    <span className="text-accent-700 font-bold">{g.count} times</span>
                   </div>
                 ))}
               </div>
@@ -815,7 +815,7 @@ export function AdaptiveAnalyticsView({ userEmail }: { userEmail: string }) {
                 </div>
                 <div className="p-2 rounded bg-slate-50 border border-slate-200 flex justify-between">
                   <span className="text-slate-300">Exploration Decisions</span>
-                  <span className="font-mono font-bold text-amber-400">{personalization.explorationDecisionsCount}</span>
+                  <span className="font-mono font-bold text-accent-700">{personalization.explorationDecisionsCount}</span>
                 </div>
               </div>
             </div>
@@ -885,7 +885,7 @@ export function AdaptiveAnalyticsView({ userEmail }: { userEmail: string }) {
                   health.overallStatus === "GREEN"
                     ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                     : health.overallStatus === "YELLOW"
-                    ? "bg-amber-50 text-amber-800 border-amber-200"
+                    ? "bg-accent-50 text-accent-800 border-accent-200"
                     : "bg-rose-50 text-rose-700 border-rose-200"
                 }`}
               >
@@ -901,7 +901,7 @@ export function AdaptiveAnalyticsView({ userEmail }: { userEmail: string }) {
                     <Badge
                       variant="outline"
                       className={`text-[9px] font-mono ${
-                        k.status === "GREEN" ? "text-emerald-400" : k.status === "YELLOW" ? "text-amber-400" : "text-rose-400"
+                        k.status === "GREEN" ? "text-emerald-400" : k.status === "YELLOW" ? "text-accent-700" : "text-rose-400"
                       }`}
                     >
                       {k.status}
@@ -973,7 +973,7 @@ export function AdaptiveAnalyticsView({ userEmail }: { userEmail: string }) {
                   </div>
                   <div className="p-2.5 rounded bg-slate-50 border border-slate-200">
                     <span className="text-[10px] text-slate-500 block">Stopping Reason</span>
-                    <span className="text-xs font-mono text-amber-400 truncate block">{attemptDiagnostics.stoppingReason || "N/A"}</span>
+                    <span className="text-xs font-mono text-accent-700 truncate block">{attemptDiagnostics.stoppingReason || "N/A"}</span>
                   </div>
                 </div>
 
@@ -1000,7 +1000,7 @@ export function AdaptiveAnalyticsView({ userEmail }: { userEmail: string }) {
                           <td className="py-2 px-2 text-blue-400">{s.itemDifficultyB} / {s.itemDiscriminationA}</td>
                           <td className="py-2 px-2 text-emerald-400">{s.itemInformation}</td>
                           <td className="py-2 px-2 text-slate-300">{s.thetaBefore} → <strong className="text-blue-400">{s.thetaAfter}</strong></td>
-                          <td className="py-2 px-2 text-slate-300">{s.seBefore} → <strong className="text-amber-400">{s.seAfter}</strong></td>
+                          <td className="py-2 px-2 text-slate-300">{s.seBefore} → <strong className="text-accent-700">{s.seAfter}</strong></td>
                           <td className="py-2 px-2">
                             {s.isCorrect === true ? (
                               <span className="text-emerald-400 font-bold">CORRECT</span>

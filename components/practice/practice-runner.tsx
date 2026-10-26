@@ -73,7 +73,7 @@ export function PracticeRunner(props: {
         <h2 className="text-h2 font-bold text-fg">{MEMORY_LOCK.done}</h2>
         <p className="text-body-lg font-semibold text-fg">{E.score(correct, questions.length)}</p>
         <div>
-          <PillLink href={props.memoryLock.endHref} variant="accent-on-light">
+          <PillLink href={props.memoryLock.endHref} variant="primary">
             {MEMORY_LOCK.back}
           </PillLink>
         </div>
@@ -93,7 +93,7 @@ export function PracticeRunner(props: {
           ))}
         </ul>
         <div className="flex flex-wrap items-center gap-3">
-          <PillLink href={props.againHref} variant="accent-on-light">
+          <PillLink href={props.againHref} variant="primary">
             {E.again}
           </PillLink>
           {props.nextTopicHref ? (
@@ -172,7 +172,7 @@ export function PracticeRunner(props: {
                 key={o.key}
                 className={cn(
                   "flex min-h-12 cursor-pointer items-center gap-3 rounded-control border px-4 py-3 text-body has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus",
-                  result && isKey ? "border-2 border-success-600 bg-success-50" : result && chosen ? "border-2 border-danger-600 bg-danger-50" : chosen ? "border-2 border-primary-600 bg-primary-50" : "border-line-control bg-surface",
+                  result && isKey ? "border-2 border-success-600 bg-success-50" : result && chosen ? "border-2 border-danger-300 bg-danger-50" : chosen ? "border-2 border-primary-600 bg-primary-50" : "border-line-control bg-surface",
                 )}
               >
                 <input type="radio" className="sr-only" name={`q-${q.questionId}`} value={o.key} checked={chosen} onChange={() => setSelected((m) => ({ ...m, [q.questionId]: o.key }))} />
@@ -200,8 +200,9 @@ export function PracticeRunner(props: {
               {result.isCorrect ? C.correct : C.incorrect}
               <span className="font-normal text-fg-secondary">· {C.correctAnswer(result.correctKey)}</span>
             </p>
-            <h3 className="text-body-sm font-semibold text-fg">{C.explanation}</h3>
-            <p className="whitespace-pre-line text-body text-fg-secondary">{result.explanation ?? C.noExplanation}</p>
+            {/* R13 (#84): a wrong answer → a prominent "Here's why" at reading size and full-contrast text */}
+            <h3 className={result.isCorrect ? "text-body-sm font-semibold text-fg" : "text-body-lg font-semibold text-fg"}>{result.isCorrect ? C.explanation : C.heresWhy}</h3>
+            <p className="whitespace-pre-line text-body leading-[1.6] text-fg">{result.explanation ?? C.noExplanation}</p>
             {result.backIn ? (
               <p className="text-body font-semibold text-fg" data-memory-lock-back-in="">
                 {result.backIn}
@@ -225,11 +226,11 @@ export function PracticeRunner(props: {
             {props.canAddToMemoryLock && !props.memoryLock && result && <AddToMemoryLockButton questionId={q.questionId} />}
           </div>
           {result ? (
-            <PillButton variant="accent-on-light" onClick={next}>
+            <PillButton variant="primary" onClick={next}>
               {isLast ? C.finish : C.next}
             </PillButton>
           ) : (
-            <PillButton variant="accent-on-light" onClick={check} disabled={pending}>
+            <PillButton variant="primary" onClick={check} disabled={pending}>
               {pending ? C.checking : C.check}
             </PillButton>
           )}

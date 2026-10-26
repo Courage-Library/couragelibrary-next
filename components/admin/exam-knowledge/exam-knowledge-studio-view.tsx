@@ -919,8 +919,8 @@ export function ExamKnowledgeStudioView({
               <span className="text-xl font-black text-slate-900 mt-1 block">{kpis.totalDocuments}</span>
             </div>
             <div className="p-3.5 rounded-xl border border-slate-200 bg-white shadow-xs">
-              <span className="text-[10px] font-mono uppercase font-bold text-amber-600 block">Awaiting Review</span>
-              <span className="text-xl font-black text-amber-600 mt-1 block">{kpis.draftsAwaitingReview}</span>
+              <span className="text-[10px] font-mono uppercase font-bold text-accent-700 block">Awaiting Review</span>
+              <span className="text-xl font-black text-accent-700 mt-1 block">{kpis.draftsAwaitingReview}</span>
             </div>
             <div className="p-3.5 rounded-xl border border-slate-200 bg-white shadow-xs">
               <span className="text-[10px] font-mono uppercase font-bold text-emerald-600 block">Published Docs</span>
@@ -1015,11 +1015,11 @@ export function ExamKnowledgeStudioView({
                         <td className="py-3 px-3">{mod.isCycleSpecific ? <span className="text-[11px] font-mono text-blue-700 font-semibold">Annual Cycle</span> : <span className="text-[11px] font-mono text-slate-500">Timeless</span>}</td>
                         <td className="py-3 px-3">
                           {mod.applicability === "APPLICABLE" && <Badge variant="success" className="text-[10px]">APPLICABLE</Badge>}
-                          {mod.applicability === "REQUIRES_CYCLE" && <Badge variant="warning" className="text-[10px] bg-amber-100 text-amber-800 border-amber-300">REQUIRES CYCLE</Badge>}
+                          {mod.applicability === "REQUIRES_CYCLE" && <Badge variant="warning" className="text-[10px] bg-accent-100 text-accent-800 border-accent-300">REQUIRES CYCLE</Badge>}
                           {mod.applicability === "NOT_APPLICABLE" && <Badge variant="outline" className="text-[10px]">NOT APPLICABLE</Badge>}
                         </td>
                         <td className="py-3 px-3">
-                          <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-bold ${mod.status === "PUBLISHED" ? "bg-emerald-100 text-emerald-800" : mod.status === "APPROVED" || mod.status === "COMPILED" ? "bg-blue-100 text-blue-800" : mod.status === "IN_REVIEW" || mod.status === "AI_RESPONSE_PENDING" ? "bg-amber-100 text-amber-800" : mod.status === "PROMPT_READY" ? "bg-purple-100 text-purple-800" : "bg-slate-100 text-slate-600"}`}>{mod.status}</span>
+                          <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-bold ${mod.status === "PUBLISHED" ? "bg-emerald-100 text-emerald-800" : mod.status === "APPROVED" || mod.status === "COMPILED" ? "bg-blue-100 text-blue-800" : mod.status === "IN_REVIEW" || mod.status === "AI_RESPONSE_PENDING" ? "bg-accent-100 text-accent-800" : mod.status === "PROMPT_READY" ? "bg-purple-100 text-purple-800" : "bg-slate-100 text-slate-600"}`}>{mod.status}</span>
                         </td>
                         <td className="py-3 px-4 text-right">
                           {mod.status === "PUBLISHED" ? (
@@ -1033,7 +1033,7 @@ export function ExamKnowledgeStudioView({
                               <span>Edit Draft (v{mod.versionNumber})</span>
                             </button>
                           ) : mod.status === "IN_REVIEW" ? (
-                            <button onClick={() => { if (mod.versionId) loadDocumentDetail(mod.versionId); }} className="px-3 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-bold text-[11px] transition inline-flex items-center gap-1 shadow-xs">
+                            <button onClick={() => { if (mod.versionId) loadDocumentDetail(mod.versionId); }} className="px-3 py-1 rounded-lg bg-primary-700 hover:bg-primary-800 text-white font-bold text-[11px] transition inline-flex items-center gap-1 shadow-xs">
                               <ShieldCheck className="w-3 h-3" />
                               <span>Review (v{mod.versionNumber})</span>
                             </button>
@@ -1091,8 +1091,8 @@ export function ExamKnowledgeStudioView({
                   <div className="flex flex-wrap items-center gap-2.5">
                     <div className="mr-2">
                       {isDirty ? (
-                        <span className="px-2.5 py-1 rounded-full text-[11px] font-mono font-bold bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                        <span className="px-2.5 py-1 rounded-full text-[11px] font-mono font-bold bg-accent-50 text-accent-700 border border-accent-200 flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-primary-700 animate-pulse" />
                           Unsaved changes
                         </span>
                       ) : lastSavedTime ? (
@@ -1166,8 +1166,8 @@ export function ExamKnowledgeStudioView({
                 </div>
 
                 {/* Notice Banner */}
-                <div className="p-3.5 rounded-xl border border-amber-200 bg-amber-50/70 text-amber-900 text-xs flex items-start gap-2.5">
-                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div className="p-3.5 rounded-xl border border-accent-200 bg-accent-50/70 text-accent-900 text-xs flex items-start gap-2.5">
+                  <AlertTriangle className="w-4 h-4 text-accent-700 shrink-0 mt-0.5" />
                   <div className="leading-relaxed">
                     <span className="font-bold">Revision Draft Isolation:</span> You are editing draft version {documentDetail?.version?.version_number || 2}. The currently published version remains live and completely untouched. Candidates will continue to see the published version until this revision passes Academic Review, Compilation, and Publication.
                   </div>
@@ -1645,7 +1645,7 @@ export function ExamKnowledgeStudioView({
                   <div className="p-4 rounded-2xl border border-slate-200 bg-white shadow-xs flex flex-wrap items-center justify-between gap-3">
                     <div className="text-xs text-slate-500">
                       {isDirty ? (
-                        <span className="text-amber-600 font-bold">You have unsaved changes.</span>
+                        <span className="text-accent-700 font-bold">You have unsaved changes.</span>
                       ) : (
                         <span>All changes saved to draft v{documentDetail?.version?.version_number || 2}.</span>
                       )}
@@ -1776,7 +1776,7 @@ export function ExamKnowledgeStudioView({
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-[11px]">
                           <div><span className="text-slate-500">Document ID:</span> <span className="font-bold">{importResult.documentId}</span></div>
                           <div><span className="text-slate-500">Version:</span> <span className="font-bold">v{importResult.versionNumber}</span></div>
-                          <div><span className="text-slate-500">Status:</span> <span className="font-bold text-amber-700">{importResult.reviewStatus}</span></div>
+                          <div><span className="text-slate-500">Status:</span> <span className="font-bold text-accent-700">{importResult.reviewStatus}</span></div>
                           <div><span className="text-slate-500">Published:</span> <span className="font-bold text-rose-700">NO (Draft)</span></div>
                         </div>
                       </div>
@@ -1843,7 +1843,7 @@ export function ExamKnowledgeStudioView({
                       </td>
                       <td className="py-3 px-3 font-mono font-bold">v{d.versionNumber}</td>
                       <td className="py-3 px-3"><span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-mono text-[10px]">{d.authorType}</span></td>
-                      <td className="py-3 px-3"><span className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-bold ${d.reviewStatus === "PUBLISHED" ? "bg-emerald-100 text-emerald-800" : d.reviewStatus === "APPROVED" || d.reviewStatus === "COMPILED" ? "bg-blue-100 text-blue-800" : "bg-amber-100 text-amber-800"}`}>{d.reviewStatus}</span></td>
+                      <td className="py-3 px-3"><span className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-bold ${d.reviewStatus === "PUBLISHED" ? "bg-emerald-100 text-emerald-800" : d.reviewStatus === "APPROVED" || d.reviewStatus === "COMPILED" ? "bg-blue-100 text-blue-800" : "bg-accent-100 text-accent-800"}`}>{d.reviewStatus}</span></td>
                       <td className="py-3 px-3 text-slate-500 font-mono text-[11px]">{new Date(d.createdAt).toLocaleDateString()}</td>
                       <td className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
@@ -1858,7 +1858,7 @@ export function ExamKnowledgeStudioView({
                           ) : d.reviewStatus === "IN_REVIEW" ? (
                             <button
                               onClick={() => loadDocumentDetail(d.id)}
-                              className="px-3 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-bold text-[11px] transition inline-flex items-center gap-1 shadow-xs"
+                              className="px-3 py-1 rounded-lg bg-primary-700 hover:bg-primary-800 text-white font-bold text-[11px] transition inline-flex items-center gap-1 shadow-xs"
                             >
                               <ShieldCheck className="w-3 h-3" />
                               <span>Review</span>
@@ -1916,16 +1916,16 @@ export function ExamKnowledgeStudioView({
                 {documentDetail.version?.is_published &&
                   documentDetail.document?.current_published_version_id &&
                   documentDetail.document.current_published_version_id !== documentDetail.version.id && (
-                    <div className="p-3.5 rounded-xl border border-amber-200 bg-amber-50/90 text-amber-950 text-xs flex flex-wrap items-center justify-between gap-3 shadow-2xs">
+                    <div className="p-3.5 rounded-xl border border-accent-200 bg-accent-50/90 text-accent-950 text-xs flex flex-wrap items-center justify-between gap-3 shadow-2xs">
                       <div className="flex items-center gap-2.5 font-medium">
-                        <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                        <AlertTriangle className="w-4 h-4 text-accent-700 shrink-0" />
                         <span>
                           <strong>Historical Snapshot (SUPERSEDED / IMMUTABLE):</strong> You are inspecting version v{documentDetail.version.version_number}. A newer version is currently live for candidate delivery.
                         </span>
                       </div>
                       <button
                         onClick={() => loadDocumentDetail(documentDetail.document.current_published_version_id)}
-                        className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-bold text-[11px] shrink-0 transition flex items-center gap-1"
+                        className="px-3 py-1.5 rounded-lg bg-primary-700 hover:bg-primary-800 text-white font-bold text-[11px] shrink-0 transition flex items-center gap-1"
                       >
                         <Eye className="w-3 h-3" />
                         <span>Switch to Current Live Version</span>
@@ -1949,7 +1949,7 @@ export function ExamKnowledgeStudioView({
                             : documentDetail.version?.review_status === "APPROVED"
                             ? "bg-blue-100 text-blue-800"
                             : documentDetail.version?.review_status === "IN_REVIEW"
-                            ? "bg-amber-100 text-amber-800"
+                            ? "bg-accent-100 text-accent-800"
                             : documentDetail.version?.review_status === "REJECTED"
                             ? "bg-rose-100 text-rose-800"
                             : "bg-slate-100 text-slate-700"
@@ -1989,7 +1989,7 @@ export function ExamKnowledgeStudioView({
                           <button
                             disabled={isUpdatingStatus}
                             onClick={() => handleUpdateReviewStatus("IN_REVIEW")}
-                            className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition shadow-xs"
+                            className="px-3.5 py-1.5 rounded-xl bg-primary-700 hover:bg-primary-800 text-white text-xs font-bold transition shadow-xs"
                           >
                             Start Academic Review
                           </button>
@@ -2163,11 +2163,11 @@ export function ExamKnowledgeStudioView({
               {reviewSubTab === "ACADEMIC_REVIEW" && (
                 <div className="space-y-5">
                   {documentDetail.version?.review_feedback && (
-                    <div className="p-3.5 rounded-xl border border-amber-200 bg-amber-50/80 text-amber-950 text-xs flex items-start gap-2.5 shadow-2xs">
-                      <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="p-3.5 rounded-xl border border-accent-200 bg-accent-50/80 text-accent-950 text-xs flex items-start gap-2.5 shadow-2xs">
+                      <Info className="w-4 h-4 text-accent-700 shrink-0 mt-0.5" />
                       <div className="space-y-0.5">
                         <span className="font-bold">Prior Reviewer Feedback / Notes:</span>
-                        <div className="text-slate-800 bg-white/70 p-2 rounded-lg border border-amber-200/60 font-sans whitespace-pre-wrap">
+                        <div className="text-slate-800 bg-white/70 p-2 rounded-lg border border-accent-200/60 font-sans whitespace-pre-wrap">
                           {documentDetail.version.review_feedback}
                         </div>
                       </div>
@@ -2321,7 +2321,7 @@ export function ExamKnowledgeStudioView({
                                     ? "bg-emerald-100 text-emerald-800"
                                     : src.verification_status === "REJECTED"
                                     ? "bg-rose-100 text-rose-800"
-                                    : "bg-amber-100 text-amber-800"
+                                    : "bg-accent-100 text-accent-800"
                                 }`}>
                                   {src.verification_status}
                                 </span>
@@ -2424,7 +2424,7 @@ export function ExamKnowledgeStudioView({
                                         : verItem.reviewStatus === "APPROVED"
                                         ? "bg-blue-100 text-blue-800"
                                         : verItem.reviewStatus === "IN_REVIEW"
-                                        ? "bg-amber-100 text-amber-800"
+                                        ? "bg-accent-100 text-accent-800"
                                         : "bg-slate-100 text-slate-700"
                                     }`}
                                   >
@@ -2455,7 +2455,7 @@ export function ExamKnowledgeStudioView({
                                   )}
                                 </div>
                                 {verItem.reviewFeedback && (
-                                  <div className="p-2 rounded-lg bg-amber-50/80 border border-amber-200 text-amber-900 text-xs mt-2">
+                                  <div className="p-2 rounded-lg bg-accent-50/80 border border-accent-200 text-accent-900 text-xs mt-2">
                                     <span className="font-bold">Reviewer Feedback: </span>
                                     <span className="font-sans">{verItem.reviewFeedback}</span>
                                   </div>
@@ -2703,7 +2703,7 @@ export function ExamKnowledgeStudioView({
                             <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 font-bold border border-emerald-200">
                               +{diffResult.summary.addedCount} Added
                             </span>
-                            <span className="px-2.5 py-1 rounded-lg bg-amber-50 text-amber-800 font-bold border border-amber-200">
+                            <span className="px-2.5 py-1 rounded-lg bg-accent-50 text-accent-800 font-bold border border-accent-200">
                               ~{diffResult.summary.modifiedCount} Modified
                             </span>
                             <span className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-800 font-bold border border-rose-200">
@@ -2795,7 +2795,7 @@ export function ExamKnowledgeStudioView({
                                   <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-bold ${
                                     item.changeType === "ADDED" ? "bg-emerald-100 text-emerald-800" :
                                     item.changeType === "REMOVED" ? "bg-rose-100 text-rose-800" :
-                                    "bg-amber-100 text-amber-800"
+                                    "bg-accent-100 text-accent-800"
                                   }`}>
                                     {item.changeType}
                                   </span>
@@ -2832,7 +2832,7 @@ export function ExamKnowledgeStudioView({
                                     : sec.changeType === "REMOVED"
                                     ? "border-rose-200 bg-rose-50/30"
                                     : sec.changeType === "CHANGED"
-                                    ? "border-amber-200 bg-amber-50/20"
+                                    ? "border-accent-200 bg-accent-50/20"
                                     : "border-purple-200 bg-purple-50/20"
                                 }`}
                               >
@@ -2850,7 +2850,7 @@ export function ExamKnowledgeStudioView({
                                         : sec.changeType === "REMOVED"
                                         ? "bg-rose-100 text-rose-800"
                                         : sec.changeType === "CHANGED"
-                                        ? "bg-amber-100 text-amber-800"
+                                        ? "bg-accent-100 text-accent-800"
                                         : "bg-purple-100 text-purple-800"
                                     }`}
                                   >
@@ -2911,7 +2911,7 @@ export function ExamKnowledgeStudioView({
                                   <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-bold ${
                                     faq.changeType === "ADDED" ? "bg-emerald-100 text-emerald-800" :
                                     faq.changeType === "REMOVED" ? "bg-rose-100 text-rose-800" :
-                                    "bg-amber-100 text-amber-800"
+                                    "bg-accent-100 text-accent-800"
                                   }`}>
                                     FAQ {faq.changeType}
                                   </span>
@@ -2958,7 +2958,7 @@ export function ExamKnowledgeStudioView({
                                   <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-bold ${
                                     src.changeType === "ADDED" ? "bg-emerald-100 text-emerald-800" :
                                     src.changeType === "REMOVED" ? "bg-rose-100 text-rose-800" :
-                                    "bg-amber-100 text-amber-800"
+                                    "bg-accent-100 text-accent-800"
                                   }`}>
                                     SOURCE {src.changeType}
                                   </span>
@@ -3005,7 +3005,7 @@ export function ExamKnowledgeStudioView({
                                   <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-bold ${
                                     tbl.changeType === "ADDED" ? "bg-emerald-100 text-emerald-800" :
                                     tbl.changeType === "REMOVED" ? "bg-rose-100 text-rose-800" :
-                                    "bg-amber-100 text-amber-800"
+                                    "bg-accent-100 text-accent-800"
                                   }`}>
                                     TABLE {tbl.changeType}
                                   </span>

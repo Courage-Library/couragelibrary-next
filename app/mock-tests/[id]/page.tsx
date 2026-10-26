@@ -160,7 +160,7 @@ export default async function MockTestInstructionsPage({ params }: Props) {
                   <span>You can navigate freely between sections and questions using the Question Palette.</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <ShieldAlert className="w-4 h-4 text-accent-700 shrink-0 mt-0.5" />
                   <span>The test will automatically auto-submit when the countdown timer reaches 00:00.</span>
                 </li>
               </ul>

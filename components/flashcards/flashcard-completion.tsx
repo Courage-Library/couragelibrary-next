@@ -32,9 +32,9 @@ export function FlashcardCompletion({
             <span className="font-bold text-red-800 text-base block">{ratingsCount.again}</span>
             <span className="text-red-600 text-[10px] font-semibold">Again</span>
           </div>
-          <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-100">
-            <span className="font-bold text-amber-800 text-base block">{ratingsCount.hard}</span>
-            <span className="text-amber-600 text-[10px] font-semibold">Hard</span>
+          <div className="p-2.5 rounded-xl bg-accent-50 border border-accent-100">
+            <span className="font-bold text-accent-800 text-base block">{ratingsCount.hard}</span>
+            <span className="text-accent-700 text-[10px] font-semibold">Hard</span>
           </div>
           <div className="p-2.5 rounded-xl bg-blue-50 border border-blue-100">
             <span className="font-bold text-blue-800 text-base block">{ratingsCount.good}</span>
@@ -46,8 +46,8 @@ export function FlashcardCompletion({
           </div>
         </div>
 
-        <div className="p-3 rounded-2xl bg-amber-50/60 border border-amber-200 flex items-center justify-center gap-2 text-xs font-bold text-amber-900">
-          <Coins className="w-4 h-4 text-amber-500 fill-amber-500" />
+        <div className="p-3 rounded-2xl bg-accent-50/60 border border-accent-200 flex items-center justify-center gap-2 text-xs font-bold text-accent-900">
+          <Coins className="w-4 h-4 text-accent-700 fill-accent-700" />
           <span>Active Recall Coins Awarded to Wallet!</span>
         </div>
 

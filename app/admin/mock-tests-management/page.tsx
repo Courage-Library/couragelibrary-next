@@ -100,9 +100,9 @@ export default async function AdminMockTestsManagementPage() {
       description: "Published test papers, sectional time allocations, and test simulator runtime.",
       href: "/admin/mock-tests",
       icon: FileCheck2,
-      color: "text-amber-600",
-      bgColor: "bg-amber-50/60",
-      borderColor: "border-amber-200",
+      color: "text-accent-700",
+      bgColor: "bg-accent-50/60",
+      borderColor: "border-accent-200",
       actionText: "Manage Mock Tests",
     },
     {
@@ -195,7 +195,7 @@ export default async function AdminMockTestsManagementPage() {
             <span className="text-xs font-black text-white block">Subject Divisions</span>
           </div>
           <div className="p-3 rounded-xl bg-slate-800 border border-slate-700 space-y-1">
-            <span className="text-[10px] font-mono text-amber-400 uppercase font-bold block">4. Topic</span>
+            <span className="text-[10px] font-mono text-accent-700 uppercase font-bold block">4. Topic</span>
             <span className="text-xs font-black text-white block">Canonical Topics</span>
           </div>
           <div className="p-3 rounded-xl bg-slate-800 border border-slate-700 space-y-1">

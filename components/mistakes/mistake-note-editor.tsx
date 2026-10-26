@@ -145,7 +145,7 @@ export function MistakeNoteEditor({ vaultId, initialNote }: MistakeNoteEditorPro
             </span>
           )}
           {saveStatus === "typing" && (
-            <span className="text-amber-600 font-medium text-[11px]">
+            <span className="text-accent-700 font-medium text-[11px]">
               Unsaved changes
             </span>
           )}
@@ -187,7 +187,7 @@ export function MistakeNoteEditor({ vaultId, initialNote }: MistakeNoteEditorPro
           {/* Character counter */}
           <span
             className={`font-mono text-[11px] ${
-              isNearLimit ? "text-amber-600 font-bold" : "text-slate-400"
+              isNearLimit ? "text-accent-700 font-bold" : "text-slate-400"
             }`}
           >
             {note.length} / 2000 chars

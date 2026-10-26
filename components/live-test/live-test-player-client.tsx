@@ -367,8 +367,8 @@ export function LiveTestPlayerClient({ session }: LiveTestPlayerClientProps) {
           {/* Sync Status Badge */}
           <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-400">
             {saveStatus === "saving" && (
-              <span className="text-amber-400 flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+              <span className="text-accent-700 flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-primary-700 animate-ping" />
                 Saving...
               </span>
             )}
@@ -427,16 +427,16 @@ export function LiveTestPlayerClient({ session }: LiveTestPlayerClientProps) {
 
       {/* Multi-Tab Warning Banner */}
       {multiTabConflict && (
-        <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 flex items-center justify-between text-xs text-amber-300">
+        <div className="bg-primary-700/10 border-b border-accent-500/20 px-4 py-2 flex items-center justify-between text-xs text-accent-300">
           <div className="flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+            <AlertTriangle className="w-4 h-4 text-accent-700 shrink-0" />
             <span>
               Another browser tab was opened for this live exam. Answers will remain synchronized across tabs.
             </span>
           </div>
           <button
             onClick={() => setMultiTabConflict(false)}
-            className="text-amber-400 hover:text-amber-200"
+            className="text-accent-700 hover:text-accent-200"
           >
             <X className="w-3.5 h-3.5" />
           </button>

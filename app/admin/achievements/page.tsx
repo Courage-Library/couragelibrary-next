@@ -55,7 +55,7 @@ export default async function AdminAchievementsPage() {
         </div>
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm">
           <span className="text-xs text-slate-500 font-medium">Event-Repeatable</span>
-          <p className="text-2xl font-black text-amber-600 dark:text-amber-400 mt-1">
+          <p className="text-2xl font-black text-accent-700 dark:text-accent-700 mt-1">
             {definitions.filter((d) => d.is_repeatable).length}
           </p>
         </div>
@@ -111,7 +111,7 @@ export default async function AdminAchievementsPage() {
                     {def.condition_type}
                   </td>
                   <td className="px-4 py-3 text-xs">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800/40">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-accent-50 dark:bg-primary-950/40 text-accent-700 dark:text-accent-700 border border-accent-200 dark:border-accent-800/40">
                       {def.scope}
                     </span>
                   </td>

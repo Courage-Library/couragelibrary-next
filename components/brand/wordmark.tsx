@@ -3,7 +3,7 @@ import { siteConfig } from "@/config/site";
 import { cn } from "@/components/ui/cn";
 
 /**
- * BRAND-2 text wordmark ("Courage Library", heading face 700, small amber dot) used in the nav, the footer and the
+ * Text wordmark ("Courage Library", heading face 700, small cyan dot — BRAND-3 #84) used in the nav, the footer and the
  * auth cards until the new logo artwork exists (BRAND-LOGO, owner + designer). The PNG logo stays in the repo and
  * is still used by the exam player and admin (components/brand/logo.tsx). The dot is decorative.
  */
@@ -23,7 +23,7 @@ export function BrandWordmark({
 }) {
   const mark = (
     <span className={cn("inline-flex items-center gap-2 whitespace-nowrap font-heading font-bold tracking-tight", tone === "ink" ? "text-fg" : "text-hero-fg", SIZES[size], className)}>
-      <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full bg-accent-500" />
+      <span aria-hidden="true" className="brand-gradient size-2.5 shrink-0 rounded-full" />
       {siteConfig.name}
     </span>
   );

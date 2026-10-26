@@ -81,8 +81,8 @@ export function AcademicReviewChecklist({ onChecklistComplete }: AcademicReviewC
       </div>
 
       {!isAllChecked && (
-        <div className="flex items-center gap-2 text-[11px] text-amber-800 bg-amber-50 p-2.5 rounded-lg border border-amber-200">
-          <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+        <div className="flex items-center gap-2 text-[11px] text-accent-800 bg-accent-50 p-2.5 rounded-lg border border-accent-200">
+          <AlertCircle className="w-4 h-4 text-accent-700 shrink-0" />
           <span>All 10 verification criteria must be human-verified before final academic approval.</span>
         </div>
       )}

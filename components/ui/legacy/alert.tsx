@@ -8,7 +8,7 @@ export interface AlertProps extends HTMLAttributes<HTMLDivElement> {
 const alertStyles = {
   info: "bg-blue-50/80 border-blue-200 text-blue-900",
   success: "bg-emerald-50/80 border-emerald-200 text-emerald-900",
-  warning: "bg-amber-50/80 border-amber-200 text-amber-900",
+  warning: "bg-warning-50 border-warning-200 text-warning-800",
   error: "bg-rose-50/80 border-rose-200 text-rose-900",
 };
 

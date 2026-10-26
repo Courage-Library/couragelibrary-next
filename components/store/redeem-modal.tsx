@@ -95,7 +95,7 @@ export function RedeemModal({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/70">
           <div className="flex items-center gap-2">
-            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-100 text-amber-700">
+            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-accent-100 text-accent-700">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -152,8 +152,8 @@ export function RedeemModal({
               </span>
               <h4 className="text-lg font-bold text-slate-900 leading-snug">{reward.title}</h4>
             </div>
-            <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-amber-500/10 text-amber-800 font-black text-sm shrink-0 border border-amber-500/20">
-              <svg className="w-4 h-4 text-amber-600 fill-amber-500" viewBox="0 0 24 24">
+            <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-primary-700/10 text-white font-black text-sm shrink-0 border border-accent-500/20">
+              <svg className="w-4 h-4 text-accent-700 fill-accent-700" viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="10" />
               </svg>
               <span>{cost.toLocaleString()} CL</span>
@@ -220,11 +220,11 @@ export function RedeemModal({
               ) : (
                 <>
                   <li className="flex items-start gap-2">
-                    <span className="text-amber-600 font-bold">•</span>
+                    <span className="text-accent-700 font-bold">•</span>
                     <span><strong>Instant Activation:</strong> Applied to your Courage Library account immediately upon confirmation.</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <span className="text-amber-600 font-bold">•</span>
+                    <span className="text-accent-700 font-bold">•</span>
                     <span><strong>Secure:</strong> Coins are deducted from your CL Coin wallet only when you confirm.</span>
                   </li>
                 </>
@@ -236,7 +236,7 @@ export function RedeemModal({
           <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-3 text-xs shadow-2xs">
             <h5 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 font-mono flex items-center justify-between">
               <span>Your Redemption Accounting</span>
-              <span className="text-[10px] text-amber-700 font-extrabold font-mono">CL Ledger</span>
+              <span className="text-[10px] text-accent-700 font-extrabold font-mono">CL Ledger</span>
             </h5>
 
             <div className="space-y-2 pt-1">
@@ -246,7 +246,7 @@ export function RedeemModal({
               </div>
               <div className="flex items-center justify-between text-slate-600">
                 <span>Reward Cost</span>
-                <span className="font-bold text-amber-700 font-mono">- {cost.toLocaleString()} CL</span>
+                <span className="font-bold text-accent-700 font-mono">- {cost.toLocaleString()} CL</span>
               </div>
 
               {canAfford ? (
@@ -294,7 +294,7 @@ export function RedeemModal({
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="Candidate Name"
-                    className="w-full px-3 py-2 border rounded-lg border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                    className="w-full px-3 py-2 border rounded-lg border-slate-200 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500"
                     disabled={isSubmitting}
                   />
                 </div>
@@ -305,7 +305,7 @@ export function RedeemModal({
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="10-digit mobile"
-                    className="w-full px-3 py-2 border rounded-lg border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                    className="w-full px-3 py-2 border rounded-lg border-slate-200 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500"
                     disabled={isSubmitting}
                   />
                 </div>
@@ -316,7 +316,7 @@ export function RedeemModal({
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                     placeholder="Complete residential address"
-                    className="w-full px-3 py-2 border rounded-lg border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                    className="w-full px-3 py-2 border rounded-lg border-slate-200 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500"
                     disabled={isSubmitting}
                   />
                 </div>
@@ -327,7 +327,7 @@ export function RedeemModal({
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
                     placeholder="City"
-                    className="w-full px-3 py-2 border rounded-lg border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                    className="w-full px-3 py-2 border rounded-lg border-slate-200 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500"
                     disabled={isSubmitting}
                   />
                 </div>
@@ -338,7 +338,7 @@ export function RedeemModal({
                     value={stateName}
                     onChange={(e) => setStateName(e.target.value)}
                     placeholder="State"
-                    className="w-full px-3 py-2 border rounded-lg border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                    className="w-full px-3 py-2 border rounded-lg border-slate-200 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500"
                     disabled={isSubmitting}
                   />
                 </div>
@@ -349,7 +349,7 @@ export function RedeemModal({
                     value={pincode}
                     onChange={(e) => setPincode(e.target.value)}
                     placeholder="6-digit PIN"
-                    className="w-full px-3 py-2 border rounded-lg border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                    className="w-full px-3 py-2 border rounded-lg border-slate-200 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500"
                     disabled={isSubmitting}
                   />
                 </div>
@@ -394,7 +394,7 @@ export function RedeemModal({
               </>
             ) : canAfford ? (
               <>
-                <svg className="w-4 h-4 text-amber-400 fill-amber-400" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 text-accent-700 fill-accent-700" viewBox="0 0 24 24">
                   <circle cx="12" cy="12" r="10" />
                 </svg>
                 <span>Confirm Redemption</span>

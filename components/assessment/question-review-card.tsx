@@ -127,7 +127,7 @@ export function QuestionReviewCard({
                 isTargetCorrect
                   ? "bg-emerald-50/80 border-emerald-500 text-emerald-950 font-semibold"
                   : isUserChoice && !isCorrect && !keyUnavailable
-                  ? "bg-red-50/80 border-red-400 text-red-950 font-semibold"
+                  ? "bg-danger-50 border-danger-300 text-fg font-semibold" /* R13: a soft red tint — learning first */
                   : "bg-slate-50/50 border-slate-200 text-slate-700"
               )}
             >
@@ -174,12 +174,19 @@ export function QuestionReviewCard({
 
       {/* Explanation, Mistake Vault link & Canonical Learning Resolution */}
       <div className="pt-3 border-t border-slate-100 space-y-2.5">
-        {explanation && (
-          <div className="p-3.5 rounded-xl bg-blue-50/50 border border-blue-100 text-xs text-slate-800 space-y-1">
-            <span className="font-bold text-blue-900 block">Explanation & Solution:</span>
-            <p className="leading-relaxed text-slate-700">{explanation}</p>
-          </div>
-        )}
+        {explanation &&
+          (!isCorrect && !isUnanswered && !keyUnavailable ? (
+            // R13 (#84): a wrong answer leads to a PROMINENT "Here's why" — reading size, light surface, 7:1 text
+            <section aria-label="Here's why" className="rounded-xl border border-primary-200 border-l-4 border-l-primary-700 bg-surface p-4" data-heres-why="">
+              <h4 className="text-body-lg font-semibold text-fg">Here&apos;s why</h4>
+              <p className="mt-1 text-body leading-[1.6] text-fg">{explanation}</p>
+            </section>
+          ) : (
+            <div className="p-3.5 rounded-xl bg-primary-50 border border-primary-100 space-y-1">
+              <span className="font-semibold text-fg block text-body-sm">Explanation</span>
+              <p className="text-body leading-[1.6] text-fg">{explanation}</p>
+            </div>
+          ))}
 
         <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
           {topicName ? (

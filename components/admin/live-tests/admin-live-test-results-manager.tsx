@@ -241,7 +241,7 @@ export function AdminLiveTestResultsManager({
           <Button
             onClick={handleDistributeRewards}
             disabled={isLoading || !activeSnapshot || event.status !== "PUBLISHED"}
-            className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl gap-2 shadow-sm"
+            className="bg-primary-700 hover:bg-primary-800 text-white font-bold text-xs rounded-xl gap-2 shadow-sm"
           >
             <Coins className="w-3.5 h-3.5" /> Settle Rewards
           </Button>
@@ -293,7 +293,7 @@ export function AdminLiveTestResultsManager({
         <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
           <div className="text-xs font-semibold text-slate-500 mb-1 flex items-center justify-between">
             <span>Highest Score</span>
-            <Trophy className="w-4 h-4 text-amber-500" />
+            <Trophy className="w-4 h-4 text-accent-700" />
           </div>
           <div className="text-2xl font-black text-slate-900">
             {activeSnapshot?.highest_score ?? snapshots[0]?.highest_score ?? "0.00"}

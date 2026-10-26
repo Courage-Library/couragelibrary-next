@@ -62,7 +62,7 @@ export default async function ArticleLibraryPage() {
                 )}
                 <Link href="/practice">
                   <Button variant="outline" size="sm" className="font-semibold">
-                    <Sparkles className="w-3.5 h-3.5 mr-1 text-amber-500" /> Practice Drills
+                    <Sparkles className="w-3.5 h-3.5 mr-1 text-accent-700" /> Practice Drills
                   </Button>
                 </Link>
               </div>

@@ -69,9 +69,14 @@ async function axe(page) {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   const summary = { base: 'local', widths: WIDTHS, routes: [], nonGet: [], emailLeaks: [] };
   try {
-    for (const [who, email, list] of [['admin', 'qa-admin@courage-library.test', routes], ['staff', 'qa-staff@courage-library.test', ['/admin', '/admin/questions/factory']]]) {
+    // --as=anon|student|staff|admin (comma list) runs the given routes as those identities (BRAND-3 student pages);
+    // default: admin on every route + staff on two (the ADMIN-UX-1 role-aware views)
+    const EMAIL = { admin: 'qa-admin@courage-library.test', staff: 'qa-staff@courage-library.test', student: 'qa-student@courage-library.test', anon: null };
+    const AS = arg('as', '') ? arg('as', '').split(',').filter((w) => w in EMAIL) : null;
+    const plan = AS ? AS.map((w) => [w, EMAIL[w], routes]) : [['admin', EMAIL.admin, routes], ['staff', EMAIL.staff, ['/admin', '/admin/questions/factory']]];
+    for (const [who, email, list] of plan) {
       const ctx = await browser.newContext();
-      await qaBrowserLogin(ctx, email, BASE);
+      if (email) await qaBrowserLogin(ctx, email, BASE);
       const page = await ctx.newPage();
       page.on('request', (r) => { if (r.method() !== 'GET' && r.method() !== 'HEAD') summary.nonGet.push(`${who} ${r.method()} ${new URL(r.url()).pathname}`); });
       for (const route of list) {
@@ -87,7 +92,7 @@ async function axe(page) {
           const file = `${who}${route.replace(/\//g, '_') || '_root'}@${w}.png`;
           if (!m.left) await page.screenshot({ path: path.join(OUT, file), fullPage: true });
           row.shots.push(file);
-          if (w === WIDTHS[0] && who === 'admin') row.axe = await axe(page).catch((e) => [{ id: 'AXE_ERROR', impact: 'n/a', nodes: 0, note: e.message.slice(0, 80) }]);
+          if (w === WIDTHS[0] && (AS || who === 'admin')) row.axe = await axe(page).catch((e) => [{ id: 'AXE_ERROR', impact: 'n/a', nodes: 0, note: e.message.slice(0, 80) }]);
         }
         summary.routes.push(row);
         console.log(`${who} ${route} → ${row.status} ${row.finalPath}${row.axe ? ' axe ' + row.axe.map((v) => `${v.id}×${v.nodes}`).join(',') : ''}`);

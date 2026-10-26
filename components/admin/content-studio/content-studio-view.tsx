@@ -494,7 +494,7 @@ export function ContentStudioView({
                               onChange={(e) => handleSetAccessLevel(currentDoc.id, e.target.value as "FREE" | "PRO")}
                               className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${
                                 (currentDoc.access_level || "FREE") === "PRO"
-                                  ? "bg-amber-50 text-amber-800 border-amber-200"
+                                  ? "bg-accent-50 text-accent-800 border-accent-200"
                                   : "bg-slate-50 text-slate-700 border-slate-200"
                               }`}
                             >
@@ -504,7 +504,7 @@ export function ContentStudioView({
                           </label>
                         )}
                         {hasUnsavedChanges && (
-                          <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-200">
+                          <span className="rounded-full bg-accent-50 px-2 py-0.5 text-[10px] font-bold text-accent-700 border border-accent-200">
                             Unsaved Changes
                           </span>
                         )}

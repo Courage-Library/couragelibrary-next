@@ -343,9 +343,9 @@ export function RewardEditorModal({
                       value={coinCost}
                       onChange={(e) => setCoinCost(Number(e.target.value))}
                       required
-                      className="w-full px-3 py-2 bg-white border rounded-xl border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 font-bold text-amber-700"
+                      className="w-full px-3 py-2 bg-white border rounded-xl border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 font-bold text-accent-700"
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-extrabold text-amber-600 font-mono">
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-extrabold text-accent-700 font-mono">
                       CL
                     </span>
                   </div>

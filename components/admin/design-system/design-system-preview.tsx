@@ -30,12 +30,12 @@ import { QuestionRenderer } from "@/components/ui/domain/question-renderer";
 import { ResultSummary } from "@/components/ui/domain/result-summary";
 import { TestCard } from "@/components/ui/domain/test-card";
 import { SubjectNode, TopicNode } from "@/components/ui/domain/topic-node";
-import { ContrastTable, DialogDemos, LoadingButtonDemo, TagDemo, ToastDemo, TokenValue } from "./demos";
+import { ContrastTable, DialogDemos, LoadingButtonDemo, TagDemo, ToastDemo, TokenValue, StudyComfortDemo } from "./demos";
 
 // Every class below is written out in full so Tailwind generates it.
 const SCALES: Array<{ name: string; swatches: Array<[string, string]> }> = [
   {
-    name: "Primary (navy, brand = 600; 500 = interactive blue for links)",
+    name: "Primary (v3 blue: brand = 700, hover = 800, tint = 50, navy ink = 900, focus surround = 950)",
     swatches: [
       ["primary-50", "bg-primary-50"], ["primary-100", "bg-primary-100"], ["primary-200", "bg-primary-200"], ["primary-300", "bg-primary-300"],
       ["primary-400", "bg-primary-400"], ["primary-500", "bg-primary-500"], ["primary-600", "bg-primary-600"], ["primary-700", "bg-primary-700"],
@@ -43,11 +43,18 @@ const SCALES: Array<{ name: string; swatches: Array<[string, string]> }> = [
     ],
   },
   {
-    name: "Accent (saffron, fill = 500 with ink text; accent text = 700; one accent CTA per screen)",
+    name: "Accent (v3 cyan: fill / decoration = 400, never text on white; cyan text = 700; tint = 50)",
     swatches: [
       ["accent-50", "bg-accent-50"], ["accent-100", "bg-accent-100"], ["accent-200", "bg-accent-200"], ["accent-300", "bg-accent-300"],
       ["accent-400", "bg-accent-400"], ["accent-500", "bg-accent-500"], ["accent-600", "bg-accent-600"], ["accent-700", "bg-accent-700"],
       ["accent-800", "bg-accent-800"], ["accent-900", "bg-accent-900"],
+    ],
+  },
+  {
+    name: "Brand gradient stops (brand moments only) · warning orange (never yellow)",
+    swatches: [
+      ["gradient-start", "bg-gradient-start"], ["gradient-mid", "bg-gradient-mid"], ["gradient-end", "bg-gradient-end"], ["focus-surround", "bg-focus-surround"],
+      ["warning-400", "bg-warning-400"], ["warning-500", "bg-warning-500"], ["warning-600", "bg-warning-600"], ["warning-700", "bg-warning-700"],
     ],
   },
   {
@@ -90,7 +97,7 @@ const TYPE_SCALE: Array<[string, string, string]> = [
 ];
 
 const SECTIONS = [
-  ["colour", "Colour"], ["contrast", "Contrast"], ["type", "Typography"], ["shape", "Shape, elevation, motion"],
+  ["colour", "Colour"], ["comfort", "Study comfort"], ["contrast", "Contrast"], ["type", "Typography"], ["shape", "Shape, elevation, motion"],
   ["buttons", "Buttons and links"], ["forms", "Forms"], ["cards", "Cards, badges, tags"], ["disclosure", "Tabs and accordion"],
   ["overlays", "Dialogs, toasts, tooltips"], ["feedback", "Progress, stats, states"], ["navigation", "Navigation"], ["misc", "Alerts, avatars, layout"],
   ["domain", "Domain components"],
@@ -167,7 +174,7 @@ export function DesignSystemPreview() {
         </nav>
       </header>
 
-      <DSSection id="colour" title="Colour" intro="Navy + Saffron (decision #70): 60% neutral, 30% navy primary, 10% saffron accent. Semantic colours only for status and right / wrong, never colour alone.">
+      <DSSection id="colour" title="Colour" intro="Brand Colour System v3 (decision #84): ≈ 70% neutrals · 20% navy ink · 10% blue / cyan. No yellow or amber. Semantic colours only for status and right / wrong, never colour alone.">
         {SCALES.map((scale) => (
           <Demo key={scale.name} label={scale.name} className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-11">
             {scale.swatches.map(([name, cls]) => (
@@ -179,6 +186,10 @@ export function DesignSystemPreview() {
             ))}
           </Demo>
         ))}
+      </DSSection>
+
+      <DSSection id="comfort" title="Study comfort (R13)" intro="The real exam timer (blue → orange in the last 5 minutes, never red or flashing), the soft wrong-answer tint with a prominent &quot;Here&apos;s why&quot;, the v3 status chips and the brand gradient. Sample data only.">
+        <StudyComfortDemo />
       </DSSection>
 
       <DSSection id="contrast" title="Contrast" intro="Every text / background and non-text pair the components use, computed live from the tokens with the WCAG relative-luminance formula.">

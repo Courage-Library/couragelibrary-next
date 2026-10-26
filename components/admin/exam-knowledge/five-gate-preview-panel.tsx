@@ -26,7 +26,7 @@ export function FiveGatePreviewPanel({ validationResult }: FiveGatePreviewPanelP
       case "PASS":
         return <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />;
       case "WARNING":
-        return <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />;
+        return <AlertTriangle className="w-4 h-4 text-accent-700 shrink-0" />;
       case "FAIL":
       case "BLOCK":
         return <XCircle className="w-4 h-4 text-rose-600 shrink-0" />;
@@ -38,7 +38,7 @@ export function FiveGatePreviewPanel({ validationResult }: FiveGatePreviewPanelP
       case "PASS":
         return <Badge variant="success" className="text-[10px] font-bold">PASS</Badge>;
       case "WARNING":
-        return <Badge variant="warning" className="text-[10px] font-bold bg-amber-100 text-amber-800 border-amber-300">WARN</Badge>;
+        return <Badge variant="warning" className="text-[10px] font-bold bg-accent-100 text-accent-800 border-accent-300">WARN</Badge>;
       case "FAIL":
       case "BLOCK":
         return <Badge variant="destructive" className="text-[10px] font-bold">BLOCK</Badge>;
@@ -91,7 +91,7 @@ export function FiveGatePreviewPanel({ validationResult }: FiveGatePreviewPanelP
           overallOutcome === "PASS"
             ? "bg-emerald-50 border-emerald-200 text-emerald-950"
             : overallOutcome === "WARNING"
-            ? "bg-amber-50 border-amber-200 text-amber-950"
+            ? "bg-accent-50 border-accent-200 text-accent-950"
             : "bg-rose-50 border-rose-200 text-rose-950"
         }`}
       >
@@ -122,7 +122,7 @@ export function FiveGatePreviewPanel({ validationResult }: FiveGatePreviewPanelP
                 g.gate.status === "PASS"
                   ? "bg-white border-slate-200 shadow-xs"
                   : g.gate.status === "WARNING"
-                  ? "bg-amber-50/50 border-amber-300"
+                  ? "bg-accent-50/50 border-accent-300"
                   : "bg-rose-50/50 border-rose-300"
               }`}
             >
@@ -160,7 +160,7 @@ export function FiveGatePreviewPanel({ validationResult }: FiveGatePreviewPanelP
             </div>
           ))}
           {warnings.map((warn, i) => (
-            <div key={`warn-${i}`} className="flex items-start gap-2 text-amber-700">
+            <div key={`warn-${i}`} className="flex items-start gap-2 text-accent-700">
               <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
               <span>{warn}</span>
             </div>

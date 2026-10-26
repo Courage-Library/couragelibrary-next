@@ -114,7 +114,7 @@ export function Step6Readiness({ report, onPublish, onBack, isPublishing }: Prop
                   <Lock className="w-3.5 h-3.5" /> BLOCKER
                 </span>
               ) : (
-                <span className="text-amber-600 text-[11px] font-bold flex items-center gap-1">
+                <span className="text-accent-700 text-[11px] font-bold flex items-center gap-1">
                   <AlertTriangle className="w-3.5 h-3.5" /> ADVISORY
                 </span>
               )}
@@ -123,7 +123,7 @@ export function Step6Readiness({ report, onPublish, onBack, isPublishing }: Prop
             <div className="space-y-1">
               {dim.checks.map((chk) => (
                 <div key={chk.id} className="text-[11px] text-slate-500 flex items-start gap-1.5">
-                  <span className={chk.isPassed ? "text-emerald-500" : chk.severity === "BLOCKING" ? "text-rose-500" : "text-amber-500"}>
+                  <span className={chk.isPassed ? "text-emerald-500" : chk.severity === "BLOCKING" ? "text-rose-500" : "text-accent-700"}>
                     •
                   </span>
                   <span>{chk.title}</span>

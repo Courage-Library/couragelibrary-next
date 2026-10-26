@@ -85,7 +85,7 @@ export function FlashcardPlayer({
                   <HelpCircle className="w-3.5 h-3.5" /> Show Hint
                 </button>
               ) : (
-                <p className="text-xs text-slate-600 bg-amber-50/60 p-2.5 rounded-xl border border-amber-200/60">
+                <p className="text-xs text-slate-600 bg-accent-50/60 p-2.5 rounded-xl border border-accent-200/60">
                   ðŸ’¡ Hint: {card.hint}
                 </p>
               )}
@@ -157,13 +157,13 @@ export function FlashcardPlayer({
               type="button"
               disabled={isSubmitting}
               onClick={() => handleRate(2)}
-              className="p-3 rounded-2xl border border-amber-200 bg-amber-50/60 hover:bg-amber-100 hover:border-amber-300 text-left transition-all cursor-pointer group"
+              className="p-3 rounded-2xl border border-accent-200 bg-accent-50/60 hover:bg-accent-100 hover:border-accent-300 text-left transition-all cursor-pointer group"
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-black text-amber-700">2. HARD</span>
-                <AlertCircle className="w-3.5 h-3.5 text-amber-500" />
+                <span className="text-xs font-black text-accent-700">2. HARD</span>
+                <AlertCircle className="w-3.5 h-3.5 text-accent-700" />
               </div>
-              <span className="text-[10px] text-amber-600/80 mt-0.5 block font-medium">
+              <span className="text-[10px] text-accent-700/80 mt-0.5 block font-medium">
                 Struggled recall
               </span>
             </button>

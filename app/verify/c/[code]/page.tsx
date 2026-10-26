@@ -30,7 +30,7 @@ export default async function CertificateVerificationPage({ params }: Props) {
       {/* Header Branding */}
       <div className="text-center mb-8">
         <Link href="/" className="inline-flex items-center gap-2 text-2xl font-bold tracking-tight text-white hover:opacity-90 transition">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-amber-500 to-amber-300 flex items-center justify-center text-slate-950 font-black shadow-lg shadow-amber-500/20">
+          <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-accent-500 to-accent-300 flex items-center justify-center text-slate-950 font-black shadow-lg shadow-accent-500/20">
             CL
           </div>
           <span>Courage Library</span>
@@ -54,18 +54,18 @@ export default async function CertificateVerificationPage({ params }: Props) {
         )}
 
         {verification.status === "SUPERSEDED" && (
-          <div className="flex items-start gap-3 p-4 bg-amber-950/40 border border-amber-500/30 rounded-xl mb-6 text-amber-300">
-            <AlertTriangle className="h-6 w-6 shrink-0 text-amber-400 mt-0.5" />
+          <div className="flex items-start gap-3 p-4 bg-primary-950/40 border border-accent-500/30 rounded-xl mb-6 text-accent-300">
+            <AlertTriangle className="h-6 w-6 shrink-0 text-accent-700 mt-0.5" />
             <div>
-              <h3 className="font-bold text-base text-amber-200">Certificate Superseded</h3>
-              <p className="text-xs text-amber-300/80 mt-1">
+              <h3 className="font-bold text-base text-accent-200">Certificate Superseded</h3>
+              <p className="text-xs text-accent-300/80 mt-1">
                 {verification.superseded_notice || "This certificate was superseded following official examination result recalculation."}
               </p>
               {verification.replacement_verification_code && (
                 <div className="mt-3">
                   <Link
                     href={`/verify/c/${verification.replacement_verification_code}`}
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-400 bg-amber-900/30 hover:bg-amber-900/50 px-3 py-1.5 rounded-lg border border-amber-500/30 transition"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-accent-700 bg-primary-900/30 hover:bg-primary-900/50 px-3 py-1.5 rounded-lg border border-accent-500/30 transition"
                   >
                     View Active Replacement Certificate
                     <ArrowRight className="h-3.5 w-3.5" />
@@ -115,7 +115,7 @@ export default async function CertificateVerificationPage({ params }: Props) {
             {/* Candidate & Certificate Type */}
             <div className="border-b border-slate-800 pb-5">
               <div className="flex items-center justify-between gap-2 mb-2">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-primary-700/10 text-white border border-accent-500/20">
                   <Award className="h-3.5 w-3.5" />
                   {verification.certificate_type} CERTIFICATE
                 </span>
@@ -136,10 +136,10 @@ export default async function CertificateVerificationPage({ params }: Props) {
               {verification.rank !== null && verification.rank !== undefined && (
                 <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800/60 text-center">
                   <div className="text-xs text-slate-400 flex items-center justify-center gap-1 mb-1">
-                    <Trophy className="h-3.5 w-3.5 text-amber-400" />
+                    <Trophy className="h-3.5 w-3.5 text-accent-700" />
                     All-India Rank
                   </div>
-                  <div className="text-xl font-black text-amber-400">
+                  <div className="text-xl font-black text-accent-700">
                     #{verification.rank}
                   </div>
                 </div>
@@ -186,7 +186,7 @@ export default async function CertificateVerificationPage({ params }: Props) {
               </div>
               <div className="flex justify-between items-center text-slate-400">
                 <span>Issuer:</span>
-                <span className="font-semibold text-amber-400">Courage Library Examination Authority</span>
+                <span className="font-semibold text-accent-700">Courage Library Examination Authority</span>
               </div>
             </div>
           </div>

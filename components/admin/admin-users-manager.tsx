@@ -106,7 +106,7 @@ export function AdminUsersManager({ users, total, totalAuthUsers, totalProfiles,
         </p>
       )}
       {truncated && (
-        <p role="status" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+        <p role="status" className="rounded-lg border border-accent-200 bg-accent-50 p-3 text-sm text-accent-900">
           Search covered the first 50,000 accounts only. Use a more specific email.
         </p>
       )}

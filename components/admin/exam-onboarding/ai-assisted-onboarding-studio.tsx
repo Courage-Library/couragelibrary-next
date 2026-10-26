@@ -847,16 +847,16 @@ export function AiAssistedOnboardingStudio() {
 
           {/* Conflict Detection Box */}
           {previewResult.validationResult.conflicts.length > 0 && (
-            <div className="p-4 bg-amber-50/80 border border-amber-200 rounded-2xl space-y-2">
-              <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
-                <AlertTriangle className="w-4 h-4 text-amber-600" /> Conflict Detection &amp; Human Resolution
+            <div className="p-4 bg-accent-50/80 border border-accent-200 rounded-2xl space-y-2">
+              <span className="text-xs font-bold text-accent-900 flex items-center gap-1.5">
+                <AlertTriangle className="w-4 h-4 text-accent-700" /> Conflict Detection &amp; Human Resolution
               </span>
-              <p className="text-[11px] text-amber-800">
+              <p className="text-[11px] text-accent-800">
                 The imported package contains values that differ from existing canonical database records. Select your preferred resolution below:
               </p>
               <div className="space-y-2 pt-1">
                 {previewResult.validationResult.conflicts.map((c: any, idx: number) => (
-                  <div key={idx} className="p-3 bg-white border border-amber-200 rounded-xl text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div key={idx} className="p-3 bg-white border border-accent-200 rounded-xl text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
                       <span className="font-bold text-slate-800">{c.label}: </span>
                       <span className="text-slate-500 line-through mr-2">Existing: {String(c.existingValue)}</span>
@@ -982,7 +982,7 @@ export function AiAssistedOnboardingStudio() {
                 className={`px-3 py-1 text-xs font-bold font-mono ${
                   readinessReport.isPublishable
                     ? "bg-emerald-100 text-emerald-800 border-emerald-200"
-                    : "bg-amber-100 text-amber-800 border-amber-200"
+                    : "bg-accent-100 text-accent-800 border-accent-200"
                 }`}
               >
                 {readinessReport.isPublishable ? "✓ READY TO PUBLISH" : "⚠ PUBLISH BLOCKED"}
@@ -1037,7 +1037,7 @@ export function AiAssistedOnboardingStudio() {
                       className={`text-[10px] font-mono px-2 py-0.5 ${
                         isPass
                           ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                          : "bg-amber-50 text-amber-700 border-amber-200"
+                          : "bg-accent-50 text-accent-700 border-accent-200"
                       }`}
                     >
                       {isPass ? "PASS" : "PARTIAL"}

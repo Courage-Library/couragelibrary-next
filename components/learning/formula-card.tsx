@@ -48,8 +48,8 @@ export const FormulaCard: React.FC<FormulaCardProps> = ({
       )}
 
       {speedShortcutTrick && (
-        <div className="mt-3 flex items-start gap-2 rounded-lg bg-amber-50 p-2.5 text-amber-800 text-xs">
-          <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+        <div className="mt-3 flex items-start gap-2 rounded-lg bg-accent-50 p-2.5 text-accent-800 text-xs">
+          <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-accent-700" />
           <div>
             <span className="font-semibold">Speed Shortcut / Trick: </span>
             {speedShortcutTrick}

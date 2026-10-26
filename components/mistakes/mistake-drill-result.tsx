@@ -67,7 +67,7 @@ export function MistakeDrillResult({ result, onRestart }: MistakeDrillResultProp
           <div
             className={`w-20 h-20 rounded-2xl flex items-center justify-center shrink-0 border ${
               isPerfect
-                ? "bg-amber-50 border-amber-200 text-amber-600"
+                ? "bg-accent-50 border-accent-200 text-accent-700"
                 : isGood
                 ? "bg-emerald-50 border-emerald-200 text-emerald-600"
                 : "bg-blue-50 border-blue-200 text-blue-600"
@@ -88,8 +88,8 @@ export function MistakeDrillResult({ result, onRestart }: MistakeDrillResultProp
                 Drill Completed
               </Badge>
               {summary.coins_awarded > 0 && (
-                <Badge variant="outline" className="text-xs font-bold text-amber-700 bg-amber-50 border-amber-200 flex items-center gap-1">
-                  <Coins className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                <Badge variant="outline" className="text-xs font-bold text-accent-700 bg-accent-50 border-accent-200 flex items-center gap-1">
+                  <Coins className="w-3.5 h-3.5 text-accent-700 fill-accent-700" />
                   +{summary.coins_awarded} Coins
                 </Badge>
               )}
@@ -122,14 +122,14 @@ export function MistakeDrillResult({ result, onRestart }: MistakeDrillResultProp
             <span className="text-[10px] text-emerald-600">Reached 2x streak</span>
           </div>
 
-          <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-100 text-center space-y-0.5">
-            <span className="text-xl sm:text-2xl font-black text-amber-800 block">
+          <div className="p-3.5 rounded-2xl bg-accent-50/70 border border-accent-100 text-center space-y-0.5">
+            <span className="text-xl sm:text-2xl font-black text-accent-800 block">
               {summary.revisiting_count}
             </span>
-            <span className="text-[11px] font-bold text-amber-700 flex items-center justify-center gap-1">
+            <span className="text-[11px] font-bold text-accent-700 flex items-center justify-center gap-1">
               <Flame className="w-3 h-3" /> Revisiting
             </span>
-            <span className="text-[10px] text-amber-600">1x correct streak</span>
+            <span className="text-[10px] text-accent-700">1x correct streak</span>
           </div>
 
           <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-center space-y-0.5">

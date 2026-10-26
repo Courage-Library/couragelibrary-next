@@ -70,9 +70,9 @@ const STATUS_CONFIG: Record<
   },
   DRAFT: {
     label: "Draft",
-    bg: "bg-amber-50",
-    text: "text-amber-800",
-    border: "border-amber-200",
+    bg: "bg-accent-50",
+    text: "text-accent-800",
+    border: "border-accent-200",
     icon: Clock,
   },
   STALE: {
@@ -175,7 +175,7 @@ export const CurriculumCoverageView: React.FC<Props> = ({
   if (matrix && matrix.status === "UNAVAILABLE") {
     return (
       <div className="p-6" data-testid="coverage-unavailable">
-        <div role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-6 text-amber-900">
+        <div role="status" className="rounded-xl border border-accent-300 bg-accent-50 p-6 text-accent-900">
           <h2 className="text-base font-semibold">{COVERAGE_UNAVAILABLE_MESSAGE}</h2>
           <p className="mt-2 text-sm">
             The curriculum coverage matrix is computed only from live syllabus and learning-unit data. That data model is

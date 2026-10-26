@@ -18,7 +18,7 @@ export function AddExamButton({ examId, label }: { examId: string; label: string
   return (
     <div className="flex flex-col items-start gap-2">
       <PillButton
-        variant="accent-on-light"
+        variant="primary"
         disabled={pending}
         aria-busy={pending}
         onClick={() =>

@@ -3,7 +3,7 @@
  * cookie switches the start action to "Go to dashboard"; nothing protected is read or shown. Each spot is its own
  * Suspense boundary, so the rest of the page never waits for the session / sign-up reads.
  * UX-FIX-1: while public sign-up is CLOSED (lib/auth/signup-availability) no start action points to /auth/signup —
- * the primary action is "Explore SSC CGL"; when sign-up is open the one label is "Start free" (amber = start action).
+ * the primary action is "Explore SSC CGL"; when sign-up is open the one label is "Start free" (the ONE primary = start action).
  * The Suspense fallback is the closed-state view (never a link to a closed sign-up).
  */
 import { Suspense } from "react";
@@ -35,7 +35,7 @@ function Cta({ spot, mode }: { spot: Spot; mode: Mode }) {
     const t = spot === "hero" ? LANDING_HERO.signedInCta : LANDING_FINAL_CTA.signedInCta;
     return (
       <>
-        <PillLink href={t.href} variant={spot === "hero" ? "accent" : "ghost-on-dark"} trailingIcon={arrow}>
+        <PillLink href={t.href} variant={spot === "hero" ? "on-dark" : "ghost-on-dark"} trailingIcon={arrow}>
           {t.label}
         </PillLink>
         {spot === "hero" && (
@@ -49,7 +49,7 @@ function Cta({ spot, mode }: { spot: Spot; mode: Mode }) {
   if (mode === "signup-closed") {
     // the ONE primary action while registrations are closed
     return (
-      <PillLink href={explore.href} variant="accent" trailingIcon={arrow}>
+      <PillLink href={explore.href} variant="on-dark" trailingIcon={arrow}>
         {explore.label}
       </PillLink>
     );
@@ -57,7 +57,7 @@ function Cta({ spot, mode }: { spot: Spot; mode: Mode }) {
   const start = spot === "hero" ? LANDING_HERO.primaryCta : LANDING_FINAL_CTA.cta;
   return (
     <>
-      <PillLink href={start.href} variant="accent" trailingIcon={arrow}>
+      <PillLink href={start.href} variant="on-dark" trailingIcon={arrow}>
         {start.label}
       </PillLink>
       {spot === "hero" && (

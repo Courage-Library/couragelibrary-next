@@ -33,7 +33,7 @@ export default async function AdminTodayPage() {
         {busiest && (
           <Link
             href={busiest.href}
-            className="focus-ring ml-auto inline-flex min-h-11 items-center rounded-control bg-accent-500 px-4 text-body font-semibold text-ink-950 hover:bg-accent-400"
+            className="focus-ring ml-auto inline-flex min-h-11 items-center rounded-control bg-primary-700 px-4 text-body font-semibold text-white hover:bg-primary-800"
             data-today-primary=""
           >
             {busiest.linkLabel} ({busiest.count})

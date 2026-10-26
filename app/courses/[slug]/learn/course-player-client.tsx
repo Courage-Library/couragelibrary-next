@@ -178,7 +178,7 @@ export function CoursePlayerClient({ courseDetail, initialLessonId }: CoursePlay
                     <>
                       <p className="font-semibold text-slate-900">{activeLesson.learningDocument.title}</p>
                       {activeLesson.learningDocument.isLocked ? (
-                        <p className="text-xs text-amber-700">This lesson is part of PRO.</p>
+                        <p className="text-xs text-accent-700">This lesson is part of PRO.</p>
                       ) : null}
                       <Link href={activeLesson.learningDocument.href} className="text-xs font-semibold text-purple-700 hover:text-purple-800">
                         Open lesson →

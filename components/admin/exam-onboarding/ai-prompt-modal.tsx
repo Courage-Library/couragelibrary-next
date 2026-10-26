@@ -90,7 +90,7 @@ export function AiPromptModal({
         {/* Footer */}
         <div className="p-4 border-t border-slate-100 bg-slate-50/70 flex items-center justify-between">
           <span className="text-[11px] text-slate-500 font-medium flex items-center gap-1.5">
-            <AlertCircle className="w-3.5 h-3.5 text-amber-500" /> External AI output remains untrusted until validated by Courage.
+            <AlertCircle className="w-3.5 h-3.5 text-accent-700" /> External AI output remains untrusted until validated by Courage.
           </span>
 
           <div className="flex items-center gap-2">

@@ -504,7 +504,7 @@ export function AIGenerationModal({
                     validationResult.overallOutcome === "BLOCK"
                       ? "border-rose-200 bg-rose-50/80 text-rose-950"
                       : validationResult.overallOutcome === "WARNING"
-                      ? "border-amber-200 bg-amber-50/80 text-amber-950"
+                      ? "border-accent-200 bg-accent-50/80 text-accent-950"
                       : "border-emerald-200 bg-emerald-50/80 text-emerald-950"
                   }`}
                 >
@@ -568,7 +568,7 @@ export function AIGenerationModal({
                       <p className="font-bold text-slate-900">Academic Issues:</p>
                       <ul className="list-inside list-disc space-y-0.5 text-slate-800">
                         {validationResult.academic.issues.map((iss, idx) => (
-                          <li key={idx} className={iss.severity === "BLOCK" ? "text-rose-700 font-semibold" : "text-amber-700"}>
+                          <li key={idx} className={iss.severity === "BLOCK" ? "text-rose-700 font-semibold" : "text-accent-700"}>
                             [{iss.severity}] {iss.message}
                           </li>
                         ))}
@@ -622,9 +622,9 @@ export function AIGenerationModal({
           {/* TAB 3: DIRECT API GENERATION (OPTIONAL) */}
           {activeTab === "API" && (
             <div className="space-y-4">
-              <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-3.5 text-amber-950 text-xs shadow-2xs">
-                <p className="font-bold text-amber-800">Optional Direct API Path</p>
-                <p className="text-[11px] leading-relaxed text-amber-900/90 mt-0.5">
+              <div className="rounded-xl border border-accent-200 bg-accent-50/80 p-3.5 text-accent-950 text-xs shadow-2xs">
+                <p className="font-bold text-accent-800">Optional Direct API Path</p>
+                <p className="text-[11px] leading-relaxed text-accent-900/90 mt-0.5">
                   This connects directly to configured AI APIs (e.g. Gemini 1.5 Pro). For standard free usage without API keys, use <strong>Tab 1 & 2</strong>.
                 </p>
               </div>

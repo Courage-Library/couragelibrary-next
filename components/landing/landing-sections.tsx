@@ -55,7 +55,7 @@ export function LandingHero() {
       <Container className="grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="flex flex-col items-start gap-6">
           <p className="inline-flex items-center gap-2 text-body-sm font-semibold uppercase tracking-wider text-hero-accent-text">
-            <span aria-hidden="true" className="size-2 rounded-full bg-accent-500" />
+            <span aria-hidden="true" className="size-2 rounded-full bg-accent-400" />
             {LANDING_HERO.eyebrow}
           </p>
           <h1 id="hero-title" className="max-w-3xl text-display font-bold tracking-tight text-hero-fg">
@@ -87,7 +87,7 @@ export function LandingHero() {
           <ol className="flex flex-col gap-2">
             {HERO_STEPS.map((s) => (
               <li key={s.title} className="flex items-start gap-3 rounded-card bg-hero-bg/40 p-3">
-                <span aria-hidden="true" className="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-accent-500 text-body-sm font-semibold text-on-accent">
+                <span aria-hidden="true" className="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-primary-700 text-body-sm font-semibold text-white">
                   {s.n}
                 </span>
                 <span className="flex flex-col">

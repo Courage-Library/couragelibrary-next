@@ -99,7 +99,7 @@ export function LiveEventDetailView({ event, isLoggedIn }: LiveEventDetailViewPr
             </span>
 
             {event.isPremiumOnly && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-600 border border-amber-500/20">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-primary-700/10 text-white border border-accent-500/20">
                 <Sparkles className="w-3.5 h-3.5" />
                 PREMIUM EXCLUSIVE
               </span>

@@ -31,7 +31,7 @@ export default async function CandidateCertificatesPage() {
         {/* Page Header */}
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-6">
           <div>
-            <div className="flex items-center gap-2 text-amber-400 mb-1">
+            <div className="flex items-center gap-2 text-accent-700 mb-1">
               <Award className="w-5 h-5" />
               <span className="text-xs font-bold uppercase tracking-wider">Candidate Credentials</span>
             </div>
@@ -76,14 +76,14 @@ export default async function CandidateCertificatesPage() {
               return (
                 <div
                   key={cert.id}
-                  className="bg-slate-900/90 border border-slate-800 hover:border-amber-500/40 rounded-2xl p-6 shadow-xl space-y-5 transition relative overflow-hidden group"
+                  className="bg-slate-900/90 border border-slate-800 hover:border-accent-500/40 rounded-2xl p-6 shadow-xl space-y-5 transition relative overflow-hidden group"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="space-y-1">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase tracking-wider">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-primary-700/10 text-white border border-accent-500/20 uppercase tracking-wider">
                         {cert.certificate_type}
                       </span>
-                      <h3 className="font-bold text-base text-white group-hover:text-amber-300 transition">
+                      <h3 className="font-bold text-base text-white group-hover:text-accent-300 transition">
                         {cert.event_title}
                       </h3>
                     </div>
@@ -96,7 +96,7 @@ export default async function CandidateCertificatesPage() {
                   <div className="grid grid-cols-3 gap-2 bg-slate-950/60 p-3 rounded-xl border border-slate-800/60 text-center">
                     <div>
                       <span className="text-[10px] text-slate-400 block">Rank</span>
-                      <strong className="text-sm font-black text-amber-400">
+                      <strong className="text-sm font-black text-accent-700">
                         {cert.final_rank ? `#${cert.final_rank}` : "—"}
                       </strong>
                     </div>

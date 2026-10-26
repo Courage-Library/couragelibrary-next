@@ -1163,7 +1163,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
 
   return (
     <div className="fixed inset-0 z-50 bg-canvas flex flex-col overflow-hidden select-none" data-player="">
-      {/* Offline: neutral notice (never amber / alarm) */}
+      {/* Offline: neutral notice (never orange / alarm) */}
       {saveStatus === "offline" && (
         <div role="status" className="flex items-center justify-center gap-2 border-b border-line bg-ink-100 px-4 py-2 text-center text-body-sm font-medium text-fg z-50">
           <WifiOff aria-hidden="true" className="size-4 shrink-0" />

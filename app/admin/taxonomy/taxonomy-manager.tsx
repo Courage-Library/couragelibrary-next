@@ -32,7 +32,7 @@ const TYPE_STYLES: Record<TaxonomyNodeType, string> = {
   DOMAIN: "bg-violet-50 text-violet-700 border-violet-200",
   TOPIC: "bg-emerald-50 text-emerald-700 border-emerald-200",
   SUBTOPIC: "bg-teal-50 text-teal-700 border-teal-200",
-  CONCEPT: "bg-amber-50 text-amber-700 border-amber-200",
+  CONCEPT: "bg-accent-50 text-accent-700 border-accent-200",
   METHOD: "bg-slate-100 text-slate-700 border-slate-200",
 };
 

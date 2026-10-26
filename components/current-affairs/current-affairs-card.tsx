@@ -34,7 +34,7 @@ const CATEGORY_COLORS: Record<CurrentAffairsCategory, { bg: string; text: string
   SPORTS: { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200' },
   AWARDS_HONOURS: { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200' },
   PERSONS_IN_NEWS: { bg: 'bg-pink-50', text: 'text-pink-700', border: 'border-pink-200' },
-  IMPORTANT_DAYS: { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-200' },
+  IMPORTANT_DAYS: { bg: 'bg-cat-slate-100', text: 'text-cat-slate-700', border: 'border-cat-slate-200' },
   STATE_SPECIFIC: { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200' },
 };
 

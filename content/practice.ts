@@ -38,6 +38,8 @@ export const PRACTICE_COPY = {
     correctAnswer: (key: string) => `Correct answer: ${key}`,
     yourAnswer: (key: string) => `Your answer: ${key}`,
     explanation: "Explanation",
+    /** R13 (#84): after a wrong answer the explanation leads, titled like a teacher would */
+    heresWhy: "Here's why",
     noExplanation: "No explanation is published for this question yet.",
     learnMore: "Learn more about this topic",
     language: "Question language",

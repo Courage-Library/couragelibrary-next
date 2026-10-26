@@ -93,7 +93,7 @@ export default async function LiveTestsPage() {
       {pastEvents.length > 0 && (
         <section className="space-y-4 pt-6 border-t border-border/60">
           <div className="flex items-center gap-2">
-            <Trophy className="w-5 h-5 text-amber-500" />
+            <Trophy className="w-5 h-5 text-accent-700" />
             <h2 className="text-xl font-bold text-foreground">Recent All-India Mocks & Results</h2>
           </div>
 

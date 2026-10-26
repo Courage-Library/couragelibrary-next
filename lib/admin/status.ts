@@ -1,7 +1,7 @@
 /**
  * ADMIN-UX-1: ONE status vocabulary for every admin page (owner ruling, phase A §5.6). Six chips, text + colour (never
  * colour alone). Phase B uses it in search results; phase C rolls it out to every list. Pure (offline-testable).
- *   Draft grey · In review amber · Approved blue · Published green · Rejected red · Archived muted
+ *   v3 (#84): Draft slate · In review blue · Approved cyan · Published green · Rejected red · Archived muted
  */
 export type ChipKind = "draft" | "review" | "approved" | "published" | "rejected" | "archived";
 
@@ -31,11 +31,11 @@ export function chipLabel(status: string | null | undefined): string {
   return t ? t.charAt(0).toUpperCase() + t.slice(1) : "Unknown";
 }
 
-/** Token classes per kind (student-site tokens; amber only for "In review", R4 keeps amber buttons for the primary). */
+/** Token classes per kind (v3 chips, decision #84 — the same everywhere). */
 export const CHIP_CLASSES: Record<ChipKind, string> = {
   draft: "border-ink-300 bg-ink-100 text-ink-700",
-  review: "border-accent-200 bg-accent-50 text-accent-800",
-  approved: "border-primary-200 bg-primary-50 text-primary-700",
+  review: "border-primary-200 bg-primary-50 text-primary-700",
+  approved: "border-accent-200 bg-accent-50 text-accent-700",
   published: "border-success-200 bg-success-50 text-success-800",
   rejected: "border-danger-200 bg-danger-50 text-danger-800",
   archived: "border-line bg-surface text-fg-secondary",

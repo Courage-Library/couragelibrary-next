@@ -939,7 +939,7 @@ Paste your questions below this line:`;
                         ? d === "easy"
                           ? "border-emerald-500 bg-emerald-50 text-emerald-700"
                           : d === "medium"
-                          ? "border-amber-500 bg-amber-50 text-amber-700"
+                          ? "border-accent-500 bg-accent-50 text-accent-700"
                           : d === "hard"
                           ? "border-rose-500 bg-rose-50 text-rose-700"
                           : "border-purple-500 bg-purple-50 text-purple-700"
@@ -1031,7 +1031,7 @@ Paste your questions below this line:`;
                       value={pyqSource}
                       onChange={(e) => setPyqSource(e.target.value)}
                       placeholder="e.g. SSC CGL Tier-1"
-                      className="w-full p-2 rounded-lg border border-amber-200 bg-amber-50 text-xs text-slate-800"
+                      className="w-full p-2 rounded-lg border border-accent-200 bg-accent-50 text-xs text-slate-800"
                     />
                   </div>
                   <div className="space-y-1">
@@ -1040,7 +1040,7 @@ Paste your questions below this line:`;
                       value={pyqYear}
                       onChange={(e) => setPyqYear(e.target.value)}
                       placeholder="e.g. 2023"
-                      className="w-full p-2 rounded-lg border border-amber-200 bg-amber-50 text-xs text-slate-800"
+                      className="w-full p-2 rounded-lg border border-accent-200 bg-accent-50 text-xs text-slate-800"
                     />
                   </div>
                 </div>
@@ -1431,7 +1431,7 @@ Paste your questions below this line:`;
                         ? "bg-emerald-50 text-emerald-800 border border-emerald-100"
                         : msg.type === "error"
                         ? "bg-rose-50 text-rose-800 border border-rose-100"
-                        : "bg-amber-50 text-amber-800 border border-amber-100"
+                        : "bg-accent-50 text-accent-800 border border-accent-100"
                     }`}
                   >
                     {msg.type === "ok" ? (
@@ -1439,7 +1439,7 @@ Paste your questions below this line:`;
                     ) : msg.type === "error" ? (
                       <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
                     ) : (
-                      <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                      <AlertTriangle className="w-4 h-4 text-accent-700 shrink-0" />
                     )}
                     <span>{msg.text}</span>
                   </div>
@@ -1678,11 +1678,11 @@ Paste your questions below this line:`;
 
                 {/* Explanation Card */}
                 {currentPreviewQuestion.explanation && (
-                  <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 space-y-1">
+                  <div className="p-3.5 rounded-xl bg-accent-50 border border-accent-200 text-xs text-accent-900 space-y-1">
                     <p className="font-bold flex items-center gap-1">
-                      <Lightbulb className="w-3.5 h-3.5 text-amber-600" /> Explanation:
+                      <Lightbulb className="w-3.5 h-3.5 text-accent-700" /> Explanation:
                     </p>
-                    <p className="text-[11px] leading-relaxed text-amber-800">
+                    <p className="text-[11px] leading-relaxed text-accent-800">
                       {currentPreviewQuestion.explanation}
                     </p>
                   </div>

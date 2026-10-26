@@ -396,13 +396,13 @@ export function AdminSectionsManager({
                             className={`inline-flex items-center text-xs px-2 py-0.5 rounded-md font-semibold border ${
                               hasEnough
                                 ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                : "bg-amber-50 text-amber-800 border-amber-200"
+                                : "bg-accent-50 text-accent-800 border-accent-200"
                             }`}
                           >
                             {hasEnough ? (
                               <CheckCircle2 className="w-3 h-3 mr-1 text-emerald-600" />
                             ) : (
-                              <AlertTriangle className="w-3 h-3 mr-1 text-amber-600" />
+                              <AlertTriangle className="w-3 h-3 mr-1 text-accent-700" />
                             )}
                             {sec.questionsInBank || 0} in bank
                           </span>
