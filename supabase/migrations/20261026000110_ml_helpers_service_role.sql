@@ -1,6 +1,6 @@
 -- =====================================================================================================================
 -- 110 ML-TRIGGER-GRANT-1 — mistakes are recorded again (regression from 095, found by the 2026-10-25 nightly)
--- NOT APPLIED until the architect's "go" (suspected data-loss issue). Rollback: docs/database/rollback/110_rollback.sql
+-- Architect GO 2026-10-26 (data-loss fix). Rollback: docs/database/rollback/110_rollback.sql
 -- No BEGIN / COMMIT here: scripts/db/apply-migration.cjs runs the file and its ledger row in ONE transaction.
 --
 -- Cause: 095 (F5 Memory Lock) added the trigger trg_umv_ml_schedule (BEFORE INSERT OR UPDATE on user_mistake_vault) whose
