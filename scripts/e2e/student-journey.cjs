@@ -113,7 +113,9 @@ const pathOf = (url) => new URL(url).pathname.replace(/[0-9a-f-]{36}/g, ':id');
   // 5. Concurrent second attempt on the same daily mock (student session, direct insert) is rejected.
   const uc = await qaUserClient(EMAIL); // CI-FIX-1 (#74): CAPTCHA-safe QA session
   const { error: dupErr } = await uc.from('test_attempts').insert({ user_id: uid, mock_test_id: MOCK, status: 'in_progress', started_at: new Date().toISOString() });
-  step('E2E-06 second concurrent attempt rejected', !!dupErr && /23505|ACTIVE_ATTEMPT_EXISTS|duplicate/i.test(`${dupErr.code} ${dupErr.message}`), dupErr ? `${dupErr.code}` : 'INSERTED (unexpected)');
+  // 099 (ATTEMPT-INTEGRITY-1): a student can no longer insert attempts at all (42501) — a stronger rejection than the
+  // lifecycle trigger's duplicate check (23505 / ACTIVE_ATTEMPT_EXISTS); both mean "not inserted"
+  step('E2E-06 second concurrent attempt rejected', !!dupErr && /42501|23505|ACTIVE_ATTEMPT_EXISTS|duplicate/i.test(`${dupErr.code} ${dupErr.message}`), dupErr ? `${dupErr.code}` : 'INSERTED (unexpected)');
 
   // 6. Student cannot read the answer key.
   const { data: qa, error: qaErr } = await uc.from('question_answers').select('question_version_id').limit(5);
