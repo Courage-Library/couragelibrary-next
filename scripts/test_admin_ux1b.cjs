@@ -95,7 +95,7 @@ test('AB-03 exactly one active link', () => {
 test('AB-04 layout: guard unchanged + first, one <main>, skip link, never-glass, no e-mail / fake role', () => {
   const l = code(read('app/admin/layout.tsx'));
   const body = l.slice(l.indexOf('export default async function AdminLayout('));
-  assert(/const \{ role \} = await requireAdminPage\(\{ allowStaff: true, path: "\/admin" \}\);/.test(body) && body.indexOf('await requireAdminPage') === body.indexOf('await '), 'guard unchanged and first');
+  assert(/const \{ role, userId \} = await requireAdminPage\(\{ allowStaff: true, path: "\/admin" \}\);/.test(body) && body.indexOf('await requireAdminPage') === body.indexOf('await '), 'guard unchanged and first');
   assert(!/<main\b/.test(l) && /id="admin-content"/.test(l) && /href="#admin-content"/.test(l), 'one <main> (root shell); admin skip link');
   assert(/data-no-glass=""/.test(l) && !/userEmail|@couragelibrary/.test(l), 'never-glass; no e-mail');
   const h = code(read('components/admin/admin-top-header.tsx'));
@@ -133,7 +133,11 @@ test('AB-06 Today v2: guard first, server-only read model, admin-only cards, no 
   assert(!/actor_email|old_value|new_value|\bemail\b/.test(tc), 'no e-mails / values read');
   assert(/const NA = "Not available";/.test(p) && /value === null \? NA/.test(p) && /return null;\s*\}\s*return n \?\? 0;/.test(t), 'failed read → null → Not available');
   assert(!/write.?failure|nightly/i.test(p) && !/id: "(write|nightly)/.test(tc), 'Q5: no write-failure / nightly cards');
-  assert((p.match(/data-today-primary/g) || []).length === 1 && /href=\{FOCUS_HREF\}[^>]*data-today-primary/.test(p), 'one primary action (R4) = Start focus session');
+  // R4: ONE primary rendered — "Start focus session" (F), or "Import questions" when the queue is empty (STUDIO-P2-POLISH)
+  assert((p.match(/data-today-primary/g) || []).length === 2 && /\{empty \? \(\s*<Link href=\{IMPORT_HREF\}[^>]*data-today-primary=""[\s\S]*?\) : \(\s*<Link href=\{FOCUS_HREF\}[^>]*data-today-primary=""/.test(p), 'one primary action (R4): focus session, or import when the queue is empty');
+  assert(/const IMPORT_HREF = "\/admin\/bulk-import";/.test(p) && /\{!queueEmpty && <FocusShortcut href=\{FOCUS_HREF\} \/>\}/.test(p), 'empty queue: import link, no F shortcut into an empty session');
+  const h = code(read('components/admin/admin-top-header.tsx'));
+  assert(/\{firstName && <span[^>]*>\{firstName\}<\/span>\}/.test(h) && !/email/i.test(h), 'header: first name + initial avatar, never the e-mail');
   assert(/<FocusShortcut href=\{FOCUS_HREF\} \/>/.test(p) && /const FOCUS_HREF = "\/admin\/review\/focus";/.test(p), 'F starts the focus session');
   assert(/mission-gradient/.test(p) && /data-today-card=\{id\}/.test(p), 'mission card + queue cards');
 });

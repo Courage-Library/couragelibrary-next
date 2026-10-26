@@ -6,7 +6,7 @@ import { isPaymentsEnabled } from "@/config/payments";
 import { isSupportTicketsEnabled } from "@/lib/support/tickets";
 import { AdminTopHeader } from "@/components/admin/admin-top-header";
 import { visibleNav, type NavFlags } from "@/lib/admin/nav";
-import { getFocusQueueCount } from "@/lib/admin/today";
+import { getAdminFirstName, getFocusQueueCount } from "@/lib/admin/today";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -15,13 +15,13 @@ interface AdminLayoutProps {
 export default async function AdminLayout({ children }: AdminLayoutProps) {
   // SEC-1C: same page guard as every admin page (anonymous → login, no role → 404). Not a security
   // boundary on its own — each page authorizes itself before fetching.
-  const { role } = await requireAdminPage({ allowStaff: true, path: "/admin" });
+  const { role, userId } = await requireAdminPage({ allowStaff: true, path: "/admin" });
 
   // ADMIN-UX-1 phase B (Q1): role-aware links — only pages this role can open, only live features
   const flags: NavFlags = { ADAPTIVE: isFeatureEnabled("ADAPTIVE"), LIVE_TESTS: isFeatureEnabled("LIVE_TESTS"), SUPPORT: isSupportTicketsEnabled(), PAYMENTS: isPaymentsEnabled() };
   const nav = visibleNav(role, flags);
   // Courage Studio: the Focus review badge (a count only; read after the guard, server side)
-  const inReview = await getFocusQueueCount();
+  const [inReview, firstName] = await Promise.all([getFocusQueueCount(), getAdminFirstName(userId)]);
   const searchPlaceholder = role === "admin" ? "Search questions, users, tickets…" : "Search questions and tickets…";
 
   return (
@@ -36,9 +36,9 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
       <AdminSidebar nav={nav} badges={{ inReview }} />
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <AdminTopHeader nav={nav} role={role} searchPlaceholder={searchPlaceholder} />
+        <AdminTopHeader nav={nav} role={role} firstName={firstName} searchPlaceholder={searchPlaceholder} />
         {/* the only scrolling region; the root shell already provides the single <main> landmark */}
-        <div id="admin-content" tabIndex={-1} className="min-w-0 flex-1 overflow-y-auto p-4 outline-none sm:p-6">
+        <div id="admin-content" tabIndex={-1} className="min-w-0 flex-1 overflow-y-auto p-4 outline-none sm:p-6 xl:px-[30px] xl:py-6">
           <div className="mx-auto w-full max-w-[1500px]">{children}</div>
         </div>
       </div>

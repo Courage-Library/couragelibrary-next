@@ -134,6 +134,8 @@ export class QuestionCsvImporterService {
     actorId: string;
     supabase: SupabaseLike;
     lookups?: QuestionGateLookups;
+    /** per-row import provenance (row index → info), stored as authoring_metadata.importInfo; never gated content */
+    rowMetadata?: Array<Record<string, unknown> | null>;
   }): Promise<CsvImportSummary> {
     const { rows, mode, actorId, supabase } = params;
     const resolver = new QuestionTaxonomyResolver(supabase);
@@ -199,6 +201,9 @@ export class QuestionCsvImporterService {
           supabase,
           spec,
           lookups: params.lookups,
+          itemMetadata: params.rowMetadata
+            ? Object.fromEntries(chunk.filter((idx) => params.rowMetadata?.[idx]).map((idx) => [`row-${idx + 1}`, params.rowMetadata![idx] as Record<string, unknown>]))
+            : undefined,
         });
 
         const importedByRef = new Map((res.imported || []).map((i) => [i.clientRef, i.versionId]));

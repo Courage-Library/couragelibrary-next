@@ -43,6 +43,7 @@ import {
 import { QuestionContextBuilder } from './question-context-builder.service';
 import { computeAutoChecks, blockingFailures, type AutoCheck } from '@/lib/question-factory/auto-checks';
 import { getAdminStudioSettings } from '@/lib/admin/studio-settings';
+import { loadPublishedExamsForTopics } from '@/lib/syllabus/published-topic-exams';
 import { QuestionPromptBuilder, QuestionPromptResult } from './question-prompt-builder.service';
 import { QuestionTaxonomyResolver } from './question-taxonomy-resolver';
 import { QuestionValidationService, QUESTION_GATE_IDS } from './question-validation.service';
@@ -347,8 +348,18 @@ export class AdminQuestionFactoryService {
       difficulty: detail.difficulty,
       language: detail.language,
       hasOtherLanguage: (otherLang ?? 0) > 0,
+      bilingualRequired: await this.bilingualRequired(ctx, detail.topicId),
       duplicateCount,
     });
+  }
+
+  /** EXAM_REQUIRES_BILINGUAL: does this question's topic belong to (a published syllabus of) a listed exam? */
+  private static async bilingualRequired(ctx: AdminContext, topicId: string | null): Promise<boolean> {
+    const { bilingualExamIds } = await getAdminStudioSettings();
+    if (!topicId || bilingualExamIds.length === 0) return false;
+    const map = await loadPublishedExamsForTopics(ctx.supabase, [topicId]);
+    if (!map) throw new QuestionFactoryError('LOOKUP_FAILED', 'Exam mapping lookup failed.');
+    return (map.get(topicId) ?? []).some((e) => bilingualExamIds.includes(e.examId));
   }
 
   /** The admin who moved this version to APPROVED (audit log; null when unknown). */

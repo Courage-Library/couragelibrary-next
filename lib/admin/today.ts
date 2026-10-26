@@ -4,7 +4,7 @@ import { reportWriteFailure } from "@/lib/ops/write-failure";
 import { loadPublishedExamsForTopics } from "@/lib/syllabus/published-topic-exams";
 import type { AppSupabaseClient } from "@/lib/supabase/types";
 import { getAdminStudioSettings } from "./studio-settings";
-import { computeReviewStats, dailyCounts, REVIEW_ACTIONS, type ReviewStats } from "./review-stats-core";
+import { computeReviewStats, dailyCounts, groupRecent, REVIEW_ACTIONS, type ReviewStats } from "./review-stats-core";
 import type { AdminRole, NavFlags } from "./nav";
 
 /**
@@ -23,8 +23,9 @@ export interface TodayV2 {
   tickets: { open: number | null; late: number | null } | null;
   flags: number | null;
   libraryEnding: number | null;
-  health: { exams: Array<{ id: string; title: string }>; subjects: Array<{ id: string; name: string }>; cells: Record<string, number> } | null;
-  recent: Array<{ action: string; entity: string; at: string }> | null;
+  health: { exams: Array<{ id: string; title: string }>; subjects: Array<{ id: string; name: string }>; cells: Record<string, number>; lowestExamId: string | null } | null;
+  /** consecutive identical actions grouped (max 5 groups) */
+  recent: Array<{ action: string; entity: string; at: string; count: number }> | null;
 }
 
 const DAY = 86400e3;
@@ -99,9 +100,9 @@ export async function getTodayV2(input: { role: AdminRole; userId: string; flags
 
   let recent: TodayV2["recent"] = null;
   if (isAdmin) {
-    const { data, error } = await sb.from("admin_audit_logs").select("action_type, target_entity, created_at").order("created_at", { ascending: false }).limit(6);
+    const { data, error } = await sb.from("admin_audit_logs").select("action_type, target_entity, created_at").order("created_at", { ascending: false }).limit(60);
     if (error) logRead("admin_audit_logs", error.code);
-    recent = error ? null : (data ?? []).map((r) => ({ action: r.action_type, entity: r.target_entity, at: r.created_at }));
+    recent = error ? null : groupRecent((data ?? []).map((r) => ({ action: r.action_type, entity: r.target_entity, at: r.created_at })), 5);
   }
 
   const health = await contentHealth(sb);
@@ -157,17 +158,62 @@ async function contentHealth(sb: AppSupabaseClient): Promise<TodayV2["health"]> 
       cells[k] = (cells[k] ?? 0) + 1;
     }
   }
+  const examList = (exams.data ?? []).map((e) => ({ id: e.id, title: e.title }));
+  const totals = examList.map((e) => [e.id, Object.entries(cells).filter(([k]) => k.startsWith(e.id + ":")).reduce((a, [, n]) => a + n, 0)] as const);
+  const lowest = totals.length ? totals.reduce((m, t) => (t[1] < m[1] ? t : m)) : null;
   return {
-    exams: (exams.data ?? []).map((e) => ({ id: e.id, title: e.title })),
+    exams: examList,
     subjects: (subj.data ?? []).map((s: { id: string; name: string }) => ({ id: s.id, name: s.name })),
     cells,
+    lowestExamId: lowest ? lowest[0] : null,
   };
 }
 
-/** "QUESTION_PUBLISHED" → "Question published" (audit action codes are shown, never values / e-mails). */
+/** The header's first name (own profile; null when unreadable — the header then shows the role only). Never throws. */
+export async function getAdminFirstName(userId: string): Promise<string | null> {
+  try {
+    const { data } = await createAdminServerSupabaseClient().from("user_profiles").select("full_name").eq("id", userId).maybeSingle();
+    return String(data?.full_name ?? "").trim().split(/\s+/)[0] || null;
+  } catch {
+    return null;
+  }
+}
+
+const ACTION_WORDS: Record<string, string> = {
+  SYLLABUS_DRAFT_IMPORT: "Syllabus draft imported",
+  SYLLABUS_DRAFT_CREATE: "Syllabus draft created",
+  SYLLABUS_PUBLISH: "Syllabus version published",
+  SYLLABUS_ARCHIVE: "Syllabus version archived",
+  SYLLABUS_NODE_UPSERT: "Syllabus unit saved",
+  SYLLABUS_MAPPINGS_SET: "Syllabus topics mapped",
+  QF_IMPORT_DRAFTS: "Questions imported as drafts",
+  QF_CREATE_MANUAL_DRAFT: "Question draft written",
+  QF_TRANSITION_IN_REVIEW: "Question sent to review",
+  QF_TRANSITION_APPROVED: "Question approved",
+  QF_TRANSITION_REJECTED: "Question rejected",
+  QF_TRANSITION_CHANGES_REQUESTED: "Changes requested on a question",
+  QF_PUBLISH: "Question published",
+  QF_SELF_APPROVED_PUBLISH: "Question approved and published by the same admin",
+  QUESTION_ARCHIVE: "Question archived",
+  TAXONOMY_NODE_CREATE: "Topic created",
+  TAXONOMY_NODE_RENAME: "Topic renamed",
+  LEARNING_DOCUMENT_CREATE: "Lesson created",
+};
+
+/** Human wording for an audit action code (codes only — never values / e-mails). */
 export function humanAction(code: string): string {
+  if (ACTION_WORDS[code]) return ACTION_WORDS[code];
   const s = code.replace(/^QF_TRANSITION_/, "QUESTION_").replace(/_/g, " ").toLowerCase();
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** The icon tile kind for an action (import ↑ cyan · publish ● green · approve ✓ blue · reject ✕ soft red · other). */
+export function actionKind(code: string): "import" | "publish" | "approve" | "reject" | "other" {
+  if (/IMPORT|CREATE|UPSERT/.test(code)) return "import";
+  if (/PUBLISH/.test(code)) return "publish";
+  if (/APPROVED|MAPPINGS_SET|IN_REVIEW/.test(code)) return "approve";
+  if (/REJECT|ARCHIVE|DEACTIVATE/.test(code)) return "reject";
+  return "other";
 }
 
 /** The Focus review sidebar badge: questions waiting in review (null when unreadable → no badge). Runs in the admin

@@ -2,7 +2,7 @@
 /**
  * Courage Studio phase 2 (decision #84) — offline gate: Today v2 numbers, Focus review, auto checks, settings.
  * Non-writing: pure modules + static reads only (no DB, no server).
- *   SP-01 auto checks: the 6 checks, reasons, Hindi = warning (not blocking), blockingFailures
+ *   SP-01 auto checks: the 6 checks, reasons, Hindi = warning unless the exam is in EXAM_REQUIRES_BILINGUAL
  *   SP-02 review stats: IST day, avg (gaps > 15 min ignored), streak, minutes left never invented, 14-day counts
  *   SP-03 settings: defaults, bounds, disabled rows ignored, source; the settings module never writes
  *   SP-04 service: approve runs the server auto checks after the checklist and BEFORE the transition RPC;
@@ -12,7 +12,8 @@
  *         and no blocking failure; reject needs a reason; edit = request changes → edit → resubmit (existing actions)
  *   SP-06 focus a11y (static): keys A / R / E / J / K / Esc never fire while typing; native <dialog>s; live region;
  *         visible focus; ≥ 44 px targets; motion only under motion-safe; surround remembered with try/catch storage
- *   SP-07 colours: dark surround = the focus-surround token, the card white; mission text ≥ 4.5:1 at the worst point
+ *   SP-07 colours: dark surround = the focus-surround token, the card white; the mission card = the concept gradient
+ *         (no navy scrim), cyan glow right of the text column, white small text ≥ 4.5:1 at the worst point
  *   SP-08 settings page: admin only, read only; Focus review sidebar badge = a count only, never breaks the layout
  *   SP-09 the new read action: guard first, sanitized (same pattern as every QF action)
  * Run: node scripts/test_studio_phase2.cjs
@@ -71,7 +72,10 @@ test('SP-01 auto checks: six checks, reasons, Hindi is a warning, blocking failu
   fail({ duplicateCount: 2 }, 'no_duplicate');
   fail({ difficulty: 'tricky' }, 'difficulty_set');
   assert(AC.computeAutoChecks({ ...good, language: 'hi', hasOtherLanguage: true }).find((x) => x.id === 'hindi_linked').label === 'English version linked', 'a Hindi version checks for its English twin');
-  return 'Hindi warning (ruling pending)';
+  // ruling 2026-10-27: an exam in EXAM_REQUIRES_BILINGUAL makes the other-language check BLOCK
+  fail({ bilingualRequired: true }, 'hindi_linked');
+  assert(AC.blockingFailures(AC.computeAutoChecks({ ...good, bilingualRequired: true, hasOtherLanguage: true })).length === 0, 'bilingual exam + both languages passes');
+  return 'Hindi = warning; blocks for EXAM_REQUIRES_BILINGUAL exams';
 });
 
 test('SP-02 review stats from real audit times (IST)', () => {
@@ -89,6 +93,10 @@ test('SP-02 review stats from real audit times (IST)', () => {
   const d = RS.dailyCounts(ev, 14, now);
   assert(d.length === 14 && d[13] === 4 && d[12] === 1 && d.reduce((a, b) => a + b, 0) === 7, JSON.stringify(d));
   assert(RS.greeting(new Date('2026-10-26T02:00:00Z')) === 'Good morning' && RS.greeting(now) === 'Good afternoon' && RS.greeting(new Date('2026-10-26T14:00:00Z')) === 'Good evening', 'greeting by IST hour');
+  // STUDIO-P2-POLISH: recent activity groups identical consecutive actions, max 5 rows, the newest time kept
+  const ev2 = ['A', 'A', 'A', 'B', 'A', 'C', 'D', 'E', 'F'].map((a, i) => ({ action: a, entity: 'x', at: `2026-10-26T1${9 - Math.min(i, 9)}:00:00Z` }));
+  const g = RS.groupRecent(ev2, 5);
+  assert(JSON.stringify(g.map((x) => `${x.action}${x.count}`)) === '["A3","B1","A1","C1","D1"]' && g[0].at === ev2[0].at, JSON.stringify(g));
   assert(JSON.stringify(RS.REVIEW_ACTIONS) === '["QF_TRANSITION_APPROVED","QF_TRANSITION_REJECTED","QF_TRANSITION_CHANGES_REQUESTED"]', 'review actions');
 });
 
@@ -101,8 +109,14 @@ test('SP-03 settings: defaults, bounds, source; the module never writes', () => 
   assert(P([row('ADMIN_REQUIRE_SECOND_REVIEWER', true)]).requireSecondReviewer === true && P([row('ADMIN_REQUIRE_SECOND_REVIEWER', 'true')]).requireSecondReviewer === false, 'only a real true turns it on');
   for (const bad of [0, 201, '20', 2.5, null]) assert(P([row('ADMIN_DAILY_REVIEW_GOAL', bad)]).dailyReviewGoal === 20, `bad goal ${bad}`);
   assert(P([row('ADMIN_DAILY_REVIEW_GOAL', 50, false)]).dailyReviewGoal === 20, 'disabled row ignored');
+  const E1 = '11111111-1111-4111-8111-111111111111';
+  const bil = (v, on = true) => P([{ config_key: 'EXAM_REQUIRES_BILINGUAL', config_value: v, is_enabled: on }]);
+  assert(d.bilingualExamIds.length === 0 && d.source.bilingualExamIds === 'default', 'bilingual default: none');
+  assert(JSON.stringify(bil({ exam_ids: [E1, E1] }).bilingualExamIds) === JSON.stringify([E1]) && bil({ exam_ids: [E1] }).source.bilingualExamIds === 'setting', 'bilingual exam ids');
+  for (const badIds of [{ exam_ids: ['ssc-gd'] }, { exam_ids: E1 }, { value: [E1] }]) assert(bil(badIds).bilingualExamIds.length === 0, `bad bilingual ${JSON.stringify(badIds)}`);
+  assert(bil({ exam_ids: [E1] }, false).bilingualExamIds.length === 0, 'disabled bilingual row ignored');
   const src = code(read('lib/admin/studio-settings.ts'));
-  assert(!/\.(insert|update|upsert|delete|rpc)\(/.test(src) && /\.eq\("config_domain", "GLOBAL"\)/.test(src), 'read only, GLOBAL domain');
+  assert(!/\.(insert|update|upsert|delete|rpc)\(/.test(src) && /\.in\("config_domain", \["GLOBAL", "EXAM"\]\)/.test(src), 'read only, GLOBAL + EXAM domains');
   assert(/if \(error\) return parseStudioSettings\(\[\]\);/.test(src), 'a failed read = defaults (second reviewer off = today\'s behaviour)');
   assert(!/^import "server-only"/m.test(src), 'loadable by offline gates');
 });
@@ -115,6 +129,7 @@ test('SP-04 service: auto checks before the transition RPC; Q4 before the publis
   const iRpc = tr.indexOf("rpc('fn_transition_question_version'");
   assert(iChecklist > 0 && iAuto > iChecklist && iRpc > iAuto, 'checklist → auto checks → RPC');
   assert(/blockingFailures\(await this\.computeChecks\(ctx, detail\)\)/.test(tr), 'server-computed checks');
+  assert(/bilingualRequired: await this\.bilingualRequired\(ctx, detail\.topicId\)/.test(s) && /loadPublishedExamsForTopics\(ctx\.supabase, \[topicId\]\)/.test(s) && /if \(!map\) throw new QuestionFactoryError\('LOOKUP_FAILED'/.test(s), 'bilingual exam via the canonical syllabus read model; fails closed');
   const pub = s.slice(s.indexOf('static async publish('));
   const iQ4 = pub.indexOf("fail('QF_SECOND_REVIEWER_REQUIRED'");
   const iPub = pub.indexOf("rpc('fn_publish_question_version'");
@@ -188,15 +203,32 @@ test('SP-07 colours: dark surround token, white card, mission text ≥ 4.5:1 at 
   assert(surround && surround.toLowerCase() === '#0a1230', `focus surround ${surround}`);
   const c = read('components/admin/studio/focus-review.tsx');
   assert(/onDark \? "bg-focus-surround text-fg-inverse" : "bg-ink-100 text-fg"/.test(c) && /rounded-panel bg-surface p-5 text-fg/.test(c), 'dark surround, white card');
-  const m = css.match(/\.mission-gradient \{[\s\S]*?\}/);
-  assert(m, '.mission-gradient');
-  const pcts = [...m[0].matchAll(/var\(--color-focus-surround\) (\d+)%/g)].map((x) => Number(x[1]));
-  assert(pcts.length >= 2, 'navy scrim stops');
-  const min = Math.min(...pcts) / 100;
-  const S = hex(surround);
-  const worst = Math.min(...['gradient-start', 'gradient-mid', 'gradient-end'].map((n) => contrast([255, 255, 255], hex(token(n)).map((v, i) => S[i] * min + v * (1 - min)))));
-  assert(worst >= 4.5, `white on the mission card: ${worst.toFixed(2)}`);
-  return `worst ${worst.toFixed(2)}:1 (scrim ≥ ${Math.round(min * 100)}%)`;
+  // STUDIO-P2-POLISH: the concept gradient 115deg primary-700 0% → primary-500 45% → violet 100%, no navy scrim; white
+  // text only in the left text column over a primary-700 tint. Worst point checked along the WHOLE gradient line.
+  const blocks = [...css.matchAll(/\.mission-gradient \{[\s\S]*?\n {2,4}\}/g)].map((x) => x[0]);
+  assert(blocks.length === 2, `.mission-gradient blocks ${blocks.length} (base + ≥ 640 px)`);
+  for (const b of blocks) {
+    assert(/linear-gradient\(115deg, var\(--color-primary-700\) 0%, var\(--color-primary-500\) 45%, var\(--color-brand-violet\) 100%\)/.test(b), 'the concept gradient');
+    assert(!/focus-surround|ink-9/.test(b), 'no navy scrim');
+  }
+  assert(!/accent-300/.test(blocks[0]) && /radial-gradient\(circle at 100% 0%, color-mix\(in srgb, var\(--color-accent-300\)/.test(blocks[1]), 'cyan glow top-right, only ≥ 640 px');
+  const tint = (b) => [...b.matchAll(/var\(--color-primary-700\) (\d+)%, transparent\) (\d+)%/g)].map((x) => ({ a: Number(x[1]) / 100, at: Number(x[2]) }));
+  const wide = tint(blocks[1]);
+  const col = Number((read('app/admin/page.tsx').match(/<div className="relative flex flex-1 flex-col sm:max-w-\[(\d+)%\]">/) || [])[1]);
+  assert(col > 0 && wide.length === 2 && wide[0].at === 0 && wide[1].at >= col, `tint (${JSON.stringify(wide)}) covers the whole text column (0–${col} %)`);
+  const glow = Number((blocks[1].match(/var\(--color-accent-300\) 60%, transparent\) 0, transparent (\d+)%\)/) || [])[1]);
+  assert(glow > 0 && glow <= 100 - col, `the glow (radius ${glow} %) stays right of the text column`);
+  const stops = [[0, hex(token('primary-700'))], [0.45, hex(token('primary-500'))], [1, hex(token('brand-violet'))]];
+  const at = (t) => {
+    for (let i = 1; i < stops.length; i++) if (t <= stops[i][0]) { const f = (t - stops[i - 1][0]) / (stops[i][0] - stops[i - 1][0]); return stops[i - 1][1].map((v, k) => v * (1 - f) + stops[i][1][k] * f); }
+    return stops[2][1];
+  };
+  const T = hex(token('primary-700'));
+  const a = Math.min(...[...tint(blocks[0]), ...wide].map((x) => x.a));
+  let worst = 99;
+  for (let t = 0; t <= 1.0001; t += 0.01) worst = Math.min(worst, contrast([255, 255, 255], at(t).map((v, k) => v * (1 - a) + T[k] * a)));
+  assert(worst >= 4.5, `white small text on the mission card: ${worst.toFixed(2)}`);
+  return `worst ${worst.toFixed(2)}:1 (blue-700 tint ${Math.round(a * 100)}% under the text column)`;
 });
 
 test('SP-08 settings page admin-only + read-only; sidebar badge is a count that never breaks the layout', () => {
@@ -207,7 +239,7 @@ test('SP-08 settings page admin-only + read-only; sidebar badge is a count that 
   const f = t.slice(t.indexOf('export async function getFocusQueueCount('));
   assert(/try \{[\s\S]*?\} catch \{[\s\S]*?return null;/.test(f.slice(0, 600)) && /head: true/.test(f.slice(0, 600)), 'count only (head), never throws');
   const l = code(read('app/admin/layout.tsx'));
-  assert(l.indexOf('await requireAdminPage') < l.indexOf('await getFocusQueueCount()') && /<AdminSidebar nav=\{nav\} badges=\{\{ inReview \}\} \/>/.test(l), 'badge read after the guard');
+  assert(l.indexOf('await requireAdminPage') < l.indexOf('getFocusQueueCount()') && /await Promise\.all\(\[getFocusQueueCount\(\), getAdminFirstName\(userId\)\]\)/.test(l) && /<AdminSidebar nav=\{nav\} badges=\{\{ inReview \}\} \/>/.test(l), 'badge + first name read after the guard');
   const s = read('components/admin/admin-sidebar.tsx');
   assert(/Courage Studio/.test(s) && /Admin workspace/.test(s) && /studio-sidebar/.test(s) && /<span className="sr-only"> waiting<\/span>/.test(s), 'brand tile, glow, badge text for AT');
 });

@@ -68,3 +68,15 @@ export function greeting(now: Date = new Date()): string {
   const h = new Date(now.getTime() + IST_OFFSET_MS).getUTCHours();
   return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
 }
+
+/** Consecutive identical actions → one row with a count (newest first), at most `max` rows. Pure. */
+export function groupRecent(rows: Array<{ action: string; entity: string; at: string }>, max: number): Array<{ action: string; entity: string; at: string; count: number }> {
+  const out: Array<{ action: string; entity: string; at: string; count: number }> = [];
+  for (const r of rows) {
+    const last = out[out.length - 1];
+    if (last && last.action === r.action) last.count++;
+    else if (out.length < max) out.push({ ...r, count: 1 });
+    else break;
+  }
+  return out;
+}

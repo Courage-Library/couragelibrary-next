@@ -11,6 +11,7 @@
  *   - output is written OUTSIDE the repository (names / student data are not masked; captures are never committed)
  * Usage (through scripts/live/with-server.cjs only):
  *   node scripts/visual/admin-capture.cjs --base=http://localhost:3100 --out=<dir> [--widths=1440,1024] [--routes=a,b]
+ *        [--sizes=1440x900,1280x800 --viewport]   (exact screen sizes; viewport-only shots, no full-page unroll)
  */
 const fs = require('fs');
 const path = require('path');
@@ -25,6 +26,9 @@ if (!/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(BASE)) throw ne
 const OUT = path.resolve(arg('out', path.join(ROOT, '..', 'CourageLibrary-Backups', 'admin-ux1-captures', 'capture')));
 if (OUT.startsWith(ROOT + path.sep)) throw new Error('--out must be outside the repository (captures may show names)');
 const WIDTHS = arg('widths', '1440,1024').split(',').map(Number);
+// --sizes=1440x900,1280x800 (overrides --widths) + --viewport: exact screen-sized shots, no full-page unroll ("fits one screen")
+const SIZES = arg('sizes', '') ? arg('sizes', '').split(',').map((s) => s.split('x').map(Number)) : WIDTHS.map((w) => [w, 900]);
+const VIEWPORT_ONLY = process.argv.includes('--viewport');
 const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
 
 /** Every static admin route (dynamic [segments] are skipped; redirects are recorded as such). */
@@ -81,24 +85,24 @@ async function axe(page) {
       page.on('request', (r) => { if (r.method() !== 'GET' && r.method() !== 'HEAD') summary.nonGet.push(`${who} ${r.method()} ${new URL(r.url()).pathname}`); });
       for (const route of list) {
         const row = { who, route, status: null, finalPath: null, shots: [], axe: null };
-        for (const w of WIDTHS) {
-          await page.setViewportSize({ width: w, height: 900 });
+        for (const [w, hgt] of SIZES) {
+          await page.setViewportSize({ width: w, height: hgt });
           const res = await page.goto(BASE + route, { waitUntil: 'networkidle', timeout: 60000 }).catch((e) => ({ status: () => `ERR ${e.message.slice(0, 60)}` }));
           row.status = typeof res.status === 'function' ? res.status() : null;
           row.finalPath = new URL(page.url()).pathname;
           await page.waitForTimeout(400);
           // the admin layout scrolls inside #admin-content (h-dvh): unroll it so a full-page shot shows the whole page
-          await page.evaluate(() => {
+          if (!VIEWPORT_ONLY) await page.evaluate(() => {
             for (const el of [document.getElementById('admin-content'), document.querySelector('[data-no-glass]'), ...document.querySelectorAll('[data-no-glass] > div')]) {
               if (el) Object.assign(el.style, { height: 'auto', maxHeight: 'none', overflow: 'visible' });
             }
           });
           const m = await maskEmails(page);
           if (m.left) summary.emailLeaks.push(`${who} ${route}@${w}: ${m.left}`);
-          const file = `${who}${route.replace(/\//g, '_') || '_root'}@${w}.png`;
-          if (!m.left) await page.screenshot({ path: path.join(OUT, file), fullPage: true });
+          const file = `${who}${route.replace(/\//g, '_') || '_root'}@${w}${VIEWPORT_ONLY ? 'x' + hgt : ''}.png`;
+          if (!m.left) await page.screenshot({ path: path.join(OUT, file), fullPage: !VIEWPORT_ONLY });
           row.shots.push(file);
-          if (w === WIDTHS[0] && (AS || who === 'admin')) row.axe = await axe(page).catch((e) => [{ id: 'AXE_ERROR', impact: 'n/a', nodes: 0, note: e.message.slice(0, 80) }]);
+          if (w === SIZES[0][0] && (AS || who === 'admin')) row.axe = await axe(page).catch((e) => [{ id: 'AXE_ERROR', impact: 'n/a', nodes: 0, note: e.message.slice(0, 80) }]);
         }
         summary.routes.push(row);
         console.log(`${who} ${route} → ${row.status} ${row.finalPath}${row.axe ? ' axe ' + row.axe.map((v) => `${v.id}×${v.nodes}`).join(',') : ''}`);

@@ -43,6 +43,11 @@ export interface QuestionImportParams {
   /** Test seam: override DB-backed lookups. */
   lookups?: QuestionGateLookups;
   currentYear?: number;
+  /**
+   * Server-side import provenance per item (keyed by clientRef), e.g. a bulk import's source reference and review flags.
+   * Stored as authoring_metadata.importInfo; NOT part of the item contract, so it never bypasses or changes a gate.
+   */
+  itemMetadata?: Record<string, Record<string, unknown>>;
 }
 
 /** Extracts the JSON payload from a single ```json fenced block, or accepts bare JSON. */
@@ -103,7 +108,7 @@ export async function fetchCognitiveTrapCodes(supabase: SupabaseLike): Promise<s
 }
 
 /** Maps a gate-approved item to the fn_import_question_drafts item shape. */
-export function toImportRpcItem(item: QuestionAuthoringItem, pyqExamId: string | null, warnings: string[]): Record<string, unknown> {
+export function toImportRpcItem(item: QuestionAuthoringItem, pyqExamId: string | null, warnings: string[], importInfo: Record<string, unknown> | null = null): Record<string, unknown> {
   return {
     client_ref: item.clientRef,
     stem: item.stem,
@@ -130,6 +135,7 @@ export function toImportRpcItem(item: QuestionAuthoringItem, pyqExamId: string |
       cognitiveTrap: item.cognitiveTrap ?? null,
       pyq: item.pyq ?? null,
       gateWarnings: warnings,
+      ...(importInfo ? { importInfo } : {}),
     },
   };
 }
@@ -200,7 +206,8 @@ export class QuestionFactoryImporterService {
       gate_report: this.compactReport(report),
       items: accepted.map((ir) => {
         const pyqExamId = (ir.gates.GATE_4_PROVENANCE.details?.pyqExamId as string | undefined) ?? null;
-        return toImportRpcItem(ir.normalizedItem as QuestionAuthoringItem, pyqExamId, ir.warnings);
+        const item = ir.normalizedItem as QuestionAuthoringItem;
+        return toImportRpcItem(item, pyqExamId, ir.warnings, params.itemMetadata?.[item.clientRef] ?? null);
       }),
     };
 

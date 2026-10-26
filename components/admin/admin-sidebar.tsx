@@ -84,7 +84,7 @@ function NavTree({ nav, active, rail, badges, onNavigate }: { nav: NavGroup[]; a
                   const expanded = hasKids && (itemActive || openItems[it.href + it.label] === true);
                   const linkClass = (on: boolean) =>
                     cn(
-                      "focus-ring-on-dark flex min-h-10 items-center gap-3 rounded-control px-3 text-body-sm font-medium text-primary-100 hover:bg-white/10 hover:text-white",
+                      "focus-ring-on-dark flex min-h-9 items-center gap-3 rounded-control px-3 py-[9px] text-[13.5px] font-medium text-primary-100 hover:bg-white/10 hover:text-white",
                       rail && "justify-center px-0",
                       on && "bg-white/15 font-semibold text-white shadow-[inset_3px_0_0_var(--color-primary-400)]",
                     );

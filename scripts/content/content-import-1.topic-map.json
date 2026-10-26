@@ -1,0 +1,56 @@
+{
+  "_rule": "CONTENT-IMPORT-1: legacy CSV topic name -> canonical TOPIC slug, EXACT name matches within the file's subject only (architect: unmapped = flagged, never guessed). A topic missing here is UNMAPPED and skipped. Reviewed list; edit only with a ruling.",
+  "English.csv": {
+    "subject": "English Comprehension",
+    "topics": {
+      "Antonyms": "antonyms",
+      "Error Spotting": "error-spotting",
+      "Fill in the Blanks": "fill-in-the-blanks",
+      "Idioms & Phrases": "idioms-phrases",
+      "One Word Substitution": "one-word-substitution",
+      "Spelling": "spelling",
+      "Synonyms": "synonyms"
+    }
+  },
+  "GA.csv": {
+    "subject": "General Awareness",
+    "topics": {
+      "Economy": "economy",
+      "Geography": "geography",
+      "History": "history",
+      "Polity": "polity",
+      "Science & Technology": "science-technology",
+      "Sports": "sports"
+    }
+  },
+  "QA.csv": {
+    "subject": "Quantitative Aptitude",
+    "topics": {
+      "Algebra": "algebra",
+      "Average": "average",
+      "Geometry": "geometry",
+      "Number System": "number-system",
+      "Percentage": "percentage",
+      "Profit & Loss": "profit-loss",
+      "Ratio & Proportion": "ratio-proportion",
+      "Speed Distance Time": "speed-distance-time",
+      "Time & Work": "time-work"
+    }
+  },
+  "Reasoning.csv": {
+    "subject": "General Intelligence and Reasoning",
+    "topics": {
+      "Analogy": "analogy",
+      "Blood Relations": "blood-relations",
+      "Classification": "classification",
+      "Coding-Decoding": "coding-decoding",
+      "Direction Sense": "direction-sense",
+      "Number Series": "number-series",
+      "Syllogism": "syllogism"
+    }
+  },
+  "Hindi.csv": {
+    "subject": null,
+    "_note": "the SSC GD Hindi-language paper: the canonical taxonomy has no Hindi subject, so every row is UNMAPPED_SUBJECT"
+  }
+}
