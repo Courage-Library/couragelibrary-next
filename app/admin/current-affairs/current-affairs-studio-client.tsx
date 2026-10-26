@@ -19,7 +19,7 @@ import {
 } from '@/types/current-affairs';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 
-export default function AdminCurrentAffairsStudioPage() {
+export default function AdminCurrentAffairsStudioPage({ initialStatus = 'ALL' }: { initialStatus?: string }) {
   // State
   const [stats, setStats] = useState<AdminCurrentAffairsDashboardStats | null>(null);
   const [items, setItems] = useState<AdminCurrentAffairsListItem[]>([]);
@@ -28,7 +28,7 @@ export default function AdminCurrentAffairsStudioPage() {
   const [totalPages, setTotalPages] = useState<number>(1);
 
   // Filters
-  const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
+  const [selectedStatus, setSelectedStatus] = useState<string>(initialStatus);
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [selectedImportance, setSelectedImportance] = useState<string>('ALL');
   const [selectedDate, setSelectedDate] = useState<string>('');

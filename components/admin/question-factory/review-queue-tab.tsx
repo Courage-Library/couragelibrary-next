@@ -45,11 +45,11 @@ const STATUS_VARIANT: Record<QuestionLifecycleStatus, "default" | "success" | "w
 
 type ActionResult = { success: boolean; error?: string };
 
-export function ReviewQueueTab({ taxonomy }: { taxonomy: FactoryTaxonomy }) {
+export function ReviewQueueTab({ taxonomy, initialStatus = "" }: { taxonomy: FactoryTaxonomy; initialStatus?: string }) {
   const [filters, setFilters] = useState<{ topicId: string; examId: string; lifecycleStatus: string; origin: string; batchId: string }>({
     topicId: "",
     examId: "",
-    lifecycleStatus: "",
+    lifecycleStatus: initialStatus,
     origin: "",
     batchId: "",
   });

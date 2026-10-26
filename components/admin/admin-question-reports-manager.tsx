@@ -39,11 +39,13 @@ export interface AdminQuestionReportItem {
 
 interface AdminQuestionReportsManagerProps {
   initialReports: AdminQuestionReportItem[];
+  /** ADMIN-UX-1 phase B: Today deep link (?status=OPEN) */
+  initialStatus?: string;
 }
 
-export function AdminQuestionReportsManager({ initialReports }: AdminQuestionReportsManagerProps) {
+export function AdminQuestionReportsManager({ initialReports, initialStatus = "ALL" }: AdminQuestionReportsManagerProps) {
   const [reports, setReports] = useState<AdminQuestionReportItem[]>(initialReports);
-  const [selectedStatus, setSelectedStatus] = useState<string>("ALL");
+  const [selectedStatus, setSelectedStatus] = useState<string>(initialStatus);
   const [selectedIssueType, setSelectedIssueType] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [activeReport, setActiveReport] = useState<AdminQuestionReportItem | null>(

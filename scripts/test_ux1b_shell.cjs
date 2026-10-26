@@ -150,7 +150,8 @@ test('U-2b no dead links in the admin sidebar (GAP2-4c: retired workbench link r
       .filter((r) => /\/page\.tsx$/.test(r))
       .map((r) => '/' + r.replace(/^app\/?/, '').replace(/\/?page\.tsx$/, '')),
   );
-  const s = read('components/admin/admin-sidebar.tsx');
+  // ADMIN-UX-1 phase B: the admin sidebar renders lib/admin/nav.ts (its only link source); the sidebar file has no hrefs
+  const s = read('lib/admin/nav.ts') + read('components/admin/admin-sidebar.tsx');
   const hrefs = new Set([...s.matchAll(/href(?:=|: )"([^"#?]+)"/g)].map((m) => m[1]));
   const bad = [...hrefs].filter((h) => !routes.has(h.replace(/\/$/, '') || '/'));
   assert(hrefs.size >= 20, `only ${hrefs.size} hrefs found`);

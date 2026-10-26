@@ -10,7 +10,7 @@ import { ReviewQueueTab } from "./review-queue-tab";
 import { CoverageTab } from "./coverage-tab";
 import type { FactoryTaxonomy } from "./types";
 
-type TabKey = "generate" | "import" | "review" | "coverage";
+export type TabKey = "generate" | "import" | "review" | "coverage";
 
 const TABS: Array<{ key: TabKey; label: string; icon: React.ElementType }> = [
   { key: "generate", label: "Generate", icon: Wand2 },
@@ -22,10 +22,13 @@ const TABS: Array<{ key: TabKey; label: string; icon: React.ElementType }> = [
 interface QuestionFactoryStudioProps {
   taxonomy: FactoryTaxonomy;
   taxonomyError: string | null;
+  /** ADMIN-UX-1 phase B: deep link from Today (?tab=review&status=IN_REVIEW) — initial state only */
+  initialTab?: TabKey;
+  initialStatus?: string;
 }
 
-export function QuestionFactoryStudio({ taxonomy, taxonomyError }: QuestionFactoryStudioProps) {
-  const [tab, setTab] = useState<TabKey>("generate");
+export function QuestionFactoryStudio({ taxonomy, taxonomyError, initialTab = "generate", initialStatus = "" }: QuestionFactoryStudioProps) {
+  const [tab, setTab] = useState<TabKey>(initialTab);
 
   return (
     <div className="space-y-5">
@@ -73,7 +76,7 @@ export function QuestionFactoryStudio({ taxonomy, taxonomyError }: QuestionFacto
 
       {tab === "generate" && <GenerateTab taxonomy={taxonomy} />}
       {tab === "import" && <ImportTab />}
-      {tab === "review" && <ReviewQueueTab taxonomy={taxonomy} />}
+      {tab === "review" && <ReviewQueueTab taxonomy={taxonomy} initialStatus={initialStatus} />}
       {tab === "coverage" && <CoverageTab taxonomy={taxonomy} />}
     </div>
   );

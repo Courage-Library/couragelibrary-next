@@ -1,153 +1,120 @@
 import React from "react";
 import Link from "next/link";
-import { AdminService } from "@/services/admin.service";
-import { Card } from "@/components/ui/legacy/card";
-import { Badge } from "@/components/ui/legacy/badge";
-import {
-  HelpCircle,
-  FileCheck2,
-  BookOpen,
-  PenTool,
-  Building2,
-  ShieldAlert,
-  CreditCard,
-  Layers,
-  LayoutDashboard,
-  ShieldCheck,
-  ArrowRight,
-} from "lucide-react";
 import { requireAdminPage } from "@/lib/auth/require-admin";
+import { isFeatureEnabled } from "@/config/features";
+import { isPaymentsEnabled } from "@/config/payments";
+import { isSupportTicketsEnabled } from "@/lib/support/tickets";
+import { getTodayData, humanAction, type TodayCard } from "@/lib/admin/today";
+import { cn } from "@/components/ui/cn";
 
 export const dynamic = "force-dynamic";
 
 export const revalidate = 0;
 
-export default async function AdminDashboardPage() {
-  await requireAdminPage({ allowStaff: true, path: "/admin" });
-  const stats = await AdminService.getAdminOverview();
-
-  const kpis = [
-    {
-      title: "QUESTION BANK",
-      count: stats.totalQuestions,
-      desc: "Multi-format questions with PYQ tagging",
-      href: "/admin/questions",
-      icon: HelpCircle,
-      linkText: "Manage Questions",
-    },
-    {
-      title: "MOCK TEST PAPERS",
-      count: stats.totalMockTests,
-      desc: "Full-length mocks, pilot tests & blueprints",
-      href: "/admin/mock-tests",
-      icon: FileCheck2,
-      linkText: "Manage Mock Tests",
-    },
-    {
-      title: "EXAM PATTERNS",
-      count: stats.totalPatterns,
-      desc: "Tier schemes, section marks & timing",
-      href: "/admin/patterns",
-      icon: Layers,
-      linkText: "Manage Patterns",
-    },
-    {
-      title: "ARTICLES & COURSES",
-      count: stats.totalArticles + stats.totalCourses,
-      desc: "Editorial articles and structured video courses",
-      href: "/admin/content",
-      icon: BookOpen,
-      linkText: "Manage Content",
-    },
-    {
-      title: "DESCRIPTIVE MAINS",
-      count: stats.totalDescriptive,
-      desc: "Mains essay, precis, and letter questions",
-      href: "/admin/descriptive",
-      icon: PenTool,
-      linkText: "Manage Mains",
-    },
-    {
-      title: "INSTITUTES & BATCHES",
-      count: stats.totalInstitutes,
-      desc: "Partner coaching institutes and batch enrollments",
-      href: "/admin/institutes",
-      icon: Building2,
-      linkText: "Manage Institutes",
-    },
-    {
-      title: "PENDING MODERATION",
-      count: stats.pendingFlagsCount,
-      desc: "Flagged community discussions and replies",
-      href: "/admin/community",
-      icon: ShieldAlert,
-      linkText: "Review Flags",
-    },
-    {
-      title: "PAYMENT ORDERS",
-      count: stats.totalOrdersCount,
-      desc: "PRO subscription checkouts and invoices",
-      href: "/admin/billing",
-      icon: CreditCard,
-      linkText: "View Orders",
-    },
-  ];
+/**
+ * ADMIN-UX-1 phase B — TODAY: what needs attention now. Each card = a real count + ONE link to the already-filtered
+ * list. Read-only, role-aware (lib/admin/today.ts). The guard is unchanged and first.
+ */
+export default async function AdminTodayPage() {
+  const ctx = await requireAdminPage({ allowStaff: true, path: "/admin" });
+  const flags = { ADAPTIVE: isFeatureEnabled("ADAPTIVE"), LIVE_TESTS: isFeatureEnabled("LIVE_TESTS"), SUPPORT: isSupportTicketsEnabled(), PAYMENTS: isPaymentsEnabled() };
+  const data = await getTodayData(ctx.role, flags);
+  const waiting = data.cards.filter((c) => c.tone === "waiting" && (c.count ?? 0) > 0);
+  const busiest = [...waiting].sort((a, b) => (b.count ?? 0) - (a.count ?? 0))[0] ?? null;
+  const today = new Intl.DateTimeFormat("en-IN", { weekday: "long", day: "numeric", month: "short", timeZone: "Asia/Kolkata" }).format(new Date());
 
   return (
-    <div className="space-y-6">
-      {/* Light Summary Header */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-1">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2.5">
-            <LayoutDashboard className="w-6 h-6 text-blue-600" />
-            Admin Studio Overview
-          </h1>
-          <Badge variant="success" className="w-fit text-xs px-2.5 py-0.5 font-bold">
-            <ShieldCheck className="w-3.5 h-3.5 mr-1" /> Live Operations
-          </Badge>
-        </div>
-        <p className="text-xs sm:text-sm text-slate-500 font-medium max-w-3xl">
-          Content &amp; Operations Control Center &mdash; manage questions, test patterns, mock papers, learning courses, institute batches, community moderation, and billing.
+    <div className="flex flex-col gap-6">
+      <header className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <h1 className="text-h2 font-bold text-fg">Today</h1>
+        <p className="text-body text-fg-secondary">
+          {today} · {waiting.length === 0 ? "nothing is waiting" : `${waiting.length} queue${waiting.length === 1 ? "" : "s"} need${waiting.length === 1 ? "s" : ""} attention`}
         </p>
-      </div>
+        {busiest && (
+          <Link
+            href={busiest.href}
+            className="focus-ring ml-auto inline-flex min-h-11 items-center rounded-control bg-accent-500 px-4 text-body font-semibold text-ink-950 hover:bg-accent-400"
+            data-today-primary=""
+          >
+            {busiest.linkLabel} ({busiest.count})
+          </Link>
+        )}
+      </header>
 
-      {/* KPI Cards Grid — 4 Columns on Desktop */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {kpis.map((kpi) => {
-          const Icon = kpi.icon;
-          return (
-            <Card
-              key={kpi.title}
-              className="p-5 bg-white border border-slate-200/80 rounded-2xl shadow-2xs hover:border-blue-300 transition-all flex flex-col justify-between space-y-3"
-            >
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-slate-500">
-                  <span className="text-[11px] font-bold tracking-wider font-mono text-slate-500">
-                    {kpi.title}
-                  </span>
-                  <div className="w-7 h-7 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-600">
-                    <Icon className="w-3.5 h-3.5 text-slate-600" />
-                  </div>
-                </div>
-                <div className="text-2xl sm:text-3xl font-bold text-slate-900 font-mono">
-                  {kpi.count}
-                </div>
-                <p className="text-xs text-slate-500 font-medium line-clamp-1">
-                  {kpi.desc}
-                </p>
+      <section aria-labelledby="today-attention">
+        <h2 id="today-attention" className="sr-only">
+          Needs attention
+        </h2>
+        <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {data.cards.map((c) => (
+            <li key={c.id}>
+              <TodayCardView card={c} />
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <div className="grid gap-3 lg:grid-cols-3">
+        {data.recent && (
+          <section aria-labelledby="today-recent" className="rounded-card border border-line bg-surface p-4 lg:col-span-2">
+            <h2 id="today-recent" className="text-body-lg font-semibold text-fg">
+              Recently changed
+            </h2>
+            {data.recent.length === 0 ? (
+              <p className="mt-2 text-body-sm text-fg-secondary">No audited changes yet.</p>
+            ) : (
+              <ul className="mt-2 divide-y divide-line">
+                {data.recent.map((r, i) => (
+                  <li key={i} className="flex flex-wrap justify-between gap-2 py-2 text-body-sm">
+                    <span className="text-fg">
+                      {humanAction(r.action)} <span className="text-fg-secondary">· {r.entity.replace(/_/g, " ")}</span>
+                    </span>
+                    <time dateTime={r.at} className="text-fg-secondary">
+                      {new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" }).format(new Date(r.at))}
+                    </time>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
+        <section aria-labelledby="today-glance" className="rounded-card border border-line bg-surface p-4">
+          <h2 id="today-glance" className="text-body-lg font-semibold text-fg">
+            Content at a glance
+          </h2>
+          <dl className="mt-2 divide-y divide-line">
+            {data.glance.map((g) => (
+              <div key={g.label} className="flex justify-between gap-2 py-2 text-body-sm">
+                <dt className="text-fg-secondary">{g.label}</dt>
+                <dd className="font-semibold tabular-nums text-fg">{g.value ?? "Not available"}</dd>
               </div>
-
-              <Link
-                href={kpi.href}
-                className="text-xs font-semibold text-blue-600 hover:text-blue-700 inline-flex items-center gap-1 pt-2 border-t border-slate-100 transition-colors"
-              >
-                <span>{kpi.linkText}</span>
-                <ArrowRight className="w-3 h-3" />
-              </Link>
-            </Card>
-          );
-        })}
+            ))}
+          </dl>
+        </section>
       </div>
+    </div>
+  );
+}
+
+function TodayCardView({ card }: { card: TodayCard }) {
+  const waiting = card.tone === "waiting" && (card.count ?? 0) > 0;
+  return (
+    <div
+      className={cn(
+        "flex h-full min-h-32 flex-col gap-1 rounded-card border bg-surface p-4",
+        waiting ? "border-accent-500 shadow-[inset_0_3px_0_var(--color-accent-500)]" : "border-line",
+      )}
+      data-today-card={card.id}
+    >
+      <p className={cn("text-h2 font-bold tabular-nums", card.count === null ? "text-fg-secondary" : "text-fg")}>
+        {card.count === null ? "Not available" : card.count}
+      </p>
+      <p className="text-body text-fg">{card.label}</p>
+      {card.detail && <p className="text-body-sm text-fg-secondary">{card.detail}</p>}
+      <Link href={card.href} className="focus-ring mt-auto inline-flex min-h-11 items-center self-start text-body-sm font-semibold text-primary-700 underline-offset-2 hover:underline">
+        {card.linkLabel}
+        <span className="sr-only"> ({card.label})</span> →
+      </Link>
     </div>
   );
 }

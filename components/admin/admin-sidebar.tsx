@@ -1,446 +1,215 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BrandLogo } from "@/components/brand/logo";
-import { Badge } from "@/components/ui/legacy/badge";
+import { useEffect, useRef, useState, type ComponentType } from "react";
 import {
-  LayoutDashboard,
-  Layers,
-  GitBranch,
-  FolderTree,
-  HelpCircle,
-  Calendar,
-  FileCheck2,
-  BookOpen,
-  PenTool,
-  Building2,
-  FileUp,
-  ShieldAlert,
-  CreditCard,
-  Users,
-  Shield,
-  Coins,
-  ChevronDown,
-  ChevronRight,
-  ClipboardList,
-  Menu,
-  X,
-  Flag,
-  Sparkles,
-  Cpu,
-  Radio,
-  GraduationCap,
-  Newspaper,
-  Factory,
-  ListTree,
+  BarChart3, BookOpen, Building2, CalendarClock, ChevronDown, ClipboardCheck, Coins, CreditCard, FileQuestion, Flag,
+  GraduationCap, Library, LifeBuoy, ListTree, Menu, Newspaper, Palette, Radio, ShieldCheck, Sparkles, Star, Trophy, Users, X,
+  LayoutDashboard, Gift,
 } from "lucide-react";
+import { cn } from "@/components/ui/cn";
+import { activeHref, type NavGroup, type NavIcon, type NavItem } from "@/lib/admin/nav";
 
-interface Props {
-  userEmail: string;
-  /** DRIFT-1c: server-evaluated feature flags. */
-  adaptiveEnabled?: boolean;
-  liveTestsEnabled?: boolean;
+/**
+ * ADMIN-UX-1 phase B sidebar. Links come ONLY from lib/admin/nav.ts, already filtered for the role + flags on the server
+ * (role-aware visibility is UI only — every page keeps its own guard).
+ *   ≥ 1280 px: 248 px sidebar, scrolls on its own (never clipped at any height)
+ *   768–1279 px: 64 px icon rail (labels for assistive tech + tooltip); "Menu" opens the full list
+ *   < 768 px: a top bar "Menu" button opens the full list in a modal drawer (native <dialog>: focus trapped, Esc closes)
+ * One aria-current="page" (longest-prefix match), real <button aria-expanded> for groups, visible focus everywhere.
+ */
+const ICONS: Record<NavIcon, ComponentType<{ className?: string; "aria-hidden"?: boolean }>> = {
+  today: LayoutDashboard, drafts: ClipboardCheck, reports: FileQuestion, news: Newspaper, flag: Flag, questions: FileQuestion,
+  mocks: CalendarClock, learning: BookOpen, syllabus: ListTree, exams: GraduationCap, users: Users, tickets: LifeBuoy,
+  library: Library, institutes: Building2, billing: CreditCard, premium: Star, security: ShieldCheck, design: Palette,
+  rewards: Gift, coins: Coins, badge: Trophy, live: Radio, adaptive: Sparkles,
+};
+
+function containsActive(item: NavItem, active: string | null): boolean {
+  return !!active && (item.href === active || !!item.children?.some((c) => c.href === active));
 }
 
-const MOCK_TEST_ROUTES = [
-  "/admin/mock-tests-management",
-  "/admin/categories",
-  "/admin/patterns",
-  "/admin/sections",
-  "/admin/questions",
-  "/admin/reports",
-  "/admin/question-reports",
-  "/admin/schedules",
-  "/admin/mock-tests",
-  "/admin/bulk-import",
-];
+function NavTree({ nav, active, rail, onNavigate }: { nav: NavGroup[]; active: string | null; rail: boolean; onNavigate?: () => void }) {
+  const [openItems, setOpenItems] = useState<Record<string, boolean>>({});
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
-export function AdminSidebar({ userEmail, adaptiveEnabled = false, liveTestsEnabled = false }: Props) {
-  const pathname = usePathname();
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
-
-  // Check if current route is part of Mock Test Management
-  const isMockRouteActive = MOCK_TEST_ROUTES.some((route) =>
-    pathname.startsWith(route)
+  return (
+    <ul className="flex flex-col gap-1">
+      {nav.map((g) => {
+        const groupHasActive = g.items.some((it) => containsActive(it, active));
+        const groupOpen = !g.collapsed || groupHasActive || openGroups[g.id] === true;
+        return (
+          <li key={g.id} className={cn(g.label && "mt-3 first:mt-0")}>
+            {g.label &&
+              (rail ? (
+                <div className="mx-auto my-1 h-px w-8 bg-white/15" aria-hidden="true" />
+              ) : g.collapsed ? (
+                <button
+                  type="button"
+                  aria-expanded={groupOpen}
+                  onClick={() => setOpenGroups((o) => ({ ...o, [g.id]: !groupOpen }))}
+                  className="focus-ring-on-dark flex min-h-9 w-full items-center justify-between rounded-control px-3 text-caption font-semibold uppercase tracking-wide text-primary-200 hover:text-white"
+                >
+                  {g.label}
+                  <ChevronDown aria-hidden="true" className={cn("size-4 transition-transform", groupOpen && "rotate-180")} />
+                </button>
+              ) : (
+                <p className="px-3 pb-1 text-caption font-semibold uppercase tracking-wide text-primary-200">{g.label}</p>
+              ))}
+            {(groupOpen || rail) && (
+              <ul className="flex flex-col gap-0.5" aria-label={g.label ?? undefined}>
+                {g.items.map((it) => {
+                  const Icon = ICONS[it.icon];
+                  const hasKids = !!it.children?.length && !rail;
+                  const itemActive = containsActive(it, active);
+                  const expanded = hasKids && (itemActive || openItems[it.href + it.label] === true);
+                  const linkClass = (on: boolean) =>
+                    cn(
+                      "focus-ring-on-dark flex min-h-10 items-center gap-3 rounded-control px-3 text-body-sm font-medium text-primary-100 hover:bg-white/10 hover:text-white",
+                      rail && "justify-center px-0",
+                      on && "bg-white/15 font-semibold text-white shadow-[inset_3px_0_0_var(--color-primary-400)]",
+                    );
+                  if (!hasKids) {
+                    const on = it.href === active || (rail && itemActive);
+                    return (
+                      <li key={it.href + it.label}>
+                        <Link href={it.href} aria-current={on ? "page" : undefined} className={linkClass(on)} title={rail ? it.label : undefined} onClick={onNavigate}>
+                          <Icon aria-hidden={true} className="size-5 shrink-0" />
+                          <span className={cn(rail && "sr-only")}>{it.label}</span>
+                        </Link>
+                      </li>
+                    );
+                  }
+                  return (
+                    <li key={it.href + it.label}>
+                      <button
+                        type="button"
+                        aria-expanded={expanded}
+                        onClick={() => setOpenItems((o) => ({ ...o, [it.href + it.label]: !expanded }))}
+                        className={cn(linkClass(false), "w-full justify-between", itemActive && "text-white")}
+                      >
+                        <span className="flex items-center gap-3">
+                          <Icon aria-hidden={true} className="size-5 shrink-0" />
+                          {it.label}
+                        </span>
+                        <ChevronDown aria-hidden="true" className={cn("size-4 transition-transform", expanded && "rotate-180")} />
+                      </button>
+                      {expanded && (
+                        <ul className="ml-8 mt-0.5 flex flex-col gap-0.5 border-l border-white/15 pl-2">
+                          {it.children!.map((c) => {
+                            const on = c.href === active;
+                            return (
+                              <li key={c.href}>
+                                <Link href={c.href} aria-current={on ? "page" : undefined} className={cn(linkClass(on), "min-h-9")} onClick={onNavigate}>
+                                  {c.label}
+                                </Link>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </li>
+        );
+      })}
+    </ul>
   );
+}
 
-  // Group collapsible state - defaults open when navigating mock routes
-  const [isMockGroupOpen, setIsMockGroupOpen] = useState(true);
+function Brand({ rail }: { rail: boolean }) {
+  return (
+    <Link href="/admin" className="focus-ring-on-dark mb-3 flex min-h-11 items-center gap-2 rounded-control px-3 text-white">
+      <BarChart3 aria-hidden="true" className="size-6 shrink-0 text-primary-300" />
+      <span className={cn("text-body font-bold", rail && "sr-only")}>Courage Library · Admin</span>
+    </Link>
+  );
+}
+
+export function AdminSidebar({ nav }: { nav: NavGroup[] }) {
+  const pathname = usePathname() || "/admin";
+  const active = activeHref(pathname, nav);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
-    if (isMockRouteActive) {
-      setIsMockGroupOpen(true);
-    }
-  }, [pathname, isMockRouteActive]);
-
-  // Close mobile sidebar on navigation
-  useEffect(() => {
-    setIsMobileOpen(false);
-  }, [pathname]);
-
-  const mockChildren = [
-    {
-      label: "Categories",
-      href: "/admin/categories",
-      icon: Layers,
-    },
-    {
-      label: "Patterns",
-      href: "/admin/patterns",
-      icon: GitBranch,
-    },
-    {
-      label: "Sections",
-      href: "/admin/sections",
-      icon: FolderTree,
-    },
-    {
-      label: "Questions",
-      href: "/admin/questions",
-      icon: HelpCircle,
-    },
-    {
-      label: "Question Factory",
-      href: "/admin/questions/factory",
-      icon: Factory,
-    },
-    {
-      label: "Question Reports",
-      href: "/admin/question-reports",
-      icon: Flag,
-    },
-    {
-      label: "Schedules",
-      href: "/admin/schedules",
-      icon: Calendar,
-    },
-    {
-      label: "Mock Tests",
-      href: "/admin/mock-tests",
-      icon: FileCheck2,
-    },
-    {
-      label: "Bulk Import",
-      href: "/admin/bulk-import",
-      icon: FileUp,
-    },
-  ];
+    const d = dialogRef.current;
+    if (!d) return;
+    if (drawerOpen && !d.open) d.showModal();
+    if (!drawerOpen && d.open) d.close();
+  }, [drawerOpen]);
+  useEffect(() => setDrawerOpen(false), [pathname]);
 
   return (
     <>
-      {/* Mobile Top Bar — Appears ONLY on Mobile */}
-      <div className="md:hidden flex items-center justify-between px-4 py-3 bg-slate-900 text-white border-b border-slate-800 shrink-0">
-        <div className="flex items-center gap-2">
-          <BrandLogo size="sm" showText={false} />
-          <span className="font-bold text-xs tracking-tight">Admin Studio</span>
-          <Badge variant="indigo" className="text-[9px] px-1.5 py-0 bg-indigo-950 text-indigo-300 border-indigo-800 font-mono">
-            PROD
-          </Badge>
-        </div>
+      {/* < 768 px: top bar with the menu button */}
+      <div className="flex min-h-14 items-center gap-2 bg-primary-900 px-3 md:hidden">
         <button
-          onClick={() => setIsMobileOpen(!isMobileOpen)}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 text-slate-200 hover:text-white text-xs font-bold border border-slate-700"
-          aria-label="Toggle Admin Navigation"
+          type="button"
+          onClick={() => setDrawerOpen(true)}
+          className="focus-ring-on-dark inline-flex size-11 items-center justify-center rounded-control text-white hover:bg-white/10"
+          aria-label="Open admin menu"
         >
-          {isMobileOpen ? <X className="w-3.5 h-3.5" /> : <Menu className="w-3.5 h-3.5" />}
-          <span>{isMobileOpen ? "Close" : "Menu"}</span>
+          <Menu aria-hidden="true" className="size-6" />
         </button>
+        <span className="text-body font-bold text-white">Courage Library · Admin</span>
       </div>
 
-      {/* Mobile Drawer Overlay */}
-      {isMobileOpen && (
-        <div
-          onClick={() => setIsMobileOpen(false)}
-          className="fixed inset-0 z-40 bg-slate-950/70 backdrop-blur-xs md:hidden"
-        />
-      )}
+      {/* 768–1279 px rail */}
+      <aside aria-label="Admin navigation" className="hidden h-dvh w-16 shrink-0 flex-col overflow-y-auto bg-primary-900 px-2 py-3 md:flex xl:hidden">
+        <button
+          type="button"
+          onClick={() => setDrawerOpen(true)}
+          className="focus-ring-on-dark mb-2 inline-flex size-11 items-center justify-center self-center rounded-control text-white hover:bg-white/10"
+          aria-label="Show all admin links"
+          title="Show all admin links"
+        >
+          <Menu aria-hidden="true" className="size-5" />
+        </button>
+        <nav aria-label="Admin">
+          <NavTree nav={nav} active={active} rail />
+        </nav>
+      </aside>
 
-      {/* Sidebar Panel — STRICTLY FIXED AT VIEWPORT TOP & NON-SCROLLING ON DESKTOP */}
-      <aside
-        className={`fixed md:static inset-y-0 left-0 z-50 md:z-20 w-[270px] h-[100dvh] max-h-[100dvh] bg-ink-900 text-slate-300 p-3.5 shrink-0 border-r border-slate-800 flex flex-col justify-between transition-transform duration-200 ease-in-out md:translate-x-0 overflow-y-auto md:overflow-hidden ${
-          isMobileOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"
-        }`}
+      {/* ≥ 1280 px full sidebar */}
+      <aside aria-label="Admin navigation" className="hidden h-dvh w-62 shrink-0 flex-col overflow-y-auto bg-primary-900 px-3 py-4 xl:flex">
+        <Brand rail={false} />
+        <nav aria-label="Admin">
+          <NavTree nav={nav} active={active} rail={false} />
+        </nav>
+      </aside>
+
+      {/* the drawer (phones + rail "Menu"): native modal dialog */}
+      <dialog
+        ref={dialogRef}
+        aria-label="Admin menu"
+        onClose={() => setDrawerOpen(false)}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) setDrawerOpen(false);
+        }}
+        className="m-0 h-dvh max-h-none w-72 max-w-[85vw] bg-primary-900 p-0 backdrop:bg-ink-950/50"
       >
-        <div className="space-y-3 flex-1 min-h-0 flex flex-col">
-          {/* Studio Brand Header */}
-          <div className="space-y-1 pb-2.5 border-b border-slate-800/80 shrink-0">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <BrandLogo size="sm" showText={false} />
-                <span className="font-bold text-white text-sm tracking-tight">Admin Studio</span>
-              </div>
-              <Badge variant="indigo" className="text-[9px] px-1.5 py-0 bg-blue-950/80 text-blue-300 border-blue-800 font-mono font-bold">
-                PROD
-              </Badge>
-            </div>
-            <p className="text-[11px] font-mono text-slate-400 truncate">
-              {userEmail}
-            </p>
+        <div className="flex h-full flex-col overflow-y-auto px-3 py-4">
+          <div className="mb-2 flex items-center justify-between">
+            <Brand rail={false} />
+            <button
+              type="button"
+              onClick={() => setDrawerOpen(false)}
+              className="focus-ring-on-dark inline-flex size-11 items-center justify-center rounded-control text-white hover:bg-white/10"
+              aria-label="Close admin menu"
+            >
+              <X aria-hidden="true" className="size-5" />
+            </button>
           </div>
-
-          {/* Navigation Groups */}
-          <nav className="space-y-2 text-xs font-medium flex-1">
-            {/* Dashboard Overview */}
-            <div>
-              <Link
-                href="/admin"
-                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors ${
-                  pathname === "/admin"
-                    ? "bg-blue-600 text-white font-semibold shadow-xs"
-                    : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                }`}
-              >
-                <LayoutDashboard className={`w-3.5 h-3.5 shrink-0 ${pathname === "/admin" ? "text-white" : "text-slate-400"}`} />
-                <span className="text-[11px]">Dashboard Overview</span>
-              </Link>
-            </div>
-
-            {/* EXAMINATIONS & ONBOARDING */}
-            <div>
-              <Link
-                href="/admin/exams"
-                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors ${
-                  pathname.startsWith("/admin/exams")
-                    ? "bg-blue-600 text-white font-semibold shadow-xs"
-                    : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                }`}
-              >
-                <GraduationCap className={`w-3.5 h-3.5 shrink-0 ${pathname.startsWith("/admin/exams") ? "text-white" : "text-slate-400"}`} />
-                <span className="text-[11px]">Exams &amp; Onboarding</span>
-              </Link>
-            </div>
-
-            {/* PARENT GROUP: MOCK TEST SYSTEM */}
-            <div className="space-y-0.5">
-              <div
-                onClick={() => setIsMockGroupOpen(!isMockGroupOpen)}
-                className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer transition select-none ${
-                  isMockRouteActive
-                    ? "bg-slate-800/90 text-white font-semibold border border-slate-700/60"
-                    : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <ClipboardList className={`w-3.5 h-3.5 shrink-0 ${isMockRouteActive ? "text-blue-400" : "text-slate-400"}`} />
-                  <span className="text-[10px] uppercase tracking-wider font-bold text-blue-300 font-mono">
-                    Mock Test System
-                  </span>
-                </div>
-                {isMockGroupOpen ? (
-                  <ChevronDown className="w-3 h-3 text-slate-400" />
-                ) : (
-                  <ChevronRight className="w-3 h-3 text-slate-400" />
-                )}
-              </div>
-
-              {/* NESTED CHILDREN */}
-              {isMockGroupOpen && (
-                <div className="pl-2 pr-0.5 py-0.5 space-y-0.5 border-l border-slate-800 ml-2.5">
-                  {mockChildren.map((child) => {
-                    const isActive = pathname.startsWith(child.href);
-                    const Icon = child.icon;
-                    return (
-                      <Link
-                        key={child.href}
-                        href={child.href}
-                        className={`flex items-center gap-2 px-2 py-1 rounded-md text-[11px] transition-colors ${
-                          isActive
-                            ? "bg-blue-600 text-white font-semibold shadow-xs"
-                            : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-                        }`}
-                      >
-                        <Icon className={`w-3 h-3 shrink-0 ${isActive ? "text-white" : "text-slate-400"}`} />
-                        <span className="truncate">{child.label}</span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* LEARNING CONTENT */}
-            <div className="space-y-0.5">
-              <span className="px-2.5 text-[9px] font-bold uppercase tracking-wider text-slate-500 font-mono block">
-                Learning Content
-              </span>
-              <Link
-                href="/admin/current-affairs"
-                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors ${
-                  pathname.startsWith("/admin/current-affairs")
-                    ? "bg-blue-600 text-white font-semibold"
-                    : "text-slate-400 hover:bg-slate-800 hover:text-white"
-                }`}
-              >
-                <Newspaper className={`w-3.5 h-3.5 shrink-0 ${pathname.startsWith("/admin/current-affairs") ? "text-white" : "text-slate-400"}`} />
-                <span className="text-[11px]">Current Affairs Studio</span>
-              </Link>
-              <Link
-                href="/admin/content"
-                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors ${
-                  pathname.startsWith("/admin/content")
-                    ? "bg-blue-600 text-white font-semibold"
-                    : "text-slate-400 hover:bg-slate-800 hover:text-white"
-                }`}
-              >
-                <BookOpen className={`w-3.5 h-3.5 shrink-0 ${pathname.startsWith("/admin/content") ? "text-white" : "text-slate-400"}`} />
-                <span className="text-[11px]">Articles &amp; Courses</span>
-              </Link>
-              <Link
-                href="/admin/exam-knowledge"
-                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors ${
-                  pathname.startsWith("/admin/exam-knowledge")
-                    ? "bg-blue-600 text-white font-semibold"
-                    : "text-slate-400 hover:bg-slate-800 hover:text-white"
-                }`}
-              >
-                <GraduationCap className={`w-3.5 h-3.5 shrink-0 ${pathname.startsWith("/admin/exam-knowledge") ? "text-white" : "text-slate-400"}`} />
-                <span className="text-[11px]">Exam Knowledge</span>
-              </Link>
-              <Link
-                href="/admin/taxonomy"
-                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors ${
-                  pathname.startsWith("/admin/taxonomy")
-                    ? "bg-blue-600 text-white font-semibold"
-                    : "text-slate-400 hover:bg-slate-800 hover:text-white"
-                }`}
-              >
-                <FolderTree className={`w-3.5 h-3.5 shrink-0 ${pathname.startsWith("/admin/taxonomy") ? "text-white" : "text-slate-400"}`} />
-                <span className="text-[11px]">Taxonomy</span>
-              </Link>
-              <Link
-                href="/admin/syllabus"
-                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors ${
-                  pathname === "/admin/syllabus" || pathname.startsWith("/admin/syllabus/")
-                    ? "bg-blue-600 text-white font-semibold"
-                    : "text-slate-400 hover:bg-slate-800 hover:text-white"
-                }`}
-              >
-                <ListTree className={`w-3.5 h-3.5 shrink-0 ${pathname === "/admin/syllabus" || pathname.startsWith("/admin/syllabus/") ? "text-white" : "text-slate-400"}`} />
-                <span className="text-[11px]">Syllabus</span>
-              </Link>
-              <Link
-                href="/admin/descriptive"
-                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors ${
-                  pathname.startsWith("/admin/descriptive")
-                    ? "bg-blue-600 text-white font-semibold"
-                    : "text-slate-400 hover:bg-slate-800 hover:text-white"
-                }`}
-              >
-                <PenTool className={`w-3.5 h-3.5 shrink-0 ${pathname.startsWith("/admin/descriptive") ? "text-white" : "text-slate-400"}`} />
-                <span className="text-[11px]">Descriptive Mains</span>
-              </Link>
-            </div>
-
-            {/* OPERATIONS & USERS */}
-            <div className="space-y-0.5">
-              <span className="px-2.5 text-[9px] font-bold uppercase tracking-wider text-slate-500 font-mono block">
-                Operations &amp; Users
-              </span>
-              <Link
-                href="/admin/institutes"
-                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors ${
-                  pathname.startsWith("/admin/institutes")
-                    ? "bg-blue-600 text-white font-semibold"
-                    : "text-slate-400 hover:bg-slate-800 hover:text-white"
-                }`}
-              >
-                <Building2 className={`w-3.5 h-3.5 shrink-0 ${pathname.startsWith("/admin/institutes") ? "text-white" : "text-slate-400"}`} />
-                <span className="text-[11px]">Institutes</span>
-              </Link>
-              <Link
-                href="/admin/users"
-                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors ${
-                  pathname.startsWith("/admin/users")
-                    ? "bg-blue-600 text-white font-semibold"
-                    : "text-slate-400 hover:bg-slate-800 hover:text-white"
-                }`}
-              >
-                <Users className={`w-3.5 h-3.5 shrink-0 ${pathname.startsWith("/admin/users") ? "text-white" : "text-slate-400"}`} />
-                <span className="text-[11px]">Users &amp; Sync</span>
-              </Link>
-              <Link
-                href="/admin/rewards"
-                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors ${
-                  pathname.startsWith("/admin/rewards") || pathname.startsWith("/admin/gamification")
-                    ? "bg-blue-600 text-white font-semibold"
-                    : "text-slate-400 hover:bg-slate-800 hover:text-white"
-                }`}
-              >
-                <Coins className={`w-3.5 h-3.5 shrink-0 ${pathname.startsWith("/admin/rewards") || pathname.startsWith("/admin/gamification") ? "text-white" : "text-slate-400"}`} />
-                <span className="text-[11px]">Reward &amp; Store Management</span>
-              </Link>
-              <Link
-                href="/admin/community"
-                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors ${
-                  pathname.startsWith("/admin/community")
-                    ? "bg-blue-600 text-white font-semibold"
-                    : "text-slate-400 hover:bg-slate-800 hover:text-white"
-                }`}
-              >
-                <ShieldAlert className={`w-3.5 h-3.5 shrink-0 ${pathname.startsWith("/admin/community") ? "text-white" : "text-slate-400"}`} />
-                <span className="text-[11px]">Moderation</span>
-              </Link>
-              <Link
-                href="/admin/billing"
-                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors ${
-                  pathname.startsWith("/admin/billing")
-                    ? "bg-blue-600 text-white font-semibold"
-                    : "text-slate-400 hover:bg-slate-800 hover:text-white"
-                }`}
-              >
-                <CreditCard className={`w-3.5 h-3.5 shrink-0 ${pathname.startsWith("/admin/billing") ? "text-white" : "text-slate-400"}`} />
-                <span className="text-[11px]">Billing &amp; Plans</span>
-              </Link>
-              <Link
-                href="/admin/premium"
-                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors ${
-                  pathname.startsWith("/admin/premium")
-                    ? "bg-amber-600 text-white font-semibold shadow-xs"
-                    : "text-amber-400 hover:bg-slate-800 hover:text-amber-300"
-                }`}
-              >
-                <Sparkles className={`w-3.5 h-3.5 shrink-0 ${pathname.startsWith("/admin/premium") ? "text-white" : "text-amber-400"}`} />
-                <span className="text-[11px] font-bold">Premium Control</span>
-              </Link>
-              {adaptiveEnabled && (
-              <Link
-                href="/admin/adaptive"
-                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors ${
-                  pathname.startsWith("/admin/adaptive")
-                    ? "bg-blue-600 text-white font-semibold shadow-xs"
-                    : "text-blue-400 hover:bg-slate-800 hover:text-blue-300"
-                }`}
-              >
-                <Cpu className={`w-3.5 h-3.5 shrink-0 ${pathname.startsWith("/admin/adaptive") ? "text-white" : "text-blue-400"}`} />
-                <span className="text-[11px] font-bold">Adaptive Testing</span>
-              </Link>
-              )}
-              {liveTestsEnabled && (
-              <Link
-                href="/admin/live-tests"
-                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors ${
-                  pathname.startsWith("/admin/live-tests")
-                    ? "bg-rose-600 text-white font-semibold shadow-xs"
-                    : "text-rose-400 hover:bg-slate-800 hover:text-rose-300"
-                }`}
-              >
-                <Radio className={`w-3.5 h-3.5 shrink-0 ${pathname.startsWith("/admin/live-tests") ? "text-white" : "text-rose-400"}`} />
-                <span className="text-[11px] font-bold">Live Mock Tests</span>
-              </Link>
-              )}
-            </div>
+          <nav aria-label="Admin (menu)">
+            <NavTree nav={nav} active={active} rail={false} onNavigate={() => setDrawerOpen(false)} />
           </nav>
         </div>
-
-        {/* Footer Session Badge — Pinned at Bottom */}
-        <div className="pt-2 border-t border-slate-800/80 shrink-0">
-          <Badge variant="indigo" className="w-full justify-center text-[9px] py-0.5 bg-slate-800 text-slate-300 border-slate-700 font-mono font-bold">
-            <Shield className="w-2.5 h-2.5 mr-1 text-blue-400" /> Session Protected
-          </Badge>
-        </div>
-      </aside>
+      </dialog>
     </>
   );
 }

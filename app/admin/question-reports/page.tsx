@@ -14,9 +14,14 @@ export const metadata = {
  * F2 (#79): "Report this question" review list — ADMIN ONLY (reports are never shown to other users; staff no longer
  * read them — /admin/reports redirects here). Data: question_errata_reports via the service-role AdminService.
  */
-export default async function AdminQuestionReportsPage() {
+const REPORT_STATUSES = ["OPEN", "UNDER_REVIEW", "VERIFIED", "RESOLVED", "REJECTED"];
+
+export default async function AdminQuestionReportsPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
   await requireAdminPage({ path: "/admin/question-reports" });
+  const sp = await searchParams;
   const initialReports = await AdminService.getQuestionReports();
+  // ADMIN-UX-1 phase B: Today deep link (?status=OPEN) — initial filter only
+  const initialStatus = REPORT_STATUSES.includes(String(sp.status)) ? String(sp.status) : "ALL";
 
   return (
     <Container className="py-8 space-y-6 max-w-7xl">
@@ -27,7 +32,7 @@ export default async function AdminQuestionReportsPage() {
         </p>
       </div>
 
-      <AdminQuestionReportsManager initialReports={initialReports as unknown as AdminQuestionReportItem[]} />
+      <AdminQuestionReportsManager initialReports={initialReports as unknown as AdminQuestionReportItem[]} initialStatus={initialStatus} />
     </Container>
   );
 }

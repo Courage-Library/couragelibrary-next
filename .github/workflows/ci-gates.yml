@@ -135,6 +135,7 @@ jobs:
           q COINS-FREEZE node scripts/test_coins_freeze.cjs || fail=1
           q F9B-PAYMENTS node scripts/test_f9b_payments.cjs || fail=1
           q ADMIN-D1-D2 node scripts/test_admin_d1_d2.cjs || fail=1
+          q ADMIN-UX1B node scripts/test_admin_ux1b.cjs || fail=1
           q MIGRATION-RUNNER-SELFTEST node scripts/db/apply-migration.cjs --self-test || fail=1
           q KILL-LEFTOVER-SELFTEST node scripts/ci/kill-leftover-server.cjs --self-test || fail=1
           exit $fail

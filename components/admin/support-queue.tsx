@@ -2,6 +2,7 @@
 
 /** F11 admin: support queue — set status and reply (audited server action); the student's text is read-only. */
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Container } from "@/components/ui/layout";
 import { updateTicketAction } from "@/app/help/tickets/actions";
@@ -9,10 +10,18 @@ import { TICKET_CATEGORIES, TICKET_STATUSES, type TicketStatus } from "@/lib/sup
 
 type Ticket = { id: string; ref: string; category: string; subject: string; message: string; status: string; staff_reply: string | null; created_at: string };
 
-export function SupportQueue({ tickets }: { tickets: Ticket[] }) {
+export function SupportQueue({ tickets, filter = null }: { tickets: Ticket[]; filter?: string | null }) {
   return (
     <Container className="flex max-w-5xl flex-col gap-6 py-8">
       <h1 className="text-h1 font-bold text-fg">Support tickets</h1>
+      {filter && (
+        <p className="text-body text-fg-secondary">
+          Showing: {filter} ·{" "}
+          <Link href="/admin/support" className="focus-ring font-semibold text-primary-700 underline">
+            Show all tickets
+          </Link>
+        </p>
+      )}
       {tickets.length === 0 ? <p className="text-body text-fg-secondary">No tickets.</p> : <ul className="flex flex-col gap-4">{tickets.map((t) => <Row key={t.id} t={t} />)}</ul>}
     </Container>
   );
@@ -24,7 +33,7 @@ function Row({ t }: { t: Ticket }) {
   const [note, setNote] = useState("");
   const [pending, start] = useTransition();
   return (
-    <li className="flex flex-col gap-3 rounded-card border border-line bg-surface p-4">
+    <li id={`ticket-${t.id}`} className="flex scroll-mt-4 flex-col gap-3 rounded-card border border-line bg-surface p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-body-lg font-semibold text-fg">{t.subject}</h2>
         <span className="text-body-sm text-fg-secondary">
