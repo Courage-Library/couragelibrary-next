@@ -1,5 +1,5 @@
 /**
- * ADMIN-UX-1 phase B: the ONLY source of admin sidebar links (pure: no React, no env — the offline gate loads it).
+ * ADMIN-UX-1 phase B / Courage Studio (decision #84: Today · Focus review · CREATE · CARE · SYSTEM): the ONLY source of admin sidebar links (pure: no React, no env — the offline gate loads it).
  * Q1 (architect 2026-10-26): grouped and role-aware — a link is shown only when the role passes that page's EXISTING
  * guard (`access` mirrors requireAdminPage: "staff" = allowStaff: true, "admin" = admin only; test_admin_ux1b.cjs
  * checks every item against the page file). Visibility is UI only: every page still authorizes itself.
@@ -11,7 +11,11 @@ export type NavFlag = "ADAPTIVE" | "LIVE_TESTS" | "SUPPORT" | "PAYMENTS";
 export type NavIcon =
   | "today" | "drafts" | "reports" | "news" | "flag" | "questions" | "mocks" | "learning" | "syllabus" | "exams"
   | "users" | "tickets" | "library" | "institutes" | "billing" | "premium" | "security" | "design" | "rewards"
-  | "coins" | "badge" | "live" | "adaptive";
+  | "coins" | "badge" | "live" | "adaptive" | "focus" | "settings";
+
+/** live counts shown as a badge next to a link (computed by the layout on the server; never from the client) */
+export type NavBadge = "inReview";
+export type NavBadges = Partial<Record<NavBadge, number | null>>;
 
 export interface NavItem {
   label: string;
@@ -21,6 +25,7 @@ export interface NavItem {
   flag?: NavFlag;
   /** "exact": active only on this path (Today); default: longest matching prefix wins */
   match?: "exact";
+  badge?: NavBadge;
   children?: NavItem[];
 }
 
@@ -35,23 +40,22 @@ export interface NavGroup {
 }
 
 export const ADMIN_NAV: NavGroup[] = [
-  { id: "today", label: null, items: [{ label: "Today", href: "/admin", icon: "today", access: "staff", match: "exact" }] },
   {
-    id: "review",
-    label: "Review",
+    id: "today",
+    label: null,
     items: [
-      { label: "Question drafts", href: "/admin/questions/factory", icon: "drafts", access: "staff" },
-      { label: "Question reports", href: "/admin/question-reports", icon: "reports", access: "admin" },
-      { label: "Community flags", href: "/admin/community", icon: "flag", access: "staff" },
+      { label: "Today", href: "/admin", icon: "today", access: "staff", match: "exact" },
+      { label: "Focus review", href: "/admin/review/focus", icon: "focus", access: "staff", badge: "inReview" },
     ],
   },
   {
-    id: "content",
-    label: "Content",
+    id: "create",
+    label: "Create",
     items: [
       {
         label: "Questions", href: "/admin/questions", icon: "questions", access: "staff",
         children: [
+          { label: "Question drafts", href: "/admin/questions/factory", icon: "drafts", access: "staff" },
           { label: "Question bank", href: "/admin/questions", icon: "questions", access: "staff" },
           { label: "Bulk import", href: "/admin/bulk-import", icon: "questions", access: "staff" },
         ],
@@ -76,28 +80,30 @@ export const ADMIN_NAV: NavGroup[] = [
       },
       { label: "Current affairs", href: "/admin/current-affairs", icon: "news", access: "staff" },
       {
-        label: "Syllabus & taxonomy", href: "/admin/syllabus", icon: "syllabus", access: "staff",
+        label: "Syllabus map", href: "/admin/syllabus", icon: "syllabus", access: "staff",
         children: [
           { label: "Syllabus", href: "/admin/syllabus", icon: "syllabus", access: "staff" },
-          { label: "Taxonomy", href: "/admin/taxonomy", icon: "syllabus", access: "admin" },
-        ],
-      },
-      {
-        label: "Exams", href: "/admin/exams", icon: "exams", access: "staff",
-        children: [
           { label: "Exams", href: "/admin/exams", icon: "exams", access: "staff" },
           { label: "Exam Knowledge", href: "/admin/exam-knowledge", icon: "exams", access: "staff" },
+          { label: "Taxonomy", href: "/admin/taxonomy", icon: "syllabus", access: "admin" },
         ],
       },
     ],
   },
   {
-    id: "people",
-    label: "People",
+    id: "care",
+    label: "Care",
     items: [
-      { label: "Users", href: "/admin/users", icon: "users", access: "admin" },
+      { label: "Question reports", href: "/admin/question-reports", icon: "reports", access: "admin" },
       { label: "Tickets", href: "/admin/support", icon: "tickets", access: "staff", flag: "SUPPORT" },
-      { label: "Library Pro", href: "/admin/pro-library", icon: "library", access: "admin" },
+      { label: "Community flags", href: "/admin/community", icon: "flag", access: "staff" },
+      {
+        label: "Students", href: "/admin/users", icon: "users", access: "admin",
+        children: [
+          { label: "Users", href: "/admin/users", icon: "users", access: "admin" },
+          { label: "Library Pro", href: "/admin/pro-library", icon: "library", access: "admin" },
+        ],
+      },
       { label: "Institutes", href: "/admin/institutes", icon: "institutes", access: "staff" },
     ],
   },
@@ -115,6 +121,7 @@ export const ADMIN_NAV: NavGroup[] = [
     label: "System",
     items: [
       { label: "Security (MFA)", href: "/admin/mfa", icon: "security", access: "staff" },
+      { label: "Settings", href: "/admin/settings", icon: "settings", access: "admin" },
       { label: "Design system", href: "/admin/design-system", icon: "design", access: "staff" },
     ],
   },

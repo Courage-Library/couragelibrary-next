@@ -41,6 +41,8 @@ import {
   QF_STEM_PREVIEW_CHARS,
 } from '@/types/question-factory';
 import { QuestionContextBuilder } from './question-context-builder.service';
+import { computeAutoChecks, blockingFailures, type AutoCheck } from '@/lib/question-factory/auto-checks';
+import { getAdminStudioSettings } from '@/lib/admin/studio-settings';
 import { QuestionPromptBuilder, QuestionPromptResult } from './question-prompt-builder.service';
 import { QuestionTaxonomyResolver } from './question-taxonomy-resolver';
 import { QuestionValidationService, QUESTION_GATE_IDS } from './question-validation.service';
@@ -321,6 +323,69 @@ export class AdminQuestionFactoryService {
     };
   }
 
+  /** Courage Studio auto checks for a loaded version (server data only). */
+  private static async computeChecks(ctx: AdminContext, detail: QuestionVersionDetail): Promise<AutoCheck[]> {
+    const other = detail.language === 'hi' ? 'en' : 'hi';
+    const [{ count: otherLang, error: lErr }, own] = await Promise.all([
+      ctx.supabase.from('question_versions').select('id', { count: 'exact', head: true }).eq('question_id', detail.questionId).eq('language', other).not('lifecycle_status', 'in', '(REJECTED,SUPERSEDED)'),
+      ctx.supabase.from('question_versions').select('content_checksum').eq('id', detail.versionId).maybeSingle(),
+    ]);
+    if (lErr || own.error) throw new QuestionFactoryError('LOOKUP_FAILED', (lErr || own.error)!.message);
+    let duplicateCount = 0;
+    const checksum = own.data?.content_checksum;
+    if (checksum) {
+      const { count, error } = await ctx.supabase.from('question_versions').select('id', { count: 'exact', head: true }).eq('content_checksum', checksum).neq('question_id', detail.questionId).not('lifecycle_status', 'in', '(REJECTED,SUPERSEDED)');
+      if (error) throw new QuestionFactoryError('LOOKUP_FAILED', error.message);
+      duplicateCount = count ?? 0;
+    }
+    return computeAutoChecks({
+      correctKey: detail.correctKey,
+      optionKeys: detail.options.map((o) => o.key),
+      explanationMd: detail.explanationMd,
+      topicId: detail.topicId,
+      topicName: detail.topicName,
+      difficulty: detail.difficulty,
+      language: detail.language,
+      hasOtherLanguage: (otherLang ?? 0) > 0,
+      duplicateCount,
+    });
+  }
+
+  /** The admin who moved this version to APPROVED (audit log; null when unknown). */
+  private static async approverOf(ctx: AdminContext, versionId: string): Promise<string | null> {
+    const { data, error } = await ctx.supabase
+      .from('admin_audit_logs')
+      .select('actor_id')
+      .eq('target_id', versionId)
+      .eq('action_type', 'QF_TRANSITION_APPROVED')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw new QuestionFactoryError('LOOKUP_FAILED', error.message);
+    return data?.actor_id ?? null;
+  }
+
+  /** Courage Studio focus review: the version + the other-language stem (when linked) + the server auto checks. */
+  static async getFocusItem(versionId: string): Promise<ServiceResult<{ detail: QuestionVersionDetail; otherLanguageStem: string | null; checks: AutoCheck[] }>> {
+    return this.guard(async (ctx) => {
+      const detail = await this.loadVersionDetail(ctx, versionId);
+      if (!detail) return fail('QF_VERSION_NOT_FOUND', 'Question version not found.');
+      const checks = await this.computeChecks(ctx, detail);
+      const other = detail.language === 'hi' ? 'en' : 'hi';
+      const { data: sib, error } = await ctx.supabase
+        .from('question_versions')
+        .select('question_text')
+        .eq('question_id', detail.questionId)
+        .eq('language', other)
+        .not('lifecycle_status', 'in', '(REJECTED,SUPERSEDED)')
+        .order('version_number', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw new QuestionFactoryError('LOOKUP_FAILED', error.message);
+      return { success: true, data: { detail, otherLanguageStem: sib?.question_text ?? null, checks } };
+    });
+  }
+
   private static async getLifecycle(ctx: AdminContext, versionId: string): Promise<QuestionLifecycleStatus> {
     const { data, error } = await ctx.supabase
       .from('question_versions')
@@ -351,6 +416,11 @@ export class AdminQuestionFactoryService {
         if (!checklist || missing.length > 0) {
           return fail('QF_CHECKLIST_REQUIRED', `Reviewer checklist incomplete: ${missing.map((m) => m.label).join('; ')}.`);
         }
+        // Courage Studio (#84 Q3): server-side auto checks — a failed blocking check stops Approve with its reason
+        const detail = await this.loadVersionDetail(ctx, versionId);
+        if (!detail) return fail('QF_VERSION_NOT_FOUND', 'Question version not found.');
+        const failed = blockingFailures(await this.computeChecks(ctx, detail));
+        if (failed.length) return fail('QF_AUTO_CHECK_FAILED', `Approval blocked: ${failed.map((c) => c.reason).join(' ')}`);
       }
       if ((to === 'CHANGES_REQUESTED' || to === 'REJECTED') && !String(notes || '').trim()) {
         return fail('QF_NOTES_REQUIRED', `${to} requires reviewer notes.`);
@@ -507,6 +577,13 @@ export class AdminQuestionFactoryService {
       if (from !== 'APPROVED') {
         return fail('QF_ILLEGAL_TRANSITION', `Only APPROVED versions can be published (current: ${from}).`);
       }
+      // Courage Studio (#84 Q4): who approved this version? Self-approve + publish needs a second reviewer when the
+      // admin setting require_second_reviewer is on; when it is off it is allowed and written to the audit log.
+      const approver = await this.approverOf(ctx, versionId);
+      const selfApproved = !!approver && approver === ctx.userId;
+      if (selfApproved && (await getAdminStudioSettings()).requireSecondReviewer) {
+        return fail('QF_SECOND_REVIEWER_REQUIRED', 'A second reviewer must publish a question you approved yourself.');
+      }
       const { data, error } = await ctx.supabase.rpc('fn_publish_question_version', {
         p_version_id: versionId,
         p_actor: ctx.userId,
@@ -516,6 +593,7 @@ export class AdminQuestionFactoryService {
         lifecycle_status: 'PUBLISHED',
         superseded_version_id: data.superseded_version_id ?? null,
       });
+      if (selfApproved) await this.audit(ctx, 'QF_SELF_APPROVED_PUBLISH', versionId, null, { approved_and_published_by_same_person: true });
       return { success: true, data: { versionId, supersededVersionId: data.superseded_version_id ?? null } };
     });
   }

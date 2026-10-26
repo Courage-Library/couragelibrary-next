@@ -6,6 +6,7 @@ import { isPaymentsEnabled } from "@/config/payments";
 import { isSupportTicketsEnabled } from "@/lib/support/tickets";
 import { AdminTopHeader } from "@/components/admin/admin-top-header";
 import { visibleNav, type NavFlags } from "@/lib/admin/nav";
+import { getFocusQueueCount } from "@/lib/admin/today";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -19,6 +20,8 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
   // ADMIN-UX-1 phase B (Q1): role-aware links — only pages this role can open, only live features
   const flags: NavFlags = { ADAPTIVE: isFeatureEnabled("ADAPTIVE"), LIVE_TESTS: isFeatureEnabled("LIVE_TESTS"), SUPPORT: isSupportTicketsEnabled(), PAYMENTS: isPaymentsEnabled() };
   const nav = visibleNav(role, flags);
+  // Courage Studio: the Focus review badge (a count only; read after the guard, server side)
+  const inReview = await getFocusQueueCount();
   const searchPlaceholder = role === "admin" ? "Search questions, users, tickets…" : "Search questions and tickets…";
 
   return (
@@ -30,7 +33,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
       >
         Skip to admin content
       </a>
-      <AdminSidebar nav={nav} />
+      <AdminSidebar nav={nav} badges={{ inReview }} />
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <AdminTopHeader nav={nav} role={role} searchPlaceholder={searchPlaceholder} />

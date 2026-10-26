@@ -347,7 +347,7 @@ function VersionDrawer({ versionId, onClose, onChanged }: { versionId: string; o
   );
 }
 
-function DraftEditor({
+export function DraftEditor({
   detail,
   onCancel,
   onSave,

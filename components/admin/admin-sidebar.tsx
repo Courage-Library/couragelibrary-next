@@ -6,13 +6,14 @@ import { useEffect, useRef, useState, type ComponentType } from "react";
 import {
   BarChart3, BookOpen, Building2, CalendarClock, ChevronDown, ClipboardCheck, Coins, CreditCard, FileQuestion, Flag,
   GraduationCap, Library, LifeBuoy, ListTree, Menu, Newspaper, Palette, Radio, ShieldCheck, Sparkles, Star, Trophy, Users, X,
-  LayoutDashboard, Gift,
+  LayoutDashboard, Gift, Target, Settings,
 } from "lucide-react";
 import { cn } from "@/components/ui/cn";
-import { activeHref, type NavGroup, type NavIcon, type NavItem } from "@/lib/admin/nav";
+import { activeHref, type NavBadges, type NavGroup, type NavIcon, type NavItem } from "@/lib/admin/nav";
 
 /**
- * ADMIN-UX-1 phase B sidebar. Links come ONLY from lib/admin/nav.ts, already filtered for the role + flags on the server
+ * ADMIN-UX-1 phase B sidebar, Courage Studio skin (decision #84: navy surface, subtle cyan / violet glow, brand tile,
+ * Focus review count badge). Links come ONLY from lib/admin/nav.ts, already filtered for the role + flags on the server
  * (role-aware visibility is UI only — every page keeps its own guard).
  *   ≥ 1280 px: 248 px sidebar, scrolls on its own (never clipped at any height)
  *   768–1279 px: 64 px icon rail (labels for assistive tech + tooltip); "Menu" opens the full list
@@ -23,14 +24,31 @@ const ICONS: Record<NavIcon, ComponentType<{ className?: string; "aria-hidden"?:
   today: LayoutDashboard, drafts: ClipboardCheck, reports: FileQuestion, news: Newspaper, flag: Flag, questions: FileQuestion,
   mocks: CalendarClock, learning: BookOpen, syllabus: ListTree, exams: GraduationCap, users: Users, tickets: LifeBuoy,
   library: Library, institutes: Building2, billing: CreditCard, premium: Star, security: ShieldCheck, design: Palette,
-  rewards: Gift, coins: Coins, badge: Trophy, live: Radio, adaptive: Sparkles,
+  rewards: Gift, coins: Coins, badge: Trophy, live: Radio, adaptive: Sparkles, focus: Target, settings: Settings,
 };
+
+/** A count badge (e.g. Focus review = questions in review). Text, not colour alone; hidden when 0 or unreadable. */
+function Badge({ n, rail }: { n: number | null | undefined; rail: boolean }) {
+  if (!n) return null;
+  const label = n > 99 ? "99+" : String(n);
+  return rail ? (
+    <span className="absolute right-1 top-1 min-w-4 rounded-full bg-accent-400 px-1 text-center text-[0.6875rem] font-bold leading-4 text-ink-950">
+      {label}
+      <span className="sr-only"> waiting</span>
+    </span>
+  ) : (
+    <span className="ml-auto rounded-full bg-accent-400 px-2 text-caption font-bold text-ink-950">
+      {label}
+      <span className="sr-only"> waiting</span>
+    </span>
+  );
+}
 
 function containsActive(item: NavItem, active: string | null): boolean {
   return !!active && (item.href === active || !!item.children?.some((c) => c.href === active));
 }
 
-function NavTree({ nav, active, rail, onNavigate }: { nav: NavGroup[]; active: string | null; rail: boolean; onNavigate?: () => void }) {
+function NavTree({ nav, active, rail, badges, onNavigate }: { nav: NavGroup[]; active: string | null; rail: boolean; badges: NavBadges; onNavigate?: () => void }) {
   const [openItems, setOpenItems] = useState<Record<string, boolean>>({});
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
@@ -74,9 +92,10 @@ function NavTree({ nav, active, rail, onNavigate }: { nav: NavGroup[]; active: s
                     const on = it.href === active || (rail && itemActive);
                     return (
                       <li key={it.href + it.label}>
-                        <Link href={it.href} aria-current={on ? "page" : undefined} className={linkClass(on)} title={rail ? it.label : undefined} onClick={onNavigate}>
+                        <Link href={it.href} aria-current={on ? "page" : undefined} className={cn(linkClass(on), "relative")} title={rail ? it.label : undefined} onClick={onNavigate}>
                           <Icon aria-hidden={true} className="size-5 shrink-0" />
                           <span className={cn(rail && "sr-only")}>{it.label}</span>
+                          {it.badge && <Badge n={badges[it.badge]} rail={rail} />}
                         </Link>
                       </li>
                     );
@@ -121,16 +140,25 @@ function NavTree({ nav, active, rail, onNavigate }: { nav: NavGroup[]; active: s
   );
 }
 
+/** Courage Studio brand tile: the gradient mark + "Courage Studio · Admin workspace" (links to Today). */
 function Brand({ rail }: { rail: boolean }) {
   return (
-    <Link href="/admin" className="focus-ring-on-dark mb-3 flex min-h-11 items-center gap-2 rounded-control px-3 text-white">
-      <BarChart3 aria-hidden="true" className="size-6 shrink-0 text-primary-300" />
-      <span className={cn("text-body font-bold", rail && "sr-only")}>Courage Library · Admin</span>
+    <Link href="/admin" className="focus-ring-on-dark mb-3 flex min-h-12 items-center gap-3 rounded-control px-2 text-white">
+      <span aria-hidden="true" className="brand-gradient flex size-9 shrink-0 items-center justify-center rounded-control">
+        <BarChart3 className="size-5 text-white" />
+      </span>
+      <span className={cn("flex flex-col leading-tight", rail && "sr-only")}>
+        <span className="text-body font-bold">Courage Studio</span>
+        <span className="text-caption text-primary-200">Admin workspace</span>
+      </span>
     </Link>
   );
 }
 
-export function AdminSidebar({ nav }: { nav: NavGroup[] }) {
+/** the navy sidebar surface with a subtle cyan (top) / violet (bottom) glow — decorative, behind the links */
+const SURFACE = "studio-sidebar bg-ink-900";
+
+export function AdminSidebar({ nav, badges = {} }: { nav: NavGroup[]; badges?: NavBadges }) {
   const pathname = usePathname() || "/admin";
   const active = activeHref(pathname, nav);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -147,7 +175,7 @@ export function AdminSidebar({ nav }: { nav: NavGroup[] }) {
   return (
     <>
       {/* < 768 px: top bar with the menu button */}
-      <div className="flex min-h-14 items-center gap-2 bg-primary-900 px-3 md:hidden">
+      <div className={cn(SURFACE, "flex min-h-14 items-center gap-2 px-3 md:hidden")}>
         <button
           type="button"
           onClick={() => setDrawerOpen(true)}
@@ -156,11 +184,11 @@ export function AdminSidebar({ nav }: { nav: NavGroup[] }) {
         >
           <Menu aria-hidden="true" className="size-6" />
         </button>
-        <span className="text-body font-bold text-white">Courage Library · Admin</span>
+        <span className="text-body font-bold text-white">Courage Studio</span>
       </div>
 
       {/* 768–1279 px rail */}
-      <aside aria-label="Admin navigation" className="hidden h-dvh w-16 shrink-0 flex-col overflow-y-auto bg-primary-900 px-2 py-3 md:flex xl:hidden">
+      <aside aria-label="Admin navigation" className={cn(SURFACE, "hidden h-dvh w-16 shrink-0 flex-col overflow-y-auto px-2 py-3 md:flex xl:hidden")}>
         <button
           type="button"
           onClick={() => setDrawerOpen(true)}
@@ -171,15 +199,15 @@ export function AdminSidebar({ nav }: { nav: NavGroup[] }) {
           <Menu aria-hidden="true" className="size-5" />
         </button>
         <nav aria-label="Admin">
-          <NavTree nav={nav} active={active} rail />
+          <NavTree nav={nav} active={active} rail badges={badges} />
         </nav>
       </aside>
 
       {/* ≥ 1280 px full sidebar */}
-      <aside aria-label="Admin navigation" className="hidden h-dvh w-62 shrink-0 flex-col overflow-y-auto bg-primary-900 px-3 py-4 xl:flex">
+      <aside aria-label="Admin navigation" className={cn(SURFACE, "hidden h-dvh w-62 shrink-0 flex-col overflow-y-auto px-3 py-4 xl:flex")}>
         <Brand rail={false} />
         <nav aria-label="Admin">
-          <NavTree nav={nav} active={active} rail={false} />
+          <NavTree nav={nav} active={active} rail={false} badges={badges} />
         </nav>
       </aside>
 
@@ -191,7 +219,7 @@ export function AdminSidebar({ nav }: { nav: NavGroup[] }) {
         onClick={(e) => {
           if (e.target === e.currentTarget) setDrawerOpen(false);
         }}
-        className="m-0 h-dvh max-h-none w-72 max-w-[85vw] bg-primary-900 p-0 backdrop:bg-ink-950/50"
+        className={cn(SURFACE, "m-0 h-dvh max-h-none w-72 max-w-[85vw] p-0 backdrop:bg-ink-950/50")}
       >
         <div className="flex h-full flex-col overflow-y-auto px-3 py-4">
           <div className="mb-2 flex items-center justify-between">
@@ -206,7 +234,7 @@ export function AdminSidebar({ nav }: { nav: NavGroup[] }) {
             </button>
           </div>
           <nav aria-label="Admin (menu)">
-            <NavTree nav={nav} active={active} rail={false} onNavigate={() => setDrawerOpen(false)} />
+            <NavTree nav={nav} active={active} rail={false} badges={badges} onNavigate={() => setDrawerOpen(false)} />
           </nav>
         </div>
       </dialog>

@@ -1,146 +1,195 @@
 import "server-only";
 import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { reportWriteFailure } from "@/lib/ops/write-failure";
+import { loadPublishedExamsForTopics } from "@/lib/syllabus/published-topic-exams";
+import type { AppSupabaseClient } from "@/lib/supabase/types";
+import { getAdminStudioSettings } from "./studio-settings";
+import { computeReviewStats, dailyCounts, REVIEW_ACTIONS, type ReviewStats } from "./review-stats-core";
 import type { AdminRole, NavFlags } from "./nav";
 
 /**
- * ADMIN-UX-1 phase B — the Today dashboard read model (READ ONLY, service role, called only from /admin after
- * requireAdminPage). Role-aware: a card exists only when the role can open its target page (admin-only pages →
- * admin-only cards), so Today never shows a count the role could not see on the page itself. Count-only queries
- * (head: true) except the audit list, which returns action / entity / time only — never actor e-mails or values.
- * Q5: no write-failure / nightly cards (no source the app can read; backlog OPS-EVENTS-1). A failed read shows
- * "Not available" for that card, never an invented number (R12).
+ * Courage Studio — TODAY v2 read model (decision #84; READ ONLY, service role, called only from /admin after
+ * requireAdminPage). Role-aware: a card exists only when the role can open its target page (admin-only pages → admin
+ * cards). Every number is a real query; a failed read is null → "Not available" (R12). No e-mails, no values from the
+ * audit log; the greeting uses the first name from the profile (or the role). Q5: no write-failure / nightly cards.
  */
-export type TodayTone = "waiting" | "calm";
-export interface TodayCard {
-  id: string;
-  label: string;
-  /** null = the read failed (shown as "Not available") */
-  count: number | null;
-  detail?: string | null;
-  href: string;
-  linkLabel: string;
-  tone: TodayTone;
-}
-export interface TodayRecent {
-  action: string;
-  entity: string;
-  at: string;
-}
-export interface TodayData {
-  cards: TodayCard[];
-  recent: TodayRecent[] | null;
-  glance: { label: string; value: number | null }[];
+export interface TodayV2 {
+  greetingName: string;
+  needYou: number;
+  mission: { goal: number; stats: ReviewStats | null; queueSize: number | null };
+  drafts: { inReview: number | null; approved: number | null; spark: number[] | null };
+  reports: { open: number | null; overdue: number | null; oldestDays: number | null } | null;
+  ca: { inReview: number | null; drafts: number | null };
+  tickets: { open: number | null; late: number | null } | null;
+  flags: number | null;
+  libraryEnding: number | null;
+  health: { exams: Array<{ id: string; title: string }>; subjects: Array<{ id: string; name: string }>; cells: Record<string, number> } | null;
+  recent: Array<{ action: string; entity: string; at: string }> | null;
 }
 
-type Admin = ReturnType<typeof createAdminServerSupabaseClient>;
+const DAY = 86400e3;
+const REPORT_OVERDUE_MS = 2 * DAY;
+
+function logRead(card: string, code: string | undefined) {
+  reportWriteFailure({ fn: "AdminTodayV2", table: card, op: "select", code: code ?? null, ids: { card } });
+}
+
 type CountQuery = PromiseLike<{ count: number | null; error: { code?: string } | null }>;
-
-async function count(id: string, q: CountQuery): Promise<number | null> {
+async function count(card: string, q: CountQuery): Promise<number | null> {
   const { count: n, error } = await q;
   if (error) {
-    reportWriteFailure({ fn: "AdminToday", table: id, op: "select", code: error.code ?? null, ids: { card: id } });
+    logRead(card, error.code);
     return null;
   }
   return n ?? 0;
 }
 
-const DAY = 86400e3;
-function ageLabel(iso: string | null | undefined): string | null {
-  if (!iso) return null;
-  const days = Math.floor((Date.now() - new Date(iso).getTime()) / DAY);
-  return days <= 0 ? "oldest from today" : `oldest ${days} day${days === 1 ? "" : "s"} old`;
-}
-
-export async function getTodayData(role: AdminRole, flags: NavFlags): Promise<TodayData> {
-  const sb: Admin = createAdminServerSupabaseClient();
-  const isAdmin = role === "admin";
-  const nowIso = new Date().toISOString();
+export async function getTodayV2(input: { role: AdminRole; userId: string; flags: NavFlags }): Promise<TodayV2> {
+  const sb = createAdminServerSupabaseClient();
+  const isAdmin = input.role === "admin";
   const head = { count: "exact" as const, head: true };
+  const since14 = new Date(Date.now() - 14 * DAY).toISOString();
+  const since60 = new Date(Date.now() - 60 * DAY).toISOString();
 
-  const [qInReview, qApproved, caInReview, flagsPending, publishedQ, mocks] = await Promise.all([
+  const [settings, profile, inReview, approved, created14, caInReview, caDrafts, flags, myReviews] = await Promise.all([
+    getAdminStudioSettings(),
+    sb.from("user_profiles").select("full_name").eq("id", input.userId).maybeSingle(),
     count("question_versions", sb.from("question_versions").select("id", head).eq("lifecycle_status", "IN_REVIEW")),
     count("question_versions", sb.from("question_versions").select("id", head).eq("lifecycle_status", "APPROVED")),
+    sb.from("question_versions").select("created_at").gte("created_at", since14).limit(5000),
     count("current_affairs_articles", sb.from("current_affairs_articles").select("id", head).eq("status", "IN_REVIEW")),
+    count("current_affairs_articles", sb.from("current_affairs_articles").select("id", head).eq("status", "DRAFT")),
     count("discussion_moderation_flags", sb.from("discussion_moderation_flags").select("id", head).eq("status", "PENDING")),
-    count("questions", sb.from("questions").select("id", head).eq("status", "published")),
-    count("mock_tests", sb.from("mock_tests").select("id", head).eq("status", "published").eq("is_dynamic", false)),
+    sb.from("admin_audit_logs").select("created_at").eq("actor_id", input.userId).in("action_type", [...REVIEW_ACTIONS]).gte("created_at", since60).limit(5000),
   ]);
+  if (created14.error) logRead("question_versions.spark", created14.error.code);
+  if (myReviews.error) logRead("admin_audit_logs.reviews", myReviews.error.code);
 
-  const cards: TodayCard[] = [
-    {
-      id: "question-drafts", label: "Question drafts awaiting review", count: qInReview,
-      detail: qApproved === null ? null : `${qApproved} approved, waiting to publish`,
-      href: "/admin/questions/factory?tab=review&status=IN_REVIEW", linkLabel: "Open the review queue", tone: (qInReview ?? 0) > 0 ? "waiting" : "calm",
-    },
-    {
-      id: "ca-review", label: "Current affairs drafts in review", count: caInReview,
-      href: "/admin/current-affairs?status=IN_REVIEW", linkLabel: "Review current affairs", tone: (caInReview ?? 0) > 0 ? "waiting" : "calm",
-    },
-  ];
+  const first = String(profile.data?.full_name ?? "").trim().split(/\s+/)[0] || "";
+  const stats = myReviews.error ? null : computeReviewStats((myReviews.data ?? []).map((r) => r.created_at), settings.dailyReviewGoal);
 
+  let reports: TodayV2["reports"] = null;
   if (isAdmin) {
-    const [open, oldest] = await Promise.all([
-      count("question_errata_reports", sb.from("question_errata_reports").select("id", head).in("status", ["OPEN", "UNDER_REVIEW"])),
-      sb.from("question_errata_reports").select("created_at").in("status", ["OPEN", "UNDER_REVIEW"]).order("created_at", { ascending: true }).limit(1).maybeSingle(),
-    ]);
-    cards.push({
-      id: "question-reports", label: "Open question reports", count: open, detail: open ? ageLabel(oldest.data?.created_at) : null,
-      href: "/admin/question-reports?status=OPEN", linkLabel: "Handle reports", tone: (open ?? 0) > 0 ? "waiting" : "calm",
-    });
+    const { data, error } = await sb.from("question_errata_reports").select("created_at").in("status", ["OPEN", "UNDER_REVIEW"]).limit(5000);
+    if (error) logRead("question_errata_reports", error.code);
+    const ages = (data ?? []).map((r) => Date.now() - new Date(r.created_at).getTime());
+    reports = error
+      ? { open: null, overdue: null, oldestDays: null }
+      : { open: ages.length, overdue: ages.filter((a) => a > REPORT_OVERDUE_MS).length, oldestDays: ages.length ? Math.floor(Math.max(...ages) / DAY) : null };
   }
 
-  if (flags.SUPPORT) {
+  let tickets: TodayV2["tickets"] = null;
+  if (input.flags.SUPPORT) {
     const dayAgo = new Date(Date.now() - DAY).toISOString();
-    const [openT, lateT, grievances] = await Promise.all([
+    const [open, late] = await Promise.all([
       count("support_tickets", sb.from("support_tickets").select("id", head).in("status", ["OPEN", "IN_PROGRESS"])),
       count("support_tickets", sb.from("support_tickets").select("id", head).eq("status", "OPEN").lt("created_at", dayAgo)),
-      count("support_tickets", sb.from("support_tickets").select("id", head).eq("category", "GRIEVANCE").in("status", ["OPEN", "IN_PROGRESS"])),
     ]);
-    cards.push({
-      id: "tickets", label: "Open tickets", count: openT,
-      detail: lateT === null ? null : lateT > 0 ? `${lateT} waiting longer than 24 hours` : "none waiting longer than 24 hours",
-      href: "/admin/support?status=OPEN", linkLabel: "Answer tickets", tone: (lateT ?? 0) > 0 || (openT ?? 0) > 0 ? "waiting" : "calm",
-    });
-    cards.push({
-      id: "grievances", label: "Open grievances", count: grievances,
-      href: "/admin/support?category=GRIEVANCE", linkLabel: "Open grievances", tone: (grievances ?? 0) > 0 ? "waiting" : "calm",
-    });
+    tickets = { open, late };
   }
 
-  cards.push({
-    id: "community-flags", label: "Community flags waiting", count: flagsPending,
-    href: "/admin/community", linkLabel: "Moderate", tone: (flagsPending ?? 0) > 0 ? "waiting" : "calm",
-  });
-
+  let libraryEnding: number | null = null;
   if (isAdmin) {
-    const ending = await count(
+    const nowIso = new Date().toISOString();
+    libraryEnding = await count(
       "user_entitlements",
-      sb.from("user_entitlements").select("id", head).eq("source", "LIBRARY").eq("is_active", true).is("revoked_at", null)
-        .gt("expires_at", nowIso).lte("expires_at", new Date(Date.now() + 7 * DAY).toISOString()),
+      sb.from("user_entitlements").select("id", head).eq("source", "LIBRARY").eq("is_active", true).is("revoked_at", null).gt("expires_at", nowIso).lte("expires_at", new Date(Date.now() + 7 * DAY).toISOString()),
     );
-    cards.push({ id: "library-ending", label: "Library Pro ending within 7 days", count: ending, href: "/admin/pro-library", linkLabel: "Library Pro", tone: "calm" });
   }
 
-  let recent: TodayRecent[] | null = null;
+  let recent: TodayV2["recent"] = null;
   if (isAdmin) {
-    const { data, error } = await sb.from("admin_audit_logs").select("action_type, target_entity, created_at").order("created_at", { ascending: false }).limit(8);
-    if (error) reportWriteFailure({ fn: "AdminToday", table: "admin_audit_logs", op: "select", code: error.code ?? null, ids: { card: "recent" } });
+    const { data, error } = await sb.from("admin_audit_logs").select("action_type, target_entity, created_at").order("created_at", { ascending: false }).limit(6);
+    if (error) logRead("admin_audit_logs", error.code);
     recent = error ? null : (data ?? []).map((r) => ({ action: r.action_type, entity: r.target_entity, at: r.created_at }));
   }
 
+  const health = await contentHealth(sb);
+  const needYou = [inReview, reports?.open ?? 0, caInReview, tickets?.open ?? 0, flags].reduce<number>((a, n) => a + (n ?? 0), 0);
+
   return {
-    cards,
+    greetingName: first || (isAdmin ? "Admin" : "Staff"),
+    needYou,
+    mission: { goal: settings.dailyReviewGoal, stats, queueSize: inReview },
+    drafts: { inReview, approved, spark: created14.error ? null : dailyCounts((created14.data ?? []).map((r) => r.created_at)) },
+    reports,
+    ca: { inReview: caInReview, drafts: caDrafts },
+    tickets,
+    flags,
+    libraryEnding,
+    health,
     recent,
-    glance: [
-      { label: "Published questions", value: publishedQ },
-      { label: "Published mock tests", value: mocks },
-    ],
+  };
+}
+
+/** Published questions by exam × subject (canonical topic → root subject; topic → exams of PUBLISHED syllabi). */
+async function contentHealth(sb: AppSupabaseClient): Promise<TodayV2["health"]> {
+  const [qs, exams] = await Promise.all([
+    sb.from("questions").select("canonical_topic_id").eq("status", "published").limit(20000),
+    sb.from("exams").select("id, title").eq("is_active", true).order("title"),
+  ]);
+  if (qs.error || exams.error) {
+    logRead("content_health", (qs.error || exams.error)?.code);
+    return null;
+  }
+  const topicIds = [...new Set((qs.data ?? []).map((q) => q.canonical_topic_id).filter(Boolean))] as string[];
+  const [nodes, topicExams] = await Promise.all([
+    topicIds.length ? sb.from("canonical_taxonomy_nodes").select("id, root_subject_id").in("id", topicIds) : Promise.resolve({ data: [], error: null }),
+    loadPublishedExamsForTopics(sb, topicIds),
+  ]);
+  if (nodes.error || !topicExams) {
+    logRead("content_health.map", nodes.error?.code);
+    return null;
+  }
+  const subjectOf = new Map((nodes.data ?? []).map((n: { id: string; root_subject_id: string | null }) => [n.id, n.root_subject_id]));
+  const subjectIds = [...new Set([...subjectOf.values()].filter(Boolean))] as string[];
+  const subj = subjectIds.length ? await sb.from("canonical_taxonomy_nodes").select("id, name, display_order").in("id", subjectIds).order("display_order") : { data: [], error: null };
+  if (subj.error) {
+    logRead("content_health.subjects", subj.error.code);
+    return null;
+  }
+  const cells: Record<string, number> = {};
+  for (const q of qs.data ?? []) {
+    const s = q.canonical_topic_id ? subjectOf.get(q.canonical_topic_id) : null;
+    if (!s) continue;
+    for (const e of topicExams.get(q.canonical_topic_id as string) ?? []) {
+      const k = `${e.examId}:${s}`;
+      cells[k] = (cells[k] ?? 0) + 1;
+    }
+  }
+  return {
+    exams: (exams.data ?? []).map((e) => ({ id: e.id, title: e.title })),
+    subjects: (subj.data ?? []).map((s: { id: string; name: string }) => ({ id: s.id, name: s.name })),
+    cells,
   };
 }
 
 /** "QUESTION_PUBLISHED" → "Question published" (audit action codes are shown, never values / e-mails). */
 export function humanAction(code: string): string {
-  const s = code.replace(/_/g, " ").toLowerCase();
+  const s = code.replace(/^QF_TRANSITION_/, "QUESTION_").replace(/_/g, " ").toLowerCase();
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** The Focus review sidebar badge: questions waiting in review (null when unreadable → no badge). Runs in the admin
+ *  layout, so it never throws: a failure here must not take the whole admin shell down. */
+export async function getFocusQueueCount(): Promise<number | null> {
+  try {
+    const sb = createAdminServerSupabaseClient();
+    return await count("question_versions", sb.from("question_versions").select("id", { count: "exact", head: true }).eq("lifecycle_status", "IN_REVIEW"));
+  } catch {
+    logRead("question_versions.badge", undefined);
+    return null;
+  }
+}
+
+/** The reviewer's own review stats today (focus review "n of goal"); null when the audit log is unreadable. */
+export async function getMyReviewStats(userId: string, goal: number): Promise<ReviewStats | null> {
+  const sb = createAdminServerSupabaseClient();
+  const since60 = new Date(Date.now() - 60 * DAY).toISOString();
+  const { data, error } = await sb.from("admin_audit_logs").select("created_at").eq("actor_id", userId).in("action_type", [...REVIEW_ACTIONS]).gte("created_at", since60).limit(5000);
+  if (error) {
+    logRead("admin_audit_logs.reviews", error.code);
+    return null;
+  }
+  return computeReviewStats((data ?? []).map((r) => r.created_at), goal);
 }

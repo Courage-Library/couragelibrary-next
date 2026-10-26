@@ -9,7 +9,7 @@
  *         or hard-coded role in the shell; sidebar scrolls (never clipped); header shows the real role
  *   AB-05 search: existing guard first; users only for admins, tickets only while support is on; LIKE wildcards escaped;
  *         results = id / label / detail / href only; the client imports only the action
- *   AB-06 Today: guard first; read model server-only + service role; admin-only cards only for admins; no actor e-mails;
+ *   AB-06 Today v2 (Courage Studio #84): guard first; read model server-only + service role; admin-only cards only for admins; no actor e-mails;
  *         failed reads show "Not available" (no invented values); no write-failure / nightly cards (Q5)
  *   AB-07 deep links: factory / CA / question reports / support accept only known values, after the guard
  *   AB-08 status chips: six kinds, text always shown; mapping of the existing statuses
@@ -73,14 +73,21 @@ test('AB-02 role-aware + flag-aware visibility', () => {
   assert(NAV.visibleNav('admin', ALL_ON).some((g) => g.id === 'payments'), 'Payments hidden while on');
   for (const h of ['/admin/support', '/admin/adaptive', '/admin/live-tests', '/admin/achievements']) assert(!allLeaves(adminOff).some((l) => l.href === h), `${h} shown while its flag is off`);
   for (const g of [...adminOff, ...NAV.visibleNav('staff', ALL_OFF)]) assert(g.items.length > 0, `empty group ${g.id}`);
-  const st = NAV.visibleNav('staff', ALL_OFF).find((g) => g.id === 'content').items.find((i) => i.label === 'Syllabus & taxonomy');
-  assert(st && !st.children && st.href === '/admin/syllabus', 'a parent with one visible child becomes a direct link');
+  // Courage Studio (#84): Today · Focus review, then CREATE · CARE · SYSTEM (Payments + Not live yet as before)
+  assert(JSON.stringify(NAV.ADMIN_NAV.map((g) => g.id)) === '["today","create","care","payments","system","dormant"]', 'Studio groups');
+  assert(JSON.stringify(NAV.ADMIN_NAV.find((g) => g.id === 'create').items.map((i) => i.label)) === '["Questions","Mock tests","Learning","Current affairs","Syllabus map"]', 'CREATE items');
+  const focus = NAV.ADMIN_NAV[0].items.find((i) => i.href === '/admin/review/focus');
+  assert(focus && focus.access === 'staff' && focus.badge === 'inReview', 'Focus review: staff + admin, count badge');
+  assert(!allLeaves(NAV.visibleNav('staff', ALL_ON)).some((l) => l.href === '/admin/settings'), 'Settings is admin-only');
+  const one = NAV.visibleNav('staff', ALL_OFF, [{ id: 'x', label: 'X', items: [{ label: 'Parent', href: '/admin/syllabus', icon: 'syllabus', access: 'staff', children: [{ label: 'Syllabus', href: '/admin/syllabus', icon: 'syllabus', access: 'staff' }, { label: 'Taxonomy', href: '/admin/taxonomy', icon: 'syllabus', access: 'admin' }] }] }])[0].items[0];
+  assert(one && !one.children && one.href === '/admin/syllabus' && one.label === 'Parent', 'a parent with one visible child becomes a direct link');
+  assert(!NAV.visibleNav('staff', ALL_ON).some((g) => g.items.some((i) => i.label === 'Students')), 'staff: no Students parent (both children admin-only)');
   assert(NAV.ADMIN_NAV.find((g) => g.id === 'dormant').collapsed === true, 'dormant group starts collapsed');
 });
 
 test('AB-03 exactly one active link', () => {
   const nav = NAV.visibleNav('admin', ALL_ON);
-  const cases = [['/admin', '/admin'], ['/admin/questions/factory', '/admin/questions/factory'], ['/admin/questions', '/admin/questions'], ['/admin/syllabus/abc', '/admin/syllabus'], ['/admin/content/topics', '/admin/content/topics'], ['/admin/mock-tests-management', null], ['/admin/mock-tests', '/admin/mock-tests'], ['/admin/live-tests/x/results', '/admin/live-tests']];
+  const cases = [['/admin', '/admin'], ['/admin/questions/factory', '/admin/questions/factory'], ['/admin/questions', '/admin/questions'], ['/admin/syllabus/abc', '/admin/syllabus'], ['/admin/content/topics', '/admin/content/topics'], ['/admin/mock-tests-management', null], ['/admin/mock-tests', '/admin/mock-tests'], ['/admin/live-tests/x/results', '/admin/live-tests'], ['/admin/review/focus', '/admin/review/focus'], ['/admin/settings', '/admin/settings']];
   for (const [p, want] of cases) assert(NAV.activeHref(p, nav) === want, `${p} → ${NAV.activeHref(p, nav)} (want ${want})`);
   assert(NAV.pageContext('/admin/question-reports', nav).title === 'Question reports' && NAV.pageContext('/nowhere', nav).title === 'Admin', 'header title');
 });
@@ -112,22 +119,23 @@ test('AB-05 search: guard first; role rules per group; escaped LIKE; minimal fie
   assert(/^"use client";/.test(c) && !/createAdmin|users-directory"|SERVICE_ROLE/.test(c) && /adminSearchAction/.test(c), 'client imports only the action');
 });
 
-test('AB-06 Today: guard first, server-only read model, admin-only cards, no e-mails, honest failures', () => {
+test('AB-06 Today v2: guard first, server-only read model, admin-only cards, no e-mails, honest failures', () => {
   const p = code(read('app/admin/page.tsx'));
   const body = p.slice(p.indexOf('export default async function AdminTodayPage('));
   assert(body.indexOf('await requireAdminPage({ allowStaff: true, path: "/admin" })') > 0 && body.indexOf('await requireAdminPage') === body.indexOf('await '), 'guard first');
   const t = read('lib/admin/today.ts');
   assert(/^import "server-only";/.test(t) && /createAdminServerSupabaseClient\(\)/.test(t), 'server-only, service role');
   const tc = code(t);
-  for (const id of ['question-reports', 'library-ending']) {
-    const i = tc.indexOf(`id: "${id}"`);
-    assert(i > 0 && tc.lastIndexOf('if (isAdmin)', i) > tc.lastIndexOf('cards.push({\n    id: "community-flags"', i), `${id} only for admins`);
-  }
-  assert(/if \(isAdmin\) \{\s*\n\s*const \{ data, error \} = await sb\.from\("admin_audit_logs"\)\.select\("action_type, target_entity, created_at"\)/.test(tc), 'recent: admin only, no actor e-mail / values');
-  assert(!/actor_email|old_value|new_value/.test(tc), 'no e-mails / values read');
-  assert(/count === null \? "Not available"/.test(p) && /\?\? "Not available"/.test(p), 'failed read → Not available');
-  assert(!/write.?failure|nightly/i.test(code(p)) && !/id: "(write|nightly)/.test(tc), 'Q5: no write-failure / nightly cards');
-  assert((p.match(/data-today-primary/g) || []).length === 1, 'one primary action (R4)');
+  assert(/if \(isAdmin\) \{\s*const \{ data, error \} = await sb\.from\("question_errata_reports"\)/.test(tc), 'question reports: admin only');
+  assert(/if \(isAdmin\) \{\s*const nowIso[\s\S]{0,80}libraryEnding = await count\(/.test(tc), 'Library Pro: admin only');
+  assert(/if \(isAdmin\) \{\s*const \{ data, error \} = await sb\.from\("admin_audit_logs"\)\.select\("action_type, target_entity, created_at"\)/.test(tc), 'recent: admin only, no actor e-mail / values');
+  assert(/if \(input\.flags\.SUPPORT\) \{/.test(tc), 'tickets only while support is on');
+  assert(!/actor_email|old_value|new_value|\bemail\b/.test(tc), 'no e-mails / values read');
+  assert(/const NA = "Not available";/.test(p) && /value === null \? NA/.test(p) && /return null;\s*\}\s*return n \?\? 0;/.test(t), 'failed read → null → Not available');
+  assert(!/write.?failure|nightly/i.test(p) && !/id: "(write|nightly)/.test(tc), 'Q5: no write-failure / nightly cards');
+  assert((p.match(/data-today-primary/g) || []).length === 1 && /href=\{FOCUS_HREF\}[^>]*data-today-primary/.test(p), 'one primary action (R4) = Start focus session');
+  assert(/<FocusShortcut href=\{FOCUS_HREF\} \/>/.test(p) && /const FOCUS_HREF = "\/admin\/review\/focus";/.test(p), 'F starts the focus session');
+  assert(/mission-gradient/.test(p) && /data-today-card=\{id\}/.test(p), 'mission card + queue cards');
 });
 
 test('AB-07 deep links accept only known values, after the guard', () => {

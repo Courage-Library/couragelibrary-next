@@ -113,3 +113,10 @@ export async function qfGetCoverageAction(subjectId?: string) {
   if (!__auth.ok) return __auth;
   return sanitizeActionResult("qfGetCoverageAction", await (AdminQuestionFactoryService.getCoverage(subjectId)));
 }
+
+/** Courage Studio focus review: one version with its server-side auto checks (same guard as every QF action). */
+export async function qfGetFocusItemAction(versionId: string) {
+  const __auth = await guardAdminAction({ allowStaff: true });
+  if (!__auth.ok) return __auth;
+  return sanitizeActionResult("qfGetFocusItemAction", await (AdminQuestionFactoryService.getFocusItem(versionId)));
+}

@@ -43,7 +43,7 @@ function createMockSupabase(handler) {
       if (WRITE_OPS.has(op)) log.writes.push({ table, op, args });
       return chain;
     };
-    ['select', 'eq', 'neq', 'in', 'order', 'limit', 'range', 'insert', 'update', 'delete', 'upsert', 'ilike', 'is'].forEach((op) => {
+    ['select', 'eq', 'neq', 'in', 'order', 'limit', 'range', 'insert', 'update', 'delete', 'upsert', 'ilike', 'is', 'not', 'gte', 'lt'].forEach((op) => {
       chain[op] = record(op);
     });
     const resolve = (mode) => {
@@ -483,10 +483,12 @@ const OPTS = { origin: 'AI_EXTERNAL', requireContextHash: true, cognitiveTrapCod
 
   // ===================== ADMIN SERVICE =====================
   console.log('[Admin service]');
-  const versionState = { lifecycle: 'DRAFT' };
+  // Courage Studio (#84): approve also runs the server auto checks on the stored version, so the fixture is a complete
+  // version (key among the options, explanation, topic, difficulty); versionState.explanation = null makes one fail.
+  const versionState = { lifecycle: 'DRAFT', explanation: 'Because 12 × 3 = 36, option A is the only answer.' };
   const adminSb = () =>
     createMockSupabase(({ table, rpc, ops }) => {
-      if (table === 'question_versions') return { data: { id: 'v1', lifecycle_status: versionState.lifecycle, question_id: 'q1', questions: { canonical_topic_id: TOPIC } }, error: null };
+      if (table === 'question_versions') return { data: { id: 'v1', lifecycle_status: versionState.lifecycle, question_id: 'q1', question_text: 'What is 12 × 3?', difficulty: 'medium', language: 'en', questions: { canonical_topic_id: TOPIC, topics: { name: 'Arithmetic' } }, question_options: [{ option_key: 'A', option_text: '36', order_index: 0 }, { option_key: 'B', option_text: '39', order_index: 1 }], question_answers: [{ correct_option_key: 'A', explanation_md: versionState.explanation }], question_version_authoring: [{}] }, error: null };
       if (table === 'admin_audit_logs') return { data: null, error: null };
       if (rpc) return { data: { success: true }, error: null };
       return { data: [], error: null };
@@ -538,6 +540,19 @@ const OPTS = { origin: 'AI_EXTERNAL', requireContextHash: true, cognitiveTrapCod
     const audit = currentSupabase.log.writes.find((w) => w.table === 'admin_audit_logs');
     assert(audit && audit.args[0].actor_email && audit.args[0].action_type && audit.args[0].target_entity === 'question_version', 'audit columns');
   });
+  await test('ADM-3b approve with a failed blocking auto check → QF_AUTO_CHECK_FAILED with the reason, no RPC', async () => {
+    versionState.lifecycle = 'IN_REVIEW';
+    versionState.explanation = null;
+    try {
+      currentSupabase = adminSb();
+      const full = { correct_key_verified: true, explanation_correct: true, no_ambiguity: true, topic_correct: true, difficulty_sensible: true, provenance_verified: true };
+      const r = await AdminQuestionFactoryService.approve('v1', full);
+      assert(!r.success && r.errorCode === 'QF_AUTO_CHECK_FAILED' && /explanation/i.test(r.error), `${r.errorCode}: ${r.error}`);
+      assert(currentSupabase.log.rpcs.length === 0, 'no transition RPC');
+    } finally {
+      versionState.explanation = 'Because 12 × 3 = 36, option A is the only answer.';
+    }
+  });
   await test('ADM-4 publish from non-APPROVED → error, no RPC', async () => {
     for (const state of ['DRAFT', 'IN_REVIEW', 'PUBLISHED', 'REJECTED']) {
       versionState.lifecycle = state;
@@ -546,6 +561,39 @@ const OPTS = { origin: 'AI_EXTERNAL', requireContextHash: true, cognitiveTrapCod
       assert(!r.success && r.errorCode === 'QF_ILLEGAL_TRANSITION', `publish from ${state}`);
       assert(currentSupabase.log.rpcs.length === 0);
     }
+  });
+  // Courage Studio (#84 Q4): self-approve + publish. The approver comes from the audit log; the setting from
+  // premium_system_configs (ADMIN_REQUIRE_SECOND_REVIEWER). On → refused before the RPC; off → published + audited.
+  const q4Sb = (secondReviewer, approver) =>
+    createMockSupabase(({ table, rpc, mode }) => {
+      if (table === 'question_versions') return { data: { id: 'v1', lifecycle_status: 'APPROVED' }, error: null };
+      if (table === 'admin_audit_logs') return { data: mode === 'maybeSingle' ? { actor_id: approver } : null, error: null };
+      if (table === 'premium_system_configs') return { data: secondReviewer === null ? [] : [{ config_key: 'ADMIN_REQUIRE_SECOND_REVIEWER', config_value: { value: secondReviewer }, is_enabled: true }], error: null };
+      if (rpc) return { data: { success: true, superseded_version_id: null }, error: null };
+      return { data: [], error: null };
+    });
+  await test('Q4-1 self-approve + publish: second reviewer ON → QF_SECOND_REVIEWER_REQUIRED, no RPC', async () => {
+    currentSupabase = q4Sb(true, authState.userId);
+    const r = await AdminQuestionFactoryService.publish('v1');
+    assert(!r.success && r.errorCode === 'QF_SECOND_REVIEWER_REQUIRED', `${r.errorCode}`);
+    assert(currentSupabase.log.rpcs.length === 0, 'no publish RPC');
+  });
+  await test('Q4-2 self-approve + publish: setting OFF / absent → published + QF_SELF_APPROVED_PUBLISH audit row', async () => {
+    for (const setting of [false, null]) {
+      currentSupabase = q4Sb(setting, authState.userId);
+      const r = await AdminQuestionFactoryService.publish('v1');
+      assert(r.success, `setting ${setting}: ${r.error}`);
+      assert(currentSupabase.log.rpcs[0].name === 'fn_publish_question_version', 'publish RPC');
+      const acts = currentSupabase.log.writes.filter((w) => w.table === 'admin_audit_logs').map((w) => w.args[0].action_type);
+      assert(acts.includes('QF_PUBLISH') && acts.includes('QF_SELF_APPROVED_PUBLISH'), JSON.stringify(acts));
+    }
+  });
+  await test('Q4-3 a different approver: published, no self-approve audit row, even with the setting ON', async () => {
+    currentSupabase = q4Sb(true, '22222222-2222-4222-8222-222222222222');
+    const r = await AdminQuestionFactoryService.publish('v1');
+    assert(r.success, r.error);
+    const acts = currentSupabase.log.writes.filter((w) => w.table === 'admin_audit_logs').map((w) => w.args[0].action_type);
+    assert(acts.includes('QF_PUBLISH') && !acts.includes('QF_SELF_APPROVED_PUBLISH'), JSON.stringify(acts));
   });
   await test('ADM-5 illegal transitions rejected (DRAFT→APPROVED, PUBLISHED→IN_REVIEW, REJECTED→IN_REVIEW)', async () => {
     const cases = [['DRAFT', () => AdminQuestionFactoryService.approve('v1', {})], ['PUBLISHED', () => AdminQuestionFactoryService.submitForReview('v1')], ['REJECTED', () => AdminQuestionFactoryService.submitForReview('v1')], ['DRAFT', () => AdminQuestionFactoryService.reject('v1', 'x')]];
