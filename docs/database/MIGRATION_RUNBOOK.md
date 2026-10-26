@@ -102,6 +102,14 @@ It then executes the file **and** writes the ledger row (`APPLIED`, checksum, to
 
 ## 4. Verify
 
+- **REAL-ROLE VERIFY (permanent rule, 2026-10-26):** every migration smoke and verify must exercise each affected path as the role that calls it in production:
+  - `service_role` for server writes;
+  - the authenticated QA student (plus QA staff / admin where relevant) for client paths;
+  - `anon` for public reads.
+
+  A run as `postgres` / the owner alone **does not count as verified**. Owner rights hide missing grants. Observed in 095: a SECURITY INVOKER trigger called owner-only helpers, so every service-role vault insert failed, and 095's owner-run verify passed anyway. Fixed by 110.
+- **Migration checklist, verify step:** for every function, trigger, policy or grant the migration touches, list which roles reach it (service_role / authenticated / anon). Run at least one rolled-back call per role: the allowed path must succeed and the denied path must fail. Report each check per role.
+- **SCHEDULED-CHECKS (permanent rule, 2026-10-26):** no local background sleeps for timed checks; a sleeping machine kills them (the 2026-10-25 21:35 job never ran). A recurring or timed verify goes into a GitHub Actions scheduled workflow (read-only, existing secrets), or runs the next time the owner messages.
 - Re-run the relevant DB suites. For question-bank changes: `node scripts/test_qf1_db.cjs` (all scenario writes are rolled back).
 - Re-run the offline suites:
   ```bash
