@@ -1,4 +1,35 @@
+# CRLF-1 (architect, 2026-10-26): LF everywhere, in the index AND in every working copy, whatever core.autocrlf says.
+# Root cause of the repeated local-only gate failures (F2 T-09, CI-SUPPORT C-10 / C-15): Git for Windows ships
+# core.autocrlf=true, so working copies got CRLF while CI (Linux) reads LF.
+* text=auto eol=lf
+
 # DRILL-1: SQL migrations and rollbacks must keep LF line endings in every checkout.
 # Rollbacks restore function bodies byte-exactly (md5); a CRLF checkout (core.autocrlf=true) would change them.
 supabase/migrations/*.sql text eol=lf
 docs/database/rollback/*.sql text eol=lf
+
+# Windows scripts keep CRLF (cmd.exe needs it)
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary — never converted, never diffed as text
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.avif binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.eot binary
+*.zip binary
+*.gz binary
+*.dump binary
+*.mp4 binary
+*.webm binary
+*.mp3 binary
