@@ -3,8 +3,8 @@
 Concept: `docs/reports/ux/admin_ux_1/concept/studio-today.png`. Commit 3f98664.
 
 **Proof (local, outside the repo):** `E:\CourageLibrary-Backups\studio-p2-polish-20261027-0101\` contains:
-- `side-by-side@1440x900.png` and `side-by-side@1280x800.png` (concept left, built right);
-- `admin_admin@1440x900.png`, `admin_admin@1280x800.png`, `staff_admin@*.png`;
+- the two `side-by-side` images, 1440×900 and 1280×800 (concept left, built right);
+- the admin and staff screen-sized captures at both sizes;
 - `full/` (full-page shots at 1440 and 390, admin + staff).
 
 **Real data = empty queue.** The dev DB has 0 questions IN_REVIEW, so the "real data" captures *are* the empty-queue state. The filled state (ring progress, "Start focus session", time left, streak) needs real IN_REVIEW items, and CONTENT-IMPORT-1 is held (see its report). It will be captured right after the import.
