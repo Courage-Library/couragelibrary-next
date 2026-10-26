@@ -104,7 +104,7 @@ test('SF-04 submitTestAttempt: result kept, failures logged (scoring, status, va
 
 test('SF-05 logger = ids + error code only; VAULT-HEALTH in the live job', () => {
   const w = read('lib/ops/write-failure.ts');
-  assert(/^import "server-only";/.test(w) && /tag: WRITE_FAILURE_TAG, fn: f\.fn, table: f\.table, op: f\.op, code: f\.code \?\? null, ids,/.test(w), 'structured line');
+  assert(/tag: WRITE_FAILURE_TAG, fn: f\.fn, table: f\.table, op: f\.op, code: f\.code \?\? null, ids,/.test(w) && !/process\.env|createAdmin|SUPABASE/.test(w), 'structured line; pure (no env / clients)');
   assert(!/email|full_name|selected_option|answer_text/i.test(w.replace(/\/\*[\s\S]*?\*\//g, '')), 'no PII fields');
   assert(/"\$Q VAULT-HEALTH -- node scripts\/live\/test_vault_health\.cjs" \\/.test(read('.github/workflows/ci-gates.yml')), 'nightly');
 });

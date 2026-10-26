@@ -1,10 +1,9 @@
-import "server-only";
-
 /**
  * SILENT-FAIL-1 (architect, 2026-10-26): a server-side write on important data must never fail silently. Callers keep
  * the user's flow going (e.g. a submit still shows the result) but every failure is logged here as ONE structured line
  * that log search, the nightly and health checks can find: tag "ops.write_failure".
  * No PII: only ids (attempt / question / row ids) and the database error code — never names, emails or answer text.
+ * Pure formatter (no secrets, no server imports), so offline gates can load the modules that use it.
  */
 export type WriteFailure = {
   /** the server function that performed the write, e.g. "MistakeService.recordExamMistakes" */
