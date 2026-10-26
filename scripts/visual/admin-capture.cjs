@@ -8,6 +8,7 @@
  *     BEFORE each screenshot; the run FAILS if any e-mail-looking string is still present afterwards
  *   - records every non-GET request made by the pages; the run fails if there is one (read-only browsing)
  *   - axe-core (WCAG 2.0/2.1/2.2 A + AA) on each route at 1440: serious / critical counts per route → summary.json
+ *   - output is written OUTSIDE the repository (names / student data are not masked; captures are never committed)
  * Usage (through scripts/live/with-server.cjs only):
  *   node scripts/visual/admin-capture.cjs --base=http://localhost:3100 --out=<dir> [--widths=1440,1024] [--routes=a,b]
  */
@@ -20,7 +21,9 @@ const { qaBrowserLogin } = require(path.join(ROOT, 'scripts/live/qa-session.cjs'
 const arg = (k, d) => (process.argv.find((a) => a.startsWith(`--${k}=`)) || `--${k}=${d}`).slice(k.length + 3);
 const BASE = arg('base', 'http://localhost:3100').replace(/\/$/, '');
 if (!/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(BASE)) throw new Error('base must be a local dev host');
-const OUT = path.resolve(arg('out', path.join(ROOT, 'docs/reports/ux/admin_ux_1/capture')));
+// OUTSIDE the repo by default: names / student data stay on screen even with e-mails blanked — never commit captures
+const OUT = path.resolve(arg('out', path.join(ROOT, '..', 'CourageLibrary-Backups', 'admin-ux1-captures', 'capture')));
+if (OUT.startsWith(ROOT + path.sep)) throw new Error('--out must be outside the repository (captures may show names)');
 const WIDTHS = arg('widths', '1440,1024').split(',').map(Number);
 const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
 
