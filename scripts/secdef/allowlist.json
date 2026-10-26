@@ -14,16 +14,17 @@
   "F11 (#79, 2026-10-25): max total / client_executable_callable / A raised by exactly 1 for fn_create_support_ticket — a NEW reviewed client entrypoint authorised by the F11 brief (ticket form)",
   "F5 (decision #77, 2026-10-25): max total / client_executable_callable / A raised by exactly 2 for fn_memory_lock_answer and fn_memory_lock_add — NEW reviewed client entrypoints authorised by the F5 brief (one atomic answer RPC; manual add)",
   "AGE-18 (owner decision, legal, 2026-10-25): max total / client_executable_callable / A raised by exactly 1 for fn_confirm_age — a NEW reviewed client entrypoint authorised by the architect's AGE-18 brief (auth.uid() only, sets the canonical adult_confirmed_at once, never clears it)",
-  "P6-MFA-FLAG (architect ruling on RLS P-6, 2026-10-26): max total / client_executable_callable / A raised by exactly 1 for fn_admin_mfa_required — a STABLE read-only helper returning ONLY the security_settings.admin_mfa_required boolean, so the table needs no client read (P-6) while the staff predicates (which run as the caller) can still read the flag; EXECUTE authenticated + service_role only (anon never runs the predicates)"
+  "P6-MFA-FLAG (architect ruling on RLS P-6, 2026-10-26): max total / client_executable_callable / A raised by exactly 1 for fn_admin_mfa_required — a STABLE read-only helper returning ONLY the security_settings.admin_mfa_required boolean, so the table needs no client read (P-6) while the staff predicates (which run as the caller) can still read the flag; EXECUTE authenticated + service_role only (anon never runs the predicates)",
+  "F9-B (architect GO, 2026-10-26): max total raised by exactly 8 and B-service by 9 for the 8 service-role-only payment functions of migration 114 (no client EXECUTE) plus fn_create_payment_order moved A to B-service after its client EXECUTE was revoked (113); client_executable_callable and A lowered by 1"
  ],
  "max": {
-  "total": 107,
-  "client_executable_callable": 49,
+  "total": 115,
+  "client_executable_callable": 48,
   "anon_or_public": 1,
-  "A": 49,
+  "A": 48,
   "C": 0,
   "B-trigger": 15,
-  "B-service": 29,
+  "B-service": 38,
   "B-internal": 0
  },
  "public_ok": [
@@ -119,12 +120,10 @@
    "reason": "service-role RPC with an app caller (F-5 INVOKER conversion deferred)"
   },
   "fn_create_payment_order(p_order_type text, p_plan_id uuid, p_course_id uuid, p_coupon_code text, p_gateway text, p_idempotency_key text)": {
-   "class": "A",
-   "client": [
-    "authenticated"
-   ],
+   "class": "B-service",
+   "client": [],
    "search_path": "public, pg_temp",
-   "reason": "client entrypoint; own check: auth.uid()"
+   "reason": "legacy order RPC — client EXECUTE REVOKED by migration 113 (F9-B, mandatory); kept for history, no app caller (replaced by fn_create_pro_order)"
   },
   "fn_create_question_revision(p_question_id uuid, p_actor uuid, p_payload jsonb)": {
    "class": "B-service",
@@ -770,6 +769,54 @@
    ],
    "search_path": "\"\"",
    "reason": "read-only helper (P6-MFA-FLAG, migration 111): returns only the admin-MFA boolean for fn_jwt_is_admin_or_staff / fn_jwt_is_admin, which run as the caller inside RLS; no input, no other data; authenticated + service_role only — listed before the owner applies it"
+  },
+  "fn_has_pro(p_user_id uuid)": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "\"\"",
+   "reason": "F9-B (architect GO, migration 114): service-role-only payment RPC; REVOKE ALL FROM PUBLIC/anon/authenticated, EXECUTE to service_role only; called by the server (order action / verify route / webhook / admin action) after its own auth + HMAC checks; canonical Pro check (read-only boolean)"
+  },
+  "fn_create_pro_order(p_user_id uuid, p_plan_code text, p_idempotency_key text)": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "\"\"",
+   "reason": "F9-B (architect GO, migration 114): service-role-only payment RPC; REVOKE ALL FROM PUBLIC/anon/authenticated, EXECUTE to service_role only; called by the server (order action / verify route / webhook / admin action) after its own auth + HMAC checks; creates a PRO_PLAN order from the server plan version (18+, idempotent, rate-limited, founding limit); price never from the client"
+  },
+  "fn_attach_gateway_order(p_order_id uuid, p_user_id uuid, p_gateway_order_id text)": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "\"\"",
+   "reason": "F9-B (architect GO, migration 114): service-role-only payment RPC; REVOKE ALL FROM PUBLIC/anon/authenticated, EXECUTE to service_role only; called by the server (order action / verify route / webhook / admin action) after its own auth + HMAC checks; stores the gateway order id on the caller's own CREATED order"
+  },
+  "fn_fulfil_pro_order(p_gateway_order_id text, p_payment_id text, p_amount_paise integer, p_currency text, p_source text)": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "\"\"",
+   "reason": "F9-B (architect GO, migration 114): service-role-only payment RPC; REVOKE ALL FROM PUBLIC/anon/authenticated, EXECUTE to service_role only; called by the server (order action / verify route / webhook / admin action) after its own auth + HMAC checks; THE ONE fulfil path (client verify + webhook); fail closed, idempotent, amount/currency checked against the snapshot"
+  },
+  "fn_mark_pro_order_failed(p_gateway_order_id text)": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "\"\"",
+   "reason": "F9-B (architect GO, migration 114): service-role-only payment RPC; REVOKE ALL FROM PUBLIC/anon/authenticated, EXECUTE to service_role only; called by the server (order action / verify route / webhook / admin action) after its own auth + HMAC checks; payment.failed: CREATED/PENDING to FAILED only"
+  },
+  "fn_refund_pro_payment(p_payment_id text, p_refund_amount_paise integer, p_gateway_refund_id text)": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "\"\"",
+   "reason": "F9-B (architect GO, migration 114): service-role-only payment RPC; REVOKE ALL FROM PUBLIC/anon/authenticated, EXECUTE to service_role only; called by the server (order action / verify route / webhook / admin action) after its own auth + HMAC checks; refund webhook: idempotent per refund id; never deletes"
+  },
+  "fn_grant_library_pro(p_user_id uuid, p_valid_until timestamp with time zone, p_admin_id uuid)": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "\"\"",
+   "reason": "F9-B (architect GO, migration 114): service-role-only payment RPC; REVOKE ALL FROM PUBLIC/anon/authenticated, EXECUTE to service_role only; called by the server (order action / verify route / webhook / admin action) after its own auth + HMAC checks; admin library grant (audited); the server action checks admin first"
+  },
+  "fn_revoke_library_pro(p_entitlement_id uuid, p_admin_id uuid)": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "\"\"",
+   "reason": "F9-B (architect GO, migration 114): service-role-only payment RPC; REVOKE ALL FROM PUBLIC/anon/authenticated, EXECUTE to service_role only; called by the server (order action / verify route / webhook / admin action) after its own auth + HMAC checks; admin library revoke (audited; never deletes)"
   }
  }
 }

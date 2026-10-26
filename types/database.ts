@@ -87,6 +87,36 @@ export type Database = {
         }
         Relationships: []
       }
+      app_settings: {
+        Row: {
+          founding_limit: number
+          free_daily_mock: number
+          free_memory_lock_active: number
+          free_practice_daily: number
+          gst_registered: boolean
+          id: boolean
+          updated_at: string
+        }
+        Insert: {
+          founding_limit?: number
+          free_daily_mock?: number
+          free_memory_lock_active?: number
+          free_practice_daily?: number
+          gst_registered?: boolean
+          id?: boolean
+          updated_at?: string
+        }
+        Update: {
+          founding_limit?: number
+          free_daily_mock?: number
+          free_memory_lock_active?: number
+          free_practice_daily?: number
+          gst_registered?: boolean
+          id?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       attempt_answers: {
         Row: {
           attempt_id: string
@@ -3043,6 +3073,21 @@ export type Database = {
           },
         ]
       }
+      founding_offer: {
+        Row: {
+          id: boolean
+          sold: number
+        }
+        Insert: {
+          id?: boolean
+          sold?: number
+        }
+        Update: {
+          id?: boolean
+          sold?: number
+        }
+        Relationships: []
+      }
       gamification_events: {
         Row: {
           actual_coins_awarded: number
@@ -4023,18 +4068,23 @@ export type Database = {
       }
       payment_orders: {
         Row: {
+          amount_paise: number | null
           base_amount: number
           course_id: string | null
           created_at: string
           currency: string
           discount_amount: number
           expires_at: string
+          founding: boolean
           gateway: string
           gateway_order_id: string | null
           id: string
           idempotency_key: string | null
           order_type: string
+          plan_code: string | null
           plan_id: string | null
+          plan_version: number | null
+          pro_plan_version_id: string | null
           status: string
           tax_amount: number
           tax_rate_pct: number
@@ -4044,18 +4094,23 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          amount_paise?: number | null
           base_amount: number
           course_id?: string | null
           created_at?: string
           currency?: string
           discount_amount?: number
           expires_at?: string
+          founding?: boolean
           gateway?: string
           gateway_order_id?: string | null
           id?: string
           idempotency_key?: string | null
           order_type: string
+          plan_code?: string | null
           plan_id?: string | null
+          plan_version?: number | null
+          pro_plan_version_id?: string | null
           status?: string
           tax_amount?: number
           tax_rate_pct?: number
@@ -4065,18 +4120,23 @@ export type Database = {
           user_id: string
         }
         Update: {
+          amount_paise?: number | null
           base_amount?: number
           course_id?: string | null
           created_at?: string
           currency?: string
           discount_amount?: number
           expires_at?: string
+          founding?: boolean
           gateway?: string
           gateway_order_id?: string | null
           id?: string
           idempotency_key?: string | null
           order_type?: string
+          plan_code?: string | null
           plan_id?: string | null
+          plan_version?: number | null
+          pro_plan_version_id?: string | null
           status?: string
           tax_amount?: number
           tax_rate_pct?: number
@@ -4098,6 +4158,82 @@ export type Database = {
             columns: ["plan_id"]
             isOneToOne: false
             referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_orders_pro_plan_version_id_fkey"
+            columns: ["pro_plan_version_id"]
+            isOneToOne: false
+            referencedRelation: "pro_plan_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_receipts: {
+        Row: {
+          amount_paise: number
+          business_name: string
+          created_at: string
+          currency: string
+          email_sent_at: string | null
+          gateway_payment_id: string
+          id: string
+          order_id: string
+          period_end: string
+          period_start: string
+          plan_code: string
+          plan_version: number
+          receipt_number: string
+          transaction_id: string | null
+          user_id: string
+        }
+        Insert: {
+          amount_paise: number
+          business_name: string
+          created_at?: string
+          currency?: string
+          email_sent_at?: string | null
+          gateway_payment_id: string
+          id?: string
+          order_id: string
+          period_end: string
+          period_start: string
+          plan_code: string
+          plan_version: number
+          receipt_number: string
+          transaction_id?: string | null
+          user_id: string
+        }
+        Update: {
+          amount_paise?: number
+          business_name?: string
+          created_at?: string
+          currency?: string
+          email_sent_at?: string | null
+          gateway_payment_id?: string
+          id?: string
+          order_id?: string
+          period_end?: string
+          period_start?: string
+          plan_code?: string
+          plan_version?: number
+          receipt_number?: string
+          transaction_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_receipts_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "payment_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_receipts_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "payment_transactions"
             referencedColumns: ["id"]
           },
         ]
@@ -4328,6 +4464,83 @@ export type Database = {
           updated_by?: string | null
         }
         Relationships: []
+      }
+      pro_plan_versions: {
+        Row: {
+          active: boolean
+          badge: string | null
+          created_at: string
+          currency: string
+          display_order: number
+          duration_months: number
+          id: string
+          is_founding: boolean
+          label: string
+          plan_code: string
+          price_paise: number
+          version: number
+        }
+        Insert: {
+          active?: boolean
+          badge?: string | null
+          created_at?: string
+          currency?: string
+          display_order?: number
+          duration_months: number
+          id?: string
+          is_founding?: boolean
+          label: string
+          plan_code: string
+          price_paise: number
+          version: number
+        }
+        Update: {
+          active?: boolean
+          badge?: string | null
+          created_at?: string
+          currency?: string
+          display_order?: number
+          duration_months?: number
+          id?: string
+          is_founding?: boolean
+          label?: string
+          plan_code?: string
+          price_paise?: number
+          version?: number
+        }
+        Relationships: []
+      }
+      pro_reminders_sent: {
+        Row: {
+          entitlement_id: string
+          id: string
+          kind: string
+          sent_at: string
+          user_id: string
+        }
+        Insert: {
+          entitlement_id: string
+          id?: string
+          kind: string
+          sent_at?: string
+          user_id: string
+        }
+        Update: {
+          entitlement_id?: string
+          id?: string
+          kind?: string
+          sent_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pro_reminders_sent_entitlement_id_fkey"
+            columns: ["entitlement_id"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       question_answers: {
         Row: {
@@ -6565,9 +6778,15 @@ export type Database = {
           entitlement_type: string
           exam_id: string | null
           expires_at: string | null
+          founding: boolean
+          granted_by: string | null
           id: string
           is_active: boolean
+          order_id: string | null
           plan_id: string | null
+          pro_plan_version_id: string | null
+          revoked_at: string | null
+          source: string
           starts_at: string
           updated_at: string
           user_id: string
@@ -6579,9 +6798,15 @@ export type Database = {
           entitlement_type: string
           exam_id?: string | null
           expires_at?: string | null
+          founding?: boolean
+          granted_by?: string | null
           id?: string
           is_active?: boolean
+          order_id?: string | null
           plan_id?: string | null
+          pro_plan_version_id?: string | null
+          revoked_at?: string | null
+          source?: string
           starts_at?: string
           updated_at?: string
           user_id: string
@@ -6593,9 +6818,15 @@ export type Database = {
           entitlement_type?: string
           exam_id?: string | null
           expires_at?: string | null
+          founding?: boolean
+          granted_by?: string | null
           id?: string
           is_active?: boolean
+          order_id?: string | null
           plan_id?: string | null
+          pro_plan_version_id?: string | null
+          revoked_at?: string | null
+          source?: string
           starts_at?: string
           updated_at?: string
           user_id?: string
@@ -6616,10 +6847,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "user_entitlements_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "payment_orders"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "user_entitlements_plan_id_fkey"
             columns: ["plan_id"]
             isOneToOne: false
             referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_entitlements_pro_plan_version_id_fkey"
+            columns: ["pro_plan_version_id"]
+            isOneToOne: false
+            referencedRelation: "pro_plan_versions"
             referencedColumns: ["id"]
           },
         ]
@@ -7708,6 +7953,14 @@ export type Database = {
     }
     Functions: {
       fn_admin_mfa_required: { Args: never; Returns: boolean }
+      fn_attach_gateway_order: {
+        Args: {
+          p_gateway_order_id: string
+          p_order_id: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       fn_authorize_and_start_test_attempt: {
         Args: { p_mock_test_id: string; p_user_id: string }
         Returns: Json
@@ -7829,6 +8082,14 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_create_pro_order: {
+        Args: {
+          p_idempotency_key: string
+          p_plan_code: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       fn_create_question_revision: {
         Args: { p_actor: string; p_payload: Json; p_question_id: string }
         Returns: Json
@@ -7895,6 +8156,16 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_fulfil_pro_order: {
+        Args: {
+          p_amount_paise: number
+          p_currency: string
+          p_gateway_order_id: string
+          p_payment_id: string
+          p_source: string
+        }
+        Returns: Json
+      }
       fn_generate_custom_practice_session: {
         Args: {
           p_manual_question_ids?: string[]
@@ -7945,10 +8216,15 @@ export type Database = {
         }[]
       }
       fn_get_my_onboarding: { Args: never; Returns: Json }
+      fn_grant_library_pro: {
+        Args: { p_admin_id: string; p_user_id: string; p_valid_until: string }
+        Returns: Json
+      }
       fn_has_batch_faculty_access: {
         Args: { p_batch_id: string; p_user_id: string }
         Returns: boolean
       }
+      fn_has_pro: { Args: { p_user_id: string }; Returns: boolean }
       fn_import_question_drafts: {
         Args: { p_actor: string; p_batch: Json }
         Returns: Json
@@ -7985,6 +8261,10 @@ export type Database = {
       }
       fn_mark_notification_as_read: {
         Args: { p_notification_id: string }
+        Returns: Json
+      }
+      fn_mark_pro_order_failed: {
+        Args: { p_gateway_order_id: string }
         Returns: Json
       }
       fn_memory_lock_add: { Args: { p_question_id: string }; Returns: Json }
@@ -8109,6 +8389,14 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_refund_pro_payment: {
+        Args: {
+          p_gateway_refund_id: string
+          p_payment_id: string
+          p_refund_amount_paise: number
+        }
+        Returns: Json
+      }
       fn_report_question: {
         Args: {
           p_note: string
@@ -8130,6 +8418,10 @@ export type Database = {
       fn_resolve_quota_key: { Args: { p_test_type: string }; Returns: string }
       fn_reverse_reward_claim: {
         Args: { p_admin_id: string; p_claim_id: string; p_reason?: string }
+        Returns: Json
+      }
+      fn_revoke_library_pro: {
+        Args: { p_admin_id: string; p_entitlement_id: string }
         Returns: Json
       }
       fn_revoke_mistakes_by_errata: {
