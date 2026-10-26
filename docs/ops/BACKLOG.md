@@ -89,12 +89,12 @@ Logged by the architect (2026-10-25). `couragelibrary.in` / `www.couragelibrary.
 
 Once 095 is live, `fn_generate_mistake_drill` may pick manual Memory Lock items, which have 0 mistakes. The app-side lists already filter `total_mistakes_count >= 1`; the SQL generator needs the same filter.
 
-## CRLF-1 — line-ending normalisation (`.gitattributes`)
-Logged by the architect (2026-10-25). The repository is LF in git but this Windows checkout uses `core.autocrlf=true`,
-so working copies are CRLF and several offline gates that read files with `
-` fail locally only (C-10, F2 T-09) and
-branch switches abort on EOL-only "changes". Fix: add `.gitattributes` (`* text=auto eol=lf`, binary types marked),
-renormalise in ONE separate commit, re-run every offline gate. Not now — a separate change later.
+## CRLF-1 — line-ending normalisation (`.gitattributes`) — DONE 2026-10-26
+**Done (architect GO 2026-10-26).**
+- `.gitattributes`: `* text=auto eol=lf`, binary rules, `*.cmd` / `*.bat` / `*.ps1` CRLF; DRILL-1 SQL rules kept.
+- `git add --renormalize .`: no index change (the index was already LF).
+- 289 working-copy files rewritten CRLF → LF by script (blob hashes = index; content diff with `--ignore-all-space --ignore-cr-at-eol` empty); no checkout / reset / stash.
+- The full offline list is now green locally, F2 T-09 and CI-SUPPORT C-10 / C-15 included. The "known local-only CRLF failure" exception is retired: a local failure of those gates is now a real failure.
 
 ## Also open
 

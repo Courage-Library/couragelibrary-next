@@ -61,7 +61,7 @@
   - SEC-1B 26/26: `adminSearchAction` is denied before any DB call for anon, student and the user_metadata-admin spoof;
   - SEC-1C 22/22: page inventory and guards unchanged.
 - **Other gates:** UX1B-SHELL 7/7 (U-2b reads the nav config: 32 hrefs, all routed); UX2A L-15 (PageLoading).
-- **Full offline list:** green except F2 T-09, the known local-only CRLF case that is green in CI.
+- **Full offline list:** green in CI. Locally F2 T-09 was then the old line-ending artifact; CRLF-1 (2026-10-26) removed it, so the full list is now 56/56 green locally too.
 
 ## Deferred
 
