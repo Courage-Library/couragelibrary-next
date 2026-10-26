@@ -7707,6 +7707,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      fn_admin_mfa_required: { Args: never; Returns: boolean }
       fn_authorize_and_start_test_attempt: {
         Args: { p_mock_test_id: string; p_user_id: string }
         Returns: Json
