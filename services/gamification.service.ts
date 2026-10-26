@@ -1,4 +1,5 @@
 import { createServerSupabaseClient, createAdminServerSupabaseClient } from "@/lib/supabase/server";
+import { COINS_PAUSED_REASON, isCoinsEnabled } from "@/lib/coins/flag";
 import { rpcJsonObject } from "@/lib/supabase/rpc";
 
 export interface MockRewardCalculationInput {
@@ -557,6 +558,30 @@ export class GamificationService {
       total_coins: totalCoinsEarned,
       is_retake: false,
     };
+
+    // COINS-FREEZE (until F10): no coins are awarded while COINS_ENABLED is off — the streak and badge above are still
+    // recorded; the RPC is not called (and is frozen in the database by 112). coin rewards: re-enable in F10.
+    if (!isCoinsEnabled()) {
+      return {
+        isRetake: false,
+        isRewardEligible: false,
+        completionCoins: 0,
+        completionReason: COINS_PAUSED_REASON,
+        isAccuracyEligible: false,
+        minAttemptRequired: calc.minAttemptRequired,
+        accuracyPercentage: calc.accuracyPercentage,
+        accuracyBonusCoins: 0,
+        accuracyReason: COINS_PAUSED_REASON,
+        streakCoins: 0,
+        streakReason: "Streak recorded",
+        currentStreak,
+        longestStreak,
+        isNewStreakMilestone,
+        badgeUnlocked: unlockedBadge,
+        totalCoinsEarned: 0,
+        isAlreadyRewarded: false,
+      };
+    }
 
     // 6. Execute Canonical Atomic RPC fn_award_gamification_reward
     let isSuccessfullyAwarded = false;

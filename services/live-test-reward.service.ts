@@ -1,4 +1,5 @@
 import { createServerSupabaseClient, createAdminServerSupabaseClient } from "@/lib/supabase/server";
+import { isCoinsEnabled } from "@/lib/coins/flag";
 import {
   LiveTestRewardPolicy,
   LiveTestRewardSettlement,
@@ -37,6 +38,8 @@ export class LiveTestRewardService {
     eventId: string,
     adminId?: string
   ): Promise<LiveTestRewardDistributionResult> {
+    // COINS-FREEZE (until F10): nothing is distributed while COINS_ENABLED is off (no RPC, no ledger / wallet write).
+    if (!isCoinsEnabled()) return { success: false, eventId, totalCoinsDistributed: 0, error: "COINS_FROZEN" };
     const adminSb = quarantinedClient(createAdminServerSupabaseClient(), QUARANTINE_TAG);
     const startTime = Date.now();
 
@@ -400,6 +403,7 @@ export class LiveTestRewardService {
     rank: number,
     percentile: number
   ): Promise<{ ledgerId: string | null }> {
+    if (!isCoinsEnabled()) return { ledgerId: null }; // COINS-FREEZE: defence in depth (the caller already returned)
     const adminSb = quarantinedClient(createAdminServerSupabaseClient(), QUARANTINE_TAG);
 
     // 1. Upsert wallet
