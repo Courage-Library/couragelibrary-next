@@ -2,7 +2,9 @@
 
 
 
-import { guardAdminAction, dbFailure, sanitizeActionResult } from "@/lib/auth/require-admin";
+import { guardAdminAction, dbFailure, sanitizeActionResult, actionFailure } from "@/lib/auth/require-admin";
+import { moderationDecision, FLAG_ID } from "@/lib/community/moderation";
+import { reportWriteFailure, errorCode } from "@/lib/ops/write-failure";
 import { featureDisabledActionResult } from "@/lib/features/gates";
 import type { AppSupabaseClient } from "@/lib/supabase/types";
 import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
@@ -1312,22 +1314,49 @@ export async function createSubscriptionPlanAction(prevState: AdminActionResult 
   return { success: true, message: "Subscription plan created successfully." };
 }
 
-export async function resolveCommunityFlagAction(flagId: string, status: string = "resolved"): Promise<AdminActionResult> {
+export async function resolveCommunityFlagAction(flagId: string, choice: string = "RESOLVED"): Promise<AdminActionResult> {
   const authCheck = await guardAdminAction({ allowStaff: true });
   if (!authCheck.ok) return authCheck;
 
-  const supabaseRaw = createAdminServerSupabaseClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = supabaseRaw;
+  // D-1: the canonical table discussion_moderation_flags (PENDING → RESOLVED_REMOVED | RESOLVED_DISMISSED + resolution_action),
+  // the same mapping as fn_moderate_flagged_content (which needs auth.uid() and has no client EXECUTE since 090)
+  const decision = moderationDecision(choice);
+  if (!decision || !FLAG_ID.test(String(flagId))) return actionFailure("VALIDATION", "Unknown flag or decision.");
 
-  // TYPES-1:B-ADM-COMMUNITY (tracked, owner Community) — the table is discussion_moderation_flags whose status must be
-  // PENDING | RESOLVED_REMOVED | RESOLVED_DISMISSED (+ resolution_action); mapping "resolved" is a moderation decision.
-  // @ts-expect-error TYPES-1:B-ADM-COMMUNITY — legacy table (see above)
-  const { error } = await supabase.from("community_moderation_flags").update({ status: status.toLowerCase() }).eq("id", flagId);
+  const supabase = createAdminServerSupabaseClient();
+  const { data: flag, error } = await supabase
+    .from("discussion_moderation_flags")
+    .update({ status: decision.status, resolution_action: decision.resolution_action, moderated_by_user_id: authCheck.userId, moderated_at: new Date().toISOString() })
+    .eq("id", flagId)
+    .eq("status", "PENDING")
+    .select("id, target_type, target_id")
+    .maybeSingle();
   if (error) return dbFailure("resolveCommunityFlagAction", error);
+  if (!flag) return actionFailure("VALIDATION", "This flag was already handled or no longer exists.");
+
+  if (decision.removeContent) {
+    const now = new Date().toISOString();
+    const { error: removeError } =
+      flag.target_type === "MESSAGE"
+        ? await supabase.from("discussion_messages").update({ is_deleted: true, deleted_at: now }).eq("id", flag.target_id)
+        : await supabase.from("discussion_threads").update({ status: "LOCKED", updated_at: now }).eq("id", flag.target_id);
+    if (removeError) return dbFailure("resolveCommunityFlagAction.removeContent", removeError);
+  }
+
+  const { error: auditError } = await supabase.from("admin_audit_logs").insert({
+    actor_id: authCheck.userId,
+    actor_email: authCheck.userEmail,
+    action_type: "COMMUNITY_FLAG_MODERATED",
+    target_entity: "discussion_moderation_flag",
+    target_id: flag.id,
+    old_value: { status: "PENDING" },
+    new_value: { status: decision.status, resolution_action: decision.resolution_action, target_type: flag.target_type },
+    reason: null,
+  });
+  if (auditError) reportWriteFailure({ fn: "resolveCommunityFlagAction", table: "admin_audit_logs", op: "insert", code: errorCode(auditError), ids: { flagId: flag.id } });
 
   revalidatePath("/admin/community");
-  return { success: true, message: "Flag resolved successfully." };
+  return { success: true, message: decision.removeContent ? "Content removed and flag resolved." : "Flag dismissed." };
 }
 
 // ============================================================================

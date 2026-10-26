@@ -23,10 +23,14 @@ interface Props {
 
 export function AdminCommunityManager({ flags }: Props) {
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  // D-1: the result is shown (it used to be ignored, so every failure was silent)
+  const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
 
   const handleResolve = async (flagId: string, status: "RESOLVED" | "DISMISSED") => {
     setLoadingId(flagId);
-    await resolveCommunityFlagAction(flagId, status);
+    setNotice(null);
+    const r = await resolveCommunityFlagAction(flagId, status);
+    setNotice({ ok: r.success === true, text: r.message ?? (r.success ? "Done." : "The decision could not be saved.") });
     setLoadingId(null);
   };
 
@@ -45,6 +49,12 @@ export function AdminCommunityManager({ flags }: Props) {
           {flags.length} Moderation Items Listed
         </Badge>
       </div>
+
+      {notice && (
+        <p role="status" className={notice.ok ? "text-sm font-medium text-success-700" : "text-sm font-medium text-danger-700"}>
+          {notice.text}
+        </p>
+      )}
 
       <Card className="p-6 border-slate-200 bg-white">
         {flags.length === 0 ? (

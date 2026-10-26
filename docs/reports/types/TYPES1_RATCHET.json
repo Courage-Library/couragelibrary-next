@@ -11,13 +11,13 @@
   ],
   "values": {
     "queryEscapes": 59,
-    "asAny": 246,
+    "asAny": 243,
     "colonAny": 774,
     "unknownAs": 83,
-    "tsExpectError": 11,
+    "tsExpectError": 10,
     "tsIgnore": 0
   },
-  "updatedAt": "2026-10-16",
+  "updatedAt": "2026-10-26",
   "exceptions": [
     {
       "batch": "B1",

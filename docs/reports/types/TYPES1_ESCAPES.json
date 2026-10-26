@@ -292,12 +292,12 @@
     },
     {
       "id": "TYPES-1:B-ADM-COMMUNITY",
-      "file": "app/admin/actions.ts",
+      "file": "app/admin/community/page.tsx",
       "class": "B",
       "module": "admin community moderation",
-      "kind": "@ts-expect-error ×2 (legacy table on resolve; component item shape) — also app/admin/community/page.tsx",
+      "kind": "@ts-expect-error ×1 (component item shape). The resolve escape in app/admin/actions.ts was removed by D-1 (ADMIN-UX-1, 2026-10-26: resolve writes discussion_moderation_flags)",
       "owner": "Community",
-      "precondition": "Map flag resolution to discussion_moderation_flags.status (PENDING | RESOLVED_REMOVED | RESOLVED_DISMISSED) + resolution_action + moderated_by/at, and align AdminCommunityManager's ModerationFlagItem with the list (now read from discussion_moderation_flags). Today resolving a flag fails (community_moderation_flags never existed)."
+      "precondition": "Map flag resolution to discussion_moderation_flags.status (PENDING | RESOLVED_REMOVED | RESOLVED_DISMISSED) + resolution_action + moderated_by/at, and align AdminCommunityManager's ModerationFlagItem with the list (now read from discussion_moderation_flags). Resolve FIXED by D-1; the item-shape alignment is D-3 (ADMIN-UX-1 phase C)."
     },
     {
       "id": "TYPES-1:B-ADM-INSTITUTES",
