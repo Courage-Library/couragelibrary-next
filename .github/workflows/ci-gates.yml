@@ -265,6 +265,7 @@ jobs:
           B='http://localhost:3100'
           node scripts/live/with-server.cjs --port=3100 --log="$RUNNER_TEMP/server/server.log" -- \
             "$Q QA-SESSION-PROBE -- node scripts/live/qa-session.cjs --probe" \
+            "$Q QF1-DB -- node scripts/test_qf1_db.cjs" \
             "$Q CLEANUP-1 -- node scripts/e2e/cleanup-student.cjs" \
             "$Q JOURNEY -- node scripts/e2e/student-journey.cjs" \
             "$Q LINEAGE -- node scripts/e2e/assert-mistake-lineage.cjs" \
@@ -357,7 +358,6 @@ jobs:
             "$Q QA-SESSION-PROBE -- node scripts/live/qa-session.cjs --probe" \
             "$Q SECDEF-RATCHET -- node scripts/test_secdef_ratchet.cjs" \
             "$Q RLS -- node scripts/test_sec_hotfix4_rls.cjs" \
-            "$Q QF1-DB -- node scripts/test_qf1_db.cjs" \
             "$Q QBKEY1 -- node scripts/test_qb_key1.cjs" \
             "$Q SECDEF-S2-1 -- node scripts/test_secdef_s2_1.cjs" \
             "$Q TYPES1-CLOSE -- node scripts/test_types1_close.cjs" \

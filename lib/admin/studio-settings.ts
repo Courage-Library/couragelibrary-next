@@ -43,12 +43,17 @@ export function parseStudioSettings(rows: Array<{ config_key: string; config_val
 }
 
 export async function getAdminStudioSettings(): Promise<AdminStudioSettings> {
-  const { data, error } = await createAdminServerSupabaseClient()
-    .from("premium_system_configs")
-    .select("config_key, config_value, is_enabled")
-    .in("config_domain", ["GLOBAL", "EXAM"])
-    .in("config_key", [STUDIO_SETTING_KEYS.goal, STUDIO_SETTING_KEYS.secondReviewer, STUDIO_SETTING_KEYS.bilingual]);
-  // a failed read falls back to the defaults; for require_second_reviewer the default (off) is today's behaviour
-  if (error) return parseStudioSettings([]);
-  return parseStudioSettings((data ?? []) as Array<{ config_key: string; config_value: unknown; is_enabled: boolean }>);
+  // never throws: a failed read (error OR exception) falls back to the defaults; for require_second_reviewer the default
+  // (off) is today's behaviour, for EXAM_REQUIRES_BILINGUAL "none" (the Hindi check stays a warning)
+  try {
+    const { data, error } = await createAdminServerSupabaseClient()
+      .from("premium_system_configs")
+      .select("config_key, config_value, is_enabled")
+      .in("config_domain", ["GLOBAL", "EXAM"])
+      .in("config_key", [STUDIO_SETTING_KEYS.goal, STUDIO_SETTING_KEYS.secondReviewer, STUDIO_SETTING_KEYS.bilingual]);
+    if (error) return parseStudioSettings([]);
+    return parseStudioSettings((data ?? []) as Array<{ config_key: string; config_value: unknown; is_enabled: boolean }>);
+  } catch {
+    return parseStudioSettings([]);
+  }
 }

@@ -236,7 +236,8 @@ test('C-17 CI-LIVE-SPLIT-1: the nightly live gates run in 2 parallel jobs and NO
   const extra = all.filter((x) => !CANON.includes(x));
   assert(missing.length === 0 && extra.length === 0, `missing ${missing} · unknown ${extra}`);
   // student-data writers only in live-journeys (the final cleanup / fixture too); the same rules in both jobs
-  for (const x of ['CLEANUP-1', 'JOURNEY', 'LINEAGE', 'DRILL1', 'STUDENT-DRILL', 'CLEANUP-2', 'FIXTURE']) assert(a.includes(x), `${x} must run in live-journeys`);
+  // QF1-DB too: its BASE-1 before/after counts cover student tables, so it must never overlap the journeys (run 40465685537)
+  for (const x of ['CLEANUP-1', 'JOURNEY', 'LINEAGE', 'DRILL1', 'STUDENT-DRILL', 'CLEANUP-2', 'FIXTURE', 'QF1-DB']) assert(a.includes(x), `${x} must run in live-journeys`);
   assert(/CLEANUP-FINAL/.test(A) && /FIXTURE-FINAL/.test(A) && !/CLEANUP-FINAL|FIXTURE-FINAL/.test(B), 'final cleanup / fixture only in live-journeys');
   for (const [n, j] of [['live-journeys', A], ['live-gates', B]]) {
     assert(/needs: offline/.test(j) && /if: github\.event_name == 'schedule' \|\| \(github\.event_name == 'workflow_dispatch' && inputs\.live\)/.test(j), `${n}: same trigger (nightly / dispatch live=true)`);

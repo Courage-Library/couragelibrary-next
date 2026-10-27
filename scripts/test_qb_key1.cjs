@@ -20,7 +20,8 @@
  *   K-5  fn_transition_question_version → APPROVED with a full checklist is refused for a keyless version
  *   K-6  existing data: 111 published versions servable; superseding / archiving not blocked
  *   K-7  live grants: the 4 new functions owner-only; the 7 replaced functions keep their ACLs; P-9 shape
- *   K-9  question_versions / question_options / question_answers byte-identical to the pre-087 baseline
+ *   K-9  the pre-087 question_versions / question_options / question_answers (the 113 versions created up to
+ *        2026-10-12T11:24:49Z) byte-identical to the baseline; later, separately gated content is out of scope
  *   K-10 the 8 fixtures archived with 8 audit rows; not served by practice (service_role with student claims — the
  *        practice RPC is not client-callable since SECDEF-S2-2 / 090), battles' pool, drills (predicate) or mock assembly (guard)
  *   K-14 decision #54 invoker safety: as qa-student (role authenticated + JWT claims): the helpers are not callable
@@ -55,6 +56,9 @@ const FIXTURES = ['c6cbfdbf-def4-45a5-9ef6-4d0a24ab61cc', '234486ee-4485-49fe-8e
 const BAD_VERSION = 'bc0b7703-22a0-4234-933e-9db0029e59b8';
 // pre-087 baseline (QB-KEY-1 Stage 2 report §5): content tables must stay byte-identical
 const BASELINE = { question_versions: 'b2bb76546c3b', question_options: 'ac7af53d81e7', question_answers: '06afec0c4af2' };
+// the baseline set: every version created up to the last pre-087 row (2026-10-12); 113 versions
+const BASELINE_BEFORE = '2026-10-12T11:24:49Z'; // strictly before (the last baseline row is 11:24:48.123xxx; the next version is from 2026-10-27)
+const BASELINE_VERSIONS = 113;
 
 // ---------------------------------------------------------------- TS loader with stubs
 function loadTs(rel, stubs = {}) {
@@ -388,13 +392,19 @@ function supaMock(results) {
       return '4 owner-only; 7 ACLs unchanged; deferred';
     }));
 
-    await test('K-9 question_versions / options / answers byte-identical to the pre-087 baseline', async () => ro(async () => {
+    // CONTENT-IMPORT-1 (2026-10-27): the baseline is the SET of versions that existed at 087 (the 113 created before
+    // BASELINE_BEFORE), not "the whole table forever". Those rows (+ their options / answers) must stay byte-identical; a
+    // new, separately-gated version is out of K-9's scope. Proven: the pre-import set hashes to the recorded baseline.
+    await test('K-9 the pre-087 question_versions / options / answers (113 versions) are byte-identical to the baseline', async () => ro(async () => {
+      const SET = `SELECT id FROM public.question_versions WHERE created_at < '${BASELINE_BEFORE}'`;
+      const n = (await q(`SELECT count(*)::int n FROM public.question_versions WHERE created_at < '${BASELINE_BEFORE}'`))[0].n;
       const h = (await q(`SELECT
-          left(md5(coalesce(string_agg(x::text, '|' ORDER BY x::text), '')), 12) v FROM public.question_versions x`))[0].v;
-      const o = (await q(`SELECT left(md5(coalesce(string_agg(x::text, '|' ORDER BY x::text), '')), 12) v FROM public.question_options x`))[0].v;
-      const a = (await q(`SELECT left(md5(coalesce(string_agg(x::text, '|' ORDER BY x::text), '')), 12) v FROM public.question_answers x`))[0].v;
+          left(md5(coalesce(string_agg(x::text, '|' ORDER BY x::text), '')), 12) v FROM public.question_versions x WHERE x.id IN (${SET})`))[0].v;
+      const o = (await q(`SELECT left(md5(coalesce(string_agg(x::text, '|' ORDER BY x::text), '')), 12) v FROM public.question_options x WHERE x.question_version_id IN (${SET})`))[0].v;
+      const a = (await q(`SELECT left(md5(coalesce(string_agg(x::text, '|' ORDER BY x::text), '')), 12) v FROM public.question_answers x WHERE x.question_version_id IN (${SET})`))[0].v;
+      assert(n === BASELINE_VERSIONS, `${n} baseline versions (want ${BASELINE_VERSIONS})`);
       assert(h === BASELINE.question_versions && o === BASELINE.question_options && a === BASELINE.question_answers, `versions ${h} options ${o} answers ${a} vs ${JSON.stringify(BASELINE)}`);
-      return 'identical';
+      return `identical (${n} versions)`;
     }));
 
     await test('K-10 the 8 fixtures archived + 8 audit rows; not served by practice, battles, drills or mock assembly', async () => rolledBack(async () => {
