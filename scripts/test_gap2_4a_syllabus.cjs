@@ -160,8 +160,11 @@ const CORE = ['fn_syllabus__assert_role', 'fn_syllabus__audit', 'fn_syllabus__sl
         if (/RECONCILED/.test(def('exam_syllabus_versions_status_check')) || !/ARCHIVED/.test(def('exam_syllabus_versions_status_check'))) bad.push('status CHECK');
         if (!/FOREIGN KEY \(canonical_node_id, canonical_node_type\) REFERENCES canonical_taxonomy_nodes\(id, node_type\)/.test(def('exam_syllabus_canonical_mappings_topic_fkey'))) bad.push('TOPIC composite FK');
         if (cons.some((x) => x.conname === 'uq_exam_syllabus_canonical_mapping_node')) bad.push('UNIQUE(syllabus_node_id) still present');
-        const gen = await one(`SELECT generation_expression g FROM information_schema.columns WHERE table_name = 'exam_syllabus_canonical_mappings' AND column_name = 'canonical_node_type'`);
-        if (!/'TOPIC'/.test(gen.g || '')) bad.push('canonical_node_type not generated TOPIC');
+        // CA-2 (116, M2): canonical_node_type is set by trigger from the mapped node, limited to TOPIC / SUBTOPIC / CONCEPT
+        // (was the generated 'TOPIC'); the composite FK above still ties it to the node's real type
+        if (!/canonical_node_type = ANY \(ARRAY\['TOPIC'::text, 'SUBTOPIC'::text, 'CONCEPT'::text\]\)/.test(def('chk_syllabus_mapping_node_type'))) bad.push('mapping node-type CHECK (TOPIC / SUBTOPIC / CONCEPT)');
+        const mtrg = await one(`SELECT count(*)::int n FROM pg_trigger WHERE tgrelid = 'public.exam_syllabus_canonical_mappings'::regclass AND tgname = 'trg_a_syllabus_mapping_node_fields'`);
+        if (mtrg.n !== 1) bad.push('trg_a_syllabus_mapping_node_fields missing');
         const idx = (await q(`SELECT indexname, indexdef FROM pg_indexes WHERE schemaname = 'public' AND tablename LIKE 'exam_syllabus%'`));
         const one_pub = (idx.find((i) => i.indexname === 'uq_exam_syllabus_one_published') || {}).indexdef || '';
         if (!/UNIQUE/.test(one_pub) || !/WHERE \(\(status = 'PUBLISHED'::text\) AND is_active\)/.test(one_pub)) bad.push(`one-published index: ${one_pub}`);
@@ -274,7 +277,7 @@ const CORE = ['fn_syllabus__assert_role', 'fn_syllabus__audit', 'fn_syllabus__sl
         assert(depth.d === 2, `unit depth ${depth.d}`);
       }));
 
-    await test('G-05 mappings: TOPIC only (RPC + composite FK), UNIT only, distinct / active; weights in (0,1] summing to 1', async () =>
+    await test('G-05 mappings: TOPIC / SUBTOPIC / CONCEPT only, never a SUBJECT (RPC + node-type trigger + composite FK), UNIT only, distinct / active; weights in (0,1] summing to 1', async () =>
       tx(async () => {
         const d = await buildValidDraft('ssc-gd');
         const cases = {
@@ -292,7 +295,7 @@ const CORE = ['fn_syllabus__assert_role', 'fn_syllabus__audit', 'fn_syllabus__sl
         cases.inactive = await attempt(() => rpc('staff', 'fn_syllabus_set_unit_mappings', [d.u1, [T4], null]));
         const valid = await attempt(() => rpc('staff', 'fn_syllabus_set_unit_mappings', [d.u1, [T1, T2, T3], [0.5, 0.3, 0.2]]));
         const expect = {
-          subjectViaRpc: /SYLLABUS_TOPICS_INVALID/, subjectDirectFk: /exam_syllabus_canonical_mappings_topic_fkey/, onSection: /SYLLABUS_MAPPING_NOT_UNIT/,
+          subjectViaRpc: /SYLLABUS_TOPICS_INVALID/, subjectDirectFk: /SYLLABUS_MAPPING_NODE_TYPE|exam_syllabus_canonical_mappings_topic_fkey/, // CA-2: the node-type trigger refuses first; the composite FK stays (G-01) onSection: /SYLLABUS_MAPPING_NOT_UNIT/,
           duplicate: /SYLLABUS_TOPICS_INVALID/, sumNot1: /SYLLABUS_WEIGHTS_INVALID/, lengthMismatch: /SYLLABUS_WEIGHTS_INVALID/, over1: /SYLLABUS_WEIGHTS_INVALID/,
           zero: /SYLLABUS_WEIGHTS_INVALID/, directWeightOver1: /mapping_weight_check|check constraint/, inactive: /SYLLABUS_TOPICS_INVALID/,
         };

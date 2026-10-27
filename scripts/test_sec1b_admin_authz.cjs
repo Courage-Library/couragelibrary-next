@@ -198,6 +198,8 @@ const ADMIN_ONLY = new Set([
   // GAP2-4b: publishing / archiving a syllabus is admin-only (staff draft only)
   'app/admin/syllabus/actions.ts#publishSyllabusVersionAction',
   'app/admin/syllabus/actions.ts#archiveSyllabusVersionAction',
+  // CA-2: the syllabus intake writes the master tree (aliases, new nodes) → admin only
+  ...['createIntakeAction', 'decideIntakeItemAction', 'importIntakeAction', 'discardIntakeAction'].map((n) => `app/admin/syllabus/intake/actions.ts#${n}`),
   // F9-B: library Pro grants are admin-only (staff cannot grant Pro)
   'app/admin/pro-library/actions.ts#grantLibraryProAction',
   'app/admin/pro-library/actions.ts#revokeLibraryProAction',

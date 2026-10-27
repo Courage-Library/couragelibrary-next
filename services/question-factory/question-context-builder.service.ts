@@ -246,10 +246,10 @@ export class QuestionContextBuilder {
 
     const { data: nodes, error: nErr } = await supabase
       .from('exam_syllabus_nodes')
-      .select('syllabus_version_id, weightage_tier, required_cognitive_depth, exam_syllabus_canonical_mappings!inner(canonical_node_id)')
+      .select('syllabus_version_id, weightage_tier, required_cognitive_depth, exam_syllabus_canonical_mappings!inner(topic_id)')
       .in('syllabus_version_id', order)
       .eq('node_kind', 'UNIT')
-      .eq('exam_syllabus_canonical_mappings.canonical_node_id', topicId);
+      .eq('exam_syllabus_canonical_mappings.topic_id', topicId); // CA-2: SUBTOPIC / CONCEPT mappings roll up
     if (nErr) throw new QuestionFactoryError('CONTEXT_LOOKUP_FAILED', 'Exam syllabus topic lookup failed.');
     if (!nodes || nodes.length === 0) return null;
 

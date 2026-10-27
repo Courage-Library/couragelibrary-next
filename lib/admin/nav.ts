@@ -83,6 +83,7 @@ export const ADMIN_NAV: NavGroup[] = [
         label: "Syllabus map", href: "/admin/syllabus", icon: "syllabus", access: "staff",
         children: [
           { label: "Syllabus", href: "/admin/syllabus", icon: "syllabus", access: "staff" },
+          { label: "Syllabus intake", href: "/admin/syllabus/intake", icon: "syllabus", access: "admin" },
           { label: "Exams", href: "/admin/exams", icon: "exams", access: "staff" },
           { label: "Exam Knowledge", href: "/admin/exam-knowledge", icon: "exams", access: "staff" },
           { label: "Taxonomy", href: "/admin/taxonomy", icon: "syllabus", access: "admin" },
@@ -213,6 +214,8 @@ export const ADMIN_ONLY_ROUTES: readonly string[] = [
   "/admin/reports",
   "/admin/rewards",
   "/admin/settings",
+  "/admin/syllabus/intake",
+  "/admin/syllabus/intake/[id]",
   "/admin/taxonomy",
   "/admin/users",
 ];

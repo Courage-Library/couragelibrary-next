@@ -141,6 +141,7 @@ jobs:
           q STUDIO-P3 node scripts/test_studio_phase3.cjs || fail=1
           q CA1-TAXONOMY node scripts/test_ca1_taxonomy.cjs || fail=1
           q GAP2-1B-OFFLINE node scripts/test_gap2_1b_taxonomy.cjs || fail=1
+          q CA2-INTAKE node scripts/test_ca2_intake.cjs || fail=1
           q MIGRATION-RUNNER-SELFTEST node scripts/db/apply-migration.cjs --self-test || fail=1
           q KILL-LEFTOVER-SELFTEST node scripts/ci/kill-leftover-server.cjs --self-test || fail=1
           exit $fail
@@ -368,7 +369,9 @@ jobs:
             "$Q GAP2-4A -- node scripts/test_gap2_4a_syllabus.cjs" \
             "$Q READERS -- node scripts/test_gap2_4b_readers.cjs --base=$B" \
             "$Q SYLIMPORT1 -- node scripts/test_syl_import1.cjs" \
-            "$Q ADMIN-D1-D2 -- node scripts/live/test_admin_d1_d2.cjs"             "$Q CA1-TAXONOMY-LIVE -- node scripts/live/test_ca1_taxonomy.cjs" \
+            "$Q ADMIN-D1-D2 -- node scripts/live/test_admin_d1_d2.cjs" \
+            "$Q CA1-TAXONOMY-LIVE -- node scripts/live/test_ca1_taxonomy.cjs" \
+            "$Q CA2-INTAKE-LIVE -- node scripts/live/test_ca2_intake.cjs" \
             "$Q SMOKE-ADMIN-PAGES-1 -- node scripts/smoke/signed-in-smoke.cjs admin-pages $B" \
             "$Q SMOKE-ADMIN-PAGES-2 -- node scripts/smoke/signed-in-smoke.cjs admin-pages $B" \
             "$Q SMOKE-ADMIN-PAGES-3 -- node scripts/smoke/signed-in-smoke.cjs admin-pages $B" \

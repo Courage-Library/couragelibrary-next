@@ -50,6 +50,8 @@ export interface SyllabusVersionRow {
   id: string;
   exam_id: string;
   exam_cycle_id: string | null;
+  /** CA-2: exam tier / stage; null = the exam's only or all tiers */
+  tier: string | null;
   version_number: number;
   version_tag: string;
   status: SyllabusVersionStatus;

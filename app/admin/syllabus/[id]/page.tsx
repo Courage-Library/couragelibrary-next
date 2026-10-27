@@ -25,7 +25,7 @@ export default async function AdminSyllabusVersionPage({ params }: { params: Pro
 
   const { data: version } = await supabase
     .from("exam_syllabus_versions")
-    .select("id, exam_id, exam_cycle_id, version_number, version_tag, status, source_kind, is_active, created_at, published_at, archived_at, supersedes_version_id")
+    .select("id, exam_id, exam_cycle_id, tier, version_number, version_tag, status, source_kind, is_active, created_at, published_at, archived_at, supersedes_version_id")
     .eq("id", versionId)
     .maybeSingle();
   if (!version) {
@@ -45,10 +45,11 @@ export default async function AdminSyllabusVersionPage({ params }: { params: Pro
     // inactive exams are invisible to the session client; read the title with the service role (after the guard)
     createAdminServerSupabaseClient().from("exams").select("id, title, slug").eq("id", v.exam_id).maybeSingle(),
     loadSyllabusEditorState(supabase, v.id),
-    supabase.from("canonical_taxonomy_nodes").select("id, name, slug, node_type, root_subject_id, display_order").in("node_type", ["SUBJECT", "TOPIC"]).eq("is_active", true),
+    // CA-2: a unit may map a TOPIC, SUBTOPIC or CONCEPT (shown as "Topic › Subtopic › Concept")
+    supabase.from("canonical_taxonomy_nodes").select("id, name, slug, node_type, root_subject_id, parent_id, display_order").in("node_type", ["SUBJECT", "TOPIC", "SUBTOPIC", "CONCEPT"]).eq("is_active", true),
     supabase
       .from("exam_syllabus_versions")
-      .select("id, version_number, exam_cycle_id")
+      .select("id, version_number, exam_cycle_id, tier")
       .eq("exam_id", v.exam_id)
       .eq("status", "PUBLISHED")
       .eq("is_active", true),
@@ -58,13 +59,19 @@ export default async function AdminSyllabusVersionPage({ params }: { params: Pro
 
   const tax = taxRes.data ?? [];
   const subjectName = new Map(tax.filter((t) => t.node_type === "SUBJECT").map((t) => [t.id, t.name]));
+  const byId = new Map(tax.map((t) => [t.id, t]));
+  const label = (t: (typeof tax)[number]): string => {
+    const parent = t.node_type !== "TOPIC" && t.parent_id ? byId.get(t.parent_id) : undefined;
+    return parent ? `${label(parent)} › ${t.name}` : t.name;
+  };
   const topics: SyllabusTopicOption[] = tax
-    .filter((t) => t.node_type === "TOPIC")
-    .map((t) => ({ id: t.id, name: t.name, slug: t.slug, subject_id: t.root_subject_id, subject_name: t.root_subject_id ? subjectName.get(t.root_subject_id) ?? null : null }))
+    .filter((t) => t.node_type === "TOPIC" || t.node_type === "SUBTOPIC" || t.node_type === "CONCEPT")
+    .map((t) => ({ id: t.id, name: label(t), slug: t.slug, subject_id: t.root_subject_id, subject_name: t.root_subject_id ? subjectName.get(t.root_subject_id) ?? null : null }))
     .sort((a, b) => (a.subject_name ?? "").localeCompare(b.subject_name ?? "") || a.name.localeCompare(b.name));
 
   const report: SyllabusValidationReport | null = editorState?.report ?? null;
-  const peer = (peerRes.data ?? []).find((p) => (p.exam_cycle_id ?? null) === (v.exam_cycle_id ?? null) && p.id !== v.id) ?? null;
+  // CA-2: one PUBLISHED per (exam, cycle, tier)
+  const peer = (peerRes.data ?? []).find((p) => (p.exam_cycle_id ?? null) === (v.exam_cycle_id ?? null) && (p.tier ?? null) === (v.tier ?? null) && p.id !== v.id) ?? null;
   const loadError = Boolean(!editorState || !editorState.report || taxRes.error || examRes.error);
 
   return (

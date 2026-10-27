@@ -29,7 +29,8 @@ import {
 /** GAP2-4b: exam relevance of units comes from PUBLISHED canonical syllabus mappings (see PublishedTopicMappingRow). */
 /** GAP2-4b: exam relevance of a canonical topic = the UNIT nodes of PUBLISHED syllabus versions that map it. */
 interface PublishedTopicMappingRow {
-  canonical_node_id: string | null;
+  /** CA-2: the topic the mapping counts for (a SUBTOPIC / CONCEPT mapping rolls up to its topic) */
+  topic_id: string | null;
   node: {
     weightage_tier: string | null;
     required_cognitive_depth: string | null;
@@ -38,7 +39,7 @@ interface PublishedTopicMappingRow {
   } | null;
 }
 const PUBLISHED_TOPIC_MAPPINGS_SELECT =
-  'canonical_node_id, node:exam_syllabus_nodes!inner(weightage_tier, required_cognitive_depth, is_mandatory, version:exam_syllabus_versions!inner(exam_id, exam:exams(id, title)))';
+  'topic_id, node:exam_syllabus_nodes!inner(weightage_tier, required_cognitive_depth, is_mandatory, version:exam_syllabus_versions!inner(exam_id, exam:exams(id, title)))';
 
 export {
   CANONICAL_DOCUMENT_TYPES,
@@ -262,7 +263,7 @@ export class CurriculumCoverageService {
     // Exam relevance by canonical topic (from PUBLISHED syllabus UNIT mappings); a unit inherits its topic's exams
     const examMappingsByTopicId = new Map<string, Array<{ examId: string; examTitle: string; requiredDepth?: string; importanceTier?: string; isMandatory: boolean }>>();
     for (const mapping of examMappingsList) {
-      const topicId = mapping.canonical_node_id;
+      const topicId = mapping.topic_id;
       const examObj = mapping.node?.version?.exam;
       if (!topicId || !examObj || !mapping.node) continue;
       const list = examMappingsByTopicId.get(topicId) ?? [];

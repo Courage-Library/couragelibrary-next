@@ -298,14 +298,29 @@ const ZERO = '00000000-0000-0000-0000-000000000000';
         && as2.parent_id === B.id && aliases === ['Alpha/en', 'Alpha Topic/en', 'Bee/en', 'अल्फा विषय/hi'].sort().join(',') && cnt.at_a === 0 && cnt.at_b === 3 && cnt.proj_a === false && cnt.proj_sub === B.id && cnt.au === 1,
         JSON.stringify({ m, left, aliases, cnt }));
 
+      // CA-2 (116): a real topic mapped in a PUBLISHED syllabus (no DRAFT open for that exam / cycle / tier) merges into a
+      // re-pointed DRAFT copy; the published / archived rows themselves never change
       const [locked] = await q(`select m.canonical_node_id id, n.root_subject_id s from public.exam_syllabus_canonical_mappings m join public.exam_syllabus_nodes sn on sn.id = m.syllabus_node_id
           join public.exam_syllabus_versions v on v.id = sn.syllabus_version_id join public.canonical_taxonomy_nodes n on n.id = m.canonical_node_id
-          where v.status <> 'DRAFT' and n.node_type = 'TOPIC' order by 1 limit 1`);
+          where v.status = 'PUBLISHED' and n.node_type = 'TOPIC' and n.is_active
+            and not exists (select 1 from public.exam_syllabus_versions d where d.exam_id = v.exam_id and d.exam_cycle_id is not distinct from v.exam_cycle_id
+                              and d.tier is not distinct from v.tier and d.status = 'DRAFT')
+          order by 1 limit 1`);
+      const frozen = async () => (await q(`select count(*)::int n, left(md5(string_agg(m.id::text || m.canonical_node_id::text, ',' order by m.id)), 12) h
+          from public.exam_syllabus_canonical_mappings m join public.exam_syllabus_nodes sn on sn.id = m.syllabus_node_id
+          join public.exam_syllabus_versions v on v.id = sn.syllabus_version_id where v.status <> 'DRAFT'`))[0];
+      const frozenBefore = await frozen();
       const L = await mk(locked.s, 'TOPIC', 'CA1 QA Merge Target', 'ca1-qa-merge-target');
-      const lockedMerge = await svc(`select public.fn_taxonomy_merge_nodes($1, $2, $3, $4, 'CA-1 smoke locked')`, [locked.id, L.id, ...ACTOR]);
+      const lockedMerge = await svc(`select public.fn_taxonomy_merge_nodes($1, $2, $3, $4, 'CA-1 smoke locked') r`, [locked.id, L.id, ...ACTOR]);
       const lockedAfter = await node(locked.id);
-      chk('F-2 fail-closed: a real topic mapped in a published / archived syllabus cannot merge (SYLLABUS_IMMUTABLE) — still active, nothing changed',
-        !lockedMerge.ok && /SYLLABUS_IMMUTABLE/.test(lockedMerge.msg) && lockedAfter.is_active === true && !lockedAfter.metadata?.merged_into, JSON.stringify({ lockedMerge }));
+      const frozenAfter = await frozen();
+      const drafts = lockedMerge.ok ? lockedMerge.rows[0].r.syllabus_drafts || [] : [];
+      const [draftMaps] = drafts.length ? await q(`select count(*) filter (where m.canonical_node_id = $2)::int to_target, count(*) filter (where m.canonical_node_id = $3)::int to_source
+          from public.exam_syllabus_canonical_mappings m join public.exam_syllabus_nodes sn on sn.id = m.syllabus_node_id where sn.syllabus_version_id = any($1::uuid[])`,
+          [drafts.map((d) => d.draft_version_id), L.id, locked.id]) : [{}];
+      chk('F-2 (CA-2) a real topic in a published syllabus merges: its published version gets a re-pointed DRAFT (maps the target, not the source); every published / archived mapping row is unchanged (count + hash); the source is deactivated',
+        lockedMerge.ok && drafts.length >= 1 && draftMaps.to_target >= 1 && draftMaps.to_source === 0 && JSON.stringify(frozenBefore) === JSON.stringify(frozenAfter)
+        && lockedAfter.is_active === false && lockedAfter.metadata?.merged_into === L.id, JSON.stringify({ lockedMerge, draftMaps, frozenBefore, frozenAfter }));
 
       const C = await mk(S.id, 'TOPIC', 'Gamma Topic', 'gamma-topic');
       const D = await mk(S.id, 'TOPIC', 'Delta Topic', 'delta-topic');

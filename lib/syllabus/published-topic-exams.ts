@@ -25,17 +25,17 @@ export async function loadPublishedExamsForTopics(
   const { data, error } = await supabase
     .from("exam_syllabus_canonical_mappings")
     .select(
-      "canonical_node_id, node:exam_syllabus_nodes!inner(weightage_tier, required_cognitive_depth, is_mandatory, version:exam_syllabus_versions!inner(exam:exams(id, title)))",
+      "topic_id, node:exam_syllabus_nodes!inner(weightage_tier, required_cognitive_depth, is_mandatory, version:exam_syllabus_versions!inner(exam:exams(id, title)))",
     )
-    .in("canonical_node_id", ids)
+    .in("topic_id", ids) // CA-2: a SUBTOPIC / CONCEPT mapping counts for its topic
     .eq("node.node_kind", "UNIT")
     .eq("node.version.status", "PUBLISHED")
     .eq("node.version.is_active", true);
   if (error) return null;
   for (const row of data ?? []) {
     const exam = row.node?.version?.exam;
-    if (!row.canonical_node_id || !row.node || !exam) continue;
-    const list = out.get(row.canonical_node_id) ?? [];
+    if (!row.topic_id || !row.node || !exam) continue;
+    const list = out.get(row.topic_id) ?? [];
     if (!list.some((e) => e.examId === exam.id)) {
       list.push({
         examId: exam.id,
@@ -45,7 +45,7 @@ export async function loadPublishedExamsForTopics(
         isMandatory: row.node.is_mandatory,
       });
     }
-    out.set(row.canonical_node_id, list);
+    out.set(row.topic_id, list);
   }
   return out;
 }

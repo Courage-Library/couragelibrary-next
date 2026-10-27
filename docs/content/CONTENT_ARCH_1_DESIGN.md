@@ -522,3 +522,32 @@ BILINGUAL-1 lands with CA-3 / CA-4.
 3. **Cross-subject move is fail-closed** while any row stores the old subject next to a node of the moved subtree. Today these rows are in `user_mistake_vault`, `descriptive_questions`, `flashcard_decks` and `search_indexes`.
 4. **Exact names stay unique per subject in the projection, even for inactive topics** (`uq_topics_subject_name`, unchanged). A deactivated name can be reused only in a different spelling.
 5. **"Owner only" = the admin role** (there is no separate owner role), plus a reason (at least 5 characters) and the typed word MERGE.
+
+### CA-2 syllabus intake (migration 116)
+
+**What landed:**
+- **Contract `SYLLABUS_INTAKE v2`** (`lib/syllabus/intake-contract.ts`): names, not paths; papers → subjects → topics → subtopics → concepts (+ `headings` deeper than L4). Strict keys, plain text, limits; an uncertain item needs a reason; the exam / cycle / tier must equal the wizard's choice.
+- **Prompt** (`lib/syllabus/intake-prompt.ts`): no invention, strict JSON, flag uncertain items, the context echoed. It stays in code until CA-4's prompt templates.
+- **Matcher** (`lib/syllabus/tree-matcher.ts`): pure and deterministic, level by level, scoped by the matched parent.
+  - EXACT / ALIAS = equality on the shared normalization.
+  - CLOSE = bigram Dice ≥ 0.55 or a word subset, up to 3 suggestions.
+  - NEW = nothing similar.
+  - Children of a parent that is not matched get suggestions only.
+- **Staging:** `syllabus_intake_sessions` / `syllabus_intake_items` (staff read; writes via RPCs only). `fn_syllabus_intake_create` re-checks every EXACT / ALIAS claim and runs the plain-text rule.
+- **Decisions** (`fn_syllabus_intake_decide`, owner = admin):
+  - LINK, ALIAS (adds an INTAKE alias) or APPROVE_NEW (creates the node, audited);
+  - IGNORE covers the whole branch;
+  - parents first; a tree-changing decision is final.
+- **Import** (`fn_syllabus_intake_import`):
+  - one DRAFT per exam / cycle / tier, `source_kind` IMPORT;
+  - PAPER → PAPER, SUBJECT → SECTION, TOPIC → UNIT;
+  - a unit maps its deepest decided SUBTOPIC / CONCEPT nodes (≤ 20), else the topic;
+  - uncertain flags, marks and headings go into node metadata, and the validation report lists UNCERTAIN_ITEM warnings.
+- **M2 schema:**
+  - `exam_syllabus_versions.tier`, one PUBLISHED per (exam, cycle, tier);
+  - mappings may target TOPIC / SUBTOPIC / CONCEPT;
+  - `topic_id` (generated roll-up) is what every "topic" reader uses;
+  - the 61 existing rows read exactly as before (the read model and validation report were proven identical before / after).
+- **Merge** (finding 1 of CA-1): every PUBLISHED version that maps the source gets a re-pointed DRAFT copy for the owner to check and publish. DRAFT rows are re-pointed; ARCHIVED rows keep their history. An open DRAFT for that exam / cycle / tier blocks the merge.
+- **Roll-up guards:** a node whose branch is mapped below topic level cannot be moved, nor merged away from under its topic.
+- **Screens** (admin only): `/admin/syllabus/intake` (wizard + recent intakes) and `/admin/syllabus/intake/[id]` (tree review, decision drawer, "Create draft syllabus").
