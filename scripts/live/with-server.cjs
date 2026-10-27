@@ -3,7 +3,7 @@
  * Live-gate runner (standing rule, docs/testing/LIVE_GATES.md). Starts the LOCAL production build, confirms health,
  * runs gates, and ALWAYS stops the server — pass, fail, timeout or Ctrl-C.
  *
- *   - free-port check before starting (refuses if the port is in use)
+ *   - free-port check before starting (waits ≤ 15 s for a just-stopped server's port, then refuses if still in use)
  *   - `next start` launched directly (node + next bin; no npx / shell wrappers that outlive a kill)
  *   - health: GET /api/health (or --health-path=<path>) with Node fetch, hard limit 120 s; not healthy → print the log tail, start NO gate
  *   - each gate: hard limit 15 min (or --gate-timeout=<s>); a timeout kills the gate and fails loudly with log tails
@@ -55,6 +55,8 @@ const portFree = (port) => new Promise((resolve) => {
   srv.listen(port, '0.0.0.0');
 });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+/** CI-PORT-1: the longest wait for a just-stopped server's port to free (bounded; then the free-port refusal stands) */
+const PORT_WAIT_MS = 15000;
 /** kills a process and all its children (Windows: taskkill /T; POSIX: process group) */
 function killTree(child) {
   if (!child || child.exitCode !== null || child.killed) return;
@@ -109,7 +111,12 @@ function runGate(cmd) {
 
 (async () => {
   if (!fs.existsSync(path.join(ROOT, '.next', 'BUILD_ID'))) { console.error('[with-server] no production build (.next/BUILD_ID): run `npm run build` first'); process.exit(2); }
+  // CI-PORT-1: a previous run's SIGKILLed server can hold the port for a moment after it "stopped" (run 40536671119):
+  // wait for the port, bounded (PORT_WAIT_MS), then refuse exactly as before
+  const portWaitStart = Date.now();
+  while (!(await portFree(PORT)) && Date.now() - portWaitStart < PORT_WAIT_MS) await sleep(500);
   if (!(await portFree(PORT))) { console.error(`[with-server] port ${PORT} is in use — stop the other server first (refusing to start)`); process.exit(2); }
+  if (Date.now() - portWaitStart >= 500) console.log(`[with-server] port ${PORT} became free after ${((Date.now() - portWaitStart) / 1000).toFixed(1)} s`);
   // SECDEF-S2-2 port finding: another project's `next start` / Lighthouse runs on this machine made our server
   // unreachable and got it terminated from outside JS. Fail fast; report kind + pid only; never touch them.
   const foreign = foreignServerProcesses(ROOT, PORT);

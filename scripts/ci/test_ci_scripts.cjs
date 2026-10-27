@@ -105,6 +105,13 @@ test('C-8 run-quiet: a planted secret in the gate output → FAIL, output withhe
   return 'withheld';
 });
 
+test('C-18 CI-PORT-1: with-server waits for the port of a just-stopped server, BOUNDED, then still refuses', () => {
+  const s = fs.readFileSync(path.join(ROOT, 'scripts/live/with-server.cjs'), 'utf8');
+  assert(/const PORT_WAIT_MS = (\d+);/.test(s) && Number(s.match(/const PORT_WAIT_MS = (\d+);/)[1]) <= 30000, 'bounded wait (≤ 30 s)');
+  assert(/while \(!\(await portFree\(PORT\)\) && Date\.now\(\) - portWaitStart < PORT_WAIT_MS\) await sleep\(500\);/.test(s), 'polls within the bound');
+  assert(/if \(!\(await portFree\(PORT\)\)\) \{ console\.error\(`\[with-server\] port \$\{PORT\} is in use — stop the other server first \(refusing to start\)`\); process\.exit\(2\); \}/.test(s), 'the refusal stands after the wait');
+});
+
 test('C-9 with-server never prints the server log tail when CI_QUIET=1', () => {
   const s = fs.readFileSync(path.join(ROOT, 'scripts/live/with-server.cjs'), 'utf8');
   assert(/if \(process\.env\.CI_QUIET === '1'\) return '\(server log withheld in CI/.test(s), 'CI_QUIET guard missing in tail()');
