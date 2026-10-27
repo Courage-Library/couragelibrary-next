@@ -120,3 +120,15 @@ All steps follow the runbook: backup → dry-run → apply → ledger; LIVE-LOCK
 3. **Key change:** an EN key fix always requires the paired HI revision and an atomic publish (proposed), or the HI version is automatically demoted until revised.
 4. **Mocks:** a per-question language switch in the player (like SSC CBT; proposed), or the language fixed at the start of the attempt.
 5. **Order:** BILINGUAL-1 before any Hindi pairing work (TAXONOMY-HINDI-1, the PAIR_CANDIDATE rows), and together with LANG-VERSIONS-1 for articles.
+
+## 8. Rulings (2026-10-27)
+
+- **Decisions 1, 2, 4 and 5: accepted as recommended.**
+  1. Hinglish → English.
+  2. A missing preferred language → the other language, labelled.
+  4. Per-question language switch in mocks.
+  5. BILINGUAL-1 before the Hindi pairing work.
+- **Decision 3, refined:**
+  - An answer-key change publishes EN + HI **together**.
+  - If the HI revision is not ready, the HI version is **withdrawn**: no current HI version; students preferring Hindi are served EN, labelled.
+  - A mismatched key is **never served**: the parity check blocks publishing, and nothing serves a version whose key differs from the current version in the other language.

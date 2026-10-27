@@ -2,6 +2,17 @@
 
 Each item has an owner condition. It is not started until the architect schedules it.
 
+## MAP-EXAM-1: explicit exam links for the 12 unlinked published CGL questions
+
+**Status:** logged by the architect, 2026-10-27 (content-health ruling).
+
+**Why:** content health counts a question for an exam only via an exam mapping, its past-paper source, or membership in the exam's mock tests. 12 of the 112 published SSC CGL questions have none of these. The DB has 0 `exam_question_mappings`.
+
+**How (a separate data step, later):**
+1. List the 12 questions.
+2. The owner confirms each question's exam.
+3. A reviewed, audited insert into `exam_question_mappings` (backup → dry-run → apply), then content health shows them.
+
 ## LEGACY-60: the 60 answered legacy practice questions (CONTENT-SOURCE-1 S2)
 
 **Status:** logged by the architect, 2026-10-27 (skipped by CONTENT-IMPORT-1).
