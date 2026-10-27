@@ -4,6 +4,7 @@ import { reportWriteFailure } from "@/lib/ops/write-failure";
 import { loadPublishedExamsForTopics } from "@/lib/syllabus/published-topic-exams";
 import type { AppSupabaseClient } from "@/lib/supabase/types";
 import { getAdminStudioSettings } from "./studio-settings";
+import { buildContentHealth, type HealthGrid, type HealthQuestion } from "./content-health-core";
 import { computeReviewStats, dailyCounts, groupRecent, REVIEW_ACTIONS, type ReviewStats } from "./review-stats-core";
 import type { AdminRole, NavFlags } from "./nav";
 
@@ -23,9 +24,9 @@ export interface TodayV2 {
   tickets: { open: number | null; late: number | null } | null;
   flags: number | null;
   libraryEnding: number | null;
-  health: { exams: Array<{ id: string; title: string }>; subjects: Array<{ id: string; name: string }>; cells: Record<string, number>; lowestExamId: string | null } | null;
-  /** consecutive identical actions grouped (max 5 groups) */
-  recent: Array<{ action: string; entity: string; at: string; count: number }> | null;
+  health: HealthGrid | null;
+  /** consecutive identical actions grouped (max 5 groups); more = the count is a lower bound */
+  recent: Array<{ action: string; entity: string; at: string; count: number; more: boolean }> | null;
 }
 
 const DAY = 86400e3;
@@ -102,7 +103,7 @@ export async function getTodayV2(input: { role: AdminRole; userId: string; flags
   if (isAdmin) {
     const { data, error } = await sb.from("admin_audit_logs").select("action_type, target_entity, created_at").order("created_at", { ascending: false }).limit(60);
     if (error) logRead("admin_audit_logs", error.code);
-    recent = error ? null : groupRecent((data ?? []).map((r) => ({ action: r.action_type, entity: r.target_entity, at: r.created_at })), 5);
+    recent = error ? null : groupRecent((data ?? []).map((r) => ({ action: r.action_type, entity: r.target_entity, at: r.created_at })), 5, 60);
   }
 
   const health = await contentHealth(sb);
@@ -123,50 +124,58 @@ export async function getTodayV2(input: { role: AdminRole; userId: string; flags
   };
 }
 
-/** Published questions by exam × subject (canonical topic → root subject; topic → exams of PUBLISHED syllabi). */
+/** Content health (architect 2026-10-27): every exam with ≥ 1 question in any state × subject; published + in review. */
 async function contentHealth(sb: AppSupabaseClient): Promise<TodayV2["health"]> {
-  const [qs, exams] = await Promise.all([
-    sb.from("questions").select("canonical_topic_id").eq("status", "published").limit(20000),
-    sb.from("exams").select("id, title").eq("is_active", true).order("title"),
+  const [vs, exams, maps, sources] = await Promise.all([
+    sb.from("question_versions").select("question_id, lifecycle_status, questions!inner(canonical_topic_id, status)").not("lifecycle_status", "in", "(REJECTED,SUPERSEDED)").limit(20000),
+    sb.from("exams").select("id, title, is_active").order("title"),
+    sb.from("exam_question_mappings").select("question_id, exam_id").limit(20000),
+    sb.from("question_sources").select("question_id, exam_name").not("exam_name", "is", null).limit(20000),
   ]);
-  if (qs.error || exams.error) {
-    logRead("content_health", (qs.error || exams.error)?.code);
+  const err = vs.error || exams.error || maps.error || sources.error;
+  if (err) {
+    logRead("content_health", err.code);
     return null;
   }
-  const topicIds = [...new Set((qs.data ?? []).map((q) => q.canonical_topic_id).filter(Boolean))] as string[];
-  const [nodes, topicExams] = await Promise.all([
+  const byQ = new Map<string, HealthQuestion>();
+  for (const v of vs.data ?? []) {
+    const q = (Array.isArray(v.questions) ? v.questions[0] : v.questions) as { canonical_topic_id: string | null; status: string } | null;
+    const cur = byQ.get(v.question_id) ?? { id: v.question_id, topicId: q?.canonical_topic_id ?? null, published: q?.status === "published", inReview: false };
+    if (v.lifecycle_status === "IN_REVIEW") cur.inReview = true;
+    byQ.set(v.question_id, cur);
+  }
+  const questions = [...byQ.values()];
+  const topicIds = [...new Set(questions.map((q) => q.topicId).filter(Boolean))] as string[];
+  const [nodes, topicExamsRaw] = await Promise.all([
     topicIds.length ? sb.from("canonical_taxonomy_nodes").select("id, root_subject_id").in("id", topicIds) : Promise.resolve({ data: [], error: null }),
     loadPublishedExamsForTopics(sb, topicIds),
   ]);
-  if (nodes.error || !topicExams) {
+  if (nodes.error || !topicExamsRaw) {
     logRead("content_health.map", nodes.error?.code);
     return null;
   }
-  const subjectOf = new Map((nodes.data ?? []).map((n: { id: string; root_subject_id: string | null }) => [n.id, n.root_subject_id]));
-  const subjectIds = [...new Set([...subjectOf.values()].filter(Boolean))] as string[];
+  const subjectOfTopic = new Map((nodes.data ?? []).map((n: { id: string; root_subject_id: string | null }) => [n.id, n.root_subject_id]));
+  const subjectIds = [...new Set([...subjectOfTopic.values()].filter(Boolean))] as string[];
   const subj = subjectIds.length ? await sb.from("canonical_taxonomy_nodes").select("id, name, display_order").in("id", subjectIds).order("display_order") : { data: [], error: null };
   if (subj.error) {
     logRead("content_health.subjects", subj.error.code);
     return null;
   }
-  const cells: Record<string, number> = {};
-  for (const q of qs.data ?? []) {
-    const s = q.canonical_topic_id ? subjectOf.get(q.canonical_topic_id) : null;
-    if (!s) continue;
-    for (const e of topicExams.get(q.canonical_topic_id as string) ?? []) {
-      const k = `${e.examId}:${s}`;
-      cells[k] = (cells[k] ?? 0) + 1;
-    }
-  }
-  const examList = (exams.data ?? []).map((e) => ({ id: e.id, title: e.title }));
-  const totals = examList.map((e) => [e.id, Object.entries(cells).filter(([k]) => k.startsWith(e.id + ":")).reduce((a, [, n]) => a + n, 0)] as const);
-  const lowest = totals.length ? totals.reduce((m, t) => (t[1] < m[1] ? t : m)) : null;
-  return {
-    exams: examList,
-    subjects: (subj.data ?? []).map((s: { id: string; name: string }) => ({ id: s.id, name: s.name })),
-    cells,
-    lowestExamId: lowest ? lowest[0] : null,
+  const examByTitle = new Map((exams.data ?? []).map((e) => [e.title.trim().toLowerCase(), e.id]));
+  const explicitExams = new Map<string, string[]>();
+  const add = (q: string, e: string | undefined) => {
+    if (e) explicitExams.set(q, [...(explicitExams.get(q) ?? []), e]);
   };
+  for (const m of maps.data ?? []) add(m.question_id, m.exam_id);
+  for (const s of sources.data ?? []) add(s.question_id, examByTitle.get(String(s.exam_name).trim().toLowerCase()));
+  return buildContentHealth({
+    questions,
+    subjectOfTopic,
+    topicExams: new Map([...topicExamsRaw.entries()].map(([t, list]) => [t, list.map((e) => e.examId)])),
+    explicitExams,
+    exams: (exams.data ?? []).map((e) => ({ id: e.id, title: e.title, isActive: e.is_active })),
+    subjects: (subj.data ?? []).map((s: { id: string; name: string }) => ({ id: s.id, name: s.name })),
+  });
 }
 
 /** The header's first name (own profile; null when unreadable — the header then shows the role only). Never throws. */

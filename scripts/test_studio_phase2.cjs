@@ -16,6 +16,7 @@
  *         (no navy scrim), cyan glow right of the text column, white small text ≥ 4.5:1 at the worst point
  *   SP-08 settings page: admin only, read only; Focus review sidebar badge = a count only, never breaks the layout
  *   SP-09 the new read action: guard first, sanitized (same pattern as every QF action)
+ *   SP-10 content health: rows = every exam with ≥ 1 question in any state (inactive = "not live"), published + in review
  * Run: node scripts/test_studio_phase2.cjs
  */
 const fs = require('fs');
@@ -54,6 +55,7 @@ Module._load = function (request, parent, isMain) {
 const AC = require(path.join(ROOT, 'lib/question-factory/auto-checks.ts'));
 const RS = require(path.join(ROOT, 'lib/admin/review-stats-core.ts'));
 const SS = require(path.join(ROOT, 'lib/admin/studio-settings.ts'));
+const CH = require(path.join(ROOT, 'lib/admin/content-health-core.ts'));
 
 test('SP-01 auto checks: six checks, reasons, Hindi is a warning, blocking failures', () => {
   const good = { correctKey: 'A', optionKeys: ['A', 'B', 'C', 'D'], explanationMd: 'Because 12 × 3 = 36, only A fits.', topicId: 't', topicName: 'Arithmetic', difficulty: 'medium', language: 'en', hasOtherLanguage: false, duplicateCount: 0 };
@@ -97,6 +99,9 @@ test('SP-02 review stats from real audit times (IST)', () => {
   const ev2 = ['A', 'A', 'A', 'B', 'A', 'C', 'D', 'E', 'F'].map((a, i) => ({ action: a, entity: 'x', at: `2026-10-26T1${9 - Math.min(i, 9)}:00:00Z` }));
   const g = RS.groupRecent(ev2, 5);
   assert(JSON.stringify(g.map((x) => `${x.action}${x.count}`)) === '["A3","B1","A1","C1","D1"]' && g[0].at === ev2[0].at, JSON.stringify(g));
+  // a group that runs to the end of a FULL page is a lower bound ("×60+"); a short page is exact
+  const full = Array.from({ length: 60 }, () => ({ action: 'Q', entity: 'x', at: '2026-10-27T05:00:00Z' }));
+  assert(RS.groupRecent(full, 5, 60)[0].more === true && RS.groupRecent(full.slice(0, 10), 5, 60)[0].more === false && g.every((x) => x.more === false), 'lower-bound flag');
   assert(JSON.stringify(RS.REVIEW_ACTIONS) === '["QF_TRANSITION_APPROVED","QF_TRANSITION_REJECTED","QF_TRANSITION_CHANGES_REQUESTED"]', 'review actions');
 });
 
@@ -144,7 +149,7 @@ test('SP-05 focus review: guard first, ids only, existing guarded actions, Q3 co
   const body = p.slice(p.indexOf('export default async function FocusReviewPage('));
   assert(/await requireAdminPage\(\{ allowStaff: true, path: "\/admin\/review\/focus" \}\)/.test(body) && body.indexOf('await requireAdminPage') === body.indexOf('await '), 'guard first (staff + admin)');
   assert(/listReviewQueue\(\{ lifecycleStatus: "IN_REVIEW", limit: 200 \}\)/.test(body) && /\.map\(\(q\) => q\.versionId\)/.test(body), 'IN_REVIEW queue; only version ids passed');
-  assert(/<FocusReview queue=\{ids\} goal=\{settings\.dailyReviewGoal\} doneBefore=\{stats\?\.doneToday \?\? null\} \/>/.test(body), 'props: ids + numbers only');
+  assert(/<FocusReview queue=\{ids\} total=\{total\} goal=\{settings\.dailyReviewGoal\} doneBefore=\{stats\?\.doneToday \?\? null\} \/>/.test(body) && /getFocusQueueCount\(\)/.test(body), 'props: ids + numbers only (total = the head count)');
   const c = read('components/admin/studio/focus-review.tsx');
   assert(/^"use client";/.test(c), 'client component');
   const imports = [...c.matchAll(/^import .* from "([^"]+)";$/gm)].map((m) => m[1]);
@@ -242,6 +247,29 @@ test('SP-08 settings page admin-only + read-only; sidebar badge is a count that 
   assert(l.indexOf('await requireAdminPage') < l.indexOf('getFocusQueueCount()') && /await Promise\.all\(\[getFocusQueueCount\(\), getAdminFirstName\(userId\)\]\)/.test(l) && /<AdminSidebar nav=\{nav\} badges=\{\{ inReview \}\} \/>/.test(l), 'badge + first name read after the guard');
   const s = read('components/admin/admin-sidebar.tsx');
   assert(/Courage Studio/.test(s) && /Admin workspace/.test(s) && /studio-sidebar/.test(s) && /<span className="sr-only"> waiting<\/span>/.test(s), 'brand tile, glow, badge text for AT');
+});
+
+test('SP-10 content health: every exam with ≥ 1 question (any state), not-live label, published + in review, membership rules', () => {
+  const T1 = 't1', T2 = 't2', S1 = 's1', S2 = 's2';
+  const g = CH.buildContentHealth({
+    questions: [
+      { id: 'q1', topicId: T1, published: true, inReview: false },   // CGL via syllabus
+      { id: 'q2', topicId: T1, published: false, inReview: true },   // GD past paper (explicit) + CGL via syllabus
+      { id: 'q3', topicId: T2, published: false, inReview: false },  // a draft only, GD via mapping
+      { id: 'q4', topicId: null, published: false, inReview: true }, // no topic → no cell, exam still listed
+    ],
+    subjectOfTopic: new Map([[T1, S1], [T2, S2]]),
+    topicExams: new Map([[T1, ['cgl']]]),
+    explicitExams: new Map([['q2', ['gd']], ['q3', ['gd']], ['q4', ['mts']]]),
+    exams: [{ id: 'cgl', title: 'SSC CGL', isActive: true }, { id: 'gd', title: 'SSC GD Constable', isActive: false }, { id: 'mts', title: 'SSC MTS', isActive: false }, { id: 'chsl', title: 'SSC CHSL', isActive: false }],
+    subjects: [{ id: S1, name: 'Quantitative Aptitude' }, { id: S2, name: 'General Awareness' }, { id: 's3', name: 'Unused' }],
+  });
+  assert(JSON.stringify(g.exams) === JSON.stringify([{ id: 'cgl', title: 'SSC CGL', live: true }, { id: 'gd', title: 'SSC GD Constable', live: false }, { id: 'mts', title: 'SSC MTS', live: false }]), `rows ${JSON.stringify(g.exams)}`);
+  assert(JSON.stringify(g.cells['cgl:s1']) === '{"published":1,"inReview":1}' && JSON.stringify(g.cells['gd:s1']) === '{"published":0,"inReview":1}' && JSON.stringify(g.cells['gd:s2']) === '{"published":0,"inReview":0}', JSON.stringify(g.cells));
+  assert(JSON.stringify(g.subjects.map((x) => x.id)) === '["s1","s2"]', 'only subjects that have questions');
+  assert(g.lowestExamId === 'gd' || g.lowestExamId === 'mts', `lowest ${g.lowestExamId}`);
+  const p = code(read('app/admin/page.tsx'));
+  assert(/\{!e\.live && <span[^>]*>not live<\/span>\}/.test(p) && /\{c\.inReview > 0 && <span[^>]*>\+\{c\.inReview\} in review<\/span>\}/.test(p) && /cellClass\(c\.published, max\)/.test(p), 'not-live label; published count; "+N in review"');
 });
 
 test('SP-09 qfGetFocusItemAction: guard first, sanitized', () => {

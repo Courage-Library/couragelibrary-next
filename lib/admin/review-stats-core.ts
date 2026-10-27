@@ -69,14 +69,22 @@ export function greeting(now: Date = new Date()): string {
   return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
 }
 
-/** Consecutive identical actions → one row with a count (newest first), at most `max` rows. Pure. */
-export function groupRecent(rows: Array<{ action: string; entity: string; at: string }>, max: number): Array<{ action: string; entity: string; at: string; count: number }> {
-  const out: Array<{ action: string; entity: string; at: string; count: number }> = [];
+/**
+ * Consecutive identical actions → one row with a count (newest first), at most `max` rows. Pure. `fetched` = the
+ * query limit: when the last group runs to the end of a full page, its count is a lower bound (`more: true` → "×60+").
+ */
+export function groupRecent(rows: Array<{ action: string; entity: string; at: string }>, max: number, fetched = Infinity): Array<{ action: string; entity: string; at: string; count: number; more: boolean }> {
+  const out: Array<{ action: string; entity: string; at: string; count: number; more: boolean }> = [];
+  let stopped = false;
   for (const r of rows) {
     const last = out[out.length - 1];
     if (last && last.action === r.action) last.count++;
-    else if (out.length < max) out.push({ ...r, count: 1 });
-    else break;
+    else if (out.length < max) out.push({ ...r, count: 1, more: false });
+    else {
+      stopped = true;
+      break;
+    }
   }
+  if (!stopped && out.length && rows.length >= fetched) out[out.length - 1].more = true;
   return out;
 }

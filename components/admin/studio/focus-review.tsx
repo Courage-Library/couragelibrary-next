@@ -27,7 +27,7 @@ function failed(res: Res): string | null {
   return m || "The action did not complete. Nothing was changed.";
 }
 
-export function FocusReview({ queue: initialQueue, goal, doneBefore }: { queue: string[] | null; goal: number; doneBefore: number | null }) {
+export function FocusReview({ queue: initialQueue, total, goal, doneBefore }: { queue: string[] | null; total?: number | null; goal: number; doneBefore: number | null }) {
   const [queue, setQueue] = useState<string[]>(initialQueue ?? []);
   const [idx, setIdx] = useState(0);
   const [item, setItem] = useState<Item | null>(null);
@@ -206,7 +206,7 @@ export function FocusReview({ queue: initialQueue, goal, doneBefore }: { queue: 
               <X aria-hidden="true" className="size-4" /> Exit <kbd className="rounded border border-current px-1 text-caption">Esc</kbd>
             </Link>
             <p className="text-body-sm font-semibold" aria-live="polite">
-              {doneBefore === null ? `${decided} reviewed this session` : `${done} of ${goal}`} · {queue.length} in the queue
+              {doneBefore === null ? `${decided} reviewed this session` : `${done} of ${goal}`} · {total != null && initialQueue && total > initialQueue.length ? `${Math.max(0, total - decided)} in the queue (${queue.length} loaded)` : `${queue.length} in the queue`}
             </p>
           </div>
           <button type="button" onClick={toggleSurround} aria-pressed={light} className={cn("inline-flex min-h-11 items-center gap-2 rounded-control px-3 text-body-sm font-semibold", onDark ? "focus-ring-on-dark hover:bg-white/10" : "focus-ring hover:bg-surface")}>

@@ -2,6 +2,42 @@
 
 Each item has an owner condition. It is not started until the architect schedules it.
 
+## LEGACY-60: the 60 answered legacy practice questions (CONTENT-SOURCE-1 S2)
+
+**Status:** logged by the architect, 2026-10-27 (skipped by CONTENT-IMPORT-1).
+
+**Why held:** they have answers but no explanations. `fn_import_question_drafts` (and gate 1) require an explanation of at least 40 characters, so they cannot enter as "empty + flagged". They also live inline in legacy HTML pages and need a parser.
+
+**Options:**
+- **(a)** we write the explanations, then use the normal import path;
+- **(b)** a migration that allows an empty explanation for DRAFT only (publish would still require one).
+
+## TAXONOMY-HINDI-1: a Hindi subject for SSC GD (240 rows)
+
+**Status:** logged by the architect, 2026-10-27.
+
+**Why:** `Hindi.csv` (the SSC GD Hindi-language paper) cannot map. The canonical taxonomy has no Hindi subject, and its grammar topics are not the English ones.
+
+**How:**
+1. The owner / syllabus work creates the subject and its topics (taxonomy service; never by the importer).
+2. Add exact names to `scripts/content/content-import-1.topic-map.json`.
+3. Re-run CONTENT-IMPORT-1: it is idempotent, so only the new rows are imported.
+
+## MAP-REVIEW-1: owner confirms topics for 158 unmapped rows
+
+**Status:** logged by the architect, 2026-10-27.
+
+**What:** `docs/content/MAP_REVIEW_1.csv` (from `scripts/content/map-review-1.cjs`) lists, per row ref:
+- up to 3 suggested canonical topics (under the row's subject);
+- the reason;
+- an empty `owner_decision` column.
+
+**Rule:** nothing is auto-mapped. Confirmed decisions become topic-map entries, then a re-run. A decision to "reject" (for example the stale 2025 Current Affairs rows) is also allowed.
+
+## BILINGUAL-1: one current published version per language (design only)
+
+**Status:** design in `docs/content/BILINGUAL_1_DESIGN.md`, 2026-10-27. No migration until the architect's go.
+
 ## RETIRE-SRS-1: retire `spaced_repetition_schedules`
 
 **Status:** logged by architect ruling (b), 2026-10-25.

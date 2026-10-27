@@ -192,12 +192,12 @@ test('C-14 run-quiet passes a wrapped gate\'s "--self-test" to the gate (it must
   return 'gate executed with its flag';
 });
 
-test('C-15 every job has timeout-minutes (CI-FIX-1: offline 15 · server-checks 20 · live 45 · prod-smoke 20)', () => {
+test('C-15 every job has timeout-minutes (CI-FIX-1: offline 15 · server-checks 20 · live-journeys 45 · live-gates 45 · prod-smoke 20)', () => {
   const w = fs.readFileSync(path.join(ROOT, '.github/workflows/ci-gates.yml'), 'utf8');
   const jobsAt = w.indexOf('\njobs:\n');
   assert(jobsAt > 0, 'no jobs block');
   const blocks = w.slice(jobsAt).split(/\n(?= {2}[a-z][\w-]*:\n)/).slice(1);
-  const want = { offline: 15, 'server-checks': 20, live: 45, 'prod-smoke': 20 };
+  const want = { offline: 15, 'server-checks': 20, 'live-journeys': 45, 'live-gates': 45, 'prod-smoke': 20 }; // CI-LIVE-SPLIT-1
   const got = {};
   for (const b of blocks) {
     const name = b.match(/^ {2}([a-z][\w-]*):/)[1];
@@ -211,6 +211,40 @@ test('C-15 every job has timeout-minutes (CI-FIX-1: offline 15 · server-checks 
   const wrong = Object.entries(want).filter(([n, v]) => got[n] !== v).map(([n, v]) => `${n}: ${got[n]} (want ${v})`);
   assert(wrong.length === 0, wrong.join('; '));
   return names.map((n) => `${n} ${got[n]}`).join(' · ');
+});
+
+test('C-17 CI-LIVE-SPLIT-1: the nightly live gates run in 2 parallel jobs and NOTHING is skipped', () => {
+  const w = fs.readFileSync(path.join(ROOT, '.github/workflows/ci-gates.yml'), 'utf8').replace(/\r\n/g, '\n');
+  const job = (n) => {
+    const i = w.indexOf(`\n  ${n}:\n`);
+    assert(i > 0, `job ${n} missing`);
+    const rest = w.slice(i + 1);
+    const next = rest.slice(1).search(/\n {2}(?:[a-z][\w-]*:\n|# -{10})/);
+    return next > 0 ? rest.slice(0, next + 1) : rest;
+  };
+  assert(!/\n {2}live:\n/.test(w), 'the single live job still exists');
+  const A = job('live-journeys');
+  const B = job('live-gates');
+  const ids = (b) => [...b.matchAll(/"\$Q ([A-Z0-9-]+) -- /g)].map((m) => m[1]);
+  // the canonical nightly list (38 gates, as before the split) — each in exactly one job; the QA-session probe in both
+  const CANON = ['QA-SESSION-PROBE', 'SECDEF-RATCHET', 'RLS', 'QF1-DB', 'QBKEY1', 'SECDEF-S2-1', 'TYPES1-CLOSE', 'GAP2-4A', 'READERS', 'SYLIMPORT1', 'CLEANUP-1', 'JOURNEY', 'LINEAGE', 'DRILL1', 'STUDENT-DRILL', 'CLEANUP-2', 'FIXTURE', 'SMOKE-STUDENT-MISTAKE-1', 'SMOKE-STUDENT-MISTAKE-2', 'SMOKE-STUDENT-MISTAKE-3', 'VAULT-HEALTH', 'F9-PRICING', 'ADMIN-D1-D2', 'SMOKE-ADMIN-PAGES-1', 'SMOKE-ADMIN-PAGES-2', 'SMOKE-ADMIN-PAGES-3', 'SMOKE-STUDENT-PAGES', 'SMOKE-STAFF-CONTENT', 'SMOKE-ADMIN-HOME', 'FLAGS-LIVE', 'UX2A-LIVE', 'UX2B-LIVE', 'AUTH1-2B1-LIVE', 'CA-ROUTES', 'SEC1B-LIVE', 'SEC1C-LIVE', 'SEC1D-LIVE', 'ANON-SMOKE-LOCAL'];
+  const a = ids(A), b = ids(B);
+  const all = [...a, ...b].filter((x) => x !== 'QA-SESSION-PROBE');
+  assert(a[0] === 'QA-SESSION-PROBE' && b[0] === 'QA-SESSION-PROBE', 'each job starts with the QA-session probe');
+  assert(new Set(all).size === all.length, `a gate runs twice: ${all.filter((x, i) => all.indexOf(x) !== i)}`);
+  const missing = CANON.filter((x) => x !== 'QA-SESSION-PROBE' && !all.includes(x));
+  const extra = all.filter((x) => !CANON.includes(x));
+  assert(missing.length === 0 && extra.length === 0, `missing ${missing} · unknown ${extra}`);
+  // student-data writers only in live-journeys (the final cleanup / fixture too); the same rules in both jobs
+  for (const x of ['CLEANUP-1', 'JOURNEY', 'LINEAGE', 'DRILL1', 'STUDENT-DRILL', 'CLEANUP-2', 'FIXTURE']) assert(a.includes(x), `${x} must run in live-journeys`);
+  assert(/CLEANUP-FINAL/.test(A) && /FIXTURE-FINAL/.test(A) && !/CLEANUP-FINAL|FIXTURE-FINAL/.test(B), 'final cleanup / fixture only in live-journeys');
+  for (const [n, j] of [['live-journeys', A], ['live-gates', B]]) {
+    assert(/needs: offline/.test(j) && /if: github\.event_name == 'schedule' \|\| \(github\.event_name == 'workflow_dispatch' && inputs\.live\)/.test(j), `${n}: same trigger (nightly / dispatch live=true)`);
+    assert(/environment: ci-live/.test(j) && /E2E_KEEP_USER: '1'/.test(j) && /QA_SESSION_CACHE_DIR: \$\{\{ runner\.temp \}\}\/qa-session/.test(j), `${n}: same secrets environment + QA session rules`);
+    assert(/DB-SESSIONS-PRE/.test(j) && /DB-SESSIONS-POST/.test(j) && /log-scan\.cjs/.test(j), `${n}: orphan-session checks + log scan`);
+    assert(!/needs: live/.test(j), `${n}: the jobs run in parallel`);
+  }
+  return `live-journeys ${a.length} · live-gates ${b.length} (= ${CANON.length} + the probe)`;
 });
 
 test('C-16 no QA password sign-in in any script (decision #74: CAPTCHA-safe QA sessions); only the negative login-page tests submit the form, with fixed dummy passwords', () => {

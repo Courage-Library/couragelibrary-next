@@ -206,7 +206,8 @@ jobs:
         run: node scripts/ci/log-scan.cjs "$RUNNER_TEMP/ci-quiet"
 
   # ------------------------------------------------------------------ (b) live gates — environment ci-live (main only)
-  live:
+  live-journeys:
+    # CI-LIVE-SPLIT-1 (architect 2026-10-27): student journeys + student-data smokes (the only job that writes QA student data; it runs the final cleanup / fixture). Parallel with live-gates: own runner, server and QA session cache; same secrets.
     needs: offline
     # CI-LEAN-1 (decision #73): nightly schedule or a manual dispatch with live=true — never on push
     if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.live)
@@ -254,7 +255,97 @@ jobs:
           mkdir -p "$RUNNER_TEMP/server" "$RUNNER_TEMP/ci-quiet"
           node scripts/ci/run-quiet.cjs --id NET-PROBE -- node scripts/diag/net-probe.cjs --n=3
           node scripts/ci/run-quiet.cjs --id DB-SESSIONS-PRE -- node scripts/ci/db-sessions.cjs --fail-on-own-open
-      - name: Live gates (one server, documented GATE ORDER; #56 smokes 3x; summary lines only)
+      - name: Live journeys + student smokes (one server, documented GATE ORDER; #56 smokes 3x; summary lines only)
+        env:
+          # CI-LEAN-1: one QA session per identity per job (0600 files, runner temp, never printed) + safe failure IDs
+          QA_SESSION_CACHE_DIR: ${{ runner.temp }}/qa-session
+          QA_SESSION_DIAG: '1'
+        run: |
+          Q='node scripts/ci/run-quiet.cjs --id'
+          B='http://localhost:3100'
+          node scripts/live/with-server.cjs --port=3100 --log="$RUNNER_TEMP/server/server.log" -- \
+            "$Q QA-SESSION-PROBE -- node scripts/live/qa-session.cjs --probe" \
+            "$Q CLEANUP-1 -- node scripts/e2e/cleanup-student.cjs" \
+            "$Q JOURNEY -- node scripts/e2e/student-journey.cjs" \
+            "$Q LINEAGE -- node scripts/e2e/assert-mistake-lineage.cjs" \
+            "$Q DRILL1 -- node scripts/test_drill1.cjs" \
+            "$Q STUDENT-DRILL -- node scripts/e2e/student-drill.cjs" \
+            "$Q CLEANUP-2 -- node scripts/e2e/cleanup-student.cjs" \
+            "$Q FIXTURE -- node scripts/e2e/ensure-student-fixture.cjs $B" \
+            "$Q SMOKE-STUDENT-MISTAKE-1 -- node scripts/smoke/signed-in-smoke.cjs student-mistake $B" \
+            "$Q SMOKE-STUDENT-MISTAKE-2 -- node scripts/smoke/signed-in-smoke.cjs student-mistake $B" \
+            "$Q SMOKE-STUDENT-MISTAKE-3 -- node scripts/smoke/signed-in-smoke.cjs student-mistake $B" \
+            "$Q VAULT-HEALTH -- node scripts/live/test_vault_health.cjs" \
+            "$Q F9-PRICING -- node scripts/live/test_f9_pricing.cjs" \
+            "$Q SMOKE-STUDENT-PAGES -- node scripts/smoke/signed-in-smoke.cjs student-pages $B"
+      - name: Cleanup — QA data back to the kept smoke fixture (always)
+        if: always()
+        env:
+          QA_SESSION_CACHE_DIR: ${{ runner.temp }}/qa-session
+          QA_SESSION_DIAG: '1'
+        run: |
+          node scripts/ci/run-quiet.cjs --id CLEANUP-FINAL -- node scripts/e2e/cleanup-student.cjs || true
+          # CI-FIX-1: a cancelled / timed-out live step can leave its server on :3100 (run #13) — stop ONLY ours first
+          node scripts/ci/kill-leftover-server.cjs --port=3100 || true
+          node scripts/live/with-server.cjs --port=3100 --log="$RUNNER_TEMP/server/server-cleanup.log" -- \
+            "node scripts/ci/run-quiet.cjs --id FIXTURE-FINAL -- node scripts/e2e/ensure-student-fixture.cjs http://localhost:3100" || true
+      - name: Orphan-session check (always; never terminates)
+        if: always()
+        run: node scripts/ci/run-quiet.cjs --id DB-SESSIONS-POST -- node scripts/ci/db-sessions.cjs --fail-on-own-open
+      - name: Log scan of the captured outputs (always)
+        if: always()
+        run: node scripts/ci/log-scan.cjs "$RUNNER_TEMP/ci-quiet"
+
+  live-gates:
+    # CI-LIVE-SPLIT-1 (architect 2026-10-27): security / DB / admin / flags / public gates (no QA student data writes). Parallel with live-journeys: own runner, server and QA session cache; same secrets.
+    needs: offline
+    # CI-LEAN-1 (decision #73): nightly schedule or a manual dispatch with live=true — never on push
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.live)
+    runs-on: ubuntu-24.04
+    # CI-FIX-1: hard limit (green runs ~30 min); the always-run cleanup steps still execute after a timeout
+    timeout-minutes: 45
+    environment: ci-live
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      POSTGRES_URL_NON_POOLING: ${{ secrets.POSTGRES_URL_NON_POOLING }}
+      QA_STUDENT_PASSWORD: ${{ secrets.QA_STUDENT_PASSWORD }}
+      QA_STAFF_PASSWORD: ${{ secrets.QA_STAFF_PASSWORD }}
+      QA_ADMIN_PASSWORD: ${{ secrets.QA_ADMIN_PASSWORD }}
+      E2E_STUDENT_EMAIL: qa-student@courage-library.test
+      E2E_STUDENT_PASSWORD_KEY: QA_STUDENT_PASSWORD
+      E2E_KEEP_USER: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (node24)
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0 (node24)
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Install (lockfile only)
+        run: npm ci --no-audit --no-fund --loglevel=error
+      - name: Mask values derived from secrets
+        run: node scripts/ci/mask-derived.cjs
+      - name: CA certificate for verified TLS (from secret, mode 0600, runner temp)
+        env:
+          PROD_CA_PEM: ${{ secrets.PROD_CA_PEM }}
+        run: |
+          umask 077
+          printf '%s\n' "$PROD_CA_PEM" > "$RUNNER_TEMP/prod-ca.pem"
+          echo "PROD_CA_PATH=$RUNNER_TEMP/prod-ca.pem" >> "$GITHUB_ENV"
+      - name: Guard — TLS verification is never disabled
+        run: test -z "${NODE_TLS_REJECT_UNAUTHORIZED:-}"
+      - name: Production build (summary only)
+        run: node scripts/ci/run-quiet.cjs --id BUILD --timeout 1200 -- npm run build
+      - name: Pre-flight — network probe + no open own DB sessions
+        run: |
+          mkdir -p "$RUNNER_TEMP/server" "$RUNNER_TEMP/ci-quiet"
+          node scripts/ci/run-quiet.cjs --id NET-PROBE -- node scripts/diag/net-probe.cjs --n=3
+          node scripts/ci/run-quiet.cjs --id DB-SESSIONS-PRE -- node scripts/ci/db-sessions.cjs --fail-on-own-open
+      - name: Live security, DB, admin, flags + public gates (one server, documented GATE ORDER; #56 smokes 3x; summary lines only)
         env:
           # CI-LEAN-1: one QA session per identity per job (0600 files, runner temp, never printed) + safe failure IDs
           QA_SESSION_CACHE_DIR: ${{ runner.temp }}/qa-session
@@ -273,23 +364,10 @@ jobs:
             "$Q GAP2-4A -- node scripts/test_gap2_4a_syllabus.cjs" \
             "$Q READERS -- node scripts/test_gap2_4b_readers.cjs --base=$B" \
             "$Q SYLIMPORT1 -- node scripts/test_syl_import1.cjs" \
-            "$Q CLEANUP-1 -- node scripts/e2e/cleanup-student.cjs" \
-            "$Q JOURNEY -- node scripts/e2e/student-journey.cjs" \
-            "$Q LINEAGE -- node scripts/e2e/assert-mistake-lineage.cjs" \
-            "$Q DRILL1 -- node scripts/test_drill1.cjs" \
-            "$Q STUDENT-DRILL -- node scripts/e2e/student-drill.cjs" \
-            "$Q CLEANUP-2 -- node scripts/e2e/cleanup-student.cjs" \
-            "$Q FIXTURE -- node scripts/e2e/ensure-student-fixture.cjs $B" \
-            "$Q SMOKE-STUDENT-MISTAKE-1 -- node scripts/smoke/signed-in-smoke.cjs student-mistake $B" \
-            "$Q SMOKE-STUDENT-MISTAKE-2 -- node scripts/smoke/signed-in-smoke.cjs student-mistake $B" \
-            "$Q SMOKE-STUDENT-MISTAKE-3 -- node scripts/smoke/signed-in-smoke.cjs student-mistake $B" \
-            "$Q VAULT-HEALTH -- node scripts/live/test_vault_health.cjs" \
-            "$Q F9-PRICING -- node scripts/live/test_f9_pricing.cjs" \
             "$Q ADMIN-D1-D2 -- node scripts/live/test_admin_d1_d2.cjs" \
             "$Q SMOKE-ADMIN-PAGES-1 -- node scripts/smoke/signed-in-smoke.cjs admin-pages $B" \
             "$Q SMOKE-ADMIN-PAGES-2 -- node scripts/smoke/signed-in-smoke.cjs admin-pages $B" \
             "$Q SMOKE-ADMIN-PAGES-3 -- node scripts/smoke/signed-in-smoke.cjs admin-pages $B" \
-            "$Q SMOKE-STUDENT-PAGES -- node scripts/smoke/signed-in-smoke.cjs student-pages $B" \
             "$Q SMOKE-STAFF-CONTENT -- node scripts/smoke/signed-in-smoke.cjs staff-content $B" \
             "$Q SMOKE-ADMIN-HOME -- node scripts/smoke/signed-in-smoke.cjs admin-home $B" \
             "$Q FLAGS-LIVE -- node scripts/live/test_flags_live.cjs $B" \
@@ -301,17 +379,6 @@ jobs:
             "$Q SEC1C-LIVE -- node scripts/test_sec1c_admin_pages.cjs --live $B" \
             "$Q SEC1D-LIVE -- node scripts/test_sec1d_redirects.cjs --live $B" \
             "$Q ANON-SMOKE-LOCAL -- node scripts/smoke/anonymous-smoke.cjs $B"
-      - name: Cleanup — QA data back to the kept smoke fixture (always)
-        if: always()
-        env:
-          QA_SESSION_CACHE_DIR: ${{ runner.temp }}/qa-session
-          QA_SESSION_DIAG: '1'
-        run: |
-          node scripts/ci/run-quiet.cjs --id CLEANUP-FINAL -- node scripts/e2e/cleanup-student.cjs || true
-          # CI-FIX-1: a cancelled / timed-out live step can leave its server on :3100 (run #13) — stop ONLY ours first
-          node scripts/ci/kill-leftover-server.cjs --port=3100 || true
-          node scripts/live/with-server.cjs --port=3100 --log="$RUNNER_TEMP/server/server-cleanup.log" -- \
-            "node scripts/ci/run-quiet.cjs --id FIXTURE-FINAL -- node scripts/e2e/ensure-student-fixture.cjs http://localhost:3100" || true
       - name: Orphan-session check (always; never terminates)
         if: always()
         run: node scripts/ci/run-quiet.cjs --id DB-SESSIONS-POST -- node scripts/ci/db-sessions.cjs --fail-on-own-open

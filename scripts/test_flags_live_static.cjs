@@ -30,8 +30,9 @@ check('FS-2c', 'no SQL write outside rolledBack()', !/\b(insert into|update user
 check('FS-3', 'QA identity asserted first; page checks are GETs that SKIP when the flag is off',
   code.indexOf('assertQaEmail(EMAIL)') > 0 && code.indexOf('assertQaEmail(EMAIL)') < code.indexOf('pg.connect()') && /if \(process\.env\[flag\] !== 'true'\) return 'SKIP';/.test(code) && !/method:\s*'(POST|PUT|PATCH|DELETE)'/.test(code));
 const wf = fs.readFileSync(path.join(ROOT, '.github/workflows/ci-gates.yml'), 'utf8').replace(/\r\n/g, '\n');
-const live = wf.slice(wf.indexOf('\n  live:'), wf.indexOf('\n  prod-smoke:'));
-check('FS-4', 'registered in the live job only', /"\$Q FLAGS-LIVE -- node scripts\/live\/test_flags_live\.cjs \$B"/.test(live) && (wf.match(/test_flags_live\.cjs/g) || []).length === 1);
+// CI-LIVE-SPLIT-1: the flags gate belongs to the live-gates job
+const live = wf.slice(wf.indexOf('\n  live-gates:'), wf.indexOf('\n  prod-smoke:'));
+check('FS-4', 'registered in the live-gates job only', /"\$Q FLAGS-LIVE -- node scripts\/live\/test_flags_live\.cjs \$B"/.test(live) && (wf.match(/test_flags_live\.cjs/g) || []).length === 1);
 
 console.log(`\nFLAGS-LIVE static: ${passed}/${passed + failed} passed`);
 process.exit(failed ? 1 : 0);

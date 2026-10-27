@@ -393,6 +393,28 @@ const OPTS = { origin: 'AI_EXTERNAL', requireContextHash: true, cognitiveTrapCod
   });
 
   // ===================== GATE 5 =====================
+  // Ruling B (2026-10-27): past-paper provenance accepts ANY existing exam (active or not), exactly like the SQL import
+  // function; a TARGET exam (mapping) still has to be active. Nothing else changed.
+  await test('G4 provenance: an existing INACTIVE exam resolves; an unknown slug does not; the query never filters on is_active', async () => {
+    const GD = '6b933751-0000-4000-8000-000000000001';
+    const sb = createMockSupabase(({ table, ops }) => {
+      if (table !== 'exams') return { data: null, error: null };
+      const slug = (ops.find((o) => o.op === 'eq' && o.args[0] === 'slug') || { args: [] }).args[1];
+      return { data: slug === 'ssc-gd' ? { id: GD, slug: 'ssc-gd' } : null, error: null };
+    });
+    const resolver = new QuestionTaxonomyResolver(sb);
+    assert((await resolver.resolveExamSlug('SSC-GD ')) === GD, 'inactive existing exam resolves (normalised slug)');
+    assert((await resolver.resolveExamSlug('no-such-exam')) === null && (await resolver.resolveExamSlug('')) === null, 'unknown / empty slug → null');
+    assert(!sb.log.queries.some((q) => q.ops.some((o) => o.args && o.args[0] === 'is_active')), 'no is_active filter for provenance');
+    assert(sb.log.writes.length === 0, 'read only');
+    const r = await validate(spec([item({ sourceType: 'PYQ', pyq: { examSlug: 'ssc-gd', year: 2025, reference: 'SSC GD 2025' } })]), lookups({ resolveExamSlug: (s) => resolver.resolveExamSlug(s) }));
+    assert(r.items[0].gates.GATE_4_PROVENANCE.passed && r.items[0].gates.GATE_4_PROVENANCE.details.pyqExamId === GD, JSON.stringify(r.items[0].gates.GATE_4_PROVENANCE.errors));
+  });
+  await test('G4 target exam is still ACTIVE-only (mapping / visibility rule unchanged)', async () => {
+    const src = fs.readFileSync(path.join(ROOT, 'services/question-factory/question-taxonomy-resolver.ts'), 'utf8');
+    const fn = src.slice(src.indexOf('async getActiveExamById('), src.indexOf('async getActiveExamById(') + 600);
+    assert(/is_active/.test(fn) && /exam = await this\.getActiveExamById\(target\.examId\)/.test(src), 'resolveTarget keeps the active-exam check');
+  });
   console.log('[Gate 5]');
   const words = (n, last) => Array.from({ length: n - 1 }, (_, i) => `word${i}`).concat([last]).join(' ');
   await test('G5 jaccard fixtures: 21 tokens → 0.90, 9 tokens → 0.75', async () => {

@@ -78,11 +78,17 @@ The owner's machine cannot keep the 2 GB free-memory floor that a local `next st
 
 ## When the live suite runs (CI-LEAN-1, decision #73)
 
-The CI `live` job runs **nightly**, around 02:30 IST, and on **manual dispatch**. It does not run on push; push runs only offline, server-checks and prod-smoke.
+The CI live jobs (`live-journeys` + `live-gates`) run **nightly**, around 02:30 IST, and on **manual dispatch**. It does not run on push; push runs only offline, server-checks and prod-smoke.
 
 **Locally:** live runs stay optional (#69 memory floor).
 
-**In the live job:**
+**Two parallel jobs (CI-LIVE-SPLIT-1, 2026-10-27).** Both jobs use the same secrets environment (`ci-live`), the same trigger (nightly, or dispatch with live=true), the same QA session rules and the same pre / post orphan-session checks. Each job has its own runner, local server and QA session cache, and a 45-minute limit.
+- **`live-journeys`:** the student journeys and every gate that writes QA student data (cleanup, journey, lineage, drills, fixture, student smokes, vault health, F9 pricing). It is the only job that runs the final cleanup / fixture.
+- **`live-gates`:** security, DB, admin, flags and public gates.
+
+The offline gate `C-17` (`scripts/ci/test_ci_scripts.cjs`) proves that the two jobs together run exactly the canonical list of 38 gates, each once (the QA-session probe in both), so nothing is skipped.
+
+**In each live job:**
 - **One session per identity per job:** `QA_SESSION_CACHE_DIR` is set, so the helper mints one session per QA identity for the whole job (0600 files in the runner temp dir, never printed).
 - **Failure IDs:** `QA_SESSION_DIAG=1` makes a failed mint print a fixed-vocabulary check ID such as `QS-VERIFYFAILED-403`, so CI's ID-only summary shows the cause.
 

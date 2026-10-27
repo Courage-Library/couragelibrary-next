@@ -154,9 +154,19 @@ const toCsvRow = (r) => ({
 });
 const importInfo = (r) => ({ source: 'CONTENT-IMPORT-1', sourceRef: r.ref, legacyTopic: r.topicLabel, flags: r.flags, explanationSource: 'legacy Courage Library (to verify in review)' });
 
+/** Row counts, in a READ ONLY transaction under LIVE-LOCK-SAFETY (lock 3 s, statement 60 s, idle-in-transaction 30 s). */
 async function counts(pg) {
-  const c = await pg.query(`select (select count(*) from question_versions)::int qv, (select count(*) from questions)::int q, (select count(*) from question_import_batches)::int b, (select count(*) from admin_audit_logs)::int a, (select count(*) from question_sources)::int s`);
-  return c.rows[0];
+  await pg.query('BEGIN READ ONLY');
+  try {
+    await pg.query("SET LOCAL lock_timeout = '3s'");
+    await pg.query("SET LOCAL statement_timeout = '60s'");
+    await pg.query("SET LOCAL idle_in_transaction_session_timeout = '30s'");
+    const c = await pg.query(`select (select count(*) from question_versions)::int qv, (select count(*) from questions)::int q, (select count(*) from question_import_batches)::int b, (select count(*) from admin_audit_logs)::int a, (select count(*) from question_sources)::int s,
+      (select count(*) from question_versions where lifecycle_status = 'IN_REVIEW')::int in_review, (select count(*) from question_versions where lifecycle_status = 'DRAFT')::int draft, (select count(*) from question_versions where lifecycle_status = 'PUBLISHED')::int published`);
+    return c.rows[0];
+  } finally {
+    await pg.query('ROLLBACK');
+  }
 }
 
 (async () => {
@@ -165,7 +175,6 @@ async function counts(pg) {
   const sb = createClient(env('NEXT_PUBLIC_SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'), { auth: { persistSession: false, autoRefreshToken: false } });
   const pg = new Client({ ...target.pg, port: 6543 });
   await pg.connect();
-  await pg.query("SET statement_timeout = '60s'");
   const before = await counts(pg);
 
   const actor = await findUserByEmail(sb, 'qa-admin@courage-library.test');
@@ -188,7 +197,7 @@ async function counts(pg) {
     if (res.status === 'REJECTED') {
       const e = res.errors.join(' ');
       r.skip = /Duplicate option text/.test(e) ? 'OPTION_TEXT_DUPLICATE'
-        : /duplicate[^.]*of batch item/i.test(e) ? 'DUPLICATE_IN_IMPORT_BATCH'
+        : /(?:exact|near)[- ]duplicate.*?of batch item/i.test(e) ? 'DUPLICATE_IN_IMPORT_BATCH'
         : /duplicat/i.test(e) ? 'DUPLICATE_IN_BANK'
         : /examSlug/.test(e) ? 'GATE4_PYQ_EXAM_NOT_RESOLVED' : 'GATE_REJECTED';
     }
@@ -199,7 +208,12 @@ async function counts(pg) {
   if (COMMIT) {
     const pass = candidates.filter((r) => !r.skip);
     const res = await QuestionCsvImporterService.run({ rows: pass.map(toCsvRow), mode: 'commit', actorId: actor.id, supabase: sb, rowMetadata: pass.map(importInfo) });
-    committed = { imported: 0, inReview: 0, draftFlagged: 0, failed: 0 };
+    committed = { imported: 0, inReview: 0, draftFlagged: 0, failed: 0, batches: res.batchIds.length };
+    // one audit row per import batch (the same action the factory service writes for an import)
+    for (const batchId of res.batchIds) {
+      const n = res.rows.filter((x) => x.status === 'IMPORTED').length;
+      await sb.from('admin_audit_logs').insert({ actor_id: actor.id, actor_email: actor.email, action_type: 'QF_IMPORT_DRAFTS', target_entity: 'question_import_batch', target_id: batchId, old_value: null, new_value: { origin: 'CSV_IMPORT', source: 'CONTENT-IMPORT-1', importedInRun: n }, reason: null });
+    }
     for (const [i, r] of pass.entries()) {
       const x = res.rows[i];
       if (x.status !== 'IMPORTED') { r.skip = 'COMMIT_REJECTED'; r.gateErrors = x.errors; committed.failed++; continue; }

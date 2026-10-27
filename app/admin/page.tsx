@@ -22,7 +22,7 @@ const NA = "Not available";
  * Courage Studio — TODAY v2 (decision #84; STUDIO-P2-POLISH = the approved concept). Greeting + "N things need you
  * today"; the gradient MISSION card spanning two card rows (goal, ring, time left, streak, ONE primary: "Start focus
  * session" (F) — or "Import questions" when the queue is empty); four queue cards with a status line; an "Also" strip;
- * content health (every active exam × subject); recent activity grouped (no e-mails). Guard first; every number real
+ * content health (every exam with questions × subject: published + in review); recent activity grouped (no e-mails). Guard first; every number real
  * or "Not available" (R12).
  */
 export default async function AdminTodayPage() {
@@ -224,7 +224,7 @@ const SHORT: Record<string, string> = {
 const ORDER = ["Quantitative Aptitude", "General Intelligence and Reasoning", "English Comprehension", "General Awareness"];
 
 function cellClass(n: number, max: number): string {
-  if (n === 0) return "bg-ink-100 text-ink-500";
+  if (n === 0) return "bg-ink-100 text-fg-secondary";
   const r = n / Math.max(1, max);
   return r > 0.75 ? "bg-primary-200 font-semibold text-primary-800" : r > 0.4 ? "bg-primary-100 font-semibold text-primary-800" : "bg-primary-50 font-semibold text-primary-700";
 }
@@ -232,13 +232,13 @@ function cellClass(n: number, max: number): string {
 function ContentHealth({ h }: { h: TodayV2["health"] }) {
   const rank = (name: string) => (ORDER.includes(name) ? ORDER.indexOf(name) : ORDER.length);
   const subjects = h ? [...h.subjects].sort((a, b) => rank(a.name) - rank(b.name)) : [];
-  const max = h ? Math.max(0, ...Object.values(h.cells)) : 0;
+  const max = h ? Math.max(0, ...Object.values(h.cells).map((c) => c.published)) : 0;
   const lowest = h?.exams.find((e) => e.id === h.lowestExamId) ?? null;
   return (
     <section aria-labelledby="content-health" className="rounded-card border border-line bg-surface p-[18px]">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 id="content-health" className="text-[12px] font-semibold text-ink-500">
-          <span className="uppercase tracking-[.08em]">Content health</span> — published questions by exam &amp; subject
+          <span className="uppercase tracking-[.08em]">Content health</span> — published questions by exam &amp; subject (+ in review)
         </h2>
         {lowest && (
           <Link href={`/admin/exams/${lowest.id}`} className="focus-ring inline-flex min-h-9 items-center text-[13px] font-semibold text-link hover:underline" title={`Lowest coverage: ${lowest.title}`}>
@@ -251,7 +251,7 @@ function ContentHealth({ h }: { h: TodayV2["health"] }) {
       ) : (
         <div className="mt-2 overflow-x-auto">
           <table className="w-full border-separate border-spacing-1.5 text-[12.5px]">
-            <caption className="sr-only">Published questions by exam and subject</caption>
+            <caption className="sr-only">Published questions by exam and subject, with the number in review</caption>
             <thead>
               <tr>
                 <th scope="col" className="w-28 text-left font-semibold text-ink-500">
@@ -270,12 +270,14 @@ function ContentHealth({ h }: { h: TodayV2["health"] }) {
                 <tr key={e.id}>
                   <th scope="row" className="pr-2 text-left font-semibold text-fg">
                     {e.title}
+                    {!e.live && <span className="ml-1.5 whitespace-nowrap rounded-badge bg-ink-100 px-1.5 py-0.5 text-[11.5px] font-semibold text-fg-secondary">not live</span>}
                   </th>
                   {subjects.map((s) => {
-                    const n = h.cells[`${e.id}:${s.id}`] ?? 0;
+                    const c = h.cells[`${e.id}:${s.id}`] ?? { published: 0, inReview: 0 };
                     return (
-                      <td key={s.id} className={cn("rounded-control px-2 py-1.5 text-center tabular-nums", cellClass(n, max))}>
-                        {n}
+                      <td key={s.id} className={cn("rounded-control px-2 py-1.5 text-center tabular-nums", cellClass(c.published, max))}>
+                        <span className="block">{c.published}</span>
+                        {c.inReview > 0 && <span className="block text-[11.5px] font-medium text-fg-secondary">+{c.inReview} in review</span>}
                       </td>
                     );
                   })}
@@ -324,7 +326,7 @@ function Recent({ rows }: { rows: NonNullable<TodayV2["recent"]> }) {
                 <span className={cn("flex size-6 shrink-0 items-center justify-center rounded-control", k.tile)}>{k.icon}</span>
                 <span className="min-w-0 flex-1 text-fg">
                   {humanAction(r.action)}
-                  {r.count > 1 && <span className="font-semibold"> ×{r.count}</span>}
+                  {r.count > 1 && <span className="font-semibold"> ×{r.count}{r.more ? "+" : ""}</span>}
                 </span>
                 <time dateTime={r.at} title={full(r.at)} className="shrink-0 text-[12px] text-ink-500">
                   {r.count > 1 && <span className="sr-only">latest </span>}

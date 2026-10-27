@@ -120,17 +120,22 @@ export class QuestionTaxonomyResolver {
   }
 
   /** Resolves an exam slug (case-insensitive) to an active exam id, or null. */
+  /**
+   * Gate 4 (past-paper provenance) only: the exam a PYQ came from must EXIST — active or not (architect ruling B,
+   * 2026-10-27), exactly like fn_import_question_drafts, which checks the exam row and the year. Visibility is a separate
+   * rule: an inactive exam stays hidden from students, and the importer maps no exam (target exams still go through
+   * resolveTarget / getActiveExamById, which requires an ACTIVE exam).
+   */
   async resolveExamSlug(slug: string): Promise<string | null> {
     const normalized = String(slug || '').trim().toLowerCase();
     if (!normalized) return null;
     const { data, error } = await this.supabase
       .from('exams')
-      .select('id, slug, is_active')
+      .select('id, slug')
       .eq('slug', normalized)
       .maybeSingle();
     if (error) throw lookupError('Exam slug', error);
-    if (!data || data.is_active === false) return null;
-    return data.id;
+    return data ? data.id : null;
   }
 
   /**
