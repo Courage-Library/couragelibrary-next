@@ -22,6 +22,8 @@
  *   K-7  live grants: the 4 new functions owner-only; the 7 replaced functions keep their ACLs; P-9 shape
  *   K-9  the pre-087 question_versions / question_options / question_answers (the 113 versions created up to
  *        2026-10-12T11:24:49Z) byte-identical to the baseline; later, separately gated content is out of scope
+ *   K-9b every PUBLISHED version is answer-immutable (a tested trigger: key / option / answer / stem changes refused,
+ *        even with the lifecycle flag; trigger functions hash-pinned) and has a valid key
  *   K-10 the 8 fixtures archived with 8 audit rows; not served by practice (service_role with student claims — the
  *        practice RPC is not client-callable since SECDEF-S2-2 / 090), battles' pool, drills (predicate) or mock assembly (guard)
  *   K-14 decision #54 invoker safety: as qa-student (role authenticated + JWT claims): the helpers are not callable
@@ -59,6 +61,8 @@ const BASELINE = { question_versions: 'b2bb76546c3b', question_options: 'ac7af53
 // the baseline set: every version created up to the last pre-087 row (2026-10-12); 113 versions
 const BASELINE_BEFORE = '2026-10-12T11:24:49Z'; // strictly before (the last baseline row is 11:24:48.123xxx; the next version is from 2026-10-27)
 const BASELINE_VERSIONS = 113;
+// K-9b: the published-immutable trigger functions (063, never redefined) — md5(pg_get_functiondef) prefixes
+const IMMUTABLE_FN_HASH = { child: 'bf756826dfd4', version: '68ce8e657c53' };
 
 // ---------------------------------------------------------------- TS loader with stubs
 function loadTs(rel, stubs = {}) {
@@ -405,6 +409,47 @@ function supaMock(results) {
       assert(n === BASELINE_VERSIONS, `${n} baseline versions (want ${BASELINE_VERSIONS})`);
       assert(h === BASELINE.question_versions && o === BASELINE.question_options && a === BASELINE.question_answers, `versions ${h} options ${o} answers ${a} vs ${JSON.stringify(BASELINE)}`);
       return `identical (${n} versions)`;
+    }));
+
+    // K-9b (architect, 2026-10-27, with the K-9 scope ratification): new content is protected too. Every PUBLISHED
+    // version's answer is immutable through a TESTED published-immutable trigger: changing the key, editing / deleting
+    // an option or the answer, or editing the stem is refused (even with the lifecycle-write flag on); the triggers are
+    // enabled and their function bodies equal the recorded hashes (a silent weakening fails); every PUBLISHED version
+    // has a valid key. All attempts run in one rolled-back transaction.
+    await test('K-9b every PUBLISHED version is answer-immutable (tested trigger) and has a valid key', async () => rolledBack(async () => {
+      const fns = Object.fromEntries((await q(`SELECT p.proname, left(md5(pg_get_functiondef(p.oid)), 12) h FROM pg_proc p WHERE p.pronamespace = 'public'::regnamespace AND p.proname IN ('fn_qf_enforce_question_child_integrity', 'fn_qf_enforce_question_version_integrity')`)).map((r) => [r.proname, r.h]));
+      assert(fns.fn_qf_enforce_question_child_integrity === IMMUTABLE_FN_HASH.child && fns.fn_qf_enforce_question_version_integrity === IMMUTABLE_FN_HASH.version, `trigger functions changed: ${JSON.stringify(fns)}`);
+      const trg = await q(`SELECT tgname, tgenabled FROM pg_trigger WHERE tgname IN ('trg_qf_question_answers_integrity', 'trg_qf_question_options_integrity', 'trg_qf_question_version_integrity')`);
+      assert(trg.length === 3 && trg.every((t) => t.tgenabled === 'O'), `triggers: ${JSON.stringify(trg)}`);
+      // every PUBLISHED version without a valid key must be one of the 8 known archived fixtures (088, never served — K-10)
+      const bad = await q(`SELECT v.question_id::text qid, q.status FROM public.question_versions v JOIN public.questions q ON q.id = v.question_id WHERE v.lifecycle_status = 'PUBLISHED' AND public.fn_qf_version_key_problem(v.id) IS NOT NULL`);
+      const unexpected = bad.filter((b) => !(b.status === 'archived' && FIXTURES.includes(b.qid)));
+      assert(unexpected.length === 0, `${unexpected.length} PUBLISHED version(s) without a valid key outside the archived fixtures`);
+      // probe: the oldest and the newest PUBLISHED version (the baseline end and the newest content)
+      const sample = await q(`(SELECT v.id, a.correct_option_key k FROM public.question_versions v JOIN public.question_answers a ON a.question_version_id = v.id WHERE v.lifecycle_status = 'PUBLISHED' ORDER BY v.created_at ASC LIMIT 1)
+        UNION ALL (SELECT v.id, a.correct_option_key k FROM public.question_versions v JOIN public.question_answers a ON a.question_version_id = v.id WHERE v.lifecycle_status = 'PUBLISHED' ORDER BY v.created_at DESC LIMIT 1)`);
+      assert(sample.length === 2, 'no PUBLISHED versions to probe');
+      const refused = (e) => e && /QF_IMMUTABLE_VERSION/.test(e.message);
+      // control: the same kind of edit on a DRAFT version is ALLOWED (so "refused" below is a real signal), rolled back
+      const d = (await q(`SELECT v.id FROM public.question_versions v JOIN public.question_answers a ON a.question_version_id = v.id WHERE v.lifecycle_status = 'DRAFT' LIMIT 1`))[0];
+      if (d) assert((await attempt([{ sql: `UPDATE public.question_answers SET explanation_md = explanation_md || ' x' WHERE question_version_id = $1`, params: [d.id] }])) === null, 'control: a DRAFT edit was refused (the probe cannot tell refused from allowed)');
+      for (const v of sample) {
+        const other = ['A', 'B', 'C', 'D'].find((x) => x !== v.k);
+        const tries = {
+          'change the key': [{ sql: `UPDATE public.question_answers SET correct_option_key = $2 WHERE question_version_id = $1`, params: [v.id, other] }],
+          'change the key with the lifecycle flag on': [`SELECT set_config('app.qf_lifecycle_write', 'on', true)`, { sql: `UPDATE public.question_answers SET correct_option_key = $2 WHERE question_version_id = $1`, params: [v.id, other] }],
+          'edit the explanation': [{ sql: `UPDATE public.question_answers SET explanation_md = explanation_md || ' x' WHERE question_version_id = $1`, params: [v.id] }],
+          'delete the answer': [{ sql: `DELETE FROM public.question_answers WHERE question_version_id = $1`, params: [v.id] }],
+          'edit an option': [{ sql: `UPDATE public.question_options SET option_text = option_text || ' x' WHERE question_version_id = $1 AND option_key = 'A'`, params: [v.id] }],
+          'delete an option': [{ sql: `DELETE FROM public.question_options WHERE question_version_id = $1 AND option_key = 'D'`, params: [v.id] }],
+          'edit the stem': [{ sql: `UPDATE public.question_versions SET question_text = question_text || ' x' WHERE id = $1`, params: [v.id] }],
+        };
+        for (const [name, steps] of Object.entries(tries)) {
+          const e = await attempt(steps);
+          assert(refused(e), `${name} on a PUBLISHED version was ${e ? `refused with another error (${String(e.message).slice(0, 60)})` : 'ALLOWED'}`);
+        }
+      }
+      return `2 versions × 7 changes refused; triggers + function hashes unchanged; invalid keys only in the ${bad.length} archived fixture(s)`;
     }));
 
     await test('K-10 the 8 fixtures archived + 8 audit rows; not served by practice, battles, drills or mock assembly', async () => rolledBack(async () => {
