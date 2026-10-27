@@ -5,6 +5,8 @@ import { cn } from "@/lib/utils";
 import { AnswerKeyUnavailableNotice } from "@/components/questions/answer-key-notice";
 import { ReportQuestionButton } from "@/components/practice/report-question-button";
 import { AddToMemoryLockButton } from "@/components/memory-lock/add-to-memory-lock-button";
+import { CorrectedVersion } from "@/components/questions/corrected-version";
+import type { VersionSnapshot } from "@/lib/questions/correction-core";
 
 interface QuestionReviewCardProps {
   questionOrder: number;
@@ -32,6 +34,8 @@ interface QuestionReviewCardProps {
   questionVersionId?: string | null;
   /** F5: quiet "Add to Memory Lock" (only when Memory Lock is on) */
   canAddToMemoryLock?: boolean;
+  /** MISTAKE-VERSION-1: the corrected (current) version when the answered one was superseded */
+  correction?: VersionSnapshot | null;
 }
 
 export function QuestionReviewCard({
@@ -56,6 +60,7 @@ export function QuestionReviewCard({
   questionId,
   questionVersionId,
   canAddToMemoryLock = false,
+  correction = null,
 }: QuestionReviewCardProps) {
   const isUnanswered = selectedOption === null;
   const keyUnavailable = correctOption === null;
@@ -187,6 +192,8 @@ export function QuestionReviewCard({
               <p className="text-body leading-[1.6] text-fg">{explanation}</p>
             </div>
           ))}
+
+        {correction && <CorrectedVersion correction={correction} />}
 
         <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
           {topicName ? (

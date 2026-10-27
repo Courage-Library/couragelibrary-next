@@ -1,5 +1,6 @@
 "use client";
 
+import { CORRECTED_NOTICE } from "@/lib/questions/correction-core";
 import React, { useState, useEffect, useCallback, useTransition } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/legacy/button";
@@ -240,6 +241,12 @@ export function MistakeDrillRunner({
           <p className="text-base sm:text-lg font-medium text-slate-900 leading-relaxed whitespace-pre-line">
             {currentQ.question_text}
           </p>
+          {/* MISTAKE-VERSION-1: this drill was created before the question was corrected — never shown as current */}
+          {currentQ.corrected && (
+            <p className="rounded-control border border-primary-200 bg-primary-50 px-3 py-2 text-body-sm text-primary-800" data-question-corrected="">
+              {CORRECTED_NOTICE} after this drill was created. You are answering the version from the drill; start a new drill to practice the corrected question.
+            </p>
+          )}
         </div>
 
         {/* Options List (Manual selection, no auto-advance) */}

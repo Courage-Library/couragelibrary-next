@@ -1,4 +1,6 @@
 import { createServerSupabaseClient, createAdminServerSupabaseClient } from "@/lib/supabase/server";
+import { correctionFor, type VersionSnapshot } from "@/lib/questions/correction-core";
+import { loadCurrentVersions } from "@/lib/questions/versions-server";
 import { validAnswerKey } from "@/lib/questions/answer-key";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
@@ -486,6 +488,8 @@ export interface TestResultSummary {
     learningSlug?: string | null;
     learningDocTitle?: string | null;
     hasPublishedLearning?: boolean;
+    /** MISTAKE-VERSION-1: the corrected (current) version when the answered one has been superseded */
+    correction?: VersionSnapshot | null;
   }>;
 }
 
@@ -2466,6 +2470,8 @@ export class AssessmentService {
     });
 
     const topicLearningMap = await ContentService.resolveLearningResourcesForTopics(topicKeys);
+    // MISTAKE-VERSION-1: the review shows the ANSWERED (pinned) version; a newer current version = the correction
+    const currentVersions = await loadCurrentVersions(rawQuestions.map((mq) => mq.question_versions?.question_id ?? ""));
 
     const reviewQuestions = rawQuestions.map((mq) => {
       const qv = mq.question_versions;
@@ -2511,6 +2517,7 @@ export class AssessmentService {
         learningSlug: learningRes?.learningSlug || null,
         learningDocTitle: learningRes?.learningTitle || null,
         hasPublishedLearning: Boolean(learningRes?.hasPublishedLearning),
+        correction: correctionFor(qv?.id ?? null, qv?.question_id ? currentVersions.get(qv.question_id) : null),
       };
     });
 

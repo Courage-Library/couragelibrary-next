@@ -26,6 +26,8 @@ export type PublicDrillQuestion = {
   primary_cognitive_type_id: string;
   consecutive_correct: number;
   options: PublicDrillQuestionOption[];
+  /** MISTAKE-VERSION-1: the stored version was superseded after the drill was created ("This question was corrected") */
+  corrected?: boolean;
   context?: {
     cognitive_type_name?: string;
     total_mistakes_count?: number;
@@ -63,6 +65,7 @@ export function toPublicDrillQuestion(raw: unknown): PublicDrillQuestion {
     consecutive_correct: num(q.consecutive_correct),
     options: Array.isArray(q.options) ? q.options.map(toPublicOption) : [],
   };
+  if (q.corrected === true) out.corrected = true;
   if (q.context !== undefined && q.context !== null) {
     const c = rec(q.context);
     out.context = {

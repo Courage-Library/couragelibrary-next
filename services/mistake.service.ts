@@ -4,6 +4,8 @@ import { LearningResolverService, type ResolvedLearningDocument, type LearningDo
 import { toPublicDrillQuestions } from "@/services/mistakes/drill-payload";
 import { rpcJsonObject } from "@/lib/supabase/rpc";
 import { validAnswerKey } from "@/lib/questions/answer-key";
+import { answeredVersionIdOf, correctionFor, listTextFor, type VersionSnapshot } from "@/lib/questions/correction-core";
+import { loadCurrentVersions, loadVersionSnapshots } from "@/lib/questions/versions-server";
 
 export interface ResolvedLearningResource {
   id: string;
@@ -105,7 +107,12 @@ export interface MistakeFilterOptions {
 export interface MistakeDetail {
   vaultId: string;
   questionId: string;
+  /** MISTAKE-VERSION-1: the version shown = the one the student ANSWERED (or the current one when none was recorded) */
   questionVersionId?: string | null;
+  /** false = no occurrence recorded the answered version (legacy rows): the current version is shown, labelled */
+  answeredVersionKnown?: boolean;
+  /** the corrected (current) version when it differs from the answered one — "This question was corrected" */
+  correction?: VersionSnapshot | null;
   questionText: string;
   options: Array<{
     id: string;
@@ -184,6 +191,8 @@ export type DrillQuestion = {
   primary_cognitive_type_id: string;
   consecutive_correct: number;
   options: DrillQuestionOption[];
+  /** MISTAKE-VERSION-1: the stored version was corrected after the drill was created */
+  corrected?: boolean;
   context?: DrillQuestionContext;
 };
 
@@ -216,6 +225,8 @@ export interface DrillSessionPayload {
   questions_count?: number;
   questions?: DrillQuestion[];
   mode?: "PRACTICE" | "TIMED";
+  /** MISTAKE-VERSION-1: questions whose stored version was corrected after the drill was created */
+  corrected_count?: number;
   error?: string;
 }
 
@@ -1016,6 +1027,33 @@ export class MistakeService {
   /**
    * Fetches paginated mistakes with server-side filters, sorting, search, and exact counts.
    */
+  /**
+   * MISTAKE-VERSION-1: vault id → the question text of the version the student ANSWERED (the newest occurrence that
+   * recorded one). Read with the student's own session: occurrences are own rows, and a published / superseded version
+   * is readable. A vault without a recorded version is absent (the caller falls back to the CURRENT version).
+   */
+  private static async answeredTextsByVault(supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>, vaultIds: string[]): Promise<Map<string, string>> {
+    const out = new Map<string, string>();
+    const ids = [...new Set(vaultIds.filter(Boolean))];
+    if (!ids.length) return out;
+    const { data: occ, error } = await supabase.from("user_mistake_occurrences").select("vault_id, question_version_id, occurrence_status, occurred_at").in("vault_id", ids).not("question_version_id", "is", null).order("occurred_at", { ascending: false });
+    if (error || !occ) return out;
+    const versionOf = new Map<string, string>();
+    for (const vid of ids) {
+      const v = answeredVersionIdOf(occ.filter((o) => o.vault_id === vid));
+      if (v) versionOf.set(vid, v);
+    }
+    const versionIds = [...new Set(versionOf.values())];
+    if (!versionIds.length) return out;
+    const { data: versions } = await supabase.from("question_versions").select("id, question_text").in("id", versionIds);
+    const textOf = new Map((versions ?? []).map((v) => [v.id, v.question_text]));
+    for (const [vid, ver] of versionOf) {
+      const t = textOf.get(ver);
+      if (t) out.set(vid, t);
+    }
+    return out;
+  }
+
   static async getPaginatedMistakesList(filters?: MistakeFilterOptions): Promise<MistakeListResult> {
     const supabase = await createServerSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -1046,7 +1084,7 @@ export class MistakeService {
 
     let query = supabase
       .from("user_mistake_vault")
-      .select("id, question_id, total_mistakes_count, consecutive_correct_in_remediation, lifecycle_status, primary_cognitive_type_id, user_override_cognitive_type_id, user_custom_notes, last_mistake_at, mastered_at, topic_id, subject_id, topics:canonical_taxonomy_nodes!user_mistake_vault_topic_id_node_fkey(id, name), subjects:canonical_taxonomy_nodes!user_mistake_vault_subject_id_node_fkey(id, name), mistake_cognitive_types!primary_cognitive_type_id(name), questions(question_versions(question_text))", { count: "exact" })
+      .select("id, question_id, total_mistakes_count, consecutive_correct_in_remediation, lifecycle_status, primary_cognitive_type_id, user_override_cognitive_type_id, user_custom_notes, last_mistake_at, mastered_at, topic_id, subject_id, topics:canonical_taxonomy_nodes!user_mistake_vault_topic_id_node_fkey(id, name), subjects:canonical_taxonomy_nodes!user_mistake_vault_subject_id_node_fkey(id, name), mistake_cognitive_types!primary_cognitive_type_id(name), questions(question_versions(question_text, is_current))", { count: "exact" })
       .eq("user_id", user.id)
       .gte("total_mistakes_count", 1); // F5: manual Memory Lock items are not mistakes
 
@@ -1087,8 +1125,10 @@ export class MistakeService {
       return { items: [], totalCount: 0, page, pageSize, totalPages: 0 };
     }
 
+    // MISTAKE-VERSION-1: the text of the version the student ANSWERED (else the current one — never an arbitrary [0])
+    const answeredText = await this.answeredTextsByVault(supabase, data.map((r) => r.id));
     let items: MistakeListItem[] = data.map((r) => {
-      const qText = r.questions?.question_versions?.[0]?.question_text || "Question prompt unavailable";
+      const qText = listTextFor(answeredText.get(r.id), r.questions?.question_versions);
       const customNote = r.user_custom_notes || null;
       
       const dueRes = calculateRevisionDueState({
@@ -1226,27 +1266,24 @@ export class MistakeService {
     // TYPES-1 B1 (Class B): students cannot read question_answers (RLS; E2E-07), so the question + answer embed
     // failed for the session client. Ownership is proven above (vault row of the session user); the question content
     // is then read server-side with the admin client — the same pattern as AssessmentService.getTestResult.
-    const adminSb = createAdminServerSupabaseClient();
-    const [occurrencesRes, questionRes] = await Promise.all([
-      supabase.from("user_mistake_occurrences").select("id, source_context, response_time_seconds, inferred_cognitive_type_id, heuristic_confidence_pct, occurred_at, question_version_id, attempt_answer_id, occurrence_status, revoked_at, revocation_reason").eq("vault_id", vaultId).order("occurred_at", { ascending: false }),
-      adminSb.from("questions").select("id, question_versions(id, question_text, question_options(id, option_key, option_text, order_index), question_answers(correct_option_key, explanation_md))").eq("id", v.question_id).single(),
-    ]);
-
-    const qData = questionRes.data;
-    const qv = qData?.question_versions?.[0];
-    // TYPES-1 B1 (Class B): question_answers is one-to-one with question_versions (object, not array).
-    const qAnswer = qv?.question_answers ?? null;
-    // QB-KEY-1: the valid key or null — never a default letter
-    const validKey = validAnswerKey(qAnswer, qv?.question_options);
-
-    const options = (qv?.question_options || [])
-      .sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
-      .map((opt) => ({
-        id: opt.id,
-        key: opt.option_key,
-        text: opt.option_text,
-        isCorrect: validKey !== null && opt.option_key === validKey,
-      }));
+    // MISTAKE-VERSION-1: show the version the student ANSWERED (the newest occurrence that recorded one); the CURRENT
+    // version is read too — when it differs, it is shown as the correction ("This question was corrected"). With no
+    // recorded version (legacy rows) the current version is shown and `answeredVersionKnown` is false.
+    const occurrencesRes = await supabase.from("user_mistake_occurrences").select("id, source_context, response_time_seconds, inferred_cognitive_type_id, heuristic_confidence_pct, occurred_at, question_version_id, attempt_answer_id, occurrence_status, revoked_at, revocation_reason").eq("vault_id", vaultId).order("occurred_at", { ascending: false });
+    const answeredId = answeredVersionIdOf(occurrencesRes.data ?? []);
+    const [answeredMap, currentMap] = await Promise.all([loadVersionSnapshots(answeredId ? [answeredId] : []), loadCurrentVersions([v.question_id])]);
+    const current = currentMap.get(v.question_id) ?? null;
+    const answered: VersionSnapshot | null = (answeredId ? answeredMap.get(answeredId) : undefined) ?? null;
+    const shown = answered ?? current;
+    const correction = correctionFor(answered?.id ?? null, current);
+    // QB-KEY-1: the valid key or null — never a default letter (the shared helper is the one authority on the key)
+    const validKey = validAnswerKey(shown ? { correct_option_key: shown.correctOptionKey } : null, shown?.options.map((o) => ({ option_key: o.key })));
+    const options = (shown?.options ?? []).map((opt) => ({
+      id: opt.id ?? `${shown?.id}:${opt.key}`,
+      key: opt.key,
+      text: opt.text,
+      isCorrect: validKey !== null && opt.key === validKey,
+    }));
 
     const learningContent = await this.resolveLearningContentForMistake({
       questionId: v.question_id,
@@ -1291,11 +1328,13 @@ export class MistakeService {
     return {
       vaultId: v.id,
       questionId: v.question_id,
-      questionVersionId: qv?.id || v.occurrences?.[0]?.question_version_id || null,
-      questionText: qv?.question_text || "",
+      questionVersionId: shown?.id ?? null,
+      answeredVersionKnown: !!answered,
+      questionText: shown?.questionText || "",
       options,
       correctOptionKey: validKey,
-      explanation: qAnswer?.explanation_md || null,
+      explanation: shown?.explanation || null,
+      correction,
       topicId: v.topic_id || v.topics?.id || null,
       topicName: v.topics?.name || null,
       topicSlug: v.topics?.slug || null,
@@ -1632,13 +1671,18 @@ export class MistakeService {
     }
 
     const d = drill as any;
+    // Pre-submit payload (resume): the stored JSON is re-projected through the whitelist, never passed through.
+    // MISTAKE-VERSION-1: a stored version that is no longer current is flagged — never shown as if current.
+    const questions = toPublicDrillQuestions(d.questions_data);
+    const current = await loadCurrentVersions(questions.map((q) => q.question_id));
+    for (const q of questions) if (correctionFor(q.question_version_id ?? null, current.get(q.question_id))) q.corrected = true;
     return {
       success: true,
       drill_id: d.id,
       total_questions: d.total_questions,
       questions_count: d.total_questions,
-      // Pre-submit payload (resume): the stored JSON is re-projected through the whitelist, never passed through.
-      questions: toPublicDrillQuestions(d.questions_data),
+      questions,
+      corrected_count: questions.filter((q) => q.corrected).length,
     };
   }
 
@@ -1766,7 +1810,7 @@ export class MistakeService {
           mastered_at,
           topics:canonical_taxonomy_nodes!user_mistake_vault_topic_id_node_fkey(id, name, slug), subjects:canonical_taxonomy_nodes!user_mistake_vault_subject_id_node_fkey(id, name),
           mistake_cognitive_types!primary_cognitive_type_id(name),
-          questions(question_versions(question_text))
+          questions(question_versions(question_text, is_current))
         `)
         .eq("user_id", currentUserId)
         .gte("total_mistakes_count", 1), // F5: manual Memory Lock items are not mistakes
@@ -1916,11 +1960,12 @@ export class MistakeService {
     const topTopicIds = Array.from(new Set(top5.map((i) => i.vaultRow.topic_id || i.vaultRow.topics?.id).filter(Boolean)));
     const batchContentMap = await this.getBatchLearningContentForTopics(topTopicIds);
 
+    const top5Answered = await this.answeredTextsByVault(sb, top5.map((i) => i.vaultRow.id));
     const nextBestRevisions: NextBestRevisionItem[] = top5.map((item) => {
       const vr = item.vaultRow;
       const tId = vr.topic_id || vr.topics?.id || null;
       const learningRes = tId ? batchContentMap[tId] : null;
-      const qText = vr.questions?.question_versions?.[0]?.question_text || "Question prompt unavailable";
+      const qText = listTextFor(top5Answered.get(vr.id), vr.questions?.question_versions);
 
       return {
         vaultId: vr.id,

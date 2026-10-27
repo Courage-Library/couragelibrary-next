@@ -271,6 +271,7 @@ export function ResultViewClient({ data }: { data: TestResultSummary }) {
                   questionId={q.questionId}
                   questionVersionId={q.questionVersionId}
                   canAddToMemoryLock={analysis.memoryLockEnabled}
+                  correction={q.correction ?? null}
                 />
               ))}
             </div>

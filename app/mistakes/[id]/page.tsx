@@ -6,6 +6,7 @@ import { BookmarkService } from "@/services/bookmark.service";
 import { MistakeNoteEditor } from "@/components/mistakes/mistake-note-editor";
 import { MistakeBookmarkButton } from "@/components/mistakes/mistake-bookmark-button";
 import { MistakeLearningSection } from "@/components/mistakes/mistake-learning-section";
+import { CorrectedVersion } from "@/components/questions/corrected-version";
 import { Container } from "@/components/ui/legacy/container";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/legacy/card";
 import { Badge } from "@/components/ui/legacy/badge";
@@ -75,6 +76,10 @@ export default async function MistakeDetailPage({ params }: Props) {
             <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono mb-2">
               Question Prompt
             </h2>
+            {/* MISTAKE-VERSION-1: the version answered (or, for older records, the current one — said so) */}
+            {mistake.answeredVersionKnown === false && (
+              <p className="mb-2 text-xs text-slate-600">The exact version you answered was not recorded; this is the current version.</p>
+            )}
             <div className="text-base font-semibold text-slate-900 leading-relaxed whitespace-pre-wrap">
               {mistake.questionText}
             </div>
@@ -115,6 +120,8 @@ export default async function MistakeDetailPage({ params }: Props) {
               <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">{mistake.explanation}</p>
             </div>
           )}
+
+          {mistake.correction && <CorrectedVersion correction={mistake.correction} />}
         </div>
 
         {/* Candidate Personal Revision Note Editor */}
