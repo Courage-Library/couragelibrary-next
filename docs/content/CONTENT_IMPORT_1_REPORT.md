@@ -135,3 +135,9 @@ import batches, audit and question_sources row counts were identical before and 
 4. **The 240 Hindi-paper rows:** a "Hindi" subject would have to be created in the taxonomy first (owner / syllabus decision).
 
 **Content health after the import:** unchanged at this point (nothing was written). Only published questions count, and the import publishes nothing.
+
+## Idempotency re-run (after the commit)
+
+A fresh dry-run over the same CSVs: **0 rows would import**. All 689 previously importable rows are now duplicates of the bank (gate 5). The DB counts before and after were identical: 795 versions · 795 questions · 45 batches · 916 audit rows · 682 sources · 629 IN_REVIEW · 54 DRAFT · 112 PUBLISHED.
+
+Those "before" counts equal the post-commit counts, which also shows that the local Focus / Today captures taken in between wrote nothing. During capture, the only non-GET requests were the read-only `qfGetFocusItemAction` loads.
