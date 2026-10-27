@@ -8,7 +8,8 @@
  *        conditions recognised; anything else → generic DB_ERROR; no database text or ids reach the UI
  *   E-03 server-action role matrix (stubbed guard, recording RPC mock): anon / student denied before any RPC;
  *        staff drafts but cannot publish / archive; admin can; validation-blocked publish returns the report
- *   E-04 English only (decision #35): no admin UI offers a Hindi / bilingual option or label
+ *   E-04 English only (decision #35, clarified by #85): no UI-language / medium switch, no Hindi UI labels,
+ *        lang="hi" only on content inputs marked data-content-field; E-04b self-tests both sides
  *   E-08 GAP2-4c "Suggest topics": the pure helper ranks exact / contained / similar topic names, ignores
  *        unrelated ones, is deterministic and bounded; the editor only pre-fills checkboxes (no action / RPC call,
  *        no auto-mapping) and the helper imports nothing (no DB, no network)
@@ -31,6 +32,64 @@ const args = process.argv.slice(2);
 const LIVE = args.includes('--live');
 const BASE = (args.find((a) => /^https?:/.test(a)) || 'http://localhost:3100').replace(/\/$/, '');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
+
+/**
+ * Decision #85 (clarifies #35, consistent with #82): the admin UI never switches its own language / medium and its copy
+ * stays English. The ONLY Hindi allowed is a field that edits Hindi content: an <input> / <textarea> marked lang="hi" AND
+ * data-content-field="…"; a field label may name the language only when it labels such an input. Returns the violations.
+ */
+function englishOnlyViolations(src) {
+  const violations = [];
+  // every opening tag (brace-aware: attributes contain "=>" and nested braces)
+  const tags = [];
+  for (let i = src.indexOf('<'); i >= 0; i = src.indexOf('<', i + 1)) {
+    const m = /^<([A-Za-z][\w.]*)/.exec(src.slice(i, i + 40));
+    if (!m) continue;
+    let depth = 0;
+    let j = i;
+    for (; j < src.length; j++) {
+      if (src[j] === '{') depth++;
+      else if (src[j] === '}') depth--;
+      else if (src[j] === '>' && depth === 0) break;
+    }
+    tags.push({ name: m[1], text: src.slice(i, j + 1) });
+  }
+  const attr = (t, a) => {
+    const m = new RegExp(`\\s${a}=(?:"([^"]*)"|'([^']*)'|\\{([^}]*)\\})`).exec(t.text);
+    return m ? (m[1] ?? m[2] ?? `{${m[3]}}`) : null;
+  };
+  const isContentInput = (t) => /^(input|textarea)$/.test(t.name) && attr(t, 'lang') === 'hi' && attr(t, 'data-content-field') !== null;
+  const contentIds = new Set(tags.filter(isContentInput).map((t) => attr(t, 'id')).filter(Boolean));
+  if (/<option[^>]*value=["'](hindi|hi|both)["']/i.test(src)) violations.push('Hindi / bilingual <option> (a UI-language or medium switch)');
+  if (/>\s*[^<{]*\b(Hindi|Bilingual)\b[^<{]*</.test(src)) violations.push('Hindi / bilingual UI label (text)');
+  if (/[\u0900-\u097F]/.test(src) || /Devanagari/.test(src)) violations.push('Devanagari in admin code');
+  for (const t of tags) {
+    const lang = attr(t, 'lang');
+    const marker = attr(t, 'data-content-field');
+    if (lang !== null && lang !== 'en' && !isContentInput(t)) violations.push(`lang=${lang} on <${t.name}> that is not a marked content input`);
+    if (marker !== null && !isContentInput(t)) violations.push(`data-content-field on <${t.name}> without lang="hi"`);
+    const label = attr(t, 'label');
+    if (label && /\b(Hindi|Bilingual)\b/.test(label) && !contentIds.has(attr(t, 'htmlFor'))) violations.push(`label "${label}" does not label a marked Hindi content input`);
+    if (t.name === 'label' && attr(t, 'htmlFor')) {
+      const close = src.indexOf('</label>', src.indexOf(t.text));
+      const inner = src.slice(src.indexOf(t.text) + t.text.length, close);
+      if (/\b(Hindi|Bilingual)\b/.test(inner) && !contentIds.has(attr(t, 'htmlFor'))) violations.push(`<label> "${inner.trim()}" does not label a marked Hindi content input`);
+    }
+  }
+  // a <label htmlFor> naming Hindi for a marked content input is allowed: drop the generic text hit for exactly that case
+  if (violations.includes('Hindi / bilingual UI label (text)')) {
+    const texts = [...src.matchAll(/>\s*([^<{]*\b(?:Hindi|Bilingual)\b[^<{]*)</g)];
+    const allowed = texts.every((m) => {
+      const before = src.slice(0, m.index + 1);
+      const open = before.lastIndexOf('<label');
+      if (open < 0 || before.lastIndexOf('</label>') > open) return false;
+      const t = tags.find((x) => src.indexOf(x.text) === open);
+      return !!t && contentIds.has(attr(t, 'htmlFor'));
+    });
+    if (allowed) violations.splice(violations.indexOf('Hindi / bilingual UI label (text)'), 1);
+  }
+  return { violations, contentInputs: contentIds.size };
+}
 
 let passed = 0;
 let failed = 0;
@@ -224,19 +283,47 @@ function makeHarness() {
     return '4 roles × 8 actions; blocked publish; error + input mapping';
   });
 
-  await test('E-04 English only: no admin UI offers a Hindi / bilingual option or label (decision #35)', async () => {
+  await test('E-04 English only (decision #35, clarified by #85): no UI-language / medium switch, no Hindi UI labels, lang="hi" only on content inputs', async () => {
     const walk = (dir) => fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(`${dir}/${e.name}`) : /\.tsx?$/.test(e.name) ? [`${dir}/${e.name}`] : []));
     const files = [...walk('app/admin'), ...walk('components/admin')].filter((f) => !f.endsWith('.ts') || f.endsWith('page.ts'));
     assert(files.length >= 30, `admin UI files scanned ${files.length} (min 30)`); // GATE-HYGIENE-1
     const bad = [];
+    let contentInputs = 0;
     for (const f of files) {
-      const s = read(f);
-      if (/<option[^>]*value=["'](hindi|hi|both)["']/i.test(s)) bad.push(`${f}: Hindi / bilingual <option>`);
-      if (/>\s*[^<{]*\b(Hindi|Bilingual)\b[^<{]*</.test(s)) bad.push(`${f}: Hindi / bilingual label`);
-      if (/हिं|Devanagari/.test(s)) bad.push(`${f}: Devanagari text`);
+      const r = englishOnlyViolations(read(f));
+      contentInputs += r.contentInputs;
+      r.violations.forEach((v) => bad.push(`${f}: ${v}`));
     }
     assert(bad.length === 0, bad.join('\n        '));
-    return `${files.length} admin UI files`;
+    return `${files.length} admin UI files; ${contentInputs} Hindi content input(s)`;
+  });
+
+  await test('E-04b self-test: the #85 checker fails every forbidden form and passes only marked Hindi content inputs', async () => {
+    const DEV = String.fromCharCode(0x0939, 0x093f, 0x0902); // built at runtime: no Devanagari in this file
+    const fail = {
+      'UI-language switch': '<select><option value="en">English</option><option value="hi">Hindi</option></select>',
+      'medium switch (both)': '<select><option value="both">Both</option></select>',
+      'Hindi UI label (JSX text)': '<h2>Hindi medium</h2>',
+      'Devanagari UI label': `<h2>{"Hindi (${DEV})"}</h2>`,
+      'lang="hi" on a display element': '<span lang="hi">{name}</span>',
+      'dynamic lang on a display element': '<p lang={x ? "en" : "hi"}>{t}</p>',
+      'lang="hi" input without the content marker': '<input id="a" lang="hi" value={v} />',
+      'content marker without lang="hi"': '<input id="a" data-content-field="name_hi" value={v} />',
+      'Hindi label on a non-content input': '<StudioField label="Hindi name" htmlFor="a"><input id="a" value={v} /></StudioField>',
+    };
+    const pass = {
+      'marked Hindi content input + its label': '<StudioField label="Hindi name" htmlFor="a"><input id="a" lang="hi" data-content-field="name_hi" value={v} /></StudioField>',
+      'marked Hindi content textarea': '<label htmlFor="b">Hindi alias</label><textarea id="b" lang="hi" data-content-field="alias_hi" />',
+      'English only screen': '<StudioField label="Name" htmlFor="c"><input id="c" lang="en" value={v} /></StudioField>',
+    };
+    const wrong = [];
+    for (const [k, src] of Object.entries(fail)) if (englishOnlyViolations(src).violations.length === 0) wrong.push(`should FAIL: ${k}`);
+    for (const [k, src] of Object.entries(pass)) {
+      const v = englishOnlyViolations(src).violations;
+      if (v.length) wrong.push(`should PASS: ${k} — ${v.join('; ')}`);
+    }
+    assert(wrong.length === 0, wrong.join('\n        '));
+    return `${Object.keys(fail).length} forbidden forms fail · ${Object.keys(pass).length} allowed forms pass`;
   });
 
   await test('E-08 Suggest topics: pure ranked helper; UI only pre-fills checkboxes (no auto-mapping)', async () => {

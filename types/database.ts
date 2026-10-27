@@ -549,11 +549,14 @@ export type Database = {
           legacy_topic_id_node_type: string | null
           metadata: Json
           name: string
+          name_hi: string | null
           node_depth: number
           node_type: string
           parent_id: string | null
           root_subject_id: string | null
           slug: string
+          state_code: string | null
+          subject_type: string | null
           updated_at: string
         }
         Insert: {
@@ -570,11 +573,14 @@ export type Database = {
           legacy_topic_id_node_type?: string | null
           metadata?: Json
           name: string
+          name_hi?: string | null
           node_depth: number
           node_type?: string
           parent_id?: string | null
           root_subject_id?: string | null
           slug: string
+          state_code?: string | null
+          subject_type?: string | null
           updated_at?: string
         }
         Update: {
@@ -591,11 +597,14 @@ export type Database = {
           legacy_topic_id_node_type?: string | null
           metadata?: Json
           name?: string
+          name_hi?: string | null
           node_depth?: number
           node_type?: string
           parent_id?: string | null
           root_subject_id?: string | null
           slug?: string
+          state_code?: string | null
+          subject_type?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -6099,6 +6108,47 @@ export type Database = {
         }
         Relationships: []
       }
+      taxonomy_node_aliases: {
+        Row: {
+          alias: string
+          created_at: string
+          created_by: string | null
+          id: string
+          language: string
+          node_id: string
+          normalized_alias: string
+          source: string
+        }
+        Insert: {
+          alias: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          language?: string
+          node_id: string
+          normalized_alias: string
+          source?: string
+        }
+        Update: {
+          alias?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          language?: string
+          node_id?: string
+          normalized_alias?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "taxonomy_node_aliases_node_id_fkey"
+            columns: ["node_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       test_attempts: {
         Row: {
           client_ip: string | null
@@ -8692,6 +8742,70 @@ export type Database = {
         Returns: Json
       }
       fn_syllabus_validate: { Args: { p_version_id: string }; Returns: Json }
+      fn_taxonomy_add_alias: {
+        Args: {
+          p_actor_email: string
+          p_actor_id: string
+          p_alias: string
+          p_language: string
+          p_node_id: string
+          p_source: string
+        }
+        Returns: string
+      }
+      fn_taxonomy_audit: {
+        Args: {
+          p_action: string
+          p_actor_email: string
+          p_actor_id: string
+          p_new: Json
+          p_old: Json
+          p_reason: string
+          p_target_id: string
+        }
+        Returns: undefined
+      }
+      fn_taxonomy_lock_scope: {
+        Args: { p_parent_id: string }
+        Returns: undefined
+      }
+      fn_taxonomy_merge_nodes: {
+        Args: {
+          p_actor_email: string
+          p_actor_id: string
+          p_reason: string
+          p_source_id: string
+          p_target_id: string
+        }
+        Returns: Json
+      }
+      fn_taxonomy_move_node: {
+        Args: {
+          p_actor_email: string
+          p_actor_id: string
+          p_new_parent_id: string
+          p_node_id: string
+          p_reason?: string
+        }
+        Returns: Json
+      }
+      fn_taxonomy_normalize: { Args: { p_text: string }; Returns: string }
+      fn_taxonomy_remove_alias: {
+        Args: { p_actor_email: string; p_actor_id: string; p_alias_id: string }
+        Returns: undefined
+      }
+      fn_taxonomy_scope_conflict: {
+        Args: {
+          p_exclude_node: string
+          p_normalized: string
+          p_parent_id: string
+        }
+        Returns: string
+      }
+      fn_taxonomy_subtree_ids: {
+        Args: { p_node_id: string }
+        Returns: string[]
+      }
       fn_transition_question_version: {
         Args: {
           p_actor: string

@@ -158,13 +158,14 @@ async function offline() {
     assert(rules.validateNodeSlug('Bad Slug') && rules.validateNodeSlug('a--b') && !rules.validateNodeSlug('time-and-work'));
   });
 
-  await test('O-02 parent rules mirror the DB trigger', async () => {
+  await test('O-02 parent rules mirror the DB triggers (070 + CA-1 master tree, 115)', async () => {
     const ok = (t, p) => rules.isAllowedParent(t, p);
     assert(ok('SUBJECT', null) && !ok('SUBJECT', 'SUBJECT'));
-    assert(ok('DOMAIN', 'SUBJECT') && !ok('DOMAIN', 'TOPIC') && !ok('DOMAIN', null));
-    assert(ok('TOPIC', 'SUBJECT') && ok('TOPIC', 'DOMAIN') && !ok('TOPIC', 'TOPIC') && !ok('TOPIC', null));
+    // CA-1: DOMAIN / METHOD are legacy-only (never created); TOPIC only under SUBJECT; CONCEPT only under SUBTOPIC
+    assert(!ok('DOMAIN', 'SUBJECT') && !ok('METHOD', 'CONCEPT'));
+    assert(ok('TOPIC', 'SUBJECT') && !ok('TOPIC', 'DOMAIN') && !ok('TOPIC', 'TOPIC') && !ok('TOPIC', null));
     assert(ok('SUBTOPIC', 'TOPIC') && !ok('SUBTOPIC', 'SUBJECT'));
-    assert(ok('CONCEPT', 'SUBTOPIC') && ok('METHOD', 'CONCEPT') && !ok('CONCEPT', null));
+    assert(ok('CONCEPT', 'SUBTOPIC') && !ok('CONCEPT', 'TOPIC') && !ok('CONCEPT', null));
     const migration = read('supabase/migrations/20261012000070_t3_nodes_write_master_projection.sql');
     assert(/NEW\.node_type = 'TOPIC' AND v_parent_type NOT IN \('SUBJECT', 'DOMAIN'\)/.test(migration), 'migration TOPIC rule changed');
     assert(/NEW\.node_type = 'SUBTOPIC' AND v_parent_type <> 'TOPIC'/.test(migration), 'migration SUBTOPIC rule changed');
@@ -228,7 +229,7 @@ async function offline() {
 
   await test('O-07 DB errors map to admin messages', async () => {
     assert(mapTaxonomyDbError({ message: 'TAXONOMY_RULE: a TOPIC node cannot be placed under a TOPIC node' }).code === 'TAXONOMY_RULE');
-    assert(mapTaxonomyDbError({ code: '23505', message: 'duplicate key value violates unique constraint "topics_slug_key"' }).code === 'DUPLICATE_SLUG');
+    assert(mapTaxonomyDbError({ code: '23505', message: 'duplicate key value violates unique constraint "uq_topics_subject_slug"' }).code === 'DUPLICATE_SLUG'); // CA-1: per-parent projection slugs
     assert(mapTaxonomyDbError({ code: '23505', message: 'violates unique constraint "uq_canonical_sibling_slug"' }).code === 'DUPLICATE_SLUG');
     assert(mapTaxonomyDbError({ code: '23505', message: 'violates unique constraint "uq_topics_subject_name"' }).code === 'DUPLICATE_NAME');
     assert(mapTaxonomyDbError({ message: 'TAXONOMY_PROJECTION_ONLY: INSERT on public.topics' }).code === 'TAXONOMY_PROJECTION_ONLY');
@@ -294,7 +295,7 @@ async function offline() {
     assert(hits.length === 0, hits.join('; '));
   });
 
-  await test('O-11 static: projection service deleted; client UI imports no server modules; sidebar link', async () => {
+  await test('O-11 static: projection service deleted; client UI imports no server modules; admin nav link (lib/admin/nav.ts)', async () => {
     assert(!fs.existsSync(path.join(ROOT, 'services/canonical-taxonomy-projection.service.ts')), 'orphan projection service still present');
     const ui = read('app/admin/taxonomy/taxonomy-manager.tsx');
     assert(/^"use client";/.test(ui) && !/taxonomy\.service|lib\/supabase|admin\.service/.test(ui), 'client component imports server code');
@@ -302,7 +303,8 @@ async function offline() {
     assert(/TaxonomyService\.listTree\(\)/.test(page));
     const actions = read('app/admin/taxonomy/actions.ts');
     assert(/^"use server";/.test(actions) && !/\.from\(/.test(actions), 'taxonomy actions must only call TaxonomyService');
-    assert(/href="\/admin\/taxonomy"/.test(read('components/admin/admin-sidebar.tsx')), 'sidebar link missing');
+    // UX-1b moved the admin nav into one config (lib/admin/nav.ts): the Taxonomy entry, admin only
+    assert(/\{ label: "Taxonomy", href: "\/admin\/taxonomy", icon: "[a-z-]+", access: "admin" \}/.test(read('lib/admin/nav.ts')), 'nav link missing (lib/admin/nav.ts)');
   });
 
   await test('O-12 static: every TaxonomyService mutation checks admin and writes an audit row', async () => {
@@ -565,8 +567,12 @@ async function db() {
       assert(n.legacy_topic_id === n.id && (await one(`SELECT count(*)::int n FROM public.topics WHERE id=$1`, [n.id])).n === 1);
     }));
 
-  await test('DB-23 projection surfaces legacy uniqueness (topic slug used under another subject) → rejected', () =>
-    expectError(() => insertNode({ parent: subject.id, name: `QA Dup ${tag}`, slug: existingTopicSlug, type: 'TOPIC' }), /23505.*topics_slug_key/));
+  // CA-1 (115): projection slugs are unique PER PARENT, so a topic slug used under another subject is allowed
+  await test('DB-23 projection slug rule per parent (topic slug used under another subject) → allowed', () =>
+    tx(async () => {
+      const n = await insertNode({ parent: subject.id, name: `QA Dup ${tag}`, slug: existingTopicSlug, type: 'TOPIC' });
+      assert((await one(`SELECT count(*)::int n FROM public.topics WHERE id=$1 AND slug=$2`, [n.id, existingTopicSlug])).n === 1);
+    }));
 
   await test('DB-24 D1: fn_resolve_learn_more not executable by anon/authenticated (or dropped, GAP2-2a)', async () => {
     const exists = (await one(`SELECT to_regprocedure('public.fn_resolve_learn_more(uuid,uuid)') IS NOT NULL e`)).e;

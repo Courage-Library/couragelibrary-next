@@ -186,7 +186,8 @@ const ADMIN_ONLY = new Set([
   ...['updateGlobalPremiumConfigAction', 'setExamPremiumAvailabilityAction', 'setTestTypeAvailabilityAction', 'updateGeneratorPolicyAction', 'searchCandidateAction', 'grantPromotionalPassAction', 'revokeEntitlementAction', 'updateCustomLimitsAction', 'toggleTestSeriesStatusAction', 'updateMockCuratedStatusAction'].map((n) => `app/admin/premium/actions.ts#${n}`),
   ...['createRewardAction', 'updateRewardAction', 'toggleRewardActiveAction', 'updateRedemptionStatusAction', 'uploadRewardImageAction'].map((n) => `app/admin/rewards/actions.ts#${n}`),
   ...['archiveExamAction', 'evaluateExamDeletionEligibilityAction', 'deleteExamDraftAction'].map((n) => `app/admin/exams/actions.ts#${n}`),
-  ...['createTaxonomyNodeAction', 'renameTaxonomyNodeAction', 'setTaxonomyNodeActiveAction', 'reorderTaxonomyNodesAction'].map((n) => `app/admin/taxonomy/actions.ts#${n}`),
+  // CA-1: Hindi name / subject type / state code, aliases, move and merge are structural writes too (admin only)
+  ...['createTaxonomyNodeAction', 'renameTaxonomyNodeAction', 'setTaxonomyNodeActiveAction', 'reorderTaxonomyNodesAction', 'updateTaxonomyDetailsAction', 'addTaxonomyAliasAction', 'removeTaxonomyAliasAction', 'moveTaxonomyNodeAction', 'mergeTaxonomyNodesAction'].map((n) => `app/admin/taxonomy/actions.ts#${n}`),
   ...ADAPTIVE_ADMIN_ONLY.map((n) => `app/admin/adaptive/actions.ts#${n}`),
   ...ADAPTIVE_ADMIN_ONLY.map((n) => `app/admin/actions.ts#${n}`),
   'app/api/admin/current-affairs/import/route.ts#POST', // session path; bearer path unchanged

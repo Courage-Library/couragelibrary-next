@@ -243,13 +243,13 @@ export function FocusReview({ queue: initialQueue, total, goal, doneBefore }: { 
 
             <section className="flex flex-col gap-3">
               <h1 id="focus-q" ref={headingRef} tabIndex={-1} className="text-caption font-semibold uppercase tracking-wide text-fg-secondary outline-none">
-                {item.detail.language === "hi" ? "Hindi (हिन्दी)" : "English"}
+                {item.detail.language === "hi" ? "Hindi" : "English"}
               </h1>
               <p className="whitespace-pre-wrap text-body-lg text-fg">{item.detail.stem}</p>
               <div>
-                <p className="text-caption font-semibold uppercase tracking-wide text-fg-secondary">{item.detail.language === "hi" ? "English" : "Hindi (हिन्दी)"}</p>
+                <p className="text-caption font-semibold uppercase tracking-wide text-fg-secondary">{item.detail.language === "hi" ? "English" : "Hindi"}</p>
                 {item.otherLanguageStem ? (
-                  <p lang={item.detail.language === "hi" ? "en" : "hi"} className="mt-1 whitespace-pre-wrap text-body text-fg">
+                  <p className="mt-1 whitespace-pre-wrap text-body text-fg">
                     {item.otherLanguageStem}
                   </p>
                 ) : (

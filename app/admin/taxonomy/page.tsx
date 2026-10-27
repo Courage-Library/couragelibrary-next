@@ -9,12 +9,13 @@ export const revalidate = 0;
 
 export default async function AdminTaxonomyPage() {
   await requireAdminPage({ path: "/admin/taxonomy" }); // SEC-1C: admin only
-  const tree = await TaxonomyService.listTree();
+  const [tree, aliases] = await Promise.all([TaxonomyService.listTree(), TaxonomyService.listAliases()]);
 
   return (
     <TaxonomyManager
       tree={tree.success ? tree.data : []}
-      loadError={tree.success ? null : tree.error}
+      aliases={aliases.success ? aliases.data : []}
+      loadError={!tree.success ? tree.error : !aliases.success ? aliases.error : null}
     />
   );
 }

@@ -1,6 +1,6 @@
 /**
  * COURAGE LIBRARY — TAXONOMY SERVICE
- * Phase GAP2-1b: identity-unified taxonomy spine (T3)
+ * Phase GAP2-1b: identity-unified taxonomy spine (T3); CA-1: master tree (Hindi names, aliases, move, merge)
  *
  * The ONLY application writer of the academic taxonomy.
  *
@@ -22,15 +22,25 @@ import type { Json, TablesInsert } from '@/types/database';
 import { createAdminServerSupabaseClient } from '@/lib/supabase/server';
 
 import {
+  ALIAS_LANGUAGES,
+  AliasLanguage,
+  SUBJECT_TYPES,
+  SubjectType,
   TAXONOMY_NODE_TYPES,
+  TaxonomyAlias,
   TaxonomyNode,
   TaxonomyNodeType,
   TaxonomyResult,
   TaxonomyTreeNode,
+  MERGE_CONFIRM_WORD,
+  MERGE_REASON_MIN,
   isAllowedParent,
   slugifyTaxonomyName,
+  validateAlias,
+  validateNameHi,
   validateNodeName,
   validateNodeSlug,
+  validateStateCode,
 } from '@/services/taxonomy/taxonomy.rules';
 
 export * from '@/services/taxonomy/taxonomy.rules';
@@ -42,6 +52,15 @@ export interface CreateTaxonomyNodeInput {
   slug?: string;
   displayOrder?: number;
   description?: string;
+  nameHi?: string | null;
+  subjectType?: SubjectType | null;
+  stateCode?: string | null;
+}
+
+export interface TaxonomyNodeDetails {
+  nameHi: string | null;
+  subjectType: SubjectType | null;
+  stateCode: string | null;
 }
 
 interface AdminContext {
@@ -50,7 +69,8 @@ interface AdminContext {
   supabase: AppSupabaseClient;
 }
 
-const NODE_COLUMNS = 'id, parent_id, root_subject_id, name, slug, node_type, node_depth, hierarchy_path, display_order, is_active';
+const NODE_COLUMNS =
+  'id, parent_id, root_subject_id, name, slug, node_type, node_depth, hierarchy_path, display_order, is_active, name_hi, subject_type, state_code, metadata';
 const fail = <T>(code: string, error: string): TaxonomyResult<T> => ({ success: false, code, error });
 
 /** Maps database errors (trigger rules, unique keys of nodes and projection rows) to admin messages. */
@@ -58,13 +78,17 @@ export function mapTaxonomyDbError(error: { code?: string; message?: string } | 
   const msg = error?.message || '';
   if (msg.includes('TAXONOMY_RULE:')) return { code: 'TAXONOMY_RULE', error: msg.slice(msg.indexOf('TAXONOMY_RULE:') + 15).trim() };
   if (msg.includes('TAXONOMY_PROJECTION_ONLY')) return { code: 'TAXONOMY_PROJECTION_ONLY', error: 'Subjects, topics and subtopics can only change through the taxonomy.' };
+  // CA-1: a merge never edits a published / archived syllabus (fail-closed in fn_taxonomy_merge_nodes)
+  if (msg.includes('SYLLABUS_IMMUTABLE')) return { code: 'SYLLABUS_LOCKED', error: 'A published or archived syllabus maps this node, so it cannot be merged. Nothing was changed.' };
   if (error?.code === '23505') {
     if (/uq_canonical_sibling_slug/.test(msg)) return { code: 'DUPLICATE_SLUG', error: 'A sibling node with this slug already exists.' };
     if (/subjects_name_key|uq_topics_subject_name|uq_subtopics_topic_name/.test(msg)) return { code: 'DUPLICATE_NAME', error: 'A subject/topic/subtopic with this name already exists here.' };
-    if (/subjects_slug_key|topics_slug_key|subtopics_slug_key/.test(msg)) return { code: 'DUPLICATE_SLUG', error: 'This slug is already used by another subject/topic/subtopic. Choose a different slug.' };
+    if (/subjects_slug_key|uq_topics_subject_slug|uq_subtopics_topic_slug/.test(msg)) return { code: 'DUPLICATE_SLUG', error: 'This slug is already used under the same parent. Choose a different slug.' };
+    if (/uq_canonical_hierarchy_path/.test(msg)) return { code: 'DUPLICATE_SLUG', error: 'Another node already has this path.' };
     return { code: 'DUPLICATE', error: 'A node with these values already exists.' };
   }
   if (error?.code === '23503') return { code: 'IN_USE', error: 'This node is referenced by other data and cannot be removed.' };
+  if (error?.code === '23514') return { code: 'VALIDATION', error: 'A value is not allowed here (subject type, state code or Hindi name).' };
   return { code: 'DB_ERROR', error: 'The taxonomy change could not be saved.' };
 }
 
@@ -81,6 +105,10 @@ function toNode(r: any): TaxonomyNode {
     path: r.hierarchy_path,
     displayOrder: r.display_order,
     isActive: r.is_active,
+    nameHi: r.name_hi ?? null,
+    subjectType: r.subject_type ?? null,
+    stateCode: r.state_code ?? null,
+    mergedInto: r.metadata && typeof r.metadata === 'object' && typeof r.metadata.merged_into === 'string' ? r.metadata.merged_into : null,
   };
 }
 
@@ -161,6 +189,8 @@ export class TaxonomyService {
     if (!TAXONOMY_NODE_TYPES.includes(input.nodeType)) return fail('VALIDATION', 'Unknown node type.');
     const nameErr = validateNodeName(input.name);
     if (nameErr) return fail('VALIDATION', nameErr);
+    const detailsErr = this.validateDetails(input.nodeType, { nameHi: input.nameHi ?? null, subjectType: input.subjectType ?? null, stateCode: input.stateCode ?? null });
+    if (detailsErr) return fail('VALIDATION', detailsErr);
     const name = input.name.trim();
     const slug = (input.slug && input.slug.trim()) || slugifyTaxonomyName(name);
     const slugErr = validateNodeSlug(slug);
@@ -184,6 +214,9 @@ export class TaxonomyService {
       node_type: input.nodeType,
       display_order: Number.isFinite(input.displayOrder) ? Math.trunc(input.displayOrder as number) : 0,
       is_active: true,
+      name_hi: input.nameHi && input.nameHi.trim() ? input.nameHi.trim() : null,
+      subject_type: input.nodeType === 'SUBJECT' ? input.subjectType || null : null,
+      state_code: input.stateCode || null,
       metadata: input.description && input.description.trim() ? { source: 'TAXONOMY_ADMIN', description: input.description.trim() } : { source: 'TAXONOMY_ADMIN' },
     };
     const { data, error } = await ctx.supabase.from('canonical_taxonomy_nodes').insert(row as TablesInsert<'canonical_taxonomy_nodes'>).select(NODE_COLUMNS).single();
@@ -273,6 +306,152 @@ export class TaxonomyService {
     const node = toNode(data);
     await this.audit(ctx, isActive ? 'TAXONOMY_NODE_REACTIVATE' : 'TAXONOMY_NODE_DEACTIVATE', id, { is_active: before.isActive }, { is_active: node.isActive });
     return { success: true, data: node };
+  }
+
+  private static validateDetails(nodeType: TaxonomyNodeType, d: TaxonomyNodeDetails): string | null {
+    const hiErr = validateNameHi(d.nameHi);
+    if (hiErr) return hiErr;
+    if (d.subjectType !== null && (nodeType !== 'SUBJECT' || !SUBJECT_TYPES.includes(d.subjectType))) return 'A subject type is set on subjects only, from the list.';
+    return validateStateCode(d.stateCode);
+  }
+
+  /** CA-1: Hindi name, subject type (subjects only) and state code (inside a STATE_SPECIFIC subject; the DB enforces it). */
+  static async updateDetails(id: string, details: TaxonomyNodeDetails): Promise<TaxonomyResult<TaxonomyNode>> {
+    const ctx = await this.requireAdmin();
+    if (!ctx) return fail('UNAUTHORIZED', 'Unauthorized.');
+    const before = await this.getNode(ctx, id);
+    if (!before) return fail('NOT_FOUND', 'Node not found.');
+    const next: TaxonomyNodeDetails = {
+      nameHi: details.nameHi && details.nameHi.trim() ? details.nameHi.trim() : null,
+      subjectType: before.nodeType === 'SUBJECT' ? details.subjectType || null : null,
+      stateCode: details.stateCode ? details.stateCode.trim().toUpperCase() : null,
+    };
+    const err = this.validateDetails(before.nodeType, next);
+    if (err) return fail('VALIDATION', err);
+    const { data, error } = await ctx.supabase
+      .from('canonical_taxonomy_nodes')
+      .update({ name_hi: next.nameHi, subject_type: next.subjectType, state_code: next.stateCode })
+      .eq('id', id)
+      .select(NODE_COLUMNS)
+      .single();
+    if (error || !data) {
+      const m = mapTaxonomyDbError(error);
+      return fail(m.code, m.error);
+    }
+    const node = toNode(data);
+    await this.audit(
+      ctx,
+      'TAXONOMY_NODE_DETAILS',
+      id,
+      { name_hi: before.nameHi, subject_type: before.subjectType, state_code: before.stateCode },
+      { name_hi: node.nameHi, subject_type: node.subjectType, state_code: node.stateCode }
+    );
+    return { success: true, data: node };
+  }
+
+  /** CA-1: every alias (EN / HI) of the master tree. */
+  static async listAliases(): Promise<TaxonomyResult<TaxonomyAlias[]>> {
+    const ctx = await this.requireAdmin({ allowStaff: true });
+    if (!ctx) return fail('UNAUTHORIZED', 'Unauthorized.');
+    const { data, error } = await ctx.supabase
+      .from('taxonomy_node_aliases')
+      .select('id, node_id, alias, normalized_alias, language, source')
+      .order('alias', { ascending: true });
+    if (error) return fail('DB_ERROR', 'Could not load the aliases.');
+    return {
+      success: true,
+      data: (data || []).map((r) => ({
+        id: r.id,
+        nodeId: r.node_id,
+        alias: r.alias,
+        normalized: r.normalized_alias,
+        language: r.language as AliasLanguage,
+        source: r.source as TaxonomyAlias['source'],
+      })),
+    };
+  }
+
+  /** Adds an alias; the database checks the parent scope and writes the audit row in the same transaction. */
+  static async addAlias(nodeId: string, alias: string, language: AliasLanguage): Promise<TaxonomyResult<{ id: string }>> {
+    const ctx = await this.requireAdmin();
+    if (!ctx) return fail('UNAUTHORIZED', 'Unauthorized.');
+    const aliasErr = validateAlias(alias);
+    if (aliasErr) return fail('VALIDATION', aliasErr);
+    if (!ALIAS_LANGUAGES.includes(language)) return fail('VALIDATION', 'Alias language must be English or Hindi.');
+    const { data, error } = await ctx.supabase.rpc('fn_taxonomy_add_alias', {
+      p_node_id: nodeId,
+      p_alias: alias.trim(),
+      p_language: language,
+      p_source: 'OWNER',
+      p_actor_id: ctx.userId as string,
+      p_actor_email: ctx.userEmail,
+    });
+    if (error || !data) {
+      const m = mapTaxonomyDbError(error);
+      return fail(m.code, m.error);
+    }
+    return { success: true, data: { id: data } };
+  }
+
+  static async removeAlias(aliasId: string): Promise<TaxonomyResult<{ id: string }>> {
+    const ctx = await this.requireAdmin();
+    if (!ctx) return fail('UNAUTHORIZED', 'Unauthorized.');
+    const { error } = await ctx.supabase.rpc('fn_taxonomy_remove_alias', { p_alias_id: aliasId, p_actor_id: ctx.userId as string, p_actor_email: ctx.userEmail });
+    if (error) {
+      const m = mapTaxonomyDbError(error);
+      return fail(m.code, m.error);
+    }
+    return { success: true, data: { id: aliasId } };
+  }
+
+  /** Same-level move (a topic to another subject, a subtopic to another topic, a concept to another subtopic). */
+  static async moveNode(nodeId: string, newParentId: string, reason?: string): Promise<TaxonomyResult<{ path: string }>> {
+    const ctx = await this.requireAdmin();
+    if (!ctx) return fail('UNAUTHORIZED', 'Unauthorized.');
+    if (!nodeId || !newParentId) return fail('VALIDATION', 'Choose the node and its new parent.');
+    const { data, error } = await ctx.supabase.rpc('fn_taxonomy_move_node', {
+      p_node_id: nodeId,
+      p_new_parent_id: newParentId,
+      p_actor_id: ctx.userId as string,
+      p_actor_email: ctx.userEmail,
+      p_reason: reason && reason.trim() ? reason.trim() : undefined,
+    });
+    if (error || !data) {
+      const m = mapTaxonomyDbError(error);
+      return fail(m.code, m.error);
+    }
+    const result = data as { path?: string };
+    return { success: true, data: { path: String(result.path || '') } };
+  }
+
+  /**
+   * Owner-only merge (admin + a reason + the typed confirmation word): every reference moves to the target, the source
+   * names become aliases of the target, the source is deactivated, one audit row. Fail-closed in the database.
+   */
+  static async mergeNodes(
+    sourceId: string,
+    targetId: string,
+    reason: string,
+    confirmation: string
+  ): Promise<TaxonomyResult<{ repointed: Record<string, number>; childrenMoved: number }>> {
+    const ctx = await this.requireAdmin();
+    if (!ctx) return fail('UNAUTHORIZED', 'Unauthorized.');
+    if (confirmation !== MERGE_CONFIRM_WORD) return fail('VALIDATION', `Type ${MERGE_CONFIRM_WORD} to confirm the merge.`);
+    if (!reason || reason.trim().length < MERGE_REASON_MIN) return fail('VALIDATION', `Give a reason (at least ${MERGE_REASON_MIN} characters).`);
+    if (!sourceId || !targetId || sourceId === targetId) return fail('VALIDATION', 'Choose two different nodes.');
+    const { data, error } = await ctx.supabase.rpc('fn_taxonomy_merge_nodes', {
+      p_source_id: sourceId,
+      p_target_id: targetId,
+      p_actor_id: ctx.userId as string,
+      p_actor_email: ctx.userEmail,
+      p_reason: reason.trim(),
+    });
+    if (error || !data) {
+      const m = mapTaxonomyDbError(error);
+      return fail(m.code, m.error);
+    }
+    const result = data as { repointed?: Record<string, number>; children_moved?: number };
+    return { success: true, data: { repointed: result.repointed || {}, childrenMoved: Number(result.children_moved || 0) } };
   }
 
   static deactivate(id: string) {

@@ -498,3 +498,27 @@ BILINGUAL-1 lands with CA-3 / CA-4.
 - **Depth:**
   - L.1 Trees deeper than 4 levels → the deepest levels become `heading` sections inside the L4 lesson (kept in the intake item so the lesson prompt includes them).
   - L.2 Same name, different scope → kept separate. Merging is the explicit audited owner action (A).
+
+## PART 3 — Build notes
+
+### CA-1 master tree foundation (migration 115)
+
+**What landed:**
+- `canonical_taxonomy_nodes`: `name_hi`, `subject_type` (SUBJECT only), `state_code` (inside a STATE_SPECIFIC subject; two capital letters).
+- `trg_guard_master_tree`:
+  - at most 4 levels;
+  - a new or moved TOPIC goes only under a SUBJECT, a CONCEPT only under a SUBTOPIC;
+  - no new DOMAIN / METHOD nodes;
+  - names (EN + HI, normalized) are unique among **active** siblings.
+- `taxonomy_node_aliases` (EN / HI): an alias never equals an active sibling's name or alias (trigger, one advisory lock per parent scope). Staff read; writes only via the RPCs.
+- One normalization: `fn_taxonomy_normalize` = `lib/taxonomy/normalize.ts` (NFKC → lower case → `&` → "and" → 40 punctuation characters folded → whitespace collapsed). The offline gate pins the character list; the DB smoke compares SQL with TS on shared vectors.
+- RPCs (SECURITY INVOKER, service_role only, audited in the same transaction): `fn_taxonomy_add_alias`, `fn_taxonomy_remove_alias`, `fn_taxonomy_move_node`, `fn_taxonomy_merge_nodes`.
+- `uq_canonical_hierarchy_path`; projection slugs unique per parent: `topics (subject_id, slug)`, `subtopics (topic_id, slug)`.
+- Screen `/admin/taxonomy` on the Studio template: tree + search (names, Hindi names, slugs, aliases), node drawer (names, aliases, move, merge).
+
+**Rules found while building (for the owner):**
+1. **Merge is fail-closed against published / archived syllabi.** Their mappings are immutable (`SYLLABUS_IMMUTABLE`). Today all 36 topics are mapped in a non-DRAFT (published or archived) version, so no existing topic can be merged until a new syllabus version maps the target. Merge works for nodes outside locked syllabi, for example everything created from CA-2 on.
+2. **The archive is not re-pointed.** `retired.exam_topics` (18 rows) and `retired.taxonomy_aliases` (0 rows) reference nodes, but service_role has no access to schema `retired`, and widening that is not allowed. A merged source is deactivated and never deleted, so those foreign keys stay valid; the archive keeps pointing at the old node.
+3. **Cross-subject move is fail-closed** while any row stores the old subject next to a node of the moved subtree. Today these rows are in `user_mistake_vault`, `descriptive_questions`, `flashcard_decks` and `search_indexes`.
+4. **Exact names stay unique per subject in the projection, even for inactive topics** (`uq_topics_subject_name`, unchanged). A deactivated name can be reused only in a different spelling.
+5. **"Owner only" = the admin role** (there is no separate owner role), plus a reason (at least 5 characters) and the typed word MERGE.

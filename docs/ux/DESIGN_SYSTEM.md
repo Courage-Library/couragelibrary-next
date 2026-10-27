@@ -29,6 +29,14 @@
 
 ## 1. Colour
 
+> **Decision #85 (architect, 2026-10-27): Hindi content fields in the admin. Clarifies #35, consistent with #82.**
+> - #35 forbids switching the admin UI's own language or medium.
+> - A field that **edits Hindi content** (for example a node's Hindi name or a Hindi alias) is allowed when it is an `<input>` / `<textarea>` marked `lang="hi"` plus the content-field marker `data-content-field="…"`.
+> - All UI copy stays English (R9), and admin code contains no Devanagari.
+> - **Still forbidden:** a UI-language or medium switch (an `<option>` offering Hindi / both), Hindi UI labels, and any other element marked `lang="hi"` (for example a display `<span>`).
+> - A field label may name the language ("Hindi name") only when it labels such a content input.
+> - Gate: `scripts/test_gap2_4b_editor.cjs` E-04, with self-tests for both sides (E-04b).
+
 > **Current: BRAND-3 — decision #84 (owner-final, 2026-10-26): Brand Colour System v3 + "Courage Studio" admin.** It replaces the BRAND-2 colour values below. The BRAND-1 architecture (single token source, semantic roles, palette aliases, gates) and the BRAND-2 glass / typography rules are unchanged. Reference: `docs/reports/ux/admin_ux_1/concept/brand-colour-system-v3.png`.
 >
 > - **Primary:**
