@@ -1,3 +1,4 @@
+const { safeBegin } = require('./db/live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
 const fs = require('fs');
 const path = require('path');
 const dns = require('dns');
@@ -133,7 +134,7 @@ async function runForensicSuite() {
   // ==========================================
 
   // CA1-10: Invalid category rejection
-  await client.query('BEGIN');
+  await safeBegin(client);
   let invalidCatRejected = false;
   try {
     await client.query(`
@@ -147,7 +148,7 @@ async function runForensicSuite() {
   recordTest('CA1-10', 'Invalid Category Rejected by CHECK', invalidCatRejected, 'DB CHECK blocked INVALID_CATEGORY');
 
   // CA1-11: Invalid importance tier rejection
-  await client.query('BEGIN');
+  await safeBegin(client);
   let invalidTierRejected = false;
   try {
     await client.query(`
@@ -161,7 +162,7 @@ async function runForensicSuite() {
   recordTest('CA1-11', 'Invalid Importance Tier Rejected by CHECK', invalidTierRejected, 'DB CHECK blocked INVALID_TIER');
 
   // CA1-12: Invalid source tier rejection
-  await client.query('BEGIN');
+  await safeBegin(client);
   let invalidSourceTierRejected = false;
   try {
     const art = await client.query(`
@@ -183,7 +184,7 @@ async function runForensicSuite() {
   recordTest('CA1-12', 'Invalid Source Tier Rejected by CHECK', invalidSourceTierRejected, 'DB CHECK blocked TIER_99');
 
   // CA1-13: Duplicate version number rejected
-  await client.query('BEGIN');
+  await safeBegin(client);
   let dupVersionRejected = false;
   try {
     const art = await client.query(`
@@ -205,7 +206,7 @@ async function runForensicSuite() {
   recordTest('CA1-13', 'Duplicate Version Number Rejected', dupVersionRejected, 'UNIQUE(article_id, version_number) enforced');
 
   // CA1-14: Duplicate exam mapping rejected
-  await client.query('BEGIN');
+  await safeBegin(client);
   let dupExamRejected = false;
   try {
     const art = await client.query(`
@@ -228,7 +229,7 @@ async function runForensicSuite() {
   recordTest('CA1-14', 'Duplicate Article/Exam Mapping Rejected', dupExamRejected, 'UNIQUE(article_id, exam_id) enforced');
 
   // CA1-15: Duplicate question mapping rejected
-  await client.query('BEGIN');
+  await safeBegin(client);
   let dupQuestionRejected = false;
   try {
     const art = await client.query(`
@@ -251,7 +252,7 @@ async function runForensicSuite() {
   recordTest('CA1-15', 'Duplicate Article/Question Mapping Rejected', dupQuestionRejected, 'UNIQUE(article_id, question_id) enforced');
 
   // CA1-16: Duplicate taxonomy mapping rejected
-  await client.query('BEGIN');
+  await safeBegin(client);
   let dupTaxRejected = false;
   try {
     const art = await client.query(`
@@ -274,7 +275,7 @@ async function runForensicSuite() {
   recordTest('CA1-16', 'Duplicate Article/Taxonomy Mapping Rejected', dupTaxRejected, 'UNIQUE(article_id, taxonomy_node_id) enforced');
 
   // CA1-17: Duplicate learning mapping rejected
-  await client.query('BEGIN');
+  await safeBegin(client);
   let dupLearnRejected = false;
   try {
     const art = await client.query(`
@@ -297,7 +298,7 @@ async function runForensicSuite() {
   recordTest('CA1-17', 'Duplicate Article/Learning Mapping Rejected', dupLearnRejected, 'UNIQUE(article_id, learning_resource_id) enforced');
 
   // CA1-18: Published version in-place mutation rejected by Trigger
-  await client.query('BEGIN');
+  await safeBegin(client);
   let publishedMutationRejected = false;
   try {
     const art = await client.query(`
@@ -320,7 +321,7 @@ async function runForensicSuite() {
   recordTest('CA1-18', 'Published Version Mutation Blocked by Trigger', publishedMutationRejected, 'Trigger trg_guard_ca_version_immutability blocked edit');
 
   // CA1-20 & CA1-21: Cross-article publication pointer rejected by Trigger
-  await client.query('BEGIN');
+  await safeBegin(client);
   let crossArticlePointerRejected = false;
   try {
     const art1 = await client.query(`
@@ -348,7 +349,7 @@ async function runForensicSuite() {
   recordTest('CA1-21', 'Cross-Article Publication Pointer Blocked by Trigger', crossArticlePointerRejected, 'Trigger trg_guard_ca_pointer_integrity blocked cross-pointer');
 
   // CA1-22: Non-published version publication pointer rejected by Trigger
-  await client.query('BEGIN');
+  await safeBegin(client);
   let unpublishedPointerRejected = false;
   try {
     const art = await client.query(`

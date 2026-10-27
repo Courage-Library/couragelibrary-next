@@ -14,6 +14,7 @@
  *   S-6  allow-list matches: scripts/secdef/allowlist.json records client [] for all 33
  * DB access: verified TLS, transactions always rolled back. PostgREST: anon key / qa-student session. Prints names only.
  */
+const { safeBegin } = require('./db/live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
 const fs = require('fs');
 const path = require('path');
 const { Client } = require('pg');
@@ -63,7 +64,7 @@ const assert = (c, m) => {
   let fns;
   let studentId;
   try {
-    await c.query('BEGIN READ ONLY');
+    await safeBegin(c, { readOnly: true });
     fns = await q(`SELECT p.oid, p.proname, p.oid::regprocedure::text rp, p.prorettype = 'trigger'::regtype trg, p.prorettype = 'event_trigger'::regtype evt,
         coalesce(p.proargnames, '{}') argnames, (SELECT array_agg(format_type(t, NULL) ORDER BY o) FROM unnest(p.proargtypes::oid[]) WITH ORDINALITY u(t, o)) argtypes,
         has_function_privilege('anon', p.oid, 'EXECUTE') anon, has_function_privilege('authenticated', p.oid, 'EXECUTE') auth,
@@ -124,10 +125,8 @@ const assert = (c, m) => {
   const sqlDenied = new Set(); // filled by S-2b
   // DB-side checks run in one transaction that is always rolled back
   const rw = async (fn) => {
-    await c.query('BEGIN');
+    await safeBegin(c);
     try {
-      await c.query(`SET LOCAL lock_timeout = '5s'`);
-      await c.query(`SET LOCAL statement_timeout = '60s'`);
       return await fn();
     } finally {
       await c.query('ROLLBACK').catch(() => {});

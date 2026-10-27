@@ -30,6 +30,7 @@
  *
  * Run: node scripts/test_gap2_4b_readers.cjs [--offline] [--base=http://localhost:3100]
  */
+const { safeBegin } = require('./db/live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
 const fs = require('fs');
 const path = require('path');
 const Module = require('module');
@@ -181,10 +182,8 @@ const RETIRED_TABLES = ['exam_syllabi', 'exam_topics', 'exam_unit_mappings', 'ta
     }
   };
   const tx = async (mode, fn) => {
-    await c.query(`BEGIN ${mode}`);
+    await safeBegin(c, { readOnly: /READ ONLY/.test(mode) });
     try {
-      await c.query(`SET LOCAL lock_timeout = '5s'`);
-      await c.query(`SET LOCAL statement_timeout = '60s'`);
       return await fn();
     } finally {
       await c.query('ROLLBACK').catch(() => {});

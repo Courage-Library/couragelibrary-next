@@ -9,7 +9,8 @@
  *   E-03 server-action role matrix (stubbed guard, recording RPC mock): anon / student denied before any RPC;
  *        staff drafts but cannot publish / archive; admin can; validation-blocked publish returns the report
  *   E-04 English only (decision #35, clarified by #85): no UI-language / medium switch, no Hindi UI labels,
- *        lang="hi" only on content inputs marked data-content-field; E-04b self-tests both sides
+ *        lang="hi" only on content inputs (data-content-field) or content displays (data-content-display);
+ *        E-04b self-tests both sides
  *   E-08 GAP2-4c "Suggest topics": the pure helper ranks exact / contained / similar topic names, ignores
  *        unrelated ones, is deterministic and bounded; the editor only pre-fills checkboxes (no action / RPC call,
  *        no auto-mapping) and the helper imports nothing (no DB, no network)
@@ -22,6 +23,7 @@
  *
  * Run: node scripts/test_gap2_4b_editor.cjs [--live [http://localhost:3100]]
  */
+const { safeBegin } = require('./db/live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
 const fs = require('fs');
 const path = require('path');
 const Module = require('module');
@@ -59,6 +61,11 @@ function englishOnlyViolations(src) {
     return m ? (m[1] ?? m[2] ?? `{${m[3]}}`) : null;
   };
   const isContentInput = (t) => /^(input|textarea)$/.test(t.name) && attr(t, 'lang') === 'hi' && attr(t, 'data-content-field') !== null;
+  // #85 refinement (2026-10-27): a content DISPLAY element (screen-reader pronunciation) may carry lang="hi" — or a lang
+  // expression that yields "hi" / "en" — when marked data-content-display; never on UI chrome or on an input
+  const UI_CHROME = /^(label|option|button|legend|select|input|textarea|StudioField)$/;
+  const isContentDisplay = (t) => !UI_CHROME.test(t.name) && attr(t, 'data-content-display') !== null
+    && (attr(t, 'lang') === 'hi' || /^\{[^}]*["']hi["'][^}]*\}$/.test(attr(t, 'lang') || ''));
   const contentIds = new Set(tags.filter(isContentInput).map((t) => attr(t, 'id')).filter(Boolean));
   if (/<option[^>]*value=["'](hindi|hi|both)["']/i.test(src)) violations.push('Hindi / bilingual <option> (a UI-language or medium switch)');
   if (/>\s*[^<{]*\b(Hindi|Bilingual)\b[^<{]*</.test(src)) violations.push('Hindi / bilingual UI label (text)');
@@ -66,8 +73,9 @@ function englishOnlyViolations(src) {
   for (const t of tags) {
     const lang = attr(t, 'lang');
     const marker = attr(t, 'data-content-field');
-    if (lang !== null && lang !== 'en' && !isContentInput(t)) violations.push(`lang=${lang} on <${t.name}> that is not a marked content input`);
+    if (lang !== null && lang !== 'en' && !isContentInput(t) && !isContentDisplay(t)) violations.push(`lang=${lang} on <${t.name}> that is not a marked content input / display`);
     if (marker !== null && !isContentInput(t)) violations.push(`data-content-field on <${t.name}> without lang="hi"`);
+    if (attr(t, 'data-content-display') !== null && !isContentDisplay(t)) violations.push(`data-content-display on <${t.name}> without lang="hi" (or on UI chrome / an input)`);
     const label = attr(t, 'label');
     if (label && /\b(Hindi|Bilingual)\b/.test(label) && !contentIds.has(attr(t, 'htmlFor'))) violations.push(`label "${label}" does not label a marked Hindi content input`);
     if (t.name === 'label' && attr(t, 'htmlFor')) {
@@ -283,7 +291,7 @@ function makeHarness() {
     return '4 roles × 8 actions; blocked publish; error + input mapping';
   });
 
-  await test('E-04 English only (decision #35, clarified by #85): no UI-language / medium switch, no Hindi UI labels, lang="hi" only on content inputs', async () => {
+  await test('E-04 English only (decision #35, clarified by #85): no UI-language / medium switch, no Hindi UI labels, lang="hi" only on marked content inputs / displays', async () => {
     const walk = (dir) => fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(`${dir}/${e.name}`) : /\.tsx?$/.test(e.name) ? [`${dir}/${e.name}`] : []));
     const files = [...walk('app/admin'), ...walk('components/admin')].filter((f) => !f.endsWith('.ts') || f.endsWith('page.ts'));
     assert(files.length >= 30, `admin UI files scanned ${files.length} (min 30)`); // GATE-HYGIENE-1
@@ -298,7 +306,7 @@ function makeHarness() {
     return `${files.length} admin UI files; ${contentInputs} Hindi content input(s)`;
   });
 
-  await test('E-04b self-test: the #85 checker fails every forbidden form and passes only marked Hindi content inputs', async () => {
+  await test('E-04b self-test: the #85 checker fails every forbidden form and passes only marked Hindi content inputs / displays', async () => {
     const DEV = String.fromCharCode(0x0939, 0x093f, 0x0902); // built at runtime: no Devanagari in this file
     const fail = {
       'UI-language switch': '<select><option value="en">English</option><option value="hi">Hindi</option></select>',
@@ -309,11 +317,17 @@ function makeHarness() {
       'dynamic lang on a display element': '<p lang={x ? "en" : "hi"}>{t}</p>',
       'lang="hi" input without the content marker': '<input id="a" lang="hi" value={v} />',
       'content marker without lang="hi"': '<input id="a" data-content-field="name_hi" value={v} />',
+      'display marker without lang': '<p data-content-display="stem">{t}</p>',
+      'display marker on a label (UI chrome)': '<label lang="hi" data-content-display="x">{t}</label>',
+      'display marker on an input (inputs use data-content-field)': '<input id="z" lang="hi" data-content-display="x" />',
+      'lang="hi" display without the marker': '<p lang={x ? "en" : "hi"}>{t}</p>',
       'Hindi label on a non-content input': '<StudioField label="Hindi name" htmlFor="a"><input id="a" value={v} /></StudioField>',
     };
     const pass = {
       'marked Hindi content input + its label': '<StudioField label="Hindi name" htmlFor="a"><input id="a" lang="hi" data-content-field="name_hi" value={v} /></StudioField>',
       'marked Hindi content textarea': '<label htmlFor="b">Hindi alias</label><textarea id="b" lang="hi" data-content-field="alias_hi" />',
+      'marked content display (lang="hi")': '<p lang="hi" data-content-display="question_stem">{stem}</p>',
+      'marked content display (lang expression)': '<p lang={item.language === "hi" ? "en" : "hi"} data-content-display="other_language_stem">{t}</p>',
       'English only screen': '<StudioField label="Name" htmlFor="c"><input id="c" lang="en" value={v} /></StudioField>',
     };
     const wrong = [];
@@ -374,7 +388,7 @@ async function live() {
   db.on('error', () => {});
   await db.connect();
   const ro = async (sql, p) => {
-    await db.query('BEGIN READ ONLY');
+    await safeBegin(db, { readOnly: true });
     try {
       return (await db.query(sql, p)).rows;
     } finally {
@@ -512,7 +526,7 @@ async function live() {
     const admin = (await ro(`SELECT id FROM auth.users WHERE email = 'qa-admin@courage-library.test'`))[0];
     const left = await ro(`SELECT id FROM public.exam_syllabus_versions WHERE exam_id = $1 AND status = 'DRAFT'`, [qaExam.id]);
     for (const v of left) {
-      await db.query('BEGIN READ WRITE');
+      await safeBegin(db);
       try {
         await db.query('SET LOCAL ROLE authenticated');
         await db.query(`SELECT set_config('request.jwt.claims', $1, true)`, [JSON.stringify({ sub: admin.id, role: 'authenticated', email: 'qa-admin@courage-library.test', app_metadata: { role: 'admin' } })]);

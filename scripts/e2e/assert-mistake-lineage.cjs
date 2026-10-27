@@ -8,6 +8,7 @@
  * aborts, so a partial result always names the failing assertion (architect ruling, GAP2-4a).
  * Usage: node scripts/e2e/assert-mistake-lineage.cjs
  */
+const { safeBegin } = require('../db/live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
 const fs = require('fs');
 const path = require('path');
 const { Client } = require('pg');
@@ -30,7 +31,7 @@ function summary(error) {
   c.on('error', () => {});
   await c.connect();
 
-  await c.query('BEGIN READ ONLY');
+  await safeBegin(c, { readOnly: true });
   const user = (await c.query(`SELECT id FROM auth.users WHERE email = $1`, [EMAIL])).rows[0];
   if (!user) throw new Error('test student not found — run student-journey.cjs first');
   const uid = user.id;
@@ -59,7 +60,7 @@ function summary(error) {
   // occurrence must be revoked. Always rolled back.
   const target = occ.find((o) => o.question_version_id);
   if (target) {
-    await c.query('BEGIN READ WRITE');
+    await safeBegin(c);
     try {
       const r = (await c.query(`SELECT public.fn_revoke_mistakes_by_errata($1, $2, 'E2E errata check', NULL) AS r`, [target.question_version_id, target.selected_option_id])).rows[0].r;
       const st = (await c.query(`SELECT occurrence_status FROM public.user_mistake_occurrences WHERE id = $1`, [target.id])).rows[0].occurrence_status;

@@ -13,6 +13,7 @@
  * Run: node scripts/test_gap2_3_fk_flips.cjs [--capture | --db]
  */
 
+const { safeBegin } = require('./db/live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -115,7 +116,7 @@ async function tableHashes(client) {
     }
   }
   const q = async (s, p = []) => (await c.query(s, p)).rows;
-  await c.query('BEGIN READ ONLY');
+  await safeBegin(c, { readOnly: true });
   try {
     // public tables, plus flipped tables later moved to schema retired (GAP2-4c) — keyed by table name
     const tables = await q(`SELECT DISTINCT cl.relname t, cl.relnamespace::regnamespace::text s FROM pg_constraint con JOIN pg_class cl ON cl.oid=con.conrelid JOIN pg_class tg ON tg.oid=con.confrelid
@@ -215,8 +216,8 @@ async function dbTests() {
     try { c = new Client({ ...dbTarget().pg, port: 6543 }); c.on('error', () => {}); await c.connect(); break; } catch (e) { c = null; if (i === 3) { failed++; lines.push(`  FAIL  D-00 connect: ${e.code || e.message}`); return; } }
   }
   const q = async (s, p = []) => (await c.query(s, p)).rows;
-  const ro = async (fn) => { await c.query('BEGIN READ ONLY'); try { return await fn(); } finally { await c.query('ROLLBACK'); } };
-  const rw = async (fn) => { await c.query('BEGIN READ WRITE'); try { return await fn(); } finally { await c.query('ROLLBACK'); } };
+  const ro = async (fn) => { await safeBegin(c, { readOnly: true }); try { return await fn(); } finally { await c.query('ROLLBACK'); } };
+  const rw = async (fn) => { await safeBegin(c); try { return await fn(); } finally { await c.query('ROLLBACK'); } };
   const expectErr = async (sql, params, code) => {
     await c.query('SAVEPOINT x');
     try { await c.query(sql, params); await c.query('RELEASE SAVEPOINT x'); return 'NO ERROR'; } catch (e) { await c.query('ROLLBACK TO SAVEPOINT x'); return e.code === code ? null : `${e.code} ${e.message}`; }

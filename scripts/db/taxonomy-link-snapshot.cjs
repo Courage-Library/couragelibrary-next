@@ -11,6 +11,7 @@
  *   node scripts/db/taxonomy-link-snapshot.cjs --out=<file.json>            (take a snapshot)
  *   node scripts/db/taxonomy-link-snapshot.cjs --compare=<before.json>      (take one and compare; exit 1 on any change)
  */
+const { safeBegin } = require('./live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
 const fs = require('fs');
 const path = require('path');
 const { Client } = require('pg');
@@ -29,10 +30,10 @@ if (!OUT && !CMP) throw new Error('--out=<file> or --compare=<before.json>');
   const q = async (s, p) => (await c.query(s, p)).rows;
   const snap = {};
   try {
-    await c.query('BEGIN READ ONLY');
-    await c.query("SET LOCAL lock_timeout = '3s'");
-    await c.query("SET LOCAL statement_timeout = '60s'");
-    await c.query("SET LOCAL idle_in_transaction_session_timeout = '30s'");
+    await safeBegin(c, { readOnly: true });
+
+
+
     const fks = await q(`
       SELECT con.conname, n.nspname AS schema, cl.relname AS tbl,
              (SELECT a.attname FROM pg_attribute a WHERE a.attrelid = con.conrelid AND a.attnum = con.conkey[1]) AS col

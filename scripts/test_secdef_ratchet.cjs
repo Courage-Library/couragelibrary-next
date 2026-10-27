@@ -11,6 +11,7 @@
  * Reductions (revoked grants, dropped functions) pass and are listed as NOTE so the baseline can be tightened.
  * Run: node scripts/test_secdef_ratchet.cjs
  */
+const { safeBegin } = require('./db/live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
 const fs = require('fs');
 const path = require('path');
 const { Client } = require('pg');
@@ -31,7 +32,7 @@ const base = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts/secdef/allowlis
   await c.connect();
   let live;
   try {
-    await c.query('BEGIN READ ONLY');
+    await safeBegin(c, { readOnly: true });
     live = (await c.query(`SELECT p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' sig, (p.prorettype = 'trigger'::regtype) trg,
         (SELECT substring(x from 13) FROM unnest(coalesce(p.proconfig, '{}')) x WHERE x LIKE 'search_path=%' LIMIT 1) sp,
         has_function_privilege('anon', p.oid, 'EXECUTE') anon, has_function_privilege('authenticated', p.oid, 'EXECUTE') auth,

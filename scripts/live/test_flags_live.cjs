@@ -15,6 +15,7 @@
  *   FL-6 pages (flag-gated GETs): /memory-lock, /settings/profile, /help/tickets render for the QA student
  * Run: node scripts/live/test_flags_live.cjs [baseUrl]
  */
+const { safeBegin } = require('../db/live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
 const crypto = require('crypto');
 const path = require('path');
 const ROOT = path.resolve(__dirname, '../..');
@@ -56,7 +57,7 @@ const assert = (c, m) => {
 
   /** run fn as the QA student's role inside a transaction that is ALWAYS rolled back */
   const rolledBack = async (fn) => {
-    await pg.query('BEGIN');
+    await safeBegin(pg);
     try {
       const asStudent = async () => {
         await pg.query(`set local role authenticated`);

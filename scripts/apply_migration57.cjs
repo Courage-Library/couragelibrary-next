@@ -1,3 +1,4 @@
+const { safeBegin } = require('./db/live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
 const fs = require('fs');
 const path = require('path');
 const dns = require('dns');
@@ -89,7 +90,7 @@ async function applyMigration() {
   console.log(`============================================================`);
 
   try {
-    await client.query('BEGIN');
+    await safeBegin(client);
     await client.query(sql);
     await client.query('COMMIT');
     console.log(`SUCCESS: ${filename} applied successfully!`);

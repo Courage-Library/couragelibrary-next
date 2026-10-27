@@ -16,6 +16,7 @@
  * Run: node scripts/test_gap2_2b_retirement.cjs [--db]
  */
 
+const { safeBegin } = require('./db/live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
 const fs = require('fs');
 const path = require('path');
 const Module = require('module');
@@ -381,8 +382,8 @@ async function dbTests() {
     try { c = new Client({ ...dbTarget().pg, port: 6543 }); c.on('error', () => {}); await c.connect(); break; } catch (e) { c = null; if (i === 3) { failed++; lines.push(`  FAIL  D-00 connect: ${e.code || e.message}`); return; } }
   }
   const q = async (s, p = []) => (await c.query(s, p)).rows;
-  const ro = async (fn) => { await c.query('BEGIN READ ONLY'); try { return await fn(); } finally { await c.query('ROLLBACK'); } };
-  const rw = async (fn) => { await c.query('BEGIN READ WRITE'); try { return await fn(); } finally { await c.query('ROLLBACK'); } };
+  const ro = async (fn) => { await safeBegin(c, { readOnly: true }); try { return await fn(); } finally { await c.query('ROLLBACK'); } };
+  const rw = async (fn) => { await safeBegin(c); try { return await fn(); } finally { await c.query('ROLLBACK'); } };
 
   await test('D-01 retire targets exist ONLY in schema retired; retired has no anon/authenticated USAGE or table privileges', () => ro(async () => {
     const rows = await q(`SELECT n.nspname, c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE c.relname = ANY($1) AND c.relkind='r'`, [TARGETS]);

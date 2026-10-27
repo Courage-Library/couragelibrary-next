@@ -309,7 +309,7 @@ const FUNCS = [
 
   await test('L-01 link snapshot: every FK into the tree + projections + Learn-more + syllabus + mock/pattern links, counts AND hashes; only a NEW EMPTY set is not a change', () => {
     const s = read('scripts/db/taxonomy-link-snapshot.cjs');
-    assert(/BEGIN READ ONLY/.test(s) && /lock_timeout = '3s'/.test(s), 'read only + safety');
+    assert(/await safeBegin\(c, \{ readOnly: true \}\);/.test(s), 'read only + LIVE-LOCK-SAFETY (shared safeBegin)');
     assert(/confrelid = 'public\.canonical_taxonomy_nodes'::regclass/.test(s) && /md5\(/.test(s), 'catalogue FKs + hash');
     for (const k of ['tree:nodes', 'proj:topics', 'proj:subtopics', 'learn:units', 'learn:documents', 'syllabus:mappings', 'exam:question_mappings', 'mock:sections', 'pattern:sections']) assert(s.includes(`'${k}'`), k);
     assert(/!\(k in before\) && snap\[k\] && snap\[k\]\.n === 0/.test(s), 'new-empty rule');

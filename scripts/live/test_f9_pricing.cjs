@@ -14,7 +14,7 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..', '..');
 const { Client } = require('pg');
 const { dbTarget } = require(path.join(ROOT, 'scripts/db/_db-env.cjs'));
-const { withLiveTransaction, LIVE_SAFETY_SQL } = require(path.join(ROOT, 'scripts/db/live-safety.cjs'));
+const { withLiveTransaction, LIVE_SAFETY_SQL, safeBegin } = require(path.join(ROOT, 'scripts/db/live-safety.cjs'));
 const POST = true;
 let ok = true; const chk = (n, cond, info) => { if (!cond) ok = false; console.log(`${cond ? 'PASS' : 'FAIL'} ${n}${cond ? '' : ' — ' + (info ?? '')}`); };
 (async () => {
@@ -152,7 +152,7 @@ let ok = true; const chk = (n, cond, info) => { if (!cond) ok = false; console.l
       const b = new Client(dbTarget().pg); b.on('error', () => {}); await b.connect();
       let got;
       try {
-        await b.query(`BEGIN; ${LIVE_SAFETY_SQL}`);
+        await safeBegin(b);
         got = (await b.query(`select pg_try_advisory_xact_lock(hashtextextended('pro_entitlement:' || $1::text, 0)) g`, [ids.student])).rows[0].g;
       } finally { await b.query('ROLLBACK').catch(() => {}); await b.end().catch(() => {}); }
       const fB = await svc(`fn_fulfil_pro_order('order_TESTR0000001', 'pay_TESTR1', 29900, 'INR', 'WEBHOOK')`, []);

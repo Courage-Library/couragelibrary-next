@@ -11,6 +11,7 @@
  * Run: node scripts/test_gap2_2a_learning.cjs [--db]
  */
 
+const { safeBegin } = require('./db/live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
 const fs = require('fs');
 const path = require('path');
 const Module = require('module');
@@ -336,7 +337,7 @@ async function db() {
   await c.connect();
   const one = async (sql, p = []) => (await c.query(sql, p)).rows[0];
   async function tx(fn) {
-    await c.query('BEGIN READ WRITE');
+    await safeBegin(c);
     try {
       return await fn();
     } finally {

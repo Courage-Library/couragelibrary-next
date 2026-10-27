@@ -13,6 +13,7 @@
  * Run: node scripts/test_gap2_1b_taxonomy.cjs [--db] [--smoke]
  */
 
+const { safeBegin } = require('./db/live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
 const fs = require('fs');
 const path = require('path');
 const Module = require('module');
@@ -340,7 +341,7 @@ async function db() {
   const tag = `qa-gap2-${Date.now().toString(36)}`;
 
   async function tx(fn) {
-    await c.query('BEGIN READ WRITE');
+    await safeBegin(c);
     try {
       return await fn();
     } finally {
@@ -669,7 +670,7 @@ async function smoke() {
   } finally {
     // Cleanup: delete the QA nodes (children first); the projection removes the legacy rows.
     if (created.length) {
-      await c.query('BEGIN READ WRITE');
+      await safeBegin(c);
       try {
         for (const id of created) await c.query(`DELETE FROM public.canonical_taxonomy_nodes WHERE id=$1`, [id]);
         await c.query('COMMIT');

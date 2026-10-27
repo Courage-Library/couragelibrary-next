@@ -21,6 +21,7 @@
  * Usage: node scripts/e2e/ensure-student-fixture.cjs [http://localhost:3100] [--mock-slug=<slug>]
  * Exit 0 = fixture present (already or now); 1 = could not create it (details printed).
  */
+const { safeBegin } = require('../db/live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
 const { Client } = require('pg');
 const { chromium } = require('playwright');
 const { qaBrowserLogin } = require('../live/qa-session.cjs');
@@ -44,8 +45,8 @@ async function readOnly(fn) {
     c.on('error', () => {});
     try {
       await c.connect();
-      await c.query('BEGIN READ ONLY');
-      await c.query(`SET LOCAL statement_timeout = '60s'`);
+      await safeBegin(c, { readOnly: true });
+
       const out = await fn((s, p) => c.query(s, p).then((r) => r.rows));
       await c.query('ROLLBACK');
       return out;

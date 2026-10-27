@@ -23,7 +23,7 @@ const check = (id, name, ok, info = '') => {
 
 check('FS-1', 'the QA PostgREST client only reads', !/sb\.(rpc|from\([^)]*\)\s*\.(insert|update|upsert|delete))/.test(code) && !/\.(insert|update|upsert|delete)\(/.test(code));
 const helper = code.slice(code.indexOf('const rolledBack = async'), code.indexOf('const rpc = async'));
-check('FS-2a', 'rolledBack(): BEGIN … finally ROLLBACK (unconditional)', /await pg\.query\('BEGIN'\);[\s\S]*finally \{\s*await pg\.query\('ROLLBACK'\);\s*\}/.test(helper));
+check('FS-2a', 'rolledBack(): safeBegin (LIVE-LOCK-SWEEP: timeouts + rollback on stop) … finally ROLLBACK (unconditional)', /await safeBegin\(pg\);[\s\S]*finally \{\s*await pg\.query\('ROLLBACK'\);\s*\}/.test(helper));
 check('FS-2b', 'no COMMIT anywhere', !/COMMIT/i.test(code));
 const outside = code.replace(/rolledBack\(async[\s\S]*?\}\)\);/g, '');
 check('FS-2c', 'no SQL write outside rolledBack()', !/\b(insert into|update user_profiles|delete from)\b/i.test(outside), (outside.match(/\b(insert into|update \w+|delete from)\b/i) || [''])[0]);

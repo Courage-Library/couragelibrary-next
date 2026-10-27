@@ -33,6 +33,7 @@
  *
  * Run: node scripts/test_qb_key1.cjs [--offline]
  */
+const { safeBegin } = require('./db/live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
 const fs = require('fs');
 const path = require('path');
 const Module = require('module');
@@ -280,7 +281,7 @@ function supaMock(results) {
   c.on('error', () => {});
   await c.connect();
   const q = async (s, p) => (await c.query(s, p)).rows;
-  const ro = async (fn) => { await c.query('BEGIN READ ONLY'); try { return await fn(); } finally { await c.query('ROLLBACK'); } };
+  const ro = async (fn) => { await safeBegin(c, { readOnly: true }); try { return await fn(); } finally { await c.query('ROLLBACK'); } };
   const QID = '11111111-1111-4111-8111-00000000b087';
   const V1 = '22222222-2222-4222-8222-00000000b087';
   const V2 = '22222222-2222-4222-8222-00000000b088';
@@ -293,8 +294,8 @@ function supaMock(results) {
     })));
     /** runs fn inside one transaction that is always rolled back; savepoint per probe */
     const rolledBack = async (fn) => {
-      await c.query('BEGIN READ WRITE');
-      try { await c.query(`SET LOCAL lock_timeout = '5s'`); await c.query(`SET LOCAL statement_timeout = '60s'`); return await fn(); } finally { await c.query('ROLLBACK'); }
+      await safeBegin(c);
+      try { return await fn(); } finally { await c.query('ROLLBACK'); }
     };
     const attempt = async (steps) => {
       await c.query('SAVEPOINT k');

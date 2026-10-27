@@ -14,6 +14,7 @@
  * Usage: node scripts/test_qf1_db.cjs
  */
 
+const { safeBegin } = require('./db/live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
 const fs = require('fs');
 const path = require('path');
 const { Client } = require('pg');
@@ -102,7 +103,7 @@ async function counts(c) {
 
   // Wrap: run fn in a transaction that is always rolled back.
   const rolledBack = async (fn) => {
-    await c.query('BEGIN');
+    await safeBegin(c);
     try {
       return await fn();
     } finally {
@@ -222,9 +223,9 @@ async function counts(c) {
     const payload = JSON.stringify({ origin: 'AI_EXTERNAL', target_topic_id: f.topicId, items: [mkItem(90, stem)] });
     let created = null;
     try {
-      await c.query('BEGIN');
+      await safeBegin(c);
       const first = (await c.query(`SELECT public.fn_import_question_drafts($1::jsonb, $2::uuid) AS r`, [payload, f.actor])).rows[0].r;
-      await c2.query('BEGIN');
+      await safeBegin(c2);
       // c2 blocks on the advisory lock held by c's open transaction.
       const second = c2
         .query(`SELECT public.fn_import_question_drafts($1::jsonb, $2::uuid) AS r`, [payload, f.actor])
@@ -241,7 +242,7 @@ async function counts(c) {
         // Clean up exactly the committed DRAFT rows (allowed: DRAFT versions are not frozen).
         const vid = created.items[0].version_id;
         const qid = created.items[0].question_id;
-        await c.query('BEGIN');
+        await safeBegin(c);
         await c.query(`DELETE FROM public.question_version_authoring WHERE version_id = $1`, [vid]);
         await c.query(`DELETE FROM public.question_options WHERE question_version_id = $1`, [vid]);
         await c.query(`DELETE FROM public.question_answers WHERE question_version_id = $1`, [vid]);

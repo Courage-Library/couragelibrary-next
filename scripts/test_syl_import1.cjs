@@ -28,6 +28,7 @@
  *
  * Run: node scripts/test_syl_import1.cjs [--offline]
  */
+const { safeBegin } = require('./db/live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
 const fs = require('fs');
 const path = require('path');
 const ts = require('typescript');
@@ -261,7 +262,7 @@ const CASES = [
   const c = new Client({ ...dbTarget().pg, port: 6543 });
   c.on('error', () => {});
   await c.connect();
-  const ro = async (sql, p) => { await c.query('BEGIN READ ONLY'); try { return (await c.query(sql, p)).rows; } finally { await c.query('ROLLBACK'); } };
+  const ro = async (sql, p) => { await safeBegin(c, { readOnly: true }); try { return (await c.query(sql, p)).rows; } finally { await c.query('ROLLBACK'); } };
   // CI-FIX-1 (#74): CAPTCHA-safe QA session (scripts/live/qa-session.cjs); the second argument is kept for call sites
   const { qaAccessToken } = require('./live/qa-session.cjs');
   const token = async (email) => qaAccessToken(email).catch((e) => {
@@ -278,8 +279,8 @@ const CASES = [
   };
   /** runs fn inside ONE transaction that is always rolled back */
   const rolledBack = async (fn) => {
-    await c.query('BEGIN READ WRITE');
-    try { await c.query(`SET LOCAL lock_timeout = '5s'`); await c.query(`SET LOCAL statement_timeout = '60s'`); return await fn(); } finally { await c.query('ROLLBACK'); }
+    await safeBegin(c);
+    try { return await fn(); } finally { await c.query('ROLLBACK'); }
   };
   const asUser = async (sub, role, email) => {
     await c.query('SET LOCAL ROLE authenticated');
@@ -560,9 +561,8 @@ const CASES = [
 
   /** deletes the suite's own DRAFT on the QA exam (nodes first, while the version is still a DRAFT; mappings cascade) */
   async function deleteOwnDraft(id, examId) {
-    await c.query('BEGIN READ WRITE');
+    await safeBegin(c);
     try {
-      await c.query(`SET LOCAL lock_timeout = '5s'`);
       const own = (await c.query(`SELECT 1 FROM public.exam_syllabus_versions WHERE id = $1 AND exam_id = $2 AND status = 'DRAFT' AND version_tag LIKE 'syl-import1-%'`, [id, examId])).rowCount;
       if (own !== 1) throw new Error('refusing to delete: not the suite\'s own QA DRAFT');
       await c.query('DELETE FROM public.exam_syllabus_nodes WHERE syllabus_version_id = $1', [id]);

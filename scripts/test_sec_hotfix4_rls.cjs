@@ -30,6 +30,7 @@
  *
  * Run: node scripts/test_sec_hotfix4_rls.cjs
  */
+const { safeBegin } = require('./db/live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
 const crypto = require('crypto');
 const { Client } = require('pg');
 const { dbTarget } = require('./db/_db-env.cjs');
@@ -141,7 +142,7 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assertion failed'); };
 
     const results = [];
     for (const t of TABLES) {
-      await q('BEGIN READ WRITE');
+      await safeBegin(c);
       try {
         await q(`GRANT INSERT, UPDATE, DELETE ON public.${t} TO authenticated`); // test the POLICY; rolled back below
         const total = Number((await q(`SELECT count(*) n FROM public.${t}`)).rows[0].n);
@@ -209,7 +210,7 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assertion failed'); };
       const out = {};
       out.anonCanExecute = (await q("SELECT has_function_privilege('anon', 'public.fn_jwt_is_admin_or_staff()', 'EXECUTE') v")).rows[0].v;
       for (const [k, claims, role] of [['student', STUDENT, 'authenticated'], ['staff', STAFF, 'authenticated'], ['admin', { ...STAFF, app_metadata: { role: 'admin' } }, 'authenticated']]) {
-        await q('BEGIN READ ONLY');
+        await safeBegin(c, { readOnly: true });
         try { await as(claims, role); out[k] = (await q('SELECT public.fn_jwt_is_admin_or_staff() v')).rows[0].v; } finally { await q('ROLLBACK'); }
       }
       assert(out.student === false && out.staff === true && out.admin === true && out.anonCanExecute === false, JSON.stringify(out));
@@ -255,7 +256,7 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assertion failed'); };
 
       // behaviour, inside a rolled-back transaction: one row for each of two real users (ids never printed)
       const seen = {};
-      await q('BEGIN READ WRITE');
+      await safeBegin(c);
       try {
         const users = (await q('SELECT id FROM auth.users ORDER BY created_at LIMIT 2')).rows.map((r) => r.id);
         assert(users.length === 2, 'need two auth users for the own-rows probe');
@@ -313,7 +314,7 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assertion failed'); };
           return null;
         }
       };
-      await q('BEGIN READ WRITE');
+      await safeBegin(c);
       try {
         await call('anonCreate', {}, 'anon', `SELECT public.fn_syllabus_create_draft($1) r`, [exam]);
         await call('studentCreate', STUDENT, 'authenticated', `SELECT public.fn_syllabus_create_draft($1) r`, [exam]);
@@ -386,9 +387,8 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assertion failed'); };
       }
       // behaviour (rolled back): anon / student denied before any execution; service role deletes a throwaway exam
       const out = {};
-      await q('BEGIN READ WRITE');
+      await safeBegin(c);
       try {
-        await q(`SET LOCAL lock_timeout = '5s'`);
         const call = {
           fn_delete_exam_controlled: `SELECT public.fn_delete_exam_controlled(gen_random_uuid(), 'sec-hotfix6-probe')`,
           fn_authorize_and_start_test_attempt: `SELECT public.fn_authorize_and_start_test_attempt(gen_random_uuid(), gen_random_uuid())`,

@@ -13,6 +13,7 @@
  * results), the mistake occurrences of those answers and the vault rows they point to. Everything else is deleted
  * as before, and the "nothing left" check then allows exactly those fixture rows. Default behaviour is unchanged.
  */
+const { safeBegin } = require('../db/live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
 const { Client } = require('pg');
 const { assertDeletable, isPermanentIdentity, guardedDeleteUser } = require('../qa/qa-identity-guard.cjs');
 const { admin, findUser, pgConfig, EMAIL } = require('./_e2e-env.cjs');
@@ -52,7 +53,7 @@ if (!KEEP_USER && isPermanentIdentity(EMAIL)) {
      JOIN pg_attribute a ON a.attrelid = cl.oid AND a.attnum = k.attnum
      WHERE con.contype = 'f' AND con.confrelid = $1::regclass AND n.nspname = 'public'`, [regclass]);
   try {
-    await c.query('BEGIN READ WRITE');
+    await safeBegin(c);
     // SMOKE-FIXTURE-1: the fixture to keep (empty arrays when not keeping, or when there is none)
     let fx = { attempt: null, answers: [], results: [], occurrences: [], vault: [] };
     if (KEEP_FIXTURE) {

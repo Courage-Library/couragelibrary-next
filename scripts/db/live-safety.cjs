@@ -41,22 +41,56 @@ function installStopHandler(client) {
   return () => { process.removeListener('SIGINT', onInt); process.removeListener('SIGTERM', onTerm); };
 }
 
+/** Isolation levels safeBegin accepts (anything else is a programming error). */
+const ISOLATION_LEVELS = new Set(['READ COMMITTED', 'REPEATABLE READ', 'SERIALIZABLE']);
+
+// LIVE-LOCK-SWEEP: every client with a transaction opened by safeBegin, rolled back + closed on SIGINT / SIGTERM.
+const openClients = new Set();
+let globalStopInstalled = false;
+function installGlobalStop() {
+  if (globalStopInstalled) return;
+  globalStopInstalled = true;
+  const stop = async (sig) => {
+    for (const c of openClients) {
+      await c.query('ROLLBACK').catch(() => undefined);
+      await c.end().catch(() => undefined);
+    }
+    console.error(`LIVE-LOCK-SAFETY: ${sig} — rolled back and closed ${openClients.size} session(s); exiting`);
+    process.exit(sig === 'SIGINT' ? 130 : 143);
+  };
+  process.once('SIGINT', () => stop('SIGINT'));
+  process.once('SIGTERM', () => stop('SIGTERM'));
+}
+
 /**
- * Runs fn(client) in ONE transaction with the live-safety settings, then ALWAYS rolls back (rolled-back smokes /
- * verifies) — try/finally: ROLLBACK even on error; the stop handler covers SIGINT / SIGTERM. Keep fn small (one object
- * group) so no lock is held for more than a few seconds.
+ * THE shared safe-begin (LIVE-LOCK-SWEEP; gate scripts/test_live_lock_sweep.cjs): BEGIN [isolation] [READ ONLY | READ
+ * WRITE] and the three LIVE-LOCK-SAFETY settings in ONE statement (a connection that stalls right after BEGIN can never
+ * leave a transaction without the idle-in-transaction timeout), and the client is registered for rollback-on-stop.
+ * The caller ends the transaction itself (ROLLBACK, or COMMIT where a live step must persist).
+ */
+async function safeBegin(client, { readOnly = false, isolation = null } = {}) {
+  if (isolation !== null && !ISOLATION_LEVELS.has(isolation)) throw new Error(`safeBegin: unknown isolation level ${isolation}`);
+  installGlobalStop();
+  if (!openClients.has(client)) {
+    openClients.add(client);
+    if (typeof client.once === 'function') client.once('end', () => openClients.delete(client));
+  }
+  const mode = `${isolation ? `ISOLATION LEVEL ${isolation} ` : ''}${readOnly ? 'READ ONLY' : 'READ WRITE'}`;
+  await client.query(`BEGIN ${mode}; ${LIVE_SAFETY_SQL}`);
+}
+
+/**
+ * Runs fn(client) in ONE transaction with the live-safety settings (safeBegin), then ALWAYS rolls back (rolled-back
+ * smokes / verifies) — try/finally: ROLLBACK even on error; safeBegin's stop handler covers SIGINT / SIGTERM. Keep fn
+ * small (one object group) so no lock is held for more than a few seconds.
  */
 async function withLiveTransaction(client, fn, { readOnly = false } = {}) {
-  const remove = installStopHandler(client);
   try {
-    // BEGIN and the settings in ONE round trip: a connection that stalls right after BEGIN can never leave a transaction
-    // without the idle-in-transaction timeout (observed 2026-10-25: a backend "idle in transaction" after a bare BEGIN)
-    await client.query(`${readOnly ? 'BEGIN READ ONLY' : 'BEGIN'}; ${LIVE_SAFETY_SQL}`);
+    await safeBegin(client, { readOnly });
     return await fn(client);
   } finally {
     await client.query('ROLLBACK').catch(() => undefined);
-    remove();
   }
 }
 
-module.exports = { LOCK_TIMEOUT, STATEMENT_TIMEOUT, IDLE_IN_TX_TIMEOUT, LIVE_SAFETY_SQL, applyLiveSafety, isLockTimeout, installStopHandler, withLiveTransaction };
+module.exports = { LOCK_TIMEOUT, STATEMENT_TIMEOUT, IDLE_IN_TX_TIMEOUT, LIVE_SAFETY_SQL, applyLiveSafety, isLockTimeout, installStopHandler, safeBegin, withLiveTransaction };

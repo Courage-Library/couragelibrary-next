@@ -6,8 +6,8 @@
  *
  *   1. schema   pg_dump --schema-only of schemas public + auth (custom format; small, one short session)
  *   2. data     every table of public + auth, ONE short session per table (4 in flight), at most 3 attempts per table:
- *               BEGIN READ ONLY ISOLATION LEVEL REPEATABLE READ;
- *               SET LOCAL statement_timeout = '120s'; SET LOCAL idle_in_transaction_session_timeout = '30s';
+ *               safeBegin (scripts/db/live-safety.cjs): BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY + lock 3 s,
+ *               statement 60 s, idle-in-transaction 30 s in one statement (LIVE-LOCK-SWEEP; was statement 120 s);
  *               SELECT to_jsonb(t) FROM <schema>.<table> t  → <schema>.<table>.ndjson (one JSON row per line)
  *               The timeouts are transaction-local (the Supavisor transaction pooler ignores startup options): if the
  *               client dies mid-read the server ends that backend within 30 s — no orphan can keep locks.
@@ -25,6 +25,7 @@
  * Usage: node scripts/db/backup.cjs <label> --resilient     (or: node scripts/db/backup-resilient.cjs <label>)
  *        node scripts/db/backup-resilient.cjs --restore-test <backup-dir>   (one small table into a temp schema, rolled back)
  */
+const { safeBegin } = require('./live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -85,9 +86,9 @@ async function listTables() {
 
 async function dumpTable(s, t, file) {
   return withClient(async (c) => {
-    await c.query('BEGIN READ ONLY ISOLATION LEVEL REPEATABLE READ');
-    await c.query(`SET LOCAL statement_timeout = '120s'`);
-    await c.query(`SET LOCAL idle_in_transaction_session_timeout = '30s'`);
+    await safeBegin(c, { readOnly: true, isolation: 'REPEATABLE READ' });
+
+
     const rows = (await c.query(`SELECT to_jsonb(t)::text AS r FROM "${s}"."${t}" t`)).rows;
     await c.query('COMMIT');
     fs.writeFileSync(file, rows.map((x) => x.r).join('\n') + (rows.length ? '\n' : ''));
@@ -99,9 +100,9 @@ const countLines = (file) => { const txt = fs.readFileSync(file, 'utf8'); return
 
 async function liveCounts(tables) {
   return withClient(async (c) => {
-    await c.query('BEGIN READ ONLY');
-    await c.query(`SET LOCAL statement_timeout = '120s'`);
-    await c.query(`SET LOCAL idle_in_transaction_session_timeout = '30s'`);
+    await safeBegin(c, { readOnly: true });
+
+
     const out = {};
     for (const { s, t } of tables) out[`${s}.${t}`] = Number((await c.query(`SELECT count(*) n FROM "${s}"."${t}"`)).rows[0].n);
     await c.query('COMMIT');
@@ -237,10 +238,8 @@ async function restoreTest(dir) {
   if (!pick) throw new Error('no small public table in the manifest');
   const lines = fs.readFileSync(path.join(dir, pick.file), 'utf8').split('\n').filter(Boolean); // raw JSON text: no numeric precision loss
   return withClient(async (c) => {
-    await c.query('BEGIN');
+    await safeBegin(c);
     try {
-      await c.query(`SET LOCAL statement_timeout = '60s'`);
-      await c.query(`SET LOCAL idle_in_transaction_session_timeout = '30s'`);
       await c.query('CREATE SCHEMA bk_restore_test');
       await c.query(`CREATE TABLE bk_restore_test."${pick.table}" (LIKE public."${pick.table}" INCLUDING DEFAULTS INCLUDING GENERATED)`);
       const cols = (await c.query(`SELECT attname FROM pg_attribute WHERE attrelid = 'public."${pick.table}"'::regclass AND attnum > 0 AND NOT attisdropped AND attgenerated = '' ORDER BY attnum`)).rows.map((r) => `"${r.attname}"`).join(', ');

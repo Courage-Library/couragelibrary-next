@@ -15,6 +15,7 @@
  *
  * Run: node scripts/test_secdef_s2_1.cjs
  */
+const { safeBegin } = require('./db/live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
 const fs = require('fs');
 const path = require('path');
 const { Client } = require('pg');
@@ -44,8 +45,8 @@ const ROOM = '33333333-3333-4333-8333-0000000000b1';
   const audited = rollbackSql.slice(rollbackSql.indexOf('$function$') + 10, rollbackSql.lastIndexOf('$function$'));
 
   const tx = async (fn) => {
-    await c.query('BEGIN');
-    try { await c.query(`SET LOCAL lock_timeout = '5s'`); await c.query(`SET LOCAL statement_timeout = '60s'`); return await fn(); } finally { await c.query('ROLLBACK').catch(() => {}); }
+    await safeBegin(c);
+    try { return await fn(); } finally { await c.query('ROLLBACK').catch(() => {}); }
   };
   const as = async (role, sub) => {
     await c.query(`SELECT set_config('request.jwt.claims', $1, true)`, [JSON.stringify(sub ? { sub, role } : { role })]);

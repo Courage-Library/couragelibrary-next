@@ -1,3 +1,4 @@
+const { safeBegin } = require('./db/live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
 const fs = require('fs');
 const path = require('path');
 const { Client } = require('pg');
@@ -58,7 +59,7 @@ async function applyLearningMigrations() {
     console.log(`Applying Migration: ${filename}...`);
     console.log(`============================================================`);
 
-    await client.query('BEGIN;');
+    await safeBegin(client);
     try {
       await client.query(sql);
       await client.query('COMMIT;');

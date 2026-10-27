@@ -18,6 +18,7 @@
  * Run (via the live-gate runner, docs/testing/LIVE_GATES.md):
  *   node scripts/live/with-server.cjs -- "node scripts/test_ca_routes.cjs http://localhost:3100"
  */
+const { safeBegin } = require('./db/live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
 const { Client } = require('pg');
 const { dbTarget } = require('./db/_db-env.cjs');
 
@@ -59,7 +60,7 @@ const month = today.slice(0, 7);
       c.on('error', () => {});
       try {
         await c.connect();
-        await c.query('BEGIN READ ONLY');
+        await safeBegin(c, { readOnly: true });
         // headline: every version's headline (a DRAFT revision of a published article must not leak either)
         const rows = (await c.query(`SELECT a.slug, a.status, a.news_date::text d, (SELECT v.headline FROM public.current_affairs_article_versions v WHERE v.article_id = a.id ORDER BY v.version_number DESC LIMIT 1) headline FROM public.current_affairs_articles a`)).rows;
         await c.query('ROLLBACK');

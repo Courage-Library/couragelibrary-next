@@ -27,7 +27,7 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 const { Client } = require('pg');
 const { ROOT, dbTarget, redactor, fileChecksum } = require('./_db-env.cjs');
-const { LIVE_SAFETY_SQL, isLockTimeout, installStopHandler } = require('./live-safety.cjs');
+const { isLockTimeout, installStopHandler, safeBegin } = require('./live-safety.cjs');
 
 const TOOL = 'scripts/db/apply-migration.cjs';
 const MAX_BACKUP_AGE_MS = 60 * 60 * 1000;
@@ -51,12 +51,12 @@ function transactionControl(sql) {
 const args = process.argv.slice(2);
 if (args.includes('--self-test')) {
   const cases = [
-    ['BEGIN;\nCREATE TABLE t (id int);\nCOMMIT;', 'BEGIN'],
+    ['BEGIN;\nCREATE TABLE t (id int);\nCOMMIT;', 'BEGIN'], // live-safety: test data (never executed)
     ['CREATE TABLE t (id int);\ncommit;', 'commit'],
     ['CREATE FUNCTION f() RETURNS void LANGUAGE plpgsql AS $$\nBEGIN\n  PERFORM 1;\nEND;\n$$;\nSELECT 1;', null],
     ['CREATE FUNCTION f() RETURNS trigger LANGUAGE plpgsql AS $function$ BEGIN RETURN NEW; END; $function$;', null],
     ["-- COMMIT;\n/* ROLLBACK; */\nSELECT 'COMMIT;';", null],
-    ["DO $$ BEGIN RAISE NOTICE 'x'; END $$;\nSTART TRANSACTION;", 'START TRANSACTION'],
+    ["DO $$ BEGIN RAISE NOTICE 'x'; END $$;\nSTART TRANSACTION;", 'START TRANSACTION'], // live-safety: test data (never executed)
   ];
   let ok = true;
   for (const [sql, want] of cases) {
@@ -75,7 +75,7 @@ if (args.includes('--self-test')) {
   // LIVE-LOCK-SAFETY: the runner sets the lock / statement timeouts right after BEGIN, at the rule's values
   const self = fs.readFileSync(__filename, 'utf8');
   const safety = require('./live-safety.cjs');
-  if (!/await c\.query\(`BEGIN READ WRITE; \$\{LIVE_SAFETY_SQL\}`\);/.test(self) || safety.LOCK_TIMEOUT !== '3s' || safety.STATEMENT_TIMEOUT !== '60s' || safety.IDLE_IN_TX_TIMEOUT !== '30s') {
+  if (!/await safeBegin\(c\);/.test(self) || !/await client\.query\(`BEGIN \$\{mode\}; \$\{LIVE_SAFETY_SQL\}`\);/.test(fs.readFileSync(require.resolve('./live-safety.cjs'), 'utf8')) || safety.LOCK_TIMEOUT !== '3s' || safety.STATEMENT_TIMEOUT !== '60s' || safety.IDLE_IN_TX_TIMEOUT !== '30s') {
     ok = false;
     console.log('apply-migration self-test FAIL: LIVE-LOCK-SAFETY defaults missing (BEGIN + lock_timeout 3s / statement_timeout 60s / idle-in-tx 30s in one round trip)');
   }
@@ -174,9 +174,9 @@ function verifyResilient(bdir, name, bin) {
   const started = Date.now();
   try {
     // Explicit READ WRITE: never inherit a session default from a pooled backend.
-    // LIVE-LOCK-SAFETY: lock_timeout 3s, statement_timeout 60s, idle-in-transaction 30s — sent in the SAME round trip as
-    // BEGIN, so a stalled connection can never hold a transaction without them (never raised to force a run)
-    await c.query(`BEGIN READ WRITE; ${LIVE_SAFETY_SQL}`);
+    // LIVE-LOCK-SAFETY via the shared safeBegin: lock_timeout 3s, statement_timeout 60s, idle-in-transaction 30s sent in
+    // the SAME round trip as BEGIN (a stalled connection can never hold a transaction without them; never raised)
+    await safeBegin(c);
     await c.query(sql);
     const ledgerNow = (await c.query(`SELECT to_regclass('public.schema_migration_ledger') IS NOT NULL AS e`)).rows[0].e;
     if (!ledgerNow) {

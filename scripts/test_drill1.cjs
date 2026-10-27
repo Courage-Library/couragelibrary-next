@@ -25,6 +25,7 @@
  * cleanup-student with E2E_KEEP_USER=1 (it removes the drills too).
  * Run: node scripts/test_drill1.cjs [--offline]
  */
+const { safeBegin } = require('./db/live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
 const fs = require('fs');
 const path = require('path');
 const Module = require('module');
@@ -122,7 +123,7 @@ function mock({ results = {}, rpc }) {
   const c = new Client({ ...dbTarget().pg, port: 6543 });
   c.on('error', () => {});
   await c.connect();
-  const ro = async (sql, p) => { await c.query('BEGIN READ ONLY'); try { return (await c.query(sql, p)).rows; } finally { await c.query('ROLLBACK'); } };
+  const ro = async (sql, p) => { await safeBegin(c, { readOnly: true }); try { return (await c.query(sql, p)).rows; } finally { await c.query('ROLLBACK'); } };
   // CI-FIX-1 (#74): CAPTCHA-safe QA session (scripts/live/qa-session.cjs); the second argument is kept for call sites
   const { qaAccessToken } = require('./live/qa-session.cjs');
   const token = async (email) => qaAccessToken(email).catch((e) => {
@@ -233,7 +234,7 @@ function mock({ results = {}, rpc }) {
       // transaction — no account is created. (qa-staff may READ all drills by design: p_umd_select grants
       // admin / staff support reads; the RPCs still refuse it below.)
       const sim = {};
-      await c.query('BEGIN READ WRITE');
+      await safeBegin(c);
       try {
         await c.query(`SET LOCAL ROLE authenticated`);
         await c.query(`SELECT set_config('request.jwt.claims', $1, true)`, [JSON.stringify({ sub: '00000000-0000-4000-8000-00000000d1b2', role: 'authenticated', app_metadata: {} })]);

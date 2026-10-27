@@ -34,6 +34,7 @@
  *
  * Run: node scripts/test_gap2_4a_syllabus.cjs
  */
+const { safeBegin } = require('./db/live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
 const fs = require('fs');
 const path = require('path');
 const { Client } = require('pg');
@@ -107,7 +108,7 @@ const CORE = ['fn_syllabus__assert_role', 'fn_syllabus__audit', 'fn_syllabus__sl
     return r.r;
   };
   const tx = async (fn) => {
-    await c.query('BEGIN READ WRITE');
+    await safeBegin(c);
     try {
       return await fn();
     } finally {
@@ -116,7 +117,7 @@ const CORE = ['fn_syllabus__assert_role', 'fn_syllabus__audit', 'fn_syllabus__sl
   };
 
   // identities and fixtures (read once)
-  await c.query('BEGIN READ ONLY');
+  await safeBegin(c, { readOnly: true });
   const ids = Object.fromEntries((await q(`SELECT email, id FROM auth.users WHERE email IN ('qa-staff@courage-library.test','qa-admin@courage-library.test')`)).map((r) => [r.email, r.id]));
   const exams = Object.fromEntries((await q(`SELECT slug, id FROM public.exams WHERE slug IN ('ssc-gd','ssc-cgl')`)).map((r) => [r.slug, r.id]));
   const topics = await q(`SELECT t.id, t.name, (SELECT count(*)::int FROM public.questions x WHERE x.canonical_topic_id = t.id AND x.status = 'published') AS qn
@@ -145,7 +146,7 @@ const CORE = ['fn_syllabus__assert_role', 'fn_syllabus__audit', 'fn_syllabus__sl
 
   try {
     await test('G-01 catalog: schema, guards, SECURITY DEFINER + search_path, EXECUTE grants', async () => {
-      await c.query('BEGIN READ ONLY');
+      await safeBegin(c, { readOnly: true });
       try {
         const bad = [];
         const cols = (await q(`SELECT table_name || '.' || column_name AS c FROM information_schema.columns WHERE table_schema = 'public'
@@ -530,7 +531,7 @@ const CORE = ['fn_syllabus__assert_role', 'fn_syllabus__audit', 'fn_syllabus__sl
       }));
 
     await test('G-12 legacy tables preserved in schema retired (GAP2-4c, 084); reconciliation workbench removed', async () => {
-      await c.query('BEGIN READ ONLY');
+      await safeBegin(c, { readOnly: true });
       try {
         const r = await one(`SELECT (SELECT count(*)::int FROM retired.exam_syllabi) s, (SELECT count(*)::int FROM retired.exam_topics) t,
                                     (SELECT count(*)::int FROM retired.exam_unit_mappings) u, (SELECT count(*)::int FROM retired.taxonomy_aliases) a,

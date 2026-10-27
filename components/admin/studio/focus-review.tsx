@@ -249,7 +249,7 @@ export function FocusReview({ queue: initialQueue, total, goal, doneBefore }: { 
               <div>
                 <p className="text-caption font-semibold uppercase tracking-wide text-fg-secondary">{item.detail.language === "hi" ? "English" : "Hindi"}</p>
                 {item.otherLanguageStem ? (
-                  <p className="mt-1 whitespace-pre-wrap text-body text-fg">
+                  <p lang={item.detail.language === "hi" ? "en" : "hi"} data-content-display="other_language_stem" className="mt-1 whitespace-pre-wrap text-body text-fg">
                     {item.otherLanguageStem}
                   </p>
                 ) : (

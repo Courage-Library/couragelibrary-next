@@ -18,6 +18,7 @@
  * Output: counts on stdout; the per-row report (stems included) goes to --out, which must be OUTSIDE the repo.
  * Run: node scripts/content/content-import-1.cjs --src="D:/Courage Library/csv" --out="E:/CourageLibrary-Backups/content-import-1"
  */
+const { safeBegin } = require('../db/live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
 const fs = require('fs');
 const path = require('path');
 const Module = require('module');
@@ -156,11 +157,8 @@ const importInfo = (r) => ({ source: 'CONTENT-IMPORT-1', sourceRef: r.ref, legac
 
 /** Row counts, in a READ ONLY transaction under LIVE-LOCK-SAFETY (lock 3 s, statement 60 s, idle-in-transaction 30 s). */
 async function counts(pg) {
-  await pg.query('BEGIN READ ONLY');
+  await safeBegin(pg, { readOnly: true });
   try {
-    await pg.query("SET LOCAL lock_timeout = '3s'");
-    await pg.query("SET LOCAL statement_timeout = '60s'");
-    await pg.query("SET LOCAL idle_in_transaction_session_timeout = '30s'");
     const c = await pg.query(`select (select count(*) from question_versions)::int qv, (select count(*) from questions)::int q, (select count(*) from question_import_batches)::int b, (select count(*) from admin_audit_logs)::int a, (select count(*) from question_sources)::int s,
       (select count(*) from question_versions where lifecycle_status = 'IN_REVIEW')::int in_review, (select count(*) from question_versions where lifecycle_status = 'DRAFT')::int draft, (select count(*) from question_versions where lifecycle_status = 'PUBLISHED')::int published`);
     return c.rows[0];
