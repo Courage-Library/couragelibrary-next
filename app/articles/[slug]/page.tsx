@@ -26,6 +26,7 @@ interface Props {
 }
 
 const DOCUMENT_TYPE_LABELS: Record<string, string> = {
+  NODE_LESSON: "Lesson",
   CONCEPT_LESSON: "Concept lesson",
   WORKED_EXAMPLES: "Worked examples",
   FORMULA_SHORTCUT_SHEET: "Formula and shortcut sheet",
@@ -120,7 +121,21 @@ export default async function ArticleReaderPage({ params }: Props) {
             ) : (
               // CA-3: DB lessons only (the MDX path is retired)
               article.lesson ? (
-                <LessonBlocksRenderer blocks={article.lesson.blocks} links={article.lesson.links} Math={KatexMath} />
+                <>
+                  {article.languageState === "HI_COMING_SOON" && (
+                    <p className="mb-4 rounded-card border border-line bg-surface-sunken px-4 py-3 text-body-sm text-fg-secondary" data-testid="lesson-language-note">
+                      Hindi coming soon. This lesson is shown in English for now.
+                    </p>
+                  )}
+                  {article.languageState === "HI_OUTDATED" && (
+                    <p className="mb-4 rounded-card border border-line bg-surface-sunken px-4 py-3 text-body-sm text-fg-secondary" data-testid="lesson-language-note">
+                      The English lesson was updated recently; this translation will follow soon.
+                    </p>
+                  )}
+                  <div lang={article.lessonLanguage}>
+                    <LessonBlocksRenderer blocks={article.lesson.blocks} links={article.lesson.links} Math={KatexMath} />
+                  </div>
+                </>
               ) : (
                 <p className="text-body text-fg-secondary">This lesson is being prepared. Please check back shortly.</p>
               )

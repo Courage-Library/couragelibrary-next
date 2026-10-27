@@ -117,15 +117,67 @@ test('M-01 matcher: EXACT / ALIAS / CLOSE / NEW scoped by the matched parent; un
   return Object.entries(matcher.matchSummary(m)).map(([k, n]) => `${k} ${n}`).join(' · ');
 });
 
-test('P-01 prompt: no invention, strict JSON (no prose / fences), uncertain flags, names + aliases, the context echoed, contract v2', () => {
-  const p = buildSyllabusIntakePrompt({ examName: 'SSC CGL', examSlug: 'ssc-cgl', cycleYear: 2026, tier: 'tier-1', sourceUrl: 'https://ssc.gov.in/n.pdf', asOf: '2026-10-01' });
-  for (const s of ['No invention', 'ONE strict JSON object', 'no code fences', '"uncertain": true', 'aliases', 'headings', 'https://ssc.gov.in/n.pdf', '2026-10-01', 'SYLLABUS_INTAKE v2']) assert(p.includes(s), `missing: ${s}`);
-  const json = p.slice(p.indexOf('{'));
-  const parsed = JSON.parse(json);
-  assert(parsed.contract_version === 2 && parsed.exam === 'ssc-cgl' && parsed.cycle_year === 2026 && parsed.tier === 'tier-1', 'example header');
+// SYLLABUS-PROMPT-2: the owner-approved prompt, VERBATIM (sha256 pinned: any edit needs a new owner approval and lands
+// as a new template version in /admin/prompts, never as a silent code change)
+const OWNER_PROMPT_SHA256 = '5f6271743af25292a2d38d4685b7284fab33f0899920b7605f1a04a6c6174aeb';
+test('P-01 prompt (SYLLABUS-PROMPT-2): the owner-approved text verbatim; placeholders filled; tier sections only with a tier; contract v3; its own example passes', () => {
+  const { SYLLABUS_TEMPLATE_V1 } = require(path.join(ROOT, 'lib/syllabus/intake-prompt.ts'));
+  const sha = require('crypto').createHash('sha256').update(SYLLABUS_TEMPLATE_V1, 'utf8').digest('hex');
+  assert(sha === OWNER_PROMPT_SHA256, `SYLLABUS_TEMPLATE_V1 is not the owner-approved text (sha256 ${sha})`);
+  const withTier = buildSyllabusIntakePrompt({ examName: 'SSC CGL', examSlug: 'ssc-cgl', cycleYear: 2026, tier: 'tier-1' });
+  const noTier = buildSyllabusIntakePrompt({ examName: 'SSC CGL', examSlug: 'ssc-cgl', cycleYear: 2026, tier: null });
+  for (const p of [withTier, noTier]) {
+    assert(!/\{\{/.test(p), 'an unfilled placeholder');
+    for (const x of ['"SSC CGL"', 'for the 2026 cycle', 'OFFICIAL', 'PYQ_TREND', 'EXPANDED', 'HIGH_YIELD', '"based_on"', '"uncertain": true', 'no code fences', 'contract SYLLABUS_INTAKE v3']) assert(p.includes(x), `missing: ${x}`);
+  }
+  assert(withTier.includes('"SSC CGL" — tier-1 for the 2026 cycle') && withTier.includes('of the exam — only tier-1.') && withTier.includes('"tier": "tier-1"'), 'tier sections');
+  assert(!noTier.includes('— only') && noTier.includes('"SSC CGL" for the 2026 cycle') && noTier.includes('"tier": null'), 'no tier: the sections are dropped');
+  const parsed = JSON.parse(withTier.slice(withTier.indexOf('{\n')));
+  assert(parsed.contract_version === 3 && parsed.exam === 'ssc-cgl' && parsed.cycle_year === 2026 && parsed.tier === 'tier-1', 'example header');
   const r = contract.validateIntakePayload(parsed, CTX);
-  assert(r.ok, `the prompt's own example must pass the contract: ${JSON.stringify(r.errors)}`);
-  assert(!/[ऀ-ॿ]/.test(p), 'English only');
+  assert(r.ok, `the prompt's own example must pass contract v3: ${JSON.stringify(r.errors)}`);
+  assert(r.stats.official === 1 && r.stats.pyq_trend === 1 && r.stats.expanded === 1, JSON.stringify(r.stats));
+  return `sha256 ${sha.slice(0, 12)}…`;
+});
+
+test('C-02 contract v3: accepted (origin / avg_questions / based_on / paper duration + negative marking / name_hi at every level); v2 still accepted; a missing origin, a wrong exam / cycle / tier, missing based_on, markup → refused', () => {
+  const v3 = () => ({
+    contract_version: 3, exam: 'ssc-cgl', cycle_year: 2026, tier: 'tier-1', based_on: 'SSC CGL 2025 notification + PYQs 2016-2025',
+    papers: [{ name: 'Tier 1', name_hi: 'टियर 1', questions: 100, marks: 200, duration_minutes: 60, negative_marking: '0.50 per wrong answer',
+      subjects: [{ name: 'Quantitative Aptitude', name_hi: 'मात्रात्मक योग्यता', topics: [
+        { name: 'Percentage', name_hi: 'प्रतिशत', origin: 'OFFICIAL', weightage_tier: 'HIGH_YIELD', avg_questions: 2,
+          subtopics: [{ name: 'Successive Percentage Change', origin: 'PYQ_TREND', concepts: [{ name: 'Net Change of Two Changes', origin: 'EXPANDED', headings: [] }] }] },
+      ] }] }],
+  });
+  const ok = contract.validateIntakePayload(JSON.stringify(v3()), CTX);
+  assert(ok.ok && ok.header.contract_version === 3 && ok.header.based_on && ok.header.source_url === null && ok.header.as_of === null, JSON.stringify(ok.ok ? ok.header : ok.errors));
+  const t = ok.items.find((i) => i.name === 'Percentage');
+  const paper = ok.items.find((i) => i.level === 'PAPER');
+  assert(t.origin === 'OFFICIAL' && t.avg_questions === 2 && paper.duration_minutes === 60 && paper.negative_marking === '0.50 per wrong answer' && paper.name_hi === 'टियर 1', 'v3 fields');
+  assert(contract.validateIntakePayload(JSON.stringify(base()), CTX).ok, 'v2 still accepted');
+  const bad = (mut, code, ctx = CTX) => {
+    const p = v3();
+    mut(p);
+    const r = contract.validateIntakePayload(p, ctx);
+    assert(!r.ok && r.errors.some((e) => e.code === code), `${code}: ${JSON.stringify(r.ok ? 'ok' : r.errors.slice(0, 3))}`);
+  };
+  bad((p) => delete p.papers[0].subjects[0].topics[0].subtopics[0].origin, 'REQUIRED');
+  bad((p) => (p.papers[0].subjects[0].topics[0].origin = 'GUESS'), 'INVALID_VALUE');
+  bad((p) => (p.papers[0].subjects[0].origin = 'OFFICIAL'), 'UNKNOWN_KEY');
+  bad((p) => delete p.based_on, 'REQUIRED');
+  bad((p) => (p.based_on = 'see <a href="x">notice</a>'), 'NOT_PLAIN_TEXT');
+  bad((p) => (p.papers[0].negative_marking = '**0.5**'), 'NOT_PLAIN_TEXT');
+  bad((p) => (p.exam = 'ssc-chsl'), 'CONTEXT_MISMATCH');
+  bad((p) => (p.cycle_year = 2025), 'CONTEXT_MISMATCH');
+  bad((p) => (p.tier = 'tier-2'), 'CONTEXT_MISMATCH');
+  bad((p) => (p.papers[0].subjects[0].topics[0].avg_questions = -1), 'INVALID_VALUE');
+  bad((p) => (p.papers[0].subjects[0].topics[0].subtopics[0].concepts[0].name = 'x\u0007'), 'NOT_PLAIN_TEXT');
+  // a v2 payload may not use v3 keys
+  const v2 = base();
+  v2.papers[0].subjects[0].topics[0].origin = 'OFFICIAL';
+  const r2 = contract.validateIntakePayload(v2, CTX);
+  assert(!r2.ok && r2.errors.some((e) => e.code === 'UNKNOWN_KEY'), 'v2 + origin');
+  return `${ok.items.length} items; origins ${ok.stats.official}/${ok.stats.pyq_trend}/${ok.stats.expanded}`;
 });
 
 test('D-01 migration 116: INVOKER + revoked client EXECUTE, RLS staff read, roll-up + guards, tiers, rollback', () => {
@@ -187,6 +239,18 @@ test('S-01 admin only: routes, page guards, action guards, client imports', () =
     const s = read(f);
     assert(/^"use client";/.test(s) && !/@\/services\/|@\/lib\/supabase/.test(s), `${f} imports a server module`);
   }
+});
+
+test('U-02 SYLLABUS-PROMPT-2 screens: wizard = exam + cycle + tier, an optional collapsed reference link, the prompt from the ACTIVE template; review = origin badge + weightage + origin filter + based_on', () => {
+  const w = read('components/admin/syllabus/intake-wizard.tsx');
+  assert(!/Official notification link|in-asof|type="date"/.test(w), 'the required link / as-of fields are gone');
+  assert(/<details[^>]*>\s*<summary[^>]*>Reference link \(optional\)<\/summary>/.test(w), 'a collapsed optional reference link');
+  assert(/buildSyllabusIntakePrompt\([^)]*\}, template\?\.body\)/.test(w) && /template: \{ body: string; version: number \| null \} \| null/.test(w), 'the prompt renders the ACTIVE template');
+  const page = read('app/admin/syllabus/intake/page.tsx');
+  assert(/PromptTemplateService\.getActiveBody\("SYLLABUS"\)/.test(page), 'the page passes the ACTIVE SYLLABUS template');
+  const rv = read('components/admin/syllabus/intake-review.tsx');
+  for (const x of ['ORIGIN_LABEL', 'OFFICIAL: "Official"', 'PYQ_TREND: "PYQ trend"', 'EXPANDED: "Expanded"', 'aria-label="Filter by origin"', 'aria-pressed={origin === o}', 'Based on:', 'i.weightageTier', 'i.avgQuestions']) assert(rv.includes(x), `review: ${x}`);
+  return 'wizard + review';
 });
 
 test('U-01 screens: one primary in each header, labelled controls, English-only, no lang / Devanagari (#85)', () => {

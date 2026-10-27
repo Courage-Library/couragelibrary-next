@@ -102,6 +102,11 @@ const REQUIRED = {
   '/admin/exam-knowledge': ['"Exam Knowledge Studio" heading', H(/Exam Knowledge Studio/)],
   '/admin/design-system': ['"Design system" heading', H(/^Design system$/)],
   '/admin/syllabus': ['"Syllabus" heading', H(/^Syllabus$/)],
+  // CA-4 + SYLLABUS-PROMPT-2
+  '/admin/lessons': ['"Lessons" heading', H(/^Lessons$/)],
+  '/admin/lessons/generate': ['"Lesson prompt generator" heading', H(/^Lesson prompt generator$/)],
+  '/admin/prompts': ['"Prompt templates" heading', H(/^Prompt templates$/)],
+  '/admin/syllabus/intake': ['"Syllabus intake" heading', H(/^Syllabus intake$/)],
   '/admin/content': ['"Admin Content Studio" heading', H(/Admin Content Studio/)],
 };
 
@@ -195,7 +200,7 @@ const REQUIRED = {
     const sy = checkSyllabusSection(hub, rm);
     check('/exams/ssc-cgl syllabus section matches the read model', sy.ok, sy.detail);
   } else if (CHECK === 'admin-pages') {
-    const ADMIN = ['/admin', '/admin/questions', '/admin/sections', '/admin/billing', '/admin/community', '/admin/descriptive', '/admin/institutes', '/admin/mock-tests-management', '/admin/bulk-import', '/admin/taxonomy', '/admin/exams', '/admin/exam-knowledge', '/admin/design-system', '/admin/syllabus'];
+    const ADMIN = ['/admin', '/admin/questions', '/admin/sections', '/admin/billing', '/admin/community', '/admin/descriptive', '/admin/institutes', '/admin/mock-tests-management', '/admin/bulk-import', '/admin/taxonomy', '/admin/exams', '/admin/exam-knowledge', '/admin/design-system', '/admin/syllabus', '/admin/lessons', '/admin/lessons/generate', '/admin/prompts', '/admin/syllabus/intake'];
     for (const p of ADMIN) {
       const r = await go(p, undefined, 180000);
       const html = await page.content();

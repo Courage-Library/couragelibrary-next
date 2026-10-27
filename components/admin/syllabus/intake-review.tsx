@@ -23,6 +23,8 @@ import { decideIntakeItemAction, discardIntakeAction, importIntakeAction } from 
  * CA-2 owner review (Studio template): the intake as a tree diff against the master tree. Per item the owner LINKs it
  * to a node, LINKs + adds its name as an ALIAS, APPROVEs it as a new node, or IGNOREs it (with everything below it).
  * Parents first: a child's choices are the parent's node's children. When every item is decided, one DRAFT syllabus.
+ * SYLLABUS-PROMPT-2: each topic / subtopic / concept shows its origin (Official / PYQ trend / Expanded) and weightage; a
+ * filter narrows the list by origin; "based on" is shown at the top. The owner still decides every node.
  */
 
 interface Props {
@@ -43,6 +45,14 @@ const MATCH_STYLE: Record<string, string> = {
   NOT_APPLICABLE: "",
 };
 const DECISION_LABEL: Record<IntakeDecision, string> = { LINK: "Linked", ALIAS: "Linked + alias", APPROVE_NEW: "Approved as new", IGNORE: "Ignored" };
+const ORIGIN_LABEL: Record<string, string> = { OFFICIAL: "Official", PYQ_TREND: "PYQ trend", EXPANDED: "Expanded" };
+const ORIGIN_STYLE: Record<string, string> = {
+  OFFICIAL: "border-primary-200 bg-primary-50 text-primary-800",
+  PYQ_TREND: "border-warning-200 bg-warning-50 text-fg",
+  EXPANDED: "border-line bg-ink-50 text-fg-secondary",
+};
+const ORIGIN_FILTERS = ["ALL", "OFFICIAL", "PYQ_TREND", "EXPANDED"] as const;
+type OriginFilter = (typeof ORIGIN_FILTERS)[number];
 
 export function IntakeReview({ session, items, nodes, loadError }: Props) {
   const router = useRouter();
@@ -51,6 +61,7 @@ export function IntakeReview({ session, items, nodes, loadError }: Props) {
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const [versionTag, setVersionTag] = useState("");
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [origin, setOrigin] = useState<OriginFilter>("ALL");
 
   const byId = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
   const decidable = items.filter((i) => i.level !== "PAPER");
@@ -95,12 +106,16 @@ export function IntakeReview({ session, items, nodes, loadError }: Props) {
   }
 
   const selected = selectedId ? byId.get(selectedId) || null : null;
+  const hasOrigins = items.some((i) => i.origin);
+  // papers and subjects always stay visible as context; topics / subtopics / concepts follow the origin filter
+  const visible = origin === "ALL" ? items : items.filter((i) => i.level === "PAPER" || i.level === "SUBJECT" || i.origin === origin);
+  const originCount = (o: string) => items.filter((i) => i.origin === o).length;
 
   return (
     <div className="space-y-5">
       <StudioPageHeader
         title="Review syllabus intake"
-        description={`${session.examTitle}${session.cycleYear ? ` · ${session.cycleYear}` : ""}${session.tier ? ` · ${session.tier}` : ""} · as of ${session.asOf}. Decide every item; nothing changes in the master tree until you do.`}
+        description={`${session.examTitle}${session.cycleYear ? ` · ${session.cycleYear}` : ""}${session.tier ? ` · ${session.tier}` : ""}${session.asOf ? ` · as of ${session.asOf}` : ""}. Decide every item; nothing changes in the master tree until you do.`}
         meta={<StatusChip status={session.status} />}
         primary={
           editable ? (
@@ -111,9 +126,11 @@ export function IntakeReview({ session, items, nodes, loadError }: Props) {
         }
         actions={
           <>
-            <a href={session.sourceUrl} target="_blank" rel="noopener noreferrer" className={studioQuietAction}>
-              Official notification
-            </a>
+            {session.sourceUrl && (
+              <a href={session.sourceUrl} target="_blank" rel="noopener noreferrer" className={studioQuietAction}>
+                {session.contractVersion === 2 ? "Official notification" : "Reference link"}
+              </a>
+            )}
             {session.importedVersionId && (
               <Link href={`/admin/syllabus/${session.importedVersionId}`} className={studioQuietAction}>
                 Open the draft
@@ -125,6 +142,11 @@ export function IntakeReview({ session, items, nodes, loadError }: Props) {
           </>
         }
       />
+      {session.basedOn && (
+        <p className="rounded-card border border-line bg-surface px-4 py-3 text-[14px]">
+          <span className="font-semibold text-fg">Based on:</span> {session.basedOn}
+        </p>
+      )}
       <StudioStatStrip label="Intake items by match (not counting papers)" stats={stats} />
       <div role="status" aria-live="polite">
         {message && (
@@ -160,16 +182,34 @@ export function IntakeReview({ session, items, nodes, loadError }: Props) {
       )}
 
       <StudioPanel>
+        {hasOrigins && (
+          <div role="group" aria-label="Filter by origin" className="mb-3 flex flex-wrap items-center gap-2 text-[13px]">
+            <span className="font-semibold text-fg-secondary">Origin:</span>
+            {ORIGIN_FILTERS.map((o) => (
+              <button
+                key={o}
+                type="button"
+                aria-pressed={origin === o}
+                onClick={() => setOrigin(o)}
+                className={`${studioQuietAction} ${origin === o ? "border-primary-300 bg-primary-50 font-bold" : ""}`}
+              >
+                {o === "ALL" ? `All (${items.length})` : `${ORIGIN_LABEL[o]} (${originCount(o)})`}
+              </button>
+            ))}
+          </div>
+        )}
         {items.length === 0 ? (
           <StudioEmpty title="No items" body="This intake has no items." />
         ) : (
           <ul aria-label="Intake items" className="space-y-0.5">
-            {items.map((i) => (
+            {visible.map((i) => (
               <li key={i.id} className={INDENT[i.level]}>
                 {i.level === "PAPER" ? (
                   <p className="py-2 text-[14px] font-bold text-fg">
                     {i.name}
                     {i.questions !== null ? <span className="ml-2 text-[13px] font-normal text-fg-secondary">{i.questions} questions</span> : null}
+                    {i.durationMinutes !== null ? <span className="ml-2 text-[13px] font-normal text-fg-secondary">{i.durationMinutes} min</span> : null}
+                    {i.negativeMarking ? <span className="ml-2 text-[13px] font-normal text-fg-secondary">negative: {i.negativeMarking}</span> : null}
                   </p>
                 ) : (
                   <button type="button" onClick={() => setSelectedId(i.id)} className="focus-ring flex min-h-10 w-full flex-wrap items-center gap-2 rounded-control px-2 text-left hover:bg-ink-50">
@@ -177,6 +217,9 @@ export function IntakeReview({ session, items, nodes, loadError }: Props) {
                     <span className="text-[14px] font-semibold text-fg">{i.name}</span>
                     {i.nameHi && <span className="text-[13px] text-fg-secondary">{i.nameHi}</span>}
                     <span className={`rounded border px-1.5 py-0.5 text-[12px] font-semibold ${MATCH_STYLE[i.matchStatus]}`}>{MATCH_LABEL[i.matchStatus]}</span>
+                    {i.origin && <span className={`rounded border px-1.5 py-0.5 text-[12px] font-semibold ${ORIGIN_STYLE[i.origin]}`}>{ORIGIN_LABEL[i.origin]}</span>}
+                    {i.weightageTier && <span className="text-[12px] font-semibold text-fg-secondary">{i.weightageTier.replace("_", " ")}</span>}
+                    {i.avgQuestions !== null && <span className="text-[12px] text-fg-secondary">~{i.avgQuestions} Q</span>}
                     {i.uncertain && <span className="text-[12px] font-semibold text-warning-700">Uncertain</span>}
                     <span className={`ml-auto text-[12px] font-semibold ${i.decision ? "text-success-700" : "text-danger-700"}`}>{i.decision ? DECISION_LABEL[i.decision] : "Undecided"}</span>
                   </button>
@@ -257,6 +300,18 @@ function DecisionDrawer({
             <>
               <dt className="text-fg-secondary">Other names</dt>
               <dd>{item.aliases.join(", ")}</dd>
+            </>
+          )}
+          {item.origin && (
+            <>
+              <dt className="text-fg-secondary">Origin</dt>
+              <dd>{ORIGIN_LABEL[item.origin]}</dd>
+            </>
+          )}
+          {(item.weightageTier || item.avgQuestions !== null) && (
+            <>
+              <dt className="text-fg-secondary">Weightage</dt>
+              <dd>{[item.weightageTier ? item.weightageTier.replace("_", " ") : null, item.avgQuestions !== null ? `about ${item.avgQuestions} question(s) per paper` : null].filter(Boolean).join(" · ")}</dd>
             </>
           )}
           {(item.questions !== null || item.marks !== null) && (

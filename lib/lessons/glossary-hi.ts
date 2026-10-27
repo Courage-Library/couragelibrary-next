@@ -1,0 +1,60 @@
+/**
+ * CA-4: the exam-term glossary for Hindi translations (English term → the standard term used in Hindi-medium exam
+ * preparation). Content data for the TRANSLATE_HI prompt — never UI copy (R9 / decision #85: the admin UI stays
+ * English). Extend it by adding pairs; the prompt lists every pair.
+ */
+export const EXAM_GLOSSARY_HI: readonly (readonly [string, string])[] = [
+  ["Percentage", "प्रतिशत"],
+  ["Profit and Loss", "लाभ और हानि"],
+  ["Cost Price", "क्रय मूल्य"],
+  ["Selling Price", "विक्रय मूल्य"],
+  ["Marked Price", "अंकित मूल्य"],
+  ["Discount", "बट्टा"],
+  ["Simple Interest", "साधारण ब्याज"],
+  ["Compound Interest", "चक्रवृद्धि ब्याज"],
+  ["Principal", "मूलधन"],
+  ["Rate", "दर"],
+  ["Ratio and Proportion", "अनुपात और समानुपात"],
+  ["Average", "औसत"],
+  ["Time and Work", "समय और कार्य"],
+  ["Time and Distance", "समय और दूरी"],
+  ["Speed", "चाल"],
+  ["Mixture and Alligation", "मिश्रण और पृथक्करण"],
+  ["Number System", "संख्या पद्धति"],
+  ["Simplification", "सरलीकरण"],
+  ["Algebra", "बीजगणित"],
+  ["Geometry", "ज्यामिति"],
+  ["Mensuration", "क्षेत्रमिति"],
+  ["Trigonometry", "त्रिकोणमिति"],
+  ["Data Interpretation", "आंकड़ों का विश्लेषण"],
+  ["Area", "क्षेत्रफल"],
+  ["Volume", "आयतन"],
+  ["Perimeter", "परिमाप"],
+  ["Triangle", "त्रिभुज"],
+  ["Circle", "वृत्त"],
+  ["Formula", "सूत्र"],
+  ["Shortcut", "शॉर्टकट"],
+  ["Solved Example", "हल किया गया उदाहरण"],
+  ["Common Trap", "सामान्य गलती"],
+  ["Quick Check", "त्वरित जाँच"],
+  ["Revision Summary", "पुनरावृत्ति सारांश"],
+  ["Reasoning", "तर्कशक्ति"],
+  ["Coding-Decoding", "कूटलेखन-कूटवाचन"],
+  ["Blood Relations", "रक्त संबंध"],
+  ["Direction Sense", "दिशा ज्ञान"],
+  ["Syllogism", "न्याय निगमन"],
+  ["Series", "श्रृंखला"],
+  ["Analogy", "सादृश्यता"],
+  ["General Awareness", "सामान्य जागरूकता"],
+  ["Polity", "राजव्यवस्था"],
+  ["Constitution", "संविधान"],
+  ["History", "इतिहास"],
+  ["Geography", "भूगोल"],
+  ["Economy", "अर्थव्यवस्था"],
+  ["Science", "विज्ञान"],
+  ["Current Affairs", "समसामयिकी"],
+];
+
+export function glossaryLines(): string {
+  return EXAM_GLOSSARY_HI.map(([en, hi]) => `- ${en} = ${hi}`).join("\n");
+}

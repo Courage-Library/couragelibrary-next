@@ -12,7 +12,8 @@ import { publishLessonAction, saveLessonDraftAction } from "@/app/admin/lessons/
 
 /**
  * CA-3 lesson editor (Studio template): the lesson as JSON { meta, blocks } (LessonBlocksSpec v2) → Check (the same
- * validator as the database) → Save draft → Preview (the student renderer) → Publish. CA-4 adds the prompt flow.
+ * validator as the database) → Save draft → Preview (the student renderer) → Publish. CA-4: node lessons come from the
+ * generator (/admin/lessons/generate); the translation has its own screen (/admin/lessons/[id]/translate).
  */
 
 const STARTER = {
@@ -110,6 +111,9 @@ export function LessonEditor({ data, loadError }: { data: LessonEditorData | nul
             <button type="button" className={studioQuietAction} onClick={check} disabled={pending}>
               Check
             </button>
+            <Link href={`/admin/lessons/${data.document.id}/translate`} className={studioQuietAction}>
+              Translation
+            </Link>
             <Link href="/admin/lessons" className={studioQuietAction}>
               All lessons
             </Link>

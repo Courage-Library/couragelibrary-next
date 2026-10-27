@@ -190,7 +190,8 @@ const LEGACY_HASH = `select count(*)::int n, left(md5(coalesce(string_agg(id::te
         !mutate.ok && /Cannot mutate published/.test(mutate.msg) && !del.ok && /Cannot delete published/.test(del.msg) && !again.ok && /already published/.test(again.msg),
         JSON.stringify({ mutate, del, again }));
 
-      const hi = await save('hi', { title: 'CA3 smoke hi' }, [{ id: 'a', type: 'paragraph', text: 'Hindi draft text (QA).' }]);
+      // CA-4 (119): a translation keeps the English structure (parity), so the QA Hindi draft reuses the English blocks
+      const hi = await save('hi', { title: 'CA3 smoke hi' }, lesson.blocks);
       const hiPub = hi.ok ? await svc(`select public.fn_lesson_publish($1, null, $2) r`, [hi.rows[0].r.version_id, ACTOR_EMAIL]) : hi;
       const [cur] = await q(`select count(*) filter (where is_current)::int cur, count(*) filter (where is_current and language = 'hi')::int hi from public.document_versions where document_id = $1`, [doc.id]);
       const [lone] = await q(`insert into public.learning_documents (learning_unit_id, canonical_slug, document_type, status, access_level) values ($1, 'ca3-smoke-lone-doc', 'CONCEPT_LESSON', 'DRAFT', 'FREE') returning id`, [doc.learning_unit_id]);
@@ -198,7 +199,7 @@ const LEGACY_HASH = `select count(*)::int n, left(md5(coalesce(string_agg(id::te
       const loneHiPub = loneHi.ok ? await svc(`select public.fn_lesson_publish($1, null, $2)`, [loneHi.rows[0].r.version_id, ACTOR_EMAIL]) : loneHi;
       const [ptr] = await q(`select current_published_version_id from public.learning_documents where id = $1`, [doc.id]);
       chk('C-4 languages: a Hindi version publishes beside English (one current per language; the en pointer stays); Hindi without a current English master is refused',
-        hiPub.ok && cur.cur === 2 && cur.hi === 1 && ptr.current_published_version_id === v1.version_id && !loneHiPub.ok && /English version first/.test(loneHiPub.msg),
+        hiPub.ok && cur.cur === 2 && cur.hi === 1 && ptr.current_published_version_id === v1.version_id && !loneHiPub.ok && /English (version|lesson) first/.test(loneHiPub.msg),
         JSON.stringify({ hiPub, cur, loneHiPub }));
     });
 

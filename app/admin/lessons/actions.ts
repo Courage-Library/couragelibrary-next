@@ -1,12 +1,14 @@
 "use server";
 
 /**
- * CA-3 lesson blocks — server actions. ADMIN ONLY. Every action: guardAdminAction first, then LessonAdminService
+ * CA-3 / CA-4 lesson blocks — server actions. ADMIN ONLY. Every action: guardAdminAction first, then LessonAdminService
  * (service role after its own guard; the database validates the blocks again, hashes and audits).
  */
 import { revalidatePath } from "next/cache";
 import { guardAdminAction, sanitizeActionResult } from "@/lib/auth/require-admin";
 import { LessonAdminService, type LessonResult } from "@/services/lessons/lesson-admin.service";
+import { LessonAuthoringService, checklistPasses, type AuthoringResult } from "@/services/lessons/lesson-authoring.service";
+import type { ChecklistItem } from "@/lib/lessons/completeness";
 
 function done<T>(r: LessonResult<T>, documentId?: string): LessonResult<T> {
   if (r.success) {
@@ -26,7 +28,39 @@ export async function saveLessonDraftAction(documentId: string, language: string
 export async function publishLessonAction(documentId: string, versionId: string): Promise<LessonResult<{ versionId: string }>> {
   const __auth = await guardAdminAction() /* CA-3: admin only */;
   if (!__auth.ok) return __auth;
+  // CA-4: an English node lesson publishes only when its completeness checklist passes
+  const checklist = await LessonAuthoringService.publishChecklist(versionId);
+  if (checklist && !checklistPasses(checklist)) {
+    const missing = checklist.filter((i) => !i.ok && i.severity === "error").map((i) => i.label);
+    return sanitizeActionResult("publishLessonAction", { success: false, code: "CHECKLIST", error: `The lesson is not complete yet: ${missing.join("; ")}.` });
+  }
   const r = done(await LessonAdminService.publish(versionId), documentId);
   if (r.success) revalidatePath("/articles", "layout");
   return sanitizeActionResult("publishLessonAction", r);
+}
+
+/** CA-4: paste → the node's lesson document (created on first use) → its English DRAFT; returns the checklist. */
+export async function saveGeneratedLessonAction(nodeId: string, paste: string, factsChecked: boolean): Promise<
+  AuthoringResult<{ documentId: string; versionId: string; checklist: ChecklistItem[] }>
+> {
+  const __auth = await guardAdminAction() /* CA-4: admin only */;
+  if (!__auth.ok) return __auth;
+  const r = await LessonAuthoringService.saveGeneratedDraft(nodeId, paste, factsChecked === true);
+  if (r.success) {
+    revalidatePath("/admin/lessons");
+    revalidatePath("/admin/lessons/generate");
+  }
+  return sanitizeActionResult("saveGeneratedLessonAction", r);
+}
+
+/** CA-4: paste the translation → parity against the current English → the translation DRAFT. */
+export async function saveTranslationDraftAction(documentId: string, paste: string): Promise<AuthoringResult<{ versionId: string }>> {
+  const __auth = await guardAdminAction() /* CA-4: admin only */;
+  if (!__auth.ok) return __auth;
+  const r = await LessonAuthoringService.saveTranslationDraft(documentId, paste);
+  if (r.success) {
+    revalidatePath("/admin/lessons");
+    revalidatePath(`/admin/lessons/${documentId}/translate`);
+  }
+  return sanitizeActionResult("saveTranslationDraftAction", r);
 }

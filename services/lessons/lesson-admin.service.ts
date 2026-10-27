@@ -2,8 +2,8 @@
  * COURAGE LIBRARY — LESSON BLOCKS ADMIN SERVICE (CA-3)
  *
  * The authoring path for DB lessons (LessonBlocksSpec v2) after the MDX path was retired: list documents, load the
- * current / draft lesson, save a DRAFT (fn_lesson_save_draft), publish (fn_lesson_publish). CA-4 adds the prompt,
- * templates and the Hindi flow on top of this.
+ * current / draft lesson, save a DRAFT (fn_lesson_save_draft), publish (fn_lesson_publish). CA-4 adds node lessons,
+ * the prompt templates and the translation flow on top of this (services/lessons/lesson-authoring.service.ts).
  *
  * INVARIANTS:
  * - Server-only; the service-role client after the canonical admin guard (ADMIN ONLY).
@@ -25,8 +25,8 @@ const fail = <T>(code: string, error: string, errors?: BlockError[]): LessonResu
 
 export function mapLessonDbError(error: { code?: string; message?: string } | null | undefined): { code: string; error: string } {
   const msg = error?.message || '';
-  for (const prefix of ['LESSON_BLOCKS_INVALID:', 'LESSON:']) {
-    if (msg.includes(prefix)) return { code: prefix === 'LESSON:' ? 'LESSON_RULE' : 'INVALID', error: msg.slice(msg.indexOf(prefix) + prefix.length).trim().replace(/[0-9a-f]{8}-[0-9a-f-]{27}/gi, '…') };
+  for (const prefix of ['LESSON_BLOCKS_INVALID:', 'LESSON_PARITY:', 'LESSON:']) {
+    if (msg.includes(prefix)) return { code: prefix === 'LESSON:' ? 'LESSON_RULE' : prefix === 'LESSON_PARITY:' ? 'PARITY' : 'INVALID', error: msg.slice(msg.indexOf(prefix) + prefix.length).trim().replace(/[0-9a-f]{8}-[0-9a-f-]{27}/gi, '…') };
   }
   if (/Cannot mutate published/.test(msg)) return { code: 'IMMUTABLE', error: 'A published version cannot change; save a new draft instead.' };
   return { code: 'DB_ERROR', error: 'The lesson change could not be saved.' };
@@ -43,8 +43,11 @@ export class LessonAdminService {
     const c = await ctx();
     if (!c) return fail('UNAUTHORIZED', 'Unauthorized.');
     const [docs, versions] = await Promise.all([
-      c.supabase.from('learning_documents').select('id, canonical_slug, document_type, status, access_level, current_published_version_id, learning_units(title)').order('canonical_slug'),
-      c.supabase.from('document_versions').select('id, document_id, version_number, content_format, review_status, is_published, language'),
+      c.supabase
+        .from('learning_documents')
+        .select('id, canonical_slug, document_type, status, access_level, current_published_version_id, node_id, learning_units(title), node:canonical_taxonomy_nodes!learning_documents_node_id_fkey(name)')
+        .order('canonical_slug'),
+      c.supabase.from('document_versions').select('id, document_id, version_number, content_format, review_status, is_published, is_current, language, translated_from_version_id'),
     ]);
     if (docs.error || versions.error) return fail('DB_ERROR', 'Could not load the lessons.');
     const vs = versions.data || [];
@@ -53,16 +56,21 @@ export class LessonAdminService {
       data: (docs.data || []).map((d) => {
         const cur = vs.find((v) => v.id === d.current_published_version_id);
         const unit = Array.isArray(d.learning_units) ? d.learning_units[0] : d.learning_units;
+        const node = Array.isArray(d.node) ? d.node[0] : d.node;
+        const hiCur = vs.find((v) => v.document_id === d.id && v.language === 'hi' && v.is_current);
+        const hiDraft = vs.some((v) => v.document_id === d.id && v.language === 'hi' && !v.is_published && v.review_status === 'DRAFT');
         return {
           id: d.id,
           slug: d.canonical_slug,
-          title: unit?.title || d.canonical_slug,
+          title: unit?.title || node?.name || d.canonical_slug,
           documentType: d.document_type,
           status: d.status,
           accessLevel: d.access_level,
           currentFormat: cur?.content_format ?? null,
           currentVersion: cur?.version_number ?? null,
           hasDraft: vs.some((v) => v.document_id === d.id && v.content_format === 'BLOCKS' && !v.is_published && v.review_status === 'DRAFT'),
+          nodeId: d.node_id,
+          hiState: hiDraft ? 'DRAFT' : hiCur ? (hiCur.translated_from_version_id === d.current_published_version_id ? 'PUBLISHED' : 'OUTDATED') : 'NONE',
         };
       }),
     };

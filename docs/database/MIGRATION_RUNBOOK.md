@@ -109,6 +109,13 @@ It then executes the file **and** writes the ledger row (`APPLIED`, checksum, to
 
   A run as `postgres` / the owner alone **does not count as verified**. Owner rights hide missing grants. Observed in 095: a SECURITY INVOKER trigger called owner-only helpers, so every service-role vault insert failed, and 095's owner-run verify passed anyway. Fixed by 110.
 - **Migration checklist, verify step:** for every function, trigger, policy or grant the migration touches, list which roles reach it (service_role / authenticated / anon). Run at least one rolled-back call per role: the allowed path must succeed and the denied path must fail. Report each check per role.
+- **MIGRATION-LIVE-SET (permanent rule, architect 2026-10-28):** before pushing ANY migration, run locally (every DB access under LIVE-LOCK-SAFETY — `safeBegin` / `withLiveTransaction`) every live gate that touches the changed tables or functions, and ALWAYS these four, whatever the migration touches:
+  1. `RLS` — `node scripts/test_sec_hotfix4_rls.cjs`
+  2. `READERS` — `node scripts/test_gap2_4b_readers.cjs` (with the local server, see below)
+  3. `SECDEF-RATCHET` — `node scripts/test_secdef_ratchet.cjs`
+  4. the admin / student page smokes — `node scripts/live/with-server.cjs --port=3100 -- "node scripts/smoke/signed-in-smoke.cjs admin-pages http://localhost:3100" "node scripts/smoke/signed-in-smoke.cjs student-pages http://localhost:3100" "node scripts/test_gap2_4b_readers.cjs --base=http://localhost:3100"` (a local production build first: `npm run build`)
+
+  Find the touching gates by grepping `scripts/` and `scripts/live/` for every changed table and function name; list them (and the four) with their results in the phase report. Why: CA-2's 116 passed its own smoke but broke RLS P-2 (a trigger calling a service-role-only helper turned an RLS denial into a "permission denied for function"), found only by the next CI dispatch because RLS was not in the local set.
 - **SCHEDULED-CHECKS (permanent rule, 2026-10-26):** no local background sleeps for timed checks; a sleeping machine kills them (the 2026-10-25 21:35 job never ran). A recurring or timed verify goes into a GitHub Actions scheduled workflow (read-only, existing secrets), or runs the next time the owner messages.
 - Re-run the relevant DB suites. For question-bank changes: `node scripts/test_qf1_db.cjs` (all scenario writes are rolled back).
 - Re-run the offline suites:
@@ -144,6 +151,21 @@ Commit the regenerated `types/database.ts` **in the same commit as the migration
   the couragelibrary-next fingerprint, otherwise it exits 1. It generates `--schema public` only.
 - It needs `SUPABASE_ACCESS_TOKEN` (personal access token) in `.env.local`. The token is never printed or committed.
 - CI or a pre-commit check can run `npm run db:types:check`. It exits 1 when the committed types drift from the live schema.
+
+## Migration checklist (every migration, in this order)
+
+1. Backup (`backup.cjs`, or `backup-resilient.cjs` on a flaky network); younger than 60 minutes at apply.
+2. Write the migration + its rollback (`docs/database/rollback/<n>_rollback.sql`); no BEGIN / COMMIT in the file.
+3. Dry-run ALONE (`apply-migration.cjs <file> --dry-run`; no other live session on the same object group).
+4. Chunked rolled-back smoke AS THE REAL ROLES (service_role / authenticated QA users / anon), with `--pre` running the
+   migration inside each chunk (LIVE-LOCK-SAFETY via `safeBegin` / `withLiveTransaction`).
+5. Apply (`apply-migration.cjs <file>`); ledger row APPLIED.
+6. Live verify: the phase's live gate; the taxonomy link snapshot (`taxonomy-link-snapshot.cjs --compare`) for any
+   change near the master tree; counts before / after explained.
+7. **MIGRATION-LIVE-SET** (section 4): every touching live gate + RLS + READERS + SECDEF-RATCHET + the admin / student
+   page smokes, run locally, results in the report.
+8. Types: `npm run db:types` + `npm run db:types:check` + `npx tsc --noEmit -p .`.
+9. The full offline list (new files staged first) → commit → push → CI green → report.
 
 ## Restore
 

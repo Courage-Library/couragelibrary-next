@@ -3,19 +3,32 @@ import Link from "next/link";
 import { requireAdminPage } from "@/lib/auth/require-admin";
 import { LessonAdminService } from "@/services/lessons/lesson-admin.service";
 import { StatusChip } from "@/components/admin/status-chip";
-import { StudioEmpty, StudioPageHeader, StudioPanel } from "@/components/admin/studio/studio-page";
+import { StudioEmpty, StudioPageHeader, StudioPanel, studioPrimaryAction, studioQuietAction } from "@/components/admin/studio/studio-page";
 
 export const metadata: Metadata = { title: "Lessons", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
 
-/** CA-3: lessons stored as DB blocks (the MDX path is retired). Open one to edit its blocks, preview and publish. */
+/** CA-3 / CA-4: lessons stored as DB blocks (legacy unit lessons + node lessons). Open one to edit, preview, publish, translate. */
 export default async function AdminLessonsPage() {
   await requireAdminPage({ path: "/admin/lessons" }); // admin only
   const r = await LessonAdminService.listDocuments();
   const docs = r.success ? r.data : [];
   return (
     <div className="space-y-5">
-      <StudioPageHeader title="Lessons" description="Lessons are stored as checked blocks in the database. Open a lesson to edit it, preview it and publish it." />
+      <StudioPageHeader
+        title="Lessons"
+        description="Lessons are stored as checked blocks in the database. Open a lesson to edit it, preview it and publish it."
+        primary={
+          <Link href="/admin/lessons/generate" className={studioPrimaryAction}>
+            Generate a lesson
+          </Link>
+        }
+        actions={
+          <Link href="/admin/prompts" className={studioQuietAction}>
+            Prompt templates
+          </Link>
+        }
+      />
       {!r.success && (
         <p role="alert" className="rounded-card border border-danger-200 bg-danger-50 px-4 py-3 text-[13px] font-semibold text-danger-800">
           {r.error}
@@ -34,6 +47,12 @@ export default async function AdminLessonsPage() {
                 <span className="font-mono text-fg-secondary">{d.slug}</span>
                 <span className="text-fg-secondary">{d.currentFormat === "BLOCKS" ? `v${d.currentVersion} blocks` : d.currentFormat === "LEGACY_MDX" ? "legacy (retired)" : "no published version"}</span>
                 {d.hasDraft && <span className="font-semibold text-warning-700">Draft open</span>}
+                {d.nodeId && <span className="text-fg-secondary">Node lesson</span>}
+                {d.currentFormat === "BLOCKS" && (
+                  <Link href={`/admin/lessons/${d.id}/translate`} className="focus-ring min-h-10 rounded-control py-2 text-link">
+                    {d.hiState === "NONE" ? "Translate" : d.hiState === "DRAFT" ? "Translation: draft" : d.hiState === "OUTDATED" ? "Translation: outdated" : "Translation: published"}
+                  </Link>
+                )}
                 <StatusChip status={d.status} />
               </li>
             ))}

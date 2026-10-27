@@ -22,6 +22,9 @@ export interface ArticleItem {
 export interface ArticleDetail extends ArticleItem {
   /** CA-3: the DB lesson (null when locked, or while no published lesson exists) */
   lesson: { meta: LessonMeta; blocks: LessonBlock[]; links: LessonLinkMap } | null;
+  /** CA-4: the lesson's language and why (Hindi readers: HI / HI_OUTDATED / HI_COMING_SOON) */
+  lessonLanguage: "en" | "hi";
+  languageState: "EN" | "HI" | "HI_OUTDATED" | "HI_COMING_SOON";
   metaTitle: string | null;
   metaDescription: string | null;
   featuredImageUrl: string | null;
@@ -146,6 +149,8 @@ export class ContentService {
       isLocked: a.is_locked,
       publishedAt: a.published_at,
       lesson: a.is_locked ? null : a.lesson,
+      lessonLanguage: a.lesson_language,
+      languageState: a.is_locked ? "EN" : a.language_state,
       metaTitle: `${a.title} | Courage Library`,
       metaDescription: `Study ${a.title}${a.topic_name ? ` (${a.topic_name})` : ""} on Courage Library.`,
       featuredImageUrl: null,

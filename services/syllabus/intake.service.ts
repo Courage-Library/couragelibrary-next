@@ -1,7 +1,7 @@
 /**
  * COURAGE LIBRARY — SYLLABUS INTAKE SERVICE (CA-2, CONTENT-ARCH-1 §B)
  *
- * Paste → validate (lib/syllabus/intake-contract.ts) → match to the master tree (lib/syllabus/tree-matcher.ts) →
+ * Paste (contract v3 — SYLLABUS-PROMPT-2 — or v2) → validate (lib/syllabus/intake-contract.ts) → match to the master tree (lib/syllabus/tree-matcher.ts) →
  * staging (fn_syllabus_intake_create) → the owner decides every item (fn_syllabus_intake_decide: LINK / ALIAS /
  * APPROVE_NEW / IGNORE) → one DRAFT syllabus version (fn_syllabus_intake_import) → the existing editor + publish.
  *
@@ -15,7 +15,7 @@ import { guardAdminAction } from "@/lib/auth/require-admin";
 import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import type { AppSupabaseClient } from "@/lib/supabase/types";
 import type { Json } from "@/types/database";
-import { validateIntakePayload, type IntakeError, type IntakeLevel, type IntakeStats } from "@/lib/syllabus/intake-contract";
+import { SOURCE_URL_RE, validateIntakePayload, type IntakeError, type IntakeLevel, type IntakeOrigin, type IntakeStats } from "@/lib/syllabus/intake-contract";
 import { matchIntake, matchSummary, type MatchCandidate, type MatchStatus } from "@/lib/syllabus/tree-matcher";
 import { INTAKE_DECISIONS, type IntakeDecision, type IntakeItemView, type IntakeNodeOption, type IntakeSessionView } from "@/lib/syllabus/intake-types";
 
@@ -27,8 +27,8 @@ export interface CreateIntakeInput {
   examId: string;
   cycleId: string | null;
   tier: string | null;
-  sourceUrl: string;
-  asOf: string;
+  /** SYLLABUS-PROMPT-2: optional (v3); a v2 paste carries its own official link and date */
+  referenceUrl: string | null;
   json: string;
 }
 
@@ -72,9 +72,8 @@ export class SyllabusIntakeService {
     if (input.cycleId && (!cycleRes.data || cycleRes.data.exam_id !== input.examId)) return fail("VALIDATION", "The cycle does not belong to the exam.");
     const v = validateIntakePayload(input.json, { examSlug: examRes.data.slug, cycleYear: cycleRes.data?.cycle_year ?? null, tier: input.tier || null });
     if (!v.ok) return fail("VALIDATION", "The pasted syllabus has errors.", v.errors);
-    if (v.header.source_url !== input.sourceUrl.trim() || v.header.as_of !== input.asOf) {
-      return fail("VALIDATION", "The source link or date in the JSON differs from the one entered above.");
-    }
+    const reference = input.referenceUrl?.trim() || null;
+    if (reference && !SOURCE_URL_RE.test(reference)) return fail("VALIDATION", "The reference link must be an https:// link.");
 
     const [nodesRes, aliasRes] = await Promise.all([
       c.supabase.from("canonical_taxonomy_nodes").select("id, parent_id, node_type, name, name_hi, is_active").in("node_type", ["SUBJECT", "TOPIC", "SUBTOPIC", "CONCEPT"]),
@@ -90,8 +89,8 @@ export class SyllabusIntakeService {
       p_exam_id: input.examId,
       p_exam_cycle_id: input.cycleId as string,
       p_tier: (input.tier || null) as string,
-      p_source_url: v.header.source_url,
-      p_as_of: v.header.as_of,
+      p_source_url: (v.header.source_url ?? reference) as string,
+      p_as_of: v.header.as_of as string,
       p_payload: v.payload as Json,
       // plain JSON (strings / numbers / booleans / null / arrays): a round trip gives the Json value the RPC takes
       p_items: JSON.parse(JSON.stringify(matched)) as Json,
@@ -110,7 +109,7 @@ export class SyllabusIntakeService {
     if (!c) return fail("UNAUTHORIZED", "Unauthorized.");
     const { data, error } = await c.supabase
       .from("syllabus_intake_sessions")
-      .select("id, exam_id, tier, source_url, as_of_date, status, imported_version_id, created_at, exam:exams(title), cycle:exam_cycles(cycle_year)")
+      .select("id, exam_id, tier, source_url, as_of_date, based_on, contract_version, status, imported_version_id, created_at, exam:exams(title), cycle:exam_cycles(cycle_year)")
       .order("created_at", { ascending: false })
       .limit(50);
     if (error) return fail("DB_ERROR", "Could not load the intakes.");
@@ -124,12 +123,12 @@ export class SyllabusIntakeService {
     const [s, items, nodes] = await Promise.all([
       c.supabase
         .from("syllabus_intake_sessions")
-        .select("id, exam_id, tier, source_url, as_of_date, status, imported_version_id, created_at, exam:exams(title), cycle:exam_cycles(cycle_year)")
+        .select("id, exam_id, tier, source_url, as_of_date, based_on, contract_version, status, imported_version_id, created_at, exam:exams(title), cycle:exam_cycles(cycle_year)")
         .eq("id", sessionId)
         .maybeSingle(),
       c.supabase
         .from("syllabus_intake_items")
-        .select("id, parent_item_id, item_key, level, position, raw_name, raw_name_hi, aliases, marks, questions, uncertain, uncertain_reason, extra_headings, match_status, matched_node_id, candidates, decision, decision_node_id")
+        .select("id, parent_item_id, item_key, level, position, raw_name, raw_name_hi, aliases, marks, questions, weightage_tier, origin, avg_questions, duration_minutes, negative_marking, uncertain, uncertain_reason, extra_headings, match_status, matched_node_id, candidates, decision, decision_node_id")
         .eq("session_id", sessionId),
       c.supabase.from("canonical_taxonomy_nodes").select("id, parent_id, node_type, name, hierarchy_path").eq("is_active", true).in("node_type", ["SUBJECT", "TOPIC", "SUBTOPIC", "CONCEPT"]),
     ]);
@@ -152,6 +151,11 @@ export class SyllabusIntakeService {
             aliases: r.aliases || [],
             marks: r.marks,
             questions: r.questions,
+            weightageTier: r.weightage_tier,
+            origin: (r.origin as IntakeOrigin | null) ?? null,
+            avgQuestions: r.avg_questions,
+            durationMinutes: r.duration_minutes,
+            negativeMarking: r.negative_marking,
             uncertain: r.uncertain,
             uncertainReason: r.uncertain_reason,
             headings: r.extra_headings || [],
@@ -230,8 +234,10 @@ interface SessionRow {
   id: string;
   exam_id: string;
   tier: string | null;
-  source_url: string;
-  as_of_date: string;
+  source_url: string | null;
+  as_of_date: string | null;
+  based_on: string | null;
+  contract_version: number;
   status: string;
   imported_version_id: string | null;
   created_at: string;
@@ -248,6 +254,8 @@ function toSession(r: SessionRow): IntakeSessionView {
     tier: r.tier,
     sourceUrl: r.source_url,
     asOf: r.as_of_date,
+    basedOn: r.based_on,
+    contractVersion: r.contract_version,
     status: r.status as IntakeSessionView["status"],
     importedVersionId: r.imported_version_id,
     createdAt: r.created_at,

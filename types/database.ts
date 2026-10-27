@@ -1924,6 +1924,7 @@ export type Database = {
           schema_version: string
           source_spec_hash: string | null
           source_spec_storage_key: string | null
+          translated_from_version_id: string | null
           updated_at: string
           version_number: number
         }
@@ -1950,6 +1951,7 @@ export type Database = {
           schema_version?: string
           source_spec_hash?: string | null
           source_spec_storage_key?: string | null
+          translated_from_version_id?: string | null
           updated_at?: string
           version_number: number
         }
@@ -1976,6 +1978,7 @@ export type Database = {
           schema_version?: string
           source_spec_hash?: string | null
           source_spec_storage_key?: string | null
+          translated_from_version_id?: string | null
           updated_at?: string
           version_number?: number
         }
@@ -1985,6 +1988,13 @@ export type Database = {
             columns: ["document_id"]
             isOneToOne: false
             referencedRelation: "learning_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_versions_translated_from_version_id_fkey"
+            columns: ["translated_from_version_id"]
+            isOneToOne: false
+            referencedRelation: "document_versions"
             referencedColumns: ["id"]
           },
         ]
@@ -3549,7 +3559,8 @@ export type Database = {
           current_published_version_id: string | null
           document_type: string
           id: string
-          learning_unit_id: string
+          learning_unit_id: string | null
+          node_id: string | null
           status: string
           updated_at: string
         }
@@ -3560,7 +3571,8 @@ export type Database = {
           current_published_version_id?: string | null
           document_type: string
           id?: string
-          learning_unit_id: string
+          learning_unit_id?: string | null
+          node_id?: string | null
           status?: string
           updated_at?: string
         }
@@ -3571,7 +3583,8 @@ export type Database = {
           current_published_version_id?: string | null
           document_type?: string
           id?: string
-          learning_unit_id?: string
+          learning_unit_id?: string | null
+          node_id?: string | null
           status?: string
           updated_at?: string
         }
@@ -3588,6 +3601,13 @@ export type Database = {
             columns: ["learning_unit_id"]
             isOneToOne: false
             referencedRelation: "learning_units"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "learning_documents_node_id_fkey"
+            columns: ["node_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_taxonomy_nodes"
             referencedColumns: ["id"]
           },
         ]
@@ -4583,6 +4603,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      prompt_templates: {
+        Row: {
+          activated_at: string | null
+          activated_by_email: string | null
+          body: string
+          body_sha256: string
+          created_at: string
+          created_by: string | null
+          created_by_email: string
+          id: string
+          notes: string | null
+          status: string
+          template_type: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          activated_at?: string | null
+          activated_by_email?: string | null
+          body: string
+          body_sha256: string
+          created_at?: string
+          created_by?: string | null
+          created_by_email: string
+          id?: string
+          notes?: string | null
+          status?: string
+          template_type: string
+          updated_at?: string
+          version: number
+        }
+        Update: {
+          activated_at?: string | null
+          activated_by_email?: string | null
+          body?: string
+          body_sha256?: string
+          created_at?: string
+          created_by?: string | null
+          created_by_email?: string
+          id?: string
+          notes?: string | null
+          status?: string
+          template_type?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
       }
       question_answers: {
         Row: {
@@ -6108,12 +6176,14 @@ export type Database = {
       syllabus_intake_items: {
         Row: {
           aliases: string[]
+          avg_questions: number | null
           candidates: Json
           decided_at: string | null
           decided_by: string | null
           decided_by_email: string | null
           decision: string | null
           decision_node_id: string | null
+          duration_minutes: number | null
           extra_headings: string[]
           id: string
           item_key: string
@@ -6121,6 +6191,8 @@ export type Database = {
           marks: number | null
           match_status: string
           matched_node_id: string | null
+          negative_marking: string | null
+          origin: string | null
           parent_item_id: string | null
           position: number
           questions: number | null
@@ -6133,12 +6205,14 @@ export type Database = {
         }
         Insert: {
           aliases?: string[]
+          avg_questions?: number | null
           candidates?: Json
           decided_at?: string | null
           decided_by?: string | null
           decided_by_email?: string | null
           decision?: string | null
           decision_node_id?: string | null
+          duration_minutes?: number | null
           extra_headings?: string[]
           id?: string
           item_key: string
@@ -6146,6 +6220,8 @@ export type Database = {
           marks?: number | null
           match_status: string
           matched_node_id?: string | null
+          negative_marking?: string | null
+          origin?: string | null
           parent_item_id?: string | null
           position: number
           questions?: number | null
@@ -6158,12 +6234,14 @@ export type Database = {
         }
         Update: {
           aliases?: string[]
+          avg_questions?: number | null
           candidates?: Json
           decided_at?: string | null
           decided_by?: string | null
           decided_by_email?: string | null
           decision?: string | null
           decision_node_id?: string | null
+          duration_minutes?: number | null
           extra_headings?: string[]
           id?: string
           item_key?: string
@@ -6171,6 +6249,8 @@ export type Database = {
           marks?: number | null
           match_status?: string
           matched_node_id?: string | null
+          negative_marking?: string | null
+          origin?: string | null
           parent_item_id?: string | null
           position?: number
           questions?: number | null
@@ -6214,7 +6294,8 @@ export type Database = {
       }
       syllabus_intake_sessions: {
         Row: {
-          as_of_date: string
+          as_of_date: string | null
+          based_on: string | null
           contract_version: number
           created_at: string
           created_by: string | null
@@ -6225,13 +6306,14 @@ export type Database = {
           imported_version_id: string | null
           payload: Json
           payload_sha256: string
-          source_url: string
+          source_url: string | null
           status: string
           tier: string | null
           updated_at: string
         }
         Insert: {
-          as_of_date: string
+          as_of_date?: string | null
+          based_on?: string | null
           contract_version?: number
           created_at?: string
           created_by?: string | null
@@ -6242,13 +6324,14 @@ export type Database = {
           imported_version_id?: string | null
           payload: Json
           payload_sha256: string
-          source_url: string
+          source_url?: string | null
           status?: string
           tier?: string | null
           updated_at?: string
         }
         Update: {
-          as_of_date?: string
+          as_of_date?: string | null
+          based_on?: string | null
           contract_version?: number
           created_at?: string
           created_by?: string | null
@@ -6259,7 +6342,7 @@ export type Database = {
           imported_version_id?: string | null
           payload?: Json
           payload_sha256?: string
-          source_url?: string
+          source_url?: string | null
           status?: string
           tier?: string | null
           updated_at?: string
@@ -8510,11 +8593,14 @@ export type Database = {
       fn_join_battle_by_code: { Args: { p_room_code: string }; Returns: Json }
       fn_jwt_is_admin: { Args: never; Returns: boolean }
       fn_jwt_is_admin_or_staff: { Args: never; Returns: boolean }
+      fn_lesson__answer_key: { Args: { p_block: Json }; Returns: string }
       fn_lesson__keys: {
         Args: { allowed: string[]; o: Json; p: string }
         Returns: Json
       }
       fn_lesson__latex_problem: { Args: { s: string }; Returns: string }
+      fn_lesson__len: { Args: { p: Json }; Returns: number }
+      fn_lesson__numbers: { Args: { p_block: Json }; Returns: string[] }
       fn_lesson__oneof: {
         Args: {
           allowed: string[]
@@ -8562,6 +8648,19 @@ export type Database = {
       }
       fn_lesson_blocks_errors: {
         Args: { p_blocks: Json; p_meta: Json }
+        Returns: Json
+      }
+      fn_lesson_create_node_document: {
+        Args: {
+          p_access_level: string
+          p_actor_email: string
+          p_actor_id: string
+          p_node_id: string
+        }
+        Returns: Json
+      }
+      fn_lesson_parity_errors: {
+        Args: { p_en: Json; p_hi: Json }
         Returns: Json
       }
       fn_lesson_publish: {
@@ -8647,6 +8746,34 @@ export type Database = {
           p_gateway_event_id: string
           p_payload: Json
           p_signature_verified: boolean
+        }
+        Returns: Json
+      }
+      fn_prompt_template_activate: {
+        Args: { p_actor_email: string; p_actor_id: string; p_id: string }
+        Returns: Json
+      }
+      fn_prompt_template_audit: {
+        Args: {
+          p_action: string
+          p_actor_email: string
+          p_actor_id: string
+          p_new: Json
+          p_target_id: string
+        }
+        Returns: undefined
+      }
+      fn_prompt_template_problems: {
+        Args: { p_body: string; p_type: string }
+        Returns: string[]
+      }
+      fn_prompt_template_save_draft: {
+        Args: {
+          p_actor_email: string
+          p_actor_id: string
+          p_body: string
+          p_notes: string
+          p_type: string
         }
         Returns: Json
       }

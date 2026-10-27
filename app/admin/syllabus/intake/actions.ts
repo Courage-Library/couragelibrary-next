@@ -19,7 +19,7 @@ function done<T>(r: IntakeResult<T>, sessionId?: string): IntakeResult<T> {
   return r;
 }
 
-export async function createIntakeAction(input: { examId: string; cycleId: string | null; tier: string | null; sourceUrl: string; asOf: string; json: string }): Promise<
+export async function createIntakeAction(input: { examId: string; cycleId: string | null; tier: string | null; referenceUrl: string | null; json: string }): Promise<
   IntakeResult<{ sessionId: string; stats: IntakeStats; summary: Record<MatchStatus, number> }>
 > {
   const __auth = await guardAdminAction() /* CA-2: admin only */;

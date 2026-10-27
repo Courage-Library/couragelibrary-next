@@ -11,6 +11,10 @@ export interface LessonDocumentRow {
   currentFormat: string | null;
   currentVersion: number | null;
   hasDraft: boolean;
+  /** CA-4: NODE_LESSON documents belong to a master-tree node */
+  nodeId: string | null;
+  /** CA-4: the translation state: NONE / DRAFT / PUBLISHED / OUTDATED (published, from an older English version) */
+  hiState: "NONE" | "DRAFT" | "PUBLISHED" | "OUTDATED";
 }
 
 export interface LessonEditorData {
@@ -24,3 +28,34 @@ export interface LessonEditorData {
   blocks: LessonBlock[] | null;
 }
 
+
+/** CA-4: a master-tree node a lesson can belong to (active TOPIC / SUBTOPIC / CONCEPT). */
+export interface LessonNodeOption {
+  id: string;
+  name: string;
+  nodeType: string;
+  path: string;
+  documentId: string | null;
+  documentStatus: string | null;
+}
+
+/** CA-4: the lesson generator for one node. */
+export interface LessonGeneratorData {
+  context: import("@/lib/prompts/lesson-prompt").LessonPromptContext;
+  prompt: string;
+  templateVersion: number | null;
+  templateSource: "db" | "code";
+  documentId: string | null;
+}
+
+/** CA-4: the EN | HI translation screen. */
+export interface LessonTranslationData {
+  documentId: string;
+  slug: string;
+  /** the current published English master (null: publish English first) */
+  en: { versionId: string; versionNumber: number; meta: LessonMeta; blocks: LessonBlock[] } | null;
+  /** the open HI draft, else the current published HI version */
+  hi: { versionId: string; versionNumber: number; source: "DRAFT" | "PUBLISHED"; meta: LessonMeta; blocks: LessonBlock[]; outdated: boolean } | null;
+  prompt: string | null;
+  templateVersion: number | null;
+}
