@@ -126,13 +126,15 @@ export async function getTodayV2(input: { role: AdminRole; userId: string; flags
 
 /** Content health (architect 2026-10-27): every exam with ≥ 1 question in any state × subject; published + in review. */
 async function contentHealth(sb: AppSupabaseClient): Promise<TodayV2["health"]> {
-  const [vs, exams, maps, sources] = await Promise.all([
+  const [vs, exams, maps, sources, mocks] = await Promise.all([
     sb.from("question_versions").select("question_id, lifecycle_status, questions!inner(canonical_topic_id, status)").not("lifecycle_status", "in", "(REJECTED,SUPERSEDED)").limit(20000),
     sb.from("exams").select("id, title, is_active").order("title"),
     sb.from("exam_question_mappings").select("question_id, exam_id").limit(20000),
     sb.from("question_sources").select("question_id, exam_name").not("exam_name", "is", null).limit(20000),
+    // mock membership: mock_questions → mock_tests → mock_templates.exam_id (an explicit link to the exam)
+    sb.from("mock_questions").select("question_versions!inner(question_id), mock_tests!inner(mock_templates!inner(exam_id))").limit(20000),
   ]);
-  const err = vs.error || exams.error || maps.error || sources.error;
+  const err = vs.error || exams.error || maps.error || sources.error || mocks.error;
   if (err) {
     logRead("content_health", err.code);
     return null;
@@ -168,6 +170,12 @@ async function contentHealth(sb: AppSupabaseClient): Promise<TodayV2["health"]> 
   };
   for (const m of maps.data ?? []) add(m.question_id, m.exam_id);
   for (const s of sources.data ?? []) add(s.question_id, examByTitle.get(String(s.exam_name).trim().toLowerCase()));
+  const one = <T,>(x: T | T[] | null | undefined): T | undefined => (Array.isArray(x) ? x[0] : x ?? undefined);
+  for (const m of mocks.data ?? []) {
+    const q = one(m.question_versions)?.question_id;
+    const e = one(one(m.mock_tests)?.mock_templates)?.exam_id;
+    if (q && e && !(explicitExams.get(q) ?? []).includes(e)) add(q, e);
+  }
   return buildContentHealth({
     questions,
     subjectOfTopic,

@@ -271,6 +271,11 @@ function ContentHealth({ h }: { h: TodayV2["health"] }) {
                   <th scope="row" className="pr-2 text-left font-semibold text-fg">
                     {e.title}
                     {!e.live && <span className="ml-1.5 whitespace-nowrap rounded-badge bg-ink-100 px-1.5 py-0.5 text-[11.5px] font-semibold text-fg-secondary">not live</span>}
+                    {e.sharedTopics > 0 && (
+                      <span className="block text-[11.5px] font-normal text-fg-secondary" title="Questions on this exam's syllabus topics that are not linked to the exam (not counted)">
+                        {e.sharedTopics} more share its topics
+                      </span>
+                    )}
                   </th>
                   {subjects.map((s) => {
                     const c = h.cells[`${e.id}:${s.id}`] ?? { published: 0, inReview: 0 };

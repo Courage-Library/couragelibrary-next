@@ -16,7 +16,8 @@
  *         (no navy scrim), cyan glow right of the text column, white small text ≥ 4.5:1 at the worst point
  *   SP-08 settings page: admin only, read only; Focus review sidebar badge = a count only, never breaks the layout
  *   SP-09 the new read action: guard first, sanitized (same pattern as every QF action)
- *   SP-10 content health: rows = every exam with ≥ 1 question in any state (inactive = "not live"), published + in review
+ *   SP-10 content health: a question counts for an exam only via mapping / past-paper source / mock membership (topic
+ *         overlap = a hint, never counted); rows = exams with ≥ 1 linked question (inactive = "not live"); published + in review
  * Run: node scripts/test_studio_phase2.cjs
  */
 const fs = require('fs');
@@ -249,27 +250,30 @@ test('SP-08 settings page admin-only + read-only; sidebar badge is a count that 
   assert(/Courage Studio/.test(s) && /Admin workspace/.test(s) && /studio-sidebar/.test(s) && /<span className="sr-only"> waiting<\/span>/.test(s), 'brand tile, glow, badge text for AT');
 });
 
-test('SP-10 content health: every exam with ≥ 1 question (any state), not-live label, published + in review, membership rules', () => {
+test('SP-10 content health: explicit links only (mapping / past-paper source / mock membership); topic overlap = hint only', () => {
   const T1 = 't1', T2 = 't2', S1 = 's1', S2 = 's2';
   const g = CH.buildContentHealth({
     questions: [
-      { id: 'q1', topicId: T1, published: true, inReview: false },   // CGL via syllabus
-      { id: 'q2', topicId: T1, published: false, inReview: true },   // GD past paper (explicit) + CGL via syllabus
+      { id: 'q1', topicId: T1, published: true, inReview: false },   // CGL mock member (explicit)
+      { id: 'q2', topicId: T1, published: false, inReview: true },   // GD past paper (explicit); shares a CGL topic → hint only
       { id: 'q3', topicId: T2, published: false, inReview: false },  // a draft only, GD via mapping
       { id: 'q4', topicId: null, published: false, inReview: true }, // no topic → no cell, exam still listed
+      { id: 'q5', topicId: T1, published: true, inReview: false },   // on a CGL topic, linked to NOTHING → counted nowhere
     ],
     subjectOfTopic: new Map([[T1, S1], [T2, S2]]),
     topicExams: new Map([[T1, ['cgl']]]),
-    explicitExams: new Map([['q2', ['gd']], ['q3', ['gd']], ['q4', ['mts']]]),
+    explicitExams: new Map([['q1', ['cgl']], ['q2', ['gd']], ['q3', ['gd']], ['q4', ['mts']]]),
     exams: [{ id: 'cgl', title: 'SSC CGL', isActive: true }, { id: 'gd', title: 'SSC GD Constable', isActive: false }, { id: 'mts', title: 'SSC MTS', isActive: false }, { id: 'chsl', title: 'SSC CHSL', isActive: false }],
     subjects: [{ id: S1, name: 'Quantitative Aptitude' }, { id: S2, name: 'General Awareness' }, { id: 's3', name: 'Unused' }],
   });
-  assert(JSON.stringify(g.exams) === JSON.stringify([{ id: 'cgl', title: 'SSC CGL', live: true }, { id: 'gd', title: 'SSC GD Constable', live: false }, { id: 'mts', title: 'SSC MTS', live: false }]), `rows ${JSON.stringify(g.exams)}`);
-  assert(JSON.stringify(g.cells['cgl:s1']) === '{"published":1,"inReview":1}' && JSON.stringify(g.cells['gd:s1']) === '{"published":0,"inReview":1}' && JSON.stringify(g.cells['gd:s2']) === '{"published":0,"inReview":0}', JSON.stringify(g.cells));
-  assert(JSON.stringify(g.subjects.map((x) => x.id)) === '["s1","s2"]', 'only subjects that have questions');
+  assert(JSON.stringify(g.exams) === JSON.stringify([{ id: 'cgl', title: 'SSC CGL', live: true, sharedTopics: 2 }, { id: 'gd', title: 'SSC GD Constable', live: false, sharedTopics: 0 }, { id: 'mts', title: 'SSC MTS', live: false, sharedTopics: 0 }]), `rows ${JSON.stringify(g.exams)}`);
+  assert(JSON.stringify(g.cells['cgl:s1']) === '{"published":1,"inReview":0}' && JSON.stringify(g.cells['gd:s1']) === '{"published":0,"inReview":1}' && JSON.stringify(g.cells['gd:s2']) === '{"published":0,"inReview":0}', `topic overlap must not count: ${JSON.stringify(g.cells)}`);
+  assert(JSON.stringify(g.subjects.map((x) => x.id)) === '["s1","s2"]', 'only subjects that have linked questions');
   assert(g.lowestExamId === 'gd' || g.lowestExamId === 'mts', `lowest ${g.lowestExamId}`);
+  const t = code(read('lib/admin/today.ts'));
+  assert(/from\("exam_question_mappings"\)/.test(t) && /from\("question_sources"\)/.test(t) && /from\("mock_questions"\)\.select\("question_versions!inner\(question_id\), mock_tests!inner\(mock_templates!inner\(exam_id\)\)"\)/.test(t), 'the three explicit links are read');
   const p = code(read('app/admin/page.tsx'));
-  assert(/\{!e\.live && <span[^>]*>not live<\/span>\}/.test(p) && /\{c\.inReview > 0 && <span[^>]*>\+\{c\.inReview\} in review<\/span>\}/.test(p) && /cellClass\(c\.published, max\)/.test(p), 'not-live label; published count; "+N in review"');
+  assert(/\{!e\.live && <span[^>]*>not live<\/span>\}/.test(p) && /\{c\.inReview > 0 && <span[^>]*>\+\{c\.inReview\} in review<\/span>\}/.test(p) && /cellClass\(c\.published, max\)/.test(p) && /\{e\.sharedTopics\} more share its topics/.test(p), 'not-live label; published count; "+N in review"; shared-topics hint');
 });
 
 test('SP-09 qfGetFocusItemAction: guard first, sanitized', () => {
