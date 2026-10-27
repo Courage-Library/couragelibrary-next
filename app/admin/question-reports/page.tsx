@@ -1,7 +1,7 @@
 import React from "react";
 import { AdminService } from "@/services/admin.service";
 import { AdminQuestionReportsManager, AdminQuestionReportItem } from "@/components/admin/admin-question-reports-manager";
-import { Container } from "@/components/ui/legacy/container";
+import { StudioPageHeader } from "@/components/admin/studio/studio-page";
 import { requireAdminPage } from "@/lib/auth/require-admin";
 
 export const dynamic = "force-dynamic";
@@ -24,15 +24,9 @@ export default async function AdminQuestionReportsPage({ searchParams }: { searc
   const initialStatus = REPORT_STATUSES.includes(String(sp.status)) ? String(sp.status) : "ALL";
 
   return (
-    <Container className="py-8 space-y-6 max-w-7xl">
-      <div>
-        <h1 className="text-2xl font-black text-slate-900 tracking-tight">Question Reports</h1>
-        <p className="text-xs text-slate-500 font-medium mt-1">
-          Reports from students: wrong answer key, typo or unclear wording, translation error, or something else.
-        </p>
-      </div>
-
+    <div className="flex flex-col gap-4">
+      <StudioPageHeader title="Question reports" description="Students report a wrong key, a typo, unclear wording or a translation problem. Open one to check and close it." />
       <AdminQuestionReportsManager initialReports={initialReports as unknown as AdminQuestionReportItem[]} initialStatus={initialStatus} />
-    </Container>
+    </div>
   );
 }

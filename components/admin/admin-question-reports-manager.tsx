@@ -2,22 +2,11 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { Badge } from "@/components/ui/legacy/badge";
-import { Button } from "@/components/ui/legacy/button";
 import { AnswerKeyUnavailableNotice } from "@/components/questions/answer-key-notice";
-import {
-  Flag,
-  Search,
-  Filter,
-  Check,
-  Clock,
-  CheckCircle2,
-  AlertCircle,
-  XCircle,
-  Eye,
-  FileText,
-  User,
-} from "lucide-react";
+import { Check, Search, CheckCircle2, AlertTriangle } from "lucide-react";
+import { StatusChip } from "@/components/admin/status-chip";
+import { StudioDrawer } from "@/components/admin/studio/studio-drawer";
+import { StudioEmpty, StudioField, StudioStatStrip, studioControl, studioPrimaryAction, type StudioStat } from "@/components/admin/studio/studio-page";
 
 export interface AdminQuestionReportItem {
   id: string;
@@ -43,27 +32,50 @@ interface AdminQuestionReportsManagerProps {
   initialStatus?: string;
 }
 
+const STATUS_FILTERS: Array<{ key: string; label: string; tone: StudioStat["tone"] }> = [
+  { key: "ALL", label: "All", tone: "muted" },
+  { key: "OPEN", label: "Open", tone: "red" },
+  { key: "UNDER_REVIEW", label: "Under review", tone: "blue" },
+  { key: "VERIFIED", label: "Verified", tone: "teal" },
+  { key: "RESOLVED", label: "Resolved", tone: "green" },
+  { key: "REJECTED", label: "Dismissed", tone: "muted" },
+];
+
+/** Exactly the issue_type values the DB allows (question_errata_reports CHECK, migration 093). */
+const ISSUE_LABEL: Record<string, string> = {
+  INCORRECT_ANSWER: "Wrong answer key",
+  INCORRECT_EXPLANATION: "Wrong explanation",
+  TYPO: "Typo or unclear wording",
+  AMBIGUOUS: "Ambiguous question",
+  QUESTION_TEXT_ERROR: "Question text error",
+  TRANSLATION_ERROR: "Translation error",
+  OUTDATED_INFORMATION: "Outdated information",
+  DUPLICATE: "Duplicate",
+  FORMATTING: "Formatting or image",
+  OTHER: "Other",
+};
+const issueLabel = (t: string) => ISSUE_LABEL[t] ?? t.replace(/_/g, " ").toLowerCase().replace(/^./, (c) => c.toUpperCase());
+
+/**
+ * Courage Studio list + drawer (phase 3 batch 1). D-5 fixed: every count equals the result of its own filter (Verified
+ * and Resolved are separate). Rows and counts are real buttons; filters have visible labels; v3 status chips.
+ */
 export function AdminQuestionReportsManager({ initialReports, initialStatus = "ALL" }: AdminQuestionReportsManagerProps) {
   const [reports, setReports] = useState<AdminQuestionReportItem[]>(initialReports);
   const [selectedStatus, setSelectedStatus] = useState<string>(initialStatus);
   const [selectedIssueType, setSelectedIssueType] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [activeReport, setActiveReport] = useState<AdminQuestionReportItem | null>(
-    reports.length > 0 ? reports[0] : null
-  );
+  const [activeReport, setActiveReport] = useState<AdminQuestionReportItem | null>(null);
   const [resolutionStatus, setResolutionStatus] = useState<string>("UNDER_REVIEW");
   const [resolutionNotes, setResolutionNotes] = useState<string>("");
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateSuccessMessage, setUpdateSuccessMessage] = useState<string | null>(null);
+  const [updateError, setUpdateError] = useState<string | null>(null);
 
-  // Live KPI counts from real database data
-  const totalCount = reports.length;
-  const openCount = reports.filter((r) => r.status === "OPEN").length;
-  const underReviewCount = reports.filter((r) => r.status === "UNDER_REVIEW").length;
-  const resolvedCount = reports.filter((r) => r.status === "RESOLVED" || r.status === "VERIFIED").length;
-  const rejectedCount = reports.filter((r) => r.status === "REJECTED").length;
+  // D-5: one count per status, the same predicate the filter uses (r.status === key)
+  const countOf = (key: string) => (key === "ALL" ? reports.length : reports.filter((r) => r.status === key).length);
+  const stats: StudioStat[] = STATUS_FILTERS.map((f) => ({ key: f.key, label: f.label, tone: f.tone, value: countOf(f.key), active: selectedStatus === f.key }));
 
-  // Filter reports
   const filteredReports = reports.filter((r) => {
     if (selectedStatus !== "ALL" && r.status !== selectedStatus) return false;
     if (selectedIssueType !== "ALL" && r.issueType !== selectedIssueType) return false;
@@ -82,398 +94,207 @@ export function AdminQuestionReportsManager({ initialReports, initialStatus = "A
     setResolutionStatus(r.status === "OPEN" ? "UNDER_REVIEW" : r.status);
     setResolutionNotes(r.resolutionNotes || "");
     setUpdateSuccessMessage(null);
+    setUpdateError(null);
   };
 
   const handleUpdateStatus = async (reportId: string, newStatus: string, notes: string) => {
     setIsUpdating(true);
     setUpdateSuccessMessage(null);
+    setUpdateError(null);
     try {
       const res = await fetch("/api/admin/reports/update-status", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          reportId,
-          status: newStatus,
-          resolutionNotes: notes,
-        }),
+        body: JSON.stringify({ reportId, status: newStatus, resolutionNotes: notes }),
       });
-
       const data = await res.json();
       if (res.ok && data.success) {
-        setReports((prev) =>
-          prev.map((r) =>
-            r.id === reportId
-              ? { ...r, status: newStatus as AdminQuestionReportItem["status"], resolutionNotes: notes }
-              : r
-          )
-        );
-        if (activeReport?.id === reportId) {
-          setActiveReport((prev) =>
-            prev
-              ? { ...prev, status: newStatus as AdminQuestionReportItem["status"], resolutionNotes: notes }
-              : null
-          );
-        }
-        setUpdateSuccessMessage("Report status updated successfully.");
-        setTimeout(() => setUpdateSuccessMessage(null), 3500);
+        const patch = { status: newStatus as AdminQuestionReportItem["status"], resolutionNotes: notes };
+        setReports((prev) => prev.map((r) => (r.id === reportId ? { ...r, ...patch } : r)));
+        if (activeReport?.id === reportId) setActiveReport((prev) => (prev ? { ...prev, ...patch } : null));
+        setUpdateSuccessMessage("Saved.");
       } else {
-        alert(data.error || "Failed to update report status.");
+        setUpdateError(data.error || "The status could not be saved. Nothing was changed.");
       }
     } catch (err) {
       console.error("[AdminQuestionReportsManager] Update error:", err);
-      alert("Network communication error.");
+      setUpdateError("The server could not be reached. Nothing was changed.");
     } finally {
       setIsUpdating(false);
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "OPEN":
-        return <Badge variant="warning">OPEN</Badge>;
-      case "UNDER_REVIEW":
-        return <Badge variant="indigo">UNDER REVIEW</Badge>;
-      case "VERIFIED":
-      case "RESOLVED":
-        return <Badge variant="success">RESOLVED</Badge>;
-      case "REJECTED":
-        return <Badge variant="destructive">REJECTED</Badge>;
-      default:
-        return <Badge variant="neutral">{status}</Badge>;
-    }
-  };
-
   return (
-    <div className="space-y-6">
-      {/* ========================================================================= */}
-      {/* REAL DATABASE KPI CARDS                                                   */}
-      {/* ========================================================================= */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-        <div
-          onClick={() => setSelectedStatus("ALL")}
-          className={`p-4 rounded-2xl bg-white border cursor-pointer transition-all ${
-            selectedStatus === "ALL" ? "border-blue-500 ring-2 ring-blue-100 shadow-xs" : "border-slate-200 hover:border-slate-300"
-          }`}
-        >
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-[11px] font-bold uppercase tracking-wider">Total Reports</span>
-            <FileText className="w-4 h-4 text-slate-400" />
-          </div>
-          <p className="text-2xl font-black text-slate-900 mt-2">{totalCount}</p>
-          <span className="text-[10px] text-slate-400 font-medium">All logged errata</span>
-        </div>
+    <div className="flex flex-col gap-4">
+      <StudioStatStrip label="Reports by status (select to filter)" stats={stats} onSelect={setSelectedStatus} />
 
-        <div
-          onClick={() => setSelectedStatus("OPEN")}
-          className={`p-4 rounded-2xl bg-white border cursor-pointer transition-all ${
-            selectedStatus === "OPEN" ? "border-accent-500 ring-2 ring-accent-100 shadow-xs" : "border-slate-200 hover:border-slate-300"
-          }`}
-        >
-          <div className="flex items-center justify-between text-accent-700">
-            <span className="text-[11px] font-bold uppercase tracking-wider">New / Open</span>
-            <AlertCircle className="w-4 h-4 text-accent-700" />
+      <section aria-label="Filter reports" className="flex flex-wrap items-end gap-3 rounded-card border border-line bg-surface p-[14px]">
+        <StudioField label="Search" htmlFor="qr-search" className="min-w-[14rem] flex-1">
+          <div className="relative">
+            <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-400" />
+            <input id="qr-search" type="search" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Question text, student message or report id" className={`${studioControl} pl-9`} />
           </div>
-          <p className="text-2xl font-black text-accent-900 mt-2">{openCount}</p>
-          <span className="text-[10px] text-accent-700 font-medium">Pending triage</span>
-        </div>
+        </StudioField>
+        <StudioField label="Status" htmlFor="qr-status">
+          <select id="qr-status" value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)} className={studioControl}>
+            {STATUS_FILTERS.map((f) => (
+              <option key={f.key} value={f.key}>
+                {f.key === "ALL" ? "All statuses" : f.label}
+              </option>
+            ))}
+          </select>
+        </StudioField>
+        <StudioField label="Issue" htmlFor="qr-issue">
+          <select id="qr-issue" value={selectedIssueType} onChange={(e) => setSelectedIssueType(e.target.value)} className={studioControl}>
+            <option value="ALL">All issues</option>
+            {Object.keys(ISSUE_LABEL).map((k) => (
+              <option key={k} value={k}>
+                {ISSUE_LABEL[k]}
+              </option>
+            ))}
+          </select>
+        </StudioField>
+        <p className="min-h-10 content-center text-[13px] text-fg-secondary" aria-live="polite">
+          {filteredReports.length} {filteredReports.length === 1 ? "report" : "reports"}
+        </p>
+      </section>
 
-        <div
-          onClick={() => setSelectedStatus("UNDER_REVIEW")}
-          className={`p-4 rounded-2xl bg-white border cursor-pointer transition-all ${
-            selectedStatus === "UNDER_REVIEW" ? "border-indigo-500 ring-2 ring-indigo-100 shadow-xs" : "border-slate-200 hover:border-slate-300"
-          }`}
-        >
-          <div className="flex items-center justify-between text-indigo-700">
-            <span className="text-[11px] font-bold uppercase tracking-wider">Under Review</span>
-            <Clock className="w-4 h-4 text-indigo-600" />
-          </div>
-          <p className="text-2xl font-black text-indigo-900 mt-2">{underReviewCount}</p>
-          <span className="text-[10px] text-indigo-600 font-medium">Being investigated</span>
-        </div>
-
-        <div
-          onClick={() => setSelectedStatus("RESOLVED")}
-          className={`p-4 rounded-2xl bg-white border cursor-pointer transition-all ${
-            selectedStatus === "RESOLVED" ? "border-emerald-500 ring-2 ring-emerald-100 shadow-xs" : "border-slate-200 hover:border-slate-300"
-          }`}
-        >
-          <div className="flex items-center justify-between text-emerald-700">
-            <span className="text-[11px] font-bold uppercase tracking-wider">Resolved</span>
-            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-          </div>
-          <p className="text-2xl font-black text-emerald-900 mt-2">{resolvedCount}</p>
-          <span className="text-[10px] text-emerald-600 font-medium">Verified &amp; fixed</span>
-        </div>
-
-        <div
-          onClick={() => setSelectedStatus("REJECTED")}
-          className={`p-4 rounded-2xl bg-white border cursor-pointer transition-all ${
-            selectedStatus === "REJECTED" ? "border-rose-500 ring-2 ring-rose-100 shadow-xs" : "border-slate-200 hover:border-slate-300"
-          }`}
-        >
-          <div className="flex items-center justify-between text-rose-700">
-            <span className="text-[11px] font-bold uppercase tracking-wider">Dismissed</span>
-            <XCircle className="w-4 h-4 text-rose-600" />
-          </div>
-          <p className="text-2xl font-black text-rose-900 mt-2">{rejectedCount}</p>
-          <span className="text-[10px] text-rose-600 font-medium">Invalid / rejected</span>
-        </div>
-      </div>
-
-      {/* ========================================================================= */}
-      {/* SEARCH & FILTER BAR                                                       */}
-      {/* ========================================================================= */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-white rounded-2xl border border-slate-200 shadow-xs">
-        <div className="flex items-center gap-2 flex-1 min-w-[240px]">
-          <Search className="w-4 h-4 text-slate-400 shrink-0" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search reports by question text, candidate message, or report ID..."
-            className="w-full text-xs font-medium text-slate-800 placeholder:text-slate-400 focus:outline-hidden bg-transparent"
+      <section aria-label="Reports" className="rounded-card border border-line bg-surface">
+        {filteredReports.length === 0 ? (
+          <StudioEmpty
+            title={reports.length === 0 ? "No reports yet" : "No reports match these filters"}
+            body={reports.length === 0 ? "When a student reports a question, it appears here." : "Clear the search or pick another status."}
           />
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Filter className="w-3.5 h-3.5 text-slate-400" />
-          <select
-            value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
-            className="text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-700 cursor-pointer"
-          >
-            <option value="ALL">All Statuses</option>
-            <option value="OPEN">Open</option>
-            <option value="UNDER_REVIEW">Under Review</option>
-            <option value="VERIFIED">Verified (Issue Confirmed)</option>
-            <option value="RESOLVED">Resolved (Fixed &amp; Closed)</option>
-            <option value="REJECTED">Dismissed / Rejected</option>
-          </select>
-
-          <select
-            value={selectedIssueType}
-            onChange={(e) => setSelectedIssueType(e.target.value)}
-            className="text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-700 cursor-pointer"
-          >
-            <option value="ALL">All Issue Types</option>
-            <option value="INCORRECT_ANSWER">Incorrect Answer</option>
-            <option value="INCORRECT_EXPLANATION">Incorrect Explanation</option>
-            <option value="TYPO">Typo / Grammar</option>
-            <option value="AMBIGUOUS">Ambiguous Question</option>
-            <option value="QUESTION_TEXT_ERROR">Question Text Error</option>
-            <option value="FORMATTING">Formatting / Image Issue</option>
-            <option value="OTHER">Other</option>
-          </select>
-        </div>
-      </div>
-
-      {/* ========================================================================= */}
-      {/* REPORTS LIST & INSPECTION WORKSPACE                                       */}
-      {/* ========================================================================= */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Reports Table / List (7 cols) */}
-        <div className="lg:col-span-7 space-y-3">
-          {filteredReports.length === 0 ? (
-            <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 text-slate-500 text-xs font-medium space-y-2">
-              <AlertCircle className="w-6 h-6 text-slate-300 mx-auto" />
-              <p className="font-bold text-slate-700">No question reports found</p>
-              <p className="text-slate-400 text-[11px]">Adjust your status filter or search query.</p>
-            </div>
-          ) : (
-            filteredReports.map((r) => {
-              const isSelected = activeReport?.id === r.id;
+        ) : (
+          <ul className="divide-y divide-line">
+            {filteredReports.map((r) => {
               const maskedCandidate = `CL••••${(r.reporterUserId || "user").slice(-4)}`;
               return (
-                <div
-                  key={r.id}
-                  onClick={() => handleSelectReport(r)}
-                  className={`p-4 rounded-2xl border transition-all cursor-pointer bg-white space-y-2.5 ${
-                    isSelected
-                      ? "border-blue-500 ring-2 ring-blue-100 shadow-sm"
-                      : "border-slate-200 hover:border-slate-300 shadow-xs"
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <Flag className="w-3.5 h-3.5 text-accent-700 shrink-0" />
-                      <span className="text-xs font-bold text-slate-900">{r.issueType}</span>
-                      <span className="text-[10px] font-mono text-slate-400">#{r.id.slice(0, 8)}</span>
-                    </div>
-                    {getStatusBadge(r.status)}
-                  </div>
-
-                  <p className="text-xs text-slate-700 line-clamp-2 font-medium">
-                    {r.questionText || "Question text unavailable"}
-                  </p>
-
-                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-                    <div className="flex items-center gap-1.5">
-                      <User className="w-3 h-3 text-slate-400" />
-                      <span className="font-mono text-[10px] text-slate-600">{maskedCandidate}</span>
-                    </div>
-                    <span className="font-mono text-slate-400">
-                      {new Date(r.createdAt).toLocaleDateString("en-IN", {
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
+                <li key={r.id}>
+                  <button type="button" onClick={() => handleSelectReport(r)} className="focus-ring flex w-full flex-col gap-1 px-[18px] py-3 text-left hover:bg-ink-50" data-report-row="">
+                    <span className="flex w-full flex-wrap items-center justify-between gap-2">
+                      <span className="text-[13px] font-semibold text-fg">{issueLabel(r.issueType)}</span>
+                      <StatusChip status={r.status} />
                     </span>
-                  </div>
-                </div>
+                    <span className="line-clamp-2 text-[13px] text-fg">{r.questionText || "Question text unavailable"}</span>
+                    <span className="flex w-full flex-wrap justify-between gap-2 text-[12px] text-fg-secondary">
+                      <span>
+                        Student {maskedCandidate} · #{r.id.slice(0, 8)}
+                      </span>
+                      <time dateTime={r.createdAt}>{new Date(r.createdAt).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" })}</time>
+                    </span>
+                  </button>
+                </li>
               );
-            })
-          )}
-        </div>
+            })}
+          </ul>
+        )}
+      </section>
 
-        {/* Selected Report Inspection & Resolution Workspace (5 cols) */}
-        <div className="lg:col-span-5">
-          {activeReport ? (
-            <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4 shadow-sm sticky top-20">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                <div className="min-w-0">
-                  <h3 className="font-black text-sm text-slate-900">Inspect Question Report</h3>
-                  <span className="text-[10px] font-mono text-slate-400">ID: #{activeReport.id}</span>
-                </div>
-                {getStatusBadge(activeReport.status)}
-              </div>
+      <StudioDrawer
+        open={!!activeReport}
+        onClose={() => setActiveReport(null)}
+        title={activeReport ? issueLabel(activeReport.issueType) : "Report"}
+        subtitle={activeReport ? <span className="flex items-center gap-2">#{activeReport.id.slice(0, 8)} <StatusChip status={activeReport.status} /></span> : null}
+        footer={
+          activeReport ? (
+            <button type="button" disabled={isUpdating} onClick={() => handleUpdateStatus(activeReport.id, resolutionStatus, resolutionNotes)} className={studioPrimaryAction}>
+              {isUpdating ? "Saving…" : "Save status"}
+            </button>
+          ) : null
+        }
+      >
+        {activeReport && (
+          <div className="flex flex-col gap-4 text-[13px]">
+            <section className="space-y-1.5">
+              <h3 className="text-[11.5px] font-semibold uppercase tracking-[.08em] text-ink-500">Reported question</h3>
+              <p className="whitespace-pre-wrap rounded-control border border-line bg-ink-50 p-3 text-fg">{activeReport.questionText || "No question text available"}</p>
+              {/* Q7: open the reported question in the admin question editor (admin side; no access change) */}
+              {activeReport.questionId && (
+                <Link
+                  href={`/admin/questions?question=${encodeURIComponent(activeReport.questionId)}`}
+                  data-open-question
+                  className="focus-ring inline-flex min-h-11 items-center font-semibold text-link underline underline-offset-2"
+                >
+                  Open question
+                </Link>
+              )}
+            </section>
 
-              {/* Question Text */}
-              <div className="space-y-1.5">
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                  Reported Question
-                </span>
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 font-medium leading-relaxed">
-                  {activeReport.questionText || "No question text available"}
-                </div>
-                {/* Q7: open the reported question in the admin question editor (admin side; no access change) */}
-                {activeReport.questionId && (
-                  <Link
-                    href={`/admin/questions?question=${encodeURIComponent(activeReport.questionId)}`}
-                    data-open-question
-                    className="inline-flex min-h-12 items-center text-xs font-bold text-primary-700 underline underline-offset-2"
-                  >
-                    Open question
-                  </Link>
-                )}
-              </div>
-
-              {/* Options & Correct Answer Key */}
-              <div className="space-y-1.5">
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                  Options &amp; Correct Answer Key
-                </span>
-                <div className="space-y-1 text-xs">
-                  {activeReport.correctOptionKey === null && <AnswerKeyUnavailableNotice scored />}
-                  {activeReport.options && activeReport.options.length > 0 ? (
-                    activeReport.options.map((opt) => (
-                      <div
-                        key={opt.key}
-                        className={`px-2.5 py-1.5 rounded-lg flex items-center justify-between ${
-                          activeReport.correctOptionKey !== null && opt.key === activeReport.correctOptionKey
-                            ? "bg-emerald-50 text-emerald-900 border border-emerald-200 font-bold"
-                            : "bg-slate-50 text-slate-700"
-                        }`}
-                      >
+            <section className="space-y-1.5">
+              <h3 className="text-[11.5px] font-semibold uppercase tracking-[.08em] text-ink-500">Options and answer key</h3>
+              {activeReport.correctOptionKey === null && <AnswerKeyUnavailableNotice scored />}
+              {activeReport.options && activeReport.options.length > 0 ? (
+                <ul className="space-y-1">
+                  {activeReport.options.map((opt) => {
+                    const right = activeReport.correctOptionKey !== null && opt.key === activeReport.correctOptionKey;
+                    return (
+                      <li key={opt.key} className={right ? "flex items-center justify-between gap-2 rounded-control border border-success-600 bg-success-50 px-3 py-2 font-semibold text-fg" : "flex items-center justify-between gap-2 rounded-control border border-line px-3 py-2 text-fg"}>
                         <span>
-                          <span className="font-mono font-bold mr-1.5">[{opt.key}]</span>
+                          <span className="mr-1.5 font-bold">{opt.key}</span>
                           {opt.text}
                         </span>
-                        {activeReport.correctOptionKey !== null && opt.key === activeReport.correctOptionKey && (
-                          <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        {right && (
+                          <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-success-700">
+                            <Check aria-hidden="true" className="size-3.5" /> Answer key
+                          </span>
                         )}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-[11px] text-slate-400 italic">No options recorded</div>
-                  )}
-                </div>
-              </div>
-
-              {/* Explanation */}
-              {activeReport.explanation && (
-                <div className="space-y-1.5">
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                    Official Explanation
-                  </span>
-                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 font-normal">
-                    {activeReport.explanation}
-                  </div>
-                </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className="text-fg-secondary">No options recorded.</p>
               )}
+            </section>
 
-              {/* Candidate Feedback */}
-              <div className="space-y-1.5">
-                <span className="text-[11px] font-bold text-accent-700 uppercase tracking-wider">
-                  Candidate Feedback ({activeReport.issueType})
-                </span>
-                <div className="p-3 bg-accent-50/80 border border-accent-200 rounded-xl text-xs text-accent-950 font-medium">
-                  {activeReport.description}
-                  {activeReport.suggestedFix && (
-                    <div className="mt-2 pt-2 border-t border-accent-200/80 text-[11px]">
-                      <span className="font-bold">Candidate Suggested Fix: </span>
-                      {activeReport.suggestedFix}
-                    </div>
-                  )}
-                </div>
-              </div>
+            {activeReport.explanation && (
+              <section className="space-y-1.5">
+                <h3 className="text-[11.5px] font-semibold uppercase tracking-[.08em] text-ink-500">Explanation</h3>
+                <p className="whitespace-pre-wrap rounded-control border border-line bg-ink-50 p-3 text-fg">{activeReport.explanation}</p>
+              </section>
+            )}
 
-              {/* Resolution Action */}
-              <div className="pt-3 border-t border-slate-100 space-y-3">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700 block">Change Status</label>
-                  <select
-                    value={resolutionStatus}
-                    onChange={(e) => setResolutionStatus(e.target.value)}
-                    className="w-full text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl p-2 text-slate-800 cursor-pointer"
-                  >
-                    <option value="OPEN">OPEN (Unreviewed)</option>
-                    <option value="UNDER_REVIEW">UNDER REVIEW (Investigation in progress)</option>
-                    <option value="VERIFIED">VERIFIED (Issue Confirmed / Bounty Granted)</option>
-                    <option value="RESOLVED">RESOLVED (Fixed &amp; Closed)</option>
-                    <option value="REJECTED">REJECTED (Invalid / Dismissed)</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700 block">Internal Staff Note</label>
-                  <textarea
-                    value={resolutionNotes}
-                    onChange={(e) => setResolutionNotes(e.target.value)}
-                    placeholder="Enter audit rationale, fix details, or explanation for rejection..."
-                    rows={2}
-                    className="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl p-2 text-slate-800 resize-none focus:outline-hidden focus:ring-1 focus:ring-blue-500"
-                  />
-                </div>
-
-                {updateSuccessMessage && (
-                  <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    <span>{updateSuccessMessage}</span>
-                  </div>
+            <section className="space-y-1.5">
+              <h3 className="text-[11.5px] font-semibold uppercase tracking-[.08em] text-ink-500">What the student said</h3>
+              <div className="rounded-control border border-primary-200 bg-primary-50 p-3 text-fg">
+                <p className="whitespace-pre-wrap">{activeReport.description}</p>
+                {activeReport.suggestedFix && (
+                  <p className="mt-2 border-t border-primary-200 pt-2">
+                    <span className="font-semibold">Suggested fix: </span>
+                    {activeReport.suggestedFix}
+                  </p>
                 )}
-
-                <Button
-                  type="button"
-                  size="sm"
-                  disabled={isUpdating}
-                  onClick={() => handleUpdateStatus(activeReport.id, resolutionStatus, resolutionNotes)}
-                  className="w-full bg-primary-700 hover:bg-primary-800 text-white font-bold text-xs shadow-xs"
-                >
-                  {isUpdating ? "Saving..." : "Update Report Status"}
-                </Button>
               </div>
-            </div>
-          ) : (
-            <div className="p-12 text-center bg-white rounded-2xl border border-dashed border-slate-200 text-slate-400 text-xs font-medium space-y-1">
-              <Eye className="w-5 h-5 text-slate-300 mx-auto" />
-              <p>Select a question report to inspect full details and take administrative action.</p>
-            </div>
-          )}
-        </div>
-      </div>
+            </section>
+
+            <section className="space-y-3 border-t border-line pt-4">
+              <StudioField label="Status" htmlFor="qr-resolution-status">
+                <select id="qr-resolution-status" value={resolutionStatus} onChange={(e) => setResolutionStatus(e.target.value)} className={studioControl}>
+                  <option value="OPEN">Open (not reviewed)</option>
+                  <option value="UNDER_REVIEW">Under review</option>
+                  <option value="VERIFIED">Verified (issue confirmed)</option>
+                  <option value="RESOLVED">Resolved (fixed and closed)</option>
+                  <option value="REJECTED">Dismissed (not an issue)</option>
+                </select>
+              </StudioField>
+              <StudioField label="Internal note" htmlFor="qr-resolution-note">
+                <textarea id="qr-resolution-note" value={resolutionNotes} onChange={(e) => setResolutionNotes(e.target.value)} placeholder="Why, and what was fixed (not shown to the student)" rows={3} className={`${studioControl} py-2`} />
+              </StudioField>
+              {updateSuccessMessage && (
+                <p role="status" className="flex items-center gap-1.5 text-[13px] font-semibold text-success-700">
+                  <CheckCircle2 aria-hidden="true" className="size-4" /> {updateSuccessMessage}
+                </p>
+              )}
+              {updateError && (
+                <p role="alert" className="flex items-center gap-1.5 text-[13px] font-semibold text-danger-700">
+                  <AlertTriangle aria-hidden="true" className="size-4" /> {updateError}
+                </p>
+              )}
+            </section>
+          </div>
+        )}
+      </StudioDrawer>
     </div>
   );
 }
-

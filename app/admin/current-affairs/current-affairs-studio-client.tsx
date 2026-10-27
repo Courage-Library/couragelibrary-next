@@ -270,7 +270,7 @@ export default function AdminCurrentAffairsStudioPage({ initialStatus = 'ALL' }:
   };
 
   return (
-    <div className="space-y-5 pb-12">
+    <div className="flex flex-col gap-4 pb-12">
       {/* Toast Notification */}
       {toastMessage && (
         <div

@@ -138,6 +138,7 @@ jobs:
           q ADMIN-UX1B node scripts/test_admin_ux1b.cjs || fail=1
           q STUDIO-P2 node scripts/test_studio_phase2.cjs || fail=1
           q MISTAKE-VERSION-1 node scripts/test_mistake_version1.cjs || fail=1
+          q STUDIO-P3 node scripts/test_studio_phase3.cjs || fail=1
           q MIGRATION-RUNNER-SELFTEST node scripts/db/apply-migration.cjs --self-test || fail=1
           q KILL-LEFTOVER-SELFTEST node scripts/ci/kill-leftover-server.cjs --self-test || fail=1
           exit $fail

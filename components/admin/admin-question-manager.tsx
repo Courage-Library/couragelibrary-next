@@ -14,7 +14,8 @@ import {
   deleteQuestionAction,
   uploadBulkImportImageAction,
 } from "@/app/admin/actions";
-import { AdminBreadcrumbs } from "@/components/admin/admin-breadcrumbs";
+import { StudioDrawer } from "@/components/admin/studio/studio-drawer";
+import { StudioField, StudioPageHeader, studioControl, studioPrimaryAction, studioQuietAction } from "@/components/admin/studio/studio-page";
 import { Card } from "@/components/ui/legacy/card";
 import { Button } from "@/components/ui/legacy/button";
 import { Alert } from "@/components/ui/legacy/alert";
@@ -26,7 +27,6 @@ import {
   RotateCcw,
   Edit2,
   Trash2,
-  X,
   Upload,
   ChevronLeft,
   ChevronRight,
@@ -65,6 +65,8 @@ export function AdminQuestionManager({
   const [optionsType, setOptionsType] = useState<"text" | "image" | "mixed">("text");
 
   // Question Form Fields
+  // Courage Studio (phase 3 batch 1): the add form lives in a drawer
+  const [addOpen, setAddOpen] = useState(false);
   const [statement, setStatement] = useState("");
   const [questionImageUrl, setQuestionImageUrl] = useState("");
   const [optAText, setOptAText] = useState("");
@@ -255,7 +257,8 @@ export function AdminQuestionManager({
       if (res.error) {
         setActionFeedback({ type: "error", text: actionErrorMessage(res) });
       } else {
-        setActionFeedback({ type: "success", text: "✓ Question created successfully!" });
+        setActionFeedback({ type: "success", text: "Question added." });
+        setAddOpen(false);
         setStatement("");
         setQuestionImageUrl("");
         setOptAText("");
@@ -395,28 +398,25 @@ export function AdminQuestionManager({
   const startIndex = (validPage - 1) * PAGE_SIZE;
   const paginatedQuestions = filteredQuestions.slice(startIndex, startIndex + PAGE_SIZE);
 
-  const breadcrumbs = [
-    { label: "Mock Test Management", href: "/admin/mock-tests-management" },
-    { label: "Categories", href: "/admin/categories" },
-    { label: "Question Bank", active: true },
-  ];
 
   return (
     <div className="space-y-6 max-w-7xl pb-16">
-      {/* Breadcrumbs */}
-      <AdminBreadcrumbs items={breadcrumbs} />
-
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2.5">
-            <HelpCircle className="w-6 h-6 text-blue-600" /> Question Bank Studio
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
-            Add and manage mock test questions with diagrams, options types, and PYQ metadata. Questions are in English (decision #35).
-          </p>
-        </div>
-      </div>
+      <StudioPageHeader
+        title="Question bank"
+        description="Every question students can see, with its exam, difficulty and past-paper details. Questions are in English (decision #35)."
+        actions={
+          <Link href="/admin/bulk-import" className={studioQuietAction}>
+            <FileUp aria-hidden="true" className="size-4" />
+            Bulk import
+          </Link>
+        }
+        primary={
+          <button type="button" onClick={() => setAddOpen(true)} className={studioPrimaryAction}>
+            <PlusCircle aria-hidden="true" className="size-4" />
+            Add question
+          </button>
+        }
+      />
 
       {/* Feedback Alerts */}
       {actionFeedback && (
@@ -425,23 +425,17 @@ export function AdminQuestionManager({
         </Alert>
       )}
 
-      {/* TWO COLUMN WORKSPACE */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* LEFT COLUMN: Add New Question Form */}
-        <div className="lg:col-span-5 space-y-4">
-          <Card className="p-5 sm:p-6 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-4">
-            <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-              <PlusCircle className="w-5 h-5 text-blue-600" />
-              <h2 className="text-sm font-bold text-slate-900">Add New Question</h2>
-            </div>
+      {/* Courage Studio list + drawer: "Add question" opens the form in a drawer */}
+      <StudioDrawer open={addOpen} onClose={() => setAddOpen(false)} title="Add question" subtitle="Saved questions appear in the list.">
+        <div>
 
             <form onSubmit={handleCreateQuestion} className="space-y-4">
               {/* Category / Pattern / Section Cascading Dropdowns */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Category <span className="text-rose-500">*</span>
+                <label htmlFor="qm-field-1" className="block text-xs font-bold text-slate-700 mb-1">
+                  Category <span className="text-danger-700">*</span>
                 </label>
-                <select
+                <select id="qm-field-1"
                   value={formCategory}
                   onChange={(e) => handleFormCategoryChange(e.target.value)}
                   className="w-full px-3 py-2.5 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-blue-500"
@@ -457,8 +451,8 @@ export function AdminQuestionManager({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Exam Pattern</label>
-                <select
+                <label htmlFor="qm-field-2" className="block text-xs font-bold text-slate-700 mb-1">Exam Pattern</label>
+                <select id="qm-field-2"
                   value={formPattern}
                   onChange={(e) => handleFormPatternChange(e.target.value)}
                   className="w-full px-3 py-2.5 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-blue-500"
@@ -473,8 +467,8 @@ export function AdminQuestionManager({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Section</label>
-                <select
+                <label htmlFor="qm-field-3" className="block text-xs font-bold text-slate-700 mb-1">Section</label>
+                <select id="qm-field-3"
                   value={formSection}
                   onChange={(e) => setFormSection(e.target.value)}
                   className="w-full px-3 py-2.5 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-blue-500"
@@ -491,8 +485,8 @@ export function AdminQuestionManager({
               {/* Question Text with Underline Helper */}
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="block text-xs font-bold text-slate-700">
-                    Question Text <span className="text-rose-500">*</span>
+                  <label htmlFor="qm-field-4" className="block text-xs font-bold text-slate-700">
+                    Question Text <span className="text-danger-700">*</span>
                   </label>
                   <button
                     type="button"
@@ -502,7 +496,7 @@ export function AdminQuestionManager({
                     <Underline className="w-3 h-3" /> Underline Selection
                   </button>
                 </div>
-                <textarea
+                <textarea id="qm-field-4"
                   ref={addTextareaRef}
                   value={statement}
                   onChange={(e) => setStatement(e.target.value)}
@@ -636,10 +630,10 @@ export function AdminQuestionManager({
               {/* Correct Answer & Difficulty */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Correct Answer <span className="text-rose-500">*</span>
+                  <label htmlFor="qm-field-5" className="block text-xs font-bold text-slate-700 mb-1">
+                    Correct Answer <span className="text-danger-700">*</span>
                   </label>
-                  <select
+                  <select id="qm-field-5"
                     value={correctAnswer}
                     onChange={(e) => setCorrectAnswer(e.target.value)}
                     className="w-full px-3 py-2.5 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-blue-500"
@@ -652,8 +646,8 @@ export function AdminQuestionManager({
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Difficulty</label>
-                  <select
+                  <label htmlFor="qm-field-6" className="block text-xs font-bold text-slate-700 mb-1">Difficulty</label>
+                  <select id="qm-field-6"
                     value={difficulty}
                     onChange={(e) => setDifficulty(e.target.value)}
                     className="w-full px-3 py-2.5 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-blue-500"
@@ -677,6 +671,7 @@ export function AdminQuestionManager({
                     value={pyqSource}
                     onChange={(e) => setPyqSource(e.target.value)}
                     placeholder="e.g. SSC CGL, Railway"
+                    aria-label="PYQ exam"
                     className="w-full px-3 py-2 text-xs font-semibold rounded-lg border border-accent-200 bg-white focus:outline-hidden focus:border-accent-500"
                   />
                   <input
@@ -684,6 +679,7 @@ export function AdminQuestionManager({
                     value={pyqYear}
                     onChange={(e) => setPyqYear(e.target.value)}
                     placeholder="e.g. 2022"
+                    aria-label="PYQ year"
                     min={1990}
                     max={2030}
                     className="w-full px-3 py-2 text-xs font-semibold rounded-lg border border-accent-200 bg-white focus:outline-hidden focus:border-accent-500"
@@ -693,8 +689,8 @@ export function AdminQuestionManager({
 
               {/* Language Selector */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Language</label>
-                <select
+                <label htmlFor="qm-field-7" className="block text-xs font-bold text-slate-700 mb-1">Language</label>
+                <select id="qm-field-7"
                   value={language}
                   onChange={(e) => setLanguage(e.target.value)}
                   className="w-full px-3 py-2.5 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-blue-500"
@@ -705,8 +701,8 @@ export function AdminQuestionManager({
 
               {/* Explanation */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Explanation</label>
-                <textarea
+                <label htmlFor="qm-field-8" className="block text-xs font-bold text-slate-700 mb-1">Explanation</label>
+                <textarea id="qm-field-8"
                   value={explanation}
                   onChange={(e) => setExplanation(e.target.value)}
                   placeholder="Explain the solution..."
@@ -726,31 +722,12 @@ export function AdminQuestionManager({
                 {isPending ? "Saving Question..." : "Add Question"}
               </Button>
             </form>
-          </Card>
-
-          {/* Bulk Import Link Box */}
-          <Card className="p-5 rounded-2xl border border-slate-200/80 bg-white shadow-2xs space-y-3">
-            <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 shrink-0">
-                <FileUp className="w-5 h-5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-xs font-bold text-slate-900">Bulk Question Importer</h3>
-                <p className="text-[11px] text-slate-500 leading-relaxed mt-0.5">
-                  Generate AI prompts, bulk-upload option diagrams, validate CSV, and preview exam view simulations.
-                </p>
-                <Link href="/admin/bulk-import" className="inline-block mt-2.5">
-                  <Button size="sm" variant="outline" className="text-xs font-semibold border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-2xs">
-                    Open Bulk Import Studio →
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </Card>
         </div>
+      </StudioDrawer>
 
-        {/* RIGHT COLUMN: Question Bank List & Filters */}
-        <div className="lg:col-span-7 space-y-4">
+      <div className="flex flex-col gap-4">
+        {/* Question bank list & filters */}
+        <div className="space-y-4">
           {/* Filters Bar */}
           <Card className="p-4 bg-white border-slate-200/80 rounded-2xl shadow-2xs space-y-3">
             <div className="relative w-full">
@@ -763,16 +740,19 @@ export function AdminQuestionManager({
                   setCurrentPage(1);
                 }}
                 placeholder="Search question text, section, or PYQ..."
+                aria-label="Search questions"
                 className="w-full pl-9 pr-3 py-2 text-xs font-medium rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-hidden focus:border-blue-500"
               />
             </div>
 
             {/* Filter Dropdowns Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+              <StudioField label="Exam" htmlFor="qm-filterCategory">
               <select
+                id="qm-filterCategory"
                 value={filterCategory}
                 onChange={(e) => handleFilterCategoryChange(e.target.value)}
-                className="p-2 text-xs font-semibold rounded-lg border border-slate-200 bg-white"
+                className={studioControl}
               >
                 <option value="ALL">All Categories</option>
                 {taxonomy.exams.map((c) => (
@@ -781,11 +761,14 @@ export function AdminQuestionManager({
                   </option>
                 ))}
               </select>
+              </StudioField>
 
+              <StudioField label="Pattern" htmlFor="qm-filterPattern">
               <select
+                id="qm-filterPattern"
                 value={filterPattern}
                 onChange={(e) => handleFilterPatternChange(e.target.value)}
-                className="p-2 text-xs font-semibold rounded-lg border border-slate-200 bg-white"
+                className={studioControl}
               >
                 <option value="ALL">All Patterns</option>
                 {availablePatternsForFilter.map((p) => (
@@ -794,14 +777,17 @@ export function AdminQuestionManager({
                   </option>
                 ))}
               </select>
+              </StudioField>
 
+              <StudioField label="Section" htmlFor="qm-filterSection">
               <select
+                id="qm-filterSection"
                 value={filterSection}
                 onChange={(e) => {
                   setFilterSection(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="p-2 text-xs font-semibold rounded-lg border border-slate-200 bg-white"
+                className={studioControl}
               >
                 <option value="ALL">All Sections</option>
                 {taxonomy.subjects.map((s) => (
@@ -810,44 +796,54 @@ export function AdminQuestionManager({
                   </option>
                 ))}
               </select>
+              </StudioField>
 
+              <StudioField label="Difficulty" htmlFor="qm-filterDifficulty">
               <select
+                id="qm-filterDifficulty"
                 value={filterDifficulty}
                 onChange={(e) => {
                   setFilterDifficulty(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="p-2 text-xs font-semibold rounded-lg border border-slate-200 bg-white"
+                className={studioControl}
               >
                 <option value="ALL">All Difficulties</option>
                 <option value="easy">Easy</option>
                 <option value="medium">Medium</option>
                 <option value="hard">Hard</option>
               </select>
+              </StudioField>
 
+              <StudioField label="Type" htmlFor="qm-filterPyq">
               <select
+                id="qm-filterPyq"
                 value={filterPyq}
                 onChange={(e) => {
                   setFilterPyq(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="p-2 text-xs font-semibold rounded-lg border border-slate-200 bg-white"
+                className={studioControl}
               >
                 <option value="ALL">All Types</option>
                 <option value="pyq">PYQ Questions Only</option>
               </select>
+              </StudioField>
 
+              <StudioField label="Language" htmlFor="qm-filterLanguage">
               <select
+                id="qm-filterLanguage"
                 value={filterLanguage}
                 onChange={(e) => {
                   setFilterLanguage(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="p-2 text-xs font-semibold rounded-lg border border-slate-200 bg-white"
+                className={studioControl}
               >
                 <option value="ALL">All Languages</option>
                 <option value="english">English</option>
               </select>
+              </StudioField>
             </div>
 
             {/* Results Count & Reset Filters */}
@@ -916,8 +912,9 @@ export function AdminQuestionManager({
                           }
                         }}
                         disabled={isPending}
-                        className="p-1 rounded-lg border border-rose-200 text-rose-500 hover:bg-rose-50 transition"
-                        title="Delete Question"
+                        className="focus-ring inline-flex size-9 items-center justify-center rounded-control border border-danger-200 text-danger-700 hover:bg-danger-50"
+                        aria-label="Delete question"
+                        title="Delete question"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -953,7 +950,7 @@ export function AdminQuestionManager({
                       </span>
                     )}
                     {q.status !== "published" && (
-                      <span className="bg-rose-50 border border-rose-200 text-rose-600 px-2 py-0.5 rounded-md font-semibold text-[11px]">
+                      <span className="rounded-badge border border-ink-300 bg-ink-100 px-2 py-0.5 text-caption font-semibold text-ink-700">
                         Inactive
                       </span>
                     )}
@@ -971,6 +968,7 @@ export function AdminQuestionManager({
                 size="sm"
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={validPage === 1}
+                aria-label="Previous page"
                 className="px-2.5 py-1 text-xs"
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
@@ -995,6 +993,7 @@ export function AdminQuestionManager({
                 size="sm"
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={validPage === totalPages}
+                aria-label="Next page"
                 className="px-2.5 py-1 text-xs"
               >
                 <ChevronRight className="w-3.5 h-3.5" />
@@ -1004,27 +1003,15 @@ export function AdminQuestionManager({
         </div>
       </div>
 
-      {/* EDIT QUESTION MODAL */}
-      {editingQuestion && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <Card className="w-full max-w-xl max-h-[90vh] overflow-y-auto p-6 bg-white border-slate-200 shadow-2xl space-y-4 relative">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
-                <Edit2 className="w-4 h-4 text-blue-600" /> Edit Question
-              </h3>
-              <button
-                onClick={() => setEditingQuestion(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
+      {/* EDIT QUESTION (Courage Studio drawer) */}
+      <StudioDrawer open={!!editingQuestion} onClose={() => setEditingQuestion(null)} title="Edit question">
+        {editingQuestion && (
+          <div>
             <form onSubmit={handleSaveEdit} className="space-y-4">
               {/* Question Text */}
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="block text-xs font-bold text-slate-700">Question Text</label>
+                  <label htmlFor="qm-field-9" className="block text-xs font-bold text-slate-700">Question Text</label>
                   <button
                     type="button"
                     onClick={() => applyUnderline(true)}
@@ -1033,7 +1020,7 @@ export function AdminQuestionManager({
                     <Underline className="w-3 h-3" /> Underline
                   </button>
                 </div>
-                <textarea
+                <textarea id="qm-field-9"
                   ref={editTextareaRef}
                   value={editStatement}
                   onChange={(e) => setEditStatement(e.target.value)}
@@ -1074,7 +1061,7 @@ export function AdminQuestionManager({
 
               {/* Options A-D */}
               <div className="space-y-2">
-                <label className="block text-xs font-bold text-slate-700">Options</label>
+                <label htmlFor="qm-field-10" className="block text-xs font-bold text-slate-700">Options</label>
                 {[
                   { key: "A", val: editOptAText, setVal: setEditOptAText, color: "bg-emerald-100 text-emerald-800" },
                   { key: "B", val: editOptBText, setVal: setEditOptBText, color: "bg-blue-100 text-blue-800" },
@@ -1085,7 +1072,7 @@ export function AdminQuestionManager({
                     <span className={`w-7 h-7 rounded-lg text-xs font-black flex items-center justify-center shrink-0 ${opt.color}`}>
                       {opt.key}
                     </span>
-                    <input
+                    <input id="qm-field-10"
                       type="text"
                       value={opt.val}
                       onChange={(e) => opt.setVal(e.target.value)}
@@ -1099,8 +1086,8 @@ export function AdminQuestionManager({
               {/* Correct Answer & Difficulty */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Correct Answer</label>
-                  <select
+                  <label htmlFor="qm-field-11" className="block text-xs font-bold text-slate-700 mb-1">Correct Answer</label>
+                  <select id="qm-field-11"
                     value={editCorrectAnswer}
                     onChange={(e) => setEditCorrectAnswer(e.target.value)}
                     className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-blue-500"
@@ -1112,8 +1099,8 @@ export function AdminQuestionManager({
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Difficulty</label>
-                  <select
+                  <label htmlFor="qm-field-12" className="block text-xs font-bold text-slate-700 mb-1">Difficulty</label>
+                  <select id="qm-field-12"
                     value={editDifficulty}
                     onChange={(e) => setEditDifficulty(e.target.value)}
                     className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-blue-500"
@@ -1141,6 +1128,7 @@ export function AdminQuestionManager({
                     value={editPyqYear}
                     onChange={(e) => setEditPyqYear(e.target.value)}
                     placeholder="e.g. 2022"
+                    aria-label="PYQ year"
                     className="w-full px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-accent-200 bg-white"
                   />
                 </div>
@@ -1148,8 +1136,8 @@ export function AdminQuestionManager({
 
               {/* Language */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Language</label>
-                <select
+                <label htmlFor="qm-field-13" className="block text-xs font-bold text-slate-700 mb-1">Language</label>
+                <select id="qm-field-13"
                   value={editLanguage}
                   onChange={(e) => setEditLanguage(e.target.value)}
                   className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:border-blue-500"
@@ -1160,8 +1148,8 @@ export function AdminQuestionManager({
 
               {/* Explanation */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Explanation</label>
-                <textarea
+                <label htmlFor="qm-field-14" className="block text-xs font-bold text-slate-700 mb-1">Explanation</label>
+                <textarea id="qm-field-14"
                   value={editExplanation}
                   onChange={(e) => setEditExplanation(e.target.value)}
                   rows={2}
@@ -1192,9 +1180,9 @@ export function AdminQuestionManager({
                 </Button>
               </div>
             </form>
-          </Card>
-        </div>
-      )}
+          </div>
+        )}
+      </StudioDrawer>
     </div>
   );
 }

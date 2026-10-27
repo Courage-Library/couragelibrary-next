@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
-import { Newspaper, Plus, Sparkles, Wand2, RefreshCw } from 'lucide-react';
-import { Badge } from '@/components/ui/legacy/badge';
+import { Plus, Sparkles, Wand2, RefreshCw, ListChecks } from 'lucide-react';
+import { StudioPageHeader, studioPrimaryAction, studioQuietAction } from '@/components/admin/studio/studio-page';
 
 interface Props {
   onOpenCreate: () => void;
@@ -13,80 +13,40 @@ interface Props {
   isRefreshing: boolean;
 }
 
-export function CurrentAffairsHeader({
-  onOpenCreate,
-  onOpenImport,
-  onOpenPrompt,
-  onOpenQuiz,
-  onRefresh,
-  isRefreshing,
-}: Props) {
+/** Courage Studio template (phase 3 batch 1): title + one line; ONE primary ("New current affair"); quiet secondary actions. */
+export function CurrentAffairsHeader({ onOpenCreate, onOpenImport, onOpenPrompt, onOpenQuiz, onRefresh, isRefreshing }: Props) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-5 border-b border-slate-200">
-      <div className="space-y-1">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-primary-700 text-white flex items-center justify-center shadow-xs">
-            <Newspaper className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold text-slate-900 tracking-tight">Current Affairs Studio</h1>
-              <Badge variant="indigo" className="text-[10px] px-2 py-0.5 bg-blue-50 text-blue-700 border-blue-200 font-mono font-semibold">
-                v1.1.0 CANONICAL
-              </Badge>
-            </div>
-            <p className="text-xs text-slate-500">
-              Authoritative editorial workbench for daily news, taxonomy resolution, exam mappings &amp; publication
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-2 flex-wrap">
-        <button
-          onClick={onRefresh}
-          disabled={isRefreshing}
-          className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs"
-          title="Refresh Studio Data"
-        >
-          <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-blue-600' : ''}`} />
-          <span className="hidden sm:inline">Refresh</span>
-        </button>
-
-        {onOpenQuiz && (
-          <button
-            onClick={onOpenQuiz}
-            className="px-3 py-2 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Daily 10Q Quiz</span>
+    <StudioPageHeader
+      title="Current affairs"
+      description="Daily news for students: write or import, review, compile and publish."
+      actions={
+        <>
+          <button type="button" onClick={onRefresh} disabled={isRefreshing} className={studioQuietAction} aria-label="Refresh the list and counts">
+            <RefreshCw aria-hidden="true" className={`size-4 ${isRefreshing ? 'motion-safe:animate-spin' : ''}`} />
+            Refresh
           </button>
-        )}
-
-        <button
-          onClick={onOpenPrompt}
-          className="px-3 py-2 rounded-xl border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs"
-        >
-          <Wand2 className="w-3.5 h-3.5 text-purple-600" />
-          <span>Prompt Generator</span>
+          {onOpenQuiz && (
+            <button type="button" onClick={onOpenQuiz} className={studioQuietAction}>
+              <ListChecks aria-hidden="true" className="size-4" />
+              Daily 10Q quiz
+            </button>
+          )}
+          <button type="button" onClick={onOpenPrompt} className={studioQuietAction}>
+            <Wand2 aria-hidden="true" className="size-4" />
+            Prompt generator
+          </button>
+          <button type="button" onClick={onOpenImport} className={studioQuietAction}>
+            <Sparkles aria-hidden="true" className="size-4" />
+            Import from AI
+          </button>
+        </>
+      }
+      primary={
+        <button type="button" onClick={onOpenCreate} className={studioPrimaryAction}>
+          <Plus aria-hidden="true" className="size-4" />
+          New current affair
         </button>
-
-        <button
-          onClick={onOpenImport}
-          className="px-3 py-2 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs"
-        >
-          <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-          <span>Import from AI</span>
-        </button>
-
-        <button
-          onClick={onOpenCreate}
-          className="px-3.5 py-2 rounded-xl bg-primary-700 hover:bg-primary-800 text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs"
-        >
-          <Plus className="w-4 h-4" />
-          <span>New Current Affair</span>
-        </button>
-      </div>
-    </div>
+      }
+    />
   );
 }

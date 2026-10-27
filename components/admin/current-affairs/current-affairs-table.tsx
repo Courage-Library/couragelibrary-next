@@ -1,17 +1,17 @@
 'use client';
 
+import { StatusChip } from '@/components/admin/status-chip';
+import { StudioEmpty } from '@/components/admin/studio/studio-page';
 import React from 'react';
 import {
   AdminCurrentAffairsListItem,
   CurrentAffairsImportanceTier,
   CurrentAffairsStatus,
 } from '@/types/current-affairs';
-import { Badge } from '@/components/ui/legacy/badge';
 import {
   Eye,
   Edit,
   Send,
-  CheckCircle2,
   Cpu,
   Globe2,
   GitBranch,
@@ -20,7 +20,6 @@ import {
   History,
   AlertCircle,
   Clock,
-  Layers,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
@@ -60,61 +59,20 @@ export function CurrentAffairsTable({
   onDiscard,
   onViewHistory,
 }: Props) {
-  const getStatusBadge = (status: CurrentAffairsStatus) => {
-    switch (status) {
-      case 'DRAFT':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-accent-50 text-accent-700 border border-accent-200">
-            <span className="w-1.5 h-1.5 rounded-full bg-primary-700" /> Draft
-          </span>
-        );
-      case 'IN_REVIEW':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
-            <Clock className="w-2.5 h-2.5" /> In Review
-          </span>
-        );
-      case 'APPROVED':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-            <CheckCircle2 className="w-2.5 h-2.5" /> Approved
-          </span>
-        );
-      case 'COMPILED':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
-            <Cpu className="w-2.5 h-2.5" /> Compiled
-          </span>
-        );
-      case 'PUBLISHED':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-            <Globe2 className="w-2.5 h-2.5" /> Published
-          </span>
-        );
-      case 'ARCHIVED':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
-            <Archive className="w-2.5 h-2.5" /> Archived
-          </span>
-        );
-      default:
-        return <Badge variant="neutral">{status}</Badge>;
-    }
-  };
+  // Courage Studio (phase 3 batch 1): the one v3 status chip (text always, never colour alone)
+  const getStatusBadge = (status: CurrentAffairsStatus) => <StatusChip status={status} />;
 
-  const getTierBadge = (tier: CurrentAffairsImportanceTier) => {
-    switch (tier) {
-      case 'CRITICAL':
-        return <span className="text-[10px] font-bold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">CRITICAL</span>;
-      case 'HIGH':
-        return <span className="text-[10px] font-bold text-orange-700 bg-orange-50 px-1.5 py-0.5 rounded border border-orange-200">HIGH</span>;
-      case 'MEDIUM':
-        return <span className="text-[10px] font-medium text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">MEDIUM</span>;
-      case 'LOW':
-        return <span className="text-[10px] font-medium text-slate-600 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200">LOW</span>;
-    }
+  const TIER: Record<CurrentAffairsImportanceTier, string> = {
+    CRITICAL: 'border-danger-200 bg-danger-50 text-danger-800',
+    HIGH: 'border-warning-200 bg-warning-50 text-warning-800',
+    MEDIUM: 'border-primary-200 bg-primary-50 text-primary-700',
+    LOW: 'border-ink-300 bg-ink-100 text-ink-700',
   };
+  const getTierBadge = (tier: CurrentAffairsImportanceTier) => (
+    <span className={`inline-flex items-center rounded-badge border px-2 py-0.5 text-caption font-semibold ${TIER[tier] ?? TIER.LOW}`}>
+      {tier.charAt(0) + tier.slice(1).toLowerCase()}
+    </span>
+  );
 
   if (isLoading) {
     return (
@@ -127,20 +85,14 @@ export function CurrentAffairsTable({
 
   if (items.length === 0) {
     return (
-      <div className="bg-white rounded-xl border border-slate-200 p-12 text-center shadow-xs">
-        <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
-          <Layers className="w-6 h-6" />
-        </div>
-        <h3 className="mt-3 text-sm font-bold text-slate-800">No Current Affairs Found</h3>
-        <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-          No articles match your active filter criteria. Try changing filters or create a new draft.
-        </p>
+      <div className="rounded-card border border-line bg-surface">
+        <StudioEmpty title="No current affairs here yet" body="Nothing matches these filters. Clear them, or start with New current affair (or Import from AI)." />
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden flex flex-col">
+    <div className="rounded-card border border-line bg-surface overflow-hidden flex flex-col">
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse text-xs">
           <thead>
@@ -164,14 +116,14 @@ export function CurrentAffairsTable({
                   {/* Headline & Details */}
                   <td className="py-3 px-4">
                     <div className="space-y-0.5">
-                      <div className="font-semibold text-slate-900 line-clamp-1 hover:text-blue-600 cursor-pointer" onClick={() => onPreview(item)}>
+                      <button type="button" className="focus-ring line-clamp-1 rounded-control text-left font-semibold text-fg hover:text-link hover:underline" onClick={() => onPreview(item)}>
                         {item.headline}
-                      </div>
+                      </button>
                       <div className="text-[11px] font-mono text-slate-400 truncate max-w-md">
                         /{item.slug}
                       </div>
                       {item.reviewFeedback && status === 'DRAFT' && (
-                        <div className="inline-flex items-center gap-1 text-[10px] text-rose-600 font-medium bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200 mt-1">
+                        <div className="mt-1 inline-flex items-center gap-1 rounded-badge border border-warning-200 bg-warning-50 px-1.5 py-0.5 text-caption font-medium text-warning-800">
                           <AlertCircle className="w-3 h-3" /> Changes Requested: {item.reviewFeedback}
                         </div>
                       )}
