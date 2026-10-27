@@ -80,11 +80,14 @@ const REQUIRED = {
   '/institutes': ['"Coaching Institutes" heading', H(/^Coaching Institutes/)],
   // UX-2b: /premium permanently redirects to /pricing; the smoke follows the redirect and expects the pricing page
   '/premium': ['"Plans and pricing" heading (redirected from /premium)', H(/^Plans and pricing$/)],
-  '/store': ['"Turn your consistency" heading', H(/Turn your consistency/)],
-  '/wallet': ['"How to Earn CL Coins" heading', H(/How to Earn CL Coins/)],
+  // COINS-FREEZE (fix 1, 2026-10-26): while COINS_ENABLED is off both pages show ONLY the paused notice (lib/coins/flag.ts);
+  // when coins return, restore the store / wallet headings here
+  '/store': ['"Coins are paused for now" heading (COINS_ENABLED off)', H(/^Coins are paused for now$/)],
+  '/wallet': ['"Coins are paused for now" heading (COINS_ENABLED off)', H(/^Coins are paused for now$/)],
   'detail-h1': ['an h1', (pg) => pg.locator('h1').first()],
   '/exams/ssc-cgl': ['"SSC CGL" heading + syllabus section', (pg) => pg.locator('section#syllabus')],
-  '/admin': ['"Admin Studio Overview" heading', H(/Admin Studio Overview/)],
+  // Courage Studio Today v2 (#84): the greeting h1
+  '/admin': ['Today v2 greeting heading ("Good morning, …")', (pg) => pg.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening), / }).first()],
   '/admin/questions': ['"Question Bank Studio" heading', H(/Question Bank Studio/)],
   '/admin/sections': ['"Pattern Sections" heading', H(/Pattern Sections/)],
   '/admin/billing': ['"Subscription Plans" heading', H(/Subscription Plans & Payment Orders/)],

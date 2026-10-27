@@ -53,6 +53,13 @@
       "from": 12,
       "to": 11,
       "reason": "TYPES-1:B-DRILL-REWARD-ARGS directive removed: the drill reward call moved out of the app (fn_submit_mistake_drill awards no coins); the tag stays as a tracked comment (owner Commerce)"
+    },
+    {
+      "batch": "ADMIN-UX-1 D-1",
+      "key": "tsExpectError",
+      "from": 11,
+      "to": 10,
+      "reason": "the community-flag resolve @ts-expect-error removed (24f6c7b: writes the canonical discussion_moderation_flags); its register entry now points at the remaining page-shape escape (D-3)"
     }
   ],
   "resolved": [
