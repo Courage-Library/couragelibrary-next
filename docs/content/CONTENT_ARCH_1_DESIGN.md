@@ -551,3 +551,34 @@ BILINGUAL-1 lands with CA-3 / CA-4.
 - **Merge** (finding 1 of CA-1): every PUBLISHED version that maps the source gets a re-pointed DRAFT copy for the owner to check and publish. DRAFT rows are re-pointed; ARCHIVED rows keep their history. An open DRAFT for that exam / cycle / tier blocks the merge.
 - **Roll-up guards:** a node whose branch is mapped below topic level cannot be moved, nor merged away from under its topic.
 - **Screens** (admin only): `/admin/syllabus/intake` (wizard + recent intakes) and `/admin/syllabus/intake/[id]` (tree review, decision drawer, "Create draft syllabus").
+
+### CA-3 lessons as DB blocks (migrations 117 + 118)
+
+**What landed:**
+- **LessonBlocksSpec v2** (`lib/lessons/blocks.ts`) has 13 block types. The design's list plus three, so that no v1 content is lost:
+  - `list` (objectives, conditions);
+  - `quick_check` (v1 MCQs with feedback);
+  - `callout` with TIP / WARNING / INFO / MEMORY_HOOK (the design's `tip` widened).
+- **Plain text everywhere**, with a small inline subset parsed into an AST:
+  - no HTML tags, markup links, URLs or control characters;
+  - a lone `<` / `>` is allowed, as in "x < 5".
+- **LaTeX** passes an allow-list of commands.
+- **The database validates every BLOCKS version** (`fn_lesson_blocks_errors`, the same verdicts as TS on shared vectors), computes the hash, and freezes published versions.
+- **One current version per (document, language).** Hindi publishes only after the English master.
+- **Lesson bodies (`blocks`, `lesson_meta`) are never client-readable** (column grants). The reader fetches them with the service role only for viewers allowed to read the lesson, as the Storage download did before.
+- **Formulas** (architect ruling): KaTeX 0.16.11, exact-pinned.
+  - Rendered server-side with `trust:false`, `strict:"error"`, `throwOnError:false`, `maxSize` and `maxExpand` limits.
+  - The allow-list is checked first. Any error shows the required plain-text reading instead.
+  - The reading is the screen-reader (sr-only) and crawlable text; inline math carries KaTeX's MathML.
+  - The CSS and fonts are self-hosted and loaded only by `/articles/[slug]`. There is no client KaTeX.
+- **The 2 legacy lessons were converted** from the archived source spec (not the lossy MDX).
+  - Every check passed: archive hash, TS and DB validity, zero lost v1 texts (before and after the DB write), DB hash, pointer moved, legacy row demoted and unchanged.
+  - The Storage files are untouched; a local copy and manifest are under `BACKUP_DIR/ca3/legacy-lessons`.
+- **MDX path retired:**
+  - **Code:** the compile / save / import / publish writers fail closed, and the reader serves BLOCKS only.
+  - **DB (118):** no new legacy version; legacy rows are frozen (demotion only); pointers go to BLOCKS only.
+- **Authoring** until CA-4: `/admin/lessons` (admin), a JSON editor with check, draft, preview (formula readings) and publish.
+- **Out of CA-3:**
+  - node lessons (`learning_documents.node_id`) and the prompt / Hindi flow come in CA-4;
+  - `exam_node_notes` comes in CA-6;
+  - the question-side BILINGUAL-1 migration needs its own go.

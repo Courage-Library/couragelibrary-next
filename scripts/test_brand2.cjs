@@ -11,7 +11,8 @@
  *   C-04 glass only where allowed (nav, home hero, auth card, dashboard header) and ≤ 3 glass groups on the home hero
  *   C-05 fallbacks: solid by default, blur only under @supports AND html:not(.lite); reduced-transparency resets;
  *        html.lite drops large shadows; the lite script runs in <head> with the right thresholds (unit)
- *   C-06 package.json / package-lock dependency sets unchanged (no new npm package, #44)
+ *   C-06 package.json / package-lock dependency sets unchanged (no new npm package, #44) except the exact KaTeX
+ *        pins approved by the CA-3 formula ruling (katex 0.16.11, @types/katex 0.16.7)
  *   C-07 fonts: Inter + Poppins 600/700 + Noto Sans Devanagari 400/600 via next/font, latin + devanagari subsets,
  *        only Inter preloaded; base 16px, line-height 1.6 (1.7 for lang="hi"); no sub-12px text in the new components
  *   C-08 touch targets ≥ 48 px on key buttons (static: pill buttons, nav actions, auth submits)
@@ -247,14 +248,20 @@ async function offline() {
     return `${cases.length} device cases; script ${LITE_MODE_SCRIPT.length} chars`;
   });
 
-  await test('C-06 no new npm package: dependency sets of package.json and package-lock unchanged (#44)', () => {
+  await test('C-06 no new npm package: dependency sets of package.json and package-lock unchanged (#44) except the architect-approved KaTeX pins', () => {
     const EXPECTED = '0bf48bf39d814c6414df932c48ad3531c7c8ca715a035777baa990123abb45eb'; // BRAND-1 baseline (0dd5c0e)
+    // CA-3 formula ruling (architect, 2026-10-27): KaTeX, exact-pinned, server-side only. Nothing else may be added.
+    const APPROVED = { dependencies: { katex: '0.16.11' }, devDependencies: { '@types/katex': '0.16.7' } };
     const p = JSON.parse(read('package.json'));
     const l = JSON.parse(read('package-lock.json')).packages[''];
     const h = (o) => crypto.createHash('sha256').update(JSON.stringify(o)).digest('hex');
-    assert(h({ d: p.dependencies, dd: p.devDependencies }) === EXPECTED, 'package.json dependencies changed');
-    assert(h({ d: l.dependencies, dd: l.devDependencies }) === EXPECTED, 'package-lock root dependencies changed');
-    return 'unchanged since 0dd5c0e';
+    const strip = (deps, approved) => Object.fromEntries(Object.entries(deps || {}).filter(([k]) => !(k in approved)));
+    for (const [name, src] of [['package.json', p], ['package-lock root', l]]) {
+      for (const sect of ['dependencies', 'devDependencies'])
+        for (const [k, v] of Object.entries(APPROVED[sect])) assert(src[sect] && src[sect][k] === v, `${name}: ${k} must be exactly ${v} (got ${src[sect] && src[sect][k]})`);
+      assert(h({ d: strip(src.dependencies, APPROVED.dependencies), dd: strip(src.devDependencies, APPROVED.devDependencies) }) === EXPECTED, `${name}: dependencies changed beyond the approved KaTeX pins`);
+    }
+    return 'BRAND-1 baseline + katex 0.16.11 / @types/katex 0.16.7 (CA-3 ruling)';
   });
 
   await test('C-07 fonts + typography: Inter / Poppins 600·700 / Noto Sans Devanagari 400·600 via next/font; base 16px, 1.6 / 1.7 (hi); no sub-12px text in new components', () => {

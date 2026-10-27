@@ -73,7 +73,8 @@ export const ADMIN_NAV: NavGroup[] = [
       {
         label: "Learning", href: "/admin/content", icon: "learning", access: "staff",
         children: [
-          { label: "Lessons", href: "/admin/content", icon: "learning", access: "staff" },
+          { label: "Lessons", href: "/admin/lessons", icon: "learning", access: "admin" },
+          { label: "Content Studio (legacy)", href: "/admin/content", icon: "learning", access: "staff" },
           { label: "Topic links", href: "/admin/content/topics", icon: "learning", access: "staff" },
           { label: "Descriptive", href: "/admin/descriptive", icon: "learning", access: "staff" },
         ],
@@ -205,6 +206,8 @@ export const ADMIN_ONLY_ROUTES: readonly string[] = [
   "/admin/adaptive",
   "/admin/billing",
   "/admin/gamification",
+  "/admin/lessons",
+  "/admin/lessons/[id]",
   "/admin/live-tests/[id]/intelligence",
   "/admin/live-tests/[id]/results",
   "/admin/live-tests/intelligence",

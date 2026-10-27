@@ -2,6 +2,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { LearningResolverService } from "@/services/learning/learning-resolver.service";
 import { FEATURE_DISABLED_CODE, isFeatureEnabled } from "@/config/features";
 import { rpcJsonObject } from "@/lib/supabase/rpc";
+import type { LessonBlock, LessonLinkMap, LessonMeta } from "@/lib/lessons/blocks";
 
 export interface ArticleItem {
   id: string;
@@ -19,7 +20,8 @@ export interface ArticleItem {
 }
 
 export interface ArticleDetail extends ArticleItem {
-  contentBody: string | null;
+  /** CA-3: the DB lesson (null when locked, or while no published lesson exists) */
+  lesson: { meta: LessonMeta; blocks: LessonBlock[]; links: LessonLinkMap } | null;
   metaTitle: string | null;
   metaDescription: string | null;
   featuredImageUrl: string | null;
@@ -128,7 +130,7 @@ export class ContentService {
 
   /**
    * GAP2-2a: one published learning document. PRO documents for non-PRO viewers come back with
-   * isLocked = true and contentBody = null (the body is never loaded for them).
+   * isLocked = true and lesson = null (the lesson is never loaded for them).
    */
   static async getArticleBySlug(slug: string): Promise<ArticleDetail | null> {
     const a = await LearningResolverService.getArticle(slug);
@@ -143,7 +145,7 @@ export class ContentService {
       accessLevel: a.access_level,
       isLocked: a.is_locked,
       publishedAt: a.published_at,
-      contentBody: a.is_locked ? null : a.body ?? "This lesson is being prepared. Please check back shortly.",
+      lesson: a.is_locked ? null : a.lesson,
       metaTitle: `${a.title} | Courage Library`,
       metaDescription: `Study ${a.title}${a.topic_name ? ` (${a.topic_name})` : ""} on Courage Library.`,
       featuredImageUrl: null,

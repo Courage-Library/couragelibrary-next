@@ -15,8 +15,11 @@
  * - Batch resolution is a single query regardless of the number of topics (no N+1).
  */
 
-import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { getLearningArtifactStorage, LEARNING_ARTIFACT_BUCKET } from '@/services/storage/learning-artifact-storage';
+import { createAdminServerSupabaseClient, createServerSupabaseClient } from '@/lib/supabase/server';
+import { validateLesson, type LessonBlock, type LessonLinkMap, type LessonMeta } from '@/lib/lessons/blocks';
+
+/** CA-3: private bucket of lesson images (migration 117); students get short-lived signed URLs from the server. */
+export const LESSON_IMAGE_BUCKET = 'lesson-images';
 
 export const LEARNING_DOCUMENT_TYPE_ORDER = [
   'CONCEPT_LESSON',
@@ -43,8 +46,8 @@ export interface ResolvedLearningDocument {
 }
 
 export interface LearningArticle extends ResolvedLearningDocument {
-  /** null whenever is_locked (body is never loaded for locked viewers). */
-  body: string | null;
+  /** CA-3: the DB lesson (meta + blocks); null whenever is_locked (never loaded for locked viewers). */
+  lesson: { meta: LessonMeta; blocks: LessonBlock[]; links: LessonLinkMap } | null;
   published_at: string | null;
   subject_id: string | null;
   subject_name: string | null;
@@ -62,7 +65,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const DOC_SELECT = `
   id, canonical_slug, document_type, access_level, status, current_published_version_id,
   learning_units!inner(id, topic_id, title, estimated_minutes, is_active, topics:canonical_taxonomy_nodes!learning_units_topic_id_node_fkey(id, name, slug, subject_id:root_subject_id, subjects:root_subject_id(name))),
-  current_version:document_versions!fk_learning_doc_current_published_version(id, is_published, review_status, published_at, compiled_artifact_storage_key)
+  current_version:document_versions!fk_learning_doc_current_published_version(id, is_published, review_status, published_at, content_format, language)
 `;
 
 const rank = (t: string) => {
@@ -77,7 +80,10 @@ export function sortLearningDocuments<T extends { document_type: string; title: 
   );
 }
 
-/** True only for a PUBLISHED document whose current version is published and whose unit is active. */
+/**
+ * True only for a PUBLISHED document whose current version is a published DB lesson (CA-3: content_format BLOCKS — the
+ * legacy MDX path is retired, its versions are never served) and whose unit is active.
+ */
 export function isServableDocumentRow(row: any): boolean {
   const unit = Array.isArray(row?.learning_units) ? row.learning_units[0] : row?.learning_units;
   const ver = Array.isArray(row?.current_version) ? row.current_version[0] : row?.current_version;
@@ -88,6 +94,7 @@ export function isServableDocumentRow(row: any): boolean {
     ver.id === row.current_published_version_id &&
     ver.is_published === true &&
     ver.review_status === 'PUBLISHED' &&
+    ver.content_format === 'BLOCKS' &&
     Boolean(unit) &&
     unit.is_active !== false
   );
@@ -109,6 +116,34 @@ function toResolved(row: any, access: LearningViewerAccess): ResolvedLearningDoc
     topic_id: unit?.topic_id,
     topic_name: topic?.name || null,
   };
+}
+
+/** Node links / practice links → hrefs (active nodes only, rolled up to their topic) and image ids → signed URLs. */
+async function resolveLessonLinks(admin: ReturnType<typeof createAdminServerSupabaseClient>, blocks: LessonBlock[]): Promise<LessonLinkMap> {
+  const nodeIds = new Set<string>();
+  const assets = new Set<string>();
+  const scan = (t: string | undefined) => {
+    if (!t) return;
+    for (const m of t.matchAll(/\[\[node:([0-9a-f-]{36})\|/gi)) nodeIds.add(m[1].toLowerCase());
+  };
+  for (const b of blocks) {
+    if (b.type === 'practice_link') nodeIds.add(b.node_id.toLowerCase());
+    if (b.type === 'image') assets.add(b.asset_id);
+    scan(JSON.stringify(b));
+  }
+  const links: LessonLinkMap = { nodes: {}, images: {} };
+  if (nodeIds.size) {
+    const { data } = await admin.from('canonical_taxonomy_nodes').select('id, node_type, parent_id, is_active').in('id', [...nodeIds]).eq('is_active', true);
+    for (const n of data || []) {
+      const { data: topicId } = await admin.rpc('fn_taxonomy_topic_of', { p_node_id: n.id });
+      if (typeof topicId === 'string') links.nodes[n.id] = { topicHref: `/learn/topics/${topicId}`, practiceHref: `/practice/session?topic=${topicId}` };
+    }
+  }
+  for (const a of assets) {
+    const { data } = await admin.storage.from(LESSON_IMAGE_BUCKET).createSignedUrl(a, 60 * 60);
+    if (data?.signedUrl) links.images[a] = data.signedUrl;
+  }
+  return links;
 }
 
 export class LearningResolverService {
@@ -204,8 +239,8 @@ export class LearningResolverService {
   }
 
   /**
-   * One article by slug. The body is loaded from private storage ONLY when the viewer may read
-   * it; locked viewers get metadata with body = null.
+   * One article by slug. The lesson (blocks) is loaded with the service role ONLY when the viewer may read it (the
+   * columns are not client-readable, migration 117); locked viewers get metadata with lesson = null.
    */
   static async getArticle(slug: string): Promise<LearningArticle | null> {
     if (!slug) return null;
@@ -222,19 +257,28 @@ export class LearningResolverService {
     const subject = Array.isArray(topic?.subjects) ? topic.subjects[0] : topic?.subjects;
     const ver = Array.isArray(data.current_version) ? data.current_version[0] : data.current_version;
 
-    let body: string | null = null;
-    if (!doc.is_locked && ver?.compiled_artifact_storage_key) {
+    let lesson: LearningArticle['lesson'] = null;
+    if (!doc.is_locked && ver?.id) {
       try {
-        const res = await getLearningArtifactStorage().get(LEARNING_ARTIFACT_BUCKET, ver.compiled_artifact_storage_key);
-        body = res?.data ? res.data.toString('utf8') : null;
+        const admin = createAdminServerSupabaseClient();
+        const { data: content } = await admin
+          .from('document_versions')
+          .select('lesson_meta, blocks')
+          .eq('id', ver.id)
+          .eq('content_format', 'BLOCKS')
+          .eq('is_published', true)
+          .maybeSingle();
+        // defence in depth: the stored blocks passed the DB validator; re-check before rendering
+        const v = content ? validateLesson(content.lesson_meta, content.blocks) : null;
+        if (v && v.ok) lesson = { meta: v.meta, blocks: v.blocks, links: await resolveLessonLinks(admin, v.blocks) };
       } catch {
-        body = null;
+        lesson = null;
       }
     }
 
     return {
       ...doc,
-      body,
+      lesson,
       published_at: ver?.published_at || null,
       subject_id: topic?.subject_id || null,
       subject_name: subject?.name || null,

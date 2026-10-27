@@ -190,7 +190,8 @@ const RETIRED_TABLES = ['exam_syllabi', 'exam_topics', 'exam_unit_mappings', 'ta
     }
   };
   // same rules as PUBLISHED_TOPIC_MAPPINGS_SELECT + filters in services/curriculum-coverage.service.ts
-  const publishedMappingRows = () => q(`SELECT m.canonical_node_id::text AS canonical_node_id,
+  // CA-2 (116): the coverage reader keys mappings by their topic roll-up (topic_id), as the service selects it
+  const publishedMappingRows = () => q(`SELECT m.topic_id::text AS topic_id,
         json_build_object('weightage_tier', n.weightage_tier, 'required_cognitive_depth', n.required_cognitive_depth, 'is_mandatory', n.is_mandatory,
           'version', json_build_object('exam_id', v.exam_id, 'exam', (SELECT json_build_object('id', e.id, 'title', e.title) FROM public.exams e WHERE e.id = v.exam_id))) AS node
       FROM public.exam_syllabus_canonical_mappings m

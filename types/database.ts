@@ -1904,57 +1904,78 @@ export type Database = {
         Row: {
           approved_by_user_id: string | null
           author_type: string
-          compiled_artifact_hash: string
-          compiled_artifact_storage_key: string
+          blocks: Json | null
+          blocks_hash: string | null
+          blocks_schema_version: string | null
+          compiled_artifact_hash: string | null
+          compiled_artifact_storage_key: string | null
           compiler_version: string
           component_contract_version: string
+          content_format: string
           created_at: string
           document_id: string
           id: string
+          is_current: boolean
           is_published: boolean
+          language: string
+          lesson_meta: Json | null
           published_at: string | null
           review_status: string
           schema_version: string
-          source_spec_hash: string
-          source_spec_storage_key: string
+          source_spec_hash: string | null
+          source_spec_storage_key: string | null
           updated_at: string
           version_number: number
         }
         Insert: {
           approved_by_user_id?: string | null
           author_type?: string
-          compiled_artifact_hash: string
-          compiled_artifact_storage_key: string
+          blocks?: Json | null
+          blocks_hash?: string | null
+          blocks_schema_version?: string | null
+          compiled_artifact_hash?: string | null
+          compiled_artifact_storage_key?: string | null
           compiler_version?: string
           component_contract_version?: string
+          content_format?: string
           created_at?: string
           document_id: string
           id?: string
+          is_current?: boolean
           is_published?: boolean
+          language?: string
+          lesson_meta?: Json | null
           published_at?: string | null
           review_status?: string
           schema_version?: string
-          source_spec_hash: string
-          source_spec_storage_key: string
+          source_spec_hash?: string | null
+          source_spec_storage_key?: string | null
           updated_at?: string
           version_number: number
         }
         Update: {
           approved_by_user_id?: string | null
           author_type?: string
-          compiled_artifact_hash?: string
-          compiled_artifact_storage_key?: string
+          blocks?: Json | null
+          blocks_hash?: string | null
+          blocks_schema_version?: string | null
+          compiled_artifact_hash?: string | null
+          compiled_artifact_storage_key?: string | null
           compiler_version?: string
           component_contract_version?: string
+          content_format?: string
           created_at?: string
           document_id?: string
           id?: string
+          is_current?: boolean
           is_published?: boolean
+          language?: string
+          lesson_meta?: Json | null
           published_at?: string | null
           review_status?: string
           schema_version?: string
-          source_spec_hash?: string
-          source_spec_storage_key?: string
+          source_spec_hash?: string | null
+          source_spec_storage_key?: string | null
           updated_at?: string
           version_number?: number
         }
@@ -8489,6 +8510,80 @@ export type Database = {
       fn_join_battle_by_code: { Args: { p_room_code: string }; Returns: Json }
       fn_jwt_is_admin: { Args: never; Returns: boolean }
       fn_jwt_is_admin_or_staff: { Args: never; Returns: boolean }
+      fn_lesson__keys: {
+        Args: { allowed: string[]; o: Json; p: string }
+        Returns: Json
+      }
+      fn_lesson__latex_problem: { Args: { s: string }; Returns: string }
+      fn_lesson__oneof: {
+        Args: {
+          allowed: string[]
+          k: string
+          o: Json
+          p: string
+          required: boolean
+        }
+        Returns: Json
+      }
+      fn_lesson__str: {
+        Args: {
+          k: string
+          latex?: boolean
+          max_len: number
+          o: Json
+          p: string
+          required: boolean
+        }
+        Returns: Json
+      }
+      fn_lesson__strlist: {
+        Args: {
+          item_max: number
+          k: string
+          latex?: boolean
+          max_n: number
+          min_n: number
+          o: Json
+          p: string
+          required: boolean
+        }
+        Returns: Json
+      }
+      fn_lesson__text_problem: { Args: { s: string }; Returns: string }
+      fn_lesson_audit: {
+        Args: {
+          p_action: string
+          p_actor_email: string
+          p_actor_id: string
+          p_new: Json
+          p_target_id: string
+        }
+        Returns: undefined
+      }
+      fn_lesson_blocks_errors: {
+        Args: { p_blocks: Json; p_meta: Json }
+        Returns: Json
+      }
+      fn_lesson_publish: {
+        Args: {
+          p_actor_email: string
+          p_actor_id: string
+          p_version_id: string
+        }
+        Returns: Json
+      }
+      fn_lesson_save_draft: {
+        Args: {
+          p_actor_email: string
+          p_actor_id: string
+          p_author_type: string
+          p_blocks: Json
+          p_document_id: string
+          p_language: string
+          p_meta: Json
+        }
+        Returns: Json
+      }
       fn_log_user_search: {
         Args: {
           p_clicked_entity_type?: string

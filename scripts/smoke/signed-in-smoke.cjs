@@ -97,7 +97,7 @@ const REQUIRED = {
   '/admin/institutes': ['"Partner Coaching Institutes CMS" heading', H(/Partner Coaching Institutes CMS/)],
   '/admin/mock-tests-management': ['"Mock Test Management" heading', H(/^Mock Test Management$/)],
   '/admin/bulk-import': ['"Bulk Question Importer" heading', H(/Bulk Question Importer/)],
-  '/admin/taxonomy': ['"Academic Taxonomy" heading', H(/Academic Taxonomy/)],
+  '/admin/taxonomy': ['"Master tree" heading (CA-1)', H(/Master tree/)],
   '/admin/exams': ['"Examination Management Hub" heading', H(/Examination Management Hub/)],
   '/admin/exam-knowledge': ['"Exam Knowledge Studio" heading', H(/Exam Knowledge Studio/)],
   '/admin/design-system': ['"Design system" heading', H(/^Design system$/)],

@@ -8,7 +8,8 @@ import { Container } from "@/components/ui/layout";
 import { ButtonLink } from "@/components/ui/button";
 import { constructMetadata } from "@/lib/seo/metadata";
 import { generateArticleSchema, generateBreadcrumbSchema } from "@/lib/seo/jsonld";
-import { ControlledContentRenderer } from "@/components/learning/controlled-content-renderer";
+import { LessonBlocksRenderer } from "@/components/learning/lesson-blocks-renderer";
+import { KatexMath } from "@/components/learning/katex-math";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { topicLearnHref, topicPracticeHref } from "@/lib/learn/topic";
 
@@ -117,7 +118,12 @@ export default async function ArticleReaderPage({ params }: Props) {
                 </ButtonLink>
               </div>
             ) : (
-              <ControlledContentRenderer contentMdx={article.contentBody || ""} />
+              // CA-3: DB lessons only (the MDX path is retired)
+              article.lesson ? (
+                <LessonBlocksRenderer blocks={article.lesson.blocks} links={article.lesson.links} Math={KatexMath} />
+              ) : (
+                <p className="text-body text-fg-secondary">This lesson is being prepared. Please check back shortly.</p>
+              )
             )}
           </div>
 

@@ -21,6 +21,17 @@ import type { QuestionBankClient } from '@/services/question-reference.service';
 import type { AssetCatalogClient } from '@/services/asset-reference.service';
 import { IStorageProvider } from './storage/storage-provider.interface';
 
+/** CA-3: the spec → MDX → Storage lesson path is retired (architect GO, 2026-10-27). */
+export const MDX_PATH_RETIRED = true;
+export const MDX_PATH_RETIRED_MESSAGE = 'The MDX lesson path is retired: lessons are authored as blocks in Lessons (/admin/lessons).';
+
+export class MdxPathRetiredError extends Error {
+  readonly code = 'MDX_PATH_RETIRED';
+  constructor() {
+    super(MDX_PATH_RETIRED_MESSAGE);
+  }
+}
+
 export class LearningDocumentService {
   /**
    * Evaluates if a given version is immutable.
@@ -42,6 +53,8 @@ export class LearningDocumentService {
 
   /**
    * Compiles and packages a document version from its LessonDocumentSpec.
+   * CA-3: RETIRED — lessons are DB blocks now (lib/lessons/blocks.ts, /admin/lessons); every legacy create / save /
+   * import path that reaches here fails closed. Kept (unreachable) only until the legacy code is removed.
    */
   static async compileAndStoreVersion(params: {
     documentId: string;
@@ -56,6 +69,7 @@ export class LearningDocumentService {
     version: Partial<DocumentVersion>;
     compiledMdx: string;
   }> {
+    if (MDX_PATH_RETIRED) throw new MdxPathRetiredError();
     // 1. Compile through controlled pipeline
     const compilationResult = await ControlledContentCompiler.compile(params.spec, params.referenceCatalogs);
     if (!compilationResult.success || !compilationResult.artifact) {

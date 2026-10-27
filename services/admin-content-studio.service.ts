@@ -32,7 +32,7 @@ import {
 import { ContentSpecValidator } from '@/services/content-spec-validator';
 import { ControlledContentCompiler } from '@/services/controlled-content-compiler.service';
 import { createReferenceCatalogs } from '@/services/learning/reference-catalog';
-import { LearningDocumentService } from '@/services/learning-document.service';
+import { LearningDocumentService, MDX_PATH_RETIRED, MdxPathRetiredError } from '@/services/learning-document.service';
 import { getLearningArtifactStorage } from '@/services/storage/learning-artifact-storage';
 
 export const LEARNING_ACCESS_LEVELS = ['FREE', 'PRO'] as const;
@@ -769,6 +769,10 @@ export class AdminContentStudioService {
     const { data: version, error: readErr } = await supabase.from('document_versions').select('*').eq('id', versionId).maybeSingle();
     if (readErr) throw readErr;
     if (!version) throw new Error(`Version ${versionId} not found.`);
+    // CA-3: no MDX is compiled any more (DB read errors above still propagate: SEC-1B F-02)
+    if (MDX_PATH_RETIRED) throw new MdxPathRetiredError();
+    // a version without the legacy Storage keys (a DB lesson) never takes this path
+    if (!version.source_spec_storage_key || !version.compiled_artifact_storage_key) throw new MdxPathRetiredError();
 
     LearningDocumentService.assertMutable(version as DocumentVersion);
 
@@ -815,6 +819,10 @@ export class AdminContentStudioService {
     const { data: version, error: readErr } = await supabase.from('document_versions').select('*').eq('id', versionId).maybeSingle();
     if (readErr) throw readErr;
     if (!version) throw new Error(`Version ${versionId} not found.`);
+    // CA-3: legacy MDX versions are never published again; BLOCKS versions publish through fn_lesson_publish
+    if (MDX_PATH_RETIRED) throw new MdxPathRetiredError();
+    // a version without the legacy Storage keys (a DB lesson) never takes this path
+    if (!version.source_spec_storage_key || !version.compiled_artifact_storage_key) throw new MdxPathRetiredError();
     if (version.is_published) throw new Error(`Version ${versionId} is already published.`);
 
     if (version.review_status !== 'COMPILED' && version.review_status !== 'APPROVED') {

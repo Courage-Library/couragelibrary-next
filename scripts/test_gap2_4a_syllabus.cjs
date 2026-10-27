@@ -436,9 +436,11 @@ const CORE = ['fn_syllabus__assert_role', 'fn_syllabus__audit', 'fn_syllabus__sl
         const mkDoc = async (slug, review, published) => {
           const doc = (await one(`INSERT INTO public.learning_documents (learning_unit_id, canonical_slug, document_type, status, access_level)
                                    VALUES ($1, $2, 'CONCEPT_LESSON', 'DRAFT', 'FREE') RETURNING id`, [unit, slug])).id;
+          // CA-3: a DB lesson (BLOCKS; the MDX path is retired — migration 118 refuses new legacy versions)
           const ver = (await one(`INSERT INTO public.document_versions (document_id, version_number, schema_version, compiler_version, component_contract_version,
-                                    source_spec_storage_key, source_spec_hash, compiled_artifact_storage_key, compiled_artifact_hash, author_type, review_status, is_published, published_at)
-                                   VALUES ($1, 1, '1', '1', '1', 'test/spec', $2, 'test/artifact', $2, 'HUMAN', $3, $4, CASE WHEN $4 THEN now() END) RETURNING id`, [doc, hex, review, published])).id;
+                                    author_type, review_status, is_published, published_at, content_format, language, lesson_meta, blocks, blocks_hash, blocks_schema_version, is_current)
+                                   VALUES ($1, 1, '2.0.0', 'blocks-2', 'blocks-2', 'HUMAN', $3, $4, CASE WHEN $4 THEN now() END, 'BLOCKS', 'en',
+                                           '{"title":"GAP2-4a test lesson"}'::jsonb, '[{"id":"a","type":"paragraph","text":"Test lesson."}]'::jsonb, $2, '2.0.0', $4) RETURNING id`, [doc, hex, review, published])).id;
           if (published) await c.query(`UPDATE public.learning_documents SET status = 'PUBLISHED', current_published_version_id = $2 WHERE id = $1`, [doc, ver]);
         };
         await mkDoc('gap2-4a-test-servable', 'PUBLISHED', true);

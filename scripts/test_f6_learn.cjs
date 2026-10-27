@@ -103,7 +103,7 @@ const supabase = {
     const primaries = (a.match(/<ButtonLink\b(?![^>]*variant=)/g) || []).length;
     assert(primaries === 1 && /\{practiceHref \? \(/.test(a) && /<ButtonLink href=\{practiceHref\}[\s\S]{0,300}?data-practice-topic=""/.test(a), `one primary ButtonLink (Practice this topic), got ${primaries}`);
     assert(/topicPracticeHref\(supabase, topicId\)/.test(a) && /rel\.learningSlug \? `\/articles\/\$\{rel\.learningSlug\}` : topicLearnHref\(rel\.topicId\)/.test(a), 'practice via the F2 helper; related links');
-    assert(/export async function generateMetadata/.test(a) && /generateArticleSchema/.test(a) && /generateBreadcrumbSchema/.test(a) && /data-testid="learning-locked-panel"/.test(a) && /ControlledContentRenderer/.test(a), 'SEO + locked panel + renderer kept');
+    assert(/export async function generateMetadata/.test(a) && /generateArticleSchema/.test(a) && /generateBreadcrumbSchema/.test(a) && /data-testid="learning-locked-panel"/.test(a) && /LessonBlocksRenderer/.test(a), 'SEO + locked panel + renderer kept (CA-3: DB lesson blocks)');
     assert(!/amber-|accent-|bg-gradient|from-teal|text-\[1[01]px\]/.test(a), 'light page, no amber, no 10–11 px text');
     const walk = (d) => fs.readdirSync(path.join(ROOT, d), { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(`${d}/${e.name}`) : /\.(tsx?)$/.test(e.name) ? [`${d}/${e.name}`] : []));
     const dead = ['app', 'components', 'lib', 'services'].flatMap(walk).filter((f) => /\/practice\?topic=/.test(read(f)));
