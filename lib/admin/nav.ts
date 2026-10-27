@@ -193,3 +193,36 @@ export function pageContext(pathname: string, nav: NavGroup[] = ADMIN_NAV): { ti
   }
   return { title: "Admin", group: null };
 }
+
+/**
+ * SEC-1C L-04 (architect option (a), 2026-10-27): every ADMIN-ONLY admin page route — the single source the admin
+ * layout uses to answer a staff user's request for an admin-only route with the site 404 BEFORE the admin shell
+ * renders. Must equal the set of app/admin pages whose requireAdminPage has no allowStaff (gated: test_admin_ux1b AB-10).
+ * Per-page guards stay as defence in depth.
+ */
+export const ADMIN_ONLY_ROUTES: readonly string[] = [
+  "/admin/adaptive",
+  "/admin/billing",
+  "/admin/gamification",
+  "/admin/live-tests/[id]/intelligence",
+  "/admin/live-tests/[id]/results",
+  "/admin/live-tests/intelligence",
+  "/admin/premium",
+  "/admin/pro-library",
+  "/admin/question-reports",
+  "/admin/reports",
+  "/admin/rewards",
+  "/admin/settings",
+  "/admin/taxonomy",
+  "/admin/users",
+];
+
+const routeRe = (r: string) => new RegExp("^" + r.replace(/[.*+?^${}()|\\]/g, "\\$&").replace(/\[[^\]]+\]/g, "[^/]+") + "(?:/.*)?$");
+const ADMIN_ONLY_RE = ADMIN_ONLY_ROUTES.map(routeRe);
+
+/** Is this pathname an admin-only route (or below one)? [param] segments match one path segment. Pure. */
+export function isAdminOnlyPath(pathname: string | null | undefined): boolean {
+  if (!pathname) return false;
+  const p = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
+  return ADMIN_ONLY_RE.some((re) => re.test(p));
+}

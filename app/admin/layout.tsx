@@ -1,11 +1,14 @@
 import React from "react";
+import { headers } from "next/headers";
+import { notFound } from "next/navigation";
 import { requireAdminPage } from "@/lib/auth/require-admin";
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { isFeatureEnabled } from "@/config/features";
 import { isPaymentsEnabled } from "@/config/payments";
 import { isSupportTicketsEnabled } from "@/lib/support/tickets";
 import { AdminTopHeader } from "@/components/admin/admin-top-header";
-import { visibleNav, type NavFlags } from "@/lib/admin/nav";
+import { isAdminOnlyPath, visibleNav, type NavFlags } from "@/lib/admin/nav";
+import { PATHNAME_HEADER } from "@/lib/http/pathname-header";
 import { getAdminFirstName, getFocusQueueCount } from "@/lib/admin/today";
 
 interface AdminLayoutProps {
@@ -16,6 +19,11 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
   // SEC-1C: same page guard as every admin page (anonymous → login, no role → 404). Not a security
   // boundary on its own — each page authorizes itself before fetching.
   const { role, userId } = await requireAdminPage({ allowStaff: true, path: "/admin" });
+
+  // SEC-1C L-04 (option (a)): a staff user asking for an ADMIN-ONLY route gets the site 404 here, BEFORE any admin shell
+  // renders or streams (single source: ADMIN_ONLY_ROUTES in lib/admin/nav.ts; the middleware forwards the pathname).
+  // The page's own guard stays as defence in depth.
+  if (role !== "admin" && isAdminOnlyPath((await headers()).get(PATHNAME_HEADER))) notFound();
 
   // ADMIN-UX-1 phase B (Q1): role-aware links — only pages this role can open, only live features
   const flags: NavFlags = { ADAPTIVE: isFeatureEnabled("ADAPTIVE"), LIVE_TESTS: isFeatureEnabled("LIVE_TESTS"), SUPPORT: isSupportTicketsEnabled(), PAYMENTS: isPaymentsEnabled() };

@@ -13,6 +13,7 @@
  *         failed reads show "Not available" (no invented values); no write-failure / nightly cards (Q5)
  *   AB-07 deep links: factory / CA / question reports / support accept only known values, after the guard
  *   AB-08 status chips: six kinds, text always shown; mapping of the existing statuses
+ *   AB-10 SEC-1C L-04 (a): ADMIN_ONLY_ROUTES = the admin-only pages; the layout 404s staff on them before the shell
  *   AB-09 a11y (static): aria-current, aria-expanded buttons, no clickable divs in the shell, combobox / listbox,
  *         focus rings, ≥ 36 px targets, loading + error states for /admin
  * Run: node scripts/test_admin_ux1b.cjs
@@ -168,6 +169,27 @@ test('AB-09 a11y (static): current page, expandable groups, combobox, focus, tar
   assert(/role="combobox"/.test(c) && /role="listbox"/.test(c) && /role="option"/.test(c) && /aria-activedescendant/.test(c) && /aria-live="polite"/.test(c), 'combobox pattern');
   assert(/focus-ring/.test(c) && /focus-ring-on-dark/.test(s), 'focus rings');
   assert(fs.existsSync(path.join(ROOT, 'app/admin/loading.tsx')) && fs.existsSync(path.join(ROOT, 'app/admin/error.tsx')), 'loading + error states');
+});
+
+test('AB-10 SEC-1C L-04 (a): staff on an admin-only route → the site 404 from the LAYOUT, before any admin shell', () => {
+  // the single source equals the set of pages whose guard is admin-only (requireAdminPage without allowStaff)
+  const walk = (d) => fs.readdirSync(path.join(ROOT, d), { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(`${d}/${e.name}`) : e.name === 'page.tsx' ? [`${d}/page.tsx`] : []));
+  const adminOnly = walk('app/admin').filter((f) => { const m = code(read(f)).match(/requireAdminPage\(\{([^}]*)\}\)/); return m && !/allowStaff:\s*true/.test(m[1]); }).map((f) => '/' + f.replace(/^app\//, '').replace(/\/page\.tsx$/, '')).sort();
+  assert(JSON.stringify([...NAV.ADMIN_ONLY_ROUTES].sort()) === JSON.stringify(adminOnly), `ADMIN_ONLY_ROUTES ≠ admin-only pages: ${adminOnly.join(', ')}`);
+  const f = NAV.isAdminOnlyPath;
+  for (const [p, want] of [['/admin/users', true], ['/admin/users/', true], ['/admin/users/x', true], ['/admin/settings', true], ['/admin/settingsx', false], ['/admin/live-tests', false], ['/admin/live-tests/abc', false], ['/admin/live-tests/abc/results', true], ['/admin/live-tests/intelligence', true], ['/admin', false], ['/admin/review/focus', false], [null, false], ['', false]]) assert(f(p) === want, `isAdminOnlyPath(${p}) = ${f(p)}`);
+  // layout: the guard stays the first await; the admin-only check comes right after it, before any data read / shell
+  const l = code(read('app/admin/layout.tsx'));
+  const body = l.slice(l.indexOf('export default async function AdminLayout('));
+  const iGuard = body.indexOf('await requireAdminPage');
+  const iCheck = body.indexOf('if (role !== "admin" && isAdminOnlyPath((await headers()).get(PATHNAME_HEADER))) notFound();');
+  assert(iGuard >= 0 && iGuard === body.indexOf('await ') && iCheck > iGuard && iCheck < body.indexOf('getFocusQueueCount()') && iCheck < body.indexOf('return ('), 'layout: guard first, then the admin-only 404, then data / shell');
+  // middleware: always overwrites the header on the forwarded request; still no role decision (S-06)
+  const m = code(read('lib/supabase/middleware.ts'));
+  assert(/headers\.set\(PATHNAME_HEADER, request\.nextUrl\.pathname\);/.test(m) && (m.match(/forward\(\)/g) || []).length >= 2 && !/NextResponse\.next\(\{\s*request,?\s*\}\)/.test(m), 'header always overwritten on every forwarded request');
+  assert(!/app_metadata|resolveRole|role\s*===/.test(m), 'middleware makes no role decision');
+  assert(!/role|session|user/i.test(code(read('lib/http/pathname-header.ts'))), 'the header carries the pathname only');
+  return `${adminOnly.length} admin-only routes`;
 });
 
 console.log(`\nADMIN-UX-1 phase B: ${passed}/${passed + failed} passed`);

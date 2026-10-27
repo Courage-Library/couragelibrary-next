@@ -7,6 +7,7 @@ import { sanitizeAdminPath } from "@/lib/auth/safe-redirect";
 import { getSessionState } from "@/lib/auth/session-state";
 import { authTimeoutFetch } from "@/lib/supabase/auth-fetch";
 import { AGE_CONFIRM_PATH, isAgeGateEnabled, needsAgeGate } from "@/lib/auth/age-gate";
+import { PATHNAME_HEADER } from "@/lib/http/pathname-header";
 
 export interface CookieToSet {
   name: string;
@@ -18,9 +19,14 @@ export interface CookieToSet {
  * Helper to update and refresh user auth tokens inside Next.js Middleware.
  */
 export async function updateSession(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request,
-  });
+  // SEC-1C L-04: forward the pathname (always overwritten — a client-sent value never passes) on every request this
+  // middleware lets through; rebuilt after a cookie refresh so the refreshed cookies are forwarded too
+  const forward = () => {
+    const headers = new Headers(request.headers);
+    headers.set(PATHNAME_HEADER, request.nextUrl.pathname);
+    return NextResponse.next({ request: { headers } });
+  };
+  let supabaseResponse = forward();
 
   const { supabaseUrl, supabaseAnonKey } = getAppEnv();
 
@@ -43,9 +49,7 @@ export async function updateSession(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           );
-          supabaseResponse = NextResponse.next({
-            request,
-          });
+          supabaseResponse = forward();
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
           );
