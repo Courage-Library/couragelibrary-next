@@ -88,7 +88,8 @@ const REQUIRED = {
   '/exams/ssc-cgl': ['"SSC CGL" heading + syllabus section', (pg) => pg.locator('section#syllabus')],
   // Courage Studio Today v2 (#84): the greeting h1
   '/admin': ['Today v2 greeting heading ("Good morning, …")', (pg) => pg.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening), / }).first()],
-  '/admin/questions': ['"Question Bank Studio" heading', H(/Question Bank Studio/)],
+  // Courage Studio phase 3 batch 1: the Studio header title
+  '/admin/questions': ['"Question bank" heading', H(/^Question bank$/)],
   '/admin/sections': ['"Pattern Sections" heading', H(/Pattern Sections/)],
   '/admin/billing': ['"Subscription Plans" heading', H(/Subscription Plans & Payment Orders/)],
   '/admin/community': ['"Community Discussion Moderation" heading', H(/Community Discussion Moderation/)],
