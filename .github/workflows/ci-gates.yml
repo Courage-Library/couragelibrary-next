@@ -206,7 +206,8 @@ jobs:
           WS='node scripts/live/with-server.cjs --port=3300 --health-path=auth/login --gate-timeout=300'
           fail=0
           # 1) flags OFF (Supabase refused): no Turnstile, no Google markup or nonce
-          AUTH1_BLACKHOLE=refuse $WS --log="$RUNNER_TEMP/server/off.log" -- \
+          # PERF-LESSON-1: BRAND2-PROBE P-07 reads this build's route table (the quiet runner's SC-BUILD.log)
+          BUILD_LOG="$RUNNER_TEMP/ci-quiet/SC-BUILD.log" AUTH1_BLACKHOLE=refuse $WS --log="$RUNNER_TEMP/server/off.log" -- \
             "$Q AUTH1-2B2-PROBE-OFF -- node scripts/test_auth1_2b2.cjs --probe" \
             "$Q AUTH1-2B1-PROBE-OFF -- node scripts/test_auth1_2b1.cjs --probe" \
             "$Q BRAND2-PROBE -- node scripts/test_brand2.cjs --probe" || fail=1
@@ -412,7 +413,7 @@ jobs:
             "$Q ADMIN-D1-D2 -- node scripts/live/test_admin_d1_d2.cjs" \
             "$Q CA1-TAXONOMY-LIVE -- node scripts/live/test_ca1_taxonomy.cjs" \
             "$Q CA2-INTAKE-LIVE -- node scripts/live/test_ca2_intake.cjs" \
-            "$Q CA3-LESSONS-LIVE -- node scripts/live/test_ca3_lessons.cjs"             "$Q CA4-LESSONS-LIVE -- node scripts/live/test_ca4_lessons.cjs"             "$Q CA5-COURSES-LIVE -- node scripts/live/test_ca5_courses.cjs" \
+            "$Q CA3-LESSONS-LIVE -- node scripts/live/test_ca3_lessons.cjs"             "$Q CA4-LESSONS-LIVE -- node scripts/live/test_ca4_lessons.cjs"             "$Q CA5-COURSES-LIVE -- node scripts/live/test_ca5_courses.cjs"             "$Q LESSON-PERF -- node scripts/test_brand2.cjs --probe --only-route=auto:lesson" \
             "$Q SMOKE-ADMIN-PAGES-1 -- node scripts/smoke/signed-in-smoke.cjs admin-pages $B" \
             "$Q SMOKE-ADMIN-PAGES-2 -- node scripts/smoke/signed-in-smoke.cjs admin-pages $B" \
             "$Q SMOKE-ADMIN-PAGES-3 -- node scripts/smoke/signed-in-smoke.cjs admin-pages $B" \

@@ -14,6 +14,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { topicLearnHref, topicPracticeHref } from "@/lib/learn/topic";
 import { getSessionState } from "@/lib/auth/session-state";
 import { LessonProgress } from "@/components/learning/lesson-progress";
+import { saveLessonProgressAction } from "@/app/articles/actions";
 
 // GAP2-2a: rendered per viewer (PRO documents are locked server-side); never cached across users.
 export const dynamic = "force-dynamic";
@@ -68,6 +69,11 @@ export default async function ArticleReaderPage({ params }: Props) {
   if (session.state === "user" && article.lesson && !article.isLocked) {
     const { data } = await supabase.from("user_lesson_progress").select("status").eq("document_id", article.id).eq("language", article.lessonLanguage).maybeSingle();
     progressStatus = data?.status === "COMPLETED" ? "COMPLETED" : data?.status === "READING" ? "READING" : "NOT_STARTED";
+    // opening the lesson records READING on the server (PERF-LESSON-1: no client code); a failure only skips the record
+    if (progressStatus === "NOT_STARTED") {
+      const r = await saveLessonProgressAction({ documentId: article.id, language: article.lessonLanguage, status: "READING" }).catch(() => null);
+      if (r?.ok) progressStatus = r.status;
+    }
   }
 
   const breadcrumbsList = [
@@ -144,7 +150,7 @@ export default async function ArticleReaderPage({ params }: Props) {
                   <div lang={article.lessonLanguage}>
                     <LessonBlocksRenderer blocks={article.lesson.blocks} links={article.lesson.links} Math={KatexMath} />
                   </div>
-                  {progressStatus && <LessonProgress documentId={article.id} language={article.lessonLanguage} initialStatus={progressStatus} />}
+                  {progressStatus && <LessonProgress documentId={article.id} language={article.lessonLanguage} slug={article.slug} status={progressStatus} />}
                 </>
               ) : (
                 <p className="text-body text-fg-secondary">This lesson is being prepared. Please check back shortly.</p>

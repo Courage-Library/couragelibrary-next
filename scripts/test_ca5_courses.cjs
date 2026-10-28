@@ -140,7 +140,8 @@ test('R-01 reader / course / progress: master-position access, no user id from c
   const page = read('app/articles/[slug]/page.tsx');
   assert(/session\.state === "user" && article\.lesson && !article\.isLocked/.test(page) && /<LessonProgress /.test(page), 'progress only for a signed-in student on an unlocked lesson');
   const comp = read('components/learning/lesson-progress.tsx');
-  assert(/variant="secondary"/.test(comp) && !/variant="primary"/.test(comp), 'the progress button is not a second primary action on the reader');
+  // PERF-LESSON-1: a server component <form action> (no "use client", no client libraries on the lesson page)
+  assert(!/^"use client"/m.test(comp) && /<form action=\{completeLessonFormAction\}>/.test(comp) && /variant: "secondary"/.test(comp) && !/variant: "primary"/.test(comp), 'the progress control is a server-rendered form, not a second primary action');
   const course = read('app/exams/[slug]/course/page.tsx');
   assert((course.match(/variant="primary"/g) || []).length === 1 && !/[ऀ-ॿ]/.test(course) && /l\.locked \? <Lock/.test(course), 'course page: one primary, English, locked lessons marked');
   const home = read('components/exams/exam-home.tsx');

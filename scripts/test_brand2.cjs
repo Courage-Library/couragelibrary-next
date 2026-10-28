@@ -28,6 +28,9 @@
  *   P-04 lite mode (deviceMemory 2) → html.lite, no backdrop blur; capable device → blur on the nav
  *   P-05 prefers-reduced-transparency: reduce → no backdrop blur
  *   P-06 "/" front-end budget, Moto-G-class emulation (4x CPU, Fast 4G, cold): LCP ≤ 2.5 s, CLS ≤ 0.1, transfer ≤ 500 KB
+ *        PERF-LESSON-1: --only-route=<path> runs ONLY P-06 on that route (live-gates: a real published lesson page)
+ *   P-07 PERF-LESSON-1: First Load JS per budgeted route (scripts/perf/route-budgets.json, recorded baselines) ≤ budget,
+ *        read from the `next build` route table (BUILD_LOG = the quiet runner's SC-BUILD.log in CI)
  * Prints no secrets.
  */
 const fs = require('fs');
@@ -37,6 +40,10 @@ const Module = require('module');
 
 const ROOT = path.resolve(__dirname, '..');
 const PROBE = process.argv.includes('--probe');
+// PERF-LESSON-1: P-06 on one route only (e.g. a published lesson page, where a database is available)
+const ONLY_ROUTE = (process.argv.find((a) => a.startsWith('--only-route=')) || '').slice('--only-route='.length) || null;
+// "auto:lesson" = the first published lesson page listed in this server's sitemap (/learn/… first, else /articles/…)
+if (ONLY_ROUTE && ONLY_ROUTE !== 'auto:lesson' && !/^\/[A-Za-z0-9_\-/]{0,200}$/.test(ONLY_ROUTE)) throw new Error('--only-route must be a site path or auto:lesson');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 const rel = (f) => path.relative(ROOT, f).split(path.sep).join('/');
 
@@ -96,6 +103,14 @@ function mixPct(selectorRx, token) {
 }
 
 async function offline() {
+  await test('O-07 PERF-LESSON-1 route budgets: parser self-test; every budget ≤ 110 kB has a recorded baseline; /articles/[slug] is budgeted', () => {
+    const RB = require(path.join(ROOT, 'scripts/perf/route-budget.cjs'));
+    const b = JSON.parse(read('scripts/perf/route-budgets.json'));
+    assert(RB.selfTest(), 'route-budget self-test');
+    const rows = Object.entries(b.routes);
+    assert(b.routes['/articles/[slug]'] && rows.every(([, r]) => r.max <= 110 && typeof r.baseline === 'number' && r.baseline <= r.max && r.recorded), JSON.stringify(b.routes));
+    return rows.map(([k, r]) => `${k} ${r.baseline}/${r.max}`).join(' · ');
+  });
   await test('C-01 #84 (v3) token values, categorical tokens, complete semantic layer (dark-theme-ready names)', () => {
     // BRAND-3 (#84) values; the BRAND-2 structure (glass, categorical scales, semantic layer) is unchanged
     const SPEC = {
@@ -343,12 +358,65 @@ async function offline() {
 }
 
 // ---------- probe: real local production build (CI server-checks) ----------
+/** P-06 front-end budget on one route (median of 3 cold runs, Moto-G-class emulation). */
+async function frontEndBudget(browser, base, route) {
+  const runs = [];
+  for (let i = 0; i < 3; i++) {
+    const ctx = await browser.newContext({ viewport: { width: 412, height: 823 }, deviceScaleFactor: 1.75, isMobile: true, hasTouch: true });
+    const page = await ctx.newPage();
+    const cdp = await ctx.newCDPSession(page);
+    await cdp.send('Network.enable');
+    await cdp.send('Network.setCacheDisabled', { cacheDisabled: true });
+    await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 165, downloadThroughput: ((9 * 1000 * 1000) / 8) * 0.9, uploadThroughput: ((1.5 * 1000 * 1000) / 8) * 0.9 });
+    await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+    let bytes = 0;
+    cdp.on('Network.loadingFinished', (e) => (bytes += e.encodedDataLength || 0));
+    await page.addInitScript(() => {
+      window.__lcp = 0;
+      window.__cls = 0;
+      new PerformanceObserver((l) => l.getEntries().forEach((e) => (window.__lcp = e.startTime))).observe({ type: 'largest-contentful-paint', buffered: true });
+      new PerformanceObserver((l) => l.getEntries().forEach((e) => (window.__cls += e.hadRecentInput ? 0 : e.value))).observe({ type: 'layout-shift', buffered: true });
+    });
+    await page.goto(`${base}${route}`, { waitUntil: 'load', timeout: 90000 });
+    await page.waitForTimeout(3000);
+    const m = await page.evaluate(() => ({ lcp: window.__lcp, cls: window.__cls }));
+    runs.push({ ...m, kb: bytes / 1024 });
+    await ctx.close();
+  }
+  const med = (k) => runs.map((r) => r[k]).sort((a, b) => a - b)[1];
+  const lcp = med('lcp');
+  const cls = med('cls');
+  const kb = med('kb');
+  assert(lcp <= 2500 && cls <= 0.1 && kb <= 500, `LCP ${(lcp / 1000).toFixed(2)} s, CLS ${cls.toFixed(3)}, transfer ${kb.toFixed(0)} KB`);
+  return `median of 3: LCP ${(lcp / 1000).toFixed(2)} s · CLS ${cls.toFixed(3)} · transfer ${kb.toFixed(0)} KB`;
+}
+
 async function probe() {
   const base = process.env.BASE_URL;
   assert(base && /^http:\/\/localhost:\d+$/.test(base), 'BASE_URL must be the local server (with-server.cjs)');
   const R = Module.createRequire(path.join(ROOT, 'package.json'));
   const { chromium } = R('playwright');
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
+  if (ONLY_ROUTE) {
+    let route = ONLY_ROUTE;
+    if (route === 'auto:lesson') {
+      const xml = await (await fetch(`${base}/sitemap.xml`)).text().catch(() => '');
+      const locs = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => { try { return new URL(m[1]).pathname; } catch { return ''; } });
+      route = locs.find((p) => /^\/learn\/[a-z0-9-]+\/[a-z0-9-]+/.test(p)) || locs.find((p) => /^\/articles\/[a-z0-9-]+$/.test(p)) || null;
+      if (!route) {
+        await browser.close();
+        console.log('  PASS  P-06 lesson page front-end budget — VACUOUS WARN: no published lesson page in the sitemap yet');
+        passed++;
+        return;
+      }
+    }
+    try {
+      await test(`P-06 ${route} front-end budget (Moto-G-class: 412×823, 4x CPU, Fast 4G, cold): LCP ≤ 2.5 s, CLS ≤ 0.1, transfer ≤ 500 KB`, () => frontEndBudget(browser, base, route));
+    } finally {
+      await browser.close();
+    }
+    return;
+  }
   const CAPABLE = () => {
     Object.defineProperty(navigator, 'deviceMemory', { get: () => 8 });
     Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 8 });
@@ -496,36 +564,16 @@ async function probe() {
       return 'solid';
     });
 
-    await test('P-06 "/" front-end budget (Moto-G-class: 412×823, 4x CPU, Fast 4G, cold): LCP ≤ 2.5 s, CLS ≤ 0.1, transfer ≤ 500 KB', async () => {
-      const runs = [];
-      for (let i = 0; i < 3; i++) {
-        const ctx = await browser.newContext({ viewport: { width: 412, height: 823 }, deviceScaleFactor: 1.75, isMobile: true, hasTouch: true });
-        const page = await ctx.newPage();
-        const cdp = await ctx.newCDPSession(page);
-        await cdp.send('Network.enable');
-        await cdp.send('Network.setCacheDisabled', { cacheDisabled: true });
-        await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 165, downloadThroughput: ((9 * 1000 * 1000) / 8) * 0.9, uploadThroughput: ((1.5 * 1000 * 1000) / 8) * 0.9 });
-        await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
-        let bytes = 0;
-        cdp.on('Network.loadingFinished', (e) => (bytes += e.encodedDataLength || 0));
-        await page.addInitScript(() => {
-          window.__lcp = 0;
-          window.__cls = 0;
-          new PerformanceObserver((l) => l.getEntries().forEach((e) => (window.__lcp = e.startTime))).observe({ type: 'largest-contentful-paint', buffered: true });
-          new PerformanceObserver((l) => l.getEntries().forEach((e) => (window.__cls += e.hadRecentInput ? 0 : e.value))).observe({ type: 'layout-shift', buffered: true });
-        });
-        await page.goto(`${base}/`, { waitUntil: 'load', timeout: 90000 });
-        await page.waitForTimeout(3000);
-        const m = await page.evaluate(() => ({ lcp: window.__lcp, cls: window.__cls }));
-        runs.push({ ...m, kb: bytes / 1024 });
-        await ctx.close();
-      }
-      const med = (k) => runs.map((r) => r[k]).sort((a, b) => a - b)[1];
-      const lcp = med('lcp');
-      const cls = med('cls');
-      const kb = med('kb');
-      assert(lcp <= 2500 && cls <= 0.1 && kb <= 500, `LCP ${(lcp / 1000).toFixed(2)} s, CLS ${cls.toFixed(3)}, transfer ${kb.toFixed(0)} KB`);
-      return `median of 3: LCP ${(lcp / 1000).toFixed(2)} s · CLS ${cls.toFixed(3)} · transfer ${kb.toFixed(0)} KB`;
+    await test('P-06 "/" front-end budget (Moto-G-class: 412×823, 4x CPU, Fast 4G, cold): LCP ≤ 2.5 s, CLS ≤ 0.1, transfer ≤ 500 KB', () => frontEndBudget(browser, base, '/'));
+
+    await test('P-07 First Load JS per budgeted route ≤ its budget (scripts/perf/route-budgets.json; the `next build` route table)', () => {
+      const file = process.env.BUILD_LOG;
+      assert(file && fs.existsSync(file), 'BUILD_LOG (the `next build` output of this build) is required');
+      const RB = require(path.join(ROOT, 'scripts/perf/route-budget.cjs'));
+      const rows = RB.checkBudgets(JSON.parse(fs.readFileSync(RB.BUDGETS, 'utf8')), RB.parseFirstLoad(fs.readFileSync(file, 'utf8')));
+      const bad = rows.filter((r) => !r.ok);
+      assert(bad.length === 0, bad.map((r) => `${r.route}: ${r.why}`).join('; '));
+      return rows.map((r) => `${r.route} ${r.kb}/${r.max} kB`).join(' · ');
     });
   } finally {
     await browser.close();
