@@ -42,8 +42,14 @@ const { validateIntakePayload } = require(path.join(ROOT, 'lib/syllabus/intake-c
 const { matchIntake } = require(path.join(ROOT, 'lib/syllabus/tree-matcher.ts'));
 const { seeds, sha } = require(path.join(ROOT, 'scripts/content/ca4-template-seeds.cjs'));
 const LESSON_V2_SHA = sha(require(path.join(ROOT, 'lib/prompts/lesson-template-v2.ts')).LESSON_TEMPLATE_V2);
-// SYLLABUS-CONTRACT-3.1: the pinned v2 of each type that has one (LESSON-PROMPT-2, SYLLABUS-CONTRACT-3.1)
-const V2_SHA = { LESSON: LESSON_V2_SHA, SYLLABUS: sha(require(path.join(ROOT, 'lib/syllabus/syllabus-template-v2.ts')).SYLLABUS_TEMPLATE_V2) };
+// the pinned later versions of each type that has them (LESSON-PROMPT-2; SYLLABUS-CONTRACT-3.1 v2; INTAKE-CONCEPTS-AS-OUTLINE v3)
+const PINNED = {
+  LESSON: { 2: LESSON_V2_SHA },
+  SYLLABUS: {
+    2: sha(require(path.join(ROOT, 'lib/syllabus/syllabus-template-v2.ts')).SYLLABUS_TEMPLATE_V2),
+    3: sha(require(path.join(ROOT, 'lib/syllabus/syllabus-template-v3.ts')).SYLLABUS_TEMPLATE_V3),
+  },
+};
 
 let ok = true;
 let pending = [];
@@ -111,25 +117,27 @@ const EXISTING_HASH = `select
       if (PRE) chk('A-0 every existing learning document, document version and intake session is untouched by 119 (hash before = after)', JSON.stringify(before) === JSON.stringify(after), JSON.stringify({ before, after }));
       const rows = await q(`select template_type, version, status, body_sha256 from public.prompt_templates order by template_type`);
       const want = Object.fromEntries(seeds().map(([t, b]) => [t, sha(b)]));
-      // LESSON-PROMPT-2 / SYLLABUS-CONTRACT-3.1: once a type's pinned v2 is active, its v1 seed is RETIRED and v2 is the one
-      // ACTIVE; a type without a pinned v2 keeps its v1 ACTIVE; nothing else exists
+      // every later version is a pinned text (LESSON v2; SYLLABUS v2, v3); per type exactly one version is ACTIVE — the
+      // highest — and every other one is RETIRED; a type without later versions keeps its v1 ACTIVE; nothing else exists
       const v1s = rows.filter((r) => r.version === 1);
       const later = rows.filter((r) => r.version > 1);
-      const seedOk = v1s.length === 3 && v1s.every((r) => want[r.template_type] === r.body_sha256 && (r.status === 'ACTIVE' || (V2_SHA[r.template_type] && r.status === 'RETIRED')))
-        && later.every((r) => V2_SHA[r.template_type] && r.version === 2 && r.status === 'ACTIVE' && r.body_sha256 === V2_SHA[r.template_type])
-        && v1s.every((r) => (r.status === 'RETIRED') === later.some((l) => l.template_type === r.template_type));
-      chk('A-1 seeds: SYLLABUS (the owner-approved SYLLABUS-PROMPT-2 text), LESSON, TRANSLATE_HI — v1 bodies byte-identical to the TS constants (sha256), ACTIVE (the v1 of a type is RETIRED once its pinned v2 is ACTIVE: LESSON-PROMPT-2, SYLLABUS-CONTRACT-3.1); no QUESTION v1',
+      const top = (t) => Math.max(...rows.filter((r) => r.template_type === t).map((r) => r.version));
+      const seedOk = v1s.length === 3 && v1s.every((r) => want[r.template_type] === r.body_sha256)
+        && later.every((r) => PINNED[r.template_type] && PINNED[r.template_type][r.version] === r.body_sha256)
+        && rows.every((r) => r.status === (r.version === top(r.template_type) ? 'ACTIVE' : 'RETIRED'));
+      chk('A-1 seeds: SYLLABUS (the owner-approved SYLLABUS-PROMPT-2 text), LESSON, TRANSLATE_HI — v1 bodies byte-identical to the TS constants (sha256); later versions are pinned texts; per type only the newest is ACTIVE, the rest RETIRED; no QUESTION v1',
         seedOk, JSON.stringify({ rows: rows.map((r) => [r.template_type, r.version, r.status, r.body_sha256.slice(0, 12)]), want: Object.fromEntries(Object.entries(want).map(([k, v]) => [k, v.slice(0, 12)])) }));
       if (!PRE) {
-        // SYLLABUS-CONTRACT-3.1 (activated 2026-10-28): from now on SYLLABUS v2 must be THE active SYLLABUS template, saved
-        // and activated through the audited RPCs (one DRAFT_SAVE + one ACTIVATE row on it) — A-1 alone accepts v1 or v2
+        // SYLLABUS-CONTRACT-3.1 then INTAKE-CONCEPTS-AS-OUTLINE (2026-10-28): SYLLABUS v3 must be THE active SYLLABUS
+        // template, v1 + v2 RETIRED; v2 and v3 each saved and activated once through the audited RPCs
         const syl = (await q(`select t.id, t.version, t.status, t.body_sha256,
               (select count(*)::int from public.admin_audit_logs a where a.target_id::text = t.id::text and a.action_type = 'PROMPT_TEMPLATE_DRAFT_SAVE') saved,
               (select count(*)::int from public.admin_audit_logs a where a.target_id::text = t.id::text and a.action_type = 'PROMPT_TEMPLATE_ACTIVATE') activated
             from public.prompt_templates t where t.template_type = 'SYLLABUS' order by t.version`));
-        const v2 = syl.find((r) => r.version === 2);
-        chk('A-1b SYLLABUS v2 (the SYLLABUS-CONTRACT-3.1 text, pinned sha256) is the one ACTIVE SYLLABUS template, v1 RETIRED; saved + activated through the audited RPCs',
-          syl.length === 2 && syl[0].status === 'RETIRED' && v2 && v2.status === 'ACTIVE' && v2.body_sha256 === V2_SHA.SYLLABUS && v2.saved === 1 && v2.activated === 1,
+        const [v1, v2, v3] = syl;
+        chk('A-1b SYLLABUS v3 (the INTAKE-CONCEPTS-AS-OUTLINE text, pinned sha256) is the one ACTIVE SYLLABUS template, v1 + v2 RETIRED; v2 and v3 saved + activated through the audited RPCs',
+          syl.length === 3 && v1.status === 'RETIRED' && v2.status === 'RETIRED' && v2.body_sha256 === PINNED.SYLLABUS[2] && v3.status === 'ACTIVE' && v3.body_sha256 === PINNED.SYLLABUS[3]
+            && [v2, v3].every((r) => r.saved === 1 && r.activated === 1),
           JSON.stringify(syl.map((r) => [r.version, r.status, r.body_sha256.slice(0, 12), r.saved, r.activated])));
       }
       const adminRead = await as('authenticated', ADMIN, `select count(*)::int n from public.prompt_templates`);

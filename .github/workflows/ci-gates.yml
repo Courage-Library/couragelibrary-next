@@ -151,6 +151,7 @@ jobs:
           q SESSION-RACE-1 node scripts/test_session_race1.cjs || fail=1
           q CA7 node scripts/test_ca7.cjs || fail=1
           q LAUNCH-MODE-1 node scripts/test_launch_mode1.cjs || fail=1
+          q INTAKE-ASSIST-1 node scripts/test_intake_assist1.cjs || fail=1
           q MIGRATION-RUNNER-SELFTEST node scripts/db/apply-migration.cjs --self-test || fail=1
           q KILL-LEFTOVER-SELFTEST node scripts/ci/kill-leftover-server.cjs --self-test || fail=1
           exit $fail
@@ -419,7 +420,7 @@ jobs:
             "$Q ADMIN-D1-D2 -- node scripts/live/test_admin_d1_d2.cjs" \
             "$Q CA1-TAXONOMY-LIVE -- node scripts/live/test_ca1_taxonomy.cjs" \
             "$Q CA2-INTAKE-LIVE -- node scripts/live/test_ca2_intake.cjs" \
-            "$Q CA3-LESSONS-LIVE -- node scripts/live/test_ca3_lessons.cjs"             "$Q CA4-LESSONS-LIVE -- node scripts/live/test_ca4_lessons.cjs"             "$Q LESSON-PROMPT-2-LIVE -- node scripts/live/test_lesson_prompt_2.cjs"             "$Q CA5-COURSES-LIVE -- node scripts/live/test_ca5_courses.cjs"             "$Q LESSON-PERF -- node scripts/test_brand2.cjs --probe --only-route=auto:lesson"             "$Q CA6-SEO-LIVE -- node scripts/live/test_ca6_seo.cjs --base=$B"             "$Q CA7-LIVE -- node scripts/live/test_ca7.cjs"             "$Q LAUNCH-MODE-1-LIVE -- node scripts/live/test_launch_mode1.cjs" \
+            "$Q CA3-LESSONS-LIVE -- node scripts/live/test_ca3_lessons.cjs"             "$Q CA4-LESSONS-LIVE -- node scripts/live/test_ca4_lessons.cjs"             "$Q LESSON-PROMPT-2-LIVE -- node scripts/live/test_lesson_prompt_2.cjs"             "$Q CA5-COURSES-LIVE -- node scripts/live/test_ca5_courses.cjs"             "$Q LESSON-PERF -- node scripts/test_brand2.cjs --probe --only-route=auto:lesson"             "$Q CA6-SEO-LIVE -- node scripts/live/test_ca6_seo.cjs --base=$B"             "$Q CA7-LIVE -- node scripts/live/test_ca7.cjs"             "$Q LAUNCH-MODE-1-LIVE -- node scripts/live/test_launch_mode1.cjs"             "$Q INTAKE-ASSIST-1-LIVE -- node scripts/live/test_intake_assist1.cjs" \
             "$Q SMOKE-ADMIN-PAGES-1 -- node scripts/smoke/signed-in-smoke.cjs admin-pages $B" \
             "$Q SMOKE-ADMIN-PAGES-2 -- node scripts/smoke/signed-in-smoke.cjs admin-pages $B" \
             "$Q SMOKE-ADMIN-PAGES-3 -- node scripts/smoke/signed-in-smoke.cjs admin-pages $B" \

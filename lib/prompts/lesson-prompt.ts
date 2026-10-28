@@ -43,6 +43,17 @@ export interface LessonPromptContext {
   childNodes: string[];
   aliases: string[];
   existingLessons: string[];
+  /** INTAKE-CONCEPTS-AS-OUTLINE: the subtopic's outline from its exam syllabus (concepts kept as outline lines) */
+  mustCover?: string[];
+}
+
+export const MUST_COVER_MAX = 50;
+export const MUST_COVER_HEADING = "MUST COVER (the exam syllabus outline for this subtopic — teach every line, in this order):";
+
+/** The block appended after the rendered LESSON template (no placeholder, like PREFERRED NAMES); empty → nothing. */
+export function mustCoverBlock(lines: string[] | undefined): string {
+  const xs = (lines || []).slice(0, MUST_COVER_MAX);
+  return xs.length ? `\n\n${MUST_COVER_HEADING}\n${xs.map((x) => `- ${x}`).join("\n")}` : "";
 }
 
 const list = (xs: string[], none: string) => (xs.length ? xs.map((x) => `- ${x}`).join("\n") : none);

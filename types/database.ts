@@ -6305,6 +6305,59 @@ export type Database = {
         }
         Relationships: []
       }
+      syllabus_intake_batches: {
+        Row: {
+          action: string
+          created_at: string
+          created_by: string | null
+          created_by_email: string
+          created_node_ids: string[]
+          id: string
+          item_ids: string[]
+          seq: number
+          session_id: string
+          undone_at: string | null
+          undone_by: string | null
+          undone_by_email: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          created_by?: string | null
+          created_by_email: string
+          created_node_ids?: string[]
+          id?: string
+          item_ids: string[]
+          seq?: never
+          session_id: string
+          undone_at?: string | null
+          undone_by?: string | null
+          undone_by_email?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          created_by?: string | null
+          created_by_email?: string
+          created_node_ids?: string[]
+          id?: string
+          item_ids?: string[]
+          seq?: never
+          session_id?: string
+          undone_at?: string | null
+          undone_by?: string | null
+          undone_by_email?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "syllabus_intake_batches_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "syllabus_intake_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       syllabus_intake_items: {
         Row: {
           aliases: string[]
@@ -6313,6 +6366,7 @@ export type Database = {
           decided_at: string | null
           decided_by: string | null
           decided_by_email: string | null
+          decided_in_batch: string | null
           decision: string | null
           decision_node_id: string | null
           duration_minutes: number | null
@@ -6342,6 +6396,7 @@ export type Database = {
           decided_at?: string | null
           decided_by?: string | null
           decided_by_email?: string | null
+          decided_in_batch?: string | null
           decision?: string | null
           decision_node_id?: string | null
           duration_minutes?: number | null
@@ -6371,6 +6426,7 @@ export type Database = {
           decided_at?: string | null
           decided_by?: string | null
           decided_by_email?: string | null
+          decided_in_batch?: string | null
           decision?: string | null
           decision_node_id?: string | null
           duration_minutes?: number | null
@@ -6394,6 +6450,13 @@ export type Database = {
           weightage_tier?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "syllabus_intake_items_decided_in_batch_fkey"
+            columns: ["decided_in_batch"]
+            isOneToOne: false
+            referencedRelation: "syllabus_intake_batches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "syllabus_intake_items_decision_node_id_fkey"
             columns: ["decision_node_id"]
@@ -9394,6 +9457,15 @@ export type Database = {
         Args: { p_exam_id: string; p_payload: Json }
         Returns: Json
       }
+      fn_syllabus_intake__approve_node: {
+        Args: {
+          p_actor_email: string
+          p_actor_id: string
+          p_item: Database["public"]["Tables"]["syllabus_intake_items"]["Row"]
+          p_scope: string
+        }
+        Returns: Record<string, unknown>
+      }
       fn_syllabus_intake_audit: {
         Args: {
           p_action: string
@@ -9404,6 +9476,24 @@ export type Database = {
           p_target_id: string
         }
         Returns: undefined
+      }
+      fn_syllabus_intake_bulk: {
+        Args: {
+          p_action: string
+          p_actor_email: string
+          p_actor_id: string
+          p_item_ids: string[]
+          p_session_id: string
+        }
+        Returns: Json
+      }
+      fn_syllabus_intake_bulk_undo: {
+        Args: {
+          p_actor_email: string
+          p_actor_id: string
+          p_session_id: string
+        }
+        Returns: Json
       }
       fn_syllabus_intake_create: {
         Args: {
@@ -9442,6 +9532,7 @@ export type Database = {
           p_actor_email: string
           p_actor_id: string
           p_session_id: string
+          p_source_check?: string
           p_version_tag: string
         }
         Returns: Json

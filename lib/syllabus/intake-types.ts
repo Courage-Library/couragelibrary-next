@@ -4,8 +4,27 @@
 import type { IntakeLevel, IntakeOrigin } from "@/lib/syllabus/intake-contract";
 import type { MatchCandidate, MatchStatus } from "@/lib/syllabus/tree-matcher";
 
-export const INTAKE_DECISIONS = ["LINK", "ALIAS", "APPROVE_NEW", "IGNORE"] as const;
+/** INTAKE-CONCEPTS-AS-OUTLINE: OUTLINE = "Keep as lesson outline" (concepts only; no master-tree node; not final). */
+export const INTAKE_DECISIONS = ["LINK", "ALIAS", "APPROVE_NEW", "IGNORE", "OUTLINE"] as const;
 export type IntakeDecision = (typeof INTAKE_DECISIONS)[number];
+
+/** INTAKE-ASSIST-1 bulk actions (one transaction, one audit row, undoable until the draft is created). */
+export const INTAKE_BULK_ACTIONS = ["LINK_EXACT", "APPROVE_CHILDREN", "KEEP_OUTLINE"] as const;
+export type IntakeBulkAction = (typeof INTAKE_BULK_ACTIONS)[number];
+export const INTAKE_BULK_MAX = 1000;
+
+/** Step 6: the owner's check of the notification named in "based on". */
+export const INTAKE_SOURCE_CHECKS = ["VERIFIED", "UNVERIFIABLE"] as const;
+export type IntakeSourceCheck = (typeof INTAKE_SOURCE_CHECKS)[number];
+
+/** The newest bulk action that can still be undone (null: none). */
+export interface IntakeBatchView {
+  id: string;
+  action: IntakeBulkAction;
+  count: number;
+  createdNodes: number;
+  createdAt: string;
+}
 
 export interface IntakeSessionView {
   id: string;

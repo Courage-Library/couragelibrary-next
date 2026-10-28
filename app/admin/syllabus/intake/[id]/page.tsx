@@ -13,8 +13,8 @@ export default async function SyllabusIntakeReviewPage({ params }: { params: Pro
   const r = await SyllabusIntakeService.get(id);
   if (!r.success && r.code === "NOT_FOUND") notFound();
   return r.success ? (
-    <IntakeReview session={r.data.session} items={r.data.items} nodes={r.data.nodes} loadError={null} />
+    <IntakeReview session={r.data.session} items={r.data.items} nodes={r.data.nodes} lastBatch={r.data.lastBatch} loadError={null} />
   ) : (
-    <IntakeReview session={null} items={[]} nodes={[]} loadError={r.error} />
+    <IntakeReview session={null} items={[]} nodes={[]} lastBatch={null} loadError={r.error} />
   );
 }

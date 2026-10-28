@@ -19,7 +19,7 @@ import type { Json } from "@/types/database";
 import { validateLesson, type BlockError, type LessonBlock } from "@/lib/lessons/blocks";
 import { lessonChecklist, checklistPasses, type ChecklistItem } from "@/lib/lessons/completeness";
 import { renderTemplate } from "@/lib/prompts/template";
-import { lessonPromptValues, lessonSize, mergeLessonParts, parseLessonPart, type LessonExamCoverage, type LessonPromptContext } from "@/lib/prompts/lesson-prompt";
+import { MUST_COVER_MAX, lessonPromptValues, lessonSize, mergeLessonParts, mustCoverBlock, parseLessonPart, type LessonExamCoverage, type LessonPromptContext } from "@/lib/prompts/lesson-prompt";
 import { parseTranslationPaste, translatePromptValues } from "@/lib/prompts/translate-prompt";
 import { mapLessonDbError } from "@/services/lessons/lesson-admin.service";
 import { PromptTemplateService } from "@/services/prompts/prompt-template.service";
@@ -147,6 +147,34 @@ async function examCoverage(c: Ctx, tree: Map<string, TreeNode>, nodeId: string)
   return out.sort((a, b) => a.exam.localeCompare(b.exam) || a.syllabusPath.localeCompare(b.syllabusPath));
 }
 
+/**
+ * INTAKE-CONCEPTS-AS-OUTLINE: the lines a syllabus unit keeps for this node (metadata.outlines[nodeId].items, written
+ * by fn_syllabus_intake_import) — PUBLISHED versions first, then DRAFTs; de-duplicated, in order.
+ */
+async function mustCoverFor(c: Ctx, nodeId: string): Promise<string[]> {
+  const { data: maps } = await c.supabase.from("exam_syllabus_canonical_mappings").select("syllabus_node_id").eq("canonical_node_id", nodeId);
+  const unitIds = [...new Set((maps || []).map((m) => m.syllabus_node_id))];
+  if (!unitIds.length) return [];
+  const { data: units } = await c.supabase.from("exam_syllabus_nodes").select("id, metadata, syllabus_version_id").in("id", unitIds);
+  const versionIds = [...new Set((units || []).map((u) => u.syllabus_version_id))];
+  if (!versionIds.length) return [];
+  const { data: versions } = await c.supabase.from("exam_syllabus_versions").select("id, status").in("id", versionIds).in("status", ["PUBLISHED", "DRAFT"]);
+  const rank = new Map((versions || []).map((v) => [v.id, v.status === "PUBLISHED" ? 0 : 1]));
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const u of (units || []).filter((x) => rank.has(x.syllabus_version_id)).sort((a, b) => (rank.get(a.syllabus_version_id) as number) - (rank.get(b.syllabus_version_id) as number))) {
+    const outlines = u.metadata && typeof u.metadata === "object" && !Array.isArray(u.metadata) ? (u.metadata as Record<string, unknown>).outlines : null;
+    const entry = outlines && typeof outlines === "object" && !Array.isArray(outlines) ? (outlines as Record<string, unknown>)[nodeId] : null;
+    const lines = entry && typeof entry === "object" && !Array.isArray(entry) ? (entry as Record<string, unknown>).items : null;
+    for (const line of Array.isArray(lines) ? lines : []) {
+      if (typeof line !== "string" || seen.has(line.toLowerCase()) || out.length >= MUST_COVER_MAX) continue;
+      seen.add(line.toLowerCase());
+      out.push(line);
+    }
+  }
+  return out;
+}
+
 function subjectTypeOf(tree: Map<string, TreeNode>, nodeId: string): { id: string | null; name: string | null; type: string | null } {
   const n = tree.get(nodeId);
   const s = n?.root_subject_id ? tree.get(n.root_subject_id) : undefined;
@@ -183,11 +211,12 @@ export class LessonAuthoringService {
     if (!tree || !node || !LESSON_LEVELS.includes(node.node_type)) return fail("NOT_FOUND", "Choose an active topic, subtopic or concept.");
     const kids = [...tree.values()].filter((n) => n.parent_id === nodeId).sort((a, b) => a.display_order - b.display_order || a.name.localeCompare(b.name));
     const related = new Set([nodeId, ...ancestorsOf(tree, nodeId), ...descendantsOf(tree, nodeId)]);
-    const [aliases, docs, coverage, template] = await Promise.all([
+    const [aliases, docs, coverage, template, mustCover] = await Promise.all([
       c.supabase.from("taxonomy_node_aliases").select("alias, language").eq("node_id", nodeId),
       c.supabase.from("learning_documents").select("id, node_id, status").eq("document_type", "NODE_LESSON").eq("status", "PUBLISHED"),
       examCoverage(c, tree, nodeId),
       PromptTemplateService.getActiveBody("LESSON"),
+      mustCoverFor(c, nodeId),
     ]);
     // getActiveBody falls back to the code v1 for LESSON, so null means its own admin check failed (session / network)
     if (!template) return fail("DB_ERROR", "The LESSON template could not be loaded (the session check failed). Reload the page.");
@@ -204,13 +233,15 @@ export class LessonAuthoringService {
       childNodes: kids.map((k) => k.name),
       aliases: (aliases.data || []).filter((a) => a.language === "en").map((a) => a.alias),
       existingLessons: (docs.data || []).filter((d) => d.node_id && d.node_id !== nodeId && related.has(d.node_id)).map((d) => pathOf(tree, d.node_id as string)),
+      mustCover,
     };
     const { data: own } = await c.supabase.from("learning_documents").select("id").eq("document_type", "NODE_LESSON").eq("node_id", nodeId).maybeSingle();
     return {
       success: true,
       data: {
         context,
-        prompt: renderTemplate("LESSON", template.body, lessonPromptValues(context)),
+        // INTAKE-CONCEPTS-AS-OUTLINE: the subtopic's outline is appended (no placeholder, so no template change)
+        prompt: renderTemplate("LESSON", template.body, lessonPromptValues(context)) + mustCoverBlock(context.mustCover),
         templateVersion: template.version,
         templateSource: template.source,
         documentId: own?.id ?? null,

@@ -17,6 +17,10 @@
  *   de-duplicated (case-insensitive); an unknown key names its path and the keys allowed there; NON-BLOCKING warnings
  *   when the subjects' timings / marks do not add up to the paper's. AI aliases are suggestions: they reach the master
  *   tree only through the owner's own action on the review screen.
+ * v3.2 (INTAKE-CONCEPTS-AS-OUTLINE, additive — contract_version stays 3): a subtopic may carry "outline": [names] (≤ 30)
+ *   INSTEAD of "concepts" (not both). Each outline line becomes an EXPANDED concept item, so v3 / v3.1 payloads and v3.2
+ *   ones share one review flow; the owner keeps such concepts as the subtopic's lesson outline (no master-tree node).
+ *   NON-BLOCKING warning when a subject's topics' avg_questions add up to more than 20 % away from its questions.
  * v2 (CA-2, still accepted for old pastes): no based_on / origin / avg_questions / duration / negative marking, and
  *   source_url + as_of are required.
  * Levels deeper than a concept go into "headings" (they become sections inside the L4 lesson, design L.1).
@@ -39,6 +43,10 @@ export const INTAKE_ALIAS_MAX = 160;
 export const INTAKE_ALIASES_MAX = 10;
 export const INTAKE_HEADINGS_MAX = 50;
 export const INTAKE_REASON_MAX = 500;
+/** v3.2: lines of a subtopic's lesson outline */
+export const INTAKE_OUTLINE_MAX = 30;
+/** v3.2: a subject's Σ topic avg_questions may differ from its questions by at most this share before a warning */
+export const WEIGHTAGE_TOLERANCE = 0.2;
 
 export const INTAKE_LEVELS = ["PAPER", "SUBJECT", "TOPIC", "SUBTOPIC", "CONCEPT"] as const;
 export type IntakeLevel = (typeof INTAKE_LEVELS)[number];
@@ -58,7 +66,7 @@ const V3_EXTRA: Record<IntakeLevel, readonly string[]> = {
   PAPER: ["name_hi", "duration_minutes", "negative_marking"],
   SUBJECT: ["duration_minutes", "negative_marking"], // v3.1: sectionally-timed / -marked papers only
   TOPIC: ["origin", "avg_questions"],
-  SUBTOPIC: ["origin", "avg_questions"],
+  SUBTOPIC: ["origin", "avg_questions", "outline"], // v3.2: outline (instead of concepts)
   CONCEPT: ["origin", "avg_questions"],
 };
 const itemKeys = (version: IntakeContractVersion, level: IntakeLevel): readonly string[] =>
@@ -355,6 +363,18 @@ export function validateIntakePayload(input: unknown, ctx?: IntakeContext): Inta
       if (origin === "OFFICIAL") stats.official += 1;
       else if (origin === "PYQ_TREND") stats.pyq_trend += 1;
       else if (origin === "EXPANDED") stats.expanded += 1;
+      // v3.2: a subtopic's outline lines become EXPANDED concept items (instead of "concepts", never both)
+      if (version === 3 && level === "SUBTOPIC" && raw.outline !== undefined && raw.outline !== null) {
+        if (Array.isArray(raw.concepts) && raw.concepts.length > 0) e.add("INVALID_VALUE", `${p}.outline`, 'Give either "outline" or "concepts" for a subtopic, not both.');
+        const lines = textList(e, raw.outline, `${p}.outline`, INTAKE_OUTLINE_MAX, INTAKE_NAME_MAX);
+        lines.forEach((line, j) => {
+          if (items.length >= INTAKE_MAX_ITEMS) return;
+          items.push({ ...item, key: `${key}.c${j}`, parent_key: key, level: "CONCEPT", position: j, name: line, name_hi: null, aliases: [], marks: null, questions: null,
+            weightage_tier: null, uncertain: false, uncertain_reason: null, extra_headings: [], origin: "EXPANDED", avg_questions: null, duration_minutes: null, negative_marking: null, sectional: null });
+          stats.concepts += 1;
+          stats.expanded += 1;
+        });
+      }
       const childList = CHILD_LIST[level];
       const childLevel = CHILD_LEVEL[level];
       if (childList && childLevel) {
@@ -388,6 +408,10 @@ export function validateIntakePayload(input: unknown, ctx?: IntakeContext): Inta
  */
 export function intakeWarnings(items: IntakeItemDraft[]): IntakeWarning[] {
   const out: IntakeWarning[] = [];
+  // v3.2: each subject's Σ topic avg_questions against its own questions (> 20 % off → a note)
+  weightageChecks(items.map((i) => ({ key: i.key, parentKey: i.parent_key, level: i.level, name: i.name, questions: i.questions, avgQuestions: i.avg_questions })))
+    .filter((w) => w.off)
+    .forEach((w) => out.push({ path: w.path, message: w.message }));
   items
     .filter((p) => p.level === "PAPER")
     .forEach((paper, pi) => {
@@ -406,4 +430,56 @@ export function intakeWarnings(items: IntakeItemDraft[]): IntakeWarning[] {
       }
     });
   return out;
+}
+
+export interface WeightageInput {
+  key: string;
+  parentKey: string | null;
+  level: IntakeLevel;
+  name: string;
+  questions: number | null;
+  avgQuestions: number | null;
+}
+
+export interface WeightageCheck {
+  subject: string;
+  path: string;
+  questions: number;
+  estimated: number;
+  /** more than WEIGHTAGE_TOLERANCE away from the subject's questions */
+  off: boolean;
+  message: string;
+}
+
+/**
+ * v3.2 / INTAKE-ASSIST-1 step 6: per subject with questions and ≥ 1 topic estimate, Σ topic avg_questions vs the
+ * subject's questions (the estimates are the AI's, so this is a note, never a block).
+ */
+export function weightageChecks(items: WeightageInput[]): WeightageCheck[] {
+  const out: WeightageCheck[] = [];
+  items
+    .filter((s) => s.level === "SUBJECT" && s.questions !== null && s.questions > 0)
+    .forEach((s) => {
+      const est = items.filter((t) => t.level === "TOPIC" && t.parentKey === s.key && t.avgQuestions !== null).map((t) => t.avgQuestions as number);
+      if (!est.length) return;
+      const sum = Math.round(est.reduce((a, b) => a + b, 0) * 10) / 10;
+      const q = s.questions as number;
+      const off = Math.abs(sum - q) > q * WEIGHTAGE_TOLERANCE;
+      const pct = Math.round(((sum - q) / q) * 100);
+      out.push({
+        subject: s.name,
+        path: pathOfKey(s.key),
+        questions: q,
+        estimated: sum,
+        off,
+        message: `${s.name}: the topics' estimates add up to about ${sum} questions, the subject has ${q} (${pct > 0 ? "+" : ""}${pct} %)${off ? " — check the weightage." : "."}`,
+      });
+    });
+  return out;
+}
+
+/** "p0.s1" → "$.papers[0].subjects[1]" */
+function pathOfKey(key: string): string {
+  const names: Record<string, string> = { p: "papers", s: "subjects", t: "topics", u: "subtopics", c: "concepts" };
+  return "$" + key.split(".").map((part) => `.${names[part[0]]}[${part.slice(1)}]`).join("");
 }

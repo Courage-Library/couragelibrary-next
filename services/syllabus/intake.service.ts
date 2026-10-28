@@ -3,7 +3,8 @@
  *
  * Paste (contract v3 — SYLLABUS-PROMPT-2 — or v2) → validate (lib/syllabus/intake-contract.ts) → match to the master tree (lib/syllabus/tree-matcher.ts) →
  * staging (fn_syllabus_intake_create) → the owner decides every item (fn_syllabus_intake_decide: LINK / ALIAS /
- * APPROVE_NEW / IGNORE) → one DRAFT syllabus version (fn_syllabus_intake_import) → the existing editor + publish.
+ * APPROVE_NEW / IGNORE / OUTLINE; INTAKE-ASSIST-1: fn_syllabus_intake_bulk + _bulk_undo for the guided steps) → one DRAFT
+ * syllabus version (fn_syllabus_intake_import, with the owner's source check) → the existing editor + publish.
  *
  * INVARIANTS:
  * - Server-only; the service-role client after the canonical admin guard. ADMIN ONLY: decisions write the master tree
@@ -18,7 +19,19 @@ import type { Json } from "@/types/database";
 import { SOURCE_URL_RE, validateIntakePayload, type IntakeError, type IntakeLevel, type IntakeOrigin, type IntakeStats } from "@/lib/syllabus/intake-contract";
 import { matchIntake, matchSummary, type MatchCandidate, type MatchStatus } from "@/lib/syllabus/tree-matcher";
 import { extractJson } from "@/lib/prompts/paste-extract";
-import { INTAKE_DECISIONS, type IntakeDecision, type IntakeItemView, type IntakeNodeOption, type IntakeSessionView } from "@/lib/syllabus/intake-types";
+import {
+  INTAKE_BULK_ACTIONS,
+  INTAKE_BULK_MAX,
+  INTAKE_DECISIONS,
+  INTAKE_SOURCE_CHECKS,
+  type IntakeBatchView,
+  type IntakeBulkAction,
+  type IntakeDecision,
+  type IntakeItemView,
+  type IntakeNodeOption,
+  type IntakeSessionView,
+  type IntakeSourceCheck,
+} from "@/lib/syllabus/intake-types";
 
 export { INTAKE_DECISIONS, type IntakeDecision, type IntakeItemView, type IntakeNodeOption, type IntakeSessionView };
 
@@ -156,11 +169,11 @@ export class SyllabusIntakeService {
     return { success: true, data: (data || []).map(toSession) };
   }
 
-  static async get(sessionId: string): Promise<IntakeResult<{ session: IntakeSessionView; items: IntakeItemView[]; nodes: IntakeNodeOption[] }>> {
+  static async get(sessionId: string): Promise<IntakeResult<{ session: IntakeSessionView; items: IntakeItemView[]; nodes: IntakeNodeOption[]; lastBatch: IntakeBatchView | null }>> {
     const c = await ctx();
     if (!c) return fail("UNAUTHORIZED", "Unauthorized.");
     if (!isUuid(sessionId)) return fail("NOT_FOUND", "Intake not found.");
-    const [s, items, nodes] = await Promise.all([
+    const [s, items, nodes, batch] = await Promise.all([
       c.supabase
         .from("syllabus_intake_sessions")
         .select("id, exam_id, tier, source_url, as_of_date, based_on, contract_version, status, imported_version_id, created_at, exam:exams(title), cycle:exam_cycles(cycle_year)")
@@ -171,8 +184,17 @@ export class SyllabusIntakeService {
         .select("id, parent_item_id, item_key, level, position, raw_name, raw_name_hi, aliases, marks, questions, weightage_tier, origin, avg_questions, duration_minutes, negative_marking, uncertain, uncertain_reason, extra_headings, match_status, matched_node_id, candidates, decision, decision_node_id")
         .eq("session_id", sessionId),
       c.supabase.from("canonical_taxonomy_nodes").select("id, parent_id, node_type, name, hierarchy_path").eq("is_active", true).in("node_type", ["SUBJECT", "TOPIC", "SUBTOPIC", "CONCEPT"]),
+      // INTAKE-ASSIST-1: the newest bulk action that is not undone yet (the one "Undo" reverts)
+      c.supabase
+        .from("syllabus_intake_batches")
+        .select("id, action, item_ids, created_node_ids, created_at")
+        .eq("session_id", sessionId)
+        .is("undone_at", null)
+        .order("seq", { ascending: false })
+        .limit(1),
     ]);
-    if (s.error || items.error || nodes.error) return fail("DB_ERROR", "Could not load the intake.");
+    if (s.error || items.error || nodes.error || batch.error) return fail("DB_ERROR", "Could not load the intake.");
+    const b = (batch.data || [])[0];
     if (!s.data) return fail("NOT_FOUND", "Intake not found.");
     const order = (k: string) => k.split(".").map((p) => p.slice(0, 1) + p.slice(1).padStart(4, "0")).join(".");
     return {
@@ -207,6 +229,7 @@ export class SyllabusIntakeService {
           }))
           .sort((a, b) => order(a.key).localeCompare(order(b.key))),
         nodes: (nodes.data || []).map((n) => ({ id: n.id, parentId: n.parent_id, nodeType: n.node_type, name: n.name, path: n.hierarchy_path })),
+        lastBatch: b ? { id: b.id, action: b.action as IntakeBulkAction, count: (b.item_ids || []).length, createdNodes: (b.created_node_ids || []).length, createdAt: b.created_at } : null,
       },
     };
   }
@@ -231,16 +254,59 @@ export class SyllabusIntakeService {
     return { success: true, data: { nodeId: r.node_id ?? null } };
   }
 
-  static async importDraft(sessionId: string, versionTag: string | null): Promise<IntakeResult<{ versionId: string }>> {
+  /**
+   * INTAKE-ASSIST-1: one guided step for many items — one transaction, one audit row (item ids), undoable until the
+   * draft is created. The database refuses anything outside the step's rule (EXACT only / subtopics only / concepts
+   * only; parents first; at most 1000 items) and then keeps nothing of the batch.
+   */
+  static async bulk(sessionId: string, action: IntakeBulkAction, itemIds: string[]): Promise<IntakeResult<{ batchId: string; count: number; created: number }>> {
+    const c = await ctx();
+    if (!c) return fail("UNAUTHORIZED", "Unauthorized.");
+    if (!isUuid(sessionId) || !INTAKE_BULK_ACTIONS.includes(action)) return fail("VALIDATION", "Invalid bulk action.");
+    const ids = [...new Set(Array.isArray(itemIds) ? itemIds : [])];
+    if (!ids.length || ids.length > INTAKE_BULK_MAX || !ids.every(isUuid)) return fail("VALIDATION", `Choose between 1 and ${INTAKE_BULK_MAX} items.`);
+    const { data, error } = await c.supabase.rpc("fn_syllabus_intake_bulk", {
+      p_session_id: sessionId,
+      p_action: action,
+      p_item_ids: ids,
+      p_actor_id: c.userId as string,
+      p_actor_email: c.userEmail,
+    });
+    if (error || !data) {
+      const m = mapIntakeDbError(error);
+      return fail(m.code, m.error);
+    }
+    const r = data as { batch_id?: string; count?: number; created?: number };
+    return { success: true, data: { batchId: String(r.batch_id || ""), count: Number(r.count || 0), created: Number(r.created || 0) } };
+  }
+
+  /** Reverts the newest bulk action of the intake (all or nothing; refused when anything changed since). */
+  static async undoBulk(sessionId: string): Promise<IntakeResult<{ count: number; deleted: number }>> {
     const c = await ctx();
     if (!c) return fail("UNAUTHORIZED", "Unauthorized.");
     if (!isUuid(sessionId)) return fail("NOT_FOUND", "Intake not found.");
+    const { data, error } = await c.supabase.rpc("fn_syllabus_intake_bulk_undo", { p_session_id: sessionId, p_actor_id: c.userId as string, p_actor_email: c.userEmail });
+    if (error || !data) {
+      const m = mapIntakeDbError(error);
+      return fail(m.code, m.error);
+    }
+    const r = data as { count?: number; deleted?: number };
+    return { success: true, data: { count: Number(r.count || 0), deleted: Number(r.deleted || 0) } };
+  }
+
+  static async importDraft(sessionId: string, versionTag: string | null, sourceCheck: IntakeSourceCheck): Promise<IntakeResult<{ versionId: string }>> {
+    const c = await ctx();
+    if (!c) return fail("UNAUTHORIZED", "Unauthorized.");
+    if (!isUuid(sessionId)) return fail("NOT_FOUND", "Intake not found.");
+    // INTAKE-ASSIST-1 step 6: the owner's check of the notification is required (recorded; UNVERIFIABLE marks the paper uncertain)
+    if (!INTAKE_SOURCE_CHECKS.includes(sourceCheck)) return fail("VALIDATION", "Confirm whether you verified the notification first.");
     if (versionTag && !/^[a-z0-9]+(?:[-.][a-z0-9]+)*$/.test(versionTag)) return fail("VALIDATION", 'The version tag must be lower-case letters, digits, "-" or ".".');
     const { data, error } = await c.supabase.rpc("fn_syllabus_intake_import", {
       p_session_id: sessionId,
       p_version_tag: (versionTag || null) as string,
       p_actor_id: c.userId as string,
       p_actor_email: c.userEmail,
+      p_source_check: sourceCheck,
     });
     if (error || !data) {
       const m = mapIntakeDbError(error);

@@ -224,14 +224,14 @@ test('S-01 admin only: routes, page guards, action guards, client imports', () =
   }
   const actions = read('app/admin/syllabus/intake/actions.ts');
   const fns = actions.split(/export async function /).slice(1);
-  assert(fns.length === 5, `actions: ${fns.length}`); // + addIntakeCycleAction (CA-4 ruling 1)
+  assert(fns.length === 7, `actions: ${fns.length}`); // + addIntakeCycleAction (CA-4 ruling 1); + bulk / undo (INTAKE-ASSIST-1)
   for (const f of fns) {
     const at = f.indexOf('const __auth = await guardAdminAction()');
     const body = f.lastIndexOf('{\n', at);
     assert(at > 0 && body > 0 && f.slice(body + 2, at).trim() === '' && !/allowStaff/.test(f), `not guarded first: ${f.slice(0, 40)}`);
   }
   const svc = read('services/syllabus/intake.service.ts');
-  for (const m of ['create', 'addCurrentCycle', 'list', 'get', 'decide', 'importDraft', 'discard']) {
+  for (const m of ['create', 'addCurrentCycle', 'list', 'get', 'decide', 'bulk', 'undoBulk', 'importDraft', 'discard']) {
     const start = svc.indexOf(`static async ${m}(`);
     assert(start > 0 && /const c = await ctx\(\);\s*if \(!c\) return fail\("UNAUTHORIZED"/.test(svc.slice(start, start + 400)), `service ${m} guard`);
   }
@@ -252,7 +252,8 @@ test('U-02 SYLLABUS-PROMPT-2 screens: wizard = exam + cycle + tier, an optional 
   const page = read('app/admin/syllabus/intake/page.tsx');
   assert(/PromptTemplateService\.getActiveBody\("SYLLABUS"\)/.test(page), 'the page passes the ACTIVE SYLLABUS template');
   const rv = read('components/admin/syllabus/intake-review.tsx');
-  for (const x of ['ORIGIN_LABEL', 'OFFICIAL: "Official"', 'PYQ_TREND: "PYQ trend"', 'EXPANDED: "Expanded"', 'aria-label="Filter by origin"', 'aria-pressed={origin === o}', 'Based on:', 'i.weightageTier', 'i.avgQuestions']) assert(rv.includes(x), `review: ${x}`);
+  // INTAKE-ASSIST-1: the filters are one FilterRow component (status / level / origin), aria-label "Filter by origin"
+  for (const x of ['ORIGIN_LABEL', 'OFFICIAL: "Official"', 'PYQ_TREND: "PYQ trend"', 'EXPANDED: "Expanded"', '<FilterRow label="Origin" value={origin}', 'aria-label={`Filter by ${label.toLowerCase()}`}', 'aria-pressed={value === o}', 'Based on:', 'i.weightageTier', 'i.avgQuestions']) assert(rv.includes(x), `review: ${x}`);
   return 'wizard + review';
 });
 
@@ -260,7 +261,9 @@ test('U-01 screens: one primary in each header, labelled controls, English-only,
   for (const f of ['components/admin/syllabus/intake-wizard.tsx', 'components/admin/syllabus/intake-review.tsx']) {
     const s = read(f);
     const header = s.slice(s.indexOf('<StudioPageHeader', s.indexOf('return (')), s.indexOf('/>', s.indexOf('actions=', s.indexOf('<StudioPageHeader', s.indexOf('return (')))));
-    assert((header.match(/studioPrimaryAction/g) || []).length === 1, `${f}: one primary in the header`);
+    // INTAKE-ASSIST-1: the review's one primary is the CURRENT guide step's action (none in its header)
+    if (f.endsWith('intake-review.tsx')) assert((header.match(/studioPrimaryAction/g) || []).length === 0 && /n === current \? studioPrimaryAction : studioQuietAction/.test(s), `${f}: one primary (the current step)`);
+    else assert((header.match(/studioPrimaryAction/g) || []).length === 1, `${f}: one primary in the header`);
     const ids = [...s.matchAll(/<(?:select|input|textarea) id="([^"]+)"/g)].map((m) => m[1]);
     for (const id of ids) assert(s.includes(`htmlFor="${id}"`), `${f}: no label for #${id}`);
     assert(!/\slang=/.test(s) && !/[ऀ-ॿ]/.test(s) && !/\bHindi\b/.test(s), `${f}: #85 (no lang, Devanagari or Hindi label)`);
