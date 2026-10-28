@@ -19,16 +19,20 @@
  *   I7  HTML / markdown / script in text refused (RPC)
  *   I8  oversize / too many nodes / unknown keys / wrong contract / exam mismatch / unknown cycle refused (RPC)
  *   I9  forced failure mid-import (temporary trigger, rolled back) → zero partial rows
- *   I10 live: the deployed function body never writes taxonomy / never publishes; taxonomy unchanged by the suite
+ *   I10 live: the deployed function body never writes taxonomy / never publishes; the suite changed no taxonomy
+ *       (SYLIMPORT1-SCOPE: its touch-set is byte-identical and its actors wrote no taxonomy audit row in the run window)
  *   I11 staff cannot publish / archive the imported DRAFT (42501); admin publishes through fn_syllabus_publish (rolled back)
  *   I12 live: every topic of the CGL file resolves against the live taxonomy; the RPC accepts the full file (QA exam,
  *       rolled back — never ssc-cgl)
  *   Cleanup: the suite's own DRAFT (QA exam) is deleted as owner (DRAFT rows are deletable by design) → QA-exam syllabus
- *   rows return to the baseline; non-QA syllabus rows and the taxonomy are byte-identical (md5) before / after.
+ *   rows return to the baseline; the suite changed nothing outside its fixtures (SYLIMPORT1-SCOPE, scripts/live/
+ *   _suite-scope.cjs): touch-set md5 identical, ZERO taxonomy audit rows by the suite's actors, ZERO suite syllabus audit
+ *   rows / versions outside the QA exam — an owner editing the Master tree or running an intake meanwhile never fails it.
  *
  * Run: node scripts/test_syl_import1.cjs [--offline]
  */
 const { safeBegin } = require('./db/live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
+const { touchSetIds, touchSetFingerprint, suiteScopeProblems } = require('./live/_suite-scope.cjs');
 const fs = require('fs');
 const path = require('path');
 const ts = require('typescript');
@@ -296,9 +300,8 @@ const CASES = [
   let draftId = null;
   let qaExam = null;
   let before = null;
-  let fpBefore = null;
+  let scope = null; // SYLIMPORT1-SCOPE: run window, suite actors, touch-set
   let qaRows = null;
-  let fingerprint = null;
   try {
     const ids = Object.fromEntries((await ro(`SELECT email, id FROM auth.users WHERE email IN ('qa-student@courage-library.test','qa-staff@courage-library.test','qa-admin@courage-library.test')`)).map((r) => [r.email.split('@')[0], r.id]));
     assert(ids['qa-student'] && ids['qa-staff'] && ids['qa-admin'], 'QA identities missing');
@@ -310,15 +313,20 @@ const CASES = [
         (SELECT count(*) FROM public.exam_syllabus_nodes n JOIN public.exam_syllabus_versions x ON x.id = n.syllabus_version_id WHERE x.exam_id = $1)::int n,
         (SELECT count(*) FROM public.exam_syllabus_canonical_mappings m JOIN public.exam_syllabus_nodes n ON n.id = m.syllabus_node_id JOIN public.exam_syllabus_versions x ON x.id = n.syllabus_version_id WHERE x.exam_id = $1)::int m,
         (SELECT count(*) FROM public.exam_syllabus_versions WHERE exam_id = $1 AND status = 'DRAFT')::int drafts`, [QA]))[0];
-    fingerprint = async () => JSON.stringify(await ro(`SELECT
-        (SELECT md5(coalesce(string_agg(t::text, '|' ORDER BY t.id), '')) FROM public.canonical_taxonomy_nodes t) tax,
-        (SELECT md5(coalesce(string_agg(v::text, '|' ORDER BY v.id), '')) FROM public.exam_syllabus_versions v WHERE v.exam_id <> $1) vers,
-        (SELECT md5(coalesce(string_agg(n::text, '|' ORDER BY n.id), '')) FROM public.exam_syllabus_nodes n JOIN public.exam_syllabus_versions v ON v.id = n.syllabus_version_id WHERE v.exam_id <> $1) nodes,
-        (SELECT md5(coalesce(string_agg(m::text, '|' ORDER BY m.id), '')) FROM public.exam_syllabus_canonical_mappings m JOIN public.exam_syllabus_nodes n ON n.id = m.syllabus_node_id JOIN public.exam_syllabus_versions v ON v.id = n.syllabus_version_id WHERE v.exam_id <> $1) maps`, [QA]));
+    // SYLIMPORT1-SCOPE: the window starts now; the touch-set = exactly the nodes the suite's committed fixture maps (T1..T4)
+    const touchIds = await touchSetIds(ro, [T1, T2, T3, T4]);
+    assert(touchIds.length === 4, `touch-set: ${touchIds.length} node(s) for 4 fixture topics`);
+    scope = {
+      since: (await ro(`SELECT now() t`))[0].t,
+      actorIds: [ids['qa-student'], ids['qa-staff'], ids['qa-admin']],
+      actorEmails: ['qa-student@courage-library.test', 'qa-staff@courage-library.test', 'qa-admin@courage-library.test'],
+      touchIds,
+      touchBefore: await touchSetFingerprint(ro, touchIds),
+      qaExamId: QA,
+    };
     // leftover from an interrupted run: our own tagged DRAFT only
     for (const r of await ro(`SELECT id FROM public.exam_syllabus_versions WHERE exam_id = $1 AND status = 'DRAFT' AND version_tag = $2`, [QA, TAG])) await deleteOwnDraft(r.id, QA);
     before = await qaRows();
-    fpBefore = await fingerprint();
     assert(before.drafts === 0, `the QA exam already has ${before.drafts} DRAFT(s); archive them first`);
     const staffTok = await token('qa-staff@courage-library.test', 'QA_STAFF_PASSWORD');
 
@@ -502,7 +510,8 @@ const CASES = [
       assert(priv === false, 'anon can execute');
       const statuses = await ro(`SELECT status FROM public.exam_syllabus_versions WHERE id = $1`, [draftId]);
       assert(statuses[0] && statuses[0].status === 'DRAFT', 'the imported version is not a DRAFT');
-      assert(JSON.parse(await fingerprint())[0].tax === JSON.parse(fpBefore)[0].tax, 'taxonomy changed');
+      const problems = await suiteScopeProblems(ro, scope);
+      assert(problems.length === 0, `the suite changed taxonomy / syllabus outside its fixtures: ${problems.join('; ')}`);
       return 'static + live';
     });
 
@@ -547,14 +556,15 @@ const CASES = [
     if (draftId && qaExam) await deleteOwnDraft(draftId, qaExam.id).catch((e) => console.log(`  WARN  cleanup failed: ${e.message}`));
   }
 
-  await test('CLEANUP QA-exam syllabus rows back to the baseline; non-QA syllabus rows + taxonomy byte-identical', async () => {
+  await test('CLEANUP QA-exam syllabus rows back to the baseline; the suite changed nothing outside its fixtures (touch-set md5, zero suite taxonomy / non-QA syllabus audit rows)', async () => {
     const QA = qaExam.id;
     const rows = (await ro(`SELECT (SELECT count(*) FROM public.exam_syllabus_versions WHERE exam_id = $1 AND version_tag LIKE 'syl-import1-%')::int tagged,
         (SELECT count(*) FROM public.exam_syllabus_versions WHERE exam_id = $1 AND status = 'DRAFT')::int drafts`, [QA]))[0];
     assert(rows.tagged === 0 && rows.drafts === 0, JSON.stringify(rows));
     assert(JSON.stringify(await qaRows()) === JSON.stringify(before), `QA rows ${JSON.stringify(await qaRows())} vs baseline ${JSON.stringify(before)}`);
-    assert((await fingerprint()) === fpBefore, 'non-QA syllabus rows or taxonomy changed');
-    return `QA exam ${before.v} versions / ${before.n} nodes / ${before.m} mappings (baseline); md5 identical`;
+    const problems = await suiteScopeProblems(ro, scope);
+    assert(problems.length === 0, problems.join('; '));
+    return `QA exam ${before.v} versions / ${before.n} nodes / ${before.m} mappings (baseline); touch-set ${scope.touchIds.length} node(s) identical; 0 suite audit rows outside the fixtures`;
   });
   await c.end().catch(() => {});
   finish();
