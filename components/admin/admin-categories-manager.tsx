@@ -1,363 +1,237 @@
 "use client";
 
 import { actionErrorMessage } from "@/lib/actions/action-result";
-import React, { useState, useMemo, useActionState, useTransition } from "react";
+import React, { useState, useMemo, useActionState, useTransition, useEffect } from "react";
 import Link from "next/link";
 import { AdminCategoryItem } from "@/services/admin.service";
-import {
-  createCategoryAction,
-  updateCategoryAction,
-  toggleCategoryStatusAction,
-} from "@/app/admin/actions";
-import { AdminBreadcrumbs } from "@/components/admin/admin-breadcrumbs";
-import { Card } from "@/components/ui/legacy/card";
-import { Badge } from "@/components/ui/legacy/badge";
-import { Button } from "@/components/ui/legacy/button";
-import { Alert } from "@/components/ui/legacy/alert";
-import {
-  Layers,
-  Search,
-  PlusCircle,
-  GitBranch,
-  Calendar,
-  HelpCircle,
-  FileCheck2,
-  Edit2,
-  Power,
-  X,
-} from "lucide-react";
+import { createCategoryAction, updateCategoryAction, toggleCategoryStatusAction } from "@/app/admin/actions";
+import { StudioDrawer } from "@/components/admin/studio/studio-drawer";
+import { StudioEmpty, StudioField, StudioPageHeader, StudioPanel, StudioStatStrip, studioControl, studioPrimaryAction, studioQuietAction } from "@/components/admin/studio/studio-page";
+import { StatusChip } from "@/components/admin/status-chip";
+import { Edit2, Power, Plus } from "lucide-react";
 
 interface Props {
   categories: AdminCategoryItem[];
 }
 
+type StatusFilter = "ALL" | "ACTIVE" | "INACTIVE";
+const BOARDS = [
+  "Staff Selection Commission (SSC)",
+  "State Police Recruitment",
+  "Defence (Army / Navy / Air Force)",
+  "Railway Recruitment Board (RRB)",
+  "Banking & Insurance",
+  "Teaching & State PSC",
+];
+
+/**
+ * Courage Studio phase 3 batch 2 — Categories on the Studio template: ONE primary ("New category") opening the form in
+ * the Studio drawer, edit in the same drawer, a stat strip that filters by status (aria-pressed), a labelled search,
+ * rows with named icon actions, v3 status chips and the connected counts, honest empty states. A failed toggle is shown
+ * (it used to be silent).
+ */
 export function AdminCategoriesManager({ categories }: Props) {
-  // Create Form State
   const [createState, createAction, isCreating] = useActionState(createCategoryAction, null);
-
-  // Edit Modal State
-  const [editingCategory, setEditingCategory] = useState<AdminCategoryItem | null>(null);
   const [editState, editAction, isEditing] = useActionState(updateCategoryAction, null);
-
-  // Search & Filter
+  const [addOpen, setAddOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<AdminCategoryItem | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [status, setStatus] = useState<StatusFilter>("ALL");
+  const [actionFeedback, setActionFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [isToggling, startTransition] = useTransition();
 
+  useEffect(() => {
+    if (createState?.message && !createState?.error) setAddOpen(false);
+  }, [createState]);
+  useEffect(() => {
+    if (editState?.message && !editState?.error) setEditingCategory(null);
+  }, [editState]);
+
   const filtered = useMemo(() => {
-    if (!searchQuery.trim()) return categories;
     const q = searchQuery.toLowerCase().trim();
-    return categories.filter(
-      (c) =>
-        c.title.toLowerCase().includes(q) ||
-        c.slug.toLowerCase().includes(q) ||
-        c.category.toLowerCase().includes(q) ||
-        (c.description && c.description.toLowerCase().includes(q))
-    );
-  }, [categories, searchQuery]);
+    return categories.filter((c) => {
+      if (status === "ACTIVE" && !c.isActive) return false;
+      if (status === "INACTIVE" && c.isActive) return false;
+      if (!q) return true;
+      return c.title.toLowerCase().includes(q) || c.slug.toLowerCase().includes(q) || c.category.toLowerCase().includes(q) || Boolean(c.description && c.description.toLowerCase().includes(q));
+    });
+  }, [categories, status, searchQuery]);
+
+  const toggle = (cat: AdminCategoryItem) => {
+    if (!confirm(`${cat.isActive ? "Deactivate" : "Activate"} "${cat.title}"?`)) return;
+    startTransition(async () => {
+      const res = await toggleCategoryStatusAction(cat.id, cat.isActive);
+      if (res?.error) setActionFeedback({ type: "error", text: actionErrorMessage(res) });
+      else setActionFeedback({ type: "success", text: res?.message || `"${cat.title}" ${cat.isActive ? "deactivated" : "activated"}.` });
+    });
+  };
+
+  const counts = { ALL: categories.length, ACTIVE: categories.filter((c) => c.isActive).length, INACTIVE: categories.filter((c) => !c.isActive).length };
+  const feedback = (kind: "success" | "error", text: string) => (
+    <p role={kind === "error" ? "alert" : "status"} className={`rounded-card border px-4 py-3 text-[13px] ${kind === "success" ? "border-success-200 bg-success-50 text-success-800" : "border-danger-200 bg-danger-50 text-danger-800"}`}>
+      {text}
+    </p>
+  );
 
   return (
-    <div className="space-y-4 w-full pb-8">
-      {/* Breadcrumb Bar */}
-      <AdminBreadcrumbs
-        items={[
-          { label: "Mock Test Management", href: "/admin/mock-tests-management" },
-          { label: "Categories", active: true },
+    <div className="space-y-4 pb-8">
+      <StudioPageHeader
+        title="Categories"
+        description="The exam categories that patterns, sections, questions, schedules and mock tests belong to."
+        primary={
+          <button type="button" className={studioPrimaryAction} onClick={() => setAddOpen(true)}>
+            <Plus aria-hidden="true" className="size-4" /> New category
+          </button>
+        }
+        actions={
+          <Link href="/admin/patterns" className={studioQuietAction}>
+            Patterns
+          </Link>
+        }
+      />
+
+      {createState?.message && !createState?.error && feedback("success", createState.message)}
+      {editState?.message && !editState?.error && feedback("success", editState.message)}
+      {actionFeedback && feedback(actionFeedback.type, actionFeedback.text)}
+
+      <StudioStatStrip
+        label="Categories by status"
+        onSelect={(k) => setStatus(k as StatusFilter)}
+        stats={[
+          { key: "ALL", label: "All", value: counts.ALL, tone: "blue", active: status === "ALL" },
+          { key: "ACTIVE", label: "Active", value: counts.ACTIVE, tone: "green", active: status === "ACTIVE" },
+          { key: "INACTIVE", label: "Inactive", value: counts.INACTIVE, tone: "muted", active: status === "INACTIVE" },
         ]}
       />
 
-      {/* Page Heading matching legacy control panel */}
-      <div className="text-left space-y-1">
-        <h1 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2.5">
-          <Layers className="w-6 h-6 text-blue-600" /> Exam Categories
-        </h1>
-        <p className="text-xs sm:text-sm text-slate-500 font-medium">
-          Manage root examination categories powering Patterns, Sections, Questions, Schedules, and Mock Tests.
+      <StudioPanel>
+        <StudioField label="Search" htmlFor="ct-search">
+          <input id="ct-search" type="search" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Title, slug or board" className={studioControl} />
+        </StudioField>
+        <p className="mt-3 text-[13px] text-fg-secondary" aria-live="polite">
+          Showing {filtered.length} of {categories.length} categor{categories.length === 1 ? "y" : "ies"}.
         </p>
-      </div>
+      </StudioPanel>
 
-      {/* Feedback Alerts */}
-      {createState?.error && <Alert variant="error">{actionErrorMessage(createState)}</Alert>}
-      {createState?.message && <Alert variant="success">{createState.message}</Alert>}
-
-      {/* TWO COLUMN WORKSPACE (Inspired by legacy categories.html) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* LEFT COLUMN: Add New Exam Category Form Card */}
-        <div className="lg:col-span-5">
-          <Card className="p-5 sm:p-6 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-4 sticky top-4">
-            <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-              <PlusCircle className="w-5 h-5 text-blue-600" />
-              <h2 className="text-sm font-bold text-slate-900">Add New Exam Category</h2>
-            </div>
-
-            <form action={createAction} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Category / Exam Title <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  name="title"
-                  type="text"
-                  placeholder="e.g. SSC CGL or UP Police Constable"
-                  className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:border-blue-500"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Conducting Board / Group
-                </label>
-                <select
-                  name="category"
-                  defaultValue="Staff Selection Commission (SSC)"
-                  className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-blue-500"
-                >
-                  <option value="Staff Selection Commission (SSC)">Staff Selection Commission (SSC)</option>
-                  <option value="State Police Recruitment">State Police Recruitment</option>
-                  <option value="Defence (Army / Navy / Air Force)">Defence (Army / Navy / Air Force)</option>
-                  <option value="Railway Recruitment Board (RRB)">Railway Recruitment Board (RRB)</option>
-                  <option value="Banking &amp; Insurance">Banking &amp; Insurance</option>
-                  <option value="Teaching &amp; State PSC">Teaching &amp; State PSC</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  URL Slug (Optional, auto-generated if blank)
-                </label>
-                <input
-                  name="slug"
-                  type="text"
-                  placeholder="e.g. ssc-cgl"
-                  className="w-full px-3 py-2 text-xs font-mono rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:border-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Description
-                </label>
-                <textarea
-                  name="description"
-                  rows={3}
-                  placeholder="Brief overview of the syllabus and eligibility requirements"
-                  className="w-full px-3 py-2 text-xs font-medium rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:border-blue-500"
-                />
-              </div>
-
-              <Button
-                type="submit"
-                variant="default"
-                disabled={isCreating}
-                className="w-full font-bold bg-primary-700 hover:bg-primary-800 text-white shadow-sm flex items-center justify-center gap-2"
-              >
-                <PlusCircle className="w-4 h-4" />
-                {isCreating ? "Creating Category..." : "Create Category"}
-              </Button>
-            </form>
-          </Card>
-        </div>
-
-        {/* RIGHT COLUMN: Existing Categories List */}
-        <div className="lg:col-span-7 space-y-4">
-          {/* Search & Counter Header */}
-          <Card className="p-4 bg-white border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div className="relative flex-1 w-full">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search categories by title, slug, or board..."
-                className="w-full pl-9 pr-3 py-2 text-xs font-medium rounded-xl border border-slate-200 bg-slate-50/50 focus:outline-none focus:border-blue-500"
-              />
-            </div>
-            <span className="text-xs font-bold text-slate-500 font-mono shrink-0">
-              Showing {filtered.length} of {categories.length} Categories
-            </span>
-          </Card>
-
-          {/* Cards List */}
-          {filtered.length === 0 ? (
-            <Card className="p-12 text-center bg-white border-slate-200 space-y-2">
-              <Layers className="w-8 h-8 mx-auto text-slate-300" />
-              <p className="text-xs text-slate-500 font-medium">No exam categories match the search.</p>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {filtered.map((cat) => (
-                <Card
-                  key={cat.id}
-                  className="p-5 bg-white border-slate-200 hover:border-blue-300 transition shadow-xs space-y-4"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-base font-black text-slate-900 leading-tight">
-                          {cat.title}
-                        </h3>
-                        <Badge variant="outline" className="text-[10px] font-mono">
-                          {cat.category}
-                        </Badge>
-                      </div>
-                      <span className="text-[11px] font-mono text-slate-400 block mt-0.5">
-                        Slug: {cat.slug}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <Badge variant={cat.isActive ? "success" : "neutral"} className="text-[10px] font-bold uppercase">
-                        {cat.isActive ? "ACTIVE" : "DRAFT"}
-                      </Badge>
-                      <button
-                        onClick={() => setEditingCategory(cat)}
-                        className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:text-blue-600 hover:bg-slate-50 transition"
-                        title="Edit Category"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (confirm(`Are you sure you want to ${cat.isActive ? "deactivate" : "activate"} "${cat.title}"?`)) {
-                            startTransition(async () => {
-                              await toggleCategoryStatusAction(cat.id, cat.isActive);
-                            });
-                          }
-                        }}
-                        disabled={isToggling}
-                        className={`p-1.5 rounded-lg border ${
-                          cat.isActive
-                            ? "border-accent-200 text-accent-700 hover:bg-accent-50"
-                            : "border-emerald-200 text-emerald-600 hover:bg-emerald-50"
-                        } transition`}
-                        title={cat.isActive ? "Deactivate" : "Activate"}
-                      >
-                        <Power className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {cat.description && (
-                    <p className="text-xs text-slate-600 font-medium line-clamp-2">
-                      {cat.description}
+      {filtered.length === 0 ? (
+        categories.length === 0 ? (
+          <StudioEmpty title="No categories yet" body="Create the first exam category; patterns and mock tests belong to one." />
+        ) : (
+          <StudioEmpty title="No categories match" body="Change the search or the status filter." />
+        )
+      ) : (
+        <ul className="space-y-3" aria-label="Categories">
+          {filtered.map((cat) => (
+            <li key={cat.id}>
+              <StudioPanel>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h2 className="text-[16px] font-bold text-fg">{cat.title}</h2>
+                    <p className="text-[13px] text-fg-secondary">
+                      {cat.category} · <span className="font-mono">{cat.slug}</span>
                     </p>
-                  )}
-
-                  {/* Connected Entity Metrics — Clean Neutral Metric Boxes */}
-                  <div className="grid grid-cols-4 gap-2 pt-3 border-t border-slate-100 text-center font-mono">
-                    <div className="p-2 rounded-xl bg-slate-50 border border-slate-200/70">
-                      <span className="text-[10px] text-slate-500 font-semibold block uppercase">Patterns</span>
-                      <span className="text-sm font-bold text-slate-900">{cat.patternsCount}</span>
-                    </div>
-                    <div className="p-2 rounded-xl bg-slate-50 border border-slate-200/70">
-                      <span className="text-[10px] text-slate-500 font-semibold block uppercase">Questions</span>
-                      <span className="text-sm font-bold text-slate-900">{cat.questionsCount}</span>
-                    </div>
-                    <div className="p-2 rounded-xl bg-slate-50 border border-slate-200/70">
-                      <span className="text-[10px] text-slate-500 font-semibold block uppercase">Schedules</span>
-                      <span className="text-sm font-bold text-slate-900">{cat.schedulesCount}</span>
-                    </div>
-                    <div className="p-2 rounded-xl bg-slate-50 border border-slate-200/70">
-                      <span className="text-[10px] text-slate-500 font-semibold block uppercase">Mocks</span>
-                      <span className="text-sm font-bold text-slate-900">{cat.mockTestsCount}</span>
-                    </div>
+                    {cat.description && <p className="mt-1 line-clamp-2 text-[13px] text-fg">{cat.description}</p>}
                   </div>
-
-                  {/* Connected Action Links — Clean Secondary Buttons */}
-                  <div className="pt-2.5 border-t border-slate-100 flex flex-wrap items-center gap-1.5">
-                    <Link href={`/admin/patterns?category=${cat.slug}`}>
-                      <Button variant="outline" size="sm" className="text-xs font-semibold text-slate-700 border-slate-200 bg-white hover:bg-slate-50 hover:text-slate-900 shadow-2xs">
-                        <GitBranch className="w-3.5 h-3.5 mr-1.5 text-slate-400" /> Manage Patterns
-                      </Button>
-                    </Link>
-                    <Link href={`/admin/schedules?category=${cat.slug}`}>
-                      <Button variant="outline" size="sm" className="text-xs font-semibold text-slate-700 border-slate-200 bg-white hover:bg-slate-50 hover:text-slate-900 shadow-2xs">
-                        <Calendar className="w-3.5 h-3.5 mr-1.5 text-slate-400" /> Manage Schedules
-                      </Button>
-                    </Link>
-                    <Link href={`/admin/questions?category=${cat.slug}`}>
-                      <Button variant="outline" size="sm" className="text-xs font-semibold text-slate-700 border-slate-200 bg-white hover:bg-slate-50 hover:text-slate-900 shadow-2xs">
-                        <HelpCircle className="w-3.5 h-3.5 mr-1.5 text-slate-400" /> View Questions
-                      </Button>
-                    </Link>
-                    <Link href={`/admin/mock-tests?category=${cat.slug}`}>
-                      <Button variant="outline" size="sm" className="text-xs font-semibold text-slate-700 border-slate-200 bg-white hover:bg-slate-50 hover:text-slate-900 shadow-2xs">
-                        <FileCheck2 className="w-3.5 h-3.5 mr-1.5 text-slate-400" /> Mocks
-                      </Button>
-                    </Link>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <StatusChip status={cat.isActive ? "ACTIVE" : "INACTIVE"} />
+                    <button type="button" onClick={() => setEditingCategory(cat)} aria-label={`Edit ${cat.title}`} className="focus-ring inline-flex size-10 items-center justify-center rounded-control text-fg-secondary hover:bg-ink-100">
+                      <Edit2 aria-hidden="true" className="size-4" />
+                    </button>
+                    <button type="button" onClick={() => toggle(cat)} disabled={isToggling} aria-label={`${cat.isActive ? "Deactivate" : "Activate"} ${cat.title}`} className="focus-ring inline-flex size-10 items-center justify-center rounded-control text-fg-secondary hover:bg-ink-100">
+                      <Power aria-hidden="true" className="size-4" />
+                    </button>
                   </div>
-                </Card>
+                </div>
+                <dl className="mt-3 grid grid-cols-2 gap-2 border-t border-line pt-3 sm:grid-cols-4">
+                  {[
+                    ["Patterns", cat.patternsCount],
+                    ["Questions", cat.questionsCount],
+                    ["Schedules", cat.schedulesCount],
+                    ["Mock tests", cat.mockTestsCount],
+                  ].map(([label, value]) => (
+                    <div key={String(label)}>
+                      <dt className="text-[11.5px] font-semibold uppercase tracking-wide text-fg-secondary">{label}</dt>
+                      <dd className="text-[18px] font-bold text-fg">{value}</dd>
+                    </div>
+                  ))}
+                </dl>
+                <nav aria-label={`${cat.title}: related`} className="mt-3 flex flex-wrap gap-1 border-t border-line pt-2">
+                  <Link href={`/admin/patterns?category=${cat.slug}`} className={studioQuietAction}>
+                    Patterns
+                  </Link>
+                  <Link href={`/admin/schedules?category=${cat.slug}`} className={studioQuietAction}>
+                    Schedules
+                  </Link>
+                  <Link href={`/admin/questions?category=${cat.slug}`} className={studioQuietAction}>
+                    Questions
+                  </Link>
+                  <Link href={`/admin/mock-tests?category=${cat.slug}`} className={studioQuietAction}>
+                    Mock tests
+                  </Link>
+                </nav>
+              </StudioPanel>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <StudioDrawer open={addOpen} onClose={() => setAddOpen(false)} title="New category">
+        {createState?.error && <div className="mb-3">{feedback("error", actionErrorMessage(createState))}</div>}
+        <form action={createAction} className="space-y-4">
+          <StudioField label="Category / exam title" htmlFor="ct-new-title">
+            <input id="ct-new-title" name="title" type="text" placeholder="e.g. SSC CGL or UP Police Constable" className={studioControl} required />
+          </StudioField>
+          <StudioField label="Conducting board / group" htmlFor="ct-new-board">
+            <select id="ct-new-board" name="category" defaultValue={BOARDS[0]} className={studioControl}>
+              {BOARDS.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
               ))}
-            </div>
-          )}
-        </div>
-      </div>
+            </select>
+          </StudioField>
+          <StudioField label="URL slug (optional, generated when blank)" htmlFor="ct-new-slug">
+            <input id="ct-new-slug" name="slug" type="text" placeholder="e.g. ssc-cgl" className={`${studioControl} font-mono`} />
+          </StudioField>
+          <StudioField label="Description" htmlFor="ct-new-description">
+            <textarea id="ct-new-description" name="description" rows={3} placeholder="A short overview of the exam" className={`${studioControl} py-2`} />
+          </StudioField>
+          <div className="flex justify-end gap-2 border-t border-line pt-3">
+            <button type="button" className={studioQuietAction} onClick={() => setAddOpen(false)}>
+              Cancel
+            </button>
+            <button type="submit" className={`${studioQuietAction} border border-primary-700`} disabled={isCreating} aria-busy={isCreating}>
+              {isCreating ? "Creating…" : "Create category"}
+            </button>
+          </div>
+        </form>
+      </StudioDrawer>
 
-      {/* EDIT CATEGORY MODAL */}
-      {editingCategory && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <Card className="w-full max-w-lg p-6 bg-white border-slate-200 shadow-2xl space-y-4 relative">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
-                <Edit2 className="w-4 h-4 text-blue-600" /> Edit Category: {editingCategory.title}
-              </h3>
-              <button
-                onClick={() => setEditingCategory(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
-              >
-                <X className="w-5 h-5" />
+      <StudioDrawer open={!!editingCategory} onClose={() => setEditingCategory(null)} title={editingCategory ? `Edit ${editingCategory.title}` : "Edit category"}>
+        {editState?.error && <div className="mb-3">{feedback("error", actionErrorMessage(editState))}</div>}
+        {editingCategory && (
+          <form action={editAction} className="space-y-4">
+            <input type="hidden" name="id" value={editingCategory.id} />
+            <StudioField label="Category title" htmlFor="ct-edit-title">
+              <input id="ct-edit-title" name="title" type="text" defaultValue={editingCategory.title} className={studioControl} required />
+            </StudioField>
+            <StudioField label="Conducting board" htmlFor="ct-edit-board">
+              <input id="ct-edit-board" name="category" type="text" defaultValue={editingCategory.category} className={studioControl} />
+            </StudioField>
+            <StudioField label="Description" htmlFor="ct-edit-description">
+              <textarea id="ct-edit-description" name="description" rows={3} defaultValue={editingCategory.description || ""} className={`${studioControl} py-2`} />
+            </StudioField>
+            <div className="flex justify-end gap-2 border-t border-line pt-3">
+              <button type="button" className={studioQuietAction} onClick={() => setEditingCategory(null)}>
+                Cancel
+              </button>
+              <button type="submit" className={`${studioQuietAction} border border-primary-700`} disabled={isEditing} aria-busy={isEditing}>
+                {isEditing ? "Saving…" : "Save changes"}
               </button>
             </div>
-
-            {editState?.error && <Alert variant="error">{actionErrorMessage(editState)}</Alert>}
-            {editState?.message && <Alert variant="success">{editState.message}</Alert>}
-
-            <form action={editAction} className="space-y-4">
-              <input type="hidden" name="id" value={editingCategory.id} />
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Category Title</label>
-                <input
-                  name="title"
-                  type="text"
-                  defaultValue={editingCategory.title}
-                  className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-blue-500"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Conducting Board</label>
-                <input
-                  name="category"
-                  type="text"
-                  defaultValue={editingCategory.category}
-                  className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Description</label>
-                <textarea
-                  name="description"
-                  rows={3}
-                  defaultValue={editingCategory.description || ""}
-                  className="w-full px-3 py-2 text-xs font-medium rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-blue-500"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-                <Button type="button" variant="outline" size="sm" onClick={() => setEditingCategory(null)}>
-                  Cancel
-                </Button>
-                <Button type="submit" variant="default" size="sm" disabled={isEditing} className="font-bold bg-primary-700 hover:bg-primary-800">
-                  {isEditing ? "Updating..." : "Save Changes"}
-                </Button>
-              </div>
-            </form>
-          </Card>
-        </div>
-      )}
+          </form>
+        )}
+      </StudioDrawer>
     </div>
   );
 }

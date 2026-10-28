@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
 import {
   AdminCategoryItem,
   AdminSectionItem,
 } from "@/services/admin.service";
-import { AdminBreadcrumbs } from "@/components/admin/admin-breadcrumbs";
+import { StudioPageHeader, studioQuietAction } from "@/components/admin/studio/studio-page";
 import { Card } from "@/components/ui/legacy/card";
 import { Button } from "@/components/ui/legacy/button";
 import { Badge } from "@/components/ui/legacy/badge";
@@ -18,7 +19,6 @@ import { parseCSV } from "@/lib/admin/csv-parser";
 import {
   Wand2,
   Image as ImageIcon,
-  FileSpreadsheet,
   Copy,
   Check,
   UploadCloud,
@@ -792,67 +792,56 @@ Paste your questions below this line:`;
 
   return (
     <div className="space-y-4 w-full pb-8">
-      {/* Breadcrumbs */}
-      <AdminBreadcrumbs
-        items={[
-          { label: "Mock Test Management", href: "/admin/mock-tests-management" },
-          { label: "Bulk Question Importer", active: true },
-        ]}
+      {/* Courage Studio phase 3 batch 2: the Studio header and real step tabs — tablist / tab / tabpanel, arrow keys,
+          underline style (the three solid-blue step buttons competed with the page's primary) */}
+      <StudioPageHeader
+        title="Bulk import"
+        description="Three steps: generate the AI prompt, upload figures and option images, then validate and import the CSV."
+        actions={
+          <Link href="/admin/questions" className={studioQuietAction}>
+            Question bank
+          </Link>
+        }
       />
-
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2.5">
-            <FileSpreadsheet className="w-6 h-6 text-blue-600" /> Bulk Question Importer
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
-            3-step production content pipeline: Generate AI prompt → Upload figures &amp; option images → Validate &amp; Import CSV.
-          </p>
-        </div>
-      </div>
-
-      {/* 3 Step Tabs Navigation */}
-      <div className="flex items-center gap-2 border-b border-slate-200/80 pb-3 overflow-x-auto">
-        <button
-          onClick={() => setActiveTab("prompt")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-xs transition select-none shadow-2xs ${
-            activeTab === "prompt"
-              ? "bg-primary-700 text-white"
-              : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 hover:text-slate-900"
-          }`}
-        >
-          <Wand2 className="w-3.5 h-3.5" /> Step 1 · Prompt Generator
-        </button>
-
-        <button
-          onClick={() => setActiveTab("images")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-xs transition select-none shadow-2xs ${
-            activeTab === "images"
-              ? "bg-primary-700 text-white"
-              : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 hover:text-slate-900"
-          }`}
-        >
-          <ImageIcon className="w-3.5 h-3.5" /> Step 2 · Image Uploader
-        </button>
-
-        <button
-          onClick={() => setActiveTab("csv")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-xs transition select-none shadow-2xs ${
-            activeTab === "csv"
-              ? "bg-primary-700 text-white"
-              : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 hover:text-slate-900"
-          }`}
-        >
-          <FileSpreadsheet className="w-3.5 h-3.5" /> Step 3 · CSV Validator &amp; Import
-        </button>
+      <div
+        role="tablist"
+        aria-label="Import steps"
+        className="flex gap-4 overflow-x-auto border-b border-line"
+        onKeyDown={(e) => {
+          if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+          e.preventDefault();
+          const order = ["prompt", "images", "csv"] as const;
+          const next = order[(order.indexOf(activeTab) + (e.key === "ArrowRight" ? 1 : order.length - 1)) % order.length];
+          setActiveTab(next);
+          document.getElementById(`bi-tab-${next}`)?.focus();
+        }}
+      >
+        {([
+          ["prompt", "Step 1 · Prompt generator"],
+          ["images", "Step 2 · Image uploader"],
+          ["csv", "Step 3 · Validate and import CSV"],
+        ] as const).map(([key, label]) => (
+          <button
+            key={key}
+            id={`bi-tab-${key}`}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === key}
+            aria-controls={`bi-panel-${key}`}
+            tabIndex={activeTab === key ? 0 : -1}
+            onClick={() => setActiveTab(key)}
+            className={`focus-ring -mb-px inline-flex min-h-10 shrink-0 items-center border-b-2 px-1 text-[14px] font-semibold ${activeTab === key ? "border-primary-700 text-primary-800" : "border-transparent text-fg-secondary hover:text-fg"}`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       {/* ========================================================================= */}
       {/* TAB 1: PROMPT GENERATOR                                                   */}
       {/* ========================================================================= */}
       {activeTab === "prompt" && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div role="tabpanel" id="bi-panel-prompt" aria-labelledby="bi-tab-prompt" className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Config Left Column */}
           <Card className="lg:col-span-6 p-6 bg-white border-slate-200 space-y-5 shadow-xs">
             <h2 className="text-sm font-black text-slate-900 flex items-center gap-2">
@@ -864,8 +853,9 @@ Paste your questions below this line:`;
 
             {/* Exam Name / Category Dropdown */}
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700">Exam Category</label>
+              <label htmlFor="bi-category" className="text-xs font-bold text-slate-700">Exam Category</label>
               <select
+                id="bi-category"
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
                 className="w-full p-2.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-800 focus:outline-hidden focus:border-indigo-500"
@@ -882,8 +872,9 @@ Paste your questions below this line:`;
             {/* Section / Subject Dropdown */}
             {selectedCategory && (
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700">Section / Subject</label>
+                <label htmlFor="bi-section" className="text-xs font-bold text-slate-700">Section / Subject</label>
                 <select
+                  id="bi-section"
                   value={selectedSection}
                   onChange={(e) => setSelectedSection(e.target.value)}
                   className="w-full p-2.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-800 focus:outline-hidden focus:border-indigo-500"
@@ -1094,8 +1085,8 @@ Paste your questions below this line:`;
               </div>
 
               {!generatedPrompt ? (
-                <div className="py-24 text-center text-slate-400 space-y-2 border-2 border-dashed border-slate-200 rounded-2xl">
-                  <Wand2 className="w-8 h-8 mx-auto text-slate-300" />
+                <div className="py-24 text-center text-fg-secondary space-y-2 border-2 border-dashed border-slate-200 rounded-2xl">
+                  <Wand2 aria-hidden="true" className="w-8 h-8 mx-auto text-slate-300" />
                   <p className="text-xs font-medium">Select exam parameters and click Generate Prompt</p>
                 </div>
               ) : (
@@ -1131,7 +1122,7 @@ Paste your questions below this line:`;
       {/* TAB 2: IMAGE UPLOADER                                                     */}
       {/* ========================================================================= */}
       {activeTab === "images" && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div role="tabpanel" id="bi-panel-images" aria-labelledby="bi-tab-images" className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Upload Drop Zone Left Column */}
           <Card className="lg:col-span-6 p-6 bg-white border-slate-200 space-y-5 shadow-xs">
             <h2 className="text-sm font-black text-slate-900 flex items-center gap-2">
@@ -1348,7 +1339,7 @@ Paste your questions below this line:`;
       {/* TAB 3: CSV VALIDATOR & IMPORT                                             */}
       {/* ========================================================================= */}
       {activeTab === "csv" && (
-        <div className="space-y-6">
+        <div role="tabpanel" id="bi-panel-csv" aria-labelledby="bi-tab-csv" className="space-y-6">
           {/* CSV Input Card */}
           <Card className="p-6 bg-white border-slate-200 space-y-4 shadow-xs">
             <div className="flex items-center justify-between">

@@ -2,6 +2,7 @@
 
 import { actionErrorMessage } from "@/lib/actions/action-result";
 import React, { useState, useMemo, useActionState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   AdminScheduleItem,
@@ -23,13 +24,12 @@ import {
   deactivateDailyMockProgramAction,
   toggleDailyMockDayAction,
 } from "@/app/admin/actions";
-import { AdminBreadcrumbs } from "@/components/admin/admin-breadcrumbs";
+import { StudioPageHeader, studioQuietAction } from "@/components/admin/studio/studio-page";
 import { Card } from "@/components/ui/legacy/card";
 import { Button } from "@/components/ui/legacy/button";
 import { Badge } from "@/components/ui/legacy/badge";
 import { Alert } from "@/components/ui/legacy/alert";
 import {
-  Calendar,
   CalendarDays,
   PlusCircle,
   Layers,
@@ -37,7 +37,6 @@ import {
   Edit,
   Power,
   X,
-  CalendarCheck,
   Rocket,
   Clock,
   AlertTriangle,
@@ -444,15 +443,6 @@ export function AdminSchedulesManager({
     );
   }, [schedules, selectedCategory, activeCategoryObj]);
 
-  const breadcrumbs = [
-    { label: "Mock Test Management", href: "/admin/mock-tests-management" },
-    { label: "Categories", href: "/admin/categories" },
-    ...(activeCategoryObj
-      ? [{ label: activeCategoryObj.title, href: `/admin/schedules?category=${activeCategoryObj.slug}` }]
-      : []),
-    { label: "Schedules & Daily Mocks", active: true },
-  ];
-
   const StatusIcon = programLifecycle.icon;
 
   return (
@@ -480,53 +470,57 @@ export function AdminSchedulesManager({
             </p>
           </div>
           <button
+            type="button"
             onClick={() => setToastMessage(null)}
-            className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
+            aria-label="Dismiss the notification"
+            className="p-1 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition"
           >
-            <X className="w-4 h-4" />
+            <X aria-hidden="true" className="w-4 h-4" />
           </button>
         </div>
       )}
 
-      {/* Breadcrumbs */}
-      <AdminBreadcrumbs items={breadcrumbs} />
-
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2.5">
-            <Calendar className="w-6 h-6 text-blue-600" /> Daily Mock Scheduling System
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
-            100% database-driven 7-day recurring mock programs, sectional testing schedules, and exam recruitment timelines.
-          </p>
-        </div>
-
-        {/* View Switcher Tabs */}
-        <div className="flex items-center gap-1.5 p-1 bg-slate-100/90 border border-slate-200/80 rounded-xl self-start sm:self-auto">
+      {/* Courage Studio phase 3 batch 2: the Studio header (no second solid primary: the launch / save actions belong to
+          their tab) and real tabs — tablist / tab / tabpanel, arrow keys, underline style */}
+      <StudioPageHeader
+        title="Schedules"
+        description="The 7-day daily mock program of each exam and its recruitment cycles (notification, application and exam dates)."
+        actions={
+          <Link href="/admin/mock-tests" className={studioQuietAction}>
+            Mock tests
+          </Link>
+        }
+      />
+      <div
+        role="tablist"
+        aria-label="Schedule views"
+        className="flex gap-4 border-b border-line"
+        onKeyDown={(e) => {
+          if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+          e.preventDefault();
+          const next = activeTab === "daily_mocks" ? "exam_cycles" : "daily_mocks";
+          setActiveTab(next);
+          document.getElementById(`sched-tab-${next}`)?.focus();
+        }}
+      >
+        {([
+          ["daily_mocks", "7-day daily program"],
+          ["exam_cycles", "Recruitment cycles"],
+        ] as const).map(([key, label]) => (
           <button
-            onClick={() => setActiveTab("daily_mocks")}
-            className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
-              activeTab === "daily_mocks"
-                ? "bg-white text-blue-700 shadow-xs"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
+            key={key}
+            id={`sched-tab-${key}`}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === key}
+            aria-controls={`sched-panel-${key}`}
+            tabIndex={activeTab === key ? 0 : -1}
+            onClick={() => setActiveTab(key)}
+            className={`focus-ring -mb-px inline-flex min-h-10 items-center border-b-2 px-1 text-[14px] font-semibold ${activeTab === key ? "border-primary-700 text-primary-800" : "border-transparent text-fg-secondary hover:text-fg"}`}
           >
-            <CalendarDays className="w-3.5 h-3.5" />
-            7-Day Daily Program
+            {label}
           </button>
-          <button
-            onClick={() => setActiveTab("exam_cycles")}
-            className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
-              activeTab === "exam_cycles"
-                ? "bg-white text-blue-700 shadow-xs"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            <CalendarCheck className="w-3.5 h-3.5" />
-            Recruitment Cycles
-          </button>
-        </div>
+        ))}
       </div>
 
       {/* Global Exam Category Selector & Context Bar */}
@@ -558,10 +552,11 @@ export function AdminSchedulesManager({
           </div>
 
           <div className="flex items-center gap-2 self-start md:self-auto">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">
-              Exam:
+            <label htmlFor="sched-exam" className="text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">
+              Exam
             </label>
             <select
+              id="sched-exam"
               value={selectedCategory}
               onChange={(e) => handleCategoryChange(e.target.value)}
               className="px-3.5 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-none focus:border-blue-500 shadow-2xs min-w-[210px]"
@@ -590,7 +585,7 @@ export function AdminSchedulesManager({
       {/* TAB 1: 7-DAY DAILY MOCK PROGRAM STUDIO                                    */}
       {/* ========================================================================= */}
       {activeTab === "daily_mocks" && (
-        <div className="space-y-5">
+        <div className="space-y-5" role="tabpanel" id="sched-panel-daily_mocks" aria-labelledby="sched-tab-daily_mocks">
           {/* ===================================================================== */}
           {/* STATE B.1: LIVE PROGRAM DASHBOARD VIEW (AFTER LAUNCH)                 */}
           {/* ===================================================================== */}
@@ -1402,7 +1397,7 @@ export function AdminSchedulesManager({
       {/* TAB 2: RECRUITMENT NOTIFICATION CYCLES                                    */}
       {/* ========================================================================= */}
       {activeTab === "exam_cycles" && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <div role="tabpanel" id="sched-panel-exam_cycles" aria-labelledby="sched-tab-exam_cycles" className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Add Cycle Form */}
           <div className="lg:col-span-5">
             <Card className="p-5 sm:p-6 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-4 sticky top-4">

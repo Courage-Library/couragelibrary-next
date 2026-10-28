@@ -10,6 +10,16 @@
  *   P3-06 list + drawer: the question add / edit forms and the report inspector open in StudioDrawer (native dialog)
  *   P3-07 v3 status chips (StatusChip) for statuses; unknown counts show "–", never a made-up 0 (R12)
  *   P3-08 the factory tabs: real tablist / tab / tabpanel with arrow keys; underline style (no second solid primary)
+ * Batch 2 (Mock tests + the mock-test setup overview, Patterns, Sections, Categories, Schedules, Bulk import):
+ *   B2-01 Studio header; exactly ONE primary on the list pages and the overview; Schedules / Bulk import keep the
+ *         contextual actions in their tabs (no solid primary in the header, no solid-blue tab)
+ *   B2-02 list + drawer: create and edit open in StudioDrawer; no hand-rolled fixed overlay modal on the 4 list pages
+ *   B2-03 every input / select / textarea on the 4 list pages has an id with a StudioField / <label htmlFor>
+ *   B2-04 icon-only buttons are named (aria-label), never by title alone; pagination is labelled
+ *   B2-05 v3 status chips; an inactive item reads "Inactive" (not "Draft"); stat strips filter (aria-pressed) with
+ *         counts from the same list the filter uses
+ *   B2-06 Schedules + Bulk import: real tablist / tab / tabpanel with arrow keys, underline style
+ *   B2-07 R12: the overview's question count is null on a failed read ("–"), never a made-up 0; failed toggles are shown
  * Run: node scripts/test_studio_phase3.cjs
  */
 const fs = require('fs');
@@ -109,5 +119,99 @@ test('P3-08 factory tabs: tablist / tab / tabpanel, arrow keys, underline (no se
   assert(!/bg-primary-700 text-white/.test(f), 'no solid-blue tab');
 });
 
-console.log(`\nCourage Studio phase 3 (batch 1): ${passed}/${passed + failed} passed`);
+// ---------------------------------------------------------------- batch 2
+const B2 = {
+  patterns: read('components/admin/admin-patterns-manager.tsx'),
+  sections: read('components/admin/admin-sections-manager.tsx'),
+  categories: read('components/admin/admin-categories-manager.tsx'),
+  mocks: read('components/admin/admin-mock-tests-manager.tsx'),
+  overview: read('app/admin/mock-tests-management/page.tsx'),
+  schedules: read('components/admin/admin-schedules-manager.tsx'),
+  bulk: read('components/admin/admin-bulk-import-studio.tsx'),
+};
+const LISTS = ['patterns', 'sections', 'categories', 'mocks'];
+
+test('B2-01 Studio header; ONE primary on the list pages + overview; Schedules / Bulk import: no header primary, no solid-blue tab', () => {
+  for (const k of [...LISTS, 'overview']) {
+    const src = code(B2[k]);
+    assert(/<StudioPageHeader\b/.test(src), `${k}: no StudioPageHeader`);
+    const n = (src.match(/className=\{studioPrimaryAction\}/g) || []).length;
+    assert(n === 1, `${k}: ${n} primary actions`);
+    assert(!/AdminBreadcrumbs|components\/ui\/legacy\/(card|button|badge|alert)/.test(src), `${k}: legacy breadcrumbs / cards / buttons / badges remain`);
+  }
+  for (const k of ['schedules', 'bulk']) {
+    const src = code(B2[k]);
+    assert(/<StudioPageHeader\b/.test(src) && !/AdminBreadcrumbs/.test(src), `${k}: Studio header`);
+    const header = src.slice(src.indexOf('<StudioPageHeader'), src.indexOf('/>', src.indexOf('actions={')) + 2);
+    assert(!/studioPrimaryAction|bg-primary-700/.test(header), `${k}: a solid primary in the header`);
+  }
+  return 'mock tests, overview, patterns, sections, categories · schedules, bulk import';
+});
+
+test('B2-02 list + drawer: create and edit open in StudioDrawer; no fixed overlay modal on the 4 list pages', () => {
+  for (const k of LISTS) {
+    const src = code(B2[k]);
+    assert((src.match(/<StudioDrawer\b/g) || []).length === 2, `${k}: create + edit drawers`);
+    assert(!/fixed inset-0/.test(src), `${k}: a hand-rolled overlay modal remains`);
+  }
+  return '4 pages × 2 drawers';
+});
+
+test('B2-03 every input / select / textarea on the 4 list pages is labelled', () => {
+  let n = 0;
+  for (const k of LISTS) {
+    const src = code(B2[k]);
+    for (const m of src.matchAll(/<(input|select|textarea)\b([^>]*)>/g)) {
+      if (/type="hidden"/.test(m[2])) continue;
+      const id = /\bid="([^"]+)"/.exec(m[2]);
+      assert(id, `${k}: an unlabelled <${m[1]}> (${m[2].slice(0, 60)})`);
+      assert(src.includes(`htmlFor="${id[1]}"`), `${k}: #${id[1]} has no StudioField / label`);
+      n++;
+    }
+  }
+  for (const [k, id] of [['schedules', 'sched-exam'], ['bulk', 'bi-category'], ['bulk', 'bi-section']]) assert(B2[k].includes(`id="${id}"`) && B2[k].includes(`htmlFor="${id}"`), `${k}: #${id} labelled`);
+  return `${n} controls`;
+});
+
+test('B2-04 icon-only buttons are named (aria-label); pagination labelled', () => {
+  for (const k of LISTS) {
+    const src = code(B2[k]);
+    for (const m of src.matchAll(/<button\b([^>]*)>\s*<(Edit2|Power|Trash2|ChevronLeft|ChevronRight)\b/g)) assert(/aria-label=/.test(m[1]), `${k}: an unnamed ${m[2]} button`);
+    assert(!/title="(Edit|Delete|Toggle|Deactivate|Activate)/.test(src), `${k}: a button named only by title`);
+  }
+  for (const k of ['patterns', 'sections']) assert(/aria-label="Previous page"/.test(B2[k]) && /aria-label="Next page"/.test(B2[k]) && /aria-label=\{`Page \$\{n\}`\}/.test(B2[k]), `${k}: labelled pagination`);
+  assert(/aria-label="Dismiss the notification"/.test(B2.schedules), 'schedules: the toast close button');
+  return 'ok';
+});
+
+test('B2-05 v3 status chips ("Inactive", not "Draft"); stat strips filter with counts from the filtered list', () => {
+  assert(/<StatusChip status=\{pattern\.isActive \? "ACTIVE" : "INACTIVE"\} \/>/.test(B2.patterns) && /<StatusChip status=\{cat\.isActive \? "ACTIVE" : "INACTIVE"\} \/>/.test(B2.categories) && /<StatusChip status=\{mock\.isPublished \? "PUBLISHED" : "DRAFT"\} \/>/.test(B2.mocks), 'chips');
+  for (const k of LISTS) assert(/<StudioStatStrip\b[\s\S]{0,200}onSelect=/.test(B2[k]) && /active: \w+ === "ALL"/.test(B2[k]), `${k}: a filtering stat strip`);
+  // D-5 rule from batch 1: each count uses the same predicate as its filter
+  assert(/ACTIVE: inCategory\.filter\(\(p\) => p\.isActive\)\.length/.test(B2.patterns) && /if \(status === "ACTIVE" && !p\.isActive\) return false;/.test(B2.patterns), 'patterns: count = filter');
+  assert(/READY: inPattern\.filter\(ready\)\.length/.test(B2.sections) && /if \(bank === "READY" && !ready\(s\)\) return false;/.test(B2.sections), 'sections: count = filter');
+  assert(/PUBLISHED: scoped\.filter\(\(t\) => t\.isPublished\)\.length/.test(B2.mocks) && /if \(publish === "PUBLISHED" && !t\.isPublished\) return false;/.test(B2.mocks), 'mock tests: count = filter');
+  return 'ok';
+});
+
+test('B2-06 Schedules + Bulk import: tablist / tab / tabpanel, arrow keys, underline', () => {
+  for (const [k, prefix, n] of [['schedules', 'sched', 2], ['bulk', 'bi', 3]]) {
+    const src = B2[k];
+    assert(/role="tablist"/.test(src) && /role="tab"/.test(src) && /aria-selected=\{activeTab === key\}/.test(src) && /tabIndex=\{activeTab === key \? 0 : -1\}/.test(src), `${k}: tab roles`);
+    assert(/e\.key !== "ArrowRight" && e\.key !== "ArrowLeft"/.test(src), `${k}: arrow keys`);
+    assert((src.match(new RegExp(`role="tabpanel" id="${prefix}-panel-`, 'g')) || []).length === n, `${k}: ${n} tab panels`);
+    assert(/border-b-2/.test(src) && !/activeTab === "(prompt|images|csv|daily_mocks|exam_cycles)"\s*\?\s*"bg-primary-700/.test(src), `${k}: underline, no solid-blue tab`);
+  }
+  return 'ok';
+});
+
+test('B2-07 R12: the overview question count is null on a failed read ("–"); failed toggles are shown', () => {
+  const svc = read('services/admin.service.ts');
+  assert(/static async getQuestionsCount\(\): Promise<number \| null> \{[\s\S]{0,260}return error \? null : \(count \?\? 0\);/.test(svc), 'getQuestionsCount: null on error');
+  assert(/const questions = typeof questionsCountRes === "number" \? questionsCountRes : null;/.test(B2.overview) && /value: questions,/.test(B2.overview), 'overview passes null through');
+  assert(/if \(res\?\.error\) setActionFeedback\(\{ type: "error"/.test(B2.categories) && /if \(res\?\.error\) setActionFeedback\(\{ type: "error"/.test(B2.mocks), 'toggle failures are shown');
+  return 'ok';
+});
+
+console.log(`\nCourage Studio phase 3 (batch 1 + 2): ${passed}/${passed + failed} passed`);
 process.exit(failed ? 1 : 0);

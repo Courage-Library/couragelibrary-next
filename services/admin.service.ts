@@ -1428,10 +1428,11 @@ export class AdminService {
     };
   }
 
-  static async getQuestionsCount(): Promise<number> {
+  /** null when the count could not be read (shown as "–", never a made-up 0 — R12). */
+  static async getQuestionsCount(): Promise<number | null> {
     const sb = await createServerSupabaseClient();
-    const { count } = await sb.from("questions").select("*", { count: "exact", head: true });
-    return count || 0;
+    const { count, error } = await sb.from("questions").select("*", { count: "exact", head: true });
+    return error ? null : (count ?? 0);
   }
 
   static async getAdminQuestions() {
