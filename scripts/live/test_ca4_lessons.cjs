@@ -120,6 +120,18 @@ const EXISTING_HASH = `select
         && v1s.every((r) => (r.status === 'RETIRED') === later.some((l) => l.template_type === r.template_type));
       chk('A-1 seeds: SYLLABUS (the owner-approved SYLLABUS-PROMPT-2 text), LESSON, TRANSLATE_HI — v1 bodies byte-identical to the TS constants (sha256), ACTIVE (the v1 of a type is RETIRED once its pinned v2 is ACTIVE: LESSON-PROMPT-2, SYLLABUS-CONTRACT-3.1); no QUESTION v1',
         seedOk, JSON.stringify({ rows: rows.map((r) => [r.template_type, r.version, r.status, r.body_sha256.slice(0, 12)]), want: Object.fromEntries(Object.entries(want).map(([k, v]) => [k, v.slice(0, 12)])) }));
+      if (!PRE) {
+        // SYLLABUS-CONTRACT-3.1 (activated 2026-10-28): from now on SYLLABUS v2 must be THE active SYLLABUS template, saved
+        // and activated through the audited RPCs (one DRAFT_SAVE + one ACTIVATE row on it) — A-1 alone accepts v1 or v2
+        const syl = (await q(`select t.id, t.version, t.status, t.body_sha256,
+              (select count(*)::int from public.admin_audit_logs a where a.target_id::text = t.id::text and a.action_type = 'PROMPT_TEMPLATE_DRAFT_SAVE') saved,
+              (select count(*)::int from public.admin_audit_logs a where a.target_id::text = t.id::text and a.action_type = 'PROMPT_TEMPLATE_ACTIVATE') activated
+            from public.prompt_templates t where t.template_type = 'SYLLABUS' order by t.version`));
+        const v2 = syl.find((r) => r.version === 2);
+        chk('A-1b SYLLABUS v2 (the SYLLABUS-CONTRACT-3.1 text, pinned sha256) is the one ACTIVE SYLLABUS template, v1 RETIRED; saved + activated through the audited RPCs',
+          syl.length === 2 && syl[0].status === 'RETIRED' && v2 && v2.status === 'ACTIVE' && v2.body_sha256 === V2_SHA.SYLLABUS && v2.saved === 1 && v2.activated === 1,
+          JSON.stringify(syl.map((r) => [r.version, r.status, r.body_sha256.slice(0, 12), r.saved, r.activated])));
+      }
       const adminRead = await as('authenticated', ADMIN, `select count(*)::int n from public.prompt_templates`);
       const staffRead = await as('authenticated', STAFF, `select count(*)::int n from public.prompt_templates`);
       const stuRead = await as('authenticated', STU, `select count(*)::int n from public.prompt_templates`);
