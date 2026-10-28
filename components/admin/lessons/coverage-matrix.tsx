@@ -58,6 +58,17 @@ export function CoverageMatrix({ exams, view, loadError }: { exams: CoverageExam
         }
       />
       {loadError && <p className="rounded-card border border-danger-200 bg-danger-50 px-4 py-3 text-[13px] text-danger-800">{loadError}</p>}
+      {/* LAUNCH-MODE-1: a FREE_N course LIVE while FREE_N is not possible — say what students get right now */}
+      {block &&
+        exams
+          .filter((e) => e.launch?.status === "LIVE" && e.launch.accessMode === "FREE_N")
+          .map((e) => (
+            <p key={e.id} role="alert" data-free-n-warning="" className="rounded-card border border-warning-200 bg-warning-50 px-4 py-3 text-[13px] font-semibold text-warning-800">
+              {block === "PAYMENTS_OFF"
+                ? `Pro lessons in ${e.title} are currently free because payments are off.`
+                : `Pro lessons in ${e.title} are locked, but no Pro plan is active, so no one can buy them. Switch the course to every lesson free or activate a plan.`}
+            </p>
+          ))}
       {message && (
         <p role="status" className={`rounded-card border px-4 py-3 text-[13px] ${message.kind === "ok" ? "border-success-200 bg-success-50 text-success-800" : "border-danger-200 bg-danger-50 text-danger-800"}`}>
           {message.text}

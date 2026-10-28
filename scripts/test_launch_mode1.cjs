@@ -76,6 +76,16 @@ test('U-01 screen: the mode is chosen in the confirmation; FREE_N disabled with 
   return 'ok';
 });
 
+test('U-02 warning: a FREE_N course LIVE while payments are off → "Pro lessons in <exam> are currently free because payments are off" (every such exam); no active plan → the locked-but-unbuyable warning', () => {
+  const ui = read('components/admin/lessons/coverage-matrix.tsx');
+  assert(/\{block &&\s*exams\s*\.filter\(\(e\) => e\.launch\?\.status === "LIVE" && e\.launch\.accessMode === "FREE_N"\)/.test(ui), 'every LIVE FREE_N exam, whenever FREE_N is blocked');
+  assert(/block === "PAYMENTS_OFF"\s*\? `Pro lessons in \$\{e\.title\} are currently free because payments are off\.`/.test(ui), 'the payments-off wording');
+  assert(/role="alert" data-free-n-warning=""/.test(ui) && /border-warning-200 bg-warning-50/.test(ui), 'an announced warning banner');
+  // the banner tells the truth: with payments off the server gates nothing
+  assert(/if \(!isPaymentsEnabled\(\)\) return NO_PAYWALL;/.test(read('lib/learning/lesson-access-settings.ts')), 'payments off → nothing gated (what the banner says)');
+  return 'ok';
+});
+
 test('D-01 migration 123: old signature dropped; FREE_N needs an active plan; EXAM_COURSE_MODE audited; gated = LIVE FREE_N; INVOKER; rollback = exact 122 function, refused while FREE_N is LIVE', () => {
   assert(!/^\s*(BEGIN|COMMIT)\s*;/m.test(MIG) && !/SECURITY DEFINER/.test(MIG), 'no BEGIN / COMMIT; no SECDEF');
   assert(/DROP FUNCTION public\.fn_exam_course_launch_set\(uuid, uuid, text, jsonb, uuid, text\);/.test(MIG), 'the 122 signature is dropped');

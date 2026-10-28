@@ -123,6 +123,16 @@ It then executes the file **and** writes the ledger row (`APPLIED`, checksum, to
   - (c) after the push, ONE manual CI dispatch (live=true, architect-approved) runs the full live suite.
 
   The report names the waived gate, the log evidence and the dispatch run, with its result per job. If any of the three does not hold, nothing is pushed.
+
+- **CI-LIVE-ON-BRANCH (standing rule, architect 2026-10-28; this machine's network is unreliable).** For a migration `<nnn>`:
+  1. **Locally:** backup (always `node scripts/db/backup.cjs pre-<nnn> --resilient`) → dry-run → the rolled-back real-role smoke → apply → **that migration's OWN live gate + the link snapshot compare + `db:types` / `db:types:check` + `tsc`**. These must pass locally.
+  2. **The rest of MIGRATION-LIVE-SET runs in CI:** push the commit to a branch `mig/<nnn>`. ONE `workflow_dispatch` of the live jobs on that branch is pre-approved (`gh workflow run ci-gates.yml --ref mig/<nnn> -f live=true`), plus ONE retry if a failure is classified network (by the job log).
+  3. **Merge** to `main` by fast-forward only when that run is green.
+  4. Local live-set runs become optional.
+
+  `gh` write scope = exactly that dispatch (and its one retry), nothing else.
+
+  **Prerequisite (owner / architect, one-time; not done by the agent):** the `ci-live` environment allows deployments from `main` only. Its custom branch policy is `["main"]`, checked with a read-only `gh api` on 2026-10-28. The live jobs on `mig/<nnn>` get their secrets only after `mig/*` is added to that policy (repository Settings → Environments → ci-live → Deployment branches). Until then, a dispatch on a `mig/` branch fails at the environment gate.
 - **SCHEDULED-CHECKS (permanent rule, 2026-10-26):** no local background sleeps for timed checks; a sleeping machine kills them (the 2026-10-25 21:35 job never ran). A recurring or timed verify goes into a GitHub Actions scheduled workflow (read-only, existing secrets), or runs the next time the owner messages.
 - Re-run the relevant DB suites. For question-bank changes: `node scripts/test_qf1_db.cjs` (all scenario writes are rolled back).
 - Re-run the offline suites:
