@@ -7502,6 +7502,57 @@ export type Database = {
           },
         ]
       }
+      user_lesson_progress: {
+        Row: {
+          completed_at: string | null
+          document_id: string
+          language: string
+          last_block_id: string | null
+          node_id: string | null
+          started_at: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          document_id: string
+          language: string
+          last_block_id?: string | null
+          node_id?: string | null
+          started_at?: string
+          status: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          document_id?: string
+          language?: string
+          last_block_id?: string | null
+          node_id?: string | null
+          started_at?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_lesson_progress_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "learning_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_lesson_progress_node_id_fkey"
+            columns: ["node_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_mastery_history: {
         Row: {
           algorithm_version: string
@@ -8478,6 +8529,14 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_exam_course_outline: {
+        Args: {
+          p_exam_cycle_id?: string
+          p_exam_id: string
+          p_language?: string
+        }
+        Returns: Json
+      }
       fn_exam_syllabus_read_model: {
         Args: { p_exam_cycle_id?: string; p_exam_id: string }
         Returns: Json
@@ -8661,6 +8720,15 @@ export type Database = {
       }
       fn_lesson_parity_errors: {
         Args: { p_en: Json; p_hi: Json }
+        Returns: Json
+      }
+      fn_lesson_progress_save: {
+        Args: {
+          p_document_id: string
+          p_language: string
+          p_last_block_id?: string
+          p_status: string
+        }
         Returns: Json
       }
       fn_lesson_publish: {
@@ -8926,6 +8994,19 @@ export type Database = {
           p_variables?: Json
         }
         Returns: Json
+      }
+      fn_servable_node_lessons: {
+        Args: never
+        Returns: {
+          canonical_slug: string
+          chapter_position: number
+          document_id: string
+          hi_current: boolean
+          node_id: string
+          node_type: string
+          published_at: string
+          topic_id: string
+        }[]
       }
       fn_set_leaderboard_opt_in: { Args: { p_opt_in: boolean }; Returns: Json }
       fn_set_profile_visibility: {

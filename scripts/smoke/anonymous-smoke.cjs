@@ -105,6 +105,11 @@ const get = async (p) => { for (let i = 1; i <= 3; i++) { try { return await fet
     check('anon POST /rest/v1/rpc/fn_syllabus_import_draft → permission denied (42501)', si.ok, si.info);
     const dw = await anonProbe('user_mistake_drills', { user_id: '00000000-0000-0000-0000-000000000000', total_questions: 1, questions_data: [], status: 'IN_PROGRESS' });
     check('anon POST /rest/v1/user_mistake_drills (direct write) → permission denied (42501)', dw.ok, dw.info);
+    // CA-5: lesson progress is written only by a signed-in student's RPC (auth.uid())
+    const lp = await anonProbe('rpc/fn_lesson_progress_save', { p_document_id: '00000000-0000-0000-0000-000000000000', p_language: 'en', p_status: 'READING' });
+    check('anon POST /rest/v1/rpc/fn_lesson_progress_save → permission denied (42501)', lp.ok, lp.info);
+    const lw = await anonProbe('user_lesson_progress', { user_id: '00000000-0000-0000-0000-000000000000', document_id: '00000000-0000-0000-0000-000000000000', language: 'en', status: 'COMPLETED' });
+    check('anon POST /rest/v1/user_lesson_progress (direct write) → permission denied (42501)', lw.ok, lw.info);
     // SEC-HOTFIX-7: the reward RPC is service-role only (zero uuids — never a real user / source)
     let ra = null;
     const Z = '00000000-0000-0000-0000-000000000000';
@@ -117,6 +122,10 @@ const get = async (p) => { for (let i = 1; i <= 3; i++) { try { return await fet
   const hubHtml = hub.status === 200 ? await hub.text() : '';
   const sy = checkSyllabusSection(hubHtml, await readModelForSlug(env, 'ssc-cgl'));
   check('GET /exams/ssc-cgl → 200, syllabus section matches the read model', hub.status === 200 && sy.ok, `${hub.status} ${sy.detail}`);
+  // CA-5: the generated exam course renders for anon (its own empty state while no lesson is published)
+  const course = await get('/exams/ssc-cgl/course');
+  const courseHtml = course.status === 200 ? await course.text() : '';
+  check('GET /exams/ssc-cgl/course → 200, the course heading', course.status === 200 && /course<\/h1>/.test(courseHtml), `${course.status}`);
   console.log(fails ? `\nSMOKE: ${fails} failed` : '\nSMOKE: all passed');
   process.exit(fails ? 1 : 0);
 })().catch((e) => { console.error('SMOKE ERROR', String(e.message).slice(0, 160)); process.exit(1); });

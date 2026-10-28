@@ -22,6 +22,8 @@
 import { createAdminServerSupabaseClient, createServerSupabaseClient } from '@/lib/supabase/server';
 import { validateLesson, type LessonBlock, type LessonLinkMap, type LessonMeta } from '@/lib/lessons/blocks';
 import { userContentLanguage } from '@/lib/exams/exam-page-server';
+import { lessonAccessLevel, type LessonAccessSettings } from '@/lib/learning/chapter-access';
+import { getLessonAccessSettings } from '@/lib/learning/lesson-access-settings';
 
 /** CA-3: private bucket of lesson images (migration 117); students get short-lived signed URLs from the server. */
 export const LESSON_IMAGE_BUCKET = 'lesson-images';
@@ -202,9 +204,20 @@ async function topicsOf(supabase: SessionClient, nodes: NodeRef[]): Promise<Map<
   return out;
 }
 
-function toResolvedNode(row: NodeLessonRow, access: LearningViewerAccess, topic: NodeRef | undefined): ResolvedLearningDocument {
+/**
+ * CA-5: a node lesson's access comes from its position in its MASTER chapter (fn_servable_node_lessons) and the
+ * settings — never from the document's own access column. A lesson without a known position is treated as PRO
+ * whenever gating is on (fail-closed).
+ */
+async function nodeLessonPositions(supabase: SessionClient): Promise<Map<string, number>> {
+  const { data, error } = await supabase.rpc('fn_servable_node_lessons');
+  if (error || !Array.isArray(data)) return new Map();
+  return new Map(data.map((r) => [r.document_id, r.chapter_position]));
+}
+
+function toResolvedNode(row: NodeLessonRow, access: LearningViewerAccess, topic: NodeRef | undefined, gate: { settings: LessonAccessSettings; positions: Map<string, number> }): ResolvedLearningDocument {
   const node = one(row.node);
-  const accessLevel: LearningAccessLevel = row.access_level === 'PRO' ? 'PRO' : 'FREE';
+  const accessLevel: LearningAccessLevel = lessonAccessLevel(gate.positions.get(row.id) ?? Number.MAX_SAFE_INTEGER, gate.settings);
   return {
     id: row.id,
     canonical_slug: row.canonical_slug,
@@ -234,8 +247,13 @@ async function servableNodeLessons(supabase: SessionClient, access: LearningView
   const { data, error } = await query;
   if (error || !Array.isArray(data)) return [];
   const rows = (data as NodeLessonRow[]).filter(isServableNodeRow);
-  const topics = await topicsOf(supabase, rows.map((r) => one(r.node)).filter((n): n is NodeLessonNode => n !== null));
-  return rows.map((r) => toResolvedNode(r, access, r.node_id ? topics.get(r.node_id) : undefined));
+  if (!rows.length) return [];
+  const [topics, settings, positions] = await Promise.all([
+    topicsOf(supabase, rows.map((r) => one(r.node)).filter((n): n is NodeLessonNode => n !== null)),
+    getLessonAccessSettings(),
+    nodeLessonPositions(supabase),
+  ]);
+  return rows.map((r) => toResolvedNode(r, access, r.node_id ? topics.get(r.node_id) : undefined, { settings, positions }));
 }
 
 function toResolved(row: any, access: LearningViewerAccess): ResolvedLearningDocument {
@@ -372,8 +390,12 @@ export class LearningResolverService {
     if (missing.length) {
       const { data: nodeRows } = await supabase.from('learning_documents').select(NODE_DOC_SELECT).in('id', missing);
       const servable = ((nodeRows || []) as NodeLessonRow[]).filter(isServableNodeRow);
-      const topics = await topicsOf(supabase, servable.map((r) => one(r.node)).filter((n): n is NodeLessonNode => n !== null));
-      for (const r of servable) result.set(r.id, toResolvedNode(r, access, r.node_id ? topics.get(r.node_id) : undefined));
+      const [topics, settings, positions] = await Promise.all([
+        topicsOf(supabase, servable.map((r) => one(r.node)).filter((n): n is NodeLessonNode => n !== null)),
+        getLessonAccessSettings(),
+        nodeLessonPositions(supabase),
+      ]);
+      for (const r of servable) result.set(r.id, toResolvedNode(r, access, r.node_id ? topics.get(r.node_id) : undefined, { settings, positions }));
     }
     return result;
   }
@@ -423,8 +445,12 @@ export class LearningResolverService {
       const row = nodeRow as NodeLessonRow | null;
       if (!row || !isServableNodeRow(row)) return null;
       const node = one(row.node);
-      const topics = node ? await topicsOf(supabase, [node]) : new Map<string, NodeRef>();
-      doc = toResolvedNode(row, access, node ? topics.get(node.id) : undefined);
+      const [topics, settings, positions] = await Promise.all([
+        node ? topicsOf(supabase, [node]) : Promise.resolve(new Map<string, NodeRef>()),
+        getLessonAccessSettings(),
+        nodeLessonPositions(supabase),
+      ]);
+      doc = toResolvedNode(row, access, node ? topics.get(node.id) : undefined, { settings, positions });
       ver = one(row.current_version);
       subjectId = node?.root_subject_id || null;
       if (subjectId) {

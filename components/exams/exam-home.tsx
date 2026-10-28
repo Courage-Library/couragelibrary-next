@@ -12,6 +12,7 @@ import { Card, CardDescription, CardLink, CardTitle } from "@/components/ui/card
 import { EmptyState } from "@/components/ui/empty-state";
 import { Container, Section } from "@/components/ui/layout";
 import { PillLink } from "@/components/ui/pill-button";
+import { TextLink } from "@/components/ui/link";
 import { siteConfig } from "@/config/site";
 import { EXAM_PAGE, NOT_PUBLISHED } from "@/content/exam-page";
 import { formatNumber } from "@/lib/format";
@@ -184,13 +185,20 @@ export function ExamMocks({ mocks, statuses }: { mocks: MockListItem[]; statuses
 }
 
 /** Totals from the published syllabus read model; the full syllabus (the existing section) in a disclosure. */
-export function ExamSyllabusHome({ id, totals, children }: { id: string; totals: { topics: number; published_questions: number } | null; children: ReactNode }) {
+export function ExamSyllabusHome({ id, totals, courseHref, children }: { id: string; totals: { topics: number; published_questions: number } | null; courseHref?: string | null; children: ReactNode }) {
   return (
     <HomeSection id={id} title={C.syllabus.title}>
       {totals && (
         <p className="flex items-center gap-2 text-body text-fg">
           <BookOpen aria-hidden="true" className="size-5 text-primary-600" />
           {C.syllabus.summary(formatNumber(totals.topics), formatNumber(totals.published_questions))}
+        </p>
+      )}
+      {courseHref && (
+        <p>
+          <TextLink href={courseHref} variant="standalone">
+            {C.syllabus.course}
+          </TextLink>
         </p>
       )}
       <details className="group rounded-card border border-line bg-surface" open={!totals}>

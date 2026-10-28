@@ -12,6 +12,8 @@ import { LessonBlocksRenderer } from "@/components/learning/lesson-blocks-render
 import { KatexMath } from "@/components/learning/katex-math";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { topicLearnHref, topicPracticeHref } from "@/lib/learn/topic";
+import { getSessionState } from "@/lib/auth/session-state";
+import { LessonProgress } from "@/components/learning/lesson-progress";
 
 // GAP2-2a: rendered per viewer (PRO documents are locked server-side); never cached across users.
 export const dynamic = "force-dynamic";
@@ -56,10 +58,17 @@ export default async function ArticleReaderPage({ params }: Props) {
 
   const topicId = article.topicId || article.relatedTopicId || null;
   const supabase = await createServerSupabaseClient();
-  const [relatedResources, practiceHref] = await Promise.all([
+  const [relatedResources, practiceHref, session] = await Promise.all([
     topicId ? ContentService.getRelatedLearningResources(topicId) : Promise.resolve([]),
     topicPracticeHref(supabase, topicId),
+    getSessionState(supabase),
   ]);
+  // CA-5: a signed-in student's own progress on an unlocked lesson (RLS: own rows only)
+  let progressStatus: "NOT_STARTED" | "READING" | "COMPLETED" | null = null;
+  if (session.state === "user" && article.lesson && !article.isLocked) {
+    const { data } = await supabase.from("user_lesson_progress").select("status").eq("document_id", article.id).eq("language", article.lessonLanguage).maybeSingle();
+    progressStatus = data?.status === "COMPLETED" ? "COMPLETED" : data?.status === "READING" ? "READING" : "NOT_STARTED";
+  }
 
   const breadcrumbsList = [
     { label: "Home", href: "/" },
@@ -135,6 +144,7 @@ export default async function ArticleReaderPage({ params }: Props) {
                   <div lang={article.lessonLanguage}>
                     <LessonBlocksRenderer blocks={article.lesson.blocks} links={article.lesson.links} Math={KatexMath} />
                   </div>
+                  {progressStatus && <LessonProgress documentId={article.id} language={article.lessonLanguage} initialStatus={progressStatus} />}
                 </>
               ) : (
                 <p className="text-body text-fg-secondary">This lesson is being prepared. Please check back shortly.</p>

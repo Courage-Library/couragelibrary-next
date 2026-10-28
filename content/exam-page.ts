@@ -68,6 +68,8 @@ export const EXAM_PAGE = {
     title: "Syllabus",
     summary: (topics: string, questions: string) => `${topics} topics · ${questions} practice questions`,
     show: "Show the full syllabus",
+    // CA-5: the generated course (published syllabus ∩ published lessons)
+    course: "Study the course chapter by chapter",
   },
   guides: {
     title: "Exam guides",

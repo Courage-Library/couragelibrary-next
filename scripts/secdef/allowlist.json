@@ -15,13 +15,14 @@
   "F5 (decision #77, 2026-10-25): max total / client_executable_callable / A raised by exactly 2 for fn_memory_lock_answer and fn_memory_lock_add — NEW reviewed client entrypoints authorised by the F5 brief (one atomic answer RPC; manual add)",
   "AGE-18 (owner decision, legal, 2026-10-25): max total / client_executable_callable / A raised by exactly 1 for fn_confirm_age — a NEW reviewed client entrypoint authorised by the architect's AGE-18 brief (auth.uid() only, sets the canonical adult_confirmed_at once, never clears it)",
   "P6-MFA-FLAG (architect ruling on RLS P-6, 2026-10-26): max total / client_executable_callable / A raised by exactly 1 for fn_admin_mfa_required — a STABLE read-only helper returning ONLY the security_settings.admin_mfa_required boolean, so the table needs no client read (P-6) while the staff predicates (which run as the caller) can still read the flag; EXECUTE authenticated + service_role only (anon never runs the predicates)",
-  "F9-B (architect GO, 2026-10-26): max total raised by exactly 8 and B-service by 9 for the 8 service-role-only payment functions of migration 114 (no client EXECUTE) plus fn_create_payment_order moved A to B-service after its client EXECUTE was revoked (113); client_executable_callable and A lowered by 1"
+  "F9-B (architect GO, 2026-10-26): max total raised by exactly 8 and B-service by 9 for the 8 service-role-only payment functions of migration 114 (no client EXECUTE) plus fn_create_payment_order moved A to B-service after its client EXECUTE was revoked (113); client_executable_callable and A lowered by 1",
+  "CA-5 (architect GO 2026-10-28, design §I: progress written ONLY through an auth.uid() RPC, the DRILL-1 pattern): max total / client_executable_callable / A raised by exactly 1 for fn_lesson_progress_save — a NEW reviewed client entrypoint (authenticated only; no table write granted)"
  ],
  "max": {
-  "total": 115,
-  "client_executable_callable": 48,
+  "total": 116,
+  "client_executable_callable": 49,
   "anon_or_public": 1,
-  "A": 48,
+  "A": 49,
   "C": 0,
   "B-trigger": 15,
   "B-service": 38,
@@ -817,6 +818,14 @@
    "client": [],
    "search_path": "\"\"",
    "reason": "F9-B (architect GO, migration 114): service-role-only payment RPC; REVOKE ALL FROM PUBLIC/anon/authenticated, EXECUTE to service_role only; called by the server (order action / verify route / webhook / admin action) after its own auth + HMAC checks; admin library revoke (audited; never deletes)"
+  },
+  "fn_lesson_progress_save(p_document_id uuid, p_language text, p_status text, p_last_block_id text)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "\"\"",
+   "reason": "client entrypoint; own check: auth.uid() (CA-5 lesson progress; published lesson only; COMPLETED never downgraded)"
   }
  }
 }
