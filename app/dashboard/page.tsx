@@ -36,6 +36,8 @@ import { isProEnabled } from "@/config/payments";
 import { isCoinsEnabled } from "@/lib/coins/flag";
 import { getProEndingSoon } from "@/lib/payments/pro-server";
 import { ProEndingBanner } from "@/components/payments/pro-ending-banner";
+import { NextStepCard } from "@/components/learning/next-step-card";
+import { getNextStep } from "@/services/learning/next-step.service";
 
 export const revalidate = 0; // Dynamic server page
 
@@ -56,6 +58,8 @@ export default async function DashboardPage() {
     // the service's own read can still fail transiently after the session check passed
     return <SessionUnavailable />;
   }
+  // CA-7: continue the lesson in progress, or a new student's first steps (STUDENT-DASH-1) — real state only
+  const nextStep = await getNextStep(data.mistakesCount);
 
   return (
     <div className="py-8 bg-slate-50/50 min-h-[calc(100vh-4rem)]">
@@ -97,6 +101,8 @@ export default async function DashboardPage() {
             )}
           </div>
         </div>
+
+        <NextStepCard step={nextStep} />
 
         {/* Quick Action Hub */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">

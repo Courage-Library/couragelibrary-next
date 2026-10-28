@@ -151,15 +151,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // CA-6. Master lesson pages (+ hreflang), exam courses and exam-topic pages — from published reads only
     try {
       const { data: servable } = await supabase.rpc("fn_servable_node_lessons");
-      const lessons = (Array.isArray(servable) ? servable : []).map((l) => ({ nodeId: l.node_id, hiCurrent: l.hi_current, publishedAt: l.published_at }));
+      // CA-7 SEO-HYGIENE-1: QA test content is never listed (an unreadable flag counts as test content: fail closed)
+      const servableRows = Array.isArray(servable) ? servable : [];
+      const { data: flags, error: flagsError } = servableRows.length
+        ? await supabase.from("learning_documents").select("id, is_test_content").in("id", servableRows.map((l) => l.document_id))
+        : { data: [], error: null };
+      const indexable = new Set(flagsError ? [] : (flags || []).filter((f) => f.is_test_content === false).map((f) => f.id));
+      const lessons = servableRows.filter((l) => indexable.has(l.document_id)).map((l) => ({ nodeId: l.node_id, hiCurrent: l.hi_current, publishedAt: l.published_at }));
       if (lessons.length) {
+        // CA-7: an exam course page is listed only while the course is LIVE (launched)
+        const { data: launches } = await supabase.from("exam_course_launches").select("exam_id, status").eq("status", "LIVE");
+        const liveExams = new Set((launches || []).map((x) => x.exam_id));
         const { data: nodes } = await supabase.from("canonical_taxonomy_nodes").select("id, hierarchy_path").eq("is_active", true).in("id", lessons.map((l) => l.nodeId));
         const paths = Object.fromEntries((nodes || []).map((n) => [n.id, n.hierarchy_path]));
-        const examCourses: { slug: string; nodeIds: string[] }[] = [];
+        const examCourses: { slug: string; nodeIds: string[]; live: boolean }[] = [];
         for (const [examId, exam] of activeExamsMap) {
           const { data: outline } = await supabase.rpc("fn_exam_course_outline", { p_exam_id: examId });
           const chapters = outline && typeof outline === "object" && !Array.isArray(outline) && Array.isArray((outline as { chapters?: unknown }).chapters) ? ((outline as { chapters: Array<{ lessons?: Array<{ node_id?: string }> }> }).chapters) : [];
-          examCourses.push({ slug: exam.slug, nodeIds: chapters.flatMap((c) => (c.lessons || []).map((l) => l.node_id).filter((x): x is string => typeof x === "string")) });
+          examCourses.push({ slug: exam.slug, live: liveExams.has(examId), nodeIds: chapters.flatMap((c) => (c.lessons || []).map((l) => l.node_id).filter((x): x is string => typeof x === "string")) });
         }
         dynamicEntries.push(...learnSitemapEntries(baseUrl, lessons, paths, examCourses));
       }

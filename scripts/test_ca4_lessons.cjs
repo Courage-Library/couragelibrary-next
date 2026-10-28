@@ -322,7 +322,7 @@ test('S-01 admin only: nav + routes, page guards, actions guarded first, client 
     const s = read(f);
     assert(/await requireAdminPage\(\{ path: [^}]*\}\)/.test(s) && !/allowStaff/.test(s), `${f}: admin page guard`);
   }
-  for (const [f, n] of [['app/admin/prompts/actions.ts', 2], ['app/admin/lessons/actions.ts', 4]]) {
+  for (const [f, n] of [['app/admin/prompts/actions.ts', 2], ['app/admin/lessons/actions.ts', 7 /* + CA-7 launch, exam note draft / publish */]]) {
     const fns = read(f).split(/export async function /).slice(1);
     assert(fns.length === n, `${f}: ${fns.length} actions`);
     for (const x of fns) {

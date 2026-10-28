@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { CANONICAL_HOST_PATTERN } from "./config/site";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -20,6 +21,12 @@ const nextConfig: NextConfig = {
   // UX-2b: the former Premium hub is retired; plans live on /pricing ("Free during early access. Pro coming soon.")
   redirects: async () => [{ source: "/premium", destination: "/pricing", permanent: true }],
   headers: async () => [
+    // SEO-HYGIENE-1: every host that is not the production site (*.vercel.app, previews, localhost) is never indexed
+    {
+      source: "/(.*)",
+      missing: [{ type: "host", value: CANONICAL_HOST_PATTERN }],
+      headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+    },
     {
       source: "/(.*)",
       headers: [

@@ -70,6 +70,8 @@ export interface TaxonomyNode {
   stateCode: string | null;
   /** set when the node was merged into another (metadata.merged_into) */
   mergedInto: string | null;
+  /** CA-7: an internal node (legacy catch-all) — question mapping only; never a lesson / course / public page */
+  isInternal: boolean;
 }
 
 export interface TaxonomyTreeNode extends TaxonomyNode {

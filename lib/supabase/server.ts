@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
@@ -22,6 +23,18 @@ export interface CookieToSet {
  * factory states its real type. Remove this when @supabase/ssr is upgraded.
  */
 export async function createServerSupabaseClient(): Promise<SupabaseClient<Database>> {
+  return requestSupabaseClient();
+}
+
+const requestSupabaseClient = cache(createRequestSupabaseClient);
+
+/**
+ * SESSION-RACE-1: ONE session client per request (React cache — per request in Server Components, actions and route
+ * handlers' RSC scope). Parallel loaders (page guard + Promise.all data loads) used to build one client each; with a
+ * stale access token each refreshed with the SAME refresh token and the losers read as signed out ("Unauthorized" on
+ * the first load). A shared client single-flights the refresh (auth-js refreshingDeferred + its in-process lock).
+ */
+async function createRequestSupabaseClient(): Promise<SupabaseClient<Database>> {
   const cookieStore = await cookies();
   const { supabaseUrl, supabaseAnonKey } = getAppEnv();
 

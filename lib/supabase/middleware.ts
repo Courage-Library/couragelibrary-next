@@ -45,21 +45,25 @@ export async function updateSession(request: NextRequest) {
         getAll() {
           return request.cookies.getAll();
         },
+        // SESSION-RACE-1: buffered — applied only after the session is classified (below)
         setAll(cookiesToSet: CookieToSet[]) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          );
-          supabaseResponse = forward();
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          );
+          pendingCookies = cookiesToSet;
         },
       },
     }
   ));
+  let pendingCookies: CookieToSet[] | null = null;
 
   // Refresh auth token. AUTH-1 2a: tri-state — a transient Supabase failure ("error") is not "signed out".
   const session = await getSessionState(supabase);
+  // SESSION-RACE-1: on a transient result (network, or a refresh lost to a parallel request) the cookies are left as the
+  // browser sent them — never cleared: the parallel request that won the refresh has already set the new ones
+  const toSet = pendingCookies as CookieToSet[] | null; // assigned inside setAll (TS does not track the closure)
+  if (toSet && session.state !== "error") {
+    toSet.forEach(({ name, value }) => request.cookies.set(name, value));
+    supabaseResponse = forward();
+    toSet.forEach(({ name, value, options }) => supabaseResponse.cookies.set(name, value, options));
+  }
 
   // SEC-1C defence in depth: anonymous requests for admin PAGES go to login. Role decisions stay in
   // the canonical page guard (requireAdminPage); /api/admin routes keep their own 401 JSON.

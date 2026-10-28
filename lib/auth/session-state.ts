@@ -23,6 +23,9 @@ export function isTransientAuthError(err: unknown): boolean {
   if (!err) return false;
   const e = err as AuthLikeError & { cause?: unknown };
   if (e?.name === "AuthRetryableFetchError") return true;
+  // SESSION-RACE-1: a refresh lost to a parallel request (its refresh token was just rotated) is a race, not a sign-out:
+  // retry state; the next attempt carries the rotated cookies (a really revoked session then resolves to "none")
+  if (e?.code === "refresh_token_already_used") return true;
   if (typeof e?.status === "number" && (e.status === 0 || e.status >= 500)) return true;
   if (e?.name === "AbortError" || e?.name === "TimeoutError") return true;
   if (typeof e?.message === "string" && TRANSIENT_MESSAGE.test(e.message)) return true;

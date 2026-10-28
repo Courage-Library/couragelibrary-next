@@ -2,7 +2,8 @@
 
 
 import { guardAdminAction, sanitizeActionResult } from "@/lib/auth/require-admin";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
+import { LEARN_CACHE_TAG } from "@/services/learning/master-lesson.service";
 import {
   TaxonomyService,
   TaxonomyNodeType,
@@ -112,4 +113,15 @@ export async function mergeTaxonomyNodesAction(
   const __auth = await guardAdminAction() /* SEC-1B Q1: admin only (owner) */;
   if (!__auth.ok) return __auth;
   return sanitizeActionResult("mergeTaxonomyNodesAction", done(await TaxonomyService.mergeNodes(sourceId, targetId, reason, confirmation)));
+}
+
+/** CA-7: mark a node internal (legacy catch-all) or not — admin only; audited TAXONOMY_NODE_INTERNAL. */
+export async function setTaxonomyNodeInternalAction(id: string, internal: boolean): Promise<TaxonomyResult<TaxonomyNode>> {
+  const __auth = await guardAdminAction() /* CA-7: admin only */;
+  if (!__auth.ok) return __auth;
+  if (typeof internal !== "boolean") return { success: false, code: "VALIDATION", error: "Choose internal or not." };
+  const r = done(await TaxonomyService.setInternal(id, internal));
+  // the public lesson / exam-topic pages and the sitemap read the flag through the "learn" cache
+  if (r.success) revalidateTag(LEARN_CACHE_TAG);
+  return sanitizeActionResult("setTaxonomyNodeInternalAction", r);
 }

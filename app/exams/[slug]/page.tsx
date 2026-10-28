@@ -1,3 +1,4 @@
+import { isCourseLive } from "@/services/learning/course.service";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
@@ -108,7 +109,7 @@ export default async function ExamHomePage({ params }: Props) {
 
       {/* Syllabus — canonical read model (GAP2-4b); "coming soon" until a version is published */}
       {/* section#syllabus: the signed-in smoke + the read-model check (scripts/smoke/_syllabus-expect.cjs) read it */}
-      <ExamSyllabusHome id="syllabus" totals={totals} courseHref={totals && totals.servable_documents > 0 ? `/exams/${exam.slug}/course` : null}>
+      <ExamSyllabusHome id="syllabus" totals={totals} courseHref={totals && totals.servable_documents > 0 && (await isCourseLive(exam.id)) ? `/exams/${exam.slug}/course` : null}>
         <ExamSyllabusSection syllabus={syllabus} examTitle={exam.title} />
       </ExamSyllabusHome>
 

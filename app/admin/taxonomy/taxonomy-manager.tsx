@@ -38,6 +38,7 @@ import {
   renameTaxonomyNodeAction,
   reorderTaxonomyNodesAction,
   setTaxonomyNodeActiveAction,
+  setTaxonomyNodeInternalAction,
   updateTaxonomyDetailsAction,
 } from "./actions";
 
@@ -50,6 +51,8 @@ interface Props {
   tree: TaxonomyTreeNode[];
   aliases: TaxonomyAlias[];
   loadError: string | null;
+  /** MASTER-TREE UX: node id → its node lesson state (absent = no lesson) */
+  lessonStatus: Record<string, "DRAFT" | "PUBLISHED">;
 }
 
 type Result = { success: boolean; error?: string };
@@ -79,6 +82,18 @@ const LEVEL_STYLE: Record<TaxonomyNodeType, string> = {
   METHOD: "border-line bg-ink-50 text-fg-secondary",
 };
 
+/** MASTER-TREE UX: the node lesson state — colour + a text label (never colour alone) */
+function LessonDot({ status }: { status: "DRAFT" | "PUBLISHED" | null }) {
+  const label = status === "PUBLISHED" ? "Lesson published" : status === "DRAFT" ? "Lesson draft" : "No lesson";
+  const dot = status === "PUBLISHED" ? "bg-success-600" : status === "DRAFT" ? "bg-warning-500" : "border border-ink-300 bg-white";
+  return (
+    <span className="ml-auto inline-flex shrink-0 items-center gap-1.5 text-[12px] text-fg-secondary">
+      <span aria-hidden="true" className={`inline-block size-2.5 rounded-full ${dot}`} />
+      {label}
+    </span>
+  );
+}
+
 function flatten(list: TaxonomyTreeNode[], out: TaxonomyTreeNode[] = []): TaxonomyTreeNode[] {
   list.forEach((n) => {
     out.push(n);
@@ -95,7 +110,7 @@ function descendantIds(node: TaxonomyTreeNode, out = new Set<string>()): Set<str
   return out;
 }
 
-export function TaxonomyManager({ tree, aliases, loadError }: Props) {
+export function TaxonomyManager({ tree, aliases, loadError, lessonStatus }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set(tree.map((n) => n.id)));
@@ -201,6 +216,14 @@ export function TaxonomyManager({ tree, aliases, loadError }: Props) {
               {node.nameHi && <span className="truncate text-[13px] text-fg-secondary">{node.nameHi}</span>}
               {aliasCount > 0 && <span className="shrink-0 text-[12px] text-fg-secondary">{aliasCount === 1 ? "1 alias" : `${aliasCount} aliases`}</span>}
               {!node.isActive && <span className="shrink-0 text-[12px] font-semibold text-danger-700">{node.mergedInto ? "Merged" : "Inactive"}</span>}
+              {node.nodeType === "SUBJECT" &&
+                (node.subjectType ? (
+                  <span className="shrink-0 rounded-full border border-line bg-ink-50 px-2 py-0.5 text-[11px] font-semibold text-fg">{SUBJECT_TYPE_LABELS[node.subjectType]}</span>
+                ) : (
+                  <span className="shrink-0 rounded-full border border-warning-200 bg-warning-50 px-2 py-0.5 text-[11px] font-semibold text-warning-800">Type not set</span>
+                ))}
+              {node.isInternal && <span className="shrink-0 rounded-full border border-line bg-ink-50 px-2 py-0.5 text-[11px] font-semibold text-fg-secondary">Internal</span>}
+              {node.nodeType !== "SUBJECT" && <LessonDot status={lessonStatus[node.id] ?? null} />}
             </button>
             <span className="hidden shrink-0 font-mono text-[12px] text-ink-500 md:inline">{node.slug}</span>
             <button type="button" aria-label={`Move ${node.name} up`} disabled={isPending || index === 0} onClick={() => reorder(nodes, index, -1, parentId)} className="focus-ring inline-flex size-10 items-center justify-center rounded-control text-fg-secondary hover:bg-ink-100 disabled:opacity-30">
@@ -434,6 +457,7 @@ function NodeDrawer({
   const [mergeInto, setMergeInto] = useState("");
   const [mergeReason, setMergeReason] = useState("");
   const [mergeWord, setMergeWord] = useState("");
+  const [internalConfirm, setInternalConfirm] = useState(false);
 
   const parent = node.parentId ? byId.get(node.parentId) || null : null;
   const stateAllowed = (node.nodeType === "SUBJECT" ? subjectType : rootSubjectType(node, byId)) === "STATE_SPECIFIC";
@@ -475,10 +499,27 @@ function NodeDrawer({
           <span className={`rounded border px-1.5 py-0.5 text-[11px] font-semibold ${LEVEL_STYLE[node.nodeType]}`}>{LEVEL_LABEL[node.nodeType]}</span>
           <span className="font-mono text-[12px]">{node.path}</span>
           {!node.isActive && <span className="font-semibold text-danger-700">{node.mergedInto ? `Merged into ${byId.get(node.mergedInto)?.name || "another node"}` : "Inactive"}</span>}
+          {node.isInternal && <span className="rounded-full border border-line bg-ink-50 px-2 py-0.5 text-[11px] font-semibold text-fg-secondary">Internal</span>}
         </span>
       }
       footer={
         <>
+          {/* CA-7: internal = a legacy catch-all — question mapping only, never a lesson, course or public page */}
+          {node.nodeType !== "SUBJECT" &&
+            (internalConfirm ? (
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => (setInternalConfirm(false), run(() => setTaxonomyNodeInternalAction(node.id, !node.isInternal), node.isInternal ? `"${node.name}" is no longer internal.` : `"${node.name}" is internal: no lessons, courses or public pages.`))}
+                className={`${studioQuietAction} border border-primary-700`}
+              >
+                {node.isInternal ? "Confirm: not internal" : "Confirm: mark internal"}
+              </button>
+            ) : (
+              <button type="button" disabled={pending} onClick={() => setInternalConfirm(true)} className={studioQuietAction}>
+                {node.isInternal ? "Make public again" : "Mark internal"}
+              </button>
+            ))}
           <button
             type="button"
             disabled={pending}

@@ -56,15 +56,18 @@ const decode = (h) => h.replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(
   try {
     await safeBegin(c, { readOnly: true });
     const q = async (s, p) => (await c.query(s, p)).rows;
-    const lessons = await q(`select s.document_id, s.canonical_slug, s.node_id, s.hi_current, n.hierarchy_path
-        from public.fn_servable_node_lessons() s join public.canonical_taxonomy_nodes n on n.id = s.node_id where n.is_active order by n.hierarchy_path`);
+    // CA-7: QA test content is served but never indexed; an exam course page exists only while the course is LIVE
+    const lessons = await q(`select s.document_id, s.canonical_slug, s.node_id, s.hi_current, n.hierarchy_path, d.is_test_content test
+        from public.fn_servable_node_lessons() s join public.canonical_taxonomy_nodes n on n.id = s.node_id
+        join public.learning_documents d on d.id = s.document_id where n.is_active order by n.hierarchy_path`);
+    const live = new Set((await q(`select exam_id from public.exam_course_launches where status = 'LIVE'`)).map((r) => r.exam_id));
     const drafts = await q(`select n.hierarchy_path from public.learning_documents d join public.canonical_taxonomy_nodes n on n.id = d.node_id
         where d.document_type = 'NODE_LESSON' and d.status <> 'PUBLISHED' and n.is_active`);
     const exams = await q(`select id, slug from public.exams where is_active order by slug`);
     const courses = [];
     for (const e of exams) {
       const [o] = await q(`select public.fn_exam_course_outline($1) r`, [e.id]);
-      courses.push({ slug: e.slug, nodeIds: (o.r.chapters || []).flatMap((ch) => ch.lessons.map((l) => l.node_id)) });
+      courses.push({ slug: e.slug, live: live.has(e.id), nodeIds: (o.r.chapters || []).flatMap((ch) => ch.lessons.map((l) => l.node_id)) });
     }
     const L = lessons[0];
     if (!L) {
@@ -86,9 +89,11 @@ const decode = (h) => h.replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(
     const lr = ld.flatMap((d) => d['@graph'] || [d]).find((x) => x['@type'] === 'LearningResource');
     const body = texts(ver.blocks);
     const plain = decode(mh);
-    check(`S-01 /learn/${p}: 200, self-canonical, indexable, OG / Twitter, JSON-LD (BreadcrumbList + LearningResource), the lesson body on the page`,
-      m.status === 200 && canonicalOf(mh) === `${site}/learn/${p}` && !/noindex/.test(robotsOf(mh) || '') && /<meta property="og:title"/.test(mh) && /<meta property="og:url" content="[^"]*\/learn\//.test(mh)
-      && /<meta name="twitter:card"/.test(mh) && graphTypes(ld).includes('BreadcrumbList') && lr && lr.url === `${site}/learn/${p}` && lr.inLanguage === 'en' && typeof lr.isAccessibleForFree === 'boolean'
+    // CA-7: a QA test lesson renders the same but is noindex and carries no LearningResource
+    check(`S-01 /learn/${p}: 200, self-canonical, ${L.test ? 'TEST CONTENT → noindex, no LearningResource' : 'indexable, LearningResource'}, OG / Twitter, BreadcrumbList, the lesson body on the page`,
+      m.status === 200 && canonicalOf(mh) === `${site}/learn/${p}` && /<meta property="og:title"/.test(mh) && /<meta property="og:url" content="[^"]*\/learn\//.test(mh)
+      && /<meta name="twitter:card"/.test(mh) && graphTypes(ld).includes('BreadcrumbList')
+      && (L.test ? /noindex/.test(robotsOf(mh) || '') && !lr : !/noindex/.test(robotsOf(mh) || '') && lr && lr.url === `${site}/learn/${p}` && lr.inLanguage === 'en' && typeof lr.isAccessibleForFree === 'boolean')
       && body.slice(0, 5).every((t) => plain.includes(t)),
       JSON.stringify({ status: m.status, canonical: canonicalOf(mh), robots: robotsOf(mh), types: graphTypes(ld), lr: lr && { url: lr.url, free: lr.isAccessibleForFree }, missing: body.slice(0, 5).filter((t) => !plain.includes(t)).slice(0, 2) }));
 
@@ -119,16 +124,18 @@ const decode = (h) => h.replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(
     const sm = await get('/sitemap.xml');
     const xml = sm.status === 200 ? await sm.text() : '';
     const urls = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((x) => new URL(x[1]).pathname);
-    const pub = new Set(lessons.map((l) => l.hierarchy_path.split('.').join('/')));
-    const pubHi = new Set(lessons.filter((l) => l.hi_current).map((l) => l.hierarchy_path.split('.').join('/')));
+    const pub = new Set(lessons.filter((l) => !l.test).map((l) => l.hierarchy_path.split('.').join('/')));
+    const pubHi = new Set(lessons.filter((l) => l.hi_current && !l.test).map((l) => l.hierarchy_path.split('.').join('/')));
+    const testPaths = new Set(lessons.filter((l) => l.test).map((l) => l.hierarchy_path.split('.').join('/')));
     const bad = [];
     for (const u of urls) {
       let mm;
-      if ((mm = u.match(/^\/learn\/(.+)$/)) && !mm[1].startsWith('topics/') && !pub.has(mm[1])) bad.push(`unpublished ${u}`);
+      if ((mm = u.match(/^\/learn\/(.+)$/)) && !mm[1].startsWith('topics/') && !pub.has(mm[1])) bad.push(testPaths.has(mm[1]) ? `test content listed ${u}` : `unpublished ${u}`);
+      if ((mm = u.match(/^\/exams\/([a-z0-9-]+)\/course$/)) && !courses.some((x) => x.slug === mm[1] && x.live)) bad.push(`course listed before launch ${u}`);
       if ((mm = u.match(/^\/hi\/learn\/(.+)$/)) && !pubHi.has(mm[1])) bad.push(`hindi not published ${u}`);
       if ((mm = u.match(/^\/exams\/([a-z0-9-]+)\/(.+\/.+)$/)) && !mm[2].startsWith('cycle/')) {
         const c2 = courses.find((x) => x.slug === mm[1]);
-        const node = lessons.find((l) => l.hierarchy_path.split('.').join('/') === mm[2]);
+        const node = lessons.find((l) => !l.test && l.hierarchy_path.split('.').join('/') === mm[2]);
         if (!c2 || !node || !c2.nodeIds.includes(node.node_id)) bad.push(`exam-topic not in a published course ${u}`);
       }
       if ((mm = u.match(/^\/articles\/(.+)$/)) && lessons.some((l) => l.canonical_slug === mm[1])) bad.push(`node lesson under /articles ${u}`);
@@ -136,7 +143,7 @@ const decode = (h) => h.replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(
     for (const x of drafts) if (urls.includes(`/learn/${x.hierarchy_path.split('.').join('/')}`) && !pub.has(x.hierarchy_path.split('.').join('/'))) bad.push(`draft listed ${x.hierarchy_path}`);
     const missing = [...pub].filter((x) => !urls.includes(`/learn/${x}`));
     const hreflangOk = pubHi.size > 0 ? /hreflang="hi"/.test(xml) : !/hreflang="hi"/.test(xml);
-    check(`S-05 sitemap: ${urls.length} URLs — every lesson URL is published (${pub.size} lesson(s), ${pubHi.size} in Hindi), each published lesson listed, no node lesson under /articles, hreflang only with Hindi`,
+    check(`S-05 sitemap: ${urls.length} URLs — every lesson URL is published and not test content (${pub.size} indexable lesson(s), ${testPaths.size} test, ${pubHi.size} in Hindi), each indexable lesson listed, no course before launch, no node lesson under /articles, hreflang only with Hindi`,
       sm.status === 200 && bad.length === 0 && missing.length === 0 && hreflangOk, JSON.stringify({ status: sm.status, bad: bad.slice(0, 5), missing, hreflangOk }));
 
     // S-06 course JSON-LD
@@ -144,8 +151,9 @@ const decode = (h) => h.replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(
       const cr = await get(`/exams/${course.slug}/course`);
       const ch = cr.status === 200 ? await cr.text() : '';
       const co = jsonLd(ch).flatMap((d) => d['@graph'] || [d]).find((x) => x['@type'] === 'Course');
-      check(`S-06 /exams/${course.slug}/course: Course JSON-LD (name, provider, parts link /learn pages)`,
-        cr.status === 200 && co && co.name && co.provider && Array.isArray(co.hasPart) && co.hasPart.some((x) => x.url === `${site}/learn/${p}`), JSON.stringify({ status: cr.status, course: co && { name: co.name, parts: (co.hasPart || []).length } }));
+      check(course.live ? `S-06 /exams/${course.slug}/course (LIVE): Course JSON-LD (name, provider, parts link /learn pages)` : `S-06 /exams/${course.slug}/course: not launched → 404 (CA-7: the course exists only while LIVE)`,
+        course.live ? cr.status === 200 && co && co.name && co.provider && Array.isArray(co.hasPart) && co.hasPart.some((x) => x.url === `${site}/learn/${p}`) : cr.status === 404,
+        JSON.stringify({ status: cr.status, live: course.live, course: co && { name: co.name, parts: (co.hasPart || []).length } }));
     }
 
     // S-07 the legacy entry, 404s, drafts never served as lessons

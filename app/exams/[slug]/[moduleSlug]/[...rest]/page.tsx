@@ -13,6 +13,8 @@ import { topicPracticeHref } from "@/lib/learn/topic";
 import { examMocks } from "@/lib/exams/exam-page-server";
 import { WEIGHTAGE_LABEL } from "@/lib/learning/course-view";
 import { getExamTopic } from "@/services/learning/exam-topic.service";
+import { getPublishedExamNote } from "@/services/learning/exam-note.service";
+import { ExamNoteBlocks } from "@/components/learning/exam-note-blocks";
 
 /**
  * CA-6 exam-topic page — /exams/<exam>/<subject>/<topic>[/<subtopic>[/<concept>]] (the subject arrives as moduleSlug: a
@@ -26,7 +28,8 @@ interface Props {
   params: Promise<{ slug: string; moduleSlug: string; rest: string[] }>;
 }
 
-const indexable = (d: NonNullable<Awaited<ReturnType<typeof getExamTopic>>>) => Boolean(d.lesson) || d.pyq.total > 0;
+// CA-7: a published exam note is unique exam-specific content too
+const indexable = (d: NonNullable<Awaited<ReturnType<typeof getExamTopic>>>, hasNote: boolean) => Boolean(d.lesson) || d.pyq.total > 0 || hasNote;
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug, moduleSlug, rest } = await params;
@@ -36,7 +39,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: `${d.node.name} for ${d.exam.title}`,
     description: `How ${d.exam.title} asks ${d.node.name}: weightage${d.pyq.total ? `, ${d.pyq.total} previous-year question${d.pyq.total === 1 ? "" : "s"}` : ""}, practice and the full lesson.`,
     canonicalUrl: d.path,
-    noIndex: !indexable(d),
+    noIndex: !indexable(d, Boolean(await getPublishedExamNote(d.exam.id, d.node.id, "en"))),
   });
 }
 
@@ -45,7 +48,7 @@ export default async function ExamTopicPage({ params }: Props) {
   const d = await getExamTopic(slug, [moduleSlug, ...rest]);
   if (!d) notFound();
   const supabase = await createServerSupabaseClient();
-  const [practiceHref, mocks] = await Promise.all([topicPracticeHref(supabase, d.node.topicId), examMocks(d.exam.id)]);
+  const [practiceHref, mocks, note] = await Promise.all([topicPracticeHref(supabase, d.node.topicId), examMocks(d.exam.id), getPublishedExamNote(d.exam.id, d.node.id, "en")]);
   const q = d.expectedQuestions;
   const questionsText = q.avg !== null ? `about ${q.avg} question${q.avg === 1 ? "" : "s"} per paper` : q.max !== null ? `up to ${q.max} question${q.max === 1 ? "" : "s"}${q.min !== null && q.min !== q.max ? ` (at least ${q.min})` : ""}` : null;
   const jsonLd = {
@@ -76,6 +79,15 @@ export default async function ExamTopicPage({ params }: Props) {
             {[d.weightageTier ? `${WEIGHTAGE_LABEL[d.weightageTier] ?? d.weightageTier} weightage` : null, questionsText].filter(Boolean).join(" · ") || "Part of the published syllabus."}
           </p>
         </header>
+
+        {note && (
+          <section aria-labelledby="note-h" className="flex flex-col gap-3" data-exam-note="">
+            <h2 id="note-h" className="text-h3 font-semibold text-fg">
+              {note.meta.title}
+            </h2>
+            <ExamNoteBlocks blocks={note.blocks} />
+          </section>
+        )}
 
         <section aria-labelledby="asked-h" className="flex flex-col gap-2">
           <h2 id="asked-h" className="text-h3 font-semibold text-fg">

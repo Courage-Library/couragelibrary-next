@@ -111,5 +111,5 @@ async function loadExamTopicUncached(examSlug: string, hierarchyPath: string): P
 export async function getExamTopic(examSlug: string, segments: string[]): Promise<ExamTopicData | null> {
   const path = segmentsToHierarchyPath(segments);
   if (!path || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(examSlug)) return null;
-  return unstable_cache(() => loadExamTopicUncached(examSlug, path), ["exam-topic", examSlug, path], { tags: [LEARN_CACHE_TAG], revalidate: 1800 })();
+  return unstable_cache(() => loadExamTopicUncached(examSlug, path), ["exam-topic", "v2" /* CA-7: internal nodes */, examSlug, path], { tags: [LEARN_CACHE_TAG], revalidate: 1800 })();
 }

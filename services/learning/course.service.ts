@@ -9,7 +9,7 @@
  *     "Continue where you left off" (the newest READING lesson of this course, else the first not completed).
  * No user id is ever accepted from the caller; the session decides.
  */
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient, createPublicServerSupabaseClient } from "@/lib/supabase/server";
 import { getSessionState } from "@/lib/auth/session-state";
 import { isLessonLocked, lessonAccessLevel } from "@/lib/learning/chapter-access";
 import { getLessonAccessSettings } from "@/lib/learning/lesson-access-settings";
@@ -27,6 +27,10 @@ export class ExamCourseService {
     const supabase = await createServerSupabaseClient();
     const { data: exam } = await supabase.from("exams").select("id, slug, title").eq("slug", examSlug).eq("is_active", true).maybeSingle();
     if (!exam) return null;
+    // CA-7 (design H): the exam course exists for students only while it is LIVE (launched); before that its lessons are
+    // free standalone articles (anon / students read LIVE launch rows only)
+    const { data: launch, error: launchError } = await supabase.from("exam_course_launches").select("status").eq("exam_id", exam.id).eq("status", "LIVE").limit(1);
+    if (launchError || !launch?.length) return null;
     const language = await userContentLanguage();
     const [{ data: outline, error }, access, settings, session] = await Promise.all([
       supabase.rpc("fn_exam_course_outline", { p_exam_id: exam.id, p_language: language }),
@@ -61,8 +65,8 @@ function withViewer(
     ...c,
     lessons: c.lessons.map((l) => ({
       ...l,
-      access: lessonAccessLevel(l.position, v.settings),
-      locked: isLessonLocked(l.position, v.settings, v.hasPro),
+      access: lessonAccessLevel(l.position, v.settings, l.documentId),
+      locked: isLessonLocked(l.position, v.settings, l.documentId, v.hasPro),
       status: toStatus(status.get(l.documentId)),
     })),
   }));
@@ -76,4 +80,10 @@ function withViewer(
     completed: all.filter((l) => l.status === "COMPLETED").length,
     continueLesson: v.signedIn && next ? { href: next.href, name: next.name, started: next.status === "READING" } : null,
   };
+}
+
+/** CA-7: true when the exam's course is LIVE (launched) — the public read (anon RLS sees LIVE launch rows only). */
+export async function isCourseLive(examId: string): Promise<boolean> {
+  const { data, error } = await createPublicServerSupabaseClient().from("exam_course_launches").select("status").eq("exam_id", examId).eq("status", "LIVE").limit(1);
+  return !error && Boolean(data?.length);
 }

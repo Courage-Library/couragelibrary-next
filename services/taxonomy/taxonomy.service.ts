@@ -70,7 +70,7 @@ interface AdminContext {
 }
 
 const NODE_COLUMNS =
-  'id, parent_id, root_subject_id, name, slug, node_type, node_depth, hierarchy_path, display_order, is_active, name_hi, subject_type, state_code, metadata';
+  'id, parent_id, root_subject_id, name, slug, node_type, node_depth, hierarchy_path, display_order, is_active, name_hi, subject_type, state_code, metadata, is_internal';
 const fail = <T>(code: string, error: string): TaxonomyResult<T> => ({ success: false, code, error });
 
 /** Maps database errors (trigger rules, unique keys of nodes and projection rows) to admin messages. */
@@ -109,6 +109,7 @@ function toNode(r: any): TaxonomyNode {
     subjectType: r.subject_type ?? null,
     stateCode: r.state_code ?? null,
     mergedInto: r.metadata && typeof r.metadata === 'object' && typeof r.metadata.merged_into === 'string' ? r.metadata.merged_into : null,
+    isInternal: r.is_internal === true,
   };
 }
 
@@ -347,6 +348,46 @@ export class TaxonomyService {
       { name_hi: node.nameHi, subject_type: node.subjectType, state_code: node.stateCode }
     );
     return { success: true, data: node };
+  }
+
+  /**
+   * CA-7: mark a TOPIC / SUBTOPIC / CONCEPT internal (or not) — admin only, audited TAXONOMY_NODE_INTERNAL. An internal
+   * node stays usable for question mapping; it (and its subtree) leaves the lesson generator, courses, the coverage
+   * matrix, /learn, exam-topic pages, the sitemap and JSON-LD.
+   */
+  static async setInternal(id: string, internal: boolean): Promise<TaxonomyResult<TaxonomyNode>> {
+    const ctx = await this.requireAdmin();
+    if (!ctx) return fail('UNAUTHORIZED', 'Unauthorized.');
+    const before = await this.getNode(ctx, id);
+    if (!before) return fail('NOT_FOUND', 'Node not found.');
+    if (before.nodeType === 'SUBJECT') return fail('VALIDATION', 'A subject cannot be internal; mark its catch-all topic instead.');
+    if (before.isInternal === internal) return fail('VALIDATION', internal ? 'The node is already internal.' : 'The node is not internal.');
+    const { data, error } = await ctx.supabase.from('canonical_taxonomy_nodes').update({ is_internal: internal }).eq('id', id).select(NODE_COLUMNS).single();
+    if (error || !data) {
+      const m = mapTaxonomyDbError(error);
+      return fail(m.code, m.error);
+    }
+    const node = toNode(data);
+    await this.audit(ctx, 'TAXONOMY_NODE_INTERNAL', id, { is_internal: before.isInternal }, { is_internal: node.isInternal });
+    return { success: true, data: node };
+  }
+
+  /** MASTER-TREE UX: the node lesson state per node — PUBLISHED, DRAFT (any other live status) or absent (none / archived). */
+  static async listNodeLessonStatus(): Promise<TaxonomyResult<Record<string, 'DRAFT' | 'PUBLISHED'>>> {
+    const ctx = await this.requireAdmin({ allowStaff: true });
+    if (!ctx) return fail('UNAUTHORIZED', 'Unauthorized.');
+    const { data, error } = await ctx.supabase
+      .from('learning_documents')
+      .select('node_id, status')
+      .eq('document_type', 'NODE_LESSON')
+      .not('node_id', 'is', null);
+    if (error) return fail('DB_ERROR', 'Could not load the lesson states.');
+    const out: Record<string, 'DRAFT' | 'PUBLISHED'> = {};
+    for (const r of data || []) {
+      if (!r.node_id || r.status === 'ARCHIVED') continue;
+      out[r.node_id] = r.status === 'PUBLISHED' ? 'PUBLISHED' : 'DRAFT';
+    }
+    return { success: true, data: out };
   }
 
   /** CA-1: every alias (EN / HI) of the master tree. */

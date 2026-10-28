@@ -30,7 +30,8 @@ export interface MasterLessonVersion {
 export interface MasterData {
   node: { id: string; name: string; nodeType: string; hierarchyPath: string; topicId: string | null; topicName: string | null; subjectName: string | null };
   breadcrumbs: { name: string; href: string | null }[];
-  lesson: { documentId: string; position: number; publishedAt: string | null; en: MasterLessonVersion; hi: MasterLessonVersion | null } | null;
+  /** isTestContent: a QA fixture (CA-7 SEO-HYGIENE-1) — served, never indexed */
+  lesson: { documentId: string; position: number; publishedAt: string | null; en: MasterLessonVersion; hi: MasterLessonVersion | null; isTestContent: boolean } | null;
   children: { name: string; href: string; nodeType: string }[];
   exams: { slug: string; title: string; href: string }[];
 }
@@ -39,21 +40,23 @@ async function loadMasterDataUncached(hierarchyPath: string): Promise<MasterData
   const admin = createAdminServerSupabaseClient();
   const { data: node } = await admin
     .from("canonical_taxonomy_nodes")
-    .select("id, name, node_type, hierarchy_path, parent_id, root_subject_id, is_active")
+    .select("id, name, node_type, hierarchy_path, parent_id, root_subject_id, is_active, is_internal")
     .eq("hierarchy_path", hierarchyPath)
     .eq("is_active", true)
     .maybeSingle();
-  if (!node || !LESSON_LEVELS.includes(node.node_type)) return null;
+  // CA-7: an INTERNAL node (legacy catch-all) has no public page
+  if (!node || !LESSON_LEVELS.includes(node.node_type) || node.is_internal) return null;
 
   // ancestors (subject → … → parent) and children
   const parts = hierarchyPath.split(".");
   const prefixes = parts.slice(0, -1).map((_, i) => parts.slice(0, i + 1).join("."));
   const [anc, kids, servable] = await Promise.all([
-    prefixes.length ? admin.from("canonical_taxonomy_nodes").select("id, name, node_type, hierarchy_path").in("hierarchy_path", prefixes).eq("is_active", true) : Promise.resolve({ data: [] as { id: string; name: string; node_type: string; hierarchy_path: string }[] }),
-    admin.from("canonical_taxonomy_nodes").select("id, name, node_type, hierarchy_path, display_order").eq("parent_id", node.id).eq("is_active", true).order("display_order"),
+    prefixes.length ? admin.from("canonical_taxonomy_nodes").select("id, name, node_type, hierarchy_path, is_internal").in("hierarchy_path", prefixes).eq("is_active", true) : Promise.resolve({ data: [] as { id: string; name: string; node_type: string; hierarchy_path: string; is_internal: boolean }[] }),
+    admin.from("canonical_taxonomy_nodes").select("id, name, node_type, hierarchy_path, display_order").eq("parent_id", node.id).eq("is_active", true).eq("is_internal", false).order("display_order"),
     admin.rpc("fn_servable_node_lessons"),
   ]);
   const ancestors = (anc.data || []).sort((a, b) => a.hierarchy_path.length - b.hierarchy_path.length);
+  if (ancestors.some((a) => a.is_internal)) return null; // under an INTERNAL node
   const lessons = new Map((Array.isArray(servable.data) ? servable.data : []).map((r) => [r.node_id, r]));
   const own = lessons.get(node.id) || null;
 
@@ -73,8 +76,8 @@ async function loadMasterDataUncached(hierarchyPath: string): Promise<MasterData
       const ok = v ? validateLesson(v.lesson_meta, v.blocks) : null;
       return ok && ok.ok ? { meta: ok.meta, blocks: ok.blocks, links: await resolveLessonLinks(admin, ok.blocks) } : null;
     };
-    const [en, hi] = await Promise.all([pick("en"), pick("hi")]);
-    if (en) lesson = { documentId: own.document_id, position: own.chapter_position, publishedAt: own.published_at, en, hi };
+    const [[en, hi], { data: doc }] = await Promise.all([Promise.all([pick("en"), pick("hi")]), admin.from("learning_documents").select("is_test_content").eq("id", own.document_id).maybeSingle()]);
+    if (en) lesson = { documentId: own.document_id, position: own.chapter_position, publishedAt: own.published_at, en, hi, isTestContent: doc?.is_test_content !== false };
   }
 
   // exams whose PUBLISHED syllabus covers this node (mapped here, at an ancestor or at a descendant)
@@ -112,7 +115,7 @@ async function loadMasterDataUncached(hierarchyPath: string): Promise<MasterData
 
 /** Cached per node path; every lesson publish revalidates the "learn" tag (app/admin/lessons/actions.ts). */
 export const loadMasterData = (hierarchyPath: string) =>
-  unstable_cache(() => loadMasterDataUncached(hierarchyPath), ["learn-master", hierarchyPath], { tags: [LEARN_CACHE_TAG], revalidate: 1800 })();
+  unstable_cache(() => loadMasterDataUncached(hierarchyPath), ["learn-master", "v2" /* CA-7 shape: isTestContent, internal nodes */, hierarchyPath], { tags: [LEARN_CACHE_TAG], revalidate: 1800 })();
 
 export interface MasterLessonPage {
   data: MasterData;
@@ -147,8 +150,8 @@ export async function getMasterLessonPage(segments: string[], language: "en" | "
   const [settings, viewer, supabase] = await Promise.all([getLessonAccessSettings(), LearningResolverService.getViewerAccess(), createServerSupabaseClient()]);
   const shown: "en" | "hi" = language === "hi" && data.lesson.hi ? "hi" : "en";
   const version = shown === "hi" && data.lesson.hi ? data.lesson.hi : data.lesson.en;
-  const access = lessonAccessLevel(data.lesson.position, settings);
-  const locked = isLessonLocked(data.lesson.position, settings, viewer.hasPro);
+  const access = lessonAccessLevel(data.lesson.position, settings, data.lesson.documentId);
+  const locked = isLessonLocked(data.lesson.position, settings, data.lesson.documentId, viewer.hasPro);
 
   let progress: MasterLessonPage["progress"] = null;
   if (!locked) {

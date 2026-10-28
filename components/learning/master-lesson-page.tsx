@@ -33,7 +33,7 @@ export async function masterLessonMetadata(segments: string[], language: "en" | 
   const version = data.lesson ? (language === "hi" && data.lesson.hi ? data.lesson.hi : data.lesson.en) : null;
   const title = version?.meta.seo?.meta_title || version?.meta.title || data.node.name;
   const description = version?.meta.seo?.meta_description || version?.meta.summary || `${data.node.name}: study notes${data.node.subjectName ? ` for ${data.node.subjectName}` : ""}.`;
-  const base = constructMetadata({ title, description, canonicalUrl: alt.canonical, ogType: "article", publishedTime: data.lesson?.publishedAt || undefined, noIndex: alt.noIndex });
+  const base = constructMetadata({ title, description, canonicalUrl: alt.canonical, ogType: "article", publishedTime: data.lesson?.publishedAt || undefined, noIndex: alt.noIndex || Boolean(data.lesson?.isTestContent) });
   return { ...base, alternates: { ...base.alternates, ...(alt.languages ? { languages: alt.languages } : {}) } };
 }
 
@@ -59,7 +59,8 @@ export async function MasterLessonPageView({ segments, language }: { segments: s
     "@context": "https://schema.org",
     "@graph": [
       generateBreadcrumbSchema([{ label: "Home", href: "/" }, ...data.breadcrumbs.map((b) => ({ label: b.name, ...(b.href ? { href: b.href } : {}) }))]),
-      ...(version
+      // CA-7 SEO-HYGIENE-1: QA test content is never described to search engines
+      ...(version && !data.lesson?.isTestContent
         ? [
             learningResourceSchema({
               name: title,

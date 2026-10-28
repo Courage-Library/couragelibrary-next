@@ -92,16 +92,17 @@ test('H-01 canonical + hreflang: EN canonical; Hindi → own URL + alternates; m
 test('M-01 sitemap entries only from the published inputs; /hi + hreflang only with Hindi; exam URLs only for lessons in that course', () => {
   const N1 = 'n1', N2 = 'n2', N3 = 'n3';
   const out = M.learnSitemapEntries('https://x.test', [{ nodeId: N1, hiCurrent: true, publishedAt: '2026-10-28' }, { nodeId: N2, hiCurrent: false, publishedAt: null }, { nodeId: 'no-path', hiCurrent: false, publishedAt: null }],
-    { [N1]: 'q.p', [N2]: 'q.n', [N3]: 'q.draft' }, [{ slug: 'ssc-cgl', nodeIds: [N2, N3] }, { slug: 'empty', nodeIds: [N3] }]);
+    { [N1]: 'q.p', [N2]: 'q.n', [N3]: 'q.draft' }, [{ slug: 'ssc-cgl', nodeIds: [N2, N3], live: true }, { slug: 'empty', nodeIds: [N3], live: true }, { slug: 'not-launched', nodeIds: [N1], live: false }]);
   const urls = out.map((e) => e.url.replace('https://x.test', ''));
-  assert(JSON.stringify(urls) === JSON.stringify(['/learn/q/p', '/hi/learn/q/p', '/learn/q/n', '/exams/ssc-cgl/course', '/exams/ssc-cgl/q/n']), JSON.stringify(urls));
+  assert(JSON.stringify(urls) === JSON.stringify(['/learn/q/p', '/hi/learn/q/p', '/learn/q/n', '/exams/ssc-cgl/course', '/exams/ssc-cgl/q/n', '/exams/not-launched/q/p']), JSON.stringify(urls));
   assert(out[0].alternates.languages.hi === 'https://x.test/hi/learn/q/p' && !out[2].alternates, 'hreflang only with Hindi');
   return `${urls.length} entries; the unpublished node never listed`;
 });
 
 test('S-01 source rules: no full text on exam-topic pages, /articles redirect, publish revalidation, sitemap excludes node lessons from /articles, locked body stripped, budgets', () => {
   const et = read('app/exams/[slug]/[moduleSlug]/[...rest]/page.tsx');
-  assert(!/LessonBlocksRenderer|\.blocks\b/.test(et) && /Read the full lesson/.test(et) && /canonicalUrl: d\.path/.test(et), 'exam-topic page: summary + outline + link only, self-canonical');
+  // CA-7: the page may render the exam NOTE (unique per-exam content), never the lesson's blocks
+  assert(!/LessonBlocksRenderer/.test(et) && (et.match(/\.blocks\b/g) || []).length === 1 && /<ExamNoteBlocks blocks=\{note\.blocks\} \/>/.test(et) && /Read the full lesson/.test(et) && /canonicalUrl: d\.path/.test(et), 'exam-topic page: summary + outline + link only (+ the exam note), self-canonical');
   const svc = read('services/learning/exam-topic.service.ts');
   assert(/outline: t\.outline\.slice\(0, 8\)/.test(svc) && !/blocks:/.test(svc.replace(/lessonTeaser\(v\)/, '')), 'exam-topic data carries no blocks');
   const art = read('app/articles/[slug]/page.tsx');

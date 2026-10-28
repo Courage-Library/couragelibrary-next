@@ -116,6 +116,13 @@ It then executes the file **and** writes the ledger row (`APPLIED`, checksum, to
   4. the admin / student page smokes — `node scripts/live/with-server.cjs --port=3100 -- "node scripts/smoke/signed-in-smoke.cjs admin-pages http://localhost:3100" "node scripts/smoke/signed-in-smoke.cjs student-pages http://localhost:3100" "node scripts/test_gap2_4b_readers.cjs --base=http://localhost:3100"` (a local production build first: `npm run build`)
 
   Find the touching gates by grepping `scripts/` and `scripts/live/` for every changed table and function name; list them (and the four) with their results in the phase report. Why: CA-2's 116 passed its own smoke but broke RLS P-2 (a trigger calling a service-role-only helper turned an RLS denial into a "permission denied for function"), found only by the next CI dispatch because RLS was not in the local set.
+
+  **Network exception (architect, 2026-10-28; first used for 121 / d707064).** A gate of the set that still fails after its 3 attempts may be waived for the push ONLY when ALL of these hold:
+  - (a) the failure is proven network by the server log: `fetch failed`, or the page landed on `/auth/unavailable` ("We couldn't check your sign-in");
+  - (b) every page and gate touched by the change passed locally;
+  - (c) after the push, ONE manual CI dispatch (live=true, architect-approved) runs the full live suite.
+
+  The report names the waived gate, the log evidence and the dispatch run, with its result per job. If any of the three does not hold, nothing is pushed.
 - **SCHEDULED-CHECKS (permanent rule, 2026-10-26):** no local background sleeps for timed checks; a sleeping machine kills them (the 2026-10-25 21:35 job never ran). A recurring or timed verify goes into a GitHub Actions scheduled workflow (read-only, existing secrets), or runs the next time the owner messages.
 - Re-run the relevant DB suites. For question-bank changes: `node scripts/test_qf1_db.cjs` (all scenario writes are rolled back).
 - Re-run the offline suites:

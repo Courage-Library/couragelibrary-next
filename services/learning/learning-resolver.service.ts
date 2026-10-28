@@ -219,7 +219,7 @@ async function nodeLessonPositions(supabase: SessionClient): Promise<Map<string,
 
 function toResolvedNode(row: NodeLessonRow, access: LearningViewerAccess, topic: NodeRef | undefined, gate: { settings: LessonAccessSettings; positions: Map<string, number> }): ResolvedLearningDocument {
   const node = one(row.node);
-  const accessLevel: LearningAccessLevel = lessonAccessLevel(gate.positions.get(row.id) ?? Number.MAX_SAFE_INTEGER, gate.settings);
+  const accessLevel: LearningAccessLevel = lessonAccessLevel(gate.positions.get(row.id) ?? Number.MAX_SAFE_INTEGER, gate.settings, row.id);
   return {
     id: row.id,
     canonical_slug: row.canonical_slug,

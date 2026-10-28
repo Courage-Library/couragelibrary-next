@@ -541,6 +541,7 @@ export type Database = {
           hierarchy_path: string
           id: string
           is_active: boolean
+          is_internal: boolean
           legacy_subject_id: string | null
           legacy_subject_id_node_type: string | null
           legacy_subtopic_id: string | null
@@ -565,6 +566,7 @@ export type Database = {
           hierarchy_path: string
           id?: string
           is_active?: boolean
+          is_internal?: boolean
           legacy_subject_id?: string | null
           legacy_subject_id_node_type?: string | null
           legacy_subtopic_id?: string | null
@@ -589,6 +591,7 @@ export type Database = {
           hierarchy_path?: string
           id?: string
           is_active?: boolean
+          is_internal?: boolean
           legacy_subject_id?: string | null
           legacy_subject_id_node_type?: string | null
           legacy_subtopic_id?: string | null
@@ -2215,6 +2218,60 @@ export type Database = {
           },
         ]
       }
+      exam_course_launches: {
+        Row: {
+          changed_at: string
+          changed_by_email: string
+          coverage: Json
+          exam_cycle_id: string | null
+          exam_id: string
+          id: string
+          launched_at: string
+          launched_by: string | null
+          launched_by_email: string
+          status: string
+        }
+        Insert: {
+          changed_at?: string
+          changed_by_email: string
+          coverage: Json
+          exam_cycle_id?: string | null
+          exam_id: string
+          id?: string
+          launched_at?: string
+          launched_by?: string | null
+          launched_by_email: string
+          status: string
+        }
+        Update: {
+          changed_at?: string
+          changed_by_email?: string
+          coverage?: Json
+          exam_cycle_id?: string | null
+          exam_id?: string
+          id?: string
+          launched_at?: string
+          launched_by?: string | null
+          launched_by_email?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_course_launches_exam_cycle_id_fkey"
+            columns: ["exam_cycle_id"]
+            isOneToOne: false
+            referencedRelation: "exam_cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_course_launches_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exam_cutoff_benchmarks: {
         Row: {
           category: string
@@ -2453,6 +2510,72 @@ export type Database = {
             columns: ["current_published_version_id"]
             isOneToOne: false
             referencedRelation: "exam_doc_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exam_node_notes: {
+        Row: {
+          blocks: Json
+          blocks_hash: string
+          created_at: string
+          created_by_email: string
+          exam_id: string
+          id: string
+          language: string
+          meta: Json
+          node_id: string
+          published_at: string | null
+          published_by_email: string | null
+          status: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          blocks: Json
+          blocks_hash: string
+          created_at?: string
+          created_by_email: string
+          exam_id: string
+          id?: string
+          language: string
+          meta: Json
+          node_id: string
+          published_at?: string | null
+          published_by_email?: string | null
+          status?: string
+          updated_at?: string
+          version: number
+        }
+        Update: {
+          blocks?: Json
+          blocks_hash?: string
+          created_at?: string
+          created_by_email?: string
+          exam_id?: string
+          id?: string
+          language?: string
+          meta?: Json
+          node_id?: string
+          published_at?: string | null
+          published_by_email?: string | null
+          status?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_node_notes_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_node_notes_node_id_fkey"
+            columns: ["node_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_taxonomy_nodes"
             referencedColumns: ["id"]
           },
         ]
@@ -3362,6 +3485,7 @@ export type Database = {
         Row: {
           event_type: string
           id: string
+          idempotency_key: string | null
           metadata: Json | null
           occurred_at: string
           resource_slug: string
@@ -3373,6 +3497,7 @@ export type Database = {
         Insert: {
           event_type: string
           id?: string
+          idempotency_key?: string | null
           metadata?: Json | null
           occurred_at?: string
           resource_slug: string
@@ -3384,6 +3509,7 @@ export type Database = {
         Update: {
           event_type?: string
           id?: string
+          idempotency_key?: string | null
           metadata?: Json | null
           occurred_at?: string
           resource_slug?: string
@@ -3559,6 +3685,7 @@ export type Database = {
           current_published_version_id: string | null
           document_type: string
           id: string
+          is_test_content: boolean
           learning_unit_id: string | null
           node_id: string | null
           status: string
@@ -3571,6 +3698,7 @@ export type Database = {
           current_published_version_id?: string | null
           document_type: string
           id?: string
+          is_test_content?: boolean
           learning_unit_id?: string | null
           node_id?: string | null
           status?: string
@@ -3583,6 +3711,7 @@ export type Database = {
           current_published_version_id?: string | null
           document_type?: string
           id?: string
+          is_test_content?: boolean
           learning_unit_id?: string | null
           node_id?: string | null
           status?: string
@@ -8529,11 +8658,38 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_exam_course_launch_set: {
+        Args: {
+          p_actor_email: string
+          p_actor_id: string
+          p_coverage: Json
+          p_exam_cycle_id: string
+          p_exam_id: string
+          p_status: string
+        }
+        Returns: Json
+      }
       fn_exam_course_outline: {
         Args: {
           p_exam_cycle_id?: string
           p_exam_id: string
           p_language?: string
+        }
+        Returns: Json
+      }
+      fn_exam_note_publish: {
+        Args: { p_actor_email: string; p_actor_id: string; p_id: string }
+        Returns: Json
+      }
+      fn_exam_note_save_draft: {
+        Args: {
+          p_actor_email: string
+          p_actor_id: string
+          p_blocks: Json
+          p_exam_id: string
+          p_language: string
+          p_meta: Json
+          p_node_id: string
         }
         Returns: Json
       }
@@ -8751,6 +8907,7 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_live_course_document_ids: { Args: never; Returns: string[] }
       fn_log_user_search: {
         Args: {
           p_clicked_entity_type?: string

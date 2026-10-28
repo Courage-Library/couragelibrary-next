@@ -97,6 +97,9 @@ function lesson(topicId) {
     const doc = (await c.query(`select public.fn_lesson_create_node_document($1, 'FREE', null, $2) r`, [qa.topic_id, ACTOR])).rows[0].r;
     const saved = (await c.query(`select public.fn_lesson_save_draft($1, 'en', $2::jsonb, $3::jsonb, 'HUMAN', null, $4) r`, [doc.document_id, JSON.stringify(L.meta), JSON.stringify(L.blocks), ACTOR])).rows[0].r;
     await c.query(`select public.fn_lesson_publish($1, null, $2)`, [saved.version_id, ACTOR]);
+    // CA-7 SEO-HYGIENE-1: a QA fixture is served but never indexed
+    await c.query(`reset role`);
+    await c.query(`update public.learning_documents set is_test_content = true where id = $1`, [doc.document_id]);
     const [chk] = (await c.query(`select d.status, d.canonical_slug, n.hierarchy_path from public.learning_documents d join public.canonical_taxonomy_nodes n on n.id = d.node_id where d.id = $1`, [doc.document_id])).rows;
     await c.query(DRY ? 'ROLLBACK' : 'COMMIT');
     console.log(`${DRY ? 'DRY-RUN (rolled back)' : 'COMMITTED'}: QA lesson ${chk.status} — /learn/${chk.hierarchy_path.split('.').join('/')} (${v.blocks.length} blocks, checklist passes)`);

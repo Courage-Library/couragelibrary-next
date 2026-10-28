@@ -155,7 +155,7 @@ test('S-01 admin only: routes, page guards, action guards, client imports', () =
     assert(/await requireAdminPage\(\{ path: "\/admin\/lessons" \}\)/.test(s) && !/allowStaff/.test(s), `${f}: admin page guard`);
   }
   const fns = read('app/admin/lessons/actions.ts').split(/export async function /).slice(1);
-  assert(fns.length === 4, `actions: ${fns.length}`); // CA-3 draft + publish; CA-4 generated draft + translation draft
+  assert(fns.length === 7, `actions: ${fns.length}`); // CA-3 draft + publish; CA-4 generated draft + translation draft; CA-7 course launch + exam note draft / publish
   for (const f of fns) {
     const at = f.indexOf('const __auth = await guardAdminAction()');
     const body = f.lastIndexOf('{\n', at);

@@ -10,6 +10,8 @@ import { LessonAdminService, type LessonResult } from "@/services/lessons/lesson
 import { LessonAuthoringService, checklistPasses, type AuthoringResult } from "@/services/lessons/lesson-authoring.service";
 import type { ChecklistItem } from "@/lib/lessons/completeness";
 import { LEARN_CACHE_TAG } from "@/services/learning/master-lesson.service";
+import { CoverageService } from "@/services/learning/coverage.service";
+import { ExamNoteService } from "@/services/learning/exam-note.service";
 
 function done<T>(r: LessonResult<T>, documentId?: string): LessonResult<T> {
   if (r.success) {
@@ -71,4 +73,42 @@ export async function saveTranslationDraftAction(documentId: string, paste: stri
     revalidatePath(`/admin/lessons/${documentId}/translate`);
   }
   return sanitizeActionResult("saveTranslationDraftAction", r);
+}
+
+/** CA-7: launch (LIVE) or pause an exam course — admin only, audited in the database (EXAM_COURSE_LAUNCH / _PAUSE). */
+export async function setCourseLaunchAction(examId: string, status: "LIVE" | "PAUSED"): Promise<{ success: true; data: { status: string } } | { success: false; code: string; error: string }> {
+  const __auth = await guardAdminAction() /* CA-7: admin only */;
+  if (!__auth.ok) return __auth;
+  if (status !== "LIVE" && status !== "PAUSED") return { success: false, code: "VALIDATION", error: "Status must be LIVE or PAUSED." };
+  const r = await CoverageService.setLaunch(examId, status);
+  if (r.success) {
+    revalidatePath("/admin/lessons/coverage");
+    revalidateTag(LEARN_CACHE_TAG);
+    revalidatePath("/exams", "layout");
+    revalidatePath("/sitemap.xml");
+  }
+  return sanitizeActionResult("setCourseLaunchAction", r);
+}
+
+/** CA-7: save the draft of an exam note (exam × node × language) — admin only; the database validates and audits. */
+export async function saveExamNoteDraftAction(examId: string, nodeId: string, language: string, json: string) {
+  const __auth = await guardAdminAction() /* CA-7: admin only */;
+  if (!__auth.ok) return __auth;
+  if (language !== "en" && language !== "hi") return { success: false as const, code: "VALIDATION", error: "Language must be en or hi." };
+  const r = await ExamNoteService.saveDraft(examId, nodeId, language, json);
+  if (r.success) revalidatePath("/admin/lessons/notes");
+  return sanitizeActionResult("saveExamNoteDraftAction", r);
+}
+
+/** CA-7: publish an exam note draft — admin only; the previous published version is retired (audited). */
+export async function publishExamNoteAction(id: string) {
+  const __auth = await guardAdminAction() /* CA-7: admin only */;
+  if (!__auth.ok) return __auth;
+  const r = await ExamNoteService.publish(id);
+  if (r.success) {
+    revalidatePath("/admin/lessons/notes");
+    revalidateTag(LEARN_CACHE_TAG);
+    revalidatePath("/exams", "layout");
+  }
+  return sanitizeActionResult("publishExamNoteAction", r);
 }

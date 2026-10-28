@@ -47,6 +47,29 @@ if (ONLY_ROUTE && ONLY_ROUTE !== 'auto:lesson' && !/^\/[A-Za-z0-9_\-/]{0,200}$/.
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 const rel = (f) => path.relative(ROOT, f).split(path.sep).join('/');
 
+/**
+ * CA-7: the /learn path of a published node lesson — the QA test lesson first (it is never in the sitemap) — read in
+ * ONE read-only transaction (LIVE-LOCK-SAFETY). null when there is none or no DB access.
+ */
+async function qaLessonRouteFromDb() {
+  const { Client } = require('pg');
+  const { dbTarget } = require(path.join(ROOT, 'scripts/db/_db-env.cjs'));
+  const { safeBegin } = require(path.join(ROOT, 'scripts/db/live-safety.cjs'));
+  const c = new Client(dbTarget().pg);
+  c.on('error', () => {});
+  await c.connect();
+  try {
+    await safeBegin(c, { readOnly: true });
+    const [row] = (await c.query(`select n.hierarchy_path from public.learning_documents d join public.canonical_taxonomy_nodes n on n.id = d.node_id
+        where d.document_type = 'NODE_LESSON' and d.status = 'PUBLISHED' and n.is_active
+        order by d.is_test_content desc, d.updated_at desc limit 1`)).rows;
+    await c.query('ROLLBACK');
+    return row ? `/learn/${row.hierarchy_path.split('.').join('/')}` : null;
+  } finally {
+    await c.end().catch(() => {});
+  }
+}
+
 let passed = 0;
 let failed = 0;
 async function test(name, fn) {
@@ -400,6 +423,10 @@ async function probe() {
   if (ONLY_ROUTE) {
     let route = ONLY_ROUTE;
     if (route === 'auto:lesson') {
+      // CA-7 SEO-HYGIENE-1: the QA lesson is never in the sitemap — find it in the DB (read-only), the sitemap only as a fallback
+      route = await qaLessonRouteFromDb().catch(() => null);
+    }
+    if (route === 'auto:lesson' || route === null) {
       const xml = await (await fetch(`${base}/sitemap.xml`)).text().catch(() => '');
       const locs = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => { try { return new URL(m[1]).pathname; } catch { return ''; } });
       route = locs.find((p) => /^\/learn\/[a-z0-9-]+\/[a-z0-9-]+/.test(p)) || locs.find((p) => /^\/articles\/[a-z0-9-]+$/.test(p)) || null;

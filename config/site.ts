@@ -36,13 +36,30 @@
   };
 }
 
+/**
+ * SEO-HYGIENE-1: the ONE canonical site base for everything search engines read — canonical, OG, hreflang, JSON-LD,
+ * sitemap, robots. Deliberately NOT the deployment URL (NEXT_PUBLIC_SITE_URL / getAppEnv().siteUrl, used for auth
+ * redirects): a preview or pre-launch deploy must never declare itself canonical.
+ */
+export const CANONICAL_SITE_URL = "https://couragelibrary.in";
+const CANONICAL_HOSTS = ["couragelibrary.in", "www.couragelibrary.in"];
+
+/** True only for the production hosts; every other host (*.vercel.app, previews, localhost) is noindex + Disallow. */
+export function isCanonicalHost(host: string | null | undefined): boolean {
+  const h = String(host ?? "").trim().toLowerCase().replace(/:\d+$/, "");
+  return CANONICAL_HOSTS.includes(h);
+}
+
+/** next.config headers(): `missing` host rule (Next anchors it ^…$, strips the port, lowercases) — matches the canonical hosts. */
+export const CANONICAL_HOST_PATTERN = String.raw`(www\.)?couragelibrary\.in`;
+
 export const siteConfig: SiteConfig = {
   name: "Courage Library",
   tagline: "Learn Smarter. Prepare Independently.",
   // Decision #47 (UX-2a.1): the site default description; honest, no exam counts.
   description:
     "Courage Library helps you prepare for Indian government exams with free mock tests, answer analysis and a Mistake Vault that turns every wrong answer into revision. Learn Smarter. Prepare Independently.",
-  url: process.env.NEXT_PUBLIC_SITE_URL || "https://couragelibrary.in",
+  url: CANONICAL_SITE_URL, // SEO-HYGIENE-1: never the deployment URL
   ogImage: "/images/logo.png",
   // Placeholder social links — to be configured with official handles upon production launch
   links: {

@@ -60,8 +60,10 @@ const EXISTING_HASH = `select
     for (const [k, e] of [['admin', 'qa-admin@courage-library.test'], ['staff', 'qa-staff@courage-library.test'], ['student', 'qa-student@courage-library.test']]) ids[k] = (await q(`select id from auth.users where email = $1`, [e]))[0]?.id;
     const [qa] = await q(`select d.id doc_id, u.topic_id from public.learning_documents d join public.learning_units u on u.id = d.learning_unit_id where d.canonical_slug = 'qa-number-system-concept-lesson'`);
     if (!ids.admin || !ids.staff || !ids.student || !qa) throw new Error('QA users / QA lesson missing');
-    // progress rows that already exist (e.g. the QA student opened the QA lesson): Z-1 compares before / after
-    const progressBefore = PRE ? 0 : (await q(`select count(*)::int n from public.user_lesson_progress where user_id = ANY($1::uuid[])`, [[ids.student, ids.staff]]))[0].n;
+    // Z-1: no progress row written during this smoke survives. Counted by time, not by total — the live-journeys job runs in
+    // parallel and its cleanup deletes the QA student's progress (rows may disappear, never appear because of this smoke)
+    const [{ t: smokeStart }] = await q(`select now() t`);
+    const progressBefore = 0;
     // an exam whose PUBLISHED syllabus maps the QA topic (for the counts + the outline)
     const [ex] = await q(`select v.exam_id, v.exam_cycle_id from public.exam_syllabus_canonical_mappings m
         join public.exam_syllabus_nodes n on n.id = m.syllabus_node_id join public.exam_syllabus_versions v on v.id = n.syllabus_version_id
@@ -203,8 +205,8 @@ const EXISTING_HASH = `select
     // ---------------- Z: nothing left behind
     const [z] = await q(`select (select count(*)::int from public.admin_audit_logs where actor_email = $1) audit,
         (select count(*)::int from public.canonical_taxonomy_nodes where name like 'CA5 Smoke %') nodes,
-        ${PRE ? '0' : '(select count(*)::int from public.user_lesson_progress where user_id = ANY($2::uuid[]))'} progress`, PRE ? [ACTOR_EMAIL] : [ACTOR_EMAIL, [ids.student, ids.staff]]);
-    chk(`Z-1 nothing persisted: 0 smoke audit rows / nodes, progress rows unchanged (${progressBefore})${PRE ? '; the migration itself rolled back' : ''}`, z.audit === 0 && z.nodes === 0 && z.progress === progressBefore, JSON.stringify(z));
+        ${PRE ? '0' : '(select count(*)::int from public.user_lesson_progress where user_id = ANY($2::uuid[]) and greatest(started_at, updated_at) >= $3)'} progress`, PRE ? [ACTOR_EMAIL] : [ACTOR_EMAIL, [ids.student, ids.staff], smokeStart]);
+    chk(`Z-1 nothing persisted: 0 smoke audit rows / nodes, no progress row written during the smoke${PRE ? '; the migration itself rolled back' : ''}`, z.audit === 0 && z.nodes === 0 && z.progress === progressBefore, JSON.stringify(z));
     if (PRE) {
       const [m] = await q(`select to_regclass('public.user_lesson_progress') is null gone`);
       chk('Z-2 --pre: the progress table does not exist after the rolled-back chunks', m.gone, JSON.stringify(m));

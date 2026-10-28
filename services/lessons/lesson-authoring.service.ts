@@ -53,10 +53,16 @@ interface TreeNode {
 async function loadTree(c: Ctx): Promise<Map<string, TreeNode> | null> {
   const { data, error } = await c.supabase
     .from("canonical_taxonomy_nodes")
-    .select("id, parent_id, node_type, name, subject_type, root_subject_id, display_order")
+    .select("id, parent_id, node_type, name, subject_type, root_subject_id, display_order, is_internal")
     .eq("is_active", true);
   if (error) return null;
-  return new Map((data || []).map((n) => [n.id, n as TreeNode]));
+  // CA-7: an INTERNAL node (legacy catch-all) and everything under it is never a lesson node — not listed, not found
+  const all = new Map((data || []).map((n) => [n.id, n]));
+  const internal = (id: string | null): boolean => {
+    for (let cur = id ? all.get(id) : undefined, hop = 0; cur && hop < 8; cur = cur.parent_id ? all.get(cur.parent_id) : undefined, hop++) if (cur.is_internal) return true;
+    return false;
+  };
+  return new Map([...all.values()].filter((n) => !internal(n.id)).map((n) => [n.id, n as TreeNode]));
 }
 
 function pathOf(tree: Map<string, TreeNode>, id: string): string {

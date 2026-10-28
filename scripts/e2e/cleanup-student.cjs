@@ -95,6 +95,9 @@ if (!KEEP_USER && isPermanentIdentity(EMAIL)) {
     await del('gamification_events', `DELETE FROM public.gamification_events WHERE user_id = $1`);
     await del('streak_activity_logs', `DELETE FROM public.streak_activity_logs WHERE user_id = $1`);
     await del('user_streaks', `DELETE FROM public.user_streaks WHERE user_id = $1`);
+    // CA-5 / CA-7: lesson pages record READING progress and (122) one ARTICLE_VIEWED event per day for a signed-in student
+    await del('user_lesson_progress', `DELETE FROM public.user_lesson_progress WHERE user_id = $1`);
+    await del('learning_activity_events', `DELETE FROM public.learning_activity_events WHERE user_id = $1`);
     // SEC-1B: E2E_KEEP_USER=1 keeps a permanent QA identity (auth user + profile); only journey data goes.
     if (!KEEP_USER) await del('user_profiles', `DELETE FROM public.user_profiles WHERE id = $1`);
 

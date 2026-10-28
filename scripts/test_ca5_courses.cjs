@@ -52,21 +52,25 @@ const V = require(path.join(ROOT, 'lib/learning/course-view.ts'));
 const MIG = read('supabase/migrations/20261028000120_ca5_courses_progress.sql');
 const U = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 
-test('A-01 access by master-chapter position: gating off → FREE; on → first N FREE, rest PRO; locked = PRO without Pro; defensive settings; fail-closed read', () => {
+test('A-01 access by master-chapter position (CA-7: gating by per-exam launch): a lesson in no LIVE course → FREE; in a LIVE course → first N FREE, rest PRO; locked = PRO without Pro; defensive free count; fail-closed read', () => {
+  const D = U(1);
   const off = A.DEFAULT_LESSON_ACCESS;
-  assert(!off.gatingEnabled && off.freePerChapter === 2 && [1, 2, 3, 99].every((p) => A.lessonAccessLevel(p, off) === 'FREE'), 'gating off');
-  const on = { gatingEnabled: true, freePerChapter: 2 };
-  assert(A.lessonAccessLevel(1, on) === 'FREE' && A.lessonAccessLevel(2, on) === 'FREE' && A.lessonAccessLevel(3, on) === 'PRO' && A.lessonAccessLevel(0, on) === 'PRO' && A.lessonAccessLevel(1.5, on) === 'PRO', 'first N');
-  assert(A.isLessonLocked(3, on, false) && !A.isLessonLocked(3, on, true) && !A.isLessonLocked(1, on, false), 'locked');
-  const P = A.parseLessonAccessSettings;
+  assert(off.freePerChapter === 2 && off.liveCourseLessons instanceof Set && off.liveCourseLessons.size === 0 && [1, 2, 3, 99].every((p) => A.lessonAccessLevel(p, off, D) === 'FREE'), 'no live course → free');
+  const on = { freePerChapter: 2, liveCourseLessons: new Set([D]) };
+  assert(A.lessonAccessLevel(1, on, D) === 'FREE' && A.lessonAccessLevel(2, on, D) === 'FREE' && A.lessonAccessLevel(3, on, D) === 'PRO' && A.lessonAccessLevel(0, on, D) === 'PRO' && A.lessonAccessLevel(1.5, on, D) === 'PRO', 'first N');
+  assert(A.lessonAccessLevel(3, on, U(2)) === 'FREE', 'a lesson outside the live courses stays free');
+  const all = { freePerChapter: 2, liveCourseLessons: 'ALL' };
+  assert(A.lessonAccessLevel(3, all, U(2)) === 'PRO' && A.inLiveCourse(U(9), all), '"ALL" (unknown) gates every lesson');
+  assert(A.isLessonLocked(3, on, D, false) && !A.isLessonLocked(3, on, D, true) && !A.isLessonLocked(1, on, D, false), 'locked');
+  const P = A.parseFreePerChapter;
   const row = (k, v, e = true) => ({ config_key: k, config_value: { value: v }, is_enabled: e });
-  assert(JSON.stringify(P([])) === JSON.stringify(off), 'no rows → default');
-  assert(P([row('LESSON_GATING_ENABLED', true), row('LESSON_FREE_PER_CHAPTER', 3)]).freePerChapter === 3 && P([row('LESSON_GATING_ENABLED', true)]).gatingEnabled, 'rows');
-  assert(!P([row('LESSON_GATING_ENABLED', 'yes')]).gatingEnabled && P([row('LESSON_FREE_PER_CHAPTER', -1)]).freePerChapter === 2 && P([row('LESSON_FREE_PER_CHAPTER', 2.5)]).freePerChapter === 2
-    && !P([row('LESSON_GATING_ENABLED', true, false)]).gatingEnabled, 'malformed / disabled rows → default');
+  assert(P([]) === 2 && P([row('LESSON_FREE_PER_CHAPTER', 3)]) === 3, 'no rows → default; rows');
+  assert(P([row('LESSON_FREE_PER_CHAPTER', -1)]) === 2 && P([row('LESSON_FREE_PER_CHAPTER', 2.5)]) === 2 && P([row('LESSON_FREE_PER_CHAPTER', 3, false)]) === 2, 'malformed / disabled rows → default');
+  assert(!('gating' in A.LESSON_ACCESS_KEYS), 'the CA-5 stand-in LESSON_GATING_ENABLED is gone');
   const s = read('lib/learning/lesson-access-settings.ts');
-  assert(/const FAIL_CLOSED: LessonAccessSettings = \{ gatingEnabled: true, freePerChapter: DEFAULT_FREE_LESSONS_PER_CHAPTER \}/.test(s) && (s.match(/return FAIL_CLOSED;/g) || []).length === 2, 'a failed settings read is fail-closed');
-  return 'free 1..N, Pro after';
+  assert(/const FAIL_CLOSED: LessonAccessSettings = \{ freePerChapter: DEFAULT_FREE_LESSONS_PER_CHAPTER, liveCourseLessons: "ALL" \}/.test(s) && (s.match(/return FAIL_CLOSED;/g) || []).length === 2
+    && /db\.rpc\("fn_live_course_document_ids"\)/.test(s), 'a failed read (settings or live courses) is fail-closed');
+  return 'free 1..N, Pro after — only inside a LIVE course';
 });
 
 test('V-01 course view: defensive parse, master order, no empty chapters, /articles hrefs', () => {
@@ -132,7 +136,7 @@ test('D-01 migration 120: INVOKER outline + node lessons, SECDEF progress via au
 
 test('R-01 reader / course / progress: master-position access, no user id from callers, session-client progress, one primary', () => {
   const r = read('services/learning/learning-resolver.service.ts');
-  assert(/lessonAccessLevel\(gate\.positions\.get\(row\.id\) \?\? Number\.MAX_SAFE_INTEGER, gate\.settings\)/.test(r) && !/function toResolvedNode[\s\S]{0,400}row\.access_level/.test(r), 'node lessons: access from the master position (unknown position = last, fail-closed)');
+  assert(/lessonAccessLevel\(gate\.positions\.get\(row\.id\) \?\? Number\.MAX_SAFE_INTEGER, gate\.settings, row\.id\)/.test(r) && !/function toResolvedNode[\s\S]{0,400}row\.access_level/.test(r), 'node lessons: access from the master position (unknown position = last, fail-closed)');
   const c = read('services/learning/course.service.ts');
   assert(/static async getCourse\(examSlug: string\)/.test(c) && !/userId|user_id\s*:/.test(c) && /rpc\("fn_exam_course_outline"/.test(c), 'course: no user id accepted');
   const act = read('app/articles/actions.ts');
