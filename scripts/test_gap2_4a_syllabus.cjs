@@ -25,10 +25,13 @@
  *        NO_SYLLABUS); NO_SYLLABUS for a DRAFT-only exam (anon); AVAILABLE on a published TEST version with
  *        counts equal to independent queries (published questions per topic; servable documents per topic with
  *        the LearningResolverService rule); subtree counts; no fabricated values
- *   G-11 seeds (GATE-HYGIENE-1 amendment): GD legacy DRAFT (4 SECTION / 18 UNIT / 18 mappings, LEGACY_MIGRATION,
- *        valid); CGL skeleton shape (4 SECTIONs = pattern sections, no units) only while it is a DRAFT; real exams
- *        may hold PUBLISHED / ARCHIVED history but ≤ 1 PUBLISHED per exam + cycle; the QA exam never PUBLISHED;
- *        seeds idempotent (re-run → no change) and GD deterministic (delete + re-seed → identical tree and hash)
+ *   G-11 (GAP2-4A-SCOPE amendment of GATE-HYGIENE-1): the draft-shape contract on the suite's own QA fixture (exact
+ *        tree vs its spec, valid, deterministic); the seeds re-run as a no-op whatever the seeded version's status; the
+ *        GD legacy shape (4 SECTION / 18 UNIT / 18 mappings, valid, delete + re-seed identical) and the CGL skeleton shape
+ *        only while that version is a DRAFT; ≤ 1 PUBLISHED per exam + cycle; the QA exam never PUBLISHED. Every fixture
+ *        draft in G-02..G-10 lives on the QA exam, never on a real exam
+ *   G-13 negative controls (rolled back): a stray unit / dropped mapping / deleted unit in the fixture FAILS G-11; a
+ *        QA version left PUBLISHED FAILS; the owner publishing then archiving the GD seed draft PASSES
  *   G-12 legacy tables preserved in schema retired (exam_syllabi 1, exam_topics 18, exam_unit_mappings 0,
  *        taxonomy_aliases 0; none left in public; GAP2-4c migration 084); the reconciliation workbench is removed
  *
@@ -66,6 +69,7 @@ const WRITE_RPCS = {
   fn_syllabus_publish: 'uuid',
   fn_syllabus_archive_version: 'uuid',
 };
+const QA = 'qa-syllabus-test'; // GAP2-4A-SCOPE: every fixture draft lives on the QA test exam (never left PUBLISHED)
 const CORE = ['fn_syllabus__assert_role', 'fn_syllabus__audit', 'fn_syllabus__slugify', 'fn_syllabus__lock_version', 'fn_syllabus__require_draft',
   'fn_syllabus__create_version', 'fn_syllabus__insert_node', 'fn_syllabus__validate', 'fn_syllabus_seed_legacy_gd_draft', 'fn_syllabus_seed_cgl_pattern_skeleton'];
 
@@ -119,7 +123,7 @@ const CORE = ['fn_syllabus__assert_role', 'fn_syllabus__audit', 'fn_syllabus__sl
   // identities and fixtures (read once)
   await safeBegin(c, { readOnly: true });
   const ids = Object.fromEntries((await q(`SELECT email, id FROM auth.users WHERE email IN ('qa-staff@courage-library.test','qa-admin@courage-library.test')`)).map((r) => [r.email, r.id]));
-  const exams = Object.fromEntries((await q(`SELECT slug, id FROM public.exams WHERE slug IN ('ssc-gd','ssc-cgl')`)).map((r) => [r.slug, r.id]));
+  const exams = Object.fromEntries((await q(`SELECT slug, id FROM public.exams WHERE slug IN ('ssc-gd','ssc-cgl',$1)`, [QA])).map((r) => [r.slug, r.id]));
   const topics = await q(`SELECT t.id, t.name, (SELECT count(*)::int FROM public.questions x WHERE x.canonical_topic_id = t.id AND x.status = 'published') AS qn
                             FROM public.canonical_taxonomy_nodes t WHERE t.node_type = 'TOPIC' AND t.is_active ORDER BY qn DESC, t.name LIMIT 4`);
   const subject = await one(`SELECT id FROM public.canonical_taxonomy_nodes WHERE node_type = 'SUBJECT' AND is_active LIMIT 1`);
@@ -142,6 +146,123 @@ const CORE = ['fn_syllabus__assert_role', 'fn_syllabus__audit', 'fn_syllabus__sl
     await rpc(who, 'fn_syllabus_set_unit_mappings', [u1, [T1, T2], [0.75, 0.25]]);
     await rpc(who, 'fn_syllabus_set_unit_mappings', [u2, [T3], null]);
     return { version: d.version_id, number: d.version_number, sec, u1, u2 };
+  };
+
+  // GAP2-4A-SCOPE: the suite's own draft-shape fixture on the QA exam (built inside a rolled-back transaction), so the
+  // shape contract no longer depends on real drafts the owner may publish / archive during intake
+  const fixtureSpec = () => [
+    { title: 'Fixture section A', units: [{ title: 'Fixture unit A1', topics: [T1, T2] }, { title: 'Fixture unit A2', topics: [T3] }] },
+    { title: 'Fixture section B', units: [{ title: 'Fixture unit B1', topics: [T4] }] },
+  ];
+  const buildFromSpec = async (spec) => {
+    const d = await rpc('staff', 'fn_syllabus_create_draft', [exams[QA], null, null, null]);
+    for (const s of spec) {
+      const sec = (await rpc('staff', 'fn_syllabus_upsert_node', [d.version_id, { kind: 'SECTION', title: s.title }])).node_id;
+      for (const u of s.units) {
+        const unit = (await rpc('staff', 'fn_syllabus_upsert_node', [d.version_id, { kind: 'UNIT', title: u.title, parent_id: sec }])).node_id;
+        await rpc('staff', 'fn_syllabus_set_unit_mappings', [unit, u.topics, u.topics.length > 1 ? u.topics.map(() => 1 / u.topics.length) : null]);
+      }
+    }
+    return d.version_id;
+  };
+  /** kind | title | parent title | mapped canonical ids, in tree order (no ids of the version's own rows) */
+  const fixtureRows = async (versionId) =>
+    (await q(`SELECT n.node_kind, n.raw_title, p.raw_title parent,
+                     (SELECT string_agg(m.canonical_node_id::text, ',' ORDER BY m.canonical_node_id) FROM public.exam_syllabus_canonical_mappings m WHERE m.syllabus_node_id = n.id) maps
+                FROM public.exam_syllabus_nodes n LEFT JOIN public.exam_syllabus_nodes p ON p.id = n.parent_node_id
+               WHERE n.syllabus_version_id = $1 ORDER BY n.node_depth, p.display_order NULLS FIRST, n.display_order, n.raw_title`, [versionId]))
+      .map((n) => `${n.node_kind}|${n.raw_title}|${n.parent || '-'}|${n.maps || '-'}`);
+  /** every difference between a draft's rows and the spec (empty = exactly the spec's shape) */
+  const shapeProblems = (rows, spec) => {
+    const want = [];
+    for (const s of spec) {
+      want.push(`SECTION|${s.title}|-|-`);
+      for (const u of s.units) want.push(`UNIT|${u.title}|${s.title}|${[...u.topics].sort().join(',')}`);
+    }
+    const missing = want.filter((w) => !rows.includes(w)).map((w) => `missing ${w.split('|').slice(0, 2).join(' ')}`);
+    const extra = rows.filter((r) => !want.includes(r)).map((r) => `unexpected ${r.split('|').slice(0, 2).join(' ')}`);
+    return [...missing, ...extra, ...(rows.length !== want.length ? [`${rows.length} rows, want ${want.length}`] : [])];
+  };
+  const seedTree = async (id) => (await q(`SELECT n.node_kind, n.raw_title, n.raw_slug, n.display_order, n.weightage_tier, n.is_mandatory, p.raw_slug parent,
+        (SELECT string_agg(m.canonical_node_id::text || '/' || m.match_method, ',') FROM public.exam_syllabus_canonical_mappings m WHERE m.syllabus_node_id = n.id) maps
+      FROM public.exam_syllabus_nodes n LEFT JOIN public.exam_syllabus_nodes p ON p.id = n.parent_node_id WHERE n.syllabus_version_id = $1
+     ORDER BY n.node_depth, p.raw_slug NULLS FIRST, n.display_order, n.raw_title`, [id]));
+
+  /**
+   * G-11 body (runs inside the caller's transaction). Real-data invariants: ≤ 1 PUBLISHED per exam + cycle; the QA test
+   * exam never PUBLISHED. Shape contract: the QA fixture equals its spec exactly, validates, and builds deterministically.
+   * Seeds: re-running a seed is a no-op whatever the seeded version's status; the GD / CGL seed shapes are asserted only
+   * while that seeded version is still a DRAFT. opts.afterBuild (negative controls only) mutates the first fixture.
+   */
+  const g11 = async (opts = {}) => {
+    const vers = await q(`SELECT e.slug, v.id, v.status, v.source_kind, v.version_tag, v.raw_payload_hash h, v.exam_cycle_id::text cy FROM public.exam_syllabus_versions v JOIN public.exams e ON e.id = v.exam_id`);
+    const qaPublished = vers.filter((v) => v.slug === QA && v.status === 'PUBLISHED');
+    assert(qaPublished.length === 0, `the QA test exam has ${qaPublished.length} PUBLISHED version(s)`);
+    const perScope = {};
+    for (const v of vers.filter((x) => x.status === 'PUBLISHED')) perScope[`${v.slug}/${v.cy || '-'}`] = (perScope[`${v.slug}/${v.cy || '-'}`] || 0) + 1;
+    const multi = Object.entries(perScope).filter(([, n]) => n > 1);
+    assert(multi.length === 0, `more than one PUBLISHED version: ${multi.map(([k, n]) => `${k.split('/')[0]}×${n}`)}`);
+
+    // the shape contract, on the suite's own fixture
+    assert(new Set([T1, T2, T3, T4].filter(Boolean)).size === 4, 'four distinct active topics are needed for the fixture');
+    const spec = fixtureSpec();
+    const f1 = await buildFromSpec(spec);
+    if (opts.afterBuild) await opts.afterBuild(f1);
+    const rows1 = await fixtureRows(f1);
+    const problems = shapeProblems(rows1, spec);
+    assert(problems.length === 0, `fixture shape: ${problems.join('; ')}`);
+    const fv = await rpc('staff', 'fn_syllabus_validate', [f1]);
+    assert(fv.ok, `fixture draft invalid: ${fv.errors.map((e) => e.code)}`);
+    const f2 = await buildFromSpec(spec);
+    assert(JSON.stringify(await fixtureRows(f2)) === JSON.stringify(rows1), 'the same spec built twice gives different trees');
+
+    // seeds: idempotent in any status (the seed functions match their tag, not the status)
+    const gd = vers.find((v) => v.slug === 'ssc-gd' && v.version_tag === 'legacy-official-2026');
+    const cgl = vers.find((v) => v.slug === 'ssc-cgl' && v.version_tag === 'pattern-skeleton-2026');
+    const notes = [];
+    for (const [label, fn, row] of [['GD', 'fn_syllabus_seed_legacy_gd_draft', gd], ['CGL', 'fn_syllabus_seed_cgl_pattern_skeleton', cgl]]) {
+      if (!row) {
+        notes.push(`${label} seed absent (not re-run)`);
+        continue;
+      }
+      const before = JSON.stringify(await seedTree(row.id));
+      const r = (await one(`SELECT public.${fn}() r`)).r;
+      assert(r.created === false && JSON.stringify(await seedTree(row.id)) === before, `${label} seed re-run (${row.status}): ${JSON.stringify(r)}`);
+    }
+
+    // seed-specific shapes: only while the seeded version is still a DRAFT
+    if (gd && gd.status === 'DRAFT') {
+      const gdTree = await seedTree(gd.id);
+      const kinds = gdTree.reduce((a, n) => ({ ...a, [n.node_kind]: (a[n.node_kind] || 0) + 1 }), {});
+      const maps = gdTree.filter((n) => n.maps).length;
+      assert(gd.source_kind === 'LEGACY_MIGRATION' && kinds.SECTION === 4 && kinds.UNIT === 18 && maps === 18 && gdTree.every((n) => !n.maps || /LEGACY_MIGRATION/.test(n.maps)), `GD tree ${JSON.stringify(kinds)} maps ${maps}`);
+      // GAP2-4c (084): the legacy rows live in schema retired (owner connection)
+      const legacyMatch = await one(`SELECT count(*)::int n FROM retired.exam_topics t JOIN retired.exam_syllabi s ON s.id = t.syllabus_id
+          JOIN public.exam_syllabus_canonical_mappings m ON m.canonical_node_id = t.topic_id
+          JOIN public.exam_syllabus_nodes n ON n.id = m.syllabus_node_id AND n.syllabus_version_id = $1`, [gd.id]);
+      assert(legacyMatch.n === 18, `${legacyMatch.n}/18 legacy topics mapped`);
+      const gdVal = await rpc('staff', 'fn_syllabus_validate', [gd.id]);
+      assert(gdVal.ok, `GD draft invalid: ${gdVal.errors.map((e) => e.code)}`);
+      // deterministic: delete the GD draft and seed again → identical tree and hash
+      await c.query(`DELETE FROM public.exam_syllabus_versions WHERE id = $1`, [gd.id]);
+      const r3 = (await one(`SELECT public.fn_syllabus_seed_legacy_gd_draft() r`)).r;
+      assert(r3.created === true && r3.sections === 4 && r3.units === 18, `re-seed ${JSON.stringify(r3)}`);
+      const again = await one(`SELECT raw_payload_hash h FROM public.exam_syllabus_versions WHERE id = $1`, [r3.version_id]);
+      assert(again.h === gd.h && JSON.stringify(await seedTree(r3.version_id)) === JSON.stringify(gdTree), 're-seed is not identical');
+      const r4 = (await one(`SELECT public.fn_syllabus_seed_legacy_gd_draft() r`)).r;
+      assert(r4.created === false, 'second seed in a row created again');
+      notes.push('GD DRAFT 4/18/18 valid, re-seed identical');
+    } else notes.push(`GD seed ${gd ? gd.status : 'absent'}: shape not asserted (only while DRAFT)`);
+    if (cgl && cgl.status === 'DRAFT') {
+      const cglTree = await seedTree(cgl.id);
+      const sections = await q(`SELECT ps.section_name FROM public.pattern_sections ps JOIN public.exam_patterns p ON p.id = ps.pattern_id
+          JOIN public.exam_cycles cy ON cy.id = p.exam_cycle_id WHERE cy.exam_id = $1 AND p.is_active ORDER BY ps.section_order`, [exams['ssc-cgl']]);
+      assert(sections.length > 0, 'no active CGL pattern sections to compare with');
+      assert(cglTree.length === 4 && cglTree.every((n) => n.node_kind === 'SECTION' && !n.parent && !n.maps), `CGL tree ${JSON.stringify(cglTree).slice(0, 200)}`);
+      assert(JSON.stringify(cglTree.map((n) => n.raw_title)) === JSON.stringify(sections.map((s) => s.section_name)), 'CGL sections differ from the pattern');
+      notes.push('CGL DRAFT 4 sections');
+    } else notes.push(`CGL seed ${cgl ? cgl.status : 'absent'}: shape not asserted (only while DRAFT)`);
+    return `fixture ${rows1.length} rows exact + valid + deterministic; seeds re-run no-op; ${notes.join('; ')}; PUBLISHED scopes ${Object.keys(perScope).length} (≤ 1 each)`;
   };
 
   try {
@@ -202,9 +323,9 @@ const CORE = ['fn_syllabus__assert_role', 'fn_syllabus__audit', 'fn_syllabus__sl
 
     await test('G-02 role matrix: anon no EXECUTE; student 42501; staff edits DRAFT but cannot publish / archive; admin can', async () =>
       tx(async () => {
-        const d = await buildValidDraft('ssc-gd');
+        const d = await buildValidDraft(QA);
         const calls = {
-          fn_syllabus_create_draft: [exams['ssc-cgl'], null, null, null],
+          fn_syllabus_create_draft: [exams[QA], null, null, null],
           fn_syllabus_upsert_node: [d.version, { kind: 'UNIT', title: 'Matrix unit', parent_id: d.sec }],
           fn_syllabus_move_node: [d.u2, d.sec, 9],
           fn_syllabus_delete_node: [d.u2],
@@ -230,7 +351,7 @@ const CORE = ['fn_syllabus__assert_role', 'fn_syllabus__audit', 'fn_syllabus__sl
           if (adminOnly && row.staff !== '42501') bad.push(`${fnName}: staff ${row.staff} (must be denied)`);
           if (!adminOnly && row.staff !== 'OK') bad.push(`${fnName}: staff ${row.staff} (must succeed)`);
         }
-        const fresh = await buildValidDraft('ssc-gd');
+        const fresh = await buildValidDraft(QA);
         const pub = await attempt(() => rpc('admin', 'fn_syllabus_publish', [fresh.version]));
         if (!pub.ok || !pub.value.success) bad.push(`admin publish: ${JSON.stringify(pub).slice(0, 300)}`);
         const arc = await attempt(() => rpc('admin', 'fn_syllabus_archive_version', [fresh.version]));
@@ -243,7 +364,7 @@ const CORE = ['fn_syllabus__assert_role', 'fn_syllabus__audit', 'fn_syllabus__sl
       tx(async () => {
         const count = async () => Number((await one(`SELECT count(*) n FROM public.admin_audit_logs WHERE action_type LIKE 'SYLLABUS_%'`)).n);
         const base = await count();
-        const d = await buildValidDraft('ssc-gd'); // create + 3 upserts + 2 mapping sets = 6
+        const d = await buildValidDraft(QA); // create + 3 upserts + 2 mapping sets = 6
         assert((await count()) === base + 6, `expected 6 audit rows, got ${(await count()) - base}`);
         const actors = await q(`SELECT DISTINCT actor_id::text a, actor_email e FROM public.admin_audit_logs WHERE action_type LIKE 'SYLLABUS_%' AND created_at = now()`);
         assert(actors.length === 1 && actors[0].a === CLAIMS.staff.sub && actors[0].e === CLAIMS.staff.email, 'audit actor is not the JWT subject');
@@ -259,8 +380,8 @@ const CORE = ['fn_syllabus__assert_role', 'fn_syllabus__audit', 'fn_syllabus__sl
 
     await test('G-04 same-version parent; node cannot change version; cycle prevention', async () =>
       tx(async () => {
-        const a = await buildValidDraft('ssc-gd');
-        const b = await rpc('staff', 'fn_syllabus_create_draft', [exams['ssc-gd'], null, null, null]);
+        const a = await buildValidDraft(QA);
+        const b = await rpc('staff', 'fn_syllabus_create_draft', [exams[QA], null, null, null]);
         const cross = await attempt(() => rpc('staff', 'fn_syllabus_upsert_node', [b.version_id, { kind: 'UNIT', title: 'x', parent_id: a.sec }]));
         assert(!cross.ok && /SYLLABUS_PARENT_OTHER_VERSION/.test(cross.message), `cross-version parent: ${JSON.stringify(cross)}`);
         const moveCross = await attempt(() => rpc('staff', 'fn_syllabus_move_node', [a.u1, null, null]).then(async () => {
@@ -280,7 +401,7 @@ const CORE = ['fn_syllabus__assert_role', 'fn_syllabus__audit', 'fn_syllabus__sl
 
     await test('G-05 mappings: TOPIC / SUBTOPIC / CONCEPT only, never a SUBJECT (RPC + node-type trigger + composite FK), UNIT only, distinct / active; weights in (0,1] summing to 1', async () =>
       tx(async () => {
-        const d = await buildValidDraft('ssc-gd');
+        const d = await buildValidDraft(QA);
         const cases = {
           subjectViaRpc: await attempt(() => rpc('staff', 'fn_syllabus_set_unit_mappings', [d.u1, [subject.id], null])),
           subjectDirectFk: await attempt(() => c.query(`INSERT INTO public.exam_syllabus_canonical_mappings (syllabus_node_id, canonical_node_id, match_status) VALUES ($1, $2, 'MANUALLY_MAPPED')`, [d.u2, subject.id])),
@@ -308,14 +429,14 @@ const CORE = ['fn_syllabus__assert_role', 'fn_syllabus__audit', 'fn_syllabus__sl
 
     await test('G-06 fn_syllabus_validate: structured errors and warnings on a broken draft; clean draft ok', async () =>
       tx(async () => {
-        const good = await buildValidDraft('ssc-gd');
+        const good = await buildValidDraft(QA);
         const gr = await rpc('staff', 'fn_syllabus_validate', [good.version]);
         assert(gr.ok === true && gr.error_count === 0 && gr.counts.units === 2 && gr.counts.topics === 3, `clean draft: ${JSON.stringify(gr).slice(0, 300)}`);
-        const empty = await rpc('staff', 'fn_syllabus_create_draft', [exams['ssc-gd'], null, null, null]);
+        const empty = await rpc('staff', 'fn_syllabus_create_draft', [exams[QA], null, null, null]);
         const er = await rpc('staff', 'fn_syllabus_validate', [empty.version_id]);
         assert(!er.ok && er.errors.some((e) => e.code === 'NO_NODES'), 'NO_NODES missing');
 
-        const b = await buildValidDraft('ssc-gd');
+        const b = await buildValidDraft(QA);
         const emptySec = (await rpc('staff', 'fn_syllabus_upsert_node', [b.version, { kind: 'SECTION', title: 'Empty section' }])).node_id;
         await rpc('staff', 'fn_syllabus_upsert_node', [b.version, { kind: 'UNIT', title: 'Unmapped unit', parent_id: b.sec }]);
         await rpc('staff', 'fn_syllabus_upsert_node', [b.version, { kind: 'PAPER', title: 'Paper under section', parent_id: emptySec }]);
@@ -339,24 +460,24 @@ const CORE = ['fn_syllabus__assert_role', 'fn_syllabus__audit', 'fn_syllabus__sl
       tx(async () => {
         const bad = [];
         const auditN = async () => Number((await one(`SELECT count(*) n FROM public.admin_audit_logs WHERE action_type = 'SYLLABUS_PUBLISH'`)).n);
-        const invalid = await rpc('staff', 'fn_syllabus_create_draft', [exams['ssc-gd'], null, null, null]);
+        const invalid = await rpc('staff', 'fn_syllabus_create_draft', [exams[QA], null, null, null]);
         const a0 = await auditN();
         const vf = await rpc('admin', 'fn_syllabus_publish', [invalid.version_id]);
         const st0 = await one(`SELECT status FROM public.exam_syllabus_versions WHERE id = $1`, [invalid.version_id]);
         if (vf.success !== false || vf.code !== 'VALIDATION_FAILED' || st0.status !== 'DRAFT' || (await auditN()) !== a0) bad.push(`invalid publish: ${JSON.stringify(vf).slice(0, 200)} ${st0.status}`);
 
-        const d1 = await buildValidDraft('ssc-gd');
+        const d1 = await buildValidDraft(QA);
         const p1 = await rpc('admin', 'fn_syllabus_publish', [d1.version]);
         if (!p1.success || p1.archived_previous_version_id !== null) bad.push(`first publish ${JSON.stringify(p1).slice(0, 200)}`);
-        const d2 = await buildValidDraft('ssc-gd');
+        const d2 = await buildValidDraft(QA);
         const p2 = await rpc('admin', 'fn_syllabus_publish', [d2.version]);
         const s1 = await one(`SELECT status, is_active, archived_at FROM public.exam_syllabus_versions WHERE id = $1`, [d1.version]);
         if (!p2.success || p2.archived_previous_version_id !== d1.version || s1.status !== 'ARCHIVED' || s1.is_active || !s1.archived_at) bad.push(`second publish did not archive the first: ${JSON.stringify(p2).slice(0, 160)} ${JSON.stringify(s1)}`);
-        const pubCount = Number((await one(`SELECT count(*) n FROM public.exam_syllabus_versions WHERE exam_id = $1 AND status = 'PUBLISHED' AND is_active`, [exams['ssc-gd']])).n);
+        const pubCount = Number((await one(`SELECT count(*) n FROM public.exam_syllabus_versions WHERE exam_id = $1 AND status = 'PUBLISHED' AND is_active`, [exams[QA]])).n);
         if (pubCount !== 1) bad.push(`${pubCount} PUBLISHED versions`);
 
         // owner path: a second PUBLISHED for the same exam + cycle violates the partial unique index
-        const d3 = await buildValidDraft('ssc-gd');
+        const d3 = await buildValidDraft(QA);
         const dup = await attempt(() => c.query(`UPDATE public.exam_syllabus_versions SET status = 'PUBLISHED', published_at = now() WHERE id = $1`, [d3.version]));
         if (dup.ok || dup.code !== '23505') bad.push(`second PUBLISHED accepted: ${JSON.stringify(dup).slice(0, 160)}`);
 
@@ -371,7 +492,7 @@ const CORE = ['fn_syllabus__assert_role', 'fn_syllabus__audit', 'fn_syllabus__sl
 
     await test('G-08 immutability (owner / service-role path): PUBLISHED / ARCHIVED read-only except PUBLISHED → ARCHIVED', async () =>
       tx(async () => {
-        const d = await buildValidDraft('ssc-gd');
+        const d = await buildValidDraft(QA);
         await rpc('admin', 'fn_syllabus_publish', [d.version]);
         const probes = {
           nodeUpdate: () => c.query(`UPDATE public.exam_syllabus_nodes SET raw_title = 'x' WHERE id = $1`, [d.u1]),
@@ -383,7 +504,7 @@ const CORE = ['fn_syllabus__assert_role', 'fn_syllabus__audit', 'fn_syllabus__sl
           versionDelete: () => c.query(`DELETE FROM public.exam_syllabus_versions WHERE id = $1`, [d.version]),
           backToDraft: () => c.query(`UPDATE public.exam_syllabus_versions SET status = 'DRAFT' WHERE id = $1`, [d.version]),
           rpcUpsert: () => rpc('staff', 'fn_syllabus_upsert_node', [d.version, { kind: 'UNIT', title: 'y', parent_id: d.sec }]),
-          insertPublished: () => c.query(`INSERT INTO public.exam_syllabus_versions (exam_id, version_tag, version_number, status, published_at) VALUES ($1, 'zz', 999, 'PUBLISHED', now())`, [exams['ssc-gd']]),
+          insertPublished: () => c.query(`INSERT INTO public.exam_syllabus_versions (exam_id, version_tag, version_number, status, published_at) VALUES ($1, 'zz', 999, 'PUBLISHED', now())`, [exams[QA]]),
         };
         const bad = [];
         for (const [k, fn] of Object.entries(probes)) {
@@ -402,11 +523,11 @@ const CORE = ['fn_syllabus__assert_role', 'fn_syllabus__audit', 'fn_syllabus__sl
 
     await test('G-09 create_draft from a PUBLISHED version deep-copies nodes and mappings (supersedes set); DRAFT source refused', async () =>
       tx(async () => {
-        const d = await buildValidDraft('ssc-gd');
-        const fromDraft = await attempt(() => rpc('staff', 'fn_syllabus_create_draft', [exams['ssc-gd'], null, d.version, null]));
+        const d = await buildValidDraft(QA);
+        const fromDraft = await attempt(() => rpc('staff', 'fn_syllabus_create_draft', [exams[QA], null, d.version, null]));
         assert(!fromDraft.ok && /SYLLABUS_SOURCE_NOT_PUBLISHED/.test(fromDraft.message), 'copy from a DRAFT accepted');
         await rpc('admin', 'fn_syllabus_publish', [d.version]);
-        const copy = await rpc('staff', 'fn_syllabus_create_draft', [exams['ssc-gd'], null, d.version, null]);
+        const copy = await rpc('staff', 'fn_syllabus_create_draft', [exams[QA], null, d.version, null]);
         const shape = async (v) => (await q(`SELECT n.node_kind, n.raw_title, n.node_depth, n.display_order, n.weightage_tier, n.expected_questions_min, n.expected_questions_max,
                  (SELECT string_agg(m.canonical_node_id::text || ':' || COALESCE(m.mapping_weight::text, '-'), ',' ORDER BY m.canonical_node_id) FROM public.exam_syllabus_canonical_mappings m WHERE m.syllabus_node_id = n.id) maps
             FROM public.exam_syllabus_nodes n WHERE n.syllabus_version_id = $1 ORDER BY n.node_depth, n.display_order, n.raw_title`, [v]));
@@ -424,10 +545,11 @@ const CORE = ['fn_syllabus__assert_role', 'fn_syllabus__audit', 'fn_syllabus__sl
         const cgl = await rpc('anon', 'fn_exam_syllabus_read_model', [exams['ssc-cgl'], null]);
         if (cglPublished.length) assert(cglPublished.length === 1 && cgl.state === 'AVAILABLE' && cgl.version && cgl.version.id === cglPublished[0] && cgl.nodes.length > 0, `CGL: ${cgl.state} vs ${cglPublished.length} PUBLISHED`);
         else assert(cgl.state === 'NO_SYLLABUS' && cgl.version === null && cgl.nodes.length === 0, `CGL: ${JSON.stringify(cgl).slice(0, 200)}`);
-        const draftOnly = await rpc('anon', 'fn_exam_syllabus_read_model', [exams['ssc-gd'], null]);
+        await buildValidDraft(QA); // GAP2-4A-SCOPE: a DRAFT-only exam is the QA exam with a fixture DRAFT
+        const draftOnly = await rpc('anon', 'fn_exam_syllabus_read_model', [exams[QA], null]);
         assert(draftOnly.state === 'NO_SYLLABUS', 'a DRAFT leaked into the read model');
 
-        const d = await buildValidDraft('ssc-gd');
+        const d = await buildValidDraft(QA);
         await rpc('admin', 'fn_syllabus_publish', [d.version]);
         // fixtures (rolled back): one SERVABLE document on T1 and one approved-but-unpublished document (not servable)
         const hex = 'a'.repeat(64);
@@ -445,7 +567,7 @@ const CORE = ['fn_syllabus__assert_role', 'fn_syllabus__audit', 'fn_syllabus__sl
         };
         await mkDoc('gap2-4a-test-servable', 'PUBLISHED', true);
         await mkDoc('gap2-4a-test-not-servable', 'APPROVED', false);
-        const rm = await rpc('anon', 'fn_exam_syllabus_read_model', [exams['ssc-gd'], null]);
+        const rm = await rpc('anon', 'fn_exam_syllabus_read_model', [exams[QA], null]);
         assert(rm.state === 'AVAILABLE' && rm.version.id === d.version, `state ${rm.state}`);
         const indep = Object.fromEntries((await q(`SELECT t.id::text id,
               (SELECT count(*)::int FROM public.questions x WHERE x.canonical_topic_id = t.id AND x.status = 'published') qn,
@@ -474,62 +596,50 @@ const CORE = ['fn_syllabus__assert_role', 'fn_syllabus__audit', 'fn_syllabus__sl
         return `topics q=${sumQ} docs=${sumD} match independent queries`;
       }));
 
-    // GATE-HYGIENE-1 (architect-approved amendment of G-11; was: "real exams hold only DRAFTs" + the CGL skeleton DRAFT
-    // must exist). Real exams may now hold PUBLISHED / ARCHIVED history (the owner published SSC CGL, 2026-10-17), but
-    // never more than one PUBLISHED version per exam + cycle; the QA test exam must never stay PUBLISHED. The seeds'
-    // idempotence / determinism is asserted on SSC GD; the CGL skeleton's shape only while that version is a DRAFT.
-    await test('G-11 seeds: GD legacy DRAFT (4 / 18 / 18, valid) idempotent + deterministic; CGL skeleton shape while DRAFT; ≤ 1 PUBLISHED per exam + cycle', async () =>
-      tx(async () => {
-        const vers = await q(`SELECT e.slug, v.id, v.status, v.source_kind, v.version_tag, v.raw_payload_hash h, v.exam_cycle_id::text cy FROM public.exam_syllabus_versions v JOIN public.exams e ON e.id = v.exam_id`);
-        const qaPublished = vers.filter((v) => v.slug === 'qa-syllabus-test' && v.status === 'PUBLISHED');
-        assert(qaPublished.length === 0, `the QA test exam has ${qaPublished.length} PUBLISHED version(s)`);
-        const perScope = {};
-        for (const v of vers.filter((x) => x.status === 'PUBLISHED')) perScope[`${v.slug}/${v.cy || '-'}`] = (perScope[`${v.slug}/${v.cy || '-'}`] || 0) + 1;
-        const multi = Object.entries(perScope).filter(([, n]) => n > 1);
-        assert(multi.length === 0, `more than one PUBLISHED version: ${multi.map(([k, n]) => `${k.split('/')[0]}×${n}`)}`);
-        const gd = vers.find((v) => v.slug === 'ssc-gd' && v.version_tag === 'legacy-official-2026');
-        const cgl = vers.find((v) => v.slug === 'ssc-cgl' && v.version_tag === 'pattern-skeleton-2026');
-        assert(gd && gd.status === 'DRAFT' && gd.source_kind === 'LEGACY_MIGRATION' && cgl && cgl.source_kind === 'MANUAL', 'seeded versions missing');
-        const tree = async (id) => (await q(`SELECT n.node_kind, n.raw_title, n.raw_slug, n.display_order, n.weightage_tier, n.is_mandatory, p.raw_slug parent,
-              (SELECT string_agg(m.canonical_node_id::text || '/' || m.match_method, ',') FROM public.exam_syllabus_canonical_mappings m WHERE m.syllabus_node_id = n.id) maps
-            FROM public.exam_syllabus_nodes n LEFT JOIN public.exam_syllabus_nodes p ON p.id = n.parent_node_id WHERE n.syllabus_version_id = $1
-           ORDER BY n.node_depth, p.raw_slug NULLS FIRST, n.display_order, n.raw_title`, [id]));
-        const gdTree = await tree(gd.id);
-        const kinds = gdTree.reduce((a, n) => ({ ...a, [n.node_kind]: (a[n.node_kind] || 0) + 1 }), {});
-        const maps = gdTree.filter((n) => n.maps).length;
-        assert(kinds.SECTION === 4 && kinds.UNIT === 18 && maps === 18 && gdTree.every((n) => !n.maps || /LEGACY_MIGRATION/.test(n.maps)), `GD tree ${JSON.stringify(kinds)} maps ${maps}`);
-        // GAP2-4c (084): the legacy rows live in schema retired (owner connection)
-        const legacyMatch = await one(`SELECT count(*)::int n FROM retired.exam_topics t JOIN retired.exam_syllabi s ON s.id = t.syllabus_id
-            JOIN public.exam_syllabus_canonical_mappings m ON m.canonical_node_id = t.topic_id
-            JOIN public.exam_syllabus_nodes n ON n.id = m.syllabus_node_id AND n.syllabus_version_id = $1`, [gd.id]);
-        assert(legacyMatch.n === 18, `${legacyMatch.n}/18 legacy topics mapped`);
-        const gdVal = await rpc('staff', 'fn_syllabus_validate', [gd.id]);
-        assert(gdVal.ok, `GD draft invalid: ${gdVal.errors.map((e) => e.code)}`);
-        let cglNote = `CGL skeleton ${cgl.status}: shape not asserted (only while DRAFT)`;
-        if (cgl.status === 'DRAFT') {
-          const cglTree = await tree(cgl.id);
-          const sections = await q(`SELECT ps.section_name FROM public.pattern_sections ps JOIN public.exam_patterns p ON p.id = ps.pattern_id
-              JOIN public.exam_cycles cy ON cy.id = p.exam_cycle_id WHERE cy.exam_id = $1 AND p.is_active ORDER BY ps.section_order`, [exams['ssc-cgl']]);
-          assert(sections.length > 0, 'no active CGL pattern sections to compare with');
-          assert(cglTree.length === 4 && cglTree.every((n) => n.node_kind === 'SECTION' && !n.parent && !n.maps), `CGL tree ${JSON.stringify(cglTree).slice(0, 200)}`);
-          assert(JSON.stringify(cglTree.map((n) => n.raw_title)) === JSON.stringify(sections.map((s) => s.section_name)), 'CGL sections differ from the pattern');
-          cglNote = 'CGL 4 sections';
-        }
+    // GAP2-4A-SCOPE (architect 2026-10-28; amends GATE-HYGIENE-1, which amended the original "real exams hold only
+    // DRAFTs"): the owner publishes / archives real syllabus drafts during intake, so the draft-shape contract is now
+    // asserted on the suite's own QA fixture; the seeded GD / CGL shapes only while they are DRAFTs; the real-data
+    // invariants (≤ 1 PUBLISHED per exam + cycle, QA exam never PUBLISHED) are unchanged. G-13 holds the negative controls.
+    await test('G-11 draft shape on the QA fixture (exact, valid, deterministic); seeds re-run no-op in any status; seed shapes only while DRAFT; ≤ 1 PUBLISHED per exam + cycle', async () => tx(() => g11()));
 
-        // idempotent: re-run → no change (the CGL seed matches its tag in any status, so it stays a no-op when ARCHIVED)
-        const r1 = (await one(`SELECT public.fn_syllabus_seed_legacy_gd_draft() r`)).r;
-        const r2 = (await one(`SELECT public.fn_syllabus_seed_cgl_pattern_skeleton() r`)).r;
-        assert(r1.created === false && r1.reason === 'ALREADY_EXISTS' && r2.created === false, `re-run: ${JSON.stringify([r1, r2])}`);
-        assert(JSON.stringify(await tree(gd.id)) === JSON.stringify(gdTree), 'tree changed on re-run');
-        // deterministic: delete the GD draft and seed again → identical tree and hash
-        await c.query(`DELETE FROM public.exam_syllabus_versions WHERE id = $1`, [gd.id]);
-        const r3 = (await one(`SELECT public.fn_syllabus_seed_legacy_gd_draft() r`)).r;
-        assert(r3.created === true && r3.sections === 4 && r3.units === 18, `re-seed ${JSON.stringify(r3)}`);
-        const again = await one(`SELECT raw_payload_hash h FROM public.exam_syllabus_versions WHERE id = $1`, [r3.version_id]);
-        assert(again.h === gd.h && JSON.stringify(await tree(r3.version_id)) === JSON.stringify(gdTree), 're-seed is not identical');
-        const r4 = (await one(`SELECT public.fn_syllabus_seed_legacy_gd_draft() r`)).r;
-        assert(r4.created === false, 'second seed in a row created again');
-        return `GD 4/18/18 valid; ${cglNote}; re-run no-op; re-seed identical; PUBLISHED scopes ${Object.keys(perScope).length} (≤ 1 each)`;
+    await test('G-13 negative controls (rolled back): a broken fixture shape FAILS G-11; a PUBLISHED QA version FAILS; the owner publishing / archiving a seeded draft PASSES', async () =>
+      tx(async () => {
+        const out = [];
+        const mustFail = async (label, opts, re) => {
+          const r = await attempt(() => g11(opts));
+          assert(!r.ok && re.test(r.message), `${label}: G-11 did not fail as expected (${r.ok ? 'passed' : r.message.slice(0, 200)})`);
+          out.push(`${label} FAILS`);
+        };
+        const firstSection = async (v) => (await one(`SELECT id FROM public.exam_syllabus_nodes WHERE syllabus_version_id = $1 AND node_kind = 'SECTION' ORDER BY display_order LIMIT 1`, [v])).id;
+        const unitNamed = async (v, t) => (await one(`SELECT id FROM public.exam_syllabus_nodes WHERE syllabus_version_id = $1 AND raw_title = $2`, [v, t])).id;
+        await mustFail('stray unit', { afterBuild: async (v) => rpc('staff', 'fn_syllabus_upsert_node', [v, { kind: 'UNIT', title: 'Stray unit', parent_id: await firstSection(v) }]) }, /fixture shape: unexpected UNIT Stray unit/);
+        await mustFail('mapping dropped', { afterBuild: async (v) => rpc('staff', 'fn_syllabus_set_unit_mappings', [await unitNamed(v, 'Fixture unit A1'), [T1], null]) }, /fixture shape: missing UNIT Fixture unit A1/);
+        await mustFail('unit deleted', { afterBuild: async (v) => rpc('staff', 'fn_syllabus_delete_node', [await unitNamed(v, 'Fixture unit B1')]) }, /fixture shape: missing UNIT Fixture unit B1/);
+        const qaPub = await attempt(async () => {
+          const d = await buildValidDraft(QA);
+          await rpc('admin', 'fn_syllabus_publish', [d.version]);
+          return g11();
+        });
+        assert(!qaPub.ok && /the QA test exam has 1 PUBLISHED/.test(qaPub.message), `QA version left PUBLISHED: ${qaPub.ok ? 'passed' : qaPub.message.slice(0, 200)}`);
+        out.push('QA version left PUBLISHED FAILS');
+
+        // the owner's legitimate change: publish (then archive) the seeded GD draft → G-11 still passes
+        const gd = await one(`SELECT v.id, v.status FROM public.exam_syllabus_versions v JOIN public.exams e ON e.id = v.exam_id WHERE e.slug = 'ssc-gd' AND v.version_tag = 'legacy-official-2026'`);
+        if (gd && gd.status === 'DRAFT') {
+          const p = await rpc('admin', 'fn_syllabus_publish', [gd.id]);
+          assert(p.success, `publishing the GD seed: ${JSON.stringify(p).slice(0, 200)}`);
+          const r1 = await attempt(() => g11());
+          assert(r1.ok, `G-11 failed after the owner published the GD seed: ${r1.message}`);
+          await rpc('admin', 'fn_syllabus_archive_version', [gd.id]);
+          const r2 = await attempt(() => g11());
+          assert(r2.ok, `G-11 failed after the owner archived the GD seed: ${r2.message}`);
+          out.push('GD seed published PASSES', 'GD seed archived PASSES');
+        } else {
+          const r = await attempt(() => g11());
+          assert(r.ok, r.message);
+          out.push(`GD seed already ${gd ? gd.status : 'absent'} PASSES`);
+        }
+        return out.join(' · ');
       }));
 
     await test('G-12 legacy tables preserved in schema retired (GAP2-4c, 084); reconciliation workbench removed', async () => {
