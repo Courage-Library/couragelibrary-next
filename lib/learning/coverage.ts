@@ -79,11 +79,29 @@ export interface CoverageExam {
   id: string;
   title: string;
   slug: string;
-  launch: { status: "LIVE" | "PAUSED"; launchedAt: string; changedAt: string; changedBy: string; cycleId: string | null } | null;
+  launch: { status: "LIVE" | "PAUSED"; accessMode: AccessMode; launchedAt: string; changedAt: string; changedBy: string; cycleId: string | null } | null;
 }
+
+/** LAUNCH-MODE-1: FREE_ALL = every lesson of the course free; FREE_N = the first N per master chapter free, the rest Pro. */
+export type AccessMode = "FREE_ALL" | "FREE_N";
+export const ACCESS_MODES: readonly AccessMode[] = ["FREE_ALL", "FREE_N"];
+
+/** Why FREE_N cannot be chosen now (null = it can): payments must be on AND a Pro plan active. */
+export type FreeNBlock = "PAYMENTS_OFF" | "NO_ACTIVE_PLAN" | null;
+export function freeNBlock(paymentsEnabled: boolean, activePlans: number): FreeNBlock {
+  if (!paymentsEnabled) return "PAYMENTS_OFF";
+  if (activePlans < 1) return "NO_ACTIVE_PLAN";
+  return null;
+}
+export const FREE_N_BLOCK_MESSAGE: Record<Exclude<FreeNBlock, null>, string> = {
+  PAYMENTS_OFF: "Payments are off, so no one could buy the Pro lessons. Launch with every lesson free instead.",
+  NO_ACTIVE_PLAN: "No Pro plan is active, so no one could buy the Pro lessons. Launch with every lesson free instead.",
+};
 
 export interface CoverageView {
   exam: CoverageExam;
+  /** LAUNCH-MODE-1: why FREE_N is not available now (null = available) */
+  freeNBlock: FreeNBlock;
   cycleId: string | null;
   cycleYear: number | null;
   state: "OK" | "NO_SYLLABUS";

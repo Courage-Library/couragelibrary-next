@@ -2,7 +2,8 @@ import "server-only";
 
 import { guardAdminAction } from "@/lib/auth/require-admin";
 import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
-import { computeCoverage, coverageSnapshot, type Coverage, type CoverageExam, type CoverageNodeInput, type CoverageView } from "@/lib/learning/coverage";
+import { ACCESS_MODES, computeCoverage, coverageSnapshot, freeNBlock, FREE_N_BLOCK_MESSAGE, type AccessMode, type Coverage, type CoverageExam, type CoverageNodeInput, type CoverageView, type FreeNBlock } from "@/lib/learning/coverage";
+import { isPaymentsEnabled } from "@/config/payments";
 
 export type { CoverageExam, CoverageView };
 
@@ -10,6 +11,8 @@ export type { CoverageExam, CoverageView };
  * CA-7 coverage matrix + launch (design H). Reads with the server's admin client AFTER the admin / staff guard; the
  * launch / pause is admin-only and goes through fn_exam_course_launch_set (audited EXAM_COURSE_LAUNCH / _PAUSE) with a
  * coverage snapshot computed here, at the moment of the click.
+ * LAUNCH-MODE-1: a launch carries an access mode; FREE_N is refused while payments are off (PAYMENTS_ENABLED) or no Pro
+ * plan is active — here with the reason, and again in the database (no active plan).
  */
 type Result<T> = { success: true; data: T } | { success: false; code: string; error: string };
 const fail = <T>(code: string, error: string): Result<T> => ({ success: false, code, error });
@@ -26,7 +29,7 @@ export class CoverageService {
     if (!c) return fail("UNAUTHORIZED", "Unauthorized.");
     const [exams, launches] = await Promise.all([
       c.db.from("exams").select("id, title, slug").eq("is_active", true).order("title"),
-      c.db.from("exam_course_launches").select("exam_id, exam_cycle_id, status, launched_at, changed_at, changed_by_email"),
+      c.db.from("exam_course_launches").select("exam_id, exam_cycle_id, status, access_mode, launched_at, changed_at, changed_by_email"),
     ]);
     if (exams.error || launches.error) return fail("DB_ERROR", "Could not load the exams.");
     const byExam = new Map((launches.data || []).map((l) => [l.exam_id, l]));
@@ -34,7 +37,7 @@ export class CoverageService {
       success: true,
       data: (exams.data || []).map((e) => {
         const l = byExam.get(e.id);
-        return { id: e.id, title: e.title, slug: e.slug, launch: l ? { status: l.status as "LIVE" | "PAUSED", launchedAt: l.launched_at, changedAt: l.changed_at, changedBy: l.changed_by_email, cycleId: l.exam_cycle_id } : null };
+        return { id: e.id, title: e.title, slug: e.slug, launch: l ? { status: l.status as "LIVE" | "PAUSED", accessMode: l.access_mode as AccessMode, launchedAt: l.launched_at, changedAt: l.changed_at, changedBy: l.changed_by_email, cycleId: l.exam_cycle_id } : null };
       }),
     };
   }
@@ -51,7 +54,8 @@ export class CoverageService {
     if (outline.error) return fail("DB_ERROR", "Could not read the course outline.");
     const o = (outline.data ?? {}) as { state?: string; exam_cycle_id?: string | null };
     const empty: Coverage = computeCoverage([], []);
-    if (o.state === "NO_SYLLABUS") return { success: true, data: { exam, cycleId: null, cycleYear: null, state: "NO_SYLLABUS", coverage: empty } };
+    const block = await CoverageService.freeNBlock(c.db);
+    if (o.state === "NO_SYLLABUS") return { success: true, data: { exam, freeNBlock: block, cycleId: null, cycleYear: null, state: "NO_SYLLABUS", coverage: empty } };
     const cycleId = o.exam_cycle_id ?? null;
 
     let vq = c.db.from("exam_syllabus_versions").select("id").eq("exam_id", examId).eq("status", "PUBLISHED").eq("is_active", true);
@@ -95,22 +99,35 @@ export class CoverageService {
     const lessons = ((servable.data || []) as { document_id: string; node_id: string; hi_current: boolean }[]).map((s) => ({ nodeId: s.node_id, documentId: s.document_id, hiCurrent: s.hi_current }));
     return {
       success: true,
-      data: { exam, cycleId, cycleYear: (cycle.data as { cycle_year: number } | null)?.cycle_year ?? null, state: "OK", coverage: computeCoverage(inputs, lessons) },
+      data: { exam, freeNBlock: block, cycleId, cycleYear: (cycle.data as { cycle_year: number } | null)?.cycle_year ?? null, state: "OK", coverage: computeCoverage(inputs, lessons) },
     };
   }
 
-  /** LIVE (launch) or PAUSED — admin only; the snapshot is recomputed now, never sent by the browser. */
-  static async setLaunch(examId: string, status: "LIVE" | "PAUSED"): Promise<Result<{ status: string }>> {
+  /** LAUNCH-MODE-1: payments on (server flag) AND at least one active Pro plan; a failed read blocks FREE_N (fail closed). */
+  private static async freeNBlock(db: ReturnType<typeof createAdminServerSupabaseClient>): Promise<FreeNBlock> {
+    if (!isPaymentsEnabled()) return "PAYMENTS_OFF";
+    const { count, error } = await db.from("pro_plan_versions").select("id", { count: "exact", head: true }).eq("active", true);
+    return freeNBlock(true, error ? 0 : (count ?? 0));
+  }
+
+  /**
+   * LIVE (launch, or a mode change of a LIVE course) or PAUSED — admin only; the snapshot is recomputed now, never sent
+   * by the browser. FREE_N is refused while payments are off / no Pro plan is active (the reason is returned).
+   */
+  static async setLaunch(examId: string, status: "LIVE" | "PAUSED", accessMode: AccessMode): Promise<Result<{ status: string; accessMode: AccessMode }>> {
     const c = await ctx(true);
     if (!c) return fail("UNAUTHORIZED", "Only an admin can launch or pause a course.");
+    if (!ACCESS_MODES.includes(accessMode)) return fail("VALIDATION", "Choose an access mode.");
     const view = await CoverageService.forExam(examId);
     if (!view.success) return view;
     if (status === "LIVE" && view.data.state !== "OK") return fail("NO_SYLLABUS", "The exam has no published syllabus.");
+    if (status === "LIVE" && accessMode === "FREE_N" && view.data.freeNBlock) return fail("FREE_N_BLOCKED", FREE_N_BLOCK_MESSAGE[view.data.freeNBlock]);
     const { data, error } = await c.db.rpc("fn_exam_course_launch_set", {
       p_exam_id: examId,
       // generated RPC argument types are never nullable; NULL = the exam-wide course (the function accepts it)
       p_exam_cycle_id: view.data.cycleId as string,
       p_status: status,
+      p_access_mode: status === "PAUSED" ? (view.data.exam.launch?.accessMode ?? "FREE_ALL") : accessMode,
       p_coverage: { ...coverageSnapshot(view.data.coverage), cycle_year: view.data.cycleYear },
       p_actor_id: c.userId as string,
       p_actor_email: c.userEmail,
@@ -119,6 +136,7 @@ export class CoverageService {
       const m = String(error.message || "");
       return fail("LAUNCH_RULE", m.includes("LAUNCH:") ? m.slice(m.indexOf("LAUNCH:") + 7).trim() : "The change could not be saved.");
     }
-    return { success: true, data: { status: (data as { status?: string } | null)?.status ?? status } };
+    const r = (data ?? {}) as { status?: string; access_mode?: AccessMode };
+    return { success: true, data: { status: r.status ?? status, accessMode: r.access_mode ?? accessMode } };
   }
 }

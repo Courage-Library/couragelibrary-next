@@ -2220,6 +2220,7 @@ export type Database = {
       }
       exam_course_launches: {
         Row: {
+          access_mode: string
           changed_at: string
           changed_by_email: string
           coverage: Json
@@ -2232,6 +2233,7 @@ export type Database = {
           status: string
         }
         Insert: {
+          access_mode?: string
           changed_at?: string
           changed_by_email: string
           coverage: Json
@@ -2244,6 +2246,7 @@ export type Database = {
           status: string
         }
         Update: {
+          access_mode?: string
           changed_at?: string
           changed_by_email?: string
           coverage?: Json
@@ -8660,6 +8663,7 @@ export type Database = {
       }
       fn_exam_course_launch_set: {
         Args: {
+          p_access_mode: string
           p_actor_email: string
           p_actor_id: string
           p_coverage: Json
@@ -8730,6 +8734,7 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_gated_course_document_ids: { Args: never; Returns: string[] }
       fn_generate_custom_practice_session: {
         Args: {
           p_manual_question_ids?: string[]

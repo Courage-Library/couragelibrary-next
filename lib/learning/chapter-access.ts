@@ -1,8 +1,9 @@
 /**
  * CA-5 / CA-7: access to a node lesson by its position in its MASTER chapter (design F, decision 2: the same for every exam,
  * so a lesson has ONE access level). Pure. The position comes from fn_servable_node_lessons (master order in the TOPIC).
- *   a lesson in NO live exam course (before any launch, design H) → FREE: a free standalone article
- *   a lesson inside a LIVE (launched) exam course → positions 1..LESSON_FREE_PER_CHAPTER (default 2) FREE, the rest PRO
+ *   a lesson in NO gated course → FREE (before any launch it is a free standalone article, design H; a LIVE course in
+ *     access mode FREE_ALL keeps every lesson free — LAUNCH-MODE-1)
+ *   a lesson inside a LIVE FREE_N course → positions 1..LESSON_FREE_PER_CHAPTER (default 2) FREE, the rest PRO
  * Locked = PRO and the viewer has no Pro. Decided on the server; a locked body is never sent.
  * (CA-7 replaced the CA-5 stand-in LESSON_GATING_ENABLED with the per-exam launch.)
  */
@@ -11,18 +12,18 @@ export const MAX_FREE_LESSONS_PER_CHAPTER = 50;
 
 export interface LessonAccessSettings {
   freePerChapter: number;
-  /** the lessons inside a LIVE exam course (fn_live_course_document_ids); "ALL" = unknown → every lesson (fail closed) */
-  liveCourseLessons: ReadonlySet<string> | "ALL";
+  /** the lessons of LIVE FREE_N courses (fn_gated_course_document_ids); "ALL" = unknown → every lesson (fail closed) */
+  gatedLessons: ReadonlySet<string> | "ALL";
 }
 
-export const DEFAULT_LESSON_ACCESS: LessonAccessSettings = { freePerChapter: DEFAULT_FREE_LESSONS_PER_CHAPTER, liveCourseLessons: new Set<string>() };
+export const DEFAULT_LESSON_ACCESS: LessonAccessSettings = { freePerChapter: DEFAULT_FREE_LESSONS_PER_CHAPTER, gatedLessons: new Set<string>() };
 
-export function inLiveCourse(documentId: string, s: LessonAccessSettings): boolean {
-  return s.liveCourseLessons === "ALL" || s.liveCourseLessons.has(documentId);
+export function isGated(documentId: string, s: LessonAccessSettings): boolean {
+  return s.gatedLessons === "ALL" || s.gatedLessons.has(documentId);
 }
 
 export function lessonAccessLevel(position: number, s: LessonAccessSettings, documentId: string): "FREE" | "PRO" {
-  if (!inLiveCourse(documentId, s)) return "FREE";
+  if (!isGated(documentId, s)) return "FREE";
   return Number.isInteger(position) && position >= 1 && position <= s.freePerChapter ? "FREE" : "PRO";
 }
 

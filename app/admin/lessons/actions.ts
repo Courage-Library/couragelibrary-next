@@ -75,12 +75,13 @@ export async function saveTranslationDraftAction(documentId: string, paste: stri
   return sanitizeActionResult("saveTranslationDraftAction", r);
 }
 
-/** CA-7: launch (LIVE) or pause an exam course — admin only, audited in the database (EXAM_COURSE_LAUNCH / _PAUSE). */
-export async function setCourseLaunchAction(examId: string, status: "LIVE" | "PAUSED"): Promise<{ success: true; data: { status: string } } | { success: false; code: string; error: string }> {
+/** CA-7 / LAUNCH-MODE-1: launch (LIVE, with an access mode), change the mode, or pause — admin only, audited in the database. */
+export async function setCourseLaunchAction(examId: string, status: "LIVE" | "PAUSED", accessMode: "FREE_ALL" | "FREE_N"): Promise<{ success: true; data: { status: string; accessMode: string } } | { success: false; code: string; error: string }> {
   const __auth = await guardAdminAction() /* CA-7: admin only */;
   if (!__auth.ok) return __auth;
   if (status !== "LIVE" && status !== "PAUSED") return { success: false, code: "VALIDATION", error: "Status must be LIVE or PAUSED." };
-  const r = await CoverageService.setLaunch(examId, status);
+  if (accessMode !== "FREE_ALL" && accessMode !== "FREE_N") return { success: false, code: "VALIDATION", error: "Choose an access mode." };
+  const r = await CoverageService.setLaunch(examId, status, accessMode);
   if (r.success) {
     revalidatePath("/admin/lessons/coverage");
     revalidateTag(LEARN_CACHE_TAG);

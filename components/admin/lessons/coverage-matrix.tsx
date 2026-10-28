@@ -5,28 +5,33 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { StudioEmpty, StudioPageHeader, StudioPanel, StudioStatStrip, studioPrimaryAction, studioQuietAction } from "@/components/admin/studio/studio-page";
 import { setCourseLaunchAction } from "@/app/admin/lessons/actions";
-import type { CoverageExam, CoverageView } from "@/lib/learning/coverage";
+import { FREE_N_BLOCK_MESSAGE, type AccessMode, type CoverageExam, type CoverageView } from "@/lib/learning/coverage";
 
 /**
  * CA-7 coverage matrix + launch (design H). One primary per screen (R4): "Launch course" (or "Pause course" when LIVE),
  * always behind a confirmation that states what changes. "Build next" opens the lesson generator for a missing node.
+ * LAUNCH-MODE-1: the access mode (every lesson free | the first N per chapter free) is chosen in that confirmation; the
+ * FREE_N choice is disabled with its reason while payments are off or no Pro plan is active (the server refuses it too).
  */
+const MODE_LABEL: Record<AccessMode, string> = { FREE_ALL: "Every lesson free", FREE_N: "First lessons of each chapter free, the rest Pro" };
 export function CoverageMatrix({ exams, view, loadError }: { exams: CoverageExam[]; view: CoverageView | null; loadError: string | null }) {
   const router = useRouter();
-  const [confirm, setConfirm] = useState(false);
+  const [confirm, setConfirm] = useState<null | "LIVE" | "PAUSED">(null);
+  const [mode, setMode] = useState<AccessMode>(view?.exam.launch?.accessMode ?? "FREE_ALL");
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const [pending, start] = useTransition();
   const live = view?.exam.launch?.status === "LIVE";
-  const target = live ? "PAUSED" : "LIVE";
+  const currentMode = view?.exam.launch?.accessMode ?? "FREE_ALL";
+  const block = view?.freeNBlock ?? null;
 
   const apply = () =>
     start(async () => {
       setMessage(null);
-      if (!view) return;
-      const r = await setCourseLaunchAction(view.exam.id, target);
-      setConfirm(false);
+      if (!view || !confirm) return;
+      const r = await setCourseLaunchAction(view.exam.id, confirm, mode);
+      setConfirm(null);
       if (r.success) {
-        setMessage({ kind: "ok", text: target === "LIVE" ? `${view.exam.title}: the course is live.` : `${view.exam.title}: the course is paused.` });
+        setMessage({ kind: "ok", text: confirm === "PAUSED" ? `${view.exam.title}: the course is paused.` : `${view.exam.title}: the course is live — ${MODE_LABEL[mode].toLowerCase()}.` });
         router.refresh();
       } else setMessage({ kind: "error", text: r.error });
     });
@@ -39,8 +44,15 @@ export function CoverageMatrix({ exams, view, loadError }: { exams: CoverageExam
         description="Per exam: how much of its mapped syllabus has a published lesson. Launching shows the exam course and applies lesson access; pausing hides it again."
         primary={
           view && view.state === "OK" ? (
-            <button type="button" className={studioPrimaryAction} disabled={pending} onClick={() => setConfirm(true)}>
+            <button type="button" className={studioPrimaryAction} disabled={pending} onClick={() => (setMode(currentMode), setConfirm(live ? "PAUSED" : "LIVE"))}>
               {live ? "Pause course" : "Launch course"}
+            </button>
+          ) : undefined
+        }
+        actions={
+          live ? (
+            <button type="button" className={studioQuietAction} disabled={pending} onClick={() => (setMode(currentMode), setConfirm("LIVE"))}>
+              Change access
             </button>
           ) : undefined
         }
@@ -69,19 +81,39 @@ export function CoverageMatrix({ exams, view, loadError }: { exams: CoverageExam
       {confirm && view && (
         <StudioPanel role="alertdialog" aria-labelledby="launch-confirm-title" className="border-warning-200 bg-warning-50">
           <h2 id="launch-confirm-title" className="text-[15px] font-bold text-fg">
-            {target === "LIVE" ? `Launch the ${view.exam.title} course?` : `Pause the ${view.exam.title} course?`}
+            {confirm === "PAUSED" ? `Pause the ${view.exam.title} course?` : live ? `Change the access of the ${view.exam.title} course?` : `Launch the ${view.exam.title} course?`}
           </h2>
           <p className="mt-1 text-[13px] text-fg">
-            {target === "LIVE"
-              ? `Students will see the exam course, its path and progress. Lessons after the free ones in each chapter become Pro. Coverage now: ${c?.en ?? 0} of ${c?.total ?? 0} nodes (${c?.enPercent ?? 0}%) in English.`
-              : "The exam course disappears for students and its lessons become free standalone articles again. Progress is kept."}
+            {confirm === "PAUSED"
+              ? "The exam course disappears for students and its lessons become free standalone articles again. Progress is kept."
+              : `Students will see the exam course, its path and progress. Coverage now: ${c?.en ?? 0} of ${c?.total ?? 0} nodes (${c?.enPercent ?? 0}%) in English.`}
           </p>
+          {confirm === "LIVE" && (
+            <fieldset className="mt-3">
+              <legend className="text-[13px] font-semibold text-fg">Lesson access</legend>
+              {(["FREE_ALL", "FREE_N"] as AccessMode[]).map((m) => (
+                <label key={m} className={`mt-2 flex items-start gap-2 text-[13px] ${m === "FREE_N" && block ? "text-fg-secondary" : "text-fg"}`}>
+                  <input type="radio" name="access-mode" value={m} checked={mode === m} disabled={m === "FREE_N" && Boolean(block)} onChange={() => setMode(m)} className="mt-0.5 size-4" />
+                  <span>
+                    {MODE_LABEL[m]}
+                    {m === "FREE_N" && block && <span className="block">{FREE_N_BLOCK_MESSAGE[block]}</span>}
+                  </span>
+                </label>
+              ))}
+            </fieldset>
+          )}
           <div className="mt-3 flex flex-wrap gap-2">
-            <button type="button" className={studioQuietAction} onClick={() => setConfirm(false)} disabled={pending}>
+            <button type="button" className={studioQuietAction} onClick={() => setConfirm(null)} disabled={pending}>
               Cancel
             </button>
-            <button type="button" className={`${studioQuietAction} border border-primary-700`} onClick={apply} disabled={pending} aria-busy={pending}>
-              {pending ? "Saving…" : target === "LIVE" ? "Confirm launch" : "Confirm pause"}
+            <button
+              type="button"
+              className={`${studioQuietAction} border border-primary-700`}
+              onClick={apply}
+              disabled={pending || (confirm === "LIVE" && live && mode === currentMode) || (confirm === "LIVE" && mode === "FREE_N" && Boolean(block))}
+              aria-busy={pending}
+            >
+              {pending ? "Saving…" : confirm === "PAUSED" ? "Confirm pause" : live ? "Confirm access change" : "Confirm launch"}
             </button>
           </div>
         </StudioPanel>
@@ -104,7 +136,7 @@ export function CoverageMatrix({ exams, view, loadError }: { exams: CoverageExam
           />
           <p className="text-[13px] text-fg-secondary">
             {view.cycleYear ? `Syllabus cycle ${view.cycleYear}.` : "Exam-wide syllabus."} {c && c.excludedInternal > 0 ? `${c.excludedInternal} internal node(s) are not counted.` : ""}
-            {view.exam.launch ? ` Last change ${new Date(view.exam.launch.changedAt).toISOString().slice(0, 16).replace("T", " ")} UTC.` : " Not launched."}
+            {view.exam.launch ? ` ${view.exam.launch.status === "LIVE" ? "Live" : "Paused"} — ${MODE_LABEL[view.exam.launch.accessMode].toLowerCase()}. Last change ${new Date(view.exam.launch.changedAt).toISOString().slice(0, 16).replace("T", " ")} UTC.` : " Not launched."}
           </p>
           <StudioPanel>
             <h2 className="text-[15px] font-bold text-fg">Build next</h2>
