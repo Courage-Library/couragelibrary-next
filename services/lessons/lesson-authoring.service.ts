@@ -19,7 +19,7 @@ import type { Json } from "@/types/database";
 import { validateLesson, type BlockError, type LessonBlock } from "@/lib/lessons/blocks";
 import { lessonChecklist, checklistPasses, type ChecklistItem } from "@/lib/lessons/completeness";
 import { renderTemplate } from "@/lib/prompts/template";
-import { lessonPromptValues, parseLessonPaste, type LessonExamCoverage, type LessonPromptContext } from "@/lib/prompts/lesson-prompt";
+import { lessonPromptValues, lessonSize, mergeLessonParts, parseLessonPart, type LessonExamCoverage, type LessonPromptContext } from "@/lib/prompts/lesson-prompt";
 import { parseTranslationPaste, translatePromptValues } from "@/lib/prompts/translate-prompt";
 import { mapLessonDbError } from "@/services/lessons/lesson-admin.service";
 import { PromptTemplateService } from "@/services/prompts/prompt-template.service";
@@ -27,11 +27,11 @@ import type { LessonNodeOption, LessonGeneratorData, LessonTranslationData } fro
 
 export type AuthoringResult<T> =
   | { success: true; data: T }
-  | { success: false; code: string; error: string; errors?: BlockError[]; checklist?: ChecklistItem[] };
+  | { success: false; code: string; error: string; errors?: BlockError[]; checklist?: ChecklistItem[]; subjectId?: string | null; subjectName?: string | null };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const LESSON_LEVELS = ["TOPIC", "SUBTOPIC", "CONCEPT"];
-const fail = <T>(code: string, error: string, extra: { errors?: BlockError[]; checklist?: ChecklistItem[] } = {}): AuthoringResult<T> => ({ success: false, code, error, ...extra });
+const fail = <T>(code: string, error: string, extra: { errors?: BlockError[]; checklist?: ChecklistItem[]; subjectId?: string | null; subjectName?: string | null } = {}): AuthoringResult<T> => ({ success: false, code, error, ...extra });
 
 async function ctx() {
   const auth = await guardAdminAction();
@@ -110,7 +110,7 @@ async function examCoverage(c: Ctx, tree: Map<string, TreeNode>, nodeId: string)
   if (!published.size) return [];
   const { data: syl } = await c.supabase
     .from("exam_syllabus_nodes")
-    .select("id, parent_node_id, raw_title, weightage_tier, expected_questions_min, expected_questions_max, syllabus_version_id")
+    .select("id, parent_node_id, raw_title, weightage_tier, expected_questions_min, expected_questions_max, metadata, syllabus_version_id")
     .in("syllabus_version_id", [...published.keys()]);
   const byId = new Map((syl || []).map((n) => [n.id, n]));
   const out: LessonExamCoverage[] = [];
@@ -134,16 +134,21 @@ async function examCoverage(c: Ctx, tree: Map<string, TreeNode>, nodeId: string)
       weightageTier: u.weightage_tier,
       questionsMin: u.expected_questions_min,
       questionsMax: u.expected_questions_max,
+      // SYLLABUS-PROMPT-2 intake: the unit's average questions per paper
+      avgQuestions: u.metadata && typeof u.metadata === "object" && !Array.isArray(u.metadata) && typeof (u.metadata as Record<string, unknown>).avg_questions === "number" ? ((u.metadata as Record<string, unknown>).avg_questions as number) : null,
     });
   }
   return out.sort((a, b) => a.exam.localeCompare(b.exam) || a.syllabusPath.localeCompare(b.syllabusPath));
 }
 
-function subjectTypeOf(tree: Map<string, TreeNode>, nodeId: string): { name: string | null; type: string | null } {
+function subjectTypeOf(tree: Map<string, TreeNode>, nodeId: string): { id: string | null; name: string | null; type: string | null } {
   const n = tree.get(nodeId);
   const s = n?.root_subject_id ? tree.get(n.root_subject_id) : undefined;
-  return { name: s?.name ?? null, type: s?.subject_type ?? n?.subject_type ?? null };
+  return { id: s?.id ?? null, name: s?.name ?? null, type: s?.subject_type ?? n?.subject_type ?? null };
 }
+
+/** LESSON-PROMPT-2 item 1: a lesson needs its subject's type (the template sections, the examples, the checklist). */
+const SUBJECT_TYPE_MISSING = "Set the subject type in the Master tree first.";
 
 export class LessonAuthoringService {
   /** The nodes a lesson can belong to (active TOPIC / SUBTOPIC / CONCEPT) + whether each already has one. */
@@ -178,8 +183,10 @@ export class LessonAuthoringService {
       examCoverage(c, tree, nodeId),
       PromptTemplateService.getActiveBody("LESSON"),
     ]);
-    if (!template) return fail("DB_ERROR", "No active LESSON template.");
+    // getActiveBody falls back to the code v1 for LESSON, so null means its own admin check failed (session / network)
+    if (!template) return fail("DB_ERROR", "The LESSON template could not be loaded (the session check failed). Reload the page.");
     const subject = subjectTypeOf(tree, nodeId);
+    if (!subject.type) return fail("SUBJECT_TYPE_MISSING", SUBJECT_TYPE_MISSING, { subjectId: subject.id, subjectName: subject.name });
     const context: LessonPromptContext = {
       nodeId,
       nodeName: node.name,
@@ -201,6 +208,7 @@ export class LessonAuthoringService {
         templateVersion: template.version,
         templateSource: template.source,
         documentId: own?.id ?? null,
+        size: lessonSize(coverage),
       },
     };
   }
@@ -209,16 +217,23 @@ export class LessonAuthoringService {
    * Paste → the node's lesson document (created on first use) → its EN DRAFT. The checklist is returned (it does not
    * block a draft; it blocks publishing). Flagged uncertain facts must be confirmed as checked first.
    */
-  static async saveGeneratedDraft(nodeId: string, paste: string, factsChecked: boolean): Promise<AuthoringResult<{ documentId: string; versionId: string; checklist: ChecklistItem[] }>> {
+  static async saveGeneratedDraft(nodeId: string, parts: string[], factsChecked: boolean): Promise<AuthoringResult<{ documentId: string; versionId: string; checklist: ChecklistItem[] }>> {
     const c = await ctx();
     if (!c) return fail("UNAUTHORIZED", "Unauthorized.");
     if (!UUID_RE.test(nodeId)) return fail("VALIDATION", "Choose a node.");
-    const parsed = parseLessonPaste(paste);
+    if (!Array.isArray(parts) || !parts.length || parts.length > 10 || parts.some((p) => typeof p !== "string")) return fail("VALIDATION", "Paste the answer (1 to 10 parts).");
+    // LESSON-PROMPT-2 item 6: the parts of one answer, merged in order; validated only when every part is in
+    const merged = mergeLessonParts(parts.map(parseLessonPart));
+    if (merged.state === "ERROR") return fail("VALIDATION", "The pasted lesson has problems.", { errors: merged.errors });
+    if (merged.state === "INCOMPLETE") return fail("PARTS_MISSING", `Part ${merged.missing.join(", ")} of ${merged.totalParts} is missing.`);
+    const parsed = merged.result;
     if (!parsed.ok) return fail("VALIDATION", "The pasted lesson has problems.", { errors: parsed.errors });
     if (parsed.uncertainFacts.length && !factsChecked) return fail("UNCERTAIN_FACTS", "The answer flags uncertain facts: check them and confirm before saving.");
     const tree = await loadTree(c);
     if (!tree?.get(nodeId)) return fail("NOT_FOUND", "Node not found.");
-    const checklist = lessonChecklist(parsed.blocks, subjectTypeOf(tree, nodeId).type);
+    const subject = subjectTypeOf(tree, nodeId);
+    if (!subject.type) return fail("SUBJECT_TYPE_MISSING", SUBJECT_TYPE_MISSING, { subjectId: subject.id, subjectName: subject.name });
+    const checklist = lessonChecklist(parsed.blocks, subject.type, lessonSize(await examCoverage(c, tree, nodeId)));
     const doc = await c.supabase.rpc("fn_lesson_create_node_document", { p_node_id: nodeId, p_access_level: "FREE", p_actor_id: c.userId as string, p_actor_email: c.userEmail });
     if (doc.error || !doc.data) {
       const m = mapLessonDbError(doc.error);
@@ -332,7 +347,8 @@ export class LessonAuthoringService {
     const parsed = validateLesson(v.lesson_meta, v.blocks);
     if (!parsed.ok) return null; // the DB refuses invalid blocks at publish anyway
     const tree = await loadTree(c);
-    return lessonChecklist(parsed.blocks, tree ? subjectTypeOf(tree, d.node_id).type : null);
+    if (!tree) return null;
+    return lessonChecklist(parsed.blocks, subjectTypeOf(tree, d.node_id).type, lessonSize(await examCoverage(c, tree, d.node_id)));
   }
 }
 

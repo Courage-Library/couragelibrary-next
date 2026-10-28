@@ -171,8 +171,10 @@ const FUNCS = [
     assert(rules.validateAlias('Percent') === null && rules.validateAlias(' ') && rules.validateAlias('x'.repeat(161)), 'alias');
     assert(rules.validateStateCode('UP') === null && rules.validateStateCode('') === null && rules.validateStateCode('up') && rules.validateStateCode('UPX'), 'state code');
     assert(rules.isSameLevelMove('SUBJECT', 'SUBJECT') && !rules.isSameLevelMove('TOPIC', 'SUBJECT') && !rules.isSameLevelMove(null, null), 'move');
-    assert(rules.SUBJECT_TYPES.join(',') === 'APTITUDE,LANGUAGE,GK_GA,TECHNICAL,PEDAGOGY,STATE_SPECIFIC', 'subject types');
-    const sqlTypes = sql.match(/subject_type IN \(([^)]*)\)/)[1].replace(/[' ]/g, '');
+    assert(rules.SUBJECT_TYPES.join(',') === 'APTITUDE,REASONING,LANGUAGE,GK_GA,TECHNICAL,PEDAGOGY,STATE_SPECIFIC', 'subject types (REASONING: LESSON-PROMPT-2, migration 121)');
+    // the CURRENT subject-type list is the one in migration 121 (115 + REASONING, LESSON-PROMPT-2)
+    const sql121 = fs.readFileSync(path.join(ROOT, 'supabase/migrations/20261028000121_lesson_prompt_2.sql'), 'utf8');
+    const sqlTypes = sql121.match(/subject_type IN \(([^)]*)\)/)[1].replace(/[' ]/g, '');
     assert(sqlTypes === rules.SUBJECT_TYPES.join(','), `SQL subject types ${sqlTypes}`);
   });
 

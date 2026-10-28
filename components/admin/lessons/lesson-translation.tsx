@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React, { useCallback, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { StudioPageHeader, StudioPanel, studioControl, studioPrimaryAction, studioQuietAction } from "@/components/admin/studio/studio-page";
 import { LessonBlocksRenderer, PlainMath } from "@/components/learning/lesson-blocks-renderer";
+import { CheckButton, CheckProblems, CheckRegion, usePasteCheck } from "@/components/admin/studio/paste-check";
 import type { BlockError } from "@/lib/lessons/blocks";
 import { parseTranslationPaste, type TranslationPaste } from "@/lib/prompts/translate-prompt";
 import type { LessonTranslationData } from "@/lib/lessons/admin-types";
@@ -28,6 +29,10 @@ export function LessonTranslation({ data, loadError }: { data: LessonTranslation
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const [confirmPublish, setConfirmPublish] = useState(false);
+  const [exception, setException] = useState<string | null>(null);
+  const onException = useCallback((m: string) => setException(m), []);
+  // GEN-CHECK-1: Check = a real button with a busy state; the result is always brought into view; exceptions are shown
+  const { busy, run, regionRef } = usePasteCheck(onException);
 
   if (!data) {
     return (
@@ -44,11 +49,13 @@ export function LessonTranslation({ data, loadError }: { data: LessonTranslation
   const hi = data.hi;
   const canPublish = Boolean(hi && hi.source === "DRAFT" && !hi.outdated && !pending);
 
-  const check = () => {
-    setMessage(null);
-    setServerErrors([]);
-    setResult(en ? parseTranslationPaste(paste, en.blocks) : null);
-  };
+  const check = () =>
+    run(() => {
+      setMessage(null);
+      setServerErrors([]);
+      setException(null);
+      setResult(en ? parseTranslationPaste(paste, en.blocks) : null);
+    });
 
   const save = () =>
     start(async () => {
@@ -163,23 +170,21 @@ export function LessonTranslation({ data, loadError }: { data: LessonTranslation
               className={`${studioControl} min-h-40 py-2 font-mono text-[12px]`}
             />
             <div className="mt-2 flex flex-wrap items-center gap-3">
-              <button type="button" onClick={check} disabled={!paste.trim()} className={studioQuietAction}>
-                Check
-              </button>
-              <button type="button" onClick={save} disabled={!result?.ok || pending} className={studioQuietAction}>
+              <CheckButton busy={busy} disabled={!paste.trim()} onClick={check} />
+              <button type="button" onClick={save} disabled={!result?.ok || pending || busy} className={studioQuietAction}>
                 {pending ? "Saving…" : "Save translation draft"}
               </button>
-              {result?.ok && <span className="text-[13px] text-success-700">Structure matches the English lesson: {result.blocks.length} block(s).</span>}
             </div>
-            {errors.length > 0 && (
-              <ul className="mt-3 space-y-1 rounded-card border border-danger-200 bg-danger-50 px-4 py-3 text-[13px] text-danger-800" aria-label="Problems in the pasted translation">
-                {errors.slice(0, 30).map((e, i) => (
-                  <li key={i}>
-                    <span className="font-mono">{e.path}</span> — {e.message}
-                  </li>
-                ))}
-              </ul>
-            )}
+            <CheckRegion regionRef={regionRef}>
+              {exception && <p className="mt-3 rounded-card border border-danger-200 bg-danger-50 px-4 py-3 text-[13px] font-semibold text-danger-800">{exception}</p>}
+              {result?.ok && (
+                <div className="mt-3 rounded-card border border-success-200 bg-success-50 px-4 py-3 text-[13px] text-success-800">
+                  {result.notice && <p className="text-fg">{result.notice}</p>}
+                  <p className="font-semibold">Structure matches the English lesson: {result.blocks.length} block(s). The side-by-side review is below.</p>
+                </div>
+              )}
+              <CheckProblems errors={errors} title="Problems in the pasted translation" />
+            </CheckRegion>
           </StudioPanel>
 
           <StudioPanel aria-labelledby="tr-review">

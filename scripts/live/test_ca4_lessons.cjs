@@ -41,6 +41,7 @@ const { lessonExample } = require(path.join(ROOT, 'lib/prompts/lesson-prompt.ts'
 const { validateIntakePayload } = require(path.join(ROOT, 'lib/syllabus/intake-contract.ts'));
 const { matchIntake } = require(path.join(ROOT, 'lib/syllabus/tree-matcher.ts'));
 const { seeds, sha } = require(path.join(ROOT, 'scripts/content/ca4-template-seeds.cjs'));
+const LESSON_V2_SHA = sha(require(path.join(ROOT, 'lib/prompts/lesson-template-v2.ts')).LESSON_TEMPLATE_V2);
 
 let ok = true;
 let pending = [];
@@ -108,16 +109,21 @@ const EXISTING_HASH = `select
       if (PRE) chk('A-0 every existing learning document, document version and intake session is untouched by 119 (hash before = after)', JSON.stringify(before) === JSON.stringify(after), JSON.stringify({ before, after }));
       const rows = await q(`select template_type, version, status, body_sha256 from public.prompt_templates order by template_type`);
       const want = Object.fromEntries(seeds().map(([t, b]) => [t, sha(b)]));
-      const seedOk = rows.length === 3 && rows.every((r) => r.version === 1 && r.status === 'ACTIVE' && want[r.template_type] === r.body_sha256);
-      chk('A-1 seeds: SYLLABUS (the owner-approved SYLLABUS-PROMPT-2 text), LESSON, TRANSLATE_HI — ACTIVE v1, bodies byte-identical to the TS constants (sha256); no QUESTION v1',
+      // LESSON-PROMPT-2: once LESSON v2 (the owner text) is active, the LESSON v1 seed is RETIRED and v2 is the one ACTIVE
+      const v1s = rows.filter((r) => r.version === 1);
+      const later = rows.filter((r) => r.version > 1);
+      const seedOk = v1s.length === 3 && v1s.every((r) => want[r.template_type] === r.body_sha256 && (r.status === 'ACTIVE' || (r.template_type === 'LESSON' && r.status === 'RETIRED')))
+        && later.every((r) => r.template_type === 'LESSON' && r.version === 2 && r.status === 'ACTIVE' && r.body_sha256 === LESSON_V2_SHA)
+        && later.length === (v1s.find((r) => r.template_type === 'LESSON').status === 'RETIRED' ? 1 : 0);
+      chk('A-1 seeds: SYLLABUS (the owner-approved SYLLABUS-PROMPT-2 text), LESSON, TRANSLATE_HI — v1 bodies byte-identical to the TS constants (sha256), ACTIVE (LESSON v1 RETIRED once LESSON v2 = the LESSON-PROMPT-2 text is ACTIVE); no QUESTION v1',
         seedOk, JSON.stringify({ rows: rows.map((r) => [r.template_type, r.version, r.status, r.body_sha256.slice(0, 12)]), want: Object.fromEntries(Object.entries(want).map(([k, v]) => [k, v.slice(0, 12)])) }));
       const adminRead = await as('authenticated', ADMIN, `select count(*)::int n from public.prompt_templates`);
       const staffRead = await as('authenticated', STAFF, `select count(*)::int n from public.prompt_templates`);
       const stuRead = await as('authenticated', STU, `select count(*)::int n from public.prompt_templates`);
       const anonRead = await as('anon', ANON, `select count(*)::int n from public.prompt_templates`);
       const adminWrite = await as('authenticated', ADMIN, `insert into public.prompt_templates (template_type, version, body, created_by_email) values ('QUESTION', 1, '{{TOPIC_NAME}} {{QUESTION_SPEC}}', 'x@example.test')`);
-      chk('A-2 prompt_templates: admin reads 3 (RLS), staff / student read 0, anon denied (42501); no client writes, not even admin (42501)',
-        adminRead.ok && adminRead.rows[0].n === 3 && staffRead.ok && staffRead.rows[0].n === 0 && stuRead.ok && stuRead.rows[0].n === 0 && anonRead.code === '42501' && adminWrite.code === '42501',
+      chk('A-2 prompt_templates: admin reads every row (RLS), staff / student read 0, anon denied (42501); no client writes, not even admin (42501)',
+        adminRead.ok && adminRead.rows[0].n === rows.length && rows.length >= 3 && staffRead.ok && staffRead.rows[0].n === 0 && stuRead.ok && stuRead.rows[0].n === 0 && anonRead.code === '42501' && adminWrite.code === '42501',
         JSON.stringify({ adminRead, staffRead, stuRead, anonRead: anonRead.code, adminWrite: adminWrite.code }));
       const calls = [
         `select public.fn_prompt_template_save_draft('LESSON', 'x', null, null, 'x@example.test')`,
@@ -171,7 +177,8 @@ const EXISTING_HASH = `select
 
       const save = (type, body) => svc(`select public.fn_prompt_template_save_draft($1, $2, 'smoke', null, $3) r`, [type, body, ACTOR_EMAIL]);
       const invalid = await save('LESSON', 'no placeholders');
-      const [v1] = await q(`select id, body from public.prompt_templates where template_type = 'LESSON' and version = 1`);
+      // the current ACTIVE LESSON (v1 seed before LESSON-PROMPT-2, v2 after) is the base; the draft takes the next version
+      const [v1] = await q(`select id, body, version, (select max(version) from public.prompt_templates where template_type = 'LESSON') maxv from public.prompt_templates where template_type = 'LESSON' and status = 'ACTIVE'`);
       const d1 = await save('LESSON', v1.body + '\nCA4 smoke edit.');
       const d2 = await save('LESSON', v1.body + '\nCA4 smoke edit, again.');
       const draftId = d1.ok ? d1.rows[0].r.id : ZERO;
@@ -183,8 +190,8 @@ const EXISTING_HASH = `select
       const frozen = await svc(`update public.prompt_templates set body = body || ' x' where id = $1`, [draftId]);
       const back = await svc(`select public.fn_prompt_template_activate($1, null, $2) r`, [v1.id, ACTOR_EMAIL]);
       const [st2] = await q(`select status from public.prompt_templates where id = $1`, [v1.id]);
-      chk('B-2 lifecycle: an invalid body is refused (PROMPT_TEMPLATE); saving twice updates ONE draft (v2); activate → v2 ACTIVE, v1 RETIRED, one ACTIVE per type; an ACTIVE body is frozen; v1 can be re-activated; audited (2 saves + 2 activations)',
-        !invalid.ok && /PROMPT_TEMPLATE/.test(invalid.msg) && d1.ok && d2.ok && d1.rows[0].r.id === d2.rows[0].r.id && act.ok && st.v1 === 'RETIRED' && st.v2 === 'ACTIVE' && st.v2n === 2
+      chk('B-2 lifecycle: an invalid body is refused (PROMPT_TEMPLATE); saving twice updates ONE draft (the next version); activate → the draft ACTIVE, the previous ACTIVE RETIRED, one ACTIVE per type; an ACTIVE body is frozen; the previous can be re-activated; audited (2 saves + 2 activations)',
+        !invalid.ok && /PROMPT_TEMPLATE/.test(invalid.msg) && d1.ok && d2.ok && d1.rows[0].r.id === d2.rows[0].r.id && act.ok && st.v1 === 'RETIRED' && st.v2 === 'ACTIVE' && st.v2n === v1.maxv + 1
         && st.active === 1 && !frozen.ok && /cannot change/.test(frozen.msg) && back.ok && st2.status === 'ACTIVE' && st.audit === 3,
         JSON.stringify({ invalid: invalid.msg, d1: d1.ok, d2: d2.ok, act: act.ok, st, frozen: frozen.msg, back: back.ok, st2 }));
     });
@@ -224,20 +231,28 @@ const EXISTING_HASH = `select
     // ---------------- D: node lessons + the translation lifecycle
     await chunk(async () => {
       await migrate();
-      const [subject] = await q(`select root_subject_id id from public.canonical_taxonomy_nodes where id = $1`, [qa.topic_id]);
+      // the node: an active TOPIC of the QA topic's subject with NO node lesson yet (the QA topic itself carries the CA-6
+      // published QA lesson, scripts/content/ca6-qa-lesson.cjs)
+      const [ln] = await q(`select n.id from public.canonical_taxonomy_nodes n where n.node_type = 'TOPIC' and n.is_active
+          and n.root_subject_id = (select root_subject_id from public.canonical_taxonomy_nodes where id = $1)
+          and not exists (select 1 from public.learning_documents d where d.document_type = 'NODE_LESSON' and d.node_id = n.id)
+          order by n.id limit 1`, [qa.topic_id]);
+      if (!ln) throw new Error('no QA-subject topic without a node lesson');
+      const lessonNode = ln.id;
+      const [subject] = await q(`select root_subject_id id from public.canonical_taxonomy_nodes where id = $1`, [lessonNode]);
       const mk = (node) => svc(`select public.fn_lesson_create_node_document($1, 'FREE', null, $2) r`, [node, ACTOR_EMAIL]);
-      const d1 = await mk(qa.topic_id);
-      const d2 = await mk(qa.topic_id);
+      const d1 = await mk(lessonNode);
+      const d2 = await mk(lessonNode);
       const subj = await mk(subject.id);
       const docId = d1.ok ? d1.rows[0].r.document_id : ZERO;
       const [doc] = await q(`select document_type, node_id, learning_unit_id, status, canonical_slug from public.learning_documents where id = $1`, [docId]);
-      const owner = await svc(`insert into public.learning_documents (learning_unit_id, node_id, canonical_slug, document_type, status) select learning_unit_id, $2, 'ca4-smoke-bad-owner', 'CONCEPT_LESSON', 'DRAFT' from public.learning_documents where id = $1`, [qa.doc_id, qa.topic_id]);
+      const owner = await svc(`insert into public.learning_documents (learning_unit_id, node_id, canonical_slug, document_type, status) select learning_unit_id, $2, 'ca4-smoke-bad-owner', 'CONCEPT_LESSON', 'DRAFT' from public.learning_documents where id = $1`, [qa.doc_id, lessonNode]);
       chk('D-1 node lesson document: created once per node (a second call returns the same id), DRAFT, no learning unit; a SUBJECT node is refused; a legacy-type document cannot carry a node (owner check)',
         d1.ok && d1.rows[0].r.created === true && d2.ok && d2.rows[0].r.created === false && d2.rows[0].r.document_id === docId && doc.document_type === 'NODE_LESSON'
-        && doc.node_id === qa.topic_id && doc.learning_unit_id === null && doc.status === 'DRAFT' && !subj.ok && /TOPIC, SUBTOPIC or CONCEPT/.test(subj.msg) && !owner.ok,
+        && doc.node_id === lessonNode && doc.learning_unit_id === null && doc.status === 'DRAFT' && !subj.ok && /TOPIC, SUBTOPIC or CONCEPT/.test(subj.msg) && !owner.ok,
         JSON.stringify({ d1, d2, subj: subj.msg, owner: owner.msg, doc }));
 
-      const ex = lessonExample(qa.topic_id);
+      const ex = lessonExample(lessonNode);
       const save = (lang, meta, blocks) => svc(`select public.fn_lesson_save_draft($1, $2, $3::jsonb, $4::jsonb, 'AI_ASSISTED', null, $5) r`, [docId, lang, JSON.stringify(meta), JSON.stringify(blocks), ACTOR_EMAIL]);
       const hiEarly = await save('hi', ex.meta, ex.blocks);
       const en1 = await save('en', ex.meta, ex.blocks);
@@ -246,7 +261,7 @@ const EXISTING_HASH = `select
       const anonSees = await as('anon', ANON, `select id, node_id from public.learning_documents where id = $1`, [docId]);
       chk('D-2 English master: a translation before any published English is refused; publishing English publishes the node lesson (status PUBLISHED, pointer set); anon can read the published document row',
         !hiEarly.ok && /English lesson first/.test(hiEarly.msg) && pub1.ok && docAfter.status === 'PUBLISHED' && docAfter.current_published_version_id === en1.rows[0].r.version_id
-        && anonSees.ok && anonSees.rows.length === 1 && anonSees.rows[0].node_id === qa.topic_id, JSON.stringify({ hiEarly: hiEarly.msg, pub1, docAfter, anonSees }));
+        && anonSees.ok && anonSees.rows.length === 1 && anonSees.rows[0].node_id === lessonNode, JSON.stringify({ hiEarly: hiEarly.msg, pub1, docAfter, anonSees }));
 
       const hiBlocks = JSON.parse(JSON.stringify(ex.blocks));
       hiBlocks[0].text = 'इसका अर्थ';

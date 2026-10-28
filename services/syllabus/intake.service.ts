@@ -17,6 +17,7 @@ import type { AppSupabaseClient } from "@/lib/supabase/types";
 import type { Json } from "@/types/database";
 import { SOURCE_URL_RE, validateIntakePayload, type IntakeError, type IntakeLevel, type IntakeOrigin, type IntakeStats } from "@/lib/syllabus/intake-contract";
 import { matchIntake, matchSummary, type MatchCandidate, type MatchStatus } from "@/lib/syllabus/tree-matcher";
+import { extractJson } from "@/lib/prompts/paste-extract";
 import { INTAKE_DECISIONS, type IntakeDecision, type IntakeItemView, type IntakeNodeOption, type IntakeSessionView } from "@/lib/syllabus/intake-types";
 
 export { INTAKE_DECISIONS, type IntakeDecision, type IntakeItemView, type IntakeNodeOption, type IntakeSessionView };
@@ -70,7 +71,10 @@ export class SyllabusIntakeService {
     ]);
     if (examRes.error || !examRes.data) return fail("NOT_FOUND", "Exam not found.");
     if (input.cycleId && (!cycleRes.data || cycleRes.data.exam_id !== input.examId)) return fail("VALIDATION", "The cycle does not belong to the exam.");
-    const v = validateIntakePayload(input.json, { examSlug: examRes.data.slug, cycleYear: cycleRes.data?.cycle_year ?? null, tier: input.tier || null });
+    // GEN-CHECK-1: the same tolerant extraction as the wizard (fences / notes around the JSON removed; nothing inside guessed)
+    const x = extractJson(input.json);
+    if (!x.ok) return fail("VALIDATION", x.message);
+    const v = validateIntakePayload(x.data, { examSlug: examRes.data.slug, cycleYear: cycleRes.data?.cycle_year ?? null, tier: input.tier || null });
     if (!v.ok) return fail("VALIDATION", "The pasted syllabus has errors.", v.errors);
     const reference = input.referenceUrl?.trim() || null;
     if (reference && !SOURCE_URL_RE.test(reference)) return fail("VALIDATION", "The reference link must be an https:// link.");

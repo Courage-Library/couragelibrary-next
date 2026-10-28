@@ -84,12 +84,16 @@ test('T-01 templates: slots + sections, required / unknown placeholders, render 
     threw = true;
   }
   assert(threw, 'a missing value throws');
-  // the SQL twin lists exactly the TS placeholders
+  // the SQL twin lists exactly the TS placeholders — its CURRENT definition is migration 121 (LESSON-PROMPT-2)
+  const MIG121 = read('supabase/migrations/20261028000121_lesson_prompt_2.sql');
   for (const t of T.TEMPLATE_TYPES) {
-    const block = MIG.slice(MIG.indexOf(`WHEN '${t}' THEN`), MIG.indexOf(`WHEN '${t}' THEN`) + 600);
+    const block = MIG121.slice(MIG121.indexOf(`WHEN '${t}' THEN`), MIG121.indexOf(`WHEN '${t}' THEN`) + 900);
     const allowed = /v_allowed := ARRAY\[([^\]]+)\]/.exec(block)[1].replace(/\s+/g, '').replace(/'/g, '').split(',');
     const required = /v_required := ARRAY\[([^\]]+)\]/.exec(block)[1].replace(/\s+/g, '').replace(/'/g, '').split(',');
-    assert(JSON.stringify(allowed) === JSON.stringify(T.TEMPLATE_PLACEHOLDERS[t].allowed) && JSON.stringify(required) === JSON.stringify(T.TEMPLATE_PLACEHOLDERS[t].required), `${t}: SQL placeholders differ`);
+    const any = (/v_any := ARRAY\[([^\]]+)\]/.exec(block.split('WHEN ')[1]) || [])[1];
+    const anyTs = (T.TEMPLATE_PLACEHOLDERS[t].requiredAny || []).map((g) => g.join('|'));
+    assert(JSON.stringify(allowed) === JSON.stringify(T.TEMPLATE_PLACEHOLDERS[t].allowed) && JSON.stringify(required) === JSON.stringify(T.TEMPLATE_PLACEHOLDERS[t].required)
+      && JSON.stringify(any ? any.replace(/\s+/g, '').replace(/'/g, '').split(',') : []) === JSON.stringify(anyTs), `${t}: SQL placeholders differ`);
   }
   const i = MIG.indexOf('-- @@SEEDS-BEGIN@@');
   const j = MIG.indexOf('-- @@SEEDS-END@@');
@@ -126,32 +130,121 @@ test('L-01 LESSON prompt: coverage + the full teaching order + rules + the exact
   return `${p.length} chars`;
 });
 
-test('K-01 completeness checklist: the errors block publishing; warnings do not', () => {
-  const ex = L.lessonExample(NODE);
-  const short = C.lessonChecklist(ex.blocks, 'APTITUDE');
-  assert(!C.checklistPasses(short) && ['examples_min', 'traps', 'quick_checks'].every((k) => short.find((i) => i.key === k && !i.ok && i.severity === 'error')), 'the short example fails');
-  const ex1 = ex.blocks.find((b) => b.type === 'solved_example');
-  const qc = ex.blocks.find((b) => b.type === 'quick_check');
-  const trap = ex.blocks.find((b) => b.type === 'trap');
-  const levels = ['EASY', 'EASY', 'EASY', 'MEDIUM', 'MEDIUM', 'MEDIUM', 'MEDIUM', 'HARD', 'HARD', 'HARD'];
-  const full = [
-    ...ex.blocks.filter((b) => !['solved_example', 'quick_check', 'trap'].includes(b.type)).slice(0, 3),
-    ...levels.map((d, n) => ({ ...ex1, id: `ex-${n}`, difficulty: d })),
-    ...[0, 1].map((n) => ({ ...trap, id: `trap-${n}` })),
-    ...[0, 1, 2, 3, 4].map((n) => ({ ...qc, id: `qc-${n}` })),
-    ...ex.blocks.filter((b) => ['callout', 'revision_summary', 'memory_lock_points'].includes(b.type)),
-  ];
-  const good = C.lessonChecklist(full, 'APTITUDE');
-  assert(C.checklistPasses(good), JSON.stringify(good.filter((i) => !i.ok)));
-  const hardFirst = full.map((b) => (b.id === 'ex-0' ? { ...b, difficulty: 'HARD' } : b));
-  assert(!C.checklistPasses(C.lessonChecklist(hardFirst, 'APTITUDE')), 'easy → hard order');
-  const noFormula = full.filter((b) => b.type !== 'formula');
-  assert(!C.checklistPasses(C.lessonChecklist(noFormula, 'APTITUDE')) && C.checklistPasses(C.lessonChecklist(noFormula, 'GENERAL_AWARENESS')), 'formulas: an error for aptitude, a warning otherwise');
-  const noBasics = full.filter((b) => b.type !== 'paragraph');
-  assert(!C.checklistPasses(C.lessonChecklist(noBasics, 'APTITUDE')), 'basics first');
-  return `${good.length} items`;
+test('K-01 completeness checklist (LESSON-PROMPT-2): SIZE minimums, 4-option quick checks with feedback, ≥ 3 traps, a strategy list, 5–10 Memory Lock points, formulas required (APTITUDE) / forbidden (LANGUAGE)', () => {
+  const E = require(path.join(ROOT, 'lib/prompts/lesson-examples.ts'));
+  const LP = require(path.join(ROOT, 'lib/prompts/lesson-prompt.ts'));
+  const build = (type, n, q) => {
+    const ex = E.lessonExampleFor(type, NODE);
+    const b = ex.blocks;
+    const one = b.find((x) => x.type === 'solved_example');
+    const qc = b.find((x) => x.type === 'quick_check');
+    const trap = b.find((x) => x.type === 'trap');
+    const levels = Array.from({ length: n }, (_, i) => (i < n / 3 ? 'EASY' : i < (2 * n) / 3 ? 'MEDIUM' : 'HARD'));
+    return [
+      ...b.filter((x) => !['solved_example', 'quick_check', 'trap'].includes(x.type)).slice(0, b.findIndex((x) => x.type === 'solved_example')),
+      ...levels.map((d, i) => ({ ...one, id: `ex-${i}`, difficulty: d })),
+      ...[0, 1, 2].map((i) => ({ ...trap, id: `trap-${i}` })),
+      ...Array.from({ length: q }, (_, i) => ({ ...qc, id: `qc-${i}` })),
+      ...b.slice(b.findIndex((x) => x.type === 'solved_example') + 1).filter((x) => !['quick_check', 'trap'].includes(x.type)),
+    ];
+  };
+  const HY = LP.lessonSize([{ weightageTier: 'MODERATE' }, { weightageTier: 'HIGH_YIELD' }]);
+  const CORE = LP.lessonSize([{ weightageTier: 'CORE' }]);
+  const LOW = LP.lessonSize([]);
+  assert(HY.tier === 'HIGH_YIELD' && HY.minExamples === 15 && HY.quickChecks === 10 && CORE.minExamples === 12 && CORE.quickChecks === 8 && LOW.minExamples === 8 && LOW.quickChecks === 5, 'SIZE by the highest weightage');
+  const fails = (blocks, type, size) => C.lessonChecklist(blocks, type, size).filter((i) => !i.ok && i.severity === 'error').map((i) => i.key);
+  assert(fails(build('APTITUDE', 15, 10), 'APTITUDE', HY).length === 0, `aptitude HIGH_YIELD complete: ${fails(build('APTITUDE', 15, 10), 'APTITUDE', HY)}`);
+  assert(fails(build('APTITUDE', 12, 8), 'APTITUDE', HY).join() === 'examples_min,quick_checks', 'below the HIGH_YIELD size');
+  assert(fails(build('LANGUAGE', 8, 5), 'LANGUAGE', LOW).length === 0, `language complete: ${fails(build('LANGUAGE', 8, 5), 'LANGUAGE', LOW)}`);
+  const langFormula = [...build('LANGUAGE', 8, 5), { id: 'f-x', type: 'formula', latex: 'a + b', reading: 'a plus b' }];
+  assert(fails(langFormula, 'LANGUAGE', LOW).includes('formulas'), 'a formula in a language lesson fails');
+  assert(fails(build('APTITUDE', 8, 5).filter((b) => b.type !== 'formula'), 'APTITUDE', LOW).includes('formulas'), 'aptitude without formulas fails');
+  const threeOpts = build('GK_GA', 8, 5).map((b) => (b.type === 'quick_check' ? { ...b, options: b.options.slice(0, 3).map((o, i) => ({ ...o, correct: i === 0 })) } : b));
+  const noFeedback = build('GK_GA', 8, 5).map((b) => (b.type === 'quick_check' ? { ...b, options: b.options.map((o) => ({ ...o, feedback: undefined })) } : b));
+  assert(fails(threeOpts, 'GK_GA', LOW).includes('quick_check_shape') && fails(noFeedback, 'GK_GA', LOW).includes('quick_check_shape'), 'exactly 4 options + feedback on every option');
+  assert(fails(build('REASONING', 8, 5).filter((b) => b.type !== 'trap' || b.id === 'trap-0'), 'REASONING', LOW).includes('traps'), 'at least 3 traps');
+  assert(fails(build('PEDAGOGY', 8, 5).filter((b) => !/^strategy/.test(b.id)), 'PEDAGOGY', LOW).includes('strategy'), 'an exam-strategy list');
+  const fewPoints = build('TECHNICAL', 8, 5).map((b) => (b.type === 'memory_lock_points' ? { ...b, points: b.points.slice(0, 4) } : b));
+  assert(fails(fewPoints, 'TECHNICAL', LOW).includes('memory_lock'), '5–10 Memory Lock points');
+  const hardFirst = build('APTITUDE', 8, 5).map((b) => (b.id === 'ex-0' ? { ...b, difficulty: 'HARD' } : b));
+  assert(fails(hardFirst, 'APTITUDE', LOW).includes('examples_order'), 'easy → hard');
+  return 'size + shape + type rules';
 });
 
+test('LP-01 LESSON template v2 = the owner-approved text (sha256 pinned), valid; every subject type renders with EXACTLY one true section; STATE_SPECIFIC → GK_GA; every slot filled', () => {
+  const V2 = require(path.join(ROOT, 'lib/prompts/lesson-template-v2.ts')).LESSON_TEMPLATE_V2;
+  const sha = require('crypto').createHash('sha256').update(V2, 'utf8').digest('hex');
+  assert(sha === 'a6bf2f1cddcf1e1ff5829293db80b089e9864e2f6a82224f8eef4459cefe790d', `LESSON v2 is not the owner-approved text (sha256 ${sha})`);
+  assert(T.templateProblems('LESSON', V2).length === 0, JSON.stringify(T.templateProblems('LESSON', V2)));
+  const LP = require(path.join(ROOT, 'lib/prompts/lesson-prompt.ts'));
+  const marks = { APTITUDE: 'every formula as a formula block', REASONING: 'the rule of every pattern', LANGUAGE: 'every grammar rule as a numbered list', GK_GA: 'the facts in tables', TECHNICAL: 'definitions, principles, units/standards', PEDAGOGY: 'theories and thinkers in tables' };
+  for (const [type, want] of [...Object.keys(marks).map((k) => [k, k]), ['STATE_SPECIFIC', 'GK_GA']]) {
+    const ctx = { nodeId: NODE, nodeName: 'Active Passive', nodePath: 'English › Active Passive', nodeLevel: 'TOPIC', subjectName: 'English', subjectType: type,
+      coverage: [{ exam: 'SSC CGL', cycleYear: 2026, tier: 'tier-1', syllabusPath: 'Tier 1 › English › Active Passive', weightageTier: 'CORE', questionsMin: null, questionsMax: 2, avgQuestions: 1 }], childNodes: [], aliases: [], existingLessons: [] };
+    const out = T.renderTemplate('LESSON', V2, LP.lessonPromptValues(ctx));
+    const on = Object.entries(marks).filter(([, m]) => out.includes(m)).map(([k]) => k);
+    assert(on.length === 1 && on[0] === want, `${type}: sections on = ${on}`);
+    assert(!/\{\{/.test(out) && out.includes('SSC CGL 2026 · tier-1 › Tier 1 › English › Active Passive · CORE · avg 1 question(s)') && out.includes('none listed'), `${type}: slots`);
+    assert(out.includes('"contract": "LESSON_BLOCKS v2"'), `${type}: example`);
+    if (want === 'APTITUDE') assert(out.includes('the formulas, speed rules'), 'the inline APTITUDE section in the summary line');
+    else assert(out.includes('(key bullets, speed rules)'), `${type}: the inline APTITUDE section is dropped`);
+  }
+  return 'one section per type';
+});
+
+test('LP-02 the six examples are valid LESSON_BLOCKS v2 (through the paste parser) and model the v2 rules; LANGUAGE has no formula; GK_GA has a fact table + a MEMORY_HOOK', () => {
+  const E = require(path.join(ROOT, 'lib/prompts/lesson-examples.ts'));
+  for (const t of E.EXAMPLE_SUBJECT_TYPES) {
+    const ex = E.lessonExampleFor(t, NODE);
+    const r = L.parseLessonPaste(JSON.stringify(ex));
+    assert(r.ok, `${t}: ${JSON.stringify(r.errors && r.errors.slice(0, 2))}`);
+    const qcs = r.blocks.filter((b) => b.type === 'quick_check');
+    assert(qcs.length && qcs.every((q) => q.options.length === 4 && q.options.filter((o) => o.correct).length === 1 && q.options.every((o) => o.feedback)), `${t}: quick checks`);
+    assert(r.blocks.some((b) => b.type === 'heading' && /strategy/i.test(b.text)) && r.blocks.some((b) => b.type === 'callout' && b.variant === 'WARNING'), `${t}: strategy + warning`);
+    assert(r.blocks.find((b) => b.type === 'memory_lock_points').points.length >= 5, `${t}: memory points`);
+  }
+  const lang = E.lessonExampleFor('LANGUAGE', NODE).blocks;
+  const gk = E.lessonExampleFor('GK_GA', NODE).blocks;
+  assert(!lang.some((b) => b.type === 'formula') && lang.some((b) => b.type === 'table'), 'LANGUAGE: no formula, a structure table');
+  assert(gk.some((b) => b.type === 'table') && gk.some((b) => b.type === 'callout' && b.variant === 'MEMORY_HOOK'), 'GK_GA: a fact table + a memory hook');
+  assert(E.lessonExampleFor('APTITUDE', NODE).blocks.some((b) => b.type === 'formula') && E.sectionForSubjectType('STATE_SPECIFIC') === 'GK_GA' && E.sectionForSubjectType(null) === null, 'APTITUDE formula; STATE_SPECIFIC → GK_GA');
+  return `${E.EXAMPLE_SUBJECT_TYPES.length} examples`;
+});
+
+test('LP-03 multi-part answers merged in order (ids unique across parts), validated only when complete; "part N of M missing"; suggested subtopics taken out of meta (plain names)', () => {
+  const E = require(path.join(ROOT, 'lib/prompts/lesson-examples.ts'));
+  const full = E.lessonExampleFor('REASONING', NODE);
+  const p1 = { ...full, part: 1, total_parts: 3, blocks: full.blocks.slice(0, 4) };
+  const p2 = { contract: full.contract, part: 2, total_parts: 3, blocks: full.blocks.slice(4, 9) };
+  const p3 = { contract: full.contract, part: 3, total_parts: 3, blocks: full.blocks.slice(9) };
+  const part = (o) => L.parseLessonPart(JSON.stringify(o));
+  const m1 = L.mergeLessonParts([part(p1), part(p3)]);
+  assert(m1.state === 'INCOMPLETE' && JSON.stringify(m1.missing) === '[2]' && m1.totalParts === 3, JSON.stringify(m1));
+  const m2 = L.mergeLessonParts([part(p3), part(p1), part(p2)]);
+  assert(m2.state === 'COMPLETE' && m2.result.ok && m2.result.blocks.map((b) => b.id).join() === full.blocks.map((b) => b.id).join(), 'merged in part order');
+  const dup = { ...p2, blocks: [full.blocks[0], ...p2.blocks.slice(1)] };
+  const m3 = L.mergeLessonParts([part(p1), part(dup), part(p3)]);
+  assert(m3.state === 'COMPLETE' && !m3.result.ok, 'a duplicate id across parts is refused by the validator');
+  assert(L.mergeLessonParts([part(p1), part(p1)]).state === 'ERROR' && L.mergeLessonParts([part(p1), part({ ...p2, total_parts: 2 })]).state === 'ERROR', 'twice / disagreeing totals');
+  assert(!L.parseLessonPaste(JSON.stringify(p1)).ok, 'a single part of three is not a lesson');
+  const sug = E.lessonExampleFor('LANGUAGE', NODE);
+  sug.meta.suggested_subtopics = ['Simple present', 'Simple past', 'simple present'];
+  const r = L.parseLessonPaste(JSON.stringify(sug));
+  assert(r.ok && JSON.stringify(r.suggestedSubtopics) === '["Simple present","Simple past"]' && !('suggested_subtopics' in r.meta), 'suggested subtopics');
+  sug.meta.suggested_subtopics = ['<b>x</b>'];
+  assert(!L.parseLessonPaste(JSON.stringify(sug)).ok, 'plain names only');
+  return '3-part merge';
+});
+
+test('LP-04 generator: subject type required (refused with a Master-tree link), shown with the SIZE; suggested subtopics → "Add to Master tree" via the audited admin create, one confirmed click each', () => {
+  const svc = read('services/lessons/lesson-authoring.service.ts');
+  assert(/if \(!subject\.type\) return fail\("SUBJECT_TYPE_MISSING"/.test(svc) && (svc.match(/SUBJECT_TYPE_MISSING", SUBJECT_TYPE_MISSING/g) || []).length === 2, 'the service refuses (generator + save)');
+  assert(/lessonChecklist\(parsed\.blocks, subject\.type, lessonSize\(await examCoverage\(c, tree, nodeId\)\)\)/.test(svc), 'the checklist uses the subject type + SIZE');
+  const ui = read('components/admin/lessons/lesson-generator.tsx');
+  assert(/Set the subject type in the Master tree first\./.test(ui) && /href="\/admin\/taxonomy"/.test(ui) && /subject type <span[^>]*>\{generator\.context\.subjectType\}/.test(ui), 'refusal + link + the subject type shown');
+  assert(/createTaxonomyNodeAction\(\{ parentId: selectedNodeId, nodeType: childLevel, name \}\)/.test(ui) && /Confirm add/.test(ui) && /setConfirmAdd\(s\)/.test(ui), 'add to the Master tree: confirmed, audited admin create');
+  return 'ok';
+});
 test('H-01 TRANSLATE_HI: glossary + structure rules; the paste parser checks blocks AND parity; no machine-translation provider', () => {
   const ex = L.lessonExample(NODE);
   const p = T.renderTemplate('TRANSLATE_HI', H.TRANSLATE_HI_TEMPLATE_V1, H.translatePromptValues(ex.meta, ex.blocks));

@@ -47,13 +47,13 @@ export async function publishLessonAction(documentId: string, versionId: string)
   return sanitizeActionResult("publishLessonAction", r);
 }
 
-/** CA-4: paste → the node's lesson document (created on first use) → its English DRAFT; returns the checklist. */
-export async function saveGeneratedLessonAction(nodeId: string, paste: string, factsChecked: boolean): Promise<
+/** CA-4 / LESSON-PROMPT-2: the pasted part(s) → the node's lesson document (created on first use) → its English DRAFT. */
+export async function saveGeneratedLessonAction(nodeId: string, parts: string[], factsChecked: boolean): Promise<
   AuthoringResult<{ documentId: string; versionId: string; checklist: ChecklistItem[] }>
 > {
   const __auth = await guardAdminAction() /* CA-4: admin only */;
   if (!__auth.ok) return __auth;
-  const r = await LessonAuthoringService.saveGeneratedDraft(nodeId, paste, factsChecked === true);
+  const r = await LessonAuthoringService.saveGeneratedDraft(nodeId, Array.isArray(parts) ? parts : [], factsChecked === true);
   if (r.success) {
     revalidatePath("/admin/lessons");
     revalidatePath("/admin/lessons/generate");

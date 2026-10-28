@@ -9,15 +9,27 @@
 export const TEMPLATE_TYPES = ["SYLLABUS", "LESSON", "QUESTION", "TRANSLATE_HI"] as const;
 export type TemplateType = (typeof TEMPLATE_TYPES)[number];
 
-/** The placeholders each type may (and, when listed as required, must) use. */
-export const TEMPLATE_PLACEHOLDERS: Record<TemplateType, { allowed: readonly string[]; required: readonly string[] }> = {
+/** LESSON-PROMPT-2: the subject-type sections ({{#APTITUDE}}…{{/APTITUDE}}); exactly one is true when rendering. */
+export const SUBJECT_TYPE_SECTIONS = ["APTITUDE", "REASONING", "LANGUAGE", "GK_GA", "TECHNICAL", "PEDAGOGY"] as const;
+
+/**
+ * The placeholders each type may use; every "required" one must appear, and at least one of each "requiredAny" group
+ * (LESSON-PROMPT-2: v2 names EXAM_LINES / EXAMPLE_FOR_SUBJECT_TYPE beside the v1 names, so a retired v1 stays valid).
+ */
+export const TEMPLATE_PLACEHOLDERS: Record<TemplateType, { allowed: readonly string[]; required: readonly string[]; requiredAny?: readonly (readonly string[])[] }> = {
   SYLLABUS: {
     allowed: ["EXAM_NAME", "EXAM_SLUG", "CYCLE", "TIER", "TIER_JSON"],
     required: ["EXAM_NAME", "EXAM_SLUG", "CYCLE", "TIER_JSON"],
   },
   LESSON: {
-    allowed: ["NODE_NAME", "NODE_PATH", "NODE_LEVEL", "SUBJECT_NAME", "SUBJECT_TYPE", "EXAM_COVERAGE", "CHILD_NODES", "ALIASES", "EXISTING_LESSONS", "BLOCK_SPEC", "EXAMPLE_JSON", "MIN_EXAMPLES", "MAX_EXAMPLES", "MIN_QUICK_CHECKS"],
-    required: ["NODE_NAME", "NODE_PATH", "EXAM_COVERAGE", "BLOCK_SPEC", "EXAMPLE_JSON"],
+    allowed: [
+      "NODE_NAME", "NODE_PATH", "NODE_LEVEL", "SUBJECT_NAME", "SUBJECT_TYPE", "EXAM_COVERAGE", "CHILD_NODES", "ALIASES", "EXISTING_LESSONS", "BLOCK_SPEC",
+      "EXAMPLE_JSON", "MIN_EXAMPLES", "MAX_EXAMPLES", "MIN_QUICK_CHECKS",
+      // LESSON-PROMPT-2 (v2)
+      "CHILDREN", "EXAM_LINES", "EXAMPLE_FOR_SUBJECT_TYPE", ...SUBJECT_TYPE_SECTIONS,
+    ],
+    required: ["NODE_NAME", "NODE_PATH", "BLOCK_SPEC"],
+    requiredAny: [["EXAM_COVERAGE", "EXAM_LINES"], ["EXAMPLE_JSON", "EXAMPLE_FOR_SUBJECT_TYPE"]],
   },
   QUESTION: { allowed: ["TOPIC_NAME", "TOPIC_PATH", "EXAM_COVERAGE", "QUESTION_SPEC", "COUNT"], required: ["TOPIC_NAME", "QUESTION_SPEC"] },
   TRANSLATE_HI: {
@@ -46,6 +58,7 @@ export function templateProblems(type: TemplateType, body: string): string[] {
   const slots = templateSlots(body);
   for (const s of slots) if (!spec.allowed.includes(s)) p.push(`Unknown placeholder {{${s}}} for ${type}.`);
   for (const r of spec.required) if (!slots.includes(r)) p.push(`Required placeholder {{${r}}} is missing.`);
+  for (const g of spec.requiredAny ?? []) if (!g.some((x) => slots.includes(x))) p.push(`One of ${g.map((x) => `{{${x}}}`).join(" / ")} is required.`);
   // sections: balanced, not nested
   let open: string | null = null;
   for (const m of body.matchAll(SLOT_RE)) {

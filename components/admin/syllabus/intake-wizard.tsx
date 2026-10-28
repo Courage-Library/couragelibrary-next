@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useMemo, useState, useTransition } from "react";
+import React, { useCallback, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { StatusChip } from "@/components/admin/status-chip";
 import { StudioEmpty, StudioField, StudioPageHeader, StudioPanel, studioControl, studioPrimaryAction, studioQuietAction } from "@/components/admin/studio/studio-page";
 import { INTAKE_CONTRACT_VERSION, SOURCE_URL_RE, TIER_RE, validateIntakePayload, type IntakeError, type IntakeStats } from "@/lib/syllabus/intake-contract";
 import { buildSyllabusIntakePrompt } from "@/lib/syllabus/intake-prompt";
+import { extractJson } from "@/lib/prompts/paste-extract";
+import { CheckButton, CheckProblems, CheckRegion, usePasteCheck } from "@/components/admin/studio/paste-check";
 import type { IntakeSessionView } from "@/lib/syllabus/intake-types";
 import { addIntakeCycleAction, createIntakeAction } from "@/app/admin/syllabus/intake/actions";
 
@@ -38,6 +40,11 @@ export function IntakeWizard({ exams, cycles, sessions, template, loadError }: P
   const [errors, setErrors] = useState<IntakeError[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  // GEN-CHECK-1: the checked JSON (code fences / notes removed) is what gets submitted; the result always comes into view
+  const [clean, setClean] = useState<{ json: string; notice: string | null } | null>(null);
+  const [exception, setException] = useState<string | null>(null);
+  const onException = useCallback((m: string) => setException(m), []);
+  const { busy, run, regionRef } = usePasteCheck(onException);
 
   const exam = exams.find((e) => e.id === examId) || null;
   const examCycles = cycles.filter((c) => c.examId === examId);
@@ -53,22 +60,31 @@ export function IntakeWizard({ exams, cycles, sessions, template, loadError }: P
     }
   }, [exam, cycle, contextOk, tier, template]);
 
-  const check = () => {
-    setMessage(null);
-    if (!exam) return;
-    const v = validateIntakePayload(json, { examSlug: exam.slug, cycleYear: cycle?.year ?? null, tier: tier || null });
-    if (!v.ok) {
+  const check = () =>
+    run(() => {
+      setMessage(null);
+      setException(null);
       setChecked(null);
-      setErrors(v.errors);
-      return;
-    }
-    setErrors([]);
-    setChecked({ stats: v.stats });
-  };
+      setClean(null);
+      if (!exam) return;
+      const x = extractJson(json);
+      if (!x.ok) {
+        setErrors([{ code: "INVALID_JSON", path: x.line ? `line ${x.line}:${x.column}` : "$", message: `${x.message}${x.snippet ? ` Near: ${x.snippet}` : ""}` }]);
+        return;
+      }
+      const v = validateIntakePayload(x.data, { examSlug: exam.slug, cycleYear: cycle?.year ?? null, tier: tier || null });
+      setClean({ json: x.json, notice: x.notice });
+      if (!v.ok) {
+        setErrors(v.errors);
+        return;
+      }
+      setErrors([]);
+      setChecked({ stats: v.stats });
+    });
 
   const create = () =>
     start(async () => {
-      const r = await createIntakeAction({ examId, cycleId: cycleId || null, tier: tier || null, referenceUrl: referenceUrl.trim() || null, json });
+      const r = await createIntakeAction({ examId, cycleId: cycleId || null, tier: tier || null, referenceUrl: referenceUrl.trim() || null, json: clean?.json ?? json });
       if (r.success) router.push(`/admin/syllabus/intake/${r.data.sessionId}`);
       else {
         setMessage(r.error);
@@ -210,31 +226,25 @@ export function IntakeWizard({ exams, cycles, sessions, template, loadError }: P
         <label htmlFor="in-json" className="mb-1 block text-[13px] text-fg-secondary">
           The assistant&apos;s JSON (contract SYLLABUS_INTAKE v{INTAKE_CONTRACT_VERSION}; an older v2 answer is accepted too)
         </label>
-        <textarea id="in-json" value={json} onChange={(e) => (setJson(e.target.value), setChecked(null))} rows={10} className={`${studioControl} min-h-48 py-2 font-mono text-[12px]`} />
+        <textarea id="in-json" value={json} onChange={(e) => (setJson(e.target.value), setChecked(null), setClean(null))} rows={10} className={`${studioControl} min-h-48 py-2 font-mono text-[12px]`} />
         <div className="mt-2 flex flex-wrap items-center gap-3">
-          <button type="button" onClick={check} disabled={!exam || !json.trim()} className={studioQuietAction}>
-            Check
-          </button>
+          <CheckButton busy={busy} disabled={!exam || !json.trim()} onClick={check} />
+        </div>
+        <CheckRegion regionRef={regionRef}>
+          {exception && <p className="mt-3 rounded-card border border-danger-200 bg-danger-50 px-4 py-3 text-[13px] font-semibold text-danger-800">{exception}</p>}
           {checked && (
-            <span className="text-[13px] text-success-700">
+            <p className="mt-3 rounded-card border border-success-200 bg-success-50 px-4 py-3 text-[13px] text-success-800">
+              {clean?.notice && <span className="block text-fg">{clean.notice}</span>}
               Looks right: {checked.stats.papers} paper(s), {checked.stats.subjects} subject(s), {checked.stats.topics} topic(s), {checked.stats.subtopics} subtopic(s), {checked.stats.concepts} concept(s);{" "}
               {checked.stats.uncertain} flagged uncertain
               {checked.stats.official + checked.stats.pyq_trend + checked.stats.expanded > 0
                 ? `; ${checked.stats.official} official, ${checked.stats.pyq_trend} from previous papers, ${checked.stats.expanded} expanded`
                 : ""}
-              .
-            </span>
+              . Create the intake with the button at the top.
+            </p>
           )}
-        </div>
-        {errors.length > 0 && (
-          <ul className="mt-3 space-y-1 rounded-card border border-danger-200 bg-danger-50 px-4 py-3 text-[13px] text-danger-800" aria-label="Problems in the pasted JSON">
-            {errors.slice(0, 30).map((e, i) => (
-              <li key={i}>
-                <span className="font-mono">{e.path}</span> — {e.message}
-              </li>
-            ))}
-          </ul>
-        )}
+          <CheckProblems notice={checked ? null : clean?.notice} errors={errors} title="Problems in the pasted JSON" />
+        </CheckRegion>
       </StudioPanel>
 
       <StudioPanel aria-labelledby="recent">

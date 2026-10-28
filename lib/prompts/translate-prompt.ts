@@ -7,6 +7,7 @@
 import { validateLesson, type BlockError, type LessonBlock, type LessonMeta } from "@/lib/lessons/blocks";
 import { glossaryLines } from "@/lib/lessons/glossary-hi";
 import { parityErrors } from "@/lib/lessons/parity";
+import { describeBlockPath, extractJson } from "@/lib/prompts/paste-extract";
 
 export const TRANSLATION_PASTE_CONTRACT = "LESSON_BLOCKS v2 hi";
 
@@ -46,29 +47,22 @@ OUTPUT: ONE strict JSON object, nothing else — no prose, no code fences — wi
 THE ENGLISH LESSON:
 {{EN_JSON}}`;
 
-export type TranslationPaste = { ok: true; meta: LessonMeta; blocks: LessonBlock[] } | { ok: false; errors: BlockError[] };
+export type TranslationPaste = { ok: true; meta: LessonMeta; blocks: LessonBlock[]; notice: string | null } | { ok: false; errors: BlockError[] };
 
 /** Parses the pasted translation and checks the block rules AND parity against the English blocks. */
 export function parseTranslationPaste(text: string, enBlocks: LessonBlock[]): TranslationPaste {
   const err = (path: string, code: string, message: string): TranslationPaste => ({ ok: false, errors: [{ path, code, message }] });
-  let raw = (text || "").trim();
-  const fence = /^```[a-z]*\n([\s\S]*)\n```$/i.exec(raw);
-  if (fence) raw = fence[1].trim();
-  if (!raw) return err("$", "EMPTY", "Paste the assistant's JSON answer.");
-  if (raw.length > 400 * 1024) return err("$", "TOO_LARGE", "The answer is larger than 400 KB.");
-  let data: unknown;
-  try {
-    data = JSON.parse(raw);
-  } catch {
-    return err("$", "INVALID_JSON", "This is not valid JSON. Paste only the JSON object the assistant returned.");
-  }
+  // GEN-CHECK-1: tolerant extraction (fences / prose removed with a notice) + precise cut-off / syntax errors
+  const x = extractJson(text);
+  if (!x.ok) return err(x.line ? `line ${x.line}:${x.column}` : "$", x.code, `${x.message}${x.snippet ? ` Near: ${x.snippet}` : ""}`);
+  const data = x.data;
   if (!data || typeof data !== "object" || Array.isArray(data)) return err("$", "TYPE", "The answer must be one JSON object.");
   const o = data as Record<string, unknown>;
   for (const k of Object.keys(o)) if (!["contract", "meta", "blocks"].includes(k)) return err(`$.${k}`, "UNKNOWN_KEY", `Unknown key "${k}".`);
   if (o.contract !== TRANSLATION_PASTE_CONTRACT) return err("$.contract", "CONTRACT", `"contract" must be "${TRANSLATION_PASTE_CONTRACT}".`);
   const v = validateLesson(o.meta, o.blocks);
-  if (!v.ok) return { ok: false, errors: v.errors };
+  if (!v.ok) return { ok: false, errors: v.errors.map((e) => ({ ...e, path: describeBlockPath(e.path, o.blocks) })) };
   const p = parityErrors(enBlocks, v.blocks);
-  if (p.length) return { ok: false, errors: p.map((x) => ({ path: x.index < 0 ? "$.blocks" : `$.blocks[${x.index}]`, code: `PARITY_${x.code}`, message: x.message })) };
-  return { ok: true, meta: v.meta, blocks: v.blocks };
+  if (p.length) return { ok: false, errors: p.map((x) => ({ path: x.index < 0 ? "$.blocks" : describeBlockPath(`$.blocks[${x.index}]`, o.blocks), code: `PARITY_${x.code}`, message: x.message })) };
+  return { ok: true, meta: v.meta, blocks: v.blocks, notice: x.notice };
 }

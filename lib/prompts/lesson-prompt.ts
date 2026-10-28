@@ -4,12 +4,20 @@
  * lessons) and renders the ACTIVE LESSON template (prompt_templates; v1 = LESSON_TEMPLATE_V1). The owner pastes the
  * answer back: parseLessonPaste → validateLesson (the same rules the DB enforces) → the completeness checklist →
  * DRAFT → review → publish. Pure; safe in client components.
+ * LESSON-PROMPT-2: template v2 slots (CHILDREN, EXAM_LINES, EXAMPLE_FOR_SUBJECT_TYPE, one true subject-type section), the
+ * SIZE rule by the highest weightage, meta.suggested_subtopics (taken out of meta, shown to the owner) and multi-part
+ * answers ({"part", "total_parts"}, merged in order, validated only when complete).
  */
 import { textProblem, validateLesson, type BlockError, type LessonBlock, type LessonMeta } from "@/lib/lessons/blocks";
 import { LESSON_MAX_EXAMPLES, LESSON_MIN_EXAMPLES, LESSON_MIN_QUICK_CHECKS } from "@/lib/lessons/completeness";
+import { LESSON_PASTE_CONTRACT } from "@/lib/prompts/lesson-contract";
+import { EXAMPLE_SUBJECT_TYPES, lessonExampleFor, sectionForSubjectType } from "@/lib/prompts/lesson-examples";
+import { describeBlockPath, extractJson } from "@/lib/prompts/paste-extract";
 
-export const LESSON_PASTE_CONTRACT = "LESSON_BLOCKS v2";
+export { LESSON_PASTE_CONTRACT };
 export const UNCERTAIN_FACTS_MAX = 20;
+export const SUGGESTED_SUBTOPICS_MAX = 30;
+export const LESSON_PARTS_MAX = 10;
 
 export interface LessonExamCoverage {
   exam: string;
@@ -20,6 +28,8 @@ export interface LessonExamCoverage {
   weightageTier: string | null;
   questionsMin: number | null;
   questionsMax: number | null;
+  /** SYLLABUS-PROMPT-2 intake: the syllabus unit's average questions per paper, when known */
+  avgQuestions?: number | null;
 }
 
 export interface LessonPromptContext {
@@ -86,8 +96,35 @@ export function lessonExample(nodeId: string) {
   };
 }
 
+/** LESSON-PROMPT-2 EXAM_LINES: "exam · tier/section · weightage tier · avg questions" per exam unit. */
+export function examLines(coverage: LessonExamCoverage[]): string {
+  if (!coverage.length) return "- No published exam syllabus maps this node yet: write at the depth of the main central government exams (SSC, Banking, Railways).";
+  return coverage
+    .map((c) => {
+      const q = c.avgQuestions != null ? `avg ${c.avgQuestions} question(s)` : c.questionsMax != null ? `up to ${c.questionsMax} question(s)` : "avg questions not known";
+      return `- ${c.exam}${c.cycleYear ? ` ${c.cycleYear}` : ""} · ${c.tier ? `${c.tier} › ` : ""}${c.syllabusPath} · ${c.weightageTier ?? "weightage not set"} · ${q}`;
+    })
+    .join("\n");
+}
+
+/** SIZE by the highest weightage among the exams (template v2): solved examples + quick checks. */
+export const WEIGHTAGE_ORDER = ["HIGH_YIELD", "CORE", "MODERATE", "LOW", "OPTIONAL"] as const;
+export function lessonSize(coverage: Pick<LessonExamCoverage, "weightageTier">[]): { tier: string; minExamples: number; maxExamples: number; quickChecks: number } {
+  const tiers = coverage.map((c) => c.weightageTier).filter((t): t is string => Boolean(t)).sort((a, b) => WEIGHTAGE_ORDER.indexOf(a as never) - WEIGHTAGE_ORDER.indexOf(b as never));
+  const top = tiers[0] ?? "MODERATE";
+  if (top === "HIGH_YIELD") return { tier: top, minExamples: 15, maxExamples: 20, quickChecks: 10 };
+  if (top === "CORE") return { tier: top, minExamples: 12, maxExamples: 15, quickChecks: 8 };
+  return { tier: top, minExamples: 8, maxExamples: 10, quickChecks: 5 };
+}
+
 export function lessonPromptValues(ctx: LessonPromptContext): Record<string, string> {
+  const section = sectionForSubjectType(ctx.subjectType);
   return {
+    // LESSON-PROMPT-2 (v2): exactly one subject-type section is true
+    ...Object.fromEntries(EXAMPLE_SUBJECT_TYPES.map((t) => [t, t === section ? "1" : ""])),
+    CHILDREN: ctx.childNodes.length ? ctx.childNodes.join(", ") : "none listed",
+    EXAM_LINES: examLines(ctx.coverage),
+    EXAMPLE_FOR_SUBJECT_TYPE: JSON.stringify(section ? lessonExampleFor(section, ctx.nodeId) : lessonExample(ctx.nodeId), null, 2),
     NODE_NAME: ctx.nodeName,
     NODE_PATH: ctx.nodePath,
     NODE_LEVEL: ctx.nodeLevel,
@@ -149,35 +186,95 @@ shape (much shorter than the real lesson):
 {{EXAMPLE_JSON}}`;
 
 export type LessonPaste =
-  | { ok: true; meta: LessonMeta; blocks: LessonBlock[]; uncertainFacts: string[] }
+  | { ok: true; meta: LessonMeta; blocks: LessonBlock[]; uncertainFacts: string[]; suggestedSubtopics: string[] }
   | { ok: false; errors: BlockError[] };
 
-/** Parses the pasted answer: one JSON object (a single surrounding code fence is tolerated), then the block rules. */
-export function parseLessonPaste(text: string): LessonPaste {
-  const err = (path: string, code: string, message: string): LessonPaste => ({ ok: false, errors: [{ path, code, message }] });
-  let raw = (text || "").trim();
-  const fence = /^```[a-z]*\n([\s\S]*)\n```$/i.exec(raw);
-  if (fence) raw = fence[1].trim();
-  if (!raw) return err("$", "EMPTY", "Paste the assistant's JSON answer.");
-  if (raw.length > 300 * 1024) return err("$", "TOO_LARGE", "The answer is larger than 300 KB.");
-  let data: unknown;
-  try {
-    data = JSON.parse(raw);
-  } catch {
-    return err("$", "INVALID_JSON", "This is not valid JSON. Paste only the JSON object the assistant returned.");
-  }
+/** One pasted part (or a whole single answer): parsed but NOT validated as a lesson yet. */
+export type LessonPart =
+  | { ok: true; part: number; totalParts: number; meta: unknown; blocks: unknown[]; uncertainFacts: unknown[]; notice: string | null }
+  | { ok: false; errors: BlockError[] };
+
+const ROOT_KEYS = ["contract", "meta", "blocks", "uncertain_facts", "part", "total_parts"];
+
+/** Parses ONE pasted JSON object (a single surrounding code fence is tolerated); a single answer is part 1 of 1. */
+export function parseLessonPart(text: string): LessonPart {
+  const err = (path: string, code: string, message: string): LessonPart => ({ ok: false, errors: [{ path, code, message }] });
+  // GEN-CHECK-1: fences / prose around the JSON are removed (with a notice); cut-off and syntax errors are precise
+  const x = extractJson(text);
+  if (!x.ok) return err(x.line ? `line ${x.line}:${x.column}` : "$", x.code, `${x.message}${x.snippet ? ` Near: ${x.snippet}` : ""}`);
+  const data = x.data;
   if (!data || typeof data !== "object" || Array.isArray(data)) return err("$", "TYPE", "The answer must be one JSON object.");
   const o = data as Record<string, unknown>;
-  for (const k of Object.keys(o)) if (!["contract", "meta", "blocks", "uncertain_facts"].includes(k)) return err(`$.${k}`, "UNKNOWN_KEY", `Unknown key "${k}".`);
+  for (const k of Object.keys(o)) if (!ROOT_KEYS.includes(k)) return err(`$.${k}`, "UNKNOWN_KEY", `Unknown key "${k}".`);
   if (o.contract !== LESSON_PASTE_CONTRACT) return err("$.contract", "CONTRACT", `"contract" must be "${LESSON_PASTE_CONTRACT}".`);
-  const facts: string[] = [];
-  if (o.uncertain_facts !== undefined) {
-    if (!Array.isArray(o.uncertain_facts) || o.uncertain_facts.length > UNCERTAIN_FACTS_MAX) return err("$.uncertain_facts", "VALUE", `A list of at most ${UNCERTAIN_FACTS_MAX} facts.`);
-    for (const [i, f] of o.uncertain_facts.entries()) {
-      if (typeof f !== "string" || !f.trim() || f.length > 300 || textProblem(f)) return err(`$.uncertain_facts[${i}]`, "VALUE", "Plain text, at most 300 characters.");
-      facts.push(f.trim());
+  const multi = o.part !== undefined || o.total_parts !== undefined;
+  const part = multi ? o.part : 1;
+  const total = multi ? o.total_parts : 1;
+  if (typeof total !== "number" || !Number.isInteger(total) || total < 1 || total > LESSON_PARTS_MAX) return err("$.total_parts", "VALUE", `"total_parts" must be a whole number from 1 to ${LESSON_PARTS_MAX}.`);
+  if (typeof part !== "number" || !Number.isInteger(part) || part < 1 || part > total) return err("$.part", "VALUE", `"part" must be a whole number from 1 to ${total}.`);
+  if (!Array.isArray(o.blocks)) return err("$.blocks", "TYPE", "Each part has a list of blocks.");
+  if (o.uncertain_facts !== undefined && !Array.isArray(o.uncertain_facts)) return err("$.uncertain_facts", "TYPE", "A list of facts.");
+  return { ok: true, part, totalParts: total, meta: o.meta, blocks: o.blocks, uncertainFacts: (o.uncertain_facts as unknown[]) ?? [], notice: x.notice };
+}
+
+export type LessonMerge =
+  | { state: "INCOMPLETE"; totalParts: number; have: number[]; missing: number[] }
+  | { state: "COMPLETE"; result: LessonPaste }
+  | { state: "ERROR"; errors: BlockError[] };
+
+/**
+ * Merges parsed parts in order (1..N, each exactly once, the same total) — the meta from part 1 (later parts may omit it),
+ * blocks concatenated, facts concatenated — and validates the WHOLE lesson only when every part is in (ids must be
+ * unique across parts: the block validator refuses a duplicate id).
+ */
+export function mergeLessonParts(parts: LessonPart[]): LessonMerge {
+  const errors = parts.flatMap((p) => (p.ok ? [] : p.errors));
+  if (errors.length) return { state: "ERROR", errors };
+  const ok = parts.filter((p): p is Extract<LessonPart, { ok: true }> => p.ok);
+  if (!ok.length) return { state: "ERROR", errors: [{ path: "$", code: "EMPTY", message: "Paste the assistant's JSON answer." }] };
+  const total = ok[0].totalParts;
+  if (ok.some((p) => p.totalParts !== total)) return { state: "ERROR", errors: [{ path: "$.total_parts", code: "PARTS", message: "The parts disagree on total_parts: paste the parts of ONE answer." }] };
+  const seen = new Set<number>();
+  for (const p of ok) {
+    if (seen.has(p.part)) return { state: "ERROR", errors: [{ path: "$.part", code: "PARTS", message: `Part ${p.part} was pasted twice.` }] };
+    seen.add(p.part);
+  }
+  const missing = Array.from({ length: total }, (_, i) => i + 1).filter((n) => !seen.has(n));
+  if (missing.length) return { state: "INCOMPLETE", totalParts: total, have: [...seen].sort((a, b) => a - b), missing };
+  const ordered = [...ok].sort((a, b) => a.part - b.part);
+  const first = ordered[0];
+  // suggested subtopics travel in meta but are NOT lesson meta: taken out, checked, shown to the owner
+  const metaIn = first.meta && typeof first.meta === "object" && !Array.isArray(first.meta) ? { ...(first.meta as Record<string, unknown>) } : first.meta;
+  const suggested: string[] = [];
+  if (metaIn && typeof metaIn === "object" && !Array.isArray(metaIn) && "suggested_subtopics" in metaIn) {
+    const raw = (metaIn as Record<string, unknown>).suggested_subtopics;
+    delete (metaIn as Record<string, unknown>).suggested_subtopics;
+    if (!Array.isArray(raw) || raw.length > SUGGESTED_SUBTOPICS_MAX) return { state: "ERROR", errors: [{ path: "$.meta.suggested_subtopics", code: "VALUE", message: `A list of at most ${SUGGESTED_SUBTOPICS_MAX} names.` }] };
+    for (const [i, n] of raw.entries()) {
+      if (typeof n !== "string" || !n.trim() || n.length > 120 || textProblem(n)) return { state: "ERROR", errors: [{ path: `$.meta.suggested_subtopics[${i}]`, code: "VALUE", message: "Plain names, at most 120 characters." }] };
+      if (!suggested.some((x) => x.toLowerCase() === n.trim().toLowerCase())) suggested.push(n.trim());
     }
   }
-  const v = validateLesson(o.meta, o.blocks);
-  return v.ok ? { ok: true, meta: v.meta, blocks: v.blocks, uncertainFacts: facts } : { ok: false, errors: v.errors };
+  const facts: string[] = [];
+  for (const [i, f] of ordered.flatMap((p) => p.uncertainFacts).entries()) {
+    if (typeof f !== "string" || !f.trim() || f.length > 300 || textProblem(f)) return { state: "ERROR", errors: [{ path: `$.uncertain_facts[${i}]`, code: "VALUE", message: "Plain text, at most 300 characters." }] };
+    facts.push(f.trim());
+  }
+  if (facts.length > UNCERTAIN_FACTS_MAX) return { state: "ERROR", errors: [{ path: "$.uncertain_facts", code: "VALUE", message: `At most ${UNCERTAIN_FACTS_MAX} facts.` }] };
+  const blocks = ordered.flatMap((p) => p.blocks);
+  const v = validateLesson(metaIn, blocks);
+  return {
+    state: "COMPLETE",
+    result: v.ok
+      ? { ok: true, meta: v.meta, blocks: v.blocks, uncertainFacts: facts, suggestedSubtopics: suggested }
+      : { ok: false, errors: v.errors.map((e) => ({ ...e, path: describeBlockPath(e.path, blocks) })) },
+  };
+}
+
+/** A single pasted answer (one part, or a complete one-part lesson) → the lesson; an incomplete multi-part is an error here. */
+export function parseLessonPaste(text: string): LessonPaste {
+  const m = mergeLessonParts([parseLessonPart(text)]);
+  if (m.state === "COMPLETE") return m.result;
+  if (m.state === "ERROR") return { ok: false, errors: m.errors };
+  return { ok: false, errors: [{ path: "$.part", code: "PARTS_MISSING", message: `Part ${m.missing.join(", ")} of ${m.totalParts} is missing.` }] };
 }

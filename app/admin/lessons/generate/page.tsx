@@ -17,6 +17,7 @@ export default async function LessonGeneratePage({ searchParams }: { searchParam
       selectedNodeId={node && generator?.success ? node : null}
       generator={generator && generator.success ? generator.data : null}
       loadError={!nodes.success ? nodes.error : generator && !generator.success ? generator.error : null}
+      subjectMissing={generator && !generator.success && generator.code === "SUBJECT_TYPE_MISSING" ? { subjectName: generator.subjectName ?? null } : null}
     />
   );
 }

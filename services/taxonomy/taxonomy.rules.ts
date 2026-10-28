@@ -22,10 +22,11 @@ export const TAXONOMY_PARENT_RULES: Record<TaxonomyNodeType, readonly (TaxonomyN
 };
 
 /** Subject types (SUBJECT nodes only). */
-export const SUBJECT_TYPES = ['APTITUDE', 'LANGUAGE', 'GK_GA', 'TECHNICAL', 'PEDAGOGY', 'STATE_SPECIFIC'] as const;
+export const SUBJECT_TYPES = ['APTITUDE', 'REASONING', 'LANGUAGE', 'GK_GA', 'TECHNICAL', 'PEDAGOGY', 'STATE_SPECIFIC'] as const; // REASONING: LESSON-PROMPT-2 (migration 121)
 export type SubjectType = (typeof SUBJECT_TYPES)[number];
 export const SUBJECT_TYPE_LABELS: Record<SubjectType, string> = {
   APTITUDE: 'Aptitude',
+  REASONING: 'Reasoning',
   LANGUAGE: 'Language',
   GK_GA: 'GK / GA',
   TECHNICAL: 'Technical',

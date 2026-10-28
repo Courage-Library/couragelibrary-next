@@ -46,6 +46,8 @@ export interface LessonGeneratorData {
   templateVersion: number | null;
   templateSource: "db" | "code";
   documentId: string | null;
+  /** LESSON-PROMPT-2: the SIZE rule of the highest weightage among the exams */
+  size: { tier: string; minExamples: number; maxExamples: number; quickChecks: number };
 }
 
 /** CA-4: the EN | HI translation screen. */
