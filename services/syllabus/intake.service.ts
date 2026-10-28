@@ -104,6 +104,42 @@ export class SyllabusIntakeService {
     return { success: true, data: { sessionId: data, stats: v.stats, summary: matchSummary(matched) } };
   }
 
+  /**
+   * CA-4 ruling 1: the wizard needs a cycle ({{CYCLE}} in the SYLLABUS prompt). Adds THIS year's cycle (Asia/Kolkata) to
+   * an exam that has none — status "upcoming", no dates. Audited (EXAM_CYCLE_CREATE); if the audit row cannot be
+   * written the cycle is removed again, so no cycle exists without its audit.
+   */
+  static async addCurrentCycle(examId: string): Promise<IntakeResult<{ cycleId: string; year: number }>> {
+    const c = await ctx();
+    if (!c) return fail("UNAUTHORIZED", "Unauthorized.");
+    if (!isUuid(examId)) return fail("VALIDATION", "Choose the exam again.");
+    const year = Number(new Intl.DateTimeFormat("en-IN", { year: "numeric", timeZone: "Asia/Kolkata" }).format(new Date()));
+    const [exam, existing] = await Promise.all([
+      c.supabase.from("exams").select("id").eq("id", examId).maybeSingle(),
+      c.supabase.from("exam_cycles").select("id").eq("exam_id", examId).limit(1),
+    ]);
+    if (exam.error || existing.error) return fail("DB_ERROR", "Could not load the exam.");
+    if (!exam.data) return fail("NOT_FOUND", "Exam not found.");
+    if ((existing.data || []).length) return fail("VALIDATION", "This exam already has a cycle; choose it in the list.");
+    const { data, error } = await c.supabase.from("exam_cycles").insert({ exam_id: examId, cycle_year: year, status: "upcoming" }).select("id").single();
+    if (error || !data) return fail(error?.code === "23505" ? "DUPLICATE" : "DB_ERROR", error?.code === "23505" ? `The ${year} cycle already exists.` : "The cycle could not be added.");
+    const audit = await c.supabase.from("admin_audit_logs").insert({
+      actor_id: c.userId,
+      actor_email: c.userEmail,
+      action_type: "EXAM_CYCLE_CREATE",
+      target_entity: "exam_cycle",
+      target_id: data.id,
+      old_value: null,
+      new_value: { exam_id: examId, cycle_year: year, status: "upcoming", source: "syllabus intake wizard" },
+      reason: "syllabus intake: the exam had no cycle",
+    });
+    if (audit.error) {
+      await c.supabase.from("exam_cycles").delete().eq("id", data.id);
+      return fail("DB_ERROR", "The cycle could not be added (audit failed); nothing was changed.");
+    }
+    return { success: true, data: { cycleId: data.id, year } };
+  }
+
   static async list(): Promise<IntakeResult<IntakeSessionView[]>> {
     const c = await ctx();
     if (!c) return fail("UNAUTHORIZED", "Unauthorized.");

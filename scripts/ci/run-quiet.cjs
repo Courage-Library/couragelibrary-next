@@ -11,6 +11,13 @@
  *   CI-FLAKE-1: <frame> = the FILE PATH of the error's first stack frame only (repo-relative, or from node_modules/ on;
  *   no line numbers, no message text; a path outside the repo is "external").
  *   Names only (strict charset), never values; the token itself is run through the log scan (any hit → CRASH:REDACTED).
+ * - CI-FLAKE-1 build diagnostics (opt-in, for `next build` steps):
+ *   --build-diag   on a failure prints "<ID> crash-route: <route>" (the page Next was prerendering / collecting, a route
+ *                  path only) and "<ID> build-diag: node · next · cpus · memory (total / free at start / MIN free while
+ *                  running / free at end, MB)" — numbers and versions only
+ *   --keep-log <d> on a failure writes <d>/<ID>.sanitized.log: the full log with every line that the log scan flags
+ *                  (secret values, hosts, IPs, JWTs, DB URLs, keys) or that looks like an env assignment replaced by a
+ *                  "[redacted …]" marker — for the failure-only CI artifact (public repo: nothing secret, no env)
  * - exit code = the gate's (1 if the scan fails, 124 on timeout)
  */
 const fs = require('fs');
@@ -91,6 +98,38 @@ function crashMessage(text, exit, summary, secrets = []) {
   return hits.length ? `REDACTED [${[...new Set(hits)].join(', ')}]` : line;
 }
 
+/** CI-FLAKE-1 (pure): the route Next.js was building when it failed (a path only), else null. */
+function crashRoute(text) {
+  const t = String(text || '');
+  const m = t.match(/Error occurred prerendering page "([^"\r\n]{1,160})"/) || t.match(/Export encountered an error on ([^\s,]{1,160})/)
+    || t.match(/Failed to collect page data for ([^\s,]{1,160})/) || t.match(/Static page generation for ([^\s,]{1,160}) is still timing out/);
+  if (m) {
+    const r0 = m[1].replace(/^\/?(?:app)?/, '/').replace(/\/(page|route)(:.*)?$/, '');
+    // "[Error: Failed to collect page data for /x]" — drop an unbalanced closing bracket ("/a/[slug]" keeps its own)
+    const r = (r0.match(/\]/g) || []).length > (r0.match(/\[/g) || []).length ? r0.slice(0, -1) : r0;
+    return /^\/[A-Za-z0-9_./[\]()-]{0,120}$/.test(r) ? r : null;
+  }
+  if (/Failed to fetch (?:font|`[^`]{1,60}` from Google Fonts)/.test(t)) return 'next/font (Google Fonts download)';
+  return null;
+}
+
+const ENV_ASSIGN = /^\s*(?:export\s+)?[A-Z][A-Z0-9_]{2,}\s*[=:]\s*\S/;
+/** CI-FLAKE-1 (pure): the log with every flagged / env-looking line replaced (for the failure-only artifact). */
+function sanitizeLog(text, secrets = []) {
+  const lines = String(text || '').split(/\r?\n/);
+  let redacted = 0;
+  const out = lines.map((l) => {
+    const hits = scanLine(l, secrets);
+    if (hits.length) { redacted++; return `[redacted line: ${[...new Set(hits)].join(', ')}]`; }
+    if (ENV_ASSIGN.test(l)) { redacted++; return '[redacted line: env]'; }
+    return l.replace(/[\u0000-\u0008\u000b-\u001f\u007f]|\u001b\[[0-9;]*m/g, '');
+  });
+  const MAX = 2 * 1024 * 1024;
+  let body = out.join('\n');
+  if (body.length > MAX) body = body.slice(0, MAX / 2) + '\n[… middle of the log cut …]\n' + body.slice(-MAX / 2);
+  return { text: body + '\n', redacted };
+}
+
 function selfTest() {
   const secrets = ['FAKE_SECRET_VALUE_0123456789', 'SUPER_SECRET_PASSWORD_VALUE'];
   const S = { passLines: 0, failLines: 0 };
@@ -133,7 +172,21 @@ function selfTest() {
     const got = crashMessage(text, exit, s, secrets);
     if (got !== want) { ok = false; console.log(`run-quiet self-test FAIL (crash message): want ${want} got ${got}`); }
   }
-  console.log(`run-quiet self-test: ${ok ? 'OK' : 'FAIL'} — ${cases.length + msgCases.length} cases`);
+  // CI-FLAKE-1: the failing route + the sanitized log
+  const routeCases = [
+    ['Error occurred prerendering page "/sitemap.xml". Read more: https://nextjs.org/docs/messages/prerender-error', '/sitemap.xml'],
+    ['Export encountered an error on /articles/[slug]/page: /articles/x, exiting the build.', '/articles/[slug]'],
+    ['> Build error occurred\n[Error: Failed to collect page data for /admin/prompts] { type: "Error" }', '/admin/prompts]'.slice(0, 0) + '/admin/prompts'],
+    ['Failed to fetch `Inter` from Google Fonts.', 'next/font (Google Fonts download)'],
+    ['TypeError: boom', null],
+  ];
+  for (const [text, want] of routeCases) {
+    const got = crashRoute(text);
+    if (got !== want) { ok = false; console.log(`run-quiet self-test FAIL (crash route): want ${want} got ${got}`); }
+  }
+  const san = sanitizeLog(['ok line', 'NEXT_PUBLIC_SUPABASE_URL=https://abcdefghijklmnopqrst.supabase.co', 'value FAKE_SECRET_VALUE_0123456789 here', '  SOME_TOKEN: abc', 'TypeError: x', '    at f (/x/y.js:1:1)'].join('\n'), secrets);
+  if (san.redacted !== 3 || /FAKE_SECRET|supabase\.co|abc$/m.test(san.text) || !/TypeError: x\n    at f/.test(san.text)) { ok = false; console.log(`run-quiet self-test FAIL (sanitize): ${JSON.stringify(san)}`); }
+  console.log(`run-quiet self-test: ${ok ? 'OK' : 'FAIL'} — ${cases.length + msgCases.length + routeCases.length + 1} cases`);
   return ok;
 }
 
@@ -148,6 +201,8 @@ function main() {
   const ID = opt('--id', '');
   const TIMEOUT = Number(opt('--timeout', '900')) * 1000;
   const CRASH_MESSAGE = opts.includes('--crash-message');
+  const BUILD_DIAG = opts.includes('--build-diag');
+  const KEEP_LOG = opt('--keep-log', '');
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,40}$/.test(ID) || !cmd.length) { console.log('usage: run-quiet.cjs --id <GATE-ID> [--timeout <s>] -- <command> [args...]'); process.exit(2); }
 
   const dir = path.join(process.env.RUNNER_TEMP || os.tmpdir(), 'ci-quiet');
@@ -164,9 +219,14 @@ function main() {
     : spawn(cmd[0], cmd.slice(1), { stdio: ['ignore', out, out], env: process.env });
   let timedOut = false;
   const timer = setTimeout(() => { timedOut = true; child.kill('SIGKILL'); }, TIMEOUT);
+  // CI-FLAKE-1: free memory while the command runs (the minimum is what matters for a worker OOM)
+  const mb = (b) => Math.round(b / 1048576);
+  const mem = { start: mb(os.freemem()), min: mb(os.freemem()) };
+  const sampler = BUILD_DIAG ? setInterval(() => { mem.min = Math.min(mem.min, mb(os.freemem())); }, 1000) : null;
   child.on('error', () => {});
   child.on('close', (code) => {
     clearTimeout(timer);
+    if (sampler) clearInterval(sampler);
     fs.closeSync(out);
     const r = scan([logFile]);
     if (r.findings.length) {
@@ -183,10 +243,23 @@ function main() {
       const msg = crashMessage(text, exit, s, secretValues(process.env));
       if (msg) console.log(`${ID} crash-message: ${msg}`);
     }
+    if (BUILD_DIAG && exit !== 0) {
+      const route = crashRoute(text);
+      if (route) console.log(`${ID} crash-route: ${route}`);
+      let next = 'unknown';
+      try { next = require(path.join(process.cwd(), 'node_modules/next/package.json')).version; } catch { /* not installed */ }
+      console.log(`${ID} build-diag: node ${process.version} · next ${next} · cpus ${os.cpus().length} · memory total ${mb(os.totalmem())} MB, free start ${mem.start} / min ${mem.min} / end ${mb(os.freemem())} MB`);
+    }
+    if (KEEP_LOG && exit !== 0) {
+      fs.mkdirSync(KEEP_LOG, { recursive: true });
+      const san = sanitizeLog(text, secretValues(process.env));
+      fs.writeFileSync(path.join(KEEP_LOG, `${ID}.sanitized.log`), san.text);
+      console.log(`${ID} sanitized log kept for the failure artifact (${san.redacted} line(s) redacted)`);
+    }
     process.exit(exit);
   });
 }
 
 if (require.main === module) main();
 
-module.exports = { summarize, crashToken, crashMessage, selfTest, SAFE_TOKEN };
+module.exports = { summarize, crashToken, crashMessage, crashRoute, sanitizeLog, selfTest, SAFE_TOKEN };

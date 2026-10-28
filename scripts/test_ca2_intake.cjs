@@ -224,14 +224,14 @@ test('S-01 admin only: routes, page guards, action guards, client imports', () =
   }
   const actions = read('app/admin/syllabus/intake/actions.ts');
   const fns = actions.split(/export async function /).slice(1);
-  assert(fns.length === 4, `actions: ${fns.length}`);
+  assert(fns.length === 5, `actions: ${fns.length}`); // + addIntakeCycleAction (CA-4 ruling 1)
   for (const f of fns) {
     const at = f.indexOf('const __auth = await guardAdminAction()');
     const body = f.lastIndexOf('{\n', at);
     assert(at > 0 && body > 0 && f.slice(body + 2, at).trim() === '' && !/allowStaff/.test(f), `not guarded first: ${f.slice(0, 40)}`);
   }
   const svc = read('services/syllabus/intake.service.ts');
-  for (const m of ['create', 'list', 'get', 'decide', 'importDraft', 'discard']) {
+  for (const m of ['create', 'addCurrentCycle', 'list', 'get', 'decide', 'importDraft', 'discard']) {
     const start = svc.indexOf(`static async ${m}(`);
     assert(start > 0 && /const c = await ctx\(\);\s*if \(!c\) return fail\("UNAUTHORIZED"/.test(svc.slice(start, start + 400)), `service ${m} guard`);
   }
@@ -245,6 +245,9 @@ test('U-02 SYLLABUS-PROMPT-2 screens: wizard = exam + cycle + tier, an optional 
   const w = read('components/admin/syllabus/intake-wizard.tsx');
   assert(!/Official notification link|in-asof|type="date"/.test(w), 'the required link / as-of fields are gone');
   assert(/<details[^>]*>\s*<summary[^>]*>Reference link \(optional\)<\/summary>/.test(w), 'a collapsed optional reference link');
+  assert(/addIntakeCycleAction\(examId\)/.test(w) && /Add \$\{currentYear\} cycle/.test(w), 'ruling 1: inline "Add <year> cycle" when the exam has none');
+  const svc = read('services/syllabus/intake.service.ts');
+  assert(/action_type: "EXAM_CYCLE_CREATE"/.test(svc) && /if \(audit\.error\) \{\s*await c\.supabase\.from\("exam_cycles"\)\.delete\(\)/.test(svc), 'the added cycle is audited (removed again if the audit fails)');
   assert(/buildSyllabusIntakePrompt\([^)]*\}, template\?\.body\)/.test(w) && /template: \{ body: string; version: number \| null \} \| null/.test(w), 'the prompt renders the ACTIVE template');
   const page = read('app/admin/syllabus/intake/page.tsx');
   assert(/PromptTemplateService\.getActiveBody\("SYLLABUS"\)/.test(page), 'the page passes the ACTIVE SYLLABUS template');

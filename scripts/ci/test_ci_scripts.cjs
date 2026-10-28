@@ -118,9 +118,16 @@ test('C-9 with-server never prints the server log tail when CI_QUIET=1', () => {
   return 'guarded';
 });
 
-test('C-10 workflow is public-safe: no artifact upload, no tee, CI_QUIET=1, every gate via run-quiet, actions pinned, push main (code only) + dispatch, never pull_request', () => {
+test('C-10 workflow is public-safe: no artifact upload except the failure-only sanitized build log (CI-FLAKE-1), no tee, CI_QUIET=1, every gate via run-quiet, actions pinned, push main (code only) + dispatch, never pull_request', () => {
   const w = fs.readFileSync(path.join(ROOT, '.github/workflows/ci-gates.yml'), 'utf8');
-  assert(!/upload-artifact/.test(w), 'artifact upload present');
+  // CI-FLAKE-1 amendment (architect ruling 2026-10-28): the ONLY artifact allowed is the sanitized build log, on failure
+  // only, from $RUNNER_TEMP/build-diag (run-quiet --keep-log: scanned lines + env lines redacted), pinned, ≤ 7 days
+  const uploads = [...w.matchAll(/- name: ([^\n]*)\n((?: {8}[^\n]*\n)+)/g)].filter((m) => /upload-artifact/.test(m[2]));
+  assert(uploads.length === 3, `artifact uploads: ${uploads.length} (expected the 3 failure-only build logs)`);
+  for (const [, , body] of uploads)
+    assert(/^ {8}if: failure\(\)$/m.test(body) && /^ {8}uses: actions\/upload-artifact@[0-9a-f]{40} /m.test(body) && /^ {10}path: \$\{\{ runner\.temp \}\}\/build-diag\/$/m.test(body)
+      && /^ {10}retention-days: [1-7]$/m.test(body) && !/\n {10}path: [^\n]*\n {12}/.test(body), `an artifact upload that is not the failure-only sanitized build log:\n${body}`);
+  assert((w.match(/--keep-log "\$RUNNER_TEMP\/build-diag"/g) || []).length === 3, 'the build-diag folder is written only by run-quiet --keep-log (the sanitizer)');
   assert(!/\btee\b/.test(w), 'tee present');
   assert(/CI_QUIET: '1'/.test(w), 'CI_QUIET not set');
   const gateLines = w.split('\n').filter((l) => /node scripts\/(test_|smoke\/|e2e\/|diag\/net-probe|ci\/db-sessions)/.test(l) && !/^\s*#/.test(l));

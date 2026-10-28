@@ -27,6 +27,15 @@ export async function createIntakeAction(input: { examId: string; cycleId: strin
   return sanitizeActionResult("createIntakeAction", done(await SyllabusIntakeService.create(input)));
 }
 
+/** CA-4 ruling 1: add this year's cycle to an exam that has none (admin only, audited). */
+export async function addIntakeCycleAction(examId: string): Promise<IntakeResult<{ cycleId: string; year: number }>> {
+  const __auth = await guardAdminAction() /* CA-2: admin only */;
+  if (!__auth.ok) return __auth;
+  const r = await SyllabusIntakeService.addCurrentCycle(examId);
+  if (r.success) revalidatePath("/admin/syllabus/intake");
+  return sanitizeActionResult("addIntakeCycleAction", r);
+}
+
 export async function decideIntakeItemAction(sessionId: string, itemId: string, decision: string, nodeId: string | null): Promise<IntakeResult<{ nodeId: string | null }>> {
   const __auth = await guardAdminAction() /* CA-2: admin only */;
   if (!__auth.ok) return __auth;

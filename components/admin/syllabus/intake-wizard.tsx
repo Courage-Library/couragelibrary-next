@@ -8,7 +8,7 @@ import { StudioEmpty, StudioField, StudioPageHeader, StudioPanel, studioControl,
 import { INTAKE_CONTRACT_VERSION, SOURCE_URL_RE, TIER_RE, validateIntakePayload, type IntakeError, type IntakeStats } from "@/lib/syllabus/intake-contract";
 import { buildSyllabusIntakePrompt } from "@/lib/syllabus/intake-prompt";
 import type { IntakeSessionView } from "@/lib/syllabus/intake-types";
-import { createIntakeAction } from "@/app/admin/syllabus/intake/actions";
+import { addIntakeCycleAction, createIntakeAction } from "@/app/admin/syllabus/intake/actions";
 
 /**
  * CA-2 / SYLLABUS-PROMPT-2 intake wizard (Studio template): 1 choose exam / cycle / tier (an optional reference link
@@ -74,6 +74,18 @@ export function IntakeWizard({ exams, cycles, sessions, template, loadError }: P
         setMessage(r.error);
         if ("errors" in r && r.errors) setErrors(r.errors);
       }
+    });
+
+  // CA-4 ruling 1: an exam without a cycle gets this year's cycle in one click (admin only, audited)
+  const currentYear = Number(new Intl.DateTimeFormat("en-IN", { year: "numeric", timeZone: "Asia/Kolkata" }).format(new Date()));
+  const addCycle = () =>
+    start(async () => {
+      setMessage(null);
+      const r = await addIntakeCycleAction(examId);
+      if (r.success) {
+        setCycleId(r.data.cycleId);
+        router.refresh();
+      } else setMessage(r.error);
     });
 
   const copy = async () => {
@@ -149,7 +161,14 @@ export function IntakeWizard({ exams, cycles, sessions, template, loadError }: P
           </StudioField>
         </div>
         {tier && !TIER_RE.test(tier) && <p className="mt-2 text-[13px] text-danger-700">A tier uses lower-case letters, digits and single hyphens.</p>}
-        {examId && examCycles.length === 0 && <p className="mt-2 text-[13px] text-fg-secondary">This exam has no cycle yet. Add one in the exam settings first.</p>}
+        {examId && examCycles.length === 0 && (
+          <div className="mt-2 flex flex-wrap items-center gap-3 text-[13px]">
+            <span className="text-fg-secondary">This exam has no cycle yet; the prompt needs one.</span>
+            <button type="button" onClick={addCycle} disabled={pending} className={studioQuietAction}>
+              {pending ? "Adding…" : `Add ${currentYear} cycle`}
+            </button>
+          </div>
+        )}
         <details className="mt-3">
           <summary className="focus-ring min-h-10 cursor-pointer rounded-control py-2 text-[13px] font-semibold text-fg-secondary">Reference link (optional)</summary>
           <StudioField label="A link kept with the intake for your own reference (https)" htmlFor="in-url" className="mt-2 max-w-2xl">

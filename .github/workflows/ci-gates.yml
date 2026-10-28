@@ -182,7 +182,19 @@ jobs:
       - name: Guard — TLS verification is never disabled
         run: test -z "${NODE_TLS_REJECT_UNAUTHORIZED:-}"
       - name: Production build (summary only)
-        run: node scripts/ci/run-quiet.cjs --id SC-BUILD --timeout 900 --crash-message -- npm run build
+        # CI-FLAKE-1: full stacks; on a failure the crashed route, node / next / cpus / memory (min free while building)
+        # and a sanitized copy of the log for the failure-only artifact below
+        env:
+          NODE_OPTIONS: --stack-trace-limit=100
+        run: node scripts/ci/run-quiet.cjs --id SC-BUILD --timeout 900 --crash-message --build-diag --keep-log "$RUNNER_TEMP/build-diag" -- npm run build
+      - name: CI-FLAKE-1 — sanitized build log (failure only; scanned lines redacted, no env)
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2 (node24)
+        with:
+          name: build-log-${{ github.job }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/build-diag/
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Server checks (4 bounded server runs; summary lines only)
         env:
           # step-level only (the preload file exists after checkout); inert unless AUTH1_BLACKHOLE is set in `next start`
@@ -257,7 +269,19 @@ jobs:
       - name: Guard — TLS verification is never disabled
         run: test -z "${NODE_TLS_REJECT_UNAUTHORIZED:-}"
       - name: Production build (summary only)
-        run: node scripts/ci/run-quiet.cjs --id BUILD --timeout 1200 -- npm run build
+        # CI-FLAKE-1: full stacks; on a failure the crashed route, node / next / cpus / memory (min free while building)
+        # and a sanitized copy of the log for the failure-only artifact below
+        env:
+          NODE_OPTIONS: --stack-trace-limit=100
+        run: node scripts/ci/run-quiet.cjs --id BUILD --timeout 1200 --crash-message --build-diag --keep-log "$RUNNER_TEMP/build-diag" -- npm run build
+      - name: CI-FLAKE-1 — sanitized build log (failure only; scanned lines redacted, no env)
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2 (node24)
+        with:
+          name: build-log-${{ github.job }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/build-diag/
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Pre-flight — network probe + no open own DB sessions
         run: |
           mkdir -p "$RUNNER_TEMP/server" "$RUNNER_TEMP/ci-quiet"
@@ -348,7 +372,19 @@ jobs:
       - name: Guard — TLS verification is never disabled
         run: test -z "${NODE_TLS_REJECT_UNAUTHORIZED:-}"
       - name: Production build (summary only)
-        run: node scripts/ci/run-quiet.cjs --id BUILD --timeout 1200 -- npm run build
+        # CI-FLAKE-1: full stacks; on a failure the crashed route, node / next / cpus / memory (min free while building)
+        # and a sanitized copy of the log for the failure-only artifact below
+        env:
+          NODE_OPTIONS: --stack-trace-limit=100
+        run: node scripts/ci/run-quiet.cjs --id BUILD --timeout 1200 --crash-message --build-diag --keep-log "$RUNNER_TEMP/build-diag" -- npm run build
+      - name: CI-FLAKE-1 — sanitized build log (failure only; scanned lines redacted, no env)
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2 (node24)
+        with:
+          name: build-log-${{ github.job }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/build-diag/
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Pre-flight — network probe + no open own DB sessions
         run: |
           mkdir -p "$RUNNER_TEMP/server" "$RUNNER_TEMP/ci-quiet"

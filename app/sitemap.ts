@@ -8,6 +8,7 @@ import { ExamModuleRegistry } from "@/services/exam-knowledge/exam-module-regist
 import { ExamModuleKey } from "@/types/exam-knowledge";
 
 export const revalidate = 3600; // Revalidate sitemap hourly
+const SITEMAP_FETCH_TIMEOUT_MS = 8000;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = siteConfig.url;
@@ -65,6 +66,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         persistSession: false,
         autoRefreshToken: false,
       },
+      // CI-FLAKE-1: this route is prerendered by `next build` (ISR) — a hung or dropped connection must never stall or
+      // crash the build: every request is bounded, and any failure falls back to the static entries below
+      global: { fetch: (input, init) => fetch(input, { ...init, signal: init?.signal ?? AbortSignal.timeout(SITEMAP_FETCH_TIMEOUT_MS) }) },
     });
 
     // 2. Fetch Active Exams, Published Modules, Published Articles, Published Courses, Published Current Affairs in parallel
