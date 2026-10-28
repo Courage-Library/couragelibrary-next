@@ -126,6 +126,17 @@ const get = async (p) => { for (let i = 1; i <= 3; i++) { try { return await fet
   const course = await get('/exams/ssc-cgl/course');
   const courseHtml = course.status === 200 ? await course.text() : '';
   check('GET /exams/ssc-cgl/course → 200, the course heading', course.status === 200 && /course<\/h1>/.test(courseHtml), `${course.status}`);
+  // CA-6: the first published master lesson and exam-topic page in the sitemap render for anon (VACUOUS while none)
+  const sm = await get('/sitemap.xml');
+  const locs = sm.status === 200 ? [...(await sm.text()).matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => new URL(m[1]).pathname) : [];
+  const learn = locs.find((p) => /^\/learn\/[a-z0-9-]+\/[a-z0-9-]+/.test(p));
+  const examTopic = locs.find((p) => /^\/exams\/[a-z0-9-]+\/[a-z0-9-]+\/[a-z0-9-]+/.test(p) && !/\/cycle\//.test(p));
+  for (const [label, p] of [['master lesson', learn], ['exam-topic page', examTopic]]) {
+    if (!p) { console.log(`  WARN  VACUOUS: no published ${label} in the sitemap yet`); continue; }
+    const r = await get(p);
+    const h = r.status === 200 ? await r.text() : '';
+    check(`GET ${p} (${label}) → 200, self-canonical, JSON-LD`, r.status === 200 && h.includes(`${p}"`) && /application\/ld\+json/.test(h), `${r.status}`);
+  }
   console.log(fails ? `\nSMOKE: ${fails} failed` : '\nSMOKE: all passed');
   process.exit(fails ? 1 : 0);
 })().catch((e) => { console.error('SMOKE ERROR', String(e.message).slice(0, 160)); process.exit(1); });

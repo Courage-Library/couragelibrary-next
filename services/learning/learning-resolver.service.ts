@@ -24,6 +24,7 @@ import { validateLesson, type LessonBlock, type LessonLinkMap, type LessonMeta }
 import { userContentLanguage } from '@/lib/exams/exam-page-server';
 import { lessonAccessLevel, type LessonAccessSettings } from '@/lib/learning/chapter-access';
 import { getLessonAccessSettings } from '@/lib/learning/lesson-access-settings';
+import { learnHref } from '@/lib/learn/paths';
 
 /** CA-3: private bucket of lesson images (migration 117); students get short-lived signed URLs from the server. */
 export const LESSON_IMAGE_BUCKET = 'lesson-images';
@@ -85,7 +86,7 @@ const DOC_SELECT = `
 /** CA-4: node lessons (no learning unit; the node is the owner). */
 const NODE_DOC_SELECT = `
   id, canonical_slug, document_type, access_level, status, current_published_version_id, node_id,
-  node:canonical_taxonomy_nodes!learning_documents_node_id_fkey(id, name, slug, node_type, parent_id, is_active, root_subject_id),
+  node:canonical_taxonomy_nodes!learning_documents_node_id_fkey(id, name, slug, node_type, parent_id, is_active, root_subject_id, hierarchy_path),
   current_version:document_versions!fk_learning_doc_current_published_version(id, is_published, review_status, published_at, content_format, language)
 `;
 const NODE_LESSON_MINUTES = 20;
@@ -140,6 +141,7 @@ interface NodeLessonNode {
   parent_id: string | null;
   is_active: boolean;
   root_subject_id: string | null;
+  hierarchy_path: string;
 }
 interface NodeLessonRow {
   id: string;
@@ -225,7 +227,8 @@ function toResolvedNode(row: NodeLessonRow, access: LearningViewerAccess, topic:
     document_type: 'NODE_LESSON',
     access_level: accessLevel,
     estimated_minutes: NODE_LESSON_MINUTES,
-    href: `/articles/${row.canonical_slug}`,
+    // CA-6: a node lesson's one indexable URL is its master page (/articles/<slug> redirects there)
+    href: node?.hierarchy_path ? learnHref(node.hierarchy_path) : `/articles/${row.canonical_slug}`,
     is_locked: accessLevel === 'PRO' && !access.hasPro,
     topic_id: topic?.id || node?.id || row.node_id || '',
     topic_name: topic?.name || null,
@@ -275,7 +278,7 @@ function toResolved(row: any, access: LearningViewerAccess): ResolvedLearningDoc
 }
 
 /** Node links / practice links → hrefs (active nodes only, rolled up to their topic) and image ids → signed URLs. */
-async function resolveLessonLinks(admin: ReturnType<typeof createAdminServerSupabaseClient>, blocks: LessonBlock[]): Promise<LessonLinkMap> {
+export async function resolveLessonLinks(admin: ReturnType<typeof createAdminServerSupabaseClient>, blocks: LessonBlock[]): Promise<LessonLinkMap> {
   const nodeIds = new Set<string>();
   const assets = new Set<string>();
   const scan = (t: string | undefined) => {

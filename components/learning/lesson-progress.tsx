@@ -7,7 +7,7 @@ import { completeLessonFormAction } from "@/app/articles/actions";
  * <form action> (progressive enhancement: works without JavaScript, ships no client code to the lesson page). Opening the
  * lesson records READING on the server (the article page); "Mark as complete" posts COMPLETED (never undone).
  */
-export function LessonProgress({ documentId, language, slug, status }: { documentId: string; language: "en" | "hi"; slug: string; status: "NOT_STARTED" | "READING" | "COMPLETED" }) {
+export function LessonProgress({ documentId, language, pagePath, status }: { documentId: string; language: "en" | "hi"; pagePath: string; status: "NOT_STARTED" | "READING" | "COMPLETED" }) {
   return (
     <div className="flex flex-wrap items-center gap-3 border-t border-line pt-6" data-testid="lesson-progress">
       {status === "COMPLETED" ? (
@@ -18,7 +18,7 @@ export function LessonProgress({ documentId, language, slug, status }: { documen
         <form action={completeLessonFormAction}>
           <input type="hidden" name="documentId" value={documentId} />
           <input type="hidden" name="language" value={language} />
-          <input type="hidden" name="slug" value={slug} />
+          <input type="hidden" name="pagePath" value={pagePath} />
           <button type="submit" className={buttonClasses({ variant: "secondary", size: "lg", className: "min-h-12" })}>
             Mark as complete
           </button>

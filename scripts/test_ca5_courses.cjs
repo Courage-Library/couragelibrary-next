@@ -75,8 +75,8 @@ test('V-01 course view: defensive parse, master order, no empty chapters, /artic
     totals: { mapped_nodes: 4, covered_nodes: 9 },
     chapters: [
       { topic_id: U(1), name: 'Percentage', subject_name: 'Quant', weightage_tier: 'HIGH_YIELD', expected_questions_max: 3, lessons: [
-        { document_id: U(12), slug: 'lesson-successive', name: 'Successive change', node_type: 'SUBTOPIC', position: 2, hi_available: true },
-        { document_id: U(11), slug: 'lesson-percentage', name: 'Percentage', node_type: 'TOPIC', position: 1 },
+        { document_id: U(12), node_id: U(22), slug: 'lesson-successive', name: 'Successive change', node_type: 'SUBTOPIC', position: 2, hi_available: true },
+        { document_id: U(11), node_id: U(21), slug: 'lesson-percentage', name: 'Percentage', node_type: 'TOPIC', position: 1 },
         { document_id: 'not-a-uuid', slug: 'x', position: 3 },
         { document_id: U(13), slug: 'Bad Slug', position: 4 },
         { document_id: U(14), slug: 'ok-slug', position: 0 },
@@ -85,10 +85,10 @@ test('V-01 course view: defensive parse, master order, no empty chapters, /artic
       { topic_id: 'bad', name: 'Bad', lessons: [] },
     ],
   };
-  const v = V.courseFromOutline(outline, { slug: 'ssc-cgl', title: 'SSC CGL' }, 'en');
+  const v = V.courseFromOutline(outline, { slug: 'ssc-cgl', title: 'SSC CGL' }, 'en', { [U(21)]: 'quantitative-aptitude.percentage' });
   assert(v.state === 'AVAILABLE' && v.chapters.length === 1 && v.totals.lessons === 2 && v.totals.chapters === 1 && v.totals.mappedNodes === 4, JSON.stringify(v.totals));
   const l = v.chapters[0].lessons;
-  assert(l[0].position === 1 && l[1].position === 2 && l[0].href === '/articles/lesson-percentage' && l[1].hiAvailable === true && l.every((x) => x.status === 'NOT_STARTED' && !x.locked), JSON.stringify(l));
+  assert(l[0].position === 1 && l[1].position === 2 && l[0].href === '/learn/quantitative-aptitude/percentage' && l[1].href === '/articles/lesson-successive' && l[1].hiAvailable === true && l.every((x) => x.status === 'NOT_STARTED' && !x.locked), JSON.stringify(l));
   assert(V.courseFromOutline(null, { slug: 'x', title: 'X' }, 'en').state === 'NO_SYLLABUS' && V.courseFromOutline({ state: 'NO_SYLLABUS', chapters: 'x' }, { slug: 'x', title: 'X' }, 'hi').chapters.length === 0, 'malformed outline');
   return `${v.totals.lessons} lessons kept of 5`;
 });

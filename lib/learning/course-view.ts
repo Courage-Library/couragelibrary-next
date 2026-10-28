@@ -6,6 +6,7 @@ export type LessonStatus = "NOT_STARTED" | "READING" | "COMPLETED";
 
 export interface CourseLessonView {
   documentId: string;
+  nodeId: string;
   name: string;
   nodeType: string;
   /** position in its MASTER chapter (1-based) — decides access */
@@ -43,7 +44,8 @@ const obj = (v: unknown): Record<string, unknown> | null => (v && typeof v === "
 const str = (v: unknown) => (typeof v === "string" ? v : null);
 const int = (v: unknown) => (typeof v === "number" && Number.isInteger(v) ? v : null);
 
-export function courseFromOutline(raw: unknown, exam: { slug: string; title: string }, language: "en" | "hi"): CourseView {
+/** paths: node id → hierarchy_path (CA-6: a lesson links to its /learn master page; /articles/<slug> redirects there). */
+export function courseFromOutline(raw: unknown, exam: { slug: string; title: string }, language: "en" | "hi", paths: Record<string, string> = {}): CourseView {
   const o = obj(raw);
   const chapters: CourseChapterView[] = [];
   for (const c of Array.isArray(o?.chapters) ? o.chapters : []) {
@@ -56,13 +58,15 @@ export function courseFromOutline(raw: unknown, exam: { slug: string; title: str
       const id = str(x?.document_id);
       const slug = str(x?.slug);
       const position = int(x?.position);
-      if (!x || !id || !UUID_RE.test(id) || !slug || !SLUG_RE.test(slug) || position === null || position < 1) continue;
+      const nodeId = str(x?.node_id);
+      if (!x || !id || !UUID_RE.test(id) || !slug || !SLUG_RE.test(slug) || position === null || position < 1 || !nodeId || !UUID_RE.test(nodeId)) continue;
       lessons.push({
         documentId: id,
+        nodeId,
         name: str(x.name) || slug,
         nodeType: str(x.node_type) || "TOPIC",
         position,
-        href: `/articles/${slug}`,
+        href: paths[nodeId] ? `/learn/${paths[nodeId].split(".").join("/")}` : `/articles/${slug}`,
         hiAvailable: x.hi_available === true,
         access: "FREE",
         locked: false,

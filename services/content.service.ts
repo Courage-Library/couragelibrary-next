@@ -24,6 +24,8 @@ export interface ArticleDetail extends ArticleItem {
   lesson: { meta: LessonMeta; blocks: LessonBlock[]; links: LessonLinkMap } | null;
   /** CA-4: the lesson's language and why (Hindi readers: HI / HI_OUTDATED / HI_COMING_SOON) */
   lessonLanguage: "en" | "hi";
+  /** CA-6: the document's canonical page (a node lesson: its /learn master page) */
+  canonicalHref: string;
   languageState: "EN" | "HI" | "HI_OUTDATED" | "HI_COMING_SOON";
   metaTitle: string | null;
   metaDescription: string | null;
@@ -150,6 +152,7 @@ export class ContentService {
       publishedAt: a.published_at,
       lesson: a.is_locked ? null : a.lesson,
       lessonLanguage: a.lesson_language,
+      canonicalHref: a.href,
       languageState: a.is_locked ? "EN" : a.language_state,
       metaTitle: `${a.title} | Courage Library`,
       metaDescription: `Study ${a.title}${a.topic_name ? ` (${a.topic_name})` : ""} on Courage Library.`,

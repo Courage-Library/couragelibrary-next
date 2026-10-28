@@ -11,7 +11,8 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getSessionState } from "@/lib/auth/session-state";
 
 const ID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const SLUG_RX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+// the lesson page to refresh: an /articles reader or a /learn master page (CA-6), English or Hindi
+const PAGE_RX = /^(?:\/hi)?\/(?:articles\/[a-z0-9]+(?:-[a-z0-9]+)*|learn(?:\/[a-z0-9]+(?:-[a-z0-9]+)*){2,4})$/;
 
 export type LessonProgressResult = { ok: true; status: "READING" | "COMPLETED" } | { ok: false; code: "NOT_SIGNED_IN" | "NOT_FOUND" | "FAILED" };
 
@@ -31,7 +32,7 @@ export async function saveLessonProgressAction(input: { documentId: string; lang
 
 /** The "Mark as complete" form (progressive enhancement); the article page re-renders with the new state. */
 export async function completeLessonFormAction(formData: FormData): Promise<void> {
-  const slug = String(formData.get("slug") || "");
+  const pagePath = String(formData.get("pagePath") || "");
   await saveLessonProgressAction({ documentId: String(formData.get("documentId") || ""), language: String(formData.get("language") || ""), status: "COMPLETED" });
-  if (SLUG_RX.test(slug)) revalidatePath(`/articles/${slug}`);
+  if (PAGE_RX.test(pagePath)) revalidatePath(pagePath);
 }

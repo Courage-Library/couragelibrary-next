@@ -36,7 +36,10 @@ export class ExamCourseService {
     ]);
     if (error || !outline) return null;
 
-    const view = courseFromOutline(outline, { slug: exam.slug, title: exam.title }, language);
+    // CA-6: each lesson links to its master page (/learn/…): one query for the lesson nodes' paths
+    const nodeIds = [...new Set(courseFromOutline(outline, { slug: exam.slug, title: exam.title }, language).chapters.flatMap((c) => c.lessons.map((l) => l.nodeId)))];
+    const { data: nodes } = nodeIds.length ? await supabase.from("canonical_taxonomy_nodes").select("id, hierarchy_path").in("id", nodeIds) : { data: [] as { id: string; hierarchy_path: string }[] };
+    const view = courseFromOutline(outline, { slug: exam.slug, title: exam.title }, language, Object.fromEntries((nodes || []).map((n) => [n.id, n.hierarchy_path])));
     const ids = view.chapters.flatMap((c) => c.lessons.map((l) => l.documentId));
     let progress: Array<{ document_id: string; status: string; updated_at: string }> = [];
     if (session.state === "user" && ids.length) {

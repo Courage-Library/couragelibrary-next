@@ -6,6 +6,7 @@ import { getAppEnv } from "@/config/env";
 import { isFeatureEnabled } from "@/config/features";
 import { ExamModuleRegistry } from "@/services/exam-knowledge/exam-module-registry";
 import { ExamModuleKey } from "@/types/exam-knowledge";
+import { learnSitemapEntries } from "@/lib/learn/sitemap";
 
 export const revalidate = 3600; // Revalidate sitemap hourly
 const SITEMAP_FETCH_TIMEOUT_MS = 8000;
@@ -87,6 +88,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         .from("learning_documents")
         .select("canonical_slug, updated_at")
         .eq("status", "PUBLISHED")
+        // CA-6: a node lesson's URL is its /learn master page (listed below); /articles/<slug> only redirects
+        .neq("document_type", "NODE_LESSON")
         .not("current_published_version_id", "is", null),
       supabase
         .from("courses")
@@ -143,6 +146,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           priority: 0.75,
         });
       }
+    }
+
+    // CA-6. Master lesson pages (+ hreflang), exam courses and exam-topic pages — from published reads only
+    try {
+      const { data: servable } = await supabase.rpc("fn_servable_node_lessons");
+      const lessons = (Array.isArray(servable) ? servable : []).map((l) => ({ nodeId: l.node_id, hiCurrent: l.hi_current, publishedAt: l.published_at }));
+      if (lessons.length) {
+        const { data: nodes } = await supabase.from("canonical_taxonomy_nodes").select("id, hierarchy_path").eq("is_active", true).in("id", lessons.map((l) => l.nodeId));
+        const paths = Object.fromEntries((nodes || []).map((n) => [n.id, n.hierarchy_path]));
+        const examCourses: { slug: string; nodeIds: string[] }[] = [];
+        for (const [examId, exam] of activeExamsMap) {
+          const { data: outline } = await supabase.rpc("fn_exam_course_outline", { p_exam_id: examId });
+          const chapters = outline && typeof outline === "object" && !Array.isArray(outline) && Array.isArray((outline as { chapters?: unknown }).chapters) ? ((outline as { chapters: Array<{ lessons?: Array<{ node_id?: string }> }> }).chapters) : [];
+          examCourses.push({ slug: exam.slug, nodeIds: chapters.flatMap((c) => (c.lessons || []).map((l) => l.node_id).filter((x): x is string => typeof x === "string")) });
+        }
+        dynamicEntries.push(...learnSitemapEntries(baseUrl, lessons, paths, examCourses));
+      }
+    } catch {
+      // the lesson entries are optional: the rest of the sitemap still renders
     }
 
     // D. Published Courses (/courses/[slug]) — only while FEATURE_COURSES is on (the pages 404 otherwise)

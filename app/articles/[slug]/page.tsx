@@ -1,6 +1,6 @@
 import React from "react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { Metadata } from "next";
 import { ArrowLeft, ArrowRight, BookOpen, Clock, Lock } from "lucide-react";
 import { ContentService } from "@/services/content.service";
@@ -56,6 +56,8 @@ export default async function ArticleReaderPage({ params }: Props) {
   const { slug } = await params;
   const article = await ContentService.getArticleBySlug(slug);
   if (!article) notFound();
+  // CA-6: a node lesson has ONE indexable URL — its master page (no duplicate full text under /articles)
+  if (article.documentType === "NODE_LESSON" && article.canonicalHref.startsWith("/learn/")) permanentRedirect(article.canonicalHref);
 
   const topicId = article.topicId || article.relatedTopicId || null;
   const supabase = await createServerSupabaseClient();
@@ -150,7 +152,7 @@ export default async function ArticleReaderPage({ params }: Props) {
                   <div lang={article.lessonLanguage}>
                     <LessonBlocksRenderer blocks={article.lesson.blocks} links={article.lesson.links} Math={KatexMath} />
                   </div>
-                  {progressStatus && <LessonProgress documentId={article.id} language={article.lessonLanguage} slug={article.slug} status={progressStatus} />}
+                  {progressStatus && <LessonProgress documentId={article.id} language={article.lessonLanguage} pagePath={`/articles/${article.slug}`} status={progressStatus} />}
                 </>
               ) : (
                 <p className="text-body text-fg-secondary">This lesson is being prepared. Please check back shortly.</p>

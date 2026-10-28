@@ -10,6 +10,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { constructMetadata } from "@/lib/seo/metadata";
 import { ExamCourseService } from "@/services/learning/course.service";
 import { WEIGHTAGE_LABEL, type CourseLessonView } from "@/lib/learning/course-view";
+import { courseSchema, jsonLdText } from "@/lib/learn/seo";
+import { generateBreadcrumbSchema } from "@/lib/seo/jsonld";
 
 /**
  * CA-5 exam course (design E / F / I): generated from the exam's published syllabus ∩ the published lessons — chapters
@@ -56,9 +58,25 @@ export default async function ExamCoursePage({ params }: Props) {
   const course = await ExamCourseService.getCourse(slug);
   if (!course) notFound();
   const total = course.totals.lessons;
+  // CA-6: Course + BreadcrumbList JSON-LD (published lessons only — the outline never lists a draft)
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      generateBreadcrumbSchema([{ label: "Home", href: "/" }, { label: course.exam.title, href: `/exams/${course.exam.slug}` }, { label: "Course", href: `/exams/${course.exam.slug}/course` }]),
+      ...(total > 0
+        ? [courseSchema({
+            name: `${course.exam.title} course`,
+            description: `Every published lesson for the ${course.exam.title} syllabus, chapter by chapter.`,
+            path: `/exams/${course.exam.slug}/course`,
+            lessons: course.chapters.flatMap((c) => c.lessons.map((l) => ({ name: l.name, path: l.href }))),
+          })]
+        : []),
+    ],
+  };
 
   return (
     <Container size="reading" className="flex flex-col gap-6 py-8 lg:py-12">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdText(jsonLd) }} />
       <nav aria-label="Breadcrumb" className="text-body-sm text-fg-secondary">
         <Link href={`/exams/${course.exam.slug}`} className="focus-ring inline-flex min-h-12 items-center gap-1.5 font-medium hover:text-fg">
           <ArrowLeft aria-hidden="true" className="size-4" /> {course.exam.title}

@@ -60,6 +60,8 @@ const EXISTING_HASH = `select
     for (const [k, e] of [['admin', 'qa-admin@courage-library.test'], ['staff', 'qa-staff@courage-library.test'], ['student', 'qa-student@courage-library.test']]) ids[k] = (await q(`select id from auth.users where email = $1`, [e]))[0]?.id;
     const [qa] = await q(`select d.id doc_id, u.topic_id from public.learning_documents d join public.learning_units u on u.id = d.learning_unit_id where d.canonical_slug = 'qa-number-system-concept-lesson'`);
     if (!ids.admin || !ids.staff || !ids.student || !qa) throw new Error('QA users / QA lesson missing');
+    // progress rows that already exist (e.g. the QA student opened the QA lesson): Z-1 compares before / after
+    const progressBefore = PRE ? 0 : (await q(`select count(*)::int n from public.user_lesson_progress where user_id = ANY($1::uuid[])`, [[ids.student, ids.staff]]))[0].n;
     // an exam whose PUBLISHED syllabus maps the QA topic (for the counts + the outline)
     const [ex] = await q(`select v.exam_id, v.exam_cycle_id from public.exam_syllabus_canonical_mappings m
         join public.exam_syllabus_nodes n on n.id = m.syllabus_node_id join public.exam_syllabus_versions v on v.id = n.syllabus_version_id
@@ -101,9 +103,11 @@ const EXISTING_HASH = `select
       const subB = await mkNode(qa.topic_id, 'SUBTOPIC', 'CA5 Smoke Sub B', 0);
       const conA = await mkNode(subA, 'CONCEPT', 'CA5 Smoke Concept A', 0);
       const docs = {};
+      let created = 0;
       for (const [k, node] of [['topic', qa.topic_id], ['subA', subA], ['subB', subB], ['conA', conA]]) {
         const d = await svc(`select public.fn_lesson_create_node_document($1, 'FREE', null, $2) r`, [node, ACTOR_EMAIL]);
         if (!d.ok) throw new Error(`node document: ${d.msg}`);
+        if (d.rows[0].r.created) created++; // the QA topic may already have its published QA lesson (CA-6 fixture)
         const ex = lessonExample(node);
         const s = await svc(`select public.fn_lesson_save_draft($1, 'en', $2::jsonb, $3::jsonb, 'AI_ASSISTED', null, $4) r`, [d.rows[0].r.document_id, JSON.stringify(ex.meta), JSON.stringify(ex.blocks), ACTOR_EMAIL]);
         if (!s.ok) throw new Error(`draft: ${s.msg}`);
@@ -111,7 +115,7 @@ const EXISTING_HASH = `select
         if (!pub.ok) throw new Error(`publish: ${pub.msg}`);
         docs[k] = d.rows[0].r.document_id;
       }
-      return { docs, nodes: { subA, subB, conA } };
+      return { docs, created, nodes: { subA, subB, conA } };
     };
 
     // ---------------- A: structure, grants, existing rows untouched
@@ -149,14 +153,14 @@ const EXISTING_HASH = `select
         return t ? t.servable_documents : null;
       };
       const before = await countFor();
-      const { docs } = await seedLessons();
+ const { docs, created } = await seedLessons();
       const rows = (await as('anon', ANON, `select document_id, node_type, topic_id, chapter_position from public.fn_servable_node_lessons() where topic_id = $1 order by chapter_position`, [qa.topic_id])).rows || [];
       const pos = Object.fromEntries(Object.entries(docs).map(([k, id]) => [k, rows.find((r) => r.document_id === id)?.chapter_position]));
       chk('B-1 master chapter + position (anon): all 4 lessons in the QA topic chapter, in master pre-order — topic 1, Sub B (order 0) 2, Sub A (order 1) 3, its concept 4',
         pos.topic === 1 && pos.subB === 2 && pos.subA === 3 && pos.conA === 4 && rows.every((r) => r.topic_id === qa.topic_id), JSON.stringify({ pos, rows: rows.length }));
       const after = await countFor();
-      chk(`B-2 read model: the topic's servable documents include node lessons (+4)${ex ? '' : ' — no published syllabus maps the QA topic: skipped'}`,
-        !ex || (before !== null && after === before + 4), JSON.stringify({ before, after }));
+      chk(`B-2 read model: the topic's servable documents include the newly published node lessons (+${created})${ex ? '' : ' — no published syllabus maps the QA topic: skipped'}`,
+        !ex || (before !== null && after === before + created), JSON.stringify({ before, after, created }));
       if (ex) {
         const o = (await as('anon', ANON, `select public.fn_exam_course_outline($1, $2, 'en') r`, [ex.exam_id, ex.exam_cycle_id])).rows[0].r;
         const s = (await svc(`select public.fn_exam_course_outline($1, $2, 'en') r`, [ex.exam_id, ex.exam_cycle_id])).rows[0].r;
@@ -200,7 +204,7 @@ const EXISTING_HASH = `select
     const [z] = await q(`select (select count(*)::int from public.admin_audit_logs where actor_email = $1) audit,
         (select count(*)::int from public.canonical_taxonomy_nodes where name like 'CA5 Smoke %') nodes,
         ${PRE ? '0' : '(select count(*)::int from public.user_lesson_progress where user_id = ANY($2::uuid[]))'} progress`, PRE ? [ACTOR_EMAIL] : [ACTOR_EMAIL, [ids.student, ids.staff]]);
-    chk(`Z-1 nothing persisted: 0 smoke audit rows / nodes / progress rows${PRE ? '; the migration itself rolled back' : ''}`, z.audit === 0 && z.nodes === 0 && z.progress === 0, JSON.stringify(z));
+    chk(`Z-1 nothing persisted: 0 smoke audit rows / nodes, progress rows unchanged (${progressBefore})${PRE ? '; the migration itself rolled back' : ''}`, z.audit === 0 && z.nodes === 0 && z.progress === progressBefore, JSON.stringify(z));
     if (PRE) {
       const [m] = await q(`select to_regclass('public.user_lesson_progress') is null gone`);
       chk('Z-2 --pre: the progress table does not exist after the rolled-back chunks', m.gone, JSON.stringify(m));

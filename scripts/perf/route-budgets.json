@@ -2,8 +2,35 @@
  "decision": "PERF-LESSON-1 (architect 2026-10-28): lesson pages are the main SEO surface — their First Load JS stays at or under the budget; a route above it fails BRAND2-PROBE P-07",
  "unit": "kB — the 'First Load JS' column printed by `next build` (route table)",
  "routes": {
-  "/": { "max": 110, "baseline": 107, "recorded": "2026-10-28 (PERF-LESSON-1)" },
-  "/articles/[slug]": { "max": 110, "baseline": 107, "recorded": "2026-10-28 (PERF-LESSON-1: progress widget = server form, 118 → 107)" },
-  "/exams/[slug]/course": { "max": 110, "baseline": 107, "recorded": "2026-10-28 (CA-5)" }
+  "/": {
+   "max": 110,
+   "baseline": 107,
+   "recorded": "2026-10-28 (PERF-LESSON-1)"
+  },
+  "/articles/[slug]": {
+   "max": 110,
+   "baseline": 107,
+   "recorded": "2026-10-28 (PERF-LESSON-1: progress widget = server form, 118 → 107)"
+  },
+  "/exams/[slug]/course": {
+   "max": 110,
+   "baseline": 107,
+   "recorded": "2026-10-28 (CA-5)"
+  },
+  "/learn/[...path]": {
+   "max": 110,
+   "baseline": 107,
+   "recorded": "2026-10-28 (CA-6 lesson / exam-topic pages)"
+  },
+  "/hi/learn/[...path]": {
+   "max": 110,
+   "baseline": 107,
+   "recorded": "2026-10-28 (CA-6 lesson / exam-topic pages)"
+  },
+  "/exams/[slug]/[moduleSlug]/[...rest]": {
+   "max": 110,
+   "baseline": 107,
+   "recorded": "2026-10-28 (CA-6 lesson / exam-topic pages)"
+  }
  }
 }

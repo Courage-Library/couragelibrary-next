@@ -4,11 +4,12 @@
  * CA-3 / CA-4 lesson blocks — server actions. ADMIN ONLY. Every action: guardAdminAction first, then LessonAdminService
  * (service role after its own guard; the database validates the blocks again, hashes and audits).
  */
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { guardAdminAction, sanitizeActionResult } from "@/lib/auth/require-admin";
 import { LessonAdminService, type LessonResult } from "@/services/lessons/lesson-admin.service";
 import { LessonAuthoringService, checklistPasses, type AuthoringResult } from "@/services/lessons/lesson-authoring.service";
 import type { ChecklistItem } from "@/lib/lessons/completeness";
+import { LEARN_CACHE_TAG } from "@/services/learning/master-lesson.service";
 
 function done<T>(r: LessonResult<T>, documentId?: string): LessonResult<T> {
   if (r.success) {
@@ -35,7 +36,14 @@ export async function publishLessonAction(documentId: string, versionId: string)
     return sanitizeActionResult("publishLessonAction", { success: false, code: "CHECKLIST", error: `The lesson is not complete yet: ${missing.join("; ")}.` });
   }
   const r = done(await LessonAdminService.publish(versionId), documentId);
-  if (r.success) revalidatePath("/articles", "layout");
+  if (r.success) {
+    revalidatePath("/articles", "layout");
+    // CA-6: the cached master / exam-topic lesson data, the lesson pages and the sitemap follow every publish
+    revalidateTag(LEARN_CACHE_TAG);
+    revalidatePath("/learn", "layout");
+    revalidatePath("/hi/learn", "layout");
+    revalidatePath("/sitemap.xml");
+  }
   return sanitizeActionResult("publishLessonAction", r);
 }
 
