@@ -122,10 +122,21 @@ const get = async (p) => { for (let i = 1; i <= 3; i++) { try { return await fet
   const hubHtml = hub.status === 200 ? await hub.text() : '';
   const sy = checkSyllabusSection(hubHtml, await readModelForSlug(env, 'ssc-cgl'));
   check('GET /exams/ssc-cgl → 200, syllabus section matches the read model', hub.status === 200 && sy.ok, `${hub.status} ${sy.detail}`);
-  // CA-5: the generated exam course renders for anon (its own empty state while no lesson is published)
-  const course = await get('/exams/ssc-cgl/course');
-  const courseHtml = course.status === 200 ? await course.text() : '';
-  check('GET /exams/ssc-cgl/course → 200, the course heading', course.status === 200 && /course<\/h1>/.test(courseHtml), `${course.status}`);
+  // CA-5 / CA-7: the generated exam course exists only while it is LIVE (launched); before that → 404. The launch state
+  // comes from anon PostgREST (anon reads LIVE launch rows only; public values only)
+  {
+    const sbUrl = env('NEXT_PUBLIC_SUPABASE_URL');
+    const anonKey = env('NEXT_PUBLIC_SUPABASE_ANON_KEY');
+    let lr = null;
+    for (let i = 1; i <= 3 && !lr; i++) lr = await fetch(`${sbUrl}/rest/v1/exam_course_launches?select=status,exams!inner(slug)&exams.slug=eq.ssc-cgl&status=eq.LIVE`, { headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` } }).catch(() => null);
+    const rows = lr && lr.ok ? await lr.json().catch(() => null) : null;
+    check('anon GET /rest/v1/exam_course_launches (LIVE rows) → 200', Array.isArray(rows), lr ? String(lr.status) : 'no response');
+    const live = Array.isArray(rows) && rows.length > 0;
+    const course = await get('/exams/ssc-cgl/course');
+    const courseHtml = course.status === 200 ? await course.text() : '';
+    check(live ? 'GET /exams/ssc-cgl/course (LIVE) → 200, the course heading' : 'GET /exams/ssc-cgl/course (not launched) → 404',
+      live ? course.status === 200 && /course<\/h1>/.test(courseHtml) : course.status === 404, `${course.status}`);
+  }
   // CA-6: the first published master lesson and exam-topic page in the sitemap render for anon (VACUOUS while none)
   const sm = await get('/sitemap.xml');
   const locs = sm.status === 200 ? [...(await sm.text()).matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => new URL(m[1]).pathname) : [];
