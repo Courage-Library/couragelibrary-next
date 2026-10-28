@@ -13,6 +13,20 @@ export interface IntakePromptInput {
   tier: string | null;
 }
 
+/** SYLLABUS-CONTRACT-3.1: the master tree's current topic names per subject (active, not internal) — reuse hints. */
+export interface PreferredNames {
+  subject: string;
+  topics: string[];
+}
+
+export const PREFERRED_NAMES_HEADING = "PREFERRED NAMES (the existing master tree — reuse these exact names when equivalent):";
+
+/** The compact block appended after the rendered template (one line per subject). Empty input → nothing. */
+export function preferredNamesBlock(names: PreferredNames[]): string {
+  const lines = names.filter((n) => n.topics.length > 0).map((n) => `${n.subject}: ${n.topics.join(", ")}`);
+  return lines.length ? `\n\n${PREFERRED_NAMES_HEADING}\n${lines.join("\n")}` : "";
+}
+
 /** The values the server fills into a SYLLABUS template ({{#TIER}} sections render only when a tier is set). */
 export function syllabusPromptValues(i: IntakePromptInput): Record<string, string> {
   return {
@@ -24,8 +38,9 @@ export function syllabusPromptValues(i: IntakePromptInput): Record<string, strin
   };
 }
 
-export function buildSyllabusIntakePrompt(i: IntakePromptInput, body: string = SYLLABUS_TEMPLATE_V1): string {
-  return renderTemplate("SYLLABUS", body, syllabusPromptValues(i));
+export function buildSyllabusIntakePrompt(i: IntakePromptInput, body: string = SYLLABUS_TEMPLATE_V1, preferred: PreferredNames[] = []): string {
+  // SYLLABUS-CONTRACT-3.1: the preferred names are appended (the template keeps its placeholders; v2 points to this block)
+  return renderTemplate("SYLLABUS", body, syllabusPromptValues(i)) + preferredNamesBlock(preferred);
 }
 
 /**

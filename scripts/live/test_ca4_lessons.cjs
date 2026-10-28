@@ -42,6 +42,8 @@ const { validateIntakePayload } = require(path.join(ROOT, 'lib/syllabus/intake-c
 const { matchIntake } = require(path.join(ROOT, 'lib/syllabus/tree-matcher.ts'));
 const { seeds, sha } = require(path.join(ROOT, 'scripts/content/ca4-template-seeds.cjs'));
 const LESSON_V2_SHA = sha(require(path.join(ROOT, 'lib/prompts/lesson-template-v2.ts')).LESSON_TEMPLATE_V2);
+// SYLLABUS-CONTRACT-3.1: the pinned v2 of each type that has one (LESSON-PROMPT-2, SYLLABUS-CONTRACT-3.1)
+const V2_SHA = { LESSON: LESSON_V2_SHA, SYLLABUS: sha(require(path.join(ROOT, 'lib/syllabus/syllabus-template-v2.ts')).SYLLABUS_TEMPLATE_V2) };
 
 let ok = true;
 let pending = [];
@@ -109,13 +111,14 @@ const EXISTING_HASH = `select
       if (PRE) chk('A-0 every existing learning document, document version and intake session is untouched by 119 (hash before = after)', JSON.stringify(before) === JSON.stringify(after), JSON.stringify({ before, after }));
       const rows = await q(`select template_type, version, status, body_sha256 from public.prompt_templates order by template_type`);
       const want = Object.fromEntries(seeds().map(([t, b]) => [t, sha(b)]));
-      // LESSON-PROMPT-2: once LESSON v2 (the owner text) is active, the LESSON v1 seed is RETIRED and v2 is the one ACTIVE
+      // LESSON-PROMPT-2 / SYLLABUS-CONTRACT-3.1: once a type's pinned v2 is active, its v1 seed is RETIRED and v2 is the one
+      // ACTIVE; a type without a pinned v2 keeps its v1 ACTIVE; nothing else exists
       const v1s = rows.filter((r) => r.version === 1);
       const later = rows.filter((r) => r.version > 1);
-      const seedOk = v1s.length === 3 && v1s.every((r) => want[r.template_type] === r.body_sha256 && (r.status === 'ACTIVE' || (r.template_type === 'LESSON' && r.status === 'RETIRED')))
-        && later.every((r) => r.template_type === 'LESSON' && r.version === 2 && r.status === 'ACTIVE' && r.body_sha256 === LESSON_V2_SHA)
-        && later.length === (v1s.find((r) => r.template_type === 'LESSON').status === 'RETIRED' ? 1 : 0);
-      chk('A-1 seeds: SYLLABUS (the owner-approved SYLLABUS-PROMPT-2 text), LESSON, TRANSLATE_HI — v1 bodies byte-identical to the TS constants (sha256), ACTIVE (LESSON v1 RETIRED once LESSON v2 = the LESSON-PROMPT-2 text is ACTIVE); no QUESTION v1',
+      const seedOk = v1s.length === 3 && v1s.every((r) => want[r.template_type] === r.body_sha256 && (r.status === 'ACTIVE' || (V2_SHA[r.template_type] && r.status === 'RETIRED')))
+        && later.every((r) => V2_SHA[r.template_type] && r.version === 2 && r.status === 'ACTIVE' && r.body_sha256 === V2_SHA[r.template_type])
+        && v1s.every((r) => (r.status === 'RETIRED') === later.some((l) => l.template_type === r.template_type));
+      chk('A-1 seeds: SYLLABUS (the owner-approved SYLLABUS-PROMPT-2 text), LESSON, TRANSLATE_HI — v1 bodies byte-identical to the TS constants (sha256), ACTIVE (the v1 of a type is RETIRED once its pinned v2 is ACTIVE: LESSON-PROMPT-2, SYLLABUS-CONTRACT-3.1); no QUESTION v1',
         seedOk, JSON.stringify({ rows: rows.map((r) => [r.template_type, r.version, r.status, r.body_sha256.slice(0, 12)]), want: Object.fromEntries(Object.entries(want).map(([k, v]) => [k, v.slice(0, 12)])) }));
       const adminRead = await as('authenticated', ADMIN, `select count(*)::int n from public.prompt_templates`);
       const staffRead = await as('authenticated', STAFF, `select count(*)::int n from public.prompt_templates`);

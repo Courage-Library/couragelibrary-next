@@ -248,7 +248,7 @@ test('U-02 SYLLABUS-PROMPT-2 screens: wizard = exam + cycle + tier, an optional 
   assert(/addIntakeCycleAction\(examId\)/.test(w) && /Add \$\{currentYear\} cycle/.test(w), 'ruling 1: inline "Add <year> cycle" when the exam has none');
   const svc = read('services/syllabus/intake.service.ts');
   assert(/action_type: "EXAM_CYCLE_CREATE"/.test(svc) && /if \(audit\.error\) \{\s*await c\.supabase\.from\("exam_cycles"\)\.delete\(\)/.test(svc), 'the added cycle is audited (removed again if the audit fails)');
-  assert(/buildSyllabusIntakePrompt\([^)]*\}, template\?\.body\)/.test(w) && /template: \{ body: string; version: number \| null \} \| null/.test(w), 'the prompt renders the ACTIVE template');
+  assert(/buildSyllabusIntakePrompt\([^)]*\}, template\?\.body, preferredNames\)/.test(w) && /template: \{ body: string; version: number \| null \} \| null/.test(w), 'the prompt renders the ACTIVE template (+ the preferred names, 3.1)');
   const page = read('app/admin/syllabus/intake/page.tsx');
   assert(/PromptTemplateService\.getActiveBody\("SYLLABUS"\)/.test(page), 'the page passes the ACTIVE SYLLABUS template');
   const rv = read('components/admin/syllabus/intake-review.tsx');
@@ -266,6 +266,105 @@ test('U-01 screens: one primary in each header, labelled controls, English-only,
     assert(!/\slang=/.test(s) && !/[ऀ-ॿ]/.test(s) && !/\bHindi\b/.test(s), `${f}: #85 (no lang, Devanagari or Hindi label)`);
     assert(!/window\.confirm|alert\(/.test(s), `${f}: browser dialogs`);
   }
+});
+
+// ---------------------------------------------------------------- SYLLABUS-CONTRACT-3.1
+const v31 = () => ({
+  contract_version: 3, exam: 'ssc-cgl', cycle_year: 2026, tier: 'tier-1', based_on: 'SSC CGL 2025 notification + PYQs 2016-2025',
+  papers: [{ name: 'Tier 1', questions: 50, marks: 100, duration_minutes: 60, negative_marking: '0.50 per wrong answer', uncertain: false,
+    subjects: [
+      { name: 'Quantitative Aptitude', marks: 50, topics: [{ name: 'Percentage', aliases: ['Percentages', 'percentages', ' Percent '], origin: 'OFFICIAL' }] },
+      { name: 'English Comprehension', marks: 50, topics: [{ name: 'Synonyms', origin: 'OFFICIAL', subtopics: [{ name: 'Contextual Synonyms', aliases: ['Synonyms in Context'], origin: 'EXPANDED' }] }] },
+    ] }],
+});
+
+test('C31-01 v3.1: every v3 payload stays valid; the owner\'s failing shape (subject duration_minutes / negative_marking, as number or text) now passes, kept out of the paper-only item columns; aliases de-duplicated', () => {
+  const plain = contract.validateIntakePayload(JSON.stringify(v31()), CTX);
+  assert(plain.ok && plain.warnings.length === 0, `plain v3: ${JSON.stringify(plain.ok ? plain.warnings : plain.errors)}`);
+  const owner = v31();
+  owner.papers[0].subjects[0].duration_minutes = 30;
+  owner.papers[0].subjects[0].negative_marking = 0.5;
+  owner.papers[0].subjects[1].duration_minutes = 30;
+  owner.papers[0].subjects[1].negative_marking = '0.25 per wrong answer';
+  owner.papers[0].uncertain = true;
+  owner.papers[0].uncertain_reason = 'The 2026 notification is not out; based on 2025.';
+  const r = contract.validateIntakePayload(JSON.stringify(owner), CTX);
+  assert(r.ok, `the owner's shape: ${JSON.stringify(r.errors)}`);
+  const [quant, eng] = r.items.filter((i) => i.level === 'SUBJECT');
+  assert(quant.sectional.duration_minutes === 30 && quant.sectional.negative_marking === '0.5' && eng.sectional.negative_marking === '0.25 per wrong answer', 'sectional values kept');
+  assert(quant.duration_minutes === null && quant.negative_marking === null, 'the paper-only item columns stay null for a subject (the database CHECK)');
+  assert(r.items.find((i) => i.level === 'PAPER').uncertain === true && r.warnings.length === 0, 'paper uncertainty; consistent timings → no warning');
+  const pct = r.items.find((i) => i.name === 'Percentage');
+  assert(JSON.stringify(pct.aliases) === JSON.stringify(['Percentages', 'Percent']), `aliases trimmed + de-duplicated: ${JSON.stringify(pct.aliases)}`);
+  const zero = v31();
+  zero.papers[0].subjects[0].duration_minutes = 0;
+  assert(!contract.validateIntakePayload(JSON.stringify(zero), CTX).ok, 'a subject duration of 0 is refused');
+  const v2 = base();
+  v2.papers[0].subjects[0].duration_minutes = 20;
+  assert(!contract.validateIntakePayload(JSON.stringify(v2), CTX).ok, 'v2 pastes keep their v2 key set');
+  return 'v3 unchanged; 3.1 shape accepted';
+});
+
+test('C31-02 a truly unknown key is still refused, now with its path and the keys allowed there', () => {
+  const p = v31();
+  p.papers[0].subjects[1].foo = 1;
+  const r = contract.validateIntakePayload(JSON.stringify(p), CTX);
+  const e = !r.ok && r.errors.find((x) => x.code === 'UNKNOWN_KEY');
+  assert(e && e.path === '$.papers[0].subjects[1].foo' && /^Unknown key "foo" at \$\.papers\[0\]\.subjects\[1\] \(a subject\)\. Allowed here: name, name_hi, aliases, marks, questions, weightage_tier, uncertain, uncertain_reason, topics, duration_minutes, negative_marking\.$/.test(e.message), JSON.stringify(e));
+  const root = contract.validateIntakePayload(JSON.stringify({ ...v31(), colour: 'red' }), CTX);
+  assert(!root.ok && /Unknown key "colour" at \$\. Allowed here: contract_version, exam/.test(root.errors[0].message), 'root hint');
+  return e.message.slice(0, 80) + '…';
+});
+
+test('C31-03 non-blocking warnings: subject timings / marks that do not add up to the paper\'s', () => {
+  const t = v31();
+  t.papers[0].subjects[0].duration_minutes = 30;
+  t.papers[0].subjects[1].duration_minutes = 20;
+  const r = contract.validateIntakePayload(JSON.stringify(t), CTX);
+  assert(r.ok && r.warnings.length === 1 && /^Subject timings don't add up to paper duration \(50 of 60 min\) — remove subject timings if the paper has no sectional timing\.$/.test(r.warnings[0].message) && r.warnings[0].path === '$.papers[0]', JSON.stringify(r.ok ? r.warnings : r.errors));
+  const one = v31();
+  one.papers[0].subjects[0].duration_minutes = 60;
+  const r1 = contract.validateIntakePayload(JSON.stringify(one), CTX);
+  assert(r1.ok && r1.warnings.length === 1 && /1 subject\(s\) have none/.test(r1.warnings[0].message), 'a subject without a timing is named');
+  const m = v31();
+  m.papers[0].subjects[1].marks = 40;
+  const r2 = contract.validateIntakePayload(JSON.stringify(m), CTX);
+  assert(r2.ok && r2.warnings.length === 1 && /^Subject marks don't add up to the paper's total marks \(90 of 100\)/.test(r2.warnings[0].message), JSON.stringify(r2.ok ? r2.warnings : r2.errors));
+  return 'timing + marks';
+});
+
+test('C31-04 AI aliases are suggestions: the tree changes only through the owner\'s click (the audited alias action); the intake service / import never write aliases from them', () => {
+  const rv = read('components/admin/syllabus/intake-review.tsx');
+  assert(/onClick=\{\(\) => addAlias\(i\.decisionNodeId as string, a\)\}/.test(rv) && /run\(\(\) => addTaxonomyAliasAction\(nodeId, alias, "en"\)/.test(rv), 'one click per alias, the admin alias action');
+  assert((rv.match(/addTaxonomyAliasAction\(/g) || []).length === 1 && /\(i\.decision === "LINK" \|\| i\.decision === "ALIAS"\) && i\.decisionNodeId && i\.aliases\.length > 0/.test(rv), 'only for a linked item');
+  assert(/data-paper-uncertain=""/.test(rv) && /the assistant was not sure of this paper/.test(rv), 'the paper-level uncertain banner');
+  for (const f of ['services/syllabus/intake.service.ts', 'app/admin/syllabus/intake/actions.ts']) {
+    const src = read(f);
+    assert(!/taxonomy_node_aliases[\s\S]{0,200}\.aliases|addAlias\([^)]*aliases/.test(src), `${f}: writes an AI alias by itself`);
+  }
+  return 'ok';
+});
+
+test('C31-05 prompt v2: the v1 rules + optional keys, sectional rule, preferred names, based_on only when sure; valid template (same placeholders); the preferred names are appended; activated through the audited RPCs', () => {
+  const T = require(path.join(ROOT, 'lib/prompts/template.ts'));
+  const { SYLLABUS_TEMPLATE_V2 } = require(path.join(ROOT, 'lib/syllabus/syllabus-template-v2.ts'));
+  const { buildSyllabusIntakePrompt, PREFERRED_NAMES_HEADING } = require(path.join(ROOT, 'lib/syllabus/intake-prompt.ts'));
+  assert(T.templateProblems('SYLLABUS', SYLLABUS_TEMPLATE_V2).length === 0, 'a valid SYLLABUS template');
+  for (const x of ['OPTIONAL KEYS', 'only\n   if the official pattern has sectional timing', 'PREFERRED NAMES', 'Only cite a notification you are\n   confident exists', '"uncertain": false', '"marks": 50', '"aliases": ["Percentages"]']) assert(SYLLABUS_TEMPLATE_V2.includes(x), `v2 text: ${JSON.stringify(x)}`);
+  const sha = require('crypto').createHash('sha256').update(SYLLABUS_TEMPLATE_V2, 'utf8').digest('hex');
+  assert(sha.startsWith('ced3c8a1834b'), `the v2 text changed (sha256 ${sha.slice(0, 12)}) — save a new version instead`);
+  const input = { examName: 'SSC CGL', examSlug: 'ssc-cgl', cycleYear: 2026, tier: 'tier-1' };
+  const out = buildSyllabusIntakePrompt(input, SYLLABUS_TEMPLATE_V2, [{ subject: 'Quantitative Aptitude', topics: ['Number System', 'Speed Distance Time'] }, { subject: 'Empty', topics: [] }]);
+  assert(out.endsWith(`${PREFERRED_NAMES_HEADING}\nQuantitative Aptitude: Number System, Speed Distance Time`) && !/\{\{/.test(out), 'names appended (subjects without topics skipped), no placeholder left');
+  assert(buildSyllabusIntakePrompt(input, SYLLABUS_TEMPLATE_V2) === buildSyllabusIntakePrompt(input, SYLLABUS_TEMPLATE_V2, []), 'no names → nothing appended');
+  const exampleJson = SYLLABUS_TEMPLATE_V2.slice(SYLLABUS_TEMPLATE_V2.indexOf('{\n  "contract_version"'));
+  const filled = exampleJson.replace(/\{\{[^}]+\}\}/g, (m) => ({ '{{EXAM_SLUG}}': 'ssc-cgl', '{{CYCLE}}': '2026', '{{TIER_JSON}}': '"tier-1"' })[m] || m);
+  assert(contract.validateIntakePayload(filled, CTX).ok, 'the v2 example itself passes the contract');
+  const script = read('scripts/content/syllabus-prompt-31.cjs');
+  assert(/fn_prompt_template_save_draft\('SYLLABUS', \$1, \$2, null, \$3\)/.test(script) && /fn_prompt_template_activate\(\$1, null, \$2\)/.test(script) && /--dry-run/.test(script), 'a new audited version (draft → activate), never an in-place overwrite');
+  const page = read('app/admin/syllabus/intake/page.tsx');
+  assert(/\.eq\("is_active", true\)\.eq\("is_internal", false\)\.in\("node_type", \["SUBJECT", "TOPIC"\]\)/.test(page), 'preferred names: active, never internal');
+  return `v2 ${SYLLABUS_TEMPLATE_V2.length} chars`;
 });
 
 console.log(`\nCA2-INTAKE offline: ${passed} passed, ${failed} failed`);

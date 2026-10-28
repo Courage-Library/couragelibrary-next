@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { StatusChip } from "@/components/admin/status-chip";
 import { StudioEmpty, StudioField, StudioPageHeader, StudioPanel, studioControl, studioPrimaryAction, studioQuietAction } from "@/components/admin/studio/studio-page";
-import { INTAKE_CONTRACT_VERSION, SOURCE_URL_RE, TIER_RE, validateIntakePayload, type IntakeError, type IntakeStats } from "@/lib/syllabus/intake-contract";
-import { buildSyllabusIntakePrompt } from "@/lib/syllabus/intake-prompt";
+import { INTAKE_CONTRACT_VERSION, SOURCE_URL_RE, TIER_RE, validateIntakePayload, type IntakeError, type IntakeStats, type IntakeWarning } from "@/lib/syllabus/intake-contract";
+import { buildSyllabusIntakePrompt, type PreferredNames } from "@/lib/syllabus/intake-prompt";
 import { extractJson } from "@/lib/prompts/paste-extract";
 import { CheckButton, CheckProblems, CheckRegion, usePasteCheck } from "@/components/admin/studio/paste-check";
 import type { IntakeSessionView } from "@/lib/syllabus/intake-types";
@@ -25,10 +25,12 @@ interface Props {
   sessions: IntakeSessionView[];
   /** the ACTIVE SYLLABUS template (null: the built-in v1) */
   template: { body: string; version: number | null } | null;
+  /** SYLLABUS-CONTRACT-3.1: the master names appended to the prompt as reuse hints */
+  preferredNames: PreferredNames[];
   loadError: string | null;
 }
 
-export function IntakeWizard({ exams, cycles, sessions, template, loadError }: Props) {
+export function IntakeWizard({ exams, cycles, sessions, template, preferredNames, loadError }: Props) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [examId, setExamId] = useState("");
@@ -36,7 +38,7 @@ export function IntakeWizard({ exams, cycles, sessions, template, loadError }: P
   const [tier, setTier] = useState("");
   const [referenceUrl, setReferenceUrl] = useState("");
   const [json, setJson] = useState("");
-  const [checked, setChecked] = useState<{ stats: IntakeStats } | null>(null);
+  const [checked, setChecked] = useState<{ stats: IntakeStats; warnings: IntakeWarning[] } | null>(null);
   const [errors, setErrors] = useState<IntakeError[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -54,11 +56,11 @@ export function IntakeWizard({ exams, cycles, sessions, template, loadError }: P
   const prompt = useMemo(() => {
     if (!exam || !cycle || !contextOk) return "";
     try {
-      return buildSyllabusIntakePrompt({ examName: exam.title, examSlug: exam.slug, cycleYear: cycle.year, tier: tier || null }, template?.body);
+      return buildSyllabusIntakePrompt({ examName: exam.title, examSlug: exam.slug, cycleYear: cycle.year, tier: tier || null }, template?.body, preferredNames);
     } catch {
       return "";
     }
-  }, [exam, cycle, contextOk, tier, template]);
+  }, [exam, cycle, contextOk, tier, template, preferredNames]);
 
   const check = () =>
     run(() => {
@@ -79,7 +81,7 @@ export function IntakeWizard({ exams, cycles, sessions, template, loadError }: P
         return;
       }
       setErrors([]);
-      setChecked({ stats: v.stats });
+      setChecked({ stats: v.stats, warnings: v.warnings });
     });
 
   const create = () =>
@@ -242,6 +244,19 @@ export function IntakeWizard({ exams, cycles, sessions, template, loadError }: P
                 : ""}
               . Create the intake with the button at the top.
             </p>
+          )}
+          {/* SYLLABUS-CONTRACT-3.1: consistency notes — shown, never blocking */}
+          {checked && checked.warnings.length > 0 && (
+            <div className="mt-3 rounded-card border border-warning-200 bg-warning-50 px-4 py-3 text-[13px] text-fg" data-intake-warnings="">
+              <p className="font-semibold text-warning-800">Check before creating (this does not block the intake):</p>
+              <ul className="mt-1 list-disc space-y-1 pl-5">
+                {checked.warnings.map((w, i) => (
+                  <li key={i}>
+                    <span className="font-mono text-[12px]">{w.path}</span> — {w.message}
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
           <CheckProblems notice={checked ? null : clean?.notice} errors={errors} title="Problems in the pasted JSON" />
         </CheckRegion>

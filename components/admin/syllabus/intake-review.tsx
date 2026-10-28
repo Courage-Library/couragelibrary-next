@@ -18,6 +18,7 @@ import {
 } from "@/components/admin/studio/studio-page";
 import type { IntakeDecision, IntakeItemView, IntakeNodeOption, IntakeSessionView } from "@/lib/syllabus/intake-types";
 import { decideIntakeItemAction, discardIntakeAction, importIntakeAction } from "@/app/admin/syllabus/intake/actions";
+import { addTaxonomyAliasAction } from "@/app/admin/taxonomy/actions";
 
 /**
  * CA-2 owner review (Studio template): the intake as a tree diff against the master tree. Per item the owner LINKs it
@@ -25,6 +26,8 @@ import { decideIntakeItemAction, discardIntakeAction, importIntakeAction } from 
  * Parents first: a child's choices are the parent's node's children. When every item is decided, one DRAFT syllabus.
  * SYLLABUS-PROMPT-2: each topic / subtopic / concept shows its origin (Official / PYQ trend / Expanded) and weightage; a
  * filter narrows the list by origin; "based on" is shown at the top. The owner still decides every node.
+ * SYLLABUS-CONTRACT-3.1: an uncertain PAPER gets a warning banner with its reason; a linked item's AI aliases are offered
+ * as one-click "Add as alias" (the audited admin alias action, on the owner's click only — never automatic).
  */
 
 interface Props {
@@ -62,6 +65,9 @@ export function IntakeReview({ session, items, nodes, loadError }: Props) {
   const [versionTag, setVersionTag] = useState("");
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [origin, setOrigin] = useState<OriginFilter>("ALL");
+  const [addedAliases, setAddedAliases] = useState<Set<string>>(new Set());
+  const addAlias = (nodeId: string, alias: string) =>
+    run(() => addTaxonomyAliasAction(nodeId, alias, "en"), `"${alias}" added as an alias.`, () => setAddedAliases((prev) => new Set(prev).add(`${nodeId}|${alias.toLowerCase()}`)));
 
   const byId = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
   const decidable = items.filter((i) => i.level !== "PAPER");
@@ -198,6 +204,14 @@ export function IntakeReview({ session, items, nodes, loadError }: Props) {
             ))}
           </div>
         )}
+        {items
+          .filter((p) => p.level === "PAPER" && p.uncertain)
+          .map((p) => (
+            <p key={`unc-${p.id}`} role="note" data-paper-uncertain="" className="mb-3 rounded-card border border-warning-200 bg-warning-50 px-4 py-3 text-[13px] text-fg">
+              <span className="font-semibold text-warning-800">{p.name}: the assistant was not sure of this paper.</span> {p.uncertainReason || "No reason given."} Check it against the
+              official notification before you create the draft.
+            </p>
+          ))}
         {items.length === 0 ? (
           <StudioEmpty title="No items" body="This intake has no items." />
         ) : (
@@ -223,6 +237,23 @@ export function IntakeReview({ session, items, nodes, loadError }: Props) {
                     {i.uncertain && <span className="text-[12px] font-semibold text-warning-700">Uncertain</span>}
                     <span className={`ml-auto text-[12px] font-semibold ${i.decision ? "text-success-700" : "text-danger-700"}`}>{i.decision ? DECISION_LABEL[i.decision] : "Undecided"}</span>
                   </button>
+                )}
+                {(i.decision === "LINK" || i.decision === "ALIAS") && i.decisionNodeId && i.aliases.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1 pb-1 pl-2 text-[12px]" data-ai-aliases="">
+                    <span className="text-fg-secondary">AI aliases:</span>
+                    {i.aliases.map((a) => {
+                      const done = addedAliases.has(`${i.decisionNodeId}|${a.toLowerCase()}`);
+                      return done ? (
+                        <span key={a} className="rounded border border-success-200 bg-success-50 px-1.5 py-0.5 font-semibold text-success-800">
+                          {a} · added
+                        </span>
+                      ) : (
+                        <button key={a} type="button" disabled={pending} onClick={() => addAlias(i.decisionNodeId as string, a)} className={studioQuietAction} aria-label={`Add "${a}" as an alias of the linked node`}>
+                          Add as alias: {a}
+                        </button>
+                      );
+                    })}
+                  </div>
                 )}
               </li>
             ))}

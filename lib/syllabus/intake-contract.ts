@@ -11,6 +11,12 @@
  *         topics: [{ …same…, origin, avg_questions?, subtopics: [{ …same…, origin, avg_questions?,
  *           concepts: [{ …same…, origin, avg_questions?, headings? }] }] }] }] }] }
  *   origin (topics, subtopics, concepts; required): OFFICIAL | PYQ_TREND | EXPANDED.
+ * v3.1 (SYLLABUS-CONTRACT-3.1, additive — contract_version stays 3; every valid v3 payload stays valid):
+ *   subjects may carry sectional duration_minutes (whole number > 0) and negative_marking (a number ≥ 0 or the same short
+ *   text as a paper) — stored in the session's raw payload only (the item columns stay paper-only); aliases are
+ *   de-duplicated (case-insensitive); an unknown key names its path and the keys allowed there; NON-BLOCKING warnings
+ *   when the subjects' timings / marks do not add up to the paper's. AI aliases are suggestions: they reach the master
+ *   tree only through the owner's own action on the review screen.
  * v2 (CA-2, still accepted for old pastes): no based_on / origin / avg_questions / duration / negative marking, and
  *   source_url + as_of are required.
  * Levels deeper than a concept go into "headings" (they become sections inside the L4 lesson, design L.1).
@@ -50,7 +56,7 @@ const ITEM_KEYS_V2: Record<IntakeLevel, readonly string[]> = {
 };
 const V3_EXTRA: Record<IntakeLevel, readonly string[]> = {
   PAPER: ["name_hi", "duration_minutes", "negative_marking"],
-  SUBJECT: [],
+  SUBJECT: ["duration_minutes", "negative_marking"], // v3.1: sectionally-timed / -marked papers only
   TOPIC: ["origin", "avg_questions"],
   SUBTOPIC: ["origin", "avg_questions"],
   CONCEPT: ["origin", "avg_questions"],
@@ -103,9 +109,17 @@ export interface IntakeItemDraft {
   origin: IntakeOrigin | null;
   /** v3: estimated questions per paper (topics / subtopics / concepts) */
   avg_questions: number | null;
-  /** v3: papers only */
+  /** v3: papers only (the item columns are paper-only) */
   duration_minutes: number | null;
   negative_marking: string | null;
+  /** v3.1: a subject's own (sectional) timing / marking — kept in the session's raw payload, shown on the review screen */
+  sectional: { duration_minutes: number | null; negative_marking: string | null } | null;
+}
+
+/** v3.1: a consistency note that never blocks the intake. */
+export interface IntakeWarning {
+  path: string;
+  message: string;
 }
 
 export interface IntakeHeader {
@@ -134,7 +148,7 @@ export interface IntakeStats {
 }
 
 export type IntakeValidation =
-  | { ok: true; header: IntakeHeader; items: IntakeItemDraft[]; stats: IntakeStats; payload: Record<string, unknown> }
+  | { ok: true; header: IntakeHeader; items: IntakeItemDraft[]; stats: IntakeStats; payload: Record<string, unknown>; warnings: IntakeWarning[] }
   | { ok: false; errors: IntakeError[] };
 
 export const TIER_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -200,11 +214,28 @@ function textList(e: Errors, value: unknown, path: string, maxItems: number, max
   }
   if (value.length > maxItems) e.add("INVALID_VALUE", path, `At most ${maxItems} entries.`);
   const out: string[] = [];
+  const seen = new Set<string>();
   value.slice(0, maxItems).forEach((v, i) => {
     const t = plain(e, v, `${path}[${i}]`, maxLen, true);
-    if (t) out.push(t);
+    if (t && !seen.has(t.toLowerCase())) {
+      seen.add(t.toLowerCase());
+      out.push(t);
+    }
   });
   return out;
+}
+
+/** v3.1: a subject's negative marking — a number ≥ 0, or the same short text a paper takes. */
+function marking(e: Errors, value: unknown, path: string): string | null {
+  if (value === undefined || value === null) return null;
+  if (typeof value === "number") {
+    if (!Number.isFinite(value) || value < 0 || value > 100) {
+      e.add("INVALID_VALUE", path, "Must be a number from 0 to 100 (marks deducted per wrong answer), or short text.");
+      return null;
+    }
+    return String(value);
+  }
+  return plain(e, value, path, INTAKE_NEGATIVE_MARKING_MAX, false);
 }
 
 /** Validates the pasted text (or an already parsed value) against v3 (or v2) and the wizard's context. */
@@ -226,7 +257,7 @@ export function validateIntakePayload(input: unknown, ctx?: IntakeContext): Inta
     return { ok: false, errors: [{ code: "UNSUPPORTED_CONTRACT_VERSION", path: "$.contract_version", message: `"contract_version" must be ${INTAKE_CONTRACT_VERSION} (or 2 for an older paste).` }] };
   }
   const version = data.contract_version as IntakeContractVersion;
-  for (const k of Object.keys(data)) if (!ROOT_KEYS[version].includes(k)) e.add("UNKNOWN_KEY", `$.${k}`, `Unknown key "${k}".`);
+  for (const k of Object.keys(data)) if (!ROOT_KEYS[version].includes(k)) e.add("UNKNOWN_KEY", `$.${k}`, `Unknown key "${k}" at $. Allowed here: ${ROOT_KEYS[version].join(", ")}.`);
   const exam = plain(e, data.exam, "$.exam", 120, true);
   let cycleYear: number | null = null;
   if (data.cycle_year !== undefined && data.cycle_year !== null) {
@@ -271,7 +302,7 @@ export function validateIntakePayload(input: unknown, ctx?: IntakeContext): Inta
         e.add("INVALID_TYPE", p, "Must be an object.");
         return;
       }
-      for (const k of Object.keys(raw)) if (!itemKeys(version, level).includes(k)) e.add("UNKNOWN_KEY", `${p}.${k}`, `Unknown key "${k}" for a ${level.toLowerCase()}.`);
+      for (const k of Object.keys(raw)) if (!itemKeys(version, level).includes(k)) e.add("UNKNOWN_KEY", `${p}.${k}`, `Unknown key "${k}" at ${p} (a ${level.toLowerCase()}). Allowed here: ${itemKeys(version, level).join(", ")}.`);
       const name = plain(e, raw.name, `${p}.name`, INTAKE_NAME_MAX, true);
       if (name) {
         const lower = name.toLowerCase();
@@ -311,7 +342,13 @@ export function validateIntakePayload(input: unknown, ctx?: IntakeContext): Inta
         avg_questions: version === 3 && HAS_ORIGIN.includes(level) ? count(e, raw.avg_questions, `${p}.avg_questions`, 1000, false) : null,
         duration_minutes: version === 3 && level === "PAPER" ? count(e, raw.duration_minutes, `${p}.duration_minutes`, 1440, true) : null,
         negative_marking: version === 3 && level === "PAPER" ? plain(e, raw.negative_marking, `${p}.negative_marking`, INTAKE_NEGATIVE_MARKING_MAX, false) : null,
+        sectional: null,
       };
+      if (version === 3 && level === "SUBJECT" && (raw.duration_minutes !== undefined || raw.negative_marking !== undefined)) {
+        const d = count(e, raw.duration_minutes, `${p}.duration_minutes`, 1440, true);
+        if (d === 0) e.add("INVALID_VALUE", `${p}.duration_minutes`, "A subject's own duration must be more than 0 minutes (leave it out when the paper has no sectional timing).");
+        item.sectional = { duration_minutes: d, negative_marking: marking(e, raw.negative_marking, `${p}.negative_marking`) };
+      }
       items.push(item);
       stats[statKey[level]] += 1;
       if (item.uncertain) stats.uncertain += 1;
@@ -341,5 +378,32 @@ export function validateIntakePayload(input: unknown, ctx?: IntakeContext): Inta
     items,
     stats,
     payload: data,
+    warnings: intakeWarnings(items),
   };
+}
+
+/**
+ * v3.1: NON-BLOCKING consistency notes per paper — the subjects' own timings / marks must add up to the paper's when
+ * both are given (a paper without sectional timing should carry its duration at the paper level only).
+ */
+export function intakeWarnings(items: IntakeItemDraft[]): IntakeWarning[] {
+  const out: IntakeWarning[] = [];
+  items
+    .filter((p) => p.level === "PAPER")
+    .forEach((paper, pi) => {
+      const subjects = items.filter((s) => s.level === "SUBJECT" && s.parent_key === paper.key);
+      const timed = subjects.map((s) => s.sectional?.duration_minutes ?? null).filter((x): x is number => x !== null);
+      if (timed.length > 0 && paper.duration_minutes !== null) {
+        const sum = timed.reduce((a, b) => a + b, 0);
+        if (timed.length !== subjects.length || sum !== paper.duration_minutes)
+          out.push({ path: `$.papers[${pi}]`, message: `Subject timings don't add up to paper duration (${sum} of ${paper.duration_minutes} min${timed.length !== subjects.length ? `; ${subjects.length - timed.length} subject(s) have none` : ""}) — remove subject timings if the paper has no sectional timing.` });
+      }
+      const marked = subjects.map((s) => s.marks).filter((x): x is number => x !== null);
+      if (marked.length > 0 && paper.marks !== null) {
+        const sum = marked.reduce((a, b) => a + b, 0);
+        if (marked.length !== subjects.length || Math.abs(sum - paper.marks) > 1e-9)
+          out.push({ path: `$.papers[${pi}]`, message: `Subject marks don't add up to the paper's total marks (${sum} of ${paper.marks}${marked.length !== subjects.length ? `; ${subjects.length - marked.length} subject(s) have none` : ""}).` });
+      }
+    });
+  return out;
 }
