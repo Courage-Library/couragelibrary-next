@@ -259,7 +259,14 @@ const ZERO = '00000000-0000-0000-0000-000000000000';
       const t1 = await node(T1.id);
       chk('E-3 an unreferenced topic moves to another subject: root + path + projection subject follow',
         cross.ok && tp.subject_id === S2.id && t1.root_subject_id === S2.id && t1.hierarchy_path === 'ca1-qa-move-two.move-one', JSON.stringify({ cross, tp, path: t1?.hierarchy_path }));
-      const [real] = await q(`select v.topic_id id, n.root_subject_id s from public.user_mistake_vault v join public.canonical_taxonomy_nodes n on n.id = v.topic_id group by 1, 2 order by count(*) desc limit 1`);
+      // GATE-SCOPE (2026-10-29): every real topic with Mistake Vault rows is now also mapped below topic level by the
+      // owner's syllabus draft (an earlier, different refusal), so the Mistake Vault rule gets its own rolled-back
+      // fixture: a topic + one QA-student vault row with the subject stored beside it
+      const VT = await mk(S.id, 'TOPIC', 'CA1 QA Vault Topic', 'ca1-qa-vault-topic');
+      const [stu] = await q(`select id from auth.users where email = 'qa-student@courage-library.test'`);
+      await q(`insert into public.user_mistake_vault (user_id, question_id, topic_id, subject_id)
+          select $1, x.id, $2, $3 from public.questions x where not exists (select 1 from public.user_mistake_vault u where u.user_id = $1 and u.question_id = x.id) order by x.id limit 1`, [stu.id, VT.id, S.id]);
+      const real = { id: VT.id, s: S.id };
       const [otherSubj] = await q(`select id from public.canonical_taxonomy_nodes where node_type = 'SUBJECT' and id <> $1 and coalesce(metadata->>'source','') <> 'CA1_SMOKE' order by id limit 1`, [real.s]);
       const blocked = await svc(`select public.fn_taxonomy_move_node($1, $2, $3, $4)`, [real.id, otherSubj.id, ...ACTOR]);
       const realAfter = await node(real.id);
@@ -305,6 +312,8 @@ const ZERO = '00000000-0000-0000-0000-000000000000';
           where v.status = 'PUBLISHED' and n.node_type = 'TOPIC' and n.is_active
             and not exists (select 1 from public.exam_syllabus_versions d where d.exam_id = v.exam_id and d.exam_cycle_id is not distinct from v.exam_cycle_id
                               and d.tier is not distinct from v.tier and d.status = 'DRAFT')
+            -- GATE-SCOPE: not a topic with syllabus mappings below topic level (merging one is refused first, by design)
+            and not exists (select 1 from public.exam_syllabus_canonical_mappings b where b.rollup_topic_id = n.id)
           order by 1 limit 1`);
       const frozen = async () => (await q(`select count(*)::int n, left(md5(string_agg(m.id::text || m.canonical_node_id::text, ',' order by m.id)), 12) h
           from public.exam_syllabus_canonical_mappings m join public.exam_syllabus_nodes sn on sn.id = m.syllabus_node_id

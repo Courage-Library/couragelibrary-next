@@ -116,14 +116,18 @@ const stripNew = (v) => JSON.parse(JSON.stringify(v, (k, x) => (['node_id', 'nod
         chk(`A-0 readers unchanged by 116: the published SSC CGL read model (${after.rm.nodes.length} nodes, ${after.rm.totals.topics} topics) and the open DRAFT's validation report are identical before / after (only the new keys added)`,
           same && after.rm.state === 'AVAILABLE', JSON.stringify({ rmSame: JSON.stringify(stripNew(before.rm)) === JSON.stringify(stripNew(after.rm)), valSame: JSON.stringify(before.val) === JSON.stringify(after.val) }));
       }
-      const [m] = await q(`select count(*)::int n, count(*) filter (where topic_id = canonical_node_id and canonical_node_type = 'TOPIC' and rollup_topic_id is null)::int same
+      // GATE-SCOPE (2026-10-29): mappings below topic level exist now (the owner's intake maps subtopics), so the
+      // invariant is checked for every row as "topic_id = the node's own rolled-up TOPIC" (a TOPIC: itself, rollup NULL)
+      const [m] = await q(`select count(*)::int n, count(*) filter (where
+                               (canonical_node_type = 'TOPIC' and rollup_topic_id is null and topic_id = canonical_node_id)
+                               or (canonical_node_type <> 'TOPIC' and rollup_topic_id = public.fn_taxonomy_topic_of(canonical_node_id) and topic_id = rollup_topic_id))::int same
                              from public.exam_syllabus_canonical_mappings where canonical_node_id is not null`);
       const [s] = await q(`select
           (select attgenerated from pg_attribute where attrelid = 'public.exam_syllabus_canonical_mappings'::regclass and attname = 'canonical_node_type') gen_type,
           (select attgenerated from pg_attribute where attrelid = 'public.exam_syllabus_canonical_mappings'::regclass and attname = 'topic_id') gen_topic,
           (select indexdef from pg_indexes where indexname = 'uq_exam_syllabus_one_published') one_pub,
           (select count(*)::int from pg_class where relname in ('syllabus_intake_sessions','syllabus_intake_items') and relrowsecurity) rls`);
-      chk(`A-1 M2 structure: node type is a plain column (TOPIC / SUBTOPIC / CONCEPT), topic_id generated; every existing mapping (${m.n}) reads topic_id = its node; one PUBLISHED per (exam, cycle, tier); intake tables RLS on`,
+      chk(`A-1 M2 structure: node type is a plain column (TOPIC / SUBTOPIC / CONCEPT), topic_id generated; every existing mapping (${m.n}) reads topic_id = its node's rolled-up topic; one PUBLISHED per (exam, cycle, tier); intake tables RLS on`,
         m.n > 0 && m.same === m.n && s.gen_type === '' && s.gen_topic === 's' && /COALESCE\(tier, ''::text\)/.test(s.one_pub) && s.rls === 2, JSON.stringify({ m, s }));
 
       const calls = [
@@ -213,7 +217,9 @@ const stripNew = (v) => JSON.parse(JSON.stringify(v, (k, x) => (['node_id', 'nod
       const d8 = await dec('CA2 Smoke Unknown Subject', 'IGNORE', null);
       const redo = await dec('CA2 Smoke Renamed Item', 'LINK', aliasTopic);
       const [aliasRow] = await q(`select count(*)::int n from public.taxonomy_node_aliases where node_id = $1 and alias = 'CA2 Smoke Renamed Item' and source = 'INTAKE'`, [aliasTopic]);
-      const created3 = await q(`select n.node_type, n.name, p.name parent from public.canonical_taxonomy_nodes n left join public.canonical_taxonomy_nodes p on p.id = n.parent_id where n.metadata->>'source' = 'SYLLABUS_INTAKE' order by n.node_depth`);
+      // GATE-SCOPE: only the nodes THIS smoke's intake created (the owner's intakes created real nodes too)
+      const created3 = await q(`select n.node_type, n.name, p.name parent from public.canonical_taxonomy_nodes n left join public.canonical_taxonomy_nodes p on p.id = n.parent_id
+          where n.metadata->>'source' = 'SYLLABUS_INTAKE' and (n.metadata->>'intake_item_id')::uuid in (select id from public.syllabus_intake_items where session_id = $1) order by n.node_depth`, [session]);
       const [orphan] = await q(`select decision from public.syllabus_intake_items where session_id = $1 and raw_name = 'CA2 Smoke Orphan Topic'`, [session]);
       const [aud] = await q(`select count(*) filter (where action_type = 'SYLLABUS_INTAKE_DECISION')::int dec, count(*) filter (where action_type = 'TAXONOMY_NODE_CREATE')::int cre,
                                count(*) filter (where action_type = 'TAXONOMY_ALIAS_ADD')::int ali from public.admin_audit_logs where actor_email = $1`, [ACTOR_EMAIL]);
@@ -299,7 +305,10 @@ const stripNew = (v) => JSON.parse(JSON.stringify(v, (k, x) => (['node_id', 'nod
     });
 
     // ---------------- Z: nothing left behind
-    const [z] = await q(`select (select count(*)::int from public.canonical_taxonomy_nodes where metadata->>'source' in ('CA2_SMOKE', 'SYLLABUS_INTAKE')) nodes,
+    // GATE-SCOPE: smoke nodes = CA2_SMOKE nodes + intake nodes whose intake item no longer exists (a rolled-back or
+    // deleted smoke session); the owner's real intake nodes keep their items and are not counted
+    const [z] = await q(`select (select count(*)::int from public.canonical_taxonomy_nodes n where n.metadata->>'source' = 'CA2_SMOKE'
+            or (n.metadata->>'source' = 'SYLLABUS_INTAKE' and ${PRE ? 'true' : `not exists (select 1 from public.syllabus_intake_items i where i.id::text = n.metadata->>'intake_item_id')`})) nodes,
         (select count(*)::int from public.admin_audit_logs where actor_email = $1) audit,
         (select count(*)::int from public.exam_syllabus_versions where version_tag like 'ca2-%') versions,
         to_regclass('public.syllabus_intake_sessions') is not null intake_table`, [ACTOR_EMAIL]);
