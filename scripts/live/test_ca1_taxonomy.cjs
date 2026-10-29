@@ -307,14 +307,19 @@ const ZERO = '00000000-0000-0000-0000-000000000000';
 
       // CA-2 (116): a real topic mapped in a PUBLISHED syllabus (no DRAFT open for that exam / cycle / tier) merges into a
       // re-pointed DRAFT copy; the published / archived rows themselves never change
-      const [locked] = await q(`select m.canonical_node_id id, n.root_subject_id s from public.exam_syllabus_canonical_mappings m join public.exam_syllabus_nodes sn on sn.id = m.syllabus_node_id
-          join public.exam_syllabus_versions v on v.id = sn.syllabus_version_id join public.canonical_taxonomy_nodes n on n.id = m.canonical_node_id
-          where v.status = 'PUBLISHED' and n.node_type = 'TOPIC' and n.is_active
-            and not exists (select 1 from public.exam_syllabus_versions d where d.exam_id = v.exam_id and d.exam_cycle_id is not distinct from v.exam_cycle_id
-                              and d.tier is not distinct from v.tier and d.status = 'DRAFT')
-            -- GATE-SCOPE: not a topic with syllabus mappings below topic level (merging one is refused first, by design)
-            and not exists (select 1 from public.exam_syllabus_canonical_mappings b where b.rollup_topic_id = n.id)
-          order by 1 limit 1`);
+      // GATE-SCOPE-3 (2026-10-29): the owner's published SSC CGL syllabus now maps every real topic below topic level
+      // (merging those is refused first, by design), so the rule gets its OWN published fixture: a topic mapped by a
+      // PUBLISHED QA-exam syllabus version (owner connection, rolled back with the chunk)
+      const [fxSubj] = await q(`select id from public.canonical_taxonomy_nodes where node_type = 'SUBJECT' and is_active and coalesce(metadata->>'source','') <> 'CA1_SMOKE' order by id limit 1`);
+      const LT = await mk(fxSubj.id, 'TOPIC', 'CA1 QA Published Topic', 'ca1-qa-published-topic');
+      const [qaEx] = await q(`select id from public.exams where slug = 'qa-syllabus-test'`);
+      const [fxVer] = await q(`insert into public.exam_syllabus_versions (exam_id, version_tag, version_number, status)
+          values ($1, 'ca1-qa-locked', (select coalesce(max(version_number), 0) + 1 from public.exam_syllabus_versions where exam_id = $1), 'DRAFT') returning id`, [qaEx.id]);
+      const [fxSec] = await q(`select public.fn_syllabus__insert_node($1, null, 'SECTION', 'CA1 QA section', null, 1, null, null, null, null, true) id`, [fxVer.id]);
+      const [fxUnit] = await q(`select public.fn_syllabus__insert_node($1, $2, 'UNIT', 'CA1 QA unit', null, 1, null, null, null, null, true) id`, [fxVer.id, fxSec.id]);
+      await q(`insert into public.exam_syllabus_canonical_mappings (syllabus_node_id, canonical_node_id, match_status, match_confidence, match_method) values ($1, $2, 'MANUALLY_MAPPED', 1.00, 'MANUAL')`, [fxUnit.id, LT.id]);
+      await q(`update public.exam_syllabus_versions set status = 'PUBLISHED', is_active = true, published_at = now() where id = $1`, [fxVer.id]);
+      const locked = { id: LT.id, s: fxSubj.id };
       const frozen = async () => (await q(`select count(*)::int n, left(md5(string_agg(m.id::text || m.canonical_node_id::text, ',' order by m.id)), 12) h
           from public.exam_syllabus_canonical_mappings m join public.exam_syllabus_nodes sn on sn.id = m.syllabus_node_id
           join public.exam_syllabus_versions v on v.id = sn.syllabus_version_id where v.status <> 'DRAFT'`))[0];
