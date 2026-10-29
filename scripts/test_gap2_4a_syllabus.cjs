@@ -66,7 +66,7 @@ const WRITE_RPCS = {
   fn_syllabus_delete_node: 'uuid',
   fn_syllabus_set_unit_mappings: 'uuid, uuid[], numeric[]',
   fn_syllabus_validate: 'uuid',
-  fn_syllabus_publish: 'uuid',
+  fn_syllabus_publish: 'uuid, text', // 125: + p_confirm (default NULL)
   fn_syllabus_archive_version: 'uuid',
 };
 const QA = 'qa-syllabus-test'; // GAP2-4A-SCOPE: every fixture draft lives on the QA test exam (never left PUBLISHED)

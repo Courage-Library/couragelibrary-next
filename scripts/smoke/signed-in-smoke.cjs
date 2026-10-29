@@ -10,9 +10,9 @@
  *                             /exams/ssc-cgl renders its syllabus section as the read model says: AVAILABLE → the
  *                             paper / section titles, no "coming soon"; NO_SYLLABUS → "Syllabus coming soon"
  *           admin-home        qa-admin:  /admin renders (200, no not-found)
- *           admin-pages       qa-admin:  B6 admin pages render (questions, sections, billing, community, descriptive,
- *                             institutes, mock-tests-management, bulk-import, taxonomy, exams) — no error boundary
- *           staff-content     qa-staff:  /admin/content and /admin/syllabus render (200, no not-found)
+ *           admin-pages       qa-admin:  B6 admin pages render (questions, sections, payments, community flags,
+ *                             institutes, mock tests, import, master tree, exams, …) — no error boundary
+ *           staff-content     qa-staff:  /admin/questions and /admin/syllabus render (200, no not-found)
  *   baseUrl defaults to http://localhost:3100. Passwords come from .env.local (QA_*_PASSWORD).
  * The student check needs data: run scripts/e2e/ensure-student-fixture.cjs first (SMOKE-FIXTURE-1; idempotent,
  * creates one completed mock attempt with wrong answers for qa-student only when missing).
@@ -93,9 +93,9 @@ const REQUIRED = {
   '/admin/mock-tests/sections': ['"Sections" heading (Studio, phase 3 batch 2)', H(/^Sections$/)],
   '/admin/payments': ['"Subscription Plans" heading', H(/Subscription Plans & Payment Orders/)],
   '/admin/support/flags': ['"Community Discussion Moderation" heading', H(/Community Discussion Moderation/)],
-  '/admin': ['"Mains Descriptive Questions" heading', H(/Mains Descriptive Questions/)],
   '/admin/institutes': ['"Partner Coaching Institutes CMS" heading', H(/Partner Coaching Institutes CMS/)],
-  '/admin/mock-tests': ['"Mock test setup" heading (Studio, phase 3 batch 2)', H(/^Mock test setup$/)],
+  // ADMIN-IA-1: the "Mock test setup" overview and the Descriptive CMS are retired (their addresses redirect)
+  '/admin/mock-tests': ['"Mock tests" heading (Studio)', H(/^Mock tests$/)],
   '/admin/questions/import': ['"Bulk import" heading (Studio, phase 3 batch 2)', H(/^Bulk import$/)],
   '/admin/master-tree': ['"Master tree" heading (CA-1)', H(/Master tree/)],
   '/admin/exams': ['"Examination Management Hub" heading', H(/Examination Management Hub/)],
@@ -107,7 +107,7 @@ const REQUIRED = {
   '/admin/lessons/new': ['"Lesson prompt generator" heading', H(/^Lesson prompt generator$/)],
   '/admin/prompts': ['"Prompt templates" heading', H(/^Prompt templates$/)],
   '/admin/syllabus/intake': ['"Syllabus intake" heading', H(/^Syllabus intake$/)],
-  '/admin/lessons/legacy': ['"Admin Content Studio" heading', H(/Admin Content Studio/)],
+  '/admin/lessons/legacy': ['"Legacy lessons (read only)" heading (ADMIN-IA-1)', H(/^Legacy lessons \(read only\)$/)],
 };
 
 (async () => {
@@ -200,7 +200,7 @@ const REQUIRED = {
     const sy = checkSyllabusSection(hub, rm);
     check('/exams/ssc-cgl syllabus section matches the read model', sy.ok, sy.detail);
   } else if (CHECK === 'admin-pages') {
-    const ADMIN = ['/admin', '/admin/questions', '/admin/mock-tests/sections', '/admin/payments', '/admin/support/flags', '/admin', '/admin/institutes', '/admin/mock-tests', '/admin/questions/import', '/admin/master-tree', '/admin/exams', '/admin/exams/knowledge', '/admin/system/design', '/admin/syllabus', '/admin/lessons', '/admin/lessons/new', '/admin/prompts', '/admin/syllabus/intake'];
+    const ADMIN = ['/admin', '/admin/questions', '/admin/mock-tests/sections', '/admin/payments', '/admin/support/flags', '/admin/institutes', '/admin/mock-tests', '/admin/questions/import', '/admin/master-tree', '/admin/exams', '/admin/exams/knowledge', '/admin/system/design', '/admin/syllabus', '/admin/lessons', '/admin/lessons/new', '/admin/prompts', '/admin/syllabus/intake'];
     for (const p of ADMIN) {
       const r = await go(p, undefined, 180000);
       const html = await page.content();
@@ -209,7 +209,8 @@ const REQUIRED = {
     }
   } else {
     // GAP2-4b: staff also reach the syllabus editor (publish stays admin-only)
-    for (const p of CHECK === 'admin-home' ? ['/admin'] : ['/admin/lessons/legacy', '/admin/syllabus']) {
+    // ADMIN-IA-1: the staff content check uses a staff page (the retired Content Studio is now the admin-only legacy tab)
+    for (const p of CHECK === 'admin-home' ? ['/admin'] : ['/admin/questions', '/admin/syllabus']) {
       const r = await go(p);
       check(`${p} → 200 and renders`, r && r.status() === 200 && !(await isNotFound(page)), String(r && r.status()));
     }
