@@ -199,7 +199,16 @@ function main() {
   const cmd = sep < 0 ? [] : argv.slice(sep + 1);
   const opt = (k, d) => { const i = opts.indexOf(k); return i >= 0 ? opts[i + 1] : d; };
   const ID = opt('--id', '');
-  const TIMEOUT = Number(opt('--timeout', '900')) * 1000;
+  // CI-SPEED-1 (architect 2026-10-29): --caps <json> = the per-suite cap from the measured-durations file (a live gate
+  // without an entry is refused: fail closed); --timeout <s> otherwise (default 900)
+  const CAPS = opt('--caps', '');
+  let capS = Number(opt('--timeout', '900'));
+  if (CAPS) {
+    const gates = JSON.parse(fs.readFileSync(path.resolve(CAPS), 'utf8')).gates || {};
+    if (!gates[ID] || !(gates[ID].cap > 0)) { console.log(`${ID} FAIL exit 2 — no per-suite cap for this gate in ${path.basename(CAPS)} (CI-SPEED-1)`); process.exit(2); }
+    capS = gates[ID].cap;
+  }
+  const TIMEOUT = capS * 1000;
   const CRASH_MESSAGE = opts.includes('--crash-message');
   const BUILD_DIAG = opts.includes('--build-diag');
   const KEEP_LOG = opt('--keep-log', '');

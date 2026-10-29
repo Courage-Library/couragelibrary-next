@@ -206,17 +206,22 @@ test('C-14 run-quiet passes a wrapped gate\'s "--self-test" to the gate (it must
   return 'gate executed with its flag';
 });
 
-test('C-15 every job has timeout-minutes (CI-FIX-1: offline 15 · server-checks 20 · live-journeys 45 · live-gates 60 · prod-smoke 20)', () => {
+test('C-15 every job has timeout-minutes (CI-FIX-1: offline 15 · server-checks 20 · live-journeys 45 · prod-smoke 20; CI-SPEED-1: live-gates per shard db 40 · security 25 · pages 20)', () => {
   const w = fs.readFileSync(path.join(ROOT, '.github/workflows/ci-gates.yml'), 'utf8');
   const jobsAt = w.indexOf('\njobs:\n');
   assert(jobsAt > 0, 'no jobs block');
   const blocks = w.slice(jobsAt).split(/\n(?= {2}[a-z][\w-]*:\n)/).slice(1);
-  const want = { offline: 15, 'server-checks': 20, 'live-journeys': 45, 'live-gates': 60, 'prod-smoke': 20 }; // CI-LIVE-SPLIT-1; live-gates 45 → 60 = interim, CI-SPEED-1 (architect 2026-10-29)
+  // CI-SPEED-1 (architect 2026-10-29): the interim 60 is gone — live-gates runs as 3 shards, each with a limit of ~1.5 x
+  // its measured job time (dispatch 40919071379: the db shard's gates sum to ~25 min, security ~12, pages ~7, + ~2 build)
+  const want = { offline: 15, 'server-checks': 20, 'live-journeys': 45, 'live-gates': 'db 40 · security 25 · pages 20', 'prod-smoke': 20 };
   const got = {};
   for (const b of blocks) {
     const name = b.match(/^ {2}([a-z][\w-]*):/)[1];
     const t = b.match(/^ {4}timeout-minutes: (\d+)$/m);
-    got[name] = t ? Number(t[1]) : null;
+    if (!t && /^ {4}timeout-minutes: \$\{\{ matrix\.timeout \}\}$/m.test(b)) {
+      const inc = [...b.matchAll(/- shard: ([a-z]+)\n\s+timeout: (\d+)/g)].map((m) => `${m[1]} ${m[2]}`);
+      got[name] = inc.length ? inc.join(' · ') : null;
+    } else got[name] = t ? Number(t[1]) : null;
   }
   const names = Object.keys(got);
   assert(names.length >= 4, `jobs found: ${names.join(', ')}`); // GATE-HYGIENE-1
@@ -287,6 +292,65 @@ test('C-16 no QA password sign-in in any script (decision #74: CAPTCHA-safe QA s
   }
   assert(bad.length === 0, bad.join('; '));
   return `${files.length} scripts; ${fills} dummy password fill(s), all in negative login-page tests`;
+});
+
+// CI-SPEED-1 (architect 2026-10-29): shard isolation, per-suite caps, fail-fast pages — each with a negative control
+const SHARED_GROUP = /\b(?:insert\s+into|update|delete\s+from)\s+(?:public\.)?(exam_syllabus_versions|exam_syllabus_nodes|exam_syllabus_canonical_mappings|canonical_taxonomy_nodes|taxonomy_node_aliases|learning_documents|document_versions|learning_units|prompt_templates|exam_course_launches|exam_node_notes|syllabus_intake_sessions|syllabus_intake_items|user_lesson_progress)\b|\bpublic\.(fn_syllabus_(?:create_draft|publish|import_draft|seed_legacy_gd_draft|upsert_node|set_unit_mappings|intake_import|intake_create|intake_bulk|intake_decide)|fn_taxonomy_(?:merge_nodes|move_node|add_alias|remove_alias|normalize)|fn_lesson_(?:create_node_document|save_draft|publish)|fn_prompt_template_(?:save_draft|activate)|fn_exam_course_launch_set|fn_exam_note_(?:save_draft|publish))\s*\(|\b(fn_syllabus_(?:create_draft|publish|upsert_node|set_unit_mappings))'/i;
+// a writer of the shared object group outside the db shard needs a recorded reason (row-disjoint, no shared lock key)
+const SHARD_EXCEPTIONS = {
+  'CA3-LESSONS-LIVE': 'writes only the committed QA lesson document (qa-number-system-concept-lesson); no other live gate writes it',
+};
+const shardsOf = (w) => {
+  const i = w.indexOf('\n  live-gates:\n');
+  const blk = w.slice(i, w.indexOf('\n  prod-smoke:', i));
+  const out = {};
+  for (const m of blk.matchAll(/- name: [^\n]*\n {8}if: matrix\.shard == '([a-z]+)'\n([\s\S]*?)(?=\n {6}- name:|$)/g))
+    out[m[1]] = [...m[2].matchAll(/"\$Q ([A-Z0-9-]+) -- node ([^\s"]+)/g)].map((x) => ({ id: x[1], file: x[2] }));
+  return out;
+};
+const isolationProblems = (w) => {
+  const sh = shardsOf(w);
+  const bad = [];
+  if (JSON.stringify(Object.keys(sh).sort()) !== JSON.stringify(['db', 'pages', 'security'])) bad.push(`shards ${Object.keys(sh)}`);
+  for (const [name, gates] of Object.entries(sh)) {
+    if (name === 'db') continue;
+    for (const g of gates) {
+      if (g.id === 'QA-SESSION-PROBE') continue;
+      const src = fs.readFileSync(path.join(ROOT, g.file), 'utf8');
+      if (SHARED_GROUP.test(src) && !SHARD_EXCEPTIONS[g.id]) bad.push(`${g.id} (${name}) writes the shared syllabus / taxonomy / lesson / course group — it belongs in the db shard`);
+    }
+  }
+  return { bad, sh };
+};
+test('C-19 CI-SPEED-1: shard isolation (every shared-group writer in the db shard), per-suite caps for every live gate, fail-fast smokes; negative controls', () => {
+  const w = fs.readFileSync(path.join(ROOT, '.github/workflows/ci-gates.yml'), 'utf8').replace(/\r\n/g, '\n');
+  // (a) isolation by serialization: the static write / lock-taking RPC scan over each non-db shard's gate scripts
+  const { bad, sh } = isolationProblems(w);
+  assert(bad.length === 0, bad.join('; '));
+  assert(sh.db.length >= 10 && sh.db.some((g) => g.id === 'SYLIMPORT1'), 'the db shard holds the syllabus writers');
+  // negative control: SYLIMPORT1 moved into the security shard must be caught
+  const moved = w.replace('"$Q SYLIMPORT1 -- node scripts/test_syl_import1.cjs" \\\n', '').replace('"$Q QBKEY1 -- node scripts/test_qb_key1.cjs"', '"$Q QBKEY1 -- node scripts/test_qb_key1.cjs" \\\n            "$Q SYLIMPORT1 -- node scripts/test_syl_import1.cjs"');
+  assert(moved !== w && isolationProblems(moved).bad.some((x) => /SYLIMPORT1 \(security\)/.test(x)), 'negative control: a syllabus writer outside the db shard was NOT caught');
+  // (b) per-suite caps: both live jobs run every gate through --caps, and every gate id has a cap (120..900 s)
+  const caps = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts/ci/live-gate-caps.json'), 'utf8')).gates;
+  const live = w.slice(w.indexOf('\n  live-journeys:\n'), w.indexOf('\n  prod-smoke:'));
+  const qDefs = live.match(/Q='[^']*'/g) || [];
+  assert(qDefs.length === 4 && qDefs.every((q) => q === "Q='node scripts/ci/run-quiet.cjs --caps scripts/ci/live-gate-caps.json --id'"), `Q definitions: ${qDefs.join(' | ')}`);
+  const ids = [...new Set([...live.matchAll(/"\$Q ([A-Z0-9-]+) -- /g)].map((m) => m[1]))];
+  const noCap = ids.filter((id) => !caps[id] || !(caps[id].cap >= 120 && caps[id].cap <= 900));
+  assert(ids.length >= 45 && noCap.length === 0, `gates without a valid cap: ${noCap.join(', ')} (${ids.length} gates)`);
+  // negative control: run-quiet refuses a gate without a cap (fail closed, before running anything)
+  const r = require('child_process').spawnSync(process.execPath, [path.join(ROOT, 'scripts/ci/run-quiet.cjs'), '--caps', path.join(ROOT, 'scripts/ci/live-gate-caps.json'), '--id', 'NO-SUCH-GATE', '--', process.execPath, '-e', '0'], { encoding: 'utf8', env: { ...process.env, RUNNER_TEMP: require('os').tmpdir() } });
+  assert(r.status === 2 && /no per-suite cap/.test(r.stdout), `negative control: an uncapped gate ran (exit ${r.status})`);
+  // (c) fail-fast pages: the signed-in smoke has ONE 30 s page budget and stops at the first failing check; the
+  // negative-control hooks are never used by CI; the page gates carry no wait above 30 s
+  const smoke = fs.readFileSync(path.join(ROOT, 'scripts/smoke/signed-in-smoke.cjs'), 'utf8');
+  assert(/const PAGE_MS = 30000;/.test(smoke) && /throw new FailFast\(name\)/.test(smoke) && !/timeout:\s*(?:[4-9]\d{4}|\d{6,})/.test(smoke), 'signed-in smoke: 30 s page budget + fail-fast');
+  assert(!/SMOKE_NEGATIVE_CONTROL|signed-in-smoke\.cjs [a-z-]+ \$B --all/.test(w), 'CI must never set the smoke negative control or --all');
+  const PAGE_GATES = ['scripts/smoke/signed-in-smoke.cjs', 'scripts/test_sec1c_admin_pages.cjs', 'scripts/test_sec1d_redirects.cjs', 'scripts/test_ux2a_landing.cjs', 'scripts/test_ux2b_public.cjs', 'scripts/test_brand2.cjs'];
+  const long = PAGE_GATES.filter((f) => /(?:timeout:\s*|AbortSignal\.timeout\(|setDefault(?:Navigation)?Timeout\()(?:3[0-9]{4}[1-9]|3[1-9]\d{3}|[4-9]\d{4}|\d{6,})/.test(fs.readFileSync(path.join(ROOT, f), 'utf8').replace(/30000/g, '')));
+  assert(long.length === 0, `page waits above 30 s in ${long.join(', ')}`);
+  return `db ${sh.db.length} · security ${sh.security.length} · pages ${sh.pages.length} gates; ${ids.length} capped gates; isolation + uncapped-gate negative controls caught`;
 });
 
 console.log(`\nCI support: ${passed}/${passed + failed} passed`);

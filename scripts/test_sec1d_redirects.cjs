@@ -234,12 +234,12 @@ const VALID = [
       const ctx = await browser.newContext();
       const page = await ctx.newPage();
       try {
-        await page.goto(`${LIVE_BASE}/auth/login?next=${encodeURIComponent(next)}`, { waitUntil: 'networkidle', timeout: 180000 });
+        await page.goto(`${LIVE_BASE}/auth/login?next=${encodeURIComponent(next)}`, { waitUntil: 'networkidle', timeout: 30000 });
         await page.fill('input[name="email"]', 'qa-student@courage-library.test');
         await page.fill('input[name="password"]', 'not-the-password-1');
         await page.click('button[type="submit"]');
         const err = page.locator('[data-auth-error]').first();
-        await err.waitFor({ state: 'visible', timeout: 60000 });
+        await err.waitFor({ state: 'visible', timeout: 30000 });
         return { code: await err.getAttribute('data-auth-error'), url: new URL(page.url()) };
       } finally {
         await ctx.close();
@@ -270,7 +270,7 @@ const VALID = [
     const pageCheck = async (ctx, p) => {
       for (let i = 1; i <= 3; i++) {
         try {
-          const r = await ctx.request.get(LIVE_BASE + p, { maxRedirects: 0, timeout: 180000 });
+          const r = await ctx.request.get(LIVE_BASE + p, { maxRedirects: 0, timeout: 30000 });
           return { status: r.status(), location: r.headers()['location'] || '', body: await r.text() };
         } catch { /* retry */ }
       }

@@ -400,7 +400,7 @@ async function frontEndBudget(browser, base, route) {
       new PerformanceObserver((l) => l.getEntries().forEach((e) => (window.__lcp = e.startTime))).observe({ type: 'largest-contentful-paint', buffered: true });
       new PerformanceObserver((l) => l.getEntries().forEach((e) => (window.__cls += e.hadRecentInput ? 0 : e.value))).observe({ type: 'layout-shift', buffered: true });
     });
-    await page.goto(`${base}${route}`, { waitUntil: 'load', timeout: 90000 });
+    await page.goto(`${base}${route}`, { waitUntil: 'load', timeout: 30000 });
     await page.waitForTimeout(3000);
     const m = await page.evaluate(() => ({ lcp: window.__lcp, cls: window.__cls }));
     runs.push({ ...m, kb: bytes / 1024 });
@@ -462,7 +462,7 @@ async function probe() {
           }
         }
       });
-      await page.goto(`${base}/`, { waitUntil: 'networkidle', timeout: 60000 });
+      await page.goto(`${base}/`, { waitUntil: 'networkidle', timeout: 30000 });
       await page.waitForTimeout(1000);
       await ctx.close();
       const total = fonts.reduce((a, f) => a + f.bytes, 0);
@@ -474,7 +474,7 @@ async function probe() {
     await test('P-02 Hindi sample renders with the Devanagari web font (body) and Poppins (heading)', async () => {
       const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
       const page = await ctx.newPage();
-      await page.goto(`${base}/`, { waitUntil: 'load', timeout: 60000 });
+      await page.goto(`${base}/`, { waitUntil: 'load', timeout: 30000 });
       await page.evaluate(() => {
         const p = document.createElement('p');
         p.id = 'hi-body';
@@ -536,7 +536,7 @@ async function probe() {
         };
         if (loaded !== p) {
           try {
-            await page360.goto(base + p, { waitUntil: 'load', timeout: 60000 });
+            await page360.goto(base + p, { waitUntil: 'load', timeout: 30000 });
           } catch (e) {
             loaded = null;
             why('NAV', String(e && e.message));
@@ -560,7 +560,7 @@ async function probe() {
         const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
         await ctx.addInitScript(init);
         const page = await ctx.newPage();
-        await page.goto(`${base}/`, { waitUntil: 'load', timeout: 60000 });
+        await page.goto(`${base}/`, { waitUntil: 'load', timeout: 30000 });
         const r = await page.evaluate(() => {
           const nav = document.querySelector('header .glass-light');
           const cs = nav ? getComputedStyle(nav) : null;
@@ -580,7 +580,7 @@ async function probe() {
       const page = await ctx.newPage();
       const cdp = await ctx.newCDPSession(page);
       await cdp.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-transparency', value: 'reduce' }] });
-      await page.goto(`${base}/`, { waitUntil: 'load', timeout: 60000 });
+      await page.goto(`${base}/`, { waitUntil: 'load', timeout: 30000 });
       const r = await page.evaluate(() => ({
         matches: matchMedia('(prefers-reduced-transparency: reduce)').matches,
         blur: getComputedStyle(document.querySelector('header .glass-light')).backdropFilter,
