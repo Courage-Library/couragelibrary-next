@@ -72,4 +72,22 @@ function checkSyllabusSection(html, rm) {
   return { ok: false, detail: `read model state ${state || 'unknown'} (expected AVAILABLE or NO_SYLLABUS)` };
 }
 
-module.exports = { COMING_SOON, syllabusSectionText, readModelForSlug, expectedTitles, checkSyllabusSection };
+/**
+ * GATE-SCOPE-SWEEP (2026-10-29): the exam hub is ISR (app/exams/[slug]/page.tsx revalidate = 60). When the owner publishes or
+ * edits the syllabus during a run, the page may show the previous version for up to 60 s. On a mismatch this waits ONE
+ * revalidate window (65 s), re-reads BOTH the page and the read model, and checks again — the page must then match.
+ * `load()` returns { html, rm }. Returns the check result + `retried`.
+ */
+const REVALIDATE_WAIT_MS = 65000;
+async function checkSyllabusFresh(load) {
+  const first = await load();
+  const a = checkSyllabusSection(first.html, first.rm);
+  if (a.ok) return { ...a, retried: false };
+  await new Promise((r) => setTimeout(r, REVALIDATE_WAIT_MS));
+  const second = await load(); // the first request after the window triggers the regeneration; the next one sees it
+  const again = await load();
+  const b = checkSyllabusSection(again.html, again.rm || second.rm);
+  return { ...b, detail: `${b.detail} (re-checked after the ${REVALIDATE_WAIT_MS / 1000} s revalidate window; first: ${a.detail})`, retried: true };
+}
+
+module.exports = { COMING_SOON, syllabusSectionText, readModelForSlug, expectedTitles, checkSyllabusSection, checkSyllabusFresh };

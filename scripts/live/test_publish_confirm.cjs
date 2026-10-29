@@ -2,7 +2,9 @@
 /**
  * PUBLISH-CONFIRM-SERVER (migration 125) — AS THE REAL ROLES (QA admin / QA staff JWT claims), every write inside a
  * rolled-back transaction (withLiveTransaction → safeBegin; one connection per chunk; a dropped connection re-runs the
- * chunk once). Fixtures: syllabus versions of the QA test exam only; the topics are picked by content state, not name.
+ * chunk once). Fixtures: syllabus versions of the QA test exam only. GATE-SCOPE-SWEEP (2026-10-29): the topics are the
+ * chunk's OWN (scripts/live/_qa-course.cjs): one with a published QA question, one with a published node lesson, two
+ * empty — never real topics picked by content state (the owner fills real topics with content).
  *   --pre   125 is NOT applied: each chunk first runs the migration inside its own transaction (then rolls back)
  *   (none)  after apply: refuses unless 125 is APPLIED
  *   A  catalog: one fn_syllabus_publish (uuid, text), SECURITY DEFINER, search_path '', EXECUTE authenticated only;
@@ -19,10 +21,24 @@
  */
 const fs = require('fs');
 const path = require('path');
+const Module = require('module');
+const ts = require('typescript');
 const ROOT = path.resolve(__dirname, '..', '..');
 const { Client } = require('pg');
 const { dbTarget, redactor } = require(path.join(ROOT, 'scripts/db/_db-env.cjs'));
 const { withLiveTransaction } = require(path.join(ROOT, 'scripts/db/live-safety.cjs'));
+const origResolve = Module._resolveFilename;
+Module._resolveFilename = function (request, parent, isMain, options) {
+  if (request.startsWith('@/')) return origResolve.call(this, path.resolve(ROOT, request.slice(2)), parent, isMain, options);
+  return origResolve.call(this, request, parent, isMain, options);
+};
+require.extensions['.ts'] = (module, filename) => {
+  const out = ts.transpileModule(fs.readFileSync(filename, 'utf8'), { fileName: filename, compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true } });
+  module._compile(out.outputText, filename);
+};
+const { lessonExample } = require(path.join(ROOT, 'lib/prompts/lesson-prompt.ts'));
+const { qaTopic, publishNodeLesson, publishQaQuestion } = require(path.join(ROOT, 'scripts/live/_qa-course.cjs'));
+const ACTOR = 'pc-smoke@courage-library.test';
 
 const PRE = process.argv.includes('--pre');
 const FILE = '20261029000125_publish_confirm_server.sql';
@@ -46,20 +62,13 @@ const isConnectionError = (e) => !!e && (['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND'
     const ids = Object.fromEntries((await q(`select email, id from auth.users where email in ('qa-admin@courage-library.test','qa-staff@courage-library.test','qa-student@courage-library.test')`)).map((r) => [r.email.split('@')[0], r.id]));
     const ADMIN = { sub: ids['qa-admin'], role: 'authenticated', email: 'qa-admin@courage-library.test', app_metadata: { role: 'admin' } };
     const STAFF = { sub: ids['qa-staff'], role: 'authenticated', email: 'qa-staff@courage-library.test', app_metadata: { role: 'staff' } };
-    // topics by content state (active, not internal)
-    const [withQ] = await q(`select t.id, t.name from public.canonical_taxonomy_nodes t where t.node_type = 'TOPIC' and t.is_active and not t.is_internal
-        and exists (select 1 from public.questions x where x.canonical_topic_id = t.id and x.status = 'published') order by t.name limit 1`);
-    const [withL] = await q(`select t.id, t.name, d.id doc from public.canonical_taxonomy_nodes t join public.learning_documents d on d.node_id = t.id and d.status = 'PUBLISHED'
-        where t.node_type = 'TOPIC' and t.is_active and not t.is_internal order by t.name limit 1`);
-    const empties = await q(`with recursive sub as (select id root, id from public.canonical_taxonomy_nodes where node_type = 'TOPIC' and is_active and not is_internal
-          union all select s.root, c.id from public.canonical_taxonomy_nodes c join sub s on c.parent_id = s.id)
-        select t.id, t.name from public.canonical_taxonomy_nodes t where t.node_type = 'TOPIC' and t.is_active and not t.is_internal
-          and not exists (select 1 from public.questions x where x.canonical_topic_id = t.id and x.status = 'published')
-          and not exists (select 1 from sub s join public.learning_documents d on d.node_id = s.id where s.root = t.id and d.status = 'PUBLISHED')
-          and not exists (select 1 from sub s join public.user_lesson_progress p on p.node_id = s.id where s.root = t.id)
-        order by t.name limit 2`);
-    if (!withQ || !withL || empties.length < 2 || !qa || !ADMIN.sub || !STAFF.sub) throw new Error('fixtures missing (a topic with questions / with a lesson / two empty topics, QA exam, QA identities)');
-    const [E1, E2] = empties;
+    const [qaLesson] = await q(`select u.topic_id from public.learning_documents d join public.learning_units u on u.id = d.learning_unit_id where d.canonical_slug = 'qa-number-system-concept-lesson'`);
+    if (!qaLesson || !qa || !ADMIN.sub || !STAFF.sub) throw new Error('fixtures missing (the QA lesson topic, QA exam, QA identities)');
+    // the chunk's own topics (built inside each chunk's rolled-back transaction by fx())
+    let withQ;
+    let withL;
+    let E1;
+    let E2;
 
     const lit = (o) => `'${JSON.stringify(o).replace(/'/g, "''")}'`;
     const as = async (role, cl, sql, p) => {
@@ -78,7 +87,7 @@ const isConnectionError = (e) => !!e && (['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND'
         try {
           await c.end().catch(() => {});
           c = new Client(target.pg); c.on('error', () => {}); await c.connect();
-          await withLiveTransaction(c, async () => { if (PRE) await c.query(MIGRATION_SQL); await fn(); });
+          await withLiveTransaction(c, async () => { if (PRE) await c.query(MIGRATION_SQL); await fx(); await fn(); });
           flush();
           return;
         } catch (e) {
@@ -96,6 +105,16 @@ const isConnectionError = (e) => !!e && (['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND'
       await rpc(ADMIN, 'fn_syllabus_set_unit_mappings', [unit, topics, null]);
       return { id: d.version_id, n: d.version_number };
     };
+    const fx = async () => {
+      const mk = async (slug, name) => ({ id: await qaTopic(q, qaLesson.topic_id, slug, name), name });
+      withQ = await mk('pc-smoke-questions', 'PC Smoke Questions');
+      await publishQaQuestion(q, withQ.id, ids['qa-admin'], 'PCSMOKE');
+      withL = await mk('pc-smoke-lesson', 'PC Smoke Lesson');
+      withL.doc = await publishNodeLesson(svc, withL.id, lessonExample(withL.id), ACTOR);
+      E1 = await mk('pc-smoke-empty-1', 'PC Smoke Empty 1');
+      E2 = await mk('pc-smoke-empty-2', 'PC Smoke Empty 2');
+    };
+    const svc = (sql, p) => as('service_role', { role: 'service_role' }, sql, p);
     const pub = (v, confirm) => rpc(ADMIN, 'fn_syllabus_publish', confirm === undefined ? [v.id] : [v.id, confirm]);
     const status = async (v) => (await q(`select status from public.exam_syllabus_versions where id = $1`, [v.id]))[0].status;
     const pubAudits = async () => (await q(`select count(*)::int n from public.admin_audit_logs where action_type = 'SYLLABUS_PUBLISH' and actor_id = $1`, [ADMIN.sub]))[0].n;
@@ -141,7 +160,7 @@ const isConnectionError = (e) => !!e && (['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND'
     });
     await chunk(async () => {
       // student progress on an otherwise empty topic: a QA-student progress row on a node below it (rolled back)
-      const [doc] = await q(`select id from public.learning_documents where status = 'PUBLISHED' limit 1`);
+      const doc = { id: withL.doc };
       const ins = await as('postgres', {}, `insert into public.user_lesson_progress (user_id, document_id, language, node_id, status) values ($1, $2, 'en', $3, 'READING') returning user_id`, [ids['qa-student'], doc.id, E2.id]);
       const A = await draft([E2.id, E1.id]);
       await pub(A);

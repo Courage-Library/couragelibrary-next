@@ -15,8 +15,12 @@
  *        /learn paths are 404; a node whose lesson is NOT published is never served as a lesson
  * Run: node scripts/live/with-server.cjs -- "node scripts/live/test_ca6_seo.cjs --base=http://localhost:3100"
  */
+const fs = require('fs');
 const path = require('path');
 const ROOT = path.resolve(__dirname, '..', '..');
+// GATE-SCOPE-SWEEP (2026-10-29): the sitemap is prerendered at BUILD time (app/sitemap.ts, revalidate 3600); a lesson the
+// owner publishes / unpublishes after the build legitimately differs — only documents unchanged since the build are compared
+const BUILD_AT = fs.statSync(path.join(ROOT, '.next', 'BUILD_ID')).mtime;
 const { Client } = require('pg');
 const { dbTarget, redactor } = require(path.join(ROOT, 'scripts/db/_db-env.cjs'));
 const { safeBegin } = require(path.join(ROOT, 'scripts/db/live-safety.cjs'));
@@ -57,25 +61,24 @@ const decode = (h) => h.replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(
     await safeBegin(c, { readOnly: true });
     const q = async (s, p) => (await c.query(s, p)).rows;
     // CA-7: QA test content is served but never indexed; an exam course page exists only while the course is LIVE
-    const lessons = await q(`select s.document_id, s.canonical_slug, s.node_id, s.hi_current, n.hierarchy_path, d.is_test_content test
+    const lessons = await q(`select s.document_id, s.canonical_slug, s.node_id, s.hi_current, n.hierarchy_path, d.is_test_content test, d.updated_at > $1 changed
         from public.fn_servable_node_lessons() s join public.canonical_taxonomy_nodes n on n.id = s.node_id
-        join public.learning_documents d on d.id = s.document_id where n.is_active order by n.hierarchy_path`);
+        join public.learning_documents d on d.id = s.document_id where n.is_active order by n.hierarchy_path`, [BUILD_AT]);
     const live = new Set((await q(`select exam_id from public.exam_course_launches where status = 'LIVE'`)).map((r) => r.exam_id));
-    const drafts = await q(`select n.hierarchy_path from public.learning_documents d join public.canonical_taxonomy_nodes n on n.id = d.node_id
-        where d.document_type = 'NODE_LESSON' and d.status <> 'PUBLISHED' and n.is_active`);
+    const drafts = await q(`select n.hierarchy_path, d.updated_at > $1 changed from public.learning_documents d join public.canonical_taxonomy_nodes n on n.id = d.node_id
+        where d.document_type = 'NODE_LESSON' and d.status <> 'PUBLISHED' and n.is_active`, [BUILD_AT]);
     const exams = await q(`select id, slug from public.exams where is_active order by slug`);
     const courses = [];
     for (const e of exams) {
       const [o] = await q(`select public.fn_exam_course_outline($1) r`, [e.id]);
       courses.push({ slug: e.slug, live: live.has(e.id), nodeIds: (o.r.chapters || []).flatMap((ch) => ch.lessons.map((l) => l.node_id)) });
     }
-    const L = lessons[0];
-    if (!L) {
-      console.log('  PASS  S-00 VACUOUS WARN: no published node lesson — run scripts/content/ca6-qa-lesson.cjs');
-      passed++;
-      await c.query('ROLLBACK');
-      return;
-    }
+    // GATE-SCOPE-SWEEP: the page checks run on THE QA test lesson (scripts/content/ca6-qa-lesson.cjs), never on whichever
+    // real lesson sorts first (the owner publishes lessons; their bodies are not this gate's fixture)
+    // the QA node lesson lives on the topic of the legacy QA document qa-number-system-concept-lesson (ca6-qa-lesson.cjs)
+    const [qaTopic] = await q(`select u.topic_id from public.learning_documents d join public.learning_units u on u.id = d.learning_unit_id where d.canonical_slug = 'qa-number-system-concept-lesson'`);
+    const L = qaTopic ? lessons.find((l) => l.node_id === qaTopic.topic_id && l.test) : null;
+    if (!L) throw new Error('the QA test node lesson (on the topic of qa-number-system-concept-lesson) is not servable — run scripts/content/ca6-qa-lesson.cjs');
     const [ver] = await q(`select blocks from public.document_versions where document_id = $1 and language = 'en' and is_current and is_published`, [L.document_id]);
     await c.query('ROLLBACK');
     const p = L.hierarchy_path.split('.').join('/');
@@ -124,12 +127,14 @@ const decode = (h) => h.replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(
     const sm = await get('/sitemap.xml');
     const xml = sm.status === 200 ? await sm.text() : '';
     const urls = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((x) => new URL(x[1]).pathname);
+    const changed = new Set([...lessons, ...drafts].filter((l) => l.changed).map((l) => l.hierarchy_path.split('.').join('/')));
     const pub = new Set(lessons.filter((l) => !l.test).map((l) => l.hierarchy_path.split('.').join('/')));
     const pubHi = new Set(lessons.filter((l) => l.hi_current && !l.test).map((l) => l.hierarchy_path.split('.').join('/')));
     const testPaths = new Set(lessons.filter((l) => l.test).map((l) => l.hierarchy_path.split('.').join('/')));
     const bad = [];
     for (const u of urls) {
       let mm;
+      if ((mm = u.match(/^\/(?:hi\/)?learn\/(.+)$/)) && changed.has(mm[1])) continue; // changed after the build
       if ((mm = u.match(/^\/learn\/(.+)$/)) && !mm[1].startsWith('topics/') && !pub.has(mm[1])) bad.push(testPaths.has(mm[1]) ? `test content listed ${u}` : `unpublished ${u}`);
       if ((mm = u.match(/^\/exams\/([a-z0-9-]+)\/course$/)) && !courses.some((x) => x.slug === mm[1] && x.live)) bad.push(`course listed before launch ${u}`);
       if ((mm = u.match(/^\/hi\/learn\/(.+)$/)) && !pubHi.has(mm[1])) bad.push(`hindi not published ${u}`);
@@ -140,8 +145,8 @@ const decode = (h) => h.replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(
       }
       if ((mm = u.match(/^\/articles\/(.+)$/)) && lessons.some((l) => l.canonical_slug === mm[1])) bad.push(`node lesson under /articles ${u}`);
     }
-    for (const x of drafts) if (urls.includes(`/learn/${x.hierarchy_path.split('.').join('/')}`) && !pub.has(x.hierarchy_path.split('.').join('/'))) bad.push(`draft listed ${x.hierarchy_path}`);
-    const missing = [...pub].filter((x) => !urls.includes(`/learn/${x}`));
+    for (const x of drafts) if (!x.changed && urls.includes(`/learn/${x.hierarchy_path.split('.').join('/')}`) && !pub.has(x.hierarchy_path.split('.').join('/'))) bad.push(`draft listed ${x.hierarchy_path}`);
+    const missing = [...pub].filter((x) => !changed.has(x) && !urls.includes(`/learn/${x}`));
     const hreflangOk = pubHi.size > 0 ? /hreflang="hi"/.test(xml) : !/hreflang="hi"/.test(xml);
     check(`S-05 sitemap: ${urls.length} URLs — every lesson URL is published and not test content (${pub.size} indexable lesson(s), ${testPaths.size} test, ${pubHi.size} in Hindi), each indexable lesson listed, no course before launch, no node lesson under /articles, hreflang only with Hindi`,
       sm.status === 200 && bad.length === 0 && missing.length === 0 && hreflangOk, JSON.stringify({ status: sm.status, bad: bad.slice(0, 5), missing, hreflangOk }));

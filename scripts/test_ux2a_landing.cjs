@@ -329,14 +329,39 @@ const UX2B_ROUTES = ['/legal'];
     const paths = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => new URL(m[1]).pathname + new URL(m[1]).search);
     assert(paths.length > 0, 'empty sitemap');
     assert(!paths.some((p) => p === '/learn' || p === '/blog'), 'removed routes still listed');
+    // GATE-SCOPE-SWEEP (2026-10-29): the sitemap is prerendered at BUILD time; a lesson / course the owner unpublishes or
+    // pauses after the build may 404 legitimately — such a 404 is tolerated ONLY for a path whose content changed after the
+    // build (read-only lookup); every other non-200 still fails
+    const buildAt = fs.statSync(path.join(ROOT, '.next', 'BUILD_ID')).mtime;
+    const { Client } = require('pg');
+    const { dbTarget } = require('./db/_db-env.cjs');
+    const { safeBegin } = require('./db/live-safety.cjs');
+    const changed = new Set();
+    const db = new Client(dbTarget().pg); db.on('error', () => {}); await db.connect();
+    try {
+      await safeBegin(db, { readOnly: true });
+      const nodes = (await db.query(`select replace(n.hierarchy_path, '.', '/') p from public.learning_documents d join public.canonical_taxonomy_nodes n on n.id = d.node_id
+          where d.document_type = 'NODE_LESSON' and (d.updated_at > $1 or n.updated_at > $1)`, [buildAt])).rows.map((r) => r.p);
+      for (const x of nodes) { changed.add(`/learn/${x}`); changed.add(`/hi/learn/${x}`); }
+      const courses = (await db.query(`select e.slug from public.exam_course_launches l join public.exams e on e.id = l.exam_id where l.changed_at > $1`, [buildAt])).rows.map((r) => r.slug);
+      for (const sl of courses) changed.add(`/exams/${sl}/course`);
+      await db.query('ROLLBACK');
+    } finally { await db.end().catch(() => {}); }
+    const isChanged = (p) => {
+      if (changed.has(p)) return true;
+      const m = p.match(/^\/exams\/[a-z0-9-]+\/(.+)$/); // an exam-topic page of a changed lesson node
+      return !!m && changed.has(`/learn/${m[1]}`);
+    };
     const bad = [];
+    let skipped = 0;
     for (const p of paths) {
       let r = null;
       for (let i = 1; i <= 3 && (!r || r.status >= 500); i++) r = await get(p);
+      if (r.status === 404 && isChanged(p)) { skipped++; continue; }
       if (r.status !== 200) bad.push(`${p} ${r.status}`);
     }
     assert(bad.length === 0, bad.join(', '));
-    return `${paths.length} URLs, all 200`;
+    return `${paths.length} URLs, all 200${skipped ? ` (${skipped} changed after the build: 404 tolerated)` : ''}`;
   });
 
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
@@ -344,7 +369,7 @@ const UX2B_ROUTES = ['/legal'];
   const domText = await (async () => {
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     const page = await ctx.newPage();
-    await page.goto(`${BASE}/`, { waitUntil: 'networkidle', timeout: 120000 });
+    await page.goto(`${BASE}/`, { waitUntil: 'networkidle', timeout: 30000 });
     const t = await page.evaluate(() => document.body.innerText);
     await ctx.close();
     return t.replace(/\s+/g, ' ');
@@ -376,12 +401,14 @@ const UX2B_ROUTES = ['/legal'];
     let mocksAll = 0;
     let guidesAll = 0;
     let anySyllabus = false;
+    const perExam = []; // GATE-SCOPE-SWEEP: each exam card's own counts are legitimate numbers on the page
     for (const e of exams) {
       const m = total(await rest(`mock_tests?select=id,mock_templates!inner(exam_id)&mock_templates.exam_id=eq.${e.id}&status=eq.published&is_dynamic=eq.false&limit=1`));
       const g = total(await rest(`exam_knowledge_documents?select=id&exam_id=eq.${e.id}&status=eq.PUBLISHED&current_published_version_id=not.is.null&limit=1`));
       const rm = await (await rest('rpc/fn_exam_syllabus_read_model', { method: 'POST', body: JSON.stringify({ p_exam_id: e.id }) })).json();
       mocksAll += m;
       guidesAll += g;
+      perExam.push(m, g);
       anySyllabus = anySyllabus || (rm && rm.state === 'AVAILABLE');
       assert(domText.includes(e.title), `${e.title} card missing`);
       if (m > 0) assert(domText.includes(`${m} free mock test${m === 1 ? '' : 's'}`), `${e.slug}: mock count ${m} not shown`);
@@ -394,8 +421,10 @@ const UX2B_ROUTES = ['/legal'];
     assert(block('Daily current affairs') === (ca > 0 ? 'Available now' : 'Coming soon'), `current affairs ${ca} vs ${block('Daily current affairs')}`);
     assert(block('Syllabus tracker') === (anySyllabus ? 'Available now' : 'Coming soon'), `syllabus vs ${block('Syllabus tracker')}`);
     // every number domText on the page is accounted for (counts, step numbers, the founding year, the © year)
-    const nums = [...domText.matchAll(/\b\d+\b/g)].map((x) => Number(x[0]));
-    const allowed = new Set([mocksAll, guidesAll, 1, 2, 3, 4, 5, 6, 7, 2024, new Date().getFullYear(), ...exams.map(() => 0)]);
+    // GATE-SCOPE-SWEEP (2026-10-29): exam titles may contain digits (e.g. a year or "Tier 2") — they are stripped first
+    const scanned = exams.reduce((t, e) => t.split(e.title).join(' '), domText);
+    const nums = [...scanned.matchAll(/\b\d+\b/g)].map((x) => Number(x[0]));
+    const allowed = new Set([mocksAll, guidesAll, ...perExam, 1, 2, 3, 4, 5, 6, 7, 2024, new Date().getFullYear(), ...exams.map(() => 0)]);
     const unknown = nums.filter((n) => !allowed.has(n));
     assert(unknown.length === 0, `unexplained numbers on "/": ${[...new Set(unknown)].join(', ')}`);
     return `${exams.length} active exam(s); mocks ${mocksAll}; guides ${guidesAll}; current affairs ${ca}; syllabus ${anySyllabus ? 'available' : 'coming soon'}`;
@@ -431,7 +460,7 @@ const UX2B_ROUTES = ['/legal'];
           window.__cls = 0;
           new PerformanceObserver((l) => { for (const e of l.getEntries()) if (!e.hadRecentInput) window.__cls += e.value; }).observe({ type: 'layout-shift', buffered: true });
         });
-        await page.goto(`${BASE}/`, { waitUntil: 'networkidle', timeout: 120000 });
+        await page.goto(`${BASE}/`, { waitUntil: 'networkidle', timeout: 30000 });
         await page.waitForTimeout(500);
         const cls = await page.evaluate(() => window.__cls);
         assert(cls <= 0.1, `${w}: CLS ${cls}`);
@@ -456,7 +485,7 @@ const UX2B_ROUTES = ['/legal'];
       // CI-FIX-1 (#74): CAPTCHA-safe QA session cookies (no login form; scripts/live/qa-session.cjs)
       await require('./live/qa-session.cjs').qaBrowserLogin(ctx, 'qa-student@courage-library.test', BASE);
       const page = await ctx.newPage();
-      page.setDefaultTimeout(120000);
+      page.setDefaultTimeout(30000);
       const resp = await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
       assert(new URL(page.url()).pathname === '/' && resp.status() === 200, `redirected to ${new URL(page.url()).pathname}`);
       const banner = page.getByRole('banner');

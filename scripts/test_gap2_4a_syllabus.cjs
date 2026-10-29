@@ -28,7 +28,7 @@
  *   G-11 (GAP2-4A-SCOPE amendment of GATE-HYGIENE-1): the draft-shape contract on the suite's own QA fixture (exact
  *        tree vs its spec, valid, deterministic); the seeds re-run as a no-op whatever the seeded version's status; the
  *        GD legacy shape (4 SECTION / 18 UNIT / 18 mappings, valid, delete + re-seed identical) and the CGL skeleton shape
- *        only while that version is a DRAFT; ≤ 1 PUBLISHED per exam + cycle; the QA exam never PUBLISHED. Every fixture
+ *        only while that version is a DRAFT; ≤ 1 PUBLISHED per exam + cycle + tier; the QA exam never PUBLISHED. Every fixture
  *        draft in G-02..G-10 lives on the QA exam, never on a real exam
  *   G-13 negative controls (rolled back): a stray unit / dropped mapping / deleted unit in the fixture FAILS G-11; a
  *        QA version left PUBLISHED FAILS; the owner publishing then archiving the GD seed draft PASSES
@@ -189,17 +189,18 @@ const CORE = ['fn_syllabus__assert_role', 'fn_syllabus__audit', 'fn_syllabus__sl
      ORDER BY n.node_depth, p.raw_slug NULLS FIRST, n.display_order, n.raw_title`, [id]));
 
   /**
-   * G-11 body (runs inside the caller's transaction). Real-data invariants: ≤ 1 PUBLISHED per exam + cycle; the QA test
+   * G-11 body (runs inside the caller's transaction). Real-data invariants: ≤ 1 PUBLISHED per exam + cycle + tier; the QA test
    * exam never PUBLISHED. Shape contract: the QA fixture equals its spec exactly, validates, and builds deterministically.
    * Seeds: re-running a seed is a no-op whatever the seeded version's status; the GD / CGL seed shapes are asserted only
    * while that seeded version is still a DRAFT. opts.afterBuild (negative controls only) mutates the first fixture.
    */
   const g11 = async (opts = {}) => {
-    const vers = await q(`SELECT e.slug, v.id, v.status, v.source_kind, v.version_tag, v.raw_payload_hash h, v.exam_cycle_id::text cy FROM public.exam_syllabus_versions v JOIN public.exams e ON e.id = v.exam_id`);
+    const vers = await q(`SELECT e.slug, v.id, v.status, v.source_kind, v.version_tag, v.raw_payload_hash h, v.exam_cycle_id::text cy, v.tier FROM public.exam_syllabus_versions v JOIN public.exams e ON e.id = v.exam_id`);
     const qaPublished = vers.filter((v) => v.slug === QA && v.status === 'PUBLISHED');
     assert(qaPublished.length === 0, `the QA test exam has ${qaPublished.length} PUBLISHED version(s)`);
     const perScope = {};
-    for (const v of vers.filter((x) => x.status === 'PUBLISHED')) perScope[`${v.slug}/${v.cy || '-'}`] = (perScope[`${v.slug}/${v.cy || '-'}`] || 0) + 1;
+    // GATE-SCOPE-SWEEP: per exam + cycle + TIER (the publish index is per tier; the owner publishes CGL tier 2 beside tier 1)
+    for (const v of vers.filter((x) => x.status === 'PUBLISHED')) { const k = `${v.slug}/${v.cy || '-'}/${v.tier ?? '-'}`; perScope[k] = (perScope[k] || 0) + 1; }
     const multi = Object.entries(perScope).filter(([, n]) => n > 1);
     assert(multi.length === 0, `more than one PUBLISHED version: ${multi.map(([k, n]) => `${k.split('/')[0]}×${n}`)}`);
 
@@ -541,9 +542,12 @@ const CORE = ['fn_syllabus__assert_role', 'fn_syllabus__audit', 'fn_syllabus__sl
       tx(async () => {
         // QB-KEY-1 round 2 (audited amendment; was pinned: CGL → NO_SYLLABUS): the read model agrees with the DB —
         // CGL has a PUBLISHED version ⇔ AVAILABLE with exactly that version and a non-empty tree; none ⇔ NO_SYLLABUS
-        const cglPublished = (await q(`SELECT id::text FROM public.exam_syllabus_versions WHERE exam_id = $1 AND status = 'PUBLISHED'`, [exams['ssc-cgl']])).map((r) => r.id);
+        // GATE-SCOPE-SWEEP: several tiers may be PUBLISHED — the read model shows the one its documented order picks
+        // (exam-wide cycle first, then the all-tiers version, then the lowest tier, then the newest)
+        const cglPublished = (await q(`SELECT id::text FROM public.exam_syllabus_versions WHERE exam_id = $1 AND status = 'PUBLISHED' AND is_active
+            ORDER BY (exam_cycle_id IS NULL) DESC, (tier IS NULL) DESC, tier, published_at DESC`, [exams['ssc-cgl']])).map((r) => r.id);
         const cgl = await rpc('anon', 'fn_exam_syllabus_read_model', [exams['ssc-cgl'], null]);
-        if (cglPublished.length) assert(cglPublished.length === 1 && cgl.state === 'AVAILABLE' && cgl.version && cgl.version.id === cglPublished[0] && cgl.nodes.length > 0, `CGL: ${cgl.state} vs ${cglPublished.length} PUBLISHED`);
+        if (cglPublished.length) assert(cgl.state === 'AVAILABLE' && cgl.version && cgl.version.id === cglPublished[0] && cgl.nodes.length > 0, `CGL: ${cgl.state} vs ${cglPublished.length} PUBLISHED`);
         else assert(cgl.state === 'NO_SYLLABUS' && cgl.version === null && cgl.nodes.length === 0, `CGL: ${JSON.stringify(cgl).slice(0, 200)}`);
         await buildValidDraft(QA); // GAP2-4A-SCOPE: a DRAFT-only exam is the QA exam with a fixture DRAFT
         const draftOnly = await rpc('anon', 'fn_exam_syllabus_read_model', [exams[QA], null]);
@@ -599,8 +603,8 @@ const CORE = ['fn_syllabus__assert_role', 'fn_syllabus__audit', 'fn_syllabus__sl
     // GAP2-4A-SCOPE (architect 2026-10-28; amends GATE-HYGIENE-1, which amended the original "real exams hold only
     // DRAFTs"): the owner publishes / archives real syllabus drafts during intake, so the draft-shape contract is now
     // asserted on the suite's own QA fixture; the seeded GD / CGL shapes only while they are DRAFTs; the real-data
-    // invariants (≤ 1 PUBLISHED per exam + cycle, QA exam never PUBLISHED) are unchanged. G-13 holds the negative controls.
-    await test('G-11 draft shape on the QA fixture (exact, valid, deterministic); seeds re-run no-op in any status; seed shapes only while DRAFT; ≤ 1 PUBLISHED per exam + cycle', async () => tx(() => g11()));
+    // invariants (≤ 1 PUBLISHED per exam + cycle + tier, QA exam never PUBLISHED) are unchanged. G-13 holds the negative controls.
+    await test('G-11 draft shape on the QA fixture (exact, valid, deterministic); seeds re-run no-op in any status; seed shapes only while DRAFT; ≤ 1 PUBLISHED per exam + cycle + tier', async () => tx(() => g11()));
 
     await test('G-13 negative controls (rolled back): a broken fixture shape FAILS G-11; a PUBLISHED QA version FAILS; the owner publishing / archiving a seeded draft PASSES', async () =>
       tx(async () => {

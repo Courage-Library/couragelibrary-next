@@ -33,6 +33,7 @@ require.extensions['.ts'] = (module, filename) => {
   module._compile(out.outputText, filename);
 };
 const { lessonExample } = require(path.join(ROOT, 'lib/prompts/lesson-prompt.ts'));
+const { qaTopic, publishQaSyllabus } = require(path.join(ROOT, 'scripts/live/_qa-course.cjs'));
 
 let ok = true;
 let pending = [];
@@ -64,10 +65,11 @@ const EXISTING_HASH = `select
     // parallel and its cleanup deletes the QA student's progress (rows may disappear, never appear because of this smoke)
     const [{ t: smokeStart }] = await q(`select now() t`);
     const progressBefore = 0;
-    // an exam whose PUBLISHED syllabus maps the QA topic (for the counts + the outline)
-    const [ex] = await q(`select v.exam_id, v.exam_cycle_id from public.exam_syllabus_canonical_mappings m
-        join public.exam_syllabus_nodes n on n.id = m.syllabus_node_id join public.exam_syllabus_versions v on v.id = n.syllabus_version_id
-       where m.topic_id = $1 and v.status = 'PUBLISHED' and v.is_active order by v.published_at desc limit 1`, [qa.topic_id]);
+    // GATE-SCOPE-SWEEP (2026-10-29): the course is the QA exam's — B publishes its OWN syllabus version mapping its OWN
+    // topic (both rolled back), so the owner's real lessons and syllabi never move the positions or the outline
+    const [qaExam] = await q(`select id from public.exams where slug = 'qa-syllabus-test'`);
+    if (!qaExam) throw new Error('QA exam missing');
+    const ex = { exam_id: qaExam.id, exam_cycle_id: null };
 
     const lit = (o) => `'${JSON.stringify(o).replace(/'/g, "''")}'`;
     const as = async (role, cl, sql, p) => {
@@ -97,19 +99,20 @@ const EXISTING_HASH = `select
     };
     const migrate = async () => { if (PRE) await c.query(MIGRATION_SQL); };
 
-    // QA smoke lessons: the QA topic + two subtopics (display order 1, 0) + a concept under the first → published EN
-    const seedLessons = async () => {
+    // QA smoke lessons: the smoke's own topic (scripts/live/_qa-course.cjs) + two subtopics (display order 1, 0) + a concept
+    // under the first → published EN
+    const seedLessons = async (topic) => {
       const mkNode = async (parent, type, name, order) => (await q(`insert into public.canonical_taxonomy_nodes (parent_id, node_type, name, slug, display_order, is_active, hierarchy_path, metadata)
           select $1, $2, $3, $4, $5, true, p.hierarchy_path || '/' || $4, '{}'::jsonb from public.canonical_taxonomy_nodes p where p.id = $1 returning id`, [parent, type, name, name.toLowerCase().replace(/[^a-z0-9]+/g, '-'), order]))[0].id;
-      const subA = await mkNode(qa.topic_id, 'SUBTOPIC', 'CA5 Smoke Sub A', 1);
-      const subB = await mkNode(qa.topic_id, 'SUBTOPIC', 'CA5 Smoke Sub B', 0);
+      const subA = await mkNode(topic, 'SUBTOPIC', 'CA5 Smoke Sub A', 1);
+      const subB = await mkNode(topic, 'SUBTOPIC', 'CA5 Smoke Sub B', 0);
       const conA = await mkNode(subA, 'CONCEPT', 'CA5 Smoke Concept A', 0);
       const docs = {};
       let created = 0;
-      for (const [k, node] of [['topic', qa.topic_id], ['subA', subA], ['subB', subB], ['conA', conA]]) {
+      for (const [k, node] of [['topic', topic], ['subA', subA], ['subB', subB], ['conA', conA]]) {
         const d = await svc(`select public.fn_lesson_create_node_document($1, 'FREE', null, $2) r`, [node, ACTOR_EMAIL]);
         if (!d.ok) throw new Error(`node document: ${d.msg}`);
-        if (d.rows[0].r.created) created++; // the QA topic may already have its published QA lesson (CA-6 fixture)
+        if (d.rows[0].r.created) created++;
         const ex = lessonExample(node);
         const s = await svc(`select public.fn_lesson_save_draft($1, 'en', $2::jsonb, $3::jsonb, 'AI_ASSISTED', null, $4) r`, [d.rows[0].r.document_id, JSON.stringify(ex.meta), JSON.stringify(ex.blocks), ACTOR_EMAIL]);
         if (!s.ok) throw new Error(`draft: ${s.msg}`);
@@ -147,30 +150,31 @@ const EXISTING_HASH = `select
     // ---------------- B: master positions, read-model counts, the course outline
     await chunk(async () => {
       await migrate();
+      const T = await qaTopic(q, qa.topic_id, 'ca5-smoke-topic', 'CA5 Smoke Topic');
+      await publishQaSyllabus(q, qaExam.id, [T], 'ca5-smoke');
       const countFor = async () => {
-        if (!ex) return null;
         const r = await as('anon', ANON, `select public.fn_exam_syllabus_read_model($1, $2) r`, [ex.exam_id, ex.exam_cycle_id]);
         const rm = r.ok ? r.rows[0].r : null;
-        const t = rm ? rm.nodes.flatMap((n) => n.topics).find((x) => x.topic_id === qa.topic_id) : null;
+        const t = rm ? rm.nodes.flatMap((n) => n.topics).find((x) => x.topic_id === T) : null;
         return t ? t.servable_documents : null;
       };
       const before = await countFor();
- const { docs, created } = await seedLessons();
-      const rows = (await as('anon', ANON, `select document_id, node_type, topic_id, chapter_position from public.fn_servable_node_lessons() where topic_id = $1 order by chapter_position`, [qa.topic_id])).rows || [];
+      const { docs, created } = await seedLessons(T);
+      const rows = (await as('anon', ANON, `select document_id, node_type, topic_id, chapter_position from public.fn_servable_node_lessons() where topic_id = $1 order by chapter_position`, [T])).rows || [];
       const pos = Object.fromEntries(Object.entries(docs).map(([k, id]) => [k, rows.find((r) => r.document_id === id)?.chapter_position]));
       chk('B-1 master chapter + position (anon): all 4 lessons in the QA topic chapter, in master pre-order — topic 1, Sub B (order 0) 2, Sub A (order 1) 3, its concept 4',
-        pos.topic === 1 && pos.subB === 2 && pos.subA === 3 && pos.conA === 4 && rows.every((r) => r.topic_id === qa.topic_id), JSON.stringify({ pos, rows: rows.length }));
+        pos.topic === 1 && pos.subB === 2 && pos.subA === 3 && pos.conA === 4 && rows.every((r) => r.topic_id === T), JSON.stringify({ pos, rows: rows.length }));
       const after = await countFor();
-      chk(`B-2 read model: the topic's servable documents include the newly published node lessons (+${created})${ex ? '' : ' — no published syllabus maps the QA topic: skipped'}`,
-        !ex || (before !== null && after === before + created), JSON.stringify({ before, after, created }));
-      if (ex) {
+      chk(`B-2 read model: the topic's servable documents include the newly published node lessons (+${created})`,
+        before === 0 && created === 4 && after === before + created, JSON.stringify({ before, after, created }));
+      {
         const o = (await as('anon', ANON, `select public.fn_exam_course_outline($1, $2, 'en') r`, [ex.exam_id, ex.exam_cycle_id])).rows[0].r;
         const s = (await svc(`select public.fn_exam_course_outline($1, $2, 'en') r`, [ex.exam_id, ex.exam_cycle_id])).rows[0].r;
         const hi = (await as('anon', ANON, `select public.fn_exam_course_outline($1, $2, 'hi') r`, [ex.exam_id, ex.exam_cycle_id])).rows[0].r;
-        const ch = o.chapters.find((x) => x.topic_id === qa.topic_id);
+        const ch = o.chapters.find((x) => x.topic_id === T);
         const order = ch ? ch.lessons.map((l) => l.position).join(',') : '';
-        chk('B-3 course outline: generated (published syllabus ∩ servable lessons) — the QA chapter lists the 4 lessons in master order; anon = service; Hindi marks them not available in Hindi yet; never a draft',
-          o.state === 'AVAILABLE' && ch && order === '1,2,3,4' && JSON.stringify(o) === JSON.stringify(s) && hi.totals.lessons_in_language < hi.totals.lessons
+        chk('B-3 course outline: generated (published syllabus ∩ servable lessons) — the smoke chapter lists exactly its 4 lessons in master order; anon = service; Hindi marks them not available in Hindi yet; never a draft',
+          o.state === 'AVAILABLE' && o.chapters.length === 1 && ch && order === '1,2,3,4' && JSON.stringify(o) === JSON.stringify(s) && hi.totals.lessons_in_language < hi.totals.lessons
           && ch.lessons.every((l) => Object.values(docs).includes(l.document_id) || !l.document_id.startsWith('x')),
           JSON.stringify({ state: o.state, order, totals: o.totals, hi: hi.totals }));
       }
@@ -181,7 +185,7 @@ const EXISTING_HASH = `select
     // ---------------- C: progress — own rows only, auth.uid(), never downgraded
     await chunk(async () => {
       await migrate();
-      const { docs } = await seedLessons();
+      const { docs } = await seedLessons(await qaTopic(q, qa.topic_id, 'ca5-smoke-topic', 'CA5 Smoke Topic'));
       const save = (cl, doc, st, block = null) => as('authenticated', cl, `select public.fn_lesson_progress_save($1, 'en', $2, $3) r`, [doc, st, block]);
       const r1 = await save(STU, docs.topic, 'READING', 'intro');
       const r2 = await save(STU, docs.topic, 'COMPLETED', 'memory');

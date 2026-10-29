@@ -9,6 +9,9 @@
  *   / status; fn_live_course_document_ids follows LIVE; pause; a client cannot write) · C exam notes (validated blocks,
  *   one draft, publish retires, frozen, HI after EN, internal node refused, public reads PUBLISHED only, audited)
  *   · D the progress RPC records ONE ARTICLE_VIEWED per day (topic + node type set), anon refused · Z nothing left.
+ * GATE-SCOPE-SWEEP (2026-10-29): every chunk builds its OWN fixtures (scripts/live/_qa-course.cjs, rolled back): a QA topic
+ *   (+ a subtopic) with published node lessons, the QA exam's published syllabus over that topic, an INTERNAL QA topic for
+ *   the refusal — never real SSC CGL, real lessons or real catch-all topics; launch / live counts are over the QA course only.
  * Run: node scripts/live/test_ca7.cjs [--pre]
  */
 const fs = require('fs');
@@ -33,6 +36,8 @@ require.extensions['.ts'] = (module, filename) => {
   module._compile(out.outputText, filename);
 };
 const { examNoteExample } = require(path.join(ROOT, 'lib/lessons/exam-note.ts'));
+const { lessonExample } = require(path.join(ROOT, 'lib/prompts/lesson-prompt.ts'));
+const { qaTopic, publishNodeLesson, publishQaSyllabus } = require(path.join(ROOT, 'scripts/live/_qa-course.cjs'));
 
 let ok = true;
 let pending = [];
@@ -52,11 +57,9 @@ const ACTOR = 'ca7-smoke@courage-library.test';
     if (!PRE && led.n === 0) throw new Error(`${FILE} is not applied (use --pre for the pre-apply smoke)`);
     const ids = {};
     for (const [k, e] of [['admin', 'qa-admin@courage-library.test'], ['student', 'qa-student@courage-library.test']]) ids[k] = (await q(`select id from auth.users where email = $1`, [e]))[0]?.id;
-    const [lesson] = await q(`select d.id, d.node_id, n.hierarchy_path, n.parent_id, n.node_type from public.learning_documents d join public.canonical_taxonomy_nodes n on n.id = d.node_id
-                               where d.document_type = 'NODE_LESSON' and d.status = 'PUBLISHED' order by d.created_at limit 1`);
-    const [exam] = await q(`select e.id from public.exams e where e.slug = 'ssc-cgl'`);
-    const [catchAll] = await q(`select id from public.canonical_taxonomy_nodes where node_type = 'TOPIC' and slug like '%-general' order by hierarchy_path limit 1`);
-    if (!ids.admin || !ids.student || !lesson || !exam || !catchAll) throw new Error('QA users / a published node lesson / ssc-cgl / a catch-all node missing');
+    const [qaLesson] = await q(`select u.topic_id from public.learning_documents d join public.learning_units u on u.id = d.learning_unit_id where d.canonical_slug = 'qa-number-system-concept-lesson'`);
+    const [exam] = await q(`select e.id from public.exams e where e.slug = 'qa-syllabus-test'`);
+    if (!ids.admin || !ids.student || !qaLesson || !exam) throw new Error('QA users / the QA lesson / the QA exam missing');
 
     const lit = (o) => `'${JSON.stringify(o).replace(/'/g, "''")}'`;
     const as = async (role, cl, sql, p) => {
@@ -84,11 +87,24 @@ const ACTOR = 'ca7-smoke@courage-library.test';
       }
     };
     const migrate = async () => { if (PRE) await c.query(MIGRATION_SQL); };
+    // the chunk's own fixtures (inside its rolled-back transaction): a TOPIC lesson, optionally a SUBTOPIC lesson under it,
+    // and the QA exam's published syllabus over the topic
+    const fixture = async (withSub = false) => {
+      const topic = await qaTopic(q, qaLesson.topic_id, 'ca7-smoke-topic', 'CA7 Smoke Topic');
+      const topicDoc = await publishNodeLesson(svc, topic, lessonExample(topic), ACTOR);
+      await publishQaSyllabus(q, exam.id, [topic], 'ca7-smoke');
+      const lesson = { id: topicDoc, node_id: topic, node_type: 'TOPIC', parent_id: null };
+      if (!withSub) return lesson;
+      const [sub] = await q(`insert into public.canonical_taxonomy_nodes (parent_id, node_type, name, slug, metadata) values ($1, 'SUBTOPIC', 'CA7 Smoke Sub', 'ca7-smoke-sub', '{"source":"QA_FIXTURE"}') returning id`, [topic]);
+      const subDoc = await publishNodeLesson(svc, sub.id, lessonExample(sub.id), ACTOR);
+      return { id: subDoc, node_id: sub.id, node_type: 'SUBTOPIC', parent_id: topic };
+    };
     const servableHas = async (docId) => (await q(`select count(*)::int n from public.fn_servable_node_lessons() where document_id = $1`, [docId]))[0].n === 1;
 
     // ---------------- A: flags
     await chunk(async () => {
       await migrate();
+      const lesson = await fixture(true); // a SUBTOPIC lesson: its own flag and its parent's are both checked
       const before = await servableHas(lesson.id);
       await q(`update public.canonical_taxonomy_nodes set is_internal = true where id = $1`, [lesson.node_id]);
       const ownInternal = await servableHas(lesson.id);
@@ -102,13 +118,14 @@ const ACTOR = 'ca7-smoke@courage-library.test';
       const anonFlag = await as('anon', ANON, `select is_test_content from public.learning_documents where id = $1`, [lesson.id]);
       const [stored] = await q(`select is_test_content from public.learning_documents where id = $1`, [lesson.id]);
       chk('A-1 an INTERNAL node (and anything under it) is never a servable lesson; anon reads is_test_content (the sitemap filter) = the stored value',
-        before && !ownInternal && parentInternal !== true && anonFlag.ok && anonFlag.rows[0].is_test_content === stored.is_test_content,
+        before && !ownInternal && parentInternal === false && anonFlag.ok && anonFlag.rows[0].is_test_content === stored.is_test_content,
         JSON.stringify({ before, ownInternal, parentInternal, anonFlag, stored }));
     });
 
     // ---------------- B: launch
     await chunk(async () => {
       await migrate();
+      await fixture();
       // LAUNCH-MODE-1 (123): the launch carries an access mode; FREE_ALL keeps this chunk's 122 assertions
       const set = (status, cov) => svc(`select public.fn_exam_course_launch_set($1, null, $2, 'FREE_ALL', $3, null, $4) r`, [exam.id, status, cov, ACTOR]);
       const pauseFirst = await set('PAUSED', null);
@@ -117,18 +134,20 @@ const ACTOR = 'ca7-smoke@courage-library.test';
       const again = await set('LIVE', { total: 10, en: 1, hi: 0 });
       const anonRow = await as('anon', ANON, `select exam_id, status from public.exam_course_launches where exam_id = $1`, [exam.id]);
       const anonCov = await as('anon', ANON, `select coverage from public.exam_course_launches`);
-      const liveDocs = await as('anon', ANON, `select count(*)::int n from public.fn_live_course_document_ids()`);
       const outline = (await q(`select public.fn_exam_course_outline($1, null, 'en') o`, [exam.id]))[0].o;
       const outlineDocs = new Set((outline.chapters || []).flatMap((ch) => (ch.lessons || []).map((l) => l.document_id)));
+      // over the QA course's documents only (the owner may launch real courses)
+      const liveOf = () => as('anon', ANON, `select count(*)::int n from public.fn_live_course_document_ids() g(id) where g.id = any($1::uuid[])`, [[...outlineDocs]]);
+      const liveDocs = await liveOf();
       const stuSet = await as('authenticated', STU, `select public.fn_exam_course_launch_set($1, null, 'LIVE', 'FREE_ALL', '{"total":1,"en":1}', null, 'x@example.test')`, [exam.id]);
       const adminInsert = await as('authenticated', ADMIN, `insert into public.exam_course_launches (exam_id, status, coverage, launched_by_email, changed_by_email) values ($1, 'LIVE', '{}', 'x', 'x')`, [exam.id]);
       const paused = await set('PAUSED', null);
-      const anonAfter = await as('anon', ANON, `select count(*)::int n from public.exam_course_launches`);
-      const liveAfter = await as('anon', ANON, `select count(*)::int n from public.fn_live_course_document_ids()`);
+      const anonAfter = await as('anon', ANON, `select count(*)::int n from public.exam_course_launches where exam_id = $1`, [exam.id]);
+      const liveAfter = await liveOf();
       const [audit] = await q(`select count(*) filter (where action_type = 'EXAM_COURSE_LAUNCH')::int l, count(*) filter (where action_type = 'EXAM_COURSE_PAUSE')::int p from public.admin_audit_logs where actor_email = $1`, [ACTOR]);
       chk('B-1 launch: pause before launch refused; LIVE without a coverage snapshot refused; LIVE → anon sees the row (exam / status only; coverage denied 42501) and fn_live_course_document_ids = the course outline\'s lessons; LIVE twice refused; a student RPC call and an admin table write are denied (42501); PAUSED → nothing public; audited (1 launch + 1 pause)',
         !pauseFirst.ok && !noCov.ok && live.ok && !again.ok && anonRow.ok && anonRow.rows.length === 1 && anonRow.rows[0].status === 'LIVE' && !anonCov.ok && anonCov.code === '42501'
-        && liveDocs.ok && liveDocs.rows[0].n === outlineDocs.size && !stuSet.ok && stuSet.code === '42501' && !adminInsert.ok && adminInsert.code === '42501'
+        && outlineDocs.size === 1 && liveDocs.ok && liveDocs.rows[0].n === outlineDocs.size && !stuSet.ok && stuSet.code === '42501' && !adminInsert.ok && adminInsert.code === '42501'
         && paused.ok && anonAfter.rows[0].n === 0 && liveAfter.rows[0].n === 0 && audit.l === 1 && audit.p === 1,
         JSON.stringify({ pauseFirst: pauseFirst.msg, noCov: noCov.msg, live: live.ok || live.msg, again: again.msg, anonRow, anonCov: anonCov.code, liveDocs: liveDocs.rows, outlineDocs: outlineDocs.size, stuSet: stuSet.code, adminInsert: adminInsert.code, paused: paused.ok || paused.msg, anonAfter: anonAfter.rows, liveAfter: liveAfter.rows, audit }));
     });
@@ -136,9 +155,12 @@ const ACTOR = 'ca7-smoke@courage-library.test';
     // ---------------- C: exam notes
     await chunk(async () => {
       await migrate();
+      const lesson = await fixture();
+      const [catchAll] = await q(`insert into public.canonical_taxonomy_nodes (parent_id, node_type, name, slug, is_internal, metadata)
+          select root_subject_id, 'TOPIC', 'CA7 Smoke Internal', 'ca7-smoke-internal', true, '{"source":"QA_FIXTURE"}'::jsonb
+            from public.canonical_taxonomy_nodes where id = $1 returning id`, [qaLesson.topic_id]);
       const ex = examNoteExample('SSC CGL', 'Number System');
       const save = (node, lang, meta, blocks) => svc(`select public.fn_exam_note_save_draft($1, $2, $3, $4, $5, null, $6) r`, [exam.id, node, lang, JSON.stringify(meta), JSON.stringify(blocks), ACTOR]);
-      await q(`update public.canonical_taxonomy_nodes set is_internal = true where id = $1`, [catchAll.id]); // rolled back with the chunk
       const bad = await save(lesson.node_id, 'en', ex.meta, [{ id: 'x', type: 'nope' }]);
       const internal = await save(catchAll.id, 'en', ex.meta, ex.blocks);
       const hiFirst = await save(lesson.node_id, 'hi', ex.meta, ex.blocks);
@@ -165,6 +187,7 @@ const ACTOR = 'ca7-smoke@courage-library.test';
     // ---------------- D: view events through the progress RPC
     await chunk(async () => {
       await migrate();
+      const lesson = await fixture();
       const call = (role, cl) => as(role, cl, `select public.fn_lesson_progress_save($1, 'en', 'READING', null) r`, [lesson.id]);
       const a1 = await call('authenticated', STU);
       const a2 = await call('authenticated', STU);
