@@ -345,8 +345,8 @@ jobs:
     # CI-LEAN-1 (decision #73): nightly schedule or a manual dispatch with live=true — never on push
     if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.live)
     runs-on: ubuntu-24.04
-    # CI-FIX-1: hard limit (green runs ~30 min); the always-run cleanup steps still execute after a timeout
-    timeout-minutes: 45
+    # CI-FIX-1: hard limit; 45 → 60 = interim, CI-SPEED-1 (architect 2026-10-29: green runs reached 41–43 min); no check removed
+    timeout-minutes: 60
     environment: ci-live
     env:
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}

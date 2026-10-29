@@ -206,12 +206,12 @@ test('C-14 run-quiet passes a wrapped gate\'s "--self-test" to the gate (it must
   return 'gate executed with its flag';
 });
 
-test('C-15 every job has timeout-minutes (CI-FIX-1: offline 15 · server-checks 20 · live-journeys 45 · live-gates 45 · prod-smoke 20)', () => {
+test('C-15 every job has timeout-minutes (CI-FIX-1: offline 15 · server-checks 20 · live-journeys 45 · live-gates 60 · prod-smoke 20)', () => {
   const w = fs.readFileSync(path.join(ROOT, '.github/workflows/ci-gates.yml'), 'utf8');
   const jobsAt = w.indexOf('\njobs:\n');
   assert(jobsAt > 0, 'no jobs block');
   const blocks = w.slice(jobsAt).split(/\n(?= {2}[a-z][\w-]*:\n)/).slice(1);
-  const want = { offline: 15, 'server-checks': 20, 'live-journeys': 45, 'live-gates': 45, 'prod-smoke': 20 }; // CI-LIVE-SPLIT-1
+  const want = { offline: 15, 'server-checks': 20, 'live-journeys': 45, 'live-gates': 60, 'prod-smoke': 20 }; // CI-LIVE-SPLIT-1; live-gates 45 → 60 = interim, CI-SPEED-1 (architect 2026-10-29)
   const got = {};
   for (const b of blocks) {
     const name = b.match(/^ {2}([a-z][\w-]*):/)[1];
