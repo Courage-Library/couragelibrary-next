@@ -162,11 +162,18 @@ export async function validateSyllabusVersionAction(versionId: string) {
   return { ok: true as const, report };
 }
 
-/** ADMIN ONLY. Validates first; on errors nothing is written and the report is returned. */
-export async function publishSyllabusVersionAction(versionId: string) {
+/**
+ * ADMIN ONLY. Validates first; on errors nothing is written and the report is returned.
+ * SYLLABUS-PUBLISH-IMPACT: opts.archiveOtherIds = the other-tier PUBLISHED versions the owner chose to retire with this
+ * publish (shown in the impact dialog); each is archived after the publish succeeds through the audited archive RPC
+ * (the same rights as "Archive" on the versions page). RPC-only, like every syllabus action.
+ */
+export async function publishSyllabusVersionAction(versionId: string, opts: { archiveOtherIds?: string[] } = {}) {
   const __auth = await guardAdminAction();
   if (!__auth.ok) return __auth;
   if (!isUuid(versionId)) return invalid("version");
+  const archiveOtherIds = Array.isArray(opts.archiveOtherIds) ? opts.archiveOtherIds : [];
+  if (archiveOtherIds.length > 10 || !archiveOtherIds.every(isUuid) || archiveOtherIds.includes(versionId)) return invalid("version to archive");
   const supabase = await createServerSupabaseClient();
   const { data, error } = await supabase.rpc("fn_syllabus_publish", { p_version_id: versionId });
   if (error) return mapSyllabusError("publishSyllabusVersionAction", error);
@@ -175,8 +182,15 @@ export async function publishSyllabusVersionAction(versionId: string) {
   if (!r.success) {
     return { ...actionFailure("VALIDATION", "Fix the errors in the validation panel before publishing."), report: r.report ?? null };
   }
+  // the other tiers the owner chose to retire with this publish (each audited; a failure is reported, not hidden)
+  const archivedOthers: string[] = [];
+  const archiveFailed: string[] = [];
+  for (const id of archiveOtherIds) {
+    const a = await supabase.rpc("fn_syllabus_archive_version", { p_version_id: id });
+    (a.error ? archiveFailed : archivedOthers).push(id);
+  }
   refresh(versionId);
-  return { ok: true as const, archivedPreviousVersionId: r.archived_previous_version_id ?? null };
+  return { ok: true as const, archivedPreviousVersionId: r.archived_previous_version_id ?? null, archivedOthers, archiveFailed };
 }
 
 /** ADMIN ONLY. DRAFT or PUBLISHED → ARCHIVED. */

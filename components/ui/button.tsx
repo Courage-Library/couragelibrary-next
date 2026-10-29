@@ -3,7 +3,7 @@ import Link from "next/link";
 import { cn } from "./cn";
 import { Spinner } from "./spinner";
 
-export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "dangerQuiet";
 export type ButtonSize = "sm" | "md" | "lg";
 
 const VARIANTS: Record<ButtonVariant, string> = {
@@ -15,6 +15,8 @@ const VARIANTS: Record<ButtonVariant, string> = {
     "text-primary-700 hover:bg-primary-50 active:bg-primary-100 disabled:text-ink-600 aria-disabled:text-ink-600",
   danger:
     "bg-danger-600 text-fg-inverse hover:bg-danger-700 active:bg-danger-800 disabled:bg-ink-200 disabled:text-ink-600 aria-disabled:bg-ink-200 aria-disabled:text-ink-600",
+  // SYLLABUS-UI-1: a destructive action that is not the screen's primary (text only; the confirm dialog carries the solid one)
+  dangerQuiet: "text-danger-700 hover:bg-danger-50 active:bg-danger-100 disabled:text-ink-600 aria-disabled:text-ink-600",
 };
 
 const SIZES: Record<ButtonSize, string> = {

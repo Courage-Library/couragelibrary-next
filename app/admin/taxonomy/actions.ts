@@ -115,6 +115,14 @@ export async function mergeTaxonomyNodesAction(
   return sanitizeActionResult("mergeTaxonomyNodesAction", done(await TaxonomyService.mergeNodes(sourceId, targetId, reason, confirmation)));
 }
 
+/** SYLLABUS-UI-1: link a topic to Current Affairs (its content comes from there) or unlink it — admin only; audited. */
+export async function setTaxonomyContentSourceAction(id: string, source: string | null): Promise<TaxonomyResult<{ id: string; contentSource: string | null }>> {
+  const __auth = await guardAdminAction() /* SYLLABUS-UI-1: admin only */;
+  if (!__auth.ok) return __auth;
+  if (source !== null && source !== "CURRENT_AFFAIRS") return { success: false, code: "VALIDATION", error: "Unknown content source." };
+  return sanitizeActionResult("setTaxonomyContentSourceAction", done(await TaxonomyService.setContentSource(id, source)));
+}
+
 /** CA-7: mark a node internal (legacy catch-all) or not — admin only; audited TAXONOMY_NODE_INTERNAL. */
 export async function setTaxonomyNodeInternalAction(id: string, internal: boolean): Promise<TaxonomyResult<TaxonomyNode>> {
   const __auth = await guardAdminAction() /* CA-7: admin only */;

@@ -30,13 +30,13 @@ export default async function AdminSyllabusPage({ searchParams }: { searchParams
 
   let versions: SyllabusVersionRow[] = [];
   let cycles: Array<{ id: string; cycle_year: number }> = [];
-  const publishers: Record<string, { email: string; at: string }> = {};
+  const publishers: Record<string, { name: string; at: string }> = {};
   let loadError = false;
   if (selected) {
     const [vRes, cRes] = await Promise.all([
       supabase
         .from("exam_syllabus_versions")
-        .select("id, exam_id, exam_cycle_id, version_number, version_tag, status, source_kind, is_active, created_at, published_at, archived_at, supersedes_version_id")
+        .select("id, exam_id, exam_cycle_id, tier, version_number, version_tag, status, source_kind, is_active, created_at, published_at, archived_at, supersedes_version_id")
         .eq("exam_id", selected.id)
         .order("version_number", { ascending: false }),
       admin.from("exam_cycles").select("id, cycle_year").eq("exam_id", selected.id).order("cycle_year", { ascending: false }),
@@ -46,13 +46,17 @@ export default async function AdminSyllabusPage({ searchParams }: { searchParams
     cycles = cRes.data ?? [];
     const publishedIds = versions.filter((v) => v.published_at).map((v) => v.id);
     if (publishedIds.length) {
-      // Who published: the SYLLABUS_PUBLISH audit rows (service role, after the page guard; e-mail and time only).
+      // Who published: the SYLLABUS_PUBLISH audit rows (service role, after the page guard). SYLLABUS-UI-1: shown as
+      // the publisher's display name (user_profiles.full_name), never the e-mail; unknown → "an admin".
       const { data: audits } = await admin
         .from("admin_audit_logs")
-        .select("target_id, actor_email, created_at")
+        .select("target_id, actor_id, created_at")
         .eq("action_type", "SYLLABUS_PUBLISH")
         .in("target_id", publishedIds);
-      for (const a of audits ?? []) if (a.target_id) publishers[a.target_id] = { email: a.actor_email, at: a.created_at };
+      const actorIds = [...new Set((audits ?? []).map((a) => a.actor_id).filter(Boolean))] as string[];
+      const { data: profiles } = actorIds.length ? await admin.from("user_profiles").select("id, full_name").in("id", actorIds) : { data: [] };
+      const nameOf = new Map((profiles ?? []).map((p) => [p.id, String(p.full_name ?? "").trim()]));
+      for (const a of audits ?? []) if (a.target_id) publishers[a.target_id] = { name: (a.actor_id && nameOf.get(a.actor_id)) || "an admin", at: a.created_at };
     }
   }
 

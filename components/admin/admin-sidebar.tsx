@@ -188,7 +188,7 @@ export function AdminSidebar({ nav, badges = {} }: { nav: NavGroup[]; badges?: N
       </div>
 
       {/* 768–1279 px rail */}
-      <aside aria-label="Admin navigation" className={cn(SURFACE, "hidden h-dvh w-16 shrink-0 flex-col overflow-y-auto px-2 py-3 md:flex xl:hidden")}>
+      <aside data-admin-sidebar="" aria-label="Admin navigation" className={cn(SURFACE, "hidden h-dvh w-16 shrink-0 flex-col overflow-y-auto px-2 py-3 md:flex xl:hidden")}>
         <button
           type="button"
           onClick={() => setDrawerOpen(true)}
@@ -204,7 +204,7 @@ export function AdminSidebar({ nav, badges = {} }: { nav: NavGroup[]; badges?: N
       </aside>
 
       {/* ≥ 1280 px full sidebar */}
-      <aside aria-label="Admin navigation" className={cn(SURFACE, "hidden h-dvh w-62 shrink-0 flex-col overflow-y-auto px-3 py-4 xl:flex")}>
+      <aside data-admin-sidebar="" aria-label="Admin navigation" className={cn(SURFACE, "hidden h-dvh w-62 shrink-0 flex-col overflow-y-auto px-3 py-4 xl:flex")}>
         <Brand rail={false} />
         <nav aria-label="Admin">
           <NavTree nav={nav} active={active} rail={false} badges={badges} />

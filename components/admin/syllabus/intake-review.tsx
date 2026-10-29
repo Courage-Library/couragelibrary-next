@@ -352,8 +352,10 @@ export function IntakeReview({ session, items, nodes, lastBatch, loadError }: Pr
       />
 
       {/* ------------------------------------------------------------ the guide (sticky, collapsible) */}
-      <section aria-labelledby="guide-title" data-intake-guide="" className="sticky top-0 z-10 rounded-card border border-line bg-surface p-4 shadow-sm">
-        <div className="flex flex-wrap items-center gap-3">
+      {/* SHELL-SCROLL-FIX-1: only the guide's header row (progress, undo, show / hide) sticks; the steps flow with the
+          page — no nested scroll region inside the one admin scroller */}
+      <div data-intake-guide="" className="contents">
+        <div data-guide-bar="" className="sticky top-0 z-10 flex flex-wrap items-center gap-3 rounded-card border border-line bg-surface px-4 py-3 shadow-sm">
           <h2 id="guide-title" className="text-[15px] font-bold text-fg">
             What to do
           </h2>
@@ -375,7 +377,7 @@ export function IntakeReview({ session, items, nodes, lastBatch, loadError }: Pr
           </button>
         </div>
         {guideOpen && (
-          <div id="guide-steps" className="mt-3 max-h-[55vh] overflow-y-auto pr-1">
+          <section id="guide-steps" aria-labelledby="guide-title" className="rounded-card border border-line bg-surface p-4">
             <ol className="grid gap-2">
               {steps.map((s, n) => (
                 <li key={s.title} className={`rounded-control border px-3 py-2 ${n === current ? "border-primary-300 bg-primary-50" : "border-line"}`} data-step={n + 1}>
@@ -411,9 +413,9 @@ export function IntakeReview({ session, items, nodes, lastBatch, loadError }: Pr
                 ))}
               </dl>
             </details>
-          </div>
+          </section>
         )}
-      </section>
+      </div>
 
       <StudioStatStrip label="Intake items by match (not counting papers)" stats={stats} />
       <div role="status" aria-live="polite">

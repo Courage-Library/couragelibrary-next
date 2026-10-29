@@ -205,6 +205,7 @@ const ADMIN_ONLY = new Set([
   // CA-7: the course launch / pause, exam notes and the INTERNAL node flag are owner actions → admin only
   ...['setCourseLaunchAction', 'saveExamNoteDraftAction', 'publishExamNoteAction'].map((n) => `app/admin/lessons/actions.ts#${n}`),
   'app/admin/taxonomy/actions.ts#setTaxonomyNodeInternalAction',
+  'app/admin/taxonomy/actions.ts#setTaxonomyContentSourceAction', // SYLLABUS-UI-1: admin only
   ...['createIntakeAction', 'addIntakeCycleAction', 'decideIntakeItemAction', 'importIntakeAction', 'discardIntakeAction', 'bulkIntakeAction', 'undoIntakeBulkAction'].map((n) => `app/admin/syllabus/intake/actions.ts#${n}`),
   // F9-B: library Pro grants are admin-only (staff cannot grant Pro)
   'app/admin/pro-library/actions.ts#grantLibraryProAction',

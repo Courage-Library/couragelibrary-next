@@ -15,13 +15,21 @@ export interface SyllabusEditorState {
   report: SyllabusValidationReport | null;
 }
 
+/** SYLLABUS-UI-1: what the tree shows from a unit's metadata (intake estimate, outline size) */
+function unitMeta(meta: unknown): { avg_questions: number | null; outline_lines: number } {
+  const m = meta && typeof meta === "object" && !Array.isArray(meta) ? (meta as Record<string, unknown>) : {};
+  const outlines = m.outlines && typeof m.outlines === "object" && !Array.isArray(m.outlines) ? Object.values(m.outlines as Record<string, unknown>) : [];
+  const lines = outlines.reduce<number>((a, o) => a + (o && typeof o === "object" && Array.isArray((o as { items?: unknown }).items) ? ((o as { items: unknown[] }).items.length) : 0), 0);
+  return { avg_questions: typeof m.avg_questions === "number" ? m.avg_questions : null, outline_lines: lines };
+}
+
 export async function loadSyllabusEditorState(supabase: AppSupabaseClient, versionId: string): Promise<SyllabusEditorState | null> {
   try {
     const [nodesRes, validateRes] = await Promise.all([
       supabase
         .from("exam_syllabus_nodes")
         .select(
-          "id, parent_node_id, node_kind, raw_title, raw_slug, description, display_order, node_depth, weightage_tier, expected_questions_min, expected_questions_max, is_mandatory, exam_syllabus_canonical_mappings(canonical_node_id, mapping_weight)",
+          "id, parent_node_id, node_kind, raw_title, raw_slug, description, display_order, node_depth, weightage_tier, expected_questions_min, expected_questions_max, is_mandatory, metadata, exam_syllabus_canonical_mappings(canonical_node_id, mapping_weight)",
         )
         .eq("syllabus_version_id", versionId),
       supabase.rpc("fn_syllabus_validate", { p_version_id: versionId }),
@@ -43,6 +51,7 @@ export async function loadSyllabusEditorState(supabase: AppSupabaseClient, versi
       mappings: (n.exam_syllabus_canonical_mappings ?? [])
         .filter((m) => m.canonical_node_id)
         .map((m) => ({ topic_id: m.canonical_node_id as string, weight: m.mapping_weight })),
+      ...unitMeta(n.metadata),
     }));
     const report = validateRes.error ? null : rpcJsonObject<SyllabusValidationReport>(validateRes.data);
     return { nodes, report };

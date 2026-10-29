@@ -77,6 +77,10 @@ export interface SyllabusEditorNode {
   expected_questions_max: number | null;
   is_mandatory: boolean;
   mappings: Array<{ topic_id: string; weight: number | null }>;
+  /** SYLLABUS-UI-1: the intake's estimate of questions per paper (metadata.avg_questions), when the unit came from an intake */
+  avg_questions?: number | null;
+  /** INTAKE-CONCEPTS-AS-OUTLINE: lesson outline lines kept on this unit (metadata.outlines) */
+  outline_lines?: number;
 }
 
 export interface SyllabusTopicOption {

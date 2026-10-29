@@ -29,13 +29,16 @@ export function SyllabusVersionList({
   exam: { id: string; slug: string; title: string };
   cycles: Array<{ id: string; cycle_year: number }>;
   versions: SyllabusVersionRow[];
-  publishers: Record<string, { email: string; at: string }>;
+  /** SYLLABUS-UI-1: who published, as a display name (never the e-mail) */
+  publishers: Record<string, { name: string; at: string }>;
   isAdmin: boolean;
   loadError: boolean;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  const [cycle, setCycle] = useState("");
+  // SYLLABUS-UI-1: start on the cycle of the live version (if any), so "from published" is available at once
+  const live = versions.find((v) => v.status === "PUBLISHED" && v.is_active) ?? null;
+  const [cycle, setCycle] = useState(live?.exam_cycle_id ?? "");
   const [message, setMessage] = useState<{ tone: "success" | "danger"; text: string } | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<SyllabusVersionRow | null>(null);
   const cycleYear = (id: string | null) => cycles.find((c) => c.id === id)?.cycle_year;
@@ -101,10 +104,29 @@ export function SyllabusVersionList({
         >
           New draft from published
         </Button>
-        {!published && <p className="text-body-sm text-fg-secondary">No published version for this cycle yet, so only an empty draft is possible.</p>}
+        {!published && (
+          <p className="text-body-sm text-fg-secondary" data-cycle-note="">
+            {live
+              ? `Version ${live.version_number} is published for ${live.exam_cycle_id ? `the ${cycleYear(live.exam_cycle_id) ?? ""} cycle` : "all cycles"}. Choose that cycle to start a draft from it; for this choice only an empty draft is possible.`
+              : "Nothing is published yet, so only an empty draft is possible."}
+          </p>
+        )}
       </div>
+      <p className="text-body-sm text-fg-secondary">
+        To build a syllabus from an AI answer, use{" "}
+        <Link href="/admin/syllabus/intake" className="focus-ring rounded-badge text-link underline underline-offset-2">
+          Syllabus intake
+        </Link>{" "}
+        (the main path).
+      </p>
 
-      <SyllabusImportDraft exam={exam} cycles={cycles} versions={versions} />
+      {/* SYLLABUS-UI-1: the legacy JSON import (contract v1) stays available, behind "Advanced" */}
+      <details className="rounded-card border border-line bg-surface px-4 py-3" data-advanced-import="">
+        <summary className="focus-ring cursor-pointer rounded-badge text-body-sm font-medium">Advanced: import a syllabus JSON (contract v1)</summary>
+        <div className="mt-3">
+          <SyllabusImportDraft exam={exam} cycles={cycles} versions={versions} />
+        </div>
+      </details>
 
       {versions.length === 0 ? (
         <p className="rounded-card border border-dashed border-ink-300 bg-surface p-6 text-body text-fg-secondary">
@@ -119,7 +141,7 @@ export function SyllabusVersionList({
                 <th scope="col" className="px-4 py-3 font-medium">Version</th>
                 <th scope="col" className="px-4 py-3 font-medium">Status</th>
                 <th scope="col" className="px-4 py-3 font-medium">Source</th>
-                <th scope="col" className="px-4 py-3 font-medium">Cycle</th>
+                <th scope="col" className="px-4 py-3 font-medium">Cycle · tier</th>
                 <th scope="col" className="px-4 py-3 font-medium">Published</th>
                 <th scope="col" className="px-4 py-3 font-medium">Actions</th>
               </tr>
@@ -136,12 +158,14 @@ export function SyllabusVersionList({
                       <Badge tone={STATUS_TONE[v.status]}>{v.status === "PUBLISHED" && v.is_active ? "Published (live)" : v.status.charAt(0) + v.status.slice(1).toLowerCase()}</Badge>
                     </td>
                     <td className="px-4 py-3 text-fg-secondary">{SOURCE_LABEL[v.source_kind] ?? v.source_kind}</td>
-                    <td className="px-4 py-3 text-fg-secondary">{cycleYear(v.exam_cycle_id) ?? "All cycles"}</td>
+                    <td className="px-4 py-3 text-fg-secondary">
+                      {cycleYear(v.exam_cycle_id) ?? "All cycles"} · {v.tier ?? "all tiers"}
+                    </td>
                     <td className="px-4 py-3 text-fg-secondary">
                       {v.published_at ? (
                         <>
                           {formatDateShort(v.published_at)}
-                          {pub ? <span className="block">by {pub.email}</span> : null}
+                          {pub ? <span className="block">by {pub.name}</span> : null}
                         </>
                       ) : (
                         "—"

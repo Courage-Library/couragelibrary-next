@@ -372,6 +372,33 @@ export class TaxonomyService {
     return { success: true, data: node };
   }
 
+  /**
+   * SYLLABUS-UI-1: a TOPIC whose content comes from the Current Affairs subsystem (metadata.content_source =
+   * CURRENT_AFFAIRS) — the syllabus editor shows "Linked to Current Affairs" instead of a "no lessons" gap. Admin only;
+   * audited TAXONOMY_NODE_CONTENT_SOURCE; other metadata keys are kept.
+   */
+  static async setContentSource(id: string, source: 'CURRENT_AFFAIRS' | null): Promise<TaxonomyResult<{ id: string; contentSource: string | null }>> {
+    const ctx = await this.requireAdmin();
+    if (!ctx) return fail('UNAUTHORIZED', 'Unauthorized.');
+    if (source !== null && source !== 'CURRENT_AFFAIRS') return fail('VALIDATION', 'Unknown content source.');
+    const { data: row, error: readError } = await ctx.supabase.from('canonical_taxonomy_nodes').select('id, node_type, metadata').eq('id', id).maybeSingle();
+    if (readError) return fail('DB_ERROR', 'Could not load the node.');
+    if (!row) return fail('NOT_FOUND', 'Node not found.');
+    if (row.node_type !== 'TOPIC') return fail('VALIDATION', 'Only a topic can be linked to Current Affairs.');
+    const meta = row.metadata && typeof row.metadata === 'object' && !Array.isArray(row.metadata) ? { ...(row.metadata as Record<string, Json>) } : {};
+    const before = typeof meta.content_source === 'string' ? meta.content_source : null;
+    if (before === source) return fail('VALIDATION', source ? 'The topic is already linked to Current Affairs.' : 'The topic is not linked to Current Affairs.');
+    if (source) meta.content_source = source;
+    else delete meta.content_source;
+    const { error } = await ctx.supabase.from('canonical_taxonomy_nodes').update({ metadata: meta as Json }).eq('id', id);
+    if (error) {
+      const m = mapTaxonomyDbError(error);
+      return fail(m.code, m.error);
+    }
+    await this.audit(ctx, 'TAXONOMY_NODE_CONTENT_SOURCE', id, { content_source: before }, { content_source: source });
+    return { success: true, data: { id, contentSource: source } };
+  }
+
   /** MASTER-TREE UX: the node lesson state per node — PUBLISHED, DRAFT (any other live status) or absent (none / archived). */
   static async listNodeLessonStatus(): Promise<TaxonomyResult<Record<string, 'DRAFT' | 'PUBLISHED'>>> {
     const ctx = await this.requireAdmin({ allowStaff: true });

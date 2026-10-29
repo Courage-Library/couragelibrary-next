@@ -5,6 +5,8 @@ import { requireAdminPage } from "@/lib/auth/require-admin";
 import { createAdminServerSupabaseClient, createServerSupabaseClient } from "@/lib/supabase/server";
 import { loadSyllabusEditorState } from "@/lib/syllabus/editor-state";
 import { SyllabusEditor } from "@/components/admin/syllabus/syllabus-editor";
+import { CA_CONTENT_SOURCE, type TopicRollup } from "@/lib/syllabus/editor-assist";
+import { computePublishImpact } from "@/lib/syllabus/publish-impact";
 import type { SyllabusEditorNode, SyllabusTopicOption, SyllabusValidationReport, SyllabusVersionRow } from "@/types/syllabus";
 
 export const dynamic = "force-dynamic";
@@ -46,7 +48,7 @@ export default async function AdminSyllabusVersionPage({ params }: { params: Pro
     createAdminServerSupabaseClient().from("exams").select("id, title, slug").eq("id", v.exam_id).maybeSingle(),
     loadSyllabusEditorState(supabase, v.id),
     // CA-2: a unit may map a TOPIC, SUBTOPIC or CONCEPT (shown as "Topic › Subtopic › Concept")
-    supabase.from("canonical_taxonomy_nodes").select("id, name, slug, node_type, root_subject_id, parent_id, display_order").in("node_type", ["SUBJECT", "TOPIC", "SUBTOPIC", "CONCEPT"]).eq("is_active", true),
+    supabase.from("canonical_taxonomy_nodes").select("id, name, slug, node_type, root_subject_id, parent_id, display_order, metadata").in("node_type", ["SUBJECT", "TOPIC", "SUBTOPIC", "CONCEPT"]).eq("is_active", true),
     supabase
       .from("exam_syllabus_versions")
       .select("id, version_number, exam_cycle_id, tier")
@@ -70,9 +72,22 @@ export default async function AdminSyllabusVersionPage({ params }: { params: Pro
     .sort((a, b) => (a.subject_name ?? "").localeCompare(b.subject_name ?? "") || a.name.localeCompare(b.name));
 
   const report: SyllabusValidationReport | null = editorState?.report ?? null;
+  // SYLLABUS-UI-1: every node's rolled-up TOPIC + level (unit labels, "Go to unit"); topics linked to Current Affairs
+  const topicOf = (id: string): string => {
+    let cur = byId.get(id);
+    for (let hop = 0; cur && cur.node_type !== "TOPIC" && hop < 6; hop++) cur = cur.parent_id ? byId.get(cur.parent_id) : undefined;
+    return cur?.node_type === "TOPIC" ? cur.id : id;
+  };
+  const rollup: TopicRollup = Object.fromEntries(tax.filter((t) => t.node_type !== "SUBJECT").map((t) => [t.id, { topicId: topicOf(t.id), level: t.node_type }]));
+  const caLinked = tax
+    .filter((t) => t.node_type === "TOPIC" && t.metadata && typeof t.metadata === "object" && !Array.isArray(t.metadata) && (t.metadata as Record<string, unknown>).content_source === CA_CONTENT_SOURCE)
+    .map((t) => t.id);
   // CA-2: one PUBLISHED per (exam, cycle, tier)
   const peer = (peerRes.data ?? []).find((p) => (p.exam_cycle_id ?? null) === (v.exam_cycle_id ?? null) && (p.tier ?? null) === (v.tier ?? null) && p.id !== v.id) ?? null;
   const loadError = Boolean(!editorState || !editorState.report || taxRes.error || examRes.error);
+  // SYLLABUS-PUBLISH-IMPACT: what publishing changes for students (admin + draft only; service role after the guard,
+  // read only — student progress is not visible to an admin session); recomputed on every refresh after an edit
+  const impact = ctx.role === "admin" && v.status === "DRAFT" ? await computePublishImpact(v.id).catch(() => null) : null;
 
   return (
     <SyllabusEditor
@@ -84,6 +99,9 @@ export default async function AdminSyllabusVersionPage({ params }: { params: Pro
       publishedPeer={peer ? { id: peer.id, versionNumber: peer.version_number } : null}
       isAdmin={ctx.role === "admin"}
       loadError={loadError}
+      rollup={rollup}
+      caLinked={caLinked}
+      impact={impact}
     />
   );
 }

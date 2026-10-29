@@ -22,6 +22,19 @@ import {
   upsertSyllabusNodeAction,
   validateSyllabusVersionAction,
 } from "@/app/admin/syllabus/actions";
+import { setTaxonomyContentSourceAction } from "@/app/admin/taxonomy/actions";
+import {
+  CA_CONTENT_SOURCE,
+  confirmPhrase,
+  groupWarnings,
+  mappingLabel,
+  needsTypedConfirm,
+  questionSums,
+  unitQuestions,
+  unitsForTopic,
+  type PublishImpact,
+  type TopicRollup,
+} from "@/lib/syllabus/editor-assist";
 import {
   WEIGHTAGE_TIER_LABEL,
   type SyllabusEditorNode,
@@ -43,6 +56,12 @@ type Props = {
   publishedPeer: { id: string; versionNumber: number } | null;
   isAdmin: boolean;
   loadError: boolean;
+  /** SYLLABUS-UI-1: canonical node → its rolled-up topic + level (unit labels, "Go to unit") */
+  rollup: TopicRollup;
+  /** SYLLABUS-UI-1: topics whose content comes from Current Affairs (metadata.content_source) */
+  caLinked: string[];
+  /** SYLLABUS-PUBLISH-IMPACT: computed by the page (admin + draft); null = not available */
+  impact: PublishImpact | null;
 };
 
 type Result = { ok: true; state?: SyllabusEditorState | null } | { ok: false; message: string };
@@ -50,7 +69,7 @@ const KIND_TONE = { PAPER: "info", SECTION: "primary", UNIT: "neutral" } as cons
 const sortNodes = (a: SyllabusEditorNode, b: SyllabusEditorNode) => a.display_order - b.display_order || a.title.localeCompare(b.title);
 const intOrNull = (s: string) => (s.trim() === "" ? null : Number(s));
 
-export function SyllabusEditor({ version, exam, nodes: initialNodes, topics, initialReport, publishedPeer, isAdmin, loadError }: Props) {
+export function SyllabusEditor({ version, exam, nodes: initialNodes, topics, initialReport, publishedPeer, isAdmin, loadError, rollup, caLinked: initialCaLinked, impact }: Props) {
   const router = useRouter();
   const [pending, start] = useTransition();
   // Live state: updated from each action's own response (no dependency on a page refresh) and re-synced whenever a
@@ -66,6 +85,13 @@ export function SyllabusEditor({ version, exam, nodes: initialNodes, topics, ini
   const [report, setReport] = useState<SyllabusValidationReport | null>(initialReport);
   const [confirm, setConfirm] = useState<null | "delete" | "publish">(null);
   useEffect(() => setReport(initialReport), [initialReport]);
+  const [caLinked, setCaLinked] = useState(() => new Set(initialCaLinked));
+  useEffect(() => setCaLinked(new Set(initialCaLinked)), [initialCaLinked]);
+  // SYLLABUS-PUBLISH-IMPACT: the page's impact (refreshed with every edit); the owner's choices for this publish
+  const [archiveOthers, setArchiveOthers] = useState<Set<string>>(new Set());
+  const [typed, setTyped] = useState("");
+  const [gapFilter, setGapFilter] = useState<"ALL" | "NO_LESSONS" | "NO_QUESTIONS">("ALL");
+  const [gapQuery, setGapQuery] = useState("");
 
   const byId = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
   const children = useMemo(() => {
@@ -97,6 +123,33 @@ export function SyllabusEditor({ version, exam, nodes: initialNodes, topics, ini
       after?.();
       // background sync outside the transition: a slow or failed refresh can never leave the editor pending
       setTimeout(() => router.refresh(), 0);
+    });
+
+  // SYLLABUS-UI-1: the unit's rolled-up topics, Σ expected questions per section / paper, grouped warnings
+  const unitTopicIds = (n: SyllabusEditorNode) => [...new Set(n.mappings.map((m) => rollup[m.topic_id]?.topicId ?? m.topic_id))];
+  const sums = useMemo(() => questionSums(nodes), [nodes]);
+  const grouped = useMemo(() => groupWarnings(report?.warnings ?? [], caLinked), [report, caLinked]);
+  const gapRows = grouped.gaps.filter(
+    (g) => (gapFilter === "ALL" || g.gaps.includes(gapFilter)) && (!gapQuery.trim() || g.name.toLowerCase().includes(gapQuery.trim().toLowerCase())),
+  );
+  const goToTopic = (topicId: string) => {
+    const unit = unitsForTopic(nodes, rollup, topicId)[0];
+    if (unit) goToNode(unit);
+  };
+  const setCaLink = (topicId: string, on: boolean) =>
+    start(async () => {
+      const r = await setTaxonomyContentSourceAction(topicId, on ? CA_CONTENT_SOURCE : null);
+      if (!r.success) {
+        setMessage({ tone: "danger", text: r.error });
+        return;
+      }
+      setCaLinked((cur) => {
+        const next = new Set(cur);
+        if (on) next.add(topicId);
+        else next.delete(topicId);
+        return next;
+      });
+      setMessage({ tone: "success", text: on ? "Linked to Current Affairs: its content comes from there." : "No longer linked to Current Affairs." });
     });
 
   // ---------------------------------------------------------------- tree (WAI-ARIA tree view, roving tabindex)
@@ -205,8 +258,17 @@ export function SyllabusEditor({ version, exam, nodes: initialNodes, topics, ini
             <Badge tone={KIND_TONE[n.kind]}>{n.kind}</Badge>
             <span className="min-w-0 flex-1 truncate text-body-sm font-medium">{n.title}</span>
             {n.kind === "UNIT" && (
-              <span className="text-caption text-fg-secondary">
-                {n.mappings.length} topic{n.mappings.length === 1 ? "" : "s"}
+              <span className="flex flex-wrap items-center justify-end gap-1.5 text-caption text-fg-secondary" data-unit-meta="">
+                {unitTopicIds(n).some((t) => caLinked.has(t)) && <Badge tone="info">Current Affairs</Badge>}
+                {n.weightage_tier && <span className="font-semibold">{WEIGHTAGE_TIER_LABEL[n.weightage_tier]}</span>}
+                {unitQuestions(n) && <span>{unitQuestions(n)?.label}</span>}
+                <span>{mappingLabel(n, rollup)}</span>
+              </span>
+            )}
+            {n.kind !== "UNIT" && sums.get(n.id) && (
+              <span className={cn("text-caption", sums.get(n.id)?.off ? "font-semibold text-warning-800" : "text-fg-secondary")} data-section-sum="">
+                {sums.get(n.id)?.label}
+                {sums.get(n.id)?.off ? <span className="sr-only"> (more than 20 % off)</span> : null}
               </span>
             )}
             {issueNodes.has(n.id) && (
@@ -371,7 +433,7 @@ export function SyllabusEditor({ version, exam, nodes: initialNodes, topics, ini
     });
   const publish = () =>
     start(async () => {
-      const r = await publishSyllabusVersionAction(version.id);
+      const r = await publishSyllabusVersionAction(version.id, { archiveOtherIds: [...archiveOthers] });
       setConfirm(null);
       if (!r.ok) {
         if ("report" in r && r.report) setReport(r.report);
@@ -380,12 +442,19 @@ export function SyllabusEditor({ version, exam, nodes: initialNodes, topics, ini
       }
       setMessage({
         tone: "success",
-        text: `Version ${version.version_number} is published${r.archivedPreviousVersionId ? ` and version ${publishedPeer?.versionNumber ?? ""} was archived` : ""}. An audit record was written.`,
+        text: `Version ${version.version_number} is published${r.archivedPreviousVersionId ? ` and version ${publishedPeer?.versionNumber ?? ""} was archived` : ""}${r.archivedOthers.length ? `; ${r.archivedOthers.length} other-tier version(s) archived` : ""}${r.archiveFailed.length ? `; ${r.archiveFailed.length} other version(s) could NOT be archived — archive them on the versions page` : ""}. Audit records were written.`,
       });
       setStatus("PUBLISHED");
       setTimeout(() => router.refresh(), 0);
     });
   const canPublish = isAdmin && !readOnly && report?.ok === true;
+  const openPublish = () => {
+    setTyped("");
+    // a tier version next to an all-tiers one: students would keep seeing the other unless it is archived too
+    setArchiveOthers(new Set((impact?.otherPublished ?? []).filter((o) => o.shownToStudents).map((o) => o.id)));
+    setConfirm("publish");
+  };
+  const typedOk = !impact || !needsTypedConfirm(impact) || typed.trim() === confirmPhrase(version.version_number);
 
   return (
     <div className="flex flex-col gap-6 font-sans text-fg">
@@ -403,8 +472,24 @@ export function SyllabusEditor({ version, exam, nodes: initialNodes, topics, ini
         </div>
         <p className="text-body-sm text-fg-secondary">
           Tag {version.version_tag}
+          {version.tier ? ` · ${version.tier}` : " · all tiers"}
           {readOnly ? " · read-only" : " · draft: changes save immediately and are audited"}
         </p>
+        {/* SYLLABUS-UI-1: the screen's ONE primary action (admin, draft) */}
+        {!readOnly && (
+          <div className="flex flex-wrap items-center gap-3" data-header-actions="">
+            {isAdmin ? (
+              <Button onClick={openPublish} disabled={!canPublish || pending} leadingIcon={<Rocket aria-hidden="true" className="size-4" />}>
+                Publish…
+              </Button>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-body-sm text-fg-secondary">
+                <Lock aria-hidden="true" className="size-4" /> Only an admin can publish. Ask an admin to review this draft.
+              </span>
+            )}
+            {isAdmin && report && !report.ok && <span className="text-body-sm text-fg-secondary">Fix the errors in Validation to enable publishing.</span>}
+          </div>
+        )}
       </header>
 
       {loadError && <Alert tone="danger" title="Part of this page could not be loaded.">Reload the page. Nothing was changed.</Alert>}
@@ -513,7 +598,7 @@ export function SyllabusEditor({ version, exam, nodes: initialNodes, topics, ini
                 <Switch label="Mandatory" description="Off for optional parts of the syllabus." checked={form.mandatory} onChange={(e) => setForm({ ...form, mandatory: e.target.checked })} className="sm:col-span-2" />
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button onClick={saveDetails} loading={pending} disabled={Boolean(rangeError) || !form.title.trim()}>
+                <Button variant="secondary" onClick={saveDetails} loading={pending} disabled={Boolean(rangeError) || !form.title.trim()}>
                   Save details
                 </Button>
                 {selected.kind !== "UNIT" && (
@@ -549,7 +634,8 @@ export function SyllabusEditor({ version, exam, nodes: initialNodes, topics, ini
                   >
                     Move
                   </Button>
-                  <Button size="sm" variant="danger" onClick={() => setConfirm("delete")} disabled={pending} leadingIcon={<Trash2 aria-hidden="true" className="size-4" />}>
+                  {/* SYLLABUS-UI-1: a quiet danger action; the confirm dialog carries the solid one */}
+                  <Button size="sm" variant="dangerQuiet" onClick={() => setConfirm("delete")} disabled={pending} leadingIcon={<Trash2 aria-hidden="true" className="size-4" />}>
                     Delete
                   </Button>
                 </div>
@@ -643,9 +729,24 @@ export function SyllabusEditor({ version, exam, nodes: initialNodes, topics, ini
                       {weightError ?? `Weights add up to ${weightSum.toFixed(2)}.`}
                     </p>
                   )}
-                  <Button onClick={saveMappings} loading={pending} disabled={Boolean(weightError)} className="w-fit">
+                  <Button variant="secondary" onClick={saveMappings} loading={pending} disabled={Boolean(weightError)} className="w-fit">
                     Save topics ({picked.length})
                   </Button>
+                </div>
+              )}
+              {selected.kind === "UNIT" && isAdmin && unitTopicIds(selected).length > 0 && (
+                <div className="flex flex-col gap-2 border-t border-line pt-4" data-ca-link="">
+                  <h3 className="text-body font-semibold">Content source</h3>
+                  {unitTopicIds(selected).map((t) => (
+                    <Switch
+                      key={t}
+                      label={`${topicById.get(t)?.name ?? "This topic"}: linked to Current Affairs`}
+                      description="Its content comes from the Current Affairs section, so no lesson is expected."
+                      checked={caLinked.has(t)}
+                      disabled={pending}
+                      onChange={(e) => setCaLink(t, e.target.checked)}
+                    />
+                  ))}
                 </div>
               )}
             </>
@@ -659,7 +760,7 @@ export function SyllabusEditor({ version, exam, nodes: initialNodes, topics, ini
           <h2 id="validation-title" className="text-h3 font-semibold">
             Validation
           </h2>
-          <Button variant="secondary" onClick={validate} loading={pending} leadingIcon={<ShieldCheck aria-hidden="true" className="size-4" />}>
+          <Button variant="ghost" onClick={validate} loading={pending} leadingIcon={<ShieldCheck aria-hidden="true" className="size-4" />}>
             Validate now
           </Button>
         </div>
@@ -684,34 +785,88 @@ export function SyllabusEditor({ version, exam, nodes: initialNodes, topics, ini
                 ))}
               </ul>
             )}
-            {report.warnings.length > 0 && (
-              <details className="rounded-control border border-line px-3 py-2">
-                <summary className="focus-ring cursor-pointer rounded-badge text-body-sm font-medium">{report.warnings.length} warning(s) — these do not block publishing</summary>
-                <ul className="mt-2 flex flex-col gap-1 text-body-sm text-fg-secondary">
-                  {report.warnings.map((w, i) => (
-                    <li key={`${w.code}-${i}`}>{w.message}</li>
+            {/* SYLLABUS-UI-1: "Structure" first (open); content gaps collapsed, counted, filterable, each with its links */}
+            {grouped.structure.length > 0 && (
+              <section aria-labelledby="warn-structure" className="flex flex-col gap-2" data-warnings-structure="">
+                <h3 id="warn-structure" className="text-body font-semibold">
+                  Structure ({grouped.structure.length})
+                </h3>
+                <ul className="flex flex-col gap-2">
+                  {grouped.structure.map((w, i) => (
+                    <li key={`${w.code}-${i}`} className="flex flex-wrap items-center gap-2 rounded-control border border-warning-200 bg-warning-50 px-3 py-2 text-body-sm text-fg">
+                      <span className="flex-1">{w.message}</span>
+                      {w.node_id && byId.has(w.node_id) ? (
+                        <Button size="sm" variant="ghost" onClick={() => goToNode(w.node_id as string)}>
+                          Go to unit
+                        </Button>
+                      ) : w.topic_id && unitsForTopic(nodes, rollup, w.topic_id).length ? (
+                        <Button size="sm" variant="ghost" onClick={() => goToTopic(w.topic_id as string)}>
+                          Go to unit
+                        </Button>
+                      ) : null}
+                    </li>
                   ))}
+                </ul>
+              </section>
+            )}
+            {grouped.caLinked.length > 0 && (
+              <p className="text-body-sm text-fg-secondary" data-ca-linked="">
+                Linked to Current Affairs (no lesson expected): {grouped.caLinked.map((t) => t.name).join(", ")}
+              </p>
+            )}
+            {grouped.gaps.length > 0 && (
+              <details className="rounded-control border border-line px-3 py-2" data-warnings-gaps="">
+                <summary className="focus-ring cursor-pointer rounded-badge text-body-sm font-medium">
+                  Content gaps: {grouped.noLessons} topic(s) without a published lesson · {grouped.noQuestions} without published questions — these do not block publishing
+                </summary>
+                <div className="mt-3 flex flex-wrap items-end gap-3">
+                  <Field id="gap-filter" label="Show">
+                    <Select
+                      value={gapFilter}
+                      onChange={(e) => setGapFilter(e.target.value as typeof gapFilter)}
+                      options={[
+                        { value: "ALL", label: `All gaps (${grouped.gaps.length})` },
+                        { value: "NO_LESSONS", label: `No published lesson (${grouped.noLessons})` },
+                        { value: "NO_QUESTIONS", label: `No published questions (${grouped.noQuestions})` },
+                      ]}
+                    />
+                  </Field>
+                  <Field id="gap-search" label="Find a topic">
+                    <Input type="search" value={gapQuery} onChange={(e) => setGapQuery(e.target.value)} />
+                  </Field>
+                </div>
+                <ul aria-label="Content gaps" className="mt-3 flex flex-col divide-y divide-line text-body-sm">
+                  {gapRows.map((g) => (
+                    <li key={g.topicId} className="flex flex-wrap items-center gap-2 py-2">
+                      <span className="min-w-48 flex-1 font-medium text-fg">{g.name}</span>
+                      <span className="text-fg-secondary">{g.gaps.map((k) => (k === "NO_LESSONS" ? "no lesson" : "no questions")).join(" · ")}</span>
+                      {unitsForTopic(nodes, rollup, g.topicId).length > 0 && (
+                        <Button size="sm" variant="ghost" onClick={() => goToTopic(g.topicId)}>
+                          Go to unit
+                        </Button>
+                      )}
+                      {g.gaps.includes("NO_LESSONS") && (
+                        <Link href={`/admin/lessons/generate?node=${g.topicId}`} className="focus-ring rounded-badge text-link underline underline-offset-2">
+                          Lesson editor<span className="sr-only"> for {g.name}</span>
+                        </Link>
+                      )}
+                      {g.gaps.includes("NO_QUESTIONS") && (
+                        <Link href={`/admin/questions?topic=${g.topicId}`} className="focus-ring rounded-badge text-link underline underline-offset-2">
+                          Question bank<span className="sr-only"> for {g.name}</span>
+                        </Link>
+                      )}
+                      <Link href={`/admin/lessons/coverage?exam=${exam.id}`} className="focus-ring rounded-badge text-link underline underline-offset-2">
+                        Coverage<span className="sr-only"> matrix for {exam.title}</span>
+                      </Link>
+                    </li>
+                  ))}
+                  {gapRows.length === 0 && <li className="py-2 text-fg-secondary">No gap matches this filter.</li>}
                 </ul>
               </details>
             )}
           </>
         )}
 
-        {!readOnly && (
-          <div className="flex flex-col gap-2 border-t border-line pt-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <Button onClick={() => setConfirm("publish")} disabled={!canPublish || pending} leadingIcon={<Rocket aria-hidden="true" className="size-4" />}>
-                Publish
-              </Button>
-              {!isAdmin && (
-                <span className="inline-flex items-center gap-1 text-body-sm text-fg-secondary">
-                  <Lock aria-hidden="true" className="size-4" /> Only an admin can publish. Ask an admin to review this draft.
-                </span>
-              )}
-              {isAdmin && report && !report.ok && <span className="text-body-sm text-fg-secondary">Fix the errors above to enable publishing.</span>}
-            </div>
-          </div>
-        )}
       </section>
 
       <Dialog
@@ -742,22 +897,81 @@ export function SyllabusEditor({ version, exam, nodes: initialNodes, topics, ini
         open={confirm === "publish"}
         onOpenChange={(o) => !o && setConfirm(null)}
         title={`Publish version ${version.version_number}?`}
-        description={
-          publishedPeer
-            ? `Students will see this version instead of version ${publishedPeer.versionNumber}, which will be archived. Published versions cannot be edited.`
-            : "Students will see this syllabus on the exam page. No version is published for this cycle yet. Published versions cannot be edited."
-        }
+        description="Published versions cannot be edited. Check what changes for students first."
         footer={
           <>
             <Button variant="secondary" onClick={() => setConfirm(null)}>
               Cancel
             </Button>
-            <Button onClick={publish} loading={pending}>
+            <Button onClick={publish} loading={pending} disabled={!impact || !typedOk}>
               Publish now
             </Button>
           </>
         }
-      />
+      >
+        <div className="flex flex-col gap-3 text-body-sm" data-publish-impact="">
+          {!impact && <Alert tone="danger">What publishing changes could not be worked out. Reload the page; publishing stays off until it is shown.</Alert>}
+          {impact && (
+            <>
+              <p>
+                {impact.current
+                  ? `Students now see version ${impact.current.versionNumber}${impact.current.tier ? ` (${impact.current.tier})` : " (all tiers)"}.`
+                  : "No version is published for this exam yet."}{" "}
+                {publishedPeer ? `Version ${publishedPeer.versionNumber} (same tier) will be archived.` : ""}
+              </p>
+              <ul className="flex flex-col gap-1">
+                <li>
+                  Topics: {impact.topics} in this version · {impact.topicsAdded.length} new · {impact.topicsRemoved.length} removed
+                </li>
+                <li>
+                  Units: {impact.unitsAdded} new · {impact.unitsRemoved} removed
+                </li>
+                <li>
+                  Content already there: {impact.withLessons} topic(s) with a published lesson · {impact.withQuestions} with published questions
+                </li>
+              </ul>
+              {impact.topicsRemoved.length > 0 && (
+                <div>
+                  <p className="font-semibold">Removed from this exam&apos;s syllabus:</p>
+                  <ul className="list-disc pl-5">
+                    {impact.topicsRemoved.map((t) => (
+                      <li key={t.id}>
+                        {t.name}: {t.publishedLessons} published lesson(s), {t.publishedQuestions} published question(s), {t.progressRows} student progress record(s)
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-fg-secondary">Lessons, questions and progress stay in the master tree; they leave this exam&apos;s pages, course and sitemap.</p>
+                </div>
+              )}
+              {impact.otherPublished.map((o) => (
+                <Checkbox
+                  key={o.id}
+                  label={`Also archive version ${o.versionNumber} (${o.tier ?? "all tiers"})`}
+                  description={
+                    o.shownToStudents
+                      ? `It stays published otherwise, and the exam page keeps showing it instead of version ${version.version_number}.`
+                      : "It stays published otherwise (another tier)."
+                  }
+                  checked={archiveOthers.has(o.id)}
+                  onChange={(e) =>
+                    setArchiveOthers((cur) => {
+                      const next = new Set(cur);
+                      if (e.target.checked) next.add(o.id);
+                      else next.delete(o.id);
+                      return next;
+                    })
+                  }
+                />
+              ))}
+              {needsTypedConfirm(impact) && (
+                <Field id="publish-confirm" label={`Published content leaves this exam. Type ${confirmPhrase(version.version_number)} to confirm.`}>
+                  <Input value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" />
+                </Field>
+              )}
+            </>
+          )}
+        </div>
+      </Dialog>
     </div>
   );
 }

@@ -34,7 +34,9 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
 
   return (
     // BRAND-2 (#72): admin is a "never glass" zone (data-no-glass turns every backdrop blur off)
-    <div data-no-glass="" className="flex h-dvh max-h-dvh w-full flex-col overflow-hidden bg-canvas text-fg antialiased md:flex-row">
+    // SHELL-SCROLL-FIX-1: exactly one viewport tall and a containing block (relative): absolutely positioned descendants
+    // (sr-only labels, menus) are clipped here instead of stretching the document; #admin-content is the ONE scroller
+    <div data-admin-shell="" data-no-glass="" className="relative flex h-dvh max-h-dvh w-full flex-col overflow-hidden bg-canvas text-fg antialiased md:flex-row">
       <a
         href="#admin-content"
         className="sr-only z-90 rounded-control bg-surface px-4 py-3 text-body-sm font-semibold text-primary-700 shadow-e2 focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus-ring"
@@ -43,10 +45,10 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
       </a>
       <AdminSidebar nav={nav} badges={{ inReview }} />
 
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AdminTopHeader nav={nav} role={role} firstName={firstName} searchPlaceholder={searchPlaceholder} />
         {/* the only scrolling region; the root shell already provides the single <main> landmark */}
-        <div id="admin-content" tabIndex={-1} className="min-w-0 flex-1 overflow-y-auto p-4 outline-none sm:p-6 xl:px-[30px] xl:py-6">
+        <div id="admin-content" tabIndex={-1} className="relative min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain p-4 outline-none sm:p-6 xl:px-[30px] xl:py-6">
           <div className="mx-auto w-full max-w-[1500px]">{children}</div>
         </div>
       </div>
