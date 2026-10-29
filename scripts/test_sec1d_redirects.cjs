@@ -84,7 +84,7 @@ const HOSTILE = [
 const VALID = [
   ['/', '/'], ['/mistakes', '/mistakes'], ['/dashboard', '/dashboard'], ['/auth/update-password', '/auth/update-password'],
   ['/mock-tests/ssc-cgl-tier-1-full-mock', '/mock-tests/ssc-cgl-tier-1-full-mock'], ['/mock-tests?tab=daily&page=2', '/mock-tests?tab=daily&page=2'],
-  ['/dashboard#section', '/dashboard'], ['/articles/some-slug?ref=home#top', '/articles/some-slug?ref=home'], ['/admin/content', '/admin/content'],
+  ['/dashboard#section', '/dashboard'], ['/articles/some-slug?ref=home#top', '/articles/some-slug?ref=home'], ['/admin/lessons/legacy', '/admin/lessons/legacy'],
 ];
 
 (async () => {
@@ -111,7 +111,7 @@ const VALID = [
     assert(sr.sanitizeRedirectPath(ok) === ok && sr.sanitizeRedirectPath(ok + 'a') === '/');
   });
   await test('U-05 sanitizeAdminPath: /admin paths only, no query; hostile → /admin', async () => {
-    const cases = [['/admin', '/admin'], ['/admin/content', '/admin/content'], ['/admin/live-tests', '/admin/live-tests'], ['/admin?x=1', '/admin'], ['/admin/content?tab=x', '/admin/content'],
+    const cases = [['/admin', '/admin'], ['/admin/lessons/legacy', '/admin/lessons/legacy'], ['/admin/live-tests', '/admin/live-tests'], ['/admin?x=1', '/admin'], ['/admin/lessons/legacy?tab=x', '/admin/lessons/legacy'],
       ['/notadmin', '/admin'], ['/adminx', '/admin'], ['/dashboard', '/admin'], ...HOSTILE.map((h) => [h, '/admin'])];
     const bad = cases.filter(([i, o]) => sr.sanitizeAdminPath(i) !== o).map(([i, o]) => `${show(i)} → ${show(sr.sanitizeAdminPath(i))} (expected ${o})`);
     assert(bad.length === 0, bad.join('\n        '));
@@ -192,7 +192,7 @@ const VALID = [
 
   // ===================== Part 4: role flips (static) =====================
   await test('R-01 pages admin-only: gamification, billing, live-tests/[id]/results', async () => {
-    for (const p of ['app/admin/gamification/page.tsx', 'app/admin/billing/page.tsx', 'app/admin/live-tests/[id]/results/page.tsx']) {
+    for (const p of ['app/admin/gamification/page.tsx', 'app/admin/payments/page.tsx', 'app/admin/live-tests/[id]/results/page.tsx']) {
       const call = (read(p).match(/requireAdminPage\(([^)]*)\)/) || [])[1] || '';
       assert(call && !/allowStaff/.test(call), `${p}: ${call}`);
     }
@@ -203,7 +203,10 @@ const VALID = [
     const a = read('app/admin/actions.ts');
     assert(/export async function createSubscriptionPlanAction[\s\S]{0,200}guardAdminAction\(\);/.test(a), 'billing action');
     // F2 (#79) supersedes the SEC-1D "reports stays staff" ruling: question reports are admin-only read
-    assert(/requireAdminPage\(\{ path: "\/admin\/reports" \}\)/.test(read('app/admin/reports/page.tsx')) && /requireAdminPage\(\{ path: "\/admin\/question-reports" \}\)/.test(read('app/admin/question-reports/page.tsx')), 'reports must be admin-only');
+    // ADMIN-IA-1: the old /admin/reports + /admin/question-reports addresses redirect to the one admin-only page
+    const { ADMIN_REDIRECTS } = { ADMIN_REDIRECTS: [...read('lib/admin/nav-redirects.ts').matchAll(/from: "([^"]+)", to: "([^"]+)"/g)].map((m) => ({ from: m[1], to: m[2] })) };
+    assert(['/admin/reports', '/admin/question-reports'].every((f) => ADMIN_REDIRECTS.some((r) => r.from === f && r.to === '/admin/support/question-reports'))
+      && /requireAdminPage\(\{ path: "\/admin\/support\/question-reports" \}\)/.test(read('app/admin/support/question-reports/page.tsx')), 'reports must be admin-only');
   });
 
   // ===================== Part 5: live =====================
@@ -277,7 +280,7 @@ const VALID = [
     await test('L-04 qa-staff /admin/gamification, /admin/billing → not-found UI, no data', async () => {
       const s = await loginTo('qa-staff@courage-library.test');
       const bad = [];
-      for (const p of ['/admin/gamification', '/admin/billing']) {
+      for (const p of ['/admin/gamification', '/admin/payments']) {
         const r = await pageCheck(s.ctx, p);
         const nf = r.status === 404 || (r.status === 200 && /NEXT_HTTP_ERROR_FALLBACK;404|NEXT_NOT_FOUND/.test(r.body) && /<meta name="robots" content="noindex"/.test(r.body) && /Page Not Found/.test(r.body));
         const data = (r.body.match(DATA) || []).length;
@@ -289,7 +292,7 @@ const VALID = [
     await test('L-05 qa-admin /admin/gamification, /admin/billing → 200', async () => {
       const s = await loginTo('qa-admin@courage-library.test');
       const out = [];
-      for (const p of ['/admin/gamification', '/admin/billing']) {
+      for (const p of ['/admin/gamification', '/admin/payments']) {
         let r = await pageCheck(s.ctx, p);
         for (let i = 1; i < 3 && r.location && /\/auth\/login/.test(r.location); i++) r = await pageCheck(s.ctx, p); // middleware fails closed on network errors
         out.push(`${p}: ${r.status}`);

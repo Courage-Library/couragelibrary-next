@@ -405,9 +405,9 @@ export function AdminQuestionManager({
         title="Question bank"
         description="Every question students can see, with its exam, difficulty and past-paper details. Questions are in English (decision #35)."
         actions={
-          <Link href="/admin/bulk-import" className={studioQuietAction}>
+          <Link href="/admin/questions/import" className={studioQuietAction}>
             <FileUp aria-hidden="true" className="size-4" />
-            Bulk import
+            Import questions
           </Link>
         }
         primary={

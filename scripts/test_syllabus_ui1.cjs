@@ -126,7 +126,7 @@ test('E-01 editor: one primary (Publish, header); secondary saves; quiet danger 
   assert(primariesOutsideDialogs(mutated) === 2, 'negative control: a second primary must be counted');
   assert(/variant="dangerQuiet" onClick=\{\(\) => setConfirm\("delete"\)\}/.test(e) && /open=\{confirm === "delete"\}/.test(e), 'quiet danger Delete with a confirm');
   assert(/data-warnings-structure=""/.test(e) && /data-warnings-gaps=""/.test(e) && /<details className="rounded-control border border-line px-3 py-2" data-warnings-gaps="">/.test(e), 'structure open, gaps collapsed');
-  for (const x of ['Go to unit', '/admin/lessons/generate?node=${g.topicId}', '/admin/questions?topic=${g.topicId}', '/admin/lessons/coverage?exam=${exam.id}', 'id="gap-filter"', 'id="gap-search"', 'Linked to Current Affairs']) assert(e.includes(x), `editor: ${x}`);
+  for (const x of ['Go to unit', '/admin/lessons/new?node=${g.topicId}', '/admin/questions?topic=${g.topicId}', '/admin/coverage?exam=${exam.id}', 'id="gap-filter"', 'id="gap-search"', 'Linked to Current Affairs']) assert(e.includes(x), `editor: ${x}`);
   assert(/data-publish-impact=""/.test(e) && /disabled=\{!impact \|\| !typedOk\}/.test(e) && /Also archive version/.test(e), 'publish dialog shows the impact; confirm waits for it (and the typed phrase)');
   assert(/data-unit-meta=""/.test(e) && /data-section-sum=""/.test(e), 'tree: unit meta + section sums');
   return 'ok';

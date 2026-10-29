@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { AdminBreadcrumbs } from "@/components/admin/admin-breadcrumbs";
 import { ConductingOrgItem, ExamPostItem, OnboardingKnowledgeModuleStatus } from "@/services/exam-onboarding/exam-onboarding.service";
 import { ExamReadinessReport } from "@/services/exam-onboarding/exam-readiness.service";
 import { Step1Identity } from "./steps/step1-identity";
@@ -223,13 +222,6 @@ export function ExamOnboardingWizard({
   return (
     <div className="space-y-6 w-full pb-12">
       {/* Breadcrumbs */}
-      <AdminBreadcrumbs
-        items={[
-          { label: "Dashboard", href: "/admin" },
-          { label: "Examinations", href: "/admin/exams" },
-          { label: initialExam ? initialExam.title : "Manual Onboarding Wizard", active: true },
-        ]}
-      />
 
       {/* Stepper Navigation Header */}
       <div className="p-4 bg-white border border-slate-200/80 rounded-2xl shadow-2xs overflow-x-auto">

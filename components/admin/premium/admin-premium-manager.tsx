@@ -549,7 +549,7 @@ export function AdminPremiumManager({
               <p className="text-2xl font-black text-slate-900 mt-1">
                 {analytics.activePremiumCandidates}
               </p>
-              <span className="text-[10px] text-emerald-600 font-bold">PRO &amp; Passes Active</span>
+              <span className="text-[10px] text-emerald-700 font-bold">PRO &amp; Passes Active</span>
             </Card>
 
             <Card className="p-4 bg-white border-slate-200">
@@ -559,7 +559,7 @@ export function AdminPremiumManager({
               <p className="text-2xl font-black text-slate-900 mt-1">
                 {analytics.totalPremiumEntitlements}
               </p>
-              <span className="text-[10px] text-slate-400 font-medium">All-time issued</span>
+              <span className="text-[10px] text-slate-600 font-medium">All-time issued</span>
             </Card>
 
             <Card className="p-4 bg-white border-slate-200">
@@ -579,7 +579,7 @@ export function AdminPremiumManager({
               <p className="text-2xl font-black text-slate-900 mt-1">
                 {analytics.completionRatePct}%
               </p>
-              <span className="text-[10px] text-slate-400 font-medium">{analytics.completedPremiumAttempts} completed</span>
+              <span className="text-[10px] text-slate-600 font-medium">{analytics.completedPremiumAttempts} completed</span>
             </Card>
 
             <Card className="p-4 bg-white border-slate-200">
@@ -605,7 +605,7 @@ export function AdminPremiumManager({
                   <span className="text-[11px] font-bold text-slate-600 uppercase font-mono">{key}</span>
                   <div className="mt-2 flex items-baseline justify-between">
                     <span className="text-lg font-black text-slate-900">{count}</span>
-                    <span className="text-[10px] text-slate-400 font-medium">Starts</span>
+                    <span className="text-[10px] text-slate-600 font-medium">Starts</span>
                   </div>
                 </div>
               ))}
@@ -713,7 +713,7 @@ export function AdminPremiumManager({
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-4">
             <div className="relative flex-1 max-w-md">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <Search className="w-4 h-4 text-slate-600 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={examSearch}
@@ -732,7 +732,7 @@ export function AdminPremiumManager({
               <Card key={exam.exam_id} className="p-4 bg-white border-slate-200 flex items-center justify-between">
                 <div>
                   <h3 className="font-extrabold text-slate-900 text-sm">{exam.exam_title}</h3>
-                  <span className="text-[10px] text-slate-400 font-mono">{exam.exam_slug}</span>
+                  <span className="text-[10px] text-slate-600 font-mono">{exam.exam_slug}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant={exam.is_enabled ? "success" : "neutral"} className="text-[10px]">
@@ -769,7 +769,7 @@ export function AdminPremiumManager({
                       {tt.is_enabled ? "ACTIVE" : "PAUSED"}
                     </Badge>
                   </div>
-                  <span className="text-[10px] text-slate-400 font-mono">Key: {tt.test_type}</span>
+                  <span className="text-[10px] text-slate-600 font-mono">Key: {tt.test_type}</span>
                 </div>
 
                 <Button
@@ -794,7 +794,7 @@ export function AdminPremiumManager({
                       Coming Soon
                     </Badge>
                   </div>
-                  <span className="text-[10px] text-slate-400 font-mono">Future Architectural Feature</span>
+                  <span className="text-[10px] text-slate-600 font-mono">Future Architectural Feature</span>
                 </div>
                 <Button variant="outline" size="sm" disabled className="text-xs font-bold opacity-50">
                   Locked
@@ -834,7 +834,7 @@ export function AdminPremiumManager({
                   onChange={(e) => setPolicyForm({ ...policyForm, dynamic_test_ttl_hours: parseInt(e.target.value, 10) || 48 })}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-white"
                 />
-                <span className="text-[10px] text-slate-400">Hours before unattempted dynamic mock expires</span>
+                <span className="text-[10px] text-slate-600">Hours before unattempted dynamic mock expires</span>
               </div>
 
               <div>
@@ -849,7 +849,7 @@ export function AdminPremiumManager({
                   onChange={(e) => setPolicyForm({ ...policyForm, min_pool_multiplier: parseInt(e.target.value, 10) || 3 })}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-white"
                 />
-                <span className="text-[10px] text-slate-400">Required available question pool size multiplier</span>
+                <span className="text-[10px] text-slate-600">Required available question pool size multiplier</span>
               </div>
 
               <div>
@@ -864,7 +864,7 @@ export function AdminPremiumManager({
                   onChange={(e) => setPolicyForm({ ...policyForm, max_weak_area_ratio: (parseInt(e.target.value, 10) || 70) / 100 })}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-white"
                 />
-                <span className="text-[10px] text-slate-400">Maximum percentage of questions sourced from weak areas</span>
+                <span className="text-[10px] text-slate-600">Maximum percentage of questions sourced from weak areas</span>
               </div>
 
               <div>
@@ -879,7 +879,7 @@ export function AdminPremiumManager({
                   onChange={(e) => setPolicyForm({ ...policyForm, max_active_dynamic_tests_per_user: parseInt(e.target.value, 10) || 5 })}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-white"
                 />
-                <span className="text-[10px] text-slate-400">Concurrency limit on un-submitted dynamic tests</span>
+                <span className="text-[10px] text-slate-600">Concurrency limit on un-submitted dynamic tests</span>
               </div>
             </div>
 
@@ -920,7 +920,7 @@ export function AdminPremiumManager({
           <Card className="p-4 bg-white border-slate-200">
             <form onSubmit={handleSearchCandidate} className="flex gap-2">
               <div className="relative flex-1">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <Search className="w-4 h-4 text-slate-600 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   value={candidateQuery}
@@ -944,7 +944,7 @@ export function AdminPremiumManager({
                 <div>
                   <h2 className="text-base font-extrabold text-slate-900">{candidateData.user.fullName || "Candidate"}</h2>
                   <span className="text-xs text-slate-500 font-mono">{candidateData.user.email}</span>
-                  <span className="text-[10px] text-slate-400 block font-mono">ID: {candidateData.user.id}</span>
+                  <span className="text-[10px] text-slate-600 block font-mono">ID: {candidateData.user.id}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant="indigo" className="text-xs font-mono">
@@ -967,7 +967,7 @@ export function AdminPremiumManager({
                   Entitlements &amp; Subscription Passes
                 </h3>
                 {candidateData.entitlements.length === 0 ? (
-                  <p className="text-xs text-slate-400 py-3 text-center">No active or historical entitlements found for this candidate.</p>
+                  <p className="text-xs text-slate-600 py-3 text-center">No active or historical entitlements found for this candidate.</p>
                 ) : (
                   <div className="space-y-2">
                     {candidateData.entitlements.map((ent) => (
@@ -1027,7 +1027,7 @@ export function AdminPremiumManager({
                         <span className="text-sm font-black text-slate-900">
                           {q.isUnlimited ? "Unlimited" : `${q.quotaUsed} / ${q.quotaLimit}`}
                         </span>
-                        <span className="text-[9px] text-slate-400 font-medium">
+                        <span className="text-[9px] text-slate-600 font-medium">
                           {q.isUnlimited ? "∞" : `${q.quotaRemaining} left`}
                         </span>
                       </div>
@@ -1044,7 +1044,7 @@ export function AdminPremiumManager({
               <Card className="max-w-md w-full p-6 bg-white border-slate-200 space-y-4 shadow-xl">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-extrabold text-slate-900">Grant Promotional Pass</h3>
-                  <button onClick={() => setShowGrantModal(false)} className="text-slate-400 hover:text-slate-600">
+                  <button onClick={() => setShowGrantModal(false)} className="text-slate-600 hover:text-slate-600">
                     <X className="w-4 h-4" />
                   </button>
                 </div>
@@ -1099,7 +1099,7 @@ export function AdminPremiumManager({
               <Card className="max-w-md w-full p-6 bg-white border-slate-200 space-y-4 shadow-xl">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-extrabold text-slate-900">Edit Custom Quotas</h3>
-                  <button onClick={() => setEditQuotaEntitlementId(null)} className="text-slate-400 hover:text-slate-600">
+                  <button onClick={() => setEditQuotaEntitlementId(null)} className="text-slate-600 hover:text-slate-600">
                     <X className="w-4 h-4" />
                   </button>
                 </div>
@@ -1168,7 +1168,7 @@ export function AdminPremiumManager({
               Premium Test Series Directory
             </h2>
             {testSeries.length === 0 ? (
-              <p className="text-xs text-slate-400 text-center py-6">No test series found.</p>
+              <p className="text-xs text-slate-600 text-center py-6">No test series found.</p>
             ) : (
               <div className="divide-y divide-slate-100">
                 {testSeries.map((s) => (
@@ -1206,7 +1206,7 @@ export function AdminPremiumManager({
               Curated Premium Mock Tests
             </h2>
             {curatedMocks.length === 0 ? (
-              <p className="text-xs text-slate-400 text-center py-6">No curated mocks found.</p>
+              <p className="text-xs text-slate-600 text-center py-6">No curated mocks found.</p>
             ) : (
               <div className="divide-y divide-slate-100">
                 {curatedMocks.map((m) => {
@@ -1260,7 +1260,7 @@ export function AdminPremiumManager({
           </div>
 
           {auditLogs.length === 0 ? (
-            <p className="text-xs text-slate-400 text-center py-8">No audit logs recorded yet.</p>
+            <p className="text-xs text-slate-600 text-center py-8">No audit logs recorded yet.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
@@ -1314,7 +1314,7 @@ export function AdminPremiumManager({
                       {new Date(selectedAuditLog.created_at).toLocaleString()} by {selectedAuditLog.actor_email}
                     </span>
                   </div>
-                  <button onClick={() => setSelectedAuditLog(null)} className="text-slate-400 hover:text-slate-600">
+                  <button onClick={() => setSelectedAuditLog(null)} className="text-slate-600 hover:text-slate-600">
                     <X className="w-4 h-4" />
                   </button>
                 </div>

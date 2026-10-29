@@ -44,12 +44,12 @@ function Badge({ n, rail }: { n: number | null | undefined; rail: boolean }) {
   );
 }
 
+// ADMIN-IA-1: sidebar items are flat nouns; a section's sub-pages are tabs on the page (activeHref maps any tab to its item)
 function containsActive(item: NavItem, active: string | null): boolean {
-  return !!active && (item.href === active || !!item.children?.some((c) => c.href === active));
+  return !!active && item.href === active;
 }
 
 function NavTree({ nav, active, rail, badges, onNavigate }: { nav: NavGroup[]; active: string | null; rail: boolean; badges: NavBadges; onNavigate?: () => void }) {
-  const [openItems, setOpenItems] = useState<Record<string, boolean>>({});
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
   return (
@@ -79,55 +79,25 @@ function NavTree({ nav, active, rail, badges, onNavigate }: { nav: NavGroup[]; a
               <ul className="flex flex-col gap-0.5" aria-label={g.label ?? undefined}>
                 {g.items.map((it) => {
                   const Icon = ICONS[it.icon];
-                  const hasKids = !!it.children?.length && !rail;
                   const itemActive = containsActive(it, active);
-                  const expanded = hasKids && (itemActive || openItems[it.href + it.label] === true);
-                  const linkClass = (on: boolean) =>
-                    cn(
-                      "focus-ring-on-dark flex min-h-9 items-center gap-3 rounded-control px-3 py-[9px] text-[13.5px] font-medium text-primary-100 hover:bg-white/10 hover:text-white",
-                      rail && "justify-center px-0",
-                      on && "bg-white/15 font-semibold text-white shadow-[inset_3px_0_0_var(--color-primary-400)]",
-                    );
-                  if (!hasKids) {
-                    const on = it.href === active || (rail && itemActive);
-                    return (
-                      <li key={it.href + it.label}>
-                        <Link href={it.href} aria-current={on ? "page" : undefined} className={cn(linkClass(on), "relative")} title={rail ? it.label : undefined} onClick={onNavigate}>
-                          <Icon aria-hidden={true} className="size-5 shrink-0" />
-                          <span className={cn(rail && "sr-only")}>{it.label}</span>
-                          {it.badge && <Badge n={badges[it.badge]} rail={rail} />}
-                        </Link>
-                      </li>
-                    );
-                  }
+                  const on = itemActive;
                   return (
                     <li key={it.href + it.label}>
-                      <button
-                        type="button"
-                        aria-expanded={expanded}
-                        onClick={() => setOpenItems((o) => ({ ...o, [it.href + it.label]: !expanded }))}
-                        className={cn(linkClass(false), "w-full justify-between", itemActive && "text-white")}
+                      <Link
+                        href={it.href}
+                        aria-current={on ? "page" : undefined}
+                        className={cn(
+                          "focus-ring-on-dark relative flex min-h-9 items-center gap-3 rounded-control px-3 py-[9px] text-[13.5px] font-medium text-primary-100 hover:bg-white/10 hover:text-white",
+                          rail && "justify-center px-0",
+                          on && "bg-white/15 font-semibold text-white shadow-[inset_3px_0_0_var(--color-primary-400)]",
+                        )}
+                        title={rail ? it.label : undefined}
+                        onClick={onNavigate}
                       >
-                        <span className="flex items-center gap-3">
-                          <Icon aria-hidden={true} className="size-5 shrink-0" />
-                          {it.label}
-                        </span>
-                        <ChevronDown aria-hidden="true" className={cn("size-4 transition-transform", expanded && "rotate-180")} />
-                      </button>
-                      {expanded && (
-                        <ul className="ml-8 mt-0.5 flex flex-col gap-0.5 border-l border-white/15 pl-2">
-                          {it.children!.map((c) => {
-                            const on = c.href === active;
-                            return (
-                              <li key={c.href}>
-                                <Link href={c.href} aria-current={on ? "page" : undefined} className={cn(linkClass(on), "min-h-9")} onClick={onNavigate}>
-                                  {c.label}
-                                </Link>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      )}
+                        <Icon aria-hidden={true} className="size-5 shrink-0" />
+                        <span className={cn(rail && "sr-only")}>{it.label}</span>
+                        {it.badge && <Badge n={badges[it.badge]} rail={rail} />}
+                      </Link>
                     </li>
                   );
                 })}

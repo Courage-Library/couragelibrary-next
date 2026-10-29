@@ -82,7 +82,7 @@ export function AdminSectionsManager({ sections, patterns, categories, subjects,
   const handlePatternFilterChange = (pat: string) => {
     setSelectedPatternFilter(pat);
     setCurrentPage(1);
-    router.push(pat === "ALL" ? "/admin/sections" : `/admin/sections?pattern=${pat}`);
+    router.push(pat === "ALL" ? "/admin/mock-tests/sections" : `/admin/mock-tests/sections?pattern=${pat}`);
   };
   const remove = (sec: AdminSectionItem) => {
     if (!confirm(`Delete section "${sec.name}"? This removes its blueprint rule.`)) return;
@@ -112,7 +112,7 @@ export function AdminSectionsManager({ sections, patterns, categories, subjects,
           </button>
         }
         actions={
-          <Link href={activeCategoryObj ? `/admin/patterns?category=${activeCategoryObj.slug}` : "/admin/patterns"} className={studioQuietAction}>
+          <Link href={activeCategoryObj ? `/admin/mock-tests/patterns?category=${activeCategoryObj.slug}` : "/admin/mock-tests/patterns"} className={studioQuietAction}>
             Patterns
           </Link>
         }
@@ -196,7 +196,7 @@ export function AdminSectionsManager({ sections, patterns, categories, subjects,
                     <Link href={questionUrl} className={studioQuietAction}>
                       Questions
                     </Link>
-                    <Link href="/admin/bulk-import" className={studioQuietAction}>
+                    <Link href="/admin/questions/import" className={studioQuietAction}>
                       Bulk import
                     </Link>
                   </nav>
@@ -255,7 +255,7 @@ export function AdminSectionsManager({ sections, patterns, categories, subjects,
           </StudioField>
           <p className="-mt-2 text-[12px] text-fg-secondary">
             Missing a subject? Add it in the{" "}
-            <Link href="/admin/taxonomy" className="font-semibold text-link underline">
+            <Link href="/admin/master-tree" className="font-semibold text-link underline">
               Master tree
             </Link>
             .

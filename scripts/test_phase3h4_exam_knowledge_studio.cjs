@@ -122,7 +122,7 @@ async function runAllTests() {
   runTest('S02', 'AdminSidebar navigation includes Exam Knowledge link under Learning Content', () => {
     const sidebarPath = path.join(__dirname, '..', 'components', 'admin', 'admin-sidebar.tsx');
     const content = fs.readFileSync(sidebarPath, 'utf8');
-    assert.ok(content.includes('/admin/exam-knowledge'), 'Must link to /admin/exam-knowledge');
+    assert.ok(content.includes('/admin/exams/knowledge'), 'Must link to /admin/exam-knowledge');
     assert.ok(content.includes('Exam Knowledge'), 'Must have label Exam Knowledge');
   });
 

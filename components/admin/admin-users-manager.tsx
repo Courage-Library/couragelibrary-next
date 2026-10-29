@@ -28,7 +28,7 @@ function href(page: number, query: string): string {
   if (query) p.set("q", query);
   if (page > 1) p.set("page", String(page));
   const s = p.toString();
-  return s ? `/admin/users?${s}` : "/admin/users";
+  return s ? `/admin/students?${s}` : "/admin/students";
 }
 
 export function AdminUsersManager({ users, total, totalAuthUsers, totalProfiles, page, perPage, query, truncated, loadError }: Props) {
@@ -54,7 +54,7 @@ export function AdminUsersManager({ users, total, totalAuthUsers, totalProfiles,
         <Card className="p-4 bg-white border-slate-200">
           <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">Auth Users</span>
           <p className="text-2xl font-black text-slate-900 mt-1">{totalAuthUsers}</p>
-          <span className="text-[10px] text-slate-400 font-medium">all accounts</span>
+          <span className="text-[10px] text-slate-600 font-medium">all accounts</span>
         </Card>
         <Card className="p-4 bg-emerald-50/60 border-emerald-200">
           <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider font-mono">Synced Profiles</span>
@@ -73,13 +73,13 @@ export function AdminUsersManager({ users, total, totalAuthUsers, totalProfiles,
         </Card>
       </div>
 
-      <form method="get" action="/admin/users" role="search" className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3 rounded-xl border border-slate-200 bg-white p-4">
+      <form method="get" action="/admin/students" role="search" className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3 rounded-xl border border-slate-200 bg-white p-4">
         <div className="flex-1">
           <label htmlFor="users-q" className="block text-xs font-bold text-slate-700 mb-1">
             Search by email
           </label>
           <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" aria-hidden="true" />
+            <Search className="w-4 h-4 text-slate-600 absolute left-3 top-1/2 -translate-y-1/2" aria-hidden="true" />
             <input
               id="users-q"
               name="q"
@@ -94,7 +94,7 @@ export function AdminUsersManager({ users, total, totalAuthUsers, totalProfiles,
           Search
         </button>
         {query && (
-          <Link href="/admin/users" className="focus-ring min-h-11 inline-flex items-center px-3 text-sm font-semibold text-primary-700">
+          <Link href="/admin/students" className="focus-ring min-h-11 inline-flex items-center px-3 text-sm font-semibold text-primary-700">
             Clear
           </Link>
         )}
@@ -144,7 +144,7 @@ export function AdminUsersManager({ users, total, totalAuthUsers, totalProfiles,
                     <td className="py-3 px-4">
                       <span className="font-bold text-slate-900 block">{u.fullName}</span>
                       <span className="text-[11px] text-slate-500 font-mono flex items-center gap-1">
-                        <Mail className="w-3 h-3 text-slate-400" aria-hidden="true" /> {u.email}
+                        <Mail className="w-3 h-3 text-slate-600" aria-hidden="true" /> {u.email}
                       </span>
                     </td>
                     <td className="py-3 px-3">
@@ -156,7 +156,7 @@ export function AdminUsersManager({ users, total, totalAuthUsers, totalProfiles,
                     <td className="py-3 px-3">
                       {u.hasProfile ? (
                         <Badge variant="success" className="text-[10px] font-bold flex items-center gap-1 w-fit">
-                          <CheckCircle2 className="w-3 h-3 text-emerald-600" aria-hidden="true" /> SYNCED
+                          <CheckCircle2 className="w-3 h-3 text-emerald-700" aria-hidden="true" /> SYNCED
                         </Badge>
                       ) : (
                         <Badge variant="destructive" className="text-[10px] font-bold flex items-center gap-1 w-fit">
@@ -167,7 +167,7 @@ export function AdminUsersManager({ users, total, totalAuthUsers, totalProfiles,
                     <td className="py-3 px-3 text-slate-500 font-mono text-[11px]">
                       {new Date(u.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
                     </td>
-                    <td className="py-3 px-4 text-right font-mono text-[10px] text-slate-400">
+                    <td className="py-3 px-4 text-right font-mono text-[10px] text-slate-600">
                       {u.id.slice(0, 8)}…{u.id.slice(-4)}
                     </td>
                   </tr>

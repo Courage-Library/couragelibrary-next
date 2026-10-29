@@ -23,7 +23,7 @@ export async function activatePromptAction(id: string): Promise<PromptResult<{ i
   if (r.success) {
     revalidatePath("/admin/prompts");
     revalidatePath("/admin/syllabus/intake");
-    revalidatePath("/admin/lessons/generate");
+    revalidatePath("/admin/lessons/new");
   }
   return sanitizeActionResult("activatePromptAction", r);
 }

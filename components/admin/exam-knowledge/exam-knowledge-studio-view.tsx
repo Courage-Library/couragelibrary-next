@@ -903,19 +903,19 @@ export function ExamKnowledgeStudioView({
         <div className="space-y-6">
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
             <div className="p-3.5 rounded-xl border border-slate-200 bg-white shadow-xs">
-              <span className="text-[10px] font-mono uppercase font-bold text-slate-400 block">Total Exams</span>
+              <span className="text-[10px] font-mono uppercase font-bold text-slate-600 block">Total Exams</span>
               <span className="text-xl font-black text-slate-900 mt-1 block">{kpis.totalExams}</span>
             </div>
             <div className="p-3.5 rounded-xl border border-slate-200 bg-white shadow-xs">
-              <span className="text-[10px] font-mono uppercase font-bold text-slate-400 block">Active Exams</span>
+              <span className="text-[10px] font-mono uppercase font-bold text-slate-600 block">Active Exams</span>
               <span className="text-xl font-black text-blue-600 mt-1 block">{kpis.activeExams}</span>
             </div>
             <div className="p-3.5 rounded-xl border border-slate-200 bg-white shadow-xs">
-              <span className="text-[10px] font-mono uppercase font-bold text-slate-400 block">Active Cycles</span>
+              <span className="text-[10px] font-mono uppercase font-bold text-slate-600 block">Active Cycles</span>
               <span className="text-xl font-black text-slate-900 mt-1 block">{kpis.activeCycles}</span>
             </div>
             <div className="p-3.5 rounded-xl border border-slate-200 bg-white shadow-xs">
-              <span className="text-[10px] font-mono uppercase font-bold text-slate-400 block">Total Documents</span>
+              <span className="text-[10px] font-mono uppercase font-bold text-slate-600 block">Total Documents</span>
               <span className="text-xl font-black text-slate-900 mt-1 block">{kpis.totalDocuments}</span>
             </div>
             <div className="p-3.5 rounded-xl border border-slate-200 bg-white shadow-xs">
@@ -923,11 +923,11 @@ export function ExamKnowledgeStudioView({
               <span className="text-xl font-black text-accent-700 mt-1 block">{kpis.draftsAwaitingReview}</span>
             </div>
             <div className="p-3.5 rounded-xl border border-slate-200 bg-white shadow-xs">
-              <span className="text-[10px] font-mono uppercase font-bold text-emerald-600 block">Published Docs</span>
-              <span className="text-xl font-black text-emerald-600 mt-1 block">{kpis.publishedDocuments}</span>
+              <span className="text-[10px] font-mono uppercase font-bold text-emerald-700 block">Published Docs</span>
+              <span className="text-xl font-black text-emerald-700 mt-1 block">{kpis.publishedDocuments}</span>
             </div>
             <div className="p-3.5 rounded-xl border border-slate-200 bg-white shadow-xs">
-              <span className="text-[10px] font-mono uppercase font-bold text-slate-400 block">Unverified Srcs</span>
+              <span className="text-[10px] font-mono uppercase font-bold text-slate-600 block">Unverified Srcs</span>
               <span className="text-xl font-black text-slate-900 mt-1 block">{kpis.unverifiedSources}</span>
             </div>
             <div className="p-3.5 rounded-xl border border-slate-200 bg-white shadow-xs">
@@ -1009,7 +1009,7 @@ export function ExamKnowledgeStudioView({
                       <tr key={mod.moduleKey} className="hover:bg-slate-50/80 transition">
                         <td className="py-3 px-4">
                           <div className="font-bold text-slate-900">{mod.title}</div>
-                          <div className="text-[10px] font-mono text-slate-400">{mod.moduleKey}</div>
+                          <div className="text-[10px] font-mono text-slate-600">{mod.moduleKey}</div>
                         </td>
                         <td className="py-3 px-3"><span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium text-[11px]">{mod.category}</span></td>
                         <td className="py-3 px-3">{mod.isCycleSpecific ? <span className="text-[11px] font-mono text-blue-700 font-semibold">Annual Cycle</span> : <span className="text-[11px] font-mono text-slate-500">Timeless</span>}</td>
@@ -1097,7 +1097,7 @@ export function ExamKnowledgeStudioView({
                         </span>
                       ) : lastSavedTime ? (
                         <span className="px-2.5 py-1 rounded-full text-[11px] font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
                           Saved at {lastSavedTime}
                         </span>
                       ) : (
@@ -1312,7 +1312,7 @@ export function ExamKnowledgeStudioView({
                           Document Metadata
                         </h3>
                       </div>
-                      <span className="text-[11px] font-mono text-slate-400">Schema: CL-EXAM-AUTHOR-v1.0</span>
+                      <span className="text-[11px] font-mono text-slate-600">Schema: CL-EXAM-AUTHOR-v1.0</span>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1690,7 +1690,7 @@ export function ExamKnowledgeStudioView({
                 </div>
               ) : (
                 <div className="p-12 rounded-2xl border border-dashed border-slate-200 bg-white text-center space-y-3">
-                  <RefreshCw className="w-8 h-8 mx-auto text-slate-400 animate-spin" />
+                  <RefreshCw className="w-8 h-8 mx-auto text-slate-600 animate-spin" />
                   <div className="text-xs font-bold text-slate-700">Loading draft payload...</div>
                 </div>
               )}
@@ -1772,7 +1772,7 @@ export function ExamKnowledgeStudioView({
                     {importError && (<div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-xs font-medium space-y-1"><div className="font-bold flex items-center gap-1.5"><XCircle className="w-4 h-4 text-rose-600" /><span>Import Rejected</span></div><p className="pl-5 text-rose-700">{importError}</p></div>)}
                     {importResult && (
                       <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-950 space-y-3 text-xs">
-                        <div className="flex items-center gap-2 font-bold text-emerald-900"><CheckCircle2 className="w-4 h-4 text-emerald-600" /><span>Import Succeeded! Draft Created (is_published: false)</span></div>
+                        <div className="flex items-center gap-2 font-bold text-emerald-900"><CheckCircle2 className="w-4 h-4 text-emerald-700" /><span>Import Succeeded! Draft Created (is_published: false)</span></div>
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-[11px]">
                           <div><span className="text-slate-500">Document ID:</span> <span className="font-bold">{importResult.documentId}</span></div>
                           <div><span className="text-slate-500">Version:</span> <span className="font-bold">v{importResult.versionNumber}</span></div>
@@ -1817,7 +1817,7 @@ export function ExamKnowledgeStudioView({
           </div>
           {draftsList.length === 0 ? (
             <div className="p-12 rounded-2xl border border-dashed border-slate-200 bg-white text-center space-y-3">
-              <FileText className="w-8 h-8 mx-auto text-slate-400" />
+              <FileText className="w-8 h-8 mx-auto text-slate-600" />
               <div className="text-xs font-bold text-slate-700">No documents match the selected filter</div>
               <p className="text-[11px] text-slate-500 max-w-sm mx-auto">Use the Authoring Workbench to generate a prompt, paste external AI responses, and import new draft versions.</p>
             </div>
@@ -1839,7 +1839,7 @@ export function ExamKnowledgeStudioView({
                     <tr key={d.id} className="hover:bg-slate-50 transition">
                       <td className="py-3 px-4">
                         <div className="font-bold text-slate-900">{d.document?.title || d.document?.moduleKey}</div>
-                        <div className="text-[10px] font-mono text-slate-400">{d.document?.examName} {d.document?.cycleYear ? `(${d.document.cycleYear})` : ""} &bull; {d.document?.moduleKey}</div>
+                        <div className="text-[10px] font-mono text-slate-600">{d.document?.examName} {d.document?.cycleYear ? `(${d.document.cycleYear})` : ""} &bull; {d.document?.moduleKey}</div>
                       </td>
                       <td className="py-3 px-3 font-mono font-bold">v{d.versionNumber}</td>
                       <td className="py-3 px-3"><span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-mono text-[10px]">{d.authorType}</span></td>
@@ -1905,7 +1905,7 @@ export function ExamKnowledgeStudioView({
         <div className="space-y-6">
           {!documentDetail ? (
             <div className="p-12 rounded-2xl border border-dashed border-slate-200 bg-white text-center space-y-3">
-              <ShieldCheck className="w-8 h-8 mx-auto text-slate-400" />
+              <ShieldCheck className="w-8 h-8 mx-auto text-slate-600" />
               <div className="text-xs font-bold text-slate-700">No Document Version Selected</div>
               <p className="text-[11px] text-slate-500 max-w-sm mx-auto">Select a draft version from the Drafts tab or an existing document from the Exams matrix to inspect.</p>
             </div>
@@ -2210,11 +2210,11 @@ export function ExamKnowledgeStudioView({
                             </div>
                           ))
                         ) : (
-                          <p className="text-slate-400 text-[11px]">No pre-registered claims for this module.</p>
+                          <p className="text-slate-600 text-[11px]">No pre-registered claims for this module.</p>
                         )}
                       </div>
                       <div className="p-4 rounded-xl border border-slate-200 bg-slate-900 text-slate-300 shadow-xs space-y-2 font-mono text-[10px]">
-                        <span className="text-slate-400 font-bold block uppercase text-[9px]">Cryptographic Provenance</span>
+                        <span className="text-slate-600 font-bold block uppercase text-[9px]">Cryptographic Provenance</span>
                         <div className="truncate"><span className="text-slate-500">Payload Hash: </span><span className="text-emerald-400">{documentDetail.version?.source_spec_hash}</span></div>
                         {documentDetail.version?.compiled_artifact_hash && (
                           <div className="truncate"><span className="text-slate-500">Artifact Hash: </span><span className="text-purple-400">{documentDetail.version?.compiled_artifact_hash}</span></div>
@@ -2286,7 +2286,7 @@ export function ExamKnowledgeStudioView({
 
                   {(!documentDetail.sources || documentDetail.sources.length === 0) ? (
                     <div className="p-8 rounded-2xl border border-dashed border-slate-200 bg-white text-center space-y-2">
-                      <ExternalLink className="w-6 h-6 mx-auto text-slate-400" />
+                      <ExternalLink className="w-6 h-6 mx-auto text-slate-600" />
                       <p className="text-xs text-slate-500">No official sources registered for this exam yet.</p>
                     </div>
                   ) : (
@@ -2388,7 +2388,7 @@ export function ExamKnowledgeStudioView({
 
                   {(!documentDetail.versionHistory || documentDetail.versionHistory.length === 0) ? (
                     <div className="p-8 rounded-2xl border border-dashed border-slate-200 bg-white text-center space-y-2">
-                      <History className="w-6 h-6 mx-auto text-slate-400" />
+                      <History className="w-6 h-6 mx-auto text-slate-600" />
                       <p className="text-xs text-slate-500">No version snapshots found for this document.</p>
                     </div>
                   ) : (
@@ -2460,7 +2460,7 @@ export function ExamKnowledgeStudioView({
                                     <span className="font-sans">{verItem.reviewFeedback}</span>
                                   </div>
                                 )}
-                                <div className="text-[10px] font-mono text-slate-400 flex flex-wrap items-center gap-3 pt-1">
+                                <div className="text-[10px] font-mono text-slate-600 flex flex-wrap items-center gap-3 pt-1">
                                   {verItem.sourceSpecHash && (
                                     <span>Payload Hash: <span className="text-slate-600 font-bold">{verItem.sourceSpecHash.slice(0, 12)}...</span></span>
                                   )}
@@ -2691,7 +2691,7 @@ export function ExamKnowledgeStudioView({
                             <Badge variant="outline" className="font-mono text-xs font-bold">
                               v{diffResult.baseVersion.versionNumber} ({diffResult.baseVersion.reviewStatus})
                             </Badge>
-                            <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
+                            <ArrowRight className="w-3.5 h-3.5 text-slate-600" />
                             <Badge variant="indigo" className="font-mono text-xs font-bold">
                               v{diffResult.targetVersion.versionNumber} ({diffResult.targetVersion.reviewStatus})
                             </Badge>
@@ -2773,7 +2773,7 @@ export function ExamKnowledgeStudioView({
                       {/* If no changes found */}
                       {!diffResult.summary.hasChanges && (
                         <div className="p-8 rounded-2xl border border-emerald-200 bg-emerald-50/50 text-center space-y-2">
-                          <CheckCircle2 className="w-8 h-8 mx-auto text-emerald-600" />
+                          <CheckCircle2 className="w-8 h-8 mx-auto text-emerald-700" />
                           <div className="text-sm font-bold text-emerald-950">Zero Semantic Differences</div>
                           <p className="text-xs text-emerald-800 max-w-md mx-auto">
                             Version v{diffResult.baseVersion.versionNumber} and v{diffResult.targetVersion.versionNumber} are structurally and textually identical.
@@ -3128,7 +3128,7 @@ export function ExamKnowledgeStudioView({
                 placeholder="Specify the factual inaccuracies, missing citations, or necessary changes required before approval..."
                 className="w-full p-3 rounded-xl border border-slate-300 text-xs text-slate-800 font-sans focus:outline-hidden focus:ring-2 focus:ring-rose-500"
               />
-              <span className="text-[10px] text-slate-400 font-mono block text-right">
+              <span className="text-[10px] text-slate-600 font-mono block text-right">
                 {requestChangesModal.feedback.length} characters
               </span>
             </div>

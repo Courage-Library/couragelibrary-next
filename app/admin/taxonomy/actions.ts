@@ -19,7 +19,7 @@ import {
 /* GAP2-1b: every taxonomy mutation goes through TaxonomyService (admin check + audit). */
 
 function done<T>(result: TaxonomyResult<T>): TaxonomyResult<T> {
-  if (result.success) revalidatePath("/admin/taxonomy");
+  if (result.success) revalidatePath("/admin/master-tree");
   return result;
 }
 

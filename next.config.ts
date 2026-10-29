@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import { CANONICAL_HOST_PATTERN } from "./config/site";
+import { ADMIN_REDIRECTS } from "./lib/admin/nav-redirects";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -19,7 +20,11 @@ const nextConfig: NextConfig = {
     ],
   },
   // UX-2b: the former Premium hub is retired; plans live on /pricing ("Free during early access. Pro coming soon.")
-  redirects: async () => [{ source: "/premium", destination: "/pricing", permanent: true }],
+  redirects: async () => [
+    { source: "/premium", destination: "/pricing", permanent: true },
+    // ADMIN-IA-1: every moved admin address → its new place (308; the query string is kept)
+    ...ADMIN_REDIRECTS.map((r) => ({ source: r.from, destination: r.to, permanent: true })),
+  ],
   headers: async () => [
     // SEO-HYGIENE-1: every host that is not the production site (*.vercel.app, previews, localhost) is never indexed
     {

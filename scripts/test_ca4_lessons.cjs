@@ -241,7 +241,7 @@ test('LP-04 generator: subject type required (refused with a Master-tree link), 
   assert(/if \(!subject\.type\) return fail\("SUBJECT_TYPE_MISSING"/.test(svc) && (svc.match(/SUBJECT_TYPE_MISSING", SUBJECT_TYPE_MISSING/g) || []).length === 2, 'the service refuses (generator + save)');
   assert(/lessonChecklist\(parsed\.blocks, subject\.type, lessonSize\(await examCoverage\(c, tree, nodeId\)\)\)/.test(svc), 'the checklist uses the subject type + SIZE');
   const ui = read('components/admin/lessons/lesson-generator.tsx');
-  assert(/Set the subject type in the Master tree first\./.test(ui) && /href="\/admin\/taxonomy"/.test(ui) && /subject type <span[^>]*>\{generator\.context\.subjectType\}/.test(ui), 'refusal + link + the subject type shown');
+  assert(/Set the subject type in the Master tree first\./.test(ui) && /href="\/admin\/master-tree"/.test(ui) && /subject type <span[^>]*>\{generator\.context\.subjectType\}/.test(ui), 'refusal + link + the subject type shown');
   assert(/createTaxonomyNodeAction\(\{ parentId: selectedNodeId, nodeType: childLevel, name \}\)/.test(ui) && /Confirm add/.test(ui) && /setConfirmAdd\(s\)/.test(ui), 'add to the Master tree: confirmed, audited admin create');
   return 'ok';
 });
@@ -316,9 +316,10 @@ test('D-01 migration 119: no BEGIN / COMMIT; new functions INVOKER + pinned sear
 
 test('S-01 admin only: nav + routes, page guards, actions guarded first, client screens import no server module, the checklist gates publishing', () => {
   const nav = read('lib/admin/nav.ts');
-  for (const r of ['/admin/prompts', '/admin/lessons/generate', '/admin/lessons/[id]/translate']) assert(nav.includes(`  "${r}",`), `ADMIN_ONLY_ROUTES: ${r}`);
-  assert(/\{ label: "Lesson generator", href: "\/admin\/lessons\/generate", icon: "learning", access: "admin" \}/.test(nav) && /\{ label: "Prompt templates", href: "\/admin\/prompts", icon: "learning", access: "admin" \}/.test(nav), 'nav');
-  for (const f of ['app/admin/prompts/page.tsx', 'app/admin/lessons/generate/page.tsx', 'app/admin/lessons/[id]/translate/page.tsx']) {
+  for (const r of ['/admin/prompts', '/admin/lessons/new', '/admin/lessons/[id]/translate']) assert(nav.includes(`  "${r}",`), `ADMIN_ONLY_ROUTES: ${r}`);
+  // ADMIN-IA-1: the generator is the Lessons page's "New lesson" action (a verb, never a sidebar item); templates in Settings
+  assert(/\{ label: "New lesson", href: "\/admin\/lessons\/new", access: "admin", inPage: true \}/.test(nav) && /\{ label: "Prompt templates", href: "\/admin\/prompts", icon: "settings", access: "admin" \}/.test(nav), 'nav');
+  for (const f of ['app/admin/prompts/page.tsx', 'app/admin/lessons/new/page.tsx', 'app/admin/lessons/[id]/translate/page.tsx']) {
     const s = read(f);
     assert(/await requireAdminPage\(\{ path: [^}]*\}\)/.test(s) && !/allowStaff/.test(s), `${f}: admin page guard`);
   }

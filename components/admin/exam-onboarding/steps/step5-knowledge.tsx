@@ -31,7 +31,7 @@ export function Step5Knowledge({ examId, cycleId, modules, onContinue, onBack }:
           </p>
         </div>
         <Link
-          href={`/admin/exam-knowledge?examId=${examId}${cycleId ? `&cycleId=${cycleId}` : ''}`}
+          href={`/admin/exams/knowledge?examId=${examId}${cycleId ? `&cycleId=${cycleId}` : ''}`}
           target="_blank"
           className="bg-primary-700 hover:bg-primary-800 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-xs transition"
         >

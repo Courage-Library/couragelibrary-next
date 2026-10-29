@@ -21,7 +21,7 @@ import type {
   QuestionReviewQueueFilters,
 } from '@/types/question-factory';
 
-const FACTORY_PATH = '/admin/questions/factory';
+const FACTORY_PATH = '/admin/questions/drafts';
 
 function refresh() {
   revalidatePath(FACTORY_PATH);

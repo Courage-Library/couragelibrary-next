@@ -265,9 +265,9 @@ const FUNCS = [
   });
 
   await test('U-01 master tree screen: Studio header with ONE primary, named icon buttons, labelled controls, lang="hi", English-only copy, guarded merge', () => {
-    const ui = read('app/admin/taxonomy/taxonomy-manager.tsx');
-    const page = read('app/admin/taxonomy/page.tsx');
-    assert(/requireAdminPage\(\{ path: "\/admin\/taxonomy" \}\)/.test(page), 'admin page guard');
+    const ui = read('app/admin/master-tree/taxonomy-manager.tsx');
+    const page = read('app/admin/master-tree/page.tsx');
+    assert(/requireAdminPage\(\{ path: "\/admin\/master-tree" \}\)/.test(page), 'admin page guard');
     const header = ui.slice(ui.indexOf('<StudioPageHeader'), ui.indexOf('<StudioStatStrip'));
     assert((header.match(/studioPrimaryAction/g) || []).length === 1, 'one primary in the header');
     assert(/<StudioDrawer/.test(ui) && /StudioStatStrip/.test(ui), 'drawer + stats');

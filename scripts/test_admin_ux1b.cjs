@@ -4,7 +4,7 @@
  * UI only — every rule below proves that NO authorization changed and NO new data is exposed.
  *   AB-01 every nav link's `access` equals its page's existing requireAdminPage guard (allowStaff → staff, else admin)
  *   AB-02 visibleNav: staff never sees an admin-only link; flags hide items / the Payments group; no empty groups
- *   AB-03 one active link (longest prefix; /admin exact; retired /admin/mock-tests-management lights nothing)
+ *   AB-03 one active link (longest prefix over every item's tabs; /admin exact; retired /admin/mock-tests-management lights nothing)
  *   AB-04 layout: the guard unchanged and first; ONE <main> (the root shell's); admin skip link; never-glass; no e-mail
  *         or hard-coded role in the shell; sidebar scrolls (never clipped); header shows the real role
  *   AB-05 search: existing guard first; users only for admins, tickets only while support is on; LIKE wildcards escaped;
@@ -49,7 +49,8 @@ const SEARCH = require(path.join(ROOT, 'lib/admin/search-core.ts'));
 const STATUS = require(path.join(ROOT, 'lib/admin/status.ts'));
 const ALL_ON = { ADAPTIVE: true, LIVE_TESTS: true, SUPPORT: true, PAYMENTS: true };
 const ALL_OFF = { ADAPTIVE: false, LIVE_TESTS: false, SUPPORT: false, PAYMENTS: false };
-const allLeaves = (nav) => nav.flatMap((g) => g.items.flatMap((it) => [it, ...(it.children || [])]));
+// ADMIN-IA-1: every route a nav entry stands for — an item's tabs (or the item itself) and its page actions
+const allLeaves = (nav) => nav.flatMap((g) => g.items.flatMap((it) => [...(it.tabs && it.tabs.length ? it.tabs : [it]), ...(it.actions || [])]));
 
 test('AB-01 every nav link mirrors its page guard (no authorization change)', () => {
   const bad = [];
@@ -68,29 +69,33 @@ test('AB-01 every nav link mirrors its page guard (no authorization change)', ()
 test('AB-02 role-aware + flag-aware visibility', () => {
   const staff = allLeaves(NAV.visibleNav('staff', ALL_ON));
   assert(staff.every((l) => l.access === 'staff'), 'staff sees an admin-only link');
-  for (const h of ['/admin/users', '/admin/question-reports', '/admin/taxonomy', '/admin/pro-library', '/admin/premium', '/admin/billing']) assert(!staff.some((l) => l.href === h), `staff sees ${h}`);
+  for (const h of ['/admin/students', '/admin/support/question-reports', '/admin/master-tree', '/admin/students/library-pro', '/admin/payments/premium', '/admin/payments', '/admin/system', '/admin/system/design', '/admin/exams/notes', '/admin/syllabus/intake'])
+    assert(!staff.some((l) => l.href === h), `staff sees ${h}`);
+  const items = (nav) => nav.flatMap((g) => g.items);
   const adminOff = NAV.visibleNav('admin', ALL_OFF);
-  assert(!adminOff.some((g) => g.id === 'payments'), 'Payments shown while PAYMENTS_ENABLED is off');
-  assert(NAV.visibleNav('admin', ALL_ON).some((g) => g.id === 'payments'), 'Payments hidden while on');
+  assert(!items(adminOff).some((i) => i.label === 'Plans & payments'), 'Payments shown while PAYMENTS_ENABLED is off');
+  assert(items(NAV.visibleNav('admin', ALL_ON)).some((i) => i.label === 'Plans & payments'), 'Payments hidden while on');
   for (const h of ['/admin/support', '/admin/adaptive', '/admin/live-tests', '/admin/achievements']) assert(!allLeaves(adminOff).some((l) => l.href === h), `${h} shown while its flag is off`);
   for (const g of [...adminOff, ...NAV.visibleNav('staff', ALL_OFF)]) assert(g.items.length > 0, `empty group ${g.id}`);
-  // Courage Studio (#84): Today · Focus review, then CREATE · CARE · SYSTEM (Payments + Not live yet as before)
-  assert(JSON.stringify(NAV.ADMIN_NAV.map((g) => g.id)) === '["today","create","care","payments","system","dormant"]', 'Studio groups');
-  assert(JSON.stringify(NAV.ADMIN_NAV.find((g) => g.id === 'create').items.map((i) => i.label)) === '["Questions","Mock tests","Learning","Current affairs","Syllabus map"]', 'CREATE items');
-  const focus = NAV.ADMIN_NAV[0].items.find((i) => i.href === '/admin/review/focus');
-  assert(focus && focus.access === 'staff' && focus.badge === 'inReview', 'Focus review: staff + admin, count badge');
-  assert(!allLeaves(NAV.visibleNav('staff', ALL_ON)).some((l) => l.href === '/admin/settings'), 'Settings is admin-only');
-  const one = NAV.visibleNav('staff', ALL_OFF, [{ id: 'x', label: 'X', items: [{ label: 'Parent', href: '/admin/syllabus', icon: 'syllabus', access: 'staff', children: [{ label: 'Syllabus', href: '/admin/syllabus', icon: 'syllabus', access: 'staff' }, { label: 'Taxonomy', href: '/admin/taxonomy', icon: 'syllabus', access: 'admin' }] }] }])[0].items[0];
-  assert(one && !one.children && one.href === '/admin/syllabus' && one.label === 'Parent', 'a parent with one visible child becomes a direct link');
-  assert(!NAV.visibleNav('staff', ALL_ON).some((g) => g.items.some((i) => i.label === 'Students')), 'staff: no Students parent (both children admin-only)');
-  assert(NAV.ADMIN_NAV.find((g) => g.id === 'dormant').collapsed === true, 'dormant group starts collapsed');
+  // ADMIN-IA-1 (owner rulings 2026-10-29): Today · EXAMS · CONTENT · TESTS · STUDENTS · SETTINGS · Not live yet
+  assert(JSON.stringify(NAV.ADMIN_NAV.map((g) => g.id)) === '["today","exams","content","tests","students","settings","dormant"]', 'IA groups');
+  assert(JSON.stringify(NAV.ADMIN_NAV.find((g) => g.id === 'content').items.map((i) => i.label)) === '["Lessons","Questions","Current affairs","Master tree"]', 'CONTENT items');
+  const q = items(NAV.ADMIN_NAV).find((i) => i.label === 'Questions');
+  assert(q && q.access === 'staff' && q.badge === 'inReview' && q.tabs.some((t) => t.label === 'Review' && t.href === '/admin/questions/review' && t.access === 'staff'), 'Focus review: the Review tab of Questions (staff + admin), count badge on Questions');
+  // an item whose first tab is admin-only links a staff user to the first tab they may open
+  const sys = items(NAV.visibleNav('staff', ALL_ON)).find((i) => i.label === 'System');
+  assert(sys && sys.href === '/admin/mfa' && sys.tabs.length === 1, 'staff: System = Security (MFA) only');
+  const sup = items(NAV.visibleNav('staff', ALL_OFF)).find((i) => i.label === 'Reports & support');
+  assert(sup && sup.href === '/admin/support/flags', 'tickets off: Reports & support opens on Community flags');
+  assert(!items(NAV.visibleNav('staff', ALL_ON)).some((i) => i.label === 'Students'), 'staff: no Students item (both tabs admin-only)');
+  assert(NAV.ADMIN_NAV.find((g) => g.id === 'dormant').collapsed === true && NAV.ADMIN_NAV.find((g) => g.id === 'dormant').items.some((i) => i.label === 'Institutes'), 'dormant group collapsed, Institutes inside (Q-I)');
 });
 
 test('AB-03 exactly one active link', () => {
   const nav = NAV.visibleNav('admin', ALL_ON);
-  const cases = [['/admin', '/admin'], ['/admin/questions/factory', '/admin/questions/factory'], ['/admin/questions', '/admin/questions'], ['/admin/syllabus/abc', '/admin/syllabus'], ['/admin/content/topics', '/admin/content/topics'], ['/admin/mock-tests-management', null], ['/admin/mock-tests', '/admin/mock-tests'], ['/admin/live-tests/x/results', '/admin/live-tests'], ['/admin/review/focus', '/admin/review/focus'], ['/admin/settings', '/admin/settings']];
+  const cases = [['/admin', '/admin'], ['/admin/questions/drafts', '/admin/questions'], ['/admin/questions', '/admin/questions'], ['/admin/syllabus/abc', '/admin/syllabus'], ['/admin/syllabus/intake/x', '/admin/syllabus'], ['/admin/lessons/legacy', '/admin/lessons'], ['/admin/mock-tests-management', null], ['/admin/mock-tests/patterns', '/admin/mock-tests'], ['/admin/live-tests/x/results', '/admin/live-tests'], ['/admin/questions/review', '/admin/questions'], ['/admin/system/design', '/admin/system'], ['/admin/mfa', '/admin/system']];
   for (const [p, want] of cases) assert(NAV.activeHref(p, nav) === want, `${p} → ${NAV.activeHref(p, nav)} (want ${want})`);
-  assert(NAV.pageContext('/admin/question-reports', nav).title === 'Question reports' && NAV.pageContext('/nowhere', nav).title === 'Admin', 'header title');
+  assert(NAV.pageContext('/admin/support/question-reports', nav).title === 'Question reports' && NAV.pageContext('/nowhere', nav).title === 'Admin', 'header title');
 });
 
 test('AB-04 layout: guard unchanged + first, one <main>, skip link, never-glass, no e-mail / fake role', () => {
@@ -136,15 +141,15 @@ test('AB-06 Today v2: guard first, server-only read model, admin-only cards, no 
   assert(!/write.?failure|nightly/i.test(p) && !/id: "(write|nightly)/.test(tc), 'Q5: no write-failure / nightly cards');
   // R4: ONE primary rendered — "Start focus session" (F), or "Import questions" when the queue is empty (STUDIO-P2-POLISH)
   assert((p.match(/data-today-primary/g) || []).length === 2 && /\{empty \? \(\s*<Link href=\{IMPORT_HREF\}[^>]*data-today-primary=""[\s\S]*?\) : \(\s*<Link href=\{FOCUS_HREF\}[^>]*data-today-primary=""/.test(p), 'one primary action (R4): focus session, or import when the queue is empty');
-  assert(/const IMPORT_HREF = "\/admin\/bulk-import";/.test(p) && /\{!queueEmpty && <FocusShortcut href=\{FOCUS_HREF\} \/>\}/.test(p), 'empty queue: import link, no F shortcut into an empty session');
+  assert(/const IMPORT_HREF = "\/admin\/questions\/import";/.test(p) && /\{!queueEmpty && <FocusShortcut href=\{FOCUS_HREF\} \/>\}/.test(p), 'empty queue: import link, no F shortcut into an empty session');
   const h = code(read('components/admin/admin-top-header.tsx'));
   assert(/\{firstName && <span[^>]*>\{firstName\}<\/span>\}/.test(h) && !/email/i.test(h), 'header: first name + initial avatar, never the e-mail');
-  assert(/<FocusShortcut href=\{FOCUS_HREF\} \/>/.test(p) && /const FOCUS_HREF = "\/admin\/review\/focus";/.test(p), 'F starts the focus session');
+  assert(/<FocusShortcut href=\{FOCUS_HREF\} \/>/.test(p) && /const FOCUS_HREF = "\/admin\/questions\/review";/.test(p), 'F starts the focus session');
   assert(/mission-gradient/.test(p) && /data-today-card=\{id\}/.test(p), 'mission card + queue cards');
 });
 
 test('AB-07 deep links accept only known values, after the guard', () => {
-  for (const [file, marker] of [['app/admin/questions/factory/page.tsx', 'LIFECYCLE.includes('], ['app/admin/current-affairs/page.tsx', 'CA_STATUSES.includes('], ['app/admin/question-reports/page.tsx', 'REPORT_STATUSES.includes('], ['app/admin/support/page.tsx', 'Object.keys(TICKET_STATUSES).includes(']]) {
+  for (const [file, marker] of [['app/admin/questions/drafts/page.tsx', 'LIFECYCLE.includes('], ['app/admin/current-affairs/page.tsx', 'CA_STATUSES.includes('], ['app/admin/support/question-reports/page.tsx', 'REPORT_STATUSES.includes('], ['app/admin/support/page.tsx', 'Object.keys(TICKET_STATUSES).includes(']]) {
     const s = code(read(file));
     assert(s.includes(marker), `${file}: whitelist`);
     const body = s.slice(s.indexOf('export default async function'));
@@ -162,7 +167,10 @@ test('AB-08 status chips: six kinds, text always', () => {
 
 test('AB-09 a11y (static): current page, expandable groups, combobox, focus, targets, states', () => {
   const s = code(read('components/admin/admin-sidebar.tsx'));
-  assert(/aria-current=\{on \? "page" : undefined\}/.test(s) && (s.match(/aria-expanded=/g) || []).length >= 2 && !/<div[^>]*onClick/.test(s.replace(/<dialog[\s\S]*?>/, '')), 'sidebar semantics');
+  // ADMIN-IA-1: flat sidebar (one expandable control: the dormant group); section tabs are links with aria-current
+  assert(/aria-current=\{on \? "page" : undefined\}/.test(s) && (s.match(/aria-expanded=/g) || []).length >= 1 && !/<div[^>]*onClick/.test(s.replace(/<dialog[\s\S]*?>/, '')), 'sidebar semantics');
+  const bar = code(read('components/admin/admin-section-bar.tsx'));
+  assert(/aria-current=\{on \? "page" : undefined\}/.test(bar) && /aria-label="Breadcrumb"/.test(bar) && /min-h-10/.test(bar) && !/<div[^>]*onClick/.test(bar), 'section bar semantics');
   assert(/<dialog/.test(s) && /showModal\(\)/.test(s) && /aria-label="Open admin menu"/.test(s), 'phone drawer is a modal dialog');
   assert(!/min-h-[5-8]\b|\bh-6\b|\bh-7\b|text-\[1[01]px\]|text-\[9px\]/.test(s + read('components/admin/admin-top-header.tsx') + read('components/admin/admin-search.tsx')), 'no tiny targets / text');
   const c = read('components/admin/admin-search.tsx');
@@ -177,7 +185,7 @@ test('AB-10 SEC-1C L-04 (a): staff on an admin-only route → the site 404 from 
   const adminOnly = walk('app/admin').filter((f) => { const m = code(read(f)).match(/requireAdminPage\(\{([^}]*)\}\)/); return m && !/allowStaff:\s*true/.test(m[1]); }).map((f) => '/' + f.replace(/^app\//, '').replace(/\/page\.tsx$/, '')).sort();
   assert(JSON.stringify([...NAV.ADMIN_ONLY_ROUTES].sort()) === JSON.stringify(adminOnly), `ADMIN_ONLY_ROUTES ≠ admin-only pages: ${adminOnly.join(', ')}`);
   const f = NAV.isAdminOnlyPath;
-  for (const [p, want] of [['/admin/users', true], ['/admin/users/', true], ['/admin/users/x', true], ['/admin/settings', true], ['/admin/settingsx', false], ['/admin/live-tests', false], ['/admin/live-tests/abc', false], ['/admin/live-tests/abc/results', true], ['/admin/live-tests/intelligence', true], ['/admin', false], ['/admin/review/focus', false], [null, false], ['', false]]) assert(f(p) === want, `isAdminOnlyPath(${p}) = ${f(p)}`);
+  for (const [p, want] of [['/admin/students', true], ['/admin/students/', true], ['/admin/students/x', true], ['/admin/system', true], ['/admin/settingsx', false], ['/admin/live-tests', false], ['/admin/live-tests/abc', false], ['/admin/live-tests/abc/results', true], ['/admin/live-tests/intelligence', true], ['/admin', false], ['/admin/questions/review', false], [null, false], ['', false]]) assert(f(p) === want, `isAdminOnlyPath(${p}) = ${f(p)}`);
   // layout: the guard stays the first await; the admin-only check comes right after it, before any data read / shell
   const l = code(read('app/admin/layout.tsx'));
   const body = l.slice(l.indexOf('export default async function AdminLayout('));

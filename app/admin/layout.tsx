@@ -7,6 +7,7 @@ import { isFeatureEnabled } from "@/config/features";
 import { isPaymentsEnabled } from "@/config/payments";
 import { isSupportTicketsEnabled } from "@/lib/support/tickets";
 import { AdminTopHeader } from "@/components/admin/admin-top-header";
+import { AdminSectionBar } from "@/components/admin/admin-section-bar";
 import { isAdminOnlyPath, visibleNav, type NavFlags } from "@/lib/admin/nav";
 import { PATHNAME_HEADER } from "@/lib/http/pathname-header";
 import { getAdminFirstName, getFocusQueueCount } from "@/lib/admin/today";
@@ -49,7 +50,11 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
         <AdminTopHeader nav={nav} role={role} firstName={firstName} searchPlaceholder={searchPlaceholder} />
         {/* the only scrolling region; the root shell already provides the single <main> landmark */}
         <div id="admin-content" tabIndex={-1} className="relative min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain p-4 outline-none sm:p-6 xl:px-[30px] xl:py-6">
-          <div className="mx-auto w-full max-w-[1500px]">{children}</div>
+          <div className="mx-auto w-full max-w-[1500px]">
+            {/* ADMIN-IA-1: breadcrumbs + the section's route tabs + its page actions, all from the role-filtered nav */}
+            <AdminSectionBar nav={nav} />
+            {children}
+          </div>
         </div>
       </div>
     </div>

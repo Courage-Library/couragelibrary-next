@@ -20,7 +20,7 @@ export function AdminTopHeader({ nav, role, firstName, searchPlaceholder }: { na
         <span className="font-semibold text-fg">{title}</span>
       </p>
       <div className="order-last w-full sm:order-none sm:w-auto sm:flex-1">
-        <AdminSearch placeholder={searchPlaceholder} />
+        <AdminSearch placeholder={searchPlaceholder} nav={nav} />
       </div>
       <div className="ml-auto flex items-center gap-2">
         <Link href="/" className="focus-ring inline-flex min-h-9 items-center gap-1 rounded-control px-2 text-[13px] font-semibold text-primary-700 hover:bg-primary-50">

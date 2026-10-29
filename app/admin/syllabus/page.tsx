@@ -107,7 +107,7 @@ export default async function AdminSyllabusPage({ searchParams }: { searchParams
         />
       )}
       <p className="text-body-sm text-fg-secondary">
-        Canonical topics are managed in <Link href="/admin/taxonomy" className="focus-ring rounded-badge text-link underline underline-offset-2">Taxonomy</Link>.
+        Canonical topics are managed in <Link href="/admin/master-tree" className="focus-ring rounded-badge text-link underline underline-offset-2">Taxonomy</Link>.
       </p>
     </div>
   );

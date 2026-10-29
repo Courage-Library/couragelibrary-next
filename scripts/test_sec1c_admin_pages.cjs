@@ -134,7 +134,9 @@ const segOf = (p) => p.replace(/^app\/admin\/?/, '').replace(/\/?page\.tsx$/, ''
 // Decision #16 + SEC-1C: admin-only pages. Every other admin page allows staff.
 // SEC-1D: + gamification, billing, live-tests/[id]/results (PII pages).
 // F2 (#79): question reports are admin-only (reports → redirect to question-reports)
-const ADMIN_ONLY = new Set(['lessons/coverage', 'lessons/notes', 'premium', 'rewards', 'adaptive', 'taxonomy', 'live-tests/intelligence', 'live-tests/[id]/intelligence', 'users', 'gamification', 'billing', 'live-tests/[id]/results', 'reports', 'question-reports', 'pro-library', 'settings', 'syllabus/intake', 'syllabus/intake/[id]', 'lessons', 'lessons/[id]', 'lessons/[id]/translate', 'lessons/generate', 'prompts']); // CA-2: the intake writes the master tree; CA-3 lessons; CA-4 generator / translation / prompts
+// ADMIN-IA-1 (2026-10-29): the same admin-only pages at their new addresses (+ lessons/legacy, the read-only legacy
+// tab; system/design became admin only, Q-S); reports + the retired pages are gone (their old URLs redirect)
+const ADMIN_ONLY = new Set(['coverage', 'exams/notes', 'payments/premium', 'rewards', 'adaptive', 'master-tree', 'live-tests/intelligence', 'live-tests/[id]/intelligence', 'students', 'gamification', 'payments', 'live-tests/[id]/results', 'support/question-reports', 'students/library-pro', 'system', 'system/design', 'syllabus/intake', 'syllabus/intake/[id]', 'lessons', 'lessons/[id]', 'lessons/[id]/translate', 'lessons/legacy', 'lessons/new', 'prompts']); // CA-2: the intake writes the master tree; CA-3 lessons; CA-4 generator / translation / prompts
 
 /** Body of the default-exported function (or a named function) — brace-matched. */
 function fnBody(src, header) {
@@ -160,8 +162,8 @@ function firstGuardViolation(body) {
 
 (async () => {
   // ===================== Part 1: static =====================
-  await test(`S-01 inventory: ${PAGES.length} app/admin page.tsx files (expected 52: +design-system UX-1a, +syllabus + syllabus/[id] GAP2-4b, −syllabus-reconciliation GAP2-4c, +question-reports F2, +content/topics F6, +support F11, +mfa AUTH-1 2b-3, +pro-library F9-B, +review/focus + settings Courage Studio #84, +syllabus/intake + intake/[id] CA-2, +lessons + lessons/[id] CA-3, +lessons/generate + lessons/[id]/translate + prompts CA-4, +lessons/coverage + lessons/notes CA-7)`, async () => {
-    assert(PAGES.length === 52, `found ${PAGES.length}`);
+  await test(`S-01 inventory: ${PAGES.length} app/admin page.tsx files (expected 47: +design-system UX-1a, +syllabus + syllabus/[id] GAP2-4b, −syllabus-reconciliation GAP2-4c, +question-reports F2, +content/topics F6, +support F11, +mfa AUTH-1 2b-3, +pro-library F9-B, +review/focus + settings Courage Studio #84, +syllabus/intake + intake/[id] CA-2, +lessons + lessons/[id] CA-3, +lessons/generate + lessons/[id]/translate + prompts CA-4, +lessons/coverage + lessons/notes CA-7; ADMIN-IA-1 −content −content/topics −descriptive −categories −mock-tests-management −reports +lessons/legacy = 47)`, async () => {
+    assert(PAGES.length === 47, `found ${PAGES.length}`);
   });
   await test('S-02 every admin page: requireAdminPage is the FIRST awaited call (before any data/service/gate)', async () => {
     const bad = [];
@@ -237,8 +239,8 @@ function firstGuardViolation(body) {
     }
   };
   await test('U-01 anonymous → redirect /auth/login?next=<page path>', async () => {
-    const r = await run(USERS.anon, { allowStaff: true, path: '/admin/content' });
-    assert(r.redirect === '/auth/login?next=%2Fadmin%2Fcontent', JSON.stringify(r));
+    const r = await run(USERS.anon, { allowStaff: true, path: '/admin/lessons/legacy' });
+    assert(r.redirect === '/auth/login?next=%2Fadmin%2Flessons%2Flegacy', JSON.stringify(r));
   });
   await test('U-02 session error (getUser throws) → denied: retry page, not allowed, not login (AUTH-1 #60)', async () => {
     const r = await run(USERS.admin, { allowStaff: true, path: '/admin' }, true);
@@ -247,7 +249,7 @@ function firstGuardViolation(body) {
   await test('U-03 bad next values are sanitized to /admin (no open redirect)', async () => {
     const bad = ['https://evil.example/x', '//evil.example', '/notadmin', '/admin/../etc', '/admin//evil.example', '/admin\\evil', '/admin?x=1', '/admin#x', '/adminx', 'admin', undefined, null, 42, '/admin/%2F%2Fevil'];
     for (const b of bad) assert(guard.sanitizeAdminNext(b) === '/admin', `not sanitized: ${String(b)}`);
-    for (const ok of ['/admin', '/admin/content', '/admin/live-tests', '/admin/questions/factory']) assert(guard.sanitizeAdminNext(ok) === ok, `valid path rejected: ${ok}`);
+    for (const ok of ['/admin', '/admin/lessons/legacy', '/admin/live-tests', '/admin/questions/drafts']) assert(guard.sanitizeAdminNext(ok) === ok, `valid path rejected: ${ok}`);
     const r = await run(USERS.anon, { allowStaff: true, path: '//evil.example' });
     assert(r.redirect === '/auth/login?next=%2Fadmin', JSON.stringify(r));
   });
@@ -260,16 +262,16 @@ function firstGuardViolation(body) {
     assert(r.notFound, JSON.stringify(r));
   });
   await test('U-06 staff on admin-only page → notFound', async () => {
-    const r = await run(USERS.staff, { path: '/admin/premium' });
+    const r = await run(USERS.staff, { path: '/admin/payments/premium' });
     assert(r.notFound, JSON.stringify(r));
   });
   await test('U-07 staff on staff page → allowed (role staff)', async () => {
-    const r = await run(USERS.staff, { allowStaff: true, path: '/admin/content' });
+    const r = await run(USERS.staff, { allowStaff: true, path: '/admin/lessons/legacy' });
     assert(r.allowed && r.allowed.role === 'staff' && r.allowed.userId === USERS.staff.id, JSON.stringify(r));
   });
   await test('U-08 admin → allowed on admin-only and staff pages', async () => {
-    const a = await run(USERS.admin, { path: '/admin/premium' });
-    const b = await run(USERS.admin, { allowStaff: true, path: '/admin/content' });
+    const a = await run(USERS.admin, { path: '/admin/payments/premium' });
+    const b = await run(USERS.admin, { allowStaff: true, path: '/admin/lessons/legacy' });
     assert(a.allowed && a.allowed.role === 'admin' && b.allowed && b.allowed.role === 'admin', JSON.stringify([a, b]));
   });
   await test('U-09 guard takes no user id (signature: options only)', async () => {

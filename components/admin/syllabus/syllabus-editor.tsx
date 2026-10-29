@@ -846,7 +846,7 @@ export function SyllabusEditor({ version, exam, nodes: initialNodes, topics, ini
                         </Button>
                       )}
                       {g.gaps.includes("NO_LESSONS") && (
-                        <Link href={`/admin/lessons/generate?node=${g.topicId}`} className="focus-ring rounded-badge text-link underline underline-offset-2">
+                        <Link href={`/admin/lessons/new?node=${g.topicId}`} className="focus-ring rounded-badge text-link underline underline-offset-2">
                           Lesson editor<span className="sr-only"> for {g.name}</span>
                         </Link>
                       )}
@@ -855,7 +855,7 @@ export function SyllabusEditor({ version, exam, nodes: initialNodes, topics, ini
                           Question bank<span className="sr-only"> for {g.name}</span>
                         </Link>
                       )}
-                      <Link href={`/admin/lessons/coverage?exam=${exam.id}`} className="focus-ring rounded-badge text-link underline underline-offset-2">
+                      <Link href={`/admin/coverage?exam=${exam.id}`} className="focus-ring rounded-badge text-link underline underline-offset-2">
                         Coverage<span className="sr-only"> matrix for {exam.title}</span>
                       </Link>
                     </li>

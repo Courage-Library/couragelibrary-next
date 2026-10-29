@@ -217,7 +217,8 @@ test('R-01 readers: every "topic" read of syllabus mappings uses topic_id', () =
 
 test('S-01 admin only: routes, page guards, action guards, client imports', () => {
   const nav = read('lib/admin/nav.ts');
-  assert(/"\/admin\/syllabus\/intake",/.test(nav) && /\{ label: "Syllabus intake", href: "\/admin\/syllabus\/intake", icon: "syllabus", access: "admin" \}/.test(nav), 'nav + ADMIN_ONLY_ROUTES');
+  // ADMIN-IA-1: the intake is the Syllabus section's admin-only "Intakes" tab + its "Start intake" action
+  assert(/"\/admin\/syllabus\/intake",/.test(nav) && /\{ label: "Intakes", href: "\/admin\/syllabus\/intake", access: "admin" \}/.test(nav) && /\{ label: "Start intake", href: "\/admin\/syllabus\/intake", access: "admin" \}/.test(nav), 'nav + ADMIN_ONLY_ROUTES');
   for (const f of ['app/admin/syllabus/intake/page.tsx', 'app/admin/syllabus/intake/[id]/page.tsx']) {
     const s = read(f);
     assert(/await requireAdminPage\(\{ path: [^}]*\}\)/.test(s) && !/allowStaff/.test(s), `${f}: admin page guard`);

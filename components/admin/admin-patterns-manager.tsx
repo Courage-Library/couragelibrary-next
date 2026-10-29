@@ -75,7 +75,7 @@ export function AdminPatternsManager({ patterns, categories, currentCategory }: 
   const handleCategoryChange = (cat: string) => {
     setSelectedCategory(cat);
     setCurrentPage(1);
-    router.push(cat === "ALL" ? "/admin/patterns" : `/admin/patterns?category=${cat}`);
+    router.push(cat === "ALL" ? "/admin/mock-tests/patterns" : `/admin/mock-tests/patterns?category=${cat}`);
   };
 
   const toggle = (pattern: AdminPatternItem) => {
@@ -117,7 +117,7 @@ export function AdminPatternsManager({ patterns, categories, currentCategory }: 
           </button>
         }
         actions={
-          <Link href="/admin/categories" className={studioQuietAction}>
+          <Link href="/admin/exams" className={studioQuietAction}>
             Categories
           </Link>
         }
@@ -200,7 +200,7 @@ export function AdminPatternsManager({ patterns, categories, currentCategory }: 
                   </div>
                 </div>
                 <nav aria-label={`${pattern.name}: related`} className="mt-3 flex flex-wrap gap-1 border-t border-line pt-2">
-                  <Link href={`/admin/sections?pattern=${pattern.id}&category=${pattern.categorySlug}`} className={studioQuietAction}>
+                  <Link href={`/admin/mock-tests/sections?pattern=${pattern.id}&category=${pattern.categorySlug}`} className={studioQuietAction}>
                     Sections
                   </Link>
                   <Link href={`/admin/questions?category=${pattern.categorySlug}&pattern=${pattern.id}`} className={studioQuietAction}>
@@ -209,10 +209,10 @@ export function AdminPatternsManager({ patterns, categories, currentCategory }: 
                   <Link href={`/admin/mock-tests?pattern=${pattern.id}&category=${pattern.categorySlug}`} className={studioQuietAction}>
                     Mock tests
                   </Link>
-                  <Link href={`/admin/schedules?category=${pattern.categorySlug}`} className={studioQuietAction}>
+                  <Link href={`/admin/exams/cycles?category=${pattern.categorySlug}`} className={studioQuietAction}>
                     Schedules
                   </Link>
-                  <Link href="/admin/bulk-import" className={studioQuietAction}>
+                  <Link href="/admin/questions/import" className={studioQuietAction}>
                     Bulk import
                   </Link>
                 </nav>

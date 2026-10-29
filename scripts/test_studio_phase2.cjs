@@ -146,9 +146,9 @@ test('SP-04 service: auto checks before the transition RPC; Q4 before the publis
 });
 
 test('SP-05 focus review: guard first, ids only, existing guarded actions, Q3 confirmation', () => {
-  const p = code(read('app/admin/review/focus/page.tsx'));
+  const p = code(read('app/admin/questions/review/page.tsx'));
   const body = p.slice(p.indexOf('export default async function FocusReviewPage('));
-  assert(/await requireAdminPage\(\{ allowStaff: true, path: "\/admin\/review\/focus" \}\)/.test(body) && body.indexOf('await requireAdminPage') === body.indexOf('await '), 'guard first (staff + admin)');
+  assert(/await requireAdminPage\(\{ allowStaff: true, path: "\/admin\/questions\/review" \}\)/.test(body) && body.indexOf('await requireAdminPage') === body.indexOf('await '), 'guard first (staff + admin)');
   assert(/listReviewQueue\(\{ lifecycleStatus: "IN_REVIEW", limit: 200 \}\)/.test(body) && /\.map\(\(q\) => q\.versionId\)/.test(body), 'IN_REVIEW queue; only version ids passed');
   assert(/<FocusReview queue=\{ids\} total=\{total\} goal=\{settings\.dailyReviewGoal\} doneBefore=\{stats\?\.doneToday \?\? null\} \/>/.test(body) && /getFocusQueueCount\(\)/.test(body), 'props: ids + numbers only (total = the head count)');
   const c = read('components/admin/studio/focus-review.tsx');
@@ -238,8 +238,8 @@ test('SP-07 colours: dark surround token, white card, mission text ≥ 4.5:1 at 
 });
 
 test('SP-08 settings page admin-only + read-only; sidebar badge is a count that never breaks the layout', () => {
-  const p = code(read('app/admin/settings/page.tsx'));
-  assert(/await requireAdminPage\(\{ path: "\/admin\/settings" \}\);/.test(p) && !/allowStaff/.test(p), 'admin only');
+  const p = code(read('app/admin/system/page.tsx'));
+  assert(/await requireAdminPage\(\{ path: "\/admin\/system" \}\);/.test(p) && !/allowStaff/.test(p), 'admin only');
   assert(!/"use server"|<form|action=|\.(insert|update|upsert|delete)\(/.test(p), 'read only');
   const t = code(read('lib/admin/today.ts'));
   const f = t.slice(t.indexOf('export async function getFocusQueueCount('));

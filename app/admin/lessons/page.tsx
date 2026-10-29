@@ -19,8 +19,8 @@ export default async function AdminLessonsPage() {
         title="Lessons"
         description="Lessons are stored as checked blocks in the database. Open a lesson to edit it, preview it and publish it."
         primary={
-          <Link href="/admin/lessons/generate" className={studioPrimaryAction}>
-            Generate a lesson
+          <Link href="/admin/lessons/new" className={studioPrimaryAction}>
+            New lesson
           </Link>
         }
         actions={

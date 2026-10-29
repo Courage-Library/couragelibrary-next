@@ -79,7 +79,7 @@ export function CoverageMatrix({ exams, view, loadError }: { exams: CoverageExam
         {exams.map((e) => (
           <Link
             key={e.id}
-            href={`/admin/lessons/coverage?exam=${e.id}`}
+            href={`/admin/coverage?exam=${e.id}`}
             aria-current={view?.exam.id === e.id ? "page" : undefined}
             className={`inline-flex min-h-10 items-center gap-2 rounded-control border px-3 text-[13px] font-semibold ${view?.exam.id === e.id ? "border-primary-700 bg-primary-50 text-primary-800" : "border-line text-fg hover:bg-ink-50"}`}
           >
@@ -162,7 +162,7 @@ export function CoverageMatrix({ exams, view, loadError }: { exams: CoverageExam
                       {r.name}
                       {r.weightageTier && <span className="ml-2 text-[12px] text-fg-secondary">{r.weightageTier.replace("_", " ").toLowerCase()}</span>}
                     </span>
-                    <Link href={`/admin/lessons/generate?node=${r.nodeId}`} className={studioQuietAction}>
+                    <Link href={`/admin/lessons/new?node=${r.nodeId}`} className={studioQuietAction}>
                       Build lesson
                     </Link>
                   </li>

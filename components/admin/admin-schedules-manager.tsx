@@ -232,9 +232,9 @@ export function AdminSchedulesManager({
   const handleCategoryChange = (cat: string) => {
     setSelectedCategory(cat);
     if (cat === "ALL") {
-      router.push("/admin/schedules");
+      router.push("/admin/exams/cycles");
     } else {
-      router.push(`/admin/schedules?category=${cat}`);
+      router.push(`/admin/exams/cycles?category=${cat}`);
     }
   };
 

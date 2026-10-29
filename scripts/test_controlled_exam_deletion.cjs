@@ -446,7 +446,7 @@ async function runTests() {
   });
 
   await test('D38', 'Exam Knowledge Studio route remains functional', async () => {
-    const fileContent = fs.readFileSync(path.join(__dirname, '../app/admin/exam-knowledge/page.tsx'), 'utf-8');
+    const fileContent = fs.readFileSync(path.join(__dirname, '../app/admin/exams/knowledge/page.tsx'), 'utf-8');
     assert(fileContent.includes('ExamKnowledgeStudioView'), 'Must render ExamKnowledgeStudioView');
   });
 

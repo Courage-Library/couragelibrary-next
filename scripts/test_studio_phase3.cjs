@@ -13,13 +13,13 @@
  * Batch 2 (Mock tests + the mock-test setup overview, Patterns, Sections, Categories, Schedules, Bulk import):
  *   B2-01 Studio header; exactly ONE primary on the list pages and the overview; Schedules / Bulk import keep the
  *         contextual actions in their tabs (no solid primary in the header, no solid-blue tab)
- *   B2-02 list + drawer: create and edit open in StudioDrawer; no hand-rolled fixed overlay modal on the 4 list pages
- *   B2-03 every input / select / textarea on the 4 list pages has an id with a StudioField / <label htmlFor>
+ *   B2-02 list + drawer: create and edit open in StudioDrawer; no hand-rolled fixed overlay modal on the 3 list pages
+ *   B2-03 every input / select / textarea on the 3 list pages has an id with a StudioField / <label htmlFor>
  *   B2-04 icon-only buttons are named (aria-label), never by title alone; pagination is labelled
  *   B2-05 v3 status chips; an inactive item reads "Inactive" (not "Draft"); stat strips filter (aria-pressed) with
  *         counts from the same list the filter uses
  *   B2-06 Schedules + Bulk import: real tablist / tab / tabpanel with arrow keys, underline style
- *   B2-07 R12: the overview's question count is null on a failed read ("–"), never a made-up 0; failed toggles are shown
+ *   B2-07 R12: the question count is null on a failed read ("–"), never a made-up 0; failed toggles are shown
  * Run: node scripts/test_studio_phase3.cjs
  */
 const fs = require('fs');
@@ -47,7 +47,7 @@ const assert = (c, m) => {
 const FILES = {
   bank: 'components/admin/admin-question-manager.tsx',
   factory: 'components/admin/question-factory/question-factory-studio.tsx',
-  reportsPage: 'app/admin/question-reports/page.tsx',
+  reportsPage: 'app/admin/support/question-reports/page.tsx',
   reports: 'components/admin/admin-question-reports-manager.tsx',
   caHeader: 'components/admin/current-affairs/current-affairs-header.tsx',
   caStats: 'components/admin/current-affairs/current-affairs-stats-bar.tsx',
@@ -123,16 +123,16 @@ test('P3-08 factory tabs: tablist / tab / tabpanel, arrow keys, underline (no se
 const B2 = {
   patterns: read('components/admin/admin-patterns-manager.tsx'),
   sections: read('components/admin/admin-sections-manager.tsx'),
-  categories: read('components/admin/admin-categories-manager.tsx'),
   mocks: read('components/admin/admin-mock-tests-manager.tsx'),
-  overview: read('app/admin/mock-tests-management/page.tsx'),
   schedules: read('components/admin/admin-schedules-manager.tsx'),
   bulk: read('components/admin/admin-bulk-import-studio.tsx'),
 };
-const LISTS = ['patterns', 'sections', 'categories', 'mocks'];
+// ADMIN-IA-1 (2026-10-29): Categories folded into Exams and the orphan Mock test setup overview retired (their old
+// addresses redirect); the three remaining list pages keep every check
+const LISTS = ['patterns', 'sections', 'mocks'];
 
-test('B2-01 Studio header; ONE primary on the list pages + overview; Schedules / Bulk import: no header primary, no solid-blue tab', () => {
-  for (const k of [...LISTS, 'overview']) {
+test('B2-01 Studio header; ONE primary on the list pages; Schedules / Bulk import: no header primary, no solid-blue tab', () => {
+  for (const k of LISTS) {
     const src = code(B2[k]);
     assert(/<StudioPageHeader\b/.test(src), `${k}: no StudioPageHeader`);
     const n = (src.match(/className=\{studioPrimaryAction\}/g) || []).length;
@@ -145,10 +145,10 @@ test('B2-01 Studio header; ONE primary on the list pages + overview; Schedules /
     const header = src.slice(src.indexOf('<StudioPageHeader'), src.indexOf('/>', src.indexOf('actions={')) + 2);
     assert(!/studioPrimaryAction|bg-primary-700/.test(header), `${k}: a solid primary in the header`);
   }
-  return 'mock tests, overview, patterns, sections, categories · schedules, bulk import';
+  return 'mock tests, patterns, sections · schedules, bulk import';
 });
 
-test('B2-02 list + drawer: create and edit open in StudioDrawer; no fixed overlay modal on the 4 list pages', () => {
+test('B2-02 list + drawer: create and edit open in StudioDrawer; no fixed overlay modal on the 3 list pages', () => {
   for (const k of LISTS) {
     const src = code(B2[k]);
     assert((src.match(/<StudioDrawer\b/g) || []).length === 2, `${k}: create + edit drawers`);
@@ -157,7 +157,7 @@ test('B2-02 list + drawer: create and edit open in StudioDrawer; no fixed overla
   return '4 pages × 2 drawers';
 });
 
-test('B2-03 every input / select / textarea on the 4 list pages is labelled', () => {
+test('B2-03 every input / select / textarea on the 3 list pages is labelled', () => {
   let n = 0;
   for (const k of LISTS) {
     const src = code(B2[k]);
@@ -185,7 +185,7 @@ test('B2-04 icon-only buttons are named (aria-label); pagination labelled', () =
 });
 
 test('B2-05 v3 status chips ("Inactive", not "Draft"); stat strips filter with counts from the filtered list', () => {
-  assert(/<StatusChip status=\{pattern\.isActive \? "ACTIVE" : "INACTIVE"\} \/>/.test(B2.patterns) && /<StatusChip status=\{cat\.isActive \? "ACTIVE" : "INACTIVE"\} \/>/.test(B2.categories) && /<StatusChip status=\{mock\.isPublished \? "PUBLISHED" : "DRAFT"\} \/>/.test(B2.mocks), 'chips');
+  assert(/<StatusChip status=\{pattern\.isActive \? "ACTIVE" : "INACTIVE"\} \/>/.test(B2.patterns) && /<StatusChip status=\{mock\.isPublished \? "PUBLISHED" : "DRAFT"\} \/>/.test(B2.mocks), 'chips');
   for (const k of LISTS) assert(/<StudioStatStrip\b[\s\S]{0,200}onSelect=/.test(B2[k]) && /active: \w+ === "ALL"/.test(B2[k]), `${k}: a filtering stat strip`);
   // D-5 rule from batch 1: each count uses the same predicate as its filter
   assert(/ACTIVE: inCategory\.filter\(\(p\) => p\.isActive\)\.length/.test(B2.patterns) && /if \(status === "ACTIVE" && !p\.isActive\) return false;/.test(B2.patterns), 'patterns: count = filter');
@@ -208,8 +208,8 @@ test('B2-06 Schedules + Bulk import: tablist / tab / tabpanel, arrow keys, under
 test('B2-07 R12: the overview question count is null on a failed read ("–"); failed toggles are shown', () => {
   const svc = read('services/admin.service.ts');
   assert(/static async getQuestionsCount\(\): Promise<number \| null> \{[\s\S]{0,260}return error \? null : \(count \?\? 0\);/.test(svc), 'getQuestionsCount: null on error');
-  assert(/const questions = typeof questionsCountRes === "number" \? questionsCountRes : null;/.test(B2.overview) && /value: questions,/.test(B2.overview), 'overview passes null through');
-  assert(/if \(res\?\.error\) setActionFeedback\(\{ type: "error"/.test(B2.categories) && /if \(res\?\.error\) setActionFeedback\(\{ type: "error"/.test(B2.mocks), 'toggle failures are shown');
+  // ADMIN-IA-1: the overview page is retired (redirects to Mock tests); getQuestionsCount keeps its null-on-error contract
+  assert(/if \(res\?\.error\) setActionFeedback\(\{ type: "error"/.test(B2.mocks), 'toggle failures are shown');
   return 'ok';
 });
 

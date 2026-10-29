@@ -139,13 +139,13 @@ export function ExamNotesEditor({
       )}
       <nav aria-label="Exams" className="flex flex-wrap gap-2">
         {exams.map((e) => (
-          <Link key={e.id} href={`/admin/lessons/notes?exam=${e.id}`} aria-current={e.id === examId ? "page" : undefined} className={`inline-flex min-h-10 items-center rounded-control border px-3 text-[13px] font-semibold ${e.id === examId ? "border-primary-700 bg-primary-50 text-primary-800" : "border-line text-fg hover:bg-ink-50"}`}>
+          <Link key={e.id} href={`/admin/exams/notes?exam=${e.id}`} aria-current={e.id === examId ? "page" : undefined} className={`inline-flex min-h-10 items-center rounded-control border px-3 text-[13px] font-semibold ${e.id === examId ? "border-primary-700 bg-primary-50 text-primary-800" : "border-line text-fg hover:bg-ink-50"}`}>
             {e.title}
           </Link>
         ))}
       </nav>
       {!nodes.length ? (
-        <StudioEmpty title="No mapped nodes" body="This exam has no published syllabus mapped to the master tree yet." action="Coverage and launch" href="/admin/lessons/coverage" />
+        <StudioEmpty title="No mapped nodes" body="This exam has no published syllabus mapped to the master tree yet." action="Coverage and launch" href="/admin/coverage" />
       ) : (
         <>
           <StudioPanel>

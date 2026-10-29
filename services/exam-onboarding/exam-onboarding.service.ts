@@ -618,7 +618,7 @@ export class ExamOnboardingService {
         : 'NOT_STARTED';
 
       const cycleParam = cycleId ? `&cycleId=${cycleId}` : '';
-      const studioUrl = `/admin/exam-knowledge?examId=${examId}${cycleParam}&moduleKey=${def.key}`;
+      const studioUrl = `/admin/exams/knowledge?examId=${examId}${cycleParam}&moduleKey=${def.key}`;
 
       return {
         moduleKey: def.key,

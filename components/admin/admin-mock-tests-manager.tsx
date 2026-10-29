@@ -127,7 +127,7 @@ export function AdminMockTestsManager({ tests, categories, patterns, currentCate
             <button type="button" className={studioQuietAction} onClick={() => setShowBulkImport(true)}>
               Bulk import
             </button>
-            <Link href="/admin/patterns" className={studioQuietAction}>
+            <Link href="/admin/mock-tests/patterns" className={studioQuietAction}>
               Patterns
             </Link>
           </>
@@ -219,7 +219,7 @@ export function AdminMockTestsManager({ tests, categories, patterns, currentCate
                   <Link href={`/admin/questions?category=${mock.categorySlug}&pattern=${mock.patternId}`} className={studioQuietAction}>
                     Questions
                   </Link>
-                  <Link href={`/admin/sections?pattern=${mock.patternId}&category=${mock.categorySlug}`} className={studioQuietAction}>
+                  <Link href={`/admin/mock-tests/sections?pattern=${mock.patternId}&category=${mock.categorySlug}`} className={studioQuietAction}>
                     Sections
                   </Link>
                   <Link href={`/mock-tests/${mock.id}/take`} target="_blank" className={studioQuietAction}>

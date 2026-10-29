@@ -23,7 +23,7 @@ const BASE = (process.env.BASE_URL || 'http://localhost:3100').replace(/\/$/, ''
 if (!/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(BASE)) throw new Error('BASE_URL must be a local dev host');
 const arg = (k, d) => (process.argv.find((a) => a.startsWith(`--${k}=`)) || `--${k}=${d}`).slice(k.length + 3);
 // a short page, long lists, a long tree, the intake list (sticky guide), a page with a drawer
-const ROUTES = arg('routes', '/admin,/admin/syllabus,/admin/syllabus/intake,/admin/taxonomy,/admin/questions,/admin/lessons').split(',');
+const ROUTES = arg('routes', '/admin,/admin/syllabus,/admin/syllabus/intake,/admin/master-tree,/admin/questions,/admin/lessons,/admin/exams/knowledge').split(',');
 const SIZES = [[1440, 900], [1024, 768], [390, 844]];
 const DIAGNOSE = process.argv.includes('--diagnose');
 
@@ -66,7 +66,8 @@ function problems(m, w) {
     await qaBrowserLogin(ctx, 'qa-admin@courage-library.test', BASE);
     const page = await ctx.newPage();
     const nonGet = [];
-    page.on('request', (r) => { if (r.method() !== 'GET') nonGet.push(r.url().replace(BASE, '')); });
+    // read-only server actions some pages load their data with (POST + next-action header) are allowed
+    page.on('request', (r) => { if (r.method() !== 'GET' && !r.headers()['next-action']) nonGet.push(`${r.method()} ${r.url().replace(BASE, '')}`); });
     for (const [w, h] of SIZES) {
       await page.setViewportSize({ width: w, height: h });
       for (const route of ROUTES) {
@@ -82,10 +83,10 @@ function problems(m, w) {
         chk(`S ${w}x${h} ${route}: one scroll container, no document scroll${w >= 768 ? ', sidebar full height' : ''}`, p.length === 0, p.join('; '));
       }
     }
-    // S-4: a drawer — "New category" opens the Studio drawer (opening it writes nothing)
+    // S-4: a drawer — "New pattern" opens the Studio drawer (opening it writes nothing)
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto(`${BASE}/admin/categories`, { waitUntil: 'networkidle' });
-    await page.getByRole('button', { name: 'New category' }).click();
+    await page.goto(`${BASE}/admin/mock-tests/patterns`, { waitUntil: 'networkidle' });
+    await page.getByRole('button', { name: 'New pattern' }).click();
     await page.getByRole('dialog').waitFor({ timeout: 10000 });
     const md = await page.evaluate(measure);
     chk('S-4 a drawer opens without making the document scroll', md.docHeight <= md.vh + 1 && md.docTop === 0, JSON.stringify(md));

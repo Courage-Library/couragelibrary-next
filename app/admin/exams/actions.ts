@@ -53,8 +53,8 @@ export async function createExamDraftAction(
     });
 
     revalidatePath("/admin/exams");
-    revalidatePath("/admin/categories");
-    revalidatePath("/admin/exam-knowledge");
+    revalidatePath("/admin/exams");
+    revalidatePath("/admin/exams/knowledge");
     return {
       success: true,
       message: `Exam "${result.title}" registered successfully.`,
@@ -303,7 +303,7 @@ export async function deleteExamDraftAction(
 
     revalidatePath("/admin/exams");
     revalidatePath("/exams");
-    revalidatePath("/admin/exam-knowledge");
+    revalidatePath("/admin/exams/knowledge");
 
     return {
       success: true,

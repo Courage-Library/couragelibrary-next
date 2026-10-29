@@ -7,7 +7,7 @@
  *   LN-03 article page: ONE primary ("Practice this topic", only when practicable); related topics → article or the
  *         canonical topic entry; SEO + locked panel kept; no dead /practice?topic= link anywhere in the app
  *   LN-04 admin linking: canonical-topic validation (not the legacy topics table); move a unit = audited UPDATE of
- *         learning_units.topic_id (no copy, no new store); admin / staff guarded action; no migration
+ *         learning_units.topic_id (no copy, no new store); ADMIN-IA-1: the screens are retired, read-only legacy tab; no migration
  * Run: node scripts/test_f6_learn.cjs
  */
 const fs = require('fs');
@@ -118,9 +118,11 @@ const supabase = {
     const relink = svc.slice(svc.indexOf('static async relinkLearningUnitTopic('), svc.indexOf('static async setDocumentAccessLevel('));
     assert(/requireAdminAuth\('relinkLearningUnitTopic'\)/.test(relink) && /from\('learning_units'\)\.update\(\{ topic_id: topicId/.test(relink) && /'LEARNING_UNIT_RELINK'/.test(relink) && /'23505'/.test(relink), 'admin-only, audited UPDATE, slug clash handled');
     assert(!/insert\(|learning_documents|document_versions/.test(relink), 'moving never copies content');
-    const act = code(read('app/admin/content/actions.ts'));
-    assert(/export async function relinkLearningUnitTopicAction[\s\S]{0,200}guardAdminAction\(\{ allowStaff: true \}\)/.test(act), 'guarded action');
-    assert(/requireAdminPage\(\{ allowStaff: true, path: "\/admin\/content\/topics" \}\)/.test(code(read('app/admin/content/topics/page.tsx'))), 'admin page guarded');
+    // ADMIN-IA-1 (owner ruling Q-L, 2026-10-29): the Content Studio + Topic links screens are retired; the legacy units
+    // are shown READ ONLY under Lessons (no relink action is reachable any more; the service method stays, unused)
+    assert(!fs.existsSync(path.join(ROOT, 'app/admin/content')), 'the retired Content Studio routes are gone');
+    const legacy = code(read('app/admin/lessons/legacy/page.tsx'));
+    assert(/requireAdminPage\(\{ path: "\/admin\/lessons\/legacy" \}\)/.test(legacy) && !/\.update\(|\.insert\(|\.rpc\(/.test(legacy), 'legacy tab: admin guard, read only');
     assert(!fs.readdirSync(path.join(ROOT, 'supabase/migrations')).some((f) => /f6/i.test(f)), 'no migration for F6');
   });
 

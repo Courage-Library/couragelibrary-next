@@ -158,7 +158,7 @@ test('IN-01 INTERNAL nodes: out of the generator, /learn + exam-topic pages, ser
   const tsvc = read('services/taxonomy/taxonomy.service.ts');
   assert(/static async setInternal[\s\S]{0,300}const ctx = await this\.requireAdmin\(\);/.test(tsvc) && /'TAXONOMY_NODE_INTERNAL'/.test(tsvc) && /A subject cannot be internal/.test(tsvc), 'admin-only, audited, never a subject');
   assert(/export async function setTaxonomyNodeInternalAction[\s\S]{0,200}guardAdminAction\(\) \/\* CA-7: admin only \*\//.test(read('app/admin/taxonomy/actions.ts')), 'action guarded first');
-  const tm = read('app/admin/taxonomy/taxonomy-manager.tsx');
+  const tm = read('app/admin/master-tree/taxonomy-manager.tsx');
   assert(/Confirm: mark internal/.test(tm) && /setInternalConfirm\(true\)/.test(tm), 'two-step toggle');
   assert(/node\.nodeType === "SUBJECT" &&[\s\S]{0,400}SUBJECT_TYPE_LABELS\[node\.subjectType\][\s\S]{0,300}Type not set/.test(tm) && /border-warning-200 bg-warning-50[^"]*text-warning-800">Type not set/.test(tm), 'subject-type chip / "Type not set" in warning orange');
   assert(/function LessonDot[\s\S]{0,400}"Lesson published" : status === "DRAFT" \? "Lesson draft" : "No lesson"/.test(tm) && /<LessonDot status=\{lessonStatus\[node\.id\] \?\? null\} \/>/.test(tm), 'lesson dot with a text label (never colour alone)');

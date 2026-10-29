@@ -3,7 +3,8 @@
  * Which groups a role may search mirrors the target pages' existing guards: questions + tickets → staff and admin
  * (/admin/questions, /admin/support are allowStaff), users → admin only (/admin/users is admin only).
  */
-export type SearchGroup = "Questions" | "Users" | "Tickets";
+/** ADMIN-IA-1: "Pages" and "Actions" come from the role-filtered nav (client side, no query to the server). */
+export type SearchGroup = "Pages" | "Actions" | "Questions" | "Users" | "Tickets";
 
 export interface AdminSearchResult {
   group: SearchGroup;

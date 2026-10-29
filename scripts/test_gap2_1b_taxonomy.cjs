@@ -298,14 +298,14 @@ async function offline() {
 
   await test('O-11 static: projection service deleted; client UI imports no server modules; admin nav link (lib/admin/nav.ts)', async () => {
     assert(!fs.existsSync(path.join(ROOT, 'services/canonical-taxonomy-projection.service.ts')), 'orphan projection service still present');
-    const ui = read('app/admin/taxonomy/taxonomy-manager.tsx');
+    const ui = read('app/admin/master-tree/taxonomy-manager.tsx');
     assert(/^"use client";/.test(ui) && !/taxonomy\.service|lib\/supabase|admin\.service/.test(ui), 'client component imports server code');
-    const page = read('app/admin/taxonomy/page.tsx');
+    const page = read('app/admin/master-tree/page.tsx');
     assert(/TaxonomyService\.listTree\(\)/.test(page));
     const actions = read('app/admin/taxonomy/actions.ts');
     assert(/^"use server";/.test(actions) && !/\.from\(/.test(actions), 'taxonomy actions must only call TaxonomyService');
-    // UX-1b moved the admin nav into one config (lib/admin/nav.ts): the Taxonomy entry, admin only
-    assert(/\{ label: "Taxonomy", href: "\/admin\/taxonomy", icon: "[a-z-]+", access: "admin" \}/.test(read('lib/admin/nav.ts')), 'nav link missing (lib/admin/nav.ts)');
+    // UX-1b moved the admin nav into one config (lib/admin/nav.ts): the master-tree entry, admin only (ADMIN-IA-1: "Master tree")
+    assert(/\{ label: "Master tree", href: "\/admin\/master-tree", icon: "[a-z-]+", access: "admin" \}/.test(read('lib/admin/nav.ts')), 'nav link missing (lib/admin/nav.ts)');
   });
 
   await test('O-12 static: every TaxonomyService mutation checks admin and writes an audit row', async () => {

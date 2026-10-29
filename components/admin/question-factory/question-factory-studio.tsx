@@ -51,7 +51,7 @@ export function QuestionFactoryStudio({ taxonomy, taxonomyError, initialTab = "g
         description="Build a prompt for an external AI, import the result through the five quality gates, review, and publish. Students only ever see published versions."
         meta={<span className="rounded-badge border border-line bg-ink-50 px-2 py-0.5 font-mono text-[12px] text-fg-secondary">{QUESTION_CONTRACT_VERSION}</span>}
         primary={
-          <Link href="/admin/review/focus" className={studioPrimaryAction}>
+          <Link href="/admin/questions/review" className={studioPrimaryAction}>
             <Target aria-hidden="true" className="size-4" />
             Start focus review
           </Link>

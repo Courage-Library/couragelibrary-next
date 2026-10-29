@@ -82,7 +82,7 @@ export const siteConfig: SiteConfig = {
     },
     admin: {
       dashboard: "/admin",
-      content: "/admin/content",
+      content: "/admin/lessons/legacy",
       questions: "/admin/questions",
       exams: "/admin/exams",
     },

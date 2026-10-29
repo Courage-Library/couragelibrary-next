@@ -43,8 +43,8 @@ test('QR-02 ?question= opens that question once', () => {
 });
 
 test('QR-03 access unchanged: admin-only (decision #79)', () => {
-  const page = code(read('app/admin/question-reports/page.tsx'));
-  assert(/await requireAdminPage\(\{ path: "\/admin\/question-reports" \}\);/.test(page) && !/allowStaff/.test(page), 'reports page admin-only');
+  const page = code(read('app/admin/support/question-reports/page.tsx'));
+  assert(/await requireAdminPage\(\{ path: "\/admin\/support\/question-reports" \}\);/.test(page) && !/allowStaff/.test(page), 'reports page admin-only');
   const route = code(read('app/api/admin/reports/update-status/route.ts'));
   assert(/const authCheck = await guardAdminRoute\(\);/.test(route) && !/allowStaff/.test(route), 'status route admin-only');
   const svc = code(read('services/admin.service.ts'));

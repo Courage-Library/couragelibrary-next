@@ -6,6 +6,7 @@ import { Search } from "lucide-react";
 import { Dialog } from "@/components/ui/dialog";
 import { StatusChip } from "@/components/admin/status-chip";
 import { adminSearchAction } from "@/app/admin/search/actions";
+import { searchEntries, type NavGroup } from "@/lib/admin/nav";
 import type { AdminSearchResult, SearchGroup } from "@/lib/admin/search-core";
 
 /**
@@ -13,7 +14,7 @@ import type { AdminSearchResult, SearchGroup } from "@/lib/admin/search-core";
  * ARIA combobox + listbox: ↑ / ↓ move, Enter opens, results grouped (Questions / Users / Tickets). The server action
  * enforces every role rule; this component only renders what it returns.
  */
-export function AdminSearch({ placeholder }: { placeholder: string }) {
+export function AdminSearch({ placeholder, nav }: { placeholder: string; nav: NavGroup[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -38,9 +39,18 @@ export function AdminSearch({ placeholder }: { placeholder: string }) {
   useEffect(() => {
     if (!open) return;
     const q = query.trim();
+    // ADMIN-IA-1: "Go to" pages + actions from the role-filtered nav, matched locally from the first letter
+    const lower = q.toLowerCase();
+    const local: AdminSearchResult[] = q
+      ? searchEntries(nav)
+          .filter((e) => e.label.toLowerCase().includes(lower) || e.hint.toLowerCase().includes(lower))
+          .slice(0, 8)
+          .map((e) => ({ group: e.kind === "page" ? "Pages" : "Actions", id: `${e.kind}:${e.href}:${e.label}`, label: e.label, detail: e.hint, href: e.href }))
+      : [];
     if (q.length < 2) {
-      setResults([]);
-      setState("idle");
+      setResults(local);
+      setActiveIdx(0);
+      setState(local.length ? "done" : "idle");
       return;
     }
     const my = ++seq.current;
@@ -50,7 +60,7 @@ export function AdminSearch({ placeholder }: { placeholder: string }) {
         const r = await adminSearchAction(q);
         if (my !== seq.current) return;
         if (r.ok) {
-          setResults(r.results);
+          setResults([...local, ...r.results]);
           setActiveIdx(0);
           setState("done");
         } else setState("error");
@@ -59,7 +69,7 @@ export function AdminSearch({ placeholder }: { placeholder: string }) {
       }
     }, 250);
     return () => clearTimeout(t);
-  }, [query, open]);
+  }, [query, open, nav]);
 
   const close = useCallback(() => {
     setOpen(false);
@@ -74,7 +84,7 @@ export function AdminSearch({ placeholder }: { placeholder: string }) {
     router.push(r.href);
   };
 
-  const groups: SearchGroup[] = ["Questions", "Users", "Tickets"];
+  const groups: SearchGroup[] = ["Pages", "Actions", "Questions", "Users", "Tickets"];
   const optionId = (i: number) => `${uid}-opt-${i}`;
 
   return (
@@ -152,7 +162,7 @@ export function AdminSearch({ placeholder }: { placeholder: string }) {
                       className={`flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-control px-2 text-body-sm ${i === activeIdx ? "bg-primary-50 text-fg" : "text-fg"}`}
                     >
                       <span className="truncate">{r.label}</span>
-                      {r.detail && (r.group === "Users" ? <span className="shrink-0 text-caption text-fg-secondary">{r.detail}</span> : <StatusChip status={r.detail} className="shrink-0" />)}
+                      {r.detail && (r.group === "Users" || r.group === "Pages" || r.group === "Actions" ? <span className="shrink-0 text-caption text-fg-secondary">{r.detail}</span> : <StatusChip status={r.detail} className="shrink-0" />)}
                     </div>
                   ))}
                 </div>

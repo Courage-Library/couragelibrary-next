@@ -153,7 +153,7 @@ async function runTests() {
   // --- E05 & E06: Readiness route implementation ---
   await test('E05', 'Readiness route in onboarding/page.tsx resolves correct exam and does not hard-redirect', async () => {
     const fileContent = fs.readFileSync(path.join(__dirname, '../app/admin/exams/onboarding/page.tsx'), 'utf-8');
-    assert(!fileContent.includes('redirect(`/admin/exam-knowledge?examId='), 'Must NOT hard redirect to exam-knowledge');
+    assert(!fileContent.includes('redirect(`/admin/exams/knowledge?examId='), 'Must NOT hard redirect to exam-knowledge');
     assert(fileContent.includes('ExamOnboardingWizard'), 'Must render ExamOnboardingWizard');
     assert(fileContent.includes('ExamReadinessService.evaluateReadiness'), 'Must evaluate readiness server-side');
   });
@@ -226,7 +226,7 @@ async function runTests() {
 
   // --- E14 & E15: Existing Exam Knowledge and Hub flows ---
   await test('E14', 'Exam Knowledge Studio route (/admin/exam-knowledge) remains intact and accessible', async () => {
-    const fileContent = fs.readFileSync(path.join(__dirname, '../app/admin/exam-knowledge/page.tsx'), 'utf-8');
+    const fileContent = fs.readFileSync(path.join(__dirname, '../app/admin/exams/knowledge/page.tsx'), 'utf-8');
     assert(fileContent.includes('ExamKnowledgeStudioView'), 'Must render ExamKnowledgeStudioView');
   });
 

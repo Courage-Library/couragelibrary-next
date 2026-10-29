@@ -49,11 +49,11 @@ export async function executeBulkImportAction(payload: BulkImportPayload): Promi
   const result = await BulkImportEngine.processImport(payload);
   if (payload.mode === "commit") {
     revalidatePath("/admin");
-    revalidatePath("/admin/categories");
-    revalidatePath("/admin/patterns");
-    revalidatePath("/admin/sections");
+    revalidatePath("/admin/exams");
+    revalidatePath("/admin/mock-tests/patterns");
+    revalidatePath("/admin/mock-tests/sections");
     revalidatePath("/admin/questions");
-    revalidatePath("/admin/schedules");
+    revalidatePath("/admin/exams/cycles");
     revalidatePath("/admin/mock-tests");
   }
   return sanitizeActionResult("executeBulkImportAction", await (result));
@@ -148,7 +148,7 @@ export async function importBulkQuestionsAction(
 
   if (mode === "commit") {
     revalidatePath("/admin/questions");
-    revalidatePath("/admin/questions/factory");
+    revalidatePath("/admin/questions/drafts");
   }
 
   return {
@@ -164,94 +164,8 @@ export async function importBulkQuestionsAction(
 /* 1. CATEGORY CRUD ACTIONS                                                  */
 /* ========================================================================= */
 
-export async function createCategoryAction(
-  prevState: AdminActionResult | null,
-  formData: FormData
-): Promise<AdminActionResult> {
-  const authCheck = await guardAdminAction({ allowStaff: true });
-  if (!authCheck.ok) return authCheck;
 
-  const title = (formData.get("title") as string || formData.get("name") as string || "").trim();
-  const slug = (
-    formData.get("slug") as string ||
-    title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
-  ).trim();
-  const category = (formData.get("category") as string || "Staff Selection Commission (SSC)").trim();
-  const description = (formData.get("description") as string || "").trim();
 
-  if (!title) return { error: "Category Name is required." };
-
-  const supabaseRaw = createAdminServerSupabaseClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = supabaseRaw;
-  const orgId = await getDefaultOrgId(supabase);
-  if (!orgId) return { error: "Could not resolve the conducting organization." };
-
-  const { error } = await supabase.from("exams").insert({
-    org_id: orgId,
-    title,
-    slug,
-    category,
-    description: description || null,
-    is_active: true,
-  });
-
-  if (error) return dbFailure("createCategoryAction", error);
-
-  revalidatePath("/admin/categories");
-  revalidatePath("/admin/patterns");
-  revalidatePath("/admin/questions");
-  return { success: true, message: `Category "${title}" created successfully.` };
-}
-
-export async function updateCategoryAction(
-  prevState: AdminActionResult | null,
-  formData: FormData
-): Promise<AdminActionResult> {
-  const authCheck = await guardAdminAction({ allowStaff: true });
-  if (!authCheck.ok) return authCheck;
-
-  const id = formData.get("id") as string;
-  const title = (formData.get("title") as string || "").trim();
-  const slug = (formData.get("slug") as string || "").trim();
-  const category = (formData.get("category") as string || "").trim();
-  const description = (formData.get("description") as string || "").trim();
-
-  if (!id || !title) return { error: "Category ID and Name are required." };
-
-  const supabaseRaw = createAdminServerSupabaseClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = supabaseRaw;
-
-  const { error } = await supabase.from("exams").update({
-    title,
-    slug: slug || undefined,
-    category: category || undefined,
-    description: description || null,
-    updated_at: new Date().toISOString(),
-  }).eq("id", id);
-
-  if (error) return dbFailure("updateCategoryAction", error);
-
-  revalidatePath("/admin/categories");
-  revalidatePath("/admin/patterns");
-  return { success: true, message: `Category "${title}" updated successfully.` };
-}
-
-export async function toggleCategoryStatusAction(categoryId: string, currentActive: boolean): Promise<AdminActionResult> {
-  const authCheck = await guardAdminAction({ allowStaff: true });
-  if (!authCheck.ok) return authCheck;
-
-  const supabaseRaw = createAdminServerSupabaseClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = supabaseRaw;
-
-  const { error } = await supabase.from("exams").update({ is_active: !currentActive }).eq("id", categoryId);
-  if (error) return dbFailure("toggleCategoryStatusAction", error);
-
-  revalidatePath("/admin/categories");
-  return { success: true, message: `Category ${!currentActive ? "activated" : "deactivated"} successfully.` };
-}
 
 /* ========================================================================= */
 /* 2. PATTERN CRUD ACTIONS                                                   */
@@ -307,8 +221,8 @@ export async function createPatternAction(
 
   if (error) return dbFailure("createPatternAction", error);
 
-  revalidatePath("/admin/patterns");
-  revalidatePath("/admin/sections");
+  revalidatePath("/admin/mock-tests/patterns");
+  revalidatePath("/admin/mock-tests/sections");
   revalidatePath("/admin/questions");
   revalidatePath("/admin/mock-tests");
   return { success: true, message: `Pattern "${name}" created successfully.` };
@@ -347,7 +261,7 @@ export async function updatePatternAction(
 
   if (error) return dbFailure("updatePatternAction", error);
 
-  revalidatePath("/admin/patterns");
+  revalidatePath("/admin/mock-tests/patterns");
   return { success: true, message: `Pattern "${name}" updated successfully.` };
 }
 
@@ -362,7 +276,7 @@ export async function togglePatternStatusAction(patternId: string, currentActive
   const { error } = await supabase.from("exam_patterns").update({ is_active: !currentActive }).eq("id", patternId);
   if (error) return dbFailure("togglePatternStatusAction", error);
 
-  revalidatePath("/admin/patterns");
+  revalidatePath("/admin/mock-tests/patterns");
   return { success: true, message: `Pattern ${!currentActive ? "activated" : "deactivated"} successfully.` };
 }
 
@@ -402,8 +316,8 @@ export async function deletePatternAction(patternId: string): Promise<AdminActio
     return dbFailure("deletePatternAction", delErr);
   }
 
-  revalidatePath("/admin/patterns");
-  revalidatePath("/admin/mock-tests-management");
+  revalidatePath("/admin/mock-tests/patterns");
+  revalidatePath("/admin/mock-tests");
   return { success: true, message: "Pattern deleted successfully." };
 }
 
@@ -481,9 +395,9 @@ export async function createSectionAction(
 
   if (insErr) return dbFailure("createSectionAction", insErr);
 
-  revalidatePath("/admin/sections");
-  revalidatePath("/admin/patterns");
-  revalidatePath("/admin/mock-tests-management");
+  revalidatePath("/admin/mock-tests/sections");
+  revalidatePath("/admin/mock-tests/patterns");
+  revalidatePath("/admin/mock-tests");
   return { success: true, message: `"${name}" added successfully.` };
 }
 
@@ -516,7 +430,7 @@ export async function updateSectionAction(
 
   if (error) return dbFailure("updateSectionAction", error);
 
-  revalidatePath("/admin/sections");
+  revalidatePath("/admin/mock-tests/sections");
   return { success: true, message: `Section "${name}" updated successfully.` };
 }
 
@@ -534,9 +448,9 @@ export async function deleteSectionAction(sectionId: string): Promise<AdminActio
   const { error } = await supabase.from("pattern_sections").delete().eq("id", sectionId);
   if (error) return dbFailure("deleteSectionAction", error);
 
-  revalidatePath("/admin/sections");
-  revalidatePath("/admin/patterns");
-  revalidatePath("/admin/mock-tests-management");
+  revalidatePath("/admin/mock-tests/sections");
+  revalidatePath("/admin/mock-tests/patterns");
+  revalidatePath("/admin/mock-tests");
   return { success: true, message: "Section deleted successfully (all questions in bank preserved)." };
 }
 
@@ -579,7 +493,7 @@ export async function createScheduleAction(
 
   if (error) return dbFailure("createScheduleAction", error);
 
-  revalidatePath("/admin/schedules");
+  revalidatePath("/admin/exams/cycles");
   return { success: true, message: `Recruitment Schedule for ${cycleYear} created successfully.` };
 }
 
@@ -618,7 +532,7 @@ export async function updateScheduleAction(
 
   if (error) return dbFailure("updateScheduleAction", error);
 
-  revalidatePath("/admin/schedules");
+  revalidatePath("/admin/exams/cycles");
   return { success: true, message: "Schedule updated successfully." };
 }
 
@@ -634,7 +548,7 @@ export async function toggleScheduleStatusAction(scheduleId: string, currentStat
   const { error } = await supabase.from("exam_cycles").update({ status: newStatus }).eq("id", scheduleId);
   if (error) return dbFailure("toggleScheduleStatusAction", error);
 
-  revalidatePath("/admin/schedules");
+  revalidatePath("/admin/exams/cycles");
   return { success: true, message: `Schedule marked as ${newStatus}.` };
 }
 
@@ -695,7 +609,7 @@ export async function saveDailyMockDayAction(
     return sanitizeActionResult("saveDailyMockDayAction", await ({ error: result.error || "Failed to update daily mock day." }));
   }
 
-  revalidatePath("/admin/schedules");
+  revalidatePath("/admin/exams/cycles");
   revalidatePath("/mock-tests");
   return { success: true, message: `${dayLabel} schedule updated successfully.` };
 }
@@ -733,7 +647,7 @@ export async function saveDailyMockProgramAction(
       return { error: result.errors.join(". ") };
     }
 
-    revalidatePath("/admin/schedules");
+    revalidatePath("/admin/exams/cycles");
     revalidatePath("/mock-tests");
     return { success: true, message: `7-Day Daily Mock Program launched successfully (${result.updatedCount} days configured).` };
   } catch (err: unknown) {
@@ -777,7 +691,7 @@ export async function updateDailyMockProgramAction(
       return { error: result.errors.join(". ") };
     }
 
-    revalidatePath("/admin/schedules");
+    revalidatePath("/admin/exams/cycles");
     revalidatePath("/mock-tests");
     return { success: true, message: `Weekly Mock Program schedule updated successfully (${result.updatedCount} days configured).` };
   } catch (err: unknown) {
@@ -809,7 +723,7 @@ export async function deactivateDailyMockProgramAction(
     return sanitizeActionResult("deactivateDailyMockProgramAction", await ({ error: result.error || "Failed to deactivate weekly program." }));
   }
 
-  revalidatePath("/admin/schedules");
+  revalidatePath("/admin/exams/cycles");
   revalidatePath("/mock-tests");
   return {
     success: true,
@@ -827,7 +741,7 @@ export async function toggleDailyMockDayAction(templateId: string, currentActive
   const result = await AdminService.toggleDailyMockDayStatus(templateId, currentActive);
   if (!result.success) return sanitizeActionResult("toggleDailyMockDayAction", await ({ error: result.error || "Failed to toggle status." }));
 
-  revalidatePath("/admin/schedules");
+  revalidatePath("/admin/exams/cycles");
   revalidatePath("/mock-tests");
   return { success: true, message: `Day status updated to ${!currentActive ? "Active" : "Inactive"}.` };
 }
@@ -890,7 +804,7 @@ export async function createQuestionHierarchyAction(
   }
 
   revalidatePath("/admin/questions");
-  revalidatePath("/admin/questions/factory");
+  revalidatePath("/admin/questions/drafts");
   return {
     success: true,
     message: "Question saved as DRAFT. Submit it for review and publish it from the Question Factory.",
@@ -942,7 +856,7 @@ export async function updateQuestionHierarchyAction(
   if (!res.success) return sanitizeActionResult("updateQuestionHierarchyAction", await ({ error: res.error || "Edit failed the Question Factory gates." }));
 
   revalidatePath("/admin/questions");
-  revalidatePath("/admin/questions/factory");
+  revalidatePath("/admin/questions/drafts");
   return {
     success: true,
     message: editable
@@ -1230,34 +1144,10 @@ export async function createCourseAction(prevState: AdminActionResult | null, fo
 
   if (error) return dbFailure("createCourseAction", error);
 
-  revalidatePath("/admin/content");
+  revalidatePath("/admin/lessons/legacy");
   return { success: true, message: "Course created successfully." };
 }
 
-export async function createDescriptiveAction(prevState: AdminActionResult | null, formData: FormData): Promise<AdminActionResult> {
-  const authCheck = await guardAdminAction({ allowStaff: true });
-  if (!authCheck.ok) return authCheck;
-
-  const title = formData.get("title") as string;
-  const promptText = formData.get("promptText") as string;
-  const maxWordCount = Number(formData.get("maxWordCount") || 250);
-
-  if (!title || !promptText) return { error: "Title and Prompt are required." };
-
-  const supabaseRaw = createAdminServerSupabaseClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = supabaseRaw;
-
-  // TYPES-1:B-ADM-DESCRIPTIVE (tracked, owner Community) — descriptive_prompts never existed; the real table
-  // descriptive_questions needs a slug (uniqueness policy) and max marks, so creating via this form still fails.
-  // @ts-expect-error TYPES-1:B-ADM-DESCRIPTIVE — legacy table/columns (see above)
-  const { error } = await supabase.from("descriptive_prompts").insert({ title, prompt_text: promptText, max_word_count: maxWordCount, is_active: true });
-
-  if (error) return dbFailure("createDescriptiveAction", error);
-
-  revalidatePath("/admin/descriptive");
-  return { success: true, message: "Descriptive prompt created successfully." };
-}
 
 export async function createInstituteAction(prevState: AdminActionResult | null, formData: FormData): Promise<AdminActionResult> {
   const authCheck = await guardAdminAction({ allowStaff: true });
@@ -1310,7 +1200,7 @@ export async function createSubscriptionPlanAction(prevState: AdminActionResult 
 
   if (error) return dbFailure("createSubscriptionPlanAction", error);
 
-  revalidatePath("/admin/billing");
+  revalidatePath("/admin/payments");
   return { success: true, message: "Subscription plan created successfully." };
 }
 
@@ -1355,7 +1245,7 @@ export async function resolveCommunityFlagAction(flagId: string, choice: string 
   });
   if (auditError) reportWriteFailure({ fn: "resolveCommunityFlagAction", table: "admin_audit_logs", op: "insert", code: errorCode(auditError), ids: { flagId: flag.id } });
 
-  revalidatePath("/admin/community");
+  revalidatePath("/admin/support/flags");
   return { success: true, message: decision.removeContent ? "Content removed and flag resolved." : "Flag dismissed." };
 }
 

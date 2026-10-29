@@ -56,7 +56,7 @@ export async function adminSearchAction(raw: string): Promise<AdminSearchRespons
     const emails = new Set<string>();
     for (const u of (byEmail?.users ?? []).slice(0, PER_GROUP)) {
       emails.add(u.id);
-      results.push({ group: "Users", id: u.id, label: u.email, detail: u.role, href: `/admin/users?q=${encodeURIComponent(u.email)}` });
+      results.push({ group: "Users", id: u.id, label: u.email, detail: u.role, href: `/admin/students?q=${encodeURIComponent(u.email)}` });
     }
     const { data, error } = await sb.from("user_profiles").select("id, username").ilike("username", likePattern(q.replace(/^@/, ""))).limit(PER_GROUP);
     if (error) log("user_profiles", error.code);
@@ -65,7 +65,7 @@ export async function adminSearchAction(raw: string): Promise<AdminSearchRespons
       const { data: u } = await sb.auth.admin.getUserById(p.id);
       const email = u?.user?.email;
       if (!email) continue;
-      results.push({ group: "Users", id: p.id, label: email, detail: `@${p.username}`, href: `/admin/users?q=${encodeURIComponent(email)}` });
+      results.push({ group: "Users", id: p.id, label: email, detail: `@${p.username}`, href: `/admin/students?q=${encodeURIComponent(email)}` });
     }
   }
 

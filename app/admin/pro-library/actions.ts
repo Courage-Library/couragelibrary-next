@@ -31,7 +31,7 @@ export async function grantLibraryProAction(payload: { userId: string; validUnti
     if (error) reportWriteFailure({ fn: "grantLibraryProAction", table: "user_entitlements", op: "rpc", code: error.code, ids: { user_id: payload.userId } });
     return { ok: false, error: error ? "The grant could not be saved. Please try again." : `The grant was refused (${r.code ?? "UNKNOWN"}).` };
   }
-  revalidatePath("/admin/pro-library");
+  revalidatePath("/admin/students/library-pro");
   return { ok: true, message: "Library Pro granted." };
 }
 
@@ -45,6 +45,6 @@ export async function revokeLibraryProAction(payload: { entitlementId: string })
     if (error) reportWriteFailure({ fn: "revokeLibraryProAction", table: "user_entitlements", op: "rpc", code: error.code, ids: { entitlement_id: payload.entitlementId } });
     return { ok: false, error: error ? "The grant could not be revoked. Please try again." : `The revoke was refused (${r.code ?? "UNKNOWN"}).` };
   }
-  revalidatePath("/admin/pro-library");
+  revalidatePath("/admin/students/library-pro");
   return { ok: true, message: "Library Pro revoked." };
 }

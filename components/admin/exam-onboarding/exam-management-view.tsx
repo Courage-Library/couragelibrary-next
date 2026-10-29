@@ -5,7 +5,6 @@ import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AdminExamListItem, ConductingOrgItem } from "@/services/exam-onboarding/exam-onboarding.service";
-import { AdminBreadcrumbs } from "@/components/admin/admin-breadcrumbs";
 import { Card } from "@/components/ui/legacy/card";
 import { Badge } from "@/components/ui/legacy/badge";
 import { Button } from "@/components/ui/legacy/button";
@@ -188,12 +187,6 @@ export function ExamManagementView({
   return (
     <div className="space-y-6 w-full pb-10">
       {/* Breadcrumbs */}
-      <AdminBreadcrumbs
-        items={[
-          { label: "Dashboard", href: "/admin" },
-          { label: "Examinations & Onboarding", active: true },
-        ]}
-      />
 
       {/* Page Heading */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -217,17 +210,17 @@ export function ExamManagementView({
       {/* KPI Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card className="p-4 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-1">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 font-mono">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 font-mono">
             Total Examinations
           </span>
           <div className="text-2xl font-bold text-slate-900 font-mono">{totalExams}</div>
         </Card>
 
         <Card className="p-4 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-1">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 font-mono">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 font-mono">
             Live Published Hubs
           </span>
-          <div className="text-2xl font-bold text-emerald-600 font-mono">{publishedExams}</div>
+          <div className="text-2xl font-bold text-emerald-700 font-mono">{publishedExams}</div>
         </Card>
 
         <Card className="p-4 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-1">
@@ -241,7 +234,7 @@ export function ExamManagementView({
       {/* Filters Bar */}
       <div className="flex flex-col sm:flex-row items-center gap-3">
         <div className="relative flex-1 w-full">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-slate-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={searchQuery}
@@ -283,7 +276,7 @@ export function ExamManagementView({
                 >
                   {exam.isActive ? "PUBLISHED" : "DRAFT"}
                 </Badge>
-                <span className="text-[11px] font-mono text-slate-400">
+                <span className="text-[11px] font-mono text-slate-600">
                   {exam.category}
                 </span>
               </div>
@@ -291,7 +284,7 @@ export function ExamManagementView({
               <div>
                 <h3 className="text-sm font-bold text-slate-900 line-clamp-1">{exam.title}</h3>
                 <div className="flex items-center justify-between gap-3 mt-0.5">
-                  <p className="text-[11px] font-mono text-slate-400 truncate">/exams/{exam.slug}</p>
+                  <p className="text-[11px] font-mono text-slate-600 truncate">/exams/{exam.slug}</p>
                   {exam.isActive && (
                     <Link
                       href={`/exams/${exam.slug}`}
@@ -326,12 +319,12 @@ export function ExamManagementView({
             {/* Card Action Footer */}
             <div className="pt-3.5 border-t border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 text-xs font-semibold">
               <Link
-                href={`/admin/exam-knowledge?examId=${exam.id}${exam.activeCycle ? `&cycleId=${exam.activeCycle.id}` : ""}`}
+                href={`/admin/exams/knowledge?examId=${exam.id}${exam.activeCycle ? `&cycleId=${exam.activeCycle.id}` : ""}`}
                 className="inline-flex items-center gap-1.5 text-slate-700 hover:text-blue-600 transition-colors whitespace-nowrap group shrink-0"
               >
                 <BookOpen className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                 <span>Open Exam Knowledge</span>
-                <ArrowRight className="w-3 h-3 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0" />
+                <ArrowRight className="w-3 h-3 text-slate-600 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0" />
               </Link>
 
               <Link
@@ -367,7 +360,7 @@ export function ExamManagementView({
               <button
                 type="button"
                 onClick={handleCloseAddModal}
-                className="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 flex items-center justify-center transition"
+                className="w-7 h-7 rounded-lg text-slate-600 hover:text-slate-600 hover:bg-slate-100 flex items-center justify-center transition"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -405,7 +398,7 @@ export function ExamManagementView({
                     <label className="text-xs font-bold text-slate-700 block">
                       Canonical URL Slug <span className="text-rose-500">*</span>
                     </label>
-                    <span className="text-[10px] font-mono text-slate-400">/exams/{slug || "slug"}</span>
+                    <span className="text-[10px] font-mono text-slate-600">/exams/{slug || "slug"}</span>
                   </div>
                   <input
                     type="text"
@@ -506,7 +499,7 @@ export function ExamManagementView({
                 {/* Description */}
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-slate-700 block">
-                    Overview Description <span className="text-slate-400 font-normal">(Optional)</span>
+                    Overview Description <span className="text-slate-600 font-normal">(Optional)</span>
                   </label>
                   <textarea
                     value={description}
@@ -545,7 +538,7 @@ export function ExamManagementView({
             ) : (
               /* Success View */
               <div className="p-6 text-center space-y-5">
-                <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto shadow-2xs">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center mx-auto shadow-2xs">
                   <CheckCircle2 className="w-8 h-8" />
                 </div>
 
@@ -558,22 +551,22 @@ export function ExamManagementView({
 
                 <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 text-xs space-y-1 text-left">
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Canonical Slug:</span>
+                    <span className="text-slate-600">Canonical Slug:</span>
                     <span className="font-mono font-bold text-slate-800">/exams/{createdResult.slug}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Authority:</span>
+                    <span className="text-slate-600">Authority:</span>
                     <span className="font-bold text-slate-800">{createdResult.orgName}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Status:</span>
+                    <span className="text-slate-600">Status:</span>
                     <span className="font-bold text-accent-700">DRAFT (Unpublished)</span>
                   </div>
                 </div>
 
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 pt-2">
                   <Link
-                    href={`/admin/exam-knowledge?examId=${createdResult.examId}${createdResult.cycleId ? `&cycleId=${createdResult.cycleId}` : ""}`}
+                    href={`/admin/exams/knowledge?examId=${createdResult.examId}${createdResult.cycleId ? `&cycleId=${createdResult.cycleId}` : ""}`}
                   >
                     <Button className="w-full bg-primary-700 hover:bg-primary-800 text-white text-xs font-bold px-5 py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-xs">
                       <BookOpen className="w-4 h-4" /> Open Exam Knowledge Studio →

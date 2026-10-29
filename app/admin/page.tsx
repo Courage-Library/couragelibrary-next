@@ -14,8 +14,8 @@ export const dynamic = "force-dynamic";
 
 export const revalidate = 0;
 
-const FOCUS_HREF = "/admin/review/focus";
-const IMPORT_HREF = "/admin/bulk-import";
+const FOCUS_HREF = "/admin/questions/review";
+const IMPORT_HREF = "/admin/questions/import";
 const NA = "Not available";
 
 /**
@@ -47,13 +47,13 @@ export default async function AdminTodayPage() {
       <div className="grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)]">
         <Mission m={d.mission} empty={queueEmpty} />
         <QueueCard id="question-drafts" title="Question drafts" value={d.drafts.inReview} status="in review" tone="blue"
-          line={d.drafts.approved === null ? null : `${d.drafts.approved} approved, waiting to publish`} href="/admin/questions/factory?tab=review&status=IN_REVIEW" linkLabel="Open queue">
+          line={d.drafts.approved === null ? null : `${d.drafts.approved} approved, waiting to publish`} href="/admin/questions/drafts?tab=review&status=IN_REVIEW" linkLabel="Open queue">
           <Sparkline points={d.drafts.spark} label="Drafts created per day, last 14 days" />
         </QueueCard>
         {d.reports && (
           <QueueCard id="question-reports" title="Question reports" value={d.reports.open}
             status={d.reports.open === 0 ? "all clear" : d.reports.oldestDays !== null ? `oldest ${d.reports.oldestDays} day${d.reports.oldestDays === 1 ? "" : "s"}` : null}
-            tone={d.reports.overdue ? "red" : "green"} line="students found a problem" href="/admin/question-reports?status=OPEN" linkLabel="Fix now">
+            tone={d.reports.overdue ? "red" : "green"} line="students found a problem" href="/admin/support/question-reports?status=OPEN" linkLabel="Fix now">
             <OverdueBar open={d.reports.open} overdue={d.reports.overdue} />
           </QueueCard>
         )}
@@ -69,8 +69,8 @@ export default async function AdminTodayPage() {
 
       <section aria-label="Also" className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-card border border-line bg-surface px-[18px] py-3 text-[13px]" data-today-also="">
         <span className="text-[11.5px] font-semibold uppercase tracking-[.08em] text-ink-500">Also</span>
-        <MiniStat label="Community flags waiting" value={d.flags} href="/admin/community" />
-        {d.libraryEnding !== null && <MiniStat label="Library Pro grants ending in 7 days" value={d.libraryEnding} href="/admin/pro-library" />}
+        <MiniStat label="Community flags waiting" value={d.flags} href="/admin/support/flags" />
+        {d.libraryEnding !== null && <MiniStat label="Library Pro grants ending in 7 days" value={d.libraryEnding} href="/admin/students/library-pro" />}
       </section>
 
       <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">

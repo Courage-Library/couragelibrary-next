@@ -630,9 +630,9 @@ async function part4(entries) {
       }
       assert(threw && threw.code === '23505', `expected the DB error to propagate, got ${threw ? threw.message : 'success'}`);
     }
-    const actions = require(path.join(ROOT, 'app/admin/content/actions.ts'));
-    const r = await actions.publishVersionAction('v');
-    assert(r.ok === false && r.error === 'DB_ERROR' && !JSON.stringify(r).includes('qa_sec1b_marker'), JSON.stringify(r));
+    // ADMIN-IA-1 (Q-L): the Content Studio actions are retired with their screens — no server action reaches these
+    // service methods any more (the service keeps failing closed, checked above)
+    assert(!fs.existsSync(path.join(ROOT, 'app/admin/content/actions.ts')), 'the retired Content Studio actions must stay removed');
     state.dbMode = 'ok';
   });
   await test('F-03 targeted: mapUnitToExam no longer fabricates a mapping on failure', async () => {

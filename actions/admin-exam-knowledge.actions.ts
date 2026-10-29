@@ -174,7 +174,7 @@ export async function requestChangesExamDocVersionAction(params: {
     });
     if (res.success) {
       try {
-        revalidatePath('/admin/exam-knowledge');
+        revalidatePath('/admin/exams/knowledge');
       } catch {
         // Cache revalidation failure should not block response
       }
@@ -211,7 +211,7 @@ export async function publishExamDocVersionAction(versionId: string) {
     if (res.success) {
       try {
         revalidatePath('/exams');
-        revalidatePath('/admin/exam-knowledge');
+        revalidatePath('/admin/exams/knowledge');
         if (res.examSlug) {
           revalidatePath(`/exams/${res.examSlug}`);
           if (res.moduleSlug) {
@@ -309,7 +309,7 @@ export async function discardDraftVersionAction(versionId: string) {
     const res = await AdminExamKnowledgeService.discardDraftVersion(versionId);
     if (res.success) {
       try {
-        revalidatePath('/admin/exam-knowledge');
+        revalidatePath('/admin/exams/knowledge');
       } catch {
         // Cache revalidation error should not block response
       }

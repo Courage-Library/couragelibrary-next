@@ -77,7 +77,7 @@ async function axe(page) {
     // default: admin on every route + staff on two (the ADMIN-UX-1 role-aware views)
     const EMAIL = { admin: 'qa-admin@courage-library.test', staff: 'qa-staff@courage-library.test', student: 'qa-student@courage-library.test', anon: null };
     const AS = arg('as', '') ? arg('as', '').split(',').filter((w) => w in EMAIL) : null;
-    const plan = AS ? AS.map((w) => [w, EMAIL[w], routes]) : [['admin', EMAIL.admin, routes], ['staff', EMAIL.staff, ['/admin', '/admin/questions/factory']]];
+    const plan = AS ? AS.map((w) => [w, EMAIL[w], routes]) : [['admin', EMAIL.admin, routes], ['staff', EMAIL.staff, ['/admin', '/admin/questions/drafts']]];
     for (const [who, email, list] of plan) {
       const ctx = await browser.newContext();
       if (email) await qaBrowserLogin(ctx, email, BASE);

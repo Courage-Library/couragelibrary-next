@@ -149,7 +149,7 @@ test('M-01 the MDX path is retired: every legacy writer fails closed', () => {
 
 test('S-01 admin only: routes, page guards, action guards, client imports', () => {
   const nav = read('lib/admin/nav.ts');
-  assert(/"\/admin\/lessons",\n  "\/admin\/lessons\/\[id\]",/.test(nav) && /\{ label: "Lessons", href: "\/admin\/lessons", icon: "learning", access: "admin" \}/.test(nav), 'nav + ADMIN_ONLY_ROUTES');
+  assert(/"\/admin\/lessons",\n  "\/admin\/lessons\/\[id\]",/.test(nav) && /\{\s*label: "Lessons", href: "\/admin\/lessons", icon: "learning", access: "admin",/.test(nav), 'nav + ADMIN_ONLY_ROUTES');
   for (const f of ['app/admin/lessons/page.tsx', 'app/admin/lessons/[id]/page.tsx']) {
     const s = read(f);
     assert(/await requireAdminPage\(\{ path: "\/admin\/lessons" \}\)/.test(s) && !/allowStaff/.test(s), `${f}: admin page guard`);

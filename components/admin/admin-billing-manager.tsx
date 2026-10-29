@@ -124,7 +124,7 @@ export function AdminBillingManager({ orders, plans }: Props) {
             <CreditCard className="w-5 h-5 text-indigo-600" /> Subscription Plans Directory
           </h2>
           {plans.length === 0 ? (
-            <p className="text-xs text-slate-400 text-center py-6">No subscription plans found.</p>
+            <p className="text-xs text-slate-600 text-center py-6">No subscription plans found.</p>
           ) : (
             <div className="space-y-3">
               {plans.map((p) => (
@@ -149,17 +149,17 @@ export function AdminBillingManager({ orders, plans }: Props) {
 
         <Card className="p-6 border-slate-200 bg-white space-y-4">
           <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
-            <Receipt className="w-5 h-5 text-emerald-600" /> Payment Orders History ({orders.length})
+            <Receipt className="w-5 h-5 text-emerald-700" /> Payment Orders History ({orders.length})
           </h2>
           {orders.length === 0 ? (
-            <p className="text-xs text-slate-400 text-center py-6">No payment orders recorded yet.</p>
+            <p className="text-xs text-slate-600 text-center py-6">No payment orders recorded yet.</p>
           ) : (
             <div className="space-y-2 max-h-80 overflow-y-auto">
               {orders.map((o) => (
                 <div key={o.id} className="p-3 rounded-lg border border-slate-100 flex items-center justify-between text-xs">
                   <div>
                     <span className="font-bold text-slate-900">{o.orderType}</span>
-                    <p className="text-[10px] text-slate-400 font-mono">{new Date(o.createdAt).toLocaleDateString()}</p>
+                    <p className="text-[10px] text-slate-600 font-mono">{new Date(o.createdAt).toLocaleDateString()}</p>
                   </div>
                   <div className="text-right font-mono">
                     <span className="font-bold text-slate-900">₹{o.amount}</span>

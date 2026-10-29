@@ -84,9 +84,9 @@ test('D2-02 users-directory.ts: server-only, service role, real paging, bounded 
 });
 
 test('D2-03 /admin/users: guard first; service role never reaches the client; broken path removed', () => {
-  const p = code(read('app/admin/users/page.tsx'));
+  const p = code(read('app/admin/students/page.tsx'));
   const body = p.slice(p.indexOf('export default async function AdminUsersPage('));
-  assert(body.indexOf('await requireAdminPage({ path: "/admin/users" });') > 0 && body.indexOf('await requireAdminPage') < body.indexOf('await searchParams'), 'admin-only guard is the first await');
+  assert(body.indexOf('await requireAdminPage({ path: "/admin/students" });') > 0 && body.indexOf('await requireAdminPage') < body.indexOf('await searchParams'), 'admin-only guard is the first await');
   assert(/listDirectoryUsers\(/.test(p), 'uses the directory');
   const m = read('components/admin/admin-users-manager.tsx');
   assert(!/"use client"/.test(m) && !/users-directory"/.test(m) && !/createAdmin|SERVICE_ROLE/.test(m), 'manager: server component, no server module / key');

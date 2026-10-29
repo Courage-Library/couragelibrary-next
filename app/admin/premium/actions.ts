@@ -40,7 +40,7 @@ export async function updateGlobalPremiumConfigAction(payload: {
       actorId: auth.userId,
     });
 
-    revalidatePath("/admin/premium");
+    revalidatePath("/admin/payments/premium");
     revalidatePath("/premium");
     return { success: true, message: "Global Premium configuration successfully updated.", data: result.config };
   } catch (err: unknown) {
@@ -77,7 +77,7 @@ export async function setExamPremiumAvailabilityAction(payload: {
       actorId: auth.userId,
     });
 
-    revalidatePath("/admin/premium");
+    revalidatePath("/admin/payments/premium");
     revalidatePath("/premium");
     return { success: true, message: `Exam availability successfully ${payload.isEnabled ? "enabled" : "disabled"}.`, data: result };
   } catch (err: unknown) {
@@ -114,7 +114,7 @@ export async function setTestTypeAvailabilityAction(payload: {
       actorId: auth.userId,
     });
 
-    revalidatePath("/admin/premium");
+    revalidatePath("/admin/payments/premium");
     revalidatePath("/premium");
     return { success: true, message: `Test type "${payload.testType}" governance successfully updated.`, data: result };
   } catch (err: unknown) {
@@ -145,7 +145,7 @@ export async function updateGeneratorPolicyAction(payload: {
       actorId: auth.userId,
     });
 
-    revalidatePath("/admin/premium");
+    revalidatePath("/admin/payments/premium");
     return { success: true, message: "Generator policy successfully updated.", data: result.policy };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Failed to update generator policy.";
@@ -195,7 +195,7 @@ export async function grantPromotionalPassAction(payload: {
       actorId: auth.userId,
     });
 
-    revalidatePath("/admin/premium");
+    revalidatePath("/admin/payments/premium");
     return { success: true, message: "Promotional entitlement granted successfully.", data: result };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Failed to grant promotional entitlement.";
@@ -221,7 +221,7 @@ export async function revokeEntitlementAction(payload: {
       actorId: auth.userId,
     });
 
-    revalidatePath("/admin/premium");
+    revalidatePath("/admin/payments/premium");
     return { success: true, message: "Entitlement revoked successfully.", data: result };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Failed to revoke entitlement.";
@@ -249,7 +249,7 @@ export async function updateCustomLimitsAction(payload: {
       actorId: auth.userId,
     });
 
-    revalidatePath("/admin/premium");
+    revalidatePath("/admin/payments/premium");
     return { success: true, message: "Custom limits updated successfully.", data: result };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Failed to update custom limits.";
@@ -277,7 +277,7 @@ export async function toggleTestSeriesStatusAction(payload: {
       actorId: auth.userId,
     });
 
-    revalidatePath("/admin/premium");
+    revalidatePath("/admin/payments/premium");
     revalidatePath("/premium");
     return { success: true, message: `Test series ${payload.isActive ? "activated" : "deactivated"} successfully.`, data: result };
   } catch (err: unknown) {
@@ -310,7 +310,7 @@ export async function updateMockCuratedStatusAction(payload: {
       actorId: auth.userId,
     });
 
-    revalidatePath("/admin/premium");
+    revalidatePath("/admin/payments/premium");
     revalidatePath("/premium");
     return { success: true, message: "Curated mock test status updated successfully.", data: result };
   } catch (err: unknown) {

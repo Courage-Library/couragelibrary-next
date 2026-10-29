@@ -155,7 +155,7 @@ export function LessonGenerator({ nodes, selectedNodeId, generator, loadError, s
       {subjectMissing && (
         <p role="alert" className="rounded-card border border-warning-200 bg-warning-50 px-4 py-3 text-[13px] font-semibold text-fg">
           {subjectMissing.subjectName ? `"${subjectMissing.subjectName}" has no subject type. ` : ""}Set the subject type in the Master tree first.{" "}
-          <Link href="/admin/taxonomy" className="text-link underline">
+          <Link href="/admin/master-tree" className="text-link underline">
             Open the Master tree
           </Link>
         </p>
@@ -187,7 +187,7 @@ export function LessonGenerator({ nodes, selectedNodeId, generator, loadError, s
             {shown.map((n) => (
               <li key={n.id}>
                 <Link
-                  href={`/admin/lessons/generate?node=${n.id}`}
+                  href={`/admin/lessons/new?node=${n.id}`}
                   aria-current={n.id === selectedNodeId ? "true" : undefined}
                   className={`focus-ring flex min-h-10 flex-wrap items-center gap-2 px-3 py-2 text-[13px] ${n.id === selectedNodeId ? "bg-primary-50 font-semibold" : "hover:bg-ink-50"}`}
                 >

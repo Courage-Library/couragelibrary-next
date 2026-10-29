@@ -90,24 +90,24 @@ const REQUIRED = {
   '/admin': ['Today v2 greeting heading ("Good morning, …")', (pg) => pg.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening), / }).first()],
   // Courage Studio phase 3 batch 1: the Studio header title
   '/admin/questions': ['"Question bank" heading', H(/^Question bank$/)],
-  '/admin/sections': ['"Sections" heading (Studio, phase 3 batch 2)', H(/^Sections$/)],
-  '/admin/billing': ['"Subscription Plans" heading', H(/Subscription Plans & Payment Orders/)],
-  '/admin/community': ['"Community Discussion Moderation" heading', H(/Community Discussion Moderation/)],
-  '/admin/descriptive': ['"Mains Descriptive Questions" heading', H(/Mains Descriptive Questions/)],
+  '/admin/mock-tests/sections': ['"Sections" heading (Studio, phase 3 batch 2)', H(/^Sections$/)],
+  '/admin/payments': ['"Subscription Plans" heading', H(/Subscription Plans & Payment Orders/)],
+  '/admin/support/flags': ['"Community Discussion Moderation" heading', H(/Community Discussion Moderation/)],
+  '/admin': ['"Mains Descriptive Questions" heading', H(/Mains Descriptive Questions/)],
   '/admin/institutes': ['"Partner Coaching Institutes CMS" heading', H(/Partner Coaching Institutes CMS/)],
-  '/admin/mock-tests-management': ['"Mock test setup" heading (Studio, phase 3 batch 2)', H(/^Mock test setup$/)],
-  '/admin/bulk-import': ['"Bulk import" heading (Studio, phase 3 batch 2)', H(/^Bulk import$/)],
-  '/admin/taxonomy': ['"Master tree" heading (CA-1)', H(/Master tree/)],
+  '/admin/mock-tests': ['"Mock test setup" heading (Studio, phase 3 batch 2)', H(/^Mock test setup$/)],
+  '/admin/questions/import': ['"Bulk import" heading (Studio, phase 3 batch 2)', H(/^Bulk import$/)],
+  '/admin/master-tree': ['"Master tree" heading (CA-1)', H(/Master tree/)],
   '/admin/exams': ['"Examination Management Hub" heading', H(/Examination Management Hub/)],
-  '/admin/exam-knowledge': ['"Exam Knowledge Studio" heading', H(/Exam Knowledge Studio/)],
-  '/admin/design-system': ['"Design system" heading', H(/^Design system$/)],
+  '/admin/exams/knowledge': ['"Exam Knowledge Studio" heading', H(/Exam Knowledge Studio/)],
+  '/admin/system/design': ['"Design system" heading', H(/^Design system$/)],
   '/admin/syllabus': ['"Syllabus" heading', H(/^Syllabus$/)],
   // CA-4 + SYLLABUS-PROMPT-2
   '/admin/lessons': ['"Lessons" heading', H(/^Lessons$/)],
-  '/admin/lessons/generate': ['"Lesson prompt generator" heading', H(/^Lesson prompt generator$/)],
+  '/admin/lessons/new': ['"Lesson prompt generator" heading', H(/^Lesson prompt generator$/)],
   '/admin/prompts': ['"Prompt templates" heading', H(/^Prompt templates$/)],
   '/admin/syllabus/intake': ['"Syllabus intake" heading', H(/^Syllabus intake$/)],
-  '/admin/content': ['"Admin Content Studio" heading', H(/Admin Content Studio/)],
+  '/admin/lessons/legacy': ['"Admin Content Studio" heading', H(/Admin Content Studio/)],
 };
 
 (async () => {
@@ -200,7 +200,7 @@ const REQUIRED = {
     const sy = checkSyllabusSection(hub, rm);
     check('/exams/ssc-cgl syllabus section matches the read model', sy.ok, sy.detail);
   } else if (CHECK === 'admin-pages') {
-    const ADMIN = ['/admin', '/admin/questions', '/admin/sections', '/admin/billing', '/admin/community', '/admin/descriptive', '/admin/institutes', '/admin/mock-tests-management', '/admin/bulk-import', '/admin/taxonomy', '/admin/exams', '/admin/exam-knowledge', '/admin/design-system', '/admin/syllabus', '/admin/lessons', '/admin/lessons/generate', '/admin/prompts', '/admin/syllabus/intake'];
+    const ADMIN = ['/admin', '/admin/questions', '/admin/mock-tests/sections', '/admin/payments', '/admin/support/flags', '/admin', '/admin/institutes', '/admin/mock-tests', '/admin/questions/import', '/admin/master-tree', '/admin/exams', '/admin/exams/knowledge', '/admin/system/design', '/admin/syllabus', '/admin/lessons', '/admin/lessons/new', '/admin/prompts', '/admin/syllabus/intake'];
     for (const p of ADMIN) {
       const r = await go(p, undefined, 180000);
       const html = await page.content();
@@ -209,7 +209,7 @@ const REQUIRED = {
     }
   } else {
     // GAP2-4b: staff also reach the syllabus editor (publish stays admin-only)
-    for (const p of CHECK === 'admin-home' ? ['/admin'] : ['/admin/content', '/admin/syllabus']) {
+    for (const p of CHECK === 'admin-home' ? ['/admin'] : ['/admin/lessons/legacy', '/admin/syllabus']) {
       const r = await go(p);
       check(`${p} → 200 and renders`, r && r.status() === 200 && !(await isNotFound(page)), String(r && r.status()));
     }

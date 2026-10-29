@@ -58,7 +58,7 @@ export async function saveGeneratedLessonAction(nodeId: string, parts: string[],
   const r = await LessonAuthoringService.saveGeneratedDraft(nodeId, Array.isArray(parts) ? parts : [], factsChecked === true);
   if (r.success) {
     revalidatePath("/admin/lessons");
-    revalidatePath("/admin/lessons/generate");
+    revalidatePath("/admin/lessons/new");
   }
   return sanitizeActionResult("saveGeneratedLessonAction", r);
 }
@@ -83,7 +83,7 @@ export async function setCourseLaunchAction(examId: string, status: "LIVE" | "PA
   if (accessMode !== "FREE_ALL" && accessMode !== "FREE_N") return { success: false, code: "VALIDATION", error: "Choose an access mode." };
   const r = await CoverageService.setLaunch(examId, status, accessMode);
   if (r.success) {
-    revalidatePath("/admin/lessons/coverage");
+    revalidatePath("/admin/coverage");
     revalidateTag(LEARN_CACHE_TAG);
     revalidatePath("/exams", "layout");
     revalidatePath("/sitemap.xml");
@@ -97,7 +97,7 @@ export async function saveExamNoteDraftAction(examId: string, nodeId: string, la
   if (!__auth.ok) return __auth;
   if (language !== "en" && language !== "hi") return { success: false as const, code: "VALIDATION", error: "Language must be en or hi." };
   const r = await ExamNoteService.saveDraft(examId, nodeId, language, json);
-  if (r.success) revalidatePath("/admin/lessons/notes");
+  if (r.success) revalidatePath("/admin/exams/notes");
   return sanitizeActionResult("saveExamNoteDraftAction", r);
 }
 
@@ -107,7 +107,7 @@ export async function publishExamNoteAction(id: string) {
   if (!__auth.ok) return __auth;
   const r = await ExamNoteService.publish(id);
   if (r.success) {
-    revalidatePath("/admin/lessons/notes");
+    revalidatePath("/admin/exams/notes");
     revalidateTag(LEARN_CACHE_TAG);
     revalidatePath("/exams", "layout");
   }

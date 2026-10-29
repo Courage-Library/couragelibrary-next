@@ -331,7 +331,7 @@ const paidEvent = (paymentId = 'pay_TESTA1', event = 'payment.captured') =>
     const la = code(read('app/admin/pro-library/actions.ts'));
     assert((la.match(/const auth = await guardAdminAction\(\);/g) || []).length === 2 && !/allowStaff/.test(la), 'admin only (not staff)');
     assert(/days <= 0 \|\| days > MAX_DAYS/.test(la), 'a grant always has a future end date');
-    assert(/await requireAdminPage\(\{ path: "\/admin\/pro-library" \}\);/.test(read('app/admin/pro-library/page.tsx')), 'page guard');
+    assert(/await requireAdminPage\(\{ path: "\/admin\/students\/library-pro" \}\);/.test(read('app/admin/students/library-pro/page.tsx')), 'page guard');
     assert(/source: "PROMO"/.test(read('services/admin-premium.service.ts')), 'admin promo passes are labelled PROMO, not PAYMENT');
   });
 

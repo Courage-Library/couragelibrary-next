@@ -38,7 +38,7 @@ if (!['localhost', '127.0.0.1', '[::1]'].includes(host)) {
   process.exit(2);
 }
 const OUT = path.join(__dirname, '..', 'docs/ux/ux1/preview');
-const PAGE = '/admin/design-system';
+const PAGE = '/admin/system/design';
 
 let passed = 0;
 let failed = 0;

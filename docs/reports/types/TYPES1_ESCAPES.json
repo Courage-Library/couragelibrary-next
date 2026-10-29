@@ -282,17 +282,8 @@
       "precondition": "LOOP-1: map the readiness model — user_exam_readiness is per exam (exam_id, exam_cycle_id) with readiness_index, weighted_mastery_pct, syllabus_coverage_pct, mock_benchmark_pct, retention_freshness_pct; there is no overall_readiness_pct / predicted_score. Today the read errors (42703) and the dashboard readiness is always empty. Found by the B2 live select audit (B1 carry-over)."
     },
     {
-      "id": "TYPES-1:B-ADM-DESCRIPTIVE",
-      "file": "app/admin/actions.ts",
-      "class": "B",
-      "module": "admin descriptive manager",
-      "kind": "@ts-expect-error ×2 (legacy table on create; component item shape) — also app/admin/descriptive/page.tsx",
-      "owner": "Community (descriptive)",
-      "precondition": "Decide the admin descriptive model on descriptive_questions: slug policy (required, unique), max_marks, word limits, exam/topic, publish flag; then rewrite createDescriptiveAction and align AdminDescriptiveManager's DescriptiveItem with the list returned by AdminService.getAdminDescriptive (now read from descriptive_questions). Today creating a prompt fails (descriptive_prompts never existed)."
-    },
-    {
       "id": "TYPES-1:B-ADM-COMMUNITY",
-      "file": "app/admin/community/page.tsx",
+      "file": "app/admin/support/flags/page.tsx",
       "class": "B",
       "module": "admin community moderation",
       "kind": "@ts-expect-error ×1 (component item shape). The resolve escape in app/admin/actions.ts was removed by D-1 (ADMIN-UX-1, 2026-10-26: resolve writes discussion_moderation_flags)",
