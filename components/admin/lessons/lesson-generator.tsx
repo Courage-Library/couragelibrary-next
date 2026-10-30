@@ -6,9 +6,9 @@ import { useRouter } from "next/navigation";
 import { StudioEmpty, StudioField, StudioPageHeader, StudioPanel, studioControl, studioPrimaryAction, studioQuietAction } from "@/components/admin/studio/studio-page";
 import { CheckButton, CheckProblems, CheckRegion, usePasteCheck } from "@/components/admin/studio/paste-check";
 import { LessonBlocksRenderer, PlainMath } from "@/components/learning/lesson-blocks-renderer";
-import type { BlockError } from "@/lib/lessons/blocks";
 import { lessonChecklist, checklistPasses, type ChecklistItem } from "@/lib/lessons/completeness";
-import { mergeLessonParts, parseLessonPart, type LessonPaste, type LessonPart } from "@/lib/prompts/lesson-prompt";
+import { mergeLessonParts, parseLessonPart, type LessonMergeOptions, type LessonPaste, type LessonPart } from "@/lib/prompts/lesson-prompt";
+import { applyLessonFix, type FixableError, type LessonFix } from "@/lib/prompts/lesson-node-ids";
 import type { LessonGeneratorData, LessonNodeOption } from "@/lib/lessons/admin-types";
 import { saveGeneratedLessonAction } from "@/app/admin/lessons/actions";
 import { createTaxonomyNodeAction } from "@/app/admin/taxonomy/actions";
@@ -35,7 +35,7 @@ interface Props {
 type Outcome =
   | { kind: "none" }
   | { kind: "exception"; message: string }
-  | { kind: "errors"; errors: BlockError[]; notice: string | null }
+  | { kind: "errors"; errors: FixableError[]; notice: string | null }
   | { kind: "incomplete"; have: number[]; missing: number[]; total: number; notice: string | null }
   | { kind: "lesson"; result: Extract<LessonPaste, { ok: true }>; notice: string | null };
 
@@ -63,6 +63,19 @@ export function LessonGenerator({ nodes, selectedNodeId, generator, loadError, s
   const facts = result ? result.uncertainFacts : [];
   const canSave = Boolean(selectedNodeId && result && (facts.length === 0 || factsChecked) && !pending && !busy);
   const childLevel = generator ? CHILD_LEVEL[generator.context.nodeLevel] : undefined;
+  // LESSON-NODE-ID-1: practice links are checked against this lesson's node ids (the same rule the save applies)
+  const mergeOpts: LessonMergeOptions =
+    generator && generator.context.allowedNodes?.length ? { nodeIds: { lessonNodeId: generator.context.nodeId, allowed: generator.context.allowedNodes } } : {};
+
+  const showMerged = (list: { text: string; parsed: LessonPart }[], notice: string | null) => {
+    const merged = mergeLessonParts(list.map((p) => p.parsed), mergeOpts);
+    if (merged.state === "ERROR") setOutcome({ kind: "errors", errors: merged.errors, notice });
+    else if (merged.state === "INCOMPLETE") {
+      setOutcome({ kind: "incomplete", have: merged.have, missing: merged.missing, total: merged.totalParts, notice });
+      setPaste("");
+    } else if (!merged.result.ok) setOutcome({ kind: "errors", errors: merged.result.errors, notice });
+    else setOutcome({ kind: "lesson", result: merged.result, notice });
+  };
 
   // GEN-CHECK-1: the check runs on click only; a part of a multi-part answer is kept and the rest is asked for
   const check = () =>
@@ -77,14 +90,43 @@ export function LessonGenerator({ nodes, selectedNodeId, generator, loadError, s
       }
       const next = [...(parsed.totalParts > 1 ? parts.filter((p) => p.parsed.ok && p.parsed.part !== parsed.part && p.parsed.totalParts === parsed.totalParts) : []), { text: paste, parsed }];
       setParts(next);
-      const merged = mergeLessonParts(next.map((p) => p.parsed));
-      if (merged.state === "ERROR") setOutcome({ kind: "errors", errors: merged.errors, notice });
-      else if (merged.state === "INCOMPLETE") {
-        setOutcome({ kind: "incomplete", have: merged.have, missing: merged.missing, total: merged.totalParts, notice });
-        setPaste("");
-      } else if (!merged.result.ok) setOutcome({ kind: "errors", errors: merged.result.errors, notice });
-      else setOutcome({ kind: "lesson", result: merged.result, notice });
+      showMerged(next, notice);
     });
+
+  // LESSON-NODE-ID-1: a one-click fix rewrites ONLY what it names (that block's node id / the citation markers) in the
+  // pasted part(s), then checks again
+  const applyFix = (fix: LessonFix) =>
+    run(() => {
+      if (!generator) return;
+      setMessage(null);
+      setFactsChecked(false);
+      let changed = false;
+      const fixed = parts.map((p) => {
+        const t = applyLessonFix(p.text, fix, generator.context.nodeId);
+        if (t === null) return p;
+        changed = true;
+        if (paste === p.text) setPaste(t);
+        return { text: t, parsed: parseLessonPart(t) };
+      });
+      if (!changed) {
+        setMessage({ kind: "error", text: "The fix could not be applied to the pasted text: edit it in the assistant and paste again." });
+        return;
+      }
+      setParts(fixed);
+      showMerged(fixed, "Fix applied — checked again.");
+    });
+
+  const fixButton = (e: FixableError, i: number) => {
+    if (!e.fix || !outcome || outcome.kind !== "errors") return null;
+    // one "Strip citation markers" button for the whole list (it strips every field at once)
+    if (e.fix.kind === "STRIP_CITATIONS" && outcome.errors.findIndex((x) => x.fix?.kind === "STRIP_CITATIONS") !== i) return null;
+    const fix = e.fix;
+    return (
+      <button type="button" className={`${studioQuietAction} ml-2`} disabled={busy || pending} onClick={() => applyFix(fix)}>
+        {fix.kind === "USE_THIS_TOPIC" ? "Use this topic" : "Strip citation markers"}
+      </button>
+    );
+  };
 
   const save = () =>
     start(async () => {
@@ -269,7 +311,7 @@ export function LessonGenerator({ nodes, selectedNodeId, generator, loadError, s
         </div>
         <CheckRegion regionRef={regionRef}>
           {outcome.kind === "exception" && <p className="mt-3 rounded-card border border-danger-200 bg-danger-50 px-4 py-3 text-[13px] font-semibold text-danger-800">{outcome.message}</p>}
-          {outcome.kind === "errors" && <CheckProblems notice={outcome.notice} errors={outcome.errors} title="Problems in the pasted lesson" />}
+          {outcome.kind === "errors" && <CheckProblems notice={outcome.notice} errors={outcome.errors} action={fixButton} title="Problems in the pasted lesson" />}
           {outcome.kind === "incomplete" && (
             <div className="mt-3 rounded-card border border-warning-200 bg-warning-50 px-4 py-3 text-[13px] text-fg">
               {outcome.notice && <p>{outcome.notice}</p>}
