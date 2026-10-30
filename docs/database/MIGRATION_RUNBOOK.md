@@ -33,6 +33,11 @@ backup  →  pre-check (dry-run)  →  apply via runner  →  verify  →  ledge
   - **Never terminate sessions yourself:** report the pid to the owner.
   - **Orphaned sessions:** `idle_in_transaction_session_timeout = '30s'` is also set, so a session whose client died mid-transaction ends itself and releases its locks. (Incident 2026-10-25: a stopped 102 smoke left a pooled backend "idle in transaction (aborted)" holding ACCESS EXCLUSIVE locks on 27 tables; the server default is 0, meaning never. The owner terminated that one backend.)
 - **GIT-SAFETY (permanent rule, 2026-10-25):** never run `git stash`, `git reset --hard`, `git checkout -- <path>` or `git clean` on a dirty tree. Commit work in progress to a local branch instead, for example `git switch -c wip/<topic>` and `git commit`. (Observed 2026-10-25: a stray `git stash` hid uncommitted AGE-18 work. It was restored with `git stash pop` and nothing was lost.)
+- **DEPLOY-BEFORE-ACTIVATE (permanent rule, architect 2026-10-30):** never activate a database-side template version, feature flag or config value before production runs the code that reads it.
+  - **Order:** code to main → production deploy verified (push CI prod-smoke green, `/api/health` version = HEAD) → only then activate (`fn_prompt_template_activate`, a settings row, a flag).
+  - A dry-run of the install script before the deploy is fine; the real run waits.
+  - Code that lives on a branch (`mig/<nnn>`) waits for the merge to main and the production check.
+  - (Observed 2026-10-30, LESSON-NODE-ID-1: LESSON template v3 was activated while production still ran code that neither appended the "ALLOWED NODE IDS" block nor accepted `THIS_TOPIC`. It was contained by cherry-picking the fix to main, e5851a8.)
 - **Read-only investigation sessions:** use transaction-scoped `BEGIN READ ONLY … ROLLBACK`. Do **not** run session-level `SET default_transaction_read_only = on` through the Supavisor transaction pooler (port 6543). The setting persists on the pooled backend and later clients inherit read-only sessions. (Observed in DRIFT-1b and reset with `RESET default_transaction_read_only`.)
 
 ## 1. Backup (mandatory) — standard procedure: BACKUP-RESILIENT-1

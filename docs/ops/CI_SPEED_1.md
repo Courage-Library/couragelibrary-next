@@ -76,7 +76,20 @@ The shared object group was mapped from the catalog (read only, 2026-10-29). Its
 - **C-15** pins live-gates per shard: db 40 · security 25 · pages 20. These are about 1.5 × the measured shard time.
 - The other jobs are unchanged.
 
-## Residual (needs a ruling: phase 2)
+## Outcome (dispatch 40996314259, 2026-10-30)
+
+All 3 shards green on the first run:
+
+| Shard | Time |
+|---|---|
+| db | 28 min |
+| security | 15 min |
+| pages | 8 min |
+
+- Wall-clock ≈ 30 min (was 45). The architect accepted ≈ 27–30 min.
+- CI-SPEED-1 is closed. Phase 2 below is **DEFERRED to the backlog** (ruling 2026-10-30).
+
+## Backlog: CI-SPEED-1 phase 2 (deferred)
 
 The db shard is the floor: about 25 min of serialized gate time. To reach ≤ 25 min wall-clock with margin, it has to be split, and that needs gate-internal changes:
 
