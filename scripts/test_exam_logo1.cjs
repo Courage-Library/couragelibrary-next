@@ -176,7 +176,7 @@ const img = (w, h, fmt, opts = {}) => {
 
   await test('D-1 display + inputs: fixed box, lazy; the exam layout shows the logo + the not-affiliated line; lists / landing / admin (+ Logo missing) / Today use it; upload inputs PNG / JPG / WebP only', async () => {
     const badge = read('components/exams/exam-logo-badge.tsx');
-    assert(/width=\{px\} height=\{px\}/.test(badge) && /style=\{\{ width: px, height: px \}\}/.test(badge) && /priority=\{priority\}/.test(badge) && /Courage Library is an independent platform and is not affiliated with \{body\}\./.test(badge), 'badge');
+    assert(/width=\{px\} height=\{px\}/.test(badge) && /style=\{\{ width: px, height: px \}\}/.test(badge) && /loading=\{priority \? "eager" : "lazy"\}/.test(badge) && !/from "next\/image"/.test(badge) && /Courage Library is an independent platform and is not affiliated with \{body\}\./.test(badge), 'badge');
     const layout = read('app/exams/[slug]/layout.tsx');
     assert(/<ExamLogoBadge logo=\{brand\.logo\}/.test(layout) && /<NotAffiliatedLine body=\{brand\.bodyName\} \/>/.test(layout) && /if \(!brand\) return <>\{children\}<\/>;/.test(layout), 'exam layout');
     for (const f of ['app/exams/page.tsx', 'components/landing/landing-sections.tsx']) assert(/<ExamLogoBadge logo=\{exam\.logo\}/.test(read(f)), f);
