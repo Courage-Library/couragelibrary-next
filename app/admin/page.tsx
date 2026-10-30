@@ -311,7 +311,7 @@ function Recent({ rows }: { rows: NonNullable<TodayV2["recent"]> }) {
     const day = (t: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(t);
     const d = new Date(iso);
     const now = new Date();
-    if (day(d) === day(now)) return new Intl.DateTimeFormat("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Kolkata" }).format(d);
+    if (day(d) === day(now)) return new Intl.DateTimeFormat("en-IN", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "Asia/Kolkata" }).format(d);
     if (day(d) === day(new Date(now.getTime() - 86400e3))) return "Yesterday";
     return new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", timeZone: "Asia/Kolkata" }).format(d);
   };

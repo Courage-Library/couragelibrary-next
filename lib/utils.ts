@@ -17,12 +17,14 @@ export function formatDate(date: string | Date): string {
 /**
  * Asia/Kolkata (IST) Scheduling and Future Launch Validation Utilities
  */
-export function getIstCurrentDateTime(): {
+// RANGE-ERROR-1 (2026-10-30): hourCycle "h23", never the hour12 option set to false — V8 then formats midnight as hour "24",
+// which built "…T24:mm:ss+05:30" (an invalid date) and made getIstTomorrowDateStr throw "RangeError: Invalid time value"
+// between 00:00 and 00:59 IST (/admin/exams/cycles). `now` is injectable for the gate (scripts/test_ist_time.cjs).
+export function getIstCurrentDateTime(now: Date = new Date()): {
   istDateStr: string;
   istTimeStr: string;
   istTimestampMs: number;
 } {
-  const now = new Date();
   const istFormatter = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Kolkata",
     year: "numeric",
@@ -31,7 +33,7 @@ export function getIstCurrentDateTime(): {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
-    hour12: false,
+    hourCycle: "h23",
   });
   const parts = istFormatter.formatToParts(now);
   const getPart = (type: string) => parts.find((p) => p.type === type)?.value || "00";
@@ -50,8 +52,8 @@ export function getIstCurrentDateTime(): {
   return { istDateStr, istTimeStr, istTimestampMs };
 }
 
-export function getIstTomorrowDateStr(): string {
-  const { istTimestampMs } = getIstCurrentDateTime();
+export function getIstTomorrowDateStr(now: Date = new Date()): string {
+  const { istTimestampMs } = getIstCurrentDateTime(now);
   const tomorrow = new Date(istTimestampMs + 86400000);
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Kolkata",
