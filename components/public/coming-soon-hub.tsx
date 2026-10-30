@@ -3,17 +3,20 @@
  * active (decision #32). No content, no numbers, no dates; noindex is set by the page metadata.
  * F1 (#75): the same skeleton as the exam home page — header, at a glance (all "Not published yet"), then mock tests,
  * syllabus and guides as honest "coming soon" states. No start action and no "Notify me" (no waitlist exists yet).
+ * EXAM-LOGO-1: ends with the not-affiliated line, like every exam page.
  */
 import { CircleDashed, ClipboardList, FileText, BookOpen } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Container } from "@/components/ui/layout";
 import { PublicSection } from "@/components/public/public-page";
 import { ExamGlance, ExamHomeHeader } from "@/components/exams/exam-home";
+import { NotAffiliatedLine } from "@/components/exams/exam-logo-badge";
 import { EXAM_PAGE } from "@/content/exam-page";
 import { COMING_SOON_HUB } from "@/content/public-pages";
 import { glanceRows } from "@/lib/exams/exam-page";
 
-export function ComingSoonHub({ title }: { title: string }) {
+export function ComingSoonHub({ title, body }: { title: string; body: string }) {
   const S = EXAM_PAGE.comingSoon;
   return (
     <div data-coming-soon-hub="">
@@ -49,6 +52,10 @@ export function ComingSoonHub({ title }: { title: string }) {
           </ButtonLink>
         </div>
       </PublicSection>
+      {/* EXAM-LOGO-1: an inactive exam has no logo strip (exam layout), but its page still names the body */}
+      <Container className="pb-8 pt-2">
+        <NotAffiliatedLine body={body} />
+      </Container>
     </div>
   );
 }

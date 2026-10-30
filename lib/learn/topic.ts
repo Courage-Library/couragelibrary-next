@@ -31,8 +31,8 @@ export type TopicLearning = {
 
 export async function loadTopicLearning(supabase: AppSupabaseClient, topicId: string): Promise<TopicLearning | null> {
   if (!ID_RX.test(topicId)) return null;
-  const { data: node } = await supabase.from("canonical_taxonomy_nodes").select("id, name, node_type, is_active, parent_id").eq("id", topicId).maybeSingle();
-  if (!node || node.node_type !== "TOPIC" || !node.is_active) return null;
+  const { data: node } = await supabase.from("canonical_taxonomy_nodes").select("id, name, node_type, is_active, is_internal, parent_id").eq("id", topicId).maybeSingle();
+  if (!node || node.node_type !== "TOPIC" || !node.is_active || node.is_internal) return null; // QA-FIXTURES (b): an INTERNAL topic is never a public page
   const [{ data: parent }, documents, practiceHref] = await Promise.all([
     node.parent_id ? supabase.from("canonical_taxonomy_nodes").select("name").eq("id", node.parent_id).maybeSingle() : Promise.resolve({ data: null as { name: string } | null }),
     LearningResolverService.resolveForTopic(topicId),

@@ -13,7 +13,8 @@
  *       content hash, delete an old file only after the row switched; the create action refuses an inline new body
  *   D-1 display: the logo badge always has a fixed box (width / height; no layout shift), lazy unless priority; the exam
  *       layout shows the logo + the not-affiliated line; the exams list, the landing cards, the admin list (+ "Logo
- *       missing") and Today use it; the upload input accepts PNG / JPG / WebP only (never SVG)
+ *       missing") and Today use it; a coming-soon exam page ends with the not-affiliated line too (EXAM-LOGO-1.1);
+ *       the upload input accepts PNG / JPG / WebP only (never SVG)
  * Run: node scripts/test_exam_logo1.cjs
  */
 const fs = require('fs');
@@ -180,6 +181,11 @@ const img = (w, h, fmt, opts = {}) => {
     const layout = read('app/exams/[slug]/layout.tsx');
     assert(/<ExamLogoBadge logo=\{brand\.logo\}/.test(layout) && /<NotAffiliatedLine body=\{brand\.bodyName\} \/>/.test(layout) && /if \(!brand\) return <>\{children\}<\/>;/.test(layout), 'exam layout');
     for (const f of ['app/exams/page.tsx', 'components/landing/landing-sections.tsx']) assert(/<ExamLogoBadge logo=\{exam\.logo\}/.test(read(f)), f);
+    // EXAM-LOGO-1.1: an inactive "coming soon" exam page has no logo strip but still ends with the not-affiliated line
+    const soon = read('components/public/coming-soon-hub.tsx');
+    assert(/<NotAffiliatedLine body=\{body\} \/>/.test(soon) && /<ComingSoonHub title=\{soon\.title\} body=\{soon\.body\} \/>/.test(read('app/exams/[slug]/page.tsx')), 'coming-soon hub: no not-affiliated line');
+    const soonList = /comingSoon: \[([\s\S]*?)\]/.exec(read('content/landing.ts'));
+    assert(soonList && (soonList[1].match(/slug:/g) || []).length === (soonList[1].match(/body: "[^"]+"/g) || []).length, 'a coming-soon exam without its conducting body');
     const view = read('components/admin/exam-onboarding/exam-management-view.tsx');
     assert(/<ExamLogoBadge/.test(view) && /Logo missing/.test(view) && /<ConductingBodiesPanel orgs=\{conductingOrgs\} canEdit=\{canEditLogos\} \/>/.test(view), 'admin list');
     assert(/examsWithoutLogo/.test(read('lib/admin/today.ts')) && /Exams without a logo/.test(read('app/admin/page.tsx')), 'Today');

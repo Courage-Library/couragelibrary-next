@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 /**
  * SYLIMPORT1-SCOPE negative controls — ONE rolled-back transaction (safeBegin, LIVE-LOCK-SAFETY), savepoints per case,
- * the same module the gate uses (scripts/live/_suite-scope.cjs), real data. Nothing persists.
+ * the same module the gate uses (scripts/live/_suite-scope.cjs). Nothing persists.
+ * QA-FIXTURES (b): every node the controls read or edit is created INSIDE the transaction (an INTERNAL QA subject with
+ * five topics: the four-node touch-set + one outside it) — never the owner's real topics / subjects, not even rolled back.
  *   C-0 no change                                                                          → the invariant HOLDS
  *   C-1 a suite actor edits a touch-set node (+ its audit row)                             → FAILS (touch-set + audit)
  *   C-2 a suite actor edits a pre-existing node OUTSIDE the touch-set (audit row only)     → FAILS (audit)
@@ -17,7 +19,7 @@ const { dbTarget, redactor } = require(path.join(ROOT, 'scripts/db/_db-env.cjs')
 const { safeBegin } = require(path.join(ROOT, 'scripts/db/live-safety.cjs'));
 const { touchSetIds, touchSetFingerprint, suiteScopeProblems } = require('./_suite-scope.cjs');
 
-const TOUCH = ['quantitative-aptitude.percentage', 'quantitative-aptitude.average', 'quantitative-aptitude.ratio-proportion', 'english-comprehension.synonyms'];
+const TOUCH_KEYS = ['percentage', 'average', 'ratio-proportion', 'synonyms'];
 
 (async () => {
   const target = dbTarget();
@@ -36,10 +38,16 @@ const TOUCH = ['quantitative-aptitude.percentage', 'quantitative-aptitude.averag
     const ids = Object.fromEntries((await q(`SELECT email, id FROM auth.users WHERE email IN ('qa-student@courage-library.test','qa-staff@courage-library.test','qa-admin@courage-library.test')`)).map((r) => [r.email.split('@')[0], r.id]));
     const [qa] = await q(`SELECT id FROM public.exams WHERE slug = 'qa-syllabus-test'`);
     const [other] = await q(`SELECT id FROM public.exams WHERE slug <> 'qa-syllabus-test' ORDER BY slug LIMIT 1`);
-    const touchIds = await touchSetIds(q, TOUCH);
-    if (!ids['qa-staff'] || !qa || !other || touchIds.length !== 4) throw new Error('QA identities / exams / touch-set missing');
-    const [outside] = await q(`SELECT id FROM public.canonical_taxonomy_nodes WHERE node_type = 'TOPIC' AND NOT (id = ANY($1::uuid[])) ORDER BY hierarchy_path LIMIT 1`, [touchIds]);
-    const [subject] = await q(`SELECT id FROM public.canonical_taxonomy_nodes WHERE node_type = 'SUBJECT' ORDER BY hierarchy_path LIMIT 1`);
+    // the controls' own nodes (rolled back with everything else)
+    const [subject] = await q(`INSERT INTO public.canonical_taxonomy_nodes (parent_id, node_type, name, slug, is_internal, subject_type, metadata)
+        VALUES (NULL, 'SUBJECT', 'QA Scope Controls', 'qa-scope-controls', true, 'APTITUDE', '{"source":"QA_FIXTURE"}') RETURNING id`);
+    const topic = async (key) => (await q(`INSERT INTO public.canonical_taxonomy_nodes (parent_id, node_type, name, slug, is_internal, metadata)
+        VALUES ($1, 'TOPIC', $2, $3, true, '{"source":"QA_FIXTURE"}') RETURNING hierarchy_path`, [subject.id, `QA Scope ${key}`, key]))[0].hierarchy_path;
+    const touchPaths = [];
+    for (const k of TOUCH_KEYS) touchPaths.push(await topic(k));
+    const [outside] = await q(`SELECT id FROM public.canonical_taxonomy_nodes WHERE hierarchy_path = $1`, [await topic('outside')]);
+    const touchIds = await touchSetIds(q, touchPaths);
+    if (!ids['qa-staff'] || !qa || !other || touchIds.length !== 4 || !outside) throw new Error('QA identities / exams / touch-set missing');
     // the window starts BEFORE the transaction's own writes (now() is the transaction start; inserts default to it)
     const scope = {
       since: (await q(`SELECT now() - interval '1 second' t`))[0].t,

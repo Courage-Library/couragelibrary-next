@@ -71,7 +71,7 @@ export default async function ExamHomePage({ params }: Props) {
   const result = await ExamKnowledgeCandidateService.getExamKnowledgeCandidateView({ examSlug: slug });
 
   const soon = comingSoonFor(result.status, slug);
-  if (soon) return <ComingSoonHub title={soon.title} />;
+  if (soon) return <ComingSoonHub title={soon.title} body={soon.body} />;
   if (result.status !== "FOUND" || !result.data) {
     notFound();
   }

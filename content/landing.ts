@@ -55,10 +55,11 @@ export const LANDING_EXAMS = {
   syllabusAvailable: "Syllabus available",
   syllabusSoon: "Syllabus coming soon",
   comingSoonLabel: "Coming soon",
-  /** shown as plain text cards (no links) until their exam pages exist; hidden once the exam is active */
+  /** shown as plain text cards (no links) until their exam pages exist; hidden once the exam is active. `body` = the
+   *  conducting body named in the coming-soon hub's not-affiliated line (EXAM-LOGO-1: every exam page carries it) */
   comingSoon: [
-    { slug: "ssc-chsl", title: "SSC CHSL" },
-    { slug: "ssc-mts", title: "SSC MTS" },
+    { slug: "ssc-chsl", title: "SSC CHSL", body: "Staff Selection Commission" },
+    { slug: "ssc-mts", title: "SSC MTS", body: "Staff Selection Commission" },
   ],
   fallback: "The exam list could not be loaded right now. You can still browse all exams.",
   fallbackCta: { label: "Browse exams", href: "/exams" },

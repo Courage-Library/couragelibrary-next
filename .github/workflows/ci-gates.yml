@@ -436,7 +436,7 @@ jobs:
             "$Q RLS -- node scripts/test_sec_hotfix4_rls.cjs" \
             "$Q GAP2-4A -- node scripts/test_gap2_4a_syllabus.cjs" \
             "$Q READERS -- node scripts/test_gap2_4b_readers.cjs --base=$B" \
-            "$Q SYLIMPORT1 -- node scripts/test_syl_import1.cjs" \
+            "$Q SYLIMPORT1 -- node scripts/test_syl_import1.cjs --base=$B" \
             "$Q SYLIMPORT1-SCOPE-CONTROLS -- node scripts/live/test_suite_scope_controls.cjs" \
             "$Q CA1-TAXONOMY-LIVE -- node scripts/live/test_ca1_taxonomy.cjs" \
             "$Q CA2-INTAKE-LIVE -- node scripts/live/test_ca2_intake.cjs" \

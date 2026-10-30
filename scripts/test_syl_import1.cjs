@@ -24,21 +24,33 @@
  *   I11 staff cannot publish / archive the imported DRAFT (42501); admin publishes through fn_syllabus_publish (rolled back)
  *   I12 live: every topic of the CGL file resolves against the live taxonomy; the RPC accepts the full file (QA exam,
  *       rolled back — never ssc-cgl)
+ *   QA-FIXTURES (b) (architect 2026-10-30): the live run maps its OWN committed fixture topics — four INTERNAL topics
+ *       created at the start of the run (scripts/live/_qa-run-fixture.cjs, metadata source QA_FIXTURE_RUN + run tag) and
+ *       deleted in the outer `finally` — never the owner's real topics. Before creating them the QA-only sweeper removes
+ *       run fixtures older than 2 h (a killed run; audited QA_FIXTURE_SWEEP).
+ *   I13 the run's fixture topics are invisible to anon / students during the run: sitemap, the exams hub, the QA exam's
+ *       hub / course, the /learn and exam-topic pages, the legacy /learn/topics page, and the subjects list (--base=URL;
+ *       without it only the data-level checks run)
+ *   I14 the sweeper (rolled back): deletes ONLY QA run fixtures older than 2 h and audits it; negative controls — a fresh
+ *       run fixture, an old node with the same slug prefix but another source, an old QA-run-marked node that is not
+ *       INTERNAL and an old real topic are untouched
  *   Cleanup: the suite's own DRAFT (QA exam) is deleted as owner (DRAFT rows are deletable by design) → QA-exam syllabus
  *   rows return to the baseline; the suite changed nothing outside its fixtures (SYLIMPORT1-SCOPE, scripts/live/
  *   _suite-scope.cjs): touch-set md5 identical, ZERO taxonomy audit rows by the suite's actors, ZERO suite syllabus audit
  *   rows / versions outside the QA exam — an owner editing the Master tree or running an intake meanwhile never fails it.
  *
- * Run: node scripts/test_syl_import1.cjs [--offline]
+ * Run: node scripts/test_syl_import1.cjs [--offline] [--base=http://localhost:3100]
  */
 const { safeBegin } = require('./db/live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
 const { touchSetIds, touchSetFingerprint, suiteScopeProblems } = require('./live/_suite-scope.cjs');
+const RUNFIX = require('./live/_qa-run-fixture.cjs');
 const fs = require('fs');
 const path = require('path');
 const ts = require('typescript');
 
 const ROOT = path.resolve(__dirname, '..');
 const OFFLINE = process.argv.includes('--offline');
+const BASE = (process.argv.find((a) => a.startsWith('--base=')) || '').slice(7).replace(/\/$/, '');
 let passed = 0;
 let failed = 0;
 async function test(name, fn) {
@@ -56,10 +68,11 @@ const C = load('lib/syllabus/import-contract.ts');
 const MIGRATION = 'supabase/migrations/20261016000086_syl_import1_import_draft.sql';
 const CGL_FILE = 'data/syllabus-drafts/ssc-cgl-tier1.v1.json';
 
-const T1 = 'quantitative-aptitude.percentage';
-const T2 = 'quantitative-aptitude.average';
-const T3 = 'quantitative-aptitude.ratio-proportion';
-const T4 = 'english-comprehension.synonyms';
+// offline: catalog paths; live: replaced by the run's own committed fixture topics (QA-FIXTURES (b))
+let T1 = 'quantitative-aptitude.percentage';
+let T2 = 'quantitative-aptitude.average';
+let T3 = 'quantitative-aptitude.ratio-proportion';
+let T4 = 'english-comprehension.synonyms';
 const TAG = 'syl-import1-test';
 const base = () => ({
   contract_version: 1, exam: 'qa-syllabus-test', cycle_year: null, version_tag: TAG, source_note: 'SYL-IMPORT-1 suite fixture.',
@@ -249,6 +262,11 @@ const CASES = [
     assert(C.resolveImportTopics(cgl, catalog, 'ssc-cgl').errors.length === 0, 'full catalog');
     const res = C.resolveImportTopics(cgl, catalog.filter((t) => t.path !== 'general-awareness.sports'), 'ssc-cgl');
     assert(res.missing.join() === 'general-awareness.sports' && res.errors.some((e) => e.code === 'MISSING_TOPIC' && /general-awareness\.sports/.test(e.message)), 'missing topic not reported');
+    // I12 ruling (architect 2026-10-30): structure / schema stays a HARD failure — negative controls: a corrupted copy
+    // (an unknown key; a duplicate unit code; no papers) is refused by the same validator
+    const bad = (f) => { const x = JSON.parse(text); f(x); return vt(JSON.stringify(x)); };
+    for (const [n, f] of [['unknown key on a paper', (x) => { x.papers[0].bogus = 1; }], ['duplicate unit code', (x) => { x.papers[0].sections[0].units[1].code = x.papers[0].sections[0].units[0].code; }], ['no papers', (x) => { x.papers = []; }]])
+      assert(!bad(f).ok, `a corrupted structure passed the validator (${n})`);
     const notes = read('docs/syllabus/SSC_CGL_TIER1_DRAFT_NOTES.md');
     assert(/OWNER MUST VERIFY/.test(notes) && /Missing topics/i.test(notes), 'notes: checklist / missing-topics section');
     for (const s of p.sections) for (const u of s.units) assert(notes.includes(`\`${u.code}\``), `notes: no source row for ${u.code}`);
@@ -297,6 +315,16 @@ const CASES = [
     catch (e) { await c.query('ROLLBACK TO SAVEPOINT x'); return e; }
   };
 
+  // QA-FIXTURES (b): sweep stale run fixtures (QA-only, > 2 h, audited), then create this run's own topics
+  const swept = await (async () => {
+    await safeBegin(c);
+    try { const ids = await RUNFIX.sweepQaRunFixtures(async (sql, p) => (await c.query(sql, p)).rows); await c.query('COMMIT'); return ids.length; }
+    catch (e) { await c.query('ROLLBACK').catch(() => {}); throw e; }
+  })();
+  if (swept) console.log(`  INFO  QA run-fixture sweeper removed ${swept} stale node(s) of an earlier killed run (audited QA_FIXTURE_SWEEP)`);
+  const RUN = RUNFIX.runTag();
+  [T1, T2, T3, T4] = await RUNFIX.createRunTopics(c, RUN, ['percentage', 'average', 'ratio-proportion', 'synonyms']);
+  try {
   let draftId = null;
   let qaExam = null;
   let before = null;
@@ -534,12 +562,24 @@ const CASES = [
       return 'staff 42501 ×2; admin publish OK (rolled back)';
     });
 
-    await test('I12 live: every topic of the CGL file resolves against the live taxonomy (missing: none); the RPC accepts the full file (QA exam, rolled back)', async () => {
+    // I12 ruling (architect 2026-10-30): the historical CGL draft is checked against the LIVE master tree; a topic the owner
+    // has since merged / renamed / deactivated ("no longer in the master tree") is a WARNING, never a failure. Every other
+    // resolution error, the structure and the RPC import of the rest stay HARD failures.
+    await test('I12 live: the CGL file\'s topics resolve against the live taxonomy (topics no longer in the master tree → WARN); the RPC imports it (QA exam, rolled back)', async () => {
       assert(cgl, 'offline I12 failed');
       const catalog = await ro(`SELECT id, hierarchy_path path, name, is_active FROM public.canonical_taxonomy_nodes WHERE node_type = 'TOPIC'`);
       const res = C.resolveImportTopics(cgl, catalog, 'ssc-cgl');
-      assert(res.errors.length === 0, `missing ${res.missing.join(', ') || '-'}; inactive ${res.inactive.join(', ') || '-'}`);
-      const qaCopy = { ...C.importPayloadToJson(cgl), exam: 'qa-syllabus-test', cycle_year: null, version_tag: 'syl-import1-cgl-dryrun' };
+      const gone = new Set([...res.missing, ...res.inactive]);
+      const other = res.errors.filter((e) => !['MISSING_TOPIC', 'TOPIC_INACTIVE'].includes(e.code));
+      assert(other.length === 0, `resolution errors other than "no longer in the master tree": ${JSON.stringify(other).slice(0, 300)}`);
+      if (gone.size) console.log(`  WARN  I12: ${gone.size} topic(s) of the historical CGL draft are no longer in the master tree (merged / renamed / inactive): ${[...gone].join(', ')} — their units are left out of the dry-run import`);
+      const full = C.importPayloadToJson(cgl);
+      const keep = JSON.parse(JSON.stringify(full));
+      for (const pp of keep.papers) for (const sec of pp.sections) sec.units = sec.units.filter((u) => !u.topics.some((t) => gone.has(t.topic)));
+      for (const pp of keep.papers) pp.sections = pp.sections.filter((sec) => sec.units.length > 0);
+      const units = keep.papers.reduce((n, pp) => n + pp.sections.reduce((m, sec) => m + sec.units.length, 0), 0);
+      assert(units > 0, 'every unit of the CGL draft lost its topic: nothing left to import');
+      const qaCopy = { ...keep, exam: 'qa-syllabus-test', cycle_year: null, version_tag: 'syl-import1-cgl-dryrun' };
       const r = await rolledBack(async () => {
         if (draftId) { await c.query('DELETE FROM public.exam_syllabus_nodes WHERE syllabus_version_id = $1', [draftId]); await c.query('DELETE FROM public.exam_syllabus_versions WHERE id = $1', [draftId]); }
         await asUser(ids['qa-staff'], 'staff', 'qa-staff@courage-library.test');
@@ -548,9 +588,59 @@ const CASES = [
         const rep = (await c.query('SELECT public.fn_syllabus__validate($1) r', [out.version_id])).rows[0].r;
         return { out, rep };
       });
-      assert(r.out.nodes === 41 && r.out.mappings === 36, JSON.stringify(r.out));
+      const sections = qaCopy.papers.reduce((n, pp) => n + pp.sections.length, 0);
+      assert(r.out.mappings === units && r.out.nodes === qaCopy.papers.length + sections + units, JSON.stringify({ out: r.out, units, sections }));
       assert(r.rep.ok === true, `CGL draft does not validate: ${JSON.stringify(r.rep.errors).slice(0, 300)}`);
-      return `36/36 topics resolve; RPC 41 nodes / 36 mappings; validate ok; ${r.rep.warning_count} warnings`;
+      return `${36 - gone.size}/36 topics resolve${gone.size ? ` (${gone.size} no longer in the tree: WARN)` : ''}; RPC ${r.out.nodes} nodes / ${r.out.mappings} mappings; validate ok; ${r.rep.warning_count} warnings`;
+    });
+
+    await test('I13 the run\'s fixture topics are invisible to anon / students during the run (sitemap, exams hub, QA exam hub / course, learn / exam-topic / legacy topic pages, subjects list)', async () => {
+      const [t1] = await ro(`SELECT id, slug FROM public.canonical_taxonomy_nodes WHERE hierarchy_path = $1 AND is_internal AND metadata ->> 'source' = $2`, [T1, RUNFIX.RUN_SOURCE]);
+      assert(t1, 'the run fixture topic is missing or not INTERNAL');
+      // data level, as the student (PostgREST, real session): no QA fixture in the subjects list (no SUBJECT is created)
+      const studentTok = await token('qa-student@courage-library.test', 'QA_STUDENT_PASSWORD');
+      const subj = await fetch(`${URL_}/rest/v1/subjects?select=name&name=ilike.*QA%20Fixture*`, { headers: { apikey: ANON, Authorization: `Bearer ${studentTok}` } }).then((r) => r.json());
+      assert(Array.isArray(subj) && subj.length === 0, `subjects list shows a QA fixture: ${JSON.stringify(subj).slice(0, 200)}`);
+      if (!BASE) return 'data level only (no --base)';
+      const page = async (u) => {
+        for (let i = 1; i <= 3; i++) {
+          try { const r = await fetch(`${BASE}${u}`, { redirect: 'manual' }); return { status: r.status, text: await r.text() }; } catch (e) { if (i === 3) throw e; await new Promise((ok) => setTimeout(ok, 2000)); }
+        }
+      };
+      const sm = await page('/sitemap.xml');
+      assert(sm.status === 200 && !sm.text.includes(t1.slug) && !sm.text.includes('qa-syllabus-test'), `sitemap ${sm.status} lists the fixture`);
+      const hub = await page('/exams');
+      assert(hub.status === 200 && !hub.text.includes('qa-syllabus-test') && !hub.text.includes(t1.slug), 'the exams hub lists the QA exam / fixture');
+      const urls = ['/exams/qa-syllabus-test', '/exams/qa-syllabus-test/course', `/learn/${T1.split('.').join('/')}`, `/exams/ssc-cgl/${T1.split('.').join('/')}`, `/learn/topics/${t1.id}`];
+      for (const u of urls) {
+        const r = await page(u);
+        assert(r.status === 404, `${u.replace(t1.id, '<id>')} → ${r.status} (want 404)`);
+      }
+      return `sitemap + exams hub clean; ${urls.length} pages 404; student subjects list clean`;
+    });
+
+    await test('I14 QA run-fixture sweeper (rolled back): only QA run fixtures older than 2 h are deleted + audited; negative controls untouched', async () => {
+      const r = await rolledBack(async () => {
+        const q = async (sql, p) => (await c.query(sql, p)).rows;
+        const [parent] = await q(`SELECT id FROM public.canonical_taxonomy_nodes WHERE hierarchy_path = 'quantitative-aptitude' AND node_type = 'SUBJECT'`);
+        const mk = async (slug, internal, meta, old) => (await q(`INSERT INTO public.canonical_taxonomy_nodes (parent_id, node_type, name, slug, is_internal, metadata, created_at)
+            VALUES ($1, 'TOPIC', $2, $3, $4, $5::jsonb, now() - make_interval(mins => $6)) RETURNING id`, [parent.id, `Sweep ${slug}`, slug, internal, JSON.stringify(meta), old ? 180 : 5]))[0].id;
+        const doomed = await mk('qa-fixture-run-sweepold-a', true, { source: RUNFIX.RUN_SOURCE, run: 'sweepold' }, true);
+        const keep = [
+          await mk('qa-fixture-run-sweepnew-a', true, { source: RUNFIX.RUN_SOURCE, run: 'sweepnew' }, false), // fresh
+          await mk('qa-fixture-run-sweepalien-a', true, { source: 'QA_FIXTURE', run: 'sweepalien' }, true), // other source
+          await mk('qa-fixture-run-sweeppub-a', false, { source: RUNFIX.RUN_SOURCE, run: 'sweeppub' }, true), // not INTERNAL
+          (await q(`SELECT id FROM public.canonical_taxonomy_nodes WHERE hierarchy_path = 'quantitative-aptitude.percentage'`))[0].id, // a real topic
+        ];
+        const ids = await RUNFIX.sweepQaRunFixtures(q);
+        const left = (await q(`SELECT id FROM public.canonical_taxonomy_nodes WHERE id = ANY($1::uuid[])`, [[doomed, ...keep]])).map((x) => x.id);
+        const audit = await q(`SELECT old_value FROM public.admin_audit_logs WHERE action_type = 'QA_FIXTURE_SWEEP' AND created_at = now()`);
+        return { ids, doomed, keep, left, audit };
+      });
+      assert(r.ids.includes(r.doomed) && !r.left.includes(r.doomed), 'the old QA run fixture was not swept');
+      assert(r.keep.every((id) => r.left.includes(id)) && r.ids.every((id) => !r.keep.includes(id)), 'a negative control was deleted');
+      assert(r.audit.length === 1 && r.audit[0].old_value.runs.includes('sweepold') && !r.audit[0].old_value.runs.includes('sweepnew'), `audit: ${JSON.stringify(r.audit).slice(0, 200)}`);
+      return `swept ${r.ids.length}; 4 controls untouched (fresh / other source / not INTERNAL / real topic); 1 audit row (rolled back)`;
     });
   } finally {
     if (draftId && qaExam) await deleteOwnDraft(draftId, qaExam.id).catch((e) => console.log(`  WARN  cleanup failed: ${e.message}`));
@@ -566,6 +656,12 @@ const CASES = [
     assert(problems.length === 0, problems.join('; '));
     return `QA exam ${before.v} versions / ${before.n} nodes / ${before.m} mappings (baseline); touch-set ${scope.touchIds.length} node(s) identical; 0 suite audit rows outside the fixtures`;
   });
+  } finally {
+    // QA-FIXTURES (b): the run's own topics go, whatever happened above
+    const n = await RUNFIX.deleteRunTopics(c, RUN).catch((e) => { console.log(`  WARN  QA run-fixture cleanup failed (the sweeper removes it after 2 h): ${e.message.slice(0, 200)}`); return -1; });
+    const left = (await ro(`SELECT count(*)::int n FROM public.canonical_taxonomy_nodes WHERE metadata ->> 'run' = $1`, [RUN]))[0].n;
+    if (n < 0 || left !== 0) { failed++; console.log(`  FAIL  QA run-fixture cleanup: ${left} node(s) left`); } else console.log(`  INFO  QA run fixtures: ${n} topic(s) created and deleted`);
+  }
   await c.end().catch(() => {});
   finish();
 
