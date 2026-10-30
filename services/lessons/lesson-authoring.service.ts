@@ -20,6 +20,7 @@ import { validateLesson, type BlockError, type LessonBlock } from "@/lib/lessons
 import { lessonChecklist, checklistPasses, type ChecklistItem } from "@/lib/lessons/completeness";
 import { renderTemplate } from "@/lib/prompts/template";
 import { MUST_COVER_MAX, lessonPromptValues, lessonSize, mergeLessonParts, mustCoverBlock, parseLessonPart, type LessonExamCoverage, type LessonPromptContext } from "@/lib/prompts/lesson-prompt";
+import { ALLOWED_NODES_MAX, allowedNodeIdsBlock, type AllowedNode } from "@/lib/prompts/lesson-node-ids";
 import { parseTranslationPaste, translatePromptValues } from "@/lib/prompts/translate-prompt";
 import { mapLessonDbError } from "@/services/lessons/lesson-admin.service";
 import { PromptTemplateService } from "@/services/prompts/prompt-template.service";
@@ -175,6 +176,17 @@ async function mustCoverFor(c: Ctx, nodeId: string): Promise<string[]> {
   return out;
 }
 
+/** LESSON-NODE-ID-1: the ids a practice_link of this lesson may use — the node itself, then the lesson nodes below it. */
+function allowedNodesFor(tree: Map<string, TreeNode>, nodeId: string): AllowedNode[] {
+  const self = tree.get(nodeId);
+  if (!self) return [];
+  const below = descendantsOf(tree, nodeId)
+    .map((id) => tree.get(id))
+    .filter((n): n is TreeNode => Boolean(n && LESSON_LEVELS.includes(n.node_type)))
+    .sort((a, b) => pathOf(tree, a.id).localeCompare(pathOf(tree, b.id)));
+  return [self, ...below].slice(0, ALLOWED_NODES_MAX).map((n) => ({ id: n.id, name: n.name, level: n.node_type }));
+}
+
 function subjectTypeOf(tree: Map<string, TreeNode>, nodeId: string): { id: string | null; name: string | null; type: string | null } {
   const n = tree.get(nodeId);
   const s = n?.root_subject_id ? tree.get(n.root_subject_id) : undefined;
@@ -234,6 +246,7 @@ export class LessonAuthoringService {
       aliases: (aliases.data || []).filter((a) => a.language === "en").map((a) => a.alias),
       existingLessons: (docs.data || []).filter((d) => d.node_id && d.node_id !== nodeId && related.has(d.node_id)).map((d) => pathOf(tree, d.node_id as string)),
       mustCover,
+      allowedNodes: allowedNodesFor(tree, nodeId),
     };
     const { data: own } = await c.supabase.from("learning_documents").select("id").eq("document_type", "NODE_LESSON").eq("node_id", nodeId).maybeSingle();
     return {
@@ -241,7 +254,8 @@ export class LessonAuthoringService {
       data: {
         context,
         // INTAKE-CONCEPTS-AS-OUTLINE: the subtopic's outline is appended (no placeholder, so no template change)
-        prompt: renderTemplate("LESSON", template.body, lessonPromptValues(context)) + mustCoverBlock(context.mustCover),
+        // LESSON-NODE-ID-1: the real node ids follow (no placeholder either)
+        prompt: renderTemplate("LESSON", template.body, lessonPromptValues(context)) + mustCoverBlock(context.mustCover) + allowedNodeIdsBlock(context.allowedNodes),
         templateVersion: template.version,
         templateSource: template.source,
         documentId: own?.id ?? null,
@@ -260,14 +274,15 @@ export class LessonAuthoringService {
     if (!UUID_RE.test(nodeId)) return fail("VALIDATION", "Choose a node.");
     if (!Array.isArray(parts) || !parts.length || parts.length > 10 || parts.some((p) => typeof p !== "string")) return fail("VALIDATION", "Paste the answer (1 to 10 parts).");
     // LESSON-PROMPT-2 item 6: the parts of one answer, merged in order; validated only when every part is in
-    const merged = mergeLessonParts(parts.map(parseLessonPart));
+    // LESSON-NODE-ID-1: practice links resolved / checked against this node's allowed ids (server-side, same rule)
+    const tree = await loadTree(c);
+    if (!tree?.get(nodeId)) return fail("NOT_FOUND", "Node not found.");
+    const merged = mergeLessonParts(parts.map(parseLessonPart), { nodeIds: { lessonNodeId: nodeId, allowed: allowedNodesFor(tree, nodeId) } });
     if (merged.state === "ERROR") return fail("VALIDATION", "The pasted lesson has problems.", { errors: merged.errors });
     if (merged.state === "INCOMPLETE") return fail("PARTS_MISSING", `Part ${merged.missing.join(", ")} of ${merged.totalParts} is missing.`);
     const parsed = merged.result;
     if (!parsed.ok) return fail("VALIDATION", "The pasted lesson has problems.", { errors: parsed.errors });
     if (parsed.uncertainFacts.length && !factsChecked) return fail("UNCERTAIN_FACTS", "The answer flags uncertain facts: check them and confirm before saving.");
-    const tree = await loadTree(c);
-    if (!tree?.get(nodeId)) return fail("NOT_FOUND", "Node not found.");
     const subject = subjectTypeOf(tree, nodeId);
     if (!subject.type) return fail("SUBJECT_TYPE_MISSING", SUBJECT_TYPE_MISSING, { subjectId: subject.id, subjectName: subject.name });
     const checklist = lessonChecklist(parsed.blocks, subject.type, lessonSize(await examCoverage(c, tree, nodeId)));

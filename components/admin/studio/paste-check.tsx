@@ -56,7 +56,7 @@ export function CheckRegion({ regionRef, children }: { regionRef: React.RefObjec
 }
 
 /** The notice / error list of a check (extraction notice, line:column, block id + field). */
-export function CheckProblems({ notice, errors, title }: { notice?: string | null; errors: { path: string; message: string }[]; title: string }) {
+export function CheckProblems<E extends { path: string; message: string }>({ notice, errors, title, action }: { notice?: string | null; errors: E[]; title: string; action?: (e: E, i: number) => React.ReactNode }) {
   return (
     <>
       {notice && <p className="mt-3 rounded-card border border-line bg-ink-50 px-4 py-2 text-[13px] text-fg">{notice}</p>}
@@ -67,6 +67,7 @@ export function CheckProblems({ notice, errors, title }: { notice?: string | nul
             {errors.slice(0, 30).map((e, i) => (
               <li key={i}>
                 <span className="font-mono">{e.path}</span> — {e.message}
+                {action ? action(e, i) : null}
               </li>
             ))}
           </ul>

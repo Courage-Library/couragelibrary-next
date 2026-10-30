@@ -7,11 +7,14 @@
  * LESSON-PROMPT-2: template v2 slots (CHILDREN, EXAM_LINES, EXAMPLE_FOR_SUBJECT_TYPE, one true subject-type section), the
  * SIZE rule by the highest weightage, meta.suggested_subtopics (taken out of meta, shown to the owner) and multi-part
  * answers ({"part", "total_parts"}, merged in order, validated only when complete).
+ * LESSON-NODE-ID-1: the merge refuses assistant citation markers and (given the lesson's allowed node ids) resolves
+ * practice_link "THIS_TOPIC" and refuses any other id — each error carries a one-click fix (lib/prompts/lesson-node-ids).
  */
 import { textProblem, validateLesson, type BlockError, type LessonBlock, type LessonMeta } from "@/lib/lessons/blocks";
 import { LESSON_MAX_EXAMPLES, LESSON_MIN_EXAMPLES, LESSON_MIN_QUICK_CHECKS } from "@/lib/lessons/completeness";
 import { LESSON_PASTE_CONTRACT } from "@/lib/prompts/lesson-contract";
 import { EXAMPLE_SUBJECT_TYPES, lessonExampleFor, sectionForSubjectType } from "@/lib/prompts/lesson-examples";
+import { citationProblems, resolveLessonNodeIds, THIS_TOPIC, type AllowedNode, type FixableError, type NodeIdContext } from "@/lib/prompts/lesson-node-ids";
 import { describeBlockPath, extractJson } from "@/lib/prompts/paste-extract";
 
 export { LESSON_PASTE_CONTRACT };
@@ -45,6 +48,8 @@ export interface LessonPromptContext {
   existingLessons: string[];
   /** INTAKE-CONCEPTS-AS-OUTLINE: the subtopic's outline from its exam syllabus (concepts kept as outline lines) */
   mustCover?: string[];
+  /** LESSON-NODE-ID-1: the ids a practice_link may use — this node first, then the nodes below it */
+  allowedNodes?: AllowedNode[];
 }
 
 export const MUST_COVER_MAX = 50;
@@ -78,7 +83,7 @@ export const LESSON_BLOCK_SPEC = `Every block is an object with a unique "id" (l
 - callout: { "variant": "TIP" | "WARNING" | "INFO" | "MEMORY_HOOK", "title"?, "text" }  (TIP = a shortcut)
 - trap: { "kind"?: "CALCULATION_SLIP" | "MISREAD_KEYWORD" | "FORMULA_CONFUSION" | "DISTRACTOR_TRAP", "text", "why" }
 - table: { "caption"?, "headers": ["…"], "rows": [["…"]] }  (one cell per header, plain text)
-- practice_link: { "node_id", "mode": "PRACTICE" | "PYQ" | "MOCK", "label"? }  (use only the node id given above)
+- practice_link: { "node_id", "mode": "PRACTICE" | "PYQ" | "MOCK", "label"? }  (node_id: one of the ALLOWED NODE IDS at the end of this prompt, or "${THIS_TOPIC}"; never invent one)
 - quick_check: { "prompt", "options": [{ "id", "text", "correct": true/false, "feedback"? }] }  (2–6 options, at least one correct)
 - revision_summary: { "bullets": ["…"], "formulas"?: ["LaTeX"], "speed_rules"?: ["…"] }  (exactly one, near the end)
 - memory_lock_points: { "points": ["…"] }  (3–10 short points to remember)
@@ -198,7 +203,12 @@ shape (much shorter than the real lesson):
 
 export type LessonPaste =
   | { ok: true; meta: LessonMeta; blocks: LessonBlock[]; uncertainFacts: string[]; suggestedSubtopics: string[] }
-  | { ok: false; errors: BlockError[] };
+  | { ok: false; errors: FixableError[] };
+
+/** LESSON-NODE-ID-1: with the lesson's node ids, practice links are resolved / checked against them. */
+export interface LessonMergeOptions {
+  nodeIds?: NodeIdContext;
+}
 
 /** One pasted part (or a whole single answer): parsed but NOT validated as a lesson yet. */
 export type LessonPart =
@@ -231,14 +241,14 @@ export function parseLessonPart(text: string): LessonPart {
 export type LessonMerge =
   | { state: "INCOMPLETE"; totalParts: number; have: number[]; missing: number[] }
   | { state: "COMPLETE"; result: LessonPaste }
-  | { state: "ERROR"; errors: BlockError[] };
+  | { state: "ERROR"; errors: FixableError[] };
 
 /**
  * Merges parsed parts in order (1..N, each exactly once, the same total) — the meta from part 1 (later parts may omit it),
  * blocks concatenated, facts concatenated — and validates the WHOLE lesson only when every part is in (ids must be
  * unique across parts: the block validator refuses a duplicate id).
  */
-export function mergeLessonParts(parts: LessonPart[]): LessonMerge {
+export function mergeLessonParts(parts: LessonPart[], opts: LessonMergeOptions = {}): LessonMerge {
   const errors = parts.flatMap((p) => (p.ok ? [] : p.errors));
   if (errors.length) return { state: "ERROR", errors };
   const ok = parts.filter((p): p is Extract<LessonPart, { ok: true }> => p.ok);
@@ -254,6 +264,16 @@ export function mergeLessonParts(parts: LessonPart[]): LessonMerge {
   if (missing.length) return { state: "INCOMPLETE", totalParts: total, have: [...seen].sort((a, b) => a - b), missing };
   const ordered = [...ok].sort((a, b) => a.part - b.part);
   const first = ordered[0];
+  // LESSON-NODE-ID-1: assistant citation markers anywhere in the text, then the practice-link node ids — fixable errors
+  const rawBlocks = ordered.flatMap((p) => p.blocks);
+  const pre: FixableError[] = citationProblems(first.meta, rawBlocks, ordered.flatMap((p) => p.uncertainFacts));
+  let resolved: unknown[] = rawBlocks;
+  if (opts.nodeIds) {
+    const r = resolveLessonNodeIds(rawBlocks, opts.nodeIds);
+    resolved = r.blocks;
+    pre.push(...r.errors);
+  }
+  if (pre.length) return { state: "COMPLETE", result: { ok: false, errors: pre.map((e) => ({ ...e, path: describeBlockPath(e.path, rawBlocks) })) } };
   // suggested subtopics travel in meta but are NOT lesson meta: taken out, checked, shown to the owner
   const metaIn = first.meta && typeof first.meta === "object" && !Array.isArray(first.meta) ? { ...(first.meta as Record<string, unknown>) } : first.meta;
   const suggested: string[] = [];
@@ -272,7 +292,7 @@ export function mergeLessonParts(parts: LessonPart[]): LessonMerge {
     facts.push(f.trim());
   }
   if (facts.length > UNCERTAIN_FACTS_MAX) return { state: "ERROR", errors: [{ path: "$.uncertain_facts", code: "VALUE", message: `At most ${UNCERTAIN_FACTS_MAX} facts.` }] };
-  const blocks = ordered.flatMap((p) => p.blocks);
+  const blocks = resolved;
   const v = validateLesson(metaIn, blocks);
   return {
     state: "COMPLETE",
@@ -283,8 +303,8 @@ export function mergeLessonParts(parts: LessonPart[]): LessonMerge {
 }
 
 /** A single pasted answer (one part, or a complete one-part lesson) → the lesson; an incomplete multi-part is an error here. */
-export function parseLessonPaste(text: string): LessonPaste {
-  const m = mergeLessonParts([parseLessonPart(text)]);
+export function parseLessonPaste(text: string, opts: LessonMergeOptions = {}): LessonPaste {
+  const m = mergeLessonParts([parseLessonPart(text)], opts);
   if (m.state === "COMPLETE") return m.result;
   if (m.state === "ERROR") return { ok: false, errors: m.errors };
   return { ok: false, errors: [{ path: "$.part", code: "PARTS_MISSING", message: `Part ${m.missing.join(", ")} of ${m.totalParts} is missing.` }] };
