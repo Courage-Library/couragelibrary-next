@@ -555,7 +555,7 @@
    "search_path": "\"\"",
    "reason": "client entrypoint; own check: fn_syllabus__assert_role"
   },
-  "fn_syllabus_publish(p_version_id uuid)": {
+  "fn_syllabus_publish(p_version_id uuid, p_confirm text)": {
    "class": "A",
    "client": [
     "authenticated"

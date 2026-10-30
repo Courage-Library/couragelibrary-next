@@ -10,19 +10,27 @@
  *                             /exams/ssc-cgl renders its syllabus section as the read model says: AVAILABLE → the
  *                             paper / section titles, no "coming soon"; NO_SYLLABUS → "Syllabus coming soon"
  *           admin-home        qa-admin:  /admin renders (200, no not-found)
- *           admin-pages       qa-admin:  B6 admin pages render (questions, sections, billing, community, descriptive,
- *                             institutes, mock-tests-management, bulk-import, taxonomy, exams) — no error boundary
- *           staff-content     qa-staff:  /admin/content and /admin/syllabus render (200, no not-found)
+ *           admin-pages       qa-admin:  B6 admin pages render (questions, sections, payments, community flags,
+ *                             institutes, mock tests, import, master tree, exams, …) — no error boundary
+ *           staff-content     qa-staff:  /admin/questions and /admin/syllabus render (200, no not-found)
  *   baseUrl defaults to http://localhost:3100. Passwords come from .env.local (QA_*_PASSWORD).
+ * CI-SPEED-1 fail-fast (architect 2026-10-29): every page has ONE 30 s budget (load + required element); the suite stops
+ * at the FIRST failing check (a broken expectation fails in seconds, not minutes). --all = keep going (local diagnosis
+ * only; never in CI). SMOKE_NEGATIVE_CONTROL=1 = an impossible /admin/questions heading (the negative control proving
+ * the suite fails fast; never set in CI — scripts/ci/test_ci_scripts.cjs C-19).
  * The student check needs data: run scripts/e2e/ensure-student-fixture.cjs first (SMOKE-FIXTURE-1; idempotent,
  * creates one completed mock attempt with wrong answers for qa-student only when missing).
  */
 const { chromium } = require('playwright');
 const { qaBrowserLogin } = require('../live/qa-session.cjs');
 const { readEnv } = require('../db/_db-env.cjs');
-const { readModelForSlug, checkSyllabusSection } = require('./_syllabus-expect.cjs');
+const { readModelForSlug, checkSyllabusFresh } = require('./_syllabus-expect.cjs');
 
-const [, , CHECK = 'student-mistake', BASE_ARG] = process.argv;
+const ARGS = process.argv.slice(2).filter((a) => !a.startsWith('--'));
+const ALL = process.argv.includes('--all');
+const [CHECK = 'student-mistake', BASE_ARG] = ARGS;
+const PAGE_MS = 30000; // CI-SPEED-1: per-page budget (load + required element)
+class FailFast extends Error {}
 const BASE = (BASE_ARG || 'http://localhost:3100').replace(/\/$/, '');
 const env = readEnv();
 const IDS = {
@@ -37,7 +45,11 @@ const IDS = {
 const ERROR_BOUNDARY = /Something went wrong|Application error: a (client|server)-side exception/i;
 let fails = 0;
 let vacuous = 0; // GATE-HYGIENE-1: a skipped check is reported as VACUOUS, never a silent pass
-const check = (name, ok, info) => { if (!ok) fails++; console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${info ? ' — ' + info : ''}`); };
+const check = (name, ok, info) => {
+  if (!ok) fails++;
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${info ? ' — ' + info : ''}`);
+  if (!ok && !ALL) throw new FailFast(name); // CI-SPEED-1 fail-fast: stop at the first failing check
+};
 const isNotFound = async (page) => /NEXT_HTTP_ERROR_FALLBACK;404|This page could not be found/.test(await page.content());
 
 /** Runs in the page: reads the mistake detail without relying on ids or exact markup. */
@@ -93,9 +105,9 @@ const REQUIRED = {
   '/admin/mock-tests/sections': ['"Sections" heading (Studio, phase 3 batch 2)', H(/^Sections$/)],
   '/admin/payments': ['"Subscription Plans" heading', H(/Subscription Plans & Payment Orders/)],
   '/admin/support/flags': ['"Community Discussion Moderation" heading', H(/Community Discussion Moderation/)],
-  '/admin': ['"Mains Descriptive Questions" heading', H(/Mains Descriptive Questions/)],
   '/admin/institutes': ['"Partner Coaching Institutes CMS" heading', H(/Partner Coaching Institutes CMS/)],
-  '/admin/mock-tests': ['"Mock test setup" heading (Studio, phase 3 batch 2)', H(/^Mock test setup$/)],
+  // ADMIN-IA-1: the "Mock test setup" overview and the Descriptive CMS are retired (their addresses redirect)
+  '/admin/mock-tests': ['"Mock tests" heading (Studio)', H(/^Mock tests$/)],
   '/admin/questions/import': ['"Bulk import" heading (Studio, phase 3 batch 2)', H(/^Bulk import$/)],
   '/admin/master-tree': ['"Master tree" heading (CA-1)', H(/Master tree/)],
   '/admin/exams': ['"Examination Management Hub" heading', H(/Examination Management Hub/)],
@@ -107,8 +119,9 @@ const REQUIRED = {
   '/admin/lessons/new': ['"Lesson prompt generator" heading', H(/^Lesson prompt generator$/)],
   '/admin/prompts': ['"Prompt templates" heading', H(/^Prompt templates$/)],
   '/admin/syllabus/intake': ['"Syllabus intake" heading', H(/^Syllabus intake$/)],
-  '/admin/lessons/legacy': ['"Admin Content Studio" heading', H(/Admin Content Studio/)],
+  '/admin/lessons/legacy': ['"Legacy lessons (read only)" heading (ADMIN-IA-1)', H(/^Legacy lessons \(read only\)$/)],
 };
+if (process.env.SMOKE_NEGATIVE_CONTROL === '1') REQUIRED['/admin/questions'] = ['NEGATIVE CONTROL: an impossible heading', H(/^CI-SPEED-1 negative control — never rendered$/)];
 
 (async () => {
   if (!IDS[CHECK]) throw new Error(`unknown check ${CHECK}`);
@@ -124,14 +137,15 @@ const REQUIRED = {
   page.on('requestfinished', (r) => { const e = NET.reqs.get(r); if (e) e.end = Date.now(); });
   page.on('requestfailed', (r) => { const e = NET.reqs.get(r); if (e) e.end = Date.now(); });
   /** navigate: 'load' → required element visible → observe; checks the element and the request pattern; returns the response */
-  const go = async (p, reqKey, timeout = 120000) => {
+  const go = async (p, reqKey) => {
     const label = p.replace(/[0-9a-f-]{36}/g, '[id]');
     const [what, locate] = REQUIRED[reqKey || p];
     NET.reqs = new Map();
     NET.active = true;
-    const res = await page.goto(BASE + p, { waitUntil: 'load', timeout });
+    const deadline = Date.now() + PAGE_MS;
+    const res = await page.goto(BASE + p, { waitUntil: 'load', timeout: PAGE_MS });
     let visible = true;
-    try { await locate(page).waitFor({ state: 'visible', timeout }); } catch { visible = false; }
+    try { await locate(page).waitFor({ state: 'visible', timeout: Math.max(1000, deadline - Date.now()) }); } catch { visible = false; }
     await page.waitForTimeout(OBSERVE_MS);
     NET.active = false;
     const now = Date.now();
@@ -145,7 +159,7 @@ const REQUIRED = {
       const at = await page.evaluate(() => ({ path: location.pathname, h: [...document.querySelectorAll('h1,h2')].filter((e) => e.offsetParent !== null).map((e) => e.innerText.trim().slice(0, 40)).slice(0, 3) })).catch(() => ({ path: '?', h: [] }));
       where = `; now at ${at.path.replace(/[0-9a-f-]{36}/g, '[id]')}, headings ${JSON.stringify(at.h)}`;
     }
-    check(`${label} required element visible (${what})`, visible, visible ? '' : `not visible within ${timeout / 1000} s${where}`);
+    check(`${label} required element visible (${what})`, visible, visible ? '' : `not visible within the ${PAGE_MS / 1000} s page budget${where}`);
     check(`${label} network: no path requested > ${MAX_REPEAT}× (static > ${MAX_STATIC_REPEAT}×), nothing open > 30 s`, top <= MAX_REPEAT && sTop <= MAX_STATIC_REPEAT && long.length === 0,
       `${all.length} requests, max ${top}× ${topKey}, static max ${sTop}× ${sKey}${long.length ? `, ${long.length} > 30 s: ${long.slice(0, 3).map((e) => e.key).join(', ')}` : ', none > 30 s'}`);
     return res;
@@ -154,7 +168,7 @@ const REQUIRED = {
   await go('/auth/login');
   // CI-FIX-1 (#74): CAPTCHA-safe QA session cookies (scripts/live/qa-session.cjs)
   await qaBrowserLogin(page.context(), email, BASE);
-  await page.goto(BASE + '/dashboard', { waitUntil: 'load', timeout: 120000 });
+  await page.goto(BASE + '/dashboard', { waitUntil: 'load', timeout: PAGE_MS });
   check('signed in (QA session)', !/\/auth\/login/.test(page.url()), new URL(page.url()).pathname);
 
   if (CHECK === 'student-mistake') {
@@ -195,21 +209,25 @@ const REQUIRED = {
     // GAP2-4b + QB-KEY-1 round 2: the exam hub's syllabus section must match the canonical read model — AVAILABLE →
     // the paper / section titles and no coming-soon; NO_SYLLABUS → "Syllabus coming soon" (scripts/smoke/_syllabus-expect.cjs)
     await visit('/exams/ssc-cgl');
-    const hub = await page.content();
-    const rm = await readModelForSlug(env, 'ssc-cgl');
-    const sy = checkSyllabusSection(hub, rm);
+    let firstLoad = true;
+    const sy = await checkSyllabusFresh(async () => {
+      if (!firstLoad) await page.reload({ waitUntil: 'load', timeout: PAGE_MS });
+      firstLoad = false;
+      return { html: await page.content(), rm: await readModelForSlug(env, 'ssc-cgl') };
+    });
     check('/exams/ssc-cgl syllabus section matches the read model', sy.ok, sy.detail);
   } else if (CHECK === 'admin-pages') {
-    const ADMIN = ['/admin', '/admin/questions', '/admin/mock-tests/sections', '/admin/payments', '/admin/support/flags', '/admin', '/admin/institutes', '/admin/mock-tests', '/admin/questions/import', '/admin/master-tree', '/admin/exams', '/admin/exams/knowledge', '/admin/system/design', '/admin/syllabus', '/admin/lessons', '/admin/lessons/new', '/admin/prompts', '/admin/syllabus/intake'];
+    const ADMIN = ['/admin', '/admin/questions', '/admin/mock-tests/sections', '/admin/payments', '/admin/support/flags', '/admin/institutes', '/admin/mock-tests', '/admin/questions/import', '/admin/master-tree', '/admin/exams', '/admin/exams/knowledge', '/admin/system/design', '/admin/syllabus', '/admin/lessons', '/admin/lessons/new', '/admin/prompts', '/admin/syllabus/intake'];
     for (const p of ADMIN) {
-      const r = await go(p, undefined, 180000);
+      const r = await go(p);
       const html = await page.content();
       const errorBoundary = ERROR_BOUNDARY.test(html);
       check(`${p} → 200, renders`, r && r.status() === 200 && !(await isNotFound(page)) && !errorBoundary, String(r && r.status()) + (errorBoundary ? ' error-boundary' : ''));
     }
   } else {
     // GAP2-4b: staff also reach the syllabus editor (publish stays admin-only)
-    for (const p of CHECK === 'admin-home' ? ['/admin'] : ['/admin/lessons/legacy', '/admin/syllabus']) {
+    // ADMIN-IA-1: the staff content check uses a staff page (the retired Content Studio is now the admin-only legacy tab)
+    for (const p of CHECK === 'admin-home' ? ['/admin'] : ['/admin/questions', '/admin/syllabus']) {
       const r = await go(p);
       check(`${p} → 200 and renders`, r && r.status() === 200 && !(await isNotFound(page)), String(r && r.status()));
     }
@@ -218,4 +236,9 @@ const REQUIRED = {
   const vac = vacuous ? ` (${vacuous} VACUOUS WARN)` : '';
   console.log(fails ? `\nSIGNED-IN SMOKE (${CHECK}): ${fails} failed${vac}` : `\nSIGNED-IN SMOKE (${CHECK}): all passed${vac}`);
   process.exit(fails ? 1 : 0);
-})().catch((e) => { console.error('SIGNED-IN SMOKE ERROR', String(e.message).slice(0, 200)); process.exit(1); });
+})().catch((e) => {
+  if (e instanceof FailFast) console.log(`
+SIGNED-IN SMOKE (${CHECK}): FAIL-FAST — stopped at the first failing check (${fails} failed; --all runs every check)`);
+  else console.error('SIGNED-IN SMOKE ERROR', String(e.message).slice(0, 200));
+  process.exit(1);
+});

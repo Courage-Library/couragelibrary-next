@@ -37,7 +37,7 @@ const Module = require('module');
 const ts = require('typescript');
 
 const ROOT = path.resolve(__dirname, '..');
-const { checkSyllabusSection, syllabusSectionText } = require('./smoke/_syllabus-expect.cjs');
+const { checkSyllabusSection, checkSyllabusFresh, syllabusSectionText } = require('./smoke/_syllabus-expect.cjs');
 const ARGS = process.argv.slice(2);
 const OFFLINE = ARGS.includes('--offline');
 const BASE = (ARGS.find((a) => a.startsWith('--base=')) || '').slice(7).replace(/\/$/, '');
@@ -235,12 +235,14 @@ const RETIRED_TABLES = ['exam_syllabi', 'exam_topics', 'exam_unit_mappings', 'ta
     // with the DB (a PUBLISHED version ⇔ AVAILABLE with that version) and the section must render what it says.
     await test('R-04 SSC CGL now: read model (anon) agrees with the DB (PUBLISHED ⇔ AVAILABLE) and the section renders it', async () =>
       tx('READ ONLY', async () => {
-        const published = (await q(`SELECT id::text FROM public.exam_syllabus_versions WHERE exam_id = $1 AND status = 'PUBLISHED'`, [fx.exams['ssc-cgl'].id])).map((r) => r.id);
+        // GATE-SCOPE-SWEEP: several tiers may be PUBLISHED — expect the version the read model's documented order picks
+        const published = (await q(`SELECT id::text FROM public.exam_syllabus_versions WHERE exam_id = $1 AND status = 'PUBLISHED' AND is_active
+            ORDER BY (exam_cycle_id IS NULL) DESC, (tier IS NULL) DESC, tier, published_at DESC`, [fx.exams['ssc-cgl'].id])).map((r) => r.id);
         const rm = await rpc('anon', 'fn_exam_syllabus_read_model', [fx.exams['ssc-cgl'].id, null]);
         const html = render(rm);
         const sy = checkSyllabusSection(`<section id="syllabus">${html}</section>`, rm);
         if (published.length) {
-          assert(published.length === 1 && rm.state === 'AVAILABLE' && rm.version && rm.version.id === published[0] && rm.nodes.length > 0, `CGL read model ${rm.state} vs ${published.length} PUBLISHED`);
+          assert(rm.state === 'AVAILABLE' && rm.version && rm.version.id === published[0] && rm.nodes.length > 0, `CGL read model ${rm.state} vs ${published.length} PUBLISHED`);
           assert(sy.ok, sy.detail);
           // nothing beyond the read model: a legacy SSC GD topic name may appear only as a topic of the read model
           const modelTopics = new Set(rm.nodes.flatMap((n) => (n.topics || []).map((t) => t.name)));
@@ -355,11 +357,15 @@ const RETIRED_TABLES = ['exam_syllabi', 'exam_topics', 'exam_unit_mappings', 'ta
     if (BASE) {
       // QB-KEY-1 round 2 (audited amendment; was: pinned "Syllabus coming soon")
       await test(`R-07 ${BASE}/exams/ssc-cgl syllabus section matches the read model; no legacy SSC GD topic outside it`, async () => {
-        const res = await fetch(`${BASE}/exams/ssc-cgl`, { redirect: 'manual' });
-        assert(res.status === 200, `status ${res.status}`);
-        const html = await res.text();
-        const rm = await tx('READ ONLY', () => rpc('anon', 'fn_exam_syllabus_read_model', [fx.exams['ssc-cgl'].id, null]));
-        const sy = checkSyllabusSection(html, rm);
+        let html = '';
+        let rm = null;
+        const sy = await checkSyllabusFresh(async () => {
+          const res = await fetch(`${BASE}/exams/ssc-cgl`, { redirect: 'manual' });
+          assert(res.status === 200, `status ${res.status}`);
+          html = await res.text();
+          rm = await tx('READ ONLY', () => rpc('anon', 'fn_exam_syllabus_read_model', [fx.exams['ssc-cgl'].id, null]));
+          return { html, rm };
+        });
         assert(sy.ok, sy.detail);
         const sec = syllabusSectionText(html);
         const modelTopics = new Set((rm.nodes || []).flatMap((n) => (n.topics || []).map((t) => t.name)));

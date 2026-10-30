@@ -9545,7 +9545,10 @@ export type Database = {
         }
         Returns: Json
       }
-      fn_syllabus_publish: { Args: { p_version_id: string }; Returns: Json }
+      fn_syllabus_publish: {
+        Args: { p_confirm?: string; p_version_id: string }
+        Returns: Json
+      }
       fn_syllabus_seed_cgl_pattern_skeleton: { Args: never; Returns: Json }
       fn_syllabus_seed_legacy_gd_draft: { Args: never; Returns: Json }
       fn_syllabus_set_unit_mappings: {

@@ -46,7 +46,7 @@ TTL plan (fallback only, in case Vercel asks for a different record):
 ## 3. Vercel domain steps [OWNER]
 
 Vercel allows a domain on **one project at a time**.
-1. **Decide the primary host** (open question Q1). Recommendation: **apex `couragelibrary.in` primary, `www` → 308 to apex.** This matches `CANONICAL_SITE_URL`, which is the apex. Today the legacy site does the reverse (apex 307 → www); keeping www primary would need `CANONICAL_SITE_URL` changed in code.
+1. **Decide the primary host** (Q1 — RULED 2026-10-29: apex canonical, www → 301). Recommendation: **apex `couragelibrary.in` primary, `www` → 308 to apex.** This matches `CANONICAL_SITE_URL`, which is the apex. Today the legacy site does the reverse (apex 307 → www); keeping www primary would need `CANONICAL_SITE_URL` changed in code.
 2. Legacy project → Settings → Domains: **remove** `couragelibrary.in` and `www.couragelibrary.in`. **Do not** remove `cnts`; it is on its own project.
 3. New project → Settings → Domains: **add** both. Set `www` to "Redirect to couragelibrary.in (308)".
 4. Wait for "Valid configuration" and certificates (usually < 1 min, because DNS already points at Vercel).
@@ -95,11 +95,8 @@ Read from the live legacy sitemaps (`/sitemap.xml` → 10 child sitemaps), 596 p
 ### 301 map: proposal **[ENG on GO]**
 - Implement as `redirects()` in `next.config.ts`, generated from a checked-in map file (`docs/ops/legacy-redirects.json` → build step). Every source path is matched **case-insensitively** with `%20` handled, because the legacy paths mix case and spaces.
 - **Exact matches** (top-level pages, the CGL topics that exist in the master tree) → `permanent: true` (308; Google treats it as 301) to the new route.
-- **No-equivalent** sections: this depends on the legacy-site decision (section 7):
-  - Option A: 308 to the **same path on an archive host**. Recommended, because no content is lost.
-  - Option B: 308 to the nearest hub (`/exams`, `/exams/ssc-cgl`).
-  - Option C: let them 404 / 410.
-- **Gate [ENG]:** a new offline test asserts every URL in `DOMAIN_CUTOVER_1_LEGACY_URLS.txt` resolves through the map to a route that exists (or to the archive host), with no redirect chains and no loops. A post-cutover smoke HEAD-checks a 40-URL sample.
+- **No-equivalent** sections — **owner ruling Q4 (2026-10-29): permanent redirect to the closest new hub** (e.g. `/exams`, `/exams/ssc-cgl`); no archive host, no 404 / 410.
+- **Gate [ENG]:** a new offline test asserts every URL in `DOMAIN_CUTOVER_1_LEGACY_URLS.txt` resolves through the map to a route that exists, with no redirect chains and no loops. A post-cutover smoke HEAD-checks a 40-URL sample.
 
 ---
 
@@ -122,7 +119,7 @@ Consequences by answer:
 - **Live webhook host is not couragelibrary.in** (Edge Function, etc.): the cutover does not affect it. Nothing to do.
 - **Live webhook is on couragelibrary.in at a legacy path**: after cutover that path returns **404 from the new app**. Razorpay retries, then disables the webhook. Mitigations, owner decides:
   - (a) freeze legacy checkout **24 h before** cutover so nothing is in flight;
-  - (b) or keep the legacy project reachable on the archive host and the owner re-points the LIVE webhook to it (an owner dashboard change, not a key change).
+  - (b) ~~keep the legacy project reachable on an archive host~~ — not available: Q3 (2026-10-29) rules out a legacy subdomain; the paused legacy project serves nothing. Q2 (the live webhook URL) is still pending.
   - **Do not** rewrite the legacy path into `/api/webhooks/razorpay`: the secret differs, so the signature check would reject every event. Weakening that check is not an option.
 - **The path matches `/api/webhooks/razorpay`**: same secret problem. The new app would reject live events (correct, fail-closed), so the same (a)/(b) applies.
 
@@ -147,22 +144,19 @@ The cutover changes **none** of these, because only Vercel project domains move.
 
 ---
 
-## 8. Legacy site: options (owner decides, Q3)
+## 8. Legacy site — owner ruling Q3 (2026-10-29, supersedes the earlier "legacy subdomain" approval)
 
-| Option | What | Pros | Cons |
-|---|---|---|---|
-| **A. Archive subdomain** (recommended) | Add `archive.couragelibrary.in` (new CNAME **[OWNER]**) to the **legacy** project. The legacy pages get a "noindex + canonical to the new hub" header or an archive banner. The new app 308s no-equivalent legacy paths to the same path there. | No content lost, rollback stays trivial, the Delhi Police / GD audiences keep their pages | Two sites to keep alive. Archive pages should eventually be retired as the new app covers those exams. |
-| B. Read-only for N months, then delete | The same as A, but time-boxed (e.g. 6 months), then 410 | Clear end date | Traffic to Delhi Police / GD drops when it ends |
-| C. Retire now | Remove the legacy domains; no-equivalent paths 308 to hubs or 404 | Simplest | Loses about 354 indexed pages' traffic; soft-404 risk |
-
-The legacy site also has `/dashboard.html`, `/settings.html` and `/payment-history.html`. If legacy users still sign in there (a legacy auth project), option A must keep those working, or tell users where their account went (Q5).
+- **No legacy subdomain.** At cutover the legacy Vercel project loses the apex / www and is **not** given another host.
+- **Paused, not deleted:** right after a successful cutover the owner **pauses** the legacy Vercel project and keeps it paused for **1–2 months** as the rollback backup. Then the owner removes it (an owner step; see the runbook).
+- **No account / data migration (Q5, owner 2026-10-29):** there are no paid users on the legacy site, so no legacy account or data is migrated. The legacy `/dashboard.html`, `/settings.html` and `/payment-history.html` simply redirect with the rest (Q4).
+- **Every legacy URL → a permanent redirect to the closest new page (Q4)**, exact equivalents first, otherwise the closest hub.
 
 ---
 
 ## 9. Runbook
 
 ### Pre-cutover checklist (T-7 d … T-1 h)
-1. **[OWNER]** Answer Q1–Q7 (section 11).
+1. **[OWNER]** Answer the open questions (Q2, Q6, Q7; section 11). Q1, Q3, Q4 and Q5 are ruled.
 2. **[ENG]** On a GO: legacy redirect map + its gate (section 5); CI smoke target switch prepared on a branch (`ci-gates.yml:470,472`, `scripts/smoke/anonymous-smoke.cjs:36`; keep the vercel.app alias as a second target).
 3. **[OWNER]** Razorpay checks (section 6). If needed, freeze legacy checkout 24 h before.
 4. **[OWNER]** TTL 60 s on apex / www (T-48 h).
@@ -184,9 +178,16 @@ The legacy site also has `/dashboard.html`, `/settings.html` and `/payment-histo
 | 0:04 | ENG | `curl -I https://couragelibrary.in/` → 200 from the new app, no `X-Robots-Tag: noindex`; `https://www.couragelibrary.in/` → 308 to apex |
 | ~0:08 | ENG | After the redeploy: run the post-cutover smoke (below) |
 
-### Rollback (< 5 min, no DNS change)
+### After a successful cutover: pause, then remove the legacy project (Q3)
+1. **[OWNER]** T+1 d (post-cutover smoke green, no rollback trigger hit): **pause** the legacy Vercel project. Do **not** delete it; it is the rollback backup.
+2. **[OWNER]** Keep it paused **1–2 months**. Note the date; the engineer adds a reminder line to the status note.
+3. **[OWNER]** At the end of the window (no rollback needed, Search Console redirects settled): remove the legacy project. This is final; after it, the rollback below is no longer possible.
+4. **[ENG]** Nothing in this repo depends on the legacy project; the redirect map lives in the new app.
+
+### Rollback (< 5 min, no DNS change) — re-attach the domain to the legacy project
+0. **[OWNER]** If the legacy project is already **paused**, resume it first (Vercel → project → resume; ≈ 1 min). This only works until the project is removed (step 3 above).
 1. **[OWNER]** New project → remove apex + www (≈ 30 s).
-2. **[OWNER]** Legacy project → re-add apex + www, apex → 307 to www as before (≈ 1 min; certificates are already valid).
+2. **[OWNER]** Legacy project → re-add (re-attach) apex + www, apex → 307 to www as before (≈ 1 min; certificates are already valid).
 3. **[OWNER]** Supabase Site URL → back to the vercel.app origin (the allow-list can stay).
 4. Leave `NEXT_PUBLIC_SITE_URL` until the next redeploy, or revert it and redeploy. Sign-up is OFF, so the risk is small.
 5. **[ENG]** Verify `curl -I` shows the legacy site; `cnts` still 200.
@@ -224,12 +225,13 @@ The legacy site also has `/dashboard.html`, `/settings.html` and `/payment-histo
 
 | # | Risk | Likelihood / impact | Mitigation |
 |---|---|---|---|
-| R1 | About 354 legacy pages have no new equivalent, so search traffic is lost | high / high | Archive subdomain (option A) + 308 map; Search Console watch |
+| R1 | About 354 legacy pages have no new equivalent, so search traffic is lost | high / high | Q4: permanent redirect of every legacy URL to the closest new page; Search Console watch (no archive host, Q3) |
 | R2 | The live Razorpay webhook hits a path that 404s after cutover; in-flight legacy payments are not fulfilled | unknown / high | Owner verifies first (section 6); freeze checkout 24 h; never weaken the signature check |
 | R3 | `NEXT_PUBLIC_SITE_URL` not updated, so confirm / reset e-mails point at vercel.app | medium / medium | It is in the cutover-minute table; smoke step 4 |
 | R4 | `cnts` removed by mistake together with the apex / www | low / high | It is on a separate project; the step text says "not cnts"; smoke step 1 |
 | R5 | Cloudflare orange-cloud enabled on apex / www, causing certificate errors | low / high | Keep DNS-only; owner confirms |
-| R6 | Legacy users who sign in on `dashboard.html` lose access | unknown / medium | Q5; option A keeps it on the archive host |
+| R6 | Legacy users who sign in on `dashboard.html` lose access | low / low | Q5 (owner 2026-10-29): no paid users on legacy, no migration; the page redirects (Q4) |
+| R9 | The legacy project is removed before a late problem shows up, so the fast rollback is gone | low / medium | Pause (not delete) for 1–2 months (Q3); remove only after the window |
 | R7 | CI prod-smoke still targets vercel.app and stops covering the real domain | certain / low | Post-cutover step 8 |
 | R8 | SPF `+all` (pre-existing) enables spoofing as couragelibrary.in | existing / medium | Separate owner fix (section 7), not during the cutover |
 
@@ -237,10 +239,12 @@ The legacy site also has `/dashboard.html`, `/settings.html` and `/payment-histo
 
 ## 11. Open questions for the owner
 
-- **Q1** Primary host: apex (recommended; matches the code) or www?
-- **Q2** Razorpay LIVE webhook: the exact URL host + path, events, and whether the legacy site still takes live payments (section 6).
-- **Q3** Legacy site fate: A archive subdomain (recommended) / B time-boxed / C retire now. If A: which subdomain name (`archive.`, `old.`)?
-- **Q4** For the no-equivalent sections (Delhi Police, SSC GD, Blog, Railway / Banking / Defence hubs): archive-host 308, hub 308, or 404?
-- **Q5** Do legacy users still sign in on the legacy site (its own auth / Supabase project)? If yes, what do we tell them?
+Rulings recorded 2026-10-29: Q1 APPROVED (apex canonical, www → 301); Q3 = no legacy subdomain, legacy project paused 1–2 months then removed (supersedes the earlier subdomain approval); Q4 APPROVED (every legacy URL → 301 to the closest new page); Q5 = no paid users on legacy, no migration. **Still open: Q2, Q6, Q7** (and the e-mail E1–E3).
+
+- **Q1** (RULED) Apex `couragelibrary.in` canonical; `www` → 301 to apex.
+- **Q2** (OPEN) Razorpay LIVE webhook: the exact URL host + path, events, and whether the legacy site still takes live payments (section 6).
+- **Q3** (RULED) No legacy subdomain; legacy project paused 1–2 months, then removed (section 8).
+- **Q4** (RULED) No-equivalent sections → permanent redirect to the closest new hub.
+- **Q5** (RULED) No paid users on legacy → no account / data migration.
 - **Q6** The SPF `+all` and priority-0 `mx.couragelibrary.in`: are they intended? (A fix outside this cutover.)
 - **Q7** Cutover window (date / time IST) and who holds the Vercel, Cloudflare, Supabase, Google, Turnstile and Razorpay access on the day.

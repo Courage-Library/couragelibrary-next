@@ -295,7 +295,9 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assertion failed'); };
       const uid = Object.fromEntries(rows.map((r) => [r.email, r.id]));
       const staff = { sub: uid['qa-staff@courage-library.test'], role: 'authenticated', app_metadata: { role: 'staff' } };
       const admin = { sub: uid['qa-admin@courage-library.test'], role: 'authenticated', app_metadata: { role: 'admin' } };
-      const exam = (await q(`SELECT id FROM public.exams WHERE slug = 'ssc-gd'`)).rows[0].id;
+      // GATE-SCOPE-SWEEP (2026-10-29): the QA test exam, not real SSC GD — once the owner publishes GD with content, a
+      // publish there needs the 125 typed confirmation (CONFIRM_REQUIRED); the QA exam never has a PUBLISHED version
+      const exam = (await q(`SELECT id FROM public.exams WHERE slug = 'qa-syllabus-test'`)).rows[0].id;
       const topic = (await q(`SELECT id FROM public.canonical_taxonomy_nodes WHERE node_type = 'TOPIC' AND is_active ORDER BY name LIMIT 1`)).rows[0].id;
       const out = {};
       const call = async (key, claims, role, sql, params) => {

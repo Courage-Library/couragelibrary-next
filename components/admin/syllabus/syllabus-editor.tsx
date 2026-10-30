@@ -433,7 +433,7 @@ export function SyllabusEditor({ version, exam, nodes: initialNodes, topics, ini
     });
   const publish = () =>
     start(async () => {
-      const r = await publishSyllabusVersionAction(version.id, { archiveOtherIds: [...archiveOthers] });
+      const r = await publishSyllabusVersionAction(version.id, { archiveOtherIds: [...archiveOthers], confirm: typed.trim() || undefined });
       setConfirm(null);
       if (!r.ok) {
         if ("report" in r && r.report) setReport(r.report);

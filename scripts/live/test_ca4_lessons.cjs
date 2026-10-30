@@ -79,7 +79,8 @@ const EXISTING_HASH = `select
     const [qa] = await q(`select d.id doc_id, u.topic_id from public.learning_documents d join public.learning_units u on u.id = d.learning_unit_id where d.canonical_slug = 'qa-number-system-concept-lesson'`);
     const [qaExam] = await q(`select id, slug from public.exams where slug = 'qa-syllabus-test'`);
     if (!ids.admin || !ids.staff || !ids.student || !qa || !qaExam) throw new Error('QA users / QA lesson / QA exam missing');
-    const [{ n: nodeDocsBefore }] = PRE ? [{ n: 0 }] : await q(`select count(*)::int n from public.learning_documents where document_type = 'NODE_LESSON'`);
+    // GATE-SCOPE-SWEEP (2026-10-29): Z-1 counts node lessons on the nodes THIS smoke used (the owner writes node lessons)
+    const touchedNodes = [];
 
     const lit = (o) => `'${JSON.stringify(o).replace(/'/g, "''")}'`;
     const as = async (role, cl, sql, p) => {
@@ -116,17 +117,24 @@ const EXISTING_HASH = `select
       await migrate();
       const after = (await q(EXISTING_HASH))[0];
       if (PRE) chk('A-0 every existing learning document, document version and intake session is untouched by 119 (hash before = after)', JSON.stringify(before) === JSON.stringify(after), JSON.stringify({ before, after }));
-      const rows = await q(`select template_type, version, status, body_sha256 from public.prompt_templates order by template_type`);
+      const rows = await q(`select t.template_type, t.version, t.status, t.body_sha256,
+          (select count(*)::int from public.admin_audit_logs a where a.target_id::text = t.id::text and a.action_type = 'PROMPT_TEMPLATE_DRAFT_SAVE') saved
+          from public.prompt_templates t order by t.template_type, t.version`);
       const want = Object.fromEntries(seeds().map(([t, b]) => [t, sha(b)]));
-      // every later version is a pinned text (LESSON v2; SYLLABUS v2, v3); per type exactly one version is ACTIVE — the
-      // highest — and every other one is RETIRED; a type without later versions keeps its v1 ACTIVE; nothing else exists
+      // GATE-SCOPE-SWEEP (2026-10-29): the owner edits prompts in /admin/prompts — the gate pins what the CODE shipped (v1
+      // seeds; LESSON v2; SYLLABUS v2, v3), and checks the invariants for any later owner version instead of its text:
+      // saved through the audited RPC; per type exactly ONE ACTIVE; every other version RETIRED or a DRAFT
       const v1s = rows.filter((r) => r.version === 1);
-      const later = rows.filter((r) => r.version > 1);
-      const top = (t) => Math.max(...rows.filter((r) => r.template_type === t).map((r) => r.version));
+      const pinnedTop = (t) => Math.max(1, ...Object.keys(PINNED[t] || {}).map(Number));
+      const shipped = rows.filter((r) => r.version > 1 && r.version <= pinnedTop(r.template_type));
+      const owner = rows.filter((r) => r.version > pinnedTop(r.template_type));
+      const types = [...new Set(rows.map((r) => r.template_type))];
       const seedOk = v1s.length === 3 && v1s.every((r) => want[r.template_type] === r.body_sha256)
-        && later.every((r) => PINNED[r.template_type] && PINNED[r.template_type][r.version] === r.body_sha256)
-        && rows.every((r) => r.status === (r.version === top(r.template_type) ? 'ACTIVE' : 'RETIRED'));
-      chk('A-1 seeds: SYLLABUS (the owner-approved SYLLABUS-PROMPT-2 text), LESSON, TRANSLATE_HI — v1 bodies byte-identical to the TS constants (sha256); later versions are pinned texts; per type only the newest is ACTIVE, the rest RETIRED; no QUESTION v1',
+        && shipped.every((r) => PINNED[r.template_type] && PINNED[r.template_type][r.version] === r.body_sha256)
+        && owner.every((r) => r.saved >= 1)
+        && types.every((t) => rows.filter((r) => r.template_type === t && r.status === 'ACTIVE').length === 1)
+        && rows.every((r) => ['ACTIVE', 'RETIRED', 'DRAFT'].includes(r.status));
+      chk(`A-1 seeds: SYLLABUS (the owner-approved SYLLABUS-PROMPT-2 text), LESSON, TRANSLATE_HI — v1 bodies byte-identical to the TS constants (sha256); the shipped later versions are pinned texts; ${owner.length} later owner version(s) saved through the audited RPC; per type exactly one ACTIVE, the rest RETIRED / DRAFT; no QUESTION v1`,
         seedOk, JSON.stringify({ rows: rows.map((r) => [r.template_type, r.version, r.status, r.body_sha256.slice(0, 12)]), want: Object.fromEntries(Object.entries(want).map(([k, v]) => [k, v.slice(0, 12)])) }));
       if (!PRE) {
         // SYLLABUS-CONTRACT-3.1 then INTAKE-CONCEPTS-AS-OUTLINE (2026-10-28): SYLLABUS v3 must be THE active SYLLABUS
@@ -136,8 +144,10 @@ const EXISTING_HASH = `select
               (select count(*)::int from public.admin_audit_logs a where a.target_id::text = t.id::text and a.action_type = 'PROMPT_TEMPLATE_ACTIVATE') activated
             from public.prompt_templates t where t.template_type = 'SYLLABUS' order by t.version`));
         const [v1, v2, v3] = syl;
-        chk('A-1b SYLLABUS v3 (the INTAKE-CONCEPTS-AS-OUTLINE text, pinned sha256) is the one ACTIVE SYLLABUS template, v1 + v2 RETIRED; v2 and v3 saved + activated through the audited RPCs',
-          syl.length === 3 && v1.status === 'RETIRED' && v2.status === 'RETIRED' && v2.body_sha256 === PINNED.SYLLABUS[2] && v3.status === 'ACTIVE' && v3.body_sha256 === PINNED.SYLLABUS[3]
+        // GATE-SCOPE-SWEEP: v3 stays ACTIVE until the owner activates a later SYLLABUS version (then v3 is RETIRED)
+        const laterActive = syl.slice(3).some((r) => r.status === 'ACTIVE');
+        chk('A-1b SYLLABUS v3 (the INTAKE-CONCEPTS-AS-OUTLINE text, pinned sha256) is the ACTIVE SYLLABUS template unless the owner activated a later one; v1 + v2 RETIRED; v2 and v3 saved + activated through the audited RPCs',
+          syl.length >= 3 && v1.status === 'RETIRED' && v2.status === 'RETIRED' && v2.body_sha256 === PINNED.SYLLABUS[2] && v3.status === (laterActive ? 'RETIRED' : 'ACTIVE') && v3.body_sha256 === PINNED.SYLLABUS[3]
             && [v2, v3].every((r) => r.saved === 1 && r.activated === 1),
           JSON.stringify(syl.map((r) => [r.version, r.status, r.body_sha256.slice(0, 12), r.saved, r.activated])));
       }
@@ -255,13 +265,13 @@ const EXISTING_HASH = `select
     // ---------------- D: node lessons + the translation lifecycle
     await chunk(async () => {
       await migrate();
-      // the node: an active TOPIC of the QA topic's subject with NO node lesson yet (the QA topic itself carries the CA-6
-      // published QA lesson, scripts/content/ca6-qa-lesson.cjs)
-      const [ln] = await q(`select n.id from public.canonical_taxonomy_nodes n where n.node_type = 'TOPIC' and n.is_active
-          and n.root_subject_id = (select root_subject_id from public.canonical_taxonomy_nodes where id = $1)
-          and not exists (select 1 from public.learning_documents d where d.document_type = 'NODE_LESSON' and d.node_id = n.id)
-          order by n.id limit 1`, [qa.topic_id]);
-      if (!ln) throw new Error('no QA-subject topic without a node lesson');
+      // the node: GATE-SCOPE-SWEEP (2026-10-29) — the smoke's OWN topic under the QA topic's subject, made in this rolled-back
+      // chunk (a real topic "without a node lesson" disappears as the owner writes lessons; the QA topic itself carries
+      // the CA-6 published QA lesson, scripts/content/ca6-qa-lesson.cjs)
+      const [ln] = await q(`insert into public.canonical_taxonomy_nodes (parent_id, node_type, name, slug, metadata)
+          select root_subject_id, 'TOPIC', 'CA4 Smoke Lesson Topic', 'ca4-smoke-lesson-topic', '{"source":"CA4_SMOKE"}'::jsonb
+            from public.canonical_taxonomy_nodes where id = $1 returning id`, [qa.topic_id]);
+      touchedNodes.push(ln.id);
       const lessonNode = ln.id;
       const [subject] = await q(`select root_subject_id id from public.canonical_taxonomy_nodes where id = $1`, [lessonNode]);
       const mk = (node) => svc(`select public.fn_lesson_create_node_document($1, 'FREE', null, $2) r`, [node, ACTOR_EMAIL]);
@@ -379,12 +389,12 @@ const EXISTING_HASH = `select
 
     // ---------------- Z: nothing left behind
     const [z] = await q(`select (select count(*)::int from public.admin_audit_logs where actor_email = $1) audit,
-        (select count(*)::int from public.learning_documents where ${PRE ? 'false' : "document_type = 'NODE_LESSON'"}) node_docs,
+        (select count(*)::int from public.learning_documents where document_type = 'NODE_LESSON' and node_id = any($2::uuid[])) node_docs,
         (select count(*)::int from public.syllabus_intake_sessions where tier like 'ca4-smoke%') intakes,
         (select count(*)::int from public.canonical_taxonomy_nodes where name like 'CA4 Smoke %') nodes,
-        to_regclass('public.prompt_templates') is not null t`, [ACTOR_EMAIL]);
+        to_regclass('public.prompt_templates') is not null t`, [ACTOR_EMAIL, touchedNodes]);
     chk(`Z-1 nothing persisted: 0 smoke audit rows / node lessons / intakes / tree nodes${PRE ? '; the migration itself rolled back (no prompt_templates)' : ''}`,
-      z.audit === 0 && z.node_docs === nodeDocsBefore && z.intakes === 0 && z.nodes === 0 && z.t === !PRE, JSON.stringify(z));
+      z.audit === 0 && z.node_docs === 0 && z.intakes === 0 && z.nodes === 0 && z.t === !PRE, JSON.stringify(z));
     flush();
   } catch (e) {
     ok = false;

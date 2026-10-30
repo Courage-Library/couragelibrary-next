@@ -56,11 +56,15 @@ const ACTOR = 'intake-assist1-smoke@courage-library.test';
 const TIER = 'ia1-smoke';
 const ZERO = '00000000-0000-0000-0000-000000000000';
 
+// GATE-SCOPE-SWEEP (2026-10-29): the EXACT subject / topic are the smoke's OWN nodes, made inside each chunk's rolled-back
+// transaction by fixture() — never the real "Quantitative Aptitude" / "Percentage" (the owner may rename or extend them)
+const SUBJ = 'IA1 Smoke Subject';
+const TOP = 'IA1 Smoke Percentage';
 const PAYLOAD = (slug) => ({
   contract_version: 3, exam: slug, cycle_year: null, tier: TIER, based_on: 'IA1 smoke: QA notification 2026 + PYQs 2016-2025',
   papers: [{ name: 'IA1 Smoke Paper', questions: 100, duration_minutes: 60,
-    subjects: [{ name: 'Quantitative Aptitude', questions: 25, topics: [
-      { name: 'Percentage', origin: 'OFFICIAL', avg_questions: 3, subtopics: [
+    subjects: [{ name: SUBJ, questions: 25, topics: [
+      { name: TOP, origin: 'OFFICIAL', avg_questions: 3, subtopics: [
         { name: 'IA1 Fixture Sub One', origin: 'EXPANDED', outline: ['IA1 Line A', 'IA1 Line B'] },
         { name: 'IA1 Fixture Sub Two', origin: 'PYQ_TREND', outline: ['IA1 Line C'] },
         { name: 'IA1 Fixture Sub Three', origin: 'EXPANDED' },
@@ -109,6 +113,8 @@ const PAYLOAD = (slug) => ({
 
     /** a QA intake from the 3.2 payload (outline lines → concept items), matched against the live tree like the service */
     const fixture = async () => {
+      const [fs1] = await q(`insert into public.canonical_taxonomy_nodes (parent_id, node_type, name, slug, metadata) values (null, 'SUBJECT', $1, 'ia1-smoke-subject', '{"source":"IA1_SMOKE"}') returning id`, [SUBJ]);
+      await q(`insert into public.canonical_taxonomy_nodes (parent_id, node_type, name, slug, metadata) values ($1, 'TOPIC', $2, 'ia1-smoke-percentage', '{"source":"IA1_SMOKE"}')`, [fs1.id, TOP]);
       const v = validateIntakePayload(JSON.stringify(PAYLOAD(qa.slug)), { examSlug: qa.slug, cycleYear: null, tier: TIER });
       if (!v.ok) throw new Error(`fixture payload invalid: ${JSON.stringify(v.errors)}`);
       const nodes = await q(`select id, parent_id, node_type, name, name_hi, is_active from public.canonical_taxonomy_nodes where node_type in ('SUBJECT','TOPIC','SUBTOPIC','CONCEPT')`);
@@ -127,9 +133,9 @@ const PAYLOAD = (slug) => ({
     const decide = (id, d, node) => svc(`select public.fn_syllabus_intake_decide($1, $2, $3, null, $4) r`, [id, d, node, ACTOR]);
     const state = async (sid) => Object.fromEntries((await q(`select raw_name, decision, decision_node_id, decided_in_batch from public.syllabus_intake_items where session_id = $1`, [sid])).map((r) => [r.raw_name, r]));
     const auditN = async (action) => (await q(`select count(*)::int n from public.admin_audit_logs where actor_email = $1 and action_type = $2`, [ACTOR, action]))[0].n;
-    const nodeN = async () => (await q(`select count(*)::int n from public.canonical_taxonomy_nodes`))[0].n;
-    const SUBJ = 'Quantitative Aptitude';
-    const TOP = 'Percentage';
+    // GATE-SCOPE-SWEEP: only the nodes made in THIS transaction (created_at = now() = the transaction's start); other
+    // sessions (the owner's intake approvals) may add nodes while the chunk runs
+    const nodeN = async () => (await q(`select count(*)::int n from public.canonical_taxonomy_nodes where created_at = now()`))[0].n;
 
     // ---------------- A: catalog + C1 (real roles)
     await chunk(async () => {
@@ -310,7 +316,9 @@ const PAYLOAD = (slug) => ({
     // ---------------- S: concurrency (after apply only; committed QA fixture, removed again)
     if (!PRE) {
       pending = [];
-      const [subject] = await q(`select id from public.canonical_taxonomy_nodes where node_type = 'SUBJECT' and parent_id is null and name = $1`, [SUBJ]);
+      // the committed concurrency fixture only needs SOME active subject as the matched node (an FK): the QA lesson's subject
+      const [subject] = await q(`select n.root_subject_id id from public.learning_documents d join public.learning_units u on u.id = d.learning_unit_id
+          join public.canonical_taxonomy_nodes n on n.id = u.topic_id where d.canonical_slug = 'qa-number-system-concept-lesson'`);
       let sid = null;
       const c1 = new Client(target.pg); c1.on('error', () => {});
       const c2 = new Client(target.pg); c2.on('error', () => {});
@@ -319,7 +327,7 @@ const PAYLOAD = (slug) => ({
         sid = (await c.query(`insert into public.syllabus_intake_sessions (exam_id, tier, contract_version, based_on, payload, payload_sha256, created_by_email)
             values ($1, 'ia1-conc', 3, 'IA1 concurrency fixture', '{}'::jsonb, repeat('0', 64), $2) returning id`, [qa.id, ACTOR])).rows[0].id;
         const item = (await c.query(`insert into public.syllabus_intake_items (session_id, item_key, level, position, raw_name, match_status, matched_node_id)
-            values ($1, 's0', 'SUBJECT', 0, $2, 'EXACT', $3) returning id`, [sid, SUBJ, subject.id])).rows[0].id;
+            values ($1, 's0', 'SUBJECT', 0, $2, 'EXACT', $3) returning id`, [sid, 'IA1 concurrency subject', subject.id])).rows[0].id;
         await c.query(`commit`);
         await c1.connect(); await c2.connect();
         await safeBegin(c1);

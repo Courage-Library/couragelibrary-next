@@ -368,7 +368,7 @@ function firstGuardViolation(body) {
     const get = async (request, url) => {
       for (let i = 1; i <= 3; i++) {
         try {
-          const r = await request.get(LIVE_BASE + url, { maxRedirects: 0, timeout: 180000 });
+          const r = await request.get(LIVE_BASE + url, { maxRedirects: 0, timeout: 30000 });
           return { status: r.status(), location: r.headers()['location'] || '', body: await r.text() };
         } catch (e) { if (i === 3) return { status: 0, location: '', body: '', err: String(e.message).slice(0, 100) }; }
       }

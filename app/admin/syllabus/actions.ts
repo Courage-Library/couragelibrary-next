@@ -168,17 +168,22 @@ export async function validateSyllabusVersionAction(versionId: string) {
  * publish (shown in the impact dialog); each is archived after the publish succeeds through the audited archive RPC
  * (the same rights as "Archive" on the versions page). RPC-only, like every syllabus action.
  */
-export async function publishSyllabusVersionAction(versionId: string, opts: { archiveOtherIds?: string[] } = {}) {
+export async function publishSyllabusVersionAction(versionId: string, opts: { archiveOtherIds?: string[]; confirm?: string } = {}) {
   const __auth = await guardAdminAction();
   if (!__auth.ok) return __auth;
   if (!isUuid(versionId)) return invalid("version");
   const archiveOtherIds = Array.isArray(opts.archiveOtherIds) ? opts.archiveOtherIds : [];
   if (archiveOtherIds.length > 10 || !archiveOtherIds.every(isUuid) || archiveOtherIds.includes(versionId)) return invalid("version to archive");
   const supabase = await createServerSupabaseClient();
-  const { data, error } = await supabase.rpc("fn_syllabus_publish", { p_version_id: versionId });
+  // 125 PUBLISH-CONFIRM-SERVER: the database enforces the typed phrase when published content would leave the syllabus
+  const confirm = typeof opts.confirm === "string" && opts.confirm.trim() ? opts.confirm.trim().slice(0, 40) : undefined;
+  const { data, error } = await supabase.rpc("fn_syllabus_publish", confirm ? { p_version_id: versionId, p_confirm: confirm } : { p_version_id: versionId });
   if (error) return mapSyllabusError("publishSyllabusVersionAction", error);
-  const r = rpcJsonObject<{ success: boolean; code?: string; report?: SyllabusValidationReport; archived_previous_version_id?: string | null }>(data);
+  const r = rpcJsonObject<{ success: boolean; code?: string; report?: SyllabusValidationReport; archived_previous_version_id?: string | null; confirm?: string }>(data);
   if (!r) return mapSyllabusError("publishSyllabusVersionAction", null);
+  if (!r.success && r.code === "CONFIRM_REQUIRED") {
+    return actionFailure("VALIDATION", `Published lessons, questions or student progress would leave this syllabus. Type ${r.confirm ?? "the confirmation"} to publish.`);
+  }
   if (!r.success) {
     return { ...actionFailure("VALIDATION", "Fix the errors in the validation panel before publishing."), report: r.report ?? null };
   }

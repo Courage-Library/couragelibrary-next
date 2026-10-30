@@ -304,7 +304,7 @@ jobs:
           QA_SESSION_CACHE_DIR: ${{ runner.temp }}/qa-session
           QA_SESSION_DIAG: '1'
         run: |
-          Q='node scripts/ci/run-quiet.cjs --id'
+          Q='node scripts/ci/run-quiet.cjs --caps scripts/ci/live-gate-caps.json --id'
           B='http://localhost:3100'
           node scripts/live/with-server.cjs --port=3100 --log="$RUNNER_TEMP/server/server.log" -- \
             "$Q QA-SESSION-PROBE -- node scripts/live/qa-session.cjs --probe" \
@@ -342,12 +342,30 @@ jobs:
 
   live-gates:
     # CI-LIVE-SPLIT-1 (architect 2026-10-27): security / DB / admin / flags / public gates (no QA student data writes). Parallel with live-journeys: own runner, server and QA session cache; same secrets.
+    # CI-SPEED-1 (architect 2026-10-29): 3 parallel shards, each its own runner + server + QA session cache.
+    #   db       — EVERY gate that writes the syllabus / taxonomy / lesson / course object group (the QA exam's advisory lock
+    #              and publish index, the master-tree scope locks, the node-lesson / prompt-template / course-launch locks,
+    #              SYLIMPORT1's trigger on exam_syllabus_nodes): serialized in ONE shard, exactly as before — isolation by
+    #              serialization (docs/ops/CI_SPEED_1.md has the lock map)
+    #   security — catalog / grants / authz gates + row-disjoint DB gates (own fixtures, no shared lock keys)
+    #   pages    — read-only page checks and smokes against the shard's own local server
+    # Timeouts: measured job time (dispatch 40919071379) × ~1.5; no check removed or relaxed.
     needs: offline
     # CI-LEAN-1 (decision #73): nightly schedule or a manual dispatch with live=true — never on push
     if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.live)
     runs-on: ubuntu-24.04
-    # CI-FIX-1: hard limit (green runs ~30 min); the always-run cleanup steps still execute after a timeout
-    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: db
+            timeout: 40
+          - shard: security
+            timeout: 25
+          - shard: pages
+            timeout: 20
+    # CI-FIX-1 + CI-SPEED-1: hard limit per shard (matrix.timeout)
+    timeout-minutes: ${{ matrix.timeout }}
     environment: ci-live
     env:
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
@@ -392,7 +410,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2 (node24)
         with:
-          name: build-log-${{ github.job }}-${{ github.run_attempt }}
+          name: build-log-${{ github.job }}-${{ matrix.shard }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/build-diag/
           if-no-files-found: ignore
           retention-days: 7
@@ -401,42 +419,75 @@ jobs:
           mkdir -p "$RUNNER_TEMP/server" "$RUNNER_TEMP/ci-quiet"
           node scripts/ci/run-quiet.cjs --id NET-PROBE -- node scripts/diag/net-probe.cjs --n=3
           node scripts/ci/run-quiet.cjs --id DB-SESSIONS-PRE -- node scripts/ci/db-sessions.cjs --fail-on-own-open
-      - name: Live security, DB, admin, flags + public gates (one server, documented GATE ORDER; #56 smokes 3x; summary lines only)
+      - name: Live gates — shard db (syllabus / taxonomy / lesson / course writers, serialized; summary lines only)
+        if: matrix.shard == 'db'
         env:
           # CI-LEAN-1: one QA session per identity per job (0600 files, runner temp, never printed) + safe failure IDs
           QA_SESSION_CACHE_DIR: ${{ runner.temp }}/qa-session
           QA_SESSION_DIAG: '1'
         run: |
-          Q='node scripts/ci/run-quiet.cjs --id'
+          Q='node scripts/ci/run-quiet.cjs --caps scripts/ci/live-gate-caps.json --id'
           B='http://localhost:3100'
           node scripts/live/with-server.cjs --port=3100 --log="$RUNNER_TEMP/server/server.log" -- \
             "$Q QA-SESSION-PROBE -- node scripts/live/qa-session.cjs --probe" \
-            "$Q SECDEF-RATCHET -- node scripts/test_secdef_ratchet.cjs" \
             "$Q RLS -- node scripts/test_sec_hotfix4_rls.cjs" \
-            "$Q QBKEY1 -- node scripts/test_qb_key1.cjs" \
-            "$Q SECDEF-S2-1 -- node scripts/test_secdef_s2_1.cjs" \
-            "$Q TYPES1-CLOSE -- node scripts/test_types1_close.cjs" \
             "$Q GAP2-4A -- node scripts/test_gap2_4a_syllabus.cjs" \
             "$Q READERS -- node scripts/test_gap2_4b_readers.cjs --base=$B" \
             "$Q SYLIMPORT1 -- node scripts/test_syl_import1.cjs" \
             "$Q SYLIMPORT1-SCOPE-CONTROLS -- node scripts/live/test_suite_scope_controls.cjs" \
-            "$Q ADMIN-D1-D2 -- node scripts/live/test_admin_d1_d2.cjs" \
             "$Q CA1-TAXONOMY-LIVE -- node scripts/live/test_ca1_taxonomy.cjs" \
             "$Q CA2-INTAKE-LIVE -- node scripts/live/test_ca2_intake.cjs" \
-            "$Q CA3-LESSONS-LIVE -- node scripts/live/test_ca3_lessons.cjs"             "$Q CA4-LESSONS-LIVE -- node scripts/live/test_ca4_lessons.cjs"             "$Q LESSON-PROMPT-2-LIVE -- node scripts/live/test_lesson_prompt_2.cjs"             "$Q CA5-COURSES-LIVE -- node scripts/live/test_ca5_courses.cjs"             "$Q LESSON-PERF -- node scripts/test_brand2.cjs --probe --only-route=auto:lesson"             "$Q CA6-SEO-LIVE -- node scripts/live/test_ca6_seo.cjs --base=$B"             "$Q CA7-LIVE -- node scripts/live/test_ca7.cjs"             "$Q LAUNCH-MODE-1-LIVE -- node scripts/live/test_launch_mode1.cjs"             "$Q INTAKE-ASSIST-1-LIVE -- node scripts/live/test_intake_assist1.cjs"             "$Q PUBLISH-IMPACT-LIVE -- node scripts/live/test_publish_impact.cjs" \
+            "$Q CA4-LESSONS-LIVE -- node scripts/live/test_ca4_lessons.cjs" \
+            "$Q LESSON-PROMPT-2-LIVE -- node scripts/live/test_lesson_prompt_2.cjs" \
+            "$Q CA5-COURSES-LIVE -- node scripts/live/test_ca5_courses.cjs" \
+            "$Q CA7-LIVE -- node scripts/live/test_ca7.cjs" \
+            "$Q LAUNCH-MODE-1-LIVE -- node scripts/live/test_launch_mode1.cjs" \
+            "$Q INTAKE-ASSIST-1-LIVE -- node scripts/live/test_intake_assist1.cjs" \
+            "$Q PUBLISH-IMPACT-LIVE -- node scripts/live/test_publish_impact.cjs" \
+            "$Q PUBLISH-CONFIRM-LIVE -- node scripts/live/test_publish_confirm.cjs"
+      - name: Live gates — shard security (catalog / authz / row-disjoint DB gates; summary lines only)
+        if: matrix.shard == 'security'
+        env:
+          # CI-LEAN-1: one QA session per identity per job (0600 files, runner temp, never printed) + safe failure IDs
+          QA_SESSION_CACHE_DIR: ${{ runner.temp }}/qa-session
+          QA_SESSION_DIAG: '1'
+        run: |
+          Q='node scripts/ci/run-quiet.cjs --caps scripts/ci/live-gate-caps.json --id'
+          B='http://localhost:3100'
+          node scripts/live/with-server.cjs --port=3100 --log="$RUNNER_TEMP/server/server.log" -- \
+            "$Q QA-SESSION-PROBE -- node scripts/live/qa-session.cjs --probe" \
+            "$Q SECDEF-RATCHET -- node scripts/test_secdef_ratchet.cjs" \
+            "$Q QBKEY1 -- node scripts/test_qb_key1.cjs" \
+            "$Q SECDEF-S2-1 -- node scripts/test_secdef_s2_1.cjs" \
+            "$Q TYPES1-CLOSE -- node scripts/test_types1_close.cjs" \
+            "$Q ADMIN-D1-D2 -- node scripts/live/test_admin_d1_d2.cjs" \
+            "$Q CA3-LESSONS-LIVE -- node scripts/live/test_ca3_lessons.cjs" \
+            "$Q LESSON-PERF -- node scripts/test_brand2.cjs --probe --only-route=auto:lesson" \
+            "$Q CA6-SEO-LIVE -- node scripts/live/test_ca6_seo.cjs --base=$B" \
+            "$Q FLAGS-LIVE -- node scripts/live/test_flags_live.cjs $B" \
+            "$Q CA-ROUTES -- node scripts/test_ca_routes.cjs $B" \
+            "$Q SEC1B-LIVE -- node scripts/test_sec1b_admin_authz.cjs --live" \
+            "$Q SEC1C-LIVE -- node scripts/test_sec1c_admin_pages.cjs --live $B" \
+            "$Q SEC1D-LIVE -- node scripts/test_sec1d_redirects.cjs --live $B"
+      - name: Live gates — shard pages (page checks + smokes, #56 admin smoke 3x; summary lines only)
+        if: matrix.shard == 'pages'
+        env:
+          # CI-LEAN-1: one QA session per identity per job (0600 files, runner temp, never printed) + safe failure IDs
+          QA_SESSION_CACHE_DIR: ${{ runner.temp }}/qa-session
+          QA_SESSION_DIAG: '1'
+        run: |
+          Q='node scripts/ci/run-quiet.cjs --caps scripts/ci/live-gate-caps.json --id'
+          B='http://localhost:3100'
+          node scripts/live/with-server.cjs --port=3100 --log="$RUNNER_TEMP/server/server.log" -- \
+            "$Q QA-SESSION-PROBE -- node scripts/live/qa-session.cjs --probe" \
             "$Q SMOKE-ADMIN-PAGES-1 -- node scripts/smoke/signed-in-smoke.cjs admin-pages $B" \
             "$Q SMOKE-ADMIN-PAGES-2 -- node scripts/smoke/signed-in-smoke.cjs admin-pages $B" \
             "$Q SMOKE-ADMIN-PAGES-3 -- node scripts/smoke/signed-in-smoke.cjs admin-pages $B" \
             "$Q SMOKE-STAFF-CONTENT -- node scripts/smoke/signed-in-smoke.cjs staff-content $B" \
             "$Q SMOKE-ADMIN-HOME -- node scripts/smoke/signed-in-smoke.cjs admin-home $B" \
-            "$Q FLAGS-LIVE -- node scripts/live/test_flags_live.cjs $B" \
             "$Q UX2A-LIVE -- node scripts/test_ux2a_landing.cjs $B" \
             "$Q UX2B-LIVE -- node scripts/test_ux2b_public.cjs --live" \
             "$Q AUTH1-2B1-LIVE -- node scripts/test_auth1_2b1.cjs --live" \
-            "$Q CA-ROUTES -- node scripts/test_ca_routes.cjs $B" \
-            "$Q SEC1B-LIVE -- node scripts/test_sec1b_admin_authz.cjs --live" \
-            "$Q SEC1C-LIVE -- node scripts/test_sec1c_admin_pages.cjs --live $B" \
-            "$Q SEC1D-LIVE -- node scripts/test_sec1d_redirects.cjs --live $B" \
             "$Q ANON-SMOKE-LOCAL -- node scripts/smoke/anonymous-smoke.cjs $B"
       - name: Orphan-session check (always; never terminates)
         if: always()

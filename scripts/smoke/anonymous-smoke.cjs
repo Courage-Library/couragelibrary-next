@@ -13,7 +13,7 @@
 const path = require('path');
 const crypto = require('crypto');
 const ROOT = path.resolve(__dirname, '..', '..');
-const { readModelForSlug, checkSyllabusSection } = require('./_syllabus-expect.cjs');
+const { readModelForSlug, checkSyllabusFresh } = require('./_syllabus-expect.cjs');
 const { scanRef, chunkPaths, selfTest } = require('./_ref-scan.cjs');
 if (process.argv.includes('--self-test')) process.exit(selfTest() ? 0 : 1); // offline: planted-ref fixture
 const { readEnv } = require(path.join(ROOT, 'scripts/db/_db-env.cjs'));
@@ -118,10 +118,13 @@ const get = async (p) => { for (let i = 1; i <= 3; i++) { try { return await fet
     check('anon POST /rest/v1/rpc/fn_award_gamification_reward → permission denied (42501)', ra && (ra.status === 401 || ra.status === 403) && ab.code === '42501', ra ? `${ra.status} ${ab.code || ''}` : 'no response');
   }
   // GAP2-4b + QB-KEY-1 round 2: the SSC CGL hub's syllabus section must match the canonical read model
-  const hub = await get('/exams/ssc-cgl');
-  const hubHtml = hub.status === 200 ? await hub.text() : '';
-  const sy = checkSyllabusSection(hubHtml, await readModelForSlug(env, 'ssc-cgl'));
-  check('GET /exams/ssc-cgl → 200, syllabus section matches the read model', hub.status === 200 && sy.ok, `${hub.status} ${sy.detail}`);
+  let hubStatus = 0;
+  const sy = await checkSyllabusFresh(async () => {
+    const hub = await get('/exams/ssc-cgl');
+    hubStatus = hub.status;
+    return { html: hub.status === 200 ? await hub.text() : '', rm: await readModelForSlug(env, 'ssc-cgl') };
+  });
+  check('GET /exams/ssc-cgl → 200, syllabus section matches the read model', hubStatus === 200 && sy.ok, `${hubStatus} ${sy.detail}`);
   // CA-5 / CA-7: the generated exam course exists only while it is LIVE (launched); before that → 404. The launch state
   // comes from anon PostgREST (anon reads LIVE launch rows only; public values only)
   {

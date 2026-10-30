@@ -58,7 +58,12 @@ const FIXTURES = ['c6cbfdbf-def4-45a5-9ef6-4d0a24ab61cc', '234486ee-4485-49fe-8e
   'd00219c2-13be-47c7-8584-bf00bc187fd4', '3735364e-5993-4378-9d89-3b3347fe3bfe', '78bd0707-d8eb-4ef7-8c80-ef707df6e1cd', '94b30583-2969-493a-80bd-85e179fe1ab4'];
 const BAD_VERSION = 'bc0b7703-22a0-4234-933e-9db0029e59b8';
 // pre-087 baseline (QB-KEY-1 Stage 2 report §5): content tables must stay byte-identical
-const BASELINE = { question_versions: 'b2bb76546c3b', question_options: 'ac7af53d81e7', question_answers: '06afec0c4af2' };
+// GATE-SCOPE-SWEEP (2026-10-29): question_versions is hashed over its IMMUTABLE columns (id, question_id, version_number,
+// question_text, options_type, language, difficulty, content_checksum, question_image_url, created_at, published_at) —
+// the owner revising a pre-087 question legitimately flips that version's lifecycle_status / is_current (SUPERSEDED).
+// Re-baselined read-only the same day: the full-row hash was still the recorded 'b2bb76546c3b' (data proven unchanged),
+// and the immutable-column hash of that same set is '56049b3694c7'. Options / answers stay full-row (immutable children).
+const BASELINE = { question_versions: '56049b3694c7', question_options: 'ac7af53d81e7', question_answers: '06afec0c4af2' };
 // the baseline set: every version created up to the last pre-087 row (2026-10-12); 113 versions
 const BASELINE_BEFORE = '2026-10-12T11:24:49Z'; // strictly before (the last baseline row is 11:24:48.123xxx; the next version is from 2026-10-27)
 const BASELINE_VERSIONS = 113;
@@ -363,12 +368,16 @@ function supaMock(results) {
       return 'keyless refused; valid approved';
     }));
 
-    await test('K-6 existing data: 111 published versions servable; archiving / superseding not blocked', async () => rolledBack(async () => {
-      const s = (await q(`SELECT count(*) FILTER (WHERE public.fn_qf_version_is_servable(id))::int ok, count(*)::int n FROM public.question_versions WHERE lifecycle_status = 'PUBLISHED'`))[0];
-      assert(s.ok === 111 && s.n === 112, `servable ${s.ok}/${s.n}`);
+    // GATE-SCOPE-SWEEP (2026-10-29): no pinned totals — the owner publishes questions. The invariant: every PUBLISHED version
+    // of a question that is not archived is servable (the 1 non-servable at 087 time = the archived CA-4 fixture)
+    await test('K-6 existing data: every published version of a live question is servable; archiving / superseding not blocked', async () => rolledBack(async () => {
+      const s = (await q(`SELECT count(*) FILTER (WHERE public.fn_qf_version_is_servable(v.id))::int ok, count(*)::int n,
+          count(*) FILTER (WHERE NOT public.fn_qf_version_is_servable(v.id) AND q.status <> 'archived')::int bad
+        FROM public.question_versions v JOIN public.questions q ON q.id = v.question_id WHERE v.lifecycle_status = 'PUBLISHED'`))[0];
+      assert(s.n > 0 && s.bad === 0, `servable ${s.ok}/${s.n}; ${s.bad} non-servable on a live question`);
       const e = await attempt([{ sql: `UPDATE public.questions SET status = 'archived' WHERE id = (SELECT q.id FROM public.questions q WHERE q.status = 'published' AND q.id <> ALL($1) LIMIT 1)`, params: [FIXTURES] }]);
       assert(!e, `archiving a valid question: ${e && e.message}`);
-      return `${s.ok}/${s.n} servable (the 1 = the archived CA-4 fixture)`;
+      return `${s.ok}/${s.n} servable; every non-servable one is an archived question`;
     }));
 
     await test('K-7 live grants: new functions owner-only; replaced functions keep their ACLs (P-9 shape)', async () => ro(async () => {
@@ -400,11 +409,12 @@ function supaMock(results) {
     // CONTENT-IMPORT-1 (2026-10-27): the baseline is the SET of versions that existed at 087 (the 113 created before
     // BASELINE_BEFORE), not "the whole table forever". Those rows (+ their options / answers) must stay byte-identical; a
     // new, separately-gated version is out of K-9's scope. Proven: the pre-import set hashes to the recorded baseline.
-    await test('K-9 the pre-087 question_versions / options / answers (113 versions) are byte-identical to the baseline', async () => ro(async () => {
+    await test('K-9 the pre-087 question_versions (immutable columns) / options / answers (113 versions) are identical to the baseline', async () => ro(async () => {
       const SET = `SELECT id FROM public.question_versions WHERE created_at < '${BASELINE_BEFORE}'`;
       const n = (await q(`SELECT count(*)::int n FROM public.question_versions WHERE created_at < '${BASELINE_BEFORE}'`))[0].n;
-      const h = (await q(`SELECT
-          left(md5(coalesce(string_agg(x::text, '|' ORDER BY x::text), '')), 12) v FROM public.question_versions x WHERE x.id IN (${SET})`))[0].v;
+      const h = (await q(`SELECT left(md5(coalesce(string_agg(r::text, '|' ORDER BY r::text), '')), 12) v FROM (SELECT row(x.id, x.question_id, x.version_number,
+          x.question_text, x.options_type, x.language, x.difficulty, x.content_checksum, x.question_image_url, x.created_at, x.published_at) r
+          FROM public.question_versions x WHERE x.id IN (${SET})) t`))[0].v;
       const o = (await q(`SELECT left(md5(coalesce(string_agg(x::text, '|' ORDER BY x::text), '')), 12) v FROM public.question_options x WHERE x.question_version_id IN (${SET})`))[0].v;
       const a = (await q(`SELECT left(md5(coalesce(string_agg(x::text, '|' ORDER BY x::text), '')), 12) v FROM public.question_answers x WHERE x.question_version_id IN (${SET})`))[0].v;
       assert(n === BASELINE_VERSIONS, `${n} baseline versions (want ${BASELINE_VERSIONS})`);
@@ -435,14 +445,20 @@ function supaMock(results) {
       const d = (await q(`SELECT v.id FROM public.question_versions v JOIN public.question_answers a ON a.question_version_id = v.id WHERE v.lifecycle_status = 'DRAFT' LIMIT 1`))[0];
       if (d) assert((await attempt([{ sql: `UPDATE public.question_answers SET explanation_md = explanation_md || ' x' WHERE question_version_id = $1`, params: [d.id] }])) === null, 'control: a DRAFT edit was refused (the probe cannot tell refused from allowed)');
       for (const v of sample) {
-        const other = ['A', 'B', 'C', 'D'].find((x) => x !== v.k);
+        // GATE-SCOPE-SWEEP (2026-10-29): the probe uses the version's OWN option keys (owner questions may have 2–5 options
+        // or other keys; a hard-coded 'D' would touch 0 rows and read as "ALLOWED")
+        const keys = (await q(`SELECT option_key k FROM public.question_options WHERE question_version_id = $1 ORDER BY option_key`, [v.id])).map((r) => r.k);
+        assert(keys.length >= 2 && keys.includes(v.k), `probe version has ${keys.length} option(s) / key ${v.k} not among them`);
+        const other = keys.find((x) => x !== v.k);
+        const firstKey = keys[0];
+        const lastKey = keys[keys.length - 1];
         const tries = {
           'change the key': [{ sql: `UPDATE public.question_answers SET correct_option_key = $2 WHERE question_version_id = $1`, params: [v.id, other] }],
           'change the key with the lifecycle flag on': [`SELECT set_config('app.qf_lifecycle_write', 'on', true)`, { sql: `UPDATE public.question_answers SET correct_option_key = $2 WHERE question_version_id = $1`, params: [v.id, other] }],
           'edit the explanation': [{ sql: `UPDATE public.question_answers SET explanation_md = explanation_md || ' x' WHERE question_version_id = $1`, params: [v.id] }],
           'delete the answer': [{ sql: `DELETE FROM public.question_answers WHERE question_version_id = $1`, params: [v.id] }],
-          'edit an option': [{ sql: `UPDATE public.question_options SET option_text = option_text || ' x' WHERE question_version_id = $1 AND option_key = 'A'`, params: [v.id] }],
-          'delete an option': [{ sql: `DELETE FROM public.question_options WHERE question_version_id = $1 AND option_key = 'D'`, params: [v.id] }],
+          'edit an option': [{ sql: `UPDATE public.question_options SET option_text = option_text || ' x' WHERE question_version_id = $1 AND option_key = $2`, params: [v.id, firstKey] }],
+          'delete an option': [{ sql: `DELETE FROM public.question_options WHERE question_version_id = $1 AND option_key = $2`, params: [v.id, lastKey] }],
           'edit the stem': [{ sql: `UPDATE public.question_versions SET question_text = question_text || ' x' WHERE id = $1`, params: [v.id] }],
         };
         for (const [name, steps] of Object.entries(tries)) {

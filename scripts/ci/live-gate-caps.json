@@ -1,0 +1,214 @@
+{
+  "_doc": "CI-SPEED-1 (architect 2026-10-29): per-suite caps for every live gate run through scripts/ci/run-quiet.cjs --caps. measured = seconds on dispatch 40919071379 (ubuntu-24.04); cap = 2.5 x (measured + 60 s for gates re-fixtured by GATE-SCOPE-SWEEP + 70 s for the ISR re-check of the syllabus-section smokes), rounded up to 30 s, min 120, max 900. A gate without an entry is refused (fail closed). Re-measure after each nightly; never raise a cap to hide a slow gate.",
+  "source_run": 40919071379,
+  "gates": {
+    "QA-SESSION-PROBE": {
+      "measured": 6,
+      "cap": 120
+    },
+    "SECDEF-RATCHET": {
+      "measured": 3,
+      "cap": 120
+    },
+    "RLS": {
+      "measured": 182,
+      "cap": 480
+    },
+    "QBKEY1": {
+      "measured": 89,
+      "cap": 240
+    },
+    "SECDEF-S2-1": {
+      "measured": 22,
+      "cap": 120
+    },
+    "TYPES1-CLOSE": {
+      "measured": 299,
+      "cap": 750
+    },
+    "GAP2-4A": {
+      "measured": 297,
+      "cap": 750
+    },
+    "READERS": {
+      "measured": 31,
+      "cap": 270
+    },
+    "SYLIMPORT1": {
+      "measured": 76,
+      "cap": 210
+    },
+    "SYLIMPORT1-SCOPE-CONTROLS": {
+      "measured": 14,
+      "cap": 120
+    },
+    "ADMIN-D1-D2": {
+      "measured": 17,
+      "cap": 120
+    },
+    "CA1-TAXONOMY-LIVE": {
+      "measured": 192,
+      "cap": 480
+    },
+    "CA2-INTAKE-LIVE": {
+      "measured": 104,
+      "cap": 420
+    },
+    "CA3-LESSONS-LIVE": {
+      "measured": 84,
+      "cap": 210
+    },
+    "CA4-LESSONS-LIVE": {
+      "measured": 135,
+      "cap": 510
+    },
+    "LESSON-PROMPT-2-LIVE": {
+      "measured": 27,
+      "cap": 120
+    },
+    "CA5-COURSES-LIVE": {
+      "measured": 81,
+      "cap": 360
+    },
+    "LESSON-PERF": {
+      "measured": 26,
+      "cap": 120
+    },
+    "CA6-SEO-LIVE": {
+      "measured": 7,
+      "cap": 120
+    },
+    "CA7-LIVE": {
+      "measured": 57,
+      "cap": 300
+    },
+    "LAUNCH-MODE-1-LIVE": {
+      "measured": 33,
+      "cap": 240
+    },
+    "INTAKE-ASSIST-1-LIVE": {
+      "measured": 109,
+      "cap": 450
+    },
+    "PUBLISH-IMPACT-LIVE": {
+      "measured": 6,
+      "cap": 180
+    },
+    "PUBLISH-CONFIRM-LIVE": {
+      "measured": 112,
+      "cap": 450
+    },
+    "SMOKE-ADMIN-PAGES-1": {
+      "measured": 93,
+      "cap": 240
+    },
+    "SMOKE-ADMIN-PAGES-2": {
+      "measured": 88,
+      "cap": 240
+    },
+    "SMOKE-ADMIN-PAGES-3": {
+      "measured": 92,
+      "cap": 240
+    },
+    "SMOKE-STAFF-CONTENT": {
+      "measured": 17,
+      "cap": 120
+    },
+    "SMOKE-ADMIN-HOME": {
+      "measured": 13,
+      "cap": 120
+    },
+    "FLAGS-LIVE": {
+      "measured": 14,
+      "cap": 120
+    },
+    "UX2A-LIVE": {
+      "measured": 85,
+      "cap": 240
+    },
+    "UX2B-LIVE": {
+      "measured": 3,
+      "cap": 120
+    },
+    "AUTH1-2B1-LIVE": {
+      "measured": 2,
+      "cap": 120
+    },
+    "CA-ROUTES": {
+      "measured": 6,
+      "cap": 120
+    },
+    "SEC1B-LIVE": {
+      "measured": 8,
+      "cap": 120
+    },
+    "SEC1C-LIVE": {
+      "measured": 150,
+      "cap": 390
+    },
+    "SEC1D-LIVE": {
+      "measured": 9,
+      "cap": 120
+    },
+    "ANON-SMOKE-LOCAL": {
+      "measured": 9,
+      "cap": 210
+    },
+    "QF1-DB": {
+      "measured": 62,
+      "cap": 180
+    },
+    "CLEANUP-1": {
+      "measured": 26,
+      "cap": 120
+    },
+    "JOURNEY": {
+      "measured": 70,
+      "cap": 180
+    },
+    "LINEAGE": {
+      "measured": 5,
+      "cap": 120
+    },
+    "DRILL1": {
+      "measured": 20,
+      "cap": 120
+    },
+    "STUDENT-DRILL": {
+      "measured": 9,
+      "cap": 120
+    },
+    "CLEANUP-2": {
+      "measured": 25,
+      "cap": 120
+    },
+    "FIXTURE": {
+      "measured": 42,
+      "cap": 120
+    },
+    "SMOKE-STUDENT-MISTAKE-1": {
+      "measured": 34,
+      "cap": 120
+    },
+    "SMOKE-STUDENT-MISTAKE-2": {
+      "measured": 33,
+      "cap": 120
+    },
+    "SMOKE-STUDENT-MISTAKE-3": {
+      "measured": 32,
+      "cap": 120
+    },
+    "VAULT-HEALTH": {
+      "measured": 3,
+      "cap": 120
+    },
+    "F9-PRICING": {
+      "measured": 94,
+      "cap": 240
+    },
+    "SMOKE-STUDENT-PAGES": {
+      "measured": 58,
+      "cap": 330
+    }
+  }
+}

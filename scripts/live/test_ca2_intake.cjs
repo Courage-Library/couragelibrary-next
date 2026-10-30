@@ -107,10 +107,12 @@ const stripNew = (v) => JSON.parse(JSON.stringify(v, (k, x) => (['node_id', 'nod
         val: draft ? (await q(`select public.fn_syllabus__validate($1) r`, [draft.id]))[0].r : null,
       } : null;
       await migrate();
-      const after = {
+      // GATE-SCOPE-SWEEP: the readers-unchanged proof is a --pre (migration 116) check only; after apply nothing here
+      // depends on the real published CGL syllabus
+      const after = PRE ? {
         rm: (await q(`select public.fn_exam_syllabus_read_model($1, $2) r`, [cgl.exam_id, cgl.exam_cycle_id]))[0].r,
         val: draft ? (await q(`select public.fn_syllabus__validate($1) r`, [draft.id]))[0].r : null,
-      };
+      } : null;
       if (PRE) {
         const same = JSON.stringify(stripNew(before.rm)) === JSON.stringify(stripNew(after.rm)) && JSON.stringify(before.val) === JSON.stringify(after.val);
         chk(`A-0 readers unchanged by 116: the published SSC CGL read model (${after.rm.nodes.length} nodes, ${after.rm.totals.topics} topics) and the open DRAFT's validation report are identical before / after (only the new keys added)`,
@@ -163,10 +165,14 @@ const stripNew = (v) => JSON.parse(JSON.stringify(v, (k, x) => (['node_id', 'nod
     // ---------------- B: intake end to end
     await chunk(async () => {
       await migrate();
-      // a real subject + one of its topics (EXACT), a QA alias target, a near-miss (CLOSE) and new material (NEW)
-      const [subj] = await q(`select s.id, s.name from public.canonical_taxonomy_nodes s where s.node_type = 'SUBJECT' and s.is_active
-                                and (select count(*) from public.canonical_taxonomy_nodes t where t.parent_id = s.id and t.is_active) >= 2 order by s.name limit 1`);
-      const topics = await q(`select id, name from public.canonical_taxonomy_nodes where parent_id = $1 and is_active and node_type = 'TOPIC' order by name limit 2`, [subj.id]);
+      // GATE-SCOPE-SWEEP (2026-10-29): the smoke's OWN subject + two topics (EXACT; words that appear nowhere else in the
+      // payload, so the matcher's word rule cannot turn another item into a near-miss), made in this rolled-back chunk — a real
+      // subject "first by name with ≥ 2 topics" changes as the owner adds subjects / renames topics; plus a QA alias target,
+      // a near-miss (CLOSE) and new material (NEW)
+      const subjId = await mkNode(null, 'SUBJECT', 'Ledger Fixture Domain', 'ca2-ledger-fixture-domain');
+      const subj = { id: subjId, name: 'Ledger Fixture Domain' };
+      const topics = [];
+      for (const [name, slug] of [['Ledger Fixture Alpha', 'ca2-ledger-fixture-alpha'], ['Ledger Fixture Beta', 'ca2-ledger-fixture-beta']]) topics.push({ id: await mkNode(subj.id, 'TOPIC', name, slug), name });
       const aliasTopic = await mkNode(subj.id, 'TOPIC', 'CA2 Smoke Alias Target', 'ca2-smoke-alias-target');
       const closeTopic = await mkNode(subj.id, 'TOPIC', 'CA2 Smoke Boat and Stream', 'ca2-smoke-boat-and-stream');
       const payload = {

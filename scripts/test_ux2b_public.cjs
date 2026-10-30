@@ -51,6 +51,14 @@ const NEW_PAGES = ['app/about/page.tsx', 'app/cnts/page.tsx', 'app/contact/page.
 const NEW_COMPONENTS = ['components/public/public-page.tsx', 'components/public/coming-soon-hub.tsx'];
 const COPY = 'content/public-pages.ts';
 const PUBLIC_ROUTES = ['/about', '/cnts', '/contact', '/privacy', '/terms', '/pricing'];
+// GATE-SCOPE-SWEEP (2026-10-29): the coming-soon slugs come from content/landing.ts (LANDING_EXAMS.comingSoon); whether
+// each one is still a coming-soon HUB is read from its page — the owner may activate SSC CHSL / MTS at any time
+const SOON_SLUGS = (() => {
+  const src = fs.readFileSync(path.join(ROOT, 'content/landing.ts'), 'utf8');
+  const block = (src.match(/comingSoon:\s*\[([\s\S]*?)\]/) || [])[1] || '';
+  return [...block.matchAll(/slug:\s*"([a-z0-9-]+)"/g)].map((m) => m[1]);
+})();
+const hubSlugs = new Set();
 
 /** route table from app/**\/page.tsx (route groups and dynamic segments supported) */
 function routeTable() {
@@ -298,7 +306,7 @@ async function live() {
   const get = async (p, redirect = 'manual') => {
     for (let i = 1; i <= 3; i++) {
       try {
-        const r = await fetch(BASE + p, { redirect, signal: AbortSignal.timeout(60000) });
+        const r = await fetch(BASE + p, { redirect, signal: AbortSignal.timeout(30000) });
         return { status: r.status, location: r.headers.get('location') || '', body: await r.text() };
       } catch (e) {
         if (i === 3) throw e;
@@ -321,18 +329,26 @@ async function live() {
     assert(r.status === 308 && /\/pricing$/.test(r.location), `${r.status} → ${r.location}`);
     return '308';
   });
-  await test('W-3 coming-soon hub 200 + noindex; unlisted inactive exam → 404', async () => {
-    const r = await get('/exams/ssc-chsl');
-    assert(r.status === 200 && /data-coming-soon-hub/.test(r.body) && /<meta name="robots" content="noindex/.test(r.body), `ssc-chsl: ${r.status}`);
+  await test('W-3 every coming-soon slug answers 200: a hub is noindex (an activated exam is its real page); unlisted inactive exam → 404', async () => {
+    assert(SOON_SLUGS.length > 0, 'no coming-soon slugs parsed from content/landing.ts');
+    for (const slug of SOON_SLUGS) {
+      const r = await get(`/exams/${slug}`);
+      assert(r.status === 200, `${slug}: ${r.status}`);
+      if (/data-coming-soon-hub/.test(r.body)) {
+        assert(/<meta name="robots" content="noindex/.test(r.body), `${slug}: coming-soon hub without noindex`);
+        hubSlugs.add(slug);
+      }
+    }
     const q = await get('/exams/qa-syllabus-test');
     assert(q.status === 404, `qa exam: ${q.status}`);
-    return 'chsl hub noindex; qa exam 404';
+    return `${hubSlugs.size} hub(s) noindex (${[...hubSlugs].join(', ') || 'none'}), ${SOON_SLUGS.length - hubSlugs.size} activated; qa exam 404`;
   });
   await test('W-4 sitemap lists the six public pages and no coming-soon hub', async () => {
     const r = await get('/sitemap.xml');
     const missing = PUBLIC_ROUTES.filter((p) => !new RegExp(`<loc>[^<]*${p}</loc>`).test(r.body));
-    assert(r.status === 200 && missing.length === 0 && !/ssc-chsl|ssc-mts/.test(r.body), `${r.status}; missing ${missing.join(', ')}`);
-    return 'six pages; no hubs';
+    const listedHubs = [...hubSlugs].filter((sl) => r.body.includes(`/exams/${sl}<`) || r.body.includes(`/exams/${sl}/`));
+    assert(r.status === 200 && missing.length === 0 && listedHubs.length === 0, `${r.status}; missing ${missing.join(', ')}; hubs listed ${listedHubs.join(', ')}`);
+    return `six pages; none of the ${hubSlugs.size} coming-soon hub(s)`;
   });
   await test('W-5 no audience-size claims or prices on the new pages; legal pages show the draft notice', async () => {
     const bad = [];

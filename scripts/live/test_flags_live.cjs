@@ -77,7 +77,10 @@ const assert = (c, m) => {
         const [v] = await q(
           `select v.id vid, v.question_id qid, a.correct_option_key k from question_versions v join questions qq on qq.id = v.question_id join question_answers a on a.question_version_id = v.id
             where qq.status = 'published' and v.is_current and v.lifecycle_status = 'PUBLISHED' and public.fn_qf_version_is_servable(v.id)
-              and not exists (select 1 from user_mistake_vault m where m.user_id = $1 and m.question_id = v.question_id) limit 1`,
+              and not exists (select 1 from user_mistake_vault m where m.user_id = $1 and m.question_id = v.question_id)
+              -- GATE-SCOPE-SWEEP (2026-10-29): deterministic — the oldest servable version (the K-9-protected pre-087 set
+              -- first), never "any row" (an owner question of another shape could be picked)
+            order by v.created_at, v.id limit 1`,
           [u.id],
         );
         assert(v, 'no servable question outside the QA vault');

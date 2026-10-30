@@ -50,12 +50,16 @@ const redact = (s) =>
     .split(pgConfig.host).join('[host]')
     .split(pgConfig.user).join('[user]');
 
-const BASELINE_TABLES = [
-  'questions', 'question_versions', 'question_options', 'question_answers', 'question_sources',
-  'exam_question_mappings', 'mock_tests', 'mock_questions', 'test_attempts', 'attempt_answers',
-  'test_results', 'user_mistake_vault', 'topics', 'subjects', 'exams',
-  'question_version_authoring', 'question_import_batches', 'custom_practice_sessions',
-];
+// GATE-SCOPE-SWEEP (2026-10-29): BASE-1 no longer compares whole-table counts — the owner imports questions and edits the
+// master tree while CI runs. It counts what THIS suite could leave behind: rows carrying its stem tag (every run's
+// 'QF1DBTEST-' prefix), its 'qf1-probe' practice sessions, and rows the suite's actor (the QA admin) created since start.
+const LEFTOVER_SQL = `SELECT
+    (SELECT count(*) FROM public.question_versions WHERE question_text LIKE 'QF1DBTEST-%')::int AS tagged_versions,
+    (SELECT count(*) FROM public.question_options o JOIN public.question_versions v ON v.id = o.question_version_id WHERE v.question_text LIKE 'QF1DBTEST-%')::int AS tagged_options,
+    (SELECT count(*) FROM public.custom_practice_sessions WHERE title = 'qf1-probe')::int AS probe_sessions,
+    (SELECT count(*) FROM public.question_import_batches WHERE created_by = $1 AND created_at >= $2)::int AS actor_batches,
+    (SELECT count(*) FROM public.test_attempts WHERE user_id = $1 AND created_at >= $2)::int AS actor_attempts,
+    (SELECT count(*) FROM public.user_mistake_vault WHERE user_id = $1 AND created_at >= $2)::int AS actor_mistakes`;
 const CHECKLIST = JSON.stringify({
   correct_key_verified: true, explanation_correct: true, no_ambiguity: true,
   topic_correct: true, difficulty_sensible: true, provenance_verified: true,
@@ -81,15 +85,8 @@ function assert(c, m) {
   if (!c) throw new Error(m || 'assertion failed');
 }
 
-async function counts(c) {
-  const out = {};
-  for (const t of BASELINE_TABLES) {
-    const r = await c.query(`SELECT CASE WHEN to_regclass('public.${t}') IS NULL THEN NULL ELSE (SELECT count(*) FROM public.${t}) END::bigint AS n`).catch(async () => {
-      return c.query(`SELECT NULL::bigint AS n`);
-    });
-    out[t] = r.rows[0].n === null ? null : Number(r.rows[0].n);
-  }
-  return out;
+async function leftovers(c, actor, since) {
+  return (await c.query(LEFTOVER_SQL, [actor, since])).rows[0];
 }
 
 (async () => {
@@ -143,7 +140,8 @@ async function counts(c) {
 
   const fixture = async () => {
     const t = await c.query(`SELECT id FROM public.topics WHERE is_active ORDER BY id LIMIT 1`);
-    const u = await c.query(`SELECT id FROM auth.users ORDER BY created_at LIMIT 1`);
+    // GATE-SCOPE-SWEEP: the QA admin, never "the first account" (a real person's account)
+    const u = await c.query(`SELECT id FROM auth.users WHERE email = 'qa-admin@courage-library.test'`);
     const e = await c.query(`SELECT id FROM public.exams WHERE is_active ORDER BY id LIMIT 1`);
     assert(t.rows[0] && u.rows[0], 'need at least one active topic and one auth user');
     return { topicId: t.rows[0].id, actor: u.rows[0].id, examId: e.rows[0] ? e.rows[0].id : null };
@@ -171,7 +169,9 @@ async function counts(c) {
     return (await c.query(`SELECT public.fn_publish_question_version($1, $2) AS r`, [versionId, f.actor])).rows[0].r;
   };
 
-  const before = await counts(c);
+  const suiteStart = (await c.query(`SELECT now() t`)).rows[0].t;
+  const suiteActor = (await fixture()).actor;
+  const before = await leftovers(c, suiteActor, suiteStart);
 
   // ---------------- Backfill ----------------
   await test('BF-1 no NULL checksum; one authoring row per version', async () => {
@@ -209,9 +209,10 @@ async function counts(c) {
       const f = await fixture();
       const items = [mkItem(1), mkItem(2)];
       await importBatch(c, f, items);
-      const n1 = (await c.query(`SELECT count(*)::int n FROM public.question_versions`)).rows[0].n;
+      // GATE-SCOPE-SWEEP: this run's tagged versions only (other sessions may import while the suite runs)
+      const n1 = (await c.query(`SELECT count(*)::int n FROM public.question_versions WHERE question_text LIKE $1`, [`${tag}%`])).rows[0].n;
       await expectError(`SELECT public.fn_import_question_drafts($1::jsonb, $2::uuid)`, [JSON.stringify({ origin: 'AI_EXTERNAL', target_topic_id: f.topicId, items }), f.actor], 'QF_DUPLICATE');
-      const n2 = (await c.query(`SELECT count(*)::int n FROM public.question_versions`)).rows[0].n;
+      const n2 = (await c.query(`SELECT count(*)::int n FROM public.question_versions WHERE question_text LIKE $1`, [`${tag}%`])).rows[0].n;
       assert(n1 === n2, `${n1} → ${n2}`);
     }));
   await test('IMP-3 parallel imports of the same stem (2 connections) → exactly one succeeds', async () => {
@@ -442,18 +443,18 @@ async function counts(c) {
   }
 
   let after = {};
-  try { after = await counts(c); } catch (e) { after = null; }
-  await test('BASE-1 baseline counts identical before/after the suite', async () => {
-    assert(after, 'baseline counts could not be read after the suite (connection lost)');
-    const diff = BASELINE_TABLES.filter((t) => before[t] !== after[t]);
-    assert(diff.length === 0, `changed: ${diff.map((t) => `${t} ${before[t]}→${after[t]}`).join(', ')}`);
+  try { after = await leftovers(c, suiteActor, suiteStart); } catch (e) { after = null; }
+  await test('BASE-1 nothing left behind: 0 tagged versions / options, 0 probe sessions, 0 batches / attempts / mistakes by the suite actor', async () => {
+    assert(after, 'leftover counts could not be read after the suite (connection lost)');
+    const bad = Object.entries(after).filter(([, n]) => n !== 0);
+    assert(bad.length === 0 && Object.values(before).every((n) => n === 0), `left behind: ${JSON.stringify({ before, after })}`);
   });
 
   await c.end().catch(() => undefined);
   if (connLost.length) { failed++; lines.push(`  FAIL  CONN a DB connection was lost during the suite — results incomplete\n        ${connLost.join('; ')}`); }
   console.log(lines.join('\n'));
-  console.log('Baseline (before → after):');
-  BASELINE_TABLES.forEach((t) => console.log(`  ${t}: ${before[t]} → ${after ? after[t] : '?'}`));
+  console.log('Left behind by the suite (before → after):');
+  Object.keys(before).forEach((t) => console.log(`  ${t}: ${before[t]} → ${after ? after[t] : '?'}`));
   console.log(`\nQF-1 DB suite: ${passed}/${passed + failed} passed`);
   process.exit(failed === 0 ? 0 : 1);
 })().catch((e) => {

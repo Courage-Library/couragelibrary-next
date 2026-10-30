@@ -21,7 +21,13 @@ let ok = true; const chk = (n, cond, info) => { if (!cond) ok = false; console.l
   const c = new Client(dbTarget().pg); c.on('error', () => {}); await c.connect();
   const q = async (s, p) => (await c.query(s, p)).rows;
   const ids = {};
-  const [base] = (await c.query(`select (select count(*)::int from payment_orders) o, (select count(*)::int from user_entitlements) e`)).rows;
+  // GATE-SCOPE-SWEEP (2026-10-29): Z-1 counts only the QA identities' rows created since the start (an admin may grant
+  // Library Pro to a real user, or a real order may arrive, while the gate runs)
+  const QA_EMAILS = ['qa-admin@courage-library.test', 'qa-staff@courage-library.test', 'qa-student@courage-library.test'];
+  const [{ t: startedAt }] = (await c.query(`select now() t`)).rows;
+  const OWN = `(select count(*)::int from payment_orders where created_at >= $1 and user_id in (select id from auth.users where email = any($2))) o,
+    (select count(*)::int from user_entitlements where created_at >= $1 and user_id in (select id from auth.users where email = any($2))) e`;
+  const [base] = (await c.query(`select ${OWN}`, [startedAt, QA_EMAILS])).rows;
   try {
     for (const [k, e] of [['admin', 'qa-admin@courage-library.test'], ['staff', 'qa-staff@courage-library.test'], ['student', 'qa-student@courage-library.test']]) ids[k] = (await q(`select id from auth.users where email=$1`, [e]))[0].id;
     const lit = (o) => `'${JSON.stringify(o).replace(/'/g, "''")}'`;
@@ -37,7 +43,10 @@ let ok = true; const chk = (n, cond, info) => { if (!cond) ok = false; console.l
     // ---------------- chunk 1: grants / RLS / client denials
     await withLiveTransaction(c, async () => {
       const anonPlans = await as('anon', { role: 'anon' }, `select plan_code, price_paise from public.pro_plan_versions order by display_order`);
-      chk('G-1 anon reads the 4 ACTIVE v1 plans (prices in paise: 29900 / 49900 / 79900 / 59900)', anonPlans.ok && anonPlans.rows.map((r) => r.plan_code + ':' + r.price_paise).join(',') === 'PRO_3M:29900,PRO_6M:49900,PRO_12M:79900,PRO_12M_FOUNDING:59900', JSON.stringify(anonPlans));
+      // GATE-SCOPE-SWEEP: the owner may re-price before launch — anon sees exactly the ACTIVE plans (as the DB has them), each
+      // with a positive price; the v1 seed prices are no longer pinned here
+      const activePlans = (await q(`select plan_code, price_paise from public.pro_plan_versions where active order by display_order`)).map((r) => r.plan_code + ':' + r.price_paise).join(',');
+      chk(`G-1 anon reads exactly the ACTIVE plans (${activePlans}), every price > 0`, anonPlans.ok && anonPlans.rows.length > 0 && anonPlans.rows.map((r) => r.plan_code + ':' + r.price_paise).join(',') === activePlans && anonPlans.rows.every((r) => Number(r.price_paise) > 0), JSON.stringify(anonPlans));
       const denials = [];
       for (const [role, cl] of [['anon', { role: 'anon' }], ['authenticated', STU]]) {
         for (const sql of [`select * from public.app_settings`, `select * from public.founding_offer`, `select * from public.pro_reminders_sent`,
@@ -164,8 +173,8 @@ let ok = true; const chk = (n, cond, info) => { if (!cond) ok = false; console.l
     });
   } catch (e) { ok = false; console.log('ERROR', e.code || '', String(e.message).slice(0, 300)); }
   finally {
-    const [x] = await q(`select to_regclass('public.pro_plan_versions') is not null t, (select count(*)::int from payment_orders) o, (select count(*)::int from user_entitlements) e`).catch(() => [{}]);
-    chk('Z-1 113 / 114 applied; every synthetic row rolled back (payment orders / entitlements unchanged)', x.t === true && x.o === base.o && x.e === base.e, JSON.stringify({ ...x, base }));
+    const [x] = await q(`select to_regclass('public.pro_plan_versions') is not null t, ${OWN}`, [startedAt, QA_EMAILS]).catch(() => [{}]);
+    chk('Z-1 113 / 114 applied; every synthetic row rolled back (the QA identities\' payment orders / entitlements since the start unchanged)', x.t === true && x.o === base.o && x.e === base.e, JSON.stringify({ ...x, base }));
     await c.end().catch(() => {});
   }
   console.log(ok ? 'F9-PRICING: ALL PASS (rolled back)' : 'F9-PRICING: FAIL'); process.exit(ok ? 0 : 1);
