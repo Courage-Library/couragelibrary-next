@@ -3,7 +3,7 @@
 
 import { guardAdminAction, toActionFailure } from "@/lib/auth/require-admin";
 import { revalidatePath } from "next/cache";
-import { ExamOnboardingService } from "@/services/exam-onboarding/exam-onboarding.service";
+import { ExamLogoRequiredError, ExamOnboardingService } from "@/services/exam-onboarding/exam-onboarding.service";
 import { ExamReadinessService, ExamReadinessReport } from "@/services/exam-onboarding/exam-readiness.service";
 import { ExamOnboardingContextBuilder } from "@/services/exam-onboarding/exam-onboarding-context-builder.service";
 import { ExamOnboardingPromptService } from "@/services/exam-onboarding/exam-onboarding-prompt.service";
@@ -31,8 +31,10 @@ export async function createExamDraftAction(
   const title = (formData.get("title") as string || "").trim();
   const slug = (formData.get("slug") as string || "").trim();
   const orgId = (formData.get("orgId") as string || "").trim();
-  const newOrgName = (formData.get("newOrgName") as string || "").trim();
-  const newOrgWebsite = (formData.get("newOrgWebsite") as string || "").trim();
+  // EXAM-LOGO-1: a body is created (with its logo) in Exams › Conducting bodies, never inline with an exam
+  if ((formData.get("newOrgName") as string || "").trim()) {
+    return { error: "Add the conducting body and its official logo in Exams › Conducting bodies first, then choose it here." };
+  }
   const category = (formData.get("category") as string || "National Recruitment").trim();
   const description = (formData.get("description") as string || "").trim();
   const cycleYearStr = (formData.get("cycleYear") as string || "").trim();
@@ -45,8 +47,6 @@ export async function createExamDraftAction(
       title,
       slug: slug || undefined,
       orgId: orgId || undefined,
-      newOrgName: newOrgName || undefined,
-      newOrgWebsite: newOrgWebsite || undefined,
       category,
       description,
       cycleYear: cycleYear && !isNaN(cycleYear) ? cycleYear : undefined,
@@ -61,6 +61,7 @@ export async function createExamDraftAction(
       data: result,
     };
   } catch (err: any) {
+    if (err instanceof ExamLogoRequiredError) return { error: err.message };
     return toActionFailure("createExamDraftAction", err);
   }
 }

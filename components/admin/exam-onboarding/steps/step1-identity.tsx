@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import React, { useState } from "react";
 import { ConductingOrgItem } from "@/services/exam-onboarding/exam-onboarding.service";
 import { Card } from "@/components/ui/legacy/card";
@@ -22,8 +23,6 @@ interface Props {
     title: string;
     slug: string;
     orgId: string;
-    newOrgName?: string;
-    newOrgWebsite?: string;
     category: string;
     description: string;
   }) => Promise<void>;
@@ -34,10 +33,9 @@ export function Step1Identity({ initialData, orgs, onSave, isSaving }: Props) {
   const [title, setTitle] = useState(initialData?.title || "");
   const [slug, setSlug] = useState(initialData?.slug || "");
   const [isSlugCustomized, setIsSlugCustomized] = useState(Boolean(initialData?.slug));
-  const [orgId, setOrgId] = useState(initialData?.orgId || (orgs[0]?.id || ""));
-  const [isCreatingOrg, setIsCreatingOrg] = useState(false);
-  const [newOrgName, setNewOrgName] = useState("");
-  const [newOrgWebsite, setNewOrgWebsite] = useState("");
+  // EXAM-LOGO-1: only an active body WITH its official logo can conduct an exam (the server enforces the same rule)
+  const usable = orgs.filter((o) => o.isActive && o.logoPath);
+  const [orgId, setOrgId] = useState(initialData?.orgId || (usable[0]?.id || ""));
   const [category, setCategory] = useState(initialData?.category || "National Recruitment");
   const [description, setDescription] = useState(initialData?.description || "");
   const [error, setError] = useState<string | null>(null);
@@ -56,12 +54,8 @@ export function Step1Identity({ initialData, orgs, onSave, isSaving }: Props) {
       setError("Exam Title is required.");
       return;
     }
-    if (!isCreatingOrg && !orgId) {
-      setError("Please select a conducting authority.");
-      return;
-    }
-    if (isCreatingOrg && !newOrgName.trim()) {
-      setError("Please enter the new conducting authority name.");
+    if (!orgId) {
+      setError("Choose the conducting body. A body needs its official logo first (Exams › Conducting bodies).");
       return;
     }
 
@@ -69,9 +63,7 @@ export function Step1Identity({ initialData, orgs, onSave, isSaving }: Props) {
       await onSave({
         title: title.trim(),
         slug: slug.trim(),
-        orgId: isCreatingOrg ? "" : orgId,
-        newOrgName: isCreatingOrg ? newOrgName.trim() : undefined,
-        newOrgWebsite: isCreatingOrg ? newOrgWebsite.trim() : undefined,
+        orgId,
         category: category.trim(),
         description: description.trim(),
       });
@@ -139,54 +131,29 @@ export function Step1Identity({ initialData, orgs, onSave, isSaving }: Props) {
         {/* Conducting Organization */}
         <div className="space-y-3 pt-2 border-t border-slate-100">
           <div className="flex items-center justify-between">
-            <label className="block text-xs font-bold text-slate-700 flex items-center gap-1.5">
-              <Building2 className="w-4 h-4 text-blue-600" /> Conducting Organization <span className="text-rose-500">*</span>
+            <label htmlFor="wizard-org" className="block text-xs font-bold text-slate-700 flex items-center gap-1.5">
+              <Building2 className="w-4 h-4 text-blue-600" /> Conducting body <span className="text-rose-500">*</span>
             </label>
-            <button
-              type="button"
-              onClick={() => setIsCreatingOrg(!isCreatingOrg)}
-              className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1"
-            >
-              {isCreatingOrg ? "Select Existing Authority" : "+ Register New Authority"}
-            </button>
+            <Link href="/admin/exams#conducting-bodies" className="text-xs font-bold text-blue-700 hover:text-blue-800">
+              Conducting bodies
+            </Link>
           </div>
-
-          {!isCreatingOrg ? (
-            <select
-              value={orgId}
-              onChange={(e) => setOrgId(e.target.value)}
-              className="w-full px-3.5 py-2.5 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:border-blue-500 transition-colors"
-            >
-              {orgs.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.name} ({o.slug})
-                </option>
-              ))}
-            </select>
-          ) : (
-            <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-xl space-y-3">
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">New Authority Name *</label>
-                <input
-                  type="text"
-                  value={newOrgName}
-                  onChange={(e) => setNewOrgName(e.target.value)}
-                  placeholder="e.g. Institute of Banking Personnel Selection (IBPS)"
-                  className="w-full px-3 py-2 text-xs font-semibold rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">Official Portal URL</label>
-                <input
-                  type="url"
-                  value={newOrgWebsite}
-                  onChange={(e) => setNewOrgWebsite(e.target.value)}
-                  placeholder="https://ibps.in"
-                  className="w-full px-3 py-2 text-xs font-semibold rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-blue-500"
-                />
-              </div>
-            </div>
-          )}
+          <select
+            id="wizard-org"
+            value={orgId}
+            onChange={(e) => setOrgId(e.target.value)}
+            aria-describedby="wizard-org-hint"
+            className="w-full px-3.5 py-2.5 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:border-blue-500 transition-colors"
+          >
+            {orgs.filter((o) => o.isActive).map((o) => (
+              <option key={o.id} value={o.id} disabled={!o.logoPath}>
+                {o.name}{o.logoPath ? "" : " — upload its logo first"}
+              </option>
+            ))}
+          </select>
+          <p id="wizard-org-hint" className="text-[11px] text-slate-600">
+            Every exam shows its conducting body&apos;s official logo. A new body is added, with its logo, under Exams › Conducting bodies.
+          </p>
         </div>
 
         {/* Category Domain */}

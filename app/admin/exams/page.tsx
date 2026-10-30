@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function AdminExamsPage() {
-  await requireAdminPage({ allowStaff: true, path: "/admin/exams" });
+  const viewer = await requireAdminPage({ allowStaff: true, path: "/admin/exams" });
   const [data, orgs] = await Promise.all([
     ExamOnboardingService.getAdminExamsOverview().catch(() => ({
       exams: [],
@@ -26,6 +26,7 @@ export default async function AdminExamsPage() {
       publishedExams={data.publishedExams}
       draftExams={data.draftExams}
       conductingOrgs={orgs}
+      canEditLogos={viewer.role === "admin"}
     />
   );
 }

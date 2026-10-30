@@ -10,6 +10,8 @@
  *                                                 mapping exactly those topics (one SECTION → one UNIT per topic, MANUALLY_MAPPED)
  *   publishQaQuestion(q, topicId, actorId, tag) → a QA question PUBLISHED through the official path (import draft →
  *                                                 IN_REVIEW → APPROVED with the review checklist → fn_publish_question_version)
+ *   qaExamLogo(q, examId)                       → EXAM-LOGO-1 (126): the QA exam gets a logo OVERRIDE (a launch needs a
+ *                                                 logo) — never the real conducting body's logo
  * `q(sql, params)` returns rows (postgres connection); `svc(sql, params)` returns { ok, rows | msg } as service_role.
  */
 async function qaTopic(q, qaTopicId, slug, name) {
@@ -62,4 +64,8 @@ async function publishQaQuestion(q, topicId, actorId, tag) {
   return r.items[0].question_id;
 }
 
-module.exports = { qaTopic, publishNodeLesson, publishQaSyllabus, publishQaQuestion };
+async function qaExamLogo(q, examId) {
+  await q(`update public.exams set logo_override_sha256 = repeat('a', 64), logo_override_alt = 'QA fixture exam logo' where id = $1`, [examId]);
+}
+
+module.exports = { qaTopic, publishNodeLesson, publishQaSyllabus, publishQaQuestion, qaExamLogo };

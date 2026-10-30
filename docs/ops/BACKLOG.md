@@ -142,6 +142,18 @@ Logged by the architect (2026-10-26). A brand-new student sees empty cards on `/
 
 Once 095 is live, `fn_generate_mistake_drill` may pick manual Memory Lock items, which have 0 mistakes. The app-side lists already filter `total_mistakes_count >= 1`; the SQL generator needs the same filter.
 
+## STORAGE-SVG-1: the store-rewards bucket accepts SVG
+
+**Status:** logged by the architect, 2026-10-30 (EXAM-LOGO-1 ruling 6). Do not touch until scheduled.
+
+**Why:** `storage.buckets.store-rewards` is public and its `allowed_mime_types` include `image/svg+xml`. An SVG served from a public bucket can carry script. The new `org-logos` bucket allows only `image/webp`, and every logo is re-encoded on upload (`lib/logos/logo-image.ts`).
+
+**How (later):**
+1. List the SVG objects in the bucket.
+2. Re-encode them to PNG / WebP (or replace them).
+3. A migration drops `image/svg+xml` from the bucket's allowed types.
+4. Reuse the EXAM-LOGO-1 sniff-and-re-encode path for reward-image uploads (`app/admin/rewards/actions.ts`).
+
 ## CRLF-1 — line-ending normalisation (`.gitattributes`) — DONE 2026-10-26
 **Done (architect GO 2026-10-26).**
 - `.gitattributes`: `* text=auto eol=lf`, binary rules, `*.cmd` / `*.bat` / `*.ps1` CRLF; DRILL-1 SQL rules kept.

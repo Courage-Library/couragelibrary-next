@@ -758,6 +758,10 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean
+          logo_alt: string | null
+          logo_path: string | null
+          logo_sha256: string | null
+          logo_updated_at: string | null
           name: string
           official_website: string | null
           slug: string
@@ -767,6 +771,10 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          logo_alt?: string | null
+          logo_path?: string | null
+          logo_sha256?: string | null
+          logo_updated_at?: string | null
           name: string
           official_website?: string | null
           slug: string
@@ -776,6 +784,10 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          logo_alt?: string | null
+          logo_path?: string | null
+          logo_sha256?: string | null
+          logo_updated_at?: string | null
           name?: string
           official_website?: string | null
           slug?: string
@@ -3070,6 +3082,9 @@ export type Database = {
           description: string | null
           id: string
           is_active: boolean
+          logo_override_alt: string | null
+          logo_override_path: string | null
+          logo_override_sha256: string | null
           org_id: string
           slug: string
           title: string
@@ -3081,6 +3096,9 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean
+          logo_override_alt?: string | null
+          logo_override_path?: string | null
+          logo_override_sha256?: string | null
           org_id: string
           slug: string
           title: string
@@ -3092,6 +3110,9 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean
+          logo_override_alt?: string | null
+          logo_override_path?: string | null
+          logo_override_sha256?: string | null
           org_id?: string
           slug?: string
           title?: string
@@ -8984,6 +9005,26 @@ export type Database = {
           p_latency_ms?: number
           p_query: string
           p_result_count?: number
+        }
+        Returns: Json
+      }
+      fn_logo_remove: {
+        Args: {
+          p_actor_email: string
+          p_actor_id: string
+          p_id: string
+          p_kind: string
+        }
+        Returns: Json
+      }
+      fn_logo_set: {
+        Args: {
+          p_actor_email: string
+          p_actor_id: string
+          p_alt: string
+          p_id: string
+          p_kind: string
+          p_sha256: string
         }
         Returns: Json
       }

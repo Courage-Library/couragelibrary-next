@@ -23,7 +23,13 @@ export interface AdminExamListItem {
     name: string;
     slug: string;
     officialWebsite?: string | null;
+    /** EXAM-LOGO-1 */
+    logoPath?: string | null;
+    logoAlt?: string | null;
   };
+  /** EXAM-LOGO-1: the exam's own logo override (wins over the body's) */
+  logoOverridePath?: string | null;
+  logoOverrideAlt?: string | null;
   activeCycle?: {
     id: string;
     cycleYear: number;
@@ -37,12 +43,20 @@ export interface AdminExamListItem {
   updatedAt: string;
 }
 
+/** EXAM-LOGO-1: a refusal the admin should read as is (no internal detail in it). */
+export class ExamLogoRequiredError extends Error {
+  readonly code = 'LOGO_REQUIRED';
+}
+
 export interface ConductingOrgItem {
   id: string;
   name: string;
   slug: string;
   officialWebsite?: string | null;
   isActive: boolean;
+  /** EXAM-LOGO-1: the stored logo (orgs/<id>/<sha256>.webp) + its required alt text */
+  logoPath?: string | null;
+  logoAlt?: string | null;
 }
 
 export interface ExamPostItem {
@@ -163,7 +177,9 @@ export class ExamOnboardingService {
         is_active,
         created_at,
         updated_at,
-        conducting_org:conducting_orgs(id, name, slug, official_website, is_active)
+        logo_override_path,
+        logo_override_alt,
+        conducting_org:conducting_orgs(id, name, slug, official_website, is_active, logo_path, logo_alt)
       `)
       .order('created_at', { ascending: false });
 
@@ -230,7 +246,11 @@ export class ExamOnboardingService {
             name: orgData?.name || 'Unassigned Organization',
             slug: orgData?.slug || '',
             officialWebsite: orgData?.official_website,
+            logoPath: orgData?.logo_path ?? null,
+            logoAlt: orgData?.logo_alt ?? null,
           },
+          logoOverridePath: exam.logo_override_path ?? null,
+          logoOverrideAlt: exam.logo_override_alt ?? null,
           activeCycle: activeCycle
             ? {
                 id: activeCycle.id,
@@ -263,7 +283,7 @@ export class ExamOnboardingService {
     const supabase = customSupabase || createAdminServerSupabaseClient();
     const { data: orgs, error } = await supabase
       .from('conducting_orgs')
-      .select('id, name, slug, official_website, is_active')
+      .select('id, name, slug, official_website, is_active, logo_path, logo_alt')
       .order('name', { ascending: true });
 
     if (error) throw new Error(`Failed to fetch conducting organizations: ${error.message}`);
@@ -273,6 +293,8 @@ export class ExamOnboardingService {
       slug: o.slug,
       officialWebsite: o.official_website,
       isActive: Boolean(o.is_active),
+      logoPath: o.logo_path ?? null,
+      logoAlt: o.logo_alt ?? null,
     }));
   }
 
@@ -331,8 +353,6 @@ export class ExamOnboardingService {
       title: string;
       slug?: string;
       orgId?: string;
-      newOrgName?: string;
-      newOrgWebsite?: string;
       category?: string;
       description?: string;
       cycleYear?: number;
@@ -359,19 +379,18 @@ export class ExamOnboardingService {
       throw new Error(`An exam with slug "${slug}" already exists (Title: "${existingSlug.title}"). Please choose a unique slug.`);
     }
 
-    let orgId = params.orgId;
-    if (!orgId && params.newOrgName) {
-      const org = await this.createConductingOrg(params.newOrgName, undefined, params.newOrgWebsite, supabase);
-      orgId = org.id;
-    }
-
+    // EXAM-LOGO-1 (ruling 4): no "first org" fallback and no inline org creation for ANY caller (form, wizard,
+    // importer). The exam's conducting body must exist, be active and have its official logo — enforced here, server-side.
+    const orgId = params.orgId;
     if (!orgId) {
-      const { data: defaultOrg } = await supabase.from('conducting_orgs').select('id').limit(1).maybeSingle();
-      orgId = defaultOrg?.id;
+      throw new ExamLogoRequiredError('Choose the conducting body of the exam.');
     }
-
-    if (!orgId) {
-      throw new Error('No valid conducting organization found or provided.');
+    const { data: org } = await supabase.from('conducting_orgs').select('id, name, is_active, logo_path').eq('id', orgId).maybeSingle();
+    if (!org || !org.is_active) {
+      throw new ExamLogoRequiredError('The conducting body was not found (or is inactive).');
+    }
+    if (!org.logo_path) {
+      throw new ExamLogoRequiredError(`"${org.name}" has no logo yet. Upload its official logo in Exams › Conducting bodies, then create the exam.`);
     }
 
     const { data: newExam, error: insertErr } = await supabase

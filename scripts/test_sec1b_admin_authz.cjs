@@ -186,6 +186,8 @@ const ADMIN_ONLY = new Set([
   ...['updateGlobalPremiumConfigAction', 'setExamPremiumAvailabilityAction', 'setTestTypeAvailabilityAction', 'updateGeneratorPolicyAction', 'searchCandidateAction', 'grantPromotionalPassAction', 'revokeEntitlementAction', 'updateCustomLimitsAction', 'toggleTestSeriesStatusAction', 'updateMockCuratedStatusAction'].map((n) => `app/admin/premium/actions.ts#${n}`),
   ...['createRewardAction', 'updateRewardAction', 'toggleRewardActiveAction', 'updateRedemptionStatusAction', 'uploadRewardImageAction'].map((n) => `app/admin/rewards/actions.ts#${n}`),
   ...['archiveExamAction', 'evaluateExamDeletionEligibilityAction', 'deleteExamDraftAction'].map((n) => `app/admin/exams/actions.ts#${n}`),
+  // EXAM-LOGO-1: logos and conducting bodies are admin only (staff see them read-only)
+  ...['uploadOrgLogoAction', 'removeOrgLogoAction', 'uploadExamLogoOverrideAction', 'removeExamLogoOverrideAction', 'createConductingOrgAction'].map((n) => `app/admin/exams/logo-actions.ts#${n}`),
   // CA-1: Hindi name / subject type / state code, aliases, move and merge are structural writes too (admin only)
   ...['createTaxonomyNodeAction', 'renameTaxonomyNodeAction', 'setTaxonomyNodeActiveAction', 'reorderTaxonomyNodesAction', 'updateTaxonomyDetailsAction', 'addTaxonomyAliasAction', 'removeTaxonomyAliasAction', 'moveTaxonomyNodeAction', 'mergeTaxonomyNodesAction'].map((n) => `app/admin/taxonomy/actions.ts#${n}`),
   ...ADAPTIVE_ADMIN_ONLY.map((n) => `app/admin/adaptive/actions.ts#${n}`),

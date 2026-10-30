@@ -32,7 +32,7 @@ require.extensions['.ts'] = (module, filename) => {
   module._compile(out.outputText, filename);
 };
 const { lessonExample } = require(path.join(ROOT, 'lib/prompts/lesson-prompt.ts'));
-const { qaTopic, publishNodeLesson, publishQaSyllabus } = require(path.join(ROOT, 'scripts/live/_qa-course.cjs'));
+const { qaTopic, publishNodeLesson, publishQaSyllabus, qaExamLogo } = require(path.join(ROOT, 'scripts/live/_qa-course.cjs'));
 
 const PRE = process.argv.includes('--pre');
 const FILE = '20261028000123_launch_mode_1.sql';
@@ -76,6 +76,7 @@ const COV = { total: 10, en: 1, hi: 0 };
       const t = await qaTopic(q, qaLesson.topic_id, 'lm1-smoke-topic', 'LM1 Smoke Topic');
       await publishNodeLesson(svc, t, lessonExample(t), ACTOR);
       await publishQaSyllabus(q, exam.id, [t], 'lm1-smoke');
+      await qaExamLogo(q, exam.id); // EXAM-LOGO-1: a launch needs a logo
     };
     const chunk = async (fn) => {
       for (let attempt = 1; ; attempt++) {

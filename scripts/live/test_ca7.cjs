@@ -37,7 +37,7 @@ require.extensions['.ts'] = (module, filename) => {
 };
 const { examNoteExample } = require(path.join(ROOT, 'lib/lessons/exam-note.ts'));
 const { lessonExample } = require(path.join(ROOT, 'lib/prompts/lesson-prompt.ts'));
-const { qaTopic, publishNodeLesson, publishQaSyllabus } = require(path.join(ROOT, 'scripts/live/_qa-course.cjs'));
+const { qaTopic, publishNodeLesson, publishQaSyllabus, qaExamLogo } = require(path.join(ROOT, 'scripts/live/_qa-course.cjs'));
 
 let ok = true;
 let pending = [];
@@ -93,6 +93,7 @@ const ACTOR = 'ca7-smoke@courage-library.test';
       const topic = await qaTopic(q, qaLesson.topic_id, 'ca7-smoke-topic', 'CA7 Smoke Topic');
       const topicDoc = await publishNodeLesson(svc, topic, lessonExample(topic), ACTOR);
       await publishQaSyllabus(q, exam.id, [topic], 'ca7-smoke');
+      await qaExamLogo(q, exam.id); // EXAM-LOGO-1: a launch needs a logo
       const lesson = { id: topicDoc, node_id: topic, node_type: 'TOPIC', parent_id: null };
       if (!withSub) return lesson;
       const [sub] = await q(`insert into public.canonical_taxonomy_nodes (parent_id, node_type, name, slug, metadata) values ($1, 'SUBTOPIC', 'CA7 Smoke Sub', 'ca7-smoke-sub', '{"source":"QA_FIXTURE"}') returning id`, [topic]);

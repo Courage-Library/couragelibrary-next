@@ -9,7 +9,7 @@ import {
   ExamOnboardingImportCommitResult,
 } from '@/types/exam-onboarding';
 import { createAdminServerSupabaseClient } from '@/lib/supabase/server';
-import { ExamOnboardingService } from './exam-onboarding.service';
+import { ExamLogoRequiredError, ExamOnboardingService } from './exam-onboarding.service';
 import { ExamReadinessService } from './exam-readiness.service';
 import { ExamOnboardingValidatorService } from './exam-onboarding-validator.service';
 
@@ -170,8 +170,11 @@ export class ExamOnboardingImporterService {
     const supabase = options?.customSupabase || createAdminServerSupabaseClient();
 
     // 1. Create or Resolve Conducting Organization
+    // EXAM-LOGO-1 (ruling 4): the import must name the conducting body — no default body. A NEW exam is then refused by
+    // createExamDraft unless that body has its official logo.
     let orgId: string;
-    const orgName = spec.organization?.name?.trim() || "Central Recruitment Commission";
+    const orgName = spec.organization?.name?.trim();
+    if (!orgName) throw new ExamLogoRequiredError("The import must name the exam's conducting body (organization.name).");
     const orgSlug = (spec.organization?.slug || orgName.toLowerCase().replace(/[^a-z0-9]+/g, "-")).trim();
 
     const orgItem = await ExamOnboardingService.createConductingOrg(

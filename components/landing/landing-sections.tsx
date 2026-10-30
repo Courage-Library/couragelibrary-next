@@ -3,7 +3,8 @@
  * the shared shell. Copy comes from content/landing.ts; numbers only from LandingData (read live); when the read
  * failed (`data.ok === false`) every section renders its no-number fallback.
  */
-import { ArrowRight, BookOpenCheck, Check, ClipboardCheck, Compass, Gauge, GraduationCap, Library, Lock, NotebookPen, Repeat, Search, Target } from "lucide-react";
+import { ExamLogoBadge } from "@/components/exams/exam-logo-badge";
+import { ArrowRight, BookOpenCheck, Check, ClipboardCheck, Compass, Gauge, Library, Lock, NotebookPen, Repeat, Search, Target } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
@@ -163,7 +164,7 @@ export function LandingExams({ data }: { data: LandingData }) {
                     <CardTitle>
                       <CardLink href={`/exams/${exam.slug}`}>{exam.title}</CardLink>
                     </CardTitle>
-                    <GraduationCap aria-hidden="true" className="size-6 shrink-0 text-primary-600" />
+                    <ExamLogoBadge logo={exam.logo} name={exam.bodyName || exam.title} size="md" />
                   </div>
                   {exam.category && <CardDescription>{exam.category}</CardDescription>}
                   <ul className="flex flex-wrap gap-2" aria-label={LANDING_EXAMS.glanceLabel(exam.title)}>

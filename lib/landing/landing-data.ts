@@ -8,6 +8,7 @@
  * texts (content/landing.ts). Numbers are never invented or cached as constants.
  */
 import type { AppSupabaseClient } from "@/lib/supabase/types";
+import { examLogo, type ExamLogo } from "@/lib/logos/exam-logo";
 
 export interface LandingExam {
   slug: string;
@@ -16,6 +17,9 @@ export interface LandingExam {
   publishedMocks: number;
   publishedGuides: number;
   syllabusAvailable: boolean;
+  /** EXAM-LOGO-1: the exam's override, else its conducting body's logo (null → initials tile) */
+  logo: ExamLogo | null;
+  bodyName: string | null;
 }
 
 export type LandingData =
@@ -61,6 +65,8 @@ export function buildLandingData(rows: LandingRows): LandingData {
     const title = str(e.title);
     if (!id || !slug || !title) return { ok: false };
     const state = rows.syllabusStates[id];
+    const org = Array.isArray(e.conducting_org) ? e.conducting_org[0] : e.conducting_org;
+    const body = isObj(org) ? org : null;
     exams.push({
       slug,
       title,
@@ -68,6 +74,8 @@ export function buildLandingData(rows: LandingRows): LandingData {
       publishedMocks: mocksByExam.get(id) ?? 0,
       publishedGuides: guidesByExam.get(id) ?? 0,
       syllabusAvailable: isObj(state) && state.state === "AVAILABLE",
+      logo: examLogo({ override: { path: str(e.logo_override_path), alt: str(e.logo_override_alt) }, org: body ? { path: str(body.logo_path), alt: str(body.logo_alt) } : null }),
+      bodyName: body ? str(body.name) : null,
     });
   }
   return {
@@ -80,7 +88,11 @@ export function buildLandingData(rows: LandingRows): LandingData {
 }
 
 async function readRows(supabase: AppSupabaseClient): Promise<LandingRows | null> {
-  const examsRes = await supabase.from("exams").select("id, slug, title, category").eq("is_active", true).order("title");
+  const examsRes = await supabase
+    .from("exams")
+    .select("id, slug, title, category, logo_override_path, logo_override_alt, conducting_org:conducting_orgs(name, logo_path, logo_alt)")
+    .eq("is_active", true)
+    .order("title");
   if (examsRes.error || !examsRes.data) return null;
   const ids = examsRes.data.map((e) => e.id);
   if (ids.length === 0) return { exams: [], mocks: [], guides: [], syllabusStates: {}, currentAffairsCount: 0 };

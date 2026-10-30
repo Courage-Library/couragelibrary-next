@@ -209,6 +209,10 @@
     "SMOKE-STUDENT-PAGES": {
       "measured": 58,
       "cap": 330
+    },
+    "EXAM-LOGO-1-LIVE": {
+      "measured": 60,
+      "cap": 300
     }
   }
 }

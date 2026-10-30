@@ -120,8 +120,6 @@ export function ExamOnboardingWizard({
         formData.append("title", data.title);
         formData.append("slug", data.slug);
         formData.append("orgId", data.orgId);
-        if (data.newOrgName) formData.append("newOrgName", data.newOrgName);
-        if (data.newOrgWebsite) formData.append("newOrgWebsite", data.newOrgWebsite);
         formData.append("category", data.category);
         formData.append("description", data.description);
 

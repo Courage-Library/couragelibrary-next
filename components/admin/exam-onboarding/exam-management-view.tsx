@@ -9,6 +9,10 @@ import { Card } from "@/components/ui/legacy/card";
 import { Badge } from "@/components/ui/legacy/badge";
 import { Button } from "@/components/ui/legacy/button";
 import { createExamDraftAction } from "@/app/admin/exams/actions";
+import { ExamLogoBadge } from "@/components/exams/exam-logo-badge";
+import { ConductingBodiesPanel } from "@/components/admin/exam-onboarding/conducting-bodies-panel";
+import { ExamLogoOverride } from "@/components/admin/exam-onboarding/exam-logo-override";
+import { examLogo } from "@/lib/logos/exam-logo";
 import {
   GraduationCap,
   PlusCircle,
@@ -33,6 +37,8 @@ interface Props {
   publishedExams: number;
   draftExams: number;
   conductingOrgs?: ConductingOrgItem[];
+  /** EXAM-LOGO-1: admins manage logos; staff see them read-only */
+  canEditLogos?: boolean;
 }
 
 export function ExamManagementView({
@@ -41,6 +47,7 @@ export function ExamManagementView({
   publishedExams,
   draftExams,
   conductingOrgs = [],
+  canEditLogos = false,
 }: Props) {
   const router = useRouter();
   const [exams, setExams] = useState<AdminExamListItem[]>(initialExams);
@@ -52,10 +59,9 @@ export function ExamManagementView({
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [isSlugCustomized, setIsSlugCustomized] = useState(false);
-  const [orgId, setOrgId] = useState(conductingOrgs[0]?.id || "");
-  const [isCreatingOrg, setIsCreatingOrg] = useState(false);
-  const [newOrgName, setNewOrgName] = useState("");
-  const [newOrgWebsite, setNewOrgWebsite] = useState("");
+  // EXAM-LOGO-1: only an active body WITH its logo can conduct a new exam (the server enforces the same rule)
+  const usableOrgs = conductingOrgs.filter((o) => o.isActive && o.logoPath);
+  const [orgId, setOrgId] = useState(usableOrgs[0]?.id || "");
   const [category, setCategory] = useState("National Recruitment");
   const [description, setDescription] = useState("");
   const [cycleYear, setCycleYear] = useState<number>(new Date().getFullYear());
@@ -86,10 +92,7 @@ export function ExamManagementView({
     setTitle("");
     setSlug("");
     setIsSlugCustomized(false);
-    setOrgId(conductingOrgs[0]?.id || "");
-    setIsCreatingOrg(false);
-    setNewOrgName("");
-    setNewOrgWebsite("");
+    setOrgId(usableOrgs[0]?.id || "");
     setCategory("National Recruitment");
     setDescription("");
     setCycleYear(new Date().getFullYear());
@@ -116,13 +119,8 @@ export function ExamManagementView({
       return;
     }
 
-    if (!isCreatingOrg && !orgId && conductingOrgs.length > 0) {
-      setFormError("Please select a conducting authority.");
-      return;
-    }
-
-    if (isCreatingOrg && !newOrgName.trim()) {
-      setFormError("Please enter the new conducting authority name.");
+    if (!orgId) {
+      setFormError("Choose the conducting body. A body needs its official logo first (Conducting bodies, below).");
       return;
     }
 
@@ -131,13 +129,7 @@ export function ExamManagementView({
       const formData = new FormData();
       formData.append("title", title.trim());
       formData.append("slug", slug.trim());
-      formData.append("orgId", isCreatingOrg ? "" : orgId);
-      if (isCreatingOrg && newOrgName.trim()) {
-        formData.append("newOrgName", newOrgName.trim());
-      }
-      if (isCreatingOrg && newOrgWebsite.trim()) {
-        formData.append("newOrgWebsite", newOrgWebsite.trim());
-      }
+      formData.append("orgId", orgId);
       formData.append("category", category.trim());
       formData.append("description", description.trim());
       if (cycleYear) {
@@ -148,9 +140,7 @@ export function ExamManagementView({
       if (res.error) {
         setFormError(actionErrorMessage(res));
       } else if (res.success && res.data) {
-        const orgDisplayName = isCreatingOrg
-          ? newOrgName.trim()
-          : conductingOrgs.find((o) => o.id === orgId)?.name || "Conducting Authority";
+        const orgDisplayName = conductingOrgs.find((o) => o.id === orgId)?.name || "Conducting body";
 
         setCreatedResult({
           examId: res.data.examId,
@@ -281,7 +271,13 @@ export function ExamManagementView({
                 </span>
               </div>
 
-              <div>
+              <div className="flex items-start gap-3">
+                <ExamLogoBadge
+                  logo={examLogo({ override: { path: exam.logoOverridePath ?? null, alt: exam.logoOverrideAlt ?? null }, org: { path: exam.conductingOrg.logoPath ?? null, alt: exam.conductingOrg.logoAlt ?? null } })}
+                  name={exam.conductingOrg.name}
+                  size="md"
+                />
+                <div className="min-w-0 flex-1">
                 <h3 className="text-sm font-bold text-slate-900 line-clamp-1">{exam.title}</h3>
                 <div className="flex items-center justify-between gap-3 mt-0.5">
                   <p className="text-[11px] font-mono text-slate-600 truncate">/exams/{exam.slug}</p>
@@ -295,6 +291,12 @@ export function ExamManagementView({
                       <ExternalLink className="w-3 h-3 text-blue-500 group-hover:translate-x-0.5 transition-transform" />
                     </Link>
                   )}
+                </div>
+                {!exam.logoOverridePath && !exam.conductingOrg.logoPath && (
+                  <span className="mt-1 inline-flex rounded-full border border-danger-200 bg-danger-50 px-2 py-0.5 text-[11px] font-semibold text-danger-800" data-logo-missing="">
+                    Logo missing
+                  </span>
+                )}
                 </div>
               </div>
 
@@ -315,6 +317,10 @@ export function ExamManagementView({
                 </div>
               </div>
             </div>
+
+            {canEditLogos && (
+              <ExamLogoOverride examId={exam.id} examTitle={exam.title} hasOverride={Boolean(exam.logoOverridePath)} />
+            )}
 
             {/* Card Action Footer */}
             <div className="pt-3.5 border-t border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 text-xs font-semibold">
@@ -416,54 +422,29 @@ export function ExamManagementView({
                 {/* Conducting Organization */}
                 <div className="space-y-2 pt-1">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-700 block">
-                      Conducting Authority <span className="text-rose-500">*</span>
+                    <label htmlFor="exam-org" className="text-xs font-bold text-slate-700 block">
+                      Conducting body <span className="text-rose-500">*</span>
                     </label>
-                    <button
-                      type="button"
-                      onClick={() => setIsCreatingOrg(!isCreatingOrg)}
-                      className="text-[11px] font-bold text-blue-600 hover:text-blue-700"
-                    >
-                      {isCreatingOrg ? "Select Existing Authority" : "+ Register New Authority"}
-                    </button>
+                    <a href="#conducting-bodies" onClick={handleCloseAddModal} className="text-[11px] font-bold text-blue-700 hover:text-blue-800">
+                      Conducting bodies
+                    </a>
                   </div>
-
-                  {!isCreatingOrg ? (
-                    <select
-                      value={orgId}
-                      onChange={(e) => setOrgId(e.target.value)}
-                      className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:border-blue-500"
-                    >
-                      {conductingOrgs.map((o) => (
-                        <option key={o.id} value={o.id}>
-                          {o.name} ({o.slug})
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <div className="p-3 bg-blue-50/50 border border-blue-100 rounded-xl space-y-2">
-                      <div>
-                        <label className="text-[10px] font-bold text-slate-600 block mb-0.5">Authority Name *</label>
-                        <input
-                          type="text"
-                          value={newOrgName}
-                          onChange={(e) => setNewOrgName(e.target.value)}
-                          placeholder="e.g. Institute of Banking Personnel Selection (IBPS)"
-                          className="w-full px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-blue-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-bold text-slate-600 block mb-0.5">Official Portal URL</label>
-                        <input
-                          type="url"
-                          value={newOrgWebsite}
-                          onChange={(e) => setNewOrgWebsite(e.target.value)}
-                          placeholder="https://ibps.in"
-                          className="w-full px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-blue-500"
-                        />
-                      </div>
-                    </div>
-                  )}
+                  <select
+                    id="exam-org"
+                    value={orgId}
+                    onChange={(e) => setOrgId(e.target.value)}
+                    aria-describedby="org-logo-hint"
+                    className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:border-blue-500"
+                  >
+                    {conductingOrgs.filter((o) => o.isActive).map((o) => (
+                      <option key={o.id} value={o.id} disabled={!o.logoPath}>
+                        {o.name}{o.logoPath ? "" : " — upload its logo first"}
+                      </option>
+                    ))}
+                  </select>
+                  <p id="org-logo-hint" className="text-[11px] text-slate-600">
+                    Every exam shows its conducting body&apos;s official logo. A new body is added, with its logo, under Conducting bodies.
+                  </p>
                 </div>
 
                 {/* Domain Category & Initial Cycle */}
@@ -585,6 +566,7 @@ export function ExamManagementView({
           </Card>
         </div>
       )}
+      <ConductingBodiesPanel orgs={conductingOrgs} canEdit={canEditLogos} />
     </div>
   );
 }

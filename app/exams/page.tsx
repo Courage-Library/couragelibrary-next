@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { ArrowRight, GraduationCap } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { ExamLogoBadge } from "@/components/exams/exam-logo-badge";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardDescription, CardLink, CardTitle } from "@/components/ui/card";
@@ -45,7 +46,7 @@ export default async function ExamsDirectoryPage() {
                     <CardTitle as="h3">
                       <CardLink href={`/exams/${exam.slug}`}>{exam.title}</CardLink>
                     </CardTitle>
-                    <GraduationCap aria-hidden="true" className="size-6 shrink-0 text-primary-600" />
+                    <ExamLogoBadge logo={exam.logo} name={exam.bodyName || exam.title} size="md" />
                   </div>
                   {exam.category && <CardDescription>{exam.category}</CardDescription>}
                   <ul className="flex flex-wrap gap-2" aria-label={LANDING_EXAMS.glanceLabel(exam.title)}>

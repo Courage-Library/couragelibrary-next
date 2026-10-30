@@ -24,6 +24,8 @@ export interface TodayV2 {
   tickets: { open: number | null; late: number | null } | null;
   flags: number | null;
   libraryEnding: number | null;
+  /** EXAM-LOGO-1: exams (not the internal QA exam) that show neither their own nor their body's logo */
+  examsWithoutLogo: number | null;
   health: HealthGrid | null;
   /** consecutive identical actions grouped (max 5 groups); more = the count is a lower bound */
   recent: Array<{ action: string; entity: string; at: string; count: number; more: boolean }> | null;
@@ -99,6 +101,18 @@ export async function getTodayV2(input: { role: AdminRole; userId: string; flags
     );
   }
 
+  // EXAM-LOGO-1: "Logo missing" — an exam needs its conducting body's logo (or its own override)
+  let examsWithoutLogo: number | null = null;
+  {
+    const { data, error } = await sb.from("exams").select("id, slug, logo_override_path, conducting_org:conducting_orgs(logo_path)").neq("slug", "qa-syllabus-test");
+    if (error) logRead("exams", error.code);
+    else
+      examsWithoutLogo = (data ?? []).filter((e) => {
+        const org = Array.isArray(e.conducting_org) ? e.conducting_org[0] : e.conducting_org;
+        return !e.logo_override_path && !org?.logo_path;
+      }).length;
+  }
+
   let recent: TodayV2["recent"] = null;
   if (isAdmin) {
     const { data, error } = await sb.from("admin_audit_logs").select("action_type, target_entity, created_at").order("created_at", { ascending: false }).limit(60);
@@ -119,6 +133,7 @@ export async function getTodayV2(input: { role: AdminRole; userId: string; flags
     tickets,
     flags,
     libraryEnding,
+    examsWithoutLogo,
     health,
     recent,
   };

@@ -71,6 +71,8 @@ export default async function AdminTodayPage() {
         <span className="text-[11.5px] font-semibold uppercase tracking-[.08em] text-ink-500">Also</span>
         <MiniStat label="Community flags waiting" value={d.flags} href="/admin/support/flags" />
         {d.libraryEnding !== null && <MiniStat label="Library Pro grants ending in 7 days" value={d.libraryEnding} href="/admin/students/library-pro" />}
+        {/* EXAM-LOGO-1: every exam shows its conducting body's logo */}
+        {d.examsWithoutLogo !== null && d.examsWithoutLogo > 0 && <MiniStat label="Exams without a logo" value={d.examsWithoutLogo} href="/admin/exams#conducting-bodies" />}
       </section>
 
       <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
