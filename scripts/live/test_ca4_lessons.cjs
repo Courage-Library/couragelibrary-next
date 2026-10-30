@@ -45,7 +45,7 @@ const LESSON_V2_SHA = sha(require(path.join(ROOT, 'lib/prompts/lesson-template-v
 // the pinned later versions of each type that has them (LESSON-PROMPT-2; SYLLABUS-CONTRACT-3.1 v2; INTAKE-CONCEPTS-AS-OUTLINE v3)
 const PINNED = {
   // LESSON-NODE-ID-1: v3 = v2 + the node-id / no-citation rules (scripts/content/lesson-prompt-3.cjs)
-  LESSON: { 2: LESSON_V2_SHA, 3: sha(require(path.join(ROOT, 'lib/prompts/lesson-template-v3.ts')).LESSON_TEMPLATE_V3) },
+  LESSON: { 2: LESSON_V2_SHA, 3: sha(require(path.join(ROOT, 'lib/prompts/lesson-template-v3.ts')).LESSON_TEMPLATE_V3), 4: sha(require(path.join(ROOT, 'lib/prompts/lesson-template-v4.ts')).LESSON_TEMPLATE_V4) },
   SYLLABUS: {
     2: sha(require(path.join(ROOT, 'lib/syllabus/syllabus-template-v2.ts')).SYLLABUS_TEMPLATE_V2),
     3: sha(require(path.join(ROOT, 'lib/syllabus/syllabus-template-v3.ts')).SYLLABUS_TEMPLATE_V3),

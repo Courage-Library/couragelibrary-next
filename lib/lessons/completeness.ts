@@ -8,6 +8,7 @@
  *   - formula blocks: REQUIRED for APTITUDE, FORBIDDEN for LANGUAGE (a warning when the subject type is unknown)
  */
 import type { LessonBlock } from "@/lib/lessons/blocks";
+import { lessonQualityWarnings, type LessonQualityContext } from "@/lib/lessons/quality";
 
 /** The defaults when no weightage is known (template v1 sizes). */
 export const LESSON_MIN_EXAMPLES = 10;
@@ -30,8 +31,16 @@ export interface ChecklistItem {
   detail: string;
 }
 
-/** subjectType: the node's subject type; size: the SIZE rule of the highest weightage (defaults when unknown). */
-export function lessonChecklist(blocks: LessonBlock[], subjectType: string | null, size: LessonSizeRule = { minExamples: LESSON_MIN_EXAMPLES, maxExamples: LESSON_MAX_EXAMPLES, quickChecks: LESSON_MIN_QUICK_CHECKS }): ChecklistItem[] {
+/**
+ * subjectType: the node's subject type; size: the SIZE rule of the highest weightage (defaults when unknown);
+ * quality (LESSON-PROMPT-QUALITY-1): the lesson meta + node + exam names → the quality WARNINGS (lib/lessons/quality.ts).
+ */
+export function lessonChecklist(
+  blocks: LessonBlock[],
+  subjectType: string | null,
+  size: LessonSizeRule = { minExamples: LESSON_MIN_EXAMPLES, maxExamples: LESSON_MAX_EXAMPLES, quickChecks: LESSON_MIN_QUICK_CHECKS },
+  quality?: LessonQualityContext,
+): ChecklistItem[] {
   const count = (t: LessonBlock["type"]) => blocks.filter((b) => b.type === t).length;
   const examples = blocks.filter((b): b is Extract<LessonBlock, { type: "solved_example" }> => b.type === "solved_example");
   const checks = blocks.filter((b): b is Extract<LessonBlock, { type: "quick_check" }> => b.type === "quick_check");
@@ -50,6 +59,7 @@ export function lessonChecklist(blocks: LessonBlock[], subjectType: string | nul
       : subjectType === "APTITUDE"
         ? { key: "formulas", label: "Formulas (required for an aptitude subject)", ok: formulas > 0, severity: "error", detail: `${formulas} formula block(s)` }
         : { key: "formulas", label: "Formulas where the topic has them", ok: subjectType !== null || formulas > 0, severity: "warning", detail: `${formulas} formula block(s)${subjectType ? "" : " — subject type not set"}` };
+  const qualityItems: ChecklistItem[] = quality ? lessonQualityWarnings(blocks, quality).map((w) => ({ ...w, severity: "warning" as const })) : [];
   return [
     { key: "examples_min", label: `At least ${size.minExamples} solved examples`, ok: examples.length >= size.minExamples, severity: "error", detail: `${examples.length} found` },
     { key: "examples_max", label: `At most ${size.maxExamples} solved examples`, ok: examples.length <= size.maxExamples, severity: "warning", detail: `${examples.length} found` },
@@ -75,6 +85,7 @@ export function lessonChecklist(blocks: LessonBlock[], subjectType: string | nul
       severity: "error",
       detail: "",
     },
+    ...qualityItems,
   ];
 }
 

@@ -239,7 +239,8 @@ test('LP-03 multi-part answers merged in order (ids unique across parts), valida
 test('LP-04 generator: subject type required (refused with a Master-tree link), shown with the SIZE; suggested subtopics → "Add to Master tree" via the audited admin create, one confirmed click each', () => {
   const svc = read('services/lessons/lesson-authoring.service.ts');
   assert(/if \(!subject\.type\) return fail\("SUBJECT_TYPE_MISSING"/.test(svc) && (svc.match(/SUBJECT_TYPE_MISSING", SUBJECT_TYPE_MISSING/g) || []).length === 2, 'the service refuses (generator + save)');
-  assert(/lessonChecklist\(parsed\.blocks, subject\.type, lessonSize\(await examCoverage\(c, tree, nodeId\)\)\)/.test(svc), 'the checklist uses the subject type + SIZE');
+  // LESSON-PROMPT-QUALITY-1: the coverage is read once and also feeds the quality warnings (same subject type + SIZE rule)
+  assert(/const coverage = await examCoverage\(c, tree, nodeId\);/.test(svc) && /lessonChecklist\(parsed\.blocks, subject\.type, lessonSize\(coverage\), \{/.test(svc), 'the checklist uses the subject type + SIZE');
   const ui = read('components/admin/lessons/lesson-generator.tsx');
   assert(/Set the subject type in the Master tree first\./.test(ui) && /href="\/admin\/master-tree"/.test(ui) && /subject type <span[^>]*>\{generator\.context\.subjectType\}/.test(ui), 'refusal + link + the subject type shown');
   assert(/createTaxonomyNodeAction\(\{ parentId: selectedNodeId, nodeType: childLevel, name \}\)/.test(ui) && /Confirm add/.test(ui) && /setConfirmAdd\(s\)/.test(ui), 'add to the Master tree: confirmed, audited admin create');

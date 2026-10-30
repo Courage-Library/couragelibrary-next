@@ -24,6 +24,9 @@ import { ExamNoteBlocks } from "@/components/learning/exam-note-blocks";
  */
 export const dynamic = "force-dynamic";
 
+/** "<Topic> for <Exam>: Rules, Examples & Practice" — the exam-topic page's <title> and H1 (canonical: this page). */
+const examTopicTitle = (topic: string, exam: string) => `${topic} for ${exam}: Rules, Examples & Practice`;
+
 interface Props {
   params: Promise<{ slug: string; moduleSlug: string; rest: string[] }>;
 }
@@ -36,7 +39,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const d = await getExamTopic(slug, [moduleSlug, ...rest]);
   if (!d) return constructMetadata({ title: "Topic not found", noIndex: true });
   return constructMetadata({
-    title: `${d.node.name} for ${d.exam.title}`,
+    // LESSON-PROMPT-QUALITY-1 E: the platform writes the exam-specific title (master lessons are exam-neutral)
+    title: examTopicTitle(d.node.name, d.exam.title),
     description: `How ${d.exam.title} asks ${d.node.name}: weightage${d.pyq.total ? `, ${d.pyq.total} previous-year question${d.pyq.total === 1 ? "" : "s"}` : ""}, practice and the full lesson.`,
     canonicalUrl: d.path,
     noIndex: !indexable(d, Boolean(await getPublishedExamNote(d.exam.id, d.node.id, "en"))),
@@ -73,7 +77,7 @@ export default async function ExamTopicPage({ params }: Props) {
 
         <header className="flex flex-col gap-2">
           <h1 className="text-h1 font-bold text-fg">
-            {d.node.name} for {d.exam.title}
+            {examTopicTitle(d.node.name, d.exam.title)}
           </h1>
           <p className="text-body-lg text-fg-secondary">
             {[d.weightageTier ? `${WEIGHTAGE_LABEL[d.weightageTier] ?? d.weightageTier} weightage` : null, questionsText].filter(Boolean).join(" · ") || "Part of the published syllabus."}

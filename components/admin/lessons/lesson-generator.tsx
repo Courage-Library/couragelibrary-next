@@ -59,7 +59,14 @@ export function LessonGenerator({ nodes, selectedNodeId, generator, loadError, s
     return (q ? nodes.filter((n) => n.path.toLowerCase().includes(q)) : nodes).slice(0, 200);
   }, [nodes, filter]);
   const result = outcome.kind === "lesson" ? outcome.result : null;
-  const checklist: ChecklistItem[] = result ? lessonChecklist(result.blocks, generator?.context.subjectType ?? null, generator?.size) : [];
+  const checklist: ChecklistItem[] = result
+    ? lessonChecklist(result.blocks, generator?.context.subjectType ?? null, generator?.size, {
+        meta: result.meta,
+        nodeName: generator?.context.nodeName,
+        nodePath: generator?.context.nodePath,
+        examNames: generator?.context.coverage.map((x) => x.exam),
+      })
+    : [];
   const facts = result ? result.uncertainFacts : [];
   const canSave = Boolean(selectedNodeId && result && (facts.length === 0 || factsChecked) && !pending && !busy);
   const childLevel = generator ? CHILD_LEVEL[generator.context.nodeLevel] : undefined;

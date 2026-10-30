@@ -138,7 +138,9 @@ export function lessonPromptValues(ctx: LessonPromptContext): Record<string, str
   return {
     // LESSON-PROMPT-2 (v2): exactly one subject-type section is true
     ...Object.fromEntries(EXAMPLE_SUBJECT_TYPES.map((t) => [t, t === section ? "1" : ""])),
-    CHILDREN: ctx.childNodes.length ? ctx.childNodes.join(", ") : "none listed",
+    // LESSON-PROMPT-QUALITY-1 B: a subtopic's parts are often its MUST COVER outline (concepts kept as outline lines), not
+    // child nodes — the parts line must not say "none listed" while MUST COVER lists them
+    CHILDREN: ctx.childNodes.length ? ctx.childNodes.join(", ") : ctx.mustCover?.length ? `${ctx.mustCover.join(", ")} (the MUST COVER outline below)` : "none listed",
     EXAM_LINES: examLines(ctx.coverage),
     EXAMPLE_FOR_SUBJECT_TYPE: JSON.stringify(section ? lessonExampleFor(section, ctx.nodeId) : lessonExample(ctx.nodeId), null, 2),
     NODE_NAME: ctx.nodeName,
@@ -147,7 +149,7 @@ export function lessonPromptValues(ctx: LessonPromptContext): Record<string, str
     SUBJECT_NAME: ctx.subjectName || "not set",
     SUBJECT_TYPE: ctx.subjectType || "not set",
     EXAM_COVERAGE: coverageLines(ctx.coverage),
-    CHILD_NODES: list(ctx.childNodes, "- none"),
+    CHILD_NODES: list(ctx.childNodes.length ? ctx.childNodes : ctx.mustCover ?? [], "- none"),
     ALIASES: ctx.aliases.length ? ctx.aliases.join(", ") : "none",
     EXISTING_LESSONS: list(ctx.existingLessons, "- none"),
     BLOCK_SPEC: LESSON_BLOCK_SPEC,

@@ -285,7 +285,9 @@ export class LessonAuthoringService {
     if (parsed.uncertainFacts.length && !factsChecked) return fail("UNCERTAIN_FACTS", "The answer flags uncertain facts: check them and confirm before saving.");
     const subject = subjectTypeOf(tree, nodeId);
     if (!subject.type) return fail("SUBJECT_TYPE_MISSING", SUBJECT_TYPE_MISSING, { subjectId: subject.id, subjectName: subject.name });
-    const checklist = lessonChecklist(parsed.blocks, subject.type, lessonSize(await examCoverage(c, tree, nodeId)));
+    const coverage = await examCoverage(c, tree, nodeId);
+    const node = tree.get(nodeId);
+    const checklist = lessonChecklist(parsed.blocks, subject.type, lessonSize(coverage), { meta: parsed.meta, nodeName: node?.name, nodePath: pathOf(tree, nodeId), examNames: coverage.map((x) => x.exam) });
     const doc = await c.supabase.rpc("fn_lesson_create_node_document", { p_node_id: nodeId, p_access_level: "FREE", p_actor_id: c.userId as string, p_actor_email: c.userEmail });
     if (doc.error || !doc.data) {
       const m = mapLessonDbError(doc.error);
@@ -400,7 +402,13 @@ export class LessonAuthoringService {
     if (!parsed.ok) return null; // the DB refuses invalid blocks at publish anyway
     const tree = await loadTree(c);
     if (!tree) return null;
-    return lessonChecklist(parsed.blocks, subjectTypeOf(tree, d.node_id).type, lessonSize(await examCoverage(c, tree, d.node_id)));
+    const coverage = await examCoverage(c, tree, d.node_id);
+    return lessonChecklist(parsed.blocks, subjectTypeOf(tree, d.node_id).type, lessonSize(coverage), {
+      meta: parsed.meta,
+      nodeName: tree.get(d.node_id)?.name,
+      nodePath: pathOf(tree, d.node_id),
+      examNames: coverage.map((x) => x.exam),
+    });
   }
 }
 
