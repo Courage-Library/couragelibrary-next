@@ -142,6 +142,14 @@ Logged by the architect (2026-10-26). A brand-new student sees empty cards on `/
 
 Once 095 is live, `fn_generate_mistake_drill` may pick manual Memory Lock items, which have 0 mistakes. The app-side lists already filter `total_mistakes_count >= 1`; the SQL generator needs the same filter.
 
+## BUILD-FONT-1: `next build` intermittently crashes in next/font/google (proposal)
+
+**Status:** logged 2026-11-01. Seen twice in about 12 CI builds: dispatch 41220647346 (live-journeys BUILD) and push 41233958370 (server-checks SC-BUILD). The same commits built fine in the other jobs.
+
+**Evidence** (the sanitized build-log artifact): `app/layout.tsx — An error occurred in next/font: TypeError: Cannot read properties of null (reading '1') at next/dist/compiled/@next/font/dist/google/loader.js:122`, while loading `Noto_Sans_Devanagari`. At build time Next fetches the Google Fonts CSS. When Google answers with something unexpected (rate limit, a different CSS shape), the loader's regex finds no match and the build crashes. This is a network dependency in every build since BRAND-2, unrelated to the change being built.
+
+**Proposal (needs a GO; it touches the BRAND-2 font setup):** self-host the fonts with `next/font/local`. The woff2 subsets go in the repo (Noto fonts are OFL), with the same CSS variables and `display: swap`. The build then makes no network call for fonts. BRAND2-PROBE budgets and LCP must be re-measured.
+
 ## ACTION-CATCH-1: admin screens await Server Actions in transitions without a catch
 
 **Status:** logged 2026-10-31 (LOGO-P0b audit, docs/ops/LOGO_P0.md). Upload forms are fixed; the rest are not.
