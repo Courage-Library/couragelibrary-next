@@ -18,6 +18,10 @@
  *   P-4 LOGO-P0 (2026-10-31): sharp is loaded lazily — with sharp UNLOADABLE the module still loads, processLogo returns
  *       UNAVAILABLE ("nothing was saved"), the action catches any throw, the health probe says false (negative control)
  *       and true with sharp working; next.config lists the Linux libvips files for the routes that run the pipeline
+ *   P-5 LOGO-P0b (ROOT CAUSE: the upload Server Action body went over Next's 1 MB limit → 413 → thrown → error boundary):
+ *       the browser guard refuses a payload > 1 MB with the owner's message and passes 0.95 MB; bodySizeLimit 2mb; every
+ *       logo action call in the drawer goes through guarded(); no other client file calls a logo action; the bulk / reward
+ *       image actions cap 1 MB; import-draft + question manager catch; negative control: an unwrapped call is detected
  *   D-2 LOGO-PLACEMENT (owner 2026-10-31): the logo sits inline immediately BEFORE the exam name — hub / course /
  *       exam-topic headers (md 48), cards on / and /exams (sm 32), admin rows (xs 28); no separate strip in the layout
  * Run: node scripts/test_exam_logo1.cjs
@@ -173,7 +177,7 @@ const img = (w, h, fmt, opts = {}) => {
   await test('E-3 logo actions: admin only, processed before stored, content-hash path, old file deleted only after the row switched; inline new body refused by the create action', async () => {
     const a = read('app/admin/exams/logo-actions.ts');
     const exported = [...a.matchAll(/export async function (\w+)\([^)]*\)[^\n]*\{\n\s*const auth = await guardAdminAction\(\);/g)].map((m) => m[1]);
-    assert(exported.length === 5 && (a.match(/^export async function /gm) || []).length === 5 && !/allowStaff/.test(a), `every exported logo action must call the admin-only guard first: ${exported}`);
+    assert(exported.length === 6 && (a.match(/^export async function /gm) || []).length === 6 && !/allowStaff/.test(a), `every exported logo action must call the admin-only guard first: ${exported}`);
     const order = ['processLogo(', '.upload(path', 'rpc("fn_logo_set"', 'remove([oldPath])'].map((x) => a.indexOf(x));
     assert(order.every((x, i) => x > 0 && (i === 0 || x > order[i - 1])), `order ${order}`);
     assert(/\$\{processed\.sha256\}\.webp/.test(a) && /contentType: "image\/webp"/.test(a) && /upsert: false/.test(a), 'content-hash path, webp, no overwrite');
@@ -194,12 +198,14 @@ const img = (w, h, fmt, opts = {}) => {
     const soonList = /comingSoon: \[([\s\S]*?)\]/.exec(read('content/landing.ts'));
     assert(soonList && (soonList[1].match(/slug:/g) || []).length === (soonList[1].match(/body: "[^"]+"/g) || []).length, 'a coming-soon exam without its conducting body');
     const view = read('components/admin/exam-onboarding/exam-management-view.tsx');
-    assert(/<ExamLogoBadge/.test(view) && /Logo missing/.test(view) && /<ConductingBodiesPanel orgs=\{conductingOrgs\} canEdit=\{canEditLogos\} \/>/.test(view), 'admin list');
+    assert(/<ExamLogoBadge/.test(view) && /Logo missing/.test(view) && /<ConductingBodiesPanel orgs=\{conductingOrgs\} canEdit=\{canEditLogos\} usage=\{bodyUsage\} \/>/.test(view), 'admin list');
     assert(/examsWithoutLogo/.test(read('lib/admin/today.ts')) && /Exams without a logo/.test(read('app/admin/page.tsx')), 'Today');
-    for (const f of ['components/admin/exam-onboarding/conducting-bodies-panel.tsx', 'components/admin/exam-onboarding/exam-logo-override.tsx']) {
+    // LOGO-UX-1: the one logo editor (drawer) is the only file input for logos
+    for (const f of ['components/admin/logos/logo-drawer.tsx']) {
       const s = read(f);
-      const accepts = [...s.matchAll(/accept="([^"]*)"/g)].map((m) => m[1]);
-      assert(accepts.length >= 1 && accepts.every((x) => x === 'image/png,image/jpeg,image/webp'), `${f}: accept list ${accepts}`);
+      const accepts = [...s.matchAll(/accept=\{([A-Z_]+)\}/g)].map((m) => m[1]);
+      assert(accepts.length === 1 && accepts[0] === 'LOGO_ACCEPT' && /export const LOGO_ACCEPT = "image\/png,image\/jpeg,image\/webp";/.test(read('lib/logos/logo-upload-guard.ts')), `${f}: accept list ${accepts}`);
+      assert(!/type="file"/.test(read('components/admin/exam-onboarding/conducting-bodies-panel.tsx') + read('components/admin/exam-onboarding/exam-logo-override.tsx')), 'a second logo file input');
     }
     assert(!/svg/i.test(read('lib/logos/logo-image.ts').replace(/(\/\*[\s\S]*?\*\/|\/\/.*$)/gm, '').replace(/"Upload a PNG, JPG or WebP image \(SVG and other files are not accepted\)\."/g, '')), 'the processor must not handle SVG');
   });
@@ -230,6 +236,33 @@ const img = (w, h, fmt, opts = {}) => {
     const cfg = read('next.config.ts');
     assert(/"\.\/node_modules\/@img\/sharp-libvips-linux-x64\/\*\*\/\*"/.test(cfg) && /"\/admin\/exams": SHARP_LINUX_FILES/.test(cfg) && /"\/api\/health\/image": SHARP_LINUX_FILES/.test(cfg), 'next.config: Linux sharp files traced for the pipeline routes');
     return 'broken → UNAVAILABLE + health false; working → ok + health true';
+  });
+
+  await test('P-5 LOGO-P0b: browser size guard (1.5 MB refused / 0.95 MB passes), bodySizeLimit 2mb, every logo action call guarded, other upload actions capped; negative control', async () => {
+    const G = require(path.join(ROOT, 'lib/logos/logo-upload-guard.ts'));
+    const big = G.uploadSizeProblem(Math.round(1.5 * 1024 * 1024));
+    assert(big === 'File is 1.5 MB; maximum is 1 MB. Resize to 512×512 and try again.', `1.5 MB: ${big}`);
+    assert(G.uploadSizeProblem(Math.round(0.95 * 1024 * 1024)) === null && G.uploadSizeProblem(1024 * 1024) === null && G.uploadSizeProblem(1024 * 1024 + 1) !== null, '0.95 MB / exactly 1 MB must pass; 1 MB + 1 byte must not');
+    assert(G.bodySlug('Staff Selection Commission (SSC)') === 'staff-selection-commission-ssc' && G.altProblem('ab') && !G.altProblem('SSC logo'), 'slug / alt rules');
+    assert(/experimental: \{\s*serverActions: \{ bodySizeLimit: "2mb" \},\s*\}/.test(read('next.config.ts')), 'next.config: serverActions.bodySizeLimit 2mb');
+    const drawer = read('components/admin/logos/logo-drawer.tsx');
+    const LOGO_ACTIONS = /\b(uploadOrgLogoAction|removeOrgLogoAction|uploadExamLogoOverrideAction|removeExamLogoOverrideAction|createConductingOrgWithLogoAction)\(/g;
+    const unguarded = (src) => [...src.matchAll(LOGO_ACTIONS)].filter((m) => !/guarded\(\(\) => \(?[^\n]*$/.test(src.slice(Math.max(0, m.index - 120), m.index))).map((m) => m[1]);
+    const calls = [...drawer.matchAll(LOGO_ACTIONS)].length;
+    assert(calls === 5 && unguarded(drawer).length === 0, `drawer: ${calls} logo action call(s), unguarded: ${unguarded(drawer).join(', ')}`);
+    assert(/catch \{\s*return \{ success: false, message: LOGO_MESSAGES\.failed \};/.test(drawer) && /uploadSizeProblem\(prepared\.blob\.size\)/.test(drawer), 'guarded() / the send-time size check');
+    // negative control: an unwrapped call (the LOGO-P0 code) is detected
+    assert(unguarded('const r = await uploadOrgLogoAction(fd);').join() === 'uploadOrgLogoAction', 'negative control: an unwrapped call was not detected');
+    // no other client component calls a logo action directly
+    const clientFiles = ['components/admin/exam-onboarding/conducting-bodies-panel.tsx', 'components/admin/exam-onboarding/exam-logo-override.tsx', 'components/admin/exam-onboarding/exam-management-view.tsx'];
+    for (const f of clientFiles) assert(![...read(f).matchAll(LOGO_ACTIONS)].length, `${f} calls a logo action outside the drawer`);
+    assert(/if \(file\.size > 1024 \* 1024\) return \{ success: false, error: "The image must be at most 1 MB\." \};/.test(read('app/admin/actions.ts')), 'bulk-import image action: 1 MB cap');
+    assert(/if \(file\.size > 1024 \* 1024\) \{/.test(read('app/admin/rewards/actions.ts')) && !/10 \* 1024 \* 1024/.test(read('app/admin/rewards/actions.ts')), 'reward image action: 1 MB cap');
+    const imp = read('components/admin/syllabus/import-draft.tsx');
+    assert((imp.match(/\.catch\(\(\) => \(\{ ok: false as const, message: ACTION_FAILED \}\)\)/g) || []).length === 2, 'syllabus import-draft: both action calls catch');
+    assert(/uploadBulkImportImageAction\(formData\)\.catch\(/.test(read('components/admin/admin-question-manager.tsx')), 'question manager: image upload catches');
+    assert(/createConductingOrgWithLogoAction[\s\S]*await db\.from\("conducting_orgs"\)\.delete\(\)\.eq\("id", org\.id\)/.test(read('app/admin/exams/logo-actions.ts')), 'add body with logo: the body is deleted again when its logo fails');
+    return '1.5 MB refused with the owner message; 0.95 MB passes; 5 guarded calls; negative control caught';
   });
 
   await test('D-2 LOGO-PLACEMENT: logo inline before the exam name (headers md, cards sm, admin xs); no separate layout strip', async () => {

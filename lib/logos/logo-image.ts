@@ -1,6 +1,7 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import type SharpFn from "sharp";
+import { sniffLogoFormat, type LogoFormat } from "@/lib/logos/logo-sniff";
 
 /**
  * EXAM-LOGO-1: the ONLY way an image becomes a logo. Content-sniffed (never the extension or the browser's type),
@@ -16,7 +17,7 @@ export const LOGO_MIN_SIDE = 256;
 export const LOGO_OUT_SIDE = 512;
 const LOGO_MAX_PIXELS = 25_000_000; // decompression-bomb guard
 
-export type LogoFormat = "png" | "jpeg" | "webp";
+export { sniffLogoFormat, type LogoFormat } from "@/lib/logos/logo-sniff";
 export type LogoResult =
   | { ok: true; webp: Buffer; sha256: string; inFormat: LogoFormat; inWidth: number; inHeight: number }
   | { ok: false; code: "EMPTY" | "TOO_LARGE" | "NOT_AN_IMAGE" | "TOO_SMALL" | "UNREADABLE" | "UNAVAILABLE"; message: string };
@@ -33,14 +34,6 @@ export async function loadSharp(): Promise<typeof SharpFn> {
     sharpModule = null;
     throw e;
   }
-}
-
-/** The format named by the first bytes, or null (SVG / HTML / anything else). */
-export function sniffLogoFormat(b: Uint8Array): LogoFormat | null {
-  if (b.length >= 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47 && b[4] === 0x0d && b[5] === 0x0a && b[6] === 0x1a && b[7] === 0x0a) return "png";
-  if (b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "jpeg";
-  if (b.length >= 12 && b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 && b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50) return "webp";
-  return null;
 }
 
 export async function processLogo(input: Buffer): Promise<LogoResult> {

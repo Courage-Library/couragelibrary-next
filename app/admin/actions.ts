@@ -71,7 +71,10 @@ export async function uploadBulkImportImageAction(
   const file = formData.get("file") as File;
   const folder = ((formData.get("folder") as string) || "questions").toLowerCase();
 
-  if (!file) return { success: false, error: "No file provided." };
+  if (!file || !(file instanceof File)) return { success: false, error: "No file provided." };
+  // LOGO-P0b: the Server Action body limit is now 2 MB for every action — this action keeps its own 1 MB image rule
+  if (file.size > 1024 * 1024) return { success: false, error: "The image must be at most 1 MB." };
+  if (!["image/png", "image/jpeg", "image/webp", "image/gif"].includes(file.type)) return { success: false, error: "Upload a PNG, JPG, WebP or GIF image." };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = createAdminServerSupabaseClient();

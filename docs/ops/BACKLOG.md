@@ -142,6 +142,14 @@ Logged by the architect (2026-10-26). A brand-new student sees empty cards on `/
 
 Once 095 is live, `fn_generate_mistake_drill` may pick manual Memory Lock items, which have 0 mistakes. The app-side lists already filter `total_mistakes_count >= 1`; the SQL generator needs the same filter.
 
+## ACTION-CATCH-1: admin screens await Server Actions in transitions without a catch
+
+**Status:** logged 2026-10-31 (LOGO-P0b audit, docs/ops/LOGO_P0.md). Upload forms are fixed; the rest are not.
+
+**Why:** an action call that throws (network, 413, server error) inside `startTransition` reaches the admin error boundary and the whole page shows "This page could not be loaded" — the LOGO-P0 failure mode.
+
+**How (later):** a shared `safeAction()` client helper (the `guarded()` pattern of `components/admin/logos/logo-drawer.tsx`), adopted screen by screen, plus an offline gate that flags an unwrapped `await …Action(` inside `start(`.
+
 ## STORAGE-SVG-1: the store-rewards bucket accepts SVG
 
 **Status:** logged by the architect, 2026-10-30 (EXAM-LOGO-1 ruling 6). Do not touch until scheduled.

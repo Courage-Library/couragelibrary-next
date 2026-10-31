@@ -12,6 +12,7 @@ import { importSyllabusDraftAction, previewSyllabusImportAction, type SyllabusIm
 import { IMPORT_MAX_BYTES, type ImportError } from "@/lib/syllabus/import-contract";
 import type { SyllabusVersionRow } from "@/types/syllabus";
 
+const ACTION_FAILED = "The request could not be completed, so nothing was changed. Check your connection and try again.";
 const TIER_LABEL = { HIGH_YIELD: "High yield", CORE: "Core", MODERATE: "Moderate", LOW: "Low", OPTIONAL: "Optional" } as const;
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
@@ -66,7 +67,8 @@ export function SyllabusImportDraft({
     start(async () => {
       setMessage(null);
       setServerErrors([]);
-      const r = await previewSyllabusImportAction(exam.id, text, { examSlug: exam.slug, cycleYears: cycles.map((c) => c.cycle_year) });
+      // LOGO-P0b audit: a thrown action call (network / server error) is an inline message, never the error boundary
+      const r = await previewSyllabusImportAction(exam.id, text, { examSlug: exam.slug, cycleYears: cycles.map((c) => c.cycle_year) }).catch(() => ({ ok: false as const, message: ACTION_FAILED }));
       if (!r.ok) {
         setMessage(r.message);
         return;
@@ -79,7 +81,7 @@ export function SyllabusImportDraft({
     start(async () => {
       setMessage(null);
       setServerErrors([]);
-      const r = await importSyllabusDraftAction(exam.id, text);
+      const r = await importSyllabusDraftAction(exam.id, text).catch(() => ({ ok: false as const, message: ACTION_FAILED }));
       if (!r.ok) {
         setMessage(r.message);
         if ("errors" in r && Array.isArray(r.errors)) setServerErrors(r.errors);

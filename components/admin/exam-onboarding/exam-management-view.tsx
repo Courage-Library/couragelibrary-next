@@ -1,7 +1,7 @@
 "use client";
 
 import { actionErrorMessage } from "@/lib/actions/action-result";
-import React, { useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AdminExamListItem, ConductingOrgItem } from "@/services/exam-onboarding/exam-onboarding.service";
@@ -51,6 +51,8 @@ export function ExamManagementView({
 }: Props) {
   const router = useRouter();
   const [exams, setExams] = useState<AdminExamListItem[]>(initialExams);
+  // LOGO-UX-1: router.refresh() after a logo save re-renders the page with fresh rows; keep the list in step with them
+  useEffect(() => setExams(initialExams), [initialExams]);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterCategory, setFilterCategory] = useState("ALL");
 
@@ -158,6 +160,19 @@ export function ExamManagementView({
     }
   };
 
+  // LOGO-UX-1: per body — how many exams use it, and one exam title for the logo preview
+  const bodyUsage = useMemo(() => {
+    const u: Record<string, { count: number; firstExamTitle: string | null }> = {};
+    for (const e of exams) {
+      const id = e.conductingOrg.id;
+      if (!id) continue;
+      u[id] ??= { count: 0, firstExamTitle: null };
+      u[id].count += 1;
+      if (!u[id].firstExamTitle || e.isActive) u[id].firstExamTitle = e.title;
+    }
+    return u;
+  }, [exams]);
+
   const filteredExams = useMemo(() => {
     return exams.filter((e) => {
       const matchSearch =
@@ -256,6 +271,7 @@ export function ExamManagementView({
         {filteredExams.map((exam) => (
           <Card
             key={exam.id}
+            data-exam-card={exam.slug}
             className="p-5 bg-white border border-slate-200/80 rounded-2xl shadow-2xs flex flex-col justify-between space-y-4 hover:border-slate-300 transition"
           >
             <div className="space-y-3">
@@ -322,7 +338,7 @@ export function ExamManagementView({
             </div>
 
             {canEditLogos && (
-              <ExamLogoOverride examId={exam.id} examTitle={exam.title} hasOverride={Boolean(exam.logoOverridePath)} />
+              <ExamLogoOverride examId={exam.id} examTitle={exam.title} bodyName={exam.conductingOrg.name} current={examLogo({ override: { path: exam.logoOverridePath ?? null, alt: exam.logoOverrideAlt ?? null } })} />
             )}
 
             {/* Card Action Footer */}
@@ -569,7 +585,7 @@ export function ExamManagementView({
           </Card>
         </div>
       )}
-      <ConductingBodiesPanel orgs={conductingOrgs} canEdit={canEditLogos} />
+      <ConductingBodiesPanel orgs={conductingOrgs} canEdit={canEditLogos} usage={bodyUsage} />
     </div>
   );
 }

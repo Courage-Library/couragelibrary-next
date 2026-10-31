@@ -17,6 +17,13 @@ const nextConfig: NextConfig = {
     "/admin/exams": SHARP_LINUX_FILES,
     "/api/health/image": SHARP_LINUX_FILES,
   },
+  // LOGO-P0b (2026-10-31): ROOT CAUSE of the /admin/exams crash — a logo upload over Next's default 1 MB Server Action
+  // body limit was rejected (413) before our validation ran. 2 MB = the 1 MB file rule + multipart headroom. This applies
+  // to EVERY Server Action: each file-accepting action caps its own file at 1 MB (logo, bulk-import image, reward
+  // image) and every student-reachable action caps its own text (audit: docs/ops/LOGO_P0.md)
+  experimental: {
+    serverActions: { bodySizeLimit: "2mb" },
+  },
   images: {
     remotePatterns: [
       {

@@ -203,10 +203,16 @@ export function AdminQuestionManager({
     formData.append("file", file);
     formData.append("folder", target === "question" || target === "editQ" ? "questions" : "options");
 
-    const res = await uploadBulkImportImageAction(formData);
+    // LOGO-P0b audit: a thrown call (413 / network / server error) must not leave the spinner on forever
+    if (file.size > 1024 * 1024) {
+      setIsUploadingImg(false);
+      alert(`Image upload failed: the file is ${(file.size / (1024 * 1024)).toFixed(1)} MB; the maximum is 1 MB.`);
+      return;
+    }
+    const res = await uploadBulkImportImageAction(formData).catch(() => ({ success: false, error: "the upload could not be completed. Nothing was saved; try again." }) as Awaited<ReturnType<typeof uploadBulkImportImageAction>>);
     setIsUploadingImg(false);
 
-    if (res.error) {
+    if (res.error || !res.success) {
       alert("Image upload failed: " + res.error);
       return;
     }

@@ -5,6 +5,7 @@ import { actionFailure, guardAdminAction, type ActionFailure, type AdminContext 
 import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { LOGO_UNAVAILABLE, processLogo } from "@/lib/logos/logo-image";
 import { LOGO_BUCKET } from "@/lib/logos/exam-logo";
+import { bodySlug } from "@/lib/logos/logo-upload-guard";
 import { ExamOnboardingService } from "@/services/exam-onboarding/exam-onboarding.service";
 
 /**
@@ -91,6 +92,38 @@ export async function removeExamLogoOverrideAction(examId: string): Promise<Logo
   const auth = await guardAdminAction();
   if (!auth.ok) return auth;
   return removeLogo(auth, "EXAM", examId);
+}
+
+/**
+ * LOGO-UX-1: a new conducting body WITH its logo, in one step (admin only). Refused when a body with that name / slug
+ * already exists (open its card instead). The body is created, then its logo set exactly like an upload; if the logo
+ * fails, the just-created body is deleted again (no exam can reference it yet) — a body never exists without a logo
+ * through this path. The CONDUCTING_ORG_CREATE audit row is written only once both succeeded.
+ */
+export async function createConductingOrgWithLogoAction(formData: FormData): Promise<{ success: true; id: string; path: string | null } | ActionFailure> {
+  const auth = await guardAdminAction();
+  if (!auth.ok) return auth;
+  const name = String(formData.get("name") || "").trim();
+  const website = String(formData.get("website") || "").trim();
+  if (name.length < 3 || name.length > 160 || /[,()]/.test(name)) return actionFailure("VALIDATION", "Use the body's official name (3 to 160 characters, no commas or brackets).");
+  if (website && !/^https:\/\/[^\s]+$/.test(website)) return actionFailure("VALIDATION", "The website must start with https://.");
+  const slug = bodySlug(name);
+  if (!slug) return actionFailure("VALIDATION", "Use the body's official name.");
+  const db = createAdminServerSupabaseClient();
+  const { data: clash } = await db.from("conducting_orgs").select("id").or(`slug.eq.${slug},name.ilike.${name}`).limit(1);
+  if (clash && clash.length) return actionFailure("VALIDATION", "A body with this name already exists. Open its card to add or replace the logo.");
+  const { data: org, error } = await db.from("conducting_orgs").insert({ name, slug, official_website: website || null, is_active: true }).select("id, name, slug").single();
+  if (error || !org) return actionFailure("DB_ERROR", "The conducting body could not be created.");
+  formData.set("id", org.id);
+  const logo = await setLogo(auth, "ORG", formData).catch(() => actionFailure("VALIDATION", LOGO_UNAVAILABLE));
+  if (!logo.success) {
+    await db.from("conducting_orgs").delete().eq("id", org.id); // nothing references it yet
+    return logo;
+  }
+  const { error: auditErr } = await db.from("admin_audit_logs").insert({ actor_id: auth.userId, actor_email: auth.userEmail || "unknown-admin", action_type: "CONDUCTING_ORG_CREATE", target_entity: "conducting_org", target_id: org.id, new_value: { name: org.name, slug: org.slug, with_logo: true } });
+  if (auditErr) return actionFailure("DB_ERROR", "The body and its logo were saved, but the audit row could not be written. Tell the engineer.");
+  revalidatePath("/admin/exams");
+  return { success: true, id: org.id, path: logo.path };
 }
 
 /** A new conducting body (admin only); its logo is uploaded next, before any exam can use it. */

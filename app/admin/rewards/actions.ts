@@ -126,9 +126,9 @@ export async function uploadRewardImageAction(
     return { success: false, error: "Unsupported image format. Please upload a WebP, PNG, or JPEG image." };
   }
 
-  // Max 10MB source limit
-  if (file.size > 10 * 1024 * 1024) {
-    return { success: false, error: "Image file exceeds maximum allowed limit (10 MB)." };
+  // LOGO-P0b: 1 MB (the image is optimised in the browser first); the Server Action body limit is now 2 MB for every action
+  if (file.size > 1024 * 1024) {
+    return { success: false, error: "Image file exceeds the maximum allowed size (1 MB)." };
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

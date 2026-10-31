@@ -1,161 +1,127 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React, { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { studioControl, studioQuietAction } from "@/components/admin/studio/studio-page";
+import { CheckCircle2, CircleAlert, Plus } from "lucide-react";
 import { ExamLogoBadge } from "@/components/exams/exam-logo-badge";
-import { createConductingOrgAction, removeOrgLogoAction, uploadOrgLogoAction } from "@/app/admin/exams/logo-actions";
+import { LogoDrawer, type LogoDrawerDone, type LogoDrawerMode } from "@/components/admin/logos/logo-drawer";
+import { ToastProvider, useToast } from "@/components/ui/toast";
 import { examLogo } from "@/lib/logos/exam-logo";
 import type { ConductingOrgItem } from "@/services/exam-onboarding/exam-onboarding.service";
 
 /**
- * EXAM-LOGO-1: the conducting bodies and their official logos (uploaded ONCE per body; every exam of the body shows it).
- * Admins upload / replace / remove (the server re-encodes and audits); staff see the logos read-only. A new exam needs a
- * body with a logo, so a new body is added here and given its logo first.
+ * EXAM-LOGO-1 + LOGO-UX-1 (owner 2026-10-31): the conducting bodies as a card grid — logo (64 px) or initials, name,
+ * "Used by N exams", a status chip; bodies WITHOUT a logo first. An admin opens a card to add / replace / remove its logo
+ * (components/admin/logos/logo-drawer.tsx) and adds a body with its logo from the "Add body" card. Staff see the cards
+ * read-only. A new exam needs a body with a logo.
  */
-type Msg = { kind: "ok" | "error"; text: string } | null;
-const failText = (r: { message?: string; error?: string }) => r.message || r.error || "Something went wrong.";
+export type BodyUsage = { count: number; firstExamTitle: string | null };
 
-export function ConductingBodiesPanel({ orgs, canEdit }: { orgs: ConductingOrgItem[]; canEdit: boolean }) {
+export function ConductingBodiesPanel(props: { orgs: ConductingOrgItem[]; canEdit: boolean; usage: Record<string, BodyUsage> }) {
+  return (
+    <ToastProvider>
+      <Panel {...props} />
+    </ToastProvider>
+  );
+}
+
+function Panel({ orgs, canEdit, usage }: { orgs: ConductingOrgItem[]; canEdit: boolean; usage: Record<string, BodyUsage> }) {
   const router = useRouter();
-  const [pending, start] = useTransition();
-  const [msg, setMsg] = useState<Msg>(null);
-  const [editing, setEditing] = useState<string | null>(null);
-  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
-  const [newName, setNewName] = useState("");
-  const [newSite, setNewSite] = useState("");
-  const active = orgs.filter((o) => o.isActive);
-
-  const upload = (org: ConductingOrgItem, form: HTMLFormElement) =>
-    start(async () => {
-      setMsg(null);
-      const fd = new FormData(form);
-      fd.set("id", org.id);
-      const r = await uploadOrgLogoAction(fd);
-      if (r.success) {
-        setMsg({ kind: "ok", text: `${org.name}: logo saved.` });
-        setEditing(null);
-        router.refresh();
-      } else setMsg({ kind: "error", text: failText(r) });
+  const { show } = useToast();
+  const [drawer, setDrawer] = useState<{ mode: LogoDrawerMode; org: ConductingOrgItem | null } | null>(null);
+  const cards = useMemo(
+    () =>
+      orgs
+        .filter((o) => o.isActive)
+        .map((o) => ({ org: o, logo: examLogo({ org: { path: o.logoPath ?? null, alt: o.logoAlt ?? null } }), use: usage[o.id] ?? { count: 0, firstExamTitle: null } }))
+        .sort((a, b) => Number(Boolean(a.logo)) - Number(Boolean(b.logo)) || a.org.name.localeCompare(b.org.name)),
+    [orgs, usage],
+  );
+  const missing = cards.filter((c) => !c.logo).length;
+  const done = (d: LogoDrawerDone, count: number) => {
+    setDrawer(null);
+    const exams = `${count} exam${count === 1 ? "" : "s"}`;
+    show({
+      tone: "success",
+      title: d.action === "removed" ? `Logo removed from ${d.name}` : d.action === "created" ? `${d.name} added with its logo` : "Logo saved",
+      description: d.action === "removed" ? `Its ${exams} now show initials.` : d.action === "created" ? "It can now be chosen for new exams." : `Now showing on ${exams}.`,
     });
-  const remove = (org: ConductingOrgItem) =>
-    start(async () => {
-      setMsg(null);
-      const r = await removeOrgLogoAction(org.id);
-      setConfirmRemove(null);
-      if (r.success) {
-        setMsg({ kind: "ok", text: `${org.name}: logo removed.` });
-        router.refresh();
-      } else setMsg({ kind: "error", text: failText(r) });
-    });
-  const addBody = () =>
-    start(async () => {
-      setMsg(null);
-      const r = await createConductingOrgAction(newName, newSite);
-      if (r.success) {
-        setMsg({ kind: "ok", text: `${newName.trim()} added: upload its official logo below.` });
-        setNewName("");
-        setNewSite("");
-        setEditing(r.id);
-        router.refresh();
-      } else setMsg({ kind: "error", text: failText(r) });
-    });
+    router.refresh();
+  };
 
   return (
-    <section id="conducting-bodies" aria-labelledby="conducting-bodies-title" className="mt-8 rounded-card border border-line bg-white p-5" data-conducting-bodies="">
-      <h2 id="conducting-bodies-title" className="text-base font-semibold text-fg">
-        Conducting bodies
-      </h2>
+    <section id="conducting-bodies" aria-labelledby="conducting-bodies-title" className="mt-8" data-conducting-bodies="">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 id="conducting-bodies-title" className="text-base font-semibold text-fg">
+          Conducting bodies
+        </h2>
+        <p className="text-[13px] text-fg-secondary">{missing ? `${missing} without a logo` : "Every body has its logo"}</p>
+      </div>
       <p className="mt-1 text-[13px] text-fg-secondary">
-        Every exam shows its conducting body&apos;s official logo. PNG, JPG or WebP, at least 256 × 256, at most 1 MB (no SVG). The image is re-encoded on upload.
+        Every exam shows its conducting body&apos;s official logo before the exam&apos;s name.{canEdit ? " Open a body to add, replace or remove its logo." : " Only admins can change logos."}
       </p>
-      {msg && (
-        <p role="status" className={`mt-3 rounded-card px-3 py-2 text-[13px] ${msg.kind === "ok" ? "bg-emerald-50 text-emerald-900" : "bg-danger-50 text-danger-800"}`}>
-          {msg.text}
-        </p>
-      )}
-      <ul className="mt-4 divide-y divide-line" aria-label="Conducting bodies">
-        {active.map((org) => {
-          const logo = examLogo({ org: { path: org.logoPath ?? null, alt: org.logoAlt ?? null } });
-          return (
-            <li key={org.id} className="flex flex-wrap items-start gap-3 py-3" data-org={org.slug}>
-              <ExamLogoBadge logo={logo} name={org.name} size="md" />
-              <div className="min-w-0 flex-1">
-                <p className="text-[14px] font-semibold text-fg">{org.name}</p>
-                <p className="text-[12px] text-fg-secondary">{logo ? `Alt text: ${org.logoAlt}` : <span className="font-semibold text-danger-800">Logo missing</span>}</p>
-                {canEdit && editing === org.id && (
-                  <form
-                    className="mt-2 grid gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      upload(org, e.currentTarget);
-                    }}
-                  >
-                    <label className="text-[12px] font-semibold text-fg">
-                      Logo file
-                      <input name="file" type="file" accept="image/png,image/jpeg,image/webp" required className={`${studioControl} mt-1 py-1.5`} />
-                    </label>
-                    <label className="text-[12px] font-semibold text-fg">
-                      Alt text
-                      <input name="alt" type="text" required minLength={3} maxLength={160} defaultValue={org.logoAlt || `${org.name} logo`} className={`${studioControl} mt-1`} />
-                    </label>
-                    <div className="flex gap-2">
-                      <button type="submit" className={studioQuietAction} disabled={pending}>
-                        {pending ? "Saving…" : "Save logo"}
-                      </button>
-                      <button type="button" className={studioQuietAction} onClick={() => setEditing(null)}>
-                        Cancel
-                      </button>
-                    </div>
-                  </form>
+      <ul className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3" aria-label="Conducting bodies">
+        {cards.map(({ org, logo, use }) => {
+          const inner = (
+            <>
+              <ExamLogoBadge logo={logo} name={org.name} size="tile" />
+              <span className="min-w-0 flex-1 text-left">
+                <span className="block text-[14px] font-semibold text-fg">{org.name}</span>
+                <span className="mt-0.5 block text-[12px] text-fg-secondary">
+                  Used by {use.count} exam{use.count === 1 ? "" : "s"}
+                </span>
+                {logo ? (
+                  <span className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-success-200 bg-success-50 px-2 py-0.5 text-[11px] font-semibold text-success-800" data-logo-ok="">
+                    <CheckCircle2 aria-hidden="true" className="size-3.5" /> Logo added
+                  </span>
+                ) : (
+                  <span className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-danger-200 bg-danger-50 px-2 py-0.5 text-[11px] font-semibold text-danger-800" data-logo-missing="">
+                    <CircleAlert aria-hidden="true" className="size-3.5" /> Logo missing
+                  </span>
                 )}
-              </div>
-              {canEdit && editing !== org.id && (
-                <div className="flex gap-2">
-                  <button type="button" className={studioQuietAction} onClick={() => setEditing(org.id)} disabled={pending}>
-                    {logo ? "Replace logo" : "Upload logo"}
-                  </button>
-                  {logo &&
-                    (confirmRemove === org.id ? (
-                      <>
-                        <button type="button" className={studioQuietAction} onClick={() => remove(org)} disabled={pending}>
-                          Confirm remove
-                        </button>
-                        <button type="button" className={studioQuietAction} onClick={() => setConfirmRemove(null)}>
-                          Keep
-                        </button>
-                      </>
-                    ) : (
-                      <button type="button" className={studioQuietAction} onClick={() => setConfirmRemove(org.id)} disabled={pending}>
-                        Remove
-                      </button>
-                    ))}
-                </div>
+              </span>
+            </>
+          );
+          return (
+            <li key={org.id} data-org={org.slug}>
+              {canEdit ? (
+                <button
+                  type="button"
+                  className="focus-ring flex h-full w-full items-center gap-3 rounded-card border border-line bg-white p-4 text-left hover:border-primary-300 hover:bg-primary-50/40"
+                  onClick={() => setDrawer({ mode: { kind: "ORG", id: org.id, name: org.name }, org })}
+                  aria-label={`${org.name}: ${logo ? "logo added" : "logo missing"}, used by ${use.count} exam${use.count === 1 ? "" : "s"}. Open to ${logo ? "replace or remove the logo" : "add the logo"}`}
+                >
+                  {inner}
+                </button>
+              ) : (
+                <div className="flex h-full items-center gap-3 rounded-card border border-line bg-white p-4">{inner}</div>
               )}
             </li>
           );
         })}
+        {canEdit && (
+          <li>
+            <button
+              type="button"
+              className="focus-ring flex h-full min-h-[96px] w-full items-center justify-center gap-2 rounded-card border-2 border-dashed border-line bg-white p-4 text-[14px] font-semibold text-link hover:border-primary-300 hover:bg-primary-50/40"
+              onClick={() => setDrawer({ mode: { kind: "NEW_BODY" }, org: null })}
+              data-add-body=""
+            >
+              <Plus aria-hidden="true" className="size-4" /> Add body
+            </button>
+          </li>
+        )}
       </ul>
-      {canEdit && (
-        <form
-          className="mt-4 grid gap-2 border-t border-line pt-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
-          onSubmit={(e) => {
-            e.preventDefault();
-            addBody();
-          }}
-        >
-          <label className="text-[12px] font-semibold text-fg">
-            New body (official name)
-            <input value={newName} onChange={(e) => setNewName(e.target.value)} required minLength={3} maxLength={160} className={`${studioControl} mt-1`} placeholder="Institute of Banking Personnel Selection" />
-          </label>
-          <label className="text-[12px] font-semibold text-fg">
-            Official website (optional)
-            <input value={newSite} onChange={(e) => setNewSite(e.target.value)} type="url" className={`${studioControl} mt-1`} placeholder="https://" />
-          </label>
-          <button type="submit" className={studioQuietAction} disabled={pending || newName.trim().length < 3}>
-            Add body
-          </button>
-        </form>
+      {canEdit && drawer && (
+        <LogoDrawer
+          open
+          onClose={() => setDrawer(null)}
+          mode={drawer.mode}
+          current={drawer.org ? examLogo({ org: { path: drawer.org.logoPath ?? null, alt: drawer.org.logoAlt ?? null } }) : null}
+          previewExamTitle={(drawer.org && usage[drawer.org.id]?.firstExamTitle) || "Exam name"}
+          canRemove
+          onDone={(d) => done(d, drawer.org ? (usage[drawer.org.id]?.count ?? 0) : 0)}
+        />
       )}
     </section>
   );
