@@ -15,6 +15,11 @@
  *       layout shows the logo + the not-affiliated line; the exams list, the landing cards, the admin list (+ "Logo
  *       missing") and Today use it; a coming-soon exam page ends with the not-affiliated line too (EXAM-LOGO-1.1);
  *       the upload input accepts PNG / JPG / WebP only (never SVG)
+ *   P-4 LOGO-P0 (2026-10-31): sharp is loaded lazily — with sharp UNLOADABLE the module still loads, processLogo returns
+ *       UNAVAILABLE ("nothing was saved"), the action catches any throw, the health probe says false (negative control)
+ *       and true with sharp working; next.config lists the Linux libvips files for the routes that run the pipeline
+ *   D-2 LOGO-PLACEMENT (owner 2026-10-31): the logo sits inline immediately BEFORE the exam name — hub / course /
+ *       exam-topic headers (md 48), cards on / and /exams (sm 32), admin rows (xs 28); no separate strip in the layout
  * Run: node scripts/test_exam_logo1.cjs
  */
 const fs = require('fs');
@@ -31,8 +36,10 @@ Module._resolveFilename = function (request, parent, isMain, options) {
   return origResolve.call(this, request, parent, isMain, options);
 };
 const origLoad = Module._load;
+let sharpBroken = false; // P-4: simulates a missing native binary (what production hit)
 Module._load = function (request, parent, isMain) {
   if (request === 'server-only') return {};
+  if (sharpBroken && request === 'sharp') throw new Error('Could not load the "sharp" module (simulated)');
   if (request === '@/lib/supabase/server' || /lib[\\/]supabase[\\/]server/.test(request)) return { createAdminServerSupabaseClient: () => { throw new Error('a stub client is passed in the gate'); }, createServerSupabaseClient: async () => { throw new Error('not used'); } };
   return origLoad.call(this, request, parent, isMain);
 };
@@ -179,7 +186,7 @@ const img = (w, h, fmt, opts = {}) => {
     const badge = read('components/exams/exam-logo-badge.tsx');
     assert(/width=\{px\} height=\{px\}/.test(badge) && /style=\{\{ width: px, height: px \}\}/.test(badge) && /loading=\{priority \? "eager" : "lazy"\}/.test(badge) && !/from "next\/image"/.test(badge) && /Courage Library is an independent platform and is not affiliated with \{body\}\./.test(badge), 'badge');
     const layout = read('app/exams/[slug]/layout.tsx');
-    assert(/<ExamLogoBadge logo=\{brand\.logo\}/.test(layout) && /<NotAffiliatedLine body=\{brand\.bodyName\} \/>/.test(layout) && /if \(!brand\) return <>\{children\}<\/>;/.test(layout), 'exam layout');
+    assert(/<NotAffiliatedLine body=\{brand\.bodyName\} \/>/.test(layout) && /if \(!brand\) return <>\{children\}<\/>;/.test(layout), 'exam layout');
     for (const f of ['app/exams/page.tsx', 'components/landing/landing-sections.tsx']) assert(/<ExamLogoBadge logo=\{exam\.logo\}/.test(read(f)), f);
     // EXAM-LOGO-1.1: an inactive "coming soon" exam page has no logo strip but still ends with the not-affiliated line
     const soon = read('components/public/coming-soon-hub.tsx');
@@ -195,6 +202,49 @@ const img = (w, h, fmt, opts = {}) => {
       assert(accepts.length >= 1 && accepts.every((x) => x === 'image/png,image/jpeg,image/webp'), `${f}: accept list ${accepts}`);
     }
     assert(!/svg/i.test(read('lib/logos/logo-image.ts').replace(/(\/\*[\s\S]*?\*\/|\/\/.*$)/gm, '').replace(/"Upload a PNG, JPG or WebP image \(SVG and other files are not accepted\)\."/g, '')), 'the processor must not handle SVG');
+  });
+
+  await test('P-4 LOGO-P0: sharp loads lazily; unloadable sharp → module still loads, UNAVAILABLE, health false (negative control); action catches; Linux libvips traced', async () => {
+    const src = read('lib/logos/logo-image.ts');
+    assert(!/^import sharp from "sharp"/m.test(src) && /^import type SharpFn from "sharp";/m.test(src) && /import\("sharp"\)/.test(src), 'sharp must be imported lazily (type-only at module level)');
+    const fresh = (rel) => { const f = path.join(ROOT, rel); delete require.cache[f]; return require(f); };
+    const png = await img(300, 300, 'png');
+    sharpBroken = true;
+    let broken;
+    try {
+      const L = fresh('lib/logos/logo-image.ts'); // must not throw: nothing loads sharp at module level
+      const H = fresh('lib/logos/image-health.ts');
+      broken = { r: await L.processLogo(png), h: await H.imagePipelineWorks() };
+    } finally {
+      sharpBroken = false;
+    }
+    assert(broken.r.ok === false && broken.r.code === 'UNAVAILABLE' && /nothing was saved/.test(broken.r.message), `broken sharp: ${JSON.stringify(broken.r).slice(0, 160)}`);
+    assert(broken.h === false, 'health probe must say false when sharp cannot load');
+    const L2 = fresh('lib/logos/logo-image.ts');
+    const H2 = fresh('lib/logos/image-health.ts');
+    assert((await L2.processLogo(png)).ok === true && (await H2.imagePipelineWorks()) === true, 'pipeline / health with a working sharp');
+    const act = read('app/admin/exams/logo-actions.ts');
+    assert(act.includes('await processLogo(Buffer.from(await file.arrayBuffer())).catch(() => ({ ok: false as const, message: LOGO_UNAVAILABLE }))'), 'the action must catch a processing throw');
+    const route = read('app/api/health/image/route.ts');
+    assert(/NextResponse\.json\(\{ ok \}/.test(route) && !/message|error|version/.test(route.replace(/\/\*[\s\S]*?\*\//g, '')), 'health route returns { ok } only');
+    const cfg = read('next.config.ts');
+    assert(/"\.\/node_modules\/@img\/sharp-libvips-linux-x64\/\*\*\/\*"/.test(cfg) && /"\/admin\/exams": SHARP_LINUX_FILES/.test(cfg) && /"\/api\/health\/image": SHARP_LINUX_FILES/.test(cfg), 'next.config: Linux sharp files traced for the pipeline routes');
+    return 'broken → UNAVAILABLE + health false; working → ok + health true';
+  });
+
+  await test('D-2 LOGO-PLACEMENT: logo inline before the exam name (headers md, cards sm, admin xs); no separate layout strip', async () => {
+    const layout = read('app/exams/[slug]/layout.tsx');
+    assert(!/ExamLogoBadge|data-exam-brand/.test(layout) && /<NotAffiliatedLine body=\{brand\.bodyName\} \/>/.test(layout), 'layout: strip removed, not-affiliated line kept');
+    const before = (f, re) => assert(re.test(read(f)), `${f}: logo not immediately before the exam name`);
+    before('components/exams/exam-home.tsx', /\{logo\}\s*<h1 id="page-title"/);
+    before('app/exams/[slug]/page.tsx', /logo=\{<ExamBrandLogo slug=\{exam\.slug\} \/>\}/);
+    before('components/public/coming-soon-hub.tsx', /logo=\{<ExamLogoBadge logo=\{null\} name=\{body\} size="md" priority \/>\}/);
+    before('app/exams/[slug]/course/page.tsx', /<ExamBrandLogo slug=\{course\.exam\.slug\} \/>\s*<h1/);
+    before('app/exams/[slug]/[moduleSlug]/[...rest]/page.tsx', /<ExamBrandLogo slug=\{slug\} \/>\s*<h1/);
+    for (const f of ['app/exams/page.tsx', 'components/landing/landing-sections.tsx']) before(f, /<ExamLogoBadge logo=\{exam\.logo\} name=\{exam\.bodyName \|\| exam\.title\} size="sm" \/>\s*<CardTitle/);
+    before('components/admin/exam-onboarding/exam-management-view.tsx', /size="xs"\s*\/>\s*<h3 className="min-w-0/);
+    assert(/xs: 28, sm: 32, md: 48/.test(read('lib/logos/exam-logo.ts')), 'sizes');
+    assert(/size = "md"/.test(read('components/exams/exam-brand-logo.tsx')) && /<ExamLogoBadge logo=\{brand\.logo\} name=\{brand\.bodyName\}/.test(read('components/exams/exam-brand-logo.tsx')), 'brand logo: fallback tile in the same place');
   });
 
   console.log(`\nEXAM-LOGO-1 offline: ${passed}/${passed + failed} passed`);

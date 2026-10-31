@@ -11,7 +11,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Container } from "@/components/ui/layout";
 import { PublicSection } from "@/components/public/public-page";
 import { ExamGlance, ExamHomeHeader } from "@/components/exams/exam-home";
-import { NotAffiliatedLine } from "@/components/exams/exam-logo-badge";
+import { ExamLogoBadge, NotAffiliatedLine } from "@/components/exams/exam-logo-badge";
 import { EXAM_PAGE } from "@/content/exam-page";
 import { COMING_SOON_HUB } from "@/content/public-pages";
 import { glanceRows } from "@/lib/exams/exam-page";
@@ -20,7 +20,7 @@ export function ComingSoonHub({ title, body }: { title: string; body: string }) 
   const S = EXAM_PAGE.comingSoon;
   return (
     <div data-coming-soon-hub="">
-      <ExamHomeHeader title={title} body={null} badge={COMING_SOON_HUB.badge}>
+      <ExamHomeHeader title={title} body={null} badge={COMING_SOON_HUB.badge} logo={<ExamLogoBadge logo={null} name={body} size="md" priority />}>
         <p className="max-w-2xl text-body-lg text-fg-secondary">{COMING_SOON_HUB.lead(title)}</p>
       </ExamHomeHeader>
       <ExamGlance examTitle={title} table={glanceRows([])} />

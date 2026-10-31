@@ -271,14 +271,17 @@ export function ExamManagementView({
                 </span>
               </div>
 
-              <div className="flex items-start gap-3">
-                <ExamLogoBadge
-                  logo={examLogo({ override: { path: exam.logoOverridePath ?? null, alt: exam.logoOverrideAlt ?? null }, org: { path: exam.conductingOrg.logoPath ?? null, alt: exam.conductingOrg.logoAlt ?? null } })}
-                  name={exam.conductingOrg.name}
-                  size="md"
-                />
+              <div>
                 <div className="min-w-0 flex-1">
-                <h3 className="text-sm font-bold text-slate-900 line-clamp-1">{exam.title}</h3>
+                {/* LOGO-PLACEMENT: the logo inline immediately before the exam name, on the same line */}
+                <div className="flex items-center gap-2">
+                  <ExamLogoBadge
+                    logo={examLogo({ override: { path: exam.logoOverridePath ?? null, alt: exam.logoOverrideAlt ?? null }, org: { path: exam.conductingOrg.logoPath ?? null, alt: exam.conductingOrg.logoAlt ?? null } })}
+                    name={exam.conductingOrg.name}
+                    size="xs"
+                  />
+                  <h3 className="min-w-0 text-sm font-bold text-slate-900 line-clamp-1">{exam.title}</h3>
+                </div>
                 <div className="flex items-center justify-between gap-3 mt-0.5">
                   <p className="text-[11px] font-mono text-slate-600 truncate">/exams/{exam.slug}</p>
                   {exam.isActive && (

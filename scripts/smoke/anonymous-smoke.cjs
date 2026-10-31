@@ -2,7 +2,7 @@
  * Anonymous smoke (HOTFIX-1, extended by UX-2a, SEC-HOTFIX-6/7, GAP2-4b/4c, DRILL-1, SYL-IMPORT-1; moved into the repo
  * by QB-KEY-1 round 2 so its checks are audited). Anonymous requests only — safe against production.
  *   GET / 200 without diagnostics text and without the project ref (sha-compared, never printed); landing checks;
- *   /api/health 200; anon /admin 307; the 4 fixed routes → /auth/login?next=… (only when their flags are on);
+ *   /api/health 200; /api/health/image 200 { ok: true } (LOGO-P0); anon /admin 307; the 4 fixed routes → /auth/login?next=… (only when their flags are on);
  *   anon PostgREST probes (42501 / retired tables not exposed);
  *   /exams/ssc-cgl syllabus section matches the read model (AVAILABLE → paper / section titles, no coming-soon;
  *   NO_SYLLABUS → "Syllabus coming soon") — scripts/smoke/_syllabus-expect.cjs
@@ -64,6 +64,10 @@ const get = async (p) => { for (let i = 1; i <= 3; i++) { try { return await fet
   }
   const health = await get('/api/health');
   check('GET /api/health → 200', health.status === 200, String(health.status));
+  // LOGO-P0: the logo image pipeline (sharp, native) loads and encodes in THIS runtime — a boolean only
+  const img = await get('/api/health/image');
+  const imgBody = await img.json().catch(() => null);
+  check('LOGO-P0 GET /api/health/image → 200 { ok: true } (sharp works in the deployed runtime)', img.status === 200 && imgBody && imgBody.ok === true && Object.keys(imgBody).join() === 'ok', String(img.status));
   const adm = await get('/admin');
   check('anon /admin → 307 /auth/login', adm.status === 307 && /\/auth\/login/.test(adm.headers.get('location') || ''), `${adm.status} ${(adm.headers.get('location') || '').replace(/^https?:\/\/[^/]+/, '')}`);
   for (const [p, next] of [['/achievements', '/achievements'], ['/certificates', '/certificates'], ['/live-tests/some-event/result', '/live-tests/some-event/result'], ['/performance?exam=ssc-cgl', '/performance?exam=ssc-cgl']]) {

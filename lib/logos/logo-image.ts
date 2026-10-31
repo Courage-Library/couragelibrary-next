@@ -1,6 +1,6 @@
 import "server-only";
 import { createHash } from "node:crypto";
-import sharp from "sharp";
+import type SharpFn from "sharp";
 
 /**
  * EXAM-LOGO-1: the ONLY way an image becomes a logo. Content-sniffed (never the extension or the browser's type),
@@ -8,6 +8,8 @@ import sharp from "sharp";
  * parses it. At most 1 MB in, at least 256 × 256. Re-encoded server-side: EXIF orientation applied, padded to a
  * transparent square, 512 × 512 WebP, every metadata chunk dropped (sharp keeps none unless asked). The stored name is
  * the content hash of the OUTPUT, so a path always names exactly one image.
+ * LOGO-P0 (2026-10-31): sharp (a native library) is loaded LAZILY, only when an image is processed — a missing or broken
+ * native binary must never take down the page that imports this module; it becomes code UNAVAILABLE ("nothing was saved").
  */
 export const LOGO_MAX_BYTES = 1024 * 1024;
 export const LOGO_MIN_SIDE = 256;
@@ -17,7 +19,21 @@ const LOGO_MAX_PIXELS = 25_000_000; // decompression-bomb guard
 export type LogoFormat = "png" | "jpeg" | "webp";
 export type LogoResult =
   | { ok: true; webp: Buffer; sha256: string; inFormat: LogoFormat; inWidth: number; inHeight: number }
-  | { ok: false; code: "EMPTY" | "TOO_LARGE" | "NOT_AN_IMAGE" | "TOO_SMALL" | "UNREADABLE"; message: string };
+  | { ok: false; code: "EMPTY" | "TOO_LARGE" | "NOT_AN_IMAGE" | "TOO_SMALL" | "UNREADABLE" | "UNAVAILABLE"; message: string };
+
+export const LOGO_UNAVAILABLE = "The logo could not be processed, so nothing was saved. Try again later; if it keeps failing, tell the developer.";
+
+let sharpModule: Promise<typeof SharpFn> | null = null;
+/** sharp, loaded on first use; a failed load is retried next time (never cached as a failure). */
+export async function loadSharp(): Promise<typeof SharpFn> {
+  sharpModule ??= import("sharp").then((m) => m.default);
+  try {
+    return await sharpModule;
+  } catch (e) {
+    sharpModule = null;
+    throw e;
+  }
+}
 
 /** The format named by the first bytes, or null (SVG / HTML / anything else). */
 export function sniffLogoFormat(b: Uint8Array): LogoFormat | null {
@@ -32,6 +48,12 @@ export async function processLogo(input: Buffer): Promise<LogoResult> {
   if (input.length > LOGO_MAX_BYTES) return { ok: false, code: "TOO_LARGE", message: "The logo must be at most 1 MB." };
   const fmt = sniffLogoFormat(input);
   if (!fmt) return { ok: false, code: "NOT_AN_IMAGE", message: "Upload a PNG, JPG or WebP image (SVG and other files are not accepted)." };
+  let sharp: typeof SharpFn;
+  try {
+    sharp = await loadSharp();
+  } catch {
+    return { ok: false, code: "UNAVAILABLE", message: LOGO_UNAVAILABLE };
+  }
   try {
     const meta = await sharp(input, { failOn: "error", limitInputPixels: LOGO_MAX_PIXELS }).metadata();
     // the decoder must agree with the bytes (a PNG header on another format is refused)

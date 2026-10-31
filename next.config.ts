@@ -2,9 +2,20 @@ import type { NextConfig } from "next";
 import { CANONICAL_HOST_PATTERN } from "./config/site";
 import { ADMIN_REDIRECTS } from "./lib/admin/nav-redirects";
 
+const SHARP_LINUX_FILES = [
+  "./node_modules/@img/sharp-linux-x64/**/*",
+  "./node_modules/@img/sharp-libvips-linux-x64/**/*",
+];
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // LOGO-P0 (2026-10-31): sharp's native binary finds libvips through the dynamic linker (RPATH), which file tracing cannot
+  // follow — on Linux libvips is its own package, so it is listed explicitly for every route that runs the logo pipeline
+  outputFileTracingIncludes: {
+    "/admin/exams": SHARP_LINUX_FILES,
+    "/api/health/image": SHARP_LINUX_FILES,
+  },
   images: {
     remotePatterns: [
       {

@@ -208,6 +208,8 @@ jobs:
           path: ${{ runner.temp }}/build-diag/
           if-no-files-found: ignore
           retention-days: 7
+      - name: LOGO-P0 sharp from the traced files only (what a Vercel function ships; summary only)
+        run: node scripts/ci/run-quiet.cjs --id SHARP-TRACE --timeout 300 -- node scripts/ci/sharp-trace-check.cjs
       - name: Server checks (4 bounded server runs; summary lines only)
         env:
           # step-level only (the preload file exists after checkout); inert unless AUTH1_BLACKHOLE is set in `next start`

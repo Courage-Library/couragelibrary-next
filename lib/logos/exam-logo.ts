@@ -4,7 +4,7 @@
  * only: new exams cannot be created without a logo, and a course cannot launch without one).
  */
 export const LOGO_BUCKET = "org-logos";
-export const LOGO_DISPLAY_SIZES = { sm: 32, md: 48, lg: 72 } as const;
+export const LOGO_DISPLAY_SIZES = { xs: 28, sm: 32, md: 48, lg: 72 } as const; // xs admin rows, sm cards, md page headers
 
 export interface LogoSource {
   path: string | null;

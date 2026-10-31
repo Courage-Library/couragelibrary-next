@@ -160,11 +160,11 @@ export function LandingExams({ data }: { data: LandingData }) {
             {data.exams.map((exam) => (
               <li key={exam.slug} className="flex">
                 <Card variant="interactive" className="w-full">
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <ExamLogoBadge logo={exam.logo} name={exam.bodyName || exam.title} size="sm" />
                     <CardTitle>
                       <CardLink href={`/exams/${exam.slug}`}>{exam.title}</CardLink>
                     </CardTitle>
-                    <ExamLogoBadge logo={exam.logo} name={exam.bodyName || exam.title} size="md" />
                   </div>
                   {exam.category && <CardDescription>{exam.category}</CardDescription>}
                   <ul className="flex flex-wrap gap-2" aria-label={LANDING_EXAMS.glanceLabel(exam.title)}>

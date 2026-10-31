@@ -21,16 +21,20 @@ import { AddExamButton } from "./add-exam-button";
 
 const C = EXAM_PAGE;
 
-export function ExamHomeHeader({ title, body, badge, children }: { title: string; body: string | null; badge?: string; children?: ReactNode }) {
+/** `logo` (LOGO-PLACEMENT): shown inline immediately before the exam name, on the same line. */
+export function ExamHomeHeader({ title, body, badge, logo, children }: { title: string; body: string | null; badge?: string; logo?: ReactNode; children?: ReactNode }) {
   return (
     <section aria-labelledby="page-title" className="border-b border-line bg-gradient-to-b from-primary-50 to-canvas">
       <Container className="flex flex-col items-start gap-4 py-8 lg:py-12">
         <Breadcrumb items={[{ label: "Home", href: "/" }, { label: C.crumbs.exams, href: "/exams" }, { label: title }]} structuredDataBaseUrl={siteConfig.url} />
         {badge && <Badge tone="neutral">{badge}</Badge>}
         <div className="flex flex-col gap-1">
-          <h1 id="page-title" className="text-h1 font-bold tracking-tight text-fg">
-            {title}
-          </h1>
+          <div className="flex items-center gap-3">
+            {logo}
+            <h1 id="page-title" className="text-h1 font-bold tracking-tight text-fg">
+              {title}
+            </h1>
+          </div>
           {body && <p className="text-body-lg text-fg-secondary">{C.conductedBy(body)}</p>}
         </div>
         {children}

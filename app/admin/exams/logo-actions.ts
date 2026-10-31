@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { actionFailure, guardAdminAction, type ActionFailure, type AdminContext } from "@/lib/auth/require-admin";
 import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
-import { processLogo } from "@/lib/logos/logo-image";
+import { LOGO_UNAVAILABLE, processLogo } from "@/lib/logos/logo-image";
 import { LOGO_BUCKET } from "@/lib/logos/exam-logo";
 import { ExamOnboardingService } from "@/services/exam-onboarding/exam-onboarding.service";
 
@@ -39,7 +39,8 @@ async function setLogo(auth: AdminContext, kind: "ORG" | "EXAM", formData: FormD
   if (!(file instanceof File)) return actionFailure("VALIDATION", "Choose an image file.");
   if (file.size > 1024 * 1024) return actionFailure("VALIDATION", "The logo must be at most 1 MB.");
 
-  const processed = await processLogo(Buffer.from(await file.arrayBuffer()));
+  // LOGO-P0: processing never throws out of the action (a broken image library = an inline error, nothing saved)
+  const processed = await processLogo(Buffer.from(await file.arrayBuffer())).catch(() => ({ ok: false as const, message: LOGO_UNAVAILABLE }));
   if (!processed.ok) return actionFailure("VALIDATION", processed.message);
 
   const db = createAdminServerSupabaseClient();

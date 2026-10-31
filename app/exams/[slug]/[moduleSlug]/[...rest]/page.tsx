@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ExamBrandLogo } from "@/components/exams/exam-brand-logo";
 import { ArrowRight, BookOpen } from "lucide-react";
 import { Container } from "@/components/ui/layout";
 import { ButtonLink } from "@/components/ui/button";
@@ -76,9 +77,12 @@ export default async function ExamTopicPage({ params }: Props) {
         </nav>
 
         <header className="flex flex-col gap-2">
-          <h1 className="text-h1 font-bold text-fg">
-            {examTopicTitle(d.node.name, d.exam.title)}
-          </h1>
+          <div className="flex items-center gap-3">
+            <ExamBrandLogo slug={slug} />
+            <h1 className="text-h1 font-bold text-fg">
+              {examTopicTitle(d.node.name, d.exam.title)}
+            </h1>
+          </div>
           <p className="text-body-lg text-fg-secondary">
             {[d.weightageTier ? `${WEIGHTAGE_LABEL[d.weightageTier] ?? d.weightageTier} weightage` : null, questionsText].filter(Boolean).join(" · ") || "Part of the published syllabus."}
           </p>

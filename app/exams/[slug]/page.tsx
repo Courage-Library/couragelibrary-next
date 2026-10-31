@@ -8,6 +8,7 @@ import { ExamSyllabusSection } from "@/components/exams/exam-syllabus-section";
 import { ExamCtaView, ExamCycle, ExamGlance, ExamGuides, ExamHomeHeader, ExamMocks, ExamSyllabusHome } from "@/components/exams/exam-home";
 import { constructMetadata } from "@/lib/seo/metadata";
 import { ComingSoonHub } from "@/components/public/coming-soon-hub";
+import { ExamBrandLogo } from "@/components/exams/exam-brand-logo";
 import { COMING_SOON_EXAMS, COMING_SOON_HUB } from "@/content/public-pages";
 import { getSignupAvailability } from "@/lib/auth/signup-availability";
 import { continueTarget, cycleInfo, glanceRows, guideGroups, preferModules, resolveExamCta, type MockListItem } from "@/lib/exams/exam-page";
@@ -93,7 +94,7 @@ export default async function ExamHomePage({ params }: Props) {
 
   return (
     <div data-exam-home="">
-      <ExamHomeHeader title={exam.title} body={body}>
+      <ExamHomeHeader title={exam.title} body={body} logo={<ExamBrandLogo slug={exam.slug} />}>
         <Suspense fallback={<ExamCtaView examId={exam.id} cta={signedOutCta} />}>
           <HeaderCta examId={exam.id} examSlug={exam.slug} />
         </Suspense>

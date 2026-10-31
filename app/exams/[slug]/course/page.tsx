@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ExamBrandLogo } from "@/components/exams/exam-brand-logo";
 import { ArrowLeft, CheckCircle2, Circle, CircleDot, Lock } from "lucide-react";
 import { Container } from "@/components/ui/layout";
 import { ButtonLink } from "@/components/ui/button";
@@ -84,7 +85,10 @@ export default async function ExamCoursePage({ params }: Props) {
       </nav>
 
       <header className="flex flex-col gap-3">
-        <h1 className="text-h1 font-bold text-fg">{course.exam.title} course</h1>
+        <div className="flex items-center gap-3">
+          <ExamBrandLogo slug={course.exam.slug} />
+          <h1 className="text-h1 font-bold text-fg">{course.exam.title} course</h1>
+        </div>
         <p className="text-body-lg text-fg-secondary">
           {total > 0 ? `${total} lesson${total === 1 ? "" : "s"} in ${course.totals.chapters} chapter${course.totals.chapters === 1 ? "" : "s"}, in syllabus order.` : "Lessons for this syllabus are being written."}
         </p>
