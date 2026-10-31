@@ -38,6 +38,12 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // LOGO-MEDIA-1: logos are served from our own origin (lib/logos/exam-logo.ts LOGO_MEDIA_PREFIX) — the storage host /
+  // project ref never appears in public HTML. Content-hash paths: immutable.
+  rewrites: async () => {
+    const base = (process.env.NEXT_PUBLIC_SUPABASE_URL || "").replace(/\/$/, "");
+    return base ? [{ source: "/media/logos/:path*", destination: `${base}/storage/v1/object/public/org-logos/:path*` }] : [];
+  },
   // UX-2b: the former Premium hub is retired; plans live on /pricing ("Free during early access. Pro coming soon.")
   redirects: async () => [
     { source: "/premium", destination: "/pricing", permanent: true },
@@ -45,6 +51,8 @@ const nextConfig: NextConfig = {
     ...ADMIN_REDIRECTS.map((r) => ({ source: r.from, destination: r.to, permanent: true })),
   ],
   headers: async () => [
+    // LOGO-MEDIA-1: a logo path names exactly one image (content hash), so it never changes
+    { source: "/media/logos/:path*", headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }] },
     // SEO-HYGIENE-1: every host that is not the production site (*.vercel.app, previews, localhost) is never indexed
     {
       source: "/(.*)",

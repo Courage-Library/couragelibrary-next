@@ -19,15 +19,20 @@ export interface ExamLogo {
   alt: string;
 }
 
-/** The public URL of a stored logo path (orgs/<id>/<sha256>.webp | exams/<id>/<sha256>.webp); null for anything else. */
-export function logoPublicUrl(path: string | null | undefined, supabaseUrl: string | undefined = process.env.NEXT_PUBLIC_SUPABASE_URL): string | null {
-  if (!path || !supabaseUrl || !/^(orgs|exams)\/[0-9a-f-]{36}\/[0-9a-f]{64}\.webp$/.test(path)) return null;
-  return `${supabaseUrl.replace(/\/$/, "")}/storage/v1/object/public/${LOGO_BUCKET}/${path}`;
+/**
+ * LOGO-MEDIA-1 (2026-10-31): the SAME-ORIGIN URL of a stored logo path (orgs/<id>/<sha256>.webp | exams/<id>/<sha256>.webp);
+ * null for anything else. next.config rewrites LOGO_MEDIA_PREFIX/<path> to the org-logos bucket server-side, so public
+ * HTML never names the storage host / project ref (GATE-HYGIENE-1: the anonymous smoke scans every page for it).
+ */
+export const LOGO_MEDIA_PREFIX = "/media/logos";
+export function logoPublicUrl(path: string | null | undefined): string | null {
+  if (!path || !/^(orgs|exams)\/[0-9a-f-]{36}\/[0-9a-f]{64}\.webp$/.test(path)) return null;
+  return `${LOGO_MEDIA_PREFIX}/${path}`;
 }
 
-export function examLogo(input: ExamLogoInput, supabaseUrl?: string): ExamLogo | null {
+export function examLogo(input: ExamLogoInput): ExamLogo | null {
   for (const s of [input.override, input.org]) {
-    const src = s && s.alt ? logoPublicUrl(s.path, supabaseUrl) : null;
+    const src = s && s.alt ? logoPublicUrl(s.path) : null;
     if (src && s?.alt) return { src, alt: s.alt };
   }
   return null;

@@ -22,6 +22,8 @@
  *       the browser guard refuses a payload > 1 MB with the owner's message and passes 0.95 MB; bodySizeLimit 2mb; every
  *       logo action call in the drawer goes through guarded(); no other client file calls a logo action; the bulk / reward
  *       image actions cap 1 MB; import-draft + question manager catch; negative control: an unwrapped call is detected
+ *   P-6 LOGO-MEDIA-1: logo URLs are same-origin (/media/logos/<path>, rewritten server-side to the bucket) so public HTML
+ *       never names the storage host / project ref (the anonymous smoke's project-ref scan); malformed paths → null
  *   D-2 LOGO-PLACEMENT (owner 2026-10-31): the logo sits inline immediately BEFORE the exam name — hub / course /
  *       exam-topic headers (md 48), cards on / and /exams (sm 32), admin rows (xs 28); no separate strip in the layout
  * Run: node scripts/test_exam_logo1.cjs
@@ -263,6 +265,20 @@ const img = (w, h, fmt, opts = {}) => {
     assert(/uploadBulkImportImageAction\(formData\)\.catch\(/.test(read('components/admin/admin-question-manager.tsx')), 'question manager: image upload catches');
     assert(/createConductingOrgWithLogoAction[\s\S]*await db\.from\("conducting_orgs"\)\.delete\(\)\.eq\("id", org\.id\)/.test(read('app/admin/exams/logo-actions.ts')), 'add body with logo: the body is deleted again when its logo fails');
     return '1.5 MB refused with the owner message; 0.95 MB passes; 5 guarded calls; negative control caught';
+  });
+
+  await test('P-6 LOGO-MEDIA-1: same-origin logo URLs (no storage host in HTML); next.config rewrite + immutable cache; malformed paths refused', async () => {
+    const L = require(path.join(ROOT, 'lib/logos/exam-logo.ts'));
+    const p = `orgs/${'1'.repeat(8)}-1111-4111-8111-${'1'.repeat(12)}/${'a'.repeat(64)}.webp`;
+    const url = L.logoPublicUrl(p);
+    assert(url === `/media/logos/${p}` && !/supabase|https?:/.test(url), `url: ${url}`);
+    assert(L.logoPublicUrl('orgs/x/y.webp') === null && L.logoPublicUrl(`../${p}`) === null && L.logoPublicUrl(null) === null, 'malformed paths must be refused');
+    const e = L.examLogo({ org: { path: p, alt: 'SSC logo' } });
+    assert(e && e.src === url, 'examLogo uses the same-origin URL');
+    const cfg = read('next.config.ts');
+    assert(/source: "\/media\/logos\/:path\*", destination: `\$\{base\}\/storage\/v1\/object\/public\/org-logos\/:path\*`/.test(cfg) && /source: "\/media\/logos\/:path\*", headers: \[\{ key: "Cache-Control", value: "public, max-age=31536000, immutable" \}\]/.test(cfg), 'next.config: /media/logos rewrite + immutable cache');
+    assert(!/storage\/v1\/object\/public/.test(read('lib/logos/exam-logo.ts')), 'the storage URL is built in the page code again');
+    return url;
   });
 
   await test('D-2 LOGO-PLACEMENT: logo inline before the exam name (headers md, cards sm, admin xs); no separate layout strip', async () => {

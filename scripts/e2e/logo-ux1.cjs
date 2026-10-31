@@ -15,7 +15,8 @@
  *        the drawer stay (no error boundary). Negative control: L-4/L-5 (no interception) saved through the same path
  *   L-7  remove (confirmed) → "Logo missing"
  *   L-8  staff: the cards are read-only (no card buttons, no "Add body")
- *   L-1c the saved logo actually loads from its public URL in the body card (naturalWidth 512)
+ *   L-1c the saved logo actually loads in the body card (naturalWidth 512) from our OWN origin (/media/logos/…, the
+ *        LOGO-MEDIA-1 rewrite) — never the storage host
  *   L-10 exam-level override (Advanced) on the internal QA exam `qa-syllabus-test` (never a real exam): save → the
  *        exam row shows it → "Use the body's logo" (confirmed) → cleared; the override is cleared in `finally` too
  *   L-9  axe 0 serious / critical on the page and with the drawer open; layout shift on load < 0.1
@@ -184,9 +185,9 @@ async function main() {
       let status = 0;
       let type = '';
       try { const r = await fetch(i.src, { cache: 'no-store' }); status = r.status; type = r.headers.get('content-type') || ''; } catch (e) { status = -1; type = String(e && e.name); }
-      return { w: i.naturalWidth, src: /\/storage\/v1\/object\/public\/org-logos\/orgs\//.test(i.src), status, type };
+      return { w: i.naturalWidth, src: new URL(i.src).origin === location.origin && /^\/media\/logos\/orgs\//.test(new URL(i.src).pathname), status, type };
     });
-    step('L-1c the saved logo loads from its public URL in the card', nat.w === 512 && nat.src, JSON.stringify(nat));
+    step('L-1c the saved logo loads in the card from the same-origin /media/logos rewrite', nat.w === 512 && nat.src, JSON.stringify(nat));
     await shot('04-body-added');
 
     // ---- L-4 replace with an oversize original (resized in the browser)
@@ -243,7 +244,9 @@ async function main() {
 
     // ---- L-10 exam-level override on the internal QA exam only
     const qaCard = page.locator('[data-exam-card="qa-syllabus-test"]');
-    await qaCard.scrollIntoViewIfNeeded();
+    // the L-7 toast (fixed, bottom right) can sit over the card: let it auto-dismiss, then centre the card
+    await toast().waitFor({ state: 'detached', timeout: 15000 }).catch(() => {});
+    await qaCard.evaluate((el) => el.scrollIntoView({ block: 'center' }));
     await qaCard.locator('[data-exam-logo-advanced]').click();
     await drawer().waitFor();
     const advTitle = await drawer().locator('h2').textContent();
