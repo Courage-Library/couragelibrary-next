@@ -1,4 +1,5 @@
 import "server-only";
+import { QA_EMAIL_LIKE } from "@/lib/qa/fixtures";
 import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { reportWriteFailure } from "@/lib/ops/write-failure";
 import { loadPublishedExamsForTopics } from "@/lib/syllabus/published-topic-exams";
@@ -115,7 +116,8 @@ export async function getTodayV2(input: { role: AdminRole; userId: string; flags
 
   let recent: TodayV2["recent"] = null;
   if (isAdmin) {
-    const { data, error } = await sb.from("admin_audit_logs").select("action_type, target_entity, created_at").order("created_at", { ascending: false }).limit(60);
+    // QA-FIXTURE-EXCLUSION: what CI's QA identities do while the owner works is not "recent activity"
+    const { data, error } = await sb.from("admin_audit_logs").select("action_type, target_entity, created_at").not("actor_email", "like", QA_EMAIL_LIKE).order("created_at", { ascending: false }).limit(60);
     if (error) logRead("admin_audit_logs", error.code);
     recent = error ? null : groupRecent((data ?? []).map((r) => ({ action: r.action_type, entity: r.target_entity, at: r.created_at })), 5, 60);
   }

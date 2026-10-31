@@ -1,4 +1,5 @@
 import { errorCode, reportWriteFailure } from "@/lib/ops/write-failure";
+import { QA_RUN_SLUG_LIKE } from "@/lib/qa/fixtures";
 import { createServerSupabaseClient, createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { UserProfileService } from "@/services/user-profile.service";
 import { resolveRole } from "@/lib/auth/require-admin";
@@ -1296,8 +1297,8 @@ export class AdminService {
         sb.from("exams").select("id, title, slug, category").order("title"),
         sb.from("exam_patterns").select("id, exam_cycle_id, name, tier_name, exam_cycles(exam_id)").order("name"),
         // TYPES-1 B6 (Class B): canonical SUBJECT / TOPIC nodes (question topic ids are canonical node ids since GAP2-3)
-        sb.from("canonical_taxonomy_nodes").select("id, name, slug").eq("node_type", "SUBJECT").order("name"),
-        sb.from("canonical_taxonomy_nodes").select("id, subject_id:root_subject_id, name, slug").eq("node_type", "TOPIC").order("name"),
+        sb.from("canonical_taxonomy_nodes").select("id, name, slug").eq("node_type", "SUBJECT").not("slug", "like", QA_RUN_SLUG_LIKE).order("name"), // QA-FIXTURE-EXCLUSION
+        sb.from("canonical_taxonomy_nodes").select("id, subject_id:root_subject_id, name, slug").eq("node_type", "TOPIC").not("slug", "like", QA_RUN_SLUG_LIKE).order("name"),
         sb.from("mock_tests").select("id, title, slug, template_id, duration_minutes, total_questions, total_marks, status, mock_templates(exams(title, slug), exam_patterns(name))").order("title"),
         sb.from("pattern_sections").select("id, section_name, pattern_id, subject_id, exam_patterns(id, name, exam_cycles(exams(id, title, slug)))"),
       ]);

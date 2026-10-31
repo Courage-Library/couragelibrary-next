@@ -13,6 +13,7 @@
  *   writes every decision's audit row in the same transaction.
  */
 import { guardAdminAction } from "@/lib/auth/require-admin";
+import { QA_RUN_SLUG_LIKE } from "@/lib/qa/fixtures";
 import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import type { AppSupabaseClient } from "@/lib/supabase/types";
 import type { Json } from "@/types/database";
@@ -93,7 +94,7 @@ export class SyllabusIntakeService {
     if (reference && !SOURCE_URL_RE.test(reference)) return fail("VALIDATION", "The reference link must be an https:// link.");
 
     const [nodesRes, aliasRes] = await Promise.all([
-      c.supabase.from("canonical_taxonomy_nodes").select("id, parent_id, node_type, name, name_hi, is_active").in("node_type", ["SUBJECT", "TOPIC", "SUBTOPIC", "CONCEPT"]),
+      c.supabase.from("canonical_taxonomy_nodes").select("id, parent_id, node_type, name, name_hi, is_active").in("node_type", ["SUBJECT", "TOPIC", "SUBTOPIC", "CONCEPT"]).not("slug", "like", QA_RUN_SLUG_LIKE), // QA-FIXTURE-EXCLUSION
       c.supabase.from("taxonomy_node_aliases").select("node_id, normalized_alias"),
     ]);
     if (nodesRes.error || aliasRes.error) return fail("DB_ERROR", "Could not load the master tree.");
@@ -183,7 +184,7 @@ export class SyllabusIntakeService {
         .from("syllabus_intake_items")
         .select("id, parent_item_id, item_key, level, position, raw_name, raw_name_hi, aliases, marks, questions, weightage_tier, origin, avg_questions, duration_minutes, negative_marking, uncertain, uncertain_reason, extra_headings, match_status, matched_node_id, candidates, decision, decision_node_id")
         .eq("session_id", sessionId),
-      c.supabase.from("canonical_taxonomy_nodes").select("id, parent_id, node_type, name, hierarchy_path").eq("is_active", true).in("node_type", ["SUBJECT", "TOPIC", "SUBTOPIC", "CONCEPT"]),
+      c.supabase.from("canonical_taxonomy_nodes").select("id, parent_id, node_type, name, hierarchy_path").eq("is_active", true).in("node_type", ["SUBJECT", "TOPIC", "SUBTOPIC", "CONCEPT"]).not("slug", "like", QA_RUN_SLUG_LIKE), // QA-FIXTURE-EXCLUSION
       // INTAKE-ASSIST-1: the newest bulk action that is not undone yet (the one "Undo" reverts)
       c.supabase
         .from("syllabus_intake_batches")

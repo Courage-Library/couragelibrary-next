@@ -14,6 +14,7 @@
  * - No provider calls: the machine-translation seam (lib/prompts/translation-provider.ts) is off.
  */
 import { guardAdminAction } from "@/lib/auth/require-admin";
+import { QA_RUN_SLUG_LIKE } from "@/lib/qa/fixtures";
 import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import type { Json } from "@/types/database";
 import { validateLesson, type BlockError, type LessonBlock } from "@/lib/lessons/blocks";
@@ -55,7 +56,8 @@ async function loadTree(c: Ctx): Promise<Map<string, TreeNode> | null> {
   const { data, error } = await c.supabase
     .from("canonical_taxonomy_nodes")
     .select("id, parent_id, node_type, name, subject_type, root_subject_id, display_order, is_internal")
-    .eq("is_active", true);
+    .eq("is_active", true)
+    .not("slug", "like", QA_RUN_SLUG_LIKE); // QA-FIXTURE-EXCLUSION (also INTERNAL, below)
   if (error) return null;
   // CA-7: an INTERNAL node (legacy catch-all) and everything under it is never a lesson node — not listed, not found
   const all = new Map((data || []).map((n) => [n.id, n]));

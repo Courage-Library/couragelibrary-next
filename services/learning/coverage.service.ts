@@ -1,4 +1,5 @@
 import "server-only";
+import { QA_RUN_SLUG_LIKE } from "@/lib/qa/fixtures";
 
 import { guardAdminAction } from "@/lib/auth/require-admin";
 import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
@@ -63,7 +64,7 @@ export class CoverageService {
     const [versions, cycle, tree, servable] = await Promise.all([
       vq,
       cycleId ? c.db.from("exam_cycles").select("cycle_year").eq("id", cycleId).maybeSingle() : Promise.resolve({ data: null, error: null }),
-      c.db.from("canonical_taxonomy_nodes").select("id, parent_id, name, hierarchy_path, node_type, is_active, is_internal"),
+      c.db.from("canonical_taxonomy_nodes").select("id, parent_id, name, hierarchy_path, node_type, is_active, is_internal").not("slug", "like", QA_RUN_SLUG_LIKE), // QA-FIXTURE-EXCLUSION
       c.db.rpc("fn_servable_node_lessons"),
     ]);
     if (versions.error || tree.error || servable.error) return fail("DB_ERROR", "Could not load the coverage.");

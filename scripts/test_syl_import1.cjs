@@ -31,6 +31,10 @@
  *   I13 the run's fixture topics are invisible to anon / students during the run: sitemap, the exams hub, the QA exam's
  *       hub / course, the /learn and exam-topic pages, the legacy /learn/topics page, and the subjects list (--base=URL;
  *       without it only the data-level checks run)
+ *   I15 QA-FIXTURE-EXCLUSION, admin side, live: the intake matcher's exact query (supabase-js, as qa-staff) WITHOUT the
+ *       exclusion returns this run's committed QA topics (negative control) and the real matcher matches one; WITH it
+ *       (lib/qa/fixtures.ts QA_RUN_SLUG_LIKE) none are returned / matched; Today's audit filter drops this run's QA
+ *       audit rows (offline proof of every surface: scripts/test_qa_fixture_exclusion.cjs)
  *   I14 the sweeper (rolled back): deletes ONLY QA run fixtures older than 2 h and audits it; negative controls — a fresh
  *       run fixture, an old node with the same slug prefix but another source, an old QA-run-marked node that is not
  *       INTERNAL and an old real topic are untouched
@@ -617,6 +621,45 @@ const CASES = [
         assert(r.status === 404, `${u.replace(t1.id, '<id>')} → ${r.status} (want 404)`);
       }
       return `sitemap + exams hub clean; ${urls.length} pages 404; student subjects list clean`;
+    });
+
+    await test('I15 admin side: the intake matcher query and the real matcher never see this run\'s QA topics (negative control without the exclusion); Today drops QA audit rows', async () => {
+      const { createClient } = require('@supabase/supabase-js');
+      // the real matcher imports "@/…" at runtime: an alias-aware .ts loader, for this test only
+      const Mod = require('module');
+      const origResolve = Mod._resolveFilename;
+      Mod._resolveFilename = function (r, ...rest) { return origResolve.call(this, r.startsWith('@/') ? path.join(ROOT, r.slice(2)) : r, ...rest); };
+      if (!require.extensions['.ts']) require.extensions['.ts'] = (m, fn) => m._compile(ts.transpileModule(fs.readFileSync(fn, 'utf8'), { fileName: fn, compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true } }).outputText, fn);
+      let QAF;
+      let matchIntake;
+      try {
+        QAF = require(path.join(ROOT, 'lib/qa/fixtures.ts'));
+        ({ matchIntake } = require(path.join(ROOT, 'lib/syllabus/tree-matcher.ts')));
+      } finally {
+        Mod._resolveFilename = origResolve;
+      }
+      const sb = createClient(URL_, ANON, { auth: { persistSession: false, autoRefreshToken: false }, global: { headers: { Authorization: `Bearer ${staffTok}` } } });
+      const base = () => sb.from('canonical_taxonomy_nodes').select('id, parent_id, node_type, name, name_hi, is_active, slug').in('node_type', ['SUBJECT', 'TOPIC', 'SUBTOPIC', 'CONCEPT']);
+      const [without, withEx] = await Promise.all([base(), base().not('slug', 'like', QAF.QA_RUN_SLUG_LIKE)]);
+      assert(!without.error && !withEx.error, `${without.error && without.error.code} ${withEx.error && withEx.error.code}`);
+      const run = new Set(scope.touchIds);
+      const seen = (rows) => rows.filter((r) => run.has(r.id)).length;
+      assert(seen(without.data) === 4, `negative control: the unfiltered matcher query should return this run's 4 QA topics, got ${seen(without.data)}`);
+      assert(seen(withEx.data) === 0, `the filtered matcher query returns ${seen(withEx.data)} QA run topic(s)`);
+      assert(withEx.data.length === without.data.length - 4, 'the filter dropped a real node');
+      const qaNode = without.data.find((r) => r.id === scope.touchIds[0]);
+      const subject = without.data.find((r) => r.id === qaNode.parent_id);
+      const items = [
+        { key: 's1', parent_key: null, level: 'SUBJECT', name: subject.name },
+        { key: 's1.t1', parent_key: 's1', level: 'TOPIC', name: qaNode.name },
+      ].map((x, i) => ({ ...x, position: i, name_hi: null, aliases: [], marks: null, questions: null, weightage_tier: null, uncertain: false, uncertain_reason: null }));
+      const asNodes = (rows) => rows.map((n) => ({ id: n.id, parentId: n.parent_id, nodeType: n.node_type, name: n.name, nameHi: n.name_hi, isActive: n.is_active }));
+      const touches = (out) => out.some((m) => run.has(m.matched_node_id) || (m.candidates || []).some((c) => run.has(c.node_id)));
+      assert(touches(matchIntake(items, asNodes(without.data), [])), 'negative control: the real matcher should match the QA run topic without the exclusion');
+      assert(!touches(matchIntake(items, asNodes(withEx.data), [])), 'the real matcher matched / suggested a QA run topic WITH the exclusion');
+      const audit = await ro(`SELECT count(*) FILTER (WHERE true)::int a, count(*) FILTER (WHERE actor_email NOT LIKE $2)::int b FROM public.admin_audit_logs WHERE created_at >= $1 AND actor_email = ANY($3::text[])`, [scope.since, QAF.QA_EMAIL_LIKE, scope.actorEmails]);
+      assert(audit[0].a >= 1 && audit[0].b === 0, `Today filter: ${JSON.stringify(audit[0])} (this run's QA audit rows / left after the filter)`);
+      return `matcher query: 4 QA topics without the filter → 0 with it (${withEx.data.length} real nodes kept); matcher touches QA only without; Today drops ${audit[0].a} QA audit row(s)`;
     });
 
     await test('I14 QA run-fixture sweeper (rolled back): only QA run fixtures older than 2 h are deleted + audited; negative controls untouched', async () => {

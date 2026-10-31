@@ -99,6 +99,7 @@ jobs:
           q QBKEY1-OFFLINE node scripts/test_qb_key1.cjs --offline || fail=1
           q DRILL1-OFFLINE node scripts/test_drill1.cjs --offline || fail=1
           q SYLIMPORT1-OFFLINE node scripts/test_syl_import1.cjs --offline || fail=1
+          q QA-FIXTURE-EXCLUSION node scripts/test_qa_fixture_exclusion.cjs || fail=1
           q READERS-OFFLINE node scripts/test_gap2_4b_readers.cjs --offline || fail=1
           q EDITOR node scripts/test_gap2_4b_editor.cjs || fail=1
           q UX2A-OFFLINE node scripts/test_ux2a_landing.cjs --offline || fail=1

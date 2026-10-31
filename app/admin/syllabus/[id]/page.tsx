@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { QA_RUN_SLUG_LIKE } from "@/lib/qa/fixtures";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdminPage } from "@/lib/auth/require-admin";
@@ -48,7 +49,7 @@ export default async function AdminSyllabusVersionPage({ params }: { params: Pro
     createAdminServerSupabaseClient().from("exams").select("id, title, slug").eq("id", v.exam_id).maybeSingle(),
     loadSyllabusEditorState(supabase, v.id),
     // CA-2: a unit may map a TOPIC, SUBTOPIC or CONCEPT (shown as "Topic › Subtopic › Concept")
-    supabase.from("canonical_taxonomy_nodes").select("id, name, slug, node_type, root_subject_id, parent_id, display_order, metadata").in("node_type", ["SUBJECT", "TOPIC", "SUBTOPIC", "CONCEPT"]).eq("is_active", true),
+    supabase.from("canonical_taxonomy_nodes").select("id, name, slug, node_type, root_subject_id, parent_id, display_order, metadata").not("slug", "like", QA_RUN_SLUG_LIKE).in("node_type", ["SUBJECT", "TOPIC", "SUBTOPIC", "CONCEPT"]).eq("is_active", true),
     supabase
       .from("exam_syllabus_versions")
       .select("id, version_number, exam_cycle_id, tier")

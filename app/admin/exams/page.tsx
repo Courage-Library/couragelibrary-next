@@ -2,6 +2,7 @@ import React from "react";
 import { ExamOnboardingService } from "@/services/exam-onboarding/exam-onboarding.service";
 import { ExamManagementView } from "@/components/admin/exam-onboarding/exam-management-view";
 import { requireAdminPage } from "@/lib/auth/require-admin";
+import { visibleBodies } from "@/lib/qa/fixtures";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ export default async function AdminExamsPage() {
       totalExams={data.totalExams}
       publishedExams={data.publishedExams}
       draftExams={data.draftExams}
-      conductingOrgs={orgs}
+      conductingOrgs={visibleBodies(orgs, viewer.userEmail)}
       canEditLogos={viewer.role === "admin"}
     />
   );

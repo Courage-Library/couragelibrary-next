@@ -17,6 +17,7 @@
  */
 
 import { guardAdminAction } from '@/lib/auth/require-admin';
+import { QA_RUN_SLUG_LIKE } from '@/lib/qa/fixtures';
 import type { AppSupabaseClient } from '@/lib/supabase/types';
 import type { Json, TablesInsert } from '@/types/database';
 import { createAdminServerSupabaseClient } from '@/lib/supabase/server';
@@ -168,7 +169,8 @@ export class TaxonomyService {
   static async listTree(): Promise<TaxonomyResult<TaxonomyTreeNode[]>> {
     const ctx = await this.requireAdmin({ allowStaff: true });
     if (!ctx) return fail('UNAUTHORIZED', 'Unauthorized.');
-    const { data, error } = await ctx.supabase.from('canonical_taxonomy_nodes').select(NODE_COLUMNS).order('hierarchy_path', { ascending: true });
+    // QA-FIXTURE-EXCLUSION: CI's per-run QA topics never appear in the owner's master tree
+    const { data, error } = await ctx.supabase.from('canonical_taxonomy_nodes').select(NODE_COLUMNS).not('slug', 'like', QA_RUN_SLUG_LIKE).order('hierarchy_path', { ascending: true });
     if (error) return fail('DB_ERROR', 'Could not load the taxonomy.');
     return { success: true, data: buildTaxonomyTree((data || []).map(toNode)) };
   }
@@ -177,7 +179,7 @@ export class TaxonomyService {
   static async listNodesByType(nodeType: TaxonomyNodeType, opts: { activeOnly?: boolean } = {}): Promise<TaxonomyResult<TaxonomyNode[]>> {
     const ctx = await this.requireAdmin({ allowStaff: true });
     if (!ctx) return fail('UNAUTHORIZED', 'Unauthorized.');
-    let query = ctx.supabase.from('canonical_taxonomy_nodes').select(NODE_COLUMNS).eq('node_type', nodeType);
+    let query = ctx.supabase.from('canonical_taxonomy_nodes').select(NODE_COLUMNS).eq('node_type', nodeType).not('slug', 'like', QA_RUN_SLUG_LIKE);
     if (opts.activeOnly) query = query.eq('is_active', true);
     const { data, error } = await query.order('display_order', { ascending: true }).order('name', { ascending: true });
     if (error) return fail('DB_ERROR', 'Could not load the taxonomy.');

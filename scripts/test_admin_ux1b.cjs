@@ -136,7 +136,13 @@ test('AB-06 Today v2: guard first, server-only read model, admin-only cards, no 
   assert(/if \(isAdmin\) \{\s*const nowIso[\s\S]{0,80}libraryEnding = await count\(/.test(tc), 'Library Pro: admin only');
   assert(/if \(isAdmin\) \{\s*const \{ data, error \} = await sb\.from\("admin_audit_logs"\)\.select\("action_type, target_entity, created_at"\)/.test(tc), 'recent: admin only, no actor e-mail / values');
   assert(/if \(input\.flags\.SUPPORT\) \{/.test(tc), 'tickets only while support is on');
-  assert(!/actor_email|old_value|new_value|\bemail\b/.test(tc), 'no e-mails / values read');
+  // QA-FIXTURE-EXCLUSION (2026-10-31): the ONE allowed mention is a server-side WHERE filter on the recent-activity
+  // read that drops CI's QA identities' rows — actor_email is still never selected, read or shown
+  const QA_FILTER = '.not("actor_email", "like", QA_EMAIL_LIKE)';
+  assert(tc.split(QA_FILTER).length - 1 <= 1, 'the QA filter may appear once');
+  const noEmail = (src) => !/actor_email|old_value|new_value|\bemail\b/.test(src.split(QA_FILTER).join(''));
+  assert(noEmail(tc), 'no e-mails / values read');
+  assert(!noEmail('.select("action_type, actor_email")' + QA_FILTER) && !noEmail(QA_FILTER + '.or("actor_email.eq.x")'), 'negative control: reading actor_email beside the allowed filter was not caught');
   assert(/const NA = "Not available";/.test(p) && /value === null \? NA/.test(p) && /return null;\s*\}\s*return n \?\? 0;/.test(t), 'failed read → null → Not available');
   assert(!/write.?failure|nightly/i.test(p) && !/id: "(write|nightly)/.test(tc), 'Q5: no write-failure / nightly cards');
   // R4: ONE primary rendered — "Start focus session" (F), or "Import questions" when the queue is empty (STUDIO-P2-POLISH)

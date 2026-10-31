@@ -16,6 +16,7 @@
  */
 
 import { requireAdmin } from '@/lib/auth/require-admin';
+import { QA_RUN_SLUG_LIKE } from '@/lib/qa/fixtures';
 import type { Json, TablesInsert } from '@/types/database';
 import type { AppSupabaseClient } from '@/lib/supabase/types';
 import { loadPublishedExamsForTopics, type PublishedTopicExam } from '@/lib/syllabus/published-topic-exams';
@@ -383,7 +384,7 @@ export class AdminContentStudioService {
     await this.requireAdminAuth('getTopicLinks');
     const supabase = createAdminServerSupabaseClient();
     const [{ data: topics }, { data: units }] = await Promise.all([
-      supabase.from('canonical_taxonomy_nodes').select('id, name, parent_id, display_order').eq('node_type', 'TOPIC').eq('is_active', true).order('display_order', { ascending: true }).limit(2000),
+      supabase.from('canonical_taxonomy_nodes').select('id, name, parent_id, display_order').eq('node_type', 'TOPIC').eq('is_active', true).not('slug', 'like', QA_RUN_SLUG_LIKE).order('display_order', { ascending: true }).limit(2000), // QA-FIXTURE-EXCLUSION
       supabase.from('learning_units').select('id, topic_id, title, slug, is_active, learning_documents(id, status)').limit(5000),
     ]);
     const parentIds = [...new Set((topics ?? []).map((t) => t.parent_id).filter((x): x is string => Boolean(x)))];
