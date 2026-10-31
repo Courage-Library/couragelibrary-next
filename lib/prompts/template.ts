@@ -6,7 +6,7 @@
  * are built by the server from the DB, never from the pasted AI answer). The SQL twin is fn_prompt_template_problems.
  */
 
-export const TEMPLATE_TYPES = ["SYLLABUS", "LESSON", "QUESTION", "TRANSLATE_HI"] as const;
+export const TEMPLATE_TYPES = ["SYLLABUS", "LESSON", "QUESTION", "TRANSLATE_HI", "EXAM_NOTE"] as const; // EXAM_NOTE: migration 127
 export type TemplateType = (typeof TEMPLATE_TYPES)[number];
 
 /** LESSON-PROMPT-2: the subject-type sections ({{#APTITUDE}}…{{/APTITUDE}}); exactly one is true when rendering. */
@@ -35,6 +35,11 @@ export const TEMPLATE_PLACEHOLDERS: Record<TemplateType, { allowed: readonly str
   TRANSLATE_HI: {
     allowed: ["LESSON_TITLE", "GLOSSARY", "EN_JSON", "BLOCK_RULES"],
     required: ["GLOSSARY", "EN_JSON", "BLOCK_RULES"],
+  },
+  // EXAM-NOTE-PROMPT-1 (migration 127): a short per-exam note; EXAM_LINES = this exam's published syllabus lines
+  EXAM_NOTE: {
+    allowed: ["EXAM_NAME", "EXAM_SLUG", "NODE_NAME", "NODE_PATH", "NODE_LEVEL", "SUBJECT_NAME", "EXAM_LINES", "MASTER_LESSON", "BLOCK_SPEC", "EXAMPLE_JSON", "MAX_BLOCKS"],
+    required: ["EXAM_NAME", "NODE_NAME", "NODE_PATH", "EXAM_LINES", "BLOCK_SPEC", "EXAMPLE_JSON"],
   },
 };
 

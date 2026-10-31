@@ -101,6 +101,13 @@ export async function saveExamNoteDraftAction(examId: string, nodeId: string, la
   return sanitizeActionResult("saveExamNoteDraftAction", r);
 }
 
+/** EXAM-NOTE-PROMPT-1: the rendered EXAM_NOTE prompt for one exam × node — admin only (like the notes themselves). */
+export async function examNotePromptAction(examId: string, nodeId: string) {
+  const __auth = await guardAdminAction() /* admin only */;
+  if (!__auth.ok) return __auth;
+  return sanitizeActionResult("examNotePromptAction", await LessonAuthoringService.examNotePrompt(examId, nodeId));
+}
+
 /** CA-7: publish an exam note draft — admin only; the previous published version is retired (audited). */
 export async function publishExamNoteAction(id: string) {
   const __auth = await guardAdminAction() /* CA-7: admin only */;

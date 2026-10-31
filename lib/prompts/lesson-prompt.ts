@@ -24,6 +24,8 @@ export const LESSON_PARTS_MAX = 10;
 
 export interface LessonExamCoverage {
   exam: string;
+  /** EXAM-NOTE-PROMPT-1: the exam's id (an exam note keeps only its own exam's lines) */
+  examId?: string;
   cycleYear: number | null;
   tier: string | null;
   /** the syllabus path inside that exam, e.g. "Tier 1 › Quantitative Aptitude › Percentage" */

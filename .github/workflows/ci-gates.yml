@@ -100,6 +100,7 @@ jobs:
           q DRILL1-OFFLINE node scripts/test_drill1.cjs --offline || fail=1
           q SYLIMPORT1-OFFLINE node scripts/test_syl_import1.cjs --offline || fail=1
           q QA-FIXTURE-EXCLUSION node scripts/test_qa_fixture_exclusion.cjs || fail=1
+          q EXAM-NOTE-PROMPT-1 node scripts/test_exam_note_prompt1.cjs || fail=1
           q READERS-OFFLINE node scripts/test_gap2_4b_readers.cjs --offline || fail=1
           q EDITOR node scripts/test_gap2_4b_editor.cjs || fail=1
           q UX2A-OFFLINE node scripts/test_ux2a_landing.cjs --offline || fail=1
@@ -445,6 +446,7 @@ jobs:
             "$Q CA2-INTAKE-LIVE -- node scripts/live/test_ca2_intake.cjs" \
             "$Q CA4-LESSONS-LIVE -- node scripts/live/test_ca4_lessons.cjs" \
             "$Q LESSON-PROMPT-2-LIVE -- node scripts/live/test_lesson_prompt_2.cjs" \
+            "$Q EXAM-NOTE-PROMPT-1-LIVE -- node scripts/live/test_exam_note_prompt1.cjs" \
             "$Q CA5-COURSES-LIVE -- node scripts/live/test_ca5_courses.cjs" \
             "$Q CA7-LIVE -- node scripts/live/test_ca7.cjs" \
             "$Q LAUNCH-MODE-1-LIVE -- node scripts/live/test_launch_mode1.cjs" \

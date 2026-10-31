@@ -18,11 +18,12 @@ import type { PromptTemplateRow } from "@/lib/prompts/admin-types";
 import { SYLLABUS_TEMPLATE_V1 } from "@/lib/syllabus/intake-prompt";
 import { LESSON_TEMPLATE_V1 } from "@/lib/prompts/lesson-prompt";
 import { TRANSLATE_HI_TEMPLATE_V1 } from "@/lib/prompts/translate-prompt";
+import { EXAM_NOTE_TEMPLATE_V1 } from "@/lib/prompts/exam-note-prompt";
 
 export type { PromptTemplateRow };
 export type PromptResult<T> = { success: true; data: T } | { success: false; code: string; error: string; problems?: string[] };
 
-const CODE_V1: Partial<Record<TemplateType, string>> = { SYLLABUS: SYLLABUS_TEMPLATE_V1, LESSON: LESSON_TEMPLATE_V1, TRANSLATE_HI: TRANSLATE_HI_TEMPLATE_V1 };
+const CODE_V1: Partial<Record<TemplateType, string>> = { SYLLABUS: SYLLABUS_TEMPLATE_V1, LESSON: LESSON_TEMPLATE_V1, TRANSLATE_HI: TRANSLATE_HI_TEMPLATE_V1, EXAM_NOTE: EXAM_NOTE_TEMPLATE_V1 };
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const fail = <T>(code: string, error: string, problems?: string[]): PromptResult<T> => ({ success: false, code, error, ...(problems ? { problems } : {}) });
 

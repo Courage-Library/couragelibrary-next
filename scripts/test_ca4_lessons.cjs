@@ -84,8 +84,9 @@ test('T-01 templates: slots + sections, required / unknown placeholders, render 
     threw = true;
   }
   assert(threw, 'a missing value throws');
-  // the SQL twin lists exactly the TS placeholders — its CURRENT definition is migration 121 (LESSON-PROMPT-2)
-  const MIG121 = read('supabase/migrations/20261028000121_lesson_prompt_2.sql');
+  // the SQL twin lists exactly the TS placeholders — its CURRENT definition is migration 127 (EXAM-NOTE-PROMPT-1: the 121
+  // body + the EXAM_NOTE branch; scripts/test_exam_note_prompt1.cjs proves 127 = 121 + only that branch)
+  const MIG121 = read('supabase/migrations/20261031000127_exam_note_template.sql');
   for (const t of T.TEMPLATE_TYPES) {
     const block = MIG121.slice(MIG121.indexOf(`WHEN '${t}' THEN`), MIG121.indexOf(`WHEN '${t}' THEN`) + 900);
     const allowed = /v_allowed := ARRAY\[([^\]]+)\]/.exec(block)[1].replace(/\s+/g, '').replace(/'/g, '').split(',');
@@ -324,7 +325,7 @@ test('S-01 admin only: nav + routes, page guards, actions guarded first, client 
     const s = read(f);
     assert(/await requireAdminPage\(\{ path: [^}]*\}\)/.test(s) && !/allowStaff/.test(s), `${f}: admin page guard`);
   }
-  for (const [f, n] of [['app/admin/prompts/actions.ts', 2], ['app/admin/lessons/actions.ts', 7 /* + CA-7 launch, exam note draft / publish */]]) {
+  for (const [f, n] of [['app/admin/prompts/actions.ts', 2], ['app/admin/lessons/actions.ts', 8 /* + CA-7 launch, exam note draft / publish; EXAM-NOTE-PROMPT-1 copy prompt */]]) {
     const fns = read(f).split(/export async function /).slice(1);
     assert(fns.length === n, `${f}: ${fns.length} actions`);
     for (const x of fns) {

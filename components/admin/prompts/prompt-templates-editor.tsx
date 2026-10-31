@@ -14,7 +14,7 @@ import { activatePromptAction, savePromptDraftAction } from "@/app/admin/prompts
  * and retires the previous one. Active and retired versions never change (re-activate an old one instead).
  */
 
-const TYPE_LABEL: Record<TemplateType, string> = { SYLLABUS: "Syllabus", LESSON: "Lesson", QUESTION: "Question", TRANSLATE_HI: "Translation" };
+const TYPE_LABEL: Record<TemplateType, string> = { SYLLABUS: "Syllabus", LESSON: "Lesson", QUESTION: "Question", TRANSLATE_HI: "Translation", EXAM_NOTE: "Exam note" };
 
 export function PromptTemplatesEditor({ rows, loadError }: { rows: PromptTemplateRow[]; loadError: string | null }) {
   const router = useRouter();

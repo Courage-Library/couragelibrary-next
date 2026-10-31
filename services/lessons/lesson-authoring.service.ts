@@ -23,6 +23,8 @@ import { renderTemplate } from "@/lib/prompts/template";
 import { MUST_COVER_MAX, lessonPromptValues, lessonSize, mergeLessonParts, mustCoverBlock, parseLessonPart, type LessonExamCoverage, type LessonPromptContext } from "@/lib/prompts/lesson-prompt";
 import { ALLOWED_NODES_MAX, allowedNodeIdsBlock, type AllowedNode } from "@/lib/prompts/lesson-node-ids";
 import { parseTranslationPaste, translatePromptValues } from "@/lib/prompts/translate-prompt";
+import { examNotePromptValues } from "@/lib/prompts/exam-note-prompt";
+import { learnHref } from "@/lib/learn/paths";
 import { mapLessonDbError } from "@/services/lessons/lesson-admin.service";
 import { PromptTemplateService } from "@/services/prompts/prompt-template.service";
 import type { LessonNodeOption, LessonGeneratorData, LessonTranslationData } from "@/lib/lessons/admin-types";
@@ -137,6 +139,7 @@ async function examCoverage(c: Ctx, tree: Map<string, TreeNode>, nodeId: string)
     const cycle = Array.isArray(v.cycle) ? v.cycle[0] : v.cycle;
     out.push({
       exam: exam?.title || "Exam",
+      examId: v.exam_id,
       cycleYear: cycle?.cycle_year ?? null,
       tier: v.tier,
       syllabusPath: titles.join(" › "),
@@ -213,6 +216,44 @@ export class LessonAuthoringService {
         .map((n) => ({ id: n.id, name: n.name, nodeType: n.node_type, path: pathOf(tree, n.id), documentId: lessonOf.get(n.id)?.id ?? null, documentStatus: lessonOf.get(n.id)?.status ?? null }))
         .sort((a, b) => a.path.localeCompare(b.path)),
     };
+  }
+
+  /**
+   * EXAM-NOTE-PROMPT-1 (migration 127): the rendered ACTIVE EXAM_NOTE prompt for one exam × node (the code v1 until a DB
+   * version is active). Facts: only THIS exam's published syllabus lines that map the node, its parent or children.
+   */
+  static async examNotePrompt(examId: string, nodeId: string): Promise<AuthoringResult<{ prompt: string; templateVersion: number | null; templateSource: "db" | "code" }>> {
+    const c = await ctx();
+    if (!c) return fail("UNAUTHORIZED", "Unauthorized.");
+    if (!UUID_RE.test(examId) || !UUID_RE.test(nodeId)) return fail("NOT_FOUND", "Choose an exam and a topic.");
+    const tree = await loadTree(c);
+    const node = tree?.get(nodeId);
+    if (!tree || !node) return fail("NOT_FOUND", "Choose an active topic.");
+    const [exam, coverage, template, lesson, path] = await Promise.all([
+      c.supabase.from("exams").select("title, slug").eq("id", examId).maybeSingle(),
+      examCoverage(c, tree, nodeId),
+      PromptTemplateService.getActiveBody("EXAM_NOTE"),
+      c.supabase.from("learning_documents").select("id").eq("document_type", "NODE_LESSON").eq("node_id", nodeId).eq("status", "PUBLISHED").maybeSingle(),
+      c.supabase.from("canonical_taxonomy_nodes").select("hierarchy_path").eq("id", nodeId).maybeSingle(),
+    ]);
+    if (!exam.data) return fail("NOT_FOUND", "Exam not found.");
+    if (!template) return fail("DB_ERROR", "The EXAM_NOTE template could not be loaded (the session check failed). Reload the page.");
+    const subject = subjectTypeOf(tree, nodeId);
+    const prompt = renderTemplate(
+      "EXAM_NOTE",
+      template.body,
+      examNotePromptValues({
+        examName: exam.data.title,
+        examSlug: exam.data.slug,
+        nodeName: node.name,
+        nodePath: pathOf(tree, nodeId),
+        nodeLevel: node.node_type,
+        subjectName: subject.name,
+        coverage: coverage.filter((x) => x.examId === examId),
+        masterLesson: lesson.data && path.data?.hierarchy_path ? { title: node.name, href: learnHref(path.data.hierarchy_path) } : null,
+      }),
+    );
+    return { success: true, data: { prompt, templateVersion: template.version, templateSource: template.source } };
   }
 
   /** The generator for one node: its context and the rendered ACTIVE LESSON prompt. */

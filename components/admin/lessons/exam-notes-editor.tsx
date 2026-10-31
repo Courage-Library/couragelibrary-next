@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { StudioEmpty, StudioField, StudioPageHeader, StudioPanel, studioControl, studioPrimaryAction, studioQuietAction } from "@/components/admin/studio/studio-page";
 import { CheckButton, CheckProblems, CheckRegion, usePasteCheck } from "@/components/admin/studio/paste-check";
 import { EXAM_NOTE_CONTRACT, examNoteExample, parseExamNotePaste } from "@/lib/lessons/exam-note";
-import { publishExamNoteAction, saveExamNoteDraftAction } from "@/app/admin/lessons/actions";
+import { examNotePromptAction, publishExamNoteAction, saveExamNoteDraftAction } from "@/app/admin/lessons/actions";
 
 interface NoteRow {
   id: string;
@@ -59,6 +59,28 @@ export function ExamNotesEditor({
   const pick = (lang: "en" | "hi", status: NoteRow["status"]) => forNode.find((n) => n.language === lang && n.status === status) ?? null;
   const enPublished = pick("en", "PUBLISHED");
   const example = useMemo(() => JSON.stringify(examNoteExample(exam?.title ?? "the exam", node?.name ?? "this topic"), null, 2), [exam, node]);
+
+  // EXAM-NOTE-PROMPT-1: copy the rendered EXAM_NOTE prompt for this exam × node (a failed call is an inline message)
+  const [promptMsg, setPromptMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [copying, setCopying] = useState(false);
+  const copyPrompt = async () => {
+    if (!examId || !nodeId) return;
+    setCopying(true);
+    setPromptMsg(null);
+    try {
+      const r = await examNotePromptAction(examId, nodeId);
+      if (!r.success || !("data" in r) || !r.data) {
+        setPromptMsg({ ok: false, text: ("error" in r && r.error) || "The prompt could not be built." });
+        return;
+      }
+      await navigator.clipboard.writeText(r.data.prompt);
+      setPromptMsg({ ok: true, text: `Prompt copied (template ${r.data.templateVersion ? `v${r.data.templateVersion}` : "v1, built in"}). Paste it into your AI chat, then paste the answer below.` });
+    } catch {
+      setPromptMsg({ ok: false, text: "The prompt could not be copied. Check your connection and try again." });
+    } finally {
+      setCopying(false);
+    }
+  };
 
   const runCheck = (lang: "en" | "hi") =>
     (lang === "en" ? en : hi).run(() => {
@@ -158,6 +180,16 @@ export function ExamNotesEditor({
                 ))}
               </select>
             </StudioField>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <button type="button" onClick={copyPrompt} disabled={copying || !nodeId} className={`${studioQuietAction} border border-line`} data-copy-exam-note-prompt="">
+                {copying ? "Building the prompt…" : "Copy prompt"}
+              </button>
+              {promptMsg && (
+                <p role={promptMsg.ok ? "status" : "alert"} className={`text-[13px] ${promptMsg.ok ? "text-success-800" : "text-danger-800"}`}>
+                  {promptMsg.text}
+                </p>
+              )}
+            </div>
             <div className="mt-3 space-y-1">
               {status("en")}
               {status("hi")}
