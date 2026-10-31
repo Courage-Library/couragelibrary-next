@@ -10,8 +10,9 @@ const SHARP_LINUX_FILES = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  // LOGO-P0 (2026-10-31): sharp's native binary finds libvips through the dynamic linker (RPATH), which file tracing cannot
-  // follow — on Linux libvips is its own package, so it is listed explicitly for every route that runs the logo pipeline
+  // LOGO-P0 (2026-10-31): belt and braces — the tracer's sharp special case already emits sharp's installed @img packages;
+  // the Linux binary + libvips are also listed explicitly for every route that runs the logo pipeline
+  // (scripts/ci/sharp-trace-check.cjs proves the traced set alone encodes, with a negative control)
   outputFileTracingIncludes: {
     "/admin/exams": SHARP_LINUX_FILES,
     "/api/health/image": SHARP_LINUX_FILES,

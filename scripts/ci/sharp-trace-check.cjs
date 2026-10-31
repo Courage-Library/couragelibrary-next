@@ -58,8 +58,8 @@ function isolate(files, drop) {
 }
 
 (async () => {
-// T-0 (information, root-cause evidence): what Next's file tracer finds for sharp ON ITS OWN, without the
-// next.config outputFileTracingIncludes — on Linux the libvips package is reached only through the native binary's RPATH
+// T-0 (information): what Next's file tracer finds for sharp ON ITS OWN, without the next.config includes (its sharp
+// special case emits sharp's installed optional @img packages; this line shows it per platform)
 try {
   const { nodeFileTrace } = require('next/dist/compiled/@vercel/nft');
   const r = await nodeFileTrace([path.join(ROOT, 'node_modules/sharp/lib/index.js')], { base: ROOT });
