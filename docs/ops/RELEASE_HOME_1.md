@@ -17,6 +17,10 @@ Run this only when the owner says **"release"**. Until then everything stays loc
 | `773fb3a` | Design upgrade: solid header, navy footer, connected loop with real screenshots, hero phone mockup, library gallery (130), background depth |
 | `2cf7ff8` | Checklist update |
 | `45bacca` | Expert UX pass + brand settings (131): official logo everywhere, Settings › Brand, honest H1, live cards + coming-soon line, live stats, explore bar, reveal on scroll, share images, one radius / shadow / icon scale |
+| `1e1fafa` | Checklist update |
+| `b777ed8` | Category tiles restored (owner 2026-11-02; the card + "Coming soon:" line rejected) |
+| `de1f8db` | Hindi chip + FAQ answer follow the published Hindi content |
+| *(this)* | Checklist: final commit list, official logo line |
 
 ## 1. Before pushing
 
@@ -31,10 +35,10 @@ Run this only when the owner says **"release"**. Until then everything stays loc
 
 - [ ] `git checkout main && git merge --ff-only feat/home-1 && git push origin main`
 - [ ] The push run covers the offline list, server-checks (including UX2A-LIVE with the new L-10, BRAND-2 P-01/P-02, HOME-1) and prod smoke.
-- [ ] Live gates touched by 128 / 129 / 130 / HOME-1 (EXAM-CATEGORIES-LIVE, SITE-MEDIA-LIVE, SITE-GALLERY-LIVE, EXAM-LOGO-1 live, SEC1B / SEC1C) need **one** `workflow_dispatch` with `live: true` on `main`. Dispatch it after the push run has finished; never push while it is queued.
+- [ ] Live gates touched by 128 / 129 / 130 / 131 / HOME-1 (EXAM-CATEGORIES-LIVE, SITE-MEDIA-LIVE, SITE-GALLERY-LIVE, EXAM-LOGO-1 live, SEC1B / SEC1C) need **one** `workflow_dispatch` with `live: true` on `main`. Dispatch it after the push run has finished; never push while it is queued.
 - [ ] BRAND-2 probe P-04 / P-05 now test glass on `/auth/login` (the header is solid); check that they pass in server-checks.
 - [ ] BRAND-2 P-03c / P-03d now target the current hero CTA (`/#categories`) and the "All exams" link. Before, they still pointed at the pre-Phase-B "Explore SSC CGL" link and were stale.
-- [ ] UX-2a L-3 amendment (needs owner sign-off): `HomePage` may await only the cached, 800 ms-bounded live-category names (for the honest H1). The live check L-15b still proves the hero is in the first HTML flush.
+- [ ] UX-2a L-3 amendment: `HomePage` may await only the cached, 800 ms-bounded home facts (live-category names for the honest H1 + the Hindi availability for the chip / FAQ). The live check L-15b still proves the hero is in the first HTML flush.
 - [ ] Classify any failure using the server log before retrying (at most 3 attempts).
 
 ## 3. After deploy (production, anonymous only; never sign in to prod)
@@ -43,7 +47,7 @@ Run this only when the owner says **"release"**. Until then everything stays loc
 - [ ] `/` first-load JS ≤ 110 kB (CI front-end budget); fonts on `/` ≤ 160 KB, with no Devanagari file.
 - [ ] Prod anonymous smoke: `/` → 200, one h1, the category tiles (SSC = link with "1 exam", the others "Coming soon").
 - [ ] `/exams` and `/exams/ssc` → 200; SSC CGL is listed as a link; the other category pages show "Coming soon" with no broken links.
-- [ ] Header shows the CL monogram and menu at 390 and 1280; footer accordions on phones; legal links read "Privacy" and "Terms" (pages still show the draft notice).
+- [ ] Header shows the official logo (no monogram) and menu at 390 and 1280; footer accordions on phones; legal links read "Privacy" and "Terms" (pages still show the draft notice).
 - [ ] FAQ opens and closes (chevron turns, expanded state toggles); "Free during early access." appears under the final CTA.
 - [ ] The production HTML of `/`, `/exams` and `/exams/ssc` contains **no storage host**. Logos, icons and library photos come only from same-origin `/media/logos/…`; product screenshots come only from `/marketing/…`.
 - [ ] Design upgrade:
