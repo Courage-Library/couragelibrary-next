@@ -16,7 +16,7 @@ Run this only when the owner says **"release"**. Until then everything stays loc
 | `0605afb` | Release checklist |
 | `773fb3a` | Design upgrade: solid header, navy footer, connected loop with real screenshots, hero phone mockup, library gallery (130), background depth |
 | `2cf7ff8` | Checklist update |
-| *(next)* | Expert UX pass + brand settings (131): official logo everywhere, Settings › Brand, honest H1, live cards + coming-soon line, live stats, explore bar, reveal on scroll, share images, one radius / shadow / icon scale |
+| `45bacca` | Expert UX pass + brand settings (131): official logo everywhere, Settings › Brand, honest H1, live cards + coming-soon line, live stats, explore bar, reveal on scroll, share images, one radius / shadow / icon scale |
 
 ## 1. Before pushing
 
