@@ -19,27 +19,28 @@ export const LANDING_META = {
 export const LANDING_HERO = {
   eyebrow: "Government exam preparation",
   title: LANDING_BRAND_LINE,
-  lead: "Courage Library helps government-exam aspirants practice with real exam-style mock tests, see exactly where marks were lost, and fix those mistakes until they stick.",
+  // HOME-1: short (the hero line is the LCP element on slow phones); no exam-specific action anywhere on home
+  lead: "Mock tests, practice and revision for government exams. See where you lost marks and fix it.",
   primaryCta: { label: "Start free", href: "/auth/signup" },
   signedInCta: { label: "Go to dashboard", href: "/dashboard" },
-  secondaryCta: { label: "Explore SSC CGL", href: "/exams/ssc-cgl" },
+  /** HOME-1 (ruling Q2): THE primary action while sign-up is closed (the sign-up setting switches it to "Start free") */
+  secondaryCta: { label: "Explore exams", href: "/#categories" },
   note: "Free during early access. No card needed.",
 } as const;
 
 export const LANDING_LOOP = {
-  heading: "How Courage Library works",
+  heading: "How it works",
   lead: "One simple loop, repeated until the exam day.",
   stepLabel: (n: number) => `Step ${n}: `,
   /** UX-FIX-1: the hero shows steps 1–3 and links here (the count comes from `steps`, never typed in) */
   seeAll: (n: number) => `See all ${n} steps`,
+  // HOME-1: 5 steps (was 7)
   steps: [
-    { title: "Explore", text: "Understand your exam: pattern, eligibility and what is asked." },
     { title: "Learn", text: "Study one topic at a time, in plain language." },
     { title: "Practice", text: "Answer questions on that topic and check yourself." },
     { title: "Mock", text: "Take a full-length test under real exam timing." },
-    { title: "Analyze", text: "Review every answer and see which sections cost you marks." },
-    { title: "Diagnose", text: "Your wrong answers are saved in your Mistake Vault." },
-    { title: "Master", text: "Drill those mistakes until you get them right, again and again." },
+    { title: "Analyze", text: "See which sections and questions cost you marks." },
+    { title: "Revise", text: "Your mistakes come back until you get them right." },
   ],
 } as const;
 
@@ -58,8 +59,8 @@ export const LANDING_EXAMS = {
   /** shown as plain text cards (no links) until their exam pages exist; hidden once the exam is active. `body` = the
    *  conducting body named in the coming-soon hub's not-affiliated line (EXAM-LOGO-1: every exam page carries it) */
   comingSoon: [
-    { slug: "ssc-chsl", title: "SSC CHSL", body: "Staff Selection Commission" },
-    { slug: "ssc-mts", title: "SSC MTS", body: "Staff Selection Commission" },
+    { slug: "ssc-chsl", title: "SSC CHSL", body: "Staff Selection Commission", category: "ssc" },
+    { slug: "ssc-mts", title: "SSC MTS", body: "Staff Selection Commission", category: "ssc" },
   ],
   fallback: "The exam list could not be loaded right now. You can still browse all exams.",
   fallbackCta: { label: "Browse exams", href: "/exams" },
@@ -68,7 +69,8 @@ export const LANDING_EXAMS = {
 
 export const LANDING_FEATURES = {
   heading: "What you get",
-  lead: "Everything below is available to students today, unless it says coming soon.",
+  // HOME-1: only what students can use today is listed (no "coming soon" cards on home)
+  lead: "Everything below works today and is free during early access.",
   liveLabel: "Available now",
   comingSoonLabel: "Coming soon",
   items: {
@@ -76,40 +78,72 @@ export const LANDING_FEATURES = {
       title: "Full-length mock tests",
       text: "Exam-pattern tests with real timing, sections and negative marking.",
       count: (n: number) => (n === 1 ? `${n} free mock test live` : `${n} free mock tests live`),
+      short: "Real timing, sections and negative marking.",
     },
     analysis: {
       title: "Answer analysis",
       text: "After each test: your score, accuracy and section-by-section breakdown, plus a review of every question with the correct answer and, where available, an explanation.",
+      short: "Score, accuracy and every answer reviewed.",
     },
     mistakes: {
       title: "Mistake Vault and drills",
       text: "Every wrong answer is saved. Short drills bring them back until you get them right.",
+      short: "Wrong answers come back as short drills.",
     },
     guides: {
       title: "Exam guides",
       text: "Pattern, eligibility, selection process and more, with links to the official sources.",
       count: (n: number) => (n === 1 ? `${n} guide published` : `${n} guides published`),
+      short: "Pattern, eligibility and official links.",
     },
     syllabus: {
       title: "Syllabus tracker",
       text: "The official syllabus as a checklist linked to practice.",
+      short: "The official syllabus, topic by topic.",
     },
     currentAffairs: {
       title: "Daily current affairs",
       text: "Short daily updates for the general awareness section.",
+      short: "Short daily updates for general awareness.",
     },
     courses: {
       title: "Courses and test series",
       text: "Structured courses and planned test series.",
+      short: "Structured courses and test series.",
     },
   },
 } as const;
 
 export const LANDING_PLANS = {
-  heading: "Plans",
+  heading: "Free and Pro",
   text: "Free during early access. Pro coming soon.",
   proBadge: "Pro coming soon",
   detail: "Everything marked available now is free while we are in early access. Pro plans will be announced here first; there is nothing to pay today.",
+  /** HOME-1: features only, no prices ("Pricing at launch") */
+  free: { title: "Free", note: "Now, during early access", items: ["Full-length mock tests", "Answer analysis", "Mistake Vault and drills", "Exam guides"] },
+  pro: { title: "Pro", note: "Coming soon. Pricing at launch.", items: ["More full-length mocks", "Deeper analysis of your progress", "Announced here first"] },
+} as const;
+
+/** HOME-1: the category tiles (data: lib/exams/category-data.ts; numbers only from live rows) */
+export const LANDING_CATEGORIES = {
+  heading: "Choose your exam category",
+  lead: "Pick a category to see its exams.",
+  comingSoon: "Coming soon",
+  allExams: { label: "All exams", href: "/exams" },
+  fallback: "The categories could not be loaded right now. You can still browse all exams.",
+} as const;
+
+/** HOME-1: plain answers; no promises of selection, no numbers we cannot show (CCPA coaching-ad guidelines; UX research phase 1) */
+export const LANDING_FAQ = {
+  heading: "Questions",
+  items: [
+    { q: "Is it really free?", a: "Yes. Everything you can use today is free during early access, and no card is needed. Pro will be announced here first, before anything costs money." },
+    { q: "Which exams do you cover?", a: "We start with SSC exams and add more categories (Police, Defence, Railway, Banking) one by one. A category shows Coming soon until its first exam is ready." },
+    { q: "Can I study in Hindi?", a: "Lessons are being written in English and Hindi. The website itself is in English for now." },
+    { q: "Do you promise selection?", a: "No. Nobody can honestly promise selection. We help you practice, find your weak areas and fix them." },
+    { q: "Who runs Courage Library?", a: "The team behind a physical study library in Kanpur, Uttar Pradesh, open since August 2024." },
+    { q: "Are you connected to SSC or any exam body?", a: "No. Courage Library is an independent platform and is not affiliated with any exam conducting body." },
+  ],
 } as const;
 
 export const LANDING_TRUST = {
@@ -120,7 +154,7 @@ export const LANDING_TRUST = {
 } as const;
 
 export const LANDING_FINAL_CTA = {
-  heading: "Take your first mock test today",
+  heading: "Start preparing today",
   text: "Create a free account and start with a full-length test.",
   cta: { label: "Start free", href: "/auth/signup" },
   signedInCta: { label: "Go to dashboard", href: "/dashboard" },

@@ -76,6 +76,7 @@ export const ADMIN_NAV: NavGroup[] = [
         label: "Exams", href: "/admin/exams", icon: "exams", access: "staff",
         tabs: [
           { label: "Exams", href: "/admin/exams", access: "staff" },
+          { label: "Categories", href: "/admin/exams/categories", access: "staff" },
           { label: "Knowledge", href: "/admin/exams/knowledge", access: "staff" },
           { label: "Cycles", href: "/admin/exams/cycles", access: "staff" },
           { label: "Notes", href: "/admin/exams/notes", access: "admin" },

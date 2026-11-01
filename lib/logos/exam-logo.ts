@@ -16,6 +16,9 @@ export interface ExamLogoInput {
 }
 export interface ExamLogo {
   src: string;
+  /** HOME-1: the sized copies (absent for a preview blob) */
+  src64?: string;
+  src128?: string;
   alt: string;
 }
 
@@ -26,14 +29,27 @@ export interface ExamLogo {
  */
 export const LOGO_MEDIA_PREFIX = "/media/logos";
 export function logoPublicUrl(path: string | null | undefined): string | null {
-  if (!path || !/^(orgs|exams)\/[0-9a-f-]{36}\/[0-9a-f]{64}\.webp$/.test(path)) return null;
+  if (!path || !/^(orgs|exams|categories)\/[0-9a-f-]{36}\/[0-9a-f]{64}\.webp$/.test(path)) return null;
   return `${LOGO_MEDIA_PREFIX}/${path}`;
+}
+
+/** HOME-1: the sized copy of a stored logo path (<sha>-64.webp / <sha>-128.webp next to the original). */
+export function logoVariantUrl(path: string | null | undefined, px: 64 | 128): string | null {
+  const url = logoPublicUrl(path);
+  return url ? url.replace(/\.webp$/, `-${px}.webp`) : null;
+}
+
+/** the smallest stored copy that is still sharp at 2× for a box of `px` CSS pixels */
+export function logoSrcFor(logo: ExamLogo, px: number): string {
+  if (px <= 32 && logo.src64) return logo.src64;
+  if (px <= 72 && logo.src128) return logo.src128;
+  return logo.src;
 }
 
 export function examLogo(input: ExamLogoInput): ExamLogo | null {
   for (const s of [input.override, input.org]) {
     const src = s && s.alt ? logoPublicUrl(s.path) : null;
-    if (src && s?.alt) return { src, alt: s.alt };
+    if (src && s?.alt) return { src, alt: s.alt, src64: logoVariantUrl(s.path, 64) ?? undefined, src128: logoVariantUrl(s.path, 128) ?? undefined };
   }
   return null;
 }

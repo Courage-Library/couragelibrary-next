@@ -121,7 +121,7 @@ export function Dialog({
               type="button"
               onClick={() => onOpenChange(false)}
               aria-label="Close"
-              className="focus-ring -mr-2 -mt-2 inline-flex size-11 shrink-0 items-center justify-center rounded-control text-fg-secondary hover:bg-ink-100 hover:text-fg"
+              className="focus-ring -mr-2 -mt-2 inline-flex size-12 shrink-0 items-center justify-center rounded-control text-fg-secondary hover:bg-ink-100 hover:text-fg"
             >
               <X aria-hidden="true" className="size-5" />
             </button>

@@ -35,19 +35,21 @@ export async function createExamDraftAction(
   if ((formData.get("newOrgName") as string || "").trim()) {
     return { error: "Add the conducting body and its official logo in Exams › Conducting bodies first, then choose it here." };
   }
-  const category = (formData.get("category") as string || "National Recruitment").trim();
+  // HOME-1 (128): every exam created here belongs to a public category (chosen in the form)
+  const categoryId = (formData.get("categoryId") as string || "").trim();
   const description = (formData.get("description") as string || "").trim();
   const cycleYearStr = (formData.get("cycleYear") as string || "").trim();
   const cycleYear = cycleYearStr ? parseInt(cycleYearStr, 10) : undefined;
 
   if (!title) return { error: "Exam Title is required." };
+  if (!categoryId) return { error: "Choose the exam category." };
 
   try {
     const result = await ExamOnboardingService.createExamDraft({
       title,
       slug: slug || undefined,
       orgId: orgId || undefined,
-      category,
+      categoryId,
       description,
       cycleYear: cycleYear && !isNaN(cycleYear) ? cycleYear : undefined,
     });
@@ -80,17 +82,18 @@ export async function updateExamIdentityAction(
   const title = (formData.get("title") as string || "").trim();
   const slug = (formData.get("slug") as string || "").trim();
   const orgId = (formData.get("orgId") as string || "").trim();
-  const category = (formData.get("category") as string || "").trim();
+  const categoryId = (formData.get("categoryId") as string || "").trim();
   const description = (formData.get("description") as string || "").trim();
 
   if (!examId || !title) return { error: "Exam ID and Title are required." };
+  if (!categoryId) return { error: "Choose the exam category." };
 
   try {
     await ExamOnboardingService.updateExamIdentity(examId, {
       title,
       slug: slug || undefined,
       orgId: orgId || undefined,
-      category: category || undefined,
+      categoryId,
       description,
     });
 
@@ -98,6 +101,7 @@ export async function updateExamIdentityAction(
     revalidatePath(`/admin/exams/onboarding?examId=${examId}`);
     return { success: true, message: "Exam identity updated successfully." };
   } catch (err: any) {
+    if (err instanceof ExamLogoRequiredError) return { error: err.message };
     return toActionFailure("updateExamIdentityAction", err);
   }
 }

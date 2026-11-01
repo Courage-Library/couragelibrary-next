@@ -19,8 +19,20 @@ const LOGO_MAX_PIXELS = 25_000_000; // decompression-bomb guard
 
 export { sniffLogoFormat, type LogoFormat } from "@/lib/logos/logo-sniff";
 export type LogoResult =
-  | { ok: true; webp: Buffer; sha256: string; inFormat: LogoFormat; inWidth: number; inHeight: number }
+  | { ok: true; webp: Buffer; sha256: string; inFormat: LogoFormat; inWidth: number; inHeight: number; variants: Record<LogoVariant, Buffer> }
   | { ok: false; code: "EMPTY" | "TOO_LARGE" | "NOT_AN_IMAGE" | "TOO_SMALL" | "UNREADABLE" | "UNAVAILABLE"; message: string };
+
+/** HOME-1: sized copies stored next to the 512 px original (<sha>-64.webp, <sha>-128.webp): a 32 px slot loads a few KB,
+ *  not the 512 px file (lib/logos/exam-logo.ts picks one per display size). */
+export const LOGO_VARIANTS = [64, 128] as const;
+export type LogoVariant = (typeof LOGO_VARIANTS)[number];
+
+/** the two sized copies of a processed 512 px logo */
+export async function logoVariants(sharp: typeof SharpFn, webp512: Buffer): Promise<Record<LogoVariant, Buffer>> {
+  const out = {} as Record<LogoVariant, Buffer>;
+  for (const px of LOGO_VARIANTS) out[px] = await sharp(webp512).resize(px, px, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } }).webp({ quality: 85, effort: 4 }).toBuffer();
+  return out;
+}
 
 export const LOGO_UNAVAILABLE = "The logo could not be processed, so nothing was saved. Try again later; if it keeps failing, tell the developer.";
 
@@ -58,7 +70,7 @@ export async function processLogo(input: Buffer): Promise<LogoResult> {
       .resize(LOGO_OUT_SIDE, LOGO_OUT_SIDE, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
       .webp({ quality: 90, effort: 4 })
       .toBuffer();
-    return { ok: true, webp, sha256: createHash("sha256").update(webp).digest("hex"), inFormat: fmt, inWidth: oriented.w, inHeight: oriented.h };
+    return { ok: true, webp, sha256: createHash("sha256").update(webp).digest("hex"), inFormat: fmt, inWidth: oriented.w, inHeight: oriented.h, variants: await logoVariants(sharp, webp) };
   } catch {
     return { ok: false, code: "UNREADABLE", message: "The image could not be read. Export it again as PNG and retry." };
   }

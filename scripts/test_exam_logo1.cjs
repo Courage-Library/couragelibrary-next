@@ -91,6 +91,11 @@ const img = (w, h, fmt, opts = {}) => {
       assert(m.format === 'webp' && m.width === 512 && m.height === 512, `${fmt}: out ${m.format} ${m.width}×${m.height}`);
       assert(!m.exif && !m.xmp && !m.icc && !m.iptc, `${fmt}: metadata kept`);
       assert(!r.webp.equals(input) && r.sha256 === crypto.createHash('sha256').update(r.webp).digest('hex'), `${fmt}: hash / re-encode`);
+      // HOME-1: the sized copies (64 / 128 px WebP, no metadata), each a fraction of the original
+      for (const px of [64, 128]) {
+        const v = await sharp(r.variants[px]).metadata();
+        assert(v.format === 'webp' && v.width === px && v.height === px && !v.exif && r.variants[px].length < r.webp.length, `${fmt}: variant ${px}: ${v.format} ${v.width} ${r.variants[px].length}`);
+      }
       if (fmt === 'jpeg') assert(!r.webp.includes(Buffer.from('SECRET-OWNER-NOTE')), 'EXIF text survived');
     }
     const wide = await LI.processLogo(await img(800, 300, 'png'));
@@ -179,11 +184,14 @@ const img = (w, h, fmt, opts = {}) => {
   await test('E-3 logo actions: admin only, processed before stored, content-hash path, old file deleted only after the row switched; inline new body refused by the create action', async () => {
     const a = read('app/admin/exams/logo-actions.ts');
     const exported = [...a.matchAll(/export async function (\w+)\([^)]*\)[^\n]*\{\n\s*const auth = await guardAdminAction\(\);/g)].map((m) => m[1]);
-    assert(exported.length === 6 && (a.match(/^export async function /gm) || []).length === 6 && !/allowStaff/.test(a), `every exported logo action must call the admin-only guard first: ${exported}`);
-    const order = ['processLogo(', '.upload(path', 'rpc("fn_logo_set"', 'remove([oldPath])'].map((x) => a.indexOf(x));
+    assert(exported.length === 9 && (a.match(/^export async function /gm) || []).length === 9 && !/allowStaff/.test(a), `every exported logo action must call the admin-only guard first: ${exported}`); // HOME-1: + category icon upload / remove + category save
+    // HOME-1: the original AND its sized copies are stored before the row switches; old files (+ copies) go only after
+    // (HOME-1: the audited switch is rpcSet → fn_logo_set / fn_category_icon_set; the order is checked inside setLogo)
+    const body = a.slice(a.indexOf('async function setLogo('));
+    const order = ['processLogo(', '.upload(path', '.upload(withVariant(path, px)', 'rpcSet(db, kind', 'remove(withVariants(oldPath))'].map((x) => body.indexOf(x));
     assert(order.every((x, i) => x > 0 && (i === 0 || x > order[i - 1])), `order ${order}`);
     assert(/\$\{processed\.sha256\}\.webp/.test(a) && /contentType: "image\/webp"/.test(a) && /upsert: false/.test(a), 'content-hash path, webp, no overwrite');
-    assert(/if \(!existed\) await db\.storage\.from\(LOGO_BUCKET\)\.remove\(\[path\]\)/.test(a), 'a failed save removes only the new file');
+    assert(/if \(!existed\) await db\.storage\.from\(LOGO_BUCKET\)\.remove\(withVariants\(path\)\)/.test(a) && /const withVariants = \(path: string\) => \[path, \.\.\.LOGO_VARIANTS\.map/.test(a), 'a failed save removes only the new files (original + sized copies)');
     const act = read('app/admin/exams/actions.ts');
     assert(/formData\.get\("newOrgName"\)[\s\S]{0,80}\.trim\(\)\) \{\s*return \{ error: "Add the conducting body/.test(act), 'create action: inline body');
   });
@@ -193,7 +201,7 @@ const img = (w, h, fmt, opts = {}) => {
     assert(/width=\{px\} height=\{px\}/.test(badge) && /style=\{\{ width: px, height: px \}\}/.test(badge) && /loading=\{priority \? "eager" : "lazy"\}/.test(badge) && !/from "next\/image"/.test(badge) && /Courage Library is an independent platform and is not affiliated with \{body\}\./.test(badge), 'badge');
     const layout = read('app/exams/[slug]/layout.tsx');
     assert(/<NotAffiliatedLine body=\{brand\.bodyName\} \/>/.test(layout) && /if \(!brand\) return <>\{children\}<\/>;/.test(layout), 'exam layout');
-    for (const f of ['app/exams/page.tsx', 'components/landing/landing-sections.tsx']) assert(/<ExamLogoBadge logo=\{exam\.logo\}/.test(read(f)), f);
+    for (const f of ['app/exams/page.tsx', 'components/exams/category-page.tsx']) assert(/<ExamLogoBadge logo=\{(exam|e)\.logo\}/.test(read(f)), f); // HOME-1: home has no exam cards
     // EXAM-LOGO-1.1: an inactive "coming soon" exam page has no logo strip but still ends with the not-affiliated line
     const soon = read('components/public/coming-soon-hub.tsx');
     assert(/<NotAffiliatedLine body=\{body\} \/>/.test(soon) && /<ComingSoonHub title=\{soon\.title\} body=\{soon\.body\} \/>/.test(read('app/exams/[slug]/page.tsx')), 'coming-soon hub: no not-affiliated line');
@@ -248,10 +256,11 @@ const img = (w, h, fmt, opts = {}) => {
     assert(G.bodySlug('Staff Selection Commission (SSC)') === 'staff-selection-commission-ssc' && G.altProblem('ab') && !G.altProblem('SSC logo'), 'slug / alt rules');
     assert(/experimental: \{\s*serverActions: \{ bodySizeLimit: "2mb" \},\s*\}/.test(read('next.config.ts')), 'next.config: serverActions.bodySizeLimit 2mb');
     const drawer = read('components/admin/logos/logo-drawer.tsx');
-    const LOGO_ACTIONS = /\b(uploadOrgLogoAction|removeOrgLogoAction|uploadExamLogoOverrideAction|removeExamLogoOverrideAction|createConductingOrgWithLogoAction)\(/g;
-    const unguarded = (src) => [...src.matchAll(LOGO_ACTIONS)].filter((m) => !/guarded\(\(\) => \(?[^\n]*$/.test(src.slice(Math.max(0, m.index - 120), m.index))).map((m) => m[1]);
+    const LOGO_ACTIONS = /\b(uploadOrgLogoAction|removeOrgLogoAction|uploadExamLogoOverrideAction|removeExamLogoOverrideAction|createConductingOrgWithLogoAction|uploadCategoryIconAction|removeCategoryIconAction)\(/g;
+    // a call counts as guarded when its own line opens a guarded(() => …) before it (the whole line, not a fixed window)
+    const unguarded = (src) => [...src.matchAll(LOGO_ACTIONS)].filter((m) => !/guarded\(\(\) => \(?/.test(src.slice(src.lastIndexOf('\n', m.index) + 1, m.index))).map((m) => m[1]);
     const calls = [...drawer.matchAll(LOGO_ACTIONS)].length;
-    assert(calls === 5 && unguarded(drawer).length === 0, `drawer: ${calls} logo action call(s), unguarded: ${unguarded(drawer).join(', ')}`);
+    assert(calls === 7 && unguarded(drawer).length === 0, `drawer: ${calls} logo action call(s), unguarded: ${unguarded(drawer).join(', ')}`);
     assert(/catch \{\s*return \{ success: false, message: LOGO_MESSAGES\.failed \};/.test(drawer) && /uploadSizeProblem\(prepared\.blob\.size\)/.test(drawer), 'guarded() / the send-time size check');
     // negative control: an unwrapped call (the LOGO-P0 code) is detected
     assert(unguarded('const r = await uploadOrgLogoAction(fd);').join() === 'uploadOrgLogoAction', 'negative control: an unwrapped call was not detected');
@@ -290,7 +299,7 @@ const img = (w, h, fmt, opts = {}) => {
     before('components/public/coming-soon-hub.tsx', /logo=\{<ExamLogoBadge logo=\{null\} name=\{body\} size="md" priority \/>\}/);
     before('app/exams/[slug]/course/page.tsx', /<ExamBrandLogo slug=\{course\.exam\.slug\} \/>\s*<h1/);
     before('app/exams/[slug]/[moduleSlug]/[...rest]/page.tsx', /<ExamBrandLogo slug=\{slug\} \/>\s*<h1/);
-    for (const f of ['app/exams/page.tsx', 'components/landing/landing-sections.tsx']) before(f, /<ExamLogoBadge logo=\{exam\.logo\} name=\{exam\.bodyName \|\| exam\.title\} size="sm" \/>\s*<CardTitle/);
+    for (const f of ['app/exams/page.tsx', 'components/exams/category-page.tsx']) before(f, /<ExamLogoBadge logo=\{(exam|e)\.logo\} name=\{(exam|e)\.bodyName \|\| (exam|e)\.title\} size="sm" \/>\s*<CardTitle/);
     before('components/admin/exam-onboarding/exam-management-view.tsx', /size="xs"\s*\/>\s*<h3 className="min-w-0/);
     assert(/xs: 28, sm: 32, md: 48/.test(read('lib/logos/exam-logo.ts')), 'sizes');
     assert(/size = "md"/.test(read('components/exams/exam-brand-logo.tsx')) && /<ExamLogoBadge logo=\{brand\.logo\} name=\{brand\.bodyName\}/.test(read('components/exams/exam-brand-logo.tsx')), 'brand logo: fallback tile in the same place');

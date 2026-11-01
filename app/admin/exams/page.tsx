@@ -2,6 +2,7 @@ import React from "react";
 import { ExamOnboardingService } from "@/services/exam-onboarding/exam-onboarding.service";
 import { ExamManagementView } from "@/components/admin/exam-onboarding/exam-management-view";
 import { requireAdminPage } from "@/lib/auth/require-admin";
+import { listCategoryOptions } from "@/lib/exams/category-admin";
 import { visibleBodies } from "@/lib/qa/fixtures";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +20,7 @@ export default async function AdminExamsPage() {
     })),
     ExamOnboardingService.getConductingOrgs().catch(() => []),
   ]);
+  const categoryOptions = await listCategoryOptions().catch(() => []);
 
   return (
     <ExamManagementView
@@ -28,6 +30,7 @@ export default async function AdminExamsPage() {
       draftExams={data.draftExams}
       conductingOrgs={visibleBodies(orgs, viewer.userEmail)}
       canEditLogos={viewer.role === "admin"}
+      categoryOptions={categoryOptions}
     />
   );
 }

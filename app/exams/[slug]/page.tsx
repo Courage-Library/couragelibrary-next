@@ -9,6 +9,8 @@ import { ExamCtaView, ExamCycle, ExamGlance, ExamGuides, ExamHomeHeader, ExamMoc
 import { constructMetadata } from "@/lib/seo/metadata";
 import { ComingSoonHub } from "@/components/public/coming-soon-hub";
 import { ExamBrandLogo } from "@/components/exams/exam-brand-logo";
+import { CategoryPage } from "@/components/exams/category-page";
+import { loadPublicCategory } from "@/lib/exams/category-data";
 import { COMING_SOON_EXAMS, COMING_SOON_HUB } from "@/content/public-pages";
 import { getSignupAvailability } from "@/lib/auth/signup-availability";
 import { continueTarget, cycleInfo, glanceRows, guideGroups, preferModules, resolveExamCta, type MockListItem } from "@/lib/exams/exam-page";
@@ -33,6 +35,16 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
+  // HOME-1: /exams/<category> (category and exam slugs share one namespace, enforced in the DB — 128)
+  const cat = await loadPublicCategory(slug);
+  if (cat) {
+    return constructMetadata({
+      title: `${cat.category.name} exams`,
+      description: cat.category.shortDesc || `${cat.category.name} exams on Courage Library: lessons, practice and mock tests.`,
+      canonicalUrl: `/exams/${slug}`,
+      noIndex: cat.category.activeExams === 0,
+    });
+  }
   const result = await ExamKnowledgeCandidateService.getExamKnowledgeCandidateView({ examSlug: slug });
 
   const soon = comingSoonFor(result.status, slug);
@@ -69,6 +81,8 @@ async function MocksWithStatus({ examId, mocks }: { examId: string; mocks: MockL
 
 export default async function ExamHomePage({ params }: Props) {
   const { slug } = await params;
+  const cat = await loadPublicCategory(slug);
+  if (cat) return <CategoryPage category={cat.category} exams={cat.exams} />;
   const result = await ExamKnowledgeCandidateService.getExamKnowledgeCandidateView({ examSlug: slug });
 
   const soon = comingSoonFor(result.status, slug);

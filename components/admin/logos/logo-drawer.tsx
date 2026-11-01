@@ -6,7 +6,7 @@ import { StudioDrawer } from "@/components/admin/studio/studio-drawer";
 import { studioControl, studioPrimaryAction, studioQuietAction } from "@/components/admin/studio/studio-page";
 import { ExamLogoBadge } from "@/components/exams/exam-logo-badge";
 import { ProgressBar } from "@/components/ui/progress";
-import { createConductingOrgWithLogoAction, removeExamLogoOverrideAction, removeOrgLogoAction, uploadExamLogoOverrideAction, uploadOrgLogoAction } from "@/app/admin/exams/logo-actions";
+import { createConductingOrgWithLogoAction, removeCategoryIconAction, removeExamLogoOverrideAction, removeOrgLogoAction, uploadCategoryIconAction, uploadExamLogoOverrideAction, uploadOrgLogoAction } from "@/app/admin/exams/logo-actions";
 import { prepareLogo, type PreparedLogo } from "@/lib/logos/logo-prepare";
 import { LOGO_ACCEPT, LOGO_MESSAGES, altProblem, bodySlug, formatSize, uploadSizeProblem } from "@/lib/logos/logo-upload-guard";
 import type { ExamLogo } from "@/lib/logos/exam-logo";
@@ -19,7 +19,7 @@ import type { ExamLogo } from "@/lib/logos/exam-logo";
  * row 28). One primary ("Save logo" / "Add body"); remove is quiet and confirmed. Every action call is wrapped: a failed
  * request (413, network, server error) is an inline "nothing was saved", never the page's error boundary (LOGO-P0b).
  */
-export type LogoDrawerMode = { kind: "ORG"; id: string; name: string } | { kind: "EXAM"; id: string; name: string; bodyName: string } | { kind: "NEW_BODY" };
+export type LogoDrawerMode = { kind: "ORG"; id: string; name: string } | { kind: "EXAM"; id: string; name: string; bodyName: string } | { kind: "NEW_BODY" } | { kind: "CATEGORY"; id: string; name: string };
 export type LogoDrawerDone = { action: "saved" | "removed" | "created"; name: string };
 
 type Failure = { success: false; message?: string; error?: string };
@@ -124,7 +124,7 @@ export function LogoDrawer({
       r = await guarded(() => createConductingOrgWithLogoAction(fd));
     } else {
       fd.set("id", mode.id);
-      r = await guarded(() => (mode.kind === "ORG" ? uploadOrgLogoAction(fd) : uploadExamLogoOverrideAction(fd)));
+      r = await guarded(() => (mode.kind === "ORG" ? uploadOrgLogoAction(fd) : mode.kind === "CATEGORY" ? uploadCategoryIconAction(fd) : uploadExamLogoOverrideAction(fd)));
     }
     setBusy(null);
     if (!r.success) {
@@ -138,7 +138,7 @@ export function LogoDrawer({
     if (mode.kind === "NEW_BODY") return;
     setError(null);
     setBusy("removing");
-    const r = await guarded(() => (mode.kind === "ORG" ? removeOrgLogoAction(mode.id) : removeExamLogoOverrideAction(mode.id)));
+    const r = await guarded(() => (mode.kind === "ORG" ? removeOrgLogoAction(mode.id) : mode.kind === "CATEGORY" ? removeCategoryIconAction(mode.id) : removeExamLogoOverrideAction(mode.id)));
     setBusy(null);
     setConfirmRemove(false);
     if (!r.success) {
@@ -150,7 +150,7 @@ export function LogoDrawer({
 
   const shown: ExamLogo | null = prepared ? { src: prepared.previewUrl, alt: altValue || "Logo preview" } : current;
   const bodyForTile = mode.kind === "EXAM" ? mode.bodyName : ownerName || "New body";
-  const title = mode.kind === "NEW_BODY" ? "Add a conducting body" : mode.kind === "EXAM" ? `Exam's own logo: ${mode.name}` : `${mode.name} logo`;
+  const title = mode.kind === "NEW_BODY" ? "Add a conducting body" : mode.kind === "EXAM" ? `Exam's own logo: ${mode.name}` : mode.kind === "CATEGORY" ? `${mode.name} icon` : `${mode.name} logo`;
   const primaryLabel = mode.kind === "NEW_BODY" ? "Add body" : "Save logo";
 
   return (
@@ -158,7 +158,7 @@ export function LogoDrawer({
       open={open}
       onClose={onClose}
       title={title}
-      subtitle={mode.kind === "EXAM" ? "Advanced: this exam shows its own logo instead of its body's." : "Every exam of the body shows this logo, before the exam's name."}
+      subtitle={mode.kind === "EXAM" ? "Advanced: this exam shows its own logo instead of its body's." : mode.kind === "CATEGORY" ? "Replaces the built-in line icon on the home tile and the category page." : "Every exam of the body shows this logo, before the exam's name."}
       footer={
         <>
           {canRemove && current && mode.kind !== "NEW_BODY" && !confirmRemove && (
@@ -197,7 +197,7 @@ export function LogoDrawer({
         {confirmRemove && (
           <div role="alertdialog" aria-labelledby={`${uid}-rm`} className="rounded-card border border-danger-200 bg-danger-50 p-3">
             <p id={`${uid}-rm`} className="text-[13px] font-semibold text-danger-800">
-              {mode.kind === "EXAM" ? "Stop using this exam's own logo? It will show its body's logo again." : "Remove this logo? Its exams will show initials until a new logo is saved."}
+              {mode.kind === "EXAM" ? "Stop using this exam's own logo? It will show its body's logo again." : mode.kind === "CATEGORY" ? "Remove this icon? The category shows its built-in line icon again." : "Remove this logo? Its exams will show initials until a new logo is saved."}
             </p>
             <div className="mt-2 flex gap-2">
               <button type="button" className={studioQuietAction} onClick={remove} disabled={busy === "removing"} data-logo-remove-confirm="">
@@ -258,6 +258,18 @@ export function LogoDrawer({
               Resized to 512 × 512, {formatSize(prepared.bytes)} (original {prepared.sourceWidth} × {prepared.sourceHeight}, {formatSize(prepared.sourceBytes)}).
             </p>
           )}
+          {mode.kind === "CATEGORY" ? (
+            <div className="mt-3 flex flex-wrap items-center gap-4">
+              <div className="flex w-36 flex-col items-center gap-2 rounded-card border border-line px-3 py-4" data-preview-placement="tile">
+                <ExamLogoBadge logo={shown} name={mode.name} size="tile" priority />
+                <span className="text-[15px] font-semibold text-fg">{mode.name}</span>
+              </div>
+              <div className="flex items-center gap-3" data-preview-placement="category-page">
+                <ExamLogoBadge logo={shown} name={mode.name} size="md" priority />
+                <span className="text-[22px] font-bold text-fg">{mode.name} exams</span>
+              </div>
+            </div>
+          ) : (
           <div className="mt-3 flex flex-col gap-3">
             <div className="flex items-center gap-3" data-preview-placement="hub">
               <ExamLogoBadge logo={shown} name={bodyForTile} size="md" priority />
@@ -272,6 +284,7 @@ export function LogoDrawer({
               <span className="text-[13px] font-bold text-fg">{previewExamTitle}</span>
             </div>
           </div>
+          )}
         </section>
 
         <label className="text-[13px] font-semibold text-fg" htmlFor={`${uid}-alt`}>

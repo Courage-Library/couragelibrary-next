@@ -14,29 +14,31 @@ interface Props {
     title: string;
     slug: string;
     orgId: string;
-    category: string;
+    /** HOME-1 (128): the exam category id */
+    categoryId: string;
     description: string;
     officialWebsite?: string;
   };
   orgs: ConductingOrgItem[];
+  categories: { id: string; name: string }[];
   onSave: (data: {
     title: string;
     slug: string;
     orgId: string;
-    category: string;
+    categoryId: string;
     description: string;
   }) => Promise<void>;
   isSaving: boolean;
 }
 
-export function Step1Identity({ initialData, orgs, onSave, isSaving }: Props) {
+export function Step1Identity({ initialData, orgs, categories, onSave, isSaving }: Props) {
   const [title, setTitle] = useState(initialData?.title || "");
   const [slug, setSlug] = useState(initialData?.slug || "");
   const [isSlugCustomized, setIsSlugCustomized] = useState(Boolean(initialData?.slug));
   // EXAM-LOGO-1: only an active body WITH its official logo can conduct an exam (the server enforces the same rule)
   const usable = orgs.filter((o) => o.isActive && o.logoPath);
   const [orgId, setOrgId] = useState(initialData?.orgId || (usable[0]?.id || ""));
-  const [category, setCategory] = useState(initialData?.category || "National Recruitment");
+  const [categoryId, setCategoryId] = useState(initialData?.categoryId && categories.some((c) => c.id === initialData.categoryId) ? initialData.categoryId : "");
   const [description, setDescription] = useState(initialData?.description || "");
   const [error, setError] = useState<string | null>(null);
 
@@ -58,13 +60,17 @@ export function Step1Identity({ initialData, orgs, onSave, isSaving }: Props) {
       setError("Choose the conducting body. A body needs its official logo first (Exams › Conducting bodies).");
       return;
     }
+    if (!categoryId) {
+      setError("Choose the exam category.");
+      return;
+    }
 
     try {
       await onSave({
         title: title.trim(),
         slug: slug.trim(),
         orgId,
-        category: category.trim(),
+        categoryId,
         description: description.trim(),
       });
     } catch (err: any) {
@@ -158,16 +164,24 @@ export function Step1Identity({ initialData, orgs, onSave, isSaving }: Props) {
 
         {/* Category Domain */}
         <div>
-          <label className="block text-xs font-bold text-slate-700 mb-1.5">
-            Recruitment Domain / Category
+          <label htmlFor="exam-category" className="block text-xs font-bold text-slate-700 mb-1.5">
+            Exam category (required)
           </label>
-          <input
-            type="text"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            placeholder="e.g. Banking, SSC, Railways, Defense, State PSC"
+          <select
+            id="exam-category"
+            required
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
             className="w-full px-3.5 py-2.5 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:border-blue-500 transition-colors"
-          />
+          >
+            <option value="">Choose a category…</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-[11px] text-slate-600">The home page lists exams by category. Categories are managed in Exams › Categories.</p>
         </div>
 
         {/* Description */}

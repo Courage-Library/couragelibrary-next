@@ -30,12 +30,15 @@ export const LEARN_MENU: NavItem[] = [
   { href: "/battles", label: "Battles", flag: "BATTLES" },
 ];
 
-/** Signed-out header, in order; "Learn" is a menu (LEARN_MENU) placed after Mock tests. */
+/**
+ * Signed-out header, in order; "Learn" is a menu (LEARN_MENU) placed after Exams.
+ * HOME-1 (owner): Exams · Learn · Practice · Current affairs (Mock tests and Pricing stay in the footer; the exams and
+ * their mocks are reached through the category tiles).
+ */
 export const PUBLIC_NAV: NavItem[] = [
   { href: "/exams", label: "Exams" },
-  { href: "/mock-tests", label: "Mock tests" },
+  { href: "/practice", label: "Practice", flag: "PRACTICE" },
   { href: "/current-affairs", label: "Current affairs" },
-  { href: "/pricing", label: "Pricing" },
 ];
 
 /** Signed-in desktop header, in order; "Learn" is a menu placed after Mistakes. */

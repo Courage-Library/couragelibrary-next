@@ -29,11 +29,12 @@ interface Props {
     title: string;
     slug: string;
     orgId: string;
-    category: string;
+    categoryId: string;
     description: string;
     isActive: boolean;
   } | null;
   orgs: ConductingOrgItem[];
+  categories: { id: string; name: string }[];
   activeCycle?: {
     id: string;
     cycleYear: number;
@@ -53,6 +54,7 @@ interface Props {
 export function ExamOnboardingWizard({
   initialExam,
   orgs,
+  categories,
   activeCycle,
   posts,
   syllabusStatus,
@@ -120,7 +122,7 @@ export function ExamOnboardingWizard({
         formData.append("title", data.title);
         formData.append("slug", data.slug);
         formData.append("orgId", data.orgId);
-        formData.append("category", data.category);
+        formData.append("categoryId", data.categoryId);
         formData.append("description", data.description);
 
         const res = await createExamDraftAction(null, formData);
@@ -134,7 +136,7 @@ export function ExamOnboardingWizard({
         formData.append("title", data.title);
         formData.append("slug", data.slug);
         formData.append("orgId", data.orgId);
-        formData.append("category", data.category);
+        formData.append("categoryId", data.categoryId);
         formData.append("description", data.description);
 
         const res = await updateExamIdentityAction(null, formData);
@@ -287,6 +289,7 @@ export function ExamOnboardingWizard({
           <Step1Identity
             initialData={initialExam || undefined}
             orgs={orgs}
+            categories={categories}
             onSave={handleSaveStep1}
             isSaving={isSaving}
           />

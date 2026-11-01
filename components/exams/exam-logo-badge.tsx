@@ -1,5 +1,5 @@
 import React from "react";
-import { LOGO_DISPLAY_SIZES, logoInitials, type ExamLogo } from "@/lib/logos/exam-logo";
+import { LOGO_DISPLAY_SIZES, logoInitials, logoSrcFor, type ExamLogo } from "@/lib/logos/exam-logo";
 
 /**
  * EXAM-LOGO-1: an exam's (or body's) logo in a FIXED square box — width / height always set, so no layout shift; lazy
@@ -14,7 +14,7 @@ export function ExamLogoBadge({ logo, name, size = "md", priority = false }: { l
     return (
       <span className={box} style={{ width: px, height: px }} data-exam-logo="">
         {/* eslint-disable-next-line @next/next/no-img-element -- pre-optimised 512×512 WebP; no client JS (P-07 budget) */}
-        <img src={logo.src} alt={logo.alt} width={px} height={px} loading={priority ? "eager" : "lazy"} decoding="async" className="h-full w-full object-contain" />
+        <img src={logoSrcFor(logo, px)} alt={logo.alt} width={px} height={px} loading={priority ? "eager" : "lazy"} decoding="async" className="h-full w-full object-contain" />
       </span>
     );
   }

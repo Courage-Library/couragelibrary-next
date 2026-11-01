@@ -226,6 +226,8 @@ async function renderChecks() {
     'next/headers': { cookies: async () => ({ getAll: () => [], get: () => undefined, set: () => undefined }), headers: async () => new Map() },
     '@/lib/supabase/server': { createServerSupabaseClient: async () => ({}) },
     '@/lib/landing/landing-data': { loadLandingData: async () => landingData },
+    // HOME-1: /exams shows the category tiles first; /exams/<slug> checks for a category before an exam
+    '@/lib/exams/category-data': { loadPublicCategories: async () => null, loadPublicCategory: async () => null },
   };
   const origLoad = Module._load;
   Module._load = function (request, parent, isMain) {

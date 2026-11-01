@@ -348,12 +348,23 @@ export class ExamOnboardingService {
     };
   }
 
+  /** HOME-1: a public, active exam category (never the internal one), or an error the forms show as is. */
+  static async resolveCategory(categoryId: string, customSupabase?: any): Promise<{ id: string; name: string }> {
+    const supabase = customSupabase || createAdminServerSupabaseClient();
+    if (!/^[0-9a-f-]{36}$/i.test(categoryId)) throw new ExamLogoRequiredError('Choose the exam category.');
+    const { data } = await supabase.from('exam_categories').select('id, name, is_active, is_internal').eq('id', categoryId).maybeSingle();
+    if (!data || !data.is_active || data.is_internal) throw new ExamLogoRequiredError('Choose an active exam category (Exams › Categories).');
+    return { id: data.id, name: data.name };
+  }
+
   static async createExamDraft(
     params: {
       title: string;
       slug?: string;
       orgId?: string;
       category?: string;
+      /** HOME-1 (128): the exam category; omitted (the importer) → the hidden internal category (DB default) */
+      categoryId?: string;
       description?: string;
       cycleYear?: number;
     },
@@ -393,13 +404,16 @@ export class ExamOnboardingService {
       throw new ExamLogoRequiredError(`"${org.name}" has no logo yet. Upload its official logo in Exams › Conducting bodies, then create the exam.`);
     }
 
+    const category = params.categoryId ? await this.resolveCategory(params.categoryId, supabase) : null;
+
     const { data: newExam, error: insertErr } = await supabase
       .from('exams')
       .insert({
         org_id: orgId,
         title,
         slug,
-        category: params.category?.trim() || 'National Recruitment',
+        ...(category ? { category_id: category.id } : {}),
+        category: category?.name || params.category?.trim() || 'Internal',
         description: params.description?.trim() || null,
         is_active: false,
       })
@@ -444,6 +458,7 @@ export class ExamOnboardingService {
       slug?: string;
       orgId?: string;
       category?: string;
+      categoryId?: string;
       description?: string;
     },
     customSupabase?: any
@@ -457,7 +472,11 @@ export class ExamOnboardingService {
     if (params.title) updatePayload.title = params.title.trim();
     if (params.slug) updatePayload.slug = params.slug.trim().toLowerCase();
     if (params.orgId) updatePayload.org_id = params.orgId;
-    if (params.category) updatePayload.category = params.category.trim();
+    if (params.categoryId) {
+      const category = await this.resolveCategory(params.categoryId, supabase);
+      updatePayload.category_id = category.id;
+      updatePayload.category = category.name;
+    } else if (params.category) updatePayload.category = params.category.trim();
     if (params.description !== undefined) updatePayload.description = params.description?.trim() || null;
 
     const { error } = await supabase.from('exams').update(updatePayload).eq('id', examId);

@@ -8,6 +8,8 @@ import { PublicPageHeader, PublicSection } from "@/components/public/public-page
 import { LANDING_EXAMS } from "@/content/landing";
 import { COMING_SOON_EXAMS, EXAMS_PAGE } from "@/content/public-pages";
 import { loadLandingData } from "@/lib/landing/landing-data";
+import { loadPublicCategories } from "@/lib/exams/category-data";
+import { LandingCategories } from "@/components/landing/landing-sections";
 import { constructMetadata } from "@/lib/seo/metadata";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -22,13 +24,15 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = constructMetadata({ title: EXAMS_PAGE.meta.title, description: EXAMS_PAGE.meta.description, canonicalUrl: "/exams" });
 
 export default async function ExamsDirectoryPage() {
-  const data = await loadLandingData(await createServerSupabaseClient());
+  const [data, categories] = await Promise.all([loadLandingData(await createServerSupabaseClient()), loadPublicCategories()]);
   const activeSlugs = new Set(data.ok ? data.exams.map((e) => e.slug) : []);
   const comingSoon = COMING_SOON_EXAMS.filter((c) => !activeSlugs.has(c.slug));
 
   return (
     <>
       <PublicPageHeader title={EXAMS_PAGE.title} lead={EXAMS_PAGE.lead} crumbs={[{ label: "Exams" }]} />
+      {/* HOME-1: browse by category first (the same tiles as the home page) */}
+      <LandingCategories categories={categories} />
       <PublicSection id="available" title={EXAMS_PAGE.availableHeading}>
         {!data.ok ? (
           <div className="flex flex-col items-start gap-3 rounded-card border border-line bg-surface p-6" data-exams-fallback="">

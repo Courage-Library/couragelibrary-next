@@ -2127,6 +2127,57 @@ export type Database = {
           },
         ]
       }
+      exam_categories: {
+        Row: {
+          created_at: string
+          display_order: number
+          icon_alt: string | null
+          icon_key: string
+          icon_path: string | null
+          icon_sha256: string | null
+          icon_updated_at: string | null
+          id: string
+          is_active: boolean
+          is_internal: boolean
+          name: string
+          short_desc: string | null
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          icon_alt?: string | null
+          icon_key?: string
+          icon_path?: string | null
+          icon_sha256?: string | null
+          icon_updated_at?: string | null
+          id?: string
+          is_active?: boolean
+          is_internal?: boolean
+          name: string
+          short_desc?: string | null
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          icon_alt?: string | null
+          icon_key?: string
+          icon_path?: string | null
+          icon_sha256?: string | null
+          icon_updated_at?: string | null
+          id?: string
+          is_active?: boolean
+          is_internal?: boolean
+          name?: string
+          short_desc?: string | null
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       exam_claim_sources: {
         Row: {
           claim_id: string
@@ -3078,6 +3129,7 @@ export type Database = {
       exams: {
         Row: {
           category: string
+          category_id: string
           created_at: string
           description: string | null
           id: string
@@ -3092,6 +3144,7 @@ export type Database = {
         }
         Insert: {
           category: string
+          category_id?: string
           created_at?: string
           description?: string | null
           id?: string
@@ -3106,6 +3159,7 @@ export type Database = {
         }
         Update: {
           category?: string
+          category_id?: string
           created_at?: string
           description?: string | null
           id?: string
@@ -3119,6 +3173,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "exams_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "exam_categories"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "exams_org_id_fkey"
             columns: ["org_id"]
@@ -8598,6 +8659,33 @@ export type Database = {
         Args: { p_submission_id: string; p_user_id: string }
         Returns: boolean
       }
+      fn_category_icon_remove: {
+        Args: { p_actor_email: string; p_actor_id: string; p_id: string }
+        Returns: Json
+      }
+      fn_category_icon_set: {
+        Args: {
+          p_actor_email: string
+          p_actor_id: string
+          p_alt: string
+          p_id: string
+          p_sha256: string
+        }
+        Returns: Json
+      }
+      fn_category_save: {
+        Args: {
+          p_actor_email: string
+          p_actor_id: string
+          p_display_order: number
+          p_id: string
+          p_is_active: boolean
+          p_name: string
+          p_short_desc: string
+          p_slug: string
+        }
+        Returns: Json
+      }
       fn_check_practice_answer: {
         Args: {
           p_mode: string
@@ -8882,6 +8970,7 @@ export type Database = {
         Args: { p_actor: string; p_batch: Json }
         Returns: Json
       }
+      fn_internal_category_id: { Args: never; Returns: string }
       fn_is_batch_member: {
         Args: { p_batch_id: string; p_roles?: string[]; p_user_id: string }
         Returns: boolean

@@ -54,12 +54,13 @@ test('X-01 sign-up closed → no /auth/signup start action, primary "Explore SSC
   assert(/signup=\{account === null \? signupOpen\(\) : undefined\}/.test(shell) && /getSignupAvailability\(\)\.then\(\(a\) => a !== "closed", \(\) => false\)/.test(shell), 'AppShell must stream the sign-up state');
   assert(!/await getSignupAvailability/.test(shell), 'AppShell awaits the sign-up setting (blocks every page during an outage)');
   const cta = code(read('components/landing/landing-cta.tsx'));
-  assert(/if \(mode === "signup-closed"\) \{[\s\S]*?<PillLink href=\{explore\.href\} variant="on-dark"/.test(cta), 'closed: ONE primary "Explore SSC CGL"');
+  assert(/if \(mode === "signup-closed"\) \{[\s\S]*?<PillLink href=\{explore\.href\} variant="on-dark"/.test(cta), 'closed: ONE primary "Explore exams"');
   assert(/<Suspense fallback=\{<Cta spot=\{spot\} mode="signup-closed" \/>\}>/.test(cta), 'fallback must be the closed view');
   assert(/const start = spot === "hero" \? LANDING_HERO\.primaryCta : LANDING_FINAL_CTA\.cta;\s+return \(\s+<>\s+<PillLink href=\{start\.href\} variant="on-dark"/.test(cta), 'open: ONE primary Start free');
   const L = read('content/landing.ts');
   assert(/primaryCta: \{ label: "Start free"/.test(L) && /cta: \{ label: "Start free"/.test(L) && /startFree: "Start free"/.test(L) && !/Get started/.test(L), 'one label "Start free"');
-  assert(/secondaryCta: \{ label: "Explore SSC CGL", href: "\/exams\/ssc-cgl" \}/.test(L), 'explore target');
+  // HOME-1: no exam-specific action on home — the closed-sign-up primary goes to the category tiles
+  assert(/secondaryCta: \{ label: "Explore exams", href: "\/#categories" \}/.test(L) && !/Explore SSC/.test(L), 'explore target');
   return 'closed-safe header, menu, hero, final band';
 });
 
@@ -94,32 +95,34 @@ test('X-05 "Sign in" is always visible in the bar (phones too), 48 px', () => {
   return 'visible at every width';
 });
 
-test('X-06 hero: loop steps 1–3 + "See all N steps" (≥ 48 px), no steps 4–6', () => {
+test('X-06 (HOME-1) hero: no step card (the loop is ONE section right below, 5 steps), one action', () => {
   const s = read('components/landing/landing-sections.tsx');
-  assert(/const HERO_STEPS = \[0, 1, 2\]\.map/.test(s), 'hero steps are not 1–3');
-  assert(/<a href="#loop-title" className="focus-ring-on-dark inline-flex min-h-12/.test(s) && /LANDING_LOOP\.seeAll\(LANDING_LOOP\.steps\.length\)/.test(s), 'See all link');
-  assert(/id="loop-title"/.test(s) || /SectionHeading id="loop-title"/.test(s), 'link target missing');
-  return 'steps 1–3 + link';
+  const hero = s.slice(s.indexOf('export function LandingHero'), s.indexOf('export function LandingCategories'));
+  assert(!/HERO_STEPS|GlassCard|LANDING_LOOP/.test(hero), 'the hero repeats the steps');
+  assert((hero.match(/<LandingCta /g) || []).length === 1, 'the hero must have exactly one action spot');
+  assert(/SectionHeading id="loop-title"/.test(s) && read('content/landing.ts').match(/\{ title: "(Learn|Practice|Mock|Analyze|Revise)"/g).length === 5, '5 loop steps');
+  return 'no repeat; 5 steps';
 });
 
-test('X-07 hero feature list is plain text + icon (no pill, no glass chip)', () => {
+test('X-07 (HOME-1) hero: low text — no feature list, no pills / glass chips', () => {
   const s = read('components/landing/landing-sections.tsx');
-  const hero = s.slice(s.indexOf('export function LandingHero'), s.indexOf('export function LandingLoop'));
-  assert(!/GlassChip|rounded-full px-|glass-dark[^"]*rounded-full/.test(hero.replace(/size-2 rounded-full/g, '')), 'pill styling in the hero list');
-  assert(/<li key=\{chip\} className="inline-flex items-center gap-2 text-body-sm font-medium text-hero-fg">/.test(hero), 'plain list item');
+  const hero = s.slice(s.indexOf('export function LandingHero'), s.indexOf('export function LandingCategories'));
+  assert(!/GlassChip|rounded-full px-|glass-dark[^"]*rounded-full/.test(hero.replace(/size-2 rounded-full/g, '')), 'pill styling in the hero');
+  assert(!/<ul\b|HERO_CHIPS/.test(hero), 'a feature list in the hero');
   return 'plain';
 });
 
 test('X-08 exam cards: one stretched link per card, the cue is decorative', () => {
   const card = read('components/ui/card.tsx');
   assert(/after:absolute after:inset-0/.test(card) && /"relative flex flex-col/.test(card), 'CardLink must stretch over a relative card');
-  for (const f of ['components/landing/landing-sections.tsx', 'app/exams/page.tsx']) {
+  for (const f of ['components/exams/category-page.tsx', 'app/exams/page.tsx']) { // HOME-1: home has no exam cards
     const s = read(f);
     const cards = s.split('<Card variant="interactive"').slice(1).map((c) => c.slice(0, c.indexOf('</Card>')));
     assert(cards.length >= 1, `${f}: no interactive card`);
     for (const c of cards) assert((c.match(/<CardLink\b/g) || []).length === 1 && !/<Link\b|<a\b|ButtonLink/.test(c), `${f}: a card has more than one link`);
   }
-  assert(/text-primary-700" aria-hidden="true">\s*\{LANDING_EXAMS\.cardCta\}/.test(read('components/landing/landing-sections.tsx')), '"Open exam" cue must be decorative');
+  assert(/text-link" aria-hidden="true">\s*Open exam/.test(read('components/exams/category-page.tsx')), '"Open exam" cue must be decorative');
+  assert(!/<Card variant="interactive"|LANDING_EXAMS/.test(read('components/landing/landing-sections.tsx')), 'exam cards are back on home');
   return 'single link';
 });
 

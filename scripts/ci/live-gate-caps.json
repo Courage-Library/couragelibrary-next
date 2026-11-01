@@ -162,6 +162,10 @@
       "measured": 26,
       "cap": 120
     },
+    "EXAM-CATEGORIES-LIVE": {
+      "measured": 30,
+      "cap": 240
+    },
     "EXAM-NOTE-PROMPT-1-LIVE": {
       "measured": 20,
       "cap": 180

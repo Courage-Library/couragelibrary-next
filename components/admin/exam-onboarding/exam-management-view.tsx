@@ -39,6 +39,8 @@ interface Props {
   conductingOrgs?: ConductingOrgItem[];
   /** EXAM-LOGO-1: admins manage logos; staff see them read-only */
   canEditLogos?: boolean;
+  /** HOME-1 (128): the categories a new exam may be put in */
+  categoryOptions?: { id: string; name: string }[];
 }
 
 export function ExamManagementView({
@@ -48,6 +50,7 @@ export function ExamManagementView({
   draftExams,
   conductingOrgs = [],
   canEditLogos = false,
+  categoryOptions = [],
 }: Props) {
   const router = useRouter();
   const [exams, setExams] = useState<AdminExamListItem[]>(initialExams);
@@ -64,7 +67,7 @@ export function ExamManagementView({
   // EXAM-LOGO-1: only an active body WITH its logo can conduct a new exam (the server enforces the same rule)
   const usableOrgs = conductingOrgs.filter((o) => o.isActive && o.logoPath);
   const [orgId, setOrgId] = useState(usableOrgs[0]?.id || "");
-  const [category, setCategory] = useState("National Recruitment");
+  const [categoryId, setCategoryId] = useState("");
   const [description, setDescription] = useState("");
   const [cycleYear, setCycleYear] = useState<number>(new Date().getFullYear());
 
@@ -95,7 +98,7 @@ export function ExamManagementView({
     setSlug("");
     setIsSlugCustomized(false);
     setOrgId(usableOrgs[0]?.id || "");
-    setCategory("National Recruitment");
+    setCategoryId("");
     setDescription("");
     setCycleYear(new Date().getFullYear());
     setFormError(null);
@@ -132,7 +135,7 @@ export function ExamManagementView({
       formData.append("title", title.trim());
       formData.append("slug", slug.trim());
       formData.append("orgId", orgId);
-      formData.append("category", category.trim());
+      formData.append("categoryId", categoryId);
       formData.append("description", description.trim());
       if (cycleYear) {
         formData.append("cycleYear", cycleYear.toString());
@@ -469,19 +472,20 @@ export function ExamManagementView({
                 {/* Domain Category & Initial Cycle */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-700 block">Recruitment Category</label>
+                    <label htmlFor="quick-exam-category" className="text-xs font-semibold text-slate-700 block">Exam category (required)</label>
                     <select
-                      value={category}
-                      onChange={(e) => setCategory(e.target.value)}
+                      id="quick-exam-category"
+                      required
+                      value={categoryId}
+                      onChange={(e) => setCategoryId(e.target.value)}
                       className="w-full px-3 py-2 text-xs font-medium rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:border-blue-500"
                     >
-                      <option value="National Recruitment">National Recruitment</option>
-                      <option value="Banking & Financial">Banking & Financial</option>
-                      <option value="Staff Selection">Staff Selection</option>
-                      <option value="Railways Recruitment">Railways Recruitment</option>
-                      <option value="Defence & Police">Defence & Police</option>
-                      <option value="Civil Services & State PSC">Civil Services & State PSC</option>
-                      <option value="Teaching & Education">Teaching & Education</option>
+                      <option value="">Choose a category…</option>
+                      {categoryOptions.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
 

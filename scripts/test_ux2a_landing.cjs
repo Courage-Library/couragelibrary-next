@@ -161,7 +161,8 @@ const UX2B_ROUTES = ['/legal'];
     const C = loadTs(CONTENT, STUBS);
     assert(C.LANDING_HERO.primaryCta.href === '/auth/signup' && C.LANDING_HERO.primaryCta.label === 'Start free', 'Start free');
     assert(C.LANDING_HERO.signedInCta.href === '/dashboard' && C.LANDING_FINAL_CTA.signedInCta.href === '/dashboard', 'Go to dashboard');
-    assert(C.LANDING_HERO.secondaryCta.href === '/exams/ssc-cgl' && C.LANDING_HERO.secondaryCta.label === 'Explore SSC CGL', 'Explore SSC CGL');
+    // HOME-1 (ruling Q2): the closed-sign-up primary is "Explore exams" → the category tiles; never an exam-specific action
+    assert(C.LANDING_HERO.secondaryCta.href === '/#categories' && C.LANDING_HERO.secondaryCta.label === 'Explore exams', 'Explore exams');
     assert(C.LANDING_HERO.title === 'Learn Smarter. Prepare Independently.' && C.LANDING_BRAND_LINE === C.LANDING_HERO.title, 'brand line');
     const header = read(HEADER);
     assert(/href="\/auth\/login"[^>]*>\s*\{SHELL_COPY\.signIn\}/.test(header) && /href="\/auth\/signup"[^>]*>\s*\{SHELL_COPY\.startFree\}/.test(header), 'Sign in / Start free'); // UX-FIX-1: one label "Start free" (only while sign-up is open)
@@ -207,14 +208,18 @@ const UX2B_ROUTES = ['/legal'];
     // render the data sections with the failed read: no digits anywhere, fallback text + browse link present
     const { renderToStaticMarkup } = require('react-dom/server');
     const S = loadTs(SECTIONS, STUBS);
-    const html = renderToStaticMarkup(React.createElement(React.Fragment, null, React.createElement(S.LandingExams, { data: { ok: false } }), React.createElement(S.LandingFeatures, { data: { ok: false } })));
+    // HOME-1: the category tiles (a failed read = null) + "What you get" (ONLY live features; nothing "coming soon")
+    const html = renderToStaticMarkup(React.createElement(React.Fragment, null, React.createElement(S.LandingCategories, { categories: null }), React.createElement(S.LandingFeatures, { data: { ok: false } })));
     const text = html.replace(/<[^>]+>/g, ' ');
     assert(!/\d/.test(text), `digits in the fallback: ${text.match(/.{0,30}\d.{0,30}/)}`);
     assert(/could not be loaded right now/.test(text) && /href="\/exams"/.test(html), 'fallback text / browse link');
-    assert(/Syllabus tracker[\s\S]*?Coming soon/.test(text) && /Daily current affairs[\s\S]*?Coming soon/.test(text), 'content features must be coming soon when unknown');
-    // with live data the numbers come only from the data
-    const live = renderToStaticMarkup(React.createElement(S.LandingExams, { data: ok })).replace(/<[^>]+>/g, ' ');
-    assert(/2 free mock tests/.test(live) && /1 exam guide/.test(live) && /Syllabus coming soon/.test(live), live.slice(0, 300));
+    assert(!/Coming soon/.test(text) && !/Syllabus tracker|Daily current affairs/.test(text), 'unknown content features must be left out (not listed as coming soon) on home');
+    // with live data the numbers come only from the data; a category without exams is an honest, non-link "Coming soon"
+    const live = renderToStaticMarkup(React.createElement(React.Fragment, null, React.createElement(S.LandingFeatures, { data: ok }),
+      React.createElement(S.LandingCategories, { categories: [{ id: 'c1', slug: 'ssc', name: 'SSC', shortDesc: null, iconKey: 'ssc', icon: null, activeExams: 1 }, { id: 'c2', slug: 'police', name: 'Police', shortDesc: null, iconKey: 'police', icon: null, activeExams: 0 }] })));
+    const liveText = live.replace(/<[^>]+>/g, ' ');
+    assert(/2 free mock tests/.test(liveText) && /1 guide published/.test(liveText) && /1 exam/.test(liveText) && /Police[\s\S]*?Coming soon/.test(liveText), liveText.slice(0, 300));
+    assert(/href="\/exams\/ssc"/.test(live) && !/href="\/exams\/police"/.test(live), 'only a category with exams is a link');
     return 'error / throw / hang → fallback; 0 digits rendered';
   });
 

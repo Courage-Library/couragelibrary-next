@@ -100,8 +100,8 @@ export function HeaderBar({ account, flags, signup }: { account: ShellAccount | 
   const learn = visibleItems(LEARN_MENU, flags);
   const onLanding = pathname === "/";
   const student = account !== null && !onLanding;
-  const primary = student ? STUDENT_NAV : PUBLIC_NAV;
-  const [before, after] = student ? [primary.slice(0, 3), primary.slice(3)] : [primary.slice(0, 2), primary.slice(2)];
+  const primary = visibleItems(student ? STUDENT_NAV : PUBLIC_NAV, flags);
+  const [before, after] = student ? [primary.slice(0, 3), primary.slice(3)] : [primary.slice(0, 1), primary.slice(1)];
 
   const inner = (
     <>
@@ -190,19 +190,19 @@ export function HeaderBar({ account, flags, signup }: { account: ShellAccount | 
                   </PillLink>
                 }
                 closed={
-                  <ButtonLink href={LANDING_HERO.secondaryCta.href} fullWidth onClick={() => setMenuOpen(false)}>
+                  <ButtonLink href={LANDING_HERO.secondaryCta.href} size="lg" fullWidth onClick={() => setMenuOpen(false)}>
                     {LANDING_HERO.secondaryCta.label}
                   </ButtonLink>
                 }
               />
-              <ButtonLink href="/auth/login" variant="secondary" fullWidth onClick={() => setMenuOpen(false)}>
+              <ButtonLink href="/auth/login" variant="secondary" size="lg" fullWidth onClick={() => setMenuOpen(false)}>
                 {SHELL_COPY.signIn}
               </ButtonLink>
             </div>
           )}
           {account && !student && (
             <div className="flex flex-col gap-2 border-t border-line pt-4">
-              <ButtonLink href="/dashboard" fullWidth onClick={() => setMenuOpen(false)}>
+              <ButtonLink href="/dashboard" size="lg" fullWidth onClick={() => setMenuOpen(false)}>
                 {SHELL_COPY.goToDashboard}
               </ButtonLink>
             </div>

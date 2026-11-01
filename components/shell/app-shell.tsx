@@ -8,6 +8,7 @@ import { HeaderBar } from "./header-bar";
 import type { ShellFlags } from "./nav-config";
 import type { ShellAccount } from "./shell-types";
 import { SiteFooter } from "./site-footer";
+import { loadPublicCategories } from "@/lib/exams/category-data";
 import { isOnboardingEnabled } from "@/lib/onboarding/flag";
 import { isProfilesEnabled } from "@/lib/profile/flag";
 import { getSignupAvailability } from "@/lib/auth/signup-availability";
@@ -61,7 +62,8 @@ export async function AppShell({ children }: { children: ReactNode }) {
       <main id="main-content" tabIndex={-1} className="min-h-dvh flex-1 outline-none">
         <CoinsFlagProvider enabled={isCoinsEnabled()}>{children}</CoinsFlagProvider>
       </main>
-      <SiteFooter flags={flags} />
+      {/* HOME-1: the footer's category links stream in (never awaited here: the shell never waits for them) */}
+      <SiteFooter flags={flags} categories={loadPublicCategories()} />
       {account && <BottomNav account={account} />}
     </>
   );

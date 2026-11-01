@@ -5,6 +5,7 @@ import { ExamOnboardingService } from "@/services/exam-onboarding/exam-onboardin
 import { ExamReadinessService, ExamReadinessReport } from "@/services/exam-onboarding/exam-readiness.service";
 import { ExamOnboardingWizard } from "@/components/admin/exam-onboarding/exam-onboarding-wizard";
 import { requireAdminPage } from "@/lib/auth/require-admin";
+import { listCategoryOptions } from "@/lib/exams/category-admin";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,7 @@ export default async function AdminExamOnboardingPage({ searchParams }: PageProp
 
   const supabase = createAdminServerSupabaseClient();
   const orgs = await ExamOnboardingService.getConductingOrgs(supabase).catch(() => []);
+  const categoryOptions = await listCategoryOptions().catch(() => []); // HOME-1: the exam category select
 
   if (!examId) {
     const emptyReport: ExamReadinessReport = {
@@ -46,6 +48,7 @@ export default async function AdminExamOnboardingPage({ searchParams }: PageProp
       <ExamOnboardingWizard
         initialExam={null}
         orgs={orgs}
+        categories={categoryOptions}
         activeCycle={null}
         posts={[]}
         syllabusStatus={null}
@@ -59,7 +62,7 @@ export default async function AdminExamOnboardingPage({ searchParams }: PageProp
   // Fetch Exam record
   const { data: exam, error: examErr } = await supabase
     .from("exams")
-    .select("id, org_id, title, slug, category, description, is_active")
+    .select("id, org_id, title, slug, category, category_id, description, is_active")
     .eq("id", examId)
     .maybeSingle();
 
@@ -125,11 +128,12 @@ export default async function AdminExamOnboardingPage({ searchParams }: PageProp
         title: exam.title,
         slug: exam.slug,
         orgId: exam.org_id,
-        category: exam.category || "General",
+        categoryId: exam.category_id,
         description: exam.description || "",
         isActive: Boolean(exam.is_active),
       }}
       orgs={orgs}
+      categories={categoryOptions}
       activeCycle={activeCycle ? {
         id: activeCycle.id,
         cycleYear: activeCycle.cycle_year,
