@@ -112,8 +112,8 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
     assert(/const live = landingFeatures\(data\)\.filter\(\(r\) => r\.live\);/.test(s) && !/comingSoonLabel/.test(code(s.slice(s.indexOf('export function LandingFeatures(')))), 'what you get: live only');
     const S = require(path.join(ROOT, SECTIONS));
     const ld = S.faqJsonLd();
-    assert(ld['@type'] === 'FAQPage' && ld.mainEntity.length === C.LANDING_FAQ.items.length && ld.mainEntity.every((q, i) => q.name === C.LANDING_FAQ.items[i].q && q.acceptedAnswer.text === C.LANDING_FAQ.items[i].a), 'FAQ JSON-LD');
-    return `${C.LANDING_FAQ.items.length} FAQ items`;
+    assert(ld['@type'] === 'FAQPage' && ld.mainEntity.length === C.faqItems(null).length && ld.mainEntity.every((q, i) => q.name === C.faqItems(null)[i].q && q.acceptedAnswer.text === C.faqItems(null)[i].a), 'FAQ JSON-LD');
+    return `${C.faqItems(null).length} FAQ items`;
   });
 
   await test('H-4 category tiles: link only with exams; honest "Coming soon" otherwise; counts from data only', () => {
@@ -402,8 +402,8 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
     const h1 = (names) => (renderToStaticMarkup(React.createElement(S.LandingHero, { liveCategories: names })).match(/<h1[^>]*>([\s\S]*?)<\/h1>/) || [])[1];
     assert(h1(['SSC']) === 'Free preparation for SSC exams' && h1([]) === 'Free preparation for government exams' && h1(['SSC', 'Railway']) === 'Free preparation for SSC &amp; Railway exams', `H1 ${h1(['SSC'])}`);
     const hero = renderToStaticMarkup(React.createElement(S.LandingHero, { liveCategories: ['SSC'] }));
-    assert(/data-brand-line=""[\s\S]*?Learn Smarter\. Prepare Independently\./.test(hero) && /data-hero-chip=""[\s\S]*?Content in Hindi &amp; English/.test(hero), 'eyebrow + chip');
-    assert(/const liveCategories = await loadLiveCategoryNames\(\);/.test(read('app/page.tsx')) && /<LandingHero liveCategories=\{liveCategories\} \/>/.test(read('app/page.tsx')), 'page passes live names');
+    assert(/data-brand-line=""[\s\S]*?Learn Smarter\. Prepare Independently\./.test(hero) && !/data-hero-chip/.test(hero), 'eyebrow; no Hindi chip without published Hindi content (H-20)');
+    assert(/const \{ liveCategories, hindi \} = await loadHomeFacts\(\);/.test(read('app/page.tsx')) && /<LandingHero liveCategories=\{liveCategories\} hindi=\{hindi\} \/>/.test(read('app/page.tsx')), 'page passes live names + Hindi facts');
     const cd = read('lib/exams/category-data.ts');
     assert(/live\.has\(c\.id\)/.test(cd) && /c\.is_active && !c\.is_internal/.test(cd) && /readLiveCategoryNames\(\)\.catch\(\(\) => null\)/.test(cd) && /setTimeout\(\(\) => ok\(null\), 800\)/.test(cd), 'names: live + public only; bounded');
     // tiles: every category is a tile with its icon; the live one is a link with its exact count; the others carry the
@@ -459,6 +459,42 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
     // negative control: a size-3.5 icon is caught
     assert(/size-(?!4\b|5\b|6\b)[\d.]+/.test('className="size-3.5"'), 'negative control');
     return `${icons.length} icons on the 16 / 20 / 24 scale`;
+  });
+
+  await test('H-20 Hindi claims are true (owner, pre-release): chip + FAQ answer follow the PUBLISHED content with a Hindi version; hidden / no claim otherwise', () => {
+    const { renderToStaticMarkup } = require('react-dom/server');
+    const S = require(path.join(ROOT, SECTIONS));
+    const C = require(path.join(ROOT, CONTENT));
+    const H = (questions, currentAffairs, lessons) => ({ questions, currentAffairs, lessons });
+    const chip = (h) => (renderToStaticMarkup(React.createElement(S.LandingHero, { liveCategories: ['SSC'], hindi: h })).match(/data-hero-chip=""[^>]*>[\s\S]*?<\/svg>([^<]*)</) || [])[1] || null;
+    // the wording matrix: exactly what exists
+    const M = [
+      [null, null], [H(0, 0, 0), null],
+      [H(3, 0, 0), 'Questions in Hindi &amp; English'],
+      [H(3, 2, 0), 'Questions and current affairs in Hindi &amp; English'],
+      [H(0, 2, 0), 'Current affairs in Hindi &amp; English'],
+      [H(3, 0, 4), 'Content in Hindi &amp; English'],
+      [H(0, 0, 4), 'Lessons in Hindi &amp; English'],
+    ];
+    for (const [h, want] of M) assert(chip(h) === want, `chip for ${JSON.stringify(h)}: ${chip(h)} ≠ ${want}`);
+    const a = C.LANDING_HINDI.answer;
+    assert(/^Not yet\./.test(a(H(0, 0, 0))) && !/available in Hindi/.test(a(H(0, 0, 0))) && /^Yes: questions are available in Hindi and English\./.test(a(H(3, 0, 0))) && /^Yes: questions and lessons are available/.test(a(H(3, 0, 4))) && !/^(Yes|Not yet)/.test(a(null)), 'FAQ answer matches the chip');
+    // the FAQ shows the same answer (visible + JSON-LD) at the same place
+    const faq = renderToStaticMarkup(React.createElement(S.LandingFaq, { hindi: H(0, 0, 0) }));
+    assert(/Can I study in Hindi\?[\s\S]*?Not yet\./.test(faq) && S.faqJsonLd(H(3, 0, 0)).mainEntity.find((q) => q.name === 'Can I study in Hindi?').acceptedAnswer.text === a(H(3, 0, 0)), 'FAQ + JSON-LD use the same data');
+    assert(C.faqItems(null).map((f) => f.q).join('|').includes('Which exams do you cover?|Can I study in Hindi?|Do you promise selection?'), 'position kept');
+    // the read: only what any visitor can read, published + current Hindi versions of published (non-test) items
+    const r = read('lib/landing/hindi-content.ts');
+    assert(/createPublicServerSupabaseClient\(\)/.test(r) && !/createAdminServerSupabaseClient|SERVICE_ROLE/.test(r), 'public client only');
+    assert(/\.from\("question_versions"\)[\s\S]*?\.eq\("language", "hi"\)[\s\S]*?\.eq\("lifecycle_status", "PUBLISHED"\)[\s\S]*?\.eq\("is_current", true\)[\s\S]*?\.eq\("questions\.status", "published"\)/.test(r), 'questions query');
+    assert(/\.from\("document_versions"\)[\s\S]*?\.eq\("language", "hi"\)[\s\S]*?\.eq\("is_published", true\)[\s\S]*?\.eq\("is_current", true\)[\s\S]*?\.eq\("learning_documents\.status", "PUBLISHED"\)[\s\S]*?\.eq\("learning_documents\.is_test_content", false\)/.test(r), 'lessons query');
+    assert(/currentAffairs: 0 \}/.test(r) && /an article has no language/.test(r), 'current affairs: no Hindi version exists in the schema (always 0)');
+    assert(/learning_documents!document_versions_document_id_fkey!inner\(/.test(r), 'the lessons embed names its FK (two FKs link the tables: an ambiguous embed fails with PGRST201 and would hide the chip forever)');
+    assert(/if \(q\.error \|\| l\.error \|\| q\.count === null \|\| l\.count === null\) throw/.test(r), 'a failed read is not cached and makes no claim');
+    // negative controls: the old static chip text and the old FAQ wording are gone
+    const C2 = read(CONTENT);
+    assert(!/chip: "Content in Hindi & English"/.test(C2) && !/Lessons are being written in English and Hindi/.test(C2), 'no static Hindi claim left');
+    return `${M.length} chip cases`;
   });
 
   console.log(`\nHOME-1 offline: ${passed}/${passed + failed} passed`);

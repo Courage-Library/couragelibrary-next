@@ -8,7 +8,7 @@
  * Plain English, no internal / technical words (UX-1b U-1).
  */
 
-import { andList } from "@/lib/text/and-list";
+import { andList, sentenceCase } from "@/lib/text/and-list";
 
 export const LANDING_BRAND_LINE = "Learn Smarter. Prepare Independently.";
 
@@ -23,8 +23,6 @@ export const LANDING_HERO = {
   eyebrow: LANDING_BRAND_LINE,
   /** honest: only categories that have live exams are named; none (or the read failed) → "government exams" */
   title: (liveCategories: readonly string[]) => `Free preparation for ${liveCategories.length ? andList(liveCategories) : "government"} exams`,
-  /** content languages (the website UI stays English, #82) */
-  chip: "Content in Hindi & English",
   // HOME-1: short (the hero line is the LCP element on slow phones); no exam-specific action anywhere on home
   lead: "Mock tests, practice and revision for government exams. See where you lost marks and fix it.",
   primaryCta: { label: "Start free", href: "/auth/signup" },
@@ -161,18 +159,50 @@ export const LANDING_CATEGORIES = {
   fallback: "The categories could not be loaded right now. You can still browse all exams.",
 } as const;
 
+/**
+ * HOME-1 pre-release (owner): Hindi claims follow the PUBLISHED content that has a Hindi version
+ * (lib/landing/hindi-content.ts; null = the read failed → no claim). The website UI stays English (#82).
+ */
+type HindiCounts = { questions: number; lessons: number; currentAffairs: number } | null;
+const hindiKinds = (h: HindiCounts) =>
+  h ? [h.questions ? "questions" : null, h.currentAffairs ? "current affairs" : null, h.lessons ? "lessons" : null].filter((k): k is string => k !== null) : [];
+
+export const LANDING_HINDI = {
+  /** the hero chip, worded for exactly what exists; null = hidden ("Content…" only when lessons have Hindi too) */
+  chip: (h: HindiCounts): string | null => {
+    if (!h) return null;
+    if (h.lessons && (h.questions || h.currentAffairs)) return "Content in Hindi & English";
+    const kinds = hindiKinds(h);
+    return kinds.length ? `${sentenceCase(andList(kinds).replace(" & ", " and "))} in Hindi & English` : null;
+  },
+  question: "Can I study in Hindi?",
+  answer: (h: HindiCounts): string => {
+    if (!h) return "Hindi versions are being added step by step. The website itself is in English for now.";
+    const kinds = hindiKinds(h);
+    if (!kinds.length) return "Not yet. Hindi versions of questions and lessons are being prepared, and they will appear here as soon as they are published. The website itself is in English for now.";
+    return `Yes: ${andList(kinds).replace(" & ", " and ")} are available in Hindi and English. The website itself is in English for now.`;
+  },
+} as const;
+
 /** HOME-1: plain answers; no promises of selection, no numbers we cannot show (CCPA coaching-ad guidelines; UX research phase 1) */
 export const LANDING_FAQ = {
   heading: "Questions",
+  /** the data-driven Hindi question (faqItems) goes right before this one */
+  hindiBefore: "Do you promise selection?",
   items: [
     { q: "Is it really free?", a: "Yes. Everything you can use today is free during early access, and no card is needed. Pro will be announced here first, before anything costs money." },
     { q: "Which exams do you cover?", a: "We start with SSC exams and add more categories (Police, Defence, Railway, Banking) one by one. A category shows Coming soon until its first exam is ready." },
-    { q: "Can I study in Hindi?", a: "Lessons are being written in English and Hindi. The website itself is in English for now." },
     { q: "Do you promise selection?", a: "No. Nobody can honestly promise selection. We help you practice, find your weak areas and fix them." },
     { q: "Who runs Courage Library?", a: "The team behind a physical study library in Kanpur, Uttar Pradesh, open since August 2024." },
     { q: "Are you connected to SSC or any exam body?", a: "No. Courage Library is an independent platform and is not affiliated with any exam conducting body." },
   ],
 } as const;
+
+/** the FAQ as shown (and as FAQPage JSON-LD): the Hindi answer follows the published Hindi content */
+export function faqItems(h: HindiCounts): ReadonlyArray<{ q: string; a: string }> {
+  const hindi = { q: LANDING_HINDI.question, a: LANDING_HINDI.answer(h) };
+  return LANDING_FAQ.items.flatMap((f): Array<{ q: string; a: string }> => (f.q === LANDING_FAQ.hindiBefore ? [hindi, f] : [f]));
+}
 
 export const LANDING_TRUST = {
   galleryLabel: "Photos of the library",

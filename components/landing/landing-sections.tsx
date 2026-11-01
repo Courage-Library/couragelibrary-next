@@ -15,6 +15,8 @@ import { CategoryIcon } from "@/components/exams/category-icon";
 import {
   LANDING_CATEGORIES,
   LANDING_FAQ,
+  LANDING_HINDI,
+  faqItems,
   LANDING_FEATURES,
   LANDING_FINAL_CTA,
   LANDING_HERO,
@@ -24,6 +26,7 @@ import {
 } from "@/content/landing";
 import { categoryCountLabel, type PublicCategory } from "@/lib/exams/categories";
 import type { GalleryPhoto } from "@/lib/media/photo-rules";
+import type { HindiAvailability } from "@/lib/landing/hindi-content";
 import { shot, type Shot, type ShotKey } from "@/lib/marketing/shots";
 import type { LandingData } from "@/lib/landing/landing-data";
 import { LandingCta } from "./landing-cta";
@@ -78,8 +81,9 @@ function SectionHeading({ id, title, lead }: { id: string; title: string; lead?:
  * (components/landing/landing-cta); one REAL app screen in a CSS phone frame ("honest images", #86). The H1 stays the
  * LCP element: the screen is smaller than the H1 block, lazy, low fetch priority, sized (no layout shift).
  */
-export function LandingHero({ liveCategories = [] }: { liveCategories?: readonly string[] }) {
+export function LandingHero({ liveCategories = [], hindi = null }: { liveCategories?: readonly string[]; hindi?: HindiAvailability | null }) {
   const mock = shot("hero");
+  const chip = LANDING_HINDI.chip(hindi); // shown only when published content has a Hindi version
   return (
     <GradientHero aria-labelledby="hero-title" data-hero="">
       <Container className="grid items-center gap-6 lg:grid-cols-[1fr_auto] lg:gap-12">
@@ -93,10 +97,12 @@ export function LandingHero({ liveCategories = [] }: { liveCategories?: readonly
             {LANDING_HERO.title(liveCategories)}
           </h1>
           <p className="max-w-xl text-body-lg text-hero-fg-muted">{LANDING_HERO.lead}</p>
-          <p className="inline-flex min-h-8 items-center gap-2 rounded-full border border-hero-bg-end bg-hero-bg-mid px-3 text-body-sm font-semibold text-hero-fg" data-hero-chip="">
-            <Languages aria-hidden="true" className="size-4" />
-            {LANDING_HERO.chip}
-          </p>
+          {chip && (
+            <p className="inline-flex min-h-8 items-center gap-2 rounded-full border border-hero-bg-end bg-hero-bg-mid px-3 text-body-sm font-semibold text-hero-fg" data-hero-chip="">
+              <Languages aria-hidden="true" className="size-4" />
+              {chip}
+            </p>
+          )}
           <div className="flex flex-wrap items-center gap-3">
             <LandingCta spot="hero" />
           </div>
@@ -477,13 +483,13 @@ export function LandingPlans() {
  * FAQ: native <details> (no client JS; the browser exposes expanded / collapsed on the <summary>); a chevron turns when
  * open (owner review: not an arrow). The same text goes into FAQPage JSON-LD (app/page.tsx).
  */
-export function LandingFaq() {
+export function LandingFaq({ hindi = null }: { hindi?: HindiAvailability | null }) {
   return (
     <Section aria-labelledby="faq-title" spacing="compact" className="bg-canvas py-6 lg:py-12" data-reveal="">
       <Container className="flex flex-col gap-6">
         <SectionHeading id="faq-title" title={LANDING_FAQ.heading} />
         <div className="flex flex-col divide-y divide-line rounded-card border border-line bg-surface shadow-e1">
-          {LANDING_FAQ.items.map((f) => (
+          {faqItems(hindi).map((f) => (
             <details key={f.q} className="group">
               <summary className="focus-ring flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-2 text-body font-semibold text-fg sm:text-body-lg [&::-webkit-details-marker]:hidden">
                 {f.q}
@@ -498,11 +504,11 @@ export function LandingFaq() {
   );
 }
 
-export function faqJsonLd() {
+export function faqJsonLd(hindi: HindiAvailability | null = null) {
   return {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    mainEntity: LANDING_FAQ.items.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
+    mainEntity: faqItems(hindi).map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
   };
 }
 

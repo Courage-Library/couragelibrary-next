@@ -183,7 +183,12 @@ const UX2B_ROUTES = ['/legal'];
     const awaits = [...page.slice(page.indexOf('export default')).matchAll(/await\s+([\w.]+)\(/g)].map((m) => m[1]);
     const loader = stripComments(read('lib/exams/category-data.ts'));
     const bounded = /export async function loadLiveCategoryNames\(\)[\s\S]{0,300}readLiveCategoryNames\(\)\.catch\(\(\) => null\), new Promise<null>\(\(ok\) => setTimeout\(\(\) => ok\(null\), 800\)\)/.test(loader) && /unstable_cache\(/.test(loader);
-    assert(sync || (/export default async function HomePage\(\)/.test(page) && awaits.join() === 'loadLiveCategoryNames' && bounded), `HomePage: synchronous, or awaiting only the cached + bounded live-category names (awaits: ${awaits.join() || 'none'}, bounded: ${bounded})`);
+    // + HOME-1 pre-release: the Hindi availability (honest chip / FAQ) is read in the SAME bounded step (lib/landing/home-facts.ts)
+    const facts = stripComments(read('lib/landing/home-facts.ts'));
+    const hindi = stripComments(read('lib/landing/hindi-content.ts'));
+    const factsOk = /await Promise\.all\(\[loadLiveCategoryNames\(\), loadHindiAvailability\(\)\]\)/.test(facts) && (facts.match(/await /g) || []).length === 1
+      && /readHindiAvailability\(\)\.catch\(\(\) => null\), new Promise<null>\(\(ok\) => setTimeout\(\(\) => ok\(null\), 800\)\)/.test(hindi) && /unstable_cache\(/.test(hindi);
+    assert(sync || (/export default async function HomePage\(\)/.test(page) && awaits.join() === 'loadHomeFacts' && bounded && factsOk), `HomePage: synchronous, or awaiting only the cached + bounded home facts (awaits: ${awaits.join() || 'none'}, names bounded: ${bounded}, facts: ${factsOk})`);
     // UX-FIX-1: the fallback is the signed-out, sign-up-CLOSED view (never a link to a closed sign-up)
     assert(/auth\.getSession\(\)/.test(cta) && /<Suspense fallback=\{<Cta spot=\{spot\} mode="signup-closed" \/>\}>/.test(cta), 'display-only session check in its own Suspense (signed-out, sign-up-closed fallback)');
     return 'hero, final CTA, header';

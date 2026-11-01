@@ -15,7 +15,8 @@ import {
   faqJsonLd,
 } from "@/components/landing/landing-sections";
 import { LANDING_META } from "@/content/landing";
-import { loadLiveCategoryNames, loadPublicCategories } from "@/lib/exams/category-data";
+import { loadPublicCategories } from "@/lib/exams/category-data";
+import { loadHomeFacts } from "@/lib/landing/home-facts";
 import { LandingEnhancements } from "@/components/landing/landing-enhancements";
 import { loadLandingData } from "@/lib/landing/landing-data";
 import { loadGallery } from "@/lib/media/site-media";
@@ -52,13 +53,14 @@ async function FeaturesSection() {
 }
 
 export default async function HomePage() {
-  // HOME-1 expert UX pass: the hero names only categories with live exams (cached, ≤ 800 ms, never rejects)
-  const liveCategories = await loadLiveCategoryNames();
+  // HOME-1: the hero names only categories with live exams; the Hindi chip + FAQ answer follow the published Hindi
+  // content (both cached, ≤ 800 ms, never reject — lib/landing/home-facts.ts)
+  const { liveCategories, hindi } = await loadHomeFacts();
   return (
     <>
       <JsonLd data={landingOrganizationJsonLd()} />
-      <JsonLd data={faqJsonLd()} />
-      <LandingHero liveCategories={liveCategories} />
+      <JsonLd data={faqJsonLd(hindi)} />
+      <LandingHero liveCategories={liveCategories} hindi={hindi} />
       <Suspense fallback={<LandingCategoriesSkeleton />}>
         <CategoriesSection />
       </Suspense>
@@ -70,7 +72,7 @@ export default async function HomePage() {
         <TrustSection />
       </Suspense>
       <LandingPlans />
-      <LandingFaq />
+      <LandingFaq hindi={hindi} />
       <LandingFinalCta />
       <LandingEnhancements />
     </>
