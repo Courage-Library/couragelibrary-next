@@ -91,7 +91,7 @@ test('X-04 /descriptive makes no "expert faculty evaluation" claim', () => {
 
 test('X-05 "Sign in" is always visible in the bar (phones too), 48 px', () => {
   const h = read('components/shell/header-bar.tsx');
-  assert(/<ButtonLink href="\/auth\/login" variant="ghost" size="md" className="min-h-12 rounded-full px-3">/.test(h), 'Sign in hidden or < 48 px');
+  assert(/<ButtonLink href="\/auth\/login" variant="ghost" size="md" className="min-h-12 rounded-control px-3">/.test(h), 'Sign in hidden or < 48 px');
   return 'visible at every width';
 });
 

@@ -37,10 +37,14 @@ export function constructMetadata({
     authors: [{ name: "Courage Library Team", url: siteConfig.url }],
     creator: "Courage Library",
     metadataBase: new URL(siteConfig.url),
+    // HOME-1 brand (131): stable icon URLs → the uploaded square mark, else the official logo (app/brand/icon/[size])
     icons: {
-      icon: "/images/logo.png",
-      shortcut: "/images/logo.png",
-      apple: "/images/logo.png",
+      icon: [
+        { url: "/brand/icon/32", sizes: "32x32", type: "image/png" },
+        { url: "/brand/icon/192", sizes: "192x192", type: "image/png" },
+      ],
+      shortcut: "/brand/icon/32",
+      apple: { url: "/brand/icon/180", sizes: "180x180", type: "image/png" },
     },
     alternates: {
       canonical: url,

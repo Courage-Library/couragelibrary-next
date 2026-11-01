@@ -15,12 +15,15 @@ Run this only when the owner says **"release"**. Until then everything stays loc
 | `a792f79` | UX-2a L-10 re-pointed to the category model |
 | `0605afb` | Release checklist |
 | `773fb3a` | Design upgrade: solid header, navy footer, connected loop with real screenshots, hero phone mockup, library gallery (130), background depth |
+| `2cf7ff8` | Checklist update |
+| *(next)* | Expert UX pass + brand settings (131): official logo everywhere, Settings › Brand, honest H1, live cards + coming-soon line, live stats, explore bar, reveal on scroll, share images, one radius / shadow / icon scale |
 
 ## 1. Before pushing
 
 - [ ] Working tree clean on `feat/home-1`; `git log --oneline main..feat/home-1` shows exactly the commits above.
-- [ ] Migrations 128, 129 and 130 are already applied. 130 (`site_gallery`) was applied on 2026-11-01 with backup `pre-130-…-resilient`, after a dry-run and a rolled-back pre-apply smoke; it was then live-verified with `SITE-GALLERY-LIVE` G-1..G-3 + Z-1, and the types were regenerated. Re-check that the ledger shows all three as `APPLIED` and nothing pending (read-only query on `public.schema_migration_ledger`). **No new migration ships, so no backup step is needed.**
-- [ ] `site_media` (129) is still in the database but no longer read by the app (the gallery replaced it). Dropping it is a later clean-up, not part of this release.
+- [ ] Migrations 128, 129, 130 and 131 are already applied. 131 (brand settings: `site_media` reshaped for brand assets) was applied on 2026-11-01 with backup `pre-131-…-resilient`, after a dry-run and a rolled-back pre-apply smoke; it was then live-verified with `SITE-MEDIA-LIVE` M-1/M-2/Z-1, and the types were regenerated.
+- [ ] 130 (`site_gallery`) was applied on 2026-11-01 with backup `pre-130-…-resilient`, after a dry-run and a rolled-back pre-apply smoke; it was then live-verified with `SITE-GALLERY-LIVE` G-1..G-3 + Z-1, and the types were regenerated. Re-check that the ledger shows 128–131 as `APPLIED` and nothing pending (read-only query on `public.schema_migration_ledger`). **No new migration ships, so no backup step is needed.**
+- [ ] `site_media` (129) is reused by 131 for the brand assets (no drop needed).
 - [ ] Local: full offline list (81/81), `npx tsc --noEmit`, lint, `npm run build`. Note that `/` must be ≤ 110 kB.
 - [ ] No queued CI dispatch (a push cancels a pending dispatch).
 
@@ -30,6 +33,8 @@ Run this only when the owner says **"release"**. Until then everything stays loc
 - [ ] The push run covers the offline list, server-checks (including UX2A-LIVE with the new L-10, BRAND-2 P-01/P-02, HOME-1) and prod smoke.
 - [ ] Live gates touched by 128 / 129 / 130 / HOME-1 (EXAM-CATEGORIES-LIVE, SITE-MEDIA-LIVE, SITE-GALLERY-LIVE, EXAM-LOGO-1 live, SEC1B / SEC1C) need **one** `workflow_dispatch` with `live: true` on `main`. Dispatch it after the push run has finished; never push while it is queued.
 - [ ] BRAND-2 probe P-04 / P-05 now test glass on `/auth/login` (the header is solid); check that they pass in server-checks.
+- [ ] BRAND-2 P-03c / P-03d now target the current hero CTA (`/#categories`) and the "All exams" link. Before, they still pointed at the pre-Phase-B "Explore SSC CGL" link and were stale.
+- [ ] UX-2a L-3 amendment (needs owner sign-off): `HomePage` may await only the cached, 800 ms-bounded live-category names (for the honest H1). The live check L-15b still proves the hero is in the first HTML flush.
 - [ ] Classify any failure using the server log before retrying (at most 3 attempts).
 
 ## 3. After deploy (production, anonymous only; never sign in to prod)
@@ -47,6 +52,12 @@ Run this only when the owner says **"release"**. Until then everything stays loc
   - How it works: on desktop the 5 steps are joined by arrows with a line back to Learn; on phones it is a timeline;
   - the hero phone screen sits on the right on desktop and under the button on phones.
 - [ ] LCP on `/`: the H1 is still the LCP element (CI front-end budget P-06), and the `/marketing/*.webp` files return 200 with `Cache-Control: public, max-age=86400, stale-while-revalidate=604800`.
+- [ ] Expert UX pass:
+  - the header / menu / footer show the official logo (white plate on navy);
+  - `/favicon.ico`, `/brand/icon/32|180|192|512` redirect to PNGs, and the manifest lists 192 + 512;
+  - `og:image` on `/` is `/opengraph-image` and on `/exams/ssc` is `/exams/ssc/opengraph-image` (1200 × 630 PNG), with `twitter:card` = `summary_large_image`. Run a share preview (WhatsApp / X card validator) once.
+  - On phones the "Explore exams" bar appears only after the hero and hides at the final CTA.
+  - Every section is visible after scrolling (reveal on scroll never leaves one hidden).
 
 ## 4. Reminders for the owner
 
@@ -55,3 +66,5 @@ Run this only when the owner says **"release"**. Until then everything stays loc
   - With photos, phones get a swipeable row (about 230 px more). The page then measures about 4,470 px at 390 and about 4,820 px at 360, above the 4,600 px guideline on the narrowest phones.
 - The product screenshots are re-captured with `scripts/content/capture-marketing.cjs` (see `public/marketing/README.md`). The `--mock` mode writes: it starts and then submits one qa-student attempt, so take a backup first.
 - Category icons can be uploaded in **Exams › Categories**. Until then the built-in line icons are used.
+- **Brand:** the official logo (`public/images/logo.png`) is used by default. Upload a higher-resolution square mark (at least 512 × 512) in **Settings › Brand**: the current 512 px app icon is upscaled from the 245 px logo. A horizontal logo and a light footer logo are optional.
+- The hero chip says "Content in Hindi & English". Lessons are still being written in Hindi (FAQ wording), so confirm the chip before launch.

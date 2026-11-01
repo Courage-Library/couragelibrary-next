@@ -15,7 +15,8 @@ import {
   faqJsonLd,
 } from "@/components/landing/landing-sections";
 import { LANDING_META } from "@/content/landing";
-import { loadPublicCategories } from "@/lib/exams/category-data";
+import { loadLiveCategoryNames, loadPublicCategories } from "@/lib/exams/category-data";
+import { LandingEnhancements } from "@/components/landing/landing-enhancements";
 import { loadLandingData } from "@/lib/landing/landing-data";
 import { loadGallery } from "@/lib/media/site-media";
 import { landingOrganizationJsonLd } from "@/lib/landing/organization-jsonld";
@@ -50,12 +51,14 @@ async function FeaturesSection() {
   return <LandingFeatures data={await loadLandingData(await createServerSupabaseClient())} />;
 }
 
-export default function HomePage() {
+export default async function HomePage() {
+  // HOME-1 expert UX pass: the hero names only categories with live exams (cached, ≤ 800 ms, never rejects)
+  const liveCategories = await loadLiveCategoryNames();
   return (
     <>
       <JsonLd data={landingOrganizationJsonLd()} />
       <JsonLd data={faqJsonLd()} />
-      <LandingHero />
+      <LandingHero liveCategories={liveCategories} />
       <Suspense fallback={<LandingCategoriesSkeleton />}>
         <CategoriesSection />
       </Suspense>
@@ -69,6 +72,7 @@ export default function HomePage() {
       <LandingPlans />
       <LandingFaq />
       <LandingFinalCta />
+      <LandingEnhancements />
     </>
   );
 }

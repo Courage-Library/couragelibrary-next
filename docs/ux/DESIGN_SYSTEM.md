@@ -29,7 +29,7 @@
 
 ## 1. Colour
 
-> **HOME-1 design upgrade decision (owner, 2026-11-01; decision number to be assigned). Supersedes the #72 floating glass pill for the public header; refines #81.**
+> **Decision #86 (owner, 2026-11-01): solid header, navy footer, honest images. Supersedes the #72 floating glass pill for the public header; refines #81.**
 > - **Header = solid.** One full-width, sticky, solid white header for everyone (public and signed in): hairline bottom border `line` (#E6E9F2), a subtle shadow only after the page scrolls (box-shadow only, so no layout shift), 64 px, nothing visible behind it, 48 px actions. Glass stays only on the auth card, the dashboard chip and the hero glass groups (BRAND-2 C-04).
 > - **Footer = deep navy.** `ink-900` (#0B1B4D) with white headings, light-slate (`ink-300`) links and text (10.95:1), a thin cyan (`accent-400`) line on top to separate it from the gradient CTA band, and the on-dark focus ring.
 > - **"Honest images" (refines #81).**
@@ -37,6 +37,18 @@
 >   - Not allowed: stock photos, and AI-generated realistic people.
 > - **Background depth.** A faint grid and soft rings (`.hero-depth`, CSS only, no image request) appear only on the hero and the final call to action, the same two places that may use a gradient.
 > - Gates: `scripts/test_home1.cjs` H-8, H-10–H-14, `scripts/test_brand2.cjs` C-03/C-04 (header has no glass), P-04/P-05 (the glass probe now uses the sign-in card).
+>
+> **HOME-1 expert UX pass + brand settings (owner, 2026-11-01), under #86:**
+> - **The official logo** is `public/images/logo.png` (the play-triangle mark, 245 × 229 px, white background). It is a brand asset, exempt from the palette rules: never recoloured or redrawn.
+>   - Default copies live in `public/brand/` (`scripts/content/brand-defaults.cjs`, resize / pad with its own white only).
+>   - The lockup is the mark + the name "Courage Library" (the repo has no horizontal logo file). On the navy footer the mark sits on a small white rounded plate.
+>   - The former "CL" monogram is removed.
+> - **Settings › Brand (migration 131)** takes an uploaded header logo, square mark (favicon / app icons 32 / 180 / 192 / 512) and optional footer logo for the dark footer. An upload replaces the official logo; removing it brings the official logo back.
+> - **One radius scale:** buttons and controls 12 px (`rounded-control`), cards 16 px (`rounded-card`), chips and badges full (`rounded-full`). This applies app-wide: `PillButton` is now 12 px.
+>   - **One card shadow** (`shadow-e1`); `shadow-e2` is only for floating bars (the header after scroll, the phone explore bar).
+>   - **Icons** are lucide line icons at 16 / 20 / 24 px.
+> - **Share images:** a branded 1200 × 630 Open Graph + Twitter card for home and for each category / exam page (`app/**/opengraph-image.tsx`).
+> - Gates: `scripts/test_home1.cjs` H-15–H-19, `scripts/test_ux2a_landing.cjs` L-3 (amended: the page may await only the cached, bounded live-category names), L-10.
 
 > **Decision #85 (architect, 2026-10-27): Hindi content fields in the admin. Clarifies #35, consistent with #82.**
 > - #35 forbids switching the admin UI's own language or medium.

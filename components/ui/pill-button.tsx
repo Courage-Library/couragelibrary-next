@@ -24,7 +24,7 @@ const VARIANTS: Record<PillVariant, string> = {
 
 export function pillClasses({ variant = "primary", fullWidth = false, className }: { variant?: PillVariant; fullWidth?: boolean; className?: string } = {}) {
   return cn(
-    "inline-flex min-h-12 shrink-0 select-none items-center justify-center gap-2 whitespace-nowrap rounded-full px-6 text-body font-semibold",
+    "inline-flex min-h-12 shrink-0 select-none items-center justify-center gap-2 whitespace-nowrap rounded-control px-6 text-body font-semibold",
     "transition-colors duration-120 ease-standard",
     VARIANTS[variant],
     fullWidth && "w-full",

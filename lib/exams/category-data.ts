@@ -1,6 +1,7 @@
 import "server-only";
 import { cache } from "react";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { unstable_cache } from "next/cache";
+import { createPublicServerSupabaseClient, createServerSupabaseClient } from "@/lib/supabase/server";
 import { COMING_SOON_EXAMS } from "@/content/public-pages";
 import { examLogo } from "@/lib/logos/exam-logo";
 import { CATEGORY_SLUG_RE, toPublicCategory, type CategoryExam, type CategoryRow, type PublicCategory } from "@/lib/exams/categories";
@@ -29,13 +30,16 @@ export const loadPublicCategories = cache(async (): Promise<PublicCategory[] | n
 
 /**
  * one public category with its exams (active first, then the listed "coming soon" ones); null = not a category.
+ * A FAILED / timed-out category read throws (the error page, never cached) — it must not become a "not found" 404 that
+ * ISR could cache for a real category (HOME-1: a flaky read once turned /exams/ssc into a 404).
  * `examsFailed`: the exam read failed — the page says so (never "no exams" + noindex because of an outage).
  */
 export const loadPublicCategory = cache(async (slug: string): Promise<{ category: PublicCategory; exams: CategoryExam[]; examsFailed: boolean } | null> => {
   if (!CATEGORY_SLUG_RE.test(slug) || slug.length > 40) return null;
   const sb = await createServerSupabaseClient();
   const cat = await timed(sb.from("exam_categories").select(CATEGORY_COLUMNS).eq("slug", slug).maybeSingle());
-  const row = cat && !cat.error ? (cat.data as CategoryRow | null) : null;
+  if (!cat || cat.error) throw new Error("CATEGORY_READ_FAILED");
+  const row = cat.data as CategoryRow | null;
   if (!row || !row.is_active || row.is_internal) return null;
   const ex = await timed(
     sb
@@ -65,3 +69,39 @@ export const loadPublicCategory = cache(async (slug: string): Promise<{ category
   }));
   return { category: toPublicCategory(row, active.length), exams: examsFailed ? [] : [...active, ...soon], examsFailed };
 });
+
+/**
+ * HOME-1 expert UX pass: the names of the public categories that have active exams, in display order — for the hero H1
+ * ("Free preparation for SSC exams"). Cookie-free PUBLIC client (public rows only) + cache (5 min, tag "categories"),
+ * so the hero stays in the first HTML flush; bounded at 800 ms and never rejects: a slow / failed read → [] (the hero
+ * then says "government exams" — never a category that is not live).
+ */
+const readLiveCategoryNames = unstable_cache(
+  async (): Promise<string[]> => {
+    const sb = createPublicServerSupabaseClient();
+    const [cats, exams] = await Promise.all([
+      sb.from("exam_categories").select("id, name, display_order, is_active, is_internal").order("display_order").order("name"),
+      sb.from("exams").select("category_id").eq("is_active", true),
+    ]);
+    if (cats.error || exams.error || !cats.data || !exams.data) throw new Error("categories read failed"); // not cached
+    const live = new Set(exams.data.map((e) => e.category_id));
+    return cats.data.filter((c) => c.is_active && !c.is_internal && live.has(c.id)).map((c) => c.name);
+  },
+  ["live-category-names", "v1"],
+  { tags: ["categories"], revalidate: 300 },
+);
+
+// after a failed / timed-out read, use the generic H1 at once for a minute (an outage never slows every visit)
+let namesFailedAt = 0;
+
+export async function loadLiveCategoryNames(): Promise<string[]> {
+  if (Date.now() - namesFailedAt < 60_000) return [];
+  try {
+    const r = await Promise.race([readLiveCategoryNames().catch(() => null), new Promise<null>((ok) => setTimeout(() => ok(null), 800))]);
+    if (!r) namesFailedAt = Date.now();
+    return r ?? [];
+  } catch {
+    namesFailedAt = Date.now();
+    return [];
+  }
+}

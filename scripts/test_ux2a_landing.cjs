@@ -167,14 +167,23 @@ const UX2B_ROUTES = ['/legal'];
     assert(C.LANDING_HERO.signedInCta.href === '/dashboard' && C.LANDING_FINAL_CTA.signedInCta.href === '/dashboard', 'Go to dashboard');
     // HOME-1 (ruling Q2): the closed-sign-up primary is "Explore exams" → the category tiles; never an exam-specific action
     assert(C.LANDING_HERO.secondaryCta.href === '/#categories' && C.LANDING_HERO.secondaryCta.label === 'Explore exams', 'Explore exams');
-    assert(C.LANDING_HERO.title === 'Learn Smarter. Prepare Independently.' && C.LANDING_BRAND_LINE === C.LANDING_HERO.title, 'brand line');
+    // HOME-1 expert UX pass (owner): the slogan is the eyebrow; the H1 names only categories with live exams
+    assert(C.LANDING_BRAND_LINE === 'Learn Smarter. Prepare Independently.' && C.LANDING_HERO.eyebrow === C.LANDING_BRAND_LINE, 'brand line (eyebrow)');
+    assert(C.LANDING_HERO.title([]) === 'Free preparation for government exams' && C.LANDING_HERO.title(['SSC']) === 'Free preparation for SSC exams' && C.LANDING_HERO.title(['SSC', 'Railway', 'Banking']) === 'Free preparation for SSC, Railway & Banking exams', 'honest H1');
     const header = read(HEADER);
     assert(/href="\/auth\/login"[^>]*>\s*\{SHELL_COPY\.signIn\}/.test(header) && /href="\/auth\/signup"[^>]*>\s*\{SHELL_COPY\.startFree\}/.test(header), 'Sign in / Start free'); // UX-FIX-1: one label "Start free" (only while sign-up is open)
     assert(/href="\/dashboard"[^>]*>\s*\{SHELL_COPY\.goToDashboard\}/.test(header) && /const onLanding = pathname === "\/";/.test(header), 'Go to dashboard on "/"');
     const page = stripComments(read(PAGE));
     const cta = stripComments(read(CTA));
     assert(!/redirect\(|notFound\(|requireAuth|getUser\(\)/.test(page + cta), '"/" must not redirect or gate (display-only session check)');
-    assert(/export default function HomePage\(\)/.test(page), 'HomePage must be synchronous (hero in the first HTML flush, not behind app/loading.tsx)');
+    // HOME-1 expert UX pass (amendment, for owner sign-off): the page may await EXACTLY ONE thing before the hero — the
+    // cached, 800 ms-bounded, never-rejecting live-category names for the honest H1. Everything else stays streamed;
+    // L-15 (live) still proves the hero is in the first HTML flush.
+    const sync = /export default function HomePage\(\)/.test(page);
+    const awaits = [...page.slice(page.indexOf('export default')).matchAll(/await\s+([\w.]+)\(/g)].map((m) => m[1]);
+    const loader = stripComments(read('lib/exams/category-data.ts'));
+    const bounded = /export async function loadLiveCategoryNames\(\)[\s\S]{0,300}readLiveCategoryNames\(\)\.catch\(\(\) => null\), new Promise<null>\(\(ok\) => setTimeout\(\(\) => ok\(null\), 800\)\)/.test(loader) && /unstable_cache\(/.test(loader);
+    assert(sync || (/export default async function HomePage\(\)/.test(page) && awaits.join() === 'loadLiveCategoryNames' && bounded), `HomePage: synchronous, or awaiting only the cached + bounded live-category names (awaits: ${awaits.join() || 'none'}, bounded: ${bounded})`);
     // UX-FIX-1: the fallback is the signed-out, sign-up-CLOSED view (never a link to a closed sign-up)
     assert(/auth\.getSession\(\)/.test(cta) && /<Suspense fallback=\{<Cta spot=\{spot\} mode="signup-closed" \/>\}>/.test(cta), 'display-only session check in its own Suspense (signed-out, sign-up-closed fallback)');
     return 'hero, final CTA, header';
@@ -221,8 +230,8 @@ const UX2B_ROUTES = ['/legal'];
     // with live data the numbers come only from the data; a category without exams is an honest, non-link "Coming soon"
     const live = renderToStaticMarkup(React.createElement(React.Fragment, null, React.createElement(S.LandingFeatures, { data: ok }),
       React.createElement(S.LandingCategories, { categories: [{ id: 'c1', slug: 'ssc', name: 'SSC', shortDesc: null, iconKey: 'ssc', icon: null, activeExams: 1 }, { id: 'c2', slug: 'police', name: 'Police', shortDesc: null, iconKey: 'police', icon: null, activeExams: 0 }] })));
-    const liveText = live.replace(/<[^>]+>/g, ' ');
-    assert(/2 free mock tests/.test(liveText) && /1 guide published/.test(liveText) && /1 exam/.test(liveText) && /Police[\s\S]*?Coming soon/.test(liveText), liveText.slice(0, 300));
+    const liveText = live.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+    assert(/2 free mock tests/.test(liveText) && /1 guide published/.test(liveText) && /1 exam/.test(liveText) && /Coming soon:\s+Police/.test(liveText), liveText.slice(0, 300));
     assert(/href="\/exams\/ssc"/.test(live) && !/href="\/exams\/police"/.test(live), 'only a category with exams is a link');
     return 'error / throw / hang → fallback; 0 digits rendered';
   });
@@ -416,7 +425,11 @@ const UX2B_ROUTES = ['/legal'];
     // the tiles as rendered (per tile: link or not, its own text)
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     const page = await ctx.newPage();
-    const tilesOf = async () => page.evaluate(() => [...document.querySelectorAll('[data-category-tile]')].map((t) => ({ slug: t.dataset.categoryTile, link: t.tagName === 'A', href: t.getAttribute('href'), text: t.innerText.replace(/\s+/g, ' ').trim() })));
+    // HOME-1 expert UX pass: categories with exams = large link cards; the others = one "Coming soon:" line (not links)
+    const tilesOf = async () => page.evaluate(() => [
+      ...[...document.querySelectorAll('[data-category-tile]')].map((t) => ({ slug: t.dataset.categoryTile, link: t.tagName === 'A', href: t.getAttribute('href'), text: t.innerText.replace(/\s+/g, ' ').trim() })),
+      ...[...document.querySelectorAll('[data-category-soon]')].map((t) => ({ slug: t.dataset.categorySoon, link: !!t.closest('a'), href: null, text: `${t.closest('[data-category-soon-line]') ? 'Coming soon: ' : ''}${t.innerText.replace(/\s+/g, ' ').replace(/^[·,\s]+/, '').trim()}` })),
+    ]);
     try {
       await page.goto(`${BASE}/`, { waitUntil: 'networkidle', timeout: 30000 });
       const tiles = await tilesOf();
@@ -426,7 +439,7 @@ const UX2B_ROUTES = ['/legal'];
         const n = perCat.get(c.slug).length;
         assert(t.text.includes(c.name), `${c.slug}: name missing`);
         if (n > 0) assert(t.link && t.href === `/exams/${c.slug}` && t.text.includes(`${n} exam${n === 1 ? '' : 's'}`) && !/Coming soon/.test(t.text), `${c.slug}: expected a link with "${n} exam${n === 1 ? '' : 's'}" (got ${JSON.stringify(t)})`);
-        else assert(!t.link && /Coming soon/.test(t.text) && !/\d/.test(t.text), `${c.slug}: expected a "Coming soon" tile that is not a link (got ${JSON.stringify(t)})`);
+        else assert(!t.link && /^Coming soon: /.test(t.text) && !/\d/.test(t.text), `${c.slug}: expected a name in the "Coming soon:" line, not a link (got ${JSON.stringify(t)})`);
       }
 
       let mocksAll = 0;
@@ -446,7 +459,8 @@ const UX2B_ROUTES = ['/legal'];
       assert(domText.includes('Syllabus tracker') === anySyllabus, `syllabus ${anySyllabus} vs listed ${domText.includes('Syllabus tracker')}`);
       // every number on "/" is accounted for (category counts, totals, step numbers, the founding year, the © year)
       const nums = [...domText.matchAll(/\b\d+\b/g)].map((x) => Number(x[0]));
-      const allowed = new Set([mocksAll, guidesAll, ...[...perCat.values()].map((l) => l.length), 1, 2, 3, 4, 5, 6, 7, 2024, new Date().getFullYear()]);
+      // + the number of live exams (the "What you get" stats, HOME-1 expert UX pass)
+      const allowed = new Set([mocksAll, guidesAll, exams.length, ...[...perCat.values()].map((l) => l.length), 1, 2, 3, 4, 5, 6, 7, 2024, new Date().getFullYear()]);
       const unknown = nums.filter((n) => !allowed.has(n));
       assert(unknown.length === 0, `unexplained numbers on "/": ${[...new Set(unknown)].join(', ')}`);
 

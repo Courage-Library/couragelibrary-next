@@ -415,8 +415,9 @@
 
   /* Shape: 12 card · 16 sheet · 20 panel · 24 hero · full = rounded-full. Named tokens (not sm/md/lg). */
   --radius-badge: 6px;
-  --radius-control: 8px;
-  --radius-card: 12px;
+  /* HOME-1 expert UX pass: ONE radius scale — buttons / controls 12, cards 16, chips + pills full (rounded-full) */
+  --radius-control: 12px;
+  --radius-card: 16px;
   --radius-sheet: 16px;
   --radius-panel: 20px;
   --radius-hero: 24px;
@@ -559,6 +560,24 @@
     border-radius: 9999px;
     background: radial-gradient(closest-side, transparent 62%, color-mix(in srgb, var(--color-accent-300) 14%, transparent) 63%, transparent 66%),
       radial-gradient(closest-side, transparent 80%, color-mix(in srgb, var(--color-hero-fg) 7%, transparent) 81%, transparent 84%);
+  }
+  /* HOME-1 expert UX pass: reveal on scroll (components/landing/landing-enhancements.tsx). Only an element the script
+     marked data-reveal-pending (below the fold, observed) is hidden until it enters the viewport — an element it never
+     saw is always visible. ≤ 200 ms, opacity + transform only (no layout shift). Off for reduced motion and print. */
+  html.reveal-on [data-reveal] {
+    transition: opacity 200ms ease-out, transform 200ms ease-out;
+  }
+  html.reveal-on [data-reveal-pending]:not([data-revealed]) {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  @media (prefers-reduced-motion: reduce), print {
+    html.reveal-on [data-reveal],
+    html.reveal-on [data-reveal-pending] {
+      transition: none;
+      opacity: 1;
+      transform: none;
+    }
   }
   .auth-gradient {
     background-color: var(--color-primary-50);

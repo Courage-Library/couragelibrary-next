@@ -331,7 +331,7 @@ async function offline() {
     const header = read('components/shell/header-bar.tsx');
     // UX-FIX-1: Sign in is always in the bar (48 px); the start action (sign-up open: Start free / closed: Explore SSC CGL)
     // is a 48 px pill from sm up; the menu button is 48 px
-    assert(/className="min-h-12 rounded-full px-3"/.test(header) && /<PillLink href="\/auth\/signup" variant="outline"/.test(header) && /className="size-12 rounded-full lg:hidden"/.test(header), 'nav actions / menu button < 48 px');
+    assert(/className="min-h-12 rounded-control px-3"/.test(header) && /<PillLink href="\/auth\/signup" variant="outline"/.test(header) && /className="size-12 rounded-control lg:hidden"/.test(header), 'nav actions / menu button < 48 px');
     assert(/inline-flex min-h-12 items-center/.test(read('components/brand/wordmark.tsx')), 'wordmark link < 48 px');
     const legacy = read('components/ui/legacy/button.tsx');
     assert(/lg: "h-12 /.test(legacy), 'legacy lg button no longer 48 px');
@@ -527,8 +527,9 @@ async function probe() {
       ['P-03a', 'home nav "Sign in" (always in the bar, UX-FIX-1)', '/', 'header a[href="/auth/login"]'],
       ['P-03b', 'home nav menu button', '/', 'header button[aria-label="Open menu"]'],
       // UX-FIX-1: the hero's primary action depends on sign-up (open: Start free / closed: Explore SSC CGL)
-      ['P-03c', 'home hero primary CTA', '/', '#main-content section a[href="/auth/signup"], #main-content section a[href="/dashboard"], #main-content section a[href="/exams/ssc-cgl"]'],
-      ['P-03d', 'home hero "Explore SSC CGL"', '/', '#main-content a[href="/exams/ssc-cgl"]'],
+      // HOME-1 (Phase B, ruling Q2): the hero CTA is "Explore exams" (/#categories) while sign-up is closed
+      ['P-03c', 'home hero primary CTA', '/', '#main-content section[data-hero] a[href="/auth/signup"], #main-content section[data-hero] a[href="/dashboard"], #main-content section[data-hero] a[href="/#categories"]'],
+      ['P-03d', 'home "All exams" link (always rendered, also in the categories fallback)', '/', '#main-content #categories a[href="/exams"]'],
       ['P-03e', 'login submit', '/auth/login', 'form button[type="submit"]'],
       ['P-03f', 'login nav menu button', '/auth/login', 'header button[aria-label="Open menu"]'],
       ['P-03g', 'forgot-password submit', '/auth/forgot-password', 'form button[type="submit"]'],

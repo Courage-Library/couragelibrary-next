@@ -8,6 +8,7 @@ import { BrandWordmark } from "@/components/brand/wordmark";
 import { siteConfig } from "@/config/site";
 import { LANDING_BRAND_LINE, SHELL_COPY } from "@/content/landing";
 import type { PublicCategory } from "@/lib/exams/categories";
+import type { BrandImage } from "@/lib/brand/brand-rules";
 import { FOOTER_LEGAL, FOOTER_NAV, visibleItems, type NavItem, type ShellFlags } from "./nav-config";
 
 // R10: every footer link is a ≥ 48 px target (was 36 px on desktop). HOME-1: on the deep-navy footer the links are
@@ -24,7 +25,7 @@ export const FOOTER_NOT_AFFILIATED = "Courage Library is an independent platform
  * HOME-1 design decision (owner, 2026-11-01): deep navy (ink-900), white headings, light-slate links and text
  * (≥ 4.5:1, registered in contrast-pairs.json), a thin cyan line on top to separate it from the gradient CTA band.
  */
-export function SiteFooter({ flags, categories }: { flags: ShellFlags; categories?: Promise<PublicCategory[] | null> }) {
+export function SiteFooter({ flags, categories, logo = null }: { flags: ShellFlags; categories?: Promise<PublicCategory[] | null>; logo?: BrandImage | null }) {
   const pathname = usePathname() ?? "/";
   if (pathname.startsWith("/admin")) return null;
   const groups: Array<{ heading: string; items: NavItem[] | null }> = [
@@ -57,7 +58,7 @@ export function SiteFooter({ flags, categories }: { flags: ShellFlags; categorie
     <footer className="border-t-2 border-accent-400 bg-ink-900 text-ink-300" data-footer-navy="">
       <div className="mx-auto w-full max-w-[1200px] px-4 py-8 md:px-6 md:py-12 lg:px-8">
         <div className="mb-6 flex flex-col gap-2 md:mb-8">
-          <BrandWordmark size="sm" tone="white" />
+          <BrandWordmark size="sm" tone="white" logo={logo} />
           <p className="max-w-xs text-body-sm text-ink-300">{LANDING_BRAND_LINE}</p>
         </div>
         {/* phones: one accordion per column */}

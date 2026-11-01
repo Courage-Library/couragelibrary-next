@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { actionFailure, guardAdminAction, type ActionFailure, type AdminContext } from "@/lib/auth/require-admin";
 import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { LOGO_UNAVAILABLE, LOGO_VARIANTS, processLogo } from "@/lib/logos/logo-image";
@@ -33,6 +33,8 @@ function revalidateLogoPages() {
   revalidatePath("/admin/exams");
   revalidatePath("/admin");
   revalidatePath("/exams", "layout");
+  revalidateTag("categories"); // HOME-1: the cached live-category names (hero H1)
+  revalidatePath("/");
 }
 
 type LogoKind = "ORG" | "EXAM" | "CATEGORY"; // HOME-1: a category icon uses the same pipeline
@@ -163,6 +165,7 @@ function revalidateCategoryPages() {
   revalidatePath("/admin/exams/categories");
   revalidatePath("/");
   revalidatePath("/exams", "layout");
+  revalidateTag("categories"); // HOME-1: the cached live-category names (hero H1)
 }
 
 /**

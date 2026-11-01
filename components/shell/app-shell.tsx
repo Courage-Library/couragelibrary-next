@@ -15,11 +15,12 @@ import { getSignupAvailability } from "@/lib/auth/signup-availability";
 import { isPracticeEnabled } from "@/lib/practice/flag";
 import { isCoinsEnabled } from "@/lib/coins/flag";
 import { CoinsFlagProvider } from "@/lib/coins/flag-context";
+import { loadBrandAssets } from "@/lib/brand/brand-assets";
 
 /**
  * UX-1b app shell around every route: skip link, header (public or student), <main id="main-content">,
  * footer, and the student bottom nav on phones. Admin routes render only <main> (admin has its own layout).
- * Reads the session once; no database queries. <main> is at least one viewport tall so the footer starts
+ * Reads the session once; the only other read is the cached, bounded brand-assets read (HOME-1, 131). <main> is at least one viewport tall so the footer starts
  * below the fold and never jumps while page content streams in (CLS).
  */
 /** Never rejects; streamed to the header so no page waits on the Supabase setting (UX-FIX-1, AUTH1-RESILIENCE-HANG). */
@@ -30,10 +31,14 @@ function signupOpen(): Promise<boolean> {
 export async function AppShell({ children }: { children: ReactNode }) {
   // AUTH-1 2a: tri-state session. "error" (Supabase unreachable) shows a retry banner instead of a signed-out shell.
   const supabase = await createServerSupabaseClient();
-  const session = await supabase.auth.getUser().then(
-    ({ data, error }) => classifyAuthResult(data?.user ?? null, error),
-    () => ({ state: "error" as const }),
-  );
+  // HOME-1 brand (131): the cached, bounded (≤ 800 ms, never rejects) brand read runs alongside the session read
+  const [session, brand] = await Promise.all([
+    supabase.auth.getUser().then(
+      ({ data, error }) => classifyAuthResult(data?.user ?? null, error),
+      () => ({ state: "error" as const }),
+    ),
+    loadBrandAssets(),
+  ]);
   const user = session.state === "user" ? session.user : null;
   const flags: ShellFlags = { COURSES: isFeatureEnabled("COURSES"), BATTLES: isFeatureEnabled("BATTLES"), PRACTICE: isPracticeEnabled() };
   const role = (user?.app_metadata as { role?: string } | undefined)?.role;
@@ -57,13 +62,13 @@ export async function AppShell({ children }: { children: ReactNode }) {
         Skip to content
       </a>
       {/* UX-FIX-1: start actions point to /auth/signup only while public sign-up is open */}
-      <HeaderBar account={account} flags={flags} signup={account === null ? signupOpen() : undefined} />
+      <HeaderBar account={account} flags={flags} signup={account === null ? signupOpen() : undefined} logo={brand.headerLogo} />
       {session.state === "error" && <SessionUnavailableBanner />}
       <main id="main-content" tabIndex={-1} className="min-h-dvh flex-1 outline-none">
         <CoinsFlagProvider enabled={isCoinsEnabled()}>{children}</CoinsFlagProvider>
       </main>
       {/* HOME-1: the footer's category links stream in (never awaited here: the shell never waits for them) */}
-      <SiteFooter flags={flags} categories={loadPublicCategories()} />
+      <SiteFooter flags={flags} categories={loadPublicCategories()} logo={brand.footerLogo} />
       {account && <BottomNav account={account} />}
     </>
   );

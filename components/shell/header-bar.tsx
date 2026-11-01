@@ -15,6 +15,7 @@ import { AccountLinks } from "./account-links";
 import { NavMenu, navLinkClasses } from "./nav-menu";
 import { LEARN_MENU, LEARN_PREFIXES, PUBLIC_NAV, STUDENT_NAV, isActive, visibleItems, type NavItem, type ShellFlags } from "./nav-config";
 import type { ShellAccount } from "./shell-types";
+import type { BrandImage } from "@/lib/brand/brand-rules";
 
 function NavLinks({ items, pathname }: { items: NavItem[]; pathname: string }) {
   return (
@@ -90,7 +91,7 @@ function ResolvedStartAction({ signup, open, closed }: { signup: Promise<boolean
  * boundary whose fallback is the closed view, so the shell never waits on the sign-up setting (Supabase outage → the
  * page still renders at once; AUTH1-RESILIENCE-HANG).
  */
-export function HeaderBar({ account, flags, signup }: { account: ShellAccount | null; flags: ShellFlags; signup?: Promise<boolean> }) {
+export function HeaderBar({ account, flags, signup, logo = null }: { account: ShellAccount | null; flags: ShellFlags; signup?: Promise<boolean>; logo?: BrandImage | null }) {
   const pathname = usePathname() ?? "/";
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -111,7 +112,7 @@ export function HeaderBar({ account, flags, signup }: { account: ShellAccount | 
 
   const inner = (
     <>
-        <BrandWordmark href={student ? "/dashboard" : "/"} size="md" />
+        <BrandWordmark href={student ? "/dashboard" : "/"} size="md" logo={logo} />
 
         <nav aria-label="Main" className="ml-4 hidden flex-1 lg:block">
           <ul className="flex items-center gap-1">
@@ -147,7 +148,7 @@ export function HeaderBar({ account, flags, signup }: { account: ShellAccount | 
             </PillLink>
           ) : (
             <>
-              <ButtonLink href="/auth/login" variant="ghost" size="md" className="min-h-12 rounded-full px-3">
+              <ButtonLink href="/auth/login" variant="ghost" size="md" className="min-h-12 rounded-control px-3">
                 {SHELL_COPY.signIn}
               </ButtonLink>
               <StartAction
@@ -169,7 +170,7 @@ export function HeaderBar({ account, flags, signup }: { account: ShellAccount | 
             variant="ghost"
             size="md"
             iconOnly
-            className="size-12 rounded-full lg:hidden"
+            className="size-12 rounded-control lg:hidden"
             aria-label="Open menu"
             aria-haspopup="dialog"
             aria-expanded={menuOpen}
@@ -184,6 +185,9 @@ export function HeaderBar({ account, flags, signup }: { account: ShellAccount | 
   const menu = (
       <Dialog open={menuOpen} onOpenChange={setMenuOpen} variant="sheet" title="Menu">
         <nav aria-label="Mobile" className="flex flex-col gap-4">
+          <div className="border-b border-line pb-3" data-menu-brand="">
+            <BrandWordmark href={student ? "/dashboard" : "/"} size="sm" logo={logo} />
+          </div>
           <MobileSection title={student ? "Study" : "Explore"} items={primary} pathname={pathname} onNavigate={() => setMenuOpen(false)} />
           <MobileSection title="Learn" items={learn} pathname={pathname} onNavigate={() => setMenuOpen(false)} />
           {!account && (

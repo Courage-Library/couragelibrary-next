@@ -8,6 +8,8 @@
  * Plain English, no internal / technical words (UX-1b U-1).
  */
 
+import { andList } from "@/lib/text/and-list";
+
 export const LANDING_BRAND_LINE = "Learn Smarter. Prepare Independently.";
 
 export const LANDING_META = {
@@ -17,8 +19,12 @@ export const LANDING_META = {
 } as const;
 
 export const LANDING_HERO = {
-  eyebrow: "Government exam preparation",
-  title: LANDING_BRAND_LINE,
+  // HOME-1 expert UX pass: the slogan is the small eyebrow line; the H1 says the value plainly
+  eyebrow: LANDING_BRAND_LINE,
+  /** honest: only categories that have live exams are named; none (or the read failed) → "government exams" */
+  title: (liveCategories: readonly string[]) => `Free preparation for ${liveCategories.length ? andList(liveCategories) : "government"} exams`,
+  /** content languages (the website UI stays English, #82) */
+  chip: "Content in Hindi & English",
   // HOME-1: short (the hero line is the LCP element on slow phones); no exam-specific action anywhere on home
   lead: "Mock tests, practice and revision for government exams. See where you lost marks and fix it.",
   primaryCta: { label: "Start free", href: "/auth/signup" },
@@ -75,12 +81,16 @@ export const LANDING_FEATURES = {
   // HOME-1: only what students can use today is listed (no "coming soon" cards on home)
   lead: "Everything below works today and is free during early access.",
   liveLabel: "Available now",
+  /** HOME-1 expert UX pass: the section's focal element = the live numbers (read live; no number is typed here) */
+  statsLabel: "Live on Courage Library today",
+  examsUnit: (n: number) => (n === 1 ? "exam live" : "exams live"),
   comingSoonLabel: "Coming soon",
   items: {
     mocks: {
       title: "Full-length mock tests",
       text: "Exam-pattern tests with real timing, sections and negative marking.",
       count: (n: number) => (n === 1 ? `${n} free mock test live` : `${n} free mock tests live`),
+      unit: (n: number) => (n === 1 ? "free mock test live" : "free mock tests live"),
       short: "Real timing, sections and negative marking.",
     },
     analysis: {
@@ -97,6 +107,7 @@ export const LANDING_FEATURES = {
       title: "Exam guides",
       text: "Pattern, eligibility, selection process and more, with links to the official sources.",
       count: (n: number) => (n === 1 ? `${n} guide published` : `${n} guides published`),
+      unit: (n: number) => (n === 1 ? "guide published" : "guides published"),
       short: "Pattern, eligibility and official links.",
     },
     syllabus: {
@@ -146,6 +157,9 @@ export const LANDING_CATEGORIES = {
   heading: "Choose your exam category",
   lead: "Pick a category to see its exams.",
   comingSoon: "Coming soon",
+  /** HOME-1 expert UX pass: the categories without exams yet are ONE line (not links) */
+  comingSoonLine: "Coming soon:",
+  liveCta: (name: string) => `See ${name} exams`,
   allExams: { label: "All exams", href: "/exams" },
   fallback: "The categories could not be loaded right now. You can still browse all exams.",
 } as const;

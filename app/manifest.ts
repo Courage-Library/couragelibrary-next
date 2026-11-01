@@ -12,6 +12,10 @@ export default function manifest(): MetadataRoute.Manifest {
     display: "standalone",
     background_color: BRAND_BACKGROUND_COLOR,
     theme_color: BRAND_THEME_COLOR,
-    icons: [{ src: "/images/logo.png", sizes: "245x229", type: "image/png" }],
+    // HOME-1 brand (131): the uploaded square mark, else the official logo padded to square (public/brand/)
+    icons: [
+      { src: "/brand/icon/192", sizes: "192x192", type: "image/png" },
+      { src: "/brand/icon/512", sizes: "512x512", type: "image/png" },
+    ],
   };
 }

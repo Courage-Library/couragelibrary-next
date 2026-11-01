@@ -125,7 +125,7 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
     ];
     const html = renderToStaticMarkup(React.createElement(S.LandingCategories, { categories: cats }));
     assert(/href="\/exams\/ssc"/.test(html) && !/href="\/exams\/police"/.test(html), 'link rules');
-    assert(/aria-disabled="true"[\s\S]*?Police[\s\S]*?Coming soon/.test(html) && /3 exams/.test(html), 'labels');
+    assert(/data-category-soon-line=""[\s\S]*?Coming soon:[\s\S]*?data-category-soon="police"[^>]*>[\s\S]*?Police/.test(html) && /3 exams/.test(html), 'labels');
     const fallback = renderToStaticMarkup(React.createElement(S.LandingCategories, { categories: null })).replace(/<[^>]+>/g, ' ');
     assert(/could not be loaded/.test(fallback) && !/\d/.test(fallback), 'fallback without numbers');
   });
@@ -208,21 +208,14 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
     return '1280/768/390 + 4 refusals + gallery render';
   });
 
-  await test('H-9 owner UI review: monogram, icons, tiles without orphans, feature rows, FAQ chevron, legal labels, CTA note, section rhythm', () => {
+  await test('H-9 owner UI review (as amended by the expert UX pass): official logo, icons, live cards + coming-soon line, stats + checklist, FAQ chevron, legal labels, CTA note, section rhythm', () => {
     const s = read(SECTIONS);
     const wm = read('components/brand/wordmark.tsx');
-    assert(/data-brand-monogram=""/.test(wm) && />\s*CL\s*</.test(wm) && /aria-hidden="true"/.test(wm) && !/brand-gradient size-2\.5/.test(wm), 'monogram tile');
+    assert(/DEFAULT_MARK\.src/.test(wm) && !/data-brand-monogram|>\s*CL\s*</.test(wm), 'the official logo, no monogram');
     const icon = read('components/exams/category-icon.tsx');
-    assert(/rounded-full bg-primary-50 text-primary-700/.test(icon) && /size-\[58%\]/.test(icon) && (s.match(/<CategoryIcon category=\{c\} px=\{48\} \/>/g) || []).length === 2, 'category icons: 28 px in a 48 px tint circle');
-    assert(/className="col-span-full flex lg:col-span-1"/.test(s) && /const lastOdd = soonCount % 2 === 1 && c\.slug === lastSoon;/.test(s) && /"col-span-2 md:col-span-1"/.test(s), 'category tiles: live row + no orphan');
-    // feature grid: every live count 1–6 fills its rows on tablets and desktop (5 on tablets: the last spans the row)
-    const cols = Object.fromEntries([...s.matchAll(/^\s+(\d): "([^"]+)",$/gm)].map((m) => [m[1], m[2]]));
-    for (let n = 1; n <= 6; n++) {
-      const md = +((cols[n] || '').match(/md:grid-cols-(\d)/) || [])[1];
-      const lg = +((cols[n] || '').match(/lg:grid-cols-(\d)/) || [])[1] || md;
-      assert(md && (n % md === 0 || (n === 5 && md === 2 && /live\.length === 5 && i === 4 \? "md:col-span-2 lg:col-span-1"/.test(s))) && n % lg === 0, `features: ${n} live → md ${md} / lg ${lg} leaves an orphan`);
-    }
-    assert(/data-features-list=""/.test(s) && /flex flex-col divide-y divide-line rounded-card/.test(s.slice(s.indexOf('data-features-list') - 400)), 'features: one column of rows on phones');
+    assert(/rounded-full bg-primary-50 text-primary-700/.test(icon) && /size-\[58%\]/.test(icon) && /<CategoryIcon category=\{c\} px=\{64\} \/>/.test(s), 'category icons in a tint circle; large on the live card');
+    assert(/data-category-tile=\{c\.slug\}/.test(s) && /data-category-soon-line=""/.test(s) && !/aria-disabled/.test(s.slice(s.indexOf('export function LandingCategories'), s.indexOf('export function LandingCategoriesSkeleton'))), 'live cards + one coming-soon line (no disabled tiles)');
+    assert(/data-live-stats=""/.test(s) && /data-features-list=""/.test(s) && /\.filter\(\(x\) => x\.n > 0\)/.test(s) && /const stats = data\.ok/.test(s), 'stats (real, > 0, only when the read worked) + checklist');
     const faq = s.slice(s.indexOf('export function LandingFaq'), s.indexOf('export function faqJsonLd'));
     assert(/<ChevronDown aria-hidden="true" data-faq-chevron="" className="[^"]*group-open:rotate-180/.test(faq) && !/ArrowRight/.test(faq) && /<details key=\{f\.q\}/.test(faq), 'FAQ chevron');
     const pp = require(path.join(ROOT, 'content/public-pages.ts'));
@@ -248,7 +241,7 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
     assert((h.match(/<header /g) || []).length === 1 && /sticky top-0/.test(tag) && /border-b border-line bg-surface/.test(tag) && /scrolled \? "shadow-e2" : "shadow-none"/.test(tag) && /data-header-solid=""/.test(tag), 'one solid header');
     assert(!/GlassNav|glass-light|rounded-full pl-4/.test(h) && !/GlassNav/.test(read('components/ui/glass.tsx')), 'no floating glass pill');
     assert(/window\.addEventListener\("scroll", onScroll, \{ passive: true \}\)/.test(h) && /removeEventListener\("scroll", onScroll\)/.test(h), 'passive scroll listener, cleaned up');
-    assert(/flex h-16 w-full max-w-\[1200px\]/.test(h) && /className="size-12 rounded-full lg:hidden"/.test(h), '64 px bar, 48 px menu button');
+    assert(/flex h-16 w-full max-w-\[1200px\]/.test(h) && /className="size-12 rounded-control lg:hidden"/.test(h), '64 px bar, 48 px menu button');
     assert(!/-mt-\[76px\]/.test(read('components/ui/gradient-hero.tsx')), 'hero no longer pulled up under a floating nav');
     // negative control: the detector flags a glass header
     assert(/GlassNav|glass-light/.test(h.replace('data-header-solid=""', 'className="glass-light"')), 'negative control');
@@ -339,6 +332,124 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
     assert((await sharp(planted).metadata()).exif, 'negative control: planted EXIF not detected');
     assert(PII.some((re) => re.test(['student', 'example.org'].join('@'))), 'negative control: planted e-mail not detected');
     return `${listed.size} files, all in budget, no metadata`;
+  });
+
+  // ---- HOME-1 expert UX pass + brand settings (owner, 2026-11-01; decision #86) ----
+  await test('H-15 brand: the OFFICIAL logo is the default everywhere (header, menu, footer plate, icons), never the monogram; an upload replaces it; sized, not lazy', async () => {
+    const sharp = require('sharp');
+    const wm = read('components/brand/wordmark.tsx');
+    const R = require(path.join(ROOT, 'lib/brand/brand-rules.ts'));
+    assert(R.DEFAULT_MARK.src === '/brand/mark-32.webp' && /mark-64\.webp 2x/.test(R.DEFAULT_MARK.srcSet) && R.DEFAULT_MARK.width === 34 && R.DEFAULT_MARK.height === 32, 'default mark');
+    const src = await sharp(path.join(ROOT, 'public/images/logo.png')).metadata();
+    for (const [f, w, h] of [['mark-32.webp', 34, 32], ['mark-64.webp', 68, 64], ['mark-96.webp', 103, 96], ['icon-32.png', 32, 32], ['icon-180.png', 180, 180], ['icon-192.png', 192, 192], ['icon-512.png', 512, 512]]) {
+      const m = await sharp(path.join(ROOT, 'public/brand', f)).metadata();
+      assert(m.width === w && m.height === h, `${f} ${m.width}x${m.height}`);
+    }
+    assert(src.width === 245 && src.height === 229, 'the official logo file is unchanged (245 × 229)');
+    // the default mark is the logo's own pixels (resized only): its centre colour matches the source's
+    const px = async (file, x, y) => { const { data, info } = await sharp(path.join(ROOT, file)).ensureAlpha().raw().toBuffer({ resolveWithObject: true }); const i = (Math.round(y * info.height) * info.width + Math.round(x * info.width)) * 4; return [...data.slice(i, i + 3)]; };
+    const [a, b] = [await px('public/images/logo.png', 0.4, 0.5), await px('public/brand/mark-96.webp', 0.4, 0.5)];
+    assert(a.every((v, i) => Math.abs(v - b[i]) <= 24), `not recoloured (${a} vs ${b})`);
+    assert(/loading=/.test(wm) === false && !/data-brand-monogram/.test(wm) && /width=\{DEFAULT_MARK\.width\} height=\{DEFAULT_MARK\.height\}/.test(wm) && /tone === "white" && "rounded-control bg-surface p-1"/.test(wm) && /logo \? \(/.test(wm), 'lockup: sized, not lazy, white plate on navy, upload replaces');
+    const h = read('components/shell/header-bar.tsx');
+    assert((h.match(/<BrandWordmark [^>]*logo=\{logo\}/g) || []).length === 2 && /data-menu-brand=""/.test(h), 'header + mobile menu use the brand');
+    assert(/<BrandWordmark size="sm" tone="white" logo=\{logo\} \/>/.test(read('components/shell/site-footer.tsx')), 'footer');
+    const shell = read('components/shell/app-shell.tsx');
+    assert(/Promise\.all\(\[[\s\S]*?loadBrandAssets\(\),\s*\]\)/.test(shell) && /logo=\{brand\.headerLogo\}/.test(shell) && /logo=\{brand\.footerLogo\}/.test(shell), 'shell: brand read alongside the session, never alone');
+    const meta = read('lib/seo/metadata.ts');
+    assert(/url: "\/brand\/icon\/32"/.test(meta) && /apple: \{ url: "\/brand\/icon\/180"/.test(meta) && /src: "\/brand\/icon\/512"/.test(read('app/manifest.ts')) && /source: "\/favicon\.ico", destination: "\/brand\/icon\/32"/.test(read('next.config.ts')), 'icons → the brand icon route');
+    // negative controls on the pure rules: a foreign path / wrong extension never becomes a brand image
+    assert(R.brandLogoFrom('brand_header_logo', { path: `site/brand_header_logo/${'a'.repeat(64)}.png`, alt: 'x', width: 400, height: 100 }) === null && R.squareMarkUrl({ path: `site/brand_square_mark/${'a'.repeat(64)}.webp` }, 32) === null, 'path checks');
+    assert(R.squareMarkUrl({ path: `site/brand_square_mark/${'a'.repeat(64)}.png` }, 180) === `/media/logos/site/brand_square_mark/${'a'.repeat(64)}-180.png` && R.defaultIconUrl(32) === '/brand/icon-32.png', 'icon urls');
+    const L = R.brandLogoFrom('brand_header_logo', { path: `site/brand_header_logo/${'b'.repeat(64)}.webp`, alt: 'Courage Library', width: 512, height: 128 });
+    assert(L && L.height === 32 && L.width === 128 && /-64\.webp 2x/.test(L.srcSet), 'uploaded logo sizing');
+    return 'default = official logo; upload replaces';
+  });
+
+  await test('H-16 brand pipeline (131): sniffed, shape-checked, re-encoded (metadata dropped), sized copies; admin-only actions, stored before the switch; panel wraps every call', async () => {
+    const sharp = require('sharp');
+    const B = require(path.join(ROOT, 'lib/brand/brand-image.ts'));
+    const mk = (w, h, fmt = 'png') => sharp({ create: { width: w, height: h, channels: 4, background: { r: 20, g: 120, b: 220, alpha: 1 } } }).withMetadata({ exif: { IFD0: { Artist: 'SECRET' } } })[fmt]().toBuffer();
+    const logo = await B.processBrandImage('brand_header_logo', await mk(800, 200));
+    assert(logo.ok && logo.ext === 'webp' && logo.height === 128 && logo.files.length === 2 && !logo.files[0].buf.includes(Buffer.from('SECRET')), 'header logo');
+    const small = await sharp(logo.files[1].buf).metadata();
+    assert(small.height === 64 && small.format === 'webp', 'the 64 px copy');
+    const mark = await B.processBrandImage('brand_square_mark', await mk(600, 600));
+    assert(mark.ok && mark.ext === 'png' && mark.files.map((f) => f.suffix).join() === '.png,-32.png,-180.png,-192.png', 'square mark copies');
+    const bad = await Promise.all([
+      B.processBrandImage('brand_header_logo', Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="800" height="200"/>')),
+      B.processBrandImage('brand_header_logo', await mk(300, 300)),
+      B.processBrandImage('brand_square_mark', await mk(600, 400)),
+      B.processBrandImage('brand_square_mark', await mk(300, 300)),
+      B.processBrandImage('brand_footer_logo', Buffer.alloc(1024 * 1024 + 1)),
+    ]);
+    assert(bad.every((r) => !r.ok) && /SVG/.test(bad[0].message) && /landscape/.test(bad[1].message) && /square/.test(bad[2].message) && /512/.test(bad[3].message) && /1 MB/.test(bad[4].message), 'negative controls: SVG / square logo / non-square mark / small mark / too large');
+    const act = read('app/admin/system/brand-actions.ts');
+    const fns = [...act.matchAll(/export async function (\w+)\([^)]*\)[^\n]*\{\n\s*const auth = await guardAdminAction\(\);/g)].map((x) => x[1]);
+    assert(fns.join() === 'uploadBrandAssetAction,removeBrandAssetAction' && !/allowStaff/.test(act), `actions admin-only (${fns})`);
+    const order = ['processBrandImage(', 'storage.from(BUCKET).upload(', 'rpc("fn_site_media_set"', 'remove(filesOf(oldPath))'].map((x) => act.indexOf(x));
+    assert(order.every((x, i) => x > 0 && (i === 0 || x > order[i - 1])) && /revalidateTag\(BRAND_CACHE_TAG\)/.test(act), `order ${order}`);
+    const panel = read('components/admin/settings/brand-panel.tsx');
+    assert(/await guarded\(\(\) => uploadBrandAssetAction\(fd\)\)/.test(panel) && /await guarded\(\(\) => removeBrandAssetAction\(\{ key: slot \}\)\)/.test(panel) && /sniffLogoFormat/.test(panel) && /accept=\{BRAND_ACCEPT\}/.test(panel), 'panel');
+    assert(/createPublicServerSupabaseClient\(\)\.from\("site_media"\)/.test(read('lib/brand/brand-assets.ts')) && /readBrandAssets\(\)\.catch\(\(\) => null\)/.test(read('lib/brand/brand-assets.ts')), 'brand read: public client, cached, bounded, never rejects');
+    return '2 + 4 copies; 5 refusals';
+  });
+
+  await test('H-17 hero + categories (expert UX pass): honest H1 from live categories only, slogan as eyebrow, language chip; live cards + one coming-soon line', () => {
+    const { renderToStaticMarkup } = require('react-dom/server');
+    const S = require(path.join(ROOT, SECTIONS));
+    const C = require(path.join(ROOT, CONTENT));
+    const h1 = (names) => (renderToStaticMarkup(React.createElement(S.LandingHero, { liveCategories: names })).match(/<h1[^>]*>([\s\S]*?)<\/h1>/) || [])[1];
+    assert(h1(['SSC']) === 'Free preparation for SSC exams' && h1([]) === 'Free preparation for government exams' && h1(['SSC', 'Railway']) === 'Free preparation for SSC &amp; Railway exams', `H1 ${h1(['SSC'])}`);
+    const hero = renderToStaticMarkup(React.createElement(S.LandingHero, { liveCategories: ['SSC'] }));
+    assert(/data-brand-line=""[\s\S]*?Learn Smarter\. Prepare Independently\./.test(hero) && /data-hero-chip=""[\s\S]*?Content in Hindi &amp; English/.test(hero), 'eyebrow + chip');
+    assert(/const liveCategories = await loadLiveCategoryNames\(\);/.test(read('app/page.tsx')) && /<LandingHero liveCategories=\{liveCategories\} \/>/.test(read('app/page.tsx')), 'page passes live names');
+    const cd = read('lib/exams/category-data.ts');
+    assert(/live\.has\(c\.id\)/.test(cd) && /c\.is_active && !c\.is_internal/.test(cd) && /readLiveCategoryNames\(\)\.catch\(\(\) => null\)/.test(cd) && /setTimeout\(\(\) => ok\(null\), 800\)/.test(cd), 'names: live + public only; bounded');
+    const cats = (n) => [{ id: '1', slug: 'ssc', name: 'SSC', shortDesc: 'Staff Selection Commission exams', iconKey: 'ssc', icon: null, activeExams: n }, ...['police', 'defence'].map((slug, i) => ({ id: String(i + 2), slug, name: slug[0].toUpperCase() + slug.slice(1), shortDesc: null, iconKey: slug, icon: null, activeExams: 0 }))];
+    const html = renderToStaticMarkup(React.createElement(S.LandingCategories, { categories: cats(2) }));
+    const text = html.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ');
+    assert(/Coming soon: Police · , Defence/.test(text) || /Coming soon: Police · Defence/.test(text.replace(/ , /g, ' ')), `coming-soon line: ${text.slice(0, 200)}`);
+    assert((html.match(/<a [^>]*href="\/exams\/[a-z]+"/g) || []).length === 1 && /href="\/exams"/.test(html) && /See SSC exams/.test(text) && /2 exams/.test(text) && /Staff Selection Commission exams/.test(text), 'one live card link (+ All exams), real count, short description');
+    // negative control: when Police goes live it becomes a card and leaves the line
+    const live2 = renderToStaticMarkup(React.createElement(S.LandingCategories, { categories: cats(1).map((c) => (c.slug === 'police' ? { ...c, activeExams: 1 } : c)) }));
+    assert(/href="\/exams\/police"/.test(live2) && !/data-category-soon="police"/.test(live2) && /data-category-soon="defence"/.test(live2), 'auto-adapts');
+  });
+
+  await test('H-18 share images: 1200 × 630 OG + Twitter for home and category / exam pages; brand mark = upload or official logo; default ogImage', () => {
+    for (const f of ['app/opengraph-image.tsx', 'app/twitter-image.tsx', 'app/exams/[slug]/opengraph-image.tsx', 'app/exams/[slug]/twitter-image.tsx']) {
+      const s = read(f);
+      assert(/export const dynamic = "force-dynamic";/.test(s) && (/size = OG_SIZE/.test(s) || /export \{ default, alt, size, contentType \} from "\.\/opengraph-image"/.test(s)), f);
+    }
+    const og = read('lib/og/og-card.tsx');
+    assert(/OG_SIZE = \{ width: 1200, height: 630 \}/.test(og) && /public\/images\/logo\.png/.test(og) && /squareMarkUrl/.test(og) && !/#[0-9a-f]{6}/i.test(og), 'card: size, official logo fallback, colours from the brand mirror');
+    assert(/ogImage: "\/opengraph-image"/.test(read('config/site.ts')) && /card: "summary_large_image"/.test(read('lib/seo/metadata.ts')), 'every page shares the branded image; twitter large card');
+    const ex = read('app/exams/[slug]/opengraph-image.tsx');
+    assert(/createPublicServerSupabaseClient/.test(ex) && /eq\("is_active", true\)/.test(ex) && /CATEGORY_SLUG_RE\.test\(slug\)/.test(ex), 'category / exam card: public rows only, slug checked');
+  });
+
+  await test('H-19 phone explore bar + reveal on scroll + consistency: hidden near the end, 48 px, reduced motion, scroll padding; one radius / shadow / icon scale; readable paragraphs', () => {
+    const e = read('components/landing/landing-enhancements.tsx');
+    assert(/md:hidden/.test(e) && /<Link href=\{cta\.href\} tabIndex=\{show \? undefined : -1\} className="focus-ring flex min-h-12 w-full/.test(e) && /motion-reduce:transition-none/.test(e) && /prefers-reduced-motion: reduce/.test(e) && /scrollPaddingBottom = show \? "88px"/.test(e) && /\[data-final-cta\]/.test(e) && /nav\[aria-label="Student"\]/.test(e) && /aria-hidden=\{show \? undefined : true\}/.test(e) && /tabIndex=\{show \? undefined : -1\}/.test(e), 'explore bar');
+    assert(/heroGone && !state\.current\.nearEnd/.test(e) && /el\.getBoundingClientRect\(\)\.top < window\.innerHeight\) el\.setAttribute\("data-revealed", ""\)/.test(e), 'bar logic + no flash for in-view sections');
+    // never hide what the script did not see: only data-reveal-pending is hidden; streamed sections are picked up
+    assert(/el\.setAttribute\("data-reveal-pending", ""\)/.test(e) && /new MutationObserver/.test(e) && /mo\.observe\(document\.body, \{ childList: true, subtree: true \}\)/.test(e), 'pending-only hiding + streamed sections');
+    const css = read('app/globals.css');
+    assert(/html\.reveal-on \[data-reveal\] \{\s*transition: opacity 200ms ease-out, transform 200ms ease-out;/.test(css) && /html\.reveal-on \[data-reveal-pending\]:not\(\[data-revealed\]\) \{\s*opacity: 0;/.test(css) && !/\[data-reveal\]:not\(\[data-revealed\]\)/.test(css) && /@media \(prefers-reduced-motion: reduce\), print \{/.test(css), 'reveal CSS ≤ 200 ms; hides only pending; off with reduced motion / print');
+    const s = read(SECTIONS);
+    const hero = s.slice(s.indexOf('export function LandingHero'), s.indexOf('export function LandingCategories'));
+    assert(!/data-reveal/.test(hero) && (s.match(/data-reveal=""/g) || []).length === 6 && /<LandingEnhancements \/>/.test(read('app/page.tsx')), 'reveal: 6 sections, never the hero (LCP)');
+    assert(/--radius-control: 12px;/.test(css) && /--radius-card: 16px;/.test(css) && /rounded-control px-6/.test(read('components/ui/pill-button.tsx')), 'radius scale: buttons 12, cards 16');
+    const scope = [SECTIONS, 'components/shell/header-bar.tsx', 'components/shell/site-footer.tsx', 'components/exams/category-page.tsx', 'components/landing/landing-enhancements.tsx'];
+    const icons = scope.flatMap((f) => [...read(f).matchAll(/<[A-Z]\w+ aria-hidden(?:="true")?[^>]*className="([^"]*)"/g)].map((m) => `${f}: ${m[1]}`));
+    const off = icons.filter((x) => /size-(?!4\b|5\b|6\b)[\d.]+/.test(x) && !/size-2 rounded-full/.test(x));
+    assert(off.length === 0, `icon sizes outside 16 / 20 / 24: ${off.join(' | ')}`);
+    const cards = ['data-category-tile', 'p-5 shadow-e1 sm:p-8', 'border border-line bg-surface shadow-e1">', 'md:shadow-e1'];
+    assert(cards.every((c) => s.includes(c)) && !/shadow-e3/.test(s.replace(/border-ink-950 bg-ink-950 shadow-e3/, '')), 'one card shadow (e1); e3 only on the phone frame');
+    assert(!/<p[^>]*text-fg-muted/.test(s), 'paragraphs never use the muted (4.5:1) colour');
+    // negative control: a size-3.5 icon is caught
+    assert(/size-(?!4\b|5\b|6\b)[\d.]+/.test('className="size-3.5"'), 'negative control');
+    return `${icons.length} icons on the 16 / 20 / 24 scale`;
   });
 
   console.log(`\nHOME-1 offline: ${passed}/${passed + failed} passed`);

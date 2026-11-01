@@ -60,7 +60,7 @@ export const siteConfig: SiteConfig = {
   description:
     "Courage Library helps you prepare for Indian government exams with free mock tests, answer analysis and a Mistake Vault that turns every wrong answer into revision. Learn Smarter. Prepare Independently.",
   url: CANONICAL_SITE_URL, // SEO-HYGIENE-1: never the deployment URL
-  ogImage: "/images/logo.png",
+  ogImage: "/opengraph-image", // HOME-1: the branded 1200 × 630 share image (app/opengraph-image.tsx)
   // Placeholder social links — to be configured with official handles upon production launch
   links: {
     twitter: "",

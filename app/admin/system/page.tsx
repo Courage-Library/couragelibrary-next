@@ -4,6 +4,8 @@ import { getAdminStudioSettings, STUDIO_SETTING_KEYS, DEFAULT_DAILY_REVIEW_GOAL 
 import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { LibraryGalleryPanel } from "@/components/admin/settings/library-gallery-panel";
 import { loadGallery } from "@/lib/media/site-media";
+import { BrandPanel } from "@/components/admin/settings/brand-panel";
+import { brandLogoFrom, squareMarkUrl } from "@/lib/brand/brand-rules";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +16,19 @@ export const revalidate = 0;
  * from (a row in premium_system_configs, or the documented default). Changing a value is an owner / migration step —
  * this page never writes.
  */
+async function currentBrand() {
+  const { data } = await createAdminServerSupabaseClient().from("site_media").select("key, path, alt, width, height");
+  const row = (k: string) => (data ?? []).find((r) => r.key === k) ?? null;
+  const header = brandLogoFrom("brand_header_logo", row("brand_header_logo"));
+  const footer = brandLogoFrom("brand_footer_logo", row("brand_footer_logo"));
+  const mark = squareMarkUrl(row("brand_square_mark"), 192);
+  return {
+    ...(header ? { brand_header_logo: { src: header.src, alt: header.alt } } : {}),
+    ...(footer ? { brand_footer_logo: { src: footer.src, alt: footer.alt } } : {}),
+    ...(mark ? { brand_square_mark: { src: mark, alt: row("brand_square_mark")?.alt ?? "" } } : {}),
+  };
+}
+
 export default async function AdminSettingsPage() {
   await requireAdminPage({ path: "/admin/system" });
   const s = await getAdminStudioSettings();
@@ -32,8 +47,10 @@ export default async function AdminSettingsPage() {
     <div className="flex max-w-3xl flex-col gap-4">
       <header>
         <h1 className="text-h1 font-bold text-fg">Settings</h1>
-        <p className="text-body text-fg-secondary">Courage Studio settings below are read only here (values are changed by the owner). The library photos for the home page are managed here.</p>
+        <p className="text-body text-fg-secondary">Courage Studio settings below are read only here (values are changed by the owner). The brand images and the library photos for the home page are managed here.</p>
       </header>
+      {/* HOME-1 (131): brand assets (admin only, audited); fresh read (not the cached one) */}
+      <BrandPanel current={await currentBrand()} />
       {/* HOME-1 (130): the library photos on the home page (admin only, audited) */}
       <LibraryGalleryPanel photos={await loadGallery()} />
       <ul className="flex flex-col gap-3">

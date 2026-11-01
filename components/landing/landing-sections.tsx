@@ -5,7 +5,7 @@
  * Owner rule: NO exam-specific details or actions on home — category tiles → /exams/<category> → exam pages.
  * Research (UX phase 1): low text, plain English, honest (no hype, no promises of selection, no fake numbers), fast on budget phones.
  */
-import { ArrowRight, BookOpenCheck, Check, ChevronDown, ChevronRight, ClipboardCheck, Gauge, Lock, NotebookPen, Repeat, RotateCcw } from "lucide-react";
+import { ArrowRight, BookOpenCheck, Check, ChevronDown, ClipboardCheck, Gauge, Languages, Lock, NotebookPen, Repeat, RotateCcw } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 import Link from "next/link";
 import { ButtonLink } from "@/components/ui/button";
@@ -72,33 +72,31 @@ function SectionHeading({ id, title, lead }: { id: string; title: string; lead?:
 }
 
 /**
- * Hero: the brand line (2 lines, second in the hero accent), one short line, ONE action (components/landing/landing-cta),
- * and one REAL app screen in a CSS phone frame ("honest images"): right of the text on desktop, small under the action
- * on phones. The H1 stays the LCP element: the screen is smaller than the H1 block, lazy, low fetch priority, sized
- * (no layout shift).
+ * Hero (HOME-1 expert UX pass): the slogan is the small eyebrow; the H1 says the value plainly and honestly — "Free
+ * preparation for SSC exams" names only categories with live exams (app/page.tsx passes them from a cached, bounded
+ * read; none → "government exams"); one short line; the content-language chip (the UI stays English, #82); ONE action
+ * (components/landing/landing-cta); one REAL app screen in a CSS phone frame ("honest images", #86). The H1 stays the
+ * LCP element: the screen is smaller than the H1 block, lazy, low fetch priority, sized (no layout shift).
  */
-export function LandingHero() {
-  const [line1, ...rest] = LANDING_HERO.title.split(". ");
+export function LandingHero({ liveCategories = [] }: { liveCategories?: readonly string[] }) {
   const mock = shot("hero");
   return (
-    <GradientHero aria-labelledby="hero-title">
+    <GradientHero aria-labelledby="hero-title" data-hero="">
       <Container className="grid items-center gap-6 lg:grid-cols-[1fr_auto] lg:gap-12">
-        <div className="flex flex-col items-start gap-5">
-          <p className="inline-flex items-center gap-2 text-body-sm font-semibold uppercase tracking-wider text-hero-accent-text">
+        <div className="flex flex-col items-start gap-4 lg:gap-5">
+          <p className="inline-flex items-center gap-2 text-body font-semibold text-hero-accent-text" data-brand-line="">
             <span aria-hidden="true" className="size-2 rounded-full bg-accent-400" />
             {LANDING_HERO.eyebrow}
           </p>
-          <h1 id="hero-title" className="max-w-3xl text-display font-bold tracking-tight text-hero-fg">
-            {rest.length ? (
-              <>
-                {line1}.<br />
-                <span className="text-hero-accent-text">{rest.join(". ")}</span>
-              </>
-            ) : (
-              LANDING_HERO.title
-            )}
+          {/* 18ch: the line breaks are the same in the web font and its size-adjusted fallback (no font-swap shift) */}
+          <h1 id="hero-title" className="max-w-[18ch] text-display font-bold tracking-tight text-hero-fg">
+            {LANDING_HERO.title(liveCategories)}
           </h1>
           <p className="max-w-xl text-body-lg text-hero-fg-muted">{LANDING_HERO.lead}</p>
+          <p className="inline-flex min-h-8 items-center gap-2 rounded-full border border-hero-bg-end bg-hero-bg-mid px-3 text-body-sm font-semibold text-hero-fg" data-hero-chip="">
+            <Languages aria-hidden="true" className="size-4" />
+            {LANDING_HERO.chip}
+          </p>
           <div className="flex flex-wrap items-center gap-3">
             <LandingCta spot="hero" />
           </div>
@@ -127,68 +125,64 @@ export function LandingHero() {
   );
 }
 
-// static class names (Tailwind scans the source): coming-soon columns on tablets, all categories in one row on desktop
-const MD_COLS: Record<number, string> = { 1: "md:grid-cols-1", 2: "md:grid-cols-2", 3: "md:grid-cols-3", 4: "md:grid-cols-4" };
-const LG_COLS: Record<number, string> = { 1: "lg:grid-cols-1", 2: "lg:grid-cols-2", 3: "lg:grid-cols-3", 4: "lg:grid-cols-4", 5: "lg:grid-cols-5" };
-
 /**
- * Category tiles: a category with active exams is a link — one full-width row on phones and tablets (owner review: no
- * orphan gap) — then the honest "Coming soon" tiles (not links) two per row; an odd last one spans the row.
+ * Categories (HOME-1 expert UX pass): every category with live exams is a LARGE card (a link: icon, name, its real exam
+ * count, its short description, "See SSC exams"); the categories without exams yet are ONE quiet line ("Coming soon:
+ * Police · Defence · …", not links). Adapts by itself when a category goes live.
  */
 export function LandingCategories({ categories }: { categories: PublicCategory[] | null }) {
+  const live = (categories ?? []).filter((c) => c.activeExams > 0);
   const soon = (categories ?? []).filter((c) => c.activeExams === 0);
-  const soonCount = soon.length;
-  const lastSoon = soon.at(-1)?.slug;
   return (
-    <Section aria-labelledby="categories-title" id="categories" spacing="compact" className="scroll-mt-24 bg-surface py-6 lg:py-12">
-      <Container className="flex flex-col gap-6">
+    <Section aria-labelledby="categories-title" id="categories" spacing="compact" className="scroll-mt-24 bg-surface py-6 lg:py-12" data-reveal="">
+      <Container className="flex flex-col gap-5">
         <SectionHeading id="categories-title" title={LANDING_CATEGORIES.heading} />
         {categories === null ? (
-          <div className="flex flex-col items-start gap-3 rounded-card border border-line bg-surface p-5">
+          <div className="flex flex-col items-start gap-3 rounded-card border border-line bg-surface p-5 shadow-e1">
             <p className="text-body text-fg-secondary">{LANDING_CATEGORIES.fallback}</p>
             <ButtonLink href={LANDING_CATEGORIES.allExams.href} variant="secondary" size="lg">
               {LANDING_CATEGORIES.allExams.label}
             </ButtonLink>
           </div>
         ) : (
-          <ul className={`grid grid-cols-2 gap-2 sm:gap-3 ${MD_COLS[Math.min(4, Math.max(1, soonCount))]} ${LG_COLS[Math.min(5, Math.max(1, categories.length))]}`} aria-label={LANDING_CATEGORIES.heading}>
-            {categories.map((c) => {
-              const live = c.activeExams > 0;
-              const pill = (
-                <span className={`rounded-full px-2 py-0.5 text-[14px] font-semibold leading-tight ${live ? "bg-primary-50 text-primary-800" : "bg-ink-50 text-fg-secondary"}`}>
-                  {live ? categoryCountLabel(c.activeExams) : LANDING_CATEGORIES.comingSoon}
-                </span>
-              );
-              if (live) {
-                return (
-                  <li key={c.slug} className="col-span-full flex lg:col-span-1">
+          <>
+            {live.length > 0 && (
+              <ul className={`grid gap-4 ${live.length === 1 ? "max-w-3xl" : "md:grid-cols-2"}`} aria-label={LANDING_CATEGORIES.heading}>
+                {live.map((c) => (
+                  <li key={c.slug} className="flex">
                     <Link
                       href={`/exams/${c.slug}`}
-                      className="focus-ring flex min-h-[72px] w-full items-center gap-3 rounded-card border border-primary-200 bg-surface p-3 transition-colors hover:border-primary-300 hover:bg-primary-50/40 sm:p-4 lg:min-h-[132px] lg:flex-col lg:justify-center lg:gap-1.5 lg:text-center"
+                      className="focus-ring group flex w-full flex-col gap-4 rounded-card border border-primary-200 bg-surface p-5 shadow-e1 transition-colors hover:border-primary-400 sm:flex-row sm:items-center sm:p-6"
                       data-category-tile={c.slug}
                     >
-                      <CategoryIcon category={c} px={48} />
-                      <span className="flex min-w-0 flex-1 flex-col items-start gap-1 lg:flex-none lg:items-center">
-                        <span className="text-body-lg font-semibold text-fg">{c.name}</span>
-                        {pill}
+                      <CategoryIcon category={c} px={64} />
+                      <span className="flex min-w-0 flex-1 flex-col items-start gap-1.5">
+                        <span className="text-h3 font-bold text-fg">{c.name}</span>
+                        <span className="rounded-full bg-primary-50 px-2.5 py-0.5 text-[14px] font-semibold text-primary-800">{categoryCountLabel(c.activeExams)}</span>
+                        {c.shortDesc && <span className="text-body text-fg-secondary">{c.shortDesc}</span>}
                       </span>
-                      <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-primary-700 lg:hidden" />
+                      <span className="inline-flex min-h-12 shrink-0 items-center gap-2 text-body font-semibold text-link group-hover:underline">
+                        {LANDING_CATEGORIES.liveCta(c.name)}
+                        <ArrowRight aria-hidden="true" className="size-5" />
+                      </span>
                     </Link>
                   </li>
-                );
-              }
-              const lastOdd = soonCount % 2 === 1 && c.slug === lastSoon;
-              return (
-                <li key={c.slug} className={`flex ${lastOdd ? "col-span-2 md:col-span-1" : ""}`}>
-                  <div className="flex min-h-[112px] w-full flex-col items-center justify-center gap-1.5 rounded-card border border-dashed border-line bg-canvas p-2 text-center sm:p-4 lg:min-h-[132px]" data-category-tile={c.slug} aria-disabled="true">
-                    <CategoryIcon category={c} px={48} />
-                    <span className="text-body font-semibold text-fg sm:text-body-lg">{c.name}</span>
-                    {pill}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+                ))}
+              </ul>
+            )}
+            {soon.length > 0 && (
+              <p className="text-body text-fg-secondary" data-category-soon-line="">
+                <span className="font-semibold text-fg">{LANDING_CATEGORIES.comingSoonLine}</span>{" "}
+                {soon.map((c, i) => (
+                  <span key={c.slug} data-category-soon={c.slug}>
+                    {i > 0 && <span aria-hidden="true"> · </span>}
+                    {i > 0 && <span className="sr-only">, </span>}
+                    {c.name}
+                  </span>
+                ))}
+              </p>
+            )}
+          </>
         )}
         <Link href={LANDING_CATEGORIES.allExams.href} className="focus-ring inline-flex min-h-12 items-center gap-2 self-start rounded-control px-1 text-body font-semibold text-link hover:underline">
           {LANDING_CATEGORIES.allExams.label}
@@ -202,13 +196,10 @@ export function LandingCategories({ categories }: { categories: PublicCategory[]
 export function LandingCategoriesSkeleton() {
   return (
     <Section aria-label={LANDING_CATEGORIES.heading} aria-busy="true" id="categories" spacing="compact" className="bg-surface py-6 lg:py-12">
-      <Container className="flex flex-col gap-6">
+      <Container className="flex flex-col gap-5">
         <SectionHeading id="categories-title" title={LANDING_CATEGORIES.heading} />
-        <ul className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-4 lg:grid-cols-5" aria-hidden="true">
-          {[0, 1, 2, 3, 4].map((i) => (
-            <li key={i} className={`rounded-card border border-line bg-canvas ${i === 0 ? "col-span-full min-h-[72px] lg:col-span-1 lg:min-h-[132px]" : "min-h-[112px] lg:min-h-[132px]"}`} />
-          ))}
-        </ul>
+        <div aria-hidden="true" className="min-h-[176px] max-w-3xl rounded-card border border-line bg-canvas sm:min-h-[116px]" />
+        <div aria-hidden="true" className="h-6 max-w-md rounded-control bg-canvas" />
         <div className="min-h-12" />
       </Container>
     </Section>
@@ -223,7 +214,7 @@ export function LandingCategoriesSkeleton() {
 export function LandingLoop() {
   const steps = LANDING_LOOP.steps;
   return (
-    <Section aria-labelledby="loop-title" spacing="compact" className="bg-canvas py-6 lg:py-12">
+    <Section aria-labelledby="loop-title" spacing="compact" className="bg-canvas py-6 lg:py-12" data-reveal="">
       <Container className="flex flex-col gap-6">
         <SectionHeading id="loop-title" title={LANDING_LOOP.heading} />
         <div className="relative" data-loop="">
@@ -233,7 +224,7 @@ export function LandingLoop() {
               const s = shot(LOOP_SHOTS[i]);
               const last = i === steps.length - 1;
               return (
-                <li key={step.title} className="relative flex gap-4 pb-5 md:flex-col md:gap-3 md:rounded-card md:border md:border-line md:bg-surface md:p-3 md:pb-3 lg:p-4" data-loop-step={i + 1}>
+                <li key={step.title} className="relative flex gap-4 pb-5 md:flex-col md:gap-3 md:rounded-card md:border md:border-line md:bg-surface md:p-3 md:pb-3 md:shadow-e1 lg:p-4" data-loop-step={i + 1}>
                   {/* phones: the connecting line of the timeline (to the next step) */}
                   {!last && <span aria-hidden="true" className="absolute left-6 top-12 h-[calc(100%-3rem)] w-0.5 -translate-x-1/2 bg-primary-200 md:hidden" data-loop-line="" />}
                   {/* tablet / desktop: the arrow to the next step */}
@@ -302,38 +293,43 @@ export function landingFeatures(data: LandingData): FeatureRow[] {
   ].map(({ key, title, text, live, detail }) => ({ key, title, text, live, detail }));
 }
 
-// tablet / desktop columns by how many features are live (≤ 6): full rows only; 5 on tablets → the last spans the row
-const FEATURE_COLS: Record<number, string> = {
-  1: "md:grid-cols-1",
-  2: "md:grid-cols-2",
-  3: "md:grid-cols-3",
-  4: "md:grid-cols-2 lg:grid-cols-4",
-  5: "md:grid-cols-2 lg:grid-cols-5",
-  6: "md:grid-cols-3",
-};
-
-/** What you get: ONLY what works today (ruling: no "coming soon" cards on home). */
+/**
+ * What you get (HOME-1 expert UX pass): the focal element is the LIVE numbers (big, from the live read; shown only when
+ * the read worked and the number is above zero — never typed, never invented), then ONLY what works today as a plain
+ * checklist (no card grid: each home section has its own shape).
+ */
 export function LandingFeatures({ data }: { data: LandingData }) {
   const live = landingFeatures(data).filter((r) => r.live);
   const shortOf = (key: string) => (LANDING_FEATURES.items as Record<string, { short?: string }>)[key]?.short;
+  const F = LANDING_FEATURES.items;
+  const stats = data.ok
+    ? [
+        { key: "exams", n: data.exams.length, unit: LANDING_FEATURES.examsUnit(data.exams.length) },
+        { key: "mocks", n: data.totalPublishedMocks, unit: F.mocks.unit(data.totalPublishedMocks) },
+        { key: "guides", n: data.totalPublishedGuides, unit: F.guides.unit(data.totalPublishedGuides) },
+      ].filter((x) => x.n > 0)
+    : [];
   return (
-    <Section aria-labelledby="features-title" spacing="compact" className="bg-surface py-6 lg:py-12">
+    <Section aria-labelledby="features-title" spacing="compact" className="bg-surface py-6 lg:py-12" data-reveal="">
       <Container className="flex flex-col gap-6">
         <SectionHeading id="features-title" title={LANDING_FEATURES.heading} lead={LANDING_FEATURES.lead} />
-        <ul
-          className={`flex flex-col divide-y divide-line rounded-card border border-line bg-surface md:grid md:gap-3 md:divide-y-0 md:border-0 md:bg-transparent ${FEATURE_COLS[Math.min(6, Math.max(1, live.length))]}`}
-          data-features-list=""
-        >
-          {live.map((r, i) => (
-            <li
-              key={r.key}
-              className={`flex items-start gap-3 px-3 py-2.5 md:flex-col md:gap-1 md:rounded-card md:border md:border-line md:bg-canvas md:p-4 ${live.length === 5 && i === 4 ? "md:col-span-2 lg:col-span-1" : ""}`}
-            >
-              <Check aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-success-700" />
+        {stats.length > 0 && (
+          <ul className="grid grid-cols-1 divide-y divide-line rounded-card bg-primary-50 sm:grid-cols-3 sm:divide-x sm:divide-y-0" aria-label={LANDING_FEATURES.statsLabel} data-live-stats="">
+            {stats.map((x) => (
+              <li key={x.key} className="flex items-baseline gap-3 px-5 py-4 sm:flex-col sm:gap-1 sm:py-6" data-stat={x.key}>
+                <span className="text-display font-bold leading-none tracking-tight text-primary-800 tabular-nums">{x.n}</span>
+                <span className="text-body font-semibold text-fg">{x.unit}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <ul className="grid gap-x-10 gap-y-4 md:grid-cols-2" data-features-list="">
+          {live.map((r) => (
+            <li key={r.key} className="flex items-start gap-3">
+              <Check aria-hidden="true" className="mt-1 size-5 shrink-0 text-success-700" />
               <span className="flex min-w-0 flex-col gap-0.5">
-                <h3 className="text-body font-semibold text-fg md:text-body-lg">{r.title}</h3>
-                <span className="text-body-sm text-fg-secondary md:text-body">{shortOf(r.key) ?? r.text}</span>
-                {r.detail && <span className="hidden text-body font-medium text-primary-700 md:inline">{r.detail}</span>}
+                <h3 className="text-body-lg font-semibold text-fg">{r.title}</h3>
+                <span className="text-body text-fg-secondary">{shortOf(r.key) ?? r.text}</span>
               </span>
             </li>
           ))}
@@ -348,9 +344,10 @@ export function LandingFeaturesSkeleton() {
     <Section aria-label={LANDING_FEATURES.heading} aria-busy="true" spacing="compact" className="bg-surface py-6 lg:py-12">
       <Container className="flex flex-col gap-6">
         <SectionHeading id="features-title" title={LANDING_FEATURES.heading} lead={LANDING_FEATURES.lead} />
-        <ul className="grid grid-cols-1 gap-2 md:grid-cols-3 md:gap-3" aria-hidden="true">
+        <div aria-hidden="true" className="min-h-[220px] rounded-card bg-primary-50 sm:min-h-[132px]" />
+        <ul className="grid gap-x-10 gap-y-4 md:grid-cols-2" aria-hidden="true">
           {[0, 1, 2, 3, 4, 5].map((i) => (
-            <li key={i} className="min-h-16 rounded-card border border-line bg-canvas md:min-h-28" />
+            <li key={i} className="h-14 rounded-control bg-canvas" />
           ))}
         </ul>
       </Container>
@@ -366,9 +363,9 @@ export function LandingFeaturesSkeleton() {
  */
 export function LandingTrust({ photos = [] }: { photos?: GalleryPhoto[] }) {
   return (
-    <Section aria-labelledby="trust-title" spacing="compact" className="bg-canvas py-6 lg:py-12">
+    <Section aria-labelledby="trust-title" spacing="compact" className="bg-canvas py-6 lg:py-12" data-reveal="">
       <Container>
-        <div className="flex flex-col gap-4 overflow-hidden rounded-card border border-line bg-surface p-5 sm:p-8">
+        <div className="flex flex-col gap-4 overflow-hidden rounded-card border border-line bg-surface p-5 shadow-e1 sm:p-8">
           <div className="flex flex-col gap-2">
             <AccentBar />
             <h2 id="trust-title" className="text-h2 font-bold tracking-tight text-fg">
@@ -429,10 +426,10 @@ export function LandingPlans() {
       </>
     );
   return (
-    <Section aria-labelledby="plans-title" spacing="compact" className="bg-surface py-6 lg:py-12">
+    <Section aria-labelledby="plans-title" spacing="compact" className="bg-surface py-6 lg:py-12" data-reveal="">
       <Container className="flex flex-col gap-4">
         <SectionHeading id="plans-title" title={LANDING_PLANS.heading} />
-        <div className="overflow-hidden rounded-card border border-line bg-surface">
+        <div className="overflow-hidden rounded-card border border-line bg-surface shadow-e1">
           <table className="w-full border-collapse text-body" data-plans-table="">
             <caption className="sr-only">{T.caption}</caption>
             <thead className="bg-surface-sunken">
@@ -441,7 +438,7 @@ export function LandingPlans() {
                 <th scope="col" className="w-20 px-2 py-2 text-center text-body-sm font-semibold text-fg">{T.columns[1]}</th>
                 <th scope="col" className="w-20 px-2 py-2 text-center text-body-sm font-semibold text-fg">
                   <span className="inline-flex items-center gap-1">
-                    <Lock aria-hidden="true" className="size-3.5" />
+                    <Lock aria-hidden="true" className="size-4" />
                     {T.columns[2]}
                   </span>
                 </th>
@@ -472,10 +469,10 @@ export function LandingPlans() {
  */
 export function LandingFaq() {
   return (
-    <Section aria-labelledby="faq-title" spacing="compact" className="bg-canvas py-6 lg:py-12">
+    <Section aria-labelledby="faq-title" spacing="compact" className="bg-canvas py-6 lg:py-12" data-reveal="">
       <Container className="flex flex-col gap-6">
         <SectionHeading id="faq-title" title={LANDING_FAQ.heading} />
-        <div className="flex flex-col divide-y divide-line rounded-card border border-line bg-surface">
+        <div className="flex flex-col divide-y divide-line rounded-card border border-line bg-surface shadow-e1">
           {LANDING_FAQ.items.map((f) => (
             <details key={f.q} className="group">
               <summary className="focus-ring flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-2 text-body font-semibold text-fg sm:text-body-lg [&::-webkit-details-marker]:hidden">
@@ -501,7 +498,7 @@ export function faqJsonLd() {
 
 export function LandingFinalCta() {
   return (
-    <Section aria-labelledby="final-cta-title" className="hero-gradient hero-depth relative isolate overflow-hidden">
+    <Section aria-labelledby="final-cta-title" className="hero-gradient hero-depth relative isolate overflow-hidden" data-final-cta="">
       <Container className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-1">
           <h2 id="final-cta-title" className="text-h2 font-bold tracking-tight text-fg-inverse">

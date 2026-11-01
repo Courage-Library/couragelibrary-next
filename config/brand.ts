@@ -18,4 +18,8 @@ export const BRAND_PALETTE = {
   "ink-700": "#33415c",
   "ink-50": "#f7f8fc",
   "brand-violet": "#5000f0",
+  // HOME-1 share image (lib/og/og-card.tsx renders outside CSS)
+  "accent-300": "#5cd8e6",
+  "primary-100": "#dbe6fe",
+  "surface": "#ffffff",
 } as const;

@@ -42,7 +42,9 @@ const nextConfig: NextConfig = {
   // project ref never appears in public HTML. Content-hash paths: immutable.
   rewrites: async () => {
     const base = (process.env.NEXT_PUBLIC_SUPABASE_URL || "").replace(/\/$/, "");
-    return base ? [{ source: "/media/logos/:path*", destination: `${base}/storage/v1/object/public/org-logos/:path*` }] : [];
+    // HOME-1 brand: browsers ask for /favicon.ico; it is the 32 px brand icon (uploaded square mark or the official logo)
+    const favicon = { source: "/favicon.ico", destination: "/brand/icon/32" };
+    return base ? [{ source: "/media/logos/:path*", destination: `${base}/storage/v1/object/public/org-logos/:path*` }, favicon] : [favicon];
   },
   // UX-2b: the former Premium hub is retired; plans live on /pricing ("Free during early access. Pro coming soon.")
   redirects: async () => [

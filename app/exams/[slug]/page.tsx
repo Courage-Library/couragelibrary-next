@@ -42,6 +42,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: `${cat.category.name} exams`,
       description: cat.category.shortDesc || `${cat.category.name} exams on Courage Library: lessons, practice and mock tests.`,
       canonicalUrl: `/exams/${slug}`,
+      ogImage: `/exams/${slug}/opengraph-image`, // HOME-1: the category's own share card
       // noindex only when the read worked and the category really has no exam (an outage never de-indexes it)
       noIndex: !cat.examsFailed && cat.category.activeExams === 0,
     });
@@ -60,6 +61,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: `${exam.title}: exam pattern, mock tests, syllabus and guides`,
     description: exam.description || `Exam pattern, free mock tests, the syllabus and exam guides for ${exam.title}.`,
     canonicalUrl: `/exams/${slug}`,
+    ogImage: `/exams/${slug}/opengraph-image`, // HOME-1: the exam's own share card
   });
 }
 
