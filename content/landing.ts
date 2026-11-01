@@ -172,6 +172,7 @@ export const LANDING_TRUST = {
 
 export const LANDING_FINAL_CTA = {
   heading: "Start preparing today",
+  note: "Free during early access.",
   text: "Create a free account and start with a full-length test.",
   cta: { label: "Start free", href: "/auth/signup" },
   signedInCta: { label: "Go to dashboard", href: "/dashboard" },

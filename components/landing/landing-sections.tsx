@@ -5,7 +5,7 @@
  * Owner rule: NO exam-specific details or actions on home — category tiles → /exams/<category> → exam pages.
  * Research (UX phase 1): low text, plain English, honest (no hype, no promises of selection, no fake numbers), fast on budget phones.
  */
-import { ArrowRight, BookOpenCheck, Check, ClipboardCheck, Gauge, Lock, NotebookPen, Repeat } from "lucide-react";
+import { ArrowRight, BookOpenCheck, Check, ChevronDown, ChevronRight, ClipboardCheck, Gauge, Lock, NotebookPen, Repeat } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 import Link from "next/link";
 import { ButtonLink } from "@/components/ui/button";
@@ -30,9 +30,18 @@ import { LandingCta } from "./landing-cta";
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
 const LOOP_ICONS: Icon[] = [BookOpenCheck, NotebookPen, ClipboardCheck, Gauge, Repeat];
 
+/**
+ * Section rhythm (HOME-1 owner review): sections alternate white (bg-surface) and canvas (bg-canvas); every section heading
+ * has the same short cyan accent bar (decorative). Gradient only on the hero and the final call to action.
+ */
+function AccentBar() {
+  return <span aria-hidden="true" data-accent-bar="" className="block h-1 w-10 rounded-full bg-accent-500" />;
+}
+
 function SectionHeading({ id, title, lead }: { id: string; title: string; lead?: string }) {
   return (
     <div className="flex max-w-prose flex-col gap-2">
+      <AccentBar />
       <h2 id={id} className="text-h2 font-bold tracking-tight text-fg">
         {title}
       </h2>
@@ -71,10 +80,20 @@ export function LandingHero() {
   );
 }
 
-/** Category tiles: a category with active exams is a link; one without is an honest "Coming soon" tile (not a link). */
+// static class names (Tailwind scans the source): coming-soon columns on tablets, all categories in one row on desktop
+const MD_COLS: Record<number, string> = { 1: "md:grid-cols-1", 2: "md:grid-cols-2", 3: "md:grid-cols-3", 4: "md:grid-cols-4" };
+const LG_COLS: Record<number, string> = { 1: "lg:grid-cols-1", 2: "lg:grid-cols-2", 3: "lg:grid-cols-3", 4: "lg:grid-cols-4", 5: "lg:grid-cols-5" };
+
+/**
+ * Category tiles: a category with active exams is a link — one full-width row on phones and tablets (owner review: no
+ * orphan gap) — then the honest "Coming soon" tiles (not links) two per row; an odd last one spans the row.
+ */
 export function LandingCategories({ categories }: { categories: PublicCategory[] | null }) {
+  const soon = (categories ?? []).filter((c) => c.activeExams === 0);
+  const soonCount = soon.length;
+  const lastSoon = soon.at(-1)?.slug;
   return (
-    <Section aria-labelledby="categories-title" id="categories" spacing="compact" className="scroll-mt-24 pt-6 lg:pt-12">
+    <Section aria-labelledby="categories-title" id="categories" spacing="compact" className="scroll-mt-24 bg-surface py-6 lg:py-12">
       <Container className="flex flex-col gap-6">
         <SectionHeading id="categories-title" title={LANDING_CATEGORIES.heading} />
         {categories === null ? (
@@ -85,29 +104,40 @@ export function LandingCategories({ categories }: { categories: PublicCategory[]
             </ButtonLink>
           </div>
         ) : (
-          <ul className="grid grid-cols-3 gap-2 sm:gap-3 lg:grid-cols-5" aria-label={LANDING_CATEGORIES.heading}>
+          <ul className={`grid grid-cols-2 gap-2 sm:gap-3 ${MD_COLS[Math.min(4, Math.max(1, soonCount))]} ${LG_COLS[Math.min(5, Math.max(1, categories.length))]}`} aria-label={LANDING_CATEGORIES.heading}>
             {categories.map((c) => {
               const live = c.activeExams > 0;
-              const inner = (
-                <>
-                  <CategoryIcon category={c} px={40} />
-                  <span className="text-body font-semibold text-fg sm:text-body-lg">{c.name}</span>
-                  <span className={`rounded-full px-2 py-0.5 text-[14px] font-semibold leading-tight ${live ? "bg-primary-50 text-primary-800" : "bg-ink-50 text-fg-secondary"}`}>
-                    {live ? categoryCountLabel(c.activeExams) : LANDING_CATEGORIES.comingSoon}
-                  </span>
-                </>
+              const pill = (
+                <span className={`rounded-full px-2 py-0.5 text-[14px] font-semibold leading-tight ${live ? "bg-primary-50 text-primary-800" : "bg-ink-50 text-fg-secondary"}`}>
+                  {live ? categoryCountLabel(c.activeExams) : LANDING_CATEGORIES.comingSoon}
+                </span>
               );
-              return (
-                <li key={c.slug} className="flex">
-                  {live ? (
-                    <Link href={`/exams/${c.slug}`} className="focus-ring flex min-h-[116px] w-full flex-col items-center justify-center gap-1.5 rounded-card border border-line bg-surface p-2 sm:p-4 text-center transition-colors hover:border-primary-300 hover:bg-primary-50/40" data-category-tile={c.slug}>
-                      {inner}
+              if (live) {
+                return (
+                  <li key={c.slug} className="col-span-full flex lg:col-span-1">
+                    <Link
+                      href={`/exams/${c.slug}`}
+                      className="focus-ring flex min-h-[72px] w-full items-center gap-3 rounded-card border border-primary-200 bg-surface p-3 transition-colors hover:border-primary-300 hover:bg-primary-50/40 sm:p-4 lg:min-h-[132px] lg:flex-col lg:justify-center lg:gap-1.5 lg:text-center"
+                      data-category-tile={c.slug}
+                    >
+                      <CategoryIcon category={c} px={48} />
+                      <span className="flex min-w-0 flex-1 flex-col items-start gap-1 lg:flex-none lg:items-center">
+                        <span className="text-body-lg font-semibold text-fg">{c.name}</span>
+                        {pill}
+                      </span>
+                      <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-primary-700 lg:hidden" />
                     </Link>
-                  ) : (
-                    <div className="flex min-h-[116px] w-full flex-col items-center justify-center gap-1.5 rounded-card border border-dashed border-line bg-surface-sunken p-2 text-center sm:p-4" data-category-tile={c.slug} aria-disabled="true">
-                      {inner}
-                    </div>
-                  )}
+                  </li>
+                );
+              }
+              const lastOdd = soonCount % 2 === 1 && c.slug === lastSoon;
+              return (
+                <li key={c.slug} className={`flex ${lastOdd ? "col-span-2 md:col-span-1" : ""}`}>
+                  <div className="flex min-h-[112px] w-full flex-col items-center justify-center gap-1.5 rounded-card border border-dashed border-line bg-canvas p-2 text-center sm:p-4 lg:min-h-[132px]" data-category-tile={c.slug} aria-disabled="true">
+                    <CategoryIcon category={c} px={48} />
+                    <span className="text-body font-semibold text-fg sm:text-body-lg">{c.name}</span>
+                    {pill}
+                  </div>
                 </li>
               );
             })}
@@ -124,12 +154,12 @@ export function LandingCategories({ categories }: { categories: PublicCategory[]
 
 export function LandingCategoriesSkeleton() {
   return (
-    <Section aria-label={LANDING_CATEGORIES.heading} aria-busy="true" id="categories" spacing="compact" className="pt-8 lg:pt-12">
+    <Section aria-label={LANDING_CATEGORIES.heading} aria-busy="true" id="categories" spacing="compact" className="bg-surface py-6 lg:py-12">
       <Container className="flex flex-col gap-6">
-        <SectionHeading id="categories-title" title={LANDING_CATEGORIES.heading} lead={LANDING_CATEGORIES.lead} />
-        <ul className="grid grid-cols-3 gap-2 sm:gap-3 lg:grid-cols-5" aria-hidden="true">
+        <SectionHeading id="categories-title" title={LANDING_CATEGORIES.heading} />
+        <ul className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-4 lg:grid-cols-5" aria-hidden="true">
           {[0, 1, 2, 3, 4].map((i) => (
-            <li key={i} className="min-h-[116px] rounded-card border border-line bg-surface-sunken" />
+            <li key={i} className={`rounded-card border border-line bg-canvas ${i === 0 ? "col-span-full min-h-[72px] lg:col-span-1 lg:min-h-[132px]" : "min-h-[112px] lg:min-h-[132px]"}`} />
           ))}
         </ul>
         <div className="min-h-12" />
@@ -141,7 +171,7 @@ export function LandingCategoriesSkeleton() {
 /** How it works: 5 compact steps (one row on desktop, a short list on phones). */
 export function LandingLoop() {
   return (
-    <Section aria-labelledby="loop-title" spacing="compact" className="bg-surface-sunken py-6 lg:py-12">
+    <Section aria-labelledby="loop-title" spacing="compact" className="bg-canvas py-6 lg:py-12">
       <Container className="flex flex-col gap-6">
         <SectionHeading id="loop-title" title={LANDING_LOOP.heading} />
         <ol className="flex flex-col divide-y divide-line rounded-card border border-line bg-surface md:grid md:grid-cols-5 md:gap-3 md:divide-y-0 md:border-0 md:bg-transparent">
@@ -189,23 +219,39 @@ export function landingFeatures(data: LandingData): FeatureRow[] {
   ].map(({ key, title, text, live, detail }) => ({ key, title, text, live, detail }));
 }
 
+// tablet / desktop columns by how many features are live (≤ 6): full rows only; 5 on tablets → the last spans the row
+const FEATURE_COLS: Record<number, string> = {
+  1: "md:grid-cols-1",
+  2: "md:grid-cols-2",
+  3: "md:grid-cols-3",
+  4: "md:grid-cols-2 lg:grid-cols-4",
+  5: "md:grid-cols-2 lg:grid-cols-5",
+  6: "md:grid-cols-3",
+};
+
 /** What you get: ONLY what works today (ruling: no "coming soon" cards on home). */
 export function LandingFeatures({ data }: { data: LandingData }) {
   const live = landingFeatures(data).filter((r) => r.live);
   const shortOf = (key: string) => (LANDING_FEATURES.items as Record<string, { short?: string }>)[key]?.short;
   return (
-    <Section aria-labelledby="features-title" spacing="compact" className="py-6 lg:py-12">
+    <Section aria-labelledby="features-title" spacing="compact" className="bg-surface py-6 lg:py-12">
       <Container className="flex flex-col gap-6">
         <SectionHeading id="features-title" title={LANDING_FEATURES.heading} lead={LANDING_FEATURES.lead} />
-        <ul className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3">
-          {live.map((r) => (
-            <li key={r.key} className="flex flex-col gap-1 rounded-card border border-line bg-surface p-3 sm:p-4">
-              <span className="flex items-start gap-2">
-                <Check aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-success-700" />
-                <h3 className="text-body font-semibold text-fg sm:text-body-lg">{r.title}</h3>
+        <ul
+          className={`flex flex-col divide-y divide-line rounded-card border border-line bg-surface md:grid md:gap-3 md:divide-y-0 md:border-0 md:bg-transparent ${FEATURE_COLS[Math.min(6, Math.max(1, live.length))]}`}
+          data-features-list=""
+        >
+          {live.map((r, i) => (
+            <li
+              key={r.key}
+              className={`flex items-start gap-3 px-3 py-2.5 md:flex-col md:gap-1 md:rounded-card md:border md:border-line md:bg-canvas md:p-4 ${live.length === 5 && i === 4 ? "md:col-span-2 lg:col-span-1" : ""}`}
+            >
+              <Check aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-success-700" />
+              <span className="flex min-w-0 flex-col gap-0.5">
+                <h3 className="text-body font-semibold text-fg md:text-body-lg">{r.title}</h3>
+                <span className="text-body-sm text-fg-secondary md:text-body">{shortOf(r.key) ?? r.text}</span>
+                {r.detail && <span className="hidden text-body font-medium text-primary-700 md:inline">{r.detail}</span>}
               </span>
-              <span className="text-body-sm text-fg-secondary sm:text-body">{shortOf(r.key) ?? r.text}</span>
-              {r.detail && <span className="text-body-sm font-medium text-primary-700 sm:text-body">{r.detail}</span>}
             </li>
           ))}
         </ul>
@@ -216,12 +262,12 @@ export function LandingFeatures({ data }: { data: LandingData }) {
 
 export function LandingFeaturesSkeleton() {
   return (
-    <Section aria-label={LANDING_FEATURES.heading} aria-busy="true" spacing="compact" className="py-6 lg:py-12">
+    <Section aria-label={LANDING_FEATURES.heading} aria-busy="true" spacing="compact" className="bg-surface py-6 lg:py-12">
       <Container className="flex flex-col gap-6">
         <SectionHeading id="features-title" title={LANDING_FEATURES.heading} lead={LANDING_FEATURES.lead} />
-        <ul className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3" aria-hidden="true">
-          {[0, 1, 2, 3].map((i) => (
-            <li key={i} className="min-h-24 rounded-card border border-line bg-surface-sunken" />
+        <ul className="grid grid-cols-1 gap-2 md:grid-cols-3 md:gap-3" aria-hidden="true">
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <li key={i} className="min-h-16 rounded-card border border-line bg-canvas md:min-h-28" />
           ))}
         </ul>
       </Container>
@@ -236,7 +282,7 @@ export function LandingFeaturesSkeleton() {
  */
 export function LandingTrust({ photo = null }: { photo?: HomePhoto | null }) {
   return (
-    <Section aria-labelledby="trust-title" spacing="compact" className="bg-surface-sunken py-6 lg:py-12">
+    <Section aria-labelledby="trust-title" spacing="compact" className="bg-canvas py-6 lg:py-12">
       <Container>
         <div className={`grid gap-4 overflow-hidden rounded-card border border-line bg-surface ${photo ? "md:grid-cols-2 md:items-center" : ""}`}>
           {photo && (
@@ -255,6 +301,7 @@ export function LandingTrust({ photo = null }: { photo?: HomePhoto | null }) {
             />
           )}
           <div className="flex flex-col gap-2 p-5 sm:p-8">
+            <AccentBar />
             <h2 id="trust-title" className="text-h2 font-bold tracking-tight text-fg">
               {LANDING_TRUST.heading}
             </h2>
@@ -284,7 +331,7 @@ export function LandingPlans() {
       </>
     );
   return (
-    <Section aria-labelledby="plans-title" spacing="compact" className="py-6 lg:py-12">
+    <Section aria-labelledby="plans-title" spacing="compact" className="bg-surface py-6 lg:py-12">
       <Container className="flex flex-col gap-4">
         <SectionHeading id="plans-title" title={LANDING_PLANS.heading} />
         <div className="overflow-hidden rounded-card border border-line bg-surface">
@@ -321,10 +368,13 @@ export function LandingPlans() {
   );
 }
 
-/** FAQ: native <details> (no client JS); the same text goes into FAQPage JSON-LD (app/page.tsx). */
+/**
+ * FAQ: native <details> (no client JS; the browser exposes expanded / collapsed on the <summary>); a chevron turns when
+ * open (owner review: not an arrow). The same text goes into FAQPage JSON-LD (app/page.tsx).
+ */
 export function LandingFaq() {
   return (
-    <Section aria-labelledby="faq-title" spacing="compact" className="bg-surface-sunken py-6 lg:py-12">
+    <Section aria-labelledby="faq-title" spacing="compact" className="bg-canvas py-6 lg:py-12">
       <Container className="flex flex-col gap-6">
         <SectionHeading id="faq-title" title={LANDING_FAQ.heading} />
         <div className="flex flex-col divide-y divide-line rounded-card border border-line bg-surface">
@@ -332,7 +382,7 @@ export function LandingFaq() {
             <details key={f.q} className="group">
               <summary className="focus-ring flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-2 text-body font-semibold text-fg sm:text-body-lg [&::-webkit-details-marker]:hidden">
                 {f.q}
-                <ArrowRight aria-hidden="true" className="size-4 shrink-0 text-fg-secondary transition-transform group-open:rotate-90" />
+                <ChevronDown aria-hidden="true" data-faq-chevron="" className="size-5 shrink-0 text-fg-secondary transition-transform group-open:rotate-180 motion-reduce:transition-none" />
               </summary>
               <p className="px-4 pb-4 text-body text-fg-secondary">{f.a}</p>
             </details>
@@ -355,9 +405,14 @@ export function LandingFinalCta() {
   return (
     <Section aria-labelledby="final-cta-title" className="hero-gradient">
       <Container className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h2 id="final-cta-title" className="text-h2 font-bold tracking-tight text-fg-inverse">
-          {LANDING_FINAL_CTA.heading}
-        </h2>
+        <div className="flex flex-col gap-1">
+          <h2 id="final-cta-title" className="text-h2 font-bold tracking-tight text-fg-inverse">
+            {LANDING_FINAL_CTA.heading}
+          </h2>
+          <p className="text-body-lg text-hero-fg-muted" data-final-cta-note="">
+            {LANDING_FINAL_CTA.note}
+          </p>
+        </div>
         <LandingCta spot="final" />
       </Container>
     </Section>

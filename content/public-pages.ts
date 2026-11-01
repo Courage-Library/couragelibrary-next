@@ -257,7 +257,8 @@ export const FOOTER_ABOUT = {
     { href: "/grievance", label: "Grievance redressal" },
   ],
   legal: [
-    { href: "/privacy", label: "Privacy (draft)" },
-    { href: "/terms", label: "Terms (draft)" },
+    // HOME-1 owner review: no "(draft)" in link labels; the pages themselves keep the draft notice until legal sign-off
+    { href: "/privacy", label: "Privacy" },
+    { href: "/terms", label: "Terms" },
   ],
 } as const;

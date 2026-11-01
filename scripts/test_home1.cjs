@@ -23,6 +23,12 @@
  *       controls); the trust section renders it lazy with width / height + srcset from same-origin /media (no CLS) and
  *       stays text-only without it; the admin panel requires alt text + the "no recognisable person" confirmation and
  *       wraps every call; the actions are admin-only and store the copies before the audited switch
+ *   H-9 owner UI review: the "CL" monogram tile (no dot); category line icons ≈ 58 % of a 48 px soft primary circle;
+ *       live categories = a full-width row, coming-soon tiles 2 per row with an odd last tile spanning the row; "What
+ *       you get" = one column of rows on phones with full rows on wider screens (no orphan for 1–6 features); FAQ
+ *       chevron turns on open (no arrow); legal links without "(draft)" while the pages keep the notice; the final CTA
+ *       says "Free during early access."; sections alternate white / canvas with one accent-bar heading style, gradient
+ *       only on the hero and the final CTA
  * Run: node scripts/test_home1.cjs
  */
 const fs = require('fs');
@@ -180,6 +186,39 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
     const cp = read('components/exams/category-page.tsx');
     assert(/examsFailed \? \(/.test(cp) && /could not be loaded right now/.test(cp) && /noIndex: !cat\.examsFailed && cat\.category\.activeExams === 0/.test(read('app/exams/[slug]/page.tsx')), 'category page: failed read handling');
     return '1280/768/390 + 4 refusals + render';
+  });
+
+  await test('H-9 owner UI review: monogram, icons, tiles without orphans, feature rows, FAQ chevron, legal labels, CTA note, section rhythm', () => {
+    const s = read(SECTIONS);
+    const wm = read('components/brand/wordmark.tsx');
+    assert(/data-brand-monogram=""/.test(wm) && />\s*CL\s*</.test(wm) && /aria-hidden="true"/.test(wm) && !/brand-gradient size-2\.5/.test(wm), 'monogram tile');
+    const icon = read('components/exams/category-icon.tsx');
+    assert(/rounded-full bg-primary-50 text-primary-700/.test(icon) && /size-\[58%\]/.test(icon) && (s.match(/<CategoryIcon category=\{c\} px=\{48\} \/>/g) || []).length === 2, 'category icons: 28 px in a 48 px tint circle');
+    assert(/className="col-span-full flex lg:col-span-1"/.test(s) && /const lastOdd = soonCount % 2 === 1 && c\.slug === lastSoon;/.test(s) && /"col-span-2 md:col-span-1"/.test(s), 'category tiles: live row + no orphan');
+    // feature grid: every live count 1–6 fills its rows on tablets and desktop (5 on tablets: the last spans the row)
+    const cols = Object.fromEntries([...s.matchAll(/^\s+(\d): "([^"]+)",$/gm)].map((m) => [m[1], m[2]]));
+    for (let n = 1; n <= 6; n++) {
+      const md = +((cols[n] || '').match(/md:grid-cols-(\d)/) || [])[1];
+      const lg = +((cols[n] || '').match(/lg:grid-cols-(\d)/) || [])[1] || md;
+      assert(md && (n % md === 0 || (n === 5 && md === 2 && /live\.length === 5 && i === 4 \? "md:col-span-2 lg:col-span-1"/.test(s))) && n % lg === 0, `features: ${n} live → md ${md} / lg ${lg} leaves an orphan`);
+    }
+    assert(/data-features-list=""/.test(s) && /flex flex-col divide-y divide-line rounded-card/.test(s.slice(s.indexOf('data-features-list') - 400)), 'features: one column of rows on phones');
+    const faq = s.slice(s.indexOf('export function LandingFaq'), s.indexOf('export function faqJsonLd'));
+    assert(/<ChevronDown aria-hidden="true" data-faq-chevron="" className="[^"]*group-open:rotate-180/.test(faq) && !/ArrowRight/.test(faq) && /<details key=\{f\.q\}/.test(faq), 'FAQ chevron');
+    const pp = require(path.join(ROOT, 'content/public-pages.ts'));
+    const legal = JSON.stringify(pp.FOOTER_ABOUT.legal);
+    assert(/"label":"Privacy"/.test(legal) && /"label":"Terms"/.test(legal) && !/draft/i.test(legal), 'footer legal labels');
+    assert(/Privacy policy \(draft\)/.test(read('content/public-pages.ts')) && /Terms of use \(draft\)/.test(read('content/public-pages.ts')), 'legal pages keep their draft title');
+    const C = require(path.join(ROOT, CONTENT));
+    assert(C.LANDING_FINAL_CTA.note === 'Free during early access.' && /\{LANDING_FINAL_CTA\.note\}/.test(s), 'final CTA note');
+    const order = ['categories', 'loop', 'features', 'trust', 'plans', 'faq'].map((id) => {
+      const m = s.match(new RegExp(`<Section aria-labelledby="${id}-title"[^>]*className="[^"]*\\b(bg-surface|bg-canvas)\\b`));
+      return m && m[1];
+    });
+    assert(order.join() === 'bg-surface,bg-canvas,bg-surface,bg-canvas,bg-surface,bg-canvas', `section rhythm ${order}`);
+    assert(/function SectionHeading[\s\S]{0,200}<AccentBar \/>/.test(s) && /<AccentBar \/>\s*<h2 id="trust-title"/.test(s) && /bg-accent-500/.test(s), 'one heading style (accent bar)');
+    const grads = (s.match(/hero-gradient|brand-gradient|GradientHero aria/g) || []).length;
+    assert(grads === 2 && !/amber|yellow/.test(s), `gradient only on the hero + final CTA (${grads})`);
   });
 
   console.log(`\nHOME-1 offline: ${passed}/${passed + failed} passed`);

@@ -13,7 +13,7 @@
  *   R-3 dark mode is disabled at the source: `@custom-variant dark` bound to [data-theme=dark], no
  *       prefers-color-scheme anywhere, nothing sets data-theme="dark", <html> has no dark class
  *   R-4 (BRAND-2 amendment) fonts: exactly Inter + Poppins + Noto Sans Devanagari via next/font in the root layout
- *       (self-hosted, only Inter preloaded); no external font requests
+ *       (committed files via next/font/local, only Poppins 700 Latin preloaded); no external font requests
  *   R-5 contrast: every pair in components/ui/contrast-pairs.json meets its WCAG threshold, computed from the tokens
  *   R-7 config/brand.ts (theme-color meta, manifest, BRAND_PALETTE) mirrors the tokens exactly; it is not a second source
  *   R-8 (BRAND-1 amendment, decision #70) single token source: every legacy Tailwind palette name (slate-*, blue-*, …)
@@ -199,13 +199,18 @@ test('R-3 dark mode disabled at the source (inert dark: variant, no prefers-colo
 });
 
 // BRAND-2 amendment (decision #71, bilingual typography): the font set is exactly Inter (body / UI), Poppins 600/700
-// (headings) and Noto Sans Devanagari 400/600 (Hindi), all through next/font in the root layout (self-hosted at build),
-// with only Inter preloaded. Still: no external font request, no other family, no second next/font import.
+// (headings) and Noto Sans Devanagari 400/600 (Hindi), all through next/font in the root layout. BUILD-FONT-1 (owner GO):
+// committed files via next/font/local (no network at build), and the ONLY preloaded file is Poppins 700 Latin (hero H1).
+// Still: no external font request, no other family, no second next/font import.
 test('R-4 fonts: exactly Inter + Poppins + Noto Sans Devanagari via next/font (self-hosted, one import), no external requests', () => {
   const layout = fs.readFileSync(path.join(ROOT, 'app/layout.tsx'), 'utf8');
-  assert(/import \{ Inter, Noto_Sans_Devanagari, Poppins \} from "next\/font\/google"/.test(layout), 'the root layout must import exactly Inter, Noto_Sans_Devanagari and Poppins from next/font/google');
-  assert(/variable: "--font-inter"/.test(layout) && /inter\.variable/.test(layout), '--font-inter must be set on <html>');
-  assert(/variable: "--font-poppins", preload: false/.test(layout) && /variable: "--font-devanagari", preload: false/.test(layout), 'Poppins and Noto Sans Devanagari must not be preloaded');
+  assert(/import localFont from "next\/font\/local"/.test(layout) && !/next\/font\/google/.test(layout), 'the root layout must load fonts with next/font/local (no Google fetch at build)');
+  const calls = [...layout.matchAll(/localFont\(\{([\s\S]*?)\n\}\);/g)].map((m) => m[1]);
+  const fams = new Set(calls.map((c) => (c.match(/prop: "font-family", value: "'([^']+)'"/) || [])[1]));
+  assert(calls.length >= 3 && [...fams].sort().join() === 'CL Inter,CL Noto Sans Devanagari,CL Poppins', `families: ${[...fams]}`);
+  const preloaded = calls.filter((c) => /preload: true/.test(c));
+  assert(preloaded.length === 1 && /src: "\.\/fonts\/poppins-700-latin\.woff2"/.test(preloaded[0]) && calls.every((c) => /preload: (true|false)/.test(c)), 'only Poppins 700 Latin may be preloaded (explicit preload on every face)');
+  assert(/variable: "--font-inter"/.test(layout) && /variable: "--font-poppins"/.test(layout) && /variable: "--font-devanagari"/.test(layout) && /className=\{`h-full \$\{FONT_VARIABLES\}`\}/.test(layout), 'font variables must be set on <html>');
   assert(/--font-sans: var\(--font-inter\), var\(--font-devanagari\)/.test(css) && /--font-heading: var\(--font-poppins\)/.test(css), '--font-sans / --font-heading stacks');
   const all = [...walk(path.join(ROOT, 'app')), ...walk(path.join(ROOT, 'components')), ...walk(path.join(ROOT, 'lib'))];
   assert(all.length >= 300, `files scanned ${all.length} (min 300)`); // GATE-HYGIENE-1

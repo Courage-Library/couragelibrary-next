@@ -9,7 +9,7 @@ import { isActive, type NavItem } from "./nav-config";
 
 export const navLinkClasses = (active: boolean) =>
   cn(
-    "focus-ring inline-flex min-h-11 items-center gap-1 rounded-control px-3 text-body-sm font-medium transition-colors duration-120",
+    "focus-ring inline-flex min-h-12 items-center gap-1 rounded-control px-3 text-body-sm font-medium transition-colors duration-120",
     active ? "bg-primary-50 text-primary-700" : "text-fg-secondary hover:bg-ink-100 hover:text-fg",
   );
 
@@ -95,7 +95,7 @@ export function NavMenu({ label, listLabel, items = [], children, triggerLabel, 
                   href={it.href}
                   aria-current={current ? "page" : undefined}
                   className={cn(
-                    "focus-ring flex min-h-11 items-center rounded-control px-3 text-body-sm font-medium",
+                    "focus-ring flex min-h-12 items-center rounded-control px-3 text-body-sm font-medium",
                     current ? "bg-primary-50 text-primary-700" : "text-fg hover:bg-ink-100",
                   )}
                 >

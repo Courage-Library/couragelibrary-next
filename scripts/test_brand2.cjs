@@ -14,7 +14,7 @@
  *   C-06 package.json / package-lock dependency sets unchanged (no new npm package, #44) except the exact KaTeX
  *        pins approved by the CA-3 formula ruling (katex 0.16.11, @types/katex 0.16.7)
  *   C-07 fonts: Inter + Poppins 600/700 + Noto Sans Devanagari 400/600 via next/font, latin + devanagari subsets,
- *        only Inter preloaded; base 16px, line-height 1.6 (1.7 for lang="hi"); no sub-12px text in the new components
+ *        only Poppins 700 Latin preloaded (BUILD-FONT-1); base 16px, line-height 1.6 (1.7 for lang="hi"); no sub-12px text in the new components
  *   C-08 touch targets ≥ 48 px on key buttons (static: pill buttons, nav actions, auth submits)
  *   C-09 categorical tokens are used by subject / section colours; legacy violet / teal / cyan / green no longer
  *        collapse into the primary
@@ -305,15 +305,24 @@ async function offline() {
 
   await test('C-07 fonts + typography: Inter / Poppins 600·700 / Noto Sans Devanagari 400·600 via next/font; base 16px, 1.6 / 1.7 (hi); no sub-12px text in new components', () => {
     const layout = read('app/layout.tsx');
-    assert(/Inter\(\{ subsets: \["latin"\], display: "swap", variable: "--font-inter" \}\)/.test(layout), 'Inter config');
-    assert(/Poppins\(\{ subsets: \["latin", "devanagari"\], weight: \["600", "700"\], display: "swap", variable: "--font-poppins", preload: false \}\)/.test(layout), 'Poppins config');
-    assert(/Noto_Sans_Devanagari\(\{ subsets: \["devanagari"\], weight: \["400", "600"\], display: "swap", variable: "--font-devanagari", preload: false \}\)/.test(layout), 'Noto Sans Devanagari config');
+    // BUILD-FONT-1: committed woff2 subsets via next/font/local; one family name per typeface across its subsets
+    const calls = [...layout.matchAll(/localFont\(\{([\s\S]*?)\n\}\);/g)].map((m) => m[1]);
+    const fam = (c) => (c.match(/prop: "font-family", value: "'([^']+)'"/) || [])[1];
+    const files = (c) => [...c.matchAll(/"\.\/fonts\/([a-z0-9-]+\.woff2)"/g)].map((m) => m[1]);
+    const byFam = {};
+    for (const c of calls) for (const f of files(c)) (byFam[fam(c)] ??= []).push(f);
+    assert(JSON.stringify(Object.keys(byFam).sort()) === JSON.stringify(['CL Inter', 'CL Noto Sans Devanagari', 'CL Poppins']), `families ${Object.keys(byFam)}`);
+    assert(byFam['CL Poppins'].length === 6 && ['600', '700'].every((w) => ['latin', 'latin-ext', 'devanagari'].every((s) => byFam['CL Poppins'].includes(`poppins-${w}-${s}.woff2`))), 'Poppins 600 / 700 × latin, latin-ext, devanagari');
+    assert(byFam['CL Inter'].join() === 'inter-latin.woff2,inter-latin-ext.woff2' && byFam['CL Noto Sans Devanagari'].join() === 'noto-sans-devanagari-devanagari.woff2', 'Inter / Noto files');
+    assert(calls.every((c) => /display: "swap"/.test(c) && /prop: "unicode-range"/.test(c)), 'every face: swap + unicode-range');
+    for (const f of Object.values(byFam).flat()) assert(fs.existsSync(path.join(ROOT, 'app/fonts', f)), `missing app/fonts/${f}`);
+    assert(fs.existsSync(path.join(ROOT, 'app/fonts/OFL.txt')), 'OFL licence next to the fonts');
     assert(/font-size: 100%/.test(css) && /body \{[^}]*line-height: 1\.6;/.test(css) && /:lang\(hi\) \{\s*line-height: 1\.7;/.test(css), 'base size / line-heights');
     assert(/h1,\s*h2,\s*h3,\s*\.font-heading \{\s*font-family: var\(--font-heading\);/.test(css), 'headings use the heading face');
     const NEW = ['components/ui/glass.tsx', 'components/ui/pill-button.tsx', 'components/ui/gradient-hero.tsx', 'components/brand/wordmark.tsx', 'components/landing/landing-sections.tsx'];
     const small = NEW.filter((f) => /text-\[(?:[0-9]|1[01])px\]|text-\[0\.[0-6]\d*rem\]/.test(read(f)));
     assert(small.length === 0, `sub-12px text in ${small.join(', ')}`);
-    return 'next/font only; Devanagari faces load on demand';
+    return 'next/font/local (committed subsets) only; Devanagari faces load on demand';
   });
 
   await test('C-08 touch targets ≥ 48 px on key buttons (static)', () => {
