@@ -231,7 +231,7 @@ const UX2B_ROUTES = ['/legal'];
     const live = renderToStaticMarkup(React.createElement(React.Fragment, null, React.createElement(S.LandingFeatures, { data: ok }),
       React.createElement(S.LandingCategories, { categories: [{ id: 'c1', slug: 'ssc', name: 'SSC', shortDesc: null, iconKey: 'ssc', icon: null, activeExams: 1 }, { id: 'c2', slug: 'police', name: 'Police', shortDesc: null, iconKey: 'police', icon: null, activeExams: 0 }] })));
     const liveText = live.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
-    assert(/2 free mock tests/.test(liveText) && /1 guide published/.test(liveText) && /1 exam/.test(liveText) && /Coming soon:\s+Police/.test(liveText), liveText.slice(0, 300));
+    assert(/2 free mock tests/.test(liveText) && /1 guide published/.test(liveText) && /1 exam/.test(liveText) && /Police Coming soon/.test(liveText), liveText.slice(0, 300));
     assert(/href="\/exams\/ssc"/.test(live) && !/href="\/exams\/police"/.test(live), 'only a category with exams is a link');
     return 'error / throw / hang → fallback; 0 digits rendered';
   });
@@ -425,11 +425,8 @@ const UX2B_ROUTES = ['/legal'];
     // the tiles as rendered (per tile: link or not, its own text)
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     const page = await ctx.newPage();
-    // HOME-1 expert UX pass: categories with exams = large link cards; the others = one "Coming soon:" line (not links)
-    const tilesOf = async () => page.evaluate(() => [
-      ...[...document.querySelectorAll('[data-category-tile]')].map((t) => ({ slug: t.dataset.categoryTile, link: t.tagName === 'A', href: t.getAttribute('href'), text: t.innerText.replace(/\s+/g, ' ').trim() })),
-      ...[...document.querySelectorAll('[data-category-soon]')].map((t) => ({ slug: t.dataset.categorySoon, link: !!t.closest('a'), href: null, text: `${t.closest('[data-category-soon-line]') ? 'Coming soon: ' : ''}${t.innerText.replace(/\s+/g, ' ').replace(/^[·,\s]+/, '').trim()}` })),
-    ]);
+    // every public category is a tile (owner 2026-11-02: tiles restored): live = link with its count; else a "Coming soon" tile
+    const tilesOf = async () => page.evaluate(() => [...document.querySelectorAll('[data-category-tile]')].map((t) => ({ slug: t.dataset.categoryTile, link: t.tagName === 'A', href: t.getAttribute('href'), text: t.innerText.replace(/\s+/g, ' ').trim() })));
     try {
       await page.goto(`${BASE}/`, { waitUntil: 'networkidle', timeout: 30000 });
       const tiles = await tilesOf();
@@ -439,7 +436,7 @@ const UX2B_ROUTES = ['/legal'];
         const n = perCat.get(c.slug).length;
         assert(t.text.includes(c.name), `${c.slug}: name missing`);
         if (n > 0) assert(t.link && t.href === `/exams/${c.slug}` && t.text.includes(`${n} exam${n === 1 ? '' : 's'}`) && !/Coming soon/.test(t.text), `${c.slug}: expected a link with "${n} exam${n === 1 ? '' : 's'}" (got ${JSON.stringify(t)})`);
-        else assert(!t.link && /^Coming soon: /.test(t.text) && !/\d/.test(t.text), `${c.slug}: expected a name in the "Coming soon:" line, not a link (got ${JSON.stringify(t)})`);
+        else assert(!t.link && /Coming soon/.test(t.text) && !/\d/.test(t.text), `${c.slug}: expected a "Coming soon" tile that is not a link (got ${JSON.stringify(t)})`);
       }
 
       let mocksAll = 0;

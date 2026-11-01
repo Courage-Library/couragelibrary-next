@@ -47,6 +47,7 @@
 > - **One radius scale:** buttons and controls 12 px (`rounded-control`), cards 16 px (`rounded-card`), chips and badges full (`rounded-full`). This applies app-wide: `PillButton` is now 12 px.
 >   - **One card shadow** (`shadow-e1`); `shadow-e2` is only for floating bars (the header after scroll, the phone explore bar).
 >   - **Icons** are lucide line icons at 16 / 20 / 24 px.
+> - **Category tiles (owner, 2026-11-02):** the UX-pass "large card + Coming soon: line" was rejected and the after-v4 tiles are restored. All categories are tiles with a 28 px icon in a soft tint circle. A live tile is a link with its exact count; coming-soon tiles carry a chip and are not links. Tiles never list exam names. On phones the live tile is full width with coming-soon tiles 2 per row; tablets show 4 across; desktop shows all in one row.
 > - **Share images:** a branded 1200 × 630 Open Graph + Twitter card for home and for each category / exam page (`app/**/opengraph-image.tsx`).
 > - Gates: `scripts/test_home1.cjs` H-15–H-19, `scripts/test_ux2a_landing.cjs` L-3 (amended: the page may await only the cached, bounded live-category names), L-10.
 

@@ -157,9 +157,6 @@ export const LANDING_CATEGORIES = {
   heading: "Choose your exam category",
   lead: "Pick a category to see its exams.",
   comingSoon: "Coming soon",
-  /** HOME-1 expert UX pass: the categories without exams yet are ONE line (not links) */
-  comingSoonLine: "Coming soon:",
-  liveCta: (name: string) => `See ${name} exams`,
   allExams: { label: "All exams", href: "/exams" },
   fallback: "The categories could not be loaded right now. You can still browse all exams.",
 } as const;

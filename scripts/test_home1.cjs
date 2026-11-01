@@ -125,7 +125,7 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
     ];
     const html = renderToStaticMarkup(React.createElement(S.LandingCategories, { categories: cats }));
     assert(/href="\/exams\/ssc"/.test(html) && !/href="\/exams\/police"/.test(html), 'link rules');
-    assert(/data-category-soon-line=""[\s\S]*?Coming soon:[\s\S]*?data-category-soon="police"[^>]*>[\s\S]*?Police/.test(html) && /3 exams/.test(html), 'labels');
+    assert(/aria-disabled="true"[\s\S]*?Police[\s\S]*?Coming soon/.test(html) && /3 exams/.test(html), 'labels');
     const fallback = renderToStaticMarkup(React.createElement(S.LandingCategories, { categories: null })).replace(/<[^>]+>/g, ' ');
     assert(/could not be loaded/.test(fallback) && !/\d/.test(fallback), 'fallback without numbers');
   });
@@ -208,13 +208,13 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
     return '1280/768/390 + 4 refusals + gallery render';
   });
 
-  await test('H-9 owner UI review (as amended by the expert UX pass): official logo, icons, live cards + coming-soon line, stats + checklist, FAQ chevron, legal labels, CTA note, section rhythm', () => {
+  await test('H-9 owner UI review (as amended by the expert UX pass; tiles restored 2026-11-02): official logo, icons, category tiles without orphans, stats + checklist, FAQ chevron, legal labels, CTA note, section rhythm', () => {
     const s = read(SECTIONS);
     const wm = read('components/brand/wordmark.tsx');
     assert(/DEFAULT_MARK\.src/.test(wm) && !/data-brand-monogram|>\s*CL\s*</.test(wm), 'the official logo, no monogram');
     const icon = read('components/exams/category-icon.tsx');
-    assert(/rounded-full bg-primary-50 text-primary-700/.test(icon) && /size-\[58%\]/.test(icon) && /<CategoryIcon category=\{c\} px=\{64\} \/>/.test(s), 'category icons in a tint circle; large on the live card');
-    assert(/data-category-tile=\{c\.slug\}/.test(s) && /data-category-soon-line=""/.test(s) && !/aria-disabled/.test(s.slice(s.indexOf('export function LandingCategories'), s.indexOf('export function LandingCategoriesSkeleton'))), 'live cards + one coming-soon line (no disabled tiles)');
+    assert(/rounded-full bg-primary-50 text-primary-700/.test(icon) && /size-\[58%\]/.test(icon) && (s.match(/<CategoryIcon category=\{c\} px=\{48\} \/>/g) || []).length === 2, 'category icons: 28 px in a 48 px tint circle');
+    assert(/className="col-span-full flex lg:col-span-1"/.test(s) && /const lastOdd = soonCount % 2 === 1 && c\.slug === lastSoon;/.test(s) && /"col-span-2 md:col-span-1"/.test(s) && !/data-category-soon-line/.test(s), 'category tiles (owner 2026-11-02: tiles restored): live row + no orphan; no coming-soon text line');
     assert(/data-live-stats=""/.test(s) && /data-features-list=""/.test(s) && /\.filter\(\(x\) => x\.n > 0\)/.test(s) && /const stats = data\.ok/.test(s), 'stats (real, > 0, only when the read worked) + checklist');
     const faq = s.slice(s.indexOf('export function LandingFaq'), s.indexOf('export function faqJsonLd'));
     assert(/<ChevronDown aria-hidden="true" data-faq-chevron="" className="[^"]*group-open:rotate-180/.test(faq) && !/ArrowRight/.test(faq) && /<details key=\{f\.q\}/.test(faq), 'FAQ chevron');
@@ -395,7 +395,7 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
     return '2 + 4 copies; 5 refusals';
   });
 
-  await test('H-17 hero + categories (expert UX pass): honest H1 from live categories only, slogan as eyebrow, language chip; live cards + one coming-soon line', () => {
+  await test('H-17 hero + categories: honest H1 from live categories only, slogan as eyebrow, language chip; category TILES (owner 2026-11-02): all categories, live = link with the exact count, coming soon = chip, no exam names', () => {
     const { renderToStaticMarkup } = require('react-dom/server');
     const S = require(path.join(ROOT, SECTIONS));
     const C = require(path.join(ROOT, CONTENT));
@@ -406,14 +406,23 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
     assert(/const liveCategories = await loadLiveCategoryNames\(\);/.test(read('app/page.tsx')) && /<LandingHero liveCategories=\{liveCategories\} \/>/.test(read('app/page.tsx')), 'page passes live names');
     const cd = read('lib/exams/category-data.ts');
     assert(/live\.has\(c\.id\)/.test(cd) && /c\.is_active && !c\.is_internal/.test(cd) && /readLiveCategoryNames\(\)\.catch\(\(\) => null\)/.test(cd) && /setTimeout\(\(\) => ok\(null\), 800\)/.test(cd), 'names: live + public only; bounded');
-    const cats = (n) => [{ id: '1', slug: 'ssc', name: 'SSC', shortDesc: 'Staff Selection Commission exams', iconKey: 'ssc', icon: null, activeExams: n }, ...['police', 'defence'].map((slug, i) => ({ id: String(i + 2), slug, name: slug[0].toUpperCase() + slug.slice(1), shortDesc: null, iconKey: slug, icon: null, activeExams: 0 }))];
-    const html = renderToStaticMarkup(React.createElement(S.LandingCategories, { categories: cats(2) }));
-    const text = html.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ');
-    assert(/Coming soon: Police · , Defence/.test(text) || /Coming soon: Police · Defence/.test(text.replace(/ , /g, ' ')), `coming-soon line: ${text.slice(0, 200)}`);
-    assert((html.match(/<a [^>]*href="\/exams\/[a-z]+"/g) || []).length === 1 && /href="\/exams"/.test(html) && /See SSC exams/.test(text) && /2 exams/.test(text) && /Staff Selection Commission exams/.test(text), 'one live card link (+ All exams), real count, short description');
-    // negative control: when Police goes live it becomes a card and leaves the line
-    const live2 = renderToStaticMarkup(React.createElement(S.LandingCategories, { categories: cats(1).map((c) => (c.slug === 'police' ? { ...c, activeExams: 1 } : c)) }));
-    assert(/href="\/exams\/police"/.test(live2) && !/data-category-soon="police"/.test(live2) && /data-category-soon="defence"/.test(live2), 'auto-adapts');
+    // tiles: every category is a tile with its icon; the live one is a link with its exact count; the others carry the
+    // "Coming soon" chip and are not links; no tile text lists exam names (the short description is never shown)
+    const cats = (n) => [
+      { id: '1', slug: 'ssc', name: 'SSC', shortDesc: 'Staff Selection Commission exams: CGL, CHSL, MTS, GD and more.', iconKey: 'ssc', icon: null, activeExams: n },
+      ...['police', 'defence', 'railway', 'banking'].map((slug, i) => ({ id: String(i + 2), slug, name: slug[0].toUpperCase() + slug.slice(1), shortDesc: `${slug} exams: A, B, C`, iconKey: slug, icon: null, activeExams: 0 })),
+    ];
+    const html = renderToStaticMarkup(React.createElement(S.LandingCategories, { categories: cats(1) }));
+    const tiles = [...html.matchAll(/<(a|div)[^>]*data-category-tile="([a-z]+)"[^>]*>([\s\S]*?)<\/\1>/g)].map((m) => ({ tag: m[1], slug: m[2], text: m[3].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(), html: m[0] }));
+    assert(tiles.map((t) => t.slug).join() === 'ssc,police,defence,railway,banking', `all 5 categories as tiles: ${tiles.map((t) => t.slug)}`);
+    const ssc = tiles[0];
+    assert(ssc.tag === 'a' && /href="\/exams\/ssc"/.test(ssc.html) && ssc.text === 'SSC 1 exam' && /data-category-icon="line"/.test(ssc.html), `live tile: link, exact count, icon (${ssc.text})`);
+    assert(tiles.slice(1).every((t) => t.tag === 'div' && /aria-disabled="true"/.test(t.html) && /Coming soon$/.test(t.text) && !/\d/.test(t.text) && /data-category-icon="line"/.test(t.html)), 'coming-soon tiles: chip, not links, icon, no numbers');
+    assert(!/CGL|CHSL|MTS|exams: A, B/.test(html.replace(/<[^>]+>/g, ' ')), 'no exam-name lists in tile text');
+    // negative controls: when Police goes live it becomes a link tile with its count; a category with 2 exams says "2 exams"
+    const live2 = renderToStaticMarkup(React.createElement(S.LandingCategories, { categories: cats(2).map((c) => (c.slug === 'police' ? { ...c, activeExams: 1 } : c)) }));
+    assert(/<a[^>]*href="\/exams\/police"[^>]*data-category-tile="police"/.test(live2) && /SSC[\s\S]*?2 exams/.test(live2.replace(/<[^>]+>/g, ' ')) && /data-category-tile="defence" aria-disabled="true"/.test(live2), 'auto-adapts');
+    assert(!/data-category-soon/.test(html), 'no "Coming soon:" text line');
   });
 
   await test('H-18 share images: 1200 × 630 OG + Twitter for home and category / exam pages; brand mark = upload or official logo; default ogImage', () => {

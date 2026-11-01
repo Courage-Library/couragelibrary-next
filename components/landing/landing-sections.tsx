@@ -5,7 +5,7 @@
  * Owner rule: NO exam-specific details or actions on home — category tiles → /exams/<category> → exam pages.
  * Research (UX phase 1): low text, plain English, honest (no hype, no promises of selection, no fake numbers), fast on budget phones.
  */
-import { ArrowRight, BookOpenCheck, Check, ChevronDown, ClipboardCheck, Gauge, Languages, Lock, NotebookPen, Repeat, RotateCcw } from "lucide-react";
+import { ArrowRight, BookOpenCheck, Check, ChevronDown, ChevronRight, ClipboardCheck, Gauge, Languages, Lock, NotebookPen, Repeat, RotateCcw } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 import Link from "next/link";
 import { ButtonLink } from "@/components/ui/button";
@@ -125,17 +125,24 @@ export function LandingHero({ liveCategories = [] }: { liveCategories?: readonly
   );
 }
 
+// static class names (Tailwind scans the source): coming-soon columns on tablets, all categories in one row on desktop
+const MD_COLS: Record<number, string> = { 1: "md:grid-cols-1", 2: "md:grid-cols-2", 3: "md:grid-cols-3", 4: "md:grid-cols-4" };
+const LG_COLS: Record<number, string> = { 1: "lg:grid-cols-1", 2: "lg:grid-cols-2", 3: "lg:grid-cols-3", 4: "lg:grid-cols-4", 5: "lg:grid-cols-5" };
+
 /**
- * Categories (HOME-1 expert UX pass): every category with live exams is a LARGE card (a link: icon, name, its real exam
- * count, its short description, "See SSC exams"); the categories without exams yet are ONE quiet line ("Coming soon:
- * Police · Defence · …", not links). Adapts by itself when a category goes live.
+ * Category tiles (owner, 2026-11-02: the after-v4 tile design is restored; the UX-pass card + "Coming soon:" line was
+ * rejected): ALL categories as tiles with their icon (28 px in a soft primary-tint circle). A category with active
+ * exams is a link with its exact live exam count — one full-width row on phones and tablets (no orphan gap) — then the
+ * honest "Coming soon" tiles (not links) two per row (an odd last one spans the row); tablets 4 across; desktop all in
+ * one row. Tiles never list exam names.
  */
 export function LandingCategories({ categories }: { categories: PublicCategory[] | null }) {
-  const live = (categories ?? []).filter((c) => c.activeExams > 0);
   const soon = (categories ?? []).filter((c) => c.activeExams === 0);
+  const soonCount = soon.length;
+  const lastSoon = soon.at(-1)?.slug;
   return (
     <Section aria-labelledby="categories-title" id="categories" spacing="compact" className="scroll-mt-24 bg-surface py-6 lg:py-12" data-reveal="">
-      <Container className="flex flex-col gap-5">
+      <Container className="flex flex-col gap-6">
         <SectionHeading id="categories-title" title={LANDING_CATEGORIES.heading} />
         {categories === null ? (
           <div className="flex flex-col items-start gap-3 rounded-card border border-line bg-surface p-5 shadow-e1">
@@ -145,44 +152,44 @@ export function LandingCategories({ categories }: { categories: PublicCategory[]
             </ButtonLink>
           </div>
         ) : (
-          <>
-            {live.length > 0 && (
-              <ul className={`grid gap-4 ${live.length === 1 ? "max-w-3xl" : "md:grid-cols-2"}`} aria-label={LANDING_CATEGORIES.heading}>
-                {live.map((c) => (
-                  <li key={c.slug} className="flex">
+          <ul className={`grid grid-cols-2 gap-2 sm:gap-3 ${MD_COLS[Math.min(4, Math.max(1, soonCount))]} ${LG_COLS[Math.min(5, Math.max(1, categories.length))]}`} aria-label={LANDING_CATEGORIES.heading}>
+            {categories.map((c) => {
+              const live = c.activeExams > 0;
+              const pill = (
+                <span className={`rounded-full px-2 py-0.5 text-[14px] font-semibold leading-tight ${live ? "bg-primary-50 text-primary-800" : "bg-ink-50 text-fg-secondary"}`}>
+                  {live ? categoryCountLabel(c.activeExams) : LANDING_CATEGORIES.comingSoon}
+                </span>
+              );
+              if (live) {
+                return (
+                  <li key={c.slug} className="col-span-full flex lg:col-span-1">
                     <Link
                       href={`/exams/${c.slug}`}
-                      className="focus-ring group flex w-full flex-col gap-4 rounded-card border border-primary-200 bg-surface p-5 shadow-e1 transition-colors hover:border-primary-400 sm:flex-row sm:items-center sm:p-6"
+                      className="focus-ring flex min-h-[72px] w-full items-center gap-3 rounded-card border border-primary-200 bg-surface p-3 shadow-e1 transition-colors hover:border-primary-300 hover:bg-primary-50/40 sm:p-4 lg:min-h-[132px] lg:flex-col lg:justify-center lg:gap-1.5 lg:text-center"
                       data-category-tile={c.slug}
                     >
-                      <CategoryIcon category={c} px={64} />
-                      <span className="flex min-w-0 flex-1 flex-col items-start gap-1.5">
-                        <span className="text-h3 font-bold text-fg">{c.name}</span>
-                        <span className="rounded-full bg-primary-50 px-2.5 py-0.5 text-[14px] font-semibold text-primary-800">{categoryCountLabel(c.activeExams)}</span>
-                        {c.shortDesc && <span className="text-body text-fg-secondary">{c.shortDesc}</span>}
+                      <CategoryIcon category={c} px={48} />
+                      <span className="flex min-w-0 flex-1 flex-col items-start gap-1 lg:flex-none lg:items-center">
+                        <span className="text-body-lg font-semibold text-fg">{c.name}</span>
+                        {pill}
                       </span>
-                      <span className="inline-flex min-h-12 shrink-0 items-center gap-2 text-body font-semibold text-link group-hover:underline">
-                        {LANDING_CATEGORIES.liveCta(c.name)}
-                        <ArrowRight aria-hidden="true" className="size-5" />
-                      </span>
+                      <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-primary-700 lg:hidden" />
                     </Link>
                   </li>
-                ))}
-              </ul>
-            )}
-            {soon.length > 0 && (
-              <p className="text-body text-fg-secondary" data-category-soon-line="">
-                <span className="font-semibold text-fg">{LANDING_CATEGORIES.comingSoonLine}</span>{" "}
-                {soon.map((c, i) => (
-                  <span key={c.slug} data-category-soon={c.slug}>
-                    {i > 0 && <span aria-hidden="true"> · </span>}
-                    {i > 0 && <span className="sr-only">, </span>}
-                    {c.name}
-                  </span>
-                ))}
-              </p>
-            )}
-          </>
+                );
+              }
+              const lastOdd = soonCount % 2 === 1 && c.slug === lastSoon;
+              return (
+                <li key={c.slug} className={`flex ${lastOdd ? "col-span-2 md:col-span-1" : ""}`}>
+                  <div className="flex min-h-[112px] w-full flex-col items-center justify-center gap-1.5 rounded-card border border-dashed border-line bg-canvas p-2 text-center sm:p-4 lg:min-h-[132px]" data-category-tile={c.slug} aria-disabled="true">
+                    <CategoryIcon category={c} px={48} />
+                    <span className="text-body font-semibold text-fg sm:text-body-lg">{c.name}</span>
+                    {pill}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
         )}
         <Link href={LANDING_CATEGORIES.allExams.href} className="focus-ring inline-flex min-h-12 items-center gap-2 self-start rounded-control px-1 text-body font-semibold text-link hover:underline">
           {LANDING_CATEGORIES.allExams.label}
@@ -196,10 +203,13 @@ export function LandingCategories({ categories }: { categories: PublicCategory[]
 export function LandingCategoriesSkeleton() {
   return (
     <Section aria-label={LANDING_CATEGORIES.heading} aria-busy="true" id="categories" spacing="compact" className="bg-surface py-6 lg:py-12">
-      <Container className="flex flex-col gap-5">
+      <Container className="flex flex-col gap-6">
         <SectionHeading id="categories-title" title={LANDING_CATEGORIES.heading} />
-        <div aria-hidden="true" className="min-h-[176px] max-w-3xl rounded-card border border-line bg-canvas sm:min-h-[116px]" />
-        <div aria-hidden="true" className="h-6 max-w-md rounded-control bg-canvas" />
+        <ul className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-4 lg:grid-cols-5" aria-hidden="true">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <li key={i} className={`rounded-card border border-line bg-canvas ${i === 0 ? "col-span-full min-h-[72px] lg:col-span-1 lg:min-h-[132px]" : "min-h-[112px] lg:min-h-[132px]"}`} />
+          ))}
+        </ul>
         <div className="min-h-12" />
       </Container>
     </Section>
