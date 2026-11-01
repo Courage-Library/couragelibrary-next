@@ -713,7 +713,7 @@ const OPTS = { origin: 'AI_EXTERNAL', requireContextHash: true, cognitiveTrapCod
     assert(!/from\("(topics|subjects|exams|exam_cycles|exam_patterns|questions|question_versions)"\)\s*\.insert/.test(src.replace(/\s+/g, ' ').replace(/\) \./g, ').')), 'taxonomy/question insert remains');
   });
   await test('STATIC-2 admin actions: no direct question/version inserts or published status for questions', async () => {
-    const full = read('app/admin/actions.ts');
+    const full = read('app/(site)/admin/actions.ts');
     const src = full.replace(/\s+/g, ' ');
     assert(!/from\("questions"\) ?\.insert/.test(src), 'questions insert');
     assert(!/from\("question_versions"\) ?\.(insert|update)/.test(src), 'version insert/update');

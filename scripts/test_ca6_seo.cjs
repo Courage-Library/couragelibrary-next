@@ -58,8 +58,8 @@ test('P-01 paths: 2–4 slug segments ↔ hierarchy_path; /hi prefix; exam-topic
   assert(P.segmentsToHierarchyPath(['a', 'b', 'c', 'd']) === 'a.b.c.d' && P.segmentsToHierarchyPath(['a']) === null && P.segmentsToHierarchyPath(['a', 'b', 'c', 'd', 'e']) === null, 'counts');
   assert(P.segmentsToHierarchyPath(['a', 'B C']) === null && P.segmentsToHierarchyPath(['a', 'x.y']) === null && P.segmentsToHierarchyPath(['a', '..']) === null && P.segmentsToHierarchyPath(['A', 'b']) === 'a.b', 'slugs only');
   assert(P.learnHref('a.b.c') === '/learn/a/b/c' && P.learnHref('a.b', 'hi') === '/hi/learn/a/b' && P.examTopicHref('ssc-cgl', 'a.b') === '/exams/ssc-cgl/a/b', 'hrefs');
-  assert(fs.existsSync(path.join(ROOT, 'app/learn/topics/[topicId]/page.tsx')) && fs.existsSync(path.join(ROOT, 'app/learn/[...path]/page.tsx')) && fs.existsSync(path.join(ROOT, 'app/hi/learn/[...path]/page.tsx'))
-    && fs.existsSync(path.join(ROOT, 'app/exams/[slug]/[moduleSlug]/[...rest]/page.tsx')), 'routes');
+  assert(fs.existsSync(path.join(ROOT, 'app/(site)/learn/topics/[topicId]/page.tsx')) && fs.existsSync(path.join(ROOT, 'app/(site)/learn/[...path]/page.tsx')) && fs.existsSync(path.join(ROOT, 'app/(site)/hi/learn/[...path]/page.tsx'))
+    && fs.existsSync(path.join(ROOT, 'app/(site)/exams/[slug]/[moduleSlug]/[...rest]/page.tsx')), 'routes');
   return 'ok';
 });
 
@@ -100,14 +100,14 @@ test('M-01 sitemap entries only from the published inputs; /hi + hreflang only w
 });
 
 test('S-01 source rules: no full text on exam-topic pages, /articles redirect, publish revalidation, sitemap excludes node lessons from /articles, locked body stripped, budgets', () => {
-  const et = read('app/exams/[slug]/[moduleSlug]/[...rest]/page.tsx');
+  const et = read('app/(site)/exams/[slug]/[moduleSlug]/[...rest]/page.tsx');
   // CA-7: the page may render the exam NOTE (unique per-exam content), never the lesson's blocks
   assert(!/LessonBlocksRenderer/.test(et) && (et.match(/\.blocks\b/g) || []).length === 1 && /<ExamNoteBlocks blocks=\{note\.blocks\} \/>/.test(et) && /Read the full lesson/.test(et) && /canonicalUrl: d\.path/.test(et), 'exam-topic page: summary + outline + link only (+ the exam note), self-canonical');
   const svc = read('services/learning/exam-topic.service.ts');
   assert(/outline: t\.outline\.slice\(0, 8\)/.test(svc) && !/blocks:/.test(svc.replace(/lessonTeaser\(v\)/, '')), 'exam-topic data carries no blocks');
-  const art = read('app/articles/[slug]/page.tsx');
+  const art = read('app/(site)/articles/[slug]/page.tsx');
   assert(/article\.documentType === "NODE_LESSON" && article\.canonicalHref\.startsWith\("\/learn\/"\)\) permanentRedirect\(article\.canonicalHref\)/.test(art), '/articles redirect');
-  const act = read('app/admin/lessons/actions.ts');
+  const act = read('app/(site)/admin/lessons/actions.ts');
   assert(/revalidateTag\(LEARN_CACHE_TAG\)/.test(act) && /revalidatePath\("\/sitemap\.xml"\)/.test(act) && /revalidatePath\("\/hi\/learn", "layout"\)/.test(act), 'publish revalidates the lesson data + sitemap');
   const sm = read('app/sitemap.ts');
   assert(/\.neq\("document_type", "NODE_LESSON"\)/.test(sm) && /learnSitemapEntries\(baseUrl, lessons, paths, examCourses\)/.test(sm) && /rpc\("fn_servable_node_lessons"\)/.test(sm), 'sitemap from published reads');

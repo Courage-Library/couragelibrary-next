@@ -142,7 +142,7 @@ const MIG = 'supabase/migrations/20261025000095_f5_memory_lock.sql';
   });
 
   await test('ML-05 actions: flag off → nothing; validated; fixed codes; "Back in N days"', async () => {
-    const A = require(path.join(ROOT, 'app/memory-lock/actions.ts'));
+    const A = require(path.join(ROOT, 'app/(site)/memory-lock/actions.ts'));
     const ok = { versionId: '11111111-2222-4333-8444-555555555555', selected: 'B', timeMs: 4000, sessionId: '11111111-2222-4333-8444-666666666666' };
     delete process.env.MEMORY_LOCK_ENABLED;
     eq(await A.checkMemoryLockAnswerAction(ok), { ok: false, code: 'FAILED' }, 'flag off');
@@ -166,16 +166,16 @@ const MIG = 'supabase/migrations/20261025000095_f5_memory_lock.sql';
   });
 
   await test('ML-06 key never in the payload; flag off → 404 / plain card / no button', () => {
-    const sess = code(read('app/memory-lock/session/page.tsx'));
+    const sess = code(read('app/(site)/memory-lock/session/page.tsx'));
     assert(/loadPracticeQuestions\(supabase, ids, language\)/.test(sess) && !/question_answers|correct_option_key|explanation/.test(sess), 'session sends text + options only');
     const ps = code(read('lib/practice/server.ts'));
     const load = ps.slice(ps.indexOf('export async function loadPracticeQuestions'), ps.indexOf('export async function topicArticles'));
     assert(!/question_answers|correct_option_key|explanation/.test(load), 'loader never selects keys / explanations');
-    for (const f of ['app/memory-lock/page.tsx', 'app/memory-lock/session/page.tsx']) assert(/if \(!isMemoryLockEnabled\(\)\) notFound\(\);/.test(code(read(f))), `${f}: flag off → 404`);
-    const page = code(read('app/memory-lock/page.tsx'));
+    for (const f of ['app/(site)/memory-lock/page.tsx', 'app/(site)/memory-lock/session/page.tsx']) assert(/if \(!isMemoryLockEnabled\(\)\) notFound\(\);/.test(code(read(f))), `${f}: flag off → 404`);
+    const page = code(read('app/(site)/memory-lock/page.tsx'));
     assert((page.match(/variant="primary"/g) || []).length === 1 && /data-memory-lock-start=""/.test(page), 'overview: ONE primary ("Start")');
     assert(!/streak|hurry|don['’]t lose|miss out/i.test(code(read('content/memory-lock.ts'))), 'no streak shaming / fake urgency (R11)');
-    assert(/canAddToMemoryLock=\{isMemoryLockEnabled\(\)\}/.test(code(read('app/practice/session/page.tsx'))) && /memoryLockEnabled: isMemoryLockEnabled\(\)/.test(code(read('services/assessment.service.ts'))), 'add button only with the flag');
+    assert(/canAddToMemoryLock=\{isMemoryLockEnabled\(\)\}/.test(code(read('app/(site)/practice/session/page.tsx'))) && /memoryLockEnabled: isMemoryLockEnabled\(\)/.test(code(read('services/assessment.service.ts'))), 'add button only with the flag');
     const runner = code(read('components/practice/practice-runner.tsx'));
     assert(/props\.canAddToMemoryLock && !props\.memoryLock && result && <AddToMemoryLockButton/.test(runner) && /data-memory-lock-back-in=""/.test(runner), 'runner: add after an answer (practice), "Back in N days" (Memory Lock)');
   });

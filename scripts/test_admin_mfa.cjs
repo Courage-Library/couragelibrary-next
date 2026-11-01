@@ -131,7 +131,7 @@ const outcome = async (fn) => {
     delete process.env.ADMIN_MFA_REQUIRED;
     const walk = (d) => fs.readdirSync(path.join(ROOT, d), { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(`${d}/${e.name}`) : /\.(tsx?)$/.test(e.name) ? [`${d}/${e.name}`] : []));
     const users = ['app', 'components', 'lib'].flatMap(walk).filter((f) => /allowAal1:\s*true/.test(read(f)));
-    assert(JSON.stringify(users) === JSON.stringify(['app/admin/mfa/page.tsx']), `allowAal1 used in ${users}`);
+    assert(JSON.stringify(users) === JSON.stringify(['app/(site)/admin/mfa/page.tsx']), `allowAal1 used in ${users}`);
     const panel = read('components/admin/admin-mfa-panel.tsx');
     assert(/^"use client";/.test(panel) && /sb\.auth\.mfa\.enroll\(/.test(panel) && /sb\.auth\.mfa\.challengeAndVerify\(/.test(panel) && !/fetch\(|"use server"|Action\(/.test(panel), 'enrol / verify in the browser only');
     const doc = read('docs/auth/ADMIN_MFA.md');

@@ -113,7 +113,7 @@ const MIG = 'supabase/migrations/20261025000096_f8_profile_username.sql';
   });
 
   await test('PF-04 actions: flag off → nothing; instant local rules; fixed codes', async () => {
-    const A = require(path.join(ROOT, 'app/settings/profile/actions.ts'));
+    const A = require(path.join(ROOT, 'app/(site)/settings/profile/actions.ts'));
     delete process.env.PROFILES_ENABLED;
     assert((await A.setUsernameAction({ username: 'ram_kumar' })) === 'FAILED' && rpcCalls.length === 0, 'flag off');
     process.env.PROFILES_ENABLED = 'true';
@@ -136,7 +136,7 @@ const MIG = 'supabase/migrations/20261025000096_f8_profile_username.sql';
     assert(JSON.stringify(p) === JSON.stringify({ username: 'ram_kumar', memberSince: '2026-09-01T00:00:00Z' }), JSON.stringify(p));
     assert(JSON.stringify(filters) === JSON.stringify([['select', 'username, created_at'], ['eq', 'username', 'ram_kumar'], ['eq', 'profile_public', true], ['not', 'adult_confirmed_at', 'is', null]]), `only public + 18+, only 2 columns: ${JSON.stringify(filters)}`);
     assert((await S.loadPublicProfile('bad name!')) === null, 'invalid → null');
-    for (const f of ['app/u/[username]/page.tsx', 'app/settings/profile/page.tsx']) assert(/if \(!isProfilesEnabled\(\)\) notFound\(\);/.test(code(read(f))), `${f}: flag off → 404`);
+    for (const f of ['app/(site)/u/[username]/page.tsx', 'app/(site)/settings/profile/page.tsx']) assert(/if \(!isProfilesEnabled\(\)\) notFound\(\);/.test(code(read(f))), `${f}: flag off → 404`);
     const links = code(read('components/shell/account-links.tsx'));
     // BRAND-3 fix 1: the base menu is ACCOUNT_MENU minus the coin links while coins are off (`menu`); the Profile link is unchanged
     assert(/account\.profile \? \[\{ href: "\/settings\/profile", label: "Profile" \}, \.\.\.menu\] : menu/.test(links) && /const menu = account\.coins \? ACCOUNT_MENU : ACCOUNT_MENU\.filter\(/.test(links) && /profile: isProfilesEnabled\(\),/.test(read('components/shell/app-shell.tsx')), 'menu link only with the flag');
@@ -155,7 +155,7 @@ const MIG = 'supabase/migrations/20261025000096_f8_profile_username.sql';
     const svc = code(read('services/assessment.service.ts'));
     const opt = svc.slice(svc.indexOf('private static async leaderboardOptIns('), svc.indexOf('static async getTestLeaderboard('));
     assert(/\.eq\("leaderboard_opt_in", true\)/.test(opt) && /\.not\("adult_confirmed_at", "is", null\)/.test(opt) && !/user_metadata/.test(opt) && !/user_metadata/.test(svc.slice(svc.indexOf("private static async accountFlags("), svc.indexOf("private static async leaderboardOptIns("))), "leaderboard reads the column (18+ only), never user_metadata");
-    const A = require(path.join(ROOT, 'app/settings/profile/actions.ts'));
+    const A = require(path.join(ROOT, 'app/(site)/settings/profile/actions.ts'));
     process.env.PROFILES_ENABLED = 'true';
     rpcCalls.length = 0;
     reply = { data: { success: false, code: 'NEED_ADULT_CONFIRMATION' }, error: null };

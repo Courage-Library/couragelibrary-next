@@ -3,8 +3,8 @@
 import { useCallback, useRef, useState, useTransition } from "react";
 import Script from "next/script";
 import { Alert } from "@/components/ui/alert";
-import { signInWithGoogleAction } from "@/app/auth/google-actions";
-import type { AuthState } from "@/app/auth/actions";
+import { signInWithGoogleAction } from "@/app/(site)/auth/google-actions";
+import type { AuthState } from "@/app/(site)/auth/actions";
 import { googleRetryUrl } from "@/lib/auth/google-signin";
 
 /**

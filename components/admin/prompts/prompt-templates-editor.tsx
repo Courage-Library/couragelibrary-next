@@ -6,7 +6,7 @@ import { StatusChip } from "@/components/admin/status-chip";
 import { StudioField, StudioPageHeader, StudioPanel, studioControl, studioPrimaryAction, studioQuietAction } from "@/components/admin/studio/studio-page";
 import { TEMPLATE_PLACEHOLDERS, TEMPLATE_TYPES, templateProblems, type TemplateType } from "@/lib/prompts/template";
 import type { PromptTemplateRow } from "@/lib/prompts/admin-types";
-import { activatePromptAction, savePromptDraftAction } from "@/app/admin/prompts/actions";
+import { activatePromptAction, savePromptDraftAction } from "@/app/(site)/admin/prompts/actions";
 
 /**
  * CA-4 prompt templates (Studio template): one tab per type; the active version, the open draft and the history.

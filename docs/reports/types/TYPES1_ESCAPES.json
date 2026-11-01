@@ -157,7 +157,7 @@
     },
     {
       "id": "TYPES-1:C-ADMIN-LIVE-TESTS-PAGE",
-      "file": "app/admin/live-tests/page.tsx",
+      "file": "app/(site)/admin/live-tests/page.tsx",
       "class": "C",
       "module": "live-tests",
       "kind": "quarantinedClient",
@@ -175,7 +175,7 @@
     },
     {
       "id": "TYPES-1:C-ADMIN-LIVE-TEST-RESULTS-PAGE",
-      "file": "app/admin/live-tests/[id]/results/page.tsx",
+      "file": "app/(site)/admin/live-tests/[id]/results/page.tsx",
       "class": "C",
       "module": "live-tests",
       "kind": "quarantinedClient",
@@ -283,7 +283,7 @@
     },
     {
       "id": "TYPES-1:B-ADM-COMMUNITY",
-      "file": "app/admin/support/flags/page.tsx",
+      "file": "app/(site)/admin/support/flags/page.tsx",
       "class": "B",
       "module": "admin community moderation",
       "kind": "@ts-expect-error ×1 (component item shape). The resolve escape in app/admin/actions.ts was removed by D-1 (ADMIN-UX-1, 2026-10-26: resolve writes discussion_moderation_flags)",
@@ -292,7 +292,7 @@
     },
     {
       "id": "TYPES-1:B-ADM-INSTITUTES",
-      "file": "app/admin/actions.ts",
+      "file": "app/(site)/admin/actions.ts",
       "class": "B",
       "module": "admin institutes manager",
       "kind": "@ts-expect-error ×2 (required owner_user_id on create; component item shape) — also app/admin/institutes/page.tsx",

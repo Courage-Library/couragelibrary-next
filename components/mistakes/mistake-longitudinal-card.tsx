@@ -8,7 +8,7 @@ import {
   TrajectoryState,
   CrossExamPattern,
 } from "@/types/mistake-longitudinal-intelligence";
-import { fetchLongitudinalOverviewAction } from "@/app/mistakes/actions";
+import { fetchLongitudinalOverviewAction } from "@/app/(site)/mistakes/actions";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { StatTile } from "@/components/ui/stat-tile";
 import { cn } from "@/components/ui/cn";

@@ -9,7 +9,7 @@ import { CheckButton, CheckProblems, CheckRegion, usePasteCheck } from "@/compon
 import type { BlockError } from "@/lib/lessons/blocks";
 import { parseTranslationPaste, type TranslationPaste } from "@/lib/prompts/translate-prompt";
 import type { LessonTranslationData } from "@/lib/lessons/admin-types";
-import { publishLessonAction, saveTranslationDraftAction } from "@/app/admin/lessons/actions";
+import { publishLessonAction, saveTranslationDraftAction } from "@/app/(site)/admin/lessons/actions";
 
 /**
  * CA-4 translation (Studio template; English UI per R9 / decision #85 — the second-language text is CONTENT, shown in

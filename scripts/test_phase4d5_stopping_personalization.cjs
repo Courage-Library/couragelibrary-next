@@ -321,15 +321,15 @@ async function runPhase4D5Tests() {
     assert(asContent.includes('getPersonalizationHealth'), 'AdminAdaptiveService provides getPersonalizationHealth()');
   }
 
-  const adminActionsPath = path.resolve('e:/Courage Library', 'app/admin/actions.ts');
+  const adminActionsPath = path.resolve('e:/Courage Library', 'app/(site)/admin/actions.ts');
   if (fs.existsSync(adminActionsPath)) {
     const aaContent = fs.readFileSync(adminActionsPath, 'utf-8');
-    assert(aaContent.includes('getStoppingConfigAction'), 'app/admin/actions.ts exports getStoppingConfigAction()');
-    assert(aaContent.includes('updateStoppingConfigAction'), 'app/admin/actions.ts exports updateStoppingConfigAction()');
-    assert(aaContent.includes('getStoppingHealthAction'), 'app/admin/actions.ts exports getStoppingHealthAction()');
-    assert(aaContent.includes('getPersonalizationConfigAction'), 'app/admin/actions.ts exports getPersonalizationConfigAction()');
-    assert(aaContent.includes('updatePersonalizationConfigAction'), 'app/admin/actions.ts exports updatePersonalizationConfigAction()');
-    assert(aaContent.includes('getPersonalizationHealthAction'), 'app/admin/actions.ts exports getPersonalizationHealthAction()');
+    assert(aaContent.includes('getStoppingConfigAction'), 'app/(site)/admin/actions.ts exports getStoppingConfigAction()');
+    assert(aaContent.includes('updateStoppingConfigAction'), 'app/(site)/admin/actions.ts exports updateStoppingConfigAction()');
+    assert(aaContent.includes('getStoppingHealthAction'), 'app/(site)/admin/actions.ts exports getStoppingHealthAction()');
+    assert(aaContent.includes('getPersonalizationConfigAction'), 'app/(site)/admin/actions.ts exports getPersonalizationConfigAction()');
+    assert(aaContent.includes('updatePersonalizationConfigAction'), 'app/(site)/admin/actions.ts exports updatePersonalizationConfigAction()');
+    assert(aaContent.includes('getPersonalizationHealthAction'), 'app/(site)/admin/actions.ts exports getPersonalizationHealthAction()');
   }
 
   const managerComponentPath = path.resolve('e:/Courage Library', 'components/admin/adaptive/admin-adaptive-manager.tsx');

@@ -71,15 +71,15 @@ test('AG-03 gate decision (Google user, existing user, edited user_metadata, exe
 });
 
 test('AG-04 email sign-up: rejected without the box before Supabase; box required, never pre-ticked', () => {
-  const a = code(read('app/auth/actions.ts'));
+  const a = code(read('app/(site)/auth/actions.ts'));
   const fn = a.slice(a.indexOf('export async function signupAction('), a.indexOf('export async function logoutAction('));
   const check = fn.indexOf('if (ageGate && !isAgeConfirmedInput(formData.get(AGE_CHECKBOX_FIELD))) return fail("age-required");');
   assert(check > 0 && check < fn.indexOf('supabase.auth.signUp('), 'server-side check before signUp');
   assert(/\.\.\.\(ageGate \? \{ \[AGE_SIGNUP_STAMP_KEY\]: new Date\(\)\.toISOString\(\) \} : \{\}\)/.test(fn), 'stamp (input) in the sign-up metadata');
   assert(/"age-required": "Please confirm that you are 18 or older/.test(read('lib/auth/messages.ts')), 'fixed message');
-  const f = code(read('app/auth/signup/signup-form.tsx'));
+  const f = code(read('app/(site)/auth/signup/signup-form.tsx'));
   assert(/<input type="checkbox" name=\{AGE_CHECKBOX_FIELD\} required /.test(f) && !/defaultChecked|checked=\{/.test(f), 'required, not pre-ticked');
-  assert(/ageGate=\{isAgeGateEnabled\(\)\}/.test(read('app/auth/signup/page.tsx')), 'shown when the flag is on');
+  assert(/ageGate=\{isAgeGateEnabled\(\)\}/.test(read('app/(site)/auth/signup/page.tsx')), 'shown when the flag is on');
 });
 
 test('AG-05 middleware reads app_metadata only (no DB query) + onboarding backstop', () => {
@@ -88,7 +88,7 @@ test('AG-05 middleware reads app_metadata only (no DB query) + onboarding backst
   assert(!/app_metadata\s*[.\[]|\.app_metadata/.test(m), 'the middleware itself reads no app_metadata field (no role decision, SEC-1C S-06)');
   const blk = m.slice(m.indexOf('needsAgeGate('), m.indexOf('return supabaseResponse;', m.indexOf('needsAgeGate(')));
   assert(!/\.from\(|\.rpc\(|user_metadata/.test(blk), 'no DB query, no user_metadata');
-  assert(/if \(isAgeGateEnabled\(\) && userNeedsAgeConfirmation\(session\.user\)\) \{\s*redirect\(`\$\{AGE_CONFIRM_PATH\}\?next=/.test(code(read('app/onboarding/page.tsx'))), 'onboarding cannot skip it');
+  assert(/if \(isAgeGateEnabled\(\) && userNeedsAgeConfirmation\(session\.user\)\) \{\s*redirect\(`\$\{AGE_CONFIRM_PATH\}\?next=/.test(code(read('app/(site)/onboarding/page.tsx'))), 'onboarding cannot skip it');
 });
 
 test('AG-06 app_metadata set ONLY after fn_confirm_age succeeded (service role, merged)', () => {
@@ -100,19 +100,19 @@ test('AG-06 app_metadata set ONLY after fn_confirm_age succeeded (service role, 
   assert(rpc > 0 && guard > rpc && mirror > guard, 'RPC → success check → mirror');
   const mr = rc.slice(rc.indexOf('async function mirrorAdultConfirmed('), rc.indexOf('export async function recordAgeConfirmation('));
   assert(/createAdminServerSupabaseClient\(\)/.test(mr) && /const merged = \{ \.\.\.\(data\.user\.app_metadata \?\? \{\}\), \[AGE_APP_METADATA_FLAG\]: true \};/.test(mr) && /updateUserById\(userId, \{ app_metadata: merged \}\)/.test(mr), 'service role, existing app_metadata (role) preserved');
-  for (const f of ['app/confirm-age/page.tsx', 'app/auth/signup/signup-form.tsx']) assert(!/app_metadata\s*:/.test(read(f)), `never written from ${f}`);
+  for (const f of ['app/(site)/confirm-age/page.tsx', 'app/(site)/auth/signup/signup-form.tsx']) assert(!/app_metadata\s*:/.test(read(f)), `never written from ${f}`);
   assert(/^import "server-only";/.test(read('lib/auth/age-confirm.ts')), 'server only');
 });
 
 test('AG-07 /confirm-age fail CLOSED + first sign-in sync', () => {
-  const act = code(read('app/confirm-age/actions.ts'));
+  const act = code(read('app/(site)/confirm-age/actions.ts'));
   assert(/if \(!isAgeConfirmedInput\(formData\.get\(AGE_CHECKBOX_FIELD\)\)\) redirect\(back\("required"\)\);/.test(act), 'box required');
   assert(/const ok = await recordAgeConfirmation\(supabase\);\s*if \(!ok\) redirect\(back\("failed"\)\);/.test(act), 'fail closed');
   assert(/next\.startsWith\(AGE_CONFIRM_PATH\) \? "\/dashboard" : next/.test(act), 'no loop');
-  const pg = code(read('app/confirm-age/page.tsx'));
+  const pg = code(read('app/(site)/confirm-age/page.tsx'));
   assert(/hasAgeConfirmation\(session\.user\.app_metadata\)/.test(pg) && /action=\{logoutAction\}/.test(pg) && !/defaultChecked/.test(pg), 'page');
   assert(/await syncAgeConfirmationOnSignIn\(supabase\);\s*if \(!isOnboardingEnabled\(\)\) return target;/.test(code(read('lib/onboarding/server.ts'))), 'postLoginTarget');
-  assert(/await syncAgeConfirmationOnSignIn\(supabase\);\s*return NextResponse\.redirect\(target\);/.test(code(read('app/auth/callback/route.ts'))), 'callback');
+  assert(/await syncAgeConfirmationOnSignIn\(supabase\);\s*return NextResponse\.redirect\(target\);/.test(code(read('app/(site)/auth/callback/route.ts'))), 'callback');
   const rc = code(read('lib/auth/age-confirm.ts'));
   assert(/if \(hasSignupAgeStamp\(user\.user_metadata\)\) \{\s*await recordAgeConfirmation\(supabase\);/.test(rc), 'the stamp only triggers the RPC (then the same mirror)');
 });

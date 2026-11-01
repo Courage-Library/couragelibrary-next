@@ -140,7 +140,7 @@ async function runAllTests() {
     assert.ok(content.includes('UNAUTHORIZED'), 'Must return UNAUTHORIZED for non-admins');
   });
 
-  runTest('S05', 'Admin layout app/admin/layout.tsx strictly guards access for staff/admin only', () => {
+  runTest('S05', 'Admin layout app/(site)/admin/layout.tsx strictly guards access for staff/admin only', () => {
     const layoutPath = path.join(__dirname, '..', 'app', 'admin', 'layout.tsx');
     const content = fs.readFileSync(layoutPath, 'utf8');
     assert.ok(content.includes('checkIsAdminOrStaff'), 'Layout must enforce RBAC');

@@ -4,7 +4,7 @@
 import React, { useState, useTransition } from "react";
 import { type LiveEventCardData } from "@/types/live-test";
 import { LiveEventCountdown } from "@/components/live-test/live-event-countdown";
-import { registerForLiveTestAction, cancelLiveRegistrationAction } from "@/app/live-tests/actions";
+import { registerForLiveTestAction, cancelLiveRegistrationAction } from "@/app/(site)/live-tests/actions";
 import {
   Calendar,
   Clock,

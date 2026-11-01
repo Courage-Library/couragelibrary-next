@@ -330,14 +330,14 @@ async function runPhase5BTests() {
   const countdownComponent = path.resolve(__dirname, '../components/live-test/live-event-countdown.tsx');
   assert(fs.existsSync(countdownComponent), 'LiveEventCountdown component exists in components/live-test/');
 
-  const directoryPage = path.resolve(__dirname, '../app/live-tests/page.tsx');
-  assert(fs.existsSync(directoryPage), 'Candidate Live Tests directory page exists at app/live-tests/page.tsx');
+  const directoryPage = path.resolve(__dirname, '../app/(site)/live-tests/page.tsx');
+  assert(fs.existsSync(directoryPage), 'Candidate Live Tests directory page exists at app/(site)/live-tests/page.tsx');
 
-  const detailPage = path.resolve(__dirname, '../app/live-tests/[slug]/page.tsx');
-  assert(fs.existsSync(detailPage), 'Candidate Live Test detail page exists at app/live-tests/[slug]/page.tsx');
+  const detailPage = path.resolve(__dirname, '../app/(site)/live-tests/[slug]/page.tsx');
+  assert(fs.existsSync(detailPage), 'Candidate Live Test detail page exists at app/(site)/live-tests/[slug]/page.tsx');
 
-  const adminPage = path.resolve(__dirname, '../app/admin/live-tests/page.tsx');
-  assert(fs.existsSync(adminPage), 'Admin Live Tests page exists at app/admin/live-tests/page.tsx');
+  const adminPage = path.resolve(__dirname, '../app/(site)/admin/live-tests/page.tsx');
+  assert(fs.existsSync(adminPage), 'Admin Live Tests page exists at app/(site)/admin/live-tests/page.tsx');
 
   const adminManager = path.resolve(__dirname, '../components/admin/live-tests/admin-live-tests-manager.tsx');
   assert(fs.existsSync(adminManager), 'AdminLiveTestsManager component exists in components/admin/live-tests/');

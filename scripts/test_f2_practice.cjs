@@ -66,7 +66,7 @@ let reportCalls = [];
 const MOCKS = {
   'server-only': {},
   'next/navigation': { useRouter: () => ({ refresh() {} }), notFound: () => { throw new NotFoundSignal('NEXT_NOT_FOUND'); }, redirect: () => { throw new Error('redirect'); } },
-  '@/app/practice/actions': {
+  '@/app/(site)/practice/actions': {
     checkPracticeAnswerAction: async (i) => { checkCalls.push(i); return { ok: true, isCorrect: false, correctKey: 'B', explanation: 'x', savedToMistakes: true }; },
     reportQuestionAction: async (i) => { reportCalls.push(i); return 'REPORTED'; },
   },
@@ -132,7 +132,7 @@ const ROW = (qid, vid, lang = 'en', extra = {}) => ({
     assert(!/question_answers|correct_option_key|explanation/.test(srv), 'the practice read module selects keys / explanations');
     const typeSrc = (read('lib/practice/engine.ts').match(/export type PracticeQuestion = \{[\s\S]*?\n\};/) || [''])[0];
     assert(typeSrc && !/correct|explanation|answer/i.test(typeSrc), 'PracticeQuestion type has a key field');
-    for (const f of ['components/practice/practice-runner.tsx', 'components/practice/report-question-button.tsx', 'app/practice/session/page.tsx', 'app/practice/page.tsx']) {
+    for (const f of ['components/practice/practice-runner.tsx', 'components/practice/report-question-button.tsx', 'app/(site)/practice/session/page.tsx', 'app/(site)/practice/page.tsx']) {
       assert(!/createAdminServerSupabaseClient|service_role|SERVICE_ROLE/.test(code(read(f))), `${f}: service role`);
     }
     return 'payload = text + options only';
@@ -146,7 +146,7 @@ const ROW = (qid, vid, lang = 'en', extra = {}) => ({
     assert(/AND v\.lifecycle_status = 'PUBLISHED'\s+AND v\.is_current\s+AND q\.status = 'published'/.test(b) && /fn_qf_version_is_servable\(p_question_version_id\)/.test(b), 'only servable, current, published questions');
     assert(/v_uid\s+uuid := auth\.uid\(\)/.test(b) && /NOT_SIGNED_IN/.test(b), 'caller from auth.uid()');
     assert(/'ALREADY_ANSWERED'/.test(b) && /UNIQUE \(user_id, set_id, question_version_id\)/.test(MIGC), 'idempotent per set');
-    const act = code(read('app/practice/actions.ts'));
+    const act = code(read('app/(site)/practice/actions.ts'));
     assert(/rpc\("fn_check_practice_answer"/.test(act) && /isCorrect: r\.is_correct === true,\s*correctKey,\s*explanation:/.test(act), 'action returns only correctness / key / explanation');
     assert(!/\.from\(/.test(act), 'the action reads tables directly');
     return 'single-question RPC';
@@ -169,7 +169,7 @@ const ROW = (qid, vid, lang = 'en', extra = {}) => ({
     assert(/CASE p_mode WHEN 'DIAGNOSTIC' THEN 'DIAGNOSTIC_ASSESSMENT' ELSE 'CUSTOM_PRACTICE' END/.test(c) && /\n\s+v_id,\n/.test(c), 'source context + practice answer as lineage reference');
     assert(!/user_mistake_vault|user_mistake_occurrences/.test(MIGC.replace(/fn_record_mistake_occurrence/g, '')), 'the migration writes the vault directly');
     assert(!/CREATE TABLE[^;]*mistake/i.test(MIGC), 'a second mistake table');
-    const act = code(read('app/practice/actions.ts'));
+    const act = code(read('app/(site)/practice/actions.ts'));
     assert(!/MistakeService|createAdminServerSupabaseClient|user_mistake/.test(act), 'the action writes mistakes itself');
     return 'fn_record_mistake_occurrence';
   });
@@ -207,7 +207,7 @@ const ROW = (qid, vid, lang = 'en', extra = {}) => ({
     const noToggle = html(h(PracticeRunner, props([E.toPracticeQuestion(en, [], 't1')])));
     assert(/aria-pressed/.test(withToggle) && /Hindi/.test(text(withToggle)) && !/aria-pressed/.test(noToggle), 'toggle only with an alternate');
     assert(/lang="hi"/.test(withToggle), 'Hindi content marked lang="hi"');
-    const ui = ['content/practice.ts', 'components/practice/practice-runner.tsx', 'components/practice/report-question-button.tsx', 'app/practice/page.tsx', 'app/practice/session/page.tsx'].map((f) => code(read(f))).join('\n');
+    const ui = ['content/practice.ts', 'components/practice/practice-runner.tsx', 'components/practice/report-question-button.tsx', 'app/(site)/practice/page.tsx', 'app/(site)/practice/session/page.tsx'].map((f) => code(read(f))).join('\n');
     assert(!/[ऀ-ॿ]/.test(ui), 'Hindi UI text');
     return 'hi → en fallback; toggle conditional';
   });
@@ -273,7 +273,7 @@ const ROW = (qid, vid, lang = 'en', extra = {}) => ({
       practiceExams: async () => [{ id: 'e1', slug: 'ssc-cgl', title: 'SSC CGL', mine: true }],
       examSections: async () => [{ id: 's1', name: 'Quant', topics: [{ id: 't1', name: 'Algebra', count: 12 }] }, { id: 's2', name: 'English', topics: [] }],
     };
-    const page = require(path.join(ROOT, 'app/practice/page.tsx')).default;
+    const page = require(path.join(ROOT, 'app/(site)/practice/page.tsx')).default;
     const chooser = html(await page({ searchParams: Promise.resolve({}) }));
     assert(/data-practice-chooser/.test(chooser) && amber(chooser) === 1, `chooser: ${amber(chooser)} amber`);
     assert(/Algebra/.test(text(chooser)) && /12 questions/.test(text(chooser)) && /Mistake drills/.test(text(chooser)) && /href="\/mistakes\/drill"/.test(chooser), 'topics + drills entry');
@@ -299,16 +299,16 @@ const ROW = (qid, vid, lang = 'en', extra = {}) => ({
 
   await test('T-11 flag OFF: drills hub, session 404, reports via the pre-093 path', async () => {
     delete process.env.PRACTICE_ENABLED;
-    const hubSrc = read('app/practice/page.tsx');
+    const hubSrc = read('app/(site)/practice/page.tsx');
     assert(/if \(!isPracticeEnabled\(\)\) return <MistakeDrillsHub \/>;/.test(hubSrc), 'flag-off hub');
-    const page = require(path.join(ROOT, 'app/practice/page.tsx')).default;
+    const page = require(path.join(ROOT, 'app/(site)/practice/page.tsx')).default;
     const hub = html(await page({ searchParams: Promise.resolve({}) }));
     assert(!/data-practice-chooser/.test(hub) && /Drill your mistakes/.test(text(hub)), 'hub rendered');
-    const sess = require(path.join(ROOT, 'app/practice/session/page.tsx')).default;
+    const sess = require(path.join(ROOT, 'app/(site)/practice/session/page.tsx')).default;
     let nf = false;
     try { await sess({ searchParams: Promise.resolve({ topic: '00000000-0000-0000-0000-000000000000' }) }); } catch (e) { nf = e instanceof NotFoundSignal; }
     assert(nf, 'session must 404 with the flag off');
-    const act = code(read('app/practice/actions.ts'));
+    const act = code(read('app/(site)/practice/actions.ts'));
     assert(/if \(!isPracticeEnabled\(\)\) return \{ ok: false, code: "FAILED" \};/.test(act), 'check action off');
     assert(/if \(isPracticeEnabled\(\)\) \{\s*const \{ data, error \} = await supabase\.rpc\("fn_report_question"/.test(code(read('lib/practice/report.ts'))), 'reports switch on the flag');
     const nav = read('components/shell/nav-config.ts');
@@ -340,7 +340,7 @@ const ROW = (qid, vid, lang = 'en', extra = {}) => ({
   await test('T-13 Memory Lock card: one real link when MEMORY_LOCK_ENABLED, else the plain "Coming soon" card; primary-blue lock; brand spelling', () => {
     const ML = require(path.join(ROOT, 'content/memory-lock.ts')).MEMORY_LOCK;
     assert(ML.name === 'Memory Lock' && ML.tagline === 'Spaced revision, right on time' && ML.comingSoon === 'Coming soon', JSON.stringify(ML));
-    const dash = code(read('app/dashboard/page.tsx'));
+    const dash = code(read('app/(site)/dashboard/page.tsx'));
     const card = (dash.match(/<div data-memory-lock-card="">[\s\S]*?\n {10}<\/div>/) || [''])[0];
     assert(card, 'Memory Lock card missing');
     // flag off: a plain card — no link, no button, no click handler, and no interactive ARIA on a non-interactive element

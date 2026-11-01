@@ -55,7 +55,7 @@ const allLeaves = (nav) => nav.flatMap((g) => g.items.flatMap((it) => [...(it.ta
 test('AB-01 every nav link mirrors its page guard (no authorization change)', () => {
   const bad = [];
   for (const it of allLeaves(NAV.ADMIN_NAV)) {
-    const file = `app${it.href}/page.tsx`;
+    const file = [`app${it.href}/page.tsx`, `app/(site)${it.href}/page.tsx`].find((f) => fs.existsSync(path.join(ROOT, f))) || `app${it.href}/page.tsx`; // PERF-HOME-1 route group
     if (!fs.existsSync(path.join(ROOT, file))) { bad.push(`${it.href}: no page`); continue; }
     const m = code(read(file)).match(/requireAdminPage\(\{([^}]*)\}\)/);
     if (!m) { bad.push(`${it.href}: no requireAdminPage`); continue; }
@@ -99,7 +99,7 @@ test('AB-03 exactly one active link', () => {
 });
 
 test('AB-04 layout: guard unchanged + first, one <main>, skip link, never-glass, no e-mail / fake role', () => {
-  const l = code(read('app/admin/layout.tsx'));
+  const l = code(read('app/(site)/admin/layout.tsx'));
   const body = l.slice(l.indexOf('export default async function AdminLayout('));
   assert(/const \{ role, userId \} = await requireAdminPage\(\{ allowStaff: true, path: "\/admin" \}\);/.test(body) && body.indexOf('await requireAdminPage') === body.indexOf('await '), 'guard unchanged and first');
   assert(!/<main\b/.test(l) && /id="admin-content"/.test(l) && /href="#admin-content"/.test(l), 'one <main> (root shell); admin skip link');
@@ -112,7 +112,7 @@ test('AB-04 layout: guard unchanged + first, one <main>, skip link, never-glass,
 });
 
 test('AB-05 search: guard first; role rules per group; escaped LIKE; minimal fields', () => {
-  const a = code(read('app/admin/search/actions.ts'));
+  const a = code(read('app/(site)/admin/search/actions.ts'));
   const fn = a.slice(a.indexOf('export async function adminSearchAction('));
   assert(/const auth = await guardAdminAction\(\{ allowStaff: true \}\);\s*\n\s*if \(!auth\.ok\) return auth;/.test(fn) && fn.indexOf('guardAdminAction') < fn.indexOf('createAdminServerSupabaseClient'), 'guard first');
   assert(/searchableGroups\(auth\.role, isSupportTicketsEnabled\(\)\)/.test(fn), 'groups from role + flag');
@@ -126,7 +126,7 @@ test('AB-05 search: guard first; role rules per group; escaped LIKE; minimal fie
 });
 
 test('AB-06 Today v2: guard first, server-only read model, admin-only cards, no e-mails, honest failures', () => {
-  const p = code(read('app/admin/page.tsx'));
+  const p = code(read('app/(site)/admin/page.tsx'));
   const body = p.slice(p.indexOf('export default async function AdminTodayPage('));
   assert(body.indexOf('await requireAdminPage({ allowStaff: true, path: "/admin" })') > 0 && body.indexOf('await requireAdminPage') === body.indexOf('await '), 'guard first');
   const t = read('lib/admin/today.ts');
@@ -155,7 +155,7 @@ test('AB-06 Today v2: guard first, server-only read model, admin-only cards, no 
 });
 
 test('AB-07 deep links accept only known values, after the guard', () => {
-  for (const [file, marker] of [['app/admin/questions/drafts/page.tsx', 'LIFECYCLE.includes('], ['app/admin/current-affairs/page.tsx', 'CA_STATUSES.includes('], ['app/admin/support/question-reports/page.tsx', 'REPORT_STATUSES.includes('], ['app/admin/support/page.tsx', 'Object.keys(TICKET_STATUSES).includes(']]) {
+  for (const [file, marker] of [['app/(site)/admin/questions/drafts/page.tsx', 'LIFECYCLE.includes('], ['app/(site)/admin/current-affairs/page.tsx', 'CA_STATUSES.includes('], ['app/(site)/admin/support/question-reports/page.tsx', 'REPORT_STATUSES.includes('], ['app/(site)/admin/support/page.tsx', 'Object.keys(TICKET_STATUSES).includes(']]) {
     const s = code(read(file));
     assert(s.includes(marker), `${file}: whitelist`);
     const body = s.slice(s.indexOf('export default async function'));
@@ -182,18 +182,18 @@ test('AB-09 a11y (static): current page, expandable groups, combobox, focus, tar
   const c = read('components/admin/admin-search.tsx');
   assert(/role="combobox"/.test(c) && /role="listbox"/.test(c) && /role="option"/.test(c) && /aria-activedescendant/.test(c) && /aria-live="polite"/.test(c), 'combobox pattern');
   assert(/focus-ring/.test(c) && /focus-ring-on-dark/.test(s), 'focus rings');
-  assert(fs.existsSync(path.join(ROOT, 'app/admin/loading.tsx')) && fs.existsSync(path.join(ROOT, 'app/admin/error.tsx')), 'loading + error states');
+  assert(fs.existsSync(path.join(ROOT, 'app/(site)/admin/loading.tsx')) && fs.existsSync(path.join(ROOT, 'app/(site)/admin/error.tsx')), 'loading + error states');
 });
 
 test('AB-10 SEC-1C L-04 (a): staff on an admin-only route → the site 404 from the LAYOUT, before any admin shell', () => {
   // the single source equals the set of pages whose guard is admin-only (requireAdminPage without allowStaff)
   const walk = (d) => fs.readdirSync(path.join(ROOT, d), { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(`${d}/${e.name}`) : e.name === 'page.tsx' ? [`${d}/page.tsx`] : []));
-  const adminOnly = walk('app/admin').filter((f) => { const m = code(read(f)).match(/requireAdminPage\(\{([^}]*)\}\)/); return m && !/allowStaff:\s*true/.test(m[1]); }).map((f) => '/' + f.replace(/^app\//, '').replace(/\/page\.tsx$/, '')).sort();
+  const adminOnly = walk('app/(site)/admin').filter((f) => { const m = code(read(f)).match(/requireAdminPage\(\{([^}]*)\}\)/); return m && !/allowStaff:\s*true/.test(m[1]); }).map((f) => '/' + f.replace(/^app\/(?:\([^/]+\)\/)?/, '').replace(/\/page\.tsx$/, '')).sort();
   assert(JSON.stringify([...NAV.ADMIN_ONLY_ROUTES].sort()) === JSON.stringify(adminOnly), `ADMIN_ONLY_ROUTES ≠ admin-only pages: ${adminOnly.join(', ')}`);
   const f = NAV.isAdminOnlyPath;
   for (const [p, want] of [['/admin/students', true], ['/admin/students/', true], ['/admin/students/x', true], ['/admin/system', true], ['/admin/settingsx', false], ['/admin/live-tests', false], ['/admin/live-tests/abc', false], ['/admin/live-tests/abc/results', true], ['/admin/live-tests/intelligence', true], ['/admin', false], ['/admin/questions/review', false], [null, false], ['', false]]) assert(f(p) === want, `isAdminOnlyPath(${p}) = ${f(p)}`);
   // layout: the guard stays the first await; the admin-only check comes right after it, before any data read / shell
-  const l = code(read('app/admin/layout.tsx'));
+  const l = code(read('app/(site)/admin/layout.tsx'));
   const body = l.slice(l.indexOf('export default async function AdminLayout('));
   const iGuard = body.indexOf('await requireAdminPage');
   const iCheck = body.indexOf('if (role !== "admin" && isAdminOnlyPath((await headers()).get(PATHNAME_HEADER))) notFound();');

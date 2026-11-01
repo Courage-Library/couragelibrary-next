@@ -10,7 +10,7 @@ import { buildSyllabusIntakePrompt, type PreferredNames } from "@/lib/syllabus/i
 import { extractJson } from "@/lib/prompts/paste-extract";
 import { CheckButton, CheckProblems, CheckRegion, usePasteCheck } from "@/components/admin/studio/paste-check";
 import type { IntakeSessionView } from "@/lib/syllabus/intake-types";
-import { addIntakeCycleAction, createIntakeAction } from "@/app/admin/syllabus/intake/actions";
+import { addIntakeCycleAction, createIntakeAction } from "@/app/(site)/admin/syllabus/intake/actions";
 
 /**
  * CA-2 / SYLLABUS-PROMPT-2 intake wizard (Studio template): 1 choose exam / cycle / tier (an optional reference link

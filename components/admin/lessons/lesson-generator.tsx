@@ -10,8 +10,8 @@ import { lessonChecklist, checklistPasses, type ChecklistItem } from "@/lib/less
 import { mergeLessonParts, parseLessonPart, type LessonMergeOptions, type LessonPaste, type LessonPart } from "@/lib/prompts/lesson-prompt";
 import { applyLessonFix, type FixableError, type LessonFix } from "@/lib/prompts/lesson-node-ids";
 import type { LessonGeneratorData, LessonNodeOption } from "@/lib/lessons/admin-types";
-import { saveGeneratedLessonAction } from "@/app/admin/lessons/actions";
-import { createTaxonomyNodeAction } from "@/app/admin/taxonomy/actions";
+import { saveGeneratedLessonAction } from "@/app/(site)/admin/lessons/actions";
+import { createTaxonomyNodeAction } from "@/app/(site)/admin/taxonomy/actions";
 
 /**
  * CA-4 / LESSON-PROMPT-2 / GEN-CHECK-1 lesson prompt generator (Studio template): 1 choose a node (its subject must have a

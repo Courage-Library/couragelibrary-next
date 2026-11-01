@@ -120,7 +120,7 @@ export interface RequireAdminPageOptions extends RequireAdminOptions {
 
 /**
  * SEC-1C page guard (layouts are not security boundaries). Must be the FIRST awaited call in every
- * app/admin page and generateMetadata, before any data fetch.
+ * app/(site)/admin page and generateMetadata, before any data fetch.
  *   anonymous / session error → redirect to login (?next=<sanitized /admin path>)
  *   signed in without a permitted role → notFound()
  * Same session-only identity and resolveRole as requireAdmin; never accepts a user id.

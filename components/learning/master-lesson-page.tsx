@@ -14,7 +14,7 @@ import { learnHref, segmentsToHierarchyPath } from "@/lib/learn/paths";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { topicPracticeHref } from "@/lib/learn/topic";
 import { getMasterLessonPage, loadMasterData } from "@/services/learning/master-lesson.service";
-import { saveLessonProgressAction } from "@/app/articles/actions";
+import { saveLessonProgressAction } from "@/app/(site)/articles/actions";
 
 /**
  * CA-6 master lesson page (design G) — /learn/<subject>/<topic>[/<subtopic>[/<concept>]] (EN, canonical, full text) and

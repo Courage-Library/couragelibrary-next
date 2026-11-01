@@ -233,16 +233,16 @@ async function runPhase4D2Tests() {
   // SECTION 4: Admin Server Actions & UI Integration
   // ==========================================================================
   console.log('\n--- SECTION 4: Admin Server Actions & UI Integration ---');
-  const actionsPath = path.resolve('e:/Courage Library', 'app/admin/actions.ts');
+  const actionsPath = path.resolve('e:/Courage Library', 'app/(site)/admin/actions.ts');
   if (fs.existsSync(actionsPath)) {
     const actionsContent = fs.readFileSync(actionsPath, 'utf-8');
-    assert(actionsContent.includes('recalibrateItemAction'), 'Server action recalibrateItemAction exists in app/admin/actions.ts');
-    assert(actionsContent.includes('recalibrateBatchAction'), 'Server action recalibrateBatchAction exists in app/admin/actions.ts');
-    assert(actionsContent.includes('flagQuestionVersionAction'), 'Server action flagQuestionVersionAction exists in app/admin/actions.ts');
-    assert(actionsContent.includes('unflagQuestionVersionAction'), 'Server action unflagQuestionVersionAction exists in app/admin/actions.ts');
-    assert(actionsContent.includes('deprecateQuestionVersionAction'), 'Server action deprecateQuestionVersionAction exists in app/admin/actions.ts');
-    assert(actionsContent.includes('restoreQuestionVersionAction'), 'Server action restoreQuestionVersionAction exists in app/admin/actions.ts');
-    assert(actionsContent.includes('getItemCalibrationDetailAction'), 'Server action getItemCalibrationDetailAction exists in app/admin/actions.ts');
+    assert(actionsContent.includes('recalibrateItemAction'), 'Server action recalibrateItemAction exists in app/(site)/admin/actions.ts');
+    assert(actionsContent.includes('recalibrateBatchAction'), 'Server action recalibrateBatchAction exists in app/(site)/admin/actions.ts');
+    assert(actionsContent.includes('flagQuestionVersionAction'), 'Server action flagQuestionVersionAction exists in app/(site)/admin/actions.ts');
+    assert(actionsContent.includes('unflagQuestionVersionAction'), 'Server action unflagQuestionVersionAction exists in app/(site)/admin/actions.ts');
+    assert(actionsContent.includes('deprecateQuestionVersionAction'), 'Server action deprecateQuestionVersionAction exists in app/(site)/admin/actions.ts');
+    assert(actionsContent.includes('restoreQuestionVersionAction'), 'Server action restoreQuestionVersionAction exists in app/(site)/admin/actions.ts');
+    assert(actionsContent.includes('getItemCalibrationDetailAction'), 'Server action getItemCalibrationDetailAction exists in app/(site)/admin/actions.ts');
   }
 
   const managerPath = path.resolve('e:/Courage Library', 'components/admin/adaptive/admin-adaptive-manager.tsx');

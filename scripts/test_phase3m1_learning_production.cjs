@@ -578,7 +578,7 @@ async function runTestSuite() {
     assert(typeof SummaryCard === 'function');
   });
 
-  await test('M40', 'ArticleReaderPage in app/articles/[slug]/page.tsx utilizes ControlledContentRenderer for article body', async () => {
+  await test('M40', 'ArticleReaderPage in app/(site)/articles/[slug]/page.tsx utilizes ControlledContentRenderer for article body', async () => {
     const pageSource = fs.readFileSync(path.join(__dirname, '..', 'app', 'articles', '[slug]', 'page.tsx'), 'utf-8');
     assert(pageSource.includes('ControlledContentRenderer'), 'Article reader page must use ControlledContentRenderer');
     assert(pageSource.includes('<ControlledContentRenderer contentMdx={article.contentBody || ""} />'));

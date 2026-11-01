@@ -115,10 +115,10 @@ async function runSuite() {
     const servicePath = path.join(__dirname, '..', 'services', 'current-affairs.service.ts');
     const mainNavPath = path.join(__dirname, '..', 'components', 'layout', 'main-nav.tsx');
 
-    assert(fs.existsSync(hubPagePath), 'CA5-01', 'Candidate Hub page exists at app/current-affairs/page.tsx');
-    assert(fs.existsSync(dateFeedPagePath), 'CA5-02', 'Date Feed page exists at app/current-affairs/date/[date]/page.tsx');
-    assert(fs.existsSync(articleReaderPagePath), 'CA5-03', 'Article Reader page exists at app/current-affairs/[slug]/page.tsx');
-    assert(fs.existsSync(monthlyArchivePagePath), 'CA5-04', 'Monthly Archive page exists at app/current-affairs/month/[month]/page.tsx');
+    assert(fs.existsSync(hubPagePath), 'CA5-01', 'Candidate Hub page exists at app/(site)/current-affairs/page.tsx');
+    assert(fs.existsSync(dateFeedPagePath), 'CA5-02', 'Date Feed page exists at app/(site)/current-affairs/date/[date]/page.tsx');
+    assert(fs.existsSync(articleReaderPagePath), 'CA5-03', 'Article Reader page exists at app/(site)/current-affairs/[slug]/page.tsx');
+    assert(fs.existsSync(monthlyArchivePagePath), 'CA5-04', 'Monthly Archive page exists at app/(site)/current-affairs/month/[month]/page.tsx');
     assert(fs.existsSync(cardCompPath), 'CA5-05', 'CurrentAffairsCard component exists');
     assert(fs.existsSync(quizCardCompPath), 'CA5-06', 'CurrentAffairsDailyQuizCard component exists');
     assert(fs.existsSync(filtersCompPath), 'CA5-07', 'CurrentAffairsFilters component exists');

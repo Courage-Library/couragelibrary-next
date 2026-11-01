@@ -12,7 +12,7 @@
  *   S-01 TaxonomyService: every CA-1 method denies a non-admin before any query / RPC
  *   S-02 merge needs the typed confirmation word + a reason BEFORE the RPC; move / alias / merge go through the RPCs
  *        with the session actor; DB errors map to admin messages (SYLLABUS_LOCKED, per-parent DUPLICATE_SLUG)
- *   A-01 every server action in app/admin/taxonomy/actions.ts starts with guardAdminAction (admin only)
+ *   A-01 every server action in app/(site)/admin/taxonomy/actions.ts starts with guardAdminAction (admin only)
  *   U-01 the master tree screen: Studio template with ONE primary in the header (R4), named icon buttons, labelled
  *        controls, Hindi content inputs marked lang="hi" + data-content-field (#85), English-only UI copy (R9), merge disabled until reason + word
  *   L-01 the link snapshot compares counts AND hashes; only a NEW EMPTY link set is not a change
@@ -251,7 +251,7 @@ const FUNCS = [
   });
 
   await test('A-01 every server action starts with guardAdminAction (admin only)', () => {
-    const src = read('app/admin/taxonomy/actions.ts');
+    const src = read('app/(site)/admin/taxonomy/actions.ts');
     const fns = src.split(/export async function /).slice(1);
     assert(fns.length === 11, `actions: ${fns.length}`); // + CA-7 setTaxonomyNodeInternalAction; + SYLLABUS-UI-1 setTaxonomyContentSourceAction
     for (const f of fns) {
@@ -265,8 +265,8 @@ const FUNCS = [
   });
 
   await test('U-01 master tree screen: Studio header with ONE primary, named icon buttons, labelled controls, lang="hi", English-only copy, guarded merge', () => {
-    const ui = read('app/admin/master-tree/taxonomy-manager.tsx');
-    const page = read('app/admin/master-tree/page.tsx');
+    const ui = read('app/(site)/admin/master-tree/taxonomy-manager.tsx');
+    const page = read('app/(site)/admin/master-tree/page.tsx');
     assert(/requireAdminPage\(\{ path: "\/admin\/master-tree" \}\)/.test(page), 'admin page guard');
     const header = ui.slice(ui.indexOf('<StudioPageHeader'), ui.indexOf('<StudioStatStrip'));
     assert((header.match(/studioPrimaryAction/g) || []).length === 1, 'one primary in the header');

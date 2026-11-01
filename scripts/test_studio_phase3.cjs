@@ -47,7 +47,7 @@ const assert = (c, m) => {
 const FILES = {
   bank: 'components/admin/admin-question-manager.tsx',
   factory: 'components/admin/question-factory/question-factory-studio.tsx',
-  reportsPage: 'app/admin/support/question-reports/page.tsx',
+  reportsPage: 'app/(site)/admin/support/question-reports/page.tsx',
   reports: 'components/admin/admin-question-reports-manager.tsx',
   caHeader: 'components/admin/current-affairs/current-affairs-header.tsx',
   caStats: 'components/admin/current-affairs/current-affairs-stats-bar.tsx',

@@ -51,7 +51,7 @@ const SURFACES = [
   ['content-studio topic list', 'services/admin-content-studio.service.ts', /select\('id, name, parent_id, display_order'\)\.eq\('node_type', 'TOPIC'\)[^\n]*/],
   ['question bank: subject filter', 'services/admin.service.ts', /select\("id, name, slug"\)\.eq\("node_type", "SUBJECT"\)[^\n]*/],
   ['question bank: topic filter', 'services/admin.service.ts', /select\("id, subject_id:root_subject_id, name, slug"\)\.eq\("node_type", "TOPIC"\)[^\n]*/],
-  ['syllabus editor picker', 'app/admin/syllabus/[id]/page.tsx', /select\("id, name, slug, node_type, root_subject_id, parent_id, display_order, metadata"\)[^\n]*/],
+  ['syllabus editor picker', 'app/(site)/admin/syllabus/[id]/page.tsx', /select\("id, name, slug, node_type, root_subject_id, parent_id, display_order, metadata"\)[^\n]*/],
   ['syllabus import catalog', 'lib/syllabus/import-catalog.ts', /select\("id, hierarchy_path, name, is_active"\)\.eq\("node_type", "TOPIC"\)[^\n]*/],
 ];
 const unfiltered = (src, re) => { const m = re.exec(src); return !m ? 'query not found' : FILTER.test(m[0]) ? null : 'no QA-run filter'; };
@@ -60,9 +60,9 @@ const unfiltered = (src, re) => { const m = re.exec(src); return !m ? 'query not
   await test('X-1 every admin listing of master-tree nodes filters QA run topics; Today drops QA audit rows; QA logo bodies hidden from the owner; negative control', async () => {
     const bad = SURFACES.map(([n, f, re]) => [n, unfiltered(read(f), re)]).filter(([, p]) => p).map(([n, p]) => `${n}: ${p}`);
     assert(bad.length === 0, bad.join('; '));
-    assert(/is_internal/.test(read('services/lessons/lesson-authoring.service.ts')) && /\.eq\("is_internal", false\)/.test(read('app/admin/syllabus/intake/page.tsx')), 'the INTERNAL rules (lesson picker, intake page) are gone');
+    assert(/is_internal/.test(read('services/lessons/lesson-authoring.service.ts')) && /\.eq\("is_internal", false\)/.test(read('app/(site)/admin/syllabus/intake/page.tsx')), 'the INTERNAL rules (lesson picker, intake page) are gone');
     assert(/from\("admin_audit_logs"\)\.select\("action_type, target_entity, created_at"\)\.not\("actor_email", "like", QA_EMAIL_LIKE\)/.test(read('lib/admin/today.ts')), "Today's recent activity keeps QA identities' rows");
-    assert(/conductingOrgs=\{visibleBodies\(orgs, viewer\.userEmail\)\}/.test(read('app/admin/exams/page.tsx')), 'the bodies grid shows QA logo fixtures to everyone');
+    assert(/conductingOrgs=\{visibleBodies\(orgs, viewer\.userEmail\)\}/.test(read('app/(site)/admin/exams/page.tsx')), 'the bodies grid shows QA logo fixtures to everyone');
     assert(QA.QA_RUN_SLUG_LIKE === 'qa-fixture-run-%' && require(path.join(ROOT, 'scripts/live/_qa-run-fixture.cjs')).RUN_PREFIX === QA.QA_RUN_SLUG_PREFIX, 'the app marker and the fixture writer disagree');
     // negative control: the scanner flags a listing query without the filter
     assert(unfiltered('c.db.from("canonical_taxonomy_nodes").select("id, parent_id, name, hierarchy_path, node_type, is_active, is_internal"),', SURFACES[4][2]) === 'no QA-run filter', 'negative control: an unfiltered query was not flagged');

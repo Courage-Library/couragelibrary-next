@@ -36,14 +36,14 @@ test('QR-01 report detail → "Open question" link (only with a question id)', (
 });
 
 test('QR-02 ?question= opens that question once', () => {
-  const page = code(read('app/admin/questions/page.tsx'));
+  const page = code(read('app/(site)/admin/questions/page.tsx'));
   assert(/question\?: string;/.test(page) && /initialQuestionId=\{params\.question\}/.test(page), 'page passes ?question= to the manager');
   const M = code(read('components/admin/admin-question-manager.tsx'));
   assert(/if \(openedFromLink\.current \|\| !initialQuestionId\) return;\s*openedFromLink\.current = true;\s*const target = questions\.find\(\(x\) => x\.id === initialQuestionId\);\s*if \(target\) openEditModal\(target\);/.test(M), 'opens the matching question once; unknown id opens nothing');
 });
 
 test('QR-03 access unchanged: admin-only (decision #79)', () => {
-  const page = code(read('app/admin/support/question-reports/page.tsx'));
+  const page = code(read('app/(site)/admin/support/question-reports/page.tsx'));
   assert(/await requireAdminPage\(\{ path: "\/admin\/support\/question-reports" \}\);/.test(page) && !/allowStaff/.test(page), 'reports page admin-only');
   const route = code(read('app/api/admin/reports/update-status/route.ts'));
   assert(/const authCheck = await guardAdminRoute\(\);/.test(route) && !/allowStaff/.test(route), 'status route admin-only');

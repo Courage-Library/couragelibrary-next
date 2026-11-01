@@ -111,7 +111,7 @@ console.error = (...a) => spy.logs.push(a.map((x) => (typeof x === 'string' ? x 
 
 const S = require(path.join(ROOT, 'lib/onboarding/schema.ts'));
 const SRV = require(path.join(ROOT, 'lib/onboarding/server.ts'));
-const ACT = require(path.join(ROOT, 'app/onboarding/actions.ts'));
+const ACT = require(path.join(ROOT, 'app/(site)/onboarding/actions.ts'));
 const { ONBOARDING_COPY } = require(path.join(ROOT, 'content/onboarding.ts'));
 const flag = (on) => (on ? (process.env.ONBOARDING_ENABLED = 'true') : delete process.env.ONBOARDING_ENABLED);
 const run = async (fn) => {
@@ -261,7 +261,7 @@ const run = async (fn) => {
     assert(S.buildPlan(S.EMPTY_ANSWERS, exams).primary.href === '/exams', 'no exam → /exams');
     const rm = { state: 'AVAILABLE', nodes: [{ parent_id: null, order: 2, title: 'Tier 2' }, { parent_id: 'x', order: 0, title: 'Child' }, { parent_id: null, order: 1, title: 'Tier 1' }] };
     assert(S.firstSyllabusSection(rm) === 'Tier 1' && S.firstSyllabusSection({ state: 'NO_SYLLABUS', nodes: [] }) === null && S.firstSyllabusSection(null) === null, 'first section');
-    const src = read('lib/onboarding/schema.ts') + read('app/onboarding/page.tsx');
+    const src = read('lib/onboarding/schema.ts') + read('app/(site)/onboarding/page.tsx');
     assert(!/openai|anthropic|gemini|llm|\bai\b/i.test(src.replace(/no AI/gi, '')), 'plan must not call an AI');
     return 'deterministic';
   });
@@ -282,7 +282,7 @@ const run = async (fn) => {
     walk(ONBOARDING_COPY, 'copy');
     for (const step of ['language', 'exams', 'timing', 'time']) assert(ONBOARDING_COPY.steps[step], `step ${step} has no copy`);
     assert(n >= 40 && bad.length === 0, `${n} labels; not plain English: ${bad.join(', ')}`);
-    for (const f of ['app/onboarding/onboarding-wizard.tsx', 'components/onboarding/onboarding-card.tsx', 'components/shell/account-links.tsx', 'app/onboarding/page.tsx', 'content/onboarding.ts']) {
+    for (const f of ['app/(site)/onboarding/onboarding-wizard.tsx', 'components/onboarding/onboarding-card.tsx', 'components/shell/account-links.tsx', 'app/(site)/onboarding/page.tsx', 'content/onboarding.ts']) {
       const src = read(f);
       assert(!/lang="hi"/.test(src) && !DEV.test(src), `${f}: Hindi UI`);
     }
@@ -361,11 +361,11 @@ const run = async (fn) => {
   });
 
   await test('O-10 trigger wiring: login + Google + confirm (signup / email only) use postLoginTarget after sanitizing', () => {
-    const login = read('app/auth/actions.ts');
+    const login = read('app/(site)/auth/actions.ts');
     assert(/const target = typeof next === "string" && next !== "" \? sanitizeRedirectPath\(next\) : "\/dashboard";\s+\/\/[^\n]*\n\s+redirect\(await postLoginTarget\(supabase, target\)\);/.test(login), 'email login');
-    const g = read('app/auth/google-actions.ts');
+    const g = read('app/(site)/auth/google-actions.ts');
     assert(/const target = [^\n]*sanitizeRedirectPath\(next, "\/dashboard"\)[^\n]*\n\s+\/\/[^\n]*\n\s+redirect\(await postLoginTarget\(supabase, target\)\);/.test(g), 'Google sign-in');
-    const c = read('app/auth/confirm/route.ts');
+    const c = read('app/(site)/auth/confirm/route.ts');
     assert(/if \(type === "signup" \|\| type === "email"\) \{\s+const path = await postLoginTarget\(supabase, `\$\{target\.pathname\}\$\{target\.search\}`\);/.test(c), 'confirm route');
     assert((c.match(/postLoginTarget\(/g) || []).length === 1, 'recovery / invite / code branch must not be intercepted');
     assert(/export function isOnboardingEnabled[\s\S]*env\.ONBOARDING_ENABLED === "true"/.test(read('lib/onboarding/flag.ts')), 'flag');
@@ -373,14 +373,14 @@ const run = async (fn) => {
   });
 
   await test('O-11 design rules (static): one primary per step, progress shown, 48 px targets, no urgency / shame, no role reads', () => {
-    const w = read('app/onboarding/onboarding-wizard.tsx');
+    const w = read('app/(site)/onboarding/onboarding-wizard.tsx');
     const primaries = (w.match(/<Button size="lg"(?![^>]*variant=)/g) || []).length;
     assert(primaries === 1, `primary buttons on a step: ${primaries}`);
     assert(/<ProgressBar label=\{progress\}/.test(w) && /Step \$\{n\} of \$\{total\}/.test(read('content/onboarding.ts')), 'progress');
     assert((w.match(/min-h-12/g) || []).length >= 6 && /size-12/.test(read('components/onboarding/onboarding-card.tsx')), '48 px targets');
     const copy = read('content/onboarding.ts');
     assert(!/hurry|last chance|only today|limited time|don.t miss|falling behind|lazy|failure|जल्दी करें|आखिरी मौका/i.test(copy), 'urgency / shame wording');
-    const files = ['lib/onboarding/schema.ts', 'lib/onboarding/server.ts', 'lib/onboarding/flag.ts', 'app/onboarding/actions.ts', 'app/onboarding/page.tsx', 'app/onboarding/onboarding-wizard.tsx', 'components/onboarding/onboarding-card.tsx'];
+    const files = ['lib/onboarding/schema.ts', 'lib/onboarding/server.ts', 'lib/onboarding/flag.ts', 'app/(site)/onboarding/actions.ts', 'app/(site)/onboarding/page.tsx', 'app/(site)/onboarding/onboarding-wizard.tsx', 'components/onboarding/onboarding-card.tsx'];
     const roles = files.filter((f) => /app_metadata|user_metadata|\.role\b/.test(read(f)));
     assert(roles.length === 0, `role reads in ${roles.join(', ')}`);
     assert(!/insert|upsert/i.test(read('lib/onboarding/server.ts').replace(/insert-only/g, '')), 'server helper must not write tables');

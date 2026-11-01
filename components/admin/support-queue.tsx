@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Container } from "@/components/ui/layout";
-import { updateTicketAction } from "@/app/help/tickets/actions";
+import { updateTicketAction } from "@/app/(site)/help/tickets/actions";
 import { TICKET_CATEGORIES, TICKET_STATUSES, type TicketStatus } from "@/lib/support/tickets";
 
 type Ticket = { id: string; ref: string; category: string; subject: string; message: string; status: string; staff_reply: string | null; created_at: string };

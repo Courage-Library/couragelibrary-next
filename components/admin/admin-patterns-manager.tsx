@@ -5,7 +5,7 @@ import React, { useState, useMemo, useActionState, useTransition, useEffect } fr
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AdminPatternItem, AdminCategoryItem } from "@/services/admin.service";
-import { createPatternAction, updatePatternAction, togglePatternStatusAction, deletePatternAction } from "@/app/admin/actions";
+import { createPatternAction, updatePatternAction, togglePatternStatusAction, deletePatternAction } from "@/app/(site)/admin/actions";
 import { StudioDrawer } from "@/components/admin/studio/studio-drawer";
 import { StudioEmpty, StudioField, StudioPageHeader, StudioPanel, StudioStatStrip, studioControl, studioPrimaryAction, studioQuietAction } from "@/components/admin/studio/studio-page";
 import { StatusChip } from "@/components/admin/status-chip";

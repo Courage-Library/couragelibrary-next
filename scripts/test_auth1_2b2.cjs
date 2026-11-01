@@ -145,12 +145,12 @@ async function offline() {
 
   const captcha = require(path.join(ROOT, 'lib/auth/captcha.ts'));
   const msgs = require(path.join(ROOT, 'lib/auth/messages.ts'));
-  const actions = require(path.join(ROOT, 'app/auth/actions.ts'));
-  const gActions = require(path.join(ROOT, 'app/auth/google-actions.ts'));
+  const actions = require(path.join(ROOT, 'app/(site)/auth/actions.ts'));
+  const gActions = require(path.join(ROOT, 'app/(site)/auth/google-actions.ts'));
   const core = require(path.join(ROOT, 'lib/auth/google-nonce-core.ts'));
-  const loginPage = require(path.join(ROOT, 'app/auth/login/page.tsx')).default;
-  const signupPage = require(path.join(ROOT, 'app/auth/signup/page.tsx')).default;
-  const forgotPage = require(path.join(ROOT, 'app/auth/forgot-password/page.tsx')).default;
+  const loginPage = require(path.join(ROOT, 'app/(site)/auth/login/page.tsx')).default;
+  const signupPage = require(path.join(ROOT, 'app/(site)/auth/signup/page.tsx')).default;
+  const forgotPage = require(path.join(ROOT, 'app/(site)/auth/forgot-password/page.tsx')).default;
 
   const PAGES = { login: loginPage, signup: signupPage, 'forgot-password': forgotPage };
   const renderPage = async (name) => renderToStaticMarkup(await PAGES[name]());
@@ -349,7 +349,7 @@ async function offline() {
   });
 
   await test('T-09 single use: forms reset the widget after each submit (static) and the widget resets + clears its token (unit)', async () => {
-    for (const [f, action] of [['app/auth/login/login-form.tsx', 'login'], ['app/auth/signup/signup-form.tsx', 'signup'], ['app/auth/forgot-password/forgot-password-form.tsx', 'forgot-password']]) {
+    for (const [f, action] of [['app/(site)/auth/login/login-form.tsx', 'login'], ['app/(site)/auth/signup/signup-form.tsx', 'signup'], ['app/(site)/auth/forgot-password/forgot-password-form.tsx', 'forgot-password']]) {
       const s = code(read(f));
       assert(new RegExp(`<TurnstileWidget siteKey=\\{captcha\\.siteKey\\} action="${action}" resetKey=\\{state\\}`).test(s), `${f}: widget not reset on state`);
     }
@@ -496,7 +496,7 @@ function nonOffline() {
 
 function templates() {
   return test('T-12 email templates: token_hash → /auth/confirm, accepted type, https only, allow-listed links + images only, no ConfirmationURL', () => {
-    const route = read('app/auth/confirm/route.ts');
+    const route = read('app/(site)/auth/confirm/route.ts');
     const typeSet = new Set([...(route.match(/new Set<EmailOtpType>\(\[([^\]]+)\]\)/) || [])[1].matchAll(/"([a-z_]+)"/g)].map((m) => m[1]));
     assert(typeSet.size === 5, `route types: ${[...typeSet]}`);
     assert(/searchParams\.get\("token_hash"\)/.test(route) && /searchParams\.get\("type"\)/.test(route) && /searchParams\.get\("next"\)/.test(route), 'route params changed');
@@ -576,19 +576,19 @@ function secrets() {
 
 function staticChecks() {
   return test('T-14 static: no Turnstile secret / siteverify in app code; tokens never logged; Google 2b-1 flow intact', () => {
-    const FILES = ['lib/auth/captcha.ts', 'components/auth/turnstile-widget.tsx', 'app/auth/actions.ts', 'app/auth/google-actions.ts', 'components/auth/google-signin-button.tsx', 'app/auth/login/page.tsx', 'app/auth/login/login-form.tsx', 'app/auth/signup/page.tsx', 'app/auth/signup/signup-form.tsx', 'app/auth/forgot-password/page.tsx', 'app/auth/forgot-password/forgot-password-form.tsx'];
+    const FILES = ['lib/auth/captcha.ts', 'components/auth/turnstile-widget.tsx', 'app/(site)/auth/actions.ts', 'app/(site)/auth/google-actions.ts', 'components/auth/google-signin-button.tsx', 'app/(site)/auth/login/page.tsx', 'app/(site)/auth/login/login-form.tsx', 'app/(site)/auth/signup/page.tsx', 'app/(site)/auth/signup/signup-form.tsx', 'app/(site)/auth/forgot-password/page.tsx', 'app/(site)/auth/forgot-password/forgot-password-form.tsx'];
     const bad = [];
     for (const f of FILES) {
       const s = code(read(f));
       if (/TURNSTILE_SECRET|CAPTCHA_SECRET|siteverify|secret_?key/i.test(s)) bad.push(`${f}: secret / siteverify`);
       for (const m of s.matchAll(/console\.(log|error|warn|info)\(([^;]*)\);/g)) if (/captcha|token|credential|nonce|email|cookie/i.test(m[2].replace(/"[^"]*"/g, ''))) bad.push(`${f}: logs ${m[2].slice(0, 40)}`);
     }
-    const ga = code(read('app/auth/google-actions.ts'));
+    const ga = code(read('app/(site)/auth/google-actions.ts'));
     const order = ['isGoogleSignInEnabled()', 'isWellFormedIdToken(credential)', 'checkCaptchaToken(captchaToken)', 'consumeNonce()', 'signInWithIdToken('].map((k) => ga.indexOf(k));
     assert(order.every((x, i) => x > 0 && (i === 0 || x > order[i - 1])), `Google action order changed: ${order}`);
     const mw = code(read('middleware.ts'));
     assert(/request\.method === "GET" && request\.nextUrl\.pathname === "\/auth\/login" && isGoogleSignInEnabled\(\)/.test(mw) && !/captcha/i.test(mw), 'middleware changed');
-    const pages = ['app/auth/login/page.tsx', 'app/auth/signup/page.tsx', 'app/auth/forgot-password/page.tsx'].map((f) => read(f));
+    const pages = ['app/(site)/auth/login/page.tsx', 'app/(site)/auth/signup/page.tsx', 'app/(site)/auth/forgot-password/page.tsx'].map((f) => read(f));
     assert(pages.every((p) => /isCaptchaEnabled\(\)/.test(p) && !/^"use client"/.test(p.replace(/^﻿/, ''))), 'flag not evaluated in a server page');
     const pkg = JSON.parse(read('package.json'));
     assert(!Object.keys({ ...pkg.dependencies, ...pkg.devDependencies }).some((d) => /turnstile|captcha/i.test(d)), 'a Turnstile / captcha package was added (#44)');

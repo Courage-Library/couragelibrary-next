@@ -38,12 +38,12 @@ function runTest(name, fn) {
 // -----------------------------------------------------------------------------------
 runTest("1.1 File Existence & Syntax Baseline", () => {
   const sitemapFile = path.resolve(__dirname, "../app/sitemap.ts");
-  const articlePageFile = path.resolve(__dirname, "../app/articles/[slug]/page.tsx");
+  const articlePageFile = path.resolve(__dirname, "../app/(site)/articles/[slug]/page.tsx");
   const syllabusNavFile = path.resolve(__dirname, "../components/exams/exam-syllabus-navigator.tsx");
   const robotsFile = path.resolve(__dirname, "../app/robots.ts");
 
   assert(fs.existsSync(sitemapFile), "app/sitemap.ts must exist");
-  assert(fs.existsSync(articlePageFile), "app/articles/[slug]/page.tsx must exist");
+  assert(fs.existsSync(articlePageFile), "app/(site)/articles/[slug]/page.tsx must exist");
   assert(fs.existsSync(syllabusNavFile), "components/exams/exam-syllabus-navigator.tsx must exist");
   assert(fs.existsSync(robotsFile), "app/robots.ts must exist");
 

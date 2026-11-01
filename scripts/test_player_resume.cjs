@@ -117,7 +117,7 @@ const { SAVE_GRACE_SECONDS } = require(path.join(ROOT, 'lib/assessment/finalize.
     assert(b >= a && b - a < 1000, 'device clock change ignored');
     const timer = code(read('components/assessment/assessment-timer.tsx'));
     assert(/deadlineRef\.current = monotonicNowMs\(\) \+ Math\.max\(0, initialRemainingSeconds\) \* 1000/.test(timer) && !/Date\.now\(\)/.test(timer), 'anchored on the monotonic clock');
-    assert(/<AssessmentTimer initialRemainingSeconds=\{session\.remainingSeconds\}/.test(read('app/mock-tests/[id]/take/player-client.tsx')), 'seeded by the server value');
+    assert(/<AssessmentTimer initialRemainingSeconds=\{session\.remainingSeconds\}/.test(read('app/(site)/mock-tests/[id]/take/player-client.tsx')), 'seeded by the server value');
   });
 
   await test('PR-04 reload: answers + time from the server; expired → submit / finalize, then the result page', () => {
@@ -125,14 +125,14 @@ const { SAVE_GRACE_SECONDS } = require(path.join(ROOT, 'lib/assessment/finalize.
     const fn = svc.slice(svc.indexOf('static async startOrResumeAttempt('), svc.indexOf('static async saveAnswer('));
     assert(/savedAnswer: savedAnswersMap\.get\(mq\.id\)/.test(fn) && /const elapsedSeconds = Math\.floor\(\(nowMs - startTimeMs\) \/ 1000\);/.test(fn), 'answers + remaining time computed on the server');
     assert(/if \(remainingSeconds <= 0\) \{[\s\S]{0,400}submitTestAttempt\(attempt\.id, attempt\.user_id, \{ submittedAt: new Date\(startTimeMs \+ totalAllowedSeconds \* 1000\)\.toISOString\(\) \}\);\s*return null;/.test(fn), 'expired → scored at the deadline, no session');
-    const page = code(read('app/mock-tests/[id]/take/page.tsx'));
+    const page = code(read('app/(site)/mock-tests/[id]/take/page.tsx'));
     assert(/redirect\(`\/mock-tests\/\$\{directAttempt\.id\}\/result`\)/.test(page), 'expired → result page');
-    const P = code(read('app/mock-tests/[id]/take/player-client.tsx'));
+    const P = code(read('app/(site)/mock-tests/[id]/take/player-client.tsx'));
     assert(/if \(q\.savedAnswer\) \{\s*initial\[q\.mockQuestionId\] = q\.savedAnswer;/.test(P), 'the player starts from the saved answers');
   });
 
   await test('PR-05 localStorage never decides time or answers', () => {
-    const P = code(read('app/mock-tests/[id]/take/player-client.tsx'));
+    const P = code(read('app/(site)/mock-tests/[id]/take/player-client.tsx'));
     assert(!/localStorage\.[gs]etItem\([^)]*(remaining|deadline|timer|answer)/i.test(P), 'no time / answers from localStorage');
     assert(/mergePending\(prev, pending, known\)/.test(P) && /pending\.forEach\(\(p\) => getSync\(\)\.save\(p\.mockQuestionId/.test(P), 'unsent device answers are only RE-SENT to the server (which refuses them after the deadline)');
   });
@@ -155,7 +155,7 @@ const { SAVE_GRACE_SECONDS } = require(path.join(ROOT, 'lib/assessment/finalize.
     assert(/resumeOrder: positionRes\.data\?\.last_question_order \?\? null/.test(resume) && /visitedOrders: positionRes\.data\?\.visited_orders \?\? \[\]/.test(resume), 'returned on resume');
     const route = code(read('app/api/assessment/position/route.ts'));
     assert(/sanitizePosition\(body\.order, body\.visited\)/.test(route) && /ATTEMPT_CLOSED/.test(route) && !/error\.message/.test(route), 'route validates; fixed codes only');
-    const P = code(read('app/mock-tests/[id]/take/player-client.tsx'));
+    const P = code(read('app/(site)/mock-tests/[id]/take/player-client.tsx'));
     assert(/if \(fixedSession\.resumeOrder != null\) \{\s*setCurrentIndex\(resumeIndex\(orders, fixedSession\.resumeOrder\)\);[\s\S]{0,400}\} else \{\s*try \{\s*const saved = JSON\.parse\(localStorage\.getItem\(progressKey\)/.test(P), 'server position first; device copy only when the server has none');
     assert(/fetch\("\/api\/assessment\/position"/.test(P) && /POSITION_SAVE_DEBOUNCE_MS/.test(P), 'position sent to the server (debounced)');
     const mig = read('supabase/migrations/20261025000099_attempt_integrity_and_position.sql');

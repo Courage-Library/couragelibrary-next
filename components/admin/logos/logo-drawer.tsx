@@ -6,7 +6,7 @@ import { StudioDrawer } from "@/components/admin/studio/studio-drawer";
 import { studioControl, studioPrimaryAction, studioQuietAction } from "@/components/admin/studio/studio-page";
 import { ExamLogoBadge } from "@/components/exams/exam-logo-badge";
 import { ProgressBar } from "@/components/ui/progress";
-import { createConductingOrgWithLogoAction, removeCategoryIconAction, removeExamLogoOverrideAction, removeOrgLogoAction, uploadCategoryIconAction, uploadExamLogoOverrideAction, uploadOrgLogoAction } from "@/app/admin/exams/logo-actions";
+import { createConductingOrgWithLogoAction, removeCategoryIconAction, removeExamLogoOverrideAction, removeOrgLogoAction, uploadCategoryIconAction, uploadExamLogoOverrideAction, uploadOrgLogoAction } from "@/app/(site)/admin/exams/logo-actions";
 import { prepareLogo, type PreparedLogo } from "@/lib/logos/logo-prepare";
 import { LOGO_ACCEPT, LOGO_MESSAGES, altProblem, bodySlug, formatSize, uploadSizeProblem } from "@/lib/logos/logo-upload-guard";
 import type { ExamLogo } from "@/lib/logos/exam-logo";

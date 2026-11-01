@@ -8,7 +8,7 @@ import {
   createLiveEventAction,
   updateLiveEventStatusAction,
   updateLiveEventScheduleAction,
-} from "@/app/admin/live-tests/actions";
+} from "@/app/(site)/admin/live-tests/actions";
 import {
   Radio,
   Calendar,

@@ -158,13 +158,13 @@ const ADMIN = { id: UUID(1), email: 'admin@courage-library.test', app_metadata: 
   });
   await test('S-02 removed: admin legacy content manager, createArticleAction, getAdminContent, bulk-import "articles" option', async () => {
     assert(!fs.existsSync(path.join(ROOT, 'components/admin/admin-content-manager.tsx')), 'admin-content-manager.tsx still exists');
-    assert(!/export async function createArticleAction/.test(read('app/admin/actions.ts')));
-    assert(!/getAdminContent\(/.test(read('services/admin.service.ts')) && !/getAdminContent/.test(read('app/admin/content/page.tsx')));
+    assert(!/export async function createArticleAction/.test(read('app/(site)/admin/actions.ts')));
+    assert(!/getAdminContent\(/.test(read('services/admin.service.ts')) && !/getAdminContent/.test(read('app/(site)/admin/content/page.tsx')));
     assert(!/value="articles"/.test(read('components/admin/bulk-import-modal.tsx')));
   });
   await test('S-03 /courses links gated by server-evaluated FEATURE_COURSES (nav, header, mobile, /articles, thread)', async () => {
     // UX-1b: the shell (components/shell) lists /courses only in nav-config with flag "COURSES" (filtered by visibleItems)
-    const files = ['components/shell/header-bar.tsx', 'components/shell/bottom-nav.tsx', 'components/shell/site-footer.tsx', 'app/articles/page.tsx', 'app/community/[id]/thread-client.tsx'];
+    const files = ['components/shell/header-bar.tsx', 'components/shell/bottom-nav.tsx', 'components/shell/site-footer.tsx', 'app/(site)/articles/page.tsx', 'app/(site)/community/[id]/thread-client.tsx'];
     assert(/\{ href: "\/courses", label: "Courses", flag: "COURSES" \}/.test(read('components/shell/nav-config.ts')), 'nav-config /courses not flagged');
     const bad = [];
     for (const f of files) {
@@ -176,7 +176,7 @@ const ADMIN = { id: UUID(1), email: 'admin@courage-library.test', app_metadata: 
       }
     }
     assert(/COURSES: isFeatureEnabled\("COURSES"\)/.test(read('components/shell/app-shell.tsx')), 'shell does not pass the flag');
-    assert(/coursesEnabled=\{isFeatureEnabled\("COURSES"\)\}/.test(read('app/community/[id]/page.tsx')), 'thread page does not pass the flag');
+    assert(/coursesEnabled=\{isFeatureEnabled\("COURSES"\)\}/.test(read('app/(site)/community/[id]/page.tsx')), 'thread page does not pass the flag');
     assert(bad.length === 0, bad.join('\n        '));
   });
   await test('S-04 compile resolvers: no placeholder / mock reference path remains', async () => {
@@ -207,7 +207,7 @@ const ADMIN = { id: UUID(1), email: 'admin@courage-library.test', app_metadata: 
   await test('K-01 flag OFF: /courses, /courses/[slug], /courses/[slug]/learn → notFound with ZERO calls', async () => {
     delete process.env.FEATURE_COURSES;
     const bad = [];
-    for (const p of ['app/courses/page.tsx', 'app/courses/[slug]/page.tsx', 'app/courses/[slug]/learn/page.tsx']) {
+    for (const p of ['app/(site)/courses/page.tsx', 'app/(site)/courses/[slug]/page.tsx', 'app/(site)/courses/[slug]/learn/page.tsx']) {
       calls.length = 0;
       let nf = false;
       try { await freshRequire(p).default(params); } catch (e) { nf = e instanceof NotFoundSignal; if (!nf) bad.push(`${p}: ${e.message}`); }
@@ -242,7 +242,7 @@ const ADMIN = { id: UUID(1), email: 'admin@courage-library.test', app_metadata: 
   await test('K-04 flag OFF: admin createCourseAction → FEATURE_DISABLED before guard/DB (also covered by SEC-1B Q-01)', async () => {
     calls.length = 0;
     sessionState.user = ADMIN;
-    const { createCourseAction } = freshRequire('app/admin/actions.ts');
+    const { createCourseAction } = freshRequire('app/(site)/admin/actions.ts');
     const fd = new FormData(); fd.set('title', 'x'); fd.set('slug', 'x');
     const r = await createCourseAction(null, fd);
     assert(r && r.code === 'FEATURE_DISABLED' && calls.length === 0, `${JSON.stringify(r)} calls=${calls.join(',')}`);
@@ -348,7 +348,7 @@ const ADMIN = { id: UUID(1), email: 'admin@courage-library.test', app_metadata: 
     const log = [];
     sessionState.user = ADMIN;
     sessionState.adminDb = makeDb({ document_versions: [versionRow('APPROVED')], question_versions: [], learning_assets: [] }, log);
-    const { compileVersionAction } = freshRequire('app/admin/content/actions.ts');
+    const { compileVersionAction } = freshRequire('app/(site)/admin/content/actions.ts');
     setStorage(storage({ 'spec.json': JSON.stringify(withRefs()), 'art.mdx': 'x' }));
     const r = await compileVersionAction(VID);
     setStorage(null);

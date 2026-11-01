@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useTransition } from "react";
-import { saveMistakeNoteAction } from "@/app/mistakes/actions";
+import { saveMistakeNoteAction } from "@/app/(site)/mistakes/actions";
 import { Button } from "@/components/ui/legacy/button";
 import { StickyNote, Check, Loader2, AlertCircle, Trash2, RefreshCw } from "lucide-react";
 

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp, ImageUp } from "lucide-react";
 import { studioControl, studioPrimaryAction, studioQuietAction } from "@/components/admin/studio/studio-page";
 import { ProgressBar } from "@/components/ui/progress";
-import { addGalleryPhotoAction, moveGalleryPhotoAction, removeGalleryPhotoAction, updateGalleryPhotoAction } from "@/app/admin/system/photo-actions";
+import { addGalleryPhotoAction, moveGalleryPhotoAction, removeGalleryPhotoAction, updateGalleryPhotoAction } from "@/app/(site)/admin/system/photo-actions";
 import { preparePhoto, type PreparedPhoto } from "@/lib/media/photo-prepare";
 import { GALLERY_MAX, PEOPLE_BASIS, PHOTO_ACCEPT, PHOTO_MESSAGES, PHOTO_UPLOAD_MAX_BYTES, type GalleryPhoto, type PeopleBasis } from "@/lib/media/photo-rules";
 

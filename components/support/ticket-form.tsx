@@ -4,7 +4,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { createTicketAction } from "@/app/help/tickets/actions";
+import { createTicketAction } from "@/app/(site)/help/tickets/actions";
 import { MESSAGE_MAX, SUBJECT_MAX, TICKET_CATEGORIES, TICKET_COPY as C, validateTicket } from "@/lib/support/tickets";
 
 const field = "focus-ring min-h-12 w-full rounded-control border border-line-control bg-surface px-3 text-body text-fg";

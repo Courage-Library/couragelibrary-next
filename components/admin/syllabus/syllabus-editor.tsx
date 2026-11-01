@@ -21,8 +21,8 @@ import {
   setUnitMappingsAction,
   upsertSyllabusNodeAction,
   validateSyllabusVersionAction,
-} from "@/app/admin/syllabus/actions";
-import { setTaxonomyContentSourceAction } from "@/app/admin/taxonomy/actions";
+} from "@/app/(site)/admin/syllabus/actions";
+import { setTaxonomyContentSourceAction } from "@/app/(site)/admin/taxonomy/actions";
 import {
   CA_CONTENT_SOURCE,
   confirmPhrase,

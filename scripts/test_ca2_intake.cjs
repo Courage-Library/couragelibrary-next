@@ -211,7 +211,7 @@ test('R-01 readers: every "topic" read of syllabus mappings uses topic_id', () =
     const s = read(f);
     assert(/topic_id/.test(s) && !/(\.in|\.eq)\(['"](?:exam_syllabus_canonical_mappings\.)?canonical_node_id['"]/.test(s) && !/'canonical_node_id, node:/.test(s) && !/"canonical_node_id, node:/.test(s), f);
   }
-  const page = read('app/admin/syllabus/[id]/page.tsx');
+  const page = read('app/(site)/admin/syllabus/[id]/page.tsx');
   assert(/\["SUBJECT", "TOPIC", "SUBTOPIC", "CONCEPT"\]/.test(page) && /p\.tier \?\? null\) === \(v\.tier \?\? null\)/.test(page), 'editor options + tier peer');
 });
 
@@ -219,11 +219,11 @@ test('S-01 admin only: routes, page guards, action guards, client imports', () =
   const nav = read('lib/admin/nav.ts');
   // ADMIN-IA-1: the intake is the Syllabus section's admin-only "Intakes" tab + its "Start intake" action
   assert(/"\/admin\/syllabus\/intake",/.test(nav) && /\{ label: "Intakes", href: "\/admin\/syllabus\/intake", access: "admin" \}/.test(nav) && /\{ label: "Start intake", href: "\/admin\/syllabus\/intake", access: "admin" \}/.test(nav), 'nav + ADMIN_ONLY_ROUTES');
-  for (const f of ['app/admin/syllabus/intake/page.tsx', 'app/admin/syllabus/intake/[id]/page.tsx']) {
+  for (const f of ['app/(site)/admin/syllabus/intake/page.tsx', 'app/(site)/admin/syllabus/intake/[id]/page.tsx']) {
     const s = read(f);
     assert(/await requireAdminPage\(\{ path: [^}]*\}\)/.test(s) && !/allowStaff/.test(s), `${f}: admin page guard`);
   }
-  const actions = read('app/admin/syllabus/intake/actions.ts');
+  const actions = read('app/(site)/admin/syllabus/intake/actions.ts');
   const fns = actions.split(/export async function /).slice(1);
   assert(fns.length === 7, `actions: ${fns.length}`); // + addIntakeCycleAction (CA-4 ruling 1); + bulk / undo (INTAKE-ASSIST-1)
   for (const f of fns) {
@@ -250,7 +250,7 @@ test('U-02 SYLLABUS-PROMPT-2 screens: wizard = exam + cycle + tier, an optional 
   const svc = read('services/syllabus/intake.service.ts');
   assert(/action_type: "EXAM_CYCLE_CREATE"/.test(svc) && /if \(audit\.error\) \{\s*await c\.supabase\.from\("exam_cycles"\)\.delete\(\)/.test(svc), 'the added cycle is audited (removed again if the audit fails)');
   assert(/buildSyllabusIntakePrompt\([^)]*\}, template\?\.body, preferredNames\)/.test(w) && /template: \{ body: string; version: number \| null \} \| null/.test(w), 'the prompt renders the ACTIVE template (+ the preferred names, 3.1)');
-  const page = read('app/admin/syllabus/intake/page.tsx');
+  const page = read('app/(site)/admin/syllabus/intake/page.tsx');
   assert(/PromptTemplateService\.getActiveBody\("SYLLABUS"\)/.test(page), 'the page passes the ACTIVE SYLLABUS template');
   const rv = read('components/admin/syllabus/intake-review.tsx');
   // INTAKE-ASSIST-1: the filters are one FilterRow component (status / level / origin), aria-label "Filter by origin"
@@ -342,7 +342,7 @@ test('C31-04 AI aliases are suggestions: the tree changes only through the owner
   assert(/onClick=\{\(\) => addAlias\(i\.decisionNodeId as string, a\)\}/.test(rv) && /run\(\(\) => addTaxonomyAliasAction\(nodeId, alias, "en"\)/.test(rv), 'one click per alias, the admin alias action');
   assert((rv.match(/addTaxonomyAliasAction\(/g) || []).length === 1 && /\(i\.decision === "LINK" \|\| i\.decision === "ALIAS"\) && i\.decisionNodeId && i\.aliases\.length > 0/.test(rv), 'only for a linked item');
   assert(/data-paper-uncertain=""/.test(rv) && /the assistant was not sure of this paper/.test(rv), 'the paper-level uncertain banner');
-  for (const f of ['services/syllabus/intake.service.ts', 'app/admin/syllabus/intake/actions.ts']) {
+  for (const f of ['services/syllabus/intake.service.ts', 'app/(site)/admin/syllabus/intake/actions.ts']) {
     const src = read(f);
     assert(!/taxonomy_node_aliases[\s\S]{0,200}\.aliases|addAlias\([^)]*aliases/.test(src), `${f}: writes an AI alias by itself`);
   }
@@ -366,7 +366,7 @@ test('C31-05 prompt v2: the v1 rules + optional keys, sectional rule, preferred 
   assert(contract.validateIntakePayload(filled, CTX).ok, 'the v2 example itself passes the contract');
   const script = read('scripts/content/syllabus-prompt-31.cjs');
   assert(/fn_prompt_template_save_draft\('SYLLABUS', \$1, \$2, null, \$3\)/.test(script) && /fn_prompt_template_activate\(\$1, null, \$2\)/.test(script) && /--dry-run/.test(script), 'a new audited version (draft → activate), never an in-place overwrite');
-  const page = read('app/admin/syllabus/intake/page.tsx');
+  const page = read('app/(site)/admin/syllabus/intake/page.tsx');
   assert(/\.eq\("is_active", true\)\.eq\("is_internal", false\)\.in\("node_type", \["SUBJECT", "TOPIC"\]\)/.test(page), 'preferred names: active, never internal');
   return `v2 ${SYLLABUS_TEMPLATE_V2.length} chars`;
 });

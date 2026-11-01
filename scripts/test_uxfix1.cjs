@@ -55,7 +55,11 @@ test('X-01 sign-up closed → no /auth/signup start action, primary "Explore SSC
   assert(!/await getSignupAvailability/.test(shell), 'AppShell awaits the sign-up setting (blocks every page during an outage)');
   const cta = code(read('components/landing/landing-cta.tsx'));
   assert(/if \(mode === "signup-closed"\) \{[\s\S]*?<PillLink href=\{explore\.href\} variant="on-dark"/.test(cta), 'closed: ONE primary "Explore exams"');
-  assert(/<Suspense fallback=\{<Cta spot=\{spot\} mode="signup-closed" \/>\}>/.test(cta), 'fallback must be the closed view');
+  // PERF-HOME-1: "/" is cached and its CTA reads no session — the signed-out variant is the closed view unless sign-up is open
+  assert(/const signedOut: Mode = \(await getSignupAvailability\(\)\) === "closed" \? "signup-closed" : "signup-open";/.test(cta), 'signed-out variant must be the closed view while sign-up is closed');
+  assert(/<Suspense fallback=\{<Variants spot=\{spot\} signedOut="signup-closed" \/>\}>/.test(cta), 'fallback must be the closed view');
+  const pub = code(read('components/shell/public-shell.tsx'));
+  assert(/signup=\{signupOpen\(\)\}/.test(pub) && /getSignupAvailability\(\)\.then\(\(a\) => a !== "closed", \(\) => false\)/.test(pub) && !/await getSignupAvailability/.test(pub), 'PublicShell must stream the sign-up state too');
   assert(/const start = spot === "hero" \? LANDING_HERO\.primaryCta : LANDING_FINAL_CTA\.cta;\s+return \(\s+<>\s+<PillLink href=\{start\.href\} variant="on-dark"/.test(cta), 'open: ONE primary Start free');
   const L = read('content/landing.ts');
   assert(/primaryCta: \{ label: "Start free"/.test(L) && /cta: \{ label: "Start free"/.test(L) && /startFree: "Start free"/.test(L) && !/Get started/.test(L), 'one label "Start free"');
@@ -77,15 +81,15 @@ test('X-03 no nav / footer link to unready routes; they are noindex; /flashcards
   assert(linked.length === 0, `still linked: ${linked.join(', ')}`);
   for (const r of HIDDEN) {
     const seg = r.slice(1);
-    assert(/noIndex: true/.test(read(`app/${seg}/page.tsx`)), `${r}: page not noindex`);
-    if (seg !== 'articles') assert(/robots: \{ index: false, follow: false \}/.test(read(`app/${seg}/layout.tsx`)), `${r}: segment layout not noindex`);
+    assert(/noIndex: true/.test(read(`app/(site)/${seg}/page.tsx`)), `${r}: page not noindex`); // PERF-HOME-1 route group
+    if (seg !== 'articles') assert(/robots: \{ index: false, follow: false \}/.test(read(`app/(site)/${seg}/layout.tsx`)), `${r}: segment layout not noindex`);
   }
   assert(!/\/flashcards/.test(code(read('app/sitemap.ts'))), '/flashcards still in the sitemap');
   return `${HIDDEN.length} routes unlinked + noindex`;
 });
 
 test('X-04 /descriptive makes no "expert faculty evaluation" claim', () => {
-  assert(!/expert faculty/i.test(read('app/descriptive/page.tsx')), 'claim still present');
+  assert(!/expert faculty/i.test(read('app/(site)/descriptive/page.tsx')), 'claim still present');
   return 'claim removed';
 });
 
@@ -115,7 +119,7 @@ test('X-07 (HOME-1) hero: low text — no feature list, no pills / glass chips',
 test('X-08 exam cards: one stretched link per card, the cue is decorative', () => {
   const card = read('components/ui/card.tsx');
   assert(/after:absolute after:inset-0/.test(card) && /"relative flex flex-col/.test(card), 'CardLink must stretch over a relative card');
-  for (const f of ['components/exams/category-page.tsx', 'app/exams/page.tsx']) { // HOME-1: home has no exam cards
+  for (const f of ['components/exams/category-page.tsx', 'app/(public)/exams/page.tsx']) { // HOME-1: home has no exam cards
     const s = read(f);
     const cards = s.split('<Card variant="interactive"').slice(1).map((c) => c.slice(0, c.indexOf('</Card>')));
     assert(cards.length >= 1, `${f}: no interactive card`);

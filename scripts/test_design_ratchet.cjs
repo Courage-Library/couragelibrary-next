@@ -1,7 +1,7 @@
 /**
  * UX-1a design ratchet (decision #40). Offline; reads source files only.
  *
- * Counts legacy design debt in app/ + components/ (excluding admin: app/admin/**, components/admin/**):
+ * Counts legacy design debt in app/ + components/ (excluding admin: app/(site)/admin/**, components/admin/**):
  *   rawColor        raw hex / rgb() / hsl() / oklch() colour literals outside the token file (app/globals.css)
  *   paletteClass    Tailwind palette colour classes not mapped to tokens (bg-blue-600, text-slate-500/80, …)
  *   darkClass       `dark:` variant classes (inert since UX-1a; removed in UX-1b)
@@ -91,12 +91,12 @@ function measure(file) {
 }
 
 const METRICS = ['rawColor', 'paletteClass', 'darkClass', 'smallText', 'legacyImport'];
-const inScope = (r) => !r.startsWith('app/admin/') && !r.startsWith('components/admin/');
+const inScope = (r) => !r.startsWith('app/(site)/admin/') && !r.startsWith('components/admin/');
 // UX-1b: the app shell and the shared brand logo are held to the same zero standard
 const isDesignSystem = (r) =>
   (r.startsWith('components/ui/') && !r.startsWith('components/ui/legacy/')) || r.startsWith('lib/format/') || r.startsWith('components/shell/') || r.startsWith('components/brand/') ||
   // GAP2-4b: the admin syllabus editor is built on the design system (admin is otherwise outside the ratchet)
-  r.startsWith('components/admin/syllabus/') || r.startsWith('app/admin/syllabus/');
+  r.startsWith('components/admin/syllabus/') || r.startsWith('app/(site)/admin/syllabus/');
 
 const files = [...walk(path.join(ROOT, 'app')), ...walk(path.join(ROOT, 'components'))].filter((f) => inScope(rel(f)));
 const totals = Object.fromEntries(METRICS.map((m) => [m, 0]));
@@ -169,7 +169,7 @@ test('R-1 ratchet: no metric rises above the recorded baseline (app/ + component
 });
 
 test('R-2 the design system scores zero on every metric (components/ui/** except legacy/, lib/format, components/shell, components/brand, admin syllabus editor)', () => {
-  const ds = ['components/ui', 'lib/format', 'components/shell', 'components/brand', 'components/admin/syllabus', 'app/admin/syllabus'].flatMap((d) => walk(path.join(ROOT, d))).filter((f) => isDesignSystem(rel(f)));
+  const ds = ['components/ui', 'lib/format', 'components/shell', 'components/brand', 'components/admin/syllabus', 'app/(site)/admin/syllabus'].flatMap((d) => walk(path.join(ROOT, d))).filter((f) => isDesignSystem(rel(f)));
   assert(ds.length >= 30, `expected ≥30 design-system files, found ${ds.length}`);
   const bad = [];
   for (const f of ds) {
@@ -321,7 +321,7 @@ if (WRITE) {
     process.exit(1);
   }
   const out = {
-    $comment: 'UX-1a design ratchet baseline (decision #40). Counts may only go down. Scope: app/ + components/, excluding app/admin and components/admin. Written by scripts/test_design_ratchet.cjs --write.',
+    $comment: 'UX-1a design ratchet baseline (decision #40). Counts may only go down. Scope: app/ + components/, excluding app/(site)/admin and components/admin. Written by scripts/test_design_ratchet.cjs --write.',
     recordedAt: new Date().toISOString().slice(0, 10),
     totals,
     byArea: Object.fromEntries(Object.entries(byArea).filter(([, m]) => METRICS.some((k) => m[k])).sort()),

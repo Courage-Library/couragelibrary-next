@@ -81,7 +81,7 @@ test('N-3 migration hygiene (no BEGIN / COMMIT, no seed, proof); rollback restor
 });
 
 test('N-4 Copy prompt: admin-only action; only THIS exam\'s lines; editor catches failures; code v1 fallback; type label', () => {
-  const act = read('app/admin/lessons/actions.ts');
+  const act = read('app/(site)/admin/lessons/actions.ts');
   assert(/export async function examNotePromptAction\(examId: string, nodeId: string\) \{\n  const __auth = await guardAdminAction\(\)/.test(act), 'action: admin only, guard first');
   const svc = read('services/lessons/lesson-authoring.service.ts');
   assert(/coverage: coverage\.filter\(\(x\) => x\.examId === examId\)/.test(svc) && /examId: v\.exam_id,/.test(svc), 'service: only this exam\'s syllabus lines');

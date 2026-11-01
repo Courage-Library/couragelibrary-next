@@ -235,7 +235,7 @@ function supaMock(results) {
     }
     assert(/correctOption !== null && opt\.key === q\.correctOption/.test(read('components/live-test/live-test-result-client.tsx')) && /AnswerKeyUnavailableNotice/.test(read('components/live-test/live-test-result-client.tsx')), 'live-test view');
     assert(/correctOptionKey !== null && opt\.key === activeReport\.correctOptionKey/.test(read('components/admin/admin-question-reports-manager.tsx')) && /AnswerKeyUnavailableNotice/.test(read('components/admin/admin-question-reports-manager.tsx')), 'admin reports view');
-    assert(/correctOptionKey !== null && opt\.key === mistake\.correctOptionKey/.test(read('app/mistakes/[id]/page.tsx')) && /AnswerKeyUnavailableNotice/.test(read('app/mistakes/[id]/page.tsx')), 'mistake view');
+    assert(/correctOptionKey !== null && opt\.key === mistake\.correctOptionKey/.test(read('app/(site)/mistakes/[id]/page.tsx')) && /AnswerKeyUnavailableNotice/.test(read('app/(site)/mistakes/[id]/page.tsx')), 'mistake view');
     assert(/setEditCorrectAnswer\(q\.correctOptionKey \?\? ""\)/.test(read('components/admin/admin-question-manager.tsx')), 'admin edit form default');
     assert(/useState\(detail\.correctKey \?\? ""\)/.test(read('components/admin/question-factory/review-queue-tab.tsx')), 'review form default');
     // render the mock review card
@@ -263,7 +263,7 @@ function supaMock(results) {
         '@/lib/auth/require-admin': { guardAdminAction: async () => ({ ok: true, userId: 'admin-1', userEmail: 'qa-admin@courage-library.test', role: 'admin' }), dbFailure: (ctx) => ({ error: `db ${ctx}` }), sanitizeActionResult: (_, r) => r, actionFailure: (c, m) => ({ ok: false, error: c, message: m }) },
         'next/cache': { revalidatePath() {} },
       };
-      const actions = loadTs('app/admin/actions.ts', stubs);
+      const actions = loadTs('app/(site)/admin/actions.ts', stubs);
       const r = await actions.toggleQuestionStatusAction('q-1', 'published');
       return { r, writes: mock.writes };
     };

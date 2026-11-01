@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogOut } from "lucide-react";
-import { logoutAction } from "@/app/auth/actions";
+import { logoutAction } from "@/app/(site)/auth/actions";
 import { cn } from "@/components/ui/cn";
 import { ACCOUNT_MENU, isActive, type NavItem } from "./nav-config";
 import type { ShellAccount } from "./shell-types";

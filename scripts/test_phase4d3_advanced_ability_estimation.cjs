@@ -318,11 +318,11 @@ async function runPhase4D3Tests() {
     assert(asContent.includes('min_theta must be strictly less than max_theta'), 'AdminAdaptiveService validates theta boundaries');
   }
 
-  const actionsPath = path.resolve('e:/Courage Library', 'app/admin/actions.ts');
+  const actionsPath = path.resolve('e:/Courage Library', 'app/(site)/admin/actions.ts');
   if (fs.existsSync(actionsPath)) {
     const actContent = fs.readFileSync(actionsPath, 'utf-8');
-    assert(actContent.includes('updateEstimatorConfigAction'), 'Server action updateEstimatorConfigAction exists in app/admin/actions.ts');
-    assert(actContent.includes('getAttemptAbilityDetailAction'), 'Server action getAttemptAbilityDetailAction exists in app/admin/actions.ts');
+    assert(actContent.includes('updateEstimatorConfigAction'), 'Server action updateEstimatorConfigAction exists in app/(site)/admin/actions.ts');
+    assert(actContent.includes('getAttemptAbilityDetailAction'), 'Server action getAttemptAbilityDetailAction exists in app/(site)/admin/actions.ts');
   }
 
   const managerPath = path.resolve('e:/Courage Library', 'components/admin/adaptive/admin-adaptive-manager.tsx');

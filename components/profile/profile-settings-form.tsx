@@ -9,7 +9,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { checkUsername, nextChangeAllowedAt, normalizeUsername, USERNAME_COPY } from "@/lib/profile/username";
-import { setLeaderboardOptInAction, setProfileVisibilityAction, setUsernameAction } from "@/app/settings/profile/actions";
+import { setLeaderboardOptInAction, setProfileVisibilityAction, setUsernameAction } from "@/app/(site)/settings/profile/actions";
 import { formatDateShort } from "@/lib/format";
 
 const VIS_COPY: Record<string, string> = {

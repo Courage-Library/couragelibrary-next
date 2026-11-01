@@ -4,7 +4,7 @@ import React, { useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ImageUp } from "lucide-react";
 import { studioControl, studioPrimaryAction, studioQuietAction } from "@/components/admin/studio/studio-page";
-import { removeBrandAssetAction, uploadBrandAssetAction } from "@/app/admin/system/brand-actions";
+import { removeBrandAssetAction, uploadBrandAssetAction } from "@/app/(site)/admin/system/brand-actions";
 import { sniffLogoFormat } from "@/lib/logos/logo-sniff";
 import { BRAND_ACCEPT, BRAND_KEYS, BRAND_MESSAGES, BRAND_SLOTS, BRAND_UPLOAD_MAX_BYTES, type BrandKey } from "@/lib/brand/brand-rules";
 

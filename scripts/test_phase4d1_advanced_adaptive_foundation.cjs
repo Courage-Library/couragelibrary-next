@@ -191,8 +191,8 @@ async function runPhase4D1Tests() {
   // SECTION 4: Admin UI & Navigation Verification
   // ==========================================================================
   console.log('\n--- SECTION 4: Admin UI Components & Navigation ---');
-  const pagePath = path.resolve(process.cwd(), 'app/admin/adaptive/page.tsx');
-  assert(fs.existsSync(pagePath), 'Admin adaptive page route exists at app/admin/adaptive/page.tsx');
+  const pagePath = path.resolve(process.cwd(), 'app/(site)/admin/adaptive/page.tsx');
+  assert(fs.existsSync(pagePath), 'Admin adaptive page route exists at app/(site)/admin/adaptive/page.tsx');
 
   const managerPath = path.resolve(process.cwd(), 'components/admin/adaptive/admin-adaptive-manager.tsx');
   assert(fs.existsSync(managerPath), 'Admin adaptive manager component exists at components/admin/adaptive/admin-adaptive-manager.tsx');
@@ -216,7 +216,7 @@ async function runPhase4D1Tests() {
     assert(sidebarContent.includes('Adaptive Testing'), 'Admin sidebar displays Adaptive Testing label');
   }
 
-  const actionsPath = path.resolve(process.cwd(), 'app/admin/actions.ts');
+  const actionsPath = path.resolve(process.cwd(), 'app/(site)/admin/actions.ts');
   if (fs.existsSync(actionsPath)) {
     const actionsContent = fs.readFileSync(actionsPath, 'utf-8');
     assert(actionsContent.includes('updateAdaptiveGlobalStatusAction'), 'Server action updateAdaptiveGlobalStatusAction exists');

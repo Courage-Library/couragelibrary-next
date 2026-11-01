@@ -124,7 +124,7 @@ const FORBIDDEN = ['correct_option_key', 'answer_key', 'correct_answer', 'is_cor
     console.log('  SKIP  live select audit (--offline)');
   } else {
     await test('B2-5 live select audit: B2 + carry-over files clean except registered tracked legacy reads', async () => {
-      const files = ['app/admin/rewards/actions.ts', 'services/community.service.ts', 'services/descriptive.service.ts', 'services/flashcard.service.ts', 'services/gamification.service.ts', 'services/institute.service.ts', 'services/premium-hub.service.ts', 'services/assessment.service.ts', 'services/dashboard.service.ts', 'services/mistake.service.ts'];
+      const files = ['app/(site)/admin/rewards/actions.ts', 'services/community.service.ts', 'services/descriptive.service.ts', 'services/flashcard.service.ts', 'services/gamification.service.ts', 'services/institute.service.ts', 'services/premium-hub.service.ts', 'services/assessment.service.ts', 'services/dashboard.service.ts', 'services/mistake.service.ts'];
       const r = spawnSync(process.execPath, [path.join(ROOT, 'scripts/types1-select-audit.cjs'), ...files], { cwd: ROOT, encoding: 'utf8', windowsHide: true });
       const fails = (r.stdout || '').split('\n').filter((l) => l.startsWith('FAIL'));
       // tracked (owner LOOP-1): dashboard mastery / recommendations / readiness legacy reads

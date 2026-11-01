@@ -162,7 +162,7 @@ test('Q-9 wiring: save + publish gate + paste UI pass the quality context; exam-
   assert((svc.match(/lessonChecklist\([^;]*\{\s*meta: parsed\.meta,\s*nodeName: [^}]*examNames: coverage\.map\(\(x\) => x\.exam\)/g) || []).length === 2, 'service: save + publish gate');
   const ui = read('components/admin/lessons/lesson-generator.tsx');
   assert(/lessonChecklist\(result\.blocks, generator\?\.context\.subjectType \?\? null, generator\?\.size, \{\s*meta: result\.meta/.test(ui), 'paste UI');
-  const page = read('app/exams/[slug]/[moduleSlug]/[...rest]/page.tsx');
+  const page = read('app/(site)/exams/[slug]/[moduleSlug]/[...rest]/page.tsx');
   assert(/const examTopicTitle = \(topic: string, exam: string\) => `\$\{topic\} for \$\{exam\}: Rules, Examples & Practice`;/.test(page)
     && /title: examTopicTitle\(d\.node\.name, d\.exam\.title\)/.test(page) && /\{examTopicTitle\(d\.node\.name, d\.exam\.title\)\}\s*<\/h1>/.test(page) && /canonicalUrl: d\.path/.test(page), 'exam-topic title / H1 / canonical');
 });

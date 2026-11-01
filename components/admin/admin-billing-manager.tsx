@@ -2,7 +2,7 @@
 
 import { actionErrorMessage } from "@/lib/actions/action-result";
 import React, { useState, useActionState } from "react";
-import { createSubscriptionPlanAction } from "@/app/admin/actions";
+import { createSubscriptionPlanAction } from "@/app/(site)/admin/actions";
 import { BulkImportModal } from "@/components/admin/bulk-import-modal";
 import { Card } from "@/components/ui/legacy/card";
 import { Badge } from "@/components/ui/legacy/badge";

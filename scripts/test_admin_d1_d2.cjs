@@ -53,7 +53,7 @@ test('D1-01 decision mapping onto the canonical CHECK values', () => {
 });
 
 test('D1-02 resolveCommunityFlagAction: guard first, canonical table, PENDING-only, removal, audit, result shown', () => {
-  const a = read('app/admin/actions.ts');
+  const a = read('app/(site)/admin/actions.ts');
   const fn = code(a.slice(a.indexOf('export async function resolveCommunityFlagAction('), a.indexOf('\n}\n', a.indexOf('export async function resolveCommunityFlagAction(')) + 3));
   assert(/^\s*const authCheck = await guardAdminAction\(\{ allowStaff: true \}\);\s*\n\s*if \(!authCheck\.ok\) return authCheck;/m.test(fn.split('\n').slice(1, 3).join('\n')), 'the existing guard is the first statement');
   assert(!/community_moderation_flags/.test(code(a)) && /\.from\("discussion_moderation_flags"\)/.test(fn), 'canonical table only');
@@ -84,7 +84,7 @@ test('D2-02 users-directory.ts: server-only, service role, real paging, bounded 
 });
 
 test('D2-03 /admin/users: guard first; service role never reaches the client; broken path removed', () => {
-  const p = code(read('app/admin/students/page.tsx'));
+  const p = code(read('app/(site)/admin/students/page.tsx'));
   const body = p.slice(p.indexOf('export default async function AdminUsersPage('));
   assert(body.indexOf('await requireAdminPage({ path: "/admin/students" });') > 0 && body.indexOf('await requireAdminPage') < body.indexOf('await searchParams'), 'admin-only guard is the first await');
   assert(/listDirectoryUsers\(/.test(p), 'uses the directory');

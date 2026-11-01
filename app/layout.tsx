@@ -1,9 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { constructMetadata } from "@/lib/seo/metadata";
-import { AppShell } from "@/components/shell/app-shell";
 import { BRAND_THEME_COLOR } from "@/config/brand";
 import { LITE_MODE_SCRIPT } from "@/lib/ui/lite-mode";
+import { AUTH_HINT_SCRIPT } from "@/lib/ui/auth-hint";
 import "./globals.css";
 
 // BRAND-2 (bilingual typography) + BUILD-FONT-1: the three families are committed woff2 files in app/fonts (SIL OFL 1.1,
@@ -150,9 +150,12 @@ export default function RootLayout({
       <head>
         {/* BRAND-2: low-end devices get solid surfaces (no blur) before first paint — see lib/ui/lite-mode.ts */}
         <script dangerouslySetInnerHTML={{ __html: LITE_MODE_SCRIPT }} />
+        {/* PERF-HOME-1: which link set the cached public pages show (before the first paint) — lib/ui/auth-hint.ts */}
+        <script dangerouslySetInnerHTML={{ __html: AUTH_HINT_SCRIPT }} />
       </head>
       <body className="flex min-h-full flex-col bg-canvas text-fg antialiased selection:bg-primary-100 selection:text-primary-900">
-        <AppShell>{children}</AppShell>
+        {/* PERF-HOME-1: the shell lives in the route groups — app/(site)/layout.tsx (session) and app/(public)/layout.tsx (cookie-free, cached) */}
+        {children}
       </body>
     </html>
   );

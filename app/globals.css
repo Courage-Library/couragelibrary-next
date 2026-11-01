@@ -579,6 +579,11 @@
       transform: none;
     }
   }
+  /* PERF-HOME-1: the cached public pages carry both link sets; <html data-auth="in"> (lib/ui/auth-hint.ts) picks one */
+  html:not([data-auth="in"]) .auth-in,
+  html[data-auth="in"] .auth-out {
+    display: none !important;
+  }
   .auth-gradient {
     background-color: var(--color-primary-50);
     background-image:

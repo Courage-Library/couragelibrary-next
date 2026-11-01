@@ -100,14 +100,14 @@ async function runTests() {
   assert(typeof AdminContentStudioService.requireAdminAuth === 'function', 'AdminContentStudioService defines requireAdminAuth method', 'T01');
   
   const layoutPath = path.join(__dirname, '..', 'app', 'admin', 'layout.tsx');
-  assert(fs.existsSync(layoutPath), 'Admin layout exists at app/admin/layout.tsx', 'T02');
+  assert(fs.existsSync(layoutPath), 'Admin layout exists at app/(site)/admin/layout.tsx', 'T02');
   
   const layoutCode = fs.readFileSync(layoutPath, 'utf8');
   assert(layoutCode.includes('AdminService.checkIsAdminOrStaff()'), 'Admin layout strictly enforces server-side checkIsAdminOrStaff()', 'T03');
   assert(layoutCode.includes('Access Restricted'), 'Admin layout presents Access Restricted UI when unauthorized', 'T04');
 
   const actionsPath = path.join(__dirname, '..', 'app', 'admin', 'content', 'actions.ts');
-  assert(fs.existsSync(actionsPath), 'Server actions file exists at app/admin/content/actions.ts', 'T05');
+  assert(fs.existsSync(actionsPath), 'Server actions file exists at app/(site)/admin/content/actions.ts', 'T05');
   const actionsCode = fs.readFileSync(actionsPath, 'utf8');
   assert(actionsCode.includes('"use server"'), 'Actions file explicitly specifies "use server" boundary', 'T06');
   assert(!actionsCode.includes('SUPABASE_SERVICE_ROLE_KEY'), 'Zero secrets exposed in server actions', 'T07');

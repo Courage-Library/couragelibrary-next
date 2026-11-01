@@ -82,7 +82,7 @@ const scan = (re) => {
     // HOTFIX-3 made CREATE_NEW_SUBTREE fail closed (it needed a direct pg transaction); GAP2-4c removed the whole
     // workbench, so no runtime module can reach a script-only pg client any more.
     const gone = ['services/exam-syllabus-resolution.service.ts', 'services/operational-syllabus-reconciliation.service.ts',
-      'types/dynamic-syllabus-reconciliation.ts', 'app/admin/syllabus-reconciliation', 'app/api/admin/syllabus-reconciliation'];
+      'types/dynamic-syllabus-reconciliation.ts', 'app/(site)/admin/syllabus-reconciliation', 'app/api/admin/syllabus-reconciliation'];
     const present = gone.filter((f) => fs.existsSync(path.join(ROOT, f)));
     assert(present.length === 0, `still present: ${present.join(', ')}`);
     const hits = files.filter((f) => /createSubtree|CREATE_NEW_SUBTREE|PgQueryClient|isDirectPg/.test(code(f))).map((f) => path.relative(ROOT, f));

@@ -25,7 +25,8 @@ const ARGS = new Set(process.argv.slice(2));
 const RATCHET = path.join(ROOT, 'docs/reports/types/TYPES1_RATCHET.json');
 const REGISTER = path.join(ROOT, 'docs/reports/types/TYPES1_ESCAPES.json');
 const DIRS = ['app', 'services', 'lib', 'actions', 'components'];
-const QUARANTINED = /^(services\/adaptive\/|services\/admin-adaptive\.service\.ts|services\/live-test-|app\/admin\/live-tests\/|app\/live-tests\/|services\/battle\.service\.ts|app\/battles\/|app\/api\/battles\/|services\/psychometrics\.service\.ts|app\/performance\/|services\/admin-competition-intelligence\.service\.ts|services\/candidate-intelligence\.service\.ts|components\/admin\/adaptive\/|components\/admin\/live-tests\/)/;
+// PERF-HOME-1: the pages moved into the route group app/(site) (no URL change)
+const QUARANTINED = /^(services\/adaptive\/|services\/admin-adaptive\.service\.ts|services\/live-test-|app\/(?:\(site\)\/)?admin\/live-tests\/|app\/(?:\(site\)\/)?live-tests\/|services\/battle\.service\.ts|app\/(?:\(site\)\/)?battles\/|app\/api\/battles\/|services\/psychometrics\.service\.ts|app\/(?:\(site\)\/)?performance\/|services\/admin-competition-intelligence\.service\.ts|services\/candidate-intelligence\.service\.ts|components\/admin\/adaptive\/|components\/admin\/live-tests\/)/;
 
 let passed = 0;
 let failed = 0;

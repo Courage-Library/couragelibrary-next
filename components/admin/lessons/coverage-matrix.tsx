@@ -4,7 +4,7 @@ import React, { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { StudioEmpty, StudioPageHeader, StudioPanel, StudioStatStrip, studioPrimaryAction, studioQuietAction } from "@/components/admin/studio/studio-page";
-import { setCourseLaunchAction } from "@/app/admin/lessons/actions";
+import { setCourseLaunchAction } from "@/app/(site)/admin/lessons/actions";
 import { FREE_N_BLOCK_MESSAGE, type AccessMode, type CoverageExam, type CoverageView } from "@/lib/learning/coverage";
 
 /**

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { AdminRewardCatalogItem } from "@/services/gamification.service";
-import { createRewardAction, updateRewardAction, uploadRewardImageAction } from "@/app/admin/rewards/actions";
+import { createRewardAction, updateRewardAction, uploadRewardImageAction } from "@/app/(site)/admin/rewards/actions";
 import { generateRewardImageBrief } from "@/lib/admin/ai-image-brief";
 import { optimizeRewardImage, formatBytes, OptimizationResult } from "@/lib/client/reward-image-optimizer";
 

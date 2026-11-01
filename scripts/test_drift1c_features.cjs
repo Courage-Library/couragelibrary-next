@@ -104,21 +104,21 @@ const params = (obj) => ({ params: Promise.resolve(obj), searchParams: Promise.r
 
   // ===================== Pages → notFound before any call =====================
   const pages = [
-    ['app/live-tests/page.tsx', {}],
-    ['app/live-tests/[slug]/page.tsx', { slug: 'x' }],
-    ['app/live-tests/[slug]/take/page.tsx', { slug: 'x' }],
-    ['app/live-tests/[slug]/result/page.tsx', { slug: 'x' }],
-    ['app/live-tests/[slug]/submitted/page.tsx', { slug: 'x' }],
-    ['app/certificates/page.tsx', {}],
-    ['app/verify/c/[code]/page.tsx', { code: 'ABC' }],
-    ['app/achievements/page.tsx', {}],
-    ['app/performance/page.tsx', {}],
-    ['app/battles/page.tsx', {}],
-    ['app/battles/[id]/page.tsx', { id: 'x' }],
+    ['app/(site)/live-tests/page.tsx', {}],
+    ['app/(site)/live-tests/[slug]/page.tsx', { slug: 'x' }],
+    ['app/(site)/live-tests/[slug]/take/page.tsx', { slug: 'x' }],
+    ['app/(site)/live-tests/[slug]/result/page.tsx', { slug: 'x' }],
+    ['app/(site)/live-tests/[slug]/submitted/page.tsx', { slug: 'x' }],
+    ['app/(site)/certificates/page.tsx', {}],
+    ['app/(site)/verify/c/[code]/page.tsx', { code: 'ABC' }],
+    ['app/(site)/achievements/page.tsx', {}],
+    ['app/(site)/performance/page.tsx', {}],
+    ['app/(site)/battles/page.tsx', {}],
+    ['app/(site)/battles/[id]/page.tsx', { id: 'x' }],
     // GAP2-2b: courses dormant behind FEATURE_COURSES
-    ['app/courses/page.tsx', {}],
-    ['app/courses/[slug]/page.tsx', { slug: 'x' }],
-    ['app/courses/[slug]/learn/page.tsx', { slug: 'x' }],
+    ['app/(site)/courses/page.tsx', {}],
+    ['app/(site)/courses/[slug]/page.tsx', { slug: 'x' }],
+    ['app/(site)/courses/[slug]/learn/page.tsx', { slug: 'x' }],
   ];
   for (const [rel, p] of pages) {
     await test(`PAGE ${rel.replace('app', '').replace('/page.tsx', '') || '/'} → notFound() before any service/DB call`, async () => {
@@ -152,11 +152,11 @@ const params = (obj) => ({ params: Promise.resolve(obj), searchParams: Promise.r
 
   // ===================== Server actions → FEATURE_DISABLED before auth/services =====================
   const actionFiles = [
-    ['app/admin/adaptive/actions.ts', 37],
-    ['app/live-tests/actions.ts', 7],
-    ['app/admin/live-tests/actions.ts', 17],
-    ['app/admin/live-tests/intelligence/actions.ts', 4],
-    ['app/performance/actions.ts', 5],
+    ['app/(site)/admin/adaptive/actions.ts', 37],
+    ['app/(site)/live-tests/actions.ts', 7],
+    ['app/(site)/admin/live-tests/actions.ts', 17],
+    ['app/(site)/admin/live-tests/intelligence/actions.ts', 4],
+    ['app/(site)/performance/actions.ts', 5],
   ];
   for (const [rel, expected] of actionFiles) {
     await test(`ACTIONS ${rel}: all ${expected} exports return FEATURE_DISABLED with zero calls`, async () => {
@@ -171,9 +171,9 @@ const params = (obj) => ({ params: Promise.resolve(obj), searchParams: Promise.r
       }
     });
   }
-  await test('ACTIONS app/admin/actions.ts: dead duplicate adaptive block (37) gated', async () => {
-    const src = read('app/admin/actions.ts');
-    const adaptiveNames = Object.keys(load('app/admin/adaptive/actions.ts'));
+  await test('ACTIONS app/(site)/admin/actions.ts: dead duplicate adaptive block (37) gated', async () => {
+    const src = read('app/(site)/admin/actions.ts');
+    const adaptiveNames = Object.keys(load('app/(site)/admin/adaptive/actions.ts'));
     const missing = adaptiveNames.filter((n) => {
       const i = src.indexOf(`export async function ${n}(`);
       return i >= 0 && !src.slice(i, i + 600).includes('featureDisabledActionResult("ADAPTIVE")');
@@ -184,7 +184,7 @@ const params = (obj) => ({ params: Promise.resolve(obj), searchParams: Promise.r
   // ===================== Admin pages → panel, no service calls =====================
   // SEC-1C: the /admin/live-tests layout gate was removed (it hid the page guard's notFound); every
   // live-tests page — incl. the two client intelligence views' server wrappers — gates itself.
-  for (const [rel, key] of [['app/admin/adaptive/page.tsx', 'ADAPTIVE'], ['app/admin/live-tests/page.tsx', 'LIVE_TESTS'], ['app/admin/live-tests/[id]/results/page.tsx', 'LIVE_TESTS'], ['app/admin/live-tests/intelligence/page.tsx', 'LIVE_TESTS'], ['app/admin/live-tests/[id]/intelligence/page.tsx', 'LIVE_TESTS'], ['app/admin/achievements/page.tsx', 'LIVE_TESTS']]) {
+  for (const [rel, key] of [['app/(site)/admin/adaptive/page.tsx', 'ADAPTIVE'], ['app/(site)/admin/live-tests/page.tsx', 'LIVE_TESTS'], ['app/(site)/admin/live-tests/[id]/results/page.tsx', 'LIVE_TESTS'], ['app/(site)/admin/live-tests/intelligence/page.tsx', 'LIVE_TESTS'], ['app/(site)/admin/live-tests/[id]/intelligence/page.tsx', 'LIVE_TESTS'], ['app/(site)/admin/achievements/page.tsx', 'LIVE_TESTS']]) {
     await test(`ADMIN ${rel.replace('app', '').replace('/page.tsx', '')} → "Feature not enabled" panel, zero calls`, async () => {
       calls.length = 0;
       pageGuardCalls.length = 0;
@@ -195,7 +195,7 @@ const params = (obj) => ({ params: Promise.resolve(obj), searchParams: Promise.r
     });
   }
   await test('ADMIN /admin/live-tests/** client intelligence views are only reachable through a gated server wrapper', async () => {
-    for (const dir of ['app/admin/live-tests/intelligence', 'app/admin/live-tests/[id]/intelligence']) {
+    for (const dir of ['app/(site)/admin/live-tests/intelligence', 'app/(site)/admin/live-tests/[id]/intelligence']) {
       const files = fs.readdirSync(path.join(ROOT, dir));
       const pages = files.filter((f) => f === 'page.tsx');
       assert(pages.length === 1 && !/^\s*["']use client["']/.test(read(`${dir}/page.tsx`)), `${dir}: page.tsx must be a server wrapper`);
@@ -206,7 +206,7 @@ const params = (obj) => ({ params: Promise.resolve(obj), searchParams: Promise.r
   // ===================== Mock take page: adaptive detection skipped =====================
   await test('TAKE /mock-tests/[id]/take: AdaptiveSessionService never invoked when ADAPTIVE off', async () => {
     calls.length = 0;
-    const src = read('app/mock-tests/[id]/take/page.tsx');
+    const src = read('app/(site)/mock-tests/[id]/take/page.tsx');
     assert(/isFeatureEnabled\("ADAPTIVE"\)\s*\?\s*await AdaptiveSessionService\.detectAdaptiveTest/.test(src), 'detection not gated');
     assert(/if \(adaptiveDetection\?\.isAdaptive\)/.test(src), 'branch not null-safe');
   });
@@ -237,7 +237,7 @@ const params = (obj) => ({ params: Promise.resolve(obj), searchParams: Promise.r
     }
   });
   await test('NAV dashboard battle card gated', async () => {
-    const s = read('app/dashboard/page.tsx');
+    const s = read('app/(site)/dashboard/page.tsx');
     const i = s.indexOf('<Link href="/battles"');
     assert(/\{isFeatureEnabled\("BATTLES"\) && \(\s*$/.test(s.slice(i - 80, i)), 'dashboard card not gated');
   });
@@ -247,7 +247,7 @@ const params = (obj) => ({ params: Promise.resolve(obj), searchParams: Promise.r
       const i = s.indexOf(`href="${href}"`);
       assert(new RegExp(`\\{${flag} && \\(\\s*<Link\\s*$`).test(s.slice(i - 80, i)), `${href} not gated`);
     }
-    const l = read('app/admin/layout.tsx');
+    const l = read('app/(site)/admin/layout.tsx');
     assert(l.includes('adaptiveEnabled={isFeatureEnabled("ADAPTIVE")}') && l.includes('liveTestsEnabled={isFeatureEnabled("LIVE_TESTS")}'));
   });
 

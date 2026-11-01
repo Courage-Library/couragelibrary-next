@@ -8,7 +8,7 @@ import { MockTestDashboardData } from "@/services/assessment.service";
 import {
   addUserExamGoalAction,
   removeUserExamGoalAction,
-} from "@/app/mock-tests/actions";
+} from "@/app/(site)/mock-tests/actions";
 import { Container } from "@/components/ui/legacy/container";
 import { Card, CardContent } from "@/components/ui/legacy/card";
 import { Badge } from "@/components/ui/legacy/badge";

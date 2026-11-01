@@ -1,31 +1,17 @@
 /**
- * UX-2a: the two session-dependent CTA spots of the landing page (hero + final band). Display only: a session
- * cookie switches the start action to "Go to dashboard"; nothing protected is read or shown. Each spot is its own
- * Suspense boundary, so the rest of the page never waits for the session / sign-up reads.
+ * UX-2a: the two CTA spots of the landing page (hero + final band). Display only: nothing protected is read or shown.
+ * PERF-HOME-1: no session read — both variants are in the cached HTML and CSS shows one (see LandingCta below).
  * UX-FIX-1: while public sign-up is CLOSED (lib/auth/signup-availability) no start action points to /auth/signup —
- * the primary action is "Explore SSC CGL"; when sign-up is open the one label is "Start free" (the ONE primary = start action).
- * The Suspense fallback is the closed-state view (never a link to a closed sign-up).
+ * the primary action is "Explore exams"; when sign-up is open the one label is "Start free" (the ONE primary = start action).
  */
 import { Suspense } from "react";
 import { ArrowRight } from "lucide-react";
 import { PillLink } from "@/components/ui/pill-button";
 import { LANDING_FINAL_CTA, LANDING_HERO } from "@/content/landing";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getSignupAvailability } from "@/lib/auth/signup-availability";
 
 type Spot = "hero" | "final";
 type Mode = "signed-in" | "signup-open" | "signup-closed";
-
-async function resolveMode(): Promise<Mode> {
-  try {
-    const supabase = await createServerSupabaseClient();
-    const { data } = await supabase.auth.getSession();
-    if (data.session !== null) return "signed-in";
-  } catch {
-    /* treated as signed out */
-  }
-  return (await getSignupAvailability()) === "closed" ? "signup-closed" : "signup-open";
-}
 
 const arrow = <ArrowRight aria-hidden="true" className="size-5" />;
 
@@ -69,14 +55,34 @@ function Cta({ spot, mode }: { spot: Spot; mode: Mode }) {
   );
 }
 
-async function SessionCta({ spot }: { spot: Spot }) {
-  return <Cta spot={spot} mode={await resolveMode()} />;
+/** both variants; CSS shows one from <html data-auth> (lib/ui/auth-hint.ts, set before the first paint; no JS → signed out) */
+function Variants({ spot, signedOut }: { spot: Spot; signedOut: Mode }) {
+  return (
+    <>
+      <span className="auth-in contents" data-cta-variant="signed-in">
+        <Cta spot={spot} mode="signed-in" />
+      </span>
+      <span className="auth-out contents" data-cta-variant="signed-out">
+        <Cta spot={spot} mode={signedOut} />
+      </span>
+    </>
+  );
 }
 
+async function LiveVariants({ spot }: { spot: Spot }) {
+  const signedOut: Mode = (await getSignupAvailability()) === "closed" ? "signup-closed" : "signup-open";
+  return <Variants spot={spot} signedOut={signedOut} />;
+}
+
+/**
+ * PERF-HOME-1: the landing page is cached HTML shared by every visitor — it reads NO session. Both the signed-in action
+ * ("Go to dashboard") and the signed-out one (by the GLOBAL sign-up setting) are in the HTML. The setting streams in its
+ * own Suspense; the fallback is the sign-up-CLOSED view (never a link to a closed sign-up).
+ */
 export function LandingCta({ spot }: { spot: Spot }) {
   return (
-    <Suspense fallback={<Cta spot={spot} mode="signup-closed" />}>
-      <SessionCta spot={spot} />
+    <Suspense fallback={<Variants spot={spot} signedOut="signup-closed" />}>
+      <LiveVariants spot={spot} />
     </Suspense>
   );
 }

@@ -19,8 +19,8 @@ import {
 import type { IntakeBatchView, IntakeBulkAction, IntakeDecision, IntakeItemView, IntakeNodeOption, IntakeSessionView, IntakeSourceCheck } from "@/lib/syllabus/intake-types";
 import { exactBatch, isOpenParent, outlineBatch, progress, subtopicBatch, suggestionsFor, waitingForParent } from "@/lib/syllabus/intake-assist";
 import { weightageChecks } from "@/lib/syllabus/intake-contract";
-import { bulkIntakeAction, decideIntakeItemAction, discardIntakeAction, importIntakeAction, undoIntakeBulkAction } from "@/app/admin/syllabus/intake/actions";
-import { addTaxonomyAliasAction } from "@/app/admin/taxonomy/actions";
+import { bulkIntakeAction, decideIntakeItemAction, discardIntakeAction, importIntakeAction, undoIntakeBulkAction } from "@/app/(site)/admin/syllabus/intake/actions";
+import { addTaxonomyAliasAction } from "@/app/(site)/admin/taxonomy/actions";
 
 /**
  * CA-2 owner review (Studio template): the intake as a tree diff against the master tree. Per item the owner LINKs it

@@ -101,9 +101,9 @@ const row = (i, score, o = {}) => ({ userId: `u${i}`, score, accuracy: 50, timeS
   });
 
   await test('LB-05 architect ruling: auth user_metadata never affects the leaderboard (#60)', () => {
-    const files = ['lib/assessment/leaderboard.ts', 'app/mock-tests/[id]/leaderboard/page.tsx', 'components/assessment/leaderboard-view-client.tsx'];
+    const files = ['lib/assessment/leaderboard.ts', 'app/(site)/mock-tests/[id]/leaderboard/page.tsx', 'components/assessment/leaderboard-view-client.tsx'];
     for (const f of files) assert(!/user_metadata|updateUser/.test(code(read(f))), `${f} touches user_metadata`);
-    assert(!fs.existsSync(path.join(ROOT, 'app/mock-tests/[id]/leaderboard/actions.ts')), 'metadata opt-in action removed');
+    assert(!fs.existsSync(path.join(ROOT, 'app/(site)/mock-tests/[id]/leaderboard/actions.ts')), 'metadata opt-in action removed');
     const svc = code(read('services/assessment.service.ts'));
     const flags = svc.slice(svc.indexOf('private static async accountFlags('), svc.indexOf('private static async leaderboardOptIns('));
     assert(/out\.set\(u\.id, \{ isTest: isTestAccountEmail\(u\.email\) \}\);/.test(flags) && !/user_metadata/.test(flags), 'account flags read the e-mail domain only, never user_metadata');

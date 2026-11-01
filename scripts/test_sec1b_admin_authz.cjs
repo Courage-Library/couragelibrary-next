@@ -172,7 +172,7 @@ function walk(dir, acc = []) {
 }
 const rel = (p) => path.relative(ROOT, p).replace(/\\/g, '/');
 const ACTION_FILES = [
-  ...walk(path.join(ROOT, 'app/admin')).filter((f) => /actions\.ts$/.test(f)),
+  ...walk(path.join(ROOT, 'app/(site)/admin')).filter((f) => /actions\.ts$/.test(f)),
   ...['actions/admin-exam-knowledge.actions.ts', 'actions/exam-knowledge-import.actions.ts', 'actions/exam-knowledge-prompt.actions.ts', 'actions/question-factory.actions.ts'].map((f) => path.join(ROOT, f)),
 ].map(rel);
 const ROUTE_FILES = walk(path.join(ROOT, 'app/api/admin')).filter((f) => /route\.ts$/.test(f)).map(rel);
@@ -182,41 +182,41 @@ const BEARER_ROUTES = new Set(['app/api/admin/current-affairs/import/route.ts'])
 // Q1 architect ruling (SEC-1B): admin-only handlers. Staff must be FORBIDDEN on exactly this set.
 const ADAPTIVE_ADMIN_ONLY = ['updateAdaptiveGlobalStatusAction', 'toggleAdaptiveEmergencyAction', 'updateAdaptiveSafetyLimitsAction', 'createAdaptiveAlgorithmVersionAction', 'activateAdaptiveAlgorithmVersionAction', 'saveAdaptiveConfigAction', 'updateEstimatorConfigAction', 'updateCATConfigAction', 'updateStoppingConfigAction', 'updatePersonalizationConfigAction'];
 const ADMIN_ONLY = new Set([
-  'app/admin/live-tests/intelligence/actions.ts#getCandidateDrillDownAction',
-  ...['updateGlobalPremiumConfigAction', 'setExamPremiumAvailabilityAction', 'setTestTypeAvailabilityAction', 'updateGeneratorPolicyAction', 'searchCandidateAction', 'grantPromotionalPassAction', 'revokeEntitlementAction', 'updateCustomLimitsAction', 'toggleTestSeriesStatusAction', 'updateMockCuratedStatusAction'].map((n) => `app/admin/premium/actions.ts#${n}`),
-  ...['createRewardAction', 'updateRewardAction', 'toggleRewardActiveAction', 'updateRedemptionStatusAction', 'uploadRewardImageAction'].map((n) => `app/admin/rewards/actions.ts#${n}`),
-  ...['archiveExamAction', 'evaluateExamDeletionEligibilityAction', 'deleteExamDraftAction'].map((n) => `app/admin/exams/actions.ts#${n}`),
+  'app/(site)/admin/live-tests/intelligence/actions.ts#getCandidateDrillDownAction',
+  ...['updateGlobalPremiumConfigAction', 'setExamPremiumAvailabilityAction', 'setTestTypeAvailabilityAction', 'updateGeneratorPolicyAction', 'searchCandidateAction', 'grantPromotionalPassAction', 'revokeEntitlementAction', 'updateCustomLimitsAction', 'toggleTestSeriesStatusAction', 'updateMockCuratedStatusAction'].map((n) => `app/(site)/admin/premium/actions.ts#${n}`),
+  ...['createRewardAction', 'updateRewardAction', 'toggleRewardActiveAction', 'updateRedemptionStatusAction', 'uploadRewardImageAction'].map((n) => `app/(site)/admin/rewards/actions.ts#${n}`),
+  ...['archiveExamAction', 'evaluateExamDeletionEligibilityAction', 'deleteExamDraftAction'].map((n) => `app/(site)/admin/exams/actions.ts#${n}`),
   // EXAM-LOGO-1: logos and conducting bodies are admin only (staff see them read-only)
-  ...['uploadOrgLogoAction', 'removeOrgLogoAction', 'uploadExamLogoOverrideAction', 'removeExamLogoOverrideAction', 'createConductingOrgAction', 'createConductingOrgWithLogoAction', 'uploadCategoryIconAction', 'removeCategoryIconAction', 'saveCategoryAction'].map((n) => `app/admin/exams/logo-actions.ts#${n}`),
-  ...['addGalleryPhotoAction', 'updateGalleryPhotoAction', 'moveGalleryPhotoAction', 'removeGalleryPhotoAction'].map((n) => `app/admin/system/photo-actions.ts#${n}`), // HOME-1 (130): the library gallery
-  ...['uploadBrandAssetAction', 'removeBrandAssetAction'].map((n) => `app/admin/system/brand-actions.ts#${n}`), // HOME-1 (131): brand settings
+  ...['uploadOrgLogoAction', 'removeOrgLogoAction', 'uploadExamLogoOverrideAction', 'removeExamLogoOverrideAction', 'createConductingOrgAction', 'createConductingOrgWithLogoAction', 'uploadCategoryIconAction', 'removeCategoryIconAction', 'saveCategoryAction'].map((n) => `app/(site)/admin/exams/logo-actions.ts#${n}`),
+  ...['addGalleryPhotoAction', 'updateGalleryPhotoAction', 'moveGalleryPhotoAction', 'removeGalleryPhotoAction'].map((n) => `app/(site)/admin/system/photo-actions.ts#${n}`), // HOME-1 (130): the library gallery
+  ...['uploadBrandAssetAction', 'removeBrandAssetAction'].map((n) => `app/(site)/admin/system/brand-actions.ts#${n}`), // HOME-1 (131): brand settings
   // CA-1: Hindi name / subject type / state code, aliases, move and merge are structural writes too (admin only)
-  ...['createTaxonomyNodeAction', 'renameTaxonomyNodeAction', 'setTaxonomyNodeActiveAction', 'reorderTaxonomyNodesAction', 'updateTaxonomyDetailsAction', 'addTaxonomyAliasAction', 'removeTaxonomyAliasAction', 'moveTaxonomyNodeAction', 'mergeTaxonomyNodesAction'].map((n) => `app/admin/taxonomy/actions.ts#${n}`),
-  ...ADAPTIVE_ADMIN_ONLY.map((n) => `app/admin/adaptive/actions.ts#${n}`),
-  ...ADAPTIVE_ADMIN_ONLY.map((n) => `app/admin/actions.ts#${n}`),
+  ...['createTaxonomyNodeAction', 'renameTaxonomyNodeAction', 'setTaxonomyNodeActiveAction', 'reorderTaxonomyNodesAction', 'updateTaxonomyDetailsAction', 'addTaxonomyAliasAction', 'removeTaxonomyAliasAction', 'moveTaxonomyNodeAction', 'mergeTaxonomyNodesAction'].map((n) => `app/(site)/admin/taxonomy/actions.ts#${n}`),
+  ...ADAPTIVE_ADMIN_ONLY.map((n) => `app/(site)/admin/adaptive/actions.ts#${n}`),
+  ...ADAPTIVE_ADMIN_ONLY.map((n) => `app/(site)/admin/actions.ts#${n}`),
   'app/api/admin/current-affairs/import/route.ts#POST', // session path; bearer path unchanged
   'app/api/admin/reports/update-status/route.ts#POST', // F2 (#79): question reports are admin-only
   // SEC-1D (decision #16 update): PII pages' actions — gamification + billing.
-  'app/admin/gamification/actions.ts#updateRewardPolicyAction',
-  'app/admin/actions.ts#createSubscriptionPlanAction',
+  'app/(site)/admin/gamification/actions.ts#updateRewardPolicyAction',
+  'app/(site)/admin/actions.ts#createSubscriptionPlanAction',
   // GAP2-4b: publishing / archiving a syllabus is admin-only (staff draft only)
-  'app/admin/syllabus/actions.ts#publishSyllabusVersionAction',
-  'app/admin/syllabus/actions.ts#archiveSyllabusVersionAction',
+  'app/(site)/admin/syllabus/actions.ts#publishSyllabusVersionAction',
+  'app/(site)/admin/syllabus/actions.ts#archiveSyllabusVersionAction',
   // CA-2: the syllabus intake writes the master tree (aliases, new nodes) → admin only
   // CA-3: lesson blocks (draft + publish) → admin only
-  ...['saveLessonDraftAction', 'publishLessonAction', 'saveGeneratedLessonAction', 'saveTranslationDraftAction'].map((n) => `app/admin/lessons/actions.ts#${n}`),
-  ...['savePromptDraftAction', 'activatePromptAction'].map((n) => `app/admin/prompts/actions.ts#${n}`), // CA-4
+  ...['saveLessonDraftAction', 'publishLessonAction', 'saveGeneratedLessonAction', 'saveTranslationDraftAction'].map((n) => `app/(site)/admin/lessons/actions.ts#${n}`),
+  ...['savePromptDraftAction', 'activatePromptAction'].map((n) => `app/(site)/admin/prompts/actions.ts#${n}`), // CA-4
   // CA-7: the course launch / pause, exam notes and the INTERNAL node flag are owner actions → admin only
-  ...['setCourseLaunchAction', 'saveExamNoteDraftAction', 'publishExamNoteAction', 'examNotePromptAction'].map((n) => `app/admin/lessons/actions.ts#${n}`),
-  'app/admin/taxonomy/actions.ts#setTaxonomyNodeInternalAction',
-  'app/admin/taxonomy/actions.ts#setTaxonomyContentSourceAction', // SYLLABUS-UI-1: admin only
-  ...['createIntakeAction', 'addIntakeCycleAction', 'decideIntakeItemAction', 'importIntakeAction', 'discardIntakeAction', 'bulkIntakeAction', 'undoIntakeBulkAction'].map((n) => `app/admin/syllabus/intake/actions.ts#${n}`),
+  ...['setCourseLaunchAction', 'saveExamNoteDraftAction', 'publishExamNoteAction', 'examNotePromptAction'].map((n) => `app/(site)/admin/lessons/actions.ts#${n}`),
+  'app/(site)/admin/taxonomy/actions.ts#setTaxonomyNodeInternalAction',
+  'app/(site)/admin/taxonomy/actions.ts#setTaxonomyContentSourceAction', // SYLLABUS-UI-1: admin only
+  ...['createIntakeAction', 'addIntakeCycleAction', 'decideIntakeItemAction', 'importIntakeAction', 'discardIntakeAction', 'bulkIntakeAction', 'undoIntakeBulkAction'].map((n) => `app/(site)/admin/syllabus/intake/actions.ts#${n}`),
   // F9-B: library Pro grants are admin-only (staff cannot grant Pro)
-  'app/admin/pro-library/actions.ts#grantLibraryProAction',
-  'app/admin/pro-library/actions.ts#revokeLibraryProAction',
+  'app/(site)/admin/pro-library/actions.ts#grantLibraryProAction',
+  'app/(site)/admin/pro-library/actions.ts#revokeLibraryProAction',
 ]);
 // Commit-only flips (preview / dry-run stay staff): checked separately in B-01.
-const COMMIT_ONLY = new Set(['app/admin/actions.ts#executeBulkImportAction', 'app/admin/actions.ts#importBulkQuestionsAction']);
+const COMMIT_ONLY = new Set(['app/(site)/admin/actions.ts#executeBulkImportAction', 'app/(site)/admin/actions.ts#importBulkQuestionsAction']);
 
 const withTimeout = (p, ms) => Promise.race([p, new Promise((resolve) => setTimeout(() => resolve({ __timeout: true }), ms))]);
 function poison(adminId) {
@@ -507,8 +507,8 @@ async function part3() {
 async function part3b(entries) {
   const byKey = new Map(entries.map((e) => [`${e.file}#${e.name}`, e]));
   await test('B-01 bulk imports: staff FORBIDDEN on commit, allowed on preview / dry-run; admin allowed on commit', async () => {
-    const exec = byKey.get('app/admin/actions.ts#executeBulkImportAction').fn;
-    const qimp = byKey.get('app/admin/actions.ts#importBulkQuestionsAction').fn;
+    const exec = byKey.get('app/(site)/admin/actions.ts#executeBulkImportAction').fn;
+    const qimp = byKey.get('app/(site)/admin/actions.ts#importBulkQuestionsAction').fn;
     const run = async (user, fn) => {
       state.user = user;
       resetCalls();
@@ -636,7 +636,7 @@ async function part4(entries) {
     }
     // ADMIN-IA-1 (Q-L): the Content Studio actions are retired with their screens — no server action reaches these
     // service methods any more (the service keeps failing closed, checked above)
-    assert(!fs.existsSync(path.join(ROOT, 'app/admin/content/actions.ts')), 'the retired Content Studio actions must stay removed');
+    assert(!fs.existsSync(path.join(ROOT, 'app/(site)/admin/content/actions.ts')), 'the retired Content Studio actions must stay removed');
     state.dbMode = 'ok';
   });
   await test('F-03 targeted: mapUnitToExam no longer fabricates a mapping on failure', async () => {
@@ -700,8 +700,8 @@ async function part5() {
     }
   });
   await test('L-06 live: qa-staff → FORBIDDEN on a premium action and a taxonomy write; allowed on a QF review read', async () => {
-    const premium = require(path.join(ROOT, 'app/admin/premium/actions.ts'));
-    const taxonomy = require(path.join(ROOT, 'app/admin/taxonomy/actions.ts'));
+    const premium = require(path.join(ROOT, 'app/(site)/admin/premium/actions.ts'));
+    const taxonomy = require(path.join(ROOT, 'app/(site)/admin/taxonomy/actions.ts'));
     const qf = require(path.join(ROOT, 'actions/question-factory.actions.ts'));
     sessionOverride = staff;
     try {
@@ -716,7 +716,7 @@ async function part5() {
     }
   });
   await test('L-05 live: drill-down action is admin-only with a real staff session', async () => {
-    const actions = require(path.join(ROOT, 'app/admin/live-tests/intelligence/actions.ts'));
+    const actions = require(path.join(ROOT, 'app/(site)/admin/live-tests/intelligence/actions.ts'));
     sessionOverride = staff;
     try {
       const r = await actions.getCandidateDrillDownAction('00000000-0000-4000-8000-000000000000');

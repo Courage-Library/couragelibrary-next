@@ -253,8 +253,8 @@ async function offline() {
       'services/current-affairs.service.ts': null,
       'services/learning/learning-resolver.service.ts': null,
       'app/sitemap.ts': null,
-      'app/articles/page.tsx': null,
-      'app/articles/[slug]/page.tsx': null,
+      'app/(site)/articles/page.tsx': null,
+      'app/(site)/articles/[slug]/page.tsx': null,
       'components/mistakes/mistake-learning-section.tsx': null,
       'components/current-affairs/current-affairs-learning-cta.tsx': null,
     };
@@ -321,8 +321,8 @@ async function offline() {
     for (const f of ['services/admin-content-studio.service.ts', 'services/ai/structured-content-importer.service.ts', 'services/content.service.ts']) {
       assert(!/StorageFactory\.getProvider\(\)/.test(read(f)), `${f} still uses the in-memory default storage`);
     }
-    assert(/export const dynamic = "force-dynamic"/.test(read('app/articles/[slug]/page.tsx')) && /export const dynamic = "force-dynamic"/.test(read('app/articles/page.tsx')));
-    assert(/learning-locked-panel/.test(read('app/articles/[slug]/page.tsx')));
+    assert(/export const dynamic = "force-dynamic"/.test(read('app/(site)/articles/[slug]/page.tsx')) && /export const dynamic = "force-dynamic"/.test(read('app/(site)/articles/page.tsx')));
+    assert(/learning-locked-panel/.test(read('app/(site)/articles/[slug]/page.tsx')));
     assert(/from\("learning_documents"\)/.test(read('app/sitemap.ts')) && !/from\("articles"\)/.test(read('app/sitemap.ts')));
     const m = read('supabase/migrations/20261012000072_l2_learning_repoint.sql');
     assert(/L2_CA_MAPPINGS_NOT_EMPTY/.test(m) && /DROP FUNCTION IF EXISTS public\.fn_resolve_learn_more/.test(m) && /'learning-artifacts', 'learning-artifacts', false/.test(m));

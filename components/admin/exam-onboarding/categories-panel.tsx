@@ -8,7 +8,7 @@ import { studioControl, studioPrimaryAction, studioQuietAction } from "@/compone
 import { CategoryIcon } from "@/components/exams/category-icon";
 import { LogoDrawer } from "@/components/admin/logos/logo-drawer";
 import { ToastProvider, useToast } from "@/components/ui/toast";
-import { saveCategoryAction } from "@/app/admin/exams/logo-actions";
+import { saveCategoryAction } from "@/app/(site)/admin/exams/logo-actions";
 import { bodySlug } from "@/lib/logos/logo-upload-guard";
 import type { AdminCategory } from "@/lib/exams/category-admin";
 

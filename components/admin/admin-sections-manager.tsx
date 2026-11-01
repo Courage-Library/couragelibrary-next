@@ -5,7 +5,7 @@ import React, { useState, useMemo, useActionState, useTransition, useEffect } fr
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AdminSectionItem, AdminPatternItem, AdminCategoryItem } from "@/services/admin.service";
-import { createSectionAction, updateSectionAction, deleteSectionAction } from "@/app/admin/actions";
+import { createSectionAction, updateSectionAction, deleteSectionAction } from "@/app/(site)/admin/actions";
 import { StudioDrawer } from "@/components/admin/studio/studio-drawer";
 import { StudioEmpty, StudioField, StudioPageHeader, StudioPanel, StudioStatStrip, studioControl, studioPrimaryAction, studioQuietAction } from "@/components/admin/studio/studio-page";
 import { Edit2, Trash2, ChevronLeft, ChevronRight, Plus } from "lucide-react";

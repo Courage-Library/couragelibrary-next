@@ -8,7 +8,7 @@ import { AdminExamListItem, ConductingOrgItem } from "@/services/exam-onboarding
 import { Card } from "@/components/ui/legacy/card";
 import { Badge } from "@/components/ui/legacy/badge";
 import { Button } from "@/components/ui/legacy/button";
-import { createExamDraftAction } from "@/app/admin/exams/actions";
+import { createExamDraftAction } from "@/app/(site)/admin/exams/actions";
 import { ExamLogoBadge } from "@/components/exams/exam-logo-badge";
 import { ConductingBodiesPanel } from "@/components/admin/exam-onboarding/conducting-bodies-panel";
 import { ExamLogoOverride } from "@/components/admin/exam-onboarding/exam-logo-override";

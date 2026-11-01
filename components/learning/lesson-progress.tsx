@@ -1,6 +1,6 @@
 import { CheckCircle2 } from "lucide-react";
 import { buttonClasses } from "@/components/ui/button";
-import { completeLessonFormAction } from "@/app/articles/actions";
+import { completeLessonFormAction } from "@/app/(site)/articles/actions";
 
 /**
  * CA-5 / PERF-LESSON-1: lesson progress for a signed-in student on an unlocked lesson — a SERVER component with a plain

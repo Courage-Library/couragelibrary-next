@@ -277,7 +277,7 @@ export function searchEntries(nav: NavGroup[]): Array<{ label: string; hint: str
 /**
  * SEC-1C L-04 (architect option (a), 2026-10-27): every ADMIN-ONLY admin page route — the single source the admin
  * layout uses to answer a staff user's request for an admin-only route with the site 404 BEFORE the admin shell
- * renders. Must equal the set of app/admin pages whose requireAdminPage has no allowStaff (gated: test_admin_ux1b AB-10).
+ * renders. Must equal the set of app/(site)/admin pages whose requireAdminPage has no allowStaff (gated: test_admin_ux1b AB-10).
  * Per-page guards stay as defence in depth. ADMIN-IA-1: the moved addresses are listed at their NEW place (the old
  * ones are redirects in next.config.ts, so a staff request lands here and gets the 404).
  */

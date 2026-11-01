@@ -13,6 +13,7 @@ import { guardAdminAction, sanitizeActionResult } from "@/lib/auth/require-admin
 
 import { revalidatePath } from 'next/cache';
 import { AdminQuestionFactoryService } from '@/services/question-factory/admin-question-factory.service';
+import { revalidatePublicPages } from "@/lib/cache/revalidate-public";
 import type {
   QuestionAuthoringItem,
   QuestionContextRequest,
@@ -105,6 +106,7 @@ export async function qfPublishAction(versionId: string) {
   const res = await AdminQuestionFactoryService.publish(versionId);
   refresh();
   revalidatePath('/admin/questions');
+  revalidatePublicPages(); // PERF-HOME-1: the cached public pages show this
   return sanitizeActionResult("qfPublishAction", await (res));
 }
 

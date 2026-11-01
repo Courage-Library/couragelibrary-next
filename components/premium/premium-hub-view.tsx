@@ -45,7 +45,7 @@ import {
   generateMistakeRevisionTestAction,
   generatePersonalizedMockAction,
   generatePyqSimulationAction,
-} from "@/app/premium/actions";
+} from "@/app/(site)/premium/actions";
 
 interface PremiumHubViewProps {
   initialData: PremiumHubData;

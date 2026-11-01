@@ -87,7 +87,7 @@ function stripComments(src) {
 
 const STUDENT_FILES = [...walk(path.join(ROOT, 'app')), ...walk(path.join(ROOT, 'components'))]
   .map(rel)
-  .filter((r) => !r.startsWith('app/admin/') && !r.startsWith('components/admin/') && !r.startsWith('app/api/'));
+  .filter((r) => !r.startsWith('app/(site)/admin/') && !r.startsWith('components/admin/') && !r.startsWith('app/api/'));
 
 const DEV_LABELS = [
   [/\bPhase\s?\d+[A-Za-z]?\b/, 'Phase N'],
@@ -129,7 +129,7 @@ test('U-2 no dead links: every shell href resolves to an existing app route', ()
     walk(path.join(ROOT, 'app'))
       .map(rel)
       .filter((r) => /\/page\.tsx$/.test(r))
-      .map((r) => '/' + r.replace(/^app\/?/, '').replace(/\/?page\.tsx$/, '')),
+      .map((r) => ('/' + r.replace(/^app\/?/, '').replace(/\/?page\.tsx$/, '')).replace(/\/\([^/]+\)/g, '') || '/'), // route groups (PERF-HOME-1) add no URL segment
   );
   routes.add('/');
   const hrefs = new Set();
@@ -148,7 +148,7 @@ test('U-2b no dead links in the admin sidebar (GAP2-4c: retired workbench link r
     walk(path.join(ROOT, 'app'))
       .map(rel)
       .filter((r) => /\/page\.tsx$/.test(r))
-      .map((r) => '/' + r.replace(/^app\/?/, '').replace(/\/?page\.tsx$/, '')),
+      .map((r) => ('/' + r.replace(/^app\/?/, '').replace(/\/?page\.tsx$/, '')).replace(/\/\([^/]+\)/g, '') || '/'), // route groups (PERF-HOME-1) add no URL segment
   );
   // ADMIN-UX-1 phase B: the admin sidebar renders lib/admin/nav.ts (its only link source); the sidebar file has no hrefs
   const s = read('lib/admin/nav.ts') + read('components/admin/admin-sidebar.tsx');
@@ -177,12 +177,14 @@ test('U-3 shell structure: skip link, one main, landmarks, dialog-based menus, s
   assert(/viewportFit: "cover"/.test(read('app/layout.tsx')), 'viewport-fit=cover needed for safe-area insets');
 });
 
-test('U-4 old layout removed; root layout renders AppShell', () => {
+test('U-4 old layout removed; the session pages render AppShell (app/(site)), the cached public pages PublicShell (PERF-HOME-1)', () => {
   assert(!fs.existsSync(path.join(ROOT, 'components/layout')), 'components/layout still exists');
   const users = STUDENT_FILES.filter((f) => /components\/layout\//.test(read(f)));
   assert(users.length === 0, `imports of components/layout: ${users.join(', ')}`);
-  const layout = read('app/layout.tsx');
-  assert(/<AppShell>\{children\}<\/AppShell>/.test(layout), 'root layout must render <AppShell>');
+  const layout = read('app/(site)/layout.tsx');
+  assert(/<AppShell>\{children\}<\/AppShell>/.test(layout), 'app/(site)/layout.tsx must render <AppShell>');
+  assert(/<PublicShell>\{children\}<\/PublicShell>/.test(read('app/(public)/layout.tsx')), 'app/(public)/layout.tsx must render <PublicShell>');
+  assert(!/<AppShell|<PublicShell/.test(read('app/layout.tsx')), 'the root layout renders no shell (each group has its own)');
 });
 
 test('U-5 the shell makes no database queries (session only)', () => {
@@ -209,7 +211,7 @@ test('U-7 nothing under the mobile tab bar (BRAND-3 fix 4): spacer = bar height 
   const shell = read('components/shell/app-shell.tsx');
   assert(shell.indexOf('<SiteFooter') < shell.indexOf('<BottomNav'), 'the spacer must follow the footer (page content + footer end above the bar)');
   assert(/bottom-\[calc\(4rem\+1px\+env\(safe-area-inset-bottom\)\+1rem\)\][^"]*lg:bottom-4/.test(read('components/ui/toast.tsx')), 'toasts sit under the tab bar on phones');
-  assert(/pb-\[calc\(10rem\+env\(safe-area-inset-bottom\)\)\] md:pb-6/.test(read('app/mock-tests/[id]/take/player-client.tsx')), 'player content does not clear its own action bar + safe area');
+  assert(/pb-\[calc\(10rem\+env\(safe-area-inset-bottom\)\)\] md:pb-6/.test(read('app/(site)/mock-tests/[id]/take/player-client.tsx')), 'player content does not clear its own action bar + safe area');
 });
 
 console.log(`\nUX-1b shell: ${passed}/${passed + failed} passed`);

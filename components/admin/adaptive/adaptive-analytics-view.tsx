@@ -32,7 +32,7 @@ import {
   getAdaptiveHealthAction,
   getDataQualityDiagnosticsAction,
   getAttemptDiagnosticsAction,
-} from "@/app/admin/adaptive/actions";
+} from "@/app/(site)/admin/adaptive/actions";
 import { Badge } from "@/components/ui/legacy/badge";
 import {
   Activity,

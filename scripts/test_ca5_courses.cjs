@@ -140,14 +140,14 @@ test('R-01 reader / course / progress: master-position access, no user id from c
   assert(/lessonAccessLevel\(gate\.positions\.get\(row\.id\) \?\? Number\.MAX_SAFE_INTEGER, gate\.settings, row\.id\)/.test(r) && !/function toResolvedNode[\s\S]{0,400}row\.access_level/.test(r), 'node lessons: access from the master position (unknown position = last, fail-closed)');
   const c = read('services/learning/course.service.ts');
   assert(/static async getCourse\(examSlug: string\)/.test(c) && !/userId|user_id\s*:/.test(c) && /rpc\("fn_exam_course_outline"/.test(c), 'course: no user id accepted');
-  const act = read('app/articles/actions.ts');
+  const act = read('app/(site)/articles/actions.ts');
   assert(/createServerSupabaseClient/.test(act) && !/createAdminServerSupabaseClient|service/i.test(act.replace(/no service role/g, '')) && /rpc\("fn_lesson_progress_save"/.test(act), 'progress action: the session client only');
-  const page = read('app/articles/[slug]/page.tsx');
+  const page = read('app/(site)/articles/[slug]/page.tsx');
   assert(/session\.state === "user" && article\.lesson && !article\.isLocked/.test(page) && /<LessonProgress /.test(page), 'progress only for a signed-in student on an unlocked lesson');
   const comp = read('components/learning/lesson-progress.tsx');
   // PERF-LESSON-1: a server component <form action> (no "use client", no client libraries on the lesson page)
   assert(!/^"use client"/m.test(comp) && /<form action=\{completeLessonFormAction\}>/.test(comp) && /variant: "secondary"/.test(comp) && !/variant: "primary"/.test(comp), 'the progress control is a server-rendered form, not a second primary action');
-  const course = read('app/exams/[slug]/course/page.tsx');
+  const course = read('app/(site)/exams/[slug]/course/page.tsx');
   assert((course.match(/variant="primary"/g) || []).length === 1 && !/[ऀ-ॿ]/.test(course) && /l\.locked \? <Lock/.test(course), 'course page: one primary, English, locked lessons marked');
   const home = read('components/exams/exam-home.tsx');
   assert(/courseHref && \(/.test(home) && /C\.syllabus\.course/.test(home), 'exam home links the course');

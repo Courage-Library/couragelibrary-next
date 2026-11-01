@@ -8,7 +8,7 @@ import {
   AdminRewardCatalogItem,
   AdminRedemptionRecord,
 } from "@/services/gamification.service";
-import { updateRewardPolicyAction } from "@/app/admin/gamification/actions";
+import { updateRewardPolicyAction } from "@/app/(site)/admin/gamification/actions";
 import { RewardEditorModal } from "@/components/admin/rewards/reward-editor-modal";
 import { DeactivateModal } from "@/components/admin/rewards/deactivate-modal";
 import { RedemptionDetailModal } from "@/components/admin/rewards/redemption-detail-modal";

@@ -72,7 +72,7 @@ function* walkSrc(dir = ROOT, depth = 0) {
     else if (/\.(tsx?|css)$/.test(e.name)) yield p;
   }
 }
-const PAGE = 'app/page.tsx';
+const PAGE = 'app/(public)/page.tsx';
 const CONTENT = 'content/landing.ts';
 const EXAM_WORDS = /SSC CGL|SSC CHSL|SSC MTS|SSC GD|\/exams\/ssc-|Explore SSC/;
 const BANNED = /guarantee|guaranteed|100%|topper|rank ?1|AIR \d|testimonial|rating|\b\d[\d,]* (students|aspirants|users)\b|selection (is )?(sure|assured)/i;
@@ -199,7 +199,7 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
     assert(/accept=\{PHOTO_ACCEPT\}/.test(panel) && /fd\.set\("peopleBasis", basis\)/.test(panel) && /disabled=\{!prepared \|\| !basis \|\| alt\.trim\(\)\.length < 3/.test(panel) && /type="radio"/.test(panel), 'panel requirements (alt + people basis)');
     const calls = ['addGalleryPhotoAction(fd)', 'removeGalleryPhotoAction(', 'moveGalleryPhotoAction(', 'updateGalleryPhotoAction('];
     assert(/await guarded\(\(\) => addGalleryPhotoAction\(fd\)\)/.test(panel) && /await guarded\(call as/.test(panel) && calls.slice(1).every((c) => new RegExp(`run\\(\\(\\) => ${c.replace('(', '\\(')}`).test(panel)), 'panel: every call wrapped');
-    const act = read('app/admin/system/photo-actions.ts');
+    const act = read('app/(site)/admin/system/photo-actions.ts');
     const fns = [...act.matchAll(/export async function (\w+)\([^)]*\)[^\n]*\{\n\s*const auth = await guardAdminAction\(\);/g)].map((x) => x[1]);
     assert(fns.join() === 'addGalleryPhotoAction,updateGalleryPhotoAction,moveGalleryPhotoAction,removeGalleryPhotoAction' && !/allowStaff/.test(act), `actions admin-only (${fns})`);
     const order = ['processHomePhoto(', 'storage.from(BUCKET).upload(', 'rpc("fn_site_gallery_add"'].map((x) => act.indexOf(x));
@@ -384,7 +384,7 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
       B.processBrandImage('brand_footer_logo', Buffer.alloc(1024 * 1024 + 1)),
     ]);
     assert(bad.every((r) => !r.ok) && /SVG/.test(bad[0].message) && /landscape/.test(bad[1].message) && /square/.test(bad[2].message) && /512/.test(bad[3].message) && /1 MB/.test(bad[4].message), 'negative controls: SVG / square logo / non-square mark / small mark / too large');
-    const act = read('app/admin/system/brand-actions.ts');
+    const act = read('app/(site)/admin/system/brand-actions.ts');
     const fns = [...act.matchAll(/export async function (\w+)\([^)]*\)[^\n]*\{\n\s*const auth = await guardAdminAction\(\);/g)].map((x) => x[1]);
     assert(fns.join() === 'uploadBrandAssetAction,removeBrandAssetAction' && !/allowStaff/.test(act), `actions admin-only (${fns})`);
     const order = ['processBrandImage(', 'storage.from(BUCKET).upload(', 'rpc("fn_site_media_set"', 'remove(filesOf(oldPath))'].map((x) => act.indexOf(x));
@@ -403,7 +403,7 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
     assert(h1(['SSC']) === 'Free preparation for SSC exams' && h1([]) === 'Free preparation for government exams' && h1(['SSC', 'Railway']) === 'Free preparation for SSC &amp; Railway exams', `H1 ${h1(['SSC'])}`);
     const hero = renderToStaticMarkup(React.createElement(S.LandingHero, { liveCategories: ['SSC'] }));
     assert(/data-brand-line=""[\s\S]*?Learn Smarter\. Prepare Independently\./.test(hero) && !/data-hero-chip/.test(hero), 'eyebrow; no Hindi chip without published Hindi content (H-20)');
-    assert(/const \{ liveCategories, hindi \} = await loadHomeFacts\(\);/.test(read('app/page.tsx')) && /<LandingHero liveCategories=\{liveCategories\} hindi=\{hindi\} \/>/.test(read('app/page.tsx')), 'page passes live names + Hindi facts');
+    assert(/const \{ liveCategories, hindi \} = await loadHomeFacts\(\);/.test(read('app/(public)/page.tsx')) && /<LandingHero liveCategories=\{liveCategories\} hindi=\{hindi\} \/>/.test(read('app/(public)/page.tsx')), 'page passes live names + Hindi facts');
     const cd = read('lib/exams/category-data.ts');
     assert(/live\.has\(c\.id\)/.test(cd) && /c\.is_active && !c\.is_internal/.test(cd) && /readLiveCategoryNames\(\)\.catch\(\(\) => null\)/.test(cd) && /setTimeout\(\(\) => ok\(null\), 800\)/.test(cd), 'names: live + public only; bounded');
     // tiles: every category is a tile with its icon; the live one is a link with its exact count; the others carry the
@@ -426,14 +426,14 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
   });
 
   await test('H-18 share images: 1200 × 630 OG + Twitter for home and category / exam pages; brand mark = upload or official logo; default ogImage', () => {
-    for (const f of ['app/opengraph-image.tsx', 'app/twitter-image.tsx', 'app/exams/[slug]/opengraph-image.tsx', 'app/exams/[slug]/twitter-image.tsx']) {
+    for (const f of ['app/opengraph-image.tsx', 'app/twitter-image.tsx', 'app/(site)/exams/[slug]/opengraph-image.tsx', 'app/(site)/exams/[slug]/twitter-image.tsx']) {
       const s = read(f);
       assert(/export const dynamic = "force-dynamic";/.test(s) && (/size = OG_SIZE/.test(s) || /export \{ default, alt, size, contentType \} from "\.\/opengraph-image"/.test(s)), f);
     }
     const og = read('lib/og/og-card.tsx');
     assert(/OG_SIZE = \{ width: 1200, height: 630 \}/.test(og) && /public\/images\/logo\.png/.test(og) && /squareMarkUrl/.test(og) && !/#[0-9a-f]{6}/i.test(og), 'card: size, official logo fallback, colours from the brand mirror');
     assert(/ogImage: "\/opengraph-image"/.test(read('config/site.ts')) && /card: "summary_large_image"/.test(read('lib/seo/metadata.ts')), 'every page shares the branded image; twitter large card');
-    const ex = read('app/exams/[slug]/opengraph-image.tsx');
+    const ex = read('app/(site)/exams/[slug]/opengraph-image.tsx');
     assert(/createPublicServerSupabaseClient/.test(ex) && /eq\("is_active", true\)/.test(ex) && /CATEGORY_SLUG_RE\.test\(slug\)/.test(ex), 'category / exam card: public rows only, slug checked');
   });
 
@@ -447,7 +447,7 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
     assert(/html\.reveal-on \[data-reveal\] \{\s*transition: opacity 200ms ease-out, transform 200ms ease-out;/.test(css) && /html\.reveal-on \[data-reveal-pending\]:not\(\[data-revealed\]\) \{\s*opacity: 0;/.test(css) && !/\[data-reveal\]:not\(\[data-revealed\]\)/.test(css) && /@media \(prefers-reduced-motion: reduce\), print \{/.test(css), 'reveal CSS ≤ 200 ms; hides only pending; off with reduced motion / print');
     const s = read(SECTIONS);
     const hero = s.slice(s.indexOf('export function LandingHero'), s.indexOf('export function LandingCategories'));
-    assert(!/data-reveal/.test(hero) && (s.match(/data-reveal=""/g) || []).length === 6 && /<LandingEnhancements \/>/.test(read('app/page.tsx')), 'reveal: 6 sections, never the hero (LCP)');
+    assert(!/data-reveal/.test(hero) && (s.match(/data-reveal=""/g) || []).length === 6 && /<LandingEnhancements \/>/.test(read('app/(public)/page.tsx')), 'reveal: 6 sections, never the hero (LCP)');
     assert(/--radius-control: 12px;/.test(css) && /--radius-card: 16px;/.test(css) && /rounded-control px-6/.test(read('components/ui/pill-button.tsx')), 'radius scale: buttons 12, cards 16');
     const scope = [SECTIONS, 'components/shell/header-bar.tsx', 'components/shell/site-footer.tsx', 'components/exams/category-page.tsx', 'components/landing/landing-enhancements.tsx'];
     const icons = scope.flatMap((f) => [...read(f).matchAll(/<[A-Z]\w+ aria-hidden(?:="true")?[^>]*className="([^"]*)"/g)].map((m) => `${f}: ${m[1]}`));

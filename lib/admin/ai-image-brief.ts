@@ -96,7 +96,7 @@ export function buildRewardImagePrompt(config: AIBriefConfig): string {
     backgroundDetails =
       "Minimalist dark-slate studio backdrop with a subtle radial gradient falloff in deep navy tones, perfectly uncluttered to highlight the central digital asset.";
     qualityDetails =
-      "Ultra-high-definition digital artwork, 8k render fidelity, razor-sharp vector edges, perfectly smooth gradients, commercially polished app/store presentation asset.";
+      "Ultra-high-definition digital artwork, 8k render fidelity, razor-sharp vector edges, perfectly smooth gradients, commercially polished app/(site)/store presentation asset.";
   } else {
     // PHYSICAL MERCHANDISE / TANGIBLE REWARDS
     if (lowerTitle.includes("bottle") || lowerTitle.includes("flask") || lowerTitle.includes("sipper")) {

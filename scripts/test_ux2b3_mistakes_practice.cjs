@@ -38,10 +38,10 @@ const ROOT = path.resolve(__dirname, '..');
 const OFFLINE = process.argv.includes('--offline');
 const BASE = (process.argv.slice(2).find((a) => /^https?:/.test(a)) || 'http://localhost:3100').replace(/\/$/, '');
 
-const PRACTICE = 'app/practice/page.tsx';
+const PRACTICE = 'app/(site)/practice/page.tsx';
 const FILES = [
   PRACTICE,
-  'app/mistakes/page.tsx',
+  'app/(site)/mistakes/page.tsx',
   ...['hero', 'kpi-strip', 'revision-health', 'longitudinal-card', 'filter-bar', 'card', 'bookmark-button', 'pagination', 'empty-state', 'sidebar'].map(
     (n) => `components/mistakes/mistake-${n}.tsx`,
   ),

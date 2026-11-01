@@ -13,6 +13,7 @@ import { guardAdminAction, toActionFailure, sanitizeActionResult } from "@/lib/a
 import { revalidatePath } from 'next/cache';
 import { AdminService } from '@/services/admin.service';
 import { AdminExamKnowledgeService } from '@/services/exam-knowledge/admin-exam-knowledge.service';
+import { revalidatePublicPages } from "@/lib/cache/revalidate-public";
 import {
   ExamDocReviewStatus,
   ExamSourceVerificationStatus,
@@ -211,6 +212,7 @@ export async function publishExamDocVersionAction(versionId: string) {
     if (res.success) {
       try {
         revalidatePath('/exams');
+        revalidatePublicPages(); // PERF-HOME-1: the cached public pages show this
         revalidatePath('/admin/exams/knowledge');
         if (res.examSlug) {
           revalidatePath(`/exams/${res.examSlug}`);

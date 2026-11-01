@@ -61,17 +61,17 @@ const code = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\{\/\*[\s\S]*?\*
 
 // Banned per H-item (rendered and source). /live-tests is flag-off, so H-2 is checked in source only.
 const H = {
-  'H-1': { route: '/auth/signup', file: 'app/auth/signup/page.tsx', banned: [/thousands of/i] },
-  'H-2': { route: null, file: 'app/live-tests/page.tsx', banned: [/thousands of/i, /simultaneously/i] },
-  'H-3': { route: '/current-affairs', file: 'app/current-affairs/page.tsx', banned: [/fact verification/i, /being processed/i, /5-gate/i] },
-  'H-4': { route: '/current-affairs', file: 'app/current-affairs/page.tsx', banned: [/fact-checked/i, /verified provenance/i, /intelligence/i, /high-yield/i] },
+  'H-1': { route: '/auth/signup', file: 'app/(site)/auth/signup/page.tsx', banned: [/thousands of/i] },
+  'H-2': { route: null, file: 'app/(site)/live-tests/page.tsx', banned: [/thousands of/i, /simultaneously/i] },
+  'H-3': { route: '/current-affairs', file: 'app/(site)/current-affairs/page.tsx', banned: [/fact verification/i, /being processed/i, /5-gate/i] },
+  'H-4': { route: '/current-affairs', file: 'app/(site)/current-affairs/page.tsx', banned: [/fact-checked/i, /verified provenance/i, /intelligence/i, /high-yield/i] },
   'H-5': { route: '/current-affairs', file: 'components/current-affairs/current-affairs-daily-quiz-card.tsx', banned: [/being curated/i, /curation in progress/i, /verified events/i] },
   'H-6': { route: '/pricing', file: 'config/site.ts', banned: [/one-stop/i] },
   'H-7': { route: '/pricing', file: null, banned: [/most popular/i, /\+\s*18%\s*GST/i, /discount coupon/i, /upgrade to pro now/i] },
   'H-8': { route: 'RESULT|MOCK|LEADERBOARD', file: null, banned: [/\bofficial\b/i] },
   'H-9': { route: 'RESULT', file: null, banned: [/verified candidate/i, /top 3 podium/i, /live competition/i, /\btopper\b/i] },
   'H-10': { route: '/mock-tests|/dashboard', file: 'components/assessment/mock-test-dashboard-view.tsx', banned: [/full-length mock\b/i, /shorter mock/i, /full-length mock tests/i, /full-length mocks scheduled/i, /start full mock/i, /full-length exam/i, /full-length simulations/i] },
-  'H-11': { route: '/dashboard', file: 'app/dashboard/page.tsx', banned: [/readiness engine/i, /spaced repetition/i, /great job/i] },
+  'H-11': { route: '/dashboard', file: 'app/(site)/dashboard/page.tsx', banned: [/readiness engine/i, /spaced repetition/i, /great job/i] },
 };
 const GLOBAL = [/thousands of/i, /\bofficial\b/i, /most popular/i, /fact verification/i, /being curated/i, /one-stop/i, /verified candidate/i,
   // UX-2b.H2
@@ -132,13 +132,13 @@ function offline() {
   }
   const extra = [
     ['components/assessment/result-view-client.tsx', [/\bofficial\b/i, /verified candidate/i, /top 3 podium/i, /live competition/i, /topper score/i]],
-    ['app/mock-tests/[id]/page.tsx', [/\bofficial\b/i]],
+    ['app/(site)/mock-tests/[id]/page.tsx', [/\bofficial\b/i]],
     ['components/assessment/leaderboard-view-client.tsx', [/\bofficial\b/i, /verified candidate/i]],
   ];
   for (const [f, rxs] of extra) for (const rx of rxs) if (rx.test(code(read(f)))) hits.push(`${f}: ${rx.source}`);
   check('S-1', 'banned phrases gone from the touched source files', hits.length === 0, hits.join('; '));
 
-  const pc = read('app/pricing/pricing-client.tsx');
+  const pc = read('app/(site)/pricing/pricing-client.tsx');
   const offIdx = pc.indexOf('if (!paymentsEnabled) return <PaymentsOffView');
   // F9-B (architect GO) replaced the old payments-ON markup with ProPricingView; its honesty is gated by
   // scripts/test_f9b_payments.cjs PB-09. The OFF view must still return first and stay free of any price.
@@ -158,7 +158,7 @@ function offline() {
   check('S-3', 'result view: every standing.rank / percentile / n is inside the standing branch; null below RANK_MIN_COHORT',
     g0 > 0 && uses.length >= 3 && uses.every((i) => i > g0 && i < g1) && /if \(n < RANK_MIN_COHORT\) return null;/.test(ra), `${uses.length} uses`);
 
-  const ca = read('app/current-affairs/page.tsx');
+  const ca = read('app/(site)/current-affairs/page.tsx');
   const calls = [...new Set([...ca.matchAll(/CurrentAffairsService\.(\w+)/g)].map((m) => m[1]))];
   const card = read('components/current-affairs/current-affairs-daily-quiz-card.tsx');
   check('S-4', 'current affairs: only getHubData; quiz section + card only for ALREADY_PUBLISHED',
@@ -167,7 +167,7 @@ function offline() {
     `service calls [${calls.join(',')}]`);
 
   const mv = code(read('components/assessment/mock-test-dashboard-view.tsx'));
-  const dash = code(read('app/dashboard/page.tsx'));
+  const dash = code(read('app/(site)/dashboard/page.tsx'));
   check('S-5', 'mock size from formatMockShape; no length judgement ("Full-length mock" / "Shorter mock") or old mislabels on /mock-tests or /dashboard',
     /formatMockShape\(test\)/.test(mv) && !/mockLengthLabel|isFullLengthMock|Full-length mock|Shorter mock|Full-Length|Full Mock|full-length (exam|simulations)/i.test(mv) &&
       !/full-length/i.test(dash));
@@ -184,19 +184,19 @@ function offline() {
 
 // Static H2 checks (file → patterns that must be absent outside comments). Run against HEAD they must hit (report §7).
 const H2_STATIC = [
-  ['app/exams/page.tsx', [/Official Knowledge Repository/, /commission-accurate/i, /\bVerified\b/, /official notification timelines/i]],
+  ['app/(public)/exams/page.tsx', [/Official Knowledge Repository/, /commission-accurate/i, /\bVerified\b/, /official notification timelines/i]],
   ['components/exams/exam-hero.tsx', [/Official Verified/]],
-  ['app/exams/[slug]/page.tsx', [/Official notification dates/]],
-  ['app/exams/[slug]/cycle/[cycleYear]/page.tsx', [/Official notification details/]],
+  ['app/(site)/exams/[slug]/page.tsx', [/Official notification dates/]],
+  ['app/(site)/exams/[slug]/cycle/[cycleYear]/page.tsx', [/Official notification details/]],
   ['components/exams/exam-module-card.tsx', [/Verified: \{/, /verified parameters/i]],
   ['components/exams/exam-module-reader-view.tsx', [/Verified: \{/]],
   ['components/current-affairs/current-affairs-sources-card.tsx', [/Verified National Press/, /Verified Sources/, /Fact Provenance/, /Every event point is checked/]],
   ['components/current-affairs/current-affairs-card.tsx', [/Verified Sources/]],
-  ['app/current-affairs/date/[date]/page.tsx', [/verified provenance/i]],
+  ['app/(site)/current-affairs/date/[date]/page.tsx', [/verified provenance/i]],
   ['components/assessment/leaderboard-view-client.tsx', [/Verified Position/]],
   ['components/assessment/result-view-client.tsx', [/submission verified/i, /Verified answer keys/i]],
   ['components/wallet/wallet-view-client.tsx', [/Verified CL Wallet/]],
-  ['app/institutes/page.tsx', [/verified institutional/i, /being verified/i, /Partner/]],
+  ['app/(site)/institutes/page.tsx', [/verified institutional/i, /being verified/i, /Partner/]],
   ['components/premium/premium-hub-view.tsx', [/official question papers/i, /Official Papers/, /simulate official test/i, /previous year questions/i]],
   ['components/store/redeem-modal.tsx', [/Official Courage Library study gear/]],
 ];

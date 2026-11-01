@@ -1,14 +1,15 @@
 import "server-only";
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
-import { createPublicServerSupabaseClient, createServerSupabaseClient } from "@/lib/supabase/server";
+import { createPublicServerSupabaseClient } from "@/lib/supabase/server";
 import { COMING_SOON_EXAMS } from "@/content/public-pages";
 import { examLogo } from "@/lib/logos/exam-logo";
 import { CATEGORY_SLUG_RE, toPublicCategory, type CategoryExam, type CategoryRow, type PublicCategory } from "@/lib/exams/categories";
 
 /**
- * HOME-1: public category reads with the VISITOR's client (RLS: active, non-internal categories; active exams only).
- * Never the service role, never a write. A failed read → null (the page shows its fallback, never invented numbers).
+ * HOME-1: public category reads (RLS: active, non-internal categories; active exams only). PERF-HOME-1: with the
+ * cookie-free PUBLIC client — the result is the same for every visitor, so the cached pages can use it. Never the
+ * service role, never a write. A failed read → null (the page shows its fallback, never invented numbers).
  */
 const CATEGORY_COLUMNS = "id, slug, name, short_desc, display_order, is_active, is_internal, icon_key, icon_path, icon_alt";
 const TIMEOUT_MS = 8000;
@@ -17,7 +18,7 @@ const timed = <T>(p: PromiseLike<T>): Promise<T | null> =>
 
 /** every public category (home tiles, /exams), with its number of active exams; null = the read failed */
 export const loadPublicCategories = cache(async (): Promise<PublicCategory[] | null> => {
-  const sb = await createServerSupabaseClient();
+  const sb = createPublicServerSupabaseClient();
   const [cats, exams] = await Promise.all([
     timed(sb.from("exam_categories").select(CATEGORY_COLUMNS).order("display_order").order("name")),
     timed(sb.from("exams").select("category_id").eq("is_active", true)),
@@ -36,7 +37,7 @@ export const loadPublicCategories = cache(async (): Promise<PublicCategory[] | n
  */
 export const loadPublicCategory = cache(async (slug: string): Promise<{ category: PublicCategory; exams: CategoryExam[]; examsFailed: boolean } | null> => {
   if (!CATEGORY_SLUG_RE.test(slug) || slug.length > 40) return null;
-  const sb = await createServerSupabaseClient();
+  const sb = createPublicServerSupabaseClient();
   const cat = await timed(sb.from("exam_categories").select(CATEGORY_COLUMNS).eq("slug", slug).maybeSingle());
   if (!cat || cat.error) throw new Error("CATEGORY_READ_FAILED");
   const row = cat.data as CategoryRow | null;
@@ -104,4 +105,22 @@ export async function loadLiveCategoryNames(): Promise<string[]> {
     namesFailedAt = Date.now();
     return [];
   }
+}
+
+/**
+ * PERF-HOME-1: the categories for the cached public shell's footer — cached (5 min, tag "categories"), never rejects
+ * (a failed read → null: the footer shows "All exams" only).
+ */
+const readPublicCategoriesCached = unstable_cache(
+  async (): Promise<PublicCategory[]> => {
+    const r = await loadPublicCategories();
+    if (!r) throw new Error("categories read failed"); // not cached
+    return r;
+  },
+  ["public-categories", "v1"],
+  { tags: ["categories"], revalidate: 300 },
+);
+
+export function loadPublicCategoriesCached(): Promise<PublicCategory[] | null> {
+  return readPublicCategoriesCached().catch(() => null);
 }

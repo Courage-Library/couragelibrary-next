@@ -33,10 +33,10 @@ function walk(dir, acc = []) {
 }
 
 const FIXED = {
-  'app/achievements/page.tsx': 'loginRedirectPath("/achievements")',
-  'app/certificates/page.tsx': 'loginRedirectPath("/certificates")',
-  'app/live-tests/[slug]/result/page.tsx': 'loginRedirectPath(`/live-tests/${encodeURIComponent(slug)}/result`)',
-  'app/performance/page.tsx': 'loginRedirectPath(`/performance',
+  'app/(site)/achievements/page.tsx': 'loginRedirectPath("/achievements")',
+  'app/(site)/certificates/page.tsx': 'loginRedirectPath("/certificates")',
+  'app/(site)/live-tests/[slug]/result/page.tsx': 'loginRedirectPath(`/live-tests/${encodeURIComponent(slug)}/result`)',
+  'app/(site)/performance/page.tsx': 'loginRedirectPath(`/performance',
 };
 
 (async () => {
@@ -88,7 +88,7 @@ const FIXED = {
   });
 
   await test('H-04 home page has no developer diagnostics and links to /exams + /auth/login', async () => {
-    const src = read('app/page.tsx');
+    const src = read('app/(public)/page.tsx');
     for (const bad of [/Phase 1B/i, /Supabase/i, /Connection State/i, /couragelibrary-next/i, /HealthService/, /checkSystemHealth/, /process\.env/, /environment/i, /Architect/i]) {
       assert(!bad.test(src), `home page still contains ${bad}`);
     }

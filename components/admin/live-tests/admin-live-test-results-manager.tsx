@@ -17,7 +17,7 @@ import {
   recalculateLiveEventResultsAction,
   voidLiveAttemptAction,
   distributeLiveEventRewardsAction,
-} from "@/app/admin/live-tests/actions";
+} from "@/app/(site)/admin/live-tests/actions";
 import {
   ArrowLeft,
   Trophy,

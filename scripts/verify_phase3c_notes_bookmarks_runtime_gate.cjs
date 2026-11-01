@@ -157,7 +157,7 @@ async function runProductionRuntimeGate() {
   console.log('\n--- SECTION 3: Service Layer & Server Action Invariants ---');
   const mistakeServiceCode = fs.readFileSync('services/mistake.service.ts', 'utf8');
   const bookmarkServiceCode = fs.readFileSync('services/bookmark.service.ts', 'utf8');
-  const actionsCode = fs.readFileSync('app/mistakes/actions.ts', 'utf8');
+  const actionsCode = fs.readFileSync('app/(site)/mistakes/actions.ts', 'utf8');
 
   assert(
     mistakeServiceCode.includes('updateMistakeNote') && mistakeServiceCode.includes('auth.getUser()'),
@@ -197,8 +197,8 @@ async function runProductionRuntimeGate() {
   const noteEditorCode = fs.readFileSync('components/mistakes/mistake-note-editor.tsx', 'utf8');
   const bookmarkBtnCode = fs.readFileSync('components/mistakes/mistake-bookmark-button.tsx', 'utf8');
   const cardCode = fs.readFileSync('components/mistakes/mistake-card.tsx', 'utf8');
-  const detailPageCode = fs.readFileSync('app/mistakes/[id]/page.tsx', 'utf8');
-  const listPageCode = fs.readFileSync('app/mistakes/page.tsx', 'utf8');
+  const detailPageCode = fs.readFileSync('app/(site)/mistakes/[id]/page.tsx', 'utf8');
+  const listPageCode = fs.readFileSync('app/(site)/mistakes/page.tsx', 'utf8');
 
   assert(
     noteEditorCode.includes('750') && noteEditorCode.includes('requestSeqRef'),

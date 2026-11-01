@@ -95,7 +95,7 @@ const flushMicro = async () => { for (let i = 0; i < 20; i++) await Promise.reso
 
 const S = require(path.join(ROOT, 'lib/assessment/answer-sync.ts'));
 const T = require(path.join(ROOT, 'lib/assessment/timer.ts'));
-const PLAYER = 'app/mock-tests/[id]/take/player-client.tsx';
+const PLAYER = 'app/(site)/mock-tests/[id]/take/player-client.tsx';
 const P = code(read(PLAYER));
 
 (async () => {
@@ -231,7 +231,7 @@ const P = code(read(PLAYER));
   });
 
   await test('P0-4 calm: no sound, no pulse / flash; one quiet final-minutes state', () => {
-    const files = ['components/assessment/assessment-timer.tsx', PLAYER, 'components/assessment/adaptive-progress-badge.tsx', 'app/mock-tests/[id]/result/page.tsx', 'components/assessment/submit-dialog.tsx'];
+    const files = ['components/assessment/assessment-timer.tsx', PLAYER, 'components/assessment/adaptive-progress-badge.tsx', 'app/(site)/mock-tests/[id]/result/page.tsx', 'components/assessment/submit-dialog.tsx'];
     for (const f of files) {
       const s = code(read(f));
       assert(!/audio-alerts|MockAudio|new Audio|AudioContext|\.play\(/.test(s), `${f}: sound`);
@@ -302,7 +302,7 @@ const P = code(read(PLAYER));
 
   // F3-polish (owner follow-up B): one static check per item, no screenshots
   await test('F3-polish: watermark density + contrast, submit terms, tabs, palette filters, header labels, quiet report', () => {
-    const P = code(read('app/mock-tests/[id]/take/player-client.tsx'));
+    const P = code(read('app/(site)/mock-tests/[id]/take/player-client.tsx'));
     // B1 watermark: ≤ 1 mark per 400×300 px; question text ≥ 4.5:1 against the watermarked surface (measured)
     const W = read('components/assessment/candidate-security-watermark.tsx');
     const num = (name) => Number((W.match(new RegExp(`export const ${name} = ([0-9.]+)`)) || [])[1]);

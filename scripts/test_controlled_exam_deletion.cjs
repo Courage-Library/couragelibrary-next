@@ -223,7 +223,7 @@ async function runTests() {
 
   // --- SECTION 2: SECURITY & RBAC ---
   await test('D12', 'Unauthenticated delete is rejected via AdminService check', async () => {
-    const actionsCode = fs.readFileSync(path.join(__dirname, '../app/admin/exams/actions.ts'), 'utf-8');
+    const actionsCode = fs.readFileSync(path.join(__dirname, '../app/(site)/admin/exams/actions.ts'), 'utf-8');
     const delActionIdx = actionsCode.indexOf('deleteExamDraftAction');
     const delActionSlice = actionsCode.slice(delActionIdx, delActionIdx + 600);
     assert(delActionSlice.includes('AdminService.checkIsAdminOrStaff()'), 'Must enforce AdminService check');
@@ -231,7 +231,7 @@ async function runTests() {
   });
 
   await test('D13', 'Unauthorized non-admin user is rejected with error', async () => {
-    const actionsCode = fs.readFileSync(path.join(__dirname, '../app/admin/exams/actions.ts'), 'utf-8');
+    const actionsCode = fs.readFileSync(path.join(__dirname, '../app/(site)/admin/exams/actions.ts'), 'utf-8');
     assert(actionsCode.includes('Only verified administrators can delete examinations'), 'Must return unauthorized error message');
   });
 
@@ -446,12 +446,12 @@ async function runTests() {
   });
 
   await test('D38', 'Exam Knowledge Studio route remains functional', async () => {
-    const fileContent = fs.readFileSync(path.join(__dirname, '../app/admin/exams/knowledge/page.tsx'), 'utf-8');
+    const fileContent = fs.readFileSync(path.join(__dirname, '../app/(site)/admin/exams/knowledge/page.tsx'), 'utf-8');
     assert(fileContent.includes('ExamKnowledgeStudioView'), 'Must render ExamKnowledgeStudioView');
   });
 
   await test('D39', 'Published candidate exam hub (/exams/ssc-cgl) remains accessible', async () => {
-    const candidateRoute = fs.readFileSync(path.join(__dirname, '../app/exams/[slug]/page.tsx'), 'utf-8');
+    const candidateRoute = fs.readFileSync(path.join(__dirname, '../app/(site)/exams/[slug]/page.tsx'), 'utf-8');
     assert(candidateRoute.includes('ExamKnowledgeCandidateService'), 'Candidate route must use ExamKnowledgeCandidateService');
   });
 

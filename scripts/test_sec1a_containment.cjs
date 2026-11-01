@@ -270,7 +270,7 @@ const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
     assert(!src.includes('fn_verify_and_fulfill_payment'), 'RPC still referenced');
   });
   await test('S2-7 static: checkout-client.tsx no longer fabricates pay_ ids or calls fulfill-order', async () => {
-    const src = read('app/checkout/[orderId]/checkout-client.tsx');
+    const src = read('app/(site)/checkout/[orderId]/checkout-client.tsx');
     assert(!/`pay_\$\{/.test(src) && !src.includes('mockPaymentId'), 'pay_ id generation present');
     assert(!src.includes('/api/billing/fulfill-order'), 'fulfill-order call present');
   });
@@ -278,9 +278,9 @@ const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
     const src = read('config/payments.ts');
     assert(src.includes('process.env.PAYMENTS_ENABLED === "true"'), 'strict flag check missing');
     assert(!src.includes('process.env.NEXT_PUBLIC_'), 'public flag present');
-    const pricing = read('app/pricing/pricing-client.tsx');
+    const pricing = read('app/(site)/pricing/pricing-client.tsx');
     assert(!pricing.includes('process.env'), 'client reads env');
-    assert(read('app/pricing/page.tsx').includes('isPaymentsEnabled()'), 'pricing page does not pass server flag');
+    assert(read('app/(site)/pricing/page.tsx').includes('isPaymentsEnabled()'), 'pricing page does not pass server flag');
   });
 
   console.log(results.join('\n'));

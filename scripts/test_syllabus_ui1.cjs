@@ -102,11 +102,11 @@ test('P-01 publish: typed confirmation rule; impact computed by the page; RPC-on
   assert(!A.needsTypedConfirm({ ...base, topicsRemoved: [T(0, 0, 0)] }), 'an empty removed topic needs no typed confirmation');
   for (const t of [T(1, 0, 0), T(0, 3, 0), T(0, 0, 2)]) assert(A.needsTypedConfirm({ ...base, topicsRemoved: [t] }), `typed confirmation for ${JSON.stringify(t)}`);
   assert(A.confirmPhrase(4) === 'PUBLISH v4', 'phrase');
-  const act = read('app/admin/syllabus/actions.ts');
+  const act = read('app/(site)/admin/syllabus/actions.ts');
   const pub = act.slice(act.indexOf('export async function publishSyllabusVersionAction'), act.indexOf('export async function archiveSyllabusVersionAction'));
   assert(/const __auth = await guardAdminAction\(\);/.test(pub.split('\n')[1]), 'publish guards first');
   assert(!/\.from\(|createAdminServerSupabaseClient/.test(pub) && /supabase\.rpc\("fn_syllabus_archive_version", \{ p_version_id: id \}\)/.test(pub) && /archiveOtherIds\.includes\(versionId\)/.test(pub), 'RPC-only; the chosen versions archived through the audited RPC; never the published one');
-  const page = read('app/admin/syllabus/[id]/page.tsx');
+  const page = read('app/(site)/admin/syllabus/[id]/page.tsx');
   assert(/ctx\.role === "admin" && v\.status === "DRAFT" \? await computePublishImpact\(v\.id\)/.test(page) && page.indexOf('requireAdminPage') < page.indexOf('computePublishImpact(v.id)'), 'the page computes the impact after its guard (admin + draft)');
   const imp = read('lib/syllabus/publish-impact.ts');
   assert(/import "server-only";/.test(imp) && /\(exam_cycle_id IS NOT DISTINCT|exam_cycle_id \?\? null\) === cycleId/.test(imp) && /v\.tier === null \? 0 : 1/.test(imp), 'mirrors the read model order (cycle, exam-wide, all tiers first)');
@@ -137,7 +137,7 @@ test('V-01 versions: Advanced JSON import + intake pointer, clear cycle note, di
   assert(/<details[^>]*data-advanced-import="">\s*<summary[^>]*>Advanced: import a syllabus JSON \(contract v1\)<\/summary>/.test(v) && /href="\/admin\/syllabus\/intake"/.test(v), 'advanced import + pointer');
   assert(/data-cycle-note=""/.test(v) && /is published for/.test(v) && !/No published version for this cycle yet/.test(v), 'cycle note');
   assert(/by \{pub\.name\}/.test(v) && !/pub\.email/.test(v) && /\{v\.tier \?\? "all tiers"\}/.test(v), 'display name + tier');
-  const p = read('app/admin/syllabus/page.tsx');
+  const p = read('app/(site)/admin/syllabus/page.tsx');
   assert(/from\("user_profiles"\)\.select\("id, full_name"\)/.test(p) && !/actor_email/.test(p), 'names from user_profiles; the e-mail is not even read');
   return 'ok';
 });
@@ -146,14 +146,14 @@ test('C-01 content source: admin-only, TOPIC-only, audited, other metadata kept'
   const s = read('services/taxonomy/taxonomy.service.ts');
   const f = s.slice(s.indexOf('static async setContentSource'), s.indexOf('/** MASTER-TREE UX: the node lesson state per node'));
   assert(/const ctx = await this\.requireAdmin\(\);/.test(f) && /row\.node_type !== 'TOPIC'/.test(f) && /\{ \.\.\.\(row\.metadata as Record<string, Json>\) \}/.test(f) && /this\.audit\(ctx, 'TAXONOMY_NODE_CONTENT_SOURCE'/.test(f), 'service rules');
-  const a = read('app/admin/taxonomy/actions.ts');
+  const a = read('app/(site)/admin/taxonomy/actions.ts');
   const fn = a.slice(a.indexOf('export async function setTaxonomyContentSourceAction'));
   assert(/const __auth = await guardAdminAction\(\)/.test(fn.split('\n')[1]), 'action guards first');
   return 'ok';
 });
 
 test('S-01 shell: containing blocks + one scroller; no nested scroll in the intake guide; the Playwright gate has a negative control', () => {
-  const l = read('app/admin/layout.tsx');
+  const l = read('app/(site)/admin/layout.tsx');
   assert(/data-admin-shell="" data-no-glass="" className="relative flex h-dvh max-h-dvh w-full flex-col overflow-hidden/.test(l) && /id="admin-content" tabIndex=\{-1\} className="relative min-h-0 min-w-0 flex-1 overflow-y-auto/.test(l), 'shell');
   const sb = read('components/admin/admin-sidebar.tsx');
   assert((sb.match(/<aside data-admin-sidebar=""/g) || []).length === 2, 'both sidebars marked');

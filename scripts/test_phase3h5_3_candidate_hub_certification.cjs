@@ -541,14 +541,14 @@ async function runCertificationSuite() {
 
   // --- V09: SEO Metadata & Clean URLs ---
   test('V09: Canonical URLs and page metadata contain clean semantic paths (no internal UUIDs)', () => {
-    const slugPageCode = fs.readFileSync(path.join(rootDir, 'app/exams/[slug]/page.tsx'), 'utf8');
+    const slugPageCode = fs.readFileSync(path.join(rootDir, 'app/(site)/exams/[slug]/page.tsx'), 'utf8');
     assert.ok(slugPageCode.includes('canonicalUrl: ' + String.fromCharCode(96) + '/exams/' + String.fromCharCode(36) + '{slug}' + String.fromCharCode(96)));
     assert.ok(!slugPageCode.includes('current_published_version_id'));
   });
 
   // --- V10: Robots Directives & Canonical URLs ---
   test('V10: SEO metadata sets index/follow for published views and noindex for 404s', () => {
-    const slugPageCode = fs.readFileSync(path.join(rootDir, 'app/exams/[slug]/page.tsx'), 'utf8');
+    const slugPageCode = fs.readFileSync(path.join(rootDir, 'app/(site)/exams/[slug]/page.tsx'), 'utf8');
     assert.ok(slugPageCode.includes('noIndex: true'));
   });
 

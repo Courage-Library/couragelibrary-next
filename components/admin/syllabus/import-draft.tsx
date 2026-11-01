@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/input";
-import { importSyllabusDraftAction, previewSyllabusImportAction, type SyllabusImportPreview } from "@/app/admin/syllabus/actions";
+import { importSyllabusDraftAction, previewSyllabusImportAction, type SyllabusImportPreview } from "@/app/(site)/admin/syllabus/actions";
 import { IMPORT_MAX_BYTES, type ImportError } from "@/lib/syllabus/import-contract";
 import type { SyllabusVersionRow } from "@/types/syllabus";
 

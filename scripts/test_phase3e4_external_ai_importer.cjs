@@ -328,7 +328,7 @@ async function main() {
   });
 
   runTest('T02', 'Unauthorized context access throws error in server action guard', async () => {
-    const { generateExternalAiPromptAction } = require('../app/admin/content/actions');
+    const { generateExternalAiPromptAction } = require('../app/(site)/admin/content/actions');
     assert(typeof generateExternalAiPromptAction === 'function', 'generateExternalAiPromptAction should exist');
   });
 
@@ -819,7 +819,7 @@ async function main() {
   });
 
   runTest('T53', 'TypeScript server actions export all 3 Phase 3E.4 action functions', () => {
-    const actions = require('../app/admin/content/actions');
+    const actions = require('../app/(site)/admin/content/actions');
     assert(typeof actions.generateExternalAiPromptAction === 'function', 'generateExternalAiPromptAction must be exported');
     assert(typeof actions.validateExternalAiContentAction === 'function', 'validateExternalAiContentAction must be exported');
     assert(typeof actions.importExternalAiContentAction === 'function', 'importExternalAiContentAction must be exported');

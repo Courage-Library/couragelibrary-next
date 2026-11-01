@@ -272,12 +272,12 @@ async function runTask5Certification() {
   const cardComponentPath = path.join(process.cwd(), 'components/mistakes/mistake-longitudinal-card.tsx');
   assert(fs.existsSync(cardComponentPath), 'T76', 'MistakeLongitudinalCard component exists in components/mistakes/');
 
-  const actionsFilePath = path.join(process.cwd(), 'app/mistakes/actions.ts');
+  const actionsFilePath = path.join(process.cwd(), 'app/(site)/mistakes/actions.ts');
   const actionsContent = fs.readFileSync(actionsFilePath, 'utf8');
   assert(actionsContent.includes('fetchLongitudinalOverviewAction'), 'T77', 'actions.ts exports fetchLongitudinalOverviewAction server action');
   assert(actionsContent.includes('createServerSupabaseClient'), 'T78', 'actions.ts enforces secure server-side session retrieval');
 
-  const pageFilePath = path.join(process.cwd(), 'app/mistakes/page.tsx');
+  const pageFilePath = path.join(process.cwd(), 'app/(site)/mistakes/page.tsx');
   const pageContent = fs.readFileSync(pageFilePath, 'utf8');
   assert(pageContent.includes('MistakeLongitudinalCard'), 'T79', 'MistakeVaultPage renders MistakeLongitudinalCard component');
   assert(pageContent.includes('getLongitudinalOverview'), 'T80', 'MistakeVaultPage queries initial longitudinal data during server render');

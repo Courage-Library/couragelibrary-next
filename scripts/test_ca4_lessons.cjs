@@ -321,11 +321,11 @@ test('S-01 admin only: nav + routes, page guards, actions guarded first, client 
   for (const r of ['/admin/prompts', '/admin/lessons/new', '/admin/lessons/[id]/translate']) assert(nav.includes(`  "${r}",`), `ADMIN_ONLY_ROUTES: ${r}`);
   // ADMIN-IA-1: the generator is the Lessons page's "New lesson" action (a verb, never a sidebar item); templates in Settings
   assert(/\{ label: "New lesson", href: "\/admin\/lessons\/new", access: "admin", inPage: true \}/.test(nav) && /\{ label: "Prompt templates", href: "\/admin\/prompts", icon: "settings", access: "admin" \}/.test(nav), 'nav');
-  for (const f of ['app/admin/prompts/page.tsx', 'app/admin/lessons/new/page.tsx', 'app/admin/lessons/[id]/translate/page.tsx']) {
+  for (const f of ['app/(site)/admin/prompts/page.tsx', 'app/(site)/admin/lessons/new/page.tsx', 'app/(site)/admin/lessons/[id]/translate/page.tsx']) {
     const s = read(f);
     assert(/await requireAdminPage\(\{ path: [^}]*\}\)/.test(s) && !/allowStaff/.test(s), `${f}: admin page guard`);
   }
-  for (const [f, n] of [['app/admin/prompts/actions.ts', 2], ['app/admin/lessons/actions.ts', 8 /* + CA-7 launch, exam note draft / publish; EXAM-NOTE-PROMPT-1 copy prompt */]]) {
+  for (const [f, n] of [['app/(site)/admin/prompts/actions.ts', 2], ['app/(site)/admin/lessons/actions.ts', 8 /* + CA-7 launch, exam note draft / publish; EXAM-NOTE-PROMPT-1 copy prompt */]]) {
     const fns = read(f).split(/export async function /).slice(1);
     assert(fns.length === n, `${f}: ${fns.length} actions`);
     for (const x of fns) {
@@ -334,7 +334,7 @@ test('S-01 admin only: nav + routes, page guards, actions guarded first, client 
       assert(at > 0 && b > 0 && x.slice(b + 2, at).trim() === '' && !/allowStaff/.test(x), `${f}: not guarded first: ${x.slice(0, 40)}`);
     }
   }
-  const pub = read('app/admin/lessons/actions.ts');
+  const pub = read('app/(site)/admin/lessons/actions.ts');
   assert(/publishChecklist\(versionId\)[\s\S]{0,200}checklistPasses\(checklist\)[\s\S]{0,300}code: "CHECKLIST"[\s\S]{0,200}LessonAdminService\.publish\(versionId\)/.test(pub), 'the checklist gate runs before publish');
   for (const [f, ms] of [['services/prompts/prompt-template.service.ts', ['getActiveBody', 'list', 'saveDraft', 'activate']], ['services/lessons/lesson-authoring.service.ts', ['listNodes', 'generator', 'saveGeneratedDraft', 'translation', 'saveTranslationDraft', 'publishChecklist']]]) {
     const s = read(f);
@@ -371,7 +371,7 @@ test('R-01 reader: node lessons roll up to their topic; Hindi when published (ou
   for (const x of ["'NODE_LESSON'", 'isServableNodeRow', 'topicsOf', 'servableNodeLessons', "userContentLanguage()", "'HI_OUTDATED'", "'HI_COMING_SOON'", ".eq('language', 'hi')", ".eq('is_current', true)", "hi.translated_from_version_id === ver.id ? 'HI' : 'HI_OUTDATED'"])
     assert(r.includes(x), `resolver: ${x}`);
   assert(/if \(!doc\.is_locked && ver\?\.id\)/.test(r), 'bodies only for unlocked viewers');
-  const page = read('app/articles/[slug]/page.tsx');
+  const page = read('app/(site)/articles/[slug]/page.tsx');
   assert(/Hindi coming soon\. This lesson is shown in English for now\./.test(page) && /<div lang=\{article\.lessonLanguage\}>/.test(page) && /NODE_LESSON: "Lesson"/.test(page), 'article page');
   return 'resolver + article';
 });

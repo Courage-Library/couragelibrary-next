@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { executeBulkImportAction } from "@/app/admin/actions";
+import { executeBulkImportAction } from "@/app/(site)/admin/actions";
 import { BulkImportResult } from "@/lib/admin/bulk-importer";
 import { Button } from "@/components/ui/legacy/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/legacy/card";

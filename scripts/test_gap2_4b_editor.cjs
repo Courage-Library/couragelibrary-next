@@ -136,7 +136,7 @@ function loadTs(rel, stubs) {
   return m.exports;
 }
 
-const ACTION_FILE = 'app/admin/syllabus/actions.ts';
+const ACTION_FILE = 'app/(site)/admin/syllabus/actions.ts';
 const ACTIONS = ['createSyllabusDraftAction', 'upsertSyllabusNodeAction', 'moveSyllabusNodeAction', 'deleteSyllabusNodeAction', 'setUnitMappingsAction', 'validateSyllabusVersionAction', 'publishSyllabusVersionAction', 'archiveSyllabusVersionAction',
   'previewSyllabusImportAction', 'importSyllabusDraftAction'];
 // SYL-IMPORT-1: the import preview is read-only (validator + taxonomy read through lib/syllabus/import-catalog); no RPC
@@ -293,7 +293,7 @@ function makeHarness() {
 
   await test('E-04 English only (decision #35, clarified by #85): no UI-language / medium switch, no Hindi UI labels, lang="hi" only on marked content inputs / displays', async () => {
     const walk = (dir) => fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(`${dir}/${e.name}`) : /\.tsx?$/.test(e.name) ? [`${dir}/${e.name}`] : []));
-    const files = [...walk('app/admin'), ...walk('components/admin')].filter((f) => !f.endsWith('.ts') || f.endsWith('page.ts'));
+    const files = [...walk('app/(site)/admin'), ...walk('components/admin')].filter((f) => !f.endsWith('.ts') || f.endsWith('page.ts'));
     assert(files.length >= 30, `admin UI files scanned ${files.length} (min 30)`); // GATE-HYGIENE-1
     const bad = [];
     let contentInputs = 0;

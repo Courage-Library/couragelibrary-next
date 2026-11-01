@@ -738,7 +738,7 @@ async function runAllTests() {
   });
 
   runTest('T42', 'Server action regenerateSectionAction is exported from actions.ts', () => {
-    const actionsContent = fs.readFileSync(path.resolve(__dirname, '../app/admin/content/actions.ts'), 'utf8');
+    const actionsContent = fs.readFileSync(path.resolve(__dirname, '../app/(site)/admin/content/actions.ts'), 'utf8');
     assert.ok(actionsContent.includes('export async function regenerateSectionAction'));
   });
 

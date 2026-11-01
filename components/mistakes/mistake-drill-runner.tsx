@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/legacy/button";
 import { Badge } from "@/components/ui/legacy/badge";
 import { Card } from "@/components/ui/legacy/card";
 import { DrillQuestion, DrillSubmissionResult } from "@/services/mistake.service";
-import { submitDrillAction } from "@/app/mistakes/actions";
+import { submitDrillAction } from "@/app/(site)/mistakes/actions";
 import { MistakeBookmarkButton } from "@/components/mistakes/mistake-bookmark-button";
 import { MistakeDrillResult } from "@/components/mistakes/mistake-drill-result";
 import {

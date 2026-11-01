@@ -45,7 +45,12 @@ const assert = (c, m) => {
 const clone = (x) => JSON.parse(JSON.stringify(x));
 
 /** the page file of an admin href (exact route; a dynamic sibling never counts) */
-const pageOf = (href) => path.join(ROOT, 'app', ...href.split('?')[0].split('/').filter(Boolean), 'page.tsx');
+// PERF-HOME-1: pages live in route groups (app/(site), app/(public)) — a group adds no URL segment
+const pageOf = (href) => {
+  const segs = href.split('?')[0].split('/').filter(Boolean);
+  const all = ['', '(site)', '(public)'].map((g) => path.join(ROOT, 'app', ...(g ? [g] : []), ...segs, 'page.tsx'));
+  return all.find((f) => fs.existsSync(f)) || all[1];
+};
 const hasPage = (href) => fs.existsSync(pageOf(href));
 /** "admin" when the page's requireAdminPage has no allowStaff, else "staff" */
 const guardOf = (href) => {
@@ -197,15 +202,15 @@ test('N-8 breadcrumbs, tabs, Ctrl-K entries come from the nav', () => {
   assert(e.some((x) => x.kind === 'action' && x.label === 'Start intake') && e.some((x) => x.kind === 'page' && x.label === 'Questions › Review'), 'search entries');
   const bar = read('components/admin/admin-section-bar.tsx');
   assert(/aria-label="Breadcrumb"/.test(bar) && /aria-current=\{on \? "page" : undefined\}/.test(bar) && /filter\(\(x\) => !x\.inPage\)/.test(bar), 'section bar');
-  assert(/<AdminSectionBar nav=\{nav\} \/>/.test(read('app/admin/layout.tsx')), 'the layout renders it with the role-filtered nav');
+  assert(/<AdminSectionBar nav=\{nav\} \/>/.test(read('app/(site)/admin/layout.tsx')), 'the layout renders it with the role-filtered nav');
   return 'ok';
 });
 test('N-9 retired code is gone (Descriptive create, orphan hub, Content Studio) and no table was touched', () => {
-  for (const f of ['app/admin/descriptive/page.tsx', 'components/admin/admin-descriptive-manager.tsx', 'app/admin/mock-tests-management/page.tsx', 'app/admin/content/page.tsx', 'app/admin/content/actions.ts', 'components/admin/content-studio', 'app/admin/categories/page.tsx', 'components/admin/exam-onboarding/ai-assisted-onboarding-studio.tsx'])
+  for (const f of ['app/(site)/admin/descriptive/page.tsx', 'components/admin/admin-descriptive-manager.tsx', 'app/(site)/admin/mock-tests-management/page.tsx', 'app/(site)/admin/content/page.tsx', 'app/(site)/admin/content/actions.ts', 'components/admin/content-studio', 'app/(site)/admin/categories/page.tsx', 'components/admin/exam-onboarding/ai-assisted-onboarding-studio.tsx'])
     assert(!fs.existsSync(path.join(ROOT, f)), `${f} still exists`);
-  const a = read('app/admin/actions.ts');
+  const a = read('app/(site)/admin/actions.ts');
   assert(!/createDescriptiveAction|createCategoryAction|updateCategoryAction|toggleCategoryStatusAction|descriptive_prompts/.test(a), 'dead actions removed');
-  const legacy = read('app/admin/lessons/legacy/page.tsx');
+  const legacy = read('app/(site)/admin/lessons/legacy/page.tsx');
   assert(!/\.insert\(|\.update\(|\.delete\(|\.upsert\(|\.rpc\(|"use server"/.test(legacy), 'the legacy tab is read only');
   return 'ok';
 });

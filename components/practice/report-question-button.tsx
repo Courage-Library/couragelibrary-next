@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/input";
 import { Radio } from "@/components/ui/radio";
 import { PRACTICE_COPY } from "@/content/practice";
 import { REPORT_NOTE_MAX, REPORT_REASONS, type ReportReason } from "@/lib/practice/engine";
-import { reportQuestionAction } from "@/app/practice/actions";
+import { reportQuestionAction } from "@/app/(site)/practice/actions";
 
 const C = PRACTICE_COPY.report;
 const DONE = new Set(["REPORTED", "ALREADY_REPORTED"]);

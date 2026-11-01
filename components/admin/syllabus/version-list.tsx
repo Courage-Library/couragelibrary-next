@@ -11,7 +11,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
 import { formatDateShort } from "@/lib/format";
-import { archiveSyllabusVersionAction, createSyllabusDraftAction } from "@/app/admin/syllabus/actions";
+import { archiveSyllabusVersionAction, createSyllabusDraftAction } from "@/app/(site)/admin/syllabus/actions";
 import { SyllabusImportDraft } from "@/components/admin/syllabus/import-draft";
 import type { SyllabusVersionRow } from "@/types/syllabus";
 

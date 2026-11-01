@@ -60,7 +60,7 @@ test('S-01 server: FREE_N refused with the reason before the database; a failed 
   assert(/if \(!isPaymentsEnabled\(\)\) return "PAYMENTS_OFF";/.test(svc) && /\.from\("pro_plan_versions"\)\.select\("id", \{ count: "exact", head: true \}\)\.eq\("active", true\);\s*return freeNBlock\(true, error \? 0 : \(count \?\? 0\)\);/.test(svc), 'payments flag + active plan, fail closed');
   assert(/if \(status === "LIVE" && accessMode === "FREE_N" && view\.data\.freeNBlock\) return fail\("FREE_N_BLOCKED", FREE_N_BLOCK_MESSAGE\[view\.data\.freeNBlock\]\);/.test(svc), 'refused before the RPC');
   assert(svc.indexOf('FREE_N_BLOCKED') < svc.indexOf('rpc("fn_exam_course_launch_set"'), 'the refusal comes first');
-  const act = read('app/admin/lessons/actions.ts');
+  const act = read('app/(site)/admin/lessons/actions.ts');
   assert(/if \(accessMode !== "FREE_ALL" && accessMode !== "FREE_N"\) return \{ success: false, code: "VALIDATION", error: "Choose an access mode\." \};/.test(act), 'action validates the mode');
   const st = read('lib/learning/lesson-access-settings.ts');
   assert(/if \(!isPaymentsEnabled\(\)\) return NO_PAYWALL;/.test(st) && /db\.rpc\("fn_gated_course_document_ids"\)/.test(st) && !/fn_live_course_document_ids/.test(st), 'gating reads LIVE FREE_N lessons only; payments off → none');

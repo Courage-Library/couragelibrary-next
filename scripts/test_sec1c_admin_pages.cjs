@@ -1,7 +1,7 @@
 /**
  * COURAGE LIBRARY — SEC-1C ADMIN PAGE AUTHORIZATION TEST SUITE (layouts are not security boundaries)
  *
- * Part 1  static: every app/admin/**\/page.tsx (and layout, generateMetadata) calls requireAdminPage as
+ * Part 1  static: every app/(site)/admin/**\/page.tsx (and layout, generateMetadata) calls requireAdminPage as
  *         its first awaited call, before any data fetch; admin-only pages never pass allowStaff; every
  *         page is force-dynamic; no client page.tsx; middleware redirects anonymous /admin page
  *         requests and makes no role decision; no data-fetching server component in components/admin.
@@ -129,8 +129,8 @@ const walk = (dir, acc = []) => {
 };
 const rel = (p) => path.relative(ROOT, p).replace(/\\/g, '/');
 
-const PAGES = walk(path.join(ROOT, 'app/admin')).filter((f) => /[\\/]page\.tsx$/.test(f)).map(rel).sort();
-const segOf = (p) => p.replace(/^app\/admin\/?/, '').replace(/\/?page\.tsx$/, '');
+const PAGES = walk(path.join(ROOT, 'app/(site)/admin')).filter((f) => /[\\/]page\.tsx$/.test(f)).map(rel).sort();
+const segOf = (p) => p.replace(/^app\/(?:\(site\)\/)?admin\/?/, '').replace(/\/?page\.tsx$/, ''); // PERF-HOME-1: app/(site)/admin
 // Decision #16 + SEC-1C: admin-only pages. Every other admin page allows staff.
 // SEC-1D: + gamification, billing, live-tests/[id]/results (PII pages).
 // F2 (#79): question reports are admin-only (reports → redirect to question-reports)
@@ -162,8 +162,8 @@ function firstGuardViolation(body) {
 
 (async () => {
   // ===================== Part 1: static =====================
-  await test(`S-01 inventory: ${PAGES.length} app/admin page.tsx files (expected 48: +design-system UX-1a, +syllabus + syllabus/[id] GAP2-4b, −syllabus-reconciliation GAP2-4c, +question-reports F2, +content/topics F6, +support F11, +mfa AUTH-1 2b-3, +pro-library F9-B, +review/focus + settings Courage Studio #84, +syllabus/intake + intake/[id] CA-2, +lessons + lessons/[id] CA-3, +lessons/generate + lessons/[id]/translate + prompts CA-4, +lessons/coverage + lessons/notes CA-7; ADMIN-IA-1 −content −content/topics −descriptive −categories −mock-tests-management −reports +lessons/legacy = 47; HOME-1 +exams/categories = 48)`, async () => {
-    assert(PAGES.length === 48 && PAGES.includes('app/admin/exams/categories/page.tsx'), `found ${PAGES.length}`);
+  await test(`S-01 inventory: ${PAGES.length} app/(site)/admin page.tsx files (expected 48: +design-system UX-1a, +syllabus + syllabus/[id] GAP2-4b, −syllabus-reconciliation GAP2-4c, +question-reports F2, +content/topics F6, +support F11, +mfa AUTH-1 2b-3, +pro-library F9-B, +review/focus + settings Courage Studio #84, +syllabus/intake + intake/[id] CA-2, +lessons + lessons/[id] CA-3, +lessons/generate + lessons/[id]/translate + prompts CA-4, +lessons/coverage + lessons/notes CA-7; ADMIN-IA-1 −content −content/topics −descriptive −categories −mock-tests-management −reports +lessons/legacy = 47; HOME-1 +exams/categories = 48)`, async () => {
+    assert(PAGES.length === 48 && PAGES.includes('app/(site)/admin/exams/categories/page.tsx'), `found ${PAGES.length}`);
   });
   await test('S-02 every admin page: requireAdminPage is the FIRST awaited call (before any data/service/gate)', async () => {
     const bad = [];
@@ -178,9 +178,9 @@ function firstGuardViolation(body) {
         if (mv) bad.push(`${p}#generateMetadata: ${mv}`);
       }
     }
-    const lb = fnBody(read('app/admin/layout.tsx'), /export default (async )?function \w*\s*\(/);
+    const lb = fnBody(read('app/(site)/admin/layout.tsx'), /export default (async )?function \w*\s*\(/);
     const lv = firstGuardViolation(lb || '');
-    if (lv) bad.push(`app/admin/layout.tsx: ${lv}`);
+    if (lv) bad.push(`app/(site)/admin/layout.tsx: ${lv}`);
     assert(bad.length === 0, bad.join('\n        '));
     return `${PAGES.length} pages + layout`;
   });
@@ -200,7 +200,7 @@ function firstGuardViolation(body) {
     const bad = PAGES.filter((p) => !/export const dynamic = "force-dynamic"/.test(read(p)));
     assert(bad.length === 0, bad.join(', '));
   });
-  await test('S-05 no client page.tsx under app/admin (client views sit behind a guarded server wrapper)', async () => {
+  await test('S-05 no client page.tsx under app/(site)/admin (client views sit behind a guarded server wrapper)', async () => {
     const bad = PAGES.filter((p) => /^\s*["']use client["']/.test(read(p)));
     assert(bad.length === 0, bad.join(', '));
   });
@@ -335,7 +335,7 @@ function firstGuardViolation(body) {
     assert(bad.length === 0, bad.join('\n        '));
   });
   await test('P-layout: anonymous → login redirect, student → notFound, staff/admin → rendered', async () => {
-    const L = require(path.join(ROOT, 'app/admin/layout.tsx')).default;
+    const L = require(path.join(ROOT, 'app/(site)/admin/layout.tsx')).default;
     const out = {};
     for (const [k, u] of Object.entries({ anon: USERS.anon, student: USERS.student, staff: USERS.staff, admin: USERS.admin })) {
       state.user = u;

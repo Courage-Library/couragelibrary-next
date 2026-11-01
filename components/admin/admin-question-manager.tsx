@@ -13,7 +13,7 @@ import {
   updateQuestionHierarchyAction,
   deleteQuestionAction,
   uploadBulkImportImageAction,
-} from "@/app/admin/actions";
+} from "@/app/(site)/admin/actions";
 import { StudioDrawer } from "@/components/admin/studio/studio-drawer";
 import { StudioField, StudioPageHeader, studioControl, studioPrimaryAction, studioQuietAction } from "@/components/admin/studio/studio-page";
 import { Card } from "@/components/ui/legacy/card";

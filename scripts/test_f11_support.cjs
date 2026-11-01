@@ -55,7 +55,8 @@ Module._load = function (request, parent, isMain) {
 };
 const routeExists = (href) => {
   const p = href.split(/[?#]/)[0].replace(/^\//, '');
-  return fs.existsSync(path.join(ROOT, 'app', p, 'page.tsx')) || fs.existsSync(path.join(ROOT, 'app', p, 'page.ts'));
+  // PERF-HOME-1: route groups add no URL segment
+  return ['', '(site)', '(public)'].some((g) => fs.existsSync(path.join(ROOT, 'app', g, p, 'page.tsx')) || fs.existsSync(path.join(ROOT, 'app', g, p, 'page.ts')));
 };
 const text = (html) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
 
@@ -63,7 +64,7 @@ const text = (html) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
   const S = require(path.join(ROOT, 'content/support.ts'));
 
   await test('SP-01 help centre: every topic rendered, every link real, nothing unbuilt promised', () => {
-    const { default: HelpPage } = require(path.join(ROOT, 'app/help/page.tsx'));
+    const { default: HelpPage } = require(path.join(ROOT, 'app/(site)/help/page.tsx'));
     const html = renderToStaticMarkup(h(HelpPage));
     const t = text(html);
     for (const topic of S.HELP_PAGE.topics) {
@@ -87,7 +88,7 @@ const text = (html) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
     const TEL = `tel:${want.phone.replace(/[^+\d]/g, '')}`; // derived from the single source, never retyped
     assert(S.GRIEVANCE_PHONE_HREF === TEL && /^tel:\+91\d{10}$/.test(TEL), S.GRIEVANCE_PHONE_HREF);
     assert(/24 hours/.test(S.GRIEVANCE_TIMELINES.acknowledge) && /15 days/.test(S.GRIEVANCE_TIMELINES.resolve), 'timelines');
-    const { default: GrievancePage } = require(path.join(ROOT, 'app/grievance/page.tsx'));
+    const { default: GrievancePage } = require(path.join(ROOT, 'app/(site)/grievance/page.tsx'));
     for (const on of [false, true]) {
       if (on) process.env.SUPPORT_TICKETS_ENABLED = 'true'; else delete process.env.SUPPORT_TICKETS_ENABLED;
       const html = renderToStaticMarkup(h(GrievancePage));
@@ -99,13 +100,13 @@ const text = (html) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
     }
     delete process.env.SUPPORT_TICKETS_ENABLED;
     // no placeholder anywhere (content, pages, gate-visible copy)
-    for (const f of ['content/support.ts', 'app/grievance/page.tsx', 'app/help/page.tsx']) assert(!/will be published|Until then|OWNER: fill|officerPending|grievanceOfficerReady|placeholder|: null,/i.test(read(f)), `${f}: placeholder left`);
+    for (const f of ['content/support.ts', 'app/(site)/grievance/page.tsx', 'app/(site)/help/page.tsx']) assert(!/will be published|Until then|OWNER: fill|officerPending|grievanceOfficerReady|placeholder|: null,/i.test(read(f)), `${f}: placeholder left`);
     // single source: the officer values are typed only in content/support.ts
     const walk = (d) => fs.readdirSync(path.join(ROOT, d), { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(`${d}/${e.name}`) : /\.(tsx?)$/.test(e.name) ? [`${d}/${e.name}`] : []));
     const dup = ['app', 'components', 'content', 'lib'].flatMap(walk).filter((f) => f !== 'content/support.ts' && /83606 03173|Bus Stop Ramaipur|Founder & Grievance Officer/.test(read(f)));
     assert(dup.length === 0, `officer details duplicated in ${dup.join(', ')}`);
     // /help footer shows them from the same source
-    const { default: HelpPage } = require(path.join(ROOT, 'app/help/page.tsx'));
+    const { default: HelpPage } = require(path.join(ROOT, 'app/(site)/help/page.tsx'));
     const help = renderToStaticMarkup(h(HelpPage));
     assert(/data-help-grievance-officer=""/.test(help) && /Founder &amp; Grievance Officer(?:<!-- -->)?: (?:<!-- -->)?Jan/.test(help) && help.includes(`href="${TEL}"`), 'help footer');
   });
@@ -114,7 +115,7 @@ const text = (html) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
     const pp = read('content/public-pages.ts');
     assert(/\{ href: "\/help", label: "Help" \}/.test(pp) && /\{ href: "\/grievance", label: "Grievance redressal" \}/.test(pp), 'footer links');
     assert(/"\/help", "\/grievance"/.test(read('app/sitemap.ts')), 'sitemap');
-    for (const f of ['app/help/page.tsx', 'app/grievance/page.tsx']) {
+    for (const f of ['app/(site)/help/page.tsx', 'app/(site)/grievance/page.tsx']) {
       const s = read(f);
       const links = (s.match(/<(?:Link|a)\b[^>]*className="[^"]*"/g) || []).filter((l) => !/mailto:\$\{SUPPORT_EMAIL\}\?subject/.test(l));
       assert(links.every((l) => /min-h-12|inline/.test(l) || /focus-ring/.test(l)), `${f}: link targets`);

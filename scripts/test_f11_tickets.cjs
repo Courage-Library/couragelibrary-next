@@ -107,7 +107,7 @@ const ID = '11111111-2222-4333-8444-555555555555';
   });
 
   await test('TK-03 actions: flag-gated, validated, fixed codes; staff update guarded + audited, status / reply only', async () => {
-    const A = require(path.join(ROOT, 'app/help/tickets/actions.ts'));
+    const A = require(path.join(ROOT, 'app/(site)/help/tickets/actions.ts'));
     delete process.env.SUPPORT_TICKETS_ENABLED;
     assert((await A.createTicketAction({ category: 'TEST', subject: 'Timer wrong', message: 'It jumped a minute.' })).code === 'FAILED' && rpcCalls.length === 0, 'flag off');
     process.env.SUPPORT_TICKETS_ENABLED = 'true';
@@ -129,12 +129,12 @@ const ID = '11111111-2222-4333-8444-555555555555';
   });
 
   await test('TK-04 pages flag-gated; own tickets via RLS; one primary; help link only with the flag', () => {
-    for (const f of ['app/help/tickets/page.tsx', 'app/help/tickets/new/page.tsx']) assert(/if \(!isSupportTicketsEnabled\(\)\) notFound\(\);/.test(code(read(f))), `${f}: 404 when off`);
-    const list = code(read('app/help/tickets/page.tsx'));
+    for (const f of ['app/(site)/help/tickets/page.tsx', 'app/(site)/help/tickets/new/page.tsx']) assert(/if \(!isSupportTicketsEnabled\(\)\) notFound\(\);/.test(code(read(f))), `${f}: 404 when off`);
+    const list = code(read('app/(site)/help/tickets/page.tsx'));
     assert(/supabase\.from\("support_tickets"\)/.test(list) && !/createAdminServerSupabaseClient/.test(list), 'student list uses the session (RLS), never the service role');
     assert((list.match(/<ButtonLink\b/g) || []).length === 1, 'ONE primary ("New ticket")');
-    assert(/\{isSupportTicketsEnabled\(\) && \(\s*<Link href="\/help\/tickets\/new"/.test(code(read('app/help/page.tsx'))), 'help page link only with the flag');
-    assert(/requireAdminPage\(\{ allowStaff: true, path: "\/admin\/support" \}\)/.test(code(read('app/admin/support/page.tsx'))), 'admin queue guarded');
+    assert(/\{isSupportTicketsEnabled\(\) && \(\s*<Link href="\/help\/tickets\/new"/.test(code(read('app/(site)/help/page.tsx'))), 'help page link only with the flag');
+    assert(/requireAdminPage\(\{ allowStaff: true, path: "\/admin\/support" \}\)/.test(code(read('app/(site)/admin/support/page.tsx'))), 'admin queue guarded');
   });
 
   console.log(`\nF11 tickets: ${passed}/${passed + failed} passed`);

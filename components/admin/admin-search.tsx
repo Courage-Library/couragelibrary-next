@@ -5,7 +5,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import { Dialog } from "@/components/ui/dialog";
 import { StatusChip } from "@/components/admin/status-chip";
-import { adminSearchAction } from "@/app/admin/search/actions";
+import { adminSearchAction } from "@/app/(site)/admin/search/actions";
 import { searchEntries, type NavGroup } from "@/lib/admin/nav";
 import type { AdminSearchResult, SearchGroup } from "@/lib/admin/search-core";
 

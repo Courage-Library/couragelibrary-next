@@ -146,7 +146,7 @@ test('SP-04 service: auto checks before the transition RPC; Q4 before the publis
 });
 
 test('SP-05 focus review: guard first, ids only, existing guarded actions, Q3 confirmation', () => {
-  const p = code(read('app/admin/questions/review/page.tsx'));
+  const p = code(read('app/(site)/admin/questions/review/page.tsx'));
   const body = p.slice(p.indexOf('export default async function FocusReviewPage('));
   assert(/await requireAdminPage\(\{ allowStaff: true, path: "\/admin\/questions\/review" \}\)/.test(body) && body.indexOf('await requireAdminPage') === body.indexOf('await '), 'guard first (staff + admin)');
   assert(/listReviewQueue\(\{ lifecycleStatus: "IN_REVIEW", limit: 200 \}\)/.test(body) && /\.map\(\(q\) => q\.versionId\)/.test(body), 'IN_REVIEW queue; only version ids passed');
@@ -220,7 +220,7 @@ test('SP-07 colours: dark surround token, white card, mission text ≥ 4.5:1 at 
   assert(!/accent-300/.test(blocks[0]) && /radial-gradient\(circle at 100% 0%, color-mix\(in srgb, var\(--color-accent-300\)/.test(blocks[1]), 'cyan glow top-right, only ≥ 640 px');
   const tint = (b) => [...b.matchAll(/var\(--color-primary-700\) (\d+)%, transparent\) (\d+)%/g)].map((x) => ({ a: Number(x[1]) / 100, at: Number(x[2]) }));
   const wide = tint(blocks[1]);
-  const col = Number((read('app/admin/page.tsx').match(/<div className="relative flex flex-1 flex-col sm:max-w-\[(\d+)%\]">/) || [])[1]);
+  const col = Number((read('app/(site)/admin/page.tsx').match(/<div className="relative flex flex-1 flex-col sm:max-w-\[(\d+)%\]">/) || [])[1]);
   assert(col > 0 && wide.length === 2 && wide[0].at === 0 && wide[1].at >= col, `tint (${JSON.stringify(wide)}) covers the whole text column (0–${col} %)`);
   const glow = Number((blocks[1].match(/var\(--color-accent-300\) 60%, transparent\) 0, transparent (\d+)%\)/) || [])[1]);
   assert(glow > 0 && glow <= 100 - col, `the glow (radius ${glow} %) stays right of the text column`);
@@ -238,13 +238,13 @@ test('SP-07 colours: dark surround token, white card, mission text ≥ 4.5:1 at 
 });
 
 test('SP-08 settings page admin-only + read-only; sidebar badge is a count that never breaks the layout', () => {
-  const p = code(read('app/admin/system/page.tsx'));
+  const p = code(read('app/(site)/admin/system/page.tsx'));
   assert(/await requireAdminPage\(\{ path: "\/admin\/system" \}\);/.test(p) && !/allowStaff/.test(p), 'admin only');
   assert(!/"use server"|<form|action=|\.(insert|update|upsert|delete)\(/.test(p), 'read only');
   const t = code(read('lib/admin/today.ts'));
   const f = t.slice(t.indexOf('export async function getFocusQueueCount('));
   assert(/try \{[\s\S]*?\} catch \{[\s\S]*?return null;/.test(f.slice(0, 600)) && /head: true/.test(f.slice(0, 600)), 'count only (head), never throws');
-  const l = code(read('app/admin/layout.tsx'));
+  const l = code(read('app/(site)/admin/layout.tsx'));
   assert(l.indexOf('await requireAdminPage') < l.indexOf('getFocusQueueCount()') && /await Promise\.all\(\[getFocusQueueCount\(\), getAdminFirstName\(userId\)\]\)/.test(l) && /<AdminSidebar nav=\{nav\} badges=\{\{ inReview \}\} \/>/.test(l), 'badge + first name read after the guard');
   const s = read('components/admin/admin-sidebar.tsx');
   assert(/Courage Studio/.test(s) && /Admin workspace/.test(s) && /studio-sidebar/.test(s) && /<span className="sr-only"> waiting<\/span>/.test(s), 'brand tile, glow, badge text for AT');
@@ -272,7 +272,7 @@ test('SP-10 content health: explicit links only (mapping / past-paper source / m
   assert(g.lowestExamId === 'gd' || g.lowestExamId === 'mts', `lowest ${g.lowestExamId}`);
   const t = code(read('lib/admin/today.ts'));
   assert(/from\("exam_question_mappings"\)/.test(t) && /from\("question_sources"\)/.test(t) && /from\("mock_questions"\)\.select\("question_versions!inner\(question_id\), mock_tests!inner\(mock_templates!inner\(exam_id\)\)"\)/.test(t), 'the three explicit links are read');
-  const p = code(read('app/admin/page.tsx'));
+  const p = code(read('app/(site)/admin/page.tsx'));
   assert(/\{!e\.live && <span[^>]*>not live<\/span>\}/.test(p) && /\{c\.inReview > 0 && <span[^>]*>\+\{c\.inReview\} in review<\/span>\}/.test(p) && /cellClass\(c\.published, max\)/.test(p) && /\{e\.sharedTopics\} more share its topics/.test(p), 'not-live label; published count; "+N in review"; shared-topics hint');
 });
 

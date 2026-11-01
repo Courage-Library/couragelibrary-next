@@ -261,12 +261,12 @@ async function runProductionRuntimeGate() {
   console.log('\n--- SECTION 7: File System & Component Integrity ---');
   const requiredFiles = [
     'services/mistake.service.ts',
-    'app/mistakes/actions.ts',
+    'app/(site)/mistakes/actions.ts',
     'components/mistakes/mistake-drill-customizer.tsx',
     'components/mistakes/mistake-drill-runner.tsx',
     'components/mistakes/mistake-drill-result.tsx',
-    'app/mistakes/drill/page.tsx',
-    'app/mistakes/drill/drill-client.tsx',
+    'app/(site)/mistakes/drill/page.tsx',
+    'app/(site)/mistakes/drill/drill-client.tsx',
   ];
 
   for (const rf of requiredFiles) {
@@ -274,7 +274,7 @@ async function runProductionRuntimeGate() {
     assert(fs.existsSync(p), `Required file exists: ${rf}`);
   }
 
-  const actionsSrc = fs.readFileSync(path.join(__dirname, '..', 'app/mistakes/actions.ts'), 'utf-8');
+  const actionsSrc = fs.readFileSync(path.join(__dirname, '..', 'app/(site)/mistakes/actions.ts'), 'utf-8');
   assert(actionsSrc.includes('generateDrillAction') && actionsSrc.includes('submitDrillAction'), 'actions.ts exports generateDrillAction and submitDrillAction');
 
   const serviceSrc = fs.readFileSync(path.join(__dirname, '..', 'services/mistake.service.ts'), 'utf-8');

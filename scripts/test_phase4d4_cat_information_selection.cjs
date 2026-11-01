@@ -280,13 +280,13 @@ async function runPhase4D4Tests() {
     assert(asContent.includes('Total weights sum must be approximately 1.0'), 'AdminAdaptiveService validates multi-objective weight sum');
   }
 
-  const adminActionsPath = path.resolve('e:/Courage Library', 'app/admin/actions.ts');
+  const adminActionsPath = path.resolve('e:/Courage Library', 'app/(site)/admin/actions.ts');
   if (fs.existsSync(adminActionsPath)) {
     const aaContent = fs.readFileSync(adminActionsPath, 'utf-8');
-    assert(aaContent.includes('getCATConfigAction'), 'app/admin/actions.ts exports getCATConfigAction()');
-    assert(aaContent.includes('updateCATConfigAction'), 'app/admin/actions.ts exports updateCATConfigAction()');
-    assert(aaContent.includes('getCATHealthAction'), 'app/admin/actions.ts exports getCATHealthAction()');
-    assert(aaContent.includes('getItemInformationExplorerAction'), 'app/admin/actions.ts exports getItemInformationExplorerAction()');
+    assert(aaContent.includes('getCATConfigAction'), 'app/(site)/admin/actions.ts exports getCATConfigAction()');
+    assert(aaContent.includes('updateCATConfigAction'), 'app/(site)/admin/actions.ts exports updateCATConfigAction()');
+    assert(aaContent.includes('getCATHealthAction'), 'app/(site)/admin/actions.ts exports getCATHealthAction()');
+    assert(aaContent.includes('getItemInformationExplorerAction'), 'app/(site)/admin/actions.ts exports getItemInformationExplorerAction()');
   }
 
   const managerComponentPath = path.resolve('e:/Courage Library', 'components/admin/adaptive/admin-adaptive-manager.tsx');

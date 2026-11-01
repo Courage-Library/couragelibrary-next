@@ -63,7 +63,7 @@ test('MV-02 vault detail: the answered snapshot + the correction; ownership firs
   assert(/const answeredId = answeredVersionIdOf\(occurrencesRes\.data \?\? \[\]\);/.test(fn) && /const shown = answered \?\? current;/.test(fn) && /const correction = correctionFor\(answered\?\.id \?\? null, current\);/.test(fn), 'answered → shown; correction = current ≠ answered');
   const ret = svc.slice(svc.indexOf('static async getMistakeDetail('));
   assert(/answeredVersionKnown: !!answered,/.test(ret) && /correction,/.test(ret.slice(0, 6000)), 'detail returns answeredVersionKnown + correction');
-  const page = read('app/mistakes/[id]/page.tsx');
+  const page = read('app/(site)/mistakes/[id]/page.tsx');
   assert(/\{mistake\.correction && <CorrectedVersion correction=\{mistake\.correction\} \/>\}/.test(page) && /mistake\.answeredVersionKnown === false/.test(page), 'page: correction block + the "not recorded" note');
 });
 

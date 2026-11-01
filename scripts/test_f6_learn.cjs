@@ -91,7 +91,7 @@ const supabase = {
     assert(t && t.topic.name === 'Time and Distance' && t.topic.sectionName === 'Quantitative Aptitude' && t.documents[0].href === '/articles/t-and-d-lesson' && t.practiceHref, JSON.stringify(t));
     assert((await L.loadTopicLearning(supabase, nodes.sub.id)) === null, 'a SUBJECT node is not a topic');
     assert((await L.loadTopicLearning(supabase, 'x')) === null, 'bad id');
-    const page = code(read('app/learn/topics/[topicId]/page.tsx'));
+    const page = code(read('app/(site)/learn/topics/[topicId]/page.tsx'));
     assert(/const primary = t\.documents\[0\];\s*if \(primary\) redirect\(primary\.href\);/.test(page) && /if \(!t\) notFound\(\);/.test(page), 'redirect to the primary article; 404 for non-topics');
     assert(/t\.practiceHref \? <ButtonLink href=\{t\.practiceHref\}>Practice this topic<\/ButtonLink> : <ButtonLink href="\/articles" variant="secondary">/.test(page), 'fallback: ONE action');
     assert(L.topicLearnHref(T) === `/learn/topics/${T}`, 'canonical href');
@@ -99,7 +99,7 @@ const supabase = {
   });
 
   await test('LN-03 article page: one primary, practicable only; related → article / topic entry; SEO kept; no dead links', () => {
-    const a = code(read('app/articles/[slug]/page.tsx'));
+    const a = code(read('app/(site)/articles/[slug]/page.tsx'));
     const primaries = (a.match(/<ButtonLink\b(?![^>]*variant=)/g) || []).length;
     assert(primaries === 1 && /\{practiceHref \? \(/.test(a) && /<ButtonLink href=\{practiceHref\}[\s\S]{0,300}?data-practice-topic=""/.test(a), `one primary ButtonLink (Practice this topic), got ${primaries}`);
     assert(/topicPracticeHref\(supabase, topicId\)/.test(a) && /rel\.learningSlug \? `\/articles\/\$\{rel\.learningSlug\}` : topicLearnHref\(rel\.topicId\)/.test(a), 'practice via the F2 helper; related links');
@@ -120,8 +120,8 @@ const supabase = {
     assert(!/insert\(|learning_documents|document_versions/.test(relink), 'moving never copies content');
     // ADMIN-IA-1 (owner ruling Q-L, 2026-10-29): the Content Studio + Topic links screens are retired; the legacy units
     // are shown READ ONLY under Lessons (no relink action is reachable any more; the service method stays, unused)
-    assert(!fs.existsSync(path.join(ROOT, 'app/admin/content')), 'the retired Content Studio routes are gone');
-    const legacy = code(read('app/admin/lessons/legacy/page.tsx'));
+    assert(!fs.existsSync(path.join(ROOT, 'app/(site)/admin/content')), 'the retired Content Studio routes are gone');
+    const legacy = code(read('app/(site)/admin/lessons/legacy/page.tsx'));
     assert(/requireAdminPage\(\{ path: "\/admin\/lessons\/legacy" \}\)/.test(legacy) && !/\.update\(|\.insert\(|\.rpc\(/.test(legacy), 'legacy tab: admin guard, read only');
     assert(!fs.readdirSync(path.join(ROOT, 'supabase/migrations')).some((f) => /f6/i.test(f)), 'no migration for F6');
   });

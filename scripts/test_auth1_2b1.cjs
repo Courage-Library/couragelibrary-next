@@ -150,10 +150,10 @@ async function offline() {
   const nonceSrv = require(path.join(ROOT, 'lib/auth/google-nonce.ts'));
   const flagMod = require(path.join(ROOT, 'lib/auth/google-flag.ts'));
   const signin = require(path.join(ROOT, 'lib/auth/google-signin.ts'));
-  const actions = require(path.join(ROOT, 'app/auth/google-actions.ts'));
-  const loginPage = require(path.join(ROOT, 'app/auth/login/page.tsx')).default;
+  const actions = require(path.join(ROOT, 'app/(site)/auth/google-actions.ts'));
+  const loginPage = require(path.join(ROOT, 'app/(site)/auth/login/page.tsx')).default;
   const { middleware } = require(path.join(ROOT, 'middleware.ts'));
-  const { LoginForm } = require(path.join(ROOT, 'app/auth/login/login-form.tsx'));
+  const { LoginForm } = require(path.join(ROOT, 'app/(site)/auth/login/login-form.tsx'));
 
   /** find the LoginForm element in the page tree and render the page */
   const renderLogin = async () => {
@@ -353,7 +353,7 @@ async function offline() {
     return `${targets.length} redirects safe; replay → google-nonce`;
   });
 
-  const NEW_FILES = ['lib/auth/google-flag.ts', 'lib/auth/google-nonce-core.ts', 'lib/auth/google-nonce.ts', 'lib/auth/google-signin.ts', 'app/auth/google-actions.ts', 'components/auth/google-signin-button.tsx', 'app/auth/login/page.tsx', 'app/auth/login/login-form.tsx', 'middleware.ts'];
+  const NEW_FILES = ['lib/auth/google-flag.ts', 'lib/auth/google-nonce-core.ts', 'lib/auth/google-nonce.ts', 'lib/auth/google-signin.ts', 'app/(site)/auth/google-actions.ts', 'components/auth/google-signin-button.tsx', 'app/(site)/auth/login/page.tsx', 'app/(site)/auth/login/login-form.tsx', 'middleware.ts'];
   const code = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
   await test('T-11 no role / user_metadata / app_metadata / ID-token claims read in the new files; no logging of secrets (static)', () => {
     const bad = [];
@@ -362,9 +362,9 @@ async function offline() {
       if (/user_metadata|app_metadata|\.role\b|\brole\s*:|claims|jwtDecode|atob\(/.test(s)) bad.push(`${f}: role / claims access`);
       for (const m of s.matchAll(/console\.(log|error|warn|info)\(([^;]*)\);/g)) if (/credential|nonce|token|cookie|email|authorization/i.test(m[2].replace(/"[^"]*"/g, ''))) bad.push(`${f}: logs ${m[2].slice(0, 40)}`);
     }
-    assert(!/nonce:\s*nonceHash/.test(code(read('app/auth/google-actions.ts'))), 'action must pass the RAW nonce, not the hash');
+    assert(!/nonce:\s*nonceHash/.test(code(read('app/(site)/auth/google-actions.ts'))), 'action must pass the RAW nonce, not the hash');
     assert(/nonce: nonceHash/.test(read('components/auth/google-signin-button.tsx')), 'GIS must receive the hash');
-    assert(!/google-nonce(?!-core)/.test(read('components/auth/google-signin-button.tsx') + read('app/auth/login/login-form.tsx')), 'client code imports the server nonce module');
+    assert(!/google-nonce(?!-core)/.test(read('components/auth/google-signin-button.tsx') + read('app/(site)/auth/login/login-form.tsx')), 'client code imports the server nonce module');
     assert(!/initialize[^]*prompt\(/.test(read('components/auth/google-signin-button.tsx')), 'One Tap / prompt() used');
     assert(bad.length === 0, bad.join('; '));
     return `${NEW_FILES.length} files`;

@@ -8,7 +8,7 @@ import { StudioPageHeader, StudioPanel, studioControl, studioPrimaryAction, stud
 import { LessonBlocksRenderer, PlainMath } from "@/components/learning/lesson-blocks-renderer";
 import { validateLesson, type BlockError, type LessonBlock, type LessonMeta } from "@/lib/lessons/blocks";
 import type { LessonEditorData } from "@/lib/lessons/admin-types";
-import { publishLessonAction, saveLessonDraftAction } from "@/app/admin/lessons/actions";
+import { publishLessonAction, saveLessonDraftAction } from "@/app/(site)/admin/lessons/actions";
 
 /**
  * CA-3 lesson editor (Studio template): the lesson as JSON { meta, blocks } (LessonBlocksSpec v2) → Check (the same

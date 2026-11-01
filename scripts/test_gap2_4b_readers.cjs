@@ -122,7 +122,7 @@ const RETIRED_TABLES = ['exam_syllabi', 'exam_topics', 'exam_unit_mappings', 'ta
 
   await test('R-02 hub reads only the read model; legacy navigator / service / mapUnitToExam / projection / B-tags / workbench gone', async () => {
     const bad = [];
-    for (const page of ['app/exams/[slug]/page.tsx', 'app/exams/[slug]/cycle/[cycleYear]/page.tsx']) {
+    for (const page of ['app/(site)/exams/[slug]/page.tsx', 'app/(site)/exams/[slug]/cycle/[cycleYear]/page.tsx']) {
       const s = read(page);
       if (!/<ExamSyllabusSection\b/.test(s) || !/id="syllabus"/.test(s)) bad.push(`${page}: syllabus section not rendered from ExamSyllabusSection`);
       if (/exam-syllabus-navigator|ExamSyllabusNavigator|curriculum\b/.test(stripComments(s))) bad.push(`${page}: legacy curriculum / navigator reference`);
@@ -137,7 +137,7 @@ const RETIRED_TABLES = ['exam_syllabi', 'exam_topics', 'exam_unit_mappings', 'ta
       if (/\bmapUnitToExam\b|saveSyllabusProjection|upsertExamUnitMapping/.test(s)) bad.push(`${rel}: mapUnitToExam / syllabus projection writer still present`);
       if (/B-CURRICULUM-MAPPING/.test(s)) bad.push(`${rel}: B-CURRICULUM-MAPPING tag`);
     }
-    for (const gone of ['app/admin/syllabus-reconciliation', 'app/api/admin/syllabus-reconciliation', 'components/admin/syllabus-reconciliation',
+    for (const gone of ['app/(site)/admin/syllabus-reconciliation', 'app/api/admin/syllabus-reconciliation', 'components/admin/syllabus-reconciliation',
       'services/exam-syllabus-tree-importer.service.ts', 'services/exam-syllabus-resolution.service.ts', 'services/operational-syllabus-reconciliation.service.ts',
       'services/exam-syllabus-reconciliation.service.ts', 'services/exam-syllabus-readiness.service.ts', 'services/reconciliation-normalizer.ts',
       'types/dynamic-syllabus-reconciliation.ts', 'lib/syllabus/reconciliation-rows.ts']) if (exists(gone)) bad.push(`${gone} still exists (GAP2-4c)`);

@@ -91,7 +91,20 @@ function ResolvedStartAction({ signup, open, closed }: { signup: Promise<boolean
  * boundary whose fallback is the closed view, so the shell never waits on the sign-up setting (Supabase outage → the
  * page still renders at once; AUTH1-RESILIENCE-HANG).
  */
-export function HeaderBar({ account, flags, signup, logo = null }: { account: ShellAccount | null; flags: ShellFlags; signup?: Promise<boolean>; logo?: BrandImage | null }) {
+export function HeaderBar({
+  account,
+  flags,
+  signup,
+  logo = null,
+  publicStatic = false,
+}: {
+  account: ShellAccount | null;
+  flags: ShellFlags;
+  signup?: Promise<boolean>;
+  logo?: BrandImage | null;
+  /** PERF-HOME-1: the cached public pages — both link sets in the HTML, CSS shows one (html[data-auth], lib/ui/auth-hint.ts) */
+  publicStatic?: boolean;
+}) {
   const pathname = usePathname() ?? "/";
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -148,6 +161,14 @@ export function HeaderBar({ account, flags, signup, logo = null }: { account: Sh
             </PillLink>
           ) : (
             <>
+              {publicStatic && (
+                <span className="auth-in contents">
+                  <PillLink href="/dashboard" variant="outline" className="px-5" data-auth-link="dashboard">
+                    {SHELL_COPY.goToDashboard}
+                  </PillLink>
+                </span>
+              )}
+              <span className={publicStatic ? "auth-out contents" : "contents"}>
               <ButtonLink href="/auth/login" variant="ghost" size="md" className="min-h-12 rounded-control px-3">
                 {SHELL_COPY.signIn}
               </ButtonLink>
@@ -164,6 +185,7 @@ export function HeaderBar({ account, flags, signup, logo = null }: { account: Sh
                   </PillLink>
                 }
               />
+              </span>
             </>
           )}
           <Button
@@ -190,8 +212,15 @@ export function HeaderBar({ account, flags, signup, logo = null }: { account: Sh
           </div>
           <MobileSection title={student ? "Study" : "Explore"} items={primary} pathname={pathname} onNavigate={() => setMenuOpen(false)} />
           <MobileSection title="Learn" items={learn} pathname={pathname} onNavigate={() => setMenuOpen(false)} />
+          {!account && publicStatic && (
+            <div className="auth-in flex flex-col gap-2 border-t border-line pt-4">
+              <ButtonLink href="/dashboard" size="lg" fullWidth onClick={() => setMenuOpen(false)}>
+                {SHELL_COPY.goToDashboard}
+              </ButtonLink>
+            </div>
+          )}
           {!account && (
-            <div className="flex flex-col gap-2 border-t border-line pt-4">
+            <div className={`${publicStatic ? "auth-out " : ""}flex flex-col gap-2 border-t border-line pt-4`}>
               <StartAction
                 signup={signup}
                 open={

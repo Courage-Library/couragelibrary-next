@@ -18,7 +18,7 @@ import {
   deleteExamPostAction,
   publishExamAction,
   generateStepExamPromptAction,
-} from "@/app/admin/exams/actions";
+} from "@/app/(site)/admin/exams/actions";
 import { AiPromptModal } from "./ai-prompt-modal";
 import { ExamDangerZone } from "./exam-danger-zone";
 import { ShieldCheck, Calendar, Users, BookOpen, GraduationCap, Award, Check, Sparkles, RefreshCw } from "lucide-react";

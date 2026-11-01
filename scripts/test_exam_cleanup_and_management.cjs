@@ -98,7 +98,7 @@ const supabase = createClient(
 
 const { ExamOnboardingService } = require('@/services/exam-onboarding/exam-onboarding.service');
 const { AdminService } = require('@/services/admin.service');
-const { evaluateExamDeletionEligibilityAction, deleteExamDraftAction } = require('@/app/admin/exams/actions');
+const { evaluateExamDeletionEligibilityAction, deleteExamDraftAction } = require('@/app/(site)/admin/exams/actions');
 
 async function runTests() {
   console.log('================================================================');

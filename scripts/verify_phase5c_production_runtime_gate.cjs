@@ -507,9 +507,9 @@ async function runProductionRuntimeVerification() {
   console.log('\n--- 9. SECURITY & SECRETS AUDIT ---');
   const auditedPhase5CFiles = [
     'services/live-test-runner.service.ts',
-    'app/live-tests/actions.ts',
-    'app/live-tests/[slug]/take/page.tsx',
-    'app/live-tests/[slug]/submitted/page.tsx',
+    'app/(site)/live-tests/actions.ts',
+    'app/(site)/live-tests/[slug]/take/page.tsx',
+    'app/(site)/live-tests/[slug]/submitted/page.tsx',
     'components/live-test/live-test-player-client.tsx'
   ];
 

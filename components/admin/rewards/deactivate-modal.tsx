@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { AdminRewardCatalogItem } from "@/services/gamification.service";
-import { toggleRewardActiveAction } from "@/app/admin/rewards/actions";
+import { toggleRewardActiveAction } from "@/app/(site)/admin/rewards/actions";
 
 interface DeactivateModalProps {
   reward: AdminRewardCatalogItem | null;

@@ -535,8 +535,8 @@ async function runPhase5CTests() {
   console.log('\n--- SECTION 9: Service & Component File Existence ---');
   assert(fs.existsSync('e:/Courage Library/services/live-test-runner.service.ts'), 'LiveTestRunnerService exists in services/');
   assert(fs.existsSync('e:/Courage Library/components/live-test/live-test-player-client.tsx'), 'LiveTestPlayerClient exists in components/live-test/');
-  assert(fs.existsSync('e:/Courage Library/app/live-tests/[slug]/take/page.tsx'), 'Take page exists in app/live-tests/[slug]/take/page.tsx');
-  assert(fs.existsSync('e:/Courage Library/app/live-tests/[slug]/submitted/page.tsx'), 'Submitted page exists in app/live-tests/[slug]/submitted/page.tsx');
+  assert(fs.existsSync('e:/Courage Library/app/(site)/live-tests/[slug]/take/page.tsx'), 'Take page exists in app/(site)/live-tests/[slug]/take/page.tsx');
+  assert(fs.existsSync('e:/Courage Library/app/(site)/live-tests/[slug]/submitted/page.tsx'), 'Submitted page exists in app/(site)/live-tests/[slug]/submitted/page.tsx');
 
   // Summary
   console.log('\n================================================================');

@@ -29,7 +29,7 @@ const itemClasses = (active: boolean) =>
  * (64 px + 1 px border + safe area) sits in
  * the page flow and both are server-rendered, so nothing shifts. Hidden in admin and in the test console.
  */
-export function BottomNav({ account }: { account: ShellAccount }) {
+export function BottomNav({ account, reservedSpace = false }: { account: ShellAccount; reservedSpace?: boolean }) {
   const pathname = usePathname() ?? "/";
   const [accountOpen, setAccountOpen] = useState(false);
   useEffect(() => setAccountOpen(false), [pathname]);
@@ -38,7 +38,8 @@ export function BottomNav({ account }: { account: ShellAccount }) {
 
   return (
     <>
-      <div aria-hidden="true" className="h-[calc(4rem+1px+env(safe-area-inset-bottom))] lg:hidden" />
+      {/* PERF-HOME-1: on the cached public pages the page reserves this space itself (PublicShell) */}
+      {!reservedSpace && <div aria-hidden="true" className="h-[calc(4rem+1px+env(safe-area-inset-bottom))] lg:hidden" />}
       <nav
         aria-label="Student"
         className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden"

@@ -17,7 +17,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..');
-const ROUTES = ['.next/server/app/admin/exams/page.js.nft.json', '.next/server/app/api/health/image/route.js.nft.json'];
+const ROUTES = ['.next/server/app/(site)/admin/exams/page.js.nft.json', '.next/server/app/api/health/image/route.js.nft.json'];
 const PLATFORM = `${process.platform}-${process.arch}`;
 const NATIVE = `@img/sharp-${PLATFORM}`;
 const LIBVIPS = process.platform === 'linux' ? `@img/sharp-libvips-${PLATFORM}` : null; // other OSes bundle libvips in NATIVE

@@ -182,7 +182,7 @@ const img = (w, h, fmt, opts = {}) => {
   });
 
   await test('E-3 logo actions: admin only, processed before stored, content-hash path, old file deleted only after the row switched; inline new body refused by the create action', async () => {
-    const a = read('app/admin/exams/logo-actions.ts');
+    const a = read('app/(site)/admin/exams/logo-actions.ts');
     const exported = [...a.matchAll(/export async function (\w+)\([^)]*\)[^\n]*\{\n\s*const auth = await guardAdminAction\(\);/g)].map((m) => m[1]);
     assert(exported.length === 9 && (a.match(/^export async function /gm) || []).length === 9 && !/allowStaff/.test(a), `every exported logo action must call the admin-only guard first: ${exported}`); // HOME-1: + category icon upload / remove + category save
     // HOME-1: the original AND its sized copies are stored before the row switches; old files (+ copies) go only after
@@ -192,24 +192,24 @@ const img = (w, h, fmt, opts = {}) => {
     assert(order.every((x, i) => x > 0 && (i === 0 || x > order[i - 1])), `order ${order}`);
     assert(/\$\{processed\.sha256\}\.webp/.test(a) && /contentType: "image\/webp"/.test(a) && /upsert: false/.test(a), 'content-hash path, webp, no overwrite');
     assert(/if \(!existed\) await db\.storage\.from\(LOGO_BUCKET\)\.remove\(withVariants\(path\)\)/.test(a) && /const withVariants = \(path: string\) => \[path, \.\.\.LOGO_VARIANTS\.map/.test(a), 'a failed save removes only the new files (original + sized copies)');
-    const act = read('app/admin/exams/actions.ts');
+    const act = read('app/(site)/admin/exams/actions.ts');
     assert(/formData\.get\("newOrgName"\)[\s\S]{0,80}\.trim\(\)\) \{\s*return \{ error: "Add the conducting body/.test(act), 'create action: inline body');
   });
 
   await test('D-1 display + inputs: fixed box, lazy; the exam layout shows the logo + the not-affiliated line; lists / landing / admin (+ Logo missing) / Today use it; upload inputs PNG / JPG / WebP only', async () => {
     const badge = read('components/exams/exam-logo-badge.tsx');
     assert(/width=\{px\} height=\{px\}/.test(badge) && /style=\{\{ width: px, height: px \}\}/.test(badge) && /loading=\{priority \? "eager" : "lazy"\}/.test(badge) && !/from "next\/image"/.test(badge) && /Courage Library is an independent platform and is not affiliated with \{body\}\./.test(badge), 'badge');
-    const layout = read('app/exams/[slug]/layout.tsx');
+    const layout = read('app/(site)/exams/[slug]/layout.tsx');
     assert(/<NotAffiliatedLine body=\{brand\.bodyName\} \/>/.test(layout) && /if \(!brand\) return <>\{children\}<\/>;/.test(layout), 'exam layout');
-    for (const f of ['app/exams/page.tsx', 'components/exams/category-page.tsx']) assert(/<ExamLogoBadge logo=\{(exam|e)\.logo\}/.test(read(f)), f); // HOME-1: home has no exam cards
+    for (const f of ['app/(public)/exams/page.tsx', 'components/exams/category-page.tsx']) assert(/<ExamLogoBadge logo=\{(exam|e)\.logo\}/.test(read(f)), f); // HOME-1: home has no exam cards
     // EXAM-LOGO-1.1: an inactive "coming soon" exam page has no logo strip but still ends with the not-affiliated line
     const soon = read('components/public/coming-soon-hub.tsx');
-    assert(/<NotAffiliatedLine body=\{body\} \/>/.test(soon) && /<ComingSoonHub title=\{soon\.title\} body=\{soon\.body\} \/>/.test(read('app/exams/[slug]/page.tsx')), 'coming-soon hub: no not-affiliated line');
+    assert(/<NotAffiliatedLine body=\{body\} \/>/.test(soon) && /<ComingSoonHub title=\{soon\.title\} body=\{soon\.body\} \/>/.test(read('app/(site)/exams/[slug]/page.tsx')), 'coming-soon hub: no not-affiliated line');
     const soonList = /comingSoon: \[([\s\S]*?)\]/.exec(read('content/landing.ts'));
     assert(soonList && (soonList[1].match(/slug:/g) || []).length === (soonList[1].match(/body: "[^"]+"/g) || []).length, 'a coming-soon exam without its conducting body');
     const view = read('components/admin/exam-onboarding/exam-management-view.tsx');
     assert(/<ExamLogoBadge/.test(view) && /Logo missing/.test(view) && /<ConductingBodiesPanel orgs=\{conductingOrgs\} canEdit=\{canEditLogos\} usage=\{bodyUsage\} \/>/.test(view), 'admin list');
-    assert(/examsWithoutLogo/.test(read('lib/admin/today.ts')) && /Exams without a logo/.test(read('app/admin/page.tsx')), 'Today');
+    assert(/examsWithoutLogo/.test(read('lib/admin/today.ts')) && /Exams without a logo/.test(read('app/(site)/admin/page.tsx')), 'Today');
     // LOGO-UX-1: the one logo editor (drawer) is the only file input for logos
     for (const f of ['components/admin/logos/logo-drawer.tsx']) {
       const s = read(f);
@@ -239,7 +239,7 @@ const img = (w, h, fmt, opts = {}) => {
     const L2 = fresh('lib/logos/logo-image.ts');
     const H2 = fresh('lib/logos/image-health.ts');
     assert((await L2.processLogo(png)).ok === true && (await H2.imagePipelineWorks()) === true, 'pipeline / health with a working sharp');
-    const act = read('app/admin/exams/logo-actions.ts');
+    const act = read('app/(site)/admin/exams/logo-actions.ts');
     assert(act.includes('await processLogo(Buffer.from(await file.arrayBuffer())).catch(() => ({ ok: false as const, message: LOGO_UNAVAILABLE }))'), 'the action must catch a processing throw');
     const route = read('app/api/health/image/route.ts');
     assert(/NextResponse\.json\(\{ ok \}/.test(route) && !/message|error|version/.test(route.replace(/\/\*[\s\S]*?\*\//g, '')), 'health route returns { ok } only');
@@ -267,12 +267,12 @@ const img = (w, h, fmt, opts = {}) => {
     // no other client component calls a logo action directly
     const clientFiles = ['components/admin/exam-onboarding/conducting-bodies-panel.tsx', 'components/admin/exam-onboarding/exam-logo-override.tsx', 'components/admin/exam-onboarding/exam-management-view.tsx'];
     for (const f of clientFiles) assert(![...read(f).matchAll(LOGO_ACTIONS)].length, `${f} calls a logo action outside the drawer`);
-    assert(/if \(file\.size > 1024 \* 1024\) return \{ success: false, error: "The image must be at most 1 MB\." \};/.test(read('app/admin/actions.ts')), 'bulk-import image action: 1 MB cap');
-    assert(/if \(file\.size > 1024 \* 1024\) \{/.test(read('app/admin/rewards/actions.ts')) && !/10 \* 1024 \* 1024/.test(read('app/admin/rewards/actions.ts')), 'reward image action: 1 MB cap');
+    assert(/if \(file\.size > 1024 \* 1024\) return \{ success: false, error: "The image must be at most 1 MB\." \};/.test(read('app/(site)/admin/actions.ts')), 'bulk-import image action: 1 MB cap');
+    assert(/if \(file\.size > 1024 \* 1024\) \{/.test(read('app/(site)/admin/rewards/actions.ts')) && !/10 \* 1024 \* 1024/.test(read('app/(site)/admin/rewards/actions.ts')), 'reward image action: 1 MB cap');
     const imp = read('components/admin/syllabus/import-draft.tsx');
     assert((imp.match(/\.catch\(\(\) => \(\{ ok: false as const, message: ACTION_FAILED \}\)\)/g) || []).length === 2, 'syllabus import-draft: both action calls catch');
     assert(/uploadBulkImportImageAction\(formData\)\.catch\(/.test(read('components/admin/admin-question-manager.tsx')), 'question manager: image upload catches');
-    assert(/createConductingOrgWithLogoAction[\s\S]*await db\.from\("conducting_orgs"\)\.delete\(\)\.eq\("id", org\.id\)/.test(read('app/admin/exams/logo-actions.ts')), 'add body with logo: the body is deleted again when its logo fails');
+    assert(/createConductingOrgWithLogoAction[\s\S]*await db\.from\("conducting_orgs"\)\.delete\(\)\.eq\("id", org\.id\)/.test(read('app/(site)/admin/exams/logo-actions.ts')), 'add body with logo: the body is deleted again when its logo fails');
     return '1.5 MB refused with the owner message; 0.95 MB passes; 5 guarded calls; negative control caught';
   });
 
@@ -291,15 +291,15 @@ const img = (w, h, fmt, opts = {}) => {
   });
 
   await test('D-2 LOGO-PLACEMENT: logo inline before the exam name (headers md, cards sm, admin xs); no separate layout strip', async () => {
-    const layout = read('app/exams/[slug]/layout.tsx');
+    const layout = read('app/(site)/exams/[slug]/layout.tsx');
     assert(!/ExamLogoBadge|data-exam-brand/.test(layout) && /<NotAffiliatedLine body=\{brand\.bodyName\} \/>/.test(layout), 'layout: strip removed, not-affiliated line kept');
     const before = (f, re) => assert(re.test(read(f)), `${f}: logo not immediately before the exam name`);
     before('components/exams/exam-home.tsx', /\{logo\}\s*<h1 id="page-title"/);
-    before('app/exams/[slug]/page.tsx', /logo=\{<ExamBrandLogo slug=\{exam\.slug\} \/>\}/);
+    before('app/(site)/exams/[slug]/page.tsx', /logo=\{<ExamBrandLogo slug=\{exam\.slug\} \/>\}/);
     before('components/public/coming-soon-hub.tsx', /logo=\{<ExamLogoBadge logo=\{null\} name=\{body\} size="md" priority \/>\}/);
-    before('app/exams/[slug]/course/page.tsx', /<ExamBrandLogo slug=\{course\.exam\.slug\} \/>\s*<h1/);
-    before('app/exams/[slug]/[moduleSlug]/[...rest]/page.tsx', /<ExamBrandLogo slug=\{slug\} \/>\s*<h1/);
-    for (const f of ['app/exams/page.tsx', 'components/exams/category-page.tsx']) before(f, /<ExamLogoBadge logo=\{(exam|e)\.logo\} name=\{(exam|e)\.bodyName \|\| (exam|e)\.title\} size="sm" \/>\s*<CardTitle/);
+    before('app/(site)/exams/[slug]/course/page.tsx', /<ExamBrandLogo slug=\{course\.exam\.slug\} \/>\s*<h1/);
+    before('app/(site)/exams/[slug]/[moduleSlug]/[...rest]/page.tsx', /<ExamBrandLogo slug=\{slug\} \/>\s*<h1/);
+    for (const f of ['app/(public)/exams/page.tsx', 'components/exams/category-page.tsx']) before(f, /<ExamLogoBadge logo=\{(exam|e)\.logo\} name=\{(exam|e)\.bodyName \|\| (exam|e)\.title\} size="sm" \/>\s*<CardTitle/);
     before('components/admin/exam-onboarding/exam-management-view.tsx', /size="xs"\s*\/>\s*<h3 className="min-w-0/);
     assert(/xs: 28, sm: 32, md: 48/.test(read('lib/logos/exam-logo.ts')), 'sizes');
     assert(/size = "md"/.test(read('components/exams/exam-brand-logo.tsx')) && /<ExamLogoBadge logo=\{brand\.logo\} name=\{brand\.bodyName\}/.test(read('components/exams/exam-brand-logo.tsx')), 'brand logo: fallback tile in the same place');

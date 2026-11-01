@@ -93,18 +93,18 @@ const text = (html) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
     row = { total_questions: 0, duration_minutes: 10, total_marks: 20, status: 'published' };
     assert((await dailyQuizShape(MOCK_ID)) === null, 'zero value → null');
     assert((await dailyQuizShape('x')) === null && (await dailyQuizShape(null)) === null, 'bad id → null');
-    assert(/const quizShape = dailyQuiz\.status === 'ALREADY_PUBLISHED' \? await dailyQuizShape\(dailyQuiz\.mockTestId\) : null;/.test(read('app/current-affairs/page.tsx')) && /shape=\{quizShape\}/.test(read('app/current-affairs/page.tsx')), 'hub passes the real shape');
+    assert(/const quizShape = dailyQuiz\.status === 'ALREADY_PUBLISHED' \? await dailyQuizShape\(dailyQuiz\.mockTestId\) : null;/.test(read('app/(site)/current-affairs/page.tsx')) && /shape=\{quizShape\}/.test(read('app/(site)/current-affairs/page.tsx')), 'hub passes the real shape');
   });
 
   await test('CA-03 candidate CA pages: no tiny text, pulse, amber or prediction claims; 48 px targets', () => {
-    const files = ['app/current-affairs/page.tsx', 'app/current-affairs/[slug]/page.tsx', 'app/current-affairs/date/[date]/page.tsx', 'app/current-affairs/month/[month]/page.tsx', ...fs.readdirSync(path.join(ROOT, 'components/current-affairs')).map((f) => `components/current-affairs/${f}`)];
+    const files = ['app/(site)/current-affairs/page.tsx', 'app/(site)/current-affairs/[slug]/page.tsx', 'app/(site)/current-affairs/date/[date]/page.tsx', 'app/(site)/current-affairs/month/[month]/page.tsx', ...fs.readdirSync(path.join(ROOT, 'components/current-affairs')).map((f) => `components/current-affairs/${f}`)];
     const bad = [];
     for (const f of files) {
       const s = code(read(f));
       for (const [re, why] of [[/text-\[(9|10|11)px\]/, 'tiny text'], [/animate-pulse/, 'pulse'], [/\b(bg|text|border)-(amber|accent)-/, 'amber'], [/High Probability|HIGH YIELD|high-yield/i, 'prediction claim'], [/\bpy-1\.5\b[^"]*rounded/, 'small target']]) if (re.test(s)) bad.push(`${f}: ${why}`);
     }
     assert(bad.length === 0, bad.join('; '));
-    const hub = code(read('app/current-affairs/page.tsx'));
+    const hub = code(read('app/(site)/current-affairs/page.tsx'));
     assert(/aria-current=\{isToday \? 'page' : undefined\}/.test(hub) && /focus-ring inline-flex min-h-12 shrink-0 items-center/.test(hub), 'day strip: current day marked, 48 px');
     return `${files.length} files`;
   });

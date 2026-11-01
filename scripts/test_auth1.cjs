@@ -279,8 +279,8 @@ async function offline() {
   });
 
   // ================= C. /auth/confirm + /auth/callback =================
-  const confirm = require(path.join(ROOT, 'app/auth/confirm/route.ts'));
-  const callback = require(path.join(ROOT, 'app/auth/callback/route.ts'));
+  const confirm = require(path.join(ROOT, 'app/(site)/auth/confirm/route.ts'));
+  const callback = require(path.join(ROOT, 'app/(site)/auth/callback/route.ts'));
   const ORIGIN = 'https://app.example.invalid';
   const USER = { id: 'u-confirm', email: 'c@courage-library.test', user_metadata: {} };
   const otp = async ({ token_hash }) => {
@@ -347,7 +347,7 @@ async function offline() {
     expectFail(await hit(callback, 'code=bogus'), 'callback bad code');
   });
   await test('C-8 sign-up and reset links point at /auth/confirm (emailRedirectTo / redirectTo)', () => {
-    const src = read('app/auth/actions.ts');
+    const src = read('app/(site)/auth/actions.ts');
     assert(/emailRedirectTo:\s*confirmUrl\(/.test(src), 'emailRedirectTo');
     assert(/redirectTo:\s*confirmUrl\("\/auth\/update-password"\)/.test(src), 'reset redirectTo');
     assert(/new URL\("\/auth\/confirm"/.test(src), 'confirmUrl target');
@@ -383,7 +383,7 @@ async function offline() {
     for (const bad of ['abc1', 'abcdefgh', '12345678', '', null]) assert(!msgs.isAcceptablePassword(bad), String(bad));
   });
 
-  const actions = require(path.join(ROOT, 'app/auth/actions.ts'));
+  const actions = require(path.join(ROOT, 'app/(site)/auth/actions.ts'));
   const fd = (o) => {
     const f = new FormData();
     for (const [k, v] of Object.entries(o)) f.set(k, v);
@@ -450,19 +450,19 @@ async function offline() {
     assert(called === 0, 'Supabase called with an invalid password');
   });
   await test('D-8 static: auth actions / routes never return or redirect with provider error text', () => {
-    for (const f of ['app/auth/actions.ts', 'app/auth/confirm/route.ts', 'app/auth/callback/route.ts']) {
+    for (const f of ['app/(site)/auth/actions.ts', 'app/(site)/auth/confirm/route.ts', 'app/(site)/auth/callback/route.ts']) {
       const src = read(f);
       assert(!/error\??\.message/.test(src), `${f} uses error.message`);
       assert(!/error_description|\?error=|\?message=/.test(src), `${f} forwards provider text`);
     }
-    for (const f of walk(path.join(ROOT, 'app/auth')).filter((x) => /page\.tsx$/.test(x))) {
+    for (const f of walk(path.join(ROOT, 'app/(site)/auth')).filter((x) => /page\.tsx$/.test(x))) {
       const src = fs.readFileSync(f, 'utf8');
       assert(!/searchParams\??\.get\(\s*["'](error|message|error_description)["']/.test(src), `${rel(f)} renders a free-text query param`);
     }
   });
   await test('D-9 sign-up closed (server setting) → honest "Registrations open soon" page, no form; open → form', async () => {
-    const signupPage = require(path.join(ROOT, 'app/auth/signup/page.tsx'));
-    const { SignupForm } = require(path.join(ROOT, 'app/auth/signup/signup-form.tsx'));
+    const signupPage = require(path.join(ROOT, 'app/(site)/auth/signup/page.tsx'));
+    const { SignupForm } = require(path.join(ROOT, 'app/(site)/auth/signup/signup-form.tsx'));
     const find = (el, pred) => {
       if (!el || typeof el !== 'object') return false;
       if (Array.isArray(el)) return el.some((x) => find(x, pred));
@@ -507,16 +507,16 @@ async function offline() {
   for (const k of Object.values(FEATURE_ENV)) process.env[k] = 'true';
   const SU = require(path.join(ROOT, 'components/auth/session-unavailable.tsx'));
   const PAGES = [
-    ['app/dashboard/page.tsx', {}],
-    ['app/performance/page.tsx', {}],
-    ['app/achievements/page.tsx', {}],
-    ['app/certificates/page.tsx', {}],
-    // app/premium/page.tsx removed by UX-2b (/premium → 308 /pricing)
-    ['app/store/page.tsx', {}],
-    ['app/wallet/page.tsx', {}],
-    ['app/mock-tests/[id]/take/page.tsx', { id: 'm-1' }],
-    ['app/live-tests/[slug]/take/page.tsx', { slug: 'l-1' }],
-    ['app/live-tests/[slug]/result/page.tsx', { slug: 'l-1' }],
+    ['app/(site)/dashboard/page.tsx', {}],
+    ['app/(site)/performance/page.tsx', {}],
+    ['app/(site)/achievements/page.tsx', {}],
+    ['app/(site)/certificates/page.tsx', {}],
+    // app/(site)/premium/page.tsx removed by UX-2b (/premium → 308 /pricing)
+    ['app/(site)/store/page.tsx', {}],
+    ['app/(site)/wallet/page.tsx', {}],
+    ['app/(site)/mock-tests/[id]/take/page.tsx', { id: 'm-1' }],
+    ['app/(site)/live-tests/[slug]/take/page.tsx', { slug: 'l-1' }],
+    ['app/(site)/live-tests/[slug]/result/page.tsx', { slug: 'l-1' }],
   ];
   await test(`E-2 simulated Supabase failure → retry UI, no redirect, no data (${PAGES.length} guarded pages)`, async () => {
     sessionOverride = () => ({ state: 'error' });
@@ -803,7 +803,10 @@ async function resilience(mode) {
   };
   const TARGETS = [
     ['GET', '/', { cookie: false }, 'public page'],
-    ['GET', '/', {}, 'public page + session cookie'],
+    // PERF-HOME-1 (owner, option 1): "/" is cached HTML identical for everyone (no per-visitor banner possible there);
+    // the banner rule applies to the public pages that still render the session shell — /about
+    ['GET', '/', {}, 'cached page + session cookie'],
+    ['GET', '/about', {}, 'public page + session cookie'],
     ['GET', '/dashboard', {}, 'student page'],
     ['GET', '/wallet', {}, 'student page'],
     ['GET', '/store', {}, 'student page'],
@@ -847,13 +850,18 @@ async function resilience(mode) {
     const bad = rs.filter((r) => r.status !== 401 || !/^\s*\{/.test(r.text));
     assert(rs.length >= 12 && bad.length === 0, `${bad.length}/${rs.length}: ${fmt(bad)}`);
   });
-  await test(`R-6 [${mode}] public pages render (200); the signed-in visitor sees the "couldn't check your sign-in" banner, not a login redirect`, () => {
+  await test(`R-6 [${mode}] public pages render (200); the signed-in visitor sees the "couldn't check your sign-in" banner on session-shell pages, not a login redirect; cached "/" is the same page for everyone`, () => {
     const anon = results.filter((r) => r.kind === 'public page' || r.kind === 'auth page');
     const withCookie = results.filter((r) => r.kind === 'public page + session cookie');
     const bad = anon.concat(withCookie).filter((r) => r.status !== 200);
     assert(bad.length === 0, `${bad.length}: ${fmt(bad)}`);
     assert(withCookie.every((r) => /couldn(&#x27;|')t check your sign-in/.test(r.text)), 'banner missing for the signed-in visitor');
     assert(anon.filter((r) => r.p === '/').every((r) => !/couldn(&#x27;|')t check your sign-in/.test(r.text)), 'banner shown to an anonymous visitor');
+    // the cached "/" for a signed-in visitor: 200, no redirect, the same page as for an anonymous one (no banner, no session data)
+    const cached = results.filter((r) => r.kind === 'cached page + session cookie');
+    const strip = (t) => t.replace(/<!-- -->/g, '');
+    const same = (r) => { const a = anon.find((x) => x.p === '/' && x.round === r.round); return r.status === 200 && a && strip(r.text) === strip(a.text); };
+    assert(cached.length >= 1 && cached.every(same), `cached "/" with a session cookie: ${cached.map((r) => r.status)} (must be 200 and identical to the anonymous page of the same round)`);
   });
 
   // server action: the real login form (useActionState → loginAction → signInWithPassword, blackholed)

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { StudioEmpty, StudioField, StudioPageHeader, StudioPanel, studioControl, studioPrimaryAction, studioQuietAction } from "@/components/admin/studio/studio-page";
 import { CheckButton, CheckProblems, CheckRegion, usePasteCheck } from "@/components/admin/studio/paste-check";
 import { EXAM_NOTE_CONTRACT, examNoteExample, parseExamNotePaste } from "@/lib/lessons/exam-note";
-import { examNotePromptAction, publishExamNoteAction, saveExamNoteDraftAction } from "@/app/admin/lessons/actions";
+import { examNotePromptAction, publishExamNoteAction, saveExamNoteDraftAction } from "@/app/(site)/admin/lessons/actions";
 
 interface NoteRow {
   id: string;

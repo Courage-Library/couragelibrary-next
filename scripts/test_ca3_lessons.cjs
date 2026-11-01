@@ -130,7 +130,7 @@ test('D-01 migrations 117 / 118: INVOKER + revoked + service_role; bodies never 
 });
 
 test('R-01 reader: blocks only, loaded with the service role for unlocked viewers, no HTML injection API', () => {
-  const page = read('app/articles/[slug]/page.tsx');
+  const page = read('app/(site)/articles/[slug]/page.tsx');
   assert(/LessonBlocksRenderer/.test(page) && !/ControlledContentRenderer/.test(page), 'article page renderer');
   const res = read('services/learning/learning-resolver.service.ts');
   assert(/ver\.content_format === 'BLOCKS' &&/.test(res), 'servable = BLOCKS');
@@ -150,11 +150,11 @@ test('M-01 the MDX path is retired: every legacy writer fails closed', () => {
 test('S-01 admin only: routes, page guards, action guards, client imports', () => {
   const nav = read('lib/admin/nav.ts');
   assert(/"\/admin\/lessons",\n  "\/admin\/lessons\/\[id\]",/.test(nav) && /\{\s*label: "Lessons", href: "\/admin\/lessons", icon: "learning", access: "admin",/.test(nav), 'nav + ADMIN_ONLY_ROUTES');
-  for (const f of ['app/admin/lessons/page.tsx', 'app/admin/lessons/[id]/page.tsx']) {
+  for (const f of ['app/(site)/admin/lessons/page.tsx', 'app/(site)/admin/lessons/[id]/page.tsx']) {
     const s = read(f);
     assert(/await requireAdminPage\(\{ path: "\/admin\/lessons" \}\)/.test(s) && !/allowStaff/.test(s), `${f}: admin page guard`);
   }
-  const fns = read('app/admin/lessons/actions.ts').split(/export async function /).slice(1);
+  const fns = read('app/(site)/admin/lessons/actions.ts').split(/export async function /).slice(1);
   assert(fns.length === 8, `actions: ${fns.length}`); // CA-3 draft + publish; CA-4 generated draft + translation draft; CA-7 course launch + exam note draft / publish; EXAM-NOTE-PROMPT-1 copy prompt
   for (const f of fns) {
     const at = f.indexOf('const __auth = await guardAdminAction()');

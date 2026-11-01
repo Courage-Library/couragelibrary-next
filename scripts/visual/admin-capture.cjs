@@ -40,7 +40,7 @@ function staticRoutes() {
       if (e.isDirectory()) { if (!/\[/.test(e.name)) walk(rel); } else if (e.name === 'page.tsx') out.push('/' + dir.replace(/^app\/?/, ''));
     }
   };
-  walk('app/admin');
+  walk('app/(site)/admin');
   return out.sort();
 }
 

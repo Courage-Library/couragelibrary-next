@@ -78,11 +78,11 @@ test('LA-01 per-exam launch: gating only inside a LIVE course (stand-in gone); c
   assert(!/LESSON_GATING_ENABLED/.test(read('lib/learning/chapter-access.ts').replace(/\(CA-7 replaced[^)]*\)/, '')) && !/LESSON_GATING_ENABLED|gatingEnabled/.test(read('lib/learning/lesson-access-settings.ts')), 'the CA-5 stand-in is gone');
   const cs = read('services/learning/course.service.ts');
   assert(/from\("exam_course_launches"\)\.select\("status"\)\.eq\("exam_id", exam\.id\)\.eq\("status", "LIVE"\)\.limit\(1\);\s*if \(launchError \|\| !launch\?\.length\) return null;/.test(cs), 'course page only while LIVE (a failed read → no course)');
-  assert(/&& \(await isCourseLive\(exam\.id\)\) \? `\/exams\/\$\{exam\.slug\}\/course`/.test(read('app/exams/[slug]/page.tsx')), 'the exam page links the course only while LIVE');
+  assert(/&& \(await isCourseLive\(exam\.id\)\) \? `\/exams\/\$\{exam\.slug\}\/course`/.test(read('app/(site)/exams/[slug]/page.tsx')), 'the exam page links the course only while LIVE');
   const M = require(path.join(ROOT, 'lib/learn/sitemap.ts'));
   const urls = M.learnSitemapEntries('https://x.test', [{ nodeId: U(1), hiCurrent: false, publishedAt: null }], { [U(1)]: 'q.p' }, [{ slug: 'a', nodeIds: [U(1)], live: true }, { slug: 'b', nodeIds: [U(1)], live: false }]).map((e) => new URL(e.url).pathname);
   assert(JSON.stringify(urls) === JSON.stringify(['/learn/q/p', '/exams/a/course', '/exams/a/q/p', '/exams/b/q/p']), JSON.stringify(urls));
-  const act = read('app/admin/lessons/actions.ts');
+  const act = read('app/(site)/admin/lessons/actions.ts');
   assert(/export async function setCourseLaunchAction[\s\S]{0,260}guardAdminAction\(\) \/\* CA-7: admin only \*\//.test(act), 'launch action: admin guard first');
   const svc = read('services/learning/coverage.service.ts');
   assert(/const c = await ctx\(true\);\s*if \(!c\) return fail\("UNAUTHORIZED", "Only an admin can launch or pause a course\."\);/.test(svc) && /p_coverage: \{ \.\.\.coverageSnapshot\(view\.data\.coverage\), cycle_year: view\.data\.cycleYear \}/.test(svc), 'the snapshot is recomputed on the server at the click');
@@ -117,7 +117,7 @@ test('NS-01 dashboard next step + STUDENT-DASH-1: continue (live course first), 
   assert(N.decideNextStep({ ...base, submittedMock: true }) === null, 'after a mock and nothing to continue: no card');
   const card = read('components/learning/next-step-card.tsx');
   assert((card.match(/buttonClasses\(\{ variant: "primary"/g) || []).length === 2 && /sr-only">\{s\.done \? " \(done\)" : " \(to do\)"\}/.test(card), 'one primary per state; done / to do announced');
-  const dash = read('app/dashboard/page.tsx');
+  const dash = read('app/(site)/dashboard/page.tsx');
   assert((dash.match(/variant="primary"|bg-brand\b/g) || []).length === 0 && /<NextStepCard step=\{nextStep\} \/>/.test(dash), 'the dashboard has no other primary');
   const svc = read('services/learning/next-step.service.ts');
   assert(/if \(progressRes\.error \|\| attemptsRes\.error\) return null;/.test(svc) && /catch \{\s*return null;/.test(svc), 'a failed read → no card, never a guessed state');
@@ -135,7 +135,7 @@ test('EN-01 exam notes: paste contract (lesson validator, ≤ 40 blocks, toleran
   assert(/at most 40 blocks/.test(E.parseExamNotePaste(JSON.stringify(big)).errors[0].message), 'size cap');
   const bad = E.parseExamNotePaste(JSON.stringify({ ...ex, blocks: [{ id: 'a', type: 'nope' }] }));
   assert(!bad.ok && /^block 1 \(id "a"\)/.test(bad.errors[0].path), 'errors by block number + id');
-  const page = read('app/exams/[slug]/[moduleSlug]/[...rest]/page.tsx');
+  const page = read('app/(site)/exams/[slug]/[moduleSlug]/[...rest]/page.tsx');
   assert(/getPublishedExamNote\(d\.exam\.id, d\.node\.id, "en"\)/.test(page) && /<ExamNoteBlocks blocks=\{note\.blocks\} \/>/.test(page) && !/LessonBlocksRenderer/.test(page) && /\|\| hasNote;/.test(page), 'exam-topic page: the note (indexable), never the lesson body');
   assert(/const v = validateLesson\(row\.meta, row\.blocks\);\s*return v\.ok \?/.test(read('services/learning/exam-note.service.ts')), 'a stored note is re-validated before rendering');
   const ui = read('components/admin/lessons/exam-notes-editor.tsx');
@@ -157,8 +157,8 @@ test('IN-01 INTERNAL nodes: out of the generator, /learn + exam-topic pages, ser
   assert(/node_type IN \('TOPIC', 'SUBTOPIC', 'CONCEPT'\)\) THEN\s*RAISE EXCEPTION 'EXAM_NOTE: a note belongs to an active topic, subtopic or concept \(not an internal node\)'/.test(MIG) && /AND NOT is_internal AND node_type IN/.test(MIG), 'notes refuse internal nodes');
   const tsvc = read('services/taxonomy/taxonomy.service.ts');
   assert(/static async setInternal[\s\S]{0,300}const ctx = await this\.requireAdmin\(\);/.test(tsvc) && /'TAXONOMY_NODE_INTERNAL'/.test(tsvc) && /A subject cannot be internal/.test(tsvc), 'admin-only, audited, never a subject');
-  assert(/export async function setTaxonomyNodeInternalAction[\s\S]{0,200}guardAdminAction\(\) \/\* CA-7: admin only \*\//.test(read('app/admin/taxonomy/actions.ts')), 'action guarded first');
-  const tm = read('app/admin/master-tree/taxonomy-manager.tsx');
+  assert(/export async function setTaxonomyNodeInternalAction[\s\S]{0,200}guardAdminAction\(\) \/\* CA-7: admin only \*\//.test(read('app/(site)/admin/taxonomy/actions.ts')), 'action guarded first');
+  const tm = read('app/(site)/admin/master-tree/taxonomy-manager.tsx');
   assert(/Confirm: mark internal/.test(tm) && /setInternalConfirm\(true\)/.test(tm), 'two-step toggle');
   assert(/node\.nodeType === "SUBJECT" &&[\s\S]{0,400}SUBJECT_TYPE_LABELS\[node\.subjectType\][\s\S]{0,300}Type not set/.test(tm) && /border-warning-200 bg-warning-50[^"]*text-warning-800">Type not set/.test(tm), 'subject-type chip / "Type not set" in warning orange');
   assert(/function LessonDot[\s\S]{0,400}"Lesson published" : status === "DRAFT" \? "Lesson draft" : "No lesson"/.test(tm) && /<LessonDot status=\{lessonStatus\[node\.id\] \?\? null\} \/>/.test(tm), 'lesson dot with a text label (never colour alone)');

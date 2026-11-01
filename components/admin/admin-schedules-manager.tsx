@@ -23,7 +23,7 @@ import {
   updateDailyMockProgramAction,
   deactivateDailyMockProgramAction,
   toggleDailyMockDayAction,
-} from "@/app/admin/actions";
+} from "@/app/(site)/admin/actions";
 import { StudioPageHeader, studioQuietAction } from "@/components/admin/studio/studio-page";
 import { Card } from "@/components/ui/legacy/card";
 import { Button } from "@/components/ui/legacy/button";

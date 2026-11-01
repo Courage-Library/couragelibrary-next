@@ -10,7 +10,7 @@ import { QuestionOptions } from "@/components/assessment/question-options";
 import { QuestionPalette, QuestionPaletteItem, QuestionStatus } from "@/components/assessment/question-palette";
 import { SubmitDialog, SectionSubmitSummary } from "@/components/assessment/submit-dialog";
 import { CandidateSecurityWatermark } from "@/components/assessment/candidate-security-watermark";
-import { saveLiveAnswerAction, submitLiveAttemptAction } from "@/app/live-tests/actions";
+import { saveLiveAnswerAction, submitLiveAttemptAction } from "@/app/(site)/live-tests/actions";
 import { Button } from "@/components/ui/legacy/button";
 import {
   ChevronLeft,

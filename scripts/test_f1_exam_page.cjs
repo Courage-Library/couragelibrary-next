@@ -56,7 +56,7 @@ require.extensions['.tsx'] = transpile;
 const MOCKS = {
   'server-only': {},
   'next/navigation': { useRouter: () => ({ refresh() {} }), notFound: () => { throw new Error('NEXT_NOT_FOUND'); } },
-  '@/app/mock-tests/actions': { addUserExamGoalAction: async () => ({ success: true }) },
+  '@/app/(site)/mock-tests/actions': { addUserExamGoalAction: async () => ({ success: true }) },
 };
 const origLoad = Module._load;
 Module._load = function (request, parent, isMain) {
@@ -159,7 +159,7 @@ function fullPage(cta, statuses) {
     const out = text(fullPage(L.resolveExamCta(STATES[0][1], SLUG), new Map([['m1', { state: 'done', href: '/x', score: 50, maxScore: 207 }], ['m2', { state: 'in-progress', href: '/y' }], ['m3', { state: 'not-started', href: '/z' }]])));
     const nums = (out.match(/\d+(?:\.\d+)?/g) || []).filter((d) => !allowed.has(d));
     assert(nums.length === 0, `numbers not from the fixture: ${[...new Set(nums)].join(', ')}`);
-    const page = code(read('app/exams/[slug]/page.tsx')) + code(read('components/exams/exam-home.tsx'));
+    const page = code(read('app/(site)/exams/[slug]/page.tsx')) + code(read('components/exams/exam-home.tsx'));
     for (const bad of [/Bachelor/i, /Citizen of India/i, /Prescribed in Rules/i, /payLevel/, /Recruitment Commission/]) assert(!bad.test(page), `invented fallback ${bad}`);
     assert(/exam\.conductingOrg\.id \? exam\.conductingOrg\.name : null/.test(page), 'conducting body only when recorded');
     return `${strings.length} copy strings, rendered numbers all from data`;
@@ -240,7 +240,7 @@ function fullPage(cta, statuses) {
   });
 
   await test('F-09 English UI only (#82); content language: Hindi guide when published, else English', () => {
-    const files = ['content/exam-page.ts', 'components/exams/exam-home.tsx', 'components/exams/add-exam-button.tsx', 'app/exams/[slug]/page.tsx', 'components/public/coming-soon-hub.tsx', 'lib/exams/exam-page.ts'];
+    const files = ['content/exam-page.ts', 'components/exams/exam-home.tsx', 'components/exams/add-exam-button.tsx', 'app/(site)/exams/[slug]/page.tsx', 'components/public/coming-soon-hub.tsx', 'lib/exams/exam-page.ts'];
     for (const f of files) {
       const s = code(read(f));
       assert(!/lang="hi"|[\u0900-\u097F]/.test(s), `${f}: Hindi UI label`);
@@ -248,13 +248,13 @@ function fullPage(cta, statuses) {
     assert(L.contentLanguage('hi') === 'hi' && L.contentLanguage('en') === 'en' && L.contentLanguage('hinglish') === 'en' && L.contentLanguage(null) === 'en', 'contentLanguage');
     const merged = L.preferModules({ SALARY: { v: 'hi' }, POSTS: null }, { SALARY: { v: 'en' }, POSTS: { v: 'en' } });
     assert(merged.SALARY.v === 'hi' && merged.POSTS.v === 'en', 'preferModules');
-    const reader = code(read('app/exams/[slug]/[moduleSlug]/page.tsx'));
+    const reader = code(read('app/(site)/exams/[slug]/[moduleSlug]/page.tsx'));
     assert(/userContentLanguage\(\)\) === "hi"/.test(reader) && /language: "hi"/.test(reader), 'guide reader ignores the content language');
     return `${files.length} files English-only; hi → en fallback`;
   });
 
   await test('F-10 wiring: streamed user parts, read-only loader, syllabus kept, no rank / verified / official claims', () => {
-    const page = code(read('app/exams/[slug]/page.tsx'));
+    const page = code(read('app/(site)/exams/[slug]/page.tsx'));
     assert(/<Suspense fallback=\{<ExamCtaView examId=\{exam\.id\} cta=\{signedOutCta\} \/>\}>/.test(page) && /resolveExamCta\(\{ signedIn: false, signupOpen: false \}, exam\.slug\)/.test(page), 'CTA fallback must be the signed-out, sign-up-closed view');
     assert(/<Suspense fallback=\{<ExamMocks mocks=\{mocks\} statuses=\{null\} \/>\}>/.test(page), 'mock statuses must stream');
     assert(/<ExamSyllabusSection\b/.test(page) && /<ExamSyllabusHome id="syllabus"/.test(page), 'syllabus section');
@@ -265,13 +265,13 @@ function fullPage(cta, statuses) {
     assert(/^import "server-only";/m.test(read('lib/exams/exam-page-server.ts')), 'server-only');
     assert(!/\.(insert|update|upsert|delete)\(|\.rpc\(|Admin|service_role|SERVICE_ROLE/.test(loader), 'loader writes or uses the service role');
     assert((loader.match(/\.eq\("user_id", uid\)/g) || []).length === 3, 'every user read keyed on the session user');
-    const ui = ['components/exams/exam-home.tsx', 'content/exam-page.ts', 'app/exams/[slug]/page.tsx'].map((f) => code(read(f))).join('\n');
+    const ui = ['components/exams/exam-home.tsx', 'content/exam-page.ts', 'app/(site)/exams/[slug]/page.tsx'].map((f) => code(read(f))).join('\n');
     for (const bad of [/\brank\b/i, /percentile/i, /\bverified\b/i, /\bofficial\b/i, /guarantee/i, /\btop(per)?\b/i, /glass-/]) assert(!bad.test(ui), `claim / glass: ${bad}`);
     return 'Suspense fallbacks + read-only loader';
   });
 
   await test('F-11 (F1-a) goal action: existing active / upcoming cycle only, never creates a cycle, max 3, fixed copy; 092 guard', () => {
-    const act = code(read('app/mock-tests/actions.ts'));
+    const act = code(read('app/(site)/mock-tests/actions.ts'));
     assert(!/from\("exam_cycles"\)[\s\S]{0,80}\.(insert|upsert|update|delete)\(/.test(act) && !/exam_cycles"\)\s*\.insert/.test(act), 'action writes exam_cycles');
     assert(/\.in\("status", \["active", "upcoming"\]\)/.test(act) && /return fail\("NO_CYCLE"\)/.test(act), 'must attach to an existing active / upcoming cycle');
     assert(/MAX_ACTIVE_GOALS = 3/.test(act) && /return fail\("GOALS_FULL"\)/.test(act) && /GOALS_LIMIT/.test(act), '3-goal limit + DB error mapping');

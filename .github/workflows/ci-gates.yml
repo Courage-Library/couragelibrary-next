@@ -102,6 +102,8 @@ jobs:
           q QA-FIXTURE-EXCLUSION node scripts/test_qa_fixture_exclusion.cjs || fail=1
           q EXAM-NOTE-PROMPT-1 node scripts/test_exam_note_prompt1.cjs || fail=1
           q HOME-1 node scripts/test_home1.cjs || fail=1
+          q PERF-HOME-1-WIRING node scripts/test_perf_home1_wiring.cjs || fail=1
+          q PERF-HOME-1-WIRING-SELFTEST node scripts/test_perf_home1_wiring.cjs --self-test || fail=1
           q READERS-OFFLINE node scripts/test_gap2_4b_readers.cjs --offline || fail=1
           q EDITOR node scripts/test_gap2_4b_editor.cjs || fail=1
           q UX2A-OFFLINE node scripts/test_ux2a_landing.cjs --offline || fail=1

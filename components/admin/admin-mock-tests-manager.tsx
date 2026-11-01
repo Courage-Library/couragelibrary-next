@@ -4,7 +4,7 @@ import { actionErrorMessage } from "@/lib/actions/action-result";
 import React, { useState, useMemo, useActionState, useTransition, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createMockTestAction, updateMockTestAction, toggleMockTestPublishAction } from "@/app/admin/actions";
+import { createMockTestAction, updateMockTestAction, toggleMockTestPublishAction } from "@/app/(site)/admin/actions";
 import { AdminCategoryItem, AdminPatternItem } from "@/services/admin.service";
 import { BulkImportModal } from "@/components/admin/bulk-import-modal";
 import { StudioDrawer } from "@/components/admin/studio/studio-drawer";

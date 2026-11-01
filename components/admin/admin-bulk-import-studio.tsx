@@ -14,7 +14,7 @@ import {
   uploadBulkImportImageAction,
   importBulkQuestionsAction,
   BulkImportQuestionRecord,
-} from "@/app/admin/actions";
+} from "@/app/(site)/admin/actions";
 import { parseCSV } from "@/lib/admin/csv-parser";
 import {
   Wand2,

@@ -23,7 +23,7 @@ import {
   updateCustomLimitsAction,
   toggleTestSeriesStatusAction,
   updateMockCuratedStatusAction,
-} from "@/app/admin/premium/actions";
+} from "@/app/(site)/admin/premium/actions";
 import { Card } from "@/components/ui/legacy/card";
 import { Badge } from "@/components/ui/legacy/badge";
 import { Button } from "@/components/ui/legacy/button";

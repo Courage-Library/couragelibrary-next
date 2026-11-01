@@ -4,7 +4,7 @@
  * Part 1  sanitizer unit tests (lib/auth/safe-redirect.ts): ≥25 hostile inputs fall back safely; valid
  *         paths (incl. query on non-admin paths) are preserved, fragments stripped; admin variant.
  * Part 2  one implementation: require-admin's sanitizeAdminNext and middleware both use the shared one.
- * Part 3  execution: app/auth/callback GET and loginAction run with mocks — hostile `next` never leaves
+ * Part 3  execution: app/(site)/auth/callback GET and loginAction run with mocks — hostile `next` never leaves
  *         the origin; no string concatenation of origin + next.
  * Part 4  role flips: gamification / billing / live-tests results pages + their actions admin-only.
  * Part 5  (--live [baseUrl]) login honours `next` (qa-student); callback stays on origin; qa-staff gets
@@ -135,7 +135,7 @@ const VALID = [
 
   // ===================== Part 3: execution =====================
   await test('C-01 callback: hostile next → redirect stays on the request origin (success path)', async () => {
-    const { GET } = require(path.join(ROOT, 'app/auth/callback/route.ts'));
+    const { GET } = require(path.join(ROOT, 'app/(site)/auth/callback/route.ts'));
     authMock.exchangeOk = true;
     const origin = 'https://app.example';
     const bad = [];
@@ -148,7 +148,7 @@ const VALID = [
     return `${HOSTILE.length} hostile`;
   });
   await test('C-02 callback: valid next kept, missing next → /dashboard, bad code → same-origin login error', async () => {
-    const { GET } = require(path.join(ROOT, 'app/auth/callback/route.ts'));
+    const { GET } = require(path.join(ROOT, 'app/(site)/auth/callback/route.ts'));
     const origin = 'https://app.example';
     authMock.exchangeOk = true;
     const a = new URL((await GET(new Request(`${origin}/auth/callback?code=c&next=%2Fauth%2Fupdate-password`))).headers.get('location'));
@@ -161,12 +161,12 @@ const VALID = [
     assert(c.origin === origin && c.pathname === '/auth/login', c.href);
   });
   await test('C-03 callback source: no origin + next string concatenation', async () => {
-    const s = read('app/auth/callback/route.ts');
+    const s = read('app/(site)/auth/callback/route.ts');
     assert(!/\$\{origin\}\$\{/.test(s) && !/origin\s*\+\s*next/.test(s), 'string concatenation found');
     assert(/safeRedirectUrl\(/.test(s));
   });
   await test('C-04 loginAction: hostile next → "/", valid → kept, empty → /dashboard, failed sign-in → no redirect', async () => {
-    const { loginAction } = require(path.join(ROOT, 'app/auth/actions.ts'));
+    const { loginAction } = require(path.join(ROOT, 'app/(site)/auth/actions.ts'));
     const run = async (next) => {
       const fd = new FormData(); fd.set('email', 'a@b.test'); fd.set('password', 'x'); if (next !== undefined) fd.set('next', next);
       try { return { result: await loginAction(null, fd) }; } catch (e) { if (e instanceof RedirectSignal) return { redirect: e.url }; throw e; }
@@ -185,28 +185,28 @@ const VALID = [
   });
   await test('C-05 login page passes `next` to the action via a hidden field (sanitized server-side)', async () => {
     // AUTH-1 2b-1 split the login page: server page.tsx + client login-form.tsx (markup unchanged)
-    const s = read('app/auth/login/page.tsx') + read('app/auth/login/login-form.tsx');
+    const s = read('app/(site)/auth/login/page.tsx') + read('app/(site)/auth/login/login-form.tsx');
     assert(/searchParams\.get\("next"\)/.test(s) && /<input type="hidden" name="next" value=\{next\} \/>/.test(s));
-    assert(/sanitizeRedirectPath\(next\)/.test(read('app/auth/actions.ts')));
+    assert(/sanitizeRedirectPath\(next\)/.test(read('app/(site)/auth/actions.ts')));
   });
 
   // ===================== Part 4: role flips (static) =====================
   await test('R-01 pages admin-only: gamification, billing, live-tests/[id]/results', async () => {
-    for (const p of ['app/admin/gamification/page.tsx', 'app/admin/payments/page.tsx', 'app/admin/live-tests/[id]/results/page.tsx']) {
+    for (const p of ['app/(site)/admin/gamification/page.tsx', 'app/(site)/admin/payments/page.tsx', 'app/(site)/admin/live-tests/[id]/results/page.tsx']) {
       const call = (read(p).match(/requireAdminPage\(([^)]*)\)/) || [])[1] || '';
       assert(call && !/allowStaff/.test(call), `${p}: ${call}`);
     }
   });
   await test('R-02 actions admin-only: updateRewardPolicyAction, createSubscriptionPlanAction (reports admin-only since F2 #79)', async () => {
-    const g = read('app/admin/gamification/actions.ts');
+    const g = read('app/(site)/admin/gamification/actions.ts');
     assert(/export async function updateRewardPolicyAction[\s\S]{0,300}guardAdminAction\(\);/.test(g), 'gamification action');
-    const a = read('app/admin/actions.ts');
+    const a = read('app/(site)/admin/actions.ts');
     assert(/export async function createSubscriptionPlanAction[\s\S]{0,200}guardAdminAction\(\);/.test(a), 'billing action');
     // F2 (#79) supersedes the SEC-1D "reports stays staff" ruling: question reports are admin-only read
     // ADMIN-IA-1: the old /admin/reports + /admin/question-reports addresses redirect to the one admin-only page
     const { ADMIN_REDIRECTS } = { ADMIN_REDIRECTS: [...read('lib/admin/nav-redirects.ts').matchAll(/from: "([^"]+)", to: "([^"]+)"/g)].map((m) => ({ from: m[1], to: m[2] })) };
     assert(['/admin/reports', '/admin/question-reports'].every((f) => ADMIN_REDIRECTS.some((r) => r.from === f && r.to === '/admin/support/question-reports'))
-      && /requireAdminPage\(\{ path: "\/admin\/support\/question-reports" \}\)/.test(read('app/admin/support/question-reports/page.tsx')), 'reports must be admin-only');
+      && /requireAdminPage\(\{ path: "\/admin\/support\/question-reports" \}\)/.test(read('app/(site)/admin/support/question-reports/page.tsx')), 'reports must be admin-only');
   });
 
   // ===================== Part 5: live =====================

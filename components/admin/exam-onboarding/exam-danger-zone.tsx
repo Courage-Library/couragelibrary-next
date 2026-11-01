@@ -20,7 +20,7 @@ import {
   evaluateExamDeletionEligibilityAction,
   deleteExamDraftAction,
   archiveExamAction,
-} from "@/app/admin/exams/actions";
+} from "@/app/(site)/admin/exams/actions";
 import type { ExamDeletionEligibilityReport } from "@/services/exam-onboarding/exam-onboarding.service";
 
 interface Props {

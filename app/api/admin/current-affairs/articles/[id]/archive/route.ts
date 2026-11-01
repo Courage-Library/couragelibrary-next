@@ -1,6 +1,7 @@
 import { guardAdminRoute, toRouteErrorResponse, sanitizeActionResult } from "@/lib/auth/require-admin";
 import { NextRequest, NextResponse } from 'next/server';
 import { AdminCurrentAffairsService } from '@/services/admin-current-affairs.service';
+import { revalidatePublicPages } from "@/lib/cache/revalidate-public";
 
 export async function POST(
   req: NextRequest,
@@ -26,6 +27,7 @@ export async function POST(
       );
     }
 
+    revalidatePublicPages(); // PERF-HOME-1: the cached public pages show the current-affairs count
     return NextResponse.json({
       success: true,
       data: result,

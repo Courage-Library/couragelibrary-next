@@ -64,7 +64,7 @@ const CONTENT = 'content/landing.ts';
 const SECTIONS = 'components/landing/landing-sections.tsx';
 const DATA = 'lib/landing/landing-data.ts';
 const JSONLD = 'lib/landing/organization-jsonld.ts';
-const PAGE = 'app/page.tsx';
+const PAGE = 'app/(public)/page.tsx';
 const HEADER = 'components/shell/header-bar.tsx';
 const FOOTER = 'components/shell/site-footer.tsx';
 const CTA = 'components/landing/landing-cta.tsx';
@@ -113,7 +113,7 @@ function appRoutes() {
     for (const e of fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
       const rel = `${dir}/${e.name}`;
       if (e.isDirectory()) walk(rel);
-      else if (e.name === 'page.tsx') out.push('/' + rel.replace(/^app\/?/, '').replace(/\/?page\.tsx$/, ''));
+      else if (e.name === 'page.tsx') out.push(('/' + rel.replace(/^app\/?/, '').replace(/\/?page\.tsx$/, '')).replace(/\/\([^/]+\)/g, '') || '/'); // route groups add no segment
     }
   };
   walk('app');
@@ -189,8 +189,12 @@ const UX2B_ROUTES = ['/legal'];
     const factsOk = /await Promise\.all\(\[loadLiveCategoryNames\(\), loadHindiAvailability\(\)\]\)/.test(facts) && (facts.match(/await /g) || []).length === 1
       && /readHindiAvailability\(\)\.catch\(\(\) => null\), new Promise<null>\(\(ok\) => setTimeout\(\(\) => ok\(null\), 800\)\)/.test(hindi) && /unstable_cache\(/.test(hindi);
     assert(sync || (/export default async function HomePage\(\)/.test(page) && awaits.join() === 'loadHomeFacts' && bounded && factsOk), `HomePage: synchronous, or awaiting only the cached + bounded home facts (awaits: ${awaits.join() || 'none'}, names bounded: ${bounded}, facts: ${factsOk})`);
-    // UX-FIX-1: the fallback is the signed-out, sign-up-CLOSED view (never a link to a closed sign-up)
-    assert(/auth\.getSession\(\)/.test(cta) && /<Suspense fallback=\{<Cta spot=\{spot\} mode="signup-closed" \/>\}>/.test(cta), 'display-only session check in its own Suspense (signed-out, sign-up-closed fallback)');
+    // PERF-HOME-1 (owner, option 1): "/" is cached HTML shared by everyone — the CTA reads NO session; both variants are
+    // rendered and CSS shows one from <html data-auth> (no JS → signed-out). UX-FIX-1 kept: the signed-out variant is
+    // "signup-closed" (never a link to a closed sign-up) unless the GLOBAL sign-up setting is open.
+    assert(!/getSession\(|getUser\(|cookies\(|headers\(|createServerSupabaseClient|createClient\(/.test(cta), 'the CTA reads no session / request (cached page)');
+    assert(/<span className="auth-in contents" data-cta-variant="signed-in">\s*<Cta spot=\{spot\} mode="signed-in" \/>/.test(cta) && /<span className="auth-out contents" data-cta-variant="signed-out">\s*<Cta spot=\{spot\} mode=\{signedOut\} \/>/.test(cta), 'both variants, toggled by the auth-in / auth-out classes');
+    assert(/const signedOut: Mode = \(await getSignupAvailability\(\)\) === "closed" \? "signup-closed" : "signup-open";/.test(cta), 'signed-out variant follows the global sign-up setting (closed → no sign-up link)');
     return 'hero, final CTA, header';
   });
 
@@ -298,7 +302,7 @@ const UX2B_ROUTES = ['/legal'];
     assert(bad.length === 0, `not built from PageLoading: ${bad.join(', ')}`);
     const pl = read('components/shell/page-loading.tsx');
     assert(/from "@\/components\/ui\/skeleton"/.test(pl) && !/legacy|dark:|#[0-9a-f]{3,6}\b/i.test(stripComments(pl)), 'PageLoading must use components/ui only');
-    const PUBLIC = ['app/loading.tsx', 'app/exams/loading.tsx', 'app/mock-tests/loading.tsx', 'app/current-affairs/loading.tsx', 'app/pricing/loading.tsx'];
+    const PUBLIC = ['app/loading.tsx', 'app/exams/loading.tsx', 'app/(site)/mock-tests/loading.tsx', 'app/(site)/current-affairs/loading.tsx', 'app/(site)/pricing/loading.tsx'];
     assert(!found.some((f) => PUBLIC.includes(f)), 'public routes must render static content immediately (no segment loading UI)');
     return `${found.length} segment loading UIs: ${found.map((f) => f.replace(/^app\//, '/').replace(/\/loading\.tsx$/, '')).join(', ')}`;
   });
@@ -314,7 +318,7 @@ const UX2B_ROUTES = ['/legal'];
     const walk = (dir) => {
       for (const e of fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
         const rel = `${dir}/${e.name}`;
-        if (e.isDirectory()) { if (!rel.startsWith('app/admin') && !rel.startsWith('app/api')) walk(rel); continue; }
+        if (e.isDirectory()) { if (!rel.startsWith('app/(site)/admin') && !rel.startsWith('app/api')) walk(rel); continue; }
         if (!/\.(ts|tsx)$/.test(e.name)) continue;
         const src = read(rel);
         for (const m of src.matchAll(/description:\s*(?:\n\s*)?["'`]([^"'`]+)["'`]/g)) if (++descriptions && /\b\d+\+|thousands of|lakhs? of|millions? of/i.test(m[1])) claims.push(`${rel}: ${m[1].slice(0, 80)}`);

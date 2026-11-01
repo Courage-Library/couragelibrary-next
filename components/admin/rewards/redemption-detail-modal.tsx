@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Image from "next/image";
 import { AdminRedemptionRecord } from "@/services/gamification.service";
-import { updateRedemptionStatusAction } from "@/app/admin/rewards/actions";
+import { updateRedemptionStatusAction } from "@/app/(site)/admin/rewards/actions";
 
 interface RedemptionDetailModalProps {
   redemption: AdminRedemptionRecord | null;

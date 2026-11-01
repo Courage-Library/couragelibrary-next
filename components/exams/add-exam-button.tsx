@@ -9,7 +9,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { PillButton } from "@/components/ui/pill-button";
 import { EXAM_PAGE } from "@/content/exam-page";
-import { addUserExamGoalAction } from "@/app/mock-tests/actions";
+import { addUserExamGoalAction } from "@/app/(site)/mock-tests/actions";
 
 export function AddExamButton({ examId, label }: { examId: string; label: string }) {
   const router = useRouter();

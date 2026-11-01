@@ -242,7 +242,7 @@ const SCORE_FIELDS = ['total_questions', 'attempted_count', 'correct_count', 'in
     assert(/if \(user\?\.id\) await AssessmentService\.finalizeExpiredAttempts\(\{ userId: user\.id, limit: 20 \}\);/.test(svc), 'result page (getTestResult)');
     assert(/if \(resolvedUserId\) await AssessmentService\.finalizeExpiredAttempts\(\{ userId: resolvedUserId, limit: 20 \}\);/.test(svc), 'mock list (dashboard data)');
     assert(/await AssessmentService\.finalizeExpiredAttempts\(\{ userId: uid, limit: 20 \}\);/.test(read('lib/exams/exam-page-server.ts')), 'exam page status');
-    assert(/if \(user\) await AssessmentService\.finalizeExpiredAttempts\(\{ userId: user\.id, limit: 20 \}\);/.test(read('app/mock-tests/[id]/page.tsx')), 'instructions page');
+    assert(/if \(user\) await AssessmentService\.finalizeExpiredAttempts\(\{ userId: user\.id, limit: 20 \}\);/.test(read('app/(site)/mock-tests/[id]/page.tsx')), 'instructions page');
     assert(/submitTestAttempt\(r\.id, r\.user_id, \{ submittedAt: attemptDeadline\(r\.started_at, duration\)\.toISOString\(\) \}\)/.test(svc), 'finalize = the submit path with submittedAt = deadline');
     // cron route
     const route = require(path.join(ROOT, 'app/api/cron/finalize-attempts/route.ts'));

@@ -125,7 +125,7 @@ const MIG = 'supabase/migrations/20261025000094_proctor_log1_attempt_events.sql'
     const store = new Map();
     const s = { getItem: (k) => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, v) };
     assert(nextProctorSeq('a', s) === 1 && nextProctorSeq('a', s) === 2 && nextProctorSeq('b', s) === 1, 'per-attempt counter continues');
-    const P = code(read('app/mock-tests/[id]/take/player-client.tsx'));
+    const P = code(read('app/(site)/mock-tests/[id]/take/player-client.tsx'));
     for (const ev of ['tab_hidden', 'tab_visible', 'fullscreen_exit', 'fullscreen_enter']) assert(P.includes(`"${ev}"`), `player sends ${ev}`);
     assert(/fetch\("\/api\/assessment\/proctor-event", \{[\s\S]{0,200}keepalive: true,\s*\}\)\.catch\(\(\) => undefined\);/.test(P), 'fire-and-forget (not awaited, errors swallowed)');
     assert(!/await fetch\("\/api\/assessment\/proctor-event"/.test(P), 'never awaited');

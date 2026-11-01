@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { resolveCommunityFlagAction } from "@/app/admin/actions";
+import { resolveCommunityFlagAction } from "@/app/(site)/admin/actions";
 import { Card } from "@/components/ui/legacy/card";
 import { Badge } from "@/components/ui/legacy/badge";
 import { Button } from "@/components/ui/legacy/button";

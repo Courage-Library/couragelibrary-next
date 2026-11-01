@@ -8,7 +8,7 @@ import { useState, useTransition } from "react";
 import { Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MEMORY_LOCK } from "@/content/memory-lock";
-import { addToMemoryLockAction } from "@/app/memory-lock/actions";
+import { addToMemoryLockAction } from "@/app/(site)/memory-lock/actions";
 
 export function AddToMemoryLockButton({ questionId, className }: { questionId: string; className?: string }) {
   const [code, setCode] = useState<string | null>(null);

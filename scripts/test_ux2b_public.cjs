@@ -9,7 +9,7 @@
  *        content/ config/ (non-admin)
  *   P-3  legal pages render through LegalPage with the visible "Draft — under legal review" notice
  *   P-4  every internal href in the new pages / components / copy resolves to an existing route
- *   P-5  /premium is a permanent redirect to /pricing and app/premium/page.tsx is gone
+ *   P-5  /premium is a permanent redirect to /pricing and app/(site)/premium/page.tsx is gone
  *   P-6  coming-soon hubs: only the listed slugs (SSC CHSL, SSC MTS), only while inactive, noindex metadata; the sitemap
  *        lists active exams only plus the six new public pages
  *   P-7  /cnts and /contact have no <form> / <input> / price / date; CNTS says "Registrations open soon"
@@ -47,7 +47,7 @@ const assert = (c, m) => {
   if (!c) throw new Error(m || 'assertion failed');
 };
 
-const NEW_PAGES = ['app/about/page.tsx', 'app/cnts/page.tsx', 'app/contact/page.tsx', 'app/privacy/page.tsx', 'app/terms/page.tsx', 'app/exams/page.tsx'];
+const NEW_PAGES = ['app/(site)/about/page.tsx', 'app/(site)/cnts/page.tsx', 'app/(site)/contact/page.tsx', 'app/(site)/privacy/page.tsx', 'app/(site)/terms/page.tsx', 'app/(public)/exams/page.tsx'];
 const NEW_COMPONENTS = ['components/public/public-page.tsx', 'components/public/coming-soon-hub.tsx'];
 const COPY = 'content/public-pages.ts';
 const PUBLIC_ROUTES = ['/about', '/cnts', '/contact', '/privacy', '/terms', '/pricing'];
@@ -132,7 +132,7 @@ async function offline() {
     const lp = read('components/public/public-page.tsx');
     assert(/LEGAL_DRAFT_NOTICE\.title/.test(lp) && /data-legal-draft/.test(lp), 'LegalPage does not render the draft notice');
     assert(/title: "Draft — under legal review"/.test(read(COPY)), 'draft notice title changed');
-    for (const f of ['app/privacy/page.tsx', 'app/terms/page.tsx']) assert(/<LegalPage /.test(read(f)), `${f} does not use LegalPage`);
+    for (const f of ['app/(site)/privacy/page.tsx', 'app/(site)/terms/page.tsx']) assert(/<LegalPage /.test(read(f)), `${f} does not use LegalPage`);
     return 'privacy + terms';
   });
 
@@ -150,12 +150,12 @@ async function offline() {
   await test('P-5 /premium → permanent redirect to /pricing; the old page is gone', () => {
     const nc = read('next.config.ts');
     assert(/\{\s*source:\s*"\/premium",\s*destination:\s*"\/pricing",\s*permanent:\s*true\s*\}/.test(nc), 'redirect missing');
-    assert(!exists('app/premium/page.tsx') && !exists('app/premium/loading.tsx'), 'app/premium page still present');
+    assert(!exists('app/(site)/premium/page.tsx') && !exists('app/(site)/premium/loading.tsx'), 'app/(site)/premium page still present');
     return 'next.config redirect';
   });
 
   await test('P-6 coming-soon hubs: listed slugs only, only while inactive, noindex; sitemap: active exams + six pages', () => {
-    const hub = read('app/exams/[slug]/page.tsx');
+    const hub = read('app/(site)/exams/[slug]/page.tsx');
     // any non-FOUND status (anonymous RLS hides inactive rows → NOT_FOUND); FOUND (active) renders the real hub
     assert(/status !== "FOUND" \? COMING_SOON_EXAMS\.find/.test(hub), 'coming-soon must apply to listed exams whenever they are not FOUND');
     const metaLine = hub.split('\n').find((l) => l.includes('(coming soon)')) || '';
@@ -171,7 +171,7 @@ async function offline() {
   });
 
   await test('P-7 /cnts and /contact: no form, no input, no price, no date; CNTS registration is "open soon"', () => {
-    for (const f of ['app/cnts/page.tsx', 'app/contact/page.tsx']) {
+    for (const f of ['app/(site)/cnts/page.tsx', 'app/(site)/contact/page.tsx']) {
       const s = code(read(f));
       assert(!/<form|<input|<textarea|<select|action=/i.test(s), `${f} has a form control`);
     }
@@ -179,7 +179,7 @@ async function offline() {
     assert(/registrationTitle: "Registrations open soon"/.test(c), 'CNTS registration notice missing');
     const cnts = (c.match(/export const CNTS_PAGE = \{([\s\S]*?)\n\} as const;/) || [])[1] || '';
     assert(cnts.length > 200 && !/\b(19|20)\d\d\b|\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b \d|₹|fee/i.test(cnts), 'CNTS copy has a date or price');
-    assert(/mailto:\$\{CONTACT_PAGE\.email\}/.test(read('app/contact/page.tsx')) && /email: SHELL_COPY\.supportEmail/.test(c), 'contact mailto missing');
+    assert(/mailto:\$\{CONTACT_PAGE\.email\}/.test(read('app/(site)/contact/page.tsx')) && /email: SHELL_COPY\.supportEmail/.test(c), 'contact mailto missing');
     return 'no forms; CNTS closed; mailto support';
   });
 
@@ -224,7 +224,7 @@ async function renderChecks() {
     },
     'server-only': {},
     'next/headers': { cookies: async () => ({ getAll: () => [], get: () => undefined, set: () => undefined }), headers: async () => new Map() },
-    '@/lib/supabase/server': { createServerSupabaseClient: async () => ({}) },
+    '@/lib/supabase/server': { createServerSupabaseClient: async () => ({}), createPublicServerSupabaseClient: () => ({}) }, // PERF-HOME-1: /exams is cached (public client)
     '@/lib/landing/landing-data': { loadLandingData: async () => landingData },
     // HOME-1: /exams shows the category tiles first; /exams/<slug> checks for a category before an exam
     '@/lib/exams/category-data': { loadPublicCategories: async () => null, loadPublicCategory: async () => null },
@@ -238,7 +238,7 @@ async function renderChecks() {
   const html = async (el) => renderToStaticMarkup(await el);
   const text = (h) => h.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<[^>]+>/g, ' ').replace(/&#x27;|&apos;/g, "'").replace(/&amp;/g, '&').replace(/\s+/g, ' ');
 
-  const examsPage = require(path.join(ROOT, 'app/exams/page.tsx')).default;
+  const examsPage = require(path.join(ROOT, 'app/(public)/exams/page.tsx')).default;
   await test('P-9a /exams with a failed data read → no-number fallback, coming-soon cards still shown', async () => {
     landingData = { ok: false };
     const h = await html(examsPage());
@@ -274,7 +274,7 @@ async function renderChecks() {
     return 'honest hub';
   });
   await test('P-9e exam hub: a listed exam that is not FOUND (anonymous RLS → NOT_FOUND, or INACTIVE) renders the noindex hub; unlisted → 404', async () => {
-    const hubMod = require(path.join(ROOT, 'app/exams/[slug]/page.tsx'));
+    const hubMod = require(path.join(ROOT, 'app/(site)/exams/[slug]/page.tsx'));
     const out = [];
     for (const status of ['NOT_FOUND', 'INACTIVE']) {
       examStatus = status;
@@ -292,7 +292,7 @@ async function renderChecks() {
     return `${out.join(' / ')}: CHSL hub noindex; GD + QA exam 404`;
   });
   await test('P-9d legal pages → the draft notice renders before the first section', async () => {
-    for (const f of ['app/privacy/page.tsx', 'app/terms/page.tsx']) {
+    for (const f of ['app/(site)/privacy/page.tsx', 'app/(site)/terms/page.tsx']) {
       const h = await html(require(path.join(ROOT, f)).default());
       const i = h.indexOf('data-legal-draft');
       assert(i > 0 && i < h.indexOf('id="legal-0"') && /Draft — under legal review/.test(text(h)), `${f}: notice missing or not first`);

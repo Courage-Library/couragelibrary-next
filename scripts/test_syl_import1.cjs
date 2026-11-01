@@ -201,7 +201,7 @@ const CASES = [
     assert(casts.length === 0, `casts in the validator: ${casts.map((m) => code.slice(m.index - 20, m.index + 20)).join(' | ')}`);
     assert(/export function validateImportPayload\(input: unknown\)/.test(src), 'validateImportPayload must take unknown');
     assert(!/^import /m.test(src), 'the validator must be a pure module (no imports)');
-    const actions = read('app/admin/syllabus/actions.ts');
+    const actions = read('app/(site)/admin/syllabus/actions.ts');
     for (const name of ['previewSyllabusImportAction', 'importSyllabusDraftAction']) {
       const i = actions.indexOf(`export async function ${name}(`);
       const body = actions.slice(i, actions.indexOf('\nexport async function', i + 10) > 0 ? actions.indexOf('\nexport async function', i + 10) : undefined);
@@ -235,7 +235,7 @@ const CASES = [
     assert(/PERFORM public\.fn_syllabus__assert_role\(false\);/.test(sql), 'role check differs from fn_syllabus_create_draft');
     assert(/REVOKE ALL ON FUNCTION public\.fn_syllabus_import_draft\(uuid, jsonb\) FROM PUBLIC, anon;/.test(sql) && /GRANT EXECUTE ON FUNCTION public\.fn_syllabus_import_draft\(uuid, jsonb\) TO authenticated;/.test(sql), 'grants');
     assert(!/\r/.test(read(MIGRATION)) && !/\r/.test(read('docs/database/rollback/086_rollback.sql')), 'CRLF in migration / rollback');
-    const actions = read('app/admin/syllabus/actions.ts');
+    const actions = read('app/(site)/admin/syllabus/actions.ts');
     const imp = actions.slice(actions.indexOf('// ---------------------------------------------------------------- SYL-IMPORT-1'));
     assert(!/fn_syllabus_publish|fn_syllabus_archive|canonical_taxonomy|createTaxonomy/.test(imp), 'import actions publish or touch topics');
     const ui = read('components/admin/syllabus/import-draft.tsx');

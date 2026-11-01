@@ -201,7 +201,7 @@ async function offline() {
     }
     const bad = rows.filter((r) => r.r < r.need).map((r) => `${r.use}: ${r.r.toFixed(2)} < ${r.need}`);
     // hero-accent-text only in hero contexts
-    const HERO_OK = ['components/landing/landing-sections.tsx', 'app/dashboard/page.tsx', 'components/brand/wordmark.tsx', 'components/ui/pill-button.tsx'];
+    const HERO_OK = ['components/landing/landing-sections.tsx', 'app/(site)/dashboard/page.tsx', 'components/brand/wordmark.tsx', 'components/ui/pill-button.tsx'];
     for (const f of [...walk(path.join(ROOT, 'app')), ...walk(path.join(ROOT, 'components'))]) {
       const r = rel(f);
       if (/text-hero-accent-text|hero-accent-text/.test(fs.readFileSync(f, 'utf8')) && !HERO_OK.includes(r) && r !== 'app/globals.css' && r !== 'components/ui/gradient-hero.tsx') bad.push(`${r}: hero-accent-text outside the hero`);
@@ -212,22 +212,22 @@ async function offline() {
 
   const GLASS = /\bglass-(?:light|dark)\b|\bGlass(?:Card|Chip|Nav)\b|@\/components\/ui\/glass"|\bbackdrop-filter\b/;
   await test('C-03 no glass in the exam engine, question review or admin; their roots are [data-no-glass] zones', () => {
-    const ZONES = ['app/mock-tests', 'app/live-tests', 'app/admin', 'app/mistakes/drill', 'app/battles', 'components/assessment', 'components/live-test', 'components/admin', 'components/mistakes'];
+    const ZONES = ['app/(site)/mock-tests', 'app/(site)/live-tests', 'app/(site)/admin', 'app/(site)/mistakes/drill', 'app/(site)/battles', 'components/assessment', 'components/live-test', 'components/admin', 'components/mistakes'];
     const files = ZONES.flatMap((d) => walk(path.join(ROOT, d)));
     assert(files.length >= 100, `zone files ${files.length}`); // GATE-HYGIENE-1
     const bad = files.filter((f) => GLASS.test(fs.readFileSync(f, 'utf8'))).map(rel);
     const ROOTS = {
-      'app/mock-tests/[id]/take/page.tsx': 2,
-      'app/mock-tests/[id]/result/page.tsx': 1,
-      'app/live-tests/[slug]/take/page.tsx': 1,
+      'app/(site)/mock-tests/[id]/take/page.tsx': 2,
+      'app/(site)/mock-tests/[id]/result/page.tsx': 1,
+      'app/(site)/live-tests/[slug]/take/page.tsx': 1,
     };
     for (const [f, n] of Object.entries(ROOTS)) {
       const s = read(f);
       const wrapped = (s.match(/<NoGlassZone>/g) || []).length;
       if (wrapped < n) bad.push(`${f}: ${wrapped}/${n} player / review returns inside <NoGlassZone>`);
     }
-    if (!/data-no-glass=""/.test(read('app/admin/layout.tsx'))) bad.push('app/admin/layout.tsx root is not data-no-glass');
-    if (!/data-no-glass=""/.test(read('app/mistakes/drill/page.tsx'))) bad.push('app/mistakes/drill/page.tsx root is not data-no-glass');
+    if (!/data-no-glass=""/.test(read('app/(site)/admin/layout.tsx'))) bad.push('app/(site)/admin/layout.tsx root is not data-no-glass');
+    if (!/data-no-glass=""/.test(read('app/(site)/mistakes/drill/page.tsx'))) bad.push('app/(site)/mistakes/drill/page.tsx root is not data-no-glass');
     if (!/\[data-no-glass\],\s*\[data-no-glass\] \* \{[^}]*backdrop-filter: none !important/.test(css)) bad.push('globals.css: [data-no-glass] rule missing');
     // HOME-1 design decision (owner, 2026-11-01; supersedes the #72 floating pill): ONE solid header for everyone
     const header = read('components/shell/header-bar.tsx');
@@ -237,8 +237,8 @@ async function offline() {
   });
 
   await test('C-04 glass only in allowed places; home hero ≤ 3 glass groups per viewport (nav + chips + card)', () => {
-    const ALLOWED = new Set(['components/ui/glass.tsx', 'components/landing/landing-sections.tsx', 'app/dashboard/page.tsx',
-      'app/auth/login/login-form.tsx', 'app/auth/signup/signup-form.tsx', 'app/auth/signup/page.tsx', 'app/auth/forgot-password/forgot-password-form.tsx', 'app/globals.css']);
+    const ALLOWED = new Set(['components/ui/glass.tsx', 'components/landing/landing-sections.tsx', 'app/(site)/dashboard/page.tsx',
+      'app/(site)/auth/login/login-form.tsx', 'app/(site)/auth/signup/signup-form.tsx', 'app/(site)/auth/signup/page.tsx', 'app/(site)/auth/forgot-password/forgot-password-form.tsx', 'app/globals.css']);
     const all = [...walk(path.join(ROOT, 'app')), ...walk(path.join(ROOT, 'components'))];
     const users = all.filter((f) => /\bglass-(?:light|dark)\b|\bGlass(?:Card|Chip|Nav)\b/.test(fs.readFileSync(f, 'utf8'))).map(rel);
     const outside = users.filter((u) => !ALLOWED.has(u));
@@ -266,7 +266,8 @@ async function offline() {
     assert(rt > css.indexOf('@supports ((backdrop-filter') && /@media \(prefers-reduced-transparency: reduce\) \{\s*html:not\(\.lite\) \.glass-light,/.test(css) && /html:not\(\.lite\) \.glass-dark,\s*html\.lite \.glass-dark \{\s*background-color: var\(--color-hero-bg-mid\)/.test(css), 'reduced-transparency reset is weaker than (or before) the blur rule');
     assert(/html\.lite \.shadow-glass,\s*html\.lite \.shadow-soft \{[^}]*box-shadow: var\(--shadow-e1\)/.test(css), 'lite: large shadows not dropped');
     const layout = read('app/layout.tsx');
-    assert(/<head>\s*\{\/\*[^*]*\*\/\}\s*<script dangerouslySetInnerHTML=\{\{ __html: LITE_MODE_SCRIPT \}\} \/>\s*<\/head>/.test(layout), 'lite script not inline in <head>');
+    // PERF-HOME-1: the pre-paint auth hint (lib/ui/auth-hint.ts) is the only other inline script allowed in <head>, after it
+    assert(/<head>\s*\{\/\*[^*]*\*\/\}\s*<script dangerouslySetInnerHTML=\{\{ __html: LITE_MODE_SCRIPT \}\} \/>\s*(?:\{\/\*[^*]*\*\/\}\s*<script dangerouslySetInnerHTML=\{\{ __html: AUTH_HINT_SCRIPT \}\} \/>\s*)?<\/head>/.test(layout), 'lite script not inline in <head>');
     // unit: load the module (TS → CJS) and evaluate the inline script against fake devices
     const ts = require('typescript');
     const src = ts.transpileModule(read('lib/ui/lite-mode.ts'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
@@ -335,7 +336,7 @@ async function offline() {
     assert(/inline-flex min-h-12 items-center/.test(read('components/brand/wordmark.tsx')), 'wordmark link < 48 px');
     const legacy = read('components/ui/legacy/button.tsx');
     assert(/lg: "h-12 /.test(legacy), 'legacy lg button no longer 48 px');
-    const submits = ['app/auth/login/login-form.tsx', 'app/auth/signup/signup-form.tsx', 'app/auth/forgot-password/forgot-password-form.tsx'].filter((f) => !/type="submit"[\s\S]{0,120}size="lg"/.test(read(f)));
+    const submits = ['app/(site)/auth/login/login-form.tsx', 'app/(site)/auth/signup/signup-form.tsx', 'app/(site)/auth/forgot-password/forgot-password-form.tsx'].filter((f) => !/type="submit"[\s\S]{0,120}size="lg"/.test(read(f)));
     assert(submits.length === 0, `auth submit not size lg (48 px): ${submits.join(', ')}`);
     return 'pills 48 px, nav actions 48 px, auth submits 48 px';
   });
@@ -353,9 +354,9 @@ async function offline() {
   });
 
   await test('C-10 no banned claim phrases in public copy (CCPA coaching-advertising guidelines, 2024)', () => {
-    const files = ['content', 'components/landing', 'components/public', 'app/about', 'app/cnts', 'app/contact', 'app/privacy', 'app/terms', 'app/pricing', 'app/auth']
+    const files = ['content', 'components/landing', 'components/public', 'app/(site)/about', 'app/(site)/cnts', 'app/(site)/contact', 'app/(site)/privacy', 'app/(site)/terms', 'app/(site)/pricing', 'app/(site)/auth']
       .flatMap((d) => walk(path.join(ROOT, d)))
-      .concat(['app/page.tsx', 'app/exams/page.tsx', 'components/shell/site-footer.tsx', 'components/shell/header-bar.tsx'].map((f) => path.join(ROOT, f)));
+      .concat(['app/(public)/page.tsx', 'app/(public)/exams/page.tsx', 'components/shell/site-footer.tsx', 'components/shell/header-bar.tsx'].map((f) => path.join(ROOT, f)));
     assert(files.length >= 20, `files ${files.length}`);
     const BANNED = [
       /guarantee/i, /\btoppers?\b/i, /\bAIR\s*-?\s*\d/i, /\brank\s*(?:#|no\.?\s*)?1\b/i, /server[- ]?(?:secure|authoritative)/i,
@@ -485,6 +486,9 @@ async function probe() {
       const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
       const page = await ctx.newPage();
       await page.goto(`${base}/`, { waitUntil: 'load', timeout: 30000 });
+      // PERF-HOME-1: "/" is static HTML that may hydrate after "load" — inject the sample only once React owns <main>
+      // (a node added before hydration is a hydration mismatch: React re-renders and drops it)
+      await page.waitForFunction(() => Object.keys(document.querySelector('main') || {}).some((k) => k.startsWith('__reactFiber')), null, { timeout: 15000 }).catch(() => {});
       await page.evaluate(() => {
         const p = document.createElement('p');
         p.id = 'hi-body';
@@ -554,7 +558,8 @@ async function probe() {
           }
           loaded = p;
         }
-        const el = page360.locator(sel).first();
+        // PERF-HOME-1: the cached pages carry both the signed-in and signed-out action (CSS shows one) — measure the VISIBLE one
+        const el = page360.locator(`${sel} >> visible=true`).first();
         // bounded: a streamed (Suspense) element may attach just after "load"; the size rule itself is unchanged
         await el.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
         const box = await el.boundingBox();

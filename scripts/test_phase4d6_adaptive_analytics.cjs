@@ -199,20 +199,20 @@ async function runTests() {
     assert(admContent.includes('getAttemptDiagnostics'), 'AdminAdaptiveService exposes static getAttemptDiagnostics()');
   }
 
-  const actionsPath = path.resolve('e:/Courage Library', 'app/admin/actions.ts');
+  const actionsPath = path.resolve('e:/Courage Library', 'app/(site)/admin/actions.ts');
   if (fs.existsSync(actionsPath)) {
     const actContent = fs.readFileSync(actionsPath, 'utf-8');
-    assert(actContent.includes('getAdaptiveOverviewAction'), 'app/admin/actions.ts exports getAdaptiveOverviewAction()');
-    assert(actContent.includes('getCandidateIntelligenceAction'), 'app/admin/actions.ts exports getCandidateIntelligenceAction()');
-    assert(actContent.includes('getItemIntelligenceAction'), 'app/admin/actions.ts exports getItemIntelligenceAction()');
-    assert(actContent.includes('getCATIntelligenceAction'), 'app/admin/actions.ts exports getCATIntelligenceAction()');
-    assert(actContent.includes('getAbilityIntelligenceAction'), 'app/admin/actions.ts exports getAbilityIntelligenceAction()');
-    assert(actContent.includes('getStoppingIntelligenceAction'), 'app/admin/actions.ts exports getStoppingIntelligenceAction()');
-    assert(actContent.includes('getPersonalizationIntelligenceAction'), 'app/admin/actions.ts exports getPersonalizationIntelligenceAction()');
-    assert(actContent.includes('getAlgorithmComparisonAction'), 'app/admin/actions.ts exports getAlgorithmComparisonAction()');
-    assert(actContent.includes('getAdaptiveHealthAction'), 'app/admin/actions.ts exports getAdaptiveHealthAction()');
-    assert(actContent.includes('getDataQualityDiagnosticsAction'), 'app/admin/actions.ts exports getDataQualityDiagnosticsAction()');
-    assert(actContent.includes('getAttemptDiagnosticsAction'), 'app/admin/actions.ts exports getAttemptDiagnosticsAction()');
+    assert(actContent.includes('getAdaptiveOverviewAction'), 'app/(site)/admin/actions.ts exports getAdaptiveOverviewAction()');
+    assert(actContent.includes('getCandidateIntelligenceAction'), 'app/(site)/admin/actions.ts exports getCandidateIntelligenceAction()');
+    assert(actContent.includes('getItemIntelligenceAction'), 'app/(site)/admin/actions.ts exports getItemIntelligenceAction()');
+    assert(actContent.includes('getCATIntelligenceAction'), 'app/(site)/admin/actions.ts exports getCATIntelligenceAction()');
+    assert(actContent.includes('getAbilityIntelligenceAction'), 'app/(site)/admin/actions.ts exports getAbilityIntelligenceAction()');
+    assert(actContent.includes('getStoppingIntelligenceAction'), 'app/(site)/admin/actions.ts exports getStoppingIntelligenceAction()');
+    assert(actContent.includes('getPersonalizationIntelligenceAction'), 'app/(site)/admin/actions.ts exports getPersonalizationIntelligenceAction()');
+    assert(actContent.includes('getAlgorithmComparisonAction'), 'app/(site)/admin/actions.ts exports getAlgorithmComparisonAction()');
+    assert(actContent.includes('getAdaptiveHealthAction'), 'app/(site)/admin/actions.ts exports getAdaptiveHealthAction()');
+    assert(actContent.includes('getDataQualityDiagnosticsAction'), 'app/(site)/admin/actions.ts exports getDataQualityDiagnosticsAction()');
+    assert(actContent.includes('getAttemptDiagnosticsAction'), 'app/(site)/admin/actions.ts exports getAttemptDiagnosticsAction()');
   }
 
   // ==========================================================================

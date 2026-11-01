@@ -250,7 +250,7 @@ const paidEvent = (paymentId = 'pay_TESTA1', event = 'payment.captured') =>
     w = world({ createOrder: () => ({ data: { success: false, code: 'AGE_REQUIRED' }, error: null }) });
     r = await FLOWS.createProOrder({ userId: USER, planCode: 'PRO_3M', idempotencyKey: 'k12345678' }, w.deps);
     assert(!r.ok && r.code === 'AGE_REQUIRED' && w.calls.createOrder === 0, 'under-18 (server) → no gateway order');
-    const action = code(read('app/pricing/actions.ts'));
+    const action = code(read('app/(site)/pricing/actions.ts'));
     assert(/export async function createProOrderAction\(planCode: string, idempotencyKey: string\)/.test(action) && !/amount/i.test(action.split('createProOrder({')[1].split('}')[0]), 'the client sends only plan code + key');
   });
 
@@ -279,7 +279,7 @@ const paidEvent = (paymentId = 'pay_TESTA1', event = 'payment.captured') =>
   });
 
   await test('PB-09 pricing honesty (R4 / R11 / R12)', () => {
-    const pc = read('app/pricing/pricing-client.tsx');
+    const pc = read('app/(site)/pricing/pricing-client.tsx');
     const offIdx = pc.indexOf('if (!paymentsEnabled) return <PaymentsOffView');
     const proIdx = pc.indexOf('return <ProPricingView');
     assert(offIdx > 0 && proIdx > offIdx, 'OFF view returns first');
@@ -292,7 +292,7 @@ const paidEvent = (paymentId = 'pay_TESTA1', event = 'payment.captured') =>
     assert(hits.length === 0, hits.join(', '));
     assert((view.match(/<Button\b/g) || []).length === 2 && (view.match(/variant="secondary"|variant="ghost"/g) || []).length === 0, 'one Pay button (the disabled twin shows only when checkout is closed)');
     assert(!/size="md"|size="sm"/.test(view) && (view.match(/size="lg"/g) || []).length >= 4, 'R10: 48 px+ targets');
-    const page = code(read('app/pricing/page.tsx'));
+    const page = code(read('app/(site)/pricing/page.tsx'));
     assert(/if \(paymentsEnabled && isProEnabled\(\)\)/.test(page) && /isPaymentsEnabled\(\)/.test(page), 'Pro view only with both server flags');
     const banner = code(read('components/payments/pro-ending-banner.tsx'));
     assert(/does not renew automatically/.test(banner) && !/hurry|last chance|expires soon|!/.test(banner), 'expiry banner: plain facts');
@@ -328,10 +328,10 @@ const paidEvent = (paymentId = 'pay_TESTA1', event = 'payment.captured') =>
     };
     ['app', 'lib', 'services', 'components'].forEach(walk);
     assert(callers.length === 1 && callers[0] === 'lib/payments/pro-server.ts', callers.join(', '));
-    const la = code(read('app/admin/pro-library/actions.ts'));
+    const la = code(read('app/(site)/admin/pro-library/actions.ts'));
     assert((la.match(/const auth = await guardAdminAction\(\);/g) || []).length === 2 && !/allowStaff/.test(la), 'admin only (not staff)');
     assert(/days <= 0 \|\| days > MAX_DAYS/.test(la), 'a grant always has a future end date');
-    assert(/await requireAdminPage\(\{ path: "\/admin\/students\/library-pro" \}\);/.test(read('app/admin/students/library-pro/page.tsx')), 'page guard');
+    assert(/await requireAdminPage\(\{ path: "\/admin\/students\/library-pro" \}\);/.test(read('app/(site)/admin/students/library-pro/page.tsx')), 'page guard');
     assert(/source: "PROMO"/.test(read('services/admin-premium.service.ts')), 'admin promo passes are labelled PROMO, not PAYMENT');
   });
 

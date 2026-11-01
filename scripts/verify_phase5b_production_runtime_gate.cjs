@@ -596,8 +596,8 @@ async function runProductionRuntimeVerification() {
   const auditedFiles = [
     'services/live-test-foundation.service.ts',
     'services/live-test-registration.service.ts',
-    'app/live-tests/actions.ts',
-    'app/admin/live-tests/actions.ts',
+    'app/(site)/live-tests/actions.ts',
+    'app/(site)/admin/live-tests/actions.ts',
     'components/live-test/live-event-card.tsx',
     'components/live-test/live-event-detail-view.tsx',
     'components/live-test/live-event-countdown.tsx',

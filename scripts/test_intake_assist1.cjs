@@ -184,7 +184,7 @@ test('D-01 migration 124 + rollback: invoker-only, revoked, locked, capped, shar
 });
 
 test('S-01 C1: no actor argument from the client; every action guards first', () => {
-  const a = read('app/admin/syllabus/intake/actions.ts');
+  const a = read('app/(site)/admin/syllabus/intake/actions.ts');
   assert(/export async function bulkIntakeAction\(sessionId: string, action: string, itemIds: string\[\]\)/.test(a) && /export async function undoIntakeBulkAction\(sessionId: string\)/.test(a), 'signatures without an actor');
   for (const fn of ['bulkIntakeAction', 'undoIntakeBulkAction', 'importIntakeAction']) {
     const body = a.slice(a.indexOf(`export async function ${fn}`), a.indexOf('\n}\n', a.indexOf(`export async function ${fn}`)));
