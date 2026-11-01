@@ -23,8 +23,11 @@
  * Live (local production build only, anonymous + qa-student; refuses non-localhost):
  *   L-9  GET / → 200; brand line; exactly one h1; landmarks; canonical + og:title / og:description; JSON-LD parses;
  *        no "undefined" / "NaN" / "null" in the visible text
- *   L-10 numbers on the page equal the live anonymous counts (PostgREST, same filters); current affairs / syllabus
- *        shown as coming soon exactly when nothing is published
+ *   L-10 (HOME-1, owner-approved re-point) numbers on the page equal the live anonymous counts (PostgREST, same
+ *        filters): every public category tile shows its exact active-exam count (a link) or "Coming soon" (not a link);
+ *        the feature totals (mock tests / guides) match; current affairs / syllabus are listed exactly when published;
+ *        every other number is accounted for. Each category page /exams/<category> lists exactly its active exams as
+ *        links (no extra, none missing) and shows no unexplained number
  *   L-11 every internal link on "/" answers < 400 for an anonymous visitor (redirects not followed)
  *   L-12 sitemap.xml lists "/"
  *   L-13 axe-core (bundled with eslint-plugin-jsx-a11y; no new dependency) on "/" at 360 and 1440: 0 serious /
@@ -394,45 +397,84 @@ const UX2B_ROUTES = ['/legal'];
     return `${ld.length} JSON-LD block(s)`;
   });
 
-  await test('L-10 numbers on "/" equal the live anonymous counts; coming soon exactly when nothing is published', async () => {
+  await test('L-10 numbers on "/" and on each category page equal the live anonymous counts (categories, exams, mocks, guides)', async () => {
     const URL_ = env('NEXT_PUBLIC_SUPABASE_URL');
     const ANON = env('NEXT_PUBLIC_SUPABASE_ANON_KEY');
     const h = { apikey: ANON, Authorization: `Bearer ${ANON}`, Prefer: 'count=exact', 'Content-Type': 'application/json' };
     const rest = async (p, init) => { for (let i = 1; i <= 3; i++) { try { return await fetch(`${URL_}/rest/v1/${p}`, { headers: h, ...init }); } catch (e) { if (i === 3) throw new Error(`rest: ${e.cause ? e.cause.code : 'network error'}`); } } };
     const total = (r) => Number((r.headers.get('content-range') || '*/0').split('/')[1]);
-    const exams = await (await rest('exams?select=id,slug,title&is_active=eq.true')).json();
+    const exams = await (await rest('exams?select=id,slug,title,category_id&is_active=eq.true')).json();
     assert(Array.isArray(exams) && exams.length >= 1, `active exams read: ${Array.isArray(exams) ? exams.length : 'error'} (min 1)`); // GATE-HYGIENE-1
+    // anonymous RLS already hides inactive / internal categories; the filters repeat the page's own rule
+    const cats = await (await rest('exam_categories?select=id,slug,name&is_active=eq.true&is_internal=eq.false')).json();
+    assert(Array.isArray(cats) && cats.length >= 1, `public categories read: ${Array.isArray(cats) ? cats.length : 'error'} (min 1)`); // GATE-HYGIENE-1
     assert(!/could not be loaded right now/.test(domText), 'the page shows the fallback (live read failed on the server)');
-    let mocksAll = 0;
-    let guidesAll = 0;
-    let anySyllabus = false;
-    const perExam = []; // GATE-SCOPE-SWEEP: each exam card's own counts are legitimate numbers on the page
-    for (const e of exams) {
-      const m = total(await rest(`mock_tests?select=id,mock_templates!inner(exam_id)&mock_templates.exam_id=eq.${e.id}&status=eq.published&is_dynamic=eq.false&limit=1`));
-      const g = total(await rest(`exam_knowledge_documents?select=id&exam_id=eq.${e.id}&status=eq.PUBLISHED&current_published_version_id=not.is.null&limit=1`));
-      const rm = await (await rest('rpc/fn_exam_syllabus_read_model', { method: 'POST', body: JSON.stringify({ p_exam_id: e.id }) })).json();
-      mocksAll += m;
-      guidesAll += g;
-      perExam.push(m, g);
-      anySyllabus = anySyllabus || (rm && rm.state === 'AVAILABLE');
-      assert(domText.includes(e.title), `${e.title} card missing`);
-      if (m > 0) assert(domText.includes(`${m} free mock test${m === 1 ? '' : 's'}`), `${e.slug}: mock count ${m} not shown`);
-      if (g > 0) assert(domText.includes(`${g} exam guide${g === 1 ? '' : 's'}`), `${e.slug}: guide count ${g} not shown`);
+    const perCat = new Map(cats.map((c) => [c.slug, exams.filter((e) => e.category_id === c.id)]));
+    assert([...perCat.values()].some((l) => l.length > 0), 'no category has an active exam (min 1 live tile)'); // GATE-HYGIENE-1
+
+    // the tiles as rendered (per tile: link or not, its own text)
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const page = await ctx.newPage();
+    const tilesOf = async () => page.evaluate(() => [...document.querySelectorAll('[data-category-tile]')].map((t) => ({ slug: t.dataset.categoryTile, link: t.tagName === 'A', href: t.getAttribute('href'), text: t.innerText.replace(/\s+/g, ' ').trim() })));
+    try {
+      await page.goto(`${BASE}/`, { waitUntil: 'networkidle', timeout: 30000 });
+      const tiles = await tilesOf();
+      assert(tiles.map((t) => t.slug).sort().join() === cats.map((c) => c.slug).sort().join(), `tiles ${tiles.map((t) => t.slug)} ≠ public categories ${cats.map((c) => c.slug)}`);
+      for (const c of cats) {
+        const t = tiles.find((x) => x.slug === c.slug);
+        const n = perCat.get(c.slug).length;
+        assert(t.text.includes(c.name), `${c.slug}: name missing`);
+        if (n > 0) assert(t.link && t.href === `/exams/${c.slug}` && t.text.includes(`${n} exam${n === 1 ? '' : 's'}`) && !/Coming soon/.test(t.text), `${c.slug}: expected a link with "${n} exam${n === 1 ? '' : 's'}" (got ${JSON.stringify(t)})`);
+        else assert(!t.link && /Coming soon/.test(t.text) && !/\d/.test(t.text), `${c.slug}: expected a "Coming soon" tile that is not a link (got ${JSON.stringify(t)})`);
+      }
+
+      let mocksAll = 0;
+      let guidesAll = 0;
+      let anySyllabus = false;
+      for (const e of exams) {
+        mocksAll += total(await rest(`mock_tests?select=id,mock_templates!inner(exam_id)&mock_templates.exam_id=eq.${e.id}&status=eq.published&is_dynamic=eq.false&limit=1`));
+        guidesAll += total(await rest(`exam_knowledge_documents?select=id&exam_id=eq.${e.id}&status=eq.PUBLISHED&current_published_version_id=not.is.null&limit=1`));
+        const rm = await (await rest('rpc/fn_exam_syllabus_read_model', { method: 'POST', body: JSON.stringify({ p_exam_id: e.id }) })).json();
+        anySyllabus = anySyllabus || (rm && rm.state === 'AVAILABLE');
+      }
+      if (mocksAll > 0) assert(domText.includes(`${mocksAll} free mock test${mocksAll === 1 ? '' : 's'} live`), `total mocks ${mocksAll}`);
+      if (guidesAll > 0) assert(domText.includes(`${guidesAll} guide${guidesAll === 1 ? '' : 's'} published`), `total guides ${guidesAll}`);
+      // "What you get" lists only what works today: a feature is listed exactly when its content is published
+      const ca = total(await rest('current_affairs_articles?select=id&status=eq.PUBLISHED&limit=1'));
+      assert(domText.includes('Daily current affairs') === ca > 0, `current affairs ${ca} vs listed ${domText.includes('Daily current affairs')}`);
+      assert(domText.includes('Syllabus tracker') === anySyllabus, `syllabus ${anySyllabus} vs listed ${domText.includes('Syllabus tracker')}`);
+      // every number on "/" is accounted for (category counts, totals, step numbers, the founding year, the © year)
+      const nums = [...domText.matchAll(/\b\d+\b/g)].map((x) => Number(x[0]));
+      const allowed = new Set([mocksAll, guidesAll, ...[...perCat.values()].map((l) => l.length), 1, 2, 3, 4, 5, 6, 7, 2024, new Date().getFullYear()]);
+      const unknown = nums.filter((n) => !allowed.has(n));
+      assert(unknown.length === 0, `unexplained numbers on "/": ${[...new Set(unknown)].join(', ')}`);
+
+      // each live category page lists exactly its active exams as links (no extra, none missing); no unexplained number
+      const pages = [];
+      for (const c of cats.filter((x) => perCat.get(x.slug).length > 0)) {
+        const live = perCat.get(c.slug);
+        const r = await page.goto(`${BASE}/exams/${c.slug}`, { waitUntil: 'networkidle', timeout: 30000 });
+        assert(r.status() === 200, `/exams/${c.slug} → ${r.status()}`);
+        const got = await page.evaluate(() => ({
+          active: [...document.querySelectorAll('[data-category-exam="active"] a')].map((a) => ({ href: a.getAttribute('href'), text: a.textContent.trim() })),
+          soonLinks: document.querySelectorAll('[data-category-exam="soon"] a').length,
+          failed: !!document.querySelector('[data-category-unavailable]'),
+          text: document.querySelector('main').innerText.replace(/\s+/g, ' '),
+        }));
+        assert(!got.failed, `/exams/${c.slug}: the exam read failed on the server`);
+        assert(got.active.length === live.length && live.every((e) => got.active.some((a) => a.href === `/exams/${e.slug}` && a.text === e.title)), `/exams/${c.slug}: active exams ${JSON.stringify(got.active)} ≠ live ${live.map((e) => e.slug)}`);
+        assert(got.soonLinks === 0, `/exams/${c.slug}: a coming-soon exam is a link`);
+        // exam titles may contain digits (a year, "Tier 2") — the listed titles are stripped first
+        const soonTitles = await page.evaluate(() => [...document.querySelectorAll('[data-category-exam="soon"] h2')].map((h) => h.textContent.trim()));
+        const stripped = [...live.map((e) => e.title), ...soonTitles].reduce((t, x) => t.split(x).join(' '), got.text);
+        const bad = [...stripped.matchAll(/\b\d+\b/g)].map((x) => Number(x[0])).filter((n) => n !== new Date().getFullYear());
+        assert(bad.length === 0, `/exams/${c.slug}: unexplained numbers ${[...new Set(bad)].join(', ')}`);
+        pages.push(`${c.slug}: ${live.length} active`);
+      }
+      return `${cats.length} categories (${pages.join('; ')}); mocks ${mocksAll}; guides ${guidesAll}; current affairs ${ca}; syllabus ${anySyllabus ? 'listed' : 'not listed'}`;
+    } finally {
+      await ctx.close();
     }
-    if (mocksAll > 0) assert(domText.includes(`${mocksAll} free mock test${mocksAll === 1 ? '' : 's'} live`), `total mocks ${mocksAll}`);
-    if (guidesAll > 0) assert(domText.includes(`${guidesAll} guide${guidesAll === 1 ? '' : 's'} published`), `total guides ${guidesAll}`);
-    const ca = total(await rest('current_affairs_articles?select=id&status=eq.PUBLISHED&limit=1'));
-    const block = (title) => (domText.match(new RegExp(`${title}\\s+(Available now|Coming soon)`)) || [])[1];
-    assert(block('Daily current affairs') === (ca > 0 ? 'Available now' : 'Coming soon'), `current affairs ${ca} vs ${block('Daily current affairs')}`);
-    assert(block('Syllabus tracker') === (anySyllabus ? 'Available now' : 'Coming soon'), `syllabus vs ${block('Syllabus tracker')}`);
-    // every number domText on the page is accounted for (counts, step numbers, the founding year, the © year)
-    // GATE-SCOPE-SWEEP (2026-10-29): exam titles may contain digits (e.g. a year or "Tier 2") — they are stripped first
-    const scanned = exams.reduce((t, e) => t.split(e.title).join(' '), domText);
-    const nums = [...scanned.matchAll(/\b\d+\b/g)].map((x) => Number(x[0]));
-    const allowed = new Set([mocksAll, guidesAll, ...perExam, 1, 2, 3, 4, 5, 6, 7, 2024, new Date().getFullYear(), ...exams.map(() => 0)]);
-    const unknown = nums.filter((n) => !allowed.has(n));
-    assert(unknown.length === 0, `unexplained numbers on "/": ${[...new Set(unknown)].join(', ')}`);
-    return `${exams.length} active exam(s); mocks ${mocksAll}; guides ${guidesAll}; current affairs ${ca}; syllabus ${anySyllabus ? 'available' : 'coming soon'}`;
   });
 
   await test('L-11 every internal link on "/" answers < 400 for an anonymous visitor', async () => {
