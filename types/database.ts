@@ -5958,6 +5958,39 @@ export type Database = {
         }
         Relationships: []
       }
+      site_media: {
+        Row: {
+          alt: string
+          height: number
+          key: string
+          path: string | null
+          sha256: string
+          updated_at: string
+          updated_by_email: string
+          width: number
+        }
+        Insert: {
+          alt: string
+          height: number
+          key: string
+          path?: string | null
+          sha256: string
+          updated_at?: string
+          updated_by_email: string
+          width: number
+        }
+        Update: {
+          alt?: string
+          height?: number
+          key?: string
+          path?: string | null
+          sha256?: string
+          updated_at?: string
+          updated_by_email?: string
+          width?: number
+        }
+        Relationships: []
+      }
       spaced_repetition_schedules: {
         Row: {
           created_at: string
@@ -9369,6 +9402,22 @@ export type Database = {
         Returns: Json
       }
       fn_set_username: { Args: { p_username: string }; Returns: Json }
+      fn_site_media_remove: {
+        Args: { p_actor_email: string; p_actor_id: string; p_key: string }
+        Returns: Json
+      }
+      fn_site_media_set: {
+        Args: {
+          p_actor_email: string
+          p_actor_id: string
+          p_alt: string
+          p_height: number
+          p_key: string
+          p_sha256: string
+          p_width: number
+        }
+        Returns: Json
+      }
       fn_start_custom_practice_session: {
         Args: { p_session_id: string }
         Returns: Json

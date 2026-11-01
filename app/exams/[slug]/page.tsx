@@ -42,7 +42,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: `${cat.category.name} exams`,
       description: cat.category.shortDesc || `${cat.category.name} exams on Courage Library: lessons, practice and mock tests.`,
       canonicalUrl: `/exams/${slug}`,
-      noIndex: cat.category.activeExams === 0,
+      // noindex only when the read worked and the category really has no exam (an outage never de-indexes it)
+      noIndex: !cat.examsFailed && cat.category.activeExams === 0,
     });
   }
   const result = await ExamKnowledgeCandidateService.getExamKnowledgeCandidateView({ examSlug: slug });
@@ -82,7 +83,7 @@ async function MocksWithStatus({ examId, mocks }: { examId: string; mocks: MockL
 export default async function ExamHomePage({ params }: Props) {
   const { slug } = await params;
   const cat = await loadPublicCategory(slug);
-  if (cat) return <CategoryPage category={cat.category} exams={cat.exams} />;
+  if (cat) return <CategoryPage category={cat.category} exams={cat.exams} examsFailed={cat.examsFailed} />;
   const result = await ExamKnowledgeCandidateService.getExamKnowledgeCandidateView({ examSlug: slug });
 
   const soon = comingSoonFor(result.status, slug);

@@ -27,8 +27,11 @@ export const loadPublicCategories = cache(async (): Promise<PublicCategory[] | n
   return (cats.data as CategoryRow[]).filter((c) => c.is_active && !c.is_internal).map((c) => toPublicCategory(c, count.get(c.id) ?? 0));
 });
 
-/** one public category with its exams (active first, then the listed "coming soon" ones); null = not a category */
-export const loadPublicCategory = cache(async (slug: string): Promise<{ category: PublicCategory; exams: CategoryExam[] } | null> => {
+/**
+ * one public category with its exams (active first, then the listed "coming soon" ones); null = not a category.
+ * `examsFailed`: the exam read failed — the page says so (never "no exams" + noindex because of an outage).
+ */
+export const loadPublicCategory = cache(async (slug: string): Promise<{ category: PublicCategory; exams: CategoryExam[]; examsFailed: boolean } | null> => {
   if (!CATEGORY_SLUG_RE.test(slug) || slug.length > 40) return null;
   const sb = await createServerSupabaseClient();
   const cat = await timed(sb.from("exam_categories").select(CATEGORY_COLUMNS).eq("slug", slug).maybeSingle());
@@ -42,7 +45,8 @@ export const loadPublicCategory = cache(async (slug: string): Promise<{ category
       .eq("is_active", true)
       .order("title"),
   );
-  const active: CategoryExam[] = (ex && !ex.error ? ex.data || [] : []).map((e) => {
+  const examsFailed = !ex || Boolean(ex.error);
+  const active: CategoryExam[] = (examsFailed ? [] : ex!.data || []).map((e) => {
     const org = Array.isArray(e.conducting_org) ? e.conducting_org[0] : e.conducting_org;
     return {
       slug: e.slug,
@@ -59,5 +63,5 @@ export const loadPublicCategory = cache(async (slug: string): Promise<{ category
     logo: null,
     status: "COMING_SOON" as const,
   }));
-  return { category: toPublicCategory(row, active.length), exams: [...active, ...soon] };
+  return { category: toPublicCategory(row, active.length), exams: examsFailed ? [] : [...active, ...soon], examsFailed };
 });

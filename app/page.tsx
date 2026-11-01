@@ -17,6 +17,7 @@ import {
 import { LANDING_META } from "@/content/landing";
 import { loadPublicCategories } from "@/lib/exams/category-data";
 import { loadLandingData } from "@/lib/landing/landing-data";
+import { loadHomePhoto } from "@/lib/media/site-media";
 import { landingOrganizationJsonLd } from "@/lib/landing/organization-jsonld";
 import { constructMetadata } from "@/lib/seo/metadata";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -41,6 +42,10 @@ async function CategoriesSection() {
   return <LandingCategories categories={await loadPublicCategories()} />;
 }
 
+async function TrustSection() {
+  return <LandingTrust photo={await loadHomePhoto()} />;
+}
+
 async function FeaturesSection() {
   return <LandingFeatures data={await loadLandingData(await createServerSupabaseClient())} />;
 }
@@ -58,7 +63,9 @@ export default function HomePage() {
       <Suspense fallback={<LandingFeaturesSkeleton />}>
         <FeaturesSection />
       </Suspense>
-      <LandingTrust />
+      <Suspense fallback={<LandingTrust />}>
+        <TrustSection />
+      </Suspense>
       <LandingPlans />
       <LandingFaq />
       <LandingFinalCta />

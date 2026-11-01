@@ -36,11 +36,12 @@ export const LANDING_LOOP = {
   seeAll: (n: number) => `See all ${n} steps`,
   // HOME-1: 5 steps (was 7)
   steps: [
-    { title: "Learn", text: "Study one topic at a time, in plain language." },
-    { title: "Practice", text: "Answer questions on that topic and check yourself." },
-    { title: "Mock", text: "Take a full-length test under real exam timing." },
-    { title: "Analyze", text: "See which sections and questions cost you marks." },
-    { title: "Revise", text: "Your mistakes come back until you get them right." },
+    // `short` = the one line per step on phones (owner decision 1)
+    { title: "Learn", text: "Study one topic at a time, in plain language.", short: "One topic at a time." },
+    { title: "Practice", text: "Answer questions on that topic and check yourself.", short: "Check yourself on it." },
+    { title: "Mock", text: "Take a full-length test under real exam timing.", short: "Real exam timing." },
+    { title: "Analyze", text: "See which sections and questions cost you marks.", short: "See where marks went." },
+    { title: "Revise", text: "Your mistakes come back until you get them right.", short: "Mistakes return until fixed." },
   ],
 } as const;
 
@@ -122,6 +123,20 @@ export const LANDING_PLANS = {
   /** HOME-1: features only, no prices ("Pricing at launch") */
   free: { title: "Free", note: "Now, during early access", items: ["Full-length mock tests", "Answer analysis", "Mistake Vault and drills", "Exam guides"] },
   pro: { title: "Pro", note: "Coming soon. Pricing at launch.", items: ["More full-length mocks", "Deeper analysis of your progress", "Announced here first"] },
+  /** owner decision 1: a small comparison table (features only, no prices) */
+  table: {
+    caption: "What is free now and what Pro adds. Pricing at launch.",
+    columns: ["Feature", "Free", "Pro"],
+    rows: [
+      { feature: "Full-length mock tests", free: true, pro: true },
+      { feature: "Answer analysis", free: true, pro: true },
+      { feature: "Mistake Vault and drills", free: true, pro: true },
+      { feature: "Exam guides", free: true, pro: true },
+      { feature: "More full-length mocks", free: false, pro: true },
+      { feature: "Deeper progress analysis", free: false, pro: true },
+    ],
+    proNote: "Pro is coming soon. Pricing at launch.",
+  },
 } as const;
 
 /** HOME-1: the category tiles (data: lib/exams/category-data.ts; numbers only from live rows) */
@@ -147,6 +162,8 @@ export const LANDING_FAQ = {
 } as const;
 
 export const LANDING_TRUST = {
+  /** owner decision 1: the home page story in ≤ 3 lines (plus the library photo when uploaded) */
+  short: "A real study library in Kanpur, Uttar Pradesh, open since August 2024. The same team builds this platform for students who study on their own.",
   heading: "Built by a real library in Kanpur",
   text: "Courage Library began as a physical study library in Kanpur, Uttar Pradesh, open since August 2024: a quiet, focused place where aspirants come to study every day.",
   detail: "This platform is built by the same people, for students who study on their own and want honest feedback on their preparation.",

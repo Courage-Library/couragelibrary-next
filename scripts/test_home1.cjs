@@ -15,6 +15,14 @@
  *   H-6 categories model: 128 hygiene (no BEGIN / COMMIT, rollback present, preflight + proof), ONE slug namespace on
  *       BOTH tables, RLS shows only active non-internal rows, writes INVOKER + service_role only; the TS icon keys =
  *       the SQL CHECK; logos / icons render the smallest sized copy (logoSrcFor)
+ *   H-7 owner decision 1 (compact, no section cut): phones show ONE line per loop step, Free and Pro is a small
+ *       comparison table (th scope, screen-reader cell text, no prices), the FAQ is <details> accordions (questions only),
+ *       the Kanpur story is ≤ 3 lines (≤ 160 characters)
+ *   H-8 owner decision 2 (129, the home page photo): the server pipeline (real sharp) re-encodes to 1280 / 768 / 390 px
+ *       WebP, keeps the aspect ratio, drops metadata; refuses SVG, < 1280 px wide, a tall / panorama ratio (negative
+ *       controls); the trust section renders it lazy with width / height + srcset from same-origin /media (no CLS) and
+ *       stays text-only without it; the admin panel requires alt text + the "no recognisable person" confirmation and
+ *       wraps every call; the actions are admin-only and store the copies before the audited switch
  * Run: node scripts/test_home1.cjs
  */
 const fs = require('fs');
@@ -50,7 +58,7 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
 (async () => {
   await test('H-1 structure + one hero action; closed-sign-up primary = "Explore exams" → /#categories; 5 loop steps', () => {
     const page = code(read(PAGE));
-    const order = ['<LandingHero', '<CategoriesSection', '<LandingLoop', '<FeaturesSection', '<LandingTrust', '<LandingPlans', '<LandingFaq', '<LandingFinalCta'].map((x) => page.indexOf(x));
+    const order = ['<LandingHero', '<CategoriesSection', '<LandingLoop', '<FeaturesSection', '<TrustSection', '<LandingPlans', '<LandingFaq', '<LandingFinalCta'].map((x) => page.indexOf(x));
     assert(order.every((x, i) => x > 0 && (i === 0 || x > order[i - 1])), `section order ${order}`);
     const s = read(SECTIONS);
     const hero = s.slice(s.indexOf('export function LandingHero'), s.indexOf('export function LandingCategories'));
@@ -123,6 +131,55 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
     const p = `orgs/${'1'.repeat(8)}-1111-4111-8111-${'1'.repeat(12)}/${'a'.repeat(64)}.webp`;
     const logo = L.examLogo({ org: { path: p, alt: 'x' } });
     assert(L.logoSrcFor(logo, 28).endsWith('-64.webp') && L.logoSrcFor(logo, 48).endsWith('-128.webp') && L.logoSrcFor(logo, 200) === logo.src, 'variant choice');
+  });
+
+  await test('H-7 compact (owner decision 1): one line per step on phones, comparison table, accordion FAQ, story ≤ 3 lines', () => {
+    const C = require(path.join(ROOT, CONTENT));
+    const s = read(SECTIONS);
+    assert(C.LANDING_LOOP.steps.every((x) => x.short && x.short.length <= 32) && /md:hidden">\{step\.short\}/.test(s) && /flex-row flex-wrap items-baseline/.test(s), 'loop: one line per step');
+    const T = C.LANDING_PLANS.table;
+    assert(/<table className="w-full border-collapse/.test(s) && /<caption className="sr-only">/.test(s) && /scope="col"/.test(s) && /scope="row"/.test(s) && /sr-only">\{pro \? "Included in Pro" : "Included free"\}/.test(s) && /Not included/.test(s), 'table semantics');
+    assert(T.rows.length >= 4 && !PRICE.test(JSON.stringify(T)) && /Pricing at launch/.test(T.proNote), 'table copy');
+    assert(/<details key=\{f\.q\}/.test(s) && /<summary className="focus-ring flex min-h-12/.test(s), 'accordion FAQ');
+    assert(C.LANDING_TRUST.short.length <= 160 && /\{LANDING_TRUST\.short\}/.test(s), `story ${C.LANDING_TRUST.short.length} chars`);
+  });
+
+  await test('H-8 home page photo: real pipeline (1280 / 768 / 390 WebP, aspect kept, metadata dropped), negative controls; lazy + sized render; panel + actions safe', async () => {
+    const sharp = require('sharp');
+    const P = require(path.join(ROOT, 'lib/media/photo-image.ts'));
+    const img = (w, h, fmt = 'jpeg') => sharp({ create: { width: w, height: h, channels: 3, background: { r: 120, g: 140, b: 160 } } }).withMetadata({ exif: { IFD0: { Artist: 'SECRET-PERSON' } } })[fmt]().toBuffer();
+    const r = await P.processHomePhoto(await img(1600, 900));
+    assert(r.ok, `pipeline: ${r.message}`);
+    const m = await sharp(r.main).metadata();
+    assert(m.format === 'webp' && m.width === 1280 && m.height === 720 && !m.exif && !r.main.includes(Buffer.from('SECRET-PERSON')), `main ${m.width}x${m.height}`);
+    for (const w of [768, 390]) { const v = await sharp(r.variants[w]).metadata(); assert(v.width === w && v.format === 'webp' && Math.abs(v.height - Math.round((w * 9) / 16)) <= 1, `copy ${w}`); }
+    assert(r.width === 1280 && r.height === 720 && /^[0-9a-f]{64}$/.test(r.sha256), 'size / hash');
+    const bad = await Promise.all([
+      P.processHomePhoto(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="1000"/>')),
+      P.processHomePhoto(await img(1000, 600)),
+      P.processHomePhoto(await img(1400, 2000)),
+      P.processHomePhoto(await img(4000, 1000)),
+    ]);
+    assert(bad.every((b) => !b.ok) && /PNG, JPG or WebP/.test(bad[0].message) && /at least 1280/.test(bad[1].message) && /landscape/.test(bad[2].message) && /landscape/.test(bad[3].message), 'negative controls: SVG / narrow / tall / panorama');
+    const { renderToStaticMarkup } = require('react-dom/server');
+    const S = require(path.join(ROOT, SECTIONS));
+    const R2 = require(path.join(ROOT, 'lib/media/photo-rules.ts'));
+    const photo = R2.homePhotoFrom({ path: `site/home_photo/${'b'.repeat(64)}.webp`, alt: 'Reading room of the library', width: 1280, height: 720 });
+    const withPhoto = renderToStaticMarkup(React.createElement(S.LandingTrust, { photo }));
+    assert(/<img[^>]+srcSet="\/media\/logos\/site\/home_photo\/b{64}-390\.webp 390w, \/media\/logos\/site\/home_photo\/b{64}-768\.webp 768w, \/media\/logos\/site\/home_photo\/b{64}\.webp 1280w"/.test(withPhoto) && /width="1280"/.test(withPhoto) && /height="720"/.test(withPhoto) && /loading="lazy"/.test(withPhoto) && /alt="Reading room of the library"/.test(withPhoto) && !/supabase/.test(withPhoto), 'photo render');
+    assert(!/<img/.test(renderToStaticMarkup(React.createElement(S.LandingTrust, {}))) && R2.homePhotoFrom({ path: 'orgs/x.webp', alt: 'x', width: 1, height: 1 }) === null, 'text-only fallback / path check');
+    const panel = read('components/admin/settings/home-photo-panel.tsx');
+    assert(/accept=\{PHOTO_ACCEPT\}/.test(panel) && /fd\.set\("noFaces", "yes"\)/.test(panel) && /disabled=\{!prepared \|\| !noFaces \|\| alt\.trim\(\)\.length < 3/.test(panel), 'panel requirements');
+    assert(/await guarded\(\(\) => uploadHomePhotoAction\(fd\)\)/.test(panel) && /await guarded\(\(\) => removeHomePhotoAction\(\)\)/.test(panel), 'panel: every call wrapped');
+    const act = read('app/admin/system/photo-actions.ts');
+    const fns = [...act.matchAll(/export async function (\w+)\([^)]*\)[^\n]*\{\n\s*const auth = await guardAdminAction\(\);/g)].map((x) => x[1]);
+    assert(fns.join() === 'uploadHomePhotoAction,removeHomePhotoAction' && !/allowStaff/.test(act), 'actions admin-only');
+    const order = ['processHomePhoto(', 'storage.from(BUCKET).upload(', 'rpc("fn_site_media_set"', 'remove(withCopies(oldPath))'].map((x) => act.indexOf(x));
+    assert(order.every((x, i) => x > 0 && (i === 0 || x > order[i - 1])) && /formData\.get\("noFaces"\) !== "yes"/.test(act), `action order ${order}`);
+    // a failed exam read on a category page is said honestly and never de-indexes the page
+    const cp = read('components/exams/category-page.tsx');
+    assert(/examsFailed \? \(/.test(cp) && /could not be loaded right now/.test(cp) && /noIndex: !cat\.examsFailed && cat\.category\.activeExams === 0/.test(read('app/exams/[slug]/page.tsx')), 'category page: failed read handling');
+    return '1280/768/390 + 4 refusals + render';
   });
 
   console.log(`\nHOME-1 offline: ${passed}/${passed + failed} passed`);

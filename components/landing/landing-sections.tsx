@@ -5,10 +5,9 @@
  * Owner rule: NO exam-specific details or actions on home — category tiles → /exams/<category> → exam pages.
  * Research (UX phase 1): low text, plain English, honest (no hype, no promises of selection, no fake numbers), fast on budget phones.
  */
-import { ArrowRight, BookOpenCheck, Check, ClipboardCheck, Gauge, Library, Lock, NotebookPen, Repeat } from "lucide-react";
+import { ArrowRight, BookOpenCheck, Check, ClipboardCheck, Gauge, Lock, NotebookPen, Repeat } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Container, Section } from "@/components/ui/layout";
 import { GradientHero } from "@/components/ui/gradient-hero";
@@ -24,6 +23,7 @@ import {
   LANDING_TRUST,
 } from "@/content/landing";
 import { categoryCountLabel, type PublicCategory } from "@/lib/exams/categories";
+import type { HomePhoto } from "@/lib/media/photo-rules";
 import type { LandingData } from "@/lib/landing/landing-data";
 import { LandingCta } from "./landing-cta";
 
@@ -74,9 +74,9 @@ export function LandingHero() {
 /** Category tiles: a category with active exams is a link; one without is an honest "Coming soon" tile (not a link). */
 export function LandingCategories({ categories }: { categories: PublicCategory[] | null }) {
   return (
-    <Section aria-labelledby="categories-title" id="categories" spacing="compact" className="scroll-mt-24 pt-8 lg:pt-12">
+    <Section aria-labelledby="categories-title" id="categories" spacing="compact" className="scroll-mt-24 pt-6 lg:pt-12">
       <Container className="flex flex-col gap-6">
-        <SectionHeading id="categories-title" title={LANDING_CATEGORIES.heading} lead={LANDING_CATEGORIES.lead} />
+        <SectionHeading id="categories-title" title={LANDING_CATEGORIES.heading} />
         {categories === null ? (
           <div className="flex flex-col items-start gap-3 rounded-card border border-line bg-surface p-5">
             <p className="text-body text-fg-secondary">{LANDING_CATEGORIES.fallback}</p>
@@ -85,14 +85,14 @@ export function LandingCategories({ categories }: { categories: PublicCategory[]
             </ButtonLink>
           </div>
         ) : (
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5" aria-label={LANDING_CATEGORIES.heading}>
+          <ul className="grid grid-cols-3 gap-2 sm:gap-3 lg:grid-cols-5" aria-label={LANDING_CATEGORIES.heading}>
             {categories.map((c) => {
               const live = c.activeExams > 0;
               const inner = (
                 <>
-                  <CategoryIcon category={c} px={48} />
-                  <span className="text-body-lg font-semibold text-fg">{c.name}</span>
-                  <span className={`rounded-full px-2.5 py-0.5 text-[14px] font-semibold ${live ? "bg-primary-50 text-primary-800" : "bg-ink-50 text-fg-secondary"}`}>
+                  <CategoryIcon category={c} px={40} />
+                  <span className="text-body font-semibold text-fg sm:text-body-lg">{c.name}</span>
+                  <span className={`rounded-full px-2 py-0.5 text-[14px] font-semibold leading-tight ${live ? "bg-primary-50 text-primary-800" : "bg-ink-50 text-fg-secondary"}`}>
                     {live ? categoryCountLabel(c.activeExams) : LANDING_CATEGORIES.comingSoon}
                   </span>
                 </>
@@ -100,11 +100,11 @@ export function LandingCategories({ categories }: { categories: PublicCategory[]
               return (
                 <li key={c.slug} className="flex">
                   {live ? (
-                    <Link href={`/exams/${c.slug}`} className="focus-ring flex min-h-[128px] w-full flex-col items-center justify-center gap-2 rounded-card border border-line bg-surface p-4 text-center transition-colors hover:border-primary-300 hover:bg-primary-50/40" data-category-tile={c.slug}>
+                    <Link href={`/exams/${c.slug}`} className="focus-ring flex min-h-[116px] w-full flex-col items-center justify-center gap-1.5 rounded-card border border-line bg-surface p-2 sm:p-4 text-center transition-colors hover:border-primary-300 hover:bg-primary-50/40" data-category-tile={c.slug}>
                       {inner}
                     </Link>
                   ) : (
-                    <div className="flex min-h-[128px] w-full flex-col items-center justify-center gap-2 rounded-card border border-dashed border-line bg-surface-sunken p-4 text-center" data-category-tile={c.slug} aria-disabled="true">
+                    <div className="flex min-h-[116px] w-full flex-col items-center justify-center gap-1.5 rounded-card border border-dashed border-line bg-surface-sunken p-2 text-center sm:p-4" data-category-tile={c.slug} aria-disabled="true">
                       {inner}
                     </div>
                   )}
@@ -127,9 +127,9 @@ export function LandingCategoriesSkeleton() {
     <Section aria-label={LANDING_CATEGORIES.heading} aria-busy="true" id="categories" spacing="compact" className="pt-8 lg:pt-12">
       <Container className="flex flex-col gap-6">
         <SectionHeading id="categories-title" title={LANDING_CATEGORIES.heading} lead={LANDING_CATEGORIES.lead} />
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5" aria-hidden="true">
+        <ul className="grid grid-cols-3 gap-2 sm:gap-3 lg:grid-cols-5" aria-hidden="true">
           {[0, 1, 2, 3, 4].map((i) => (
-            <li key={i} className="min-h-[128px] rounded-card border border-line bg-surface-sunken" />
+            <li key={i} className="min-h-[116px] rounded-card border border-line bg-surface-sunken" />
           ))}
         </ul>
         <div className="min-h-12" />
@@ -141,26 +141,27 @@ export function LandingCategoriesSkeleton() {
 /** How it works: 5 compact steps (one row on desktop, a short list on phones). */
 export function LandingLoop() {
   return (
-    <Section aria-labelledby="loop-title" spacing="compact" className="bg-surface-sunken py-8 lg:py-12">
+    <Section aria-labelledby="loop-title" spacing="compact" className="bg-surface-sunken py-6 lg:py-12">
       <Container className="flex flex-col gap-6">
-        <SectionHeading id="loop-title" title={LANDING_LOOP.heading} lead={LANDING_LOOP.lead} />
-        <ol className="grid gap-2 md:grid-cols-5 md:gap-3">
+        <SectionHeading id="loop-title" title={LANDING_LOOP.heading} />
+        <ol className="flex flex-col divide-y divide-line rounded-card border border-line bg-surface md:grid md:grid-cols-5 md:gap-3 md:divide-y-0 md:border-0 md:bg-transparent">
           {LANDING_LOOP.steps.map((step, i) => {
             const StepIcon = LOOP_ICONS[i] ?? Repeat;
             return (
-              <li key={step.title} className="flex items-start gap-3 rounded-card border border-line bg-surface px-3 py-2.5 md:flex-col md:gap-2 md:p-4">
+              <li key={step.title} className="flex items-center gap-3 px-3 py-2 md:flex-col md:items-start md:gap-2 md:rounded-card md:border md:border-line md:bg-surface md:p-4">
                 <span aria-hidden="true" className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-700 text-body-sm font-semibold text-fg-inverse">
                   {i + 1}
                 </span>
-                <span className="flex flex-col gap-0.5">
+                <span className="flex min-w-0 flex-row flex-wrap items-baseline gap-x-2 md:flex-col md:gap-0.5">
                   <span className="flex items-center gap-2">
                     <h3 className="text-body-lg font-semibold text-fg">
                       <span className="sr-only">{LANDING_LOOP.stepLabel(i + 1)}</span>
                       {step.title}
                     </h3>
-                    <StepIcon aria-hidden="true" className="size-5 text-accent-700" />
+                    <StepIcon aria-hidden="true" className="hidden size-5 text-accent-700 md:inline" />
                   </span>
-                  <span className="text-body-sm text-fg-secondary md:text-body">{step.text}</span>
+                  <span className="text-body-sm text-fg-secondary md:hidden">{step.short}</span>
+                  <span className="hidden text-body text-fg-secondary md:inline">{step.text}</span>
                 </span>
               </li>
             );
@@ -193,7 +194,7 @@ export function LandingFeatures({ data }: { data: LandingData }) {
   const live = landingFeatures(data).filter((r) => r.live);
   const shortOf = (key: string) => (LANDING_FEATURES.items as Record<string, { short?: string }>)[key]?.short;
   return (
-    <Section aria-labelledby="features-title" spacing="compact" className="py-8 lg:py-12">
+    <Section aria-labelledby="features-title" spacing="compact" className="py-6 lg:py-12">
       <Container className="flex flex-col gap-6">
         <SectionHeading id="features-title" title={LANDING_FEATURES.heading} lead={LANDING_FEATURES.lead} />
         <ul className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3">
@@ -215,7 +216,7 @@ export function LandingFeatures({ data }: { data: LandingData }) {
 
 export function LandingFeaturesSkeleton() {
   return (
-    <Section aria-label={LANDING_FEATURES.heading} aria-busy="true" spacing="compact" className="py-8 lg:py-12">
+    <Section aria-label={LANDING_FEATURES.heading} aria-busy="true" spacing="compact" className="py-6 lg:py-12">
       <Container className="flex flex-col gap-6">
         <SectionHeading id="features-title" title={LANDING_FEATURES.heading} lead={LANDING_FEATURES.lead} />
         <ul className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3" aria-hidden="true">
@@ -228,21 +229,38 @@ export function LandingFeaturesSkeleton() {
   );
 }
 
-/** Trust: the real library (R12: a real story, no numbers, no testimonials). The photo slot waits for the owner's photo. */
-export function LandingTrust() {
+/**
+ * Trust: the real library (R12: a real story, no numbers, no testimonials), ≤ 3 lines + the owner's photo of the library
+ * (Settings › Home page photo; space only). The photo is lazy (below the fold), its width / height are set from the
+ * stored size (no layout shift) and a 390 / 768 / 1280 px copy is chosen by the browser. No photo → text only.
+ */
+export function LandingTrust({ photo = null }: { photo?: HomePhoto | null }) {
   return (
-    <Section aria-labelledby="trust-title" spacing="compact" className="bg-surface-sunken py-8 lg:py-12">
+    <Section aria-labelledby="trust-title" spacing="compact" className="bg-surface-sunken py-6 lg:py-12">
       <Container>
-        <div className="grid gap-5 rounded-card border border-line bg-surface p-5 sm:p-8 md:grid-cols-[auto_1fr] md:items-start">
-          <span aria-hidden="true" className="hidden size-14 items-center justify-center rounded-card bg-accent-50 text-accent-700 md:inline-flex">
-            <Library className="size-7" />
-          </span>
-          <div className="flex flex-col gap-3">
+        <div className={`grid gap-4 overflow-hidden rounded-card border border-line bg-surface ${photo ? "md:grid-cols-2 md:items-center" : ""}`}>
+          {photo && (
+            // eslint-disable-next-line @next/next/no-img-element -- pre-sized WebP copies from our pipeline; no client JS (P-07)
+            <img
+              src={photo.src}
+              srcSet={photo.srcSet}
+              sizes="(min-width: 768px) 50vw, 100vw"
+              alt={photo.alt}
+              width={photo.width}
+              height={photo.height}
+              loading="lazy"
+              decoding="async"
+              className="h-auto w-full"
+              data-home-photo=""
+            />
+          )}
+          <div className="flex flex-col gap-2 p-5 sm:p-8">
             <h2 id="trust-title" className="text-h2 font-bold tracking-tight text-fg">
               {LANDING_TRUST.heading}
             </h2>
-            <p className="max-w-prose text-body-lg text-fg">{LANDING_TRUST.text}</p>
-            <p className="max-w-prose text-body text-fg-secondary">{LANDING_TRUST.detail}</p>
+            <p className="max-w-prose text-body text-fg-secondary" data-trust-text="">
+              {LANDING_TRUST.short}
+            </p>
           </div>
         </div>
       </Container>
@@ -250,37 +268,54 @@ export function LandingTrust() {
   );
 }
 
-/** Free and Pro: features only, no prices (ruling: "Pricing at launch"). */
+/** Free and Pro: a small comparison table, features only, no prices (owner decision 1 + "Pricing at launch"). */
 export function LandingPlans() {
-  const col = (p: { title: string; note: string; items: readonly string[] }, pro: boolean) => (
-    <div className={`flex flex-col gap-2 rounded-card border p-4 sm:p-6 ${pro ? "border-dashed border-line bg-surface" : "border-primary-200 bg-primary-50"}`}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-h3 font-bold text-fg">{p.title}</h3>
-        {pro && (
-          <Badge tone="pro" className="text-[14px]" icon={<Lock aria-hidden="true" className="size-3.5" />}>
-            {LANDING_PLANS.proBadge}
-          </Badge>
-        )}
-      </div>
-      <p className="text-body font-medium text-fg-secondary">{p.note}</p>
-      <ul className="flex flex-col gap-2">
-        {p.items.map((it) => (
-          <li key={it} className="flex items-start gap-2 text-body text-fg">
-            <Check aria-hidden="true" className={`mt-1 size-4 shrink-0 ${pro ? "text-fg-muted" : "text-success-700"}`} />
-            {it}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
+  const T = LANDING_PLANS.table;
+  const cell = (on: boolean, pro: boolean) =>
+    on ? (
+      <>
+        <Check aria-hidden="true" className={`mx-auto size-5 ${pro ? "text-primary-700" : "text-success-700"}`} />
+        <span className="sr-only">{pro ? "Included in Pro" : "Included free"}</span>
+      </>
+    ) : (
+      <>
+        <span aria-hidden="true" className="text-fg-muted">—</span>
+        <span className="sr-only">Not included</span>
+      </>
+    );
   return (
-    <Section aria-labelledby="plans-title" spacing="compact" className="py-8 lg:py-12">
-      <Container className="flex flex-col gap-6">
-        <SectionHeading id="plans-title" title={LANDING_PLANS.heading} lead={LANDING_PLANS.text} />
-        <div className="grid gap-3 md:grid-cols-2">
-          {col(LANDING_PLANS.free, false)}
-          {col(LANDING_PLANS.pro, true)}
+    <Section aria-labelledby="plans-title" spacing="compact" className="py-6 lg:py-12">
+      <Container className="flex flex-col gap-4">
+        <SectionHeading id="plans-title" title={LANDING_PLANS.heading} />
+        <div className="overflow-hidden rounded-card border border-line bg-surface">
+          <table className="w-full border-collapse text-body" data-plans-table="">
+            <caption className="sr-only">{T.caption}</caption>
+            <thead className="bg-surface-sunken">
+              <tr>
+                <th scope="col" className="px-3 py-2 text-left text-body-sm font-semibold text-fg-secondary">{T.columns[0]}</th>
+                <th scope="col" className="w-20 px-2 py-2 text-center text-body-sm font-semibold text-fg">{T.columns[1]}</th>
+                <th scope="col" className="w-20 px-2 py-2 text-center text-body-sm font-semibold text-fg">
+                  <span className="inline-flex items-center gap-1">
+                    <Lock aria-hidden="true" className="size-3.5" />
+                    {T.columns[2]}
+                  </span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {T.rows.map((r) => (
+                <tr key={r.feature} className="border-t border-line">
+                  <th scope="row" className="px-3 py-1.5 text-left font-normal text-fg">{r.feature}</th>
+                  <td className="px-2 py-1.5 text-center">{cell(r.free, false)}</td>
+                  <td className="px-2 py-1.5 text-center">{cell(r.pro, true)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
+        <p className="text-body-sm text-fg-secondary">
+          {LANDING_PLANS.text} {T.proNote.replace("Pro is coming soon. ", "")}
+        </p>
       </Container>
     </Section>
   );
@@ -289,13 +324,13 @@ export function LandingPlans() {
 /** FAQ: native <details> (no client JS); the same text goes into FAQPage JSON-LD (app/page.tsx). */
 export function LandingFaq() {
   return (
-    <Section aria-labelledby="faq-title" spacing="compact" className="bg-surface-sunken py-8 lg:py-12">
+    <Section aria-labelledby="faq-title" spacing="compact" className="bg-surface-sunken py-6 lg:py-12">
       <Container className="flex flex-col gap-6">
         <SectionHeading id="faq-title" title={LANDING_FAQ.heading} />
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col divide-y divide-line rounded-card border border-line bg-surface">
           {LANDING_FAQ.items.map((f) => (
-            <details key={f.q} className="group rounded-card border border-line bg-surface">
-              <summary className="focus-ring flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 rounded-card px-4 py-3 text-body-lg font-semibold text-fg">
+            <details key={f.q} className="group">
+              <summary className="focus-ring flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-2 text-body font-semibold text-fg sm:text-body-lg [&::-webkit-details-marker]:hidden">
                 {f.q}
                 <ArrowRight aria-hidden="true" className="size-4 shrink-0 text-fg-secondary transition-transform group-open:rotate-90" />
               </summary>

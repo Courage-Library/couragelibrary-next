@@ -456,6 +456,7 @@ jobs:
             "$Q PUBLISH-CONFIRM-LIVE -- node scripts/live/test_publish_confirm.cjs" \
             "$Q EXAM-LOGO-1-LIVE -- node scripts/live/test_exam_logo1.cjs" \
             "$Q EXAM-CATEGORIES-LIVE -- node scripts/live/test_exam_categories.cjs" \
+            "$Q SITE-MEDIA-LIVE -- node scripts/live/test_site_media.cjs" \
             "$Q LOGO-UX1-E2E -- node scripts/e2e/logo-ux1.cjs"
       - name: Live gates — shard security (catalog / authz / row-disjoint DB gates; summary lines only)
         if: matrix.shard == 'security'

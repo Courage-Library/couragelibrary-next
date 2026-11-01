@@ -13,7 +13,7 @@ import type { CategoryExam, PublicCategory } from "@/lib/exams/categories";
  * HOME-1: /exams/<category> — the category (icon + name inline, one line) and its exams: active ones are links (logo +
  * name), listed future exams are honest "Coming soon" rows (not links). No numbers we cannot show from live data.
  */
-export function CategoryPage({ category, exams }: { category: PublicCategory; exams: CategoryExam[] }) {
+export function CategoryPage({ category, exams, examsFailed = false }: { category: PublicCategory; exams: CategoryExam[]; examsFailed?: boolean }) {
   return (
     <div data-category-page={category.slug}>
       <section aria-labelledby="page-title" className="border-b border-line bg-gradient-to-b from-primary-50 to-canvas">
@@ -29,7 +29,15 @@ export function CategoryPage({ category, exams }: { category: PublicCategory; ex
         </Container>
       </section>
       <Container className="py-8 lg:py-12">
-        {exams.length === 0 ? (
+        {examsFailed ? (
+          <p role="status" className="rounded-card border border-line bg-surface px-5 py-6 text-body text-fg-secondary" data-category-unavailable="">
+            The exam list could not be loaded right now. Reload the page, or{" "}
+            <Link className="font-semibold text-link underline-offset-4 hover:underline" href="/exams">
+              see all exams
+            </Link>
+            .
+          </p>
+        ) : exams.length === 0 ? (
           <p className="rounded-card border border-line bg-surface px-5 py-6 text-body text-fg-secondary" data-category-empty="">
             Exams for {category.name} are coming soon. <Link className="font-semibold text-link underline-offset-4 hover:underline" href="/exams">See all exams</Link>
           </p>
