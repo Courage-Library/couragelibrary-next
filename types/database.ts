@@ -5958,6 +5958,48 @@ export type Database = {
         }
         Relationships: []
       }
+      site_gallery: {
+        Row: {
+          alt: string
+          created_at: string
+          height: number
+          id: string
+          path: string | null
+          people_basis: string
+          position: number
+          sha256: string
+          updated_at: string
+          updated_by_email: string
+          width: number
+        }
+        Insert: {
+          alt: string
+          created_at?: string
+          height: number
+          id?: string
+          path?: string | null
+          people_basis: string
+          position: number
+          sha256: string
+          updated_at?: string
+          updated_by_email: string
+          width: number
+        }
+        Update: {
+          alt?: string
+          created_at?: string
+          height?: number
+          id?: string
+          path?: string | null
+          people_basis?: string
+          position?: number
+          sha256?: string
+          updated_at?: string
+          updated_by_email?: string
+          width?: number
+        }
+        Relationships: []
+      }
       site_media: {
         Row: {
           alt: string
@@ -9402,6 +9444,41 @@ export type Database = {
         Returns: Json
       }
       fn_set_username: { Args: { p_username: string }; Returns: Json }
+      fn_site_gallery_add: {
+        Args: {
+          p_actor_email: string
+          p_actor_id: string
+          p_alt: string
+          p_height: number
+          p_people_basis: string
+          p_sha256: string
+          p_width: number
+        }
+        Returns: Json
+      }
+      fn_site_gallery_move: {
+        Args: {
+          p_actor_email: string
+          p_actor_id: string
+          p_id: string
+          p_position: number
+        }
+        Returns: Json
+      }
+      fn_site_gallery_remove: {
+        Args: { p_actor_email: string; p_actor_id: string; p_id: string }
+        Returns: Json
+      }
+      fn_site_gallery_update: {
+        Args: {
+          p_actor_email: string
+          p_actor_id: string
+          p_alt: string
+          p_id: string
+          p_people_basis: string
+        }
+        Returns: Json
+      }
       fn_site_media_remove: {
         Args: { p_actor_email: string; p_actor_id: string; p_key: string }
         Returns: Json

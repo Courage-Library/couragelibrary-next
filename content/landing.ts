@@ -32,6 +32,8 @@ export const LANDING_LOOP = {
   heading: "How it works",
   lead: "One simple loop, repeated until the exam day.",
   stepLabel: (n: number) => `Step ${n}: `,
+  // HOME-1 design upgrade: the loop closes back to step 1 (shown under the steps)
+  loopBack: "Then back to Learn with the next topic.",
   /** UX-FIX-1: the hero shows steps 1–3 and links here (the count comes from `steps`, never typed in) */
   seeAll: (n: number) => `See all ${n} steps`,
   // HOME-1: 5 steps (was 7)
@@ -162,6 +164,7 @@ export const LANDING_FAQ = {
 } as const;
 
 export const LANDING_TRUST = {
+  galleryLabel: "Photos of the library",
   /** owner decision 1: the home page story in ≤ 3 lines (plus the library photo when uploaded) */
   short: "A real study library in Kanpur, Uttar Pradesh, open since August 2024. The same team builds this platform for students who study on their own.",
   heading: "Built by a real library in Kanpur",

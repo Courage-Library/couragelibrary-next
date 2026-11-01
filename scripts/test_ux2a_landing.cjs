@@ -86,6 +86,7 @@ function loadTs(rel, stubs = {}) {
     }
     if (id.startsWith('@/')) {
       const t = id.slice(2);
+      if (t.endsWith('.json') && fs.existsSync(path.join(ROOT, t))) return JSON.parse(fs.readFileSync(path.join(ROOT, t), 'utf8')); // HOME-1 marketing-shots manifest
       const cand = [`${t}.ts`, `${t}.tsx`, `${t}/index.ts`].find((c) => fs.existsSync(path.join(ROOT, c)));
       if (!cand) throw new Error(`unresolved ${id}`);
       return loadTs(cand, stubs);

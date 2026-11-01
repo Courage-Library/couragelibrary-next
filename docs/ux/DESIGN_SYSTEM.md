@@ -29,6 +29,15 @@
 
 ## 1. Colour
 
+> **HOME-1 design upgrade decision (owner, 2026-11-01; decision number to be assigned). Supersedes the #72 floating glass pill for the public header; refines #81.**
+> - **Header = solid.** One full-width, sticky, solid white header for everyone (public and signed in): hairline bottom border `line` (#E6E9F2), a subtle shadow only after the page scrolls (box-shadow only, so no layout shift), 64 px, nothing visible behind it, 48 px actions. Glass stays only on the auth card, the dashboard chip and the hero glass groups (BRAND-2 C-04).
+> - **Footer = deep navy.** `ink-900` (#0B1B4D) with white headings, light-slate (`ink-300`) links and text (10.95:1), a thin cyan (`accent-400`) line on top to separate it from the gradient CTA band, and the on-dark focus ring.
+> - **"Honest images" (refines #81).**
+>   - Allowed: real product screenshots (`public/marketing/`, captured from the local build with the QA identity, with no personal data), real photos of the Kanpur library (Settings › Library photos, migration 130: no recognisable person, or written consent obtained) and abstract brand shapes in CSS or inline SVG.
+>   - Not allowed: stock photos, and AI-generated realistic people.
+> - **Background depth.** A faint grid and soft rings (`.hero-depth`, CSS only, no image request) appear only on the hero and the final call to action, the same two places that may use a gradient.
+> - Gates: `scripts/test_home1.cjs` H-8, H-10–H-14, `scripts/test_brand2.cjs` C-03/C-04 (header has no glass), P-04/P-05 (the glass probe now uses the sign-in card).
+
 > **Decision #85 (architect, 2026-10-27): Hindi content fields in the admin. Clarifies #35, consistent with #82.**
 > - #35 forbids switching the admin UI's own language or medium.
 > - A field that **edits Hindi content** (for example a node's Hindi name or a Hindi alias) is allowed when it is an `<input>` / `<textarea>` marked `lang="hi"` plus the content-field marker `data-content-field="…"`.
@@ -104,11 +113,11 @@
 > - **Type:**
 >   - Inter for body / UI, with Noto Sans Devanagari 400/600 for Hindi;
 >   - Poppins 600/700 for headings;
->   - all via next/font, only Inter preloaded;
+>   - committed woff2 subsets via next/font/local (BUILD-FONT-1: no network at build); only Poppins 700 Latin (the hero H1) preloaded;
 >   - base 16px, line-height 1.6 (1.7 for `lang="hi"`).
 > - **Glass (#72):**
->   - Components: `GlassNav`, `GlassCard`, `GlassChip`, `PillButton` / `PillLink` (primary / accent / ghost-on-dark), `GradientHero`.
->   - Allowed only on the public nav, the home hero, the auth card and the dashboard header chips, with at most 3 glass groups per viewport.
+>   - Components: `GlassCard`, `GlassChip`, `PillButton` / `PillLink` (primary / accent / ghost-on-dark), `GradientHero`. (`GlassNav` was removed: the HOME-1 design upgrade made the header solid.)
+>   - Allowed only on the home hero, the auth card and the dashboard header chips, with at most 3 glass groups per viewport.
 >   - Never in the exam engine, question review or admin (`[data-no-glass]`).
 >   - Solid by default. Blur only with `@supports`, without reduced transparency, and not `html.lite` (low-end device or Save-Data).
 >

@@ -2,6 +2,11 @@
   "$comment": "UX-1a / BRAND-1 / BRAND-3 (#84 Brand Colour System v3) contrast register: every text/background (and non-text) pair the design system uses. Read by the preview page (live values) and scripts/test_design_ratchet.cjs (offline, from app/globals.css). kind: text = 4.5:1, large = 3:1 (>=24px or >=18.66px bold), reading = 7:1 (question / article text, R13), nontext = 3:1 (UI boundaries, focus, icons), decorative = no requirement (must never carry text), disabled = exempt (WCAG 1.4.3).",
   "pairs": [
     { "use": "Body text", "fg": "ink-900", "bg": "surface", "kind": "text" },
+    { "use": "Footer heading on navy (HOME-1)", "fg": "fg-inverse", "bg": "ink-900", "kind": "text" },
+    { "use": "Footer links / disclaimer on navy (HOME-1)", "fg": "ink-300", "bg": "ink-900", "kind": "text" },
+    { "use": "Footer chevron on navy (HOME-1)", "fg": "ink-300", "bg": "ink-900", "kind": "nontext" },
+    { "use": "Footer focus ring on navy (HOME-1)", "fg": "hero-focus", "bg": "ink-900", "kind": "nontext" },
+    { "use": "Footer monogram (white tile) on navy (HOME-1)", "fg": "surface", "bg": "ink-900", "kind": "nontext" },
     { "use": "Body text on page background", "fg": "ink-900", "bg": "ink-50", "kind": "text" },
     { "use": "Secondary text", "fg": "ink-600", "bg": "surface", "kind": "text" },
     { "use": "Secondary text on page background", "fg": "ink-600", "bg": "ink-50", "kind": "text" },

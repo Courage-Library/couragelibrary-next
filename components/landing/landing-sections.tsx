@@ -5,7 +5,7 @@
  * Owner rule: NO exam-specific details or actions on home — category tiles → /exams/<category> → exam pages.
  * Research (UX phase 1): low text, plain English, honest (no hype, no promises of selection, no fake numbers), fast on budget phones.
  */
-import { ArrowRight, BookOpenCheck, Check, ChevronDown, ChevronRight, ClipboardCheck, Gauge, Lock, NotebookPen, Repeat } from "lucide-react";
+import { ArrowRight, BookOpenCheck, Check, ChevronDown, ChevronRight, ClipboardCheck, Gauge, Lock, NotebookPen, Repeat, RotateCcw } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 import Link from "next/link";
 import { ButtonLink } from "@/components/ui/button";
@@ -23,12 +23,33 @@ import {
   LANDING_TRUST,
 } from "@/content/landing";
 import { categoryCountLabel, type PublicCategory } from "@/lib/exams/categories";
-import type { HomePhoto } from "@/lib/media/photo-rules";
+import type { GalleryPhoto } from "@/lib/media/photo-rules";
+import { shot, type Shot, type ShotKey } from "@/lib/marketing/shots";
 import type { LandingData } from "@/lib/landing/landing-data";
 import { LandingCta } from "./landing-cta";
 
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
 const LOOP_ICONS: Icon[] = [BookOpenCheck, NotebookPen, ClipboardCheck, Gauge, Repeat];
+const LOOP_SHOTS: ShotKey[] = ["learn", "practice", "mock", "analyze", "revise"];
+
+/** a product screenshot: lazy, fixed box (width / height + aspect ratio: no layout shift), sized copies via srcset */
+function ShotImage({ s, sizes, className = "" }: { s: Shot; sizes: string; className?: string }) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- pre-sized WebP copies in public/marketing; no client JS (P-07)
+    <img
+      src={s.src}
+      srcSet={s.srcSet}
+      sizes={sizes}
+      alt={s.alt}
+      width={s.width}
+      height={s.height}
+      loading="lazy"
+      decoding="async"
+      className={`h-auto w-full rounded-control border border-line bg-surface ${className}`}
+      data-marketing-shot=""
+    />
+  );
+}
 
 /**
  * Section rhythm (HOME-1 owner review): sections alternate white (bg-surface) and canvas (bg-canvas); every section heading
@@ -50,31 +71,57 @@ function SectionHeading({ id, title, lead }: { id: string; title: string; lead?:
   );
 }
 
-/** Hero: the brand line (2 lines, second in the hero accent), one short line, ONE action (components/landing/landing-cta). */
+/**
+ * Hero: the brand line (2 lines, second in the hero accent), one short line, ONE action (components/landing/landing-cta),
+ * and one REAL app screen in a CSS phone frame ("honest images"): right of the text on desktop, small under the action
+ * on phones. The H1 stays the LCP element: the screen is smaller than the H1 block, lazy, low fetch priority, sized
+ * (no layout shift).
+ */
 export function LandingHero() {
   const [line1, ...rest] = LANDING_HERO.title.split(". ");
+  const mock = shot("hero");
   return (
     <GradientHero aria-labelledby="hero-title">
-      <Container className="flex flex-col items-start gap-5">
-        <p className="inline-flex items-center gap-2 text-body-sm font-semibold uppercase tracking-wider text-hero-accent-text">
-          <span aria-hidden="true" className="size-2 rounded-full bg-accent-400" />
-          {LANDING_HERO.eyebrow}
-        </p>
-        <h1 id="hero-title" className="max-w-3xl text-display font-bold tracking-tight text-hero-fg">
-          {rest.length ? (
-            <>
-              {line1}.<br />
-              <span className="text-hero-accent-text">{rest.join(". ")}</span>
-            </>
-          ) : (
-            LANDING_HERO.title
-          )}
-        </h1>
-        <p className="max-w-xl text-body-lg text-hero-fg-muted">{LANDING_HERO.lead}</p>
-        <div className="flex flex-wrap items-center gap-3">
-          <LandingCta spot="hero" />
+      <Container className="grid items-center gap-6 lg:grid-cols-[1fr_auto] lg:gap-12">
+        <div className="flex flex-col items-start gap-5">
+          <p className="inline-flex items-center gap-2 text-body-sm font-semibold uppercase tracking-wider text-hero-accent-text">
+            <span aria-hidden="true" className="size-2 rounded-full bg-accent-400" />
+            {LANDING_HERO.eyebrow}
+          </p>
+          <h1 id="hero-title" className="max-w-3xl text-display font-bold tracking-tight text-hero-fg">
+            {rest.length ? (
+              <>
+                {line1}.<br />
+                <span className="text-hero-accent-text">{rest.join(". ")}</span>
+              </>
+            ) : (
+              LANDING_HERO.title
+            )}
+          </h1>
+          <p className="max-w-xl text-body-lg text-hero-fg-muted">{LANDING_HERO.lead}</p>
+          <div className="flex flex-wrap items-center gap-3">
+            <LandingCta spot="hero" />
+          </div>
+          <p className="text-body-sm text-hero-fg-muted">{LANDING_HERO.note}</p>
         </div>
-        <p className="text-body-sm text-hero-fg-muted">{LANDING_HERO.note}</p>
+        {mock && (
+          <div className="w-[120px] justify-self-start rounded-[22px] border-4 border-ink-950 bg-ink-950 shadow-e3 lg:w-[200px] lg:justify-self-end lg:rounded-[30px] lg:border-[6px]" data-hero-mockup="">
+            {/* eslint-disable-next-line @next/next/no-img-element -- pre-sized WebP copies in public/marketing; no client JS (P-07) */}
+            <img
+              src={mock.src}
+              srcSet={mock.srcSet}
+              sizes="(min-width: 1024px) 200px, 120px"
+              alt={mock.alt}
+              width={mock.width}
+              height={mock.height}
+              loading="lazy"
+              decoding="async"
+              fetchPriority="low"
+              className="h-auto w-full rounded-[18px] lg:rounded-[24px]"
+              data-marketing-shot=""
+            />
+          </div>
+        )}
       </Container>
     </GradientHero>
   );
@@ -99,7 +146,7 @@ export function LandingCategories({ categories }: { categories: PublicCategory[]
         {categories === null ? (
           <div className="flex flex-col items-start gap-3 rounded-card border border-line bg-surface p-5">
             <p className="text-body text-fg-secondary">{LANDING_CATEGORIES.fallback}</p>
-            <ButtonLink href={LANDING_CATEGORIES.allExams.href} variant="secondary">
+            <ButtonLink href={LANDING_CATEGORIES.allExams.href} variant="secondary" size="lg">
               {LANDING_CATEGORIES.allExams.label}
             </ButtonLink>
           </div>
@@ -168,35 +215,71 @@ export function LandingCategoriesSkeleton() {
   );
 }
 
-/** How it works: 5 compact steps (one row on desktop, a short list on phones). */
+/**
+ * How it works = the connected loop (our differentiator). Phones: a vertical timeline (large icon, connecting line, one
+ * line of text, a small real screenshot). Tablet / desktop: the 5 steps in a row joined by arrows, and a line under
+ * the row that curves back to step 1 (CSS borders, our own code). Every screenshot is a real app screen (lazy, sized).
+ */
 export function LandingLoop() {
+  const steps = LANDING_LOOP.steps;
   return (
     <Section aria-labelledby="loop-title" spacing="compact" className="bg-canvas py-6 lg:py-12">
       <Container className="flex flex-col gap-6">
         <SectionHeading id="loop-title" title={LANDING_LOOP.heading} />
-        <ol className="flex flex-col divide-y divide-line rounded-card border border-line bg-surface md:grid md:grid-cols-5 md:gap-3 md:divide-y-0 md:border-0 md:bg-transparent">
-          {LANDING_LOOP.steps.map((step, i) => {
-            const StepIcon = LOOP_ICONS[i] ?? Repeat;
-            return (
-              <li key={step.title} className="flex items-center gap-3 px-3 py-2 md:flex-col md:items-start md:gap-2 md:rounded-card md:border md:border-line md:bg-surface md:p-4">
-                <span aria-hidden="true" className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-700 text-body-sm font-semibold text-fg-inverse">
-                  {i + 1}
-                </span>
-                <span className="flex min-w-0 flex-row flex-wrap items-baseline gap-x-2 md:flex-col md:gap-0.5">
-                  <span className="flex items-center gap-2">
-                    <h3 className="text-body-lg font-semibold text-fg">
-                      <span className="sr-only">{LANDING_LOOP.stepLabel(i + 1)}</span>
-                      {step.title}
-                    </h3>
-                    <StepIcon aria-hidden="true" className="hidden size-5 text-accent-700 md:inline" />
+        <div className="relative" data-loop="">
+          <ol className="relative flex flex-col md:grid md:grid-cols-5 md:gap-4 lg:gap-6" data-loop-steps="">
+            {steps.map((step, i) => {
+              const StepIcon = LOOP_ICONS[i] ?? Repeat;
+              const s = shot(LOOP_SHOTS[i]);
+              const last = i === steps.length - 1;
+              return (
+                <li key={step.title} className="relative flex gap-4 pb-5 md:flex-col md:gap-3 md:rounded-card md:border md:border-line md:bg-surface md:p-3 md:pb-3 lg:p-4" data-loop-step={i + 1}>
+                  {/* phones: the connecting line of the timeline (to the next step) */}
+                  {!last && <span aria-hidden="true" className="absolute left-6 top-12 h-[calc(100%-3rem)] w-0.5 -translate-x-1/2 bg-primary-200 md:hidden" data-loop-line="" />}
+                  {/* tablet / desktop: the arrow to the next step */}
+                  {!last && (
+                    <span aria-hidden="true" className="absolute -right-4 top-1/2 z-10 hidden -translate-y-1/2 items-center justify-center text-primary-700 md:flex lg:-right-6 lg:w-6" data-loop-arrow="">
+                      <ArrowRight className="size-4 lg:size-5" />
+                    </span>
+                  )}
+                  <span className="relative inline-flex size-12 shrink-0 items-center justify-center rounded-full bg-primary-700 text-fg-inverse md:size-10">
+                    <StepIcon aria-hidden="true" className="size-6 md:size-5" />
+                    <span aria-hidden="true" className="absolute -right-1 -top-1 inline-flex size-5 items-center justify-center rounded-full bg-surface text-[14px] font-bold leading-none text-primary-700 ring-2 ring-primary-700">
+                      {i + 1}
+                    </span>
                   </span>
-                  <span className="text-body-sm text-fg-secondary md:hidden">{step.short}</span>
-                  <span className="hidden text-body text-fg-secondary md:inline">{step.text}</span>
-                </span>
-              </li>
-            );
-          })}
-        </ol>
+                  <div className="flex min-w-0 flex-1 items-start justify-between gap-3 md:flex-col md:justify-start">
+                    <div className="flex min-w-0 flex-col gap-0.5 pt-1 md:pt-0">
+                      <h3 className="text-body-lg font-semibold text-fg">
+                        <span className="sr-only">{LANDING_LOOP.stepLabel(i + 1)}</span>
+                        {step.title}
+                      </h3>
+                      <p className="text-body-sm text-fg-secondary lg:hidden">{step.short}</p>
+                      <p className="hidden text-body-sm text-fg-secondary lg:block">{step.text}</p>
+                    </div>
+                    {s && (
+                      <div className="w-28 shrink-0 md:w-full">
+                        <ShotImage s={s} sizes="(min-width: 1024px) 200px, (min-width: 768px) 132px, 112px" />
+                      </div>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+          {/* the loop closes: phones — a last row back to step 1; tablet / desktop — a line under the row that curves
+              back up into step 1 (rounded border corners) with an arrow head pointing at it */}
+          <p className="flex items-center gap-4 text-body-sm font-semibold text-primary-700 md:hidden" data-loop-back="">
+            <span aria-hidden="true" className="inline-flex size-12 shrink-0 items-center justify-center rounded-full border-2 border-dashed border-primary-300">
+              <RotateCcw className="size-5" />
+            </span>
+            {LANDING_LOOP.loopBack}
+          </p>
+          <div aria-hidden="true" className="relative mx-[10%] hidden h-8 rounded-b-3xl border-x-2 border-b-2 border-primary-300 md:block" data-loop-return="">
+            <span className="absolute -left-[7px] -top-[2px] block size-0 border-x-[6px] border-b-[9px] border-x-transparent border-b-primary-300" />
+          </div>
+          <p className="mt-2 hidden text-center text-body-sm font-semibold text-primary-700 md:block">{LANDING_LOOP.loopBack}</p>
+        </div>
       </Container>
     </Section>
   );
@@ -276,31 +359,17 @@ export function LandingFeaturesSkeleton() {
 }
 
 /**
- * Trust: the real library (R12: a real story, no numbers, no testimonials), ≤ 3 lines + the owner's photo of the library
- * (Settings › Home page photo; space only). The photo is lazy (below the fold), its width / height are set from the
- * stored size (no layout shift) and a 390 / 768 / 1280 px copy is chosen by the browser. No photo → text only.
+ * Trust: the real library (R12: a real story, no numbers, no testimonials), ≤ 3 lines + the owner's photos of the
+ * library (Settings › Library photos, 130; "honest images": real photos only). Desktop: the first photo large + the
+ * next two; phones: a swipeable row of all of them. Every photo is lazy (below the fold), sized from the stored
+ * width / height (no layout shift), a 390 / 768 / 1280 px copy chosen by the browser. No photos → text only.
  */
-export function LandingTrust({ photo = null }: { photo?: HomePhoto | null }) {
+export function LandingTrust({ photos = [] }: { photos?: GalleryPhoto[] }) {
   return (
     <Section aria-labelledby="trust-title" spacing="compact" className="bg-canvas py-6 lg:py-12">
       <Container>
-        <div className={`grid gap-4 overflow-hidden rounded-card border border-line bg-surface ${photo ? "md:grid-cols-2 md:items-center" : ""}`}>
-          {photo && (
-            // eslint-disable-next-line @next/next/no-img-element -- pre-sized WebP copies from our pipeline; no client JS (P-07)
-            <img
-              src={photo.src}
-              srcSet={photo.srcSet}
-              sizes="(min-width: 768px) 50vw, 100vw"
-              alt={photo.alt}
-              width={photo.width}
-              height={photo.height}
-              loading="lazy"
-              decoding="async"
-              className="h-auto w-full"
-              data-home-photo=""
-            />
-          )}
-          <div className="flex flex-col gap-2 p-5 sm:p-8">
+        <div className="flex flex-col gap-4 overflow-hidden rounded-card border border-line bg-surface p-5 sm:p-8">
+          <div className="flex flex-col gap-2">
             <AccentBar />
             <h2 id="trust-title" className="text-h2 font-bold tracking-tight text-fg">
               {LANDING_TRUST.heading}
@@ -309,6 +378,35 @@ export function LandingTrust({ photo = null }: { photo?: HomePhoto | null }) {
               {LANDING_TRUST.short}
             </p>
           </div>
+          {photos.length > 0 && (
+            <ul
+              className="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-1 sm:-mx-8 sm:px-8 md:mx-0 md:grid md:grid-cols-3 md:grid-rows-2 md:overflow-visible md:px-0 md:pb-0"
+              aria-label={LANDING_TRUST.galleryLabel}
+              tabIndex={0}
+              data-gallery=""
+            >
+              {photos.map((p, i) => (
+                <li
+                  key={p.id}
+                  className={`w-[80%] shrink-0 snap-start md:w-auto ${i === 0 ? "md:col-span-2 md:row-span-2" : ""} ${i > 2 ? "md:hidden" : ""}`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element -- pre-sized WebP copies from our pipeline; no client JS (P-07) */}
+                  <img
+                    src={p.src}
+                    srcSet={p.srcSet}
+                    sizes={i === 0 ? "(min-width: 768px) 66vw, 80vw" : "(min-width: 768px) 33vw, 80vw"}
+                    alt={p.alt}
+                    width={p.width}
+                    height={p.height}
+                    loading="lazy"
+                    decoding="async"
+                    className="aspect-[4/3] h-full w-full rounded-control object-cover"
+                    data-home-photo=""
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </Container>
     </Section>
@@ -403,7 +501,7 @@ export function faqJsonLd() {
 
 export function LandingFinalCta() {
   return (
-    <Section aria-labelledby="final-cta-title" className="hero-gradient">
+    <Section aria-labelledby="final-cta-title" className="hero-gradient hero-depth relative isolate overflow-hidden">
       <Container className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-1">
           <h2 id="final-cta-title" className="text-h2 font-bold tracking-tight text-fg-inverse">

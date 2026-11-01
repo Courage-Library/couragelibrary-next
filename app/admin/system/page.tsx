@@ -2,8 +2,8 @@ import React from "react";
 import { requireAdminPage } from "@/lib/auth/require-admin";
 import { getAdminStudioSettings, STUDIO_SETTING_KEYS, DEFAULT_DAILY_REVIEW_GOAL } from "@/lib/admin/studio-settings";
 import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
-import { HomePhotoPanel } from "@/components/admin/settings/home-photo-panel";
-import { loadHomePhoto } from "@/lib/media/site-media";
+import { LibraryGalleryPanel } from "@/components/admin/settings/library-gallery-panel";
+import { loadGallery } from "@/lib/media/site-media";
 
 export const dynamic = "force-dynamic";
 
@@ -32,10 +32,10 @@ export default async function AdminSettingsPage() {
     <div className="flex max-w-3xl flex-col gap-4">
       <header>
         <h1 className="text-h1 font-bold text-fg">Settings</h1>
-        <p className="text-body text-fg-secondary">Courage Studio settings below are read only here (values are changed by the owner). The home page photo is managed here.</p>
+        <p className="text-body text-fg-secondary">Courage Studio settings below are read only here (values are changed by the owner). The library photos for the home page are managed here.</p>
       </header>
-      {/* HOME-1 (129): the home page photo (admin only, audited) */}
-      <HomePhotoPanel current={await loadHomePhoto()} />
+      {/* HOME-1 (130): the library photos on the home page (admin only, audited) */}
+      <LibraryGalleryPanel photos={await loadGallery()} />
       <ul className="flex flex-col gap-3">
         {rows.map((r) => (
           <li key={r.key} className="rounded-card border border-line bg-surface p-4">

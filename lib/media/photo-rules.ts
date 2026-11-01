@@ -1,6 +1,8 @@
 /**
- * HOME-1 (129): the home page photo rules, shared by the browser (lib/media/photo-prepare.ts) and the server
- * (lib/media/photo-image.ts), and its public URLs. Pure; safe in client components.
+ * HOME-1 (129 → 130): the library photo rules, shared by the browser (lib/media/photo-prepare.ts) and the server
+ * (lib/media/photo-image.ts), and the gallery's public URLs. Pure; safe in client components.
+ * 130 (design upgrade, "honest images"): up to 6 real library photos, ordered, each with alt text and the basis on which
+ * people may appear (no recognisable person, or written consent obtained).
  */
 export const PHOTO_UPLOAD_MAX_BYTES = 1024 * 1024; // the payload actually sent (the browser resizes first)
 export const PHOTO_SOURCE_MAX_BYTES = 15 * 1024 * 1024; // an original the browser will try to resize
@@ -20,8 +22,19 @@ export const PHOTO_MESSAGES = {
   unavailable: "The photo could not be processed, so nothing was saved. Try again later.",
   failed: "The photo could not be saved, so nothing was changed. Check your connection and try again.",
   altRequired: "Describe the photo for screen readers (3 to 200 characters).",
-  facesRequired: "Confirm that no person can be recognised in the photo.",
+  facesRequired: "Confirm that no person can be recognised, or that everyone who can be recognised gave written consent.",
+  galleryFull: "The gallery already has 6 photos. Remove one first.",
+  duplicate: "This photo is already in the gallery.",
 } as const;
+
+export const GALLERY_MAX = 6;
+/** stored in site_gallery.people_basis (130); the admin must choose one for every photo */
+export const PEOPLE_BASIS = {
+  NO_RECOGNISABLE_PERSON: "No person can be recognised in this photo",
+  WRITTEN_CONSENT: "Everyone who can be recognised gave written consent",
+} as const;
+export type PeopleBasis = keyof typeof PEOPLE_BASIS;
+export const isPeopleBasis = (v: unknown): v is PeopleBasis => typeof v === "string" && Object.prototype.hasOwnProperty.call(PEOPLE_BASIS, v);
 
 /** landscape-ish only: from square (1 : 1) to 3 : 1 */
 export function photoRatioProblem(width: number, height: number): string | null {
@@ -29,19 +42,32 @@ export function photoRatioProblem(width: number, height: number): string | null 
   return r < 1 || r > 3 ? PHOTO_MESSAGES.badRatio : null;
 }
 
-export interface HomePhoto {
+export interface GalleryPhoto {
+  id: string;
+  position: number;
   src: string;
   srcSet: string;
   alt: string;
   width: number;
   height: number;
+  peopleBasis: PeopleBasis;
 }
 
-const PATH_RE = /^site\/home_photo\/[0-9a-f]{64}\.webp$/;
+const PATH_RE = /^site\/gallery\/[0-9a-f]{64}\.webp$/;
+type GalleryRow = { id: string; position: number; path: string | null; alt: string; width: number; height: number; people_basis: string };
 /** same-origin URLs (LOGO-MEDIA-1 rewrite: /media/logos/<path> → the bucket); never the storage host in HTML */
-export function homePhotoFrom(row: { path: string | null; alt: string; width: number; height: number } | null | undefined): HomePhoto | null {
-  if (!row || !row.path || !PATH_RE.test(row.path) || !row.alt) return null;
+export function galleryPhotoFrom(row: GalleryRow | null | undefined): GalleryPhoto | null {
+  if (!row || !row.path || !PATH_RE.test(row.path) || !row.alt || !isPeopleBasis(row.people_basis)) return null;
   const base = `/media/logos/${row.path}`;
   const v = (w: number) => base.replace(/\.webp$/, `-${w}.webp`);
-  return { src: base, srcSet: `${v(390)} 390w, ${v(768)} 768w, ${base} 1280w`, alt: row.alt, width: row.width, height: row.height };
+  return {
+    id: row.id,
+    position: row.position,
+    src: base,
+    srcSet: `${v(390)} 390w, ${v(768)} 768w, ${base} 1280w`,
+    alt: row.alt,
+    width: row.width,
+    height: row.height,
+    peopleBasis: row.people_basis,
+  };
 }

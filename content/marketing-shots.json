@@ -1,0 +1,152 @@
+{
+  "learn": {
+    "width": 480,
+    "height": 360,
+    "files": {
+      "390": {
+        "file": "learn-390.webp",
+        "width": 240,
+        "bytes": 10612,
+        "q": 80
+      },
+      "768": {
+        "file": "learn-768.webp",
+        "width": 320,
+        "bytes": 17296,
+        "q": 80
+      },
+      "1280": {
+        "file": "learn-1280.webp",
+        "width": 480,
+        "bytes": 30908,
+        "q": 80
+      }
+    },
+    "ratio": "1440x1080",
+    "alt": "A Courage Library lesson: Antonyms, explained in plain English with examples"
+  },
+  "practice": {
+    "width": 480,
+    "height": 360,
+    "files": {
+      "390": {
+        "file": "practice-390.webp",
+        "width": 240,
+        "bytes": 4448,
+        "q": 80
+      },
+      "768": {
+        "file": "practice-768.webp",
+        "width": 320,
+        "bytes": 6950,
+        "q": 80
+      },
+      "1280": {
+        "file": "practice-1280.webp",
+        "width": 480,
+        "bytes": 12036,
+        "q": 80
+      }
+    },
+    "ratio": "1440x1080",
+    "alt": "A practice question from the SSC CGL diagnostic, with its answer options"
+  },
+  "analyze": {
+    "width": 480,
+    "height": 360,
+    "files": {
+      "390": {
+        "file": "analyze-390.webp",
+        "width": 240,
+        "bytes": 4862,
+        "q": 80
+      },
+      "768": {
+        "file": "analyze-768.webp",
+        "width": 320,
+        "bytes": 7656,
+        "q": 80
+      },
+      "1280": {
+        "file": "analyze-1280.webp",
+        "width": 480,
+        "bytes": 13718,
+        "q": 80
+      }
+    },
+    "ratio": "1440x1080",
+    "alt": "A mock test result: score, accuracy, and how many answers were correct, wrong or skipped"
+  },
+  "revise": {
+    "width": 480,
+    "height": 360,
+    "files": {
+      "390": {
+        "file": "revise-390.webp",
+        "width": 240,
+        "bytes": 4606,
+        "q": 80
+      },
+      "768": {
+        "file": "revise-768.webp",
+        "width": 320,
+        "bytes": 6958,
+        "q": 80
+      },
+      "1280": {
+        "file": "revise-1280.webp",
+        "width": 480,
+        "bytes": 13224,
+        "q": 80
+      }
+    },
+    "ratio": "1440x1080",
+    "alt": "The Mistake Vault: wrong answers saved to revise, each with a Drill button"
+  },
+  "hero": {
+    "width": 480,
+    "height": 960,
+    "files": {
+      "390": {
+        "file": "hero-390.webp",
+        "width": 240,
+        "bytes": 7778,
+        "q": 80
+      },
+      "1280": {
+        "file": "hero-1280.webp",
+        "width": 480,
+        "bytes": 20600,
+        "q": 80
+      }
+    },
+    "ratio": "780x1560",
+    "alt": "Courage Library on a phone: a mock test in progress with the exam timer"
+  },
+  "mock": {
+    "width": 480,
+    "height": 360,
+    "files": {
+      "390": {
+        "file": "mock-390.webp",
+        "width": 240,
+        "bytes": 4380,
+        "q": 80
+      },
+      "768": {
+        "file": "mock-768.webp",
+        "width": 320,
+        "bytes": 6562,
+        "q": 80
+      },
+      "1280": {
+        "file": "mock-1280.webp",
+        "width": 480,
+        "bytes": 11536,
+        "q": 80
+      }
+    },
+    "ratio": "1440x1080",
+    "alt": "The mock test screen: the exam timer, the marks for the question and Save & Next"
+  }
+}

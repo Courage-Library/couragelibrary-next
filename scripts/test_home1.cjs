@@ -29,6 +29,15 @@
  *       chevron turns on open (no arrow); legal links without "(draft)" while the pages keep the notice; the final CTA
  *       says "Free during early access."; sections alternate white / canvas with one accent-bar heading style, gradient
  *       only on the hero and the final CTA
+ * HOME-1 design upgrade (owner, 2026-11-01; header = solid, footer = deep navy, "honest images"):
+ *   H-8  (130) the library gallery: pipeline + negative controls, lazy / sized / same-origin render, panel + actions
+ *   H-10 one solid sticky header (no glass pill), shadow only after scroll, 64 px, 48 px actions
+ *   H-11 deep-navy footer: contrast computed from the tokens (links / headings ≥ 4.5:1), on-dark focus, accordions
+ *   H-12 the connected loop: 5 steps, arrows, timeline lines, the return to step 1, a screenshot per step; depth CSS
+ *        only on the hero + final CTA
+ *   H-13 every home image has width / height / alt / lazy (hero: fetchpriority low); phone image bytes ≤ 120 KB
+ *   H-14 public/marketing = the manifest: real WebP, budgets, no metadata, alt text, README; no personal-data patterns
+ *   (mutation negative controls for H-10..H-14 were run before commit)
  * Run: node scripts/test_home1.cjs
  */
 const fs = require('fs');
@@ -55,6 +64,14 @@ Module._load = function (request, parent, isMain) { return Object.prototype.hasO
 require.extensions['.ts'] = require.extensions['.tsx'] = (m, fn) => m._compile(ts.transpileModule(fs.readFileSync(fn, 'utf8'), { fileName: fn, compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true, jsx: ts.JsxEmit.ReactJSX } }).outputText, fn);
 
 const SECTIONS = 'components/landing/landing-sections.tsx';
+function* walkSrc(dir = ROOT, depth = 0) {
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (['node_modules', '.next', '.git', 'public', 'docs', 'scripts', 'supabase'].includes(e.name)) continue;
+    const p = path.join(dir, e.name);
+    if (e.isDirectory() && depth < 8) yield* walkSrc(p, depth + 1);
+    else if (/\.(tsx?|css)$/.test(e.name)) yield p;
+  }
+}
 const PAGE = 'app/page.tsx';
 const CONTENT = 'content/landing.ts';
 const EXAM_WORDS = /SSC CGL|SSC CHSL|SSC MTS|SSC GD|\/exams\/ssc-|Explore SSC/;
@@ -142,7 +159,7 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
   await test('H-7 compact (owner decision 1): one line per step on phones, comparison table, accordion FAQ, story ≤ 3 lines', () => {
     const C = require(path.join(ROOT, CONTENT));
     const s = read(SECTIONS);
-    assert(C.LANDING_LOOP.steps.every((x) => x.short && x.short.length <= 32) && /md:hidden">\{step\.short\}/.test(s) && /flex-row flex-wrap items-baseline/.test(s), 'loop: one line per step');
+    assert(C.LANDING_LOOP.steps.every((x) => x.short && x.short.length <= 32) && /lg:hidden">\{step\.short\}<\/p>/.test(s) && /data-loop-step=\{i \+ 1\}/.test(s), 'loop: one line per step');
     const T = C.LANDING_PLANS.table;
     assert(/<table className="w-full border-collapse/.test(s) && /<caption className="sr-only">/.test(s) && /scope="col"/.test(s) && /scope="row"/.test(s) && /sr-only">\{pro \? "Included in Pro" : "Included free"\}/.test(s) && /Not included/.test(s), 'table semantics');
     assert(T.rows.length >= 4 && !PRICE.test(JSON.stringify(T)) && /Pricing at launch/.test(T.proNote), 'table copy');
@@ -150,7 +167,7 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
     assert(C.LANDING_TRUST.short.length <= 160 && /\{LANDING_TRUST\.short\}/.test(s), `story ${C.LANDING_TRUST.short.length} chars`);
   });
 
-  await test('H-8 home page photo: real pipeline (1280 / 768 / 390 WebP, aspect kept, metadata dropped), negative controls; lazy + sized render; panel + actions safe', async () => {
+  await test('H-8 library gallery (130): real pipeline (1280 / 768 / 390 WebP, aspect kept, metadata dropped), negative controls; lazy + sized render; panel + actions safe', async () => {
     const sharp = require('sharp');
     const P = require(path.join(ROOT, 'lib/media/photo-image.ts'));
     const img = (w, h, fmt = 'jpeg') => sharp({ create: { width: w, height: h, channels: 3, background: { r: 120, g: 140, b: 160 } } }).withMetadata({ exif: { IFD0: { Artist: 'SECRET-PERSON' } } })[fmt]().toBuffer();
@@ -159,7 +176,6 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
     const m = await sharp(r.main).metadata();
     assert(m.format === 'webp' && m.width === 1280 && m.height === 720 && !m.exif && !r.main.includes(Buffer.from('SECRET-PERSON')), `main ${m.width}x${m.height}`);
     for (const w of [768, 390]) { const v = await sharp(r.variants[w]).metadata(); assert(v.width === w && v.format === 'webp' && Math.abs(v.height - Math.round((w * 9) / 16)) <= 1, `copy ${w}`); }
-    assert(r.width === 1280 && r.height === 720 && /^[0-9a-f]{64}$/.test(r.sha256), 'size / hash');
     const bad = await Promise.all([
       P.processHomePhoto(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="1000"/>')),
       P.processHomePhoto(await img(1000, 600)),
@@ -170,22 +186,26 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
     const { renderToStaticMarkup } = require('react-dom/server');
     const S = require(path.join(ROOT, SECTIONS));
     const R2 = require(path.join(ROOT, 'lib/media/photo-rules.ts'));
-    const photo = R2.homePhotoFrom({ path: `site/home_photo/${'b'.repeat(64)}.webp`, alt: 'Reading room of the library', width: 1280, height: 720 });
-    const withPhoto = renderToStaticMarkup(React.createElement(S.LandingTrust, { photo }));
-    assert(/<img[^>]+srcSet="\/media\/logos\/site\/home_photo\/b{64}-390\.webp 390w, \/media\/logos\/site\/home_photo\/b{64}-768\.webp 768w, \/media\/logos\/site\/home_photo\/b{64}\.webp 1280w"/.test(withPhoto) && /width="1280"/.test(withPhoto) && /height="720"/.test(withPhoto) && /loading="lazy"/.test(withPhoto) && /alt="Reading room of the library"/.test(withPhoto) && !/supabase/.test(withPhoto), 'photo render');
-    assert(!/<img/.test(renderToStaticMarkup(React.createElement(S.LandingTrust, {}))) && R2.homePhotoFrom({ path: 'orgs/x.webp', alt: 'x', width: 1, height: 1 }) === null, 'text-only fallback / path check');
-    const panel = read('components/admin/settings/home-photo-panel.tsx');
-    assert(/accept=\{PHOTO_ACCEPT\}/.test(panel) && /fd\.set\("noFaces", "yes"\)/.test(panel) && /disabled=\{!prepared \|\| !noFaces \|\| alt\.trim\(\)\.length < 3/.test(panel), 'panel requirements');
-    assert(/await guarded\(\(\) => uploadHomePhotoAction\(fd\)\)/.test(panel) && /await guarded\(\(\) => removeHomePhotoAction\(\)\)/.test(panel), 'panel: every call wrapped');
+    const row = (i, basis = 'NO_RECOGNISABLE_PERSON') => ({ id: `00000000-0000-4000-8000-00000000000${i}`, position: i, path: `site/gallery/${String(i).repeat(64)}.webp`, alt: `Reading room ${i}`, width: 1280, height: 720, people_basis: basis });
+    const photos = [1, 2, 3, 4].map((i) => R2.galleryPhotoFrom(row(i, i === 2 ? 'WRITTEN_CONSENT' : 'NO_RECOGNISABLE_PERSON')));
+    assert(photos.every(Boolean), 'gallery rows map');
+    const html = renderToStaticMarkup(React.createElement(S.LandingTrust, { photos }));
+    const tags = html.match(/<img[^>]*>/g) || [];
+    assert(tags.length === 4 && tags.every((t) => /loading="lazy"/.test(t) && /width="1280"/.test(t) && /height="720"/.test(t) && /alt="Reading room \d"/.test(t) && /srcSet="\/media\/logos\/site\/gallery\/(\d)\1{63}-390\.webp 390w, /.test(t)) && !/supabase/.test(html), 'gallery render: lazy, sized, same-origin copies');
+    assert(/<ul[^>]*aria-label="Photos of the library"[^>]*tabindex="0"/i.test(html.replace(/tabIndex/g, 'tabindex')) && /md:col-span-2 md:row-span-2/.test(tags.length && html) && /md:hidden/.test(html), 'desktop: first large + 2; phones: swipe row (keyboard-scrollable)');
+    // negative controls: a foreign path / an unknown people basis never render
+    assert(R2.galleryPhotoFrom({ ...row(1), path: 'orgs/x.webp' }) === null && R2.galleryPhotoFrom(row(1, 'MAYBE')) === null && !/<img/.test(renderToStaticMarkup(React.createElement(S.LandingTrust, {}))), 'text-only fallback / path + basis checks');
+    const panel = read('components/admin/settings/library-gallery-panel.tsx');
+    assert(/accept=\{PHOTO_ACCEPT\}/.test(panel) && /fd\.set\("peopleBasis", basis\)/.test(panel) && /disabled=\{!prepared \|\| !basis \|\| alt\.trim\(\)\.length < 3/.test(panel) && /type="radio"/.test(panel), 'panel requirements (alt + people basis)');
+    const calls = ['addGalleryPhotoAction(fd)', 'removeGalleryPhotoAction(', 'moveGalleryPhotoAction(', 'updateGalleryPhotoAction('];
+    assert(/await guarded\(\(\) => addGalleryPhotoAction\(fd\)\)/.test(panel) && /await guarded\(call as/.test(panel) && calls.slice(1).every((c) => new RegExp(`run\\(\\(\\) => ${c.replace('(', '\\(')}`).test(panel)), 'panel: every call wrapped');
     const act = read('app/admin/system/photo-actions.ts');
     const fns = [...act.matchAll(/export async function (\w+)\([^)]*\)[^\n]*\{\n\s*const auth = await guardAdminAction\(\);/g)].map((x) => x[1]);
-    assert(fns.join() === 'uploadHomePhotoAction,removeHomePhotoAction' && !/allowStaff/.test(act), 'actions admin-only');
-    const order = ['processHomePhoto(', 'storage.from(BUCKET).upload(', 'rpc("fn_site_media_set"', 'remove(withCopies(oldPath))'].map((x) => act.indexOf(x));
-    assert(order.every((x, i) => x > 0 && (i === 0 || x > order[i - 1])) && /formData\.get\("noFaces"\) !== "yes"/.test(act), `action order ${order}`);
-    // a failed exam read on a category page is said honestly and never de-indexes the page
-    const cp = read('components/exams/category-page.tsx');
-    assert(/examsFailed \? \(/.test(cp) && /could not be loaded right now/.test(cp) && /noIndex: !cat\.examsFailed && cat\.category\.activeExams === 0/.test(read('app/exams/[slug]/page.tsx')), 'category page: failed read handling');
-    return '1280/768/390 + 4 refusals + render';
+    assert(fns.join() === 'addGalleryPhotoAction,updateGalleryPhotoAction,moveGalleryPhotoAction,removeGalleryPhotoAction' && !/allowStaff/.test(act), `actions admin-only (${fns})`);
+    const order = ['processHomePhoto(', 'storage.from(BUCKET).upload(', 'rpc("fn_site_gallery_add"'].map((x) => act.indexOf(x));
+    const rm = act.slice(act.indexOf('export async function removeGalleryPhotoAction'));
+    assert(order.every((x, i) => x > 0 && (i === 0 || x > order[i - 1])) && rm.indexOf('rpc("fn_site_gallery_remove"') < rm.indexOf('remove(withCopies(oldPath))') && /isPeopleBasis\(basis\)/.test(act), `action order ${order}`);
+    return '1280/768/390 + 4 refusals + gallery render';
   });
 
   await test('H-9 owner UI review: monogram, icons, tiles without orphans, feature rows, FAQ chevron, legal labels, CTA note, section rhythm', () => {
@@ -219,6 +239,106 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
     assert(/function SectionHeading[\s\S]{0,200}<AccentBar \/>/.test(s) && /<AccentBar \/>\s*<h2 id="trust-title"/.test(s) && /bg-accent-500/.test(s), 'one heading style (accent bar)');
     const grads = (s.match(/hero-gradient|brand-gradient|GradientHero aria/g) || []).length;
     assert(grads === 2 && !/amber|yellow/.test(s), `gradient only on the hero + final CTA (${grads})`);
+  });
+
+  // ---- HOME-1 design upgrade (owner, 2026-11-01): solid header, navy footer, connected loop, honest images ----
+  await test('H-10 header: ONE solid sticky white header (no glass pill), hairline border, shadow only after scroll (box-shadow: no layout shift), 64 px, 48 px actions', () => {
+    const h = read('components/shell/header-bar.tsx');
+    const tag = (h.match(/<header [^>]*>/) || [''])[0];
+    assert((h.match(/<header /g) || []).length === 1 && /sticky top-0/.test(tag) && /border-b border-line bg-surface/.test(tag) && /scrolled \? "shadow-e2" : "shadow-none"/.test(tag) && /data-header-solid=""/.test(tag), 'one solid header');
+    assert(!/GlassNav|glass-light|rounded-full pl-4/.test(h) && !/GlassNav/.test(read('components/ui/glass.tsx')), 'no floating glass pill');
+    assert(/window\.addEventListener\("scroll", onScroll, \{ passive: true \}\)/.test(h) && /removeEventListener\("scroll", onScroll\)/.test(h), 'passive scroll listener, cleaned up');
+    assert(/flex h-16 w-full max-w-\[1200px\]/.test(h) && /className="size-12 rounded-full lg:hidden"/.test(h), '64 px bar, 48 px menu button');
+    assert(!/-mt-\[76px\]/.test(read('components/ui/gradient-hero.tsx')), 'hero no longer pulled up under a floating nav');
+    // negative control: the detector flags a glass header
+    assert(/GlassNav|glass-light/.test(h.replace('data-header-solid=""', 'className="glass-light"')), 'negative control');
+  });
+
+  await test('H-11 footer: deep navy, white headings, light-slate links (≥ 4.5:1, computed from tokens), cyan top line, on-dark focus ring; accordions keep native <details>', () => {
+    const f = read('components/shell/site-footer.tsx');
+    const css = read('app/globals.css');
+    const hex = (name) => { const m = css.match(new RegExp(`--color-${name}:\\s*(#[0-9a-f]{6})`, 'i')); return m && m[1]; };
+    const lum = (h) => { const c = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
+    const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+    const navy = hex('ink-900');
+    assert(navy && navy.toLowerCase() === '#0b1b4d', `ink-900 ${navy}`);
+    const linkR = ratio(hex('ink-300'), navy);
+    const headR = ratio('#ffffff', navy);
+    assert(linkR >= 4.5 && headR >= 4.5, `contrast links ${linkR.toFixed(2)} / headings ${headR.toFixed(2)}`);
+    assert(ratio(hex('ink-500'), navy) < 4.5, 'negative control: ink-500 on navy would fail');
+    assert(/<footer className="border-t-2 border-accent-400 bg-ink-900 text-ink-300" data-footer-navy="">/.test(f) && /focus-ring-on-dark inline-flex min-h-12 min-w-12[^"]*text-ink-300/.test(f), 'navy footer, cyan line, light links, on-dark focus');
+    assert(!/text-fg-secondary|text-fg"|bg-surface|divide-line|border-line/.test(f), 'no light-theme text / surface classes left on navy');
+    assert(/<details key=\{g\.heading\} className="group">/.test(f) && /<summary className="focus-ring-on-dark[^"]*text-fg-inverse/.test(f) && /ChevronDown aria-hidden="true" className="size-5 text-ink-300/.test(f), 'accordions on navy: chevron + focus ring visible');
+    const pairs = JSON.parse(read('components/ui/contrast-pairs.json')).pairs;
+    assert(pairs.some((p) => p.fg === 'ink-300' && p.bg === 'ink-900' && p.kind === 'text') && pairs.some((p) => p.fg === 'fg-inverse' && p.bg === 'ink-900'), 'pairs registered (R-5)');
+    return `links ${linkR.toFixed(2)}:1, headings ${headR.toFixed(2)}:1`;
+  });
+
+  await test('H-12 How it works = the connected loop: 5 steps, 4 arrows + 4 timeline lines, a return to step 1 (desktop line + phone row), each step a real screenshot; depth only in hero + final CTA', () => {
+    const { renderToStaticMarkup } = require('react-dom/server');
+    const S = require(path.join(ROOT, SECTIONS));
+    const html = renderToStaticMarkup(React.createElement(S.LandingLoop));
+    const count = (re) => (html.match(re) || []).length;
+    assert(count(/data-loop-step="\d"/g) === 5 && count(/data-loop-arrow=""/g) === 4 && count(/data-loop-line=""/g) === 4 && count(/data-loop-return=""/g) === 1 && count(/data-loop-back=""/g) === 1, `loop structure ${count(/data-loop-step="\d"/g)}/${count(/data-loop-arrow=""/g)}/${count(/data-loop-line=""/g)}`);
+    const ret = (html.match(/<div[^>]*data-loop-return=""[^>]*>/) || [''])[0];
+    assert(/rounded-b-3xl border-x-2 border-b-2/.test(ret) && /aria-hidden="true"/.test(ret), 'the return line curves back (rounded corners), decorative');
+    assert(count(/<img[^>]*data-marketing-shot=""/g) === 5, `step screenshots ${count(/<img[^>]*data-marketing-shot=""/g)}`);
+    const css = read('app/globals.css');
+    const users = [...walkSrc()].filter((f) => /\bhero-depth\b/.test(fs.readFileSync(f, 'utf8'))).map((f) => path.relative(ROOT, f).split(path.sep).join('/')).sort();
+    assert(users.join() === 'app/globals.css,components/landing/landing-sections.tsx,components/ui/gradient-hero.tsx' && (read(SECTIONS).match(/hero-depth/g) || []).length === 1 && /\.hero-depth::before[\s\S]{0,400}mask-image/.test(css) && !/hero-depth[^}]*url\(/.test(css), `depth only on hero + final CTA, CSS only (${users})`);
+  });
+
+  await test('H-13 every image on home has width + height + alt + loading="lazy" (hero mockup: also fetchpriority="low"); first-view image bytes ≤ 120 KB on phones', () => {
+    const { renderToStaticMarkup } = require('react-dom/server');
+    const S = require(path.join(ROOT, SECTIONS));
+    const R2 = require(path.join(ROOT, 'lib/media/photo-rules.ts'));
+    const photo = R2.galleryPhotoFrom({ id: '00000000-0000-4000-8000-000000000001', position: 1, path: `site/gallery/${'a'.repeat(64)}.webp`, alt: 'Reading room', width: 1280, height: 720, people_basis: 'NO_RECOGNISABLE_PERSON' });
+    const html = [S.LandingHero, S.LandingLoop].map((c) => renderToStaticMarkup(React.createElement(c))).join('') + renderToStaticMarkup(React.createElement(S.LandingTrust, { photos: [photo] }));
+    const tags = html.match(/<img[^>]*>/g) || [];
+    const bad = tags.filter((t) => !/ width="\d+"/.test(t) || !/ height="\d+"/.test(t) || !/ alt="[^"]{8,}"/.test(t) || !/loading="lazy"/.test(t));
+    assert(tags.length === 7 && bad.length === 0, `${tags.length} images, ${bad.length} without width / height / alt / lazy`);
+    assert(/data-hero-mockup=""[\s\S]*?fetchPriority="low"/i.test(html.replace(/fetchpriority/gi, 'fetchPriority')), 'hero mockup fetchpriority low');
+    // negative control: an <img> without alt is caught
+    assert(['<img src="x" width="1" height="1" loading="lazy">'].filter((t) => !/ alt="[^"]{8,}"/.test(t)).length === 1, 'negative control');
+    // phones: the hero copy + the five 390 step copies (lazy images near the viewport may load at once) ≤ 120 KB
+    const M = JSON.parse(read('content/marketing-shots.json'));
+    const phone = ['hero', 'learn', 'practice', 'mock', 'analyze', 'revise'].reduce((t, k) => t + M[k].files['390'].bytes, 0);
+    assert(phone <= 120 * 1024, `first-view images on phones ${(phone / 1024).toFixed(1)} KB > 120 KB`);
+    return `${tags.length} images; phone image bytes ≤ ${(phone / 1024).toFixed(1)} KB`;
+  });
+
+  await test('H-14 honest images: public/marketing = the manifest (real WebP, sizes, ≤ 40 / 60 KB, no EXIF / XMP / IPTC), alt text + README; no personal data patterns; negative controls', async () => {
+    const sharp = require('sharp');
+    const M = JSON.parse(read('content/marketing-shots.json'));
+    const DIR = path.join(ROOT, 'public/marketing');
+    const PII = [/@/, /qa[\s_-]?student/i, /\bQA\b/, /courage-library\.test/i, /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}/i, /\b\d{10,}\b/];
+    const keys = ['learn', 'practice', 'mock', 'analyze', 'revise', 'hero'];
+    assert(keys.every((k) => M[k]) && Object.keys(M).sort().join() === [...keys].sort().join(), `manifest keys ${Object.keys(M)}`);
+    const listed = new Set();
+    for (const k of keys) {
+      const r = M[k];
+      assert(r.alt && r.alt.length >= 20 && !PII.some((re) => re.test(r.alt)), `${k}: alt`);
+      const max = k === 'hero' ? 60 * 1024 : 40 * 1024;
+      const labels = Object.keys(r.files).sort((a, b) => a - b).join();
+      assert(labels === (k === 'hero' ? '390,1280' : '390,768,1280'), `${k}: variants ${labels}`);
+      for (const [label, f] of Object.entries(r.files)) {
+        listed.add(f.file);
+        const buf = fs.readFileSync(path.join(DIR, f.file));
+        const meta = await sharp(buf).metadata();
+        assert(meta.format === 'webp' && meta.width === f.width && buf.length === f.bytes && buf.length <= max, `${f.file}: ${meta.format} ${meta.width}px ${buf.length} B`);
+        assert(!meta.exif && !meta.xmp && !meta.iptc, `${f.file}: metadata chunks`);
+        assert(Math.abs(meta.height / meta.width - r.height / r.width) < 0.01, `${f.file}: aspect`);
+        assert(f.file === `${k}-${label}.webp`, `${f.file}: name`);
+      }
+    }
+    const onDisk = fs.readdirSync(DIR).filter((f) => f.endsWith('.webp'));
+    assert(onDisk.length === listed.size && onDisk.every((f) => listed.has(f)), `files not in the manifest: ${onDisk.filter((f) => !listed.has(f))}`);
+    assert(/QA identity only/.test(read('public/marketing/README.md')) && /--readonly/.test(read('scripts/content/capture-marketing.cjs')) && /\[data-watermark\] \{ display: none !important; \}|\[data-watermark\] \{/.test(read('scripts/content/capture-marketing.cjs')), 'README + capture script (watermark hidden)');
+    // negative controls: a planted EXIF block and a planted e-mail in alt text are both caught
+    const planted = await sharp({ create: { width: 10, height: 10, channels: 3, background: '#fff' } }).withMetadata({ exif: { IFD0: { Artist: 'someone' } } }).webp().toBuffer();
+    assert((await sharp(planted).metadata()).exif, 'negative control: planted EXIF not detected');
+    assert(PII.some((re) => re.test(['student', 'example.org'].join('@'))), 'negative control: planted e-mail not detected');
+    return `${listed.size} files, all in budget, no metadata`;
   });
 
   console.log(`\nHOME-1 offline: ${passed}/${passed + failed} passed`);

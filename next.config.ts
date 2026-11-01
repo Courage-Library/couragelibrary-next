@@ -53,6 +53,8 @@ const nextConfig: NextConfig = {
   headers: async () => [
     // LOGO-MEDIA-1: a logo path names exactly one image (content hash), so it never changes
     { source: "/media/logos/:path*", headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }] },
+    // HOME-1 product screenshots: fixed names (re-captured in place), so a day of cache + a week of background refresh
+    { source: "/marketing/:path*", headers: [{ key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" }] },
     // SEO-HYGIENE-1: every host that is not the production site (*.vercel.app, previews, localhost) is never indexed
     {
       source: "/(.*)",

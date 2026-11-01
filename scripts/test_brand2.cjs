@@ -229,15 +229,15 @@ async function offline() {
     if (!/data-no-glass=""/.test(read('app/admin/layout.tsx'))) bad.push('app/admin/layout.tsx root is not data-no-glass');
     if (!/data-no-glass=""/.test(read('app/mistakes/drill/page.tsx'))) bad.push('app/mistakes/drill/page.tsx root is not data-no-glass');
     if (!/\[data-no-glass\],\s*\[data-no-glass\] \* \{[^}]*backdrop-filter: none !important/.test(css)) bad.push('globals.css: [data-no-glass] rule missing');
-    // the signed-in header (shown above the exam player) must stay solid
+    // HOME-1 design decision (owner, 2026-11-01; supersedes the #72 floating pill): ONE solid header for everyone
     const header = read('components/shell/header-bar.tsx');
-    if (!/if \(!student\) return <GlassNav/.test(header)) bad.push('header-bar: glass must be limited to the public (non-student) header');
+    if (/\bGlass(?:Nav|Card|Chip)\b|glass-(?:light|dark)/.test(header) || !/data-header-solid=""/.test(header)) bad.push('header-bar: the header must be the solid bar (no glass)');
     assert(bad.length === 0, bad.join('; '));
     return `${files.length} zone files clean; 5 zone roots marked`;
   });
 
   await test('C-04 glass only in allowed places; home hero ≤ 3 glass groups per viewport (nav + chips + card)', () => {
-    const ALLOWED = new Set(['components/ui/glass.tsx', 'components/shell/header-bar.tsx', 'components/landing/landing-sections.tsx', 'app/dashboard/page.tsx',
+    const ALLOWED = new Set(['components/ui/glass.tsx', 'components/landing/landing-sections.tsx', 'app/dashboard/page.tsx',
       'app/auth/login/login-form.tsx', 'app/auth/signup/signup-form.tsx', 'app/auth/signup/page.tsx', 'app/auth/forgot-password/forgot-password-form.tsx', 'app/globals.css']);
     const all = [...walk(path.join(ROOT, 'app')), ...walk(path.join(ROOT, 'components'))];
     const users = all.filter((f) => /\bglass-(?:light|dark)\b|\bGlass(?:Card|Chip|Nav)\b/.test(fs.readFileSync(f, 'utf8'))).map(rel);
@@ -245,7 +245,7 @@ async function offline() {
     assert(outside.length === 0, `glass outside the allowed places: ${outside.join(', ')}`);
     const hero = read('components/landing/landing-sections.tsx');
     const heroBlock = hero.slice(hero.indexOf('export function LandingHero'), hero.indexOf('export function LandingLoop'));
-    const groups = (heroBlock.match(/<GlassCard\b/g) || []).length + (/<GlassChip\b/.test(heroBlock) ? 1 : 0) + 1; // + the floating nav
+    const groups = (heroBlock.match(/<GlassCard\b/g) || []).length + (/<GlassChip\b/.test(heroBlock) ? 1 : 0); // the header is solid (HOME-1)
     assert(groups <= 3, `home hero glass groups ${groups} (max 3)`);
     assert(!/glass-(?:light|dark)/.test(heroBlock.replace(/<GlassCard[^>]*>/, '')), 'nested glass inside the hero card');
     return `${users.length} files use glass, all allowed; hero groups ${groups}`;
@@ -564,21 +564,22 @@ async function probe() {
     }
     await ctx360.close();
 
-    await test('P-04 lite mode: low-end device → html.lite + no blur; capable device → blur on the public nav', async () => {
+    // HOME-1: the header is solid now — the glass probe uses the sign-in card (glass-light), the remaining public glass
+    await test('P-04 lite mode: low-end device → html.lite + no blur; capable device → blur on the sign-in card', async () => {
       const out = [];
       for (const [label, init, wantLite] of [['deviceMemory 2', () => Object.defineProperty(navigator, 'deviceMemory', { get: () => 2 }), true], ['capable', CAPABLE, false]]) {
         const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
         await ctx.addInitScript(init);
         const page = await ctx.newPage();
-        await page.goto(`${base}/`, { waitUntil: 'load', timeout: 30000 });
+        await page.goto(`${base}/auth/login`, { waitUntil: 'load', timeout: 30000 });
         const r = await page.evaluate(() => {
-          const nav = document.querySelector('header .glass-light');
+          const nav = document.querySelector('main .glass-light');
           const cs = nav ? getComputedStyle(nav) : null;
           return { lite: document.documentElement.classList.contains('lite'), blur: cs ? cs.backdropFilter || cs.webkitBackdropFilter : 'missing' };
         });
         await ctx.close();
         assert(r.lite === wantLite, `${label}: html.lite = ${r.lite}`);
-        assert(wantLite ? r.blur === 'none' : /blur/.test(r.blur), `${label}: nav backdrop-filter = ${r.blur}`);
+        assert(wantLite ? r.blur === 'none' : /blur/.test(r.blur), `${label}: sign-in card backdrop-filter = ${r.blur}`);
         out.push(`${label}: lite ${r.lite}, blur ${r.blur === 'none' ? 'none' : 'on'}`);
       }
       return out.join('; ');
@@ -590,10 +591,10 @@ async function probe() {
       const page = await ctx.newPage();
       const cdp = await ctx.newCDPSession(page);
       await cdp.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-transparency', value: 'reduce' }] });
-      await page.goto(`${base}/`, { waitUntil: 'load', timeout: 30000 });
+      await page.goto(`${base}/auth/login`, { waitUntil: 'load', timeout: 30000 });
       const r = await page.evaluate(() => ({
         matches: matchMedia('(prefers-reduced-transparency: reduce)').matches,
-        blur: getComputedStyle(document.querySelector('header .glass-light')).backdropFilter,
+        blur: getComputedStyle(document.querySelector('main .glass-light')).backdropFilter,
       }));
       await ctx.close();
       assert(r.matches, 'emulation not applied');

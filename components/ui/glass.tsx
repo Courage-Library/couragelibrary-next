@@ -31,16 +31,3 @@ export function GlassChip({ tone = "dark", className, ...props }: ComponentProps
   );
 }
 
-/**
- * The PUBLIC site header as a floating, sticky glass pill (the signed-in header stays solid). Renders the <header>
- * landmark itself (a sticky element cannot leave its parent); the transparent gutter passes clicks through.
- * `after` renders outside the pill (e.g. the mobile menu dialog).
- */
-export function GlassNav({ className, children, after, ...props }: ComponentProps<"header"> & { after?: React.ReactNode }) {
-  return (
-    <header className={cn("pointer-events-none sticky top-0 z-30 px-3 pt-3", className)} {...props}>
-      <div className="glass-light pointer-events-auto mx-auto flex h-16 w-full max-w-[1200px] items-center gap-2 rounded-full pl-4 pr-2 sm:gap-3 sm:pl-5">{children}</div>
-      {after}
-    </header>
-  );
-}

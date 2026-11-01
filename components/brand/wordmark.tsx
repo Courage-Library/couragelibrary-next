@@ -8,7 +8,7 @@ import { cn } from "@/components/ui/cn";
  * artwork exists (BRAND-LOGO, owner + designer). The PNG logo stays in the repo and is still used by the exam player
  * and admin (components/brand/logo.tsx). The tile is decorative: the name next to it is the accessible text.
  */
-// md steps down on phones so the wordmark stays on one line inside the 360 px floating nav
+// md steps down on phones so the wordmark stays on one line inside the 360 px header
 const SIZES = { sm: "text-body", md: "text-body-sm sm:text-body-lg", lg: "text-h3" } as const;
 
 export function BrandWordmark({
