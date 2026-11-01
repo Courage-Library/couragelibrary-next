@@ -129,6 +129,7 @@ It then executes the file **and** writes the ledger row (`APPLIED`, checksum, to
 
   The report names the waived gate, the log evidence and the dispatch run, with its result per job. If any of the three does not hold, nothing is pushed.
 
+- **LOCAL-FIRST (owner rule, 2026-11-01, until launch — overrides CI-LIVE-ON-BRANCH below until the owner says "release").** Build and test locally only: offline gates, typecheck, lint, build and local server checks. Commit on a feature branch. NO push to main, NO CI dispatch, NO production checks until the owner says "release". The one exception: any DB migration or data change still takes a backup first, because the DB is shared with production. Reports stay short.
 - **CI-LIVE-ON-BRANCH (standing rule, architect 2026-10-28; this machine's network is unreliable).** For a migration `<nnn>`:
   1. **Locally:** backup (always `node scripts/db/backup.cjs pre-<nnn> --resilient`) → dry-run → the rolled-back real-role smoke → apply → **that migration's OWN live gate + the link snapshot compare + `db:types` / `db:types:check` + `tsc`**. These must pass locally.
   2. **The rest of MIGRATION-LIVE-SET runs in CI:** push the commit to a branch `mig/<nnn>`. ONE `workflow_dispatch` of the live jobs on that branch is pre-approved (`gh workflow run ci-gates.yml --ref mig/<nnn> -f live=true`), plus ONE retry if a failure is classified network (by the job log).
