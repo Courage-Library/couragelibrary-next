@@ -15,6 +15,9 @@
  *   P-6 PERMANENT RULE (whole public schema): no policy may give authenticated (or PUBLIC) blanket access, i.e.
  *       USING (true) / WITH CHECK (true), on non-public data. Blanket write policies always fail; blanket read
  *       policies are allowed only on the explicit PUBLIC_REFERENCE allow-list (or PENDING_RULING, reported loudly)
+ *   P-6b (SEC-SITE-MEDIA-1, owner ruling 2026-11-02): every PUBLIC_REFERENCE table (blanket public read by design) has
+ *       NO personal column (e-mail / phone / names / user or actor ids / *_by / owner / author / IP / address / birth
+ *       date) — an allow-listed table can never publish personal data; negative control on a fixture
  *   P-7 SEC-HOTFIX-5 (077): leaderboard_weekly_snapshots / user_battle_stats are own-rows-only for students,
  *       anon cannot read the leaderboard; behaviour probed with two real users inside a rolled-back transaction
  *   P-8 GAP2-4a syllabus: no direct writes for students / staff (grants), anon cannot EXECUTE write RPCs, students are
@@ -55,7 +58,16 @@ const PUBLIC_READ = {
 const PUBLIC_REFERENCE = new Set([
   'pattern_sections', 'exam_claim_sources', 'learning_unit_asset_bindings', // exam_topics, taxonomy_aliases: retired (GAP2-4c)
   'mistake_cognitive_types', 'exam_cutoff_benchmarks',
+  // SEC-SITE-MEDIA-1 (owner ruling 2026-11-02): public images (brand assets 131, library photos 130), allowed ONLY together
+  // with P-6b — after 132 they have image fields only (updated_by_email dropped; the actor is in admin_audit_logs)
+  'site_media', 'site_gallery',
 ]);
+// P-6b: column names that would make a public table publish personal data (entity names such as "name" of a topic are
+// not personal; this rule applies to the blanket-read allow-list, where no such column may exist at all)
+const PERSONAL_COLUMN = /(e_?mail|phone|mobile|whatsapp|full_?name|first_?name|last_?name|display_?name|user_?name|user_id|student_id|profile_id|actor|_by$|_by_|owner|author_id|reviewer|approver|ip_?addr|^ip$|address|birth|dob$|guardian)/i;
+function personalColumns(cols) {
+  return cols.filter((r) => PUBLIC_REFERENCE.has(r.t) && PERSONAL_COLUMN.test(r.c)).map((r) => `${r.t}.${r.c}`);
+}
 // P-6: per-user rows behind a blanket read policy, tolerated only until an architect ruling. Empty since
 // SEC-HOTFIX-5 (077): leaderboard_weekly_snapshots and user_battle_stats are own-rows-only.
 const PENDING_RULING = new Set([]);
@@ -238,6 +250,18 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assertion failed'); };
       const pend = [...new Set(pending)];
       return `${rows.length} policies scanned; ${PUBLIC_REFERENCE.size} allow-listed public tables` +
         (pend.length ? `; PENDING RULING (per-user data under a blanket read): ${pend.join(', ')}` : '');
+    });
+
+    await test('P-6b allow-listed public tables have no personal column (e-mail / phone / names / user or actor ids / *_by)', async () => {
+      // negative controls: the 131 shape (site_media.updated_by_email) and a phone column on a public table are caught;
+      // an ordinary entity column is not
+      const fixture = personalColumns([{ t: 'site_media', c: 'updated_by_email' }, { t: 'exam_cutoff_benchmarks', c: 'contact_phone' }, { t: 'pattern_sections', c: 'section_name' }]);
+      assert(fixture.join() === 'site_media.updated_by_email,exam_cutoff_benchmarks.contact_phone', `self-test: ${fixture.join()}`);
+      const { rows } = await q(`SELECT table_name t, column_name c FROM information_schema.columns WHERE table_schema = 'public' AND table_name = ANY($1)`, [[...PUBLIC_REFERENCE]]);
+      const present = new Set(rows.map((r) => r.t));
+      const bad = personalColumns(rows);
+      assert(bad.length === 0, `personal columns on allow-listed public tables: ${bad.join(', ')}`);
+      return `${present.size} allow-listed tables, ${rows.length} columns, none personal`;
     });
 
     await test('P-7 per-user stats (SEC-HOTFIX-5): own rows only for students, no anon read, no blanket policy', async () => {

@@ -162,6 +162,10 @@
       "measured": 26,
       "cap": 120
     },
+    "SITE-MEDIA-NO-EMAIL-LIVE": {
+      "measured": 25,
+      "cap": 180
+    },
     "SITE-GALLERY-LIVE": {
       "measured": 25,
       "cap": 180

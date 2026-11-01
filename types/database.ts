@@ -5969,7 +5969,6 @@ export type Database = {
           position: number
           sha256: string
           updated_at: string
-          updated_by_email: string
           width: number
         }
         Insert: {
@@ -5982,7 +5981,6 @@ export type Database = {
           position: number
           sha256: string
           updated_at?: string
-          updated_by_email: string
           width: number
         }
         Update: {
@@ -5995,7 +5993,6 @@ export type Database = {
           position?: number
           sha256?: string
           updated_at?: string
-          updated_by_email?: string
           width?: number
         }
         Relationships: []
@@ -6008,7 +6005,6 @@ export type Database = {
           path: string | null
           sha256: string
           updated_at: string
-          updated_by_email: string
           width: number
         }
         Insert: {
@@ -6018,7 +6014,6 @@ export type Database = {
           path?: string | null
           sha256: string
           updated_at?: string
-          updated_by_email: string
           width: number
         }
         Update: {
@@ -6028,7 +6023,6 @@ export type Database = {
           path?: string | null
           sha256?: string
           updated_at?: string
-          updated_by_email?: string
           width?: number
         }
         Relationships: []

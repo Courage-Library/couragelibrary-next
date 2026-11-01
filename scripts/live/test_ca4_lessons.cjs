@@ -50,6 +50,10 @@ const PINNED = {
     2: sha(require(path.join(ROOT, 'lib/syllabus/syllabus-template-v2.ts')).SYLLABUS_TEMPLATE_V2),
     3: sha(require(path.join(ROOT, 'lib/syllabus/syllabus-template-v3.ts')).SYLLABUS_TEMPLATE_V3),
   },
+  // EXAM-NOTE-PROMPT-1 (127): a 4th template type whose v1 is NOT a migration seed — it is the shipped
+  // EXAM_NOTE_TEMPLATE_V1, saved + activated through the audited RPCs by scripts/content/exam-note-prompt-1.cjs
+  // (CA4 A-1 drift since the 31 Oct nightly: the gate still expected exactly 3 v1 seeds)
+  EXAM_NOTE: { 1: sha(require(path.join(ROOT, 'lib/prompts/exam-note-prompt.ts')).EXAM_NOTE_TEMPLATE_V1) },
 };
 
 let ok = true;
@@ -129,7 +133,12 @@ const EXISTING_HASH = `select
       const shipped = rows.filter((r) => r.version > 1 && r.version <= pinnedTop(r.template_type));
       const owner = rows.filter((r) => r.version > pinnedTop(r.template_type));
       const types = [...new Set(rows.map((r) => r.template_type))];
-      const seedOk = v1s.length === 3 && v1s.every((r) => want[r.template_type] === r.body_sha256)
+      // the 3 migration seeds are byte-identical to their TS constants; any OTHER v1 must be a shipped, pinned text that was
+      // saved through the audited RPC (EXAM_NOTE, 127) — an unknown v1 type still fails
+      const seedV1 = v1s.filter((r) => r.template_type in want);
+      const extraV1 = v1s.filter((r) => !(r.template_type in want));
+      const seedOk = seedV1.length === 3 && seedV1.every((r) => want[r.template_type] === r.body_sha256)
+        && extraV1.every((r) => PINNED[r.template_type] && PINNED[r.template_type][1] === r.body_sha256 && r.saved >= 1)
         && shipped.every((r) => PINNED[r.template_type] && PINNED[r.template_type][r.version] === r.body_sha256)
         && owner.every((r) => r.saved >= 1)
         && types.every((t) => rows.filter((r) => r.template_type === t && r.status === 'ACTIVE').length === 1)

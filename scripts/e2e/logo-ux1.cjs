@@ -15,7 +15,9 @@
  *        the drawer stay (no error boundary). Negative control: L-4/L-5 (no interception) saved through the same path
  *   L-7  remove (confirmed) → "Logo missing"
  *   L-8  staff: the cards are read-only (no card buttons, no "Add body")
- *   L-1c the saved logo actually loads in the body card (naturalWidth 512) from our OWN origin (/media/logos/…, the
+ *   L-1c the saved logo actually loads in the body card from our OWN origin (/media/logos/…) as the SIZED copy for
+ *        the card (HOME-1, b713b27: a 64 px "tile" card loads the <sha>-128.webp copy, naturalWidth 128 — not the 512 px
+ *        main file); a 512 / 64 px image or another path fails (owner-approved update, 2026-11-02). (Formerly: the
  *        LOGO-MEDIA-1 rewrite) — never the storage host
  *   L-10 exam-level override (Advanced) on the internal QA exam `qa-syllabus-test` (never a real exam): save → the
  *        exam row shows it → "Use the body's logo" (confirmed) → cleared; the override is cleared in `finally` too
@@ -31,6 +33,8 @@ const { chromium } = require('playwright');
 const { qaBrowserLogin } = require('../live/qa-session.cjs');
 const { BASE, admin } = require('./_e2e-env.cjs');
 
+/** L-1c: the tile card (64 px) must load the 128 px sized copy from our own origin, and it must answer as an image */
+const l1cOk = (n) => n.w === 128 && n.src === true && n.status === 200 && /^image\/webp/.test(n.type);
 const DRY = process.argv.includes('--dry-run');
 const SHOTS = process.env.E2E_SCREENS_DIR || '';
 const AXE = fs.readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8');
@@ -185,9 +189,10 @@ async function main() {
       let status = 0;
       let type = '';
       try { const r = await fetch(i.src, { cache: 'no-store' }); status = r.status; type = r.headers.get('content-type') || ''; } catch (e) { status = -1; type = String(e && e.name); }
-      return { w: i.naturalWidth, src: new URL(i.src).origin === location.origin && /^\/media\/logos\/orgs\//.test(new URL(i.src).pathname), status, type };
+      const u = new URL(i.src);
+      return { w: i.naturalWidth, src: u.origin === location.origin && /^\/media\/logos\/orgs\/[^/]+\/[0-9a-f]{64}-128\.webp$/.test(u.pathname), status, type };
     });
-    step('L-1c the saved logo loads in the card from the same-origin /media/logos rewrite', nat.w === 512 && nat.src, JSON.stringify(nat));
+    step('L-1c the saved logo loads in the card as the sized 128 px copy from the same-origin /media/logos rewrite', l1cOk(nat), JSON.stringify(nat));
     await shot('04-body-added');
 
     // ---- L-4 replace with an oversize original (resized in the browser)

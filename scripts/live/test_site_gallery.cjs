@@ -115,7 +115,7 @@ const isConnectionError = (e) => !!e && (['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND'
       const s = await read('authenticated', STUDENT);
       const wA = await as('anon', ANON, `update public.site_gallery set alt = 'hack'`);
       const wS = await as('authenticated', STUDENT, `delete from public.site_gallery`);
-      const iS = await as('authenticated', STUDENT, `insert into public.site_gallery (position, sha256, alt, people_basis, width, height, updated_by_email) values (2, $1, 'Alt text', 'NO_RECOGNISABLE_PERSON', 1280, 720, 'x')`, [SHA(2)]);
+      const iS = await as('authenticated', STUDENT, `insert into public.site_gallery (position, sha256, alt, people_basis, width, height) values (2, $1, 'Alt text', 'NO_RECOGNISABLE_PERSON', 1280, 720)`, [SHA(2)]);
       const fA = await as('authenticated', ADMIN, ADD, [SHA(2), 'Alt text', 1280, 720, 'NO_RECOGNISABLE_PERSON', ACTOR]);
       const fN = await as('anon', ANON, `select public.fn_site_gallery_remove($1, null, $2)`, [id, ACTOR]);
       const fM = await as('authenticated', ADMIN, `select public.fn_site_gallery_move($1, 1, null, $2)`, [id, ACTOR]);
