@@ -14,7 +14,7 @@ Run this only when the owner says **"release"**. Until then everything stays loc
 | `15d7773` | BUILD-FONT-1 self-hosted fonts + owner UI review fixes |
 | `a792f79` | UX-2a L-10 re-pointed to the category model |
 | `0605afb` | Release checklist |
-| *(next)* | Design upgrade: solid header, navy footer, connected loop with real screenshots, hero phone mockup, library gallery (130), background depth |
+| `773fb3a` | Design upgrade: solid header, navy footer, connected loop with real screenshots, hero phone mockup, library gallery (130), background depth |
 
 ## 1. Before pushing
 
