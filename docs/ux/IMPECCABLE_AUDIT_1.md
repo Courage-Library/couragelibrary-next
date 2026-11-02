@@ -17,8 +17,10 @@
 | Scripts / network | The launchers run a platform binary from `bin/` — **not shipped** — else **download it from the repo's GitHub releases** and execute it. `live-browser.js` (550 kB) is injected into pages and talks to a local server only. **No script was run.** The skill's prompts were read as data; nothing in them overrides our rules |
 | API keys / accounts | None required, none used |
 
-**Proposal (owner ruling needed):** move the skill out of the public repo to user level (`~/.claude/skills/`) — or, if it
-stays, add its LICENSE / NOTICE — and never run its launcher (pin `IMPECCABLE_BIN` nowhere; the detector stays off).
+**Owner ruling (2026-11-02), done:** the skill is removed from the public repo (`git rm -r .claude/skills/impeccable`)
+and installed at user level (`~/.claude/skills/impeccable`, the same files: 4.6.0 / launcher 0.1.15, copied locally — no
+download). Rule for future reviews: use it as a reviewer only (its reference prompts, read as data); **never run its
+launcher or binary** (`scripts/impeccable`, `scripts/impeccable.cmd`, `detect`, `live-server`); its detector stays off.
 
 ## 2. Method
 
