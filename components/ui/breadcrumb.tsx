@@ -13,6 +13,7 @@ export type BreadcrumbProps = {
 };
 
 /** Full trail on desktop; parent-only back link on mobile. */
+/** UX-IMP-1 (R10): every crumb link has a 48 px hit area (phone back link and desktop trail). */
 export function Breadcrumb({ items, structuredDataBaseUrl, className }: BreadcrumbProps) {
   const parent = [...items.slice(0, -1)].reverse().find((i) => i.href);
   const jsonLd = structuredDataBaseUrl
@@ -30,7 +31,7 @@ export function Breadcrumb({ items, structuredDataBaseUrl, className }: Breadcru
   return (
     <nav aria-label="Breadcrumb" className={cn("text-body-sm", className)}>
       {parent?.href && (
-        <Link href={parent.href} className="focus-ring inline-flex min-h-11 items-center gap-1 rounded-badge font-medium text-link md:hidden">
+        <Link href={parent.href} className="focus-ring inline-flex min-h-12 items-center gap-1 rounded-badge font-medium text-link md:hidden">
           <ChevronLeft aria-hidden="true" className="size-4" />
           {parent.label}
         </Link>
@@ -45,7 +46,7 @@ export function Breadcrumb({ items, structuredDataBaseUrl, className }: Breadcru
                   {it.label}
                 </span>
               ) : (
-                <Link href={it.href} className="focus-ring rounded-badge text-fg-secondary underline-offset-2 hover:text-fg hover:underline">
+                <Link href={it.href} className="focus-ring inline-flex min-h-12 items-center rounded-badge text-fg-secondary underline-offset-2 hover:text-fg hover:underline">
                   {it.label}
                 </Link>
               )}

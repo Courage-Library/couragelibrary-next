@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { CategoryPage } from "@/components/exams/category-page";
 import { loadPublicCategory } from "@/lib/exams/category-data";
 import { constructMetadata } from "@/lib/seo/metadata";
+import { categoryIntro } from "@/lib/exams/categories";
 
 /**
  * PERF-HOME-1: the CACHED category page. Visitors never see this path: middleware.ts rewrites /exams/<category> here
@@ -27,7 +28,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!cat) return constructMetadata({ title: "Exam Not Found", noIndex: true });
   return constructMetadata({
     title: `${cat.category.name} exams`,
-    description: cat.category.shortDesc || `${cat.category.name} exams on Courage Library: lessons, practice and mock tests.`,
+    // UX-IMP-1: generated from the listed exams only (categoryIntro), never the admin free text
+    description: (!cat.examsFailed && categoryIntro(cat.category.name, cat.exams)) || `${cat.category.name} exams on Courage Library: lessons, practice and mock tests.`,
     canonicalUrl: `/exams/${slug}`,
     ogImage: `/exams/${slug}/opengraph-image`,
     // noindex only when the read worked and the category really has no exam (an outage never de-indexes it)

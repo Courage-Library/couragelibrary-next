@@ -7,7 +7,7 @@
 --     gives everyone the published static mocks and each student their own dynamic ones.
 --   * staff ids on published rows (document / guide versions, exam sources, syllabus versions + mappings) and author /
 --     creator ids (discussion messages, courses, current affairs) were granted to anon.
--- Fix (RLS unchanged): for each table below, anon loses the table-wide SELECT and gets SELECT on every column EXCEPT
+-- Fix (RLS unchanged): for each table below, anon keeps SELECT on exactly the columns it can read today EXCEPT
 -- the listed personal ones (column grants). A column added later is NOT readable by anon until granted (fail closed).
 -- The app reads these tables for anon only with explicit display columns (exam hub, community — same release).
 -- authenticated is unchanged in step 1 (admin / staff screens read through the session client); step 2 moves those
@@ -54,11 +54,26 @@ BEGIN
         IF v_missing IS NOT NULL THEN
             RAISE EXCEPTION 'PII_SWEEP2: %.% does not exist', r.tbl, v_missing;
         END IF;
-        SELECT string_agg(quote_ident(c.column_name), ', ' ORDER BY c.ordinal_position) INTO v_cols
-          FROM information_schema.columns c
-         WHERE c.table_schema = 'public' AND c.table_name = r.tbl AND c.column_name <> ALL (r.hidden);
-        EXECUTE format('REVOKE SELECT ON public.%I FROM anon', r.tbl);
-        EXECUTE format('GRANT SELECT (%s) ON public.%I TO anon', v_cols, r.tbl);
+        -- NEVER widen: anon keeps exactly the columns it can read TODAY (table- or column-level grant), minus the hidden
+        -- ones (some tables already use column grants — e.g. document_versions.blocks is not readable by anon)
+        DROP TABLE IF EXISTS pg_temp.pii2_before;
+        CREATE TEMP TABLE pii2_before ON COMMIT DROP AS
+            SELECT c.column_name AS col FROM information_schema.columns c
+             WHERE c.table_schema = 'public' AND c.table_name = r.tbl
+               AND has_column_privilege('anon', format('public.%I', r.tbl), c.column_name, 'SELECT');
+        SELECT string_agg(quote_ident(b.col), ', ' ORDER BY b.col) INTO v_cols FROM pii2_before b WHERE b.col <> ALL (r.hidden);
+        EXECUTE format('REVOKE SELECT ON public.%I FROM anon', r.tbl); -- also revokes the column-level SELECT grants
+        IF v_cols IS NOT NULL THEN
+            EXECUTE format('GRANT SELECT (%s) ON public.%I TO anon', v_cols, r.tbl);
+        END IF;
+        -- exact: after = before − hidden, column by column (no column newly readable, no display column lost)
+        IF EXISTS (SELECT 1 FROM information_schema.columns c
+                    WHERE c.table_schema = 'public' AND c.table_name = r.tbl
+                      AND has_column_privilege('anon', format('public.%I', r.tbl), c.column_name, 'SELECT')
+                          IS DISTINCT FROM (c.column_name IN (SELECT b.col FROM pii2_before b) AND c.column_name <> ALL (r.hidden))) THEN
+            RAISE EXCEPTION 'PII_SWEEP2: anon privileges on % are not exactly (before − hidden)', r.tbl;
+        END IF;
+        DROP TABLE pii2_before;
     END LOOP;
 END
 $grants$;

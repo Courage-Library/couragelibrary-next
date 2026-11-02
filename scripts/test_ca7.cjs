@@ -78,7 +78,9 @@ test('LA-01 per-exam launch: gating only inside a LIVE course (stand-in gone); c
   assert(!/LESSON_GATING_ENABLED/.test(read('lib/learning/chapter-access.ts').replace(/\(CA-7 replaced[^)]*\)/, '')) && !/LESSON_GATING_ENABLED|gatingEnabled/.test(read('lib/learning/lesson-access-settings.ts')), 'the CA-5 stand-in is gone');
   const cs = read('services/learning/course.service.ts');
   assert(/from\("exam_course_launches"\)\.select\("status"\)\.eq\("exam_id", exam\.id\)\.eq\("status", "LIVE"\)\.limit\(1\);\s*if \(launchError \|\| !launch\?\.length\) return null;/.test(cs), 'course page only while LIVE (a failed read → no course)');
-  assert(/&& \(await isCourseLive\(exam\.id\)\) \? `\/exams\/\$\{exam\.slug\}\/course`/.test(read('app/(site)/exams/[slug]/page.tsx')), 'the exam page links the course only while LIVE');
+  // UX-IMP-1: the LIVE check runs in the page's parallel step; the link still appears only when it returned true
+  const hubSrc = read('app/(site)/exams/[slug]/page.tsx');
+  assert(/totals && totals\.servable_documents > 0 \? isCourseLive\(exam\.id\) : Promise\.resolve\(false\)/.test(hubSrc) && /courseHref=\{courseLive \? `\/exams\/\$\{exam\.slug\}\/course` : null\}/.test(hubSrc), 'the exam page links the course only while LIVE');
   const M = require(path.join(ROOT, 'lib/learn/sitemap.ts'));
   const urls = M.learnSitemapEntries('https://x.test', [{ nodeId: U(1), hiCurrent: false, publishedAt: null }], { [U(1)]: 'q.p' }, [{ slug: 'a', nodeIds: [U(1)], live: true }, { slug: 'b', nodeIds: [U(1)], live: false }]).map((e) => new URL(e.url).pathname);
   assert(JSON.stringify(urls) === JSON.stringify(['/learn/q/p', '/exams/a/course', '/exams/a/q/p', '/exams/b/q/p']), JSON.stringify(urls));

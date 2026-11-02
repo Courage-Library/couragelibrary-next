@@ -25,6 +25,7 @@ import {
   ExamPromptResult,
   EXAM_PROMPT_CONTRACT_VERSION,
 } from '@/types/exam-knowledge';
+import { ExamModuleRegistry } from '@/services/exam-knowledge/exam-module-registry';
 
 export class ExamKnowledgePromptBuilder {
   public static readonly CONTRACT_VERSION = EXAM_PROMPT_CONTRACT_VERSION;
@@ -108,6 +109,13 @@ export class ExamKnowledgePromptBuilder {
       : 'No structured claims registered yet. Extract authoritative factual parameters into structuredData.claims with verified official citations.';
 
     // 6. Format Module-Specific Research Directives
+    // GUIDE-SCOPE-1 (owner 2026-11-02): every guide stays separate — this one covers ONLY its own scope, and each sibling
+    // guide is named with what it owns, so the author links there instead of repeating it
+    const siblingScopes = ExamModuleRegistry.getAllModuleDefinitions()
+      .filter((m) => m.key !== module.key)
+      .map((m) => `- ${m.displayName} [${m.key}]: ${m.covers}`)
+      .join('\n');
+
     const moduleDirectivesList = (module.researchDirectives && module.researchDirectives.length > 0)
       ? module.researchDirectives.map((d, i) => `${i + 1}. ${d}`).join('\n')
       : '1. Research primary official notifications and gazette notices for this examination.\n2. Verify all factual statements against conducting authority releases.\n3. Provide complete, structured candidate intelligence.';
@@ -282,6 +290,15 @@ ${cycle ? `- Cycle ID: ${cycle.id}
 MANDATORY RESEARCH DIRECTIVES FOR THIS MODULE:
 ${moduleDirectivesList}
 </MODULE_SPECIFIC_RESEARCH_DIRECTIVES>`,
+
+`<MODULE_SCOPE>
+THIS GUIDE COVERS ONLY: ${module.covers}
+THIS GUIDE MUST NOT REPEAT: ${module.mustNotRepeat}
+Every guide of this exam is published separately. Do not write a section whose subject another guide below owns; when
+a candidate needs that information, add one sentence naming the other guide instead of repeating its content.
+OTHER GUIDES OF THIS EXAM AND WHAT EACH OWNS:
+${siblingScopes}
+</MODULE_SCOPE>`,
 
 `<KNOWN_STRUCTURED_FACTS>
 [A. Exam Patterns & Marking Scheme]

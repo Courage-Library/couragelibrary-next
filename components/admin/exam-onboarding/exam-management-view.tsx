@@ -200,40 +200,40 @@ export function ExamManagementView({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2.5">
-            <GraduationCap className="w-6 h-6 text-blue-600" /> Examination Management Hub
+            <GraduationCap className="w-6 h-6 text-blue-600" /> Exams
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 font-medium">
-            Register and manage canonical examinations available across Courage Library.
+          <p className="text-sm text-slate-600 font-medium">
+            Add exams and manage each exam&apos;s details, guides and logo.
           </p>
         </div>
 
         <Button
           onClick={handleOpenAddModal}
-          className="bg-primary-700 hover:bg-primary-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-xs transition-colors"
+          className="min-h-12 bg-primary-700 hover:bg-primary-800 text-white text-sm font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-xs transition-colors"
         >
-          <PlusCircle className="w-4 h-4" /> Add New Examination
+          <PlusCircle className="w-4 h-4" /> Add exam
         </Button>
       </div>
 
       {/* KPI Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card className="p-4 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-1">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 font-mono">
-            Total Examinations
+          <span className="text-xs font-semibold text-slate-600">
+            All exams
           </span>
           <div className="text-2xl font-bold text-slate-900 font-mono">{totalExams}</div>
         </Card>
 
         <Card className="p-4 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-1">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 font-mono">
-            Live Published Hubs
+          <span className="text-xs font-semibold text-emerald-700">
+            Live
           </span>
           <div className="text-2xl font-bold text-emerald-700 font-mono">{publishedExams}</div>
         </Card>
 
         <Card className="p-4 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-1">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-accent-700 font-mono">
-            Onboarding Drafts
+          <span className="text-xs font-semibold text-accent-700">
+            Drafts
           </span>
           <div className="text-2xl font-bold text-accent-700 font-mono">{draftExams}</div>
         </Card>
@@ -247,7 +247,7 @@ export function ExamManagementView({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by examination title, slug, or conducting organization..."
+            placeholder="Search by exam name, address or conducting body"
             className="w-full pl-9 pr-4 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-blue-500"
           />
         </div>
@@ -281,11 +281,11 @@ export function ExamManagementView({
               <div className="flex items-start justify-between gap-2">
                 <Badge
                   variant={exam.isActive ? "success" : "neutral"}
-                  className="text-[10px] uppercase font-mono font-bold"
+                  className="text-xs font-semibold"
                 >
-                  {exam.isActive ? "PUBLISHED" : "DRAFT"}
+                  {exam.isActive ? "Live" : "Draft"}
                 </Badge>
-                <span className="text-[11px] font-mono text-slate-600">
+                <span className="text-xs text-slate-600">
                   {exam.category}
                 </span>
               </div>
@@ -302,20 +302,20 @@ export function ExamManagementView({
                   <h3 className="min-w-0 text-sm font-bold text-slate-900 line-clamp-1">{exam.title}</h3>
                 </div>
                 <div className="flex items-center justify-between gap-3 mt-0.5">
-                  <p className="text-[11px] font-mono text-slate-600 truncate">/exams/{exam.slug}</p>
+                  <p className="text-xs font-mono text-slate-600 truncate">/exams/{exam.slug}</p>
                   {exam.isActive && (
                     <Link
                       href={`/exams/${exam.slug}`}
                       target="_blank"
-                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-700 transition-colors shrink-0 group"
+                      className="inline-flex min-h-12 items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors shrink-0 group"
                     >
-                      <span>View Hub</span>
+                      <span>View page</span>
                       <ExternalLink className="w-3 h-3 text-blue-500 group-hover:translate-x-0.5 transition-transform" />
                     </Link>
                   )}
                 </div>
                 {!exam.logoOverridePath && !exam.conductingOrg.logoPath && (
-                  <span className="mt-1 inline-flex rounded-full border border-danger-200 bg-danger-50 px-2 py-0.5 text-[11px] font-semibold text-danger-800" data-logo-missing="">
+                  <span className="mt-1 inline-flex rounded-full border border-danger-200 bg-danger-50 px-2 py-0.5 text-xs font-semibold text-danger-800" data-logo-missing="">
                     Logo missing
                   </span>
                 )}
@@ -335,7 +335,7 @@ export function ExamManagementView({
                 )}
                 <div className="flex items-center gap-1.5">
                   <BookOpen className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                  <span>{exam.totalPublishedModulesCount} Published Knowledge Modules</span>
+                  <span>{exam.totalPublishedModulesCount} published guides</span>
                 </div>
               </div>
             </div>
@@ -345,22 +345,22 @@ export function ExamManagementView({
             )}
 
             {/* Card Action Footer */}
-            <div className="pt-3.5 border-t border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 text-xs font-semibold">
+            <div className="pt-2 border-t border-slate-100 flex flex-col gap-0.5 text-sm font-semibold" data-exam-card-actions="">
               <Link
                 href={`/admin/exams/knowledge?examId=${exam.id}${exam.activeCycle ? `&cycleId=${exam.activeCycle.id}` : ""}`}
-                className="inline-flex items-center gap-1.5 text-slate-700 hover:text-blue-600 transition-colors whitespace-nowrap group shrink-0"
+                className="flex min-h-12 min-w-0 items-center gap-1.5 text-slate-700 hover:text-blue-600 transition-colors group"
               >
                 <BookOpen className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                <span>Open Exam Knowledge</span>
+                <span className="truncate">Guides and sources</span>
                 <ArrowRight className="w-3 h-3 text-slate-600 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0" />
               </Link>
 
               <Link
                 href={`/admin/exams/onboarding?examId=${exam.id}${exam.activeCycle ? `&cycleId=${exam.activeCycle.id}` : ""}`}
-                className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-700 font-bold transition-colors whitespace-nowrap group shrink-0"
+                className="flex min-h-12 min-w-0 items-center gap-1.5 text-blue-700 hover:text-blue-800 font-bold transition-colors group"
               >
                 <Layers className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                <span>Manage Examination</span>
+                <span className="truncate">Manage exam</span>
                 <ArrowRight className="w-3 h-3 text-blue-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0" />
               </Link>
             </div>

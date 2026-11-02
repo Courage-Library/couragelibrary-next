@@ -725,8 +725,9 @@ async function runTestSuite() {
   });
 
   await test('P42', 'Prompt contract version constant is centralized and unfragmented', async () => {
-    assert.strictEqual(EXAM_PROMPT_CONTRACT_VERSION, 'CL-EXAM-AUTHOR-v1.0');
-    assert.strictEqual(ExamKnowledgePromptBuilder.CONTRACT_VERSION, 'CL-EXAM-AUTHOR-v1.0');
+    // GUIDE-SCOPE-1: v1.1 (module scope block) — one constant, shared by the builder
+    assert.match(EXAM_PROMPT_CONTRACT_VERSION, /^CL-EXAM-AUTHOR-v1\.\d+$/);
+    assert.strictEqual(ExamKnowledgePromptBuilder.CONTRACT_VERSION, EXAM_PROMPT_CONTRACT_VERSION);
   });
 
   console.log('\n============================================================');

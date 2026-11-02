@@ -18,6 +18,9 @@ export const EXAM_MODULE_REGISTRY: Record<ExamModuleKey, ExamModuleDefinition> =
     key: 'EXAM_OVERVIEW',
     displayName: 'Exam Overview & Conducting Authority',
     purpose: 'Comprehensive timeless summary of the examination, conducting organization, historical scope, and high-level structure.',
+    covers: 'What the exam is, who conducts it, why it exists and its stages at a glance.',
+    mustNotRepeat: 'Dates, eligibility details, the pattern\'s numbers, pay and the post list — link to those guides instead.',
+    scopeKeywords: [],
     isCycleSpecific: false,
     requiresSources: false,
     allowedSectionTypes: ['SUMMARY', 'DETAILED_GUIDE', 'IMPORTANT_INSTRUCTIONS', 'FAQS'],
@@ -35,6 +38,9 @@ export const EXAM_MODULE_REGISTRY: Record<ExamModuleKey, ExamModuleDefinition> =
     key: 'IMPORTANT_DATES',
     displayName: 'Important Dates & Cycle Timeline',
     purpose: 'Authoritative schedule of notification, application window, admit card releases, exam windows, and result declarations for the active cycle.',
+    covers: 'This cycle\'s official dates: notification, application window, admit card, exam and result dates.',
+    mustNotRepeat: 'How to apply (Application Process & Fee Structure), the age cut-off rules (Age Limits & Relaxation Rules), how results work (Result Declaration & Merit Ranking).',
+    scopeKeywords: ['important dates', 'cycle timeline'],
     isCycleSpecific: true,
     requiresSources: true,
     allowedSectionTypes: ['SUMMARY', 'DETAILED_GUIDE', 'IMPORTANT_INSTRUCTIONS', 'FAQS'],
@@ -52,6 +58,9 @@ export const EXAM_MODULE_REGISTRY: Record<ExamModuleKey, ExamModuleDefinition> =
     key: 'ELIGIBILITY',
     displayName: 'Eligibility Criteria (Age, Education & Category)',
     purpose: 'Detailed, precise criteria covering nationality, minimum/maximum age limits, educational qualifications, and category-wise age relaxations.',
+    covers: 'A one-page summary of who may apply: nationality, the age band and the minimum qualification in one line each, with links.',
+    mustNotRepeat: 'Post-wise age tables and relaxations (Age Limits & Relaxation Rules), degree details (Educational & Technical Qualifications), physical standards (Physical Standards & Medical Requirements).',
+    scopeKeywords: ['nationality'],
     isCycleSpecific: false,
     requiresSources: true,
     allowedSectionTypes: ['SUMMARY', 'DETAILED_GUIDE', 'IMPORTANT_INSTRUCTIONS', 'FAQS'],
@@ -69,6 +78,9 @@ export const EXAM_MODULE_REGISTRY: Record<ExamModuleKey, ExamModuleDefinition> =
     key: 'AGE_LIMIT',
     displayName: 'Age Limits & Relaxation Rules',
     purpose: 'In-depth breakdown of post-wise minimum and maximum age criteria, crucial cutoff dates, and statutory category relaxations (OBC, SC, ST, PwBD, Ex-Servicemen).',
+    covers: 'Post-wise minimum and maximum age, the date age is counted on, and category relaxations.',
+    mustNotRepeat: 'Qualifications (Educational & Technical Qualifications) and nationality (Eligibility Criteria).',
+    scopeKeywords: ['age limit', 'age relaxation', 'upper age'],
     isCycleSpecific: false,
     requiresSources: true,
     allowedSectionTypes: ['SUMMARY', 'DETAILED_GUIDE', 'IMPORTANT_INSTRUCTIONS', 'FAQS'],
@@ -86,6 +98,9 @@ export const EXAM_MODULE_REGISTRY: Record<ExamModuleKey, ExamModuleDefinition> =
     key: 'QUALIFICATION',
     displayName: 'Educational & Technical Qualifications',
     purpose: 'Essential and desirable educational qualifications, degree requirements, final-year appearing candidate eligibility rules, and technical prerequisites.',
+    covers: 'Required degrees and subjects per post, final-year applicant rules and technical prerequisites.',
+    mustNotRepeat: 'Age rules (Age Limits & Relaxation Rules).',
+    scopeKeywords: ['educational qualification', 'final year'],
     isCycleSpecific: false,
     requiresSources: true,
     allowedSectionTypes: ['SUMMARY', 'DETAILED_GUIDE', 'IMPORTANT_INSTRUCTIONS', 'FAQS'],
@@ -103,6 +118,9 @@ export const EXAM_MODULE_REGISTRY: Record<ExamModuleKey, ExamModuleDefinition> =
     key: 'PHYSICAL_STANDARDS',
     displayName: 'Physical Standards & Medical Requirements',
     purpose: 'Mandatory physical measurement (height, chest, weight) and physical endurance test (walking, cycling, running) standards for specific enforcement/uniformed posts.',
+    covers: 'Physical measurements, endurance tests and medical standards for the posts that require them.',
+    mustNotRepeat: 'The order of the selection stages (Selection Process & Recruitment Stages).',
+    scopeKeywords: ['physical standard', 'physical efficiency', 'medical standard'],
     isCycleSpecific: false,
     requiresSources: true,
     allowedSectionTypes: ['SUMMARY', 'DETAILED_GUIDE', 'IMPORTANT_INSTRUCTIONS', 'FAQS'],
@@ -120,6 +138,9 @@ export const EXAM_MODULE_REGISTRY: Record<ExamModuleKey, ExamModuleDefinition> =
     key: 'APPLICATION_PROCESS',
     displayName: 'Application Process & Fee Structure',
     purpose: 'Step-by-step candidate application instructions, portal registration, photo/signature specifications, fee amounts, payment modes, and application correction window.',
+    covers: 'How to apply step by step: registration, photo and signature specifications, fees, payment and the correction window.',
+    mustNotRepeat: 'The dates (Important Dates & Cycle Timeline) and who may apply (Eligibility Criteria).',
+    scopeKeywords: ['how to apply', 'application fee', 'application process'],
     isCycleSpecific: false,
     requiresSources: true,
     allowedSectionTypes: ['SUMMARY', 'DETAILED_GUIDE', 'IMPORTANT_INSTRUCTIONS', 'FAQS'],
@@ -137,6 +158,9 @@ export const EXAM_MODULE_REGISTRY: Record<ExamModuleKey, ExamModuleDefinition> =
     key: 'SELECTION_PROCESS',
     displayName: 'Selection Process & Recruitment Stages',
     purpose: 'Comprehensive roadmap of all stages (e.g., Computer Based Examination Tier 1, Tier 2, Typing/Data Entry, Document Verification, Medical Examination) and merit calculation.',
+    covers: 'The selection stages in order and how the final merit is formed.',
+    mustNotRepeat: 'Questions and marks per section (Exam Pattern & Marking Scheme) and cut-off numbers (Cutoff Trends & Qualifying Benchmarks).',
+    scopeKeywords: ['selection process', 'selection stage'],
     isCycleSpecific: false,
     requiresSources: true,
     allowedSectionTypes: ['SUMMARY', 'DETAILED_GUIDE', 'IMPORTANT_INSTRUCTIONS', 'FAQS'],
@@ -154,6 +178,9 @@ export const EXAM_MODULE_REGISTRY: Record<ExamModuleKey, ExamModuleDefinition> =
     key: 'EXAM_PATTERN',
     displayName: 'Exam Pattern & Marking Scheme',
     purpose: 'Tier-by-tier and section-by-section breakdown of subjects, number of questions, maximum marks, negative marking, duration, and compensatory time for scribe candidates.',
+    covers: 'Each tier\'s sections: questions, marks, duration, negative marking and scribe time.',
+    mustNotRepeat: 'Topic lists (Detailed Syllabus & Topic Weightage) and the selection narrative (Selection Process & Recruitment Stages).',
+    scopeKeywords: ['exam pattern', 'marking scheme', 'negative marking'],
     isCycleSpecific: false,
     requiresSources: true,
     allowedSectionTypes: ['SUMMARY', 'DETAILED_GUIDE', 'IMPORTANT_INSTRUCTIONS', 'FAQS'],
@@ -171,6 +198,9 @@ export const EXAM_MODULE_REGISTRY: Record<ExamModuleKey, ExamModuleDefinition> =
     key: 'SYLLABUS',
     displayName: 'Detailed Syllabus & Topic Weightage',
     purpose: 'In-depth subject-by-subject curriculum aligned with Courage Library canonical taxonomy, highlighting foundational concepts, expected questions, and depth.',
+    covers: 'The topic-level syllabus per subject with weightage; it points to the exam\'s syllabus page for the full official list.',
+    mustNotRepeat: 'Marks and questions per section (Exam Pattern & Marking Scheme), the one-page syllabus shape (Syllabus Overview & Subject Breakdown), study methods (Preparation guides).',
+    scopeKeywords: ['detailed syllabus', 'topic weightage'],
     isCycleSpecific: false,
     requiresSources: false,
     allowedSectionTypes: ['SUMMARY', 'DETAILED_GUIDE', 'IMPORTANT_INSTRUCTIONS', 'FAQS'],
@@ -188,6 +218,9 @@ export const EXAM_MODULE_REGISTRY: Record<ExamModuleKey, ExamModuleDefinition> =
     key: 'SYLLABUS_OVERVIEW',
     displayName: 'Syllabus Overview & Subject Breakdown',
     purpose: 'Executive overview of the full exam syllabus structure, tier-wise coverage, and pedagogical scope.',
+    covers: 'The shape of the syllabus on one page: subjects per tier and how they relate.',
+    mustNotRepeat: 'Topic lists and weightage (Detailed Syllabus & Topic Weightage).',
+    scopeKeywords: ['syllabus overview', 'subject breakdown'],
     isCycleSpecific: false,
     requiresSources: false,
     allowedSectionTypes: ['SUMMARY', 'DETAILED_GUIDE', 'IMPORTANT_INSTRUCTIONS', 'FAQS'],
@@ -204,6 +237,9 @@ export const EXAM_MODULE_REGISTRY: Record<ExamModuleKey, ExamModuleDefinition> =
     key: 'POSTS',
     displayName: 'Posts, Ministries & Cadre Profiles',
     purpose: 'Catalog of all recruitment posts, participating ministries/departments, cadre classification (Group A, B Gazetted, B Non-Gazetted, C), and initial postings.',
+    covers: 'The posts recruited, their departments or ministries and their cadre group.',
+    mustNotRepeat: 'Pay figures (Salary Structure, Pay Levels & In-Hand Pay), daily duties and promotions (Job Profiles & Career Progression), choosing preferences (Post Preference, Pay Levels & Career Perks).',
+    scopeKeywords: ['cadre', 'ministries'],
     isCycleSpecific: false,
     requiresSources: true,
     allowedSectionTypes: ['SUMMARY', 'DETAILED_GUIDE', 'IMPORTANT_INSTRUCTIONS', 'FAQS'],
@@ -221,6 +257,9 @@ export const EXAM_MODULE_REGISTRY: Record<ExamModuleKey, ExamModuleDefinition> =
     key: 'SALARY',
     displayName: 'Salary Structure, Pay Levels & In-Hand Pay',
     purpose: 'Comprehensive compensation analysis covering the applicable official pay framework, basic pay scale or pay level, allowances, deductions, and net in-hand salary calculations across recruitment posts.',
+    covers: 'Pay level, basic pay, allowances, deductions and in-hand pay per post.',
+    mustNotRepeat: 'Which post to prefer (Post Preference, Pay Levels & Career Perks) and job duties (Job Profiles & Career Progression).',
+    scopeKeywords: ['in-hand', 'allowances', 'salary structure'],
     isCycleSpecific: false,
     requiresSources: true,
     allowedSectionTypes: ['SUMMARY', 'DETAILED_GUIDE', 'IMPORTANT_INSTRUCTIONS', 'FAQS'],
@@ -238,6 +277,9 @@ export const EXAM_MODULE_REGISTRY: Record<ExamModuleKey, ExamModuleDefinition> =
     key: 'POST_PREFERENCE_SALARY',
     displayName: 'Post Preference, Pay Levels & Career Perks',
     purpose: 'Strategic guide for filling post preferences based on pay levels, desk vs field roles, home state posting probability, and career growth.',
+    covers: 'How to order post preferences: desk or field, location and growth trade-offs.',
+    mustNotRepeat: 'The pay tables (Salary Structure, Pay Levels & In-Hand Pay) — refer to them — and the post catalogue (Posts, Ministries & Cadre Profiles).',
+    scopeKeywords: ['post preference'],
     isCycleSpecific: false,
     requiresSources: true,
     allowedSectionTypes: ['SUMMARY', 'DETAILED_GUIDE', 'IMPORTANT_INSTRUCTIONS', 'FAQS'],
@@ -254,6 +296,9 @@ export const EXAM_MODULE_REGISTRY: Record<ExamModuleKey, ExamModuleDefinition> =
     key: 'CAREER',
     displayName: 'Job Profiles & Career Progression',
     purpose: 'Detailed day-to-day job duties, organizational hierarchy, departmental examination rules, and long-term promotion ladders for top posts.',
+    covers: 'Day-to-day duties, the hierarchy, departmental exams and the promotion ladder.',
+    mustNotRepeat: 'Pay (Salary Structure, Pay Levels & In-Hand Pay) and the post catalogue (Posts, Ministries & Cadre Profiles).',
+    scopeKeywords: ['job profile', 'promotion', 'career progression'],
     isCycleSpecific: false,
     requiresSources: false,
     allowedSectionTypes: ['SUMMARY', 'DETAILED_GUIDE', 'IMPORTANT_INSTRUCTIONS', 'FAQS'],
@@ -270,6 +315,9 @@ export const EXAM_MODULE_REGISTRY: Record<ExamModuleKey, ExamModuleDefinition> =
     key: 'VACANCIES',
     displayName: 'Vacancy Breakdown & Reservation Matrix',
     purpose: 'Cycle-specific distribution of vacancies across posts, departments, and reservation categories (UR, EWS, OBC, SC, ST, ESM, PwBD).',
+    covers: 'This cycle\'s vacancy numbers by post and category.',
+    mustNotRepeat: 'Age relaxation rules (Age Limits & Relaxation Rules) and cut-offs (Cutoff guides).',
+    scopeKeywords: ['vacanc'],
     isCycleSpecific: true,
     requiresSources: true,
     allowedSectionTypes: ['SUMMARY', 'DETAILED_GUIDE', 'IMPORTANT_INSTRUCTIONS', 'FAQS'],
@@ -287,6 +335,9 @@ export const EXAM_MODULE_REGISTRY: Record<ExamModuleKey, ExamModuleDefinition> =
     key: 'CUTOFF',
     displayName: 'Cutoff Trends & Qualifying Benchmarks',
     purpose: 'Historical previous-year cutoff benchmarks, category-wise qualifying thresholds, post-wise final cutoffs, and normalized score trends.',
+    covers: 'The latest cut-off marks by category and post and the qualifying thresholds.',
+    mustNotRepeat: 'Multi-year trend analysis (Historical Cutoff Trends & Analysis).',
+    scopeKeywords: ['cut-off marks', 'cutoff marks', 'qualifying marks'],
     isCycleSpecific: false,
     requiresSources: true,
     allowedSectionTypes: ['SUMMARY', 'DETAILED_GUIDE', 'IMPORTANT_INSTRUCTIONS', 'FAQS'],
@@ -304,6 +355,9 @@ export const EXAM_MODULE_REGISTRY: Record<ExamModuleKey, ExamModuleDefinition> =
     key: 'CUTOFF_TRENDS',
     displayName: 'Historical Cutoff Trends & Analysis',
     purpose: 'Longitudinal cutoff trend analysis across previous cycles to assist candidate goal setting.',
+    covers: 'How cut-offs moved over past cycles and what that means for a target score.',
+    mustNotRepeat: 'The latest cut-off table (Cutoff Trends & Qualifying Benchmarks).',
+    scopeKeywords: ['cut-off trend', 'cutoff trend', 'year-wise cut'],
     isCycleSpecific: false,
     requiresSources: true,
     allowedSectionTypes: ['SUMMARY', 'DETAILED_GUIDE', 'IMPORTANT_INSTRUCTIONS', 'FAQS'],
@@ -320,6 +374,9 @@ export const EXAM_MODULE_REGISTRY: Record<ExamModuleKey, ExamModuleDefinition> =
     key: 'ADMIT_CARD',
     displayName: 'Admit Card & Exam Day Protocol',
     purpose: 'Cycle-specific admit card download procedures, regional portal links, application status check dates, required photo IDs, and prohibited items.',
+    covers: 'Downloading the admit card and exam-day documents, rules and prohibited items.',
+    mustNotRepeat: 'The dates (Important Dates & Cycle Timeline).',
+    scopeKeywords: ['admit card', 'exam day'],
     isCycleSpecific: true,
     requiresSources: true,
     allowedSectionTypes: ['SUMMARY', 'DETAILED_GUIDE', 'IMPORTANT_INSTRUCTIONS', 'FAQS'],
@@ -337,6 +394,9 @@ export const EXAM_MODULE_REGISTRY: Record<ExamModuleKey, ExamModuleDefinition> =
     key: 'RESULT',
     displayName: 'Result Declaration & Merit Ranking',
     purpose: 'Cycle-specific result notices, merit list PDF access, normalization method, marks release schedule, and post allocation process.',
+    covers: 'How results are declared: normalization, marks release and post allocation.',
+    mustNotRepeat: 'Cut-off tables (Cutoff guides).',
+    scopeKeywords: ['result declaration', 'normalization', 'normalisation'],
     isCycleSpecific: true,
     requiresSources: true,
     allowedSectionTypes: ['SUMMARY', 'DETAILED_GUIDE', 'IMPORTANT_INSTRUCTIONS', 'FAQS'],
@@ -354,6 +414,9 @@ export const EXAM_MODULE_REGISTRY: Record<ExamModuleKey, ExamModuleDefinition> =
     key: 'PREPARATION',
     displayName: 'Preparation Strategy & Study Protocol',
     purpose: 'Evidence-based study schedules, subject-wise time allocation, PYQ analysis, high-yield topic priorities, and mock test benchmarking protocol.',
+    covers: 'The overall study plan: schedule, time split, mock routine and revision.',
+    mustNotRepeat: 'Subject-by-subject methods (Subject-Wise Preparation & Study Protocol) and topic lists (Detailed Syllabus & Topic Weightage).',
+    scopeKeywords: ['study plan', 'study schedule', 'timetable'],
     isCycleSpecific: false,
     requiresSources: false,
     allowedSectionTypes: ['SUMMARY', 'DETAILED_GUIDE', 'IMPORTANT_INSTRUCTIONS', 'FAQS'],
@@ -371,6 +434,9 @@ export const EXAM_MODULE_REGISTRY: Record<ExamModuleKey, ExamModuleDefinition> =
     key: 'PREPARATION_STRATEGY',
     displayName: 'Subject-Wise Preparation & Study Protocol',
     purpose: 'Structured pedagogical roadmap and test strategy for mastering the exam.',
+    covers: 'Subject-by-subject preparation methods and in-exam test strategy.',
+    mustNotRepeat: 'The overall timetable (Preparation Strategy & Study Protocol) and topic lists (Detailed Syllabus & Topic Weightage).',
+    scopeKeywords: ['subject-wise', 'exam-day strategy'],
     isCycleSpecific: false,
     requiresSources: false,
     allowedSectionTypes: ['SUMMARY', 'DETAILED_GUIDE', 'IMPORTANT_INSTRUCTIONS', 'FAQS'],
@@ -387,6 +453,9 @@ export const EXAM_MODULE_REGISTRY: Record<ExamModuleKey, ExamModuleDefinition> =
     key: 'FAQ',
     displayName: 'Frequently Asked Questions (Candidate Queries)',
     purpose: 'Official, authoritative answers to recurring candidate doubts regarding eligibility, exam pattern, language medium, reservation, and post postings.',
+    covers: 'Short answers to common questions, each linking to the guide that covers it in full.',
+    mustNotRepeat: 'Full explanations that another guide already gives — answer briefly and link.',
+    scopeKeywords: [],
     isCycleSpecific: false,
     requiresSources: false,
     allowedSectionTypes: ['SUMMARY', 'DETAILED_GUIDE', 'IMPORTANT_INSTRUCTIONS', 'FAQS'],
@@ -403,6 +472,9 @@ export const EXAM_MODULE_REGISTRY: Record<ExamModuleKey, ExamModuleDefinition> =
     key: 'NOTIFICATIONS',
     displayName: 'Official Notifications & Gazette Archives',
     purpose: 'Chronological repository of official commission notifications, corrigenda, exam calendar updates, and gazette orders.',
+    covers: 'The list of official notices, corrigenda and calendar updates, with links.',
+    mustNotRepeat: 'Summaries of their content that belong to another guide.',
+    scopeKeywords: ['corrigend', 'notification archive'],
     isCycleSpecific: false,
     requiresSources: true,
     allowedSectionTypes: ['SUMMARY', 'DETAILED_GUIDE', 'IMPORTANT_INSTRUCTIONS', 'FAQS'],
@@ -417,6 +489,31 @@ export const EXAM_MODULE_REGISTRY: Record<ExamModuleKey, ExamModuleDefinition> =
   },
 };
 
+/** GUIDE-SCOPE-1: guides that summarise and LINK by design (an overview, the FAQ, the notice list) — not scope-checked */
+export const SCOPE_CHECK_EXEMPT: ReadonlyArray<ExamModuleKey> = ['EXAM_OVERVIEW', 'FAQ', 'NOTIFICATIONS'];
+
+/**
+ * GUIDE-SCOPE-1 (owner 2026-11-02): section headings of a guide that use a topic ANOTHER guide owns (its scopeKeywords)
+ * → one warning each, naming the owning guide. Warnings only: the author links there instead of repeating it; nothing
+ * is blocked and nothing is merged.
+ */
+export function scopeOverlapWarnings(moduleKey: ExamModuleKey, headings: readonly string[]): string[] {
+  if (SCOPE_CHECK_EXEMPT.includes(moduleKey)) return [];
+  const out: string[] = [];
+  for (const h of headings) {
+    const text = String(h || '').toLowerCase();
+    for (const def of Object.values(EXAM_MODULE_REGISTRY)) {
+      if (def.key === moduleKey) continue;
+      const hit = def.scopeKeywords.find((k) => text.includes(k));
+      if (hit) {
+        out.push(`SCOPE: section "${h}" covers "${hit}", which the guide "${def.displayName}" owns — link to that guide instead of repeating it.`);
+        break;
+      }
+    }
+  }
+  return out;
+}
+
 export class ExamModuleRegistry {
   /**
    * Retrieves definition for a module key.
@@ -428,6 +525,9 @@ export class ExamModuleRegistry {
         key,
         displayName: key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
         purpose: 'Authoritative examination intelligence module.',
+        covers: 'Authoritative examination information for this module only.',
+        mustNotRepeat: 'Anything another guide of this exam already covers — link to it instead.',
+        scopeKeywords: [],
         isCycleSpecific: false,
         requiresSources: true,
         allowedSectionTypes: ['SUMMARY', 'DETAILED_GUIDE', 'IMPORTANT_INSTRUCTIONS', 'FAQS'],

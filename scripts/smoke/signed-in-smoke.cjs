@@ -110,7 +110,7 @@ const REQUIRED = {
   '/admin/mock-tests': ['"Mock tests" heading (Studio)', H(/^Mock tests$/)],
   '/admin/questions/import': ['"Bulk import" heading (Studio, phase 3 batch 2)', H(/^Bulk import$/)],
   '/admin/master-tree': ['"Master tree" heading (CA-1)', H(/Master tree/)],
-  '/admin/exams': ['"Examination Management Hub" heading', H(/Examination Management Hub/)],
+  '/admin/exams': ['"Exams" heading (UX-IMP-1 plain label)', H(/^Exams$/)],
   '/admin/exams/knowledge': ['"Exam Knowledge Studio" heading', H(/Exam Knowledge Studio/)],
   '/admin/system/design': ['"Design system" heading', H(/^Design system$/)],
   '/admin/syllabus': ['"Syllabus" heading', H(/^Syllabus$/)],

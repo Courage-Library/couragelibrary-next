@@ -296,7 +296,8 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
     assert(['<img src="x" width="1" height="1" loading="lazy">'].filter((t) => !/ alt="[^"]{8,}"/.test(t)).length === 1, 'negative control');
     // phones: the hero copy + the five 390 step copies (lazy images near the viewport may load at once) ≤ 120 KB
     const M = JSON.parse(read('content/marketing-shots.json'));
-    const phone = ['hero', 'learn', 'practice', 'mock', 'analyze', 'revise'].reduce((t, k) => t + M[k].files['390'].bytes, 0);
+    // UX-IMP-1: the readable hero crop (220 px frame) takes the 480 px copy on 2x phones — count THAT file
+    const phone = M.hero.files['1280'].bytes + ['learn', 'practice', 'mock', 'analyze', 'revise'].reduce((t, k) => t + M[k].files['390'].bytes, 0);
     assert(phone <= 120 * 1024, `first-view images on phones ${(phone / 1024).toFixed(1)} KB > 120 KB`);
     return `${tags.length} images; phone image bytes ≤ ${(phone / 1024).toFixed(1)} KB`;
   });
@@ -441,11 +442,12 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
   await test('H-19 phone explore bar + reveal on scroll + consistency: hidden near the end, 48 px, reduced motion, scroll padding; one radius / shadow / icon scale; readable paragraphs', () => {
     const e = read('components/landing/landing-enhancements.tsx');
     assert(/md:hidden/.test(e) && /<Link href=\{cta\.href\} tabIndex=\{show \? undefined : -1\} className="focus-ring flex min-h-12 w-full/.test(e) && /motion-reduce:transition-none/.test(e) && /prefers-reduced-motion: reduce/.test(e) && /scrollPaddingBottom = show \? "88px"/.test(e) && /\[data-final-cta\]/.test(e) && /nav\[aria-label="Student"\]/.test(e) && /aria-hidden=\{show \? undefined : true\}/.test(e) && /tabIndex=\{show \? undefined : -1\}/.test(e), 'explore bar');
-    assert(/heroGone && !state\.current\.nearEnd/.test(e) && /el\.getBoundingClientRect\(\)\.top < window\.innerHeight\) el\.setAttribute\("data-revealed", ""\)/.test(e), 'bar logic + no flash for in-view sections');
-    // never hide what the script did not see: only data-reveal-pending is hidden; streamed sections are picked up
-    assert(/el\.setAttribute\("data-reveal-pending", ""\)/.test(e) && /new MutationObserver/.test(e) && /mo\.observe\(document\.body, \{ childList: true, subtree: true \}\)/.test(e), 'pending-only hiding + streamed sections');
+    assert(/heroGone && !state\.current\.nearEnd/.test(e) && /if \(el\.getBoundingClientRect\(\)\.top < window\.innerHeight\) return;/.test(e), 'bar logic + in-view sections untouched');
+    // UX-IMP-1 (owner): reveal = progressive enhancement — nothing is ever hidden; streamed sections are picked up
+    assert(/el\.setAttribute\("data-reveal-watch", ""\)/.test(e) && !/data-reveal-pending/.test(e) && /new MutationObserver/.test(e) && /mo\.observe\(document\.body, \{ childList: true, subtree: true \}\)/.test(e), 'watch-only (never hidden) + streamed sections');
     const css = read('app/globals.css');
-    assert(/html\.reveal-on \[data-reveal\] \{\s*transition: opacity 200ms ease-out, transform 200ms ease-out;/.test(css) && /html\.reveal-on \[data-reveal-pending\]:not\(\[data-revealed\]\) \{\s*opacity: 0;/.test(css) && !/\[data-reveal\]:not\(\[data-revealed\]\)/.test(css) && /@media \(prefers-reduced-motion: reduce\), print \{/.test(css), 'reveal CSS ≤ 200 ms; hides only pending; off with reduced motion / print');
+    const reveal = css.slice(css.indexOf('@keyframes reveal-rise'), css.indexOf('/* PERF-HOME-1: the cached public pages carry both link sets'));
+    assert(/@keyframes reveal-rise \{\s*from \{\s*transform: translateY\(12px\);\s*\}\s*to \{\s*transform: none;\s*\}\s*\}/.test(reveal) && /animation: reveal-rise 200ms ease-out both;/.test(reveal) && !/opacity|visibility|display:\s*none/.test(reveal) && !/data-reveal-pending/.test(css) && /@media \(prefers-reduced-motion: reduce\), print \{/.test(reveal), 'reveal CSS: transform only ≤ 200 ms, never hides (no opacity / visibility), off with reduced motion + print');
     const s = read(SECTIONS);
     const hero = s.slice(s.indexOf('export function LandingHero'), s.indexOf('export function LandingCategories'));
     assert(!/data-reveal/.test(hero) && (s.match(/data-reveal=""/g) || []).length === 6 && /<LandingEnhancements \/>/.test(read('app/(public)/page.tsx')), 'reveal: 6 sections, never the hero (LCP)');

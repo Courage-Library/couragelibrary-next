@@ -109,19 +109,21 @@ export function LandingHero({ liveCategories = [], hindi = null, signupOpen = fa
           <p className="text-body-sm text-hero-fg-muted">{LANDING_HERO.note}</p>
         </div>
         {mock && (
-          <div className="w-[120px] justify-self-start rounded-[22px] border-4 border-ink-950 bg-ink-950 shadow-e3 lg:w-[200px] lg:justify-self-end lg:rounded-[30px] lg:border-[6px]" data-hero-mockup="">
+          // UX-IMP-1 (IMPECCABLE-1 A-8): a READABLE crop of the real screen (top of the mock player) — a fixed frame
+          // (no layout shift), the 480 px copy on 2x phones, still lazy + low priority (the H1 stays the LCP)
+          <div className="h-[300px] w-[220px] justify-self-start overflow-hidden rounded-[22px] border-4 border-ink-950 bg-ink-950 shadow-e3 lg:h-[440px] lg:w-[260px] lg:justify-self-end lg:rounded-[30px] lg:border-[6px]" data-hero-mockup="">
             {/* eslint-disable-next-line @next/next/no-img-element -- pre-sized WebP copies in public/marketing; no client JS (P-07) */}
             <img
               src={mock.src}
               srcSet={mock.srcSet}
-              sizes="(min-width: 1024px) 200px, 120px"
+              sizes="(min-width: 1024px) 260px, 220px"
               alt={mock.alt}
               width={mock.width}
               height={mock.height}
               loading="lazy"
               decoding="async"
               fetchPriority="low"
-              className="h-auto w-full rounded-[18px] lg:rounded-[24px]"
+              className="h-full w-full rounded-[18px] object-cover object-top lg:rounded-[24px]"
               data-marketing-shot=""
             />
           </div>

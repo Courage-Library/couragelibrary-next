@@ -257,9 +257,9 @@ async function runTests() {
 
   // --- PART B: MANAGEMENT UX & DANGER ZONE TESTS ---
 
-  await test('MGMT-01', 'Manage Examination action appears in ExamManagementView card footer', async () => {
+  await test('MGMT-01', 'Manage exam action appears in ExamManagementView card footer (UX-IMP-1 plain label)', async () => {
     const viewSrc = fs.readFileSync(path.join(__dirname, '..', 'components', 'admin', 'exam-onboarding', 'exam-management-view.tsx'), 'utf-8');
-    assert(viewSrc.includes('Manage Examination'), 'ExamManagementView must contain "Manage Examination" action link');
+    assert(viewSrc.includes('Manage exam'), 'ExamManagementView must contain "Manage exam" action link');
     assert(viewSrc.includes('/admin/exams/onboarding?examId='), 'Manage action must link to exam onboarding/management route');
   });
 

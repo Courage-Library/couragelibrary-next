@@ -63,6 +63,7 @@ import {
   ExamSourceType,
   ExamDocVersionHistoryItem,
   ExamDocDiffResult,
+  EXAM_PROMPT_CONTRACT_VERSION,
 } from "@/types/exam-knowledge";
 import { generateExamKnowledgePromptAction } from "@/actions/exam-knowledge-prompt.actions";
 import { importExamKnowledgeAction } from "@/actions/exam-knowledge-import.actions";
@@ -149,7 +150,7 @@ export function ExamKnowledgeStudioView({
 
   // Authoring State
   const [generatedPrompt, setGeneratedPrompt] = useState<string | null>(null);
-  const [contractVersion, setContractVersion] = useState<string>("CL-EXAM-AUTHOR-v1.0");
+  const [contractVersion, setContractVersion] = useState<string>(EXAM_PROMPT_CONTRACT_VERSION);
   const [contextHash, setContextHash] = useState<string>("");
   const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
   const [promptError, setPromptError] = useState<string | null>(null);
@@ -531,7 +532,7 @@ export function ExamKnowledgeStudioView({
 
       if (res.success && res.data) {
         setGeneratedPrompt(res.data.promptText);
-        setContractVersion(res.data.promptContractVersion || "CL-EXAM-AUTHOR-v1.0");
+        setContractVersion(res.data.promptContractVersion || EXAM_PROMPT_CONTRACT_VERSION);
         setContextHash(res.data.contextHash || "");
       } else {
         setPromptError(actionErrorMessage(res, "Failed to generate prompt."));
@@ -571,7 +572,7 @@ export function ExamKnowledgeStudioView({
             cycleYear: selectedCycle?.year,
             moduleKey: selectedModuleKey,
             language: "en",
-            promptContractVersion: "CL-EXAM-AUTHOR-v1.0",
+            promptContractVersion: EXAM_PROMPT_CONTRACT_VERSION,
           },
           expectedContextHash: contextHash,
         }, cleaned);
@@ -609,7 +610,7 @@ export function ExamKnowledgeStudioView({
           cycleYear: selectedCycle?.year,
           moduleKey: selectedModuleKey,
           language: "en",
-          promptContractVersion: "CL-EXAM-AUTHOR-v1.0",
+          promptContractVersion: EXAM_PROMPT_CONTRACT_VERSION,
         },
         expectedContextHash: contextHash,
         externalAiTool: "MANUAL_IMPORT",
@@ -1213,7 +1214,7 @@ export function ExamKnowledgeStudioView({
                         AI Prompt & Import Assistant (Updates Draft in Place)
                       </h3>
                     </div>
-                    <Badge variant="indigo" className="text-[10px] font-mono">CL-EXAM-AUTHOR-v1.0</Badge>
+                    <Badge variant="indigo" className="text-[10px] font-mono">{EXAM_PROMPT_CONTRACT_VERSION}</Badge>
                   </div>
 
                   <p className="text-xs text-purple-900 leading-relaxed">
@@ -1312,7 +1313,7 @@ export function ExamKnowledgeStudioView({
                           Document Metadata
                         </h3>
                       </div>
-                      <span className="text-[11px] font-mono text-slate-600">Schema: CL-EXAM-AUTHOR-v1.0</span>
+                      <span className="text-[11px] font-mono text-slate-600">Schema: {EXAM_PROMPT_CONTRACT_VERSION}</span>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1704,7 +1705,7 @@ export function ExamKnowledgeStudioView({
                     <Sparkles className="w-4 h-4 text-blue-600" />
                     <h2 className="text-xs font-bold text-slate-900 uppercase font-mono tracking-wider">Authoring Target & Parameters</h2>
                   </div>
-                  <Badge variant="indigo" className="text-[10px] font-mono">CL-EXAM-AUTHOR-v1.0</Badge>
+                  <Badge variant="indigo" className="text-[10px] font-mono">{EXAM_PROMPT_CONTRACT_VERSION}</Badge>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>

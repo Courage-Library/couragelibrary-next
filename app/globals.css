@@ -561,22 +561,23 @@
     background: radial-gradient(closest-side, transparent 62%, color-mix(in srgb, var(--color-accent-300) 14%, transparent) 63%, transparent 66%),
       radial-gradient(closest-side, transparent 80%, color-mix(in srgb, var(--color-hero-fg) 7%, transparent) 81%, transparent 84%);
   }
-  /* HOME-1 expert UX pass: reveal on scroll (components/landing/landing-enhancements.tsx). Only an element the script
-     marked data-reveal-pending (below the fold, observed) is hidden until it enters the viewport — an element it never
-     saw is always visible. ≤ 200 ms, opacity + transform only (no layout shift). Off for reduced motion and print. */
-  html.reveal-on [data-reveal] {
-    transition: opacity 200ms ease-out, transform 200ms ease-out;
+  /* HOME-1 reveal on scroll — UX-IMP-1 progressive enhancement (components/landing/landing-enhancements.tsx): NOTHING
+     is hidden, ever (no opacity rule). A section the script watched rises 12 px → 0 in 200 ms when it enters the
+     viewport; transform only (no layout shift). No motion with reduced motion or in print. */
+  @keyframes reveal-rise {
+    from {
+      transform: translateY(12px);
+    }
+    to {
+      transform: none;
+    }
   }
-  html.reveal-on [data-reveal-pending]:not([data-revealed]) {
-    opacity: 0;
-    transform: translateY(12px);
+  html.reveal-on [data-reveal-watch][data-revealed] {
+    animation: reveal-rise 200ms ease-out both;
   }
   @media (prefers-reduced-motion: reduce), print {
-    html.reveal-on [data-reveal],
-    html.reveal-on [data-reveal-pending] {
-      transition: none;
-      opacity: 1;
-      transform: none;
+    html.reveal-on [data-reveal-watch][data-revealed] {
+      animation: none;
     }
   }
   /* PERF-HOME-1: the cached public pages carry both link sets; <html data-auth="in"> (lib/ui/auth-hint.ts) picks one */

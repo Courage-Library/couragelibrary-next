@@ -46,6 +46,21 @@ export type MockListItem = {
   totalMarks: number | null;
   isFree: boolean;
 };
+/**
+ * UX-IMP-1 (owner): the mock list order — free first, then by type (full-length → sectional → other), then by title
+ * (natural: "Mock 2" before "Mock 10"), then by id. Total and stable: the same mocks always list in the same order.
+ */
+export function orderMocks(mocks: readonly MockListItem[]): MockListItem[] {
+  const typeRank = (t: string | null) => (t === "full_length" ? 0 : t === "sectional" ? 1 : 2);
+  return [...mocks].sort(
+    (a, b) =>
+      Number(b.isFree) - Number(a.isFree) ||
+      typeRank(a.testType) - typeRank(b.testType) ||
+      a.title.localeCompare(b.title, "en", { numeric: true, sensitivity: "base" }) ||
+      (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+  );
+}
+
 export type MockAttemptRow = {
   id: string;
   mockTestId: string;
@@ -160,15 +175,29 @@ const GROUPS: Array<{ key: keyof typeof C.guides.groups; modules: ExamModuleKey[
 ];
 export const GROUPED_MODULE_KEYS: ExamModuleKey[] = GROUPS.flatMap((g) => g.modules);
 
-export type GuideGroup = { title: string; guides: Array<{ key: ExamModuleKey; title: string; href: string; asOf: string | null }> };
+export type GuideGroup = { title: string; asOf: string | null; guides: Array<{ key: ExamModuleKey; title: string; href: string; asOf: string | null }> };
+
+/**
+ * UX-IMP-1 (owner): ONE "as of" line per group = the OLDEST verified date in the group (conservative: every guide in the
+ * group is at least that current; never a fresher claim than the oldest guide). Non-ISO dates count only when all of the
+ * group's dates are the same text.
+ */
+export function groupAsOf(raw: ReadonlyArray<string | null>): string | null {
+  const dates = raw.filter((d): d is string => Boolean(d));
+  if (dates.length === 0) return null;
+  const iso = dates.filter((d) => /^\d{4}-\d{2}-\d{2}/.test(d)).sort();
+  if (iso.length) return C.guides.asOf(formatDateShort(iso[0]));
+  return dates.every((d) => d === dates[0]) ? C.guides.asOf(dates[0]) : null;
+}
 
 /** Published guides (with compiled content) in fixed groups; empty groups are dropped. */
 export function guideGroups(modules: Partial<Record<ExamModuleKey, CandidatePublishedModule | null>>, examSlug: string, displayName: (k: ExamModuleKey) => string): GuideGroup[] {
-  return GROUPS.map((g) => ({
-    title: C.guides.groups[g.key],
-    guides: g.modules
-      .filter((k) => Boolean(modules[k]?.compiledMdx))
-      .map((k) => {
+  return GROUPS.map((g) => {
+    const keys = g.modules.filter((k) => Boolean(modules[k]?.compiledMdx));
+    return {
+      title: C.guides.groups[g.key],
+      asOf: groupAsOf(keys.map((k) => modules[k]?.lastVerifiedDate ?? null)),
+      guides: keys.map((k) => {
         const asOf = modules[k]?.lastVerifiedDate ?? null;
         return {
           key: k,
@@ -177,7 +206,8 @@ export function guideGroups(modules: Partial<Record<ExamModuleKey, CandidatePubl
           asOf: asOf ? C.guides.asOf(/^\d{4}-\d{2}-\d{2}/.test(asOf) ? formatDateShort(asOf) : asOf) : null,
         };
       }),
-  })).filter((g) => g.guides.length > 0);
+    };
+  }).filter((g) => g.guides.length > 0);
 }
 
 // ---------------------------------------------------------------- Content language (#82)

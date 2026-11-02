@@ -4,6 +4,7 @@
  * (CardLink, ≥ 48 px), no glass in content, English UI (#82), every number from the database, honest empty states.
  */
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { ArrowRight, BookOpen, CalendarDays, ClipboardList, ExternalLink, FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
@@ -221,23 +222,29 @@ export function ExamGuides({ groups, sources }: { groups: GuideGroup[]; sources:
       {groups.length === 0 ? (
         <EmptyState icon={<FileText />} title={C.guides.empty} />
       ) : (
-        groups.map((g) => (
-          <section key={g.title} aria-label={g.title} className="flex flex-col gap-3">
-            <h3 className="text-h3 font-semibold text-fg">{g.title}</h3>
-            <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {g.guides.map((guide) => (
-                <li key={guide.key} className="flex">
-                  <Card variant="interactive" padding="sm" className="min-h-12 w-full" data-guide-card="">
-                    <CardTitle as="h4" className="text-body font-semibold">
-                      <CardLink href={guide.href}>{guide.title}</CardLink>
-                    </CardTitle>
-                    {guide.asOf && <CardDescription>{guide.asOf}</CardDescription>}
-                  </Card>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))
+        // UX-IMP-1 (owner): a grouped list — one panel per group, plain 48 px link rows, ONE "as of" line per group
+        <div className="grid gap-4 md:grid-cols-2">
+          {groups.map((g) => (
+            <section key={g.title} aria-label={g.title} className="flex flex-col rounded-card border border-line bg-surface p-4" data-guide-group="">
+              <h3 className="text-h3 font-semibold text-fg">{g.title}</h3>
+              <ul className="mt-1 flex flex-col divide-y divide-line">
+                {g.guides.map((guide) => (
+                  <li key={guide.key}>
+                    <Link href={guide.href} className="focus-ring flex min-h-12 items-center justify-between gap-3 py-2 text-body font-medium text-link underline-offset-4 hover:underline" data-guide-card="">
+                      <span>{guide.title}</span>
+                      <ArrowRight aria-hidden="true" className="size-4 shrink-0" />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              {g.asOf && (
+                <p className="mt-2 text-body-sm text-fg-secondary" data-guide-group-asof="">
+                  {g.asOf}
+                </p>
+              )}
+            </section>
+          ))}
+        </div>
       )}
       {sources.length > 0 && (
         <section aria-label={C.guides.sources} className="flex flex-col gap-2">

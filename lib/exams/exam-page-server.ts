@@ -10,9 +10,9 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getSessionState } from "@/lib/auth/session-state";
 import { calculateRevisionDueState } from "@/services/mistake.service";
 import { AssessmentService } from "@/services/assessment.service";
-import { contentLanguage, mockStatuses, type ContentLanguage, type MockAttemptRow, type MockListItem, type MockStatus } from "@/lib/exams/exam-page";
+import { contentLanguage, mockStatuses, orderMocks, type ContentLanguage, type MockAttemptRow, type MockListItem, type MockStatus } from "@/lib/exams/exam-page";
 
-/** Published mocks of the exam (day-window daily tests excluded), full-length first. Public data. */
+/** Published mocks of the exam (day-window daily tests excluded), in the orderMocks order. Public data. */
 export const examMocks = cache(async (examId: string): Promise<MockListItem[]> => {
   try {
     const supabase = await createServerSupabaseClient();
@@ -38,8 +38,7 @@ export const examMocks = cache(async (examId: string): Promise<MockListItem[]> =
         };
       })
       .filter((m) => m.testType !== "daily_sectional");
-    const rank = (t: string | null) => (t === "full_length" ? 0 : 1);
-    return rows.sort((a, b) => rank(a.testType) - rank(b.testType));
+    return orderMocks(rows); // UX-IMP-1: free first, full-length → sectional, then title, then id (stable)
   } catch {
     return [];
   }
