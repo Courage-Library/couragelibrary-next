@@ -18,6 +18,10 @@
  *   P-6b (SEC-SITE-MEDIA-1, owner ruling 2026-11-02): every PUBLIC_REFERENCE table (blanket public read by design) has
  *       NO personal column (e-mail / phone / names / user or actor ids / *_by / owner / author / IP / address / birth
  *       date) — an allow-listed table can never publish personal data; negative control on a fixture
+ *   P-6c (SEC-PII-SWEEP-2, owner ruling 2026-11-02) REAL ROLE: anon reads NO user id anywhere in public — every column
+ *       named like a user / actor id (user_id, *_user_id, author_id, created_by, reviewed_by, published_by, …) returns
+ *       no non-null value to SET ROLE anon (a missing grant counts as safe); the legacy mock_tests policy is gone;
+ *       negative control: a fixture table with an anon-granted author_id, created inside the rolled-back transaction, fires
  *   P-7 SEC-HOTFIX-5 (077): leaderboard_weekly_snapshots / user_battle_stats are own-rows-only for students,
  *       anon cannot read the leaderboard; behaviour probed with two real users inside a rolled-back transaction
  *   P-8 GAP2-4a syllabus: no direct writes for students / staff (grants), anon cannot EXECUTE write RPCs, students are
@@ -68,6 +72,8 @@ const PERSONAL_COLUMN = /(e_?mail|phone|mobile|whatsapp|full_?name|first_?name|l
 function personalColumns(cols) {
   return cols.filter((r) => PUBLIC_REFERENCE.has(r.t) && PERSONAL_COLUMN.test(r.c)).map((r) => `${r.t}.${r.c}`);
 }
+// P-6c: user / actor id columns (a person's id) — never readable by anon (SEC-PII-SWEEP-2)
+const USER_ID_COLUMN = /^(user_id|student_id|profile_id|owner_id|author_id|actor_id|created_for_user_id|.*_user_id|.*_by|.*_by_id)$/i;
 // P-6: per-user rows behind a blanket read policy, tolerated only until an architect ruling. Empty since
 // SEC-HOTFIX-5 (077): leaderboard_weekly_snapshots and user_battle_stats are own-rows-only.
 const PENDING_RULING = new Set([]);
@@ -262,6 +268,42 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assertion failed'); };
       const bad = personalColumns(rows);
       assert(bad.length === 0, `personal columns on allow-listed public tables: ${bad.join(', ')}`);
       return `${present.size} allow-listed tables, ${rows.length} columns, none personal`;
+    });
+
+    await test('P-6c REAL ROLE: anon reads no user / actor id in public (non-null values); legacy mock_tests policy gone; negative control', async () => {
+      const exposed = [];
+      let control = null;
+      await safeBegin(c);
+      try {
+        // negative control first: a table that DOES expose a person's id to anon must be caught by the same probe
+        await q(`CREATE TABLE public.zz_p6c_fixture (id int, author_id uuid)`);
+        await q(`INSERT INTO public.zz_p6c_fixture VALUES (1, gen_random_uuid())`);
+        await q(`GRANT SELECT ON public.zz_p6c_fixture TO anon`);
+        const cols = (await q(`SELECT c.table_name t, c.column_name col FROM information_schema.columns c
+                                 JOIN pg_class k ON k.relname = c.table_name JOIN pg_namespace n ON n.oid = k.relnamespace AND n.nspname = 'public'
+                                WHERE c.table_schema = 'public' AND k.relkind IN ('r', 'v', 'm', 'p') ORDER BY 1, 2`)).rows
+          .filter((r) => USER_ID_COLUMN.test(r.col));
+        assert(cols.some((r) => r.t === 'zz_p6c_fixture'), 'fixture not scanned');
+        for (const { t, col } of cols) {
+          await q('SAVEPOINT p6c');
+          try {
+            await as({}, 'anon');
+            const n = Number((await q(`SELECT count(*) n FROM (SELECT "${col}" FROM public."${t}" WHERE "${col}" IS NOT NULL LIMIT 1) x`)).rows[0].n);
+            if (t === 'zz_p6c_fixture') control = n; else if (n > 0) exposed.push(`${t}.${col}`);
+          } catch (e) {
+            if (e.code !== '42501') exposed.push(`${t}.${col}: probe error ${e.code}`); // 42501 = no grant → safe
+          }
+          await q('ROLLBACK TO SAVEPOINT p6c');
+          await q('RESET ROLE');
+        }
+        const legacy = (await q(`SELECT count(*)::int n FROM pg_policies WHERE schemaname = 'public' AND tablename = 'mock_tests' AND policyname = 'Public read published mock_tests'`)).rows[0].n;
+        if (legacy) exposed.push('mock_tests: legacy policy "Public read published mock_tests" present');
+        assert(control === 1, `negative control not caught (fixture count ${control})`);
+        assert(exposed.length === 0, `anon reads user ids: ${exposed.join(', ')}`);
+        return `${cols.length - 1} user-id columns probed as anon: none readable; negative control caught`;
+      } finally {
+        await q('ROLLBACK');
+      }
     });
 
     await test('P-7 per-user stats (SEC-HOTFIX-5): own rows only for students, no anon read, no blanket policy', async () => {

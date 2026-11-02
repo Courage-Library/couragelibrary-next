@@ -138,18 +138,19 @@ export class ExamKnowledgeCandidateService {
           .eq('is_active', true),
         client
           .from('exam_sources')
-          .select('*')
+          // SEC-PII-SWEEP-2: explicit display columns (staff ids such as verified_by_user_id are not granted to anon)
+          .select('id, title, source_type, issuing_authority, source_url, published_date')
           .eq('exam_id', examRecord.id)
           .eq('verification_status', 'SOURCE_VERIFIED')
           .order('published_date', { ascending: false }),
         client
           .from('exam_claims')
-          .select('*, claim_sources:exam_claim_sources(source:exam_sources(*))')
+          .select('*, claim_sources:exam_claim_sources(source:exam_sources(title))')
           .eq('exam_id', examRecord.id)
           .eq('verification_status', 'VERIFIED'),
         client
           .from('exam_knowledge_documents')
-          .select('*, current_published_version:exam_doc_versions!current_published_version_id(*)')
+          .select('*, current_published_version:exam_doc_versions!current_published_version_id(id, compiled_mdx, is_published, published_at, review_status, structured_payload)')
           .eq('exam_id', examRecord.id)
           .eq('language', language)
           .eq('status', 'PUBLISHED'),

@@ -227,7 +227,8 @@ export function DiscussionThreadClient({ detail, coursesEnabled = false }: Discu
               >
                 <div className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2 font-mono text-slate-500">
-                    <span className="font-bold text-slate-800">Author: {m.authorId.slice(0, 8)}...</span>
+                    {/* SEC-PII-SWEEP-2: never a user id on screen */}
+                    <span className="font-bold text-slate-800">Member</span>
                     <span>• {new Date(m.createdAt).toLocaleString()}</span>
                   </div>
 

@@ -14,7 +14,8 @@ export interface DiscussionThreadItem {
   viewCount: number;
   lastActivityAt: string;
   createdAt: string;
-  authorId: string;
+  /** SEC-PII-SWEEP-2: never read for anonymous visitors (the column is not granted to anon); null then */
+  authorId: string | null;
   authorEmail?: string;
   topicName?: string | null;
   topicId?: string | null;
@@ -23,7 +24,7 @@ export interface DiscussionThreadItem {
 export interface DiscussionMessageItem {
   id: string;
   threadId: string;
-  authorId: string;
+  authorId: string | null;
   parentMessageId: string | null;
   contentMarkdown: string;
   isFacultyVerified: boolean;
@@ -53,7 +54,7 @@ export class CommunityService {
 
     let query = supabase
       .from("discussion_threads")
-      .select("id, context_type, title, status, is_pinned, accepted_answer_id, has_faculty_answer, message_count, upvote_count, view_count, last_activity_at, created_at, author_id, topic_id, topics:canonical_taxonomy_nodes!discussion_threads_topic_id_node_fkey(name)")
+      .select("id, context_type, title, status, is_pinned, accepted_answer_id, has_faculty_answer, message_count, upvote_count, view_count, last_activity_at, created_at, topic_id, topics:canonical_taxonomy_nodes!discussion_threads_topic_id_node_fkey(name)") // SEC-PII-SWEEP-2: no author_id in the list
       .order("is_pinned", { ascending: false })
       .order("last_activity_at", { ascending: false });
 
@@ -83,7 +84,7 @@ export class CommunityService {
       viewCount: t.view_count,
       lastActivityAt: t.last_activity_at,
       createdAt: t.created_at,
-      authorId: t.author_id,
+      authorId: null,
       topicName: t.topics?.name || null,
       topicId: t.topic_id || null,
     }));
@@ -100,7 +101,10 @@ export class CommunityService {
       .from("discussion_threads")
       // TYPES-1 B2 (Class B): two relationships link threads and messages (messages.thread_id and threads.accepted_answer_id);
       // the unhinted embed failed with PGRST201, so every thread detail rendered not-found. Embed via the thread FK.
-      .select("*, topics:canonical_taxonomy_nodes!discussion_threads_topic_id_node_fkey(name), discussion_messages!discussion_messages_thread_id_fkey(*)")
+      // SEC-PII-SWEEP-2: explicit columns; the author ids only for a signed-in reader (anon holds no grant on them)
+      .select(
+        `id, context_type, title, status, is_pinned, accepted_answer_id, has_faculty_answer, message_count, upvote_count, view_count, last_activity_at, created_at, topic_id${user ? ", author_id" : ""}, topics:canonical_taxonomy_nodes!discussion_threads_topic_id_node_fkey(name), discussion_messages!discussion_messages_thread_id_fkey(id, thread_id, parent_message_id, content_markdown, is_faculty_verified, upvote_count, is_deleted, created_at${user ? ", author_id" : ""})`,
+      )
       .eq("id", threadId)
       .maybeSingle();
 
@@ -126,7 +130,7 @@ export class CommunityService {
       .map((m) => ({
         id: m.id,
         threadId: m.thread_id,
-        authorId: m.author_id,
+        authorId: m.author_id ?? null,
         parentMessageId: m.parent_message_id,
         contentMarkdown: m.content_markdown,
         isFacultyVerified: m.is_faculty_verified,
@@ -150,7 +154,7 @@ export class CommunityService {
         viewCount: t.view_count,
         lastActivityAt: t.last_activity_at,
         createdAt: t.created_at,
-        authorId: t.author_id,
+        authorId: t.author_id ?? null,
         topicName: t.topics?.name || null,
         topicId: t.topic_id || null,
       },
