@@ -24,6 +24,7 @@
 // throws on Node < 22 ("Node.js 20 detected without native WebSocket support"). CI runs Node 20, so every gate that
 // signed in through this helper crashed (Q-01, fixtures, smokes, SEC1C / SEC1D cookies…). Scripts never use Realtime:
 // the same inert stand-in as scripts/e2e/_e2e-env.cjs, installed only when no WebSocket exists (never replaces one).
+require('../db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 if (typeof globalThis.WebSocket === 'undefined') globalThis.WebSocket = class DummyWebSocket {};
 
 const QA_IDENTITIES = Object.freeze(['qa-student@courage-library.test', 'qa-staff@courage-library.test', 'qa-admin@courage-library.test']);

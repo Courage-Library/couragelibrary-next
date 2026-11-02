@@ -13,6 +13,7 @@
  * results), the mistake occurrences of those answers and the vault rows they point to. Everything else is deleted
  * as before, and the "nothing left" check then allows exactly those fixture rows. Default behaviour is unchanged.
  */
+require('../db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const { safeBegin } = require('../db/live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
 const { Client } = require('pg');
 const { assertDeletable, isPermanentIdentity, guardedDeleteUser } = require('../qa/qa-identity-guard.cjs');

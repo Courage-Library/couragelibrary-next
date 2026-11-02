@@ -11,6 +11,7 @@
  * A column is EXPOSED when anon can read any value, or when the student can read values that are not their own.
  * Run: node scripts/live/sweep_personal_columns.cjs [--json]
  */
+require('../db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const path = require('path');
 const ROOT = path.resolve(__dirname, '..', '..');
 const { Client } = require('pg');

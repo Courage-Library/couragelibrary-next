@@ -3,6 +3,7 @@
  * Comprehensive deep forensic examination of the 10 published learning documents.
  */
 
+require('./db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 global.WebSocket = class WebSocket {};
 
 const fs = require('fs');

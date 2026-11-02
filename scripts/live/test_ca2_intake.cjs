@@ -12,6 +12,7 @@
  *         C tiers + merge into a re-pointed DRAFT + move / merge roll-up guards · Z nothing left.
  * Run: node scripts/live/test_ca2_intake.cjs [--pre]
  */
+require('../db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const fs = require('fs');
 const path = require('path');
 const Module = require('module');

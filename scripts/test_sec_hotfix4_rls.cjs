@@ -41,6 +41,7 @@
  *
  * Run: node scripts/test_sec_hotfix4_rls.cjs
  */
+require('./db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const { safeBegin } = require('./db/live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
 const crypto = require('crypto');
 const { Client } = require('pg');

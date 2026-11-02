@@ -14,6 +14,7 @@
  *   Q-13 (CI-LEAN-1 root cause) supabase-js clients construct on Node < 22 once the helper is loaded (WebSocket stand-in)
  *   Q-14 (CI-LEAN-1) scripts that use the helper never sign out (any scope revokes the shared job session on the server)
  */
+require('./db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');

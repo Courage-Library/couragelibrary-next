@@ -3,6 +3,7 @@
  * Forensic Inventory Audit, Quality Assessment, Bounded Multi-Batch Ingestion & Candidate Isolation
  */
 
+require('./db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const fs = require('fs');
 const path = require('path');
 const dns = require('dns');

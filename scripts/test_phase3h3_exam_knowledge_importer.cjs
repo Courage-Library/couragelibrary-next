@@ -11,6 +11,7 @@
  * - GROUP 6: Draft Creation, Immutability, Idempotency & Database Safety (I38 - I46)
  */
 
+require('./db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');

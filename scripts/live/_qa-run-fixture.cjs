@@ -13,6 +13,7 @@
  *     qa-fixture-run-* slug — and writes one QA_FIXTURE_SWEEP audit row; returns the deleted ids. Never a non-QA row.
  * CLI: node scripts/live/_qa-run-fixture.cjs --sweep [--dry-run]   (LIVE-LOCK-SAFETY: safeBegin; --dry-run rolls back)
  */
+require('../db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const path = require('path');
 const ROOT = path.resolve(__dirname, '..', '..');
 const { safeBegin } = require(path.join(ROOT, 'scripts/db/live-safety.cjs'));

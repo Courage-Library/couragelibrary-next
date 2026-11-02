@@ -9,6 +9,7 @@
  * RETIRED, audited, the same through the real RPCs an admin uses · C subject type REASONING (SUBJECT only) · Z nothing left.
  * Run: node scripts/live/test_lesson_prompt_2.cjs [--pre]
  */
+require('../db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');

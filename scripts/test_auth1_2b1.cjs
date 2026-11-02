@@ -33,6 +33,7 @@
  * AUTH-1 2b-2: every action call also passes a Turnstile test token, so this suite must pass 17/17 with the CAPTCHA flag
  * off (token ignored) AND on (AUTH_CAPTCHA_ENABLED=true + a site key in the environment) — scripts/test_auth1_2b2.cjs runs both.
  */
+require('./db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');

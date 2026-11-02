@@ -11,6 +11,7 @@
  * Reductions (revoked grants, dropped functions) pass and are listed as NOTE so the baseline can be tightened.
  * Run: node scripts/test_secdef_ratchet.cjs
  */
+require('./db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const { safeBegin } = require('./db/live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
 const fs = require('fs');
 const path = require('path');

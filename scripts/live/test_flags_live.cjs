@@ -15,6 +15,7 @@
  *   FL-6 pages (flag-gated GETs): /memory-lock, /settings/profile, /help/tickets render for the QA student
  * Run: node scripts/live/test_flags_live.cjs [baseUrl]
  */
+require('../db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const { safeBegin } = require('../db/live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
 const crypto = require('crypto');
 const path = require('path');

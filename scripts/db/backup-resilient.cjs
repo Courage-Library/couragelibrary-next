@@ -25,6 +25,7 @@
  * Usage: node scripts/db/backup.cjs <label> --resilient     (or: node scripts/db/backup-resilient.cjs <label>)
  *        node scripts/db/backup-resilient.cjs --restore-test <backup-dir>   (one small table into a temp schema, rolled back)
  */
+require('./safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const { safeBegin } = require('./live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
 const fs = require('fs');
 const path = require('path');

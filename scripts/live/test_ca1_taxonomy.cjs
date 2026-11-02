@@ -11,6 +11,7 @@
  * slugs, subject type / state code, sibling names) · D aliases · E move · F merge (re-point, fail-closed) · Z nothing left.
  * Run: node scripts/live/test_ca1_taxonomy.cjs [--pre]
  */
+require('../db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const fs = require('fs');
 const path = require('path');
 const ts = require('typescript');

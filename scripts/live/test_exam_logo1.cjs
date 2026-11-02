@@ -20,6 +20,7 @@
  *   Z nothing persisted: 0 fixture bodies / exams, 0 audit rows by the gate actor
  * Run: node scripts/live/test_exam_logo1.cjs [--pre]
  */
+require('../db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');

@@ -12,6 +12,7 @@
  *   D2-L2 the old path is broken by design: auth.admin.listUsers with the anon (cookie) key is refused
  * Run: node scripts/live/test_admin_d1_d2.cjs
  */
+require('../db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const path = require('path');
 const ROOT = path.resolve(__dirname, '..', '..');
 if (typeof globalThis.WebSocket === 'undefined') globalThis.WebSocket = class DummyWebSocket {};

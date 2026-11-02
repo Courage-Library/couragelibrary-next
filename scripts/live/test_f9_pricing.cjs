@@ -10,6 +10,7 @@
  * the client-verify + webhook race (one fulfilment) and Z-1 (nothing left behind).
  * Run: node scripts/live/test_f9_pricing.cjs
  */
+require('../db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const path = require('path');
 const ROOT = path.resolve(__dirname, '..', '..');
 const { Client } = require('pg');

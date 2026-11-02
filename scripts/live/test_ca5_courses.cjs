@@ -10,6 +10,7 @@
  * (anon = service) · C progress: own rows only, auth.uid(), COMPLETED never downgraded, no direct writes · Z nothing left.
  * Run: node scripts/live/test_ca5_courses.cjs [--pre]
  */
+require('../db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const fs = require('fs');
 const path = require('path');
 const Module = require('module');

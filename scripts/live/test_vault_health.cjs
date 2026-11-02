@@ -9,6 +9,7 @@
  * LIVE-LOCK-SAFETY: one READ ONLY transaction with lock / statement / idle timeouts (scripts/db/live-safety.cjs).
  * Run: node scripts/live/test_vault_health.cjs [--n=25]
  */
+require('../db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const path = require('path');
 const ROOT = path.resolve(__dirname, '..', '..');
 const { Client } = require('pg');

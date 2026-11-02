@@ -6,6 +6,7 @@
  *   --dry-run   list what would be created; write nothing (the first run of a new writer is non-writing)
  * Run: node scripts/content/logo-variants-backfill.cjs [--dry-run]
  */
+require('../db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const path = require('path');
 const ROOT = path.resolve(__dirname, '..', '..');
 const sharp = require('sharp');

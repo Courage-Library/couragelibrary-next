@@ -22,6 +22,7 @@
  * rolls back and (if the ledger exists) a FAILED row is recorded in a separate transaction.
  * Prints no secrets.
  */
+require('./safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');

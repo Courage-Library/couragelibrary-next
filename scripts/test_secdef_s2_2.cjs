@@ -14,6 +14,7 @@
  *   S-6  allow-list matches: scripts/secdef/allowlist.json records client [] for all 33
  * DB access: verified TLS, transactions always rolled back. PostgREST: anon key / qa-student session. Prints names only.
  */
+require('./db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const { safeBegin } = require('./db/live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
 const fs = require('fs');
 const path = require('path');

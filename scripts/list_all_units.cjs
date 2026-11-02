@@ -1,4 +1,5 @@
 
+require('./db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 global.WebSocket = class WebSocket {};
 const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');

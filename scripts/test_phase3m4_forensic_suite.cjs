@@ -5,6 +5,7 @@
  * Authoritative verification across all 16 technical gates.
  */
 
+require('./db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const fs = require('fs');
 const path = require('path');
 const { Client } = require('pg');

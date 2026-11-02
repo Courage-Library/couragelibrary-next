@@ -6,6 +6,7 @@
  *   --fail-on-own-open  exit 1 if any such session is older than 30 s (a leftover from a suite), so the run fails loudly
  * Verified TLS via scripts/db/_db-env.cjs (PROD_CA_PATH); bounded (connect + one query, 60 s total).
  */
+require('../db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const { Client } = require('pg');
 const { dbTarget } = require('../db/_db-env.cjs');
 

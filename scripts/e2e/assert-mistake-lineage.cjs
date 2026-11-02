@@ -8,6 +8,7 @@
  * aborts, so a partial result always names the failing assertion (architect ruling, GAP2-4a).
  * Usage: node scripts/e2e/assert-mistake-lineage.cjs
  */
+require('../db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const { safeBegin } = require('../db/live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
 const fs = require('fs');
 const path = require('path');

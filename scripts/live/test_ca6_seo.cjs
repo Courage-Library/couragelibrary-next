@@ -15,6 +15,7 @@
  *        /learn paths are 404; a node whose lesson is NOT published is never served as a lesson
  * Run: node scripts/live/with-server.cjs -- "node scripts/live/test_ca6_seo.cjs --base=http://localhost:3100"
  */
+require('../db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const fs = require('fs');
 const path = require('path');
 const ROOT = path.resolve(__dirname, '..', '..');

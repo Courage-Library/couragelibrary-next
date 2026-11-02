@@ -15,6 +15,7 @@
  * 10. Non-destructive Cleanup & Post-Test Baseline Invariant Preservation
  */
 
+require('./db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const { Client } = require("pg");
 const fs = require("fs");
 const path = require("path");

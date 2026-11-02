@@ -5,6 +5,7 @@
  * CA6-SEC-01 to CA6-SEC-10, CA6-E2E-01 to CA6-E2E-15, Regressions & Baseline Audit.
  */
 
+require('./db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const fs = require('fs');
 const path = require('path');
 const dns = require('dns');

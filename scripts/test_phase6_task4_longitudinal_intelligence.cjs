@@ -19,6 +19,7 @@
  * - Group 14: Frozen Baseline Invariants & Zero-Mutation Read-Only Proof (T127 - T144)
  */
 
+require('./db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const fs = require('fs');
 const path = require('path');
 const ts = require('typescript');

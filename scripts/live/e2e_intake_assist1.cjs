@@ -15,6 +15,7 @@
  *     (audit is append-only)
  * Run: node scripts/live/with-server.cjs -- "node scripts/live/e2e_intake_assist1.cjs"
  */
+require('../db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const fs = require('fs');
 const path = require('path');
 const Module = require('module');

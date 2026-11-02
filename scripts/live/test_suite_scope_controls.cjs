@@ -12,6 +12,7 @@
  *   C-5 a different actor creates a syllabus version on a non-QA exam (an intake)          → HOLDS
  * Run: node scripts/live/test_suite_scope_controls.cjs
  */
+require('../db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const path = require('path');
 const ROOT = path.resolve(__dirname, '..', '..');
 const { Client } = require('pg');

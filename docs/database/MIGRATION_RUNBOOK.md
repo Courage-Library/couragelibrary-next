@@ -190,6 +190,21 @@ Commit the regenerated `types/database.ts` **in the same commit as the migration
 8. Types: `npm run db:types` + `npm run db:types:check` + `npx tsc --noEmit -p .`.
 9. The full offline list (new files staged first) → commit → push → CI green → report.
 
+## Script output masking (SAFE-NET)
+
+Owner ruling 2026-11-02: no script may print an IP address, a database / Supabase host, the project ref, a real e-mail,
+a JWT or a key — not in a terminal, a CI log or a captured file, and not in an error.
+
+- Every script under `scripts/` that connects (imports `pg`, `@supabase/supabase-js` or `@supabase/ssr`) requires
+  `scripts/db/safe-net.cjs` **first**. Requiring it installs masking on stdout / stderr and masked crash handlers for the
+  whole process; it also exports `mask()`, `pgClient()` and `supabaseAdmin()`.
+- Gate `SAFE-NET` (`scripts/test_safe_net.cjs`, offline list) fails any tracked script that connects without it, or
+  requires it only after the connection import; `--self-test` holds the negative controls.
+- Fake test domains (`@courage-library.test`, `example.*`, `*.invalid`) stay readable; everything else is `[email]`.
+- Ad-hoc scripts (scratch/, scratchpad) follow the same rule: require the wrapper, or pipe output through `mask()`.
+- Before any DB write: a TLS check against GitHub, Vercel and Supabase must show the public roots (no
+  `SELF_SIGNED_CERT_IN_CHAIN`); if interception appears, stop before the write and report.
+
 ## Restore
 
 **Classic dump:** see `docs/reports/qf1/QF1B_DEV_DB_VERIFICATION_REPORT.md` §10 for the `pg_restore` command template. Pass the connection only through `PG*` environment variables, with `PGSSLMODE=verify-full` and `PGSSLROOTCERT=<CA path>`.

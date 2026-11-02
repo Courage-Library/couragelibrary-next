@@ -5,6 +5,7 @@
  * Covering 10 Critical Boundary Groups
  */
 
+require('./db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const fs = require('fs');
 const path = require('path');
 const assert = require('assert');

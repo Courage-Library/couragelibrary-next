@@ -2,6 +2,7 @@
 // into the live canonical tables (its 2026-10-01 run left 8 published fixture questions). See scripts/archive/ca4/README.md.
 console.error('REFUSED: archived suite (QB-KEY-1) — it disables TLS verification and writes test data into live tables.');
 process.exit(1);
+require('../../db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 /**
  * COURAGE LIBRARY — PHASE CA-4 FORENSIC TEST SUITE
  * Question Bank Integration + Daily Current Affairs Quiz

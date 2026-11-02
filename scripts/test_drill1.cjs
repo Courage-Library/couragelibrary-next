@@ -25,6 +25,7 @@
  * cleanup-student with E2E_KEEP_USER=1 (it removes the drills too).
  * Run: node scripts/test_drill1.cjs [--offline]
  */
+require('./db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const { safeBegin } = require('./db/live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
 const fs = require('fs');
 const path = require('path');

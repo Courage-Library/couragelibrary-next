@@ -18,6 +18,7 @@
  * Run (via the live-gate runner, docs/testing/LIVE_GATES.md):
  *   node scripts/live/with-server.cjs -- "node scripts/test_ca_routes.cjs http://localhost:3100"
  */
+require('./db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const { safeBegin } = require('./db/live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
 const { Client } = require('pg');
 const { dbTarget } = require('./db/_db-env.cjs');

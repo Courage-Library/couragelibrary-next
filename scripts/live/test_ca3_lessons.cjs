@@ -12,6 +12,7 @@
  * retired (118; with --pre118 the migration runs inside the chunk) · Z nothing left.
  * Run: node scripts/live/test_ca3_lessons.cjs [--pre]
  */
+require('../db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const fs = require('fs');
 const path = require('path');
 const Module = require('module');

@@ -19,6 +19,7 @@
  *   Z  nothing left behind
  * Run: node scripts/live/test_publish_confirm.cjs [--pre]
  */
+require('../db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const fs = require('fs');
 const path = require('path');
 const Module = require('module');

@@ -14,6 +14,7 @@
  *       later, separate step — DEPLOY-BEFORE-ACTIVATE)
  * Run: node scripts/live/test_exam_note_prompt1.cjs [--pre]
  */
+require('../db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');

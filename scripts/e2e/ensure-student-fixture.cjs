@@ -21,6 +21,7 @@
  * Usage: node scripts/e2e/ensure-student-fixture.cjs [http://localhost:3100] [--mock-slug=<slug>]
  * Exit 0 = fixture present (already or now); 1 = could not create it (details printed).
  */
+require('../db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const { safeBegin } = require('../db/live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
 const { Client } = require('pg');
 const { chromium } = require('playwright');

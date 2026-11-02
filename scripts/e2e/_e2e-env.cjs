@@ -12,6 +12,7 @@
  *   E2E_OUT_DIR        directory for JSON results (default OS temp dir)
  *   E2E_PG_PORT        Postgres port (default 6543, the Supavisor transaction pooler)
  */
+require('../db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const os = require('os');
 const crypto = require('crypto');
 const { readEnv, dbTarget } = require('../db/_db-env.cjs');

@@ -18,6 +18,7 @@
  * Output: counts on stdout; the per-row report (stems included) goes to --out, which must be OUTSIDE the repo.
  * Run: node scripts/content/content-import-1.cjs --src="D:/Courage Library/csv" --out="E:/CourageLibrary-Backups/content-import-1"
  */
+require('../db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const { safeBegin } = require('../db/live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
 const fs = require('fs');
 const path = require('path');

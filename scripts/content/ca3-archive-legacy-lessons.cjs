@@ -9,6 +9,7 @@
  * Prints counts + hash prefixes only (no content, no keys of other buckets, no secrets).
  * Run: node scripts/content/ca3-archive-legacy-lessons.cjs
  */
+require('../db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
