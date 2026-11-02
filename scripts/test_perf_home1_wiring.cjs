@@ -11,6 +11,8 @@
  *   W-4 the public layout reads no session (no cookies(), headers(), getUser, getSession, AppShell) and ships no Supabase
  *       client (the signed-in nav reads the local session cookie — lib/ui/local-session.ts)
  *   W-6 that reader (display only): base64 / chunked / plain-JSON cookies → the user; missing / garbage → null
+ *   W-7 (PERF-HOME-1b) the cached pages are FINAL HTML: no <Suspense> in the cached pages, the public shell or the landing
+ *       CTA, and the shell passes values (not promises) to the header / footer — no streamed placeholder swap (CLS)
  *   W-5 the helper, run against a recording next/cache: drops the 3 tags, revalidates "/", "/exams" and the
  *       /category/[slug] page; outside a request (next/cache throws) it is a silent no-op
  * --self-test: NEGATIVE CONTROLS — a write with its call removed, a helper missing a tag, a force-dynamic page and a
@@ -124,6 +126,15 @@ function check(files) {
   }
   const hubPublic = HUB_PUBLIC in files ? files[HUB_PUBLIC] !== null : fs.existsSync(path.join(ROOT, HUB_PUBLIC));
   if (!(HUB in files ? files[HUB] !== null : fs.existsSync(path.join(ROOT, HUB))) || hubPublic) fails.push('W-3 the exam hub is cached (moved out of the session shell; owner: stays dynamic for now)');
+  // W-7
+  for (const f of [...CACHED_PAGES, 'components/shell/public-shell.tsx', 'components/landing/landing-cta.tsx']) {
+    const s = get(f).replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, '');
+    if (/<Suspense\b/.test(s)) fails.push(`W-7 ${f}: streams a Suspense boundary (the cached HTML must be final)`);
+  }
+  {
+    const pub = get('components/shell/public-shell.tsx');
+    if (!/signup=\{signup\}/.test(pub) || !/categories=\{categories\}/.test(pub) || /signup=\{signupOpen\(\)\}|categories=\{loadPublicCategoriesCached\(\)\}/.test(pub)) fails.push('W-7 public shell passes promises to the header / footer');
+  }
   // W-4
   for (const f of PUBLIC_LAYOUT) {
     const s = get(f).replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, '');
@@ -143,6 +154,8 @@ if (process.argv.includes('--self-test')) {
     ['a force-dynamic cached page', mutate('app/(public)/page.tsx', 'export const revalidate = 300;', 'export const dynamic = "force-dynamic";'), /W-3 app\/\(public\)\/page\.tsx/],
     ['a public shell that reads the session', mutate('components/shell/public-shell.tsx', /\n/, '\nconst __x = () => cookies();\n'), /W-4 components\/shell\/public-shell/],
     ['a public nav that imports the Supabase browser client', mutate('components/shell/public-student-nav.tsx', /\n/, '\nimport { createClient } from "@/lib/supabase/client";\n'), /W-4 components\/shell\/public-student-nav/],
+    ['a cached page with a streamed section', mutate('app/(public)/page.tsx', '<LandingLoop />', '<Suspense fallback={null}><LandingLoop /></Suspense>'), /W-7 app\/\(public\)\/page\.tsx/],
+    ['a public shell streaming the sign-up promise', mutate('components/shell/public-shell.tsx', 'signup={signup}', 'signup={signupOpen()}'), /W-7 public shell/],
     ['a cached exam hub (moved to the public group)', { [HUB]: null, [HUB_PUBLIC]: read(HUB) }, /W-3 the exam hub/],
   ];
   let bad = 0;

@@ -22,10 +22,13 @@ import { SiteFooter } from "./site-footer";
 function signupOpen(): Promise<boolean> {
   return getSignupAvailability().then((a) => a !== "closed", () => false);
 }
+// PERF-HOME-1b: the cached pages are rendered in the background (ISR), so the shell reads its global data BEFORE
+// rendering and passes values, not promises: the cached HTML is final (no streamed placeholder swap). Both reads are
+// bounded and never reject (closed sign-up view / no category links on failure).
 
 export async function PublicShell({ children }: { children: ReactNode }) {
   const flags: ShellFlags = { COURSES: isFeatureEnabled("COURSES"), BATTLES: isFeatureEnabled("BATTLES"), PRACTICE: isPracticeEnabled() };
-  const brand = await loadBrandAssets();
+  const [brand, signup, categories] = await Promise.all([loadBrandAssets(), signupOpen(), loadPublicCategoriesCached()]);
   return (
     <>
       <a
@@ -34,11 +37,11 @@ export async function PublicShell({ children }: { children: ReactNode }) {
       >
         Skip to content
       </a>
-      <HeaderBar account={null} flags={flags} signup={signupOpen()} logo={brand.headerLogo} publicStatic />
+      <HeaderBar account={null} flags={flags} signup={signup} logo={brand.headerLogo} publicStatic />
       <main id="main-content" tabIndex={-1} className="min-h-dvh flex-1 outline-none">
         {children}
       </main>
-      <SiteFooter flags={flags} categories={loadPublicCategoriesCached()} logo={brand.footerLogo} />
+      <SiteFooter flags={flags} categories={categories} logo={brand.footerLogo} />
       {/* reserved before the first paint for a signed-in visitor (CSS .auth-in) — the bottom nav fills it later: no shift */}
       <div aria-hidden="true" className="auth-in h-[calc(4rem+1px+env(safe-area-inset-bottom))] lg:hidden" data-student-nav-space="" />
       <PublicStudentNav studyPreferences={isOnboardingEnabled()} profile={isProfilesEnabled()} coins={isCoinsEnabled()} />

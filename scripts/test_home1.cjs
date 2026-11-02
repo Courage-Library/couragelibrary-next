@@ -81,7 +81,8 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
 (async () => {
   await test('H-1 structure + one hero action; closed-sign-up primary = "Explore exams" → /#categories; 5 loop steps', () => {
     const page = code(read(PAGE));
-    const order = ['<LandingHero', '<CategoriesSection', '<LandingLoop', '<FeaturesSection', '<TrustSection', '<LandingPlans', '<LandingFaq', '<LandingFinalCta'].map((x) => page.indexOf(x));
+    // PERF-HOME-1b: the sections render directly (no Suspense wrappers on the cached page)
+    const order = ['<LandingHero', '<LandingCategories', '<LandingLoop', '<LandingFeatures', '<LandingTrust', '<LandingPlans', '<LandingFaq', '<LandingFinalCta'].map((x) => page.indexOf(x));
     assert(order.every((x, i) => x > 0 && (i === 0 || x > order[i - 1])), `section order ${order}`);
     const s = read(SECTIONS);
     const hero = s.slice(s.indexOf('export function LandingHero'), s.indexOf('export function LandingCategories'));
@@ -403,7 +404,7 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
     assert(h1(['SSC']) === 'Free preparation for SSC exams' && h1([]) === 'Free preparation for government exams' && h1(['SSC', 'Railway']) === 'Free preparation for SSC &amp; Railway exams', `H1 ${h1(['SSC'])}`);
     const hero = renderToStaticMarkup(React.createElement(S.LandingHero, { liveCategories: ['SSC'] }));
     assert(/data-brand-line=""[\s\S]*?Learn Smarter\. Prepare Independently\./.test(hero) && !/data-hero-chip/.test(hero), 'eyebrow; no Hindi chip without published Hindi content (H-20)');
-    assert(/const \{ liveCategories, hindi \} = await loadHomeFacts\(\);/.test(read('app/(public)/page.tsx')) && /<LandingHero liveCategories=\{liveCategories\} hindi=\{hindi\} \/>/.test(read('app/(public)/page.tsx')), 'page passes live names + Hindi facts');
+    assert(/const \[\{ liveCategories, hindi \}, categories, data, photos, signup\] = await Promise\.all\(\[\s*loadHomeFacts\(\),/.test(read('app/(public)/page.tsx')) && /<LandingHero liveCategories=\{liveCategories\} hindi=\{hindi\} signupOpen=\{signupOpen\} \/>/.test(read('app/(public)/page.tsx')), 'page passes live names + Hindi facts');
     const cd = read('lib/exams/category-data.ts');
     assert(/live\.has\(c\.id\)/.test(cd) && /c\.is_active && !c\.is_internal/.test(cd) && /readLiveCategoryNames\(\)\.catch\(\(\) => null\)/.test(cd) && /setTimeout\(\(\) => ok\(null\), 800\)/.test(cd), 'names: live + public only; bounded');
     // tiles: every category is a tile with its icon; the live one is a link with its exact count; the others carry the

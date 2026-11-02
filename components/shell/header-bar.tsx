@@ -63,8 +63,10 @@ function MobileSection({ title, items, pathname, onNavigate }: { title: string; 
 }
 
 /** The sign-up-dependent start action: the closed view until the setting is known (and whenever it cannot be read). */
-function StartAction({ signup, open, closed }: { signup?: Promise<boolean>; open: ReactNode; closed: ReactNode }) {
+function StartAction({ signup, open, closed }: { signup?: Promise<boolean> | boolean; open: ReactNode; closed: ReactNode }) {
   if (!signup) return closed;
+  // PERF-HOME-1b: the cached public shell passes the setting already read — rendered directly (final cached HTML)
+  if (signup === true) return open;
   return (
     <Suspense fallback={closed}>
       <ResolvedStartAction signup={signup} open={open} closed={closed} />
@@ -87,7 +89,7 @@ function ResolvedStartAction({ signup, open, closed }: { signup: Promise<boolean
  * (box-shadow only: no layout shift), 64 px tall, nothing visible behind it. 48 px actions.
  * UX-FIX-1: "Sign in" is always visible in the bar (phones too). While public sign-up is CLOSED no action points to
  * /auth/signup — the start action is "Explore SSC CGL"; when it is open the one label is "Start free" as an outline
- * pill (BRAND-3 R4: the solid blue-700 primary belongs to the page — the header never adds a second solid CTA). `signup` is a promise streamed from AppShell: the start action resolves it in its own Suspense
+ * pill (BRAND-3 R4: the solid blue-700 primary belongs to the page — the header never adds a second solid CTA). `signup` is a promise streamed from AppShell (the start action resolves it in its own Suspense), or the value the cached PublicShell already read (rendered directly)
  * boundary whose fallback is the closed view, so the shell never waits on the sign-up setting (Supabase outage → the
  * page still renders at once; AUTH1-RESILIENCE-HANG).
  */
@@ -100,7 +102,7 @@ export function HeaderBar({
 }: {
   account: ShellAccount | null;
   flags: ShellFlags;
-  signup?: Promise<boolean>;
+  signup?: Promise<boolean> | boolean;
   logo?: BrandImage | null;
   /** PERF-HOME-1: the cached public pages — both link sets in the HTML, CSS shows one (html[data-auth], lib/ui/auth-hint.ts) */
   publicStatic?: boolean;

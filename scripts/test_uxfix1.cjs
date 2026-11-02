@@ -56,10 +56,13 @@ test('X-01 sign-up closed → no /auth/signup start action, primary "Explore SSC
   const cta = code(read('components/landing/landing-cta.tsx'));
   assert(/if \(mode === "signup-closed"\) \{[\s\S]*?<PillLink href=\{explore\.href\} variant="on-dark"/.test(cta), 'closed: ONE primary "Explore exams"');
   // PERF-HOME-1: "/" is cached and its CTA reads no session — the signed-out variant is the closed view unless sign-up is open
-  assert(/const signedOut: Mode = \(await getSignupAvailability\(\)\) === "closed" \? "signup-closed" : "signup-open";/.test(cta), 'signed-out variant must be the closed view while sign-up is closed');
-  assert(/<Suspense fallback=\{<Variants spot=\{spot\} signedOut="signup-closed" \/>\}>/.test(cta), 'fallback must be the closed view');
+  // PERF-HOME-1b: the cached page reads the setting before rendering and passes it; not passed → the CLOSED view
+  assert(/export function LandingCta\(\{ spot, signupOpen = false \}: \{ spot: Spot; signupOpen\?: boolean \}\) \{\s*const signedOut: Mode = signupOpen \? "signup-open" : "signup-closed";/.test(cta), 'signed-out variant must be the closed view unless sign-up is open (default closed)');
+  assert(/getSignupAvailability\(\),\s*\]\);\s*const signupOpen = signup !== "closed";/.test(code(read('app/(public)/page.tsx'))), 'home passes the sign-up setting it read (unknown → closed)');
   const pub = code(read('components/shell/public-shell.tsx'));
-  assert(/signup=\{signupOpen\(\)\}/.test(pub) && /getSignupAvailability\(\)\.then\(\(a\) => a !== "closed", \(\) => false\)/.test(pub) && !/await getSignupAvailability/.test(pub), 'PublicShell must stream the sign-up state too');
+  // PERF-HOME-1b: the cached shell reads it before rendering (background ISR) through the never-rejecting, bounded
+  // signupOpen() (a failure → closed); the session AppShell keeps streaming it (checked above)
+  assert(/signup=\{signup\}/.test(pub) && /getSignupAvailability\(\)\.then\(\(a\) => a !== "closed", \(\) => false\)/.test(pub) && /await Promise\.all\(\[loadBrandAssets\(\), signupOpen\(\), loadPublicCategoriesCached\(\)\]\)/.test(pub) && !/await getSignupAvailability/.test(pub), 'PublicShell reads the sign-up state through signupOpen() (closed on failure)');
   assert(/const start = spot === "hero" \? LANDING_HERO\.primaryCta : LANDING_FINAL_CTA\.cta;\s+return \(\s+<>\s+<PillLink href=\{start\.href\} variant="on-dark"/.test(cta), 'open: ONE primary Start free');
   const L = read('content/landing.ts');
   assert(/primaryCta: \{ label: "Start free"/.test(L) && /cta: \{ label: "Start free"/.test(L) && /startFree: "Start free"/.test(L) && !/Get started/.test(L), 'one label "Start free"');

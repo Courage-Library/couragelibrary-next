@@ -1,10 +1,10 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 import { isGoogleSignInEnabled } from "@/lib/auth/google-flag";
 import { GOOGLE_NONCE_COOKIE, nonceCookieOptions, nonceForLoginRequest } from "@/lib/auth/google-nonce-core";
 import { categorySlugs, examSlugOf } from "@/lib/exams/category-slugs-edge";
 
-export async function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest, event: NextFetchEvent) {
   // AUTH-1 2b-1 (decision #66): the single-use Google nonce for the sign-in page (Server Components cannot set cookies).
   // An existing valid nonce cookie is reused (prefetches / second tabs never replace it); otherwise a new raw nonce is
   // minted into the httpOnly cookie. Either way it is forwarded on this request so the page renders its SHA-256 hash;
@@ -23,9 +23,10 @@ export async function middleware(request: NextRequest) {
   if (minted) response.cookies.set(GOOGLE_NONCE_COOKIE, minted, nonceCookieOptions());
   // PERF-HOME-1: /exams/<category> is served by the cached category route (same URL for the visitor; the internal
   // /category/<slug> path carries the canonical /exams/<slug>); exam hubs and every other page stay as they are. A
-  // redirect from the session step (age gate, admin) always wins. The slug list is never awaited.
+  // redirect from the session step (age gate, admin) always wins. The slug list is never awaited; its background refresh
+  // is kept alive with waitUntil (PERF-HOME-1b: the edge runtime drops un-awaited work after the response).
   const slug = request.method === "GET" && response.status < 300 ? examSlugOf(request.nextUrl.pathname) : null;
-  if (slug && categorySlugs().has(slug)) {
+  if (slug && categorySlugs((work) => event.waitUntil(work)).has(slug)) {
     const target = request.nextUrl.clone();
     target.pathname = `/category/${slug}`;
     const rewritten = NextResponse.rewrite(target);

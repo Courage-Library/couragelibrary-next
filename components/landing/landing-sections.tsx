@@ -81,7 +81,7 @@ function SectionHeading({ id, title, lead }: { id: string; title: string; lead?:
  * (components/landing/landing-cta); one REAL app screen in a CSS phone frame ("honest images", #86). The H1 stays the
  * LCP element: the screen is smaller than the H1 block, lazy, low fetch priority, sized (no layout shift).
  */
-export function LandingHero({ liveCategories = [], hindi = null }: { liveCategories?: readonly string[]; hindi?: HindiAvailability | null }) {
+export function LandingHero({ liveCategories = [], hindi = null, signupOpen = false }: { liveCategories?: readonly string[]; hindi?: HindiAvailability | null; signupOpen?: boolean }) {
   const mock = shot("hero");
   const chip = LANDING_HINDI.chip(hindi); // shown only when published content has a Hindi version
   return (
@@ -104,7 +104,7 @@ export function LandingHero({ liveCategories = [], hindi = null }: { liveCategor
             </p>
           )}
           <div className="flex flex-wrap items-center gap-3">
-            <LandingCta spot="hero" />
+            <LandingCta spot="hero" signupOpen={signupOpen} />
           </div>
           <p className="text-body-sm text-hero-fg-muted">{LANDING_HERO.note}</p>
         </div>
@@ -512,7 +512,7 @@ export function faqJsonLd(hindi: HindiAvailability | null = null) {
   };
 }
 
-export function LandingFinalCta() {
+export function LandingFinalCta({ signupOpen = false }: { signupOpen?: boolean }) {
   return (
     <Section aria-labelledby="final-cta-title" className="hero-gradient hero-depth relative isolate overflow-hidden" data-final-cta="">
       <Container className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -524,7 +524,7 @@ export function LandingFinalCta() {
             {LANDING_FINAL_CTA.note}
           </p>
         </div>
-        <LandingCta spot="final" />
+        <LandingCta spot="final" signupOpen={signupOpen} />
       </Container>
     </Section>
   );

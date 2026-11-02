@@ -1,12 +1,9 @@
-import { Suspense } from "react";
 import type { Metadata } from "next";
 import { JsonLd } from "@/components/seo/json-ld";
 import {
   LandingCategories,
-  LandingCategoriesSkeleton,
   LandingFaq,
   LandingFeatures,
-  LandingFeaturesSkeleton,
   LandingFinalCta,
   LandingHero,
   LandingLoop,
@@ -23,11 +20,11 @@ import { loadGallery } from "@/lib/media/site-media";
 import { landingOrganizationJsonLd } from "@/lib/landing/organization-jsonld";
 import { constructMetadata } from "@/lib/seo/metadata";
 import { createPublicServerSupabaseClient } from "@/lib/supabase/server";
+import { getSignupAvailability } from "@/lib/auth/signup-availability";
 
 /**
  * HOME-1 landing page: hero → category tiles → how it works → what you get → trust → free and Pro → FAQ → final CTA.
- * Public for everyone. Live, honest data only. The page itself is synchronous (the hero + static sections are in the
- * first HTML flush); the two data sections and the session-dependent CTAs stream through their own Suspense boundaries.
+ * Public for everyone. Live, honest data only. Cached (ISR): all data is read before rendering (PERF-HOME-1b).
  * No exam-specific content on home (owner rule).
  */
 // PERF-HOME-1: cached (ISR) — regenerated every 5 min and on demand when admins change what it shows
@@ -42,40 +39,32 @@ export const metadata: Metadata = {
   twitter: { ...base.twitter, title: LANDING_META.title, description: LANDING_META.description },
 };
 
-async function CategoriesSection() {
-  return <LandingCategories categories={await loadPublicCategories()} />;
-}
-
-async function TrustSection() {
-  return <LandingTrust photos={await loadGallery()} />;
-}
-
-async function FeaturesSection() {
-  return <LandingFeatures data={await loadLandingData(createPublicServerSupabaseClient())} />;
-}
-
 export default async function HomePage() {
-  // HOME-1: the hero names only categories with live exams; the Hindi chip + FAQ answer follow the published Hindi
-  // content (both cached, ≤ 800 ms, never reject — lib/landing/home-facts.ts)
-  const { liveCategories, hindi } = await loadHomeFacts();
+  // PERF-HOME-1b: the page is cached HTML, rendered in the background (ISR) — so it reads EVERYTHING before rendering
+  // and the cached HTML is final: no streamed placeholder is swapped for a different-height section on a slow
+  // connection (production CLS 0.13–0.38 on warm loads). Every read is bounded and never rejects (fallbacks: no
+  // numbers, text-only trust, closed sign-up view). HOME-1: the hero names only categories with live exams; the Hindi
+  // chip + FAQ answer follow the published Hindi content (lib/landing/home-facts.ts).
+  const [{ liveCategories, hindi }, categories, data, photos, signup] = await Promise.all([
+    loadHomeFacts(),
+    loadPublicCategories(),
+    loadLandingData(createPublicServerSupabaseClient()),
+    loadGallery(),
+    getSignupAvailability(),
+  ]);
+  const signupOpen = signup !== "closed";
   return (
     <>
       <JsonLd data={landingOrganizationJsonLd()} />
       <JsonLd data={faqJsonLd(hindi)} />
-      <LandingHero liveCategories={liveCategories} hindi={hindi} />
-      <Suspense fallback={<LandingCategoriesSkeleton />}>
-        <CategoriesSection />
-      </Suspense>
+      <LandingHero liveCategories={liveCategories} hindi={hindi} signupOpen={signupOpen} />
+      <LandingCategories categories={categories} />
       <LandingLoop />
-      <Suspense fallback={<LandingFeaturesSkeleton />}>
-        <FeaturesSection />
-      </Suspense>
-      <Suspense fallback={<LandingTrust />}>
-        <TrustSection />
-      </Suspense>
+      <LandingFeatures data={data} />
+      <LandingTrust photos={photos} />
       <LandingPlans />
       <LandingFaq hindi={hindi} />
-      <LandingFinalCta />
+      <LandingFinalCta signupOpen={signupOpen} />
       <LandingEnhancements />
     </>
   );

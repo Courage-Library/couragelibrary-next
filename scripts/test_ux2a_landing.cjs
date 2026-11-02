@@ -188,13 +188,16 @@ const UX2B_ROUTES = ['/legal'];
     const hindi = stripComments(read('lib/landing/hindi-content.ts'));
     const factsOk = /await Promise\.all\(\[loadLiveCategoryNames\(\), loadHindiAvailability\(\)\]\)/.test(facts) && (facts.match(/await /g) || []).length === 1
       && /readHindiAvailability\(\)\.catch\(\(\) => null\), new Promise<null>\(\(ok\) => setTimeout\(\(\) => ok\(null\), 800\)\)/.test(hindi) && /unstable_cache\(/.test(hindi);
-    assert(sync || (/export default async function HomePage\(\)/.test(page) && awaits.join() === 'loadHomeFacts' && bounded && factsOk), `HomePage: synchronous, or awaiting only the cached + bounded home facts (awaits: ${awaits.join() || 'none'}, names bounded: ${bounded}, facts: ${factsOk})`);
+    // PERF-HOME-1b (owner GO 2026-11-02): "/" is cached HTML rendered in the background, so it may read ALL its data
+    // before rendering (final HTML, no streamed swap) — exactly these bounded, never-rejecting reads, in one Promise.all
+    const allRead = /await Promise\.all\(\[\s*loadHomeFacts\(\),\s*loadPublicCategories\(\),\s*loadLandingData\(createPublicServerSupabaseClient\(\)\),\s*loadGallery\(\),\s*getSignupAvailability\(\),\s*\]\)/.test(page) && awaits.join() === 'Promise.all';
+    assert(sync || (/export default async function HomePage\(\)/.test(page) && (awaits.join() === 'loadHomeFacts' || allRead) && bounded && factsOk), `HomePage: synchronous, or awaiting only the cached + bounded home facts (awaits: ${awaits.join() || 'none'}, names bounded: ${bounded}, facts: ${factsOk})`);
     // PERF-HOME-1 (owner, option 1): "/" is cached HTML shared by everyone — the CTA reads NO session; both variants are
     // rendered and CSS shows one from <html data-auth> (no JS → signed-out). UX-FIX-1 kept: the signed-out variant is
     // "signup-closed" (never a link to a closed sign-up) unless the GLOBAL sign-up setting is open.
     assert(!/getSession\(|getUser\(|cookies\(|headers\(|createServerSupabaseClient|createClient\(/.test(cta), 'the CTA reads no session / request (cached page)');
     assert(/<span className="auth-in contents" data-cta-variant="signed-in">\s*<Cta spot=\{spot\} mode="signed-in" \/>/.test(cta) && /<span className="auth-out contents" data-cta-variant="signed-out">\s*<Cta spot=\{spot\} mode=\{signedOut\} \/>/.test(cta), 'both variants, toggled by the auth-in / auth-out classes');
-    assert(/const signedOut: Mode = \(await getSignupAvailability\(\)\) === "closed" \? "signup-closed" : "signup-open";/.test(cta), 'signed-out variant follows the global sign-up setting (closed → no sign-up link)');
+    assert(/export function LandingCta\(\{ spot, signupOpen = false \}: \{ spot: Spot; signupOpen\?: boolean \}\) \{\s*const signedOut: Mode = signupOpen \? "signup-open" : "signup-closed";/.test(cta), 'signed-out variant follows the global sign-up setting passed by the page (default closed → no sign-up link)');
     return 'hero, final CTA, header';
   });
 

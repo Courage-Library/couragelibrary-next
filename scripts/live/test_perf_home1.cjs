@@ -14,6 +14,9 @@
  *   C-4 signed-in view: before any JavaScript the header shows "Go to dashboard" (not Sign in), the signed-out set is
  *       hidden; on a phone the student bottom nav appears in space reserved before the first paint (CLS 0)
  *   C-5 JavaScript off (anonymous): "Sign in" is visible and is a plain link to /auth/login
+ *   C-6 (PERF-HOME-1b) the cached HTML is final: no streamed Suspense swap (hidden "S:" segments / $RC / B: templates)
+ *       in "/", "/exams", "/exams/ssc"; the detector is self-tested on a streamed fixture (negative control)
+ *   C-7 (PERF-HOME-1b) warm load of "/" on a slow connection (412 px, 4x CPU, 400 kbps, 400 ms RTT) ×3: CLS 0
  * Run (live-gate runner): node scripts/live/with-server.cjs -- "node scripts/live/test_perf_home1.cjs http://localhost:3100"
  */
 const path = require('path');
@@ -70,6 +73,12 @@ const CACHED = ['/', '/exams', '/exams/ssc'];
     /data-category-page="ssc"/.test(res['/exams/ssc'].a) && fromCache(res['/exams/ssc'].ca) && /\/exams\/ssc$/.test(canonical) && !unknown.headers.get('x-nextjs-cache'),
     JSON.stringify({ cat: /data-category-page="ssc"/.test(res['/exams/ssc'].a), cache: res['/exams/ssc'].ca, canonical, unknown: [unknown.status, unknown.headers.get('x-nextjs-cache')] }));
 
+  // C-6 final HTML (no streamed swap)
+  const streamed = (h) => /<div hidden id="S:\d+"|\$RC\(|<template id="B:\d+"/.test(h);
+  const fixture = '<template id="B:0"></template><div hidden id="S:0"><p>x</p></div><script>$RC("B:0","S:0")</script>';
+  chk('C-6 cached HTML is final: no streamed Suspense swap in /, /exams, /exams/ssc (detector self-test on a streamed fixture)',
+    streamed(fixture) && !streamed('<main><p>final</p></main>') && CACHED.every((p) => !streamed(res[p].a)), JSON.stringify(CACHED.map((p) => [p, streamed(res[p].a)])));
+
   // C-4 / C-5 in a browser
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   try {
@@ -93,6 +102,24 @@ const CACHED = ['/', '/exams', '/exams/ssc'];
     chk('C-4 signed in, before JavaScript: "Go to dashboard" shown, Sign in hidden, nav space reserved; then the bottom nav, CLS 0',
       early.auth === 'in' && early.dashboard && !early.signIn && early.space && late.nav && late.cls < 0.001, JSON.stringify({ early, late }));
     await ctx.close();
+    // C-7 warm loads on a slow connection: the second load in the same context (HTTP cache on), throttled
+    const slow = await browser.newContext({ viewport: { width: 412, height: 823 }, isMobile: true, hasTouch: true });
+    const cls = [];
+    await (await slow.newPage()).goto(BASE + '/', { waitUntil: 'load' });
+    for (let i = 0; i < 3; i++) {
+      const sp = await slow.newPage();
+      const cdp = await slow.newCDPSession(sp);
+      await cdp.send('Network.enable');
+      await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 400, downloadThroughput: 50000, uploadThroughput: 50000 });
+      await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+      await sp.addInitScript(() => { window.__cls = 0; new PerformanceObserver((l) => { for (const e of l.getEntries()) if (!e.hadRecentInput) window.__cls += e.value; }).observe({ type: 'layout-shift', buffered: true }); });
+      await sp.goto(BASE + '/', { waitUntil: 'load', timeout: 120000 });
+      await sp.waitForTimeout(3000);
+      cls.push(await sp.evaluate(() => +window.__cls.toFixed(4)));
+      await sp.close();
+    }
+    await slow.close();
+    chk('C-7 warm "/" on a slow connection (400 kbps, 400 ms, 4x CPU) ×3: CLS 0', cls.every((c) => c < 0.001), JSON.stringify(cls));
     const off = await browser.newContext({ viewport: { width: 390, height: 844 }, javaScriptEnabled: false });
     const p2 = await off.newPage();
     await p2.goto(BASE + '/', { waitUntil: 'load' });

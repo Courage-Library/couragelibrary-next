@@ -1,14 +1,13 @@
 /**
  * UX-2a: the two CTA spots of the landing page (hero + final band). Display only: nothing protected is read or shown.
  * PERF-HOME-1: no session read — both variants are in the cached HTML and CSS shows one (see LandingCta below).
+ * PERF-HOME-1b: no Suspense — the cached page passes the sign-up setting it already read.
  * UX-FIX-1: while public sign-up is CLOSED (lib/auth/signup-availability) no start action points to /auth/signup —
  * the primary action is "Explore exams"; when sign-up is open the one label is "Start free" (the ONE primary = start action).
  */
-import { Suspense } from "react";
 import { ArrowRight } from "lucide-react";
 import { PillLink } from "@/components/ui/pill-button";
 import { LANDING_FINAL_CTA, LANDING_HERO } from "@/content/landing";
-import { getSignupAvailability } from "@/lib/auth/signup-availability";
 
 type Spot = "hero" | "final";
 type Mode = "signed-in" | "signup-open" | "signup-closed";
@@ -69,20 +68,13 @@ function Variants({ spot, signedOut }: { spot: Spot; signedOut: Mode }) {
   );
 }
 
-async function LiveVariants({ spot }: { spot: Spot }) {
-  const signedOut: Mode = (await getSignupAvailability()) === "closed" ? "signup-closed" : "signup-open";
-  return <Variants spot={spot} signedOut={signedOut} />;
-}
-
 /**
  * PERF-HOME-1: the landing page is cached HTML shared by every visitor — it reads NO session. Both the signed-in action
- * ("Go to dashboard") and the signed-out one (by the GLOBAL sign-up setting) are in the HTML. The setting streams in its
- * own Suspense; the fallback is the sign-up-CLOSED view (never a link to a closed sign-up).
+ * ("Go to dashboard") and the signed-out one are in the HTML. PERF-HOME-1b: no streamed boundary — the page reads the
+ * GLOBAL sign-up setting before rendering and passes it in, so the cached HTML is final (no placeholder swap). Not
+ * passed / unknown → the sign-up-CLOSED view (never a link to a closed sign-up).
  */
-export function LandingCta({ spot }: { spot: Spot }) {
-  return (
-    <Suspense fallback={<Variants spot={spot} signedOut="signup-closed" />}>
-      <LiveVariants spot={spot} />
-    </Suspense>
-  );
+export function LandingCta({ spot, signupOpen = false }: { spot: Spot; signupOpen?: boolean }) {
+  const signedOut: Mode = signupOpen ? "signup-open" : "signup-closed";
+  return <Variants spot={spot} signedOut={signedOut} />;
 }

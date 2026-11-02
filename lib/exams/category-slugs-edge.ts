@@ -45,8 +45,15 @@ function refresh(): Promise<void> {
   return inflight;
 }
 
-export function categorySlugs(now: number = Date.now()): Set<string> {
-  if (!(cached && now - cached.at < TTL_MS) && now - failedAt >= BACKOFF_MS) void refresh(); // background, never awaited
+/**
+ * PERF-HOME-1b: `keepAlive` receives the background refresh — the middleware passes NextFetchEvent.waitUntil, because an
+ * edge runtime (Vercel) drops un-awaited work once the response is sent (the list then never arrived in production).
+ */
+export function categorySlugs(keepAlive?: (work: Promise<unknown>) => void, now: number = Date.now()): Set<string> {
+  if (!(cached && now - cached.at < TTL_MS) && now - failedAt >= BACKOFF_MS) {
+    const work = refresh(); // background: the request is never held for it
+    if (keepAlive) keepAlive(work);
+  }
   return cached?.slugs ?? new Set();
 }
 

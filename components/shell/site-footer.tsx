@@ -25,7 +25,7 @@ export const FOOTER_NOT_AFFILIATED = "Courage Library is an independent platform
  * HOME-1 design decision (owner, 2026-11-01): deep navy (ink-900), white headings, light-slate links and text
  * (≥ 4.5:1, registered in contrast-pairs.json), a thin cyan line on top to separate it from the gradient CTA band.
  */
-export function SiteFooter({ flags, categories, logo = null }: { flags: ShellFlags; categories?: Promise<PublicCategory[] | null>; logo?: BrandImage | null }) {
+export function SiteFooter({ flags, categories, logo = null }: { flags: ShellFlags; categories?: Promise<PublicCategory[] | null> | PublicCategory[] | null; logo?: BrandImage | null }) {
   const pathname = usePathname() ?? "/";
   if (pathname.startsWith("/admin")) return null;
   const groups: Array<{ heading: string; items: NavItem[] | null }> = [
@@ -34,7 +34,14 @@ export function SiteFooter({ flags, categories, logo = null }: { flags: ShellFla
   ];
   const list = (g: (typeof groups)[number]) =>
     g.items === null ? (
-      <Suspense fallback={<ExamLinks categories={null} />}>{categories ? <StreamedExamLinks categories={categories} /> : <ExamLinks categories={null} />}</Suspense>
+      // PERF-HOME-1b: the cached public shell passes the list already read (rendered directly); AppShell streams a promise
+      categories && "then" in categories ? (
+        <Suspense fallback={<ExamLinks categories={null} />}>
+          <StreamedExamLinks categories={categories} />
+        </Suspense>
+      ) : (
+        <ExamLinks categories={categories ?? null} />
+      )
     ) : (
       <ul className="flex flex-col">
         {g.items.map((it) => (
