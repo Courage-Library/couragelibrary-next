@@ -166,6 +166,10 @@
       "measured": 25,
       "cap": 180
     },
+    "USERNAME-1-LIVE": {
+      "measured": 60,
+      "cap": 300
+    },
     "SITE-GALLERY-LIVE": {
       "measured": 25,
       "cap": 180
