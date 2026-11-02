@@ -13,7 +13,9 @@
  *   C DB CHECKs: an override hash without alt text (23514); a body hash without alt (23514); a non-hash (23514)
  *   D launch: no logo → refused (LOGO); the body's logo → LIVE; an exam override alone → LIVE
  *   E remove: refused while a LIVE course relies on the logo; otherwise removed + ORG_LOGO_REMOVE; nothing to remove → refused
- *   F existing data: every existing exam keeps its org, title, slug, state (hash) and has no override; the test org
+ *   F existing data: every existing exam keeps its org, title, slug, state (hash); every logo override (uploaded by the owner
+ *     after deploy) is complete — audit row with the current path + alt, file in org-logos, alt text (owner amendment
+ *     2026-11-02, negative controls F-1n); the test org
  *     verification-authority-… is inactive with its audit row (after apply)
  *   Z nothing persisted: 0 fixture bodies / exams, 0 audit rows by the gate actor
  * Run: node scripts/live/test_exam_logo1.cjs [--pre]
@@ -25,6 +27,16 @@ const ROOT = path.resolve(__dirname, '..', '..');
 const { Client } = require('pg');
 const { dbTarget, redactor } = require(path.join(ROOT, 'scripts/db/_db-env.cjs'));
 const { withLiveTransaction } = require(path.join(ROOT, 'scripts/db/live-safety.cjs'));
+// F-1 (owner amendment 2026-11-02): an exam logo override is complete when its latest set / replace audit row names the
+// current path and alt, the file exists in org-logos and the alt text is not blank → the list of problems (slug: reason)
+function overrideProblems(rows) {
+  const out = [];
+  for (const r of rows) {
+    const why = !r.ap ? 'no audit row' : r.ap !== r.p ? 'audit path differs' : !r.f ? 'file missing' : !String(r.alt || '').trim() ? 'no alt text' : r.aa !== r.alt ? 'audit alt differs' : null;
+    if (why) out.push(`${r.slug}: ${why}`);
+  }
+  return out;
+}
 const { publishQaSyllabus } = require(path.join(ROOT, 'scripts/live/_qa-course.cjs'));
 
 const PRE = process.argv.includes('--pre');
@@ -178,11 +190,22 @@ const isConnectionError = (e) => !!e && (['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND'
         // possible here, so --pre proves it with the before / after hash inside one chunk instead
         return;
       }
-      const [over] = await q(`select count(*)::int n from public.exams where logo_override_sha256 is not null and slug not like 'logo1-%'`);
+      // owner amendment 2026-11-02: overrides are uploaded by the owner after deploy — every override must be COMPLETE
+      // (its latest set / replace audit row names the current path and alt, the file exists in org-logos, alt text set)
+      const overrides = await q(`select e.slug, e.logo_override_path p, e.logo_override_alt alt,
+          (select l.new_value ->> 'path' from public.admin_audit_logs l where l.target_id = e.id::text and l.action_type in ('EXAM_LOGO_OVERRIDE_SET', 'EXAM_LOGO_OVERRIDE_REPLACE') order by l.created_at desc, l.id desc limit 1) ap,
+          (select l.new_value ->> 'alt' from public.admin_audit_logs l where l.target_id = e.id::text and l.action_type in ('EXAM_LOGO_OVERRIDE_SET', 'EXAM_LOGO_OVERRIDE_REPLACE') order by l.created_at desc, l.id desc limit 1) aa,
+          exists (select 1 from storage.objects o where o.bucket_id = 'org-logos' and o.name = e.logo_override_path) f
+          from public.exams e where e.logo_override_sha256 is not null and e.slug not like 'logo1-%'`);
+      const over = { n: overrideProblems(overrides).length, total: overrides.length, problems: overrideProblems(overrides) };
       const [junk] = await q(`select o.is_active a, (select count(*)::int from public.admin_audit_logs l where l.target_id = o.id::text and l.action_type = 'CONDUCTING_ORG_DEACTIVATE') n
           from public.conducting_orgs o where o.slug = 'verification-authority-1790245768945'`);
       const [ssc] = await q(`select is_active a from public.conducting_orgs where slug = 'ssc'`);
-      chk('F-1 existing exams carry no override (logos are uploaded by the owner after deploy); the test org is INACTIVE with its audit row; SSC untouched (active)', over.n === 0 && junk && junk.a === false && junk.n === 1 && ssc.a === true, JSON.stringify({ over, junk, ssc }));
+      // negative controls: each incomplete shape is caught, a complete one is not
+      const good = { slug: 'x', p: 'exams/x/a.webp', alt: 'X logo', ap: 'exams/x/a.webp', aa: 'X logo', f: true };
+      const ctl = [{ ...good, ap: null }, { ...good, ap: 'exams/x/old.webp' }, { ...good, f: false }, { ...good, alt: '  ' }, { ...good, aa: 'other' }].map((r) => overrideProblems([r]).length);
+      chk('F-1n negative controls: no audit row / stale audit path / missing file / blank alt / audit alt differs → caught; complete → clean', ctl.every((n) => n === 1) && overrideProblems([good]).length === 0, JSON.stringify(ctl));
+      chk('F-1 every exam logo override is complete (audit row with the current path + alt, file in org-logos, alt text); the test org is INACTIVE with its audit row; SSC untouched (active)', over.n === 0 && junk && junk.a === false && junk.n === 1 && ssc.a === true, JSON.stringify({ over, junk, ssc }));
     });
     if (PRE) {
       // F-0 (--pre): one transaction: the existing exams' hash before the migration = after it
