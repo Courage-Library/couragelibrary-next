@@ -29,7 +29,7 @@ import {
   ExamKnowledgeSectionType,
   EXAM_KNOWLEDGE_SECTION_TYPES,
 } from '@/types/exam-knowledge';
-import { ExamModuleRegistry } from './exam-module-registry';
+import { ExamModuleRegistry, scopeOverlapWarnings } from './exam-module-registry';
 
 const MAX_PAYLOAD_SIZE = 64000;
 
@@ -451,6 +451,9 @@ export class ExamKnowledgeValidatorService {
         }
       });
     }
+
+    // 4. GUIDE-SCOPE-1: a section about a topic another guide owns → warning (never a block)
+    warnings.push(...scopeOverlapWarnings(spec.moduleKey as ExamModuleKey, (spec.contentSections || []).map((sec) => sec.heading)));
 
     return {
       name: 'GATE_5_DOMAIN',

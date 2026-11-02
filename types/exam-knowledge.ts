@@ -247,7 +247,8 @@ export interface ExamKnowledgeDocumentSpec {
 /**
  * Version of the Authoritative Exam Knowledge Prompt Contract
  */
-export const EXAM_PROMPT_CONTRACT_VERSION = 'CL-EXAM-AUTHOR-v1.0';
+// GUIDE-SCOPE-1: v1.1 adds the module scope block (covers / must not repeat / sibling guides) to the authoring prompt
+export const EXAM_PROMPT_CONTRACT_VERSION = 'CL-EXAM-AUTHOR-v1.1';
 
 /**
  * Module applicability lifecycle states
@@ -277,6 +278,12 @@ export interface ExamModuleDefinition {
   freshnessRule: string;
   outputGuidance: string;
   researchDirectives?: string[];
+  /** GUIDE-SCOPE-1 (owner 2026-11-02): one line — what this guide covers (every guide stays separate) */
+  covers: string;
+  /** one line — what it must NOT repeat, naming the guide that owns it (link there instead) */
+  mustNotRepeat: string;
+  /** distinctive heading terms this guide OWNS; another guide using them in a section title gets a validator warning */
+  scopeKeywords: string[];
 }
 
 export interface ExamKnowledgeTarget {

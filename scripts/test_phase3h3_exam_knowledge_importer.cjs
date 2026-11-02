@@ -148,7 +148,7 @@ function createValidSpec(overrides = {}) {
       },
       {
         id: 'sec-education',
-        heading: 'Educational Qualifications',
+        heading: 'Who can apply', // GUIDE-SCOPE-1: an in-scope heading (education details belong to the Qualification guide)
         sectionType: 'DETAILED_GUIDE',
         bodyMarkdown: 'A bachelor degree in any discipline is mandatory. Final year students must acquire qualification before the cutoff date.',
       },

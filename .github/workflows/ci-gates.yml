@@ -110,6 +110,8 @@ jobs:
           q SAFE-NET-SELFTEST node scripts/test_safe_net.cjs --self-test || fail=1
           q UX-IMP-1 node scripts/test_ux_imp1.cjs || fail=1
           q UX-IMP-1-SELFTEST node scripts/test_ux_imp1.cjs --self-test || fail=1
+          q GUIDE-SCOPE-1 node scripts/test_guide_scope1.cjs || fail=1
+          q GUIDE-SCOPE-1-SELFTEST node scripts/test_guide_scope1.cjs --self-test || fail=1
           q READERS-OFFLINE node scripts/test_gap2_4b_readers.cjs --offline || fail=1
           q EDITOR node scripts/test_gap2_4b_editor.cjs || fail=1
           q UX2A-OFFLINE node scripts/test_ux2a_landing.cjs --offline || fail=1
