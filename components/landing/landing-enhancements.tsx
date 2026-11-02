@@ -12,10 +12,10 @@ import { LANDING_HERO } from "@/content/landing";
  *     scroll-padding of its height (focused elements are never hidden under it). ≥ 48 px target; no layout shift (it
  *     is fixed and slides with transform); no motion with prefers-reduced-motion. Not shown to a signed-in student
  *     (their bottom nav is there).
- *  2. Reveal on scroll: sections marked data-reveal fade / rise in (≤ 200 ms, CSS in app/globals.css) when they enter
- *     the viewport. ONLY a section this code has marked data-reveal-pending (below the fold, being observed) is ever
- *     hidden — a section it never saw (no JavaScript, or streamed in later and missed) is always visible. Sections that
- *     stream in after load (Suspense) are picked up by a MutationObserver. prefers-reduced-motion → off.
+ *  2. Reveal on scroll = PROGRESSIVE ENHANCEMENT (UX-IMP-1, owner): NOTHING is ever hidden. Every section is visible in
+ *     the HTML (no JavaScript, crawlers, full-page captures); a section below the fold only gets a short rise (≤ 200 ms,
+ *     transform only — no opacity change, no layout shift; CSS in app/globals.css) the moment it enters the viewport.
+ *     Sections added later are picked up by a MutationObserver. prefers-reduced-motion / print → no motion at all.
  */
 export function LandingEnhancements() {
   const [show, setShow] = useState(false);
@@ -34,14 +34,12 @@ export function LandingEnhancements() {
       },
       { rootMargin: "0px 0px -8% 0px", threshold: 0.05 },
     );
-    // below the fold → pending (hidden) + observed; in view → shown at once (never hidden)
+    // below the fold → observed (still fully visible); it rises when it enters; in view → nothing to do
     const take = (el: Element) => {
-      if (el.hasAttribute("data-reveal-pending") || el.hasAttribute("data-revealed")) return;
-      if (el.getBoundingClientRect().top < window.innerHeight) el.setAttribute("data-revealed", "");
-      else {
-        el.setAttribute("data-reveal-pending", "");
-        io.observe(el);
-      }
+      if (el.hasAttribute("data-reveal-watch") || el.hasAttribute("data-revealed")) return;
+      if (el.getBoundingClientRect().top < window.innerHeight) return;
+      el.setAttribute("data-reveal-watch", "");
+      io.observe(el);
     };
     let mo: MutationObserver | null = null;
     if (!reduce) {

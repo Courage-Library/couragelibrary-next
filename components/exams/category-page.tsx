@@ -7,13 +7,14 @@ import { Container } from "@/components/ui/layout";
 import { CategoryIcon } from "@/components/exams/category-icon";
 import { ExamLogoBadge, NotAffiliatedLine } from "@/components/exams/exam-logo-badge";
 import { siteConfig } from "@/config/site";
-import type { CategoryExam, PublicCategory } from "@/lib/exams/categories";
+import { categoryIntro, type CategoryExam, type PublicCategory } from "@/lib/exams/categories";
 
 /**
  * HOME-1: /exams/<category> — the category (icon + name inline, one line) and its exams: active ones are links (logo +
  * name), listed future exams are honest "Coming soon" rows (not links). No numbers we cannot show from live data.
  */
 export function CategoryPage({ category, exams, examsFailed = false }: { category: PublicCategory; exams: CategoryExam[]; examsFailed?: boolean }) {
+  const intro = examsFailed ? null : categoryIntro(category.name, exams);
   return (
     <div data-category-page={category.slug}>
       <section aria-labelledby="page-title" className="border-b border-line bg-gradient-to-b from-primary-50 to-canvas">
@@ -25,7 +26,12 @@ export function CategoryPage({ category, exams, examsFailed = false }: { categor
               {category.name} exams
             </h1>
           </div>
-          {category.shortDesc && <p className="max-w-2xl text-body-lg text-fg-secondary">{category.shortDesc}</p>}
+          {/* UX-IMP-1: the intro comes from the listed exams only (categoryIntro), never the admin free text */}
+          {intro && (
+            <p className="max-w-2xl text-body-lg text-fg-secondary" data-category-intro="">
+              {intro}
+            </p>
+          )}
         </Container>
       </section>
       <Container className="py-8 lg:py-12">

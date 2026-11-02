@@ -177,12 +177,16 @@ function fullPage(cta, statuses) {
 
   await test('F-05 cards are single links ≥ 48 px; secondary links ≥ 48 px', () => {
     const page = fullPage(L.resolveExamCta(STATES[0][1], SLUG), null);
-    const cards = page.split(/(?=<div class="[^"]*" data-(?:mock|guide)-card="">)/).slice(1).map((c) => c.slice(0, c.indexOf('</li>')));
-    assert(cards.length === MOCKS_LIST.length + 3, `cards ${cards.length}`);
+    const cards = page.split(/(?=<div class="[^"]*" data-mock-card="">)/).slice(1).map((c) => c.slice(0, c.indexOf('</li>')));
+    assert(cards.length === MOCKS_LIST.length, `cards ${cards.length}`);
     for (const c of cards) {
       assert((c.match(/<a\b/g) || []).length === 1 && /data-card-link=""/.test(c), 'a card has ≠ 1 link');
       assert(/min-h-12/.test(c.slice(0, c.indexOf('>'))), 'card < 48 px');
     }
+    // UX-IMP-1: guides are grouped link rows — each row is ONE link, ≥ 48 px; one "as of" line per group (not per row)
+    const rows = page.match(/<a [^>]*data-guide-card=""[^>]*>/g) || [];
+    assert(rows.length === 3 && rows.every((r) => /min-h-12/.test(r)), `guide rows ${rows.length}`);
+    assert((page.match(/data-guide-group=""/g) || []).length >= 1 && (page.match(/data-guide-group-asof=""/g) || []).length <= (page.match(/data-guide-group=""/g) || []).length, 'one as-of line per group at most');
     assert(/<summary class="[^"]*min-h-12/.test(page), 'syllabus disclosure < 48 px');
     assert(/href="#at-a-glance"[^>]*class="[^"]*min-h-12|class="[^"]*min-h-12[^"]*"[^>]*href="#at-a-glance"/.test(page), 'secondary < 48 px');
     assert(/href="https:\/\/ssc\.gov\.in\/x" target="_blank" rel="noopener noreferrer" class="[^"]*min-h-12/.test(page), 'source link');

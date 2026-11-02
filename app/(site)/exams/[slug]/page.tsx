@@ -1,5 +1,5 @@
 import { isCourseLive } from "@/services/learning/course.service";
-import { Suspense } from "react";
+import { cache, Suspense } from "react";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { ExamKnowledgeCandidateService } from "@/services/exam-knowledge/exam-knowledge-candidate.service";
@@ -15,6 +15,7 @@ import { COMING_SOON_EXAMS, COMING_SOON_HUB } from "@/content/public-pages";
 import { getSignupAvailability } from "@/lib/auth/signup-availability";
 import { continueTarget, cycleInfo, glanceRows, guideGroups, preferModules, resolveExamCta, type MockListItem } from "@/lib/exams/exam-page";
 import { examMocks, examPageUser, userContentLanguage } from "@/lib/exams/exam-page-server";
+import { categoryIntro } from "@/lib/exams/categories";
 
 /**
  * F1 (#75): the exam home page — the one page a student uses to understand an exam and start. Order (mobile first):
@@ -33,6 +34,15 @@ interface Props {
   params: Promise<{ slug: string }>;
 }
 
+/**
+ * UX-IMP-1 (IMPECCABLE-1 B-3, root cause of the slow hub): the candidate view was read TWICE per request (metadata and
+ * page) — every exam / cycle / pattern / source / claim / guide read and the syllabus RPC ran two times, all before the
+ * first byte. One read per request now (React cache), shared by generateMetadata and the page.
+ */
+const candidateView = cache((slug: string, language: "en" | "hi" = "en") =>
+  ExamKnowledgeCandidateService.getExamKnowledgeCandidateView(language === "hi" ? { examSlug: slug, language: "hi" } : { examSlug: slug }),
+);
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   // HOME-1: /exams/<category> (category and exam slugs share one namespace, enforced in the DB — 128)
@@ -40,14 +50,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (cat) {
     return constructMetadata({
       title: `${cat.category.name} exams`,
-      description: cat.category.shortDesc || `${cat.category.name} exams on Courage Library: lessons, practice and mock tests.`,
+      // UX-IMP-1: generated from the listed exams only (categoryIntro), never the admin free text
+      description: (!cat.examsFailed && categoryIntro(cat.category.name, cat.exams)) || `${cat.category.name} exams on Courage Library: lessons, practice and mock tests.`,
       canonicalUrl: `/exams/${slug}`,
       ogImage: `/exams/${slug}/opengraph-image`, // HOME-1: the category's own share card
       // noindex only when the read worked and the category really has no exam (an outage never de-indexes it)
       noIndex: !cat.examsFailed && cat.category.activeExams === 0,
     });
   }
-  const result = await ExamKnowledgeCandidateService.getExamKnowledgeCandidateView({ examSlug: slug });
+  const result = await candidateView(slug);
 
   const soon = comingSoonFor(result.status, slug);
   if (soon) {
@@ -84,9 +95,9 @@ async function MocksWithStatus({ examId, mocks }: { examId: string; mocks: MockL
 
 export default async function ExamHomePage({ params }: Props) {
   const { slug } = await params;
-  const cat = await loadPublicCategory(slug);
+  // UX-IMP-1: the category check and the exam read run in parallel (both are needed before the first byte)
+  const [cat, result] = await Promise.all([loadPublicCategory(slug), candidateView(slug)]);
   if (cat) return <CategoryPage category={cat.category} exams={cat.exams} examsFailed={cat.examsFailed} />;
-  const result = await ExamKnowledgeCandidateService.getExamKnowledgeCandidateView({ examSlug: slug });
 
   const soon = comingSoonFor(result.status, slug);
   if (soon) return <ComingSoonHub title={soon.title} body={soon.body} />;
@@ -98,15 +109,20 @@ export default async function ExamHomePage({ params }: Props) {
   const { exam, activeCycle, structuredFacts, syllabus, officialSources } = data;
 
   // #82: guides follow the student's content language where a Hindi version is published; the UI stays English
-  const [language, mocks] = await Promise.all([userContentLanguage(), examMocks(exam.id)]);
+  // UX-IMP-1: language, mocks and the course check in ONE parallel step (they were a chain of round trips)
+  const totals = syllabus.state === "AVAILABLE" ? syllabus.totals : null;
+  const [language, mocks, courseLive] = await Promise.all([
+    userContentLanguage(),
+    examMocks(exam.id),
+    totals && totals.servable_documents > 0 ? isCourseLive(exam.id) : Promise.resolve(false),
+  ]);
   let modules = data.publishedModules;
   if (language === "hi") {
-    const hi = await ExamKnowledgeCandidateService.getExamKnowledgeCandidateView({ examSlug: slug, language: "hi" });
+    const hi = await candidateView(slug, "hi");
     if (hi.status === "FOUND" && hi.data) modules = preferModules(hi.data.publishedModules, modules);
   }
 
   const body = exam.conductingOrg.id ? exam.conductingOrg.name : null;
-  const totals = syllabus.state === "AVAILABLE" ? syllabus.totals : null;
   const signedOutCta = resolveExamCta({ signedIn: false, signupOpen: false }, exam.slug);
 
   return (
@@ -127,7 +143,7 @@ export default async function ExamHomePage({ params }: Props) {
 
       {/* Syllabus — canonical read model (GAP2-4b); "coming soon" until a version is published */}
       {/* section#syllabus: the signed-in smoke + the read-model check (scripts/smoke/_syllabus-expect.cjs) read it */}
-      <ExamSyllabusHome id="syllabus" totals={totals} courseHref={totals && totals.servable_documents > 0 && (await isCourseLive(exam.id)) ? `/exams/${exam.slug}/course` : null}>
+      <ExamSyllabusHome id="syllabus" totals={totals} courseHref={courseLive ? `/exams/${exam.slug}/course` : null}>
         <ExamSyllabusSection syllabus={syllabus} examTitle={exam.title} />
       </ExamSyllabusHome>
 

@@ -4,6 +4,7 @@
  * A category with no active exam is shown honestly as "Coming soon" and is NOT a link (ruling Q5).
  */
 import { logoPublicUrl, logoVariantUrl, type ExamLogo } from "@/lib/logos/exam-logo";
+import { andList } from "@/lib/text/and-list";
 
 export const CATEGORY_ICON_KEYS = ["ssc", "police", "defence", "railway", "banking", "internal", "default"] as const;
 export type CategoryIconKey = (typeof CATEGORY_ICON_KEYS)[number];
@@ -56,3 +57,18 @@ export function toPublicCategory(row: CategoryRow, activeExams: number): PublicC
 export const categoryCountLabel = (n: number) => (n > 0 ? `${n} exam${n === 1 ? "" : "s"}` : "Coming soon");
 
 export const CATEGORY_SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+/**
+ * UX-IMP-1 (owner, IMPECCABLE-1 A-7): the category intro is generated from the LISTED exams only — live exams by name,
+ * listed coming-soon exams by name, nothing else (never an exam the page does not list; never the admin free text,
+ * which can name exams that are not here). null when there is nothing honest to say (no exams / the read failed).
+ */
+export function categoryIntro(categoryName: string, exams: readonly CategoryExam[]): string | null {
+  const live = exams.filter((e) => e.status === "ACTIVE").map((e) => e.title);
+  const soon = exams.filter((e) => e.status === "COMING_SOON").map((e) => e.title);
+  if (live.length === 0 && soon.length === 0) return null;
+  const parts: string[] = [];
+  if (live.length) parts.push(`Free preparation for ${andList(live)}: lessons, practice and mock tests.`);
+  if (soon.length) parts.push(`${live.length ? "Coming soon" : `${categoryName} exams coming soon`}: ${andList(soon)}.`);
+  return parts.join(" ");
+}

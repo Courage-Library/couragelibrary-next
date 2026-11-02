@@ -119,6 +119,8 @@ export function HeaderBar({
   }, []);
   if (pathname.startsWith("/admin")) return null;
 
+  // UX-IMP-1 (IMPECCABLE-1 A-10): an action that points to the page you are on says so (aria-current + active style)
+  const here = (href: string): "page" | undefined => (pathname === (href.split(/[?#]/)[0] || "/") ? "page" : undefined);
   const learn = visibleItems(LEARN_MENU, flags);
   const onLanding = pathname === "/";
   const student = account !== null && !onLanding;
@@ -158,31 +160,31 @@ export function HeaderBar({
               </NavMenu>
             </div>
           ) : account ? (
-            <PillLink href="/dashboard" variant="outline" className="px-5">
+            <PillLink href="/dashboard" variant="outline" className="px-5 aria-[current=page]:border-primary-700 aria-[current=page]:bg-primary-50 aria-[current=page]:text-primary-800" aria-current={here("/dashboard")}>
               {SHELL_COPY.goToDashboard}
             </PillLink>
           ) : (
             <>
               {publicStatic && (
                 <span className="auth-in contents">
-                  <PillLink href="/dashboard" variant="outline" className="px-5" data-auth-link="dashboard">
+                  <PillLink href="/dashboard" variant="outline" className="px-5 aria-[current=page]:border-primary-700 aria-[current=page]:bg-primary-50 aria-[current=page]:text-primary-800" aria-current={here("/dashboard")} data-auth-link="dashboard">
                     {SHELL_COPY.goToDashboard}
                   </PillLink>
                 </span>
               )}
               <span className={publicStatic ? "auth-out contents" : "contents"}>
-              <ButtonLink href="/auth/login" variant="ghost" size="md" className="min-h-12 rounded-control px-3">
+              <ButtonLink href="/auth/login" variant="ghost" size="md" className="min-h-12 rounded-control px-3 aria-[current=page]:bg-primary-50 aria-[current=page]:text-primary-800" aria-current={here("/auth/login")}>
                 {SHELL_COPY.signIn}
               </ButtonLink>
               <StartAction
                 signup={signup}
                 open={
-                  <PillLink href="/auth/signup" variant="outline" className="hidden px-5 sm:inline-flex">
+                  <PillLink href="/auth/signup" variant="outline" className="hidden px-5 sm:inline-flex aria-[current=page]:border-primary-700 aria-[current=page]:bg-primary-50 aria-[current=page]:text-primary-800" aria-current={here("/auth/signup")}>
                     {SHELL_COPY.startFree}
                   </PillLink>
                 }
                 closed={
-                  <PillLink href={LANDING_HERO.secondaryCta.href} variant="outline" className="hidden px-5 sm:inline-flex">
+                  <PillLink href={LANDING_HERO.secondaryCta.href} variant="outline" className="hidden px-5 sm:inline-flex aria-[current=page]:border-primary-700 aria-[current=page]:bg-primary-50 aria-[current=page]:text-primary-800" aria-current={here(LANDING_HERO.secondaryCta.href)}>
                     {LANDING_HERO.secondaryCta.label}
                   </PillLink>
                 }
@@ -216,7 +218,7 @@ export function HeaderBar({
           <MobileSection title="Learn" items={learn} pathname={pathname} onNavigate={() => setMenuOpen(false)} />
           {!account && publicStatic && (
             <div className="auth-in flex flex-col gap-2 border-t border-line pt-4">
-              <ButtonLink href="/dashboard" size="lg" fullWidth onClick={() => setMenuOpen(false)}>
+              <ButtonLink href="/dashboard" size="lg" fullWidth aria-current={here("/dashboard")} onClick={() => setMenuOpen(false)}>
                 {SHELL_COPY.goToDashboard}
               </ButtonLink>
             </div>
@@ -226,24 +228,24 @@ export function HeaderBar({
               <StartAction
                 signup={signup}
                 open={
-                  <PillLink href="/auth/signup" variant="outline" fullWidth onClick={() => setMenuOpen(false)}>
+                  <PillLink href="/auth/signup" variant="outline" fullWidth className="aria-[current=page]:border-primary-700 aria-[current=page]:bg-primary-50 aria-[current=page]:text-primary-800" aria-current={here("/auth/signup")} onClick={() => setMenuOpen(false)}>
                     {SHELL_COPY.startFree}
                   </PillLink>
                 }
                 closed={
-                  <ButtonLink href={LANDING_HERO.secondaryCta.href} size="lg" fullWidth onClick={() => setMenuOpen(false)}>
+                  <ButtonLink href={LANDING_HERO.secondaryCta.href} size="lg" fullWidth aria-current={here(LANDING_HERO.secondaryCta.href)} onClick={() => setMenuOpen(false)}>
                     {LANDING_HERO.secondaryCta.label}
                   </ButtonLink>
                 }
               />
-              <ButtonLink href="/auth/login" variant="secondary" size="lg" fullWidth onClick={() => setMenuOpen(false)}>
+              <ButtonLink href="/auth/login" variant="secondary" size="lg" fullWidth className="aria-[current=page]:border-primary-700 aria-[current=page]:bg-primary-50" aria-current={here("/auth/login")} onClick={() => setMenuOpen(false)}>
                 {SHELL_COPY.signIn}
               </ButtonLink>
             </div>
           )}
           {account && !student && (
             <div className="flex flex-col gap-2 border-t border-line pt-4">
-              <ButtonLink href="/dashboard" size="lg" fullWidth onClick={() => setMenuOpen(false)}>
+              <ButtonLink href="/dashboard" size="lg" fullWidth aria-current={here("/dashboard")} onClick={() => setMenuOpen(false)}>
                 {SHELL_COPY.goToDashboard}
               </ButtonLink>
             </div>
