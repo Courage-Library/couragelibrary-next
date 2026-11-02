@@ -507,6 +507,9 @@ export interface TestLeaderboardData {
   viewerOptedIn: boolean | null;
 }
 
+/** what other students see instead of a person's name (owner ruling 2026-11-02; USERNAME-1 replaces it) */
+export const PUBLIC_MEMBER_LABEL = "Member";
+
 export class AssessmentService {
   private static attemptCreationLocks = new Map<string, Promise<any>>();
 
@@ -2855,14 +2858,13 @@ export class AssessmentService {
     );
     if (view.state === "not_enough") return notEnough;
 
-    const ids = [...new Set([...view.entries.map((e) => e.userId), ...(view.viewer ? [view.viewer.userId] : [])])];
-    const { data: profs } = ids.length ? await adminSb.from("user_profiles").select("id, full_name").in("id", ids) : { data: [] as Array<{ id: string; full_name: string | null }> };
-    const names = new Map((profs ?? []).map((p) => [p.id, p.full_name]));
+    // Owner ruling 2026-11-02 (PUBLIC IDENTITY = USERNAME): other students never see a real name — not even masked.
+    // No profile read here: every other entry is "Member" until USERNAME-1 shows the username.
     const item = (e: LeaderboardEntry): TestLeaderboardItem => {
       const isCurrentUser = Boolean(currentUserId && e.userId === currentUserId);
       return {
         rank: e.rank,
-        displayName: isCurrentUser ? "You" : AssessmentService.maskCandidateName(names.get(e.userId) || "Candidate"),
+        displayName: isCurrentUser ? "You" : PUBLIC_MEMBER_LABEL,
         score: e.score,
         maxScore: maxScore.get(e.userId) ?? test.totalMarks,
         accuracyPercentage: e.accuracy,

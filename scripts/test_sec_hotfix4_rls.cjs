@@ -22,6 +22,10 @@
  *       named like a user / actor id (user_id, *_user_id, author_id, created_by, reviewed_by, published_by, …) returns
  *       no non-null value to SET ROLE anon (a missing grant counts as safe); the legacy mock_tests policy is gone;
  *       negative control: a fixture table with an anon-granted author_id, created inside the rolled-back transaction, fires
+ *   P-6d (owner ruling 2026-11-02, PUBLIC IDENTITY = USERNAME) REAL ROLE: the QA student cannot read ANOTHER user's
+ *       name / e-mail / phone — a marker set on another user's profile (rolled back) is invisible; every other
+ *       name / e-mail / phone column in public returns no non-null value to the student except on its own rows
+ *       (user_profiles.id = self); negative controls: a leaky policy on user_profiles and a granted fixture e-mail column fire
  *   P-7 SEC-HOTFIX-5 (077): leaderboard_weekly_snapshots / user_battle_stats are own-rows-only for students,
  *       anon cannot read the leaderboard; behaviour probed with two real users inside a rolled-back transaction
  *   P-8 GAP2-4a syllabus: no direct writes for students / staff (grants), anon cannot EXECUTE write RPCs, students are
@@ -74,6 +78,9 @@ function personalColumns(cols) {
 }
 // P-6c: user / actor id columns (a person's id) — never readable by anon (SEC-PII-SWEEP-2)
 const USER_ID_COLUMN = /^(user_id|student_id|profile_id|owner_id|author_id|actor_id|created_for_user_id|.*_user_id|.*_by|.*_by_id)$/i;
+// P-6d: a person's name / e-mail / phone; OWN_COLUMN = how a table names its owner (own rows may be read)
+const PERSON_COLUMN = /(full_?name|first_?name|last_?name|display_?name|e_?mail|phone|mobile|whatsapp)/i;
+const OWN_COLUMN = { user_profiles: 'id' };
 // P-6: per-user rows behind a blanket read policy, tolerated only until an architect ruling. Empty since
 // SEC-HOTFIX-5 (077): leaderboard_weekly_snapshots and user_battle_stats are own-rows-only.
 const PENDING_RULING = new Set([]);
@@ -132,6 +139,35 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assertion failed'); };
   const as = async (claims, role = 'authenticated') => {
     await q(`SET LOCAL ROLE ${role}`);
     await q(`SELECT set_config('request.jwt.claims', $1, true)`, [JSON.stringify(claims || {})]);
+  };
+  // P-6c / P-6d: read every candidate column AS THE ROLE in ONE query (few round trips — the 30 s idle-in-transaction
+  // guard of safeBegin must never end the session on a slow link). Columns the role holds no SELECT on are safe and
+  // skipped (has_column_privilege); a batch error falls back to one probe per column. → { 'table.column': count | 'error' }
+  const probeBatch = async (cols, roleName, setRole, ownFilter) => {
+    const granted = (await q(`SELECT x.t, x.col FROM unnest($1::text[], $2::text[]) AS x(t, col)
+                               WHERE has_column_privilege($3, format('public.%I', x.t), x.col, 'SELECT')`, [cols.map((r) => r.t), cols.map((r) => r.col), roleName])).rows;
+    const one = ({ t, col }) => `SELECT '${t}.${col}' k, (SELECT count(*) FROM (SELECT 1 FROM public."${t}" WHERE "${col}" IS NOT NULL${ownFilter(t)} LIMIT 1) x)::int n`;
+    const out = {};
+    if (!granted.length) return out;
+    await q('SAVEPOINT pb');
+    try {
+      await setRole();
+      for (const r of (await q(granted.map(one).join(' UNION ALL '))).rows) out[r.k] = r.n;
+      return out;
+    } catch {
+      await q('ROLLBACK TO SAVEPOINT pb');
+      await q('RESET ROLE');
+      for (const g of granted) {
+        await q('SAVEPOINT pb1');
+        try { await setRole(); out[`${g.t}.${g.col}`] = (await q(one(g))).rows[0].n; } catch (e) { out[`${g.t}.${g.col}`] = e.code === '42501' ? 0 : 'error'; }
+        await q('ROLLBACK TO SAVEPOINT pb1');
+        await q('RESET ROLE');
+      }
+      return out;
+    } finally {
+      await q('ROLLBACK TO SAVEPOINT pb').catch(() => {});
+      await q('RESET ROLE').catch(() => {});
+    }
   };
   try {
     await test('P-1 static: no FOR ALL policy; all authenticated policies gated by fn_jwt_is_admin_or_staff(); public reads unchanged', async () => {
@@ -279,28 +315,67 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assertion failed'); };
         await q(`CREATE TABLE public.zz_p6c_fixture (id int, author_id uuid)`);
         await q(`INSERT INTO public.zz_p6c_fixture VALUES (1, gen_random_uuid())`);
         await q(`GRANT SELECT ON public.zz_p6c_fixture TO anon`);
+        // new tables get RLS enabled automatically here — the leak shape is an open policy
+        await q(`ALTER TABLE public.zz_p6c_fixture ENABLE ROW LEVEL SECURITY`);
+        await q(`CREATE POLICY zz_p6c_open ON public.zz_p6c_fixture FOR SELECT USING (true)`);
         const cols = (await q(`SELECT c.table_name t, c.column_name col FROM information_schema.columns c
                                  JOIN pg_class k ON k.relname = c.table_name JOIN pg_namespace n ON n.oid = k.relnamespace AND n.nspname = 'public'
                                 WHERE c.table_schema = 'public' AND k.relkind IN ('r', 'v', 'm', 'p') ORDER BY 1, 2`)).rows
           .filter((r) => USER_ID_COLUMN.test(r.col));
         assert(cols.some((r) => r.t === 'zz_p6c_fixture'), 'fixture not scanned');
-        for (const { t, col } of cols) {
-          await q('SAVEPOINT p6c');
-          try {
-            await as({}, 'anon');
-            const n = Number((await q(`SELECT count(*) n FROM (SELECT "${col}" FROM public."${t}" WHERE "${col}" IS NOT NULL LIMIT 1) x`)).rows[0].n);
-            if (t === 'zz_p6c_fixture') control = n; else if (n > 0) exposed.push(`${t}.${col}`);
-          } catch (e) {
-            if (e.code !== '42501') exposed.push(`${t}.${col}: probe error ${e.code}`); // 42501 = no grant → safe
-          }
-          await q('ROLLBACK TO SAVEPOINT p6c');
-          await q('RESET ROLE');
+        const hits = await probeBatch(cols, 'anon', () => as({}, 'anon'), () => '');
+        for (const [k, n] of Object.entries(hits)) {
+          if (k === 'zz_p6c_fixture.author_id') control = n; else if (n !== 0) exposed.push(n === 'error' ? `${k}: probe error` : k);
         }
         const legacy = (await q(`SELECT count(*)::int n FROM pg_policies WHERE schemaname = 'public' AND tablename = 'mock_tests' AND policyname = 'Public read published mock_tests'`)).rows[0].n;
         if (legacy) exposed.push('mock_tests: legacy policy "Public read published mock_tests" present');
         assert(control === 1, `negative control not caught (fixture count ${control})`);
         assert(exposed.length === 0, `anon reads user ids: ${exposed.join(', ')}`);
         return `${cols.length - 1} user-id columns probed as anon: none readable; negative control caught`;
+      } finally {
+        await q('ROLLBACK');
+      }
+    });
+
+    await test('P-6d REAL ROLE: a student cannot read another user\'s name / e-mail / phone (marker on another profile); negative controls', async () => {
+      const leaks = [];
+      const ctl = {};
+      await safeBegin(c);
+      try {
+        const [me] = (await q(`SELECT id FROM auth.users WHERE email = 'qa-student@courage-library.test'`)).rows;
+        const [other] = (await q(`SELECT p.id FROM public.user_profiles p WHERE p.id <> $1 ORDER BY p.created_at LIMIT 1`, [me.id])).rows;
+        assert(me && other, 'need the QA student and one other profile');
+        // markers built at runtime (the no-personal-data gate scans literals)
+        const MARK_PHONE = '+91' + '0'.repeat(9) + '6';
+        const MARK_MAIL = ['zz', 'p6d.invalid'].join('@');
+        await q(`UPDATE public.user_profiles SET full_name = 'zz-p6d-marker', phone = $2 WHERE id = $1`, [other.id, MARK_PHONE]);
+        await q(`CREATE TABLE public.zz_p6d_fixture (id int, contact_email text)`);
+        await q(`INSERT INTO public.zz_p6d_fixture VALUES (1, $1)`, [MARK_MAIL]);
+        await q(`GRANT SELECT ON public.zz_p6d_fixture TO authenticated`);
+        await q(`ALTER TABLE public.zz_p6d_fixture ENABLE ROW LEVEL SECURITY`);
+        await q(`CREATE POLICY zz_p6d_open ON public.zz_p6d_fixture FOR SELECT USING (true)`);
+        const student = async () => { await as({ sub: me.id, role: 'authenticated', app_metadata: {} }); };
+        const markerSeen = async () => {
+          await q('SAVEPOINT m'); await student();
+          const n = Number((await q(`SELECT count(*) n FROM public.user_profiles WHERE full_name = 'zz-p6d-marker' OR phone = $1`, [MARK_PHONE])).rows[0].n);
+          await q('ROLLBACK TO SAVEPOINT m'); await q('RESET ROLE'); return n;
+        };
+        if (await markerSeen()) leaks.push('user_profiles: another user\'s name / phone readable');
+        const cols = (await q(`SELECT c.table_name t, c.column_name col FROM information_schema.columns c
+                                 JOIN pg_class k ON k.relname = c.table_name JOIN pg_namespace n ON n.oid = k.relnamespace AND n.nspname = 'public'
+                                WHERE c.table_schema = 'public' AND k.relkind IN ('r', 'v', 'm', 'p') ORDER BY 1, 2`)).rows.filter((r) => PERSON_COLUMN.test(r.col));
+        const hits = await probeBatch(cols, 'authenticated', student, (t) => (OWN_COLUMN[t] ? ` AND "${OWN_COLUMN[t]}" <> '${me.id}'` : ''));
+        for (const [k, n] of Object.entries(hits)) {
+          if (k === 'zz_p6d_fixture.contact_email') ctl.fixture = n; else if (n !== 0) leaks.push(n === 'error' ? `${k}: probe error` : k);
+        }
+        // negative control 2: a leaky policy makes the marker visible
+        await q('SAVEPOINT leak');
+        await q(`CREATE POLICY zz_p6d_leak ON public.user_profiles FOR SELECT TO authenticated USING (true)`);
+        ctl.policy = await markerSeen();
+        await q('ROLLBACK TO SAVEPOINT leak');
+        assert(ctl.fixture === 1 && ctl.policy === 1, `negative controls not caught: ${JSON.stringify(ctl)}`);
+        assert(leaks.length === 0, `student reads other people's data: ${leaks.join(', ')}`);
+        return `${cols.length - 1} name / e-mail / phone columns probed as the student: none of another user readable; controls caught`;
       } finally {
         await q('ROLLBACK');
       }
