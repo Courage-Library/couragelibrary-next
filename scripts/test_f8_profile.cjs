@@ -85,7 +85,8 @@ const MIG = 'supabase/migrations/20261025000096_f8_profile_username.sql';
   });
 
   await test('PF-02 migration seeds exactly the TS lists', () => {
-    const m = read(MIG);
+    // USERNAME-1 (134) adds reserved terms: the TS lists equal the union of both seeds
+    const m = read(MIG) + read('supabase/migrations/20261102000134_username_1.sql');
     const seeded = (kind) => [...m.matchAll(new RegExp(`\\('([a-z_]+)', '${kind}'\\)`, 'g'))].map((x) => x[1]).sort();
     assert(JSON.stringify(seeded('RESERVED')) === JSON.stringify([...U.RESERVED_USERNAMES].sort()), 'reserved lists differ');
     assert(JSON.stringify(seeded('PROFANITY')) === JSON.stringify([...U.PROFANITY_TERMS].sort()), 'profanity lists differ');

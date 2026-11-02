@@ -16,6 +16,7 @@ import {
 } from "@/types/live-test";
 import crypto from "crypto";
 import { quarantinedClient } from "@/lib/supabase/quarantine";
+import { identityOf, resolvePublicIdentities } from "@/lib/profile/public-identity";
 
 // TYPES-1:C-LIVE-TEST-CERTIFICATE — QUARANTINED (LIVE_TESTS flag off; known-broken against the live schema). The Supabase client is
 // obtained through lib/supabase/quarantine.ts (registered in docs/reports/types/TYPES1_ESCAPES.json).
@@ -130,7 +131,16 @@ export class LiveTestCertificateService {
         };
       }
 
-      return data as LiveTestCertificatePublicVerification;
+      // USERNAME-1 (owner ruling 2026-11-02): the public check shows the holder's username (or "Courage Library Team"),
+      // never the partial real name the RPC returns ("First L."); resolved on the server, the id never leaves it
+      const result = data as LiveTestCertificatePublicVerification;
+      if (result && typeof result === "object" && "candidate_display_name" in result) {
+        const { data: cert } = await adminSb.from("live_test_certificates").select("user_id").eq("verification_code", cleanCode).maybeSingle();
+        const holder = (cert as { user_id?: string } | null)?.user_id ?? null;
+        const labels = await resolvePublicIdentities(holder ? [holder] : []);
+        (result as { candidate_display_name?: string }).candidate_display_name = identityOf(labels, holder).label;
+      }
+      return result;
     } catch (err: any) {
       console.error("Exception in verifyCertificatePublic:", err);
       return {

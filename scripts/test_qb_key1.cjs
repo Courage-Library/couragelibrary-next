@@ -192,6 +192,8 @@ function supaMock(results) {
       '@/services/gamification.service': { GamificationService: new Proxy({}, { get: () => async (x) => { awards.push(x); return { success: true }; } }) },
       '@/services/premium-entitlement.service': { PremiumEntitlementService: new Proxy({}, { get: () => async () => ({}) }) },
       '@/services/content.service': { ContentService: new Proxy({}, { get: () => async () => new Map() }) },
+      // USERNAME-1: the leaderboard label resolver (server-only; not part of grading)
+      '@/lib/profile/public-identity': { resolvePublicIdentities: async () => new Map(), identityOf: () => ({ label: 'Member', isTeam: false }) },
     };
     const warn = console.warn;
     const warned = [];

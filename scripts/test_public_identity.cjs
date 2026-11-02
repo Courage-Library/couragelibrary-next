@@ -4,7 +4,8 @@
  * username (USERNAME-1; until then "Member"). Real names are readable by the user themself and by admins (server side).
  *   I-1 no student-facing code reads ANOTHER user's name / e-mail / phone: a user_profiles read of full_name / phone /
  *       email for several ids (.in(...)) is allowed only inside an admin function (name contains "Admin") or admin code
- *   I-2 the test leaderboard shows "You" / PUBLIC_MEMBER_LABEL — never a (masked) real name
+ *   I-2 the test leaderboard shows "You" / the server-resolved username or Team label (USERNAME-1), "Member" as the
+ *       fallback — never a (masked) real name
  *   I-3 community never renders a user id or name of another member
  * --self-test: NEGATIVE CONTROLS — a student-facing multi-user name read and a masked-name leaderboard must each fail.
  */
@@ -41,7 +42,8 @@ function check(files) {
   // I-2
   const svc = get('services/assessment.service.ts');
   const lb = svc.slice(svc.indexOf('const item = (e: LeaderboardEntry)'), svc.indexOf('const item = (e: LeaderboardEntry)') + 400);
-  if (!/displayName: isCurrentUser \? "You" : PUBLIC_MEMBER_LABEL,/.test(lb) || /maskCandidateName\(/.test(lb)) fails.push('I-2 the test leaderboard shows another student\'s (masked) name');
+  // USERNAME-1: the label comes from the server resolver (username or "Courage Library Team"), "Member" as the fallback
+  if (!/displayName: isCurrentUser \? "You" : identityOf\(labels, e\.userId\)\.label \|\| PUBLIC_MEMBER_LABEL,/.test(lb) || /maskCandidateName\(|full_name/.test(lb)) fails.push('I-2 the test leaderboard shows another student\'s (masked) name');
   if (!/export const PUBLIC_MEMBER_LABEL = "Member";/.test(svc)) fails.push('I-2 PUBLIC_MEMBER_LABEL is not "Member"');
   // I-3
   const thread = get('app/(site)/community/[id]/thread-client.tsx');
@@ -53,7 +55,7 @@ if (process.argv.includes('--self-test')) {
   const base = Object.fromEntries(['services/assessment.service.ts', 'app/(site)/community/[id]/thread-client.tsx'].map((f) => [f, read(f)]));
   const controls = [
     ['a student-facing multi-user name read', { ...base, 'services/zz-fixture.service.ts': 'class X { static async getLeague(ids) { return sb.from("user_profiles").select("id, full_name").in("id", ids); } }' }, /I-1 services\/zz-fixture/],
-    ['a masked-name leaderboard', { ...base, 'services/assessment.service.ts': base['services/assessment.service.ts'].replace('displayName: isCurrentUser ? "You" : PUBLIC_MEMBER_LABEL,', 'displayName: isCurrentUser ? "You" : AssessmentService.maskCandidateName(n),') }, /I-2/],
+    ['a masked-name leaderboard', { ...base, 'services/assessment.service.ts': base['services/assessment.service.ts'].replace('displayName: isCurrentUser ? "You" : identityOf(labels, e.userId).label || PUBLIC_MEMBER_LABEL,','displayName: isCurrentUser ? "You" : AssessmentService.maskCandidateName(n),') }, /I-2/],
     ['community showing the author id', { ...base, 'app/(site)/community/[id]/thread-client.tsx': base['app/(site)/community/[id]/thread-client.tsx'] + '\n<span>{m.authorId.slice(0, 8)}</span>' }, /I-3/],
   ];
   let bad = 0;

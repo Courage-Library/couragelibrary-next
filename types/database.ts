@@ -8693,6 +8693,33 @@ export type Database = {
         }
         Relationships: []
       }
+      username_history: {
+        Row: {
+          id: number
+          kind: string
+          released_at: string | null
+          set_at: string
+          user_id: string
+          username: string
+        }
+        Insert: {
+          id?: never
+          kind: string
+          released_at?: string | null
+          set_at?: string
+          user_id: string
+          username: string
+        }
+        Update: {
+          id?: never
+          kind?: string
+          released_at?: string | null
+          set_at?: string
+          user_id?: string
+          username?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -9268,6 +9295,14 @@ export type Database = {
           p_type: string
         }
         Returns: Json
+      }
+      fn_public_identities: {
+        Args: { p_ids: string[] }
+        Returns: {
+          id: string
+          is_team: boolean
+          label: string
+        }[]
       }
       fn_publish_exam_announcement: {
         Args: {

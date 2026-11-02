@@ -227,8 +227,13 @@ export function DiscussionThreadClient({ detail, coursesEnabled = false }: Discu
               >
                 <div className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2 font-mono text-slate-500">
-                    {/* SEC-PII-SWEEP-2: never a user id on screen */}
-                    <span className="font-bold text-slate-800">Member</span>
+                    {/* USERNAME-1: the username or "Courage Library Team" — never a real name or a user id */}
+                    <span className="font-bold text-slate-800">{m.authorLabel}</span>
+                    {m.authorIsTeam && (
+                      <span className="inline-flex items-center rounded-full bg-primary-50 px-2 py-0.5 text-[12px] font-semibold text-primary-700" aria-label="Verified Courage Library Team">
+                        ✓ Verified
+                      </span>
+                    )}
                     <span>• {new Date(m.createdAt).toLocaleString()}</span>
                   </div>
 

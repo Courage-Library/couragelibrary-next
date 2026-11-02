@@ -16,16 +16,17 @@
   "AGE-18 (owner decision, legal, 2026-10-25): max total / client_executable_callable / A raised by exactly 1 for fn_confirm_age — a NEW reviewed client entrypoint authorised by the architect's AGE-18 brief (auth.uid() only, sets the canonical adult_confirmed_at once, never clears it)",
   "P6-MFA-FLAG (architect ruling on RLS P-6, 2026-10-26): max total / client_executable_callable / A raised by exactly 1 for fn_admin_mfa_required — a STABLE read-only helper returning ONLY the security_settings.admin_mfa_required boolean, so the table needs no client read (P-6) while the staff predicates (which run as the caller) can still read the flag; EXECUTE authenticated + service_role only (anon never runs the predicates)",
   "F9-B (architect GO, 2026-10-26): max total raised by exactly 8 and B-service by 9 for the 8 service-role-only payment functions of migration 114 (no client EXECUTE) plus fn_create_payment_order moved A to B-service after its client EXECUTE was revoked (113); client_executable_callable and A lowered by 1",
-  "CA-5 (architect GO 2026-10-28, design §I: progress written ONLY through an auth.uid() RPC, the DRILL-1 pattern): max total / client_executable_callable / A raised by exactly 1 for fn_lesson_progress_save — a NEW reviewed client entrypoint (authenticated only; no table write granted)"
+  "CA-5 (architect GO 2026-10-28, design §I: progress written ONLY through an auth.uid() RPC, the DRILL-1 pattern): max total / client_executable_callable / A raised by exactly 1 for fn_lesson_progress_save — a NEW reviewed client entrypoint (authenticated only; no table write granted)",
+  "USERNAME-1 (owner GO 2026-11-02, server-only lookup approved): max total raised by exactly 2 — B-service by 1 for fn_public_identities (service_role only, ≤ 100 ids, label only) and B-trigger by 1 for fn_user_profiles_auto_username (trigger, not callable); client_executable_callable and A unchanged (fn_set_username replaced in place, same class A entry)"
  ],
  "max": {
-  "total": 116,
+  "total": 118,
   "client_executable_callable": 49,
   "anon_or_public": 1,
   "A": 49,
   "C": 0,
-  "B-trigger": 15,
-  "B-service": 38,
+  "B-trigger": 16,
+  "B-service": 39,
   "B-internal": 0
  },
  "public_ok": [
@@ -826,6 +827,18 @@
    ],
    "search_path": "\"\"",
    "reason": "client entrypoint; own check: auth.uid() (CA-5 lesson progress; published lesson only; COMPLETED never downgraded)"
+  },
+  "fn_public_identities(p_ids uuid[])": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "\"\"",
+   "reason": "USERNAME-1 (owner GO 2026-11-02): server-only public label resolver — at most 100 ids per call; returns id + label + is_team only (the username, or \"Courage Library Team\" for staff / admin), never a real name or e-mail; EXECUTE service_role only (anon / authenticated 42501, gated); migration 134"
+  },
+  "fn_user_profiles_auto_username()": {
+   "class": "B-trigger",
+   "client": [],
+   "search_path": "\"\"",
+   "reason": "USERNAME-1 trigger function (not callable; EXECUTE revoked from PUBLIC / anon / authenticated): BEFORE INSERT on user_profiles assigns \"aspirant_\" + 6 random digits (collision- and 90-day-hold-safe) and records it in username_history (no client grant); migration 134"
   }
  }
 }

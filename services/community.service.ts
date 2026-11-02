@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { identityOf, resolvePublicIdentities } from "@/lib/profile/public-identity";
 import { rpcJsonObject, sqlNullArg } from "@/lib/supabase/rpc";
 
 export interface DiscussionThreadItem {
@@ -25,6 +26,9 @@ export interface DiscussionMessageItem {
   id: string;
   threadId: string;
   authorId: string | null;
+  /** USERNAME-1: what everyone sees — the username or "Courage Library Team" (resolved on the server) */
+  authorLabel: string;
+  authorIsTeam: boolean;
   parentMessageId: string | null;
   contentMarkdown: string;
   isFacultyVerified: boolean;
@@ -124,6 +128,9 @@ export class CommunityService {
     }
 
     const rawMessages: any[] = t.discussion_messages || [];
+    // USERNAME-1: labels resolved on the server (fn_public_identities, service role) — the author id itself is only
+    // read for a signed-in viewer (SEC-PII-SWEEP-2 step 1); for anonymous viewers every author is "Member"
+    const labels = await resolvePublicIdentities(rawMessages.map((m) => m.author_id).filter(Boolean));
     const messages: DiscussionMessageItem[] = rawMessages
       .filter((m) => !m.is_deleted)
       .sort((m1, m2) => new Date(m1.created_at).getTime() - new Date(m2.created_at).getTime())
@@ -131,6 +138,8 @@ export class CommunityService {
         id: m.id,
         threadId: m.thread_id,
         authorId: m.author_id ?? null,
+        authorLabel: identityOf(labels, m.author_id).label,
+        authorIsTeam: identityOf(labels, m.author_id).isTeam,
         parentMessageId: m.parent_message_id,
         contentMarkdown: m.content_markdown,
         isFacultyVerified: m.is_faculty_verified,

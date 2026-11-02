@@ -9,7 +9,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { checkUsername, nextChangeAllowedAt, normalizeUsername, USERNAME_COPY } from "@/lib/profile/username";
-import { setLeaderboardOptInAction, setProfileVisibilityAction, setUsernameAction } from "@/app/(site)/settings/profile/actions";
+import { checkUsernameAvailabilityAction, setLeaderboardOptInAction, setProfileVisibilityAction, setUsernameAction } from "@/app/(site)/settings/profile/actions";
 import { formatDateShort } from "@/lib/format";
 
 const VIS_COPY: Record<string, string> = {
@@ -32,6 +32,7 @@ const LB_COPY: Record<string, string> = {
 export function ProfileSettingsForm(props: { username: string | null; usernameChangedAt: string | null; profilePublic: boolean; adultConfirmed: boolean; leaderboardOptIn: boolean }) {
   const [name, setName] = useState(props.username ?? "");
   const [nameMsg, setNameMsg] = useState("");
+  const [availMsg, setAvailMsg] = useState("");
   const [isPublic, setIsPublic] = useState(props.profilePublic);
   const [adult, setAdult] = useState(props.adultConfirmed);
   const [visMsg, setVisMsg] = useState("");
@@ -59,7 +60,10 @@ export function ProfileSettingsForm(props: { username: string | null; usernameCh
           id="username"
           className="focus-ring min-h-12 rounded-control border border-line-control bg-surface px-3 text-body text-fg"
           value={name}
-          onChange={(e) => setName(normalizeUsername(e.target.value))}
+          onChange={(e) => {
+            setName(normalizeUsername(e.target.value));
+            setAvailMsg("");
+          }}
           maxLength={20}
           autoComplete="off"
           aria-describedby="username-help"
@@ -70,11 +74,29 @@ export function ProfileSettingsForm(props: { username: string | null; usernameCh
           {local === "OK" ? USERNAME_COPY.rules : USERNAME_COPY.results[local]}
           {props.username && lockedUntil && ` You can change it again on ${formatDateShort(lockedUntil)}.`}
         </p>
-        <div>
+        <div className="flex flex-wrap gap-3">
           <Button type="submit" size="lg" className="min-h-12" disabled={!canChange || pending || !name || local !== "OK" || name === props.username}>
             Save username
           </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            size="lg"
+            className="min-h-12"
+            disabled={!canChange || pending || !name || local !== "OK" || name === props.username}
+            onClick={() =>
+              start(async () => {
+                const a = await checkUsernameAvailabilityAction({ username: name }).catch(() => "FAILED" as const);
+                setAvailMsg(USERNAME_COPY.availability[a] ?? USERNAME_COPY.availability.FAILED);
+              })
+            }
+          >
+            Check availability
+          </Button>
         </div>
+        <p role="status" className="text-body-sm text-fg-secondary">
+          {availMsg}
+        </p>
         <p role="status" className="text-body-sm text-fg-secondary">
           {nameMsg}
         </p>

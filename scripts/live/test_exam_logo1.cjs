@@ -7,7 +7,8 @@
  *   (none)  after apply: refuses unless 126 is APPLIED
  *   A catalog: logo columns (path GENERATED from the content hash), CHECKs, bucket org-logos public / 1 MB / webp only,
  *     NO storage policy on it, fn_logo_set / fn_logo_remove INVOKER + service_role only, launch function INVOKER +
- *     service_role only, SECURITY DEFINER count unchanged (116)
+ *     service_role only, SECURITY DEFINER count = the reviewed allow-list total (116 at 126; later phases raise it by
+ *     documented rules — USERNAME-1 +2)
  *   B set / replace: the path is orgs/<id>/<sha256>.webp; audit ORG_LOGO_UPLOAD then ORG_LOGO_REPLACE with the old path;
  *     a bad hash / blank alt refused; anon and an ADMIN-claims client cannot call it (42501) nor write the columns
  *   C DB CHECKs: an override hash without alt text (23514); a body hash without alt (23514); a non-hash (23514)
@@ -112,7 +113,7 @@ const isConnectionError = (e) => !!e && (['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND'
       const [src] = await q(`select prosrc from pg_proc where oid = 'public.fn_exam_course_launch_set(uuid, uuid, text, text, jsonb, uuid, text)'::regprocedure`);
       chk('A-1 catalog: logo columns (both paths GENERATED from the content hash); bucket org-logos public / 1 MB / webp only, NO storage policy; logo + launch functions INVOKER, service_role only; the launch requires a logo; SECURITY DEFINER count unchanged (116)',
         cols.length === 7 && gen === 'conducting_orgs.logo_path,exams.logo_override_path' && b && b.public === true && Number(b.file_size_limit) === 1048576 && b.m === '{image/webp}' && pol.n === 0
-        && fns.length === 3 && fns.every((f) => !f.d && !f.a && !f.u && f.v) && /logo_override_sha256 IS NOT NULL OR o\.logo_sha256 IS NOT NULL/.test(src.prosrc) && sd.n === 116,
+        && fns.length === 3 && fns.every((f) => !f.d && !f.a && !f.u && f.v) && /logo_override_sha256 IS NOT NULL OR o\.logo_sha256 IS NOT NULL/.test(src.prosrc) && sd.n === require(path.join(ROOT, 'scripts/secdef/allowlist.json')).max.total,
         JSON.stringify({ cols: cols.length, gen, b, pol, fns, sd: sd.n }));
     });
 

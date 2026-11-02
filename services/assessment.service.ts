@@ -18,6 +18,7 @@ import { buildTakeaways, buildTrend, cohortStanding, isTestAccountEmail, negativ
 import { leaderboardView, type LeaderboardEntry } from "@/lib/assessment/leaderboard";
 import { isPracticeEnabled } from "@/lib/practice/flag";
 import { isMemoryLockEnabled } from "@/lib/memory-lock/flag";
+import { identityOf, resolvePublicIdentities } from "@/lib/profile/public-identity";
 
 /** TYPES-1 B1: PostgREST returns a one-to-one embed (e.g. test_attempts → test_results) as an object or null. */
 function oneToOne<T>(v: T | T[] | null | undefined): T | null {
@@ -2859,12 +2860,13 @@ export class AssessmentService {
     if (view.state === "not_enough") return notEnough;
 
     // Owner ruling 2026-11-02 (PUBLIC IDENTITY = USERNAME): other students never see a real name — not even masked.
-    // No profile read here: every other entry is "Member" until USERNAME-1 shows the username.
+    // USERNAME-1: each entry shows its username (or "Courage Library Team"), resolved on the server; "Member" if unknown.
+    const labels = await resolvePublicIdentities(view.entries.map((e) => e.userId));
     const item = (e: LeaderboardEntry): TestLeaderboardItem => {
       const isCurrentUser = Boolean(currentUserId && e.userId === currentUserId);
       return {
         rank: e.rank,
-        displayName: isCurrentUser ? "You" : PUBLIC_MEMBER_LABEL,
+        displayName: isCurrentUser ? "You" : identityOf(labels, e.userId).label || PUBLIC_MEMBER_LABEL,
         score: e.score,
         maxScore: maxScore.get(e.userId) ?? test.totalMarks,
         accuracyPercentage: e.accuracy,
