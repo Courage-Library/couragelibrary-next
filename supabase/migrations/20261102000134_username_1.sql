@@ -76,6 +76,11 @@ BEGIN
     IF NEW.username IS NOT NULL THEN
         RETURN NEW;
     END IF;
+    -- the app's ensureProfile runs INSERT … ON CONFLICT (id) DO NOTHING on every sign-in: a BEFORE INSERT trigger fires
+    -- for that attempt too — when the profile already exists nothing is generated and NO history row is written
+    IF EXISTS (SELECT 1 FROM public.user_profiles p WHERE p.id = NEW.id) THEN
+        RETURN NEW;
+    END IF;
     LOOP
         v_try := v_try + 1;
         -- 6 digits (7 after 20 collisions): never phone-like (8+ digits)

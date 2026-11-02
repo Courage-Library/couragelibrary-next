@@ -111,9 +111,14 @@ const isConnectionError = (e) => !!e && (['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND'
       await q(`insert into public.user_profiles (id) values ($1)`, [ids.student]);
       const [p] = await q(`select username, username_changed_at from public.user_profiles where id = $1`, [ids.student]);
       const [h] = await q(`select count(*)::int n from public.username_history where user_id = $1 and kind = 'AUTO' and released_at is null and username = $2`, [ids.student, p.username]);
-      chk('R-2 every profile named; every account has a profile; automatic names "aspirant_" + digits; the trigger names a new profile (changed_at NULL, AUTO history row)',
-        cov.no_name === 0 && cov.no_profile === 0 && shape.odd === 0 && /^aspirant_\d{6,7}$/.test(p.username) && p.username_changed_at === null && h.n === 1,
-        JSON.stringify({ cov, shape, newName: /^aspirant_\d{6,7}$/.test(p.username), changedAt: p.username_changed_at, history: h.n }));
+      // production's ensureProfile: INSERT … ON CONFLICT (id) DO NOTHING for an EXISTING profile → no new name, no history
+      const [before] = await q(`select count(*)::int n from public.username_history`);
+      await q(`insert into public.user_profiles (id) values ($1) on conflict (id) do nothing`, [ids.student]);
+      const [after] = await q(`select count(*)::int n from public.username_history`);
+      const [same] = await q(`select username from public.user_profiles where id = $1`, [ids.student]);
+      chk('R-2 every profile named; every account has a profile; automatic names "aspirant_" + digits; the trigger names a new profile (changed_at NULL, AUTO history row); an existing-profile upsert (ensureProfile) writes nothing',
+        cov.no_name === 0 && cov.no_profile === 0 && shape.odd === 0 && /^aspirant_\d{6,7}$/.test(p.username) && p.username_changed_at === null && h.n === 1 && after.n === before.n && same.username === p.username,
+        JSON.stringify({ cov, shape, newName: /^aspirant_\d{6,7}$/.test(p.username), changedAt: p.username_changed_at, history: h.n, upsertHistoryDelta: after.n - before.n, nameKept: same.username === p.username }));
     });
 
     // ---------------- R-3 rules as the real student
