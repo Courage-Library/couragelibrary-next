@@ -116,6 +116,8 @@ if (!KEEP_USER && isPermanentIdentity(EMAIL)) {
     const allowed = KEEP_FIXTURE ? { test_attempts: fx.attempt ? 1 : 0, test_results: fx.results.length, user_mistake_occurrences: fx.occurrences.length, user_mistake_vault: fx.vault.length } : {};
     for (const r of cols) {
       if (KEEP_USER && r.tbl === "user_profiles") continue;
+      // USERNAME-1 (134): the username history is the 90-day hold — it outlives journey data (and the account) by design
+      if (r.tbl === "username_history") continue;
       const n = Number((await c.query(`SELECT count(*) c FROM public."${r.tbl}" WHERE "${r.col}" = $1`, [uid])).rows[0].c);
       if (r.col === 'user_id' && allowed[r.tbl] !== undefined) {
         if (n !== allowed[r.tbl]) left.push(`${r.tbl}.${r.col}=${n} (fixture expects ${allowed[r.tbl]})`);

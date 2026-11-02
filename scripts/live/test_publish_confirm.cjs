@@ -126,8 +126,8 @@ const isConnectionError = (e) => !!e && (['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND'
           has_function_privilege('anon', p.oid, 'EXECUTE') anon, has_function_privilege('authenticated', p.oid, 'EXECUTE') auth
           from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = 'fn_syllabus_publish'`);
       const [n] = await q(`select count(*)::int n from pg_proc where pronamespace = 'public'::regnamespace and prosecdef`);
-      chk(`A-1 one fn_syllabus_publish(uuid, text): SECURITY DEFINER, search_path '', EXECUTE authenticated only; ${n.n} SECURITY DEFINER functions (unchanged: 116)`,
-        fns.length === 1 && fns[0].a === 'p_version_id uuid, p_confirm text' && fns[0].d && JSON.stringify(fns[0].cfg) === '["search_path=\\"\\""]' && !fns[0].anon && fns[0].auth && n.n === 116,
+      chk(`A-1 one fn_syllabus_publish(uuid, text): SECURITY DEFINER, search_path '', EXECUTE authenticated only; ${n.n} SECURITY DEFINER functions (= the reviewed allow-list total; 116 at 125, later raises by documented rules)`,
+        fns.length === 1 && fns[0].a === 'p_version_id uuid, p_confirm text' && fns[0].d && JSON.stringify(fns[0].cfg) === '["search_path=\\"\\""]' && !fns[0].anon && fns[0].auth && n.n === require(path.join(ROOT, 'scripts/secdef/allowlist.json')).max.total,
         JSON.stringify({ fns, n }));
     });
 
