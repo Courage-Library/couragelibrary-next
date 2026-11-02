@@ -27,8 +27,8 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assertion failed'); };
 const ratchet = JSON.parse(fs.readFileSync(path.join(ROOT, 'docs/reports/types/TYPES1_RATCHET.json'), 'utf8'));
 const register = JSON.parse(fs.readFileSync(path.join(ROOT, 'docs/reports/types/TYPES1_ESCAPES.json'), 'utf8')).escapes;
 
-// Same quarantine set as scripts/test_types1.cjs (T-08).
-const QUARANTINED = /^(services\/adaptive\/|services\/admin-adaptive\.service\.ts|services\/live-test-|app\/admin\/live-tests\/|app\/live-tests\/|services\/battle\.service\.ts|app\/battles\/|app\/api\/battles\/|services\/psychometrics\.service\.ts|app\/performance\/|services\/admin-competition-intelligence\.service\.ts|services\/candidate-intelligence\.service\.ts|components\/admin\/adaptive\/|components\/admin\/live-tests\/)/;
+// Same quarantine set as scripts/test_types1.cjs (T-08); PERF-HOME-1: pages live in the route group app/(site).
+const QUARANTINED = /^(services\/adaptive\/|services\/admin-adaptive\.service\.ts|services\/live-test-|app\/(?:\(site\)\/)?admin\/live-tests\/|app\/(?:\(site\)\/)?live-tests\/|services\/battle\.service\.ts|app\/(?:\(site\)\/)?battles\/|app\/api\/battles\/|services\/psychometrics\.service\.ts|app\/(?:\(site\)\/)?performance\/|services\/admin-competition-intelligence\.service\.ts|services\/candidate-intelligence\.service\.ts|components\/admin\/adaptive\/|components\/admin\/live-tests\/)/;
 // Files that TEST-CA (current affairs) rewrites beyond the ratchet scope. GAP2-4b closed the B5 family (GAP2-4):
 // no exam knowledge / syllabus file is owned any more — a failing select there is NEW drift.
 const OWNED_FILES = [

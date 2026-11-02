@@ -411,7 +411,10 @@ function firstGuardViolation(body) {
     const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g;
     const roleRun = async (email, pwKey, expectFor) => {
       const ctx = await signIn(email);
-      const base404 = await get(ctx.request, '/zz-sec1c-baseline-404');
+      // PERF-HOME-1: an unmatched URL renders the cookie-free root 404 (it must stay static for the cached pages); the
+      // baseline is the same user's 404 INSIDE the session shell (app/(site)), like a denied admin page: an unknown exam
+      const base404 = await get(ctx.request, '/exams/zz-sec1c-baseline-404');
+      assert(base404.status === 404 || /NEXT_HTTP_ERROR_FALLBACK;404|NEXT_NOT_FOUND/.test(base404.body), `baseline is not a 404 (HTTP ${base404.status})`);
       const b = scan(base404.body);
       const ownUuids = new Set(base404.body.match(UUID_RE) || []);
       // Emails other than the signed-in user's own (the admin layout shows the user's own email).

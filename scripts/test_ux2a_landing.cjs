@@ -302,7 +302,8 @@ const UX2B_ROUTES = ['/legal'];
     assert(bad.length === 0, `not built from PageLoading: ${bad.join(', ')}`);
     const pl = read('components/shell/page-loading.tsx');
     assert(/from "@\/components\/ui\/skeleton"/.test(pl) && !/legacy|dark:|#[0-9a-f]{3,6}\b/i.test(stripComments(pl)), 'PageLoading must use components/ui only');
-    const PUBLIC = ['app/loading.tsx', 'app/exams/loading.tsx', 'app/(site)/mock-tests/loading.tsx', 'app/(site)/current-affairs/loading.tsx', 'app/(site)/pricing/loading.tsx'];
+    // PERF-HOME-1: the same routes in either route group
+    const PUBLIC = ['app/loading.tsx', 'app/exams/loading.tsx', 'app/(public)/loading.tsx', 'app/(site)/loading.tsx', 'app/(public)/exams/loading.tsx', 'app/(site)/exams/loading.tsx', 'app/(site)/mock-tests/loading.tsx', 'app/(site)/current-affairs/loading.tsx', 'app/(site)/pricing/loading.tsx'];
     assert(!found.some((f) => PUBLIC.includes(f)), 'public routes must render static content immediately (no segment loading UI)');
     return `${found.length} segment loading UIs: ${found.map((f) => f.replace(/^app\//, '/').replace(/\/loading\.tsx$/, '')).join(', ')}`;
   });
