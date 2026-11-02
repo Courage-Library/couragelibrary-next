@@ -128,7 +128,7 @@ test('D-01 migration 120: INVOKER outline + node lessons, SECDEF progress via au
   }
   const al = JSON.parse(read('scripts/secdef/allowlist.json'));
   const key = 'fn_lesson_progress_save(p_document_id uuid, p_language text, p_status text, p_last_block_id text)';
-  assert(al.functions[key] && al.functions[key].class === 'A' && JSON.stringify(al.functions[key].client) === '["authenticated"]' && al.max.total === 116 && al.max.A === 49
+  assert(al.functions[key] && al.functions[key].class === 'A' && JSON.stringify(al.functions[key].client) === '["authenticated"]' && al.max.total >= 116 && al.max.A === 49 /* later phases raise the total by documented, exact rules (O-09 sums them) */
     && al.rules.some((r) => /^CA-5 .*raised by exactly 1 for fn_lesson_progress_save/.test(r)), 'allow-list: exactly +1, reviewed entry + rule');
   const rb = read('docs/database/rollback/120_rollback.sql');
   assert(rb.includes(fn(m116, 'fn_exam_syllabus_read_model')) && rb.includes(fn(m116, 'fn_syllabus__validate')) && /DROP TABLE IF EXISTS public\.user_lesson_progress;/.test(rb), 'rollback restores the 116 bodies and drops the progress table');
