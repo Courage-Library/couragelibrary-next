@@ -14,7 +14,18 @@ The per-release checklists (`RELEASE_HOME_1.md`, …) add their own steps; these
    It runs every gate of the "Offline gates" step of `.github/workflows/ci-gates.yml` (TSC and LINT included).
    It does not skip anything by name and keeps no hand-written list. A gate line it cannot parse fails the run.
    Push only on `OFFLINE-LOCAL: N/N passed`.
-3. Check that no CI dispatch is queued, because a push cancels a pending dispatch.
+3. **Replaced functions (owner rule, 2026-11-03):** when a migration replaces or changes a database function, run
+   locally, before pushing, every live gate that calls that function. They run with real roles and roll back. To find
+   them, search for the function name:
+
+   ```bash
+   grep -l "fn_name" scripts/live/*.cjs scripts/*.cjs
+   ```
+
+   Run each gate it lists. If the migration is not applied yet, use `--pre`.
+   **Why:** COURSE-UX-1 migration 136 replaced `fn_lesson_progress_save`. `CA5-COURSES-LIVE` still expected the old
+   rule, and only the CI dispatch (41628887562) caught it.
+4. Check that no CI dispatch is queued, because a push cancels a pending dispatch.
 
 **Why:** the COURSE-UX-1 push CI (41625360184) failed `LIVE-LOCK-SWEEP`, an offline gate. The earlier local run had
 skipped it because its name contains "LIVE".
