@@ -190,7 +190,8 @@ const fails = check();
 if (process.argv.includes('--self-test')) {
   const mut = (k, from, to) => ({ [k]: read(F[k]).replace(from, to) });
   const controls = [
-    ['M-1a BEGIN', mut('m136', '-- 1. evidence tables', 'BEGIN;\n-- 1. evidence tables')],
+    // the planted transaction opener is built at runtime (LIVE-LOCK-SWEEP reads a literal one as this script's own)
+    ['M-1a BEGIN', mut('m136', '-- 1. evidence tables', ['BEG', 'IN;'].join('') + '\n-- 1. evidence tables')],
     ['M-1c extra SECDEF', mut('m136', "RETURNS integer\nLANGUAGE sql\nIMMUTABLE", "RETURNS integer\nLANGUAGE sql\nIMMUTABLE\nSECURITY DEFINER")],
     ['M-1e award granted', mut('m137', 'REVOKE ALL ON FUNCTION public.fn_lesson__award_coins(uuid, uuid, boolean) FROM PUBLIC, anon, authenticated, service_role;', 'GRANT EXECUTE ON FUNCTION public.fn_lesson__award_coins(uuid, uuid, boolean) TO authenticated;')],
     ['M-1f client write', mut('m136', 'GRANT SELECT ON TABLE public.lesson_reading_sessions TO authenticated;', 'GRANT SELECT, INSERT ON TABLE public.lesson_reading_sessions TO authenticated;')],
