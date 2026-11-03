@@ -16,6 +16,7 @@ import { validateLesson, type LessonBlock, type LessonLinkMap, type LessonMeta }
 import { isLessonLocked, lessonAccessLevel } from "@/lib/learning/chapter-access";
 import { getLessonAccessSettings } from "@/lib/learning/lesson-access-settings";
 import { examTopicHref, learnHref, segmentsToHierarchyPath } from "@/lib/learn/paths";
+import { readingMinutes } from "@/lib/lessons/reading-time";
 import { LearningResolverService, resolveLessonLinks } from "@/services/learning/learning-resolver.service";
 
 export const LEARN_CACHE_TAG = "learn";
@@ -128,6 +129,10 @@ export interface MasterLessonPage {
   body: { meta: LessonMeta; blocks: LessonBlock[]; links: LessonLinkMap } | null;
   teaser: { title: string; intro: string | null; outline: string[] } | null;
   progress: "NOT_STARTED" | "READING" | "COMPLETED" | null;
+  /** COURSE-UX-1: the block to resume at (server-saved), the student's recorded quick-check answers, reading minutes */
+  lastBlockId: string | null;
+  answered: Record<string, { optionId: string; correct: boolean }>;
+  minutes: number | null;
 }
 
 /** Title + intro + outline only (the Pro teaser: indexable, never the gated body). */
@@ -145,7 +150,7 @@ export async function getMasterLessonPage(segments: string[], language: "en" | "
   if (!path) return null;
   const data = await loadMasterData(path);
   if (!data) return null;
-  if (!data.lesson) return { data, language, shown: null, access: "FREE", locked: false, body: null, teaser: null, progress: null };
+  if (!data.lesson) return { data, language, shown: null, access: "FREE", locked: false, body: null, teaser: null, progress: null, lastBlockId: null, answered: {}, minutes: null };
 
   const [settings, viewer, supabase] = await Promise.all([getLessonAccessSettings(), LearningResolverService.getViewerAccess(), createServerSupabaseClient()]);
   const shown: "en" | "hi" = language === "hi" && data.lesson.hi ? "hi" : "en";
@@ -154,12 +159,22 @@ export async function getMasterLessonPage(segments: string[], language: "en" | "
   const locked = isLessonLocked(data.lesson.position, settings, data.lesson.documentId, viewer.hasPro);
 
   let progress: MasterLessonPage["progress"] = null;
+  let lastBlockId: string | null = null;
+  const answered: MasterLessonPage["answered"] = {};
   if (!locked) {
     const session = await getSessionState(supabase);
     if (session.state === "user") {
-      const { data: row } = await supabase.from("user_lesson_progress").select("status").eq("document_id", data.lesson.documentId).eq("language", shown).maybeSingle();
-      progress = row?.status === "COMPLETED" ? "COMPLETED" : row?.status === "READING" ? "READING" : "NOT_STARTED";
+      // COURSE-UX-1 (135): one progress record per lesson, any language (before 135: COMPLETED in any language wins)
+      const [{ data: rows }, { data: attempts }] = await Promise.all([
+        supabase.from("user_lesson_progress").select("status, last_block_id, updated_at").eq("document_id", data.lesson.documentId).order("updated_at", { ascending: false }),
+        supabase.from("lesson_quick_check_attempts").select("block_id, option_id, is_correct").eq("document_id", data.lesson.documentId).eq("language", shown),
+      ]);
+      const list = rows || [];
+      progress = list.some((r) => r.status === "COMPLETED") ? "COMPLETED" : list.some((r) => r.status === "READING") ? "READING" : "NOT_STARTED";
+      lastBlockId = list.find((r) => r.last_block_id)?.last_block_id ?? null;
+      for (const a of attempts || []) answered[a.block_id] = { optionId: a.option_id, correct: a.is_correct };
     }
   }
-  return { data, language, shown, access, locked, body: locked ? null : version, teaser: locked ? lessonTeaser(version) : null, progress };
+  const minutes = readingMinutes(version.blocks);
+  return { data, language, shown, access, locked, body: locked ? null : version, teaser: locked ? lessonTeaser(version) : null, progress, lastBlockId, answered, minutes };
 }

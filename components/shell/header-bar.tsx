@@ -3,7 +3,7 @@
 import { Suspense, use, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu } from "lucide-react";
+import { Coins, Menu } from "lucide-react";
 import { BrandWordmark } from "@/components/brand/wordmark";
 import { Avatar } from "@/components/ui/avatar";
 import { Button, ButtonLink } from "@/components/ui/button";
@@ -79,6 +79,35 @@ function ResolvedStartAction({ signup, open, closed }: { signup: Promise<boolean
 }
 
 /**
+ * COURSE-UX-1: the coin balance (COINS_LESSON_EARN on only). The shell makes no database query (UX-1b U-5): the browser
+ * asks /api/coins/balance (the student's own wallet row) after the page is shown; nothing while loading or unknown, so
+ * the header never shifts (the slot keeps its width only once a number exists, beside the account menu).
+ */
+function CoinBalance({ enabled }: { enabled?: boolean }) {
+  const [n, setN] = useState<number | null>(null);
+  const pathname = usePathname();
+  useEffect(() => {
+    if (!enabled) return;
+    let live = true;
+    fetch("/api/coins/balance", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j: { balance?: unknown } | null) => live && setN(typeof j?.balance === "number" ? j.balance : null))
+      .catch(() => null);
+    return () => {
+      live = false;
+    };
+  }, [enabled, pathname]);
+  if (!enabled || n === null) return null;
+  return (
+    <Link href="/wallet" className="focus-ring inline-flex min-h-12 items-center gap-1.5 rounded-control px-3 text-body-sm font-semibold text-fg hover:bg-ink-50" data-testid="header-coins">
+      <Coins aria-hidden="true" className="size-5 text-primary-700" />
+      <span>{n}</span>
+      <span className="sr-only">coins</span>
+    </Link>
+  );
+}
+
+/**
  * Site header for every non-admin route. Signed out: public nav + Sign in / Get started. Signed in: student nav
  * + account menu (desktop); on phones the student uses the bottom nav and this header keeps a menu button
  * for everything else. UX-2a: the landing page ("/") always shows the public header; a signed-in visitor sees
@@ -142,6 +171,7 @@ export function HeaderBar({
         </nav>
 
         <div className="ml-auto flex items-center gap-2">
+          {account && <CoinBalance enabled={account.lessonCoins} />}
           {account && student ? (
             <div className="hidden lg:block">
               <NavMenu

@@ -173,7 +173,7 @@ export function LessonEditor({ data, loadError }: { data: LessonEditorData | nul
           {preview ? (
             <>
               <p className="mb-3 text-h2 font-bold text-fg">{preview.meta.title}</p>
-              <LessonBlocksRenderer blocks={preview.blocks} links={NO_LINKS} Math={PlainMath} />
+              <LessonBlocksRenderer blocks={preview.blocks} links={NO_LINKS} Math={PlainMath} preview />
             </>
           ) : (
             <p className="text-[13px] text-fg-secondary">Press Check to see the lesson as students will.</p>

@@ -410,7 +410,7 @@ export function LessonGenerator({ nodes, selectedNodeId, generator, loadError, s
             <h2 id="gen-preview" className="mb-2 text-[15px] font-bold text-fg">
               Preview: {result.meta.title}
             </h2>
-            <LessonBlocksRenderer blocks={result.blocks} links={NO_LINKS} Math={PlainMath} />
+            <LessonBlocksRenderer blocks={result.blocks} links={NO_LINKS} Math={PlainMath} preview />
           </StudioPanel>
         </div>
       )}

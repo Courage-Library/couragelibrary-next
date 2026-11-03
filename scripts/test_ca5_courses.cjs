@@ -128,7 +128,7 @@ test('D-01 migration 120: INVOKER outline + node lessons, SECDEF progress via au
   }
   const al = JSON.parse(read('scripts/secdef/allowlist.json'));
   const key = 'fn_lesson_progress_save(p_document_id uuid, p_language text, p_status text, p_last_block_id text)';
-  assert(al.functions[key] && al.functions[key].class === 'A' && JSON.stringify(al.functions[key].client) === '["authenticated"]' && al.max.total >= 116 && al.max.A === 49 /* later phases raise the total by documented, exact rules (O-09 sums them) */
+  assert(al.functions[key] && al.functions[key].class === 'A' && JSON.stringify(al.functions[key].client) === '["authenticated"]' && al.max.total >= 116 && al.max.A === 49 + 2 /* later phases raise the total by documented, exact rules (O-09 sums them); COURSE-UX-1 +2 (fn_lesson_quick_check_answer, fn_lesson_complete) */
     && al.rules.some((r) => /^CA-5 .*raised by exactly 1 for fn_lesson_progress_save/.test(r)), 'allow-list: exactly +1, reviewed entry + rule');
   const rb = read('docs/database/rollback/120_rollback.sql');
   assert(rb.includes(fn(m116, 'fn_exam_syllabus_read_model')) && rb.includes(fn(m116, 'fn_syllabus__validate')) && /DROP TABLE IF EXISTS public\.user_lesson_progress;/.test(rb), 'rollback restores the 116 bodies and drops the progress table');
@@ -148,7 +148,9 @@ test('R-01 reader / course / progress: master-position access, no user id from c
   // PERF-LESSON-1: a server component <form action> (no "use client", no client libraries on the lesson page)
   assert(!/^"use client"/m.test(comp) && /<form action=\{completeLessonFormAction\}>/.test(comp) && /variant: "secondary"/.test(comp) && !/variant: "primary"/.test(comp), 'the progress control is a server-rendered form, not a second primary action');
   const course = read('app/(site)/exams/[slug]/course/page.tsx');
-  assert((course.match(/variant="primary"/g) || []).length === 1 && !/[ऀ-ॿ]/.test(course) && /l\.locked \? <Lock/.test(course), 'course page: one primary, English, locked lessons marked');
+  // COURSE-UX-1: the lesson rows moved to components/learning/course-ui.tsx (a locked lesson shows the lock icon + "Pro lesson, locked")
+  const courseUi = read('components/learning/course-ui.tsx');
+  assert((course.match(/variant="primary"/g) || []).length === 1 && !/[ऀ-ॿ]/.test(course + courseUi) && /if \(locked\) return <Lock/.test(courseUi) && /lesson\.locked \? "Pro lesson, locked"/.test(courseUi), 'course page: one primary, English, locked lessons marked');
   const home = read('components/exams/exam-home.tsx');
   assert(/courseHref && \(/.test(home) && /C\.syllabus\.course/.test(home), 'exam home links the course');
   return 'reader · course · progress';

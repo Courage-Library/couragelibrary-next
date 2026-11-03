@@ -17,13 +17,14 @@
   "P6-MFA-FLAG (architect ruling on RLS P-6, 2026-10-26): max total / client_executable_callable / A raised by exactly 1 for fn_admin_mfa_required — a STABLE read-only helper returning ONLY the security_settings.admin_mfa_required boolean, so the table needs no client read (P-6) while the staff predicates (which run as the caller) can still read the flag; EXECUTE authenticated + service_role only (anon never runs the predicates)",
   "F9-B (architect GO, 2026-10-26): max total raised by exactly 8 and B-service by 9 for the 8 service-role-only payment functions of migration 114 (no client EXECUTE) plus fn_create_payment_order moved A to B-service after its client EXECUTE was revoked (113); client_executable_callable and A lowered by 1",
   "CA-5 (architect GO 2026-10-28, design §I: progress written ONLY through an auth.uid() RPC, the DRILL-1 pattern): max total / client_executable_callable / A raised by exactly 1 for fn_lesson_progress_save — a NEW reviewed client entrypoint (authenticated only; no table write granted)",
-  "USERNAME-1 (owner GO 2026-11-02, server-only lookup approved): max total raised by exactly 2 — B-service by 1 for fn_public_identities (service_role only, ≤ 100 ids, label only) and B-trigger by 1 for fn_user_profiles_auto_username (trigger, not callable); client_executable_callable and A unchanged (fn_set_username replaced in place, same class A entry)"
+  "USERNAME-1 (owner GO 2026-11-02, server-only lookup approved): max total raised by exactly 2 — B-service by 1 for fn_public_identities (service_role only, ≤ 100 ids, label only) and B-trigger by 1 for fn_user_profiles_auto_username (trigger, not callable); client_executable_callable and A unchanged (fn_set_username replaced in place, same class A entry)",
+  "COURSE-UX-1 (owner GO 2026-11-03, phase B: completion only with server-recorded evidence; quick-check answers checked on the server): max total / client_executable_callable / A raised by exactly 2 for fn_lesson_quick_check_answer and fn_lesson_complete — NEW reviewed client entrypoints (authenticated only; auth.uid(); no table write granted); the reading-minutes and lesson-coin award helpers are INVOKER and not listed"
  ],
  "max": {
-  "total": 118,
-  "client_executable_callable": 49,
+  "total": 120,
+  "client_executable_callable": 51,
   "anon_or_public": 1,
-  "A": 49,
+  "A": 51,
   "C": 0,
   "B-trigger": 16,
   "B-service": 39,
@@ -839,6 +840,22 @@
    "client": [],
    "search_path": "\"\"",
    "reason": "USERNAME-1 trigger function (not callable; EXECUTE revoked from PUBLIC / anon / authenticated): BEFORE INSERT on user_profiles assigns \"aspirant_\" + 6 random digits (collision- and 90-day-hold-safe) and records it in username_history (no client grant); migration 134"
+  },
+  "fn_lesson_quick_check_answer(p_document_id uuid, p_language text, p_block_id text, p_option_id text)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "\"\"",
+   "reason": "client entrypoint (COURSE-UX-1, migration 136): own check auth.uid(); checks one quick-check answer against the PUBLISHED lesson and records the first attempt; listed before the owner applies it (the live ratchet only notes a not-yet-present function)"
+  },
+  "fn_lesson_complete(p_document_id uuid, p_language text)": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "\"\"",
+   "reason": "client entrypoint (COURSE-UX-1, migrations 136 + 137): own check auth.uid(); completes a lesson only with server-recorded evidence (end, quick checks, time); awards lesson coins once via the canonical ledger when the DB switch is on; listed before the owner applies it"
   }
  }
 }

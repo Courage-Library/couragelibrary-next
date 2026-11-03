@@ -3938,6 +3938,79 @@ export type Database = {
           },
         ]
       }
+      lesson_quick_check_attempts: {
+        Row: {
+          attempted_at: string
+          block_id: string
+          document_id: string
+          is_correct: boolean
+          language: string
+          option_id: string
+          user_id: string
+        }
+        Insert: {
+          attempted_at?: string
+          block_id: string
+          document_id: string
+          is_correct: boolean
+          language: string
+          option_id: string
+          user_id: string
+        }
+        Update: {
+          attempted_at?: string
+          block_id?: string
+          document_id?: string
+          is_correct?: boolean
+          language?: string
+          option_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lesson_quick_check_attempts_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "learning_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lesson_reading_sessions: {
+        Row: {
+          document_id: string
+          end_reached_at: string | null
+          last_block_id: string | null
+          started_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          document_id: string
+          end_reached_at?: string | null
+          last_block_id?: string | null
+          started_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          document_id?: string
+          end_reached_at?: string | null
+          last_block_id?: string | null
+          started_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lesson_reading_sessions_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "learning_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mistake_cognitive_types: {
         Row: {
           created_at: string
@@ -9083,6 +9156,14 @@ export type Database = {
       fn_jwt_is_admin: { Args: never; Returns: boolean }
       fn_jwt_is_admin_or_staff: { Args: never; Returns: boolean }
       fn_lesson__answer_key: { Args: { p_block: Json }; Returns: string }
+      fn_lesson__award_coins: {
+        Args: {
+          p_all_correct: boolean
+          p_document_id: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       fn_lesson__keys: {
         Args: { allowed: string[]; o: Json; p: string }
         Returns: Json
@@ -9100,6 +9181,7 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_lesson__reading_minutes: { Args: { p_blocks: Json }; Returns: number }
       fn_lesson__str: {
         Args: {
           k: string
@@ -9139,6 +9221,10 @@ export type Database = {
         Args: { p_blocks: Json; p_meta: Json }
         Returns: Json
       }
+      fn_lesson_complete: {
+        Args: { p_document_id: string; p_language: string }
+        Returns: Json
+      }
       fn_lesson_create_node_document: {
         Args: {
           p_access_level: string
@@ -9166,6 +9252,15 @@ export type Database = {
           p_actor_email: string
           p_actor_id: string
           p_version_id: string
+        }
+        Returns: Json
+      }
+      fn_lesson_quick_check_answer: {
+        Args: {
+          p_block_id: string
+          p_document_id: string
+          p_language: string
+          p_option_id: string
         }
         Returns: Json
       }

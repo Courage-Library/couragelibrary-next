@@ -77,7 +77,9 @@ test('SH-01 SEO-HYGIENE-1: canonical base fixed; non-production hosts noindex + 
 test('LA-01 per-exam launch: gating only inside a LIVE course (stand-in gone); course page / exam-page link / sitemap course URL only while LIVE; admin-only audited launch with a server snapshot', () => {
   assert(!/LESSON_GATING_ENABLED/.test(read('lib/learning/chapter-access.ts').replace(/\(CA-7 replaced[^)]*\)/, '')) && !/LESSON_GATING_ENABLED|gatingEnabled/.test(read('lib/learning/lesson-access-settings.ts')), 'the CA-5 stand-in is gone');
   const cs = read('services/learning/course.service.ts');
-  assert(/from\("exam_course_launches"\)\.select\("status"\)\.eq\("exam_id", exam\.id\)\.eq\("status", "LIVE"\)\.limit\(1\);\s*if \(launchError \|\| !launch\?\.length\) return null;/.test(cs), 'course page only while LIVE (a failed read → no course)');
+  // COURSE-UX-1: the LIVE read is isCourseLive (a failed read → false); the only other way in is the staff / admin preview
+  assert(/const isLive = await isCourseLive\(data\.exam\.id\);\s*const role = session\.state === "user" \? \(session\.user\.app_metadata as \{ role\?: string \} \| undefined\)\?\.role : undefined;\s*const preview = !isLive && \(role === "admin" \|\| role === "staff"\);\s*if \(!isLive && !preview\) return null;/.test(cs)
+    && /return !error && Boolean\(data\?\.length\);/.test(cs), 'course page only while LIVE (a failed read → no course; staff / admin preview only)');
   // UX-IMP-1: the LIVE check runs in the page's parallel step; the link still appears only when it returned true
   const hubSrc = read('app/(site)/exams/[slug]/page.tsx');
   assert(/totals && totals\.servable_documents > 0 \? isCourseLive\(exam\.id\) : Promise\.resolve\(false\)/.test(hubSrc) && /courseHref=\{courseLive \? `\/exams\/\$\{exam\.slug\}\/course` : null\}/.test(hubSrc), 'the exam page links the course only while LIVE');

@@ -1,5 +1,6 @@
 import React from "react";
-import { isCoinsEnabled } from "@/lib/coins/flag";
+import { isCoinsEnabled, isLessonCoinsEarnEnabled } from "@/lib/coins/flag";
+import { LessonCoinsWallet } from "@/components/coins/lesson-coins-wallet";
 import { CoinsPaused } from "@/components/coins/coins-paused";
 import { redirect } from "next/navigation";
 import { GamificationService } from "@/services/gamification.service";
@@ -23,8 +24,9 @@ export default async function WalletPage() {
   const session = await getServerSession();
   if (session.state === "error") return <SessionUnavailable />;
   if (session.state === "none") redirect(loginRedirectPath("/wallet"));
-  // BRAND-3 fix 1: coins paused → no balance, no catalogue (nothing is read)
-  if (!isCoinsEnabled()) return <CoinsPaused />;
+  // BRAND-3 fix 1: coins paused → no balance, no catalogue (nothing is read). COURSE-UX-1: lesson coins on (earn only)
+  // → the balance and the recent credits, no store
+  if (!isCoinsEnabled()) return isLessonCoinsEarnEnabled() ? <LessonCoinsWallet /> : <CoinsPaused />;
   const user = session.user;
   const supabase = await createServerSupabaseClient();
 

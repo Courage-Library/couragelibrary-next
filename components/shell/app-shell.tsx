@@ -13,7 +13,7 @@ import { isOnboardingEnabled } from "@/lib/onboarding/flag";
 import { isProfilesEnabled } from "@/lib/profile/flag";
 import { getSignupAvailability } from "@/lib/auth/signup-availability";
 import { isPracticeEnabled } from "@/lib/practice/flag";
-import { isCoinsEnabled } from "@/lib/coins/flag";
+import { isCoinsEnabled, isLessonCoinsEarnEnabled } from "@/lib/coins/flag";
 import { CoinsFlagProvider } from "@/lib/coins/flag-context";
 import { loadBrandAssets } from "@/lib/brand/brand-assets";
 
@@ -50,6 +50,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
         studyPreferences: isOnboardingEnabled(),
         profile: isProfilesEnabled(),
         coins: isCoinsEnabled(),
+        lessonCoins: isLessonCoinsEarnEnabled(),
       }
     : null;
 

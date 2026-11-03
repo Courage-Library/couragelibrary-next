@@ -213,13 +213,13 @@ export function LessonTranslation({ data, loadError }: { data: LessonTranslation
                         <p className="mb-1 font-mono text-[12px] text-fg-secondary">
                           {i + 1}. {b.id} · {b.type} · EN
                         </p>
-                        <LessonBlocksRenderer blocks={[b]} links={NO_LINKS} Math={PlainMath} />
+                        <LessonBlocksRenderer blocks={[b]} links={NO_LINKS} Math={PlainMath} preview />
                       </div>
                       <div>
                         <p className="mb-1 font-mono text-[12px] text-fg-secondary">HI</p>
                         {h && h.id === b.id ? (
                           <div lang="hi" data-content-display="lesson-translation-block">
-                            <LessonBlocksRenderer blocks={[h]} links={NO_LINKS} Math={PlainMath} />
+                            <LessonBlocksRenderer blocks={[h]} links={NO_LINKS} Math={PlainMath} preview />
                           </div>
                         ) : (
                           <p className="text-[13px] text-danger-700">Missing: the translation does not match this block.</p>

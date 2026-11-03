@@ -20,7 +20,7 @@ export function PlainMath({ latex, reading, display }: LessonMathProps) {
  * server for the private lesson-images bucket.
  */
 
-function Rich({ text, links, Math }: { text: string; links: LessonLinkMap; Math: MathComponent }) {
+export function Rich({ text, links, Math }: { text: string; links: LessonLinkMap; Math: MathComponent }) {
   const render = (nodes: RichNode[], key: string): React.ReactNode[] =>
     nodes.map((n, i) => {
       const k = `${key}-${i}`;
@@ -61,10 +61,19 @@ const CALLOUT: Record<string, { label: string; cls: string }> = {
   MEMORY_HOOK: { label: "Memory hook", cls: "border-accent-200 bg-accent-50" },
 };
 
-function Block({ b, links, Math }: { b: LessonBlock; links: LessonLinkMap; Math: MathComponent }) {
+function Block({ b, links, Math, check, preview }: { b: LessonBlock; links: LessonLinkMap; Math: MathComponent; check?: QuickCheckContext; preview?: boolean }) {
   switch (b.type) {
     case "heading":
-      return b.level === 2 ? <h2 className="mt-8 text-h2 font-bold text-fg">{b.text}</h2> : <h3 className="mt-6 text-h3 font-semibold text-fg">{b.text}</h3>;
+      // COURSE-UX-1: headings carry an id ("On this page" anchors); scroll-margin keeps them clear of the sticky header
+      return b.level === 2 ? (
+        <h2 id={headingAnchor(b.id)} className="mt-8 scroll-mt-24 text-h2 font-bold text-fg">
+          {b.text}
+        </h2>
+      ) : (
+        <h3 id={headingAnchor(b.id)} className="mt-6 scroll-mt-24 text-h3 font-semibold text-fg">
+          {b.text}
+        </h3>
+      );
     case "paragraph":
       return (
         <p className="text-body-lg leading-relaxed text-fg">
@@ -151,7 +160,8 @@ function Block({ b, links, Math }: { b: LessonBlock; links: LessonLinkMap; Math:
       );
     case "table":
       return (
-        <div className="overflow-x-auto">
+        // COURSE-UX-1 (axe scrollable-region-focusable): a wide table scrolls sideways on phones — keyboard-reachable
+        <div className="focus-ring overflow-x-auto rounded-control" tabIndex={0} role="region" aria-label={b.caption || "Table"}>
           <table className="w-full border-collapse text-body">
             {b.caption && <caption className="mb-2 text-left font-semibold text-fg">{b.caption}</caption>}
             <thead>
@@ -204,18 +214,38 @@ function Block({ b, links, Math }: { b: LessonBlock; links: LessonLinkMap; Math:
       ) : null;
     }
     case "quick_check":
-      // rendered here (server side for students), so the client component receives nodes, never LaTeX
-      return (
+      // rendered here (server side for students), so the client component receives nodes, never LaTeX.
+      // COURSE-UX-1: NO correct flag and NO feedback reach the browser before an answer — the server checks it
+      // (components/learning/lesson-quick-check.tsx → app/(site)/learn/actions.tsx)
+      return check ? (
         <LessonQuickCheck
           id={b.id}
+          documentId={check.documentId}
+          language={check.language}
+          answered={check.answered[b.id] ?? null}
           prompt={<Rich text={b.prompt} links={links} Math={Math} />}
-          options={b.options.map((o) => ({
-            id: o.id,
-            correct: o.correct,
-            text: <Rich text={o.text} links={links} Math={Math} />,
-            feedback: o.feedback ? <Rich text={o.feedback} links={links} Math={Math} /> : null,
-          }))}
+          options={b.options.map((o) => ({ id: o.id, text: <Rich text={o.text} links={links} Math={Math} /> }))}
         />
+      ) : (
+        // no student context: the admin preview shows the key (editors only); anywhere else the options without a key
+        <fieldset className="rounded-card border border-line bg-surface p-4">
+          <legend className="px-1 text-body font-semibold text-fg">
+            Quick check: <Rich text={b.prompt} links={links} Math={Math} />
+          </legend>
+          <ul className="mt-2 grid gap-2">
+            {b.options.map((o) => (
+              <li key={o.id} className="rounded-control border border-line px-3 py-2 text-body text-fg">
+                <Rich text={o.text} links={links} Math={Math} />
+                {preview && o.correct ? <strong className="ml-2 text-success-700">(correct)</strong> : null}
+                {preview && o.feedback ? (
+                  <span className="mt-1 block text-body-sm text-fg-secondary">
+                    <Rich text={o.feedback} links={links} Math={Math} />
+                  </span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </fieldset>
       );
     case "revision_summary":
       return (
@@ -264,11 +294,25 @@ function Block({ b, links, Math }: { b: LessonBlock; links: LessonLinkMap; Math:
   }
 }
 
-export function LessonBlocksRenderer({ blocks, links, Math }: { blocks: LessonBlock[]; links: LessonLinkMap; Math: MathComponent }) {
+/** The anchor of a heading block ("On this page"). */
+export const headingAnchor = (blockId: string) => `h-${blockId}`;
+
+/** COURSE-UX-1: what a student quick check needs (absent → quick checks are not rendered, e.g. the admin preview). */
+export interface QuickCheckContext {
+  documentId: string;
+  language: "en" | "hi";
+  answered: Record<string, { optionId: string; correct: boolean }>;
+}
+
+/** preview: the admin editors' preview (quick checks show their key); check: a student page (server-checked answers). */
+export function LessonBlocksRenderer({ blocks, links, Math, check, preview }: { blocks: LessonBlock[]; links: LessonLinkMap; Math: MathComponent; check?: QuickCheckContext; preview?: boolean }) {
   return (
     <div className="space-y-4" data-lesson-blocks="">
       {blocks.map((b) => (
-        <Block key={b.id} b={b} links={links} Math={Math} />
+        // COURSE-UX-1: each block is addressable (reading position, resume, end reached)
+        <div key={b.id} data-block-id={b.id} className="scroll-mt-24">
+          <Block b={b} links={links} Math={Math} check={check} preview={preview} />
+        </div>
       ))}
     </div>
   );

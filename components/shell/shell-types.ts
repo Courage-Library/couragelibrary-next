@@ -10,4 +10,6 @@ export type ShellAccount = {
   profile?: boolean;
   /** BRAND-3 fix 1: COINS_ENABLED — shows the Wallet and Rewards store links (hidden while coins are paused). */
   coins?: boolean;
+  /** COURSE-UX-1: COINS_LESSON_EARN — the header shows the coin balance (read by the browser from /api/coins/balance). */
+  lessonCoins?: boolean;
 };

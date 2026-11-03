@@ -69,8 +69,9 @@ export default async function ArticleReaderPage({ params }: Props) {
   // CA-5: a signed-in student's own progress on an unlocked lesson (RLS: own rows only)
   let progressStatus: "NOT_STARTED" | "READING" | "COMPLETED" | null = null;
   if (session.state === "user" && article.lesson && !article.isLocked) {
-    const { data } = await supabase.from("user_lesson_progress").select("status").eq("document_id", article.id).eq("language", article.lessonLanguage).maybeSingle();
-    progressStatus = data?.status === "COMPLETED" ? "COMPLETED" : data?.status === "READING" ? "READING" : "NOT_STARTED";
+    // COURSE-UX-1 (135): one progress record per lesson, any language (before 135: COMPLETED in any language wins)
+    const { data: rows } = await supabase.from("user_lesson_progress").select("status").eq("document_id", article.id);
+    progressStatus = (rows || []).some((r) => r.status === "COMPLETED") ? "COMPLETED" : (rows || []).some((r) => r.status === "READING") ? "READING" : "NOT_STARTED";
     // opening the lesson records READING on the server (PERF-LESSON-1: no client code); a failure only skips the record
     if (progressStatus === "NOT_STARTED") {
       const r = await saveLessonProgressAction({ documentId: article.id, language: article.lessonLanguage, status: "READING" }).catch(() => null);

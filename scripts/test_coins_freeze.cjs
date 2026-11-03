@@ -89,7 +89,11 @@ test('CF-06 BRAND-3 fix 1: with COINS_ENABLED off NO coin UI renders (balance, e
   assert(/account\.coins \? ACCOUNT_MENU : ACCOUNT_MENU\.filter\(\(it\) => it\.href !== "\/wallet" && it\.href !== "\/store"\)/.test(read('components/shell/account-links.tsx')), 'wallet / store links hidden');
   for (const f of ['app/(site)/wallet/page.tsx', 'app/(site)/store/page.tsx']) {
     const s = read(f);
-    assert(/if \(!isCoinsEnabled\(\)\) return <CoinsPaused \/>;/.test(s) && s.indexOf('if (!isCoinsEnabled())') < s.indexOf('GamificationService.'), `${f}: paused before any coin data is read`);
+    // COURSE-UX-1 (decision #78 + owner exception 2026-11-03, lesson EARNING only): with COINS_LESSON_EARN on, the wallet shows the
+    // balance + recent credits (own rows, no store); otherwise paused — both before any GamificationService read
+    const earnOnly = f.endsWith('wallet/page.tsx') && /if \(!isCoinsEnabled\(\)\) return isLessonCoinsEarnEnabled\(\) \? <LessonCoinsWallet \/> : <CoinsPaused \/>;/.test(s)
+      && !/GamificationService|reward_catalog|reward_claims/.test(read('components/coins/lesson-coins-wallet.tsx'));
+    assert((earnOnly || /if \(!isCoinsEnabled\(\)\) return <CoinsPaused \/>;/.test(s)) && s.indexOf('if (!isCoinsEnabled())') < s.indexOf('GamificationService.'), `${f}: paused (or the earn-only wallet) before any coin data is read`);
   }
   // every coin-UI block (marked data-coin-ui) sits inside a flag check
   const GUARDED = {

@@ -17,6 +17,11 @@
    "baseline": 107,
    "recorded": "2026-10-28 (CA-5)"
   },
+  "/exams/[slug]/course/[subject]": {
+   "max": 110,
+   "baseline": 107,
+   "recorded": "2026-11-03 (COURSE-UX-1 subject page)"
+  },
   "/learn/[...path]": {
    "max": 110,
    "baseline": 107,

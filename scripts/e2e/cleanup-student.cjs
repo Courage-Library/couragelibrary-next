@@ -99,6 +99,9 @@ if (!KEEP_USER && isPermanentIdentity(EMAIL)) {
     // CA-5 / CA-7: lesson pages record READING progress and (122) one ARTICLE_VIEWED event per day for a signed-in student
     await del('user_lesson_progress', `DELETE FROM public.user_lesson_progress WHERE user_id = $1`);
     await del('learning_activity_events', `DELETE FROM public.learning_activity_events WHERE user_id = $1`);
+    // COURSE-UX-1 (136): reading sessions and quick-check answers recorded by the lesson reader
+    await del('lesson_reading_sessions', `DELETE FROM public.lesson_reading_sessions WHERE user_id = $1`);
+    await del('lesson_quick_check_attempts', `DELETE FROM public.lesson_quick_check_attempts WHERE user_id = $1`);
     // SEC-1B: E2E_KEEP_USER=1 keeps a permanent QA identity (auth user + profile); only journey data goes.
     if (!KEEP_USER) await del('user_profiles', `DELETE FROM public.user_profiles WHERE id = $1`);
 

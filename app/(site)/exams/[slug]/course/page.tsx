@@ -1,24 +1,23 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { ExamBrandLogo } from "@/components/exams/exam-brand-logo";
-import { ArrowLeft, CheckCircle2, Circle, CircleDot, Lock } from "lucide-react";
 import { Container } from "@/components/ui/layout";
 import { ButtonLink } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { ProgressBar } from "@/components/ui/progress";
 import { EmptyState } from "@/components/ui/empty-state";
+import { SubjectCard } from "@/components/learning/course-ui";
 import { constructMetadata } from "@/lib/seo/metadata";
 import { ExamCourseService } from "@/services/learning/course.service";
-import { WEIGHTAGE_LABEL, type CourseLessonView } from "@/lib/learning/course-view";
+import { lessonsReadyText } from "@/lib/learning/course-structure";
 import { courseSchema, jsonLdText } from "@/lib/learn/seo";
 import { generateBreadcrumbSchema } from "@/lib/seo/jsonld";
 
 /**
- * CA-5 exam course (design E / F / I): generated from the exam's published syllabus ∩ the published lessons — chapters
- * are master topics in master order. Access per lesson from its MASTER-chapter position (one level for every exam);
- * a locked lesson links to its teaser, never to a body. A signed-in student sees their own progress and ONE primary
- * action: continue where they left off (else start). English UI (R9); the content language follows the preference.
+ * COURSE-UX-1 screen A — course home: ONE primary action (continue where you left off / start), overall progress and
+ * one card per subject (progress ring, "x of y topics ready", high-yield count, practice). The whole syllabus is the
+ * course (partial launch): counts are only what exists — no planned totals, no quotes, no year labels. English UI (R9).
  */
 export const dynamic = "force-dynamic";
 
@@ -26,86 +25,61 @@ interface Props {
   params: Promise<{ slug: string }>;
 }
 
+const describe = (title: string) => `The ${title} course: every syllabus topic, its lessons and topic practice.`;
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const course = await ExamCourseService.getCourse(slug);
   if (!course) return constructMetadata({ title: "Course not found", noIndex: true });
   return constructMetadata({
     title: `${course.exam.title} course`,
-    description: `Every published lesson for the ${course.exam.title} syllabus, chapter by chapter.`,
+    description: describe(course.exam.title),
     canonicalUrl: `/exams/${slug}/course`,
-    noIndex: course.totals.lessons === 0,
+    noIndex: course.preview || course.totals.lessons === 0,
   });
-}
-
-function LessonRow({ l, language }: { l: CourseLessonView; language: "en" | "hi" }) {
-  const Icon = l.status === "COMPLETED" ? CheckCircle2 : l.status === "READING" ? CircleDot : Circle;
-  const statusText = l.status === "COMPLETED" ? "Completed" : l.status === "READING" ? "In progress" : "Not started";
-  return (
-    <li>
-      <Link href={l.href} className="focus-ring flex min-h-12 flex-wrap items-center gap-3 rounded-control px-3 py-2 hover:bg-ink-50">
-        {l.locked ? <Lock aria-hidden="true" className="size-5 text-fg-secondary" /> : <Icon aria-hidden="true" className={`size-5 ${l.status === "COMPLETED" ? "text-success-700" : "text-fg-secondary"}`} />}
-        <span className="flex-1 text-body font-medium text-fg">{l.name}</span>
-        <span className="sr-only">{l.locked ? "Pro lesson, locked" : statusText}</span>
-        {l.access === "PRO" ? <Badge tone="pro">Pro</Badge> : null}
-        {language === "hi" && !l.hiAvailable ? <span className="text-body-sm text-fg-secondary">English for now</span> : null}
-      </Link>
-    </li>
-  );
 }
 
 export default async function ExamCoursePage({ params }: Props) {
   const { slug } = await params;
   const course = await ExamCourseService.getCourse(slug);
   if (!course) notFound();
-  const total = course.totals.lessons;
-  // CA-6: Course + BreadcrumbList JSON-LD (published lessons only — the outline never lists a draft)
+  const { totals } = course;
+  const base = `/exams/${course.exam.slug}/course`;
+  const first = course.order.find((l) => !l.locked) ?? null;
   const jsonLd = {
     "@context": "https://schema.org",
     "@graph": [
-      generateBreadcrumbSchema([{ label: "Home", href: "/" }, { label: course.exam.title, href: `/exams/${course.exam.slug}` }, { label: "Course", href: `/exams/${course.exam.slug}/course` }]),
-      ...(total > 0
-        ? [courseSchema({
-            name: `${course.exam.title} course`,
-            description: `Every published lesson for the ${course.exam.title} syllabus, chapter by chapter.`,
-            path: `/exams/${course.exam.slug}/course`,
-            lessons: course.chapters.flatMap((c) => c.lessons.map((l) => ({ name: l.name, path: l.href }))),
-          })]
+      generateBreadcrumbSchema([{ label: "Home", href: "/" }, { label: course.exam.title, href: `/exams/${course.exam.slug}` }, { label: "Course", href: base }]),
+      ...(totals.lessons > 0 && !course.preview
+        ? [courseSchema({ name: `${course.exam.title} course`, description: describe(course.exam.title), path: base, lessons: course.order.map((l) => ({ name: l.name, path: l.href.split("?")[0] })) })]
         : []),
     ],
   };
 
   return (
-    <Container size="reading" className="flex flex-col gap-6 py-8 lg:py-12">
+    <Container className="flex flex-col gap-6 py-8 lg:py-12" data-course-home="">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdText(jsonLd) }} />
-      <nav aria-label="Breadcrumb" className="text-body-sm text-fg-secondary">
-        <Link href={`/exams/${course.exam.slug}`} className="focus-ring inline-flex min-h-12 items-center gap-1.5 font-medium hover:text-fg">
-          <ArrowLeft aria-hidden="true" className="size-4" /> {course.exam.title}
-        </Link>
-      </nav>
+      <Breadcrumb items={[{ label: "Exams", href: "/exams" }, { label: course.exam.title, href: `/exams/${course.exam.slug}` }, { label: "Course" }]} />
+      {course.preview && (
+        <Alert tone="info" title="Preview — this course is not launched">
+          Only staff see this page until the course is launched.
+        </Alert>
+      )}
 
-      <header className="flex flex-col gap-3">
-        <div className="flex items-center gap-3">
+      <header className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center gap-3">
           <ExamBrandLogo slug={course.exam.slug} />
           <h1 className="text-h1 font-bold text-fg">{course.exam.title} course</h1>
         </div>
-        <p className="text-body-lg text-fg-secondary">
-          {total > 0 ? `${total} lesson${total === 1 ? "" : "s"} in ${course.totals.chapters} chapter${course.totals.chapters === 1 ? "" : "s"}, in syllabus order.` : "Lessons for this syllabus are being written."}
+        <p className="text-body-lg text-fg-secondary" data-testid="course-counts">
+          {totals.lessons > 0 ? `${lessonsReadyText(totals.lessons)} · ${totals.readyTopics} of ${totals.topics} topics have lessons` : `${totals.topics} topics · lessons are being written`}
         </p>
-        {course.signedIn && total > 0 && <ProgressBar label="Your progress" value={course.completed} max={total} valueText={`${course.completed} of ${total} lessons completed`} tone="success" />}
-        {course.continueLesson && (
-          <div>
-            <ButtonLink href={course.continueLesson.href} variant="primary" size="lg" className="min-h-12">
-              {course.continueLesson.started ? "Continue where you left off" : "Start the next lesson"}
-            </ButtonLink>
-          </div>
-        )}
       </header>
 
-      {course.state !== "AVAILABLE" || total === 0 ? (
+      {course.state !== "AVAILABLE" || totals.topics === 0 ? (
         <EmptyState
-          title={course.state !== "AVAILABLE" ? "No published syllabus yet" : "No lessons yet"}
-          description={course.state !== "AVAILABLE" ? "The course appears once the syllabus for this exam is published." : "Lessons appear here chapter by chapter as they are published."}
+          title="No published syllabus yet"
+          description="The course appears once the syllabus for this exam is published."
           action={
             <ButtonLink href={`/exams/${course.exam.slug}`} variant="secondary" size="lg" className="min-h-12">
               Back to the exam
@@ -113,25 +87,47 @@ export default async function ExamCoursePage({ params }: Props) {
           }
         />
       ) : (
-        <ol className="flex flex-col gap-4" aria-label="Chapters">
-          {course.chapters.map((c, i) => (
-            <li key={c.topicId} className="rounded-card border border-line bg-surface p-4">
-              <h2 className="text-h3 font-semibold text-fg">
-                <span className="text-fg-secondary">{i + 1}.</span> {c.name}
+        <>
+          <section aria-labelledby="continue-h" className="flex flex-col gap-4 rounded-card border border-line bg-surface p-4 sm:flex-row sm:items-center sm:p-6" data-testid="course-continue">
+            <div className="flex flex-1 flex-col gap-1">
+              <h2 id="continue-h" className="text-body font-semibold text-fg-secondary">
+                {course.continueLesson?.started ? "Continue where you left off" : course.signedIn ? "Your next lesson" : "Start the course"}
               </h2>
-              <p className="mb-2 text-body-sm text-fg-secondary">
-                {[c.subjectName, c.weightageTier ? `${WEIGHTAGE_LABEL[c.weightageTier] ?? c.weightageTier} weightage` : null, c.expectedQuestionsMax !== null ? `up to ${c.expectedQuestionsMax} questions` : null]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </p>
-              <ul className="flex flex-col" aria-label={`Lessons in ${c.name}`}>
-                {c.lessons.map((l) => (
-                  <LessonRow key={l.documentId} l={l} language={course.language} />
-                ))}
-              </ul>
-            </li>
-          ))}
-        </ol>
+              {course.continueLesson ? (
+                <p className="text-body-lg font-semibold text-fg">
+                  {[course.continueLesson.subject, course.continueLesson.topic].filter(Boolean).join(" · ")}
+                  {course.continueLesson.subject ? " › " : ""}
+                  {course.continueLesson.name}
+                </p>
+              ) : first ? (
+                <p className="text-body-lg font-semibold text-fg">{first.name}</p>
+              ) : (
+                <p className="text-body text-fg-secondary">Lessons appear here as they are published. Practice is open on the topics below.</p>
+              )}
+              {!course.signedIn && first && <p className="text-body-sm text-fg-secondary">Sign in to save your progress.</p>}
+            </div>
+            {(course.continueLesson || first) && (
+              <ButtonLink href={course.continueLesson?.href ?? first!.href} variant="primary" size="lg" className="min-h-12">
+                {course.continueLesson?.started ? "Continue" : "Start"}
+              </ButtonLink>
+            )}
+          </section>
+
+          {course.signedIn && totals.lessons > 0 && (
+            <ProgressBar label="Your progress" value={totals.completed} max={totals.lessons} valueText={`${totals.completed} of ${totals.lessons} lessons completed`} tone="success" />
+          )}
+
+          <section aria-labelledby="subjects-h" className="flex flex-col gap-3">
+            <h2 id="subjects-h" className="text-h2 font-bold text-fg">
+              Subjects
+            </h2>
+            <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {course.subjects.map((s) => (
+                <SubjectCard key={s.slug} subject={s} href={`${base}/${s.slug}`} />
+              ))}
+            </ul>
+          </section>
+        </>
       )}
     </Container>
   );
