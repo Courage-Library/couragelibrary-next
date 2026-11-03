@@ -59,16 +59,23 @@ async function loadCourseDataUncached(examSlug: string): Promise<CourseData | nu
   const [{ data: paths }, { data: versions }, practice] = await Promise.all([
     nodeIds.length ? admin.from("canonical_taxonomy_nodes").select("id, hierarchy_path").in("id", nodeIds) : Promise.resolve({ data: [] as { id: string; hierarchy_path: string }[] }),
     docIds.length
-      ? admin.from("document_versions").select("document_id, blocks").in("document_id", docIds).eq("language", "en").eq("is_current", true).eq("is_published", true).eq("review_status", "PUBLISHED").eq("content_format", "BLOCKS")
-      : Promise.resolve({ data: [] as { document_id: string; blocks: unknown }[] }),
+      ? admin.from("document_versions").select("document_id, blocks, lesson_meta").in("document_id", docIds).eq("language", "en").eq("is_current", true).eq("is_published", true).eq("review_status", "PUBLISHED").eq("content_format", "BLOCKS")
+      : Promise.resolve({ data: [] as { document_id: string; blocks: unknown; lesson_meta: unknown }[] }),
     isPracticeEnabled() && topicIds.length ? servableTopicCounts(admin, topicIds).catch(() => new Map<string, number>()) : Promise.resolve(new Map<string, number>()),
   ]);
   const pathOf = Object.fromEntries((paths || []).map((n) => [n.id, n.hierarchy_path]));
   const minutes = new Map((versions || []).map((v) => [v.document_id, Array.isArray(v.blocks) ? readingMinutes(v.blocks) : null]));
+  // COURSE-POLISH-1: students see the lesson's published title, never the internal node label
+  const titles = new Map(
+    (versions || []).map((v) => {
+      const t = v.lesson_meta && typeof v.lesson_meta === "object" ? (v.lesson_meta as { title?: unknown }).title : null;
+      return [v.document_id, typeof t === "string" && t.trim() ? t.trim() : null] as const;
+    }),
+  );
   return {
     exam,
     state: view.state,
-    lessons: base.map((l) => ({ ...l, href: pathOf[l.nodeId] ? learnHref(pathOf[l.nodeId]) : l.href, minutes: minutes.get(l.documentId) ?? null })),
+    lessons: base.map((l) => ({ ...l, name: titles.get(l.documentId) ?? l.name, href: pathOf[l.nodeId] ? learnHref(pathOf[l.nodeId]) : l.href, minutes: minutes.get(l.documentId) ?? null })),
     nodes,
     paths: pathOf,
     practice: [...practice.entries()],
@@ -78,7 +85,7 @@ async function loadCourseDataUncached(examSlug: string): Promise<CourseData | nu
 /** Cached per exam; every lesson publish revalidates the "learn" tag (app/admin/lessons/actions.ts). */
 // a failed read REJECTS (never cached, never shown as "not found"): the page shows its error state ("Try again")
 const loadCourseData = (examSlug: string): Promise<CourseData | null> =>
-  unstable_cache(() => loadCourseDataUncached(examSlug), ["course-ux-1", "v2", examSlug], { tags: [LEARN_CACHE_TAG], revalidate: 900 })();
+  unstable_cache(() => loadCourseDataUncached(examSlug), ["course-ux-1", "v3" /* COURSE-POLISH-1: lesson titles */, examSlug], { tags: [LEARN_CACHE_TAG], revalidate: 900 })();
 
 export interface CourseView extends CourseStructure {
   exam: { slug: string; title: string };

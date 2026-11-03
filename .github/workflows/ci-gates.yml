@@ -116,6 +116,8 @@ jobs:
           q GUIDE-SCOPE-1-SELFTEST node scripts/test_guide_scope1.cjs --self-test || fail=1
           q COURSE-UX-1 node scripts/test_course_ux1.cjs || fail=1
           q COURSE-UX-1-SELFTEST node scripts/test_course_ux1.cjs --self-test || fail=1
+          q COURSE-POLISH-1 node scripts/test_course_polish1.cjs || fail=1
+          q COURSE-POLISH-1-SELFTEST node scripts/test_course_polish1.cjs --self-test || fail=1
           q READERS-OFFLINE node scripts/test_gap2_4b_readers.cjs --offline || fail=1
           q EDITOR node scripts/test_gap2_4b_editor.cjs || fail=1
           q UX2A-OFFLINE node scripts/test_ux2a_landing.cjs --offline || fail=1

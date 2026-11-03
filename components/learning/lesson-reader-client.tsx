@@ -6,11 +6,12 @@ import { FOCUS_KEY } from "@/lib/learning/focus-mode";
 
 /**
  * COURSE-UX-1 lesson reader — the small client islands (everything else is server-rendered):
- *   ReadingProgressBar  a transform-only bar (no layout shift) showing how far through the lesson the reader is
+ *   ReadingProgressBar  a transform-only bar (no layout shift) showing how far through the lesson the reader is; the same
+ *                       scroll pass marks the current "On this page" section (aria-current=location — scroll-spy)
  *   ReadingTracker      the furthest block seen → the server (resume position; the LAST block = end reached), at most
  *                       one save every 15 s plus the end; resumes at the server-saved block on return
  *   FocusToggle         focus mode (R13): hides the outline and "On this page"; remembered on this device only
- *   OutlineSheet        the course outline in a sheet (phones)
+ *   (the phone outline sheet is a native popover on the server page — no client code; COURSE-POLISH-1)
  * Icons arrive as server-rendered nodes (no icon library in these islands: the lesson page keeps its JS budget).
  */
 
@@ -27,6 +28,13 @@ export function ReadingProgressBar() {
       const total = r.height - window.innerHeight;
       const p = total <= 0 ? (r.top < window.innerHeight ? 1 : 0) : Math.min(1, Math.max(0, -r.top / total));
       bar.current.style.transform = `scaleX(${p})`;
+      // scroll-spy: the last heading above the upper third of the screen is the current section
+      let current = "";
+      for (const h of document.querySelectorAll<HTMLElement>("[data-lesson-blocks] h2[id]")) if (h.getBoundingClientRect().top < window.innerHeight / 3) current = h.id;
+      for (const a of document.querySelectorAll<HTMLElement>("[data-otp]")) {
+        if (a.dataset.otp === current) a.setAttribute("aria-current", "location");
+        else a.removeAttribute("aria-current");
+      }
     };
     const on = () => {
       if (!raf) raf = requestAnimationFrame(update);
@@ -122,33 +130,5 @@ export function FocusToggle({ rootId, icon }: { rootId: string; icon: ReactNode 
       {icon}
       {on ? "Exit focus mode" : "Focus mode"}
     </button>
-  );
-}
-
-export function OutlineSheet({ title, icon, closeIcon, children }: { title: string; icon: ReactNode; closeIcon: ReactNode; children: ReactNode }) {
-  const ref = useRef<HTMLDialogElement>(null);
-  return (
-    <>
-      <button type="button" onClick={() => ref.current?.showModal()} className="focus-ring inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-control px-3 text-body-sm font-semibold text-fg hover:bg-ink-50" data-testid="outline-open">
-        {icon}
-        Outline
-      </button>
-      <dialog
-        ref={ref}
-        aria-label={title}
-        className="m-0 mt-auto max-h-[85dvh] w-full max-w-none rounded-t-card border border-line bg-surface p-0 text-fg backdrop:bg-ink-900/40"
-        onClick={(e) => {
-          if (e.target === ref.current) ref.current?.close();
-        }}
-      >
-        <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-2">
-          <p className="text-body font-semibold">{title}</p>
-          <button type="button" onClick={() => ref.current?.close()} className="focus-ring inline-flex size-12 items-center justify-center rounded-control hover:bg-ink-50" aria-label="Close outline">
-            {closeIcon}
-          </button>
-        </div>
-        <div className="overflow-y-auto p-2">{children}</div>
-      </dialog>
-    </>
   );
 }

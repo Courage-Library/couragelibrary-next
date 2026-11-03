@@ -166,7 +166,8 @@ function check(over = {}) {
   t('U-1a', !/correct\s*[:?]/.test(f.qc.replace(/correctOptionId|setResult\(\{ correct|result\.correct|r\.correct|correct: answered|answered\.correct|correct: boolean/g, '')) && !/feedback\s*:\s*React\.ReactNode \| null \}\[\]/.test(f.qc)
     && /answerQuickCheckAction/.test(f.qc) && !/correct: o\.correct/.test(f.renderer) && /options=\{b\.options\.map\(\(o\) => \(\{ id: o\.id, text:/.test(f.renderer)
     && /preview && o\.correct/.test(f.renderer), 'quick checks: no key or feedback props to the client; the server action checks; only the admin preview shows the key');
-  const csStart = f.courseUi.indexOf('if (topic.state === "COMING_SOON")');
+  // COURSE-POLISH-1: the not-READY branch (coming soon / Current Affairs) — its header text is never inside a link
+  const csStart = f.courseUi.indexOf('if (topic.state !== "READY")');
   const comingSoon = csStart < 0 ? '' : f.courseUi.slice(csStart, f.courseUi.indexOf('\n  }\n', csStart));
   t('U-1b', comingSoon.length > 0 && !/<Link|href=/.test(comingSoon) && /Coming soon/.test(f.courseUi) && !/<Link[^>]*>\s*Coming soon/.test(f.courseUi), 'a coming-soon topic is text, never a link');
   const courseFiles = [f.courseUi, f.home, f.subject, f.reader, f.structure].join('\n');
@@ -202,7 +203,7 @@ if (process.argv.includes('--self-test')) {
     ['C-1 prefix bug', mut('structure', 'p === m || p.startsWith(`${m}.`)', 'p.startsWith(m)')],
     ['C-1 practice 0', mut('structure', 'count <= 0) return null', 'count < 0) return null')],
     ['U-1a key to client', mut('renderer', 'options={b.options.map((o) => ({ id: o.id, text:', 'options={b.options.map((o) => ({ id: o.id, correct: o.correct, text:')],
-    ['U-1b coming-soon link', mut('courseUi', '<li className="flex flex-col gap-3 rounded-card border border-line bg-surface p-4 sm:flex-row sm:items-center" data-testid="course-topic" data-state="coming-soon">', '<li className="flex" data-testid="course-topic" data-state="coming-soon"><Link href="/x">x</Link>')],
+    ['U-1b coming-soon link', mut('courseUi', 'data-state={topic.state === "CURRENT_AFFAIRS" ? "current-affairs" : "coming-soon"}>', 'data-state="coming-soon"><Link href="/x">x</Link>')],
     ['U-1c fake count', mut('home', 'Subjects\n', 'Subjects 150+ Topics\n')],
     ['U-1d service role', mut('actions', 'supabase.rpc("fn_lesson_complete"', 'createAdminServerSupabaseClient().rpc("fn_lesson_complete"')],
     ['U-1e balance without flag', mut('balance', 'if (!isLessonCoinsEarnEnabled()) return NextResponse.json({ error: "Not found" }, { status: 404, headers: NO_STORE });', '')],

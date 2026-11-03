@@ -16,7 +16,7 @@ import { validateLesson, type LessonBlock, type LessonLinkMap, type LessonMeta }
 import { isLessonLocked, lessonAccessLevel } from "@/lib/learning/chapter-access";
 import { getLessonAccessSettings } from "@/lib/learning/lesson-access-settings";
 import { examTopicHref, learnHref, segmentsToHierarchyPath } from "@/lib/learn/paths";
-import { readingMinutes } from "@/lib/lessons/reading-time";
+import { readingMinutes, requiredReadingSeconds } from "@/lib/lessons/reading-time";
 import { LearningResolverService, resolveLessonLinks } from "@/services/learning/learning-resolver.service";
 
 export const LEARN_CACHE_TAG = "learn";
@@ -35,6 +35,8 @@ export interface MasterData {
   lesson: { documentId: string; position: number; publishedAt: string | null; en: MasterLessonVersion; hi: MasterLessonVersion | null; isTestContent: boolean } | null;
   children: { name: string; href: string; nodeType: string }[];
   exams: { slug: string; title: string; href: string }[];
+  /** COURSE-POLISH-1: the exams with a PUBLISHED exam note for this node (or its topic) — "<Exam> exam note" */
+  notes: { examTitle: string; href: string }[];
 }
 
 async function loadMasterDataUncached(hierarchyPath: string): Promise<MasterData | null> {
@@ -101,6 +103,19 @@ async function loadMasterDataUncached(hierarchyPath: string): Promise<MasterData
   }
 
   const topic = node.node_type === "TOPIC" ? node : ancestors.find((a) => a.node_type === "TOPIC") || null;
+  // COURSE-POLISH-1: published exam notes for this node or its topic (the exam-topic page renders them)
+  const noteNodes = [node, ...(topic && topic.id !== node.id ? [topic] : [])];
+  const { data: noteRows } = await admin
+    .from("exam_node_notes")
+    .select("node_id, exam:exams(slug, title, is_active)")
+    .in("node_id", noteNodes.map((n) => n.id))
+    .eq("status", "PUBLISHED");
+  const notesSeen = new Map<string, { examTitle: string; href: string }>();
+  for (const r of noteRows || []) {
+    const e = Array.isArray(r.exam) ? r.exam[0] : r.exam;
+    const at = noteNodes.find((n) => n.id === r.node_id);
+    if (e && e.is_active && at && !notesSeen.has(e.slug)) notesSeen.set(e.slug, { examTitle: e.title, href: examTopicHref(e.slug, at.hierarchy_path) });
+  }
   const subject = ancestors.find((a) => a.node_type === "SUBJECT") || null;
   return {
     node: { id: node.id, name: node.name, nodeType: node.node_type, hierarchyPath, topicId: topic?.id ?? null, topicName: topic?.name ?? null, subjectName: subject?.name ?? null },
@@ -111,12 +126,13 @@ async function loadMasterDataUncached(hierarchyPath: string): Promise<MasterData
     lesson,
     children: (kids.data || []).filter((k) => lessons.has(k.id)).map((k) => ({ name: k.name, href: learnHref(k.hierarchy_path), nodeType: k.node_type })),
     exams,
+    notes: [...notesSeen.values()].sort((a, b) => a.examTitle.localeCompare(b.examTitle)),
   };
 }
 
 /** Cached per node path; every lesson publish revalidates the "learn" tag (app/admin/lessons/actions.ts). */
 export const loadMasterData = (hierarchyPath: string) =>
-  unstable_cache(() => loadMasterDataUncached(hierarchyPath), ["learn-master", "v2" /* CA-7 shape: isTestContent, internal nodes */, hierarchyPath], { tags: [LEARN_CACHE_TAG], revalidate: 1800 })();
+  unstable_cache(() => loadMasterDataUncached(hierarchyPath), ["learn-master", "v3" /* COURSE-POLISH-1: exam notes */, hierarchyPath], { tags: [LEARN_CACHE_TAG], revalidate: 1800 })();
 
 export interface MasterLessonPage {
   data: MasterData;
@@ -133,6 +149,8 @@ export interface MasterLessonPage {
   lastBlockId: string | null;
   answered: Record<string, { optionId: string; correct: boolean }>;
   minutes: number | null;
+  /** COURSE-POLISH-1: the completion checklist from server state (the server still decides on "Mark complete") */
+  evidence: { endReached: boolean; answeredIds: string[]; checksTotal: number; secondsLeft: number } | null;
 }
 
 /** Title + intro + outline only (the Pro teaser: indexable, never the gated body). */
@@ -150,7 +168,7 @@ export async function getMasterLessonPage(segments: string[], language: "en" | "
   if (!path) return null;
   const data = await loadMasterData(path);
   if (!data) return null;
-  if (!data.lesson) return { data, language, shown: null, access: "FREE", locked: false, body: null, teaser: null, progress: null, lastBlockId: null, answered: {}, minutes: null };
+  if (!data.lesson) return { data, language, shown: null, access: "FREE", locked: false, body: null, teaser: null, progress: null, lastBlockId: null, answered: {}, minutes: null, evidence: null };
 
   const [settings, viewer, supabase] = await Promise.all([getLessonAccessSettings(), LearningResolverService.getViewerAccess(), createServerSupabaseClient()]);
   const shown: "en" | "hi" = language === "hi" && data.lesson.hi ? "hi" : "en";
@@ -160,15 +178,18 @@ export async function getMasterLessonPage(segments: string[], language: "en" | "
 
   let progress: MasterLessonPage["progress"] = null;
   let lastBlockId: string | null = null;
+  let sessionInfo: { started_at: string; end_reached_at: string | null } | null = null;
   const answered: MasterLessonPage["answered"] = {};
   if (!locked) {
     const session = await getSessionState(supabase);
     if (session.state === "user") {
       // COURSE-UX-1 (135): one progress record per lesson, any language (before 135: COMPLETED in any language wins)
-      const [{ data: rows }, { data: attempts }] = await Promise.all([
+      const [{ data: rows }, { data: attempts }, { data: sessionRow }] = await Promise.all([
         supabase.from("user_lesson_progress").select("status, last_block_id, updated_at").eq("document_id", data.lesson.documentId).order("updated_at", { ascending: false }),
         supabase.from("lesson_quick_check_attempts").select("block_id, option_id, is_correct").eq("document_id", data.lesson.documentId).eq("language", shown),
+        supabase.from("lesson_reading_sessions").select("started_at, end_reached_at").eq("document_id", data.lesson.documentId).maybeSingle(),
       ]);
+      sessionInfo = sessionRow ?? null;
       const list = rows || [];
       progress = list.some((r) => r.status === "COMPLETED") ? "COMPLETED" : list.some((r) => r.status === "READING") ? "READING" : "NOT_STARTED";
       lastBlockId = list.find((r) => r.last_block_id)?.last_block_id ?? null;
@@ -176,5 +197,12 @@ export async function getMasterLessonPage(segments: string[], language: "en" | "
     }
   }
   const minutes = readingMinutes(version.blocks);
-  return { data, language, shown, access, locked, body: locked ? null : version, teaser: locked ? lessonTeaser(version) : null, progress, lastBlockId, answered, minutes };
+  const checkIds = version.blocks.filter((b) => b.type === "quick_check").map((b) => b.id);
+  // display only — the server's own clock decides (fn_lesson_complete); no session yet = the full time from now
+  const elapsed = sessionInfo ? Math.max(0, Math.floor((Date.now() - Date.parse(sessionInfo.started_at)) / 1000)) : 0;
+  const evidence =
+    progress && progress !== "COMPLETED"
+      ? { endReached: Boolean(sessionInfo?.end_reached_at), answeredIds: checkIds.filter((id) => answered[id]), checksTotal: checkIds.length, secondsLeft: Math.max(0, requiredReadingSeconds(minutes) - elapsed) }
+      : null;
+  return { data, language, shown, access, locked, body: locked ? null : version, teaser: locked ? lessonTeaser(version) : null, progress, lastBlockId, answered, minutes, evidence };
 }

@@ -17,6 +17,10 @@ require('../db/safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys i
  *       keeps it (server state); resume: the reader returns at the saved block
  *   U-5 visitor: a quick check is checked by the server; no "Mark complete"; a sign-in link
  *   U-6 coins switched off: no header balance, no "+N coins"
+ * COURSE-POLISH-1 additions: honest plurals (never "1 lessons" / "1 topics"); a Current Affairs topic links to the CA hub
+ * and lists no lesson; the reader eyebrow is "<Subject> · <Topic>" (no level word); previous / next show names; the
+ * phone outline is a native popover; "On this page" marks the current section (aria-current=location); the completion
+ * checklist drives the button (primary only when end + quick checks + time are met).
  * Run: node scripts/live/with-server.cjs -- "node scripts/live/test_course_ux1_ui.cjs http://localhost:3100 [--shots=<dir>]"
  */
 const fs = require('fs');
@@ -91,21 +95,29 @@ async function shot(page, name) {
         counts: document.querySelector('[data-testid="course-counts"]')?.textContent?.trim() || '',
         subjects: [...document.querySelectorAll('[data-testid="course-subject"]')].map((a) => a.getAttribute('href')),
         primaries: document.querySelectorAll('main .bg-brand').length,
+        badPlural: /\b1 (lessons|topics)\b/.test(document.querySelector('main')?.innerText || ''),
       }));
       const a1 = await audit(page);
       await shot(page, `course-home-${width}`);
       chk(`U-1 course home @${width}: preview label; honest counts; subject cards; one primary; no h-scroll; targets ≥ 48 px; axe 0; CLS < 0.01`,
-        r1.status() === 200 && home.preview && /^\d+ lessons? ready · \d+ of \d+ topics have lessons$/.test(home.counts) && home.subjects.length > 0 && home.primaries === 1
+        r1.status() === 200 && home.preview && /^\d+ lessons? ready · \d+ of \d+ topics? (has|have) lessons$/.test(home.counts) && !home.badPlural && home.subjects.length > 0 && home.primaries === 1
           && !a1.hscroll && a1.small.length === 0 && a1.axe.length === 0 && a1.cls < 0.01,
         JSON.stringify({ status: r1.status(), home, a1 }));
 
       // U-2 subject page (the first subject that has lessons, else the first)
       if (home.subjects.length === 0) { chk(`U-2 subject page @${width}`, false, 'no subject cards'); await ctx.close(); continue; }
-      let best = home.subjects[0];
+      let best = null;
+      const caRows = [];
       for (const href of home.subjects) {
         await open(page, href);
-        if (await page.locator('[data-testid="course-lesson"]').count()) { best = href; break; }
+        caRows.push(...(await page.evaluate(() => [...document.querySelectorAll('[data-state="current-affairs"]')].map((r) => ({
+          hub: r.querySelector('[data-testid="go-current-affairs"]')?.getAttribute('href') || null,
+          lessons: r.querySelectorAll('[data-testid="course-lesson"]').length,
+        })))));
+        if (!best && (await page.locator('[data-testid="course-lesson"]').count())) best = href;
       }
+      best = best || home.subjects[0];
+      chk(`U-2b Current Affairs @${width}: ${caRows.length} CA topic row(s) → the CA hub, no lesson listed`, caRows.every((r) => r.hub === '/current-affairs' && r.lessons === 0), JSON.stringify(caRows));
       await open(page, best);
       const subj = await page.evaluate(() => ({
         topics: document.querySelectorAll('[data-testid="course-topic"]').length,
@@ -113,12 +125,13 @@ async function shot(page, name) {
         soon: document.querySelectorAll('[data-testid="coming-soon"]').length,
         practice: [...document.querySelectorAll('[data-testid="topic-practice"]')].map((a) => a.textContent.trim()),
         lesson: document.querySelector('[data-testid="course-lesson"]')?.getAttribute('href') || null,
+        badPlural: /\b1 (lessons|topics)\b/.test(document.querySelector('main')?.innerText || ''),
       }));
       lessonHref = lessonHref || subj.lesson;
       const a2 = await audit(page);
       await shot(page, `course-subject-${width}`);
       chk(`U-2 subject page @${width}: ${subj.topics} topics (${subj.soon} coming soon, never a link); practice labels honest; axe 0; targets; CLS < 0.01`,
-        subj.topics > 0 && !subj.soonInLink && subj.practice.every((t) => /^Practice ([1-9]|10) questions?$/.test(t)) && !a2.hscroll && a2.small.length === 0 && a2.axe.length === 0 && a2.cls < 0.01,
+        subj.topics > 0 && !subj.soonInLink && !subj.badPlural && subj.practice.every((t) => /^Practice ([1-9]|10) questions?$/.test(t)) && !a2.hscroll && a2.small.length === 0 && a2.axe.length === 0 && a2.cls < 0.01,
         JSON.stringify({ subj, a2 }));
 
       // U-3 reader in the course
@@ -134,6 +147,8 @@ async function shot(page, name) {
           minutes: shown('[data-testid="lesson-minutes"]'),
           checks: document.querySelectorAll('[data-quick-check]').length,
           nav: document.querySelectorAll('[data-testid="lesson-next"], [data-testid="lesson-prev"]').length,
+          navNames: [...document.querySelectorAll('[data-testid="lesson-next"], [data-testid="lesson-prev"]')].every((a) => a.innerText.replace(/^(Previous|Next)\s*/, '').trim().length > 0),
+          eyebrow: document.querySelector('[data-article] header p')?.textContent?.trim() || '',
         };
       });
       const leak = /\\?"correct\\?":(true|false)|\\?"feedback\\?":/.test(html);
@@ -143,11 +158,19 @@ async function shot(page, name) {
         await page.locator('[data-testid="lesson-bottom-bar"]').scrollIntoViewIfNeeded().catch(() => null);
         await page.click('[data-testid="outline-open"]', { timeout: 8000 }).catch((e) => console.log('INFO outline click', String(e.message).split(/\r?\n/).slice(0, 6).join(' | ')));
         await page.waitForTimeout(300);
-        sheet = await page.evaluate(() => !!document.querySelector('dialog[open] [data-testid="course-outline"]'));
+        sheet = await page.evaluate(() => !!document.querySelector('#course-outline-sheet:popover-open [data-testid="course-outline"]'));
         await page.keyboard.press('Escape');
       }
       const a3 = await audit(page);
       await shot(page, `reader-${width}`);
+      let spy = true;
+      if (width >= 1024) {
+        // scroll-spy: bring the second section heading near the top → its "On this page" link is current
+        const target = await page.evaluate(() => { const h = document.querySelectorAll('[data-lesson-blocks] h2[id]')[1]; if (!h) return null; h.scrollIntoView({ block: 'start' }); return h.id; });
+        await page.waitForTimeout(400);
+        spy = target === null || (await page.evaluate((id) => document.querySelector(`[data-testid="on-this-page"] [data-otp="${id}"]`)?.getAttribute('aria-current') === 'location', target));
+        await page.evaluate(() => window.scrollTo(0, 0));
+      }
       let focus = true;
       if (width >= 1024) {
         await page.click('[data-testid="focus-toggle"]');
@@ -160,9 +183,9 @@ async function shot(page, name) {
         await page.click('[data-testid="focus-toggle"]');
         focus = hidden1 && hidden2;
       }
-      chk(`U-3 reader @${width}: ${width < 500 ? 'outline sheet + bottom bar' : 'outline rail'}; prev / next; On this page; minutes; NO quick-check key in the page source; ${width >= 1024 ? 'focus mode hides the rails + survives reload; ' : ''}axe 0; CLS < 0.01`,
-        res3.status() === 200 && (width < 500 ? reader.bar && sheet : reader.outline) && reader.nav > 0 && reader.otp && reader.minutes && reader.checks > 0 && !leak && focus && !a3.hscroll && a3.axe.length === 0 && a3.small.length === 0 && a3.cls < 0.01,
-        JSON.stringify({ status: res3.status(), reader, sheet, leak, focus, a3 }));
+      chk(`U-3 reader @${width}: ${width < 500 ? 'outline popover + bottom bar' : 'outline rail; scroll-spy'}; eyebrow "<Subject> · <Topic>"; prev / next with names; On this page; minutes; NO quick-check key in the page source; ${width >= 1024 ? 'focus mode hides the rails + survives reload; ' : ''}axe 0; CLS < 0.01`,
+        res3.status() === 200 && (width < 500 ? reader.bar && sheet : reader.outline) && reader.nav > 0 && reader.navNames && /^[^·]+ · [^·]+$/.test(reader.eyebrow) && !/Subtopic|Concept/.test(reader.eyebrow) && spy && reader.otp && reader.minutes && reader.checks > 0 && !leak && focus && !a3.hscroll && a3.axe.length === 0 && a3.small.length === 0 && a3.cls < 0.01,
+        JSON.stringify({ status: res3.status(), reader, sheet, spy, leak, focus, a3 }));
       await ctx.close();
     }
 
@@ -173,7 +196,17 @@ async function shot(page, name) {
     const page = await ctx.newPage();
     await open(page, plain);
     const btn = page.locator('[data-testid="mark-complete"]');
-    const disabledBefore = await btn.isDisabled();
+    const state = () => page.evaluate(() => ({
+      end: document.querySelector('[data-testid="check-end"]')?.getAttribute('data-done'),
+      quick: document.querySelector('[data-testid="check-quick"]')?.getAttribute('data-done'),
+      quickText: document.querySelector('[data-testid="check-quick"]')?.textContent?.trim(),
+      time: document.querySelector('[data-testid="check-time"]')?.getAttribute('data-done'),
+      ready: document.querySelector('[data-testid="mark-complete"]')?.getAttribute('data-ready'),
+      primary: document.querySelector('[data-testid="mark-complete"]')?.classList.contains('bg-brand') || false,
+      disabled: document.querySelector('[data-testid="mark-complete"]')?.disabled,
+      checklistFirst: (() => { const c = document.querySelector('[data-testid="complete-checklist"]'); const b = document.querySelector('[data-testid="mark-complete"]'); return !!c && !!b && !!(c.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING); })(),
+    }));
+    const s0 = await state();
     const qc = await page.locator('[data-quick-check]').count();
     for (let i = 0; i < qc; i++) {
       const box = page.locator('[data-quick-check]').nth(i);
@@ -184,17 +217,15 @@ async function shot(page, name) {
     const results = await page.$$eval('[data-quick-check] [role="status"]', (els) => els.map((e) => e.textContent.trim()));
     await btn.scrollIntoViewIfNeeded();
     await page.waitForTimeout(800);
-    const enabled = !(await btn.isDisabled());
-    await btn.click();
-    await page.locator('[data-testid="complete-missing"], [data-testid="lesson-complete"] [role="status"]:has-text("Lesson completed")').first().waitFor({ timeout: 10000 });
-    const early = await page.locator('[data-testid="complete-missing"]').textContent().catch(() => '');
+    const s1 = await state();
     const [{ m }] = (await db.query(`select public.fn_lesson__reading_minutes(dv.blocks) m from public.document_versions dv join public.learning_documents d on d.id = dv.document_id
        join public.canonical_taxonomy_nodes n on n.id = d.node_id where n.hierarchy_path = $1 and dv.language = 'en' and dv.is_current and dv.is_published`, [plain.replace(/^\/learn\//, '').split('/').join('.')])).rows;
     const [{ started }] = (await db.query(`select extract(epoch from now() - s.started_at)::int started from public.lesson_reading_sessions s join public.learning_documents d on d.id = s.document_id
        join public.canonical_taxonomy_nodes n on n.id = d.node_id where s.user_id = $1 and n.hierarchy_path = $2`, [ids.student, plain.replace(/^\/learn\//, '').split('/').join('.')])).rows;
-    const waitS = Math.max(0, Math.max(60, Math.ceil(0.4 * m * 60)) - started + 2);
+    const waitS = Math.max(0, Math.max(60, Math.ceil(0.4 * m * 60)) - started + 7);
     console.log(`INFO waiting ${waitS} s for the server-side reading time (${m} min lesson)`);
     await page.waitForTimeout(waitS * 1000);
+    const s2 = await state();
     await btn.click();
     const done = await page.locator('[data-testid="lesson-complete"] [role="status"]:has-text("Lesson completed")').waitFor({ timeout: 10000 }).then(() => true, () => false);
     const practice = await page.locator('[data-testid="lesson-practice"]').textContent().catch(() => null);
@@ -202,9 +233,11 @@ async function shot(page, name) {
     await page.reload({ waitUntil: 'load' });
     const kept = await page.locator('[data-testid="lesson-complete"]:has-text("Lesson completed")').count();
     await shot(page, 'reader-completed-1280');
-    chk('U-4 student: quick checks answered by the server; Mark complete disabled until the end; early click → "Keep reading"; after the server time → "Lesson completed" (kept after reload); practice label honest; no coins (switched off)',
-      qc > 0 && results.every((t) => /^(Correct|Not quite)\./.test(t)) && disabledBefore && enabled && /Keep reading/.test(early || '') && done && kept === 1 && (practice === null || /^Practice ([1-9]|10) questions?$/.test(practice.trim())) && coins === 0,
-      JSON.stringify({ qc, resultsOk: results.map((t) => /^(Correct|Not quite)./.test(t)), disabledBefore, enabled, early, waitS, done, kept, practice, coins }));
+    chk('U-4 student: checklist above the button from server state; button disabled and not primary until end + every quick check + time; then primary → "Lesson completed" (kept after reload); quick checks checked by the server; practice label honest; no coins (off)',
+      qc > 0 && results.every((t) => /^(Correct|Not quite)\./.test(t)) && s0.checklistFirst && s0.disabled && !s0.primary && s0.quick === 'false'
+        && s1.end === 'true' && s1.quick === 'true' && s1.time === 'false' && s1.disabled && !s1.primary
+        && s2.ready === 'true' && s2.primary && !s2.disabled && done && kept === 1 && (practice === null || /^Practice ([1-9]|10) questions?$/.test(practice.trim())) && coins === 0,
+      JSON.stringify({ qc, resultsOk: results.map((t) => /^(Correct|Not quite)\./.test(t)), s0, s1, s2, waitS, done, kept, practice, coins }));
 
     // resume: another lesson, read to the middle, wait for the throttled save, come back
     const other = (await db.query(`select n.hierarchy_path p from public.fn_servable_node_lessons() s join public.canonical_taxonomy_nodes n on n.id = s.node_id

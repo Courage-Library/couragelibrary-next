@@ -10,7 +10,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { SubjectCard } from "@/components/learning/course-ui";
 import { constructMetadata } from "@/lib/seo/metadata";
 import { ExamCourseService } from "@/services/learning/course.service";
-import { lessonsReadyText } from "@/lib/learning/course-structure";
+import { completedText, lessonsReadyText, plural } from "@/lib/learning/course-structure";
 import { courseSchema, jsonLdText } from "@/lib/learn/seo";
 import { generateBreadcrumbSchema } from "@/lib/seo/jsonld";
 
@@ -72,7 +72,7 @@ export default async function ExamCoursePage({ params }: Props) {
           <h1 className="text-h1 font-bold text-fg">{course.exam.title} course</h1>
         </div>
         <p className="text-body-lg text-fg-secondary" data-testid="course-counts">
-          {totals.lessons > 0 ? `${lessonsReadyText(totals.lessons)} · ${totals.readyTopics} of ${totals.topics} topics have lessons` : `${totals.topics} topics · lessons are being written`}
+          {totals.lessons > 0 ? `${lessonsReadyText(totals.lessons)} · ${totals.readyTopics} of ${plural(totals.topics, "topic")} ${totals.topics === 1 ? "has" : "have"} lessons` : `${plural(totals.topics, "topic")} · lessons are being written`}
         </p>
       </header>
 
@@ -114,7 +114,7 @@ export default async function ExamCoursePage({ params }: Props) {
           </section>
 
           {course.signedIn && totals.lessons > 0 && (
-            <ProgressBar label="Your progress" value={totals.completed} max={totals.lessons} valueText={`${totals.completed} of ${totals.lessons} lessons completed`} tone="success" />
+            <ProgressBar label="Your progress" value={totals.completed} max={totals.lessons} valueText={completedText(totals.completed, totals.lessons)} tone="success" />
           )}
 
           <section aria-labelledby="subjects-h" className="flex flex-col gap-3">

@@ -8,6 +8,8 @@
  *   - counts are only what exists: lessons ready, topics ready of all topics — never a planned or invented total
  *   - a lesson belongs to the first unit (syllabus order) whose mapped master node is the lesson's node or an ancestor
  *   - progress: one record per lesson (any language, migration 135)
+ * COURSE-POLISH-1: a Current Affairs topic (master path …/current-affairs/…) is a live feed, not a static lesson: it
+ * links to the Current Affairs hub, its lessons are NOT part of the course (never "next lesson", never counted).
  */
 import type { CourseLessonView, LessonStatus } from "@/lib/learning/course-view";
 
@@ -18,11 +20,13 @@ export interface CourseLesson extends CourseLessonView {
   minutes: number | null;
 }
 
+export const CURRENT_AFFAIRS_HREF = "/current-affairs";
+
 export interface CourseTopic {
   unitId: string;
   title: string;
   weightageTier: string | null;
-  state: "READY" | "COMING_SOON";
+  state: "READY" | "COMING_SOON" | "CURRENT_AFFAIRS";
   lessons: CourseLesson[];
   completed: number;
   practice: { href: string; count: number; label: string } | null;
@@ -82,6 +86,12 @@ export function readModelNodes(raw: unknown): ReadModelNodeLite[] {
   return out;
 }
 
+/** "1 lesson" / "2 lessons" — every count on the course pages (COURSE-POLISH-1). */
+export const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+/** A master path inside Current Affairs (subject.current-affairs[.…]). */
+export const isCurrentAffairsPath = (p: string | null | undefined) => !!p && p.split(".")[1] === "current-affairs";
+
 /** "Practice 10 questions" / "Practice 3 questions" / "Practice 1 question"; null at 0 (owner answer 3). */
 export function practiceAction(topicId: string | null, count: number): CourseTopic["practice"] {
   if (!topicId || !Number.isInteger(count) || count <= 0) return null;
@@ -138,6 +148,7 @@ export function buildCourseStructure(input: {
       subjects.set(subject.id, s);
     }
     const mappedPaths = unit.mapped.map((m) => (m.nodeId ? input.paths[m.nodeId] : null)).filter((p): p is string => !!p);
+    const currentAffairs = mappedPaths.length > 0 && mappedPaths.every(isCurrentAffairsPath);
     const lessons = input.lessons
       .filter((l) => {
         if (taken.has(l.documentId)) return false;
@@ -146,6 +157,7 @@ export function buildCourseStructure(input: {
       })
       .map((l) => ({ ...l, status: status.get(l.documentId) ?? l.status }));
     lessons.forEach((l) => taken.add(l.documentId));
+    if (currentAffairs) lessons.length = 0; // a CA lesson is never part of the course (claimed above, then dropped)
     // the unit's best practice topic: the mapped master topic with the most servable questions
     const best = unit.mapped
       .map((m) => ({ topicId: m.topicId, count: m.topicId ? input.practice.get(m.topicId) ?? 0 : 0 }))
@@ -154,7 +166,7 @@ export function buildCourseStructure(input: {
       unitId: unit.id,
       title: unit.title,
       weightageTier: unit.weightageTier,
-      state: lessons.length > 0 ? "READY" : "COMING_SOON",
+      state: currentAffairs ? "CURRENT_AFFAIRS" : lessons.length > 0 ? "READY" : "COMING_SOON",
       lessons,
       completed: lessons.filter((l) => l.status === "COMPLETED").length,
       practice: best ? practiceAction(best.topicId, best.count) : null,
@@ -182,9 +194,12 @@ export function buildCourseStructure(input: {
   };
 }
 
+/** "3 of 1 lesson…" never: "0 of 1 lesson completed" / "2 of 5 lessons completed". */
+export const completedText = (done: number, total: number) => `${done} of ${plural(total, "lesson")} completed`;
+
 /** "17 lessons ready" — only what exists. */
-export const lessonsReadyText = (n: number) => `${n} lesson${n === 1 ? "" : "s"} ready`;
-export const topicsReadyText = (ready: number, total: number) => `${ready} of ${total} topic${total === 1 ? "" : "s"} ready`;
+export const lessonsReadyText = (n: number) => `${plural(n, "lesson")} ready`;
+export const topicsReadyText = (ready: number, total: number) => `${ready} of ${plural(total, "topic")} ready`;
 
 /** Previous / next lesson in course order (locked lessons are skipped for "next"). */
 export function neighbours(order: CourseLesson[], documentId: string): { prev: CourseLesson | null; next: CourseLesson | null; index: number } {

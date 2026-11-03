@@ -6,7 +6,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { headingAnchor, LessonBlocksRenderer } from "@/components/learning/lesson-blocks-renderer";
 import { KatexMath } from "@/components/learning/katex-math";
 import { LessonComplete } from "@/components/learning/lesson-complete";
-import { FocusToggle, OutlineSheet, ReadingProgressBar, ReadingTracker } from "@/components/learning/lesson-reader-client";
+import { FocusToggle, ReadingProgressBar, ReadingTracker } from "@/components/learning/lesson-reader-client";
 import { focusModeScript } from "@/lib/learning/focus-mode";
 import { LessonStatusIcon, STATUS_TEXT } from "@/components/learning/course-ui";
 import { constructMetadata } from "@/lib/seo/metadata";
@@ -16,7 +16,7 @@ import { learnHref, segmentsToHierarchyPath } from "@/lib/learn/paths";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { isPracticeEnabled } from "@/lib/practice/flag";
 import { servableTopicCounts } from "@/lib/practice/server";
-import { neighbours, practiceAction, type CourseLesson } from "@/lib/learning/course-structure";
+import { completedText, neighbours, practiceAction, type CourseLesson } from "@/lib/learning/course-structure";
 import { ExamCourseService, type CourseView } from "@/services/learning/course.service";
 import { getSessionState } from "@/lib/auth/session-state";
 import { getMasterLessonPage, loadMasterData } from "@/services/learning/master-lesson.service";
@@ -33,7 +33,6 @@ import { saveLessonProgressAction } from "@/app/(site)/articles/actions";
  * completion the server decides (end + quick checks + time), then Practice (real count) and the next lesson.
  */
 
-const LEVEL: Record<string, string> = { TOPIC: "Topic", SUBTOPIC: "Subtopic", CONCEPT: "Concept" };
 
 export async function masterLessonMetadata(segments: string[], language: "en" | "hi"): Promise<Metadata> {
   const path = segmentsToHierarchyPath(segments);
@@ -57,7 +56,7 @@ function CourseOutline({ course, current }: { course: CourseView; current: strin
         </Link>
         {course.signedIn && course.totals.lessons > 0 && (
           <p className="text-body-sm text-fg-secondary">
-            {course.totals.completed} of {course.totals.lessons} lessons completed
+            {completedText(course.totals.completed, course.totals.lessons)}
           </p>
         )}
       </div>
@@ -66,20 +65,28 @@ function CourseOutline({ course, current }: { course: CourseView; current: strin
         .map((sub) => (
           <div key={sub.slug} className="flex flex-col gap-1">
             <p className="px-2 text-caption font-semibold uppercase tracking-wide text-fg-secondary">{sub.title}</p>
-            <ul className="flex flex-col">
+            {/* COURSE-POLISH-1: the topic name, the lessons under it (never an internal label alone) */}
+            <ul className="flex flex-col gap-2">
               {sub.topics
-                .flatMap((t) => t.lessons)
-                .map((l) => (
-                  <li key={l.documentId}>
-                    <Link
-                      href={l.href}
-                      aria-current={l.documentId === current ? "page" : undefined}
-                      className="focus-ring flex min-h-12 items-center gap-2 rounded-control px-2 text-body-sm text-fg hover:bg-ink-50 aria-[current=page]:bg-primary-50 aria-[current=page]:font-semibold aria-[current=page]:text-primary-800"
-                    >
-                      <LessonStatusIcon status={l.status} locked={l.locked} />
-                      <span className="flex-1">{l.name}</span>
-                      <span className="sr-only">{l.locked ? "Pro lesson, locked" : STATUS_TEXT[l.status]}</span>
-                    </Link>
+                .filter((t) => t.lessons.length > 0)
+                .map((t) => (
+                  <li key={t.unitId}>
+                    <p className="px-2 pt-1 text-body-sm font-semibold text-fg">{t.title}</p>
+                    <ul className="flex flex-col">
+                      {t.lessons.map((l) => (
+                        <li key={l.documentId}>
+                          <Link
+                            href={l.href}
+                            aria-current={l.documentId === current ? "page" : undefined}
+                            className="focus-ring flex min-h-12 items-center gap-2 rounded-control px-2 pl-4 text-body-sm text-fg hover:bg-ink-50 aria-[current=page]:bg-primary-50 aria-[current=page]:font-semibold aria-[current=page]:text-primary-800"
+                          >
+                            <LessonStatusIcon status={l.status} locked={l.locked} />
+                            <span className="flex-1">{l.name}</span>
+                            <span className="sr-only">{l.locked ? "Pro lesson, locked" : STATUS_TEXT[l.status]}</span>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
                   </li>
                 ))}
             </ul>
@@ -92,10 +99,12 @@ function CourseOutline({ course, current }: { course: CourseView; current: strin
 function PrevLink({ lesson }: { lesson: CourseLesson | null }) {
   if (!lesson) return <span className="flex-1" />;
   return (
-    <Link href={lesson.href} className="focus-ring inline-flex min-h-12 flex-1 items-center gap-1 rounded-control px-3 text-body-sm font-semibold text-fg hover:bg-ink-50" data-testid="lesson-prev">
+    <Link href={lesson.href} className="focus-ring flex min-h-12 min-w-0 flex-1 items-center gap-1 rounded-control px-2 py-1 text-fg hover:bg-ink-50" data-testid="lesson-prev">
       <ChevronLeft aria-hidden="true" className="size-5 shrink-0" />
-      <span aria-hidden="true">Previous</span>
-      <span className="sr-only">Previous lesson: {lesson.name}</span>
+      <span className="flex min-w-0 flex-col">
+        <span className="text-caption text-fg-secondary">Previous</span>
+        <span className="truncate text-body-sm font-semibold">{lesson.name}</span>
+      </span>
     </Link>
   );
 }
@@ -103,9 +112,11 @@ function PrevLink({ lesson }: { lesson: CourseLesson | null }) {
 function NextLink({ lesson }: { lesson: CourseLesson | null }) {
   if (!lesson) return <span className="flex-1" />;
   return (
-    <Link href={lesson.href} className="focus-ring inline-flex min-h-12 flex-1 items-center justify-end gap-1 rounded-control px-3 text-body-sm font-semibold text-fg hover:bg-ink-50" data-testid="lesson-next">
-      <span aria-hidden="true">Next</span>
-      <span className="sr-only">Next lesson: {lesson.name}</span>
+    <Link href={lesson.href} className="focus-ring flex min-h-12 min-w-0 flex-1 items-center justify-end gap-1 rounded-control px-2 py-1 text-right text-fg hover:bg-ink-50" data-testid="lesson-next">
+      <span className="flex min-w-0 flex-col">
+        <span className="text-caption text-fg-secondary">Next</span>
+        <span className="truncate text-body-sm font-semibold">{lesson.name}</span>
+      </span>
       <ChevronRight aria-hidden="true" className="size-5 shrink-0" />
     </Link>
   );
@@ -185,7 +196,7 @@ export async function MasterLessonPageView({ segments, language, courseSlug = nu
     <ul className="flex flex-col" data-testid={testId}>
       {headings.map((h) => (
         <li key={h.id}>
-          <a href={`#${headingAnchor(h.id)}`} className="focus-ring flex min-h-12 items-center rounded-control px-2 text-body-sm text-fg hover:bg-ink-50">
+          <a href={`#${headingAnchor(h.id)}`} data-otp={headingAnchor(h.id)} className="focus-ring flex min-h-12 items-center rounded-control border-l-2 border-transparent px-2 text-body-sm text-fg hover:bg-ink-50 aria-[current=location]:border-primary-700 aria-[current=location]:bg-primary-50 aria-[current=location]:font-semibold aria-[current=location]:text-primary-800">
             {h.text}
           </a>
         </li>
@@ -239,8 +250,8 @@ export async function MasterLessonPageView({ segments, language, courseSlug = nu
           <article className="flex flex-col gap-6 rounded-card border border-line bg-surface p-4 sm:p-8" data-article="">
             <header className="flex flex-col gap-3 border-b border-line pb-6">
               <p className="text-body-sm font-semibold text-fg-secondary">
-                {LEVEL[data.node.nodeType] ?? "Lesson"}
-                {data.node.subjectName ? ` · ${data.node.subjectName}` : ""}
+                {/* COURSE-POLISH-1: "<Subject> · <Topic>" — never the internal level word */}
+                {[data.node.subjectName, data.node.topicName].filter(Boolean).join(" · ") || "Lesson"}
               </p>
               <h1 className="text-h1 font-bold text-fg">{title}</h1>
               {version?.meta.summary && <p className="text-body-lg text-fg-secondary">{version.meta.summary}</p>}
@@ -285,7 +296,7 @@ export async function MasterLessonPageView({ segments, language, courseSlug = nu
             )}
 
             {!data.lesson ? (
-              <p className="text-body text-fg-secondary">The lesson for this {LEVEL[data.node.nodeType]?.toLowerCase() ?? "node"} is being written. Its parts below already have lessons.</p>
+              <p className="text-body text-fg-secondary">This lesson is being written. Its parts below already have lessons.</p>
             ) : page.locked && page.teaser ? (
               <>
                 {page.teaser.outline.length > 0 && (
@@ -321,7 +332,7 @@ export async function MasterLessonPageView({ segments, language, courseSlug = nu
                   <LessonBlocksRenderer blocks={page.body.blocks} links={page.body.links} Math={KatexMath} check={{ documentId: lessonId, language: page.shown ?? "en", answered: page.answered }} />
                 </div>
                 {progress ? (
-                  <LessonComplete documentId={lessonId} language={page.shown ?? "en"} pagePath={pagePath} completed={progress === "COMPLETED"} after={after} doneIcon={<CheckCircle2 aria-hidden="true" className="size-5" />} coinIcon={<Coins aria-hidden="true" className="size-5" />} />
+                  <LessonComplete documentId={lessonId} language={page.shown ?? "en"} pagePath={pagePath} completed={progress === "COMPLETED"} evidence={page.evidence} after={after} doneIcon={<CheckCircle2 aria-hidden="true" className="size-5" />} coinIcon={<Coins aria-hidden="true" className="size-5" />} />
                 ) : (
                   <div className="flex flex-col gap-4 border-t border-line pt-6">
                     <p className="text-body text-fg-secondary">
@@ -336,6 +347,24 @@ export async function MasterLessonPageView({ segments, language, courseSlug = nu
               </>
             ) : null}
           </article>
+
+          {data.notes.length > 0 && (
+            // COURSE-POLISH-1: only exams that have a PUBLISHED exam note for this lesson
+            <section aria-labelledby="notes-h" className="flex flex-col gap-2" data-testid="exam-notes">
+              <h2 id="notes-h" className="text-h3 font-semibold text-fg">
+                Exam notes
+              </h2>
+              <ul className="flex flex-wrap gap-2">
+                {data.notes.map((n) => (
+                  <li key={n.href}>
+                    <Link href={n.href} className="focus-ring inline-flex min-h-12 items-center rounded-control border border-line px-3 text-body font-medium text-link hover:bg-ink-50">
+                      {n.examTitle} exam note
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           {course && (
             <div className="hidden gap-3 lg:flex">
@@ -363,7 +392,6 @@ export async function MasterLessonPageView({ segments, language, courseSlug = nu
                     <Link href={c.href} className="focus-ring flex min-h-12 items-center gap-3 rounded-control px-3 hover:bg-ink-50">
                       <BookOpen aria-hidden="true" className="size-5 text-primary-600" />
                       <span className="text-body font-medium text-fg">{c.name}</span>
-                      <span className="text-body-sm text-fg-secondary">{LEVEL[c.nodeType] ?? ""}</span>
                     </Link>
                   </li>
                 ))}
@@ -371,22 +399,6 @@ export async function MasterLessonPageView({ segments, language, courseSlug = nu
             </section>
           )}
 
-          {data.exams.length > 0 && (
-            <section aria-labelledby="exams-h" className="flex flex-col gap-2">
-              <h2 id="exams-h" className="text-h3 font-semibold text-fg">
-                How exams ask this
-              </h2>
-              <ul className="flex flex-wrap gap-2">
-                {data.exams.map((e) => (
-                  <li key={e.slug}>
-                    <Link href={e.href} className="focus-ring inline-flex min-h-12 items-center rounded-control border border-line px-3 text-body font-medium text-link hover:bg-ink-50">
-                      {e.title}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
         </div>
 
         <aside className="hidden lg:block group-data-[focus=on]/reader:lg:hidden">
@@ -406,9 +418,22 @@ export async function MasterLessonPageView({ segments, language, courseSlug = nu
           data-testid="lesson-bottom-bar"
         >
           <PrevLink lesson={nb.prev} />
-          <OutlineSheet title={`${course.exam.title} course outline`} icon={<BookOpen aria-hidden="true" className="size-5" />} closeIcon={<X aria-hidden="true" className="size-5" />}>
-            <CourseOutline course={course} current={lessonId} />
-          </OutlineSheet>
+          {/* COURSE-POLISH-1: the outline sheet is a native popover — no client code on the lesson page */}
+          <button type="button" popoverTarget="course-outline-sheet" className="focus-ring inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-control px-3 text-body-sm font-semibold text-fg hover:bg-ink-50" data-testid="outline-open">
+            <BookOpen aria-hidden="true" className="size-5" />
+            Outline
+          </button>
+          <div id="course-outline-sheet" popover="auto" role="dialog" aria-label={`${course.exam.title} course outline`} className="fixed inset-x-0 bottom-0 top-auto m-0 max-h-[85dvh] w-full overflow-y-auto rounded-t-card border border-line bg-surface p-0 text-fg backdrop:bg-ink-900/40">
+            <div className="sticky top-0 flex items-center justify-between gap-3 border-b border-line bg-surface px-4 py-2">
+              <p className="text-body font-semibold">Course outline</p>
+              <button type="button" popoverTarget="course-outline-sheet" popoverTargetAction="hide" className="focus-ring inline-flex size-12 items-center justify-center rounded-control hover:bg-ink-50" aria-label="Close outline">
+                <X aria-hidden="true" className="size-5" />
+              </button>
+            </div>
+            <div className="p-2">
+              <CourseOutline course={course} current={lessonId} />
+            </div>
+          </div>
           <NextLink lesson={nb.next} />
         </div>
       )}

@@ -7,7 +7,7 @@ import { ProgressBar } from "@/components/ui/progress";
 import { TopicBlock } from "@/components/learning/course-ui";
 import { constructMetadata } from "@/lib/seo/metadata";
 import { ExamCourseService } from "@/services/learning/course.service";
-import { topicsReadyText } from "@/lib/learning/course-structure";
+import { completedText, topicsReadyText } from "@/lib/learning/course-structure";
 
 /**
  * COURSE-UX-1 screen B — subject page: every syllabus topic of the subject in syllabus order. A topic with lessons opens
@@ -64,9 +64,9 @@ export default async function CourseSubjectPage({ params }: Props) {
         <h1 className="text-h1 font-bold text-fg">{subject.title}</h1>
         <p className="text-body-lg text-fg-secondary" data-testid="subject-counts">
           {topicsReadyText(t.readyTopics, t.topics)}
-          {t.lessons > 0 ? ` · ${t.completed} of ${t.lessons} lessons completed` : ""}
+          {t.lessons > 0 ? ` · ${completedText(t.completed, t.lessons)}` : ""}
         </p>
-        {course.signedIn && t.lessons > 0 && <ProgressBar label={`${subject.title} progress`} value={t.completed} max={t.lessons} valueText={`${t.completed} of ${t.lessons} lessons completed`} tone="success" />}
+        {course.signedIn && t.lessons > 0 && <ProgressBar label={`${subject.title} progress`} value={t.completed} max={t.lessons} valueText={completedText(t.completed, t.lessons)} tone="success" />}
       </header>
       <ol className="flex flex-col gap-3" aria-label={`Topics in ${subject.title}`}>
         {subject.topics.map((topic) => (
