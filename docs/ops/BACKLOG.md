@@ -182,3 +182,11 @@ Once 095 is live, `fn_generate_mistake_drill` may pick manual Memory Lock items,
 - **STAFF-REPORTS-1:** staff view of question reports.
 - **ADMIN-CYCLE-1:** admin creation of exam cycles.
 - **Pre-exam screen:** 11 px copy (F3 P2).
+
+## PRO-LOCK-SQL-1: the Pro lock inside the lesson evidence RPCs — REQUIRED before F9 (payments)
+
+The COURSE-UX-1 RPCs `fn_lesson_quick_check_answer` and `fn_lesson_complete` (136 / 137) do not re-check the Pro
+lock. The paywall switch is the app env `PAYMENTS_ENABLED`, which SQL cannot see. While payments are off nothing is
+gated, so this is harmless. **Owner condition:** before payments go live (F9), add a database-side paywall switch and
+refuse a locked lesson's quick checks and completion (and so its coins) for a student without Pro. Gate: real-role
+negative controls. Source: architect audit of COURSE-UX-1 phase B, 2026-11-03.
