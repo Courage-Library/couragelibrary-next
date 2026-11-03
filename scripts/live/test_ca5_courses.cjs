@@ -192,8 +192,11 @@ const EXISTING_HASH = `select
       const r2 = await save(STU, docs.topic, 'COMPLETED', 'memory');
       const r3 = await save(STU, docs.topic, 'READING', 'intro-p');
       const [row] = await q(`select status, last_block_id, completed_at is not null done, count(*) over ()::int n from public.user_lesson_progress where user_id = $1 and document_id = $2`, [ids.student, docs.topic]);
-      chk('C-1 a student saves progress through the RPC (user = auth.uid()): READING → COMPLETED; reading again keeps COMPLETED (moves only the last block); one row',
-        r1.ok && r2.ok && r3.ok && r3.rows[0].r.status === 'COMPLETED' && row.status === 'COMPLETED' && row.done && row.last_block_id === 'intro-p' && row.n === 1, JSON.stringify({ r1, r2, r3, row }));
+      // COURSE-UX-1 (136, owner-approved secure completion): a bare COMPLETED save no longer completes — it is decided by
+      // fn_lesson_complete from server-recorded evidence (scripts/live/test_course_ux1.cjs E-1 / E-3); progress stays READING
+      chk('C-1 a student saves progress through the RPC (user = auth.uid()): READING; a bare COMPLETED save stays READING (no evidence — COURSE-UX-1); reading again moves the last block; one row',
+        r1.ok && r2.ok && r3.ok && r2.rows[0].r.status === 'READING' && r2.rows[0].r.complete && r2.rows[0].r.complete.completed === false && r3.rows[0].r.status === 'READING'
+          && row.status === 'READING' && !row.done && row.last_block_id === 'intro-p' && row.n === 1, JSON.stringify({ r1, r2, r3, row }));
       const own = await as('authenticated', STU, `select count(*)::int n from public.user_lesson_progress`);
       const other = await as('authenticated', STAFF, `select count(*)::int n from public.user_lesson_progress where user_id = $1`, [ids.student]);
       const otherSave = await save(STAFF, docs.subA, 'READING');
