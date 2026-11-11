@@ -211,6 +211,7 @@ const ADMIN_ONLY = new Set([
   ...['setCourseLaunchAction', 'saveExamNoteDraftAction', 'publishExamNoteAction', 'examNotePromptAction'].map((n) => `app/(site)/admin/lessons/actions.ts#${n}`),
   'app/(site)/admin/taxonomy/actions.ts#setTaxonomyNodeInternalAction',
   'app/(site)/admin/taxonomy/actions.ts#setTaxonomyContentSourceAction', // SYLLABUS-UI-1: admin only
+  'app/(site)/admin/taxonomy/actions.ts#setTaxonomyLessonAtTopicAction', // SEO-TOPIC-CANON-1: admin only
   ...['createIntakeAction', 'addIntakeCycleAction', 'decideIntakeItemAction', 'importIntakeAction', 'discardIntakeAction', 'bulkIntakeAction', 'undoIntakeBulkAction'].map((n) => `app/(site)/admin/syllabus/intake/actions.ts#${n}`),
   // F9-B: library Pro grants are admin-only (staff cannot grant Pro)
   'app/(site)/admin/pro-library/actions.ts#grantLibraryProAction',

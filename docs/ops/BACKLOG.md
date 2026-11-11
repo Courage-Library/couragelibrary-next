@@ -203,6 +203,14 @@ Original entry:
 - **ADMIN-CYCLE-1:** admin creation of exam cycles.
 - **Pre-exam screen:** 11 px copy (F3 P2).
 
+## PAY-LEGACY-RETIRE-1: retire the old payment functions (PAY-FULFIL-1 remnants) — REQUIRED before F9 (payments)
+
+Logged 2026-11-11 (owner). `fn_verify_and_fulfill_payment` and `fn_process_payment_webhook` still exist in the DB.
+F9-B (113 / 114) replaced them with `fn_fulfil_pro_order`, the one fulfil path. They are service-role only, fail closed
+(106) and have no app caller. **Owner condition:** before payments go live (F9), drop them in a migration (backup →
+dry-run → apply, with a rollback), after a grep shows no caller in the app, the scripts or other database functions.
+Lower the SECDEF allow-list in the same change. Gate: the functions are absent, and the F9-B payment gates still pass.
+
 ## PRO-LOCK-SQL-1: the Pro lock inside the lesson evidence RPCs — REQUIRED before F9 (payments)
 
 The COURSE-UX-1 RPCs `fn_lesson_quick_check_answer` and `fn_lesson_complete` (136 / 137) do not re-check the Pro

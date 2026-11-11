@@ -39,6 +39,7 @@ import {
   reorderTaxonomyNodesAction,
   setTaxonomyNodeActiveAction,
   setTaxonomyNodeInternalAction,
+  setTaxonomyLessonAtTopicAction,
   updateTaxonomyDetailsAction,
 } from "@/app/(site)/admin/taxonomy/actions";
 
@@ -500,6 +501,7 @@ function NodeDrawer({
           <span className="font-mono text-[12px]">{node.path}</span>
           {!node.isActive && <span className="font-semibold text-danger-700">{node.mergedInto ? `Merged into ${byId.get(node.mergedInto)?.name || "another node"}` : "Inactive"}</span>}
           {node.isInternal && <span className="rounded-full border border-line bg-ink-50 px-2 py-0.5 text-[11px] font-semibold text-fg-secondary">Internal</span>}
+          {node.lessonAtTopic && <span className="rounded-full border border-line bg-ink-50 px-2 py-0.5 text-[11px] font-semibold text-fg-secondary">Lesson at topic URL</span>}
         </span>
       }
       footer={
@@ -520,6 +522,17 @@ function NodeDrawer({
                 {node.isInternal ? "Make public again" : "Mark internal"}
               </button>
             ))}
+          {/* SEO-TOPIC-CANON-1: the topic URL serves its subtopic's lesson; the subtopic URL redirects there */}
+          {node.nodeType === "TOPIC" && (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => run(() => setTaxonomyLessonAtTopicAction(node.id, !node.lessonAtTopic), node.lessonAtTopic ? `"${node.name}" lessons are back on their subtopic URLs.` : `"${node.name}" now serves its subtopic's lesson at the topic URL.`)}
+              className={studioQuietAction}
+            >
+              {node.lessonAtTopic ? "Lesson back on subtopic URL" : "Serve lesson at topic URL"}
+            </button>
+          )}
           <button
             type="button"
             disabled={pending}

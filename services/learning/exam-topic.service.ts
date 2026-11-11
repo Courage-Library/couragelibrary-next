@@ -10,13 +10,13 @@
 import { unstable_cache } from "next/cache";
 import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { examTopicHref, learnHref, segmentsToHierarchyPath } from "@/lib/learn/paths";
-import { LEARN_CACHE_TAG, lessonTeaser, loadMasterData } from "@/services/learning/master-lesson.service";
+import { LEARN_CACHE_TAG, lessonTeaser, loadMasterData, type MasterData } from "@/services/learning/master-lesson.service";
 
 const TIER_ORDER = ["HIGH_YIELD", "CORE", "MODERATE", "LOW", "OPTIONAL"];
 
 export interface ExamTopicData {
   exam: { id: string; slug: string; title: string };
-  node: { id: string; name: string; nodeType: string; hierarchyPath: string; topicId: string | null; topicName: string | null; subjectName: string | null };
+  node: MasterData["node"];
   path: string;
   /** the exam's syllabus units covering this node: their path in the exam's syllabus */
   askedAs: { syllabusPath: string; tier: string | null }[];
@@ -111,5 +111,5 @@ async function loadExamTopicUncached(examSlug: string, hierarchyPath: string): P
 export async function getExamTopic(examSlug: string, segments: string[]): Promise<ExamTopicData | null> {
   const path = segmentsToHierarchyPath(segments);
   if (!path || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(examSlug)) return null;
-  return unstable_cache(() => loadExamTopicUncached(examSlug, path), ["exam-topic", "v2" /* CA-7: internal nodes */, examSlug, path], { tags: [LEARN_CACHE_TAG], revalidate: 1800 })();
+  return unstable_cache(() => loadExamTopicUncached(examSlug, path), ["exam-topic", "v3" /* SEO-TOPIC-CANON-1: lesson at topic */, examSlug, path], { tags: [LEARN_CACHE_TAG], revalidate: 1800 })();
 }

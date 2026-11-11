@@ -133,3 +133,14 @@ export async function setTaxonomyNodeInternalAction(id: string, internal: boolea
   if (r.success) revalidateTag(LEARN_CACHE_TAG);
   return sanitizeActionResult("setTaxonomyNodeInternalAction", r);
 }
+
+/** SEO-TOPIC-CANON-1: a topic serves its subtopic's lesson at the topic URL, or stops — admin only; audited. */
+export async function setTaxonomyLessonAtTopicAction(id: string, on: boolean): Promise<TaxonomyResult<{ id: string; lessonAtTopic: boolean }>> {
+  const __auth = await guardAdminAction() /* SEO-TOPIC-CANON-1: admin only */;
+  if (!__auth.ok) return __auth;
+  if (typeof on !== "boolean") return { success: false, code: "VALIDATION", error: "Choose on or off." };
+  const r = done(await TaxonomyService.setLessonAtTopic(id, on));
+  // the lesson / exam-topic pages, the redirects, the course links and the sitemap read the flag through the "learn" cache
+  if (r.success) revalidateTag(LEARN_CACHE_TAG);
+  return sanitizeActionResult("setTaxonomyLessonAtTopicAction", r);
+}

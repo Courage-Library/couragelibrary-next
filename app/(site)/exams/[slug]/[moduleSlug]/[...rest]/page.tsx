@@ -15,6 +15,8 @@ import { examMocks } from "@/lib/exams/exam-page-server";
 import { WEIGHTAGE_LABEL } from "@/lib/learning/course-view";
 import { getExamTopic } from "@/services/learning/exam-topic.service";
 import { getPublishedExamNote } from "@/services/learning/exam-note.service";
+import { redirectToTopicCanon } from "@/services/learning/topic-canon.service";
+import { examTopicHref } from "@/lib/learn/paths";
 import { ExamNoteBlocks } from "@/components/learning/exam-note-blocks";
 
 /**
@@ -32,11 +34,18 @@ interface Props {
   params: Promise<{ slug: string; moduleSlug: string; rest: string[] }>;
 }
 
+// SEO-TOPIC-CANON-1: a flagged topic's page shows its exam note, or else the note of the subtopic whose lesson it serves
+async function examNoteFor(d: NonNullable<Awaited<ReturnType<typeof getExamTopic>>>) {
+  const own = await getPublishedExamNote(d.exam.id, d.node.id, "en");
+  return own ?? (d.node.lessonNodeId !== d.node.id ? getPublishedExamNote(d.exam.id, d.node.lessonNodeId, "en") : null);
+}
+
 // CA-7: a published exam note is unique exam-specific content too
 const indexable = (d: NonNullable<Awaited<ReturnType<typeof getExamTopic>>>, hasNote: boolean) => Boolean(d.lesson) || d.pyq.total > 0 || hasNote;
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug, moduleSlug, rest } = await params;
+  await redirectToTopicCanon([moduleSlug, ...rest], (p) => examTopicHref(slug, p));
   const d = await getExamTopic(slug, [moduleSlug, ...rest]);
   if (!d) return constructMetadata({ title: "Topic not found", noIndex: true });
   return constructMetadata({
@@ -44,16 +53,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: examTopicTitle(d.node.name, d.exam.title),
     description: `How ${d.exam.title} asks ${d.node.name}: weightage${d.pyq.total ? `, ${d.pyq.total} previous-year question${d.pyq.total === 1 ? "" : "s"}` : ""}, practice and the full lesson.`,
     canonicalUrl: d.path,
-    noIndex: !indexable(d, Boolean(await getPublishedExamNote(d.exam.id, d.node.id, "en"))),
+    noIndex: !indexable(d, Boolean(await examNoteFor(d))),
   });
 }
 
 export default async function ExamTopicPage({ params }: Props) {
   const { slug, moduleSlug, rest } = await params;
+  await redirectToTopicCanon([moduleSlug, ...rest], (p) => examTopicHref(slug, p));
   const d = await getExamTopic(slug, [moduleSlug, ...rest]);
   if (!d) notFound();
   const supabase = await createServerSupabaseClient();
-  const [practiceHref, mocks, note] = await Promise.all([topicPracticeHref(supabase, d.node.topicId), examMocks(d.exam.id), getPublishedExamNote(d.exam.id, d.node.id, "en")]);
+  const [practiceHref, mocks, note] = await Promise.all([topicPracticeHref(supabase, d.node.topicId), examMocks(d.exam.id), examNoteFor(d)]);
   const q = d.expectedQuestions;
   const questionsText = q.avg !== null ? `about ${q.avg} question${q.avg === 1 ? "" : "s"} per paper` : q.max !== null ? `up to ${q.max} question${q.max === 1 ? "" : "s"}${q.min !== null && q.min !== q.max ? ` (at least ${q.min})` : ""}` : null;
   const jsonLd = {

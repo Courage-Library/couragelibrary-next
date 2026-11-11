@@ -253,7 +253,7 @@ const FUNCS = [
   await test('A-01 every server action starts with guardAdminAction (admin only)', () => {
     const src = read('app/(site)/admin/taxonomy/actions.ts');
     const fns = src.split(/export async function /).slice(1);
-    assert(fns.length === 11, `actions: ${fns.length}`); // + CA-7 setTaxonomyNodeInternalAction; + SYLLABUS-UI-1 setTaxonomyContentSourceAction
+    assert(fns.length === 12, `actions: ${fns.length}`); // + CA-7 setTaxonomyNodeInternalAction; + SYLLABUS-UI-1 setTaxonomyContentSourceAction; + SEO-TOPIC-CANON-1 setTaxonomyLessonAtTopicAction
     for (const f of fns) {
       // the guard is the first statement: only whitespace between the body's opening brace and it
       const at = f.indexOf('const __auth = await guardAdminAction()');

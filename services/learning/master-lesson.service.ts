@@ -16,6 +16,7 @@ import { validateLesson, type LessonBlock, type LessonLinkMap, type LessonMeta }
 import { isLessonLocked, lessonAccessLevel } from "@/lib/learning/chapter-access";
 import { getLessonAccessSettings } from "@/lib/learning/lesson-access-settings";
 import { examTopicHref, learnHref, segmentsToHierarchyPath } from "@/lib/learn/paths";
+import { buildTopicCanon } from "@/lib/learn/topic-canon";
 import { readingMinutes, requiredReadingSeconds } from "@/lib/lessons/reading-time";
 import { LearningResolverService, resolveLessonLinks } from "@/services/learning/learning-resolver.service";
 
@@ -29,7 +30,17 @@ export interface MasterLessonVersion {
 }
 
 export interface MasterData {
-  node: { id: string; name: string; nodeType: string; hierarchyPath: string; topicId: string | null; topicName: string | null; subjectName: string | null };
+  node: {
+    id: string;
+    name: string;
+    nodeType: string;
+    hierarchyPath: string;
+    topicId: string | null;
+    topicName: string | null;
+    subjectName: string | null;
+    /** SEO-TOPIC-CANON-1: the node whose lesson this page serves (a flagged topic serves its subtopic's; else = id) */
+    lessonNodeId: string;
+  };
   breadcrumbs: { name: string; href: string | null }[];
   /** isTestContent: a QA fixture (CA-7 SEO-HYGIENE-1) — served, never indexed */
   lesson: { documentId: string; position: number; publishedAt: string | null; en: MasterLessonVersion; hi: MasterLessonVersion | null; isTestContent: boolean } | null;
@@ -43,7 +54,7 @@ async function loadMasterDataUncached(hierarchyPath: string): Promise<MasterData
   const admin = createAdminServerSupabaseClient();
   const { data: node } = await admin
     .from("canonical_taxonomy_nodes")
-    .select("id, name, node_type, hierarchy_path, parent_id, root_subject_id, is_active, is_internal")
+    .select("id, name, node_type, hierarchy_path, parent_id, root_subject_id, is_active, is_internal, metadata")
     .eq("hierarchy_path", hierarchyPath)
     .eq("is_active", true)
     .maybeSingle();
@@ -61,7 +72,17 @@ async function loadMasterDataUncached(hierarchyPath: string): Promise<MasterData
   const ancestors = (anc.data || []).sort((a, b) => a.hierarchy_path.length - b.hierarchy_path.length);
   if (ancestors.some((a) => a.is_internal)) return null; // under an INTERNAL node
   const lessons = new Map((Array.isArray(servable.data) ? servable.data : []).map((r) => [r.node_id, r]));
-  const own = lessons.get(node.id) || null;
+  // SEO-TOPIC-CANON-1: a flagged topic (metadata.lesson_at_topic) serves its subtopic's lesson here, at the topic URL
+  const canon = buildTopicCanon(
+    [
+      { id: node.id, parentId: node.parent_id, nodeType: node.node_type, hierarchyPath, displayOrder: 0, name: node.name, isActive: true, isInternal: false, metadata: node.metadata },
+      ...(kids.data || []).map((k) => ({ id: k.id, parentId: node.id, nodeType: k.node_type, hierarchyPath: k.hierarchy_path, displayOrder: k.display_order, name: k.name, isActive: true, isInternal: false, metadata: null })),
+    ],
+    lessons.keys(),
+  );
+  const servedSubPath = canon.topicToSub[hierarchyPath] ?? null;
+  const servedSub = servedSubPath ? (kids.data || []).find((k) => k.hierarchy_path === servedSubPath) ?? null : null;
+  const own = lessons.get(servedSub ? servedSub.id : node.id) || null;
 
   let lesson: MasterData["lesson"] = null;
   if (own) {
@@ -104,7 +125,7 @@ async function loadMasterDataUncached(hierarchyPath: string): Promise<MasterData
 
   const topic = node.node_type === "TOPIC" ? node : ancestors.find((a) => a.node_type === "TOPIC") || null;
   // COURSE-POLISH-1: published exam notes for this node or its topic (the exam-topic page renders them)
-  const noteNodes = [node, ...(topic && topic.id !== node.id ? [topic] : [])];
+  const noteNodes = [node, ...(topic && topic.id !== node.id ? [topic] : []), ...(servedSub ? [servedSub] : [])];
   const { data: noteRows } = await admin
     .from("exam_node_notes")
     .select("node_id, exam:exams(slug, title, is_active)")
@@ -114,17 +135,17 @@ async function loadMasterDataUncached(hierarchyPath: string): Promise<MasterData
   for (const r of noteRows || []) {
     const e = Array.isArray(r.exam) ? r.exam[0] : r.exam;
     const at = noteNodes.find((n) => n.id === r.node_id);
-    if (e && e.is_active && at && !notesSeen.has(e.slug)) notesSeen.set(e.slug, { examTitle: e.title, href: examTopicHref(e.slug, at.hierarchy_path) });
+    if (e && e.is_active && at && !notesSeen.has(e.slug)) notesSeen.set(e.slug, { examTitle: e.title, href: examTopicHref(e.slug, at === servedSub ? hierarchyPath : at.hierarchy_path) });
   }
   const subject = ancestors.find((a) => a.node_type === "SUBJECT") || null;
   return {
-    node: { id: node.id, name: node.name, nodeType: node.node_type, hierarchyPath, topicId: topic?.id ?? null, topicName: topic?.name ?? null, subjectName: subject?.name ?? null },
+    node: { id: node.id, name: node.name, nodeType: node.node_type, hierarchyPath, topicId: topic?.id ?? null, topicName: topic?.name ?? null, subjectName: subject?.name ?? null, lessonNodeId: servedSub?.id ?? node.id },
     breadcrumbs: [
       ...ancestors.map((a) => ({ name: a.name, href: a.node_type !== "SUBJECT" && lessons.has(a.id) ? learnHref(a.hierarchy_path) : null })),
       { name: node.name, href: learnHref(hierarchyPath) },
     ],
     lesson,
-    children: (kids.data || []).filter((k) => lessons.has(k.id)).map((k) => ({ name: k.name, href: learnHref(k.hierarchy_path), nodeType: k.node_type })),
+    children: (kids.data || []).filter((k) => lessons.has(k.id) && k.id !== servedSub?.id).map((k) => ({ name: k.name, href: learnHref(k.hierarchy_path), nodeType: k.node_type })),
     exams,
     notes: [...notesSeen.values()].sort((a, b) => a.examTitle.localeCompare(b.examTitle)),
   };
@@ -132,7 +153,7 @@ async function loadMasterDataUncached(hierarchyPath: string): Promise<MasterData
 
 /** Cached per node path; every lesson publish revalidates the "learn" tag (app/admin/lessons/actions.ts). */
 export const loadMasterData = (hierarchyPath: string) =>
-  unstable_cache(() => loadMasterDataUncached(hierarchyPath), ["learn-master", "v3" /* COURSE-POLISH-1: exam notes */, hierarchyPath], { tags: [LEARN_CACHE_TAG], revalidate: 1800 })();
+  unstable_cache(() => loadMasterDataUncached(hierarchyPath), ["learn-master", "v4" /* SEO-TOPIC-CANON-1: lesson at topic */, hierarchyPath], { tags: [LEARN_CACHE_TAG], revalidate: 1800 })();
 
 export interface MasterLessonPage {
   data: MasterData;

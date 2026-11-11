@@ -7,6 +7,8 @@ import { isFeatureEnabled } from "@/config/features";
 import { ExamModuleRegistry } from "@/services/exam-knowledge/exam-module-registry";
 import { ExamModuleKey } from "@/types/exam-knowledge";
 import { learnSitemapEntries } from "@/lib/learn/sitemap";
+import { canonicalLessonPath, EMPTY_TOPIC_CANON } from "@/lib/learn/topic-canon";
+import { loadTopicCanon } from "@/services/learning/topic-canon.service";
 
 export const revalidate = 3600; // Revalidate sitemap hourly
 const SITEMAP_FETCH_TIMEOUT_MS = 8000;
@@ -163,7 +165,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         const { data: launches } = await supabase.from("exam_course_launches").select("exam_id, status").eq("status", "LIVE");
         const liveExams = new Set((launches || []).map((x) => x.exam_id));
         const { data: nodes } = await supabase.from("canonical_taxonomy_nodes").select("id, hierarchy_path").eq("is_active", true).in("id", lessons.map((l) => l.nodeId));
-        const paths = Object.fromEntries((nodes || []).map((n) => [n.id, n.hierarchy_path]));
+        // SEO-TOPIC-CANON-1: a lesson a flagged topic serves is listed at the topic URL only (its subtopic URL 308s there)
+        const canon = await loadTopicCanon().catch(() => EMPTY_TOPIC_CANON);
+        const paths = Object.fromEntries((nodes || []).map((n) => [n.id, canonicalLessonPath(n.hierarchy_path, canon)]));
         const examCourses: { slug: string; nodeIds: string[]; live: boolean }[] = [];
         for (const [examId, exam] of activeExamsMap) {
           const { data: outline } = await supabase.rpc("fn_exam_course_outline", { p_exam_id: examId });

@@ -26,6 +26,8 @@ import { learnHref } from "@/lib/learn/paths";
 import { isPracticeEnabled } from "@/lib/practice/flag";
 import { servableTopicCounts } from "@/lib/practice/server";
 import { LEARN_CACHE_TAG } from "@/services/learning/master-lesson.service";
+import { canonicalLessonPath, EMPTY_TOPIC_CANON } from "@/lib/learn/topic-canon";
+import { loadTopicCanon } from "@/services/learning/topic-canon.service";
 
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -56,12 +58,13 @@ async function loadCourseDataUncached(examSlug: string): Promise<CourseData | nu
   const nodeIds = [...new Set([...base.map((l) => l.nodeId), ...nodes.flatMap((n) => n.mapped.map((m) => m.nodeId)).filter((x): x is string => !!x)])];
   const topicIds = [...new Set(nodes.flatMap((n) => n.mapped.map((m) => m.topicId)).filter((x): x is string => !!x))];
   const docIds = base.map((l) => l.documentId);
-  const [{ data: paths }, { data: versions }, practice] = await Promise.all([
+  const [{ data: paths }, { data: versions }, practice, canon] = await Promise.all([
     nodeIds.length ? admin.from("canonical_taxonomy_nodes").select("id, hierarchy_path").in("id", nodeIds) : Promise.resolve({ data: [] as { id: string; hierarchy_path: string }[] }),
     docIds.length
       ? admin.from("document_versions").select("document_id, blocks, lesson_meta").in("document_id", docIds).eq("language", "en").eq("is_current", true).eq("is_published", true).eq("review_status", "PUBLISHED").eq("content_format", "BLOCKS")
       : Promise.resolve({ data: [] as { document_id: string; blocks: unknown; lesson_meta: unknown }[] }),
     isPracticeEnabled() && topicIds.length ? servableTopicCounts(admin, topicIds).catch(() => new Map<string, number>()) : Promise.resolve(new Map<string, number>()),
+    loadTopicCanon().catch(() => EMPTY_TOPIC_CANON),
   ]);
   const pathOf = Object.fromEntries((paths || []).map((n) => [n.id, n.hierarchy_path]));
   const minutes = new Map((versions || []).map((v) => [v.document_id, Array.isArray(v.blocks) ? readingMinutes(v.blocks) : null]));
@@ -75,7 +78,8 @@ async function loadCourseDataUncached(examSlug: string): Promise<CourseData | nu
   return {
     exam,
     state: view.state,
-    lessons: base.map((l) => ({ ...l, name: titles.get(l.documentId) ?? l.name, href: pathOf[l.nodeId] ? learnHref(pathOf[l.nodeId]) : l.href, minutes: minutes.get(l.documentId) ?? null })),
+    // SEO-TOPIC-CANON-1: lesson links (outline, previous / next) use the canonical URL; `paths` (tree matching) stays the node's own
+    lessons: base.map((l) => ({ ...l, name: titles.get(l.documentId) ?? l.name, href: pathOf[l.nodeId] ? learnHref(canonicalLessonPath(pathOf[l.nodeId], canon)) : l.href, minutes: minutes.get(l.documentId) ?? null })),
     nodes,
     paths: pathOf,
     practice: [...practice.entries()],
@@ -85,7 +89,7 @@ async function loadCourseDataUncached(examSlug: string): Promise<CourseData | nu
 /** Cached per exam; every lesson publish revalidates the "learn" tag (app/admin/lessons/actions.ts). */
 // a failed read REJECTS (never cached, never shown as "not found"): the page shows its error state ("Try again")
 const loadCourseData = (examSlug: string): Promise<CourseData | null> =>
-  unstable_cache(() => loadCourseDataUncached(examSlug), ["course-ux-1", "v3" /* COURSE-POLISH-1: lesson titles */, examSlug], { tags: [LEARN_CACHE_TAG], revalidate: 900 })();
+  unstable_cache(() => loadCourseDataUncached(examSlug), ["course-ux-1", "v4" /* SEO-TOPIC-CANON-1: canonical lesson links */, examSlug], { tags: [LEARN_CACHE_TAG], revalidate: 900 })();
 
 export interface CourseView extends CourseStructure {
   exam: { slug: string; title: string };

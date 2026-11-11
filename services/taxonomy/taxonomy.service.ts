@@ -21,6 +21,7 @@ import { QA_RUN_SLUG_LIKE } from '@/lib/qa/fixtures';
 import type { AppSupabaseClient } from '@/lib/supabase/types';
 import type { Json, TablesInsert } from '@/types/database';
 import { createAdminServerSupabaseClient } from '@/lib/supabase/server';
+import { isLessonAtTopic, withLessonAtTopic } from '@/lib/learn/topic-canon';
 
 import {
   ALIAS_LANGUAGES,
@@ -111,6 +112,7 @@ function toNode(r: any): TaxonomyNode {
     stateCode: r.state_code ?? null,
     mergedInto: r.metadata && typeof r.metadata === 'object' && typeof r.metadata.merged_into === 'string' ? r.metadata.merged_into : null,
     isInternal: r.is_internal === true,
+    lessonAtTopic: isLessonAtTopic(r.metadata),
   };
 }
 
@@ -399,6 +401,30 @@ export class TaxonomyService {
     }
     await this.audit(ctx, 'TAXONOMY_NODE_CONTENT_SOURCE', id, { content_source: before }, { content_source: source });
     return { success: true, data: { id, contentSource: source } };
+  }
+
+  /**
+   * SEO-TOPIC-CANON-1: a TOPIC serves its subtopic's lesson at the topic URL (metadata.lesson_at_topic = true) or stops
+   * doing so. Explicit flag only (owner GO 2026-11-11). Admin only; audited TAXONOMY_NODE_LESSON_AT_TOPIC; other metadata
+   * keys are kept.
+   */
+  static async setLessonAtTopic(id: string, on: boolean): Promise<TaxonomyResult<{ id: string; lessonAtTopic: boolean }>> {
+    const ctx = await this.requireAdmin();
+    if (!ctx) return fail('UNAUTHORIZED', 'Unauthorized.');
+    if (typeof on !== 'boolean') return fail('VALIDATION', 'Choose on or off.');
+    const { data: row, error: readError } = await ctx.supabase.from('canonical_taxonomy_nodes').select('id, node_type, metadata').eq('id', id).maybeSingle();
+    if (readError) return fail('DB_ERROR', 'Could not load the node.');
+    if (!row) return fail('NOT_FOUND', 'Node not found.');
+    if (row.node_type !== 'TOPIC') return fail('VALIDATION', 'Only a topic can serve its lesson at the topic URL.');
+    const before = isLessonAtTopic(row.metadata);
+    if (before === on) return fail('VALIDATION', on ? 'The topic already serves its lesson at the topic URL.' : 'The topic does not serve its lesson at the topic URL.');
+    const { error } = await ctx.supabase.from('canonical_taxonomy_nodes').update({ metadata: withLessonAtTopic(row.metadata, on) as Json }).eq('id', id);
+    if (error) {
+      const m = mapTaxonomyDbError(error);
+      return fail(m.code, m.error);
+    }
+    await this.audit(ctx, 'TAXONOMY_NODE_LESSON_AT_TOPIC', id, { lesson_at_topic: before }, { lesson_at_topic: on });
+    return { success: true, data: { id, lessonAtTopic: on } };
   }
 
   /** MASTER-TREE UX: the node lesson state per node — PUBLISHED, DRAFT (any other live status) or absent (none / archived). */

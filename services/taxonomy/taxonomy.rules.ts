@@ -72,6 +72,8 @@ export interface TaxonomyNode {
   mergedInto: string | null;
   /** CA-7: an internal node (legacy catch-all) — question mapping only; never a lesson / course / public page */
   isInternal: boolean;
+  /** SEO-TOPIC-CANON-1: a TOPIC whose URL serves its subtopic's lesson (metadata.lesson_at_topic) */
+  lessonAtTopic: boolean;
 }
 
 export interface TaxonomyTreeNode extends TaxonomyNode {
