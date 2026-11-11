@@ -76,7 +76,11 @@ Done by migration 099 + Q6 part B: `test_attempts.last_question_order` / `visite
 
 Logged by the architect (2026-10-25). 098 makes `fn_jwt_is_admin_or_staff()` require AAL2 when the flag is on, but 43 inline RLS policies and 15 functions check the staff / admin role without it. Each must use the AAL2-aware helper (or an equivalent check) before launch.
 
-## GRANT-AUDIT-1: table-level client write grants (inspect + report; fixes held as 100)
+## GRANT-AUDIT-1: table-level client write grants — DONE 2026-10-25 (migration 100)
+
+**Done:** the architect gave the GO on 2026-10-25; migration 100 is on main and the ledger says APPLIED 2026-10-25 (checked 2026-11-11).
+
+Original entry:
 
 Found with ATTEMPT-INTEGRITY-1 (099): a table-level INSERT / UPDATE grant to `authenticated` overrides column revokes. Thirteen more tables have table-level client write grants plus client write policies: learning_activity_events, custom_practice_sessions, discussion_threads / discussion_messages / discussion_votes / discussion_moderation_flags, study_plan_items, user_study_plans, user_bookmark_folders, user_question_bookmarks, user_exam_goals, user_lesson_notes, user_notification_preferences. Report: docs/reports/security/GRANT_AUDIT_1.md. Fix: migration 100 (held, dry-run + smoke 13/13 rolled back), applied only on the architect's go.
 
@@ -106,7 +110,11 @@ Read-only, 2026-10-25. **Existing data:** 10 REWARDED `gamification_events` rows
 - `services/live-test-reward.service.ts`: ledger and wallet writes.
 - `services/gamification.service.ts`.
 
-## PAY-FULFIL-1 → F9 (DO NOT FIX before F9)
+## PAY-FULFIL-1 → F9 — SUPERSEDED by F9-B (migrations 113 + 114, APPLIED 2026-10-26)
+
+**Now:** `fn_fulfil_pro_order` (114) is the one fulfil path for the client verify and the webhook. It is idempotent on the payment id, rejects a payment id used for another order, and is service-role only. The two checks skipped in 106 (replay → no double fulfil; same payment id on another order → rejected) are the F9-B gates `scripts/test_f9b_payments.cjs` and `scripts/live/test_f9_pricing.cjs`. **Still open:** the legacy `fn_verify_and_fulfill_payment` and `fn_process_payment_webhook` still exist in the DB (service-role only, fail closed, no app caller). Retiring them needs a migration and a GO.
+
+Original entry:
 
 Architect ruling, 2026-10-25. `fn_verify_and_fulfill_payment` is rebuilt in F9 (Pricing + Razorpay) on the canonical `user_entitlements` schema (`starts_at`, `expires_at`, `is_active`), for one-time 3, 6 or 12-month plans with no auto-renew. Until then it stays service-role-only, unused and fail-closed (106 applied).
 
@@ -118,9 +126,17 @@ Architect ruling, 2026-10-25. Custom practice must use the practice engine and n
 
 ## TOPIC-CONTEXT-1: CLOSED — not a bug (2026-10-25)
 
+**Note (2026-11-11):** the `held-104` branch no longer exists, locally or on origin. 104 is not on main and not in the ledger. If `public.topics` is retired, write the validation again as a new migration.
+
+Original entry:
+
 Logged in error while testing 101. `public.topics` is a live table that mirrors the 36 canonical `TOPIC` nodes (same ids), so `fn_create_discussion_thread('TOPIC', …)` already works. The 104 smoke proved it, B-1. Migration 104 (validate against `canonical_taxonomy_nodes` directly) is on branch `held-104` and NOT applied. Apply it only if `public.topics` is retired later.
 
-## NULL-BYPASS-2: deny branches a NULL can skip (fixes held as 105)
+## NULL-BYPASS-2: deny branches a NULL can skip — DONE 2026-10-25 (migration 105)
+
+**Done:** the architect gave the GO; migration 105 is on main and the ledger says APPLIED 2026-10-25 (checked 2026-11-11). The payment functions named below were handled by 106 (fail closed) and F9-B (see PAY-FULFIL-1).
+
+Original entry:
 
 Report: `docs/reports/security/NULL_BYPASS_2.md`. Migration 105 is on branch `held-105`: chunked smoke 10/10, dry-run OK, NOT applied, needs the architect's go.
 - `fn_submit_battle_round_answer`: an answer is accepted before the round has a start time, with latency 0. Proven, rolled back.
