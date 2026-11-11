@@ -18,6 +18,10 @@
  *   Q-8 every shipped example lesson is clean (no quality warning) and the old 3-argument checklist is unchanged
  *   Q-9 wiring: the save, the publish gate and the paste UI pass the quality context; the exam-topic page's <title> and
  *       H1 = "<Topic> for <Exam>: Rules, Examples & Practice" (self-canonical, unchanged)
+ *   Q-10 item 8 (report only): lib/syllabus/single-subtopic.ts flags a topic's only subtopic that just renames it
+ *       (same name, same words, a plain gloss such as Antonyms › Opposite Word Meaning, or filler only); negative
+ *       controls: a subtopic that adds its own word, a gloss of another topic, and a non-word prefix are "different"
+ *   Q-11 scripts/content/single-subtopic-report.cjs is read only (SAFE-NET first, BEGIN READ ONLY, rolled back, no write)
  * Run: node scripts/test_lesson_quality1.cjs
  */
 const fs = require('fs');
@@ -165,6 +169,31 @@ test('Q-9 wiring: save + publish gate + paste UI pass the quality context; exam-
   const page = read('app/(site)/exams/[slug]/[moduleSlug]/[...rest]/page.tsx');
   assert(/const examTopicTitle = \(topic: string, exam: string\) => `\$\{topic\} for \$\{exam\}: Rules, Examples & Practice`;/.test(page)
     && /title: examTopicTitle\(d\.node\.name, d\.exam\.title\)/.test(page) && /\{examTopicTitle\(d\.node\.name, d\.exam\.title\)\}\s*<\/h1>/.test(page) && /canonicalUrl: d\.path/.test(page), 'exam-topic title / H1 / canonical');
+});
+
+const SS = require(path.join(ROOT, 'lib/syllabus/single-subtopic.ts'));
+test('Q-10 single-subtopic report (item 8): a subtopic that only renames its topic is flagged; real splits are "different"', () => {
+  const k = SS.classifySingleSubtopic;
+  const renames = [['Antonyms', 'Opposite Word Meaning', 'gloss'], ['Synonyms', 'Similar Meaning Words', 'gloss'], ['Spelling', 'Correct Spelling', 'same_words'],
+    ['Idioms and Phrases', 'Idioms & Phrases', 'same_name'], ['Percentage', 'Percentages', 'same_name'], ['One Word Substitution', 'Single Word Replacement', 'gloss'],
+    ['Spelling', 'Spelling Identification', 'same_name'], ['Idioms & Phrases', 'Idiomatic Meaning', 'same_words'], ['Active Passive', 'Voice Transformation', 'gloss'],
+    ['Direct and Indirect Speech', 'Reported Speech Transformation', 'same_words'], ['Phrasal Verbs', 'Meaning and Usage', 'filler_only']];
+  for (const [t, s, want] of renames) assert(k(t, s) === want && SS.isRename(k(t, s)), `${t} › ${s}: ${k(t, s)} (want ${want})`);
+  // negative controls: a subtopic that adds its own word, a gloss of another topic, a prefix that is not the whole word
+  const different = [['Percentage', 'Successive Percentage Change'], ['Number System', 'Divisibility Rules'], ['Antonyms', 'Similar Meaning Words'],
+    ['Profit and Loss', 'Opposite Word Meaning'], ['Idioms & Phrases', 'Phrasal Verb Usage'], ['Percentage', 'Percentile'], ['Cloze Test', 'Error Spotting']];
+  for (const [t, s] of different) assert(!SS.isRename(k(t, s)), `${t} › ${s} must not be a rename: ${k(t, s)}`);
+  return `${renames.length} renames, ${different.length} negative controls`;
+});
+
+test('Q-11 the single-subtopic report is READ ONLY: SAFE-NET first, BEGIN READ ONLY, always rolled back, no write statement', () => {
+  const s = read('scripts/content/single-subtopic-report.cjs');
+  assert(/^#!.*\n\/\*\*[\s\S]*?\*\/\nrequire\('\.\.\/db\/safe-net\.cjs'\);/.test(s), 'safe-net must be the first require');
+  assert(/safeBegin\(c, \{ readOnly: true \}\)/.test(s) && /finally \{\s*await c\.query\('ROLLBACK'\)/.test(s), 'read-only transaction, rolled back in finally');
+  const code = s.replace(/\/\*\*[\s\S]*?\*\//g, '');
+  assert(!/\b(insert\s+into|update\s+public|delete\s+from|COMMIT|fn_[a-z_]+\()/i.test(code), 'no write');
+  // negative control: the same checks catch a planted write
+  assert(/\b(insert\s+into|update\s+public|delete\s+from|COMMIT|fn_[a-z_]+\()/i.test(code + "\nawait c.query('" + 'COM' + "MIT');"), 'planted write not caught');
 });
 
 console.log(`\nLESSON-PROMPT-QUALITY-1: ${passed}/${passed + failed} passed`);
