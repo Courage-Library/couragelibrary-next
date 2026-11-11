@@ -7,7 +7,8 @@
  *   - word_bank: a VOCABULARY topic (synonyms, antonyms, one-word substitution, idioms / phrases, spelling) needs at
  *     least 100 table rows in total (the prompt asks for 120–150)
  *   - exam_neutral: master lessons are shared by all exams — no exam name, tier name or 4-digit year in the title,
- *     the summary or a heading
+ *     the summary or a heading; a generic list of two or more exam families ("competitive exams such as SSC, Banking
+ *     and Railways") is allowed anywhere (owner ruling 2026-11-11)
  */
 import type { LessonBlock, LessonMeta } from "@/lib/lessons/blocks";
 
@@ -33,6 +34,12 @@ const EXAM_TERMS = [
   "Tier 1", "Tier 2", "Tier I", "Tier II", "Tier-I", "Tier-II", "Tier-1", "Tier-2", "Prelims", "Mains",
 ];
 const YEAR_RE = /\b(19|20)\d{2}\b/;
+// owner ruling 2026-11-11: the generic phrase "competitive exams such as SSC, Banking and Railways" (and close variants:
+// a list of TWO OR MORE exam families) is allowed anywhere; a single family or a specific exam is still flagged
+const FAMILY = "(?:SSC|UPSC|Banking|Bank|Railways?|State(?: PSC| exams)?|Defen[cs]e|Teaching|Police|Insurance)";
+const FAMILY_LIST_RE = new RegExp(`(^|[^A-Za-z0-9])${FAMILY}(?:\\s*(?:,|/|,?\\s+(?:and|or))\\s*${FAMILY})+(?![A-Za-z0-9])`, "gi");
+/** The text with every generic list of exam families removed ("SSC, Banking and Railways" → ""). */
+export const withoutFamilyLists = (text: string) => text.replace(FAMILY_LIST_RE, "$1");
 
 /** The options listed in a question: "(a) foo (b) bar …" → [{ key: "a", text: "foo" }, …] (needs at least 2). */
 export function questionOptions(question: string): { key: string; text: string }[] {
@@ -53,7 +60,8 @@ function namesOption(s: string, opts: { key: string; text: string }[]): boolean 
 }
 
 /** Exam / tier / year mentions in a piece of text (whole words). */
-export function examMentions(text: string, extra: string[] = []): string[] {
+export function examMentions(raw: string, extra: string[] = []): string[] {
+  const text = withoutFamilyLists(raw);
   const out: string[] = [];
   for (const term of [...EXAM_TERMS, ...extra.filter((x) => x && x.trim().length >= 2)]) {
     const re = new RegExp(`(^|[^A-Za-z0-9])${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/[ -]/g, "[ -]?")}($|[^A-Za-z0-9])`, "i");

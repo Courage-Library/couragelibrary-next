@@ -13,7 +13,9 @@
  *   Q-5 word_bank: a vocabulary topic (antonyms …) with < 100 table rows → warning, ≥ 100 passes; a non-vocabulary topic
  *       gets no word-bank item
  *   Q-6 exam_neutral: an exam / tier / 4-digit year in the title, summary or a heading → warning naming the place;
- *       negative controls: the same words in a paragraph are not judged; "general" / "Mainstream" are not "GD" / "Mains"
+ *       negative controls: the same words in a paragraph are not judged; "general" / "Mainstream" are not "GD" / "Mains";
+ *       ruling 2026-11-11: a list of two or more exam families ("SSC, Banking and Railways", "SSC / Banking / Railway")
+ *       passes anywhere, while one family alone, a specific exam, a tier or a year is still flagged
  *   Q-7 the quality items are WARNINGS: they never make the checklist fail (draft + publish unaffected)
  *   Q-8 every shipped example lesson is clean (no quality warning) and the old 3-argument checklist is unchanged
  *   Q-9 wiring: the save, the publish gate and the paste UI pass the quality context; the exam-topic page's <title> and
@@ -132,7 +134,23 @@ test('Q-6 exam_neutral: exam / tier / year in the title, summary or a heading �
   const w = item(C.lessonChecklist(blocks, 'LANGUAGE', undefined, { meta: { title: 'Antonyms for SSC CHSL 2025', summary: 'Practice.' }, examNames: ['SSC CGL'] }), 'exam_neutral');
   assert(!w.ok && /title: SSC/.test(w.detail) && /title: 2025/.test(w.detail) && /heading "h1": (SSC|CGL|Tier 1)/.test(w.detail) && !/p1/.test(w.detail), w.detail);
   const clean = item(C.lessonChecklist([{ id: 'h2', type: 'heading', level: 2, text: 'General rules and mainstream question types' }, ...blocks.slice(1)], 'LANGUAGE', undefined, { meta: { title: 'Antonyms: Rules, Examples and Practice', summary: 'How competitive exams such as SSC, Banking and Railways ask antonyms.' } }), 'exam_neutral');
-  assert(!clean.ok && /summary: SSC/.test(clean.detail), 'the generic family phrase in the SUMMARY is still flagged (the rule: no exam name in title / summary / headings)');
+  assert(clean.ok, `the generic family phrase is allowed (owner ruling 2026-11-11): ${clean.detail}`);
+  // ruling 2026-11-11: close variants listing two or more families pass anywhere (title, summary, heading) …
+  const variants = ['Competitive exams such as SSC, Banking and Railways', 'exams like SSC and Railways', 'SSC / Banking / Railway exams', 'SSC, UPSC, State PSC or Defence exams'];
+  for (const v of variants) {
+    const r = item(C.lessonChecklist([{ id: 'hv', type: 'heading', level: 2, text: v }], 'LANGUAGE', undefined, { meta: { title: `Antonyms in ${v}`, summary: v } }), 'exam_neutral');
+    assert(r.ok, `variant "${v}" flagged: ${r.detail}`);
+  }
+  // … negative controls: one family alone, a specific exam (even next to a family list), a tier or a year are still flagged
+  const flagged = [['summary', 'How SSC asks antonyms.', /summary: SSC/], ['summary', 'Asked in SSC CGL and Banking exams.', /summary: (SSC|CGL)/],
+    ['heading', 'Antonyms in SSC, Banking and Railways 2024', /heading "hx": 2024/], ['heading', 'Antonyms for Tier 2', /heading "hx": Tier 2/],
+    ['title', 'Antonyms for SSC', /title: SSC/], ['title', 'Antonyms: SSC, Banking and IBPS PO', /title: IBPS/]];
+  for (const [where, text, re] of flagged) {
+    const meta = { title: where === 'title' ? text : 'Antonyms', summary: where === 'summary' ? text : 'Opposite meanings.' };
+    const hb = where === 'heading' ? [{ id: 'hx', type: 'heading', level: 2, text }] : [];
+    const r = item(C.lessonChecklist(hb, 'LANGUAGE', undefined, { meta }), 'exam_neutral');
+    assert(!r.ok && re.test(r.detail), `${where} "${text}" must be flagged: ${r.detail || 'ok'}`);
+  }
   const neutral = item(C.lessonChecklist([{ id: 'h2', type: 'heading', level: 2, text: 'General rules and mainstream question types' }], 'LANGUAGE', undefined, { meta: { title: 'Antonyms: Rules, Examples and Practice', summary: 'Opposite meanings, word by word.' } }), 'exam_neutral');
   assert(neutral.ok, `false positive: ${neutral.detail}`);
 });
