@@ -142,7 +142,11 @@ Logged by the architect (2026-10-26). A brand-new student sees empty cards on `/
 
 Once 095 is live, `fn_generate_mistake_drill` may pick manual Memory Lock items, which have 0 mistakes. The app-side lists already filter `total_mistakes_count >= 1`; the SQL generator needs the same filter.
 
-## BUILD-FONT-1: `next build` intermittently crashes in next/font/google (proposal)
+## BUILD-FONT-1: `next build` intermittently crashes in next/font/google — DONE (HOME-1, 15d7773)
+
+**Done:** fonts are self-hosted in `app/fonts/` (woff2 subsets, OFL, `NOTICE.md`) and loaded with `next/font/local` in `app/layout.tsx`. No file under `app/`, `components/` or `lib/` imports `next/font/google`, so the build makes no font network call. Verified 2026-11-11.
+
+Original entry:
 
 **Status:** logged 2026-11-01. Seen twice in about 12 CI builds: dispatch 41220647346 (live-journeys BUILD) and push 41233958370 (server-checks SC-BUILD). The same commits built fine in the other jobs.
 
