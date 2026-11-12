@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import { ChevronDown, ListTree, Search, X } from "lucide-react";
-import { isOpen as openRule, isVisible, matchTopics, normText, restoreState, setAllTopics, subjectCounts, toggleTopic, type BrowseItem, type OpenState } from "@/lib/syllabus/browse-state";
+import { ChevronDown, ChevronLeft, ChevronRight, ListTree, Search, X } from "lucide-react";
+import { isOpen as openRule, isVisible, matchTopics, normText, restoreState, setAllTopics, shortSubjectLabel, subjectCounts, toggleTopic, type BrowseItem, type OpenState } from "@/lib/syllabus/browse-state";
 
 /**
  * SYLLABUS-UI-1 (owner 2026-11-12): ONE way to browse a long syllabus, shared by the student exam hub and the admin
@@ -84,9 +84,13 @@ const reducedMotion = () => {
   }
 };
 
-/** phone: pill chips that scroll sideways (44 px); md+: one row of underline tabs (the bar stays one row tall) */
+/** phone: pill chips that scroll sideways (44 px); md+: ONE row of underline tabs with tight padding (owner: all of an
+ * exam's subjects fit at ≥ 1280 px; short labels via shortSubjectLabel). Whatever still overflows gets an edge fade +
+ * arrow, so hidden tabs are obvious at any width. */
 const tabBase =
-  "focus-ring inline-flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border px-4 text-body-sm font-semibold transition-colors duration-120 md:min-h-10 md:rounded-none md:border-0 md:border-b-2 md:px-3";
+  "focus-ring inline-flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border px-4 text-body-sm font-semibold transition-colors duration-120 md:min-h-10 md:gap-1.5 md:rounded-none md:border-0 md:border-b-2 md:px-2.5";
+const edgeBtn =
+  "pointer-events-auto inline-flex size-11 items-center justify-center rounded-full border border-line-control bg-surface text-fg shadow-e1 hover:bg-ink-50 md:size-9";
 const quietBtn =
   "focus-ring inline-flex min-h-11 items-center gap-2 rounded-control border border-line-control bg-surface px-3 text-body-sm font-semibold text-fg hover:bg-ink-50 disabled:cursor-not-allowed disabled:opacity-50";
 
@@ -103,6 +107,8 @@ export function SyllabusBrowser({ storageKey, label, subjects, topics, keepMount
   const barRef = useRef<HTMLDivElement>(null);
   const railRef = useRef<HTMLOListElement>(null);
   const tabRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+  const tablistRef = useRef<HTMLDivElement>(null);
+  const [edges, setEdges] = useState<{ left: boolean; right: boolean }>({ left: false, right: false });
   const q = normText(query);
 
   // ------------------------------------------------------------------ remembered per session
@@ -139,6 +145,29 @@ export function SyllabusBrowser({ storageKey, label, subjects, topics, keepMount
 
   const toggle = (t: BrowseTopic) => setState((s) => toggleTopic(s, itemOf.get(t.id) as BrowseItem, q, match));
   const setAll = (expand: boolean) => setState((s) => setAllTopics(s, shown.map((t) => itemOf.get(t.id) as BrowseItem), expand));
+
+  // ------------------------------------------------------------------ tabs that do not fit: which edge hides some
+  useEffect(() => {
+    const el = tablistRef.current;
+    if (!el) return;
+    const update = () => {
+      const left = el.scrollLeft > 1;
+      const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
+      setEdges((e) => (e.left === left && e.right === right ? e : { left, right }));
+    };
+    update();
+    el.addEventListener("scroll", update, { passive: true });
+    const ro = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(update);
+    ro?.observe(el);
+    return () => {
+      el.removeEventListener("scroll", update);
+      ro?.disconnect();
+    };
+  }, [subjects.length]);
+  const scrollTabs = (dir: 1 | -1) => {
+    const el = tablistRef.current;
+    if (el) el.scrollBy({ left: dir * Math.max(120, el.clientWidth * 0.6), behavior: reducedMotion() ? "auto" : "smooth" });
+  };
 
   // ------------------------------------------------------------------ the bar's height → the topics' scroll margin
   useEffect(() => {
@@ -333,7 +362,7 @@ export function SyllabusBrowser({ storageKey, label, subjects, topics, keepMount
   };
 
   return (
-    <div ref={rootRef} className="grid min-w-0 gap-4 lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-6" data-syllabus-browser="">
+    <div ref={rootRef} className="grid min-w-0 gap-4 lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-5 xl:grid-cols-[14rem_minmax(0,1fr)]" data-syllabus-browser="">
       {/* desktop rail: the open subject's topics (scroll-spy) */}
       <aside className="hidden min-w-0 lg:block">
         <nav aria-label={`Topics in ${activeLabel}`} className="sticky top-(--sticky-offset) flex flex-col gap-2 pt-3" data-rail="">
@@ -363,7 +392,8 @@ export function SyllabusBrowser({ storageKey, label, subjects, topics, keepMount
         {/* the ONE sticky bar */}
         <div ref={barRef} className="sticky top-(--sticky-offset) z-10 -mx-1 flex flex-col gap-2 border-b border-line bg-surface px-1 py-2" data-syllabus-bar="">
           {tabs && (
-            <div role="tablist" aria-label="Subjects" className="-mx-1 flex gap-2 overflow-x-auto px-1 py-0.5 md:gap-1 md:border-b md:border-line md:py-0" data-subject-tabs="">
+            <div className="relative min-w-0" data-subject-tabs-wrap="" data-overflow-left={edges.left ? "" : undefined} data-overflow-right={edges.right ? "" : undefined}>
+            <div ref={tablistRef} role="tablist" aria-label="Subjects" className="-mx-1 flex gap-2 overflow-x-auto px-1 py-0.5 [scrollbar-width:none] md:gap-0.5 md:border-b md:border-line md:py-0 [&::-webkit-scrollbar]:hidden" data-subject-tabs="">
               {subjects.map((s, i) => {
                 const sel = s.id === active;
                 const n = counts.get(s.id) ?? 0;
@@ -380,15 +410,32 @@ export function SyllabusBrowser({ storageKey, label, subjects, topics, keepMount
                     aria-selected={sel}
                     aria-controls={keepMounted || sel ? panelId(s.id) : undefined}
                     tabIndex={sel ? 0 : -1}
+                    title={shortSubjectLabel(s.label) !== s.label ? s.label : undefined}
                     onClick={() => setActive(s.id)}
                     onKeyDown={(e) => onTabKey(e, i)}
                     className={cx(tabBase, sel ? "border-primary-700 bg-primary-50 text-primary-800 md:bg-transparent" : "border-line-control bg-surface text-fg hover:bg-ink-50 md:border-transparent md:bg-transparent md:text-fg-secondary md:hover:text-fg")}
                   >
-                    {s.label}
+                    {shortSubjectLabel(s.label)}
                     <span className={cx("rounded-full px-1.5 text-[12px] font-semibold", sel ? "bg-primary-100 text-primary-800" : "bg-ink-100 text-fg-secondary")}>{n}</span>
                   </button>
                 );
               })}
+            </div>
+            {/* hidden tabs are obvious: a fade + arrow on the edge that hides some (mouse / touch; keyboard uses the arrow keys) */}
+            {edges.left && (
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex w-14 items-center bg-linear-to-r from-surface via-surface/85 to-transparent" data-tabs-fade="left">
+                <button type="button" tabIndex={-1} aria-hidden="true" onClick={() => scrollTabs(-1)} className={edgeBtn}>
+                  <ChevronLeft className="size-5" />
+                </button>
+              </div>
+            )}
+            {edges.right && (
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex w-14 items-center justify-end bg-linear-to-l from-surface via-surface/85 to-transparent" data-tabs-fade="right">
+                <button type="button" tabIndex={-1} aria-hidden="true" onClick={() => scrollTabs(1)} className={edgeBtn} data-tabs-more="">
+                  <ChevronRight className="size-5" />
+                </button>
+              </div>
+            )}
             </div>
           )}
           <div className="flex items-center gap-2">

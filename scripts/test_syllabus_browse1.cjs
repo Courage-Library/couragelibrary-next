@@ -124,6 +124,21 @@ test('L-03 subject counts follow the query; restore keeps only what exists (untr
   return 'ok';
 });
 
+test('L-04 tab labels: the long subject names get their short form, per part; unknown names stay (negative control)', () => {
+  const cases = [
+    ['General Intelligence and Reasoning', 'Reasoning'],
+    ['English Comprehension', 'English'],
+    ['English Language', 'English'],
+    ['Tier 1 · English Comprehension', 'Tier 1 · English'],
+    ['Quantitative Aptitude', 'Quantitative Aptitude'],
+    ['General Awareness', 'General Awareness'],
+    ['English Literature', 'English Literature'],
+  ];
+  const bad = cases.filter(([a, b]) => S.shortSubjectLabel(a) !== b).map(([a, b]) => `${a} → ${S.shortSubjectLabel(a)} (want ${b})`);
+  assert(bad.length === 0, bad.join('; '));
+  return `${cases.length} cases`;
+});
+
 const h = React.createElement;
 const browserProps = (keepMounted) => ({
   storageKey: 'gate',
@@ -149,6 +164,11 @@ test('M-01 markup: tabs, panels, toggles with aria-expanded, keepMounted vs lazy
   assert(/data-expand-all=""[^>]*>Expand all/.test(html) && /data-collapse-all=""[^>]*>Collapse all/.test(html), 'Expand all / Collapse all');
   assert(/<dialog[^>]*data-jump-sheet=""/.test(html) && /aria-haspopup="dialog"[^>]*data-jump-open/.test(html), 'jump sheet = native dialog');
   assert(/<nav aria-label="Topics in Reasoning"[^>]*data-rail=""/.test(html), 'rail names the subject');
+  const long = renderToStaticMarkup(h(SyllabusBrowser, { ...browserProps(false), subjects: [{ id: 'A', label: 'English Comprehension' }, { id: 'B', label: 'Quant' }] }));
+  assert(/role="tab"[^>]*title="English Comprehension"[^>]*>English<span/.test(long), 'a shortened tab shows the short label, the full name as its title');
+  assert(/data-subject-tabs-wrap=""/.test(long) && !/data-tabs-fade/.test(long), 'the edge fade appears only once an overflow is measured (none on the server)');
+  const b = read('components/syllabus/syllabus-browser.tsx');
+  assert(/data-tabs-fade="right"/.test(b) && /data-tabs-fade="left"/.test(b) && /data-tabs-more=""/.test(b) && /bg-linear-to-l from-surface/.test(b), 'right / left fade + arrow exist in the source');
   const lazy = renderToStaticMarkup(h(SyllabusBrowser, browserProps(false)));
   assert(!lazy.includes('SUM-b1') && !lazy.includes('Missing Number') && lazy.includes('SUM-a1') && !/data-topic-body/.test(lazy), 'admin mode: only the open subject, no closed bodies');
   return `${html.length} chars (keepMounted), ${lazy.length} (lazy)`;

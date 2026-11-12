@@ -11,6 +11,9 @@
  *       under it, not far below it — and moves focus to it; the rail marks it aria-current (scroll-spy)
  *   B-4 phone: every button / link / input in the browser is at least 44 px tall
  *   B-5 subject switch + collapse: a second subject's tab shows its own topics; a topic toggle flips aria-expanded
+ *   B-6 subject tabs are ONE row and, at ≥ 1280 px, all of them fit (no hidden tab, no fade)
+ *   B-7 when tabs do not fit (any width): a right-edge fade + arrow shows, and the arrow scrolls the row
+ *   N-2 negative control: a squeezed tab row must overflow and show the fade + arrow
  *   N-1 negative control: with a test-only style that un-sticks the bar, B-2 FAILS (the check can see the bug)
  * Usage: node scripts/live/with-server.cjs -- "node scripts/live/test_syllabus_browse.cjs [--exam=ssc-cgl] [--only=student|admin] [--shots=<dir>]"
  * Browser: Playwright's bundled Chromium, or PW_CHANNEL=chrome|msedge for an installed one.
@@ -89,6 +92,26 @@ async function checkPage(p, kind, w) {
     const panelVisible = panelId ? await p.locator(`[id="${panelId}"]`).isVisible() : false;
     chk(`B-5 ${tag} second subject tab selects its panel`, sel === 'true' && panelVisible, `selected ${sel}, panel visible ${panelVisible}`);
     await tabs.nth(0).click();
+  }
+  // B-6 / B-7 tabs: one row; all fit at ≥ 1280 px; when some do not fit, a right-edge fade + arrow shows and works
+  if (nTabs > 1) {
+    const t = await p.evaluate(() => {
+      const el = document.querySelector('[data-subject-tabs]');
+      return { over: el.scrollWidth - el.clientWidth, rows: new Set([...el.querySelectorAll('[role="tab"]')].map((b) => Math.round(b.getBoundingClientRect().top))).size, fade: Boolean(document.querySelector('[data-tabs-fade="right"]')) };
+    });
+    chk(`B-6 ${tag} subject tabs are one row`, t.rows === 1, `${t.rows} rows`);
+    if (w >= 1280) chk(`B-6 ${tag} all ${nTabs} subject tabs fit (no hidden tab)`, t.over <= 0 && !t.fade, `overflow ${t.over}px, fade ${t.fade}`);
+    if (t.over > 0) {
+      const before = await p.evaluate(() => document.querySelector('[data-subject-tabs]').scrollLeft);
+      const more = p.locator('[data-tabs-more]');
+      const shown = t.fade && (await more.isVisible());
+      if (shown) await more.click();
+      await p.waitForTimeout(600);
+      const after = await p.evaluate(() => document.querySelector('[data-subject-tabs]').scrollLeft);
+      chk(`B-7 ${tag} hidden tabs: right-edge fade + arrow, the arrow scrolls the tabs`, shown && after > before, `fade ${t.fade}, arrow ${shown}, scrollLeft ${before} → ${after}`);
+      await shot(p, `after-${kind}-${w}-tabs-overflow`);
+      await p.evaluate(() => { document.querySelector('[data-subject-tabs]').scrollLeft = 0; });
+    }
   }
   const toggle = p.locator('[data-subject-panel]:not([hidden]) button[data-topic-toggle]').first();
   if (await toggle.count()) {
@@ -180,6 +203,11 @@ async function checkPage(p, kind, w) {
           const g = await p.evaluate(geometry, 'student');
           const wouldPass = g.position === 'sticky' && Math.abs(g.barTop - g.expectTop) <= 1;
           chk('N-1 negative control: an un-stuck bar fails B-2', !wouldPass, JSON.stringify(g));
+          // N-2 negative control: squeeze the tab row — the fade + arrow must appear (B-6 / B-7 can see hidden tabs)
+          await p.addStyleTag({ content: '[data-subject-tabs-wrap]{max-width:220px}' });
+          await p.waitForTimeout(400);
+          const squeezed = await p.evaluate(() => ({ over: (() => { const el = document.querySelector('[data-subject-tabs]'); return el.scrollWidth - el.clientWidth; })(), fade: Boolean(document.querySelector('[data-tabs-fade="right"] [data-tabs-more]')) }));
+          chk('N-2 negative control: a squeezed tab row overflows and shows the fade + arrow', squeezed.over > 0 && squeezed.fade, JSON.stringify(squeezed));
         }
         await ctx.close();
       }

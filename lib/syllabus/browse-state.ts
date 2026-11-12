@@ -86,3 +86,24 @@ export function restoreState(raw: unknown, subjectIds: readonly string[], topicI
   const open = Array.isArray(v.open) ? [...new Set(v.open.filter((id): id is string => typeof id === "string" && known.has(id)))] : [];
   return { subject, open };
 }
+
+/**
+ * SYLLABUS-UI-1 (owner 2026-11-12): the subject TAB label — one row of tabs must fit at ≥ 1280 px, so the long exam
+ * subject names get their common short form ("English Comprehension" → "English"). The full name stays on the tab's
+ * title, the rail heading and the jump sheet. Unknown names are kept as they are; "Paper · Subject" is shortened per part.
+ */
+const SHORT_LABELS: Array<[RegExp, string]> = [
+  [/^general intelligence\s*(and|&)\s*reasoning(\s+ability)?$/i, "Reasoning"],
+  [/^(logical\s+)?reasoning\s+ability$/i, "Reasoning"],
+  [/^english\s+(comprehension|language)(\s*(and|&)\s*comprehension)?$/i, "English"],
+];
+export function shortSubjectLabel(label: string): string {
+  return label
+    .split(" · ")
+    .map((part) => {
+      const t = part.trim();
+      const hit = SHORT_LABELS.find(([re]) => re.test(t));
+      return hit ? hit[1] : t;
+    })
+    .join(" · ");
+}
