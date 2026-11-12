@@ -93,172 +93,21 @@ export const CNTS_PAGE = {
   questionsText: "Write to us and we will reply by email.",
 } as const;
 
-export const CONTACT_PAGE = {
-  meta: {
-    title: "Contact",
-    description: "Contact Courage Library by email. Kanpur, Uttar Pradesh.",
-  },
-  title: "Contact us",
-  lead: "Please reach us by email. We reply from the same address.",
-  emailHeading: "Email",
-  email: SHELL_COPY.supportEmail,
-  emailUses: [
-    "Help with your account or signing in",
-    "A question about an exam or a mock test",
-    "Reporting a mistake in a question",
-    "A request to see or delete your data",
-  ],
-  locationHeading: "Location",
-  location: SHELL_COPY.location,
-} as const;
+// LEGAL-PAGES-1: Contact, Privacy and Terms are the owner-approved legal text now (content/legal, docs/legal).
 
-/** Shown at the top of both legal pages until the owner / a lawyer approves them. */
-export const LEGAL_DRAFT_NOTICE = {
-  title: "Draft — under legal review",
-  text: "This page describes how the platform works today. It is a draft and will be finalised before public registration opens.",
-} as const;
-
-export type LegalSection = { heading: string; paragraphs?: string[]; items?: string[] };
-
-export const PRIVACY_PAGE = {
-  meta: {
-    title: "Privacy policy (draft)",
-    description: "How Courage Library handles your data: what we collect, why, who processes it for us, and how to ask for deletion. Draft under legal review.",
-  },
-  title: "Privacy policy",
-  sections: [
-    {
-      heading: "Who we are",
-      paragraphs: [`Courage Library, Kanpur, Uttar Pradesh. You can reach us at ${SHELL_COPY.supportEmail}.`],
-    },
-    {
-      heading: "What we collect",
-      items: [
-        "When you create an account: your email address, the name you enter, and a password. The password is stored only as a secure hash by our sign-in provider; we never see it.",
-        "When you use the platform: your test attempts and answers, scores, the questions saved in your Mistake Vault, your drills and bookmarks, and study activity such as streaks and reward coins.",
-        "When you visit: our hosting provider keeps standard technical logs, such as IP address and browser type, to run and protect the service.",
-      ],
-    },
-    {
-      heading: "Cookies",
-      paragraphs: ["We use cookies only to keep you signed in. We do not use advertising or analytics cookies."],
-    },
-    {
-      heading: "How we use your data",
-      items: [
-        "To run your account and show your results, progress and mistakes",
-        "To keep the service working and secure",
-        "To reply when you write to us",
-      ],
-    },
-    {
-      heading: "Who processes it for us",
-      items: [
-        "Supabase: database and sign-in",
-        "Vercel: website hosting",
-        "Our email provider: sign-in and password-reset emails",
-      ],
-      paragraphs: [
-        "We do not sell your data and we do not share it for advertising.",
-        "Your answers and activity are not sent to AI services.",
-        "We do not take payments today.",
-      ],
-    },
-    {
-      heading: "Your choices",
-      paragraphs: [
-        `To see, correct or delete your data, email ${SHELL_COPY.supportEmail} from the address on your account. We will delete your account and personal data, except where the law requires us to keep something.`,
-      ],
-    },
-    {
-      heading: "School students",
-      paragraphs: [
-        "Courage Library is not yet open to school students. If we open CNTS registration, a parent or guardian will register the student, and this policy will be updated before that happens.",
-      ],
-    },
-    {
-      heading: "Changes",
-      paragraphs: ["If this policy changes, we will update this page."],
-    },
-  ] as LegalSection[],
-} as const;
-
-export const TERMS_PAGE = {
-  meta: {
-    title: "Terms of use (draft)",
-    description: "The terms for using Courage Library during early access. Draft under legal review.",
-  },
-  title: "Terms of use",
-  sections: [
-    {
-      heading: "About these terms",
-      paragraphs: ["By using Courage Library you agree to these terms. Please read them with the privacy policy."],
-    },
-    {
-      heading: "Your account",
-      items: [
-        "Use your own email address and keep your password safe.",
-        "One person per account.",
-        "You are responsible for what happens under your account.",
-      ],
-    },
-    {
-      heading: "Early access",
-      paragraphs: [
-        "Courage Library is free during early access. Features may change, pause or be removed while we build the platform. We will say on the pricing page before anything becomes paid.",
-      ],
-    },
-    {
-      heading: "Fair use",
-      items: [
-        "Do not copy, sell or republish our questions, tests or guides.",
-        "Do not use bots or scripts to collect content.",
-        "Do not try to break into accounts or the service.",
-      ],
-    },
-    {
-      heading: "Our content",
-      paragraphs: [
-        "We prepare questions and exam guides carefully, but mistakes can happen. Always check exam rules and dates with the body that conducts the exam. If you find a mistake, tell us and we will fix it.",
-        "Courage Library is an independent platform. It is not connected with any government department or exam-conducting body.",
-      ],
-    },
-    {
-      heading: "Ending your use",
-      paragraphs: [
-        "You can stop using Courage Library and ask us to delete your account at any time. We may suspend an account that breaks these terms.",
-      ],
-    },
-    {
-      heading: "Responsibility",
-      paragraphs: [
-        "We work to keep the platform accurate and available, but we cannot promise exam results. To the extent the law allows, Courage Library is not responsible for losses that come from using the platform.",
-      ],
-    },
-    {
-      heading: "Governing law",
-      paragraphs: ["To be confirmed in legal review."],
-    },
-    {
-      heading: "Contact",
-      paragraphs: [`Questions about these terms: ${SHELL_COPY.supportEmail}.`],
-    },
-  ] as LegalSection[],
-} as const;
-
-/** Footer additions (UX-2b): only routes that exist. */
+/** Footer additions (UX-2b): only routes that exist. LEGAL-PAGES-1: the legal row lists the five legal pages. */
 export const FOOTER_ABOUT = {
   heading: "Courage Library",
   items: [
     { href: "/about", label: "About" },
     { href: "/cnts", label: "CNTS" },
-    { href: "/contact", label: "Contact" },
     { href: "/help", label: "Help" },
-    { href: "/grievance", label: "Grievance redressal" },
   ],
   legal: [
-    // HOME-1 owner review: no "(draft)" in link labels; the pages themselves keep the draft notice until legal sign-off
-    { href: "/privacy", label: "Privacy" },
     { href: "/terms", label: "Terms" },
+    { href: "/privacy", label: "Privacy" },
+    { href: "/refund-policy", label: "Refund Policy" },
+    { href: "/shipping-policy", label: "Shipping Policy" },
+    { href: "/contact", label: "Contact & Grievance" },
   ],
 } as const;

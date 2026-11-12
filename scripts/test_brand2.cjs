@@ -357,6 +357,9 @@ async function offline() {
   await test('C-10 no banned claim phrases in public copy (CCPA coaching-advertising guidelines, 2024)', () => {
     const files = ['content', 'components/landing', 'components/public', 'app/(site)/about', 'app/(site)/cnts', 'app/(site)/contact', 'app/(site)/privacy', 'app/(site)/terms', 'app/(site)/pricing', 'app/(site)/auth']
       .flatMap((d) => walk(path.join(ROOT, d)))
+      // LEGAL-PAGES-1: the owner-approved legal text is held verbatim by LEGAL-PAGES-1; its "no guarantee" lines are
+      // disclaimers, not advertising claims
+      .filter((f) => rel(f) !== 'content/legal/legal-pages.ts')
       .concat(['app/(public)/page.tsx', 'app/(public)/exams/page.tsx', 'components/shell/site-footer.tsx', 'components/shell/header-bar.tsx'].map((f) => path.join(ROOT, f)));
     assert(files.length >= 20, `files ${files.length}`);
     const BANNED = [

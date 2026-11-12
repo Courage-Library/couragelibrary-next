@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
-import { LegalPage } from "@/components/public/public-page";
-import { TERMS_PAGE } from "@/content/public-pages";
+import { LegalDocument } from "@/components/legal/legal-document";
+import { legalPageDef } from "@/content/legal";
+import { isLessonCoinsEarnEnabled } from "@/lib/coins/flag";
 import { constructMetadata } from "@/lib/seo/metadata";
 
-/**
- * UX-2b /terms: plain-English DRAFT terms for early access (content/public-pages.ts). Carries the visible
- * "Draft — under legal review" notice until approved. Public sign-up stays OFF until then.
- */
-export const metadata: Metadata = constructMetadata({ title: TERMS_PAGE.meta.title, description: TERMS_PAGE.meta.description, canonicalUrl: "/terms" });
+/** LEGAL-PAGES-1: Terms of Service (1.5 Coins only while the lesson-coins flag is on) — the owner-approved text, verbatim (docs/legal/LEGAL_PAGES_v1.md). Public; no data reads. */
+const def = legalPageDef("/terms");
+
+export const metadata: Metadata = constructMetadata({ title: def.meta.title, description: def.meta.description, canonicalUrl: def.route });
 
 export default function TermsPage() {
-  return <LegalPage title={TERMS_PAGE.title} sections={TERMS_PAGE.sections} crumb={{ label: "Terms" }} />;
+  return <LegalDocument def={def} coins={isLessonCoinsEarnEnabled()} />;
 }

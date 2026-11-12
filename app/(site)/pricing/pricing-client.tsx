@@ -8,7 +8,7 @@ import { Badge as DsBadge } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/alert";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Radio } from "@/components/ui/radio";
-import { TextLink } from "@/components/ui/link";
+import { PaymentConsentLine } from "@/components/legal/consent-lines";
 import { PricingCard, type PricingFeature } from "@/components/ui/domain/pricing-card";
 import { formatDateShort, formatInr } from "@/lib/format";
 import { createProOrderAction } from "./actions";
@@ -232,12 +232,9 @@ function ProPricingView({ plans, account, checkout, legal }: ProPricingProps) {
               {error}
             </Alert>
           )}
+          {/* LEGAL-PAGES-1: the consent line comes BEFORE the pay button */}
+          <PaymentConsentLine hrefs={legal}>Payments are processed by Razorpay.</PaymentConsentLine>
           <div className="flex flex-col gap-3">{action}</div>
-
-          <p className="text-caption text-fg-muted">
-            By paying you agree to our <TextLink href={legal.terms}>Terms</TextLink>, <TextLink href={legal.refund}>Refund policy</TextLink> and{" "}
-            <TextLink href={legal.privacy}>Privacy policy</TextLink>. Payments are processed by Razorpay.
-          </p>
         </section>
       </div>
     </DsContainer>

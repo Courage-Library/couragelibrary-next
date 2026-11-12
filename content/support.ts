@@ -75,21 +75,3 @@ export const GRIEVANCE_TIMELINES = {
   acknowledge: "Acknowledgement within 24 hours.",
   resolve: "Resolution within 15 days.",
 } as const;
-
-export const GRIEVANCE_PAGE = {
-  meta: { title: "Grievance redressal", description: "How to raise a complaint with Courage Library and who handles it." },
-  title: "Grievance redressal",
-  lead: "If something went wrong — with your account, a test, a question or your data — tell us and we will look into it.",
-  officerTitle: "Grievance Officer",
-  /** with the ticket form on; without it the same channels minus the ticket */
-  channels: "Raise a ticket online (fastest). Email/phone also accepted.",
-  channelsNoTickets: "Email or phone us.",
-  ticketLink: "Raise a ticket",
-  howTitle: "How to raise a complaint",
-  how: [
-    "Write from the email address you use for Courage Library.",
-    "Say what happened, when it happened and which page, test or question it is about.",
-    "Add a screenshot if it helps.",
-  ],
-  timelinesTitle: "Response times",
-} as const;

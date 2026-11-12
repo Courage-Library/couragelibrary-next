@@ -7,7 +7,7 @@
  *   P-2  no audience-size / ranking / guarantee claims, no "official" / "verified", no prices anywhere in the public
  *        pages, their components and their copy; no "thousands of" / "lakhs of" / "Fact-checked" in app/ components/
  *        content/ config/ (non-admin)
- *   P-3  legal pages render through LegalPage with the visible "Draft — under legal review" notice
+ *   P-3  legal pages render the owner-approved text through LegalDocument (LEGAL-PAGES-1 retired the draft notice)
  *   P-4  every internal href in the new pages / components / copy resolves to an existing route
  *   P-5  /premium is a permanent redirect to /pricing and app/(site)/premium/page.tsx is gone
  *   P-6  coming-soon hubs: only the listed slugs (SSC CHSL, SSC MTS), only while inactive, noindex metadata; the sitemap
@@ -15,11 +15,11 @@
  *   P-7  /cnts and /contact have no <form> / <input> / price / date; CNTS says "Registrations open soon"
  *   P-8  new files use design-system components and tokens only (no legacy imports, palette classes, raw colours, dark:)
  *   P-9  render: /exams with a failed data read → no-number fallback; with data → live counts only; coming-soon hub →
- *        planned list, no numbers, links back; legal pages → draft notice first
+ *        planned list, no numbers, links back; legal pages → "Last updated" before the first section
  * Live (--live, BASE_URL from scripts/live/with-server.cjs; CI live job):
  *   W-1  every new page answers 200 with one h1; W-2 /premium → 308 /pricing; W-3 coming-soon hub 200 + noindex,
  *        unlisted inactive exam → 404; W-4 sitemap lists the six pages and no coming-soon hub; W-5 no "thousands of",
- *        no ₹ / price on any new page; legal pages show the draft notice
+ *        no ₹ / price on any new page; legal pages show "Last updated" (LEGAL-PAGES-1)
  * Run: node scripts/test_ux2b_public.cjs [--live]
  */
 const fs = require('fs');
@@ -128,12 +128,10 @@ async function offline() {
     return `${files.length} files clean; site-wide clean`;
   });
 
-  await test('P-3 legal pages: rendered by LegalPage with the visible "Draft — under legal review" notice', () => {
-    const lp = read('components/public/public-page.tsx');
-    assert(/LEGAL_DRAFT_NOTICE\.title/.test(lp) && /data-legal-draft/.test(lp), 'LegalPage does not render the draft notice');
-    assert(/title: "Draft — under legal review"/.test(read(COPY)), 'draft notice title changed');
-    for (const f of ['app/(site)/privacy/page.tsx', 'app/(site)/terms/page.tsx']) assert(/<LegalPage /.test(read(f)), `${f} does not use LegalPage`);
-    return 'privacy + terms';
+  await test('P-3 legal pages: the owner-approved text through LegalDocument (LEGAL-PAGES-1; no draft notice left)', () => {
+    for (const f of ['app/(site)/privacy/page.tsx', 'app/(site)/terms/page.tsx']) assert(/<LegalDocument /.test(read(f)), `${f} does not use LegalDocument`);
+    assert(!/Draft — under legal review|LEGAL_DRAFT_NOTICE/.test(read(COPY) + read('components/public/public-page.tsx')), 'a draft notice is left');
+    return 'privacy + terms (verbatim text: scripts/test_legal_pages1.cjs)';
   });
 
   await test('P-4 every internal href in the new pages, components and copy resolves to a route', () => {
@@ -179,7 +177,8 @@ async function offline() {
     assert(/registrationTitle: "Registrations open soon"/.test(c), 'CNTS registration notice missing');
     const cnts = (c.match(/export const CNTS_PAGE = \{([\s\S]*?)\n\} as const;/) || [])[1] || '';
     assert(cnts.length > 200 && !/\b(19|20)\d\d\b|\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b \d|₹|fee/i.test(cnts), 'CNTS copy has a date or price');
-    assert(/mailto:\$\{CONTACT_PAGE\.email\}/.test(read('app/(site)/contact/page.tsx')) && /email: SHELL_COPY\.supportEmail/.test(c), 'contact mailto missing');
+    // LEGAL-PAGES-1: /contact is the approved Contact Us & Grievance text; the support email is a mailto link there
+    assert(/<LegalDocument /.test(read('app/(site)/contact/page.tsx')) && /href: `mailto:\$\{SUPPORT_EMAIL\}/.test(read('lib/legal/inline.ts')), 'contact mailto missing');
     return 'no forms; CNTS closed; mailto support';
   });
 
@@ -291,11 +290,12 @@ async function renderChecks() {
     }
     return `${out.join(' / ')}: CHSL hub noindex; GD + QA exam 404`;
   });
-  await test('P-9d legal pages → the draft notice renders before the first section', async () => {
+  await test('P-9d legal pages → "Last updated" renders before the first section (LEGAL-PAGES-1)', async () => {
     for (const f of ['app/(site)/privacy/page.tsx', 'app/(site)/terms/page.tsx']) {
       const h = await html(require(path.join(ROOT, f)).default());
-      const i = h.indexOf('data-legal-draft');
-      assert(i > 0 && i < h.indexOf('id="legal-0"') && /Draft — under legal review/.test(text(h)), `${f}: notice missing or not first`);
+      const i = h.indexOf('data-legal-last-updated');
+      const first = h.indexOf('data-legal-section=');
+      assert(i > 0 && first > i && /Last updated:/.test(text(h)), `${f}: "Last updated" missing or not first`);
     }
     return 'privacy + terms';
   });
@@ -352,14 +352,15 @@ async function live() {
     assert(r.status === 200 && missing.length === 0 && listedHubs.length === 0, `${r.status}; missing ${missing.join(', ')}; hubs listed ${listedHubs.join(', ')}`);
     return `six pages; none of the ${hubSlugs.size} coming-soon hub(s)`;
   });
-  await test('W-5 no audience-size claims or prices on the new pages; legal pages show the draft notice', async () => {
+  await test('W-5 no audience-size claims or prices on the new pages; legal pages show "Last updated"', async () => {
     const bad = [];
     for (const p of [...PUBLIC_ROUTES, '/exams', '/exams/ssc-chsl']) {
       const t = visible((await get(p)).body);
       if (/\b(thousands|lakhs|millions) of\b/i.test(t)) bad.push(`${p}: audience claim`);
       if (/₹\s?[1-9]|\bRs\.?\s?[1-9]|\+ ?18% GST/i.test(t)) bad.push(`${p}: price`);
     }
-    for (const p of ['/privacy', '/terms']) if (!/Draft — under legal review/.test(visible((await get(p)).body))) bad.push(`${p}: no draft notice`);
+    // LEGAL-PAGES-1: the approved legal text replaced the draft notice; every legal page shows "Last updated"
+    for (const p of ['/privacy', '/terms']) if (!/Last updated:/.test(visible((await get(p)).body))) bad.push(`${p}: no "Last updated"`);
     assert(bad.length === 0, bad.join('; '));
     return 'clean';
   });

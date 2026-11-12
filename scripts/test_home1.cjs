@@ -26,7 +26,7 @@
  *   H-9 owner UI review: the "CL" monogram tile (no dot); category line icons ≈ 58 % of a 48 px soft primary circle;
  *       live categories = a full-width row, coming-soon tiles 2 per row with an odd last tile spanning the row; "What
  *       you get" = one column of rows on phones with full rows on wider screens (no orphan for 1–6 features); FAQ
- *       chevron turns on open (no arrow); legal links without "(draft)" while the pages keep the notice; the final CTA
+ *       chevron turns on open (no arrow); legal links without "(draft)" (LEGAL-PAGES-1: the pages are the approved text); the final CTA
  *       says "Free during early access."; sections alternate white / canvas with one accent-bar heading style, gradient
  *       only on the hero and the final CTA
  * HOME-1 design upgrade (owner, 2026-11-01; header = solid, footer = deep navy, "honest images"):
@@ -222,7 +222,8 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
     const pp = require(path.join(ROOT, 'content/public-pages.ts'));
     const legal = JSON.stringify(pp.FOOTER_ABOUT.legal);
     assert(/"label":"Privacy"/.test(legal) && /"label":"Terms"/.test(legal) && !/draft/i.test(legal), 'footer legal labels');
-    assert(/Privacy policy \(draft\)/.test(read('content/public-pages.ts')) && /Terms of use \(draft\)/.test(read('content/public-pages.ts')), 'legal pages keep their draft title');
+    // LEGAL-PAGES-1: the drafts are replaced by the owner-approved text (content/legal), so no draft title remains
+    assert(!/\(draft\)/i.test(read('content/public-pages.ts')) && /title: "Privacy Policy"/.test(read('content/legal/index.ts')) && /title: "Terms of Service"/.test(read('content/legal/index.ts')), 'legal pages carry their approved titles');
     const C = require(path.join(ROOT, CONTENT));
     assert(C.LANDING_FINAL_CTA.note === 'Free during early access.' && /\{LANDING_FINAL_CTA\.note\}/.test(s), 'final CTA note');
     const order = ['categories', 'loop', 'features', 'trust', 'plans', 'faq'].map((id) => {
