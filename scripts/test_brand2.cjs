@@ -127,12 +127,14 @@ function mixPct(selectorRx, token) {
 }
 
 async function offline() {
-  await test('O-07 PERF-LESSON-1 route budgets: parser self-test; every budget ≤ 110 kB has a recorded baseline; /articles/[slug] is budgeted', () => {
+  await test('O-07 PERF-LESSON-1 route budgets: parser self-test; every budget ≤ 110 kB (the exam hub: ≤ 125, owner 2026-11-12) has a recorded baseline; /articles/[slug] is budgeted', () => {
     const RB = require(path.join(ROOT, 'scripts/perf/route-budget.cjs'));
     const b = JSON.parse(read('scripts/perf/route-budgets.json'));
     assert(RB.selfTest(), 'route-budget self-test');
     const rows = Object.entries(b.routes);
-    assert(b.routes['/articles/[slug]'] && rows.every(([, r]) => r.max <= 110 && typeof r.baseline === 'number' && r.baseline <= r.max && r.recorded), JSON.stringify(b.routes));
+    // SYLLABUS-UI-1 (owner 2026-11-12): the one named exception — the exam hub (syllabus browser) at ≤ 125 kB
+    const CAP = { '/exams/[slug]': 125 };
+    assert(b.routes['/articles/[slug]'] && rows.every(([k, r]) => r.max <= (CAP[k] ?? 110) && typeof r.baseline === 'number' && r.baseline <= r.max && r.recorded), JSON.stringify(b.routes));
     return rows.map(([k, r]) => `${k} ${r.baseline}/${r.max}`).join(' · ');
   });
   await test('C-01 #84 (v3) token values, categorical tokens, complete semantic layer (dark-theme-ready names)', () => {

@@ -25,10 +25,21 @@ function TierBadge({ node }: { node: SyllabusReadModelNode }) {
   return node.weightage_tier ? <Badge tone={TIER_TONE[node.weightage_tier]}>{WEIGHTAGE_TIER_LABEL[node.weightage_tier]}</Badge> : null;
 }
 
+/**
+ * SYLLABUS-UI-1 (owner 2026-11-12, display only): a topic whose ONLY subtopic has the topic's own name (case, spaces
+ * ignored) shows just the topic row — no "1 subtopic", no body repeating the name; the subtopic's practice count moves
+ * into the row. The data is unchanged. Two or more subtopics are always listed, even when names repeat.
+ */
+export function soleSameNameSubtopic(node: SyllabusReadModelNode): SyllabusReadModelNode["topics"][number] | null {
+  const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
+  return node.topics.length === 1 && norm(node.topics[0].name) === norm(node.title) ? node.topics[0] : null;
+}
+
 /** a topic row's header (inside its toggle): name, weightage, subtopic count, expected range, lesson status */
 function UnitSummary({ node }: { node: SyllabusReadModelNode }) {
   const range = expectedRange(node);
   const lessons = node.counts.servable_documents > 0;
+  const sole = soleSameNameSubtopic(node);
   return (
     <span className="flex flex-col gap-1">
       <span className="flex flex-wrap items-center gap-2">
@@ -37,7 +48,14 @@ function UnitSummary({ node }: { node: SyllabusReadModelNode }) {
         {!node.is_mandatory && <Badge tone="neutral">Optional</Badge>}
       </span>
       <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-body-sm text-fg-secondary">
-        {node.topics.length > 0 && <span>{plural(node.topics.length, "subtopic", "subtopics")}</span>}
+        {sole ? (
+          <span className="inline-flex items-center gap-1" data-sole-subtopic="">
+            <ClipboardList aria-hidden="true" className="size-4" />
+            {sole.published_questions > 0 ? plural(sole.published_questions, "practice question", "practice questions") : "Questions coming soon"}
+          </span>
+        ) : (
+          node.topics.length > 0 && <span>{plural(node.topics.length, "subtopic", "subtopics")}</span>
+        )}
         {range && <span>{range}</span>}
         {lessons ? (
           <span className="inline-flex items-center gap-1 font-medium text-success-700" data-lesson-status="available">
@@ -60,7 +78,7 @@ function UnitBody({ node }: { node: SyllabusReadModelNode }) {
   return (
     <div className="flex flex-col gap-2">
       {node.description && <p className="text-body-sm text-fg-secondary">{node.description}</p>}
-      {node.topics.length > 0 && (
+      {node.topics.length > 0 && !soleSameNameSubtopic(node) && (
         <ul className="flex flex-col divide-y divide-line" aria-label={`Subtopics in ${node.title}`}>
           {node.topics.map((t) => (
             <li key={t.topic_id} className="flex flex-col gap-1 py-2 text-body-sm sm:flex-row sm:flex-wrap sm:items-baseline sm:justify-between sm:gap-x-3">
@@ -166,12 +184,13 @@ export function ExamSyllabusSection({ syllabus, examTitle }: { syllabus: Syllabu
       const label = !group ? "Other topics" : papers.length > 1 && paper && paper.id !== group.id ? `${paper.title} · ${group.title}` : group.title;
       subjects.push({ id: sid, label, intro: group ? <GroupIntro node={group} trail={trailOf(group)} /> : undefined });
       for (const u of units) {
-        const hasBody = u.topics.length > 0 || Boolean(u.description);
+        const sole = soleSameNameSubtopic(u);
+        const hasBody = (u.topics.length > 0 && !sole) || Boolean(u.description);
         topics.push({
           id: u.id,
           subjectId: sid,
           name: u.title,
-          terms: u.topics.map((t) => t.name),
+          terms: sole ? [] : u.topics.map((t) => t.name),
           summary: <UnitSummary node={u} />,
           body: hasBody ? <UnitBody node={u} /> : undefined,
         });

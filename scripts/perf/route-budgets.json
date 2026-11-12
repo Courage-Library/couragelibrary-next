@@ -36,6 +36,11 @@
    "max": 110,
    "baseline": 107,
    "recorded": "2026-10-28 (CA-6 lesson / exam-topic pages)"
+  },
+  "/exams/[slug]": {
+   "max": 125,
+   "baseline": 123,
+   "recorded": "2026-11-12 (SYLLABUS-UI-1: owner-set 125 kB — the exam hub carries the syllabus browser; was 117 kB, unbudgeted)"
   }
  }
 }
