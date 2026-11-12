@@ -1,7 +1,8 @@
 # SYLLABUS-MAP-1: shared master tree + per-exam mapping (Phase A: inspection and design)
 
 - **Date:** 2026-11-12.
-- **Status:** design only. No code, no migrations and no DB writes. The DB was read once, in a read-only transaction that was rolled back, with masked output.
+- **Status:** Phase A **APPROVED by the owner (2026-11-12)**, with the answers in §4 and the additions marked "owner 2026-11-12". Design only: no code, no migrations and no DB writes. The DB was read once, in a read-only transaction that was rolled back, with masked output.
+- **Next:** B1 starts only when the owner says "start B1".
 - **Owner decision (locked):** lessons and outlines live **once** on the master tree (subject → topic → subtopic, exam-neutral). An exam intake declares only:
   - the pattern;
   - the master nodes it uses;
@@ -106,7 +107,13 @@ No new tree and no new exam tables. `exam_syllabus_versions`, `exam_syllabus_nod
       "subtopics": [{ "name": "PQRS Sequencing", "outline": ["…"] }] } ] }
 ```
 
-- **Items = nodes** (≤ 1,000 per file). **Outline lines do not count as items.** They have their own caps: ≤ 30 per node, ≤ 200 characters per line, and the file must stay ≤ 256 KB.
+- **Items = nodes** (≤ 1,000 per file). **Outline lines do not count as items.** They have **separate caps** (owner 2026-11-12):
+  - ≤ 30 lines per node;
+  - ≤ 200 characters per line;
+  - **≤ 6,000 outline lines per file in total** (`MASTER_OUTLINE_LINES_MAX`);
+  - and the file must stay ≤ 256 KB.
+
+  Every cap is a hard error that names the node path and the count.
 - **Idempotent upsert:**
   - Existing nodes are addressed by `ref` (the hierarchy path, i.e. the canonical slug path).
   - New nodes go through the matcher (§C) and become **review items**.
@@ -195,53 +202,45 @@ The scope stays "under the matched parent". An EXAM_MAP entry's parent is the ma
 - ✗ a subtopic with a 45-line `outline` inside the exam map → ✓ no outline in EXAM_MAP; the master-gap prompt writes ≤ 30 lines once.
 - ✗ re-sending all of English with outlines for every exam (≈ 3,500 items) → ✓ `ref`s to existing master paths (≈ 100 items).
 
-### G. Phase plan (each phase: branch, offline list, owner "release"; DB writes only with a backup, one TLS check and a dry-run)
+### G. Phase plan
+
+Rules for every phase:
+- Each phase has its own branch and runs the offline list; nothing ships without the owner's "release".
+- **Migrations (owner 2026-11-12):** written and tested **locally** (dry-run, rollback script, live gates with `--pre`). They are **applied only per `docs/database/MIGRATION_RUNBOOK.md`, with the owner present**: backup, one TLS check, dry-run, apply via the runner, verify, ledger.
+- No phase starts until the owner says so, starting with "start B1".
 
 | Phase | Scope | Tests (offline + live, negative controls) |
 |---|---|---|
-| **B1** schema + validators | Migration: `taxonomy_node_outlines` + `fn_taxonomy_outline_set` (audited, admin); `exam_syllabus_nodes.choice_group`; `exam_selection_stages` + `fn_selection_stages_*`; RLS; SECDEF allow-list. Validators: `lib/syllabus/master-intake-contract.ts`, `lib/syllabus/exam-map-contract.ts` (pure). | Valid and invalid fixtures for each rule; choice-group sums (pass; fail when the members differ; fail when summed twice); stage-as-paper refused; outline in EXAM_MAP refused; outline > 30 lines refused; item counting (outline lines are not items); the existing v3 validator unchanged; live RLS (student and staff denied, admin allowed); **unrelated tables unchanged** (taxonomy-link snapshot, CA-1 L-01). |
+| **B1** schema + validators | Migration: `taxonomy_node_outlines` + `fn_taxonomy_outline_set` (audited, admin); `exam_syllabus_nodes.choice_group`; `exam_selection_stages` + `fn_selection_stages_*`; RLS; SECDEF allow-list. Validators: `lib/syllabus/master-intake-contract.ts`, `lib/syllabus/exam-map-contract.ts` (pure). **Separate outline caps:** ≤ 30 lines per node and ≤ 6,000 outline lines per file, neither counted as items. | Valid and invalid fixtures for each rule; outline caps (30 lines per node passes, 31 fails; 6,000 lines per file passes, 6,001 fails; 1,000 nodes with 6,000 lines passes); choice-group sums (pass; fail when the members differ; fail when summed twice); stage-as-paper refused; outline in EXAM_MAP refused; outline > 30 lines refused; item counting (outline lines are not items); the existing v3 validator unchanged; live RLS (student and staff denied, admin allowed); **unrelated tables unchanged** (taxonomy-link snapshot, CA-1 L-01). |
 | **B2** importer + review UI | `fn_master_intake_*` and `fn_exam_map_*` on the existing session/item tables (a new `contract` column) or a sibling session kind; the matcher ref step; map preview, weightage edit, selection panel; publish via 125. | **Idempotency:** the same file twice gives 0 new rows. **Duplicate run** in parallel: one wins, no duplicate node (unique slug). **Alias match** links. **Fuzzy never auto-creates:** a CLOSE item stays undecided and the import is refused until it is decided. `new` creates a node only on APPROVE_NEW. **Drafts isolated:** an anon or student read of a DRAFT map or selection stages returns nothing. Every decision has an audit row. |
-| **B3** CGL migration | Outlines → `taxonomy_node_outlines` (§E); `mustCoverFor` switch. | Line counts before = after per node; the lesson prompt byte-identical for all 147 subtopics; CGL v4 rows unchanged (hash of the nodes and mappings); a second run is a no-op; SEO-TOPIC-CANON-1 and the sitemap unchanged; backup + dry-run first. |
-| **B4** GD import | F1 for the gaps (Hindi subject: TAXONOMY-HINDI-1), then F2 for GD 2026; review; publish; selection stages on the exam info page. | Pattern sums with the language group (80 Q / 160 marks); PET/PST/Medical/DV only as stages; the GD map refs resolve to CGL's shared nodes (no duplicate English topics); the exam-info section renders the stages; the CGL map and lessons unchanged. |
+| **B3** CGL migration | Two steps in this order (owner 2026-11-12):<br>(1) **copy** the outlines → `taxonomy_node_outlines` (§E), applied and verified in production;<br>(2) **only then** the `mustCoverFor` reader switch, released separately.<br>**Hard stop:** if any of the 147 CGL subtopic lesson prompts is not byte-identical before and after the switch, stop and report; nothing is switched. | Line counts before = after per node; the lesson prompt byte-identical for all 147 subtopics; CGL v4 rows unchanged (hash of the nodes and mappings); a second run is a no-op; SEO-TOPIC-CANON-1 and the sitemap unchanged; backup + dry-run first. |
+| **TAXONOMY-HINDI-1** (between B3 and B4, owner 2026-11-12) | The Hindi master subject and its topics and subtopics, through MASTER_INTAKE v1 (F1 prompt) and owner review in the master queue; outlines ≤ 30 lines. No exam data. Backlog entry TAXONOMY-HINDI-1 closes here. | One subject, idempotent re-run; no clash with English topic names (language-scoped parent); `name_hi` present; master gap re-run returns nothing new; no CGL or English node changed. |
+| **B4** GD import | F2 for GD 2026 (the Hindi subject already exists from TAXONOMY-HINDI-1); review; publish; selection stages on the exam info page. | Pattern sums with the language group (80 Q / 160 marks); PET/PST/Medical/DV only as stages; the GD map refs resolve to CGL's shared nodes (no duplicate English topics); the exam-info section renders the stages; the CGL map and lessons unchanged. |
 
 ## 3. Risks
 
 1. **Shared-outline conflicts:** a second exam may want a different outline for the same master node. Owner rule: the master outline is a superset that serves the deepest exam; differences go to EXAM_NOTE. The review shows a "replace outline" diff.
 2. **Fuzzy over-matching:** "Analogy" (reasoning) versus "Analogy" (verbal) under the wrong subject. The parent scope (the section's subject) and owner confirmation prevent this; there are no auto-links.
-3. **Hindi subject:** GD needs a Hindi master subject (backlog TAXONOMY-HINDI-1) before B4. It is new master content and needs owner review.
-4. **Migration read-path:** if the switch shipped before the copy, lesson prompts would lose their MUST COVER lines. Follow DEPLOY-BEFORE-ACTIVATE order: the copy first, then the code switch, with the fallback kept for one release.
+3. **Hindi subject:** GD needs a Hindi master subject before B4. This is now its own phase, TAXONOMY-HINDI-1, between B3 and B4, with owner review.
+4. **Migration read-path:** if the switch shipped before the copy, lesson prompts would lose their MUST COVER lines. Mitigation: B3 copies first (verified in production), switches the reader second, and stops unless all 147 CGL lesson prompts are byte-identical. The fallback stays for one release.
 5. **Selection-stage details** (PET numbers by gender) are legal-sensitive facts from the notice. Mark them `uncertain` when unsure, and show the source and as-of date on the page.
 6. **The v3 contract stays for old sessions only.** New intakes of v3 should be refused in the UI after B2, so no two contracts are used for new work.
 
-## 4. Open questions for the owner (MCQ)
+## 4. Owner decisions (2026-11-12, all answered)
 
-- **Q1. Where does a new exam's first written paper get its units?**
-  - (a) One unit per mapped master TOPIC, with its subtopics mapped under it (as CGL). *[recommended]*
-  - (b) One unit per mapped SUBTOPIC.
-  - (c) The exam decides per section.
-- **Q2. Storage for master outlines.**
-  - (a) A new table `taxonomy_node_outlines` (enforced limits, audited). *[recommended]*
-  - (b) `canonical_taxonomy_nodes.metadata.outline` (no new table, limits in code only).
-- **Q3. Choice groups.**
-  - (a) A column `exam_syllabus_nodes.choice_group` + version `metadata.choice_groups`. *[recommended]*
-  - (b) Metadata only (no migration).
-  - (c) A separate table.
-- **Q4. Home for the selection process.**
-  - (a) A new table `exam_selection_stages` (per exam and cycle, published with review). *[recommended]*
-  - (b) `exam_syllabus_versions.metadata.selection_process` (repeated per tier).
-  - (c) Keep it as the prose exam-knowledge module only.
-- **Q5. Who may approve a NEW master node from an exam map?**
-  - (a) Admin only, in the master queue. *[recommended]*
-  - (b) Admin or staff.
-  - (c) Auto-approve when the confidence is high (not allowed by the locked rule, listed for completeness).
-- **Q6. The CGL unit `metadata.outlines` after B3.**
-  - (a) Keep it as an archive and stop reading it after one release. *[recommended]*
-  - (b) Strip it in a new CGL version (needs a re-publish).
-- **Q7. Is SSC GD "English or Hindi" a choice per candidate, as here, or are both compulsory in some cycles?**
-  - (a) Choice, pick 1. *[as per the trigger]*
-  - (b) Both compulsory.
-  - (c) It varies by cycle; store per version.
-- **Q8. MASTER_INTAKE chunking.**
-  - (a) One file per subject. *[recommended]*
-  - (b) One file per topic for large subjects (GK).
-  - (c) Free; the cap alone decides.
+| # | Question | Answer |
+|---|---|---|
+| Q1 | Units for a new exam's paper | **One unit per mapped master TOPIC**, subtopics mapped under it (as CGL) |
+| Q2 | Storage for master outlines | **New table `taxonomy_node_outlines`** |
+| Q3 | Choice groups | **Column `exam_syllabus_nodes.choice_group`** + version `metadata.choice_groups` |
+| Q4 | Home for the selection process | **New table `exam_selection_stages`** |
+| Q5 | Who approves a NEW master node | **Admin only**, in the master queue |
+| Q6 | CGL unit `metadata.outlines` after B3 | **Keep it; stop reading it** (fallback removed after one release) |
+| Q7 | SSC GD English / Hindi | **Choose one** (`choice_group`, pick 1) |
+| Q8 | MASTER_INTAKE chunking | **One file per subject** |
+
+**Additions (owner 2026-11-12):**
+- B1 gets separate outline caps (≤ 30 lines per node, ≤ 6,000 per file).
+- B3 copies before the reader switch and stops unless the prompts are byte-identical.
+- TAXONOMY-HINDI-1 runs between B3 and B4.
+- Migrations are written and tested locally and applied only per MIGRATION_RUNBOOK, with the owner present.
