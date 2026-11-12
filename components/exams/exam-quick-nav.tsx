@@ -27,8 +27,10 @@ export function ExamQuickNav({
   ];
 
   return (
-    <div className="sticky top-16 z-20 bg-white/95 backdrop-blur-md border-y border-slate-200/80 py-2.5 px-4 sm:px-6 shadow-2xs">
-      <nav aria-label="Exam Section Navigation" className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+    // SYLLABUS-UI-1: a fixed height (h-13) under the site header; the cycle page sets --sticky-offset to header + this bar,
+    // so the syllabus bar sticks below it instead of under it
+    <div className="sticky top-(--site-header-h) z-20 flex h-13 items-center bg-white/95 backdrop-blur-md border-y border-slate-200/80 px-4 sm:px-6 shadow-2xs">
+      <nav aria-label="Exam Section Navigation" className="flex w-full items-center gap-2 overflow-x-auto no-scrollbar">
         {sections.map((sec) => (
           <a
             key={sec.id}

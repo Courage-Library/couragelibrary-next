@@ -678,6 +678,12 @@
   :root {
     color-scheme: light;
 
+    /* SYLLABUS-UI-1: THE sticky offset token. In-page sticky bars stick at top: var(--sticky-offset) — below the solid
+       site header (components/shell/header-bar.tsx, h-16 = 4rem). A page with its own scroller or a second sticky bar
+       sets --sticky-offset on its own wrapper (admin intake review, exam cycle page); nothing else hard-codes it. */
+    --site-header-h: 4rem;
+    --sticky-offset: var(--site-header-h);
+
     /* Legacy variables (pre-UX-1), still read by legacy pages. */
     --background: var(--color-canvas);
     --foreground: var(--color-fg);

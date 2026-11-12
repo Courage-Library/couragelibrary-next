@@ -110,7 +110,7 @@ export default async function ExamCycleHubPage({ params }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 [--sticky-offset:calc(var(--site-header-h)+3.25rem)]">
         <ExamHero data={data} />
 
         <ExamCycleSnapshot
@@ -162,7 +162,7 @@ export default async function ExamCycleHubPage({ params }: Props) {
         )}
 
         {/* Syllabus — canonical read model (GAP2-4b): always shown; "coming soon" until a version is published */}
-        <section id="syllabus" aria-labelledby="syllabus-title" className="flex flex-col gap-4">
+        <section id="syllabus" aria-labelledby="syllabus-title" className="flex scroll-mt-(--sticky-offset) flex-col gap-4">
           <h2 id="syllabus-title" className="border-b border-line pb-2 text-h2 font-semibold text-fg">
             Syllabus
           </h2>

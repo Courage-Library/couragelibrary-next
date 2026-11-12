@@ -158,7 +158,9 @@ test('S-01 shell: containing blocks + one scroller; no nested scroll in the inta
   const sb = read('components/admin/admin-sidebar.tsx');
   assert((sb.match(/<aside data-admin-sidebar=""/g) || []).length === 2, 'both sidebars marked');
   const r = read('components/admin/syllabus/intake-review.tsx');
-  assert(!/max-h-\[55vh\] overflow-y-auto/.test(r) && /data-guide-bar="" className="sticky top-0/.test(r), 'guide: sticky bar, no nested scroll');
+  // SYLLABUS-UI-1: the guide bar no longer sticks; the syllabus browser's bar is the one sticky bar, at --sticky-offset =
+  // minus the pane's top padding (so it meets the pane's top edge)
+  assert(!/max-h-\[55vh\] overflow-y-auto/.test(r) && /data-guide-bar="" className="flex/.test(r) && !/sticky top-0/.test(r) && /\[--sticky-offset:-1rem\] sm:\[--sticky-offset:-1\.5rem\]/.test(r), 'guide: not sticky, no nested scroll; the browser bar meets the pane edge');
   const g = read('scripts/live/test_shell_scroll.cjs');
   assert(/N-1 negative control/.test(g) && /\[data-admin-shell\]\{height:auto!important/.test(g) && /\['390', '844'\]|\[390, 844\]/.test(g), 'gate: negative control + phone size');
   return 'ok';

@@ -19,6 +19,7 @@ import {
 import type { IntakeBatchView, IntakeBulkAction, IntakeDecision, IntakeItemView, IntakeNodeOption, IntakeSessionView, IntakeSourceCheck } from "@/lib/syllabus/intake-types";
 import { exactBatch, isOpenParent, outlineBatch, progress, subtopicBatch, suggestionsFor, waitingForParent } from "@/lib/syllabus/intake-assist";
 import { weightageChecks } from "@/lib/syllabus/intake-contract";
+import { SyllabusBrowser, type BrowseSubject, type BrowseTopic } from "@/components/syllabus/syllabus-browser";
 import { bulkIntakeAction, decideIntakeItemAction, discardIntakeAction, importIntakeAction, undoIntakeBulkAction } from "@/app/(site)/admin/syllabus/intake/actions";
 import { addTaxonomyAliasAction } from "@/app/(site)/admin/taxonomy/actions";
 
@@ -33,6 +34,11 @@ import { addTaxonomyAliasAction } from "@/app/(site)/admin/taxonomy/actions";
  * INTAKE-ASSIST-1: a sticky guide (7 steps, live counts, one action each — the current step's is the page's one
  * primary action); decision buttons on every row; topics collapsed with child counts; status / level filters; a
  * progress bar; bulk steps are one audited transaction each and the newest can be undone until the draft exists.
+ * SYLLABUS-UI-1: the tree is browsed through the shared SyllabusBrowser — one tab per subject (its own row as the tab's
+ * intro), topics as collapsible rows (collapsed by default, remembered per session; subtopics + concepts rendered only
+ * when a topic is open), search, desktop rail / mobile jump sheet. The browser's bar is the page's ONE sticky element
+ * (the guide no longer sticks); --sticky-offset is minus the admin pane's top padding, so the bar meets the pane's top
+ * edge and nothing shows above it. The filters still give the flat list. Row buttons are 44 px on a phone.
  */
 
 interface Props {
@@ -44,7 +50,6 @@ interface Props {
 }
 
 const LEVEL_LABEL: Record<string, string> = { PAPER: "Paper", SUBJECT: "Subject", TOPIC: "Topic", SUBTOPIC: "Subtopic", CONCEPT: "Concept" };
-const INDENT: Record<string, string> = { PAPER: "pl-0", SUBJECT: "pl-3", TOPIC: "pl-6", SUBTOPIC: "pl-10", CONCEPT: "pl-14" };
 const MATCH_LABEL: Record<string, string> = { EXACT: "Exact match", ALIAS: "Alias match", CLOSE: "Close: check", NEW: "New", NOT_APPLICABLE: "" };
 const MATCH_STYLE: Record<string, string> = {
   EXACT: "border-success-200 bg-success-50 text-success-800",
@@ -77,7 +82,9 @@ const LEVEL_FILTERS = ["ALL", "SUBJECT", "TOPIC", "SUBTOPIC", "CONCEPT"] as cons
 type LevelFilter = (typeof LEVEL_FILTERS)[number];
 type MatchFilter = "ALL" | "CLOSE" | "NEW_TOPIC";
 const chip = "rounded border px-1.5 py-0.5 text-[12px] font-semibold";
-const segment = "focus-ring min-h-8 rounded-control border border-line bg-surface px-2 text-[12px] font-semibold text-fg hover:bg-primary-50 disabled:cursor-not-allowed disabled:opacity-40";
+const segment = "focus-ring min-h-11 sm:min-h-8 rounded-control border border-line bg-surface px-2 text-[12px] font-semibold text-fg hover:bg-primary-50 disabled:cursor-not-allowed disabled:opacity-40";
+/** SYLLABUS-UI-1: the Studio quiet action, 44 px tall on a phone (row actions inside the syllabus browser) */
+const rowQuiet = `${studioQuietAction} max-sm:min-h-11`;
 
 export function IntakeReview({ session, items, nodes, lastBatch, loadError }: Props) {
   const router = useRouter();
@@ -90,7 +97,6 @@ export function IntakeReview({ session, items, nodes, lastBatch, loadError }: Pr
   const [status, setStatus] = useState<StatusFilter>("ALL");
   const [level, setLevel] = useState<LevelFilter>("ALL");
   const [match, setMatch] = useState<MatchFilter>("ALL");
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [guideOpen, setGuideOpen] = useState(true);
   const [sourceCheck, setSourceCheck] = useState<IntakeSourceCheck | null>(null);
   const [addedAliases, setAddedAliases] = useState<Set<string>>(new Set());
@@ -276,14 +282,7 @@ export function IntakeReview({ session, items, nodes, lastBatch, loadError }: Pr
     (level === "ALL" || i.level === level) &&
     (origin === "ALL" || i.origin === origin) &&
     (match === "ALL" || (match === "CLOSE" ? i.matchStatus === "CLOSE" : i.level === "TOPIC" && i.matchStatus === "NEW"));
-  /** tree view: papers / subjects / topics always; a topic's subtree only when expanded */
-  const treeRows = items.filter((i) => {
-    if (i.level === "PAPER" || i.level === "SUBJECT" || i.level === "TOPIC") return true;
-    let p = i.parentId ? byId.get(i.parentId) : undefined;
-    while (p && p.level !== "TOPIC") p = p.parentId ? byId.get(p.parentId) : undefined;
-    return Boolean(p && expanded.has(p.id));
-  });
-  const rows = filtered ? items.filter(keep) : treeRows;
+  const rows = filtered ? items.filter(keep) : [];
   const countBelow = (id: string) => {
     let sub = 0;
     let con = 0;
@@ -302,17 +301,197 @@ export function IntakeReview({ session, items, nodes, lastBatch, loadError }: Pr
     }
     return out.join(" › ");
   };
-  const toggle = (id: string) =>
-    setExpanded((prev) => {
-      const n = new Set(prev);
-      if (n.has(id)) n.delete(id);
-      else n.add(id);
-      return n;
-    });
   const pct = done.total ? Math.round((done.decided / done.total) * 100) : 0;
 
+  // ---------------------------------------------------------------- one row in three parts (SYLLABUS-UI-1)
+  /** level, name, chips — text only (it sits inside a topic's toggle button in the tree) */
+  const rowInfo = (i: IntakeItemView, showTrail: boolean) => {
+    const below = i.level === "TOPIC" ? countBelow(i.id) : null;
+    return (
+      <>
+        <span className="text-[12px] font-semibold text-fg-secondary">{LEVEL_LABEL[i.level]}</span>
+        <span className="text-[14px] font-semibold text-fg">{i.name}</span>
+        {showTrail && trail(i) && <span className="text-[12px] text-fg-secondary">in {trail(i)}</span>}
+        {i.nameHi && <span className="text-[13px] text-fg-secondary">{i.nameHi}</span>}
+        <span className={`${chip} ${MATCH_STYLE[i.matchStatus]}`}>{MATCH_LABEL[i.matchStatus]}</span>
+        {i.origin && <span className={`${chip} ${ORIGIN_STYLE[i.origin]}`}>{ORIGIN_LABEL[i.origin]}</span>}
+        {i.weightageTier && <span className="text-[12px] font-semibold text-fg-secondary">{i.weightageTier.replace("_", " ")}</span>}
+        {i.avgQuestions !== null && <span className="text-[12px] text-fg-secondary">~{i.avgQuestions} Q</span>}
+        {i.uncertain && <span className="text-[12px] font-semibold text-warning-700">Uncertain</span>}
+        {below && below.sub > 0 && (
+          <span className="text-[12px] text-fg-secondary">
+            {below.sub} subtopic(s){below.con ? ` · ${below.con} concept(s)` : ""}
+          </span>
+        )}
+      </>
+    );
+  };
+  /** the decision (or the decision buttons) */
+  const rowDecisions = (i: IntakeItemView) => {
+    const parent = i.parentId ? byId.get(i.parentId) : undefined;
+    const parentOpen = i.level === "SUBJECT" || isOpenParent(parent);
+    const final = i.decision === "ALIAS" || i.decision === "APPROVE_NEW";
+    const quickLink = i.matchedNodeId && (i.matchStatus === "EXACT" || i.matchStatus === "ALIAS") ? i.matchedNodeId : null;
+    return (
+      <span className="ml-auto flex flex-wrap items-center gap-1">
+        {i.decision ? (
+          <>
+            <span className="text-[12px] font-semibold text-success-700">{DECISION_LABEL[i.decision]}</span>
+            {editable && !final && (
+              <button type="button" className={segment} onClick={() => setSelectedId(i.id)} aria-label={`Change the decision for ${i.name}`}>
+                Change
+              </button>
+            )}
+          </>
+        ) : editable ? (
+          <span role="group" aria-label={`Decide ${i.name}`} className="flex flex-wrap gap-1" data-row-decisions="">
+            {quickLink && (
+              <button type="button" className={segment} disabled={pending || !parentOpen} title={parentOpen ? undefined : "Decide its parent first"} onClick={() => decide(i, "LINK", quickLink)}>
+                Link
+              </button>
+            )}
+            {i.level === "CONCEPT" && (
+              <button type="button" className={segment} disabled={pending || !parentOpen} title={parentOpen ? undefined : "Decide its subtopic first"} onClick={() => decide(i, "OUTLINE", null)}>
+                Keep as outline
+              </button>
+            )}
+            <button type="button" className={segment} disabled={pending || !parentOpen} title={parentOpen ? undefined : "Decide its parent first"} onClick={() => decide(i, "APPROVE_NEW", null)}>
+              Approve new
+            </button>
+            <button type="button" className={segment} disabled={pending} onClick={() => decide(i, "IGNORE", null)}>
+              Ignore
+            </button>
+            <button type="button" className={segment} onClick={() => setSelectedId(i.id)} aria-label={`More choices for ${i.name}`}>
+              More…
+            </button>
+          </span>
+        ) : (
+          <span className="text-[12px] font-semibold text-danger-700">Undecided</span>
+        )}
+      </span>
+    );
+  };
+  /** under the row: approve a topic's subtopics, the most similar nodes, the AI aliases (null = nothing) */
+  const rowExtras = (i: IntakeItemView) => {
+    const parent = i.parentId ? byId.get(i.parentId) : undefined;
+    const topicSubs = i.level === "TOPIC" && editable ? subtopicBatch(items, i.id) : [];
+    const suggest = editable && !i.decision && (i.level === "TOPIC" || i.matchStatus === "CLOSE") && i.matchStatus !== "EXACT" ? suggestionsFor(i, parent, nodes) : [];
+    const aliases = (i.decision === "LINK" || i.decision === "ALIAS") && i.decisionNodeId && i.aliases.length > 0;
+    if (!topicSubs.length && !suggest.length && !aliases) return null;
+    return (
+      <>
+        {topicSubs.length > 0 && (
+          <p className="mt-1 pl-2 text-[12px]">
+            <button type="button" className={rowQuiet} disabled={pending} onClick={() => bulk("APPROVE_CHILDREN", topicSubs)} data-topic-approve="">
+              Approve its {topicSubs.length} new subtopic(s)
+            </button>
+          </p>
+        )}
+        {suggest.length > 0 && (
+          <div className="mt-1 flex flex-wrap items-center gap-1 pl-2 text-[12px]" data-suggestions="">
+            <span className="text-fg-secondary">Most similar existing {LEVEL_LABEL[i.level].toLowerCase()}s:</span>
+            {suggest.map((sg) => (
+              <span key={sg.nodeId} className="flex items-center gap-1 rounded border border-line px-1.5 py-0.5">
+                <span className="font-semibold text-fg">{sg.name}</span>
+                <span className="text-fg-secondary">{Math.round(sg.score * 100)}%</span>
+                <button type="button" className={segment} disabled={pending} onClick={() => decide(i, "LINK", sg.nodeId)} aria-label={`Link ${i.name} to ${sg.name}`}>
+                  Link
+                </button>
+                <button type="button" className={segment} disabled={pending} onClick={() => decide(i, "ALIAS", sg.nodeId)} aria-label={`Link ${i.name} to ${sg.name} and add the name as an alias`}>
+                  + alias
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        {aliases && (
+          <div className="flex flex-wrap items-center gap-1 pb-1 pl-2 text-[12px]" data-ai-aliases="">
+            <span className="text-fg-secondary">AI aliases:</span>
+            {i.aliases.map((a) => {
+              const added = addedAliases.has(`${i.decisionNodeId}|${a.toLowerCase()}`);
+              return added ? (
+                <span key={a} className="rounded border border-success-200 bg-success-50 px-1.5 py-0.5 font-semibold text-success-800">
+                  {a} · added
+                </span>
+              ) : (
+                <button key={a} type="button" disabled={pending} onClick={() => addAlias(i.decisionNodeId as string, a)} className={rowQuiet} aria-label={`Add "${a}" as an alias of the linked node`}>
+                  Add as alias: {a}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </>
+    );
+  };
+  /** the whole row (the filtered list, a subject's own row, a topic's subtopics + concepts) */
+  const flatRow = (i: IntakeItemView, indent: string) => (
+    <li key={i.id} className={`${indent} py-1.5`} data-level={i.level}>
+      <div className="flex flex-wrap items-center gap-2">
+        {rowInfo(i, filtered)}
+        {rowDecisions(i)}
+      </div>
+      {rowExtras(i)}
+    </li>
+  );
+
+  // ---------------------------------------------------------------- the tree for the browser: subject → topic → subtopics
+  const upTo = (i: IntakeItemView, levels: string[]): IntakeItemView | undefined => {
+    let p = i.parentId ? byId.get(i.parentId) : undefined;
+    for (let hop = 0; p && !levels.includes(p.level) && hop < 8; hop++) p = p.parentId ? byId.get(p.parentId) : undefined;
+    return p && levels.includes(p.level) ? p : undefined;
+  };
+  const topicItems = items.filter((i) => i.level === "TOPIC");
+  // tabs: every subject; a paper only when topics sit directly under it (no subject)
+  const subjectHomes = [...items.filter((i) => i.level === "SUBJECT"), ...papers.filter((p) => topicItems.some((t) => upTo(t, ["SUBJECT", "PAPER"])?.id === p.id))];
+  const browseSubjects: BrowseSubject[] = subjectHomes.map((h) => {
+    const paper = h.level === "SUBJECT" ? upTo(h, ["PAPER"]) : h;
+    const label = h.level === "PAPER" ? `${h.name} (no subject)` : papers.length > 1 && paper ? `${paper.name} · ${h.name}` : h.name;
+    return {
+      id: h.id,
+      label,
+      intro:
+        h.level === "SUBJECT" ? (
+          <ul aria-label={`Subject ${h.name}`} className="rounded-card border border-line bg-ink-50 px-3" data-subject-row="">
+            {flatRow(h, "pl-0")}
+          </ul>
+        ) : undefined,
+    };
+  });
+  const browseTopics: BrowseTopic[] = topicItems.map((t) => {
+    const below = (kids.get(t.id) || []).flatMap((sub) => [sub, ...(kids.get(sub.id) || [])]);
+    return {
+      id: t.id,
+      subjectId: upTo(t, ["SUBJECT", "PAPER"])?.id ?? "",
+      name: t.name,
+      terms: [t.nameHi, ...below.flatMap((b) => [b.name, b.nameHi])].filter((x): x is string => Boolean(x)),
+      summary: <span className="flex flex-wrap items-center gap-2">{rowInfo(t, false)}</span>,
+      actions: rowDecisions(t),
+      // built only when the browser mounts the row / opens the topic (suggestions are not cheap)
+      after: (
+        <Lazy
+          render={() => {
+            const x = rowExtras(t);
+            return x ? <div className="px-3 pb-2">{x}</div> : null;
+          }}
+        />
+      ),
+      body: below.length ? (
+        <Lazy
+          render={() => (
+            <ul className="divide-y divide-line" aria-label={`Subtopics and concepts in ${t.name}`}>
+              {below.map((b) => flatRow(b, b.level === "CONCEPT" ? "pl-6" : "pl-0"))}
+            </ul>
+          )}
+        />
+      ) : undefined,
+    };
+  });
+
   return (
-    <div className="space-y-5">
+    // SYLLABUS-UI-1: #admin-content scrolls with p-4 / sm:p-6 top padding; sticky bars stick at minus that padding, so
+    // they meet the pane's top edge (nothing scrolls into view above them)
+    <div className="space-y-5 [--sticky-offset:-1rem] sm:[--sticky-offset:-1.5rem]" data-intake-review="">
       <StudioPageHeader
         title="Review syllabus intake"
         description={`${session.examTitle}${session.cycleYear ? ` · ${session.cycleYear}` : ""}${session.tier ? ` · ${session.tier}` : ""}${session.asOf ? ` · as of ${session.asOf}` : ""}. Nothing changes in the master tree until you decide.`}
@@ -352,10 +531,10 @@ export function IntakeReview({ session, items, nodes, lastBatch, loadError }: Pr
       />
 
       {/* ------------------------------------------------------------ the guide (sticky, collapsible) */}
-      {/* SHELL-SCROLL-FIX-1: only the guide's header row (progress, undo, show / hide) sticks; the steps flow with the
-          page — no nested scroll region inside the one admin scroller */}
+      {/* SHELL-SCROLL-FIX-1: no nested scroll region inside the one admin scroller. SYLLABUS-UI-1: the guide flows with the
+          page (it no longer sticks); the browser's bar below is the one sticky element and repeats the progress */}
       <div data-intake-guide="" className="contents">
-        <div data-guide-bar="" className="sticky top-0 z-10 flex flex-wrap items-center gap-3 rounded-card border border-line bg-surface px-4 py-3 shadow-sm">
+        <div data-guide-bar="" className="flex flex-wrap items-center gap-3 rounded-card border border-line bg-surface px-4 py-3">
           <h2 id="guide-title" className="text-[15px] font-bold text-fg">
             What to do
           </h2>
@@ -459,130 +638,37 @@ export function IntakeReview({ session, items, nodes, lastBatch, loadError }: Pr
           ))}
         {items.length === 0 ? (
           <StudioEmpty title="No items" body="This intake has no items." />
+        ) : !filtered ? (
+          <div className="flex flex-col gap-3" data-intake-tree="">
+            {papers.length > 0 && (
+              <ul aria-label="Papers" className="flex flex-col gap-1">
+                {papers.map((p) => (
+                  <li key={p.id} className="text-[14px] font-bold text-fg" data-level="PAPER">
+                    {p.name}
+                    {p.questions !== null ? <span className="ml-2 text-[13px] font-normal text-fg-secondary">{p.questions} questions</span> : null}
+                    {p.durationMinutes !== null ? <span className="ml-2 text-[13px] font-normal text-fg-secondary">{p.durationMinutes} min</span> : null}
+                    {p.negativeMarking ? <span className="ml-2 text-[13px] font-normal text-fg-secondary">negative: {p.negativeMarking}</span> : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <SyllabusBrowser
+              storageKey={`intake-review:${session.id}`}
+              label="Intake items"
+              subjects={browseSubjects}
+              topics={browseTopics}
+              barExtra={
+                <span className="hidden shrink-0 text-[13px] font-semibold text-fg sm:inline" data-bar-progress="">
+                  {done.decided}/{done.total} decided
+                </span>
+              }
+            />
+          </div>
         ) : rows.length === 0 ? (
           <StudioEmpty title="Nothing here" body="No item matches these filters." />
         ) : (
           <ul aria-label="Intake items" className="divide-y divide-line">
-            {rows.map((i) => {
-              const parent = i.parentId ? byId.get(i.parentId) : undefined;
-              const parentOpen = i.level === "SUBJECT" || isOpenParent(parent);
-              const final = i.decision === "ALIAS" || i.decision === "APPROVE_NEW";
-              const below = i.level === "TOPIC" ? countBelow(i.id) : null;
-              const topicSubs = i.level === "TOPIC" && editable ? subtopicBatch(items, i.id) : [];
-              const suggest = editable && !i.decision && (i.level === "TOPIC" || i.matchStatus === "CLOSE") && i.matchStatus !== "EXACT" ? suggestionsFor(i, parent, nodes) : [];
-              const quickLink = i.matchedNodeId && (i.matchStatus === "EXACT" || i.matchStatus === "ALIAS") ? i.matchedNodeId : null;
-              return (
-                <li key={i.id} className={`${filtered ? "pl-0" : INDENT[i.level]} py-1.5`} data-level={i.level}>
-                  {i.level === "PAPER" ? (
-                    <p className="py-1 text-[14px] font-bold text-fg">
-                      {i.name}
-                      {i.questions !== null ? <span className="ml-2 text-[13px] font-normal text-fg-secondary">{i.questions} questions</span> : null}
-                      {i.durationMinutes !== null ? <span className="ml-2 text-[13px] font-normal text-fg-secondary">{i.durationMinutes} min</span> : null}
-                      {i.negativeMarking ? <span className="ml-2 text-[13px] font-normal text-fg-secondary">negative: {i.negativeMarking}</span> : null}
-                    </p>
-                  ) : (
-                    <div className="flex flex-wrap items-center gap-2">
-                      {i.level === "TOPIC" && !filtered && below && below.sub > 0 && (
-                        <button type="button" aria-expanded={expanded.has(i.id)} aria-label={`${expanded.has(i.id) ? "Collapse" : "Expand"} ${i.name}`} onClick={() => toggle(i.id)} className={`${segment} w-8 px-0`}>
-                          {expanded.has(i.id) ? "−" : "+"}
-                        </button>
-                      )}
-                      <span className="text-[12px] font-semibold text-fg-secondary">{LEVEL_LABEL[i.level]}</span>
-                      <span className="text-[14px] font-semibold text-fg">{i.name}</span>
-                      {filtered && trail(i) && <span className="text-[12px] text-fg-secondary">in {trail(i)}</span>}
-                      {i.nameHi && <span className="text-[13px] text-fg-secondary">{i.nameHi}</span>}
-                      <span className={`${chip} ${MATCH_STYLE[i.matchStatus]}`}>{MATCH_LABEL[i.matchStatus]}</span>
-                      {i.origin && <span className={`${chip} ${ORIGIN_STYLE[i.origin]}`}>{ORIGIN_LABEL[i.origin]}</span>}
-                      {i.weightageTier && <span className="text-[12px] font-semibold text-fg-secondary">{i.weightageTier.replace("_", " ")}</span>}
-                      {i.avgQuestions !== null && <span className="text-[12px] text-fg-secondary">~{i.avgQuestions} Q</span>}
-                      {i.uncertain && <span className="text-[12px] font-semibold text-warning-700">Uncertain</span>}
-                      {below && below.sub > 0 && (
-                        <span className="text-[12px] text-fg-secondary">
-                          {below.sub} subtopic(s){below.con ? ` · ${below.con} concept(s)` : ""}
-                        </span>
-                      )}
-                      <span className="ml-auto flex flex-wrap items-center gap-1">
-                        {i.decision ? (
-                          <>
-                            <span className="text-[12px] font-semibold text-success-700">{DECISION_LABEL[i.decision]}</span>
-                            {editable && !final && (
-                              <button type="button" className={segment} onClick={() => setSelectedId(i.id)} aria-label={`Change the decision for ${i.name}`}>
-                                Change
-                              </button>
-                            )}
-                          </>
-                        ) : editable ? (
-                          <span role="group" aria-label={`Decide ${i.name}`} className="flex flex-wrap gap-1" data-row-decisions="">
-                            {quickLink && (
-                              <button type="button" className={segment} disabled={pending || !parentOpen} title={parentOpen ? undefined : "Decide its parent first"} onClick={() => decide(i, "LINK", quickLink)}>
-                                Link
-                              </button>
-                            )}
-                            {i.level === "CONCEPT" && (
-                              <button type="button" className={segment} disabled={pending || !parentOpen} title={parentOpen ? undefined : "Decide its subtopic first"} onClick={() => decide(i, "OUTLINE", null)}>
-                                Keep as outline
-                              </button>
-                            )}
-                            <button type="button" className={segment} disabled={pending || !parentOpen} title={parentOpen ? undefined : "Decide its parent first"} onClick={() => decide(i, "APPROVE_NEW", null)}>
-                              Approve new
-                            </button>
-                            <button type="button" className={segment} disabled={pending} onClick={() => decide(i, "IGNORE", null)}>
-                              Ignore
-                            </button>
-                            <button type="button" className={segment} onClick={() => setSelectedId(i.id)} aria-label={`More choices for ${i.name}`}>
-                              More…
-                            </button>
-                          </span>
-                        ) : (
-                          <span className="text-[12px] font-semibold text-danger-700">Undecided</span>
-                        )}
-                      </span>
-                    </div>
-                  )}
-                  {topicSubs.length > 0 && (
-                    <p className="mt-1 pl-2 text-[12px]">
-                      <button type="button" className={studioQuietAction} disabled={pending} onClick={() => bulk("APPROVE_CHILDREN", topicSubs)} data-topic-approve="">
-                        Approve its {topicSubs.length} new subtopic(s)
-                      </button>
-                    </p>
-                  )}
-                  {suggest.length > 0 && (
-                    <div className="mt-1 flex flex-wrap items-center gap-1 pl-2 text-[12px]" data-suggestions="">
-                      <span className="text-fg-secondary">Most similar existing {LEVEL_LABEL[i.level].toLowerCase()}s:</span>
-                      {suggest.map((s) => (
-                        <span key={s.nodeId} className="flex items-center gap-1 rounded border border-line px-1.5 py-0.5">
-                          <span className="font-semibold text-fg">{s.name}</span>
-                          <span className="text-fg-secondary">{Math.round(s.score * 100)}%</span>
-                          <button type="button" className={segment} disabled={pending} onClick={() => decide(i, "LINK", s.nodeId)} aria-label={`Link ${i.name} to ${s.name}`}>
-                            Link
-                          </button>
-                          <button type="button" className={segment} disabled={pending} onClick={() => decide(i, "ALIAS", s.nodeId)} aria-label={`Link ${i.name} to ${s.name} and add the name as an alias`}>
-                            + alias
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  {(i.decision === "LINK" || i.decision === "ALIAS") && i.decisionNodeId && i.aliases.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-1 pb-1 pl-2 text-[12px]" data-ai-aliases="">
-                      <span className="text-fg-secondary">AI aliases:</span>
-                      {i.aliases.map((a) => {
-                        const added = addedAliases.has(`${i.decisionNodeId}|${a.toLowerCase()}`);
-                        return added ? (
-                          <span key={a} className="rounded border border-success-200 bg-success-50 px-1.5 py-0.5 font-semibold text-success-800">
-                            {a} · added
-                          </span>
-                        ) : (
-                          <button key={a} type="button" disabled={pending} onClick={() => addAlias(i.decisionNodeId as string, a)} className={studioQuietAction} aria-label={`Add "${a}" as an alias of the linked node`}>
-                            Add as alias: {a}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </li>
-              );
-            })}
+            {rows.map((i) => flatRow(i, "pl-0"))}
           </ul>
         )}
       </StudioPanel>
@@ -764,4 +850,9 @@ function DecisionDrawer({
       </div>
     </StudioDrawer>
   );
+}
+
+/** renders its content only when React mounts it (a closed topic's body is never built) */
+function Lazy({ render }: { render: () => React.ReactNode }) {
+  return <>{render()}</>;
 }

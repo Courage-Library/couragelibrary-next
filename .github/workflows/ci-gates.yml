@@ -172,6 +172,7 @@ jobs:
           q LAUNCH-MODE-1 node scripts/test_launch_mode1.cjs || fail=1
           q INTAKE-ASSIST-1 node scripts/test_intake_assist1.cjs || fail=1
           q SYLLABUS-UI-1 node scripts/test_syllabus_ui1.cjs || fail=1
+          q SYLLABUS-BROWSE-1 node scripts/test_syllabus_browse1.cjs || fail=1
           q NAV-IA-1 node scripts/test_nav_ia1.cjs || fail=1
           q LESSON-NODE-ID-1 node scripts/test_lesson_node_id1.cjs || fail=1
           q IST-TIME node scripts/test_ist_time.cjs || fail=1

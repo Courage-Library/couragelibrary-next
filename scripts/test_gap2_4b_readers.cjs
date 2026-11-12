@@ -150,7 +150,8 @@ const RETIRED_TABLES = ['exam_syllabi', 'exam_topics', 'exam_unit_mappings', 'ta
     const s = read('components/exams/exam-syllabus-section.tsx');
     const imports = [...s.matchAll(/from "([^"]+)"/g)].map((m) => m[1]);
     assert(imports.length >= 1, 'no imports parsed from exam-syllabus-section.tsx'); // GATE-HYGIENE-1
-    const foreign = imports.filter((i) => !/^@\/components\/ui\/|^@\/lib\/format$|^@\/types\/syllabus$|^lucide-react$/.test(i));
+    // SYLLABUS-UI-1: + the shared syllabus browser (client UI only: no data or service import)
+    const foreign = imports.filter((i) => !/^@\/components\/ui\/|^@\/components\/syllabus\/syllabus-browser$|^@\/lib\/format$|^@\/types\/syllabus$|^lucide-react$/.test(i));
     assert(foreign.length === 0, `unexpected imports: ${foreign}`);
     const none = render({ state: 'NO_SYLLABUS', exam_id: 'x', version: null, nodes: [], totals: null });
     assert(/Syllabus coming soon/.test(none) && !/<li/.test(none), 'NO_SYLLABUS must show only the coming-soon state');
@@ -278,9 +279,12 @@ const RETIRED_TABLES = ['exam_syllabi', 'exam_topics', 'exam_unit_mappings', 'ta
         const expectQ = indep.qn > 0 ? `${indep.qn.toLocaleString('en-IN')} practice question` : 'Questions coming soon';
         if (!html.includes(expectQ)) bad.push(`question count "${expectQ}" not rendered`);
         // the unknown unit shows no range at all (never "0 questions")
-        const unknownLi = html.slice(html.indexOf('GAP2-4b Unit unknown'), html.indexOf('</li>', html.indexOf('GAP2-4b Unit unknown')));
+        // SYLLABUS-UI-1: the topic row (in the topic list — the rail lists the name too)
+        const list = html.slice(html.indexOf('data-topic-list'));
+        const unknownLi = list.slice(list.indexOf('GAP2-4b Unit unknown'), list.indexOf('</li>', list.indexOf('GAP2-4b Unit unknown')));
         if (/questions expected|0 questions/.test(unknownLi)) bad.push('unknown range rendered as a value');
-        if (!/<details/.test(html) || !/<summary/.test(html)) bad.push('section is not a disclosure group');
+        // SYLLABUS-UI-1: topics are collapsible rows (buttons with aria-expanded), every body in the server HTML
+        if (!/data-syllabus-browser/.test(html) || !/aria-expanded="false"/.test(html) || !/data-topic-body/.test(html)) bad.push('section is not the collapsible syllabus browser');
         assert(bad.length === 0, bad.join('\n        '));
         // a learning unit on the mapped topic (rolled back) so the coverage matrix has a unit to attach the exam to
         await q(`INSERT INTO public.learning_units (topic_id, title, slug, unit_type, estimated_minutes, display_order, is_active)

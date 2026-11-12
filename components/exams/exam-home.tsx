@@ -69,7 +69,7 @@ export function ExamCtaView({ cta, examId }: { cta: ExamCta; examId: string }) {
 
 function HomeSection({ id, title, children, sunken = false }: { id: string; title: string; children: ReactNode; sunken?: boolean }) {
   return (
-    <Section aria-labelledby={`${id}-title`} spacing="compact" className={sunken ? "bg-surface-sunken" : undefined} id={id}>
+    <Section aria-labelledby={`${id}-title`} spacing="compact" className={sunken ? "scroll-mt-(--sticky-offset) bg-surface-sunken" : "scroll-mt-(--sticky-offset)"} id={id}>
       <Container className="flex flex-col gap-4">
         <h2 id={`${id}-title`} className="text-h2 font-bold tracking-tight text-fg">
           {title}

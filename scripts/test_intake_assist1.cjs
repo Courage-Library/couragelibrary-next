@@ -197,7 +197,8 @@ test('S-01 C1: no actor argument from the client; every action guards first', ()
 
 test('U-01 review screen: guide, one primary, meanings, progress, undo, source check, row buttons, collapse, filters', () => {
   const u = read('components/admin/syllabus/intake-review.tsx');
-  assert(/data-intake-guide=""/.test(u) && /sticky top-0/.test(u) && /aria-expanded=\{guideOpen\}/.test(u), 'sticky collapsible guide');
+  // SYLLABUS-UI-1: the guide stays collapsible but no longer sticks — the syllabus browser's bar is the page's one sticky bar
+  assert(/data-intake-guide=""/.test(u) && !/sticky top-0/.test(u) && /aria-expanded=\{guideOpen\}/.test(u), 'collapsible guide (not sticky)');
   for (const t of ['Confirm exact matches', 'Check close matches', 'Check new topics', 'Subtopics under decided topics', 'Concepts', 'Verify source & weightage', 'Create draft syllabus']) assert(u.includes(`title: "${t}"`), `step ${t}`);
   for (const t of ['Link all exact matches (', 'Approve all new subtopics under decided topics (', 'Keep all as lesson outline (']) assert(u.includes(t), `action ${t}`);
   assert((u.match(/studioPrimaryAction/g) || []).length === 3 && /n === current \? studioPrimaryAction : studioQuietAction/.test(u), 'one primary: the current step (+ the drawer save)');
@@ -206,7 +207,8 @@ test('U-01 review screen: guide, one primary, meanings, progress, undo, source c
   assert(/data-undo-bulk=""/.test(u) && /undoIntakeBulkAction\(session\.id\)/.test(u), 'undo');
   assert(/I verified the notification on the official website \(ssc\.gov\.in for SSC exams\)/.test(u) && /Not verifiable — mark the paper as uncertain/.test(u) && /sourceCheck === null/.test(u), 'required source check');
   assert(/data-row-decisions=""/.test(u) && /Keep as outline/.test(u) && /aria-label=\{`Decide \$\{i\.name\}`\}/.test(u), 'row decision buttons');
-  assert(/aria-expanded=\{expanded\.has\(i\.id\)\}/.test(u) && /subtopic\(s\)/.test(u), 'collapsible topics with counts');
+  // SYLLABUS-UI-1: topics collapse inside the shared SyllabusBrowser (aria-expanded there; scripts/test_syllabus_browse1.cjs)
+  assert(/<SyllabusBrowser\s/.test(u) && /subtopic\(s\)/.test(u), 'collapsible topics with counts');
   assert(/label="Status"/.test(u) && /label="Level"/.test(u) && /data-suggestions=""/.test(u) && /data-weightage=""/.test(u), 'filters, suggestions, weightage');
   assert(!/[ऀ-ॿ]/.test(u) && !/\blang=/.test(u), 'English-only (#85)');
   return 'ok';
