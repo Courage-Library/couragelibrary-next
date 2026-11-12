@@ -1,4 +1,4 @@
-import { BookOpen, CheckCircle2, ClipboardList, Clock, FileText } from "lucide-react";
+import { BookOpen, CheckCircle2, ClipboardList, Clock } from "lucide-react";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -25,47 +25,58 @@ function TierBadge({ node }: { node: SyllabusReadModelNode }) {
   return node.weightage_tier ? <Badge tone={TIER_TONE[node.weightage_tier]}>{WEIGHTAGE_TIER_LABEL[node.weightage_tier]}</Badge> : null;
 }
 
+type ReadModelTopic = SyllabusReadModelNode["topics"][number];
+
 /**
- * SYLLABUS-UI-1 (owner 2026-11-12, display only): a topic whose ONLY subtopic has the topic's own name (case, spaces
- * ignored) shows just the topic row — no "1 subtopic", no body repeating the name; the subtopic's practice count moves
- * into the row. The data is unchanged. Two or more subtopics are always listed, even when names repeat.
+ * SYLLABUS-UI-1 (owner 2026-11-12): a subtopic row's label is the MAPPED node's name (node_name). `name` is the rolled-up
+ * TOPIC's name, which every mapping of a unit shares — showing it repeated the topic name on every row. Falls back to
+ * `name` only when the read model has no node_name.
  */
-export function soleSameNameSubtopic(node: SyllabusReadModelNode): SyllabusReadModelNode["topics"][number] | null {
+export const subtopicLabel = (t: ReadModelTopic): string => (t.node_name && t.node_name.trim()) || t.name;
+const subtopicKey = (t: ReadModelTopic): string => t.node_id || t.topic_id;
+
+/**
+ * Display only: a topic whose ONLY subtopic has the topic's own name (by subtopicLabel; case, spaces ignored) shows just
+ * the topic row — no "1 subtopic", no body repeating the name. The data is unchanged.
+ */
+export function soleSameNameSubtopic(node: SyllabusReadModelNode): ReadModelTopic | null {
   const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
-  return node.topics.length === 1 && norm(node.topics[0].name) === norm(node.title) ? node.topics[0] : null;
+  return node.topics.length === 1 && norm(subtopicLabel(node.topics[0])) === norm(node.title) ? node.topics[0] : null;
 }
 
-/** a topic row's header (inside its toggle): name, weightage, subtopic count, expected range, lesson status */
+/**
+ * a topic row's header (inside its toggle): name, weightage, subtopic count, expected range, and the topic's practice +
+ * lesson counts ONCE (node.counts: distinct rolled-up topics, so nothing is double-counted). Questions and lessons are
+ * tagged at topic level — there are no per-subtopic counts, so subtopic rows show their name only.
+ */
 function UnitSummary({ node }: { node: SyllabusReadModelNode }) {
   const range = expectedRange(node);
-  const lessons = node.counts.servable_documents > 0;
+  const q = node.counts.published_questions;
+  const docs = node.counts.servable_documents;
   const sole = soleSameNameSubtopic(node);
   return (
-    <span className="flex flex-col gap-1">
+    <span className="flex flex-col gap-1" data-sole-subtopic={sole ? "" : undefined}>
       <span className="flex flex-wrap items-center gap-2">
         <span className="text-body font-semibold text-fg">{node.title}</span>
         <TierBadge node={node} />
         {!node.is_mandatory && <Badge tone="neutral">Optional</Badge>}
       </span>
       <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-body-sm text-fg-secondary">
-        {sole ? (
-          <span className="inline-flex items-center gap-1" data-sole-subtopic="">
-            <ClipboardList aria-hidden="true" className="size-4" />
-            {sole.published_questions > 0 ? plural(sole.published_questions, "practice question", "practice questions") : "Questions coming soon"}
-          </span>
-        ) : (
-          node.topics.length > 0 && <span>{plural(node.topics.length, "subtopic", "subtopics")}</span>
-        )}
+        {!sole && node.topics.length > 0 && <span>{plural(node.topics.length, "subtopic", "subtopics")}</span>}
         {range && <span>{range}</span>}
-        {lessons ? (
+        <span className="inline-flex items-center gap-1" data-practice-count={q}>
+          <ClipboardList aria-hidden="true" className="size-4" />
+          {q > 0 ? plural(q, "practice question", "practice questions") : "Questions coming soon"}
+        </span>
+        {docs > 0 ? (
           <span className="inline-flex items-center gap-1 font-medium text-success-700" data-lesson-status="available">
             <CheckCircle2 aria-hidden="true" className="size-4" />
-            Lessons available
+            {plural(docs, "lesson", "lessons")} available
           </span>
         ) : (
           <span className="inline-flex items-center gap-1 font-medium" data-lesson-status="coming-soon">
             <Clock aria-hidden="true" className="size-4" />
-            Coming soon
+            Lessons coming soon
           </span>
         )}
       </span>
@@ -73,7 +84,7 @@ function UnitSummary({ node }: { node: SyllabusReadModelNode }) {
   );
 }
 
-/** the topic's body: its description and subtopics with practice + lesson counts */
+/** the topic's body: its description and its subtopics (names only — the counts are on the topic row) */
 function UnitBody({ node }: { node: SyllabusReadModelNode }) {
   return (
     <div className="flex flex-col gap-2">
@@ -81,18 +92,8 @@ function UnitBody({ node }: { node: SyllabusReadModelNode }) {
       {node.topics.length > 0 && !soleSameNameSubtopic(node) && (
         <ul className="flex flex-col divide-y divide-line" aria-label={`Subtopics in ${node.title}`}>
           {node.topics.map((t) => (
-            <li key={t.topic_id} className="flex flex-col gap-1 py-2 text-body-sm sm:flex-row sm:flex-wrap sm:items-baseline sm:justify-between sm:gap-x-3">
-              <span className="font-medium text-fg">{t.name}</span>
-              <span className="flex flex-wrap gap-x-3 gap-y-1 text-fg-secondary">
-                <span className="inline-flex items-center gap-1">
-                  <ClipboardList aria-hidden="true" className="size-4" />
-                  {t.published_questions > 0 ? plural(t.published_questions, "practice question", "practice questions") : "Questions coming soon"}
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <FileText aria-hidden="true" className="size-4" />
-                  {t.servable_documents > 0 ? plural(t.servable_documents, "lesson", "lessons") : "Lessons coming soon"}
-                </span>
-              </span>
+            <li key={subtopicKey(t)} className="py-2 text-body-sm font-medium text-fg" data-subtopic="">
+              {subtopicLabel(t)}
             </li>
           ))}
         </ul>
@@ -190,7 +191,7 @@ export function ExamSyllabusSection({ syllabus, examTitle }: { syllabus: Syllabu
           id: u.id,
           subjectId: sid,
           name: u.title,
-          terms: sole ? [] : u.topics.map((t) => t.name),
+          terms: sole ? [] : u.topics.map(subtopicLabel),
           summary: <UnitSummary node={u} />,
           body: hasBody ? <UnitBody node={u} /> : undefined,
         });

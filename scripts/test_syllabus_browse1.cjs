@@ -12,9 +12,12 @@
  *        and every body in the HTML (hidden); admin mode (no keepMounted) = only the first subject, no bodies; search
  *        has a label; Expand all / Collapse all; the jump sheet is a native <dialog>; no hash links that change the URL
  *   M-02 the student section: the read model → one tab per SECTION (the paper's title on the page), units as topic rows
- *        with weightage, "N subtopics", "Lessons available" / "Coming soon", subtopic names in the HTML
- *   M-03 dedupe (display only): a topic whose only subtopic has its own name shows just the topic row (practice count
- *        kept); NEGATIVE CONTROLS: a differently named sole subtopic and two same-name subtopics stay listed
+ *        with weightage, "N subtopics" and the topic's practice / lesson counts ONCE; subtopic rows = names only
+ *   M-03 dedupe (display only, by node_name): a topic whose only subtopic has its own name shows just the topic row;
+ *        NEGATIVE CONTROLS: a differently named sole subtopic (whose shared topic `name` DOES equal the title — the old
+ *        bug) and two same-name subtopics stay listed
+ *   M-04 regression (SSC CGL "Statement-Based Reasoning"): subtopic labels come from node_name (the mapped node), not
+ *        `name` (the rolled-up topic every mapping shares) → 3 distinct labels; no node_name → name
  *   S-01 sticky: ONE sticky bar (+ the rail beside it) at top-(--sticky-offset); the token is defined once in globals.css;
  *        the intake guide no longer sticks and the review sets --sticky-offset to minus the pane padding; the cycle page's
  *        quick nav sits under the header and the page offsets the token by its height; jump targets clear the bar
@@ -176,52 +179,71 @@ test('M-01 markup: tabs, panels, toggles with aria-expanded, keepMounted vs lazy
   return `${html.length} chars (keepMounted), ${lazy.length} (lazy)`;
 });
 
-test('M-02 student section: one tab per SECTION, the paper title, units as topic rows (weightage, subtopics, lesson status)', () => {
-  const node = (o) => ({ description: null, order: 0, depth: 1, weightage_tier: null, expected_questions_min: null, expected_questions_max: null, is_mandatory: true, topics: [], counts: { topics: 0, published_questions: 0, servable_documents: 0, topics_with_questions: 0, topics_with_documents: 0 }, slug: o.id, ...o });
-  const topic = (id, name, docs) => ({ topic_id: id, name, slug: id, subject_id: null, weight: null, published_questions: 0, servable_documents: docs });
-  const syllabus = {
-    state: 'AVAILABLE', exam_id: 'e',
-    version: { id: 'v1', version_number: 1, version_tag: 't', exam_cycle_id: null, published_at: '2026-10-29T00:00:00Z' },
-    totals: { nodes: 6, topics: 3, published_questions: 0, servable_documents: 1 },
-    nodes: [
-      node({ id: 'p', parent_id: null, kind: 'PAPER', title: 'Tier 1', order: 1 }),
-      node({ id: 's1', parent_id: 'p', kind: 'SECTION', title: 'Reasoning Section', order: 1, expected_questions_min: 25, expected_questions_max: 25 }),
-      node({ id: 's2', parent_id: 'p', kind: 'SECTION', title: 'Empty Section', order: 2 }),
-      node({ id: 'u1', parent_id: 's1', kind: 'UNIT', title: 'Unit With Lessons', order: 1, weightage_tier: 'HIGH_YIELD', topics: [topic('t1', 'Sub One', 1), topic('t2', 'Sub Two', 0)], counts: { topics: 2, published_questions: 0, servable_documents: 1, topics_with_questions: 0, topics_with_documents: 1 } }),
-      node({ id: 'u2', parent_id: 's1', kind: 'UNIT', title: 'Unit Coming', order: 2, topics: [topic('t3', 'Sub Three', 0)] }),
-    ],
-  };
-  const html = renderToStaticMarkup(h(ExamSyllabusSection, { syllabus, examTitle: 'X' }));
-  for (const s of ['Tier 1', 'Reasoning Section', 'Empty Section', 'Unit With Lessons', 'High yield', '2 subtopics', 'Lessons available', 'Coming soon', 'Sub One', 'Sub Three', '25 questions expected']) assert(html.includes(s), `missing "${s}"`);
+// read-model fixtures as fn_exam_syllabus_read_model returns them: name = the rolled-up TOPIC's name, node_name = the
+// mapped node's own name (SYLLABUS-UI-1: the label)
+const ZERO = { topics: 0, published_questions: 0, servable_documents: 0, topics_with_questions: 0, topics_with_documents: 0 };
+const rmNode = (o) => ({ description: null, order: 0, depth: 1, weightage_tier: null, expected_questions_min: null, expected_questions_max: null, is_mandatory: true, topics: [], counts: ZERO, slug: o.id, ...o });
+const rmTopic = (id, name, nodeName, nodeId = `n-${id}`) => ({ topic_id: id, name, slug: id, subject_id: null, weight: null, published_questions: 0, servable_documents: 0, node_id: nodeId, node_type: 'SUBTOPIC', node_name: nodeName });
+const rmCounts = (q, docs) => ({ ...ZERO, topics: 1, published_questions: q, servable_documents: docs });
+const rmSyllabus = (nodes) => ({
+  state: 'AVAILABLE', exam_id: 'e',
+  version: { id: 'v', version_number: 1, version_tag: 't', exam_cycle_id: null, published_at: '2026-10-29T00:00:00Z' },
+  totals: { nodes: nodes.length, topics: 3, published_questions: 0, servable_documents: 0 },
+  nodes,
+});
+/** the visible text of a topic's body (tags and attributes removed) */
+const bodyText = (row) => { const i = row.indexOf('data-topic-body'); return i < 0 ? '' : row.slice(i, row.indexOf('</ul>', i)).replace(/^[^>]*>/, '').replace(/<[^>]+>/g, ' | '); };
+const rowOf = (html, id, nextId) => html.slice(html.indexOf(`data-topic="${id}"`), nextId ? html.indexOf(`data-topic="${nextId}"`) : undefined);
+
+test('M-02 student section: one tab per SECTION, the paper title, units as topic rows (weightage, subtopics, counts once)', () => {
+  const html = renderToStaticMarkup(h(ExamSyllabusSection, { examTitle: 'X', syllabus: rmSyllabus([
+    rmNode({ id: 'p', parent_id: null, kind: 'PAPER', title: 'Tier 1', order: 1 }),
+    rmNode({ id: 's1', parent_id: 'p', kind: 'SECTION', title: 'Reasoning Section', order: 1, expected_questions_min: 25, expected_questions_max: 25 }),
+    rmNode({ id: 's2', parent_id: 'p', kind: 'SECTION', title: 'Empty Section', order: 2 }),
+    rmNode({ id: 'u1', parent_id: 's1', kind: 'UNIT', title: 'Unit With Lessons', order: 1, weightage_tier: 'HIGH_YIELD', topics: [rmTopic('t1', 'Unit With Lessons', 'Sub One'), rmTopic('t1', 'Unit With Lessons', 'Sub Two')], counts: rmCounts(12, 2) }),
+    rmNode({ id: 'u2', parent_id: 's1', kind: 'UNIT', title: 'Unit Coming', order: 2, topics: [rmTopic('t3', 'Unit Coming', 'Sub Three')] }),
+  ]) }));
+  for (const s of ['Tier 1', 'Reasoning Section', 'Empty Section', 'Unit With Lessons', 'High yield', '2 subtopics', '2 lessons available', '12 practice questions', 'Lessons coming soon', 'Questions coming soon', 'Sub One', 'Sub Two', 'Sub Three', '25 questions expected']) assert(html.includes(s), `missing "${s}"`);
   assert((html.match(/role="tab"/g) || []).length === 2, 'one tab per section (the empty one too)');
   assert(/data-lesson-status="available"/.test(html) && /data-lesson-status="coming-soon"/.test(html), 'lesson status per topic');
+  const u1 = rowOf(html, 'u1', 'u2');
+  assert((u1.match(/12 practice questions/g) || []).length === 1 && (u1.match(/2 lessons available/g) || []).length === 1, 'the topic\'s counts appear ONCE (on the topic row)');
+  const body = bodyText(u1);
+  assert(body.includes('Sub One') && !/practice question|lesson/i.test(body), 'subtopic rows show their name only (no counts)');
   return 'ok';
 });
 
-test('M-03 dedupe (display only): a sole subtopic named like its topic → only the topic row; NEGATIVE CONTROLS stay listed', () => {
-  const zero = { topics: 0, published_questions: 0, servable_documents: 0, topics_with_questions: 0, topics_with_documents: 0 };
-  const node = (o) => ({ description: null, order: 0, depth: 1, weightage_tier: null, expected_questions_min: null, expected_questions_max: null, is_mandatory: true, topics: [], counts: zero, slug: o.id, ...o });
-  const topic = (id, name, q) => ({ topic_id: id, name, slug: id, subject_id: null, weight: null, published_questions: q, servable_documents: 0 });
+test('M-03 dedupe (display only) by node_name: a sole subtopic named like its topic → only the topic row; NEGATIVE CONTROLS stay listed', () => {
   const { soleSameNameSubtopic } = require(path.join(ROOT, 'components/exams/exam-syllabus-section.tsx'));
-  const same = node({ id: 'u1', parent_id: 's', kind: 'UNIT', title: 'Number  Series', order: 1, topics: [topic('t1', 'number series', 7)] });
-  const other = node({ id: 'u2', parent_id: 's', kind: 'UNIT', title: 'Analogy', order: 2, topics: [topic('t2', 'Word Analogy', 0)] });
-  const twice = node({ id: 'u3', parent_id: 's', kind: 'UNIT', title: 'Syllogism', order: 3, topics: [topic('t3', 'Syllogism', 0), topic('t4', 'Syllogism', 0)] });
-  assert(soleSameNameSubtopic(same) && !soleSameNameSubtopic(other) && !soleSameNameSubtopic(twice), 'rule: exactly one subtopic, same name (case / spaces ignored)');
-  const syllabus = {
-    state: 'AVAILABLE', exam_id: 'e',
-    version: { id: 'v', version_number: 1, version_tag: 't', exam_cycle_id: null, published_at: '2026-10-29T00:00:00Z' },
-    totals: { nodes: 4, topics: 4, published_questions: 7, servable_documents: 0 },
-    nodes: [node({ id: 's', parent_id: null, kind: 'SECTION', title: 'Reasoning' }), same, other, twice],
-  };
-  const html = renderToStaticMarkup(h(ExamSyllabusSection, { syllabus, examTitle: 'X' }));
-  const r1 = html.slice(html.indexOf('data-topic="u1"'), html.indexOf('data-topic="u2"'));
-  const r2 = html.slice(html.indexOf('data-topic="u2"'), html.indexOf('data-topic="u3"'));
-  const r3 = html.slice(html.indexOf('data-topic="u3"'));
-  assert(!/<button[^>]*data-topic-toggle/.test(r1) && !/data-topic-body/.test(r1) && !/\d+ subtopics?/.test(r1) && /data-sole-subtopic=""/.test(r1) && /7 practice questions/.test(r1), 'deduped: one row, no toggle / body / "1 subtopic", practice count kept');
+  const same = rmNode({ id: 'u1', parent_id: 's', kind: 'UNIT', title: 'Number  Series', order: 1, topics: [rmTopic('t1', 'Number Series', 'number series')], counts: rmCounts(7, 0) });
+  const other = rmNode({ id: 'u2', parent_id: 's', kind: 'UNIT', title: 'Analogy', order: 2, topics: [rmTopic('t2', 'Analogy', 'Word Analogy')] });
+  const twice = rmNode({ id: 'u3', parent_id: 's', kind: 'UNIT', title: 'Syllogism', order: 3, topics: [rmTopic('t3', 'Syllogism', 'Syllogism', 'n-a'), rmTopic('t3', 'Syllogism', 'Syllogism', 'n-b')] });
+  assert(soleSameNameSubtopic(same) && !soleSameNameSubtopic(other) && !soleSameNameSubtopic(twice), 'rule: exactly one subtopic whose node_name is the topic name (case / spaces ignored)');
+  assert(!soleSameNameSubtopic(other) && other.topics[0].name === other.title, 'NEGATIVE CONTROL (the old bug): the shared topic `name` equals the title, node_name does not → not deduped');
+  const html = renderToStaticMarkup(h(ExamSyllabusSection, { examTitle: 'X', syllabus: rmSyllabus([rmNode({ id: 's', parent_id: null, kind: 'SECTION', title: 'Reasoning' }), same, other, twice]) }));
+  const r1 = rowOf(html, 'u1', 'u2');
+  const r2 = rowOf(html, 'u2', 'u3');
+  const r3 = rowOf(html, 'u3');
+  assert(!/<button[^>]*data-topic-toggle/.test(r1) && !/data-topic-body/.test(r1) && !/\d+ subtopics?/.test(r1) && /data-sole-subtopic=""/.test(r1) && /7 practice questions/.test(r1), 'deduped: one row, no toggle / body / "1 subtopic", practice count on the row');
   assert((r1.match(/number series|Number {2}Series/gi) || []).length === 1, 'the name appears once');
   assert(/<button[^>]*data-topic-toggle/.test(r2) && /Word Analogy/.test(r2) && /1 subtopic/.test(r2), 'NEGATIVE CONTROL: a differently named sole subtopic is still listed');
-  assert(/2 subtopics/.test(r3) && (r3.match(/>Syllogism</g) || []).length >= 2, 'NEGATIVE CONTROL: two same-name subtopics are still listed');
+  assert(/2 subtopics/.test(r3) && (r3.match(/data-subtopic="">Syllogism</g) || []).length === 2, 'NEGATIVE CONTROL: two same-name subtopics are still listed');
   return 'ok';
+});
+
+test('M-04 regression (SSC CGL "Statement-Based Reasoning"): 3 mappings, one topic name, 3 node_names → 3 distinct labels; fallback to name', () => {
+  const { subtopicLabel } = require(path.join(ROOT, 'components/exams/exam-syllabus-section.tsx'));
+  const T = 'Statement-Based Reasoning';
+  const subs = ['Decision Making and Problem Solving', 'Statement and Argument', 'Statement and Conclusion'];
+  const unit = rmNode({ id: 'u1', parent_id: 's', kind: 'UNIT', title: T, order: 1, topics: subs.map((n, i) => rmTopic('t-sbr', T, n, `n-${i}`)) });
+  const html = renderToStaticMarkup(h(ExamSyllabusSection, { examTitle: 'X', syllabus: rmSyllabus([rmNode({ id: 's', parent_id: null, kind: 'SECTION', title: 'Reasoning' }), unit]) }));
+  const labels = [...rowOf(html, 'u1').matchAll(/data-subtopic="">([^<]+)</g)].map((m) => m[1]);
+  assert(JSON.stringify(labels) === JSON.stringify(subs), `rendered labels: ${JSON.stringify(labels)}`);
+  assert(!labels.includes(T), 'NEGATIVE CONTROL: the shared topic name is not a subtopic label');
+  const body = bodyText(rowOf(html, 'u1'));
+  assert(body.includes(subs[0]) && !body.includes(T), 'the topic name is not repeated inside its body');
+  assert(subtopicLabel({ name: 'Fallback', node_name: null }) === 'Fallback' && subtopicLabel({ name: 'Fallback', node_name: '  ' }) === 'Fallback', 'no node_name → name');
+  return labels.join(' · ');
 });
 
 test('S-01 sticky: one bar + rail at the token; token defined once; intake guide not sticky; cycle quick nav offset; jump margin', () => {

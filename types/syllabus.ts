@@ -93,8 +93,15 @@ export interface SyllabusTopicOption {
 
 // ---------------------------------------------------------------- student read model (fn_exam_syllabus_read_model)
 export interface SyllabusReadModelTopic {
+  /** the rolled-up TOPIC the mapping counts under (questions / lessons are tagged here) */
   topic_id: string;
+  /** that TOPIC's name — NOT the mapped node's (SYLLABUS-UI-1: a unit's subtopics all share it) */
   name: string;
+  /** SYLLABUS-UI-1: the node the unit actually maps (TOPIC / SUBTOPIC / CONCEPT) — returned by the read model since
+   * CA-2 (migration 116) but not typed until now; node_name is the label to show */
+  node_id?: string | null;
+  node_type?: string | null;
+  node_name?: string | null;
   slug: string;
   subject_id: string | null;
   weight: number | null;
