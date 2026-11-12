@@ -1,5 +1,6 @@
 "use client";
 
+import { AuthConsentLine } from "@/components/legal/consent-lines";
 import React, { useActionState } from "react";
 import Link from "next/link";
 import { signupAction } from "@/app/(site)/auth/actions";
@@ -76,6 +77,8 @@ export function SignupForm({ captcha = null, ageGate = false }: { captcha?: Capt
               </label>
             )}
             {captcha && <TurnstileWidget siteKey={captcha.siteKey} action="signup" resetKey={state} />}
+            {/* LEGAL-PAGES-1: before the sign-up button */}
+            <AuthConsentLine />
             <Button
               type="submit"
               variant="default"

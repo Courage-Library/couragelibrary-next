@@ -284,7 +284,9 @@ const paidEvent = (paymentId = 'pay_TESTA1', event = 'payment.captured') =>
     const proIdx = pc.indexOf('return <ProPricingView');
     assert(offIdx > 0 && proIdx > offIdx, 'OFF view returns first');
     const view = code(pc.slice(pc.indexOf('function ProPricingView('), pc.indexOf('// Features a free account can use today.')));
-    for (const must of ['One-time payment. No auto-renew.', 'href={legal.terms}', 'href={legal.refund}', 'href={legal.privacy}', 'data-pro-summary', 'until {formatDateShort(end)}']) assert(view.includes(must), `missing: ${must}`);
+    // LEGAL-PAGES-1: the consent line (Terms, Privacy Policy, Refund Policy links) is PaymentConsentLine, before the Pay action
+    for (const must of ['One-time payment. No auto-renew.', '<PaymentConsentLine hrefs={legal}>', 'data-pro-summary', 'until {formatDateShort(end)}']) assert(view.includes(must), `missing: ${must}`);
+    assert(view.indexOf('<PaymentConsentLine hrefs={legal}>') < view.indexOf('{action}'), 'consent line before the Pay action');
     const ret = view.slice(view.lastIndexOf('  return ('));
     assert(ret.indexOf('data-pro-summary') > 0 && ret.indexOf('data-pro-summary') < ret.indexOf('{action}'), 'total + dates rendered before the Pay action');
     const banned = [/line-through/, /\bline-through\b|<s>|<del>/, /defaultChecked/, /countdown|setInterval/i, /hurry|limited time|only \d+ left|left at this price|most popular|ends soon|last chance/i, /\+\s*18%\s*GST/];

@@ -2,9 +2,11 @@
 /**
  * F11 (#79) — support: help centre + grievance redressal (static part). Offline gate (TS transpile + static render):
  *   SP-01 help centre renders every topic; every link points to an existing route; no promise of unbuilt features
- *   SP-02 grievance: the approved Grievance Officer details + response times render from ONE source (content/support.ts)
+ *   SP-02 grievance: the approved Grievance Officer details + response times render on /contact (LEGAL-PAGES-1: the
+ *         owner-approved Contact Us & Grievance text, section 5.1; /grievance redirects there); the app's other copies
+ *         come from ONE source (content/support.ts)
  *         on /grievance and the /help footer; no placeholder left; the online ticket only while the form is on
- *   SP-03 footer + sitemap list /help and /grievance; English UI; 48 px links
+ *   SP-03 footer + sitemap list /help and /contact (Contact & Grievance); English UI; 48 px links
  * Run: node scripts/test_f11_support.cjs
  */
 const fs = require('fs');
@@ -77,7 +79,7 @@ const text = (html) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
     const all = JSON.stringify(S.HELP_PAGE);
     assert(!/Memory Lock|coins|rank|percentile|24\/7|instant|guarantee|AI tutor|live chat|call us/i.test(all), 'help promises something not built');
     assert(/Paid plans are not available yet/.test(all), 'payments described as they are (off)');
-    assert(html.includes(`mailto:${S.SUPPORT_EMAIL}`) && html.includes('href="/grievance"'), 'contact + grievance links');
+    assert(html.includes(`mailto:${S.SUPPORT_EMAIL}`) && html.includes('href="/contact#grievance-officer"'), 'contact + grievance links');
     return `${S.HELP_PAGE.topics.length} topics`;
   });
 
@@ -88,22 +90,20 @@ const text = (html) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
     const TEL = `tel:${want.phone.replace(/[^+\d]/g, '')}`; // derived from the single source, never retyped
     assert(S.GRIEVANCE_PHONE_HREF === TEL && /^tel:\+91\d{10}$/.test(TEL), S.GRIEVANCE_PHONE_HREF);
     assert(/24 hours/.test(S.GRIEVANCE_TIMELINES.acknowledge) && /15 days/.test(S.GRIEVANCE_TIMELINES.resolve), 'timelines');
-    const { default: GrievancePage } = require(path.join(ROOT, 'app/(site)/grievance/page.tsx'));
-    for (const on of [false, true]) {
-      if (on) process.env.SUPPORT_TICKETS_ENABLED = 'true'; else delete process.env.SUPPORT_TICKETS_ENABLED;
-      const html = renderToStaticMarkup(h(GrievancePage));
-      const t = text(html);
-      for (const v of Object.values(want)) assert(t.includes(v.replace(/&/g, '&')) || html.includes(v.replace(/&/g, '&amp;')), `grievance page misses "${v}"`);
-      assert(html.includes('href="mailto:support@couragelibrary.in?subject=Grievance"') && html.includes(`href="${TEL}"`), 'mailto + tel links');
-      assert(t.includes('Acknowledgement within 24 hours.') && t.includes('Resolution within 15 days.'), 'timelines render');
-      assert(on ? t.includes('Raise a ticket online (fastest). Email/phone also accepted.') && html.includes('href="/help/tickets/new"') : !html.includes('/help/tickets/new'), `ticket channel only when the ticket form is on (${on})`);
-    }
-    delete process.env.SUPPORT_TICKETS_ENABLED;
+    // LEGAL-PAGES-1: the officer and the response times are on /contact (approved text, 5.1 / 5.2); /grievance → 308 there
+    assert(!fs.existsSync(path.join(ROOT, 'app/(site)/grievance/page.tsx')) && /source: "\/grievance", destination: "\/contact#grievance-officer", permanent: true/.test(read('next.config.ts')), '/grievance redirect');
+    const { default: ContactPage } = require(path.join(ROOT, 'app/(site)/contact/page.tsx'));
+    const html = renderToStaticMarkup(h(ContactPage));
+    const t = text(html);
+    for (const v of Object.values(want)) assert(t.includes(v) || html.includes(v.replace(/&/g, '&amp;')), `contact page misses "${v}"`);
+    assert(html.includes('href="mailto:support@couragelibrary.in?subject=Grievance"') && html.includes(`href="${TEL}"`), 'mailto (subject Grievance) + tel links');
+    assert(/24 hours/.test(t) && /15 days/.test(t) && /id="grievance-officer"/.test(html), 'timelines + 5.1 anchor render');
     // no placeholder anywhere (content, pages, gate-visible copy)
-    for (const f of ['content/support.ts', 'app/(site)/grievance/page.tsx', 'app/(site)/help/page.tsx']) assert(!/will be published|Until then|OWNER: fill|officerPending|grievanceOfficerReady|placeholder|: null,/i.test(read(f)), `${f}: placeholder left`);
+    for (const f of ['content/support.ts', 'app/(site)/contact/page.tsx', 'app/(site)/help/page.tsx']) assert(!/will be published|Until then|OWNER: fill|officerPending|grievanceOfficerReady|placeholder|: null,/i.test(read(f)), `${f}: placeholder left`);
     // single source: the officer values are typed only in content/support.ts
     const walk = (d) => fs.readdirSync(path.join(ROOT, d), { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(`${d}/${e.name}`) : /\.(tsx?)$/.test(e.name) ? [`${d}/${e.name}`] : []));
-    const dup = ['app', 'components', 'content', 'lib'].flatMap(walk).filter((f) => f !== 'content/support.ts' && /83606 03173|Bus Stop Ramaipur|Founder & Grievance Officer/.test(read(f)));
+    // (content/legal/legal-pages.ts is the owner-approved legal text, generated verbatim from docs/legal — not app copy)
+    const dup = ['app', 'components', 'content', 'lib'].flatMap(walk).filter((f) => f !== 'content/support.ts' && f !== 'content/legal/legal-pages.ts' && /83606 03173|Bus Stop Ramaipur|Founder & Grievance Officer/.test(read(f)));
     assert(dup.length === 0, `officer details duplicated in ${dup.join(', ')}`);
     // /help footer shows them from the same source
     const { default: HelpPage } = require(path.join(ROOT, 'app/(site)/help/page.tsx'));
@@ -113,9 +113,9 @@ const text = (html) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
 
   await test('SP-03 footer + sitemap; 48 px links; English UI', () => {
     const pp = read('content/public-pages.ts');
-    assert(/\{ href: "\/help", label: "Help" \}/.test(pp) && /\{ href: "\/grievance", label: "Grievance redressal" \}/.test(pp), 'footer links');
-    assert(/"\/help", "\/grievance"/.test(read('app/sitemap.ts')), 'sitemap');
-    for (const f of ['app/(site)/help/page.tsx', 'app/(site)/grievance/page.tsx']) {
+    assert(/\{ href: "\/help", label: "Help" \}/.test(pp) && /\{ href: "\/contact", label: "Contact & Grievance" \}/.test(pp), 'footer links');
+    assert(/"\/help",[^\]]*"\/contact"/.test(read('app/sitemap.ts')), 'sitemap');
+    for (const f of ['app/(site)/help/page.tsx', 'components/legal/legal-document.tsx']) {
       const s = read(f);
       const links = (s.match(/<(?:Link|a)\b[^>]*className="[^"]*"/g) || []).filter((l) => !/mailto:\$\{SUPPORT_EMAIL\}\?subject/.test(l));
       assert(links.every((l) => /min-h-12|inline/.test(l) || /focus-ring/.test(l)), `${f}: link targets`);

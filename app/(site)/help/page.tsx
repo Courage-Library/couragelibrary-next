@@ -5,6 +5,7 @@ import { Accordion } from "@/components/ui/accordion";
 import { Card, CardTitle } from "@/components/ui/card";
 import { PublicPageHeader } from "@/components/public/public-page";
 import { Container, Section } from "@/components/ui/layout";
+import { GRIEVANCE_ANCHOR_HREF } from "@/content/legal";
 import { GRIEVANCE_OFFICER, GRIEVANCE_PHONE_HREF, GRIEVANCE_TIMELINES, HELP_PAGE, SUPPORT_EMAIL } from "@/content/support";
 import { constructMetadata } from "@/lib/seo/metadata";
 import { isSupportTicketsEnabled } from "@/lib/support/tickets";
@@ -56,7 +57,7 @@ export default function HelpPage() {
             <a href={`mailto:${SUPPORT_EMAIL}`} className="focus-ring inline-flex min-h-12 w-fit items-center text-body-lg font-semibold text-link underline underline-offset-2">
               {SUPPORT_EMAIL}
             </a>
-            <Link href="/grievance" className="focus-ring inline-flex min-h-12 w-fit items-center text-body-sm font-medium text-link underline underline-offset-2">
+            <Link href={GRIEVANCE_ANCHOR_HREF} className="focus-ring inline-flex min-h-12 w-fit items-center text-body-sm font-medium text-link underline underline-offset-2">
               {HELP_PAGE.grievanceLink}
             </Link>
             <p className="text-body-sm text-fg-secondary" data-help-grievance-officer="">

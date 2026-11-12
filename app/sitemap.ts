@@ -50,7 +50,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.7,
     },
     // UX-2b public pages (indexable). Coming-soon exam hubs are noindex and never listed (only active exams below).
-    ...["/pricing", "/about", "/cnts", "/contact", "/help", "/grievance", "/privacy", "/terms"].map((p) => ({
+    ...["/pricing", "/about", "/cnts", "/help", "/terms", "/privacy", "/refund-policy", "/shipping-policy", "/contact"].map((p) => ({
       url: `${baseUrl}${p}`,
       lastModified: new Date(),
       changeFrequency: "monthly" as const,

@@ -12,6 +12,7 @@ import { Card, CardHeader, CardDescription, CardContent, CardFooter } from "@/co
 import { Alert } from "@/components/ui/alert";
 import { BrandLogo } from "@/components/brand/logo";
 import { GoogleSignInButton } from "@/components/auth/google-signin-button";
+import { AuthConsentLine } from "@/components/legal/consent-lines";
 import { TurnstileWidget } from "@/components/auth/turnstile-widget";
 import type { CaptchaConfig } from "@/lib/auth/captcha";
 
@@ -60,6 +61,8 @@ export function LoginForm({ google, captcha = null, signupOpen = false }: { goog
             {state.error}
           </Alert>
         )}
+        {/* LEGAL-PAGES-1: before any continue button (Google or email) */}
+        <AuthConsentLine />
         {google && (
           <>
             <GoogleSignInButton

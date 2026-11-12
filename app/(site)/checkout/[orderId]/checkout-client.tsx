@@ -1,5 +1,6 @@
 "use client";
 
+import { PaymentConsentLine } from "@/components/legal/consent-lines";
 import React, { useState } from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/legacy/card";
@@ -126,6 +127,9 @@ export function CheckoutClient({ order }: CheckoutClientProps) {
               </div>
             </div>
           </div>
+
+          {/* LEGAL-PAGES-1: the consent line comes BEFORE the pay button */}
+          <PaymentConsentLine className="pt-2" />
 
           {/* Actions */}
           <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">

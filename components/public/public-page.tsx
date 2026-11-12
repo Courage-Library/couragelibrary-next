@@ -4,12 +4,10 @@
  * Copy comes from content/public-pages.ts.
  */
 import type { ReactNode } from "react";
-import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Breadcrumb, type BreadcrumbItem } from "@/components/ui/breadcrumb";
 import { Container, Section } from "@/components/ui/layout";
 import { siteConfig } from "@/config/site";
-import { LEGAL_DRAFT_NOTICE, type LegalSection } from "@/content/public-pages";
 
 export function PublicPageHeader({
   title,
@@ -49,40 +47,5 @@ export function PublicSection({ id, title, children, width = "default", sunken =
         {children}
       </Container>
     </Section>
-  );
-}
-
-/** Privacy / terms: always carries the visible draft notice until the owner / a lawyer approves (UX-2b). */
-export function LegalPage({ title, sections, crumb }: { title: string; sections: LegalSection[]; crumb: BreadcrumbItem }) {
-  return (
-    <>
-      <PublicPageHeader title={title} crumbs={[crumb]} width="reading" />
-      <Section spacing="compact">
-        <Container size="reading" className="flex flex-col gap-8">
-          <Alert tone="warning" title={LEGAL_DRAFT_NOTICE.title} data-legal-draft="">
-            {LEGAL_DRAFT_NOTICE.text}
-          </Alert>
-          {sections.map((s, i) => (
-            <section key={s.heading} aria-labelledby={`legal-${i}`} className="flex flex-col gap-3">
-              <h2 id={`legal-${i}`} className="text-h3 font-semibold text-fg">
-                {s.heading}
-              </h2>
-              {s.items && (
-                <ul className="flex list-disc flex-col gap-2 pl-5 text-body text-fg-secondary">
-                  {s.items.map((it) => (
-                    <li key={it}>{it}</li>
-                  ))}
-                </ul>
-              )}
-              {s.paragraphs?.map((p) => (
-                <p key={p} className="text-body text-fg-secondary">
-                  {p}
-                </p>
-              ))}
-            </section>
-          ))}
-        </Container>
-      </Section>
-    </>
   );
 }

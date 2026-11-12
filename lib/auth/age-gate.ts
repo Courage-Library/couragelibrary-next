@@ -48,7 +48,7 @@ export function userNeedsAgeConfirmation(user: { app_metadata?: Record<string, u
   return !!user && !hasAgeConfirmation(user.app_metadata);
 }
 
-const EXEMPT_EXACT = new Set([AGE_CONFIRM_PATH, "/", "/privacy", "/terms", "/contact", "/grievance", "/help", "/about", "/pricing", "/robots.txt", "/sitemap.xml", "/manifest.webmanifest"]);
+const EXEMPT_EXACT = new Set([AGE_CONFIRM_PATH, "/", "/privacy", "/terms", "/refund-policy", "/shipping-policy", "/contact", "/grievance", "/help", "/about", "/pricing", "/robots.txt", "/sitemap.xml", "/manifest.webmanifest"]);
 const EXEMPT_PREFIXES = ["/auth/", "/api/", "/_next/", "/images/", "/email/"];
 
 /** Paths a signed-in, unconfirmed user may still open (confirm page, auth incl. sign-out, APIs, public legal pages). */
