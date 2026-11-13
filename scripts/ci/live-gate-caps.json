@@ -245,6 +245,10 @@
     "EXAM-LOGO-1-LIVE": {
       "measured": 60,
       "cap": 300
+    },
+    "SYLLABUS-MAP-B1-LIVE": {
+      "measured": 35,
+      "cap": 240
     }
   }
 }
