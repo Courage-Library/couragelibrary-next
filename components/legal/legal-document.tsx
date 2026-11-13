@@ -8,7 +8,7 @@ import { Fragment } from "react";
 import { PublicPageHeader } from "@/components/public/public-page";
 import { Container, Section } from "@/components/ui/layout";
 import { TextLink } from "@/components/ui/link";
-import { LEGAL_LAST_UPDATED, legalTextPage, visibleLegalSections, type LegalPageDef } from "@/content/legal";
+import { LEGAL_LAST_UPDATED, LEGAL_LAST_UPDATED_TEXT, legalTextPage, visibleLegalSections, type LegalPageDef } from "@/content/legal";
 import type { LegalBlock } from "@/content/legal/types";
 import { legalInline, type LegalInline } from "@/lib/legal/inline";
 
@@ -104,7 +104,7 @@ export function LegalDocument({ def, coins }: { def: LegalPageDef; coins: boolea
           <div className="flex flex-col gap-4">
             {page.lastUpdated && (
               <p className="text-body text-fg-secondary" data-legal-last-updated="">
-                <strong className="font-semibold text-fg">Last updated:</strong> {LEGAL_LAST_UPDATED}
+                <strong className="font-semibold text-fg">Last updated:</strong> <time dateTime={LEGAL_LAST_UPDATED}>{LEGAL_LAST_UPDATED_TEXT}</time>
               </p>
             )}
             <Blocks blocks={page.intro} route={def.route} />

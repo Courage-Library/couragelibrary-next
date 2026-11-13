@@ -4,7 +4,8 @@
  * VERBATIM; every required link and consent line is in place. Pages are rendered to HTML in Node (no server, no DB).
  *   LP-01 content/legal/legal-pages.ts is the generator's output for the current .md (no hand edit, no drift)
  *   LP-02 each route (/terms /privacy /refund-policy /shipping-policy /contact) renders: one h1 = the page title, the
- *         "Last updated" line from LEGAL_LAST_UPDATED, metadata title / description / canonical
+ *         "Last updated" line (LEGAL_LAST_UPDATED shown as "13 November 2026", <time dateTime>), metadata title / description /
+ *         canonical
  *   LP-03 verbatim: every paragraph, list item and table cell of the .md appears in the rendered text (whitespace only
  *         normalised); negative control: one changed word in the rendered text fails the same check
  *   LP-04 Coins: flag OFF → no "1.5 Coins" heading and no "Coins are loyalty points"; ON → both present; 1.6+ keep
@@ -13,8 +14,9 @@
  *   LP-06 footer legal row = the five links; consent lines (exact words + links) on sign-in, sign-up, pricing and
  *         checkout, each BEFORE its button
  *   LP-07 sitemap lists the five; robots does not block them; canonical = https://couragelibrary.in/<route>
- *   LP-08 no "[", "]" or "{{" left in any rendered page; the LEGAL_LAST_UPDATED placeholder is reported as a RELEASE
- *         REMINDER (not a failure)
+ *   LP-08 no "[", "]" or "{{" left in any rendered page; LEGAL_LAST_UPDATED is a REAL ISO date (hard check since
+ *         2026-11-13: no "XX" placeholder) shown as "D Month YYYY" on all five; NEGATIVE CONTROLS: "2026-XX-XX" and
+ *         "2026-02-30" are refused
  *   LP-09 links: the Google policy link is external (rel noopener noreferrer, new tab); support email → mailto; phone →
  *         tel; cross-links to the other policies; a page never links to itself
  *   LP-10 Account settings has the interim "Delete account" mailto entry (no DB); no new dependency; no analytics
@@ -112,7 +114,7 @@ const missing = (page, text, coins) => pageTexts(page, { coins }).map(norm).filt
       const { html, text, metadata } = render(file, false);
       const h1s = html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/g) || [];
       assert(h1s.length === 1 && textOf(h1s[0]) === pageByNum(num).title, `${route}: h1 ${JSON.stringify(h1s.map(textOf))}`);
-      assert(text.includes(`Last updated: ${L.LEGAL_LAST_UPDATED}`) && /data-legal-last-updated/.test(html), `${route}: Last updated`);
+      assert(text.includes(`Last updated: ${L.LEGAL_LAST_UPDATED_TEXT}`) && html.includes(`<time dateTime="${L.LEGAL_LAST_UPDATED}">${L.LEGAL_LAST_UPDATED_TEXT}</time>`) && /data-legal-last-updated/.test(html), `${route}: Last updated`);
       const def = L.legalPageDef(route);
       assert(metadata && metadata.title && String(JSON.stringify(metadata.title)).includes(def.meta.title) && metadata.description === def.meta.description, `${route}: metadata ${JSON.stringify(metadata && metadata.title)}`);
       assert(metadata.alternates && metadata.alternates.canonical === `${siteConfig.url}${route}`, `${route}: canonical ${JSON.stringify(metadata.alternates)}`);
@@ -193,13 +195,22 @@ const missing = (page, text, coins) => pageTexts(page, { coins }).map(norm).filt
     for (const route of ['/refund-policy', '/shipping-policy']) assert(read('lib/auth/age-gate.ts').includes(`"${route}"`), `age gate exempts ${route}`);
   });
 
-  await test('LP-08 no "[", "]" or "{{" left in any rendered page; LEGAL_LAST_UPDATED placeholder reported', () => {
+  await test('LP-08 no "[", "]" or "{{" left in any rendered page; LEGAL_LAST_UPDATED is a real date (no "XX"), shown as "D Month YYYY"', () => {
     for (const [route, file] of ROUTES)
       for (const coins of [false, true]) {
         const { text } = render(file, coins);
         assert(!/[[\]]|\{\{|\}\}/.test(text), `${route}: placeholder bracket left: ${(text.match(/.{0,30}(?:[[\]]|\{\{|\}\}).{0,30}/) || [''])[0]}`);
+        assert(!/Last updated:.{0,20}X{2}/.test(text), `${route}: "XX" in the Last updated date`);
       }
-    if (L.LEGAL_LAST_UPDATED === L.LEGAL_LAST_UPDATED_PLACEHOLDER) notes.push(`RELEASE REMINDER: LEGAL_LAST_UPDATED is still the placeholder "${L.LEGAL_LAST_UPDATED}" (content/legal/index.ts) — the owner sets the real date before the release`);
+    // owner 2026-11-13: the reminder became a HARD check — a real ISO date, never the "2026-XX-XX" placeholder
+    assert(/^\d{4}-\d{2}-\d{2}$/.test(L.LEGAL_LAST_UPDATED) && !/X/i.test(L.LEGAL_LAST_UPDATED), `LEGAL_LAST_UPDATED is not an ISO date: "${L.LEGAL_LAST_UPDATED}"`);
+    assert(/^\d{1,2} (January|February|March|April|May|June|July|August|September|October|November|December) \d{4}$/.test(L.LEGAL_LAST_UPDATED_TEXT), `shown as "${L.LEGAL_LAST_UPDATED_TEXT}"`);
+    assert(L.formatLegalDate('2026-11-13') === '13 November 2026' && L.formatLegalDate('2027-01-05') === '5 January 2027', 'format');
+    for (const badDate of ['2026-XX-XX', '2026-02-30', '13 November 2026', '']) {
+      let threw = false;
+      try { L.formatLegalDate(badDate); } catch { threw = true; }
+      assert(threw, `NEGATIVE CONTROL: "${badDate}" must be refused`);
+    }
   });
 
   await test('LP-09 links: external Google policy (noopener noreferrer); mailto; tel; cross-links; never a self-link', () => {

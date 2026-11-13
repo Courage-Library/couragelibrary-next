@@ -7,11 +7,24 @@ import type { LegalTextPage, LegalTextSection } from "@/content/legal/types";
 import { LEGAL_TEXT_PAGES } from "@/content/legal/legal-pages";
 
 /**
- * "{{LAST_UPDATED}}" on every legal page. RELEASE REMINDER (owner): set the real date (e.g. "12 November 2026") before
- * the release; the gate LEGAL-PAGES-1 reports the placeholder as an open release item.
+ * "{{LAST_UPDATED}}" on every legal page (owner 2026-11-13): an ISO date (YYYY-MM-DD), shown as "13 November 2026".
+ * The gate LEGAL-PAGES-1 (LP-08) fails on anything that is not a real ISO date — no "XX" placeholder ships again.
  */
-export const LEGAL_LAST_UPDATED = "2026-XX-XX";
-export const LEGAL_LAST_UPDATED_PLACEHOLDER = "2026-XX-XX";
+export const LEGAL_LAST_UPDATED = "2026-11-13";
+
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+/** "2026-11-13" → "13 November 2026"; fixed month names (no locale / timezone); throws on anything else (fails the build). */
+export function formatLegalDate(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  const [y, mo, d] = m ? [Number(m[1]), Number(m[2]), Number(m[3])] : [0, 0, 0];
+  const real = m && mo >= 1 && mo <= 12 && d >= 1 && d <= new Date(Date.UTC(y, mo, 0)).getUTCDate();
+  if (!real) throw new Error(`LEGAL_LAST_UPDATED must be a real ISO date (YYYY-MM-DD), got "${iso}"`);
+  return `${d} ${MONTHS[mo - 1]} ${y}`;
+}
+
+/** what every legal page shows after "Last updated:" */
+export const LEGAL_LAST_UPDATED_TEXT = formatLegalDate(LEGAL_LAST_UPDATED);
 
 export type LegalRoute = "/terms" | "/privacy" | "/refund-policy" | "/shipping-policy" | "/contact";
 
