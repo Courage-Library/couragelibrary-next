@@ -60,12 +60,28 @@ node scripts/db/local-pg.cjs apply --file=supabase/migrations/<new>.sql
 node scripts/live/test_<gate>.cjs --local=54329        # the migration's DB gate, as the real (stub) roles, rolled back
 node scripts/db/local-pg.cjs apply --file=supabase/migrations/<new>.sql   # re-run: must be REFUSED by its preflight
 node scripts/db/local-pg.cjs counts --extra=<new tables> --compare=$TEMP/before.json --applied=<new>.sql   # BEFORE columns; its own ledger row left out
+
+# rollback round trip (before every release)
+node scripts/db/local-pg.cjs rollback --file=supabase/migrations/<new>.sql   # rollback file; ledger row → FAILED (092 precedent)
+node scripts/db/local-pg.cjs counts --extra=<new tables> --compare=$TEMP/before.json --applied=<new>.sql --strict   # nothing of <new> left
+node scripts/db/local-pg.cjs apply --file=supabase/migrations/<new>.sql       # must succeed again (FAILED → APPLIED, like the runner)
+node scripts/live/test_<gate>.cjs --local=54329
+
+# negative controls: a deliberately broken COPY of the migration (scratch file, never in the repo) must FAIL its check
+node scripts/db/local-pg.cjs rollback --file=supabase/migrations/<new>.sql
+node scripts/db/local-pg.cjs apply --file=supabase/migrations/<new>.sql --variant=<scratch>/neg_<check>.sql
+node scripts/live/test_<gate>.cjs --local=54329        # expect FAIL on exactly that check
 node scripts/db/local-pg.cjs down --dir=$DIR
 ```
 
 **Pass** means all of these hold:
 - The gate reports ALL PASS.
 - The re-run is refused by the migration's preflight, with nothing changed.
+- The rollback round trip works:
+  - after the rollback, the `--strict` compare says "existing data unchanged", with no table, column or function of the migration left; the ledger row is `FAILED` with a note;
+  - the next apply succeeds;
+  - the gate passes again.
+- Every negative control fails its target check and no other.
 - `--compare` lists only the expected differences:
   - the ledger's own row for the new migration (`applied_by_tool = local-pg`) is left out of the ledger hash by `--applied`, so the ledger must compare unchanged;
   - new tables (empty);

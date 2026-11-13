@@ -8,14 +8,18 @@
  *           grants — no rows); then load the DATA of the listed NON-PERSONAL tables only (default below) with triggers
  *           and FKs off (session_replication_role = replica). Restore failures are reported, never patched.
  *   apply   run ONE migration file the way the runner does: one transaction, the file + its ledger row (APPLIED,
- *           checksum = sha256 of the LF-normalised file, applied_by_tool "local-pg"); an error rolls everything back
+ *           checksum = sha256 of the LF-normalised file, applied_by_tool "local-pg"); an error rolls everything back;
+ *           a FAILED row (after a rollback) may be applied again; --variant=<scratch.sql> for LOCAL negative controls
+ *   rollback run docs/database/rollback/<n>_rollback.sql in one transaction; the ledger row → FAILED with a note
  *   counts  row count + md5 per table (DEFAULT_TABLES + --extra=a,b) — hashes only, never row data; --compare=<before>
- *           hashes over the BEFORE columns and lists differences; --applied=<file> leaves that migration's ledger row out
+ *           hashes over the BEFORE columns and lists differences; --applied=<file> leaves that migration's ledger row out;
+ *           --strict also fails on a new table / column (e.g. one a rollback left behind)
  *   down    stop the server and delete --dir (the data folder); the binaries stay
  * Never connects anywhere but 127.0.0.1; reads the backup files only. --dir must be outside the repo.
  * Usage:
  *   node scripts/db/local-pg.cjs up     --dir=<data dir> [--port=54329] [--backup=<…-resilient dir>] [--bin=<pg bin>]
- *   node scripts/db/local-pg.cjs apply  --file=supabase/migrations/<file>.sql [--port=54329]
+ *   node scripts/db/local-pg.cjs apply  --file=supabase/migrations/<file>.sql [--port=54329] [--variant=<scratch.sql>]
+ *   node scripts/db/local-pg.cjs rollback --file=supabase/migrations/<file>.sql [--port=54329]
  *   node scripts/db/local-pg.cjs counts [--port=54329] [--extra=t1,t2] [--out=<file.json>] [--compare=<before.json>] [--applied=<file>.sql]
  *   node scripts/db/local-pg.cjs down   --dir=<data dir> [--bin=<pg bin>]
  */
@@ -121,22 +125,70 @@ async function up() {
   for (const [k, n] of [...kinds.entries()].sort((a, b) => b[1] - a[1]).slice(0, 15)) console.log(`    ${n} × ${k}`);
 }
 
-async function apply() {
+const migrationArg = () => {
   const file = arg('file');
   if (!file || !/^supabase\/migrations\/\d{14}_[a-z0-9_]+\.sql$/.test(file)) fail('--file=supabase/migrations/<file>.sql');
-  const sql = fs.readFileSync(path.join(ROOT, file), 'utf8');
+  return file;
+};
+
+/**
+ * The runner's ledger rule (scripts/db/apply-migration.cjs): refused when the file is APPLIED / BASELINED /
+ * SUPERSEDED_NOT_APPLIED; a FAILED row (e.g. after a rollback) becomes APPLIED again (upsert WHERE status = 'FAILED').
+ * --variant=<path> (LOCAL negative controls only): run that SQL instead of the file, recorded under the file's name.
+ */
+async function apply() {
+  const file = migrationArg();
+  const variant = arg('variant');
+  if (variant && path.resolve(variant).toLowerCase().startsWith(ROOT.toLowerCase())) fail('--variant must be a scratch file outside the repository');
+  const sql = fs.readFileSync(variant || path.join(ROOT, file), 'utf8');
   const name = path.basename(file);
   const c = local();
   await c.connect();
   try {
     await safeBegin(c); // the shared helper (LIVE-LOCK-SAFETY timeouts), as for every script
+    const row = (await c.query(`SELECT status FROM public.schema_migration_ledger WHERE filename = $1`, [name])).rows[0];
+    if (row && row.status !== 'FAILED') throw Object.assign(new Error(`${name} is already ${row.status} in schema_migration_ledger`), { code: 'LEDGER' });
     await c.query(sql);
-    await c.query(`INSERT INTO public.schema_migration_ledger (filename, checksum_sha256, status, applied_at, applied_by_tool, notes) VALUES ($1, $2, 'APPLIED', now(), 'local-pg', 'LOCAL TEST ONLY')`, [name, fileChecksum(path.join(ROOT, file))]);
+    await c.query(
+      `INSERT INTO public.schema_migration_ledger (filename, checksum_sha256, status, applied_at, applied_by_tool, notes) VALUES ($1, $2, 'APPLIED', now(), 'local-pg', $3)
+       ON CONFLICT (filename) DO UPDATE SET checksum_sha256 = EXCLUDED.checksum_sha256, status = 'APPLIED', applied_at = EXCLUDED.applied_at,
+         applied_by_tool = EXCLUDED.applied_by_tool, notes = EXCLUDED.notes WHERE public.schema_migration_ledger.status = 'FAILED'`,
+      [name, fileChecksum(path.join(ROOT, file)), variant ? `LOCAL TEST ONLY — VARIANT ${path.basename(variant)}` : 'LOCAL TEST ONLY'],
+    );
     await c.query('COMMIT');
-    console.log(`LOCAL-PG apply: ${name} APPLIED (local only)`);
+    console.log(`LOCAL-PG apply: ${name}${variant ? ` (VARIANT ${path.basename(variant)})` : ''} APPLIED (local only)${row ? ' — was FAILED' : ''}`);
   } catch (e) {
     await c.query('ROLLBACK').catch(() => {});
     console.log(`LOCAL-PG apply: ${name} REFUSED, rolled back — ${e.code || ''} ${String(e.message).slice(0, 200)}`);
+    process.exitCode = 1;
+  } finally {
+    await c.end();
+  }
+}
+
+/**
+ * Run a migration's rollback file (docs/database/rollback/<n>_rollback.sql) in ONE transaction and record it the way
+ * the runbook did for 092: the ledger row stays and becomes FAILED with a note (history kept; a new apply is allowed).
+ */
+async function rollback() {
+  const file = migrationArg();
+  const name = path.basename(file);
+  const n = String(Number(name.slice(8, 14))).padStart(3, '0'); // 098_rollback.sql, 138_rollback.sql
+  const rb = path.join(ROOT, 'docs/database/rollback', `${n}_rollback.sql`);
+  if (!fs.existsSync(rb)) fail(`no rollback file ${path.relative(ROOT, rb)}`);
+  const c = local();
+  await c.connect();
+  try {
+    await safeBegin(c);
+    const row = (await c.query(`SELECT status FROM public.schema_migration_ledger WHERE filename = $1`, [name])).rows[0];
+    if (!row || row.status !== 'APPLIED') throw Object.assign(new Error(`${name} is not APPLIED (${row ? row.status : 'no ledger row'})`), { code: 'LEDGER' });
+    await c.query(fs.readFileSync(rb, 'utf8'));
+    await c.query(`UPDATE public.schema_migration_ledger SET status = 'FAILED', notes = $2 WHERE filename = $1`, [name, `LOCAL TEST ONLY — rolled back with ${path.basename(rb)}`]);
+    await c.query('COMMIT');
+    console.log(`LOCAL-PG rollback: ${name} rolled back with ${path.basename(rb)}; ledger row → FAILED (local only)`);
+  } catch (e) {
+    await c.query('ROLLBACK').catch(() => {});
+    console.log(`LOCAL-PG rollback: ${name} REFUSED, nothing changed — ${e.code || ''} ${String(e.message).slice(0, 200)}`);
     process.exitCode = 1;
   } finally {
     await c.end();
@@ -180,7 +232,8 @@ async function counts() {
       else if (a.rows !== b.rows || a.md5 !== b.md5) diffs.push(`${t}: ${b.rows}/${b.md5} → ${a.rows}/${a.md5}`);
       else if (a.cols.length !== b.cols.length) diffs.push(`${t}: same rows, + column(s) ${a.cols.filter((x) => !b.cols.includes(x)).join(', ')}`);
     }
-    const changed = diffs.filter((d) => !/NEW table|\+ column/.test(d));
+    // --strict (e.g. after a rollback): a new table or column left behind is a change too
+    const changed = arg('strict') === 'true' || process.argv.includes('--strict') ? diffs : diffs.filter((d) => !/NEW table|\+ column/.test(d));
     console.log(`LOCAL-PG compare: ${changed.length ? 'EXISTING DATA CHANGED' : 'existing data unchanged'}${diffs.length ? ` — ${diffs.join('; ')}` : ''}`);
     if (changed.length) process.exitCode = 1;
   }
@@ -197,7 +250,8 @@ function down() {
 (async () => {
   if (CMD === 'up') await up();
   else if (CMD === 'apply') await apply();
+  else if (CMD === 'rollback') await rollback();
   else if (CMD === 'counts') await counts();
   else if (CMD === 'down') down();
-  else fail('usage: up | apply | counts | down');
+  else fail('usage: up | apply | rollback | counts | down');
 })().catch((e) => fail(String(e.message).slice(0, 300)));

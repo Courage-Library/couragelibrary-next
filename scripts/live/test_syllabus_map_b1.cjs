@@ -102,7 +102,7 @@ function client() {
     const [otherCycle] = await q(`select ec.id from public.exam_cycles ec join public.exams e on e.id = ec.exam_id where e.slug <> 'ssc-gd-constable' limit 1`);
     const [draftSection] = await q(`select n.id from public.exam_syllabus_nodes n join public.exam_syllabus_versions v on v.id = n.syllabus_version_id where v.status = 'DRAFT' and n.node_kind = 'SECTION' limit 1`);
     const [draftUnit] = await q(`select n.id from public.exam_syllabus_nodes n join public.exam_syllabus_versions v on v.id = n.syllabus_version_id where v.status = 'DRAFT' and n.node_kind = 'UNIT' limit 1`);
-    if (!topic || !subtopic || !subtopic2 || !subject || !gd) throw new Error('fixtures missing (a topic, a subtopic, a subject, ssc-gd-constable)');
+    if (!topic || !subtopic || !subtopic2 || !subject || !gd) throw new Error('fixtures missing (a topic, two subtopics, a subject, ssc-gd-constable)');
 
     // D-1 + D-6 (apply inside) ---------------------------------------------------------------------------
     await withLiveTransaction(c, async () => {
