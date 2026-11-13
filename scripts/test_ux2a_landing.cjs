@@ -31,7 +31,10 @@
  *   L-11 every internal link on "/" answers < 400 for an anonymous visitor (redirects not followed)
  *   L-12 sitemap.xml lists "/"
  *   L-13 axe-core (bundled with eslint-plugin-jsx-a11y; no new dependency) on "/" at 360 and 1440: 0 serious /
- *        critical violations; CLS ≤ 0.1
+ *        critical violations; CLS ≤ 0.1. On a CLS failure the message names the 5 largest shifts (source selector, y /
+ *        height before → after, time) and the browser's major version (CI-DIAG-L13)
+ *   L-13d (offline) that failure message passes the CI log scan — no dotted quad (run-quiet would withhold the output);
+ *        negative controls: the full reduced UA version ("141.0.0.0") and a raw dotted quad are flagged
  *   L-14 signed-in visitor (qa-student, local): "/" is not redirected, shows "Go to dashboard" (header + hero), no
  *        Sign in / Get started
  * UX-2a.1 (decisions #47 / #48 / #49):
@@ -51,6 +54,21 @@ const ts = require('typescript');
 const ROOT = path.resolve(__dirname, '..');
 const OFFLINE = process.argv.includes('--offline');
 const BASE = (process.argv.slice(2).find((a) => /^https?:/.test(a)) || 'http://localhost:3100').replace(/\/$/, '');
+const { scanLine } = require('./ci/log-scan.cjs');
+
+/**
+ * CI-DIAG-L13 (2026-11-13): the L-13 failure message — CLS, the browser's MAJOR version, the 5 largest shifts with their
+ * sources. It must pass the CI log scan, or run-quiet withholds the whole gate output and keeps no artifact: dispatch
+ * #209 lost its L-13 detail because the reduced user-agent version "141.0.0.0" reads as an IPv4 address. So: major
+ * version only, and any dotted quad left anywhere (a selector, a value) is defused "a.b.c·d" before it is printed.
+ */
+function clsFailureMessage(w, cls, userAgent, shifts) {
+  const m = /(Headless)?Chrome\/(\d+)/.exec(String(userAgent || ''));
+  const browser = m ? `${m[1] ? 'HeadlessChrome' : 'Chrome'} ${m[2]}` : 'browser ?';
+  const top = [...shifts].sort((a, b) => b.v - a.v).slice(0, 5).map((s) => `${s.v.toFixed(4)} @${s.t}ms: ${s.src.join(' | ') || '(no sources)'}`);
+  const msg = `${w}: CLS ${cls} · ${browser} · ${shifts.length} shift(s); largest: ${top.join(' ;; ')}`;
+  return scanLine(msg, []).includes('ipv4') ? msg.replace(/\b(\d{1,3}\.\d{1,3}\.\d{1,3})\.(\d{1,3})\b/g, '$1·$2') : msg;
+}
 let passed = 0;
 let failed = 0;
 async function test(name, fn) {
@@ -335,6 +353,23 @@ const UX2B_ROUTES = ['/legal'];
     return `exact; 0 count claims in ${descriptions} metadata descriptions`;
   });
 
+  await test('L-13d the L-13 failure message passes the CI log scan (else run-quiet withholds the whole output); negative controls', async () => {
+    const UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/141.0.0.0 Safari/537.36';
+    const shifts = [
+      { v: 0.1310, t: 1404, src: ['null (pseudo-element or removed node) y 140→548 h 520→260', 'div.flex.flex-col.items-start y 129→167 h 275→376'] },
+      { v: 0.0008, t: 1845, src: ['span[data-category-icon].inline-flex.shrink-0 y 817→786 h 48→48'] },
+      { v: 0.0004, t: 1900, src: ['div.gap-1.5.px-2 y 10.20.30.40 h 1→1'] }, // a dotted quad planted in a source
+    ];
+    const msg = clsFailureMessage(360, 0.1318986547282236, UA, shifts);
+    assert(scanLine(msg, []).length === 0, `flagged: ${JSON.stringify(scanLine(msg, []))} — ${msg}`);
+    assert(/· HeadlessChrome 141 ·/.test(msg) && !/141\.0\.0\.0/.test(msg), `major version only: ${msg.slice(0, 80)}`);
+    assert(msg.includes('null (pseudo-element or removed node) y 140→548 h 520→260') && msg.includes('0.1310 @1404ms') && /3 shift\(s\)/.test(msg), 'the sources stay readable');
+    // NEGATIVE CONTROLS: the #209 format (full reduced version) and a raw dotted quad ARE flagged by the scan
+    assert(scanLine('360: CLS 0.13 · HeadlessChrome 141.0.0.0 · 2 shift(s)', []).includes('ipv4'), 'control: the full reduced UA version must be flagged');
+    assert(scanLine('div.gap-1.5.px-2 y 10.20.30.40', []).includes('ipv4'), 'control: a raw dotted quad must be flagged');
+    return `${msg.length} chars, 0 scan findings`;
+  });
+
   if (OFFLINE) { console.log('  SKIP  live L-9 … L-17 (--offline)'); return finish(); }
   if (!['localhost', '127.0.0.1', '[::1]'].includes(new URL(BASE).hostname)) { console.log('  FAIL  live checks run against a local build only'); failed++; return finish(); }
 
@@ -553,9 +588,7 @@ const UX2B_ROUTES = ['/legal'];
         const cls = await page.evaluate(() => window.__cls);
         if (cls > 0.1) {
           const shifts = await page.evaluate(() => window.__shifts);
-          const ua = await page.evaluate(() => navigator.userAgent.replace(/^.*(Headless)?Chrome\/([\d.]+).*$/, (m, h, v) => `${h ? 'HeadlessChrome' : 'Chrome'} ${v}`));
-          const top = [...shifts].sort((a, b) => b.v - a.v).slice(0, 5).map((s) => `${s.v.toFixed(4)} @${s.t}ms: ${s.src.join(' | ') || '(no sources)'}`);
-          assert(false, `${w}: CLS ${cls} · ${ua} · ${shifts.length} shift(s); largest: ${top.join(' ;; ')}`);
+          assert(false, clsFailureMessage(w, cls, await page.evaluate(() => navigator.userAgent), shifts));
         }
         if (axePath) {
           await page.addScriptTag({ path: axePath });
