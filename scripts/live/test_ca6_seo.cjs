@@ -9,7 +9,10 @@
  *        sentences (paragraphs, list items, solved-example questions / steps) appear on it — no duplicated full text
  *   S-04 /articles/<node-lesson slug> → permanent redirect to its /learn page
  *   S-05 sitemap: every /learn, /hi/learn and exam-topic URL belongs to a PUBLISHED lesson (and its exam's published
- *        syllabus); every published lesson is listed; no /articles URL for a node lesson; hreflang only with Hindi
+ *        syllabus); every published lesson is listed; no /articles URL for a node lesson; hreflang only with Hindi.
+ *        SEO-TOPIC-CANON-1: a lesson is expected at its CANONICAL path — a flagged topic's served subtopic lesson at the
+ *        topic URL (lib/learn/topic-canon.ts buildTopicCanon / canonicalLessonPath, the site's own rule, from the same
+ *        read-only transaction); NEGATIVE CONTROL: that subtopic's own URL, if listed, must fail
  *   S-06 the exam course page carries Course JSON-LD whose parts link /learn pages
  *   S-07 the legacy /learn/topics/<id> entry still answers (not taken over by the master route); unknown / malformed
  *        /learn paths are 404; a node whose lesson is NOT published is never served as a lesson
@@ -25,6 +28,17 @@ const BUILD_AT = fs.statSync(path.join(ROOT, '.next', 'BUILD_ID')).mtime;
 const { Client } = require('pg');
 const { dbTarget, redactor } = require(path.join(ROOT, 'scripts/db/_db-env.cjs'));
 const { safeBegin } = require(path.join(ROOT, 'scripts/db/live-safety.cjs'));
+// SEO-TOPIC-CANON-1: the site's canonical-path rule (pure TS, no imports) — loaded, not re-implemented, so gate and site
+// cannot drift
+const ts = require('typescript');
+const loadTs = (rel) => {
+  const file = path.join(ROOT, rel);
+  const m = { exports: {} };
+  const out = ts.transpileModule(fs.readFileSync(file, 'utf8'), { fileName: file, compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } });
+  new Function('module', 'exports', 'require', out.outputText)(m, m.exports, require);
+  return m.exports;
+};
+const { buildTopicCanon, canonicalLessonPath } = loadTs('lib/learn/topic-canon.ts');
 
 const BASE = (process.argv.find((a) => a.startsWith('--base=')) || '--base=' + (process.env.BASE_URL || 'http://localhost:3100')).slice(7).replace(/\/$/, '');
 if (!/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(BASE)) throw new Error('--base must be the local server');
@@ -66,6 +80,13 @@ const decode = (h) => h.replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(
         from public.fn_servable_node_lessons() s join public.canonical_taxonomy_nodes n on n.id = s.node_id
         join public.learning_documents d on d.id = s.document_id where n.is_active order by n.hierarchy_path`, [BUILD_AT]);
     const live = new Set((await q(`select exam_id from public.exam_course_launches where status = 'LIVE'`)).map((r) => r.exam_id));
+    // SEO-TOPIC-CANON-1: the flagged topics + their subtopics and every servable lesson node — the inputs of the site's
+    // services/learning/topic-canon.service.ts (same columns, same filters), read in this READ ONLY transaction
+    const NODE_COLS = 'id, parent_id, node_type, hierarchy_path, display_order, name, is_active, is_internal, metadata';
+    const flaggedTopics = await q(`select ${NODE_COLS} from public.canonical_taxonomy_nodes where node_type = 'TOPIC' and is_active and metadata->>'lesson_at_topic' = 'true'`);
+    const flaggedSubs = flaggedTopics.length ? await q(`select ${NODE_COLS} from public.canonical_taxonomy_nodes where node_type = 'SUBTOPIC' and parent_id = any($1::uuid[])`, [flaggedTopics.map((t) => t.id)]) : [];
+    const servableIds = (await q(`select node_id from public.fn_servable_node_lessons()`)).map((r) => r.node_id);
+    const canon = buildTopicCanon([...flaggedTopics, ...flaggedSubs].map((n) => ({ id: n.id, parentId: n.parent_id, nodeType: n.node_type, hierarchyPath: n.hierarchy_path, displayOrder: n.display_order, name: n.name, isActive: n.is_active, isInternal: n.is_internal, metadata: n.metadata })), servableIds);
     const drafts = await q(`select n.hierarchy_path, d.updated_at > $1 changed from public.learning_documents d join public.canonical_taxonomy_nodes n on n.id = d.node_id
         where d.document_type = 'NODE_LESSON' and d.status <> 'PUBLISHED' and n.is_active`, [BUILD_AT]);
     const exams = await q(`select id, slug from public.exams where is_active order by slug`);
@@ -124,33 +145,47 @@ const decode = (h) => h.replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(
     const a = await get(`/articles/${L.canonical_slug}`);
     check(`S-04 /articles/${L.canonical_slug} → permanent redirect to /learn/${p}`, [301, 308].includes(a.status) && (a.headers.get('location') || '').endsWith(`/learn/${p}`), `${a.status} ${a.headers.get('location')}`);
 
-    // S-05 sitemap = published only
+    // S-05 sitemap = published only, each lesson at its CANONICAL path (SEO-TOPIC-CANON-1)
     const sm = await get('/sitemap.xml');
     const xml = sm.status === 200 ? await sm.text() : '';
     const urls = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((x) => new URL(x[1]).pathname);
-    const changed = new Set([...lessons, ...drafts].filter((l) => l.changed).map((l) => l.hierarchy_path.split('.').join('/')));
-    const pub = new Set(lessons.filter((l) => !l.test).map((l) => l.hierarchy_path.split('.').join('/')));
-    const pubHi = new Set(lessons.filter((l) => l.hi_current && !l.test).map((l) => l.hierarchy_path.split('.').join('/')));
-    const testPaths = new Set(lessons.filter((l) => l.test).map((l) => l.hierarchy_path.split('.').join('/')));
-    const bad = [];
-    for (const u of urls) {
-      let mm;
-      if ((mm = u.match(/^\/(?:hi\/)?learn\/(.+)$/)) && changed.has(mm[1])) continue; // changed after the build
-      if ((mm = u.match(/^\/learn\/(.+)$/)) && !mm[1].startsWith('topics/') && !pub.has(mm[1])) bad.push(testPaths.has(mm[1]) ? `test content listed ${u}` : `unpublished ${u}`);
-      if ((mm = u.match(/^\/exams\/([a-z0-9-]+)\/course$/)) && !courses.some((x) => x.slug === mm[1] && x.live)) bad.push(`course listed before launch ${u}`);
-      if ((mm = u.match(/^\/hi\/learn\/(.+)$/)) && !pubHi.has(mm[1])) bad.push(`hindi not published ${u}`);
-      if ((mm = u.match(/^\/exams\/([a-z0-9-]+)\/(.+\/.+)$/)) && !mm[2].startsWith('cycle/')) {
-        const c2 = courses.find((x) => x.slug === mm[1]);
-        const node = lessons.find((l) => !l.test && l.hierarchy_path.split('.').join('/') === mm[2]);
-        if (!c2 || !node || !c2.nodeIds.includes(node.node_id)) bad.push(`exam-topic not in a published course ${u}`);
+    const cpath = (hp) => canonicalLessonPath(hp, canon).split('.').join('/');
+    const changed = new Set([...lessons, ...drafts].filter((l) => l.changed).map((l) => cpath(l.hierarchy_path)));
+    const pub = new Set(lessons.filter((l) => !l.test).map((l) => cpath(l.hierarchy_path)));
+    const pubHi = new Set(lessons.filter((l) => l.hi_current && !l.test).map((l) => cpath(l.hierarchy_path)));
+    const testPaths = new Set(lessons.filter((l) => l.test).map((l) => cpath(l.hierarchy_path)));
+    /** the sitemap's problems for a list of URL paths (also run on a planted URL list: the negative control) */
+    const problems = (list) => {
+      const bad = [];
+      for (const u of list) {
+        let mm;
+        if ((mm = u.match(/^\/(?:hi\/)?learn\/(.+)$/)) && changed.has(mm[1])) continue; // changed after the build
+        if ((mm = u.match(/^\/learn\/(.+)$/)) && !mm[1].startsWith('topics/') && !pub.has(mm[1])) bad.push(testPaths.has(mm[1]) ? `test content listed ${u}` : `unpublished ${u}`);
+        if ((mm = u.match(/^\/exams\/([a-z0-9-]+)\/course$/)) && !courses.some((x) => x.slug === mm[1] && x.live)) bad.push(`course listed before launch ${u}`);
+        if ((mm = u.match(/^\/hi\/learn\/(.+)$/)) && !pubHi.has(mm[1])) bad.push(`hindi not published ${u}`);
+        if ((mm = u.match(/^\/exams\/([a-z0-9-]+)\/(.+\/.+)$/)) && !mm[2].startsWith('cycle/')) {
+          const c2 = courses.find((x) => x.slug === mm[1]);
+          const node = lessons.find((l) => !l.test && cpath(l.hierarchy_path) === mm[2]);
+          if (!c2 || !node || !c2.nodeIds.includes(node.node_id)) bad.push(`exam-topic not in a published course ${u}`);
+        }
+        if ((mm = u.match(/^\/articles\/(.+)$/)) && lessons.some((l) => l.canonical_slug === mm[1])) bad.push(`node lesson under /articles ${u}`);
       }
-      if ((mm = u.match(/^\/articles\/(.+)$/)) && lessons.some((l) => l.canonical_slug === mm[1])) bad.push(`node lesson under /articles ${u}`);
-    }
-    for (const x of drafts) if (!x.changed && urls.includes(`/learn/${x.hierarchy_path.split('.').join('/')}`) && !pub.has(x.hierarchy_path.split('.').join('/'))) bad.push(`draft listed ${x.hierarchy_path}`);
-    const missing = [...pub].filter((x) => !changed.has(x) && !urls.includes(`/learn/${x}`));
+      for (const x of drafts) if (!x.changed && list.includes(`/learn/${cpath(x.hierarchy_path)}`) && !pub.has(cpath(x.hierarchy_path))) bad.push(`draft listed ${x.hierarchy_path}`);
+      const missing = [...pub].filter((x) => !changed.has(x) && !list.includes(`/learn/${x}`));
+      return { bad, missing };
+    };
+    const { bad, missing } = problems(urls);
     const hreflangOk = pubHi.size > 0 ? /hreflang="hi"/.test(xml) : !/hreflang="hi"/.test(xml);
-    check(`S-05 sitemap: ${urls.length} URLs — every lesson URL is published and not test content (${pub.size} indexable lesson(s), ${testPaths.size} test, ${pubHi.size} in Hindi), each indexable lesson listed, no course before launch, no node lesson under /articles, hreflang only with Hindi`,
+    const served = Object.keys(canon.subToTopic).length;
+    check(`S-05 sitemap: ${urls.length} URLs — every lesson URL is published and not test content (${pub.size} indexable lesson(s), ${testPaths.size} test, ${pubHi.size} in Hindi, ${served} served at a flagged topic's URL), each indexable lesson listed at its canonical path, no course before launch, no node lesson under /articles, hreflang only with Hindi`,
       sm.status === 200 && bad.length === 0 && missing.length === 0 && hreflangOk, JSON.stringify({ status: sm.status, bad: bad.slice(0, 5), missing, hreflangOk }));
+    // S-05 NEGATIVE CONTROL: a flagged topic's served subtopic listed at its OWN path (it 308s to the topic URL) must fail
+    const [subHp] = Object.keys(canon.subToTopic).filter((hp) => !changed.has(cpath(hp)));
+    if (subHp) {
+      const planted = `/learn/${subHp.split('.').join('/')}`;
+      const ctl = problems([...urls, planted]);
+      check(`S-05 negative control: the subtopic URL ${planted} (308 → /learn/${cpath(subHp)}) listed in the sitemap is caught`, ctl.bad.some((b) => b.endsWith(planted)), JSON.stringify(ctl.bad.slice(0, 3)));
+    } else check('S-05 negative control — VACUOUS WARN: no flagged topic serves a subtopic lesson', true);
 
     // S-06 course JSON-LD
     if (course) {

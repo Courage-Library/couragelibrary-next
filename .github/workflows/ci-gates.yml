@@ -521,10 +521,21 @@ jobs:
             "$Q SMOKE-ADMIN-PAGES-3 -- node scripts/smoke/signed-in-smoke.cjs admin-pages $B" \
             "$Q SMOKE-STAFF-CONTENT -- node scripts/smoke/signed-in-smoke.cjs staff-content $B" \
             "$Q SMOKE-ADMIN-HOME -- node scripts/smoke/signed-in-smoke.cjs admin-home $B" \
-            "$Q UX2A-LIVE -- node scripts/test_ux2a_landing.cjs $B" \
+            "$Q UX2A-LIVE --keep-log $RUNNER_TEMP/gate-logs -- node scripts/test_ux2a_landing.cjs $B" \
             "$Q UX2B-LIVE -- node scripts/test_ux2b_public.cjs --live" \
             "$Q AUTH1-2B1-LIVE -- node scripts/test_auth1_2b1.cjs --live" \
             "$Q ANON-SMOKE-LOCAL -- node scripts/smoke/anonymous-smoke.cjs $B"
+      # CI-LIVE-GATES-1: UX2A-LIVE L-13 (axe + CLS on "/") failed on the runner only (scheduled #199, dispatch #202) while
+      # production and a local build pass; the summary line hides the assertion. run-quiet --keep-log writes the gate's
+      # SANITIZED log on a failure (log-scan flagged lines and env-looking lines redacted; same as CI-FLAKE-1 build logs)
+      - name: CI-LIVE-GATES-1 — sanitized UX2A-LIVE log (failure only; scanned lines redacted, no env)
+        if: failure() && matrix.shard == 'pages'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2 (node24)
+        with:
+          name: gate-logs-${{ github.job }}-${{ matrix.shard }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/gate-logs/
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Orphan-session check (always; never terminates)
         if: always()
         run: node scripts/ci/run-quiet.cjs --id DB-SESSIONS-POST -- node scripts/ci/db-sessions.cjs --fail-on-own-open

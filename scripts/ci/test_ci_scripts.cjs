@@ -122,12 +122,18 @@ test('C-10 workflow is public-safe: no artifact upload except the failure-only s
   const w = fs.readFileSync(path.join(ROOT, '.github/workflows/ci-gates.yml'), 'utf8');
   // CI-FLAKE-1 amendment (architect ruling 2026-10-28): the ONLY artifact allowed is the sanitized build log, on failure
   // only, from $RUNNER_TEMP/build-diag (run-quiet --keep-log: scanned lines + env lines redacted), pinned, ≤ 7 days
+  // CI-LIVE-GATES-1 amendment (owner 2026-11-13): + ONE more of the same kind — the sanitized UX2A-LIVE log, failure only,
+  // pages shard only, from $RUNNER_TEMP/gate-logs, written only by run-quiet --keep-log on that one gate
   const uploads = [...w.matchAll(/- name: ([^\n]*)\n((?: {8}[^\n]*\n)+)/g)].filter((m) => /upload-artifact/.test(m[2]));
-  assert(uploads.length === 3, `artifact uploads: ${uploads.length} (expected the 3 failure-only build logs)`);
-  for (const [, , body] of uploads)
-    assert(/^ {8}if: failure\(\)$/m.test(body) && /^ {8}uses: actions\/upload-artifact@[0-9a-f]{40} /m.test(body) && /^ {10}path: \$\{\{ runner\.temp \}\}\/build-diag\/$/m.test(body)
-      && /^ {10}retention-days: [1-7]$/m.test(body) && !/\n {10}path: [^\n]*\n {12}/.test(body), `an artifact upload that is not the failure-only sanitized build log:\n${body}`);
+  assert(uploads.length === 4, `artifact uploads: ${uploads.length} (expected the 3 failure-only build logs + the failure-only UX2A-LIVE gate log)`);
+  const sameKind = (body, ifLine, dir) => new RegExp(`^ {8}if: ${ifLine}$`, 'm').test(body) && /^ {8}uses: actions\/upload-artifact@[0-9a-f]{40} /m.test(body)
+    && new RegExp(`^ {10}path: \\$\\{\\{ runner\\.temp \\}\\}/${dir}/$`, 'm').test(body) && /^ {10}retention-days: [1-7]$/m.test(body) && !/\n {10}path: [^\n]*\n {12}/.test(body);
+  const build = uploads.filter(([, , body]) => sameKind(body, 'failure\\(\\)', 'build-diag'));
+  const gate = uploads.filter(([, , body]) => sameKind(body, "failure\\(\\) && matrix\\.shard == 'pages'", 'gate-logs'));
+  assert(build.length === 3 && gate.length === 1, `an artifact upload that is not a failure-only sanitized log (build-diag ×3, gate-logs ×1): build ${build.length}, gate ${gate.length}\n${uploads.map((u) => u[2]).join('\n')}`);
   assert((w.match(/--keep-log "\$RUNNER_TEMP\/build-diag"/g) || []).length === 3, 'the build-diag folder is written only by run-quiet --keep-log (the sanitizer)');
+  const gateKeeps = [...w.matchAll(/"\$Q ([A-Z0-9-]+) --keep-log \$RUNNER_TEMP\/gate-logs -- /g)].map((m) => m[1]);
+  assert(JSON.stringify(gateKeeps) === '["UX2A-LIVE"]' && (w.match(/gate-logs/g) || []).length === 3, `the gate-logs folder is written only by run-quiet --keep-log on UX2A-LIVE (got ${JSON.stringify(gateKeeps)})`);
   assert(!/\btee\b/.test(w), 'tee present');
   assert(/CI_QUIET: '1'/.test(w), 'CI_QUIET not set');
   const gateLines = w.split('\n').filter((l) => /node scripts\/(test_|smoke\/|e2e\/|diag\/net-probe|ci\/db-sessions)/.test(l) && !/^\s*#/.test(l));
@@ -244,7 +250,8 @@ test('C-17 CI-LIVE-SPLIT-1: the nightly live gates run in 2 parallel jobs and NO
   assert(!/\n {2}live:\n/.test(w), 'the single live job still exists');
   const A = job('live-journeys');
   const B = job('live-gates');
-  const ids = (b) => [...b.matchAll(/"\$Q ([A-Z0-9-]+) -- /g)].map((m) => m[1]);
+  // CI-LIVE-GATES-1: a gate line may carry run-quiet's --keep-log <dir> between its ID and "--"
+  const ids = (b) => [...b.matchAll(/"\$Q ([A-Z0-9-]+)(?: --keep-log \S+)? -- /g)].map((m) => m[1]);
   // the canonical nightly list (38 gates as before the split, + CA1-TAXONOMY-LIVE, CA2-INTAKE-LIVE, CA3-LESSONS-LIVE, CA4-LESSONS-LIVE, LESSON-PROMPT-2-LIVE, CA5-COURSES-LIVE, LESSON-PERF, CA6-SEO-LIVE, CA7-LIVE, LAUNCH-MODE-1-LIVE, SYLIMPORT1-SCOPE-CONTROLS) — each in exactly one job; the QA-session probe in both
   const CANON = ['QA-SESSION-PROBE', 'SECDEF-RATCHET', 'RLS', 'QF1-DB', 'QBKEY1', 'SECDEF-S2-1', 'TYPES1-CLOSE', 'GAP2-4A', 'READERS', 'SYLIMPORT1', 'SYLIMPORT1-SCOPE-CONTROLS', 'CLEANUP-1', 'JOURNEY', 'LINEAGE', 'DRILL1', 'STUDENT-DRILL', 'CLEANUP-2', 'FIXTURE', 'SMOKE-STUDENT-MISTAKE-1', 'SMOKE-STUDENT-MISTAKE-2', 'SMOKE-STUDENT-MISTAKE-3', 'VAULT-HEALTH', 'F9-PRICING', 'ADMIN-D1-D2', 'CA1-TAXONOMY-LIVE', 'CA2-INTAKE-LIVE', 'CA3-LESSONS-LIVE', 'CA4-LESSONS-LIVE', 'LESSON-PROMPT-2-LIVE', 'CA5-COURSES-LIVE', 'LESSON-PERF', 'CA6-SEO-LIVE', 'CA7-LIVE', 'LAUNCH-MODE-1-LIVE', 'SMOKE-ADMIN-PAGES-1', 'SMOKE-ADMIN-PAGES-2', 'SMOKE-ADMIN-PAGES-3', 'SMOKE-STUDENT-PAGES', 'SMOKE-STAFF-CONTENT', 'SMOKE-ADMIN-HOME', 'FLAGS-LIVE', 'UX2A-LIVE', 'UX2B-LIVE', 'AUTH1-2B1-LIVE', 'CA-ROUTES', 'SEC1B-LIVE', 'SEC1C-LIVE', 'SEC1D-LIVE', 'ANON-SMOKE-LOCAL', 'INTAKE-ASSIST-1-LIVE', 'PUBLISH-IMPACT-LIVE', 'PUBLISH-CONFIRM-LIVE', 'EXAM-LOGO-1-LIVE', 'LOGO-UX1-E2E', 'EXAM-NOTE-PROMPT-1-LIVE', 'EXAM-CATEGORIES-LIVE', 'SITE-MEDIA-LIVE', 'SITE-GALLERY-LIVE', 'SITE-MEDIA-NO-EMAIL-LIVE', 'USERNAME-1-LIVE', 'COURSE-UX-1-LIVE'];
   const a = ids(A), b = ids(B);
@@ -305,7 +312,7 @@ const shardsOf = (w) => {
   const blk = w.slice(i, w.indexOf('\n  prod-smoke:', i));
   const out = {};
   for (const m of blk.matchAll(/- name: [^\n]*\n {8}if: matrix\.shard == '([a-z]+)'\n([\s\S]*?)(?=\n {6}- name:|$)/g))
-    out[m[1]] = [...m[2].matchAll(/"\$Q ([A-Z0-9-]+) -- node ([^\s"]+)/g)].map((x) => ({ id: x[1], file: x[2] }));
+    out[m[1]] = [...m[2].matchAll(/"\$Q ([A-Z0-9-]+)(?: --keep-log \S+)? -- node ([^\s"]+)/g)].map((x) => ({ id: x[1], file: x[2] }));
   return out;
 };
 const isolationProblems = (w) => {
@@ -336,7 +343,7 @@ test('C-19 CI-SPEED-1: shard isolation (every shared-group writer in the db shar
   const live = w.slice(w.indexOf('\n  live-journeys:\n'), w.indexOf('\n  prod-smoke:'));
   const qDefs = live.match(/Q='[^']*'/g) || [];
   assert(qDefs.length === 4 && qDefs.every((q) => q === "Q='node scripts/ci/run-quiet.cjs --caps scripts/ci/live-gate-caps.json --id'"), `Q definitions: ${qDefs.join(' | ')}`);
-  const ids = [...new Set([...live.matchAll(/"\$Q ([A-Z0-9-]+) -- /g)].map((m) => m[1]))];
+  const ids = [...new Set([...live.matchAll(/"\$Q ([A-Z0-9-]+)(?: --keep-log \S+)? -- /g)].map((m) => m[1]))];
   const noCap = ids.filter((id) => !caps[id] || !(caps[id].cap >= 120 && caps[id].cap <= 900));
   assert(ids.length >= 45 && noCap.length === 0, `gates without a valid cap: ${noCap.join(', ')} (${ids.length} gates)`);
   // negative control: run-quiet refuses a gate without a cap (fail closed, before running anything)
