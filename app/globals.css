@@ -552,14 +552,22 @@
     background-size: 40px 40px;
     mask-image: radial-gradient(70% 80% at 90% 10%, #000 0%, transparent 70%);
   }
+  /* L-13 CLS fix (owner 2026-11-13): the ring is anchored by its TOP at the place it used to end up (hero height − 260 px:
+     ≈ 480 px below lg, 324 px from lg up). Anchored to the bottom (bottom: -260px) it moved with the hero while a slow
+     device was still parsing the page — a 520 px element shifting (CLS 0.14–0.47 at 360 px on a 4× slower CPU). */
   .hero-depth::after {
     width: 520px;
     height: 520px;
     right: -180px;
-    bottom: -260px;
+    top: 480px;
     border-radius: 9999px;
     background: radial-gradient(closest-side, transparent 62%, color-mix(in srgb, var(--color-accent-300) 14%, transparent) 63%, transparent 66%),
       radial-gradient(closest-side, transparent 80%, color-mix(in srgb, var(--color-hero-fg) 7%, transparent) 81%, transparent 84%);
+  }
+  @media (min-width: 64rem) {
+    .hero-depth::after {
+      top: 324px;
+    }
   }
   /* HOME-1 reveal on scroll — UX-IMP-1 progressive enhancement (components/landing/landing-enhancements.tsx): NOTHING
      is hidden, ever (no opacity rule). A section the script watched rises 12 px → 0 in 200 ms when it enters the
