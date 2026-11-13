@@ -95,14 +95,14 @@ function client() {
 
     // fixtures (read only)
     const [topic] = await q(`select id from public.canonical_taxonomy_nodes where node_type = 'TOPIC' and is_active and not is_internal order by hierarchy_path limit 1`);
-    const [subtopic] = await q(`select id from public.canonical_taxonomy_nodes where node_type = 'SUBTOPIC' and is_active and not is_internal order by hierarchy_path limit 1`);
+    const [subtopic, subtopic2] = await q(`select id from public.canonical_taxonomy_nodes where node_type = 'SUBTOPIC' and is_active and not is_internal order by hierarchy_path limit 2`);
     const [subject] = await q(`select id from public.canonical_taxonomy_nodes where node_type = 'SUBJECT' and is_active limit 1`);
     const [internal] = await q(`select id from public.canonical_taxonomy_nodes where node_type = 'TOPIC' and is_internal limit 1`);
     const [gd] = await q(`select id from public.exams where slug = 'ssc-gd-constable'`);
     const [otherCycle] = await q(`select ec.id from public.exam_cycles ec join public.exams e on e.id = ec.exam_id where e.slug <> 'ssc-gd-constable' limit 1`);
     const [draftSection] = await q(`select n.id from public.exam_syllabus_nodes n join public.exam_syllabus_versions v on v.id = n.syllabus_version_id where v.status = 'DRAFT' and n.node_kind = 'SECTION' limit 1`);
     const [draftUnit] = await q(`select n.id from public.exam_syllabus_nodes n join public.exam_syllabus_versions v on v.id = n.syllabus_version_id where v.status = 'DRAFT' and n.node_kind = 'UNIT' limit 1`);
-    if (!topic || !subtopic || !subject || !gd) throw new Error('fixtures missing (a topic, a subtopic, a subject, ssc-gd-constable)');
+    if (!topic || !subtopic || !subtopic2 || !subject || !gd) throw new Error('fixtures missing (a topic, a subtopic, a subject, ssc-gd-constable)');
 
     // D-1 + D-6 (apply inside) ---------------------------------------------------------------------------
     await withLiveTransaction(c, async () => {
@@ -135,8 +135,10 @@ function client() {
       const a2 = await audits('TAXONOMY_OUTLINE_SET');
       chk('D-2a set → changed + 1 audit row; the same lines again → no-op, no audit row (idempotent)', r1.changed === true && a1 === 1 && r2.changed === false && a2 === 1, JSON.stringify({ r1, r2, a1, a2 }));
       const r3 = await as('service_role', () => set(subtopic.id, ['Direct antonyms', 'Context antonyms', 'Prefix antonyms']));
-      const [log] = await q(`select old_value, new_value from public.admin_audit_logs where action_type = 'TAXONOMY_OUTLINE_SET' and actor_email = $1 order by created_at desc, id desc limit 1`, [ACTOR]);
-      chk('D-2b new lines → changed; the audit row keeps old and new', r3.changed && log.old_value.items.length === 2 && log.new_value.items.length === 3, JSON.stringify(log));
+      // one transaction = one now(): find the row of THIS change by its content, not by time
+      const logs = await q(`select old_value, new_value from public.admin_audit_logs where action_type = 'TAXONOMY_OUTLINE_SET' and actor_email = $1 and jsonb_array_length(new_value -> 'items') = 3`, [ACTOR]);
+      const log = logs[0];
+      chk('D-2b new lines → changed; the audit row keeps old and new', r3.changed && logs.length === 1 && log.old_value && log.old_value.items.length === 2 && log.new_value.items.length === 3, JSON.stringify(logs));
       const bad = {
         '31 lines': [subtopic.id, Array.from({ length: 31 }, (_, i) => `L${i}`)],
         '201 characters': [subtopic.id, ['x'.repeat(201)]],
@@ -151,7 +153,7 @@ function client() {
       codes['no actor'] = await as('service_role', () => errCode(`select public.fn_taxonomy_outline_set($1, $2::text[], 'OWNER', null, '')`, [topic.id, ['A']]));
       chk(`D-2c refused (22023): ${Object.keys(codes).join(', ')}`, Object.values(codes).every((x) => x === '22023'), JSON.stringify(codes));
       const direct = await as('service_role', () => errCode(`insert into public.taxonomy_node_outlines (node_id, node_type, items, source, updated_by_email) values ($1, 'TOPIC', $2::text[], 'OWNER', $3)`, [topic.id, Array.from({ length: 31 }, (_, i) => `L${i}`), ACTOR]));
-      const wrongType = await as('service_role', () => errCode(`insert into public.taxonomy_node_outlines (node_id, node_type, items, source, updated_by_email) values ($1, 'TOPIC', '{A}', 'OWNER', $2)`, [subtopic.id, ACTOR]));
+      const wrongType = await as('service_role', () => errCode(`insert into public.taxonomy_node_outlines (node_id, node_type, items, source, updated_by_email) values ($1, 'TOPIC', '{A}', 'OWNER', $2)`, [subtopic2.id, ACTOR])); // a subtopic WITHOUT an outline (no PK clash)
       chk('D-2d the table itself refuses 31 lines (23514) and a wrong node type (23503)', direct === '23514' && wrongType === '23503', `${direct} / ${wrongType}`);
       const clear = await as('service_role', () => set(subtopic.id, []));
       const again = await as('service_role', () => set(subtopic.id, null));
