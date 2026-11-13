@@ -528,14 +528,35 @@ const UX2B_ROUTES = ['/legal'];
       for (const w of [360, 1440]) {
         const ctx = await browser.newContext({ viewport: { width: w, height: 900 }, colorScheme: 'light' });
         const page = await ctx.newPage();
+        // CI-DIAG-L13: every shift is also recorded with its sources (selector or "pseudo/removed" for a null node,
+        // y / height before → after, time) — printed only when CLS fails, so the CI artifact says WHAT moved
         await page.addInitScript(() => {
           window.__cls = 0;
-          new PerformanceObserver((l) => { for (const e of l.getEntries()) if (!e.hadRecentInput) window.__cls += e.value; }).observe({ type: 'layout-shift', buffered: true });
+          window.__shifts = [];
+          const sel = (n) => {
+            if (!n) return 'null (pseudo-element or removed node)';
+            if (n.nodeType !== 1) return `#${n.nodeName}`;
+            const cls = typeof n.className === 'string' && n.className.trim() ? '.' + n.className.trim().split(/\s+/).slice(0, 3).join('.') : '';
+            const data = [...n.attributes].filter((a) => a.name.startsWith('data-')).map((a) => `[${a.name}]`).slice(0, 2).join('');
+            return `${n.tagName.toLowerCase()}${n.id ? '#' + n.id : ''}${data}${cls}`;
+          };
+          new PerformanceObserver((l) => {
+            for (const e of l.getEntries()) {
+              if (e.hadRecentInput) continue;
+              window.__cls += e.value;
+              window.__shifts.push({ v: e.value, t: Math.round(e.startTime), src: (e.sources || []).map((x) => `${sel(x.node)} y ${Math.round(x.previousRect.y)}→${Math.round(x.currentRect.y)} h ${Math.round(x.previousRect.height)}→${Math.round(x.currentRect.height)}`) });
+            }
+          }).observe({ type: 'layout-shift', buffered: true });
         });
         await page.goto(`${BASE}/`, { waitUntil: 'networkidle', timeout: 30000 });
         await page.waitForTimeout(500);
         const cls = await page.evaluate(() => window.__cls);
-        assert(cls <= 0.1, `${w}: CLS ${cls}`);
+        if (cls > 0.1) {
+          const shifts = await page.evaluate(() => window.__shifts);
+          const ua = await page.evaluate(() => navigator.userAgent.replace(/^.*(Headless)?Chrome\/([\d.]+).*$/, (m, h, v) => `${h ? 'HeadlessChrome' : 'Chrome'} ${v}`));
+          const top = [...shifts].sort((a, b) => b.v - a.v).slice(0, 5).map((s) => `${s.v.toFixed(4)} @${s.t}ms: ${s.src.join(' | ') || '(no sources)'}`);
+          assert(false, `${w}: CLS ${cls} · ${ua} · ${shifts.length} shift(s); largest: ${top.join(' ;; ')}`);
+        }
         if (axePath) {
           await page.addScriptTag({ path: axePath });
           const res = await page.evaluate(async () => {

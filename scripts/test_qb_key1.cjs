@@ -516,10 +516,22 @@ function supaMock(results) {
         await c.query('RESET ROLE');
         return served ? { out, ...(await served(out)) } : { out };
       });
-      const checkVersions = async (ids) => (await q(`SELECT count(*)::int n, count(*) FILTER (WHERE NOT public.fn_qf_version_is_servable(v.id) OR q.status <> 'published' OR q.id = ANY($2))::int bad
+      // CI-DIAG-K14: each check also names its offenders — short question / version id (first 8 hex, masked) + the reason
+      // (fixture / status / not servable); never question text, options or answers
+      const checkVersions = async (ids) => (await q(`SELECT count(*)::int n, count(*) FILTER (WHERE NOT public.fn_qf_version_is_servable(v.id) OR q.status <> 'published' OR q.id = ANY($2))::int bad,
+          (array_agg(left(q.id::text, 8) || '/v' || left(v.id::text, 8) || ' ' || CASE WHEN q.id = ANY($2) THEN 'fixture' WHEN q.status <> 'published' THEN 'status=' || q.status ELSE 'version not servable' END)
+            FILTER (WHERE NOT public.fn_qf_version_is_servable(v.id) OR q.status <> 'published' OR q.id = ANY($2)))[1:10] offenders
           FROM unnest($1::uuid[]) x(id) JOIN public.question_versions v ON v.id = x.id JOIN public.questions q ON q.id = v.question_id`, [ids, FIXTURES]))[0];
-      const checkQuestions = async (ids) => (await q(`SELECT count(*)::int n, count(*) FILTER (WHERE q.status <> 'published' OR q.id = ANY($2) OR NOT EXISTS (SELECT 1 FROM public.question_versions v
-          WHERE v.question_id = q.id AND v.is_current AND public.fn_qf_version_is_servable(v.id)))::int bad FROM unnest($1::uuid[]) x(id) JOIN public.questions q ON q.id = x.id`, [ids, FIXTURES]))[0];
+      const checkQuestions = async (ids) => (await q(`WITH x AS (SELECT q.id, q.status, q.id = ANY($2) fixture, EXISTS (SELECT 1 FROM public.question_versions v
+          WHERE v.question_id = q.id AND v.is_current AND public.fn_qf_version_is_servable(v.id)) servable FROM unnest($1::uuid[]) u(id) JOIN public.questions q ON q.id = u.id)
+          SELECT count(*)::int n, count(*) FILTER (WHERE status <> 'published' OR fixture OR NOT servable)::int bad,
+          (array_agg(left(id::text, 8) || ' ' || CASE WHEN fixture THEN 'fixture' WHEN status <> 'published' THEN 'status=' || status ELSE 'no servable current version' END)
+            FILTER (WHERE status <> 'published' OR fixture OR NOT servable))[1:10] offenders FROM x`, [ids, FIXTURES]))[0];
+      /** a probe result without the long id arrays: success / error / code, counts, offenders (masked) */
+      const brief = (x) => {
+        const o = x && x.out ? x.out : {};
+        return JSON.stringify({ success: o.success, error: o.error, code: o.code, served: Array.isArray(o.question_version_ids) ? o.question_version_ids.length : undefined, n: x && x.n, bad: x && x.bad, offenders: x && x.offenders });
+      };
       const out = [];
       // the helpers themselves are not callable by a client role (42501) — the definer path is the only way in
       const denied = await rolledBack(async () => {
@@ -548,7 +560,7 @@ function supaMock(results) {
       // p_topic_ids is '{}', not NULL: the RPC stores to_jsonb(p_topic_ids) in a NOT NULL column (pre-existing, unchanged by 087)
       const pr = await asPracticeService({ sql: `SELECT public.fn_generate_custom_practice_session('QB-KEY-1 K-14', 'MANUAL_SELECTION', '{}'::uuid[], 20, $1::uuid[]) r`, params: [[...valid, ...FIXTURES]] },
         async (r) => (r && r.success ? checkVersions(r.question_version_ids) : {}));
-      assert(pr.out && pr.out.success && pr.n === valid.length && pr.bad === 0, `practice: ${JSON.stringify(pr).slice(0, 300)}`);
+      assert(pr.out && pr.out.success && pr.n === valid.length && pr.bad === 0, `practice MANUAL_SELECTION (${valid.length} valid + ${FIXTURES.length} fixtures asked): ${brief(pr)}`);
       out.push(`practice ${pr.n}/${valid.length} valid, 0 fixtures`);
       // practice: WEAK_TOPICS / FORGOTTEN_TOPICS fail with 42703 (columns confidence_level / last_evaluated_at do not exist).
       // Pre-existing and identical with 087 rolled back (QB-KEY-1 report §2a, backlog PRACTICE-RPC-DRIFT); asserted here
@@ -562,7 +574,7 @@ function supaMock(results) {
       for (const mode of ['BOOKMARKED', 'PYQ', 'WRONG_QUESTIONS']) {
         const m = await asPracticeService({ sql: `SELECT public.fn_generate_custom_practice_session('QB-KEY-1 K-14', $1, '{}'::uuid[], 20, NULL) r`, params: [mode] },
           async (r) => (r && r.success ? checkVersions(r.question_version_ids) : { n: 0, bad: 0 }));
-        assert(m.out && (m.out.success || /No qualifying/.test(m.out.error || '')) && m.bad === 0, `practice ${mode}: ${JSON.stringify(m).slice(0, 300)}`);
+        assert(m.out && (m.out.success || /No qualifying/.test(m.out.error || '')) && m.bad === 0, `practice ${mode}: ${brief(m)}`);
         if (!m.out.success) console.log(`  WARN  VACUOUS (0 items): K-14 practice ${mode} selected no question for qa-student`); // GATE-HYGIENE-1
         out.push(`${mode} ${m.out.success ? m.n : 'VACUOUS'}`);
       }
@@ -571,19 +583,21 @@ function supaMock(results) {
       if (vault.length) {
         const d = await asStudent({ sql: `SELECT public.fn_generate_mistake_drill($1::uuid[], NULL, NULL) r`, params: [vault] },
           async (r) => (r && r.success ? checkVersions(r.questions.map((x) => x.question_version_id)) : {}));
-        assert(d.out && (d.out.success ? d.bad === 0 && d.n === d.out.total_questions : d.out.code === 'NOTHING_TO_DRILL'), `drill: ${JSON.stringify(d).slice(0, 300)}`);
+        assert(d.out && (d.out.success ? d.bad === 0 && d.n === d.out.total_questions : d.out.code === 'NOTHING_TO_DRILL'), `drill (total_questions ${d.out && d.out.total_questions}): ${brief(d)}`);
         out.push(`drill ${d.out.success ? d.n + ' valid' : d.out.code}`);
       } else { console.log('  WARN  VACUOUS (0 items): K-14 drill — qa-student has no vault rows (run ensure-student-fixture)'); out.push('drill VACUOUS'); } // GATE-HYGIENE-1
       // battle (feature flag off in the app; the RPC is still granted to authenticated): room questions all valid
       const b = await asStudent({ sql: `SELECT public.fn_find_or_create_battle_room(NULL, false, 'FREE') r` },
         async (r) => (r && r.success ? checkQuestions((await q(`SELECT question_ids FROM public.quiz_battle_rooms WHERE id = $1`, [r.room_id]))[0].question_ids) : {}));
-      assert(b.out && b.out.success && b.n >= 3 && b.bad === 0, `battle: ${JSON.stringify(b).slice(0, 300)}`);
+      assert(b.out && b.out.success && b.n >= 3 && b.bad === 0, `battle (want ≥ 3 valid): ${brief(b)}`);
       out.push(`battle ${b.n} valid`);
       // mock start serves the mock's assembled questions: every assembled question is valid (the start itself: E2E journey)
-      const mk = await ro(() => q(`SELECT count(*)::int n, count(*) FILTER (WHERE NOT public.fn_qf_version_is_servable(mq.question_version_id) OR q.status <> 'published')::int bad
+      const mk = await ro(() => q(`SELECT count(*)::int n, count(*) FILTER (WHERE NOT public.fn_qf_version_is_servable(mq.question_version_id) OR q.status <> 'published')::int bad,
+          (array_agg(left(q.id::text, 8) || '/v' || left(v.id::text, 8) || ' ' || CASE WHEN q.status <> 'published' THEN 'status=' || q.status ELSE 'version not servable' END)
+            FILTER (WHERE NOT public.fn_qf_version_is_servable(mq.question_version_id) OR q.status <> 'published'))[1:10] offenders
           FROM public.mock_questions mq JOIN public.question_versions v ON v.id = mq.question_version_id JOIN public.questions q ON q.id = v.question_id`));
       assert(mk[0].n >= 1, 'no assembled mock question to check'); // GATE-HYGIENE-1
-      assert(mk[0].bad === 0, `mock questions not servable: ${mk[0].bad}`);
+      assert(mk[0].bad === 0, `mock questions not servable: ${mk[0].bad} of ${mk[0].n} — ${JSON.stringify(mk[0].offenders)}`);
       out.push(`mocks ${mk[0].n} assembled, 0 invalid`);
       return out.join('; ');
     });

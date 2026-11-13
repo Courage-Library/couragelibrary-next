@@ -493,7 +493,7 @@ jobs:
           node scripts/live/with-server.cjs --port=3100 --log="$RUNNER_TEMP/server/server.log" -- \
             "$Q QA-SESSION-PROBE -- node scripts/live/qa-session.cjs --probe" \
             "$Q SECDEF-RATCHET -- node scripts/test_secdef_ratchet.cjs" \
-            "$Q QBKEY1 -- node scripts/test_qb_key1.cjs" \
+            "$Q QBKEY1 --keep-log $RUNNER_TEMP/gate-logs -- node scripts/test_qb_key1.cjs" \
             "$Q SECDEF-S2-1 -- node scripts/test_secdef_s2_1.cjs" \
             "$Q TYPES1-CLOSE -- node scripts/test_types1_close.cjs" \
             "$Q ADMIN-D1-D2 -- node scripts/live/test_admin_d1_d2.cjs" \
@@ -527,9 +527,11 @@ jobs:
             "$Q ANON-SMOKE-LOCAL -- node scripts/smoke/anonymous-smoke.cjs $B"
       # CI-LIVE-GATES-1: UX2A-LIVE L-13 (axe + CLS on "/") failed on the runner only (scheduled #199, dispatch #202) while
       # production and a local build pass; the summary line hides the assertion. run-quiet --keep-log writes the gate's
-      # SANITIZED log on a failure (log-scan flagged lines and env-looking lines redacted; same as CI-FLAKE-1 build logs)
-      - name: CI-LIVE-GATES-1 — sanitized UX2A-LIVE log (failure only; scanned lines redacted, no env)
-        if: failure() && matrix.shard == 'pages'
+      # SANITIZED log on a failure (log-scan flagged lines and env-looking lines redacted; same as CI-FLAKE-1 build logs).
+      # CI-DIAG-L13-K14: the same for QBKEY1 (security shard; K-14 first failed in dispatch #207) — K-14 names offending
+      # questions by masked id + reason only, never content
+      - name: CI-LIVE-GATES-1 — sanitized UX2A-LIVE / QBKEY1 log (failure only; scanned lines redacted, no env)
+        if: failure() && (matrix.shard == 'pages' || matrix.shard == 'security')
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2 (node24)
         with:
           name: gate-logs-${{ github.job }}-${{ matrix.shard }}-${{ github.run_attempt }}

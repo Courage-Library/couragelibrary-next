@@ -129,11 +129,12 @@ test('C-10 workflow is public-safe: no artifact upload except the failure-only s
   const sameKind = (body, ifLine, dir) => new RegExp(`^ {8}if: ${ifLine}$`, 'm').test(body) && /^ {8}uses: actions\/upload-artifact@[0-9a-f]{40} /m.test(body)
     && new RegExp(`^ {10}path: \\$\\{\\{ runner\\.temp \\}\\}/${dir}/$`, 'm').test(body) && /^ {10}retention-days: [1-7]$/m.test(body) && !/\n {10}path: [^\n]*\n {12}/.test(body);
   const build = uploads.filter(([, , body]) => sameKind(body, 'failure\\(\\)', 'build-diag'));
-  const gate = uploads.filter(([, , body]) => sameKind(body, "failure\\(\\) && matrix\\.shard == 'pages'", 'gate-logs'));
+  // CI-DIAG-L13-K14 (owner 2026-11-13): the gate-log upload covers the pages AND security shards (QBKEY1 joins UX2A-LIVE)
+  const gate = uploads.filter(([, , body]) => sameKind(body, "failure\\(\\) && \\(matrix\\.shard == 'pages' \\|\\| matrix\\.shard == 'security'\\)", 'gate-logs'));
   assert(build.length === 3 && gate.length === 1, `an artifact upload that is not a failure-only sanitized log (build-diag ×3, gate-logs ×1): build ${build.length}, gate ${gate.length}\n${uploads.map((u) => u[2]).join('\n')}`);
   assert((w.match(/--keep-log "\$RUNNER_TEMP\/build-diag"/g) || []).length === 3, 'the build-diag folder is written only by run-quiet --keep-log (the sanitizer)');
   const gateKeeps = [...w.matchAll(/"\$Q ([A-Z0-9-]+) --keep-log \$RUNNER_TEMP\/gate-logs -- /g)].map((m) => m[1]);
-  assert(JSON.stringify(gateKeeps) === '["UX2A-LIVE"]' && (w.match(/gate-logs/g) || []).length === 3, `the gate-logs folder is written only by run-quiet --keep-log on UX2A-LIVE (got ${JSON.stringify(gateKeeps)})`);
+  assert(JSON.stringify(gateKeeps) === '["QBKEY1","UX2A-LIVE"]' && (w.match(/gate-logs/g) || []).length === 4, `the gate-logs folder is written only by run-quiet --keep-log on QBKEY1 and UX2A-LIVE (got ${JSON.stringify(gateKeeps)})`);
   assert(!/\btee\b/.test(w), 'tee present');
   assert(/CI_QUIET: '1'/.test(w), 'CI_QUIET not set');
   const gateLines = w.split('\n').filter((l) => /node scripts\/(test_|smoke\/|e2e\/|diag\/net-probe|ci\/db-sessions)/.test(l) && !/^\s*#/.test(l));
@@ -336,7 +337,7 @@ test('C-19 CI-SPEED-1: shard isolation (every shared-group writer in the db shar
   assert(bad.length === 0, bad.join('; '));
   assert(sh.db.length >= 10 && sh.db.some((g) => g.id === 'SYLIMPORT1'), 'the db shard holds the syllabus writers');
   // negative control: SYLIMPORT1 moved into the security shard must be caught
-  const moved = w.replace('"$Q SYLIMPORT1 -- node scripts/test_syl_import1.cjs" \\\n', '').replace('"$Q QBKEY1 -- node scripts/test_qb_key1.cjs"', '"$Q QBKEY1 -- node scripts/test_qb_key1.cjs" \\\n            "$Q SYLIMPORT1 -- node scripts/test_syl_import1.cjs"');
+  const moved = w.replace('"$Q SYLIMPORT1 -- node scripts/test_syl_import1.cjs" \\\n', '').replace('"$Q QBKEY1 --keep-log $RUNNER_TEMP/gate-logs -- node scripts/test_qb_key1.cjs"', '"$Q QBKEY1 --keep-log $RUNNER_TEMP/gate-logs -- node scripts/test_qb_key1.cjs" \\\n            "$Q SYLIMPORT1 -- node scripts/test_syl_import1.cjs"');
   assert(moved !== w && isolationProblems(moved).bad.some((x) => /SYLIMPORT1 \(security\)/.test(x)), 'negative control: a syllabus writer outside the db shard was NOT caught');
   // (b) per-suite caps: both live jobs run every gate through --caps, and every gate id has a cap (120..900 s)
   const caps = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts/ci/live-gate-caps.json'), 'utf8')).gates;
