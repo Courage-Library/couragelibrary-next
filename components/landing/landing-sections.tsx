@@ -88,7 +88,10 @@ export function LandingHero({ liveCategories = [], hindi = null, signupOpen = fa
     <GradientHero aria-labelledby="hero-title" data-hero="">
       <Container className="grid items-center gap-6 lg:grid-cols-[1fr_auto] lg:gap-12">
         <div className="flex flex-col items-start gap-4 lg:gap-5">
-          <p className="inline-flex items-center gap-2 text-body font-semibold text-hero-accent-text" data-brand-line="">
+          {/* L-13 layout guard (owner 2026-11-13): below sm the brand line is 14 px with tighter tracking and gap, so it stays
+              ONE line at 360 px even in a wide fallback font (Linux / Android have no Arial for the size-adjusted
+              fallback: measured 300 px of 312 in Verdana ≈ DejaVu). Desktop unchanged (16 px, normal tracking). */}
+          <p className="inline-flex items-center gap-1.5 text-body-sm font-semibold tracking-[-0.02em] text-hero-accent-text sm:gap-2 sm:text-body sm:tracking-normal" data-brand-line="">
             <span aria-hidden="true" className="size-2 rounded-full bg-accent-400" />
             {LANDING_HERO.eyebrow}
           </p>
@@ -103,7 +106,9 @@ export function LandingHero({ liveCategories = [], hindi = null, signupOpen = fa
               {chip}
             </p>
           )}
-          <div className="flex flex-wrap items-center gap-3">
+          {/* L-13 layout guard: below sm the hero actions stack full width (48 px each) — the row height no longer depends on
+              whether two buttons fit side by side in the current font (the late web-font swap used to unwrap it). */}
+          <div className="flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center" data-hero-cta="">
             <LandingCta spot="hero" signupOpen={signupOpen} />
           </div>
           <p className="text-body-sm text-hero-fg-muted">{LANDING_HERO.note}</p>
