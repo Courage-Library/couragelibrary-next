@@ -212,6 +212,13 @@ const ADMIN_ONLY = new Set([
   'app/(site)/admin/taxonomy/actions.ts#setTaxonomyNodeInternalAction',
   'app/(site)/admin/taxonomy/actions.ts#setTaxonomyContentSourceAction', // SYLLABUS-UI-1: admin only
   'app/(site)/admin/taxonomy/actions.ts#setTaxonomyLessonAtTopicAction', // SEO-TOPIC-CANON-1: admin only
+  'app/(site)/admin/syllabus/map/actions.ts#createMapSessionAction', // SYLLABUS-MAP-1 B2: admin only (writes the master tree)
+  'app/(site)/admin/syllabus/map/actions.ts#decideMapItemAction', // SYLLABUS-MAP-1 B2: admin only (writes the master tree)
+  'app/(site)/admin/syllabus/map/actions.ts#setMapOutlineAction', // SYLLABUS-MAP-1 B2: admin only (writes the master tree)
+  'app/(site)/admin/syllabus/map/actions.ts#setMapWeightageAction', // SYLLABUS-MAP-1 B2: admin only (writes the master tree)
+  'app/(site)/admin/syllabus/map/actions.ts#importMapSessionAction', // SYLLABUS-MAP-1 B2: admin only (writes the master tree)
+  'app/(site)/admin/syllabus/map/actions.ts#discardMapSessionAction', // SYLLABUS-MAP-1 B2: admin only (writes the master tree)
+  'app/(site)/admin/syllabus/map/actions.ts#publishMapStagesAction', // SYLLABUS-MAP-1 B2: admin only (writes the master tree)
   ...['createIntakeAction', 'addIntakeCycleAction', 'decideIntakeItemAction', 'importIntakeAction', 'discardIntakeAction', 'bulkIntakeAction', 'undoIntakeBulkAction'].map((n) => `app/(site)/admin/syllabus/intake/actions.ts#${n}`),
   // F9-B: library Pro grants are admin-only (staff cannot grant Pro)
   'app/(site)/admin/pro-library/actions.ts#grantLibraryProAction',

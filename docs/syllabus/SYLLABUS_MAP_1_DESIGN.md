@@ -40,7 +40,7 @@
 | Aliases | `taxonomy_node_aliases` (115): `alias`, `normalized_alias`, `language` en/hi, `source` OWNER/INTAKE/IMPORT. Unique per node and normalized alias. |
 | Lessons | `learning_documents.node_id` (119, NODE_LESSON) on master nodes; versions in `document_versions` (BLOCKS). |
 | Exam map version | `exam_syllabus_versions`: `exam_id`, `exam_cycle_id`, `tier` (116), `version_number`, `status` DRAFT/PUBLISHED/ARCHIVED, `source_kind`, `metadata`, publish audit columns. |
-| Exam pattern and weightage | `exam_syllabus_nodes`: `node_kind` PAPER / SECTION / UNIT (078); `raw_title`; `weightage_tier`; `expected_questions_min/max`; `required_cognitive_depth`; `metadata` (116), which holds `marks`, `questions`, `avg_questions`, `duration_minutes`, `negative_marking`, `uncertain` and `outlines`; plus `origin`, `avg_questions`, `duration_minutes` and `negative_marking` columns from 119. |
+| Exam pattern and weightage | `exam_syllabus_nodes`: `node_kind` PAPER / SECTION / UNIT (078); `raw_title`; `weightage_tier`; `expected_questions_min/max`; `required_cognitive_depth`; `metadata` (116), which holds `marks`, `avg_questions`, `duration_minutes`, `negative_marking`, `uncertain` and `outlines`. *(Corrected in B2: the `origin` / `avg_questions` / `duration_minutes` / `negative_marking` columns of 119 are on `syllabus_intake_items`, not on `exam_syllabus_nodes`.)* |
 | Exam node → master | `exam_syllabus_canonical_mappings`: `canonical_node_id` + `canonical_node_type` TOPIC / SUBTOPIC / CONCEPT (116), `rollup_topic_id` / `topic_id`, `match_status`, `match_method`, `mapping_weight`, `candidate_matches`, `reviewed_by/at`. |
 | Public read | `fn_exam_syllabus_read_model` (079 and later), `fn_exam_course_outline`: **PUBLISHED versions only**. Drafts are never visible to candidates. |
 | SEO | Master URLs `/learn/<path>`, `/exams/<exam>/<path>` (`lib/learn/paths.ts`); `lesson_at_topic` 308 rules (`lib/learn/topic-canon.ts`). |
@@ -216,6 +216,41 @@ Rules for every phase:
 | **B3** CGL migration | Two steps in this order (owner 2026-11-12):<br>(1) **copy** the outlines → `taxonomy_node_outlines` (§E), applied and verified in production;<br>(2) **only then** the `mustCoverFor` reader switch, released separately.<br>**Hard stop:** if any of the 147 CGL subtopic lesson prompts is not byte-identical before and after the switch, stop and report; nothing is switched. | Line counts before = after per node; the lesson prompt byte-identical for all 147 subtopics; CGL v4 rows unchanged (hash of the nodes and mappings); a second run is a no-op; SEO-TOPIC-CANON-1 and the sitemap unchanged; backup + dry-run first. |
 | **TAXONOMY-HINDI-1** (between B3 and B4, owner 2026-11-12) | The Hindi master subject and its topics and subtopics, through MASTER_INTAKE v1 (F1 prompt) and owner review in the master queue; outlines ≤ 30 lines. No exam data. Backlog entry TAXONOMY-HINDI-1 closes here. | One subject, idempotent re-run; no clash with English topic names (language-scoped parent); `name_hi` present; master gap re-run returns nothing new; no CGL or English node changed. |
 | **B4** GD import | F2 for GD 2026 (the Hindi subject already exists from TAXONOMY-HINDI-1); review; publish; selection stages on the exam info page. | Pattern sums with the language group (80 Q / 160 marks); PET/PST/Medical/DV only as stages; the GD map refs resolve to CGL's shared nodes (no duplicate English topics); the exam-info section renders the stages; the CGL map and lessons unchanged. |
+
+### H. B2 as built (2026-11-15; branch `feat/syllabus-map-b2`, migration 139, not applied)
+
+- **A sibling session kind, not v3:** new staging tables `syllabus_map_sessions` / `syllabus_map_items` and `fn_syllabus_map_*` functions. The v3 intake tables, functions, service and UI are unchanged and keep working (gate M-1c proves the v3 function definitions are identical before and after 139). It writes into the same exam-map tables and master tree, and uses the same audited helpers.
+- **Matching** (`lib/syllabus/map-matcher.ts`, pure; the same normalization and similarity rule as v3):
+  - path → `EXACT_REF`; name → `EXACT`; alias → `ALIAS`. These are linked at create time and **re-checked by the database**; a forged claim fails with 22023.
+  - Two or more exact or alias hits → `CLOSE`. A similar name → `CLOSE`. Nothing → `NEW`. A missing path → `UNKNOWN_REF`.
+  - Every non-exact item stays **undecided**. Nothing is linked or created from a fuzzy match.
+- **Decisions:** `LINK` (to a suggestion, or a master path the owner types), `APPROVE_NEW` (only a proposed item: `kind = NEW`, enforced in the function **and** by `chk_map_item_parent`; admin only), `IGNORE`.
+  - An outline that differs from the master's needs `REPLACE` / `KEEP`.
+  - The per-exam weightage can be edited under review.
+- **Idempotent:** the same file (contract + sha256 of its JSON) returns the session already under review, with 0 new rows. A unique index stops a parallel duplicate. After import, the same file is refused.
+- **Import, MASTER_INTAKE:**
+  - outlines through `fn_taxonomy_outline_set` (138);
+  - aliases through `fn_taxonomy_add_alias`;
+  - a Hindi name only where the node has none.
+- **Import, EXAM_MAP:** one DRAFT version:
+  - PAPER and SECTION nodes (with `choice_group`); time, marks and negative marking in node metadata, as v3 does;
+  - **one UNIT per master TOPIC** (Q1), in first-appearance order, mapped to the subtopics the file names (else the topic);
+  - the unit's weightage: the topic entry's tier, else the best of its subtopics; `avg_questions`: the topic entry's, else the sum of its subtopics';
+  - the selection stages saved as a DRAFT set.
+- **Publishing:** the syllabus draft is published from the existing editor (PUBLISH-CONFIRM-SERVER). The stages have their own "Publish the selection process" button on the review page. Drafts are never visible to candidates (M-7c).
+- **Types:** the service reads through the registered quarantine client `TYPES-1:C-SYLLABUS-MAP-B2` until 139 is applied and `npm run db:types` has run. That is part of the B2 release; the quarantine is removed then.
+- **Admin:** `/admin/syllabus/map` (paste, recent files) and `/admin/syllabus/map/[id]` (review). Both are admin-only routes (nav `ADMIN_ONLY_ROUTES`, SEC-1C). The Syllabus area has a "Master & exam maps" tab.
+- **Samples** for the generation prompts: `data/syllabus-map/master-intake.sample.json` and `data/syllabus-map/exam-map.sample.json`. Both are valid, warning-free and used by the gates. The exam sample uses the inactive `qa-syllabus-test` exam and a "History or Geography" choice group, because "English or Hindi" needs the Hindi subject (TAXONOMY-HINDI-1).
+- **Tests:**
+  - offline `scripts/test_syllabus_map_b2.cjs` (6 tests);
+  - DB gate `scripts/live/test_syllabus_map_b2.cjs` (29 checks);
+  - the full LOCAL_PG_TEST cycle (`--pre`, apply, rollback, strict compare, re-apply), plus 6 negative controls that each fail their check:
+    - no claim re-check;
+    - import while undecided;
+    - creating any kind of item;
+    - no idempotency;
+    - stages published at import;
+    - fuzzy matches linked automatically.
 
 ## 3. Risks
 

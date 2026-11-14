@@ -87,6 +87,7 @@ export const ADMIN_NAV: NavGroup[] = [
         tabs: [
           { label: "Versions", href: "/admin/syllabus", access: "staff" },
           { label: "Intakes", href: "/admin/syllabus/intake", access: "admin" },
+          { label: "Master & exam maps", href: "/admin/syllabus/map", access: "admin" }, // SYLLABUS-MAP-1 B2
         ],
         actions: [{ label: "Start intake", href: "/admin/syllabus/intake", access: "admin" }],
       },
@@ -304,6 +305,8 @@ export const ADMIN_ONLY_ROUTES: readonly string[] = [
   "/admin/support/question-reports",
   "/admin/syllabus/intake",
   "/admin/syllabus/intake/[id]",
+  "/admin/syllabus/map",
+  "/admin/syllabus/map/[id]",
   "/admin/system",
   "/admin/system/design",
 ];

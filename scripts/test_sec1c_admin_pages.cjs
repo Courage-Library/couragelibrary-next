@@ -136,7 +136,7 @@ const segOf = (p) => p.replace(/^app\/(?:\(site\)\/)?admin\/?/, '').replace(/\/?
 // F2 (#79): question reports are admin-only (reports → redirect to question-reports)
 // ADMIN-IA-1 (2026-10-29): the same admin-only pages at their new addresses (+ lessons/legacy, the read-only legacy
 // tab; system/design became admin only, Q-S); reports + the retired pages are gone (their old URLs redirect)
-const ADMIN_ONLY = new Set(['coverage', 'exams/notes', 'payments/premium', 'rewards', 'adaptive', 'master-tree', 'live-tests/intelligence', 'live-tests/[id]/intelligence', 'students', 'gamification', 'payments', 'live-tests/[id]/results', 'support/question-reports', 'students/library-pro', 'system', 'system/design', 'syllabus/intake', 'syllabus/intake/[id]', 'lessons', 'lessons/[id]', 'lessons/[id]/translate', 'lessons/legacy', 'lessons/new', 'prompts']); // CA-2: the intake writes the master tree; CA-3 lessons; CA-4 generator / translation / prompts
+const ADMIN_ONLY = new Set(['coverage', 'exams/notes', 'payments/premium', 'rewards', 'adaptive', 'master-tree', 'live-tests/intelligence', 'live-tests/[id]/intelligence', 'students', 'gamification', 'payments', 'live-tests/[id]/results', 'support/question-reports', 'students/library-pro', 'system', 'system/design', 'syllabus/intake', 'syllabus/intake/[id]', 'syllabus/map', 'syllabus/map/[id]', 'lessons', 'lessons/[id]', 'lessons/[id]/translate', 'lessons/legacy', 'lessons/new', 'prompts']); // CA-2: the intake writes the master tree; CA-3 lessons; CA-4 generator / translation / prompts
 
 /** Body of the default-exported function (or a named function) — brace-matched. */
 function fnBody(src, header) {
@@ -162,8 +162,8 @@ function firstGuardViolation(body) {
 
 (async () => {
   // ===================== Part 1: static =====================
-  await test(`S-01 inventory: ${PAGES.length} app/(site)/admin page.tsx files (expected 48: +design-system UX-1a, +syllabus + syllabus/[id] GAP2-4b, −syllabus-reconciliation GAP2-4c, +question-reports F2, +content/topics F6, +support F11, +mfa AUTH-1 2b-3, +pro-library F9-B, +review/focus + settings Courage Studio #84, +syllabus/intake + intake/[id] CA-2, +lessons + lessons/[id] CA-3, +lessons/generate + lessons/[id]/translate + prompts CA-4, +lessons/coverage + lessons/notes CA-7; ADMIN-IA-1 −content −content/topics −descriptive −categories −mock-tests-management −reports +lessons/legacy = 47; HOME-1 +exams/categories = 48)`, async () => {
-    assert(PAGES.length === 48 && PAGES.includes('app/(site)/admin/exams/categories/page.tsx'), `found ${PAGES.length}`);
+  await test(`S-01 inventory: ${PAGES.length} app/(site)/admin page.tsx files (expected 48: +design-system UX-1a, +syllabus + syllabus/[id] GAP2-4b, −syllabus-reconciliation GAP2-4c, +question-reports F2, +content/topics F6, +support F11, +mfa AUTH-1 2b-3, +pro-library F9-B, +review/focus + settings Courage Studio #84, +syllabus/intake + intake/[id] CA-2, +lessons + lessons/[id] CA-3, +lessons/generate + lessons/[id]/translate + prompts CA-4, +lessons/coverage + lessons/notes CA-7; ADMIN-IA-1 −content −content/topics −descriptive −categories −mock-tests-management −reports +lessons/legacy = 47; HOME-1 +exams/categories = 48; SYLLABUS-MAP-1 B2 +syllabus/map + syllabus/map/[id] = 50)`, async () => {
+    assert(PAGES.length === 50 && PAGES.includes('app/(site)/admin/exams/categories/page.tsx') && PAGES.includes('app/(site)/admin/syllabus/map/[id]/page.tsx'), `found ${PAGES.length}`);
   });
   await test('S-02 every admin page: requireAdminPage is the FIRST awaited call (before any data/service/gate)', async () => {
     const bad = [];

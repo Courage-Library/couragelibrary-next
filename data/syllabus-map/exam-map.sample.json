@@ -1,0 +1,87 @@
+{
+  "contract": "EXAM_MAP",
+  "contract_version": 1,
+  "exam": "qa-syllabus-test",
+  "cycle_year": null,
+  "tier": null,
+  "based_on": "Sample exam for the EXAM_MAP format (not a real notice)",
+  "source_url": "https://example.com/sample-exam-notice",
+  "as_of": "2026-11-15",
+  "papers": [
+    {
+      "name": "Computer Based Test",
+      "questions": 50,
+      "marks": 100,
+      "duration_minutes": 45,
+      "negative_marking": "0.5 per wrong answer",
+      "choice_groups": [{ "id": "optional-subject", "label": "History or Geography", "pick": 1 }],
+      "sections": [
+        {
+          "name": "Reasoning",
+          "questions": 15,
+          "marks": 30,
+          "map": [
+            { "ref": "general-intelligence-and-reasoning.analogy", "weightage_tier": "HIGH_YIELD", "avg_questions": 4 },
+            { "ref": "general-intelligence-and-reasoning.coding-decoding.letter-coding", "weightage_tier": "CORE", "avg_questions": 2 },
+            { "ref": "general-intelligence-and-reasoning.coding-decoding.number-and-word-coding", "weightage_tier": "CORE", "avg_questions": 2 },
+            { "ref": "general-intelligence-and-reasoning.blood-relations", "weightage_tier": "CORE", "avg_questions": 3 },
+            { "name": "Mirror Images", "weightage_tier": "MODERATE", "avg_questions": 2 },
+            { "ref": "general-intelligence-and-reasoning.direction-sense", "weightage_tier": "MODERATE", "avg_questions": 2, "origin": "PYQ_TREND" }
+          ]
+        },
+        {
+          "name": "Quantitative Aptitude",
+          "questions": 15,
+          "marks": 30,
+          "map": [
+            { "ref": "quantitative-aptitude.percentage.percentage-fundamentals", "weightage_tier": "HIGH_YIELD", "avg_questions": 2 },
+            { "new": true, "level": "SUBTOPIC", "parent_ref": "quantitative-aptitude.percentage", "name": "Successive Percentage Change", "weightage_tier": "CORE", "avg_questions": 1 },
+            { "ref": "quantitative-aptitude.average", "weightage_tier": "CORE", "avg_questions": 3 },
+            { "ref": "quantitative-aptitude.profit-loss", "weightage_tier": "HIGH_YIELD", "avg_questions": 4 },
+            { "ref": "quantitative-aptitude.simple-interest", "weightage_tier": "MODERATE", "avg_questions": 2 },
+            { "ref": "quantitative-aptitude.ratio-proportion", "weightage_tier": "CORE", "avg_questions": 3 }
+          ]
+        },
+        {
+          "name": "English Language",
+          "questions": 10,
+          "marks": 20,
+          "map": [
+            { "ref": "english-comprehension.synonyms", "weightage_tier": "CORE", "avg_questions": 2 },
+            { "ref": "english-comprehension.antonyms", "weightage_tier": "CORE", "avg_questions": 2 },
+            { "ref": "english-comprehension.error-spotting", "weightage_tier": "HIGH_YIELD", "avg_questions": 3 },
+            { "ref": "english-comprehension.cloze-test", "weightage_tier": "MODERATE", "avg_questions": 3 }
+          ]
+        },
+        {
+          "name": "Indian History",
+          "questions": 10,
+          "marks": 20,
+          "choice_group": "optional-subject",
+          "map": [
+            { "ref": "general-awareness.history.ancient-indian-history", "weightage_tier": "CORE", "avg_questions": 3 },
+            { "ref": "general-awareness.history.medieval-indian-history", "weightage_tier": "CORE", "avg_questions": 3 },
+            { "ref": "general-awareness.history.modern-indian-history", "weightage_tier": "HIGH_YIELD", "avg_questions": 4 }
+          ]
+        },
+        {
+          "name": "Indian Geography",
+          "questions": 10,
+          "marks": 20,
+          "choice_group": "optional-subject",
+          "map": [
+            { "ref": "general-awareness.geography.indian-geography", "weightage_tier": "HIGH_YIELD", "avg_questions": 6 },
+            { "ref": "general-awareness.geography.physical-geography", "weightage_tier": "CORE", "avg_questions": 4 }
+          ]
+        }
+      ]
+    }
+  ],
+  "selection_process": [
+    { "stage": "CBT", "name": "Computer Based Test", "nature": "MERIT", "paper": "Computer Based Test" },
+    { "stage": "PET", "name": "Physical Efficiency Test", "nature": "QUALIFYING", "details": { "male": "1.6 km in 6 minutes 30 seconds", "female": "800 m in 4 minutes" }, "uncertain": true, "uncertain_reason": "Sample values; a real map takes them from the notice." },
+    { "stage": "PST", "name": "Physical Standard Test", "nature": "QUALIFYING" },
+    { "stage": "MEDICAL", "name": "Detailed Medical Examination", "nature": "QUALIFYING" },
+    { "stage": "DV", "name": "Document Verification", "nature": "QUALIFYING" }
+  ]
+}

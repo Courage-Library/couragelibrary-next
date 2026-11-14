@@ -55,6 +55,7 @@ New-Item -ItemType Directory C:\pg17-local ; Move-Item C:\pg17-quarantine\x\pgsq
 ```bash
 DIR=C:/pg17-data-test                  # outside the repo; deleted by "down"
 node scripts/db/local-pg.cjs up --dir=$DIR            # schema + non-personal rows; reports restore errors
+# if the backup predates earlier migrations that are not applied yet in it, apply those first (e.g. 138 before 139)
 node scripts/db/local-pg.cjs counts --out=$TEMP/before.json
 node scripts/db/local-pg.cjs apply --file=supabase/migrations/<new>.sql
 node scripts/live/test_<gate>.cjs --local=54329        # the migration's DB gate, as the real (stub) roles, rolled back

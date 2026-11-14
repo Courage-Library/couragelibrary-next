@@ -1,0 +1,56 @@
+{
+  "contract": "MASTER_INTAKE",
+  "contract_version": 1,
+  "subject": "english-comprehension",
+  "based_on": "SSC, Banking and Railways English syllabi and previous papers, 2022–2026",
+  "nodes": [
+    {
+      "ref": "english-comprehension.synonyms",
+      "aliases": ["Similar words"]
+    },
+    {
+      "ref": "english-comprehension.synonyms.similar-word-meaning",
+      "outline": [
+        "What a synonym is: same or nearly the same meaning in a given context",
+        "Choosing the closest meaning when no option is an exact match",
+        "Context decides: one word, several meanings",
+        "Prefix and root clues (bene-, mal-, -phobia)",
+        "Elimination of options with the opposite or an unrelated sense",
+        "High-frequency exam word groups"
+      ]
+    },
+    {
+      "ref": "english-comprehension.spelling.spelling-identification",
+      "outline": [
+        "Doubled consonants (accommodate, embarrass, occurrence)",
+        "ie / ei rule and its exceptions",
+        "Silent letters",
+        "-able / -ible and -ance / -ence endings",
+        "Commonly confused spellings in exam options"
+      ]
+    },
+    {
+      "new": true,
+      "level": "TOPIC",
+      "parent_ref": "english-comprehension",
+      "name": "Sentence Completion",
+      "name_hi": "वाक्य पूर्ति",
+      "aliases": ["Complete the sentence"],
+      "outline": [
+        "Reading the whole sentence before the blank",
+        "Grammar fit first, then meaning",
+        "Clue words: contrast, cause, sequence"
+      ],
+      "subtopics": [
+        {
+          "name": "Single Blank Completion",
+          "outline": ["One word or phrase per blank", "Collocations that decide the answer", "Tense and number agreement at the blank"]
+        },
+        {
+          "name": "Double Blank Completion",
+          "outline": ["Solve the easier blank first", "Eliminate pairs where one word fails", "Logical link between the two blanks"]
+        }
+      ]
+    }
+  ]
+}
