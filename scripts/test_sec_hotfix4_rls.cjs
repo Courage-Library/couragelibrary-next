@@ -107,6 +107,8 @@ function blanketViolations(policies) {
 // P-9 (SEC-HOTFIX-6): SECURITY DEFINER functions intentionally executable by anon / PUBLIC (reviewed)
 const SECDEF_PUBLIC_OK = {
   fn_exam_syllabus_read_model: 'student syllabus read model: PUBLISHED rows only, read-only, search_path ""',
+  // PAY-1 B2a (owner GO 2026-11-14): returns only 'FREE' / 'PRO' for an item; read-only; visitors and RLS need it
+  fn_access_tier: 'access tier of an item (FREE / PRO only), read-only, search_path ""',
 };
 // P-9: SECURITY DEFINER functions awaiting an architect ruling — MUST stay empty (SEC-HOTFIX-7 ruled on all 14
 // items of SEC_HOTFIX6_REPORT §2.3; a new exposure needs a ruling + a fix, never an entry here)

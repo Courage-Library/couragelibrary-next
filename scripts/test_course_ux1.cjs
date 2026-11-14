@@ -106,10 +106,15 @@ function check(over = {}) {
   const al = JSON.parse(f.allow);
   const e1 = al.functions && al.functions['fn_lesson_quick_check_answer(p_document_id uuid, p_language text, p_block_id text, p_option_id text)'];
   const e2 = al.functions && al.functions['fn_lesson_complete(p_document_id uuid, p_language text)'];
+  // later phases change the maxima only by documented, exactly-sized rules AFTER the COURSE-UX-1 rule (PAY-1 B1 lowered,
+  // PAY-1 B2a raised): COURSE-UX-1's own state (120 / 51 / 51) + those deltas must equal the file
+  const after = al.rules.slice(al.rules.findIndex((r) => /^COURSE-UX-1 /.test(r)) + 1);
+  const sum = (re) => after.map((r) => Number((r.match(re) || [])[1] || 0)).reduce((x, y) => x + y, 0);
+  const clientRaise = sum(/max total \/ client_executable_callable \/ A raised by exactly (\d+)/);
+  const totalDelta = clientRaise + sum(/max total raised by exactly (\d+)/) - sum(/max total and B-service lowered by exactly (\d+)/);
   t('M-3', e1 && e2 && e1.class === 'A' && e2.class === 'A' && JSON.stringify(e1.client) === '["authenticated"]' && JSON.stringify(e2.client) === '["authenticated"]'
-    // PAY-1 B1 and later: documented drops lower max total exactly ("max total and B-service lowered by exactly N")
-    && al.max.total === 120 - al.rules.map((r) => Number((r.match(/max total and B-service lowered by exactly (\d+)/) || [])[1] || 0)).reduce((x, y) => x + y, 0)
-    && al.max.client_executable_callable === 51 && al.max.A === 51 && al.rules.some((r) => /^COURSE-UX-1 .*raised by exactly 2/.test(r)), 'allow-list: +2 class A authenticated entries, max +2, rule');
+    && al.max.total === 120 + totalDelta
+    && al.max.client_executable_callable === 51 + clientRaise && al.max.A === 51 + clientRaise && al.rules.some((r) => /^COURSE-UX-1 .*raised by exactly 2/.test(r)), 'allow-list: +2 class A authenticated entries, max +2, rule');
 
   // ---------------- R-1 reading time
   const RT = (() => { try { return loadTs(f.rt); } catch { return null; } })();

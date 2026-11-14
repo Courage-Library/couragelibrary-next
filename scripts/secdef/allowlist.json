@@ -19,20 +19,23 @@
   "CA-5 (architect GO 2026-10-28, design §I: progress written ONLY through an auth.uid() RPC, the DRILL-1 pattern): max total / client_executable_callable / A raised by exactly 1 for fn_lesson_progress_save — a NEW reviewed client entrypoint (authenticated only; no table write granted)",
   "USERNAME-1 (owner GO 2026-11-02, server-only lookup approved): max total raised by exactly 2 — B-service by 1 for fn_public_identities (service_role only, ≤ 100 ids, label only) and B-trigger by 1 for fn_user_profiles_auto_username (trigger, not callable); client_executable_callable and A unchanged (fn_set_username replaced in place, same class A entry)",
   "COURSE-UX-1 (owner GO 2026-11-03, phase B: completion only with server-recorded evidence; quick-check answers checked on the server): max total / client_executable_callable / A raised by exactly 2 for fn_lesson_quick_check_answer and fn_lesson_complete — NEW reviewed client entrypoints (authenticated only; auth.uid(); no table write granted); the reading-minutes and lesson-coin award helpers are INVOKER and not listed",
-  "PAY-1 B1 (owner GO 2026-11-14, PAY-LEGACY-RETIRE-1): max total and B-service lowered by exactly 3 — migration 140 drops the legacy fn_create_payment_order, fn_process_payment_webhook and fn_verify_and_fulfill_payment (service_role only, no caller, nothing depends on them)"
+  "PAY-1 B1 (owner GO 2026-11-14, PAY-LEGACY-RETIRE-1): max total and B-service lowered by exactly 3 — migration 140 drops the legacy fn_create_payment_order, fn_process_payment_webhook and fn_verify_and_fulfill_payment (service_role only, no caller, nothing depends on them)",
+  "PAY-1 B2a (owner GO 2026-11-14, admin-controlled access policy): max total / client_executable_callable / A raised by exactly 2 for fn_access_tier (anon + authenticated, P-9 SECDEF_PUBLIC_OK: returns FREE / PRO only) and fn_has_pro_self (authenticated, the caller's own Pro); anon_or_public raised by exactly 1 for fn_access_tier",
+  "PAY-1 B2a: max total raised by exactly 3 and B-service by 3 for the service-role-only audited writes fn_access_policy_set, fn_access_policy_clear and fn_paywall_set"
  ],
  "max": {
-  "total": 117,
-  "client_executable_callable": 51,
-  "anon_or_public": 1,
-  "A": 51,
+  "total": 122,
+  "client_executable_callable": 53,
+  "anon_or_public": 2,
+  "A": 53,
   "C": 0,
   "B-trigger": 16,
-  "B-service": 36,
+  "B-service": 39,
   "B-internal": 0
  },
  "public_ok": [
-  "fn_exam_syllabus_read_model(p_exam_id uuid, p_exam_cycle_id uuid)"
+  "fn_exam_syllabus_read_model(p_exam_id uuid, p_exam_cycle_id uuid)",
+  "fn_access_tier(p_kind text, p_key text)"
  ],
  "functions": {
   "fn_authorize_and_start_test_attempt(p_user_id uuid, p_mock_test_id uuid)": {
@@ -839,6 +842,41 @@
    ],
    "search_path": "\"\"",
    "reason": "client entrypoint (COURSE-UX-1, migrations 136 + 137): own check auth.uid(); completes a lesson only with server-recorded evidence (end, quick checks, time); awards lesson coins once via the canonical ledger when the DB switch is on; listed before the owner applies it"
+  },
+  "fn_access_policy_clear(p_kind text, p_key text, p_actor_id uuid, p_actor_email text)": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "\"\"",
+   "reason": "PAY-1 B2a: remove an item override (service_role only; audited ACCESS_POLICY_CLEAR); a kind default cannot be cleared"
+  },
+  "fn_access_policy_set(p_kind text, p_key text, p_tier text, p_actor_id uuid, p_actor_email text)": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "\"\"",
+   "reason": "PAY-1 B2a: admin \"Free & Pro\" write (service_role only; validated; audited ACCESS_POLICY_SET old → new); called by an admin-only server action"
+  },
+  "fn_access_tier(p_kind text, p_key text)": {
+   "class": "A",
+   "client": [
+    "anon",
+    "authenticated"
+   ],
+   "search_path": "\"\"",
+   "reason": "PAY-1 B2a (owner GO 2026-11-14): resolved access tier of an item (FREE / PRO only; exact → parent → kind default → PRO fail-closed); read-only; must work for visitors and inside RLS (P-9 SECDEF_PUBLIC_OK)"
+  },
+  "fn_has_pro_self()": {
+   "class": "A",
+   "client": [
+    "authenticated"
+   ],
+   "search_path": "\"\"",
+   "reason": "PAY-1 B2a: the CALLER's own Pro only (fn_has_pro(auth.uid())); read-only boolean; the one privileged step of the INVOKER central check fn_access_allowed"
+  },
+  "fn_paywall_set(p_enabled boolean, p_actor_id uuid, p_actor_email text)": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "\"\"",
+   "reason": "PAY-1 B2a: the paywall master switch (service_role only; audited PAYWALL_SET); stays off until the payments cutover"
   }
  }
 }
