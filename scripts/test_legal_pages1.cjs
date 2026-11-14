@@ -180,7 +180,7 @@ const missing = (page, text, coins) => pageTexts(page, { coins }).map(norm).filt
     before('app/(site)/auth/login/login-form.tsx', '<AuthConsentLine />', 'type="submit"');
     before('app/(site)/auth/signup/signup-form.tsx', '<AuthConsentLine />', 'type="submit"');
     before('app/(site)/pricing/pricing-client.tsx', '<PaymentConsentLine hrefs={legal}>', '{action}');
-    before('app/(site)/checkout/[orderId]/checkout-client.tsx', '<PaymentConsentLine', '<Button');
+    // PAY-1 B1: the legacy /checkout pages are retired (→ /pricing); the pricing page above is the only pay button
     assert(/REFUND_POLICY_PATH = "\/refund-policy"/.test(read('config/payments.ts')), 'pricing refund link = the new page');
   });
 

@@ -49,6 +49,9 @@ const nextConfig: NextConfig = {
   // UX-2b: the former Premium hub is retired; plans live on /pricing ("Free during early access. Pro coming soon.")
   redirects: async () => [
     { source: "/premium", destination: "/pricing", permanent: true },
+    // PAY-1 B1 (PAY-LEGACY-RETIRE-1): the legacy checkout pages are retired; Pro is bought on /pricing (308)
+    { source: "/checkout", destination: "/pricing", permanent: true },
+    { source: "/checkout/:path*", destination: "/pricing", permanent: true },
     // LEGAL-PAGES-1: the grievance details live in Contact Us & Grievance, section 5.1 (308)
     { source: "/grievance", destination: "/contact#grievance-officer", permanent: true },
     // ADMIN-IA-1: every moved admin address → its new place (308; the query string is kept)

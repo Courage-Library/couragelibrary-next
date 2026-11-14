@@ -113,7 +113,6 @@ export function BulkImportModal({ defaultEntity = "questions", onClose }: BulkIm
               <option value="descriptive">Descriptive Questions & Rubrics</option>
               <option value="institutes">Coaching Institutes & Batches</option>
               <option value="taxonomy">Taxonomy (Categories & Exams)</option>
-              <option value="subscription_plans">Subscription Plans</option>
             </select>
           </div>
 

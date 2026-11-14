@@ -133,7 +133,12 @@ const paidEvent = (paymentId = 'pay_TESTA1', event = 'payment.captured') =>
     assert(st({ ...ok, RAZORPAY_KEY_ID: 'rzp_live_AbCdEf123456' }).reason === 'LIVE_KEY_NOT_APPROVED', 'a LIVE key is refused until F9-C');
     assert(st(ok, false).reason === 'REFUND_POLICY_MISSING' && st(ok).open === true && st(ok).mode === 'test', 'refund policy');
     assert(CFG.checkoutState(ok).open === CFG.REFUND_POLICY_PUBLISHED, 'default = the published constant');
-    if (CFG.REFUND_POLICY_PUBLISHED) assert(fs.existsSync(path.join(ROOT, 'app/refund-policy/page.tsx')), 'REFUND_POLICY_PUBLISHED needs the page');
+    // PAY-1 B1: the page lives in the (site) route group (LEGAL-PAGES-1); the old check looked at app/refund-policy, a
+    // folder that never existed, so flipping the constant would have failed this gate although the page is there
+    const PAGE = 'app/(site)/refund-policy/page.tsx';
+    assert(fs.existsSync(path.join(ROOT, PAGE)), `${PAGE} missing (REFUND_POLICY_PUBLISHED needs it)`);
+    assert(!fs.existsSync(path.join(ROOT, 'app/refund-policy/page.tsx')), 'a second refund-policy page outside (site)');
+    assert(/app\/\(site\)\/refund-policy\/page\.tsx/.test(read('config/payments.ts')), 'config/payments.ts names the real page path');
     assert(Object.values(CFG.CHECKOUT_CLOSED_MESSAGE).every((m) => /nothing to pay today/.test(m)), 'honest closed messages');
     return `refund policy published: ${CFG.REFUND_POLICY_PUBLISHED}`;
   });

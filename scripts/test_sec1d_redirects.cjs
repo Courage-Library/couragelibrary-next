@@ -197,11 +197,11 @@ const VALID = [
       assert(call && !/allowStaff/.test(call), `${p}: ${call}`);
     }
   });
-  await test('R-02 actions admin-only: updateRewardPolicyAction, createSubscriptionPlanAction (reports admin-only since F2 #79)', async () => {
+  await test('R-02 actions admin-only: updateRewardPolicyAction; legacy createSubscriptionPlanAction retired (PAY-1 B1); reports admin-only since F2 #79', async () => {
     const g = read('app/(site)/admin/gamification/actions.ts');
     assert(/export async function updateRewardPolicyAction[\s\S]{0,300}guardAdminAction\(\);/.test(g), 'gamification action');
     const a = read('app/(site)/admin/actions.ts');
-    assert(/export async function createSubscriptionPlanAction[\s\S]{0,200}guardAdminAction\(\);/.test(a), 'billing action');
+    assert(!/export async function createSubscriptionPlanAction/.test(a), 'the legacy billing action must stay retired (PAY-1 B1)');
     // F2 (#79) supersedes the SEC-1D "reports stays staff" ruling: question reports are admin-only read
     // ADMIN-IA-1: the old /admin/reports + /admin/question-reports addresses redirect to the one admin-only page
     const { ADMIN_REDIRECTS } = { ADMIN_REDIRECTS: [...read('lib/admin/nav-redirects.ts').matchAll(/from: "([^"]+)", to: "([^"]+)"/g)].map((m) => ({ from: m[1], to: m[2] })) };

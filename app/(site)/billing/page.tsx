@@ -5,7 +5,7 @@ import { Container } from "@/components/ui/legacy/container";
 import { Card } from "@/components/ui/legacy/card";
 import { Badge } from "@/components/ui/legacy/badge";
 import { Button } from "@/components/ui/legacy/button";
-import { CreditCard, FileText, Zap, ArrowRight } from "lucide-react";
+import { CreditCard, Zap, ArrowRight } from "lucide-react";
 import { isProEnabled } from "@/config/payments";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { formatDateShort, formatInr } from "@/lib/format";
@@ -23,11 +23,8 @@ export default async function BillingPage() {
           .limit(50)
       ).data ?? [])
     : [];
-  const [subStatus, invoices, orders] = await Promise.all([
-    BillingService.getUserSubscriptionStatus(),
-    BillingService.getUserInvoices(),
-    BillingService.getUserPaymentOrders(),
-  ]);
+  // PAY-1 B1: Pro status from F9 (hasPro + the entitlement end); the legacy GST-invoice list is retired
+  const [subStatus, orders] = await Promise.all([BillingService.getUserSubscriptionStatus(), BillingService.getUserPaymentOrders()]);
 
   return (
     <div className="py-10 bg-slate-50/50 min-h-[calc(100vh-4rem)]">
@@ -42,7 +39,7 @@ export default async function BillingPage() {
             Subscriptions & Billing Management
           </h1>
           <p className="text-indigo-100 text-sm max-w-xl">
-            View active subscription entitlements, legal GST tax invoices, and past payment order transactions.
+            Your Pro plan, its end date, payment receipts and past payment orders.
           </p>
         </div>
 
@@ -65,7 +62,7 @@ export default async function BillingPage() {
             <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-xs font-semibold text-emerald-900 flex items-center justify-between">
               <span className="flex items-center gap-2">
                 <Zap className="w-4 h-4 text-emerald-600 fill-emerald-600" />
-                Active Subscription Valid Until: {new Date(subStatus.validUntil!).toLocaleDateString()}
+                {subStatus.validUntil ? <>Pro until {formatDateShort(subStatus.validUntil)}</> : <>Pro (no end date)</>}
               </span>
               <Link href="/pricing">
                 <Button size="sm" variant="outline" className="text-xs font-bold border-emerald-300">
@@ -84,37 +81,6 @@ export default async function BillingPage() {
             </div>
           )}
         </Card>
-
-        {/* Invoices List */}
-        <div className="space-y-4">
-          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-            <FileText className="w-5 h-5 text-indigo-600" /> Tax Invoices ({invoices.length})
-          </h2>
-
-          {invoices.length === 0 ? (
-            <Card className="p-8 text-center text-slate-400">
-              <p className="text-xs">No tax invoices generated yet.</p>
-            </Card>
-          ) : (
-            <div className="space-y-2.5">
-              {invoices.map((inv) => (
-                <Card key={inv.id} className="p-4 flex items-center justify-between text-xs border-slate-200">
-                  <div className="space-y-0.5">
-                    <span className="font-mono font-bold text-slate-900">{inv.invoiceNumber}</span>
-                    <span className="text-slate-400 block font-mono text-[11px]">
-                      {new Date(inv.invoiceDate).toLocaleDateString()} • {inv.billingName}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    <span className="font-mono font-bold text-slate-900 text-sm">₹{inv.totalAmount}</span>
-                    <Badge variant="success" className="text-[10px]">{inv.status}</Badge>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          )}
-        </div>
 
         {/* Payment Orders History */}
         <div className="space-y-4">

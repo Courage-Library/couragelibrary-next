@@ -58,9 +58,17 @@ function parseChain(text, f) {
   return m[1].split(', ');
 }
 
+/**
+ * Every rollback that must run before n's, latest first: the DIRECT prerequisites from n's header line plus,
+ * transitively, theirs (each file's line lists only its direct ones).
+ */
 function runFirst(n) {
-  const f = `${String(n).padStart(3, '0')}_rollback.sql`;
-  return parseChain(read(f), f);
+  const seen = new Set();
+  const visit = (f) => {
+    for (const g of parseChain(read(f), f)) if (!seen.has(g)) (seen.add(g), visit(g));
+  };
+  visit(`${String(n).padStart(3, '0')}_rollback.sql`);
+  return [...seen].sort((a, b) => num(b) - num(a));
 }
 
 function check() {
@@ -127,7 +135,11 @@ async function probe(port, write) {
   const result = {};
   const undetermined = {};
   try {
-    for (const f of all) {
+    // newest first: when f is probed, every later file's own chain (result) is already known, so the minimisation below
+    // can drop a candidate TOGETHER with the later files that need it (otherwise a dependent left in the list fails and
+    // makes the candidate look needed — PAY-1 B1 finding: 113 was reported as needing 139 / 123 only because 138 / 122
+    // stayed in the list)
+    for (const f of [...all].reverse()) {
       try { body(f); } catch (e) { result[f] = null; undetermined[f] = `not probed: ${e.message.replace(/[()]/g, '').slice(0, 120)}`; console.log(`${f}: ALL-LATER — ${e.message}`); continue; }
       if (await works([f])) { result[f] = []; console.log(`${f}: run first: none`); continue; }
       const alone = lastError;
@@ -141,8 +153,11 @@ async function probe(port, write) {
         continue;
       }
       let need = later.slice();
+      // a later file h depends on g when g is in h's own chain (an ALL-LATER h depends on every later file)
+      const dependsOn = (h, g) => (result[h] === null ? num(g) > num(h) : (result[h] || []).includes(g));
       for (const g of later) {
-        const without = need.filter((x) => x !== g);
+        if (!need.includes(g)) continue;
+        const without = need.filter((x) => x !== g && !dependsOn(x, g));
         if (await works([...without, f])) need = without;
       }
       result[f] = need;

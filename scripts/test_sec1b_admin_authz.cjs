@@ -199,7 +199,7 @@ const ADMIN_ONLY = new Set([
   'app/api/admin/reports/update-status/route.ts#POST', // F2 (#79): question reports are admin-only
   // SEC-1D (decision #16 update): PII pages' actions — gamification + billing.
   'app/(site)/admin/gamification/actions.ts#updateRewardPolicyAction',
-  'app/(site)/admin/actions.ts#createSubscriptionPlanAction',
+  // PAY-1 B1: createSubscriptionPlanAction (legacy plans) retired
   // GAP2-4b: publishing / archiving a syllabus is admin-only (staff draft only)
   'app/(site)/admin/syllabus/actions.ts#publishSyllabusVersionAction',
   'app/(site)/admin/syllabus/actions.ts#archiveSyllabusVersionAction',

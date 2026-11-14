@@ -353,7 +353,9 @@ const run = async (fn) => {
     // F9-B: service-role-only functions raise total alone; a revoked client grant lowers client / A — both exact
     const serviceOnly = sumOf(/max total raised by exactly (\d+)/);
     const lowered = sumOf(/client_executable_callable and A lowered by (\d+)/);
-    assert(a.max.total === 96 + later + serviceOnly && a.max.client_executable_callable === 38 + later - lowered && a.max.A === 38 + later - lowered && a.max.anon_or_public === 1, JSON.stringify(a.max));
+    // PAY-1 B1: dropped functions lower max total (+ their class) — exact and documented in the rules
+    const totalLowered = sumOf(/max total and B-service lowered by exactly (\d+)/);
+    assert(a.max.total === 96 + later + serviceOnly - totalLowered && a.max.client_executable_callable === 38 + later - lowered && a.max.A === 38 + later - lowered && a.max.anon_or_public === 1, JSON.stringify(a.max));
     assert(!a.functions['fn_get_my_onboarding()'], 'the read RPC is INVOKER — it must not be in the SECDEF allow-list');
     const t = read('types/database.ts');
     assert(/fn_get_my_onboarding: \{ Args: never; Returns: Json \}/.test(t) && /fn_save_onboarding: \{\s+Args: \{\s+p_action: string[\s\S]*?p_remove_exam_ids\?: string\[\]/.test(t), 'types/database.ts entries');

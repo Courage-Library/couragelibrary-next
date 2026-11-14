@@ -11,5 +11,5 @@ export default async function AdminBillingPage() {
   await requireAdminPage({ path: "/admin/payments" }); // SEC-1D: admin only
   const billing = await AdminService.getAdminBilling();
 
-  return <AdminBillingManager orders={billing.orders} plans={billing.plans} />;
+  return <AdminBillingManager orders={billing.orders} />;
 }

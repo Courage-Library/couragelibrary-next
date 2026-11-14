@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { hasPro, getProPricing } from "@/lib/payments/pro-server";
 
 export interface SubscriptionPlanItem {
   id: string;
@@ -61,11 +62,6 @@ interface RawPlanRecord {
   display_order: number;
 }
 
-interface RawEntitlementRecord {
-  id: string;
-  status: string;
-  valid_until: string;
-}
 
 interface RawInvoiceRecord {
   id: string;
@@ -126,123 +122,21 @@ export class BillingService {
   }
 
   /**
-   * Fetches active user PRO entitlement status.
+   * PAY-1 B1: the user's Pro status from the F9 sources of truth (was a read of legacy columns that always returned
+   * FREE; that TYPES-1 escape is closed): hasPro() = fn_has_pro (fails closed) and the latest end of the
+   * user's active paid / granted Pro (getProPricing account.currentEnd; null = open-ended library Pro).
    */
   static async getUserSubscriptionStatus(): Promise<UserSubscriptionStatus> {
     const supabase = await createServerSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return { isPro: false, status: "FREE" };
-    }
-
-    // TYPES-1:B-BILLING-SUB-STATUS (tracked) — user_entitlements has is_active / starts_at / expires_at and no
-    // status / valid_until, and no SUBSCRIPTION entitlement type: this read always errors, so /billing and /pricing
-    // always show FREE. Which entitlement types mean PRO is a billing decision. Owner Commerce (architect ruling).
-    const { data } = await supabase
-      .from("user_entitlements")
-      .select("id, status, valid_until")
-      .eq("user_id", user.id)
-      .eq("entitlement_type", "SUBSCRIPTION")
-      // @ts-expect-error TYPES-1:B-BILLING-SUB-STATUS — legacy column (see above)
-      .eq("status", "ACTIVE")
-      .gt("valid_until", new Date().toISOString())
-      .order("valid_until", { ascending: false })
-      .maybeSingle();
-
-    if (!data) {
-      return { isPro: false, status: "FREE" };
-    }
-
-    // @ts-expect-error TYPES-1:B-BILLING-SUB-STATUS — legacy column set (see above)
-    const ent: RawEntitlementRecord = data;
-
-    return {
-      isPro: true,
-      entitlementId: ent.id,
-      planName: "PRO Access Pass",
-      validUntil: ent.valid_until,
-      status: "ACTIVE",
-    };
+    if (!user) return { isPro: false, status: "FREE" };
+    if (!(await hasPro(user.id))) return { isPro: false, status: "FREE" };
+    const { account } = await getProPricing(user.id);
+    return { isPro: true, planName: "Courage Library Pro", validUntil: account.unlimited ? undefined : account.currentEnd ?? undefined, status: "ACTIVE" };
   }
 
-  /**
-   * Creates a payment order via fn_create_payment_order RPC.
-   */
-  static async createPaymentOrder(payload: {
-    orderType: "SUBSCRIPTION_PURCHASE" | "COURSE_PURCHASE";
-    planId?: string;
-    courseId?: string;
-    couponCode?: string;
-  }): Promise<{
-    success: boolean;
-    order_id?: string;
-    total_payable_amount?: number;
-    base_amount?: number;
-    discount_amount?: number;
-    tax_amount?: number;
-    currency?: string;
-    error?: string;
-  }> {
-    const supabase = await createServerSupabaseClient();
-    // TYPES-1 B2 (Class B): an unbound `supabase.rpc` loses `this` and threw "Cannot read properties of undefined (reading 'rest')".
-    const rpcCall = supabase.rpc.bind(supabase) as unknown as (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
-
-    const { data, error } = await rpcCall("fn_create_payment_order", {
-      p_order_type: payload.orderType,
-      p_plan_id: payload.planId || null,
-      p_course_id: payload.courseId || null,
-      p_coupon_code: payload.couponCode || null,
-      p_gateway: "RAZORPAY",
-      p_idempotency_key: `order:${Date.now()}:${Math.random().toString(36).slice(2)}`,
-    });
-
-    if (error || !data) {
-      return { success: false, error: error?.message || "Failed to create payment order" };
-    }
-
-    return data as {
-      success: boolean;
-      order_id?: string;
-      total_payable_amount?: number;
-      base_amount?: number;
-      discount_amount?: number;
-      tax_amount?: number;
-      currency?: string;
-      error?: string;
-    };
-  }
-
-  /**
-   * Fetches user's issued GST invoices.
-   */
-  static async getUserInvoices(): Promise<BillingInvoiceItem[]> {
-    const supabase = await createServerSupabaseClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) return [];
-
-    const { data, error } = await supabase
-      .from("billing_invoices")
-      .select("id, invoice_number, invoice_date, billing_name, taxable_amount, cgst_amount, sgst_amount, igst_amount, total_amount, currency, status")
-      .eq("user_id", user.id)
-      .order("invoice_date", { ascending: false });
-
-    if (error || !data) return [];
-
-    const invoices = data as RawInvoiceRecord[];
-    return invoices.map((i) => ({
-      id: i.id,
-      invoiceNumber: i.invoice_number,
-      invoiceDate: i.invoice_date,
-      billingName: i.billing_name,
-      taxableAmount: Number(i.taxable_amount),
-      taxAmount: Number(i.cgst_amount || 0) + Number(i.sgst_amount || 0) + Number(i.igst_amount || 0),
-      totalAmount: Number(i.total_amount),
-      currency: i.currency,
-      status: i.status,
-    }));
-  }
+  // PAY-1 B1 (PAY-LEGACY-RETIRE-1): createPaymentOrder (legacy fn_create_payment_order, dropped by migration 140) and
+  // getUserInvoices (legacy GST invoices, no longer shown on /billing) are retired.
 
   /**
    * Fetches user's payment orders history.

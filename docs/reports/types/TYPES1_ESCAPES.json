@@ -255,15 +255,6 @@
       "precondition": "LOOP-1: decide which lifecycle_status values count as an \"active\" mistake (UNRESOLVED / REVISITING) and filter on lifecycle_status. Today the count request errors and the dashboard shows no mistake count."
     },
     {
-      "id": "TYPES-1:B-BILLING-SUB-STATUS",
-      "file": "services/billing.service.ts",
-      "class": "B",
-      "module": "billing",
-      "kind": "@ts-expect-error (legacy entitlement columns)",
-      "owner": "Commerce (architect ruling)",
-      "precondition": "Billing decision: which entitlement_type values mean PRO (PRO_SUBSCRIPTION / PROMOTIONAL_PASS as in LearningResolverService) and read is_active / starts_at / expires_at. Today the read errors (42703) and /billing + /pricing always show FREE."
-    },
-    {
       "id": "TYPES-1:B-DRILL-REWARD-ARGS",
       "file": "services/mistake.service.ts",
       "class": "B",

@@ -214,52 +214,25 @@ const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
     { orderId: '00000000-0000-0000-0000-000000000000', gatewayPaymentId: 'pay_1234567890123_abcdef', gatewaySignature: 'sig_x', amount: 1 },
   ];
 
-  await test('S2-1 fulfill-order POST (no session / fake session, any body) -> 503, RPC never invoked', async () => {
-    delete process.env.PAYMENTS_ENABLED;
-    for (const body of bodies) {
-      for (const withSession of [false, true]) {
-        currentUser = withSession ? { id: 'u', email: 'x@example.com' } : null;
-        resetSpies();
-        const res = await fulfill.POST(fakeRequest(body, withSession));
-        const json = await res.json();
-        assert(res.status === 503, `status ${res.status}`);
-        assert(json.success === false && json.error && json.error.code === 'PAYMENTS_TEMPORARILY_DISABLED', JSON.stringify(json));
-        assert(json.error.message === 'Online payments are temporarily unavailable.', 'message mismatch');
-        assert(spies.rpc === 0 && spies.createClient === 0 && spies.getUser === 0, `spies ${JSON.stringify(spies)}`);
-      }
-    }
-  });
-  await test('S2-2 fulfill-order with PAYMENTS_ENABLED=true still never fulfils (501, no RPC)', async () => {
-    process.env.PAYMENTS_ENABLED = 'true';
-    resetSpies();
-    const res = await fulfill.POST(fakeRequest(bodies[1], true));
-    assert(res.status === 501, `status ${res.status}`);
-    assert(spies.rpc === 0 && spies.createClient === 0, `spies ${JSON.stringify(spies)}`);
-    delete process.env.PAYMENTS_ENABLED;
-  });
-  await test('S2-3 create-order POST -> 503 and BillingService never invoked', async () => {
-    delete process.env.PAYMENTS_ENABLED;
-    resetSpies();
-    const res = await createOrder.POST(fakeRequest({ orderType: 'SUBSCRIPTION_PURCHASE', planId: 'p' }, true));
-    const json = await res.json();
-    assert(res.status === 503 && json.error.code === 'PAYMENTS_TEMPORARILY_DISABLED', `status ${res.status}`);
-    assert(spies.createPaymentOrder === 0, 'createPaymentOrder was called');
-  });
-  await test('S2-4 flag is strict: only "true" enables (unset/""/"1"/"TRUE"/"false" -> 503)', async () => {
-    for (const v of [undefined, '', '1', 'TRUE', 'yes', 'false']) {
+  // PAY-1 B1 (PAY-LEGACY-RETIRE-1): both legacy billing endpoints are retired — always 410, whatever the flag, the
+  // session or the body; nothing (auth, DB, RPC, BillingService) is touched first.
+  await test('S2-1 legacy fulfill-order and create-order → 410 for every flag value / session / body; nothing invoked', async () => {
+    for (const v of [undefined, '', '1', 'TRUE', 'false', 'true']) {
       if (v === undefined) delete process.env.PAYMENTS_ENABLED;
       else process.env.PAYMENTS_ENABLED = v;
-      const a = await fulfill.POST(fakeRequest({}, false));
-      const b = await createOrder.POST(fakeRequest({}, false));
-      assert(a.status === 503 && b.status === 503, `PAYMENTS_ENABLED=${JSON.stringify(v)} -> ${a.status}/${b.status}`);
+      for (const body of bodies) {
+        for (const withSession of [false, true]) {
+          currentUser = withSession ? { id: 'u', email: 'x@example.com' } : null;
+          resetSpies();
+          for (const route of [fulfill, createOrder]) {
+            const res = await route.POST(fakeRequest(body, withSession));
+            const json = await res.json();
+            assert(res.status === 410 && json.success === false && json.error.code === 'ENDPOINT_RETIRED', `flag ${JSON.stringify(v)} → ${res.status}`);
+          }
+          assert(spies.rpc === 0 && spies.createClient === 0 && spies.getUser === 0 && spies.createPaymentOrder === 0, `spies ${JSON.stringify(spies)}`);
+        }
+      }
     }
-    delete process.env.PAYMENTS_ENABLED;
-  });
-  await test('S2-5 create-order with PAYMENTS_ENABLED=true reaches BillingService (gate is the flag)', async () => {
-    process.env.PAYMENTS_ENABLED = 'true';
-    resetSpies();
-    const res = await createOrder.POST(fakeRequest({ planId: 'p' }, true));
-    assert(res.status === 200 && spies.createPaymentOrder === 1, `status ${res.status}, calls ${spies.createPaymentOrder}`);
     delete process.env.PAYMENTS_ENABLED;
   });
   await test('S2-6 static: fulfill-order route has no anon-key fallback / admin client / RPC', async () => {
@@ -269,10 +242,10 @@ const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
     assert(!src.includes('createClient'), 'createClient present');
     assert(!src.includes('fn_verify_and_fulfill_payment'), 'RPC still referenced');
   });
-  await test('S2-7 static: checkout-client.tsx no longer fabricates pay_ ids or calls fulfill-order', async () => {
-    const src = read('app/(site)/checkout/[orderId]/checkout-client.tsx');
-    assert(!/`pay_\$\{/.test(src) && !src.includes('mockPaymentId'), 'pay_ id generation present');
-    assert(!src.includes('/api/billing/fulfill-order'), 'fulfill-order call present');
+  await test('S2-7 static: the legacy /checkout pages are gone and /checkout/* redirects permanently to /pricing', async () => {
+    assert(!fs.existsSync(path.join(ROOT, 'app/(site)/checkout')), 'app/(site)/checkout still exists');
+    const cfg = read('next.config.ts');
+    assert(/\{ source: "\/checkout", destination: "\/pricing", permanent: true \}/.test(cfg) && /\{ source: "\/checkout\/:path\*", destination: "\/pricing", permanent: true \}/.test(cfg), 'redirects missing');
   });
   await test('S2-8 static: payments flag is server-side only (no NEXT_PUBLIC_ variant)', async () => {
     const src = read('config/payments.ts');

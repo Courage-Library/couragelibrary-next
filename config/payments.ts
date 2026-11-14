@@ -36,8 +36,9 @@ export type CheckoutClosedReason = "PAYMENTS_OFF" | "PRO_OFF" | "KEYS_MISSING" |
 export type CheckoutState = { open: true; keyId: string; mode: "test" | "live" } | { open: false; reason: CheckoutClosedReason };
 
 /**
- * The refund policy page (LEGAL-AUDIT-1 gap). Flip to true only in the change that adds app/refund-policy/page.tsx with
- * owner-approved text (the F9-B gate checks the page exists when this is true); checkout stays closed until then.
+ * The refund policy page (LEGAL-AUDIT-1 gap; published by LEGAL-PAGES-1 at app/(site)/refund-policy/page.tsx). Flip to
+ * true only as a reviewed change (PAY-1 B7, test mode first; the F9-B gate checks the page exists); checkout stays
+ * closed until then.
  */
 export const REFUND_POLICY_PATH = "/refund-policy";
 export const REFUND_POLICY_PUBLISHED = false;

@@ -31,9 +31,11 @@ const C_CLASS = ['fn_clear_user_search_history', 'fn_complete_diagnostic_assessm
   'fn_generate_custom_practice_session', 'fn_generate_daily_recommendations', 'fn_get_due_flashcards', 'fn_mark_notification_as_read',
   'fn_moderate_flagged_content', 'fn_override_mistake_cognitive_type', 'fn_reconcile_search_indexes', 'fn_start_custom_practice_session',
   'fn_update_daily_recommendation_status', 'fn_verify_faculty_answer'];
-const NO_CALLER = ['fn_claim_reward_item', 'fn_log_user_search', 'fn_process_payment_webhook', 'fn_publish_exam_announcement', 'fn_record_mistake_occurrence',
+// PAY-1 B1 (migration 140) dropped two of the original 12 no-caller targets: fn_process_payment_webhook and
+// fn_verify_and_fulfill_payment (legacy payment functions) — 31 targets remain.
+const NO_CALLER = ['fn_claim_reward_item', 'fn_log_user_search', 'fn_publish_exam_announcement', 'fn_record_mistake_occurrence',
   'fn_resolve_errata_report', 'fn_reverse_reward_claim', 'fn_revoke_mistakes_by_errata', 'fn_universal_search', 'fn_update_spaced_repetition_review',
-  'fn_verify_and_fulfill_payment', 'rls_auto_enable'];
+  'rls_auto_enable'];
 const TRIGGERS = ['fn_enforce_errata_state_machine', 'fn_enforce_practice_session_lifecycle', 'fn_protect_user_notification_fields', 'fn_sanitize_attempt_answer',
   'fn_validate_bookmark_folder_ownership', 'fn_validate_exam_announcement_cycle', 'fn_validate_payment_order_transition'];
 const ALL = [...C_CLASS, ...NO_CALLER, ...TRIGGERS];
@@ -83,11 +85,11 @@ const assert = (c, m) => {
   }
   const callable = fns.filter((f) => !f.trg && !f.evt);
 
-  await test('S-0 minimum coverage: 33 targets live (14 C, 12 no-caller, 7 trigger), 25 callable', async () => {
+  await test('S-0 minimum coverage: 31 targets live (14 C, 10 no-caller, 7 trigger), 23 callable (PAY-1 B1 dropped 2)', async () => {
     const names = new Set(fns.map((f) => f.proname));
     const missing = ALL.filter((n) => !names.has(n));
-    assert(missing.length === 0 && fns.length === 33, `live ${fns.length}; missing ${missing.join(', ')}`);
-    assert(callable.length === 25 && fns.filter((f) => f.trg).length === 7, `callable ${callable.length}, trigger ${fns.filter((f) => f.trg).length}`);
+    assert(missing.length === 0 && fns.length === 31, `live ${fns.length}; missing ${missing.join(', ')}`);
+    assert(callable.length === 23 && fns.filter((f) => f.trg).length === 7, `callable ${callable.length}, trigger ${fns.filter((f) => f.trg).length}`);
     assert(studentId, 'qa-student missing');
     return `${fns.length} targets, ${callable.length} callable, 7 trigger, 1 event-trigger`;
   });
@@ -267,7 +269,7 @@ const assert = (c, m) => {
       return !e || (e[1].client || []).length !== 0;
     });
     assert(bad.length === 0, `allow-list still lists client EXECUTE for: ${bad.join(', ')}`);
-    return '33/33';
+    return `${ALL.length}/${ALL.length}`;
   });
 
   await c.end().catch(() => {});

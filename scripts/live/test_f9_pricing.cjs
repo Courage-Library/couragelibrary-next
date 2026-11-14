@@ -53,7 +53,7 @@ let ok = true; const chk = (n, cond, info) => { if (!cond) ok = false; console.l
         for (const sql of [`select * from public.app_settings`, `select * from public.founding_offer`, `select * from public.pro_reminders_sent`,
                            `select public.fn_has_pro('${ids.student}')`, `select public.fn_create_pro_order('${ids.student}', 'PRO_3M', 'key-123456')`,
                            `select public.fn_fulfil_pro_order('order_x1234567', 'pay_x', 29900, 'INR', 'WEBHOOK')`, `select public.fn_create_payment_order('SUBSCRIPTION_PURCHASE', null, null, null, null, null)`]) {
-          const r = await as(role, cl, sql); if (r.ok || r.code !== '42501') denials.push(`${role}: ${sql.slice(0, 50)} → ${r.ok ? 'ALLOWED' : r.code}`);
+          const r = await as(role, cl, sql); const gone = sql.includes('fn_create_payment_order') && r.code === '42883'; /* PAY-1 B1: dropped by 140 */ if (r.ok || (r.code !== '42501' && !gone)) denials.push(`${role}: ${sql.slice(0, 50)} → ${r.ok ? 'ALLOWED' : r.code}`);
         }
       }
       chk('G-2 anon / authenticated: no read of settings / counter / reminders; no EXECUTE on any payment function (incl. the legacy fn_create_payment_order)', denials.length === 0, denials.join(' | '));

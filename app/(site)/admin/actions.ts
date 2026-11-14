@@ -1185,34 +1185,8 @@ export async function createInstituteAction(prevState: AdminActionResult | null,
   return { success: true, message: "Institute created successfully." };
 }
 
-export async function createSubscriptionPlanAction(prevState: AdminActionResult | null, formData: FormData): Promise<AdminActionResult> {
-  const authCheck = await guardAdminAction(); /* SEC-1D: admin only */
-  if (!authCheck.ok) return authCheck;
-
-  const name = formData.get("name") as string;
-  const code = formData.get("code") as string;
-  const priceInr = Number(formData.get("priceInr") || 499);
-  const durationDays = Number(formData.get("durationDays") || 30);
-
-  if (!name || !code) return { error: "Plan name and code are required." };
-
-  const supabaseRaw = createAdminServerSupabaseClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = supabaseRaw;
-
-  const { error } = await supabase.from("subscription_plans").insert({
-    name,
-    plan_code: code, // TYPES-1 B6 (Class B): columns are plan_code / base_price_inr (code / price_inr → 42703)
-    base_price_inr: priceInr,
-    duration_days: durationDays,
-    is_active: true,
-  });
-
-  if (error) return dbFailure("createSubscriptionPlanAction", error);
-
-  revalidatePath("/admin/payments");
-  return { success: true, message: "Subscription plan created successfully." };
-}
+// PAY-1 B1 (PAY-LEGACY-RETIRE-1): createSubscriptionPlanAction (legacy subscription_plans rows) is retired — Pro plans
+// live in pro_plan_versions (F9) and are not created from the admin UI.
 
 export async function resolveCommunityFlagAction(flagId: string, choice: string = "RESOLVED"): Promise<AdminActionResult> {
   const authCheck = await guardAdminAction({ allowStaff: true });
