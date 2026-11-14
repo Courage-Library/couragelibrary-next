@@ -376,6 +376,57 @@ See section 4.
    - each of the 5 bypass paths (A quick-check key, B lesson structure / completion, C mock questions by table read,
      D practice-answer key of a mock question, E lesson body control) is refused, plus mutation (negative) controls.
 
+## 8. B2 inventory (2026-11-15, code read with file:line; live grants still to be re-checked) and the B2a / B2b split
+
+**Findings that shape B2:**
+1. **One shared question pool.**
+   - Practice, Memory Lock and mock tests use the same `questions` + current PUBLISHED `question_versions`.
+     `ensureMockTestQuestions` picks from exactly that set (`assessment.service.ts:1512-1519`).
+   - **No column marks a question as mock-only.**
+2. **Free practice reads question content with the user's session:**
+   - `lib/practice/server.ts:69-77, 115-124` (practice, Memory Lock sessions, topic / lesson "Practice" links);
+   - the Mistake Vault list and answered texts (`mistake.service.ts:1048, 1087`), bookmarks (`bookmark.service.ts:76`);
+   - landing counts (`landing-data.ts:101`, `hindi-content.ts:25`);
+   - the mock list, instructions, answer-save and result ownership reads embed `mock_tests` through the session client
+     (`assessment.service.ts:889-893, 1612, 1971, 2393-2424`), as do the exam hub (`exam-page-server.ts:20`) and the CA
+     daily quiz.
+
+   Revoking client SELECT on `question_versions` / `question_options` / `mock_tests` without first moving these 13 sites
+   to server-side (service-role) delivery would break practice, the Mistake Vault, bookmarks, answer saving and results.
+   The CI gate QF1-DB currently **asserts** that anon can read published versions and options, so its expectation must
+   change with the revoke.
+3. **A sixth bypass path F: the answer key during an open mock attempt, for free mocks too.**
+   - The player receives each question's `questionVersionId` / `questionId` (`assessment.service.ts:1898-1899`).
+   - `fn_check_practice_answer` accepts any published, current, servable version and returns `correct_option_key` +
+     `explanation_md` (093:83-92). So does `fn_memory_lock_add` + `fn_memory_lock_answer` (095).
+   - A signed-in student can therefore get the key **before submit**. This breaks D2 whatever the tier.
+4. **Side effect:** the instructions page runs `ensureMockTestQuestions` with the service role on any GET, including
+   anon, and can **insert** `mock_sections` / `mock_questions` (`assessment.service.ts:1607-1608`).
+5. **Pro definition drift:**
+   - `fn_authorize_and_start_test_attempt` (035:359) and `getViewerAccess` ignore `revoked_at`;
+   - flashcards accept any entitlement type.
+
+   All of them move to the central check (B3).
+6. **PREMIUM_CA:** no premium current-affairs content or schema exists. The seed row is harmless and waits for content.
+
+**B2 split (proposed):**
+- **B2a, the access-policy foundation (no user-visible change: the switch stays off):**
+  - migration: `access_policies`, the paywall switch, `fn_access_tier`, `fn_access_allowed`, `fn_access_policy_set` /
+    `fn_paywall_set` (service_role, audited);
+  - the D1 seed;
+  - the admin "Free & Pro" page;
+  - `canAccess()`;
+  - tests: admin flip FREE↔PRO changes the free QA student's result immediately; non-admin refused; unknown = locked.
+- **B2b, close the paths (D2, whatever the switch):**
+  - mock content served only by the server (no client table reads; the player gets opaque per-attempt ids, not version
+    ids);
+  - the practice / Memory Lock answer RPCs refuse versions in the caller's open attempt (and Pro mocks the caller cannot
+    access);
+  - the lesson RPCs and the visitor action call `fn_access_allowed`;
+  - the session-client content reads move server-side, then the client SELECT revoke;
+  - the instructions-page insert side effect is removed;
+  - executed proof with the free QA student: paths A–F.
+
 ## 6. Evidence (read-only, 2026-11-14)
 
 **Production database** (counts only; read-only transaction, rolled back):
