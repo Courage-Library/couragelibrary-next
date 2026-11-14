@@ -102,3 +102,22 @@ The project database is then still untouched. The real apply follows MIGRATION_R
 - **Platform objects:** Supabase-only objects (storage, realtime, `pg_graphql`, `vault`, platform event triggers and grants to platform roles that are not stubbed) may fail to restore. They are listed in `<dir>/restore-errors.log` and summarised in the `up` output. A migration that depends on them cannot be proven locally; say so in its report.
 - **Roles:** `auth.uid()` and RLS behave as in production for the stub roles. There are no real users, so a gate that needs a signed-in student must create one inside its rolled-back transaction.
 - **Version:** the minor version may differ from production (e.g. local 17.12, production 17.6). The major version must match.
+
+## The backup tool itself (BACKUP-RESILIENCE-1)
+
+Any change to `scripts/db/backup-resilient.cjs` is proven locally, never on the project database:
+
+```bash
+node scripts/db/local-pg.cjs up --dir=$DIR --backup=<a VERIFIED backup>    # "up" refuses an unverified one
+node scripts/db/test-backup-resilience.cjs --port=54329 --out=C:/pg17-local/backup-test
+node scripts/db/local-pg.cjs down --dir=$DIR
+```
+
+It runs these steps:
+1. Seed three local-only tables: a composite key, wide rows, and no primary key.
+2. Take a clean backup.
+3. Take a backup over a **slow link** (2 s inside every batch) with **forced connection drops** in three tables. It must verify, and each dropped table must resume from its last committed key.
+4. Restore that backup into a **second local database** with `local-pg.cjs restore-check`: every table must be identical.
+5. Run two **negative controls** (copies of the tool with a broken resume): they must NOT verify.
+
+The test hooks (`BACKUP_TEST_DELAY_MS`, `BACKUP_TEST_DROP`) are honoured only with `--local`.

@@ -14,6 +14,9 @@
  *   counts  row count + md5 per table (DEFAULT_TABLES + --extra=a,b) — hashes only, never row data; --compare=<before>
  *           hashes over the BEFORE columns and lists differences; --applied=<file> leaves that migration's ledger row out;
  *           --strict also fails on a new table / column (e.g. one a rollback left behind)
+ *   restore-check  BACKUP-RESILIENCE-1: restore a resilient backup (--backup=<dir>) into a SECOND local database (--into,
+ *           default restore_check): schema.dump + every <schema>.<table>.ndjson (FKs / triggers off), then compare every
+ *           table with the source database: row count + content hash (md5 of the rows in row-text order) — must be identical
  *   down    stop the server and delete --dir (the data folder); the binaries stay
  * Never connects anywhere but 127.0.0.1; reads the backup files only. --dir must be outside the repo.
  * Usage:
@@ -21,6 +24,7 @@
  *   node scripts/db/local-pg.cjs apply  --file=supabase/migrations/<file>.sql [--port=54329] [--variant=<scratch.sql>]
  *   node scripts/db/local-pg.cjs rollback --file=supabase/migrations/<file>.sql [--port=54329]
  *   node scripts/db/local-pg.cjs counts [--port=54329] [--extra=t1,t2] [--out=<file.json>] [--compare=<before.json>] [--applied=<file>.sql]
+ *   node scripts/db/local-pg.cjs restore-check --backup=<backup dir> [--into=restore_check] [--port=54329]
  *   node scripts/db/local-pg.cjs down   --dir=<data dir> [--bin=<pg bin>]
  */
 require('./safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output
@@ -239,6 +243,49 @@ async function counts() {
   }
 }
 
+async function restoreCheck() {
+  const bdir = arg('backup');
+  const into = arg('into', 'restore_check');
+  if (!bdir || !fs.existsSync(path.join(bdir, 'manifest.json'))) fail('--backup=<resilient backup dir>');
+  if (!/^[a-z_]{3,40}$/.test(into) || into === 'postgres') fail('--into=<a new database name>');
+  const manifest = JSON.parse(fs.readFileSync(path.join(bdir, 'manifest.json'), 'utf8'));
+  if (manifest.verified !== true) fail('the backup is not verified');
+  const admin = local();
+  await admin.connect();
+  await admin.query(`DROP DATABASE IF EXISTS ${into}`);
+  await admin.query(`CREATE DATABASE ${into}`);
+  await admin.end();
+  const r = spawnSync(exe('pg_restore'), ['--no-owner', '-h', '127.0.0.1', '-p', String(PORT), '-U', 'postgres', '-d', into, path.join(bdir, 'schema.dump')], { encoding: 'utf8' });
+  const errors = (r.stderr || '').split(/\r?\n/).filter((l) => /error:/i.test(l));
+  const dst = new Client({ host: '127.0.0.1', port: PORT, user: 'postgres', database: into });
+  dst.on('error', () => {});
+  await dst.connect();
+  for (const ext of ['pgcrypto', 'uuid-ossp', 'pg_trgm']) await dst.query(`CREATE SCHEMA IF NOT EXISTS extensions; CREATE EXTENSION IF NOT EXISTS "${ext}" WITH SCHEMA extensions`).catch(() => {});
+  await dst.query("SET session_replication_role = 'replica'");
+  let loaded = 0;
+  for (const e of manifest.tables) {
+    const rows = fs.readFileSync(path.join(bdir, e.file), 'utf8').split(/\r?\n/).filter(Boolean);
+    if (!rows.length) continue;
+    const rel = `"${e.schema}"."${e.table}"`;
+    const cols = (await dst.query(`SELECT string_agg(quote_ident(attname), ', ' ORDER BY attnum) c FROM pg_attribute WHERE attrelid = $1::regclass AND attnum > 0 AND NOT attisdropped AND attgenerated = ''`, [rel])).rows[0].c;
+    for (let i = 0; i < rows.length; i += 500) await dst.query(`INSERT INTO ${rel} (${cols}) SELECT ${cols} FROM jsonb_populate_recordset(NULL::${rel}, $1::jsonb)`, [`[${rows.slice(i, i + 500).join(',')}]`]);
+    loaded += rows.length;
+  }
+  const src = local();
+  await src.connect();
+  const sig = async (c, rel) => (await c.query(`SELECT count(*)::int n, md5(coalesce(string_agg(to_jsonb(t)::text, E'\n' ORDER BY to_jsonb(t)::text), '')) h FROM ${rel} t`)).rows[0];
+  const diffs = [];
+  for (const e of manifest.tables) {
+    const rel = `"${e.schema}"."${e.table}"`;
+    const [a, b] = [await sig(src, rel), await sig(dst, rel)];
+    if (a.n !== b.n || a.h !== b.h) diffs.push(`${e.schema}.${e.table}: source ${a.n}/${a.h.slice(0, 8)} ≠ restored ${b.n}/${b.h.slice(0, 8)}`);
+  }
+  await src.end();
+  await dst.end();
+  console.log(`LOCAL-PG restore-check: ${manifest.tables.length} tables, ${loaded} rows restored into "${into}"; schema restore errors ${errors.length}; ${diffs.length ? `DIFFERENT — ${diffs.slice(0, 5).join('; ')}` : 'every table IDENTICAL to the source (rows + content hash)'}`);
+  if (diffs.length) process.exitCode = 1;
+}
+
 function down() {
   if (!DIR) fail('--dir is required');
   const data = path.join(DIR, 'data');
@@ -252,6 +299,7 @@ function down() {
   else if (CMD === 'apply') await apply();
   else if (CMD === 'rollback') await rollback();
   else if (CMD === 'counts') await counts();
+  else if (CMD === 'restore-check') await restoreCheck();
   else if (CMD === 'down') down();
-  else fail('usage: up | apply | rollback | counts | down');
+  else fail('usage: up | apply | rollback | counts | restore-check | down');
 })().catch((e) => fail(String(e.message).slice(0, 300)));

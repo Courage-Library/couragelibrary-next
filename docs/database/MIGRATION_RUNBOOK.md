@@ -50,26 +50,37 @@ Backup before a migration is **mandatory** (architect ruling, 2026-10-17). It is
 
 **How it works** (`scripts/db/backup-resilient.cjs`):
 
-1. **Schema.** A `pg_dump --schema-only` of `public` and `auth` (custom format, about 1 MB, one short session) → `schema.dump`. It is checked with `pg_restore --list`.
-2. **Data, per table.** Every table of `public` and `auth` gets its **own short session**: at most 4 run at a time, and each table has **at most 3 attempts**. Each session runs:
-   ```sql
-   BEGIN READ ONLY ISOLATION LEVEL REPEATABLE READ;
-   SET LOCAL statement_timeout = '120s';
-   SET LOCAL idle_in_transaction_session_timeout = '30s';
-   SELECT to_jsonb(t)::text FROM <schema>.<table> t;   -- → <schema>.<table>.ndjson, one JSON row per line
-   COMMIT;
-   ```
-   - **Timeouts.** They are set **for that transaction only**; nothing changes at server level. The Supavisor transaction pooler (port 6543) ignores startup options such as `PGOPTIONS`, so `SET LOCAL` inside the transaction is the only per-session setting that works.
-   - **Why that matters.** If the client dies mid-read, the server ends the backend within 30 s. Observed: a killed run's backend disappeared on its own.
-   - **Bounds.** Each session is also capped by a 300 s client-side limit.
-3. **Orphans.** After **any** failed attempt, the script terminates only its **own** orphaned sessions before retrying, and records their PIDs in the manifest. An own orphan means: same DB user, idle in transaction for more than 5 s, running this script's or `pg_dump`'s own statement.
-4. **Manifest and verification.** `manifest.json` records, per table: rows in the file, sha256, bytes and attempts. Then the script checks:
+1. **Schema.** A `pg_dump --schema-only` of `public` and `auth` (custom format, about 1 MB) → `schema.dump`, checked with `pg_restore --list`.
+   - **BACKUP-RESILIENCE-1 (2026-11-15).** The dump session carries its own limits, so a client that dies can never leave it holding locks. On 2026-11-14 an orphan stayed for 23 min with 283 locks. The limits:
+     - `PGOPTIONS`: `idle_in_transaction_session_timeout=30s`, `statement_timeout=120s`, `lock_timeout=10s`;
+     - plus `--lock-wait-timeout=10s`.
+   - A transaction-mode pooler ignores startup options. Check the target connection once with the read-only probe:
+     ```bash
+     node scripts/db/backup-resilient.cjs --probe-session-limits
+     ```
+     It must print `HONOURED`. If it says NOT honoured, report it and do not rely on the backup until it is resolved.
+2. **Data, per table, in keyset batches** (BACKUP-RESILIENCE-1). At most 4 tables run at a time. Each table is read in **primary-key order in batches**:
+   - **One transaction per batch.** Each batch is its **own short read-only transaction**:
+     ```sql
+     -- safeBegin: BEGIN READ ONLY + lock 3 s, statement 60 s, idle-in-transaction 30 s (transaction-local, LIVE-LOCK-SAFETY)
+     SELECT to_jsonb(t)::text, <key columns>::text FROM <schema>.<table> t
+      WHERE (<key>) > (<last committed key>) ORDER BY <key> LIMIT <n>;
+     COMMIT;   -- only now is the batch appended to <schema>.<table>.ndjson
+     ```
+   - **Batch size.** About 512 KB of rows, measured from the rows already read; the first batch is 50 rows; between 10 and 5,000 rows. Every transaction stays far below the 30 s idle limit, even on a slow link. On the hotspot, a whole-table read of `admin_audit_logs` / `exam_doc_versions` hit that limit (25P03, 2026-11-14).
+   - **Resume.** A failed batch (dropped connection, timeout) is retried on a **new connection from the last committed key**, never from zero. A pass allows up to 5 failed batches; a table gets at most 3 full passes. A table **without a primary key** is read in one transaction (logged).
+   - **Timeouts.** They are transaction-local (`SET LOCAL`); nothing changes at server level. If the client dies mid-read, the server ends the backend within 30 s. Each session is also capped by a 300 s client-side limit, after which the table resumes from its last key.
+3. **Orphans.** After **any** failed attempt, the script **reports** its own orphaned sessions (pids) and **never terminates** them; they end themselves.
+4. **Manifest and verification.** `manifest.json` records, per table: rows, sha256, bytes, batches, resumes, passes and duration. Then the script checks:
    - every `public` and `auth` table is present;
    - every file's sha256 and line count match the manifest;
-   - every table's row count equals a **live count taken at the end**. A table that changed in the meantime is re-dumped, still within its 3 attempts.
+   - every table's **row count AND content hash** equal the live ones taken at the end. The content hash is the md5 of the rows in the same order, computed by the server, so a duplicated or missing row fails even when the count happens to match.
+   - A table that changed in the meantime is re-dumped **from zero** (within its 3 passes).
 
    **The backup is valid only if the manifest verifies 100%** (`"verified": true`).
-5. **If any table fails 3 times → BLOCKED: do not migrate.** The output names the table.
+5. **If a table cannot be completed in 3 passes → BLOCKED: do not migrate.** The output names the table.
+
+Local proof: `node scripts/db/test-backup-resilience.cjs --port=<local port> --out=<dir>` (docs/database/LOCAL_PG_TEST.md). It covers a slow link, forced drops mid-table, a restore into a second database (identical), and broken-resume negative controls.
 
 **Output:** `BACKUP_DIR/<label>-<stamp>-resilient/` containing `schema.dump`, `<schema>.<table>.ndjson` × N, `manifest.json` and `backup.log`. `BACKUP_DIR` is outside the repo; backup files are **never committed**.
 
