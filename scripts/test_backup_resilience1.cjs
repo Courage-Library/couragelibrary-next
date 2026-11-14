@@ -6,8 +6,12 @@
  *       read-only transaction; the file only receives a batch AFTER its COMMIT; batch size adapts (≈ 512 KB, 10–5,000 rows)
  *   B-2 resume: a failed batch is retried on a NEW connection from the last committed key — the catch keeps lastKey and
  *       the rows already written; a pass gives up after 5 failed batches; a whole pass is retried at most 3 times
- *   B-3 the schema-dump session carries its own limits (PGOPTIONS idle 30 s / statement 120 s / lock 10 s +
- *       --lock-wait-timeout) and the read-only --probe-session-limits checks them; every session is closed in finally
+ *   B-3 D-detect (pg_dump resets its own timeouts, so its session cannot be limited): every schema attempt runs under
+ *       application_name backup-schema-<run>-a<n>; after EVERY attempt (success or failure) pg_stat_activity is checked
+ *       for that name; a session left → the backup FAILS with its pid + a pid-specific pg_terminate_backend statement
+ *       for the owner; the tool itself never terminates anything. The read-only probe SHOWs the limits INSIDE a
+ *       safeBegin batch transaction and checks application_name visibility. Every session is closed in finally
+ *   B-7 negative controls: no session check / a check that ignores the result / an automatic terminate → B-3 fails
  *   B-4 verification unchanged in kind and stronger: file sha256, rows = live count AND content hash = live content hash
  *       (same order); drift → re-dump from zero; the manifest method stays BACKUP-RESILIENT-1 (the runner accepts it)
  *   B-5 test hooks (delay / forced drop) are honoured ONLY in --local mode; the project target is dbTarget()
@@ -69,10 +73,32 @@ test('B-2 resume from the last committed key on a new connection; bounded failur
   assert(/const MAX_BATCH_FAILURES = 5;/.test(SRC) && /const MAX_ATTEMPTS = 3;/.test(SRC), 'bounds');
 });
 
-test('B-3 schema-dump session limits (PGOPTIONS + --lock-wait-timeout); probe; sessions closed in finally', () => {
-  assert(/const SCHEMA_SESSION_OPTIONS = '-c idle_in_transaction_session_timeout=30s -c statement_timeout=120s -c lock_timeout=10s';/.test(SRC), 'options');
-  assert(/PGOPTIONS: SCHEMA_SESSION_OPTIONS,/.test(SRC) && /'--lock-wait-timeout=10000'/.test(SRC), 'pg_dump gets them');
-  assert(/async function probeSessionLimits\(\)[\s\S]*options: SCHEMA_SESSION_OPTIONS[\s\S]*SHOW \$\{k\}/.test(SRC) && !/probeSessionLimits[\s\S]{0,900}(INSERT|UPDATE|DELETE|ALTER|CREATE)/.test(SRC.slice(SRC.indexOf('async function probeSessionLimits'))), 'read-only probe');
+/** B-3's static check, as a function so the negative controls can run it on mutated sources */
+function detectCheck(s) {
+  if (!/const RUN_ID = crypto\.randomBytes\(4\)\.toString\('hex'\);/.test(s)) return 'a run id';
+  const loop = s.slice(s.indexOf("const schemaFile = path.join(dir, 'schema.dump');"), s.indexOf('// 2. data per table'));
+  if (!/const appName = `backup-schema-\$\{RUN_ID\}-a\$\{a\}`;/.test(loop) || !/env: \{ \.\.\.env, PGAPPNAME: appName \}/.test(loop)) return 'each attempt under its own application_name';
+  if (/PGOPTIONS/.test(s)) return 'no PGOPTIONS (pg_dump resets them; detect, not prevent)';
+  if (!/'--lock-wait-timeout=10000'/.test(loop)) return '--lock-wait-timeout';
+  const afterTry = loop.slice(loop.indexOf('} catch (e) {'));
+  if (!/\n\s+const left = await schemaSessionsLeft\(appName, log\);/.test(afterTry)) return 'the session check runs after every attempt (outside try/catch)';
+  if (!/\} else if \(left\.length\) \{\n\s+manifest\.failed = `schema session left open/.test(afterTry)) return 'a session left FAILS the backup';
+  if (!/if \(left === null\) \{\n\s+manifest\.failed =/.test(afterTry)) return 'a check that cannot run FAILS the backup';
+  if (!/SELECT pg_terminate_backend\(\$\{s\.pid\}\) FROM pg_stat_activity WHERE pid = \$\{s\.pid\} AND application_name = '\$\{appName\}';/.test(afterTry)) return 'pid-specific terminate statement printed for the owner';
+  if (/query\(\s*[`'"][^`'"]*pg_terminate_backend/i.test(s) ||/pg_cancel_backend/.test(s)) return 'the tool must never terminate a session itself';
+  const fn = s.slice(s.indexOf('async function schemaSessionsLeft('), s.indexOf('async function holdOrphanForTest('));
+  if (!/WHERE a\.application_name = \$1 AND a\.pid <> pg_backend_pid\(\)/.test(fn) || !/return null;/.test(fn)) return 'schemaSessionsLeft: by name, null on error';
+  if (!/if \(!target\.local\) throw new Error\('test hook outside --local'\);/.test(s)) return 'the orphan hook is local-only';
+  return null;
+}
+
+test('B-3 D-detect: schema dump per-attempt application_name; leftover → FAIL + terminate SQL for the owner; probe in batch txn', () => {
+  const why = detectCheck(SRC);
+  assert(why === null, why);
+  const probe = SRC.slice(SRC.indexOf('async function probeSessionLimits'), SRC.indexOf("if (require.main === module"));
+  assert(/await safeBegin\(c, \{ readOnly: true \}\);[\s\S]*SHOW \$\{k\}[\s\S]*ROLLBACK/.test(probe), 'probe SHOWs inside a safeBegin read-only transaction');
+  assert(/LOCK_TIMEOUT/.test(probe) && /STATEMENT_TIMEOUT/.test(probe) && /IDLE_IN_TX_TIMEOUT/.test(probe) && /pg_stat_activity WHERE application_name = \$1/.test(probe), 'probe compares with live-safety + checks name visibility');
+  assert(!/(INSERT|UPDATE|DELETE|ALTER|CREATE|pg_terminate_backend)/.test(probe), 'probe is read-only');
   assert(/finally \{\n\s+clearTimeout\(timer\);\n\s+await c\.end\(\)\.catch\(\(\) => \{\}\);/.test(SRC), 'withClient always closes');
 });
 
@@ -84,7 +110,7 @@ test('B-4 verification: sha256 + rows = live + content hash = live (same order);
 });
 
 test('B-5 test hooks only in --local mode; the project target is dbTarget()', () => {
-  assert(/if \(!LOCAL\) return dbTarget\(\);/.test(SRC) && /const TEST = target\.local\n\s+\? \{/.test(SRC) && /: \{ delayMs: 0, drops: new Map\(\) \}; \/\/ the hooks never run against the project database/.test(SRC), 'hooks gated on target.local');
+  assert(/if \(!LOCAL\) return dbTarget\(\);/.test(SRC) && /const TEST = target\.local\n\s+\? \{/.test(SRC) && /: \{ delayMs: 0, drops: new Map\(\), schemaOrphan: false \}; \/\/ the hooks never run against the project database/.test(SRC), 'hooks gated on target.local');
   assert(/host: '127\.0\.0\.1'/.test(SRC), 'local = 127.0.0.1 only');
 });
 
@@ -97,6 +123,20 @@ test('B-6 negative controls: broken resumes make B-2 fail', () => {
   for (const [k, m] of Object.entries(muts)) {
     assert(m !== SRC, `${k}: mutation did not apply`);
     assert(resumeCheck(m) !== null, `${k}: B-2 did not catch it`);
+  }
+  return `${Object.keys(muts).length} mutations caught`;
+});
+
+test('B-7 negative controls: a missing / ignored session check or an automatic terminate make B-3 fail', () => {
+  const muts = {
+    'no session check': SRC.replace('    const left = await schemaSessionsLeft(appName, log);', '    const left = [];'),
+    'leftover ignored': SRC.replace(/\} else if \(left\.length\) \{\n\s+manifest\.failed = `schema session left open \(\$\{appName\}\)`;/, '} else if (left.length) {'),
+    'automatic terminate': SRC.replace('      manifest.schemaSessionsLeft = left;', '      manifest.schemaSessionsLeft = left;\n      for (const s of left) await withClient((c) => c.query(`SELECT pg_terminate_backend(${s.pid})`));'),
+    'shared application_name': SRC.replace('const appName = `backup-schema-${RUN_ID}-a${a}`;', "const appName = 'backup-schema';"),
+  };
+  for (const [k, m] of Object.entries(muts)) {
+    assert(m !== SRC, `${k}: mutation did not apply`);
+    assert(detectCheck(m) !== null, `${k}: B-3 did not catch it`);
   }
   return `${Object.keys(muts).length} mutations caught`;
 });

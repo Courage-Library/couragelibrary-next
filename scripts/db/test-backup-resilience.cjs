@@ -12,6 +12,11 @@
  *   R-5 NEGATIVE CONTROLS (copies of the tool with a broken resume, in a scratch folder): resume from zero without
  *       truncating (duplicates) and resume past the failed batch (gaps) → the manifest must NOT verify
  *   R-6 clean up: the synthetic tables and the test backups are removed
+ *   R-7 D-detect: (a) the clean run checked its schema-dump session by name ("clear"); (b) a FORCED DROP during the
+ *       schema dump (pg_dump killed) while a session under its application_name stays open in a transaction — what a
+ *       pooler keeps when the client dies (BACKUP_TEST_SCHEMA_ORPHAN=1, local only) → the backup FAILS before any data,
+ *       printing the pid and a pid-specific terminate statement; the tool terminates nothing (the session is still
+ *       there when the check runs and is released by the test hook afterwards)
  * Run: node scripts/db/test-backup-resilience.cjs --port=54329 --out=<dir outside the repo> [--scratch=<dir>]
  */
 require('./safe-net.cjs'); // SAFE-NET (the local server only; masks output all the same)
@@ -80,6 +85,24 @@ function brokenCopy(name, from, to) {
     // R-2 clean
     const clean = runBackup(TOOL, 'r2-clean');
     chk('R-2 clean backup → verified 100%', clean.status === 0 && clean.manifest && clean.manifest.verified, clean.out.split('\n').slice(-3).join(' | '));
+    const sc = clean.manifest && clean.manifest.schema && clean.manifest.schema.sessionCheck;
+    chk('R-7a normal run: the schema-dump session was checked by its own name → clear', /^clear \(backup-schema-[0-9a-f]{8}-a1\)$/.test(sc || ''), sc);
+
+    // R-7b forced drop during the schema dump, a session under its name left behind
+    const orphan = runBackup(TOOL, 'r7-schema-orphan', { BACKUP_TEST_SCHEMA_ORPHAN: '1' });
+    const om = orphan.manifest;
+    const olog = orphan.dir && fs.existsSync(path.join(orphan.dir, 'backup.log')) ? fs.readFileSync(path.join(orphan.dir, 'backup.log'), 'utf8') : orphan.out;
+    const left = (om && om.schemaSessionsLeft) || [];
+    const pid = left[0] && left[0].pid;
+    chk('R-7b forced drop during the schema dump + session left → the backup FAILS before any data',
+      orphan.status !== 0 && om && om.verified !== true && /^schema session left open \(backup-schema-[0-9a-f]{8}-a1\)$/.test(om.failed || '') && !(om.tables || []).length,
+      JSON.stringify({ status: orphan.status, failed: om && om.failed, tables: om && (om.tables || []).length }));
+    const sqlRe = new RegExp(`pid ${pid} .*SELECT pg_terminate_backend\\(${pid}\\) FROM pg_stat_activity WHERE pid = ${pid} AND application_name = 'backup-schema-[0-9a-f]{8}-a1';`);
+    chk('R-7c the log names the leftover: SESSION LEFT OPEN + pid + a pid-specific terminate statement for the owner',
+      left.length === 1 && Number.isInteger(pid) && /SESSION LEFT OPEN/.test(olog) && sqlRe.test(olog),
+      olog.split('\n').filter((l) => /schema/i.test(l)).join(' | ').slice(0, 500));
+    const still = (await c.query(`SELECT count(*)::int AS n FROM pg_stat_activity WHERE application_name LIKE 'backup-schema-%'`)).rows[0].n;
+    chk('R-7d the tool terminated nothing; the test hook released its session afterwards (none left now)', still === 0, `left now: ${still}`);
 
     // R-3 slow link + drops mid-table
     const drops = 'public.bk_synth_composite:5,public.bk_synth_wide:3,public.canonical_taxonomy_nodes:1';

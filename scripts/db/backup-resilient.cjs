@@ -5,11 +5,12 @@
  * long pg_dump (which a single dropped connection kills, leaving an orphaned session that holds every table lock), it
  * backs up per object:
  *
- *   1. schema   pg_dump --schema-only of schemas public + auth (custom format). BACKUP-RESILIENCE-1: the dump session
- *               carries its own limits (PGOPTIONS: idle_in_transaction_session_timeout 30 s, statement_timeout 120 s,
- *               lock_timeout 10 s; --lock-wait-timeout 10 s) so a client that dies can never leave it holding locks (the
- *               2026-11-14 orphan: 23 min, 283 locks). A transaction-mode pooler ignores startup options — the target is
- *               the NON-POOLING connection; check it once with the read-only probe in docs/database/MIGRATION_RUNBOOK.md.
+ *   1. schema   pg_dump --schema-only of schemas public + auth (custom format; --lock-wait-timeout 10 s). pg_dump RESETS
+ *               statement / lock / idle-in-transaction / transaction timeouts to 0 itself, so its session cannot be
+ *               limited: DETECT instead — each attempt runs under application_name backup-schema-<run>-a<n>; after it
+ *               (success or failure) a session still open under that name FAILS the backup and prints its pid with a
+ *               pid-specific terminate statement for the owner (never terminated here). (2026-11-14 orphan: 23 min, 283
+ *               locks.) The read-only --probe-session-limits checks what this relies on (MIGRATION_RUNBOOK §1).
  *   2. data     every table of public + auth in KEYSET BATCHES (BACKUP-RESILIENCE-1): rows in primary-key order, each
  *               batch its OWN short read-only transaction (safeBegin: lock 3 s, statement 60 s, idle-in-transaction
  *               30 s), sized to ~512 KB from the rows already read, appended to <schema>.<table>.ndjson only after its
@@ -31,10 +32,11 @@
  * LOCAL test mode (docs/database/LOCAL_PG_TEST.md; never the project database):
  *        node scripts/db/backup-resilient.cjs <label> --local=<port> --out=<dir> [--bin=<pg bin>] [--batch-bytes=N]
  *        test hooks, honoured ONLY with --local: BACKUP_TEST_DELAY_MS (pause inside every batch — a slow link),
- *        BACKUP_TEST_DROP=<schema.table>:<batch>[,…] (the client socket is destroyed at that batch on every pass)
+ *        BACKUP_TEST_DROP=<schema.table>:<batch>[,…] (the client socket is destroyed at that batch on every pass),
+ *        BACKUP_TEST_SCHEMA_ORPHAN=1 (the first schema attempt is killed while a session under its name stays open)
  */
 require('./safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
-const { safeBegin } = require('./live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
+const { safeBegin, LOCK_TIMEOUT, STATEMENT_TIMEOUT, IDLE_IN_TX_TIMEOUT } = require('./live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -66,11 +68,12 @@ const TEST = target.local
   ? {
       delayMs: Number(process.env.BACKUP_TEST_DELAY_MS || 0),
       drops: new Map((process.env.BACKUP_TEST_DROP || '').split(',').filter(Boolean).map((d) => [d.slice(0, d.lastIndexOf(':')), Number(d.slice(d.lastIndexOf(':') + 1))])),
+      schemaOrphan: process.env.BACKUP_TEST_SCHEMA_ORPHAN === '1',
     }
-  : { delayMs: 0, drops: new Map() }; // the hooks never run against the project database
+  : { delayMs: 0, drops: new Map(), schemaOrphan: false }; // the hooks never run against the project database
 
-/** the session limits of the schema dump (PGOPTIONS; checked by --probe-session-limits) */
-const SCHEMA_SESSION_OPTIONS = '-c idle_in_transaction_session_timeout=30s -c statement_timeout=120s -c lock_timeout=10s';
+/** one id per run: the schema dump's application_name is backup-schema-<RUN_ID>-a<attempt> */
+const RUN_ID = crypto.randomBytes(4).toString('hex');
 const MAX_ATTEMPTS = 3; // schema dump / table list / live check, and full passes per table
 const MAX_BATCH_FAILURES = 5; // failed batches per pass (each resumes from the last committed key)
 const CONCURRENCY = 4;
@@ -114,6 +117,40 @@ async function reportOwnOrphans(log) {
     log(`  orphan check failed (${errCode(e)}) — the 30 s idle-in-transaction timeout still bounds any orphan`);
     return [];
   }
+}
+
+/**
+ * The schema dump's sessions still open under its application_name. Polls up to 5 s (a backend that is just closing is
+ * not a leftover). Returns [] when none is left, the list when one stays, null when the check itself cannot run.
+ */
+async function schemaSessionsLeft(appName, log) {
+  try {
+    return await withClient(async (c) => {
+      let rows = [];
+      for (let i = 0; i < 6; i++) {
+        rows = (await c.query(`SELECT a.pid, a.state, floor(extract(epoch FROM now() - a.state_change))::int AS seconds,
+                                       (SELECT count(*) FROM pg_locks l WHERE l.pid = a.pid)::int AS locks
+                                  FROM pg_stat_activity a WHERE a.application_name = $1 AND a.pid <> pg_backend_pid()`, [appName])).rows;
+        if (!rows.length) return [];
+        await sleep(1000);
+      }
+      return rows;
+    });
+  } catch (e) {
+    log(`  schema session check failed (${errCode(e)})`);
+    return null;
+  }
+}
+
+/** TEST (local only): a session under the dump's name that stays open in a transaction — what a pooler keeps when the client dies */
+async function holdOrphanForTest(appName) {
+  if (!target.local) throw new Error('test hook outside --local');
+  const c = new Client({ ...target.pg, application_name: appName });
+  c.on('error', () => {});
+  await c.connect();
+  await safeBegin(c, { readOnly: true });
+  await c.query(`SELECT count(*) FROM pg_catalog.pg_class`); // a catalog read, like pg_dump's
+  return c; // left idle in transaction until the test releases it
 }
 
 /** tables + their primary-key columns (in key order) and types */
@@ -227,10 +264,13 @@ async function backup(label) {
   fs.mkdirSync(dir, { recursive: true });
   const logLines = [];
   const log = (m) => { logLines.push(m); console.log(m); try { fs.appendFileSync(path.join(dir, 'backup.log'), m + '\n'); } catch { /* final log written in finish() */ } };
-  const manifest = { method: 'BACKUP-RESILIENT-1', version: 'BACKUP-RESILIENCE-1', label, stamp, schemas: SCHEMAS, local: !!target.local, schema: null, tables: [], orphansTerminated: [], verified: false };
+  const manifest = { method: 'BACKUP-RESILIENT-1', version: 'BACKUP-RESILIENCE-1', label, stamp, schemas: SCHEMAS, local: !!target.local, schema: null, tables: [], orphansReported: [], verified: false };
   if (target.local && (TEST.delayMs || TEST.drops.size)) log(`LOCAL TEST hooks: delay ${TEST.delayMs} ms per batch; drops ${[...TEST.drops].map(([t, b]) => `${t}@${b}`).join(', ') || 'none'}`);
 
-  // 1. schema-only dump — the session carries its own timeouts (never left holding locks)
+  // 1. schema-only dump. pg_dump RESETS statement / lock / idle-in-transaction / transaction timeouts to 0 itself (proved
+  //    2026-11-15), so no limit can be imposed on its session: DETECT instead of prevent — every attempt runs under its
+  //    own application_name, and after it (success or failure) a session still open under that name FAILS the backup
+  //    with its pid and a pid-specific terminate statement for the owner (never terminated here).
   const bin = (n) => path.join(target.pgBin, process.platform === 'win32' ? `${n}.exe` : n);
   const env = {
     ...process.env,
@@ -241,22 +281,36 @@ async function backup(label) {
     PGDATABASE: target.pg.database,
     PGSSLMODE: target.local ? 'disable' : 'verify-full',
     ...(target.local ? {} : { PGSSLROOTCERT: target.caPath }),
-    PGOPTIONS: SCHEMA_SESSION_OPTIONS,
   };
   const schemaFile = path.join(dir, 'schema.dump');
   for (let a = 1; a <= MAX_ATTEMPTS; a++) {
+    const appName = `backup-schema-${RUN_ID}-a${a}`;
+    const held = TEST.schemaOrphan && a === 1 ? await holdOrphanForTest(appName) : null; // TEST (local only)
     try {
-      execFileSync(bin('pg_dump'), ['--format=custom', '--schema-only', '--lock-wait-timeout=10000', ...SCHEMAS.flatMap((s) => ['--schema', s]), '--file', schemaFile, '--no-password'], { env, stdio: ['ignore', 'pipe', 'pipe'], timeout: 300000 });
+      execFileSync(bin('pg_dump'), ['--format=custom', '--schema-only', '--lock-wait-timeout=10000', ...SCHEMAS.flatMap((s) => ['--schema', s]), '--file', schemaFile, '--no-password'], { env: { ...env, PGAPPNAME: appName }, stdio: ['ignore', 'pipe', 'pipe'], timeout: held ? 1 : 300000 });
       const list = execFileSync(bin('pg_restore'), ['--list', schemaFile], { encoding: 'utf8', timeout: 60000 });
-      manifest.schema = { file: 'schema.dump', sha256: sha256File(schemaFile), bytes: fs.statSync(schemaFile).size, tables: list.split(/\r?\n/).filter((l) => / TABLE (public|auth) /.test(l)).length, attempts: a };
+      manifest.schema = { file: 'schema.dump', sha256: sha256File(schemaFile), bytes: fs.statSync(schemaFile).size, tables: list.split(/\r?\n/).filter((l) => / TABLE (public|auth) /.test(l)).length, attempts: a, sessionCheck: null };
       log(`schema: ok (attempt ${a}, ${manifest.schema.tables} tables, ${manifest.schema.bytes} bytes)`);
-      break;
     } catch (e) {
       log(`schema: attempt ${a} failed (${redact(String(e.stderr || e.message)).split('\n')[0].slice(0, 120)})`);
-      manifest.orphansTerminated.push(...(await reportOwnOrphans(log)));
-      if (a === MAX_ATTEMPTS) { manifest.failed = 'schema'; break; }
-      await sleep(5000);
+      if (a === MAX_ATTEMPTS) manifest.failed = 'schema';
     }
+    // the dump's own session must be gone, whatever happened to the dump
+    const left = await schemaSessionsLeft(appName, log);
+    if (held) await held.end().catch(() => {}); // TEST (local only): the simulated pooler-held session is released afterwards
+    if (left === null) {
+      manifest.failed = `schema session check (${appName})`;
+      log(`schema: the session check could not run — not continuing (look for application_name '${appName}' in pg_stat_activity)`);
+    } else if (left.length) {
+      manifest.failed = `schema session left open (${appName})`;
+      manifest.schemaSessionsLeft = left;
+      log(`schema: SESSION LEFT OPEN by the dump — the backup FAILS (it may hold table locks). Never terminated here; to end it, run as the owner:`);
+      for (const s of left) log(`  pid ${s.pid} · ${s.state} · ${s.seconds} s · ${s.locks} lock(s):  SELECT pg_terminate_backend(${s.pid}) FROM pg_stat_activity WHERE pid = ${s.pid} AND application_name = '${appName}';`);
+    } else if (manifest.schema && manifest.schema.attempts === a) {
+      manifest.schema.sessionCheck = `clear (${appName})`;
+    }
+    if (manifest.failed || (manifest.schema && manifest.schema.attempts === a)) break;
+    await sleep(5000);
   }
   if (manifest.failed) return finish(dir, manifest, logLines, false);
 
@@ -282,7 +336,7 @@ async function backup(label) {
       } catch (e) {
         entry.error = errCode(e);
         log(`  ${tb.s}.${tb.t}: pass ${entry.attempts} failed (${entry.error})`);
-        manifest.orphansTerminated.push(...(await reportOwnOrphans(log)));
+        manifest.orphansReported.push(...(await reportOwnOrphans(log)));
         if (entry.attempts < MAX_ATTEMPTS) await sleep(3000);
       }
     }
@@ -344,12 +398,12 @@ function finish(dir, manifest, logLines, verified) {
     retries: manifest.tables.reduce((a, e) => a + Math.max(0, (e.attempts || 0) - 1), 0) + (manifest.schema ? manifest.schema.attempts - 1 : 0),
     batches: manifest.tables.reduce((a, e) => a + (e.batches || 0), 0),
     resumes: manifest.tables.reduce((a, e) => a + (e.resumes || 0), 0),
-    orphansTerminated: manifest.orphansTerminated.length,
+    orphansReported: manifest.orphansReported.length,
   };
   fs.writeFileSync(path.join(dir, 'manifest.json'), JSON.stringify(manifest, null, 1));
   fs.writeFileSync(path.join(dir, 'backup.log'), logLines.join('\n') + '\n');
   if (verified) {
-    console.log(`BACKUP OK (resilient): ${path.basename(dir)} — ${manifest.summary.tables} tables, ${manifest.summary.rows} rows, ${manifest.summary.batches} batches, ${manifest.summary.resumes} resume(s), re-dumps ${manifest.summary.retries}, own orphans found (never terminated) ${manifest.summary.orphansTerminated}; manifest verified 100%`);
+    console.log(`BACKUP OK (resilient): ${path.basename(dir)} — ${manifest.summary.tables} tables, ${manifest.summary.rows} rows, ${manifest.summary.batches} batches, ${manifest.summary.resumes} resume(s), re-dumps ${manifest.summary.retries}, own orphans found (never terminated) ${manifest.summary.orphansReported}; manifest verified 100%`);
   } else {
     console.log(`BACKUP FAILED (resilient): ${manifest.failed ? `stopped at ${manifest.failed}` : `manifest did not verify (${(manifest.problems || []).length} problem(s): ${(manifest.problems || []).slice(0, 5).join('; ')})`}`);
   }
@@ -382,19 +436,27 @@ async function restoreTest(dir) {
 }
 
 /**
- * READ-ONLY probe: does this connection honour startup options (a transaction-mode pooler ignores them)? Connects with
- * the same options the schema dump uses and SHOWs the three settings. Changes nothing.
+ * READ-ONLY probe (D-detect, 2026-11-15) — the two things the backup relies on, on THIS connection:
+ *   1. a batch transaction really gets its SET LOCAL limits (SHOW inside the same transaction as the batches: safeBegin)
+ *   2. a session's application_name is visible in pg_stat_activity (the schema-dump leftover check finds it by name)
+ * Changes nothing (a read-only transaction, rolled back; two short sessions).
  */
 async function probeSessionLimits() {
-  const c = new Client({ ...target.pg, options: SCHEMA_SESSION_OPTIONS });
+  const name = `backup-probe-${RUN_ID}`;
+  const c = new Client({ ...target.pg, application_name: name });
   c.on('error', () => {});
   await c.connect();
   try {
+    await safeBegin(c, { readOnly: true });
     const show = async (k) => (await c.query(`SHOW ${k}`)).rows[0][k];
-    const got = { idle_in_transaction_session_timeout: await show('idle_in_transaction_session_timeout'), statement_timeout: await show('statement_timeout'), lock_timeout: await show('lock_timeout') };
-    const ok = got.idle_in_transaction_session_timeout === '30s' && got.statement_timeout === '2min' && got.lock_timeout === '10s';
-    console.log(`session limits probe (read-only): ${JSON.stringify(got)} — ${ok ? 'HONOURED' : 'NOT honoured by this connection'}`);
-    return ok;
+    const got = { lock_timeout: await show('lock_timeout'), statement_timeout: await show('statement_timeout'), idle_in_transaction_session_timeout: await show('idle_in_transaction_session_timeout') };
+    await c.query('ROLLBACK');
+    const norm = (v) => String(v).replace(/^60s$/, '1min');
+    const limitsOk = got.lock_timeout === LOCK_TIMEOUT && norm(got.statement_timeout) === norm(STATEMENT_TIMEOUT) && got.idle_in_transaction_session_timeout === IDLE_IN_TX_TIMEOUT;
+    const seen = await withClient(async (o) => (await o.query('SELECT count(*)::int n FROM pg_stat_activity WHERE application_name = $1', [name])).rows[0].n);
+    const nameOk = seen === 1;
+    console.log(`backup probe (read-only): batch transaction limits ${JSON.stringify(got)} — ${limitsOk ? 'HONOURED' : 'NOT honoured'}; application_name visible in pg_stat_activity — ${nameOk ? 'YES' : 'NO'} → ${limitsOk && nameOk ? 'HONOURED' : 'NOT HONOURED'}`);
+    return limitsOk && nameOk;
   } finally {
     await c.end().catch(() => {});
   }

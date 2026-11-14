@@ -51,14 +51,21 @@ Backup before a migration is **mandatory** (architect ruling, 2026-10-17). It is
 **How it works** (`scripts/db/backup-resilient.cjs`):
 
 1. **Schema.** A `pg_dump --schema-only` of `public` and `auth` (custom format, about 1 MB) → `schema.dump`, checked with `pg_restore --list`.
-   - **BACKUP-RESILIENCE-1 (2026-11-15).** The dump session carries its own limits, so a client that dies can never leave it holding locks. On 2026-11-14 an orphan stayed for 23 min with 283 locks. The limits:
-     - `PGOPTIONS`: `idle_in_transaction_session_timeout=30s`, `statement_timeout=120s`, `lock_timeout=10s`;
-     - plus `--lock-wait-timeout=10s`.
-   - A transaction-mode pooler ignores startup options. Check the target connection once with the read-only probe:
+   - **pg_dump resets its own timeouts — so the schema dump is DETECTED, not prevented (D-detect, 2026-11-15).** `pg_dump` sends `SET statement_timeout = 0`, `lock_timeout = 0`, `idle_in_transaction_session_timeout = 0` and `transaction_timeout = 0` itself before it reads (seen in its binary and in a local server log). Startup options (`PGOPTIONS`) were also not honoured through the production connection. The dump session therefore cannot be limited; only `--lock-wait-timeout=10s` applies. On 2026-11-14 an orphaned dump session stayed for 23 min with 283 locks.
+   - **Detection.** Each schema attempt runs under its own `application_name` `backup-schema-<run id>-a<attempt>`. After every attempt, whether it succeeded or failed, the script looks for that name in `pg_stat_activity` (polling up to 5 s):
+     - none left → the manifest records `schema.sessionCheck: "clear (…)"`;
+     - one left → **the backup FAILS** before any data. The log shows `SESSION LEFT OPEN` with the pid, state, age, lock count and a ready-to-run, pid-specific statement for the owner:
+       ```sql
+       SELECT pg_terminate_backend(<pid>) FROM pg_stat_activity WHERE pid = <pid> AND application_name = 'backup-schema-<run id>-a<n>';
+       ```
+       The tool **never terminates** a session itself. The owner ends it, then the backup is run again;
+     - the check itself cannot run → the backup also FAILS.
+   - **Probe (read-only).** Before relying on the tool on a connection, run it once:
      ```bash
      node scripts/db/backup-resilient.cjs --probe-session-limits
      ```
-     It must print `HONOURED`. If it says NOT honoured, report it and do not rely on the backup until it is resolved.
+     It `SHOW`s `lock_timeout`, `statement_timeout` and `idle_in_transaction_session_timeout` **inside a batch transaction** (the same `safeBegin` as the data batches; expected 3s / 1min / 30s). It also checks that a session's `application_name` is visible in `pg_stat_activity` (the detection depends on it). It must print `→ HONOURED`; otherwise report it and do not rely on the backup.
+   - **D-full (possible future phase, not built).** Preventing the leftover rather than detecting it would need a schema dump that does not go through `pg_dump`'s own session settings, e.g. a catalog-based dump in short limited transactions, or a server-side guard. Not planned until the owner asks for it.
 2. **Data, per table, in keyset batches** (BACKUP-RESILIENCE-1). At most 4 tables run at a time. Each table is read in **primary-key order in batches**:
    - **One transaction per batch.** Each batch is its **own short read-only transaction**:
      ```sql
