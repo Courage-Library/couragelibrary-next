@@ -21,13 +21,14 @@
   "COURSE-UX-1 (owner GO 2026-11-03, phase B: completion only with server-recorded evidence; quick-check answers checked on the server): max total / client_executable_callable / A raised by exactly 2 for fn_lesson_quick_check_answer and fn_lesson_complete — NEW reviewed client entrypoints (authenticated only; auth.uid(); no table write granted); the reading-minutes and lesson-coin award helpers are INVOKER and not listed",
   "PAY-1 B1 (owner GO 2026-11-14, PAY-LEGACY-RETIRE-1): max total and B-service lowered by exactly 3 — migration 140 drops the legacy fn_create_payment_order, fn_process_payment_webhook and fn_verify_and_fulfill_payment (service_role only, no caller, nothing depends on them)",
   "PAY-1 B2a (owner GO 2026-11-14, admin-controlled access policy): max total / client_executable_callable / A raised by exactly 2 for fn_access_tier (anon + authenticated, P-9 SECDEF_PUBLIC_OK: returns FREE / PRO only) and fn_has_pro_self (authenticated, the caller's own Pro); anon_or_public raised by exactly 1 for fn_access_tier",
-  "PAY-1 B2a: max total raised by exactly 3 and B-service by 3 for the service-role-only audited writes fn_access_policy_set, fn_access_policy_clear and fn_paywall_set"
+  "PAY-1 B2a: max total raised by exactly 3 and B-service by 3 for the service-role-only audited writes fn_access_policy_set, fn_access_policy_clear and fn_paywall_set",
+  "PAY-1 B2a fix (migration 142, owner GO 2026-11-15): max total / client_executable_callable / A raised by exactly 1 for fn_access_allowed (now SECURITY DEFINER; anon + authenticated, P-9 SECDEF_PUBLIC_OK: returns a boolean only); anon_or_public raised by exactly 1 for fn_access_allowed"
  ],
  "max": {
-  "total": 122,
-  "client_executable_callable": 53,
-  "anon_or_public": 2,
-  "A": 53,
+  "total": 123,
+  "client_executable_callable": 54,
+  "anon_or_public": 3,
+  "A": 54,
   "C": 0,
   "B-trigger": 16,
   "B-service": 39,
@@ -35,7 +36,8 @@
  },
  "public_ok": [
   "fn_exam_syllabus_read_model(p_exam_id uuid, p_exam_cycle_id uuid)",
-  "fn_access_tier(p_kind text, p_key text)"
+  "fn_access_tier(p_kind text, p_key text)",
+  "fn_access_allowed(p_kind text, p_key text)"
  ],
  "functions": {
   "fn_authorize_and_start_test_attempt(p_user_id uuid, p_mock_test_id uuid)": {
@@ -877,6 +879,15 @@
    "client": [],
    "search_path": "\"\"",
    "reason": "PAY-1 B2a: the paywall master switch (service_role only; audited PAYWALL_SET); stays off until the payments cutover"
+  },
+  "fn_access_allowed(p_kind text, p_key text)": {
+   "class": "A",
+   "client": [
+    "anon",
+    "authenticated"
+   ],
+   "search_path": "\"\"",
+   "reason": "PAY-1 B2a fix (migration 142, owner GO 2026-11-15): THE central access check (switch off → true; FREE → true; anon → false; else the caller's own Pro); returns a boolean only, no data; DEFINER so access_settings needs no client read (RLS P-6) (P-9 SECDEF_PUBLIC_OK)"
   }
  }
 }

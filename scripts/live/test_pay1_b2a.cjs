@@ -13,6 +13,8 @@
  *   A-7 a non-admin cannot change policy: student / staff / anon get 42501 on the set / clear / switch functions, on
  *       direct writes and on reading access_policies; anon cannot call fn_has_pro_self
  *   A-8 a mock test inherits its series' explicit tier; its own explicit row wins over the series
+ *   A-9 (142) access_settings is private: student / anon get 42501; no policy on it; fn_access_allowed is SECURITY
+ *       DEFINER and still answers for anon / student
  * Run: node scripts/live/test_pay1_b2a.cjs --local=54329 --pre   (local)
  *      node scripts/live/test_pay1_b2a.cjs [--pre]               (project DB)
  */
@@ -27,6 +29,7 @@ const { withLiveTransaction } = require(path.join(ROOT, 'scripts/db/live-safety.
 const PRE = process.argv.includes('--pre');
 const LOCAL = (process.argv.find((a) => a.startsWith('--local=')) || '').slice('--local='.length);
 const SQL = fs.readFileSync(path.join(ROOT, 'supabase/migrations/20261116000141_pay1_b2a_access_policy.sql'), 'utf8');
+const SQL142 = fs.readFileSync(path.join(ROOT, 'supabase/migrations/20261116000142_pay1_b2a_access_settings_private.sql'), 'utf8');
 const ACTOR = 'pay1-b2a@courage-library.test';
 const RANDOM_UUID = '00000000-0000-4000-8000-00000000b2a1';
 
@@ -73,7 +76,11 @@ function client() {
   const allowed = (role, sub, kind, key) => as(role, sub, async () => (await one(`select public.fn_access_allowed($1, $2) a`, [kind, key])).a);
   try {
     await withLiveTransaction(c, async () => {
-      if (PRE) await c.query(SQL);
+      // --pre: 141 only if it is not there yet (re-running it would re-grant the client read 142 removes), then 142
+      if (PRE) {
+        if (!(await one(`select to_regclass('public.access_policies') is not null e`)).e) await c.query(SQL);
+        await c.query(SQL142);
+      }
       const ids = {};
       for (const [k, e] of [['student', 'qa-student@courage-library.test'], ['staff', 'qa-staff@courage-library.test']]) {
         let r = await one(`select id from auth.users where email = $1`, [e]);
@@ -124,7 +131,12 @@ function client() {
       const afterFree = await allowed('authenticated', ids.student, 'FEATURE', 'MISTAKE_VAULT');
       const r2 = await one(`select public.fn_access_policy_set('FEATURE','MISTAKE_VAULT','PRO', null, $1) r`, [ACTOR]);
       const afterPro = await allowed('authenticated', ids.student, 'FEATURE', 'MISTAKE_VAULT');
-      const last = await one(`select old_value, new_value, target_id from public.admin_audit_logs where actor_email = $1 and action_type = 'ACCESS_POLICY_SET' order by created_at desc, id desc limit 1`, [ACTOR]);
+      // rows written in one transaction share created_at, so check the two transitions directly (not "the latest")
+      const trans = await one(`select count(*) filter (where old_value->>'tier' = 'PRO' and new_value->>'tier' = 'FREE')::int pro_free,
+          count(*) filter (where old_value->>'tier' = 'FREE' and new_value->>'tier' = 'PRO')::int free_pro,
+          bool_and(target_id = 'FEATURE:MISTAKE_VAULT') target_ok
+        from public.admin_audit_logs where actor_email = $1 and action_type = 'ACCESS_POLICY_SET' and target_id = 'FEATURE:MISTAKE_VAULT'`, [ACTOR]);
+      const last = { old_value: { tier: trans.free_pro === 1 ? 'FREE' : '?' }, new_value: { tier: trans.pro_free === 1 ? 'PRO' : '?' }, target_id: trans.target_ok ? 'FEATURE:MISTAKE_VAULT' : '?' };
       // clear: a free mock's explicit FREE row removed → falls back to the MOCK_TEST default (PRO) → refused
       let clearOk = true;
       if (freeMock) {
@@ -181,6 +193,15 @@ function client() {
       }
       if (inh === 'no mock' && LOCAL) console.log('SKIP A-8 a mock inherits its series tier — this local copy has no mock_tests rows (runs on the project database)');
       else chk('A-8 a mock inherits its series tier; its own row wins', inh === 'ok', inh);
+
+      // A-9 (142)
+      const readS = await as('authenticated', ids.student, () => errCode(`select paywall_enabled from public.access_settings`));
+      const readA = await as('anon', null, () => errCode(`select paywall_enabled from public.access_settings`));
+      const meta = await one(`select (select prosecdef from pg_proc where oid = 'public.fn_access_allowed(text,text)'::regprocedure) secdef,
+          (select count(*) from pg_policies where schemaname = 'public' and tablename = 'access_settings')::int policies`);
+      const stillWorks = (await allowed('anon', null, 'FEATURE', 'FLASHCARDS')) === true && (await allowed('authenticated', ids.student, 'FEATURE', 'FLASHCARDS')) === true;
+      chk('A-9 access_settings private (42501 for student / anon, no policy); fn_access_allowed DEFINER and still answers', readS === '42501' && readA === '42501' && meta.secdef === true && meta.policies === 0 && stillWorks,
+        JSON.stringify({ readS, readA, meta, stillWorks }));
     });
   } catch (e) {
     ok = false;

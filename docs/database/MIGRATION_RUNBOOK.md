@@ -215,6 +215,12 @@ Commit the regenerated `types/database.ts` **in the same commit as the migration
 2. Write the migration + its rollback (`docs/database/rollback/<n>_rollback.sql`); no BEGIN / COMMIT in the file. The
    rollback carries its `-- ROLLBACK-CHAIN:` line; re-run `rollback-chain.cjs --probe --write` on the local copy with
    the migration applied, so earlier rollbacks that now depend on it name it (section 4, ROLLBACK-CHAIN).
+   **LOCAL RLS + SECDEF (owner rule, 2026-11-15):** for every migration that adds tables, policies or functions, run the
+   RLS gate and the SECDEF ratchet in the LOCAL test cycle, with the migration applied, before any production apply:
+   `node scripts/test_sec_hotfix4_rls.cjs --local=54329` (the checks that need the QA identities are SKIPPED locally and
+   run on the project database) and `node scripts/test_secdef_ratchet.cjs --local=54329`.
+   **Why:** migration 141 gave `access_settings` a blanket read policy; RLS P-6 caught it only after the production
+   apply, and migration 142 had to fix it.
 3. Dry-run ALONE (`apply-migration.cjs <file> --dry-run`; no other live session on the same object group).
 4. Chunked rolled-back smoke AS THE REAL ROLES (service_role / authenticated QA users / anon), with `--pre` running the
    migration inside each chunk (LIVE-LOCK-SAFETY via `safeBegin` / `withLiveTransaction`).

@@ -409,7 +409,20 @@ See section 4.
    All of them move to the central check (B3).
 6. **PREMIUM_CA:** no premium current-affairs content or schema exists. The seed row is harmless and waits for content.
 
-**B2 split (proposed):**
+**E1 decided (owner, 2026-11-15) = b:**
+- Only questions assigned to a **PRO** mock (per the access policy) are excluded from practice and Memory Lock;
+  free-mock questions stay in the shared pool.
+- **In all cases:** no answer or explanation for any question in the caller's own **open** attempt (practice-answer and
+  Memory Lock RPCs refuse it), and the mock player stops receiving internal question version ids (opaque per-attempt
+  ids instead).
+
+**B2a status (2026-11-15):**
+- Migration 141 applied; RLS P-6 then flagged the blanket client read on `access_settings`.
+- Migration 142 (owner GO) makes it private and the central check SECURITY DEFINER.
+- New runbook rule: the RLS gate + SECDEF ratchet run in the LOCAL cycle of every migration that adds tables, policies
+  or functions.
+
+**B2 split (agreed):**
 - **B2a, the access-policy foundation (no user-visible change: the switch stays off):**
   - migration: `access_policies`, the paywall switch, `fn_access_tier`, `fn_access_allowed`, `fn_access_policy_set` /
     `fn_paywall_set` (service_role, audited);

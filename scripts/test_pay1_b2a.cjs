@@ -118,8 +118,10 @@ test('P2-06 SECDEF allow-list + P-9 public_ok + rollback 141', () => {
   for (const k of ['fn_access_policy_set(p_kind text, p_key text, p_tier text, p_actor_id uuid, p_actor_email text)', 'fn_access_policy_clear(p_kind text, p_key text, p_actor_id uuid, p_actor_email text)', 'fn_paywall_set(p_enabled boolean, p_actor_id uuid, p_actor_email text)']) {
     assert(e(k)?.class === 'B-service' && e(k).client.length === 0, `${k}`);
   }
-  assert(!a.functions['fn_access_allowed(p_kind text, p_key text)'], 'fn_access_allowed is INVOKER — not in the SECDEF allow-list');
-  assert(/fn_access_tier: '/.test(read('scripts/test_sec_hotfix4_rls.cjs')), 'P-9 SECDEF_PUBLIC_OK entry');
+  // 142 made the central check DEFINER (access_settings private): listed, public_ok, P-9
+  const ca = e('fn_access_allowed(p_kind text, p_key text)');
+  assert(ca?.class === 'A' && JSON.stringify(ca.client) === '["anon","authenticated"]' && a.public_ok.includes('fn_access_allowed(p_kind text, p_key text)'), 'fn_access_allowed entry (142)');
+  assert(/fn_access_tier: '/.test(read('scripts/test_sec_hotfix4_rls.cjs')) && /fn_access_allowed: '/.test(read('scripts/test_sec_hotfix4_rls.cjs')), 'P-9 SECDEF_PUBLIC_OK entries');
   const rb = read('docs/database/rollback/141_rollback.sql');
   assert(/^-- ROLLBACK-CHAIN: run first: /m.test(rb), 'chain line');
   for (const x of ['fn_paywall_set(boolean, uuid, text)', 'fn_access_policy_clear(text, text, uuid, text)', 'fn_access_policy_set(text, text, text, uuid, text)', 'fn_access_allowed(text, text)', 'fn_has_pro_self()', 'fn_access_tier(text, text)']) {
@@ -127,6 +129,35 @@ test('P2-06 SECDEF allow-list + P-9 public_ok + rollback 141', () => {
   }
   assert(/DROP TABLE IF EXISTS public\.access_settings;/.test(rb) && /DROP TABLE IF EXISTS public\.access_policies;/.test(rb), 'rollback drops the tables');
 });
+/** 142 (fix, owner GO 2026-11-15): access_settings private; the central check DEFINER with the same rule and grants */
+const M142 = 'supabase/migrations/20261116000142_pay1_b2a_access_settings_private.sql';
+function fixCheck(sql) {
+  const s = strip(sql);
+  if (!/DROP POLICY IF EXISTS p_access_settings_read ON public\.access_settings;/.test(s)) return 'drop the blanket read policy';
+  if (!/REVOKE ALL ON public\.access_settings FROM PUBLIC, anon, authenticated;/.test(s)) return 'revoke client access to access_settings';
+  if (/GRANT [^;]*ON public\.access_settings TO [^;]*(anon|authenticated)/.test(s) || /CREATE POLICY [^;]*ON public\.access_settings/.test(s)) return 'no client grant / policy on access_settings';
+  const b = fnBody(sql, 'fn_access_allowed');
+  if (!/STABLE SECURITY DEFINER SET search_path = ''/.test(b)) return 'fn_access_allowed: DEFINER, search_path ""';
+  if (!/IF v_on IS DISTINCT FROM true THEN\s+RETURN true;/.test(b) || !/fn_access_tier\(p_kind, p_key\) = 'FREE'/.test(b) || !/IF auth\.uid\(\) IS NULL THEN\s+RETURN false;/.test(b) || !/RETURN public\.fn_has_pro_self\(\);/.test(b)) return 'fn_access_allowed: same rule';
+  if (!/GRANT EXECUTE ON FUNCTION public\.fn_access_allowed\(text, text\) TO anon, authenticated, service_role;/.test(s)) return 'grants unchanged';
+  return null;
+}
+test('P2-08 142: access_settings private (RLS P-6); the central check DEFINER with the same rule; rollback 142 restores 141', () => {
+  const why = fixCheck(read(M142));
+  assert(why === null, why);
+  const rb = read('docs/database/rollback/142_rollback.sql');
+  assert(/^-- ROLLBACK-CHAIN: run first: /m.test(rb) && /STABLE SECURITY INVOKER SET search_path = ''/.test(rb) && /CREATE POLICY p_access_settings_read ON public\.access_settings/.test(rb), 'rollback 142');
+  const muts = [
+    ['policy kept', fixCheck(read(M142).replace('DROP POLICY IF EXISTS p_access_settings_read ON public.access_settings;', ''))],
+    ['still INVOKER', fixCheck(read(M142).replace("LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = ''", "LANGUAGE plpgsql STABLE SECURITY INVOKER SET search_path = ''"))],
+    ['client read re-granted', fixCheck(read(M142) + '\nGRANT SELECT ON public.access_settings TO authenticated;\n')],
+    ['anon allowed Pro', fixCheck(read(M142).replace(/IF auth\.uid\(\) IS NULL THEN\s+RETURN false;/, 'IF auth.uid() IS NULL THEN RETURN true;'))],
+  ];
+  const missed = muts.filter(([, why]) => why === null).map(([k]) => k);
+  assert(missed.length === 0, `not caught: ${missed.join(', ')}`);
+  return `${muts.length} mutations caught`;
+});
+
 test('P2-07 negative controls: each mutation is caught', () => {
   const muts = [
     ['client grant on policies', tablesCheck(SQL.replace('GRANT SELECT, INSERT, UPDATE, DELETE ON public.access_policies TO service_role;', 'GRANT SELECT, INSERT, UPDATE, DELETE ON public.access_policies TO service_role;\nGRANT SELECT ON public.access_policies TO authenticated;'))],

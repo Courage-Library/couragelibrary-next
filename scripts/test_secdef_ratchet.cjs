@@ -28,7 +28,11 @@ const base = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts/secdef/allowlis
 
 (async () => {
   console.log('#54 SECURITY DEFINER ratchet');
-  const c = new Client({ ...dbTarget().pg });
+  // RUNBOOK (owner rule 2026-11-15): also part of the LOCAL test cycle of every migration that adds tables, policies or
+  // functions — node scripts/test_secdef_ratchet.cjs --local=54329 (a throwaway LOCAL PostgreSQL only)
+  const LOCAL = (process.argv.find((a) => a.startsWith('--local=')) || '').slice('--local='.length);
+  if (LOCAL && !/^\d{4,5}$/.test(LOCAL)) throw new Error('--local=<port>');
+  const c = LOCAL ? new Client({ host: '127.0.0.1', port: Number(LOCAL), user: 'postgres', database: 'postgres' }) : new Client({ ...dbTarget().pg });
   c.on('error', () => {});
   await c.connect();
   let live;

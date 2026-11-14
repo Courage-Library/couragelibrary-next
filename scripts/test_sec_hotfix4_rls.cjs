@@ -109,6 +109,8 @@ const SECDEF_PUBLIC_OK = {
   fn_exam_syllabus_read_model: 'student syllabus read model: PUBLISHED rows only, read-only, search_path ""',
   // PAY-1 B2a (owner GO 2026-11-14): returns only 'FREE' / 'PRO' for an item; read-only; visitors and RLS need it
   fn_access_tier: 'access tier of an item (FREE / PRO only), read-only, search_path ""',
+  // PAY-1 B2a fix (142): the central check is DEFINER so access_settings needs no client read (this rule's P-6)
+  fn_access_allowed: 'central access check: a boolean for the caller only, read-only, search_path ""',
 };
 // P-9: SECURITY DEFINER functions awaiting an architect ruling — MUST stay empty (SEC-HOTFIX-7 ruled on all 14
 // items of SEC_HOTFIX6_REPORT §2.3; a new exposure needs a ruling + a fix, never an entry here)
@@ -128,14 +130,22 @@ let failed = 0;
 // QB-KEY-1: errors from the driver / network print their CODE only (a connect error message carries the pooler's IP /
 // host). Assertion failures (our own messages, no code) print as before.
 const errText = (e) => (e && e.code ? `error code ${e.code}` : String(e && e.message ? e.message : e));
+// RUNBOOK (owner rule 2026-11-15): part of the LOCAL test cycle too (--local=<port>, a throwaway LOCAL PostgreSQL). The
+// local copy has no user rows, so the checks that need the QA identities are SKIPPED there (never counted as passed)
+// and run on the project database; the catalog checks (P-1, P-4, P-6, P-6b, P-6c, P-9) run in full.
+const LOCAL = (process.argv.find((a) => a.startsWith('--local=')) || '').slice('--local='.length);
+const NEEDS_USERS = ['P-2 ', 'P-3 ', 'P-5 ', 'P-6d ', 'P-7 ', 'P-8 '];
+let skipped = 0;
 async function test(name, fn) {
+  if (LOCAL && NEEDS_USERS.some((p) => name.startsWith(p))) { skipped++; console.log(`  SKIP  ${name} — needs the QA identities (runs on the project database)`); return; }
   try { const info = await fn(); passed++; console.log(`  PASS  ${name}${info ? ' — ' + info : ''}`); } catch (e) { failed++; console.log(`  FAIL  ${name}\n        ${errText(e).slice(0, 2500)}`); }
 }
 const assert = (c, m) => { if (!c) throw new Error(m || 'assertion failed'); };
 
 (async () => {
   console.log('SEC-HOTFIX-4 staff-only RLS');
-  const c = new Client({ ...dbTarget().pg, port: 6543 });
+  if (LOCAL && !/^\d{4,5}$/.test(LOCAL)) throw new Error('--local=<port>');
+  const c = LOCAL ? new Client({ host: '127.0.0.1', port: Number(LOCAL), user: 'postgres', database: 'postgres' }) : new Client({ ...dbTarget().pg, port: 6543 });
   c.on('error', () => {});
   await c.connect();
   const q = (sql, p) => c.query(sql, p);
@@ -531,6 +541,12 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assertion failed'); };
         if (!f) bad.push(`${n} missing`);
         else if (f.anon_x || f.auth_x || f.public_x || !f.svc_x || !f.sp) bad.push(`${n} not locked: ${JSON.stringify({ anon: f.anon_x, auth: f.auth_x, public: f.public_x, service: f.svc_x, sp: f.sp })}`);
       }
+      // LOCAL copy (owner rule 2026-11-15): the catalog half above is the check that matters for a new migration; the
+      // behaviour half below needs the QA identities and the QA test exam, so it runs on the project database only
+      if (LOCAL) {
+        assert(bad.length === 0, bad.join(' | '));
+        return `catalog half only: ${rows.length} SECURITY DEFINER functions checked (behaviour half needs the QA data; runs on the project database)`;
+      }
       // behaviour (rolled back): anon / student denied before any execution; service role deletes a throwaway exam
       const out = {};
       await safeBegin(c);
@@ -595,7 +611,7 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assertion failed'); };
   } finally {
     await c.end();
   }
-  console.log(`\nSEC-HOTFIX-4 RLS: ${passed}/${passed + failed} passed`);
+  console.log(`\nSEC-HOTFIX-4 RLS${LOCAL ? ' [LOCAL]' : ''}: ${passed}/${passed + failed} passed${skipped ? `, ${skipped} skipped (need the QA identities; run on the project database)` : ''}`);
   process.exit(failed ? 1 : 0);
 })().catch((e) => {
   // codes only (QB-KEY-1): a connect error's message names the pooler's IP / host. AggregateError → nested codes.
