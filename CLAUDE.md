@@ -15,6 +15,14 @@ live in the runbooks: `docs/ops/RELEASE_RUNBOOK.md` (push, CI, deploy) and `docs
 - **Never push while a CI dispatch is queued:** a push cancels the pending dispatch.
 - **Time-cap flake:** a gate that hits its time cap (exit 124) with **0 FAIL lines** gets one automatic retry. A FAIL
   line, or a second timeout of the same gate, means stop and report.
+- **SPEED-RULES-1: live dispatch only when it matters.** A full `live: true` dispatch runs only when a release touches
+  the database or migrations, auth, payments, security or RLS. A UI-, text- or CSS-only release needs the offline list,
+  a green push run and a green prod-smoke, with no dispatch.
+- **SPEED-RULES-1: flaky gates.** A non-security gate that fails intermittently (it passes locally or on a rerun) does
+  not block a release. Record it in `docs/ops/BACKLOG.md` with the run ids and fix it separately. Security,
+  data-integrity, payment and auth gates always block.
+- **SPEED-RULES-1: parallel work in worktrees.** Each chat works in its own folder, a `git worktree` (e.g.
+  `git worktree add ../cl-<topic> -b <branch>`). Never run two chats in one folder.
 - **During a CI live run, leave the database alone:** no smoke, dry-run, backup or apply until the run has finished.
 - **GIT-SAFETY:** never `git stash`, `git reset --hard`, `git checkout -- <path>` or `git clean` on a dirty tree. Commit
   work in progress to a local branch instead.

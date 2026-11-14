@@ -38,14 +38,29 @@ skipped it because its name contains "LIVE".
 ## Ship
 
 - `git checkout main && git merge --ff-only <branch> && git push origin main`. Then wait for the push run to be green.
-- Run **one** `workflow_dispatch` with `live: true` on `main`, after the push run. Retry it once only for a network
-  drop.
+- **When a live dispatch is needed (SPEED-RULES-1, owner rule 2026-11-14):**
+  - The release touches the database or migrations, auth, payments, security or RLS → run **one** `workflow_dispatch`
+    with `live: true` on `main`, after the push run. Retry it once only for a network drop.
+  - A UI-, text- or CSS-only release → no dispatch. The offline list, a green push run and a green prod-smoke (part of
+    the push run) are enough.
+  - If in doubt (a change reaches a server action, an API route, a database read or a guard), treat it as touching
+    the database or security and run the dispatch.
+- **Flaky gates (SPEED-RULES-1, owner rule 2026-11-14):**
+  - A **non-security** gate that fails intermittently, and passes locally or on a rerun, does **not** block the release.
+    Record it in `docs/ops/BACKLOG.md` with the gate, the failing check and the run ids, and fix it in a separate phase.
+  - **Security, data-integrity, payment and auth gates always block**, flaky or not.
+  - **Why:** FLAGS-LIVE failed FL-2 in scheduled run 43538726425 and FL-1 in dispatch 43585885477, and passed every
+    local run. The owner ruled that it does not block the B2 release (backlog FLAGS-LIVE-FLAKE-1).
 - **Time-cap flake (owner rule, 2026-11-03):** a gate that hits its time cap (exit 124) with **0 FAIL lines** counts as
   a flake, and gets one automatic retry without asking. A FAIL line, or a second timeout of the same gate, means stop and
   report.
   **Why:** UX2A-LIVE passed in dispatch 41637626173. On the same commit in dispatch 41646895811 it then ran past its
   240 s cap with 17 passed lines and 0 FAIL lines.
 - A real failure means stop. Report it and do not patch main.
+- **Parallel work (SPEED-RULES-1):** each chat works in its own `git worktree` folder
+  (`git worktree add ../cl-<topic> -b <branch>`). Never two chats in one folder: a branch switch or an edit in one
+  changes the other's files. Only one of them ships at a time; the other rebases onto the new main and re-runs the
+  offline list before its own push.
 
 ## After deploy
 

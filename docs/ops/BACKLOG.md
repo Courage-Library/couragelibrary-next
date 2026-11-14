@@ -218,3 +218,45 @@ lock. The paywall switch is the app env `PAYMENTS_ENABLED`, which SQL cannot see
 gated, so this is harmless. **Owner condition:** before payments go live (F9), add a database-side paywall switch and
 refuse a locked lesson's quick checks and completion (and so its coins) for a student without Pro. Gate: real-role
 negative controls. Source: architect audit of COURSE-UX-1 phase B, 2026-11-03.
+
+## FLAGS-LIVE-FLAKE-1: FLAGS-LIVE fails intermittently in CI (FL-1 / FL-2)
+
+**Status:** logged by the owner, 2026-11-14 (SPEED-RULES-1: a flaky non-security gate does not block; fix separately).
+Does not block a release.
+
+**Evidence:** FL-2 (profile) failed in scheduled run 43538726425 (main 3352fbd); FL-1 (Memory Lock) failed in live
+dispatch 43585885477 (main 4cae8d1). The push and dispatch runs on 3352fbd passed, and every local run (3, gate alone)
+passed 5/5. `run-quiet` prints only the failing check id, so CI shows no reason.
+
+**Hypothesis (not proven):** FL-1 and FL-2 write rows of the SHARED QA student (`user_mistake_vault`, `user_profiles`)
+inside `safeBegin` (lock_timeout 3 s). In CI, the live-journeys job (and other gates) run at the same time with the same
+QA student, so a held row lock times FLAGS-LIVE out. Locally nothing runs alongside.
+
+**Fix (owner):** a separate QA user per CI job, or serialize FLAGS-LIVE after the journeys. First make every FL-* assert
+report the returned / error code, so a CI failure shows why.
+
+## P06-STABILITY: the BRAND2 P-06 front-end budget runs at its LCP limit
+
+**Status:** logged by the owner, 2026-11-14.
+
+**Why:** P-06 (`scripts/test_brand2.cjs`: "/" cold, Moto-G-class emulation, LCP ≤ 2.5 s, CLS ≤ 0.1, transfer ≤ 500 KB;
+also on one lesson route via PERF-LESSON-1) has little margin. In local measurements main was about 2.37 s, and the
+font experiments of the L-13 work came in at 2.51–2.77 s (2026-11-12/13). Small changes or a noisy runner can push
+it over the limit.
+
+**How:** measure the median and spread over several cold runs on CI and locally; then either win back margin on "/"
+(LCP element, fonts, transfer) or make the measurement more robust (more runs, median / percentile). Do not just raise
+the limit. Details to confirm with the owner.
+
+## D-FULL: prevent (not only detect) a leftover schema-dump session
+
+**Status:** logged by the owner, 2026-11-14 (possible future phase of BACKUP-RESILIENCE-1; not planned).
+
+**Why:** `pg_dump` resets its own statement / lock / idle-in-transaction / transaction timeouts to 0, so its session
+cannot be limited. Since D-detect (d519d1e), the backup FAILS when a session of the backup role is still in a
+transaction started during the schema dump (xact_start window), and prints a pid-specific terminate statement for the
+owner. Nothing ends such a session automatically.
+
+**How (options):** a schema dump that does not run through `pg_dump`'s own session settings (e.g. a catalog-based dump
+in short, limited transactions), or a server-side guard for the backup role. See `docs/database/MIGRATION_RUNBOOK.md`
+§1.
