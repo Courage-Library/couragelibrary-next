@@ -103,7 +103,7 @@ const REQUIRED = {
   // Courage Studio phase 3 batch 1: the Studio header title
   '/admin/questions': ['"Question bank" heading', H(/^Question bank$/)],
   '/admin/mock-tests/sections': ['"Sections" heading (Studio, phase 3 batch 2)', H(/^Sections$/)],
-  '/admin/payments': ['"Subscription Plans" heading', H(/Subscription Plans & Payment Orders/)],
+  '/admin/payments': ['"Payment orders" heading', H(/Payment orders/)], // PAY-1 B1: read-only order list (legacy plan CMS retired)
   '/admin/support/flags': ['"Community Discussion Moderation" heading', H(/Community Discussion Moderation/)],
   '/admin/institutes': ['"Partner Coaching Institutes CMS" heading', H(/Partner Coaching Institutes CMS/)],
   // ADMIN-IA-1: the "Mock test setup" overview and the Descriptive CMS are retired (their addresses redirect)

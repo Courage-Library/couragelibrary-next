@@ -30,7 +30,12 @@ The per-release checklists (`RELEASE_HOME_1.md`, …) add their own steps; these
    its own migration is always included (`docs/database/MIGRATION_RUNBOOK.md` §4, EARLIER-GATES and ROLLBACK-CHAIN).
    **Why:** 139 added a CHECK on 138's `fn_outline_lines_valid`; SYLLABUS-MAP-B1-LIVE's rollback check then failed in
    CI dispatch 43579487271.
-4. Check that no CI dispatch is queued, because a push cancels a pending dispatch.
+4. **Page smokes (owner rule, 2026-11-14):** whenever a page's UI text or structure changes, run the admin and student
+   page smokes locally against a production build before pushing (`npm run build`, then
+   `node scripts/live/with-server.cjs --port=3100 -- "node scripts/smoke/signed-in-smoke.cjs admin-pages http://localhost:3100" "node scripts/smoke/signed-in-smoke.cjs student-pages http://localhost:3100"`).
+   **Why:** PAY-1 B1 renamed the `/admin/payments` heading; SMOKE-ADMIN-PAGES still expected the old one, and only CI
+   dispatch 43621861577 caught it.
+5. Check that no CI dispatch is queued, because a push cancels a pending dispatch.
 
 **Why:** the COURSE-UX-1 push CI (41625360184) failed `LIVE-LOCK-SWEEP`, an offline gate. The earlier local run had
 skipped it because its name contains "LIVE".
