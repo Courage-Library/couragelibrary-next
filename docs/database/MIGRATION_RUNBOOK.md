@@ -52,19 +52,23 @@ Backup before a migration is **mandatory** (architect ruling, 2026-10-17). It is
 
 1. **Schema.** A `pg_dump --schema-only` of `public` and `auth` (custom format, about 1 MB) → `schema.dump`, checked with `pg_restore --list`.
    - **pg_dump resets its own timeouts — so the schema dump is DETECTED, not prevented (D-detect, 2026-11-15).** `pg_dump` sends `SET statement_timeout = 0`, `lock_timeout = 0`, `idle_in_transaction_session_timeout = 0` and `transaction_timeout = 0` itself before it reads (seen in its binary and in a local server log). Startup options (`PGOPTIONS`) were also not honoured through the production connection. The dump session therefore cannot be limited; only `--lock-wait-timeout=10s` applies. On 2026-11-14 an orphaned dump session stayed for 23 min with 283 locks.
-   - **Detection.** Each schema attempt runs under its own `application_name` `backup-schema-<run id>-a<attempt>`. After every attempt, whether it succeeded or failed, the script looks for that name in `pg_stat_activity` (polling up to 5 s):
+   - **Detection by time window (owner ruling, 2026-11-14).** The script reads the **server** clock just before each schema attempt (start) and just after it (end), whether it succeeded or failed. A **leftover** is any session of the backup role, except the checking session itself, that meets both conditions (`pg_stat_activity`, polled up to 5 s):
+     - its state is `idle in transaction`, `idle in transaction (aborted)` or `active`;
+     - its `xact_start` falls within [start − 2 s, end].
+
+     It is matched by `xact_start`, not `backend_start`, because pooled backends are reused and can predate the dump. It is not matched by `application_name`, because the production pooler (Supavisor) replaces it with `Supavisor`; the attempt still carries `backup-schema-<run id>-a<n>` for a local reader. False alarms are acceptable; a missed leftover is not. The outcomes:
      - none left → the manifest records `schema.sessionCheck: "clear (…)"`;
      - one left → **the backup FAILS** before any data. The log shows `SESSION LEFT OPEN` with the pid, state, age, lock count and a ready-to-run, pid-specific statement for the owner:
        ```sql
-       SELECT pg_terminate_backend(<pid>) FROM pg_stat_activity WHERE pid = <pid> AND application_name = 'backup-schema-<run id>-a<n>';
+       SELECT pg_terminate_backend(<pid>) FROM pg_stat_activity WHERE pid = <pid> AND xact_start = '<its xact_start>'::timestamptz;
        ```
-       The tool **never terminates** a session itself. The owner ends it, then the backup is run again;
+       The `xact_start` guard makes the statement end nothing if that pid has moved on to another transaction. The tool **never terminates** a session itself. The owner ends it (or judges it a false alarm), then the backup is run again;
      - the check itself cannot run → the backup also FAILS.
    - **Probe (read-only).** Before relying on the tool on a connection, run it once:
      ```bash
      node scripts/db/backup-resilient.cjs --probe-session-limits
      ```
-     It `SHOW`s `lock_timeout`, `statement_timeout` and `idle_in_transaction_session_timeout` **inside a batch transaction** (the same `safeBegin` as the data batches; expected 3s / 1min / 30s). It also checks that a session's `application_name` is visible in `pg_stat_activity` (the detection depends on it). It must print `→ HONOURED`; otherwise report it and do not rely on the backup.
+     It `SHOW`s `lock_timeout`, `statement_timeout` and `idle_in_transaction_session_timeout` **inside a batch transaction** (the same `safeBegin` as the data batches; expected 3s / 1min / 30s). It also proves the detection through the same connection: session A opens a transaction and leaves it idle; from session B the backup's own leftover query must find A by its `xact_start` window. Then A is rolled back and closed. It must print `→ HONOURED`; otherwise report it and do not rely on the backup.
    - **D-full (possible future phase, not built).** Preventing the leftover rather than detecting it would need a schema dump that does not go through `pg_dump`'s own session settings, e.g. a catalog-based dump in short limited transactions, or a server-side guard. Not planned until the owner asks for it.
 2. **Data, per table, in keyset batches** (BACKUP-RESILIENCE-1). At most 4 tables run at a time. Each table is read in **primary-key order in batches**:
    - **One transaction per batch.** Each batch is its **own short read-only transaction**:

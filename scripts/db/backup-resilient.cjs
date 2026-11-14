@@ -7,9 +7,10 @@
  *
  *   1. schema   pg_dump --schema-only of schemas public + auth (custom format; --lock-wait-timeout 10 s). pg_dump RESETS
  *               statement / lock / idle-in-transaction / transaction timeouts to 0 itself, so its session cannot be
- *               limited: DETECT instead — each attempt runs under application_name backup-schema-<run>-a<n>; after it
- *               (success or failure) a session still open under that name FAILS the backup and prints its pid with a
- *               pid-specific terminate statement for the owner (never terminated here). (2026-11-14 orphan: 23 min, 283
+ *               limited: DETECT instead — after every attempt (success or failure), any session of the backup role in a
+ *               transaction that started inside the attempt's window [start − 2 s, end] (server clock, xact_start)
+ *               FAILS the backup and prints its pid with a pid-specific terminate statement for the owner (never
+ *               terminated here). Not by application_name: the production pooler replaces it. (2026-11-14 orphan: 23 min, 283
  *               locks.) The read-only --probe-session-limits checks what this relies on (MIGRATION_RUNBOOK §1).
  *   2. data     every table of public + auth in KEYSET BATCHES (BACKUP-RESILIENCE-1): rows in primary-key order, each
  *               batch its OWN short read-only transaction (safeBegin: lock 3 s, statement 60 s, idle-in-transaction
@@ -33,7 +34,7 @@
  *        node scripts/db/backup-resilient.cjs <label> --local=<port> --out=<dir> [--bin=<pg bin>] [--batch-bytes=N]
  *        test hooks, honoured ONLY with --local: BACKUP_TEST_DELAY_MS (pause inside every batch — a slow link),
  *        BACKUP_TEST_DROP=<schema.table>:<batch>[,…] (the client socket is destroyed at that batch on every pass),
- *        BACKUP_TEST_SCHEMA_ORPHAN=1 (the first schema attempt is killed while a session under its name stays open)
+ *        BACKUP_TEST_SCHEMA_ORPHAN=1 (the first schema attempt is killed while a session of the role stays in a transaction)
  */
 require('./safe-net.cjs'); // SAFE-NET: masks IPs / hosts / e-mails / keys in all output (scripts/db/safe-net.cjs)
 const { safeBegin, LOCK_TIMEOUT, STATEMENT_TIMEOUT, IDLE_IN_TX_TIMEOUT } = require('./live-safety.cjs'); // LIVE-LOCK-SWEEP: the one safe BEGIN (timeouts + rollback on stop)
@@ -119,18 +120,39 @@ async function reportOwnOrphans(log) {
   }
 }
 
+/** the server's clock — the dump window is measured on the server, never on this machine */
+async function serverNow() {
+  return withClient(async (c) => (await c.query('SELECT clock_timestamp()::text AS t')).rows[0].t);
+}
+
 /**
- * The schema dump's sessions still open under its application_name. Polls up to 5 s (a backend that is just closing is
- * not a leftover). Returns [] when none is left, the list when one stays, null when the check itself cannot run.
+ * A LEFTOVER of a schema-dump attempt (owner ruling, 2026-11-14): any session of the backup role — except the checking
+ * session itself — that is 'idle in transaction' / 'idle in transaction (aborted)' / 'active' and whose CURRENT
+ * TRANSACTION started inside the attempt's window [start − 2 s, end] (server clock). By xact_start, not backend_start:
+ * pooled backends are reused, so a backend can predate the dump. Not by application_name: the production pooler
+ * (Supavisor) replaces it. False alarms are acceptable; missed leftovers are not. $1 = window start, $2 = window end.
  */
-async function schemaSessionsLeft(appName, log) {
+const LEFTOVER_SQL = `SELECT a.pid, a.state, a.xact_start::text AS xact_start,
+         floor(extract(epoch FROM clock_timestamp() - a.xact_start))::int AS seconds,
+         (SELECT count(*) FROM pg_locks l WHERE l.pid = a.pid)::int AS locks
+    FROM pg_stat_activity a
+   WHERE a.usename = current_user AND a.pid <> pg_backend_pid()
+     AND a.state IN ('idle in transaction', 'idle in transaction (aborted)', 'active')
+     AND a.xact_start >= $1::timestamptz - interval '2 seconds' AND a.xact_start <= $2::timestamptz`;
+
+/** the owner's pid-specific statement (the xact_start guard makes it miss if that pid is reused by now) */
+const terminateSql = (r) => `SELECT pg_terminate_backend(${r.pid}) FROM pg_stat_activity WHERE pid = ${r.pid} AND xact_start = '${r.xact_start}'::timestamptz;`;
+
+/**
+ * Leftovers of the attempt window [t0, t1]. Polls up to 5 s (a backend that is just closing is not a leftover).
+ * Returns [] when none is left, the list when one stays, null when the check itself cannot run.
+ */
+async function schemaSessionsLeft(t0, t1, log) {
   try {
     return await withClient(async (c) => {
       let rows = [];
       for (let i = 0; i < 6; i++) {
-        rows = (await c.query(`SELECT a.pid, a.state, floor(extract(epoch FROM now() - a.state_change))::int AS seconds,
-                                       (SELECT count(*) FROM pg_locks l WHERE l.pid = a.pid)::int AS locks
-                                  FROM pg_stat_activity a WHERE a.application_name = $1 AND a.pid <> pg_backend_pid()`, [appName])).rows;
+        rows = (await c.query(LEFTOVER_SQL, [t0, t1])).rows;
         if (!rows.length) return [];
         await sleep(1000);
       }
@@ -142,10 +164,13 @@ async function schemaSessionsLeft(appName, log) {
   }
 }
 
-/** TEST (local only): a session under the dump's name that stays open in a transaction — what a pooler keeps when the client dies */
-async function holdOrphanForTest(appName) {
+/**
+ * TEST (local only): a session of the backup role left in a transaction during the dump — what a pooler keeps when the
+ * client dies. It carries the name the production pooler shows ('Supavisor'), not the dump's: detection must not need it.
+ */
+async function holdOrphanForTest() {
   if (!target.local) throw new Error('test hook outside --local');
-  const c = new Client({ ...target.pg, application_name: appName });
+  const c = new Client({ ...target.pg, application_name: 'Supavisor' });
   c.on('error', () => {});
   await c.connect();
   await safeBegin(c, { readOnly: true });
@@ -268,9 +293,9 @@ async function backup(label) {
   if (target.local && (TEST.delayMs || TEST.drops.size)) log(`LOCAL TEST hooks: delay ${TEST.delayMs} ms per batch; drops ${[...TEST.drops].map(([t, b]) => `${t}@${b}`).join(', ') || 'none'}`);
 
   // 1. schema-only dump. pg_dump RESETS statement / lock / idle-in-transaction / transaction timeouts to 0 itself (proved
-  //    2026-11-15), so no limit can be imposed on its session: DETECT instead of prevent — every attempt runs under its
-  //    own application_name, and after it (success or failure) a session still open under that name FAILS the backup
-  //    with its pid and a pid-specific terminate statement for the owner (never terminated here).
+  //    2026-11-15), so no limit can be imposed on its session: DETECT instead of prevent — after every attempt (success
+  //    or failure) a session of the backup role in a transaction that started inside the attempt's window (LEFTOVER_SQL)
+  //    FAILS the backup with its pid and a pid-specific terminate statement for the owner (never terminated here).
   const bin = (n) => path.join(target.pgBin, process.platform === 'win32' ? `${n}.exe` : n);
   const env = {
     ...process.env,
@@ -284,8 +309,16 @@ async function backup(label) {
   };
   const schemaFile = path.join(dir, 'schema.dump');
   for (let a = 1; a <= MAX_ATTEMPTS; a++) {
-    const appName = `backup-schema-${RUN_ID}-a${a}`;
-    const held = TEST.schemaOrphan && a === 1 ? await holdOrphanForTest(appName) : null; // TEST (local only)
+    const appName = `backup-schema-${RUN_ID}-a${a}`; // for the owner's eye (the pooler may replace it; detection is by window)
+    let t0;
+    try {
+      t0 = await serverNow(); // window start (server clock), before the dump connects
+    } catch (e) {
+      manifest.failed = 'schema session check (server clock)';
+      log(`schema: cannot read the server clock before attempt ${a} (${errCode(e)}) — not continuing`);
+      break;
+    }
+    const held = TEST.schemaOrphan && a === 1 ? await holdOrphanForTest() : null; // TEST (local only)
     try {
       execFileSync(bin('pg_dump'), ['--format=custom', '--schema-only', '--lock-wait-timeout=10000', ...SCHEMAS.flatMap((s) => ['--schema', s]), '--file', schemaFile, '--no-password'], { env: { ...env, PGAPPNAME: appName }, stdio: ['ignore', 'pipe', 'pipe'], timeout: held ? 1 : 300000 });
       const list = execFileSync(bin('pg_restore'), ['--list', schemaFile], { encoding: 'utf8', timeout: 60000 });
@@ -296,16 +329,18 @@ async function backup(label) {
       if (a === MAX_ATTEMPTS) manifest.failed = 'schema';
     }
     // the dump's own session must be gone, whatever happened to the dump
-    const left = await schemaSessionsLeft(appName, log);
+    const t1 = await serverNow().catch(() => null); // window end (server clock)
+    const left = t1 === null ? null : await schemaSessionsLeft(t0, t1, log);
     if (held) await held.end().catch(() => {}); // TEST (local only): the simulated pooler-held session is released afterwards
     if (left === null) {
       manifest.failed = `schema session check (${appName})`;
-      log(`schema: the session check could not run — not continuing (look for application_name '${appName}' in pg_stat_activity)`);
+      log(`schema: the session check could not run — the backup FAILS (look in pg_stat_activity for sessions of this role in a transaction started after ${t0})`);
     } else if (left.length) {
       manifest.failed = `schema session left open (${appName})`;
       manifest.schemaSessionsLeft = left;
-      log(`schema: SESSION LEFT OPEN by the dump — the backup FAILS (it may hold table locks). Never terminated here; to end it, run as the owner:`);
-      for (const s of left) log(`  pid ${s.pid} · ${s.state} · ${s.seconds} s · ${s.locks} lock(s):  SELECT pg_terminate_backend(${s.pid}) FROM pg_stat_activity WHERE pid = ${s.pid} AND application_name = '${appName}';`);
+      manifest.schemaWindow = { start: t0, end: t1 };
+      log(`schema: SESSION LEFT OPEN — a session of this role is in a transaction that started during the dump (${t0} − 2 s … ${t1}); the backup FAILS (it may hold table locks; it may also be a false alarm). Never terminated here; to end it, run as the owner:`);
+      for (const r of left) log(`  pid ${r.pid} · ${r.state} · ${r.seconds} s · ${r.locks} lock(s):  ${terminateSql(r)}`);
     } else if (manifest.schema && manifest.schema.attempts === a) {
       manifest.schema.sessionCheck = `clear (${appName})`;
     }
@@ -436,29 +471,34 @@ async function restoreTest(dir) {
 }
 
 /**
- * READ-ONLY probe (D-detect, 2026-11-15) — the two things the backup relies on, on THIS connection:
- *   1. a batch transaction really gets its SET LOCAL limits (SHOW inside the same transaction as the batches: safeBegin)
- *   2. a session's application_name is visible in pg_stat_activity (the schema-dump leftover check finds it by name)
- * Changes nothing (a read-only transaction, rolled back; two short sessions).
+ * READ-ONLY probe (D-detect) — the two things the backup relies on, on THIS connection:
+ *   1. a batch transaction really gets its SET LOCAL limits (SHOW inside a safeBegin transaction, like the batches)
+ *   2. the leftover detection works: session A opens a transaction and leaves it idle; from session B the SAME query the
+ *      backup uses (LEFTOVER_SQL, window = before A connected … now) must find A by its xact_start. Then A is closed.
+ * Changes nothing (a read-only transaction, rolled back; short sessions).
  */
 async function probeSessionLimits() {
-  const name = `backup-probe-${RUN_ID}`;
-  const c = new Client({ ...target.pg, application_name: name });
-  c.on('error', () => {});
-  await c.connect();
+  const t0 = await serverNow();
+  const a = new Client({ ...target.pg, application_name: `backup-probe-${RUN_ID}` });
+  a.on('error', () => {});
+  await a.connect();
   try {
-    await safeBegin(c, { readOnly: true });
-    const show = async (k) => (await c.query(`SHOW ${k}`)).rows[0][k];
+    await safeBegin(a, { readOnly: true });
+    const show = async (k) => (await a.query(`SHOW ${k}`)).rows[0][k];
     const got = { lock_timeout: await show('lock_timeout'), statement_timeout: await show('statement_timeout'), idle_in_transaction_session_timeout: await show('idle_in_transaction_session_timeout') };
-    await c.query('ROLLBACK');
+    const pidA = (await a.query('SELECT pg_backend_pid() AS p')).rows[0].p;
+    // A is now idle in transaction
+    const t1 = await serverNow();
+    const found = await withClient(async (b) => (await b.query(LEFTOVER_SQL, [t0, t1])).rows);
+    const stateA = (found.find((r) => r.pid === pidA) || {}).state;
+    await a.query('ROLLBACK');
     const norm = (v) => String(v).replace(/^60s$/, '1min');
     const limitsOk = got.lock_timeout === LOCK_TIMEOUT && norm(got.statement_timeout) === norm(STATEMENT_TIMEOUT) && got.idle_in_transaction_session_timeout === IDLE_IN_TX_TIMEOUT;
-    const seen = await withClient(async (o) => (await o.query('SELECT count(*)::int n FROM pg_stat_activity WHERE application_name = $1', [name])).rows[0].n);
-    const nameOk = seen === 1;
-    console.log(`backup probe (read-only): batch transaction limits ${JSON.stringify(got)} — ${limitsOk ? 'HONOURED' : 'NOT honoured'}; application_name visible in pg_stat_activity — ${nameOk ? 'YES' : 'NO'} → ${limitsOk && nameOk ? 'HONOURED' : 'NOT HONOURED'}`);
-    return limitsOk && nameOk;
+    const detectOk = stateA === 'idle in transaction';
+    console.log(`backup probe (read-only): batch transaction limits ${JSON.stringify(got)} — ${limitsOk ? 'HONOURED' : 'NOT honoured'}; idle transaction of session A found from session B by the xact_start window — ${detectOk ? 'YES' : `NO (state ${stateA || 'not found'})`} (${found.length} session(s) matched) → ${limitsOk && detectOk ? 'HONOURED' : 'NOT HONOURED'}`);
+    return limitsOk && detectOk;
   } finally {
-    await c.end().catch(() => {});
+    await a.end().catch(() => {}); // A closed whatever happened
   }
 }
 

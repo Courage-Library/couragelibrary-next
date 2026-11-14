@@ -6,12 +6,16 @@
  *       read-only transaction; the file only receives a batch AFTER its COMMIT; batch size adapts (≈ 512 KB, 10–5,000 rows)
  *   B-2 resume: a failed batch is retried on a NEW connection from the last committed key — the catch keeps lastKey and
  *       the rows already written; a pass gives up after 5 failed batches; a whole pass is retried at most 3 times
- *   B-3 D-detect (pg_dump resets its own timeouts, so its session cannot be limited): every schema attempt runs under
- *       application_name backup-schema-<run>-a<n>; after EVERY attempt (success or failure) pg_stat_activity is checked
- *       for that name; a session left → the backup FAILS with its pid + a pid-specific pg_terminate_backend statement
- *       for the owner; the tool itself never terminates anything. The read-only probe SHOWs the limits INSIDE a
- *       safeBegin batch transaction and checks application_name visibility. Every session is closed in finally
- *   B-7 negative controls: no session check / a check that ignores the result / an automatic terminate → B-3 fails
+ *   B-3 D-detect (pg_dump resets its own timeouts, so its session cannot be limited; owner ruling 2026-11-14): the
+ *       attempt window [start, end] is read on the SERVER clock; after EVERY attempt (success or failure) a LEFTOVER =
+ *       any session of the backup role, except the checking one, 'idle in transaction' / '… (aborted)' / 'active', whose
+ *       xact_start (not backend_start: pooled backends are reused) lies in [start − 2 s, end] — NOT by application_name
+ *       (the production pooler replaces it). A leftover, or a check that cannot run → the backup FAILS with pid + a
+ *       pid-specific pg_terminate_backend statement for the owner; the tool never terminates anything. The read-only
+ *       probe SHOWs the limits INSIDE a safeBegin transaction and finds its own idle transaction (session A) from
+ *       session B with the same query. Every session is closed in finally
+ *   B-7 negative controls: no check / leftover ignored / automatic terminate / backend_start window / a name filter /
+ *       'active' or 'aborted' dropped / no 2 s margin / client-clock window → B-3 fails
  *   B-4 verification unchanged in kind and stronger: file sha256, rows = live count AND content hash = live content hash
  *       (same order); drift → re-dump from zero; the manifest method stays BACKUP-RESILIENT-1 (the runner accepts it)
  *   B-5 test hooks (delay / forced drop) are honoured ONLY in --local mode; the project target is dbTarget()
@@ -75,29 +79,39 @@ test('B-2 resume from the last committed key on a new connection; bounded failur
 
 /** B-3's static check, as a function so the negative controls can run it on mutated sources */
 function detectCheck(s) {
-  if (!/const RUN_ID = crypto\.randomBytes\(4\)\.toString\('hex'\);/.test(s)) return 'a run id';
+  const sqlStart = s.indexOf('const LEFTOVER_SQL = `');
+  const sql = s.slice(sqlStart, s.indexOf('`;', sqlStart));
+  if (sqlStart < 0) return 'LEFTOVER_SQL';
+  if (!/WHERE a\.usename = current_user AND a\.pid <> pg_backend_pid\(\)/.test(sql)) return 'the backup role, except the checking session';
+  if (!/a\.state IN \('idle in transaction', 'idle in transaction \(aborted\)', 'active'\)/.test(sql)) return 'the three states';
+  if (!/AND a\.xact_start >= \$1::timestamptz - interval '2 seconds' AND a\.xact_start <= \$2::timestamptz/.test(sql)) return 'xact_start in [start − 2 s, end]';
+  if (/backend_start|application_name|datname/.test(sql)) return 'no backend_start / application_name / database filter (fewer matches = missed leftovers)';
   const loop = s.slice(s.indexOf("const schemaFile = path.join(dir, 'schema.dump');"), s.indexOf('// 2. data per table'));
-  if (!/const appName = `backup-schema-\$\{RUN_ID\}-a\$\{a\}`;/.test(loop) || !/env: \{ \.\.\.env, PGAPPNAME: appName \}/.test(loop)) return 'each attempt under its own application_name';
+  const tryAt = loop.indexOf('    try {\n      execFileSync(');
+  if (!/t0 = await serverNow\(\); \/\/ window start/.test(loop.slice(0, tryAt))) return 'window start on the server clock, before the dump';
   if (/PGOPTIONS/.test(s)) return 'no PGOPTIONS (pg_dump resets them; detect, not prevent)';
   if (!/'--lock-wait-timeout=10000'/.test(loop)) return '--lock-wait-timeout';
-  const afterTry = loop.slice(loop.indexOf('} catch (e) {'));
-  if (!/\n\s+const left = await schemaSessionsLeft\(appName, log\);/.test(afterTry)) return 'the session check runs after every attempt (outside try/catch)';
-  if (!/\} else if \(left\.length\) \{\n\s+manifest\.failed = `schema session left open/.test(afterTry)) return 'a session left FAILS the backup';
+  const afterTry = loop.slice(loop.indexOf('    } catch (e) {', tryAt));
+  if (!/\n {4}const t1 = await serverNow\(\)\.catch\(\(\) => null\); \/\/ window end/.test(afterTry)) return 'window end on the server clock, after every attempt';
+  if (!/\n {4}const left = t1 === null \? null : await schemaSessionsLeft\(t0, t1, log\);/.test(afterTry)) return 'the session check runs after every attempt (outside try/catch)';
+  if (!/\} else if \(left\.length\) \{\n\s+manifest\.failed = `schema session left open/.test(afterTry)) return 'a leftover FAILS the backup';
   if (!/if \(left === null\) \{\n\s+manifest\.failed =/.test(afterTry)) return 'a check that cannot run FAILS the backup';
-  if (!/SELECT pg_terminate_backend\(\$\{s\.pid\}\) FROM pg_stat_activity WHERE pid = \$\{s\.pid\} AND application_name = '\$\{appName\}';/.test(afterTry)) return 'pid-specific terminate statement printed for the owner';
-  if (/query\(\s*[`'"][^`'"]*pg_terminate_backend/i.test(s) ||/pg_cancel_backend/.test(s)) return 'the tool must never terminate a session itself';
+  if (!/for \(const r of left\) log\(.*\$\{r\.pid\}.*\$\{terminateSql\(r\)\}/.test(afterTry)) return 'pid + statement printed for the owner';
+  if (!/const terminateSql = \(r\) => `SELECT pg_terminate_backend\(\$\{r\.pid\}\) FROM pg_stat_activity WHERE pid = \$\{r\.pid\} AND xact_start = '\$\{r\.xact_start\}'::timestamptz;`;/.test(s)) return 'pid-specific terminate statement';
+  if (/query\(\s*[`'"][^`'"]*pg_terminate_backend/i.test(s) || /pg_cancel_backend/.test(s)) return 'the tool must never terminate a session itself';
   const fn = s.slice(s.indexOf('async function schemaSessionsLeft('), s.indexOf('async function holdOrphanForTest('));
-  if (!/WHERE a\.application_name = \$1 AND a\.pid <> pg_backend_pid\(\)/.test(fn) || !/return null;/.test(fn)) return 'schemaSessionsLeft: by name, null on error';
+  if (!/c\.query\(LEFTOVER_SQL, \[t0, t1\]\)/.test(fn) || !/return null;/.test(fn)) return 'schemaSessionsLeft: LEFTOVER_SQL over the window, null on error';
   if (!/if \(!target\.local\) throw new Error\('test hook outside --local'\);/.test(s)) return 'the orphan hook is local-only';
   return null;
 }
 
-test('B-3 D-detect: schema dump per-attempt application_name; leftover → FAIL + terminate SQL for the owner; probe in batch txn', () => {
+test('B-3 D-detect by xact_start window (server clock); leftover → FAIL + pid-specific terminate SQL; probe A/B', () => {
   const why = detectCheck(SRC);
   assert(why === null, why);
   const probe = SRC.slice(SRC.indexOf('async function probeSessionLimits'), SRC.indexOf("if (require.main === module"));
-  assert(/await safeBegin\(c, \{ readOnly: true \}\);[\s\S]*SHOW \$\{k\}[\s\S]*ROLLBACK/.test(probe), 'probe SHOWs inside a safeBegin read-only transaction');
-  assert(/LOCK_TIMEOUT/.test(probe) && /STATEMENT_TIMEOUT/.test(probe) && /IDLE_IN_TX_TIMEOUT/.test(probe) && /pg_stat_activity WHERE application_name = \$1/.test(probe), 'probe compares with live-safety + checks name visibility');
+  assert(/await safeBegin\(a, \{ readOnly: true \}\);[\s\S]*SHOW \$\{k\}[\s\S]*b\.query\(LEFTOVER_SQL, \[t0, t1\]\)[\s\S]*await a\.query\('ROLLBACK'\);/.test(probe), 'probe: SHOW inside safeBegin in A, LEFTOVER_SQL from B, then rollback');
+  assert(/const detectOk = stateA === 'idle in transaction';/.test(probe) && /return limitsOk && detectOk;/.test(probe) && /finally \{\n\s+await a\.end\(\)/.test(probe), 'probe passes only if A is found idle in transaction; A closed in finally');
+  assert(/LOCK_TIMEOUT/.test(probe) && /STATEMENT_TIMEOUT/.test(probe) && /IDLE_IN_TX_TIMEOUT/.test(probe), 'probe compares with live-safety');
   assert(!/(INSERT|UPDATE|DELETE|ALTER|CREATE|pg_terminate_backend)/.test(probe), 'probe is read-only');
   assert(/finally \{\n\s+clearTimeout\(timer\);\n\s+await c\.end\(\)\.catch\(\(\) => \{\}\);/.test(SRC), 'withClient always closes');
 });
@@ -127,12 +141,17 @@ test('B-6 negative controls: broken resumes make B-2 fail', () => {
   return `${Object.keys(muts).length} mutations caught`;
 });
 
-test('B-7 negative controls: a missing / ignored session check or an automatic terminate make B-3 fail', () => {
+test('B-7 negative controls: weaker detection or an automatic terminate make B-3 fail', () => {
   const muts = {
-    'no session check': SRC.replace('    const left = await schemaSessionsLeft(appName, log);', '    const left = [];'),
+    'no session check': SRC.replace('const left = t1 === null ? null : await schemaSessionsLeft(t0, t1, log);', 'const left = [];'),
     'leftover ignored': SRC.replace(/\} else if \(left\.length\) \{\n\s+manifest\.failed = `schema session left open \(\$\{appName\}\)`;/, '} else if (left.length) {'),
-    'automatic terminate': SRC.replace('      manifest.schemaSessionsLeft = left;', '      manifest.schemaSessionsLeft = left;\n      for (const s of left) await withClient((c) => c.query(`SELECT pg_terminate_backend(${s.pid})`));'),
-    'shared application_name': SRC.replace('const appName = `backup-schema-${RUN_ID}-a${a}`;', "const appName = 'backup-schema';"),
+    'automatic terminate': SRC.replace('      manifest.schemaSessionsLeft = left;', '      manifest.schemaSessionsLeft = left;\n      for (const r of left) await withClient((c) => c.query(`SELECT pg_terminate_backend(${r.pid})`));'),
+    'backend_start window': SRC.replace("AND a.xact_start >= $1::timestamptz - interval '2 seconds' AND a.xact_start <= $2::timestamptz", "AND a.backend_start >= $1::timestamptz - interval '2 seconds' AND a.backend_start <= $2::timestamptz"),
+    'name filter': SRC.replace("     AND a.state IN ('idle in transaction'", "     AND a.application_name LIKE 'backup-schema-%'\n     AND a.state IN ('idle in transaction'"),
+    "'active' dropped": SRC.replace("'idle in transaction (aborted)', 'active')", "'idle in transaction (aborted)')"),
+    "'aborted' dropped": SRC.replace("('idle in transaction', 'idle in transaction (aborted)', 'active')", "('idle in transaction', 'active')"),
+    'no 2 s margin': SRC.replace("$1::timestamptz - interval '2 seconds'", '$1::timestamptz'),
+    'client-clock window': SRC.replace('t0 = await serverNow(); // window start', 't0 = new Date().toISOString(); // window start'),
   };
   for (const [k, m] of Object.entries(muts)) {
     assert(m !== SRC, `${k}: mutation did not apply`);

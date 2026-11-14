@@ -119,9 +119,10 @@ It runs these steps:
 3. Take a backup over a **slow link** (2 s inside every batch) with **forced connection drops** in three tables. It must verify, and each dropped table must resume from its last committed key.
 4. Restore that backup into a **second local database** with `local-pg.cjs restore-check`: every table must be identical.
 5. Run two **negative controls** (copies of the tool with a broken resume): they must NOT verify.
-6. **D-detect (R-7).** The clean run must record `schema.sessionCheck: clear (…)` under its own `application_name`. Then the
-   schema dump is killed (a forced drop) while a session under its name stays open in a transaction, the way a pooler
-   keeps one when the client dies. The backup must FAIL before any data and log `SESSION LEFT OPEN` with the pid and a
+6. **D-detect (R-7).** The clean run must record `schema.sessionCheck: clear (…)`. Then the schema dump is killed (a
+   forced drop) while a session of the backup role stays in a transaction that started during the dump, the way a
+   pooler keeps one when the client dies. That session is named `Supavisor`, as production shows it, so the test proves
+   that detection does not depend on the name. The backup must FAIL before any data and log `SESSION LEFT OPEN` with the pid and a
    pid-specific `pg_terminate_backend` statement. The tool terminates nothing; the test hook releases the session after.
 
 The probe can be tried on the same local server: `node scripts/db/backup-resilient.cjs --probe-session-limits
