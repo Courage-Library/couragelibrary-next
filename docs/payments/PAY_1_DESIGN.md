@@ -1,7 +1,7 @@
 # PAY-1 Phase A: payments inspection and design
 
-**Status: Phase A done (inspect + design only).** No code, no database write, no Razorpay dashboard or key change. No key
-value is printed or written here.
+**Status: Phase A done; B1 released (migration 140 applied 2026-11-14); B2 next.** Phase A itself was inspection only:
+no code, no database write, no Razorpay dashboard or key change. No key value is printed or written here.
 
 Inspected 2026-11-14 on main `4adacb3`.
 
@@ -304,7 +304,18 @@ See section 4.
 
 ## 7. Owner decisions 2026-11-14 and the admin-controlled access policy (supersedes B2 / B3 above)
 
-**Decided:**
+**Decided (all as recommended in section 5):**
+- **D3 = a:** Razorpay auto-capture ON + the B4 reconciliation job.
+- **D4 = a:** refunds are started in the Razorpay dashboard; the webhook updates access.
+- **D5 = a:** "≤ 1 full Pro mock" = at most 1 *submitted* attempt of a Pro mock during the plan.
+- **D6 = b:** a founding seat stays used after a refund.
+- **D7 = a:** only the latest stacked period can be refunded.
+- **D8 = a:** app e-mail via the ZeptoMail API, sender `no-reply@couragelibrary.in`.
+- **D9 = a:** receipts only ("not a tax invoice"); GST later.
+- **D10 = b:** exam-scoped promotional passes are honoured through the access policy.
+- **D12 = a:** test mode on Vercel Preview with TEST keys + the QA allow-list.
+- **D13 = a:** after cutover the owner buys the cheapest plan once and refunds it.
+- **PREMIUM_CA:** seeded PRO; the admin can change it.
 - **D1 Pro at launch:** premium / full mock series, advanced analytics, Mistake Vault, Memory Lock. **Lessons stay free
   (FREE_ALL).** D1 is the *seeded default*; the admin can change any item.
 - **D2:** mock questions are served **only through an active, server-started test, after the access check**. **No direct

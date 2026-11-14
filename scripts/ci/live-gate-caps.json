@@ -253,6 +253,10 @@
     "SYLLABUS-MAP-B2-LIVE": {
       "measured": 14,
       "cap": 210
+    },
+    "PAY1-B1-LIVE": {
+      "measured": 2,
+      "cap": 180
     }
   }
 }
