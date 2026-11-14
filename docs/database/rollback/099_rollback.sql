@@ -2,6 +2,7 @@
 -- Run as ONE transaction by the operator (this file is not a migration; it may carry BEGIN / COMMIT).
 -- WARNING: restores the pre-099 TABLE-LEVEL client INSERT / UPDATE on test_attempts and attempt_answers (the integrity
 -- gap 099 closes) and drops the resume position columns. Only for an emergency; re-apply 099 afterwards.
+-- ROLLBACK-CHAIN: run first: none
 BEGIN;
 
 DROP POLICY IF EXISTS "Users can insert own attempt answers" ON public.attempt_answers;

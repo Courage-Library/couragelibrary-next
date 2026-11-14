@@ -142,7 +142,19 @@ It then executes the file **and** writes the ledger row (`APPLIED`, checksum, to
   3. `SECDEF-RATCHET` — `node scripts/test_secdef_ratchet.cjs`
   4. the admin / student page smokes — `node scripts/live/with-server.cjs --port=3100 -- "node scripts/smoke/signed-in-smoke.cjs admin-pages http://localhost:3100" "node scripts/smoke/signed-in-smoke.cjs student-pages http://localhost:3100" "node scripts/test_gap2_4b_readers.cjs --base=http://localhost:3100"` (a local production build first: `npm run build`)
 
-  Find the touching gates by grepping `scripts/` and `scripts/live/` for every changed table and function name; list them (and the four) with their results in the phase report. Why: CA-2's 116 passed its own smoke but broke RLS P-2 (a trigger calling a service-role-only helper turned an RLS denial into a "permission denied for function"), found only by the next CI dispatch because RLS was not in the local set.
+  Find the touching gates by grepping `scripts/` and `scripts/live/` for every changed table and function name; list them (and the four) with their results in the phase report.
+
+  **EARLIER-GATES (owner rule, 2026-11-14).** After applying migration N, and before pushing, run ALL live DB gates that touch objects of EARLIER migrations that N references or depends on — not just N's own gate. Find them by grepping `scripts/live/*.cjs scripts/*.cjs` for every table and function N references (FKs, CHECKs, triggers, function calls, views), including the gate of the migration that created each one. A gate that rolls back its own migration (a rollback check like D-7) is always in this set, because N may now depend on what it drops.
+  **Why:** 139 put a CHECK on `fn_outline_lines_valid` (138). Only 139's own gate ran after the apply; SYLLABUS-MAP-B1-LIVE's rollback check (D-7) then failed in CI dispatch 43579487271 ("cannot drop function fn_outline_lines_valid … other objects depend on it").
+
+  **ROLLBACK-CHAIN (owner rule, 2026-11-14).** Every `docs/database/rollback/<n>_rollback.sql` states in its header which LATER rollbacks must run first, in the order to run them:
+  - `-- ROLLBACK-CHAIN: run first: none`;
+  - `-- ROLLBACK-CHAIN: run first: 139_rollback.sql[, …]` (a hard dependency, proven: the rollback fails without them);
+  - `-- ROLLBACK-CHAIN: run first: ALL-LATER (<why>)` when it could not be proven on a local copy. Then run every later rollback first, latest first.
+
+  The lines are produced on a throwaway local copy with every migration applied (`docs/database/LOCAL_PG_TEST.md`): `node scripts/db/rollback-chain.cjs --probe --local=54329 --write`. Each rollback is tried inside a transaction that is always rolled back; files that wrap themselves in `BEGIN; … COMMIT;` are run without those two lines, in memory only. The CI offline gate `ROLLBACK-CHAIN` (`rollback-chain.cjs --check`) fails when a file has no valid line. A live gate that rolls back a migration runs the declared chain first (`runFirst(n)` in `scripts/db/rollback-chain.cjs`).
+
+  When a new migration adds a dependency on an earlier one, re-run the probe with `--write` and commit the changed headers with the migration. "none" means only that the rollback runs on its own on the probed copy (2026-11-14, at 139). Rolling back several migrations still goes latest first. Why: CA-2's 116 passed its own smoke but broke RLS P-2 (a trigger calling a service-role-only helper turned an RLS denial into a "permission denied for function"), found only by the next CI dispatch because RLS was not in the local set.
 
   **Network exception (architect, 2026-10-28; first used for 121 / d707064).** A gate of the set that still fails after its 3 attempts may be waived for the push ONLY when ALL of these hold:
   - (a) the failure is proven network by the server log: `fetch failed`, or the page landed on `/auth/unavailable` ("We couldn't check your sign-in");
@@ -200,7 +212,9 @@ Commit the regenerated `types/database.ts` **in the same commit as the migration
 ## Migration checklist (every migration, in this order)
 
 1. Backup (`backup.cjs`, or `backup-resilient.cjs` on a flaky network); younger than 60 minutes at apply.
-2. Write the migration + its rollback (`docs/database/rollback/<n>_rollback.sql`); no BEGIN / COMMIT in the file.
+2. Write the migration + its rollback (`docs/database/rollback/<n>_rollback.sql`); no BEGIN / COMMIT in the file. The
+   rollback carries its `-- ROLLBACK-CHAIN:` line; re-run `rollback-chain.cjs --probe --write` on the local copy with
+   the migration applied, so earlier rollbacks that now depend on it name it (section 4, ROLLBACK-CHAIN).
 3. Dry-run ALONE (`apply-migration.cjs <file> --dry-run`; no other live session on the same object group).
 4. Chunked rolled-back smoke AS THE REAL ROLES (service_role / authenticated QA users / anon), with `--pre` running the
    migration inside each chunk (LIVE-LOCK-SAFETY via `safeBegin` / `withLiveTransaction`).
@@ -208,7 +222,8 @@ Commit the regenerated `types/database.ts` **in the same commit as the migration
 6. Live verify: the phase's live gate; the taxonomy link snapshot (`taxonomy-link-snapshot.cjs --compare`) for any
    change near the master tree; counts before / after explained.
 7. **MIGRATION-LIVE-SET** (section 4): every touching live gate + RLS + READERS + SECDEF-RATCHET + the admin / student
-   page smokes, run locally, results in the report.
+   page smokes, run locally, results in the report. **EARLIER-GATES:** also every live DB gate of the earlier
+   migrations whose objects N references or depends on (section 4), before pushing.
 8. Types: `npm run db:types` + `npm run db:types:check` + `npx tsc --noEmit -p .`.
 9. The full offline list (new files staged first) → commit → push → CI green → report.
 

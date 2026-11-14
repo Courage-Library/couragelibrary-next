@@ -2,6 +2,7 @@
 -- Run as ONE transaction by the operator (this file is not a migration; it may carry BEGIN / COMMIT).
 -- WARNING: drops public.attempt_proctor_events and every recorded event in it (export it first if it holds data).
 -- Before running: set PROCTOR_LOG_ENABLED off (the player then sends nothing) and restore the neutral notice copy.
+-- ROLLBACK-CHAIN: run first: none
 BEGIN;
 
 DROP FUNCTION IF EXISTS public.fn_record_proctor_event(uuid, text, integer);

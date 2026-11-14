@@ -4,6 +4,7 @@
 -- (export syllabus_intake_sessions / _items first if any exist). DRAFTs created by intake / merge stay (DRAFT rows).
 -- The function bodies below are the exact pre-116 definitions (captured from the live database before the apply, and
 -- migration 115 for the taxonomy RPCs).
+-- ROLLBACK-CHAIN: run first: ALL-LATER (not provable on a local copy: fails with 2BP01 cannot drop table syllabus_intake_items because other objects depend on it)
 BEGIN;
 
 DROP FUNCTION IF EXISTS public.fn_syllabus_intake_discard(uuid, uuid, text);

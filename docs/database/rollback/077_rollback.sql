@@ -3,6 +3,7 @@
 -- NOT a migration. Apply only with owner approval in ONE transaction, then mark the 077 ledger row
 -- ROLLED_BACK. Restores the original blanket read policies and the anon grant (re-opens the exposure).
 -- =============================================================================
+-- ROLLBACK-CHAIN: run first: none
 BEGIN;
 DROP POLICY IF EXISTS "leaderboard_weekly_snapshots: own rows read" ON public.leaderboard_weekly_snapshots;
 CREATE POLICY "Public read leaderboard snapshots" ON public.leaderboard_weekly_snapshots FOR SELECT TO public USING (true);

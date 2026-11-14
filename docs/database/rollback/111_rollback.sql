@@ -1,4 +1,5 @@
 -- Rollback for 20261026000111_admin_mfa_flag_secdef.sql: restores the 098 state (client-readable flag; RLS P-6 fails again).
+-- ROLLBACK-CHAIN: run first: none
 BEGIN;
 
 GRANT SELECT ON public.security_settings TO anon, authenticated;

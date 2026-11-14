@@ -1,5 +1,6 @@
 -- Rollback for 20261025000105_null_bypass_2.sql: restores the three previous function bodies (with the NULL-skippable
 -- deny branches). Run as ONE transaction by the operator.
+-- ROLLBACK-CHAIN: run first: none
 BEGIN;
 
 CREATE OR REPLACE FUNCTION public.fn_submit_flashcard_review(p_card_id uuid, p_rating integer)

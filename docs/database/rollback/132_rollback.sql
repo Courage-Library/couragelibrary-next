@@ -2,6 +2,7 @@
 -- 131 function bodies. Only for an emergency: it re-creates the column that would expose the uploader's e-mail through
 -- the public read. Existing rows get the placeholder 'unknown-admin' (the real actor is in admin_audit_logs).
 -- Run through scripts/db/apply-migration.cjs (no BEGIN / COMMIT here).
+-- ROLLBACK-CHAIN: run first: none
 
 ALTER TABLE public.site_media ADD COLUMN updated_by_email text NOT NULL DEFAULT 'unknown-admin';
 ALTER TABLE public.site_media ALTER COLUMN updated_by_email DROP DEFAULT;

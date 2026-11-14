@@ -5,6 +5,7 @@
 -- (bodies captured from the live database before 087; CREATE OR REPLACE keeps their ACLs).
 -- Order: 088 first (088 → 087 → 086 → …): 088's archive does not depend on 087, but roll back newest first.
 -- =============================================================================
+-- ROLLBACK-CHAIN: run first: none
 
 DROP TRIGGER trg_qf_version_publishable ON public.question_versions;
 

@@ -1,5 +1,6 @@
 -- Rollback for 20261025000091_f0_onboarding.sql (F0 onboarding, decision #76).
 -- Order: 091 → 090 → … . Run only after a backup. Hinglish preferences fall back to English ('en').
+-- ROLLBACK-CHAIN: run first: none
 BEGIN;
 
 DROP FUNCTION IF EXISTS public.fn_get_my_onboarding();

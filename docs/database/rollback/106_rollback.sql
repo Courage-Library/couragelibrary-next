@@ -1,5 +1,6 @@
 -- Rollback for 20261025000106_payment_null_fail_closed.sql: restores both previous payment function bodies (NULL fail-open).
 -- Run as ONE transaction by the operator.
+-- ROLLBACK-CHAIN: run first: none
 BEGIN;
 
 CREATE OR REPLACE FUNCTION public.fn_process_payment_webhook(p_gateway text, p_gateway_event_id text, p_event_type text, p_payload jsonb, p_signature_verified boolean)

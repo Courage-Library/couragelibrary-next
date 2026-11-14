@@ -1,5 +1,6 @@
 -- Rollback for 20261028000121_lesson_prompt_2.sql. Run as ONE transaction by the operator.
 -- Safe only while no prompt template uses the v2 slots (retire / delete LESSON v2 first) and no subject is REASONING.
+-- ROLLBACK-CHAIN: run first: ALL-LATER (not provable on a local copy: fails with P0001 ROLLBACK 121: REASONING subjects exist; change their subject type first)
 BEGIN;
 
 DO $chk$ BEGIN

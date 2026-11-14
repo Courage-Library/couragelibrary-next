@@ -3,6 +3,7 @@
 -- Storage files are kept and archived, become the current versions again — restore their pointers first, see below).
 -- fn_syllabus_mapping_node_fields keeps 117's inlined roll-up on purpose (same behaviour as 116, and client inserts are
 -- refused by RLS again); rolling it back would re-open the RLS P-2 regression.
+-- ROLLBACK-CHAIN: run first: ALL-LATER (not provable on a local copy: fails with 42P01 relation "storage.buckets" does not exist)
 BEGIN;
 
 DO $chk$ BEGIN

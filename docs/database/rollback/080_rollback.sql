@@ -4,6 +4,7 @@
 -- Removes the two seeded DRAFT versions (nodes and mappings cascade) and the seed functions. Refuses if either
 -- version is no longer DRAFT (the immutability trigger would also refuse). Audit rows are kept (history).
 -- =============================================================================
+-- ROLLBACK-CHAIN: run first: none
 BEGIN;
 DELETE FROM public.exam_syllabus_versions v
  USING public.exams e

@@ -1,6 +1,7 @@
 -- Rollback for 20261028000123_launch_mode_1.sql. Run as ONE transaction by the operator.
 -- Restores the exact 122 fn_exam_course_launch_set (without an access mode) and drops what 123 added. Refuses while a
 -- course is LIVE in FREE_N (pause it or switch it to FREE_ALL first: 122 has no FREE_N, every LIVE course would gate).
+-- ROLLBACK-CHAIN: run first: none
 BEGIN;
 
 DO $chk$ BEGIN

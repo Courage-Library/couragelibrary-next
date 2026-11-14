@@ -7,6 +7,7 @@
 -- generate signature, so revert the commit together with this rollback.
 -- Order: 085 first (085 → 084 → 083 → 082 → 081 → …).
 -- =============================================================================
+-- ROLLBACK-CHAIN: run first: none
 
 DROP FUNCTION public.fn_generate_mistake_drill(uuid[], uuid, text);
 

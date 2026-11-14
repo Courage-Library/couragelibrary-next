@@ -1,6 +1,7 @@
 -- Rollback for 20261028000122_ca7_launch_notes_internal.sql. Run as ONE transaction by the operator.
 -- Restores the exact 120 bodies of fn_servable_node_lessons and fn_lesson_progress_save, then drops what 122 added.
 -- Data loss: launches, exam notes, the INTERNAL / test-content flags and the view-event keys go with it (export first).
+-- ROLLBACK-CHAIN: run first: 139_rollback.sql, 123_rollback.sql
 BEGIN;
 
 CREATE OR REPLACE FUNCTION public.fn_servable_node_lessons()

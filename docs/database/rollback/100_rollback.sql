@@ -1,6 +1,7 @@
 -- Rollback for 20261025000100_grant_audit_client_writes.sql.
 -- Run as ONE transaction by the operator (this file is not a migration; it may carry BEGIN / COMMIT).
 -- WARNING: restores the pre-100 table-level client writes (the gaps 100 closes). Only for an emergency.
+-- ROLLBACK-CHAIN: run first: none
 BEGIN;
 
 GRANT INSERT, UPDATE ON public.discussion_threads TO authenticated;

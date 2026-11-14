@@ -1,6 +1,7 @@
 -- Rollback for 20261028000120_ca5_courses_progress.sql. Run as ONE transaction by the operator.
 -- Drops the student progress rows (user_lesson_progress) — export them first if they must be kept. The read model and
 -- validate bodies below are the exact 116 definitions (servable documents = unit documents only again).
+-- ROLLBACK-CHAIN: run first: none
 BEGIN;
 
 -- the read model + validate as before 120 (same signatures; grants unchanged by CREATE OR REPLACE)

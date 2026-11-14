@@ -1,6 +1,7 @@
 -- Rollback for 20261025000098_admin_mfa_db.sql (admin MFA in the database).
 -- Run as ONE transaction by the operator (this file is not a migration; it may carry BEGIN / COMMIT).
 -- Restores fn_jwt_is_admin_or_staff() exactly as before 098 (role check only) and drops the settings table.
+-- ROLLBACK-CHAIN: run first: none
 BEGIN;
 
 CREATE OR REPLACE FUNCTION public.fn_jwt_is_admin_or_staff()

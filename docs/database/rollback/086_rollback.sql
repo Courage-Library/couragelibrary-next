@@ -7,6 +7,7 @@
 -- /admin/syllabus import action calls fn_syllabus_import_draft).
 -- Order: 086 first (086 → 085 → 084 → 083 → 082 → …).
 -- =============================================================================
+-- ROLLBACK-CHAIN: run first: none
 
 DROP FUNCTION public.fn_syllabus_import_draft(uuid, jsonb);
 DROP FUNCTION public.fn_syllabus__import_list(jsonb, text, text);

@@ -25,6 +25,11 @@ The per-release checklists (`RELEASE_HOME_1.md`, …) add their own steps; these
    Run each gate it lists. If the migration is not applied yet, use `--pre`.
    **Why:** COURSE-UX-1 migration 136 replaced `fn_lesson_progress_save`. `CA5-COURSES-LIVE` still expected the old
    rule, and only the CI dispatch (41628887562) caught it.
+   **Earlier migrations too (owner rule, 2026-11-14):** after applying migration N, also run every live DB gate that
+   touches objects of EARLIER migrations that N references or depends on, not just N's own gate. A gate that rolls back
+   its own migration is always included (`docs/database/MIGRATION_RUNBOOK.md` §4, EARLIER-GATES and ROLLBACK-CHAIN).
+   **Why:** 139 added a CHECK on 138's `fn_outline_lines_valid`; SYLLABUS-MAP-B1-LIVE's rollback check then failed in
+   CI dispatch 43579487271.
 4. Check that no CI dispatch is queued, because a push cancels a pending dispatch.
 
 **Why:** the COURSE-UX-1 push CI (41625360184) failed `LIVE-LOCK-SWEEP`, an offline gate. The earlier local run had

@@ -3,6 +3,7 @@
 -- NOT a migration. Apply only with owner approval in ONE transaction, then mark the 079 ledger row ROLLED_BACK.
 -- Roll back 080 first (its seed functions call the 079 core helpers).
 -- =============================================================================
+-- ROLLBACK-CHAIN: run first: 139_rollback.sql, 123_rollback.sql, 119_rollback.sql, 091_rollback.sql
 BEGIN;
 DROP FUNCTION IF EXISTS public.fn_exam_syllabus_read_model(uuid, uuid);
 DROP FUNCTION IF EXISTS public.fn_syllabus_archive_version(uuid);

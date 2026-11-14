@@ -8,6 +8,7 @@
 -- WARNING: re-opens the exposures fixed by SEC-HOTFIX-7. Emergency use only; record it as an incident.
 -- Order: newest first (083 before 082 → 081 → …).
 -- =============================================================================
+-- ROLLBACK-CHAIN: run first: none
 
 ALTER FUNCTION public.fn_award_gamification_reward(uuid, text, text, uuid, text, integer, text, jsonb) RESET search_path;
 ALTER FUNCTION public.fn_claim_reward_item(uuid, uuid, text, text, text, text, text, text, text) RESET search_path;

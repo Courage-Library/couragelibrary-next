@@ -4,6 +4,7 @@
 -- Deletes the QA test exam only if it has no syllabus versions (archived TEST versions are immutable history and
 -- block the delete through ON DELETE RESTRICT — in that case the exam stays, inactive).
 -- =============================================================================
+-- ROLLBACK-CHAIN: run first: none
 BEGIN;
 DELETE FROM public.exams e
  WHERE e.slug = 'qa-syllabus-test' AND e.is_active = false

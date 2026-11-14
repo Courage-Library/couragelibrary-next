@@ -2,6 +2,7 @@
 -- Safe only while NO node lesson, NO translation provenance and NO v3 intake exists (published lesson rows are
 -- immutable: once node lessons or Hindi versions are published, keep 119 instead). The function bodies below are the
 -- exact 116 / 117 definitions.
+-- ROLLBACK-CHAIN: run first: none
 BEGIN;
 
 DO $chk$ BEGIN

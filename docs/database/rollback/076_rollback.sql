@@ -3,6 +3,7 @@
 -- NOT a migration. Apply only with owner approval in ONE transaction, then mark the 076 ledger row
 -- ROLLED_BACK. Restores the original permissive FOR ALL policies (re-opens the read exposure).
 -- =============================================================================
+-- ROLLBACK-CHAIN: run first: ALL-LATER (not provable on a local copy: fails with 42P01 relation "public.taxonomy_aliases" does not exist)
 BEGIN;
 DROP POLICY IF EXISTS "canonical_taxonomy_nodes: admin/staff read" ON public.canonical_taxonomy_nodes;
 DROP POLICY IF EXISTS "canonical_taxonomy_nodes: admin/staff insert" ON public.canonical_taxonomy_nodes;

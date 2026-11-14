@@ -2,6 +2,7 @@
 -- Restores the (user_id, document_id, language) key and the exact 122 fn_lesson_progress_save. The rows merged by 135
 -- stay merged (one row per lesson is also unique per lesson and language; nothing is invented to split them).
 -- Apply 137 and 136 rollbacks first when they are applied.
+-- ROLLBACK-CHAIN: run first: none
 ALTER TABLE public.user_lesson_progress DROP CONSTRAINT user_lesson_progress_pkey;
 ALTER TABLE public.user_lesson_progress ADD CONSTRAINT user_lesson_progress_pkey PRIMARY KEY (user_id, document_id, language);
 COMMENT ON COLUMN public.user_lesson_progress.language IS NULL;

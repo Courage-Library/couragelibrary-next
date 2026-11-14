@@ -1,5 +1,6 @@
 -- Rollback for 20261025000101_community_reply_fix.sql: restores the previous fn_post_discussion_message body
 -- (which fails every reply with 23502 — COMMUNITY-REPLY-1). Run as ONE transaction by the operator.
+-- ROLLBACK-CHAIN: run first: none
 BEGIN;
 
 CREATE OR REPLACE FUNCTION public.fn_post_discussion_message(p_thread_id uuid, p_content_markdown text, p_parent_message_id uuid DEFAULT NULL::uuid)

@@ -2,6 +2,7 @@
 -- Restores every changed ACL item by item in the original order. The 12 no-caller functions were not changed.
 -- 6 trigger functions had a NULL (implicit default) ACL; GRANT / REVOKE cannot recreate NULL, so they get the
 -- identical explicit default (same text as acldefault, same privileges).
+-- ROLLBACK-CHAIN: run first: ALL-LATER (not provable on a local copy: fails with P0001 090 rollback: a non-target function ACL changed)
 
 -- fn_clear_user_search_history: before {postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}
 REVOKE EXECUTE ON FUNCTION public.fn_clear_user_search_history() FROM PUBLIC, anon, authenticated, service_role, postgres;

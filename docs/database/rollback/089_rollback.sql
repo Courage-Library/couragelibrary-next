@@ -1,5 +1,6 @@
 -- Rollback of 20261018000089_secdef_s2_1_finalize_battle_caller_check.sql: restores the audited definition
 -- byte-exactly (CREATE OR REPLACE keeps the ACL).
+-- ROLLBACK-CHAIN: run first: none
 CREATE OR REPLACE FUNCTION public.fn_finalize_battle_room(p_room_id uuid)
  RETURNS jsonb
  LANGUAGE plpgsql

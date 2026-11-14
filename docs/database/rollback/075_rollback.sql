@@ -7,6 +7,7 @@
 -- PREREQUISITE (since GAP2-4a): roll back 080, 079 and 078 first. 078 adds
 -- exam_syllabus_canonical_mappings_topic_fkey → canonical_taxonomy_nodes (id, node_type), which depends on that UNIQUE.
 -- =============================================================================
+-- ROLLBACK-CHAIN: run first: ALL-LATER (not provable on a local copy: fails with 2BP01 cannot drop constraint canonical_taxonomy_nodes_id_node_type_key on table canonical_taxonomy_nodes because other o)
 
 DO $$
 DECLARE

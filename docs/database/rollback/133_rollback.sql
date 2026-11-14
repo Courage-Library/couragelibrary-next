@@ -1,5 +1,6 @@
 -- Rollback for 20261102000133_pii_sweep2_anon.sql (SEC-PII-SWEEP-2 step 1). RE-EXPOSES user ids to anon — only on an
 -- architect / owner instruction. Restores the table-wide anon SELECT on the 10 tables and the legacy mock_tests policy.
+-- ROLLBACK-CHAIN: run first: none
 DO $rb$
 DECLARE
     t text;

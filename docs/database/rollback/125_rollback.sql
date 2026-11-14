@@ -1,5 +1,6 @@
 -- Rollback for 20261029000125_publish_confirm_server.sql. Run as ONE transaction by the operator.
 -- Restores the exact pre-125 one-argument fn_syllabus_publish (pg_get_functiondef before 125) and its grants.
+-- ROLLBACK-CHAIN: run first: none
 BEGIN;
 DROP FUNCTION public.fn_syllabus_publish(uuid, text);
 CREATE OR REPLACE FUNCTION public.fn_syllabus_publish(p_version_id uuid)

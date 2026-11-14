@@ -1,4 +1,5 @@
 -- Rollback for 20261025000107_flashcard_review_activity.sql: restores the previous fn_submit_flashcard_review (fails on every call; reward-event insert present).
+-- ROLLBACK-CHAIN: run first: none
 BEGIN;
 
 CREATE OR REPLACE FUNCTION public.fn_submit_flashcard_review(p_card_id uuid, p_rating integer)

@@ -5,6 +5,7 @@
 -- (ml_source = 'manual', total_mistakes_count = 0 — they are not mistakes and cannot exist without the new check).
 -- Memory Lock answers in practice_answers are DELETED (mode MEMORY_LOCK has no pre-095 meaning); mistakes recorded from
 -- Memory Lock stay in the vault and are re-labelled CUSTOM_PRACTICE (the nearest pre-095 source). Export first if needed.
+-- ROLLBACK-CHAIN: run first: none
 BEGIN;
 
 DROP FUNCTION IF EXISTS public.fn_memory_lock_answer(uuid, text, integer, uuid);

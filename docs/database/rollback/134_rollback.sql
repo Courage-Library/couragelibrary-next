@@ -3,6 +3,7 @@
 -- The automatic usernames and the profile rows created for accounts without one are KEPT (they hold no personal data;
 -- clearing them would erase names users may already have chosen). Usernames with a "." would violate the 096 format:
 -- they are converted to "_" first.
+-- ROLLBACK-CHAIN: run first: none
 DROP FUNCTION IF EXISTS public.fn_public_identities(uuid[]);
 DROP TRIGGER IF EXISTS trg_user_profiles_auto_username ON public.user_profiles;
 DROP FUNCTION IF EXISTS public.fn_user_profiles_auto_username();

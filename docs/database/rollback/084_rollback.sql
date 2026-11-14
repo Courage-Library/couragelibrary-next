@@ -10,6 +10,7 @@
 -- reads these tables; restoring them does not restore the deleted workbench (revert the commit for that).
 -- Dry-run (proof inside BEGIN … ROLLBACK): see GAP2_4C_REPORT §4.
 -- =============================================================================
+-- ROLLBACK-CHAIN: run first: ALL-LATER (not provable on a local copy: fails with 3F000 schema "retired" does not exist)
 
 DO $$
 BEGIN

@@ -1,6 +1,7 @@
 -- Rollback for 20261103000137_lesson_coins_earn.sql (COURSE-UX-1). Only on an owner / architect instruction.
 -- Restores the exact 136 fn_lesson_complete (no award), removes the award helper, the LESSON_COMPLETED policy and the
 -- COINS_LESSON_EARN switch. Coins already credited stay in the ledger (a reversal is a separate, explicit decision).
+-- ROLLBACK-CHAIN: run first: none
 CREATE OR REPLACE FUNCTION public.fn_lesson_complete(p_document_id uuid, p_language text)
 RETURNS jsonb
 LANGUAGE plpgsql

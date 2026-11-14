@@ -1,4 +1,5 @@
 -- Rollback for 20261025000108_deck_session_activity.sql: restores the previous fn_complete_deck_review_session (fails on every call; reward-event insert present).
+-- ROLLBACK-CHAIN: run first: none
 BEGIN;
 
 CREATE OR REPLACE FUNCTION public.fn_complete_deck_review_session(p_deck_id uuid)

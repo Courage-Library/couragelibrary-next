@@ -3,6 +3,7 @@
 -- live functions before 124), the original decision CHECKs, and drops what 124 added. Refuses while an item is kept as an
 -- OUTLINE (the 123 CHECK has no OUTLINE: decide those concepts again first, or discard the intake). Bulk-created nodes
 -- stay (they are ordinary audited master-tree nodes); the batches table and its history are dropped.
+-- ROLLBACK-CHAIN: run first: none
 BEGIN;
 
 DO $chk$ BEGIN

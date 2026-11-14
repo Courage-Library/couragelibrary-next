@@ -2,6 +2,7 @@
 -- Apply the 137 rollback first when 137 is applied. Restores the exact 135 fn_lesson_progress_save (a bare "Mark as
 -- complete" completes again) and removes the evidence RPCs, the helper and the evidence tables (their rows are reading
 -- evidence only; completed lessons stay completed in user_lesson_progress).
+-- ROLLBACK-CHAIN: run first: none
 CREATE OR REPLACE FUNCTION public.fn_lesson_progress_save(p_document_id uuid, p_language text, p_status text, p_last_block_id text DEFAULT NULL)
 RETURNS jsonb
 LANGUAGE plpgsql

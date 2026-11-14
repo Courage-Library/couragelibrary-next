@@ -4,6 +4,7 @@
 -- Restores the errata table's pre-093 client access exactly (policies, grants, constraints); reports filed through
 -- fn_report_question stay (an empty note would violate the old 10-char description check → padded to 10 chars first;
 -- TRANSLATION_ERROR reports are re-typed OTHER, the only lossless fallback).
+-- ROLLBACK-CHAIN: run first: none
 BEGIN;
 
 DROP FUNCTION IF EXISTS public.fn_check_practice_answer(uuid, text, integer, uuid, text);

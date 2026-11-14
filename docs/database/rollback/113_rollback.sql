@@ -1,5 +1,6 @@
 -- Rollback for 20261026000113_f9_pricing_schema.sql. Run as ONE transaction by the operator, AFTER 114's rollback.
 -- Only safe while no PRO_PLAN order / receipt exists (TEST mode; payments OFF in production).
+-- ROLLBACK-CHAIN: run first: none
 BEGIN;
 
 GRANT EXECUTE ON FUNCTION public.fn_create_payment_order(text, uuid, uuid, text, text, text) TO authenticated;

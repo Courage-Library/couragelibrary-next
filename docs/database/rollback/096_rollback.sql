@@ -3,6 +3,7 @@
 -- Before running: set PROFILES_ENABLED off. WARNING (data): drops every chosen username, the public-profile and leaderboard choices
 -- and the 18+ confirmations, and the blocklist. Restores the pre-096 table-level INSERT / UPDATE grants for authenticated
 -- exactly (note: that re-opens client writes to every column of the own row, e.g. is_active).
+-- ROLLBACK-CHAIN: run first: none
 BEGIN;
 
 DROP FUNCTION IF EXISTS public.fn_set_username(text);

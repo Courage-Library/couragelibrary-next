@@ -1,5 +1,6 @@
 -- Rollback for 20261025000102_mfa_db_2_role_checks.sql: restores the 43 policies and 13 functions exactly as they
 -- were (generated from the live definitions). WARNING: this also restores the NULL-BYPASS-1 bug. Run as ONE transaction.
+-- ROLLBACK-CHAIN: run first: none
 BEGIN;
 
 ALTER POLICY "p_bca_manage_faculty" ON public."batch_curriculum_assignments"

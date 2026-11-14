@@ -4,6 +4,7 @@
 -- logo functions / columns / constraints, empties and drops the org-logos bucket (the owner's uploaded files are lost:
 -- export them first if they must be kept), reactivates the test org deactivated by 126 (audited).
 -- =====================================================================================================================
+-- ROLLBACK-CHAIN: run first: ALL-LATER (not provable on a local copy: fails with 42P01 relation "storage.objects" does not exist)
 
 CREATE OR REPLACE FUNCTION public.fn_exam_course_launch_set(p_exam_id uuid, p_exam_cycle_id uuid, p_status text, p_access_mode text, p_coverage jsonb, p_actor_id uuid, p_actor_email text)
  RETURNS jsonb

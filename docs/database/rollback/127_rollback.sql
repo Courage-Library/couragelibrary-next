@@ -1,6 +1,7 @@
 -- 127 rollback (EXAM-NOTE-PROMPT-1) — restores the PRE-127 definitions byte-exactly (pg_get_functiondef dumps taken
 -- 2026-10-31 before the apply) and the template_type CHECK without EXAM_NOTE. EXAM_NOTE template rows are deleted first
 -- (their PROMPT_TEMPLATE_* audit rows stay). Run through scripts/db/apply-migration.cjs (no BEGIN / COMMIT here).
+-- ROLLBACK-CHAIN: run first: none
 
 DELETE FROM public.prompt_templates WHERE template_type = 'EXAM_NOTE';
 

@@ -5,6 +5,7 @@
 -- the audit rows in admin_audit_logs stay). Any choice_group values are dropped with the column.
 -- Run inside ONE transaction (no BEGIN / COMMIT here); the ledger row is handled per MIGRATION_RUNBOOK.md.
 -- =====================================================================================================================
+-- ROLLBACK-CHAIN: run first: 139_rollback.sql
 DROP FUNCTION IF EXISTS public.fn_selection_stages_discard_draft(uuid, uuid, uuid, text);
 DROP FUNCTION IF EXISTS public.fn_selection_stages_publish(uuid, uuid, uuid, text);
 DROP FUNCTION IF EXISTS public.fn_selection_stages_save_draft(uuid, uuid, jsonb, text, date, uuid, text);

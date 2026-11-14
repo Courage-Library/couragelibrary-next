@@ -6,6 +6,7 @@
 -- from retired.gap2_2b_legacy_refs, and the original definitions of the six functions.
 -- Rows written to the new learning_document_id columns after 073 are discarded.
 -- =============================================================================
+-- ROLLBACK-CHAIN: run first: ALL-LATER (not provable on a local copy: fails with 3F000 schema "retired" does not exist)
 
 -- 1. Tables back to public + original grants ------------------------------------------------------
 ALTER TABLE retired.learning_resources        SET SCHEMA public;

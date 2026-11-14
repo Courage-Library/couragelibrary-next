@@ -2,6 +2,7 @@
 -- Brand rows must be removed first (the 129 key check cannot hold them): delete them through Settings › Brand (which
 -- also deletes the files), or list the storage files under org-logos/site/brand_* and delete them with the service role.
 -- Run through scripts/db/apply-migration.cjs (no BEGIN / COMMIT here).
+-- ROLLBACK-CHAIN: run first: none
 
 DO $pre$
 BEGIN

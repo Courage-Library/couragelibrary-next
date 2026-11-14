@@ -1,5 +1,6 @@
 -- Rollback for 20261025000103_attempt_answers_question_in_mock.sql: restores the 099 answer policies (attempt own +
 -- in progress + deadline, without the question-in-mock check). Run as ONE transaction by the operator.
+-- ROLLBACK-CHAIN: run first: none
 BEGIN;
 
 DROP POLICY IF EXISTS "Users can insert own attempt answers" ON public.attempt_answers;

@@ -6,6 +6,7 @@
 -- unchecked writing functions). Only for an emergency revert; record it as an incident.
 -- Order: the newest migration first (082 before 081 → 080 → …).
 -- =============================================================================
+-- ROLLBACK-CHAIN: run first: none
 
 ALTER FUNCTION public.fn_delete_exam_controlled(uuid, text, uuid, text, text) RESET search_path;
 ALTER FUNCTION public.fn_record_qualifying_streak_activity(uuid, text, uuid, integer, text) RESET search_path;

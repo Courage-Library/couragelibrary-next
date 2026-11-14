@@ -1,4 +1,5 @@
 -- Rollback for 20261026000112_coins_freeze.sql: restores the three previous bodies (coin awards ON again).
+-- ROLLBACK-CHAIN: run first: none
 BEGIN;
 
 CREATE OR REPLACE FUNCTION public.fn_award_gamification_reward(p_user_id uuid, p_event_type text, p_source_type text, p_source_id uuid, p_idempotency_key text, p_calculated_coins integer, p_reason_code text DEFAULT 'STANDARD'::text, p_metadata jsonb DEFAULT '{}'::jsonb)

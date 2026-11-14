@@ -3,6 +3,7 @@
 -- globally unique (the restore of topics_slug_key / subtopics_slug_key fails otherwise — then STOP: rename first).
 -- Aliases and the Hindi name / subject type / state code are DROPPED: export taxonomy_node_aliases and those columns
 -- first if any exist. Merges already performed are NOT undone (their audit rows list every re-pointed reference).
+-- ROLLBACK-CHAIN: run first: none
 BEGIN;
 
 ALTER TABLE public.subtopics DROP CONSTRAINT IF EXISTS uq_subtopics_topic_slug;

@@ -1,4 +1,5 @@
 -- Rollback for 20261026000114_f9_pricing_functions.sql. Run as ONE transaction by the operator (before 113's rollback).
+-- ROLLBACK-CHAIN: run first: none
 BEGIN;
 
 DROP FUNCTION IF EXISTS public.fn_revoke_library_pro(uuid, uuid);

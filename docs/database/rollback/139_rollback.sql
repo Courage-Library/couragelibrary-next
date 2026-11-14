@@ -6,6 +6,7 @@
 -- WARNING: open reviews (syllabus_map_sessions / _items) are deleted with their tables; take a backup first.
 -- Run inside ONE transaction (no BEGIN / COMMIT here); the ledger row is handled per MIGRATION_RUNBOOK.md.
 -- =====================================================================================================================
+-- ROLLBACK-CHAIN: run first: none
 DROP FUNCTION IF EXISTS public.fn_syllabus_map_discard(uuid, uuid, text);
 DROP FUNCTION IF EXISTS public.fn_syllabus_map_import(uuid, text, uuid, text);
 DROP FUNCTION IF EXISTS public.fn_syllabus_map_set_weightage(uuid, text, numeric, uuid, text);

@@ -5,6 +5,7 @@
 -- old shape cannot represent (PUBLISHED-audit columns, many mappings per node); it deletes all versions first
 -- (DRAFT only — PUBLISHED / ARCHIVED rows must be archived-and-exported by hand before a rollback).
 -- =============================================================================
+-- ROLLBACK-CHAIN: run first: ALL-LATER (not provable on a local copy: fails with 2BP01 cannot drop column canonical_node_type of table exam_syllabus_canonical_mappings because other objects depend on i)
 BEGIN;
 DROP TRIGGER IF EXISTS trg_guard_exam_syllabus_mappings_draft_only ON public.exam_syllabus_canonical_mappings;
 DROP TRIGGER IF EXISTS trg_guard_exam_syllabus_nodes_draft_only ON public.exam_syllabus_nodes;

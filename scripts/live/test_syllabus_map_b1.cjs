@@ -19,7 +19,8 @@
  *       an anon INSERT (42501); discard → audited; discard of nothing → 0, no audit row
  *   D-6 unrelated data unchanged: hashes of the master tree, aliases, syllabus nodes (original columns), mappings and
  *       versions — before = after (with --pre: across the apply too)
- *   D-7 rollback 138 (in the transaction): every 138 object gone; exam_syllabus_nodes has its original columns
+ *   D-7 rollback 138 (in the transaction): first the later rollbacks its ROLLBACK-CHAIN header names (139), then 138:
+ *       every 138 object gone; exam_syllabus_nodes has its original columns
  * Run: node scripts/live/test_syllabus_map_b1.cjs --local=54329 --pre      (local)
  *      node scripts/live/test_syllabus_map_b1.cjs [--pre]                  (project DB, owner present)
  */
@@ -36,6 +37,10 @@ const LOCAL = (process.argv.find((a) => a.startsWith('--local=')) || '').slice('
 const FILE = '20261114000138_syllabus_map_b1.sql';
 const SQL = fs.readFileSync(path.join(ROOT, 'supabase/migrations', FILE), 'utf8');
 const RB = fs.readFileSync(path.join(ROOT, 'docs/database/rollback/138_rollback.sql'), 'utf8');
+// ROLLBACK-CHAIN-1: the later rollbacks 138's header says must run first (latest first; each is IF EXISTS-safe when
+// its migration is not applied, e.g. a --pre run). 139 put a CHECK on fn_outline_lines_valid (CI dispatch 43579487271).
+const { runFirst, body } = require(path.join(ROOT, 'scripts/db/rollback-chain.cjs'));
+const RB_FIRST = runFirst(138);
 const ACTOR = 'syllabus-map-b1@courage-library.test';
 const FNS = ['fn_outline_lines_valid', 'fn_taxonomy_outline_set', 'fn_selection_stages_save_draft', 'fn_selection_stages_publish', 'fn_selection_stages_discard_draft'];
 
@@ -226,6 +231,7 @@ function client() {
       const cols = async () => (await q(`select string_agg(attname, ',' order by attnum) c from pg_attribute where attrelid = 'public.exam_syllabus_nodes'::regclass and attnum > 0 and not attisdropped`))[0].c;
       const before = PRE ? await cols() : null;
       await apply();
+      for (const f of RB_FIRST) await c.query(body(f)); // the rollback chain: later rollbacks first, in the same transaction
       await c.query(RB);
       const [left] = await q(`select (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = any($1))::int fns,
                                      (to_regclass('public.taxonomy_node_outlines') is null and to_regclass('public.exam_selection_stages') is null) tables_gone`, [FNS]);

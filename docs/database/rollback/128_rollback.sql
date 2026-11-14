@@ -2,6 +2,7 @@
 -- (never touched by 128 except the app keeping it in step). Uploaded icon FILES (storage, org-logos/categories/…) are
 -- not removed here: list them first and delete them with the service role if wanted.
 -- Run through scripts/db/apply-migration.cjs (no BEGIN / COMMIT here).
+-- ROLLBACK-CHAIN: run first: none
 
 DROP TRIGGER IF EXISTS trg_exams_slug_namespace ON public.exams;
 DROP TRIGGER IF EXISTS trg_exam_categories_slug_namespace ON public.exam_categories;

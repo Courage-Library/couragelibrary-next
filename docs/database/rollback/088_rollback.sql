@@ -5,6 +5,7 @@
 -- published while the current version is PUBLISHED). The 088 audit rows are kept; the rollback writes one
 -- QUESTION_UNARCHIVE audit row per question. Order: 088 → 087 → 086 → …
 -- =============================================================================
+-- ROLLBACK-CHAIN: run first: none
 
 DO $rb$
 DECLARE
