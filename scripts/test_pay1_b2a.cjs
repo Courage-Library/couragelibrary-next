@@ -158,6 +158,55 @@ test('P2-08 142: access_settings private (RLS P-6); the central check DEFINER wi
   return `${muts.length} mutations caught`;
 });
 
+/** app half: admin-only actions through the audited RPCs; ONE app entry to the central check, session client, fail-closed */
+function appCheck(actions, policy, otherCallers) {
+  for (const fn of ['setAccessPolicyAction', 'clearAccessPolicyAction', 'setPaywallAction']) {
+    const i = actions.indexOf(`export async function ${fn}(`);
+    if (i < 0) return `${fn} missing`;
+    const body = actions.slice(i, actions.indexOf('\n}\n', i));
+    if (!/^[^\n]*\n  const auth = await guardAdminAction\(\);\n  if \(!auth\.ok\) return auth;/.test(body)) return `${fn}: guardAdminAction() first (admin only)`;
+    if (/allowStaff/.test(body)) return `${fn}: staff must not change access`;
+  }
+  if (!/rpc\("fn_access_policy_set"/.test(actions) || !/rpc\("fn_access_policy_clear"/.test(actions) || !/rpc\("fn_paywall_set"/.test(actions)) return 'writes only through the audited RPCs';
+  if (/from\("access_policies"\)\.(insert|update|upsert|delete)|from\("access_settings"\)\.(insert|update|upsert|delete)/.test(actions)) return 'no direct table writes';
+  const ca = policy.slice(policy.indexOf('export async function canAccess('), policy.indexOf('export async function accessTier('));
+  if (!/createServerSupabaseClient\(\)/.test(ca) || /createAdminServerSupabaseClient/.test(ca)) return 'canAccess: the user session (auth.uid()), never the service role';
+  if (!/return !error && data === true;/.test(ca) || !/catch \{\n\s+return false;/.test(ca)) return 'canAccess: fail-closed';
+  if (otherCallers.length) return `the central check is called outside lib/access/policy.ts: ${otherCallers.join(', ')}`;
+  return null;
+}
+function centralCallers() {
+  const out = [];
+  const walk = (d) => {
+    for (const e of fs.readdirSync(path.join(ROOT, d), { withFileTypes: true })) {
+      const rel = `${d}/${e.name}`;
+      if (e.isDirectory()) walk(rel);
+      else if (/\.(ts|tsx)$/.test(e.name) && rel !== 'lib/access/policy.ts' && /rpc\("fn_access_(allowed|tier)"/.test(read(rel))) out.push(rel);
+    }
+  };
+  for (const d of ['app', 'services', 'lib', 'components']) walk(d);
+  return out;
+}
+test('P2-09 app: admin-only audited actions; canAccess = session + fail-closed; the only app entry to the central check', () => {
+  const actions = read('app/(site)/admin/access/actions.ts');
+  const policy = read('lib/access/policy.ts');
+  const why = appCheck(actions, policy, centralCallers());
+  assert(why === null, why);
+  assert(/requireAdminPage\(\{ path: "\/admin\/access" \}\)/.test(read('app/(site)/admin/access/page.tsx')), 'page: requireAdminPage, admin only');
+  assert(/"\/admin\/access",/.test(read('lib/admin/nav.ts')), 'ADMIN_ONLY_ROUTES');
+  const muts = [
+    ['staff allowed', appCheck(actions.replace('export async function setPaywallAction(payload: { enabled: boolean; confirm: string }): Promise<AccessActionResult> {\n  const auth = await guardAdminAction();', 'export async function setPaywallAction(payload: { enabled: boolean; confirm: string }): Promise<AccessActionResult> {\n  const auth = await guardAdminAction({ allowStaff: true });'), policy, [])],
+    ['no guard', appCheck(actions.replace(/(export async function clearAccessPolicyAction[^\n]*\n)  const auth = await guardAdminAction\(\);\n  if \(!auth\.ok\) return auth;\n/, '$1'), policy, [])],
+    ['direct table write', appCheck(actions + '\nconst x = () => createAdminServerSupabaseClient().from("access_policies").upsert({});\n', policy, [])],
+    ['canAccess via service role', appCheck(actions, policy.replace('const supabase = await createServerSupabaseClient();\n    const { data, error } = await supabase.rpc("fn_access_allowed"', 'const supabase = createAdminServerSupabaseClient();\n    const { data, error } = await supabase.rpc("fn_access_allowed"'), [])],
+    ['canAccess fail-open', appCheck(actions, policy.replace('return !error && data === true;', 'return error ? true : data === true;'), [])],
+    ['a second caller', appCheck(actions, policy, ['services/x.ts'])],
+  ];
+  const missed = muts.filter(([, w]) => w === null).map(([k]) => k);
+  assert(missed.length === 0, `not caught: ${missed.join(', ')}`);
+  return `${muts.length} mutations caught`;
+});
+
 test('P2-07 negative controls: each mutation is caught', () => {
   const muts = [
     ['client grant on policies', tablesCheck(SQL.replace('GRANT SELECT, INSERT, UPDATE, DELETE ON public.access_policies TO service_role;', 'GRANT SELECT, INSERT, UPDATE, DELETE ON public.access_policies TO service_role;\nGRANT SELECT ON public.access_policies TO authenticated;'))],

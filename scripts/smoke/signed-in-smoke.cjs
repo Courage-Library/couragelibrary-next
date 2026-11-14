@@ -103,6 +103,7 @@ const REQUIRED = {
   // Courage Studio phase 3 batch 1: the Studio header title
   '/admin/questions': ['"Question bank" heading', H(/^Question bank$/)],
   '/admin/mock-tests/sections': ['"Sections" heading (Studio, phase 3 batch 2)', H(/^Sections$/)],
+  '/admin/access': ['"Free & Pro" heading', H(/Free & Pro/)], // PAY-1 B2a: the access policy page (admin only)
   '/admin/payments': ['"Payment orders" heading', H(/Payment orders/)], // PAY-1 B1: read-only order list (legacy plan CMS retired)
   '/admin/support/flags': ['"Community Discussion Moderation" heading', H(/Community Discussion Moderation/)],
   '/admin/institutes': ['"Partner Coaching Institutes CMS" heading', H(/Partner Coaching Institutes CMS/)],
@@ -217,7 +218,7 @@ if (process.env.SMOKE_NEGATIVE_CONTROL === '1') REQUIRED['/admin/questions'] = [
     });
     check('/exams/ssc-cgl syllabus section matches the read model', sy.ok, sy.detail);
   } else if (CHECK === 'admin-pages') {
-    const ADMIN = ['/admin', '/admin/questions', '/admin/mock-tests/sections', '/admin/payments', '/admin/support/flags', '/admin/institutes', '/admin/mock-tests', '/admin/questions/import', '/admin/master-tree', '/admin/exams', '/admin/exams/knowledge', '/admin/system/design', '/admin/syllabus', '/admin/lessons', '/admin/lessons/new', '/admin/prompts', '/admin/syllabus/intake'];
+    const ADMIN = ['/admin', '/admin/questions', '/admin/mock-tests/sections', '/admin/payments', '/admin/access', '/admin/support/flags', '/admin/institutes', '/admin/mock-tests', '/admin/questions/import', '/admin/master-tree', '/admin/exams', '/admin/exams/knowledge', '/admin/system/design', '/admin/syllabus', '/admin/lessons', '/admin/lessons/new', '/admin/prompts', '/admin/syllabus/intake'];
     for (const p of ADMIN) {
       const r = await go(p);
       const html = await page.content();

@@ -15,6 +15,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_policies: {
+        Row: {
+          item_key: string
+          item_kind: string
+          tier: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          item_key: string
+          item_kind: string
+          tier: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          item_key?: string
+          item_kind?: string
+          tier?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      access_settings: {
+        Row: {
+          id: boolean
+          paywall_enabled: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: boolean
+          paywall_enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: boolean
+          paywall_enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       admin_audit_logs: {
         Row: {
           action_type: string
@@ -9135,6 +9180,33 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      fn_access_allowed: {
+        Args: { p_key: string; p_kind: string }
+        Returns: boolean
+      }
+      fn_access_policy_clear: {
+        Args: {
+          p_actor_email: string
+          p_actor_id: string
+          p_key: string
+          p_kind: string
+        }
+        Returns: Json
+      }
+      fn_access_policy_set: {
+        Args: {
+          p_actor_email: string
+          p_actor_id: string
+          p_key: string
+          p_kind: string
+          p_tier: string
+        }
+        Returns: Json
+      }
+      fn_access_tier: {
+        Args: { p_key: string; p_kind: string }
+        Returns: string
+      }
       fn_admin_mfa_required: { Args: never; Returns: boolean }
       fn_attach_gateway_order: {
         Args: {
@@ -9278,17 +9350,6 @@ export type Database = {
           p_title: string
           p_ttl_hours?: number
           p_user_id: string
-        }
-        Returns: Json
-      }
-      fn_create_payment_order: {
-        Args: {
-          p_coupon_code?: string
-          p_course_id?: string
-          p_gateway?: string
-          p_idempotency_key?: string
-          p_order_type: string
-          p_plan_id?: string
         }
         Returns: Json
       }
@@ -9472,6 +9533,7 @@ export type Database = {
         Returns: boolean
       }
       fn_has_pro: { Args: { p_user_id: string }; Returns: boolean }
+      fn_has_pro_self: { Args: never; Returns: boolean }
       fn_import_question_drafts: {
         Args: { p_actor: string; p_batch: Json }
         Returns: Json
@@ -9683,21 +9745,15 @@ export type Database = {
         Args: { p_user_override_type_id: string; p_vault_id: string }
         Returns: Json
       }
+      fn_paywall_set: {
+        Args: { p_actor_email: string; p_actor_id: string; p_enabled: boolean }
+        Returns: Json
+      }
       fn_post_discussion_message: {
         Args: {
           p_content_markdown: string
           p_parent_message_id?: string
           p_thread_id: string
-        }
-        Returns: Json
-      }
-      fn_process_payment_webhook: {
-        Args: {
-          p_event_type: string
-          p_gateway: string
-          p_gateway_event_id: string
-          p_payload: Json
-          p_signature_verified: boolean
         }
         Returns: Json
       }
@@ -10507,19 +10563,6 @@ export type Database = {
           p_question_id?: string
           p_topic_id?: string
           p_user_id: string
-        }
-        Returns: Json
-      }
-      fn_verify_and_fulfill_payment: {
-        Args: {
-          p_amount?: number
-          p_billing_address?: string
-          p_billing_name?: string
-          p_billing_state?: string
-          p_gateway_payment_id: string
-          p_gateway_signature: string
-          p_order_id: string
-          p_payment_method?: string
         }
         Returns: Json
       }

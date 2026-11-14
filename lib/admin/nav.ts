@@ -159,6 +159,8 @@ export const ADMIN_NAV: NavGroup[] = [
     label: "Settings",
     items: [
       { label: "Prompt templates", href: "/admin/prompts", icon: "settings", access: "admin" },
+      // PAY-1 B2a: the admin-controlled access policy (Free vs Pro per item; paywall switch) — admin only
+      { label: "Free & Pro", href: "/admin/access", icon: "billing", access: "admin" },
       {
         label: "Plans & payments", href: "/admin/payments", icon: "billing", access: "admin", flag: "PAYMENTS",
         tabs: [
@@ -283,6 +285,7 @@ export function searchEntries(nav: NavGroup[]): Array<{ label: string; hint: str
  * ones are redirects in next.config.ts, so a staff request lands here and gets the 404).
  */
 export const ADMIN_ONLY_ROUTES: readonly string[] = [
+  "/admin/access",
   "/admin/adaptive",
   "/admin/coverage",
   "/admin/exams/notes",

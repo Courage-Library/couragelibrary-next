@@ -221,6 +221,10 @@ const ADMIN_ONLY = new Set([
   'app/(site)/admin/syllabus/map/actions.ts#publishMapStagesAction', // SYLLABUS-MAP-1 B2: admin only (writes the master tree)
   ...['createIntakeAction', 'addIntakeCycleAction', 'decideIntakeItemAction', 'importIntakeAction', 'discardIntakeAction', 'bulkIntakeAction', 'undoIntakeBulkAction'].map((n) => `app/(site)/admin/syllabus/intake/actions.ts#${n}`),
   // F9-B: library Pro grants are admin-only (staff cannot grant Pro)
+  // PAY-1 B2a: the access policy (Free & Pro) is admin-only
+  'app/(site)/admin/access/actions.ts#setAccessPolicyAction',
+  'app/(site)/admin/access/actions.ts#clearAccessPolicyAction',
+  'app/(site)/admin/access/actions.ts#setPaywallAction',
   'app/(site)/admin/pro-library/actions.ts#grantLibraryProAction',
   'app/(site)/admin/pro-library/actions.ts#revokeLibraryProAction',
 ]);
