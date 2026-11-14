@@ -23,6 +23,10 @@ on:
         description: 'Run the anonymous production smoke'
         type: boolean
         default: true
+      admin_mfa:
+        description: 'AUTH-HARDEN-1: run the live jobs'' server with ADMIN_MFA_REQUIRED=true (QA admin / staff sign in at AAL2)'
+        type: boolean
+        default: false
   # CI-1 finalised (architect, 2026-10-21; first runs green): every push to main runs the gates, except docs-only changes.
   # `paths` with ordered negations (later patterns win): docs/** and *.md are skipped, but scripts/**, app/**, lib/**,
   # services/**, components/**, supabase/**, package*.json and .github/** are ALWAYS included (even .md files there).
@@ -147,6 +151,7 @@ jobs:
           q F11-TICKETS node scripts/test_f11_tickets.cjs || fail=1
           q FLAGS-LIVE-STATIC node scripts/test_flags_live_static.cjs || fail=1
           q ADMIN-MFA node scripts/test_admin_mfa.cjs || fail=1
+          q AUTH-HARDEN-1 node scripts/test_auth_harden1.cjs || fail=1
           q PLAYER-RESUME node scripts/test_player_resume.cjs || fail=1
           q Q7-REPORT-LINK node scripts/test_q7_report_link.cjs || fail=1
           q AGE-18 node scripts/test_age18.cjs || fail=1
@@ -286,6 +291,10 @@ jobs:
       QA_STUDENT_PASSWORD: ${{ secrets.QA_STUDENT_PASSWORD }}
       QA_STAFF_PASSWORD: ${{ secrets.QA_STAFF_PASSWORD }}
       QA_ADMIN_PASSWORD: ${{ secrets.QA_ADMIN_PASSWORD }}
+      # AUTH-HARDEN-1: the QA admin / staff TOTP secrets (GitHub secrets only; scripts/live/qa-session.cjs mints AAL2)
+      QA_ADMIN_TOTP_SECRET: ${{ secrets.QA_ADMIN_TOTP_SECRET }}
+      QA_STAFF_TOTP_SECRET: ${{ secrets.QA_STAFF_TOTP_SECRET }}
+      ADMIN_MFA_REQUIRED: ${{ github.event_name == 'workflow_dispatch' && inputs.admin_mfa && 'true' || 'false' }}
       E2E_STUDENT_EMAIL: qa-student@courage-library.test
       E2E_STUDENT_PASSWORD_KEY: QA_STUDENT_PASSWORD
       E2E_KEEP_USER: '1'
@@ -407,6 +416,10 @@ jobs:
       QA_STUDENT_PASSWORD: ${{ secrets.QA_STUDENT_PASSWORD }}
       QA_STAFF_PASSWORD: ${{ secrets.QA_STAFF_PASSWORD }}
       QA_ADMIN_PASSWORD: ${{ secrets.QA_ADMIN_PASSWORD }}
+      # AUTH-HARDEN-1: the QA admin / staff TOTP secrets (GitHub secrets only; scripts/live/qa-session.cjs mints AAL2)
+      QA_ADMIN_TOTP_SECRET: ${{ secrets.QA_ADMIN_TOTP_SECRET }}
+      QA_STAFF_TOTP_SECRET: ${{ secrets.QA_STAFF_TOTP_SECRET }}
+      ADMIN_MFA_REQUIRED: ${{ github.event_name == 'workflow_dispatch' && inputs.admin_mfa && 'true' || 'false' }}
       E2E_STUDENT_EMAIL: qa-student@courage-library.test
       E2E_STUDENT_PASSWORD_KEY: QA_STUDENT_PASSWORD
       E2E_KEEP_USER: '1'

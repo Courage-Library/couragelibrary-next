@@ -131,7 +131,14 @@ async function offline() {
             return idTokenImpl(args);
           },
           getUser: async () => ({ data: { user: null }, error: null }),
+          signOut: async () => ({ error: null }),
         },
+      }),
+      // AUTH-HARDEN-1: the new-account check (lib/auth/google-new-user.ts). Here every user already has a profile, so
+      // these tests keep covering the EXISTING-account path; scripts/test_auth_harden1.cjs covers new accounts.
+      createAdminServerSupabaseClient: () => ({
+        from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { id: 'existing' }, error: null }) }) }) }),
+        auth: { admin: { deleteUser: async () => { throw new Error('deleteUser must not be called for an existing account'); } } },
       }),
     },
     '@/services/user-profile.service': { UserProfileService: { ensureProfile: async (u) => (spy.profiles.push(u), null) } },

@@ -2,6 +2,22 @@
 
 Google is the primary sign-in, with email + password as the fallback (#59 / #60). It is **behind a feature flag that is OFF by default**. With the flag off nothing changes: no Google script, no button and no request to Google.
 
+**New accounts (AUTH-HARDEN-1).** Supabase creates a new account inside `signInWithIdToken`, before the app can look.
+So the server action checks every sign-in that turns out to be a new account (no profile row yet) against the email
+sign-up's rules:
+- **Registrations closed** (`AUTH_SIGNUP_ENABLED=false`, or Supabase "Allow new users to sign up" off) →
+  "Registrations are not open yet."
+- **The 18+ gate on** (`AGE_GATE_ENABLED`) **and the 18+ box next to the Google button not ticked** → "Please confirm
+  that you are 18 or older."
+
+The box is shown only while registrations are open and the gate is on.
+
+A refused new account is signed out, and the account Supabase just created is removed again. That happens only when
+the account has Google identities only, was created less than 2 minutes ago, and has no profile.
+
+Existing accounts are not affected; the middleware's `/confirm-age` gate handles them. If the new-account lookup
+fails, the sign-in fails closed. Gate: `scripts/test_auth_harden1.cjs` (CI offline `AUTH-HARDEN-1`).
+
 ## Architecture
 
 1. **Button on our own origin.** Google Identity Services (`https://accounts.google.com/gsi/client`) renders the "Continue with Google" button on `/auth/login`.

@@ -127,13 +127,86 @@ async function qaSession(email, deps = {}) {
     if (cached) return cached;
   }
   try {
-    const s = await mintWith429Retry(e, cfg, deps);
+    let s = await mintWith429Retry(e, cfg, deps);
+    // AUTH-HARDEN-1: admin / staff with a configured TOTP secret are raised to AAL2 (ADMIN_MFA_REQUIRED-proof sessions)
+    const secret = totpSecretFor(e, deps);
+    if (secret) s = await elevateToAal2(s, secret, cfg, deps);
     if (!deps.noCache) cacheWrite(e, s);
     return s;
   } catch (err) {
     diag(err);
     throw err;
   }
+}
+
+/**
+ * AUTH-HARDEN-1 (owner decision 2026-11-14: CI QA admin / staff get MFA too, no exemptions). The TOTP secret of each
+ * privileged QA identity lives ONLY in GitHub Actions secrets (environment ci-live) and the local .env.local:
+ *   QA_ADMIN_TOTP_SECRET, QA_STAFF_TOTP_SECRET  (base32, the key /admin/mfa shows at enrolment)
+ * Never printed, logged, cached or committed; the 6-digit code is generated at runtime (scripts/lib/totp.cjs).
+ * No secret configured → the session stays AAL1 (as before enrolment). The student never has one.
+ */
+const TOTP_ENV = Object.freeze({ 'qa-admin@courage-library.test': 'QA_ADMIN_TOTP_SECRET', 'qa-staff@courage-library.test': 'QA_STAFF_TOTP_SECRET' });
+function totpSecretFor(email, deps = {}) {
+  const key = TOTP_ENV[email];
+  if (!key) return null;
+  let env;
+  try {
+    env = deps.env || require('../db/_db-env.cjs').readEnv();
+  } catch {
+    return null;
+  }
+  const v = String(env(key) || '').trim();
+  return v || null;
+}
+
+/** The `aal` claim of an access token (the payload is not secret to its holder; never printed). */
+function aalOf(accessToken) {
+  try {
+    return JSON.parse(Buffer.from(String(accessToken).split('.')[1], 'base64url').toString('utf8')).aal || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * AAL1 session + TOTP → AAL2 session: setSession → mfa.listFactors → challengeAndVerify with the runtime code on the
+ * verified TOTP factor. A code just rejected (step boundary, or one already used) gets ONE retry with the next step's
+ * code. Fixed error codes only (QA_SESSION_MFA_*); the secret and the codes never appear in any message.
+ */
+async function elevateToAal2(s, secret, cfg, deps = {}) {
+  const { createClient } = deps.supabase || require('@supabase/supabase-js');
+  const { totp, secondsLeft } = deps.totp || require('../lib/totp.cjs');
+  const now = deps.now || (() => Date.now());
+  const sleep = deps.sleep || ((ms) => new Promise((r) => setTimeout(r, ms)));
+  const c = createClient(cfg.url, cfg.anon, NO_SESSION);
+  const set = await c.auth.setSession({ access_token: s.access_token, refresh_token: s.refresh_token });
+  if (set.error) throw new QaSessionError('MFA_SET_SESSION_FAILED', set.error.status);
+  const list = await c.auth.mfa.listFactors();
+  if (list.error) throw new QaSessionError('MFA_LIST_FAILED', list.error.status);
+  const factors = ((list.data && list.data.totp) || []).filter((f) => f.status === 'verified');
+  if (!factors.length) throw new QaSessionError('MFA_NOT_ENROLLED'); // a secret is configured but no verified factor
+  let code;
+  try {
+    code = totp(secret, { time: now() });
+  } catch {
+    throw new QaSessionError('MFA_SECRET_INVALID');
+  }
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    for (const f of factors) {
+      const r = await c.auth.mfa.challengeAndVerify({ factorId: f.id, code });
+      if (!r.error && r.data && r.data.access_token && r.data.refresh_token) {
+        if (aalOf(r.data.access_token) !== 'aal2') throw new QaSessionError('MFA_NOT_AAL2');
+        return { access_token: r.data.access_token, refresh_token: r.data.refresh_token, expires_at: Math.floor(now() / 1000) + Number(r.data.expires_in || 3600) };
+      }
+      if (r.error && (!r.error.status || r.error.status === 429 || r.error.status >= 500)) throw new QaSessionError('MFA_VERIFY_FAILED', r.error.status || null);
+    }
+    if (attempt === 1) {
+      await sleep((secondsLeft(now()) + 1) * 1000); // the next 30 s step → a fresh code
+      code = totp(secret, { time: now() });
+    }
+  }
+  throw new QaSessionError('MFA_CODE_REJECTED'); // the secret does not belong to the enrolled factor
 }
 
 /** One bounded retry when the auth server rate-limits (HTTP 429); everything else fails at once. */
@@ -227,7 +300,7 @@ async function qaBrowserLogin(context, email, baseUrl, deps) {
   await context.addCookies(await qaCookies(email, baseUrl, deps));
 }
 
-module.exports = { QA_IDENTITIES, QaSessionError, assertQaEmail, projectConfig, qaSession, qaAccessToken, qaUserClient, qaCookies, qaBrowserLogin };
+module.exports = { QA_IDENTITIES, QaSessionError, assertQaEmail, projectConfig, qaSession, qaAccessToken, qaUserClient, qaCookies, qaBrowserLogin, elevateToAal2, aalOf, totpSecretFor };
 
 // ---------- probe (first live CI gate): /verify must not be captcha-gated ----------
 if (require.main === module && process.argv.includes('--probe')) {
@@ -247,6 +320,22 @@ if (require.main === module && process.argv.includes('--probe')) {
       checks.push(['Q-02 a non-QA e-mail is refused before any network call', 'accepted']);
     } catch (e) {
       checks.push(['Q-02 a non-QA e-mail is refused before any network call', e.code === 'QA_SESSION_NOT_ALLOWED' ? '' : 'wrong error']);
+    }
+    // AUTH-HARDEN-1: each privileged QA identity with a configured TOTP secret mints an AAL2 session. Without a secret it
+    // stays AAL1 — a FAIL only while the server under test requires admin MFA (ADMIN_MFA_REQUIRED=true).
+    for (const who of ['qa-admin@courage-library.test', 'qa-staff@courage-library.test']) {
+      const label = `Q-03 ${who.split('@')[0]}: AAL2 session (TOTP generated at runtime)`;
+      if (!totpSecretFor(who)) {
+        if (process.env.ADMIN_MFA_REQUIRED === 'true') checks.push([label, 'no TOTP secret configured while ADMIN_MFA_REQUIRED=true']);
+        else console.log(`  SKIP  ${label} — no TOTP secret configured (AAL1 until enrolled)`);
+        continue;
+      }
+      try {
+        const s = await qaSession(who, { noCache: true });
+        checks.push([label, aalOf(s.access_token) === 'aal2' ? '' : 'session is not aal2']);
+      } catch (e) {
+        checks.push([label, e.code || 'QA_SESSION_UNKNOWN']);
+      }
     }
     for (const [name, err] of checks) console.log(`  ${err ? 'FAIL' : 'PASS'}  ${name}${err ? ` — ${err}` : ''}`);
     const failed = checks.filter(([, err]) => err).length;

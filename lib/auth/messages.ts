@@ -22,6 +22,8 @@ export const AUTH_NOTICES = {
   // AUTH-1 2b-2: Turnstile codes (a failed Google attempt reloads with ?m=, so they must be renderable here too)
   "captcha-required": { tone: "error", text: "Please complete the security check and try again." },
   "captcha-failed": { tone: "error", text: "The security check didn't work. Please try again." },
+  // AUTH-HARDEN-1: a new Google account without the 18+ box reloads the sign-in page with ?m=age-required
+  "age-required": { tone: "error", text: "Please confirm that you are 18 or older. Courage Library is for adults only." },
   generic: { tone: "error", text: "Something went wrong on our side. Please try again in a few minutes." },
 } as const satisfies Record<string, { tone: AuthNoticeTone; text: string }>;
 

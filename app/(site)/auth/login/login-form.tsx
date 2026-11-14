@@ -24,7 +24,7 @@ export type LoginGoogleConfig = { clientId: string; nonceHash: string } | null;
  * fields and links (R10); errors announced (role="alert"); the sign-up link follows the GLOBAL sign-up setting — while
  * sign-up is closed there is no link to it (UX-FIX-1), only "Explore exams".
  */
-export function LoginForm({ google, captcha = null, signupOpen = false }: { google: LoginGoogleConfig; captcha?: CaptchaConfig; signupOpen?: boolean }) {
+export function LoginForm({ google, captcha = null, signupOpen = false, googleAgeGate = false }: { google: LoginGoogleConfig; captcha?: CaptchaConfig; signupOpen?: boolean; googleAgeGate?: boolean }) {
   const [state, formAction, isPending] = useActionState(loginAction, null);
   // 2b-2: one widget for the whole page; the Google button reads the current token when its callback fires
   const captchaToken = useRef<string | null>(null);
@@ -70,6 +70,7 @@ export function LoginForm({ google, captcha = null, signupOpen = false }: { goog
               nonceHash={google.nonceHash}
               next={next}
               getCaptchaToken={captcha ? getCaptchaToken : undefined}
+              ageGate={googleAgeGate}
             />
             <div className="flex items-center gap-3 text-body-sm text-fg-secondary" aria-hidden="true">
               <span className="h-px flex-1 bg-line" />

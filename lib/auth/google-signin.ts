@@ -20,6 +20,33 @@ export function googleRetryUrl(code: string, next: unknown): string {
   return `/auth/login?${params.toString()}`;
 }
 
+/**
+ * AUTH-HARDEN-1: a Google sign-in that CREATES an account follows the same rules as the email sign-up (server-side):
+ *   registrations closed (AUTH_SIGNUP_ENABLED=false or Supabase "Allow new users to sign up" off) → "signup-closed"
+ *   the 18+ gate on (AGE_GATE_ENABLED) and the 18+ box not ticked                                   → "age-required"
+ * An EXISTING account is never asked (the caller only consults this for a new account). Pure.
+ */
+export function newGoogleAccountRefusal(input: { signup: "open" | "closed" | "unknown"; ageGate: boolean; ageConfirmed: boolean }): Extract<AuthErrorCode, "signup-closed" | "age-required"> | null {
+  if (input.signup === "closed") return "signup-closed";
+  if (input.ageGate && !input.ageConfirmed) return "age-required";
+  return null;
+}
+
+/**
+ * AUTH-HARDEN-1: may the account that Supabase just created for a REFUSED new Google sign-in be removed again (so no
+ * personal data is kept for someone we turned away)? Only when ALL hold: every identity is Google (never an email /
+ * password account linked by the same address), it was created within the last 2 minutes (by this very request), and
+ * the caller has seen that it has no profile row. Anything else is left alone. Pure.
+ */
+export const REFUSED_ACCOUNT_MAX_AGE_MS = 2 * 60 * 1000;
+export function isRemovableRefusedGoogleAccount(user: { created_at?: string | null; identities?: { provider?: string | null }[] | null } | null | undefined, hasProfile: boolean, now: number = Date.now()): boolean {
+  if (!user || hasProfile) return false;
+  const ids = Array.isArray(user.identities) ? user.identities : [];
+  if (!ids.length || !ids.every((i) => i && i.provider === "google")) return false;
+  const created = Date.parse(String(user.created_at ?? ""));
+  return Number.isFinite(created) && created <= now + 5000 && now - created <= REFUSED_ACCOUNT_MAX_AGE_MS;
+}
+
 export const MAX_ID_TOKEN_LENGTH = 4096;
 const SEGMENT = /^[A-Za-z0-9_-]+$/;
 

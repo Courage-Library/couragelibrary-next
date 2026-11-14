@@ -16,7 +16,9 @@ const path = require('path');
 const os = require('os');
 
 const SECRET_ENV = ['NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY', 'NEXT_PUBLIC_SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY',
-  'POSTGRES_URL_NON_POOLING', 'QA_STUDENT_PASSWORD', 'QA_STAFF_PASSWORD', 'QA_ADMIN_PASSWORD'];
+  'POSTGRES_URL_NON_POOLING', 'QA_STUDENT_PASSWORD', 'QA_STAFF_PASSWORD', 'QA_ADMIN_PASSWORD',
+  // AUTH-HARDEN-1: the QA admin / staff TOTP secrets
+  'QA_ADMIN_TOTP_SECRET', 'QA_STAFF_TOTP_SECRET'];
 
 /** secret values + values derived from them (≥ 6 chars, to avoid matching trivial strings) */
 function secretValues(env = process.env) {

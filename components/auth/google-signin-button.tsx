@@ -6,6 +6,7 @@ import { Alert } from "@/components/ui/alert";
 import { signInWithGoogleAction } from "@/app/(site)/auth/google-actions";
 import type { AuthState } from "@/app/(site)/auth/actions";
 import { googleRetryUrl } from "@/lib/auth/google-signin";
+import { AGE_CONFIRM_LABEL } from "@/lib/auth/age-gate";
 
 /**
  * AUTH-1 2b-1 (decision #66): "Continue with Google" via Google Identity Services, rendered on our own origin
@@ -21,13 +22,17 @@ export function GoogleSignInButton({
   nonceHash,
   next,
   getCaptchaToken,
+  ageGate = false,
 }: {
   clientId: string;
   nonceHash: string;
   next: string;
   getCaptchaToken?: () => string | undefined;
+  /** AUTH-HARDEN-1: 18+ gate on and registrations open → a NEW Google account needs the 18+ box (existing ones don't) */
+  ageGate?: boolean;
 }) {
   const slot = useRef<HTMLDivElement>(null);
+  const ageBox = useRef<HTMLInputElement>(null);
   const initialised = useRef(false);
   const [result, setResult] = useState<AuthState | null>(null);
   const [pending, startTransition] = useTransition();
@@ -49,7 +54,8 @@ export function GoogleSignInButton({
         setResult(null);
         startTransition(async () => {
           // success redirects on the server; only a fixed-code failure comes back
-          const r = await signInWithGoogleAction(credential, next, getCaptchaToken?.());
+          // the server decides: the box only matters when this Google account is new (exactly `true` counts)
+          const r = await signInWithGoogleAction(credential, next, getCaptchaToken?.(), ageBox.current?.checked === true);
           if (!r) return;
           if (r.code === "google-disabled") {
             setResult(r); // nothing to retry: Google sign-in is off
@@ -78,6 +84,14 @@ export function GoogleSignInButton({
       <div role="group" aria-label="Sign in with Google" aria-busy={pending} className="flex min-h-11 w-full justify-center">
         <div ref={slot} className="w-full max-w-[400px]" />
       </div>
+      {ageGate && (
+        <label className="flex min-h-11 items-start gap-3 text-body-sm text-fg" data-google-age="">
+          <input ref={ageBox} type="checkbox" name="googleAgeConfirmed" className="mt-1 h-5 w-5 shrink-0" />
+          <span>
+            {AGE_CONFIRM_LABEL}. <span className="text-fg-secondary">Needed only to create a new account with Google.</span>
+          </span>
+        </label>
+      )}
       {pending && (
         <p role="status" className="text-center text-body-sm text-fg-secondary">
           Signing you in…

@@ -4,6 +4,7 @@ import { googleClientId, isGoogleSignInEnabled } from "@/lib/auth/google-flag";
 import { nonceHashForRender } from "@/lib/auth/google-nonce";
 import { isCaptchaEnabled, turnstileSiteKey } from "@/lib/auth/captcha";
 import { getSignupAvailability } from "@/lib/auth/signup-availability";
+import { isAgeGateEnabled } from "@/lib/auth/age-gate";
 
 /**
  * Sign-in page. AUTH-1 2b-1 (decision #66): when the server-evaluated Google flag is on, the middleware has minted a
@@ -38,7 +39,9 @@ export default async function LoginPage() {
   return (
     <div className="auth-gradient min-h-[80vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <Suspense fallback={<div className="text-xs text-slate-400">Loading sign in...</div>}>
-        <LoginForm google={google} captcha={captcha} signupOpen={open} />
+        {/* AUTH-HARDEN-1: the 18+ box next to Google only while registrations are open AND the 18+ gate is on (the
+            server enforces it for a NEW Google account either way) */}
+        <LoginForm google={google} captcha={captcha} signupOpen={open} googleAgeGate={open && isAgeGateEnabled()} />
       </Suspense>
     </div>
   );
