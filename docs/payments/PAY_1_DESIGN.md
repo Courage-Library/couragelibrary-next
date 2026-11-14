@@ -200,8 +200,8 @@ See section 4.
 | Phase | Scope | Tests (new or extended gates) |
 |---|---|---|
 | **B1: hygiene + legacy retire** | Fix the F9-B path + comment; turn `REFUND_POLICY_PUBLISHED` into a reviewed constant flip (stays false until B7). `/checkout/*` → redirect to `/pricing` / `/billing`. `/billing` + payments-off pricing read F9 (`hasPro`, the entitlement end date). Remove admin legacy-plan creation. Migration: drop (or revoke + comment) the legacy payment functions; lower the SECDEF allow-list. Retire the stale S2-5 test. | F9-B PB-01 with the real path (negative: a wrong path fails); SECDEF ratchet −3; page smokes for `/checkout/*` → redirect; `/billing` shows Pro end date for a seeded entitlement (rolled-back live gate) |
-| **B2: Pro lock in SQL (PRO-LOCK-SQL-1, extended)** | DB paywall switch (`premium_system_configs` key, mirrors `PAYMENTS_ENABLED`; DEPLOY-BEFORE-ACTIVATE). `fn_lesson_locked_for(doc, lang)` uses `auth.uid()`, the gated set, the position and `fn_has_pro`. Refusal in `fn_lesson_quick_check_answer`, `fn_lesson_progress_save`, `fn_lesson_complete` and the visitor server action. Premium mocks: RLS on `mock_questions` (and question reads through them) for `is_free=false` → Pro or own attempt; `fn_check_practice_answer` refuses versions reachable only through premium mocks (per decision D2). | Real-role live gates, rolled back: free user **refused** (A, B, C, D paths); Pro user allowed; paywall off → allowed; anon refused; LOCAL_PG_TEST first; EARLIER-GATES (136/137 lesson gates, practice gates) |
-| **B3: one Pro check** | All app checks → `hasPro()`; flashcard RLS → the same rule as `fn_has_pro`; fix the `search_indexes` policy type; promotional-pass scope rule (D10) | Unit + live gates: expired / revoked / COURSE_PURCHASE ≠ Pro; promotional pass per D10 |
+| **B2: access policy + close the 5 bypass paths** (superseded design: section 7) | The `access_policies` table, the paywall master switch (off), the ONE central check `fn_access_allowed`, the admin "Free & Pro" page (audited), the D1 seed. D2 enforcement: mock content only through a server-started attempt; answers and explanations only after submit. The quick-check and practice-answer RPCs and the visitor server action call the central check. | Executed with the free QA student, rolled back: each of the 5 paths (A–E) refused; admin flips an item FREE↔PRO → the student's access follows; a non-admin cannot change policy; an unknown item is locked; switch off → today's behaviour. LOCAL_PG_TEST first; EARLIER-GATES (lesson 136/137, practice 093, mock gates) |
+| **B3: every check through the central function** | Analytics, Mistake Vault, Memory Lock, flashcards, mock start, lessons and `/billing` call `canAccess(kind, key)` (server) / `fn_access_allowed` (SQL). Remove the hard-coded rules (`is_free`, `access_tier`, FREE_N, `LESSON_FREE_PER_CHAPTER`, the flashcard entitlement query, the `search_indexes` 'SUBSCRIPTION' policy). Promotional-pass scope (D10). | A static gate: no Pro rule outside the central function (allow-list); live gates per feature: free refused with the switch on, allowed with it off or with the item FREE; expired / revoked / COURSE_PURCHASE ≠ Pro |
 | **B4: payment robustness** | Capture rule (D3); a **reconciliation job** for PENDING orders older than N minutes: fetch the order's payments → fulfil or mark FAILED; refund-before-fulfil handled; receipt number with retry on collision; `gateway_mode` column + QA allow-list for test mode (G7) | Unit tests with a fake Razorpay; webhook duplicate / out-of-order / amount-mismatch cases; reconciliation idempotency; test-mode e2e (section 4) |
 | **B5: emails + reminders** | App mail transport (D8). Receipt email after fulfil. Cron scheduled daily: D7 / D1 email + in-app, idempotent via `pro_reminders_sent`. `/billing` shows the end date. | Cron with a fake clock: exactly one D7 and one D1 per entitlement; no mail for expired / refunded; `CRON_SECRET` negative; template allow-list (like the auth emails) |
 | **B6: refund operations** | Refund-eligibility record: first purchase, purchase time, count of full Pro mock attempts (D5), refund used once. Admin refund view; refund execution per D4; founding-seat rule (D6); stacked-period rule (D7) | Eligibility unit tests (7-day boundary, 2 mocks → not eligible, second refund → not eligible); `refund.processed` idempotency; admin authz (SEC1B/1C registries) |
@@ -301,6 +301,69 @@ See section 4.
 **D13. A real live purchase after cutover:**
 - (a) the owner buys the cheapest plan once and refunds it
 - (b) no live test, rely on B7
+
+## 7. Owner decisions 2026-11-14 and the admin-controlled access policy (supersedes B2 / B3 above)
+
+**Decided:**
+- **D1 Pro at launch:** premium / full mock series, advanced analytics, Mistake Vault, Memory Lock. **Lessons stay free
+  (FREE_ALL).** D1 is the *seeded default*; the admin can change any item.
+- **D2:** mock questions are served **only through an active, server-started test, after the access check**. **No direct
+  table reads for anyone**: the client roles have no SELECT on mock content. Answers and explanations come **only after
+  submit**. The quick-check answer-key and practice-answer paths are closed the same way, through the central check. D2
+  applies **whatever the policy setting**.
+- **D11:** no free-tier limits at launch; only the Free / Pro boundary. The unused settings `free_practice_daily`,
+  `free_memory_lock_active` and `free_daily_mock` are retired in B3.
+
+**Owner requirement: Free vs Pro is fully admin-controlled, never hard-coded.**
+
+1. **One table `access_policies`:**
+   - `item_kind`: FEATURE · MOCK_SERIES · MOCK_TEST · COURSE · LESSON · TOPIC;
+   - `item_key`: a feature code, or the item's id as text; `'*'` = the default for that kind;
+   - `tier` = FREE / PRO;
+   - `updated_at`, `updated_by`.
+   - Primary key (`item_kind`, `item_key`).
+   - Feature codes: ADVANCED_ANALYTICS, MISTAKE_VAULT, MEMORY_LOCK, FLASHCARDS, PREMIUM_CA (the list grows by data; an
+     unknown code is PRO).
+2. **Resolution:**
+   1. the exact item;
+   2. its parent (a mock test → its series; a lesson → its course / topic);
+   3. the kind default `'*'`;
+   4. **otherwise PRO** (fail-closed: missing or unknown = locked).
+3. **The ONE central check `fn_access_allowed(kind, key)`.**
+   - **Properties:** SECURITY DEFINER, STABLE, `search_path ''`.
+   - **The rule:**
+     - the paywall master switch is off → true (today's behaviour);
+     - else the tier is FREE → true;
+     - else `fn_has_pro(auth.uid())`.
+   - **Who uses it:**
+     - RLS policies and RPCs call it;
+     - server code calls it through one wrapper, `canAccess(kind, key)`, with the user's session, so `auth.uid()` is
+       the user;
+     - nothing else may decide Free / Pro. A static gate keeps an allow-list of the few files that may mention
+       tiers.
+4. **Immediate effect, no cache:** the function reads the table at call time; no deploy, no cache to invalidate. If a
+   cache is ever added, the set-function must invalidate it.
+5. **The paywall master switch** (one row, admin-controlled, audited) stays **off** until the payments cutover (B8).
+   With it off, everything stays reachable as today, so B2 / B3 can ship without taking anything away from current
+   users (DEPLOY-BEFORE-ACTIVATE). D2 is enforced with the switch off too.
+6. **Admin page "Free & Pro"** (admin only, not staff):
+   - lists the features, mock series / tests and courses / lessons / topics with their resolved tier and its source
+     (exact / parent / default);
+   - changes go through `fn_access_policy_set` (service_role only), which writes `admin_audit_logs` (who, when, item,
+     old → new);
+   - the switch has its own confirm step and audit row.
+7. **Seed (D1):**
+   - FEATURE ADVANCED_ANALYTICS / MISTAKE_VAULT / MEMORY_LOCK = PRO; FLASHCARDS = FREE; PREMIUM_CA = PRO (*owner to
+     confirm; it is not in D1*);
+   - MOCK_TEST `'*'` = PRO, plus an explicit FREE row for every mock that is free today (`is_free=true`);
+   - LESSON / COURSE / TOPIC `'*'` = FREE.
+8. **Tests (B2 / B3), executed as the free QA student in rolled-back transactions:**
+   - the admin flips an item FREE↔PRO → the student's access changes immediately;
+   - a non-admin (student, staff, anon) cannot call the set-function or the admin action;
+   - an unknown item or kind is locked;
+   - switch off → today's behaviour;
+   - each of the 5 bypass paths (A quick-check key, B lesson structure / completion, C mock questions by table read,
+     D practice-answer key of a mock question, E lesson body control) is refused, plus mutation (negative) controls.
 
 ## 6. Evidence (read-only, 2026-11-14)
 
