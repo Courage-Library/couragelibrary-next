@@ -2809,6 +2809,90 @@ export type Database = {
           },
         ]
       }
+      exam_selection_stages: {
+        Row: {
+          archived_at: string | null
+          as_of_date: string | null
+          created_at: string
+          created_by: string | null
+          created_by_email: string
+          details: Json
+          exam_cycle_id: string | null
+          exam_id: string
+          id: string
+          name: string
+          nature: string
+          paper_name: string | null
+          position: number
+          published_at: string | null
+          published_by: string | null
+          source_url: string | null
+          stage_kind: string
+          status: string
+          uncertain: boolean
+          uncertain_reason: string | null
+        }
+        Insert: {
+          archived_at?: string | null
+          as_of_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_email: string
+          details?: Json
+          exam_cycle_id?: string | null
+          exam_id: string
+          id?: string
+          name: string
+          nature: string
+          paper_name?: string | null
+          position: number
+          published_at?: string | null
+          published_by?: string | null
+          source_url?: string | null
+          stage_kind: string
+          status?: string
+          uncertain?: boolean
+          uncertain_reason?: string | null
+        }
+        Update: {
+          archived_at?: string | null
+          as_of_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_email?: string
+          details?: Json
+          exam_cycle_id?: string | null
+          exam_id?: string
+          id?: string
+          name?: string
+          nature?: string
+          paper_name?: string | null
+          position?: number
+          published_at?: string | null
+          published_by?: string | null
+          source_url?: string | null
+          stage_kind?: string
+          status?: string
+          uncertain?: boolean
+          uncertain_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_selection_stages_exam_cycle_id_fkey"
+            columns: ["exam_cycle_id"]
+            isOneToOne: false
+            referencedRelation: "exam_cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_selection_stages_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exam_sources: {
         Row: {
           created_at: string
@@ -2958,6 +3042,7 @@ export type Database = {
       }
       exam_syllabus_nodes: {
         Row: {
+          choice_group: string | null
           created_at: string
           description: string | null
           display_order: number
@@ -2977,6 +3062,7 @@ export type Database = {
           weightage_tier: string | null
         }
         Insert: {
+          choice_group?: string | null
           created_at?: string
           description?: string | null
           display_order?: number
@@ -2996,6 +3082,7 @@ export type Database = {
           weightage_tier?: string | null
         }
         Update: {
+          choice_group?: string | null
           created_at?: string
           description?: string | null
           display_order?: number
@@ -6790,6 +6877,218 @@ export type Database = {
           },
         ]
       }
+      syllabus_map_items: {
+        Row: {
+          aliases: string[]
+          avg_questions: number | null
+          candidates: Json
+          decided_at: string | null
+          decided_by: string | null
+          decided_by_email: string | null
+          decision: string | null
+          decision_node_id: string | null
+          id: string
+          item_key: string
+          kind: string
+          level: string | null
+          match_status: string
+          matched_node_id: string | null
+          origin: string | null
+          outline: string[] | null
+          outline_action: string | null
+          outline_conflict: boolean
+          parent_item_id: string | null
+          parent_node_id: string | null
+          position: number
+          raw_name: string | null
+          raw_name_hi: string | null
+          ref_path: string | null
+          section_key: string | null
+          session_id: string
+          weightage_tier: string | null
+        }
+        Insert: {
+          aliases?: string[]
+          avg_questions?: number | null
+          candidates?: Json
+          decided_at?: string | null
+          decided_by?: string | null
+          decided_by_email?: string | null
+          decision?: string | null
+          decision_node_id?: string | null
+          id?: string
+          item_key: string
+          kind: string
+          level?: string | null
+          match_status: string
+          matched_node_id?: string | null
+          origin?: string | null
+          outline?: string[] | null
+          outline_action?: string | null
+          outline_conflict?: boolean
+          parent_item_id?: string | null
+          parent_node_id?: string | null
+          position: number
+          raw_name?: string | null
+          raw_name_hi?: string | null
+          ref_path?: string | null
+          section_key?: string | null
+          session_id: string
+          weightage_tier?: string | null
+        }
+        Update: {
+          aliases?: string[]
+          avg_questions?: number | null
+          candidates?: Json
+          decided_at?: string | null
+          decided_by?: string | null
+          decided_by_email?: string | null
+          decision?: string | null
+          decision_node_id?: string | null
+          id?: string
+          item_key?: string
+          kind?: string
+          level?: string | null
+          match_status?: string
+          matched_node_id?: string | null
+          origin?: string | null
+          outline?: string[] | null
+          outline_action?: string | null
+          outline_conflict?: boolean
+          parent_item_id?: string | null
+          parent_node_id?: string | null
+          position?: number
+          raw_name?: string | null
+          raw_name_hi?: string | null
+          ref_path?: string | null
+          section_key?: string | null
+          session_id?: string
+          weightage_tier?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "syllabus_map_items_decision_node_id_fkey"
+            columns: ["decision_node_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "syllabus_map_items_matched_node_id_fkey"
+            columns: ["matched_node_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "syllabus_map_items_parent_item_id_fkey"
+            columns: ["parent_item_id"]
+            isOneToOne: false
+            referencedRelation: "syllabus_map_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "syllabus_map_items_parent_node_id_fkey"
+            columns: ["parent_node_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "syllabus_map_items_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "syllabus_map_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      syllabus_map_sessions: {
+        Row: {
+          contract: string
+          contract_version: number
+          created_at: string
+          created_by: string | null
+          created_by_email: string
+          exam_cycle_id: string | null
+          exam_id: string | null
+          id: string
+          imported_version_id: string | null
+          payload: Json
+          payload_sha256: string
+          result: Json | null
+          status: string
+          subject_node_id: string | null
+          tier: string | null
+          updated_at: string
+        }
+        Insert: {
+          contract: string
+          contract_version: number
+          created_at?: string
+          created_by?: string | null
+          created_by_email: string
+          exam_cycle_id?: string | null
+          exam_id?: string | null
+          id?: string
+          imported_version_id?: string | null
+          payload: Json
+          payload_sha256: string
+          result?: Json | null
+          status?: string
+          subject_node_id?: string | null
+          tier?: string | null
+          updated_at?: string
+        }
+        Update: {
+          contract?: string
+          contract_version?: number
+          created_at?: string
+          created_by?: string | null
+          created_by_email?: string
+          exam_cycle_id?: string | null
+          exam_id?: string | null
+          id?: string
+          imported_version_id?: string | null
+          payload?: Json
+          payload_sha256?: string
+          result?: Json | null
+          status?: string
+          subject_node_id?: string | null
+          tier?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "syllabus_map_sessions_exam_cycle_id_fkey"
+            columns: ["exam_cycle_id"]
+            isOneToOne: false
+            referencedRelation: "exam_cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "syllabus_map_sessions_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "syllabus_map_sessions_imported_version_id_fkey"
+            columns: ["imported_version_id"]
+            isOneToOne: false
+            referencedRelation: "exam_syllabus_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "syllabus_map_sessions_subject_node_id_fkey"
+            columns: ["subject_node_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       taxonomy_fk_flip_log: {
         Row: {
           column_name: string
@@ -6864,6 +7163,44 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "canonical_taxonomy_nodes"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      taxonomy_node_outlines: {
+        Row: {
+          items: string[]
+          node_id: string
+          node_type: string
+          source: string
+          updated_at: string
+          updated_by: string | null
+          updated_by_email: string
+        }
+        Insert: {
+          items: string[]
+          node_id: string
+          node_type: string
+          source: string
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_email: string
+        }
+        Update: {
+          items?: string[]
+          node_id?: string
+          node_type?: string
+          source?: string
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_email?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "taxonomy_node_outlines_node_fkey"
+            columns: ["node_id", "node_type"]
+            isOneToOne: false
+            referencedRelation: "canonical_taxonomy_nodes"
+            referencedColumns: ["id", "node_type"]
           },
         ]
       }
@@ -9341,6 +9678,7 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_outline_lines_valid: { Args: { p_items: string[] }; Returns: boolean }
       fn_override_mistake_cognitive_type: {
         Args: { p_user_override_type_id: string; p_vault_id: string }
         Returns: Json
@@ -9531,6 +9869,36 @@ export type Database = {
           p_exam_ids?: string[]
           p_language?: string
           p_remove_exam_ids?: string[]
+        }
+        Returns: Json
+      }
+      fn_selection_stages_discard_draft: {
+        Args: {
+          p_actor_email: string
+          p_actor_id: string
+          p_exam_cycle_id: string
+          p_exam_id: string
+        }
+        Returns: Json
+      }
+      fn_selection_stages_publish: {
+        Args: {
+          p_actor_email: string
+          p_actor_id: string
+          p_exam_cycle_id: string
+          p_exam_id: string
+        }
+        Returns: Json
+      }
+      fn_selection_stages_save_draft: {
+        Args: {
+          p_actor_email: string
+          p_actor_id: string
+          p_as_of: string
+          p_exam_cycle_id: string
+          p_exam_id: string
+          p_source_url: string
+          p_stages: Json
         }
         Returns: Json
       }
@@ -9917,6 +10285,86 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_syllabus_map__audit: {
+        Args: {
+          p_action: string
+          p_actor_email: string
+          p_actor_id: string
+          p_entity: string
+          p_new: Json
+          p_target_id: string
+        }
+        Returns: undefined
+      }
+      fn_syllabus_map__node_ok: {
+        Args: { p_level: string; p_node_id: string; p_subject_id: string }
+        Returns: boolean
+      }
+      fn_syllabus_map__outline_conflict: {
+        Args: { p_node_id: string; p_outline: string[] }
+        Returns: boolean
+      }
+      fn_syllabus_map_create: {
+        Args: {
+          p_actor_email: string
+          p_actor_id: string
+          p_contract: string
+          p_exam_cycle_id: string
+          p_exam_id: string
+          p_items: Json
+          p_payload: Json
+          p_payload_sha256: string
+          p_subject_node_id: string
+          p_tier: string
+        }
+        Returns: Json
+      }
+      fn_syllabus_map_decide: {
+        Args: {
+          p_actor_email: string
+          p_actor_id: string
+          p_decision: string
+          p_item_id: string
+          p_node_id: string
+        }
+        Returns: Json
+      }
+      fn_syllabus_map_discard: {
+        Args: {
+          p_actor_email: string
+          p_actor_id: string
+          p_session_id: string
+        }
+        Returns: Json
+      }
+      fn_syllabus_map_import: {
+        Args: {
+          p_actor_email: string
+          p_actor_id: string
+          p_session_id: string
+          p_version_tag: string
+        }
+        Returns: Json
+      }
+      fn_syllabus_map_set_outline_action: {
+        Args: {
+          p_action: string
+          p_actor_email: string
+          p_actor_id: string
+          p_item_id: string
+        }
+        Returns: Json
+      }
+      fn_syllabus_map_set_weightage: {
+        Args: {
+          p_actor_email: string
+          p_actor_id: string
+          p_avg_questions: number
+          p_item_id: string
+          p_tier: string
+        }
+        Returns: Json
+      }
       fn_syllabus_move_node: {
         Args: {
           p_display_order?: number
@@ -9988,6 +10436,16 @@ export type Database = {
         Returns: Json
       }
       fn_taxonomy_normalize: { Args: { p_text: string }; Returns: string }
+      fn_taxonomy_outline_set: {
+        Args: {
+          p_actor_email: string
+          p_actor_id: string
+          p_items: string[]
+          p_node_id: string
+          p_source: string
+        }
+        Returns: Json
+      }
       fn_taxonomy_remove_alias: {
         Args: { p_actor_email: string; p_actor_id: string; p_alias_id: string }
         Returns: undefined

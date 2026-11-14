@@ -238,7 +238,7 @@ Rules for every phase:
   - the unit's weightage: the topic entry's tier, else the best of its subtopics; `avg_questions`: the topic entry's, else the sum of its subtopics';
   - the selection stages saved as a DRAFT set.
 - **Publishing:** the syllabus draft is published from the existing editor (PUBLISH-CONFIRM-SERVER). The stages have their own "Publish the selection process" button on the review page. Drafts are never visible to candidates (M-7c).
-- **Types:** the service reads through the registered quarantine client `TYPES-1:C-SYLLABUS-MAP-B2` until 139 is applied and `npm run db:types` has run. That is part of the B2 release; the quarantine is removed then.
+- **Types:** typed client. During the build the service read through the quarantine client `TYPES-1:C-SYLLABUS-MAP-B2`; at the B2 release (139 applied 2026-11-14, `npm run db:types`) the quarantine and its register entry were removed. Nullable RPC arguments go through `sqlNullArg`, jsonb results through `rpcJsonObject` (`lib/supabase/rpc.ts`).
 - **Admin:** `/admin/syllabus/map` (paste, recent files) and `/admin/syllabus/map/[id]` (review). Both are admin-only routes (nav `ADMIN_ONLY_ROUTES`, SEC-1C). The Syllabus area has a "Master & exam maps" tab.
 - **Samples** for the generation prompts: `data/syllabus-map/master-intake.sample.json` and `data/syllabus-map/exam-map.sample.json`. Both are valid, warning-free and used by the gates. The exam sample uses the inactive `qa-syllabus-test` exam and a "History or Geography" choice group, because "English or Hindi" needs the Hindi subject (TAXONOMY-HINDI-1).
 - **Tests:**

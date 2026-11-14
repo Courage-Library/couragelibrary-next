@@ -15,7 +15,8 @@ import { createHash } from "crypto";
 import { guardAdminAction } from "@/lib/auth/require-admin";
 import { QA_RUN_SLUG_LIKE } from "@/lib/qa/fixtures";
 import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
-import { quarantinedClient, type QuarantinedClient, type QuarantinedRow } from "@/lib/supabase/quarantine";
+import { rpcJsonObject, sqlNullArg } from "@/lib/supabase/rpc";
+import type { Database, Json } from "@/types/database";
 import { extractJson } from "@/lib/prompts/paste-extract";
 import { validateMasterIntake } from "@/lib/syllabus/master-intake-contract";
 import { validateExamMap } from "@/lib/syllabus/exam-map-contract";
@@ -68,11 +69,24 @@ export interface MapItemView {
 interface Ctx {
   userId: string | null;
   userEmail: string;
-  /**
-   * TYPES-1:C-SYLLABUS-MAP-B2 — the 139 tables / functions are not in types/database.ts until 139 is applied and the
-   * types regenerated (B2 release): until then this module reads through the registered quarantine client.
-   */
-  db: QuarantinedClient;
+  db: AdminDb;
+}
+
+type AdminDb = ReturnType<typeof createAdminServerSupabaseClient>;
+type MapItemRow = Database["public"]["Tables"]["syllabus_map_items"]["Row"];
+type MapSessionRow = Pick<Database["public"]["Tables"]["syllabus_map_sessions"]["Row"], "id" | "contract" | "status" | "exam_id" | "exam_cycle_id" | "tier" | "created_at" | "imported_version_id" | "result" | "payload">;
+/** a jsonb value as an object (the 139 functions return objects; anything else reads as empty) */
+const obj = (j: Json | null | undefined): Record<string, unknown> => rpcJsonObject<Record<string, unknown>>(j) ?? {};
+const strOrNull = (v: unknown): string | null => (typeof v === "string" ? v : null);
+/** the stored match suggestions (jsonb) → MapCandidate[]; a malformed entry is dropped, never shown half-filled */
+function toCandidates(j: Json): MapCandidate[] {
+  if (!Array.isArray(j)) return [];
+  return j.flatMap((e) => {
+    const o = rpcJsonObject<Record<string, unknown>>(e);
+    return o && typeof o.node_id === "string" && typeof o.name === "string" && typeof o.path === "string" && typeof o.score === "number"
+      ? [{ node_id: o.node_id, name: o.name, path: o.path, score: o.score }]
+      : [];
+  });
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -93,18 +107,18 @@ export function mapDbError(error: { code?: string; message?: string } | null | u
 async function ctx(): Promise<Ctx | null> {
   const auth = await guardAdminAction();
   if (!auth.ok) return null;
-  return { userId: auth.userId || null, userEmail: auth.userEmail || "unknown", db: quarantinedClient(createAdminServerSupabaseClient(), "TYPES-1:C-SYLLABUS-MAP-B2") };
+  return { userId: auth.userId || null, userEmail: auth.userEmail || "unknown", db: createAdminServerSupabaseClient() };
 }
 
-async function loadTree(db: QuarantinedClient) {
+async function loadTree(db: AdminDb) {
   const [nodes, aliases] = await Promise.all([
     db.from("canonical_taxonomy_nodes").select("id, parent_id, node_type, name, name_hi, hierarchy_path, is_active, is_internal").not("slug", "like", QA_RUN_SLUG_LIKE), // QA-FIXTURE-EXCLUSION
     db.from("taxonomy_node_aliases").select("node_id, normalized_alias"),
   ]);
   if (nodes.error || aliases.error) return null;
   return {
-    nodes: (nodes.data || []).map((n: QuarantinedRow) => ({ id: n.id, parentId: n.parent_id, nodeType: n.node_type, name: n.name, nameHi: n.name_hi, path: n.hierarchy_path, isActive: n.is_active, isInternal: n.is_internal === true })),
-    aliases: (aliases.data || []).map((a: QuarantinedRow) => ({ nodeId: a.node_id, normalized: a.normalized_alias })),
+    nodes: (nodes.data || []).map((n) => ({ id: n.id, parentId: n.parent_id, nodeType: n.node_type, name: n.name, nameHi: n.name_hi, path: n.hierarchy_path, isActive: n.is_active, isInternal: n.is_internal === true })),
+    aliases: (aliases.data || []).map((a) => ({ nodeId: a.node_id, normalized: a.normalized_alias })),
   };
 }
 
@@ -122,7 +136,7 @@ export class SyllabusMapService {
     if (!tree) return fail("DB_ERROR", "Could not load the master tree.");
     const sha = createHash("sha256").update(JSON.stringify(raw), "utf8").digest("hex");
 
-    let rpcArgs: Record<string, unknown>;
+    let rpcArgs: { p_contract: MapContract; p_subject_node_id: string | null; p_exam_id: string | null; p_exam_cycle_id: string | null; p_tier: string | null };
     let items;
     if (contract === "MASTER_INTAKE") {
       const v = validateMasterIntake(raw);
@@ -148,18 +162,23 @@ export class SyllabusMapService {
       rpcArgs = { p_contract: contract, p_subject_node_id: null, p_exam_id: exam.id, p_exam_cycle_id: cycleId, p_tier: v.value.tier };
     }
     const { data, error } = await c.db.rpc("fn_syllabus_map_create", {
-      ...rpcArgs,
-      p_payload: raw,
+      p_contract: rpcArgs.p_contract,
+      p_subject_node_id: sqlNullArg(rpcArgs.p_subject_node_id),
+      p_exam_id: sqlNullArg(rpcArgs.p_exam_id),
+      p_exam_cycle_id: sqlNullArg(rpcArgs.p_exam_cycle_id),
+      p_tier: sqlNullArg(rpcArgs.p_tier),
+      p_payload: raw as Json,
       p_payload_sha256: sha,
-      p_items: JSON.parse(JSON.stringify(items)),
-      p_actor_id: c.userId,
+      p_items: JSON.parse(JSON.stringify(items)) as Json,
+      p_actor_id: sqlNullArg(c.userId),
       p_actor_email: c.userEmail,
     });
     if (error || !data) {
       const e = mapDbError(error);
       return fail(e.code, e.error);
     }
-    return { success: true, data: { sessionId: data.session_id, created: data.created, contract, summary: mapMatchSummary(items) } };
+    const r = obj(data);
+    return { success: true, data: { sessionId: String(r.session_id), created: r.created === true, contract, summary: mapMatchSummary(items) } };
   }
 
   static async list(): Promise<MapResult<MapSessionView[]>> {
@@ -184,20 +203,20 @@ export class SyllabusMapService {
     ]);
     if (s.error || it.error) return fail("DB_ERROR", "Could not load the file.");
     if (!s.data) return fail("NOT_FOUND", "File not found.");
-    const rows = it.data || [];
-    const ids = [...new Set(rows.flatMap((r: QuarantinedRow) => [r.decision_node_id, r.parent_node_id]).filter(Boolean))] as string[];
+    const rows: MapItemRow[] = it.data || [];
+    const ids = [...new Set(rows.flatMap((r) => [r.decision_node_id, r.parent_node_id]).filter((v): v is string => typeof v === "string"))];
     const [nodes, outlines] = await Promise.all([
       ids.length ? c.db.from("canonical_taxonomy_nodes").select("id, name, hierarchy_path").in("id", ids) : Promise.resolve({ data: [], error: null }),
       ids.length ? c.db.from("taxonomy_node_outlines").select("node_id, items").in("node_id", ids) : Promise.resolve({ data: [], error: null }),
     ]);
-    const byId = new Map((nodes.data || []).map((n: { id: string; name: string; hierarchy_path: string }) => [n.id, { id: n.id, name: n.name, path: n.hierarchy_path }]));
-    const outlineOf = new Map((outlines.data || []).map((o: { node_id: string; items: string[] }) => [o.node_id, o.items]));
-    const items: MapItemView[] = rows.map((r: QuarantinedRow) => ({
+    const byId = new Map((nodes.data || []).map((n) => [n.id, { id: n.id, name: n.name, path: n.hierarchy_path }]));
+    const outlineOf = new Map((outlines.data || []).map((o) => [o.node_id, o.items as string[]]));
+    const items: MapItemView[] = rows.map((r) => ({
       id: r.id,
       key: r.item_key,
       parentItemId: r.parent_item_id,
-      kind: r.kind,
-      level: r.level,
+      kind: r.kind as MapItemView["kind"],
+      level: r.level as MapItemView["level"],
       refPath: r.ref_path,
       name: r.raw_name,
       nameHi: r.raw_name_hi,
@@ -206,13 +225,13 @@ export class SyllabusMapService {
       sectionKey: r.section_key,
       weightageTier: r.weightage_tier,
       avgQuestions: r.avg_questions === null ? null : Number(r.avg_questions),
-      matchStatus: r.match_status,
-      candidates: Array.isArray(r.candidates) ? r.candidates : [],
-      decision: r.decision,
+      matchStatus: r.match_status as MapMatchStatus,
+      candidates: toCandidates(r.candidates),
+      decision: r.decision as MapDecision | null,
       decisionNode: r.decision_node_id ? byId.get(r.decision_node_id) ?? null : null,
       parentNode: r.parent_node_id ? byId.get(r.parent_node_id) ?? null : null,
       outlineConflict: r.outline_conflict === true,
-      outlineAction: r.outline_action,
+      outlineAction: r.outline_action as MapItemView["outlineAction"],
       currentOutline: r.decision_node_id ? outlineOf.get(r.decision_node_id) ?? null : null,
     }));
     return { success: true, data: { session: toSession(s.data), items } };
@@ -233,19 +252,19 @@ export class SyllabusMapService {
         nodeId = data.id;
       } else return fail("VALIDATION", "Pick a suggestion or type a master path (subject.topic or subject.topic.subtopic).");
     }
-    const { data, error } = await c.db.rpc("fn_syllabus_map_decide", { p_item_id: itemId, p_decision: decision, p_node_id: nodeId, p_actor_id: c.userId, p_actor_email: c.userEmail });
+    const { data, error } = await c.db.rpc("fn_syllabus_map_decide", { p_item_id: itemId, p_decision: decision, p_node_id: sqlNullArg(nodeId), p_actor_id: sqlNullArg(c.userId), p_actor_email: c.userEmail });
     if (error) {
       const e = mapDbError(error);
       return fail(e.code, e.error);
     }
-    return { success: true, data: { nodeId: data?.node_id ?? null } };
+    return { success: true, data: { nodeId: strOrNull(obj(data).node_id) } };
   }
 
   static async setOutlineAction(itemId: string, action: "REPLACE" | "KEEP"): Promise<MapResult<{ action: string }>> {
     const c = await ctx();
     if (!c) return fail("UNAUTHORIZED", "Unauthorized.");
     if (!isUuid(itemId) || (action !== "REPLACE" && action !== "KEEP")) return fail("VALIDATION", "Choose Replace or Keep.");
-    const { error } = await c.db.rpc("fn_syllabus_map_set_outline_action", { p_item_id: itemId, p_action: action, p_actor_id: c.userId, p_actor_email: c.userEmail });
+    const { error } = await c.db.rpc("fn_syllabus_map_set_outline_action", { p_item_id: itemId, p_action: action, p_actor_id: sqlNullArg(c.userId), p_actor_email: c.userEmail });
     if (error) {
       const e = mapDbError(error);
       return fail(e.code, e.error);
@@ -259,7 +278,7 @@ export class SyllabusMapService {
     if (!isUuid(itemId)) return fail("VALIDATION", "Item not found.");
     if (tier !== null && !["HIGH_YIELD", "CORE", "MODERATE", "LOW", "OPTIONAL"].includes(tier)) return fail("VALIDATION", "Choose a weightage tier.");
     if (avgQuestions !== null && (!Number.isFinite(avgQuestions) || avgQuestions < 0 || avgQuestions > 1000)) return fail("VALIDATION", "Average questions: a number from 0 to 1000.");
-    const { error } = await c.db.rpc("fn_syllabus_map_set_weightage", { p_item_id: itemId, p_tier: tier, p_avg_questions: avgQuestions, p_actor_id: c.userId, p_actor_email: c.userEmail });
+    const { error } = await c.db.rpc("fn_syllabus_map_set_weightage", { p_item_id: itemId, p_tier: sqlNullArg(tier), p_avg_questions: sqlNullArg(avgQuestions), p_actor_id: sqlNullArg(c.userId), p_actor_email: c.userEmail });
     if (error) {
       const e = mapDbError(error);
       return fail(e.code, e.error);
@@ -272,19 +291,19 @@ export class SyllabusMapService {
     const c = await ctx();
     if (!c) return fail("UNAUTHORIZED", "Unauthorized.");
     if (!isUuid(sessionId)) return fail("NOT_FOUND", "File not found.");
-    const { data, error } = await c.db.rpc("fn_syllabus_map_import", { p_session_id: sessionId, p_version_tag: versionTag, p_actor_id: c.userId, p_actor_email: c.userEmail });
+    const { data, error } = await c.db.rpc("fn_syllabus_map_import", { p_session_id: sessionId, p_version_tag: sqlNullArg(versionTag), p_actor_id: sqlNullArg(c.userId), p_actor_email: c.userEmail });
     if (error) {
       const e = mapDbError(error);
       return fail(e.code, e.error);
     }
-    return { success: true, data: data as Record<string, unknown> };
+    return { success: true, data: obj(data) };
   }
 
   static async discard(sessionId: string): Promise<MapResult<{ id: string }>> {
     const c = await ctx();
     if (!c) return fail("UNAUTHORIZED", "Unauthorized.");
     if (!isUuid(sessionId)) return fail("NOT_FOUND", "File not found.");
-    const { error } = await c.db.rpc("fn_syllabus_map_discard", { p_session_id: sessionId, p_actor_id: c.userId, p_actor_email: c.userEmail });
+    const { error } = await c.db.rpc("fn_syllabus_map_discard", { p_session_id: sessionId, p_actor_id: sqlNullArg(c.userId), p_actor_email: c.userEmail });
     if (error) {
       const e = mapDbError(error);
       return fail(e.code, e.error);
@@ -298,29 +317,29 @@ export class SyllabusMapService {
     if (!c) return fail("UNAUTHORIZED", "Unauthorized.");
     if (!isUuid(sessionId)) return fail("NOT_FOUND", "File not found.");
     const { data: s } = await c.db.from("syllabus_map_sessions").select("contract, exam_id, exam_cycle_id, status").eq("id", sessionId).maybeSingle();
-    if (!s || s.contract !== "EXAM_MAP" || s.status !== "IMPORTED") return fail("VALIDATION", "Import the exam map first.");
-    const { data, error } = await c.db.rpc("fn_selection_stages_publish", { p_exam_id: s.exam_id, p_exam_cycle_id: s.exam_cycle_id, p_actor_id: c.userId, p_actor_email: c.userEmail });
+    if (!s || s.contract !== "EXAM_MAP" || s.status !== "IMPORTED" || !s.exam_id) return fail("VALIDATION", "Import the exam map first.");
+    const { data, error } = await c.db.rpc("fn_selection_stages_publish", { p_exam_id: s.exam_id, p_exam_cycle_id: sqlNullArg(s.exam_cycle_id), p_actor_id: sqlNullArg(c.userId), p_actor_email: c.userEmail });
     if (error) {
       const e = mapDbError(error);
       return fail(e.code, e.error);
     }
-    return { success: true, data: data as Record<string, unknown> };
+    return { success: true, data: obj(data) };
   }
 }
 
-function toSession(r: Record<string, unknown>): MapSessionView {
-  const p = (r.payload || {}) as Record<string, unknown>;
+function toSession(r: MapSessionRow): MapSessionView {
+  const p = obj(r.payload);
   return {
-    id: r.id as string,
+    id: r.id,
     contract: r.contract as MapContract,
     status: r.status as MapSessionView["status"],
     target: r.contract === "MASTER_INTAKE" ? String(p.subject ?? "") : `${String(p.exam ?? "")}${p.cycle_year ? ` ${p.cycle_year}` : ""}${p.tier ? ` · ${p.tier}` : ""}`,
-    examId: (r.exam_id as string) ?? null,
-    examCycleId: (r.exam_cycle_id as string) ?? null,
-    tier: (r.tier as string) ?? null,
-    createdAt: r.created_at as string,
-    importedVersionId: (r.imported_version_id as string) ?? null,
-    result: (r.result as Record<string, unknown>) ?? null,
+    examId: r.exam_id ?? null,
+    examCycleId: r.exam_cycle_id ?? null,
+    tier: r.tier ?? null,
+    createdAt: r.created_at,
+    importedVersionId: r.imported_version_id ?? null,
+    result: r.result === null ? null : obj(r.result),
     payload: p,
   };
 }
