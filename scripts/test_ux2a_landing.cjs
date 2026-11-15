@@ -490,11 +490,15 @@ const UX2B_ROUTES = ['/legal'];
         else assert(!t.link && /Coming soon/.test(t.text) && !/\d/.test(t.text), `${c.slug}: expected a "Coming soon" tile that is not a link (got ${JSON.stringify(t)})`);
       }
 
+      // PAY-1 B2b (146): anon reads no mock_tests directly — the live count is the narrow public read the page uses (145)
+      const mc = await (await rest('rpc/fn_public_mock_counts', { method: 'POST', body: '{}' })).json();
+      assert(Array.isArray(mc), `fn_public_mock_counts read: ${JSON.stringify(mc).slice(0, 80)}`);
+      const mockCount = new Map(mc.map((r) => [r.exam_id, r.published_mocks]));
       let mocksAll = 0;
       let guidesAll = 0;
       let anySyllabus = false;
       for (const e of exams) {
-        mocksAll += total(await rest(`mock_tests?select=id,mock_templates!inner(exam_id)&mock_templates.exam_id=eq.${e.id}&status=eq.published&is_dynamic=eq.false&limit=1`));
+        mocksAll += mockCount.get(e.id) ?? 0;
         guidesAll += total(await rest(`exam_knowledge_documents?select=id&exam_id=eq.${e.id}&status=eq.PUBLISHED&current_published_version_id=not.is.null&limit=1`));
         const rm = await (await rest('rpc/fn_exam_syllabus_read_model', { method: 'POST', body: JSON.stringify({ p_exam_id: e.id }) })).json();
         anySyllabus = anySyllabus || (rm && rm.state === 'AVAILABLE');

@@ -505,8 +505,6 @@ jobs:
             "$Q PAY1-B1-LIVE -- node scripts/live/test_pay1_b1.cjs" \
             "$Q PAY1-B2A-LIVE -- node scripts/live/test_pay1_b2a.cjs" \
             "$Q PAY1-B2B-LIVE -- node scripts/live/test_pay1_b2b.cjs" \
-            "$Q PAY1-PUBLIC-READS-LIVE -- node scripts/live/test_pay1_public_reads.cjs" \
-            "$Q PAY1-REVOKE-LIVE -- node scripts/live/test_pay1_revoke.cjs --quiet" \
             "$Q LOGO-UX1-E2E -- node scripts/e2e/logo-ux1.cjs"
       - name: Live gates — shard security (catalog / authz / row-disjoint DB gates; summary lines only)
         if: matrix.shard == 'security'
@@ -531,7 +529,9 @@ jobs:
             "$Q CA-ROUTES -- node scripts/test_ca_routes.cjs $B" \
             "$Q SEC1B-LIVE -- node scripts/test_sec1b_admin_authz.cjs --live" \
             "$Q SEC1C-LIVE -- node scripts/test_sec1c_admin_pages.cjs --live $B" \
-            "$Q SEC1D-LIVE -- node scripts/test_sec1d_redirects.cjs --live $B"
+            "$Q SEC1D-LIVE -- node scripts/test_sec1d_redirects.cjs --live $B" \
+            "$Q PAY1-PUBLIC-READS-LIVE -- node scripts/live/test_pay1_public_reads.cjs" \
+            "$Q PAY1-REVOKE-LIVE -- node scripts/live/test_pay1_revoke.cjs --quiet"
       - name: Live gates — shard pages (page checks + smokes, #56 admin smoke 3x; summary lines only)
         if: matrix.shard == 'pages'
         env:

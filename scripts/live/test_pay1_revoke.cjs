@@ -86,9 +86,12 @@ let BASELINE = new Map();
         if (!u) throw new Error(`${email.split('@')[0]} missing`);
         return u.id;
       };
-      const sid = await user('qa-student@courage-library.test');
+      // the student and "another user" are SYNTHETIC accounts created inside this rolled-back transaction (row-disjoint:
+      // the gate never touches the QA student, whom live-journeys drives in parallel); the staff identity only reads
+      const synth = async (tag) => (await one(`insert into auth.users (id, email, aud, role) values (gen_random_uuid(), 'pay1-revoke-' || $1 || '-' || substr(md5(random()::text), 1, 8) || '@courage-library.test', 'authenticated', 'authenticated') returning id::text id`, [tag])).id;
+      const sid = await synth('student');
       const aid = await user('qa-admin@courage-library.test');
-      const other = LOCAL ? await user('pay1-revoke-other@courage-library.test') : aid; // "another user"
+      const other = await synth('other');
       const STUDENT = ['authenticated', { sub: sid, role: 'authenticated' }];
       const STAFF = ['authenticated', { sub: aid, role: 'authenticated', app_metadata: { role: 'admin' }, aal: 'aal2' }];
       const ANON = ['anon', { role: 'anon' }];
@@ -169,7 +172,6 @@ let BASELINE = new Map();
       if (!fx) chk('R-J fixtures: a published static mock with ≥ 2 questions and sections, a draft mock with sections', false, 'none in this database');
       else {
         // the app starts / finalizes attempts on the SERVER (service role) — the fixture does the same
-        await q(`update public.test_attempts set status = 'abandoned' where user_id = $1 and status = 'in_progress'`, [sid]);
         const attempt = async (u, startedAgo = '1 minute') => (await one(`insert into public.test_attempts (user_id, mock_test_id, status, started_at) values ($1, $2, 'in_progress', now() - $3::interval) returning id::text id`, [u, fx.mock, startedAgo])).id;
         const att = await attempt(sid);
         // the app's autosave: supabase.from("attempt_answers").upsert({...}, { onConflict: "attempt_id,mock_question_id" })
