@@ -212,6 +212,27 @@ export interface AdminQuestionsPageData {
   kpis: AdminQuestionSummaryKPIs;
 }
 
+/**
+ * PAY-1 B2b: clients lose direct reads of mock_tests, so the admin pages read them on the SERVER — with the visibility
+ * the staff session had under RLS (published, non-dynamic), grouped by template_id for the old embed shape.
+ */
+async function publishedStaticMocksByTemplate(templateIds: string[], cols: string): Promise<Map<string, any[]>> {
+  const ids = [...new Set(templateIds.filter(Boolean))];
+  const by = new Map<string, any[]>();
+  if (!ids.length) return by;
+  const { data } = await createAdminServerSupabaseClient()
+    .from("mock_tests")
+    .select(`template_id, ${cols}`)
+    .in("template_id", ids)
+    .eq("is_dynamic", false)
+    .eq("status", "published");
+  for (const r of (data || []) as any[]) {
+    const { template_id, ...rest } = r;
+    by.set(template_id, [...(by.get(template_id) ?? []), rest]);
+  }
+  return by;
+}
+
 export class AdminService {
   /**
    * Check if current user is admin/staff
@@ -261,7 +282,8 @@ export class AdminService {
       // GAP2-2b: learning articles = learning_documents (legacy articles retired).
       sb.from("learning_documents").select("*", { count: "exact", head: true }),
       sb.from("courses").select("*", { count: "exact", head: true }),
-      sb.from("mock_tests").select("*", { count: "exact", head: true }),
+      // PAY-1 B2b: clients lose direct reads of mock_tests — counted on the server, same visibility (published, static)
+      createAdminServerSupabaseClient().from("mock_tests").select("*", { count: "exact", head: true }).eq("is_dynamic", false).eq("status", "published"),
       sb.from("exam_patterns").select("*", { count: "exact", head: true }),
       sb.from("exams").select("*", { count: "exact", head: true }),
       sb.from("descriptive_questions").select("*", { count: "exact", head: true }), // TYPES-1 B6 (Class B): descriptive_prompts never existed
@@ -320,15 +342,15 @@ export class AdminService {
         ),
         mock_templates (
           id,
-          title,
-          mock_tests (
-            id,
-            title,
-            total_questions
-          )
+          title
         )
       `)
       .order("title", { ascending: true });
+    const mocksByTemplate = await publishedStaticMocksByTemplate(
+      (exams || []).flatMap((e: any) => (e.mock_templates || []).map((t: any) => t.id)),
+      "id, title, total_questions"
+    );
+    for (const e of (exams || []) as any[]) for (const t of e.mock_templates || []) t.mock_tests = mocksByTemplate.get(t.id) ?? [];
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (exams || []).map((e: any) => {
@@ -394,12 +416,14 @@ export class AdminService {
           )
         )
       `).order("created_at", { ascending: false }),
-      sb.from("mock_templates").select("id, pattern_id, mock_tests(id)"),
+      sb.from("mock_templates").select("id, pattern_id"),
       sb.from("subjects").select("id", { count: "exact", head: true }),
     ]);
 
     const defaultSubjectCount = subjectsRes.count || 4;
-    const templateList = templatesRes.data || [];
+    const templateList: any[] = templatesRes.data || [];
+    const mocksByTpl = await publishedStaticMocksByTemplate(templateList.map((t) => t.id), "id");
+    for (const t of templateList) t.mock_tests = mocksByTpl.get(t.id) ?? [];
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let list: AdminPatternItem[] = (patternsRes.data || []).map((p) => {
@@ -699,14 +723,7 @@ export class AdminService {
         is_active,
         description,
         exam_id,
-        pattern_id,
-        mock_tests (
-          id,
-          duration_minutes,
-          total_questions,
-          total_marks,
-          status
-        )
+        pattern_id
       `).eq("exam_id", categoryId),
     ]);
 
@@ -778,7 +795,9 @@ export class AdminService {
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const templates = templatesRes.data || [];
+    const templates: any[] = templatesRes.data || [];
+    const mocksByCatTpl = await publishedStaticMocksByTemplate(templates.map((t) => t.id), "id, duration_minutes, total_questions, total_marks, status");
+    for (const t of templates) t.mock_tests = mocksByCatTpl.get(t.id) ?? [];
     let detectedLaunchDate = getIstTomorrowDateStr();
     let detectedLaunchTime = "09:00";
     let detectedLanguage: "both" | "english" | "hindi" = "both";
@@ -1456,10 +1475,20 @@ export class AdminService {
   static async getAdminMockTests(patternFilter?: string, categoryFilter?: string) {
     const supabase = await createServerSupabaseClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data } = await supabase
+    // PAY-1 B2b: mock_tests read on the server with the visibility the session had (published, static); the template /
+    // exam / pattern details still through the session (their own RLS unchanged), attached in the old embed shape.
+    const { data: mockRows } = await createAdminServerSupabaseClient()
       .from("mock_tests")
-      .select("id, title, slug, duration_minutes, total_questions, total_marks, status, created_at, mock_templates(id, exam_id, pattern_id, exams(id, title, slug), exam_patterns(id, name))")
+      .select("id, title, slug, duration_minutes, total_questions, total_marks, status, created_at, template_id")
+      .eq("is_dynamic", false)
+      .eq("status", "published")
       .order("created_at", { ascending: false });
+    const tplIds = [...new Set((mockRows || []).map((m) => m.template_id).filter(Boolean))] as string[];
+    const { data: tplRows } = tplIds.length
+      ? await supabase.from("mock_templates").select("id, exam_id, pattern_id, exams(id, title, slug), exam_patterns(id, name)").in("id", tplIds)
+      : { data: [] as any[] };
+    const tplById = new Map((tplRows || []).map((t: any) => [t.id, t]));
+    const data = (mockRows || []).map(({ template_id, ...m }) => ({ ...m, mock_templates: (template_id && tplById.get(template_id)) || null })) as any[];
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let list = (data || []).map((m) => {

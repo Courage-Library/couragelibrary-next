@@ -2,7 +2,7 @@ import React from "react";
 import { MistakeService } from "@/services/mistake.service";
 import { BookmarkService } from "@/services/bookmark.service";
 import { MistakeLongitudinalIntelligenceService } from "@/services/mistake-longitudinal-intelligence.service";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient, createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { Container } from "@/components/ui/layout";
 import { Accordion } from "@/components/ui/accordion";
 import { MistakeHero } from "@/components/mistakes/mistake-hero";
@@ -73,7 +73,7 @@ export default async function MistakeVaultPage({ searchParams }: Props) {
     user
       ? MistakeLongitudinalIntelligenceService.getLongitudinalOverview(supabase, user.id, {
           windowDays: "30D",
-        }).catch((err) => {
+        }, createAdminServerSupabaseClient()).catch((err) => {
           console.error("[MistakeVaultPage] Failed to fetch longitudinal intelligence:", err);
           return null;
         })

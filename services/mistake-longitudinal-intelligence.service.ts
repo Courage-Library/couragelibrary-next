@@ -630,7 +630,10 @@ export class MistakeLongitudinalIntelligenceService {
   public static async getLongitudinalOverview(
     supabase: SupabaseClient<Database>,
     userId: string,
-    options: QueryOptions = {}
+    options: QueryOptions = {},
+    /** PAY-1 B2b: the client for the mock / question CONTENT tables (clients lose direct reads) — the server's admin
+     *  client from the app; defaults to `supabase` (the test harness passes a service client). */
+    contentClient: SupabaseClient<Database> = supabase
   ): Promise<MistakeLongitudinalOverview> {
     const referenceNow = options.referenceNow || Date.now();
     const window = this.resolveWindowConfig(options.windowDays || "30D", referenceNow);
@@ -657,13 +660,25 @@ export class MistakeLongitudinalIntelligenceService {
     // 3. Fetch attempt answers for denominator volume with candidate isolation (Query 3)
     let attemptsQuery = supabase
       .from("attempt_answers")
-      .select("id, attempt_id, mock_question_id, question_version_id, is_correct, selected_option_key, time_spent_seconds, created_at, test_attempts!inner(user_id), mock_questions(mock_test_id, mock_section_id, mock_sections(subject_id), mock_tests(template_id, is_dynamic, mock_templates(test_type)), question_versions(question_id, questions(canonical_topic_id)))")
+      .select("id, attempt_id, mock_question_id, question_version_id, is_correct, selected_option_key, time_spent_seconds, created_at, test_attempts!inner(user_id)")
       .eq("test_attempts.user_id", userId)
       .order("created_at", { ascending: false })
       .limit(2000);
 
     const { data: answersData } = await attemptsQuery;
-    const allAttemptAnswers = (answersData || []) as any[];
+    // PAY-1 B2b: the mock / question details for the caller's OWN answers, read with the content client (the ids come
+    // from the user's own attempt_answers above), attached in the shape the old embed returned.
+    const rawAnswers = (answersData || []) as any[];
+    const mqIds = [...new Set(rawAnswers.map((a) => a.mock_question_id).filter(Boolean))] as string[];
+    const mqById = new Map<string, any>();
+    for (let i = 0; i < mqIds.length; i += 200) {
+      const { data: mqRows } = await contentClient
+        .from("mock_questions")
+        .select("id, mock_test_id, mock_section_id, mock_sections(subject_id), mock_tests(template_id, is_dynamic, mock_templates(test_type)), question_versions(question_id, questions(canonical_topic_id))")
+        .in("id", mqIds.slice(i, i + 200));
+      for (const r of (mqRows || []) as any[]) mqById.set(r.id, r);
+    }
+    const allAttemptAnswers = rawAnswers.map((a) => ({ ...a, mock_questions: mqById.get(a.mock_question_id) ?? null }));
 
     // Filter by active status
     const activeOccurrences = allOccurrences.filter((o) => o.occurrence_status === "ACTIVE");

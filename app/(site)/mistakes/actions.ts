@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { MistakeService, DrillConfigOptions, DrillSessionPayload, DrillSubmissionResult } from "@/services/mistake.service";
 import { BookmarkService } from "@/services/bookmark.service";
 import { MistakeLongitudinalIntelligenceService } from "@/services/mistake-longitudinal-intelligence.service";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient, createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import {
   LongitudinalWindowType,
   MistakeLongitudinalOverview,
@@ -138,7 +138,8 @@ export async function fetchLongitudinalOverviewAction(
       {
         windowDays: windowType,
         subjectId: subjectId === "ALL" ? undefined : subjectId,
-      }
+      },
+      createAdminServerSupabaseClient()
     );
 
     return { success: true, data };
