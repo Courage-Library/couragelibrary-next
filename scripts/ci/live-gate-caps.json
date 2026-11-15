@@ -269,6 +269,10 @@
     "PAY1-PUBLIC-READS-LIVE": {
       "measured": 5,
       "cap": 180
+    },
+    "PAY1-REVOKE-LIVE": {
+      "measured": 15,
+      "cap": 240
     }
   }
 }

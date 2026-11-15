@@ -118,6 +118,8 @@ const SECDEF_PUBLIC_OK = {
   fn_public_hindi_question_count: 'landing Hindi claim: one integer (current PUBLISHED Hindi questions), read-only',
   fn_public_mock_shape: 'CA quiz card: questions / minutes / marks of one published non-dynamic mock, read-only',
   fn_public_ca_daily_mock_id: "CA date page: the date's published daily CA mock id or null, read-only",
+  // PAY-1 B2b part 2 step 2 (146): the mock_sections policy's check after the client revoke on mock_tests
+  fn_mock_test_published: 'mock_sections policy check: is the mock published (a boolean only), read-only, search_path ""',
 };
 // P-9: SECURITY DEFINER functions awaiting an architect ruling — MUST stay empty (SEC-HOTFIX-7 ruled on all 14
 // items of SEC_HOTFIX6_REPORT §2.3; a new exposure needs a ruling + a fix, never an entry here)

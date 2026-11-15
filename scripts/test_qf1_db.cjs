@@ -138,6 +138,15 @@ async function leftovers(c, actor, since) {
       return e.code === '42501';
     }
   };
+  // PAY-1 B2b (146): refused outright (42501), not just empty
+  const denied = async (role, sql, params = []) => {
+    try {
+      await asRole(role, sql, params);
+      return false;
+    } catch (e) {
+      return e.code === '42501';
+    }
+  };
 
   const fixture = async () => {
     const t = await c.query(`SELECT id FROM public.topics WHERE is_active ORDER BY id LIMIT 1`);
@@ -353,7 +362,7 @@ async function leftovers(c, actor, since) {
     }));
 
   // ---------------- RLS (SQL role simulation with real draft rows) ----------------
-  await test('RLS-SQL anon: no DRAFT versions/options, no answers, no authoring, no draft mappings; published readable', () =>
+  await test('RLS-SQL anon: no versions/options at all (146), no answers, no authoring, no draft mappings; published mappings readable', () =>
     rolledBack(async () => {
       const f = await fixture();
       assert(f.examId, 'need an active exam for mapping test');
@@ -361,8 +370,10 @@ async function leftovers(c, actor, since) {
       const v = d.items[0].version_id;
       const q = d.items[0].question_id;
       for (const role of ['anon', 'authenticated']) {
-        assert((await asRole(role, `SELECT count(*)::int n FROM public.question_versions WHERE id = $1`, [v])).rows[0].n === 0, `${role} sees DRAFT version`);
-        assert((await asRole(role, `SELECT count(*)::int n FROM public.question_options WHERE question_version_id = $1`, [v])).rows[0].n === 0, `${role} sees DRAFT options`);
+        // PAY-1 B2b (146, owner GO 2026-11-15, D2): clients read NO version / option directly (draft or published) —
+        // content reaches them only through the server
+        assert(await unreadable(role, `SELECT count(*)::int n FROM public.question_versions WHERE id = $1`, [v]), `${role} reads question_versions (DRAFT)`);
+        assert(await unreadable(role, `SELECT count(*)::int n FROM public.question_options WHERE question_version_id = $1`, [v]), `${role} reads question_options (DRAFT)`);
         assert((await asRole(role, `SELECT count(*)::int n FROM public.exam_question_mappings WHERE question_id = $1`, [q])).rows[0].n === 0, `${role} sees draft mapping`);
         assert(await unreadable(role, `SELECT count(*)::int n FROM public.question_answers`), `${role} reads answers`);
         await c.query('SAVEPOINT a');
@@ -378,8 +389,9 @@ async function leftovers(c, actor, since) {
       }
       // Publish it: version/options/mapping become readable, answers & authoring still not.
       await reviewAndPublish(f, v);
-      assert((await asRole('anon', `SELECT count(*)::int n FROM public.question_versions WHERE id = $1`, [v])).rows[0].n === 1, 'anon cannot read PUBLISHED version');
-      assert((await asRole('anon', `SELECT count(*)::int n FROM public.question_options WHERE question_version_id = $1`, [v])).rows[0].n === 4, 'anon cannot read PUBLISHED options');
+      // PAY-1 B2b (146): published content is not directly readable either (served by the server only)
+      assert(await denied('anon', `SELECT count(*)::int n FROM public.question_versions WHERE id = $1`, [v]), 'anon reads a PUBLISHED version directly');
+      assert(await denied('anon', `SELECT count(*)::int n FROM public.question_options WHERE question_version_id = $1`, [v]), 'anon reads PUBLISHED options directly');
       assert((await asRole('anon', `SELECT count(*)::int n FROM public.exam_question_mappings WHERE question_id = $1`, [q])).rows[0].n === 1, 'anon cannot read published mapping');
       assert(await unreadable('anon', `SELECT count(*)::int n FROM public.question_answers WHERE question_version_id = $1`, [v]), 'anon reads answer of published');
     }));

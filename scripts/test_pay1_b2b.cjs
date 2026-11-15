@@ -294,5 +294,80 @@ test('P3-11 negative controls (145): each mutation is caught', () => {
   return `${muts.length} mutations caught`;
 });
 
+// ---------- 146: the client revoke (owner conditions 2026-11-15)
+const M146 = 'supabase/migrations/20261116000146_pay1_b2b_content_revoke.sql';
+const RB146 = 'docs/database/rollback/146_rollback.sql';
+const F146 = require(path.join(ROOT, 'scripts/fixtures/pay1_146_statements.cjs'));
+// the client grants before 146, read from the production catalog 2026-11-15 (the rollback must restore exactly these)
+const GRANTS_BEFORE = [
+  'GRANT SELECT ON public.question_versions TO anon, authenticated;',
+  'GRANT SELECT ON public.question_options TO anon, authenticated;',
+  'GRANT SELECT ON public.mock_questions TO anon, authenticated;',
+  'GRANT SELECT ON public.mock_tests TO authenticated;',
+];
+const ANON_MOCK_COLS = 'id, template_id, title, slug, status, duration_minutes, total_questions, total_marks, is_free, scheduled_for, published_at, created_at, updated_at, series_id, is_dynamic, lifecycle_status, expires_at';
+const norm = (s) => s.replace(/\s+/g, ' ');
+const revokeCheck = (sql, rb) => {
+  for (const t of F146.REVOKED) if (!sql.includes(`REVOKE SELECT ON public.${t} FROM anon, authenticated;`)) return `revoke ${t}`;
+  if (!norm(sql).includes(`REVOKE SELECT (${ANON_MOCK_COLS}) ON public.mock_tests FROM anon;`)) return 'anon column grants on mock_tests not revoked';
+  if (/GRANT SELECT ON public\.(question_versions|question_options|mock_questions|mock_tests)/.test(sql)) return 'a client grant re-added';
+  const pol = (name) => (sql.match(new RegExp(`CREATE POLICY "${name}"[\\s\\S]*?;`)) || [''])[0];
+  const ins = pol('Users can insert own attempt answers');
+  const upd = pol('Users can update own attempt answers');
+  const sec = pol('Public read published mock_sections');
+  if (!/WITH CHECK \(public\.fn_attempt_answer_writable\(attempt_id, mock_question_id\)\)/.test(ins)) return 'INSERT policy not rewritten';
+  if (!/USING \(public\.fn_attempt_answer_writable\(attempt_id, mock_question_id\)\)[\s\S]*WITH CHECK \(public\.fn_attempt_answer_writable\(attempt_id, mock_question_id\)\)/.test(upd)) return 'UPDATE policy not rewritten';
+  if (!/USING \(public\.fn_mock_test_published\(mock_test_id\)\)/.test(sec)) return 'mock_sections policy not rewritten';
+  for (const p of [ins, upd, sec]) if (/\b(question_versions|question_options|mock_questions|mock_tests)\b/.test(p)) return 'a rewritten policy still reads a revoked table';
+  const fn = (name) => (sql.match(new RegExp(`CREATE OR REPLACE FUNCTION public\\.${name}\\([^)]*\\)\\nRETURNS boolean\\nLANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''\\nAS \\$\\$([\\s\\S]*?)\\$\\$;`)) || [])[1];
+  const w = fn('fn_attempt_answer_writable');
+  const pub = fn('fn_mock_test_published');
+  if (!w || !/ta\.user_id = auth\.uid\(\)/.test(w) || !/ta\.status = 'in_progress'/.test(w) || !/now\(\) <= ta\.started_at \+ make_interval\(mins => mt\.duration_minutes\) \+ interval '30 seconds'/.test(w) || !/mq\.mock_test_id = ta\.mock_test_id AND mq\.id = p_mock_question_id/.test(w)) return 'fn_attempt_answer_writable: not the old rule (own, in progress, in time + 30 s, question of that mock)';
+  if (!pub || !/mt\.status = 'published'/.test(pub)) return 'fn_mock_test_published';
+  if (!sql.includes('GRANT EXECUTE ON FUNCTION public.fn_attempt_answer_writable(uuid, uuid) TO authenticated, service_role;') || !sql.includes('GRANT EXECUTE ON FUNCTION public.fn_mock_test_published(uuid) TO anon, authenticated, service_role;')) return 'helper grants';
+  // rollback: exactly the old grants + the old policies + drops the helpers
+  if (!/^-- ROLLBACK-CHAIN: run first: /m.test(rb)) return 'rollback chain line';
+  for (const g of GRANTS_BEFORE) if (!rb.includes(g)) return `rollback: ${g}`;
+  if (!norm(rb).includes(`GRANT SELECT (${ANON_MOCK_COLS}) ON public.mock_tests TO anon;`)) return 'rollback: anon mock_tests columns';
+  if (/fn_attempt_answer_writable\(attempt_id|fn_mock_test_published\(mock_test_id/.test(rb) || !/DROP FUNCTION IF EXISTS public\.fn_attempt_answer_writable\(uuid, uuid\);/.test(rb) || !/DROP FUNCTION IF EXISTS public\.fn_mock_test_published\(uuid\);/.test(rb)) return 'rollback: old policies / helper drops';
+  return null;
+};
+
+test('P3-12 146: SELECT revoked on the four tables (+ anon mock_tests columns); the 3 dependent policies call STABLE DEFINER helpers with the old rule; rollback restores exactly the old grants + policies', () => {
+  const why = revokeCheck(read(M146), read(RB146));
+  assert(why === null, why);
+  const a = JSON.parse(read('scripts/secdef/allowlist.json'));
+  assert(a.functions['fn_attempt_answer_writable(p_attempt_id uuid, p_mock_question_id uuid)']?.client.join() === 'authenticated' && a.functions['fn_mock_test_published(p_mock_test_id uuid)']?.client.join() === 'anon,authenticated' && a.public_ok.includes('fn_mock_test_published(p_mock_test_id uuid)'), 'allow-list');
+  assert(/fn_mock_test_published: '[^']{20,}'/.test(read('scripts/test_sec_hotfix4_rls.cjs')), 'RLS P-9 entry');
+});
+test('P3-13 the replay covers the app: every client-side statement of the journey + staff code (derived from the code) has a replay step; none reads a revoked table; passed-client resolutions still proven', () => {
+  const all = F146.scan(ROOT);
+  const problems = F146.crossCheck(ROOT, all);
+  assert(problems.length === 0, problems.join(' | '));
+  const cs = all.filter(F146.clientSide);
+  return `${all.length} statements, ${cs.length} client-side, ${new Set(cs.map(F146.stepFor)).size} replay steps`;
+});
+test('P3-14 negative controls (146): each mutation is caught', () => {
+  const sql = read(M146);
+  const rb = read(RB146);
+  const all = F146.scan(ROOT);
+  const plant = (s) => F146.crossCheck(ROOT, [...all, s]).length > 0 ? 'caught' : null;
+  const muts = [
+    ['146 forgets the attempt_answers UPDATE rewrite', revokeCheck(sql.replace(/DROP POLICY "Users can update own attempt answers"[\s\S]*?WITH CHECK \(public\.fn_attempt_answer_writable\(attempt_id, mock_question_id\)\);\n/, ''), rb)],
+    ['146 forgets the mock_sections rewrite', revokeCheck(sql.replace(/DROP POLICY "Public read published mock_sections"[\s\S]*?USING \(public\.fn_mock_test_published\(mock_test_id\)\);\n/, ''), rb)],
+    ['146 leaves question_options readable', revokeCheck(sql.replace('REVOKE SELECT ON public.question_options FROM anon, authenticated;\n', ''), rb)],
+    ['146 leaves the anon mock_tests columns', revokeCheck(sql.replace(/REVOKE SELECT \(id, template_id[\s\S]*?FROM anon;\n/, ''), rb)],
+    ['helper without the time rule', revokeCheck(sql.replace(" AND now() <= ta.started_at + make_interval(mins => mt.duration_minutes) + interval '30 seconds'", '').replace("\n           AND now() <= ta.started_at + make_interval(mins => mt.duration_minutes) + interval '30 seconds'", ''), rb)],
+    ['rollback forgets a grant', revokeCheck(sql, rb.replace('GRANT SELECT ON public.mock_questions TO anon, authenticated;\n', ''))],
+    ['a client read of a revoked table planted', plant({ file: 'services/assessment.service.ts', line: 1, kind: 'from', name: 'mock_questions', op: 'select', client: 'session', via: 'supabase' })],
+    ['a client write the replay does not cover', plant({ file: 'services/mistake.service.ts', line: 1, kind: 'from', name: 'user_mistake_vault', op: 'delete', client: 'session', via: 'supabase' })],
+    ['an unreplayed RPC', plant({ file: 'services/mistake.service.ts', line: 1, kind: 'rpc', name: 'fn_new_thing', op: 'rpc', client: 'session', via: 'supabase' })],
+    ['an unresolvable client', plant({ file: 'services/mistake.service.ts', line: 1, kind: 'from', name: 'user_mistake_vault', op: 'select', client: 'unknown', via: 'ctx.db' })],
+  ];
+  const missed = muts.filter(([, w]) => w === null).map(([k]) => k);
+  assert(missed.length === 0, `not caught: ${missed.join(', ')}`);
+  return `${muts.length} mutations caught`;
+});
+
 console.log(`\nPAY-1 B2b: ${passed}/${passed + failed} passed`);
 process.exit(failed ? 1 : 0);
