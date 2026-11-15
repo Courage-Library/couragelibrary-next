@@ -69,7 +69,9 @@ test('MV-02 vault detail: the answered snapshot + the correction; ownership firs
 
 test('MV-03 lists show the answered text, else the CURRENT one — never question_versions[0]', () => {
   assert(!/question_versions\?\.\[0\]/.test(svc), 'an arbitrary question_versions[0] remains in the mistake service');
-  assert((svc.match(/listTextFor\(/g) || []).length >= 2 && (svc.match(/questions\(question_versions\(question_text, is_current\)\)/g) || []).length === 2, 'both lists use listTextFor with is_current');
+  // PAY-1 B2b: the texts (with is_current) are attached server-side by attachQuestionTexts, in the old embed's shape
+  const attach = svc.match(/async function attachQuestionTexts[\s\S]*?\n}\n/);
+  assert((svc.match(/listTextFor\(/g) || []).length >= 2 && (svc.match(/await attachQuestionTexts\(/g) || []).length === 2 && attach && /\.select\("question_id, question_text, is_current"\)/.test(attach[0]) && /\.in\("lifecycle_status", \["PUBLISHED", "SUPERSEDED"\]\)/.test(attach[0]) && !/questions\(question_versions\(/.test(svc), 'both lists use listTextFor with is_current');
   assert(/private static async answeredTextsByVault\(/.test(svc) && /answeredVersionIdOf\(occ\.filter/.test(svc), 'answered text per vault from its occurrences');
 });
 

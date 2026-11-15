@@ -59,7 +59,8 @@ const fakeClient = {
     const q = {
       select: () => q,
       eq: () => q,
-      maybeSingle: async () => ({ data: t === 'test_attempts' ? attempt : null, error: null }),
+      // PAY-1 B2b: the mock's duration is read on its own (server-side) — the fake serves it from the attempt fixture
+      maybeSingle: async () => ({ data: t === 'test_attempts' ? attempt : t === 'mock_tests' && attempt ? attempt.mock_tests : null, error: null }),
       upsert: async (row) => (upserts.push(row), { error: null }),
     };
     return q;

@@ -9789,12 +9789,41 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_public_ca_daily_mock_id: { Args: { p_date: string }; Returns: string }
+      fn_public_exam_mocks: {
+        Args: { p_exam_id: string }
+        Returns: {
+          duration_minutes: number
+          id: string
+          is_free: boolean
+          test_type: string
+          title: string
+          total_marks: number
+          total_questions: number
+        }[]
+      }
+      fn_public_hindi_question_count: { Args: never; Returns: number }
       fn_public_identities: {
         Args: { p_ids: string[] }
         Returns: {
           id: string
           is_team: boolean
           label: string
+        }[]
+      }
+      fn_public_mock_counts: {
+        Args: never
+        Returns: {
+          exam_id: string
+          published_mocks: number
+        }[]
+      }
+      fn_public_mock_shape: {
+        Args: { p_mock_test_id: string }
+        Returns: {
+          duration_minutes: number
+          total_marks: number
+          total_questions: number
         }[]
       }
       fn_publish_exam_announcement: {

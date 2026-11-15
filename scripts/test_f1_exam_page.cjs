@@ -267,7 +267,8 @@ function fullPage(cta, statuses) {
     assert((page.match(/getSignupAvailability\(\)/g) || []).length === 1 && /async function HeaderCta/.test(page), 'sign-up read only inside the streamed CTA');
     const loader = code(read('lib/exams/exam-page-server.ts'));
     assert(/^import "server-only";/m.test(read('lib/exams/exam-page-server.ts')), 'server-only');
-    assert(!/\.(insert|update|upsert|delete)\(|\.rpc\(|Admin|service_role|SERVICE_ROLE/.test(loader), 'loader writes or uses the service role');
+    // PAY-1 B2b (145): the one RPC allowed is the narrow, read-only public mock list (filters hard-coded inside it)
+    assert(!/\.(insert|update|upsert|delete)\(|Admin|service_role|SERVICE_ROLE/.test(loader) && (loader.match(/\.rpc\(/g) || []).length === (loader.match(/\.rpc\("fn_public_exam_mocks"/g) || []).length, 'loader writes or uses the service role');
     assert((loader.match(/\.eq\("user_id", uid\)/g) || []).length === 3, 'every user read keyed on the session user');
     const ui = ['components/exams/exam-home.tsx', 'content/exam-page.ts', 'app/(site)/exams/[slug]/page.tsx'].map((f) => code(read(f))).join('\n');
     for (const bad of [/\brank\b/i, /percentile/i, /\bverified\b/i, /\bofficial\b/i, /guarantee/i, /\btop(per)?\b/i, /glass-/]) assert(!bad.test(ui), `claim / glass: ${bad}`);

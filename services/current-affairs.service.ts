@@ -4,7 +4,7 @@
  * Architecture Contract: Frozen v1.1.0
  */
 
-import { createPublicServerSupabaseClient, createAdminServerSupabaseClient } from '@/lib/supabase/server';
+import { createPublicServerSupabaseClient } from '@/lib/supabase/server';
 import {
   CurrentAffairsCategory,
   CurrentAffairsDetail,
@@ -206,16 +206,11 @@ export class CurrentAffairsService {
 
       // Also check mock_tests for published daily quiz
       if (!dailyQuizMockId) {
-        // PAY-1 B2b: clients lose direct reads of mock_tests — read on the server (published, static)
-        const { data: mockData } = await createAdminServerSupabaseClient()
-          .from('mock_tests')
-          .select('id')
-          .eq('slug', `ca-daily-${dateStr}`)
-          .eq('status', 'published')
-          .eq('is_dynamic', false)
-          .maybeSingle();
-        if (mockData?.id) {
-          dailyQuizMockId = mockData.id;
+        // PAY-1 B2b (145): clients lose direct reads of mock_tests — the narrow public read (the date's published,
+        // non-dynamic daily CA mock id; slug built inside), through the same public client
+        const { data: mockId } = await supabase.rpc('fn_public_ca_daily_mock_id', { p_date: dateStr });
+        if (typeof mockId === 'string') {
+          dailyQuizMockId = mockId;
         }
       }
 

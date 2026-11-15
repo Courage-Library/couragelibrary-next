@@ -234,6 +234,14 @@ const ROW = (qid, vid, lang = 'en', extra = {}) => ({
   });
 
   await test('T-08 topics with 0 servable questions are hidden', async () => {
+    // PAY-1 B2b: the question reads go through the SERVER client (service role) + the reserved list
+    // (fn_reserved_question_ids); the fake stands in for it. reserved = the ids a PRO mock holds (E1 = b).
+    let reserved = [];
+    let reservedFails = false;
+    let content = null;
+    MOCKS['@/lib/supabase/server'] = {
+      createAdminServerSupabaseClient: () => ({ ...content, rpc: async (fn) => (fn === 'fn_reserved_question_ids' && !reservedFails ? { data: reserved, error: null } : { data: null, error: { message: 'rpc failed' } }) }),
+    };
     const S = require(path.join(ROOT, 'lib/practice/server.ts'));
     const sb = fakeSupabase({
       exam_patterns: () => [{ id: 'p', pattern_sections: [{ subject_id: 'sub-q', section_name: 'Quant', section_order: 2 }, { subject_id: 'sub-r', section_name: 'Reasoning', section_order: 1 }] }],
@@ -244,10 +252,21 @@ const ROW = (qid, vid, lang = 'en', extra = {}) => ({
       ],
       questions: () => [{ id: 'q1', canonical_topic_id: 't-alg' }, { id: 'q2', canonical_topic_id: 't-alg' }, { id: 'q3', canonical_topic_id: 't-ser' }],
     });
+    content = sb;
     const sections = await S.examSections(sb, 'exam');
     assert(sections.map((s) => s.name).join(',') === 'Reasoning,Quant', 'section order');
     const quant = sections.find((s) => s.name === 'Quant');
     assert(quant.topics.map((t) => `${t.name}:${t.count}`).join(',') === 'Algebra:2', `Geometry (0) must be hidden: ${JSON.stringify(quant.topics)}`);
+    // E1 = b: a question reserved for a PRO mock is not counted; if every question of a topic is reserved, it hides
+    reserved = ['q2', 'q3'];
+    const r2 = await S.examSections(sb, 'exam');
+    assert(r2.find((s) => s.name === 'Quant').topics.map((t) => `${t.name}:${t.count}`).join(',') === 'Algebra:1' && !r2.some((s) => s.name === 'Reasoning' && s.topics.length), `reserved questions must not count: ${JSON.stringify(r2)}`);
+    // fail closed: the reserved list cannot be read → no question is offered
+    reservedFails = true;
+    const r3 = await S.examSections(sb, 'exam');
+    assert(r3.every((s) => s.topics.length === 0), `reserved list unreadable → nothing offered: ${JSON.stringify(r3)}`);
+    reservedFails = false;
+    reserved = [];
     const pageSrc = code(read('lib/practice/server.ts'));
     assert(/\.eq\("status", "published"\)\s*\.eq\("question_versions\.is_current", true\)\s*\.eq\("question_versions\.lifecycle_status", "PUBLISHED"\)/.test(pageSrc), 'servable = published question + current published version');
     return 'Geometry (0) hidden';

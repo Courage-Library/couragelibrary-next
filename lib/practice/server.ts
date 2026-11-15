@@ -72,7 +72,7 @@ export async function examSections(supabase: AppSupabaseClient, examId: string):
 async function reservedQuestionIds(): Promise<Set<string> | null> {
   const { data, error } = await createAdminServerSupabaseClient().rpc("fn_reserved_question_ids");
   if (error) return null;
-  return new Set(((data ?? []) as unknown as string[]).map(String));
+  return new Set((data ?? []).map(String));
 }
 
 /** topic id → servable question ids (never one reserved for a PRO mock). */

@@ -215,5 +215,84 @@ test('P3-09 negative controls (step 1): each mutation is caught', () => {
   return `${muts.length} mutations caught`;
 });
 
+// ---------- 145: the narrow public reads (owner conditions 1–4, 2026-11-15)
+const M145 = 'supabase/migrations/20261116000145_pay1_b2b_public_reads.sql';
+const PUBLIC_FNS = {
+  'fn_public_exam_mocks(p_exam_id uuid)': { args: 'uuid', mock: true },
+  'fn_public_mock_counts()': { args: '', mock: true },
+  'fn_public_hindi_question_count()': { args: '', mock: false },
+  'fn_public_mock_shape(p_mock_test_id uuid)': { args: 'uuid', mock: true },
+  'fn_public_ca_daily_mock_id(p_date date)': { args: 'date', mock: true },
+};
+// condition 1: only listing figures — these output names / scalar types, never a content column
+const OUT_OK = new Set(['id', 'title', 'duration_minutes', 'total_questions', 'total_marks', 'is_free', 'test_type', 'exam_id', 'published_mocks']);
+const CONTENT = /question_text|option_text|question_options|question_answers|correct_option|explanation|model_answer|evaluation_guidelines|blocks|summary_md|body_md/i;
+const publicReadsCheck = (sql) => {
+  const fns = [...sql.matchAll(/CREATE OR REPLACE FUNCTION public\.(fn_\w+)\(([^)]*)\)\s*RETURNS ([\s\S]*?)\n(LANGUAGE[^\n]*)\nAS \$\$([\s\S]*?)\$\$;/g)];
+  const names = fns.map((m) => `${m[1]}(${m[2]})`).sort().join();
+  if (names !== Object.keys(PUBLIC_FNS).sort().join()) return `functions: ${names}`;
+  for (const [, name, args, ret, lang, body] of fns) {
+    const sig = `${name}(${args})`;
+    if (lang.trim() !== "LANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''") return `${name}: ${lang.trim()}`;
+    if (/\b(insert|update|delete|truncate|alter|create|drop|grant)\b/i.test(body)) return `${name}: not read-only`;
+    if (CONTENT.test(ret) || CONTENT.test(body)) return `${name}: touches content columns`;
+    const tbl = ret.match(/^TABLE \(([\s\S]*)\)\s*$/);
+    const outs = tbl ? tbl[1].split(',').map((c) => c.trim().split(/\s+/)[0]) : [];
+    if (tbl ? outs.some((o) => !OUT_OK.has(o)) : !/^(integer|uuid)$/.test(ret.trim())) return `${name}: returns ${ret.trim()}`;
+    // condition 2: the only argument narrows (an id / a date), never a caller-supplied filter
+    if ((args ? args.split(/\s+/)[1] : '') !== PUBLIC_FNS[sig].args) return `${name}: argument ${args}`;
+    if (PUBLIC_FNS[sig].mock && !(/m\.status = 'published'/.test(body) && /m\.is_dynamic = false/.test(body))) return `${name}: published + non-dynamic not hard-coded`;
+    if (!PUBLIC_FNS[sig].mock && !(/qv\.lifecycle_status = 'PUBLISHED'/.test(body) && /q\.status = 'published'/.test(body) && /qv\.is_current = true/.test(body))) return `${name}: published filters not hard-coded`;
+    // condition 3: anon / authenticated / service_role EXECUTE, PUBLIC revoked
+    const type = args ? args.split(/\s+/)[1] : '';
+    if (!sql.includes(`REVOKE ALL ON FUNCTION public.${name}(${type}) FROM PUBLIC;`)) return `${name}: PUBLIC not revoked`;
+    const g = [...sql.matchAll(new RegExp(`GRANT EXECUTE ON FUNCTION public\\.${name}\\(${type}\\) TO ([^;]+);`, 'g'))].map((x) => x[1]).join('|');
+    if (g !== 'anon, authenticated, service_role') return `${name}: grants ${g}`;
+  }
+  return null;
+};
+const registryCheck = (allow, rls) => {
+  for (const sig of Object.keys(PUBLIC_FNS)) {
+    const e = allow.functions[sig];
+    if (!e || e.class !== 'A' || e.search_path !== '""' || e.client.join() !== 'anon,authenticated' || !/145/.test(e.reason || '')) return `allow-list entry ${sig}`;
+    if (!allow.public_ok.includes(sig)) return `public_ok ${sig}`;
+    const fn = sig.split('(')[0];
+    if (!new RegExp(`\\b${fn}: (?:'[^']{20,}'|"[^"]{20,}")`).test(rls)) return `RLS P-9 SECDEF_PUBLIC_OK ${fn} (with a reason)`;
+  }
+  if (!allow.rules.some((r) => /migration 145/.test(r) && /anon_or_public raised by exactly 5/.test(r))) return 'allow-list rule line for 145';
+  return null;
+};
+
+test('P3-10 145: five narrow public reads — figures only, filters hard-coded, DEFINER search_path "", STABLE, read-only; anon + authenticated EXECUTE only; rollback drops them', () => {
+  const why = publicReadsCheck(read(M145));
+  assert(why === null, why);
+  const rb = read('docs/database/rollback/145_rollback.sql');
+  assert(/^-- ROLLBACK-CHAIN: run first: /m.test(rb) && Object.keys(PUBLIC_FNS).every((sig) => rb.includes(`DROP FUNCTION IF EXISTS public.${sig.split('(')[0]}(`)), 'rollback 145');
+  const why2 = registryCheck(JSON.parse(read('scripts/secdef/allowlist.json')), read('scripts/test_sec_hotfix4_rls.cjs'));
+  assert(why2 === null, why2);
+  return `${Object.keys(PUBLIC_FNS).length} functions`;
+});
+test('P3-11 negative controls (145): each mutation is caught', () => {
+  const sql = read(M145);
+  const extra = (f) => `${sql}\nCREATE OR REPLACE FUNCTION public.fn_public_leak(p_id uuid)\nRETURNS TABLE (id uuid, question_text text)\nLANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''\nAS $$\n${f}\n$$;\n`;
+  const allow = JSON.parse(read('scripts/secdef/allowlist.json'));
+  const rls = read('scripts/test_sec_hotfix4_rls.cjs');
+  const noOk = { ...allow, public_ok: allow.public_ok.filter((s) => !s.startsWith('fn_public_mock_counts')) };
+  const muts = [
+    ['a function returning question_text', publicReadsCheck(extra('    SELECT qv.id, qv.question_text FROM public.question_versions qv WHERE qv.id = p_id;'))],
+    ['an existing function returning question_text', publicReadsCheck(sql.replace('SELECT m.id, m.title::text,', 'SELECT m.id, (SELECT qv.question_text FROM public.question_versions qv LIMIT 1) AS title,'))],
+    ['non-dynamic filter dropped', publicReadsCheck(sql.replace("     WHERE m.id = p_mock_test_id\n       AND m.status = 'published'\n       AND m.is_dynamic = false", "     WHERE m.id = p_mock_test_id\n       AND m.status = 'published'"))],
+    ['caller-supplied filter (text status argument)', publicReadsCheck(sql.replace('public.fn_public_mock_counts()\nRETURNS', 'public.fn_public_mock_counts(p_status text)\nRETURNS'))],
+    ['search_path loosened', publicReadsCheck(sql.replace("RETURNS integer\nLANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''", "RETURNS integer\nLANGUAGE sql STABLE SECURITY DEFINER SET search_path = public"))],
+    ['granted to PUBLIC', publicReadsCheck(sql.replace('REVOKE ALL ON FUNCTION public.fn_public_mock_counts() FROM PUBLIC;\n', ''))],
+    ['volatile / not STABLE', publicReadsCheck(sql.replace("RETURNS uuid\nLANGUAGE sql STABLE", "RETURNS uuid\nLANGUAGE sql VOLATILE"))],
+    ['missing from public_ok', registryCheck(noOk, rls)],
+    ['P-9 reason missing', registryCheck(allow, rls.replace(/fn_public_exam_mocks: '[^']*'/, "fn_public_exam_mocks: ''"))],
+  ];
+  const missed = muts.filter(([, w]) => w === null).map(([k]) => k);
+  assert(missed.length === 0, `not caught: ${missed.join(', ')}`);
+  return `${muts.length} mutations caught`;
+});
+
 console.log(`\nPAY-1 B2b: ${passed}/${passed + failed} passed`);
 process.exit(failed ? 1 : 0);

@@ -490,7 +490,9 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
     // the read: only what any visitor can read, published + current Hindi versions of published (non-test) items
     const r = read('lib/landing/hindi-content.ts');
     assert(/createPublicServerSupabaseClient\(\)/.test(r) && !/createAdminServerSupabaseClient|SERVICE_ROLE/.test(r), 'public client only');
-    assert(/\.from\("question_versions"\)[\s\S]*?\.eq\("language", "hi"\)[\s\S]*?\.eq\("lifecycle_status", "PUBLISHED"\)[\s\S]*?\.eq\("is_current", true\)[\s\S]*?\.eq\("questions\.status", "published"\)/.test(r), 'questions query');
+    // PAY-1 B2b (145): the question count is the narrow public function (filters hard-coded there, a number only)
+    const f145 = read('supabase/migrations/20261116000145_pay1_b2b_public_reads.sql').match(/CREATE OR REPLACE FUNCTION public\.fn_public_hindi_question_count\(\)[\s\S]*?\$\$;/);
+    assert(/sb\.rpc\("fn_public_hindi_question_count"\)/.test(r) && f145 && /qv\.language = 'hi'[\s\S]*?qv\.lifecycle_status = 'PUBLISHED'[\s\S]*?qv\.is_current = true[\s\S]*?q\.status = 'published'/.test(f145[0]) && /RETURNS integer/.test(f145[0]), 'questions query (145: fn_public_hindi_question_count, filters inside, integer only)');
     assert(/\.from\("document_versions"\)[\s\S]*?\.eq\("language", "hi"\)[\s\S]*?\.eq\("is_published", true\)[\s\S]*?\.eq\("is_current", true\)[\s\S]*?\.eq\("learning_documents\.status", "PUBLISHED"\)[\s\S]*?\.eq\("learning_documents\.is_test_content", false\)/.test(r), 'lessons query');
     assert(/currentAffairs: 0 \}/.test(r) && /an article has no language/.test(r), 'current affairs: no Hindi version exists in the schema (always 0)');
     assert(/learning_documents!document_versions_document_id_fkey!inner\(/.test(r), 'the lessons embed names its FK (two FKs link the tables: an ambiguous embed fails with PGRST201 and would hide the chip forever)');

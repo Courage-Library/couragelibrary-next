@@ -559,7 +559,7 @@ export class AssessmentService {
     const [mockTemplatesRes, subjectsRes] = await Promise.all([
       // PAY-1 B2b: mock_tests read on the server (published, static) and attached in the old embed shape
       supabase.from("mock_templates").select("id, title, slug").eq("exam_id", exam.id)
-        .then(async (r) => ({ ...r, data: r.data ? await attachPublishedStaticMocks(r.data, "id, title, slug, duration_minutes, total_questions, total_marks, is_free, status") : r.data })),
+        .then(async (r) => ({ ...r, data: r.data ? await attachPublishedStaticMocks(r.data) : r.data })),
       supabase.from("subjects").select("id, name, slug").order("name"), // TYPES-1 B1 (Class B): subjects has no code column
     ]);
 
@@ -633,12 +633,12 @@ export class AssessmentService {
     // 2. Fetch full mock tests and daily mock templates for this category
     const [mockTestsRes, templatesRes, patternsRes] = await Promise.all([
       // PAY-1 B2b: mock_tests read on the server (published, static); templates / exams still via the session
-      publishedStaticMocksWithTemplates(sb, "id, title, slug, duration_minutes, total_questions, total_marks, is_free, published_at", "id, title, exam_id, test_type, exams(title, category)")
+      publishedStaticMocksWithTemplates(sb, (c, ids) => c.from("mock_templates").select("id, title, exam_id, test_type, exams(title, category)").in("id", ids))
         .then((data) => ({ data })),
       sb.from("mock_templates")
         .select("id, title, slug, test_type, is_active, description, pattern_id")
         .eq("exam_id", selectedCategory.id)
-        .then(async (r) => ({ ...r, data: r.data ? await attachPublishedStaticMocks(r.data, "id, title, slug, duration_minutes, total_questions, total_marks, status") : r.data })),
+        .then(async (r) => ({ ...r, data: r.data ? await attachPublishedStaticMocks(r.data) : r.data })),
       sb.from("exam_patterns")
         .select("id, name, duration_minutes, total_questions, total_marks, negative_mark_value"),
     ]);
@@ -1468,7 +1468,7 @@ export class AssessmentService {
     const supabase = await createServerSupabaseClient();
 
     // PAY-1 B2b: mock_tests read on the server (published, static); templates / exams still via the session
-    const mockTests = await publishedStaticMocksWithTemplates(supabase, "id, title, slug, duration_minutes, total_questions, total_marks, is_free, published_at", "id, title, exams(title, category)");
+    const mockTests = await publishedStaticMocksWithTemplates(supabase, (c, ids) => c.from("mock_templates").select("id, title, exams(title, category)").in("id", ids));
     const error = null;
 
     if (error || !mockTests) return [];

@@ -326,11 +326,8 @@ export class AdminService {
         )
       `)
       .order("title", { ascending: true });
-    const mocksByTemplate = await publishedStaticMocksByTemplate(
-      (exams || []).flatMap((e: any) => (e.mock_templates || []).map((t: any) => t.id)),
-      "id, title, total_questions"
-    );
-    for (const e of (exams || []) as any[]) for (const t of e.mock_templates || []) t.mock_tests = mocksByTemplate.get(t.id) ?? [];
+    const mocksByTemplate = await publishedStaticMocksByTemplate((exams || []).flatMap((e) => (e.mock_templates || []).map((t) => t.id)));
+    for (const e of exams || []) for (const t of e.mock_templates || []) Object.assign(t, { mock_tests: mocksByTemplate.get(t.id) ?? [] });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (exams || []).map((e: any) => {
@@ -401,9 +398,8 @@ export class AdminService {
     ]);
 
     const defaultSubjectCount = subjectsRes.count || 4;
-    const templateList: any[] = templatesRes.data || [];
-    const mocksByTpl = await publishedStaticMocksByTemplate(templateList.map((t) => t.id), "id");
-    for (const t of templateList) t.mock_tests = mocksByTpl.get(t.id) ?? [];
+    const mocksByTpl = await publishedStaticMocksByTemplate((templatesRes.data || []).map((t) => t.id));
+    const templateList = (templatesRes.data || []).map((t) => ({ ...t, mock_tests: mocksByTpl.get(t.id) ?? [] }));
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let list: AdminPatternItem[] = (patternsRes.data || []).map((p) => {
@@ -775,9 +771,8 @@ export class AdminService {
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const templates: any[] = templatesRes.data || [];
-    const mocksByCatTpl = await publishedStaticMocksByTemplate(templates.map((t) => t.id), "id, duration_minutes, total_questions, total_marks, status");
-    for (const t of templates) t.mock_tests = mocksByCatTpl.get(t.id) ?? [];
+    const mocksByCatTpl = await publishedStaticMocksByTemplate((templatesRes.data || []).map((t) => t.id));
+    const templates = (templatesRes.data || []).map((t) => ({ ...t, mock_tests: mocksByCatTpl.get(t.id) ?? [] }));
     let detectedLaunchDate = getIstTomorrowDateStr();
     let detectedLaunchTime = "09:00";
     let detectedLanguage: "both" | "english" | "hindi" = "both";
@@ -1463,18 +1458,18 @@ export class AdminService {
       .eq("is_dynamic", false)
       .eq("status", "published")
       .order("created_at", { ascending: false });
-    const tplIds = [...new Set((mockRows || []).map((m) => m.template_id).filter(Boolean))] as string[];
-    const { data: tplRows } = tplIds.length
+    const tplIds = [...new Set((mockRows || []).map((m) => m.template_id))];
+    const tplRes = tplIds.length
       ? await supabase.from("mock_templates").select("id, exam_id, pattern_id, exams(id, title, slug), exam_patterns(id, name)").in("id", tplIds)
-      : { data: [] as any[] };
-    const tplById = new Map((tplRows || []).map((t: any) => [t.id, t]));
-    const data = (mockRows || []).map(({ template_id, ...m }) => ({ ...m, mock_templates: (template_id && tplById.get(template_id)) || null })) as any[];
+      : null;
+    const tplById = new Map((tplRes?.data || []).map((t) => [t.id, t]));
+    const data = (mockRows || []).map(({ template_id, ...m }) => ({ ...m, mock_templates: tplById.get(template_id) ?? null }));
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let list = (data || []).map((m) => {
-      const template = m.mock_templates || {};
-      const exam = template.exams || {};
-      const pattern = template.exam_patterns || {};
+      const template = m.mock_templates;
+      const exam: { id?: string; title?: string; slug?: string } = template?.exams || {};
+      const pattern: { id?: string; name?: string } = template?.exam_patterns || {};
 
       return {
         id: m.id,

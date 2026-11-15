@@ -1,6 +1,6 @@
 import "server-only";
 import { unstable_cache } from "next/cache";
-import { createAdminServerSupabaseClient, createPublicServerSupabaseClient } from "@/lib/supabase/server";
+import { createPublicServerSupabaseClient } from "@/lib/supabase/server";
 
 /**
  * HOME-1 pre-release (owner): the "in Hindi & English" chip and the FAQ answer must be TRUE — they follow the count of
@@ -21,14 +21,9 @@ export const readHindiAvailability = unstable_cache(
   async (): Promise<HindiAvailability> => {
     const sb = createPublicServerSupabaseClient();
     const [q, l] = await Promise.all([
-      // PAY-1 B2b: clients lose direct reads of question_versions — the count is read on the server (same filters)
-      createAdminServerSupabaseClient()
-        .from("question_versions")
-        .select("id, questions!inner(status)", { count: "exact", head: true })
-        .eq("language", "hi")
-        .eq("lifecycle_status", "PUBLISHED")
-        .eq("is_current", true)
-        .eq("questions.status", "published"),
+      // PAY-1 B2b (145): clients lose direct reads of question_versions — the narrow public count (current, PUBLISHED
+      // Hindi versions of published questions; a number only), through the public client
+      sb.rpc("fn_public_hindi_question_count").then((r) => ({ error: r.error, count: typeof r.data === "number" ? r.data : null })),
       sb
         .from("document_versions")
         // two FKs link these tables: name the version → document one (PGRST201 otherwise)

@@ -265,6 +265,10 @@
     "PAY1-B2B-LIVE": {
       "measured": 5,
       "cap": 180
+    },
+    "PAY1-PUBLIC-READS-LIVE": {
+      "measured": 5,
+      "cap": 180
     }
   }
 }

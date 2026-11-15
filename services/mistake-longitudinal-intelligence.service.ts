@@ -668,7 +668,7 @@ export class MistakeLongitudinalIntelligenceService {
     const { data: answersData } = await attemptsQuery;
     // PAY-1 B2b: the mock / question details for the caller's OWN answers, read with the content client (the ids come
     // from the user's own attempt_answers above), attached in the shape the old embed returned.
-    const rawAnswers = (answersData || []) as any[];
+    const rawAnswers = answersData || [];
     const mqIds = [...new Set(rawAnswers.map((a) => a.mock_question_id).filter(Boolean))] as string[];
     const mqById = new Map<string, any>();
     for (let i = 0; i < mqIds.length; i += 200) {
@@ -676,7 +676,7 @@ export class MistakeLongitudinalIntelligenceService {
         .from("mock_questions")
         .select("id, mock_test_id, mock_section_id, mock_sections(subject_id), mock_tests(template_id, is_dynamic, mock_templates(test_type)), question_versions(question_id, questions(canonical_topic_id))")
         .in("id", mqIds.slice(i, i + 200));
-      for (const r of (mqRows || []) as any[]) mqById.set(r.id, r);
+      for (const r of mqRows || []) mqById.set(r.id, r);
     }
     const allAttemptAnswers = rawAnswers.map((a) => ({ ...a, mock_questions: mqById.get(a.mock_question_id) ?? null }));
 

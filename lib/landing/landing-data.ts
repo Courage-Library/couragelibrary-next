@@ -8,7 +8,6 @@
  * texts (content/landing.ts). Numbers are never invented or cached as constants.
  */
 import type { AppSupabaseClient } from "@/lib/supabase/types";
-import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { examLogo, type ExamLogo } from "@/lib/logos/exam-logo";
 
 export interface LandingExam {
@@ -98,13 +97,9 @@ async function readRows(supabase: AppSupabaseClient): Promise<LandingRows | null
   const ids = examsRes.data.map((e) => e.id);
   if (ids.length === 0) return { exams: [], mocks: [], guides: [], syllabusStates: {}, currentAffairsCount: 0 };
   const [mocksRes, guidesRes, caRes, ...syllabus] = await Promise.all([
-    // PAY-1 B2b: clients lose direct reads of mock_tests — read on the server with the filters stated (published, static)
-    createAdminServerSupabaseClient()
-      .from("mock_tests")
-      .select("id, mock_templates!inner(exam_id)")
-      .eq("status", "published")
-      .eq("is_dynamic", false)
-      .in("mock_templates.exam_id", ids),
+    // PAY-1 B2b (145): clients lose direct reads of mock_tests — the narrow public count per exam (published,
+    // non-dynamic, active template, no QA fixtures; numbers only), through the visitor's session client
+    supabase.rpc("fn_public_mock_counts"),
     supabase
       .from("exam_knowledge_documents")
       .select("id, exam_id")
@@ -119,7 +114,12 @@ async function readRows(supabase: AppSupabaseClient): Promise<LandingRows | null
   ids.forEach((id, i) => {
     syllabusStates[id] = syllabus[i].data;
   });
-  return { exams: examsRes.data, mocks: mocksRes.data ?? [], guides: guidesRes.data ?? [], syllabusStates, currentAffairsCount: caRes.count };
+  // one row per published mock of an active exam, in the shape buildLandingData counts (unchanged)
+  const active = new Set(ids);
+  const mocks = (mocksRes.data ?? [])
+    .filter((r) => active.has(r.exam_id))
+    .flatMap((r) => Array.from({ length: Math.max(0, r.published_mocks) }, () => ({ mock_templates: { exam_id: r.exam_id } })));
+  return { exams: examsRes.data, mocks, guides: guidesRes.data ?? [], syllabusStates, currentAffairsCount: caRes.count };
 }
 
 /** Reads the landing data; a timeout, an error or malformed rows all give { ok: false }. */

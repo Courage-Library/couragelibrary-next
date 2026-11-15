@@ -6,7 +6,7 @@ import "server-only";
  * signed-out / empty view. `cache` dedupes the reads across the page's Suspense boundaries within one request.
  */
 import { cache } from "react";
-import { createAdminServerSupabaseClient, createServerSupabaseClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getSessionState } from "@/lib/auth/session-state";
 import { calculateRevisionDueState } from "@/services/mistake.service";
 import { AssessmentService } from "@/services/assessment.service";
@@ -15,23 +15,17 @@ import { contentLanguage, mockStatuses, orderMocks, type ContentLanguage, type M
 /** Published mocks of the exam (day-window daily tests excluded), in the orderMocks order. Public data. */
 export const examMocks = cache(async (examId: string): Promise<MockListItem[]> => {
   try {
-    // PAY-1 B2b: clients lose direct reads of mock_tests — read on the server with the RLS rule stated (published, static)
-    const { data, error } = await createAdminServerSupabaseClient()
-      .from("mock_tests")
-      .select("id, title, duration_minutes, total_questions, total_marks, is_free, mock_templates!inner(exam_id, test_type)")
-      .eq("status", "published")
-      .eq("is_dynamic", false)
-      .eq("mock_templates.exam_id", examId)
-      .order("title", { ascending: true })
-      .limit(60);
+    // PAY-1 B2b (145): clients lose direct reads of mock_tests — the narrow public read (published, non-dynamic, active
+    // template, no QA fixtures, ≤ 60 by title; ids / titles / figures only), through the visitor's session client
+    const supabase = await createServerSupabaseClient();
+    const { data, error } = await supabase.rpc("fn_public_exam_mocks", { p_exam_id: examId });
     if (error || !data) return [];
     const rows = data
       .map((m) => {
-        const tpl = Array.isArray(m.mock_templates) ? m.mock_templates[0] : m.mock_templates;
         return {
           id: m.id,
           title: m.title,
-          testType: tpl?.test_type ?? null,
+          testType: m.test_type ?? null,
           questions: num(m.total_questions),
           minutes: num(m.duration_minutes),
           totalMarks: num(m.total_marks),

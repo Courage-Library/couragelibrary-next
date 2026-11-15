@@ -111,6 +111,13 @@ const SECDEF_PUBLIC_OK = {
   fn_access_tier: 'access tier of an item (FREE / PRO only), read-only, search_path ""',
   // PAY-1 B2a fix (142): the central check is DEFINER so access_settings needs no client read (this rule's P-6)
   fn_access_allowed: 'central access check: a boolean for the caller only, read-only, search_path ""',
+  // PAY-1 B2b part 2 step 1 (145, owner GO 2026-11-15, narrow DEFINER reads): the public pages' listing figures — filters
+  // hard-coded (published, non-dynamic, active template, no QA fixtures), no content columns, STABLE, search_path ""
+  fn_public_exam_mocks: 'exam page mock list: ids / titles / figures of published non-dynamic mocks only, read-only',
+  fn_public_mock_counts: 'landing: published mock count per exam (numbers only), read-only',
+  fn_public_hindi_question_count: 'landing Hindi claim: one integer (current PUBLISHED Hindi questions), read-only',
+  fn_public_mock_shape: 'CA quiz card: questions / minutes / marks of one published non-dynamic mock, read-only',
+  fn_public_ca_daily_mock_id: "CA date page: the date's published daily CA mock id or null, read-only",
 };
 // P-9: SECURITY DEFINER functions awaiting an architect ruling — MUST stay empty (SEC-HOTFIX-7 ruled on all 14
 // items of SEC_HOTFIX6_REPORT §2.3; a new exposure needs a ruling + a fix, never an entry here)

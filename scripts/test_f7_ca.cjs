@@ -55,7 +55,10 @@ const MOCKS = {
   '@/lib/supabase/server': {
     createPublicServerSupabaseClient: () => {
       const q = { select: () => q, eq: () => q, maybeSingle: async () => ({ data: row }) };
-      return { from: () => q };
+      // PAY-1 B2b (145): fn_public_mock_shape — the stub returns the row only when published (the function's filter,
+      // asserted against the migration in CA-02)
+      const rpc = async (fn) => ({ data: fn === 'fn_public_mock_shape' && row && row.status === 'published' ? [{ total_questions: row.total_questions, duration_minutes: row.duration_minutes, total_marks: row.total_marks }] : [], error: null });
+      return { from: () => q, rpc };
     },
   },
 };
@@ -93,6 +96,9 @@ const text = (html) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
     row = { total_questions: 0, duration_minutes: 10, total_marks: 20, status: 'published' };
     assert((await dailyQuizShape(MOCK_ID)) === null, 'zero value → null');
     assert((await dailyQuizShape('x')) === null && (await dailyQuizShape(null)) === null, 'bad id → null');
+    const f145 = read('supabase/migrations/20261116000145_pay1_b2b_public_reads.sql').match(/CREATE OR REPLACE FUNCTION public\.fn_public_mock_shape\(p_mock_test_id uuid\)[\s\S]*?\$\$;/);
+    assert(f145 && /RETURNS TABLE \(total_questions integer, duration_minutes integer, total_marks numeric\)/.test(f145[0]) && /m\.status = 'published'[\s\S]*?m\.is_dynamic = false/.test(f145[0]), '145: fn_public_mock_shape returns figures only, published + non-dynamic hard-coded');
+    assert(/createPublicServerSupabaseClient()/.test(read('lib/current-affairs/daily-quiz.ts')) && !/createAdminServerSupabaseClient|SERVICE_ROLE/.test(read('lib/current-affairs/daily-quiz.ts')), 'public client only (no service role)');
     assert(/const quizShape = dailyQuiz\.status === 'ALREADY_PUBLISHED' \? await dailyQuizShape\(dailyQuiz\.mockTestId\) : null;/.test(read('app/(site)/current-affairs/page.tsx')) && /shape=\{quizShape\}/.test(read('app/(site)/current-affairs/page.tsx')), 'hub passes the real shape');
   });
 

@@ -223,7 +223,10 @@ const UX2B_ROUTES = ['/legal'];
     const s = stripComments(read(DATA));
     assert(!/createAdminServerSupabaseClient|service_role|SERVICE_ROLE/.test(s + read(PAGE)), 'service role');
     assert(!/\.(insert|update|upsert|delete)\(/.test(s), 'writes');
-    assert(/from\("mock_tests"\)[\s\S]*?\.eq\("status", "published"\)\s*\.eq\("is_dynamic", false\)/.test(s), 'mock filter');
+    // PAY-1 B2b (145): the mock counts are the narrow public function through the same session client — the filters
+    // (published, non-dynamic, active template, no QA fixtures) are hard-coded inside it; it returns counts only
+    const f145 = read('supabase/migrations/20261116000145_pay1_b2b_public_reads.sql').match(/CREATE OR REPLACE FUNCTION public\.fn_public_mock_counts\(\)[\s\S]*?\$\$;/);
+    assert(/supabase\.rpc\("fn_public_mock_counts"\)/.test(s) && f145 && /RETURNS TABLE \(exam_id uuid, published_mocks integer\)/.test(f145[0]) && /m\.status = 'published'[\s\S]*?m\.is_dynamic = false/.test(f145[0]) && /t\.is_active = true/.test(f145[0]), 'mock filter');
     assert(/from\("exam_knowledge_documents"\)[\s\S]*?\.eq\("status", "PUBLISHED"\)\s*\.not\("current_published_version_id", "is", null\)/.test(s), 'guide filter');
     assert(/from\("current_affairs_articles"\)[\s\S]*?\.eq\("status", "PUBLISHED"\)/.test(s), 'current-affairs filter');
     assert(/rpc\("fn_exam_syllabus_read_model"/.test(s) && /\.eq\("is_active", true\)/.test(s), 'read model + active exams');

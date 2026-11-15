@@ -5,7 +5,7 @@ import "server-only";
  * never hard-coded numbers. Public, read-only (published mocks are public); any failure → null and the card shows no
  * figures rather than guessed ones.
  */
-import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
+import { createPublicServerSupabaseClient } from "@/lib/supabase/server";
 
 export type DailyQuizShape = { totalQuestions: number; durationMinutes: number; totalMarks: number };
 
@@ -14,9 +14,12 @@ const ID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export async function dailyQuizShape(mockTestId: string | null | undefined): Promise<DailyQuizShape | null> {
   if (!mockTestId || !ID_RX.test(mockTestId)) return null;
   try {
-    // PAY-1 B2b: clients lose direct reads of mock_tests — read on the server; published static only (the RLS rule)
-    const { data } = await createAdminServerSupabaseClient().from("mock_tests").select("total_questions, duration_minutes, total_marks, status").eq("id", mockTestId).eq("is_dynamic", false).maybeSingle();
-    if (!data || data.status !== "published") return null;
+    // PAY-1 B2b (145): clients lose direct reads of mock_tests — the narrow public read (figures of ONE published,
+    // non-dynamic mock; no row otherwise), through the public client
+    const sb = createPublicServerSupabaseClient();
+    const { data: rows } = await sb.rpc("fn_public_mock_shape", { p_mock_test_id: mockTestId });
+    const data = Array.isArray(rows) ? rows[0] : null;
+    if (!data) return null;
     const shape = { totalQuestions: Number(data.total_questions), durationMinutes: Number(data.duration_minutes), totalMarks: Number(data.total_marks) };
     return Object.values(shape).every((n) => Number.isFinite(n) && n > 0) ? shape : null;
   } catch {
