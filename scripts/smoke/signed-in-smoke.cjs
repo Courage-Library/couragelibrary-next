@@ -194,7 +194,8 @@ if (process.env.SMOKE_NEGATIVE_CONTROL === '1') REQUIRED['/admin/questions'] = [
       check('mock result link present on /mock-tests', false, 'none found');
     }
   } else if (CHECK === 'student-pages') {
-    const PAGES = ['/dashboard', '/community', '/descriptive', '/descriptive/submissions', '/flashcards', '/institutes', '/premium', '/store', '/wallet'];
+    // PAY-1 B2b part 2: + the pages whose mock / question reads moved server-side (practice, mocks, Mistake Vault, CA)
+    const PAGES = ['/dashboard', '/community', '/descriptive', '/descriptive/submissions', '/flashcards', '/institutes', '/premium', '/store', '/wallet', '/practice', '/mock-tests', '/mistakes', '/current-affairs'];
     const visit = async (p, reqKey) => {
       const r = await go(p, reqKey);
       const html = await page.content();
@@ -218,7 +219,7 @@ if (process.env.SMOKE_NEGATIVE_CONTROL === '1') REQUIRED['/admin/questions'] = [
     });
     check('/exams/ssc-cgl syllabus section matches the read model', sy.ok, sy.detail);
   } else if (CHECK === 'admin-pages') {
-    const ADMIN = ['/admin', '/admin/questions', '/admin/mock-tests/sections', '/admin/payments', '/admin/access', '/admin/support/flags', '/admin/institutes', '/admin/mock-tests', '/admin/questions/import', '/admin/master-tree', '/admin/exams', '/admin/exams/knowledge', '/admin/system/design', '/admin/syllabus', '/admin/lessons', '/admin/lessons/new', '/admin/prompts', '/admin/syllabus/intake'];
+    const ADMIN = ['/admin', '/admin/questions', '/admin/mock-tests/sections', '/admin/payments', '/admin/access', '/admin/support/flags', '/admin/institutes', '/admin/mock-tests', '/admin/questions/import', '/admin/master-tree', '/admin/exams', '/admin/exams/knowledge', '/admin/system/design', '/admin/syllabus', '/admin/lessons', '/admin/lessons/new', '/admin/prompts', '/admin/syllabus/intake', '/admin/mock-tests/patterns', '/admin/exams/cycles'];
     for (const p of ADMIN) {
       const r = await go(p);
       const html = await page.content();

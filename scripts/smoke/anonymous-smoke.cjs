@@ -8,6 +8,8 @@
  *   NO_SYLLABUS → "Syllabus coming soon") — scripts/smoke/_syllabus-expect.cjs
  *   GATE-HYGIENE-1: the project-ref scan covers the HTML and every same-origin JS chunk, with a minimum-coverage
  *   assertion (0 chunks / 0 tokens scanned = FAIL); --self-test proves offline that a planted ref is caught.
+ *   PAY-1 B2b part 2: public question / mock pages render for anon through server-side reads; the CA article payload
+ *   carries no question text; their canonicals stay self-canonical; anon cannot call fn_reserved_question_ids.
  * Usage: node scripts/smoke/anonymous-smoke.cjs <baseUrl> [--expect-redirects] | --self-test
  */
 const path = require('path');
@@ -154,6 +156,38 @@ const get = async (p) => { for (let i = 1; i <= 3; i++) { try { return await fet
     const r = await get(p);
     const h = r.status === 200 ? await r.text() : '';
     check(`GET ${p} (${label}) → 200, self-canonical, JSON-LD`, r.status === 200 && h.includes(`${p}"`) && /application\/ld\+json/.test(h), `${r.status}`);
+  }
+  // PAY-1 B2b part 2 (E1 = b, D2): public question / mock pages via server-side reads. A page must render (200, no error
+  // boundary, never a 5xx); the CA article must not ship question text; canonicals / sitemap entries stay as they were.
+  {
+    const ERR = /Something went wrong|Application error|NEXT_HTTP_ERROR_FALLBACK;500/;
+    const page = async (p) => { const r = await get(p); return { status: r.status, html: r.status === 200 ? await r.text() : '' }; };
+    const canonicalOf = (h) => { const m = h.match(/<link[^>]+rel="canonical"[^>]+href="([^"]+)"/) || h.match(/<link[^>]+href="([^"]+)"[^>]+rel="canonical"/); return m ? new URL(m[1]).pathname : null; };
+    for (const p of ['/practice', '/mock-tests', '/current-affairs']) {
+      const r = await page(p);
+      check(`PAY-1 anon GET ${p} → 200, renders`, r.status === 200 && !ERR.test(r.html), String(r.status));
+      if (locs.includes(p)) check(`PAY-1 ${p} self-canonical (in the sitemap)`, canonicalOf(r.html) === p, String(canonicalOf(r.html)));
+    }
+    const ps = await get('/practice/session');
+    check('PAY-1 anon GET /practice/session → no 5xx (renders or redirects)', ps.status < 500, String(ps.status));
+    const mt = await page('/mock-tests');
+    const mockHref = (mt.html.match(/href="(\/mock-tests\/[0-9a-f-]{36})"/) || [])[1];
+    if (!mockHref) console.log('  WARN  VACUOUS: no mock link on /mock-tests — /mock-tests/[id] not checked');
+    else { const r = await page(mockHref); check('PAY-1 anon GET /mock-tests/[id] → no 5xx, no error boundary', r.status < 500 && !ERR.test(r.html), String(r.status)); }
+    const caSlug = locs.find((p) => /^\/current-affairs\/(?!date\/|month\/)[a-z0-9-]+$/.test(p));
+    const caDate = locs.find((p) => /^\/current-affairs\/date\/\d{4}-\d{2}-\d{2}$/.test(p));
+    for (const [label, p] of [['article', caSlug], ['date page', caDate]]) {
+      if (!p) { console.log(`  WARN  VACUOUS: no current-affairs ${label} in the sitemap`); continue; }
+      const r = await page(p);
+      check(`PAY-1 anon GET /current-affairs ${label} → 200, renders, self-canonical`, r.status === 200 && !ERR.test(r.html) && canonicalOf(r.html) === p, `${r.status} ${canonicalOf(r.html)}`);
+      if (label === 'article') check('PAY-1 CA article payload carries no question text (questionText / question_text)', !/question_?[tT]ext/.test(r.html));
+    }
+    const sbUrl = env('NEXT_PUBLIC_SUPABASE_URL');
+    const anonKey = env('NEXT_PUBLIC_SUPABASE_ANON_KEY');
+    let rq = null;
+    for (let i = 1; i <= 3 && !rq; i++) rq = await fetch(`${sbUrl}/rest/v1/rpc/fn_reserved_question_ids`, { method: 'POST', headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}`, 'Content-Type': 'application/json' }, body: '{}' }).catch(() => null);
+    const qb = rq ? await rq.json().catch(() => ({})) : {};
+    check('PAY-1 anon POST /rest/v1/rpc/fn_reserved_question_ids → permission denied (42501)', rq && (rq.status === 401 || rq.status === 403) && qb.code === '42501', rq ? `${rq.status} ${qb.code || ''}` : 'no response');
   }
   console.log(fails ? `\nSMOKE: ${fails} failed` : '\nSMOKE: all passed');
   process.exit(fails ? 1 : 0);

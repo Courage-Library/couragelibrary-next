@@ -12,6 +12,9 @@
  *   B-N negative control: the same question with its mock FREE and no open attempt → the practice answer is NOT blocked
  *               (the guard is not blanket); anon cannot call the answer functions
  *   B-T trigger: a NEW mock with is_free = true gets an explicit FREE access_policies row
+ *   B-R (144, part 2 step 1) the server's reserved list (fn_reserved_question_ids) holds a question while its mock is PRO
+ *               and drops it once FREE; anon and the free student cannot call it (42501). The public pages (practice,
+ *               mocks, current affairs) are checked anonymously by scripts/smoke/anonymous-smoke.cjs (PAY-1 block).
  * Run: node scripts/live/test_pay1_b2b.cjs [--pre]               (project DB; --pre applies 143 inside the transaction)
  *      node scripts/live/test_pay1_b2b.cjs --local=54329 --pre   (local; checks needing content rows SKIP there)
  */
@@ -125,6 +128,23 @@ function client() {
         await switchTo(false);
         chk('B-D path D: question in a PRO mock → practice + Memory Lock add answer RESERVED_FOR_MOCK (paywall OFF and ON)',
           dOff === 'RESERVED_FOR_MOCK' && dOn === 'RESERVED_FOR_MOCK' && mlOff.rows[0] && mlOff.rows[0].r && mlOff.rows[0].r.code === 'RESERVED_FOR_MOCK', JSON.stringify({ dOff, dOn, ml: mlOff.code || mlOff.rows[0]?.r?.code }));
+        // R (144, E1 = b): the server's reserved list holds the question while its mock is PRO, drops it when FREE; no
+        // client (anon / the free student) may call it — public pages read through the server and leave these out
+        const hasR = await one(`select to_regprocedure('public.fn_reserved_question_ids()') is not null ok`);
+        if (!hasR.ok) (LOCAL ? skip : (n, w) => chk(n, false, w))('B-R reserved list', 'fn_reserved_question_ids (144) missing');
+        else {
+          const inPro = await one(`select exists (select 1 from public.fn_reserved_question_ids() r where r = $1::uuid) ok`, [mq.qid]);
+          await setTier('MOCK_TEST', mq.mock, 'FREE');
+          const inFree = await one(`select exists (select 1 from public.fn_reserved_question_ids() r where r = $1::uuid) ok`, [mq.qid]);
+          const others = await one(`select count(*)::int n from public.mock_questions mq2 join public.question_versions qv2 on qv2.id = mq2.question_version_id
+                where qv2.question_id = $1::uuid and mq2.mock_test_id <> $2::uuid and public.fn_access_tier('MOCK_TEST', mq2.mock_test_id::text) = 'PRO'`, [mq.qid, mq.mock]);
+          await setTier('MOCK_TEST', mq.mock, 'PRO');
+          chk('B-R reserved list: the question is listed while its mock is PRO, not once FREE (unless another PRO mock holds it)',
+            inPro.ok === true && inFree.ok === (others.n > 0), JSON.stringify({ pro: inPro.ok, free: inFree.ok, otherPro: others.n }));
+          const rAnon = await as('anon', null, () => errCode(`select public.fn_reserved_question_ids()`));
+          const rStu = await as('authenticated', sid, () => errCode(`select public.fn_reserved_question_ids()`));
+          chk('B-R anon and the free student cannot list the reserved questions (42501)', rAnon.code === '42501' && rStu.code === '42501', JSON.stringify({ anon: rAnon.code, student: rStu.code }));
+        }
         // F: the mock FREE again, an OPEN attempt of the student on it
         await setTier('MOCK_TEST', mq.mock, 'FREE');
         const ins = await errCode(`insert into public.test_attempts (user_id, mock_test_id, status, started_at) values ($1, $2, 'in_progress', now())`, [sid, mq.mock]);

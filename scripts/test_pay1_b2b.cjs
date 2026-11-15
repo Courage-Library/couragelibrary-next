@@ -14,6 +14,9 @@
  *         instructions page no longer writes; the visitor quick check asks canAccess('LESSON', …) first
  *   P3-06 negative controls: a guard removed / moved after the answer, the switch-dependent check used for
  *         RESERVED_FOR_MOCK, a client grant on the helper, ids sent to the player again, the visitor check removed
+ *   P3-07..09 part 2 step 1: 144 fn_reserved_question_ids (PRO tier, service_role only); no app read of the four
+ *         revoke-target tables through a session client (scan of app / lib / services / components); practice
+ *         leaves the reserved questions out; the CA service ships no question text; negative controls
  * Run: node scripts/test_pay1_b2b.cjs
  */
 const fs = require('fs');
@@ -133,6 +136,79 @@ test('P3-06 negative controls: each mutation is caught', () => {
     ['ids sent to the player again', appCheck(svc.replace('questionVersionId: "",\n        questionId: null,', 'questionVersionId: qv?.id || "",\n        questionId: qv?.question_id ?? null,'), player, report, learn)],
     ['attempt without the access check', appCheck(svc.replace(/        if \(!\(await canAccess\("MOCK_TEST", targetMockTestId\)\)\) return null;\n/, ''), player, report, learn)],
     ['visitor key without the check', appCheck(svc, player, report, learn.replace(/  if \(!\(await canAccess\("LESSON", input\.documentId\)\)\) return \{ ok: false, code: "LOCKED" \};\n/, ''))],
+  ];
+  const missed = muts.filter(([, w]) => w === null).map(([k]) => k);
+  assert(missed.length === 0, `not caught: ${missed.join(', ')}`);
+  return `${muts.length} mutations caught`;
+});
+
+// ---------- part 2 step 1 (144 + server-side reads)
+const M144 = 'supabase/migrations/20261116000144_pay1_b2b_reserved_questions.sql';
+const reservedCheck = (sql, rb) => {
+  const m = sql.match(/CREATE OR REPLACE FUNCTION public\.fn_reserved_question_ids\(\)[\s\S]*?\$\$;/);
+  if (!m) return 'fn_reserved_question_ids missing';
+  if (!/SECURITY DEFINER SET search_path = ''/.test(m[0])) return 'DEFINER + search_path';
+  if (!m[0].includes("public.fn_access_tier('MOCK_TEST', mq.mock_test_id::text) = 'PRO'")) return 'reserved = PRO tier (fn_access_tier, not the switch)';
+  if (!/REVOKE ALL ON FUNCTION public\.fn_reserved_question_ids\(\) FROM PUBLIC, anon, authenticated;/.test(sql)) return 'revoke from clients';
+  const grants = [...sql.matchAll(/GRANT EXECUTE ON FUNCTION public\.fn_reserved_question_ids\(\) TO (\w+);/g)].map((g) => g[1]);
+  if (grants.join() !== 'service_role') return `grants: ${grants.join() || 'none'}`;
+  if (!/^-- ROLLBACK-CHAIN: run first: /m.test(rb) || !/DROP FUNCTION IF EXISTS public\.fn_reserved_question_ids\(\);/.test(rb)) return 'rollback 144';
+  return null;
+};
+// a read of a revoke-target table whose nearest preceding client is a SESSION client (server or browser)
+const TARGETS = /from\(["'](mock_tests|mock_questions|question_versions|question_options)["']\)|\b(mock_tests|mock_questions|question_versions|question_options)(!\w+)?\s*\(/;
+const sessionReads = (files) => {
+  const hits = [];
+  for (const [rel, src] of files) {
+    let client = '';
+    src.split('\n').forEach((line, i) => {
+      if (/create(Browser)?(Admin)?(Server)?SupabaseClient\(|createClient\(/.test(line)) client = line;
+      if (TARGETS.test(line) && /createServerSupabaseClient|createBrowser|createClient\(/.test(client) && !/Admin/.test(client)) {
+        // documented: the blueprint audit's PASSED-client branch (service scripts); the default path reads server-side
+        if (rel === 'services/canonical-curriculum-blueprint.service.ts' && /\? supabase\.from\('question_versions'\)/.test(line)) return;
+        hits.push(`${rel}:${i + 1}`);
+      }
+    });
+  }
+  return hits;
+};
+const walk = (dir) => fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true }).flatMap((d) => {
+  const rel = `${dir}/${d.name}`;
+  if (d.isDirectory()) return d.name === 'node_modules' ? [] : walk(rel);
+  return /\.(ts|tsx)$/.test(d.name) ? [rel] : [];
+});
+const APPFILES = ['app', 'lib', 'services', 'components'].flatMap(walk).map((rel) => [rel, read(rel)]);
+const stepOneApp = (practice, ca) => {
+  if (!/rpc\(["']fn_reserved_question_ids["']\)/.test(practice) || !/createAdminServerSupabaseClient/.test(practice)) return 'practice: reserved list via the server (admin rpc)';
+  if (/question_text|questionText/.test(ca)) return 'CA service reads / ships question text (public article payload)';
+  return null;
+};
+
+test('P3-07 144: fn_reserved_question_ids DEFINER, PRO tier (not the switch), service_role only; rollback drops it', () => {
+  const why = reservedCheck(read(M144), read('docs/database/rollback/144_rollback.sql'));
+  assert(why === null, why);
+});
+test('P3-08 step 1: no app read of mock_tests / mock_questions / question_versions / question_options through a session client', () => {
+  const hits = sessionReads(APPFILES);
+  assert(hits.length === 0, `session reads: ${hits.join(', ')}`);
+  const why = stepOneApp(read('lib/practice/server.ts'), read('services/current-affairs.service.ts'));
+  assert(why === null, why);
+  return `${APPFILES.length} files scanned`;
+});
+test('P3-09 negative controls (step 1): each mutation is caught', () => {
+  const sql = read(M144);
+  const rb = read('docs/database/rollback/144_rollback.sql');
+  const practice = read('lib/practice/server.ts');
+  const ca = read('services/current-affairs.service.ts');
+  const planted = [['services/planted.ts', 'const supabase = await createServerSupabaseClient();\nconst { data } = await supabase.from("question_versions").select("id");']];
+  const embed = [['services/planted.ts', 'const sb = await createServerSupabaseClient();\nawait sb.from("user_mistake_vault").select("id, questions(question_versions(question_text))");']];
+  const muts = [
+    ['reserved list granted to authenticated', reservedCheck(sql + '\nGRANT EXECUTE ON FUNCTION public.fn_reserved_question_ids() TO authenticated;\n', rb)],
+    ['reserved list by the switch', reservedCheck(sql.replace("public.fn_access_tier('MOCK_TEST', mq.mock_test_id::text) = 'PRO'", "NOT public.fn_access_allowed('MOCK_TEST', mq.mock_test_id::text)"), rb)],
+    ['session read planted', sessionReads(planted).length ? 'caught' : null],
+    ['session embed planted', sessionReads(embed).length ? 'caught' : null],
+    ['practice without the reserved list', stepOneApp(practice.replace(/fn_reserved_question_ids/g, 'fn_x'), ca)],
+    ['CA article ships question text again', stepOneApp(practice, ca.replace('SELECT qm.question_id, qm.display_order', 'SELECT qm.question_id, qv.question_text, qm.display_order'))],
   ];
   const missed = muts.filter(([, w]) => w === null).map(([k]) => k);
   assert(missed.length === 0, `not caught: ${missed.join(', ')}`);
