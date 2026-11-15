@@ -510,6 +510,46 @@ launches.
   - the student and admin page lists are extended.
 - **SEO:** the sitemap source (`app/sitemap.ts`), routes and canonical metadata are untouched.
 
+**B2 closed 2026-11-15:** 145 (public reads) and 146 (client revoke) are applied and released. See §8 / §9 and the
+release log.
+
+## 10. B3 inventory: Free / Pro decided outside the central check (2026-11-15, code read only)
+
+**Already central:**
+- `LESSON`: `learn/actions.tsx:88`, plus the three SQL lesson functions (migration 143).
+- `MOCK_TEST`: `assessment.service.ts:1765`.
+- By design (D2): `fn_answer_blocked` and `fn_reserved_question_ids` use `fn_access_tier`.
+
+**Enforcement outside the central check:**
+
+| Feature | Where | Own rule |
+|---|---|---|
+| Lessons | `lib/learning/chapter-access.ts` (FREE_N + `LESSON_FREE_PER_CHAPTER`); `lesson-access-settings.ts` (env `PAYMENTS_ENABLED` = a second switch); `learning-resolver.service.ts:310-327` (own Pro check, no `revoked_at`); `master-lesson.service.ts:197`, `course.service.ts:137` | Chapter position, own entitlement read |
+| Lessons (legacy courses) | SQL `fn_update_lesson_playback_position` (010), policy `p_threads_read_public` (102) | `is_free_preview`, `courses.access_tier`, entitlement types |
+| Mock start | `assessment.service.ts:1766`: **after** `canAccess`, `is_free=false` also needs `PremiumEntitlementService.authorizeAndStartAttempt` (Pro + per-exam quota), SQL `fn_authorize_and_start_test_attempt` (035) | `is_free` + quota: a mock the admin sets FREE is still refused |
+| Adaptive (flag off) | `adaptive-session.service.ts:266` → `fn_check_premium_access_and_quota` | Entitlement + quota |
+| Flashcards | `flashcard.service.ts:198-219` (any active entitlement = Pro; no expiry / revoke; `.maybeSingle()` errors on 2+ rows); policy `p_fcards_select` (102); `fn_submit_flashcard_review` (107) | 3-card preview of PRO decks |
+| Battles | `fn_find_or_create_battle_room` (087), `fn_join_battle_by_code` (028); `api/battles/create` takes `accessTier` from the client | `status='ACTIVE'` (other code uses `is_active`) |
+| Live tests (flag) | `fn_register_live_test` (045) | `is_premium_only`, entitlement `status` |
+| Search (unused) | policy `p_search_indexes_read_auth` (102) | `entitlement_type='SUBSCRIPTION'` (no longer issued) |
+
+**Display only** (badges, sort, SEO): the mock `is_free` sort / badge / "next free" (exam page, dashboard,
+`fn_public_exam_mocks`), `isAccessibleForFree`, course / deck tier badges, billing status, the Pro-ending banner.
+
+**No gate at all today:** analytics / performance, Mistake Vault, Memory Lock, `PREMIUM_CA` (no code), practice
+(`free_practice_daily` not enforced), the daily mock (`free_daily_mock` not enforced).
+
+**Dead code:** `PremiumHubService`, `premium-generator.service.ts` with `premium/actions.ts` and `PremiumHubView` (never
+rendered); `fn_get_due_flashcards`, `fn_create_custom_flashcard_deck` (execute revoked); the three `free_*` settings in
+`pro-server.ts` (read, never enforced).
+
+**Admin tooling** (stays): grant / revoke / quota reports, Library Pro, the reminders cron, the FREE_N launch choice,
+the `is_free` / `access_tier` defaults written on create.
+
+**Decisions needed before B3 code:** see the owner questions in the B3 report (2026-11-15): mock quotas, FREE_N, legacy
+course / document levels, flashcard preview, the free limits, battles / live tests, search, badges, the default tier of
+the ungated features, dead code.
+
 ## 6. Evidence (read-only, 2026-11-14)
 
 **Production database** (counts only; read-only transaction, rolled back):
