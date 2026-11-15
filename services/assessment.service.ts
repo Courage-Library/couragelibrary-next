@@ -878,6 +878,11 @@ export class AssessmentService {
     // EXAM-FINALIZE-1 (finalize-on-read): the mock list never shows an expired attempt as resumable
     if (resolvedUserId) await AssessmentService.finalizeExpiredAttempts({ userId: resolvedUserId, limit: 20 });
 
+    // PAY-1 B2b: clients lose direct reads of mock_tests — the three mock reads below run on the server (ad) with the RLS
+    // rule stated explicitly: a mock is visible when it is published and static, or the user's own dynamic mock
+    const ad = createAdminServerSupabaseClient();
+    const visibleMock = (m: { status?: string | null; is_dynamic?: boolean | null; created_for_user_id?: string | null }) =>
+      (m.is_dynamic === false && m.status === "published") || (m.is_dynamic === true && !!resolvedUserId && m.created_for_user_id === resolvedUserId);
     // 2. Fetch all exams, user goals, templates, mock_tests, patterns in parallel
     const [
       allExamsRes,
@@ -895,11 +900,11 @@ export class AssessmentService {
       resolvedUserId
         ? sb.from("user_exam_goals").select("id, exam_id, priority_rank, is_active, target_score, exams(id, title, slug, category)").eq("user_id", resolvedUserId).eq("is_active", true).order("priority_rank", { ascending: true })
         : Promise.resolve({ data: [] }),
-      sb.from("mock_templates").select("id, title, slug, test_type, is_active, description, exam_id, pattern_id, exams(id, title, slug, category), mock_tests(id, title, slug, duration_minutes, total_questions, total_marks, status, is_free)").eq("is_active", true),
-      sb.from("mock_tests").select("id, title, slug, duration_minutes, total_questions, total_marks, is_free, published_at, template_id, mock_templates(id, title, exam_id, test_type, exams(id, title, slug, category))").eq("status", "published").order("created_at", { ascending: false }),
+      ad.from("mock_templates").select("id, title, slug, test_type, is_active, description, exam_id, pattern_id, exams(id, title, slug, category), mock_tests(id, title, slug, duration_minutes, total_questions, total_marks, status, is_free, is_dynamic, created_for_user_id)").eq("is_active", true),
+      ad.from("mock_tests").select("id, title, slug, duration_minutes, total_questions, total_marks, is_free, published_at, template_id, mock_templates(id, title, exam_id, test_type, exams(id, title, slug, category))").eq("status", "published").or(resolvedUserId ? `is_dynamic.eq.false,created_for_user_id.eq.${resolvedUserId}` : "is_dynamic.eq.false").order("created_at", { ascending: false }),
       sb.from("exam_patterns").select("id, name, duration_minutes, total_questions, total_marks, negative_mark_value, pattern_sections(id, section_name, num_questions, marks_per_question, negative_mark)"),
       resolvedUserId
-        ? sb.from("test_attempts").select("id, user_id, mock_test_id, started_at, submitted_at, status, time_taken_seconds, mock_tests(id, title, slug, duration_minutes, total_questions, total_marks, mock_templates(id, title, exam_id, test_type, exams(id, title, slug, category))), test_results(id, total_score, max_score, accuracy_percentage, attempted_count, correct_count, incorrect_count, rank, percentile)").eq("user_id", resolvedUserId).order("started_at", { ascending: false }).limit(30)
+        ? ad.from("test_attempts").select("id, user_id, mock_test_id, started_at, submitted_at, status, time_taken_seconds, mock_tests(id, title, slug, duration_minutes, total_questions, total_marks, mock_templates(id, title, exam_id, test_type, exams(id, title, slug, category))), test_results(id, total_score, max_score, accuracy_percentage, attempted_count, correct_count, incorrect_count, rank, percentile)").eq("user_id", resolvedUserId).order("started_at", { ascending: false }).limit(30)
         : Promise.resolve({ data: [] }),
       resolvedUserId
         ? sb.from("user_streaks").select("current_streak, longest_streak, is_frozen, last_qualifying_date").eq("user_id", resolvedUserId).maybeSingle()
@@ -912,6 +917,10 @@ export class AssessmentService {
         ? sb.from("user_badges").select("badge_id").eq("user_id", resolvedUserId)
         : Promise.resolve({ data: [] }),
     ]);
+    // the template embeds: only what the RLS rule showed (never a draft or another user's dynamic mock)
+    for (const t of (templatesRes.data ?? []) as Array<{ mock_tests?: Array<Parameters<typeof visibleMock>[0]> | null }>) {
+      if (Array.isArray(t.mock_tests)) t.mock_tests = t.mock_tests.filter(visibleMock);
+    }
 
     const allExams = allExamsRes.data || [];
     const rawUserGoals = userGoalsRes.data || [];
@@ -1607,15 +1616,18 @@ export class AssessmentService {
    */
   static async getMockTestInstructions(testId: string): Promise<MockTestInstructionsData | null> {
     // PAY-1 B2b: a GET (even signed out) must not write — the questions are ensured when an attempt starts (line ~1852)
+    // PAY-1 B2b: clients lose direct reads of mock_tests (and mock_sections' policy reads mock_tests) — both are read on the
+    // server with the RLS rule stated: published static, or the signed-in user's own dynamic mock
     const supabase = await createServerSupabaseClient();
-
-    const [testRes, sectionsRes] = await Promise.all([
-      supabase.from("mock_tests").select("id, title, slug, duration_minutes, total_questions, total_marks, is_free, mock_templates(exams(title, category))").eq("id", testId).maybeSingle(),
-      supabase.from("mock_sections").select("id, section_name, num_questions, marks_per_question, negative_mark, section_order").eq("mock_test_id", testId).order("section_order"),
-    ]);
-
+    const { data: auth } = await supabase.auth.getUser().catch(() => ({ data: { user: null } }));
+    const uid = auth?.user?.id ?? null;
+    const ad = createAdminServerSupabaseClient();
+    const testRes = await ad.from("mock_tests").select("id, title, slug, duration_minutes, total_questions, total_marks, is_free, status, is_dynamic, created_for_user_id, mock_templates(exams(title, category))").eq("id", testId).maybeSingle();
     const t = testRes.data;
     if (!t) return null;
+    const visible = (t.is_dynamic === false && t.status === "published") || (t.is_dynamic === true && !!uid && t.created_for_user_id === uid);
+    if (!visible) return null;
+    const sectionsRes = await ad.from("mock_sections").select("id, section_name, num_questions, marks_per_question, negative_mark, section_order").eq("mock_test_id", testId).order("section_order");
 
     const sections = sectionsRes.data || [];
 
@@ -1973,9 +1985,11 @@ export class AssessmentService {
 
     // Q6: the server's clock decides. A save after the server deadline (+ SAVE_GRACE_SECONDS for answers in flight)
     // is refused as "closed", whatever time the device shows.
-    const { data: att } = await supabase.from("test_attempts").select("status, started_at, mock_tests(duration_minutes)").eq("id", attemptId).maybeSingle();
+    // own attempt through the session (RLS); the mock's duration on the server (clients lose direct reads of mock_tests)
+    const { data: att } = await supabase.from("test_attempts").select("status, started_at, mock_test_id").eq("id", attemptId).maybeSingle();
     if (!att || att.status !== "in_progress") return "closed";
-    const duration = Number(oneToOne(att.mock_tests)?.duration_minutes);
+    const { data: mt } = await createAdminServerSupabaseClient().from("mock_tests").select("duration_minutes").eq("id", att.mock_test_id).maybeSingle();
+    const duration = Number(mt?.duration_minutes);
     if (!Number.isFinite(duration) || duration <= 0) return "error";
     if (Date.now() > attemptDeadline(att.started_at, duration).getTime() + SAVE_GRACE_SECONDS * 1000) return "closed";
 
@@ -2395,7 +2409,7 @@ export class AssessmentService {
     let resolvedAttemptId = attemptId;
     let [resultRes, attemptRes] = await Promise.all([
       sb.from("test_results").select("*").eq("attempt_id", resolvedAttemptId).maybeSingle(),
-      sb.from("test_attempts").select("id, mock_test_id, user_id, started_at, submitted_at, mock_tests(id, title, duration_minutes, total_questions, total_marks)").eq("id", resolvedAttemptId).maybeSingle(),
+      sb.from("test_attempts").select("id, mock_test_id, user_id, started_at, submitted_at").eq("id", resolvedAttemptId).maybeSingle(),
     ]);
 
     // Fallback 1: If not found by attempt_id, check if attemptId is actually a test_results.id
@@ -2405,7 +2419,7 @@ export class AssessmentService {
         resolvedAttemptId = resById.attempt_id;
         [resultRes, attemptRes] = await Promise.all([
           sb.from("test_results").select("*").eq("attempt_id", resolvedAttemptId).maybeSingle(),
-          sb.from("test_attempts").select("id, mock_test_id, user_id, started_at, submitted_at, mock_tests(id, title, duration_minutes, total_questions, total_marks)").eq("id", resolvedAttemptId).maybeSingle(),
+          sb.from("test_attempts").select("id, mock_test_id, user_id, started_at, submitted_at").eq("id", resolvedAttemptId).maybeSingle(),
         ]);
       }
     }
@@ -2426,7 +2440,7 @@ export class AssessmentService {
         resolvedAttemptId = latestAttempt.id;
         [resultRes, attemptRes] = await Promise.all([
           sb.from("test_results").select("*").eq("attempt_id", resolvedAttemptId).maybeSingle(),
-          sb.from("test_attempts").select("id, mock_test_id, user_id, started_at, submitted_at, mock_tests(id, title, duration_minutes, total_questions, total_marks)").eq("id", resolvedAttemptId).maybeSingle(),
+          sb.from("test_attempts").select("id, mock_test_id, user_id, started_at, submitted_at").eq("id", resolvedAttemptId).maybeSingle(),
         ]);
       }
     }
@@ -2434,8 +2448,11 @@ export class AssessmentService {
     const r = resultRes?.data;
     const attemptData = attemptRes?.data;
 
-    if (!r || !attemptData || !attemptData.mock_tests) return null;
-    const mt = attemptData.mock_tests;
+    if (!r || !attemptData) return null;
+    // PAY-1 B2b: ownership was proven above through the session (test_results / test_attempts RLS); the mock itself is
+    // read on the server (clients lose direct reads of mock_tests)
+    const { data: mt } = await createAdminServerSupabaseClient().from("mock_tests").select("id, title, duration_minutes, total_questions, total_marks").eq("id", attemptData.mock_test_id).maybeSingle();
+    if (!mt) return null;
 
     const adminSb = createAdminServerSupabaseClient();
 
