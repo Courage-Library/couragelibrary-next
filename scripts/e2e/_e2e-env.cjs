@@ -64,6 +64,7 @@ async function ensureStudent() {
   }
   const password = crypto.randomBytes(18).toString('base64url') + 'aA1!';
   let user = await findUser();
+  let created = false;
   if (!user) {
     const { data, error } = await admin.auth.admin.createUser({
       email: EMAIL,
@@ -74,12 +75,25 @@ async function ensureStudent() {
     });
     if (error) throw error;
     user = data.user;
+    created = true;
   } else {
     const { error } = await admin.auth.admin.updateUserById(user.id, { password });
     if (error) throw error;
   }
   if (user.app_metadata && user.app_metadata.role) throw new Error('test student must not have an app_metadata role');
-  return { user, password };
+  return { user, password, created };
+}
+
+/**
+ * E2E-ACCOUNT-GUARD-1 (owner 2026-11-15): a browser journey signs in through the QA session (scripts/live/qa-session.cjs),
+ * which accepts only the permanent QA identities. Check that BEFORE any network call or account creation — a journey
+ * started without CI's QA env would otherwise create a temporary account and crash at the sign-in, leaving it behind.
+ */
+function assertQaJourneyEnv() {
+  const missing = ['E2E_STUDENT_EMAIL', 'E2E_STUDENT_PASSWORD_KEY'].filter((k) => !env(k));
+  if (missing.length) throw new Error(`E2E QA env missing (${missing.join(', ')}): set them as CI does (E2E_STUDENT_EMAIL = a permanent QA identity, E2E_STUDENT_PASSWORD_KEY, E2E_KEEP_USER=1) — refused before any account was created`);
+  require('../live/qa-session.cjs').assertQaEmail(EMAIL); // throws QA_SESSION_NOT_ALLOWED for anything but a QA identity
+  if (env('E2E_KEEP_USER') !== '1') throw new Error('E2E_KEEP_USER=1 required with a permanent QA identity (data-only cleanup) — refused before any account was created');
 }
 
 async function resolveMockId() {
@@ -101,4 +115,4 @@ function stepRecorder() {
   return { results, step };
 }
 
-module.exports = { BASE, EMAIL, OUT_DIR, SCREENS_DIR, pgConfig, admin, userClient, findUser, ensureStudent, resolveMockId, stepRecorder };
+module.exports = { BASE, EMAIL, OUT_DIR, SCREENS_DIR, pgConfig, admin, userClient, findUser, ensureStudent, assertQaJourneyEnv, resolveMockId, stepRecorder };

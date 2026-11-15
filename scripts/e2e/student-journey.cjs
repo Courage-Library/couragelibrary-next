@@ -3,13 +3,16 @@
  * login → /mock-tests → start daily mock → 3 wrong + 3 right (autosave) → guards → reload → submit
  * → result → /mistakes shows the 3 wrong answers → mistake detail → /admin blocked.
  * Follow with assert-mistake-lineage.cjs, then cleanup-student.cjs.
- * Usage: node scripts/e2e/student-journey.cjs
+ * Usage: node scripts/e2e/student-journey.cjs   (with CI's QA env: E2E_STUDENT_EMAIL, E2E_STUDENT_PASSWORD_KEY, E2E_KEEP_USER=1)
+ * E2E-ACCOUNT-GUARD-1 (owner 2026-11-15): the QA env is checked BEFORE anything connects or any account is created; an
+ * account this run created is removed in a finally block (scripts/e2e/cleanup-student.cjs), so a crash leaves none behind.
  */
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
 const { qaBrowserLogin, qaUserClient } = require('../live/qa-session.cjs');
-const { BASE, EMAIL, OUT_DIR, SCREENS_DIR, admin, ensureStudent, resolveMockId, stepRecorder } = require('./_e2e-env.cjs');
+const { spawnSync } = require('child_process');
+const { BASE, EMAIL, OUT_DIR, SCREENS_DIR, admin, ensureStudent, assertQaJourneyEnv, resolveMockId, stepRecorder } = require('./_e2e-env.cjs');
 
 const { results, step } = stepRecorder();
 if (SCREENS_DIR) fs.mkdirSync(SCREENS_DIR, { recursive: true });
@@ -18,9 +21,13 @@ const shot = async (page, name) => {
 };
 const pathOf = (url) => new URL(url).pathname.replace(/[0-9a-f-]{36}/g, ':id');
 
+let createdHere = false; // E2E-ACCOUNT-GUARD-1: true only when ensureStudent created the account in THIS run
+let exitCode = 1;
 (async () => {
+  assertQaJourneyEnv(); // before anything connects or any account is created
   const MOCK = await resolveMockId();
-  const { user } = await ensureStudent();
+  const { user, created } = await ensureStudent();
+  createdHere = created === true;
   const uid = user.id;
   console.log('student id prefix:', uid.slice(0, 8));
 
@@ -181,8 +188,21 @@ const pathOf = (url) => new URL(url).pathname.replace(/[0-9a-f-]{36}/g, ':id');
   fs.writeFileSync(path.join(OUT_DIR, 'e2e_journey_result.json'), JSON.stringify({ uid8: uid.slice(0, 8), attempt8: att.id.slice(0, 8), chosen, results }, null, 1));
   const failed = results.filter((r) => !r.ok).length;
   console.log(`\nJourney: ${results.length - failed}/${results.length} passed`);
-  process.exit(failed ? 1 : 0);
-})().catch((e) => {
-  console.log('JOURNEY ERR', String(e.message).slice(0, 400));
-  process.exit(1);
-});
+  exitCode = failed ? 1 : 0;
+})()
+  .catch((e) => {
+    console.log('JOURNEY ERR', String(e.message).slice(0, 400));
+    exitCode = 1;
+  })
+  .finally(() => {
+    // an account created by this run never outlives it (data + auth user, through the guarded cleanup tool)
+    if (createdHere) {
+      const env = { ...process.env };
+      delete env.E2E_KEEP_USER;
+      delete env.E2E_KEEP_FIXTURE;
+      const r = spawnSync(process.execPath, [path.join(__dirname, 'cleanup-student.cjs')], { env, encoding: 'utf8' });
+      console.log(`JOURNEY cleanup of the account created by this run: ${r.status === 0 ? 'done' : 'FAILED — run scripts/e2e/cleanup-student.cjs'}`);
+      if (r.status !== 0) exitCode = 1;
+    }
+    process.exit(exitCode);
+  });
