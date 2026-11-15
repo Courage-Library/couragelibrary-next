@@ -424,7 +424,7 @@ async function leftovers(c, actor, since) {
   // ---------------- RLS via the public API (anon / publishable key) ----------------
   const anonKey = env('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY') || env('NEXT_PUBLIC_SUPABASE_ANON_KEY');
   if (anonKey) {
-    await test('RLS-API anon client: no DRAFT/IN_REVIEW versions, no answers, no authoring; published readable; select(*) has no review fields', async () => {
+    await test('RLS-API anon client: no versions / options / mock questions / mock tests at all (146), no answers, no authoring, no batches', async () => {
       // supabase-js realtime needs a WebSocket global on Node < 22 (same stub as the other suites; realtime unused).
       if (typeof globalThis.WebSocket === 'undefined') globalThis.WebSocket = class DummyWebSocket {};
       const { createClient } = require('@supabase/supabase-js');
@@ -435,14 +435,12 @@ async function leftovers(c, actor, since) {
           (SELECT count(*)::int FROM public.question_import_batches) batches`)).rows[0];
       for (const [k, n] of Object.entries(exist)) if (n === 0) lines.push(`  WARN  VACUOUS (0 items): RLS-API ${k} — no such rows exist, so "not readable by anon" proves nothing for it`);
       assert(exist.answers >= 1, 'no question_answers rows: the answers-hidden probe would be vacuous');
-      const drafts = await anon.from('question_versions').select('id').neq('lifecycle_status', 'PUBLISHED').neq('lifecycle_status', 'SUPERSEDED').limit(5);
-      assert(!drafts.error && drafts.data.length === 0, `non-published readable: ${drafts.error ? drafts.error.message : drafts.data.length}`);
-      const pub = await anon.from('question_versions').select('*').eq('lifecycle_status', 'PUBLISHED').limit(1);
-      assert(!pub.error && pub.data.length === 1, `published not readable: ${pub.error ? pub.error.message : 0}`);
-      const keys = Object.keys(pub.data[0]);
-      assert(!keys.some((k) => ['origin', 'authoring_metadata', 'review_notes', 'reviewed_by', 'created_by', 'import_batch_id', 'context_hash'].includes(k)), `review fields exposed: ${keys}`);
-      const opts = await anon.from('question_options').select('id').eq('question_version_id', pub.data[0].id);
-      assert(!opts.error && opts.data.length > 0, 'published options not readable');
+      // PAY-1 B2b (146, owner GO 2026-11-15, D2): the anon API reads NO question / mock content directly (draft or
+      // published) — refused outright (42501); content reaches visitors only through the server / the 145 public reads
+      for (const t of ['question_versions', 'question_options', 'mock_questions', 'mock_tests']) {
+        const r = await anon.from(t).select('id').limit(1);
+        assert(r.error && r.error.code === '42501', `anon API reads ${t}: ${r.error ? r.error.code : `${r.data.length} row(s)`}`);
+      }
       const ans = await anon.from('question_answers').select('question_version_id').limit(1);
       assert(ans.error || ans.data.length === 0, 'answers readable');
       const auth = await anon.from('question_version_authoring').select('version_id').limit(1);
