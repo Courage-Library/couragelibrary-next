@@ -271,6 +271,9 @@ anonymous smoke pins the current values (`scripts/smoke/anonymous-smoke.cjs`, PA
 **How:** give both pages self-canonical metadata (`alternates.canonical`), then update the pinned values in the smoke.
 Owner decision.
 
+**Status: DONE 2026-11-15** (owner decision: self-canonical, kept in the sitemap). `constructMetadata({ canonicalUrl })` on
+both pages; titles / descriptions unchanged; the anonymous smoke pins the self-canonicals.
+
 ## DESCRIPTIVE-LAUNCH-REVIEW: descriptive answers / guidelines exposure before the descriptive launch
 
 **Owner, 2026-11-15 (PAY-1 B2b):** must be reviewed before descriptive writing launches. Today there is no exposure:

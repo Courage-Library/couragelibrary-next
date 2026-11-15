@@ -11,6 +11,7 @@ export const metadata = constructMetadata({
   title: "Mock Tests & Daily Practice",
   description:
     "Daily sectional tests, weekly mixed drills, full-length national mocks, and personalized multi-exam performance tracking.",
+  canonicalUrl: "/mock-tests", // SEO-CANONICAL-1 (owner 2026-11-15): self-canonical, it is in the sitemap
 });
 
 interface Props {

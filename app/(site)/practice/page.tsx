@@ -14,8 +14,12 @@ import { formatNumber } from "@/lib/format";
 import { isPracticeEnabled } from "@/lib/practice/flag";
 import { SET_SIZES, parseSetSize } from "@/lib/practice/engine";
 import { examSections, practiceExams } from "@/lib/practice/server";
+import { constructMetadata } from "@/lib/seo/metadata";
 
 export const dynamic = "force-dynamic";
+
+// SEO-CANONICAL-1 (owner 2026-11-15): self-canonical (it is in the sitemap); title / description stay the site defaults
+export const metadata = constructMetadata({ canonicalUrl: "/practice" });
 
 // UX-2b.3 (F-01): every card links to a route that works today. Practice here draws on the questions a student
 // got wrong in mocks; topic-by-topic practice sessions do not exist yet, so nothing below promises them.

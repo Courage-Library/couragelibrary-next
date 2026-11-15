@@ -61,7 +61,8 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 const { createClient } = require('@supabase/supabase-js');
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || anonKey;
+// PAY-1 B2b (146): the anon key can no longer read the content tables this suite counts — no silent anon fallback
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || (() => { throw new Error('SUPABASE_SERVICE_ROLE_KEY required (the anon key cannot read mock / question content since migration 146)'); })();
 const supabase = createClient(supabaseUrl, serviceRoleKey);
 
 // 4. Import REAL Production Services
