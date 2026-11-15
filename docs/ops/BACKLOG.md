@@ -296,3 +296,18 @@ cannot show a number.
 
 **How:** count them on the server (service role, read-only head count) or grant staff a count-only path; then drop the
 two "pre-existing" lines from the replay report. Owner decision.
+
+## CA1-FLAKE-1: CA1-TAXONOMY-LIVE failed once in CI (non-security, SPEED-RULES-1)
+
+**Evidence:** run 43703568734 (main b19d71c, db shard) — CA1-TAXONOMY-LIVE FAIL, 1 fail line [CA1], 175 s. It passed in
+run 43695445740 (same database state, 146 applied) and passes locally against production (2026-11-15). Not caused by
+PAY-1 (the gate does not read the revoked tables). Does not block (non-security, intermittent).
+
+**How:** reproduce with the failing check's detail (run-quiet withholds it; `--keep-log` on the next dispatch), then fix.
+
+## CI-DB-SHARD-BUDGET: the db shard runs at its 40-minute limit
+
+**Evidence:** run 43695445740 — cancelled at 40 min (PAY1-REVOKE-LIVE then moved to the security shard); run 43703568734
+— finished in 39 min 45 s. Any new gate in that shard will cancel it again.
+
+**How:** raise the shard's timeout or split it (a second db shard), keeping the order rules; owner / architect decision.
