@@ -392,6 +392,9 @@ jobs:
     #              serialization (docs/ops/CI_SPEED_1.md has the lock map)
     #   security — catalog / grants / authz gates + row-disjoint DB gates (own fixtures, no shared lock keys)
     #   pages    — read-only page checks and smokes against the shard's own local server
+    #   dbfree   — CI-DB-SHARD-BUDGET (owner 2026-11-15): DB gates that write NONE of the db shard's object group and never
+    #              touch the shared QA exam row (qa-syllabus-test), moved out of the db shard so it stays <= 70% of its cap
+    #              (C-19 proves both); measured run 43703568734: db ~35.4 min of 52, dbfree ~6.5 min of 10
     # Timeouts: measured job time (dispatch 40919071379) × ~1.5; no check removed or relaxed.
     needs: offline
     # CI-LEAN-1 (decision #73): nightly schedule or a manual dispatch with live=true — never on push
@@ -402,7 +405,9 @@ jobs:
       matrix:
         include:
           - shard: db
-            timeout: 40
+            timeout: 52
+          - shard: dbfree
+            timeout: 10
           - shard: security
             timeout: 25
           - shard: pages
@@ -495,17 +500,27 @@ jobs:
             "$Q PUBLISH-CONFIRM-LIVE -- node scripts/live/test_publish_confirm.cjs" \
             "$Q EXAM-LOGO-1-LIVE -- node scripts/live/test_exam_logo1.cjs" \
             "$Q EXAM-CATEGORIES-LIVE -- node scripts/live/test_exam_categories.cjs" \
+            "$Q COURSE-UX-1-LIVE -- node scripts/live/test_course_ux1.cjs" \
+            "$Q SYLLABUS-MAP-B1-LIVE -- node scripts/live/test_syllabus_map_b1.cjs" \
+            "$Q SYLLABUS-MAP-B2-LIVE -- node scripts/live/test_syllabus_map_b2.cjs" \
+            "$Q LOGO-UX1-E2E -- node scripts/e2e/logo-ux1.cjs"
+      - name: Live gates — shard dbfree (DB gates outside the db shard's object group, row-disjoint; summary lines only)
+        if: matrix.shard == 'dbfree'
+        env:
+          # CI-LEAN-1: one QA session per identity per job (0600 files, runner temp, never printed) + safe failure IDs
+          QA_SESSION_CACHE_DIR: ${{ runner.temp }}/qa-session
+          QA_SESSION_DIAG: '1'
+        run: |
+          Q='node scripts/ci/run-quiet.cjs --caps scripts/ci/live-gate-caps.json --id'
+          node scripts/live/with-server.cjs --port=3100 --log="$RUNNER_TEMP/server/server.log" -- \
+            "$Q QA-SESSION-PROBE -- node scripts/live/qa-session.cjs --probe" \
             "$Q SITE-MEDIA-LIVE -- node scripts/live/test_site_media.cjs" \
             "$Q SITE-GALLERY-LIVE -- node scripts/live/test_site_gallery.cjs" \
             "$Q SITE-MEDIA-NO-EMAIL-LIVE -- node scripts/live/test_site_media_no_email.cjs" \
             "$Q USERNAME-1-LIVE -- node scripts/live/test_username1.cjs" \
-            "$Q COURSE-UX-1-LIVE -- node scripts/live/test_course_ux1.cjs" \
-            "$Q SYLLABUS-MAP-B1-LIVE -- node scripts/live/test_syllabus_map_b1.cjs" \
-            "$Q SYLLABUS-MAP-B2-LIVE -- node scripts/live/test_syllabus_map_b2.cjs" \
             "$Q PAY1-B1-LIVE -- node scripts/live/test_pay1_b1.cjs" \
             "$Q PAY1-B2A-LIVE -- node scripts/live/test_pay1_b2a.cjs" \
-            "$Q PAY1-B2B-LIVE -- node scripts/live/test_pay1_b2b.cjs" \
-            "$Q LOGO-UX1-E2E -- node scripts/e2e/logo-ux1.cjs"
+            "$Q PAY1-B2B-LIVE -- node scripts/live/test_pay1_b2b.cjs"
       - name: Live gates — shard security (catalog / authz / row-disjoint DB gates; summary lines only)
         if: matrix.shard == 'security'
         env:

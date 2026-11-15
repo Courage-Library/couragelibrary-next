@@ -13,7 +13,7 @@ Architect ruling: 2026-10-29. The interim live-gates limit (45 → 60 min) is re
 
 The per-gate seconds are recorded in `scripts/ci/live-gate-caps.json` (`measured`).
 
-## a. Shards (one matrix job, `live-gates`, 3 shards)
+## a. Shards (one matrix job, `live-gates`, 4 shards)
 
 Each shard has its own runner, local server, QA session cache and time limit.
 
@@ -22,6 +22,20 @@ Each shard has its own runner, local server, QA session cache and time limit.
 | **db** | 15 | ≈ 25 min | 40 min |
 | **security** | 13 | ≈ 12 min | 25 min |
 | **pages** | 9 | ≈ 7 min | 20 min |
+
+**CI-DB-SHARD-BUDGET (owner 2026-11-15).** The db shard had grown to 37.7 min of gates and ran at its 40-min limit (run
+43695445740 was cancelled at 40 min; run 43703568734 took 39 min 45 s). A balanced split of the db shard is NOT safe without
+the phase-2 changes below: 31.4 min of its gates write the shared object group and almost all share the QA exam's keys. So:
+
+| Shard | Gates (now) | Job time (measured / estimated) | Limit | Use |
+|---|---|---|---|---|
+| **db** | 22 + probe | ≈ 35.4 min (estimated from run 43703568734) | 52 min | ≈ 68% |
+| **dbfree** (new) | 7 + probe | ≈ 6.5 min | 10 min | ≈ 65% |
+
+`dbfree` holds the DB gates that write none of the group AND never touch the shared QA exam row (`qa-syllabus-test`):
+SITE-MEDIA, SITE-GALLERY, SITE-MEDIA-NO-EMAIL, USERNAME-1, PAY1-B1, PAY1-B2A, PAY1-B2B. EXAM-CATEGORIES-LIVE (renames the QA
+exam inside its transaction) and LOGO-UX1-E2E (writes the QA exam's logo) look group-free but stay in db. C-19 enforces both
+rules for every gate outside db, with a negative control for each.
 
 `live-journeys` (≈ 10 min, limit 45) is unchanged and still runs in parallel.
 

@@ -213,14 +213,15 @@ test('C-14 run-quiet passes a wrapped gate\'s "--self-test" to the gate (it must
   return 'gate executed with its flag';
 });
 
-test('C-15 every job has timeout-minutes (CI-FIX-1: offline 15 · server-checks 20 · live-journeys 45 · prod-smoke 20; CI-SPEED-1: live-gates per shard db 40 · security 25 · pages 20)', () => {
+test('C-15 every job has timeout-minutes (CI-FIX-1: offline 15 · server-checks 20 · live-journeys 45 · prod-smoke 20; CI-SPEED-1 + CI-DB-SHARD-BUDGET: live-gates per shard db 52 · dbfree 10 · security 25 · pages 20)', () => {
   const w = fs.readFileSync(path.join(ROOT, '.github/workflows/ci-gates.yml'), 'utf8');
   const jobsAt = w.indexOf('\njobs:\n');
   assert(jobsAt > 0, 'no jobs block');
   const blocks = w.slice(jobsAt).split(/\n(?= {2}[a-z][\w-]*:\n)/).slice(1);
   // CI-SPEED-1 (architect 2026-10-29): the interim 60 is gone — live-gates runs as 3 shards, each with a limit of ~1.5 x
   // its measured job time (dispatch 40919071379: the db shard's gates sum to ~25 min, security ~12, pages ~7, + ~2 build)
-  const want = { offline: 15, 'server-checks': 20, 'live-journeys': 45, 'live-gates': 'db 40 · security 25 · pages 20', 'prod-smoke': 20 };
+  // CI-DB-SHARD-BUDGET (owner 2026-11-15): db ≈ 35.4 min of 52, dbfree ≈ 6.5 min of 10 (run 43703568734; each ≤ 70%)
+  const want = { offline: 15, 'server-checks': 20, 'live-journeys': 45, 'live-gates': 'db 52 · dbfree 10 · security 25 · pages 20', 'prod-smoke': 20 };
   const got = {};
   for (const b of blocks) {
     const name = b.match(/^ {2}([a-z][\w-]*):/)[1];
@@ -319,13 +320,16 @@ const shardsOf = (w) => {
 const isolationProblems = (w) => {
   const sh = shardsOf(w);
   const bad = [];
-  if (JSON.stringify(Object.keys(sh).sort()) !== JSON.stringify(['db', 'pages', 'security'])) bad.push(`shards ${Object.keys(sh)}`);
+  if (JSON.stringify(Object.keys(sh).sort()) !== JSON.stringify(['db', 'dbfree', 'pages', 'security'])) bad.push(`shards ${Object.keys(sh)}`);
   for (const [name, gates] of Object.entries(sh)) {
     if (name === 'db') continue;
     for (const g of gates) {
       if (g.id === 'QA-SESSION-PROBE') continue;
       const src = fs.readFileSync(path.join(ROOT, g.file), 'utf8');
       if (SHARED_GROUP.test(src) && !SHARD_EXCEPTIONS[g.id]) bad.push(`${g.id} (${name}) writes the shared syllabus / taxonomy / lesson / course group — it belongs in the db shard`);
+      // CI-DB-SHARD-BUDGET (owner 2026-11-15): the dbfree DB gates must not touch the shared QA exam row either (the db
+      // shard's writers lock it inside their transactions)
+      if (name === 'dbfree' && /qa-syllabus-test/.test(src)) bad.push(`${g.id} (dbfree) touches the shared QA exam row (qa-syllabus-test) — it belongs in the db shard`);
     }
   }
   return { bad, sh };
@@ -339,11 +343,16 @@ test('C-19 CI-SPEED-1: shard isolation (every shared-group writer in the db shar
   // negative control: SYLIMPORT1 moved into the security shard must be caught
   const moved = w.replace('"$Q SYLIMPORT1 -- node scripts/test_syl_import1.cjs" \\\n', '').replace('"$Q QBKEY1 --keep-log $RUNNER_TEMP/gate-logs -- node scripts/test_qb_key1.cjs"', '"$Q QBKEY1 --keep-log $RUNNER_TEMP/gate-logs -- node scripts/test_qb_key1.cjs" \\\n            "$Q SYLIMPORT1 -- node scripts/test_syl_import1.cjs"');
   assert(moved !== w && isolationProblems(moved).bad.some((x) => /SYLIMPORT1 \(security\)/.test(x)), 'negative control: a syllabus writer outside the db shard was NOT caught');
+  // negative control (CI-DB-SHARD-BUDGET): EXAM-CATEGORIES-LIVE (it renames the QA exam inside its tx) moved into dbfree
+  const EC = '"$Q EXAM-CATEGORIES-LIVE -- node scripts/live/test_exam_categories.cjs" \\\n';
+  const B2B = '"$Q PAY1-B2B-LIVE -- node scripts/live/test_pay1_b2b.cjs"\n';
+  const movedQa = w.replace(EC, '').replace(B2B, '"$Q PAY1-B2B-LIVE -- node scripts/live/test_pay1_b2b.cjs" \\\n            "$Q EXAM-CATEGORIES-LIVE -- node scripts/live/test_exam_categories.cjs"\n');
+  assert(movedQa !== w && w.includes(EC) && w.includes(B2B) && isolationProblems(movedQa).bad.some((x) => /EXAM-CATEGORIES-LIVE \(dbfree\)/.test(x)), 'negative control: a QA-exam-row gate moved into dbfree was NOT caught');
   // (b) per-suite caps: both live jobs run every gate through --caps, and every gate id has a cap (120..900 s)
   const caps = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts/ci/live-gate-caps.json'), 'utf8')).gates;
   const live = w.slice(w.indexOf('\n  live-journeys:\n'), w.indexOf('\n  prod-smoke:'));
   const qDefs = live.match(/Q='[^']*'/g) || [];
-  assert(qDefs.length === 4 && qDefs.every((q) => q === "Q='node scripts/ci/run-quiet.cjs --caps scripts/ci/live-gate-caps.json --id'"), `Q definitions: ${qDefs.join(' | ')}`);
+  assert(qDefs.length === 5 && qDefs.every((q) => q === "Q='node scripts/ci/run-quiet.cjs --caps scripts/ci/live-gate-caps.json --id'"), `Q definitions: ${qDefs.join(' | ')}`);
   const ids = [...new Set([...live.matchAll(/"\$Q ([A-Z0-9-]+)(?: --keep-log \S+)? -- /g)].map((m) => m[1]))];
   const noCap = ids.filter((id) => !caps[id] || !(caps[id].cap >= 120 && caps[id].cap <= 900));
   assert(ids.length >= 45 && noCap.length === 0, `gates without a valid cap: ${noCap.join(', ')} (${ids.length} gates)`);
@@ -358,7 +367,7 @@ test('C-19 CI-SPEED-1: shard isolation (every shared-group writer in the db shar
   const PAGE_GATES = ['scripts/smoke/signed-in-smoke.cjs', 'scripts/test_sec1c_admin_pages.cjs', 'scripts/test_sec1d_redirects.cjs', 'scripts/test_ux2a_landing.cjs', 'scripts/test_ux2b_public.cjs', 'scripts/test_brand2.cjs'];
   const long = PAGE_GATES.filter((f) => /(?:timeout:\s*|AbortSignal\.timeout\(|setDefault(?:Navigation)?Timeout\()(?:3[0-9]{4}[1-9]|3[1-9]\d{3}|[4-9]\d{4}|\d{6,})/.test(fs.readFileSync(path.join(ROOT, f), 'utf8').replace(/30000/g, '')));
   assert(long.length === 0, `page waits above 30 s in ${long.join(', ')}`);
-  return `db ${sh.db.length} · security ${sh.security.length} · pages ${sh.pages.length} gates; ${ids.length} capped gates; isolation + uncapped-gate negative controls caught`;
+  return `db ${sh.db.length} · dbfree ${sh.dbfree.length} · security ${sh.security.length} · pages ${sh.pages.length} gates; ${ids.length} capped gates; isolation + uncapped-gate negative controls caught`;
 });
 
 console.log(`\nCI support: ${passed}/${passed + failed} passed`);

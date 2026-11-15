@@ -311,3 +311,9 @@ PAY-1 (the gate does not read the revoked tables). Does not block (non-security,
 — finished in 39 min 45 s. Any new gate in that shard will cancel it again.
 
 **How:** raise the shard's timeout or split it (a second db shard), keeping the order rules; owner / architect decision.
+
+**Status: DONE 2026-11-15** (owner: move the lock-free gates + raise the cap). A balanced split needs CI-SPEED-1 phase 2
+(docs/ops/CI_SPEED_1.md): the group writers share the QA exam's keys. Done instead: a new parallel `dbfree` shard with the 7
+gates that write none of the group and never touch the QA exam row (≈ 6.5 min of 10), and the db shard's cap 40 → 52
+(≈ 35.4 min, 68%). C-15 / C-19 updated, with a negative control for the QA-exam-row rule. The real split stays CI-SPEED-1
+phase 2.
