@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * PAY-1 B2b part 1 — EXECUTED proof (owner requirement) for migration 143, as the FREE QA student. ONE transaction,
+ * PAY-1 B2b part 1 — EXECUTED proof (owner requirement) for migration 143, as a FREE student (synthetic, created in the rolled-back tx; never the QA student). ONE transaction,
  * always rolled back (withLiveTransaction). Counts / codes only; no content, ids or e-mails printed.
  *   B-A path A  a lesson set PRO + paywall ON → fn_lesson_quick_check_answer refused (42501); paywall OFF → answered
  *   B-B path B  the same lesson: fn_lesson_progress_save + fn_lesson_complete refused (42501)
@@ -80,9 +80,9 @@ function client() {
   try {
     await withLiveTransaction(c, async () => {
       if (PRE) await c.query(SQL);
-      let student = await one(`select id from auth.users where email = 'qa-student@courage-library.test'`);
-      if (!student && LOCAL) student = await one(`insert into auth.users (id, email, aud, role) values (gen_random_uuid(), 'qa-student@courage-library.test', 'authenticated', 'authenticated') returning id`);
-      if (!student) throw new Error('qa-student missing');
+      // a SYNTHETIC free student created inside this rolled-back transaction (owner 2026-11-15): row-disjoint — the gate
+      // never touches the QA student, whom live-journeys drives in parallel
+      const student = await one(`insert into auth.users (id, email, aud, role) values (gen_random_uuid(), 'pay1-b2b-student-' || substr(md5(random()::text), 1, 8) || '@courage-library.test', 'authenticated', 'authenticated') returning id`);
       const sid = student.id;
 
       // ---------- lessons (A / B)
@@ -116,7 +116,6 @@ function client() {
       } else {
         // N first: the mock FREE, no open attempt → not blocked (the guard is not blanket)
         await setTier('MOCK_TEST', mq.mock, 'FREE');
-        await q(`update public.test_attempts set status = 'abandoned' where user_id = $1 and status = 'in_progress'`, [sid]);
         const freeCode = await practiceCode(sid, mq.vid);
         chk('B-N negative control: mock FREE, no open attempt → the practice answer is NOT blocked', freeCode !== 'RESERVED_FOR_MOCK' && freeCode !== 'IN_OPEN_ATTEMPT', freeCode);
         // D: the mock PRO, paywall OFF and ON
