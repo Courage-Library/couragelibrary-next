@@ -260,3 +260,13 @@ owner. Nothing ends such a session automatically.
 **How (options):** a schema dump that does not run through `pg_dump`'s own session settings (e.g. a catalog-based dump
 in short, limited transactions), or a server-side guard for the backup role. See `docs/database/MIGRATION_RUNBOOK.md`
 §1.
+
+## SEO-CANONICAL-1: /practice and /mock-tests canonicalise to the homepage
+
+**Found 2026-11-15 (PAY-1 B2b part 2, read anonymously on production):** both pages are listed in the sitemap but their
+`<link rel="canonical">` points to `/` (the site default), so search engines are told to index the homepage instead.
+`/current-affairs` is self-canonical. Pre-existing; not changed by PAY-1 (owner rule: canonicals unchanged). The
+anonymous smoke pins the current values (`scripts/smoke/anonymous-smoke.cjs`, PAY-1 block).
+
+**How:** give both pages self-canonical metadata (`alternates.canonical`), then update the pinned values in the smoke.
+Owner decision.

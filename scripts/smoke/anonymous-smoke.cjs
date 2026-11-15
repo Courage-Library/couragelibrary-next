@@ -163,10 +163,14 @@ const get = async (p) => { for (let i = 1; i <= 3; i++) { try { return await fet
     const ERR = /Something went wrong|Application error|NEXT_HTTP_ERROR_FALLBACK;500/;
     const page = async (p) => { const r = await get(p); return { status: r.status, html: r.status === 200 ? await r.text() : '' }; };
     const canonicalOf = (h) => { const m = h.match(/<link[^>]+rel="canonical"[^>]+href="([^"]+)"/) || h.match(/<link[^>]+href="([^"]+)"[^>]+rel="canonical"/); return m ? new URL(m[1]).pathname : null; };
-    for (const p of ['/practice', '/mock-tests', '/current-affairs']) {
+    // canonicals pinned to what production served before PAY-1 B2b part 2 (2026-11-15, read anonymously): "unchanged" is
+    // the owner rule. /practice and /mock-tests canonicalise to "/" although listed in the sitemap — pre-existing,
+    // recorded in docs/ops/BACKLOG.md (SEO-CANONICAL-1), deliberately NOT changed here
+    const CANONICAL = { '/practice': '/', '/mock-tests': '/', '/current-affairs': '/current-affairs' };
+    for (const p of Object.keys(CANONICAL)) {
       const r = await page(p);
       check(`PAY-1 anon GET ${p} → 200, renders`, r.status === 200 && !ERR.test(r.html), String(r.status));
-      if (locs.includes(p)) check(`PAY-1 ${p} self-canonical (in the sitemap)`, canonicalOf(r.html) === p, String(canonicalOf(r.html)));
+      check(`PAY-1 ${p} canonical unchanged (${CANONICAL[p]}) and still in the sitemap`, canonicalOf(r.html) === CANONICAL[p] && locs.includes(p), `${canonicalOf(r.html)} · in sitemap: ${locs.includes(p)}`);
     }
     const ps = await get('/practice/session');
     check('PAY-1 anon GET /practice/session → no 5xx (renders or redirects)', ps.status < 500, String(ps.status));

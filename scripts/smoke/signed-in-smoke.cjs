@@ -121,6 +121,11 @@ const REQUIRED = {
   '/admin/prompts': ['"Prompt templates" heading', H(/^Prompt templates$/)],
   '/admin/syllabus/intake': ['"Syllabus intake" heading', H(/^Syllabus intake$/)],
   '/admin/lessons/legacy': ['"Legacy lessons (read only)" heading (ADMIN-IA-1)', H(/^Legacy lessons \(read only\)$/)],
+  // PAY-1 B2b part 2: pages whose mock / question reads moved server-side (their 200 / no error boundary is the check)
+  '/practice': ['an h1', (pg) => pg.locator('h1').first()],
+  '/current-affairs': ['an h1', (pg) => pg.locator('h1').first()],
+  '/admin/mock-tests/patterns': ['a heading (Studio)', (pg) => pg.getByRole('heading').first()],
+  '/admin/exams/cycles': ['a heading (Studio)', (pg) => pg.getByRole('heading').first()],
 };
 if (process.env.SMOKE_NEGATIVE_CONTROL === '1') REQUIRED['/admin/questions'] = ['NEGATIVE CONTROL: an impossible heading', H(/^CI-SPEED-1 negative control — never rendered$/)];
 
