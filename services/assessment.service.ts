@@ -1,5 +1,6 @@
 import { canAccess } from "@/lib/access/policy";
 import { createServerSupabaseClient, createAdminServerSupabaseClient } from "@/lib/supabase/server";
+import { attachPublishedStaticMocks, publishedStaticMocksWithTemplates } from "@/lib/mocks/server-reads";
 import { correctionFor, type VersionSnapshot } from "@/lib/questions/correction-core";
 import { loadCurrentVersions } from "@/lib/questions/versions-server";
 import { validAnswerKey } from "@/lib/questions/answer-key";
@@ -556,7 +557,9 @@ export class AssessmentService {
     const exam = examData as any;
 
     const [mockTemplatesRes, subjectsRes] = await Promise.all([
-      supabase.from("mock_templates").select("id, title, slug, mock_tests(id, title, slug, duration_minutes, total_questions, total_marks, is_free, status)").eq("exam_id", exam.id),
+      // PAY-1 B2b: mock_tests read on the server (published, static) and attached in the old embed shape
+      supabase.from("mock_templates").select("id, title, slug").eq("exam_id", exam.id)
+        .then(async (r) => ({ ...r, data: r.data ? await attachPublishedStaticMocks(r.data, "id, title, slug, duration_minutes, total_questions, total_marks, is_free, status") : r.data })),
       supabase.from("subjects").select("id, name, slug").order("name"), // TYPES-1 B1 (Class B): subjects has no code column
     ]);
 
@@ -629,13 +632,13 @@ export class AssessmentService {
 
     // 2. Fetch full mock tests and daily mock templates for this category
     const [mockTestsRes, templatesRes, patternsRes] = await Promise.all([
-      sb.from("mock_tests")
-        .select("id, title, slug, duration_minutes, total_questions, total_marks, is_free, published_at, mock_templates(title, exam_id, test_type, exams(title, category))")
-        .eq("status", "published")
-        .order("created_at", { ascending: false }),
+      // PAY-1 B2b: mock_tests read on the server (published, static); templates / exams still via the session
+      publishedStaticMocksWithTemplates(sb, "id, title, slug, duration_minutes, total_questions, total_marks, is_free, published_at", "id, title, exam_id, test_type, exams(title, category)")
+        .then((data) => ({ data })),
       sb.from("mock_templates")
-        .select("id, title, slug, test_type, is_active, description, pattern_id, mock_tests(id, title, slug, duration_minutes, total_questions, total_marks, status)")
-        .eq("exam_id", selectedCategory.id),
+        .select("id, title, slug, test_type, is_active, description, pattern_id")
+        .eq("exam_id", selectedCategory.id)
+        .then(async (r) => ({ ...r, data: r.data ? await attachPublishedStaticMocks(r.data, "id, title, slug, duration_minutes, total_questions, total_marks, status") : r.data })),
       sb.from("exam_patterns")
         .select("id, name, duration_minutes, total_questions, total_marks, negative_mark_value"),
     ]);
@@ -1464,11 +1467,9 @@ export class AssessmentService {
   static async getMockTestsDirectory(): Promise<MockTestItem[]> {
     const supabase = await createServerSupabaseClient();
 
-    const { data: mockTests, error } = await supabase
-      .from("mock_tests")
-      .select("id, title, slug, duration_minutes, total_questions, total_marks, is_free, published_at, mock_templates(title, exams(title, category))")
-      .eq("status", "published")
-      .order("created_at", { ascending: false });
+    // PAY-1 B2b: mock_tests read on the server (published, static); templates / exams still via the session
+    const mockTests = await publishedStaticMocksWithTemplates(supabase, "id, title, slug, duration_minutes, total_questions, total_marks, is_free, published_at", "id, title, exams(title, category)");
+    const error = null;
 
     if (error || !mockTests) return [];
 

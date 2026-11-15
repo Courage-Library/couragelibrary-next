@@ -14,7 +14,7 @@
  * 9. Legacy Content Inventory & Mapping Audit
  */
 
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createServerSupabaseClient, createAdminServerSupabaseClient } from '@/lib/supabase/server';
 import type { AppSupabaseClient } from '@/lib/supabase/types';
 import { DocumentType } from '@/types/learning-compiler';
 import { CANONICAL_DOCUMENT_TYPES } from '@/types/curriculum-coverage';
@@ -186,7 +186,11 @@ export class CanonicalCurriculumBlueprintService {
       supabase.from('subjects').select('id, name'),
       supabase.from('topics').select('id, subject_id, name, slug').order('display_order', { ascending: true }),
       supabase.from('questions').select('id, canonical_topic_id, status'),
-      supabase.from('question_versions').select('id, question_id'),
+      // PAY-1 B2b: clients lose direct reads of question_versions. A passed client (service scripts) reads as before;
+      // the default (session) path reads on the server with the RLS visibility it had (PUBLISHED / SUPERSEDED).
+      supabaseClient
+        ? supabase.from('question_versions').select('id, question_id')
+        : createAdminServerSupabaseClient().from('question_versions').select('id, question_id').in('lifecycle_status', ['PUBLISHED', 'SUPERSEDED']),
     ]);
 
     const subjects = subjectsRes?.data || [];

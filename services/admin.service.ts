@@ -1,6 +1,7 @@
 import { errorCode, reportWriteFailure } from "@/lib/ops/write-failure";
 import { QA_RUN_SLUG_LIKE } from "@/lib/qa/fixtures";
 import { createServerSupabaseClient, createAdminServerSupabaseClient } from "@/lib/supabase/server";
+import { publishedStaticMocksByTemplate } from "@/lib/mocks/server-reads";
 import { UserProfileService } from "@/services/user-profile.service";
 import { resolveRole } from "@/lib/auth/require-admin";
 import { validAnswerKey } from "@/lib/questions/answer-key";
@@ -210,27 +211,6 @@ export interface AdminQuestionsPageData {
   questions: AdminQuestionHierarchyItem[];
   taxonomy: AdminQuestionTaxonomy;
   kpis: AdminQuestionSummaryKPIs;
-}
-
-/**
- * PAY-1 B2b: clients lose direct reads of mock_tests, so the admin pages read them on the SERVER — with the visibility
- * the staff session had under RLS (published, non-dynamic), grouped by template_id for the old embed shape.
- */
-async function publishedStaticMocksByTemplate(templateIds: string[], cols: string): Promise<Map<string, any[]>> {
-  const ids = [...new Set(templateIds.filter(Boolean))];
-  const by = new Map<string, any[]>();
-  if (!ids.length) return by;
-  const { data } = await createAdminServerSupabaseClient()
-    .from("mock_tests")
-    .select(`template_id, ${cols}`)
-    .in("template_id", ids)
-    .eq("is_dynamic", false)
-    .eq("status", "published");
-  for (const r of (data || []) as any[]) {
-    const { template_id, ...rest } = r;
-    by.set(template_id, [...(by.get(template_id) ?? []), rest]);
-  }
-  return by;
 }
 
 export class AdminService {

@@ -886,13 +886,16 @@ export class AdminContentStudioService {
    */
   static async searchQuestionBank(query: string, filters?: { subjectId?: string; topicId?: string }): Promise<QuestionSearchResultItem[]> {
     await this.requireAdminAuth('searchQuestionBank');
-    const supabase = await createServerSupabaseClient();
+    // PAY-1 B2b: clients lose direct reads of question_versions — the (admin-only) bank search reads on the server,
+    // with the version visibility the session had (PUBLISHED / SUPERSEDED).
+    const supabase = createAdminServerSupabaseClient();
 
     let q = supabase
       .from('question_versions')
       // TYPES-1 B4 (Class B): question_type / explanation never existed on question_versions (42703) — the picker always
       // returned nothing. All bank items are single-choice; explanations live in question_answers (not loaded here).
       .select('id, question_id, version_number, question_text, questions(id, status)')
+      .in('lifecycle_status', ['PUBLISHED', 'SUPERSEDED'])
       .limit(20);
 
     if (query && query.trim()) {
