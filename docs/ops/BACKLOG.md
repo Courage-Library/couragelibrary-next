@@ -270,3 +270,16 @@ anonymous smoke pins the current values (`scripts/smoke/anonymous-smoke.cjs`, PA
 
 **How:** give both pages self-canonical metadata (`alternates.canonical`), then update the pinned values in the smoke.
 Owner decision.
+
+## DESCRIPTIVE-LAUNCH-REVIEW: descriptive answers / guidelines exposure before the descriptive launch
+
+**Owner, 2026-11-15 (PAY-1 B2b):** must be reviewed before descriptive writing launches. Today there is no exposure:
+`descriptive_questions.model_answer_md` and `evaluation_guidelines_md` have no column grant for anon / authenticated,
+and the table has 0 rows (read-only check on production, rolled back; PAY_1_DESIGN.md §9).
+
+**Risk:** `services/descriptive.service.ts` selects `*` through the session client and always returns
+`evaluation_guidelines_md` (`:205-206`). With the current grants that read fails. If a grant were ever added, the
+guidelines (and any model answer) would reach students.
+
+**How:** select explicit columns only; serve model answers / guidelines from the server after submission, behind
+`canAccess` (Pro descriptive per the access policy); a gate that anon / the free student cannot read either column.
