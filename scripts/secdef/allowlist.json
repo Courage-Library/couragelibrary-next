@@ -22,17 +22,18 @@
   "PAY-1 B1 (owner GO 2026-11-14, PAY-LEGACY-RETIRE-1): max total and B-service lowered by exactly 3 — migration 140 drops the legacy fn_create_payment_order, fn_process_payment_webhook and fn_verify_and_fulfill_payment (service_role only, no caller, nothing depends on them)",
   "PAY-1 B2a (owner GO 2026-11-14, admin-controlled access policy): max total / client_executable_callable / A raised by exactly 2 for fn_access_tier (anon + authenticated, P-9 SECDEF_PUBLIC_OK: returns FREE / PRO only) and fn_has_pro_self (authenticated, the caller's own Pro); anon_or_public raised by exactly 1 for fn_access_tier",
   "PAY-1 B2a: max total raised by exactly 3 and B-service by 3 for the service-role-only audited writes fn_access_policy_set, fn_access_policy_clear and fn_paywall_set",
-  "PAY-1 B2a fix (migration 142, owner GO 2026-11-15): max total / client_executable_callable / A raised by exactly 1 for fn_access_allowed (now SECURITY DEFINER; anon + authenticated, P-9 SECDEF_PUBLIC_OK: returns a boolean only); anon_or_public raised by exactly 1 for fn_access_allowed"
+  "PAY-1 B2a fix (migration 142, owner GO 2026-11-15): max total / client_executable_callable / A raised by exactly 1 for fn_access_allowed (now SECURITY DEFINER; anon + authenticated, P-9 SECDEF_PUBLIC_OK: returns a boolean only); anon_or_public raised by exactly 1 for fn_access_allowed",
+  "PAY-1 B2b part 1 (migration 143, owner GO 2026-11-15): max total raised by exactly 2 — B-internal by 1 for fn_answer_blocked (no grant at all) and B-trigger by 1 for fn_mock_tests_default_access"
  ],
  "max": {
-  "total": 123,
+  "total": 125,
   "client_executable_callable": 54,
   "anon_or_public": 3,
   "A": 54,
   "C": 0,
-  "B-trigger": 16,
+  "B-trigger": 17,
   "B-service": 39,
-  "B-internal": 0
+  "B-internal": 1
  },
  "public_ok": [
   "fn_exam_syllabus_read_model(p_exam_id uuid, p_exam_cycle_id uuid)",
@@ -888,6 +889,18 @@
    ],
    "search_path": "\"\"",
    "reason": "PAY-1 B2a fix (migration 142, owner GO 2026-11-15): THE central access check (switch off → true; FREE → true; anon → false; else the caller's own Pro); returns a boolean only, no data; DEFINER so access_settings needs no client read (RLS P-6) (P-9 SECDEF_PUBLIC_OK)"
+  },
+  "fn_answer_blocked(p_uid uuid, p_question_id uuid)": {
+   "class": "B-internal",
+   "client": [],
+   "search_path": "\"\"",
+   "reason": "PAY-1 B2b (migration 143, owner GO 2026-11-15): internal helper of the practice / Memory Lock answer functions — IN_OPEN_ATTEMPT / RESERVED_FOR_MOCK (D2 + E1 = b); no EXECUTE for any client or service_role"
+  },
+  "fn_mock_tests_default_access()": {
+   "class": "B-trigger",
+   "client": [],
+   "search_path": "\"\"",
+   "reason": "PAY-1 B2b (migration 143): AFTER INSERT trigger on mock_tests — a new free mock gets an explicit FREE access_policies row (so it does not fall to the PRO default)"
   }
  }
 }

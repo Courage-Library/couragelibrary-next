@@ -5,6 +5,9 @@
 -- the admin changed after the apply is lost with the table (take a backup first; the ACCESS_POLICY_* / PAYWALL_SET
 -- audit rows in admin_audit_logs stay). Only safe while nothing reads the policy yet (B2b / B3 route checks through
 -- fn_access_allowed — roll those back first). Run inside ONE transaction (no BEGIN / COMMIT here).
+-- ALSO roll back 143 (and 142) FIRST: 143's trigger and guards call the policy. This rollback would still run without
+-- them (plpgsql bodies are not dependency-tracked, so the chain probe cannot see it), but every later mock_tests insert
+-- and every lesson / practice answer would then fail. Latest first: 143 → 142 → 141.
 -- =====================================================================================================================
 DROP FUNCTION IF EXISTS public.fn_paywall_set(boolean, uuid, text);
 DROP FUNCTION IF EXISTS public.fn_access_policy_clear(text, text, uuid, text);

@@ -39,7 +39,7 @@ export function LessonQuickCheck({
       const r = await answerQuickCheckAction({ documentId, language, blockId: id, optionId }).catch(() => null);
       if (!r || !r.ok) {
         setResult(null);
-        setError("Could not check the answer. Try again.");
+        setError(r && !r.ok && r.code === "LOCKED" ? "This lesson needs Pro to check answers." : "Could not check the answer. Try again.");
         return;
       }
       setResult({ correct: r.correct, correctOptionId: r.correctOptionId, feedback: r.feedback });

@@ -20,7 +20,7 @@ import { reportQuestionAction } from "@/app/(site)/practice/actions";
 const C = PRACTICE_COPY.report;
 const DONE = new Set(["REPORTED", "ALREADY_REPORTED"]);
 
-export function ReportQuestionButton({ questionId, questionVersionId, className }: { questionId: string | null; questionVersionId: string | null; className?: string }) {
+export function ReportQuestionButton({ questionId, questionVersionId, mockQuestionId = null, className }: { questionId: string | null; questionVersionId: string | null; mockQuestionId?: string | null; className?: string }) {
   const id = useId();
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState<ReportReason | null>(null);
@@ -35,7 +35,7 @@ export function ReportQuestionButton({ questionId, questionVersionId, className 
         setCode("INVALID_INPUT");
         return;
       }
-      const r = await reportQuestionAction({ questionId, questionVersionId, reason, note }).catch(() => "FAILED");
+      const r = await reportQuestionAction({ questionId, questionVersionId, mockQuestionId, reason, note }).catch(() => "FAILED");
       setCode(r);
     });
 

@@ -72,3 +72,18 @@ export async function submitQuestionReport(
     return "FAILED";
   }
 }
+
+/**
+ * PAY-1 B2b (D2): the mock player reports by its per-attempt mockQuestionId (it never receives internal question /
+ * version ids); resolved here on the server. null = unknown.
+ */
+export async function resolveMockQuestion(mockQuestionId: string): Promise<{ questionId: string; questionVersionId: string } | null> {
+  if (!/^[0-9a-f-]{36}$/i.test(mockQuestionId)) return null;
+  const { data } = await createAdminServerSupabaseClient()
+    .from("mock_questions")
+    .select("question_version_id, question_versions(question_id)")
+    .eq("id", mockQuestionId)
+    .maybeSingle();
+  const qv = data?.question_versions as unknown as { question_id: string } | null;
+  return data && qv ? { questionId: qv.question_id, questionVersionId: data.question_version_id } : null;
+}

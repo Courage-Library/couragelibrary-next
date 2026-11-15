@@ -11,7 +11,7 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getSessionState } from "@/lib/auth/session-state";
 import { isPracticeEnabled } from "@/lib/practice/flag";
-import { submitQuestionReport, type ReportCode } from "@/lib/practice/report";
+import { resolveMockQuestion, submitQuestionReport, type ReportCode } from "@/lib/practice/report";
 
 const ID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const KEYS = ["A", "B", "C", "D"] as const;
@@ -56,9 +56,16 @@ export async function checkPracticeAnswerAction(input: { versionId: string; sele
   };
 }
 
-export async function reportQuestionAction(input: { questionId: string | null; questionVersionId: string | null; reason: string; note: string }): Promise<ReportCode> {
+export async function reportQuestionAction(input: { questionId: string | null; questionVersionId: string | null; mockQuestionId?: string | null; reason: string; note: string }): Promise<ReportCode> {
   const supabase = await createServerSupabaseClient();
   const session = await getSessionState(supabase);
   if (session.state !== "user") return session.state === "none" ? "NOT_SIGNED_IN" : "FAILED";
-  return submitQuestionReport(supabase, session.user.id, input);
+  // PAY-1 B2b (D2): the mock player never receives internal question / version ids — it reports by its per-attempt
+  // mockQuestionId, resolved here on the server (as /api/assessment/report-question does)
+  if (typeof input.mockQuestionId === "string" && input.mockQuestionId) {
+    const r = await resolveMockQuestion(input.mockQuestionId);
+    if (!r) return "NOT_FOUND";
+    return submitQuestionReport(supabase, session.user.id, { questionId: r.questionId, questionVersionId: r.questionVersionId, reason: input.reason, note: input.note });
+  }
+  return submitQuestionReport(supabase, session.user.id, { questionId: input.questionId, questionVersionId: input.questionVersionId, reason: input.reason, note: input.note });
 }

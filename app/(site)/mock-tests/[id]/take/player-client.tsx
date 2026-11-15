@@ -1370,6 +1370,7 @@ export function MockTestPlayerClient({ session }: MockTestPlayerClientProps) {
                 <ReportQuestionButton
                   questionId={currentQ.questionId ?? null}
                   questionVersionId={currentQ.questionVersionId || null}
+                  mockQuestionId={currentQ.mockQuestionId || null}
                   className="min-h-12 px-2 text-body-sm font-medium text-fg-secondary hover:text-fg"
                 />
               </div>

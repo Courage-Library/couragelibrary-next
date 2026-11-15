@@ -1,3 +1,4 @@
+import { canAccess } from "@/lib/access/policy";
 import { createServerSupabaseClient, createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { correctionFor, type VersionSnapshot } from "@/lib/questions/correction-core";
 import { loadCurrentVersions } from "@/lib/questions/versions-server";
@@ -1605,7 +1606,7 @@ export class AssessmentService {
    * Fetches mock test blueprint & instructions.
    */
   static async getMockTestInstructions(testId: string): Promise<MockTestInstructionsData | null> {
-    await AssessmentService.ensureMockTestQuestions(testId);
+    // PAY-1 B2b: a GET (even signed out) must not write — the questions are ensured when an attempt starts (line ~1852)
     const supabase = await createServerSupabaseClient();
 
     const [testRes, sectionsRes] = await Promise.all([
@@ -1748,6 +1749,8 @@ export class AssessmentService {
 
       // 3. If no active attempt exists for this session, create a fresh in_progress attempt atomically
       if (!attempt) {
+        // PAY-1 B2b (D2): a NEW attempt only after the admin-controlled access check (paywall off → allowed; FREE → allowed)
+        if (!(await canAccess("MOCK_TEST", targetMockTestId))) return null;
         if (mockTestData.is_free === false) {
           // Premium mock test: enforce authoritative entitlement resolution & concurrency-safe quota locking
           const authRes = await PremiumEntitlementService.authorizeAndStartAttempt(
@@ -1895,8 +1898,10 @@ export class AssessmentService {
         questionOrder: mq.question_order,
         sectionId: mq.mock_section_id,
         sectionName: sectionsMap.get(mq.mock_section_id) || "Section",
-        questionVersionId: qv?.id || "",
-        questionId: qv?.question_id ?? null,
+        // PAY-1 B2b (D2): the player never receives internal ids (no answer lookup during an attempt); reports go by
+        // mockQuestionId, resolved on the server
+        questionVersionId: "",
+        questionId: null,
         questionText: qv?.question_text || "",
         questionImageUrl: qv?.question_image_url || null,
         optionsType: qv?.options_type || "text",

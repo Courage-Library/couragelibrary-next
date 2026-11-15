@@ -104,7 +104,8 @@ test('MV-06 Memory Lock / practice serve only CURRENT versions; the answer RPC r
   const files = fs.readdirSync(dir).filter((f) => /\.sql$/.test(f)).sort();
   const latest = files.filter((f) => /FUNCTION public\.fn_memory_lock_answer\(/.test(fs.readFileSync(path.join(dir, f), 'utf8'))).pop();
   const sql = fs.readFileSync(path.join(dir, latest), 'utf8');
-  const body = sql.slice(sql.lastIndexOf('FUNCTION public.fn_memory_lock_answer('));
+  // the DEFINITION (a later GRANT … ON FUNCTION line also names it — PAY-1 B2b's 143 restates the grants after the body)
+  const body = sql.slice(sql.lastIndexOf('CREATE OR REPLACE FUNCTION public.fn_memory_lock_answer('));
   assert(/is_current/.test(body.slice(0, 6000)), `fn_memory_lock_answer (${latest}) requires the current version`);
 });
 

@@ -45,7 +45,11 @@ const BIN = arg('bin', process.env.LOCAL_PG_BIN || 'C:/pg17-local/pgsql/bin');
 const DEFAULT_TABLES = [
   'schema_migration_ledger', 'exams', 'exam_cycles', 'exam_categories', 'canonical_taxonomy_nodes', 'taxonomy_node_aliases', 'topics', 'subjects', 'subtopics',
   'exam_syllabus_versions', 'exam_syllabus_nodes', 'exam_syllabus_canonical_mappings',
+  // PAY-1 B2b: the access-policy configuration (141); its updated_by (an admin's user id) is cleared after loading
+  'access_policies', 'access_settings',
 ];
+/** columns that could identify a person in an otherwise non-personal table: set to NULL right after loading */
+const SCRUB_AFTER_LOAD = { access_policies: ['updated_by'], access_settings: ['updated_by'] };
 const TABLES = arg('tables', DEFAULT_TABLES.join(',')).split(',').filter(Boolean);
 /** stub roles a Supabase schema dump refers to (NOLOGIN; no passwords) */
 const ROLES = ['anon', 'authenticated', 'authenticator', 'supabase_admin', 'supabase_auth_admin', 'supabase_storage_admin', 'dashboard_user', 'pgbouncer', 'supabase_realtime_admin', 'supabase_replication_admin', 'supabase_read_only_user'];
@@ -115,6 +119,7 @@ async function up() {
     for (let i = 0; i < rows.length; i += 500) {
       await d.query(`INSERT INTO public.${t} (${cols}) SELECT ${cols} FROM jsonb_populate_recordset(NULL::public.${t}, $1::jsonb)`, [`[${rows.slice(i, i + 500).join(',')}]`]);
     }
+    for (const col of SCRUB_AFTER_LOAD[t] || []) await d.query(`UPDATE public.${t} SET ${col} = NULL WHERE ${col} IS NOT NULL`);
     loaded.push(`${t}: ${rows.length}`);
   }
   await d.end();

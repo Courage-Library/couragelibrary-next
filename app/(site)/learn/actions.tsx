@@ -13,6 +13,7 @@ import type { ReactNode } from "react";
 import { revalidatePath } from "next/cache";
 import { createAdminServerSupabaseClient, createServerSupabaseClient } from "@/lib/supabase/server";
 import { getSessionState } from "@/lib/auth/session-state";
+import { canAccess } from "@/lib/access/policy";
 import { Rich } from "@/components/learning/lesson-blocks-renderer";
 import { renderLatex } from "@/lib/lessons/katex-render";
 import type { LessonMathProps } from "@/lib/lessons/blocks";
@@ -39,7 +40,7 @@ export async function recordReadingAction(input: { documentId: string; language:
 
 export type QuickCheckResult =
   | { ok: true; correct: boolean; correctOptionId: string | null; feedback: ReactNode | null; recorded: boolean }
-  | { ok: false; code: "INVALID" | "NOT_FOUND" | "FAILED" };
+  | { ok: false; code: "INVALID" | "NOT_FOUND" | "LOCKED" | "FAILED" };
 
 /** The published quick check (visitors): the same rule as fn_lesson_quick_check_answer, nothing recorded. */
 async function publishedQuickCheck(documentId: string, language: "en" | "hi", blockId: string) {
@@ -77,12 +78,14 @@ export async function answerQuickCheckAction(input: { documentId: string; langua
   const session = await getSessionState(supabase);
   if (session.state === "user") {
     const { data, error } = await supabase.rpc("fn_lesson_quick_check_answer", { p_document_id: input.documentId, p_language: language, p_block_id: input.blockId, p_option_id: input.optionId });
-    if (error) return { ok: false, code: error.code === "P0002" ? "NOT_FOUND" : "FAILED" };
+    if (error) return { ok: false, code: error.code === "P0002" ? "NOT_FOUND" : error.code === "42501" ? "LOCKED" : "FAILED" };
     const r = (data && typeof data === "object" && !Array.isArray(data) ? data : {}) as { correct?: unknown; correct_option_id?: unknown; feedback?: unknown };
     return { ok: true, correct: r.correct === true, correctOptionId: typeof r.correct_option_id === "string" ? r.correct_option_id : null, feedback: feedbackNode(typeof r.feedback === "string" ? r.feedback : null), recorded: true };
   }
   // a session that could not be read is NOT a visitor: answering unrecorded would silently block the completion
   if (session.state !== "none") return { ok: false, code: "FAILED" };
+  // PAY-1 B2b (path A): the access policy first — a visitor gets no answer key of a lesson that needs Pro
+  if (!(await canAccess("LESSON", input.documentId))) return { ok: false, code: "LOCKED" };
   const block = await publishedQuickCheck(input.documentId, language, input.blockId).catch(() => null);
   const option = block?.options.find((o) => o.id === input.optionId);
   if (!block || !option) return { ok: false, code: "NOT_FOUND" };

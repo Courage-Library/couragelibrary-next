@@ -50,6 +50,9 @@ export const PRACTICE_COPY = {
       RATE_LIMITED: "That was a lot of answers in a short time. Please wait a minute, then continue.",
       NOT_FOUND: "This question is no longer available. Skip to the next one.",
       NOT_SIGNED_IN: "Your session ended. Please sign in again.",
+      // PAY-1 B2b (D2 + E1 = b)
+      IN_OPEN_ATTEMPT: "This question is in a mock test you have not finished. Finish the test to see the answer.",
+      RESERVED_FOR_MOCK: "This question belongs to a Pro mock test. Skip to the next one.",
       FAILED: "Could not check this answer right now. Please try again.",
     } as Record<string, string>,
   },
