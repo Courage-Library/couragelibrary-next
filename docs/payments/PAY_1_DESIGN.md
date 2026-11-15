@@ -603,3 +603,54 @@ the `is_free` / `access_tier` defaults written on create.
 **Not run on purpose:** paths A, B and D (the RPCs write attempt rows even inside a rolled-back transaction; the owner
 asked for no database writes). They are proven from the live function definitions above; Phase B2 proves them with
 real-role negative tests.
+
+## 11. B3 build plan (2026-11-15)
+
+Order (deploy-before-drop):
+
+**147 (SQL; compatible with the app on main and with B3):**
+- Seed:
+  - `FEATURE MISTAKE_VAULT` → FREE, only where no admin has changed it (`updated_by IS NULL`);
+  - new `FEATURE MISTAKE_DRILLS` PRO.
+- `fn_access_allowed_many(kind, keys[])`: the same rule as `fn_access_allowed`, for a list in one call (course and lesson
+  lists). DEFINER, `search_path ''`, P-9 + allow-list.
+- Policies moved to the central check:
+  - `discussion_threads.p_threads_read_public`: the course part becomes `fn_access_allowed('COURSE', c.id)`.
+  - `flashcards.p_fcards_select` and `fn_submit_flashcard_review`: a PRO deck beyond card 3 needs
+    `fn_access_allowed('FEATURE', 'FLASHCARDS')`. The deck's `access_tier` stays only as its PRO marker.
+- `search_indexes` read policies (`p_search_indexes_read_public`, `p_search_indexes_read_auth`): dropped (no reader).
+- Battles (`fn_find_or_create_battle_room`, `fn_join_battle_by_code`): FREE rooms only. Live tests
+  (`fn_register_live_test`): premium-only events refused.
+
+**B3 app:**
+- Lessons: lock and badge from `canAccess` / `accessTier('LESSON', doc)` (batched).
+  - Retired: `chapter-access.ts` (FREE_N), `lesson-access-settings.ts` (env `PAYMENTS_ENABLED`),
+    `getViewerAccess`' own entitlement read, the older-document `access_level` path.
+- Mock start: only `canAccess('MOCK_TEST')`; the quota branch is dropped. Badges / sort / "next free" come from
+  `accessTier`.
+- Gates:
+  - flashcards → `canAccess('FEATURE', 'FLASHCARDS')`;
+  - performance → `ADVANCED_ANALYTICS`;
+  - drills → `MISTAKE_DRILLS`;
+  - Memory Lock → `MEMORY_LOCK`;
+  - adaptive → `MOCK_TEST`.
+- The battles API ignores the client's tier.
+- `pro-server.ts` drops the free limits.
+- Dead code deleted (premium hub / generator / actions / view).
+- Static gate: no Pro rule outside `lib/access/policy.ts` (allow-list).
+
+**148 (after the B3 app is live):** drop the functions no caller uses any more:
+- `fn_authorize_and_start_test_attempt`
+- `fn_check_premium_access_and_quota`
+- `fn_create_dynamic_mock_instance_atomic`
+- `fn_get_due_flashcards`
+- `fn_create_custom_flashcard_deck`
+
+The allow-list maxima are lowered.
+
+**Behaviour change while the paywall is OFF (owner to confirm):** today two places enforce Pro on their own, whatever
+the switch says:
+- PRO flashcard decks show only cards 1–3;
+- mocks with `is_free=false` need an entitlement and quota.
+
+After B3 both follow the central check, so with the paywall off they are fully reachable, like everything else.
