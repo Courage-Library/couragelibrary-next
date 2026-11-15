@@ -440,6 +440,46 @@ See section 4.
   - the instructions-page insert side effect is removed;
   - executed proof with the free QA student: paths A–F.
 
+## 9. B2b part 2: public question-content inventory and the descriptive check (2026-11-15)
+
+**Descriptive questions: no direct exposure.** Read-only check on production (rolled back), as anon and as the free QA
+student:
+- `descriptive_questions.model_answer_md` and `evaluation_guidelines_md` have **no column grant** for anon /
+  authenticated, so they cannot be read directly;
+- the table has 0 rows today.
+
+Nothing to fix now. **Note for when descriptive content goes live:** `services/descriptive.service.ts` selects `*`
+through the session client and always returns `evaluation_guidelines_md` (`:205-206`). With the column grants as they
+are, that read fails; if a grant were ever added, the guidelines would reach students. Review both when the feature
+launches.
+
+**Public question-content surfaces (code read, file:line in the inventory):**
+- **Mostly clean:** no anonymous page renders question-bank text, options, keys or explanations. There are no question
+  SEO pages, no question / mock / session URLs in the sitemap, no quiz JSON-LD.
+- **One real payload leak:** `/current-affairs/[slug]` (ISR 60 s, in the sitemap) loads `question_versions.question_text`
+  of its mapped questions with the anon client and passes it to a client component. Only a count is shown, but the
+  text is in the page payload. Those questions also feed the CA daily mock.
+- **Reads that break under the revoke (must move server-side first):**
+  - landing / `/exams` counts; the exam hub mock list;
+  - the CA quiz card and date pages;
+  - `/practice` topic counts and the practice links on lesson / topic / exam pages;
+  - practice sessions;
+  - the `/mock-tests` catalogue and instructions;
+  - bookmarks, reports, the lesson resolver;
+  - the Mistake Vault question texts and the longitudinal intelligence embed;
+  - the staff overview pages.
+
+**Step 1 (code release) then step 2 (the revoke):**
+- **Step 1:**
+  - the CA leak closed (count only);
+  - every read above moves to server-side reads with the **same visibility filters** the RLS policies applied
+    (published / current / own dynamic), stated explicitly;
+  - practice delivery and topic counts exclude questions reserved for PRO mocks (E1 = b), through a database function
+    (no app-side tier rule);
+  - SEO URLs, canonicals and the sitemap unchanged;
+  - the anonymous smoke extended to every public surface (+ "no question text in the CA payload").
+- **Step 2:** the revoke migration, the QF1-DB expectation flip, the full A–F + anonymous proof.
+
 ## 6. Evidence (read-only, 2026-11-14)
 
 **Production database** (counts only; read-only transaction, rolled back):

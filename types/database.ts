@@ -9208,6 +9208,10 @@ export type Database = {
         Returns: string
       }
       fn_admin_mfa_required: { Args: never; Returns: boolean }
+      fn_answer_blocked: {
+        Args: { p_question_id: string; p_uid: string }
+        Returns: string
+      }
       fn_attach_gateway_order: {
         Args: {
           p_gateway_order_id: string
@@ -9889,6 +9893,7 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_reserved_question_ids: { Args: never; Returns: string[] }
       fn_resolve_errata_report: {
         Args: {
           p_bounty_coins?: number

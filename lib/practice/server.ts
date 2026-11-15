@@ -8,6 +8,7 @@ import "server-only";
  * nodes) → TOPIC nodes → servable questions (published question + current published version, key-valid by 087).
  */
 import type { AppSupabaseClient } from "@/lib/supabase/types";
+import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { MistakeService } from "@/services/mistake.service";
 import { chooseVersion, toPracticeQuestion, type Candidate, type ContentLanguage, type PracticeQuestion, type VersionRow } from "./engine";
 
@@ -61,11 +62,27 @@ export async function examSections(supabase: AppSupabaseClient, examId: string):
     }));
 }
 
-/** topic id → servable question ids. */
+/**
+ * PAY-1 B2b (D2 + E1 = b): question content is read on the SERVER (service role) with the visibility filters stated
+ * explicitly (published question, current PUBLISHED version) — clients lose direct reads of question_versions /
+ * question_options in the revoke migration. Questions reserved for a PRO mock (fn_reserved_question_ids: the
+ * admin-controlled tier) never reach practice or Memory Lock. Fails CLOSED: if the reserved list cannot be read,
+ * nothing is delivered.
+ */
+async function reservedQuestionIds(): Promise<Set<string> | null> {
+  const { data, error } = await createAdminServerSupabaseClient().rpc("fn_reserved_question_ids");
+  if (error) return null;
+  return new Set(((data ?? []) as unknown as string[]).map(String));
+}
+
+/** topic id → servable question ids (never one reserved for a PRO mock). */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- the session client stays in the signature (callers unchanged)
 async function servableByTopic(supabase: AppSupabaseClient, topicIds: string[]): Promise<Map<string, string[]>> {
   const out = new Map<string, string[]>();
   if (topicIds.length === 0) return out;
-  const { data } = await supabase
+  const reserved = await reservedQuestionIds();
+  if (!reserved) return out;
+  const { data } = await createAdminServerSupabaseClient()
     .from("questions")
     .select("id, canonical_topic_id, question_versions!inner(id)")
     .eq("status", "published")
@@ -74,7 +91,7 @@ async function servableByTopic(supabase: AppSupabaseClient, topicIds: string[]):
     .in("canonical_topic_id", topicIds)
     .limit(5000);
   for (const q of data ?? []) {
-    if (!q.canonical_topic_id) continue;
+    if (!q.canonical_topic_id || reserved.has(q.id)) continue;
     out.set(q.canonical_topic_id, [...(out.get(q.canonical_topic_id) ?? []), q.id]);
   }
   return out;
@@ -113,9 +130,14 @@ export async function topicCandidates(supabase: AppSupabaseClient, userId: strin
 }
 
 /** The chosen questions as client payloads, in the given order — text and options only (no key, no explanation). */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- the session client stays in the signature (callers unchanged)
 export async function loadPracticeQuestions(supabase: AppSupabaseClient, questionIds: string[], preferred: ContentLanguage): Promise<PracticeQuestion[]> {
   if (questionIds.length === 0) return [];
-  const { data } = await supabase
+  const reserved = await reservedQuestionIds();
+  if (!reserved) return [];
+  questionIds = questionIds.filter((id) => !reserved.has(id));
+  if (questionIds.length === 0) return [];
+  const { data } = await createAdminServerSupabaseClient()
     .from("question_versions")
     .select("id, question_id, language, question_text, question_image_url, options_type, question_options(option_key, option_text, option_image_url, order_index), questions!inner(canonical_topic_id, status)")
     .in("question_id", questionIds)

@@ -23,16 +23,17 @@
   "PAY-1 B2a (owner GO 2026-11-14, admin-controlled access policy): max total / client_executable_callable / A raised by exactly 2 for fn_access_tier (anon + authenticated, P-9 SECDEF_PUBLIC_OK: returns FREE / PRO only) and fn_has_pro_self (authenticated, the caller's own Pro); anon_or_public raised by exactly 1 for fn_access_tier",
   "PAY-1 B2a: max total raised by exactly 3 and B-service by 3 for the service-role-only audited writes fn_access_policy_set, fn_access_policy_clear and fn_paywall_set",
   "PAY-1 B2a fix (migration 142, owner GO 2026-11-15): max total / client_executable_callable / A raised by exactly 1 for fn_access_allowed (now SECURITY DEFINER; anon + authenticated, P-9 SECDEF_PUBLIC_OK: returns a boolean only); anon_or_public raised by exactly 1 for fn_access_allowed",
-  "PAY-1 B2b part 1 (migration 143, owner GO 2026-11-15): max total raised by exactly 2 — B-internal by 1 for fn_answer_blocked (no grant at all) and B-trigger by 1 for fn_mock_tests_default_access"
+  "PAY-1 B2b part 1 (migration 143, owner GO 2026-11-15): max total raised by exactly 2 — B-internal by 1 for fn_answer_blocked (no grant at all) and B-trigger by 1 for fn_mock_tests_default_access",
+  "PAY-1 B2b part 2 (migration 144, owner GO 2026-11-15): max total raised by exactly 1 and B-service by 1 for fn_reserved_question_ids (service_role only, read-only)"
  ],
  "max": {
-  "total": 125,
+  "total": 126,
   "client_executable_callable": 54,
   "anon_or_public": 3,
   "A": 54,
   "C": 0,
   "B-trigger": 17,
-  "B-service": 39,
+  "B-service": 40,
   "B-internal": 1
  },
  "public_ok": [
@@ -901,6 +902,12 @@
    "client": [],
    "search_path": "\"\"",
    "reason": "PAY-1 B2b (migration 143): AFTER INSERT trigger on mock_tests — a new free mock gets an explicit FREE access_policies row (so it does not fall to the PRO default)"
+  },
+  "fn_reserved_question_ids()": {
+   "class": "B-service",
+   "client": [],
+   "search_path": "\"\"",
+   "reason": "PAY-1 B2b part 2 (migration 144, owner GO 2026-11-15, E1 = b): read-only list of question ids reserved for PRO-tier mocks (fn_access_tier); service_role only; practice delivery / counts leave them out"
   }
  }
 }
