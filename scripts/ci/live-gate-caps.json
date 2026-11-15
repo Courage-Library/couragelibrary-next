@@ -261,6 +261,10 @@
     "PAY1-B2A-LIVE": {
       "measured": 60,
       "cap": 300
+    },
+    "PAY1-B2B-LIVE": {
+      "measured": 5,
+      "cap": 180
     }
   }
 }
