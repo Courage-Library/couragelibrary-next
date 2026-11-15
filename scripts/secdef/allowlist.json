@@ -26,13 +26,14 @@
   "PAY-1 B2b part 1 (migration 143, owner GO 2026-11-15): max total raised by exactly 2 — B-internal by 1 for fn_answer_blocked (no grant at all) and B-trigger by 1 for fn_mock_tests_default_access",
   "PAY-1 B2b part 2 (migration 144, owner GO 2026-11-15): max total raised by exactly 1 and B-service by 1 for fn_reserved_question_ids (service_role only, read-only)",
   "PAY-1 B2b part 2 step 1 (migration 145, owner GO 2026-11-15, \"narrow DEFINER reads\"): max total / client_executable_callable / A raised by exactly 5 for fn_public_exam_mocks, fn_public_mock_counts, fn_public_hindi_question_count, fn_public_mock_shape and fn_public_ca_daily_mock_id (anon + authenticated, P-9 SECDEF_PUBLIC_OK: listing figures only, filters hard-coded, no content columns); anon_or_public raised by exactly 5 for the same five",
-  "PAY-1 B2b part 2 step 2 (migration 146, owner GO 2026-11-15, the client revoke): max total / client_executable_callable / A raised by exactly 2 for fn_attempt_answer_writable (authenticated: the attempt_answers INSERT / UPDATE policies' check, a boolean for the caller's own attempt) and fn_mock_test_published (anon + authenticated, P-9 SECDEF_PUBLIC_OK: the mock_sections policy's check, a boolean only); anon_or_public raised by exactly 1 for fn_mock_test_published"
+  "PAY-1 B2b part 2 step 2 (migration 146, owner GO 2026-11-15, the client revoke): max total / client_executable_callable / A raised by exactly 2 for fn_attempt_answer_writable (authenticated: the attempt_answers INSERT / UPDATE policies' check, a boolean for the caller's own attempt) and fn_mock_test_published (anon + authenticated, P-9 SECDEF_PUBLIC_OK: the mock_sections policy's check, a boolean only); anon_or_public raised by exactly 1 for fn_mock_test_published",
+  "PAY-1 B3 part 1 (migration 147, owner GO 2026-11-15): max total / client_executable_callable / A raised by exactly 1 for fn_access_allowed_many (anon + authenticated, P-9 SECDEF_PUBLIC_OK: the central check for a list of keys — tier + boolean per key only); anon_or_public raised by exactly 1 for fn_access_allowed_many"
  ],
  "max": {
-  "total": 133,
-  "client_executable_callable": 61,
-  "anon_or_public": 9,
-  "A": 61,
+  "total": 134,
+  "client_executable_callable": 62,
+  "anon_or_public": 10,
+  "A": 62,
   "C": 0,
   "B-trigger": 17,
   "B-service": 40,
@@ -47,7 +48,8 @@
   "fn_public_hindi_question_count()",
   "fn_public_mock_shape(p_mock_test_id uuid)",
   "fn_public_ca_daily_mock_id(p_date date)",
-  "fn_mock_test_published(p_mock_test_id uuid)"
+  "fn_mock_test_published(p_mock_test_id uuid)",
+  "fn_access_allowed_many(p_kind text, p_keys text[])"
  ],
  "functions": {
   "fn_authorize_and_start_test_attempt(p_user_id uuid, p_mock_test_id uuid)": {
@@ -978,6 +980,15 @@
    ],
    "search_path": "\"\"",
    "reason": "PAY-1 B2b part 2 step 2 (migration 146, owner GO 2026-11-15): the mock_sections SELECT policy's check after the revoke — is the mock published; STABLE, read-only, a boolean only (P-9 SECDEF_PUBLIC_OK)"
+  },
+  "fn_access_allowed_many(p_kind text, p_keys text[])": {
+   "class": "A",
+   "client": [
+    "anon",
+    "authenticated"
+   ],
+   "search_path": "\"\"",
+   "reason": "PAY-1 B3 (migration 147, owner GO 2026-11-15): the central access check (fn_access_allowed's rule) for a list of ≤ 500 keys in one call — course / lesson lists; returns tier + allowed per key only; STABLE, read-only (P-9 SECDEF_PUBLIC_OK)"
   }
  }
 }
