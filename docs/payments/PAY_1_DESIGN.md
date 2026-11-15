@@ -546,9 +546,37 @@ rendered); `fn_get_due_flashcards`, `fn_create_custom_flashcard_deck` (execute r
 **Admin tooling** (stays): grant / revoke / quota reports, Library Pro, the reminders cron, the FREE_N launch choice,
 the `is_free` / `access_tier` defaults written on create.
 
-**Decisions needed before B3 code:** see the owner questions in the B3 report (2026-11-15): mock quotas, FREE_N, legacy
-course / document levels, flashcard preview, the free limits, battles / live tests, search, badges, the default tier of
-the ungated features, dead code.
+**Owner decisions B3 (2026-11-15): 1–10 as recommended, with two refinements.**
+1. Per-exam mock quotas: dropped. The admin tier (`MOCK_TEST`) decides.
+2. FREE_N / `LESSON_FREE_PER_CHAPTER`: retired. "First N lessons free" is expressed as `LESSON` policy rows. The env
+   switch `PAYMENTS_ENABLED` is removed from access decisions; `paywall_enabled` is the only switch.
+3. Legacy course / document levels: retired, **only after confirming no live reader** (check below).
+4. Flashcards: the 3-card preview of PRO decks stays, under the `FLASHCARDS` feature. There is no per-deck kind.
+5. The free limits (`free_practice_daily`, `free_memory_lock_active`, `free_daily_mock`): deleted (D11).
+6. Battles / live tests: PRO rooms and premium-only events removed for now. The tier comes from the server only.
+7. Search: the unused `SUBSCRIPTION` policy is dropped.
+8. Badges / SEO: derived from `accessTier()`, not `is_free`.
+9. Default tiers, seeded as policy rows. Nothing changes while the paywall is off.
+   - Basic mock result (score, section-wise, answers / explanations after submit): FREE.
+   - Advanced analytics: PRO.
+   - Mistake Vault: viewing is FREE, drills are PRO.
+   - Memory Lock: PRO.
+10. Dead code (premium hub / generator / actions / view, the two revoked flashcard functions): deleted.
+
+**Decision 3 check (2026-11-15; code read + read-only production counts):**
+
+| Legacy field | Live reader | Production data |
+|---|---|---|
+| `learning_documents.access_level` (non-node documents) | `/articles/[slug]` resolver path, which decides `is_locked` | 2 non-node documents, **both ARCHIVED**; all 18 PUBLISHED documents are node lessons (FREE; the chapter rule applies) |
+| `courses.access_tier`, `course_lessons.is_free_preview` | `/courses` pages are dormant (`FEATURE_COURSES` off → 404). **The live community policy `discussion_threads.p_threads_read_public` reads `courses.access_tier`.** | 1 course (FREE, published); 1 lesson, no free preview |
+| Other policies on legacy fields | `flashcards.p_fcards_select` (live); `search_indexes` read policies (no app reader) | — |
+
+**Consequence:** retirement means repointing, not deleting.
+- The thread policy moves to `fn_access_allowed('COURSE', …)` (true while the paywall is off).
+- The flashcard policy moves to `FLASHCARDS`.
+- The search policies are dropped.
+- The resolver's older-document path moves to `LESSON`.
+- The columns stay, unread, until a later cleanup.
 
 ## 6. Evidence (read-only, 2026-11-14)
 
