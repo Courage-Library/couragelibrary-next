@@ -49,6 +49,11 @@ function client() {
 }
 const PRIV = /permission denied for (table|relation|function|schema)/i;
 const CTX = { exam: null, someQ: null };
+/** DDL (the 146 rollback / the R-V variant) only where it cannot block anyone: --pre (proof before an apply) / --local */
+const DDL_OK = PRE || !!LOCAL;
+/** Verify mode's baseline: client steps refused WITHOUT 146 too (proven by the --pre / --local baseline, 2026-11-15) —
+ *  docs/ops/BACKLOG.md ADMIN-KPI-COUNTS-1. A new refusal outside this list fails R-S. */
+const KNOWN_PRE_EXISTING = { 'staff:descriptive_questions:select': '42501', 'staff:institutes:select': '42501' };
 let BASELINE = new Map();
 
 (async () => {
@@ -97,15 +102,20 @@ let BASELINE = new Map();
       const ANON = ['anon', { role: 'anon' }];
       CTX.exam = await one(`select e.id::text exam, c.id::text cycle from public.exams e join public.exam_cycles c on c.exam_id = e.id limit 1`);
       CTX.someQ = await one(`select qv.id::text vid, qv.question_id::text qid from public.question_versions qv limit 1`);
-      // BASELINE: the replay WITHOUT 146 (before the --pre apply; else 146 rolled back inside a savepoint)
+      // BASELINE: the replay WITHOUT 146. --pre: before the apply. --local: 146 rolled back inside a savepoint. VERIFY
+      // mode on the live database (CI / nightly / after an apply): NO DDL at all (a rolled-back DROP / CREATE POLICY or
+      // GRANT still holds its lock until the transaction ends — it blocked parallel gates (CA1, run 43711413328) and would
+      // stall real answer saves); the registered pre-existing refusals stand in for the baseline.
       if (PRE) {
         BASELINE = await replayAll(STUDENT, STAFF, sid);
         await c.query(SQL);
-      } else {
+      } else if (DDL_OK) {
         await c.query('SAVEPOINT baseline');
         await c.query(RB);
         BASELINE = await replayAll(STUDENT, STAFF, sid);
         await c.query('ROLLBACK TO SAVEPOINT baseline');
+      } else {
+        BASELINE = new Map(Object.entries(KNOWN_PRE_EXISTING).map(([step, code]) => [step, { code, msg: 'registered pre-existing' }]));
       }
 
       // ---------- R-C catalog
@@ -191,13 +201,16 @@ let BASELINE = new Map();
         const pos = await as(...STUDENT, `update public.test_attempts set last_question_order = 2, visited_orders = '{1,2}', last_activity_at = now() where id = $1 and status = 'in_progress'`, [att]);
         chk('R-J position save (test_attempts update, own in-progress attempt)', pos.code === null && pos.count === 1, pos.code || pos.count);
         // ---------- R-V negative control: 146 without the attempt_answers UPDATE rewrite → the autosave step fails
-        await c.query('SAVEPOINT variant');
-        await c.query(OLD_UPDATE_POLICY);
-        const v = await as(...STUDENT, UPSERT, [att, fx.mq2, 'D']); // an autosave of an answered question = the UPDATE path
-        await c.query('ROLLBACK TO SAVEPOINT variant');
-        const vAfter = await as(...STUDENT, UPSERT, [att, fx.mq2, 'D']);
-        chk('R-V negative control: the OLD attempt_answers UPDATE policy (a 146 that forgets that rewrite) → the autosave UPDATE fails on a revoked table; with 146 it works',
-          v.code !== null && PRIV.test(v.msg) && vAfter.code === null && vAfter.count === 1, JSON.stringify({ variant: v.code, msg: v.msg.slice(0, 120), with146: vAfter.code || vAfter.count }));
+        // (DDL on attempt_answers: --pre / --local only, never in verify mode on the live database — see BASELINE)
+        if (DDL_OK) {
+          await c.query('SAVEPOINT variant');
+          await c.query(OLD_UPDATE_POLICY);
+          const v = await as(...STUDENT, UPSERT, [att, fx.mq2, 'D']); // an autosave of an answered question = the UPDATE path
+          await c.query('ROLLBACK TO SAVEPOINT variant');
+          const vAfter = await as(...STUDENT, UPSERT, [att, fx.mq2, 'D']);
+          chk('R-V negative control: the OLD attempt_answers UPDATE policy (a 146 that forgets that rewrite) → the autosave UPDATE fails on a revoked table; with 146 it works',
+            v.code !== null && PRIV.test(v.msg) && vAfter.code === null && vAfter.count === 1, JSON.stringify({ variant: v.code, msg: v.msg.slice(0, 120), with146: vAfter.code || vAfter.count }));
+        } else console.log('SKIP R-V negative control — runs with --pre / --local only (no DDL on the live database in verify mode)');
         // guards
         const otherAtt = await attempt(other);
         const g1 = await as(...STUDENT, UPSERT, [otherAtt, fx.mq1, 'A']);

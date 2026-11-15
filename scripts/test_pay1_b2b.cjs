@@ -369,5 +369,32 @@ test('P3-14 negative controls (146): each mutation is caught', () => {
   return `${muts.length} mutations caught`;
 });
 
+// ---------- the revoke replay runs NO DDL in verify mode (CI / nightly / after an apply): a rolled-back DROP / CREATE
+// POLICY or GRANT holds its lock until the transaction ends (it blocked CA1 in run 43711413328; it would stall real saves)
+const ddlGuardCheck = (src) => {
+  const lines = src.split('\n');
+  const ddl = lines.map((l, i) => [l, i]).filter(([l]) => /await c\.query\((SQL|RB|OLD_UPDATE_POLICY)\)/.test(l));
+  if (ddl.length !== 3) return `expected 3 DDL statements (146 apply, rollback baseline, R-V variant), found ${ddl.length}`;
+  for (const [l, i] of ddl) {
+    const ctx = lines.slice(Math.max(0, i - 3), i + 1).join('\n');
+    if (!/if \(PRE\) \{|else if \(DDL_OK\) \{|if \(DDL_OK\) \{/.test(ctx)) return `unguarded DDL at line ${i + 1}: ${l.trim()}`;
+  }
+  if (!/const DDL_OK = PRE \|\| !!LOCAL;/.test(src)) return 'DDL_OK must be exactly --pre or --local';
+  return null;
+};
+test('P3-15 the revoke replay runs DDL only with --pre / --local (never in verify mode on the live database); negative controls', () => {
+  const src = read('scripts/live/test_pay1_revoke.cjs');
+  const why = ddlGuardCheck(src);
+  assert(why === null, why);
+  const muts = [
+    ['R-V variant unguarded', ddlGuardCheck(src.replace('        if (DDL_OK) {\n          await c.query(\'SAVEPOINT variant\');', '        {\n          await c.query(\'SAVEPOINT variant\');'))],
+    ['baseline rollback unguarded', ddlGuardCheck(src.replace('      } else if (DDL_OK) {\n        await c.query(\'SAVEPOINT baseline\');', '      } else {\n        await c.query(\'SAVEPOINT baseline\');'))],
+    ['DDL_OK widened to verify mode', ddlGuardCheck(src.replace('const DDL_OK = PRE || !!LOCAL;', 'const DDL_OK = true;'))],
+  ];
+  const missed = muts.filter(([, w]) => w === null).map(([k]) => k);
+  assert(missed.length === 0, `not caught: ${missed.join(', ')}`);
+  return `${muts.length} mutations caught`;
+});
+
 console.log(`\nPAY-1 B2b: ${passed}/${passed + failed} passed`);
 process.exit(failed ? 1 : 0);

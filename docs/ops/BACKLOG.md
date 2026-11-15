@@ -317,3 +317,11 @@ PAY-1 (the gate does not read the revoked tables). Does not block (non-security,
 gates that write none of the group and never touch the QA exam row (≈ 6.5 min of 10), and the db shard's cap 40 → 52
 (≈ 35.4 min, 68%). C-15 / C-19 updated, with a negative control for the QA-exam-row rule. The real split stays CI-SPEED-1
 phase 2.
+
+**CA1-FLAKE-1 update 2026-11-15: NOT a flake — root cause found.** CA1 failed in runs 43703568734 and 43711413328, both
+after PAY1-REVOKE-LIVE moved to the parallel security shard (it passed in 43695445740, before the move). In verify mode the
+revoke replay ran 146's rollback (GRANT / DROP + CREATE POLICY) and the R-V variant inside its transaction; a rolled-back
+DDL keeps its lock until the transaction ends, so `attempt_answers` / `mock_sections` and the four content tables stayed
+locked for ~3 min while parallel gates ran (CA1 aborted 58 s after the replay started). It would also stall real answer
+saves. Fix: the replay runs DDL only with `--pre` / `--local`; verify mode uses the registered pre-existing refusals;
+offline P3-15 (`scripts/test_pay1_b2b.cjs`) enforces it with negative controls.
