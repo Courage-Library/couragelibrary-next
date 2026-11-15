@@ -83,7 +83,8 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
       const base = await one(`select m.id::text id, t.exam_id::text exam from public.mock_tests m join public.mock_templates t on t.id = m.template_id
              where t.is_active and m.status = 'published' and not m.is_dynamic and m.slug not like 'qa-fixture-run-%' order by m.created_at limit 1`);
       if (!base) {
-        chk('P-A / P-E / P-D need a published static mock of an active template', !!LOCAL, 'none in this database');
+        if (LOCAL) console.log('SKIP P-A / P-E / P-D — the local copy has no mock rows (non-personal tables only); they run in the project --pre proof');
+        else chk('P-A / P-E / P-D need a published static mock of an active template', false, 'none in this database');
       } else {
         const copy = async (patch) => (await one(`insert into public.mock_tests
               select (jsonb_populate_record(null::public.mock_tests, to_jsonb(m) || jsonb_build_object('id', gen_random_uuid(), 'slug', m.slug || '-pr-gate-' || substr(md5(random()::text), 1, 6)) || $2::jsonb)).*
