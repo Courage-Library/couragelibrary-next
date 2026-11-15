@@ -6,7 +6,7 @@ import "server-only";
  * signed-out / empty view. `cache` dedupes the reads across the page's Suspense boundaries within one request.
  */
 import { cache } from "react";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createAdminServerSupabaseClient, createServerSupabaseClient } from "@/lib/supabase/server";
 import { getSessionState } from "@/lib/auth/session-state";
 import { calculateRevisionDueState } from "@/services/mistake.service";
 import { AssessmentService } from "@/services/assessment.service";
@@ -15,11 +15,12 @@ import { contentLanguage, mockStatuses, orderMocks, type ContentLanguage, type M
 /** Published mocks of the exam (day-window daily tests excluded), in the orderMocks order. Public data. */
 export const examMocks = cache(async (examId: string): Promise<MockListItem[]> => {
   try {
-    const supabase = await createServerSupabaseClient();
-    const { data, error } = await supabase
+    // PAY-1 B2b: clients lose direct reads of mock_tests — read on the server with the RLS rule stated (published, static)
+    const { data, error } = await createAdminServerSupabaseClient()
       .from("mock_tests")
       .select("id, title, duration_minutes, total_questions, total_marks, is_free, mock_templates!inner(exam_id, test_type)")
       .eq("status", "published")
+      .eq("is_dynamic", false)
       .eq("mock_templates.exam_id", examId)
       .order("title", { ascending: true })
       .limit(60);

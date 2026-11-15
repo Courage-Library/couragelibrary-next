@@ -1,6 +1,6 @@
 import "server-only";
 import { unstable_cache } from "next/cache";
-import { createPublicServerSupabaseClient } from "@/lib/supabase/server";
+import { createAdminServerSupabaseClient, createPublicServerSupabaseClient } from "@/lib/supabase/server";
 
 /**
  * HOME-1 pre-release (owner): the "in Hindi & English" chip and the FAQ answer must be TRUE — they follow the count of
@@ -21,7 +21,8 @@ export const readHindiAvailability = unstable_cache(
   async (): Promise<HindiAvailability> => {
     const sb = createPublicServerSupabaseClient();
     const [q, l] = await Promise.all([
-      sb
+      // PAY-1 B2b: clients lose direct reads of question_versions — the count is read on the server (same filters)
+      createAdminServerSupabaseClient()
         .from("question_versions")
         .select("id, questions!inner(status)", { count: "exact", head: true })
         .eq("language", "hi")

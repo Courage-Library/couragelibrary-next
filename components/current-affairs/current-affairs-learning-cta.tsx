@@ -12,7 +12,6 @@ interface RelatedLearningUnit {
 
 interface RelatedQuestion {
   questionId: string;
-  questionText: string;
   displayOrder: number;
 }
 

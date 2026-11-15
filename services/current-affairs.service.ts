@@ -206,11 +206,13 @@ export class CurrentAffairsService {
 
       // Also check mock_tests for published daily quiz
       if (!dailyQuizMockId) {
-        const { data: mockData } = await supabase
+        // PAY-1 B2b: clients lose direct reads of mock_tests — read on the server (published, static)
+        const { data: mockData } = await createAdminServerSupabaseClient()
           .from('mock_tests')
           .select('id')
           .eq('slug', `ca-daily-${dateStr}`)
           .eq('status', 'published')
+          .eq('is_dynamic', false)
           .maybeSingle();
         if (mockData?.id) {
           dailyQuizMockId = mockData.id;
@@ -296,10 +298,10 @@ export class CurrentAffairsService {
 
         // Fetch question mappings
         const qRes = await db.query(
-          `SELECT qm.question_id, qm.display_order, qv.question_text
+          // PAY-1 B2b: ids + order only (no question text)
+          `SELECT qm.question_id, qm.display_order
            FROM public.current_affairs_question_mappings qm
            JOIN public.questions q ON q.id = qm.question_id
-           LEFT JOIN public.question_versions qv ON qv.question_id = q.id
            WHERE qm.article_id = $1
            ORDER BY qm.display_order ASC`,
           [row.id]
@@ -380,7 +382,6 @@ export class CurrentAffairsService {
           })),
           relatedQuestions: (qRes.rows || []).map((qm: any) => ({
             questionId: qm.question_id,
-            questionText: qm.question_text || '',
             displayOrder: qm.display_order,
           })),
           relatedArticles,
@@ -452,15 +453,11 @@ export class CurrentAffairsService {
           .eq('article_id', data.id),
         supabase
           .from('current_affairs_question_mappings')
+          // PAY-1 B2b: ids + order only — no question text reaches the page (it was in the client payload; these
+          // questions also feed the daily CA mock)
           .select(`
             question_id,
-            display_order,
-            questions (
-              id,
-              question_versions (
-                question_text
-              )
-            )
+            display_order
           `)
           .eq('article_id', data.id)
           .order('display_order', { ascending: true }),
@@ -523,7 +520,6 @@ export class CurrentAffairsService {
         })),
         relatedQuestions: (qRes.data || []).map((qm: any) => ({
           questionId: qm.question_id,
-          questionText: qm.questions?.question_versions?.[0]?.question_text || '',
           displayOrder: qm.display_order,
         })),
         relatedArticles,

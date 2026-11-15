@@ -189,9 +189,9 @@ export interface CurrentAffairsDetail {
     title: string;
     slug: string;
   }>;
+  // PAY-1 B2b: ids + order only (no question text reaches the page)
   relatedQuestions: Array<{
     questionId: string;
-    questionText: string;
     displayOrder: number;
   }>;
   relatedArticles?: Array<{

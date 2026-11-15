@@ -8,6 +8,7 @@
  * texts (content/landing.ts). Numbers are never invented or cached as constants.
  */
 import type { AppSupabaseClient } from "@/lib/supabase/types";
+import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { examLogo, type ExamLogo } from "@/lib/logos/exam-logo";
 
 export interface LandingExam {
@@ -97,7 +98,8 @@ async function readRows(supabase: AppSupabaseClient): Promise<LandingRows | null
   const ids = examsRes.data.map((e) => e.id);
   if (ids.length === 0) return { exams: [], mocks: [], guides: [], syllabusStates: {}, currentAffairsCount: 0 };
   const [mocksRes, guidesRes, caRes, ...syllabus] = await Promise.all([
-    supabase
+    // PAY-1 B2b: clients lose direct reads of mock_tests — read on the server with the filters stated (published, static)
+    createAdminServerSupabaseClient()
       .from("mock_tests")
       .select("id, mock_templates!inner(exam_id)")
       .eq("status", "published")
