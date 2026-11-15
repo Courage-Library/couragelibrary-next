@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createAdminServerSupabaseClient, createServerSupabaseClient } from "@/lib/supabase/server";
 
 export interface BookmarkToggleResult {
   success: boolean;
@@ -72,10 +72,13 @@ export class BookmarkService {
     // 3. If does not exist -> Resolve version if not provided and Insert
     let resolvedVersionId = questionVersionId;
     if (!resolvedVersionId) {
-      const { data: qv } = await sb
+      // PAY-1 B2b: clients lose direct reads of question_versions — resolved on the server with the RLS rule stated
+      // (PUBLISHED / SUPERSEDED only, never a draft)
+      const { data: qv } = await createAdminServerSupabaseClient()
         .from("question_versions")
         .select("id")
         .eq("question_id", questionId)
+        .in("lifecycle_status", ["PUBLISHED", "SUPERSEDED"])
         .order("version_number", { ascending: false })
         .limit(1)
         .maybeSingle();

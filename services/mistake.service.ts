@@ -804,6 +804,25 @@ export function calculateLongitudinalMistakeMetrics(
   };
 }
 
+/**
+ * PAY-1 B2b: the vault's question texts, read on the SERVER (clients lose direct reads of question_versions), only
+ * PUBLISHED / SUPERSEDED versions (the RLS rule the session read had), attached in the shape the old embed returned
+ * (questions.question_versions[]) so the callers stay unchanged.
+ */
+async function attachQuestionTexts<T extends { question_id: string }>(rows: T[]): Promise<Array<T & { questions: { question_versions: { question_text: string; is_current: boolean }[] } }>> {
+  const ids = [...new Set(rows.map((r) => r.question_id).filter(Boolean))];
+  const by = new Map<string, { question_text: string; is_current: boolean }[]>();
+  if (ids.length) {
+    const { data } = await createAdminServerSupabaseClient()
+      .from("question_versions")
+      .select("question_id, question_text, is_current")
+      .in("question_id", ids)
+      .in("lifecycle_status", ["PUBLISHED", "SUPERSEDED"]);
+    for (const v of data ?? []) by.set(v.question_id, [...(by.get(v.question_id) ?? []), { question_text: v.question_text, is_current: v.is_current }]);
+  }
+  return rows.map((r) => ({ ...r, questions: { question_versions: by.get(r.question_id) ?? [] } }));
+}
+
 export class MistakeService {
   /**
    * Records exam mistakes with full lineage provenance from test submission.
@@ -1045,7 +1064,8 @@ export class MistakeService {
     }
     const versionIds = [...new Set(versionOf.values())];
     if (!versionIds.length) return out;
-    const { data: versions } = await supabase.from("question_versions").select("id, question_text").in("id", versionIds);
+    // PAY-1 B2b: clients lose direct reads of question_versions — read on the server, PUBLISHED / SUPERSEDED (the RLS rule)
+    const { data: versions } = await createAdminServerSupabaseClient().from("question_versions").select("id, question_text").in("id", versionIds).in("lifecycle_status", ["PUBLISHED", "SUPERSEDED"]);
     const textOf = new Map((versions ?? []).map((v) => [v.id, v.question_text]));
     for (const [vid, ver] of versionOf) {
       const t = textOf.get(ver);
@@ -1084,7 +1104,7 @@ export class MistakeService {
 
     let query = supabase
       .from("user_mistake_vault")
-      .select("id, question_id, total_mistakes_count, consecutive_correct_in_remediation, lifecycle_status, primary_cognitive_type_id, user_override_cognitive_type_id, user_custom_notes, last_mistake_at, mastered_at, topic_id, subject_id, topics:canonical_taxonomy_nodes!user_mistake_vault_topic_id_node_fkey(id, name), subjects:canonical_taxonomy_nodes!user_mistake_vault_subject_id_node_fkey(id, name), mistake_cognitive_types!primary_cognitive_type_id(name), questions(question_versions(question_text, is_current))", { count: "exact" })
+      .select("id, question_id, total_mistakes_count, consecutive_correct_in_remediation, lifecycle_status, primary_cognitive_type_id, user_override_cognitive_type_id, user_custom_notes, last_mistake_at, mastered_at, topic_id, subject_id, topics:canonical_taxonomy_nodes!user_mistake_vault_topic_id_node_fkey(id, name), subjects:canonical_taxonomy_nodes!user_mistake_vault_subject_id_node_fkey(id, name), mistake_cognitive_types!primary_cognitive_type_id(name)", { count: "exact" })
       .eq("user_id", user.id)
       .gte("total_mistakes_count", 1); // F5: manual Memory Lock items are not mistakes
 
@@ -1120,7 +1140,8 @@ export class MistakeService {
 
     query = query.range(from, to);
 
-    const { data, count, error } = await query;
+    const { data: rawRows, count, error } = await query;
+    const data = rawRows ? await attachQuestionTexts(rawRows) : rawRows;
     if (error || !data) {
       return { items: [], totalCount: 0, page, pageSize, totalPages: 0 };
     }
@@ -1809,8 +1830,7 @@ export class MistakeService {
           last_mistake_at,
           mastered_at,
           topics:canonical_taxonomy_nodes!user_mistake_vault_topic_id_node_fkey(id, name, slug), subjects:canonical_taxonomy_nodes!user_mistake_vault_subject_id_node_fkey(id, name),
-          mistake_cognitive_types!primary_cognitive_type_id(name),
-          questions(question_versions(question_text, is_current))
+          mistake_cognitive_types!primary_cognitive_type_id(name)
         `)
         .eq("user_id", currentUserId)
         .gte("total_mistakes_count", 1), // F5: manual Memory Lock items are not mistakes
@@ -1821,7 +1841,7 @@ export class MistakeService {
         .order("created_at", { ascending: false }),
     ]);
 
-    const vaultRows = vaultRes.data || [];
+    const vaultRows = await attachQuestionTexts(vaultRes.data || []);
     const drillRows = drillsRes.data || [];
 
     if (vaultRows.length === 0) {

@@ -28,14 +28,15 @@ export async function submitQuestionReport(
   let questionId = input.questionId == null ? "" : String(input.questionId);
   // surfaces that know only the version (adaptive mock steps) report its canonical question, resolved here
   if (!questionId && input.questionVersionId != null && ID_RX.test(String(input.questionVersionId))) {
-    const { data } = await supabase.from("question_versions").select("question_id").eq("id", String(input.questionVersionId)).maybeSingle();
+    // PAY-1 B2b: version lookups on the server (clients lose direct reads), PUBLISHED / SUPERSEDED only (the RLS rule)
+    const { data } = await createAdminServerSupabaseClient().from("question_versions").select("question_id").eq("id", String(input.questionVersionId)).in("lifecycle_status", ["PUBLISHED", "SUPERSEDED"]).maybeSingle();
     questionId = data?.question_id ?? "";
   }
   if (!ID_RX.test(questionId)) return questionId ? "INVALID_INPUT" : "NOT_FOUND";
   // surfaces that know only the question (drill results) report its current version
   let versionId = input.questionVersionId == null ? "" : String(input.questionVersionId);
   if (!versionId) {
-    const { data } = await supabase.from("question_versions").select("id").eq("question_id", questionId).eq("is_current", true).maybeSingle();
+    const { data } = await createAdminServerSupabaseClient().from("question_versions").select("id").eq("question_id", questionId).eq("is_current", true).in("lifecycle_status", ["PUBLISHED", "SUPERSEDED"]).maybeSingle();
     versionId = data?.id ?? "";
     if (!versionId) return "NOT_FOUND";
   }
