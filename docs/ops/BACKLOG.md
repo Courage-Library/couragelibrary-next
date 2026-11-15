@@ -283,3 +283,13 @@ guidelines (and any model answer) would reach students.
 
 **How:** select explicit columns only; serve model answers / guidelines from the server after submission, behind
 `canAccess` (Pro descriptive per the access policy); a gate that anon / the free student cannot read either column.
+
+## ADMIN-KPI-COUNTS-1: two admin overview counts fail for staff (descriptive questions, institutes)
+
+**Found 2026-11-15 by the PAY-1 146 statement replay (`scripts/live/test_pay1_revoke.cjs`, R-S):** as the QA admin, the
+session reads `descriptive_questions` (`services/admin.service.ts:269`, `:1514`) and `institutes` (`:270`, `:1535`) are
+refused (42501), with and without 146 — pre-existing, not caused by PAY-1. The admin overview KPI for those two counts
+cannot show a number.
+
+**How:** count them on the server (service role, read-only head count) or grant staff a count-only path; then drop the
+two "pre-existing" lines from the replay report. Owner decision.
