@@ -480,6 +480,36 @@ launches.
   - the anonymous smoke extended to every public surface (+ "no question text in the CA payload").
 - **Step 2:** the revoke migration, the QF1-DB expectation flip, the full A–F + anonymous proof.
 
+**Step 1 status (2026-11-15, local, not released):**
+- **Migration 144** `fn_reserved_question_ids` is applied. It is DEFINER, uses the PRO tier from `fn_access_tier` (not the
+  paywall switch) and grants EXECUTE to service_role only. Practice delivery and topic counts use it on the server and
+  fail closed.
+- **Reads moved server-side**, each keeping the RLS visibility it had, stated explicitly:
+  - question versions: PUBLISHED / SUPERSEDED;
+  - mock listings: published and non-dynamic;
+  - the player, dashboard and results: own dynamic mocks too;
+  - the longitudinal embed: details only for the caller's own answers.
+- **Files changed:**
+  - landing, exam pages, CA daily quiz and date pages, practice;
+  - mock dashboard, instructions, answer saving and results;
+  - bookmarks, reports, Mistake Vault texts, longitudinal intelligence;
+  - admin overview, categories, patterns, daily programme and mock list;
+  - question-bank search, blueprint audit;
+  - public mock listings (`lib/mocks/server-reads.ts`);
+  - the CA article (no question text).
+- **Not changed, by design:**
+  - The adaptive services: their flag is off and they read through a passed client. They must be revisited before
+    the flag is turned on.
+  - The AI / question-factory paths: every app caller passes the admin client. The other callers are scripts.
+- **Gates:**
+  - offline `test_pay1_b2b.cjs` P3-07..09: 144 shape; a scan that no app file reads the four tables through a session
+    client; the CA service has no question text; 6 negative controls;
+  - live B-R: the reserved list follows the tier, and anon and the free student get 42501;
+  - the anonymous smoke PAY-1 block: public pages render, the CA article has no question text, canonicals stay
+    self-canonical, `fn_reserved_question_ids` refused for anon;
+  - the student and admin page lists are extended.
+- **SEO:** the sitemap source (`app/sitemap.ts`), routes and canonical metadata are untouched.
+
 ## 6. Evidence (read-only, 2026-11-14)
 
 **Production database** (counts only; read-only transaction, rolled back):
