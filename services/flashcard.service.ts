@@ -198,7 +198,7 @@ export class FlashcardService {
     const d = deckData as any;
 
     // PAY-1 B3: the central check decides the full deck (FLASHCARDS); anon is never allowed while the paywall is on
-    const hasPro = await canAccess("FEATURE", "FLASHCARDS");
+    const fullDeck = await canAccess("FEATURE", "FLASHCARDS");
 
     let cardsQuery = supabase
       .from("flashcards")
@@ -208,7 +208,7 @@ export class FlashcardService {
       .order("card_order");
 
     // Free users on PRO curated decks receive only preview cards (first 3)
-    if (d.is_curated && d.access_tier === "PRO" && !hasPro) {
+    if (d.is_curated && d.access_tier === "PRO" && !fullDeck) {
       cardsQuery = cardsQuery.lte("card_order", 3);
     }
 

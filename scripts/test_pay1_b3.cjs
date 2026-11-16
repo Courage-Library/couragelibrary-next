@@ -132,8 +132,47 @@ test('P4-06 Memory Lock (add / answer) → MEMORY_LOCK and drills (generate / su
   }
 });
 
+// P4-07 (B3 app) the static gate: no Free / Pro DECISION outside the central check. Flagged in app / lib / services /
+// components: own entitlement reads, fn_has_pro calls, PremiumEntitlementService gating calls, is_free reads, a hasPro
+// name, the retired lesson rule. Allowed only in reviewed files, each with its reason.
+const B3_ALLOW = {
+  'lib/access/policy.ts': 'the central check itself',
+  'lib/payments/pro-server.ts': 'the Pro primitive (fn_has_pro / own entitlement end) behind billing status + pricing — no feature decision',
+  'services/billing.service.ts': '/billing shows the Pro status (display only)',
+  'app/(site)/billing/page.tsx': '/billing shows the Pro status (display only)',
+  'app/api/cron/pro-reminders/route.ts': 'ops: expiry reminders (reads entitlements, decides nothing)',
+  'lib/admin/today.ts': 'admin dashboard counts',
+  'app/(site)/admin/students/library-pro/page.tsx': 'admin tooling: Library Pro grants',
+  'services/admin-premium.service.ts': 'admin tooling: grant / revoke / quota reports',
+  'services/premium-entitlement.service.ts': 'the legacy entitlement service, now used only by admin tooling; dropped with 148',
+  'services/premium-hub.service.ts': 'dead code (no caller) — deleted in 148',
+  'services/premium-generator.service.ts': 'dead code (only reached from the never-rendered premium hub) — deleted in 148',
+  'services/assessment.service.ts': 'only getExamDetail / getDailyMockHubData / getMockTestsDirectory read is_free — dead (no caller), deleted in 148; the live mock start uses canAccess only',
+};
+const B3_RULE = /from\(['"]user_entitlements['"]\)|rpc\(['"]fn_has_pro['"]|PremiumEntitlementService\.(check|authorize)\w*\(|\.is_free\b|\bhasPro\b|isLessonLocked|lessonAccessLevel|getViewerAccess|getLessonAccessSettings/;
+const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' ')).replace(/(^|[^:"'`])\/\/[^\n]*/g, (m, p) => p);
+const b3Walk = (d) => (fs.existsSync(path.join(ROOT, d)) ? fs.readdirSync(path.join(ROOT, d), { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? b3Walk(`${d}/${e.name}`) : /\.(ts|tsx)$/.test(e.name) ? [`${d}/${e.name}`] : [])) : []);
+const proRuleHits = (files) => {
+  const hits = [];
+  for (const [rel, src] of files) {
+    if (B3_ALLOW[rel]) continue;
+    strip(src).split('\n').forEach((l, i) => { if (B3_RULE.test(l)) hits.push(`${rel}:${i + 1}`); });
+  }
+  return hits;
+};
+const B3_FILES = ['app', 'lib', 'services', 'components'].flatMap(b3Walk).map((rel) => [rel, read(rel)]);
+test('P4-07 (B3 app) no Free / Pro decision outside the central check: no own entitlement read, fn_has_pro, PremiumEntitlementService gate, is_free read, hasPro or retired lesson rule outside the reviewed allow-list', () => {
+  const hits = proRuleHits(B3_FILES);
+  assert(hits.length === 0, `outside the central check: ${hits.join(', ')}`);
+  for (const f of Object.keys(B3_ALLOW)) assert(fs.existsSync(path.join(ROOT, f)), `allow-list entry for a missing file: ${f} (remove it)`);
+  return `${B3_FILES.length} files scanned; ${Object.keys(B3_ALLOW).length} reviewed exceptions`;
+});
+
 test('P4-05 negative controls: each mutation is caught', () => {
   const muts = [
+    ['an own entitlement read in a feature service', proRuleHits([['services/mistake.service.ts', 'const { data } = await supabase.from("user_entitlements").select("id");']]).length ? 'caught' : null],
+    ['an is_free decision in a page', proRuleHits([['app/(site)/mock-tests/page.tsx', 'if (mock.is_free) showAll();']]).length ? 'caught' : null],
+    ['a hasPro flag in a component', proRuleHits([['components/x.tsx', 'const locked = !hasPro;']]).length ? 'caught' : null],
     ['Memory Lock answer guard removed', guardCheck(SQL.replace(/(CREATE OR REPLACE FUNCTION public\.fn_memory_lock_answer[\s\S]*?)IF NOT public\.fn_access_allowed\('FEATURE', 'MEMORY_LOCK'\) THEN/, "$1IF false THEN"))],
     ['drill guard on the wrong feature', guardCheck(SQL.replace(/(CREATE OR REPLACE FUNCTION public\.fn_generate_mistake_drill[\s\S]*?)'MISTAKE_DRILLS'/, "$1'MISTAKE_VAULT'"))],
     ['seed overwrites an admin choice', seedCheck(SQL.replace(" AND tier = 'PRO' AND updated_by IS NULL;", ';'))],

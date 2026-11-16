@@ -1,4 +1,4 @@
-import { canAccess } from "@/lib/access/policy";
+import { accessMany, canAccess } from "@/lib/access/policy";
 import { createServerSupabaseClient, createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { attachPublishedStaticMocks, publishedStaticMocksWithTemplates } from "@/lib/mocks/server-reads";
 import { correctionFor, type VersionSnapshot } from "@/lib/questions/correction-core";
@@ -1230,6 +1230,8 @@ export class AssessmentService {
 
     // 8. Full-Length Mock Tests
     const targetExamIds = targetExams.map((e: any) => e.examId || e.id);
+    // PAY-1 B3 (decision 8): "Free" badges / order follow the admin's MOCK_TEST policy, not the is_free column
+    const mockTiers = await accessMany("MOCK_TEST", publishedTests.map((mt: any) => String(mt.id)));
     const fullMockTests: MockDashboardFullMockItem[] = publishedTests
       .filter((mt: any) => {
         const examId = mt.mock_templates?.exam_id;
@@ -1249,7 +1251,7 @@ export class AssessmentService {
           durationMinutes: mt.duration_minutes,
           totalQuestions: mt.total_questions,
           totalMarks: Number(mt.total_marks),
-          isFree: mt.is_free,
+          isFree: mockTiers.get(String(mt.id))?.tier === "FREE",
           publishedAt: mt.published_at,
           userAttemptStatus: userAttempt ? "completed" : "not_started",
           bestScore: res && (res.total_score !== undefined || res.score !== undefined) ? Number(res.total_score ?? res.score) : undefined,
@@ -1639,7 +1641,7 @@ export class AssessmentService {
         durationMinutes: t.duration_minutes,
         totalQuestions: t.total_questions,
         totalMarks: Number(t.total_marks),
-        isFree: t.is_free,
+        isFree: (await accessMany("MOCK_TEST", [String(t.id)])).get(String(t.id))?.tier === "FREE", // PAY-1 B3: the policy
       },
       exam: {
         title: t.mock_templates?.exams?.title || "National Exam",

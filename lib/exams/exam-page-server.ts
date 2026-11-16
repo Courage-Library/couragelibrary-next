@@ -7,6 +7,7 @@ import "server-only";
  */
 import { cache } from "react";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { accessMany } from "@/lib/access/policy";
 import { getSessionState } from "@/lib/auth/session-state";
 import { calculateRevisionDueState } from "@/services/mistake.service";
 import { AssessmentService } from "@/services/assessment.service";
@@ -20,6 +21,8 @@ export const examMocks = cache(async (examId: string): Promise<MockListItem[]> =
     const supabase = await createServerSupabaseClient();
     const { data, error } = await supabase.rpc("fn_public_exam_mocks", { p_exam_id: examId });
     if (error || !data) return [];
+    // PAY-1 B3 (decision 8): "Free" badges / "next free" / order follow the admin's MOCK_TEST policy, not is_free
+    const tiers = await accessMany("MOCK_TEST", data.map((m) => m.id));
     const rows = data
       .map((m) => {
         return {
@@ -29,7 +32,7 @@ export const examMocks = cache(async (examId: string): Promise<MockListItem[]> =
           questions: num(m.total_questions),
           minutes: num(m.duration_minutes),
           totalMarks: num(m.total_marks),
-          isFree: m.is_free === true,
+          isFree: tiers.get(m.id)?.tier === "FREE",
         };
       })
       .filter((m) => m.testType !== "daily_sectional");
