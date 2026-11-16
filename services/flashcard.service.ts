@@ -1,5 +1,6 @@
 ﻿import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { rpcJsonObject } from "@/lib/supabase/rpc";
+import { canAccess } from "@/lib/access/policy";
 
 export interface FlashcardDeckItem {
   id: string;
@@ -147,13 +148,14 @@ export class FlashcardService {
     let dueCount = 0;
 
     if (user) {
-      const [entitlementRes, progRes, dueRes] = await Promise.all([
-        supabase.from("user_entitlements").select("id").eq("user_id", user.id).eq("is_active", true).maybeSingle(),
+      // PAY-1 B3: the central check (the admin's FLASHCARDS tier + the paywall switch + the viewer's own Pro)
+      const [flashcardsAllowed, progRes, dueRes] = await Promise.all([
+        canAccess("FEATURE", "FLASHCARDS"),
         supabase.from("user_deck_progress").select("*").eq("deck_id", d.id).eq("user_id", user.id).maybeSingle(),
         supabase.from("user_flashcard_reviews").select("id", { count: "exact", head: true }).eq("deck_id", d.id).eq("user_id", user.id).lte("next_review_due_at", new Date().toISOString()),
       ]);
 
-      hasProAccess = !!entitlementRes.data;
+      hasProAccess = flashcardsAllowed;
       progData = progRes.data;
       dueCount = dueRes.count || 0;
     }
@@ -195,16 +197,8 @@ export class FlashcardService {
     if (!deckData) return null;
     const d = deckData as any;
 
-    let hasPro = false;
-    if (user) {
-      const { data: ent } = await supabase
-        .from("user_entitlements")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("is_active", true)
-        .maybeSingle();
-      hasPro = !!ent;
-    }
+    // PAY-1 B3: the central check decides the full deck (FLASHCARDS); anon is never allowed while the paywall is on
+    const hasPro = await canAccess("FEATURE", "FLASHCARDS");
 
     let cardsQuery = supabase
       .from("flashcards")

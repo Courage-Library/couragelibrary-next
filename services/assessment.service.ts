@@ -9,7 +9,6 @@ import type { Database } from "@/types/database";
 import { revalidatePath } from "next/cache";
 import { GamificationService } from "@/services/gamification.service";
 import { MistakeService } from "@/services/mistake.service";
-import { PremiumEntitlementService } from "@/services/premium-entitlement.service";
 import { ContentService } from "@/services/content.service";
 import { formatIstDateTime, calculateExamDuration, getIstDateString } from "@/lib/assessment/timing";
 import type { AttemptPosition } from "@/lib/assessment/position";
@@ -1764,26 +1763,11 @@ export class AssessmentService {
       if (!attempt) {
         // PAY-1 B2b (D2): a NEW attempt only after the admin-controlled access check (paywall off → allowed; FREE → allowed)
         if (!(await canAccess("MOCK_TEST", targetMockTestId))) return null;
-        if (mockTestData.is_free === false) {
-          // Premium mock test: enforce authoritative entitlement resolution & concurrency-safe quota locking
-          const authRes = await PremiumEntitlementService.authorizeAndStartAttempt(
-            resolvedUserId,
-            targetMockTestId
-          );
-
-          if (!authRes.success || !authRes.attemptId) {
-            return null; // Premium access denied or quota exhausted
-          }
-
-          const { data: createdAttempt } = await adminSb
-            .from("test_attempts")
-            .select("id, status, started_at, submitted_at")
-            .eq("id", authRes.attemptId)
-            .single();
-
-          attempt = createdAttempt;
-        } else {
-          // Free mock test (e.g. Daily Mock): standard atomic insertion governed by trg_enforce_mock_attempt_lifecycle
+        // PAY-1 B3 (owner decision 1, 2026-11-15): canAccess is the ONLY gate — the old is_free=false branch (own Pro
+        // check + per-exam quotas, PremiumEntitlementService.authorizeAndStartAttempt) is dropped; every allowed mock
+        // starts the same way.
+        {
+          // standard atomic insertion governed by trg_enforce_mock_attempt_lifecycle
           try {
             const { data: newAttempt, error } = await adminSb
               .from("test_attempts")

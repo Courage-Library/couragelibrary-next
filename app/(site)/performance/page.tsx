@@ -29,6 +29,8 @@ import {
 import { Button } from "@/components/ui/legacy/button";
 import { getServerSession } from "@/lib/auth/session";
 import { SessionUnavailable } from "@/components/auth/session-unavailable";
+import { canAccess } from "@/lib/access/policy";
+import { ProRequired } from "@/components/access/pro-required";
 
 export const metadata: Metadata = {
   title: "Candidate Performance Intelligence | Courage Library",
@@ -52,6 +54,8 @@ export default async function CandidatePerformancePage({ searchParams }: Perform
   if (session.state === "error") return <SessionUnavailable />;
   if (session.state === "none") redirect(loginRedirectPath(`/performance${examFilter ? `?exam=${encodeURIComponent(examFilter)}` : ""}`));
   const user = session.user;
+  // PAY-1 B3 (decision 9): this page is ADVANCED analytics (PRO by default); the basic mock result stays FREE
+  if (!(await canAccess("FEATURE", "ADVANCED_ANALYTICS"))) return <ProRequired feature="Advanced analytics" />;
 
   // Authoritative server-side aggregations
   const overview = await CandidateIntelligenceService.getCandidatePerformanceOverview(

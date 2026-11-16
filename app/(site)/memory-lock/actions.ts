@@ -17,7 +17,7 @@ const DAY_RX = /^\d{4}-\d{2}-\d{2}$/;
 
 export type MemoryLockAnswerResult =
   | { ok: true; isCorrect: boolean; correctKey: string; explanation: string | null; savedToMistakes: boolean; backIn: string }
-  | { ok: false; code: "RATE_LIMITED" | "NOT_FOUND" | "NOT_SIGNED_IN" | "NOT_IN_MEMORY_LOCK" | "FAILED" };
+  | { ok: false; code: "RATE_LIMITED" | "NOT_FOUND" | "NOT_SIGNED_IN" | "NOT_IN_MEMORY_LOCK" | "PRO_REQUIRED" | "FAILED" };
 
 export async function checkMemoryLockAnswerAction(input: { versionId: string; selected: string | null; timeMs: number; sessionId: string }): Promise<MemoryLockAnswerResult> {
   if (!isMemoryLockEnabled()) return { ok: false, code: "FAILED" };
@@ -39,7 +39,8 @@ export async function checkMemoryLockAnswerAction(input: { versionId: string; se
   const r = data as Record<string, unknown>;
   if (r.success !== true) {
     const code = String(r.code);
-    return { ok: false, code: (["RATE_LIMITED", "NOT_FOUND", "NOT_SIGNED_IN", "NOT_IN_MEMORY_LOCK"] as const).find((c) => c === code) ?? "FAILED" };
+    // PAY-1 B3: PRO_REQUIRED = the MEMORY_LOCK feature is Pro (the central check, inside the RPC)
+    return { ok: false, code: (["RATE_LIMITED", "NOT_FOUND", "NOT_SIGNED_IN", "NOT_IN_MEMORY_LOCK", "PRO_REQUIRED"] as const).find((c) => c === code) ?? "FAILED" };
   }
   const correctKey = KEYS.find((k) => k === r.correct_option_key);
   const dueOn = typeof r.due_on === "string" && DAY_RX.test(r.due_on) ? r.due_on : null;
@@ -54,7 +55,7 @@ export async function checkMemoryLockAnswerAction(input: { versionId: string; se
   };
 }
 
-export type AddToMemoryLockCode = "ADDED" | "ALREADY_ADDED" | "RATE_LIMITED" | "NOT_SIGNED_IN" | "NOT_FOUND" | "FAILED";
+export type AddToMemoryLockCode = "ADDED" | "ALREADY_ADDED" | "RATE_LIMITED" | "NOT_SIGNED_IN" | "NOT_FOUND" | "PRO_REQUIRED" | "FAILED";
 
 export async function addToMemoryLockAction(input: { questionId: string }): Promise<AddToMemoryLockCode> {
   if (!isMemoryLockEnabled() || !ID_RX.test(String(input?.questionId))) return "FAILED";
@@ -64,5 +65,5 @@ export async function addToMemoryLockAction(input: { questionId: string }): Prom
   const { data, error } = await supabase.rpc("fn_memory_lock_add", { p_question_id: input.questionId });
   if (error || !data || typeof data !== "object" || Array.isArray(data)) return "FAILED";
   const code = String((data as Record<string, unknown>).code);
-  return (["ADDED", "ALREADY_ADDED", "RATE_LIMITED", "NOT_SIGNED_IN", "NOT_FOUND"] as const).find((c) => c === code) ?? "FAILED";
+  return (["ADDED", "ALREADY_ADDED", "RATE_LIMITED", "NOT_SIGNED_IN", "NOT_FOUND", "PRO_REQUIRED"] as const).find((c) => c === code) ?? "FAILED";
 }

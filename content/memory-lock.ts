@@ -31,9 +31,11 @@ export const MEMORY_LOCK = {
     RATE_LIMITED: "You have added many questions today. Try again tomorrow.",
     NOT_SIGNED_IN: "Sign in to use Memory Lock.",
     NOT_FOUND: "This question cannot be added.",
+    PRO_REQUIRED: "Memory Lock is part of Pro.", // PAY-1 B3: the MEMORY_LOCK feature
     FAILED: "Could not add this question. Please try again.",
   } as Record<string, string>,
   errors: {
     NOT_IN_MEMORY_LOCK: "This question is no longer in your Memory Lock. Skip to the next one.",
+    PRO_REQUIRED: "Memory Lock is part of Pro.", // PAY-1 B3: the MEMORY_LOCK feature
   } as Record<string, string>,
 } as const;

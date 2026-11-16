@@ -108,8 +108,34 @@ test('P4-04 rollback restores the live definitions + both search policies, drops
   const why = rollbackCheck(RBS);
   assert(why === null, why);
 });
+// P4-06 the four client RPCs: the feature guard sits right after the sign-in check (before any work)
+const guardCheck = (sql) => {
+  const want = [
+    ['fn_memory_lock_add', 'MEMORY_LOCK', /RETURN jsonb_build_object\('success', false, 'code', 'NOT_SIGNED_IN'\);\s+END IF;\s+-- PAY-1 B3[^\n]*\n\s+IF NOT public\.fn_access_allowed\('FEATURE', 'MEMORY_LOCK'\) THEN\s+RETURN jsonb_build_object\('success', false, 'code', 'PRO_REQUIRED'\);/],
+    ['fn_memory_lock_answer', 'MEMORY_LOCK', /RETURN jsonb_build_object\('success', false, 'code', 'NOT_SIGNED_IN'\);\s+END IF;\s+-- PAY-1 B3[^\n]*\n\s+IF NOT public\.fn_access_allowed\('FEATURE', 'MEMORY_LOCK'\) THEN\s+RETURN jsonb_build_object\('success', false, 'code', 'PRO_REQUIRED'\);/],
+    ['fn_generate_mistake_drill', 'MISTAKE_DRILLS', /'Authentication required to generate a drill\.'\);\s+END IF;\s+-- PAY-1 B3[^\n]*\n\s+IF NOT public\.fn_access_allowed\('FEATURE', 'MISTAKE_DRILLS'\) THEN\s+RETURN jsonb_build_object\('success', false, 'code', 'PRO_REQUIRED'/],
+    ['fn_submit_mistake_drill', 'MISTAKE_DRILLS', /'Authentication required to submit a drill\.'\);\s+END IF;\s+-- PAY-1 B3[^\n]*\n\s+IF NOT public\.fn_access_allowed\('FEATURE', 'MISTAKE_DRILLS'\) THEN\s+RETURN jsonb_build_object\('success', false, 'code', 'PRO_REQUIRED'/],
+  ];
+  for (const [fn, , rx] of want) {
+    const body = block(sql, new RegExp(`CREATE OR REPLACE FUNCTION public\\.${fn}\\(`));
+    if (!body) return `${fn} missing from 147`;
+    if (!rx.test(body)) return `${fn}: the feature guard is not right after the sign-in check`;
+  }
+  return null;
+};
+test('P4-06 Memory Lock (add / answer) → MEMORY_LOCK and drills (generate / submit) → MISTAKE_DRILLS, guarded right after sign-in; rollback restores all four unguarded', () => {
+  const why = guardCheck(SQL);
+  assert(why === null, why);
+  for (const fn of ['fn_memory_lock_add', 'fn_memory_lock_answer', 'fn_generate_mistake_drill', 'fn_submit_mistake_drill']) {
+    const body = block(RBS, new RegExp(`CREATE OR REPLACE FUNCTION public\\.${fn}\\(`));
+    assert(body && !/PRO_REQUIRED/.test(body), `rollback restores ${fn} without the guard`);
+  }
+});
+
 test('P4-05 negative controls: each mutation is caught', () => {
   const muts = [
+    ['Memory Lock answer guard removed', guardCheck(SQL.replace(/(CREATE OR REPLACE FUNCTION public\.fn_memory_lock_answer[\s\S]*?)IF NOT public\.fn_access_allowed\('FEATURE', 'MEMORY_LOCK'\) THEN/, "$1IF false THEN"))],
+    ['drill guard on the wrong feature', guardCheck(SQL.replace(/(CREATE OR REPLACE FUNCTION public\.fn_generate_mistake_drill[\s\S]*?)'MISTAKE_DRILLS'/, "$1'MISTAKE_VAULT'"))],
     ['seed overwrites an admin choice', seedCheck(SQL.replace(" AND tier = 'PRO' AND updated_by IS NULL;", ';'))],
     ['batched check treats anon as Pro', manyCheck(SQL.replace('IF v_on IS TRUE AND auth.uid() IS NOT NULL THEN', 'IF v_on IS TRUE THEN'))],
     ['batched check ignores the switch', manyCheck(SQL.replace('(v_on IS DISTINCT FROM true OR t.tier = ', '(t.tier = '))],

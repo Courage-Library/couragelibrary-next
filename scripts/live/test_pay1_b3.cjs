@@ -138,6 +138,36 @@ function client() {
           direct.code === '42501' && gated(onPro) && !gated(onFree) && !gated(off), JSON.stringify({ direct: direct.code, onPro, onFree, off }));
       }
 
+      // ---------- B3-G feature guards in the client RPCs (Memory Lock → MEMORY_LOCK, drills → MISTAKE_DRILLS)
+      const code = async (sqlText) => {
+        const r = await as(...STUDENT, sqlText);
+        if (r.code) return `ERR ${r.code}`;
+        const v = r.rows[0] && r.rows[0].r;
+        return v && v.success === false ? String(v.code) : 'OK';
+      };
+      const calls = {
+        mlAdd: `select public.fn_memory_lock_add(gen_random_uuid()) r`,
+        mlAnswer: `select public.fn_memory_lock_answer(gen_random_uuid(), 'A', 1000, gen_random_uuid()) r`,
+        drillGen: `select public.fn_generate_mistake_drill(p_vault_ids => '{}'::uuid[]) r`,
+        drillSubmit: `select public.fn_submit_mistake_drill(p_drill_id => gen_random_uuid(), p_answers => '[]'::jsonb) r`,
+      };
+      const feature = { mlAdd: 'MEMORY_LOCK', mlAnswer: 'MEMORY_LOCK', drillGen: 'MISTAKE_DRILLS', drillSubmit: 'MISTAKE_DRILLS' };
+      const g = {};
+      for (const [k, s] of Object.entries(calls)) {
+        await setTier('FEATURE', feature[k], 'PRO');
+        await switchTo(true);
+        const on = await code(s);
+        await setTier('FEATURE', feature[k], 'FREE');
+        const free = await code(s);
+        await setTier('FEATURE', feature[k], 'PRO');
+        await switchTo(false);
+        const off = await code(s);
+        g[k] = { on, free, off };
+      }
+      const okG = Object.values(g).every((x) => x.on === 'PRO_REQUIRED' && x.free !== 'PRO_REQUIRED' && x.off !== 'PRO_REQUIRED' && !/^ERR/.test(x.on + x.free + x.off));
+      chk('B3-G Memory Lock (add / answer) and drills (generate / submit) as the free student: PRO_REQUIRED with the switch ON and the feature PRO; not with the feature FREE or the switch OFF',
+        okG, JSON.stringify(g));
+
       // ---------- B3-B battles
       const arena = await as(...STUDENT, `select public.fn_find_or_create_battle_room(null::uuid, false, 'PRO') r`);
       const free = await as(...STUDENT, `select public.fn_find_or_create_battle_room(null::uuid, true, 'FREE') r`);

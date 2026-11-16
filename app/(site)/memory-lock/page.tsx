@@ -12,6 +12,8 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getSessionState } from "@/lib/auth/session-state";
 import { isMemoryLockEnabled } from "@/lib/memory-lock/flag";
 import { loadMemoryLock } from "@/lib/memory-lock/server";
+import { canAccess } from "@/lib/access/policy";
+import { ProRequired } from "@/components/access/pro-required";
 import { formatDateShort } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -32,6 +34,8 @@ export default async function MemoryLockPage() {
       </Container>
     );
   }
+  // PAY-1 B3: Memory Lock is the MEMORY_LOCK feature of the central check (its RPCs refuse too)
+  if (!(await canAccess("FEATURE", "MEMORY_LOCK"))) return <ProRequired feature={MEMORY_LOCK.name} />;
   const ml = await loadMemoryLock(supabase, session.user.id);
   const topics = ml.groups.length;
 
