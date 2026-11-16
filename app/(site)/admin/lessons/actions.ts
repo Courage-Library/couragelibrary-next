@@ -82,7 +82,9 @@ export async function setCourseLaunchAction(examId: string, status: "LIVE" | "PA
   const __auth = await guardAdminAction() /* CA-7: admin only */;
   if (!__auth.ok) return __auth;
   if (status !== "LIVE" && status !== "PAUSED") return { success: false, code: "VALIDATION", error: "Status must be LIVE or PAUSED." };
-  if (accessMode !== "FREE_ALL" && accessMode !== "FREE_N") return { success: false, code: "VALIDATION", error: "Choose an access mode." };
+  // PAY-1 B3 (owner decision 2): FREE_N is retired — lesson Free / Pro lives in "Free & Pro" (the LESSON policy)
+  if (accessMode === "FREE_N") return { success: false, code: "VALIDATION", error: "The per-chapter Pro mode is retired. Set lesson access in Free & Pro." };
+  if (accessMode !== "FREE_ALL") return { success: false, code: "VALIDATION", error: "Choose an access mode." };
   const r = await CoverageService.setLaunch(examId, status, accessMode);
   if (r.success) {
     revalidatePath("/admin/coverage");

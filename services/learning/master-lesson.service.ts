@@ -13,8 +13,7 @@ import { unstable_cache } from "next/cache";
 import { createAdminServerSupabaseClient, createServerSupabaseClient } from "@/lib/supabase/server";
 import { getSessionState } from "@/lib/auth/session-state";
 import { validateLesson, type LessonBlock, type LessonLinkMap, type LessonMeta } from "@/lib/lessons/blocks";
-import { isLessonLocked, lessonAccessLevel } from "@/lib/learning/chapter-access";
-import { getLessonAccessSettings } from "@/lib/learning/lesson-access-settings";
+import { accessMany } from "@/lib/access/policy";
 import { examTopicHref, learnHref, segmentsToHierarchyPath } from "@/lib/learn/paths";
 import { buildTopicCanon } from "@/lib/learn/topic-canon";
 import { readingMinutes, requiredReadingSeconds } from "@/lib/lessons/reading-time";
@@ -191,11 +190,13 @@ export async function getMasterLessonPage(segments: string[], language: "en" | "
   if (!data) return null;
   if (!data.lesson) return { data, language, shown: null, access: "FREE", locked: false, body: null, teaser: null, progress: null, lastBlockId: null, answered: {}, minutes: null, evidence: null };
 
-  const [settings, viewer, supabase] = await Promise.all([getLessonAccessSettings(), LearningResolverService.getViewerAccess(), createServerSupabaseClient()]);
+  // PAY-1 B3: the central check only (the admin's LESSON policy + the paywall switch + the viewer's own Pro); fail-closed
+  const [acc, supabase] = await Promise.all([accessMany("LESSON", [data.lesson.documentId]), createServerSupabaseClient()]);
   const shown: "en" | "hi" = language === "hi" && data.lesson.hi ? "hi" : "en";
   const version = shown === "hi" && data.lesson.hi ? data.lesson.hi : data.lesson.en;
-  const access = lessonAccessLevel(data.lesson.position, settings, data.lesson.documentId);
-  const locked = isLessonLocked(data.lesson.position, settings, data.lesson.documentId, viewer.hasPro);
+  const answer = acc.get(data.lesson.documentId);
+  const access: "FREE" | "PRO" = answer?.tier === "FREE" ? "FREE" : "PRO";
+  const locked = !(answer?.allowed === true);
 
   let progress: MasterLessonPage["progress"] = null;
   let lastBlockId: string | null = null;

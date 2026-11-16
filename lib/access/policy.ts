@@ -16,7 +16,8 @@ export type AccessTier = "FREE" | "PRO";
 /** Feature codes the admin page lists (an unknown code is PRO — fail-closed — until the admin sets it). */
 export const FEATURE_CODES = [
   { code: "ADVANCED_ANALYTICS", label: "Advanced analytics (performance)" },
-  { code: "MISTAKE_VAULT", label: "Mistake Vault" },
+  { code: "MISTAKE_VAULT", label: "Mistake Vault (viewing)" },
+  { code: "MISTAKE_DRILLS", label: "Mistake Vault drills" },
   { code: "MEMORY_LOCK", label: "Memory Lock" },
   { code: "FLASHCARDS", label: "Flashcards" },
   { code: "PREMIUM_CA", label: "Premium current affairs" },
@@ -37,6 +38,31 @@ export async function canAccess(kind: AccessKind, key: string): Promise<boolean>
   } catch {
     return false;
   }
+}
+
+export type AccessAnswer = { tier: AccessTier; allowed: boolean };
+const DENIED: AccessAnswer = { tier: "PRO", allowed: false };
+
+/**
+ * PAY-1 B3 (147): the central check for a LIST of keys in one call (fn_access_allowed_many — the same rule as
+ * fn_access_allowed). Every key gets an answer; a key the database did not answer, or any error, is PRO + refused
+ * (fail-closed). ≤ 500 keys per call (larger lists are split).
+ */
+export async function accessMany(kind: AccessKind, keys: string[]): Promise<Map<string, AccessAnswer>> {
+  const want = [...new Set(keys.filter((k) => typeof k === "string" && k.length > 0))];
+  const out = new Map<string, AccessAnswer>(want.map((k) => [k, DENIED]));
+  if (!want.length) return out;
+  try {
+    const supabase = await createServerSupabaseClient();
+    for (let i = 0; i < want.length; i += 500) {
+      const { data, error } = await supabase.rpc("fn_access_allowed_many", { p_kind: kind, p_keys: want.slice(i, i + 500) });
+      if (error || !Array.isArray(data)) continue;
+      for (const r of data) if (out.has(r.item_key)) out.set(r.item_key, { tier: r.tier === "FREE" ? "FREE" : "PRO", allowed: r.allowed === true });
+    }
+  } catch {
+    // fail-closed: every key stays PRO + refused
+  }
+  return out;
 }
 
 /** The resolved tier of an item (for showing a lock badge); PRO on any error (fail-closed). */

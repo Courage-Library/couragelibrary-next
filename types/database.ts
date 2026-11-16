@@ -9184,6 +9184,14 @@ export type Database = {
         Args: { p_key: string; p_kind: string }
         Returns: boolean
       }
+      fn_access_allowed_many: {
+        Args: { p_keys: string[]; p_kind: string }
+        Returns: {
+          allowed: boolean
+          item_key: string
+          tier: string
+        }[]
+      }
       fn_access_policy_clear: {
         Args: {
           p_actor_email: string

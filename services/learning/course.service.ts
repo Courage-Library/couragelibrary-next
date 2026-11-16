@@ -15,8 +15,7 @@ import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { createAdminServerSupabaseClient, createServerSupabaseClient, createPublicServerSupabaseClient } from "@/lib/supabase/server";
 import { getSessionState } from "@/lib/auth/session-state";
-import { isLessonLocked, lessonAccessLevel } from "@/lib/learning/chapter-access";
-import { getLessonAccessSettings } from "@/lib/learning/lesson-access-settings";
+import { accessMany } from "@/lib/access/policy";
 import { userContentLanguage } from "@/lib/exams/exam-page-server";
 import { LearningResolverService } from "@/services/learning/learning-resolver.service";
 import { courseFromOutline, type LessonStatus } from "@/lib/learning/course-view";
@@ -118,8 +117,9 @@ const getCourseCached = cache(async (examSlug: string): Promise<CourseView | nul
     const preview = !isLive && (role === "admin" || role === "staff");
     if (!isLive && !preview) return null;
 
-    const [language, access, settings] = await Promise.all([userContentLanguage(), LearningResolverService.getViewerAccess(), getLessonAccessSettings()]);
     const ids = data.lessons.map((l) => l.documentId);
+    // PAY-1 B3: every lesson's tier + lock from the central check, one call (fail-closed)
+    const [language, acc] = await Promise.all([userContentLanguage(), accessMany("LESSON", ids)]);
     let progress: Array<{ document_id: string; status: string; updated_at: string }> = [];
     if (session.state === "user" && ids.length) {
       // COURSE-UX-1 (135): one record per lesson, any language (before 135 a lesson may have two rows: COMPLETED wins)
@@ -134,8 +134,8 @@ const getCourseCached = cache(async (examSlug: string): Promise<CourseView | nul
     const lessons: CourseLesson[] = data.lessons.map((l) => ({
       ...l,
       href: courseLessonHref(l, data.exam.slug, language),
-      access: lessonAccessLevel(l.position, settings, l.documentId),
-      locked: isLessonLocked(l.position, settings, l.documentId, access.hasPro),
+      access: (acc.get(l.documentId)?.tier === "FREE" ? "FREE" : "PRO") as "FREE" | "PRO",
+      locked: !(acc.get(l.documentId)?.allowed === true),
     }));
     const structure = buildCourseStructure({ nodes: data.nodes, lessons, paths: data.paths, practice: new Map(data.practice), status });
     const next = session.state === "user" ? continueLesson(structure.order, progress.filter((p) => p.status === "READING").map((p) => ({ documentId: p.document_id, updatedAt: p.updated_at }))) : null;

@@ -22,8 +22,7 @@
 import { createAdminServerSupabaseClient, createServerSupabaseClient } from '@/lib/supabase/server';
 import { validateLesson, type LessonBlock, type LessonLinkMap, type LessonMeta } from '@/lib/lessons/blocks';
 import { userContentLanguage } from '@/lib/exams/exam-page-server';
-import { lessonAccessLevel, type LessonAccessSettings } from '@/lib/learning/chapter-access';
-import { getLessonAccessSettings } from '@/lib/learning/lesson-access-settings';
+import { accessMany } from '@/lib/access/policy';
 import { learnHref } from '@/lib/learn/paths';
 
 /** CA-3: private bucket of lesson images (migration 117); students get short-lived signed URLs from the server. */
@@ -207,36 +206,41 @@ async function topicsOf(supabase: SessionClient, nodes: NodeRef[]): Promise<Map<
 }
 
 /**
- * CA-5: a node lesson's access comes from its position in its MASTER chapter (fn_servable_node_lessons) and the
- * settings — never from the document's own access column. A lesson without a known position is treated as PRO
- * whenever gating is on (fail-closed).
+ * PAY-1 B3: a document's access (tier + lock) comes ONLY from the central check — the admin's LESSON policy, the paywall
+ * switch and the viewer's own Pro (fn_access_allowed_many). Documents are built FAIL-CLOSED (PRO, locked) and every
+ * public method finishes them with applyLessonAccess, one call for all of them.
  */
-async function nodeLessonPositions(supabase: SessionClient): Promise<Map<string, number>> {
-  const { data, error } = await supabase.rpc('fn_servable_node_lessons');
-  if (error || !Array.isArray(data)) return new Map();
-  return new Map(data.map((r) => [r.document_id, r.chapter_position]));
+async function applyLessonAccess<T extends Iterable<ResolvedLearningDocument>>(docs: T): Promise<T> {
+  const list = [...docs];
+  if (!list.length) return docs;
+  const acc = await accessMany('LESSON', list.map((d) => d.id));
+  for (const d of list) {
+    const a = acc.get(d.id);
+    d.access_level = a?.tier === 'FREE' ? 'FREE' : 'PRO';
+    d.is_locked = !(a?.allowed === true);
+  }
+  return docs;
 }
 
-function toResolvedNode(row: NodeLessonRow, access: LearningViewerAccess, topic: NodeRef | undefined, gate: { settings: LessonAccessSettings; positions: Map<string, number> }): ResolvedLearningDocument {
+function toResolvedNode(row: NodeLessonRow, topic: NodeRef | undefined): ResolvedLearningDocument {
   const node = one(row.node);
-  const accessLevel: LearningAccessLevel = lessonAccessLevel(gate.positions.get(row.id) ?? Number.MAX_SAFE_INTEGER, gate.settings, row.id);
   return {
     id: row.id,
     canonical_slug: row.canonical_slug,
     title: node?.name || row.canonical_slug,
     document_type: 'NODE_LESSON',
-    access_level: accessLevel,
+    access_level: 'PRO', // fail-closed until applyLessonAccess
     estimated_minutes: NODE_LESSON_MINUTES,
     // CA-6: a node lesson's one indexable URL is its master page (/articles/<slug> redirects there)
     href: node?.hierarchy_path ? learnHref(node.hierarchy_path) : `/articles/${row.canonical_slug}`,
-    is_locked: accessLevel === 'PRO' && !access.hasPro,
+    is_locked: true,
     topic_id: topic?.id || node?.id || row.node_id || '',
     topic_name: topic?.name || null,
   };
 }
 
 /** Servable node lessons (optionally only those whose node is one of / under one of the given topics). */
-async function servableNodeLessons(supabase: SessionClient, access: LearningViewerAccess, topicIds: string[] | null): Promise<ResolvedLearningDocument[]> {
+async function servableNodeLessons(supabase: SessionClient, topicIds: string[] | null): Promise<ResolvedLearningDocument[]> {
   let nodeIds: string[] | null = null;
   if (topicIds) {
     if (!topicIds.length) return [];
@@ -251,27 +255,22 @@ async function servableNodeLessons(supabase: SessionClient, access: LearningView
   if (error || !Array.isArray(data)) return [];
   const rows = (data as NodeLessonRow[]).filter(isServableNodeRow);
   if (!rows.length) return [];
-  const [topics, settings, positions] = await Promise.all([
-    topicsOf(supabase, rows.map((r) => one(r.node)).filter((n): n is NodeLessonNode => n !== null)),
-    getLessonAccessSettings(),
-    nodeLessonPositions(supabase),
-  ]);
-  return rows.map((r) => toResolvedNode(r, access, r.node_id ? topics.get(r.node_id) : undefined, { settings, positions }));
+  const topics = await topicsOf(supabase, rows.map((r) => one(r.node)).filter((n): n is NodeLessonNode => n !== null));
+  return rows.map((r) => toResolvedNode(r, r.node_id ? topics.get(r.node_id) : undefined));
 }
 
-function toResolved(row: any, access: LearningViewerAccess): ResolvedLearningDocument {
+function toResolved(row: any): ResolvedLearningDocument {
   const unit = Array.isArray(row.learning_units) ? row.learning_units[0] : row.learning_units;
   const topic = Array.isArray(unit?.topics) ? unit.topics[0] : unit?.topics;
-  const accessLevel: LearningAccessLevel = row.access_level === 'PRO' ? 'PRO' : 'FREE';
   return {
     id: row.id,
     canonical_slug: row.canonical_slug,
     title: unit?.title || row.canonical_slug,
     document_type: row.document_type,
-    access_level: accessLevel,
+    access_level: 'PRO', // fail-closed until applyLessonAccess (the document's own access_level column is retired)
     estimated_minutes: unit?.estimated_minutes || 10,
     href: `/articles/${row.canonical_slug}`,
-    is_locked: accessLevel === 'PRO' && !access.hasPro,
+    is_locked: true,
     topic_id: unit?.topic_id,
     topic_name: topic?.name || null,
   };
@@ -306,26 +305,6 @@ export async function resolveLessonLinks(admin: ReturnType<typeof createAdminSer
 }
 
 export class LearningResolverService {
-  /** Viewer access from the current session only. Anonymous → no PRO. */
-  static async getViewerAccess(): Promise<LearningViewerAccess> {
-    const supabase = await createServerSupabaseClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return { isAuthenticated: false, hasPro: false };
-    const nowIso = new Date().toISOString();
-    // RLS ("Users can read own entitlements") restricts this to the session user's rows.
-    const { data } = await supabase
-      .from('user_entitlements')
-      .select('id, starts_at, expires_at')
-      .in('entitlement_type', PRO_ENTITLEMENTS)
-      .eq('is_active', true)
-      .lte('starts_at', nowIso)
-      .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
-      .limit(1);
-    return { isAuthenticated: true, hasPro: Array.isArray(data) && data.length > 0 };
-  }
-
   /** Batch: topicId → ordered servable documents. One query for any number of topics. */
   static async resolveForTopics(topicIds: string[]): Promise<Map<string, ResolvedLearningDocument[]>> {
     const ids = Array.from(new Set((topicIds || []).filter((t) => typeof t === 'string' && UUID_RE.test(t))));
@@ -334,27 +313,25 @@ export class LearningResolverService {
     if (ids.length === 0) return result;
 
     const supabase = await createServerSupabaseClient();
-    const [access, { data, error }] = await Promise.all([
-      this.getViewerAccess(),
-      supabase
-        .from('learning_documents')
-        .select(DOC_SELECT)
-        .eq('status', 'PUBLISHED')
-        .not('current_published_version_id', 'is', null)
-        .in('learning_units.topic_id', ids),
-    ]);
+    const { data, error } = await supabase
+      .from('learning_documents')
+      .select(DOC_SELECT)
+      .eq('status', 'PUBLISHED')
+      .not('current_published_version_id', 'is', null)
+      .in('learning_units.topic_id', ids);
     if (error || !Array.isArray(data)) return result;
 
     for (const row of data) {
       if (!isServableDocumentRow(row)) continue;
-      const doc = toResolved(row, access);
+      const doc = toResolved(row);
       if (!result.has(doc.topic_id)) continue;
       result.get(doc.topic_id)!.push(doc);
     }
     // CA-4: node lessons of these topics (and of their subtopics / concepts)
-    for (const doc of await servableNodeLessons(supabase, access, ids)) {
+    for (const doc of await servableNodeLessons(supabase, ids)) {
       if (result.has(doc.topic_id)) result.get(doc.topic_id)!.push(doc);
     }
+    await applyLessonAccess([...result.values()].flat());
     result.forEach((docs, id) => result.set(id, sortLearningDocuments(docs)));
     return result;
   }
@@ -382,24 +359,18 @@ export class LearningResolverService {
     const result = new Map<string, ResolvedLearningDocument>();
     if (ids.length === 0) return result;
     const supabase = await createServerSupabaseClient();
-    const [access, { data, error }] = await Promise.all([
-      this.getViewerAccess(),
-      supabase.from('learning_documents').select(DOC_SELECT).eq('status', 'PUBLISHED').not('current_published_version_id', 'is', null).in('id', ids),
-    ]);
+    const { data, error } = await supabase.from('learning_documents').select(DOC_SELECT).eq('status', 'PUBLISHED').not('current_published_version_id', 'is', null).in('id', ids);
     if (error || !Array.isArray(data)) return result;
-    for (const row of data) if (isServableDocumentRow(row)) result.set(row.id, toResolved(row, access));
+    for (const row of data) if (isServableDocumentRow(row)) result.set(row.id, toResolved(row));
     // CA-4: node lessons by id
     const missing = ids.filter((id) => !result.has(id));
     if (missing.length) {
       const { data: nodeRows } = await supabase.from('learning_documents').select(NODE_DOC_SELECT).in('id', missing);
       const servable = ((nodeRows || []) as NodeLessonRow[]).filter(isServableNodeRow);
-      const [topics, settings, positions] = await Promise.all([
-        topicsOf(supabase, servable.map((r) => one(r.node)).filter((n): n is NodeLessonNode => n !== null)),
-        getLessonAccessSettings(),
-        nodeLessonPositions(supabase),
-      ]);
-      for (const r of servable) result.set(r.id, toResolvedNode(r, access, r.node_id ? topics.get(r.node_id) : undefined, { settings, positions }));
+      const topics = await topicsOf(supabase, servable.map((r) => one(r.node)).filter((n): n is NodeLessonNode => n !== null));
+      for (const r of servable) result.set(r.id, toResolvedNode(r, r.node_id ? topics.get(r.node_id) : undefined));
     }
+    await applyLessonAccess(result.values());
     return result;
   }
 
@@ -408,10 +379,10 @@ export class LearningResolverService {
     const supabase = await createServerSupabaseClient();
     let query = supabase.from('learning_documents').select(DOC_SELECT).eq('status', 'PUBLISHED').not('current_published_version_id', 'is', null);
     if (filters.topicId) query = query.eq('learning_units.topic_id', filters.topicId);
-    const [access, { data, error }] = await Promise.all([this.getViewerAccess(), query]);
+    const { data, error } = await query;
     if (error || !Array.isArray(data)) return [];
-    const nodeDocs = await servableNodeLessons(supabase, access, filters.topicId ? [filters.topicId] : null);
-    return sortLearningDocuments([...data.filter(isServableDocumentRow).map((r) => toResolved(r, access)), ...nodeDocs]);
+    const nodeDocs = await servableNodeLessons(supabase, filters.topicId ? [filters.topicId] : null);
+    return sortLearningDocuments(await applyLessonAccess([...data.filter(isServableDocumentRow).map((r) => toResolved(r)), ...nodeDocs]));
   }
 
   /**
@@ -421,8 +392,7 @@ export class LearningResolverService {
   static async getArticle(slug: string): Promise<LearningArticle | null> {
     if (!slug) return null;
     const supabase = await createServerSupabaseClient();
-    const [access, wanted, { data, error }] = await Promise.all([
-      this.getViewerAccess(),
+    const [wanted, { data, error }] = await Promise.all([
       userContentLanguage(),
       supabase.from('learning_documents').select(DOC_SELECT).eq('canonical_slug', slug).eq('status', 'PUBLISHED').maybeSingle(),
     ]);
@@ -434,7 +404,7 @@ export class LearningResolverService {
     let subjectId: string | null = null;
     let subjectName: string | null = null;
     if (data && isServableDocumentRow(data)) {
-      doc = toResolved(data, access);
+      doc = toResolved(data);
       const unit = Array.isArray(data.learning_units) ? data.learning_units[0] : data.learning_units;
       const topic = Array.isArray(unit?.topics) ? unit.topics[0] : unit?.topics;
       const subject = Array.isArray(topic?.subjects) ? topic.subjects[0] : topic?.subjects;
@@ -448,12 +418,8 @@ export class LearningResolverService {
       const row = nodeRow as NodeLessonRow | null;
       if (!row || !isServableNodeRow(row)) return null;
       const node = one(row.node);
-      const [topics, settings, positions] = await Promise.all([
-        node ? topicsOf(supabase, [node]) : Promise.resolve(new Map<string, NodeRef>()),
-        getLessonAccessSettings(),
-        nodeLessonPositions(supabase),
-      ]);
-      doc = toResolvedNode(row, access, node ? topics.get(node.id) : undefined, { settings, positions });
+      const topics = node ? await topicsOf(supabase, [node]) : new Map<string, NodeRef>();
+      doc = toResolvedNode(row, node ? topics.get(node.id) : undefined);
       ver = one(row.current_version);
       subjectId = node?.root_subject_id || null;
       if (subjectId) {
@@ -469,6 +435,8 @@ export class LearningResolverService {
     let lesson: LearningArticle['lesson'] = null;
     let language: 'en' | 'hi' = 'en';
     let state: LessonLanguageState = wanted === 'hi' ? 'HI_COMING_SOON' : 'EN';
+    // PAY-1 B3: the central check decides BEFORE any body is loaded (fail-closed: locked unless allowed)
+    await applyLessonAccess([doc]);
     if (!doc.is_locked && ver?.id) {
       try {
         const admin = createAdminServerSupabaseClient();
