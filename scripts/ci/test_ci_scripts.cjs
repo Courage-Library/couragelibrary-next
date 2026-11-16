@@ -213,7 +213,7 @@ test('C-14 run-quiet passes a wrapped gate\'s "--self-test" to the gate (it must
   return 'gate executed with its flag';
 });
 
-test('C-15 every job has timeout-minutes (CI-FIX-1: offline 15 · server-checks 20 · live-journeys 45 · prod-smoke 20; CI-SPEED-1 + CI-DB-SHARD-BUDGET: live-gates per shard db 52 · dbfree 10 · security 25 · pages 20)', () => {
+test('C-15 every job has timeout-minutes (CI-FIX-1: offline 15 · server-checks 20 · live-journeys 45 · prod-smoke 20; CI-SPEED-1 + CI-DB-SHARD-BUDGET: live-gates per shard db 52 · dbfree 10 · security 27 · pages 20)', () => {
   const w = fs.readFileSync(path.join(ROOT, '.github/workflows/ci-gates.yml'), 'utf8');
   const jobsAt = w.indexOf('\njobs:\n');
   assert(jobsAt > 0, 'no jobs block');
@@ -221,7 +221,7 @@ test('C-15 every job has timeout-minutes (CI-FIX-1: offline 15 · server-checks 
   // CI-SPEED-1 (architect 2026-10-29): the interim 60 is gone — live-gates runs as 3 shards, each with a limit of ~1.5 x
   // its measured job time (dispatch 40919071379: the db shard's gates sum to ~25 min, security ~12, pages ~7, + ~2 build)
   // CI-DB-SHARD-BUDGET (owner 2026-11-15): db ≈ 35.4 min of 52, dbfree ≈ 6.5 min of 10 (run 43703568734; each ≤ 70%)
-  const want = { offline: 15, 'server-checks': 20, 'live-journeys': 45, 'live-gates': 'db 52 · dbfree 10 · security 25 · pages 20', 'prod-smoke': 20 };
+  const want = { offline: 15, 'server-checks': 20, 'live-journeys': 45, 'live-gates': 'db 52 · dbfree 10 · security 27 · pages 20', 'prod-smoke': 20 };
   const got = {};
   for (const b of blocks) {
     const name = b.match(/^ {2}([a-z][\w-]*):/)[1];
@@ -255,7 +255,7 @@ test('C-17 CI-LIVE-SPLIT-1: the nightly live gates run in 2 parallel jobs and NO
   // CI-LIVE-GATES-1: a gate line may carry run-quiet's --keep-log <dir> between its ID and "--"
   const ids = (b) => [...b.matchAll(/"\$Q ([A-Z0-9-]+)(?: --keep-log \S+)? -- /g)].map((m) => m[1]);
   // the canonical nightly list (38 gates as before the split, + CA1-TAXONOMY-LIVE, CA2-INTAKE-LIVE, CA3-LESSONS-LIVE, CA4-LESSONS-LIVE, LESSON-PROMPT-2-LIVE, CA5-COURSES-LIVE, LESSON-PERF, CA6-SEO-LIVE, CA7-LIVE, LAUNCH-MODE-1-LIVE, SYLIMPORT1-SCOPE-CONTROLS) — each in exactly one job; the QA-session probe in both
-  const CANON = ['QA-SESSION-PROBE', 'SECDEF-RATCHET', 'RLS', 'QF1-DB', 'QBKEY1', 'SECDEF-S2-1', 'TYPES1-CLOSE', 'GAP2-4A', 'READERS', 'SYLIMPORT1', 'SYLIMPORT1-SCOPE-CONTROLS', 'CLEANUP-1', 'JOURNEY', 'LINEAGE', 'DRILL1', 'STUDENT-DRILL', 'CLEANUP-2', 'FIXTURE', 'SMOKE-STUDENT-MISTAKE-1', 'SMOKE-STUDENT-MISTAKE-2', 'SMOKE-STUDENT-MISTAKE-3', 'VAULT-HEALTH', 'F9-PRICING', 'ADMIN-D1-D2', 'CA1-TAXONOMY-LIVE', 'CA2-INTAKE-LIVE', 'CA3-LESSONS-LIVE', 'CA4-LESSONS-LIVE', 'LESSON-PROMPT-2-LIVE', 'CA5-COURSES-LIVE', 'LESSON-PERF', 'CA6-SEO-LIVE', 'CA7-LIVE', 'LAUNCH-MODE-1-LIVE', 'SMOKE-ADMIN-PAGES-1', 'SMOKE-ADMIN-PAGES-2', 'SMOKE-ADMIN-PAGES-3', 'SMOKE-STUDENT-PAGES', 'SMOKE-STAFF-CONTENT', 'SMOKE-ADMIN-HOME', 'FLAGS-LIVE', 'UX2A-LIVE', 'UX2B-LIVE', 'AUTH1-2B1-LIVE', 'CA-ROUTES', 'SEC1B-LIVE', 'SEC1C-LIVE', 'SEC1D-LIVE', 'ANON-SMOKE-LOCAL', 'INTAKE-ASSIST-1-LIVE', 'PUBLISH-IMPACT-LIVE', 'PUBLISH-CONFIRM-LIVE', 'EXAM-LOGO-1-LIVE', 'LOGO-UX1-E2E', 'EXAM-NOTE-PROMPT-1-LIVE', 'EXAM-CATEGORIES-LIVE', 'SITE-MEDIA-LIVE', 'SITE-GALLERY-LIVE', 'SITE-MEDIA-NO-EMAIL-LIVE', 'USERNAME-1-LIVE', 'COURSE-UX-1-LIVE', 'SYLLABUS-MAP-B1-LIVE', 'SYLLABUS-MAP-B2-LIVE', 'PAY1-B1-LIVE', 'PAY1-B2A-LIVE', 'PAY1-B2B-LIVE', 'PAY1-PUBLIC-READS-LIVE', 'PAY1-REVOKE-LIVE'];
+  const CANON = ['QA-SESSION-PROBE', 'SECDEF-RATCHET', 'RLS', 'QF1-DB', 'QBKEY1', 'SECDEF-S2-1', 'TYPES1-CLOSE', 'GAP2-4A', 'READERS', 'SYLIMPORT1', 'SYLIMPORT1-SCOPE-CONTROLS', 'CLEANUP-1', 'JOURNEY', 'LINEAGE', 'DRILL1', 'STUDENT-DRILL', 'CLEANUP-2', 'FIXTURE', 'SMOKE-STUDENT-MISTAKE-1', 'SMOKE-STUDENT-MISTAKE-2', 'SMOKE-STUDENT-MISTAKE-3', 'VAULT-HEALTH', 'F9-PRICING', 'ADMIN-D1-D2', 'CA1-TAXONOMY-LIVE', 'CA2-INTAKE-LIVE', 'CA3-LESSONS-LIVE', 'CA4-LESSONS-LIVE', 'LESSON-PROMPT-2-LIVE', 'CA5-COURSES-LIVE', 'LESSON-PERF', 'CA6-SEO-LIVE', 'CA7-LIVE', 'LAUNCH-MODE-1-LIVE', 'SMOKE-ADMIN-PAGES-1', 'SMOKE-ADMIN-PAGES-2', 'SMOKE-ADMIN-PAGES-3', 'SMOKE-STUDENT-PAGES', 'SMOKE-STAFF-CONTENT', 'SMOKE-ADMIN-HOME', 'FLAGS-LIVE', 'UX2A-LIVE', 'UX2B-LIVE', 'AUTH1-2B1-LIVE', 'CA-ROUTES', 'SEC1B-LIVE', 'SEC1C-LIVE', 'SEC1D-LIVE', 'ANON-SMOKE-LOCAL', 'INTAKE-ASSIST-1-LIVE', 'PUBLISH-IMPACT-LIVE', 'PUBLISH-CONFIRM-LIVE', 'EXAM-LOGO-1-LIVE', 'LOGO-UX1-E2E', 'EXAM-NOTE-PROMPT-1-LIVE', 'EXAM-CATEGORIES-LIVE', 'SITE-MEDIA-LIVE', 'SITE-GALLERY-LIVE', 'SITE-MEDIA-NO-EMAIL-LIVE', 'USERNAME-1-LIVE', 'COURSE-UX-1-LIVE', 'SYLLABUS-MAP-B1-LIVE', 'SYLLABUS-MAP-B2-LIVE', 'PAY1-B1-LIVE', 'PAY1-B2A-LIVE', 'PAY1-B2B-LIVE', 'PAY1-PUBLIC-READS-LIVE', 'PAY1-REVOKE-LIVE', 'PAY1-B3-LIVE'];
   const a = ids(A), b = ids(B);
   const all = [...a, ...b].filter((x) => x !== 'QA-SESSION-PROBE');
   assert(a[0] === 'QA-SESSION-PROBE' && b[0] === 'QA-SESSION-PROBE', 'each job starts with the QA-session probe');
@@ -345,9 +345,10 @@ test('C-19 CI-SPEED-1: shard isolation (every shared-group writer in the db shar
   assert(moved !== w && isolationProblems(moved).bad.some((x) => /SYLIMPORT1 \(security\)/.test(x)), 'negative control: a syllabus writer outside the db shard was NOT caught');
   // negative control (CI-DB-SHARD-BUDGET): EXAM-CATEGORIES-LIVE (it renames the QA exam inside its tx) moved into dbfree
   const EC = '"$Q EXAM-CATEGORIES-LIVE -- node scripts/live/test_exam_categories.cjs" \\\n';
-  const B2B = '"$Q PAY1-B2B-LIVE -- node scripts/live/test_pay1_b2b.cjs"\n';
-  const movedQa = w.replace(EC, '').replace(B2B, '"$Q PAY1-B2B-LIVE -- node scripts/live/test_pay1_b2b.cjs" \\\n            "$Q EXAM-CATEGORIES-LIVE -- node scripts/live/test_exam_categories.cjs"\n');
-  assert(movedQa !== w && w.includes(EC) && w.includes(B2B) && isolationProblems(movedQa).bad.some((x) => /EXAM-CATEGORIES-LIVE \(dbfree\)/.test(x)), 'negative control: a QA-exam-row gate moved into dbfree was NOT caught');
+  // anchored on the dbfree shard's LAST gate line (no trailing backslash)
+  const LAST = '"$Q PAY1-B3-LIVE -- node scripts/live/test_pay1_b3.cjs"\n';
+  const movedQa = w.replace(EC, '').replace(LAST, '"$Q PAY1-B3-LIVE -- node scripts/live/test_pay1_b3.cjs" \\\n            "$Q EXAM-CATEGORIES-LIVE -- node scripts/live/test_exam_categories.cjs"\n');
+  assert(movedQa !== w && w.includes(EC) && w.includes(LAST) && isolationProblems(movedQa).bad.some((x) => /EXAM-CATEGORIES-LIVE \(dbfree\)/.test(x)), 'negative control: a QA-exam-row gate moved into dbfree was NOT caught');
   // (b) per-suite caps: both live jobs run every gate through --caps, and every gate id has a cap (120..900 s)
   const caps = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts/ci/live-gate-caps.json'), 'utf8')).gates;
   const live = w.slice(w.indexOf('\n  live-journeys:\n'), w.indexOf('\n  prod-smoke:'));
