@@ -654,3 +654,22 @@ the switch says:
 - mocks with `is_free=false` need an entitlement and quota.
 
 After B3 both follow the central check, so with the paywall off they are fully reachable, like everything else.
+
+**147 applied on production 2026-11-16 14:13 IST.**
+- Before the apply:
+  - backup `pre-147-pay1-b3` (resilient), verified 100%;
+  - TLS: public roots for GitHub, Vercel and Supabase. The first two GitHub lookups failed with a DNS ENOTFOUND, then the check passed; no interception;
+  - dry-run OK;
+  - `test_pay1_b3.cjs --pre`: 6/6.
+- After the apply:
+  - PAY1-B3 6/6;
+  - B2a 9/9 (the first run lost its connection; the rerun passed);
+  - B2b, B1, public reads and the revoke replay: all pass;
+  - SECDEF ratchet 6/6 (134/134); SEC-HOTFIX-4 RLS 12/12;
+  - DRILL1 11/11, SECDEF-S2-1 7/7, QBKEY1 14/14;
+  - `npm run db:types` matches the hand-added `fn_access_allowed_many` entry and adds the two 146 helpers.
+- Section 7 (decision 9 hardening): Memory Lock and the drill RPCs check their feature themselves (`PRO_REQUIRED`).
+- Deferred to 148:
+  - the dead premium hub and generator code;
+  - the three uncalled `assessment.service` list functions (allow-listed in P4-07);
+  - the FREE_N pieces in the database.

@@ -325,3 +325,13 @@ DDL keeps its lock until the transaction ends, so `attempt_answers` / `mock_sect
 locked for ~3 min while parallel gates ran (CA1 aborted 58 s after the replay started). It would also stall real answer
 saves. Fix: the replay runs DDL only with `--pre` / `--local`; verify mode uses the registered pre-existing refusals;
 offline P3-15 (`scripts/test_pay1_b2b.cjs`) enforces it with negative controls.
+
+## UX2A-TIMECAP-1: UX2A-LIVE hit its time cap once in the nightly run (non-security, SPEED-RULES-1)
+
+**Evidence:** scheduled run 43781066650 (main d5debc8, 2026-11-16 06:03 IST, pages shard) — UX2A-LIVE exit 124 at its
+240 s cap, 15 lines passed, 0 FAIL lines; every other job and shard green. It passed in dispatch 43720683127 (same code).
+Time-cap flake: does not block.
+
+**How:** if it recurs, compare its duration across runs (`--keep-log` is already on) and either raise its cap with the
+measured time or split its page loop. The script contains the support e-mail, so the privacy hook refuses running or
+reading it locally — investigate from CI or let the owner run it.

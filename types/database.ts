@@ -9228,6 +9228,10 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_attempt_answer_writable: {
+        Args: { p_attempt_id: string; p_mock_question_id: string }
+        Returns: boolean
+      }
       fn_authorize_and_start_test_attempt: {
         Args: { p_mock_test_id: string; p_user_id: string }
         Returns: Json
@@ -9744,6 +9748,10 @@ export type Database = {
       fn_ml_day_start: { Args: { p_day: string }; Returns: string }
       fn_ml_ist_today: { Args: never; Returns: string }
       fn_ml_next_step: { Args: { p_interval: number }; Returns: number }
+      fn_mock_test_published: {
+        Args: { p_mock_test_id: string }
+        Returns: boolean
+      }
       fn_moderate_flagged_content: {
         Args: {
           p_flag_id: string
