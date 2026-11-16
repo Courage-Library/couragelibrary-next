@@ -85,30 +85,26 @@ export const hasPro = cache(async (userId: string | null | undefined): Promise<b
   return data === true;
 });
 
-export interface FreeLimits {
-  freePracticeDaily: number;
-  freeMemoryLockActive: number;
-  freeDailyMock: number;
+// PAY-1 B3 (owner decision 5 / D11): the free usage limits (free_practice_daily / free_memory_lock_active /
+// free_daily_mock) are retired — they were read but never enforced; Free vs Pro is the central check only.
+export interface AppSettings {
   gstRegistered: boolean;
   foundingLimit: number;
 }
 
 /** Documented defaults (migration 113), used only if the settings row cannot be read. */
-export const FREE_LIMIT_DEFAULTS: FreeLimits = { freePracticeDaily: 30, freeMemoryLockActive: 50, freeDailyMock: 1, gstRegistered: false, foundingLimit: 1000 };
+export const APP_SETTINGS_DEFAULTS: AppSettings = { gstRegistered: false, foundingLimit: 1000 };
 
-export const getAppSettings = cache(async (): Promise<FreeLimits> => {
+export const getAppSettings = cache(async (): Promise<AppSettings> => {
   const { data, error } = await createAdminServerSupabaseClient()
     .from("app_settings")
-    .select("free_practice_daily, free_memory_lock_active, free_daily_mock, gst_registered, founding_limit")
+    .select("gst_registered, founding_limit")
     .maybeSingle();
   if (error || !data) {
     if (error) log({ fn: "getAppSettings", op: "select", code: error.code, ids: {} });
-    return FREE_LIMIT_DEFAULTS;
+    return APP_SETTINGS_DEFAULTS;
   }
   return {
-    freePracticeDaily: data.free_practice_daily,
-    freeMemoryLockActive: data.free_memory_lock_active,
-    freeDailyMock: data.free_daily_mock,
     gstRegistered: data.gst_registered,
     foundingLimit: data.founding_limit,
   };

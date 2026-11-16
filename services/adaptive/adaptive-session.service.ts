@@ -20,7 +20,7 @@ import {
 } from "./adaptive-types";
 import { AdaptiveEngineService } from "./adaptive-engine.service";
 import { AdaptiveStateService } from "./adaptive-state.service";
-import { PremiumEntitlementService } from "@/services/premium-entitlement.service";
+import { canAccess } from "@/lib/access/policy";
 import { AssessmentService } from "@/services/assessment.service";
 import { calculateExamDuration } from "@/lib/assessment/timing";
 
@@ -262,27 +262,8 @@ export class AdaptiveSessionService {
       }
 
       // 3. CREATE NEW ADAPTIVE ATTEMPT (ATOMIC & AUTHORIZED)
-      // A. Verify Premium Entitlement & Quota
-      const accessCheck = await PremiumEntitlementService.checkPremiumAccess(
-        userId,
-        targetConfig.exam_id,
-        "FULL_LENGTH"
-      );
-
-      if (!accessCheck.hasAccess) {
-        throw new AdaptiveEngineError(
-          "PREMIUM_ACCESS_DENIED",
-          "Active Premium subscription required to access Adaptive Mock tests."
-        );
-      }
-
-      if (accessCheck.status === "QUOTA_EXHAUSTED") {
-        throw new AdaptiveEngineError(
-          "QUOTA_EXHAUSTED",
-          "You have reached your Adaptive Mock test quota for this cycle."
-        );
-      }
-
+      // A. PAY-1 B3: access is decided by the central check on the container mock (below, after B) — the old own Pro
+      //    check + per-exam quota (PremiumEntitlementService.checkPremiumAccess) is dropped (owner decision 1)
       // B. Resolve container mock_tests row for database foreign key compatibility
       let containerMockTestId = detection.mockTestId;
       if (!containerMockTestId) {
@@ -308,6 +289,9 @@ export class AdaptiveSessionService {
 
       if (!containerMockTestId) {
         throw new AdaptiveEngineError("INTERNAL_ADAPTIVE_ERROR", "Could not associate adaptive attempt with test container.");
+      }
+      if (!(await canAccess("MOCK_TEST", containerMockTestId))) {
+        throw new AdaptiveEngineError("PREMIUM_ACCESS_DENIED", "This adaptive mock is part of Pro.");
       }
 
       // C. Insert new test_attempts row
