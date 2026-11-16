@@ -9,9 +9,9 @@
  *   review_status = 'PUBLISHED') of an active unit are returned.
  * - Metadata is read with the session client (anon/authenticated). Existing RLS already limits
  *   it to published rows, so no service role is needed for resolution.
- * - Entitlement comes ONLY from the current session user (auth.getUser → own user_entitlements
- *   via RLS). No method accepts a user id.
- * - PRO documents for non-PRO viewers: is_locked = true and no body is ever loaded.
+ * - PAY-1 B3: Free / Pro comes ONLY from the central check (accessMany → fn_access_allowed_many: the admin's LESSON
+ *   policy, the paywall switch, the CURRENT session user's own Pro). No method accepts a user id.
+ * - A document the central check does not allow: is_locked = true and no body is ever loaded.
  * - Batch resolution is a single query regardless of the number of topics (no N+1).
  * - CA-4: NODE_LESSON documents belong to a master-tree node (no learning unit); a SUBTOPIC / CONCEPT lesson rolls up to
  *   its TOPIC (at most two parent hops, batched). The lesson language follows the signed-in user's content language:
@@ -68,12 +68,6 @@ export interface LearningArticle extends ResolvedLearningDocument {
   topic_slug: string | null;
 }
 
-export interface LearningViewerAccess {
-  isAuthenticated: boolean;
-  hasPro: boolean;
-}
-
-const PRO_ENTITLEMENTS = ['PRO_SUBSCRIPTION', 'PROMOTIONAL_PASS'];
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const DOC_SELECT = `

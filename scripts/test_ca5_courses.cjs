@@ -47,31 +47,31 @@ const assert = (c, m) => {
   if (!c) throw new Error(m || 'assertion failed');
 };
 
-const A = require(path.join(ROOT, 'lib/learning/chapter-access.ts'));
 const V = require(path.join(ROOT, 'lib/learning/course-view.ts'));
 const MIG = read('supabase/migrations/20261028000120_ca5_courses_progress.sql');
 const U = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 
-test('A-01 access by master-chapter position (CA-7 + LAUNCH-MODE-1): a lesson in no LIVE FREE_N course → FREE; in one → first N FREE, rest PRO; locked = PRO without Pro; payments off → nothing gated; defensive free count; fail-closed read', () => {
-  const D = U(1);
-  const off = A.DEFAULT_LESSON_ACCESS;
-  assert(off.freePerChapter === 2 && off.gatedLessons instanceof Set && off.gatedLessons.size === 0 && [1, 2, 3, 99].every((p) => A.lessonAccessLevel(p, off, D) === 'FREE'), 'no gated course → free');
-  const on = { freePerChapter: 2, gatedLessons: new Set([D]) };
-  assert(A.lessonAccessLevel(1, on, D) === 'FREE' && A.lessonAccessLevel(2, on, D) === 'FREE' && A.lessonAccessLevel(3, on, D) === 'PRO' && A.lessonAccessLevel(0, on, D) === 'PRO' && A.lessonAccessLevel(1.5, on, D) === 'PRO', 'first N');
-  assert(A.lessonAccessLevel(3, on, U(2)) === 'FREE', 'a lesson outside the gated courses stays free');
-  const all = { freePerChapter: 2, gatedLessons: 'ALL' };
-  assert(A.lessonAccessLevel(3, all, U(2)) === 'PRO' && A.isGated(U(9), all), '"ALL" (unknown) gates every lesson');
-  assert(A.isLessonLocked(3, on, D, false) && !A.isLessonLocked(3, on, D, true) && !A.isLessonLocked(1, on, D, false), 'locked');
-  const P = A.parseFreePerChapter;
-  const row = (k, v, e = true) => ({ config_key: k, config_value: { value: v }, is_enabled: e });
-  assert(P([]) === 2 && P([row('LESSON_FREE_PER_CHAPTER', 3)]) === 3, 'no rows → default; rows');
-  assert(P([row('LESSON_FREE_PER_CHAPTER', -1)]) === 2 && P([row('LESSON_FREE_PER_CHAPTER', 2.5)]) === 2 && P([row('LESSON_FREE_PER_CHAPTER', 3, false)]) === 2, 'malformed / disabled rows → default');
-  assert(!('gating' in A.LESSON_ACCESS_KEYS), 'the CA-5 stand-in LESSON_GATING_ENABLED is gone');
-  const s = read('lib/learning/lesson-access-settings.ts');
-  assert(/const FAIL_CLOSED: LessonAccessSettings = \{ freePerChapter: DEFAULT_FREE_LESSONS_PER_CHAPTER, gatedLessons: "ALL" \}/.test(s) && (s.match(/return FAIL_CLOSED;/g) || []).length === 2
-    && /db\.rpc\("fn_gated_course_document_ids"\)/.test(s), 'a failed read (settings or gated courses) is fail-closed');
-  assert(/if \(!isPaymentsEnabled\(\)\) return NO_PAYWALL;/.test(s) && /const NO_PAYWALL: LessonAccessSettings = \{ freePerChapter: DEFAULT_FREE_LESSONS_PER_CHAPTER, gatedLessons: new Set<string>\(\) \}/.test(s), 'payments off → nothing gated (LAUNCH-MODE-1)');
-  return 'free 1..N, Pro after — only inside a LIVE FREE_N course, only with payments on';
+
+// PAY-1 B3 (owner decision 2, 2026-11-15): lesson Free / Pro comes ONLY from the central check (accessMany → 147's
+// fn_access_allowed_many: the admin's LESSON policy + the paywall switch + the viewer's own Pro); the per-chapter FREE_N
+// rule (chapter-access.ts), its env switch (lesson-access-settings.ts / PAYMENTS_ENABLED) and the resolver's own
+// entitlement read are retired. Documents are built fail-closed (PRO, locked) until the central check answers.
+const b3LessonAccess = () => {
+  for (const gone of ['lib/learning/chapter-access.ts', 'lib/learning/lesson-access-settings.ts']) assert(!fs.existsSync(path.join(ROOT, gone)), `${gone} must be retired`);
+  const r = read('services/learning/learning-resolver.service.ts');
+  assert(/async function applyLessonAccess/.test(r) && /accessMany\('LESSON', list\.map\(\(d\) => d\.id\)\)/.test(r) && /d\.is_locked = !\(a\?\.allowed === true\);/.test(r), 'resolver: tier + lock from accessMany(LESSON)');
+  assert((r.match(/is_locked: true,/g) || []).length === 2 && (r.match(/access_level: 'PRO', \/\/ fail-closed/g) || []).length === 2, 'resolver: documents built fail-closed');
+  assert(!/user_entitlements|hasPro|getViewerAccess|lessonAccessLevel|getLessonAccessSettings|isPaymentsEnabled|nodeLessonPositions/.test(r), 'resolver: no own Pro read / position rule / env switch');
+  assert(/await applyLessonAccess\(\[doc\]\);\s*if \(!doc\.is_locked && ver\?\.id\)/.test(r), 'article body only after the central check');
+  for (const f of ['services/learning/master-lesson.service.ts', 'services/learning/course.service.ts']) {
+    const s = read(f);
+    assert(/accessMany\("LESSON", /.test(s) && !/hasPro|isLessonLocked|lessonAccessLevel|getLessonAccessSettings/.test(s), `${f}: the central check only`);
+  }
+};
+
+test('A-01 (PAY-1 B3) lesson access: only the central check (LESSON policy + paywall switch + own Pro), fail-closed; FREE_N / env switch / own entitlement read retired', () => {
+  b3LessonAccess();
+  return 'accessMany(LESSON) decides; documents fail-closed until it answers';
 });
 
 test('V-01 course view: defensive parse, master order, no empty chapters, /articles hrefs', () => {
@@ -136,9 +136,9 @@ test('D-01 migration 120: INVOKER outline + node lessons, SECDEF progress via au
   return 'INVOKER ×2 · DEFINER ×1 (+1 reviewed)';
 });
 
-test('R-01 reader / course / progress: master-position access, no user id from callers, session-client progress, one primary', () => {
+test('R-01 reader / course / progress: central-check access (PAY-1 B3), no user id from callers, session-client progress, one primary', () => {
   const r = read('services/learning/learning-resolver.service.ts');
-  assert(/lessonAccessLevel\(gate\.positions\.get\(row\.id\) \?\? Number\.MAX_SAFE_INTEGER, gate\.settings, row\.id\)/.test(r) && !/function toResolvedNode[\s\S]{0,400}row\.access_level/.test(r), 'node lessons: access from the master position (unknown position = last, fail-closed)');
+  assert(/function toResolvedNode\(row: NodeLessonRow, topic: NodeRef \| undefined\)/.test(r) && !/function toResolvedNode[\s\S]{0,400}row\.access_level/.test(r), 'node lessons: no access column; the central check decides (PAY-1 B3)');
   const c = read('services/learning/course.service.ts');
   assert(/static async getCourse\(examSlug: string\)/.test(c) && !/userId|user_id\s*:/.test(c) && /rpc\("fn_exam_course_outline"/.test(c), 'course: no user id accepted');
   const act = read('app/(site)/articles/actions.ts');

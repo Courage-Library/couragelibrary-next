@@ -10,7 +10,7 @@ import { type CoverageExam, type CoverageView } from "@/lib/learning/coverage";
 /**
  * CA-7 coverage matrix + launch (design H). One primary per screen (R4): "Launch course" (or "Pause course" when LIVE),
  * always behind a confirmation that states what changes. "Build next" opens the lesson generator for a missing node.
- * PAY-1 B3 (owner decision 2, 2026-11-15): the per-chapter FREE_N mode is retired — a launch makes the course visible;
+ * PAY-1 B3 (owner decision 2, 2026-11-15): the per-chapter Pro launch mode is retired — a launch makes the course visible;
  * which lessons are Free or Pro is set in "Free & Pro" (/admin/access, the LESSON policy), not here.
  */
 export function CoverageMatrix({ exams, view, loadError }: { exams: CoverageExam[]; view: CoverageView | null; loadError: string | null }) {

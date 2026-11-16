@@ -75,7 +75,8 @@ test('SH-01 SEO-HYGIENE-1: canonical base fixed; non-production hosts noindex + 
 });
 
 test('LA-01 per-exam launch: gating only inside a LIVE course (stand-in gone); course page / exam-page link / sitemap course URL only while LIVE; admin-only audited launch with a server snapshot', () => {
-  assert(!/LESSON_GATING_ENABLED/.test(read('lib/learning/chapter-access.ts').replace(/\(CA-7 replaced[^)]*\)/, '')) && !/LESSON_GATING_ENABLED|gatingEnabled/.test(read('lib/learning/lesson-access-settings.ts')), 'the CA-5 stand-in is gone');
+  // PAY-1 B3: both modules are retired entirely (the CA-5 stand-in went first; FREE_N / the env switch now too)
+  assert(!fs.existsSync(path.join(ROOT, 'lib/learning/chapter-access.ts')) && !fs.existsSync(path.join(ROOT, 'lib/learning/lesson-access-settings.ts')), 'the CA-5 stand-in is gone (and its successors, PAY-1 B3)');
   const cs = read('services/learning/course.service.ts');
   // COURSE-UX-1: the LIVE read is isCourseLive (a failed read → false); the only other way in is the staff / admin preview
   assert(/const isLive = await isCourseLive\(data\.exam\.id\);\s*const role = session\.state === "user" \? \(session\.user\.app_metadata as \{ role\?: string \} \| undefined\)\?\.role : undefined;\s*const preview = !isLive && \(role === "admin" \|\| role === "staff"\);\s*if \(!isLive && !preview\) return null;/.test(cs)

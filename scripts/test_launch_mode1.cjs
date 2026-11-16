@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
  * LAUNCH-MODE-1 — offline gate (no network, no DB; source + the pure helpers).
- *   M-01 the rule: FREE_N needs payments on (PAYMENTS_ENABLED) AND an active Pro plan; the reason is plain; FREE_ALL is
- *        always allowed; default FREE_ALL
- *   S-01 the server refuses FREE_N with the reason before the database (which refuses it too without an active plan); a
- *        failed plan read blocks FREE_N (fail closed); payments off → nothing is gated even if a FREE_N course is LIVE
- *   U-01 the screen: the mode is chosen in the confirmation; FREE_N is disabled with its reason; the primary stays one;
- *        no browser dialogs
+ *   PAY-1 B3 (owner decision 2, 2026-11-15): FREE_N is RETIRED — which lessons are Free / Pro is the LESSON policy in
+ *   "Free & Pro" (the central check), not a launch mode.
+ *   B3-01 the launch action refuses FREE_N before anything else; FREE_ALL launches
+ *   B3-02 the screen: no access-mode radio, no FREE_N warning, no "Change access"; it points to Free & Pro; one primary;
+ *         no browser dialogs
+ *   B3-03 lesson access: only the central check (see A-01 in test_ca5_courses.cjs)
  *   D-01 migration 123: the 122 signature dropped; FREE_N needs an active plan; mode changes audited (EXAM_COURSE_MODE);
  *        gating reads fn_gated_course_document_ids (LIVE FREE_N only); no BEGIN / COMMIT; INVOKER; rollback = the exact
  *        122 function and refuses while a FREE_N course is LIVE
@@ -46,44 +46,38 @@ const assert = (c, m) => {
 };
 const MIG = read('supabase/migrations/20261028000123_launch_mode_1.sql');
 
-test('M-01 the rule: FREE_N needs payments on AND an active Pro plan (plain reasons); FREE_ALL always; default FREE_ALL', () => {
-  const C = require(path.join(ROOT, 'lib/learning/coverage.ts'));
-  assert(C.freeNBlock(false, 4) === 'PAYMENTS_OFF' && C.freeNBlock(true, 0) === 'NO_ACTIVE_PLAN' && C.freeNBlock(false, 0) === 'PAYMENTS_OFF' && C.freeNBlock(true, 1) === null, 'freeNBlock');
-  assert(JSON.stringify(C.ACCESS_MODES) === '["FREE_ALL","FREE_N"]', 'two modes');
-  for (const m of Object.values(C.FREE_N_BLOCK_MESSAGE)) assert(/no one could buy the Pro lessons\. Launch with every lesson free instead\.$/.test(m), `plain reason: ${m}`);
-  assert(/access_mode text NOT NULL DEFAULT 'FREE_ALL' CHECK \(access_mode IN \('FREE_ALL', 'FREE_N'\)\)/.test(MIG), 'default FREE_ALL in the database');
-  return 'ok';
-});
 
-test('S-01 server: FREE_N refused with the reason before the database; a failed plan read blocks it; payments off → nothing gated; the action validates the mode', () => {
-  const svc = read('services/learning/coverage.service.ts');
-  assert(/if \(!isPaymentsEnabled\(\)\) return "PAYMENTS_OFF";/.test(svc) && /\.from\("pro_plan_versions"\)\.select\("id", \{ count: "exact", head: true \}\)\.eq\("active", true\);\s*return freeNBlock\(true, error \? 0 : \(count \?\? 0\)\);/.test(svc), 'payments flag + active plan, fail closed');
-  assert(/if \(status === "LIVE" && accessMode === "FREE_N" && view\.data\.freeNBlock\) return fail\("FREE_N_BLOCKED", FREE_N_BLOCK_MESSAGE\[view\.data\.freeNBlock\]\);/.test(svc), 'refused before the RPC');
-  assert(svc.indexOf('FREE_N_BLOCKED') < svc.indexOf('rpc("fn_exam_course_launch_set"'), 'the refusal comes first');
+// PAY-1 B3 (owner decision 2, 2026-11-15): lesson Free / Pro comes ONLY from the central check (accessMany → 147's
+// fn_access_allowed_many: the admin's LESSON policy + the paywall switch + the viewer's own Pro); the per-chapter FREE_N
+// rule (chapter-access.ts), its env switch (lesson-access-settings.ts / PAYMENTS_ENABLED) and the resolver's own
+// entitlement read are retired. Documents are built fail-closed (PRO, locked) until the central check answers.
+const b3LessonAccess = () => {
+  for (const gone of ['lib/learning/chapter-access.ts', 'lib/learning/lesson-access-settings.ts']) assert(!fs.existsSync(path.join(ROOT, gone)), `${gone} must be retired`);
+  const r = read('services/learning/learning-resolver.service.ts');
+  assert(/async function applyLessonAccess/.test(r) && /accessMany\('LESSON', list\.map\(\(d\) => d\.id\)\)/.test(r) && /d\.is_locked = !\(a\?\.allowed === true\);/.test(r), 'resolver: tier + lock from accessMany(LESSON)');
+  assert((r.match(/is_locked: true,/g) || []).length === 2 && (r.match(/access_level: 'PRO', \/\/ fail-closed/g) || []).length === 2, 'resolver: documents built fail-closed');
+  assert(!/user_entitlements|hasPro|getViewerAccess|lessonAccessLevel|getLessonAccessSettings|isPaymentsEnabled|nodeLessonPositions/.test(r), 'resolver: no own Pro read / position rule / env switch');
+  assert(/await applyLessonAccess\(\[doc\]\);\s*if \(!doc\.is_locked && ver\?\.id\)/.test(r), 'article body only after the central check');
+  for (const f of ['services/learning/master-lesson.service.ts', 'services/learning/course.service.ts']) {
+    const s = read(f);
+    assert(/accessMany\("LESSON", /.test(s) && !/hasPro|isLessonLocked|lessonAccessLevel|getLessonAccessSettings/.test(s), `${f}: the central check only`);
+  }
+};
+
+test('B3-01 the launch action refuses FREE_N first (retired); FREE_ALL still launches', () => {
   const act = read('app/(site)/admin/lessons/actions.ts');
-  assert(/if \(accessMode !== "FREE_ALL" && accessMode !== "FREE_N"\) return \{ success: false, code: "VALIDATION", error: "Choose an access mode\." \};/.test(act), 'action validates the mode');
-  const st = read('lib/learning/lesson-access-settings.ts');
-  assert(/if \(!isPaymentsEnabled\(\)\) return NO_PAYWALL;/.test(st) && /db\.rpc\("fn_gated_course_document_ids"\)/.test(st) && !/fn_live_course_document_ids/.test(st), 'gating reads LIVE FREE_N lessons only; payments off → none');
-  return 'ok';
+  assert(/if \(accessMode === "FREE_N"\) return \{ success: false, code: "VALIDATION", error: "The per-chapter Pro mode is retired\. Set lesson access in Free & Pro\." \};/.test(act), 'FREE_N refused with the reason');
+  const fn = act.slice(act.indexOf('export async function setCourseLaunchAction'));
+  assert(fn.indexOf('accessMode === "FREE_N"') < fn.indexOf('CoverageService'), 'the refusal comes before the service / database');
 });
-
-test('U-01 screen: the mode is chosen in the confirmation; FREE_N disabled with its reason; one primary; no browser dialogs', () => {
+test('B3-02 the launch screen: no mode radio / FREE_N warning / "Change access"; points to Free & Pro; one primary; no browser dialogs', () => {
   const ui = read('components/admin/lessons/coverage-matrix.tsx');
-  assert(/<legend className="text-\[13px\] font-semibold text-fg">Lesson access<\/legend>/.test(ui) && /type="radio" name="access-mode"/.test(ui), 'a labelled radio group');
-  assert(/disabled=\{m === "FREE_N" && Boolean\(block\)\}/.test(ui) && /\{m === "FREE_N" && block && <span className="block">\{FREE_N_BLOCK_MESSAGE\[block\]\}<\/span>\}/.test(ui), 'FREE_N disabled with the reason shown');
-  assert(/useState<AccessMode>\(view\?\.exam\.launch\?\.accessMode \?\? "FREE_ALL"\)/.test(ui), 'default FREE_ALL');
-  assert((ui.match(/className=\{studioPrimaryAction\}/g) || []).length === 1 && !/window\.confirm|alert\(/.test(ui), 'one primary, in-page confirmation');
-  return 'ok';
+  assert(!/name="access-mode"|data-free-n-warning|FREE_N|Change access|MODE_LABEL/.test(ui), 'the FREE_N UI is gone');
+  assert(/setCourseLaunchAction\(view\.exam\.id, confirm, "FREE_ALL"\)/.test(ui) && /href="\/admin\/access"/.test(ui), 'launches FREE_ALL; Free & Pro decides lesson access');
+  assert((ui.match(/className=\{studioPrimaryAction\}/g) || []).length === 1 && !/window\.(confirm|alert|prompt)\(/.test(ui), 'one primary; no browser dialogs');
 });
-
-test('U-02 warning: a FREE_N course LIVE while payments are off → "Pro lessons in <exam> are currently free because payments are off" (every such exam); no active plan → the locked-but-unbuyable warning', () => {
-  const ui = read('components/admin/lessons/coverage-matrix.tsx');
-  assert(/\{block &&\s*exams\s*\.filter\(\(e\) => e\.launch\?\.status === "LIVE" && e\.launch\.accessMode === "FREE_N"\)/.test(ui), 'every LIVE FREE_N exam, whenever FREE_N is blocked');
-  assert(/block === "PAYMENTS_OFF"\s*\? `Pro lessons in \$\{e\.title\} are currently free because payments are off\.`/.test(ui), 'the payments-off wording');
-  assert(/role="alert" data-free-n-warning=""/.test(ui) && /border-warning-200 bg-warning-50/.test(ui), 'an announced warning banner');
-  // the banner tells the truth: with payments off the server gates nothing
-  assert(/if \(!isPaymentsEnabled\(\)\) return NO_PAYWALL;/.test(read('lib/learning/lesson-access-settings.ts')), 'payments off → nothing gated (what the banner says)');
-  return 'ok';
+test('B3-03 lesson access: only the central check (FREE_N / env switch / own entitlement read retired)', () => {
+  b3LessonAccess();
 });
 
 test('D-01 migration 123: old signature dropped; FREE_N needs an active plan; EXAM_COURSE_MODE audited; gated = LIVE FREE_N; INVOKER; rollback = exact 122 function, refused while FREE_N is LIVE', () => {
