@@ -2,7 +2,8 @@
 -- 147 PAY-1 B3 part 1 (owner decisions 2026-11-15, PAY_1_DESIGN.md §10 / §11): the database side of "every Free / Pro
 -- check through the central function". Compatible with the app on main AND with the B3 app (nothing here is called by
 -- name from the app except the new fn_access_allowed_many, which only B3 uses).
---   1. Seeds (decision 9; only rows no admin has changed, updated_by IS NULL): FEATURE MISTAKE_VAULT → FREE (viewing);
+--   1. Seeds (decision 9; only rows no admin has changed, updated_by IS NULL; updated_at untouched = an exact rollback):
+--      FEATURE MISTAKE_VAULT → FREE (viewing);
 --      new FEATURE MISTAKE_DRILLS PRO.
 --   2. fn_access_allowed_many(kind, keys[]): the SAME rule as fn_access_allowed for a list of keys in one call (course /
 --      lesson lists): switch off → allowed; FREE → allowed; anon → refused; else the caller's own Pro. ≤ 500 keys.
@@ -18,7 +19,7 @@
 -- =====================================================================================================================
 
 -- 1. seeds
-UPDATE public.access_policies SET tier = 'FREE', updated_at = now()
+UPDATE public.access_policies SET tier = 'FREE'
  WHERE item_kind = 'FEATURE' AND item_key = 'MISTAKE_VAULT' AND tier = 'PRO' AND updated_by IS NULL;
 INSERT INTO public.access_policies (item_kind, item_key, tier) VALUES ('FEATURE', 'MISTAKE_DRILLS', 'PRO')
     ON CONFLICT (item_kind, item_key) DO NOTHING;

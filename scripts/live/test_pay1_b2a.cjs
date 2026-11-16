@@ -92,19 +92,23 @@ function client() {
       const freeMock = await one(`select id::text id from public.mock_tests where is_free = true order by created_at limit 1`);
       const proMockKey = RANDOM_UUID; // no row → MOCK_TEST default
 
-      // A-1
+      // A-1 — the seed as it stands: 141's D1 defaults; once 147 is applied (owner decision 9, 2026-11-15) MISTAKE_VAULT is
+      // FREE (viewing) and MISTAKE_DRILLS PRO is added
+      const b3 = (await one(`select to_regprocedure('public.fn_access_allowed_many(text, text[])') is not null b3`)).b3;
+      const vault = b3 ? `('FEATURE','MISTAKE_VAULT','FREE'),('FEATURE','MISTAKE_DRILLS','PRO')` : `('FEATURE','MISTAKE_VAULT','PRO')`;
+      const want = b3 ? 11 : 10;
       const seed = await one(`select count(*) filter (where (item_kind, item_key, tier) in (
-            ('FEATURE','ADVANCED_ANALYTICS','PRO'),('FEATURE','MISTAKE_VAULT','PRO'),('FEATURE','MEMORY_LOCK','PRO'),('FEATURE','PREMIUM_CA','PRO'),
+            ('FEATURE','ADVANCED_ANALYTICS','PRO'),${vault},('FEATURE','MEMORY_LOCK','PRO'),('FEATURE','PREMIUM_CA','PRO'),
             ('FEATURE','FLASHCARDS','FREE'),('MOCK_TEST','*','PRO'),('MOCK_SERIES','*','PRO'),('LESSON','*','FREE'),('COURSE','*','FREE'),('TOPIC','*','FREE')))::int defaults,
           (select count(*) from public.mock_tests where is_free)::int free_mocks,
           count(*) filter (where item_kind = 'MOCK_TEST' and item_key <> '*' and tier = 'FREE' and item_key in (select id::text from public.mock_tests where is_free))::int free_rows,
           (select paywall_enabled from public.access_settings where id) switch_on
         from public.access_policies`);
-      chk('A-1 seed: 10 D1 defaults + an explicit FREE row per free mock; switch off', seed.defaults === 10 && seed.free_rows === seed.free_mocks && seed.switch_on === false, JSON.stringify(seed));
+      chk(`A-1 seed: ${want} defaults (D1${b3 ? ' + B3 decision 9' : ''}) + an explicit FREE row per free mock; switch off`, seed.defaults === want && seed.free_rows === seed.free_mocks && seed.switch_on === false, JSON.stringify(seed));
 
       // A-2 switch off
       const off = [];
-      for (const [kind, key] of [['FEATURE', 'MISTAKE_VAULT'], ['FEATURE', 'NO_SUCH_FEATURE'], ['MOCK_TEST', proMockKey]]) {
+      for (const [kind, key] of [['FEATURE', 'ADVANCED_ANALYTICS'], ['FEATURE', 'NO_SUCH_FEATURE'], ['MOCK_TEST', proMockKey]]) {
         off.push(await allowed('authenticated', ids.student, kind, key), await allowed('anon', null, kind, key));
       }
       chk('A-2 switch OFF → everything allowed (student + anon)', off.every((x) => x === true), JSON.stringify(off));
@@ -116,7 +120,7 @@ function client() {
       // switch ON (service role path = owner here, audited)
       await q(`select public.fn_paywall_set(true, null, $1)`, [ACTOR]);
       // A-4
-      const pro = [['FEATURE', 'MISTAKE_VAULT'], ['FEATURE', 'MEMORY_LOCK'], ['FEATURE', 'ADVANCED_ANALYTICS'], ['FEATURE', 'PREMIUM_CA'], ['MOCK_TEST', proMockKey]];
+      const pro = [['FEATURE', 'MEMORY_LOCK'], ['FEATURE', 'ADVANCED_ANALYTICS'], ['FEATURE', 'PREMIUM_CA'], ['MOCK_TEST', proMockKey]];
       const free = [['FEATURE', 'FLASHCARDS'], ['LESSON', RANDOM_UUID], ['COURSE', RANDOM_UUID], ['TOPIC', RANDOM_UUID], ...(freeMock ? [['MOCK_TEST', freeMock.id]] : [])];
       const res = { proStudent: [], freeStudent: [], proAnon: [], freeAnon: [] };
       for (const [k, v] of pro) res.proStudent.push(await allowed('authenticated', ids.student, k, v)), res.proAnon.push(await allowed('anon', null, k, v));
@@ -127,16 +131,16 @@ function client() {
       // A-5 admin flips
       const audits = async () => (await one(`select count(*)::int n from public.admin_audit_logs where actor_email = $1 and action_type in ('ACCESS_POLICY_SET','ACCESS_POLICY_CLEAR','PAYWALL_SET')`, [ACTOR])).n;
       const a0 = await audits();
-      const r1 = await one(`select public.fn_access_policy_set('FEATURE','MISTAKE_VAULT','FREE', null, $1) r`, [ACTOR]);
-      const afterFree = await allowed('authenticated', ids.student, 'FEATURE', 'MISTAKE_VAULT');
-      const r2 = await one(`select public.fn_access_policy_set('FEATURE','MISTAKE_VAULT','PRO', null, $1) r`, [ACTOR]);
-      const afterPro = await allowed('authenticated', ids.student, 'FEATURE', 'MISTAKE_VAULT');
+      const r1 = await one(`select public.fn_access_policy_set('FEATURE','ADVANCED_ANALYTICS','FREE', null, $1) r`, [ACTOR]);
+      const afterFree = await allowed('authenticated', ids.student, 'FEATURE', 'ADVANCED_ANALYTICS');
+      const r2 = await one(`select public.fn_access_policy_set('FEATURE','ADVANCED_ANALYTICS','PRO', null, $1) r`, [ACTOR]);
+      const afterPro = await allowed('authenticated', ids.student, 'FEATURE', 'ADVANCED_ANALYTICS');
       // rows written in one transaction share created_at, so check the two transitions directly (not "the latest")
       const trans = await one(`select count(*) filter (where old_value->>'tier' = 'PRO' and new_value->>'tier' = 'FREE')::int pro_free,
           count(*) filter (where old_value->>'tier' = 'FREE' and new_value->>'tier' = 'PRO')::int free_pro,
-          bool_and(target_id = 'FEATURE:MISTAKE_VAULT') target_ok
-        from public.admin_audit_logs where actor_email = $1 and action_type = 'ACCESS_POLICY_SET' and target_id = 'FEATURE:MISTAKE_VAULT'`, [ACTOR]);
-      const last = { old_value: { tier: trans.free_pro === 1 ? 'FREE' : '?' }, new_value: { tier: trans.pro_free === 1 ? 'PRO' : '?' }, target_id: trans.target_ok ? 'FEATURE:MISTAKE_VAULT' : '?' };
+          bool_and(target_id = 'FEATURE:ADVANCED_ANALYTICS') target_ok
+        from public.admin_audit_logs where actor_email = $1 and action_type = 'ACCESS_POLICY_SET' and target_id = 'FEATURE:ADVANCED_ANALYTICS'`, [ACTOR]);
+      const last = { old_value: { tier: trans.free_pro === 1 ? 'FREE' : '?' }, new_value: { tier: trans.pro_free === 1 ? 'PRO' : '?' }, target_id: trans.target_ok ? 'FEATURE:ADVANCED_ANALYTICS' : '?' };
       // clear: a free mock's explicit FREE row removed → falls back to the MOCK_TEST default (PRO) → refused
       let clearOk = true;
       if (freeMock) {
@@ -145,7 +149,7 @@ function client() {
       }
       const a1 = await audits();
       chk('A-5 admin flip PRO→FREE→PRO takes effect immediately; audited old → new; clear falls back to the default',
-        afterFree === true && afterPro === false && r1.r.old_tier === 'PRO' && r2.r.old_tier === 'FREE' && last.old_value.tier === 'FREE' && last.new_value.tier === 'PRO' && last.target_id === 'FEATURE:MISTAKE_VAULT' && clearOk && a1 - a0 === (freeMock ? 3 : 2),
+        afterFree === true && afterPro === false && r1.r.old_tier === 'PRO' && r2.r.old_tier === 'FREE' && last.old_value.tier === 'FREE' && last.new_value.tier === 'PRO' && last.target_id === 'FEATURE:ADVANCED_ANALYTICS' && clearOk && a1 - a0 === (freeMock ? 3 : 2),
         JSON.stringify({ afterFree, afterPro, r1: r1.r, r2: r2.r, last, clearOk, audits: a1 - a0 }));
 
       // A-6 a Pro user

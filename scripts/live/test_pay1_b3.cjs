@@ -151,8 +151,11 @@ function client() {
         joinPro = await as(...STUDENT, `select public.fn_join_battle_by_code($1) r`, [free.rows[0].r.room_code]);
       }
       const refused = (r) => r.code === null && r.rows[0]?.r?.success === false && /not available/.test(r.rows[0].r.error || '');
+      // a FREE arena opens on the project DB; the local copy has no questions, so there it only must NOT be refused by
+      // the PRO rule ("not available")
+      const freeOk = free.code === null && (free.rows[0]?.r?.success !== false || (!!LOCAL && !/not available/.test(free.rows[0]?.r?.error || '')));
       chk('B3-B battles: a PRO arena / a PRO room → refused ("not available"); a FREE private arena still opens',
-        refused(arena) && (joinPro.code === 'SKIP' ? !!LOCAL : refused(joinPro)) && free.code === null && free.rows[0]?.r?.success !== false,
+        refused(arena) && (joinPro.code === 'SKIP' ? !!LOCAL : refused(joinPro)) && freeOk,
         JSON.stringify({ arena: arena.code || arena.rows[0]?.r, join: joinPro.code || joinPro.rows?.[0]?.r, free: free.code || free.rows[0]?.r?.success }));
     });
   } catch (e) {

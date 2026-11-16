@@ -475,5 +475,5 @@ ALTER POLICY "p_threads_read_public" ON public."discussion_threads"
 DROP FUNCTION IF EXISTS public.fn_access_allowed_many(text, text[]);
 
 DELETE FROM public.access_policies WHERE item_kind = 'FEATURE' AND item_key = 'MISTAKE_DRILLS' AND updated_by IS NULL;
-UPDATE public.access_policies SET tier = 'PRO', updated_at = now()
+UPDATE public.access_policies SET tier = 'PRO'
  WHERE item_kind = 'FEATURE' AND item_key = 'MISTAKE_VAULT' AND tier = 'FREE' AND updated_by IS NULL;
