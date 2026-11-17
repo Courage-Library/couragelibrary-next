@@ -371,5 +371,45 @@ test('C-19 CI-SPEED-1: shard isolation (every shared-group writer in the db shar
   return `db ${sh.db.length} · dbfree ${sh.dbfree.length} · security ${sh.security.length} · pages ${sh.pages.length} gates; ${ids.length} capped gates; isolation + uncapped-gate negative controls caught`;
 });
 
+test('C-20 gate lists are well-formed: every with-server line is ONE quoted gate (no literal \\n, no bare word, none orphaned); negative controls', () => {
+  // run 44168099476: a literal "\n" in the dbfree list made the shell pass a bare `n` to with-server, which ran it as a
+  // "gate" (the runner's node version manager) and failed the shard. Every argument line after `with-server.cjs … -- \`
+  // must be exactly `"<gate>" \` (the last one `"<gate>"`, optionally `|| true`), and every `"$Q <ID>` gate line must sit
+  // inside such a list (a missing `\` ends the list early and orphans the gates after it).
+  const lint = (text) => {
+    const ls = text.replace(/\r\n/g, '\n').split('\n');
+    const bad = [];
+    let lists = 0;
+    let inside = 0;
+    for (let i = 0; i < ls.length; i++) {
+      // with-server directly, or through $WS (server-checks: WS='node scripts/live/with-server.cjs …')
+      if (!/(?:node scripts\/live\/with-server\.cjs\b|\$WS\b).* -- \\$/.test(ls[i])) continue;
+      lists++;
+      for (let j = i + 1; j < ls.length; j++) {
+        if (!/^\s+"[^"]*"(?: \\| \|\| (?:true|fail=1))?$/.test(ls[j]) || /\\n/.test(ls[j])) { bad.push(`line ${j + 1}: ${ls[j].trim().slice(0, 80)}`); break; }
+        if (/^\s+"\$Q /.test(ls[j])) inside++;
+        if (!/ \\$/.test(ls[j])) break;
+      }
+    }
+    const all = ls.filter((l) => /^\s+"\$Q [A-Z0-9-]+ /.test(l)).length;
+    if (all !== inside) bad.push(`${all - inside} "$Q" gate line(s) outside any with-server list`);
+    return { bad, lists, inside };
+  };
+  const w = fs.readFileSync(path.join(ROOT, '.github/workflows/ci-gates.yml'), 'utf8').replace(/\r\n/g, '\n');
+  const real = lint(w);
+  assert(real.lists >= 5, `expected the with-server gate lists, found ${real.lists}`);
+  assert(real.bad.length === 0, `malformed gate list: ${real.bad.join(' | ')}`);
+  const anchor = '"$Q PAY1-B2B-LIVE -- node scripts/live/test_pay1_b2b.cjs" \\\n';
+  assert(w.split(anchor).length === 2, 'negative-control anchor (PAY1-B2B-LIVE line) not found once');
+  const variants = {
+    'literal \\n (run 44168099476)': w.replace(anchor, '"$Q PAY1-B2B-LIVE -- node scripts/live/test_pay1_b2b.cjs" \\n            '),
+    'bare word': w.replace(anchor, anchor + '            n \\\n'),
+    'missing continuation': w.replace(anchor, '"$Q PAY1-B2B-LIVE -- node scripts/live/test_pay1_b2b.cjs"\n'),
+  };
+  const missed = Object.entries(variants).filter(([, v]) => lint(v).bad.length === 0).map(([k]) => k);
+  assert(missed.length === 0, `negative controls not caught: ${missed.join(', ')}`);
+  return `${real.lists} gate lists, ${real.inside} gates well-formed; 3 negative controls caught`;
+});
+
 console.log(`\nCI support: ${passed}/${passed + failed} passed`);
 process.exit(failed ? 1 : 0);
