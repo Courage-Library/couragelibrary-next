@@ -6,7 +6,7 @@
  *   - loadMasterData (cached, tag "learn", revalidated on every lesson publish): PUBLISHED-ONLY public data — the node,
  *     its breadcrumbs, the current published EN / HI versions (validated blocks), the master-chapter position, child
  *     lessons, and the exams whose PUBLISHED syllabus covers the node. Never a draft: every read filters published.
- *   - getMasterLessonPage (per request): the viewer — Pro access from the master-chapter position + settings (a locked
+ *   - getMasterLessonPage (per request): the viewer — access from the central check (PAY-1 B3: accessMany; a locked
  *     body is stripped to title + intro + outline before it reaches the page), and the signed-in student's progress.
  */
 import { unstable_cache } from "next/cache";
@@ -17,7 +17,7 @@ import { accessMany } from "@/lib/access/policy";
 import { examTopicHref, learnHref, segmentsToHierarchyPath } from "@/lib/learn/paths";
 import { buildTopicCanon } from "@/lib/learn/topic-canon";
 import { readingMinutes, requiredReadingSeconds } from "@/lib/lessons/reading-time";
-import { LearningResolverService, resolveLessonLinks } from "@/services/learning/learning-resolver.service";
+import { resolveLessonLinks } from "@/services/learning/learning-resolver.service";
 
 export const LEARN_CACHE_TAG = "learn";
 const LESSON_LEVELS = ["TOPIC", "SUBTOPIC", "CONCEPT"];
@@ -183,15 +183,20 @@ export function lessonTeaser(v: MasterLessonVersion): { title: string; intro: st
   };
 }
 
-export async function getMasterLessonPage(segments: string[], language: "en" | "hi"): Promise<MasterLessonPage | null> {
+/**
+ * `preloaded`: the cached loadMasterData result the page already holds (LESSON-PERF: the page starts its own reads —
+ * session, practice count, course — next to this function's access check instead of after it).
+ */
+export async function getMasterLessonPage(segments: string[], language: "en" | "hi", preloaded?: MasterData | null): Promise<MasterLessonPage | null> {
   const path = segmentsToHierarchyPath(segments);
   if (!path) return null;
-  const data = await loadMasterData(path);
+  const data = preloaded !== undefined ? preloaded : await loadMasterData(path);
   if (!data) return null;
   if (!data.lesson) return { data, language, shown: null, access: "FREE", locked: false, body: null, teaser: null, progress: null, lastBlockId: null, answered: {}, minutes: null, evidence: null };
 
   // PAY-1 B3: the central check only (the admin's LESSON policy + the paywall switch + the viewer's own Pro); fail-closed
-  const [acc, supabase] = await Promise.all([accessMany("LESSON", [data.lesson.documentId]), createServerSupabaseClient()]);
+  const supabase = await createServerSupabaseClient();
+  const [acc, session] = await Promise.all([accessMany("LESSON", [data.lesson.documentId]), getSessionState(supabase)]);
   const shown: "en" | "hi" = language === "hi" && data.lesson.hi ? "hi" : "en";
   const version = shown === "hi" && data.lesson.hi ? data.lesson.hi : data.lesson.en;
   const answer = acc.get(data.lesson.documentId);
@@ -203,7 +208,6 @@ export async function getMasterLessonPage(segments: string[], language: "en" | "
   let sessionInfo: { started_at: string; end_reached_at: string | null } | null = null;
   const answered: MasterLessonPage["answered"] = {};
   if (!locked) {
-    const session = await getSessionState(supabase);
     if (session.state === "user") {
       // COURSE-UX-1 (135): one progress record per lesson, any language (before 135: COMPLETED in any language wins)
       const [{ data: rows }, { data: attempts }, { data: sessionRow }] = await Promise.all([

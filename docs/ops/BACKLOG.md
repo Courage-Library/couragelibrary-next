@@ -335,3 +335,58 @@ Time-cap flake: does not block.
 **How:** if it recurs, compare its duration across runs (`--keep-log` is already on) and either raise its cap with the
 measured time or split its page loop. The script contains the support e-mail, so the privacy hook refuses running or
 reading it locally — investigate from CI or let the owner run it.
+
+**Update 2026-11-18: not a flake. The run time has been creeping up.**
+- **Run times:** in the last 15 dispatch and nightly runs, UX2A took 184–238 s when it passed, against its 240 s cap. 4 runs hit the cap: 43658756693, 43695445740, 43781066650 and 44168099476.
+- **Logs:** the kept logs (CI artifact `gate-logs-*-pages`) have no per-check times. The capped runs stopped at different checks (after L-10, after L-12), so no single check hangs.
+- **Local timing of the L-17 loop** (every sitemap URL, one after another, local build against production over the hotspot): 41 of the 73 URLs are exam-topic pages, and they take about 70% of the time (EXAM-TOPIC-PERF).
+
+**Fix (ours, no cap raise):**
+- L-17 fetches 4 URLs at a time, with the same checks per URL. Warm, locally: 377 s sequential against 97 s.
+- Every UX2A result line now shows its own time and the gate's elapsed time, so a capped run shows where it stopped.
+
+## FLASHCARDS-READ-1: the flashcard pages read tables students cannot read; a refused read shows an empty library
+
+**Priority:** before the first deck is published. Today nobody sees it: production has 0 decks (2026-11-18, read-only).
+
+**Evidence (read-only, production, 2026-11-18):**
+- `flashcard_decks`, `flashcards`, `user_deck_progress` and `user_flashcard_reviews`: no SELECT grant for `authenticated` or `anon`, so their RLS read policies never apply.
+- The library query run as a student or as anon is refused with 42501.
+- `FlashcardService.getFlashcardDecks` (session client) treats the refused read as `[]`, so the library says "no decks" instead of failing. The deck page reads `flashcard_decks` the same way.
+- B3 did not cause this. Card reviews go through `fn_submit_flashcard_review` (DEFINER, central check) and are unaffected.
+
+**How:**
+- Read decks, cards and progress server-side with the service role, gated by `canAccess('FEATURE','FLASHCARDS')`. Published rows only; progress is the viewer's own rows by `auth.uid()`.
+- A refused or failed read shows an error state, never an empty list.
+- Gate: a student sees a published FREE deck and its cards. With the switch on and FLASHCARDS PRO, a free student is refused beyond card 3. A read failure renders the error, not an empty library.
+
+## LESSON-PERF-B3: B3 added one access round trip to every lesson page (P-06 lesson budget fails)
+
+**Evidence:** dispatch 44168099476, LESSON-PERF (P-06, `/learn/…` QA lesson) failed on the first run with the B3 app.
+It passed the night before (44009378598) on the pre-B3 app with 147 already applied.
+
+Local A/B, 2026-11-18: the pre-B3 build (d5debc8) and the B3 build side by side against production, measured alternately on the same lesson, anonymous.
+
+| Run | TTFB pre-B3 (median, n=15) | TTFB B3 (median, n=15) | P-06 LCP pre-B3 (median, n=4) | P-06 LCP B3 (median, n=4) |
+|---|---|---|---|---|
+| 1 | 140 ms | 517 ms | 1.81 s | 2.16 s (1 FAIL) |
+| 2: B3 with `accessMany` in parallel with the page's reads | 57 ms | 463 ms | 1.36 s | 5.41 s (4 FAIL; hotspot noise) |
+
+**Cause:** with the lesson data cached, the pre-B3 page made no network call for an anonymous visitor. Access came from an env switch plus a session check with no I/O. B3 asks the central check (`fn_access_allowed_many`), which is one database round trip on every request. Running it in parallel (committed: the page now starts its session, practice and course reads next to the check) cannot hide it, because the other reads cost almost nothing.
+
+**How:** owner decision between:
+- caching the anonymous answer (switch + tier only, revalidated on admin change);
+- streaming the public part of the page before the check.
+
+Do not raise the budget.
+
+## EXAM-TOPIC-PERF: exam-topic pages render slowly
+
+**Evidence (local, 2026-11-18, UX2A-TIMECAP-1 analysis):**
+- The sitemap has 73 URLs; 41 are `/exams/<exam>/<topic>` pages.
+- Those 41 pages took about 70% of a sequential fetch of every sitemap URL: about 10 s each on a cold build, about 8 s each warm (hotspot).
+- `/learn/…` pages warm average 1.4 s.
+
+They are the bulk of UX2A L-17's time.
+
+**How:** measure the exam-topic page's reads (`exam-topic.service`) and cache or batch them. The gate side is fixed: L-17 now fetches 4 URLs at a time.

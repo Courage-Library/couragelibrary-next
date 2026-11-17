@@ -125,18 +125,23 @@ function NextLink({ lesson }: { lesson: CourseLesson | null }) {
 const READER_ID = "lesson-reader";
 
 export async function MasterLessonPageView({ segments, language, courseSlug = null }: { segments: string[]; language: "en" | "hi"; courseSlug?: string | null }) {
-  const page = await getMasterLessonPage(segments, language);
+  // the cached lesson data first; then the viewer's access check (accessMany, one round trip) runs NEXT TO the page's
+  // other reads — session, practice count, course — instead of before them (LESSON-PERF, run 44168099476)
+  const hierarchyPath = segmentsToHierarchyPath(segments);
+  const pre = hierarchyPath ? await loadMasterData(hierarchyPath) : null;
+  if (!pre) notFound();
+  if (!pre.lesson && pre.children.length === 0) notFound();
+  const supabase = await createServerSupabaseClient();
+  const [page, session, practiceCount, courseView] = await Promise.all([
+    getMasterLessonPage(segments, language, pre),
+    getSessionState(supabase),
+    pre.node.topicId && isPracticeEnabled() ? servableTopicCounts(supabase, [pre.node.topicId]).then((m) => m.get(pre.node.topicId as string) ?? 0, () => 0) : Promise.resolve(0),
+    pre.lesson ? ExamCourseService.getCourseForReader(courseSlug) : Promise.resolve(null),
+  ]);
   if (!page) notFound();
   const { data } = page;
-  if (!data.lesson && data.children.length === 0) notFound();
 
   const pagePath = learnHref(data.node.hierarchyPath, language);
-  const supabase = await createServerSupabaseClient();
-  const [session, practiceCount, courseView] = await Promise.all([
-    getSessionState(supabase),
-    data.node.topicId && isPracticeEnabled() ? servableTopicCounts(supabase, [data.node.topicId]).then((m) => m.get(data.node.topicId as string) ?? 0, () => 0) : Promise.resolve(0),
-    data.lesson ? ExamCourseService.getCourseForReader(courseSlug) : Promise.resolve(null),
-  ]);
   const signedIn = session.state === "user";
   const lessonId = data.lesson?.documentId ?? null;
   // the course context only when this lesson is part of that (LIVE or staff-previewed) course

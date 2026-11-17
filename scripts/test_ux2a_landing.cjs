@@ -71,8 +71,13 @@ function clsFailureMessage(w, cls, userAgent, shifts) {
 }
 let passed = 0;
 let failed = 0;
+// UX2A-TIMECAP-1: every result line carries its own time and the gate's elapsed time, so a capped run's kept log shows
+// which check was running when the cap hit (the one after the last line) and where the time goes
+const T0 = Date.now();
+const took = (t) => `[${((Date.now() - t) / 1000).toFixed(1)} s · at ${((Date.now() - T0) / 1000).toFixed(0)} s]`;
 async function test(name, fn) {
-  try { const info = await fn(); passed++; console.log(`  PASS  ${name}${info ? ' — ' + info : ''}`); } catch (e) { failed++; console.log(`  FAIL  ${name}\n        ${String(e && e.message ? e.message : e).slice(0, 1500)}`); }
+  const t = Date.now();
+  try { const info = await fn(); passed++; console.log(`  PASS  ${name}${info ? ' — ' + info : ''} ${took(t)}`); } catch (e) { failed++; console.log(`  FAIL  ${name} ${took(t)}\n        ${String(e && e.message ? e.message : e).slice(0, 1500)}`); }
 }
 const assert = (c, m) => { if (!c) throw new Error(m || 'assertion failed'); };
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
@@ -423,12 +428,18 @@ const UX2B_ROUTES = ['/legal'];
     };
     const bad = [];
     let skipped = 0;
-    for (const p of paths) {
+    // UX2A-TIMECAP-1: 4 URLs at a time (same checks per URL). Sequential, the 73 URLs — 41 of them exam-topic pages —
+    // took most of the 240 s cap (local 2026-11-18: warm 377 s sequential vs 97 s 4 at a time)
+    const L17_CONCURRENCY = 4;
+    let next = 0;
+    const one = async (p) => {
       let r = null;
       for (let i = 1; i <= 3 && (!r || r.status >= 500); i++) r = await get(p);
-      if (r.status === 404 && isChanged(p)) { skipped++; continue; }
+      await r.arrayBuffer().catch(() => null); // drain: free the socket for the next URL
+      if (r.status === 404 && isChanged(p)) { skipped++; return; }
       if (r.status !== 200) bad.push(`${p} ${r.status}`);
-    }
+    };
+    await Promise.all(Array.from({ length: L17_CONCURRENCY }, async () => { while (next < paths.length) await one(paths[next++]); }));
     assert(bad.length === 0, bad.join(', '));
     return `${paths.length} URLs, all 200${skipped ? ` (${skipped} changed after the build: 404 tolerated)` : ''}`;
   });
