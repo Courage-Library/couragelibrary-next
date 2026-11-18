@@ -210,7 +210,9 @@ export async function MasterLessonPageView({ segments, language, courseSlug = nu
   );
 
   return (
-    <div id={READER_ID} suppressHydrationWarning className="group/reader py-8 lg:py-12" data-master-lesson="">
+    // data-access-tier / data-access-locked: the central check's answer for this lesson (public — the lists show the same
+    // Pro locks); LESSON-PERF-B3's live gate reads them to prove the cached anonymous answer follows an admin change
+    <div id={READER_ID} suppressHydrationWarning className="group/reader py-8 lg:py-12" data-master-lesson="" data-access-tier={data.lesson ? page.access : undefined} data-access-locked={data.lesson ? String(page.locked) : undefined}>
       {/* focus mode is restored before paint (no flash, no layout shift) */}
       <script dangerouslySetInnerHTML={{ __html: focusModeScript(READER_ID) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdText(jsonLd) }} />

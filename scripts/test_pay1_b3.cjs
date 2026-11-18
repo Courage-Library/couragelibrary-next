@@ -168,6 +168,50 @@ test('P4-07 (B3 app) no Free / Pro decision outside the central check: no own en
   return `${B3_FILES.length} files scanned; ${Object.keys(B3_ALLOW).length} reviewed exceptions`;
 });
 
+// P4-08 LESSON-PERF-B3 (owner decision 2026-11-18): the cached anonymous LESSON answer.
+// (a) every app write to the access policy or the switch (the three admin RPCs, or a direct write to access_policies /
+//     access_settings) sits in a function that calls revalidateTag(ACCESS_CACHE_TAG) AFTER the write;
+// (b) the cache itself: anonymous only (any sb-* cookie → live), the answer from fn_access_allowed_many via the public
+//     (no-user) client, the switch in the key, the tag on both caches, errors never cached (thrown) and → null → live,
+//     only in lib/access/policy.ts and only for LESSON.
+const POLICY_WRITE = /rpc\(\s*['"](?:fn_access_policy_set|fn_access_policy_clear|fn_paywall_set)['"]|from\(\s*['"](?:access_policies|access_settings)['"]\s*\)\s*\.\s*(?:insert|update|upsert|delete)\b/;
+const fnChunks = (src) => strip(src).split(/\n(?=(?:export\s+)?(?:async\s+)?function\s|export\s+const\s+\w+\s*=\s*async)/);
+const writeChecks = (files) => {
+  const bad = [];
+  let writes = 0;
+  for (const [rel, src] of files) {
+    for (const chunk of fnChunks(src)) {
+      const m = chunk.match(POLICY_WRITE);
+      if (!m) continue;
+      writes++;
+      const after = chunk.slice(m.index);
+      if (!/revalidateTag\(\s*ACCESS_CACHE_TAG\s*\)/.test(after)) bad.push(`${rel}: ${(chunk.match(/function\s+(\w+)|const\s+(\w+)/) || [])[1] || '?'}`);
+    }
+  }
+  return { bad, writes };
+};
+const cacheCheck = (policy, files) => {
+  const s = strip(policy);
+  const a = s.slice(s.indexOf('async function anonLessonAccess'), s.indexOf('export interface AccessPolicyRow'));
+  assert(s.indexOf('async function anonLessonAccess') > 0 && a.length > 100 && a.length < 4000, 'anonLessonAccess not found');
+  assert(/getAll\(\)\.some\(\(c\) => c\.name\.startsWith\("sb-"\)\)\) return null;/.test(a), 'any sb-* cookie must go to the live check');
+  assert(/createPublicServerSupabaseClient\(\)/.test(a) && /rpc\("fn_access_allowed_many"/.test(a) && !/createServerSupabaseClient\(\)|createAdminServerSupabaseClient\(\)/.test(a), 'the anonymous answer comes from fn_access_allowed_many via the public (no-user) client only');
+  assert(/\["access-anon", "v1", "LESSON", sw, digest\]/.test(a), 'cache key = LESSON + switch + hashed keys');
+  assert((s.match(/tags: \[ACCESS_CACHE_TAG\]/g) || []).length === 2 && /export const ACCESS_CACHE_TAG = "access-policy";/.test(s), 'both caches carry ACCESS_CACHE_TAG');
+  assert(/if \(error \|\| !Array\.isArray\(data\)\) throw/.test(a) && /throw new Error\("ACCESS_ANON_INCOMPLETE"\)/.test(a) && /catch \{\s*return null;/.test(a), 'errors are thrown (never cached) and fall back to the live check');
+  assert(/if \(error \|\| !data\) throw new Error\("ACCESS_SWITCH_READ_FAILED"\)/.test(s), 'a missing / failed switch read is never cached');
+  assert(/if \(kind === "LESSON"\) \{\s*const cached = await anonLessonAccess\(want\);\s*if \(cached\) return cached;\s*\}/.test(s), 'only LESSON uses the cache; null → live');
+  const elsewhere = files.filter(([rel, src]) => rel !== 'lib/access/policy.ts' && /ACCESS_CACHE_TAG/.test(src) && /unstable_cache\(/.test(src) && /fn_access_allowed/.test(src)).map(([rel]) => rel);
+  assert(elsewhere.length === 0, `an access answer cached outside lib/access/policy.ts: ${elsewhere.join(', ')}`);
+};
+test('P4-08 (LESSON-PERF-B3) every access-policy / switch write invalidates the anonymous cache; the cache is anonymous-only, keyed by the switch, fail-closed', () => {
+  const { bad, writes } = writeChecks(B3_FILES);
+  assert(writes >= 3, `expected the 3 admin writes, found ${writes}`);
+  assert(bad.length === 0, `policy write without revalidateTag(ACCESS_CACHE_TAG): ${bad.join(', ')}`);
+  cacheCheck(read('lib/access/policy.ts'), B3_FILES);
+  return `${writes} policy writes invalidate the cache; anonymous-only cache checked`;
+});
+
 test('P4-05 negative controls: each mutation is caught', () => {
   const muts = [
     ['an own entitlement read in a feature service', proRuleHits([['services/mistake.service.ts', 'const { data } = await supabase.from("user_entitlements").select("id");']]).length ? 'caught' : null],
@@ -184,6 +228,26 @@ test('P4-05 negative controls: each mutation is caught', () => {
     ['PRO battle arenas allowed', centralCheck(SQL.replace("IF p_access_tier IS DISTINCT FROM 'FREE' THEN", 'IF false THEN'))],
     ['rollback forgets to drop the batched check', rollbackCheck(RBS.replace('DROP FUNCTION IF EXISTS public.fn_access_allowed_many(text, text[]);\n', ''))],
     ['rollback deletes an admin MISTAKE_DRILLS row', rollbackCheck(RBS.replace("AND item_key = 'MISTAKE_DRILLS' AND updated_by IS NULL;", "AND item_key = 'MISTAKE_DRILLS';"))],
+    // P4-08 (LESSON-PERF-B3)
+    ...(() => {
+      const ACT = 'app/(site)/admin/access/actions.ts';
+      const act = read(ACT);
+      const pol = read('lib/access/policy.ts');
+      const TAG_LINE = '  revalidateTag(ACCESS_CACHE_TAG); // LESSON-PERF-B3: the cached anonymous answer follows this change on the next request\n';
+      const noTag = (n) => { let i = -1; for (let k = 0; k <= n; k++) i = act.indexOf(TAG_LINE, i + 1); return i < 0 ? act : act.slice(0, i) + act.slice(i + TAG_LINE.length); };
+      const writesBad = (files) => (writeChecks(files).bad.length ? 'caught' : null);
+      const cacheBad = (p) => { try { cacheCheck(p, B3_FILES); return null; } catch { return 'caught'; } };
+      return [
+        ['the switch action does not invalidate the cache', writesBad([[ACT, noTag(2)]])],
+        ['the policy-set action does not invalidate the cache', writesBad([[ACT, noTag(0)]])],
+        ['a new direct policy write without invalidation', writesBad([['services/x.service.ts', 'export async function f() {\n  await admin.from("access_policies").update({ tier: "FREE" });\n}\n']])],
+        ['the cache serves a signed-in request', cacheBad(pol.replace('if (jar.getAll().some((c) => c.name.startsWith("sb-"))) return null;', ''))],
+        ['the cached answer read with the session client', cacheBad(pol.replace('const anon = createPublicServerSupabaseClient();', 'const anon = await createServerSupabaseClient();'))],
+        ['the switch left out of the cache key', cacheBad(pol.replace('["access-anon", "v1", "LESSON", sw, digest]', '["access-anon", "v1", "LESSON", digest]'))],
+        ['a failed read cached as an answer', cacheBad(pol.replace('if (error || !Array.isArray(data)) throw new Error("ACCESS_ANON_READ_FAILED");', 'if (error || !Array.isArray(data)) return [];'))],
+        ['the cache used for every kind', cacheBad(pol.replace('if (kind === "LESSON") {', 'if (kind) {'))],
+      ];
+    })(),
   ];
   const missed = muts.filter(([, w]) => w === null).map(([k]) => k);
   assert(missed.length === 0, `not caught: ${missed.join(', ')}`);

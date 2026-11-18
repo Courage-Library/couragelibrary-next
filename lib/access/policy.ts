@@ -1,12 +1,16 @@
 import "server-only";
 
-import { createAdminServerSupabaseClient, createServerSupabaseClient } from "@/lib/supabase/server";
+import { createHash } from "node:crypto";
+import { unstable_cache } from "next/cache";
+import { cookies } from "next/headers";
+import { createAdminServerSupabaseClient, createPublicServerSupabaseClient, createServerSupabaseClient } from "@/lib/supabase/server";
 
 /**
  * PAY-1 B2a: the ONE app-side entry to the admin-controlled access policy (docs/payments/PAY_1_DESIGN.md §7).
  * Free vs Pro is decided ONLY by the database function fn_access_allowed (switch off → allowed; FREE → allowed; anon →
  * refused; else the caller's own Pro). No Pro rule may be written anywhere else (B3 routes every check through here).
- * No cache: the policy takes effect on the next request after an admin change.
+ * No cache, except the anonymous LESSON answer (LESSON-PERF-B3, below): invalidated by every admin write in the app, so
+ * the policy still takes effect on the next request after an admin change.
  */
 
 export const ACCESS_KINDS = ["FEATURE", "MOCK_SERIES", "MOCK_TEST", "COURSE", "LESSON", "TOPIC"] as const;
@@ -52,6 +56,12 @@ export async function accessMany(kind: AccessKind, keys: string[]): Promise<Map<
   const want = [...new Set(keys.filter((k) => typeof k === "string" && k.length > 0))];
   const out = new Map<string, AccessAnswer>(want.map((k) => [k, DENIED]));
   if (!want.length) return out;
+  // LESSON-PERF-B3: an anonymous lesson reader gets the cached anonymous answer (see anonLessonAccess); null = use the
+  // live check below (signed-in, any doubt, or any cache error)
+  if (kind === "LESSON") {
+    const cached = await anonLessonAccess(want);
+    if (cached) return cached;
+  }
   try {
     const supabase = await createServerSupabaseClient();
     for (let i = 0; i < want.length; i += 500) {
@@ -73,6 +83,62 @@ export async function accessTier(kind: AccessKind, key: string): Promise<AccessT
     return !error && data === "FREE" ? "FREE" : "PRO";
   } catch {
     return "PRO";
+  }
+}
+
+/**
+ * LESSON-PERF-B3 (owner decision 2026-11-18): the anonymous LESSON answer, cached.
+ * - ONLY the access decision, ONLY for anonymous viewers: a request with NO Supabase session cookie, so the live check
+ *   would run as anon anyway; any `sb-*` cookie (even an expired session) → null → the live per-request check. Never the
+ *   lesson body, never anything for a signed-in user.
+ * - The answer comes from the same database function (fn_access_allowed_many) called WITHOUT a user, so it is exactly
+ *   what the live check answers an anonymous visitor. Key = the lesson keys (hashed) + the paywall switch value.
+ * - Invalidated by tag ACCESS_CACHE_TAG on every admin policy / switch write (app/(site)/admin/access/actions.ts; the
+ *   offline gate PAY1-B3 P4-08 fails if a write lacks it); 60 s backstop for writes outside the app (scripts).
+ * - Fail-closed: any error, a missing key or a missing switch → nothing is cached and null is returned (live check).
+ */
+export const ACCESS_CACHE_TAG = "access-policy";
+const ANON_TTL_S = 60;
+
+let paywallCache: (() => Promise<"on" | "off">) | null = null; // created on first use, not at import
+const cachedPaywall = () =>
+  (paywallCache ??= unstable_cache(
+    async (): Promise<"on" | "off"> => {
+      const { data, error } = await createAdminServerSupabaseClient().from("access_settings").select("paywall_enabled").eq("id", true).maybeSingle();
+      if (error || !data) throw new Error("ACCESS_SWITCH_READ_FAILED"); // a throw is never cached
+      return data.paywall_enabled === true ? "on" : "off";
+    },
+    ["access-paywall", "v1"],
+    { tags: [ACCESS_CACHE_TAG], revalidate: ANON_TTL_S },
+  ))();
+
+async function anonLessonAccess(keys: string[]): Promise<Map<string, AccessAnswer> | null> {
+  try {
+    const jar = await cookies();
+    if (jar.getAll().some((c) => c.name.startsWith("sb-"))) return null; // a session (or what may be one) → live
+    const sorted = [...keys].sort();
+    const sw = await cachedPaywall();
+    const digest = createHash("sha256").update(sorted.join("\n")).digest("hex");
+    const rows = await unstable_cache(
+      async (): Promise<[string, AccessTier, boolean][]> => {
+        const anon = createPublicServerSupabaseClient(); // no user: auth.uid() IS NULL, like a signed-out visitor
+        const got = new Map<string, [AccessTier, boolean]>();
+        for (let i = 0; i < sorted.length; i += 500) {
+          const { data, error } = await anon.rpc("fn_access_allowed_many", { p_kind: "LESSON", p_keys: sorted.slice(i, i + 500) });
+          if (error || !Array.isArray(data)) throw new Error("ACCESS_ANON_READ_FAILED");
+          for (const r of data) got.set(r.item_key, [r.tier === "FREE" ? "FREE" : "PRO", r.allowed === true]);
+        }
+        if (sorted.some((k) => !got.has(k))) throw new Error("ACCESS_ANON_INCOMPLETE");
+        return sorted.map((k) => [k, ...(got.get(k) as [AccessTier, boolean])]);
+      },
+      ["access-anon", "v1", "LESSON", sw, digest],
+      { tags: [ACCESS_CACHE_TAG], revalidate: ANON_TTL_S },
+    )();
+    const out = new Map<string, AccessAnswer>();
+    for (const [k, tier, allowed] of rows) out.set(k, { tier, allowed });
+    return keys.every((k) => out.has(k)) ? out : null;
+  } catch {
+    return null; // fail-closed: the live check decides
   }
 }
 

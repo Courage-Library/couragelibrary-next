@@ -371,14 +371,26 @@ Local A/B, 2026-11-18: the pre-B3 build (d5debc8) and the B3 build side by side 
 |---|---|---|---|---|
 | 1 | 140 ms | 517 ms | 1.81 s | 2.16 s (1 FAIL) |
 | 2: B3 with `accessMany` in parallel with the page's reads | 57 ms | 463 ms | 1.36 s | 5.41 s (4 FAIL; hotspot noise) |
+| 3: B3 with the cached anonymous answer (n=6 for P-06) | 48 ms | 47 ms | 1.25 s | 1.69 s (6/6 PASS; ranges overlap, 0.89–1.94 s against 0.94–1.71 s) |
 
 **Cause:** with the lesson data cached, the pre-B3 page made no network call for an anonymous visitor. Access came from an env switch plus a session check with no I/O. B3 asks the central check (`fn_access_allowed_many`), which is one database round trip on every request. Running it in parallel (committed: the page now starts its session, practice and course reads next to the check) cannot hide it, because the other reads cost almost nothing.
 
-**How:** owner decision between:
-- caching the anonymous answer (switch + tier only, revalidated on admin change);
-- streaming the public part of the page before the check.
+**DONE 2026-11-18: the owner chose to cache the anonymous answer, with these conditions:**
+- **What is cached:** only the access decision, only for a request with no `sb-*` cookie. The key is the lesson keys plus the paywall switch. The lesson body is never cached, and nothing is cached for a signed-in reader.
+- **Same rule:** the cached answer comes from `fn_access_allowed_many`, called without a user, so it is exactly the live answer an anonymous visitor would get.
+- **Invalidation:** every admin policy or switch action calls `revalidateTag(ACCESS_CACHE_TAG)`. Writes outside the app are covered by a 60 s fallback.
+- **Fail-closed:** an error is never cached and falls back to the live check.
+- **Code:** `lib/access/policy.ts` (`anonLessonAccess`).
+- **Offline gate:** PAY1-B3 P4-08, with 8 negative controls.
+- **Live gate:** LESSON-PERF-B3-LIVE (dbfree). It proves:
+  - an admin flip reaches anonymous visitors on the next request;
+  - a write outside the app leaves the anonymous answer cached while the signed-in student sees the change at once;
+  - nothing is left behind.
 
-Do not raise the budget.
+  It runs only while the paywall is off, on the QA test lesson.
+- **Not proven on production:** the "locks for anonymous" case itself, because it needs the switch on. The lock comes from the same database answer (`allowed`), which B3-M checks against the live rule with the switch on and off.
+
+The budget was not raised.
 
 ## EXAM-TOPIC-PERF: exam-topic pages render slowly
 

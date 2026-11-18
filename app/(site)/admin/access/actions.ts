@@ -1,11 +1,11 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { guardAdminAction } from "@/lib/auth/require-admin";
 import type { ActionFailure } from "@/lib/auth/require-admin";
 import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { reportWriteFailure } from "@/lib/ops/write-failure";
-import { ITEM_KEY_RX, isAccessKind } from "@/lib/access/policy";
+import { ACCESS_CACHE_TAG, ITEM_KEY_RX, isAccessKind } from "@/lib/access/policy";
 
 /**
  * PAY-1 B2a: the admin "Free & Pro" page. ADMIN only (staff cannot change access). Every write goes through the
@@ -30,6 +30,7 @@ export async function setAccessPolicyAction(payload: { kind: string; key: string
     reportWriteFailure({ fn: "setAccessPolicyAction", table: "access_policies", op: "rpc", code: error.code, ids: {} });
     return { ok: false, error: "The change could not be saved. Please try again." };
   }
+  revalidateTag(ACCESS_CACHE_TAG); // LESSON-PERF-B3: the cached anonymous answer follows this change on the next request
   revalidatePath(PATH);
   return { ok: true, message: `${payload.kind} ${key} is now ${payload.tier === "FREE" ? "Free" : "Pro"}.` };
 }
@@ -44,6 +45,7 @@ export async function clearAccessPolicyAction(payload: { kind: string; key: stri
     reportWriteFailure({ fn: "clearAccessPolicyAction", table: "access_policies", op: "rpc", code: error.code, ids: {} });
     return { ok: false, error: "The override could not be removed. Please try again." };
   }
+  revalidateTag(ACCESS_CACHE_TAG); // LESSON-PERF-B3: the cached anonymous answer follows this change on the next request
   revalidatePath(PATH);
   return { ok: true, message: `${payload.kind} ${key} now follows its default.` };
 }
@@ -59,6 +61,7 @@ export async function setPaywallAction(payload: { enabled: boolean; confirm: str
     reportWriteFailure({ fn: "setPaywallAction", table: "access_settings", op: "rpc", code: error.code, ids: {} });
     return { ok: false, error: "The switch could not be changed. Please try again." };
   }
+  revalidateTag(ACCESS_CACHE_TAG); // LESSON-PERF-B3: the cached anonymous answer follows this change on the next request
   revalidatePath(PATH);
   return { ok: true, message: payload.enabled ? "The paywall is ON: Pro items now need Pro." : "The paywall is OFF: everything is open." };
 }
