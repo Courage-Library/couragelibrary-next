@@ -673,3 +673,118 @@ After B3 both follow the central check, so with the paywall off they are fully r
   - the dead premium hub and generator code;
   - the three uncalled `assessment.service` list functions (allow-listed in P4-07);
   - the FREE_N pieces in the database.
+
+**148 built 2026-11-18 (local; production apply waits for "release"):**
+- Migration `20261118000148_pay1_cleanup.sql`:
+  - drops `fn_authorize_and_start_test_attempt`, `fn_check_premium_access_and_quota`,
+    `fn_create_dynamic_mock_instance_atomic`, `fn_get_due_flashcards` and `fn_create_custom_flashcard_deck`;
+  - drops FREE_N: `exam_course_launches.access_mode`, `fn_gated_course_document_ids` and the `p_access_mode` argument of
+    `fn_exam_course_launch_set`, which is now 6 arguments, INVOKER, service_role only, with the 126 rules unchanged;
+  - refuses to run while any launch is not FREE_ALL.
+- SECDEF allow-list: total 134 → 129, B-service 40 → 37.
+- App:
+  - deleted the premium hub / generator / entitlement services, the hub actions and view, the three uncalled
+    `assessment.service` mock-list functions and two server-read helpers only they used;
+  - removed the admin candidate tool's quota report (it read the dropped quota function; quotas retired in B3);
+  - the launch action, service and screen are launch / pause only.
+- P4-07 allow-list: 12 → 8 reviewed exceptions.
+- New offline gate PAY1-148 (7 checks, 19 negative controls).
+- LAUNCH-MODE-1-LIVE rewritten for the post-148 launch function.
+
+## 12. B4 plan: payment robustness (2026-11-18, code read; nothing built yet)
+
+**Today (code read, file:line in the B4 survey):**
+- `RazorpayApi` can create an order, fetch a payment and capture a payment (`razorpay-core.ts:109-113`). Nothing lists an
+  order's payments, so nothing can find a payment the browser never reported.
+- `fetch` is injected into `createRazorpayApi` (`razorpay-core.ts:123-158`), but no gate exercises it: the F9-B gate
+  fakes the whole API object (`test_f9b_payments.cjs:64-121`).
+- The webhook never captures (`allowCapture=false`, `pro-flows.ts:122,252-255`: `NOT_CAPTURED_YET`, event IGNORED).
+- No reconciliation, no `gateway_mode`, no QA check on the order path (`pricing/actions.ts:16-25`).
+- Receipt number = `CL-R-YYMMDD-` + 6 hex of md5(order ‖ payment), no retry (114:194-195). A collision rolls back the
+  whole fulfilment and every retry collides again (the inputs are the same).
+- A refund that arrives before the fulfilment → `PAYMENT_NOT_FOUND` → event FAILED → 409. It works only while Razorpay
+  keeps redelivering.
+- The status trigger makes EXPIRED and CANCELLED terminal (019:28-34). Reconciliation must therefore use FAILED, which
+  `fn_fulfil_pro_order` still accepts (114:166), so a late payment can still activate Pro.
+- Vercel Hobby runs a cron once a day (`finalize-attempts/route.ts:6`), so a job every N minutes cannot be a Vercel cron.
+
+**Migration 149 (SQL; compatible with the app on main):**
+1. `payment_orders.gateway_mode text NOT NULL DEFAULT 'live' CHECK (gateway_mode IN ('test','live'))` (0 orders today).
+   Plus a partial index on `(created_at)` WHERE `status = 'PENDING' AND order_type = 'PRO_PLAN'`.
+2. `fn_create_pro_order(…, p_gateway_mode text DEFAULT 'live')`:
+   - stores the mode;
+   - **test mode only for QA identities**: the user's e-mail ends in the reserved `.test` QA domain, checked in SQL
+     as well as on the server;
+   - returns `TEST_MODE_QA_ONLY` otherwise.
+3. `fn_fulfil_pro_order`:
+   - `p_source` also accepts `'RECONCILE'`;
+   - refuses an order whose `gateway_mode` differs from the caller's key mode (`MODE_MISMATCH`);
+   - **receipt number retried up to 5 times** with a counter in the hash (`md5(order ‖ payment ‖ n)`), raising only
+     after 5 collisions.
+No new function: the job reads its candidates (PENDING PRO orders of the current mode, older than R3, oldest first,
+batch of 50) with the server's service-role client, which already has the table. The existing functions keep SECURITY
+DEFINER, `search_path ''` and service_role only; the SECDEF count does not change.
+
+**B4 app:**
+1. `razorpay-core`:
+   - `listOrderPayments(orderId)` (`GET /orders/{id}/payments`), shape-checked like `createOrder`;
+   - `classifyOrderPayments(order, payments)` → `{captured | authorized | none | refunded_only | double_charge}`, pure.
+2. `pro-flows.reconcileOrder(order)`:
+   - captured → `fulfilChecked(…, 'RECONCILE')`;
+   - authorized → capture, then fulfil (the R2 rule below);
+   - none or failed only, and the order is older than the give-up age (R3) → `fn_mark_pro_order_failed`;
+   - refunded only → mark FAILED, never fulfil;
+   - two or more captured payments → fulfil with the first, and write `PRO_DOUBLE_CHARGE` to the audit log for a
+     manual refund (D4 = a).
+
+   Idempotent: a second run finds the order PAID (`already_fulfilled`).
+3. Route `POST /api/cron/reconcile-payments`:
+   - `CRON_SECRET` checked in constant time, like the other crons;
+   - no-op while checkout is closed;
+   - a batch of 50 for the current key mode only;
+   - counts-only log;
+   - it also replays stored `refund.processed` events left FAILED with `PAYMENT_NOT_FOUND` once their payment exists
+     (refund before fulfil).
+4. `createProOrder` passes `checkoutState().mode`. In test mode a non-QA user gets "Test checkout is for QA accounts
+   only" before any gateway call.
+5. Admin totals and revenue count `gateway_mode = 'live'` only.
+
+**Tests:**
+- **Offline gate PAY1-B4**, with a fake `fetch` driving the real `createRazorpayApi`:
+  - `listOrderPayments` shape refusals;
+  - every `classifyOrderPayments` branch;
+  - `reconcileOrder` for each case, plus a second run that changes nothing;
+  - a mode mismatch is refused;
+  - test mode for a non-QA user is refused before any gateway call;
+  - the cron rejects a missing or wrong secret;
+  - webhook duplicate / out of order / amount mismatch stay green (F9-B);
+  - negative controls.
+- **Live gate PAY1-B4-LIVE**, run as the real roles and rolled back:
+  - `gateway_mode` stored;
+  - test mode refused for the free non-QA path and allowed for QA;
+  - a forced receipt collision → the second suffix is used;
+  - `RECONCILE` accepted and `MODE_MISMATCH` refused;
+  - FAILED → late fulfil still works;
+  - `fn_create_pro_order` / `fn_fulfil_pro_order` stay service_role only (anon and student 42501).
+- The local cycle (RLS + ratchet), F9-PRICING and the EARLIER-GATES (114 / 140).
+
+**Owner decisions needed before the build:**
+- **R1. Where the job runs:**
+  - (a) a GitHub Actions scheduled workflow every 15 min that calls the route with `CRON_SECRET` (SCHEDULED-CHECKS
+    already prefers GitHub Actions for timed work) — *recommended*;
+  - (b) the Vercel cron once a day (too slow for the 24-hour promise on a bad day);
+  - (c) Vercel Pro.
+- **R2. An authorized but not captured payment found by the job:**
+  - (a) the job captures it and fulfils, the same as the browser's verify path — *recommended*. It is the safety net if
+    auto-capture fails or is switched off;
+  - (b) only report it.
+- **R3. Timings:**
+  - check orders older than 15 min;
+  - give up (FAILED) after 2 h with no paid payment;
+  - look back 7 days.
+
+  *Recommended as listed.* A FAILED order still activates if the payment appears later.
+- **R4. Double charge:** audit row + admin list only; the refund stays a dashboard action (D4 = a) — *recommended*.
+
+**Activation order (DEPLOY-BEFORE-ACTIVATE):** 149 → the B4 app on main and deployed → only then the GitHub schedule. With
+payments off the job is a no-op (checkout closed).

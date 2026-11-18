@@ -3,7 +3,8 @@
  * LAUNCH-MODE-1 — offline gate (no network, no DB; source + the pure helpers).
  *   PAY-1 B3 (owner decision 2, 2026-11-15): FREE_N is RETIRED — which lessons are Free / Pro is the LESSON policy in
  *   "Free & Pro" (the central check), not a launch mode.
- *   B3-01 the launch action refuses FREE_N before anything else; FREE_ALL launches
+ *   B3-01 (PAY-1 148) launch / pause only: no access mode anywhere in the app (migration 148 drops the column and the
+ *         p_access_mode argument)
  *   B3-02 the screen: no access-mode radio, no FREE_N warning, no "Change access"; it points to Free & Pro; one primary;
  *         no browser dialogs
  *   B3-03 lesson access: only the central check (see A-01 in test_ca5_courses.cjs)
@@ -64,16 +65,20 @@ const b3LessonAccess = () => {
   }
 };
 
-test('B3-01 the launch action refuses FREE_N first (retired); FREE_ALL still launches', () => {
+// code without comments (a comment may name the retired mode)
+const code = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:"'`])\/\/[^\n]*/g, '$1');
+test('B3-01 (PAY-1 148) launch / pause only: no access mode in the action, the service, the screen or the coverage types', () => {
   const act = read('app/(site)/admin/lessons/actions.ts');
-  assert(/if \(accessMode === "FREE_N"\) return \{ success: false, code: "VALIDATION", error: "The per-chapter Pro mode is retired\. Set lesson access in Free & Pro\." \};/.test(act), 'FREE_N refused with the reason');
-  const fn = act.slice(act.indexOf('export async function setCourseLaunchAction'));
-  assert(fn.indexOf('accessMode === "FREE_N"') < fn.indexOf('CoverageService'), 'the refusal comes before the service / database');
+  assert(/export async function setCourseLaunchAction\(examId: string, status: "LIVE" \| "PAUSED"\): Promise</.test(act), 'setCourseLaunchAction(examId, status) — no access mode');
+  assert(/CoverageService\.setLaunch\(examId, status\)/.test(act), 'the service gets no mode');
+  for (const f of ['app/(site)/admin/lessons/actions.ts', 'services/learning/coverage.service.ts', 'lib/learning/coverage.ts', 'components/admin/lessons/coverage-matrix.tsx']) {
+    assert(!/access_mode|accessMode|AccessMode|FREE_N|freeNBlock/.test(code(read(f))), `${f}: an access-mode remnant`);
+  }
 });
 test('B3-02 the launch screen: no mode radio / FREE_N warning / "Change access"; points to Free & Pro; one primary; no browser dialogs', () => {
   const ui = read('components/admin/lessons/coverage-matrix.tsx');
   assert(!/name="access-mode"|data-free-n-warning|FREE_N|Change access|MODE_LABEL/.test(ui), 'the FREE_N UI is gone');
-  assert(/setCourseLaunchAction\(view\.exam\.id, confirm, "FREE_ALL"\)/.test(ui) && /href="\/admin\/access"/.test(ui), 'launches FREE_ALL; Free & Pro decides lesson access');
+  assert(/setCourseLaunchAction\(view\.exam\.id, confirm\)/.test(ui) && /href="\/admin\/access"/.test(ui), 'launch / pause only; Free & Pro decides lesson access');
   assert((ui.match(/className=\{studioPrimaryAction\}/g) || []).length === 1 && !/window\.(confirm|alert|prompt)\(/.test(ui), 'one primary; no browser dialogs');
 });
 test('B3-03 lesson access: only the central check (FREE_N / env switch / own entitlement read retired)', () => {

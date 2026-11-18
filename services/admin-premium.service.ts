@@ -1,5 +1,4 @@
 import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
-import { PremiumEntitlementService, PremiumQuotaKey } from "@/services/premium-entitlement.service";
 import type { Json, TablesUpdate } from "@/types/database";
 import { rpcJsonObject } from "@/lib/supabase/rpc";
 
@@ -84,6 +83,17 @@ export interface CandidateEntitlementInfo {
   createdAt: string;
 }
 
+/** The premium test types the admin config lists (moved here from the retired premium-entitlement service, PAY-1 148). */
+export type PremiumQuotaKey =
+  | "FULL_LENGTH"
+  | "PYQ"
+  | "SECTIONAL"
+  | "TOPIC"
+  | "CHALLENGE"
+  | "WEAK_AREA"
+  | "MISTAKE_REVISION"
+  | "PERSONALIZED";
+
 export interface CandidateLookupResult {
   user: {
     id: string;
@@ -91,14 +101,6 @@ export interface CandidateLookupResult {
     fullName?: string;
   };
   entitlements: CandidateEntitlementInfo[];
-  quotaSummary: Array<{
-    quotaKey: PremiumQuotaKey;
-    label: string;
-    quotaLimit: number;
-    quotaUsed: number;
-    quotaRemaining: number;
-    isUnlimited: boolean;
-  }>;
   totalAttemptsCount: number;
 }
 
@@ -638,8 +640,6 @@ export class AdminPremiumService {
       createdAt: raw.created_at,
     }));
 
-    // 4. Calculate live quota breakdown across all 8 supported test types
-    const quotaSummary = await PremiumEntitlementService.getQuotaBreakdown(targetUser.id);
 
     // 5. Get total attempts count
     const { count: attemptsCount } = await supabase
@@ -654,7 +654,6 @@ export class AdminPremiumService {
         fullName: profile?.full_name || targetUser.user_metadata?.full_name || undefined,
       },
       entitlements,
-      quotaSummary,
       totalAttemptsCount: attemptsCount || 0,
     };
   }

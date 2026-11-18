@@ -111,7 +111,8 @@ function check(over = {}) {
   const after = al.rules.slice(al.rules.findIndex((r) => /^COURSE-UX-1 /.test(r)) + 1);
   const sum = (re) => after.map((r) => Number((r.match(re) || [])[1] || 0)).reduce((x, y) => x + y, 0);
   const clientRaise = sum(/max total \/ client_executable_callable \/ A raised by exactly (\d+)/);
-  const totalDelta = clientRaise + sum(/max total raised by exactly (\d+)/) - sum(/max total and B-service lowered by exactly (\d+)/);
+  // PAY-1 148: "max total lowered by exactly N" = class C drops, the total alone
+  const totalDelta = clientRaise + sum(/max total raised by exactly (\d+)/) - sum(/max total and B-service lowered by exactly (\d+)/) - sum(/max total lowered by exactly (\d+)/);
   t('M-3', e1 && e2 && e1.class === 'A' && e2.class === 'A' && JSON.stringify(e1.client) === '["authenticated"]' && JSON.stringify(e2.client) === '["authenticated"]'
     && al.max.total === 120 + totalDelta
     && al.max.client_executable_callable === 51 + clientRaise && al.max.A === 51 + clientRaise && al.rules.some((r) => /^COURSE-UX-1 .*raised by exactly 2/.test(r)), 'allow-list: +2 class A authenticated entries, max +2, rule');

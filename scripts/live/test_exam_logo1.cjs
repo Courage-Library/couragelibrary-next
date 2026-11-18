@@ -98,7 +98,7 @@ const isConnectionError = (e) => !!e && (['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND'
     };
     const set = (kind, id, sha, alt) => svc(`select public.fn_logo_set($1, $2, $3, $4, null, $5) r`, [kind, id, sha, alt, ACTOR]);
     const remove = (kind, id) => svc(`select public.fn_logo_remove($1, $2, null, $3) r`, [kind, id, ACTOR]);
-    const launch = (exam, status = 'LIVE') => svc(`select public.fn_exam_course_launch_set($1, null, $2, 'FREE_ALL', '{"total":1,"en":1}', null, $3) r`, [exam, status, ACTOR]);
+    const launch = (exam, status = 'LIVE') => svc(`select public.fn_exam_course_launch_set($1, null, $2, '{"total":1,"en":1}', null, $3) r`, [exam, status, ACTOR]);
 
     // ---------------- A catalog
     await chunk(async () => {
@@ -110,7 +110,7 @@ const isConnectionError = (e) => !!e && (['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND'
       const fns = await q(`select p.oid::regprocedure::text s, p.prosecdef d, has_function_privilege('anon', p.oid, 'EXECUTE') a, has_function_privilege('authenticated', p.oid, 'EXECUTE') u, has_function_privilege('service_role', p.oid, 'EXECUTE') v
           from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname in ('fn_logo_set', 'fn_logo_remove', 'fn_exam_course_launch_set')`);
       const [sd] = await q(`select count(*)::int n from pg_proc where pronamespace = 'public'::regnamespace and prosecdef`);
-      const [src] = await q(`select prosrc from pg_proc where oid = 'public.fn_exam_course_launch_set(uuid, uuid, text, text, jsonb, uuid, text)'::regprocedure`);
+      const [src] = await q(`select prosrc from pg_proc where oid = 'public.fn_exam_course_launch_set(uuid, uuid, text, jsonb, uuid, text)'::regprocedure`);
       chk('A-1 catalog: logo columns (both paths GENERATED from the content hash); bucket org-logos public / 1 MB / webp only, NO storage policy; logo + launch functions INVOKER, service_role only; the launch requires a logo; SECURITY DEFINER count unchanged (116)',
         cols.length === 7 && gen === 'conducting_orgs.logo_path,exams.logo_override_path' && b && b.public === true && Number(b.file_size_limit) === 1048576 && b.m === '{image/webp}' && pol.n === 0
         && fns.length === 3 && fns.every((f) => !f.d && !f.a && !f.u && f.v) && /logo_override_sha256 IS NOT NULL OR o\.logo_sha256 IS NOT NULL/.test(src.prosrc) && sd.n === require(path.join(ROOT, 'scripts/secdef/allowlist.json')).max.total,

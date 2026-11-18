@@ -800,7 +800,7 @@ const OPTS = { origin: 'AI_EXTERNAL', requireContextHash: true, cognitiveTrapCod
   await test('STATIC-7 TS selectors filter PUBLISHED + current', async () => {
     const checks = [
       ['services/assessment.service.ts', '"question_versions.lifecycle_status", "PUBLISHED"'],
-      ['services/premium-generator.service.ts', '.eq("lifecycle_status", "PUBLISHED")'],
+      // (services/premium-generator.service.ts: deleted with PAY-1 148 — dead code, no caller)
       ['services/adaptive/adaptive-selection.service.ts', '.eq("lifecycle_status", "PUBLISHED")'],
       ['services/adaptive/adaptive-remediation.service.ts', '"question_versions.lifecycle_status", "PUBLISHED"'],
       // DRILL-1 (085): drills are compiled server-side by fn_generate_mistake_drill

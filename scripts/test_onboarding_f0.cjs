@@ -354,7 +354,8 @@ const run = async (fn) => {
     const serviceOnly = sumOf(/max total raised by exactly (\d+)/);
     const lowered = sumOf(/client_executable_callable and A lowered by (\d+)/);
     // PAY-1 B1: dropped functions lower max total (+ their class) — exact and documented in the rules
-    const totalLowered = sumOf(/max total and B-service lowered by exactly (\d+)/);
+    // PAY-1 148: "max total lowered by exactly N" = class C drops, the total alone
+    const totalLowered = sumOf(/max total and B-service lowered by exactly (\d+)/) + sumOf(/max total lowered by exactly (\d+)/);
     assert(a.max.total === 96 + later + serviceOnly - totalLowered && a.max.client_executable_callable === 38 + later - lowered && a.max.A === 38 + later - lowered && a.max.anon_or_public === 1 + sumOf(/anon_or_public raised by exactly (\d+)/), JSON.stringify(a.max));
     assert(!a.functions['fn_get_my_onboarding()'], 'the read RPC is INVOKER — it must not be in the SECDEF allow-list');
     const t = read('types/database.ts');

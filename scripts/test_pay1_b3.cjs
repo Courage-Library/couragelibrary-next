@@ -143,11 +143,7 @@ const B3_ALLOW = {
   'app/api/cron/pro-reminders/route.ts': 'ops: expiry reminders (reads entitlements, decides nothing)',
   'lib/admin/today.ts': 'admin dashboard counts',
   'app/(site)/admin/students/library-pro/page.tsx': 'admin tooling: Library Pro grants',
-  'services/admin-premium.service.ts': 'admin tooling: grant / revoke / quota reports',
-  'services/premium-entitlement.service.ts': 'the legacy entitlement service, now used only by admin tooling; dropped with 148',
-  'services/premium-hub.service.ts': 'dead code (no caller) — deleted in 148',
-  'services/premium-generator.service.ts': 'dead code (only reached from the never-rendered premium hub) — deleted in 148',
-  'services/assessment.service.ts': 'only getExamDetail / getDailyMockHubData / getMockTestsDirectory read is_free — dead (no caller), deleted in 148; the live mock start uses canAccess only',
+  'services/admin-premium.service.ts': 'admin tooling: grant / revoke (the quota report went with 148)',
 };
 const B3_RULE = /from\(['"]user_entitlements['"]\)|rpc\(['"]fn_has_pro['"]|PremiumEntitlementService\.(check|authorize)\w*\(|\.is_free\b|\bhasPro\b|isLessonLocked|lessonAccessLevel|getViewerAccess|getLessonAccessSettings/;
 const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' ')).replace(/(^|[^:"'`])\/\/[^\n]*/g, (m, p) => p);

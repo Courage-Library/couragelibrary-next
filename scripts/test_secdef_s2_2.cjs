@@ -27,12 +27,13 @@ const ROOT = path.resolve(__dirname, '..');
 const allow = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts/secdef/allowlist.json'), 'utf8'));
 const MIGRATION = '20261020000090_secdef_s2_2_revoke_unused_client_execute.sql';
 // the 33 SECDEF-S2-2 targets (SECDEF-AUDIT Stage 1 rulings), by name
-const C_CLASS = ['fn_clear_user_search_history', 'fn_complete_diagnostic_assessment', 'fn_create_custom_flashcard_deck', 'fn_edit_discussion_message',
-  'fn_generate_custom_practice_session', 'fn_generate_daily_recommendations', 'fn_get_due_flashcards', 'fn_mark_notification_as_read',
+const C_CLASS = ['fn_clear_user_search_history', 'fn_complete_diagnostic_assessment', 'fn_edit_discussion_message',
+  'fn_generate_custom_practice_session', 'fn_generate_daily_recommendations', 'fn_mark_notification_as_read',
   'fn_moderate_flagged_content', 'fn_override_mistake_cognitive_type', 'fn_reconcile_search_indexes', 'fn_start_custom_practice_session',
   'fn_update_daily_recommendation_status', 'fn_verify_faculty_answer'];
 // PAY-1 B1 (migration 140) dropped two of the original 12 no-caller targets: fn_process_payment_webhook and
-// fn_verify_and_fulfill_payment (legacy payment functions) — 31 targets remain.
+// fn_verify_and_fulfill_payment (legacy payment functions); PAY-1 148 dropped two C-class targets: fn_get_due_flashcards and
+// fn_create_custom_flashcard_deck (no caller) — 29 targets remain.
 const NO_CALLER = ['fn_claim_reward_item', 'fn_log_user_search', 'fn_publish_exam_announcement', 'fn_record_mistake_occurrence',
   'fn_resolve_errata_report', 'fn_reverse_reward_claim', 'fn_revoke_mistakes_by_errata', 'fn_universal_search', 'fn_update_spaced_repetition_review',
   'rls_auto_enable'];
@@ -85,11 +86,11 @@ const assert = (c, m) => {
   }
   const callable = fns.filter((f) => !f.trg && !f.evt);
 
-  await test('S-0 minimum coverage: 31 targets live (14 C, 10 no-caller, 7 trigger), 23 callable (PAY-1 B1 dropped 2)', async () => {
+  await test('S-0 minimum coverage: 29 targets live (12 C, 10 no-caller, 7 trigger), 21 callable (PAY-1 B1 dropped 2, 148 dropped 2)', async () => {
     const names = new Set(fns.map((f) => f.proname));
     const missing = ALL.filter((n) => !names.has(n));
-    assert(missing.length === 0 && fns.length === 31, `live ${fns.length}; missing ${missing.join(', ')}`);
-    assert(callable.length === 23 && fns.filter((f) => f.trg).length === 7, `callable ${callable.length}, trigger ${fns.filter((f) => f.trg).length}`);
+    assert(missing.length === 0 && fns.length === 29, `live ${fns.length}; missing ${missing.join(', ')}`);
+    assert(callable.length === 21 && fns.filter((f) => f.trg).length === 7, `callable ${callable.length}, trigger ${fns.filter((f) => f.trg).length}`);
     assert(studentId, 'qa-student missing');
     return `${fns.length} targets, ${callable.length} callable, 7 trigger, 1 event-trigger`;
   });
@@ -158,7 +159,7 @@ const assert = (c, m) => {
       if (both) sqlDenied.add(f.proname);
     }
     assert(bad.length === 0, bad.join('; '));
-    return `${callable.length}/25 × anon / authenticated → 42501`;
+    return `${callable.length}/21 × anon / authenticated → 42501`;
   }));
   // a PostgREST 404 (function not resolved) is accepted ONLY for a function S-2b proved denied, and is named
   const judge = (res) => {
@@ -176,7 +177,7 @@ const assert = (c, m) => {
     const res = await Promise.all(callable.map(async (f) => ({ f, r: await rpc(f, null) })));
     const { bad, unresolved } = judge(res);
     assert(bad.length === 0, bad.join('; '));
-    return `${res.length - unresolved.length}/25 denied (42501)${unresolved.length ? `; not resolved by PostgREST (404, denied at SQL level in S-2b): ${unresolved.join(', ')}` : ''}`;
+    return `${res.length - unresolved.length}/21 denied (42501)${unresolved.length ? `; not resolved by PostgREST (404, denied at SQL level in S-2b): ${unresolved.join(', ')}` : ''}`;
   });
   await test('S-3 PostgREST as authenticated (qa-student): every callable target → 403 / 42501', async () => {
     assert(catalogueClean, 'not probed: the catalogue still grants client EXECUTE (a PostgREST probe would execute function bodies)');
@@ -188,7 +189,7 @@ const assert = (c, m) => {
     // no sign-out: the QA session may be the live job's SHARED cached session (any scope revokes it on the server)
     const { bad, unresolved } = judge(res);
     assert(bad.length === 0, bad.join('; '));
-    return `${res.length - unresolved.length}/25 denied (42501)${unresolved.length ? `; not resolved by PostgREST (404, denied at SQL level in S-2b): ${unresolved.join(', ')}` : ''}`;
+    return `${res.length - unresolved.length}/21 denied (42501)${unresolved.length ? `; not resolved by PostgREST (404, denied at SQL level in S-2b): ${unresolved.join(', ')}` : ''}`;
   });
 
   await test('S-4 service_role still allowed: every callable target executes as service_role (rolled back)', () => rw(async () => {
@@ -207,7 +208,7 @@ const assert = (c, m) => {
       if (code === '42501') denied.push(f.proname);
     }
     assert(denied.length === 0, `service_role denied: ${denied.join(', ')}`);
-    return `${callable.length}/25 reachable by service_role (permission check passed; bodies rolled back)`;
+    return `${callable.length}/21 reachable by service_role (permission check passed; bodies rolled back)`;
   }));
 
   await test('S-5 triggers still fire with NO EXECUTE grant at all (owner revoked in-txn; one rolled-back DML per table)', () => rw(async () => {

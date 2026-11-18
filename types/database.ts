@@ -2328,7 +2328,6 @@ export type Database = {
       }
       exam_course_launches: {
         Row: {
-          access_mode: string
           changed_at: string
           changed_by_email: string
           coverage: Json
@@ -2341,7 +2340,6 @@ export type Database = {
           status: string
         }
         Insert: {
-          access_mode?: string
           changed_at?: string
           changed_by_email: string
           coverage: Json
@@ -2354,7 +2352,6 @@ export type Database = {
           status: string
         }
         Update: {
-          access_mode?: string
           changed_at?: string
           changed_by_email?: string
           coverage?: Json
@@ -9232,10 +9229,6 @@ export type Database = {
         Args: { p_attempt_id: string; p_mock_question_id: string }
         Returns: boolean
       }
-      fn_authorize_and_start_test_attempt: {
-        Args: { p_mock_test_id: string; p_user_id: string }
-        Returns: Json
-      }
       fn_award_gamification_reward: {
         Args: {
           p_calculated_coins: number
@@ -9290,10 +9283,6 @@ export type Database = {
         }
         Returns: Json
       }
-      fn_check_premium_access_and_quota: {
-        Args: { p_exam_id?: string; p_test_type?: string; p_user_id: string }
-        Returns: Json
-      }
       fn_claim_reward_item: {
         Args: {
           p_idempotency_key: string
@@ -9333,39 +9322,12 @@ export type Database = {
         }
         Returns: Json
       }
-      fn_create_custom_flashcard_deck: {
-        Args: {
-          p_cards?: Json
-          p_description?: string
-          p_title: string
-          p_topic_id?: string
-        }
-        Returns: Json
-      }
       fn_create_discussion_thread: {
         Args: {
           p_context_id: string
           p_context_type: string
           p_initial_content: string
           p_title: string
-        }
-        Returns: Json
-      }
-      fn_create_dynamic_mock_instance_atomic: {
-        Args: {
-          p_duration_minutes: number
-          p_exam_id: string
-          p_marks_per_question: number
-          p_metadata: Json
-          p_negative_mark: number
-          p_questions: Json
-          p_quota_key: string
-          p_slug: string
-          p_template_id: string
-          p_test_type: string
-          p_title: string
-          p_ttl_hours?: number
-          p_user_id: string
         }
         Returns: Json
       }
@@ -9418,7 +9380,6 @@ export type Database = {
       }
       fn_exam_course_launch_set: {
         Args: {
-          p_access_mode: string
           p_actor_email: string
           p_actor_id: string
           p_coverage: Json
@@ -9489,7 +9450,6 @@ export type Database = {
         }
         Returns: Json
       }
-      fn_gated_course_document_ids: { Args: never; Returns: string[] }
       fn_generate_custom_practice_session: {
         Args: {
           p_manual_question_ids?: string[]
@@ -9516,28 +9476,6 @@ export type Database = {
       fn_get_batch_assignment_progress: {
         Args: { p_assignment_id: string }
         Returns: Json
-      }
-      fn_get_due_flashcards: {
-        Args: { p_deck_id?: string; p_limit?: number }
-        Returns: {
-          back_markdown_en: string
-          back_markdown_hi: string
-          card_id: string
-          card_order: number
-          deck_id: string
-          ease_factor: number
-          explanation: string
-          front_markdown_en: string
-          front_markdown_hi: string
-          hint: string
-          interval_days: number
-          is_new: boolean
-          latex_formulas: string[]
-          mnemonic_en: string
-          mnemonic_hi: string
-          next_review_due_at: string
-          repetition_level: number
-        }[]
       }
       fn_get_my_onboarding: { Args: never; Returns: Json }
       fn_grant_library_pro: {

@@ -24,7 +24,7 @@ export function CoverageMatrix({ exams, view, loadError }: { exams: CoverageExam
     start(async () => {
       setMessage(null);
       if (!view || !confirm) return;
-      const r = await setCourseLaunchAction(view.exam.id, confirm, "FREE_ALL");
+      const r = await setCourseLaunchAction(view.exam.id, confirm);
       setConfirm(null);
       if (r.success) {
         setMessage({ kind: "ok", text: confirm === "PAUSED" ? `${view.exam.title}: the course is paused.` : `${view.exam.title}: the course is live.` });

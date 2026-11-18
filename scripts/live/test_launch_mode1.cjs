@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 /**
- * LAUNCH-MODE-1 (migration 123) — AS THE REAL ROLES, every write inside a rolled-back transaction (withLiveTransaction →
- * safeBegin: LIVE-LOCK-SAFETY; one connection per chunk; a dropped connection re-runs the chunk once).
- *   --pre   123 is NOT applied: each chunk first runs the migration inside its own transaction (then rolls back)
- *   (none)  after apply: refuses unless 123 is APPLIED
- * Chunks: A shape (default FREE_ALL; anon reads access_mode, never coverage; the 122 signature is gone; clients cannot
- *   call) · B FREE_ALL launch gates nothing (fn_gated_course_document_ids empty, fn_live_course_document_ids = the course)
- *   · C FREE_N refused while no Pro plan is active; with one: FREE_N gates the course; a mode change of a LIVE course is
- *   EXAM_COURSE_MODE; the same mode twice refused; a pause keeps the mode · Z nothing left.
+ * LAUNCH-MODE-1 → PAY-1 148 (the access mode is RETIRED: migration 148 drops exam_course_launches.access_mode,
+ * fn_gated_course_document_ids and the p_access_mode argument) — AS THE REAL ROLES, every write inside a rolled-back
+ * transaction (withLiveTransaction → safeBegin: LIVE-LOCK-SAFETY; one connection per chunk; a dropped connection re-runs
+ * the chunk once).
+ *   --pre   148 is NOT applied: each chunk first runs the migration inside its own transaction (then rolls back)
+ *   (none)  after apply: refuses unless 148 is APPLIED
+ * Chunks: A shape (no access_mode column, no gating function, only the 6-argument launch function: INVOKER, clients
+ *   cannot call; anon reads status, never coverage) · B launch / pause: LIVE → the course's lessons are live; LIVE again
+ *   refused ("already LIVE"); pause → none live; pause again refused; audited EXAM_COURSE_LAUNCH / _PAUSE without a mode
+ *   · Z nothing left.
  * GATE-SCOPE-SWEEP (2026-10-29): the course is the QA exam's, built in each chunk (its own topic + published node lesson +
  * published QA syllabus, scripts/live/_qa-course.cjs) — never real SSC CGL; gated / live counts are taken over THAT
  * course's documents only, and the Pro plan count is compared with its value at the start (the owner launches courses
@@ -36,7 +38,7 @@ const { lessonExample } = require(path.join(ROOT, 'lib/prompts/lesson-prompt.ts'
 const { qaTopic, publishNodeLesson, publishQaSyllabus, qaExamLogo } = require(path.join(ROOT, 'scripts/live/_qa-course.cjs'));
 
 const PRE = process.argv.includes('--pre');
-const FILE = '20261028000123_launch_mode_1.sql';
+const FILE = '20261118000148_pay1_cleanup.sql';
 const MIGRATION_SQL = fs.readFileSync(path.join(ROOT, 'supabase/migrations', FILE), 'utf8');
 
 let ok = true;
@@ -70,7 +72,7 @@ const COV = { total: 10, en: 1, hi: 0 };
     const ANON = { role: 'anon' };
     const STU = { sub: stu.id, role: 'authenticated', aal: 'aal1', app_metadata: {} };
     const svc = (sql, p) => as('service_role', { role: 'service_role' }, sql, p);
-    const set = (status, mode, cov = COV) => svc(`select public.fn_exam_course_launch_set($1, null, $2, $3, $4, null, $5) r`, [exam.id, status, mode, cov, ACTOR]);
+    const set = (status, cov = COV) => svc(`select public.fn_exam_course_launch_set($1, null, $2, $3, null, $4) r`, [exam.id, status, cov, ACTOR]);
     // counted over the fixture course's documents only (other courses may be launched by the owner)
     const count = async (fn, docs) => (await as('anon', ANON, `select count(*)::int n from public.${fn}() g(id) where g.id = any($1::uuid[])`, [docs])).rows?.[0]?.n;
     const course = async () => {
@@ -97,59 +99,49 @@ const COV = { total: 10, en: 1, hi: 0 };
     const migrate = async () => { if (PRE) await c.query(MIGRATION_SQL); };
     const outlineDocs = async () => [...new Set(((await q(`select public.fn_exam_course_outline($1, null, 'en') o`, [exam.id]))[0].o.chapters || []).flatMap((ch) => (ch.lessons || []).map((l) => l.document_id)))];
 
-    // ---------------- A: shape + grants
+    // ---------------- A: shape + grants (PAY-1 148)
     await chunk(async () => {
       await migrate();
       await course(); // a launch needs a published syllabus
-      const [old] = await q(`select to_regprocedure('public.fn_exam_course_launch_set(uuid, uuid, text, jsonb, uuid, text)') IS NOT NULL o`);
-      const stuCall = await as('authenticated', STU, `select public.fn_exam_course_launch_set($1, null, 'LIVE', 'FREE_ALL', '{"total":1,"en":1}', null, 'x@example.test')`, [exam.id]);
-      const badMode = await set('LIVE', 'FREE_SOME');
-      const live = await set('LIVE', 'FREE_ALL');
-      const anonMode = await as('anon', ANON, `select status, access_mode from public.exam_course_launches where exam_id = $1`, [exam.id]);
+      const [shape] = await q(`select to_regprocedure('public.fn_exam_course_launch_set(uuid, uuid, text, text, jsonb, uuid, text)') IS NOT NULL old7,
+          to_regprocedure('public.fn_gated_course_document_ids()') IS NOT NULL gated,
+          exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'exam_course_launches' and column_name = 'access_mode') col,
+          (select prosecdef from pg_proc where oid = to_regprocedure('public.fn_exam_course_launch_set(uuid, uuid, text, jsonb, uuid, text)')) secdef`);
+      const stuCall = await as('authenticated', STU, `select public.fn_exam_course_launch_set($1, null, 'LIVE', '{"total":1,"en":1}', null, 'x@example.test')`, [exam.id]);
+      const anonCall = await as('anon', ANON, `select public.fn_exam_course_launch_set($1, null, 'LIVE', '{"total":1,"en":1}', null, 'x@example.test')`, [exam.id]);
+      const live = await set('LIVE');
+      const anonRow = await as('anon', ANON, `select status from public.exam_course_launches where exam_id = $1`, [exam.id]);
       const anonCov = await as('anon', ANON, `select coverage from public.exam_course_launches`);
-      chk('A-1 the 122 signature is gone; a student cannot call (42501); an unknown mode is refused; anon reads status + access_mode (FREE_ALL), never the coverage (42501)',
-        !old.o && !stuCall.ok && stuCall.code === '42501' && !badMode.ok && live.ok && live.rows[0].r.access_mode === 'FREE_ALL'
-        && anonMode.ok && anonMode.rows[0]?.access_mode === 'FREE_ALL' && !anonCov.ok && anonCov.code === '42501',
-        JSON.stringify({ old: old.o, stuCall: stuCall.code, badMode: badMode.msg, live: live.ok || live.msg, anonMode, anonCov: anonCov.code }));
+      chk('A-1 no access_mode column, no gating function, no 7-argument launch function; the 6-argument one is INVOKER and a student / anon cannot call it (42501); it returns no mode; anon reads status, never the coverage (42501)',
+        !shape.old7 && !shape.gated && !shape.col && shape.secdef === false && !stuCall.ok && stuCall.code === '42501' && !anonCall.ok && anonCall.code === '42501'
+        && live.ok && live.rows[0].r.status === 'LIVE' && !('access_mode' in live.rows[0].r)
+        && anonRow.ok && anonRow.rows[0]?.status === 'LIVE' && !anonCov.ok && anonCov.code === '42501',
+        JSON.stringify({ shape, stuCall: stuCall.code, anonCall: anonCall.code, live: live.ok ? live.rows[0].r : live.msg, anonRow, anonCov: anonCov.code }));
     });
 
-    // ---------------- B: FREE_ALL gates nothing
+    // ---------------- B: launch / pause, audited without a mode
     await chunk(async () => {
       await migrate();
       await course();
       const docs = await outlineDocs();
       const n = docs.length;
       const liveBefore = await count('fn_live_course_document_ids', docs);
-      const live = await set('LIVE', 'FREE_ALL');
-      const gated = await count('fn_gated_course_document_ids', docs);
+      const noCov = await set('LIVE', null);
+      const live = await set('LIVE');
       const liveDocs = await count('fn_live_course_document_ids', docs);
-      chk(`B-1 a FREE_ALL launch gates nothing (gated = 0) while the course is LIVE (live lessons = the outline's ${n}; 0 before the launch)`, live.ok && n === 1 && liveBefore === 0 && gated === 0 && liveDocs === n, JSON.stringify({ live: live.ok || live.msg, gated, liveBefore, liveDocs, n }));
-    });
-
-    // ---------------- C: FREE_N needs an active plan; mode changes; pause keeps the mode
-    await chunk(async () => {
-      await migrate();
-      await course();
-      const docs = await outlineDocs();
-      const n = docs.length;
-      await q(`update public.pro_plan_versions set active = false where active`); // rolled back with the chunk
-      const noPlan = await set('LIVE', 'FREE_N');
-      const liveAll = await set('LIVE', 'FREE_ALL');
-      const toN = await set('LIVE', 'FREE_N');
-      await q(`update public.pro_plan_versions set active = true where plan_code = (select min(plan_code) from public.pro_plan_versions)`);
-      const toN2 = await set('LIVE', 'FREE_N');
-      const gated = await count('fn_gated_course_document_ids', docs);
-      const same = await set('LIVE', 'FREE_N');
-      const paused = await set('PAUSED', 'FREE_ALL');
-      const [row] = await q(`select status, access_mode from public.exam_course_launches where exam_id = $1`, [exam.id]);
-      const gatedPaused = await count('fn_gated_course_document_ids', docs);
-      const audit = (await q(`select action_type a, new_value ->> 'access_mode' m from public.admin_audit_logs where actor_email = $1 and action_type like 'EXAM_COURSE_%' order by created_at, id`, [ACTOR])).map((r) => `${r.a}:${r.m}`);
-      chk(`C-1 FREE_N refused while no Pro plan is active (launch and mode change); with one: LIVE FREE_ALL → FREE_N is EXAM_COURSE_MODE and gates the course (${n}); the same mode twice refused; a pause keeps FREE_N and gates nothing; audited`,
-        !noPlan.ok && /FREE_N needs payments/.test(noPlan.msg) && liveAll.ok && !toN.ok && /no Pro plan is active/.test(toN.msg) && toN2.ok && n === 1 && gated === n && !same.ok
-        && paused.ok && row.status === 'PAUSED' && row.access_mode === 'FREE_N' && gatedPaused === 0
+      const again = await set('LIVE');
+      const paused = await set('PAUSED');
+      const pausedDocs = await count('fn_live_course_document_ids', docs);
+      const pausedAgain = await set('PAUSED');
+      const relaunch = await set('LIVE');
+      const audit = (await q(`select action_type a, (new_value ? 'access_mode') or coalesce(old_value ? 'access_mode', false) m from public.admin_audit_logs where actor_email = $1 and action_type like 'EXAM_COURSE_%'`, [ACTOR]));
+      const kinds = audit.map((r) => r.a).sort();
+      chk(`B-1 launch → the course's ${n} lesson(s) live (0 before); a launch without coverage refused; LIVE again refused ("already LIVE"); pause → 0 live; pause again refused; relaunch ok; audited LAUNCH / PAUSE / LAUNCH, never with a mode`,
+        n === 1 && liveBefore === 0 && !noCov.ok && /coverage snapshot is required/.test(noCov.msg) && live.ok && liveDocs === n
+        && !again.ok && /already LIVE/.test(again.msg) && paused.ok && pausedDocs === 0 && !pausedAgain.ok && relaunch.ok
         // one transaction = one now(): compare the audit rows as a set, not by order
-        && JSON.stringify([...audit].sort()) === JSON.stringify(['EXAM_COURSE_LAUNCH:FREE_ALL', 'EXAM_COURSE_MODE:FREE_N', 'EXAM_COURSE_PAUSE:FREE_N']),
-        JSON.stringify({ noPlan: noPlan.msg, liveAll: liveAll.ok, toN: toN.msg, toN2: toN2.ok || toN2.msg, gated, n, same: same.msg, paused: paused.ok, row, gatedPaused, audit }));
+        && JSON.stringify(kinds) === JSON.stringify(['EXAM_COURSE_LAUNCH', 'EXAM_COURSE_LAUNCH', 'EXAM_COURSE_PAUSE']) && audit.every((r) => !r.m),
+        JSON.stringify({ n, liveBefore, noCov: noCov.msg, live: live.ok || live.msg, liveDocs, again: again.msg, paused: paused.ok || paused.msg, pausedDocs, pausedAgain: pausedAgain.msg, relaunch: relaunch.ok || relaunch.msg, audit }));
     });
 
     const [z] = await q(`select (select count(*)::int from public.admin_audit_logs where actor_email = $1) audit,

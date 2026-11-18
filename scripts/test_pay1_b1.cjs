@@ -102,7 +102,10 @@ test('P1-03 SECDEF allow-list: the 3 entries removed, max total / B-service lowe
   // total: every documented raise; B-service: only the rules that say "B-service by N" (143 raised B-internal / B-trigger)
   const totalRaise = sum(/max total raised by exactly (\d+)/);
   const svc = sum(/B-service by (\d+)/);
-  assert(a.max.total === 117 + sum(/max total \/ client_executable_callable \/ A raised by exactly (\d+)/) + totalRaise && a.max['B-service'] === 36 + svc, JSON.stringify(a.max));
+  // later drops (PAY-1 148): "max total and B-service lowered by exactly N" lowers both; "max total lowered by exactly N" the total alone
+  const bothLowered = sum(/max total and B-service lowered by exactly (\d+)/);
+  const totalLowered = bothLowered + sum(/max total lowered by exactly (\d+)/);
+  assert(a.max.total === 117 + sum(/max total \/ client_executable_callable \/ A raised by exactly (\d+)/) + totalRaise - totalLowered && a.max['B-service'] === 36 + svc - bothLowered, JSON.stringify(a.max));
   assert(a.rules.some((r) => /^PAY-1 B1/.test(r) && /lowered by exactly 3/.test(r)), 'rule note');
   return 'total 117, B-service 36';
 });

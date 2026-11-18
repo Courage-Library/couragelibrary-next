@@ -127,8 +127,12 @@ const SECDEF_PUBLIC_OK = {
 // items of SEC_HOTFIX6_REPORT §2.3; a new exposure needs a ruling + a fix, never an entry here)
 const SECDEF_PENDING_RULING = {};
 // P-9: service_role only — INC-3 set (082) + SEC-HOTFIX-7 ruling 1 (083)
-const SECDEF_LOCKED = ['fn_delete_exam_controlled', 'fn_authorize_and_start_test_attempt', 'fn_create_dynamic_mock_instance_atomic', 'fn_record_qualifying_streak_activity',
-  'fn_award_gamification_reward', 'fn_claim_reward_item', 'fn_reverse_reward_claim', 'fn_check_premium_access_and_quota'];
+// (PAY-1 148 dropped fn_authorize_and_start_test_attempt, fn_create_dynamic_mock_instance_atomic and
+// fn_check_premium_access_and_quota: no caller since B3 — they must stay gone, SECDEF_DROPPED)
+const SECDEF_LOCKED = ['fn_delete_exam_controlled', 'fn_record_qualifying_streak_activity',
+  'fn_award_gamification_reward', 'fn_claim_reward_item', 'fn_reverse_reward_claim'];
+const SECDEF_DROPPED = ['fn_authorize_and_start_test_attempt', 'fn_create_dynamic_mock_instance_atomic', 'fn_check_premium_access_and_quota',
+  'fn_get_due_flashcards', 'fn_create_custom_flashcard_deck'];
 // P-9: SEC-HOTFIX-7 rulings 2 + 3 (083) — authenticated + service_role, never anon / PUBLIC (internal auth checks /
 // RLS predicates whose policies are all TO authenticated)
 const SECDEF_AUTHENTICATED = ['fn_create_batch_assignment', 'fn_enroll_batch_student', 'fn_evaluate_descriptive_submission', 'fn_submit_descriptive_answer',
@@ -547,6 +551,7 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assertion failed'); };
         if (!f) bad.push(`${n} missing`);
         else if (f.anon_x || f.public_x || !f.auth_x || !f.svc_x || !f.sp) bad.push(`${n} not authenticated-only: ${JSON.stringify({ anon: f.anon_x, auth: f.auth_x, public: f.public_x, service: f.svc_x, sp: f.sp })}`);
       }
+      for (const n of SECDEF_DROPPED) if (rows.some((r) => r.n === n)) bad.push(`${n} is back (dropped by 148)`);
       for (const n of SECDEF_LOCKED) {
         const f = rows.find((r) => r.n === n);
         if (!f) bad.push(`${n} missing`);
@@ -564,14 +569,11 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assertion failed'); };
       try {
         const call = {
           fn_delete_exam_controlled: `SELECT public.fn_delete_exam_controlled(gen_random_uuid(), 'sec-hotfix6-probe')`,
-          fn_authorize_and_start_test_attempt: `SELECT public.fn_authorize_and_start_test_attempt(gen_random_uuid(), gen_random_uuid())`,
-          fn_create_dynamic_mock_instance_atomic: `SELECT public.fn_create_dynamic_mock_instance_atomic(gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), 'x', 'x', 'x', 'x', 1, 1, 0, '{}'::jsonb, '[]'::jsonb, 1)`,
           fn_record_qualifying_streak_activity: `SELECT public.fn_record_qualifying_streak_activity(gen_random_uuid(), 'x', gen_random_uuid(), 0, 'UTC')`,
           // SEC-HOTFIX-7 ruling 1 (083)
           fn_award_gamification_reward: `SELECT public.fn_award_gamification_reward(gen_random_uuid(), 'x', 'x', gen_random_uuid(), 'sec-hotfix7-probe', 0, 'x', '{}'::jsonb)`,
           fn_claim_reward_item: `SELECT public.fn_claim_reward_item(gen_random_uuid(), gen_random_uuid(), 'x', 'x', 'x', 'x', 'x', 'x', 'sec-hotfix7-probe')`,
           fn_reverse_reward_claim: `SELECT public.fn_reverse_reward_claim(gen_random_uuid(), gen_random_uuid(), 'x')`,
-          fn_check_premium_access_and_quota: `SELECT public.fn_check_premium_access_and_quota(gen_random_uuid(), gen_random_uuid(), 'x')`,
         };
         const run = async (key, role, claims, sql) => {
           await q('SAVEPOINT p9');

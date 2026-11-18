@@ -129,7 +129,7 @@ const ACTOR = 'ca7-smoke@courage-library.test';
       await migrate();
       await fixture();
       // LAUNCH-MODE-1 (123): the launch carries an access mode; FREE_ALL keeps this chunk's 122 assertions
-      const set = (status, cov) => svc(`select public.fn_exam_course_launch_set($1, null, $2, 'FREE_ALL', $3, null, $4) r`, [exam.id, status, cov, ACTOR]);
+      const set = (status, cov) => svc(`select public.fn_exam_course_launch_set($1, null, $2, $3, null, $4) r`, [exam.id, status, cov, ACTOR]);
       const pauseFirst = await set('PAUSED', null);
       const noCov = await set('LIVE', null);
       const live = await set('LIVE', { total: 10, en: 1, hi: 0 });
@@ -141,7 +141,7 @@ const ACTOR = 'ca7-smoke@courage-library.test';
       // over the QA course's documents only (the owner may launch real courses)
       const liveOf = () => as('anon', ANON, `select count(*)::int n from public.fn_live_course_document_ids() g(id) where g.id = any($1::uuid[])`, [[...outlineDocs]]);
       const liveDocs = await liveOf();
-      const stuSet = await as('authenticated', STU, `select public.fn_exam_course_launch_set($1, null, 'LIVE', 'FREE_ALL', '{"total":1,"en":1}', null, 'x@example.test')`, [exam.id]);
+      const stuSet = await as('authenticated', STU, `select public.fn_exam_course_launch_set($1, null, 'LIVE', '{"total":1,"en":1}', null, 'x@example.test')`, [exam.id]);
       const adminInsert = await as('authenticated', ADMIN, `insert into public.exam_course_launches (exam_id, status, coverage, launched_by_email, changed_by_email) values ($1, 'LIVE', '{}', 'x', 'x')`, [exam.id]);
       const paused = await set('PAUSED', null);
       const anonAfter = await as('anon', ANON, `select count(*)::int n from public.exam_course_launches where exam_id = $1`, [exam.id]);

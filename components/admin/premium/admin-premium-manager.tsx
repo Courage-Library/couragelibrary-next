@@ -1014,27 +1014,6 @@ export function AdminPremiumManager({
                 )}
               </div>
 
-              {/* Live Quota Breakdown */}
-              <div className="space-y-3 pt-3 border-t border-slate-100">
-                <h3 className="text-xs font-extrabold text-slate-700 uppercase tracking-wider font-mono">
-                  Real-time Quota Breakdown (All 8 Categories)
-                </h3>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                  {candidateData.quotaSummary.map((q) => (
-                    <div key={q.quotaKey} className="p-3 rounded-xl border border-slate-200 bg-white">
-                      <span className="text-[10px] font-bold text-slate-500 uppercase font-mono block truncate">{q.label}</span>
-                      <div className="mt-1 flex items-baseline justify-between">
-                        <span className="text-sm font-black text-slate-900">
-                          {q.isUnlimited ? "Unlimited" : `${q.quotaUsed} / ${q.quotaLimit}`}
-                        </span>
-                        <span className="text-[9px] text-slate-600 font-medium">
-                          {q.isUnlimited ? "∞" : `${q.quotaRemaining} left`}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </Card>
           )}
 

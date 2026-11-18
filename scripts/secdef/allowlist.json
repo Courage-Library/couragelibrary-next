@@ -27,16 +27,18 @@
   "PAY-1 B2b part 2 (migration 144, owner GO 2026-11-15): max total raised by exactly 1 and B-service by 1 for fn_reserved_question_ids (service_role only, read-only)",
   "PAY-1 B2b part 2 step 1 (migration 145, owner GO 2026-11-15, \"narrow DEFINER reads\"): max total / client_executable_callable / A raised by exactly 5 for fn_public_exam_mocks, fn_public_mock_counts, fn_public_hindi_question_count, fn_public_mock_shape and fn_public_ca_daily_mock_id (anon + authenticated, P-9 SECDEF_PUBLIC_OK: listing figures only, filters hard-coded, no content columns); anon_or_public raised by exactly 5 for the same five",
   "PAY-1 B2b part 2 step 2 (migration 146, owner GO 2026-11-15, the client revoke): max total / client_executable_callable / A raised by exactly 2 for fn_attempt_answer_writable (authenticated: the attempt_answers INSERT / UPDATE policies' check, a boolean for the caller's own attempt) and fn_mock_test_published (anon + authenticated, P-9 SECDEF_PUBLIC_OK: the mock_sections policy's check, a boolean only); anon_or_public raised by exactly 1 for fn_mock_test_published",
-  "PAY-1 B3 part 1 (migration 147, owner GO 2026-11-15): max total / client_executable_callable / A raised by exactly 1 for fn_access_allowed_many (anon + authenticated, P-9 SECDEF_PUBLIC_OK: the central check for a list of keys — tier + boolean per key only); anon_or_public raised by exactly 1 for fn_access_allowed_many"
+  "PAY-1 B3 part 1 (migration 147, owner GO 2026-11-15): max total / client_executable_callable / A raised by exactly 1 for fn_access_allowed_many (anon + authenticated, P-9 SECDEF_PUBLIC_OK: the central check for a list of keys — tier + boolean per key only); anon_or_public raised by exactly 1 for fn_access_allowed_many",
+  "PAY-1 148 (owner GO 2026-11-18, cleanup after the B3 app is live): max total and B-service lowered by exactly 3 — migration 148 drops fn_authorize_and_start_test_attempt, fn_check_premium_access_and_quota and fn_create_dynamic_mock_instance_atomic (service_role only, no caller since B3)",
+  "PAY-1 148 (same migration): max total lowered by exactly 2 — fn_get_due_flashcards and fn_create_custom_flashcard_deck dropped (class C, no client EXECUTE since 090, no caller); client_executable_callable / A / C unchanged"
  ],
  "max": {
-  "total": 134,
+  "total": 129,
   "client_executable_callable": 62,
   "anon_or_public": 10,
   "A": 62,
   "C": 0,
   "B-trigger": 17,
-  "B-service": 40,
+  "B-service": 37,
   "B-internal": 1
  },
  "public_ok": [
@@ -52,12 +54,6 @@
   "fn_access_allowed_many(p_kind text, p_keys text[])"
  ],
  "functions": {
-  "fn_authorize_and_start_test_attempt(p_user_id uuid, p_mock_test_id uuid)": {
-   "class": "B-service",
-   "client": [],
-   "search_path": "public, pg_temp",
-   "reason": "service-role RPC with an app caller (F-5 INVOKER conversion deferred)"
-  },
   "fn_award_gamification_reward(p_user_id uuid, p_event_type text, p_source_type text, p_source_id uuid, p_idempotency_key text, p_calculated_coins integer, p_reason_code text, p_metadata jsonb)": {
    "class": "B-service",
    "client": [],
@@ -71,12 +67,6 @@
    ],
    "search_path": "public, pg_temp",
    "reason": "RLS predicate used by policies (F-3 deferred)"
-  },
-  "fn_check_premium_access_and_quota(p_user_id uuid, p_exam_id uuid, p_test_type text)": {
-   "class": "B-service",
-   "client": [],
-   "search_path": "public, pg_temp",
-   "reason": "service-role RPC with an app caller (F-5 INVOKER conversion deferred)"
   },
   "fn_claim_reward_item(p_user_id uuid, p_reward_id uuid, p_idempotency_key text, p_shipping_name text, p_shipping_phone text, p_shipping_address text, p_shipping_city text, p_shipping_state text, p_shipping_pincode text)": {
    "class": "B-service",
@@ -120,12 +110,6 @@
    "search_path": "public, pg_temp",
    "reason": "client entrypoint; own check: auth.uid() + JWT role"
   },
-  "fn_create_custom_flashcard_deck(p_title text, p_description text, p_topic_id uuid, p_cards jsonb)": {
-   "class": "C",
-   "client": [],
-   "search_path": "public, pg_temp",
-   "reason": "no app caller; client EXECUTE revoked by SECDEF-S2-2 (090) — service_role / owner only"
-  },
   "fn_create_discussion_thread(p_context_type text, p_context_id uuid, p_title text, p_initial_content text)": {
    "class": "A",
    "client": [
@@ -133,12 +117,6 @@
    ],
    "search_path": "public, pg_temp",
    "reason": "client entrypoint; own check: auth.uid()"
-  },
-  "fn_create_dynamic_mock_instance_atomic(p_user_id uuid, p_exam_id uuid, p_template_id uuid, p_title text, p_slug text, p_test_type text, p_quota_key text, p_duration_minutes integer, p_marks_per_question numeric, p_negative_mark numeric, p_metadata jsonb, p_questions jsonb, p_ttl_hours integer)": {
-   "class": "B-service",
-   "client": [],
-   "search_path": "public, pg_temp",
-   "reason": "service-role RPC with an app caller (F-5 INVOKER conversion deferred)"
   },
   "fn_create_question_revision(p_question_id uuid, p_actor uuid, p_payload jsonb)": {
    "class": "B-service",
@@ -260,12 +238,6 @@
    ],
    "search_path": "public, pg_temp",
    "reason": "client entrypoint; own check: auth.uid() + JWT role"
-  },
-  "fn_get_due_flashcards(p_deck_id uuid, p_limit integer)": {
-   "class": "C",
-   "client": [],
-   "search_path": "public, pg_temp",
-   "reason": "no app caller; client EXECUTE revoked by SECDEF-S2-2 (090) — service_role / owner only"
   },
   "fn_has_batch_faculty_access(p_batch_id uuid, p_user_id uuid)": {
    "class": "A",

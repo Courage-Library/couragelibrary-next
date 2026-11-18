@@ -77,15 +77,13 @@ export async function saveTranslationDraftAction(documentId: string, paste: stri
   return sanitizeActionResult("saveTranslationDraftAction", r);
 }
 
-/** CA-7 / LAUNCH-MODE-1: launch (LIVE, with an access mode), change the mode, or pause — admin only, audited in the database. */
-export async function setCourseLaunchAction(examId: string, status: "LIVE" | "PAUSED", accessMode: "FREE_ALL" | "FREE_N"): Promise<{ success: true; data: { status: string; accessMode: string } } | { success: false; code: string; error: string }> {
+/** CA-7: launch (LIVE) or pause — admin only, audited in the database. PAY-1 148: no access mode (lesson Free / Pro is the
+ * LESSON policy in "Free & Pro"). */
+export async function setCourseLaunchAction(examId: string, status: "LIVE" | "PAUSED"): Promise<{ success: true; data: { status: string } } | { success: false; code: string; error: string }> {
   const __auth = await guardAdminAction() /* CA-7: admin only */;
   if (!__auth.ok) return __auth;
   if (status !== "LIVE" && status !== "PAUSED") return { success: false, code: "VALIDATION", error: "Status must be LIVE or PAUSED." };
-  // PAY-1 B3 (owner decision 2): FREE_N is retired — lesson Free / Pro lives in "Free & Pro" (the LESSON policy)
-  if (accessMode === "FREE_N") return { success: false, code: "VALIDATION", error: "The per-chapter Pro mode is retired. Set lesson access in Free & Pro." };
-  if (accessMode !== "FREE_ALL") return { success: false, code: "VALIDATION", error: "Choose an access mode." };
-  const r = await CoverageService.setLaunch(examId, status, accessMode);
+  const r = await CoverageService.setLaunch(examId, status);
   if (r.success) {
     revalidatePath("/admin/coverage");
     revalidateTag(LEARN_CACHE_TAG);
