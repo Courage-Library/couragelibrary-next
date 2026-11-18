@@ -8,9 +8,19 @@
  *   webhook — raw-body HMAC → event id claimed once (a failed event may be retried) → paid: the same fetch + snapshot
  *             check → fn_fulfil_pro_order(WEBHOOK); failed → fn_mark_pro_order_failed; refund → fn_refund_pro_payment
  * Any mismatch → no fulfil, a 400 and an ids-only log line. Prices never come from the client.
+ * PAY-1 B4 (owner decisions R1–R4, 2026-11-18):
+ *   mode      — every order carries the key mode (test / live); fulfil refuses another mode's order; test-mode orders
+ *               only for QA identities (here, before any gateway call, and again in SQL)
+ *   reconcile — the job (POST /api/cron/reconcile) reads the order's payments from Razorpay: captured → fulfil
+ *               (RECONCILE); authorized → capture after the SAME checks as verify, then fulfil (R2); nothing paid after
+ *               2 h → FAILED (a late payment still fulfils); a second captured payment → the database records a double
+ *               charge for a dashboard refund (R4). Pro is granted at most once (fn_fulfil_pro_order: row lock, one
+ *               entitlement per order). Runs never overlap (a lease row); every step is idempotent anyway.
  */
+import { isQaIdentity } from "../qa/fixtures";
 import {
   checkPaymentAgainstOrder,
+  classifyOrderPayments,
   GATEWAY_ORDER_ID,
   isIdempotencyKey,
   isProPlanCode,
@@ -52,7 +62,12 @@ export interface ProDeps {
   log(entry: ProFlowLog): void;
   /** Receipt email etc. — runs after the DB commit; a failure here never undoes a payment. */
   afterFulfil?(result: FulfilResult): Promise<void>;
+  /** PAY-1 B4: the key mode of this server (rzp_test_ → test). Absent = live (the F9 behaviour). */
+  mode?: GatewayMode;
 }
+
+export type GatewayMode = "test" | "live";
+export type FulfilSource = "CLIENT_VERIFY" | "WEBHOOK" | "RECONCILE";
 
 export interface FulfilResult {
   success: boolean;
@@ -72,13 +87,16 @@ const obj = (v: unknown): Record<string, unknown> => (v && typeof v === "object"
 
 // ------------------------------------------------------------------ order
 export async function createProOrder(
-  input: { userId: string | null; planCode: unknown; idempotencyKey: unknown },
+  input: { userId: string | null; email?: string | null; planCode: unknown; idempotencyKey: unknown },
   deps: ProDeps,
 ): Promise<FlowResult<{ gatewayOrderId: string; amountPaise: number; currency: string; planCode: string }>> {
   if (!input.userId) return { ok: false, status: 401, code: "UNAUTHENTICATED" };
   if (!isProPlanCode(input.planCode) || !isIdempotencyKey(input.idempotencyKey)) return { ok: false, status: 400, code: "INVALID_INPUT" };
+  const mode: GatewayMode = deps.mode ?? "live";
+  // PAY-1 B4 (G7): test-mode checkout writes into the shared database — QA identities only (SQL checks it again)
+  if (mode === "test" && !isQaIdentity(input.email)) return { ok: false, status: 403, code: "TEST_MODE_QA_ONLY" };
 
-  const created = await deps.rpc("fn_create_pro_order", { p_user_id: input.userId, p_plan_code: input.planCode, p_idempotency_key: input.idempotencyKey });
+  const created = await deps.rpc("fn_create_pro_order", { p_user_id: input.userId, p_plan_code: input.planCode, p_idempotency_key: input.idempotencyKey, p_gateway_mode: mode });
   const r = obj(created.data);
   if (created.error || r.success !== true) {
     const code = created.error ? "DB_ERROR" : String(r.code ?? "ORDER_REFUSED");
@@ -111,7 +129,7 @@ export async function createProOrder(
 }
 
 // ------------------------------------------------------------------ fulfil (shared by verify + webhook)
-async function fulfilChecked(order: ProOrderRow, payment: GatewayPayment, source: "CLIENT_VERIFY" | "WEBHOOK", deps: ProDeps, allowCapture: boolean): Promise<FlowResult<{ result: FulfilResult }>> {
+async function fulfilChecked(order: ProOrderRow, payment: GatewayPayment, source: FulfilSource, deps: ProDeps, allowCapture: boolean): Promise<FlowResult<{ result: FulfilResult }>> {
   const check = checkPaymentAgainstOrder(payment, order);
   if (!check.ok) {
     deps.log({ fn: "fulfil", op: source, code: check.reason, ids: { order_id: order.id, gateway_order_id: order.gateway_order_id, payment_id: payment.id } });
@@ -135,6 +153,7 @@ async function fulfilChecked(order: ProOrderRow, payment: GatewayPayment, source
     p_amount_paise: paid.amount,
     p_currency: paid.currency,
     p_source: source,
+    p_gateway_mode: deps.mode ?? "live",
   });
   const r: FulfilResult = { success: false, ...obj(f.data) };
   if (f.error || r.success !== true) {
@@ -256,4 +275,117 @@ export async function handleWebhook(
   }
   await finish("PROCESSED");
   return { ok: true, outcome: done.result.already_fulfilled ? "already_fulfilled" : "fulfilled" };
+}
+
+// ------------------------------------------------------------------ reconciliation (PAY-1 B4)
+/** Owner R3: check orders older than 15 min, FAILED after 2 h with nothing paid, look back 7 days. */
+export const RECONCILE = { checkAfterMinutes: 15, giveUpAfterMinutes: 120, lookBackDays: 7, batch: 20, leaseSeconds: 240 } as const; // batch 20: fits the 60 s function limit
+
+export interface ReconcileOrderRow extends ProOrderRow {
+  created_at: string;
+}
+
+export interface ReconcileDeps extends ProDeps {
+  /** One run at a time: a lease row (job, holder, until). false = another run holds it. */
+  acquireLease(holder: string, seconds: number): Promise<boolean>;
+  releaseLease(holder: string): Promise<void>;
+  /** PENDING / FAILED PRO orders of this mode with a gateway order, created in [since, olderThan), oldest first. */
+  listCandidates(input: { mode: GatewayMode; olderThan: Date; since: Date; limit: number }): Promise<ReconcileOrderRow[]>;
+  /** refund.processed events left FAILED with PAYMENT_NOT_FOUND (a refund that came before the fulfil). */
+  listRefundReplays(input: { since: Date; limit: number }): Promise<Array<{ eventId: string; payload: unknown }>>;
+  now(): Date;
+  newHolder(): string;
+}
+
+export type ReconcileOutcome =
+  | "fulfilled"
+  | "already_paid"
+  | "captured_fulfilled"
+  | "marked_failed"
+  | "waiting"
+  | "gateway_error"
+  | "refused";
+
+export async function reconcileOrder(order: ReconcileOrderRow, deps: ReconcileDeps): Promise<{ outcome: ReconcileOutcome; doubleCharges: number; code?: string }> {
+  let payments: GatewayPayment[];
+  try {
+    payments = await deps.api.listOrderPayments(order.gateway_order_id);
+  } catch (e) {
+    deps.log({ fn: "reconcileOrder", op: "razorpay.listOrderPayments", code: e instanceof Error ? e.message.slice(0, 60) : "UNKNOWN", ids: { order_id: order.id } });
+    return { outcome: "gateway_error", doubleCharges: 0 };
+  }
+  const c = classifyOrderPayments(payments, order);
+  if (c.kind === "captured") {
+    const r = await fulfilChecked(order, c.first, "RECONCILE", deps, false);
+    let doubleCharges = 0;
+    // every further captured payment on this order: fn_fulfil_pro_order refuses it (ORDER_ALREADY_PAID) and records
+    // PRO_DOUBLE_CHARGE once per payment for a dashboard refund (R4) — Pro is never granted twice
+    for (const extra of c.extra) {
+      const x = await fulfilChecked(order, extra, "RECONCILE", deps, false);
+      if (!x.ok && x.code === "ORDER_ALREADY_PAID") doubleCharges++;
+    }
+    if (!r.ok) return { outcome: r.status === 502 ? "gateway_error" : "refused", doubleCharges, code: r.code };
+    return { outcome: r.result.already_fulfilled ? "already_paid" : "fulfilled", doubleCharges };
+  }
+  if (c.kind === "authorized") {
+    // R2: capture only after the SAME order / amount / currency checks as the verify step (fulfilChecked), then fulfil
+    const r = await fulfilChecked(order, c.first, "RECONCILE", deps, true);
+    if (!r.ok) return { outcome: r.status === 502 ? "gateway_error" : "refused", doubleCharges: 0, code: r.code };
+    return { outcome: r.result.already_fulfilled ? "already_paid" : "captured_fulfilled", doubleCharges: 0 };
+  }
+  const ageMin = (deps.now().getTime() - new Date(order.created_at).getTime()) / 60000;
+  if (order.status === "PENDING" && ageMin >= RECONCILE.giveUpAfterMinutes) {
+    const m = await deps.rpc("fn_mark_pro_order_failed", { p_gateway_order_id: order.gateway_order_id });
+    if (m.error) {
+      deps.log({ fn: "reconcileOrder", op: "fn_mark_pro_order_failed", code: m.error.code ?? "DB_ERROR", ids: { order_id: order.id } });
+      return { outcome: "refused", doubleCharges: 0, code: "DB_ERROR" };
+    }
+    return { outcome: "marked_failed", doubleCharges: 0 };
+  }
+  return { outcome: "waiting", doubleCharges: 0 };
+}
+
+export interface ReconcileSummary {
+  outcome: "done" | "busy";
+  checked: number;
+  counts: Partial<Record<ReconcileOutcome, number>>;
+  doubleCharges: number;
+  refundsReplayed: number;
+  refundsWaiting: number;
+}
+
+export async function runReconciliation(deps: ReconcileDeps): Promise<ReconcileSummary> {
+  const empty: ReconcileSummary = { outcome: "busy", checked: 0, counts: {}, doubleCharges: 0, refundsReplayed: 0, refundsWaiting: 0 };
+  const holder = deps.newHolder();
+  if (!(await deps.acquireLease(holder, RECONCILE.leaseSeconds))) return empty;
+  const sum: ReconcileSummary = { ...empty, outcome: "done", counts: {} };
+  try {
+    const now = deps.now().getTime();
+    const since = new Date(now - RECONCILE.lookBackDays * 86400e3);
+    const orders = await deps.listCandidates({ mode: deps.mode ?? "live", olderThan: new Date(now - RECONCILE.checkAfterMinutes * 60e3), since, limit: RECONCILE.batch });
+    for (const o of orders) {
+      const r = await reconcileOrder(o, deps);
+      sum.checked++;
+      sum.counts[r.outcome] = (sum.counts[r.outcome] ?? 0) + 1;
+      sum.doubleCharges += r.doubleCharges;
+    }
+    // a refund that arrived before the fulfil: replay it once its payment is recorded
+    for (const ev of await deps.listRefundReplays({ since, limit: RECONCILE.batch })) {
+      const p = parseWebhook(ev.payload);
+      if (!p || p.kind !== "REFUND" || !p.paymentId || !p.refundId || !p.refundAmountPaise) continue;
+      // fn_refund_pro_payment is idempotent per refund id; PAYMENT_NOT_FOUND = its payment is still not recorded → wait
+      const rf = await deps.rpc("fn_refund_pro_payment", { p_payment_id: p.paymentId, p_refund_amount_paise: p.refundAmountPaise, p_gateway_refund_id: p.refundId });
+      if (!rf.error && obj(rf.data).success === true) {
+        await deps.finishWebhookEvent(ev.eventId, "PROCESSED");
+        sum.refundsReplayed++;
+      } else if (!rf.error && obj(rf.data).code === "PAYMENT_NOT_FOUND") {
+        sum.refundsWaiting++;
+      } else {
+        deps.log({ fn: "runReconciliation", op: "fn_refund_pro_payment", code: rf.error?.code ?? String(obj(rf.data).code ?? "REFUND_REFUSED"), ids: { payment_id: p.paymentId, refund_id: p.refundId } });
+      }
+    }
+  } finally {
+    await deps.releaseLease(holder);
+  }
+  return sum;
 }

@@ -4,7 +4,8 @@ import { createAdminServerSupabaseClient } from "@/lib/supabase/server";
 import { checkoutState } from "@/config/payments";
 import { reportWriteFailure } from "@/lib/ops/write-failure";
 import { createRazorpayApi } from "./razorpay-core";
-import type { ProDeps, ProOrderRow } from "./pro-flows";
+import { randomUUID } from "node:crypto";
+import type { ProDeps, ProOrderRow, ReconcileDeps, ReconcileOrderRow } from "./pro-flows";
 import type { ProAccountView, ProPlanView } from "./pro-types";
 
 /**
@@ -59,6 +60,7 @@ export function getProDeps(): ProDeps | null {
     keySecret: process.env.RAZORPAY_KEY_SECRET ?? "",
     webhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET ?? "",
     log,
+    mode: state.mode, // PAY-1 B4: orders carry the key mode; fulfil refuses another mode
     afterFulfil: async (r) => {
       await sendReceiptEmail(r.order_id ?? null);
     },
@@ -152,4 +154,65 @@ export async function getProEndingSoon(userId: string | null): Promise<{ endsAt:
   if (account.unlimited || !account.currentEnd) return null;
   const daysLeft = Math.ceil((new Date(account.currentEnd).getTime() - Date.now()) / 86400e3);
   return daysLeft <= 7 && daysLeft >= 0 ? { endsAt: account.currentEnd, daysLeft } : null;
+}
+
+const RECONCILE_JOB = "pro_reconcile";
+
+/**
+ * PAY-1 B4: the reconciliation job's wiring (POST /api/cron/reconcile; owner R1–R4). null while checkout is closed — the
+ * job is then a no-op. Reads with the service-role client (the payment tables are service-role only).
+ */
+export function getReconcileDeps(): ReconcileDeps | null {
+  const base = getProDeps();
+  if (!base) return null;
+  const admin = createAdminServerSupabaseClient();
+  return {
+    ...base,
+    acquireLease: async (holder, seconds) => {
+      const { data, error } = await admin.rpc("fn_payment_job_lease", { p_job: RECONCILE_JOB, p_holder: holder, p_seconds: seconds });
+      if (error) log({ fn: "acquireLease", op: "fn_payment_job_lease", code: error.code, ids: {} });
+      return !error && data === true;
+    },
+    releaseLease: async (holder) => {
+      const { error } = await admin.rpc("fn_payment_job_lease", { p_job: RECONCILE_JOB, p_holder: holder, p_seconds: 0 });
+      if (error) log({ fn: "releaseLease", op: "fn_payment_job_lease", code: error.code, ids: {} });
+    },
+    listCandidates: async ({ mode, olderThan, since, limit }) => {
+      const { data, error } = await admin
+        .from("payment_orders")
+        .select("id, user_id, gateway_order_id, amount_paise, currency, status, created_at")
+        .eq("order_type", "PRO_PLAN")
+        .eq("gateway_mode", mode)
+        .in("status", ["PENDING", "FAILED"])
+        .not("gateway_order_id", "is", null)
+        .lt("created_at", olderThan.toISOString())
+        .gte("created_at", since.toISOString())
+        .order("created_at", { ascending: true })
+        .limit(limit);
+      if (error) {
+        log({ fn: "listCandidates", op: "select", code: error.code, ids: {} });
+        return [];
+      }
+      return (data ?? []).filter((o) => o.gateway_order_id && o.amount_paise) as ReconcileOrderRow[];
+    },
+    listRefundReplays: async ({ since, limit }) => {
+      const { data, error } = await admin
+        .from("payment_webhook_events")
+        .select("gateway_event_id, raw_payload")
+        .eq("gateway", "RAZORPAY")
+        .eq("event_type", "refund.processed")
+        .eq("processing_status", "FAILED")
+        .eq("processing_error", "PAYMENT_NOT_FOUND")
+        .gte("received_at", since.toISOString())
+        .order("received_at", { ascending: true })
+        .limit(limit);
+      if (error) {
+        log({ fn: "listRefundReplays", op: "select", code: error.code, ids: {} });
+        return [];
+      }
+      return (data ?? []).map((e) => ({ eventId: e.gateway_event_id, payload: e.raw_payload }));
+    },
+    now: () => new Date(),
+    newHolder: () => randomUUID(),
+  };
 }

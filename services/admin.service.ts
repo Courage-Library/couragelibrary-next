@@ -269,7 +269,8 @@ export class AdminService {
       sb.from("descriptive_questions").select("*", { count: "exact", head: true }), // TYPES-1 B6 (Class B): descriptive_prompts never existed
       sb.from("institutes").select("*", { count: "exact", head: true }),
       sb.from("discussion_moderation_flags").select("*", { count: "exact", head: true }), // TYPES-1 B6 (Class B): community_moderation_flags never existed
-      sb.from("payment_orders").select("*", { count: "exact", head: true }),
+      // PAY-1 B4: test-mode (QA) orders never count
+      sb.from("payment_orders").select("*", { count: "exact", head: true }).eq("gateway_mode", "live"),
     ]);
 
     return {
@@ -1554,16 +1555,24 @@ export class AdminService {
     // TYPES-1 B6 (Class B): subscription_plans has plan_code / base_price_inr (code / price_inr do not exist → 42703),
     // and /admin/billing expects { plans, orders } (the old array return crashed the page on plans.length).
     const supabase = await createServerSupabaseClient();
-    const [plansRes, ordersRes] = await Promise.all([
+    const [plansRes, ordersRes, refundRes] = await Promise.all([
       supabase
         .from("subscription_plans")
         .select("id, name, plan_code, base_price_inr, duration_days, is_active, created_at")
         .order("created_at", { ascending: false }),
       supabase
         .from("payment_orders")
-        .select("id, order_type, total_payable_amount, gateway, status, created_at")
+        .select("id, order_type, total_payable_amount, gateway, status, created_at, gateway_mode")
         .order("created_at", { ascending: false })
         .limit(200),
+      // PAY-1 B4 (owner R4): captured payments Pro was NOT granted for (a second payment on a paid order, or a payment on an
+      // order that can no longer be fulfilled) — recorded by fn_fulfil_pro_order; refunds happen in the Razorpay dashboard
+      createAdminServerSupabaseClient()
+        .from("admin_audit_logs")
+        .select("id, action_type, target_id, new_value, created_at")
+        .in("action_type", ["PRO_DOUBLE_CHARGE", "PRO_PAYMENT_TO_REFUND", "PRO_UNAPPLIED_PAYMENT_REFUNDED"])
+        .order("created_at", { ascending: false })
+        .limit(300),
     ]);
 
     const plans = (plansRes.data || []).map((b) => ({
@@ -1582,8 +1591,24 @@ export class AdminService {
       gateway: o.gateway,
       status: o.status,
       createdAt: o.created_at,
+      mode: (o.gateway_mode === "test" ? "test" : "live") as "test" | "live",
     }));
-    return { plans, orders };
+    const refundRows = refundRes.data || [];
+    const refunded = new Set(refundRows.filter((a) => a.action_type === "PRO_UNAPPLIED_PAYMENT_REFUNDED").map((a) => String(((a.new_value ?? {}) as Record<string, unknown>).payment_id ?? "")));
+    const toRefund = refundRows.filter((a) => a.action_type !== "PRO_UNAPPLIED_PAYMENT_REFUNDED").map((a) => {
+      const v = (a.new_value ?? {}) as Record<string, unknown>;
+      return {
+        id: a.id,
+        kind: a.action_type === "PRO_DOUBLE_CHARGE" ? ("DOUBLE_CHARGE" as const) : ("NOT_FULFILLABLE" as const),
+        orderId: a.target_id,
+        paymentId: typeof v.payment_id === "string" ? v.payment_id : null,
+        amountPaise: typeof v.amount_paise === "number" ? v.amount_paise : null,
+        mode: v.gateway_mode === "test" ? ("test" as const) : ("live" as const),
+        refunded: typeof v.payment_id === "string" && refunded.has(v.payment_id),
+        createdAt: a.created_at,
+      };
+    });
+    return { plans, orders, toRefund, toRefundError: !!refundRes.error };
   }
 
   /**

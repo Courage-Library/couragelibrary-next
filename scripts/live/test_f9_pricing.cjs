@@ -57,7 +57,7 @@ let ok = true; const chk = (n, cond, info) => { if (!cond) ok = false; console.l
         }
       }
       chk('G-2 anon / authenticated: no read of settings / counter / reminders; no EXECUTE on any payment function (incl. the legacy fn_create_payment_order)', denials.length === 0, denials.join(' | '));
-      const [g] = await q(`select has_function_privilege('service_role','public.fn_fulfil_pro_order(text,text,integer,text,text)','EXECUTE') f, has_table_privilege('service_role','public.payment_receipts','INSERT') r,
+      const [g] = await q(`select has_function_privilege('service_role','public.fn_fulfil_pro_order(text,text,integer,text,text,text)','EXECUTE') f, has_table_privilege('service_role','public.payment_receipts','INSERT') r,
         (select count(*)::int from pg_proc where proname in ('fn_has_pro','fn_create_pro_order','fn_attach_gateway_order','fn_fulfil_pro_order','fn_mark_pro_order_failed','fn_refund_pro_payment','fn_grant_library_pro','fn_revoke_library_pro') and prosecdef and proconfig::text like '%search_path=%' ) n`);
       chk('G-3 service_role can run the 8 functions (SECURITY DEFINER, search_path pinned) and write receipts', g.f && g.r && g.n === 8, JSON.stringify(g));
     });

@@ -4544,6 +4544,24 @@ export type Database = {
           },
         ]
       }
+      payment_job_leases: {
+        Row: {
+          holder: string
+          job: string
+          lease_until: string
+        }
+        Insert: {
+          holder: string
+          job: string
+          lease_until: string
+        }
+        Update: {
+          holder?: string
+          job?: string
+          lease_until?: string
+        }
+        Relationships: []
+      }
       payment_orders: {
         Row: {
           amount_paise: number | null
@@ -4555,6 +4573,7 @@ export type Database = {
           expires_at: string
           founding: boolean
           gateway: string
+          gateway_mode: string
           gateway_order_id: string | null
           id: string
           idempotency_key: string | null
@@ -4581,6 +4600,7 @@ export type Database = {
           expires_at?: string
           founding?: boolean
           gateway?: string
+          gateway_mode?: string
           gateway_order_id?: string | null
           id?: string
           idempotency_key?: string | null
@@ -4607,6 +4627,7 @@ export type Database = {
           expires_at?: string
           founding?: boolean
           gateway?: string
+          gateway_mode?: string
           gateway_order_id?: string | null
           id?: string
           idempotency_key?: string | null
@@ -9333,6 +9354,7 @@ export type Database = {
       }
       fn_create_pro_order: {
         Args: {
+          p_gateway_mode?: string
           p_idempotency_key: string
           p_plan_code: string
           p_user_id: string
@@ -9445,6 +9467,7 @@ export type Database = {
           p_amount_paise: number
           p_currency: string
           p_gateway_order_id: string
+          p_gateway_mode?: string
           p_payment_id: string
           p_source: string
         }
@@ -9702,6 +9725,10 @@ export type Database = {
       fn_override_mistake_cognitive_type: {
         Args: { p_user_override_type_id: string; p_vault_id: string }
         Returns: Json
+      }
+      fn_payment_job_lease: {
+        Args: { p_holder: string; p_job: string; p_seconds: number }
+        Returns: boolean
       }
       fn_paywall_set: {
         Args: { p_actor_email: string; p_actor_id: string; p_enabled: boolean }

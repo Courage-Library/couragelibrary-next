@@ -790,3 +790,51 @@ DEFINER, `search_path ''` and service_role only; the SECDEF count does not chang
 
 **Activation order (DEPLOY-BEFORE-ACTIVATE):** 149 → the B4 app on main and deployed → only then the GitHub schedule. With
 payments off the job is a no-op (checkout closed).
+
+**Owner decisions 2026-11-18:**
+- **R1 = a**, with conditions:
+  - GitHub Actions only triggers;
+  - the work runs in the Vercel route `POST /api/cron/reconcile`, guarded by the `CRON_SECRET` bearer (constant time, POST
+    only, no other auth path);
+  - the Razorpay keys stay in the Vercel env;
+  - the job is idempotent and safe when runs overlap.
+- **R2 = a:** capture + activate only after the same checks as verify; Pro at most once.
+- **R3:** 15 min / 2 h FAILED / 7 days.
+- **R4:** audit row + admin list; refunds in the dashboard.
+
+**B4 built 2026-11-18 (local; production apply waits for "release"):**
+- **Migration `20261118000149_pay1_b4_payment_robustness.sql`:**
+  - `payment_orders.gateway_mode` (default live), plus the job index.
+  - `fn_create_pro_order(…, p_gateway_mode)`: TEST mode only for a QA identity, checked first; an idempotency key is
+    never reused across modes.
+  - `fn_fulfil_pro_order(…, p_gateway_mode)`:
+    - `RECONCILE` source; `MODE_MISMATCH`;
+    - a second captured payment on a paid order → `ORDER_ALREADY_PAID` + one `PRO_DOUBLE_CHARGE` row per payment;
+    - a payment on a REFUNDED / EXPIRED / CANCELLED order → one `PRO_PAYMENT_TO_REFUND` row;
+    - receipt number retried up to 5 times.
+  - `fn_refund_pro_payment`: the dashboard refund of such a payment is acknowledged once
+    (`PRO_UNAPPLIED_PAYMENT_REFUNDED`). It used to be `PAYMENT_NOT_FOUND` → 409 → redelivered forever. The rest is the 114
+    body unchanged.
+  - `payment_job_leases` + `fn_payment_job_lease` (INVOKER, service_role only): one run at a time.
+  - SECDEF counts unchanged: two entries renamed to the new signatures.
+- **App:**
+  - `listOrderPayments` + `classifyOrderPayments` (`razorpay-core`); `reconcileOrder` / `runReconciliation`
+    (`pro-flows`); `getReconcileDeps` (`pro-server`); route `app/api/cron/reconcile`.
+  - The key mode on every order and fulfil.
+  - Test-mode checkout for QA identities only (server + SQL).
+  - Admin `/admin/payments`: "Payments to refund" (open / refunded) and a TEST label; admin order counts are live only.
+- **Trigger:** `.github/workflows/payments-reconcile.yml`:
+  - every 15 min, POST with `secrets.CRON_SECRET` to `secrets.RECONCILE_URL`;
+  - `permissions: {}`; `curl -s` (no host in errors);
+  - runs only when the repository variable `PAYMENTS_RECONCILE_ENABLED` is `true` (DEPLOY-BEFORE-ACTIVATE).
+- **Gates:**
+  - **PAY1-B4 (offline):** 9 checks, 22 negative controls. The real Razorpay client is driven with a fake `fetch`;
+    reconciliation runs against a fake database that behaves like 149.
+  - **PAY1-B4-LIVE:** rolled back, real roles, `--pre`; in live-journeys next to F9-PRICING.
+  - F9-PRICING follows the new fulfil signature.
+- **Local copy (pre-148-apply backup + 148 + 149):**
+  - ratchet 6/6 (129, unchanged); RLS 6/6 (6 need the QA accounts);
+  - rollback → the three functions byte-equal to the 114 bodies with service-role-only grants; only the ledger row
+    changed;
+  - re-apply OK; rollback chains 0 problems;
+  - a real two-connection race on the lease: the second waits, then gets false.

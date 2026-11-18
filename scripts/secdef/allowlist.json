@@ -29,7 +29,8 @@
   "PAY-1 B2b part 2 step 2 (migration 146, owner GO 2026-11-15, the client revoke): max total / client_executable_callable / A raised by exactly 2 for fn_attempt_answer_writable (authenticated: the attempt_answers INSERT / UPDATE policies' check, a boolean for the caller's own attempt) and fn_mock_test_published (anon + authenticated, P-9 SECDEF_PUBLIC_OK: the mock_sections policy's check, a boolean only); anon_or_public raised by exactly 1 for fn_mock_test_published",
   "PAY-1 B3 part 1 (migration 147, owner GO 2026-11-15): max total / client_executable_callable / A raised by exactly 1 for fn_access_allowed_many (anon + authenticated, P-9 SECDEF_PUBLIC_OK: the central check for a list of keys — tier + boolean per key only); anon_or_public raised by exactly 1 for fn_access_allowed_many",
   "PAY-1 148 (owner GO 2026-11-18, cleanup after the B3 app is live): max total and B-service lowered by exactly 3 — migration 148 drops fn_authorize_and_start_test_attempt, fn_check_premium_access_and_quota and fn_create_dynamic_mock_instance_atomic (service_role only, no caller since B3)",
-  "PAY-1 148 (same migration): max total lowered by exactly 2 — fn_get_due_flashcards and fn_create_custom_flashcard_deck dropped (class C, no client EXECUTE since 090, no caller); client_executable_callable / A / C unchanged"
+  "PAY-1 148 (same migration): max total lowered by exactly 2 — fn_get_due_flashcards and fn_create_custom_flashcard_deck dropped (class C, no client EXECUTE since 090, no caller); client_executable_callable / A / C unchanged",
+  "PAY-1 B4 (migration 149, owner GO 2026-11-18, decisions R1–R4): fn_create_pro_order and fn_fulfil_pro_order replaced in place with one more argument (p_gateway_mode DEFAULT live) — same class B-service, service_role only, search_path \"\"; counts unchanged; the new lease helper fn_payment_job_lease is INVOKER (not listed)"
  ],
  "max": {
   "total": 129,
@@ -751,7 +752,7 @@
    "search_path": "\"\"",
    "reason": "F9-B (architect GO, migration 114): service-role-only payment RPC; REVOKE ALL FROM PUBLIC/anon/authenticated, EXECUTE to service_role only; called by the server (order action / verify route / webhook / admin action) after its own auth + HMAC checks; canonical Pro check (read-only boolean)"
   },
-  "fn_create_pro_order(p_user_id uuid, p_plan_code text, p_idempotency_key text)": {
+  "fn_create_pro_order(p_user_id uuid, p_plan_code text, p_idempotency_key text, p_gateway_mode text)": {
    "class": "B-service",
    "client": [],
    "search_path": "\"\"",
@@ -763,7 +764,7 @@
    "search_path": "\"\"",
    "reason": "F9-B (architect GO, migration 114): service-role-only payment RPC; REVOKE ALL FROM PUBLIC/anon/authenticated, EXECUTE to service_role only; called by the server (order action / verify route / webhook / admin action) after its own auth + HMAC checks; stores the gateway order id on the caller's own CREATED order"
   },
-  "fn_fulfil_pro_order(p_gateway_order_id text, p_payment_id text, p_amount_paise integer, p_currency text, p_source text)": {
+  "fn_fulfil_pro_order(p_gateway_order_id text, p_payment_id text, p_amount_paise integer, p_currency text, p_source text, p_gateway_mode text)": {
    "class": "B-service",
    "client": [],
    "search_path": "\"\"",

@@ -281,6 +281,10 @@
     "LESSON-PERF-B3-LIVE": {
       "measured": 60,
       "cap": 240
+    },
+    "PAY1-B4-LIVE": {
+      "measured": 60,
+      "cap": 240
     }
   }
 }

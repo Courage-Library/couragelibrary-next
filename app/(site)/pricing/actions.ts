@@ -19,7 +19,7 @@ export async function createProOrderAction(planCode: string, idempotencyKey: str
   if (!state.open || !deps) return { ok: false, code: state.open ? "PAYMENTS_UNAVAILABLE" : state.reason };
   const session = await getServerSession();
   if (session.state !== "user") return { ok: false, code: session.state === "error" ? "SESSION_UNAVAILABLE" : "UNAUTHENTICATED" };
-  const r = await createProOrder({ userId: session.user.id, planCode, idempotencyKey }, deps);
+  const r = await createProOrder({ userId: session.user.id, email: session.user.email ?? null, planCode, idempotencyKey }, deps);
   if (!r.ok) return { ok: false, code: r.code };
   return { ok: true, keyId: state.keyId, gatewayOrderId: r.gatewayOrderId, amountPaise: r.amountPaise, currency: r.currency, planCode: r.planCode };
 }

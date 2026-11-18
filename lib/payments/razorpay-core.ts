@@ -110,6 +110,28 @@ export interface RazorpayApi {
   createOrder(input: { amountPaise: number; receipt: string; notes: Record<string, string> }): Promise<{ id: string; amount: number; currency: string }>;
   fetchPayment(paymentId: string): Promise<GatewayPayment>;
   capturePayment(paymentId: string, amountPaise: number): Promise<GatewayPayment>;
+  /** PAY-1 B4: every payment Razorpay holds for an order (GET /orders/{id}/payments), oldest first. */
+  listOrderPayments(gatewayOrderId: string): Promise<GatewayPayment[]>;
+}
+
+/**
+ * PAY-1 B4 (reconciliation): what an order's payments mean. Only payments that pass checkPaymentAgainstOrder (this
+ * order, the snapshot amount, INR) count; anything else is never fulfilled.
+ *   captured   — at least one captured payment: fulfil with the first; every further captured one is a double charge
+ *   authorized — none captured, at least one authorized: capture the first (owner R2), then fulfil
+ *   none       — nothing paid (failed / created / refunded / mismatched only)
+ */
+export type OrderPaymentsClass =
+  | { kind: "captured"; first: GatewayPayment; extra: GatewayPayment[] }
+  | { kind: "authorized"; first: GatewayPayment }
+  | { kind: "none"; refunded: boolean };
+export function classifyOrderPayments(payments: GatewayPayment[], order: OrderSnapshot): OrderPaymentsClass {
+  const valid = payments.filter((p) => GATEWAY_PAYMENT_ID.test(p.id)).map((p) => ({ p, c: checkPaymentAgainstOrder(p, order) }));
+  const captured = valid.filter((x) => x.c.ok && !x.c.needsCapture).map((x) => x.p);
+  if (captured.length) return { kind: "captured", first: captured[0], extra: captured.slice(1) };
+  const authorized = valid.filter((x) => x.c.ok && x.c.needsCapture).map((x) => x.p);
+  if (authorized.length) return { kind: "authorized", first: authorized[0] };
+  return { kind: "none", refunded: payments.some((p) => p.status === "refunded") };
 }
 
 export class RazorpayApiError extends Error {
@@ -153,6 +175,17 @@ export function createRazorpayApi(cfg: { keyId: string; keySecret: string; fetch
     async capturePayment(paymentId, amountPaise) {
       if (!GATEWAY_PAYMENT_ID.test(paymentId)) throw new RazorpayApiError(400, "BAD_PAYMENT_ID");
       return toPayment(await call<Record<string, unknown>>("POST", `/payments/${paymentId}/capture`, { amount: amountPaise, currency: "INR" }));
+    },
+    async listOrderPayments(gatewayOrderId) {
+      if (!GATEWAY_ORDER_ID.test(gatewayOrderId)) throw new RazorpayApiError(400, "BAD_ORDER_ID");
+      const r = await call<{ items?: unknown }>("GET", `/orders/${gatewayOrderId}/payments`);
+      if (!r || !Array.isArray(r.items)) throw new RazorpayApiError(502, "PAYMENTS_SHAPE");
+      const items = (r.items as Record<string, unknown>[]).filter((p) => p && typeof p === "object");
+      // oldest first (created_at = unix seconds); a payment of ANOTHER order in the answer is a shape error
+      items.sort((a, b) => Number(a.created_at ?? 0) - Number(b.created_at ?? 0));
+      const out = items.map(toPayment);
+      if (out.some((p) => p.order_id !== gatewayOrderId)) throw new RazorpayApiError(502, "PAYMENTS_SHAPE");
+      return out;
     },
   };
 }

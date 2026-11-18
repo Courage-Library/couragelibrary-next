@@ -1,0 +1,38 @@
+# PAY-1 B4 (owner R1, 2026-11-18): GitHub Actions only TRIGGERS the reconciliation; the work runs in the Vercel route
+# POST /api/cron/reconcile, which holds the Razorpay keys (Vercel env only — never here).
+#   - auth: the one header `Authorization: Bearer $CRON_SECRET` (constant-time on the server); POST only
+#   - secrets used here: CRON_SECRET and RECONCILE_URL (the route's full URL; kept as a secret so no host is printed)
+#   - DEPLOY-BEFORE-ACTIVATE: nothing runs until the owner sets the repository variable PAYMENTS_RECONCILE_ENABLED=true,
+#     after the B4 app is on main and the production deploy is verified
+#   - overlapping runs are safe (the route takes a lease; a second run answers "busy"); concurrency also queues them here
+name: payments-reconcile
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+permissions: {}
+
+concurrency:
+  group: payments-reconcile
+  cancel-in-progress: false
+
+jobs:
+  trigger:
+    if: vars.PAYMENTS_RECONCILE_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: POST the reconcile route (counts only in the answer)
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          RECONCILE_URL: ${{ secrets.RECONCILE_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CRON_SECRET}" ] || [ -z "${RECONCILE_URL}" ]; then echo "CRON_SECRET / RECONCILE_URL not set"; exit 1; fi
+          code=$(curl -s -o body.json -w '%{http_code}' --max-time 90 -X POST -H "Authorization: Bearer ${CRON_SECRET}" "${RECONCILE_URL}")
+          echo "HTTP ${code}"  # curl -s: an error never prints the host
+          # the body holds counts only (never ids or user data)
+          node -e 'const b=JSON.parse(require("fs").readFileSync("body.json","utf8"));const {ok,outcome,skipped,checked,counts,doubleCharges,refundsReplayed,refundsWaiting}=b;console.log(JSON.stringify({ok,outcome,skipped,checked,counts,doubleCharges,refundsReplayed,refundsWaiting}))' || true
+          test "${code}" = "200"
