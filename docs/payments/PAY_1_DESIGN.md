@@ -674,7 +674,9 @@ After B3 both follow the central check, so with the paywall off they are fully r
   - the three uncalled `assessment.service` list functions (allow-listed in P4-07);
   - the FREE_N pieces in the database.
 
-**148 built 2026-11-18 (local; production apply waits for "release"):**
+**148 applied on production 2026-11-18 15:44 IST** (owner "release"): backup `pre-148-apply` (resilient, verified 100%, 2 resumes); TLS public roots on all three hosts before the backup, the apply and the gates; dry-run OK; `--pre` launch gate 3/3; `npm run db:types` = the hand-edited types (no diff), `db:types:check` OK.
+
+**148 built 2026-11-18:**
 - Migration `20261118000148_pay1_cleanup.sql`:
   - drops `fn_authorize_and_start_test_attempt`, `fn_check_premium_access_and_quota`,
     `fn_create_dynamic_mock_instance_atomic`, `fn_get_due_flashcards` and `fn_create_custom_flashcard_deck`;
