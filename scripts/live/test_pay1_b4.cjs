@@ -93,7 +93,7 @@ const isConnectionError = (e) => !!e && (['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND'
           to_regprocedure('public.fn_create_pro_order(uuid, text, text)') is null and to_regprocedure('public.fn_fulfil_pro_order(text, text, integer, text, text)') is null old_gone,
           (select prosecdef from pg_proc where oid = 'public.fn_create_pro_order(uuid, text, text, text)'::regprocedure) c_def,
           (select prosecdef from pg_proc where oid = 'public.fn_fulfil_pro_order(text, text, integer, text, text, text)'::regprocedure) f_def,
-          (select prosecdef from pg_proc where oid = 'public.fn_refund_pro_payment(text, integer, text)'::regprocedure) r_def,
+          (select prosecdef from pg_proc where oid = coalesce(to_regprocedure('public.fn_refund_pro_payment(text, integer, text, text)'), to_regprocedure('public.fn_refund_pro_payment(text, integer, text)'))) r_def,
           (select prosecdef from pg_proc where oid = 'public.fn_payment_job_lease(text, uuid, integer)'::regprocedure) l_def`);
       const denied = [];
       for (const [role, cl] of [['anon', ANON], ['authenticated', STU]]) {

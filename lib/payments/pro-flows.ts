@@ -249,7 +249,7 @@ export async function handleWebhook(
       await finish("FAILED", "BAD_REFUND");
       return { ok: false, status: 400, code: "BAD_REFUND" };
     }
-    const rf = await deps.rpc("fn_refund_pro_payment", { p_payment_id: ev.paymentId, p_refund_amount_paise: ev.refundAmountPaise, p_gateway_refund_id: ev.refundId });
+    const rf = await deps.rpc("fn_refund_pro_payment", { p_payment_id: ev.paymentId, p_refund_amount_paise: ev.refundAmountPaise, p_gateway_refund_id: ev.refundId, p_gateway_mode: deps.mode ?? "live" });
     const rr = obj(rf.data);
     if (rf.error || rr.success !== true) {
       const code = rf.error ? "DB_ERROR" : String(rr.code ?? "REFUND_REFUSED");
@@ -386,7 +386,7 @@ export async function runReconciliation(deps: ReconcileDeps): Promise<ReconcileS
       const p = parseWebhook(ev.payload);
       if (!p || p.kind !== "REFUND" || !p.paymentId || !p.refundId || !p.refundAmountPaise) continue;
       // fn_refund_pro_payment is idempotent per refund id; PAYMENT_NOT_FOUND = its payment is still not recorded → wait
-      const rf = await deps.rpc("fn_refund_pro_payment", { p_payment_id: p.paymentId, p_refund_amount_paise: p.refundAmountPaise, p_gateway_refund_id: p.refundId });
+      const rf = await deps.rpc("fn_refund_pro_payment", { p_payment_id: p.paymentId, p_refund_amount_paise: p.refundAmountPaise, p_gateway_refund_id: p.refundId, p_gateway_mode: deps.mode ?? "live" });
       if (!rf.error && obj(rf.data).success === true) {
         await deps.finishWebhookEvent(ev.eventId, "PROCESSED");
         sum.refundsReplayed++;

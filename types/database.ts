@@ -5054,6 +5054,56 @@ export type Database = {
         }
         Relationships: []
       }
+      pro_refund_approvals: {
+        Row: {
+          approved_by: string
+          created_at: string
+          eligibility: Json | null
+          id: string
+          note: string | null
+          order_id: string
+          payment_id: string
+          reason: string
+          refund_id: string | null
+          refunded_at: string | null
+          user_id: string
+        }
+        Insert: {
+          approved_by: string
+          created_at?: string
+          eligibility?: Json | null
+          id?: string
+          note?: string | null
+          order_id: string
+          payment_id: string
+          reason: string
+          refund_id?: string | null
+          refunded_at?: string | null
+          user_id: string
+        }
+        Update: {
+          approved_by?: string
+          created_at?: string
+          eligibility?: Json | null
+          id?: string
+          note?: string | null
+          order_id?: string
+          payment_id?: string
+          reason?: string
+          refund_id?: string | null
+          refunded_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pro_refund_approvals_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "payment_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pro_reminders_sent: {
         Row: {
           entitlement_id: string
@@ -7314,6 +7364,7 @@ export type Database = {
       }
       test_attempts: {
         Row: {
+          access_tier: string | null
           client_ip: string | null
           created_at: string
           id: string
@@ -7329,6 +7380,7 @@ export type Database = {
           visited_orders: number[] | null
         }
         Insert: {
+          access_tier?: string | null
           client_ip?: string | null
           created_at?: string
           id?: string
@@ -7344,6 +7396,7 @@ export type Database = {
           visited_orders?: number[] | null
         }
         Update: {
+          access_tier?: string | null
           client_ip?: string | null
           created_at?: string
           id?: string
@@ -9829,6 +9882,17 @@ export type Database = {
         }[]
       }
       fn_public_hindi_question_count: { Args: never; Returns: number }
+      fn_pro_refund_approve: {
+        Args: {
+          p_admin_email: string
+          p_admin_id: string
+          p_note: string
+          p_payment_id: string
+          p_reason: string
+        }
+        Returns: Json
+      }
+      fn_pro_refund_eligibility: { Args: { p_order_id: string }; Returns: Json }
       fn_public_identities: {
         Args: { p_ids: string[] }
         Returns: {
@@ -9933,6 +9997,7 @@ export type Database = {
       }
       fn_refund_pro_payment: {
         Args: {
+          p_gateway_mode?: string
           p_gateway_refund_id: string
           p_payment_id: string
           p_refund_amount_paise: number

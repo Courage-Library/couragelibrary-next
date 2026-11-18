@@ -402,3 +402,27 @@ The budget was not raised.
 They are the bulk of UX2A L-17's time.
 
 **How:** measure the exam-topic page's reads (`exam-topic.service`) and cache or batch them. The gate side is fixed: L-17 now fetches 4 URLs at a time.
+
+## EMAIL-KYC-1: switch on the PAY-1 B5 transactional e-mail (owner setup)
+
+**Status:** logged by the owner, 2026-11-19. Deferred until after launch. **Deadline: within 4 weeks of launch**, before
+the first D7 expiry reminder can be due (the shortest plan is 3 months, so this leaves a safe margin).
+
+**Until then:** Razorpay's own payment confirmation is the customer's receipt. The receipt is also listed in
+Account → Billing. B5 code is deployed (migration 150, 2026-11-18) and stays off, so nothing is sent.
+
+**Owner steps, in this order (DEPLOY-BEFORE-ACTIVATE):**
+1. **ZeptoMail:** complete the account KYC / verification. Check that DKIM and the bounce record show "Verified" on
+   `couragelibrary.in`, and send the DKIM record's name so it can be checked read-only.
+2. **ZeptoMail:** create a new "app-mail" mail agent with its own Send Mail token (owner E2; the auth e-mails keep their
+   own agent).
+3. **Zoho:** create the `qa@couragelibrary.in` alias (owner E1: QA-account and test-mode e-mails go there).
+4. **Vercel (production):** set `ZEPTOMAIL_TOKEN` (the app-mail token), then `EMAIL_APP_ENABLED=true`.
+5. **GitHub:** add the repository secret `EMAILS_URL` (the full production URL of `/api/cron/emails`). `CRON_SECRET` is
+   shared with the reconcile job. Then set the repository variable `PAYMENTS_EMAILS_ENABLED=true`.
+
+**Check after step 5:** run the `payments-emails` workflow once by hand. It must answer 200 with counts only. A QA
+purchase in test mode must deliver one receipt to the QA inbox.
+
+**Related:** EMAIL-DNS-FIX-1 (SPF `+all`, the `0 mx.couragelibrary.in` record) should be done before launch.
+See PAY_1_DESIGN.md §13.

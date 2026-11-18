@@ -1053,3 +1053,50 @@ all pass; ratchet 6/6 (129); RLS 12/12. Nothing is sent until the owner sets `ZE
   - once per user;
   - anon / student → 42501.
 - Admin / student page smokes for `/admin/payments` and `/billing`.
+
+**Owner decisions (2026-11-19):**
+- F1 a, F2 a, F3 a, F4 a, F5 a, F7 a, F8 a.
+- **F6 b:** record the mock's tier on each new attempt at start; for older attempts fall back to the current tier and
+  say so (TIER_AT_CHECK_TIME).
+- EMAIL-KYC-1 is logged in BACKLOG.md (deadline: within 4 weeks of launch).
+
+**B6 built 2026-11-19 (local; production apply waits for "release"):**
+- **Migration `20261119000151_pay1_b6_refunds.sql`:**
+  - `test_attempts.access_tier` + INVOKER trigger: set from `fn_access_tier` on insert, never rewritten.
+  - `pro_refund_approvals`: reason allow-list, one OPEN approval per payment, RLS on, no policy, service_role.
+  - `fn_pro_refund_eligibility` (INVOKER, STABLE).
+  - `fn_pro_refund_approve` (INVOKER): POLICY_7_DAY only when eligible; PRO_REFUND_APPROVED audit row.
+  - `fn_refund_pro_payment` v3 (DEFINER, + `p_gateway_mode`):
+    - MODE_MISMATCH in both branches before any write; the per-user Pro lock;
+    - later stacked periods move earlier by the time removed (full: the remaining time; partial: the pro-rata days);
+    - the approval is linked, or the refund is marked UNRECORDED;
+    - the 149 money rules are kept; no founding change.
+  - SECDEF count unchanged (129); the allow-list entry is renamed to the new signature.
+- **Rollback 151:** chain line `none`; refuses while approvals exist; restores the EXACT 149 refund body (byte-equal
+  on the local copy) with service-role-only grants.
+- **App:**
+  - both refund calls pass the key mode;
+  - `/admin/payments` "Refund check" (`services/admin-refunds.service.ts`, `components/admin/refund-check.tsx`):
+    - a lookup by payment id or receipt number;
+    - live payments of the last 7 days with eligibility, reasons and notes;
+    - "Record reason" (the ADMIN-only action `recordRefundApprovalAction`; GOODWILL needs a note);
+    - refunds with no recorded reason are listed;
+  - `/billing` marks a refunded receipt ("Refunded / Partly refunded ₹X", own rows).
+- **Gates:**
+  - **PAY1-B6 (offline):** 5 checks, 22 negative controls.
+  - **PAY1-B6-LIVE:** chunks A–E + Z, `--pre` / `--local`; in live-journeys after PAY1-B5-LIVE.
+  - **`scripts/live/test_pay1_b6_pages.cjs`:** local page check.
+- **Production, before apply, all rolled back:** dry-run 151 OK; PAY1-B6-LIVE `--pre` ALL PASS.
+  - Eligibility matrix: first / 7 days / stacked / 1 vs 2 Pro mocks / TIER_AT_CHECK_TIME.
+  - Approvals + once per user; MODE_MISMATCH.
+  - Latest refund → no move; earlier refund → the later period moves by exactly the removed time and keeps its length;
+    half refund → 46 days off + the same move.
+  - After the end; a double charge with its approval; founding `sold` unchanged.
+  - (The first run failed 4 checks only because the gate used a synthetic approver id; the audit log needs a real
+    account, so the gate now uses the QA admin.)
+- **Checks before release:** offline 113/113 (SEC1B now lists the refund action as admin-only); build OK; local page check
+  P-1..P-5 and the admin / student page smokes pass; TLS clean.
+- **Local copy (pre-150-apply backup + 150 + 151):**
+  - `--pre` and after-apply shape checks pass;
+  - ratchet 6/6; RLS 6/6;
+  - re-apply refused; rollback → only the ledger row changed; re-apply OK; chain lines `none`.

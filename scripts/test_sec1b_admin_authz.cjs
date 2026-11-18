@@ -225,6 +225,8 @@ const ADMIN_ONLY = new Set([
   'app/(site)/admin/access/actions.ts#setAccessPolicyAction',
   'app/(site)/admin/access/actions.ts#clearAccessPolicyAction',
   'app/(site)/admin/access/actions.ts#setPaywallAction',
+  // PAY-1 B6: recording a refund reason (before a dashboard refund) is admin-only
+  'app/(site)/admin/payments/actions.ts#recordRefundApprovalAction',
   'app/(site)/admin/pro-library/actions.ts#grantLibraryProAction',
   'app/(site)/admin/pro-library/actions.ts#revokeLibraryProAction',
 ]);

@@ -30,7 +30,8 @@
   "PAY-1 B3 part 1 (migration 147, owner GO 2026-11-15): max total / client_executable_callable / A raised by exactly 1 for fn_access_allowed_many (anon + authenticated, P-9 SECDEF_PUBLIC_OK: the central check for a list of keys — tier + boolean per key only); anon_or_public raised by exactly 1 for fn_access_allowed_many",
   "PAY-1 148 (owner GO 2026-11-18, cleanup after the B3 app is live): max total and B-service lowered by exactly 3 — migration 148 drops fn_authorize_and_start_test_attempt, fn_check_premium_access_and_quota and fn_create_dynamic_mock_instance_atomic (service_role only, no caller since B3)",
   "PAY-1 148 (same migration): max total lowered by exactly 2 — fn_get_due_flashcards and fn_create_custom_flashcard_deck dropped (class C, no client EXECUTE since 090, no caller); client_executable_callable / A / C unchanged",
-  "PAY-1 B4 (migration 149, owner GO 2026-11-18, decisions R1–R4): fn_create_pro_order and fn_fulfil_pro_order replaced in place with one more argument (p_gateway_mode DEFAULT live) — same class B-service, service_role only, search_path \"\"; counts unchanged; the new lease helper fn_payment_job_lease is INVOKER (not listed)"
+  "PAY-1 B4 (migration 149, owner GO 2026-11-18, decisions R1–R4): fn_create_pro_order and fn_fulfil_pro_order replaced in place with one more argument (p_gateway_mode DEFAULT live) — same class B-service, service_role only, search_path \"\"; counts unchanged; the new lease helper fn_payment_job_lease is INVOKER (not listed)",
+  "PAY-1 B6 (migration 151, owner GO 2026-11-19, decisions F1–F8): fn_refund_pro_payment replaced in place with one more argument (p_gateway_mode DEFAULT live) — same class B-service, service_role only, search_path \"\"; counts unchanged; the new refund helpers fn_pro_refund_eligibility, fn_pro_refund_approve and the trigger fn_test_attempt_access_tier are INVOKER (not listed)"
  ],
  "max": {
   "total": 129,
@@ -776,7 +777,7 @@
    "search_path": "\"\"",
    "reason": "F9-B (architect GO, migration 114): service-role-only payment RPC; REVOKE ALL FROM PUBLIC/anon/authenticated, EXECUTE to service_role only; called by the server (order action / verify route / webhook / admin action) after its own auth + HMAC checks; payment.failed: CREATED/PENDING to FAILED only"
   },
-  "fn_refund_pro_payment(p_payment_id text, p_refund_amount_paise integer, p_gateway_refund_id text)": {
+  "fn_refund_pro_payment(p_payment_id text, p_refund_amount_paise integer, p_gateway_refund_id text, p_gateway_mode text)": {
    "class": "B-service",
    "client": [],
    "search_path": "\"\"",

@@ -18,11 +18,18 @@ export default async function BillingPage() {
     ? ((
         await (await createServerSupabaseClient())
           .from("payment_receipts")
-          .select("receipt_number, plan_code, period_start, period_end, amount_paise, gateway_payment_id, business_name, created_at")
+          .select("receipt_number, plan_code, period_start, period_end, amount_paise, gateway_payment_id, business_name, created_at, transaction_id")
           .order("created_at", { ascending: false })
           .limit(50)
       ).data ?? [])
     : [];
+  // PAY-1 B6 (F8 a): refunds of the user's own payments (RLS: own transactions only)
+  const txIds = receipts.map((r) => r.transaction_id).filter((x): x is string => !!x);
+  const refunds = new Map<string, { paise: number; full: boolean }>();
+  if (txIds.length) {
+    const { data: txns } = await (await createServerSupabaseClient()).from("payment_transactions").select("id, refund_amount, status").in("id", txIds);
+    for (const t of txns ?? []) if (Number(t.refund_amount ?? 0) > 0) refunds.set(t.id, { paise: Math.round(Number(t.refund_amount) * 100), full: t.status === "REFUNDED" });
+  }
   // PAY-1 B1: Pro status from F9 (hasPro + the entitlement end); the legacy GST-invoice list is retired
   const [subStatus, orders] = await Promise.all([BillingService.getUserSubscriptionStatus(), BillingService.getUserPaymentOrders()]);
 
@@ -125,7 +132,14 @@ export default async function BillingPage() {
                   <span>
                     {r.plan_code} · {formatDateShort(r.period_start)} – {formatDateShort(r.period_end)}
                   </span>
-                  <span className="font-semibold">{formatInr(r.amount_paise / 100)}</span>
+                  <span className="font-semibold">
+                    {formatInr(r.amount_paise / 100)}
+                    {r.transaction_id && refunds.has(r.transaction_id) && (
+                      <Badge variant="outline" className="text-[10px] ml-2" data-receipt-refunded="">
+                        {refunds.get(r.transaction_id)!.full ? "Refunded" : "Partly refunded"} {formatInr(refunds.get(r.transaction_id)!.paise / 100)}
+                      </Badge>
+                    )}
+                  </span>
                   <span className="w-full text-xs text-slate-500">
                     Paid {formatDateShort(r.created_at)} to {r.business_name} · payment {r.gateway_payment_id}
                   </span>
