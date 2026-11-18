@@ -845,3 +845,65 @@ verified 100%, 0 resumes); TLS public roots on GitHub, Vercel and Supabase; dry-
 OK. Post-apply gates: PAY1-B4-LIVE, F9-PRICING (new signature), PAY1-B1-LIVE, PAY1-B3-LIVE all pass; ratchet 6/6 (129);
 RLS 12/12; SECDEF-S2-2 8/8. The reconcile schedule stays off until the owner sets `CRON_SECRET` / `RECONCILE_URL`
 and then `PAYMENTS_RECONCILE_ENABLED=true` after the deploy.
+
+## 13. B5 plan: transactional e-mail (2026-11-18, plan only; nothing built)
+
+**Owner scope (D8 = ZeptoMail API, sender `no-reply@couragelibrary.in`):** receipt after Pro activation; expiry
+reminders 7 days and 1 day before (Terms :76, Refund Policy :504); refund confirmation. Idempotent (at most once per
+event, recorded); the reminder job uses the reconcile pattern (GitHub triggers a protected POST route); no PII in logs;
+plain text + HTML; support contact in every mail; test-mode orders mail QA accounts only.
+
+**Today:**
+- `sendReceiptEmail` is a stub (`pro-server.ts:71-77`), called by `afterFulfil`. Fulfil never fails because of it
+  (`pro-flows.ts:164-168`).
+- `/api/cron/pro-reminders` is GET, only counts, and is not scheduled.
+- `pro_reminders_sent` (unique entitlement + D7/D1) exists, service_role only.
+- A renewal **stacks**: it is a new entitlement starting at the old end (114:174-185). Reminders keyed per entitlement
+  would therefore warn a user who has already renewed. B5 keys them on the user's **overall** Pro end.
+- Refunds are applied in `fn_refund_pro_payment` (webhook and the reconcile replay). There is no after-refund hook.
+
+**Build (migration 150 + app):**
+- **`email_events` table:**
+  - `kind` (PRO_RECEIPT / PRO_EXPIRY_D7 / PRO_EXPIRY_D1 / PRO_REFUND);
+  - `event_key` UNIQUE: the receipt id / `entitlement chain end + kind` / the gateway refund id;
+  - `user_id`, `gateway_mode`, `status` (CLAIMED / SENT / FAILED / UNKNOWN / SUPPRESSED), `attempts`,
+    `provider_ref`, `error_code`, timestamps.
+  - It stores **no address and no body**. RLS on, service_role only.
+- **Send protocol (at most once):**
+  1. Claim with an insert (`ON CONFLICT DO NOTHING`).
+  2. Call the ZeptoMail API.
+  3. Mark SENT with the request id.
+  - **Definite error** (an HTTP status came back): mark FAILED. Retry up to 3 times by the job.
+  - **Timeout / network drop / crash after the claim:** mark UNKNOWN. Never retried automatically; listed on
+    `/admin/payments`.
+- **Transport:** `lib/email/zeptomail.ts`.
+  - `POST https://api.zeptomail.in/v1.1/email`; the token is in Vercel env only (`ZEPTOMAIL_TOKEN`).
+  - 10 s timeout; `text` + `html`; `reply_to` support.
+  - `EMAIL_APP_ENABLED` kill switch (off = SUPPRESSED, nothing sent).
+- **Templates:**
+  - Brand Band (like the auth mails, generated, inline CSS), with a plain-text twin.
+  - Receipt: number, plan, amount, date, the Pro end date, "not a tax invoice" while `gst_registered` is false,
+    the support contact.
+  - Template allow-list gate: no unknown `{{ }}`, no secret, no tracking pixel.
+- **Triggers:**
+  - **Receipt:** from `afterFulfil` (verify, webhook and reconcile paths).
+  - **Refund confirmation:** from a new `afterRefund` after an applied **or** unapplied refund (double charge).
+  - **Reminders and retries:** the reminder route becomes POST-only (reconcile pattern) and does the D7/D1 sends plus
+    FAILED retries. It is triggered by a GitHub workflow with its own enable variable.
+- **Test mode:** a test-mode event never mails the real recipient.
+- **Gates:**
+  - **offline PAY1-B5:** fake ZeptoMail fetch; templates; the at-most-once matrix; no PII in logs;
+  - **live PAY1-B5-LIVE:** 150, rolled back;
+  - **local route check:** 405 / 401 / skipped.
+- **Activation (DEPLOY-BEFORE-ACTIVATE):** 150 → app deployed → owner token in Vercel → `EMAIL_APP_ENABLED` →
+  the GitHub variable.
+
+**DNS, read-only on 2026-11-18:**
+
+| Record | Status |
+|---|---|
+| ZeptoMail bounce CNAME | `bounce-zem` → `cluster89.zeptomail.in`, which publishes `v=spf1 include:zeptomail.net.in -all`. SPF passes on the return path. |
+| ZeptoMail DKIM | Not found at common selectors (`zeptomail`, `zmail`, `zoho`, `default`, `zm`, …). ZeptoMail generates the selector, so the owner must read it from the console. |
+| Root SPF | Still `v=spf1 include:zoho.in +all` (EMAIL-DNS-FIX-1 not done; anyone can pass SPF as the domain). |
+| DMARC | `p=none`, reports to Brevo. |
+| MX | `0 mx.couragelibrary.in` still exists and resolves only via the wildcard A to the web host. Replies to support are tried there first. |
