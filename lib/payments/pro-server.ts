@@ -61,20 +61,19 @@ export function getProDeps(): ProDeps | null {
     webhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET ?? "",
     log,
     mode: state.mode, // PAY-1 B4: orders carry the key mode; fulfil refuses another mode
+    // PAY-1 B5: the receipt / refund confirmation e-mails (at most once; the e-mail job catches up anything missed)
     afterFulfil: async (r) => {
-      await sendReceiptEmail(r.order_id ?? null);
+      if (!r.order_id || !r.user_id) return;
+      const { sendProEmailNow } = await import("@/lib/email/pro-email-server");
+      await sendProEmailNow({ kind: "PRO_RECEIPT", key: `receipt:${r.order_id}`, userId: r.user_id, mode: state.mode });
+    },
+    afterRefund: async (refundId) => {
+      const { sendRefundEmailNow } = await import("@/lib/email/pro-email-server");
+      await sendRefundEmailNow(refundId);
     },
   };
 }
 
-/**
- * Receipt / reminder email. The app has no mail transport yet (owner to choose SMTP / provider) — until then nothing
- * is sent and nothing is marked sent; the receipt is always available in the app (Billing). One ids-only log line.
- */
-export async function sendReceiptEmail(orderId: string | null): Promise<{ sent: false; reason: "EMAIL_NOT_CONFIGURED" }> {
-  console.log(JSON.stringify({ tag: "ops.email_pending", kind: "pro_receipt", ids: { order_id: orderId } }));
-  return { sent: false, reason: "EMAIL_NOT_CONFIGURED" };
-}
 
 /** THE server-side Pro check. Fails closed (false) on any error. */
 export const hasPro = cache(async (userId: string | null | undefined): Promise<boolean> => {
@@ -154,6 +153,71 @@ export async function getProEndingSoon(userId: string | null): Promise<{ endsAt:
   if (account.unlimited || !account.currentEnd) return null;
   const daysLeft = Math.ceil((new Date(account.currentEnd).getTime() - Date.now()) / 86400e3);
   return daysLeft <= 7 && daysLeft >= 0 ? { endsAt: account.currentEnd, daysLeft } : null;
+}
+
+/**
+ * PAY-1 B5: a user's OVERALL Pro end — renewals stack (a new entitlement starts at the old end), so reminders and
+ * e-mails use the latest end of every active paid / granted Pro. unlimited = open-ended library Pro (never reminded).
+ */
+export async function getProEnd(userId: string): Promise<{ endsAt: string | null; unlimited: boolean }> {
+  const { data, error } = await createAdminServerSupabaseClient()
+    .from("user_entitlements")
+    .select("expires_at")
+    .eq("user_id", userId)
+    .eq("is_active", true)
+    .is("revoked_at", null)
+    .in("entitlement_type", ["PRO_SUBSCRIPTION", "PROMOTIONAL_PASS"]);
+  if (error) throw new Error(`PRO_END_READ ${error.code ?? ""}`);
+  let endsAt: string | null = null;
+  const now = Date.now();
+  for (const e of data ?? []) {
+    if (e.expires_at === null) return { endsAt: null, unlimited: true };
+    if (new Date(e.expires_at).getTime() > now && (!endsAt || new Date(e.expires_at) > new Date(endsAt))) endsAt = e.expires_at;
+  }
+  return { endsAt, unlimited: false };
+}
+
+/**
+ * PAY-1 B5 reminders: users whose OVERALL Pro end is in (from, to]. A user with a later end (renewed) or open-ended Pro is
+ * not listed. mode = the key mode of the order behind that end (a granted pass = live).
+ */
+export async function listProEnds(from: Date, to: Date, limit: number): Promise<Array<{ userId: string; endsAt: string; mode: "test" | "live" }>> {
+  const admin = createAdminServerSupabaseClient();
+  const { data: soon, error } = await admin
+    .from("user_entitlements")
+    .select("user_id")
+    .eq("is_active", true)
+    .is("revoked_at", null)
+    .in("entitlement_type", ["PRO_SUBSCRIPTION", "PROMOTIONAL_PASS"])
+    .gt("expires_at", from.toISOString())
+    .lte("expires_at", to.toISOString())
+    .limit(limit);
+  if (error) throw new Error(`PRO_ENDS_READ ${error.code ?? ""}`);
+  const users = [...new Set((soon ?? []).map((e) => e.user_id))];
+  if (!users.length) return [];
+  const { data: all, error: e2 } = await admin
+    .from("user_entitlements")
+    .select("user_id, expires_at, order_id")
+    .in("user_id", users)
+    .eq("is_active", true)
+    .is("revoked_at", null)
+    .in("entitlement_type", ["PRO_SUBSCRIPTION", "PROMOTIONAL_PASS"]);
+  if (e2) throw new Error(`PRO_ENDS_READ ${e2.code ?? ""}`);
+  const best = new Map<string, { endsAt: string | null; orderId: string | null }>();
+  for (const e of all ?? []) {
+    const cur = best.get(e.user_id);
+    if (cur && cur.endsAt === null) continue; // open-ended wins
+    if (e.expires_at === null) best.set(e.user_id, { endsAt: null, orderId: null });
+    else if (!cur || new Date(e.expires_at) > new Date(cur.endsAt as string)) best.set(e.user_id, { endsAt: e.expires_at, orderId: e.order_id });
+  }
+  const picked = [...best.entries()].filter(([, v]) => v.endsAt && new Date(v.endsAt) > from && new Date(v.endsAt) <= to);
+  const orderIds = picked.map(([, v]) => v.orderId).filter((x): x is string => !!x);
+  const modes = new Map<string, string>();
+  if (orderIds.length) {
+    const { data: orders } = await admin.from("payment_orders").select("id, gateway_mode").in("id", orderIds);
+    for (const o of orders ?? []) modes.set(o.id, o.gateway_mode);
+  }
+  return picked.map(([userId, v]) => ({ userId, endsAt: v.endsAt as string, mode: v.orderId && modes.get(v.orderId) === "test" ? "test" : "live" }));
 }
 
 const RECONCILE_JOB = "pro_reconcile";

@@ -907,3 +907,60 @@ plain text + HTML; support contact in every mail; test-mode orders mail QA accou
 | Root SPF | Still `v=spf1 include:zoho.in +all` (EMAIL-DNS-FIX-1 not done; anyone can pass SPF as the domain). |
 | DMARC | `p=none`, reports to Brevo. |
 | MX | `0 mx.couragelibrary.in` still exists and resolves only via the wildcard A to the web host. Replies to support are tried there first. |
+
+**Owner decisions (2026-11-18):** all recommended, E1a–E7a. The QA inbox for E1 is `qa@couragelibrary.in` (the owner
+creates it as a Zoho alias).
+
+**B5 built 2026-11-18 (local; production apply waits for "release"):**
+- **Migration `20261118000150_pay1_b5_email_events.sql`:**
+  - Table `email_events` only; no function, so the SECDEF count is unchanged (129).
+  - CHECKs on kind / status / attempts (1–3) / mode and on the key format; `event_key` UNIQUE; FK to auth.users.
+  - RLS on, no policy; service_role SELECT / INSERT / UPDATE (no DELETE).
+  - No address, name or body column (the proof block checks it).
+  - Rollback 150: chain line `none`; drops the table.
+- **`lib/email/zeptomail.ts`:**
+  - The India endpoint, the `Zoho-enczapikey` header, text + HTML, reply-to support, no open / click tracking.
+  - 10 s timeout.
+  - Outcomes: 2xx → SENT (request id); 4xx / 503 → FAILED; other 5xx / timeout / network → UNKNOWN.
+- **`lib/email/pro-templates.ts`:**
+  - Receipt, D7, D1, refund (full / partial / unapplied), in the Brand Band design with a plain-text twin.
+  - Links: only `/billing`, `/pricing` and the support mailto. Every value is escaped; dates are in India time.
+  - E7 wording; the E1 QA subject.
+- **`lib/email/pro-emails.ts` (core):**
+  - `sendEvent`: the recipient → render → claim → send → record sequence.
+  - QA routing; test-mode non-QA → SUPPRESSED; no address → SUPPRESSED.
+  - Unreadable facts → nothing recorded; a renewed plan → STALE.
+  - `runEmailJob`: lease `pro_emails`; stale claims → UNKNOWN after 10 min; catch-up of receipts / refunds (7 days);
+    D7 / D1 from 09:00 IST (`reminderFor`: ≤ 1 day → D1, ≤ 7 → D7; a missed D7 is not sent late); FAILED retries
+    after 30 min, at most 3 attempts in all; 25 sends a run.
+- **`lib/email/pro-email-server.ts`:**
+  - Wiring: `EMAIL_APP_ENABLED` + `ZEPTOMAIL_TOKEN` (Vercel only).
+  - Sender `no-reply@`, reply-to support, `QA_INBOX`.
+  - Refund facts come from `payment_transactions.refund_ids` or the unapplied audit row.
+- **`pro-server.ts`:**
+  - `afterFulfil` sends the receipt; `afterRefund` sends the refund confirmation.
+  - The old stub is removed.
+  - `getProEnd` / `listProEnds` use the user's OVERALL end, because renewals stack.
+- **`pro-flows.ts`:** `afterRefund` runs after a webhook refund and after a replayed refund, not for a repeat.
+- **Route `POST /api/cron/emails`:** the reconcile pattern; 401 before any read; e-mail off → skipped.
+  The old GET `/api/cron/pro-reminders` is removed.
+- **Workflow `payments-emails.yml`:**
+  - Hourly at :07; `permissions: {}`; concurrency group.
+  - Gated by `PAYMENTS_EMAILS_ENABLED`.
+  - Secrets: `CRON_SECRET` + `EMAILS_URL` only.
+- **`/admin/payments`:** "E-mails to check" (UNKNOWN, or FAILED × 3): kind, key, code, attempts. ids only.
+- **E6:** `/billing` already shows "Pro until <date>" (B1, the overall end); unchanged.
+- **Gates:**
+  - **PAY1-B5 (offline):** 9 checks, 27 negative controls.
+  - **PAY1-B5-LIVE:** real roles, rolled back, `--pre` and `--local`; in live-journeys after PAY1-B4-LIVE.
+- **Checks before release:** offline 112/112; build OK; local route R-1..R-4 and the admin / student page smokes pass;
+  TLS clean; production dry-run 150 OK; PAY1-B5-LIVE `--pre` on production 8/8 (rolled back).
+- **Local copy (pre-149-apply backup + 149 + 150):**
+  - `--pre` 8/8; after apply 8/8;
+  - ratchet 6/6 (129); RLS 6/6 (6 need the QA accounts);
+  - re-apply refused; rollback → only the ledger row changed; re-apply OK; chain lines `none`.
+- **Activation (DEPLOY-BEFORE-ACTIVATE):**
+  1. 150 + the app on main and deployed;
+  2. the owner sets `ZEPTOMAIL_TOKEN` and then `EMAIL_APP_ENABLED=true` in Vercel;
+  3. then the GitHub secrets `EMAILS_URL` (+ `CRON_SECRET`) and the variable `PAYMENTS_EMAILS_ENABLED=true`.
+  - The receipt / refund sends run inside the payment flows, which stay closed until checkout opens (B7).

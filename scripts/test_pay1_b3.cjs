@@ -140,7 +140,6 @@ const B3_ALLOW = {
   'lib/payments/pro-server.ts': 'the Pro primitive (fn_has_pro / own entitlement end) behind billing status + pricing — no feature decision',
   'services/billing.service.ts': '/billing shows the Pro status (display only)',
   'app/(site)/billing/page.tsx': '/billing shows the Pro status (display only)',
-  'app/api/cron/pro-reminders/route.ts': 'ops: expiry reminders (reads entitlements, decides nothing)',
   'lib/admin/today.ts': 'admin dashboard counts',
   'app/(site)/admin/students/library-pro/page.tsx': 'admin tooling: Library Pro grants',
   'services/admin-premium.service.ts': 'admin tooling: grant / revoke (the quota report went with 148)',

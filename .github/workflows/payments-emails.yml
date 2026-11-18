@@ -1,0 +1,40 @@
+# PAY-1 B5 (owner D8 + E5, 2026-11-18): GitHub Actions only TRIGGERS the e-mail job; the work runs in the Vercel route
+# POST /api/cron/emails, which holds the ZeptoMail token (Vercel env only — never here).
+#   - hourly: receipts / refund confirmations the immediate send missed and retries of failed sends; the D7 / D1 expiry
+#     reminders go out from the first run after 09:00 India time (the route decides; a later run that day finds them sent)
+#   - auth: the one header `Authorization: Bearer $CRON_SECRET` (constant-time on the server); POST only
+#   - secrets used here: CRON_SECRET and EMAILS_URL (the route's full URL; kept as a secret so no host is printed)
+#   - DEPLOY-BEFORE-ACTIVATE: nothing runs until the owner sets the repository variable PAYMENTS_EMAILS_ENABLED=true,
+#     after the B5 app is on main, the production deploy is verified and EMAIL_APP_ENABLED is set in Vercel
+#   - overlapping runs are safe (the route takes a lease; each e-mail is recorded once); concurrency also queues them here
+name: payments-emails
+
+on:
+  schedule:
+    - cron: "7 * * * *"
+  workflow_dispatch: {}
+
+permissions: {}
+
+concurrency:
+  group: payments-emails
+  cancel-in-progress: false
+
+jobs:
+  trigger:
+    if: vars.PAYMENTS_EMAILS_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: POST the e-mail route (counts only in the answer)
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          EMAILS_URL: ${{ secrets.EMAILS_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CRON_SECRET}" ] || [ -z "${EMAILS_URL}" ]; then echo "CRON_SECRET / EMAILS_URL not set"; exit 1; fi
+          code=$(curl -s -o body.json -w '%{http_code}' --max-time 90 -X POST -H "Authorization: Bearer ${CRON_SECRET}" "${EMAILS_URL}")
+          echo "HTTP ${code}"  # curl -s: an error never prints the host
+          # the body holds counts only (never ids or user data)
+          node -e 'const b=JSON.parse(require("fs").readFileSync("body.json","utf8"));const {ok,outcome,skipped,expiredClaims,reminders,counts}=b;console.log(JSON.stringify({ok,outcome,skipped,expiredClaims,reminders,counts}))' || true
+          test "${code}" = "200"

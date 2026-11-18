@@ -168,7 +168,9 @@ function walk(dir) {
 }
 const HEX = /(?<![\w&/])#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{4}|[0-9a-fA-F]{3})(?![\w-])/g;
 const FN = /(?<![a-zA-Z])(?:rgba?|hsla?|oklch|oklab|lab|lch)\(/g;
-const ALLOW = new Set(['app/globals.css', 'config/brand.ts']);
+// PAY-1 B5: lib/email/pro-templates.ts holds the transactional e-mail templates (inline CSS needs literal token colours,
+// like docs/auth/email-templates/*.html); its links / images / colours are gated by PAY1-B5 B5-04
+const ALLOW = new Set(['app/globals.css', 'config/brand.ts', 'lib/email/pro-templates.ts']);
 
 test('B-03 no colour literals outside the token file, its mirror and the email templates (admin included)', () => {
   const files = [...['app', 'components', 'lib', 'config', 'services', 'types'].flatMap((d) => walk(path.join(ROOT, d))), path.join(ROOT, 'middleware.ts')];

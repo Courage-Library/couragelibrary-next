@@ -285,6 +285,10 @@
     "PAY1-B4-LIVE": {
       "measured": 60,
       "cap": 240
+    },
+    "PAY1-B5-LIVE": {
+      "measured": 30,
+      "cap": 180
     }
   }
 }

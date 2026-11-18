@@ -62,6 +62,8 @@ export interface ProDeps {
   log(entry: ProFlowLog): void;
   /** Receipt email etc. — runs after the DB commit; a failure here never undoes a payment. */
   afterFulfil?(result: FulfilResult): Promise<void>;
+  /** PAY-1 B5: the refund confirmation e-mail — runs after the refund is recorded; a failure never undoes it. */
+  afterRefund?(refundId: string): Promise<void>;
   /** PAY-1 B4: the key mode of this server (rzp_test_ → test). Absent = live (the F9 behaviour). */
   mode?: GatewayMode;
 }
@@ -171,6 +173,15 @@ async function fulfilChecked(order: ProOrderRow, payment: GatewayPayment, source
   return { ok: true, result: r };
 }
 
+async function runAfterRefund(deps: ProDeps, refundId: string): Promise<void> {
+  if (!deps.afterRefund) return;
+  try {
+    await deps.afterRefund(refundId);
+  } catch (e) {
+    deps.log({ fn: "refund", op: "afterRefund", code: e instanceof Error ? e.message.slice(0, 60) : "UNKNOWN", ids: { refund_id: refundId } });
+  }
+}
+
 // ------------------------------------------------------------------ client verify
 export async function verifyClientPayment(
   input: { userId: string | null; orderId: unknown; paymentId: unknown; signature: unknown },
@@ -247,6 +258,7 @@ export async function handleWebhook(
       return { ok: false, status: rf.error ? 500 : 409, code };
     }
     await finish("PROCESSED");
+    if (rr.already_processed !== true) await runAfterRefund(deps, ev.refundId);
     return { ok: true, outcome: "refunded" };
   }
 
@@ -378,6 +390,7 @@ export async function runReconciliation(deps: ReconcileDeps): Promise<ReconcileS
       if (!rf.error && obj(rf.data).success === true) {
         await deps.finishWebhookEvent(ev.eventId, "PROCESSED");
         sum.refundsReplayed++;
+        if (obj(rf.data).already_processed !== true) await runAfterRefund(deps, p.refundId);
       } else if (!rf.error && obj(rf.data).code === "PAYMENT_NOT_FOUND") {
         sum.refundsWaiting++;
       } else {

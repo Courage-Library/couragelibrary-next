@@ -18,6 +18,7 @@ const ROOT = path.resolve(__dirname, '..');
 const ALLOW_PATTERNS = [
   [/^support@couragelibrary\.in$/i, 'the public support address'],
   [/^no-reply@couragelibrary\.in$/i, 'the transactional email sender (role address; AUTH-1 2b-2 templates / docs)'],
+  [/^qa@couragelibrary\.in$/i, 'the QA inbox (role alias; PAY-1 B5 owner E1: QA / test-mode e-mails go here)'],
   [/@([a-z0-9-]+\.)*[a-z0-9-]+\.test$/i, '.test is reserved for testing (RFC 2606) — QA identities and fixtures'],
   [/@([a-z0-9-]+\.)*example\.(com|org|net)$/i, 'example domains are reserved (RFC 2606)'],
   [/@([a-z0-9-]+\.)*[a-z0-9-]+\.local$/i, '.local is special-use (RFC 6762) — synthetic system actor in app code'],

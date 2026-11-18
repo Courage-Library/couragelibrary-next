@@ -1555,7 +1555,7 @@ export class AdminService {
     // TYPES-1 B6 (Class B): subscription_plans has plan_code / base_price_inr (code / price_inr do not exist → 42703),
     // and /admin/billing expects { plans, orders } (the old array return crashed the page on plans.length).
     const supabase = await createServerSupabaseClient();
-    const [plansRes, ordersRes, refundRes] = await Promise.all([
+    const [plansRes, ordersRes, refundRes, emailRes] = await Promise.all([
       supabase
         .from("subscription_plans")
         .select("id, name, plan_code, base_price_inr, duration_days, is_active, created_at")
@@ -1573,6 +1573,14 @@ export class AdminService {
         .in("action_type", ["PRO_DOUBLE_CHARGE", "PRO_PAYMENT_TO_REFUND", "PRO_UNAPPLIED_PAYMENT_REFUNDED"])
         .order("created_at", { ascending: false })
         .limit(300),
+      // PAY-1 B5 (owner E3): e-mails that need a look — UNKNOWN (may or may not have been sent; never retried) or FAILED with
+      // no attempts left. ids and outcome only (email_events holds no address or body).
+      createAdminServerSupabaseClient()
+        .from("email_events")
+        .select("id, kind, event_key, status, attempts, error_code, gateway_mode, created_at")
+        .or("status.eq.UNKNOWN,and(status.eq.FAILED,attempts.gte.3)")
+        .order("created_at", { ascending: false })
+        .limit(100),
     ]);
 
     const plans = (plansRes.data || []).map((b) => ({
@@ -1608,7 +1616,17 @@ export class AdminService {
         createdAt: a.created_at,
       };
     });
-    return { plans, orders, toRefund, toRefundError: !!refundRes.error };
+    const emailIssues = (emailRes.data || []).map((e) => ({
+      id: e.id,
+      kind: e.kind,
+      key: e.event_key,
+      status: e.status,
+      attempts: e.attempts,
+      errorCode: e.error_code,
+      mode: (e.gateway_mode === "test" ? "test" : "live") as "test" | "live",
+      createdAt: e.created_at,
+    }));
+    return { plans, orders, toRefund, toRefundError: !!refundRes.error, emailIssues, emailIssuesError: !!emailRes.error };
   }
 
   /**

@@ -2059,6 +2059,51 @@ export type Database = {
           },
         ]
       }
+      email_events: {
+        Row: {
+          attempts: number
+          created_at: string
+          error_code: string | null
+          event_key: string
+          gateway_mode: string
+          id: string
+          kind: string
+          provider_ref: string | null
+          sent_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          error_code?: string | null
+          event_key: string
+          gateway_mode?: string
+          id?: string
+          kind: string
+          provider_ref?: string | null
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          error_code?: string | null
+          event_key?: string
+          gateway_mode?: string
+          id?: string
+          kind?: string
+          provider_ref?: string | null
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       evaluation_rubrics: {
         Row: {
           created_at: string
