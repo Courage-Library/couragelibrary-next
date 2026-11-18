@@ -970,3 +970,86 @@ verified 100%, 0 resumes); TLS public roots on GitHub, Vercel and Supabase; dry-
 `db:types` identical to the hand edit; `db:types:check` OK. Post-apply gates: PAY1-B5-LIVE, PAY1-B4-LIVE, F9-PRICING
 all pass; ratchet 6/6 (129); RLS 12/12. Nothing is sent until the owner sets `ZEPTOMAIL_TOKEN` and
 `EMAIL_APP_ENABLED=true` in Vercel after the deploy, then `EMAILS_URL` and `PAYMENTS_EMAILS_ENABLED=true` in GitHub.
+
+## 14. B6 plan: refunds (2026-11-19, plan only; nothing built)
+
+**Locked by the owner:**
+- **D4:** refunds are made in the Razorpay dashboard; the webhook updates access.
+- **D5:** "≤ 1 Pro mock" = ≤ 1 SUBMITTED Pro mock attempt.
+- **D6:** a founding seat stays used after a refund.
+- **D7:** only the latest period of a stacked purchase is refundable.
+- **Refund Policy 3.2:** within 7 days of the first purchase of a plan, once per user, a full refund.
+- The other refund rows (double charge, not activated in 24 h, failed-but-debited, a feature removed → pro rata) are
+  done in the dashboard as today.
+
+**Today (149):**
+- `fn_refund_pro_payment` is idempotent per refund id (`refund_ids`).
+  - A full refund revokes that order's entitlement and sets the order REFUNDED.
+  - A partial refund removes pro-rata days from that entitlement only.
+  - An unapplied payment's refund (double charge / unfulfillable) is acknowledged once (B4).
+  - It writes PRO_ORDER_REFUNDED / PARTIALLY_REFUNDED audit rows.
+  - It has no mode check; the founding seat is untouched (D6 already holds).
+- **Gaps:**
+  1. **No eligibility anywhere:** first purchase, 7 days, Pro mocks submitted and "used before" are not computed.
+  2. **A refund of a NON-latest stacked period** leaves a gap: later periods keep their dates, so paid days vanish.
+  3. **Test-mode refunds** are not mode-checked. A live server rejects test webhooks by signature, but the database
+     function does not check.
+  4. **Nothing distinguishes a 7-day policy refund** from the other kinds, so "once per user" cannot be enforced.
+  5. **`/billing` does not mark a refunded receipt.**
+- **Pro mock = a mock whose current tier is PRO** (`fn_access_tier('MOCK_TEST', id)`). Attempts record no tier.
+
+**Build (migration 151 + app):**
+- **`fn_pro_refund_eligibility(p_order_id)`:**
+  - SQL, STABLE, INVOKER, service_role only (no SECDEF change).
+  - Returns `first_purchase`, `within_7_days` (from the payment's `captured_at`), `pro_mocks_submitted` (submitted
+    attempts on PRO-tier mocks since the payment), `policy_refund_used`, `latest_period`, `already_refunded`, `mode`,
+    `founding`, `eligible` and `reasons[]`.
+- **`pro_refund_approvals` table:**
+  - Holds order, payment, reason (POLICY_7_DAY / DOUBLE_CHARGE / NOT_ACTIVATED / FAILED_DEBITED / FEATURE_REMOVED /
+    GOODWILL), the eligibility snapshot, the admin id and the time.
+  - An admin action writes it **before** refunding in the dashboard.
+  - The webhook links the refund to it, so "once per user" = a completed POLICY_7_DAY refund.
+- **`fn_refund_pro_payment` v3 (same signature + `p_gateway_mode DEFAULT 'live'`):**
+  - MODE_MISMATCH for another mode.
+  - **Stacked periods:** a refund of a period that is not the latest moves every later period of that user earlier
+    by the time removed.
+    - Full refund: `old end − max(start, now)`.
+    - Partial refund: the pro-rata days.
+    - So the user keeps exactly the paid days they still have.
+  - Links the approval (`approval_id`, `refund_kind`) in the audit row.
+  - Everything else stays as 149: idempotent per refund id, the unapplied branch, no founding change.
+- **`/admin/payments` "Refund check":**
+  - Look up an order by payment id or receipt number. The last 7 days of PAID live orders are listed with their
+    eligibility (green / red reasons).
+  - "Record approval" (reason + note) → then refund in the Razorpay dashboard.
+  - Shows refunded state once the webhook lands.
+- **`/billing`:** a refunded receipt shows "Refunded ₹X" (own rows, RLS).
+- **The B5 refund confirmation e-mail** runs unchanged after the webhook.
+
+**Edge cases:**
+| Case | Behaviour |
+|---|---|
+| Refund after the period expired | Recorded; the entitlement is revoked (no access change); the e-mail says Pro from that payment has ended. |
+| Double charge | The B4 unapplied branch, unchanged; never counts as the policy refund. |
+| Test-mode order | Only a test-key server handles it; MODE_MISMATCH otherwise. |
+| A second refund webhook (Razorpay retry) | `already_processed`; no second e-mail (B5 guard). |
+| Partial, then full | Totals add up; the final refund revokes. |
+| A refund larger than paid | REFUND_EXCEEDS_PAYMENT (as 149). |
+| Founding order refunded | Seat stays used (D6). |
+| Refund with no approval | Still applied (money already left). The audit row says `refund_kind = UNRECORDED` and the admin list flags it. |
+
+**Gates:**
+- **PAY1-B6 (offline):** migration / rollback text, the eligibility rules as a pure function in the app (same rules as the
+  SQL), the admin action (admin only, reason allow-list), negative controls.
+- **PAY1-B6-LIVE (rolled back, `--pre` / `--local`):**
+  - the eligibility matrix (each reason on / off);
+  - full refund of the latest stacked period → that period is revoked, the earlier one untouched;
+  - full refund of the earlier period → the later one moves earlier by exactly the removed time;
+  - partial refund → pro-rata days, later periods moved;
+  - replay → no change;
+  - MODE_MISMATCH;
+  - refund after expiry;
+  - founding `sold` unchanged;
+  - once per user;
+  - anon / student → 42501.
+- Admin / student page smokes for `/admin/payments` and `/billing`.
