@@ -9466,8 +9466,8 @@ export type Database = {
         Args: {
           p_amount_paise: number
           p_currency: string
-          p_gateway_order_id: string
           p_gateway_mode?: string
+          p_gateway_order_id: string
           p_payment_id: string
           p_source: string
         }

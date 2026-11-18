@@ -838,3 +838,10 @@ payments off the job is a no-op (checkout closed).
     changed;
   - re-apply OK; rollback chains 0 problems;
   - a real two-connection race on the lease: the second waits, then gets false.
+
+**149 applied on production 2026-11-18 ≈ 18:00 IST** (owner "release"): backup `pre-149-apply` (resilient, 187 tables,
+verified 100%, 0 resumes); TLS public roots on GitHub, Vercel and Supabase; dry-run OK; applied with the ledger row.
+`db:types` differs from the hand edit only in key order (`p_gateway_mode` / `p_gateway_order_id`); `db:types:check`
+OK. Post-apply gates: PAY1-B4-LIVE, F9-PRICING (new signature), PAY1-B1-LIVE, PAY1-B3-LIVE all pass; ratchet 6/6 (129);
+RLS 12/12; SECDEF-S2-2 8/8. The reconcile schedule stays off until the owner sets `CRON_SECRET` / `RECONCILE_URL`
+and then `PAYMENTS_RECONCILE_ENABLED=true` after the deploy.
