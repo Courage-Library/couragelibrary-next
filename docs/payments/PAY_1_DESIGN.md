@@ -964,3 +964,9 @@ creates it as a Zoho alias).
   2. the owner sets `ZEPTOMAIL_TOKEN` and then `EMAIL_APP_ENABLED=true` in Vercel;
   3. then the GitHub secrets `EMAILS_URL` (+ `CRON_SECRET`) and the variable `PAYMENTS_EMAILS_ENABLED=true`.
   - The receipt / refund sends run inside the payment flows, which stay closed until checkout opens (B7).
+
+**150 applied on production 2026-11-18 ≈ 21:45 IST** (owner "release"): backup `pre-150-apply` (resilient, 188 tables,
+verified 100%, 0 resumes); TLS public roots on GitHub, Vercel and Supabase; dry-run OK; applied with the ledger row.
+`db:types` identical to the hand edit; `db:types:check` OK. Post-apply gates: PAY1-B5-LIVE, PAY1-B4-LIVE, F9-PRICING
+all pass; ratchet 6/6 (129); RLS 12/12. Nothing is sent until the owner sets `ZEPTOMAIL_TOKEN` and
+`EMAIL_APP_ENABLED=true` in Vercel after the deploy, then `EMAILS_URL` and `PAYMENTS_EMAILS_ENABLED=true` in GitHub.
