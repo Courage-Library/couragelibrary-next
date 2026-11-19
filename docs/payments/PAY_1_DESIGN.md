@@ -1106,3 +1106,86 @@ verified 100%, 2 resumes on the hotspot); TLS public roots on GitHub, Vercel and
 ledger row. `db:types` differs from the hand edit only in the position of the two new function entries;
 `db:types:check` OK. Post-apply gates: PAY1-B6-LIVE, PAY1-B5-LIVE, PAY1-B4-LIVE, F9-PRICING all pass; ratchet 6/6 (129);
 RLS 12/12; SECDEF-S2-2 8/8.
+
+## 15. B7 plan: end-to-end test with Razorpay TEST keys on a Vercel Preview (2026-11-19, plan only)
+
+**Goal:** prove the whole money path with real Razorpay TEST-mode traffic, QA accounts only, before any live key.
+- Order → checkout → verify → Pro active → receipt row.
+- The webhook (paid / failed / refund).
+- The reconcile job (a closed tab).
+- A double charge → "Payments to refund".
+- A refund check → recorded reason → dashboard refund → Pro revoked / dates moved → refunded receipt.
+- Test mode refused for a non-QA account.
+- Production checkout stays closed throughout.
+
+**Facts that shape it:**
+- **Checkout opens only when ALL hold** (`config/payments.ts`): `PAYMENTS_ENABLED=true`, `PRO_ENABLED=true`,
+  `RAZORPAY_KEY_ID` (an `rzp_test_` key), `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, and the code constant
+  `REFUND_POLICY_PUBLISHED = true`.
+  - The constant is `false` today, so B7 needs one code change.
+  - Production stays closed because its env has no `PAYMENTS_ENABLED` / keys.
+- **A Preview uses the SAME Supabase project** as production (one project; the legacy project is never used).
+  - Test-mode orders are written there with `gateway_mode = 'test'`, and only QA accounts may create them (149).
+  - A test purchase gives the QA student REAL Pro in that database until it is refunded or cleaned up.
+- **The webhook needs a public URL.**
+  - Vercel Preview deployments are behind Deployment Protection, and Razorpay cannot log in. It can, however, call a
+    URL that carries the protection-bypass query parameter.
+  - A per-branch Preview alias gives a stable URL for one branch.
+- **Vercel crons do not run on Previews;** the GitHub reconcile / e-mail workflows point at production. On the
+  Preview, the reconcile route is called by hand (POST + `CRON_SECRET` + the bypass header).
+- **Who clicks "Pay":** a test payment on a HOSTED site is not something I may perform. The owner completes the
+  Razorpay test checkout (test card / test UPI) in the browser. I run every check before and after: database state,
+  webhook rows, the reconcile call, the admin and billing pages, and a final cleanup check.
+- **E-mail:** B5 stays off (EMAIL-KYC-1). The receipt / refund rows are checked; no mail is sent.
+
+**Owner setup (names only — values go straight into the dashboards, never into chat or the repo):**
+1. **Razorpay, TEST mode:**
+   - Generate the test API key pair (Key Id `rzp_test_…`, Key Secret).
+   - Add one TEST webhook:
+     - URL = the B7 Preview alias + `/api/webhooks/razorpay` + `?x-vercel-protection-bypass=<the Vercel bypass secret>`;
+     - events `payment.captured`, `order.paid`, `payment.failed`, `refund.processed`;
+     - its own webhook secret.
+   - Leave auto-capture at the Razorpay default; B4 reconciliation also captures authorised payments.
+2. **Vercel → Settings → Deployment Protection:** create a "Protection Bypass for Automation" secret (used in the
+   webhook URL and by my check scripts). Do not turn protection off.
+3. **Vercel → Environment Variables, scope Preview, branch `pay-b7-e2e` only** (never Production):
+   - `PAYMENTS_ENABLED=true`, `PRO_ENABLED=true`;
+   - `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` (test values);
+   - `CRON_SECRET` (a Preview-only value, ≥ 16 characters);
+   - check that the Supabase variables the app needs (`NEXT_PUBLIC_SUPABASE_URL`, the publishable / anon key,
+     `SUPABASE_SERVICE_ROLE_KEY`) and `NEXT_PUBLIC_SITE_URL` (= the Preview alias) exist for that Preview.
+   - `RAZORPAY_LIVE_APPROVED` and `EMAIL_APP_ENABLED` stay unset.
+4. **For my check scripts on this PC (`.env.local`, never committed):** `VERCEL_AUTOMATION_BYPASS_SECRET` and
+   `B7_CRON_SECRET` (the Preview `CRON_SECRET`). The owner pastes them into the file; I only read them and never print
+   them.
+5. **The owner does the test checkout** in the Preview with the QA student (test card / test UPI from Razorpay's test
+   page) when the run sheet says so, and the dashboard refunds in Razorpay TEST mode.
+
+**Build (small):**
+- `REFUND_POLICY_PUBLISHED = true` (the page has been live since LEGAL-PAGES-1; production stays closed by env).
+- `scripts/live/test_pay1_b7.cjs`:
+  - a run sheet that pauses for each owner step;
+  - read-only checks against the Preview (bypass header) and the database (orders / payments / entitlements /
+    receipts / webhook rows / audit rows of the QA accounts and `gateway_mode = 'test'` only);
+  - the reconcile POST;
+  - the cleanup check.
+- `scripts/db/b7-cleanup.cjs`: revokes any test-mode Pro still active for the QA accounts afterwards. It is a reviewed,
+  backed-up, audited write; QA accounts and `gateway_mode = 'test'` only.
+
+**Scenarios (each with the expected database state):**
+| # | What | Expect |
+|---|---|---|
+| S1 | Prod check, anonymous | `/pricing` on production still says payments are not open; no checkout script loaded. |
+| S2 | Non-QA account on the Preview | Test-mode order refused (TEST_MODE_QA_ONLY). Run by me against the server action's route with a synthetic non-QA id in a rolled-back DB call; no real non-QA sign-in. |
+| S3 | QA student buys PRO_3M (test card, success) | Order PAID, `gateway_mode test`; one payment; one entitlement for 3 months; receipt `CL-R-…`; webhook `payment.captured` PROCESSED; `/billing` shows Pro until the date and the receipt. |
+| S4 | QA student buys again (stacked) | The second period starts at the first end; the first is NOT_LATEST_PERIOD in the refund check. |
+| S5 | Payment fails (test failure card) | Order FAILED via `payment.failed`; no entitlement. |
+| S6 | Closed tab: pay, close before verify | Webhook or reconcile (POST by me) fulfils once; no double grant. |
+| S7 | Refund check → record POLICY_7_DAY → owner refunds S4 in the dashboard | `refund.processed` → S4 period revoked, refund_kind POLICY_7_DAY; `/billing` "Refunded". |
+| S8 | Partial refund of S3 in the dashboard (GOODWILL, note) | Pro-rata days off, refund_kind GOODWILL; "Partly refunded". |
+| S9 | Webhook replay (Razorpay "resend") | already_processed; nothing changes. |
+| S10 | Cleanup | No test-mode Pro left active for QA accounts; production unchanged; counts match the pre-test snapshot except the test rows. |
+
+**Gates:** PAY1-B7 offline (the flag flip only with the page present; the run-sheet script never targets production;
+the cleanup script QA- / test-only); the existing CI unchanged. B7 itself is a one-off run with a written record
+(no CI job).
