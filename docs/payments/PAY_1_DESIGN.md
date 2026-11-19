@@ -1189,3 +1189,74 @@ RLS 12/12; SECDEF-S2-2 8/8.
 **Gates:** PAY1-B7 offline (the flag flip only with the page present; the run-sheet script never targets production;
 the cleanup script QA- / test-only); the existing CI unchanged. B7 itself is a one-off run with a written record
 (no CI job).
+
+**Owner decisions (2026-11-19):** H1a–H7a, with conditions:
+- after B7 the owner rotates the Vercel Protection Bypass secret and removes the B7 Preview env vars (last run-sheet
+  step);
+- the Preview takes TEST keys only: `checkoutState` now refuses a live key on any non-production deployment
+  (LIVE_KEY_OUTSIDE_PRODUCTION);
+- production's env is checked by NAME before the run (`scripts/ops/vercel-env-names.cjs`).
+
+**B7 built 2026-11-19:**
+- `config/payments.ts`: `REFUND_POLICY_PUBLISHED = true`; a live key opens checkout only when `VERCEL_ENV` is
+  `production` (and approved, as before).
+- `scripts/live/test_pay1_b7.cjs`: the step checker (preflight / s1 / s3 / s7 / s4 / s5 / s6 / s8 / s9 / status /
+  reconcile / cleanup).
+- `scripts/db/b7-cleanup.cjs`: revokes leftover test-mode Pro of QA accounts; dry run by default; `--apply` after a
+  backup + TLS.
+- `scripts/ops/vercel-env-names.cjs`: names-only Vercel check (production clean; B7 names branch-scoped; `--after`).
+- **PAY1-B7 (offline):** 5 checks, 13 negative controls.
+- S1 against production (anonymous) passes today; the cleanup dry run finds 0 test-mode Pro.
+
+### B7 run sheet (owner steps in order; I run each check and report before the next step)
+**Part A — setup (once):**
+1. **Vercel → Project → Settings → Deployment Protection →** Protection Bypass for Automation: create the secret.
+2. **Razorpay Dashboard → switch to TEST mode:**
+   1. Account & Settings → API Keys → generate the test key pair.
+   2. Webhooks → Add:
+      - URL `<Preview alias>/api/webhooks/razorpay?x-vercel-protection-bypass=<bypass secret>`;
+      - a new webhook secret;
+      - events `payment.captured`, `order.paid`, `payment.failed`, `refund.processed`.
+3. **Vercel → Settings → Environment Variables:** add each of `PAYMENTS_ENABLED=true`, `PRO_ENABLED=true`,
+   `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, and `CRON_SECRET` (a new value, ≥ 16 characters).
+   - Environment: **Preview** only, Git branch **`pay-b7-e2e`**.
+   - Check that the Supabase variables and `NEXT_PUBLIC_SITE_URL` (= the Preview alias) exist for that Preview.
+4. **Vercel → Account → Tokens:** create a token for the names-only check (delete it after B7).
+5. **This PC, `E:\cl-pay-1\.env.local`** (never committed):
+   - `B7_PREVIEW_URL` (the alias, e.g. `https://<project>-git-pay-b7-e2e-<team>.vercel.app`);
+   - `VERCEL_AUTOMATION_BYPASS_SECRET`;
+   - `B7_CRON_SECRET` (= the Preview `CRON_SECRET`);
+   - `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`, `VERCEL_TEAM_ID`.
+6. **Tell me "B7 setup done".** I push the branch `pay-b7-e2e` (= main), wait for its Preview build, then run:
+   `vercel-env-names.cjs` (production has no payment names; B7 names branch-scoped), `s1`, `preflight` (Preview open
+   with a test key, webhook configured, S2, snapshot).
+
+**Part B — the test (the QA student on the Preview; each step: you do it, say "done", I check):**
+1. **S3:** sign in on the Preview as the QA student → /pricing → buy **Pro · 3 months** → pay with Razorpay's
+   published TEST success card / UPI → wait for "Pro active" → open /billing.
+2. **S7:**
+   - Sign in as the QA admin → /admin/payments → Refund check.
+   - Look up the S3 payment id (I give it from `status`). It should show ELIGIBLE with the TEST note.
+   - Record reason **7-day refund**.
+   - Razorpay TEST dashboard → Payments → that payment → Refund → **full**.
+   - Wait ~1 minute.
+3. **S4:** as the QA student, buy **Pro · 3 months** twice (pay each).
+4. **S5:** buy again and pay with Razorpay's TEST **failure** card / UPI.
+5. **S6:** buy again, pay with the success card, and **close the tab at once** (before the page confirms). Say "done";
+   I wait 2 minutes, then run the Preview reconcile if the webhook has not completed it.
+6. **S8:**
+   - As the QA admin, Refund check → look up the S4 FIRST payment → record **Goodwill** with a note.
+   - Razorpay TEST dashboard → Refund → **partial, half the amount**.
+7. **S9:** Razorpay TEST dashboard → Webhooks → the B7 webhook → a recent `refund.processed` delivery → **Resend**.
+
+**Part C — finish:**
+1. I take a backup (`pre-b7-cleanup`, resilient) + one TLS check, then run `b7-cleanup.cjs` (dry run, then `--apply`)
+   and the `cleanup` check: no test-mode Pro left.
+2. **You:**
+   - Vercel → delete the six B7 Preview variables.
+   - Deployment Protection → **rotate** the bypass secret (the old one is in the Razorpay webhook URL).
+   - Razorpay TEST → delete or disable the B7 webhook.
+   - Say "teardown done".
+3. I run `vercel-env-names.cjs --after` (no B7 variable left) and delete the branch `pay-b7-e2e`.
+4. **You:** delete the Vercel token, and remove the B7 lines from `.env.local`.
+5. I write the B7 record in this file.

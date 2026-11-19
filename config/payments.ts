@@ -32,16 +32,16 @@ export function razorpayKeyMode(keyId: string | undefined | null): RazorpayKeyMo
   return null;
 }
 
-export type CheckoutClosedReason = "PAYMENTS_OFF" | "PRO_OFF" | "KEYS_MISSING" | "LIVE_KEY_NOT_APPROVED" | "REFUND_POLICY_MISSING";
+export type CheckoutClosedReason = "PAYMENTS_OFF" | "PRO_OFF" | "KEYS_MISSING" | "LIVE_KEY_NOT_APPROVED" | "LIVE_KEY_OUTSIDE_PRODUCTION" | "REFUND_POLICY_MISSING";
 export type CheckoutState = { open: true; keyId: string; mode: "test" | "live" } | { open: false; reason: CheckoutClosedReason };
 
 /**
- * The refund policy page (LEGAL-AUDIT-1 gap; published by LEGAL-PAGES-1 at app/(site)/refund-policy/page.tsx). Flip to
- * true only as a reviewed change (PAY-1 B7, test mode first; the F9-B gate checks the page exists); checkout stays
- * closed until then.
+ * The refund policy page (LEGAL-AUDIT-1 gap; published by LEGAL-PAGES-1 at app/(site)/refund-policy/page.tsx).
+ * PAY-1 B7 (owner H3 a, 2026-11-19): published. Production checkout still stays closed: its env has no payment switches
+ * or keys (PAYMENTS_ENABLED / PRO_ENABLED / RAZORPAY_*), checked by name before the B7 run.
  */
 export const REFUND_POLICY_PATH = "/refund-policy";
-export const REFUND_POLICY_PUBLISHED = false;
+export const REFUND_POLICY_PUBLISHED = true;
 
 export function checkoutState(env: NodeJS.ProcessEnv = process.env, refundPolicyPublished = REFUND_POLICY_PUBLISHED): CheckoutState {
   if (env.PAYMENTS_ENABLED !== "true") return { open: false, reason: "PAYMENTS_OFF" };
@@ -50,6 +50,9 @@ export function checkoutState(env: NodeJS.ProcessEnv = process.env, refundPolicy
   const mode = razorpayKeyMode(keyId);
   if (!mode || !env.RAZORPAY_KEY_SECRET || !env.RAZORPAY_WEBHOOK_SECRET) return { open: false, reason: "KEYS_MISSING" };
   if (mode === "live" && env.RAZORPAY_LIVE_APPROVED !== "true") return { open: false, reason: "LIVE_KEY_NOT_APPROVED" };
+  // PAY-1 B7 (owner condition, 2026-11-19): a Preview / local / any non-production deployment takes TEST keys only — a
+  // live key opens checkout nowhere but a production deployment (VERCEL_ENV is set by Vercel)
+  if (mode === "live" && env.VERCEL_ENV !== "production") return { open: false, reason: "LIVE_KEY_OUTSIDE_PRODUCTION" };
   if (!refundPolicyPublished) return { open: false, reason: "REFUND_POLICY_MISSING" };
   return { open: true, keyId, mode };
 }
@@ -60,5 +63,6 @@ export const CHECKOUT_CLOSED_MESSAGE: Record<CheckoutClosedReason, string> = {
   PRO_OFF: "Pro is not open yet. There is nothing to pay today.",
   KEYS_MISSING: "Payments are not set up yet. There is nothing to pay today.",
   LIVE_KEY_NOT_APPROVED: "Payments are not open yet. There is nothing to pay today.",
+  LIVE_KEY_OUTSIDE_PRODUCTION: "Payments are not open on this site. There is nothing to pay today.",
   REFUND_POLICY_MISSING: "Payments open once our refund policy is published. There is nothing to pay today.",
 };
