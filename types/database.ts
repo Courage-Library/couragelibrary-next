@@ -9840,6 +9840,17 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_pro_refund_approve: {
+        Args: {
+          p_admin_email: string
+          p_admin_id: string
+          p_note: string
+          p_payment_id: string
+          p_reason: string
+        }
+        Returns: Json
+      }
+      fn_pro_refund_eligibility: { Args: { p_order_id: string }; Returns: Json }
       fn_prompt_template_activate: {
         Args: { p_actor_email: string; p_actor_id: string; p_id: string }
         Returns: Json
@@ -9882,17 +9893,6 @@ export type Database = {
         }[]
       }
       fn_public_hindi_question_count: { Args: never; Returns: number }
-      fn_pro_refund_approve: {
-        Args: {
-          p_admin_email: string
-          p_admin_id: string
-          p_note: string
-          p_payment_id: string
-          p_reason: string
-        }
-        Returns: Json
-      }
-      fn_pro_refund_eligibility: { Args: { p_order_id: string }; Returns: Json }
       fn_public_identities: {
         Args: { p_ids: string[] }
         Returns: {

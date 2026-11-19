@@ -1100,3 +1100,9 @@ all pass; ratchet 6/6 (129); RLS 12/12. Nothing is sent until the owner sets `ZE
   - `--pre` and after-apply shape checks pass;
   - ratchet 6/6; RLS 6/6;
   - re-apply refused; rollback → only the ledger row changed; re-apply OK; chain lines `none`.
+
+**151 applied on production 2026-11-19 ≈ 10:13 IST** (owner "release"): backup `pre-151-apply` (resilient, 189 tables,
+verified 100%, 2 resumes on the hotspot); TLS public roots on GitHub, Vercel and Supabase; dry-run OK; applied with the
+ledger row. `db:types` differs from the hand edit only in the position of the two new function entries;
+`db:types:check` OK. Post-apply gates: PAY1-B6-LIVE, PAY1-B5-LIVE, PAY1-B4-LIVE, F9-PRICING all pass; ratchet 6/6 (129);
+RLS 12/12; SECDEF-S2-2 8/8.
