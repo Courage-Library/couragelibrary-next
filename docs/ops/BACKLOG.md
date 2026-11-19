@@ -227,6 +227,10 @@ Does not block a release.
 **Evidence:** FL-2 (profile) failed in scheduled run 43538726425 (main 3352fbd); FL-1 (Memory Lock) failed in live
 dispatch 43585885477 (main 4cae8d1). The push and dispatch runs on 3352fbd passed, and every local run (3, gate alone)
 passed 5/5. `run-quiet` prints only the failing check id, so CI shows no reason.
+2026-11-19: FL-2 failed again in live dispatch 44473227775 (main d54da39, PAY-1 B7; the only failing gate of the run).
+Two local runs of the gate alone, against a production build of d54da39, passed 5/5. B7 released under SPEED-RULES-1.
+Note: FL-2 writes `user_profiles` of the QA student, the same row the live-journeys job's pricing / payment gates touch
+(adult confirmation), which supports the row-lock hypothesis.
 
 **Hypothesis (not proven):** FL-1 and FL-2 write rows of the SHARED QA student (`user_mistake_vault`, `user_profiles`)
 inside `safeBegin` (lock_timeout 3 s). In CI, the live-journeys job (and other gates) run at the same time with the same
