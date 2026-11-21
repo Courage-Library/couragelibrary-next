@@ -21,7 +21,8 @@ const { safeBegin } = require(path.join(ROOT, 'scripts/db/live-safety.cjs'));
 const DRY = process.argv.includes('--dry-run');
 const ACTOR = 'seo-topic-canon-1@courage-library.test';
 const REASON = 'SEO-TOPIC-CANON-1: the topic URL serves its subtopic lesson (owner GO 2026-11-11, SINGLE_SUBTOPIC_REPORT_1)';
-const HEALTH = 'https://couragelibrary-next.vercel.app/api/health';
+// DOMAIN-CUTOVER-1: PROD_BASE_URL (https://couragelibrary.in after the cutover), else the vercel.app alias
+const HEALTH = `${(process.env.PROD_BASE_URL || 'https://couragelibrary-next.vercel.app').replace(/\/$/, '')}/api/health`;
 const TOPICS = [
   'english-comprehension.active-passive',
   'english-comprehension.antonyms',

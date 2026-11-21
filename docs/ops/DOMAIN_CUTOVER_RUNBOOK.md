@@ -212,3 +212,45 @@ Never touched in DC-0 / DC-1 / DC-2: the Razorpay LIVE webhook and keys.
 ## 10. Open questions for the owner
 
 See the DOMAIN-CUTOVER-0 report; they are numbered there and recorded here once answered.
+
+---
+
+## 11. Owner answers and the GO (2026-11-22)
+
+- **Q1:** the Razorpay LIVE webhook points at couragelibrary.in (legacy). Legacy `/enroll.html` must stop taking
+  payments. The webhook and keys are NOT changed today (PAY-1 B8). Before Stage C the owner checks Razorpay LIVE →
+  Payments for the last 7 days; any captured / authorised payment not settled in the legacy system = STOP. Record the
+  exact legacy webhook path; after the cutover the new app must not answer 500 on it (404 / ignored is acceptable
+  while LIVE checkout is closed).
+- **Q2:** build the redirect map now.
+- **Q3:** `AGE_GATE_ENABLED=true` before the cutover (matches the live 18+ legal text until AGE-CONSENT-1); sign-up
+  stays open; verified on the vercel.app host first.
+- **Q4:** SMTP + templates, Turnstile, Google origin / consent and admin MFA are believed done; verify them in Stage B.
+- **Q5:** fix SPF (`+all` → `~all`) and delete `MX 0 mx.couragelibrary.in` in Stage B.
+- **Q6:** at DOMAIN-CUTOVER-2 (not today).
+- **Q7:** today; the owner holds every dashboard.
+- **Q8:** apex and www stay DNS-only; confirm in Stage B.
+- **Q9:** the AUTH-READINESS-1 report and this runbook ship in Stage A.
+
+## 12. Stage A record (code, 2026-11-22)
+
+- **Legacy redirect map:**
+  - `lib/seo/legacy-redirects.ts`, spread into `next.config.ts` `redirects()` as permanent 308s;
+  - 33 rules: 17 exact pages, 15 section prefixes and one ".html" fallback to `/exams`;
+  - Next.js matches them case-insensitively, and `%20` paths match the section wildcards.
+- **The URL list** was re-read from the 9 legacy sitemaps: the same 596 URLs as 2026-10-28
+  (`DOMAIN_CUTOVER_1_LEGACY_URLS.txt`, unchanged).
+- **Gate LEGACY-REDIRECTS** (`scripts/test_legacy_redirects.cjs`, CI offline) checks with Next's own matcher that
+  every URL gets one hop to an existing route, with no chain, no loop and no shadowed new route. 11 negative controls.
+- **Local production build check:** all 596 URLs give one 308 hop (the legacy `/` is served directly), and the
+  targets return 200.
+  - The targets: `/exams/ssc-cgl` 231, `/exams/police` 232, `/exams/ssc` 114, `/exams` 11, `/pricing` 2, `/about`,
+    `/contact`, and `/exams/{banking,railway,defence}`.
+  - A category page can answer 500 locally when its database read times out over the hotspot (`CATEGORY_READ_FAILED`,
+    by design: never a cached 404); production answers 200.
+- **Smoke base URL is a parameter:**
+  - prod-smoke reads the repository variable `PROD_SMOKE_URL` (default: the vercel.app alias) — set it to
+    `https://couragelibrary.in` at cutover step 6, with no code change;
+  - the anonymous smoke now checks X-Robots-Tag per host (noindex off-canonical, none on the canonical host) and a
+    5-URL legacy redirect sample;
+  - `scripts/live/test_pay1_b7.cjs` reads `B7_PROD_URL`, and the SEO seed script reads `PROD_BASE_URL`.

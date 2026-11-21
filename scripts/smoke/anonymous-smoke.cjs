@@ -35,8 +35,25 @@ const get = async (p) => { for (let i = 1; i <= 3; i++) { try { return await fet
   const html = await home.text();
   check('GET / → 200', home.status === 200, String(home.status));
   for (const bad of ['Supabase', 'Connection State', 'Phase 1B', 'Auth Probe', 'Target Project', 'Production']) check(`GET / has no "${bad}"`, !html.includes(bad));
-  const outsideSiteUrl = html.split('https://couragelibrary-next.vercel.app').join('');
+  // DOMAIN-CUTOVER-1: the base URL is a parameter (the vercel.app alias before the cutover, couragelibrary.in after) —
+  // "couragelibrary-next" may appear only as a site URL (the alias origin or this run's own base)
+  const outsideSiteUrl = html.split(BASE).join('').split('https://couragelibrary-next.vercel.app').join('');
   check('GET / mentions couragelibrary-next only as the site URL (no project label)', !outsideSiteUrl.includes('couragelibrary-next'));
+  // DOMAIN-CUTOVER-1: the canonical host is indexable; every other host (the vercel.app alias, previews) is noindex
+  {
+    const canonicalHost = /^(www\.)?couragelibrary\.in$/i.test(new URL(BASE).hostname);
+    const robots = home.headers.get('x-robots-tag') || '';
+    check(`DOMAIN-CUTOVER-1 GET / X-Robots-Tag ${canonicalHost ? 'absent on the canonical host' : 'noindex on a non-canonical host'}`, canonicalHost ? !/noindex/i.test(robots) : /noindex/i.test(robots), robots || '(none)');
+    // the legacy redirect map (lib/seo/legacy-redirects.ts): one 308 hop to the closest page, on every host
+    const sample = [['/about.html', '/about'], ['/SSC-CGL.html', '/exams/ssc-cgl'], ['/enroll.html', '/pricing'], ['/delhi-police/Computer%20knowledge/Basics%20of%20Computers/computer-processing-cycle.html', '/exams/police'], ['/Blog/Beginner-Strategy.html', '/exams']];
+    const bad = [];
+    for (const [from, to] of sample) {
+      const r = await get(from);
+      const loc = (r.headers.get('location') || '').replace(/^https?:\/\/[^/]+/, '');
+      if (r.status !== 308 || loc !== to) bad.push(`${from} → ${r.status} ${loc}`);
+    }
+    check('DOMAIN-CUTOVER-1 legacy URLs → one 308 to the closest page (5-URL sample)', bad.length === 0, bad.join(' | '));
+  }
   // GATE-HYGIENE-1: scan the HTML AND every same-origin JS chunk it loads; 0 chunks or 0 tokens scanned is a FAIL
   {
     const paths = chunkPaths(html);

@@ -107,6 +107,7 @@ jobs:
           q EXAM-NOTE-PROMPT-1 node scripts/test_exam_note_prompt1.cjs || fail=1
           q HOME-1 node scripts/test_home1.cjs || fail=1
           q LANDING-1 node scripts/test_landing1.cjs || fail=1
+          q LEGACY-REDIRECTS node scripts/test_legacy_redirects.cjs || fail=1
           q PERF-HOME-1-WIRING node scripts/test_perf_home1_wiring.cjs || fail=1
           q PERF-HOME-1-WIRING-SELFTEST node scripts/test_perf_home1_wiring.cjs --self-test || fail=1
           q PUBLIC-IDENTITY node scripts/test_public_identity.cjs || fail=1
@@ -624,10 +625,16 @@ jobs:
         run: npm ci --no-audit --no-fund --loglevel=error
       - name: Mask values derived from secrets
         run: node scripts/ci/mask-derived.cjs
+      # DOMAIN-CUTOVER-1: the production base is the repository variable PROD_SMOKE_URL (set to https://couragelibrary.in at
+      # cutover step 6); until then the vercel.app alias. No secret: a public URL.
       - name: Wait for the Vercel deployment of this commit
-        run: node scripts/ci/run-quiet.cjs --id WAIT-FOR-DEPLOY --timeout 960 -- node scripts/smoke/wait-for-deploy.cjs https://couragelibrary-next.vercel.app "${GITHUB_SHA::7}"
+        env:
+          PROD_BASE_URL: ${{ vars.PROD_SMOKE_URL || 'https://couragelibrary-next.vercel.app' }}
+        run: node scripts/ci/run-quiet.cjs --id WAIT-FOR-DEPLOY --timeout 960 -- node scripts/smoke/wait-for-deploy.cjs "$PROD_BASE_URL" "${GITHUB_SHA::7}"
       - name: Anonymous production smoke (summary only)
-        run: node scripts/ci/run-quiet.cjs --id ANON-SMOKE-PROD -- node scripts/smoke/anonymous-smoke.cjs https://couragelibrary-next.vercel.app
+        env:
+          PROD_BASE_URL: ${{ vars.PROD_SMOKE_URL || 'https://couragelibrary-next.vercel.app' }}
+        run: node scripts/ci/run-quiet.cjs --id ANON-SMOKE-PROD -- node scripts/smoke/anonymous-smoke.cjs "$PROD_BASE_URL"
       - name: Log scan of the captured outputs
         if: always()
         run: node scripts/ci/log-scan.cjs "$RUNNER_TEMP/ci-quiet"

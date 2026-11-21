@@ -33,7 +33,9 @@ if (!STEPS.includes(STEP)) {
   process.exit(2);
 }
 const SNAP = path.join(os.tmpdir(), 'cl-b7-snapshot.json');
-const PROD = 'https://couragelibrary-next.vercel.app';
+// DOMAIN-CUTOVER-1: production = B7_PROD_URL (https://couragelibrary.in after the cutover), else the vercel.app alias
+const PROD = (process.env.B7_PROD_URL || 'https://couragelibrary-next.vercel.app').replace(/\/$/, '');
+if (!/^https:\/\/(couragelibrary\.in|couragelibrary-next\.vercel\.app)$/.test(PROD)) throw new Error('B7_PROD_URL must be the production domain or the vercel.app alias');
 const QA_STUDENT = 'qa-student@courage-library.test';
 const DAY = 86400e3;
 

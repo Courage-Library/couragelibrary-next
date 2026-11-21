@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 import { CANONICAL_HOST_PATTERN } from "./config/site";
 import { ADMIN_REDIRECTS } from "./lib/admin/nav-redirects";
+import { LEGACY_REDIRECTS } from "./lib/seo/legacy-redirects";
 
 const SHARP_LINUX_FILES = [
   "./node_modules/@img/sharp-linux-x64/**/*",
@@ -56,6 +57,8 @@ const nextConfig: NextConfig = {
     { source: "/grievance", destination: "/contact#grievance-officer", permanent: true },
     // ADMIN-IA-1: every moved admin address → its new place (308; the query string is kept)
     ...ADMIN_REDIRECTS.map((r) => ({ source: r.from, destination: r.to, permanent: true })),
+    // DOMAIN-CUTOVER-1 (Q4): every legacy couragelibrary.in URL → one 308 to the closest new page (lib/seo/legacy-redirects.ts)
+    ...LEGACY_REDIRECTS.map((r) => ({ source: r.source, destination: r.destination, permanent: true })),
   ],
   headers: async () => [
     // LOGO-MEDIA-1: a logo path names exactly one image (content hash), so it never changes
