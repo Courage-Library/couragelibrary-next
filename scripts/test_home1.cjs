@@ -72,49 +72,41 @@ function* walkSrc(dir = ROOT, depth = 0) {
     else if (/\.(tsx?|css)$/.test(e.name)) yield p;
   }
 }
-const PAGE = 'app/(public)/page.tsx';
+// LANDING-1: "/" moved to app/(landing)/page.tsx (the old page file is gone)
 const CONTENT = 'content/landing.ts';
 const EXAM_WORDS = /SSC CGL|SSC CHSL|SSC MTS|SSC GD|\/exams\/ssc-|Explore SSC/;
 const BANNED = /guarantee|guaranteed|100%|topper|rank ?1|AIR \d|testimonial|rating|\b\d[\d,]* (students|aspirants|users)\b|selection (is )?(sure|assured)/i;
 const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
 
 (async () => {
-  await test('H-1 structure + one hero action; closed-sign-up primary = "Explore exams" → /#categories; 5 loop steps', () => {
-    const page = code(read(PAGE));
-    // PERF-HOME-1b: the sections render directly (no Suspense wrappers on the cached page)
-    const order = ['<LandingHero', '<LandingCategories', '<LandingLoop', '<LandingFeatures', '<LandingTrust', '<LandingPlans', '<LandingFaq', '<LandingFinalCta'].map((x) => page.indexOf(x));
-    assert(order.every((x, i) => x > 0 && (i === 0 || x > order[i - 1])), `section order ${order}`);
-    const s = read(SECTIONS);
-    const hero = s.slice(s.indexOf('export function LandingHero'), s.indexOf('export function LandingCategories'));
-    assert((hero.match(/<LandingCta /g) || []).length === 1 && !/<ul\b|GlassCard|HERO_STEPS/.test(hero), 'hero: one action, no list / step card');
-    const C = require(path.join(ROOT, CONTENT));
-    assert(C.LANDING_HERO.secondaryCta.label === 'Explore exams' && C.LANDING_HERO.secondaryCta.href === '/#categories' && C.LANDING_LOOP.steps.length === 5, 'CTA / steps');
-    assert(/id="categories"/.test(s) && /scroll-mt-24/.test(s), '#categories anchor');
-  });
+  // LANDING-1 (owner L2, 2026-11-21): H-1 (order / 5 steps) and H-2 (no exam names on home) are RETIRED — the 21 Nov
+  // LANDING_V1_SPEC replaces them; their successors are scripts/test_landing1.cjs LD-3 (structure, 6 steps, data-driven
+  // cards and chips). H-17 and H-19 below are retired the same way (owner round 3). The old landing components stay in
+  // the repo (no longer rendered on "/") until a clean-up phase; the checks of them that still pass are kept.
+  // H-3 and H-20 are KEPT and re-pointed at the new landing files (owner round 3).
 
-  await test('H-2 no exam-specific content or action on home (copy + sections + page); negative control', () => {
-    const C = require(path.join(ROOT, CONTENT));
-    const homeCopy = JSON.stringify([C.LANDING_HERO, C.LANDING_LOOP, C.LANDING_FEATURES, C.LANDING_TRUST, C.LANDING_PLANS, C.LANDING_FAQ, C.LANDING_FINAL_CTA, C.LANDING_CATEGORIES]);
-    const hits = [homeCopy, code(read(SECTIONS)), code(read(PAGE))].map((x) => (x.match(EXAM_WORDS) || [])[0]).filter(Boolean);
-    assert(hits.length === 0, `exam-specific on home: ${hits.join(', ')}`);
-    assert(!/LANDING_EXAMS|<Card variant="interactive"|ExamLogoBadge/.test(code(read(SECTIONS))), 'exam cards on home');
-    assert(EXAM_WORDS.test(homeCopy.replace('Explore exams', 'Explore SSC CGL')), 'negative control: a planted exam name was not caught');
-  });
-
-  await test('H-3 honest copy: no promises / toppers / testimonials / counts / prices; live features only; FAQ JSON-LD = visible FAQ; negative control', () => {
-    const C = require(path.join(ROOT, CONTENT));
-    const all = JSON.stringify([C.LANDING_HERO, C.LANDING_LOOP, C.LANDING_FEATURES, C.LANDING_TRUST, C.LANDING_PLANS, C.LANDING_FAQ, C.LANDING_FINAL_CTA, C.LANDING_CATEGORIES]);
+  await test('H-3 honest copy (re-pointed to LANDING-1): no promises / toppers / testimonials / counts / prices in EITHER language and EITHER Hindi state; FAQ JSON-LD = visible FAQ; negative control', () => {
+    const { LANDING_EN } = require(path.join(ROOT, 'content/landing-page/en.ts'));
+    const { LANDING_HI } = require(path.join(ROOT, 'content/landing-page/hi.ts'));
+    const { resolveLandingCopy } = require(path.join(ROOT, 'lib/landing/landing-copy.ts'));
+    const variants = [];
+    for (const base of [LANDING_EN, LANDING_HI]) for (const hindiLive of [false, true]) for (const signupOpen of [false, true]) {
+      variants.push(resolveLandingCopy(base, { liveExamNames: ['SSC CGL'], hindiLive, signupOpen }).t);
+    }
+    // the promise TITLE "No fake toppers" is a negation (owner-approved spec) — only that exact title is exempt
+    const all = JSON.stringify(variants).replace(/"No fake toppers"|"कोई नकली टॉपर नहीं"/g, '""');
     const b = all.match(BANNED);
     assert(!b, `banned: ${b && b[0]}`);
     assert(!PRICE.test(all), 'a price');
-    assert(/Pricing at launch/.test(C.LANDING_PLANS.pro.note), 'Pro: "Pricing at launch"');
+    assert(variants.every((t) => !/₹|\d/.test(t.plans.pro.note)), 'Pro: no price, no number');
     assert(BANNED.test(all + ' guaranteed selection') && PRICE.test(all + ' ₹499'), 'negative control');
-    const s = read(SECTIONS);
-    assert(/const live = landingFeatures\(data\)\.filter\(\(r\) => r\.live\);/.test(s) && !/comingSoonLabel/.test(code(s.slice(s.indexOf('export function LandingFeatures(')))), 'what you get: live only');
-    const S = require(path.join(ROOT, SECTIONS));
-    const ld = S.faqJsonLd();
-    assert(ld['@type'] === 'FAQPage' && ld.mainEntity.length === C.faqItems(null).length && ld.mainEntity.every((q, i) => q.name === C.faqItems(null)[i].q && q.acceptedAnswer.text === C.faqItems(null)[i].a), 'FAQ JSON-LD');
-    return `${C.faqItems(null).length} FAQ items`;
+    const data = read('lib/landing/landing-page-data.ts');
+    assert(/mainEntity: t\.faq\.items\.map\(\(f\) => \(\{ "@type": "Question", name: f\.q, acceptedAnswer: \{ "@type": "Answer", text: f\.a \} \}\)\)/.test(data), 'FAQ JSON-LD = the visible FAQ items');
+    for (const f of ['app/(landing)/page.tsx', 'app/(landing)/hi/page.tsx']) {
+      const p = code(read(f));
+      assert(/<JsonLd data=\{landingFaqJsonLd\(t\)\} \/>/.test(p) && /<LandingPageV1 t=\{t\}/.test(p), `${f}: JSON-LD and the page use the SAME resolved copy`);
+    }
+    return `${variants.length} resolved variants × ${variants[0].faq.items.length} FAQ items`;
   });
 
   await test('H-4 category tiles: link only with exams; honest "Coming soon" otherwise; counts from data only', () => {
@@ -398,35 +390,8 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
     return '2 + 4 copies; 5 refusals';
   });
 
-  await test('H-17 hero + categories: honest H1 from live categories only, slogan as eyebrow, language chip; category TILES (owner 2026-11-02): all categories, live = link with the exact count, coming soon = chip, no exam names', () => {
-    const { renderToStaticMarkup } = require('react-dom/server');
-    const S = require(path.join(ROOT, SECTIONS));
-    const C = require(path.join(ROOT, CONTENT));
-    const h1 = (names) => (renderToStaticMarkup(React.createElement(S.LandingHero, { liveCategories: names })).match(/<h1[^>]*>([\s\S]*?)<\/h1>/) || [])[1];
-    assert(h1(['SSC']) === 'Free preparation for SSC exams' && h1([]) === 'Free preparation for government exams' && h1(['SSC', 'Railway']) === 'Free preparation for SSC &amp; Railway exams', `H1 ${h1(['SSC'])}`);
-    const hero = renderToStaticMarkup(React.createElement(S.LandingHero, { liveCategories: ['SSC'] }));
-    assert(/data-brand-line=""[\s\S]*?Learn Smarter\. Prepare Independently\./.test(hero) && !/data-hero-chip/.test(hero), 'eyebrow; no Hindi chip without published Hindi content (H-20)');
-    assert(/const \[\{ liveCategories, hindi \}, categories, data, photos, signup\] = await Promise\.all\(\[\s*loadHomeFacts\(\),/.test(read('app/(public)/page.tsx')) && /<LandingHero liveCategories=\{liveCategories\} hindi=\{hindi\} signupOpen=\{signupOpen\} \/>/.test(read('app/(public)/page.tsx')), 'page passes live names + Hindi facts');
-    const cd = read('lib/exams/category-data.ts');
-    assert(/live\.has\(c\.id\)/.test(cd) && /c\.is_active && !c\.is_internal/.test(cd) && /readLiveCategoryNames\(\)\.catch\(\(\) => null\)/.test(cd) && /setTimeout\(\(\) => ok\(null\), 800\)/.test(cd), 'names: live + public only; bounded');
-    // tiles: every category is a tile with its icon; the live one is a link with its exact count; the others carry the
-    // "Coming soon" chip and are not links; no tile text lists exam names (the short description is never shown)
-    const cats = (n) => [
-      { id: '1', slug: 'ssc', name: 'SSC', shortDesc: 'Staff Selection Commission exams: CGL, CHSL, MTS, GD and more.', iconKey: 'ssc', icon: null, activeExams: n },
-      ...['police', 'defence', 'railway', 'banking'].map((slug, i) => ({ id: String(i + 2), slug, name: slug[0].toUpperCase() + slug.slice(1), shortDesc: `${slug} exams: A, B, C`, iconKey: slug, icon: null, activeExams: 0 })),
-    ];
-    const html = renderToStaticMarkup(React.createElement(S.LandingCategories, { categories: cats(1) }));
-    const tiles = [...html.matchAll(/<(a|div)[^>]*data-category-tile="([a-z]+)"[^>]*>([\s\S]*?)<\/\1>/g)].map((m) => ({ tag: m[1], slug: m[2], text: m[3].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(), html: m[0] }));
-    assert(tiles.map((t) => t.slug).join() === 'ssc,police,defence,railway,banking', `all 5 categories as tiles: ${tiles.map((t) => t.slug)}`);
-    const ssc = tiles[0];
-    assert(ssc.tag === 'a' && /href="\/exams\/ssc"/.test(ssc.html) && ssc.text === 'SSC 1 exam' && /data-category-icon="line"/.test(ssc.html), `live tile: link, exact count, icon (${ssc.text})`);
-    assert(tiles.slice(1).every((t) => t.tag === 'div' && /aria-disabled="true"/.test(t.html) && /Coming soon$/.test(t.text) && !/\d/.test(t.text) && /data-category-icon="line"/.test(t.html)), 'coming-soon tiles: chip, not links, icon, no numbers');
-    assert(!/CGL|CHSL|MTS|exams: A, B/.test(html.replace(/<[^>]+>/g, ' ')), 'no exam-name lists in tile text');
-    // negative controls: when Police goes live it becomes a link tile with its count; a category with 2 exams says "2 exams"
-    const live2 = renderToStaticMarkup(React.createElement(S.LandingCategories, { categories: cats(2).map((c) => (c.slug === 'police' ? { ...c, activeExams: 1 } : c)) }));
-    assert(/<a[^>]*href="\/exams\/police"[^>]*data-category-tile="police"/.test(live2) && /SSC[\s\S]*?2 exams/.test(live2.replace(/<[^>]+>/g, ' ')) && /data-category-tile="defence" aria-disabled="true"/.test(live2), 'auto-adapts');
-    assert(!/data-category-soon/.test(html), 'no "Coming soon:" text line');
-  });
+  // H-17 (hero H1 from live category names, slogan eyebrow, category tiles) — RETIRED for the landing page (owner
+  // round 3, 2026-11-21); successor: scripts/test_landing1.cjs LD-3 / LD-8 (data-driven cards, chips, FAQ 1).
 
   await test('H-18 share images: 1200 × 630 OG + Twitter for home and category / exam pages; brand mark = upload or official logo; default ogImage', () => {
     for (const f of ['app/opengraph-image.tsx', 'app/twitter-image.tsx', 'app/(site)/exams/[slug]/opengraph-image.tsx', 'app/(site)/exams/[slug]/twitter-image.tsx']) {
@@ -440,67 +405,34 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
     assert(/createPublicServerSupabaseClient/.test(ex) && /eq\("is_active", true\)/.test(ex) && /CATEGORY_SLUG_RE\.test\(slug\)/.test(ex), 'category / exam card: public rows only, slug checked');
   });
 
-  await test('H-19 phone explore bar + reveal on scroll + consistency: hidden near the end, 48 px, reduced motion, scroll padding; one radius / shadow / icon scale; readable paragraphs', () => {
-    const e = read('components/landing/landing-enhancements.tsx');
-    assert(/md:hidden/.test(e) && /<Link href=\{cta\.href\} tabIndex=\{show \? undefined : -1\} className="focus-ring flex min-h-12 w-full/.test(e) && /motion-reduce:transition-none/.test(e) && /prefers-reduced-motion: reduce/.test(e) && /scrollPaddingBottom = show \? "88px"/.test(e) && /\[data-final-cta\]/.test(e) && /nav\[aria-label="Student"\]/.test(e) && /aria-hidden=\{show \? undefined : true\}/.test(e) && /tabIndex=\{show \? undefined : -1\}/.test(e), 'explore bar');
-    assert(/heroGone && !state\.current\.nearEnd/.test(e) && /if \(el\.getBoundingClientRect\(\)\.top < window\.innerHeight\) return;/.test(e), 'bar logic + in-view sections untouched');
-    // UX-IMP-1 (owner): reveal = progressive enhancement — nothing is ever hidden; streamed sections are picked up
-    assert(/el\.setAttribute\("data-reveal-watch", ""\)/.test(e) && !/data-reveal-pending/.test(e) && /new MutationObserver/.test(e) && /mo\.observe\(document\.body, \{ childList: true, subtree: true \}\)/.test(e), 'watch-only (never hidden) + streamed sections');
-    const css = read('app/globals.css');
-    const reveal = css.slice(css.indexOf('@keyframes reveal-rise'), css.indexOf('/* PERF-HOME-1: the cached public pages carry both link sets'));
-    assert(/@keyframes reveal-rise \{\s*from \{\s*transform: translateY\(12px\);\s*\}\s*to \{\s*transform: none;\s*\}\s*\}/.test(reveal) && /animation: reveal-rise 200ms ease-out both;/.test(reveal) && !/opacity|visibility|display:\s*none/.test(reveal) && !/data-reveal-pending/.test(css) && /@media \(prefers-reduced-motion: reduce\), print \{/.test(reveal), 'reveal CSS: transform only ≤ 200 ms, never hides (no opacity / visibility), off with reduced motion + print');
-    const s = read(SECTIONS);
-    const hero = s.slice(s.indexOf('export function LandingHero'), s.indexOf('export function LandingCategories'));
-    assert(!/data-reveal/.test(hero) && (s.match(/data-reveal=""/g) || []).length === 6 && /<LandingEnhancements \/>/.test(read('app/(public)/page.tsx')), 'reveal: 6 sections, never the hero (LCP)');
-    assert(/--radius-control: 12px;/.test(css) && /--radius-card: 16px;/.test(css) && /rounded-control px-6/.test(read('components/ui/pill-button.tsx')), 'radius scale: buttons 12, cards 16');
-    const scope = [SECTIONS, 'components/shell/header-bar.tsx', 'components/shell/site-footer.tsx', 'components/exams/category-page.tsx', 'components/landing/landing-enhancements.tsx'];
-    const icons = scope.flatMap((f) => [...read(f).matchAll(/<[A-Z]\w+ aria-hidden(?:="true")?[^>]*className="([^"]*)"/g)].map((m) => `${f}: ${m[1]}`));
-    const off = icons.filter((x) => /size-(?!4\b|5\b|6\b)[\d.]+/.test(x) && !/size-2 rounded-full/.test(x));
-    assert(off.length === 0, `icon sizes outside 16 / 20 / 24: ${off.join(' | ')}`);
-    const cards = ['data-category-tile', 'p-5 shadow-e1 sm:p-8', 'border border-line bg-surface shadow-e1">', 'md:shadow-e1'];
-    assert(cards.every((c) => s.includes(c)) && !/shadow-e3/.test(s.replace(/border-ink-950 bg-ink-950 shadow-e3/, '')), 'one card shadow (e1); e3 only on the phone frame');
-    assert(!/<p[^>]*text-fg-muted/.test(s), 'paragraphs never use the muted (4.5:1) colour');
-    // negative control: a size-3.5 icon is caught
-    assert(/size-(?!4\b|5\b|6\b)[\d.]+/.test('className="size-3.5"'), 'negative control');
-    return `${icons.length} icons on the 16 / 20 / 24 scale`;
-  });
+  // H-19 (phone explore bar + reveal on scroll) — RETIRED for the landing page (owner round 3, 2026-11-21): the new
+  // page has no explore bar or reveal; successor: scripts/test_landing1.cjs LD-4 / LD-6.
 
-  await test('H-20 Hindi claims are true (owner, pre-release): chip + FAQ answer follow the PUBLISHED content with a Hindi version; hidden / no claim otherwise', () => {
-    const { renderToStaticMarkup } = require('react-dom/server');
-    const S = require(path.join(ROOT, SECTIONS));
-    const C = require(path.join(ROOT, CONTENT));
-    const H = (questions, currentAffairs, lessons) => ({ questions, currentAffairs, lessons });
-    const chip = (h) => (renderToStaticMarkup(React.createElement(S.LandingHero, { liveCategories: ['SSC'], hindi: h })).match(/data-hero-chip=""[^>]*>[\s\S]*?<\/svg>([^<]*)</) || [])[1] || null;
-    // the wording matrix: exactly what exists
-    const M = [
-      [null, null], [H(0, 0, 0), null],
-      [H(3, 0, 0), 'Questions in Hindi &amp; English'],
-      [H(3, 2, 0), 'Questions and current affairs in Hindi &amp; English'],
-      [H(0, 2, 0), 'Current affairs in Hindi &amp; English'],
-      [H(3, 0, 4), 'Content in Hindi &amp; English'],
-      [H(0, 0, 4), 'Lessons in Hindi &amp; English'],
-    ];
-    for (const [h, want] of M) assert(chip(h) === want, `chip for ${JSON.stringify(h)}: ${chip(h)} ≠ ${want}`);
-    const a = C.LANDING_HINDI.answer;
-    assert(/^Not yet\./.test(a(H(0, 0, 0))) && !/available in Hindi/.test(a(H(0, 0, 0))) && /^Yes: questions are available in Hindi and English\./.test(a(H(3, 0, 0))) && /^Yes: questions and lessons are available/.test(a(H(3, 0, 4))) && !/^(Yes|Not yet)/.test(a(null)), 'FAQ answer matches the chip');
-    // the FAQ shows the same answer (visible + JSON-LD) at the same place
-    const faq = renderToStaticMarkup(React.createElement(S.LandingFaq, { hindi: H(0, 0, 0) }));
-    assert(/Can I study in Hindi\?[\s\S]*?Not yet\./.test(faq) && S.faqJsonLd(H(3, 0, 0)).mainEntity.find((q) => q.name === 'Can I study in Hindi?').acceptedAnswer.text === a(H(3, 0, 0)), 'FAQ + JSON-LD use the same data');
-    assert(C.faqItems(null).map((f) => f.q).join('|').includes('Which exams do you cover?|Can I study in Hindi?|Do you promise selection?'), 'position kept');
-    // the read: only what any visitor can read, published + current Hindi versions of published (non-test) items
+  await test('H-20 Hindi claims are true (owner, pre-release; re-pointed to LANDING-1, round 3): the Hindi lines show only while published Hindi content exists; otherwise the owner\'s "Hindi on the way" lines', () => {
+    const { LANDING_EN } = require(path.join(ROOT, 'content/landing-page/en.ts'));
+    const { LANDING_HI } = require(path.join(ROOT, 'content/landing-page/hi.ts'));
+    const { resolveLandingCopy } = require(path.join(ROOT, 'lib/landing/landing-copy.ts'));
+    const HINDI_CLAIM = /Hindi (&|and) English|in Hindi and English|Learn in the language you think in|Can I study in Hindi|हिंदी और English में|जिस भाषा में सोचते हैं|क्या हिंदी में पढ़ाई हो सकती है/;
+    for (const base of [LANDING_EN, LANDING_HI]) {
+      const off = resolveLandingCopy(base, { liveExamNames: ['SSC CGL'], hindiLive: false, signupOpen: true }).t;
+      const on = resolveLandingCopy(base, { liveExamNames: ['SSC CGL'], hindiLive: true, signupOpen: true }).t;
+      const shown = (t) => JSON.stringify([t.hero.badge, t.hero.sub, t.faq.items[2], t.promises.items[3]]);
+      assert(!HINDI_CLAIM.test(shown(off)), `${base.lang}: a Hindi claim without published Hindi content: ${shown(off).slice(0, 200)}`);
+      assert(off.hero.badge === base.hindiPending.badge && off.hero.sub === base.hindiPending.sub && off.faq.items[2].q === base.hindiPending.faq.q && off.promises.items[3].title === base.hindiPending.promise.title, `${base.lang}: the pending lines`);
+      assert(on.hero.badge === base.hero.badge && on.hero.sub === base.hero.sub && on.faq.items[2].q === base.faq.items[2].q && on.promises.items[3].title === base.promises.items[3].title, `${base.lang}: the Hindi-live lines`);
+      assert(HINDI_CLAIM.test(shown(on)), `${base.lang}: negative control — the Hindi-live lines must carry the claim`);
+      assert(!HINDI_CLAIM.test(base.meta.description), `${base.lang}: the (static) meta description makes no Hindi claim`);
+    }
+    // the condition: published Hindi content > 0, read with the PUBLIC client (a failed read = no claim)
+    const d = code(read('lib/landing/landing-page-data.ts'));
+    assert(/const hindiLive = !!hindi && hindi\.questions \+ hindi\.lessons \+ hindi\.currentAffairs > 0;/.test(d) && /loadHindiAvailability\(\)/.test(d), 'hindiLive = published Hindi content > 0 (null → false)');
     const r = read('lib/landing/hindi-content.ts');
     assert(/createPublicServerSupabaseClient\(\)/.test(r) && !/createAdminServerSupabaseClient|SERVICE_ROLE/.test(r), 'public client only');
-    // PAY-1 B2b (145): the question count is the narrow public function (filters hard-coded there, a number only)
     const f145 = read('supabase/migrations/20261116000145_pay1_b2b_public_reads.sql').match(/CREATE OR REPLACE FUNCTION public\.fn_public_hindi_question_count\(\)[\s\S]*?\$\$;/);
     assert(/sb\.rpc\("fn_public_hindi_question_count"\)/.test(r) && f145 && /qv\.language = 'hi'[\s\S]*?qv\.lifecycle_status = 'PUBLISHED'[\s\S]*?qv\.is_current = true[\s\S]*?q\.status = 'published'/.test(f145[0]) && /RETURNS integer/.test(f145[0]), 'questions query (145: fn_public_hindi_question_count, filters inside, integer only)');
     assert(/\.from\("document_versions"\)[\s\S]*?\.eq\("language", "hi"\)[\s\S]*?\.eq\("is_published", true\)[\s\S]*?\.eq\("is_current", true\)[\s\S]*?\.eq\("learning_documents\.status", "PUBLISHED"\)[\s\S]*?\.eq\("learning_documents\.is_test_content", false\)/.test(r), 'lessons query');
-    assert(/currentAffairs: 0 \}/.test(r) && /an article has no language/.test(r), 'current affairs: no Hindi version exists in the schema (always 0)');
-    assert(/learning_documents!document_versions_document_id_fkey!inner\(/.test(r), 'the lessons embed names its FK (two FKs link the tables: an ambiguous embed fails with PGRST201 and would hide the chip forever)');
     assert(/if \(q\.error \|\| l\.error \|\| q\.count === null \|\| l\.count === null\) throw/.test(r), 'a failed read is not cached and makes no claim');
-    // negative controls: the old static chip text and the old FAQ wording are gone
-    const C2 = read(CONTENT);
-    assert(!/chip: "Content in Hindi & English"/.test(C2) && !/Lessons are being written in English and Hindi/.test(C2), 'no static Hindi claim left');
-    return `${M.length} chip cases`;
+    return '2 languages × 2 Hindi states';
   });
 
   console.log(`\nHOME-1 offline: ${passed}/${passed + failed} passed`);

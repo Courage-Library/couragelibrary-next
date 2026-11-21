@@ -1,0 +1,59 @@
+import type { LandingCopy } from "../../content/landing-page/types";
+
+/**
+ * LANDING-1 (owner round 3, 2026-11-21): the copy a visitor sees follows PUBLISHED data — pure, no imports beyond the
+ * type, so the offline gate drives this exact code.
+ *   - FAQ 1 names the LIVE exams (their display names, joined naturally); none live → the "being added" line
+ *   - Hindi claims (hero badge, hero sub, FAQ 3, promise 4) only when published Hindi content > 0 (HOME-1 H-20 rule);
+ *     until then the owner's "Hindi on the way" lines. The /hi page itself always exists (a translation, not a claim).
+ *   - sign-up closed (UXFIX1 X-01) → every "Start free" becomes "Explore exams" → /exams
+ */
+export interface LandingFacts {
+  /** display names of the live (active) exams, in order */
+  liveExamNames: string[];
+  /** published Hindi content exists (questions / lessons with a published Hindi version) */
+  hindiLive: boolean;
+  /** public sign-up is open ("closed" only when the setting says so) */
+  signupOpen: boolean;
+}
+
+export interface StartAction {
+  label: string;
+  href: string;
+}
+
+export interface ResolvedLanding {
+  t: LandingCopy;
+  start: StartAction;
+}
+
+export const LIVE_EXAMS_TOKEN = "{LIVE_EXAMS}";
+
+/** "A" · "A and B" · "A, B and C" (EN) / "A और B" (HI) */
+export function joinNames(names: readonly string[], and: string): string {
+  if (names.length <= 1) return names[0] ?? "";
+  return `${names.slice(0, -1).join(", ")} ${and} ${names[names.length - 1]}`;
+}
+
+export function liveExamsAnswer(t: LandingCopy, names: readonly string[]): string {
+  const clean = names.map((n) => n.trim()).filter(Boolean);
+  if (clean.length === 0) return t.liveExams.none;
+  return (clean.length === 1 ? t.liveExams.one : t.liveExams.many).replace(LIVE_EXAMS_TOKEN, joinNames(clean, t.liveExams.and));
+}
+
+export function resolveLandingCopy(base: LandingCopy, f: LandingFacts, examsHref = "/exams", signUpHref = "/auth/signup"): ResolvedLanding {
+  const faq = base.faq.items.map((item, i) => {
+    if (i === 0) return { q: item.q, a: liveExamsAnswer(base, f.liveExamNames) };
+    if (i === 2 && !f.hindiLive) return { ...base.hindiPending.faq };
+    return item;
+  });
+  const promises = base.promises.items.map((p, i) => (i === 3 && !f.hindiLive ? { ...base.hindiPending.promise } : p));
+  const t: LandingCopy = {
+    ...base,
+    hero: { ...base.hero, badge: f.hindiLive ? base.hero.badge : base.hindiPending.badge, sub: f.hindiLive ? base.hero.sub : base.hindiPending.sub },
+    faq: { ...base.faq, items: faq },
+    promises: { ...base.promises, items: promises },
+  };
+  const start: StartAction = f.signupOpen ? { label: base.startFree, href: signUpHref } : { label: base.hero.explore, href: examsHref };
+  return { t, start };
+}

@@ -106,6 +106,7 @@ jobs:
           q QA-FIXTURE-EXCLUSION node scripts/test_qa_fixture_exclusion.cjs || fail=1
           q EXAM-NOTE-PROMPT-1 node scripts/test_exam_note_prompt1.cjs || fail=1
           q HOME-1 node scripts/test_home1.cjs || fail=1
+          q LANDING-1 node scripts/test_landing1.cjs || fail=1
           q PERF-HOME-1-WIRING node scripts/test_perf_home1_wiring.cjs || fail=1
           q PERF-HOME-1-WIRING-SELFTEST node scripts/test_perf_home1_wiring.cjs --self-test || fail=1
           q PUBLIC-IDENTITY node scripts/test_public_identity.cjs || fail=1

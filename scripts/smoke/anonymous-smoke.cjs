@@ -51,11 +51,12 @@ const get = async (p) => { for (let i = 1; i <= 3; i++) { try { return await fet
     check('GET / HTML + JS chunks: minimum coverage (≥ 1 chunk, ≥ 1 candidate token, every chunk fetched)', chunks >= 1 && scan.tokens >= 1 && chunkFails === 0, `${chunks}/${paths.length} chunk(s) fetched, ${scan.tokens} candidate tokens`);
     check('GET / HTML + JS chunks contain no project ref (sha-compared, never printed)', scan.hits.length === 0, scan.hits.length ? `found in ${scan.hits.length} source(s): ${scan.hits.join(', ')}` : `1 document + ${chunks} chunk(s) scanned`);
   }
-  check('GET / has tagline + links', html.includes('Learn Smarter. Prepare Independently.') && html.includes('href="/exams"') && html.includes('href="/auth/login"'));
+  // LANDING-1 (2026-11-21): the new landing page — its H1 replaces the old tagline; /hi is the Hindi landing page
+  check('GET / has the LANDING-1 headline + links', html.includes('Find your weak topics. Fix them.') && html.includes('href="/exams"') && html.includes('href="/auth/login"') && html.includes('href="/hi"'));
   // UX-2a: landing page content checks
   {
     const visible = html.replace(/<script[\s\S]*?<\/script>/g, ' ').replace(/<style[\s\S]*?<\/style>/g, ' ').replace(/<[^>]+>/g, ' ');
-    check('UX-2a GET / contains the brand line', visible.includes('Learn Smarter. Prepare Independently.'));
+    check('LANDING-1 GET / contains the headline and the tagline', visible.includes('Score better') && visible.includes('Har attempt, behtar.'));
     const bad = ['undefined', 'NaN', 'null'].filter((t) => new RegExp('\\b' + t + '\\b').test(visible));
     check('UX-2a GET / has no "undefined" / "NaN" / "null" text', bad.length === 0, bad.join(', '));
     let ld = [];

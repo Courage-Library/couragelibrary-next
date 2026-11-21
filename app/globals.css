@@ -433,6 +433,84 @@
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
 }
 
+/* LANDING-1 (docs/design/LANDING_V1_SPEC.md §1, palette locked 19 Nov 2026): the NEW cl-* tokens for the public
+   landing page ("/" and "/hi"). Added alongside the existing palette — nothing above is renamed or remapped; a
+   site-wide retheme is a separate phase. Gradients and shadows live here too, so the landing stylesheet holds no
+   colour literal (BRAND-1 B-03). */
+@theme static {
+  --color-cl-blue: #475bff;
+  --color-cl-blue-hover: #394eff;
+  --color-cl-blue-text: #3a4beb;
+  --color-cl-blue-deep: #2a3587;
+  --color-cl-blue-tint: #eef0ff;
+  --color-cl-blue-line: #c9cfff;
+  --color-cl-blue-soft: #8c98ff;
+  --color-cl-blue-light: #8fa0ff;
+  --color-cl-charcoal: #18191b;
+  --color-cl-charcoal-2: #25262a;
+  --color-cl-charcoal-3: #2e3034;
+  --color-cl-charcoal-4: #33353a;
+  --color-cl-slate: #5b6070;
+  --color-cl-silver: #a9aebb;
+  --color-cl-mist: #c9cdd6;
+  --color-cl-fog: #e3e5ea;
+  --color-cl-cloud: #f5f6fa;
+  --color-cl-line: #e6e8ef;
+  --color-cl-line-2: #e1e4ec;
+  --color-cl-white: #ffffff;
+  --color-cl-ocean: #0471ac;
+  --color-cl-violet: #7a4ce2;
+  --color-cl-teal: #2e8694;
+  --color-cl-teal-text: #22767f;
+  --color-cl-coral: #ff6b4a;
+  --color-cl-coral-text: #c2401f;
+  --color-cl-coral-tint: #ffede7;
+  --color-cl-coral-light: #ff8a6e;
+  --color-cl-chip-violet: #f1ecfe;
+  --color-cl-chip-ocean: #e6f4fb;
+  --color-cl-chip-teal: #e5f4f5;
+  --color-cl-logo-cyan: #22e3f2;
+  --color-cl-logo-violet: #4b00e6;
+}
+:root {
+  --cl-band: linear-gradient(135deg, #485bff 0%, #4262f3 45%, #3973d6 100%);
+  --cl-grad-ssc: linear-gradient(135deg, #475bff, #2a3587);
+  --cl-grad-banking: linear-gradient(135deg, #2e8694, #1e5e6b);
+  --cl-grad-railway: linear-gradient(135deg, #0471ac, #034a73);
+  --cl-grad-police: linear-gradient(135deg, #7a4ce2, #4b2a9e);
+  --cl-grad-defence: linear-gradient(135deg, #3973d6, #24458a);
+  --cl-grad-teaching: linear-gradient(135deg, #5b4fe0, #2e2a8f);
+  --cl-grad-state-psc: linear-gradient(135deg, #0471ac, #2a3587);
+  --cl-grad-step: linear-gradient(135deg, #5a6cff, #2a3587);
+  --cl-grad-step-win: linear-gradient(135deg, #ff8a6e, #e2502f);
+  --cl-grad-logo: linear-gradient(90deg, #22e3f2, #4b00e6);
+  --cl-step-start: #5a6cff;
+  --cl-step-end: #2a3587;
+  --cl-win-start: #ff8a6e;
+  --cl-win-end: #e2502f;
+  --cl-glow-hero: rgba(71, 91, 255, 0.15);
+  --cl-glow-loop: rgba(71, 91, 255, 0.16);
+  --cl-glow-lib: rgba(71, 91, 255, 0.28);
+  --cl-glow-final: rgba(34, 227, 242, 0.3);
+  --cl-header-bg: rgba(255, 255, 255, 0.92);
+  --cl-header-line: #eceef3;
+  --cl-chip-bg: rgba(255, 255, 255, 0.16);
+  --cl-chip-bg-hover: rgba(255, 255, 255, 0.26);
+  --cl-shadow-pri: 0 8px 22px rgba(71, 91, 255, 0.3);
+  --cl-shadow-pri-hover: 0 10px 28px rgba(71, 91, 255, 0.42);
+  --cl-shadow-loop: 0 24px 60px rgba(42, 53, 135, 0.1);
+  --cl-shadow-search: 0 16px 40px rgba(17, 22, 80, 0.35);
+  --cl-shadow-card: 0 14px 32px rgba(24, 25, 27, 0.1);
+  --cl-shadow-step: 0 12px 26px rgba(42, 53, 135, 0.25);
+  --cl-shadow-step-win: 0 12px 26px rgba(226, 80, 47, 0.28);
+  --cl-shadow-free: 0 18px 44px rgba(71, 91, 255, 0.14);
+  --cl-ph-bg: linear-gradient(135deg, #26272b, #1f2023);
+  --cl-ph-line: #3a3c42;
+  --cl-ph-text: #8b909c;
+  --cl-footer-tag: #ff8a6e;
+  --cl-footer-purpose: #d6d9e0;
+}
+
 /* Semantic aliases: what components use (the future dark theme redefines only this layer). */
 @theme static {
   --color-canvas: var(--color-ink-50);

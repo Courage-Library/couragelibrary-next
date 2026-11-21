@@ -362,7 +362,7 @@ async function offline() {
       // LEGAL-PAGES-1: the owner-approved legal text is held verbatim by LEGAL-PAGES-1; its "no guarantee" lines are
       // disclaimers, not advertising claims
       .filter((f) => rel(f) !== 'content/legal/legal-pages.ts')
-      .concat(['app/(public)/page.tsx', 'app/(public)/exams/page.tsx', 'components/shell/site-footer.tsx', 'components/shell/header-bar.tsx'].map((f) => path.join(ROOT, f)));
+      .concat(['app/(landing)/page.tsx', 'app/(landing)/hi/page.tsx', 'components/landing-v1/landing-page.tsx', 'lib/landing/landing-copy.ts', 'app/(public)/exams/page.tsx', 'components/shell/site-footer.tsx', 'components/shell/header-bar.tsx'].map((f) => path.join(ROOT, f)));
     assert(files.length >= 20, `files ${files.length}`);
     const BANNED = [
       /guarantee/i, /\btoppers?\b/i, /\bAIR\s*-?\s*\d/i, /\brank\s*(?:#|no\.?\s*)?1\b/i, /server[- ]?(?:secure|authoritative)/i,
@@ -371,7 +371,9 @@ async function offline() {
     ];
     const hits = [];
     for (const f of files) {
-      const s = fs.readFileSync(f, 'utf8');
+      // LANDING-1 (owner-approved spec, 2026-11-21): the promise TITLE "No fake toppers" / "कोई नकली टॉपर नहीं" is a
+      // negation (we never show toppers), not a claim — only that exact title is exempt; any other "topper" still fails
+      const s = fs.readFileSync(f, 'utf8').replace(/title: "No fake toppers"/g, '').replace(/title: "कोई नकली टॉपर नहीं"/g, '');
       for (const rx of BANNED) if (rx.test(s)) hits.push(`${rel(f)}: ${rx}`);
     }
     assert(hits.length === 0, hits.join('; '));
@@ -534,12 +536,15 @@ async function probe() {
 
     // P-03a…h (CI-FIX-1): one check ID per target, so CI's summary line (IDs only) names the failing target
     const TARGETS = [
-      ['P-03a', 'home nav "Sign in" (always in the bar, UX-FIX-1)', '/', 'header a[href="/auth/login"]'],
-      ['P-03b', 'home nav menu button', '/', 'header button[aria-label="Open menu"]'],
-      // UX-FIX-1: the hero's primary action depends on sign-up (open: Start free / closed: Explore SSC CGL)
-      // HOME-1 (Phase B, ruling Q2): the hero CTA is "Explore exams" (/#categories) while sign-up is closed
-      ['P-03c', 'home hero primary CTA', '/', '#main-content section[data-hero] a[href="/auth/signup"], #main-content section[data-hero] a[href="/dashboard"], #main-content section[data-hero] a[href="/#categories"]'],
-      ['P-03d', 'home "All exams" link (always rendered, also in the categories fallback)', '/', '#main-content #categories a[href="/exams"]'],
+      // LANDING-1 (owner round 3): the landing header ("/", "/hi") is EXEMPT from UX-FIX-1 X-05 — on phones its bar is
+      // logo + language switch + menu, "Sign in" is the first menu item (scripts/test_landing1.cjs LD-8). The shared
+      // public header keeps the rule, so P-03a / P-03b measure it on /exams.
+      ['P-03a', 'public nav "Sign in" (always in the bar, UX-FIX-1)', '/exams', 'header a[href="/auth/login"]'],
+      ['P-03b', 'public nav menu button', '/exams', 'header button[aria-label="Open menu"]'],
+      // the landing hero's start action (open: Start free → sign-up / closed: Explore exams → /exams; LANDING-1)
+      ['P-03c', 'home hero primary CTA', '/', '#main-content a[data-landing-start="hero"]'],
+      ['P-03d', 'home "All exams" card (always rendered)', '/', '#main-content a[data-category="all"]'],
+      ['P-03i', 'home phone menu button (LANDING-1)', '/', 'header summary.lp-burger'],
       ['P-03e', 'login submit', '/auth/login', 'form button[type="submit"]'],
       ['P-03f', 'login nav menu button', '/auth/login', 'header button[aria-label="Open menu"]'],
       ['P-03g', 'forgot-password submit', '/auth/forgot-password', 'form button[type="submit"]'],

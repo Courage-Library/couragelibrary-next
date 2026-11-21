@@ -62,12 +62,13 @@ const WRITES = [
 // the bulk importer (mock tests) is checked by the call next to BulkImportEngine.processImport
 const BULK = ['app/(site)/admin/actions.ts', 'BulkImportEngine.processImport('];
 const HELPER = 'lib/cache/revalidate-public.ts';
-const CACHED_PAGES = ['app/(public)/page.tsx', 'app/(public)/exams/page.tsx', 'app/(public)/category/[slug]/page.tsx'];
+// LANDING-1 (owner L1): "/" and "/hi" live in app/(landing) — the same cache rule applies to both
+const CACHED_PAGES = ['app/(landing)/page.tsx', 'app/(landing)/hi/page.tsx', 'app/(public)/exams/page.tsx', 'app/(public)/category/[slug]/page.tsx'];
 const HUB = 'app/(site)/exams/[slug]/page.tsx';
 const HUB_PUBLIC = 'app/(public)/exams/[slug]/page.tsx';
-const PUBLIC_LAYOUT = ['app/(public)/layout.tsx', 'components/shell/public-shell.tsx', 'components/shell/public-student-nav.tsx', 'lib/ui/local-session.ts', 'components/landing/landing-cta.tsx', 'app/layout.tsx'];
+const PUBLIC_LAYOUT = ['app/(public)/layout.tsx', 'app/(landing)/layout.tsx', 'components/landing-v1/landing-page.tsx', 'lib/landing/landing-page-data.ts', 'components/shell/public-shell.tsx', 'components/shell/public-student-nav.tsx', 'lib/ui/local-session.ts', 'components/landing/landing-cta.tsx', 'app/layout.tsx'];
 // the cached reads the public pages use (each unstable_cache tag there must be dropped by the helper)
-const LOADERS = ['lib/exams/category-data.ts', 'lib/brand/brand-assets.ts', 'lib/landing/hindi-content.ts', 'lib/landing/home-facts.ts', 'lib/media/site-media.ts'];
+const LOADERS = ['lib/exams/category-data.ts', 'lib/landing/landing-page-data.ts', 'lib/brand/brand-assets.ts', 'lib/landing/hindi-content.ts', 'lib/landing/home-facts.ts', 'lib/media/site-media.ts'];
 
 /** the body of `name` (function declaration, const arrow, or exported route handler) — by brace matching */
 function bodyOf(src, name) {
@@ -116,7 +117,8 @@ function check(files) {
   const tagList = (/PUBLIC_PAGE_TAGS = \[([^\]]*)\]/.exec(helper) || [])[1] || '';
   const helperTags = new Set([...tagList.matchAll(/"([^"]+)"/g)].map((x) => x[1]));
   for (const t of tags) if (!helperTags.has(t) && !/^learn/.test(t)) fails.push(`W-2 helper does not drop the cache tag "${t}"`);
-  if (!/PUBLIC_PAGE_PATHS = \["\/", "\/exams"\]/.test(helper) || !/revalidatePath\(PUBLIC_CATEGORY_ROUTE, "page"\)/.test(helper) || !/PUBLIC_CATEGORY_ROUTE = "\/category\/\[slug\]"/.test(helper)) fails.push('W-2 helper does not revalidate "/", "/exams" and /category/[slug]');
+  // LANDING-1 (owner L1): "/hi" follows the same cache rule as "/"
+  if (!/PUBLIC_PAGE_PATHS = \["\/", "\/hi", "\/exams"\]/.test(helper) || !/revalidatePath\(PUBLIC_CATEGORY_ROUTE, "page"\)/.test(helper) || !/PUBLIC_CATEGORY_ROUTE = "\/category\/\[slug\]"/.test(helper)) fails.push('W-2 helper does not revalidate "/", "/exams" and /category/[slug]');
   if (tags.size < 3) fails.push(`W-2 found only ${tags.size} loader tags (expected categories, brand-assets, hindi-content)`);
   // W-3
   for (const f of CACHED_PAGES) {
@@ -151,10 +153,11 @@ if (process.argv.includes('--self-test')) {
     ['a write without its call', mutate('app/(site)/admin/exams/actions.ts', /\n[ \t]*revalidatePublicPages\(\);[^\n]*/, ''), /W-1 .*exams\/actions\.ts/],
     ['the CA publish route without its call', mutate('app/api/admin/current-affairs/articles/[id]/publish/route.ts', /\n[ \t]*revalidatePublicPages\(\);[^\n]*/, ''), /W-1 .*publish\/route/],
     ['a helper that skips a tag', mutate(HELPER, '"brand-assets", ', ''), /W-2 .*brand-assets/],
-    ['a force-dynamic cached page', mutate('app/(public)/page.tsx', 'export const revalidate = 300;', 'export const dynamic = "force-dynamic";'), /W-3 app\/\(public\)\/page\.tsx/],
+    ['a force-dynamic cached page', mutate('app/(landing)/page.tsx', 'export const revalidate = 300;', 'export const dynamic = "force-dynamic";'), /W-3 app\/\(landing\)\/page\.tsx/],
+    ['a force-dynamic Hindi landing page', mutate('app/(landing)/hi/page.tsx', 'export const revalidate = 300;', 'export const dynamic = "force-dynamic";'), /W-3 app\/\(landing\)\/hi\/page\.tsx/],
     ['a public shell that reads the session', mutate('components/shell/public-shell.tsx', /\n/, '\nconst __x = () => cookies();\n'), /W-4 components\/shell\/public-shell/],
     ['a public nav that imports the Supabase browser client', mutate('components/shell/public-student-nav.tsx', /\n/, '\nimport { createClient } from "@/lib/supabase/client";\n'), /W-4 components\/shell\/public-student-nav/],
-    ['a cached page with a streamed section', mutate('app/(public)/page.tsx', '<LandingLoop />', '<Suspense fallback={null}><LandingLoop /></Suspense>'), /W-7 app\/\(public\)\/page\.tsx/],
+    ['a cached page with a streamed section', mutate('app/(landing)/page.tsx', '<LandingPageV1 ', '<Suspense fallback={null}><LandingPageV1 '), /W-7 app\/\(landing\)\/page\.tsx/],
     ['a public shell streaming the sign-up promise', mutate('components/shell/public-shell.tsx', 'signup={signup}', 'signup={signupOpen()}'), /W-7 public shell/],
     ['a cached exam hub (moved to the public group)', { [HUB]: null, [HUB_PUBLIC]: read(HUB) }, /W-3 the exam hub/],
   ];
@@ -182,7 +185,7 @@ function runHelper(throwing) {
   return calls;
 }
 function checkHelper() {
-  const want = JSON.stringify([['tag', 'categories'], ['tag', 'brand-assets'], ['tag', 'hindi-content'], ['path', '/', null], ['path', '/exams', null], ['path', '/category/[slug]', 'page']]);
+  const want = JSON.stringify([['tag', 'categories'], ['tag', 'brand-assets'], ['tag', 'hindi-content'], ['path', '/', null], ['path', '/hi', null], ['path', '/exams', null], ['path', '/category/[slug]', 'page']]);
   const got = JSON.stringify(runHelper(false));
   const f = [];
   if (got !== want) f.push(`W-5 helper calls ${got}`);

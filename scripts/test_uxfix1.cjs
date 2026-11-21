@@ -9,6 +9,11 @@
  *        noindex (page metadata + segment layout) and /flashcards is not in the sitemap
  *   X-04 /descriptive makes no "expert faculty evaluation" claim
  *   X-05 "Sign in" is always visible in the bar (not hidden on phones), 48 px
+ *        LANDING-1 exemptions (owner round 3, 2026-11-21) — the LANDING header ("/", "/hi") only: (1) X-05: on phones its bar
+ *        is logo + language switch + menu, "Sign in" is the FIRST menu item and the start action the second; (2) BRAND-3
+ *        R4: it carries the spec's SOLID "Start free". Both are encoded in scripts/test_landing1.cjs LD-8; the shared
+ *        header (components/shell/header-bar.tsx) keeps X-05 and R4 as checked here. The landing start action follows
+ *        X-01 (closed → "Explore exams" → /exams).
  *   X-06 the hero shows loop steps 1–3 + a "See all N steps" link (≥ 48 px); no step 4–6 copy in the hero
  *   X-07 the hero feature list is plain text + icon (no pill / glass chip)
  *   X-08 exam cards: exactly one link per card (stretched CardLink), the "Open exam" cue is decorative
@@ -58,7 +63,14 @@ test('X-01 sign-up closed → no /auth/signup start action, primary "Explore SSC
   // PERF-HOME-1: "/" is cached and its CTA reads no session — the signed-out variant is the closed view unless sign-up is open
   // PERF-HOME-1b: the cached page reads the setting before rendering and passes it; not passed → the CLOSED view
   assert(/export function LandingCta\(\{ spot, signupOpen = false \}: \{ spot: Spot; signupOpen\?: boolean \}\) \{\s*const signedOut: Mode = signupOpen \? "signup-open" : "signup-closed";/.test(cta), 'signed-out variant must be the closed view unless sign-up is open (default closed)');
-  assert(/getSignupAvailability\(\),\s*\]\);\s*const signupOpen = signup !== "closed";/.test(code(read('app/(public)/page.tsx'))), 'home passes the sign-up setting it read (unknown → closed)');
+  // LANDING-1: "/" and "/hi" read the cached sign-up setting (no cookie) and, while it is closed, every start action
+  // becomes "Explore exams" → /exams (lib/landing/landing-copy.ts; scripts/test_landing1.cjs LD-8 renders both states)
+  const ld = code(read('lib/landing/landing-page-data.ts'));
+  assert(/getSignupAvailability\(\)\.catch\(\(\) => "unknown" as const\)/.test(ld) && /signupOpen: signup !== "closed"/.test(ld), 'home reads the sign-up setting');
+  const lc = code(read('lib/landing/landing-copy.ts'));
+  assert(/const start: StartAction = f\.signupOpen \? \{ label: base\.startFree, href: signUpHref \} : \{ label: base\.hero\.explore, href: examsHref \};/.test(lc), 'closed → Explore exams → /exams');
+  for (const f of ['app/(landing)/page.tsx', 'app/(landing)/hi/page.tsx']) assert(/resolveLandingCopy\(LANDING_(EN|HI), facts\)/.test(code(read(f))), `${f} resolves the start action`);
+  assert(!/href=\{R\.signUp\}/.test(code(read('components/landing-v1/landing-page.tsx'))), 'the landing page never links /auth/signup directly (only through the resolved start action)');
   const pub = code(read('components/shell/public-shell.tsx'));
   // PERF-HOME-1b: the cached shell reads it before rendering (background ISR) through the never-rejecting, bounded
   // signupOpen() (a failure → closed); the session AppShell keeps streaming it (checked above)

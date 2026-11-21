@@ -10,7 +10,8 @@ import { revalidatePath, revalidateTag } from "next/cache";
  * revalidation still applies.
  */
 export const PUBLIC_PAGE_TAGS = ["categories", "brand-assets", "hindi-content"] as const;
-export const PUBLIC_PAGE_PATHS = ["/", "/exams"] as const;
+// LANDING-1 (owner L1): "/hi" (the Hindi landing page) follows the same cache rule as "/"
+export const PUBLIC_PAGE_PATHS = ["/", "/hi", "/exams"] as const;
 export const PUBLIC_CATEGORY_ROUTE = "/category/[slug]";
 
 export function revalidatePublicPages(): void {
