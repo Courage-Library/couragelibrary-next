@@ -254,3 +254,34 @@ See the DOMAIN-CUTOVER-0 report; they are numbered there and recorded here once 
   - the anonymous smoke now checks X-Robots-Tag per host (noindex off-canonical, none on the canonical host) and a
     5-URL legacy redirect sample;
   - `scripts/live/test_pay1_b7.cjs` reads `B7_PROD_URL`, and the SEO seed script reads `PROD_BASE_URL`.
+
+## 13. Correction (owner, 2026-11-22) and Stage B record
+
+**Q1 corrected:** the Razorpay LIVE webhook is **`https://cnts.couragelibrary.in/api/payments/webhook`** (Enabled, 3
+events, last updated 2026-10-20). It is on the **CNTS** project, NOT on the apex / www.
+- The apex / www cutover does not touch it; `cnts.couragelibrary.in` stays untouched.
+- No legacy webhook path exists on the apex / www, so no new-app path check is needed. Inventory row 19 and §4 P1 are
+  superseded by this.
+- **How legacy `/enroll.html` payments worked** (read from its public page, masked): it creates orders through an
+  Edge Function `create-razorpay-order` on the **legacy** Supabase project, opens Razorpay Checkout (LIVE key), and
+  calls `send-enrollment-email` there. Payments are recorded by the legacy / CNTS side, never by the apex.
+- After the cutover `/enroll.html` → 308 `/pricing` (closed checkout), so **the legacy enrol page stops taking
+  payments** (owner Q1). The legacy Edge Functions and the CNTS webhook are left as they are; the legacy project is
+  never connected to.
+- Razorpay LIVE, last 7 days: **0 payments** (none captured, authorised, failed or refunded); nothing pending.
+
+| Check | Result |
+|---|---|
+| P1 Razorpay (no pending payment; webhook host) | **PASS** — 0 payments in 7 days; webhook on cnts (untouched) |
+| P2 legacy 301 map + gate | **PASS** — Stage A (`3612e5a`), 596 URLs, live on the alias |
+| P3 smoke switch prepared | **PASS** — `PROD_SMOKE_URL` variable (set at step 6) |
+| P4 age gate | **PASS** — `AGE_GATE_ENABLED=true` (owner); `/auth/signup` on the alias shows the required 18+ checkbox (`ageConfirmed`), Turnstile renders |
+| P5 auth mail (SMTP, templates, confirm, rate limit) | **PASS** — owner: custom SMTP ZeptoMail, 5 templates on `{{ .SiteURL }}/auth/confirm?token_hash=…`, confirm email on, 100/h |
+| P5 SPF / MX (Q5) | **PASS** — 1.1.1.1 + 8.8.8.8: `v=spf1 include:zoho.in ~all`; MX = Zoho 10 / 20 / 50 only; DMARC, `bounce-zem`, `cnts` unchanged |
+| P5 ZeptoMail | **PASS** — owner: DKIM + bounce verified |
+| P6 Turnstile + Google | **PASS** (owner; re-checked on the domain after the cutover) |
+| P7 admin MFA | **PASS** — owner: authenticator + backup enrolled, `ADMIN_MFA_REQUIRED=true` |
+| P8 grey cloud | **PASS** — apex / www answer `server: Vercel`, no `cf-ray` |
+| P9 "before" snapshot | **PASS** — saved outside the repo |
+| P10 CI green, health = HEAD | **PASS** — push run 44949725266 green; `/api/health` 3612e5a |
+| P11 window + access | **PASS** — now; the owner holds every dashboard |
