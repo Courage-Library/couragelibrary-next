@@ -285,3 +285,28 @@ events, last updated 2026-10-20). It is on the **CNTS** project, NOT on the apex
 | P9 "before" snapshot | **PASS** — saved outside the repo |
 | P10 CI green, health = HEAD | **PASS** — push run 44949725266 green; `/api/health` 3612e5a |
 | P11 window + access | **PASS** — now; the owner holds every dashboard |
+
+## 14. Stage C record — DOMAIN-CUTOVER-1 executed (2026-11-22, owner at the dashboards)
+
+| Step | Owner action | Verified (anonymous) |
+|---|---|---|
+| 1 | legacy project: apex + www removed (`cnts` untouched) | apex / www → 404 `DEPLOYMENT_NOT_FOUND`; `cnts` 200 (CNTS site) |
+| 2 | couragelibrary-next: apex added (primary), `www` → 308 to apex | `http` → 308 https; apex 200, TLS valid, new H1, canonical apex, no noindex; `www` → 308 apex (path kept); `/hi`, `/exams` 200; `cnts` 200 |
+| 3 | Supabase Site URL → apex; redirect URLs + apex / www (vercel.app, localhost kept) | `/auth/login` (Turnstile + Google script), `/auth/signup` (18+ checkbox + Turnstile), `/auth/forgot-password` 200; `/auth/confirm` without a token → `/auth/login?m=link-expired` |
+| 4 | `NEXT_PUBLIC_SITE_URL=https://couragelibrary.in` (Production) + Redeploy | health 3612e5a after the rebuild |
+| 5 | — | §6 checks: pages 200; robots canonical (allow `/`, sitemap line); canonical + hreflang on `/` and `/hi`; sitemap 74 URLs all on the apex incl. `/hi`; 20 random legacy URLs → one 308, targets 200; `/email/{banner,strip-main,strip-cnts}.png` 200 `image/png`, sha256 = repo; webhook route `GET` 405; anonymous smoke on the apex all passed; CLS `/` 0.0000 / 0.0004, `/hi` 0.0821 / 0.0650 (phone / desktop), unchanged |
+| 6 | repository variable `PROD_SMOKE_URL=https://couragelibrary.in` | the next push run's prod-smoke targets the apex |
+
+**Deviation (accepted, better):** once the apex became the project's primary production domain, Vercel serves the
+`couragelibrary-next.vercel.app` alias as a **308 to `https://couragelibrary.in`** (every path) instead of a noindex
+copy. So the alias can never be indexed. Post-cutover check "alias stays noindex" becomes "alias → 308 apex". The
+Supabase redirect list keeps the vercel.app origin for 30 days anyway (old e-mail links).
+
+**Rollback:** not used. Ready until the legacy project is removed: §5 (< 5 min, no DNS change).
+
+**Still to do (owner unless noted):**
+- **T+1 d:** pause (not delete) the legacy Vercel project; delete after 1–2 months (Q3).
+- **T+7 d:** Search Console — submit `https://couragelibrary.in/sitemap.xml`, watch Coverage daily.
+- **T+30 d:** remove `https://couragelibrary-next.vercel.app/**` from the Supabase redirect list.
+- **Optional now:** a password reset to the owner's own account opens `https://couragelibrary.in/auth/confirm?...`.
+- **Next phases:** DOMAIN-CUTOVER-2 (cron variables / URLs, Q6), PAY-1 B7 (B7 production check: `B7_PROD_URL=https://couragelibrary.in`), PAY-1 B8 (LIVE payments; the LIVE webhook is on cnts), EMAIL-KYC-1, AGE-CONSENT-1, DMARC tightening after ~2 weeks of clean reports.
