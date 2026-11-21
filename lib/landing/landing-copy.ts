@@ -7,6 +7,8 @@ import type { LandingCopy } from "../../content/landing-page/types";
  *   - Hindi claims (hero badge, hero sub, FAQ 3, promise 4) only when published Hindi content > 0 (HOME-1 H-20 rule);
  *     until then the owner's "Hindi on the way" lines. The /hi page itself always exists (a translation, not a claim).
  *   - sign-up closed (UXFIX1 X-01) → every "Start free" becomes "Explore exams" → /exams
+ *   - LANDING-1.1: the footer "made" line is a Hindi claim too → behind the same published-Hindi condition; a LIVE
+ *     category card names its live exams ("CGL live · more coming"), never a hard-coded exam list
  */
 export interface LandingFacts {
   /** display names of the live (active) exams, in order */
@@ -41,6 +43,20 @@ export function liveExamsAnswer(t: LandingCopy, names: readonly string[]): strin
   return (clean.length === 1 ? t.liveExams.one : t.liveExams.many).replace(LIVE_EXAMS_TOKEN, joinNames(clean, t.liveExams.and));
 }
 
+/** a LIVE category's subtitle: "<live short names> live" + " · more coming" when it also has exams not live yet */
+export function liveCategorySubtitle(t: LandingCopy, liveShortNames: readonly string[], moreComing: boolean): string {
+  const names = liveShortNames.map((n) => n.trim()).filter(Boolean);
+  if (names.length === 0) return "";
+  return `${names.join(", ")} ${t.exams.liveSuffix}${moreComing ? ` · ${t.exams.moreComing}` : ""}`;
+}
+
+/** "SSC CGL" in category "SSC" → "CGL" (the card already names the category); otherwise the full title */
+export function examShortName(title: string, categoryName: string): string {
+  const t = title.trim();
+  const c = categoryName.trim();
+  return c && t.toLowerCase().startsWith(`${c.toLowerCase()} `) && t.length > c.length + 1 ? t.slice(c.length + 1).trim() : t;
+}
+
 export function resolveLandingCopy(base: LandingCopy, f: LandingFacts, examsHref = "/exams", signUpHref = "/auth/signup"): ResolvedLanding {
   const faq = base.faq.items.map((item, i) => {
     if (i === 0) return { q: item.q, a: liveExamsAnswer(base, f.liveExamNames) };
@@ -53,6 +69,7 @@ export function resolveLandingCopy(base: LandingCopy, f: LandingFacts, examsHref
     hero: { ...base.hero, badge: f.hindiLive ? base.hero.badge : base.hindiPending.badge, sub: f.hindiLive ? base.hero.sub : base.hindiPending.sub },
     faq: { ...base.faq, items: faq },
     promises: { ...base.promises, items: promises },
+    footer: { ...base.footer, made: f.hindiLive ? base.footer.made : base.footer.madePending },
   };
   const start: StartAction = f.signupOpen ? { label: base.startFree, href: signUpHref } : { label: base.hero.explore, href: examsHref };
   return { t, start };

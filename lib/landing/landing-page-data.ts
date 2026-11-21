@@ -3,7 +3,8 @@ import { unstable_cache } from "next/cache";
 import { createPublicServerSupabaseClient } from "@/lib/supabase/server";
 import { loadHindiAvailability } from "@/lib/landing/hindi-content";
 import { getSignupAvailability } from "@/lib/auth/signup-availability";
-import type { LandingFacts } from "@/lib/landing/landing-copy";
+import { examShortName, type LandingFacts } from "@/lib/landing/landing-copy";
+import { COMING_SOON_EXAMS } from "@/content/public-pages";
 import { constructMetadata } from "@/lib/seo/metadata";
 import { siteConfig } from "@/config/site";
 import type { LandingCopy } from "@/content/landing-page/types";
@@ -26,6 +27,11 @@ export interface LandingLiveData {
   categories: CategoryState;
   liveExamSlugs: string[];
   liveExamNames: string[];
+  /** LANDING-1.1: per live category, its live exams' short names ("CGL") — the card subtitle is built from these */
+  liveShortNames: Record<string, string[]>;
+  /** LANDING-1.1: the category also has exams that are not live yet (the same COMING_SOON_EXAMS list the category
+   *  page shows) → " · more coming" */
+  moreComing: Record<string, boolean>;
 }
 
 async function readOnce(): Promise<LandingLiveData | null> {
@@ -33,16 +39,26 @@ async function readOnce(): Promise<LandingLiveData | null> {
   const timed = <T>(p: PromiseLike<T>): Promise<T | null> =>
     Promise.race([Promise.resolve(p), new Promise<null>((r) => setTimeout(() => r(null), 8000))]).catch(() => null);
   const [cats, exams] = await Promise.all([
-    timed(sb.from("exam_categories").select("id, slug, is_active, is_internal")),
+    timed(sb.from("exam_categories").select("id, slug, name, is_active, is_internal")),
     timed(sb.from("exams").select("slug, title, category_id").eq("is_active", true).order("title")),
   ]);
   if (!cats || cats.error || !cats.data || !exams || exams.error || !exams.data) return null;
   const count = new Map<string, number>();
   for (const e of exams.data) if (e.category_id) count.set(e.category_id, (count.get(e.category_id) ?? 0) + 1);
   const categories: CategoryState = {};
-  for (const c of cats.data) if (c.is_active && !c.is_internal) categories[c.slug] = (count.get(c.id) ?? 0) > 0;
+  const liveShortNames: Record<string, string[]> = {};
+  const moreComing: Record<string, boolean> = {};
+  for (const c of cats.data) {
+    if (!c.is_active || c.is_internal) continue;
+    categories[c.slug] = (count.get(c.id) ?? 0) > 0;
+    const live = exams.data.filter((e) => e.category_id === c.id && typeof e.title === "string");
+    liveShortNames[c.slug] = live.map((e) => examShortName(e.title as string, c.name ?? ""));
+    moreComing[c.slug] = COMING_SOON_EXAMS.some((x) => x.category === c.slug && !live.some((e) => e.slug === x.slug));
+  }
   return {
     categories,
+    liveShortNames,
+    moreComing,
     liveExamSlugs: exams.data.map((e) => e.slug).filter((x): x is string => typeof x === "string"),
     liveExamNames: exams.data.map((e) => e.title).filter((x): x is string => typeof x === "string" && x.trim().length > 0),
   };
@@ -54,12 +70,12 @@ const readLandingLiveCached = unstable_cache(
     if (!r) throw new Error("landing read failed"); // not cached
     return r;
   },
-  ["landing-v1-live", "v1"],
+  ["landing-v1-live", "v2"],
   { tags: ["categories"], revalidate: 300 },
 );
 
 export function loadLandingLiveData(): Promise<LandingLiveData> {
-  return readLandingLiveCached().catch(() => ({ categories: {}, liveExamSlugs: [], liveExamNames: [] }));
+  return readLandingLiveCached().catch(() => ({ categories: {}, liveExamSlugs: [], liveExamNames: [], liveShortNames: {}, moreComing: {} }));
 }
 
 /** Everything the landing page shows that depends on data: categories, chips, live exam names, Hindi, sign-up. */

@@ -56,6 +56,8 @@ export const LANDING_EN: LandingCopy = {
     allName: "All exams",
     allText: "See the full list →",
     comingSoon: "Coming soon",
+    liveSuffix: "live",
+    moreComing: "more coming",
   },
   pain: {
     h2: "Scoring low and don't know why?",
@@ -129,6 +131,7 @@ export const LANDING_EN: LandingCopy = {
   footer: {
     purpose: "We give every aspirant the courage to attempt again and the clarity to do better each time.",
     made: "Made for aspirants, in Hindi and English",
+    madePending: "Made for government-exam aspirants",
     platform: "Platform",
     company: "Company",
     legal: "Legal",

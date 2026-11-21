@@ -33,7 +33,8 @@ export interface LandingCopy {
   /** owner round 3: the Hindi-claim lines while NO Hindi content is published (the hero / FAQ 3 / promise 4 lines in
    *  this file are the Hindi-live versions) */
   hindiPending: { badge: string; sub: string; faq: { q: string; a: string }; promise: { title: string; text: string } };
-  exams: { h2: string; lead: string; allName: string; allText: string; comingSoon: string };
+  /** LANDING-1.1: a LIVE category's subtitle is built from its live exams ("CGL live · more coming"), never a fixed list */
+  exams: { h2: string; lead: string; allName: string; allText: string; comingSoon: string; liveSuffix: string; moreComing: string };
   pain: { h2: string; lead: string; items: Array<{ quote: string; answer: string }> };
   how: { h2: string; lead: string; steps: Array<{ title: string; text: string }> };
   plans: {
@@ -48,7 +49,9 @@ export interface LandingCopy {
   final: { h2: string; text: string };
   footer: {
     purpose: string;
+    /** the Hindi-live version; while no Hindi content is published the page shows madePending (LANDING-1.1) */
     made: string;
+    madePending: string;
     platform: string;
     company: string;
     legal: string;

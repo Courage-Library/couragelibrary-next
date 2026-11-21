@@ -55,6 +55,8 @@ export const LANDING_HI: LandingCopy = {
     allName: "सभी परीक्षाएँ",
     allText: "पूरी सूची देखें →",
     comingSoon: "जल्द आ रहा है",
+    liveSuffix: "उपलब्ध",
+    moreComing: "और जल्द",
   },
   pain: {
     h2: "नंबर कम आ रहे हैं और वजह नहीं पता?",
@@ -128,6 +130,7 @@ export const LANDING_HI: LandingCopy = {
   footer: {
     purpose: "हम हर aspirant को फिर से attempt करने की हिम्मत और हर बार बेहतर करने की स्पष्टता देते हैं।",
     made: "Aspirants के लिए, हिंदी और English में",
+    madePending: "सरकारी परीक्षाओं के aspirants के लिए",
     platform: "Platform",
     company: "Company",
     legal: "Legal",

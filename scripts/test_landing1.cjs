@@ -31,6 +31,11 @@
  *        "/hi" never redirect or gate (UX2A L-3); exemptions recorded: BRAND-3 R4 (solid "Start free" in the LANDING
  *        header only) and UXFIX1 X-05 (phone bar = logo + language + menu; "Sign in" first in the menu, the start
  *        action second)
+ *   LD-9 LANDING-1.1: (a) the footer "made" line (a Hindi claim) is behind the same published-Hindi condition (EN "Made for
+ *        government-exam aspirants" / HI "सरकारी परीक्षाओं के aspirants के लिए" until then); (b) a LIVE category's subtitle is
+ *        built from its live exams ("CGL live · more coming" / "CGL उपलब्ध · और जल्द") — no hard-coded exam list on a live card;
+ *        "more coming" from the same COMING_SOON_EXAMS list the category page uses; (c) "/hi" is in the sitemap with the
+ *        same priority / changefreq as "/" and hreflang alternates en → /, hi → /hi on both
  *   LD-7 negative controls: each mutation is caught
  * Run: node scripts/test_landing1.cjs
  */
@@ -282,6 +287,32 @@ function checkDataDriven(c, R, pageSrc, data, routes) {
   return 'FAQ 1 0/1/2/3 live × EN/HI; Hindi on/off; sign-up open/closed';
 }
 
+const SITEMAP = read('app/sitemap.ts');
+function checkLanding11(c, R, pageSrc, data, sitemap) {
+  // (a) footer made line
+  for (const base of [c.en, c.hi]) {
+    const off = R.resolveLandingCopy(base, { liveExamNames: [], hindiLive: false, signupOpen: true }).t.footer.made;
+    const on = R.resolveLandingCopy(base, { liveExamNames: [], hindiLive: true, signupOpen: true }).t.footer.made;
+    assert(off === base.footer.madePending && on === base.footer.made && !HINDI_CLAIM.test(off) && HINDI_CLAIM.test(on), `${base.lang}: footer made line (off: ${off} / on: ${on})`);
+  }
+  assert(c.en.footer.madePending === 'Made for government-exam aspirants' && c.hi.footer.madePending === 'सरकारी परीक्षाओं के aspirants के लिए', 'the owner\'s fallback lines');
+  assert(/<span>\{t\.footer\.made\}<\/span>/.test(pageSrc) && !/footer\.madePending/.test(pageSrc), 'the footer renders the resolved line only');
+  // (b) live-category subtitles from data
+  assert(R.liveCategorySubtitle(c.en, ['CGL'], true) === 'CGL live · more coming' && R.liveCategorySubtitle(c.hi, ['CGL'], true) === 'CGL उपलब्ध · और जल्द', 'today\'s SSC subtitle (EN / HI)');
+  assert(R.liveCategorySubtitle(c.en, ['CGL', 'CHSL'], false) === 'CGL, CHSL live' && R.liveCategorySubtitle(c.en, [], true) === '', 'more live exams / none');
+  assert(R.examShortName('SSC CGL', 'SSC') === 'CGL' && R.examShortName('IBPS PO', 'Banking') === 'IBPS PO' && R.examShortName('SSC', 'SSC') === 'SSC', 'short names');
+  assert(/<small>\{isLive \? liveCategorySubtitle\(t, detail\.shortNames\[c\.slug\] \?\? \[\], detail\.moreComing\[c\.slug\] === true\) : c\.examples\[t\.lang\]\}<\/small>/.test(pageSrc), 'a live card shows the data-driven subtitle; only a "Coming soon" card keeps the example list');
+  assert((pageSrc.match(/c\.examples\[/g) || []).length === 1, 'the static example list is used in one place only (the Coming-soon branch)');
+  assert(/liveShortNames\[c\.slug\] = live\.map\(\(e\) => examShortName\(e\.title as string, c\.name \?\? ""\)\);/.test(data) && /moreComing\[c\.slug\] = COMING_SOON_EXAMS\.some\(/.test(data) && /import \{ COMING_SOON_EXAMS \} from "@\/content\/public-pages";/.test(data), 'subtitles from the live read + the category page\'s coming-soon list');
+  // (c) sitemap
+  const entry = (u) => (sitemap.match(new RegExp(`\\{\\s*url: ${u},\\s*lastModified: new Date\\(\\),\\s*changeFrequency: "([a-z]+)",\\s*priority: ([0-9.]+),\\s*alternates: landingAlternates,\\s*\\}`)) || []);
+  const home = entry('baseUrl');
+  const hi = entry('`\\$\\{baseUrl\\}/hi`');
+  assert(home.length && hi.length && home[1] === hi[1] && home[2] === hi[2], `"/hi" in the sitemap with the same changefreq / priority as "/" (${home.slice(1)} vs ${hi.slice(1)})`);
+  assert(/const landingAlternates = \{ languages: \{ en: baseUrl, hi: `\$\{baseUrl\}\/hi` \} \};/.test(sitemap), 'hreflang alternates en → /, hi → /hi');
+  return 'footer on / off × EN / HI; subtitles; sitemap /hi';
+}
+
 (async () => {
   const c = loadCopy();
   const R = loadTs('lib/landing/landing-copy.ts');
@@ -292,6 +323,7 @@ function checkDataDriven(c, R, pageSrc, data, routes) {
   await test('LD-5 cache (PERF-HOME-1 for / and /hi) + canonical / hreflang', () => checkCache(EN_ROUTE, HI_ROUTE, LAYOUT, DATA, REVAL));
   await test('LD-6 tokens + styles + logo', () => checkTokens(GLOBALS, CSS));
   await test('LD-8 data-driven copy (live exams, published Hindi, sign-up), exemptions R4 / X-05, public reads only', () => checkDataDriven(c, R, PAGE_SRC, DATA, [EN_ROUTE, HI_ROUTE]));
+  await test('LD-9 LANDING-1.1: footer Hindi line conditional; live-category subtitles from data; /hi in the sitemap', () => checkLanding11(c, R, PAGE_SRC, DATA, SITEMAP));
   await test('LD-7 negative controls: each mutation is caught', async () => {
     const mut = (s, a, b) => { assert(s.includes(a), `mutation anchor missing: ${a.slice(0, 60)}`); return s.replace(a, b); };
     const cases = [
@@ -322,6 +354,14 @@ function checkDataDriven(c, R, pageSrc, data, routes) {
       ['Hindi read via service role', () => checkDataDriven(c, R, PAGE_SRC, DATA.replace('createPublicServerSupabaseClient()', 'createAdminServerSupabaseClient()'), [EN_ROUTE, HI_ROUTE])],
       ['sign-up closed still links sign-up', () => checkDataDriven(c, loadTs('lib/landing/landing-copy.ts', mut(LANDING_COPY_SRC, ': { label: base.hero.explore, href: examsHref }', ': { label: base.startFree, href: signUpHref }')), PAGE_SRC, DATA, [EN_ROUTE, HI_ROUTE])],
       ['Sign in not first in the menu', () => checkDataDriven(c, R, PAGE_SRC.replace('href={R.signIn} data-menu-item="1"', 'href={R.signIn} data-menu-item="3"'), DATA, [EN_ROUTE, HI_ROUTE])],
+      ['footer made line always the Hindi claim', () => checkLanding11(c, loadTs('lib/landing/landing-copy.ts', mut(LANDING_COPY_SRC, 'made: f.hindiLive ? base.footer.made : base.footer.madePending', 'made: base.footer.made')), PAGE_SRC, DATA, SITEMAP)],
+      ['footer renders the raw line', () => checkLanding11(c, R, mut(PAGE_SRC, '<span>{t.footer.made}</span>', '<span>{t.footer.madePending}</span>'), DATA, SITEMAP)],
+      ['live card with the static list', () => checkLanding11(c, R, mut(PAGE_SRC, '{isLive ? liveCategorySubtitle(t, detail.shortNames[c.slug] ?? [], detail.moreComing[c.slug] === true) : c.examples[t.lang]}', '{c.examples[t.lang]}'), DATA, SITEMAP)],
+      ['more coming always', () => checkLanding11(c, loadTs('lib/landing/landing-copy.ts', mut(LANDING_COPY_SRC, '${moreComing ? ` · ${t.exams.moreComing}` : ""}', '` · ${t.exams.moreComing}`')), PAGE_SRC, DATA, SITEMAP)],
+      ['subtitle from a fixed list', () => checkLanding11(c, R, PAGE_SRC, mut(DATA, 'liveShortNames[c.slug] = live.map((e) => examShortName(e.title as string, c.name ?? ""));', 'liveShortNames[c.slug] = ["CGL", "CHSL", "MTS", "GD"];'), SITEMAP)],
+      ['/hi missing from the sitemap', () => checkLanding11(c, R, PAGE_SRC, DATA, SITEMAP.replace(/\n    \{\n      url: `\$\{baseUrl\}\/hi`,[\s\S]*?\n    \},/, ''))],
+      ['/hi with a lower priority', () => checkLanding11(c, R, PAGE_SRC, DATA, SITEMAP.replace(/(url: `\$\{baseUrl\}\/hi`,\s*lastModified: new Date\(\),\s*changeFrequency: "daily",\s*priority: )1\.0/, '$10.5'))],
+      ['no hreflang in the sitemap', () => checkLanding11(c, R, PAGE_SRC, DATA, mut(SITEMAP, 'const landingAlternates = { languages: { en: baseUrl, hi: `${baseUrl}/hi` } };', 'const landingAlternates = undefined;'))],
       ['token changed', () => checkTokens(mut(GLOBALS, '--color-cl-blue: #475bff;', '--color-cl-blue: #4050ff;'), CSS)],
       ['colour literal', () => checkTokens(GLOBALS, CSS + '\n.lp-x { color: #ff0000; }')],
       ['no reduced motion', () => checkTokens(GLOBALS, CSS.replace(/@media \(prefers-reduced-motion: reduce\) \{[\s\S]*$/, ''))],

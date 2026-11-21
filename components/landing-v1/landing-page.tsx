@@ -3,7 +3,7 @@ import type { LandingCopy } from "@/content/landing-page/types";
 import { LANDING_CATEGORIES, LANDING_CHIPS, LANDING_FACTS, LANDING_LIBRARY_FACTS, LANDING_ROUTES as R } from "@/content/landing-page/facts";
 import { LandingIcon, SearchIcon, Tick, type LandingIconKey } from "./icons";
 import { LoopDiagram } from "./loop-diagram";
-import type { StartAction } from "@/lib/landing/landing-copy";
+import { liveCategorySubtitle, type StartAction } from "@/lib/landing/landing-copy";
 
 /**
  * LANDING-1 — the public landing page ("/" English, "/hi" Hindi). One server component, no client JavaScript:
@@ -23,6 +23,11 @@ import type { StartAction } from "@/lib/landing/landing-copy";
  */
 
 export type CategoryState = Record<string, boolean>; // category slug → has ≥ 1 live exam
+/** LANDING-1.1: per category, the live exams' short names and whether more exams are coming */
+export interface CategoryLive {
+  shortNames: Record<string, string[]>;
+  moreComing: Record<string, boolean>;
+}
 
 const LOGO = "/brand/courage-library-logo-suite/svg/logo-horizontal.svg";
 const LOGO_REVERSED = "/brand/courage-library-logo-suite/svg/logo-horizontal-reversed.svg";
@@ -186,7 +191,7 @@ function Band({ t, liveExams }: { t: LandingCopy; liveExams: readonly string[] }
   );
 }
 
-function Exams({ t, live }: { t: LandingCopy; live: CategoryState }) {
+function Exams({ t, live, detail }: { t: LandingCopy; live: CategoryState; detail: CategoryLive }) {
   return (
     <section className="lp-sec" aria-labelledby="lp-exams-h" data-landing-section="choose-exam">
       <div className="lp-in">
@@ -202,7 +207,8 @@ function Exams({ t, live }: { t: LandingCopy; live: CategoryState }) {
                 </span>
                 <span className="lp-exam__body">
                   <b>{c.name[t.lang]}</b>
-                  <small>{c.examples[t.lang]}</small>
+                  {/* LANDING-1.1: a live card names its LIVE exams; a "Coming soon" card may keep the example list */}
+                  <small>{isLive ? liveCategorySubtitle(t, detail.shortNames[c.slug] ?? [], detail.moreComing[c.slug] === true) : c.examples[t.lang]}</small>
                   {!isLive && <span className="lp-exam__soon">{t.exams.comingSoon}</span>}
                 </span>
               </>
@@ -464,7 +470,7 @@ function Footer({ t }: { t: LandingCopy }) {
   );
 }
 
-export function LandingPageV1({ t, start, live, liveExams }: { t: LandingCopy; start: StartAction; live: CategoryState; liveExams: readonly string[] }) {
+export function LandingPageV1({ t, start, live, detail, liveExams }: { t: LandingCopy; start: StartAction; live: CategoryState; detail: CategoryLive; liveExams: readonly string[] }) {
   return (
     <div className={t.lang === "hi" ? "lp lp--hi" : "lp"} lang={t.lang} data-landing="v1">
       <a href="#main-content" className="lp-skip">
@@ -474,7 +480,7 @@ export function LandingPageV1({ t, start, live, liveExams }: { t: LandingCopy; s
       <main id="main-content">
         <Hero t={t} start={start} />
         <Band t={t} liveExams={liveExams} />
-        <Exams t={t} live={live} />
+        <Exams t={t} live={live} detail={detail} />
         <Pain t={t} />
         <How t={t} />
         <Plans t={t} start={start} />

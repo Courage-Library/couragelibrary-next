@@ -22,7 +22,7 @@ export default async function HindiHomePage() {
     <>
       <JsonLd data={landingOrganizationJsonLd()} />
       <JsonLd data={landingFaqJsonLd(t)} />
-      <LandingPageV1 t={t} start={start} live={live.categories} liveExams={live.liveExamSlugs} />
+      <LandingPageV1 t={t} start={start} live={live.categories} detail={{ shortNames: live.liveShortNames, moreComing: live.moreComing }} liveExams={live.liveExamSlugs} />
     </>
   );
 }

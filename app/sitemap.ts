@@ -18,12 +18,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // 1. Static public routes that exist and render for anonymous visitors (decision #49, UX-2a.1).
   //    Private/admin routes are omitted; scripts/test_ux2a_landing.cjs checks every static URL answers 200.
+  // LANDING-1.1: the landing page in both languages, with hreflang alternates that match the pages' own (en → /,
+  // hi → /hi; x-default stays in the page metadata)
+  const landingAlternates = { languages: { en: baseUrl, hi: `${baseUrl}/hi` } };
   const staticEntries: MetadataRoute.Sitemap = [
     {
       url: baseUrl,
       lastModified: new Date(),
       changeFrequency: "daily",
       priority: 1.0,
+      alternates: landingAlternates,
+    },
+    {
+      url: `${baseUrl}/hi`,
+      lastModified: new Date(),
+      changeFrequency: "daily",
+      priority: 1.0,
+      alternates: landingAlternates,
     },
     {
       url: `${baseUrl}${siteConfig.routes.exams}`,

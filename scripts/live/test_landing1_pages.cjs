@@ -103,8 +103,23 @@ const H1_HI = 'अपने कमज़ोर टॉपिक पहचान�
           badge: document.querySelector('.lp-badge').textContent.trim(),
           sub: document.querySelector('.lp-sub').textContent.trim(),
           promise4: document.querySelectorAll('.lp-pr b')[3].textContent.trim(),
+          made: document.querySelector('.lp-ft__legal span:last-child').textContent.trim(),
+          ssc: (document.querySelector('[data-category="ssc"] small') || {}).textContent || '',
+          soonSubtitles: [...document.querySelectorAll('[data-live="false"] small')].map((x) => x.textContent.trim()),
         }));
       }
+      // LANDING-1.1: the footer line follows the published-Hindi condition; a live card names its live exams; /hi in the sitemap
+      chk('L-12 footer "made" line without published Hindi content: EN "Made for government-exam aspirants" / HI "सरकारी परीक्षाओं के aspirants के लिए"',
+        lines.en.made === 'Made for government-exam aspirants' && lines.hi.made === 'सरकारी परीक्षाओं के aspirants के लिए', JSON.stringify([lines.en.made, lines.hi.made]));
+      chk('L-12 the live SSC card names its live exams: EN "CGL live · more coming" / HI "CGL उपलब्ध · और जल्द" (no CHSL / MTS / GD); Coming-soon cards keep their examples',
+        lines.en.ssc.trim() === 'CGL live · more coming' && lines.hi.ssc.trim() === 'CGL उपलब्ध · और जल्द' && lines.en.soonSubtitles.length >= 1 && lines.en.soonSubtitles.every((x) => x.length > 0), JSON.stringify([lines.en.ssc, lines.hi.ssc]));
+      const sm = await (await fetch(BASE + '/sitemap.xml', { signal: AbortSignal.timeout(60000) })).text();
+      const smHome = (sm.match(/<url>\s*<loc>[^<]*?<\/loc>[\s\S]*?<\/url>/g) || []).find((u) => /<loc>https?:\/\/[^<\/]+\/?<\/loc>/.test(u)) || '';
+      const smHi = (sm.match(/<url>[\s\S]*?<\/url>/g) || []).find((u) => /<loc>https?:\/\/[^<]+\/hi<\/loc>/.test(u)) || '';
+      const pick = (u, tag) => (u.match(new RegExp(`<${tag}>([^<]*)</${tag}>`)) || [])[1];
+      chk('L-12 /sitemap.xml lists /hi with the same priority / changefreq as "/" and hreflang alternates en + hi on both',
+        smHi && pick(smHi, 'priority') === pick(smHome, 'priority') && pick(smHi, 'changefreq') === pick(smHome, 'changefreq') && /hreflang="hi"/.test(smHi) && /hreflang="en"/.test(smHi) && /hreflang="hi"/.test(smHome),
+        `${pick(smHome, 'priority')}/${pick(smHome, 'changefreq')} vs ${pick(smHi, 'priority')}/${pick(smHi, 'changefreq')}`);
       chk('L-11 FAQ 1 names the live exams (EN "SSC CGL is live now.", HI "SSC CGL अभी उपलब्ध है।"); no CHSL / MTS claim in it',
         lines.en.faq1.startsWith('SSC CGL is live now.') && lines.hi.faq1.startsWith('SSC CGL अभी उपलब्ध है।') && !/CHSL|MTS/.test(lines.en.faq1 + lines.hi.faq1), JSON.stringify([lines.en.faq1, lines.hi.faq1]));
       const claim = /Hindi (&|and) English|in Hindi and English|Learn in the language you think in|Can I study in Hindi|हिंदी और English में/;
