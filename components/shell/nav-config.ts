@@ -1,11 +1,11 @@
 /**
- * UX-1b navigation. Every link points to a route that exists and works today (checked on a local
- * production build, anonymous and signed in). Flagged routes only appear when the server-evaluated
- * feature flag is on. UX-2b added About, CNTS, Contact (footer) and the draft Privacy / Terms pages (footer bar).
- * Still omitted: Profile / Settings.
+ * UX-1b navigation — the FOOTER link lists. Every link points to a route that exists and works today. Flagged routes only
+ * appear when the server-evaluated feature flag is on. UX-2b added About, CNTS, Contact (footer) and the legal pages.
  * UX-FIX-1: Flashcards, Descriptive writing, Discussions, Institutes and Articles are NOT linked until each has real
  * published content (the routes stay, noindex); "/practice" is labelled "Mistake drills" until topic practice (F2).
  * F2 (#79): with PRACTICE on, "/practice" is "Practice" (topic practice) and "Mistake drills" links /mistakes/drill.
+ * NAV-1: the header / sidebar / bottom-bar links live in lib/nav/visitor-nav.ts (visitor header, Stage A) and
+ * lib/nav/student-nav.ts (student shell + exam focus routes, Stage B).
  */
 import { FOOTER_ABOUT } from "@/content/public-pages";
 
@@ -21,34 +21,6 @@ export type NavItem = {
   /** Shown only when this flag is OFF (the pre-flag version of an entry). */
   unlessFlag?: keyof ShellFlags;
 };
-
-export const LEARN_MENU: NavItem[] = [
-  { href: "/practice", label: "Practice", flag: "PRACTICE" },
-  { href: "/mistakes/drill", label: "Mistake drills", flag: "PRACTICE" },
-  { href: "/practice", label: "Mistake drills", unlessFlag: "PRACTICE" },
-  { href: "/courses", label: "Courses", flag: "COURSES" },
-  { href: "/battles", label: "Battles", flag: "BATTLES" },
-];
-
-// NAV-1 Stage A: the signed-out header links live in lib/nav/visitor-nav.ts (THE visitor header).
-
-/** Signed-in desktop header, in order; "Learn" is a menu placed after Mistakes. */
-export const STUDENT_NAV: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/mock-tests", label: "Tests" },
-  { href: "/mistakes", label: "Mistakes" },
-  { href: "/exams", label: "Exams" },
-  { href: "/current-affairs", label: "Current affairs" },
-];
-
-/** Account menu (desktop) and Account sheet (mobile bottom nav). Admin studio is added for staff. */
-export const ACCOUNT_MENU: NavItem[] = [
-  { href: "/notifications", label: "Notifications" },
-  { href: "/wallet", label: "Wallet" },
-  { href: "/store", label: "Rewards store" },
-  { href: "/billing", label: "Billing" },
-  { href: "/pricing", label: "Plans and pricing", match: ["/premium"] },
-];
 
 export const FOOTER_NAV: Array<{ heading: string; items: NavItem[] }> = [
   {
@@ -72,16 +44,6 @@ export const FOOTER_NAV: Array<{ heading: string; items: NavItem[] }> = [
 /** UX-2b footer bar links: the legal pages (drafts under legal review). */
 export const FOOTER_LEGAL: NavItem[] = FOOTER_ABOUT.legal.map((i) => ({ ...i }));
 
-export const LEARN_PREFIXES = ["/practice", "/articles", "/flashcards", "/descriptive", "/courses", "/battles"];
-
-/** Routes where the student bottom nav is hidden (full-screen test console). */
-export const CONSOLE_ROUTES = [/^\/mock-tests\/[^/]+\/take/, /^\/live-tests\/[^/]+\/take/];
-
 export function visibleItems(items: NavItem[], flags: ShellFlags): NavItem[] {
   return items.filter((i) => (!i.flag || flags[i.flag]) && (!i.unlessFlag || !flags[i.unlessFlag]));
-}
-
-export function isActive(pathname: string, item: Pick<NavItem, "href" | "match">): boolean {
-  const prefixes = [item.href, ...(item.match ?? [])];
-  return prefixes.some((p) => (p === "/" ? pathname === "/" : pathname === p || pathname.startsWith(`${p}/`)));
 }

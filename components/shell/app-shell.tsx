@@ -9,8 +9,11 @@ import { isFeatureEnabled } from "@/config/features";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { classifyAuthResult } from "@/lib/auth/session-state";
 import { SessionUnavailableBanner } from "@/components/auth/session-unavailable";
-import { BottomNav } from "./bottom-nav";
-import { HeaderBar } from "./header-bar";
+import { StudentShell } from "@/components/nav/student-shell";
+import { isExamFocus } from "@/lib/nav/student-nav";
+import { isPaymentsEnabled } from "@/config/payments";
+import { paywallOnForNav } from "@/lib/access/policy";
+import { ONBOARDING_COPY } from "@/content/onboarding";
 import type { ShellFlags } from "./nav-config";
 import type { ShellAccount } from "./shell-types";
 import { SiteFooter } from "./site-footer";
@@ -24,8 +27,9 @@ import { CoinsFlagProvider } from "@/lib/coins/flag-context";
 import { loadBrandAssets } from "@/lib/brand/brand-assets";
 
 /**
- * UX-1b app shell around every route: skip link, header (public or student), <main id="main-content">,
- * footer, and the student bottom nav on phones. Admin routes render only <main> (admin has its own layout).
+ * UX-1b app shell around every route: skip link, <main id="main-content">, footer. NAV-1: signed out → THE visitor
+ * header (Stage A); signed in → THE student shell (Stage B: sidebar / top bar / bottom bar); a live exam attempt → exam
+ * focus (only <main>: the exam console). Admin routes render only <main> (admin has its own layout).
  * Reads the session once; the only other read is the cached, bounded brand-assets read (HOME-1, 131). <main> is at least one viewport tall so the footer starts
  * below the fold and never jumps while page content streams in (CLS).
  */
@@ -82,28 +86,61 @@ export async function AppShell({ children }: { children: ReactNode }) {
       }
     : null;
 
+  const skip = (
+    <a
+      href="#main-content"
+      className="sr-only z-90 rounded-control bg-surface px-4 py-3 text-body-sm font-semibold text-primary-700 shadow-e2 focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:inline-flex focus:min-h-12 focus:items-center focus-ring"
+    >
+      Skip to content
+    </a>
+  );
+  const content = <CoinsFlagProvider enabled={isCoinsEnabled()}>{children}</CoinsFlagProvider>;
+
+  // NAV-1 §3 EXAM FOCUS: a live attempt shows only the exam console — no visitor header, no sidebar, no bottom bar, no footer
+  if (isExamFocus(pathname)) {
+    return (
+      <main id="main-content" tabIndex={-1} className="min-h-dvh flex-1 outline-none" data-exam-focus="">
+        {content}
+      </main>
+    );
+  }
+
+  // HOME-1: the footer's category links stream in (never awaited here: the shell never waits for them)
+  const footer = <SiteFooter flags={flags} categories={loadPublicCategories()} logo={brand.footerLogo} />;
+
+  // NAV-1 Stage B (owner: navigation BY SESSION): a signed-in user gets THE student shell on every per-request page;
+  // admin keeps its own layout (unchanged)
+  if (account && !pathname.startsWith("/admin")) {
+    return (
+      <>
+        {skip}
+        <StudentShell
+          t={navLabels("en")}
+          account={{ name: account.name, isStaff: account.isStaff, profile: account.profile, studyPreferences: account.studyPreferences }}
+          flags={{ practice: flags.PRACTICE, payments: isPaymentsEnabled() }}
+          paywall={paywallOnForNav()}
+          pathname={pathname}
+          lessonCoins={Boolean(account.lessonCoins)}
+          studyPreferencesLabel={ONBOARDING_COPY.menuLink}
+          footer={footer}
+        >
+          {content}
+        </StudentShell>
+      </>
+    );
+  }
+
   return (
     <>
-      <a
-        href="#main-content"
-        className="sr-only z-90 rounded-control bg-surface px-4 py-3 text-body-sm font-semibold text-primary-700 shadow-e2 focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:inline-flex focus:min-h-12 focus:items-center focus-ring"
-      >
-        Skip to content
-      </a>
+      {skip}
       {/* UX-FIX-1: start actions point to /auth/signup only while public sign-up is open (streamed: never awaited here).
-          NAV-1 Stage A: signed out → THE visitor header; signed in → the student header (replaced in Stage B). */}
-      {account ? (
-        <HeaderBar account={account} flags={flags} logo={brand.headerLogo} />
-      ) : pathname.startsWith("/admin") ? null : (
-        <SignedOutHeader pathname={pathname} />
-      )}
+          NAV-1 Stage A: no session → THE visitor header (admin: none — admin has its own layout). */}
+      {!account && !pathname.startsWith("/admin") && <SignedOutHeader pathname={pathname} />}
       {session.state === "error" && <SessionUnavailableBanner />}
       <main id="main-content" tabIndex={-1} className="min-h-dvh flex-1 outline-none">
-        <CoinsFlagProvider enabled={isCoinsEnabled()}>{children}</CoinsFlagProvider>
+        {content}
       </main>
-      {/* HOME-1: the footer's category links stream in (never awaited here: the shell never waits for them) */}
-      <SiteFooter flags={flags} categories={loadPublicCategories()} logo={brand.footerLogo} />
-      {account && <BottomNav account={account} />}
+      {footer}
     </>
   );
 }

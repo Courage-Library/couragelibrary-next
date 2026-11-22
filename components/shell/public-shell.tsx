@@ -1,9 +1,6 @@
 import type { ReactNode } from "react";
 import { isFeatureEnabled } from "@/config/features";
-import { isOnboardingEnabled } from "@/lib/onboarding/flag";
-import { isProfilesEnabled } from "@/lib/profile/flag";
 import { isPracticeEnabled } from "@/lib/practice/flag";
-import { isCoinsEnabled } from "@/lib/coins/flag";
 import { getSignupAvailability } from "@/lib/auth/signup-availability";
 import { loadBrandAssets } from "@/lib/brand/brand-assets";
 import { loadPublicCategoriesCached } from "@/lib/exams/category-data";
@@ -12,7 +9,6 @@ import { VisitorHeader } from "@/components/nav/visitor-header";
 import { NAV_EN } from "@/content/nav/labels";
 import { navCategories, startAction } from "@/lib/nav/visitor-nav";
 import type { ShellFlags } from "./nav-config";
-import { PublicStudentNav } from "./public-student-nav";
 import { SiteFooter } from "./site-footer";
 
 /**
@@ -47,9 +43,8 @@ export async function PublicShell({ children }: { children: ReactNode }) {
         {children}
       </main>
       <SiteFooter flags={flags} categories={categories} logo={brand.footerLogo} />
-      {/* reserved before the first paint for a signed-in visitor (CSS .auth-in) — the bottom nav fills it later: no shift */}
-      <div aria-hidden="true" className="auth-in h-[calc(4rem+1px+env(safe-area-inset-bottom))] lg:hidden" data-student-nav-space="" />
-      <PublicStudentNav studyPreferences={isOnboardingEnabled()} profile={isProfilesEnabled()} coins={isCoinsEnabled()} />
+      {/* NAV-1 Stage B (owner: navigation by session): the cached pages are visitor pages — a signed-in visitor sees
+          "Go to dashboard" in THE visitor header (pre-paint hint); no student bar is built here */}
     </>
   );
 }

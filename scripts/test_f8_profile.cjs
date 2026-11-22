@@ -138,9 +138,9 @@ const MIG = 'supabase/migrations/20261025000096_f8_profile_username.sql';
     assert(JSON.stringify(filters) === JSON.stringify([['select', 'username, created_at'], ['eq', 'username', 'ram_kumar'], ['eq', 'profile_public', true], ['not', 'adult_confirmed_at', 'is', null]]), `only public + 18+, only 2 columns: ${JSON.stringify(filters)}`);
     assert((await S.loadPublicProfile('bad name!')) === null, 'invalid → null');
     for (const f of ['app/(site)/u/[username]/page.tsx', 'app/(site)/settings/profile/page.tsx']) assert(/if \(!isProfilesEnabled\(\)\) notFound\(\);/.test(code(read(f))), `${f}: flag off → 404`);
-    const links = code(read('components/shell/account-links.tsx'));
-    // BRAND-3 fix 1: the base menu is ACCOUNT_MENU minus the coin links while coins are off (`menu`); the Profile link is unchanged
-    assert(/account\.profile \? \[\{ href: "\/settings\/profile", label: "Profile" \}, \.\.\.menu\] : menu/.test(links) && /const menu = account\.coins \? ACCOUNT_MENU : ACCOUNT_MENU\.filter\(/.test(links) && /profile: isProfilesEnabled\(\),/.test(read('components/shell/app-shell.tsx')), 'menu link only with the flag');
+    // NAV-1 Stage B (re-pointed, rule kept): the Profile link is in THE student avatar menu / sheet, only with the flag
+    const links = code(read('lib/nav/student-nav.ts'));
+    assert(/if \(a\.profile\) out\.push\(\{ key: "profile", href: "\/settings\/profile", label: t\.profile \}\);/.test(links) && /profile: isProfilesEnabled\(\),/.test(read('components/shell/app-shell.tsx')) && /profile: account\.profile/.test(read('components/shell/app-shell.tsx')), 'menu link only with the flag');
     const form = code(read('components/profile/profile-settings-form.tsx'));
     assert(/I confirm I am 18 or older/.test(form) && /disabled=\{pending \|\| \(!isPublic && \(!props\.username \|\| !adult\)\)\}/.test(form), 'public toggle needs a username and the 18+ tick');
   });

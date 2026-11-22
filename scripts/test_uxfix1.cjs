@@ -55,8 +55,10 @@ test('X-01 sign-up closed → no /auth/signup start action, primary "Explore SSC
   assert(/const closed: StartLink = \{ href: VISITOR_ROUTES\.exams, label: t\.exploreExams \};/.test(vh) && /<Suspense fallback=\{render\(closed\)\}>/.test(vh), 'start action must fall back to the closed view');
   // R4 (revised, #84): the SIGNED-IN header never uses a solid primary; the visitor header's solid "Start free" is the
   // owner's recorded exemption (LANDING-1 round 3, extended to the shared visitor header by NAV-1)
-  const header = code(read('components/shell/header-bar.tsx'));
-  assert(!/variant="(?:primary|on-dark|accent)|bg-accent-|bg-brand/.test(header) && !/\/auth\/signup/.test(header), 'the signed-in header uses a solid primary CTA or a sign-up link');
+  // NAV-1 Stage B: the signed-in header is THE student shell's top bar
+  const ss = code(read('components/nav/student-shell.tsx'));
+  const header = ss.slice(ss.indexOf('<header className="cl-ss__top"'), ss.indexOf('</header>'));
+  assert(header.length > 100 && !/variant="(?:primary|on-dark|accent)|bg-accent-|bg-brand|cl-vh__pill|cl-ss__fab/.test(header) && !/\/auth\/signup/.test(ss), 'the signed-in header uses a solid primary CTA or a sign-up link');
   assert(/BRAND-3 R4: the header's "Start free" is the SOLID cl-blue pill/.test(read('components/nav/visitor-header.tsx')), 'R4 exemption recorded on the visitor header');
   assert(/outline: "focus-ring border border-primary-700 text-primary-700/.test(read('components/ui/pill-button.tsx')), 'outline pill variant');
   // the shell must never wait on the Supabase setting (AUTH1-RESILIENCE-HANG): a never-rejecting promise, not an await
@@ -164,8 +166,12 @@ test('X-09 the /practice nav label is "Mistake drills" (F2: "Practice" once topi
   const items = [...nav.matchAll(/\{ href: "(\/practice|\/mistakes\/drill)", label: "([^"]+)"(?:, (flag|unlessFlag): "([A-Z]+)")? \}/g)].map((m) => ({ href: m[1], label: m[2], kind: m[3] || null, flag: m[4] || null }));
   const off = items.filter((i) => i.href === '/practice' && i.kind !== 'flag');
   const on = items.filter((i) => i.kind === 'flag' && i.flag === 'PRACTICE');
-  assert(off.length >= 2 && off.every((i) => i.label === 'Mistake drills' && i.kind === 'unlessFlag' && i.flag === 'PRACTICE'), `flag off: ${JSON.stringify(off)}`);
-  assert(on.length >= 4 && on.filter((i) => i.href === '/practice').every((i) => i.label === 'Practice') && on.filter((i) => i.href === '/mistakes/drill').every((i) => i.label === 'Mistake drills'), `flag on: ${JSON.stringify(on)}`);
+  // NAV-1 Stage B: the header "Learn" menu is gone; the footer keeps the flag-off / flag-on entries, and THE student nav
+  // shows "Practice" → /practice ONLY with PRACTICE on (never a mislabelled /practice link)
+  assert(off.length >= 1 && off.every((i) => i.label === 'Mistake drills' && i.kind === 'unlessFlag' && i.flag === 'PRACTICE'), `flag off: ${JSON.stringify(off)}`);
+  assert(on.length >= 2 && on.filter((i) => i.href === '/practice').every((i) => i.label === 'Practice') && on.filter((i) => i.href === '/mistakes/drill').every((i) => i.label === 'Mistake drills'), `flag on: ${JSON.stringify(on)}`);
+  const sn = read('lib/nav/student-nav.ts');
+  assert((sn.match(/if \(f\.practice\) (?:items|left)\.push\(\{ key: "practice", href: "\/practice", label: t\.practice, icon: "book" \}\);/g) || []).length === 2 && (sn.match(/href: "\/practice"/g) || []).length === 2, 'student nav: Practice only with the flag (sidebar + bottom bar)');
   return `${off.length} flag-off + ${on.length} flag-on entries`;
 });
 

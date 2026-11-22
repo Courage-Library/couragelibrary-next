@@ -152,7 +152,7 @@ export function VisitorNavEnhancer() {
     const onToggle = () => {
       document.documentElement.toggleAttribute("data-nav-drawer-open", drawer.open);
       toggle.setAttribute("aria-label", drawer.open ? toggle.dataset.closeLabel || "Close menu" : toggle.dataset.openLabel || "Menu");
-      if (drawer.open) panel.querySelector<HTMLElement>(FOCUSABLE)?.focus();
+      if (drawer.open) focusables()[1]?.focus(); // the first VISIBLE item in the panel
     };
     const onKey = (e: KeyboardEvent) => {
       if (!drawer.open) return;

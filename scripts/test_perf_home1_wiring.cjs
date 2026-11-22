@@ -9,8 +9,10 @@
  *   W-3 the cached pages are ISR (export const revalidate, no force-dynamic, no cookies()/headers()); the exam hub stays
  *       dynamic: it lives in the session-shell group app/(site) (never app/(public)) — the live gate checks its headers
  *   W-4 the public layout reads no session (no cookies(), headers(), getUser, getSession, AppShell) and ships no Supabase
- *       client (the signed-in nav reads the local session cookie — lib/ui/local-session.ts)
- *   W-6 that reader (display only): base64 / chunked / plain-JSON cookies → the user; missing / garbage → null
+ *       client — NAV-1: the cached pages render THE visitor header (signed-in visitors: "Go to dashboard" via the
+ *       pre-paint data-auth hint)
+ *   W-6 NAV-1 Stage B (replaces "the local session reader"): the cached pages read no session at all, not even in the
+ *       browser — no local-session reader, no student bar built on them, no document.cookie read in the nav code
  *   W-7 (PERF-HOME-1b) the cached pages are FINAL HTML: no <Suspense> in the cached pages, the public shell or the landing
  *       CTA, and the shell passes values (not promises) to the header / footer — no streamed placeholder swap (CLS)
  *   W-5 the helper, run against a recording next/cache: drops the 3 tags, revalidates "/", "/exams" and the
@@ -66,7 +68,7 @@ const HELPER = 'lib/cache/revalidate-public.ts';
 const CACHED_PAGES = ['app/(landing)/page.tsx', 'app/(landing)/hi/page.tsx', 'app/(public)/exams/page.tsx', 'app/(public)/category/[slug]/page.tsx'];
 const HUB = 'app/(site)/exams/[slug]/page.tsx';
 const HUB_PUBLIC = 'app/(public)/exams/[slug]/page.tsx';
-const PUBLIC_LAYOUT = ['app/(public)/layout.tsx', 'app/(landing)/layout.tsx', 'components/landing-v1/landing-page.tsx', 'lib/landing/landing-page-data.ts', 'components/shell/public-shell.tsx', 'components/shell/public-student-nav.tsx', 'lib/ui/local-session.ts', 'components/landing/landing-cta.tsx', 'app/layout.tsx'];
+const PUBLIC_LAYOUT = ['app/(public)/layout.tsx', 'app/(landing)/layout.tsx', 'components/landing-v1/landing-page.tsx', 'lib/landing/landing-page-data.ts', 'components/shell/public-shell.tsx', 'components/nav/visitor-header.tsx', 'components/nav/visitor-nav-enhancer.tsx', 'lib/nav/visitor-nav.ts', 'lib/nav/live-categories.ts', 'components/landing/landing-cta.tsx', 'app/layout.tsx'];
 // the cached reads the public pages use (each unstable_cache tag there must be dropped by the helper)
 const LOADERS = ['lib/exams/category-data.ts', 'lib/landing/landing-page-data.ts', 'lib/brand/brand-assets.ts', 'lib/landing/hindi-content.ts', 'lib/landing/home-facts.ts', 'lib/media/site-media.ts'];
 
@@ -160,7 +162,7 @@ if (process.argv.includes('--self-test')) {
     ['a force-dynamic cached page', mutate('app/(landing)/page.tsx', 'export const revalidate = 300;', 'export const dynamic = "force-dynamic";'), /W-3 app\/\(landing\)\/page\.tsx/],
     ['a force-dynamic Hindi landing page', mutate('app/(landing)/hi/page.tsx', 'export const revalidate = 300;', 'export const dynamic = "force-dynamic";'), /W-3 app\/\(landing\)\/hi\/page\.tsx/],
     ['a public shell that reads the session', mutate('components/shell/public-shell.tsx', /\n/, '\nconst __x = () => cookies();\n'), /W-4 components\/shell\/public-shell/],
-    ['a public nav that imports the Supabase browser client', mutate('components/shell/public-student-nav.tsx', /\n/, '\nimport { createClient } from "@/lib/supabase/client";\n'), /W-4 components\/shell\/public-student-nav/],
+    ['a public nav that imports the Supabase browser client', mutate('components/nav/visitor-nav-enhancer.tsx', /\n/, '\nimport { createClient } from "@/lib/supabase/client";\n'), /W-4 components\/nav\/visitor-nav-enhancer/],
     ['a cached page with a streamed section', mutate('app/(landing)/page.tsx', '<LandingPageV1 ', '<Suspense fallback={null}><LandingPageV1 '), /W-7 app\/\(landing\)\/page\.tsx/],
     // NAV-1 Stage A: the visitor header takes the start action; streaming it would be a promise again
     ['a public shell streaming the sign-up promise', mutate('components/shell/public-shell.tsx', 'start={startAction(NAV_EN, signup)}', 'start={signupOpen().then((o) => startAction(NAV_EN, o))}'), /W-7 public shell/],
@@ -175,6 +177,17 @@ if (process.argv.includes('--self-test')) {
     if (!caught) bad++;
     console.log(`${caught ? 'OK  ' : 'MISS'} negative control: ${n}${caught ? '' : ' — ' + JSON.stringify(f)}`);
   }
+  // W-6 (NAV-1 Stage B) negative controls: the cached pages must not read the session in the browser
+  for (const [n, files] of [
+    ['the local session reader is back', { 'lib/ui/local-session.ts': 'export function readLocalSessionUser() { return null; }' }],
+    ['the public shell builds a student bar', { 'components/shell/public-shell.tsx': read('components/shell/public-shell.tsx') + '\n// <PublicStudentNav />\nconst s = <PublicStudentNav />;' }],
+    ['nav code reads document.cookie', { 'components/nav/visitor-nav-enhancer.tsx': read('components/nav/visitor-nav-enhancer.tsx') + '\nconst c = () => document.cookie;' }],
+  ]) {
+    const caught = checkLocalSession(files).some((x) => /^W-6 /.test(x));
+    if (!caught) bad++;
+    console.log(`${caught ? 'OK  ' : 'MISS'} negative control: ${n}`);
+  }
+  if (checkLocalSession().length) { console.log('W-6 baseline not clean:', checkLocalSession()); bad++; }
   if (check({}).length) { console.log('baseline not clean:', check({})); bad++; }
   console.log(bad ? 'PERF-HOME-1 wiring self-test: FAILED' : 'PERF-HOME-1 wiring self-test: all negative controls caught');
   process.exit(bad ? 1 : 0);
@@ -199,26 +212,20 @@ function checkHelper() {
   try { runHelper(true); } catch (e) { f.push(`W-5 helper throws outside a request: ${e.message}`); }
   return f;
 }
-/** W-6: the local session reader (display only) — base64 / chunked / plain JSON; anything unreadable → null */
-function checkLocalSession() {
-  const ts = require('typescript');
-  const out = ts.transpileModule(read('lib/ui/local-session.ts'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
-  const mod = { exports: {} };
-  new Function('require', 'module', 'exports', out)(require, mod, mod.exports);
-  const r = mod.exports.readLocalSessionUser;
-  const json = JSON.stringify({ access_token: 'x', user: { email: 'fake@example.test', user_metadata: { full_name: ' Fake Name ' }, app_metadata: { role: 'student' } } });
-  const b64 = 'base64-' + Buffer.from(json).toString('base64url');
-  const want = JSON.stringify({ email: 'fake@example.test', fullName: 'Fake Name', role: 'student' });
+/**
+ * W-6 (NAV-1 Stage B; replaces the local session reader check): the cached pages read no session at all — not on the
+ * server (W-4) and not in the browser: the reader and the browser-built student bar are gone, the public shell renders
+ * no student nav, and no nav code reads document.cookie (the pre-paint auth hint stays the only cookie look, a hint only).
+ */
+function checkLocalSession(files = {}) {
   const f = [];
-  const cases = [
-    ['base64', `a=1; sb-fakeref-auth-token=${b64}`, want],
-    ['chunked', `sb-fakeref-auth-token.0=${b64.slice(0, 40)}; x=2; sb-fakeref-auth-token.1=${b64.slice(40)}`, want],
-    ['plain JSON', `sb-fakeref-auth-token=${encodeURIComponent(json)}`, want],
-    ['no cookie', 'a=1', 'null'],
-    ['garbage', 'sb-fakeref-auth-token=base64-%%%', 'null'],
-    ['no user', `sb-fakeref-auth-token=base64-${Buffer.from('{}').toString('base64url')}`, 'null'],
-  ];
-  for (const [n, c, w] of cases) { const g = JSON.stringify(r(c)); if (g !== w) f.push(`W-6 local session (${n}): ${g}`); }
+  const get = (p) => (p in files ? files[p] : fs.existsSync(path.join(ROOT, p)) ? read(p) : null);
+  for (const gone of ['lib/ui/local-session.ts', 'components/shell/public-student-nav.tsx']) if (get(gone) !== null) f.push(`W-6 ${gone} still exists (the cached pages must not read the session in the browser)`);
+  const pub = get('components/shell/public-shell.tsx') || '';
+  if (/<PublicStudentNav\b|<BottomNav\b|<StudentShell\b|readLocalSessionUser|data-student-nav-space/.test(pub)) f.push('W-6 the public shell builds a student nav');
+  for (const p of ['components/nav/visitor-header.tsx', 'components/nav/visitor-nav-enhancer.tsx', 'components/nav/student-nav-enhancer.tsx', 'lib/nav/visitor-nav.ts', 'lib/nav/student-nav.ts']) {
+    if (/document\.cookie/.test(get(p) || '')) f.push(`W-6 ${p} reads document.cookie`);
+  }
   return f;
 }
 

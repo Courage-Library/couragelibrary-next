@@ -512,3 +512,44 @@ POST to the IndexNow endpoint whenever a page is published or removed. The key f
 the publish paths (lessons, exam modules, Current Affairs) and is an outbound call from server code, so it is a small
 feature of its own, not a config change. Bing imports the sitemap from Search Console anyway, so the gain is faster
 recrawl of new pages only. Revisit once publishing is frequent (Current Affairs).
+
+## DRIFT-1C-NAV-1: two failing checks in the DRIFT-1c feature-quarantine suite (gate not in the CI list)
+
+**Status:** logged in NAV-1, 2026-11-22 (owner: investigate later). `node scripts/test_drift1c_features.cjs` fails 2 of 46
+checks; the gate is not in the CI offline list, so nothing ran it. Both failures predate NAV-1 (the code they read was not
+changed by NAV-1):
+- "NAV battles link gated in the UX-1b shell": its regex expects the old `visibleItems` body (`!i.flag || flags[i.flag]`);
+  the function also handles `unlessFlag` since F2. NAV-1 Stage B also removed the header "Learn" menu that held Battles.
+- "NAV admin sidebar hides /admin/adaptive and /admin/live-tests when off": the admin sidebar moved to `lib/admin/nav.ts`
+  (ADMIN-UX-1) and the check still reads the old place.
+
+**How:** re-point both checks to the current sources (rules kept), decide whether DRIFT-1c belongs in the CI list, add it
+if so.
+
+## BRAND-LOGO-UPLOAD-NAV-1: the admin logo upload no longer changes the site headers
+
+**Status:** logged in NAV-1, 2026-11-22 (owner note). Since NAV-1 the visitor header and the student shell always show the
+final logo suite (`public/brand/courage-library-logo-suite`, spec: never recoloured or redrawn). The admin "header logo"
+upload (HOME-1 brand assets, `lib/brand/brand-assets.ts`) still drives the footer lock-up and the `/brand/icon/[size]` route,
+but no longer the headers. Decide later: retire the header-logo upload setting, or keep it for the footer only and relabel it.
+
+## NAV-TODAY-MOCK-1: the centre "Today's mock" button should open today's free daily mock directly
+
+**Status:** logged in NAV-1 Stage B, 2026-11-22 (owner decision: spec §2 — link directly to today's free daily mock, the
+Mocks list only when there is none). Shipped with the fallback for now: the button opens `/mock-tests`, which shows
+today's daily mock first.
+
+**Why not now (no reliable server-side source without a change):**
+- There is no schedule record: "today's daily mock" is inferred from a naming convention on `mock_templates` (slug ending
+  `-daily-<weekday>` in IST, plus heuristics such as `test_type = daily` / `ssc-cgl-daily*`) inside
+  `AssessmentService.getStudentMockDashboardData` (a heavy per-user read) and the admin daily program.
+- It depends on the student's exam selection; a student who follows several exams has several daily mocks and no rule
+  for which one the button opens. "Free" is a separate access-policy decision (MOCK_TEST tier).
+- Resolving it in the shell would add a database read to every page (UX-1b U-5: the shell makes no DB query); a resolver
+  route (`/mock-tests/today`) is a new route (out of the NAV-1 spec scope).
+
+**Proposed:** (1) a real schedule — e.g. `daily_mock_schedule(exam_id, date, mock_test_id)` written by the admin daily
+program (DB change: full MIGRATION_RUNBOOK cycle), or at least one pure, tested `todaysFreeDailyMock(userId, now)` resolver
+shared by the dashboard; (2) an owner rule for several followed exams (the primary exam / the first unattempted); (3) a
+small route `/mock-tests/today` that resolves on tap (no shell read) and redirects to that mock, else `/mock-tests`;
+(4) point `TODAYS_MOCK_HREF` there and extend NAV-1 N-17 (+ a negative control).

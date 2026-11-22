@@ -254,7 +254,12 @@ test('S-01 sticky: one bar + rail at the token; token defined once; intake guide
   assert(/scroll-mt-\[calc\(max\(var\(--sticky-offset\),0px\)\+var\(--syl-bar-h,4rem\)\+0\.75rem\)\]/.test(b) && /--syl-bar-h/.test(b), 'jump targets clear the bar');
   const g = read('app/globals.css');
   assert((g.match(/--sticky-offset:/g) || []).length === 1 && /--site-header-h: 4rem;/.test(g), 'the token is defined once');
-  assert(/sticky top-0 z-30[^"]*"[^>]*data-header-solid/.test(read('components/shell/header-bar.tsx')) && /h-16/.test(read('components/shell/header-bar.tsx')), 'the site header is 4rem (h-16) and sticky at 0');
+  // NAV-1 (re-pointed, rule kept): the sticky offset equals the REAL height of the header that is on the page — THE visitor
+  // header (60 / 66 px + 1 px border) and THE student top bar (58 / 60 px, border-box) — both sticky at 0
+  const nav = read('app/nav.css');
+  const st = read('app/nav-student.css');
+  assert(/\.cl-vh \{\s+position: sticky;\s+top: 0;/.test(nav) && /height: 66px;/.test(nav) && /height: 60px;/.test(nav) && /body:has\(\.cl-vh\) \{\s+--site-header-h: 61px;\s+--sticky-offset: var\(--site-header-h\);/.test(nav) && /@media \(min-width: 900px\) \{\s+body:has\(\.cl-vh\) \{\s+--site-header-h: 67px;/.test(nav), 'the visitor header is sticky at 0 and the offset = its height');
+  assert(/\.cl-ss__top \{\s+position: sticky;\s+top: 0;[\s\S]*?height: 58px;/.test(st) && /--site-header-h: 58px;\s+--sticky-offset: var\(--site-header-h\);/.test(st) && /@media \(min-width: 1024px\) \{\s+\.cl-ss \{\s+--site-header-h: 60px;/.test(st) && /\.cl-ss__top \{\s+height: 60px;/.test(st), 'the student top bar is sticky at 0 and the offset = its height');
   const r = read('components/admin/syllabus/intake-review.tsx');
   const code = r.replace(/\/\/.*|\{\/\*[^]*?\*\/\}|\/\*[^]*?\*\//g, '');
   assert(!/[\s"'`]sticky[\s"'`]/.test(code) &&/\[--sticky-offset:-1rem\] sm:\[--sticky-offset:-1\.5rem\]/.test(r), 'intake review: nothing else sticks; the offset is minus the pane padding');

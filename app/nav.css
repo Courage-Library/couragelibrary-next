@@ -5,6 +5,17 @@
  * Motion: hover 150 ms, drawer 200 ms ease-out, none with prefers-reduced-motion.
  */
 
+/* SYLLABUS-UI-1 token, NAV-1: in-page sticky bars stick right below THE visitor header (its real height incl. the 1 px
+   border: 60 + 1 on phones, 66 + 1 from 900 px) — app/globals.css defines the token once; the shells set its value */
+body:has(.cl-vh) {
+  --site-header-h: 61px;
+  --sticky-offset: var(--site-header-h);
+}
+@media (min-width: 900px) {
+  body:has(.cl-vh) {
+    --site-header-h: 67px;
+  }
+}
 .cl-vh {
   position: sticky;
   top: 0;

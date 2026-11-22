@@ -112,6 +112,18 @@ const cachedPaywall = () =>
     { tags: [ACCESS_CACHE_TAG], revalidate: ANON_TTL_S },
   ))();
 
+/**
+ * NAV-1 Stage B: the paywall master switch for DISPLAY only (the "PRO" chip on Mistake Vault in the student sidebar) —
+ * the same cached read as above (invalidated by the admin switch write), bounded and never rejecting: an unknown or
+ * slow switch → false (no chip). It grants or blocks nothing; every access decision stays in the checks above.
+ */
+export function paywallOnForNav(ms = 800): Promise<boolean> {
+  return Promise.race([
+    cachedPaywall().then((s) => s === "on", () => false),
+    new Promise<boolean>((resolve) => setTimeout(() => resolve(false), ms)),
+  ]);
+}
+
 async function anonLessonAccess(keys: string[]): Promise<Map<string, AccessAnswer> | null> {
   try {
     const jar = await cookies();

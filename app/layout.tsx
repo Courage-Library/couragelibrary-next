@@ -4,8 +4,10 @@ import { constructMetadata } from "@/lib/seo/metadata";
 import { BRAND_THEME_COLOR } from "@/config/brand";
 import { LITE_MODE_SCRIPT } from "@/lib/ui/lite-mode";
 import { AUTH_HINT_SCRIPT } from "@/lib/ui/auth-hint";
+import { NAV_PREFS_SCRIPT } from "@/lib/ui/nav-prefs";
 import "./globals.css";
 import "./nav.css";
+import "./nav-student.css";
 
 // BRAND-2 (bilingual typography) + BUILD-FONT-1: the three families are committed woff2 files in app/fonts (SIL OFL 1.1,
 // see app/fonts/NOTICE.md) loaded by next/font/local — the build never fetches from Google. Each subset is its own
@@ -153,6 +155,8 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: LITE_MODE_SCRIPT }} />
         {/* PERF-HOME-1: which link set the cached public pages show (before the first paint) — lib/ui/auth-hint.ts */}
         <script dangerouslySetInnerHTML={{ __html: AUTH_HINT_SCRIPT }} />
+        {/* NAV-1 Stage B: the student sidebar's remembered collapse, before the first paint (no shift) — lib/ui/nav-prefs.ts */}
+        <script dangerouslySetInnerHTML={{ __html: NAV_PREFS_SCRIPT }} />
       </head>
       <body className="flex min-h-full flex-col bg-canvas text-fg antialiased selection:bg-primary-100 selection:text-primary-900">
         {/* PERF-HOME-1: the shell lives in the route groups — app/(site)/layout.tsx (session) and app/(public)/layout.tsx (cookie-free, cached) */}

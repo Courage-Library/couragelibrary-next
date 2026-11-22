@@ -233,15 +233,23 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
 
   // ---- HOME-1 design upgrade (owner, 2026-11-01): solid header, navy footer, connected loop, honest images ----
   await test('H-10 header: ONE solid sticky white header (no glass pill), hairline border, shadow only after scroll (box-shadow: no layout shift), 64 px, 48 px actions', () => {
-    const h = read('components/shell/header-bar.tsx');
-    const tag = (h.match(/<header [^>]*>/) || [''])[0];
-    assert((h.match(/<header /g) || []).length === 1 && /sticky top-0/.test(tag) && /border-b border-line bg-surface/.test(tag) && /scrolled \? "shadow-e2" : "shadow-none"/.test(tag) && /data-header-solid=""/.test(tag), 'one solid header');
+    // NAV-1 (owner-approved spec, 23 Nov 2026; re-pointed, rules kept): THE visitor header and THE student top bar replace
+    // the HOME-1 header. Both: ONE full-width sticky bar with a hairline border, no floating glass pill, no shadow that
+    // moves anything (none at all), 48 px menu buttons. The visitor header's 92 % white + blur is the spec (as on the
+    // landing since LANDING-1), solid in lite mode and with reduced transparency; the student top bar is solid white.
+    const vh = read('components/nav/visitor-header.tsx');
+    const ss = read('components/nav/student-shell.tsx');
+    const css = read('app/nav.css') + read('app/nav-student.css');
+    assert((vh.match(/<header /g) || []).length === 1 && /<header className="cl-vh"/.test(vh) && (ss.match(/<header /g) || []).length === 1 && /<header className="cl-ss__top"/.test(ss), 'one header each');
+    assert(/\.cl-vh \{\s+position: sticky;\s+top: 0;/.test(css) && /border-bottom: 1px solid var\(--color-cl-line\);/.test(css) && /\.cl-ss__top \{\s+position: sticky;\s+top: 0;[\s\S]*?background: var\(--color-cl-white\);\s+border-bottom: 1px solid var\(--color-cl-line\);/.test(css), 'sticky bars with a hairline border; the student bar solid white');
+    assert(/html\.lite \.cl-vh \{[\s\S]*?background: var\(--color-cl-white\);/.test(css) && /prefers-reduced-transparency: reduce/.test(css), 'the visitor blur is solid in lite mode / reduced transparency');
+    const h = vh + ss;
     assert(!/GlassNav|glass-light|rounded-full pl-4/.test(h) && !/GlassNav/.test(read('components/ui/glass.tsx')), 'no floating glass pill');
-    assert(/window\.addEventListener\("scroll", onScroll, \{ passive: true \}\)/.test(h) && /removeEventListener\("scroll", onScroll\)/.test(h), 'passive scroll listener, cleaned up');
-    assert(/flex h-16 w-full max-w-\[1200px\]/.test(h) && /className="size-12 rounded-control lg:hidden"/.test(h), '64 px bar, 48 px menu button');
+    assert(!/box-shadow[^;]*;[^}]*\}[^{]*\[data-scrolled\]|addEventListener\("scroll"/.test(h), 'no scroll-dependent shadow / layout change');
+    assert(/\.cl-vh__burger \{[^}]*width: 48px;\s+height: 48px;/.test(css) && /\.cl-ss__av \{[^}]*width: 48px;\s+height: 48px;/.test(css), '48 px menu buttons (visitor menu, student avatar)');
     assert(!/-mt-\[76px\]/.test(read('components/ui/gradient-hero.tsx')), 'hero no longer pulled up under a floating nav');
     // negative control: the detector flags a glass header
-    assert(/GlassNav|glass-light/.test(h.replace('data-header-solid=""', 'className="glass-light"')), 'negative control');
+    assert(/GlassNav|glass-light/.test(h.replace('<header className="cl-vh"', '<header className="glass-light"')), 'negative control');
   });
 
   await test('H-11 footer: deep navy, white headings, light-slate links (≥ 4.5:1, computed from tokens), cyan top line, on-dark focus ring; accordions keep native <details>', () => {
@@ -349,12 +357,15 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
     const [a, b] = [await px('public/images/logo.png', 0.4, 0.5), await px('public/brand/mark-96.webp', 0.4, 0.5)];
     assert(a.every((v, i) => Math.abs(v - b[i]) <= 24), `not recoloured (${a} vs ${b})`);
     assert(/loading=/.test(wm) === false && !/data-brand-monogram/.test(wm) && /width=\{DEFAULT_MARK\.width\} height=\{DEFAULT_MARK\.height\}/.test(wm) && /tone === "white" && "rounded-control bg-surface p-1"/.test(wm) && /logo \? \(/.test(wm), 'lockup: sized, not lazy, white plate on navy, upload replaces');
-    const h = read('components/shell/header-bar.tsx');
-    assert((h.match(/<BrandWordmark [^>]*logo=\{logo\}/g) || []).length === 2 && /data-menu-brand=""/.test(h), 'header + mobile menu use the brand');
+    // NAV-1 (owner spec: "final logo suite — never recolour or redraw"): the visitor header and the student shell show the
+    // static logo-suite SVGs (never the monogram, sized → no shift); the admin logo upload still drives the footer below
+    // (backlog: the upload no longer affects the headers)
+    const vhs = read('components/nav/visitor-header.tsx') + read('components/nav/student-shell.tsx');
+    assert(/"\/brand\/courage-library-logo-suite\/svg\/logo-horizontal\.svg"/.test(vhs) && /\/brand\/courage-library-logo-suite\/svg\/mark\.svg/.test(vhs) && !/data-brand-monogram/.test(vhs) && /width=\{Math\.round\(LOGO_RATIO \* 30\)\} height=\{30\}/.test(vhs), 'headers use the final logo suite, sized');
     assert(/<BrandWordmark size="sm" tone="white" logo=\{logo\} \/>/.test(read('components/shell/site-footer.tsx')), 'footer');
     const shell = read('components/shell/app-shell.tsx');
     // NAV-1: the same Promise.all also reads the forwarded path (after the brand read) — the rule is unchanged
-    assert(/Promise\.all\(\[[\s\S]*?loadBrandAssets\(\),[\s\S]*?\]\)/.test(shell) && /const \[session, brand, pathname\] = await Promise\.all\(\[/.test(shell) && /logo=\{brand\.headerLogo\}/.test(shell) && /logo=\{brand\.footerLogo\}/.test(shell), 'shell: brand read alongside the session, never alone');
+    assert(/Promise\.all\(\[[\s\S]*?loadBrandAssets\(\),[\s\S]*?\]\)/.test(shell) && /const \[session, brand, pathname\] = await Promise\.all\(\[/.test(shell) && /logo=\{brand\.footerLogo\}/.test(shell), 'shell: brand read alongside the session, never alone (NAV-1: it drives the footer; the headers show the final logo suite)');
     const meta = read('lib/seo/metadata.ts');
     // SEO-1 (owner, 2026-11-22): the site icons moved to the final logo suite (static files, lib/seo/brand-icons.ts; sizes and
     // files gated in scripts/test_seo1.cjs S1-3). The /brand/icon/[size] route stays for old links; the header / footer

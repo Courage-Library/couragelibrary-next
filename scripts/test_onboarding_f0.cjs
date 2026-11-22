@@ -282,7 +282,7 @@ const run = async (fn) => {
     walk(ONBOARDING_COPY, 'copy');
     for (const step of ['language', 'exams', 'timing', 'time']) assert(ONBOARDING_COPY.steps[step], `step ${step} has no copy`);
     assert(n >= 40 && bad.length === 0, `${n} labels; not plain English: ${bad.join(', ')}`);
-    for (const f of ['app/(site)/onboarding/onboarding-wizard.tsx', 'components/onboarding/onboarding-card.tsx', 'components/shell/account-links.tsx', 'app/(site)/onboarding/page.tsx', 'content/onboarding.ts']) {
+    for (const f of ['app/(site)/onboarding/onboarding-wizard.tsx', 'components/onboarding/onboarding-card.tsx', 'lib/nav/student-nav.ts' /* NAV-1: the Study preferences link */, 'app/(site)/onboarding/page.tsx', 'content/onboarding.ts']) {
       const src = read(f);
       assert(!/lang="hi"/.test(src) && !DEV.test(src), `${f}: Hindi UI`);
     }

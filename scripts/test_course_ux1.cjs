@@ -55,7 +55,9 @@ const F = {
   master: 'services/learning/master-lesson.service.ts',
   shell: 'components/shell/app-shell.tsx',
   wallet: 'app/(site)/wallet/page.tsx',
-  header: 'components/shell/header-bar.tsx',
+  // NAV-1 Stage B (owner: coin balance kept, flag-gated): the balance lives in the student shell's top bar
+  header: 'components/nav/coin-balance.tsx',
+  studentShell: 'components/nav/student-shell.tsx',
   balance: 'app/api/coins/balance/route.ts',
   structure: 'lib/learning/course-structure.ts',
 };
@@ -183,7 +185,7 @@ function check(over = {}) {
     'course pages: no fake counts, reference lines, year labels or quotes');
   t('U-1d', !/createAdminServerSupabaseClient\(\)\.rpc|admin\.rpc/.test(f.actions) && /supabase\.rpc\("fn_lesson_complete"/.test(f.actions) && /supabase\.rpc\("fn_lesson_quick_check_answer"/.test(f.actions)
     && !/p_user|userId|user_id/.test(f.actions) && /isLessonCoinsEarnEnabled\(\)/.test(f.actions), 'actions: session client RPCs, no user id from the caller, coins shown only behind the flag');
-  t('U-1e', /lessonCoins: isLessonCoinsEarnEnabled\(\)/.test(f.shell) && !/from\("coin_wallets"\)/.test(f.shell) && /<CoinBalance enabled=\{account\.lessonCoins\} \/>/.test(f.header)
+  t('U-1e', /lessonCoins: isLessonCoinsEarnEnabled\(\)/.test(f.shell) && !/from\("coin_wallets"\)/.test(f.shell) && /lessonCoins=\{Boolean\(account\.lessonCoins\)\}/.test(f.shell) && /<CoinBalance enabled=\{lessonCoins\} \/>/.test(f.studentShell) && /fetch\("\/api\/coins\/balance"/.test(f.header)
     && /if \(!enabled \|\| n === null\) return null;/.test(f.header) && /if \(!isLessonCoinsEarnEnabled\(\)\) return NextResponse\.json\(\{ error: "Not found" \}, \{ status: 404/.test(f.balance)
     && !/createAdmin|service_role/.test(f.balance) &&/isLessonCoinsEarnEnabled\(\) \? <LessonCoinsWallet \/> : <CoinsPaused \/>/.test(f.wallet) && /result\.coins !== null && result\.coins > 0/.test(f.complete),
     'coin UI (header balance, wallet, toast) only behind COINS_LESSON_EARN');

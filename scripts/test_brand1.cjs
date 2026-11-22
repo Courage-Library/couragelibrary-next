@@ -277,8 +277,13 @@ test('B-07 R4 (revised, #84): the primary action is solid blue-700; no accent / 
     const solid = (s.match(/variant="(?:primary|on-dark)"/g) || []).length;
     if (solid > 4) bad.push(`${rel(f)}: ${solid} solid pill primaries`);
   }
-  const header = read('components/shell/header-bar.tsx');
-  assert(!/<PillLink\b(?![^>]*variant="outline")[^>]*>/.test(header), 'the header uses outline pills only (the page owns the one primary)');
+  // NAV-1 (re-pointed): the STUDENT top bar carries no solid CTA (the page owns the one primary); the visitor header's
+  // solid "Start free" is the owner's recorded R4 exemption (LANDING-1 round 3, extended by NAV-1 — checked in LANDING-1 /
+  // UX-FIX-1); the spec's solid "Today's mock" circle lives in the bottom bar, not in a header
+  const ss = read('components/nav/student-shell.tsx');
+  const header = ss.slice(ss.indexOf('<header className="cl-ss__top"'), ss.indexOf('</header>'));
+  assert(header.length > 100 && !/<PillLink\b|cl-vh__pill|cl-ss__fab|variant="(?:primary|on-dark)"/.test(header), 'the student top bar has no solid CTA (the page owns the one primary)');
+  assert(/BRAND-3 R4: the header's "Start free" is the SOLID cl-blue pill/.test(read('components/nav/visitor-header.tsx')), 'the visitor header exemption is recorded');
   assert(bad.length === 0, bad.join('; '));
   return `${files.length} files; primary = blue-700, header outline only`;
 });

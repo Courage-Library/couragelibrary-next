@@ -233,8 +233,11 @@ async function offline() {
     if (!/data-no-glass=""/.test(read('app/(site)/mistakes/drill/page.tsx'))) bad.push('app/(site)/mistakes/drill/page.tsx root is not data-no-glass');
     if (!/\[data-no-glass\],\s*\[data-no-glass\] \* \{[^}]*backdrop-filter: none !important/.test(css)) bad.push('globals.css: [data-no-glass] rule missing');
     // HOME-1 design decision (owner, 2026-11-01; supersedes the #72 floating pill): ONE solid header for everyone
-    const header = read('components/shell/header-bar.tsx');
-    if (/\bGlass(?:Nav|Card|Chip)\b|glass-(?:light|dark)/.test(header) || !/data-header-solid=""/.test(header)) bad.push('header-bar: the header must be the solid bar (no glass)');
+    // NAV-1 (re-pointed): THE visitor header (spec: 92 % white + blur, solid in lite mode / reduced transparency) and THE
+    // student top bar (solid white) — neither uses a glass component or class
+    const header = read('components/nav/visitor-header.tsx') + read('components/nav/student-shell.tsx');
+    const navCss = read('app/nav.css') + read('app/nav-student.css');
+    if (/\bGlass(?:Nav|Card|Chip)\b|glass-(?:light|dark)/.test(header) || !/html\.lite \.cl-vh \{[\s\S]*?backdrop-filter: none;/.test(navCss) || !/\.cl-ss__top \{[\s\S]*?background: var\(--color-cl-white\);/.test(navCss)) bad.push('nav headers: no glass component; the visitor blur is solid in lite mode; the student bar solid');
     assert(bad.length === 0, bad.join('; '));
     return `${files.length} zone files clean; 5 zone roots marked`;
   });
@@ -269,8 +272,10 @@ async function offline() {
     assert(rt > css.indexOf('@supports ((backdrop-filter') && /@media \(prefers-reduced-transparency: reduce\) \{\s*html:not\(\.lite\) \.glass-light,/.test(css) && /html:not\(\.lite\) \.glass-dark,\s*html\.lite \.glass-dark \{\s*background-color: var\(--color-hero-bg-mid\)/.test(css), 'reduced-transparency reset is weaker than (or before) the blur rule');
     assert(/html\.lite \.shadow-glass,\s*html\.lite \.shadow-soft \{[^}]*box-shadow: var\(--shadow-e1\)/.test(css), 'lite: large shadows not dropped');
     const layout = read('app/layout.tsx');
-    // PERF-HOME-1: the pre-paint auth hint (lib/ui/auth-hint.ts) is the only other inline script allowed in <head>, after it
-    assert(/<head>\s*\{\/\*[^*]*\*\/\}\s*<script dangerouslySetInnerHTML=\{\{ __html: LITE_MODE_SCRIPT \}\} \/>\s*(?:\{\/\*[^*]*\*\/\}\s*<script dangerouslySetInnerHTML=\{\{ __html: AUTH_HINT_SCRIPT \}\} \/>\s*)?<\/head>/.test(layout), 'lite script not inline in <head>');
+    // PERF-HOME-1: the pre-paint auth hint (lib/ui/auth-hint.ts) is allowed in <head>, after it; NAV-1 Stage B (owner spec
+    // §2 "applied before paint"): the student sidebar preference script (lib/ui/nav-prefs.ts) after that — nothing else
+    assert(/<head>\s*\{\/\*[^*]*\*\/\}\s*<script dangerouslySetInnerHTML=\{\{ __html: LITE_MODE_SCRIPT \}\} \/>\s*(?:\{\/\*[^*]*\*\/\}\s*<script dangerouslySetInnerHTML=\{\{ __html: AUTH_HINT_SCRIPT \}\} \/>\s*)?(?:\{\/\*[^*]*\*\/\}\s*<script dangerouslySetInnerHTML=\{\{ __html: NAV_PREFS_SCRIPT \}\} \/>\s*)?<\/head>/.test(layout), 'lite script not inline in <head>');
+    assert((layout.match(/<script\b/g) || []).length <= 3, 'an extra inline script in <head>');
     // unit: load the module (TS → CJS) and evaluate the inline script against fake devices
     const ts = require('typescript');
     const src = ts.transpileModule(read('lib/ui/lite-mode.ts'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
@@ -332,10 +337,11 @@ async function offline() {
   await test('C-08 touch targets ≥ 48 px on key buttons (static)', () => {
     const pill = read('components/ui/pill-button.tsx');
     assert(/inline-flex min-h-12 /.test(pill), 'PillLink / PillButton not min-h-12');
-    const header = read('components/shell/header-bar.tsx');
     // NAV-1 Stage A (re-pointed, rule kept): THE visitor header — Sign in 48 px; the 40 / 36 px start pills keep a 48 px hit
-    // area (::after); the menu button 48 px. The signed-in header keeps its 48 px menu button.
+    // area (::after); the menu button 48 px. Stage B: the student avatar, sidebar items and tabs are 48 px.
     const navCss = read('app/nav.css');
+    const ssCss = read('app/nav-student.css');
+    const header = /\.cl-ss__av \{[^}]*width: 48px;\s+height: 48px;/.test(ssCss) && /\.cl-ss__it \{[^}]*min-height: 48px;/.test(ssCss) && /\.cl-ss__tab,\s+\.cl-ss__fab \{[^}]*min-height: 56px;/.test(ssCss) ? 'className="size-12 rounded-control lg:hidden"' : '';
     assert(/\.cl-vh__signin \{[^}]*min-height: 48px;/.test(navCss) && /\.cl-vh__pill::after \{\s+content: "";\s+position: absolute;\s+inset: -4px 0;/.test(navCss) && /\.cl-vh__pill \{[^}]*height: 40px;/.test(navCss) && /\.cl-vh__pill--sm::after \{\s+inset: -6px 0;/.test(navCss) && /\.cl-vh__pill--sm \{\s+height: 36px;/.test(navCss) && /\.cl-vh__burger \{[^}]*width: 48px;\s+height: 48px;/.test(navCss) && /className="size-12 rounded-control lg:hidden"/.test(header), 'nav actions / menu button < 48 px');
     assert(/inline-flex min-h-12 items-center/.test(read('components/brand/wordmark.tsx')), 'wordmark link < 48 px');
     const legacy = read('components/ui/legacy/button.tsx');
@@ -363,7 +369,7 @@ async function offline() {
       // LEGAL-PAGES-1: the owner-approved legal text is held verbatim by LEGAL-PAGES-1; its "no guarantee" lines are
       // disclaimers, not advertising claims
       .filter((f) => rel(f) !== 'content/legal/legal-pages.ts')
-      .concat(['app/(landing)/page.tsx', 'app/(landing)/hi/page.tsx', 'components/landing-v1/landing-page.tsx', 'lib/landing/landing-copy.ts', 'app/(public)/exams/page.tsx', 'components/shell/site-footer.tsx', 'components/shell/header-bar.tsx'].map((f) => path.join(ROOT, f)));
+      .concat(['app/(landing)/page.tsx', 'app/(landing)/hi/page.tsx', 'components/landing-v1/landing-page.tsx', 'lib/landing/landing-copy.ts', 'app/(public)/exams/page.tsx', 'components/shell/site-footer.tsx', 'components/nav/visitor-header.tsx', 'components/nav/student-shell.tsx', 'content/nav/labels.ts'].map((f) => path.join(ROOT, f)));
     assert(files.length >= 20, `files ${files.length}`);
     const BANNED = [
       /guarantee/i, /\btoppers?\b/i, /\bAIR\s*-?\s*\d/i, /\brank\s*(?:#|no\.?\s*)?1\b/i, /server[- ]?(?:secure|authoritative)/i,

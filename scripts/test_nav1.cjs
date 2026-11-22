@@ -84,12 +84,139 @@ const SRC = {
   landing: read('components/landing-v1/landing-page.tsx'),
   pub: read('components/shell/public-shell.tsx'),
   app: read('components/shell/app-shell.tsx'),
-  hb: read('components/shell/header-bar.tsx'),
+  // NAV-1 Stage B: the old student header, bottom nav, account menu and the cached-page student bar are deleted
+  removed: ['components/shell/header-bar.tsx', 'components/shell/bottom-nav.tsx', 'components/shell/account-links.tsx', 'components/shell/nav-menu.tsx', 'components/shell/public-student-nav.tsx', 'lib/ui/local-session.ts'].filter((p) => fs.existsSync(path.join(ROOT, p))),
   cfg: read('components/shell/nav-config.ts'),
   landingCss: read('app/(landing)/landing.css'),
   layout: read('app/layout.tsx'),
   live: read('lib/nav/live-categories.ts'),
+  // Stage B
+  ss: read('components/nav/student-shell.tsx'),
+  sn: read('lib/nav/student-nav.ts'),
+  sEnh: read('components/nav/student-nav-enhancer.tsx'),
+  ssCss: read('app/nav-student.css'),
+  prefs: read('lib/ui/nav-prefs.ts'),
+  policy: read('lib/access/policy.ts'),
 };
+
+// ---------------------------------------------------------------- Stage B checks
+const SN_REL = 'lib/nav/student-nav.ts';
+const SS_REL = 'components/nav/student-shell.tsx';
+const loadSn = (src) => loadTs(SN_REL, src);
+const FLAGS = [
+  { practice: true, payments: false, paywall: false },
+  { practice: false, payments: true, paywall: true },
+];
+
+function checkStudentItems(snSrc) {
+  const why = [];
+  const SN = loadSn(snSrc);
+  const L = loadTs(LB_REL);
+  const on = SN.studentItems(L.NAV_EN, FLAGS[0]).map((i) => i.key).join(',');
+  const off = SN.studentItems(L.NAV_EN, FLAGS[1]).map((i) => i.key).join(',');
+  if (on !== 'home,practice,mocks,currentAffairs,mistakeVault' || off !== 'home,mocks,currentAffairs,mistakeVault') why.push(`items: ${on} | ${off}`);
+  const resultsPage = ['app/(site)/results/page.tsx', 'app/(site)/mock-tests/results/page.tsx'].some((p) => fs.existsSync(path.join(ROOT, p)));
+  if (!resultsPage && (SN.RESULTS_ROUTE !== null || /results/.test(on + off))) why.push('Results shown although no results list page exists');
+  const learnIndex = fs.existsSync(path.join(ROOT, 'app/(site)/learn/page.tsx'));
+  if (!learnIndex && /learn/.test(on + off)) why.push('Learn shown although no Learn index exists');
+  const links = new Set();
+  for (const f of FLAGS) {
+    SN.studentItems(L.NAV_EN, f).forEach((i) => links.add(i.href));
+    const b = SN.bottomItems(L.NAV_EN, f);
+    [...b.left, ...b.right].forEach((i) => links.add(i.href));
+    links.add(b.centre.href);
+    SN.accountLinks(L.NAV_EN, { name: 'X', isStaff: true, profile: true, studyPreferences: true }, f, 'Study preferences', true).forEach((l) => links.add(l.href));
+  }
+  links.add('/help');
+  const bad = [...links].filter((h) => !routeExists(h));
+  if (bad.length) why.push(`student links without a route: ${bad.join(', ')}`);
+  return { why, n: links.size };
+}
+
+function checkExamFocus(app, snSrc) {
+  const why = [];
+  const SN = loadSn(snSrc);
+  for (const p of ['/mock-tests/abc/take', '/live-tests/x-1/take', '/mock-tests/abc/take/']) if (!SN.isExamFocus(p)) why.push(`not exam focus: ${p}`);
+  for (const p of ['/mock-tests', '/mock-tests/abc', '/mock-tests/abc/result', '/mock-tests/abc/leaderboard', '/live-tests/x-1/result', '/live-tests/x-1/submitted', '/dashboard']) if (SN.isExamFocus(p)) why.push(`exam focus on a non-attempt page: ${p}`);
+  const i = app.indexOf('  if (isExamFocus(pathname)) {');
+  const branch = i >= 0 ? app.slice(i, app.indexOf('\n  }\n', i)) : '';
+  if (!branch || !/return \(\s*<main id="main-content"[^>]*data-exam-focus=""/.test(branch) || /<StudentShell|<SignedOutHeader|<SiteFooter|\{footer\}|\{skip\}/.test(branch)) why.push('the exam-focus branch must render only <main> (no header, sidebar, bottom bar or footer)');
+  if (i < 0 || i > app.indexOf('<StudentShell') || i > app.indexOf('<SignedOutHeader pathname')) why.push('exam focus must be decided before any navigation renders');
+  return why;
+}
+
+function checkBySession(app, pub = SRC.pub) {
+  const why = [];
+  if (!/if \(account && !pathname\.startsWith\("\/admin"\)\) \{\s*return \(\s*<>\s*\{skip\}\s*<StudentShell/.test(app)) why.push('a signed-in user must get THE student shell on every per-request page (admin excepted)');
+  if (!/\{!account && !pathname\.startsWith\("\/admin"\) && <SignedOutHeader pathname=\{pathname\} \/>\}/.test(app)) why.push('no session → THE visitor header');
+  if (/<StudentShell\b|getUser\(|cookies\(\)/.test(code(pub))) why.push('the cached public shell must not render the student shell or read the session');
+  return why;
+}
+
+function checkProChip(ss, policy, app) {
+  const why = [];
+  if (!/\{it\.key === "mistakeVault" && <ProChip paywall=\{paywall\} \/>\}/.test(ss) || !/return \(await paywall\) \? <span className="cl-ss__pro" data-pro-chip="">PRO<\/span> : null;/.test(ss)) why.push('the PRO chip must show only on Mistake Vault and only when the switch is on');
+  if (!/export function paywallOnForNav\(ms = 800\): Promise<boolean> \{/.test(policy) || !/cachedPaywall\(\)\.then\(\(s\) => s === "on", \(\) => false\)/.test(policy) || !/new Promise<boolean>\(\(resolve\) => setTimeout\(\(\) => resolve\(false\), ms\)\),/.test(policy)) why.push('the switch read must be the cached one, bounded, never rejecting, false when unknown');
+  if (!/paywall=\{paywallOnForNav\(\)\}/.test(app) || /await paywallOnForNav/.test(app)) why.push('AppShell must stream the switch (never awaited)');
+  return why;
+}
+
+function checkAccountMenu(snSrc, ss = SRC.ss) {
+  const why = [];
+  const SN = loadSn(snSrc);
+  const L = loadTs(LB_REL);
+  const keys = (a, f, sheet) => SN.accountLinks(L.NAV_EN, a, f, 'Study preferences', sheet).map((l) => l.key).join(',');
+  const student = { name: 'Asha Verma', isStaff: false, profile: false, studyPreferences: false };
+  const staff = { name: 'Admin', isStaff: true, profile: true, studyPreferences: true };
+  if (keys(student, FLAGS[0], false) !== 'help') why.push(`student, flags off, payments off: ${keys(student, FLAGS[0], false)}`);
+  if (keys(staff, FLAGS[1], false) !== 'profile,studyPreferences,help,billing,admin') why.push(`staff, flags on, payments on: ${keys(staff, FLAGS[1], false)}`);
+  if (keys(student, FLAGS[0], true) !== 'mistakeVault,help') why.push(`sheet adds Mistake Vault: ${keys(student, FLAGS[0], true)}`);
+  if (!/import \{ logoutAction \} from "@\/app\/\(site\)\/auth\/actions";/.test(ss) || !/<form action=\{logoutAction\} className="cl-ss__outf">\s*<button type="submit" className="cl-ss__out" data-sign-out="">/.test(ss)) why.push('Sign out must be the existing sign-out form (logoutAction), unchanged');
+  if (!/data-lang-choice="en"/.test(ss) || !/data-lang-choice="hi"/.test(ss) || !/\{t\.languageNote\}/.test(ss)) why.push('Language EN | हिंदी with the "Hindi where available" note');
+  if (/\/notifications|aria-label="Notifications"/.test(ss + (snSrc || SRC.sn))) why.push('a notifications bell / link (notifications do not exist yet)');
+  return why;
+}
+
+function checkStudentRender(snSrc, ssSrc) {
+  const why = [];
+  const SN = loadSn(snSrc);
+  const stubs = { ...STUBS, '@/app/(site)/auth/actions': { logoutAction: async () => {} }, './student-nav-enhancer': { StudentNavEnhancer: () => null }, './coin-balance': { CoinBalance: () => null }, '@/lib/nav/student-nav': SN };
+  const SS = loadTs(SS_REL, ssSrc, stubs);
+  const L = loadTs(LB_REL);
+  const props = { t: L.NAV_EN, account: { name: 'Asha Verma', isStaff: false, profile: true, studyPreferences: false }, flags: { practice: true, payments: false }, paywall: Promise.resolve(false), pathname: '/mistakes/drill', lessonCoins: false, studyPreferencesLabel: 'Study preferences', footer: React.createElement('footer', null, 'f'), children: React.createElement('h1', null, 'Page') };
+  const html = renderToStaticMarkup(React.createElement(SS.StudentShell, props));
+  if (count(html, /<aside class="cl-ss__side" aria-label="Student">/g) !== 1 || count(html, /<header class="cl-ss__top"/g) !== 1 || count(html, /<main id="main-content"/g) !== 1 || count(html, /<nav class="cl-ss__bar" aria-label="Student"/g) !== 1) why.push('one sidebar, one top bar, one main, one bottom bar');
+  if (count(html, /<h1\b/g) !== 1) why.push(`the shell adds a heading (h1 count ${count(html, /<h1\b/g)})`);
+  if (!/<p class="cl-ss__title" data-student-title="">Mistake Vault<\/p>/.test(html)) why.push('the top bar title = the active item (a <p>)');
+  if (count(html, /aria-current="page"[^>]*data-student-key="mistakeVault"/g) !== 1 || count(html, /aria-current="page"/g) !== 1) why.push('aria-current on the active sidebar item only');
+  const attr = (tag, name) => ((tag || '').match(new RegExp(`\\s${name}="([^"]*)"`)) || [])[1];
+  const fabTag = (html.match(/<a\b[^>]*class="cl-ss__fab"[^>]*>/) || [])[0];
+  const fab = [null, attr(fabTag, 'href'), (attr(fabTag, 'aria-label') || '').replace(/&#x27;/g, "'")];
+  if (fab[1] !== '/mock-tests' || fab[2] !== "Start today's free mock" || !/data-todays-mock=""/.test(fabTag || '') || !/Today&#x27;s mock|Today's mock/.test(html)) why.push(`centre button: ${fab[1]} / ${fab[2]}`);
+  const tabs = [...html.matchAll(/<a\b[^>]*class="cl-ss__tab"[^>]*>/g)].map((m) => attr(m[0], 'href')).join(',');
+  if (tabs !== '/dashboard,/practice,/mock-tests,/current-affairs') why.push(`bottom bar tabs: ${tabs}`);
+  if (!/<summary class="cl-ss__av" aria-label="Account: Asha Verma" data-account-toggle=""><span aria-hidden="true">AV<\/span>/.test(html)) why.push('avatar = the user\'s own initials, labelled');
+  const order = html.indexOf('</main>') < html.indexOf('<footer') && html.indexOf('<footer') < html.indexOf('cl-ss__bar');
+  if (!order) why.push('the footer sits inside the padded column, before the bottom bar');
+  return why;
+}
+
+function checkCollapse(src) {
+  const why = [];
+  if (!/<script dangerouslySetInnerHTML=\{\{ __html: NAV_PREFS_SCRIPT \}\} \/>/.test(src.layout) || src.layout.indexOf('NAV_PREFS_SCRIPT }}') > src.layout.indexOf('</head>')) why.push('the collapse preference must be applied by an inline <head> script (before paint)');
+  if (!/localStorage\.getItem\("\$\{SIDEBAR_PREF_KEY\}"\)==="collapsed"\)document\.documentElement\.setAttribute\("data-sidebar","collapsed"\)/.test(src.prefs) || !/^export const NAV_PREFS_SCRIPT = `try\{/m.test(src.prefs)) why.push('pre-paint script: localStorage → <html data-sidebar>, wrapped in try');
+  if (!/store\.set\(SIDEBAR_PREF_KEY, collapsed \? "collapsed" : "expanded"\)/.test(src.sEnh)) why.push('the toggle must remember the choice');
+  if (!/grid-template-columns: 240px minmax\(0, 1fr\);/.test(src.ssCss) || !/html\[data-sidebar="collapsed"\] \.cl-ss \{\s+grid-template-columns: 72px minmax\(0, 1fr\);/.test(src.ssCss)) why.push('240 / 72 px from the html attribute (no JS layout)');
+  why.push(...checkTokens({ ssCss: src.ssCss, ss: src.ss, sn: src.sn, sEnh: src.sEnh }));
+  const motionFree = src.ssCss.replace(/@media \(prefers-reduced-motion: no-preference\) \{[\s\S]*?\n\}\n/, '');
+  if (/transition:|animation:/.test(motionFree)) why.push('a student transition outside prefers-reduced-motion: no-preference');
+  for (const [sel, rule] of [['.cl-ss__it', /min-height: 48px/], ['.cl-ss__av', /height: 48px/], ['.cl-ss__mi,\n.cl-ss__out', /min-height: 48px/], ['.cl-ss__seg button', /min-height: 48px/]]) {
+    const i = src.ssCss.indexOf(`${sel} {`);
+    if (i < 0 || !rule.test(src.ssCss.slice(i, src.ssCss.indexOf('}', i)))) why.push(`${sel}: 48 px target`);
+  }
+  if (!/import "\.\/nav-student\.css";/.test(src.layout)) why.push('nav-student.css not loaded');
+  return why;
+}
 
 /** N-11: the header never waits on a read (AUTH1-RESILIENCE-HANG): bounded, never-rejecting, streamed inside the header. */
 function checkStreaming(app, live = SRC.live, vh = SRC.vh) {
@@ -142,8 +269,8 @@ function checkOneHeader(src) {
   if (!/<VisitorHeader\s/.test(src.landing) || !/<VisitorHeader t=\{NAV_EN\}/.test(src.pub) || !/<VisitorHeader\s/.test(src.app)) why.push('a public surface does not render THE visitor header (landing / cached shell / signed-out session shell)');
   if (/<header\b/.test(code(src.landing)) || /className="lp-hd"|lp-menu|lp-burger/.test(src.landing + src.landingCss)) why.push('the landing still renders its own header');
   if (/<HeaderBar\b/.test(src.pub)) why.push('the cached public shell renders a second header (HeaderBar)');
-  if (!/account \? \(\s*<HeaderBar account=\{account\}/.test(src.app)) why.push('the session shell renders HeaderBar for a visitor (signed-in only in Stage A)');
-  if (/PUBLIC_NAV|\/auth\/login|\/auth\/signup|publicStatic|StartAction/.test(code(src.hb))) why.push('dead visitor code left in HeaderBar');
+  if (/<HeaderBar\b|<BottomNav\b|<PublicStudentNav\b/.test(src.app + src.pub + src.landing)) why.push('an old header / bottom nav is rendered');
+  if (src.removed.length) why.push(`dead nav code left: ${src.removed.join(', ')}`);
   if (/export const PUBLIC_NAV/.test(src.cfg)) why.push('PUBLIC_NAV still exported (dead)');
   if (!/import "\.\/nav\.css";/.test(src.layout)) why.push('nav.css not loaded');
   const html = render();
@@ -304,6 +431,37 @@ function checkA11y(src) {
     assert(why.length === 0, why.join('; '));
   });
 
+  // ---------------------------------------------------------------- Stage B — the student shell + exam focus
+  await test('N-12 student items: Home, Practice (flag), Mocks, Current Affairs, Mistake Vault; Results / Learn hidden while their pages do not exist; every link routed', () => {
+    const { why, n } = checkStudentItems();
+    assert(why.length === 0, why.join('; '));
+    return `${n} distinct student links resolve`;
+  });
+  await test('N-13 exam focus: a live attempt renders no visitor header, sidebar, bottom bar or footer; results show the nav again', () => {
+    const why = checkExamFocus(SRC.app);
+    assert(why.length === 0, why.join('; '));
+  });
+  await test('N-14 navigation by session: signed in → THE student shell on per-request pages (not admin); the cached pages untouched', () => {
+    const why = checkBySession(SRC.app);
+    assert(why.length === 0, why.join('; '));
+  });
+  await test('N-15 PRO chip on Mistake Vault only while the paywall master switch is on (bounded read, display only)', () => {
+    const why = checkProChip(SRC.ss, SRC.policy, SRC.app);
+    assert(why.length === 0, why.join('; '));
+  });
+  await test('N-16 avatar menu / sheet: Profile, Study preferences, Help, Billing (payments), Admin studio (staff), Language, Sign out (existing flow); no bell', () => {
+    const why = checkAccountMenu();
+    assert(why.length === 0, why.join('; '));
+  });
+  await test('N-17 rendered shell: sidebar + top bar + bottom bar with the centre button → Mocks list; landmarks, aria-current, no extra h1, avatar = own initials', () => {
+    const why = checkStudentRender();
+    assert(why.length === 0, why.join('; '));
+  });
+  await test('N-18 sidebar collapse remembered client-side, applied before paint (no shift); student styles: cl-* tokens, 48 px, reduced motion', () => {
+    const why = checkCollapse(SRC);
+    assert(why.length === 0, why.join('; '));
+  });
+
   await test('N-10 negative controls: each broken variant is caught', () => {
     const mut = (s, a, b) => {
       if (!s.includes(a)) throw new Error(`mutation anchor missing: ${a.slice(0, 80)}`);
@@ -319,7 +477,8 @@ function checkA11y(src) {
       ['a category linked although the read failed', () => checkCategories(undefined, mut(SRC.vn, 'href: isLive ? `/exams/${c.slug}` : null,', 'href: `/exams/${c.slug}`,'))],
       ['a second header on a public route', () => checkOneHeader({ ...SRC, pub: mut(SRC.pub, '<VisitorHeader t={NAV_EN}', '<HeaderBar account={null} flags={flags} />\n      <VisitorHeader t={NAV_EN}') })],
       ['the landing keeps its own header', () => checkOneHeader({ ...SRC, landing: SRC.landing + '\nfunction Old() { return <header className="lp-hd" />; }\n' })],
-      ['dead visitor code left in HeaderBar', () => checkOneHeader({ ...SRC, hb: SRC.hb + '\nconst x = "/auth/login";\n' })],
+      ['a removed nav file left behind', () => checkOneHeader({ ...SRC, removed: ['components/shell/header-bar.tsx'] })],
+      ['the old header rendered for a student', () => checkOneHeader({ ...SRC, app: SRC.app + '\n<HeaderBar account={account} />\n' })],
       ['Learn shown without a Learn index', () => checkLinks(mut(SRC.vn, 'export const LEARN_INDEX_READY = false;', 'export const LEARN_INDEX_READY = true;')).why],
       ['a header link to a missing route', () => checkLinks(mut(SRC.vn, 'mockTests: "/mock-tests",', 'mockTests: "/mocks-all",')).why],
       ['sign-up closed still links sign-up', () => checkAuthStates(mut(SRC.vn, ': { href: VISITOR_ROUTES.exams, label: t.exploreExams };', ': { href: VISITOR_ROUTES.signUp, label: t.startFree };'))],
@@ -330,6 +489,23 @@ function checkA11y(src) {
       ['a missing Hindi label', () => checkLabels({ NAV_EN: loadTs(LB_REL).NAV_EN, NAV_HI: { ...loadTs(LB_REL).NAV_HI, help: '' } }).why],
       ['a transition without reduced-motion guard', () => checkA11y({ ...SRC, css: SRC.css + '\n.cl-vh__x { transition: color 1s; }\n' })],
       ['a target under 48 px', () => checkA11y({ ...SRC, css: mut(SRC.css, '.cl-vh__burger {\n  list-style: none;\n  width: 48px;\n  height: 48px;', '.cl-vh__burger {\n  list-style: none;\n  width: 40px;\n  height: 40px;') })],
+      // Stage B
+      ['site nav rendered on an exam attempt route', () => checkExamFocus(mut(SRC.app, '  if (isExamFocus(pathname)) {', '  if (false && isExamFocus(pathname)) {'))],
+      ['a result page treated as an attempt (no nav)', () => checkExamFocus(SRC.app, mut(SRC.sn, '/^\\/mock-tests\\/[^/]+\\/take(?:\\/|$)/', '/^\\/mock-tests\\/[^/]+\\/(?:take|result)(?:\\/|$)/'))],
+      ['Learn shown in the student nav without a Learn index', () => checkStudentItems(mut(SRC.sn, 'export function studentItems(t: NavLabels, f: StudentFlags, learnReady: boolean = LEARN_INDEX_READY)', 'export function studentItems(t: NavLabels, f: StudentFlags, learnReady: boolean = true)')).why],
+      ['Results shown without a results page', () => checkStudentItems(mut(SRC.sn, 'export const RESULTS_ROUTE: string | null = null;', 'export const RESULTS_ROUTE: string | null = "/results";')).why],
+      ['a notifications bell in the top bar', () => checkAccountMenu(SRC.sn, SRC.ss.replace('<CoinBalance enabled={lessonCoins} />', '<CoinBalance enabled={lessonCoins} />\n<a href="/notifications" aria-label="Notifications" />'))],
+      ['PRO chip shown with the paywall off', () => checkProChip(mut(SRC.ss, 'return (await paywall) ? <span className="cl-ss__pro"', 'return true ? <span className="cl-ss__pro"'), SRC.policy, SRC.app)],
+      ['PRO chip from an unbounded switch read', () => checkProChip(SRC.ss, mut(SRC.policy, '    new Promise<boolean>((resolve) => setTimeout(() => resolve(false), ms)),\n', ''), SRC.app)],
+      ['Admin studio shown to a student', () => checkAccountMenu(mut(SRC.sn, 'if (a.isStaff) out.push(', 'if (true) out.push('))],
+      ['Billing shown with payments off', () => checkAccountMenu(mut(SRC.sn, 'if (f.payments) out.push(', 'if (true) out.push('))],
+      ['a new sign-out flow', () => checkAccountMenu(SRC.sn, mut(SRC.ss, '<form action={logoutAction} className="cl-ss__outf">', '<form action="/api/sign-out" className="cl-ss__outf">'))],
+      ['the student shell on admin pages', () => checkBySession(mut(SRC.app, 'if (account && !pathname.startsWith("/admin")) {', 'if (account) {'))],
+      ['the student shell on the cached pages', () => checkBySession(SRC.app, SRC.pub + '\n<StudentShell />\n')],
+      ['the centre button to a guessed mock', () => checkStudentRender(mut(SRC.sn, 'export const TODAYS_MOCK_HREF = "/mock-tests";', 'export const TODAYS_MOCK_HREF = "/mock-tests/today";'))],
+      ['a duplicate h1 in the top bar', () => checkStudentRender(undefined, mut(SRC.ss, '<p className="cl-ss__title" data-student-title="">\n              {title}\n            </p>', '<h1 className="cl-ss__title" data-student-title="">\n              {title}\n            </h1>'))],
+      ['collapse applied after paint (no pre-paint script)', () => checkCollapse({ ...SRC, layout: SRC.layout.replace('<script dangerouslySetInnerHTML={{ __html: NAV_PREFS_SCRIPT }} />', '') })],
+      ['a colour literal in the student CSS', () => checkCollapse({ ...SRC, ssCss: mut(SRC.ssCss, 'background: var(--color-cl-blue-tint);', 'background: #eef0ff;') })],
     ];
     const missed = [];
     for (const [n, f] of muts) {
@@ -341,7 +517,7 @@ function checkA11y(src) {
     return `${muts.length} mutations caught`;
   });
 
-  console.log('NAV-1 gate (Stage A)');
+  console.log('NAV-1 gate (Stage A + B)');
   console.log(results.join('\n'));
   console.log(`NAV-1: ${passed}/${passed + failed} passed`);
   process.exit(failed ? 1 : 0);

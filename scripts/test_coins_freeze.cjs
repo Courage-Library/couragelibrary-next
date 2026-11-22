@@ -86,7 +86,10 @@ test('CF-06 BRAND-3 fix 1: with COINS_ENABLED off NO coin UI renders (balance, e
   assert(/createContext\(false\)/.test(ctx), 'the client context defaults to no coin UI');
   const shell = read('components/shell/app-shell.tsx');
   assert(/<CoinsFlagProvider enabled=\{isCoinsEnabled\(\)\}>\{children\}<\/CoinsFlagProvider>/.test(shell) && /coins: isCoinsEnabled\(\),/.test(shell), 'shell provides the flag');
-  assert(/account\.coins \? ACCOUNT_MENU : ACCOUNT_MENU\.filter\(\(it\) => it\.href !== "\/wallet" && it\.href !== "\/store"\)/.test(read('components/shell/account-links.tsx')), 'wallet / store links hidden');
+  // NAV-1 Stage B (re-pointed, rule kept and tightened): the student nav has NO Wallet / Rewards store link at all (owner:
+  // avatar menu = spec + Admin + Billing + Study preferences); the only coin UI is the top-bar balance, behind lessonCoins
+  const nav = read('lib/nav/student-nav.ts') + read('components/nav/student-shell.tsx');
+  assert(!/"\/wallet"|"\/store"/.test(nav) && /<CoinBalance enabled=\{lessonCoins\} \/>/.test(read('components/nav/student-shell.tsx')) && /if \(!enabled \|\| n === null\) return null;/.test(read('components/nav/coin-balance.tsx')), 'wallet / store links hidden');
   for (const f of ['app/(site)/wallet/page.tsx', 'app/(site)/store/page.tsx']) {
     const s = read(f);
     // COURSE-UX-1 (decision #78 + owner exception 2026-11-03, lesson EARNING only): with COINS_LESSON_EARN on, the wallet shows the

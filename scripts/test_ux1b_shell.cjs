@@ -133,10 +133,15 @@ test('U-2 no dead links: every shell href resolves to an existing app route', ()
   );
   routes.add('/');
   const hrefs = new Set();
-  for (const f of walk(path.join(ROOT, 'components/shell')).map(rel)) {
+  // NAV-1: the header / sidebar / bottom-bar links live in components/nav + lib/nav (route constants included)
+  for (const f of [...walk(path.join(ROOT, 'components/shell')), ...walk(path.join(ROOT, 'components/nav')), ...walk(path.join(ROOT, 'lib/nav'))].map(rel)) {
     const s = read(f);
     for (const m of s.matchAll(/href(?:=|: )"([^"#?]+)"/g)) hrefs.add(m[1]);
+    if (f.startsWith('lib/nav/')) for (const m of s.matchAll(/\b[a-zA-Z]+: "(\/[^"#?]*)"/g)) hrefs.add(m[1]);
+    if (f.startsWith('lib/nav/')) for (const m of s.matchAll(/export const [A-Z_]+(?:: string(?: \| null)?)? = "(\/[^"#?]*)";/g)) hrefs.add(m[1]);
   }
+  // NAV-1: "/learn" is the future Learn index — rendered only once LEARN_INDEX_READY is true (gated in NAV-1 N-4)
+  if (/export const LEARN_INDEX_READY = false;/.test(read('lib/nav/visitor-nav.ts'))) hrefs.delete('/learn');
   const bad = [...hrefs].filter((h) => !routes.has(h.replace(/\/$/, '') || '/'));
   assert(hrefs.size >= 15, `only ${hrefs.size} hrefs found`);
   assert(bad.length === 0, `no route for: ${bad.join(', ')}`);
@@ -162,17 +167,20 @@ test('U-2b no dead links in the admin sidebar (GAP2-4c: retired workbench link r
 test('U-3 shell structure: skip link, one main, landmarks, dialog-based menus, safe bottom nav', () => {
   const shell = stripComments(read('components/shell/app-shell.tsx'));
   assert(/href="#main-content"[\s\S]*Skip to content/.test(shell), 'skip link missing');
-  assert((shell.match(/<main /g) || []).length === 1 && /<main id="main-content" tabIndex=\{-1\}/.test(shell), 'one <main id="main-content" tabIndex={-1}> required');
-  assert(shell.indexOf('Skip to content') < shell.indexOf('<HeaderBar'), 'skip link must come first');
-  const header = read('components/shell/header-bar.tsx');
-  assert(/<header /.test(header) && /<nav aria-label="Main"/.test(header), 'header / main nav landmarks');
-  assert(/<Dialog open=\{menuOpen\}[^>]*variant="sheet"/.test(header) && /aria-label="Open menu"/.test(header), 'mobile menu must be the Dialog sheet');
-  assert(/pathname\.startsWith\("\/admin"\)\) return null/.test(header), 'header must hide in admin');
-  const bottom = read('components/shell/bottom-nav.tsx');
-  assert(/<nav\s+aria-label="Student"/.test(bottom) && /aria-current=\{active \? "page" : undefined\}/.test(bottom), 'bottom nav landmark + aria-current');
-  assert(/env\(safe-area-inset-bottom\)/.test(bottom) && /aria-hidden="true" className="h-\[calc\(4rem\+1px\+env\(safe-area-inset-bottom\)\)\] lg:hidden"/.test(bottom), 'safe-area padding and an in-flow spacer');
-  assert(/CONSOLE_ROUTES\.some/.test(bottom) && /startsWith\("\/admin"\)/.test(bottom), 'bottom nav must hide in admin and the console');
-  assert(/<Dialog open=\{accountOpen\}/.test(bottom), 'account sheet must be the Dialog');
+  // NAV-1 (re-pointed, rules kept): three exclusive branches — exam focus (only <main>), THE student shell (its own one
+  // <main>), the visitor branch (one <main>); each renders exactly one <main id="main-content" tabIndex={-1}>
+  const student = stripComments(read('components/nav/student-shell.tsx'));
+  assert((shell.match(/<main id="main-content" tabIndex=\{-1\}/g) || []).length === 2 && (student.match(/<main id="main-content" tabIndex=\{-1\}/g) || []).length === 1 && /if \(isExamFocus\(pathname\)\) \{\s*return \(\s*<main/.test(shell), 'one <main id="main-content" tabIndex={-1}> per branch required');
+  assert(shell.indexOf('const skip = (') < shell.indexOf('<StudentShell') && /\{skip\}\s*<StudentShell/.test(shell) && /\{skip\}\s*(?:\{\}\s*)?\{!account/.test(shell), 'skip link must come first');
+  const vh = read('components/nav/visitor-header.tsx');
+  assert(/<header className="cl-vh"/.test(vh) && /<nav className="cl-vh__nav" aria-label=\{t\.mainNav\}>/.test(vh) && /<header className="cl-ss__top"/.test(student) && /<aside className="cl-ss__side" aria-label=\{t\.studentNav\}>/.test(student), 'header / nav landmarks');
+  // menus: native <details> (work without JS) + the enhancers' focus trap / Esc (replaces the Dialog sheets)
+  assert(/<details className="cl-vh__drawer"/.test(vh) && /<details className="cl-ss__acct"/.test(student) && /e\.key === "Tab"/.test(read('components/nav/visitor-nav-enhancer.tsx')) && /e\.key === "Tab"/.test(read('components/nav/student-nav-enhancer.tsx')), 'menus must trap focus (native <details> + enhancer)');
+  assert(/!account && !pathname\.startsWith\("\/admin"\) && <SignedOutHeader/.test(shell) && /if \(account && !pathname\.startsWith\("\/admin"\)\)/.test(shell), 'no visitor header / student shell in admin');
+  assert(/<nav className="cl-ss__bar" aria-label=\{t\.studentNav\}/.test(student) && /aria-current=\{current \? "page" : undefined\}/.test(student), 'bottom nav landmark + aria-current');
+  const css = read('app/nav-student.css');
+  assert(/height: calc\(68px \+ env\(safe-area-inset-bottom, 0px\)\);/.test(css) && /\.cl-ss__col \{\s+padding-bottom: calc\(68px \+ env\(safe-area-inset-bottom, 0px\)\);/.test(css), 'safe-area padding and content cleared above the bar');
+  assert(/export const EXAM_FOCUS_ROUTES/.test(read('lib/nav/student-nav.ts')), 'the bar must hide in the console (exam focus)');
   assert(/<footer /.test(read('components/shell/site-footer.tsx')), 'footer landmark');
   assert(/viewportFit: "cover"/.test(read('app/layout.tsx')), 'viewport-fit=cover needed for safe-area insets');
 });
@@ -204,13 +212,16 @@ test('U-6 English only: the Bulk Import Studio has no Hindi generation option (d
 });
 
 test('U-7 nothing under the mobile tab bar (BRAND-3 fix 4): spacer = bar height + safe area; toasts and the player clear it', () => {
-  const nav = read('components/shell/bottom-nav.tsx');
-  // bar: h-16 (4rem) list + 1px top border + safe-area padding; the in-flow spacer is exactly that, below every page
-  assert(/className="mx-auto grid h-16 /.test(nav) && /border-t border-line bg-surface pb-\[env\(safe-area-inset-bottom\)\]/.test(nav), 'bar height changed — update the spacer');
-  assert(/<div aria-hidden="true" className="h-\[calc\(4rem\+1px\+env\(safe-area-inset-bottom\)\)\] lg:hidden" \/>/.test(nav), 'spacer ≠ bar height + safe area');
-  const shell = read('components/shell/app-shell.tsx');
-  assert(shell.indexOf('<SiteFooter') < shell.indexOf('<BottomNav'), 'the spacer must follow the footer (page content + footer end above the bar)');
-  assert(/bottom-\[calc\(4rem\+1px\+env\(safe-area-inset-bottom\)\+1rem\)\][^"]*lg:bottom-4/.test(read('components/ui/toast.tsx')), 'toasts sit under the tab bar on phones');
+  // NAV-1 Stage B (re-pointed, rule kept): THE student bottom bar is 68 px + the safe area (border-box: the 1 px border is
+  // inside), and the column holding the page AND the footer is padded by exactly that, so nothing ends under the bar
+  const css = read('app/nav-student.css');
+  const barH = (css.match(/\.cl-ss__bar \{[^}]*height: calc\((\d+)px \+ env\(safe-area-inset-bottom, 0px\)\);/) || [])[1];
+  const padH = (css.match(/\.cl-ss__col \{\s+padding-bottom: calc\((\d+)px \+ env\(safe-area-inset-bottom, 0px\)\);/) || [])[1];
+  assert(barH && barH === padH && /\.cl-ss \*,\s+\.cl-ss \*::before,\s+\.cl-ss \*::after \{\s+box-sizing: border-box;/.test(css), `bar height (${barH}) ≠ the column padding (${padH})`);
+  const student = read('components/nav/student-shell.tsx');
+  assert(student.indexOf('{footer}') > student.indexOf('<main id="main-content"') && student.indexOf('{footer}') < student.indexOf('<nav className="cl-ss__bar"'), 'the footer must sit inside the padded column (page content + footer end above the bar)');
+  // toasts: 4rem + 1px + 1rem (81 px) + safe area ≥ the 68 px bar + safe area, below lg (= the bar's < 1024 px)
+  assert(/bottom-\[calc\(4rem\+1px\+env\(safe-area-inset-bottom\)\+1rem\)\][^"]*lg:bottom-4/.test(read('components/ui/toast.tsx')) && Number(barH) + 12 <= 81, 'toasts sit above the tab bar on phones');
   assert(/pb-\[calc\(10rem\+env\(safe-area-inset-bottom\)\)\] md:pb-6/.test(read('app/(site)/mock-tests/[id]/take/player-client.tsx')), 'player content does not clear its own action bar + safe area');
 });
 
