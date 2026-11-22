@@ -352,7 +352,10 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
     const shell = read('components/shell/app-shell.tsx');
     assert(/Promise\.all\(\[[\s\S]*?loadBrandAssets\(\),\s*\]\)/.test(shell) && /logo=\{brand\.headerLogo\}/.test(shell) && /logo=\{brand\.footerLogo\}/.test(shell), 'shell: brand read alongside the session, never alone');
     const meta = read('lib/seo/metadata.ts');
-    assert(/url: "\/brand\/icon\/32"/.test(meta) && /apple: \{ url: "\/brand\/icon\/180"/.test(meta) && /src: "\/brand\/icon\/512"/.test(read('app/manifest.ts')) && /source: "\/favicon\.ico", destination: "\/brand\/icon\/32"/.test(read('next.config.ts')), 'icons → the brand icon route');
+    // SEO-1 (owner, 2026-11-22): the site icons moved to the final logo suite (static files, lib/seo/brand-icons.ts; sizes and
+    // files gated in scripts/test_seo1.cjs S1-3). The /brand/icon/[size] route stays for old links; the header / footer
+    // logo upload rules below are unchanged.
+    assert(/icons: \{ icon: SITE_ICONS\.icon\.map/.test(meta) && /apple: \{ \.\.\.SITE_ICONS\.apple \}/.test(meta) && /icons: MANIFEST_ICONS\.map/.test(read('app/manifest.ts')) && /source: "\/favicon\.ico", destination: `\$\{BRAND_SUITE\}\/favicon\/favicon\.ico`/.test(read('next.config.ts')) && fs.existsSync(path.join(ROOT, 'app/brand/icon/[size]/route.ts')), 'icons → the logo suite (SEO-1); the brand icon route still answers');
     // negative controls on the pure rules: a foreign path / wrong extension never becomes a brand image
     assert(R.brandLogoFrom('brand_header_logo', { path: `site/brand_header_logo/${'a'.repeat(64)}.png`, alt: 'x', width: 400, height: 100 }) === null && R.squareMarkUrl({ path: `site/brand_square_mark/${'a'.repeat(64)}.webp` }, 32) === null, 'path checks');
     assert(R.squareMarkUrl({ path: `site/brand_square_mark/${'a'.repeat(64)}.png` }, 180) === `/media/logos/site/brand_square_mark/${'a'.repeat(64)}-180.png` && R.defaultIconUrl(32) === '/brand/icon-32.png', 'icon urls');

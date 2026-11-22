@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "./cn";
+import { breadcrumbListItems } from "@/lib/seo/jsonld";
 
 export type BreadcrumbItem = { label: string; href?: string };
 
@@ -20,12 +21,8 @@ export function Breadcrumb({ items, structuredDataBaseUrl, className }: Breadcru
     ? {
         "@context": "https://schema.org",
         "@type": "BreadcrumbList",
-        itemListElement: items.map((it, i) => ({
-          "@type": "ListItem",
-          position: i + 1,
-          name: it.label,
-          ...(it.href ? { item: new URL(it.href, structuredDataBaseUrl).toString() } : {}),
-        })),
+        // SEO-1: a middle crumb without a page is left out of the structured data (Google requires `item` on it)
+        itemListElement: breadcrumbListItems(items, structuredDataBaseUrl),
       }
     : null;
   return (

@@ -10,6 +10,7 @@ import { learnSitemapEntries } from "@/lib/learn/sitemap";
 import { canonicalLessonPath, EMPTY_TOPIC_CANON } from "@/lib/learn/topic-canon";
 import { loadTopicCanon } from "@/services/learning/topic-canon.service";
 import { caSitemapEntries, logSitemapReadFailure } from "@/lib/seo/ca-sitemap";
+import { categoryHubEntries } from "@/lib/seo/category-sitemap";
 
 export const revalidate = 3600; // Revalidate sitemap hourly
 const SITEMAP_FETCH_TIMEOUT_MS = 8000;
@@ -87,10 +88,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     });
 
     // 2. Fetch Active Exams, Published Modules, Published Articles, Published Courses, Published Current Affairs in parallel
-    const [examsRes, docsRes, articlesRes, coursesRes, caRes] = await Promise.all([
+    const [examsRes, docsRes, articlesRes, coursesRes, caRes, categoriesRes] = await Promise.all([
       supabase
         .from("exams")
-        .select("id, slug, updated_at")
+        .select("id, slug, updated_at, category_id")
         .eq("is_active", true),
       supabase
         .from("exam_knowledge_documents")
@@ -116,6 +117,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         .select("slug, status, published_version_id, news_date, published_at, updated_at, published_version:current_affairs_article_versions!fk_ca_articles_published_version(status, published_at)")
         .eq("status", "PUBLISHED")
         .not("published_version_id", "is", null),
+      // SEO-1: the category hubs (/exams/<category>) — listed only with at least one active exam (lib/seo/category-sitemap.ts)
+      supabase
+        .from("exam_categories")
+        .select("id, slug, is_active, is_internal, updated_at"),
     ]);
 
     // SITEMAP-CA-1: no silent read failure — each failed read logs one structured warning; the rest still renders
@@ -124,6 +129,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     if (articlesRes.error) logSitemapReadFailure("learning_documents", articlesRes.error);
     if (coursesRes.error) logSitemapReadFailure("courses", coursesRes.error);
     if (caRes.error) logSitemapReadFailure("current_affairs", caRes.error);
+    if (categoriesRes.error) logSitemapReadFailure("exam_categories", categoriesRes.error);
 
     const dynamicEntries: MetadataRoute.Sitemap = [];
     const activeExamsMap = new Map<string, { slug: string; updated_at?: string }>();
@@ -140,6 +146,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           priority: 0.85,
         });
       }
+    }
+
+    // A2. SEO-1: category hubs with at least one active exam (needs both reads; a failed exams read lists none)
+    if (Array.isArray(categoriesRes.data) && Array.isArray(examsRes.data) && !examsRes.error) {
+      dynamicEntries.push(...categoryHubEntries(baseUrl, categoriesRes.data, examsRes.data));
     }
 
     // B. Published Exam Knowledge Module URLs (/exams/[slug]/[moduleSlug])

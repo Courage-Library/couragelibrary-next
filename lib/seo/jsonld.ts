@@ -1,5 +1,6 @@
 import { siteConfig } from "@/config/site";
 import type { BreadcrumbItem, JsonLdArticleProps, JsonLdFaqProps } from "@/types/seo";
+import { ORGANIZATION_LOGO_PATH } from "@/lib/seo/brand-icons";
 
 export function generateOrganizationSchema() {
   const sameAsLinks = Object.values(siteConfig.links).filter(
@@ -11,22 +12,32 @@ export function generateOrganizationSchema() {
     "@type": "EducationalOrganization",
     name: siteConfig.name,
     url: siteConfig.url,
-    logo: `${siteConfig.url}/images/logo.png`,
+    logo: `${siteConfig.url}${ORGANIZATION_LOGO_PATH}`, // SEO-1: the final logo suite
     description: siteConfig.description,
     ...(sameAsLinks.length > 0 && { sameAs: sameAsLinks }),
   };
+}
+
+/**
+ * SEO-1: BreadcrumbList items. Google requires `item` (a URL) on every crumb but the last, so a middle crumb with no
+ * page of its own (e.g. a subject without a hub) is left out of the structured data and the positions are renumbered.
+ * The visible trail is unchanged. `href` is site-relative or absolute.
+ */
+export function breadcrumbListItems(items: readonly BreadcrumbItem[], base: string = siteConfig.url) {
+  const kept = items.filter((item, index) => index === items.length - 1 || Boolean(item.href));
+  return kept.map((item, index) => ({
+    "@type": "ListItem",
+    position: index + 1,
+    name: item.label,
+    ...(item.href && { item: new URL(item.href, base).toString() }),
+  }));
 }
 
 export function generateBreadcrumbSchema(items: BreadcrumbItem[]) {
   return {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
-    itemListElement: items.map((item, index) => ({
-      "@type": "ListItem",
-      position: index + 1,
-      name: item.label,
-      ...(item.href && { item: `${siteConfig.url}${item.href}` }),
-    })),
+    itemListElement: breadcrumbListItems(items),
   };
 }
 
@@ -59,7 +70,7 @@ export function generateArticleSchema({
       name: siteConfig.name,
       logo: {
         "@type": "ImageObject",
-        url: `${siteConfig.url}/images/logo.png`,
+        url: `${siteConfig.url}${ORGANIZATION_LOGO_PATH}`, // SEO-1: the final logo suite
       },
     },
   };

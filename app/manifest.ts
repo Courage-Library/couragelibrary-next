@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { BRAND_BACKGROUND_COLOR, BRAND_THEME_COLOR } from "@/config/brand";
 import { siteConfig } from "@/config/site";
+import { MANIFEST_ICONS } from "@/lib/seo/brand-icons";
 
 /** Web app manifest (UX-1b): brand colours from config/brand.ts (mirrors the design tokens). */
 export default function manifest(): MetadataRoute.Manifest {
@@ -12,10 +13,7 @@ export default function manifest(): MetadataRoute.Manifest {
     display: "standalone",
     background_color: BRAND_BACKGROUND_COLOR,
     theme_color: BRAND_THEME_COLOR,
-    // HOME-1 brand (131): the uploaded square mark, else the official logo padded to square (public/brand/)
-    icons: [
-      { src: "/brand/icon/192", sizes: "192x192", type: "image/png" },
-      { src: "/brand/icon/512", sizes: "512x512", type: "image/png" },
-    ],
+    // SEO-1: the final logo suite, static files (any + maskable) — lib/seo/brand-icons.ts
+    icons: MANIFEST_ICONS.map((i) => ({ ...i })),
   };
 }

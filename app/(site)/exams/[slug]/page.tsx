@@ -70,7 +70,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const exam = result.data.exam;
   return constructMetadata({
     title: `${exam.title}: exam pattern, mock tests, syllabus and guides`,
-    description: exam.description || `Exam pattern, free mock tests, the syllabus and exam guides for ${exam.title}.`,
+    // SEO-1: a stored description shorter than a search snippet (e.g. just the exam's full name) uses the generated one
+    description: (exam.description && exam.description.trim().length >= 70 ? exam.description : null) || `Exam pattern, free mock tests, the syllabus and exam guides for ${exam.title}.`,
     canonicalUrl: `/exams/${slug}`,
     ogImage: `/exams/${slug}/opengraph-image`, // HOME-1: the exam's own share card
   });

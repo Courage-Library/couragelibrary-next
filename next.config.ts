@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 import { CANONICAL_HOST_PATTERN } from "./config/site";
 import { ADMIN_REDIRECTS } from "./lib/admin/nav-redirects";
 import { LEGACY_REDIRECTS } from "./lib/seo/legacy-redirects";
+import { PRIVATE_NOINDEX_SOURCES, PRIVATE_NOINDEX_VALUE } from "./lib/seo/private-routes";
+import { BRAND_SUITE } from "./lib/seo/brand-icons";
 
 const SHARP_LINUX_FILES = [
   "./node_modules/@img/sharp-linux-x64/**/*",
@@ -43,9 +45,13 @@ const nextConfig: NextConfig = {
   // project ref never appears in public HTML. Content-hash paths: immutable.
   rewrites: async () => {
     const base = (process.env.NEXT_PUBLIC_SUPABASE_URL || "").replace(/\/$/, "");
-    // HOME-1 brand: browsers ask for /favicon.ico; it is the 32 px brand icon (uploaded square mark or the official logo)
-    const favicon = { source: "/favicon.ico", destination: "/brand/icon/32" };
-    return base ? [{ source: "/media/logos/:path*", destination: `${base}/storage/v1/object/public/org-logos/:path*` }, favicon] : [favicon];
+    // SEO-1: browsers and crawlers ask for /favicon.ico and /apple-touch-icon.png at the root; both are served (200, no
+    // redirect) from the final logo suite (public/brand/courage-library-logo-suite)
+    const icons = [
+      { source: "/favicon.ico", destination: `${BRAND_SUITE}/favicon/favicon.ico` },
+      { source: "/apple-touch-icon.png", destination: `${BRAND_SUITE}/app/apple-touch-icon-180.png` },
+    ];
+    return base ? [{ source: "/media/logos/:path*", destination: `${base}/storage/v1/object/public/org-logos/:path*` }, ...icons] : icons;
   },
   // UX-2b: the former Premium hub is retired; plans live on /pricing ("Free during early access. Pro coming soon.")
   redirects: async () => [
@@ -55,6 +61,8 @@ const nextConfig: NextConfig = {
     { source: "/checkout/:path*", destination: "/pricing", permanent: true },
     // LEGAL-PAGES-1: the grievance details live in Contact Us & Grievance, section 5.1 (308)
     { source: "/grievance", destination: "/contact#grievance-officer", permanent: true },
+    // SEO-1: /category/<slug> duplicated /exams/<slug> (200 with a canonical to it) — one 308 instead
+    { source: "/category/:slug", destination: "/exams/:slug", permanent: true },
     // ADMIN-IA-1: every moved admin address → its new place (308; the query string is kept)
     ...ADMIN_REDIRECTS.map((r) => ({ source: r.from, destination: r.to, permanent: true })),
     // DOMAIN-CUTOVER-1 (Q4): every legacy couragelibrary.in URL → one 308 to the closest new page (lib/seo/legacy-redirects.ts)
@@ -71,6 +79,8 @@ const nextConfig: NextConfig = {
       missing: [{ type: "host", value: CANONICAL_HOST_PATTERN }],
       headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
     },
+    // SEO-1: private and thin routes are never indexed, on every host (lib/seo/private-routes.ts)
+    ...PRIVATE_NOINDEX_SOURCES.map((source) => ({ source, headers: [{ key: "X-Robots-Tag", value: PRIVATE_NOINDEX_VALUE }] })),
     {
       source: "/(.*)",
       headers: [

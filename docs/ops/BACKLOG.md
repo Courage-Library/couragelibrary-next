@@ -467,3 +467,48 @@ only) and the rest still renders; the swallowed `catch (error)` now logs (LINT-S
 
 **The two smoke warnings stay** (`VACUOUS`, correct) until the first Current Affairs article is published. They turn
 into passes by themselves then; no smoke change needed.
+
+## SEO-HTML-LANG-1: `/hi` is served with `<html lang="en">`
+
+**Status:** logged in SEO-1, 2026-11-22. Low–medium (Google reads hreflang and the text; Bing and screen readers use
+`lang`). `/hi` already has its own canonical, hreflang (en / hi / x-default) and `og:locale hi_IN`.
+
+**Cause:** the one root layout (`app/layout.tsx`) owns `<html lang="en">` for every route. A per-locale `lang` needs a
+second root layout (route groups with their own `<html>`) or a request-time locale read, which would make the cached
+landing pages dynamic. Not a metadata fix; a small layout restructure.
+
+**How:** give `/hi` (and `/hi/learn/…`) a root layout of their own with `lang="hi"`, keeping PERF-HOME-1 caching; gate
+that `/hi` renders `lang="hi"` and `/` keeps `lang="en"`.
+
+## SEO-MOCK-PAGES-1: mock-test detail pages need their own metadata before they are indexed
+
+**Status:** logged in SEO-1, 2026-11-22. `/mock-tests/<id>` answers 200 for a visitor but carries the site's default
+title and description (duplicate across every mock), so SEO-1 marks it noindex (`lib/seo/private-routes.ts`).
+
+**How:** a per-mock title / description (name, exam, sections, duration), self canonical, then remove `/mock-tests/:id`
+from the noindex list (keep `/mock-tests/:id/:path*` — take, result, leaderboard), list published free mocks in the
+sitemap, and update the SEO-1 gate. Pairs with SMOKE-MOCK-LINK-1.
+
+## PERF-EXAM-HUB-TBT-1: `/exams/ssc-cgl` blocks the main thread ~400 ms on a phone (INP risk)
+
+**Status:** logged in SEO-1, 2026-11-22. Lab, phone profile (390 × 844, 4× CPU slowdown), three runs: total blocking
+time 363 / 404 / 486 ms; LCP 1.35–3.3 s; CLS 0. Desktop 0 ms. `/`, `/hi`, `/exams`, a lesson: under 270 ms.
+
+**How:** profile the exam hub's client bundle (hydration of the hub sections) and defer or split what is not above the
+fold. Field data (CrUX / Search Console Core Web Vitals) once the domain has traffic.
+
+## SEO-DESC-47: the site default description is 202 characters
+
+**Status:** logged in SEO-1, 2026-11-22 — an owner text decision (#47, pinned by UX2A L-16), not changed by SEO-1.
+Search results cut near 160, so SEO-1's `seoDescription()` now ends the meta tag at a word with "…" (the source text is
+unchanged). The default only shows on pages without their own description (most are now noindex).
+
+**Owner choice:** a ≤ 160-character version of #47 (then update UX2A L-16), or keep it clamped.
+
+## SEO-INDEXNOW-1: IndexNow for Bing (optional)
+
+**Status:** logged in SEO-1, 2026-11-22 — reported, not built. IndexNow needs a public key file at the site root and a
+POST to the IndexNow endpoint whenever a page is published or removed. The key file is trivial; the ping belongs in
+the publish paths (lessons, exam modules, Current Affairs) and is an outbound call from server code, so it is a small
+feature of its own, not a config change. Bing imports the sitemap from Search Console anyway, so the gain is faster
+recrawl of new pages only. Revisit once publishing is frequent (Current Affairs).

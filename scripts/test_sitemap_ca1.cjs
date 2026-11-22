@@ -154,6 +154,8 @@ function harness(smSrc, caSrc, plan) {
     '@/lib/learn/topic-canon': { canonicalLessonPath: () => '', EMPTY_TOPIC_CANON: {} },
     '@/services/learning/topic-canon.service': { loadTopicCanon: async () => ({}) },
     '@/lib/seo/ca-sitemap': ca,
+    // SEO-1: the category hubs builder (pure; its own rules are gated in scripts/test_seo1.cjs)
+    '@/lib/seo/category-sitemap': loadTs('lib/seo/category-sitemap.ts', undefined),
   };
   const sm = loadTs(SM_REL, smSrc, stubs);
   return { run: sm.default, queries };

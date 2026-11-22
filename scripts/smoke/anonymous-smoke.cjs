@@ -54,6 +54,28 @@ const get = async (p) => { for (let i = 1; i <= 3; i++) { try { return await fet
     }
     check('DOMAIN-CUTOVER-1 legacy URLs → one 308 to the closest page (5-URL sample)', bad.length === 0, bad.join(' | '));
   }
+  // SEO-1: private pages answer X-Robots-Tag noindex and claim no canonical; the root icons are files (200, no redirect);
+  // /category/<slug> is one 308 to /exams/<slug>
+  {
+    const bad = [];
+    for (const p of ['/auth/login', '/auth/signup', '/dashboard', '/billing']) {
+      const r = await get(p);
+      const robots = r.headers.get('x-robots-tag') || '';
+      const body = r.status === 200 ? await r.text() : '';
+      const canonical = (body.match(/<link rel="canonical" href="([^"]*)"/) || [])[1] || null;
+      if (!/noindex/i.test(robots) || (canonical && canonical.replace(/\/$/, '') === BASE.replace(/\/$/, ''))) bad.push(`${p} ${r.status} robots=${robots || '-'} canonical=${canonical || '-'}`);
+    }
+    check('SEO-1 private pages: X-Robots-Tag noindex, no canonical to the home page (4 pages)', bad.length === 0, bad.join(' | '));
+    const icons = [];
+    for (const p of ['/favicon.ico', '/apple-touch-icon.png']) {
+      const r = await get(p);
+      if (r.status !== 200 || !/^image\//.test(r.headers.get('content-type') || '')) icons.push(`${p} ${r.status} ${r.headers.get('content-type') || ''}`);
+    }
+    check('SEO-1 /favicon.ico + /apple-touch-icon.png → 200 image (no redirect)', icons.length === 0, icons.join(' | '));
+    const c = await get('/category/ssc');
+    const loc = (c.headers.get('location') || '').replace(/^https?:\/\/[^/]+/, '');
+    check('SEO-1 /category/ssc → one 308 to /exams/ssc', c.status === 308 && loc === '/exams/ssc', `${c.status} ${loc}`);
+  }
   // GATE-HYGIENE-1: scan the HTML AND every same-origin JS chunk it loads; 0 chunks or 0 tokens scanned is a FAIL
   {
     const paths = chunkPaths(html);
