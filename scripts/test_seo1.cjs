@@ -312,7 +312,7 @@ function checkSitemapStatic(sm, cfg, privateSources) {
       ['an icon file that does not exist', async () => checkIcons({ ...I, SITE_ICONS: { ...I.SITE_ICONS, apple: { ...I.SITE_ICONS.apple, url: '/brand/courage-library-logo-suite/app/apple-touch-icon-999.png' } } }, MANIFEST)],
       ['an icon with the wrong stated size', async () => checkIcons({ ...I, MANIFEST_ICONS: I.MANIFEST_ICONS.map((i) => (i.sizes === '512x512' && i.purpose === 'any' ? { ...i, sizes: '256x256' } : i)) }, MANIFEST)],
       ['no maskable icon', async () => checkIcons({ ...I, MANIFEST_ICONS: I.MANIFEST_ICONS.filter((i) => i.purpose !== 'maskable') }, MANIFEST)],
-      ['a non-square Organization logo', async () => checkIcons({ ...I, ORGANIZATION_LOGO_PATH: '/brand/courage-library-logo-suite/png/logo-horizontal@2x.png' }, MANIFEST)],
+      ['a non-square Organization logo', async () => checkIcons({ ...I, ORGANIZATION_LOGO_PATH: '/brand/courage-library-logo-suite/png/og-template-1200x630.png' }, MANIFEST)],
       // S1-4
       ['unlinked middle crumb kept', () => checkJsonLd(loadTs('lib/seo/jsonld.ts', mut(read('lib/seo/jsonld.ts'), 'const kept = items.filter((item, index) => index === items.length - 1 || Boolean(item.href));', 'const kept = items;'), STUBS), O, LANDING)],
       ['old logo in the Organization', () => checkJsonLd(J, loadTs('lib/landing/organization-jsonld.ts', mut(O_SRC, 'logo: `${siteConfig.url}${ORGANIZATION_LOGO_PATH}`,', 'logo: `${siteConfig.url}/images/logo.png`,'), STUBS), LANDING)],
