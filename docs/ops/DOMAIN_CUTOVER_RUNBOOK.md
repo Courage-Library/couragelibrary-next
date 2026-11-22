@@ -316,3 +316,34 @@ Supabase redirect list keeps the vercel.app origin for 30 days anyway (old e-mai
 - **T+30 d:** remove `https://couragelibrary-next.vercel.app/**` from the Supabase redirect list.
 - **Optional now:** a password reset to the owner's own account opens `https://couragelibrary.in/auth/confirm?...`.
 - **Next phases:** DOMAIN-CUTOVER-2 (cron variables / URLs, Q6), PAY-1 B7 (B7 production check: `B7_PROD_URL=https://couragelibrary.in`), PAY-1 B8 (LIVE payments; the LIVE webhook is on cnts), EMAIL-KYC-1, AGE-CONSENT-1, DMARC tightening after ~2 weeks of clean reports.
+
+## 15. DOMAIN-CUTOVER-2 record — scheduled jobs on the apex (2026-11-22, owner at GitHub)
+
+**Settings (GitHub → Actions; names, public values only):**
+
+| Name | Store | Value |
+|---|---|---|
+| `PAYMENTS_RECONCILE_ENABLED` | variable | `false` (secret of the same name deleted, F1); `true` only at PAY-1 B8 |
+| `RECONCILE_URL` | variable | `https://couragelibrary.in/api/cron/reconcile` |
+| `EMAILS_URL` | variable | `https://couragelibrary.in/api/cron/emails` |
+| `PAYMENTS_EMAILS_ENABLED` | — | not set (EMAIL-KYC-1) |
+| `CRON_SECRET` | secret | masked, unchanged (the only secret either workflow reads) |
+| `PROD_SMOKE_URL` | variable | `https://couragelibrary.in` (DC-1 step 6) |
+
+Vercel Production (owner, names only): `EMAIL_APP_ENABLED` not set, `ZEPTOMAIL_TOKEN` not set. Checkout closed (anonymous
+`/pricing`: "Pro is not open yet … nothing to pay today").
+
+**Workflow fix (c5c26a7):** both workflows read the URL from secrets; now from `vars`, pinned to the apex before the
+bearer is sent; `CRON_SECRET` is the only secret. New manual **probe** (dispatch only, switch off only): must answer
+`skipped`, else the run fails. Gated in PAY-1 B4 / B5 (+ 6 negative controls each). Offline 116/116; push run
+44967066339 green (prod-smoke on the apex).
+
+**Verification:**
+- `payments-reconcile` probe, run 44968033491: HTTP 200 `{"ok":true,"skipped":"CHECKOUT_CLOSED"}` — no read, no write.
+- `payments-emails` probe, run 44968103927: HTTP 200 `{"ok":true,"skipped":"EMAIL_OFF"}` — no read, no e-mail.
+- Anonymous on the apex: `POST` with no / a wrong bearer → **401** on both routes; `GET` → 405.
+
+**Prod-smoke warnings (3, all pre-existing before the cutover):** the mock-link warning is a smoke matcher gap
+(backlog SMOKE-MOCK-LINK-1); the two current-affairs warnings are a sitemap gap (backlog SITEMAP-CA-1). No release blocker.
+
+**Status:** DOMAIN-CUTOVER-2 CLOSED.
