@@ -168,6 +168,10 @@ a.cl-ft__a:hover,
 .cl-ft__lang {
   background: var(--color-cl-white);
 }
+/* BRAND-2 P-01 (same rule as the header switch): an English page downloads no Devanagari font for the one Hindi word */
+.cl-ft:not([lang="hi"]) .cl-vh__lang a[lang="hi"] {
+  font-family: system-ui, sans-serif;
+}
 .cl-ft__legal {
   margin-left: auto;
   text-align: right;
