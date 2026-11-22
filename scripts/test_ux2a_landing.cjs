@@ -88,7 +88,7 @@ const SECTIONS = 'components/landing/landing-sections.tsx';
 const DATA = 'lib/landing/landing-data.ts';
 const JSONLD = 'lib/landing/organization-jsonld.ts';
 const PAGE = 'app/(public)/page.tsx';
-const HEADER = 'components/shell/header-bar.tsx';
+const HEADER = 'components/nav/visitor-header.tsx'; // NAV-1: THE visitor header (Stage A) replaced components/shell/header-bar.tsx
 const FOOTER = 'components/shell/site-footer.tsx';
 const CTA = 'components/landing/landing-cta.tsx';
 const NEW_FILES = [CONTENT, SECTIONS, CTA, DATA, JSONLD, PAGE, HEADER, FOOTER, 'components/seo/json-ld.tsx'];
@@ -169,7 +169,8 @@ const UX2B_ROUTES = ['/legal'];
   });
 
   await test('L-2 no dead links: every landing / header / footer / public-page href routes; nothing points to unbuilt pages', async () => {
-    const files = [CONTENT, SECTIONS, CTA, HEADER, FOOTER, 'components/shell/nav-config.ts', 'content/public-pages.ts'];
+    // NAV-1: the headers (visitor header, student shell) and their link rules (lib/nav) are scanned too
+    const files = [CONTENT, SECTIONS, CTA, HEADER, 'components/nav/student-shell.tsx', 'lib/nav/student-nav.ts', 'lib/nav/visitor-nav.ts', FOOTER, 'components/shell/nav-config.ts', 'content/public-pages.ts'];
     const hrefs = new Set();
     for (const f of files) {
       const s = read(f);
