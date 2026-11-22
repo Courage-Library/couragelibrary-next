@@ -9,7 +9,7 @@ import { ExamModuleKey } from "@/types/exam-knowledge";
 import { learnSitemapEntries } from "@/lib/learn/sitemap";
 import { canonicalLessonPath, EMPTY_TOPIC_CANON } from "@/lib/learn/topic-canon";
 import { loadTopicCanon } from "@/services/learning/topic-canon.service";
-import { caSitemapEntries, logSitemapReadFailure, type CaSitemapRow } from "@/lib/seo/ca-sitemap";
+import { caSitemapEntries, logSitemapReadFailure } from "@/lib/seo/ca-sitemap";
 
 export const revalidate = 3600; // Revalidate sitemap hourly
 const SITEMAP_FETCH_TIMEOUT_MS = 8000;
@@ -217,7 +217,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     // E. Published Current Affairs: articles, their date pages and month pages (SITEMAP-CA-1, lib/seo/ca-sitemap.ts)
     if (Array.isArray(caRes.data)) {
-      const ca = caSitemapEntries(baseUrl, caRes.data as unknown as CaSitemapRow[]);
+      const ca = caSitemapEntries(baseUrl, caRes.data);
       if (ca.capped) logSitemapReadFailure("current_affairs", { code: "CA_SITEMAP_CAPPED" });
       dynamicEntries.push(...ca.entries);
     }

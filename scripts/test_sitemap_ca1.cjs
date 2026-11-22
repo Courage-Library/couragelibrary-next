@@ -230,7 +230,8 @@ function checkSource(smSrc, caSrc) {
   const code = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
   for (const [f, s] of [[SM_REL, smSrc], [CA_REL, caSrc]]) if (/SERVICE_ROLE|service_role|serviceRole|createAdmin|supabaseServiceRoleKey/i.test(code(s))) why.push(`${f}: a service-role read`);
   if (!/createClient<Database>\(env\.supabaseUrl, env\.supabaseAnonKey,/.test(smSrc)) why.push('sitemap: not the anon client');
-  if (!/import \{ caSitemapEntries, logSitemapReadFailure, type CaSitemapRow \} from "@\/lib\/seo\/ca-sitemap";/.test(smSrc) || !/caSitemapEntries\(baseUrl, caRes\.data as unknown as CaSitemapRow\[\]\)/.test(smSrc)) why.push('sitemap: CA URLs not built by caSitemapEntries');
+  // the typed read is passed as is: no cast (a cast would hide a select that no longer matches CaSitemapRow; TYPES-1)
+  if (!/import \{ caSitemapEntries, logSitemapReadFailure \} from "@\/lib\/seo\/ca-sitemap";/.test(smSrc) || !/const ca = caSitemapEntries\(baseUrl, caRes\.data\);/.test(smSrc)) why.push('sitemap: CA URLs not built by caSitemapEntries from the typed read');
   if (/\/current-affairs\/\$\{/.test(code(smSrc))) why.push('sitemap: a CA URL built inline (bypasses the isolation rules)');
   for (const [src, label] of [['examsRes', 'exams'], ['docsRes', 'exam_knowledge_documents'], ['articlesRes', 'learning_documents'], ['coursesRes', 'courses'], ['caRes', 'current_affairs']]) {
     if (!smSrc.includes(`if (${src}.error) logSitemapReadFailure("${label}", ${src}.error);`)) why.push(`sitemap: ${src} error not logged`);
@@ -293,7 +294,7 @@ async function lint() {
       ['logger prints the message', () => [SM_SRC, mut(CA_SRC, 'JSON.stringify({ event: "SITEMAP_READ_FAILED", source, code })', 'JSON.stringify({ event: "SITEMAP_READ_FAILED", source, code, message: String((error as { message?: unknown })?.message) })')]],
       ['CA read drops the PUBLISHED filter', () => [mut(SM_SRC, '.select("slug, status, published_version_id, news_date, published_at, updated_at, published_version:current_affairs_article_versions!fk_ca_articles_published_version(status, published_at)")\n        .eq("status", "PUBLISHED")', '.select("slug, status, published_version_id, news_date, published_at, updated_at, published_version:current_affairs_article_versions!fk_ca_articles_published_version(status, published_at)")'), CA_SRC]],
       ['CA read drops the version embed', () => [mut(SM_SRC, ', published_version:current_affairs_article_versions!fk_ca_articles_published_version(status, published_at)', ''), CA_SRC]],
-      ['CA built inline from the raw rows', () => [mut(SM_SRC, '      const ca = caSitemapEntries(baseUrl, caRes.data as unknown as CaSitemapRow[]);', '      const ca = { capped: false, entries: (caRes.data as unknown as CaSitemapRow[]).map((r) => ({ url: `${baseUrl}/current-affairs/${r.slug}` })) };'), CA_SRC]],
+      ['CA built inline from the raw rows', () => [mut(SM_SRC, '      const ca = caSitemapEntries(baseUrl, caRes.data);', '      const ca = { capped: false, entries: caRes.data.map((r) => ({ url: `${baseUrl}/current-affairs/${r.slug}` })) };'), CA_SRC]],
     ];
     const sourceMuts = [
       ['service-role client', () => checkSource(mut(SM_SRC, 'createClient<Database>(env.supabaseUrl, env.supabaseAnonKey,', 'createClient<Database>(env.supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY!,'), CA_SRC)],
