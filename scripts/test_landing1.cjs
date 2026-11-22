@@ -140,8 +140,10 @@ function checkCopy(c) {
   assert(c.en.lang === 'en' && c.hi.lang === 'hi', 'lang keys');
   for (const lang of ['en', 'hi']) for (const [k, v] of Object.entries(AMEND[lang])) assert(at(c[lang], k) === v, `${lang} ${k} is not the owner's amended copy`);
   assert(c.en.how.steps.length === 6 && c.en.how.steps[5].title === 'Improve' && c.hi.how.steps[5].title === 'बेहतर', '6 steps, "Improve" last');
-  assert(!('learn' in c.en.nav) && !('lessons' in c.en.footer.links), 'L4: no Learn nav item / Lessons footer link');
-  assert(!Object.values(c.en.nav).concat(Object.values(c.en.footer.links)).some((s) => /^(Learn|Lessons)$/.test(s)), 'L4: a "Learn" / "Lessons" link label');
+  // FOOTER-1 (re-pointed, rule kept): the landing has no footer copy of its own any more (THE public footer); its Learn
+  // link appears only once the Learn index exists (lib/site/footer-links.ts, gated by FOOTER-1 F-3)
+  assert(!('learn' in c.en.nav) && !('footer' in c.en) && !('footer' in c.hi), 'L4: no Learn nav item / a landing-only footer copy');
+  assert(!Object.values(c.en.nav).some((s) => /^(Learn|Lessons)$/.test(s)) && /\.\.\.\(learnReady \? \[\{ label: "Learn", href: FOOTER_ROUTES\.learn \}\] : \[\]\)/.test(read('lib/site/footer-links.ts')) && /export const LEARN_INDEX_READY = false;/.test(read('lib/nav/visitor-nav.ts')), 'L4: a "Learn" / "Lessons" link label (footer Learn only behind LEARN_INDEX_READY)');
   const pills = c.facts.LANDING_LIBRARY_FACTS;
   assert(pills.en.length === 5 && pills.hi.length === 5 && pills.en.includes('AC · 5G Wi-Fi') && pills.hi.includes('AC · 5G Wi-Fi'), '5 library pills, "AC · 5G Wi-Fi" as one');
   assert(c.en.hero.h1Before + c.en.hero.h1Strong + c.en.hero.h1After === 'Find your weak topics. Fix them. Score better in your next attempt.', 'EN H1');
@@ -190,7 +192,8 @@ function checkStructure(pageSrc, facts) {
   const order = [...main.matchAll(/<(Hero|Band|Exams|Pain|How|Plans|Library|Promises|Faq|Final)\b/g)].map((m) => m[1]);
   assert(order.join(',') === 'Hero,Band,Exams,Pain,How,Plans,Library,Promises,Faq,Final', `section order: ${order.join(',')}`);
   const shell = pageSrc.slice(pageSrc.indexOf('export function LandingPageV1'));
-  assert(shell.indexOf('<Header') < shell.indexOf('<main') && shell.indexOf('</main>') < shell.indexOf('<Footer'), 'header → main → footer');
+  // FOOTER-1 (re-pointed, rule kept): the footer is THE public footer
+  assert(shell.indexOf('<Header') < shell.indexOf('<main') && shell.indexOf('</main>') < shell.indexOf('<PublicFooter') && shell.indexOf('<PublicFooter') > 0, 'header → main → footer');
   assert((pageSrc.match(/<h1\b/g) || []).length === 1, 'exactly one <h1>');
   assert(/<details key=\{f\.q\} open=\{i === 0\}>/.test(pageSrc), 'FAQ = native <details>, the first open');
   assert(/const isLive = live\[c\.slug\] === true;/.test(pageSrc) && /isLive \? \(\s*<Link className="lp-exam" href=\{R\.examCategory\(c\.slug\)\}/.test(pageSrc) && /<div className="lp-exam lp-exam--soon"/.test(pageSrc) && /\{!isLive && <span className="lp-exam__soon">\{t\.exams\.comingSoon\}<\/span>\}/.test(pageSrc), 'category cards: link only when live, else "Coming soon" and no link');
@@ -207,12 +210,15 @@ function checkStructure(pageSrc, facts) {
 function checkHeaderFooter(pageSrc, vh = VH_SRC) {
   // NAV-1 Stage A (re-pointed, rules kept): the landing header IS the shared visitor header, with the switch and the hint
   assert(/<VisitorHeader\s[\s\S]*?langSwitch\s[\s\S]*?auth="hint"\s*\/>/.test(pageSrc) && /<header className="cl-vh"/.test(vh) && /\.cl-vh \{\s+position: sticky;/.test(NAV_CSS) && /backdrop-filter: saturate\(1\.4\) blur\(10px\);/.test(NAV_CSS) && /background: var\(--cl-header-bg\);/.test(NAV_CSS), 'sticky, blurred white header (replaces H-10) — the shared visitor header');
-  assert(/const LOGO = "\/brand\/courage-library-logo-suite\/svg\/logo-horizontal\.svg";/.test(vh) && /const LOGO_REVERSED = "\/brand\/courage-library-logo-suite\/svg\/logo-horizontal-reversed\.svg";/.test(pageSrc), 'the final logo-suite files');
+  // FOOTER-1: the footer logo moved with the footer into THE public footer (light surface → the standard lockup)
+  assert(/const LOGO = "\/brand\/courage-library-logo-suite\/svg\/logo-horizontal\.svg";/.test(vh) && /const LOGO = "\/brand\/courage-library-logo-suite\/svg\/logo-horizontal\.svg";/.test(read('components/footer/public-footer.tsx')), 'the final logo-suite files');
   assert(/<Link href="\/" hrefLang="en" lang="en" aria-current=\{t\.lang === "en" \? "page" : undefined\}>/.test(vh) && /<Link href="\/hi" hrefLang="hi" lang="hi" aria-current=\{t\.lang === "hi" \? "page" : undefined\}>/.test(vh), 'language switch = two plain links with aria-current (L1)');
   assert(vh.includes('className={`${out}cl-vh__auth`}') && vh.includes('className="auth-in cl-vh__auth"') && vh.includes('const out = auth === "hint" ? "auth-out " : "";'), 'L5: the data-auth link sets');
   assert(/<details className="cl-vh__drawer" data-nav-drawer="">/.test(vh), 'phone menu = native <details> (works without JS)');
   assert(!/"use client"/.test(vh), 'the visitor header is a server component (its one client helper is a separate file)');
-  assert(/\.lp-ft \{\s+background: var\(--color-cl-charcoal\);/.test(CSS) && (pageSrc.match(/\[t\.footer\.(platform|company|legal),/g) || []).length === 3, 'charcoal footer with 3 link columns (replaces H-11)');
+  // FOOTER-1 (owner spec, re-pointed): the landing renders THE public footer — the language switch here only, no sign-up
+  // band (the landing ends with its own final CTA), Hindi copy on /hi; no landing-only footer CSS left
+  assert(/<PublicFooter\s+t=\{footerCopy\(t\.lang\)\}[\s\S]*?band=\{null\}\s+langSwitch=\{navLabels\(t\.lang\)\}/.test(pageSrc) && !/\.lp-ft\b/.test(CSS) && !/<footer\b/.test(pageSrc), 'THE public footer (switch, no band) replaces the landing footer');
   assert(!/"use client"/.test(pageSrc), 'the landing page is a server component (no client JS)');
 }
 
@@ -294,15 +300,17 @@ function checkDataDriven(c, R, pageSrc, data, routes, vh = VH_SRC) {
 }
 
 const SITEMAP = read('app/sitemap.ts');
-function checkLanding11(c, R, pageSrc, data, sitemap) {
-  // (a) footer made line
+function checkLanding11(c, R, pageSrc, data, sitemap, footerSrc = read('content/footer.ts')) {
+  // (a) FOOTER-1 (re-pointed, rule made stronger): the landing's conditional "made" line went with the landing footer;
+  // THE public footer makes NO Hindi claim at all (EN or HI copy), so nothing there depends on published Hindi content
   for (const base of [c.en, c.hi]) {
-    const off = R.resolveLandingCopy(base, { liveExamNames: [], hindiLive: false, signupOpen: true }).t.footer.made;
-    const on = R.resolveLandingCopy(base, { liveExamNames: [], hindiLive: true, signupOpen: true }).t.footer.made;
-    assert(off === base.footer.madePending && on === base.footer.made && !HINDI_CLAIM.test(off) && HINDI_CLAIM.test(on), `${base.lang}: footer made line (off: ${off} / on: ${on})`);
+    const t = R.resolveLandingCopy(base, { liveExamNames: [], hindiLive: false, signupOpen: true }).t;
+    assert(!('footer' in t), `${base.lang}: a landing-only footer copy is back`);
   }
-  assert(c.en.footer.madePending === 'Made for government-exam aspirants' && c.hi.footer.madePending === 'सरकारी परीक्षाओं के aspirants के लिए', 'the owner\'s fallback lines');
-  assert(/<span>\{t\.footer\.made\}<\/span>/.test(pageSrc) && !/footer\.madePending/.test(pageSrc), 'the footer renders the resolved line only');
+  const strings = [...footerSrc.matchAll(/:\s*"([^"]+)"/g)].map((m) => m[1]);
+  const claims = strings.filter((s) => HINDI_CLAIM.test(s));
+  assert(strings.length > 30 && claims.length === 0, `the footer copy makes a Hindi claim: ${claims.join(' | ')}`);
+  assert(!/footer\.made/.test(pageSrc), 'the page renders a footer "made" line');
   // (b) live-category subtitles from data
   assert(R.liveCategorySubtitle(c.en, ['CGL'], true) === 'CGL live · more coming' && R.liveCategorySubtitle(c.hi, ['CGL'], true) === 'CGL उपलब्ध · और जल्द', 'today\'s SSC subtitle (EN / HI)');
   assert(R.liveCategorySubtitle(c.en, ['CGL', 'CHSL'], false) === 'CGL, CHSL live' && R.liveCategorySubtitle(c.en, [], true) === '', 'more live exams / none');
@@ -329,7 +337,7 @@ function checkLanding11(c, R, pageSrc, data, sitemap) {
   await test('LD-5 cache (PERF-HOME-1 for / and /hi) + canonical / hreflang', () => checkCache(EN_ROUTE, HI_ROUTE, LAYOUT, DATA, REVAL));
   await test('LD-6 tokens + styles + logo', () => checkTokens(GLOBALS, CSS));
   await test('LD-8 data-driven copy (live exams, published Hindi, sign-up), exemptions R4 / X-05, public reads only', () => checkDataDriven(c, R, PAGE_SRC, DATA, [EN_ROUTE, HI_ROUTE]));
-  await test('LD-9 LANDING-1.1: footer Hindi line conditional; live-category subtitles from data; /hi in the sitemap', () => checkLanding11(c, R, PAGE_SRC, DATA, SITEMAP));
+  await test('LD-9 LANDING-1.1: the footer makes no Hindi claim (FOOTER-1); live-category subtitles from data; /hi in the sitemap', () => checkLanding11(c, R, PAGE_SRC, DATA, SITEMAP));
   await test('LD-7 negative controls: each mutation is caught', async () => {
     const mut = (s, a, b) => { assert(s.includes(a), `mutation anchor missing: ${a.slice(0, 60)}`); return s.replace(a, b); };
     const cases = [
@@ -363,8 +371,8 @@ function checkLanding11(c, R, pageSrc, data, sitemap) {
       ['sign-up closed still links sign-up', () => checkDataDriven(c, loadTs('lib/landing/landing-copy.ts', mut(LANDING_COPY_SRC, ': { label: base.hero.explore, href: examsHref }', ': { label: base.startFree, href: signUpHref }')), PAGE_SRC, DATA, [EN_ROUTE, HI_ROUTE])],
       ['Sign in not before the start action in the menu', () => checkDataDriven(c, R, PAGE_SRC, DATA, [EN_ROUTE, HI_ROUTE], mut(VH_SRC, 'data-menu-item="signin"', 'data-menu-item="signin-x"'))],
       ['the header start action hard-codes sign-up', () => checkDataDriven(c, R, PAGE_SRC, DATA, [EN_ROUTE, HI_ROUTE], mut(VH_SRC, 'href={s.href} aria-current={here(s.href)} data-nav-action="" data-start="header"', 'href="/auth/signup" data-start="header"'))],
-      ['footer made line always the Hindi claim', () => checkLanding11(c, loadTs('lib/landing/landing-copy.ts', mut(LANDING_COPY_SRC, 'made: f.hindiLive ? base.footer.made : base.footer.madePending', 'made: base.footer.made')), PAGE_SRC, DATA, SITEMAP)],
-      ['footer renders the raw line', () => checkLanding11(c, R, mut(PAGE_SRC, '<span>{t.footer.made}</span>', '<span>{t.footer.madePending}</span>'), DATA, SITEMAP)],
+      ['a Hindi claim in the footer copy', () => checkLanding11(c, R, PAGE_SRC, DATA, SITEMAP, mut(read('content/footer.ts'), 'tagline: "Learn Smarter. Prepare Independently.",\n  library: "Also a study library in Kanpur",', 'tagline: "Learn Smarter. Prepare Independently.",\n  library: "Learn in Hindi and English",'))],
+      ['the landing renders a footer made line again', () => checkLanding11(c, R, PAGE_SRC + '\n<span>{t.footer.made}</span>\n', DATA, SITEMAP)],
       ['live card with the static list', () => checkLanding11(c, R, mut(PAGE_SRC, '{isLive ? liveCategorySubtitle(t, detail.shortNames[c.slug] ?? [], detail.moreComing[c.slug] === true) : c.examples[t.lang]}', '{c.examples[t.lang]}'), DATA, SITEMAP)],
       ['more coming always', () => checkLanding11(c, loadTs('lib/landing/landing-copy.ts', mut(LANDING_COPY_SRC, '${moreComing ? ` · ${t.exams.moreComing}` : ""}', '` · ${t.exams.moreComing}`')), PAGE_SRC, DATA, SITEMAP)],
       ['subtitle from a fixed list', () => checkLanding11(c, R, PAGE_SRC, mut(DATA, 'liveShortNames[c.slug] = live.map((e) => examShortName(e.title as string, c.name ?? ""));', 'liveShortNames[c.slug] = ["CGL", "CHSL", "MTS", "GD"];'), SITEMAP)],

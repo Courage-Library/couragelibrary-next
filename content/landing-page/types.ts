@@ -47,27 +47,5 @@ export interface LandingCopy {
   promises: { h2: string; lead: string; items: Array<{ title: string; text: string }> };
   faq: { h2: string; items: Array<{ q: string; a: string }> };
   final: { h2: string; text: string };
-  footer: {
-    purpose: string;
-    /** the Hindi-live version; while no Hindi content is published the page shows madePending (LANDING-1.1) */
-    made: string;
-    madePending: string;
-    platform: string;
-    company: string;
-    legal: string;
-    links: {
-      exams: string;
-      mockTests: string;
-      currentAffairs: string;
-      about: string;
-      library: string;
-      contact: string;
-      help: string;
-      terms: string;
-      privacy: string;
-      refund: string;
-      shipping: string;
-      grievance: string;
-    };
-  };
+
 }

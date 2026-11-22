@@ -124,7 +124,7 @@ export function ResultViewClient({ data }: { data: TestResultSummary }) {
   ];
 
   return (
-    <div className="min-h-[calc(100dvh-4rem)] bg-cl-cloud pb-[112px] lg:pb-16" data-result-ux="v1">
+    <div className="min-h-[calc(100dvh-4rem)] bg-cl-cloud pb-6 lg:pb-16" data-result-ux="v1">
       {reviewMode && (
         <ReviewMode
           list={filtered}
@@ -594,7 +594,7 @@ function ReviewMode({
     headRef.current?.focus({ preventScroll: true });
   }, [current]);
   return (
-    <div className="mx-auto flex max-w-[720px] flex-col gap-3 px-4 pt-3 pb-[calc(88px+env(safe-area-inset-bottom,0px))] lg:hidden" data-review-mode="">
+    <div className="mx-auto flex max-w-[720px] flex-col gap-3 px-4 pt-3 pb-4 lg:hidden" data-review-mode="">
       <div className="flex items-center gap-2">
         <button type="button" onClick={onBack} className="focus-ring -ml-2 inline-flex min-h-11 items-center gap-1 rounded-full px-2 text-body-sm font-semibold text-cl-charcoal" data-review-back="">
           <ChevronLeft aria-hidden="true" className="size-5" /> Review · {label} ({counts[filter]})

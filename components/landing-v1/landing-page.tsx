@@ -7,6 +7,9 @@ import { liveCategorySubtitle, type StartAction } from "@/lib/landing/landing-co
 import { VisitorHeader } from "@/components/nav/visitor-header";
 import { navLabels } from "@/content/nav/labels";
 import { navCategories } from "@/lib/nav/visitor-nav";
+import { PublicFooter } from "@/components/footer/public-footer";
+import { footerCopy } from "@/content/footer";
+import { isPaymentsEnabled } from "@/config/payments";
 
 /**
  * LANDING-1 — the public landing page ("/" English, "/hi" Hindi). One server component:
@@ -32,11 +35,6 @@ export interface CategoryLive {
   moreComing: Record<string, boolean>;
 }
 
-const LOGO = "/brand/courage-library-logo-suite/svg/logo-horizontal.svg";
-const LOGO_REVERSED = "/brand/courage-library-logo-suite/svg/logo-horizontal-reversed.svg";
-const LOGO_W = 694.36;
-const LOGO_H = 148;
-
 const STEP_ICONS: LandingIconKey[] = ["learn", "prac", "mock", "weak", "fix", "up"];
 const PROMISE_ICONS: Array<{ k: LandingIconKey; tone: string }> = [
   { k: "shield", tone: "violet" },
@@ -45,23 +43,6 @@ const PROMISE_ICONS: Array<{ k: LandingIconKey; tone: string }> = [
   { k: "lang", tone: "blue" },
 ];
 
-// A plain <img>: the logos are static SVG files of the final suite (no optimisation possible or needed), and next/image
-// would add its client component to the page's JavaScript (BRAND2 P-07 budget on "/"). Width + height → no layout shift.
-function Logo({ reversed = false, height }: { reversed?: boolean; height: number }) {
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={reversed ? LOGO_REVERSED : LOGO}
-      alt="Courage Library"
-      width={Math.round((LOGO_W / LOGO_H) * height)}
-      height={height}
-      decoding="async"
-      loading={reversed ? "lazy" : "eager"}
-      fetchPriority={reversed ? "auto" : "high"}
-      className="lp-logo"
-    />
-  );
-}
 
 /**
  * NAV-1 Stage A: the landing uses THE shared visitor header (components/nav/visitor-header.tsx) — the language switch
@@ -378,45 +359,6 @@ function Final({ t, start }: { t: LandingCopy; start: StartAction }) {
   );
 }
 
-function Footer({ t }: { t: LandingCopy }) {
-  const l = t.footer.links;
-  const cols: Array<[string, Array<[string, string]>]> = [
-    [t.footer.platform, [[l.exams, R.exams], [l.mockTests, R.mockTests], [l.currentAffairs, R.currentAffairs]]],
-    [t.footer.company, [[l.about, R.about], [l.library, R.about], [l.contact, R.contact], [l.help, R.help]]],
-    [t.footer.legal, [[l.terms, R.terms], [l.privacy, R.privacy], [l.refund, R.refund], [l.shipping, R.shipping], [l.grievance, R.grievance]]],
-  ];
-  return (
-    <footer className="lp-ft" data-landing-section="footer">
-      <div className="lp-in">
-        <div className="lp-ft__grid">
-          <div className="lp-ft__brand">
-            <Link className="lp-lock" href={R.home[t.lang]} aria-label="Courage Library">
-              <Logo reversed height={28} />
-            </Link>
-            <p className="lp-ft__purpose">{t.footer.purpose}</p>
-            <span className="lp-ft__tg">{t.hero.tagline}</span>
-          </div>
-          {cols.map(([h, links]) => (
-            <nav key={h} aria-label={h}>
-              <h2 className="lp-ft__h">{h}</h2>
-              <ul>
-                {links.map(([label, href]) => (
-                  <li key={label}>
-                    <Link href={href}>{label}</Link>
-                  </li>
-                ))}
-              </ul>
-            </nav>
-          ))}
-        </div>
-        <div className="lp-ft__legal">
-          <span>{`© ${LANDING_FACTS.copyrightYear} Courage Library · ${t.lang === "hi" ? LANDING_FACTS.city.hiShort : LANDING_FACTS.city.enShort}`}</span>
-          <span>{t.footer.made}</span>
-        </div>
-      </div>
-    </footer>
-  );
-}
 
 export function LandingPageV1({ t, start, live, detail, liveExams }: { t: LandingCopy; start: StartAction; live: CategoryState; detail: CategoryLive; liveExams: readonly string[] }) {
   return (
@@ -437,7 +379,15 @@ export function LandingPageV1({ t, start, live, detail, liveExams }: { t: Landin
         <Faq t={t} />
         <Final t={t} start={start} />
       </main>
-      <Footer t={t} />
+      {/* FOOTER-1: THE public footer (no sign-up band here — the landing ends with its own final CTA); the language switch
+          and Hindi copy on /hi only */}
+      <PublicFooter
+        t={footerCopy(t.lang)}
+        categories={navCategories(navLabels(t.lang), { categories: live, liveShortNames: detail.shortNames, moreComing: detail.moreComing })}
+        band={null}
+        langSwitch={navLabels(t.lang)}
+        paymentsEnabled={isPaymentsEnabled()}
+      />
     </div>
   );
 }

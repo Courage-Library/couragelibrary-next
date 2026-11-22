@@ -11,7 +11,7 @@
  *   LP-04 Coins: flag OFF → no "1.5 Coins" heading and no "Coins are loyalty points"; ON → both present; 1.6+ keep
  *         their numbers either way
  *   LP-05 /grievance → 308 to /contact#grievance-officer (next.config, permanent); the old page is gone; 5.1 has the id
- *   LP-06 footer legal row = the five links; consent lines (exact words + links) on sign-in, sign-up, pricing and
+ *   LP-06 THE public footer links the five legal pages (FOOTER-1 COMPLIANCE_ROUTES); consent lines (exact words + links) on sign-in, sign-up, pricing and
  *         checkout, each BEFORE its button
  *   LP-07 sitemap lists the five; robots does not block them; canonical = https://couragelibrary.in/<route>
  *   LP-08 no "[", "]" or "{{" left in any rendered page; LEGAL_LAST_UPDATED is a REAL ISO date (hard check since
@@ -159,10 +159,17 @@ const missing = (page, text, coins) => pageTexts(page, { coins }).map(norm).filt
   });
 
   await test('LP-06 footer has the five legal links; consent lines (exact words + links) BEFORE the buttons', () => {
-    const { FOOTER_LEGAL } = require(path.join(ROOT, 'components/shell/nav-config.ts'));
-    const want = [['/terms', 'Terms'], ['/privacy', 'Privacy'], ['/refund-policy', 'Refund Policy'], ['/shipping-policy', 'Shipping Policy'], ['/contact', 'Contact & Grievance']];
-    assert(JSON.stringify(FOOTER_LEGAL.map((i) => [i.href, i.label])) === JSON.stringify(want), JSON.stringify(FOOTER_LEGAL));
-    assert(/FOOTER_LEGAL\.map/.test(read('components/shell/site-footer.tsx')), 'the footer renders FOOTER_LEGAL on every page (home included)');
+    // FOOTER-1 (re-pointed, rule kept): THE public footer links the five legal pages on every visitor page — home included
+    // (the landing renders THE public footer now) — as COMPLIANCE_ROUTES, rendered in its columns (render-gated:
+    // FOOTER-1 F-7, every variant); labels per the owner's footer copy
+    const fl = read('lib/site/footer-links.ts');
+    const want = ['/privacy', '/terms', '/refund-policy', '/shipping-policy', '/contact'];
+    const comp = (fl.match(/export const COMPLIANCE_ROUTES = \[([^\]]+)\]/) || [])[1] || '';
+    const keys = [...comp.matchAll(/FOOTER_ROUTES\.(\w+)/g)].map((m) => m[1]);
+    const routes = keys.map((k) => (fl.match(new RegExp(`\\b${k}: "([^"]+)"`)) || [])[1]);
+    assert(JSON.stringify(routes) === JSON.stringify(want), JSON.stringify(routes));
+    for (const k of keys) assert(new RegExp(`href: FOOTER_ROUTES\\.${k} \\}`).test(fl), `the footer columns do not link ${k}`);
+    assert(/<PublicFooter/.test(read('components/landing-v1/landing-page.tsx')) && /<PublicFooter/.test(read('components/shell/public-shell.tsx')) && /<PublicFooter/.test(read('components/shell/app-shell.tsx')), 'the footer renders the legal links on every page (home included)');
     const C = require(path.join(ROOT, 'components/legal/consent-lines.tsx'));
     const auth = renderToStaticMarkup(h(C.AuthConsentLine));
     const pay = renderToStaticMarkup(h(C.PaymentConsentLine));

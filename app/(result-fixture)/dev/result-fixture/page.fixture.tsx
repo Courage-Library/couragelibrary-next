@@ -3,6 +3,7 @@ import type { TestResultSummary } from "@/services/assessment.service";
 import { ResultViewClient } from "@/components/assessment/result-view-client";
 import { StudentShell } from "@/components/nav/student-shell";
 import { NoGlassZone } from "@/components/ui/no-glass-zone";
+import { StudentFooter } from "@/components/footer/student-footer";
 import { navLabels } from "@/content/nav/labels";
 import { trendGroup, type TrendSource } from "@/lib/assessment/result-ux";
 
@@ -162,7 +163,7 @@ export default async function ResultFixturePage({ searchParams }: { searchParams
       pathname="/mock-tests/fx-cur/result"
       lessonCoins={false}
       studyPreferencesLabel="Study preferences"
-      footer={null}
+      footer={<StudentFooter />}
     >
       <NoGlassZone>
         <ResultViewClient data={data} />

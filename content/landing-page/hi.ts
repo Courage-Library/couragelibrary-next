@@ -127,26 +127,5 @@ export const LANDING_HI: LandingCopy = {
     ],
   },
   final: { h2: "आपका अगला attempt आज से शुरू", text: "अपनी परीक्षा चुनें, एक मुफ़्त mock दें और देखें कि ठीक क्या सुधारना है।" },
-  footer: {
-    purpose: "हम हर aspirant को फिर से attempt करने की हिम्मत और हर बार बेहतर करने की स्पष्टता देते हैं।",
-    made: "Aspirants के लिए, हिंदी और English में",
-    madePending: "सरकारी परीक्षाओं के aspirants के लिए",
-    platform: "Platform",
-    company: "Company",
-    legal: "Legal",
-    links: {
-      exams: "परीक्षाएँ",
-      mockTests: "Mock tests",
-      currentAffairs: "करेंट अफेयर्स",
-      about: "हमारे बारे में",
-      library: "कानपुर लाइब्रेरी",
-      contact: "संपर्क",
-      help: "मदद",
-      terms: "Terms",
-      privacy: "Privacy",
-      refund: "Refund policy",
-      shipping: "शिपिंग पॉलिसी",
-      grievance: "Grievance officer",
-    },
-  },
+
 };
