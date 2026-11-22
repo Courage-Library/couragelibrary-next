@@ -5,6 +5,7 @@ import { BRAND_THEME_COLOR } from "@/config/brand";
 import { LITE_MODE_SCRIPT } from "@/lib/ui/lite-mode";
 import { AUTH_HINT_SCRIPT } from "@/lib/ui/auth-hint";
 import "./globals.css";
+import "./nav.css";
 
 // BRAND-2 (bilingual typography) + BUILD-FONT-1: the three families are committed woff2 files in app/fonts (SIL OFL 1.1,
 // see app/fonts/NOTICE.md) loaded by next/font/local — the build never fetches from Google. Each subset is its own

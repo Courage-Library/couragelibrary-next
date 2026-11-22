@@ -22,7 +22,7 @@ const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const F = {
   loginForm: 'app/(site)/auth/login/login-form.tsx', loginPage: 'app/(site)/auth/login/page.tsx', examPage: 'lib/exams/exam-page.ts', examHome: 'components/exams/exam-home.tsx',
   crumb: 'components/ui/breadcrumb.tsx', cats: 'lib/exams/categories.ts', catPage: 'components/exams/category-page.tsx', catRoute: 'app/(public)/category/[slug]/page.tsx',
-  hubRoute: 'app/(site)/exams/[slug]/page.tsx', css: 'app/globals.css', reveal: 'components/landing/landing-enhancements.tsx', header: 'components/shell/header-bar.tsx',
+  hubRoute: 'app/(site)/exams/[slug]/page.tsx', css: 'app/globals.css', reveal: 'components/landing/landing-enhancements.tsx', header: 'components/nav/visitor-header.tsx', navCss: 'app/nav.css',
 };
 
 function loadTs(src, stubs = {}) {
@@ -83,10 +83,11 @@ function check(over = {}) {
   // I-8
   const h = f.header;
   if (!/const here = \(href: string\): "page" \| undefined => \(pathname === \(href\.split\(\/\[\?#\]\/\)\[0\] \|\| "\/"\) \? "page" : undefined\);/.test(h)) fail('I-8 header: no here() helper');
-  const actions = h.match(/<(?:PillLink|ButtonLink) href=(?:"\/auth\/login"|"\/auth\/signup"|"\/dashboard"|\{LANDING_HERO\.secondaryCta\.href\})[^>]*>/g) || [];
+  // NAV-1 Stage A (re-pointed, rule kept): THE visitor header — Sign in, the start action, Go to dashboard; bar, compact bar, menu
+  const actions = h.match(/<Link className="cl-vh__(?:signin|pill[^"]*)" href=\{(?:VISITOR_ROUTES\.(?:signIn|dashboard)|s\.href)\}[^>]*>/g) || [];
   const missing = actions.filter((t) => !/aria-current=\{here\(/.test(t));
-  if (actions.length < 10 || missing.length) fail(`I-8 header actions without aria-current: ${missing.length} of ${actions.length}`);
-  if ((h.match(/aria-\[current=page\]:/g) || []).length < 8) fail('I-8 header: no active style for the current-page action');
+  if (actions.length < 8 || missing.length) fail(`I-8 header actions without aria-current: ${missing.length} of ${actions.length}`);
+  if ((f.navCss.match(/\.cl-vh__(?:signin|pill|pill--ghost)\[aria-current="page"\] \{/g) || []).length < 3) fail('I-8 header: no active style for the current-page action');
   return fails;
 }
 
@@ -99,7 +100,7 @@ if (process.argv.includes('--self-test')) {
     ['category page shows admin text', { catPage: r('catPage').replace('{intro && (', '{category.shortDesc && (') }, /I-3 the category page/],
     ['login always links to sign-up', { loginForm: r('loginForm').replace('<Link href="/exams" className', '<Link href="/auth/signup" className') }, /I-4 login links/],
     ['reveal CSS hides', { css: r('css').replace('    from {\n      transform: translateY(12px);', '    from {\n      opacity: 0;\n      transform: translateY(12px);') }, /I-5 the reveal CSS/],
-    ['a header action without aria-current', { header: r('header').replace(' aria-current={here("/auth/login")}', '') }, /I-8 header actions without aria-current/],
+    ['a header action without aria-current', { header: r('header').replace(' aria-current={here(VISITOR_ROUTES.signIn)}', '') }, /I-8 header actions without aria-current/],
   ];
   let bad = 0;
   for (const [n, over, want] of controls) {

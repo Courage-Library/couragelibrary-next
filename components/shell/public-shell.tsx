@@ -7,7 +7,10 @@ import { isCoinsEnabled } from "@/lib/coins/flag";
 import { getSignupAvailability } from "@/lib/auth/signup-availability";
 import { loadBrandAssets } from "@/lib/brand/brand-assets";
 import { loadPublicCategoriesCached } from "@/lib/exams/category-data";
-import { HeaderBar } from "./header-bar";
+import { loadLandingLiveData } from "@/lib/landing/landing-page-data";
+import { VisitorHeader } from "@/components/nav/visitor-header";
+import { NAV_EN } from "@/content/nav/labels";
+import { navCategories, startAction } from "@/lib/nav/visitor-nav";
 import type { ShellFlags } from "./nav-config";
 import { PublicStudentNav } from "./public-student-nav";
 import { SiteFooter } from "./site-footer";
@@ -28,7 +31,8 @@ function signupOpen(): Promise<boolean> {
 
 export async function PublicShell({ children }: { children: ReactNode }) {
   const flags: ShellFlags = { COURSES: isFeatureEnabled("COURSES"), BATTLES: isFeatureEnabled("BATTLES"), PRACTICE: isPracticeEnabled() };
-  const [brand, signup, categories] = await Promise.all([loadBrandAssets(), signupOpen(), loadPublicCategoriesCached()]);
+  // NAV-1: the live categories for the Exams menu come from the same cached public read as the landing (never rejects)
+  const [brand, signup, categories, live] = await Promise.all([loadBrandAssets(), signupOpen(), loadPublicCategoriesCached(), loadLandingLiveData().catch(() => null)]);
   return (
     <>
       <a
@@ -37,7 +41,8 @@ export async function PublicShell({ children }: { children: ReactNode }) {
       >
         Skip to content
       </a>
-      <HeaderBar account={null} flags={flags} signup={signup} logo={brand.headerLogo} publicStatic />
+      {/* NAV-1 Stage A: THE visitor header (both link sets; the pre-paint data-auth hint shows one) */}
+      <VisitorHeader t={NAV_EN} homeHref="/" langSwitch={false} categories={navCategories(NAV_EN, live)} start={startAction(NAV_EN, signup)} auth="hint" />
       <main id="main-content" tabIndex={-1} className="min-h-dvh flex-1 outline-none">
         {children}
       </main>

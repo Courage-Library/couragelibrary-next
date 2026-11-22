@@ -333,9 +333,10 @@ async function offline() {
     const pill = read('components/ui/pill-button.tsx');
     assert(/inline-flex min-h-12 /.test(pill), 'PillLink / PillButton not min-h-12');
     const header = read('components/shell/header-bar.tsx');
-    // UX-FIX-1: Sign in is always in the bar (48 px); the start action (sign-up open: Start free / closed: Explore SSC CGL)
-    // is a 48 px pill from sm up; the menu button is 48 px
-    assert(/className="min-h-12 rounded-control px-3(?![^"]*\bhidden\b)[^"]*"/.test(header) && /<PillLink href="\/auth\/signup" variant="outline"/.test(header) && /className="size-12 rounded-control lg:hidden"/.test(header), 'nav actions / menu button < 48 px');
+    // NAV-1 Stage A (re-pointed, rule kept): THE visitor header — Sign in 48 px; the 40 / 36 px start pills keep a 48 px hit
+    // area (::after); the menu button 48 px. The signed-in header keeps its 48 px menu button.
+    const navCss = read('app/nav.css');
+    assert(/\.cl-vh__signin \{[^}]*min-height: 48px;/.test(navCss) && /\.cl-vh__pill::after \{\s+content: "";\s+position: absolute;\s+inset: -4px 0;/.test(navCss) && /\.cl-vh__pill \{[^}]*height: 40px;/.test(navCss) && /\.cl-vh__pill--sm::after \{\s+inset: -6px 0;/.test(navCss) && /\.cl-vh__pill--sm \{\s+height: 36px;/.test(navCss) && /\.cl-vh__burger \{[^}]*width: 48px;\s+height: 48px;/.test(navCss) && /className="size-12 rounded-control lg:hidden"/.test(header), 'nav actions / menu button < 48 px');
     assert(/inline-flex min-h-12 items-center/.test(read('components/brand/wordmark.tsx')), 'wordmark link < 48 px');
     const legacy = read('components/ui/legacy/button.tsx');
     assert(/lg: "h-12 /.test(legacy), 'legacy lg button no longer 48 px');

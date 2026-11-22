@@ -4,19 +4,22 @@ import { LANDING_CATEGORIES, LANDING_CHIPS, LANDING_FACTS, LANDING_LIBRARY_FACTS
 import { LandingIcon, SearchIcon, Tick, type LandingIconKey } from "./icons";
 import { LoopDiagram } from "./loop-diagram";
 import { liveCategorySubtitle, type StartAction } from "@/lib/landing/landing-copy";
+import { VisitorHeader } from "@/components/nav/visitor-header";
+import { navLabels } from "@/content/nav/labels";
+import { navCategories } from "@/lib/nav/visitor-nav";
 
 /**
- * LANDING-1 — the public landing page ("/" English, "/hi" Hindi). One server component, no client JavaScript:
- *   - the phone menu and the FAQ are native <details> (work without JavaScript)
- *   - the language switch is two plain links (EN → /, हिंदी → /hi) with aria-current
+ * LANDING-1 — the public landing page ("/" English, "/hi" Hindi). One server component:
+ *   - NAV-1: the header is THE shared visitor header (components/nav/visitor-header.tsx) with the language switch
+ *     (EN → /, हिंदी → /hi, plain links with aria-current) and the owner exemptions R4 / X-05 recorded there
+ *   - the FAQ is native <details> (works without JavaScript)
  *   - signed-in visitors see "Go to dashboard" through the existing pre-paint <html data-auth> hint
  *     (lib/ui/auth-hint.ts + the .auth-in / .auth-out rule in app/globals.css) — no session read on the server
  *   - the copy is RESOLVED before it gets here (lib/landing/landing-copy.ts): FAQ 1 names the live exams, the Hindi
  *     lines follow published Hindi content, and `start` is "Start free" → sign-up or, while sign-up is closed,
  *     "Explore exams" → /exams (UXFIX1 X-01)
- *   - BRAND-3 R4 exemption (owner round 3): the landing header carries the spec's SOLID "Start free"; other headers keep R4
- *   - UXFIX1 X-05 exemption (owner round 3): on phones the bar is logo + language switch + menu; "Sign in" is the FIRST
- *     menu item and the start action the second
+ *   - the owner exemptions BRAND-3 R4 (solid "Start free" in the header) and UXFIX1 X-05 (phone "Sign in" in the
+ *     menu) are recorded on the shared visitor header (NAV-1)
  *   - category cards and chips are data-driven (owner L3): a category with ≥ 1 live exam is a link, otherwise a muted
  *     "Coming soon" card that is not a link; a chip shows only for a live exam
  * Copy: content/landing-page/{en,hi}.ts · facts: content/landing-page/facts.ts · styles: app/(landing)/landing.css.
@@ -60,76 +63,21 @@ function Logo({ reversed = false, height }: { reversed?: boolean; height: number
   );
 }
 
-function LangSwitch({ t }: { t: LandingCopy }) {
+/**
+ * NAV-1 Stage A: the landing uses THE shared visitor header (components/nav/visitor-header.tsx) — the language switch
+ * on, the logo → this language's landing, the Exams menu from the same cached live data as the category cards.
+ */
+function Header({ t, start, live, detail }: { t: LandingCopy; start: StartAction; live: CategoryState; detail: CategoryLive }) {
+  const nt = navLabels(t.lang);
   return (
-    <nav className="lp-lang" aria-label={t.langSwitch.label}>
-      <a href={R.home.en} hrefLang="en" lang="en" aria-current={t.lang === "en" ? "page" : undefined}>
-        {t.langSwitch.en}
-      </a>
-      <a href={R.home.hi} hrefLang="hi" lang="hi" aria-current={t.lang === "hi" ? "page" : undefined}>
-        {t.langSwitch.hi}
-      </a>
-    </nav>
-  );
-}
-
-function Header({ t, start }: { t: LandingCopy; start: StartAction }) {
-  const nav = (
-    <>
-      <Link href={R.exams}>{t.nav.exams}</Link>
-      <Link href={R.currentAffairs}>{t.nav.currentAffairs}</Link>
-      <Link href={R.mockTests}>{t.nav.mockTests}</Link>
-    </>
-  );
-  return (
-    <header className="lp-hd" data-landing-section="header">
-      <div className="lp-in lp-hd__in">
-        <Link className="lp-lock" href={R.home[t.lang]} aria-label="Courage Library">
-          <Logo height={30} />
-        </Link>
-        <nav className="lp-nav" aria-label={t.nav.label}>
-          {nav}
-        </nav>
-        <span className="lp-sp" />
-        <LangSwitch t={t} />
-        <span className="auth-out lp-hd__auth">
-          <Link className="lp-signin" href={R.signIn}>
-            {t.signIn}
-          </Link>
-          <Link className="lp-pill lp-pill--pri lp-pill--sm" href={start.href} data-landing-start="header">
-            {start.label}
-          </Link>
-        </span>
-        <span className="auth-in lp-hd__auth">
-          <Link className="lp-pill lp-pill--pri lp-pill--sm" href={R.dashboard}>
-            {t.dashboard}
-          </Link>
-        </span>
-        <details className="lp-menu">
-          <summary className="lp-burger" aria-label={t.menu.open}>
-            <i aria-hidden="true" />
-          </summary>
-          <div className="lp-menu__panel">
-            <div className="auth-out lp-menu__ctas">
-              <Link className="lp-pill lp-pill--ghost" href={R.signIn} data-menu-item="1">
-                {t.signIn}
-              </Link>
-              <Link className="lp-pill lp-pill--pri" href={start.href} data-menu-item="2" data-landing-start="menu">
-                {start.label}
-              </Link>
-            </div>
-            <div className="auth-in lp-menu__ctas">
-              <Link className="lp-pill lp-pill--pri" href={R.dashboard}>
-                {t.dashboard}
-              </Link>
-            </div>
-            <nav aria-label={t.nav.label} className="lp-menu__nav">
-              {nav}
-            </nav>
-          </div>
-        </details>
-      </div>
-    </header>
+    <VisitorHeader
+      t={nt}
+      homeHref={t.lang === "hi" ? "/hi" : "/"}
+      langSwitch
+      categories={navCategories(nt, { categories: live, liveShortNames: detail.shortNames, moreComing: detail.moreComing })}
+      start={{ href: start.href, label: start.label }}
+      auth="hint"
+    />
   );
 }
 
@@ -476,7 +424,7 @@ export function LandingPageV1({ t, start, live, detail, liveExams }: { t: Landin
       <a href="#main-content" className="lp-skip">
         {t.skip}
       </a>
-      <Header t={t} start={start} />
+      <Header t={t} start={start} live={live} detail={detail} />
       <main id="main-content">
         <Hero t={t} start={start} />
         <Band t={t} liveExams={liveExams} />

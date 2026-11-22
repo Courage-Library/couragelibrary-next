@@ -79,6 +79,9 @@ const EN_SRC = read('content/landing-page/en.ts');
 const HI_SRC = read('content/landing-page/hi.ts');
 const PAGE_SRC = read('components/landing-v1/landing-page.tsx');
 const CSS = read('app/(landing)/landing.css');
+// NAV-1 Stage A: the landing renders THE shared visitor header — its header rules are checked on that component
+const VH_SRC = read('components/nav/visitor-header.tsx');
+const NAV_CSS = read('app/nav.css');
 const GLOBALS = read('app/globals.css');
 const EN_ROUTE = read('app/(landing)/page.tsx');
 const HI_ROUTE = read('app/(landing)/hi/page.tsx');
@@ -201,12 +204,14 @@ function checkStructure(pageSrc, facts) {
   return `${hrefs.length} link targets resolve`;
 }
 
-function checkHeaderFooter(pageSrc) {
-  assert(/className="lp-hd"/.test(pageSrc) && /\.lp-hd \{\s+position: sticky;/.test(CSS) && /backdrop-filter: saturate\(1\.4\) blur\(10px\);/.test(CSS) && /background: var\(--cl-header-bg\);/.test(CSS), 'sticky, blurred white header (replaces H-10)');
-  assert(/const LOGO = "\/brand\/courage-library-logo-suite\/svg\/logo-horizontal\.svg";/.test(pageSrc) && /const LOGO_REVERSED = "\/brand\/courage-library-logo-suite\/svg\/logo-horizontal-reversed\.svg";/.test(pageSrc), 'the final logo-suite files');
-  assert(/<a href=\{R\.home\.en\} hrefLang="en" lang="en" aria-current=\{t\.lang === "en" \? "page" : undefined\}>/.test(pageSrc) && /<a href=\{R\.home\.hi\} hrefLang="hi" lang="hi" aria-current=\{t\.lang === "hi" \? "page" : undefined\}>/.test(pageSrc), 'language switch = two plain links with aria-current (L1)');
-  assert(/<span className="auth-out lp-hd__auth">/.test(pageSrc) && /<span className="auth-in lp-hd__auth">/.test(pageSrc), 'L5: the data-auth link sets');
-  assert(/<details className="lp-menu">/.test(pageSrc), 'phone menu = native <details> (works without JS)');
+function checkHeaderFooter(pageSrc, vh = VH_SRC) {
+  // NAV-1 Stage A (re-pointed, rules kept): the landing header IS the shared visitor header, with the switch and the hint
+  assert(/<VisitorHeader\s[\s\S]*?langSwitch\s[\s\S]*?auth="hint"\s*\/>/.test(pageSrc) && /<header className="cl-vh"/.test(vh) && /\.cl-vh \{\s+position: sticky;/.test(NAV_CSS) && /backdrop-filter: saturate\(1\.4\) blur\(10px\);/.test(NAV_CSS) && /background: var\(--cl-header-bg\);/.test(NAV_CSS), 'sticky, blurred white header (replaces H-10) — the shared visitor header');
+  assert(/const LOGO = "\/brand\/courage-library-logo-suite\/svg\/logo-horizontal\.svg";/.test(vh) && /const LOGO_REVERSED = "\/brand\/courage-library-logo-suite\/svg\/logo-horizontal-reversed\.svg";/.test(pageSrc), 'the final logo-suite files');
+  assert(/<Link href="\/" hrefLang="en" lang="en" aria-current=\{t\.lang === "en" \? "page" : undefined\}>/.test(vh) && /<Link href="\/hi" hrefLang="hi" lang="hi" aria-current=\{t\.lang === "hi" \? "page" : undefined\}>/.test(vh), 'language switch = two plain links with aria-current (L1)');
+  assert(vh.includes('className={`${out}cl-vh__auth`}') && vh.includes('className="auth-in cl-vh__auth"') && vh.includes('const out = auth === "hint" ? "auth-out " : "";'), 'L5: the data-auth link sets');
+  assert(/<details className="cl-vh__drawer" data-nav-drawer="">/.test(vh), 'phone menu = native <details> (works without JS)');
+  assert(!/"use client"/.test(vh), 'the visitor header is a server component (its one client helper is a separate file)');
   assert(/\.lp-ft \{\s+background: var\(--color-cl-charcoal\);/.test(CSS) && (pageSrc.match(/\[t\.footer\.(platform|company|legal),/g) || []).length === 3, 'charcoal footer with 3 link columns (replaces H-11)');
   assert(!/"use client"/.test(pageSrc), 'the landing page is a server component (no client JS)');
 }
@@ -240,7 +245,7 @@ const LANDING_COPY_SRC = read('lib/landing/landing-copy.ts');
 const EXAM_NAMES = /SSC|CGL|CHSL|MTS|IBPS|RRB|NTPC|CTET|UP Police|Banking|Railway|बैंकिंग|रेलवे/;
 const HINDI_CLAIM = /Hindi (&|and) English|in Hindi and English|Learn in the language you think in|Can I study in Hindi|हिंदी और English में|जिस भाषा में सोचते हैं|क्या हिंदी में पढ़ाई हो सकती है/;
 
-function checkDataDriven(c, R, pageSrc, data, routes) {
+function checkDataDriven(c, R, pageSrc, data, routes, vh = VH_SRC) {
   for (const t of [c.en, c.hi]) {
     // (a) no hard-coded exam names in FAQ 1 / search
     assert(t.faq.items[0].a === '{LIVE_EXAMS_ANSWER}', `${t.lang}: FAQ 1 answer must be the placeholder (built from live exams)`);
@@ -270,11 +275,12 @@ function checkDataDriven(c, R, pageSrc, data, routes) {
   const closed = R.resolveLandingCopy(c.en, { liveExamNames: [], hindiLive: false, signupOpen: false }).start;
   const open = R.resolveLandingCopy(c.hi, { liveExamNames: [], hindiLive: false, signupOpen: true }).start;
   assert(closed.label === 'Explore exams' && closed.href === '/exams' && open.label === 'मुफ़्त शुरू करें' && open.href === '/auth/signup', 'start action');
-  assert(!/href=\{R\.signUp\}/.test(pageSrc) && (pageSrc.match(/href=\{start\.href\}/g) || []).length === 5, 'every start action (header, menu, hero, plans, final) uses the resolved start');
-  // (d) exemptions recorded
-  assert(/BRAND-3 R4 exemption \(owner round 3\)/.test(pageSrc) && /<Link className="lp-pill lp-pill--pri lp-pill--sm" href=\{start\.href\} data-landing-start="header">/.test(pageSrc), 'R4 exemption: the solid start action in the LANDING header');
-  const menu = pageSrc.slice(pageSrc.indexOf('<div className="lp-menu__panel">'));
-  assert(/UXFIX1 X-05 exemption \(owner round 3\)/.test(pageSrc) && menu.indexOf('data-menu-item="1"') < menu.indexOf('data-menu-item="2"') && menu.indexOf('data-menu-item="2"') < menu.indexOf('className="lp-menu__nav"') && /href=\{R\.signIn\} data-menu-item="1"/.test(menu), 'X-05 exemption: Sign in first, the start action second, then the nav');
+  // NAV-1: hero, plans, final in the page + the resolved start handed to the shared header (bar, compact bar, menu)
+  assert(!/href=\{R\.signUp\}/.test(pageSrc) && (pageSrc.match(/href=\{start\.href\}/g) || []).length === 3 && pageSrc.includes('start={{ href: start.href, label: start.label }}') && (vh.match(/href=\{s\.href\}/g) || []).length === 3 && !/\/auth\/signup/.test(vh), 'every start action (header, menu, hero, plans, final) uses the resolved start');
+  // (d) exemptions recorded — NAV-1: on the shared visitor header (LANDING-1 round 3, extended by NAV-1)
+  assert(vh.includes(`BRAND-3 R4: the header's "Start free" is the SOLID cl-blue pill`) && vh.includes('<Link className="cl-vh__pill" href={s.href} data-start="header">') && /\.cl-vh__pill \{[^}]*background: var\(--color-cl-blue\);/.test(NAV_CSS), 'R4 exemption: the solid start action in the visitor header');
+  const menu = vh.slice(vh.indexOf('data-drawer-panel=""'));
+  assert(vh.includes('UXFIX1 X-05: on phones the bar is logo + start action + menu; "Sign in" is in the menu') && menu.indexOf('data-menu-item="signin"') > 0 && menu.indexOf('data-menu-item="signin"') < menu.indexOf('data-menu-item="start"') && menu.includes('href={VISITOR_ROUTES.signIn} data-menu-item="signin"'), 'X-05 exemption: "Sign in" in the phone menu, before the start action');
   // (e) the L-4 condition: public reads only, never the service role, no cookie / header
   const hindi = read('lib/landing/hindi-content.ts');
   const signup = read('lib/auth/signup-availability.ts');
@@ -341,7 +347,9 @@ function checkLanding11(c, R, pageSrc, data, sitemap) {
       ['always-link cards', () => checkStructure(mut(PAGE_SRC, 'const isLive = live[c.slug] === true;', 'const isLive = true;'), c.facts)],
       ['all chips', () => checkStructure(mut(PAGE_SRC, 'const chips = LANDING_CHIPS.filter((c) => liveExams.includes(c.slug));', 'const chips = LANDING_CHIPS;'), c.facts)],
       ['a missing route', () => checkStructure(PAGE_SRC, { ...c.facts, LANDING_ROUTES: { ...c.facts.LANDING_ROUTES, help: '/learn' } })],
-      ['no aria-current', () => checkHeaderFooter(mut(PAGE_SRC, 'aria-current={t.lang === "hi" ? "page" : undefined}', ''))],
+      ['no aria-current', () => checkHeaderFooter(PAGE_SRC, mut(VH_SRC, 'aria-current={t.lang === "hi" ? "page" : undefined}', ''))],
+      ['the landing without the shared header', () => checkHeaderFooter(mut(PAGE_SRC, '<VisitorHeader', '<header'))],
+      ['the visitor header as a client component', () => checkHeaderFooter(PAGE_SRC, '"use client";\n' + VH_SRC)],
       ['client component', () => checkHeaderFooter('"use client";\n' + PAGE_SRC)],
       ['cookie read', () => checkCache(mut(EN_ROUTE, 'export default async function HomePage() {', 'import { cookies } from "next/headers";\nexport default async function HomePage() {\n  await cookies();'), HI_ROUTE, LAYOUT, DATA, REVAL)],
       ['/hi not ISR', () => checkCache(EN_ROUTE, mut(HI_ROUTE, 'export const revalidate = 300;', 'export const dynamic = "force-dynamic";'), LAYOUT, DATA, REVAL)],
@@ -353,7 +361,8 @@ function checkLanding11(c, R, pageSrc, data, sitemap) {
       ['Hindi FAQ always shown', () => checkDataDriven(c, loadTs('lib/landing/landing-copy.ts', mut(LANDING_COPY_SRC, 'if (i === 2 && !f.hindiLive) return { ...base.hindiPending.faq };', '')), PAGE_SRC, DATA, [EN_ROUTE, HI_ROUTE])],
       ['Hindi read via service role', () => checkDataDriven(c, R, PAGE_SRC, DATA.replace('createPublicServerSupabaseClient()', 'createAdminServerSupabaseClient()'), [EN_ROUTE, HI_ROUTE])],
       ['sign-up closed still links sign-up', () => checkDataDriven(c, loadTs('lib/landing/landing-copy.ts', mut(LANDING_COPY_SRC, ': { label: base.hero.explore, href: examsHref }', ': { label: base.startFree, href: signUpHref }')), PAGE_SRC, DATA, [EN_ROUTE, HI_ROUTE])],
-      ['Sign in not first in the menu', () => checkDataDriven(c, R, PAGE_SRC.replace('href={R.signIn} data-menu-item="1"', 'href={R.signIn} data-menu-item="3"'), DATA, [EN_ROUTE, HI_ROUTE])],
+      ['Sign in not before the start action in the menu', () => checkDataDriven(c, R, PAGE_SRC, DATA, [EN_ROUTE, HI_ROUTE], mut(VH_SRC, 'data-menu-item="signin"', 'data-menu-item="signin-x"'))],
+      ['the header start action hard-codes sign-up', () => checkDataDriven(c, R, PAGE_SRC, DATA, [EN_ROUTE, HI_ROUTE], mut(VH_SRC, 'href={s.href} data-start="header"', 'href="/auth/signup" data-start="header"'))],
       ['footer made line always the Hindi claim', () => checkLanding11(c, loadTs('lib/landing/landing-copy.ts', mut(LANDING_COPY_SRC, 'made: f.hindiLive ? base.footer.made : base.footer.madePending', 'made: base.footer.made')), PAGE_SRC, DATA, SITEMAP)],
       ['footer renders the raw line', () => checkLanding11(c, R, mut(PAGE_SRC, '<span>{t.footer.made}</span>', '<span>{t.footer.madePending}</span>'), DATA, SITEMAP)],
       ['live card with the static list', () => checkLanding11(c, R, mut(PAGE_SRC, '{isLive ? liveCategorySubtitle(t, detail.shortNames[c.slug] ?? [], detail.moreComing[c.slug] === true) : c.examples[t.lang]}', '{c.examples[t.lang]}'), DATA, SITEMAP)],

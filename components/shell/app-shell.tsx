@@ -1,4 +1,10 @@
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
+import { headers } from "next/headers";
+import { PATHNAME_HEADER } from "@/lib/http/pathname-header";
+import { VisitorHeader } from "@/components/nav/visitor-header";
+import { navLabels } from "@/content/nav/labels";
+import { activeVisitorKey, navCategories, navLangFor, startAction } from "@/lib/nav/visitor-nav";
+import { loadLandingLiveData } from "@/lib/landing/landing-page-data";
 import { isFeatureEnabled } from "@/config/features";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { classifyAuthResult } from "@/lib/auth/session-state";
@@ -28,16 +34,38 @@ function signupOpen(): Promise<boolean> {
   return getSignupAvailability().then((a) => a !== "closed", () => false);
 }
 
+/** NAV-1 Stage A: the visitor header on a per-request page that has no session (the signed-out link set only). */
+async function SignedOutHeader({ pathname }: { pathname: string }) {
+  return <SignedOutHeaderView pathname={pathname} live={await loadLandingLiveData().catch(() => null)} />;
+}
+function SignedOutHeaderView({ pathname, live }: { pathname: string; live: Awaited<ReturnType<typeof loadLandingLiveData>> | null }) {
+  const t = navLabels(navLangFor(pathname));
+  return (
+    <VisitorHeader
+      t={t}
+      homeHref="/"
+      langSwitch={false}
+      categories={navCategories(t, live)}
+      start={signupOpen().then((open) => startAction(t, open))}
+      auth="out"
+      active={activeVisitorKey(pathname)}
+      pathname={pathname}
+    />
+  );
+}
+
 export async function AppShell({ children }: { children: ReactNode }) {
   // AUTH-1 2a: tri-state session. "error" (Supabase unreachable) shows a retry banner instead of a signed-out shell.
   const supabase = await createServerSupabaseClient();
   // HOME-1 brand (131): the cached, bounded (≤ 800 ms, never rejects) brand read runs alongside the session read
-  const [session, brand] = await Promise.all([
+  const [session, brand, pathname] = await Promise.all([
     supabase.auth.getUser().then(
       ({ data, error }) => classifyAuthResult(data?.user ?? null, error),
       () => ({ state: "error" as const }),
     ),
     loadBrandAssets(),
+    // NAV-1: the path (forwarded by the middleware, SEC-1C) picks the header language and the active link
+    headers().then((h) => h.get(PATHNAME_HEADER) ?? "/", () => "/"),
   ]);
   const user = session.state === "user" ? session.user : null;
   const flags: ShellFlags = { COURSES: isFeatureEnabled("COURSES"), BATTLES: isFeatureEnabled("BATTLES"), PRACTICE: isPracticeEnabled() };
@@ -62,8 +90,16 @@ export async function AppShell({ children }: { children: ReactNode }) {
       >
         Skip to content
       </a>
-      {/* UX-FIX-1: start actions point to /auth/signup only while public sign-up is open */}
-      <HeaderBar account={account} flags={flags} signup={account === null ? signupOpen() : undefined} logo={brand.headerLogo} />
+      {/* UX-FIX-1: start actions point to /auth/signup only while public sign-up is open (streamed: never awaited here).
+          NAV-1 Stage A: signed out → THE visitor header; signed in → the student header (replaced in Stage B). */}
+      {account ? (
+        <HeaderBar account={account} flags={flags} logo={brand.headerLogo} />
+      ) : pathname.startsWith("/admin") ? null : (
+        // the shell never waits on a read (AUTH1-RESILIENCE-HANG): the same header with no live category until it resolves
+        <Suspense fallback={<SignedOutHeaderView pathname={pathname} live={null} />}>
+          <SignedOutHeader pathname={pathname} />
+        </Suspense>
+      )}
       {session.state === "error" && <SessionUnavailableBanner />}
       <main id="main-content" tabIndex={-1} className="min-h-dvh flex-1 outline-none">
         <CoinsFlagProvider enabled={isCoinsEnabled()}>{children}</CoinsFlagProvider>

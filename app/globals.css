@@ -494,6 +494,7 @@
   --cl-glow-final: rgba(34, 227, 242, 0.3);
   --cl-header-bg: rgba(255, 255, 255, 0.92);
   --cl-header-line: #eceef3;
+  --cl-overlay: rgba(24, 25, 27, 0.32); /* NAV-1: drawer / sheet backdrop */
   --cl-chip-bg: rgba(255, 255, 255, 0.16);
   --cl-chip-bg-hover: rgba(255, 255, 255, 0.26);
   --cl-shadow-pri: 0 8px 22px rgba(71, 91, 255, 0.3);

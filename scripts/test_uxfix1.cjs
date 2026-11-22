@@ -45,18 +45,23 @@ const code = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/
 console.log('UX-FIX-1');
 
 test('X-01 sign-up closed → no /auth/signup start action, primary "Explore SSC CGL"; open → "Start free" (header outline, in-page amber)', () => {
+  // NAV-1 Stage A (re-pointed, rule kept): every signed-out visitor gets THE visitor header (components/nav/visitor-header.tsx).
+  // Its start actions (bar, compact bar, menu) come ONLY from startAction(): open → "Start free" → /auth/signup, closed (or
+  // unknown) → "Explore exams" → /exams; while the setting is still being read the closed view is shown.
+  const vh = code(read('components/nav/visitor-header.tsx'));
+  const vn = code(read('lib/nav/visitor-nav.ts'));
+  assert(!/\/auth\/signup/.test(vh) && (vh.match(/href=\{s\.href\}/g) || []).length === 3, 'visitor header: no hard-coded /auth/signup; the three start spots use the resolved start');
+  assert(/return signupOpen \? \{ href: VISITOR_ROUTES\.signUp, label: t\.startFree \} : \{ href: VISITOR_ROUTES\.exams, label: t\.exploreExams \};/.test(vn) && /signUp: "\/auth\/signup"/.test(vn), 'closed → Explore exams → /exams; open → Start free → /auth/signup');
+  assert(/const closed: StartLink = \{ href: VISITOR_ROUTES\.exams, label: t\.exploreExams \};/.test(vh) && /<Suspense fallback=\{render\(closed\)\}>/.test(vh), 'start action must fall back to the closed view');
+  // R4 (revised, #84): the SIGNED-IN header never uses a solid primary; the visitor header's solid "Start free" is the
+  // owner's recorded exemption (LANDING-1 round 3, extended to the shared visitor header by NAV-1)
   const header = code(read('components/shell/header-bar.tsx'));
-  const signupLinks = header.match(/href="\/auth\/signup"/g) || [];
-  assert(signupLinks.length === 2, `header /auth/signup links: ${signupLinks.length} (bar + menu, both inside signupOpen)`);
-  assert((header.match(/<StartAction\s+signup=\{signup\}\s+open=\{\s*<PillLink href="\/auth\/signup" variant="outline"/g) || []).length === 2, 'header signup links must be the outline "open" branch of StartAction');
-  // R4 (revised, #84): the header never uses a solid primary; the ONE primary belongs to the page
-  assert(!/variant="(?:primary|on-dark|accent)|bg-accent-|bg-brand/.test(header), 'the header uses a solid primary CTA (BRAND-3 R4: the page owns the one primary)');
+  assert(!/variant="(?:primary|on-dark|accent)|bg-accent-|bg-brand/.test(header) && !/\/auth\/signup/.test(header), 'the signed-in header uses a solid primary CTA or a sign-up link');
+  assert(/BRAND-3 R4: the header's "Start free" is the SOLID cl-blue pill/.test(read('components/nav/visitor-header.tsx')), 'R4 exemption recorded on the visitor header');
   assert(/outline: "focus-ring border border-primary-700 text-primary-700/.test(read('components/ui/pill-button.tsx')), 'outline pill variant');
-  assert((header.match(/closed=\{\s*<(PillLink|ButtonLink) href=\{LANDING_HERO\.secondaryCta\.href\}/g) || []).length === 2, 'closed: Explore SSC CGL in the bar and the menu');
-  assert(/<Suspense fallback=\{closed\}>/.test(header) && /if \(!signup\) return closed;/.test(header) && /return use\(signup\) \? open : closed;/.test(header), 'start action must fall back to the closed view');
   // the shell must never wait on the Supabase setting (AUTH1-RESILIENCE-HANG): a never-rejecting promise, not an await
   const shell = code(read('components/shell/app-shell.tsx'));
-  assert(/signup=\{account === null \? signupOpen\(\) : undefined\}/.test(shell) && /getSignupAvailability\(\)\.then\(\(a\) => a !== "closed", \(\) => false\)/.test(shell), 'AppShell must stream the sign-up state');
+  assert(/start=\{signupOpen\(\)\.then\(\(open\) => startAction\(t, open\)\)\}/.test(shell) && /getSignupAvailability\(\)\.then\(\(a\) => a !== "closed", \(\) => false\)/.test(shell), 'AppShell must stream the sign-up state');
   assert(!/await getSignupAvailability/.test(shell), 'AppShell awaits the sign-up setting (blocks every page during an outage)');
   const cta = code(read('components/landing/landing-cta.tsx'));
   assert(/if \(mode === "signup-closed"\) \{[\s\S]*?<PillLink href=\{explore\.href\} variant="on-dark"/.test(cta), 'closed: ONE primary "Explore exams"');
@@ -74,7 +79,7 @@ test('X-01 sign-up closed → no /auth/signup start action, primary "Explore SSC
   const pub = code(read('components/shell/public-shell.tsx'));
   // PERF-HOME-1b: the cached shell reads it before rendering (background ISR) through the never-rejecting, bounded
   // signupOpen() (a failure → closed); the session AppShell keeps streaming it (checked above)
-  assert(/signup=\{signup\}/.test(pub) && /getSignupAvailability\(\)\.then\(\(a\) => a !== "closed", \(\) => false\)/.test(pub) && /await Promise\.all\(\[loadBrandAssets\(\), signupOpen\(\), loadPublicCategoriesCached\(\)\]\)/.test(pub) && !/await getSignupAvailability/.test(pub), 'PublicShell reads the sign-up state through signupOpen() (closed on failure)');
+  assert(/start=\{startAction\(NAV_EN, signup\)\}/.test(pub) && /getSignupAvailability\(\)\.then\(\(a\) => a !== "closed", \(\) => false\)/.test(pub) && /await Promise\.all\(\[loadBrandAssets\(\), signupOpen\(\), loadPublicCategoriesCached\(\), loadLandingLiveData\(\)\.catch\(\(\) => null\)\]\)/.test(pub) && !/await getSignupAvailability/.test(pub), 'PublicShell reads the sign-up state through signupOpen() (closed on failure)');
   assert(/const start = spot === "hero" \? LANDING_HERO\.primaryCta : LANDING_FINAL_CTA\.cta;\s+return \(\s+<>\s+<PillLink href=\{start\.href\} variant="on-dark"/.test(cta), 'open: ONE primary Start free');
   const L = read('content/landing.ts');
   assert(/primaryCta: \{ label: "Start free"/.test(L) && /cta: \{ label: "Start free"/.test(L) && /startFree: "Start free"/.test(L) && !/Get started/.test(L), 'one label "Start free"');
@@ -108,11 +113,19 @@ test('X-04 /descriptive makes no "expert faculty evaluation" claim', () => {
   return 'claim removed';
 });
 
-test('X-05 "Sign in" is always visible in the bar (phones too), 48 px', () => {
-  const h = read('components/shell/header-bar.tsx');
-  // UX-IMP-1: extra classes allowed (the current-page style) — still 48 px and never "hidden"
-  assert(/<ButtonLink href="\/auth\/login" variant="ghost" size="md" className="min-h-12 rounded-control px-3(?![^"]*\bhidden\b)[^"]*"/.test(h), 'Sign in hidden or < 48 px');
-  return 'visible at every width';
+test('X-05 "Sign in" is always reachable: in the bar on desktop, in the phone menu (owner exemption), 48 px', () => {
+  // NAV-1 Stage A: the owner's X-05 exemption (LANDING-1 round 3) extended to THE visitor header (NAV-1 spec §1, owner
+  // 23 Nov 2026): ≥ 900 px "Sign in" is in the bar; below, the bar is logo + start action + menu and "Sign in" is the
+  // first action in the menu. Both 48 px. Never hidden from a signed-out visitor at any width.
+  const vh = read('components/nav/visitor-header.tsx');
+  const css = read('app/nav.css');
+  assert(/UXFIX1 X-05: on phones the bar is logo \+ start action \+ menu; "Sign in" is in the menu/.test(vh), 'X-05 exemption not recorded');
+  assert(/<Link className="cl-vh__signin" href=\{VISITOR_ROUTES\.signIn\}>/.test(vh) && /\.cl-vh__signin \{[^}]*min-height: 48px;/.test(css), 'desktop bar: Sign in missing or < 48 px');
+  const menu = vh.slice(vh.indexOf('data-drawer-panel=""'));
+  assert(/href=\{VISITOR_ROUTES\.signIn\} data-menu-item="signin"/.test(menu) && menu.indexOf('data-menu-item="signin"') < menu.indexOf('data-menu-item="start"') && /\.cl-vh__ctas \.cl-vh__pill \{\s+height: 48px;/.test(css), 'phone menu: Sign in missing, after the start action, or < 48 px');
+  // the auth pages are signed-out pages: Sign in leads there from every public page
+  assert(/signIn: "\/auth\/login"/.test(read('lib/nav/visitor-nav.ts')), 'Sign in target');
+  return 'bar on desktop, first menu action on phones';
 });
 
 test('X-06 (HOME-1) hero: no step card (the loop is ONE section right below, 5 steps), one action', () => {

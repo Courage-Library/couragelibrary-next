@@ -1,0 +1,228 @@
+<title>Courage Library Navigation Design</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@600;700&display=swap">
+<style>
+:root{--bg:#F5F6FA;--fg:#18191B;--mu:#5B6070;--ln:#E3E5EC;--card:#FFFFFF}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#111214;--fg:#F1F2F5;--mu:#A9AEBB;--ln:#2E3034;--card:#1C1D20;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#111214;--fg:#F1F2F5;--mu:#A9AEBB;--ln:#2E3034;--card:#1C1D20;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 Inter,system-ui,sans-serif}
+.w{max-width:1240px;margin:0 auto;padding-block:28px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:30px}
+h1{font:600 clamp(22px,3vw,30px) Poppins,sans-serif;margin:0}
+.lead{color:var(--mu);margin:6px 0 0;max-width:80ch}
+.sum{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.sum div{background:var(--card);border:1px solid var(--ln);border-radius:12px;padding:10px 14px;font-size:13.5px}
+.sum b{display:block;font:600 12px Inter,sans-serif;letter-spacing:.05em;text-transform:uppercase;color:var(--mu);margin-bottom:2px}
+.sec{display:flex;flex-direction:column;gap:12px}
+.sec h2{font:600 19px Poppins,sans-serif;margin:0}
+.sec>p{margin:0;color:var(--mu);max-width:82ch}
+.row{display:grid;gap:18px;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));align-items:start}
+.cap{font:600 12px Inter,sans-serif;letter-spacing:.05em;text-transform:uppercase;color:var(--mu);margin:0 0 6px}
+.notes{margin:0;padding-left:20px;color:var(--mu);font-size:14px;display:flex;flex-direction:column;gap:4px;max-width:90ch}
+.notes b{color:var(--fg)}
+
+/* mock (fixed light, real palette) */
+.screen{background:#fff;border:1px solid #E6E8EF;border-radius:14px;overflow:hidden;color:#18191B;font:14px/1.4 Inter,sans-serif;box-shadow:0 10px 30px rgba(24,25,27,.06)}
+.hd{display:flex;align-items:center;gap:22px;height:66px;padding:0 24px;border-bottom:1px solid #ECEEF3;background:rgba(255,255,255,.94)}
+.lock{display:flex;align-items:center;gap:8px;font:600 16px Poppins,sans-serif;white-space:nowrap}
+.nav{display:flex;gap:22px;font-size:14px;color:#5B6070;height:100%}
+.nav span{display:flex;align-items:center;gap:4px;height:100%;border-bottom:2px solid transparent}
+.nav span.on{color:#18191B;font-weight:600;border-bottom-color:#475BFF}
+.nav svg{width:14px;height:14px}
+.sp{flex:1}
+.pill{display:inline-flex;align-items:center;height:40px;padding:0 18px;border-radius:999px;font:600 14px Inter,sans-serif;white-space:nowrap}
+.pill.pri{background:#475BFF;color:#fff}
+.lnk{font-weight:600;font-size:14px}
+.lang{display:inline-flex;border:1px solid #E1E4EC;border-radius:999px;padding:2px;font:600 12px Inter,sans-serif}
+.lang i{font-style:normal;padding:5px 10px;border-radius:999px;color:#5B6070}.lang i.on{background:#EEF0FF;color:#3A4BEB}
+.mega{margin:0 24px 18px 190px;width:560px;max-width:calc(100% - 48px);border:1px solid #E6E8EF;border-radius:16px;box-shadow:0 18px 40px rgba(24,25,27,.14);padding:16px;background:#fff}
+.mega h4{margin:0 0 10px;font:600 12px Inter,sans-serif;letter-spacing:.05em;text-transform:uppercase;color:#5B6070}
+.mg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ex{display:flex;align-items:center;gap:10px;padding:10px;border-radius:12px;border:1px solid #ECEEF3}
+.ex .d{width:30px;height:30px;border-radius:9px;flex:none}
+.ex b{display:block;font:600 13.5px Poppins,sans-serif}
+.ex small{color:#5B6070;font-size:12px}
+.ex.soon{opacity:.6}
+.ex.soon small{color:#5B6070}
+.mega .all{display:block;margin-top:12px;color:#3A4BEB;font-weight:600;font-size:13px}
+.pagebody{padding:22px 24px;background:#F8F9FC;display:flex;flex-direction:column;gap:9px}
+.l{height:10px;border-radius:5px;background:#E6E8EF}.l.s{width:55%}.l.m{width:78%}
+
+/* phone */
+.phone{width:100%;max-width:290px;margin:0 auto;border:9px solid #18191B;border-radius:34px;overflow:hidden;background:#fff;color:#18191B;font:13px/1.4 Inter,sans-serif;display:flex;flex-direction:column;height:560px;position:relative}
+.ph-hd{display:flex;align-items:center;gap:8px;height:58px;padding:0 12px;border-bottom:1px solid #ECEEF3}
+.ph-hd .lock{font-size:14px}
+.ic{width:40px;height:40px;border:1px solid #E1E4EC;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.ic svg{width:18px;height:18px}
+.av{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#5A6CFF,#2A3587);color:#fff;font:600 12px Inter,sans-serif;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.ph-body{flex:1;padding:14px 12px;background:#F8F9FC;display:flex;flex-direction:column;gap:9px}
+.sheet-wrap{position:absolute;inset:58px 0 0 0;background:rgba(24,25,27,.32);display:flex;flex-direction:column;justify-content:flex-end}
+.drawer-wrap{position:absolute;inset:0;background:rgba(24,25,27,.32);display:flex;justify-content:flex-end}
+.drawer{width:84%;height:100%;background:#fff;padding:14px;display:flex;flex-direction:column;gap:4px;font-size:14px}
+.drawer .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.drawer .it{padding:12px 10px;border-radius:10px;display:flex;justify-content:space-between;align-items:center}
+.drawer .it.on{background:#EEF0FF;color:#3A4BEB;font-weight:600}
+.drawer .sub{padding:2px 0 6px 12px;display:flex;flex-direction:column;gap:2px;font-size:13px;color:#5B6070}
+.drawer .sub span{padding:7px 10px;display:flex;gap:8px;align-items:center}
+.drawer .sub i{width:10px;height:10px;border-radius:3px}
+.drawer hr{border:0;border-top:1px solid #ECEEF3;margin:6px 0}
+.drawer .cta{margin-top:auto;display:flex;flex-direction:column;gap:8px}
+.drawer .cta span{height:44px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-weight:600}
+.sheet{background:#fff;border-radius:20px 20px 0 0;padding:10px 14px 16px;display:flex;flex-direction:column;gap:2px;font-size:14px}
+.sheet .grab{width:40px;height:4px;border-radius:2px;background:#E1E4EC;margin:0 auto 10px}
+.sheet .who{display:flex;gap:10px;align-items:center;padding:4px 4px 12px;border-bottom:1px solid #ECEEF3;margin-bottom:6px}
+.sheet .who b{display:block;font-size:14px}.sheet .who small{color:#5B6070}
+.sheet .it{padding:11px 6px;display:flex;justify-content:space-between;align-items:center;border-radius:10px}
+.sheet .it svg{width:18px;height:18px;color:#5B6070}
+.sheet .it span{display:flex;gap:12px;align-items:center}
+.tabs{display:flex;justify-content:space-around;align-items:flex-end;border-top:1px solid #ECEEF3;padding:8px 6px 12px;background:#fff;height:68px}
+.tabs span{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10.5px;color:#5B6070;flex:1}
+.tabs span svg{width:21px;height:21px}
+.tabs span.on{color:#3A4BEB;font-weight:600}
+.tabs .fabw{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10.5px;color:#18191B;font-weight:600}
+.tabs .fab{width:56px;height:56px;border-radius:50%;background:#475BFF;color:#fff;display:flex;align-items:center;justify-content:center;margin-top:-30px;box-shadow:0 10px 22px rgba(71,91,255,.42);border:4px solid #fff}
+.tabs .fab svg{width:22px;height:22px}
+
+/* student desktop */
+.app{display:grid;grid-template-columns:240px 1fr;min-height:420px}
+.app.col{grid-template-columns:72px 1fr}
+.sb{border-right:1px solid #ECEEF3;padding:16px 12px;display:flex;flex-direction:column;gap:4px;background:#fff}
+.sb .lock{padding:2px 8px 16px}
+.sb .it{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;color:#5B6070;font-size:14px;position:relative}
+.sb .it svg{width:19px;height:19px;flex:none}
+.sb .it.on{background:#EEF0FF;color:#3A4BEB;font-weight:600}
+.sb .it.on::before{content:"";position:absolute;left:-12px;top:8px;bottom:8px;width:3px;border-radius:0 3px 3px 0;background:#475BFF}
+.sb .pro{margin-left:auto;font:700 10px Inter,sans-serif;padding:2px 7px;border-radius:999px;background:#FFEDE7;color:#C2401F}
+.sb .soon{margin-left:auto;font-size:10.5px;color:#A9AEBB}
+.sb .foot{margin-top:auto;border-top:1px solid #ECEEF3;padding-top:8px}
+.app.col .sb{padding:16px 10px;align-items:center}
+.app.col .sb .it{justify-content:center;padding:10px;width:48px}
+.app.col .sb .it.on::before{left:-10px}
+.main{display:flex;flex-direction:column;min-width:0}
+.tb{height:60px;border-bottom:1px solid #ECEEF3;display:flex;align-items:center;gap:12px;padding:0 20px}
+.tb h3{margin:0;font:600 17px Poppins,sans-serif}
+.tb .ic{width:38px;height:38px}
+.ddm{position:relative}
+.amenu{position:absolute;right:20px;top:54px;width:230px;background:#fff;border:1px solid #E6E8EF;border-radius:14px;box-shadow:0 18px 40px rgba(24,25,27,.14);padding:8px;font-size:13.5px;z-index:2}
+.amenu .it{padding:9px 10px;border-radius:9px;display:flex;justify-content:space-between;align-items:center}
+.amenu hr{border:0;border-top:1px solid #ECEEF3;margin:4px 0}
+.cards{padding:20px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px;background:#F8F9FC;flex:1}
+.cards div{background:#fff;border:1px solid #ECEEF3;border-radius:14px;height:110px}
+.cards div:first-child{grid-column:span 2}
+.console{background:#18191B;color:#fff;display:flex;align-items:center;gap:14px;padding:0 20px;height:56px;font-size:14px}
+.console .t{background:#25262A;border:1px solid #33353A;border-radius:9px;padding:6px 12px;font:600 14px Inter,sans-serif;font-variant-numeric:tabular-nums}
+.console .s{background:#475BFF;border-radius:999px;padding:8px 18px;font-weight:600;font-size:13px}
+.qbody{padding:24px;background:#fff;display:grid;grid-template-columns:1fr 220px;gap:20px}
+.qbody .q{display:flex;flex-direction:column;gap:10px}
+.qbody .opt{height:42px;border:1px solid #E6E8EF;border-radius:10px}
+.pal{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;align-content:start}
+.pal i{height:30px;border-radius:7px;background:#F5F6FA;border:1px solid #E6E8EF}
+.pal i.a{background:#E7F6EF;border-color:#12805C}.pal i.c{background:#475BFF;border-color:#475BFF}
+.wide{overflow-x:auto}
+.wide .screen{min-width:880px}
+</style>
+
+<div class="w">
+<header>
+<h1>Navigation design · v1 (your choices)</h1>
+<p class="lead">Final layouts for the decisions you made, drawn in the locked palette. Check every screen; once you approve, I write the build spec and the Claude Code prompt.</p>
+</header>
+
+<div class="sum">
+<div><b>Structure</b>S2 · visitor header, student navigation, exam focus</div>
+<div><b>Visitor desktop</b>V2 · Exams dropdown</div>
+<div><b>Visitor phone</b>M1 · logo + Start free + menu</div>
+<div><b>Student desktop</b>D2 · collapsible left sidebar</div>
+<div><b>Student phone</b>N2 · bottom bar + Today's mock button</div>
+<div><b>Language</b>Profile menu for students; landing only for visitors</div>
+</div>
+
+<section class="sec">
+<h2>1 · Visitor header, desktop (public pages)</h2>
+<p>Landing, exams, categories, current affairs, legal pages. Exams opens a menu with every category, coloured by the palette. Live categories are links; the others are marked “Coming soon”.</p>
+<div class="wide"><div class="screen"><div class="hd"><span class="lock" id="lg1"></span><nav class="nav"><span class="on">Exams <i id="ch"></i></span><span>Current Affairs</span><span>Mock Tests</span></nav><span class="sp"></span><span class="lang"><i class="on">EN</i><i>हिंदी</i></span><span class="lnk">Sign in</span><span class="pill pri">Start free</span></div>
+<div class="mega"><h4>Choose your exam</h4><div class="mg" id="mega"></div><span class="all">All exams →</span></div></div></div>
+<ul class="notes">
+<li><b>Language switch</b> shows only on the landing page (/ and /hi). Other public pages have no switch until they have a Hindi version.</li>
+<li><b>Signed-in visitor</b> on a public page: “Sign in” + “Start free” become one “Go to dashboard” button (already works this way).</li>
+<li><b>Learn</b> joins the links once the Learn page exists.</li>
+</ul>
+</section>
+
+<section class="sec">
+<h2>2 · Visitor header, phone</h2>
+<div class="row">
+<div><p class="cap">Closed</p><div class="phone"><div class="ph-hd"><span class="lock" id="lg2"></span><span class="sp"></span><span class="pill pri" style="height:36px;padding:0 12px;font-size:12.5px">Start free</span><span class="ic" id="mn"></span></div><div class="ph-body" id="pb1"></div></div></div>
+<div><p class="cap">Menu open</p><div class="phone"><div class="ph-hd"><span class="lock" id="lg3"></span></div><div class="ph-body" id="pb2"></div><div class="drawer-wrap"><div class="drawer"><div class="top"><b>Menu</b><span class="ic" style="font-size:18px">✕</span></div><div class="it on">Exams <span>⌃</span></div><div class="sub" id="sub"></div><div class="it">Current Affairs</div><div class="it">Mock Tests</div><hr><div class="it">EN | हिंदी <span style="color:#A9AEBB;font-size:12px">landing only</span></div><div class="cta"><span style="border:1px solid #E1E4EC">Sign in</span><span style="background:#475BFF;color:#fff">Start free</span></div></div></div></div></div>
+</div>
+</section>
+
+<section class="sec">
+<h2>3 · Student, desktop (signed in): left sidebar</h2>
+<p>Home, Practice, Mocks, Current Affairs, Results, Mistake Vault; Learn appears when ready. The sidebar shrinks to icons with one click and remembers the choice. The avatar menu holds Profile, Language, Help and Sign out.</p>
+<div class="wide"><div class="screen"><div class="app"><aside class="sb" id="sb1"></aside><div class="main ddm"><div class="tb"><h3>Home</h3><span class="sp"></span><span class="av">JM</span></div><div class="amenu"><div class="it"><b>Jan Mohammad</b></div><hr><div class="it">Profile</div><div class="it">Language <span class="lang"><i class="on">EN</i><i>हिंदी</i></span></div><div class="it">Help</div><hr><div class="it" style="color:#C2401F">Sign out</div></div><div class="cards"><div></div><div></div><div></div><div></div><div></div></div></div></div></div></div>
+<p class="cap" style="margin-top:6px">Collapsed (icons only)</p>
+<div class="wide"><div class="screen"><div class="app col"><aside class="sb" id="sb2"></aside><div class="main"><div class="tb"><h3>Results</h3><span class="sp"></span><span class="av">JM</span></div><div class="cards"><div></div><div></div><div></div><div></div><div></div></div></div></div></div></div>
+<ul class="notes">
+<li><b>Pro chip</b> on Mistake Vault appears only when the paywall is switched on.</li>
+<li><b>Notifications bell</b> is left out until notifications exist (no empty icons).</li>
+</ul>
+</section>
+
+<section class="sec">
+<h2>4 · Student, phone (signed in): bottom bar + Today’s mock</h2>
+<div class="row">
+<div><p class="cap">Home</p><div class="phone"><div class="ph-hd"><span class="lock" id="lg4"></span><span class="sp"></span><span class="av">JM</span></div><div class="ph-body" id="pb3"></div><div class="tabs" id="tb1"></div></div></div>
+<div><p class="cap">Avatar tapped</p><div class="phone"><div class="ph-hd"><span class="lock" id="lg5"></span><span class="sp"></span><span class="av">JM</span></div><div class="ph-body" id="pb4"></div><div class="sheet-wrap"><div class="sheet"><div class="grab"></div><div class="who"><span class="av">JM</span><div><b>Jan Mohammad</b><small>Student</small></div></div><div id="sheet"></div></div></div></div></div>
+</div>
+<ul class="notes">
+<li><b>Centre button</b> opens today’s free daily mock. If none is scheduled today, it opens the Mocks list.</li>
+<li><b>Bottom bar</b> is hidden inside a live mock (exam focus).</li>
+</ul>
+</section>
+
+<section class="sec">
+<h2>5 · Exam focus (inside a live mock)</h2>
+<p>No site header, sidebar or bottom bar. Only the existing exam console: test name, server timer, Submit.</p>
+<div class="wide"><div class="screen"><div class="console"><b>SSC CGL · Mock 3</b><span style="color:#A9AEBB">Section: Reasoning</span><span class="sp"></span><span class="t">⏱ 42:10</span><span class="s">Submit</span></div><div class="qbody"><div class="q"><div class="l m"></div><div class="l s"></div><div class="opt"></div><div class="opt"></div><div class="opt"></div><div class="opt"></div></div><div class="pal" id="pal"></div></div></div></div>
+</section>
+</div>
+
+<script>
+const I={
+ home:'<path d="M4 11 12 4l8 7v9h-5v-6H9v6H4z"/>',
+ book:'<path d="M4 5h6a3 3 0 0 1 3 3v12a2 2 0 0 0-2-2H4zM20 5h-6a3 3 0 0 0-3 3v12a2 2 0 0 1 2-2h7z"/>',
+ clock:'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M10 3h4"/>',
+ news:'<rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/>',
+ chart:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+ vault:'<rect x="4" y="5" width="16" height="15" rx="2"/><circle cx="12" cy="12.5" r="3"/><path d="M12 9.5v-1M4 9h2"/>',
+ learn:'<path d="M3 9 12 4l9 5-9 5z"/><path d="M7 11v5c1.5 1.5 3 2 5 2s3.5-.5 5-2v-5"/>',
+ play:'<path d="M8 5v14l11-7z"/>',
+ menu:'<path d="M4 7h16M4 12h16M4 17h16"/>',
+ chev:'<path d="m6 9 6 6 6-6"/>',
+ col:'<path d="M15 6l-6 6 6 6"/>',
+ help:'<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.3M12 17h.01"/>',
+ user:'<circle cx="12" cy="8" r="4"/><path d="M4 20a8 8 0 0 1 16 0"/>',
+ lang:'<path d="M4 6h12M10 4v2M6.5 6c.8 4 3.5 7 7.5 8.5M13.5 6C12.5 10 9.5 13 5 15M14 20l4-9 4 9M15.3 17h5.4"/>',
+ out:'<path d="M10 4H5v16h5M15 8l4 4-4 4M19 12H9"/>'};
+const ic=k=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${I[k]}</svg>`;
+let g=0;
+const mark=(s=26)=>{const id="m"+(g++);return `<svg width="${s}" height="${s}" viewBox="0 0 100 100" aria-hidden="true"><defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3EF3F1"/><stop offset="1" stop-color="#1BDCF4"/></linearGradient></defs><g transform="translate(0 .4) scale(.1083) translate(-162 -171)"><path d="M550.9 502.6 L550.9 828.2 L826.5 679.1 Z" fill="#4B00E6" stroke="#4B00E6" stroke-width="517.6" stroke-linejoin="round"/><path d="M421 430 L421 778.6 L721.4 611.9 Z" fill="url(#${id})" stroke="url(#${id})" stroke-width="518" stroke-linejoin="round"/></g></svg>`};
+const $=id=>document.getElementById(id);
+['lg1','lg2','lg3','lg4','lg5'].forEach((id,i)=>$(id).innerHTML=mark(i?24:28)+'Courage Library');
+$('ch').outerHTML=`<span style="width:14px;height:14px;display:inline-flex">${ic('chev')}</span>`;
+$('mn').innerHTML=ic('menu');
+const cats=[["SSC","CGL live · more coming","#475BFF,#2A3587",1],["Banking","Coming soon","#2E8694,#1E5E6B",0],["Railway","Coming soon","#0471AC,#034A73",0],["Police","Coming soon","#7A4CE2,#4B2A9E",0],["Defence","Coming soon","#3973D6,#24458A",0],["Teaching","Coming soon","#5B4FE0,#2E2A8F",0]];
+$('mega').innerHTML=cats.map(([n,s,gr,l])=>`<div class="ex${l?'':' soon'}"><span class="d" style="background:linear-gradient(135deg,${gr})"></span><span><b>${n}</b><small>${s}</small></span></div>`).join('');
+$('sub').innerHTML=cats.slice(0,4).map(([n,s,gr,l])=>`<span><i style="background:linear-gradient(135deg,${gr})"></i>${n}${l?'':' <small style="color:#A9AEBB">· soon</small>'}</span>`).join('')+'<span style="color:#3A4BEB;font-weight:600">All exams →</span>';
+const lines=n=>Array.from({length:n},(_,i)=>`<div class="l ${['','m','s'][i%3]}"></div>`).join('');
+['pb1','pb2','pb3','pb4'].forEach(id=>$(id).innerHTML=lines(9));
+const items=[['home','Home',1],['book','Practice'],['clock','Mocks'],['news','Current Affairs'],['chart','Results'],['vault','Mistake Vault','pro'],['learn','Learn','soon']];
+const sb=(col,act=0)=>`${col?`<span style="padding:2px 0 16px">${mark(28)}</span>`:`<span class="lock">${mark(26)}Courage Library</span>`}`+items.map(([k,l,x],i)=>`<span class="it${i===act?' on':''}">${ic(k)}${col?'':l}${!col&&x==='pro'?'<span class="pro">PRO</span>':''}${!col&&x==='soon'?'<span class="soon">when ready</span>':''}</span>`).join('')+`<div class="foot"><span class="it">${ic('help')}${col?'':'Help'}</span><span class="it">${col?`<span style="transform:rotate(180deg);display:inline-flex">${ic('col')}</span>`:ic('col')+'Collapse'}</span></div>`;
+$('sb1').innerHTML=sb(false,0);$('sb2').innerHTML=sb(true,4);
+const t=(k,l,on)=>`<span class="${on?'on':''}">${ic(k)}${l}</span>`;
+$('tb1').innerHTML=t('home','Home',1)+t('book','Practice')+`<span class="fabw"><span class="fab">${ic('play')}</span>Today’s mock</span>`+t('clock','Mocks')+t('news','CA');
+$('sheet').innerHTML=[['chart','My results'],['vault','Mistake Vault'],['user','Profile'],['lang','Language','<span class="lang"><i class="on">EN</i><i>हिंदी</i></span>'],['help','Help'],['out','Sign out']].map(([k,l,r])=>`<div class="it"${k==='out'?' style="color:#C2401F"':''}><span>${ic(k)}${l}</span>${r||''}</div>`).join('');
+$('pal').innerHTML=Array.from({length:25},(_,i)=>`<i class="${i<9?'a':i===9?'c':''}"></i>`).join('');
+</script>

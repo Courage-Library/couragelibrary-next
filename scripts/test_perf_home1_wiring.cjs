@@ -135,7 +135,11 @@ function check(files) {
   }
   {
     const pub = get('components/shell/public-shell.tsx');
-    if (!/signup=\{signup\}/.test(pub) || !/categories=\{categories\}/.test(pub) || /signup=\{signupOpen\(\)\}|categories=\{loadPublicCategoriesCached\(\)\}/.test(pub)) fails.push('W-7 public shell passes promises to the header / footer');
+    // NAV-1 Stage A (re-pointed, rule kept): the shared visitor header gets VALUES (the start action from the setting already
+    // read, the categories from the live data already read) — never a promise on a cached page
+    if (!/start=\{startAction\(NAV_EN, signup\)\}/.test(pub) || !/categories=\{navCategories\(NAV_EN, live\)\}/.test(pub) || !/categories=\{categories\}/.test(pub) || /signup=\{signupOpen\(\)\}|start=\{signupOpen\(\)|categories=\{loadPublicCategoriesCached\(\)\}|loadLandingLiveData\(\)\}/.test(pub)) fails.push('W-7 public shell passes promises to the header / footer');
+    const page = get('components/landing-v1/landing-page.tsx');
+    if (!/start=\{\{ href: start\.href, label: start\.label \}\}/.test(page)) fails.push('W-7 the landing passes a promise (not the resolved start) to the visitor header');
   }
   // W-4
   for (const f of PUBLIC_LAYOUT) {
@@ -158,7 +162,10 @@ if (process.argv.includes('--self-test')) {
     ['a public shell that reads the session', mutate('components/shell/public-shell.tsx', /\n/, '\nconst __x = () => cookies();\n'), /W-4 components\/shell\/public-shell/],
     ['a public nav that imports the Supabase browser client', mutate('components/shell/public-student-nav.tsx', /\n/, '\nimport { createClient } from "@/lib/supabase/client";\n'), /W-4 components\/shell\/public-student-nav/],
     ['a cached page with a streamed section', mutate('app/(landing)/page.tsx', '<LandingPageV1 ', '<Suspense fallback={null}><LandingPageV1 '), /W-7 app\/\(landing\)\/page\.tsx/],
-    ['a public shell streaming the sign-up promise', mutate('components/shell/public-shell.tsx', 'signup={signup}', 'signup={signupOpen()}'), /W-7 public shell/],
+    // NAV-1 Stage A: the visitor header takes the start action; streaming it would be a promise again
+    ['a public shell streaming the sign-up promise', mutate('components/shell/public-shell.tsx', 'start={startAction(NAV_EN, signup)}', 'start={signupOpen().then((o) => startAction(NAV_EN, o))}'), /W-7 public shell/],
+    ['a public shell streaming the live categories', mutate('components/shell/public-shell.tsx', 'categories={navCategories(NAV_EN, live)}', 'categories={loadLandingLiveData()}'), /W-7 public shell/],
+    ['the landing streaming its start action', mutate('components/landing-v1/landing-page.tsx', 'start={{ href: start.href, label: start.label }}', 'start={Promise.resolve(start)}'), /W-7 the landing/],
     ['a cached exam hub (moved to the public group)', { [HUB]: null, [HUB_PUBLIC]: read(HUB) }, /W-3 the exam hub/],
   ];
   let bad = 0;

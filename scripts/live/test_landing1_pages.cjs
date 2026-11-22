@@ -61,10 +61,11 @@ const H1_HI = 'अपने कमज़ोर टॉपिक पहचान�
         return {
           h1: a('h1').map((h) => h.textContent.replace(/\s+/g, ' ').trim()),
           lang: lp && lp.getAttribute('lang'),
-          sections: a('[data-landing-section]').map((s) => s.getAttribute('data-landing-section')),
+          // NAV-1 Stage A: the header section is THE shared visitor header (data-visitor-header)
+          sections: [...(document.querySelector('[data-landing="v1"] [data-visitor-header]') ? ['header'] : []), ...a('[data-landing-section]').map((s) => s.getAttribute('data-landing-section'))],
           landmarks: { header: !!document.querySelector('[data-landing="v1"] header'), main: !!document.querySelector('main#main-content'), footer: !!document.querySelector('[data-landing="v1"] footer') },
           start: a('a[data-landing-cta="start"]').map((x) => x.getAttribute('href')),
-          switcher: a('.lp-lang a').map((x) => ({ href: x.getAttribute('href'), current: x.getAttribute('aria-current'), text: x.textContent.trim() })),
+          switcher: a('.cl-vh__lang--bar a').map((x) => ({ href: x.getAttribute('href'), current: x.getAttribute('aria-current'), text: x.textContent.trim() })),
           canonical: (document.querySelector('link[rel="canonical"]') || {}).href || null,
           alternates: a('link[rel="alternate"][hreflang]').map((l) => [l.getAttribute('hreflang'), new URL(l.href).pathname]),
           cats: a('[data-category]').map((c) => ({ slug: c.getAttribute('data-category'), link: c.tagName === 'A', href: c.getAttribute('href'), live: c.getAttribute('data-live'), soon: !!c.querySelector('.lp-exam__soon'), soonText: (c.querySelector('.lp-exam__soon') || {}).textContent || '' })),
@@ -129,7 +130,7 @@ const H1_HI = 'अपने कमज़ोर टॉपिक पहचान�
     }
     // L-2 following the switch changes the copy and the lang
     await page.goto(BASE + '/', { waitUntil: 'load' });
-    await page.click('.lp-lang a[hreflang="hi"]');
+    await page.click('.cl-vh__lang--bar a[hreflang="hi"]'); // NAV-1: the shared header switch
     await page.waitForURL(/\/hi$/);
     const after = await page.evaluate(() => ({ h1: document.querySelector('h1').textContent, lang: document.querySelector('[data-landing="v1"]').getAttribute('lang') }));
     chk('L-2 following "हिंदी" on / → /hi: the visible H1 and the lang attribute change', after.h1.startsWith(H1_HI) && after.lang === 'hi', JSON.stringify(after));
@@ -146,25 +147,30 @@ const H1_HI = 'अपने कमज़ोर टॉपिक पहचान�
           return {
             sw: document.documentElement.scrollWidth,
             cw: document.documentElement.clientWidth,
-            logo: vis(document.querySelector('.lp-hd .lp-logo')),
-            lang: vis(document.querySelector('.lp-hd .lp-lang')),
-            burger: vis(document.querySelector('.lp-burger')),
-            nav: vis(document.querySelector('.lp-hd .lp-nav')),
-            cta: vis(document.querySelector('.lp-hd .lp-hd__auth.auth-out')),
+            // NAV-1 Stage A: the shared visitor header (spec §1 M1: phone bar = logo + compact start + menu)
+            logo: vis(document.querySelector('.cl-vh .cl-vh__logo-img')),
+            lang: vis(document.querySelector('.cl-vh .cl-vh__lang--bar')),
+            burger: vis(document.querySelector('.cl-vh__burger')),
+            start: vis(document.querySelector('.cl-vh .auth-out.cl-vh__compact [data-start="compact"]')),
+            nav: vis(document.querySelector('.cl-vh .cl-vh__nav')),
+            cta: vis(document.querySelector('.cl-vh .cl-vh__auth.auth-out')),
           };
         });
         const phone = w <= 600;
-        chk(`L-5 ${w} px ${url}: no horizontal overflow${phone ? '; header = logo + language switch + menu button (nav and CTAs in the menu)' : ''}`,
-          r.sw <= r.cw && (!phone || (r.logo && r.lang && r.burger && !r.nav && !r.cta)), JSON.stringify(r));
+        chk(`L-5 ${w} px ${url}: no horizontal overflow${phone ? '; header = logo + start action + menu button (nav, language switch and Sign in in the menu)' : ''}`,
+          r.sw <= r.cw && (!phone || (r.logo && r.start && r.burger && !r.lang && !r.nav && !r.cta)), JSON.stringify(r));
         if (phone && url === '/') {
-          await p.click('.lp-burger');
-          const menu = await p.evaluate(() => [...document.querySelectorAll('.lp-menu__panel a')].filter((a) => a.getBoundingClientRect().height > 0).map((a) => a.getAttribute('href')));
-          chk(`L-5 ${w} px: the menu opens with Sign in FIRST, the start action SECOND, then Exams, Current Affairs, Mock Tests`, menu[0] === '/auth/login' && ['/auth/signup', '/exams'].includes(menu[1]) && ['/exams', '/current-affairs', '/mock-tests'].every((h) => menu.slice(2).includes(h)), menu.join(' '));
-          // L-10 tap targets ≥ 44 px (visible links / summaries)
+          await p.click('.cl-vh__burger');
+          await p.waitForTimeout(250);
+          const menu = await p.evaluate(() => [...document.querySelectorAll('[data-drawer-panel] a, [data-drawer-panel] summary')].filter((a) => a.getBoundingClientRect().height > 0).map((a) => a.getAttribute('href') || 'exams-list'));
+          const si = menu.indexOf('/auth/login');
+          chk(`L-5 ${w} px: the menu opens with Exams, Current Affairs, Mock Tests, the language switch, then Sign in BEFORE the start action (NAV-1 spec §1; X-05 exemption)`, menu[0] === 'exams-list' && ['/current-affairs', '/mock-tests', '/', '/hi'].every((h) => menu.includes(h)) && si > 0 && ['/auth/signup', '/exams'].includes(menu[si + 1]), menu.join(' '));
+          // L-10 tap targets ≥ 48 px (visible links / summaries); NAV-1: a header pill's target includes its ::after hit area
           const small = await p.evaluate(() => [...document.querySelectorAll('[data-landing="v1"] a, [data-landing="v1"] summary')]
             .filter((a) => { const r = a.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(a).visibility !== 'hidden'; })
-            .filter((a) => a.getBoundingClientRect().height < 48)
-            .map((a) => `${(a.textContent || a.getAttribute('aria-label') || '').trim().slice(0, 24)}:${Math.round(a.getBoundingClientRect().height)}`));
+            .map((a) => { const after = getComputedStyle(a, '::after'); const extra = after.content !== 'none' && after.position === 'absolute' ? Math.max(0, -2 * parseFloat(after.top || '0')) : 0; return [a, a.getBoundingClientRect().height + extra]; })
+            .filter(([, h]) => h < 48)
+            .map(([a, h]) => `${(a.textContent || a.getAttribute('aria-label') || '').trim().slice(0, 24)}:${Math.round(h)}`));
           chk(`L-10 ${w} px: every visible link / summary is ≥ 48 px tall`, small.length === 0, small.join(', '));
         }
         await p.close();
@@ -195,8 +201,8 @@ const H1_HI = 'अपने कमज़ोर टॉपिक पहचान�
     await nj.goto(BASE + '/hi', { waitUntil: 'load' });
     const before = await nj.evaluate(() => ({ h1: document.querySelector('h1') && document.querySelector('h1').textContent, links: document.querySelectorAll('a[href]').length, open: [...document.querySelectorAll('.lp-faq details')].map((d) => d.open) }));
     await nj.click('.lp-faq details:nth-child(2) summary');
-    await nj.click('.lp-burger');
-    const afterNj = await nj.evaluate(() => ({ second: document.querySelectorAll('.lp-faq details')[1].open, menu: document.querySelector('.lp-menu').open }));
+    await nj.click('.cl-vh__burger');
+    const afterNj = await nj.evaluate(() => ({ second: document.querySelectorAll('.lp-faq details')[1].open, menu: document.querySelector('.cl-vh__drawer').open }));
     chk('L-7 JavaScript disabled: the content and links render; a FAQ item and the phone menu still open (native <details>)',
       before.h1 && before.h1.startsWith(H1_HI) && before.links > 20 && before.open[0] === true && afterNj.second === true && afterNj.menu === true, JSON.stringify({ before: { ...before, h1: !!before.h1 }, afterNj }));
     await nojs.close();

@@ -1,19 +1,17 @@
 "use client";
 
-import { Suspense, use, useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Coins, Menu } from "lucide-react";
 import { BrandWordmark } from "@/components/brand/wordmark";
 import { Avatar } from "@/components/ui/avatar";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/components/ui/cn";
 import { Dialog } from "@/components/ui/dialog";
-import { PillLink } from "@/components/ui/pill-button";
-import { LANDING_HERO, SHELL_COPY } from "@/content/landing";
 import { AccountLinks } from "./account-links";
 import { NavMenu, navLinkClasses } from "./nav-menu";
-import { LEARN_MENU, LEARN_PREFIXES, PUBLIC_NAV, STUDENT_NAV, isActive, visibleItems, type NavItem, type ShellFlags } from "./nav-config";
+import { LEARN_MENU, LEARN_PREFIXES, STUDENT_NAV, isActive, visibleItems, type NavItem, type ShellFlags } from "./nav-config";
 import type { ShellAccount } from "./shell-types";
 import type { BrandImage } from "@/lib/brand/brand-rules";
 
@@ -62,22 +60,6 @@ function MobileSection({ title, items, pathname, onNavigate }: { title: string; 
   );
 }
 
-/** The sign-up-dependent start action: the closed view until the setting is known (and whenever it cannot be read). */
-function StartAction({ signup, open, closed }: { signup?: Promise<boolean> | boolean; open: ReactNode; closed: ReactNode }) {
-  if (!signup) return closed;
-  // PERF-HOME-1b: the cached public shell passes the setting already read — rendered directly (final cached HTML)
-  if (signup === true) return open;
-  return (
-    <Suspense fallback={closed}>
-      <ResolvedStartAction signup={signup} open={open} closed={closed} />
-    </Suspense>
-  );
-}
-
-function ResolvedStartAction({ signup, open, closed }: { signup: Promise<boolean>; open: ReactNode; closed: ReactNode }) {
-  return use(signup) ? open : closed;
-}
-
 /**
  * COURSE-UX-1: the coin balance (COINS_LESSON_EARN on only). The shell makes no database query (UX-1b U-5): the browser
  * asks /api/coins/balance (the student's own wallet row) after the page is shown; nothing while loading or unknown, so
@@ -108,34 +90,14 @@ function CoinBalance({ enabled }: { enabled?: boolean }) {
 }
 
 /**
- * Site header for every non-admin route. Signed out: public nav + Sign in / Get started. Signed in: student nav
- * + account menu (desktop); on phones the student uses the bottom nav and this header keeps a menu button
- * for everything else. UX-2a: the landing page ("/") always shows the public header; a signed-in visitor sees
- * "Go to dashboard" there instead of Sign in / Get started. The mobile menu is a native-dialog sheet (focus
- * trap, Esc closes). Content width 1200 px (decision #46).
- * HOME-1 design decision (owner, 2026-11-01; supersedes the #72 floating glass pill for the public header): ONE solid,
- * full-width, sticky white header for everyone — hairline bottom border, a subtle shadow only after the page scrolls
- * (box-shadow only: no layout shift), 64 px tall, nothing visible behind it. 48 px actions.
- * UX-FIX-1: "Sign in" is always visible in the bar (phones too). While public sign-up is CLOSED no action points to
- * /auth/signup — the start action is "Explore SSC CGL"; when it is open the one label is "Start free" as an outline
- * pill (BRAND-3 R4: the solid blue-700 primary belongs to the page — the header never adds a second solid CTA). `signup` is a promise streamed from AppShell (the start action resolves it in its own Suspense), or the value the cached PublicShell already read (rendered directly)
- * boundary whose fallback is the closed view, so the shell never waits on the sign-up setting (Supabase outage → the
- * page still renders at once; AUTH1-RESILIENCE-HANG).
+ * The SIGNED-IN header (student nav + account menu on desktop; on phones the bottom nav + this menu button).
+ * NAV-1 Stage A: every visitor (signed out) gets THE visitor header (components/nav/visitor-header.tsx) instead — this
+ * component is now signed-in only; NAV-1 Stage B replaces it with the student shell (sidebar / bottom bar).
+ * HOME-1 design decision (owner, 2026-11-01): ONE solid, full-width, sticky white header — hairline bottom border, a
+ * subtle shadow only after the page scrolls (box-shadow only: no layout shift), 64 px tall. 48 px actions. The mobile
+ * menu is a native-dialog sheet (focus trap, Esc closes). Content width 1200 px (decision #46).
  */
-export function HeaderBar({
-  account,
-  flags,
-  signup,
-  logo = null,
-  publicStatic = false,
-}: {
-  account: ShellAccount | null;
-  flags: ShellFlags;
-  signup?: Promise<boolean> | boolean;
-  logo?: BrandImage | null;
-  /** PERF-HOME-1: the cached public pages — both link sets in the HTML, CSS shows one (html[data-auth], lib/ui/auth-hint.ts) */
-  publicStatic?: boolean;
-}) {
+export function HeaderBar({ account, flags, logo = null }: { account: ShellAccount; flags: ShellFlags; logo?: BrandImage | null }) {
   const pathname = usePathname() ?? "/";
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -148,17 +110,13 @@ export function HeaderBar({
   }, []);
   if (pathname.startsWith("/admin")) return null;
 
-  // UX-IMP-1 (IMPECCABLE-1 A-10): an action that points to the page you are on says so (aria-current + active style)
-  const here = (href: string): "page" | undefined => (pathname === (href.split(/[?#]/)[0] || "/") ? "page" : undefined);
   const learn = visibleItems(LEARN_MENU, flags);
-  const onLanding = pathname === "/";
-  const student = account !== null && !onLanding;
-  const primary = visibleItems(student ? STUDENT_NAV : PUBLIC_NAV, flags);
-  const [before, after] = student ? [primary.slice(0, 3), primary.slice(3)] : [primary.slice(0, 1), primary.slice(1)];
+  const primary = visibleItems(STUDENT_NAV, flags);
+  const [before, after] = [primary.slice(0, 3), primary.slice(3)];
 
   const inner = (
     <>
-        <BrandWordmark href={student ? "/dashboard" : "/"} size="md" logo={logo} />
+        <BrandWordmark href="/dashboard" size="md" logo={logo} />
 
         <nav aria-label="Main" className="ml-4 hidden flex-1 lg:block">
           <ul className="flex items-center gap-1">
@@ -171,57 +129,23 @@ export function HeaderBar({
         </nav>
 
         <div className="ml-auto flex items-center gap-2">
-          {account && <CoinBalance enabled={account.lessonCoins} />}
-          {account && student ? (
-            <div className="hidden lg:block">
-              <NavMenu
-                label={
-                  <>
-                    <Avatar name={account.name} size="sm" decorative />
-                    <span className="max-w-32 truncate">{account.name}</span>
-                  </>
-                }
-                triggerLabel={`Account: ${account.name}`}
-                listLabel="Account"
-                align="end"
-                activePrefixes={["/notifications", "/wallet", "/store", "/billing", "/premium"]}
-              >
-                <AccountLinks account={account} />
-              </NavMenu>
-            </div>
-          ) : account ? (
-            <PillLink href="/dashboard" variant="outline" className="px-5 aria-[current=page]:border-primary-700 aria-[current=page]:bg-primary-50 aria-[current=page]:text-primary-800" aria-current={here("/dashboard")}>
-              {SHELL_COPY.goToDashboard}
-            </PillLink>
-          ) : (
-            <>
-              {publicStatic && (
-                <span className="auth-in contents">
-                  <PillLink href="/dashboard" variant="outline" className="px-5 aria-[current=page]:border-primary-700 aria-[current=page]:bg-primary-50 aria-[current=page]:text-primary-800" aria-current={here("/dashboard")} data-auth-link="dashboard">
-                    {SHELL_COPY.goToDashboard}
-                  </PillLink>
-                </span>
-              )}
-              <span className={publicStatic ? "auth-out contents" : "contents"}>
-              <ButtonLink href="/auth/login" variant="ghost" size="md" className="min-h-12 rounded-control px-3 aria-[current=page]:bg-primary-50 aria-[current=page]:text-primary-800" aria-current={here("/auth/login")}>
-                {SHELL_COPY.signIn}
-              </ButtonLink>
-              <StartAction
-                signup={signup}
-                open={
-                  <PillLink href="/auth/signup" variant="outline" className="hidden px-5 sm:inline-flex aria-[current=page]:border-primary-700 aria-[current=page]:bg-primary-50 aria-[current=page]:text-primary-800" aria-current={here("/auth/signup")}>
-                    {SHELL_COPY.startFree}
-                  </PillLink>
-                }
-                closed={
-                  <PillLink href={LANDING_HERO.secondaryCta.href} variant="outline" className="hidden px-5 sm:inline-flex aria-[current=page]:border-primary-700 aria-[current=page]:bg-primary-50 aria-[current=page]:text-primary-800" aria-current={here(LANDING_HERO.secondaryCta.href)}>
-                    {LANDING_HERO.secondaryCta.label}
-                  </PillLink>
-                }
-              />
-              </span>
-            </>
-          )}
+          <CoinBalance enabled={account.lessonCoins} />
+          <div className="hidden lg:block">
+            <NavMenu
+              label={
+                <>
+                  <Avatar name={account.name} size="sm" decorative />
+                  <span className="max-w-32 truncate">{account.name}</span>
+                </>
+              }
+              triggerLabel={`Account: ${account.name}`}
+              listLabel="Account"
+              align="end"
+              activePrefixes={["/notifications", "/wallet", "/store", "/billing", "/premium"]}
+            >
+              <AccountLinks account={account} />
+            </NavMenu>
+          </div>
           <Button
             variant="ghost"
             size="md"
@@ -242,44 +166,10 @@ export function HeaderBar({
       <Dialog open={menuOpen} onOpenChange={setMenuOpen} variant="sheet" title="Menu">
         <nav aria-label="Mobile" className="flex flex-col gap-4">
           <div className="border-b border-line pb-3" data-menu-brand="">
-            <BrandWordmark href={student ? "/dashboard" : "/"} size="sm" logo={logo} />
+            <BrandWordmark href="/dashboard" size="sm" logo={logo} />
           </div>
-          <MobileSection title={student ? "Study" : "Explore"} items={primary} pathname={pathname} onNavigate={() => setMenuOpen(false)} />
+          <MobileSection title="Study" items={primary} pathname={pathname} onNavigate={() => setMenuOpen(false)} />
           <MobileSection title="Learn" items={learn} pathname={pathname} onNavigate={() => setMenuOpen(false)} />
-          {!account && publicStatic && (
-            <div className="auth-in flex flex-col gap-2 border-t border-line pt-4">
-              <ButtonLink href="/dashboard" size="lg" fullWidth aria-current={here("/dashboard")} onClick={() => setMenuOpen(false)}>
-                {SHELL_COPY.goToDashboard}
-              </ButtonLink>
-            </div>
-          )}
-          {!account && (
-            <div className={`${publicStatic ? "auth-out " : ""}flex flex-col gap-2 border-t border-line pt-4`}>
-              <StartAction
-                signup={signup}
-                open={
-                  <PillLink href="/auth/signup" variant="outline" fullWidth className="aria-[current=page]:border-primary-700 aria-[current=page]:bg-primary-50 aria-[current=page]:text-primary-800" aria-current={here("/auth/signup")} onClick={() => setMenuOpen(false)}>
-                    {SHELL_COPY.startFree}
-                  </PillLink>
-                }
-                closed={
-                  <ButtonLink href={LANDING_HERO.secondaryCta.href} size="lg" fullWidth aria-current={here(LANDING_HERO.secondaryCta.href)} onClick={() => setMenuOpen(false)}>
-                    {LANDING_HERO.secondaryCta.label}
-                  </ButtonLink>
-                }
-              />
-              <ButtonLink href="/auth/login" variant="secondary" size="lg" fullWidth className="aria-[current=page]:border-primary-700 aria-[current=page]:bg-primary-50" aria-current={here("/auth/login")} onClick={() => setMenuOpen(false)}>
-                {SHELL_COPY.signIn}
-              </ButtonLink>
-            </div>
-          )}
-          {account && !student && (
-            <div className="flex flex-col gap-2 border-t border-line pt-4">
-              <ButtonLink href="/dashboard" size="lg" fullWidth aria-current={here("/dashboard")} onClick={() => setMenuOpen(false)}>
-                {SHELL_COPY.goToDashboard}
-              </ButtonLink>
-            </div>
-          )}
         </nav>
       </Dialog>
   );

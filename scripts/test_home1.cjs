@@ -126,8 +126,11 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
   await test('H-5 R10 targets + readability: footer 48×48 + <details> on phones, menu actions lg, dialog close 48, home chips ≥ 14 px', () => {
     const f = read('components/shell/site-footer.tsx');
     assert(/min-h-12 min-w-12/.test(f) && /<details key=\{g\.heading\}/.test(f) && /md:hidden/.test(f) && /data-not-affiliated/.test(f), 'footer');
-    const h = read('components/shell/header-bar.tsx');
-    assert(/href=\{LANDING_HERO\.secondaryCta\.href\} size="lg"/.test(h) && /href="\/auth\/login" variant="secondary" size="lg"/.test(h), 'mobile menu actions');
+    // NAV-1 Stage A (re-pointed, rule kept): the signed-out phone menu is the shared visitor header's drawer — its Sign in
+    // and start actions are full-width 48 px buttons
+    const vh = read('components/nav/visitor-header.tsx');
+    const navCss = read('app/nav.css');
+    assert(/href=\{VISITOR_ROUTES\.signIn\} data-menu-item="signin"/.test(vh) && /data-menu-item="start"/.test(vh) && /\.cl-vh__ctas \.cl-vh__pill \{\s+height: 48px;\s+width: 100%;/.test(navCss), 'mobile menu actions');
     assert(/inline-flex size-12 shrink-0/.test(read('components/ui/dialog.tsx')), 'dialog close 48 px');
     for (const file of [SECTIONS, 'components/exams/category-page.tsx']) assert(!/text-\[1[0-3]px\]|text-caption|text-xs\b/.test(code(read(file))), `${file}: text under 14 px`);
   });
@@ -350,7 +353,8 @@ const PRICE = /₹|\bRs\.?\s?\d|\bINR\b|\/month|per month|\bprices?\b/;
     assert((h.match(/<BrandWordmark [^>]*logo=\{logo\}/g) || []).length === 2 && /data-menu-brand=""/.test(h), 'header + mobile menu use the brand');
     assert(/<BrandWordmark size="sm" tone="white" logo=\{logo\} \/>/.test(read('components/shell/site-footer.tsx')), 'footer');
     const shell = read('components/shell/app-shell.tsx');
-    assert(/Promise\.all\(\[[\s\S]*?loadBrandAssets\(\),\s*\]\)/.test(shell) && /logo=\{brand\.headerLogo\}/.test(shell) && /logo=\{brand\.footerLogo\}/.test(shell), 'shell: brand read alongside the session, never alone');
+    // NAV-1: the same Promise.all also reads the forwarded path (after the brand read) — the rule is unchanged
+    assert(/Promise\.all\(\[[\s\S]*?loadBrandAssets\(\),[\s\S]*?\]\)/.test(shell) && /const \[session, brand, pathname\] = await Promise\.all\(\[/.test(shell) && /logo=\{brand\.headerLogo\}/.test(shell) && /logo=\{brand\.footerLogo\}/.test(shell), 'shell: brand read alongside the session, never alone');
     const meta = read('lib/seo/metadata.ts');
     // SEO-1 (owner, 2026-11-22): the site icons moved to the final logo suite (static files, lib/seo/brand-icons.ts; sizes and
     // files gated in scripts/test_seo1.cjs S1-3). The /brand/icon/[size] route stays for old links; the header / footer
