@@ -1,7 +1,7 @@
 import { Suspense, type ReactNode } from "react";
 import Link from "next/link";
 import type { NavLabels } from "@/content/nav/labels";
-import { VISITOR_ROUTES, visitorLinks, type NavCategory, type NavLink, type StartLink } from "@/lib/nav/visitor-nav";
+import { VISITOR_ROUTES, navCategories, visitorLinks, type NavCategory, type NavLink, type StartLink } from "@/lib/nav/visitor-nav";
 import { VisitorNavEnhancer } from "./visitor-nav-enhancer";
 
 /**
@@ -51,6 +51,19 @@ async function ResolvedStart({ start, render }: { start: Promise<StartLink>; ren
   return <>{render(await start)}</>;
 }
 
+/** The category tiles, streamed when the live read is still running (only the tile list — never the whole header). */
+function CategoriesSlot({ categories, fallback, render }: { categories: NavCategory[] | Promise<NavCategory[]>; fallback: NavCategory[]; render: (list: NavCategory[]) => ReactNode }) {
+  if (!(categories instanceof Promise)) return <>{render(categories)}</>;
+  return (
+    <Suspense fallback={render(fallback)}>
+      <ResolvedCategories categories={categories} render={render} />
+    </Suspense>
+  );
+}
+async function ResolvedCategories({ categories, render }: { categories: Promise<NavCategory[]>; render: (list: NavCategory[]) => ReactNode }) {
+  return <>{render(await categories)}</>;
+}
+
 function LangSwitch({ t, className }: { t: NavLabels; className: string }) {
   return (
     <nav className={className} aria-label={t.languageSwitch} data-lang-switch="">
@@ -91,7 +104,8 @@ export interface VisitorHeaderProps {
   homeHref: "/" | "/hi";
   /** the EN | हिंदी switch — the landing only (spec §0) */
   langSwitch: boolean;
-  categories: NavCategory[];
+  /** the Exams menu tiles; a promise on a per-request page (only the two tile lists stream; the header never waits) */
+  categories: NavCategory[] | Promise<NavCategory[]>;
   start: StartLink | Promise<StartLink>;
   /** "hint": both link sets, CSS shows one (cached pages); "out": the signed-out set only */
   auth: "hint" | "out";
@@ -109,6 +123,8 @@ export function VisitorHeader({ t, homeHref, langSwitch, categories, start, auth
   const closed: StartLink = { href: VISITOR_ROUTES.exams, label: t.exploreExams };
   const cur = (k: string): "page" | undefined => (active === k ? "page" : undefined);
   const out = auth === "hint" ? "auth-out " : "";
+  // while a streamed category read is pending (or if it fails): every tile "Coming soon", never a guessed link
+  const fallbackCategories = navCategories(t, null);
 
   return (
     <header className="cl-vh" lang={t.lang} data-visitor-header="">
@@ -126,11 +142,17 @@ export function VisitorHeader({ t, homeHref, langSwitch, categories, start, auth
             <div className="cl-vh__mega" id="cl-vh-exams" role="region" aria-label={t.examsMenu} data-exams-panel="" hidden>
               <p className="cl-vh__mega-h">{t.chooseExam}</p>
               <ul className="cl-vh__grid">
-                {categories.map((c) => (
-                  <li key={c.slug}>
-                    <CategoryTile c={c} />
-                  </li>
-                ))}
+                <CategoriesSlot
+                  categories={categories}
+                  fallback={fallbackCategories}
+                  render={(list) =>
+                    list.map((c) => (
+                      <li key={c.slug}>
+                        <CategoryTile c={c} />
+                      </li>
+                    ))
+                  }
+                />
               </ul>
               <a className="cl-vh__all" href={VISITOR_ROUTES.exams} data-exams-item="">
                 {t.allExams}
@@ -209,22 +231,28 @@ export function VisitorHeader({ t, homeHref, langSwitch, categories, start, auth
                   <Chevron />
                 </summary>
                 <ul className="cl-vh__sub">
-                  {categories.map((c) => (
-                    <li key={c.slug}>
-                      {c.href ? (
-                        <a href={c.href}>
-                          <i style={{ background: c.swatch }} aria-hidden="true" />
-                          {c.name}
-                        </a>
-                      ) : (
-                        <span data-category-soon="">
-                          <i style={{ background: c.swatch }} aria-hidden="true" />
-                          {c.name}
-                          <small>{t.comingSoon}</small>
-                        </span>
-                      )}
-                    </li>
-                  ))}
+                  <CategoriesSlot
+                    categories={categories}
+                    fallback={fallbackCategories}
+                    render={(list) =>
+                      list.map((c) => (
+                        <li key={c.slug}>
+                          {c.href ? (
+                            <a href={c.href}>
+                              <i style={{ background: c.swatch }} aria-hidden="true" />
+                              {c.name}
+                            </a>
+                          ) : (
+                            <span data-category-soon="">
+                              <i style={{ background: c.swatch }} aria-hidden="true" />
+                              {c.name}
+                              <small>{t.comingSoon}</small>
+                            </span>
+                          )}
+                        </li>
+                      ))
+                    }
+                  />
                   <li>
                     <a className="cl-vh__sub-all" href={VISITOR_ROUTES.exams}>
                       {t.allExams}

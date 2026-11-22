@@ -7,7 +7,7 @@ import { isCoinsEnabled } from "@/lib/coins/flag";
 import { getSignupAvailability } from "@/lib/auth/signup-availability";
 import { loadBrandAssets } from "@/lib/brand/brand-assets";
 import { loadPublicCategoriesCached } from "@/lib/exams/category-data";
-import { loadLandingLiveData } from "@/lib/landing/landing-page-data";
+import { loadNavLive } from "@/lib/nav/live-categories";
 import { VisitorHeader } from "@/components/nav/visitor-header";
 import { NAV_EN } from "@/content/nav/labels";
 import { navCategories, startAction } from "@/lib/nav/visitor-nav";
@@ -31,8 +31,8 @@ function signupOpen(): Promise<boolean> {
 
 export async function PublicShell({ children }: { children: ReactNode }) {
   const flags: ShellFlags = { COURSES: isFeatureEnabled("COURSES"), BATTLES: isFeatureEnabled("BATTLES"), PRACTICE: isPracticeEnabled() };
-  // NAV-1: the live categories for the Exams menu come from the same cached public read as the landing (never rejects)
-  const [brand, signup, categories, live] = await Promise.all([loadBrandAssets(), signupOpen(), loadPublicCategoriesCached(), loadLandingLiveData().catch(() => null)]);
+  // NAV-1: the live categories for the Exams menu — the landing's cached public read, bounded (never rejects, ≤ 800 ms)
+  const [brand, signup, categories, live] = await Promise.all([loadBrandAssets(), signupOpen(), loadPublicCategoriesCached(), loadNavLive()]);
   return (
     <>
       <a

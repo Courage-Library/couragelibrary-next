@@ -1,10 +1,10 @@
-import { Suspense, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { headers } from "next/headers";
 import { PATHNAME_HEADER } from "@/lib/http/pathname-header";
 import { VisitorHeader } from "@/components/nav/visitor-header";
 import { navLabels } from "@/content/nav/labels";
 import { activeVisitorKey, navCategories, navLangFor, startAction } from "@/lib/nav/visitor-nav";
-import { loadLandingLiveData } from "@/lib/landing/landing-page-data";
+import { loadNavLive } from "@/lib/nav/live-categories";
 import { isFeatureEnabled } from "@/config/features";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { classifyAuthResult } from "@/lib/auth/session-state";
@@ -34,18 +34,18 @@ function signupOpen(): Promise<boolean> {
   return getSignupAvailability().then((a) => a !== "closed", () => false);
 }
 
-/** NAV-1 Stage A: the visitor header on a per-request page that has no session (the signed-out link set only). */
-async function SignedOutHeader({ pathname }: { pathname: string }) {
-  return <SignedOutHeaderView pathname={pathname} live={await loadLandingLiveData().catch(() => null)} />;
-}
-function SignedOutHeaderView({ pathname, live }: { pathname: string; live: Awaited<ReturnType<typeof loadLandingLiveData>> | null }) {
+/**
+ * NAV-1 Stage A: the visitor header on a per-request page that has no session (the signed-out link set only). It never
+ * waits: the start action and the Exams tiles are promises (bounded, never rejecting) that stream inside the header.
+ */
+function SignedOutHeader({ pathname }: { pathname: string }) {
   const t = navLabels(navLangFor(pathname));
   return (
     <VisitorHeader
       t={t}
       homeHref="/"
       langSwitch={false}
-      categories={navCategories(t, live)}
+      categories={loadNavLive().then((live) => navCategories(t, live))}
       start={signupOpen().then((open) => startAction(t, open))}
       auth="out"
       active={activeVisitorKey(pathname)}
@@ -95,10 +95,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
       {account ? (
         <HeaderBar account={account} flags={flags} logo={brand.headerLogo} />
       ) : pathname.startsWith("/admin") ? null : (
-        // the shell never waits on a read (AUTH1-RESILIENCE-HANG): the same header with no live category until it resolves
-        <Suspense fallback={<SignedOutHeaderView pathname={pathname} live={null} />}>
-          <SignedOutHeader pathname={pathname} />
-        </Suspense>
+        <SignedOutHeader pathname={pathname} />
       )}
       {session.state === "error" && <SessionUnavailableBanner />}
       <main id="main-content" tabIndex={-1} className="min-h-dvh flex-1 outline-none">

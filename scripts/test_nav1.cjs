@@ -88,7 +88,18 @@ const SRC = {
   cfg: read('components/shell/nav-config.ts'),
   landingCss: read('app/(landing)/landing.css'),
   layout: read('app/layout.tsx'),
+  live: read('lib/nav/live-categories.ts'),
 };
+
+/** N-11: the header never waits on a read (AUTH1-RESILIENCE-HANG): bounded, never-rejecting, streamed inside the header. */
+function checkStreaming(app, live = SRC.live, vh = SRC.vh) {
+  const why = [];
+  if (!app.includes('categories={loadNavLive().then((live) => navCategories(t, live))}') || /await loadLandingLiveData|await loadNavLive/.test(code(app))) why.push('AppShell must pass the categories as a promise (never awaited)');
+  if (/<Suspense[^>]*>\s*<SignedOutHeader/.test(app)) why.push('the whole header is streamed (a hidden second header in the HTML)');
+  if (!live.includes('new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),') || !live.includes('loadLandingLiveData().catch(() => null),') || !/NAV_LIVE_TIMEOUT_MS = 800;/.test(live)) why.push('the category read is not bounded (≤ 800 ms, never rejects)');
+  if (!/<Suspense fallback=\{render\(fallback\)\}>/.test(vh) || !/const fallbackCategories = navCategories\(t, null\);/.test(vh)) why.push('the tiles must stream with a no-link fallback');
+  return why;
+}
 const LIVE = { categories: { ssc: true, banking: false, railway: false }, liveShortNames: { ssc: ['CGL'] }, moreComing: { ssc: true } };
 
 function render(over = {}, { vhSrc, vnSrc } = {}) {
@@ -288,6 +299,11 @@ function checkA11y(src) {
     assert(why.length === 0, why.join('; '));
   });
 
+  await test('N-11 the header never waits on a read: bounded (≤ 800 ms) category read, only the tiles stream', () => {
+    const why = checkStreaming(SRC.app);
+    assert(why.length === 0, why.join('; '));
+  });
+
   await test('N-10 negative controls: each broken variant is caught', () => {
     const mut = (s, a, b) => {
       if (!s.includes(a)) throw new Error(`mutation anchor missing: ${a.slice(0, 80)}`);
@@ -297,7 +313,9 @@ function checkA11y(src) {
       ['language switch rendered on /exams', () => checkLanguageSwitch({ ...SRC, pub: mut(SRC.pub, 'langSwitch={false}', 'langSwitch') })],
       ['language switch on every page by rule', () => checkLanguageSwitch(SRC, mut(SRC.vn, 'return pathname === "/" || pathname === "/hi";', 'return true;'))],
       ['a Coming soon category rendered as a link', () => checkCategories(mut(SRC.vh, 'return c.href ? (', 'return true ? ('), undefined)],
-      ['a Coming soon category linked in the drawer', () => checkCategories(mut(SRC.vh, '{c.href ? (\n                        <a href={c.href}>', '{true ? (\n                        <a href={`/exams/${c.slug}`}>'), undefined)],
+      ['a Coming soon category linked in the drawer', () => checkCategories(mut(mut(SRC.vh, '{c.href ? (', '{true ? ('), '<a href={c.href}>', '<a href={`/exams/${c.slug}`}>'), undefined)],
+      ['the header waits on the category read (no streaming)', () => checkStreaming(mut(SRC.app, 'categories={loadNavLive().then((live) => navCategories(t, live))}', 'categories={navCategories(t, await loadLandingLiveData())}'))],
+      ['an unbounded category read', () => checkStreaming(SRC.app, mut(SRC.live, 'new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),', ''))],
       ['a category linked although the read failed', () => checkCategories(undefined, mut(SRC.vn, 'href: isLive ? `/exams/${c.slug}` : null,', 'href: `/exams/${c.slug}`,'))],
       ['a second header on a public route', () => checkOneHeader({ ...SRC, pub: mut(SRC.pub, '<VisitorHeader t={NAV_EN}', '<HeaderBar account={null} flags={flags} />\n      <VisitorHeader t={NAV_EN}') })],
       ['the landing keeps its own header', () => checkOneHeader({ ...SRC, landing: SRC.landing + '\nfunction Old() { return <header className="lp-hd" />; }\n' })],

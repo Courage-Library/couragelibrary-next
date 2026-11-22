@@ -540,14 +540,16 @@ async function probe() {
       // LANDING-1 (owner round 3): the landing header ("/", "/hi") is EXEMPT from UX-FIX-1 X-05 — on phones its bar is
       // logo + language switch + menu, "Sign in" is the first menu item (scripts/test_landing1.cjs LD-8). The shared
       // public header keeps the rule, so P-03a / P-03b measure it on /exams.
-      ['P-03a', 'public nav "Sign in" (always in the bar, UX-FIX-1)', '/exams', 'header a[href="/auth/login"]'],
-      ['P-03b', 'public nav menu button', '/exams', 'header button[aria-label="Open menu"]'],
+      // NAV-1 Stage A (re-pointed, rule kept): THE visitor header everywhere. On phones its bar is logo + start action + menu;
+      // "Sign in" is in the menu (UXFIX1 X-05 exemption, extended by NAV-1) — P-03a measures the bar's start action
+      ['P-03a', 'visitor header start action in the phone bar (Sign in is in the menu: X-05 exemption)', '/exams', 'header [data-start="compact"]'],
+      ['P-03b', 'visitor header menu button', '/exams', 'header summary[data-drawer-toggle]'],
       // the landing hero's start action (open: Start free → sign-up / closed: Explore exams → /exams; LANDING-1)
       ['P-03c', 'home hero primary CTA', '/', '#main-content a[data-landing-start="hero"]'],
       ['P-03d', 'home "All exams" card (always rendered)', '/', '#main-content a[data-category="all"]'],
-      ['P-03i', 'home phone menu button (LANDING-1)', '/', 'header summary.lp-burger'],
+      ['P-03i', 'home phone menu button (the shared visitor header)', '/', 'header summary[data-drawer-toggle]'],
       ['P-03e', 'login submit', '/auth/login', 'form button[type="submit"]'],
-      ['P-03f', 'login nav menu button', '/auth/login', 'header button[aria-label="Open menu"]'],
+      ['P-03f', 'login nav menu button', '/auth/login', 'header summary[data-drawer-toggle]'],
       ['P-03g', 'forgot-password submit', '/auth/forgot-password', 'form button[type="submit"]'],
       ['P-03h', 'home nav wordmark link', '/', 'header a[href="/"]'],
     ];
@@ -574,8 +576,11 @@ async function probe() {
         const el = page360.locator(`${sel} >> visible=true`).first();
         // bounded: a streamed (Suspense) element may attach just after "load"; the size rule itself is unchanged
         await el.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
-        const box = await el.boundingBox();
-        if (!box) why('NOTVISIBLE', 'not visible');
+        const raw = await el.boundingBox();
+        if (!raw) why('NOTVISIBLE', 'not visible');
+        // NAV-1: a pill's touch target includes its absolutely positioned ::after hit area (e.g. 36 px pill + 6 px each side)
+        const pad = await el.evaluate((n) => { const a = getComputedStyle(n, '::after'); return a.content !== 'none' && a.position === 'absolute' ? { y: Math.max(0, -parseFloat(a.top || '0')) + Math.max(0, -parseFloat(a.bottom || '0')), x: Math.max(0, -parseFloat(a.left || '0')) + Math.max(0, -parseFloat(a.right || '0')) } : { y: 0, x: 0 }; });
+        const box = { width: raw.width + pad.x, height: raw.height + pad.y };
         if (!(box.height >= 47.5 && box.width >= 47.5)) why(`W${Math.round(box.width)}H${Math.round(box.height)}`, `${box.width.toFixed(1)}×${box.height.toFixed(1)}`);
         return `${box.width.toFixed(1)}×${box.height.toFixed(1)}`;
       });

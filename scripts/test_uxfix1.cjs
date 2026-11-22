@@ -79,7 +79,7 @@ test('X-01 sign-up closed → no /auth/signup start action, primary "Explore SSC
   const pub = code(read('components/shell/public-shell.tsx'));
   // PERF-HOME-1b: the cached shell reads it before rendering (background ISR) through the never-rejecting, bounded
   // signupOpen() (a failure → closed); the session AppShell keeps streaming it (checked above)
-  assert(/start=\{startAction\(NAV_EN, signup\)\}/.test(pub) && /getSignupAvailability\(\)\.then\(\(a\) => a !== "closed", \(\) => false\)/.test(pub) && /await Promise\.all\(\[loadBrandAssets\(\), signupOpen\(\), loadPublicCategoriesCached\(\), loadLandingLiveData\(\)\.catch\(\(\) => null\)\]\)/.test(pub) && !/await getSignupAvailability/.test(pub), 'PublicShell reads the sign-up state through signupOpen() (closed on failure)');
+  assert(/start=\{startAction\(NAV_EN, signup\)\}/.test(pub) && /getSignupAvailability\(\)\.then\(\(a\) => a !== "closed", \(\) => false\)/.test(pub) && /await Promise\.all\(\[loadBrandAssets\(\), signupOpen\(\), loadPublicCategoriesCached\(\), loadNavLive\(\)\]\)/.test(pub) && !/await getSignupAvailability/.test(pub), 'PublicShell reads the sign-up state through signupOpen() (closed on failure)');
   assert(/const start = spot === "hero" \? LANDING_HERO\.primaryCta : LANDING_FINAL_CTA\.cta;\s+return \(\s+<>\s+<PillLink href=\{start\.href\} variant="on-dark"/.test(cta), 'open: ONE primary Start free');
   const L = read('content/landing.ts');
   assert(/primaryCta: \{ label: "Start free"/.test(L) && /cta: \{ label: "Start free"/.test(L) && /startFree: "Start free"/.test(L) && !/Get started/.test(L), 'one label "Start free"');
